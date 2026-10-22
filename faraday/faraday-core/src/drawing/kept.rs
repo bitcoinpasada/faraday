@@ -24,7 +24,7 @@ use crate::gpg::GpgFile;
 use crate::plan;
 use crate::seeds::SeedsState;
 use crate::vault::VaultWallet;
-use crate::wallet::{Key, NonceCheck, Wallet};
+use crate::wallet::{KeyTexts, NonceCheck, Wallet};
 
 impl View<'_> {
     /// Wallet `w`'s address on `network` at `change`/`index`
@@ -63,23 +63,23 @@ impl View<'_> {
         self.kept(|c| w.script_at(c, change, index))
     }
 
-    /// Key `k`'s account key text for `kind` and `account`
-    /// ([`Key::account_text`]), kept on the key. Costs a key derivation
-    /// the first time.
-    pub fn account_text(&self, k: &Key, kind: NewKind, account: u32) -> Result<String, String> {
-        self.kept(|c| k.account_text(c, kind, account))
+    /// Key `i`'s account key text for `kind` and `account`
+    /// ([`crate::wallet::KeyTexts::account_text`]), kept on the key. Costs
+    /// a key derivation the first time.
+    pub fn account_text(&self, i: usize, kind: NewKind, account: u32) -> Result<String, String> {
+        self.kept(|c| self.session.keys.account_text(c, i, kind, account))
     }
 
-    /// Key `k`'s key text at `path` ([`Key::text_at`]), kept on the key.
-    /// Costs a key derivation the first time.
-    pub fn text_at(&self, k: &Key, path: &str) -> Result<String, String> {
-        self.kept(|c| k.text_at(c, path))
+    /// Key `i`'s key text at `path` ([`crate::wallet::KeyTexts::text_at`]),
+    /// kept on the key. Costs a key derivation the first time.
+    pub fn text_at(&self, i: usize, path: &str) -> Result<String, String> {
+        self.kept(|c| self.session.keys.text_at(c, i, path))
     }
 
-    /// What tells key `k`'s words apart ([`Key::words_id`]), kept on the
-    /// key. Costs a parse of the words the first time.
-    pub fn words_id<'k>(&self, k: &'k Key) -> Option<&'k [u8; 32]> {
-        self.kept(|c| k.words_id(c))
+    /// What tells key `i`'s words apart ([`faraday_keys::Keys::words_id`]),
+    /// kept on the key. Costs a parse of the words the first time.
+    pub fn words_id(&self, i: usize) -> Option<&[u8; 32]> {
+        self.kept(|c| self.session.keys.words_id(c, i))
     }
 
     /// The key the words typed on Load a key make, for its status line
@@ -141,7 +141,7 @@ impl View<'_> {
         &self,
         b: &crate::BackupState,
         i: usize,
-        key: &Key,
+        key: &faraday_keys::KeyInfo,
     ) -> plan::CopyChecks {
         self.copy_forms(b, i).checks(
             !self.cameras.is_empty(),
@@ -336,7 +336,7 @@ impl View<'_> {
     /// The account key in slot `slot` of wallet `i`
     /// ([`crate::Faraday::wallet_key`]), from the key's kept account
     /// text. Costs a key derivation the first time.
-    pub fn wallet_key(&self, i: usize, slot: u8) -> Result<WalletKey<'_>, String> {
+    pub fn wallet_key(&self, i: usize, slot: u8) -> Result<WalletKey, String> {
         self.kept(|c| self.app.wallet_key(c, i, slot))
     }
 
@@ -359,7 +359,7 @@ impl View<'_> {
     /// ([`crate::vault::screen::vault_has_key`]), from each key record's
     /// kept fingerprint and id. Costs a PBKDF2 and two elliptic-curve
     /// multiplications per key record the first time.
-    pub(crate) fn vault_has_key(&self, v: usize, key: &Key) -> bool {
+    pub(crate) fn vault_has_key(&self, v: usize, key: &faraday_keys::KeyInfo) -> bool {
         self.kept(|c| crate::vault::screen::vault_has_key(c, self.app, v, key))
     }
 

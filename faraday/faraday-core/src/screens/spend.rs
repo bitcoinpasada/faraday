@@ -264,7 +264,7 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
         None => i
             .participating_keys
             .iter()
-            .filter(|fp| app.session.key_label(**fp).is_some() && !s.signers.contains(&fp.0))
+            .filter(|fp| app.session.keys.key_label(**fp).is_some() && !s.signers.contains(&fp.0))
             .map(|fp| fp_text(*fp))
             .collect::<Vec<_>>(),
     };
@@ -414,7 +414,7 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
             let here = i
                 .participating_keys
                 .iter()
-                .filter(|fp| app.session.key_label(**fp).is_some())
+                .filter(|fp| app.session.keys.key_label(**fp).is_some())
                 .count();
             fill(
                 EN.step_summary_here_needed,
@@ -994,7 +994,7 @@ pub(crate) fn step_body(
             let here = i
                 .participating_keys
                 .iter()
-                .filter(|fp| app.session.key_label(**fp).is_some())
+                .filter(|fp| app.session.keys.key_label(**fp).is_some())
                 .count();
             // Short of signers: Scan a key, the vaults to unlock and
             // Collect a signature; a wallet whose paths differ keeps them
@@ -1110,7 +1110,9 @@ pub(crate) fn step_body(
             let mine: Vec<String> = i
                 .participating_keys
                 .iter()
-                .filter(|fp| app.session.key_label(**fp).is_some() && !s.signers.contains(&fp.0))
+                .filter(|fp| {
+                    app.session.keys.key_label(**fp).is_some() && !s.signers.contains(&fp.0)
+                })
                 .map(|fp| fp_text(*fp))
                 .collect();
             if !s.spend.signed_here.is_empty() {

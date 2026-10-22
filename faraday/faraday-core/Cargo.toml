@@ -47,6 +47,8 @@ guides = ["dep:faraday-guides"]
 
 [dev-dependencies]
 faraday-core = { path = ".", features = ["testkit"] }
+# `Keys::master_for_tests`, for tests that derive a public result themselves.
+faraday-keys = { path = "../faraday-keys", features = ["master-for-tests"] }
 # The disk process's picture reader: what a PNG on a stick reads as.
 faraday-files = { path = "../faraday-files" }
 # The test binary's allocator, counting each thread's allocations for the

@@ -362,7 +362,7 @@ fn silent_card(
     let may = app.may_load_keys();
     let mut cy = y;
     cy += heading(ui, x, cy, EN.compact_key);
-    let held = app.session.key_label(r.fingerprint);
+    let held = app.session.keys.key_label(r.fingerprint);
     ui.text_mid(x, cy, 30.0, 14.0, W::M, TEXT, &fp_text(r.fingerprint));
     let (state, fg, bg) = if held.is_some() {
         (EN.compact_here, OK, OK.with_alpha(30))

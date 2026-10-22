@@ -1,10 +1,10 @@
 //! The seedfile tour.
 
+use crate::tour::{Tour, scroll, scroll_to, seed_files_at, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent, bstep};
 use faraday_crypto::work::Compute;
-use crate::tour::{Tour, scroll, scroll_to, seed_files_at, type_text};
 
 /// Costs a map of the plan (through `seed_files_at`). The backup's
 /// checklist offering a seed into a vault or as a file: with no vault
@@ -20,12 +20,9 @@ pub(crate) fn seedfile_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .app
         .session
         .keys
-        .iter()
-        .position(|k| {
-            k.words
-                .as_deref()
-                .is_some_and(|w| w.as_str() == testkit::test_words(testkit::TEST_SEEDS[1].0))
-        })
+        .all()
+        .enumerate()
+        .position(|(i, _)| testkit::has_test_words(&t.app.session.keys, i, 1))
         .ok_or("test key 2 was not added")?;
     t.press(Action::Backup(0));
     t.backup_as(faraday_core::plan::Preset::PaperVault);

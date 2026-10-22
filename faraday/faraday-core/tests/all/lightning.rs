@@ -58,7 +58,7 @@ fn a_loaded_key_gives_ldk_nodes_node_id() {
     );
     app.press(Action::EntryAdd);
     app.press(Action::Lightning);
-    let fp = app.session.keys[0].fingerprint().0;
+    let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::LKey(fp));
     let n = app.lightning.as_ref().unwrap().node.as_ref().unwrap();
     assert_eq!(

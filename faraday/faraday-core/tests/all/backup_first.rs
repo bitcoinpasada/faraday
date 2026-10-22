@@ -91,7 +91,7 @@ fn made_here(app: &mut Faraday) -> (usize, Fingerprint) {
     app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create);
     let w = app.create.as_ref().and_then(|c| c.built).expect("built");
-    let fp = app.session.keys.last().unwrap().fingerprint();
+    let fp = app.session.keys.last().unwrap().fingerprint;
     (w, fp)
 }
 
@@ -115,13 +115,12 @@ fn checklist(app: &mut Faraday, p: Preset) {
 /// The copy by hand of the key's seed, checked by its words typed back.
 fn check_the_copy(app: &mut Faraday, fp: Fingerprint) {
     let c = testkit::compute();
-    let key = app
+    let key = app.session.keys.position(fp).unwrap();
+    let words = app
         .session
         .keys
-        .iter()
-        .find(|k| k.fingerprint() == fp)
-        .unwrap();
-    let words = key.words.as_ref().unwrap().to_string();
+        .reveal(key, faraday_keys::Reveal::Words)
+        .to_string();
     app.press(Action::BCheck);
     testkit::type_words(app, &words);
     assert!(
@@ -223,7 +222,7 @@ fn a_restored_key_signs_at_once() {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
-    let fp = app.session.keys[0].fingerprint();
+    let fp = app.session.keys[0].fingerprint;
     assert!(!app.key_held(&c, fp));
     assert_ne!(app.spend_button(&c, 0).0, "Finish the backup first");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
@@ -282,7 +281,7 @@ fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
     unlock(&mut next);
     next.press(Action::Vault(V::LoadChosen(0)));
     assert!(
-        next.session.keys.iter().any(|k| k.fingerprint() == fp),
+        next.session.keys.all().any(|k| k.fingerprint == fp),
         "the key did not load"
     );
     assert!(next.key_held(&c, fp), "the key signs after a lock");

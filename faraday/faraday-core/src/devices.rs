@@ -566,7 +566,7 @@ impl Faraday {
                     && !self.airgap_warned
                     && self.session.network().is_mainnet()
                     && self.session.wallets.is_empty()
-                    && !self.session.network_fixed() =>
+                    && !self.session.keys.network_fixed() =>
             {
                 self.test_asked = Some(n);
                 self.sheet = Some(Sheet::NotAirgapped);

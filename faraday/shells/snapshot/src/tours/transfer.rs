@@ -1,10 +1,10 @@
 //! The transfer tour.
 
+use crate::tour::Tour;
 use faraday_core::testkit;
 use faraday_core::{Action, Screen};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
-use crate::tour::Tour;
 
 /// Costs what `set_demo` costs.
 pub(crate) fn transfer_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {

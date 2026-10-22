@@ -37,6 +37,12 @@ fn unhex(s: &str) -> Vec<u8> {
         .collect()
 }
 
+/// The mainnet master key of `m` with no passphrase, made directly: tests
+/// may build keys themselves.
+fn master(c: &Compute, m: &Mnemonic) -> MasterKey {
+    MasterKey::from_seed(c, &m.to_seed(c, b"").unwrap(), Network::Mainnet)
+}
+
 fn words(text: &str) -> Mnemonic {
     Mnemonic::parse(&compute(), Language::English, text).expect("the words")
 }
@@ -143,7 +149,7 @@ fn a_message_signed_by_the_published_key_verifies_for_its_address() {
     let c = compute();
     let get = record("trezor p2wpkh mainnet");
     let m = words(get("words"));
-    let master = identity::master_of(&c, Material::Words(&m), "", Network::Mainnet).unwrap();
+    let master = master(&c, &m);
     let path: DerivationPath = get("path").parse().unwrap();
     let signed = faraday_keys::message::sign(
         &c,
@@ -214,8 +220,8 @@ fn a_silent_payment_address_is_the_one_bip352_publishes() {
 fn a_silent_wallet_comes_from_the_paths_the_bip_names() {
     let c = compute();
     let m = words(ABANDON);
-    let master = identity::master_of(&c, Material::Words(&m), "", Network::Mainnet).unwrap();
-    let receiver = faraday_keys::silent::receiver(&c, &master, 0);
+    let master = master(&c, &m);
+    let receiver = Receiver::derive(&c, &master, 0);
     let secp = Secp256k1::new();
     let spend = master.derive(&c, &faraday_bip::silent::spend_path(Network::Mainnet, 0));
     assert_eq!(
@@ -280,4 +286,112 @@ fn totp_codes_are_the_ones_rfc_6238_publishes() {
         faraday_keys::totp::code_at("otpauth://hotp/x?secret=GEZDGNBVGY3TQOJQ&counter=1", 0),
         Err(faraday_keys::totp::NotTotp::Hotp)
     ));
+}
+
+#[test]
+fn keys_added_from_words_come_back_with_their_fingerprint_and_word_count() {
+    use faraday_keys::{Keys, Part, Reveal};
+    let c = compute();
+    let mut keys = Keys::on(Network::Testnet);
+    let fp = keys
+        .add_words(&c, ABANDON, "", None)
+        .expect("the key loads");
+    assert_eq!(fp.0, [0x73, 0xc5, 0xda, 0x0a]);
+    let info = keys.info(0).expect("the key is held");
+    assert_eq!(info.fingerprint, fp);
+    assert_eq!(info.word_count, Some(12));
+    assert!(!info.has_passphrase);
+    // With no label the fingerprint names it.
+    assert_eq!(info.label, "73c5da0a");
+    // The words come back as they were loaded, and a key with no
+    // passphrase has none to show.
+    assert_eq!(&*keys.reveal(0, Reveal::Words), ABANDON);
+    assert_eq!(&*keys.reveal(0, Reveal::OutboxFile(Part::Words)), ABANDON);
+    assert!(keys.reveal(0, Reveal::Passphrase).is_empty());
+    // The same words with a passphrase are another key; the same key twice
+    // is refused.
+    let other = keys
+        .add_words_with(&c, ABANDON, "TREZOR", "With a passphrase", None)
+        .expect("the second key loads");
+    assert_ne!(other, fp);
+    assert!(keys.info(1).is_some_and(|k| k.has_passphrase));
+    assert_eq!(&*keys.reveal(1, Reveal::Passphrase), "TREZOR");
+    assert!(keys.passphrase_matches(1, "TREZOR"));
+    assert!(!keys.passphrase_matches(1, "trezor"));
+    assert!(!keys.passphrase_matches(0, ""));
+    assert!(keys.add_words(&c, ABANDON, "", None).is_err());
+    // The two share their words.
+    assert_eq!(keys.with_same_words(0), vec![0, 1]);
+    assert!(keys.same_words(&c, 0, 1));
+    // The key a passphrase would make is told before it is added.
+    assert_eq!(keys.fingerprint_with(&c, 0, "TREZOR"), Some(other));
+    assert_eq!(keys.position(other), Some(1));
+    keys.remove(0);
+    assert_eq!(keys.len(), 1);
+    assert_eq!(keys[0].fingerprint, other);
+}
+
+#[test]
+fn a_key_from_a_master_seed_has_no_words_to_show() {
+    use faraday_keys::{Keys, Reveal};
+    let c = compute();
+    let mut keys = Keys::on(Network::Testnet);
+    let seed = [7u8; 32];
+    let fp = keys.add_seed(&c, &seed, "A seed").expect("the seed loads");
+    let info = keys.info(0).expect("the key is held");
+    assert_eq!(info.fingerprint, fp);
+    assert_eq!(info.word_count, None);
+    assert!(!info.has_words());
+    assert!(keys.reveal(0, Reveal::Words).is_empty());
+    // A seed longer than the master seeds there are is refused.
+    assert!(keys.add_seed(&c, &[1u8; 65], "Too long").is_err());
+}
+
+#[test]
+fn a_copy_of_the_words_is_compared_by_their_numbers() {
+    use faraday_keys::{CopyCheck, Keys};
+    let c = compute();
+    let mut keys = Keys::on(Network::Testnet);
+    keys.add_words(&c, ABANDON, "", None)
+        .expect("the key loads");
+    let right: Vec<u16> = words(ABANDON).indices().to_vec();
+    assert_eq!(keys.words_match(&c, 0, &right), Some(CopyCheck::Matches));
+    let mut wrong = right.clone();
+    wrong[4] ^= 1;
+    assert_eq!(
+        keys.words_match(&c, 0, &wrong),
+        Some(CopyCheck::WrongWord(5))
+    );
+    // A copy that stops short is wrong at the word it lacks.
+    assert_eq!(
+        keys.words_match(&c, 0, &right[..11]),
+        Some(CopyCheck::WrongWord(12))
+    );
+    assert_eq!(keys.words_match(&c, 3, &right), None);
+}
+
+#[test]
+fn the_vault_record_of_a_key_holds_its_words_and_passphrase_when_asked() {
+    use faraday_keys::{Keys, Part, Reveal};
+    use faraday_vault::records::{field, kind};
+    let c = compute();
+    let mut keys = Keys::on(Network::Testnet);
+    keys.add_words_with(&c, ABANDON, "TREZOR", "Key", None)
+        .expect("the key loads");
+    let plain = keys
+        .key_record(&c, 0, None, false, Reveal::VaultEntry(Part::Words))
+        .expect("a record");
+    assert_eq!(plain.kind, kind::KEY);
+    assert!(plain.field(field::KEY_PASSPHRASE).is_none());
+    assert_eq!(plain.field(field::KEY_LABEL), Some(&b"Key"[..]));
+    let with = keys
+        .key_record(&c, 0, Some(1), true, Reveal::VaultEntry(Part::Words))
+        .expect("a record");
+    assert_eq!(with.field(field::KEY_PASSPHRASE), Some(&b"TREZOR"[..]));
+    assert_eq!(with.field(field::KEY_FLAGS), Some(&[1u8][..]));
+    // The same words alone make the record the words are kept as.
+    let alone = keys
+        .words_record(&c, 0, Reveal::VaultEntry(Part::Words))
+        .expect("a record");
+    assert_eq!(alone.field(field::KEY), plain.field(field::KEY));
 }

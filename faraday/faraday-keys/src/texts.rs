@@ -16,6 +16,35 @@ pub struct AccountKey {
     pub path: DerivationPath,
 }
 
+/// Which public key a text is of: an account key of a script, or any path.
+/// Public data only; the master key stays in this crate.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Spec {
+    /// A single-key wallet's account key of this script, at this account.
+    Single(ScriptType, u32),
+    /// A multisig cosigner's account key of this script, at this account.
+    Multisig(MultisigScriptType, u32),
+    /// The key at this path below the master key.
+    Path(DerivationPath),
+}
+
+/// Costs a key derivation. `[fingerprint/path]xpub` of `master` as `spec`
+/// says.
+pub fn key_text(c: &Compute, master: &MasterKey, spec: &Spec) -> Result<String, String> {
+    let key = match spec {
+        Spec::Single(t, a) => single_account(c, master, *t, *a)?,
+        Spec::Multisig(t, a) => multisig_account(c, master, *t, *a)?,
+        Spec::Path(p) => account_at(c, master, p),
+    };
+    if key.path.as_ref().is_empty() {
+        return Ok(format!("[{}]{}", key.fingerprint, key.xpub));
+    }
+    let shown = format!("{}", key.path)
+        .trim_start_matches("m/")
+        .replace('\'', "h");
+    Ok(format!("[{}/{shown}]{}", key.fingerprint, key.xpub))
+}
+
 /// Costs a key derivation. The account key of `master` for a single-key
 /// wallet of `script`, at `account`.
 pub fn single_account(
@@ -65,7 +94,7 @@ pub fn account_at(c: &Compute, master: &MasterKey, path: &DerivationPath) -> Acc
 /// Costs a key derivation and a signature. A key's BIP 129 key record,
 /// signed by the account key itself, for the multisig script `script` at
 /// `account`: the record's text.
-pub fn bsms_record(
+pub(crate) fn bsms_record(
     c: &Compute,
     master: &MasterKey,
     script: MultisigScriptType,

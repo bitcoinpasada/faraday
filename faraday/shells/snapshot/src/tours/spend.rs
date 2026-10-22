@@ -1,10 +1,10 @@
 //! The spend tour.
 
+use crate::tour::{Tour, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent};
 use faraday_shell_api::{App, Event};
-use crate::tour::{Tour, type_text};
 
 pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::family::{FamilyAction as F, page};
@@ -94,7 +94,7 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
     // A vanity address for test key 1, on its account number.
     use faraday_core::vanity::{VanityAction as Va, vstep};
     t.press(Action::Vanity(Va::Open));
-    let first = t.app.session.keys[0].master().fingerprint().0;
+    let first = t.app.session.keys[0].fingerprint.0;
     t.press(Action::Vanity(Va::Key(first)));
     t.shot("vanity-dial")?;
     t.press(Action::Vanity(Va::Next(vstep::DIAL)));

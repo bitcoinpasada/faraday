@@ -31,9 +31,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let keys: Vec<(String, Style, Action)> = app
         .session
         .keys
-        .iter()
+        .all()
         .map(|k| {
-            let fp = k.fingerprint();
+            let fp = k.fingerprint;
             (
                 crate::wallet::key_line(fp, &k.label),
                 if e.key == Some(fp.0) {

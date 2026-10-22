@@ -989,15 +989,15 @@ mod tests {
         assert_eq!(app.session.network(), faraday_core::testkit::NET);
         let other = "abandon abandon abandon abandon abandon abandon \
                      abandon abandon abandon abandon abandon about";
-        assert!(app.session.add_words(&c, other, "", None).is_ok());
+        assert!(app.session.keys.add_words(&c, other, "", None).is_ok());
         let mut app = desktop_app();
         app.press(faraday_core::Action::Network(
             faraday_bip::keys::Network::Mainnet,
         ));
         assert!(app.session.network().is_mainnet());
-        assert!(app.session.add_words(&c, other, "", None).is_err());
+        assert!(app.session.keys.add_words(&c, other, "", None).is_err());
         let public = faraday_core::demo::words("zebra");
-        assert!(app.session.add_words(&c, &public, "", None).is_ok());
+        assert!(app.session.keys.add_words(&c, &public, "", None).is_ok());
         app.press(faraday_core::Action::Network(faraday_core::testkit::NET));
         assert_eq!(app.session.network(), faraday_core::testkit::NET);
         assert!(app.sheet.is_none());

@@ -35,6 +35,7 @@ lint:
     tools/lint-docs.sh
     cargo run -q -p costs-lint
     tools/lint-unchecked.sh
+    tools/lint-keys-tests.sh
     tools/check-macos.sh
     python3 tools/learn/sync.py check
 

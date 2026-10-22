@@ -237,8 +237,8 @@ fn a_seedqr_scanned_from_home_loads_the_key_add_a_keys_scan_loads() {
     assert!(app.inbox.is_empty());
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(
-        app.session.keys[0].fingerprint(),
-        from_add.session.keys[0].fingerprint()
+        app.session.keys[0].fingerprint,
+        from_add.session.keys[0].fingerprint
     );
     assert_eq!(app.screen, Screen::Wallets);
 }
@@ -656,6 +656,7 @@ fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
     });
     // A key the test vault does not hold, to save into it.
     app.session
+        .keys
         .add_words(
             &c,
             "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon \

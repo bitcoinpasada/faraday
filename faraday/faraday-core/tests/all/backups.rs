@@ -80,7 +80,7 @@ fn with_a_wallet() -> Faraday {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);
-    let fp = app.session.keys[0].fingerprint().0;
+    let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(S::Make));
     assert_eq!(app.session.wallets.len(), 1, "no wallet was made");
@@ -259,8 +259,8 @@ fn a_locked_vault_is_named_for_a_seed_it_held_and_not_for_another_with_its_finge
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 2, "test key 2 loaded");
     let (fp1, fp2) = (
-        fp_text(app.session.keys[0].fingerprint()),
-        fp_text(app.session.keys[1].fingerprint()),
+        fp_text(app.session.keys[0].fingerprint),
+        fp_text(app.session.keys[1].fingerprint),
     );
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::SaveKey(1)));

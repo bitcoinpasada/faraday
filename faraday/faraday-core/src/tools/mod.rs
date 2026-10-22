@@ -10,6 +10,7 @@
 pub(crate) mod screen;
 
 use crate::strings::EN;
+use crate::wallet::KeyTexts;
 use faraday_bip::compile::PolicyScript;
 use faraday_codec::encodings::ReadAs;
 use faraday_crypto::work::Compute;
@@ -138,11 +139,16 @@ impl Faraday {
     pub fn tools_keys(&self, c: &Compute) -> Vec<(String, String)> {
         self.session
             .keys
-            .iter()
-            .filter_map(|k| {
-                let text = k.account_text(c, crate::create::NewKind::Multi, 0).ok()?;
+            .all()
+            .enumerate()
+            .filter_map(|(i, k)| {
+                let text = self
+                    .session
+                    .keys
+                    .account_text(c, i, crate::create::NewKind::Multi, 0)
+                    .ok()?;
                 Some((
-                    crate::wallet::fp_text(k.fingerprint()),
+                    crate::wallet::fp_text(k.fingerprint),
                     format!("{text}/<0;1>/*"),
                 ))
             })

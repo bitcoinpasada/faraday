@@ -152,7 +152,7 @@ fn wallet_names(app: &Faraday) -> Vec<String> {
 }
 
 fn key_labels(app: &Faraday) -> Vec<String> {
-    let mut v: Vec<String> = app.session.keys.iter().map(|k| k.label.clone()).collect();
+    let mut v: Vec<String> = app.session.keys.all().map(|k| k.label.clone()).collect();
     v.sort();
     v
 }
@@ -333,7 +333,7 @@ fn what_is_loaded_already_shows_loaded_and_is_not_loaded_twice() {
     let ones = app
         .session
         .keys
-        .iter()
+        .all()
         .filter(|k| k.label == testkit::TEST_SEEDS[1].1)
         .count();
     assert_eq!(ones, 1);
@@ -437,7 +437,7 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         app.press(Action::Entry(None));
         type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
         app.press(Action::EntryAdd);
-        let fp = app.session.keys.last().unwrap().fingerprint();
+        let fp = app.session.keys.last().unwrap().fingerprint;
         app.press(Action::KeyWallet(fp.0, 1));
         app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
         let w = app.session.wallets.len() - 1;

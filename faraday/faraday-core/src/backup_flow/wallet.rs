@@ -293,21 +293,18 @@ impl Faraday {
     /// wallet `w` as text, without its passphrase: the fingerprint of the
     /// same words alone.
     pub(crate) fn wallet_seed_bases(&self, c: &Compute, w: usize) -> Vec<String> {
-        use faraday_vault::Record;
-        use faraday_vault::records::{self, field, kind as rkind};
         self.backup_seed_list_now(w)
             .into_iter()
             .map(|(name, k)| {
-                let Some(key) = k.and_then(|k| self.session.keys.get(k)) else {
+                let Some(rec) = k.and_then(|k| {
+                    self.session.keys.words_record(
+                        c,
+                        k,
+                        faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
+                    )
+                }) else {
                     return name;
                 };
-                let Some(words) = key.words.as_ref() else {
-                    return name;
-                };
-                let Ok(m) = crate::wallet::parse_words(c, key.language, words) else {
-                    return name;
-                };
-                let rec = Record::new(rkind::KEY).with(field::KEY, &records::words_payload(&m));
                 crate::vault::screen::key_fingerprint(c, self, &rec).unwrap_or(name)
             })
             .collect()
@@ -610,7 +607,7 @@ impl Faraday {
                         continue;
                     };
                     if let (P::SeedQrFile(_), Some(name)) = (what, names.first()) {
-                        let fp = crate::wallet::fp_text(self.session.keys[k].fingerprint());
+                        let fp = crate::wallet::fp_text(self.session.keys[k].fingerprint);
                         expect.push((name.clone(), ReadBack::Seed(fp)));
                     }
                     if let (Some(name), Some(bytes)) =
@@ -668,14 +665,7 @@ impl Faraday {
     /// picture must read as (English words only, as the picture is made).
     /// `None` where the words are not here.
     pub(crate) fn seedqr_reads_as(&self, c: &Compute, k: usize, payload: &[u8]) -> Option<bool> {
-        use faraday_bip::bip39::Language;
-        let key = self.session.keys.get(k)?;
-        if key.language != Language::English {
-            return None;
-        }
-        let m = crate::wallet::parse_words(c, key.language, key.words.as_deref()?).ok()?;
-        let digits = faraday_codec::seedqr::to_digits(&m);
-        Some(digits.expose().as_bytes() == payload)
+        self.session.keys.seedqr_reads_as(c, k, payload)
     }
 
     /// The files of `made` named in `names`, For the stick.
@@ -699,7 +689,8 @@ impl Faraday {
         what: plan::What,
     ) -> Option<zeroize::Zeroizing<Vec<u8>>> {
         use faraday_bip::bip39::Language;
-        let key = self.session.keys.get(k)?;
+        use faraday_keys::{Part, Reveal};
+        let key = self.session.keys.info(k)?;
         let line = |t: &str| {
             let mut v = Vec::with_capacity(t.len() + 1);
             v.extend_from_slice(t.as_bytes());
@@ -707,14 +698,33 @@ impl Faraday {
             zeroize::Zeroizing::new(v)
         };
         match what {
-            plan::What::SeedFile(_) => Some(line(key.words.as_deref()?)),
-            plan::What::PassphraseFile(_) => Some(line(key.passphrase.as_deref()?)),
+            plan::What::SeedFile(_) => key.has_words().then(|| {
+                line(
+                    &self
+                        .session
+                        .keys
+                        .reveal(k, Reveal::BackupStick(Part::Words)),
+                )
+            }),
+            plan::What::PassphraseFile(_) => key.has_passphrase.then(|| {
+                line(
+                    &self
+                        .session
+                        .keys
+                        .reveal(k, Reveal::BackupStick(Part::Passphrase)),
+                )
+            }),
             plan::What::SeedQrFile(_) => {
                 if key.language != Language::English {
                     return None;
                 }
-                let m = crate::wallet::parse_words(c, key.language, key.words.as_deref()?).ok()?;
-                seedqr_png(c, &m, &fp_text(key.fingerprint()))
+                let (mx, words) = self.session.keys.seedqr_matrix(
+                    c,
+                    k,
+                    false,
+                    Reveal::BackupStick(Part::SeedQr),
+                )?;
+                Some(seedqr_picture(c, &mx, words, &fp_text(key.fingerprint)))
             }
             _ => None,
         }
@@ -1045,21 +1055,20 @@ impl Faraday {
         let mut moved: Vec<(Fingerprint, usize)> = Vec::new();
         for s in held.into_iter().filter(|&s| on_stick(s)) {
             if let Some(k) = list.get(s).and_then(|(_, k)| *k)
-                && let Some(key) = self.session.keys.get(k)
+                && let Some(key) = self.session.keys.info(k)
             {
-                moved.push((key.fingerprint(), k));
+                moved.push((key.fingerprint, k));
             }
         }
         for (fp, k) in moved {
             // The same words without that passphrase are covered by the
             // same copy.
-            let words = self.session.keys[k].words.clone();
             let same: Vec<Fingerprint> = self
                 .session
                 .keys
-                .iter()
-                .filter(|o| o.words.is_some() && o.words == words)
-                .map(|o| o.fingerprint())
+                .with_same_words(k)
+                .into_iter()
+                .map(|o| self.session.keys[o].fingerprint)
                 .collect();
             self.made_here.retain(|f| *f != fp && !same.contains(f));
             for f in same.iter().chain(std::iter::once(&fp)) {
@@ -1398,8 +1407,8 @@ impl Faraday {
                     Some(r) => w.add.push(r),
                     None => {
                         let want = if want_pass { &name } else { &base };
-                        let k = self.session.keys.iter().position(|k| {
-                            k.words.is_some() && fp_text(k.fingerprint()).eq_ignore_ascii_case(want)
+                        let k = self.session.keys.all().position(|k| {
+                            k.has_words() && fp_text(k.fingerprint).eq_ignore_ascii_case(want)
                         });
                         match k {
                             Some(k) => w.typed.push((k, want_pass)),
@@ -2278,8 +2287,8 @@ fn seed_map(
     for (slot, src) in slots.iter().enumerate() {
         if let crate::create::Source::Here(fp) = src
             && let Some(s) = list.iter().position(|(_, k)| {
-                k.and_then(|k| session.keys.get(k))
-                    .is_some_and(|key| key.fingerprint().0 == *fp)
+                k.and_then(|k| session.keys.info(k))
+                    .is_some_and(|key| key.fingerprint.0 == *fp)
             })
         {
             map[slot] = s;
@@ -2360,14 +2369,20 @@ pub(crate) fn seedqr_png(
         return None;
     }
     let mx = faraday_codec::seedqr::encode_seedqr(c, m).ok()?;
+    Some(seedqr_picture(c, &mx, m.word_count(), fp))
+}
+
+/// Costs a picture. The SeedQR `mx`, of a seed of `words` words, as a
+/// labelled picture titled with its fingerprint `fp`.
+pub(crate) fn seedqr_picture(
+    c: &Compute,
+    mx: &faraday_codec::qr::QrMatrix,
+    words: usize,
+    fp: &str,
+) -> zeroize::Zeroizing<Vec<u8>> {
     let title = fill(EN.secrets_seed, &[fp]);
-    let lines = [fill(
-        EN.secrets_words_secret,
-        &[&m.word_count().to_string()],
-    )];
-    Some(zeroize::Zeroizing::new(crate::picture::labelled_png(
-        c, &mx, &title, &lines,
-    )))
+    let lines = [fill(EN.secrets_words_secret, &[&words.to_string()])];
+    zeroize::Zeroizing::new(crate::picture::labelled_png(c, mx, &title, &lines))
 }
 
 /// The name seed form `what` of the seed with fingerprint `fp` is written

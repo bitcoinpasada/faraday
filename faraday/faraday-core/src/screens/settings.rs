@@ -709,7 +709,7 @@ fn idle_rows(app: &View) -> Vec<IdleRow> {
 pub(crate) fn network_row_items(app: &View) -> Vec<(&'static str, Style, Action)> {
     use faraday_bip::keys::Network;
     let now = app.session.network();
-    let fixed = app.session.network_fixed();
+    let fixed = app.session.keys.network_fixed();
     Network::ALL
         .iter()
         .filter(|&&n| !fixed || n == now)

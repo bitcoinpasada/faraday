@@ -31,6 +31,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vault::VaultAction as V;
 use crate::{Action, BStage, Faraday, Screen, Sheet, bstep};
+use faraday_keys::Reveal;
 
 /// What on the chart a sheet is for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -275,8 +276,8 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
         let english = app
             .session
             .keys
-            .iter()
-            .find(|k| k.fingerprint().0 == fp)
+            .all()
+            .find(|k| k.fingerprint.0 == fp)
             .is_none_or(|k| k.language == faraday_bip::bip39::Language::English);
         let checks = forms.checks(!app.cameras.is_empty(), english);
         let mut rows = Vec::new();
@@ -1265,12 +1266,14 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             let shown = key.fp.and_then(|fp| {
                 app.session
                     .keys
-                    .iter()
-                    .find(|x| x.fingerprint().0 == fp)
-                    .and_then(|x| x.passphrase.as_ref())
+                    .position_of(fp)
+                    .filter(|&x| app.session.keys[x].has_passphrase)
             });
             match (shown, app.chart_work.reveal) {
-                (Some(p), true) => v.secret_lines.push((p.clone(), TEXT)),
+                (Some(x), true) => v.secret_lines.push((
+                    zeroize::Zeroizing::new(app.reveal(x, Reveal::Passphrase).to_string()),
+                    TEXT,
+                )),
                 (Some(_), false) => v.groups.push((
                     String::new(),
                     vec![row(
@@ -1568,11 +1571,7 @@ impl Faraday {
                     Step::Scan(fp) => {
                         // The copy is checked against the seed, and the
                         // chart stays under the camera.
-                        let k = self
-                            .session
-                            .keys
-                            .iter()
-                            .position(|k| k.fingerprint().0 == fp);
+                        let k = self.session.keys.all().position(|k| k.fingerprint.0 == fp);
                         if let Some(k) = k
                             && self.chart_checklist(w, from_vault)
                         {
@@ -1582,11 +1581,7 @@ impl Faraday {
                     }
                     Step::Type(fp, n) => {
                         // The words of the copy typed back, at its item.
-                        let k = self
-                            .session
-                            .keys
-                            .iter()
-                            .position(|k| k.fingerprint().0 == fp);
+                        let k = self.session.keys.all().position(|k| k.fingerprint.0 == fp);
                         if let Some(k) = k
                             && self.chart_checklist(w, from_vault)
                         {

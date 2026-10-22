@@ -43,10 +43,11 @@ fn backing_up(passphrase: &str) -> Faraday {
     )
     .unwrap();
     app.session
+        .keys
         .add_mnemonic(&c, &m, passphrase, "Key", None)
         .unwrap();
     let text = NewKind::NativeSegwit
-        .key_text(&c, app.session.keys[0].master())
+        .key_text(&c, app.session.keys.master_for_tests(0))
         .unwrap();
     let w = app
         .session

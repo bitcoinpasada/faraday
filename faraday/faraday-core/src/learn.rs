@@ -69,12 +69,12 @@ impl Faraday {
     /// action the demo dims (`docs/DEMO.md` §4, §7).
     pub fn learn_pages(&self) -> Vec<&'static LearnPage> {
         let mut pages = self.screen_pages();
-        let keys_in = self.session.has_demo()
+        let keys_in = self.session.keys.has_demo()
             && matches!(
                 self.screen,
                 Screen::Home | Screen::Entry | Screen::KeyGen | Screen::Settings
             );
-        let dims = self.session.demo()
+        let dims = self.session.keys.demo()
             && (matches!(
                 self.screen,
                 Screen::BackupFlow

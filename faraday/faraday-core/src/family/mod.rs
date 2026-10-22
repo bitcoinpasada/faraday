@@ -22,6 +22,7 @@ pub(crate) mod text;
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::wallet::KeyTexts;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Command;
@@ -566,7 +567,10 @@ impl Faraday {
             F::NoMoney => self.family_no_money(),
             F::Passphrase(yes) => {
                 if yes {
-                    if let Some(fp) = self.family_words_key().map(|k| k.fingerprint()) {
+                    if let Some(fp) = self
+                        .family_words_key()
+                        .map(|k| self.session.keys[k].fingerprint)
+                    {
                         self.seed_read_family(fp, crate::seeds::read::ForFamily::Guess);
                     }
                 } else {
@@ -822,12 +826,7 @@ impl Faraday {
         if !self.session.wallets.is_empty() {
             return;
         }
-        let fps: Vec<[u8; 4]> = self
-            .session
-            .keys
-            .iter()
-            .map(|k| k.fingerprint().0)
-            .collect();
+        let fps: Vec<[u8; 4]> = self.session.keys.all().map(|k| k.fingerprint.0).collect();
         for fp in fps {
             self.family.seeds.take(fp);
             self.family_came(Came::Seed(fp));
@@ -881,7 +880,7 @@ impl Faraday {
                 Came::Seed(fp) => Some(Fingerprint(*fp)),
                 Came::File(_) => None,
             })
-            .filter(|fp| self.session.keys.iter().any(|k| k.fingerprint() == *fp))
+            .filter(|fp| self.session.keys.all().any(|k| k.fingerprint == *fp))
             .filter(|fp| matches!(self.wallet_key_found(w, *fp), Found::None))
             .collect()
     }
@@ -953,7 +952,11 @@ impl Faraday {
         let note = match self.wallet_key_found(w, fp) {
             Found::Missing(_) => {
                 let label = self.wallet_key_label(&c, w, fp);
-                match self.session.add_words_with(&c, words, "", &label, None) {
+                match self
+                    .session
+                    .keys
+                    .add_words_with(&c, words, "", &label, None)
+                {
                     Ok(_) => {
                         self.family_came(Came::Seed(fp.0));
                         self.refresh_spend();
@@ -1225,12 +1228,17 @@ impl Faraday {
     /// The seed's passphrase was typed for the guess: the seed is its
     /// key with the passphrase from now on, and native SegWit with it is
     /// tried. With none typed, the guess goes on without one.
-    pub(crate) fn family_guess_pass(&mut self, plain: Fingerprint, words: &str, pass: &str) {
+    pub(crate) fn family_guess_pass(
+        &mut self,
+        plain: Fingerprint,
+        source: &crate::seeds::read::Source,
+        pass: &str,
+    ) {
         if pass.is_empty() {
             self.family_guess_step(2);
             return;
         }
-        if self.family_seed_with(plain, words, pass).is_none() {
+        if self.family_seed_with(plain, source, pass).is_none() {
             return;
         }
         if let Some(g) = self.family.guess.as_mut() {
@@ -1244,12 +1252,13 @@ impl Faraday {
     pub(crate) fn family_seed_with(
         &mut self,
         plain: Fingerprint,
-        words: &str,
+        source: &crate::seeds::read::Source,
         pass: &str,
     ) -> Option<Fingerprint> {
         let c = self.compute();
         let label = self
             .session
+            .keys
             .key_label(plain)
             .map(|l| {
                 if l.is_empty() || l.eq_ignore_ascii_case(&fp_text(plain)) {
@@ -1259,9 +1268,11 @@ impl Faraday {
                 }
             })
             .unwrap_or_default();
-        let fp = match self.session.add_words_with(&c, words, pass, &label, None) {
+        let fp = match source.add(&c, &mut self.session.keys, pass, &label) {
             Ok(fp) => fp,
-            Err(crate::wallet::Refusal::Duplicate(_)) => key_of(&c, words, pass)?,
+            Err(crate::wallet::Refusal::Duplicate(_)) => {
+                source.fingerprint(&c, &self.session.keys, pass)?
+            }
             Err(e) => {
                 self.toast(&e.text());
                 return None;
@@ -1316,13 +1327,13 @@ impl Faraday {
 
     /// The key the words route's single-key wallet is opened from: the
     /// first seed typed on the route, else the last loaded.
-    pub(crate) fn family_words_key(&self) -> Option<&crate::wallet::Key> {
+    pub(crate) fn family_words_key(&self) -> Option<usize> {
         self.family
             .seeds
             .keys
             .first()
-            .and_then(|fp| self.session.keys.iter().find(|k| k.fingerprint().0 == *fp))
-            .or(self.session.keys.last())
+            .and_then(|fp| self.session.keys.position_of(*fp))
+            .or(self.session.keys.len().checked_sub(1))
     }
 
     /// The wallet the last key typed opens as `kind`, in place of the one
@@ -1332,7 +1343,7 @@ impl Faraday {
         let Some(key) = self.family_words_key() else {
             return;
         };
-        let text = match key.account_text(&c, kind, 0) {
+        let text = match self.session.keys.account_text(&c, key, kind, 0) {
             Ok(t) => t,
             Err(e) => {
                 self.family.error = Some(e);

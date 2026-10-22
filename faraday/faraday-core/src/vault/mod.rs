@@ -1228,7 +1228,7 @@ impl Vaults {
 impl Faraday {
     /// Whether anything secret is in memory: a key, or an open vault.
     pub fn holds_secret(&self) -> bool {
-        self.session.holds_secret() || !self.vaults.open.is_empty()
+        self.session.keys.holds_secret() || !self.vaults.open.is_empty()
     }
 
     /// Costs a parse of each key's words. The session's keys and wallets
@@ -1261,16 +1261,10 @@ impl Faraday {
         let keys = self
             .session
             .keys
-            .iter()
-            .filter(|k| {
-                let payload = k
-                    .words
-                    .as_ref()
-                    .and_then(|w| crate::wallet::parse_words(c, k.language, w).ok())
-                    .map(|m| records::words_payload(&m));
-                !payload.is_some_and(|p| held_keys.contains(&p.as_slice()))
-            })
-            .map(|k| k.label.clone())
+            .all()
+            .enumerate()
+            .filter(|(i, _)| !self.session.keys.words_payload_among(c, *i, &held_keys))
+            .map(|(_, k)| k.label.clone())
             .collect();
         let wallets = self
             .session
@@ -1366,9 +1360,9 @@ impl Faraday {
                     .then(|| v.label())
             })
         };
-        for k in &self.session.keys {
-            let vault = k.words_id(c).and_then(in_vault_key);
-            let copy = self.seed_copy_checked(c, k.fingerprint().0);
+        for (i, k) in self.session.keys.all().enumerate() {
+            let vault = self.session.keys.words_id(c, i).and_then(in_vault_key);
+            let copy = self.seed_copy_checked(c, k.fingerprint.0);
             let (state, nowhere) = match (vault, copy) {
                 (Some(v), true) => (fill(EN.vaults_in_copy_checked, &[&v.to_string()]), false),
                 (Some(v), false) => (fill(EN.vaults_in, &[&v.to_string()]), false),
@@ -1377,7 +1371,7 @@ impl Faraday {
             };
             // A key with no name of its own goes by "Seed {fingerprint}",
             // as the backup map writes it.
-            let fp = crate::wallet::fp_text(k.fingerprint());
+            let fp = crate::wallet::fp_text(k.fingerprint);
             let name = if k.label.is_empty() || k.label.eq_ignore_ascii_case(&fp) {
                 fill(EN.vaults_seed_n, &[&fp.to_string()])
             } else {
@@ -2401,6 +2395,7 @@ impl Faraday {
                 let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
                 match self
                     .session
+                    .keys
                     .add_words_with(&c, &words, &passphrase, &label, None)
                 {
                     Ok(fp) => {
@@ -2819,8 +2814,8 @@ impl Faraday {
             let loaded = self
                 .session
                 .keys
-                .iter()
-                .any(|k| crate::wallet::fp_text(k.fingerprint()) == fp);
+                .all()
+                .any(|k| crate::wallet::fp_text(k.fingerprint) == fp);
             rows.push(VaultRow {
                 record: i,
                 name: r
@@ -3048,12 +3043,17 @@ impl Faraday {
             }
         }
         for ((w, label), p) in words.iter().zip(&passphrases) {
-            if self.session.add_words_with(&c, w, p, label, None).is_ok() {
+            if self
+                .session
+                .keys
+                .add_words_with(&c, w, p, label, None)
+                .is_ok()
+            {
                 keys += 1;
             }
         }
         for (seed, label) in &seeds {
-            if self.session.add_seed(&c, seed, label).is_ok() {
+            if self.session.keys.add_seed(&c, seed, label).is_ok() {
                 keys += 1;
             }
         }
@@ -3209,10 +3209,10 @@ impl Faraday {
                             Some(p) => Zeroizing::new(p.to_string()),
                             None => self.passphrase_kept_for(&c, &m).unwrap_or_default(),
                         };
-                        self.session.add_mnemonic(&c, &m, &p, &label, None)
+                        self.session.keys.add_mnemonic(&c, &m, &p, &label, None)
                     }
                     None => match seed_of(r) {
-                        Some(seed) => self.session.add_seed(&c, &seed, &label),
+                        Some(seed) => self.session.keys.add_seed(&c, &seed, &label),
                         None => return,
                     },
                 };
@@ -3537,27 +3537,32 @@ impl Faraday {
         with_passphrase: bool,
     ) -> Option<(Record, String)> {
         let c = self.compute();
-        let key = self.session.keys.get(k)?;
-        let Some(words) = key.words.as_ref() else {
+        let key = self.session.keys.info(k)?;
+        if !key.has_words() {
             self.toast(EN.vaults_this_key_has);
             return None;
-        };
-        let m = crate::wallet::parse_words(&c, key.language, words).ok()?;
+        }
         // Made here and its backup not done: the vault says so, beside
         // the seed.
         // It loads at unlock (no flag says otherwise, F62).
-        let mut record = Record::new(kind::KEY)
-            .with(field::KEY, &records::words_payload(&m))
-            .with(field::KEY_LABEL, key.label.as_bytes());
-        if self.key_held_stored(&c, key.fingerprint()) {
-            record.push(field::KEY_FLAGS, &[records::BACKUP_PENDING]);
-        }
+        let pending = self
+            .key_held_stored(&c, key.fingerprint)
+            .then_some(records::BACKUP_PENDING);
+        let label = key.label.clone();
         // A BIP-39 passphrase is stored only when the person asks
         // (`docs/history/PLAN.md` §6.3).
-        if with_passphrase && let Some(p) = key.passphrase.as_ref() {
-            record.push(field::KEY_PASSPHRASE, p.as_bytes());
-        }
-        Some((record, key.label.clone()))
+        let record = self
+            .session
+            .keys
+            .key_record(
+                &c,
+                k,
+                pending,
+                with_passphrase,
+                faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
+            )?
+            .release();
+        Some((record, label))
     }
 
     fn vault_save_wallet(&mut self, k: usize) {

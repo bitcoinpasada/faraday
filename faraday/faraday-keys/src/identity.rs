@@ -20,7 +20,7 @@ pub enum Material<'a> {
 /// Costs a PBKDF2 (words) or a share recovery (SLIP-39) and a master
 /// key. The master key `material` makes with `passphrase` on `network`;
 /// `None` for a seed of no valid length or shares that do not recover.
-pub fn master_of(
+pub(crate) fn master_of(
     c: &Compute,
     material: Material<'_>,
     passphrase: &str,
@@ -154,10 +154,15 @@ pub fn secret_id(tag: &[u8], secret: &[u8]) -> [u8; 32] {
 
 /// Costs a PBKDF2. The 64-byte BIP-39 seed `m` makes with `passphrase`:
 /// what a codex32 backup of the key is made from.
-pub fn seed_of(
+pub(crate) fn seed_of(
     c: &Compute,
     m: &Mnemonic,
     passphrase: &str,
 ) -> Option<faraday_crypto::Secret<[u8; 64]>> {
     m.to_seed(c, passphrase.as_bytes()).ok()
+}
+
+/// The fingerprint as eight hex digits.
+pub fn fp_text(fp: Fingerprint) -> String {
+    String::from_utf8_lossy(&fp.to_hex()).into_owned()
 }

@@ -347,7 +347,7 @@ impl Faraday {
         let seeds = self.backup_seed_list_of(wallet);
         let fp_of = |i: usize| -> Option<[u8; 4]> {
             let k = seeds.get(i)?.1?;
-            Some(self.session.keys.get(k)?.fingerprint().0)
+            Some(self.session.keys.info(k)?.fingerprint.0)
         };
         let stem = file_stem(&wallet.name);
         let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for_now(c, wi, a));
@@ -423,9 +423,9 @@ impl Faraday {
     pub(crate) fn seed_id(&self, r: Option<&Record>, fp: [u8; 4]) -> Option<[u8; 32]> {
         self.session
             .keys
-            .iter()
-            .find(|k| k.fingerprint().0 == fp)
-            .map(|k| k.master_id())
+            .all()
+            .find(|k| k.fingerprint.0 == fp)
+            .map(|k| k.id.0)
             .or_else(|| r?.id_of(fp))
     }
 
@@ -437,8 +437,8 @@ impl Faraday {
             if out.iter().any(|(f, _)| f == fp) {
                 continue;
             }
-            if let Some(k) = self.session.keys.iter().find(|k| k.fingerprint().0 == *fp) {
-                out.push((*fp, k.master_id()));
+            if let Some(k) = self.session.keys.all().find(|k| k.fingerprint.0 == *fp) {
+                out.push((*fp, k.id.0));
             }
         }
         out
@@ -788,8 +788,8 @@ impl Faraday {
                 return seeds.iter().all(|f| {
                     self.session
                         .keys
-                        .iter()
-                        .find(|k| k.fingerprint().0 == *f)
+                        .all()
+                        .find(|k| k.fingerprint.0 == *f)
                         .is_some_and(|k| {
                             o.contents.of(kind::KEY).any(|(_, rec)| {
                                 crate::vault::screen::record_is_key(c, self, rec, k)

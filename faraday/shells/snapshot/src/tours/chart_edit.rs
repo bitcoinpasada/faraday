@@ -1,10 +1,10 @@
 //! The chart_edit tour.
 
+use crate::tour::{Tour, scroll, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent};
 use faraday_crypto::work::Compute;
-use crate::tour::{Tour, scroll, type_text};
 
 /// Costs what `key_text`, `add_wallet`, `of_now` and the rest it calls
 /// cost. The chart's changes (`docs/history/NEW-WALLET.md` §9.5–§9.7), on a
@@ -30,9 +30,7 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::Entry(None));
     t.type_key(0);
     let one = {
-        let text = NewKind::NativeSegwit
-            .key_text(c, t.app.session.keys[0].master())
-            .map_err(|e| e.to_string())?;
+        let text = crate::tour::key_text_of(c, &t.app.session.keys, 0, NewKind::NativeSegwit)?;
         t.app
             .session
             .add_wallet(
@@ -150,6 +148,7 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.type_key(1);
     let mut elsewhere = faraday_core::wallet::Session::default();
     elsewhere
+        .keys
         .add_words(
             c,
             &testkit::test_words(testkit::TEST_SEEDS[2].0),
@@ -157,15 +156,14 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             None,
         )
         .map_err(|e| e.text())?;
-    let masters = [
-        &t.app.session.keys[0].master(),
-        &t.app.session.keys[1].master(),
-        &elsewhere.keys[0].master(),
-    ];
-    let keys: Vec<String> = masters
-        .iter()
-        .map(|m| NewKind::Multi.key_text(c, m))
-        .collect::<Result<_, _>>()?;
+    let keys: Vec<String> = [
+        (&t.app.session.keys, 0),
+        (&t.app.session.keys, 1),
+        (&elsewhere.keys, 0),
+    ]
+    .iter()
+    .map(|(k, i)| crate::tour::key_text_of(c, k, *i, NewKind::Multi))
+    .collect::<Result<_, _>>()?;
     let two = t
         .app
         .session

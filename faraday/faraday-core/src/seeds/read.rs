@@ -66,11 +66,62 @@ pub enum ForFamily {
     Stray,
 }
 
+/// The words a passphrase is asked for: the ones the camera read, or
+/// those of a key already loaded, which stay in the session's keys and
+/// are used there.
+pub(crate) enum Source {
+    /// Words the camera read, held here until a choice loads them or the
+    /// sheet closes.
+    Words(SecretText),
+    /// The words of the loaded key with this fingerprint.
+    Loaded(Fingerprint),
+}
+
+impl Default for Source {
+    fn default() -> Self {
+        Source::Words(SecretText::new())
+    }
+}
+
+impl Source {
+    /// Costs what `fingerprint_of_words` costs. The key these words make
+    /// with `pass`.
+    pub(crate) fn fingerprint(
+        &self,
+        c: &Compute,
+        keys: &faraday_keys::Keys,
+        pass: &str,
+    ) -> Option<Fingerprint> {
+        match self {
+            Source::Words(w) => key_of(c, w, pass),
+            Source::Loaded(fp) => keys.fingerprint_with(c, keys.position(*fp)?, pass),
+        }
+    }
+
+    /// Costs what `add_words_with` costs. Adds the key these words make
+    /// with `pass`, under `label`.
+    pub(crate) fn add(
+        &self,
+        c: &Compute,
+        keys: &mut faraday_keys::Keys,
+        pass: &str,
+        label: &str,
+    ) -> Result<Fingerprint, crate::wallet::Refusal> {
+        match self {
+            Source::Words(w) => keys.add_words_with(c, w, pass, label, None),
+            Source::Loaded(fp) => match keys.position(*fp) {
+                Some(k) => keys.add_with_passphrase(c, k, pass, label),
+                None => Err(crate::wallet::Refusal::Words(String::new())),
+            },
+        }
+    }
+}
+
 /// The seed read, waiting for its choice.
 #[derive(Default)]
 pub struct SeedRead {
     /// Its words.
-    words: SecretText,
+    source: Source,
     /// A key already loaded from these words with no passphrase, taken
     /// into a slot; none for words the camera read, which load as Add a
     /// key loads typed words.
@@ -116,9 +167,9 @@ impl SeedRead {
 
     /// Costs a PBKDF2 and an elliptic-curve multiplication once they match.
     /// Works out [`SeedRead::with_key`] from the fields as they are.
-    fn with_key_now(&self, c: &Compute) -> Option<Fingerprint> {
+    fn with_key_now(&self, c: &Compute, keys: &faraday_keys::Keys) -> Option<Fingerprint> {
         self.pass_ready()
-            .then(|| key_of(c, &self.words, &self.pass))
+            .then(|| self.source.fingerprint(c, keys, &self.pass))
             .flatten()
     }
 
@@ -146,7 +197,7 @@ impl Faraday {
             return;
         };
         self.seed_read = Some(SeedRead {
-            words: SecretText::of(words),
+            source: Source::Words(SecretText::of(words)),
             plain: Some(plain),
             ..SeedRead::default()
         });
@@ -162,7 +213,7 @@ impl Faraday {
         self.commands
             .push_back(faraday_shell_api::Command::CameraOff);
         self.seed_read = Some(SeedRead {
-            words: SecretText::of(words),
+            source: Source::Words(SecretText::of(words)),
             plain: key_of(&c, words, ""),
             wallet: Some(w),
             reason: Some(reason),
@@ -175,14 +226,14 @@ impl Faraday {
     /// Spend tab: with words and no passphrase it asks first whether it
     /// has one. Returns whether it asked; else the slot takes it as is.
     pub(crate) fn seed_read_loaded(&mut self, fp: Fingerprint) -> bool {
-        let Some(key) = self.session.keys.iter().find(|k| k.fingerprint() == fp) else {
+        let Some(key) = self.session.keys.find(fp) else {
             return false;
         };
-        let (Some(words), None) = (key.words.as_ref(), key.passphrase.as_ref()) else {
+        if !key.has_words() || key.has_passphrase {
             return false;
-        };
+        }
         self.seed_read = Some(SeedRead {
-            words: SecretText::of(words),
+            source: Source::Loaded(fp),
             loaded: Some(fp),
             plain: Some(fp),
             ..SeedRead::default()
@@ -194,18 +245,12 @@ impl Faraday {
     /// Key `fp`, loaded with its words, asked for its passphrase for the
     /// Spend tab.
     pub(crate) fn seed_read_family(&mut self, fp: Fingerprint, why: ForFamily) {
-        let Some(words) = self
-            .session
-            .keys
-            .iter()
-            .find(|k| k.fingerprint() == fp)
-            .and_then(|k| k.words.as_ref())
-        else {
+        if !self.session.keys.find(fp).is_some_and(|k| k.has_words()) {
             return;
-        };
+        }
         let start_adding = why != ForFamily::Intake;
         self.seed_read = Some(SeedRead {
-            words: SecretText::of(words),
+            source: Source::Loaded(fp),
             loaded: Some(fp),
             plain: Some(fp),
             adding: start_adding,
@@ -268,7 +313,7 @@ impl Faraday {
         } else {
             SecretText::new()
         };
-        let Some(fp) = key_of(&c, &s.words, &pass) else {
+        let Some(fp) = s.source.fingerprint(&c, &self.session.keys, &pass) else {
             return;
         };
         if let Some(w) = s.wallet {
@@ -285,9 +330,9 @@ impl Faraday {
             };
             self.sheet = None;
             if why == ForFamily::Guess {
-                self.family_guess_pass(plain, &s.words, &pass);
+                self.family_guess_pass(plain, &s.source, &pass);
             } else if !pass.is_empty() {
-                self.family_seed_with(plain, &s.words, &pass);
+                self.family_seed_with(plain, &s.source, &pass);
             }
             self.family_settle();
             return;
@@ -304,9 +349,10 @@ impl Faraday {
             return;
         };
         self.sheet = None;
-        match s.loaded {
-            None => self.seed_read_load(&s.words, &pass),
-            Some(plain) => self.seed_read_take(plain, &s.words, &pass),
+        match (s.loaded, &s.source) {
+            (None, Source::Words(w)) => self.seed_read_load(w, &pass),
+            (None, Source::Loaded(_)) => {}
+            (Some(plain), source) => self.seed_read_take(plain, source, &pass),
         }
         // Read by the intake scanner and loaded: the camera again.
         if s.family == Some(ForFamily::Intake) && self.screen == Screen::Family {
@@ -326,10 +372,7 @@ impl Faraday {
                 };
                 self.sheet = None;
                 let label = self.wallet_key_label(&c, w, fp);
-                match self
-                    .session
-                    .add_words_with(&c, &s.words, pass, &label, None)
-                {
+                match s.source.add(&c, &mut self.session.keys, pass, &label) {
                     Ok(_) => {
                         // A seed that came in on What do you have? is
                         // this key from now on.
@@ -360,7 +403,7 @@ impl Faraday {
 
     /// A loaded key taken into the slot: itself, or with the passphrase
     /// the key its words and it make, added beside it.
-    fn seed_read_take(&mut self, plain: Fingerprint, words: &str, pass: &str) {
+    fn seed_read_take(&mut self, plain: Fingerprint, source: &Source, pass: &str) {
         let c = self.compute();
         let fp = if pass.is_empty() {
             plain
@@ -368,16 +411,17 @@ impl Faraday {
             let label = self
                 .session
                 .keys
-                .iter()
-                .find(|k| k.fingerprint() == plain)
+                .find(plain)
                 .map(|k| fill(EN.seed_read_passphrase_3, &[&k.label.to_string()]))
                 .unwrap_or_default();
-            match self.session.add_words_with(&c, words, pass, &label, None) {
+            match source.add(&c, &mut self.session.keys, pass, &label) {
                 Ok(fp) => fp,
-                Err(crate::wallet::Refusal::Duplicate(_)) => match key_of(&c, words, pass) {
-                    Some(fp) => fp,
-                    None => return,
-                },
+                Err(crate::wallet::Refusal::Duplicate(_)) => {
+                    match source.fingerprint(&c, &self.session.keys, pass) {
+                        Some(fp) => fp,
+                        None => return,
+                    }
+                }
                 Err(e) => {
                     self.toast(&e.text());
                     return;
@@ -422,7 +466,7 @@ impl Faraday {
         };
         let field = if f == 0 { &mut s.pass } else { &mut s.pass2 };
         match key {
-            // BIP-39 passphrases here are printable ASCII (`to_seed`).
+            // BIP-39 passphrases here are printable ASCII (BIP-39's seed derivation).
             KeyIn::Char(ch) if (' '..='~').contains(&ch) => field.push(ch),
             KeyIn::Backspace => {
                 field.pop();
@@ -449,7 +493,7 @@ impl Faraday {
     pub(crate) fn seed_read_typed(&mut self) {
         let c = self.compute();
         if let Some(s) = self.seed_read.as_mut() {
-            s.with = s.with_key_now(&c);
+            s.with = s.with_key_now(&c, &self.session.keys);
         }
     }
 }

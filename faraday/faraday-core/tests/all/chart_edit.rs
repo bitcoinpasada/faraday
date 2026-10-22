@@ -64,7 +64,7 @@ fn one_key(app: &mut Faraday) -> usize {
     let c = testkit::compute();
     add_key(app, 0);
     let text = faraday_core::create::NewKind::NativeSegwit
-        .key_text(&c, app.session.keys[0].master())
+        .key_text(&c, app.session.keys.master_for_tests(0))
         .unwrap();
     app.session
         .add_wallet(

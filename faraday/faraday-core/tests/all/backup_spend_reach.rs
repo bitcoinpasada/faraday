@@ -53,7 +53,7 @@ fn board_of(m: usize, n: usize) -> Faraday {
         app.press(Action::CM(1));
     }
     for slot in 0..n {
-        let fp = app.session.keys[slot].fingerprint().0;
+        let fp = app.session.keys[slot].fingerprint.0;
         app.press(Action::CSlotHere(slot as u8, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
@@ -200,7 +200,7 @@ fn a_single_keys_seed_says_it_spends_alone_and_never_asks() {
     let mut app = testkit::started();
     words_in(&mut app, &testkit::test_words("bacon"));
     app.press(Action::CreateWallet);
-    let fp = app.session.keys[0].fingerprint().0;
+    let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));

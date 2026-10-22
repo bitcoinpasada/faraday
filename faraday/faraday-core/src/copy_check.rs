@@ -10,9 +10,9 @@ use crate::plan::{self, CopyChecks, CopyForm, CopyForms};
 use crate::secret_text::SecretText;
 use crate::strings::EN;
 use crate::strings::fill;
-use crate::wallet_backup::{self, CopyCheck};
+use crate::wallet_backup::CopyCheck;
 use crate::word_entry::WordEntry;
-use crate::{BackupState, Faraday, Screen, wallet};
+use crate::{BackupState, Faraday, Screen};
 use faraday_bip::bip39::Language;
 use faraday_crypto::work::Compute;
 use faraday_shell_api::Key as KeyIn;
@@ -189,7 +189,7 @@ impl Faraday {
         c: &Compute,
         b: &BackupState,
         i: usize,
-        key: &wallet::Key,
+        key: &faraday_keys::KeyInfo,
     ) -> CopyChecks {
         self.copy_forms(c, b, i)
             .checks(!self.cameras.is_empty(), key.language == Language::English)
@@ -204,9 +204,9 @@ impl Faraday {
         c: &Compute,
         b: &BackupState,
         i: usize,
-        key: &wallet::Key,
+        key: &faraday_keys::KeyInfo,
     ) -> bool {
-        let fp = key.fingerprint().0;
+        let fp = key.fingerprint.0;
         let checks = self.copy_checks(c, b, i, key);
         let has = |f: CopyForm| b.checked.contains(&(fp, f));
         (checks.typed || checks.scan)
@@ -228,8 +228,8 @@ impl Faraday {
             .iter()
             .enumerate()
             .find_map(|(i, (_, k))| {
-                let key = self.session.keys.get((*k)?)?;
-                (key.fingerprint().0 == fp).then_some((i, key))
+                let key = self.session.keys.info((*k)?)?;
+                (key.fingerprint.0 == fp).then_some((i, key))
             });
         match at {
             Some((i, key)) => self.copy_checked(c, b, i, key),
@@ -274,8 +274,8 @@ impl Faraday {
         if b.open.is_some_and(crate::bstep::is_passphrase) {
             return Some(WordCheck::passphrase());
         }
-        let key = self.session.keys.get(b.key)?;
-        let count = key.words.as_ref()?.split_whitespace().count();
+        let key = self.session.keys.info(b.key)?;
+        let count = usize::from(key.word_count?);
         let keyed = forms::on_screen(key.language) || self.compact;
         Some(WordCheck::new(key.language, count, keyed))
     }
@@ -338,25 +338,20 @@ impl Faraday {
         if chk.passphrase || chk.taken() < chk.count {
             return;
         }
-        let Some(key) = self.session.keys.get(b.key) else {
+        let Some(key) = self.session.keys.info(b.key) else {
             return;
         };
-        let fp = key.fingerprint().0;
-        let seed = key
-            .words
-            .as_ref()
-            .and_then(|w| crate::wallet::parse_words(&c, key.language, w.as_str()).ok());
-        let Some(seed) = seed else {
-            return;
-        };
+        let fp = key.fingerprint.0;
         let mut typed = chk.indices();
-        let found = wallet_backup::compare_words(&typed, seed.indices());
+        let Some(found) = self.session.keys.words_match(&c, b.key, &typed) else {
+            typed.zeroize();
+            return;
+        };
         let off_list = match found {
             CopyCheck::WrongWord(k) => typed.get(k - 1) == Some(&u16::MAX),
             CopyCheck::Matches => false,
         };
         typed.zeroize();
-        drop(seed);
         match found {
             CopyCheck::Matches => {
                 if let Some(b) = self.backup.as_mut() {
@@ -454,14 +449,11 @@ impl Faraday {
         let Some(chk) = b.check.as_ref().filter(|c| c.passphrase) else {
             return;
         };
-        let Some(key) = self.session.keys.get(b.key) else {
+        let Some(key) = self.session.keys.info(b.key) else {
             return;
         };
-        let fp = key.fingerprint().0;
-        let matched = key.passphrase.as_ref().is_some_and(|p| {
-            faraday_crypto::Secret::new(p.as_bytes().to_vec())
-                == faraday_crypto::Secret::new(chk.typed.as_bytes().to_vec())
-        });
+        let fp = key.fingerprint.0;
+        let matched = self.session.keys.passphrase_matches(b.key, &chk.typed);
         let Some(b) = self.backup.as_mut() else {
             return;
         };

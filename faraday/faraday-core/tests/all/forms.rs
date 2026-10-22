@@ -39,7 +39,7 @@ fn fingerprint_of(xprv: &str) -> [u8; 4] {
 
 fn only_key(app: &Faraday) -> [u8; 4] {
     assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
-    app.session.keys[0].fingerprint().0
+    app.session.keys[0].fingerprint.0
 }
 
 #[test]
@@ -128,6 +128,7 @@ fn seed_xor_parts_combine_into_the_seeds_words() {
     enter(&mut app);
     let mut probe = faraday_core::wallet::Session::default();
     let want = probe
+        .keys
         .add_words_with(
             &c,
             "city apple they mesh stadium raw cabin material ecology put royal public",
@@ -320,6 +321,7 @@ fn the_status_line_follows_the_words_and_the_passphrase_as_they_change() {
     let fp = |words: &str, pass: &str| {
         fp_text(
             Session::default()
+                .keys
                 .add_words_with(&c, words, pass, "", None)
                 .unwrap(),
         )

@@ -33,6 +33,7 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     let (word, label) = testkit::TEST_SEEDS[1];
     t.app
         .session
+        .keys
         .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     let multi = NewKind::ALL
@@ -85,17 +86,14 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     for n in [0, 2] {
         let (word, label) = testkit::TEST_SEEDS[n];
         apart
+            .keys
             .add_words(c, &testkit::test_words(word), label, None)
             .map_err(|e| e.text())?;
     }
-    let keys: Vec<String> = [
-        apart.keys[0].master(),
-        t.app.session.keys[0].master(),
-        apart.keys[1].master(),
-    ]
-    .iter()
-    .map(|m| NewKind::Multi.key_text(c, m))
-    .collect::<Result<_, _>>()?;
+    let keys: Vec<String> = [(&apart.keys, 0), (&t.app.session.keys, 0), (&apart.keys, 1)]
+        .iter()
+        .map(|(k, i)| crate::tour::key_text_of(c, k, *i, NewKind::Multi))
+        .collect::<Result<_, _>>()?;
     let i = t
         .app
         .session
@@ -124,7 +122,7 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.press(Action::CNext(cstep::KIND));
     t.press(Action::CVaults(false));
     t.press(Action::CNext(cstep::WHERE));
-    let fp = t.app.session.keys[0].fingerprint().0;
+    let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));
     t.shot("create-check-path")?;

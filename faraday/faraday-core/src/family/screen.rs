@@ -250,12 +250,12 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     }
 
     // Seeds that open no wallet loaded.
-    let lonely: Vec<&crate::wallet::Key> = app
+    let lonely: Vec<&faraday_keys::KeyInfo> = app
         .session
         .keys
-        .iter()
+        .all()
         .filter(|k| {
-            let fp = k.fingerprint();
+            let fp = k.fingerprint;
             !app.session.wallets.iter().any(|w| {
                 app.session
                     .slots(w)
@@ -269,7 +269,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         crate::screens::section_label(ui, x, y, EN.family_keys_with_no);
         y += 30.0;
         for k in &lonely {
-            ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &fp_text(k.fingerprint()));
+            ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &fp_text(k.fingerprint));
             ui.text_mid(x + 100.0, y, 30.0, 13.0, W::R, MUTED, &k.label);
             y += 32.0;
         }
@@ -463,12 +463,12 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     }
 
     // Seeds that open no wallet loaded.
-    let lonely: Vec<&crate::wallet::Key> = app
+    let lonely: Vec<&faraday_keys::KeyInfo> = app
         .session
         .keys
-        .iter()
+        .all()
         .filter(|k| {
-            let fp = k.fingerprint();
+            let fp = k.fingerprint;
             !app.session.wallets.iter().any(|w| {
                 app.session
                     .slots(w)
@@ -482,7 +482,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         section_label(ui, x, y, EN.family_keys_with_no);
         y += 30.0;
         for k in &lonely {
-            ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &fp_text(k.fingerprint()));
+            ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &fp_text(k.fingerprint));
             let label = ui.fit(13.0, W::R, &k.label, w - 100.0);
             ui.text_mid(x + 100.0, y, 30.0, 13.0, W::R, MUTED, &label);
             y += 32.0;
@@ -944,7 +944,7 @@ fn came_rows(app: &View) -> Vec<String> {
         match c {
             Came::Seed(fp) => {
                 let f = faraday_bip::keys::Fingerprint(*fp);
-                let Some(label) = app.session.key_label(f) else {
+                let Some(label) = app.session.keys.key_label(f) else {
                     continue;
                 };
                 let t = fp_text(f);
@@ -1817,7 +1817,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .inspection
         .participating_keys
         .iter()
-        .filter(|fp| app.session.key_label(**fp).is_some())
+        .filter(|fp| app.session.keys.key_label(**fp).is_some())
         .count();
     // Fewer keys here than sign: bring one here, or collect a signature
     // from whoever holds one (`docs/history/NEW-WALLET.md` §11.2). A wallet whose

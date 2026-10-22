@@ -231,6 +231,7 @@ fn with_spend() -> Faraday {
     for (word, l) in &testkit::TEST_SEEDS[..2] {
         let _ = app
             .session
+            .keys
             .add_words(&c, &testkit::test_words(word), l, None);
     }
     let kits = testkit::kits();

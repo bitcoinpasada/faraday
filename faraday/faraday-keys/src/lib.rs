@@ -19,11 +19,19 @@ pub mod gpg;
 pub mod identity;
 pub mod lightning;
 pub mod message;
+pub mod operations;
 pub mod psbt;
 pub mod secure_boot;
+pub mod session;
 pub mod silent;
 pub mod texts;
 pub mod totp;
 pub mod vanity;
 
-pub use identity::{Material, fingerprint, master_of};
+pub use identity::{Material, fingerprint, fp_text};
+pub use operations::{Dial, Paper, codex32_seed, slip39_seed};
+pub use session::{
+    CopyCheck, Held, Infos, KEY_TEXTS_KEPT, KeyId, KeyInfo, Keys, Part, Reveal, Revealed, WordsId,
+    compare_words, words_id,
+};
+pub use texts::Spec;

@@ -1,7 +1,6 @@
 //! The tour driver: the state a tour carries, the pump that answers the
 //! app's commands, and the helpers several tours share.
 
-use std::path::{Path, PathBuf};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::plan::{self as fplan, At, Spot, What};
 use faraday_core::testkit;
@@ -9,6 +8,7 @@ use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Medium, Screen, StickInfo, StorageCommand, StorageEvent};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, Key, SecureHardware};
+use std::path::{Path, PathBuf};
 
 pub(crate) struct Tour {
     pub(crate) app: Faraday,
@@ -296,12 +296,8 @@ impl Tour {
                 .ok_or(format!("{name} is not in Files"))?;
             self.press(Action::LoadWallet(i));
         }
-        let bacon = testkit::TEST_SEEDS[0].0;
-        if !self.app.session.keys.iter().any(|k| {
-            k.words
-                .as_deref()
-                .is_some_and(|w| w.as_str() == testkit::test_words(bacon))
-        }) {
+        let keys = &self.app.session.keys;
+        if !(0..keys.len()).any(|i| testkit::has_test_words(keys, i, 0)) {
             self.press(Action::Entry(None));
             self.type_key(0);
         }
@@ -389,13 +385,10 @@ pub(crate) fn display((width, height): (u16, u16), dpi: u16) -> Event {
 
 /// Test key 1's fingerprint, among the keys loaded.
 pub(crate) fn test_key_1(t: &Tour) -> Result<[u8; 4], String> {
-    let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
-    t.app
-        .session
-        .keys
-        .iter()
-        .find(|k| k.words.as_deref().is_some_and(|w| w.as_str() == words))
-        .map(|k| k.master().fingerprint().0)
+    let keys = &t.app.session.keys;
+    (0..keys.len())
+        .find(|&i| testkit::has_test_words(keys, i, 0))
+        .map(|i| keys[i].fingerprint.0)
         .ok_or_else(|| "test key 1 is not loaded".to_string())
 }
 
@@ -404,10 +397,17 @@ pub(crate) fn test_key_1(t: &Tour) -> Result<[u8; 4], String> {
 /// word's number one off.
 pub(crate) fn copy_digits(c: &Compute, t: &Tour, wrong: Option<usize>) -> Result<Vec<u8>, String> {
     let b = t.app.backup.as_ref().ok_or("no backup")?;
-    let key = t.app.session.keys.get(b.key).ok_or("no key")?;
-    let words = key.words.as_deref().ok_or("no words")?;
-    let m = faraday_bip::bip39::Mnemonic::parse(c, key.language, words.as_str())
-        .map_err(|e| format!("{e}"))?;
+    let key = t.app.session.keys.info(b.key).ok_or("no key")?;
+    let words = t
+        .app
+        .session
+        .keys
+        .reveal(b.key, faraday_keys::Reveal::SeedQr);
+    if words.is_empty() {
+        return Err("no words".to_string());
+    }
+    let m =
+        faraday_bip::bip39::Mnemonic::parse(c, key.language, &words).map_err(|e| format!("{e}"))?;
     let mut digits = faraday_codec::seedqr::to_digits(&m)
         .expose()
         .as_bytes()
@@ -423,8 +423,16 @@ pub(crate) fn copy_digits(c: &Compute, t: &Tour, wrong: Option<usize>) -> Result
 /// each, `count` words of it (all when `None`).
 pub(crate) fn type_words(t: &mut Tour, count: Option<usize>) -> Result<(), String> {
     let b = t.app.backup.as_ref().ok_or("no backup")?;
-    let key = t.app.session.keys.get(b.key).ok_or("no key")?;
-    let words = key.words.as_deref().ok_or("no words")?.to_string();
+    let key = t.app.session.keys.info(b.key).ok_or("no key")?;
+    if !key.has_words() {
+        return Err("no words".to_string());
+    }
+    let words = t
+        .app
+        .session
+        .keys
+        .reveal(b.key, faraday_keys::Reveal::CopyByHand)
+        .to_string();
     for w in words.split_whitespace().take(count.unwrap_or(usize::MAX)) {
         for c in w.chars().chain([' ']) {
             t.app.event(Event::Key(Key::Char(c)));
@@ -645,4 +653,17 @@ pub(crate) fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> 
     t.press(Action::Nav(Screen::VaultContents));
     t.press(Action::Vault(V::Category(kind.category())));
     Ok(())
+}
+
+/// Costs a key derivation. `kind`'s key text of session key `i` of `keys`
+/// (`[fingerprint/path]xpub`): the public text a wallet over this key is
+/// written with.
+pub(crate) fn key_text_of(
+    c: &Compute,
+    keys: &faraday_keys::Keys,
+    i: usize,
+    kind: faraday_core::create::NewKind,
+) -> Result<String, String> {
+    use faraday_core::wallet::KeyTexts;
+    keys.account_text(c, i, kind, 0)
 }

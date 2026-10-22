@@ -84,7 +84,7 @@ impl Faraday {
                 let Some(fp) = fp_bytes(&text) else {
                     continue;
                 };
-                if self.session.keys.iter().any(|k| k.fingerprint().0 == fp) {
+                if self.session.keys.all().any(|k| k.fingerprint.0 == fp) {
                     continue;
                 }
                 let label = r.text(records::field::KEY_LABEL).unwrap_or(EN.vaults_seed);
@@ -142,9 +142,9 @@ impl Faraday {
         let before = self.session.keys.len();
         self.vault_load_set(v, &BTreeSet::from([r]));
         let fp = if self.session.keys.len() > before {
-            self.session.keys.last().map(|k| k.fingerprint().0)
+            self.session.keys.all().last().map(|k| k.fingerprint.0)
         } else {
-            want.filter(|fp| self.session.keys.iter().any(|k| k.fingerprint().0 == *fp))
+            want.filter(|fp| self.session.keys.all().any(|k| k.fingerprint.0 == *fp))
         };
         let Some(fp) = fp else {
             return;
@@ -217,9 +217,8 @@ impl Faraday {
         let mut slots = Vec::new();
         let mut xpubs = Vec::new();
         for (j, (fp, text)) in keys.iter().enumerate() {
-            let here = |app: &Faraday, fp: [u8; 4]| {
-                app.session.keys.iter().any(|k| k.fingerprint().0 == fp)
-            };
+            let here =
+                |app: &Faraday, fp: [u8; 4]| app.session.keys.all().any(|k| k.fingerprint.0 == fp);
             let held = match fp {
                 Some(fp) if here(self, *fp) => true,
                 Some(fp) if self.may_load_keys() => {

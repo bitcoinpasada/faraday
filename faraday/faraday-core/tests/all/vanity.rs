@@ -88,7 +88,7 @@ fn the_passphrase_dial_loads_the_words_with_the_passphrase_found() {
         2,
         "the key with the passphrase did not load"
     );
-    assert!(app.session.keys[1].passphrase.is_some());
+    assert!(app.session.keys[1].has_passphrase);
 }
 
 #[test]

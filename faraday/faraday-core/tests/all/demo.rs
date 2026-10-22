@@ -87,13 +87,16 @@ fn add_public(app: &mut Faraday, word: &str) -> [u8; 4] {
 fn public_fp(word: &str) -> [u8; 4] {
     let c = testkit::compute();
     let mut s = faraday_core::wallet::Session::default();
-    s.add_words(&c, &demo::words(word), "", None).unwrap().0
+    s.keys
+        .add_words(&c, &demo::words(word), "", None)
+        .unwrap()
+        .0
 }
 
 /// A key loaded: bacon, typed in unless it is loaded already.
 fn a_key(app: &mut Faraday) -> [u8; 4] {
     let fp = public_fp("bacon");
-    if !app.session.keys.iter().any(|k| k.fingerprint().0 == fp) {
+    if !app.session.keys.all().any(|k| k.fingerprint.0 == fp) {
         add_public(app, "bacon");
     }
     fp
@@ -675,11 +678,11 @@ fn new_key(app: &mut Faraday, way: Way, words: u8) -> String {
 fn fingerprint(words: &str) -> [u8; 4] {
     let c = testkit::compute();
     let mut s = faraday_core::wallet::Session::default();
-    s.add_words_with(&c, words, "", "", None).unwrap().0
+    s.keys.add_words_with(&c, words, "", "", None).unwrap().0
 }
 
 fn loaded(app: &Faraday) -> Vec<[u8; 4]> {
-    app.session.keys.iter().map(|k| k.fingerprint().0).collect()
+    app.session.keys.all().map(|k| k.fingerprint.0).collect()
 }
 
 /// Lock in, the words' quiz passed, Done.
@@ -739,6 +742,7 @@ fn in_the_demo_with_every_public_seed_loaded_lock_in_is_dimmed() {
     let mut app = app_on(true);
     for w in demo::SEEDS {
         app.session
+            .keys
             .add_words(&c, &demo::words(w), "", None)
             .unwrap();
     }

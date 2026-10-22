@@ -262,7 +262,7 @@ fn lightning_makes_a_vault_and_comes_back_to_save_the_node_key() {
     let mut app = device(Vec::new());
     add_key(&mut app, 0);
     app.press(Action::Lightning);
-    let fp = app.session.keys[0].fingerprint().0;
+    let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::LKey(fp));
     press_make(&mut app, Screen::Lightning);
     make_the_vault(&mut app);
@@ -305,7 +305,7 @@ fn silent_payments_makes_a_vault_and_comes_back_to_save_the_scan_key() {
 /// vault made, open on the seed's copy.
 fn on_the_seeds_step(app: &mut Faraday) {
     add_key(app, 1);
-    let fp = app.session.keys[0].fingerprint();
+    let fp = app.session.keys[0].fingerprint;
     app.press(Action::KeyWallet(fp.0, 1));
     app.press(Action::Seeds(S::Make));
     let w = app.session.wallets.len() - 1;

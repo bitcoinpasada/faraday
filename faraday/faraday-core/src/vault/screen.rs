@@ -2271,10 +2271,9 @@ pub(crate) fn record_is_key(
     c: &Compute,
     app: &Faraday,
     r: &Record,
-    key: &crate::wallet::Key,
+    key: &faraday_keys::KeyInfo,
 ) -> bool {
-    key_identity(c, app, r)
-        .is_some_and(|(fp, id)| fp == fp_text(key.fingerprint()) && id == key.master_id())
+    key_identity(c, app, r).is_some_and(|(fp, id)| fp == fp_text(key.fingerprint) && id == key.id.0)
 }
 
 /// A key record's id: the SHA-256 of its payload and the passphrase
@@ -3512,11 +3511,7 @@ fn detail(
                     false,
                 ),
             }
-            let here = app
-                .session
-                .keys
-                .iter()
-                .any(|k| fp_text(k.fingerprint()) == fp);
+            let here = app.session.keys.all().any(|k| fp_text(k.fingerprint) == fp);
             field_row(
                 ui,
                 &mut dy,
@@ -4155,14 +4150,14 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
             .of(kind::KEY)
             .filter_map(|(_, r)| app.vault_key_fingerprint(r))
             .collect();
-        for (k, key) in app.session.keys.iter().enumerate() {
-            let fp = fp_text(key.fingerprint());
-            if held.contains(&fp) || key.words.is_none() {
+        for (k, key) in app.session.keys.all().enumerate() {
+            let fp = fp_text(key.fingerprint);
+            if held.contains(&fp) || !key.has_words() {
                 continue;
             }
             any = true;
             ui.text_mid(dx, dy, 40.0, 14.0, W::M, TEXT, &fp);
-            let label = if key.passphrase.is_some() {
+            let label = if key.has_passphrase {
                 fill(EN.vault_bip_39_passphrase_n, &[&key.label.to_string()])
             } else {
                 key.label.clone()
@@ -4173,7 +4168,7 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
                 ui.text_mid(dx + 100.0, dy, 40.0, 13.0, W::R, MUTED, &label);
                 dy += 42.0;
                 let mut items = vec![(EN.vault_save, Style::Secondary, va(V::SaveKey(k)))];
-                if key.passphrase.is_some() {
+                if key.has_passphrase {
                     items.push((
                         EN.vault_save_with_its,
                         Style::Secondary,
@@ -4185,7 +4180,7 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
                 dy += 6.0;
                 continue;
             }
-            let two = key.passphrase.is_some();
+            let two = key.has_passphrase;
             let room = if two { dw - 110.0 } else { dw - 200.0 };
             let label = ui.fit(13.0, W::R, &label, room);
             ui.text_mid(dx + 100.0, dy, 40.0, 13.0, W::R, MUTED, &label);
@@ -4201,7 +4196,7 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
                 Style::Secondary,
                 va(V::SaveKey(k)),
             );
-            if key.passphrase.is_some() {
+            if key.has_passphrase {
                 let pw = ui.measure(13.0, W::S, EN.vault_save_with_its) + 26.0;
                 ui.button(
                     dx + dw - 88.0 - pw,
@@ -4598,7 +4593,7 @@ pub(crate) fn vault_has_key(
     c: &Compute,
     app: &Faraday,
     v: usize,
-    key: &crate::wallet::Key,
+    key: &faraday_keys::KeyInfo,
 ) -> bool {
     vault_key(c, app, v, key).is_some()
 }
@@ -4611,7 +4606,7 @@ pub(crate) fn vault_key(
     c: &Compute,
     app: &Faraday,
     v: usize,
-    key: &crate::wallet::Key,
+    key: &faraday_keys::KeyInfo,
 ) -> Option<bool> {
     let o = app.vaults.open.get(v)?;
     o.contents

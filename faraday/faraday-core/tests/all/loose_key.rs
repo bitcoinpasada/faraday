@@ -41,7 +41,7 @@ fn desktop() -> Faraday {
 /// Home, Add a key, the words typed, Add key. Returns the key's
 /// fingerprint.
 fn add_key(app: &mut Faraday, words: &str) -> [u8; 4] {
-    let before: Vec<[u8; 4]> = app.session.keys.iter().map(|k| k.fingerprint().0).collect();
+    let before: Vec<[u8; 4]> = app.session.keys.all().map(|k| k.fingerprint.0).collect();
     app.press(Action::Entry(None));
     assert_eq!(app.screen, Screen::Entry);
     for c in words.chars() {
@@ -51,8 +51,8 @@ fn add_key(app: &mut Faraday, words: &str) -> [u8; 4] {
     let _ = app.frame();
     app.session
         .keys
-        .iter()
-        .map(|k| k.fingerprint().0)
+        .all()
+        .map(|k| k.fingerprint.0)
         .find(|f| !before.contains(f))
         .expect("no key added")
 }
@@ -125,7 +125,7 @@ fn a_key_with_no_label_is_named_by_its_fingerprint_once() {
     let mut app = desktop();
     let fp = add_key(&mut app, ABANDON);
     let f = faraday_bip::keys::Fingerprint(fp);
-    let line = key_line(f, app.session.key_label(f).unwrap_or(""));
+    let line = key_line(f, app.session.keys.key_label(f).unwrap_or(""));
     assert_eq!(line, fp_text(f));
 }
 

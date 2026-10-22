@@ -331,25 +331,9 @@ pub fn structural_fixed(x: usize, y: usize, n: usize) -> bool {
     (finder && !format) || ((x == 6 || y == 6) && !format) || align
 }
 
-/// What comparing a copy of a seed with the seed says.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CopyCheck {
-    /// Every word matches.
-    Matches,
-    /// A word differs, counting from one.
-    WrongWord(usize),
-}
-
-/// Compares the words of a copy, scanned or typed, with the seed's, by
-/// their BIP-39 numbers: the first that differs, counting from one, or a copy
-/// of another length at the first word one has and the other lacks.
-pub fn compare_words(copy: &[u16], seed: &[u16]) -> CopyCheck {
-    match copy.iter().zip(seed).position(|(a, b)| a != b) {
-        Some(i) => CopyCheck::WrongWord(i + 1),
-        None if copy.len() == seed.len() => CopyCheck::Matches,
-        None => CopyCheck::WrongWord(copy.len().min(seed.len()) + 1),
-    }
-}
+/// What comparing a copy of a seed with the seed says
+/// ([`faraday_keys::compare_words`]).
+pub use faraday_keys::{CopyCheck, compare_words};
 
 /// How a line of the backup's per-seed lines are coloured: kept,
 /// wanting, out in the clear, or not known.
@@ -769,8 +753,8 @@ impl Faraday {
                 let fp = self
                     .backup
                     .as_ref()
-                    .and_then(|b| self.session.keys.get(b.key))
-                    .map(|k| k.fingerprint());
+                    .and_then(|b| self.session.keys.info(b.key))
+                    .map(|k| k.fingerprint);
                 if let Some(fp) = fp {
                     let mut scan = ScanState::default();
                     scan.purpose = ScanPurpose::CheckCopy(fp);

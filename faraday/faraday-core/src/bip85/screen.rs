@@ -81,6 +81,7 @@ fn summary(app: &View, b: &Bip85State, s: u8) -> String {
             Some(fp) => {
                 let label = app
                     .session
+                    .keys
                     .key_label(faraday_bip::keys::Fingerprint(fp))
                     .unwrap_or("");
                 format!("{} · {label}", fp_text(faraday_bip::keys::Fingerprint(fp)))
@@ -116,9 +117,9 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             let row: Vec<(String, Style, Action)> = app
                 .session
                 .keys
-                .iter()
+                .all()
                 .map(|k| {
-                    let fp = k.fingerprint();
+                    let fp = k.fingerprint;
                     (
                         crate::wallet::key_line(fp, &k.label),
                         if b.key == Some(fp.0) {

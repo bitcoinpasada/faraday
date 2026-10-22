@@ -1975,8 +1975,8 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             crate::secrets::Keep::Key { key, fp } => app
                 .session
                 .keys
-                .get(key)
-                .filter(|k| k.fingerprint() == fp)
+                .info(key)
+                .filter(|k| k.fingerprint == fp)
                 .is_some_and(|k| app.vault_has_key(v, k)),
             _ => false,
         };

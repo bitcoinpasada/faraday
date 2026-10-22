@@ -89,7 +89,7 @@ fn a_missing_key_in_an_open_vault_loads_from_the_wallet_card() {
     assert!(app.offers(Action::Vault(V::LoadKeyOf(fp.0, SlotOf::Loaded(0, 0)))));
     app.press(Action::Vault(V::LoadKeyOf(fp.0, SlotOf::Loaded(0, 0))));
     assert_eq!(app.session.keys.len(), 1);
-    assert_eq!(app.session.keys[0].fingerprint(), fp);
+    assert_eq!(app.session.keys[0].fingerprint, fp);
 }
 
 #[test]
@@ -290,7 +290,11 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, faraday_bip::bip39::Mn
     app.press(Action::KNext);
     app.press(Action::KLock);
     app.press(Action::KNext);
-    let words = app.session.keys[0].words.as_ref().unwrap().to_string();
+    let words = app
+        .session
+        .keys
+        .reveal(0, faraday_keys::Reveal::Words)
+        .to_string();
     let made =
         faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, &words)
             .unwrap();
@@ -356,12 +360,12 @@ fn a_key_whose_words_are_in_the_vault_reads_as_kept_there_and_another_does_not()
     // The vault's copy of the key says its backup is pending; a key of
     // other words is not the one it means.
     add_key(&mut app, 0);
-    let other = app.session.keys[0].fingerprint();
+    let other = app.session.keys[0].fingerprint;
     assert!(!app.key_held(&c, other), "a key of other words is held");
     // The same words typed are the key kept there.
     type_words(&mut app, Language::English, &made);
     assert_eq!(app.session.keys.len(), 2);
-    let same = app.session.keys[1].fingerprint();
+    let same = app.session.keys[1].fingerprint;
     assert!(
         app.key_held(&c, same),
         "the words in the vault read as kept"
@@ -371,7 +375,7 @@ fn a_key_whose_words_are_in_the_vault_reads_as_kept_there_and_another_does_not()
     let es = Mnemonic::from_indices(Language::Spanish, made.indices()).unwrap();
     type_words(&mut app, Language::Spanish, &es);
     assert_eq!(app.session.keys.len(), 3, "{:?}", app.entry.error);
-    assert!(app.key_held(&c, app.session.keys[2].fingerprint()));
+    assert!(app.key_held(&c, app.session.keys[2].fingerprint));
 }
 
 // ---- Create's Keys card offers an open vault's keys (NEW-WALLET §16.1) ----
@@ -439,7 +443,7 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
     assert!(texts.contains(&line), "the key reads {line}");
     app.press(press);
     assert_eq!(app.session.keys.len(), 3, "the key is loaded");
-    assert!(app.session.keys.iter().any(|k| k.fingerprint().0 == fp));
+    assert!(app.session.keys.all().any(|k| k.fingerprint.0 == fp));
     assert_eq!(
         app.create.as_ref().map(|c| c.slots[0].clone()),
         Some(Source::Here(fp)),

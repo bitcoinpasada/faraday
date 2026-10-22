@@ -99,8 +99,8 @@ fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
     }
     app.press(Action::EntryAdd);
     let key = app.session.keys.last().expect("the key was not added");
-    assert_eq!(key.passphrase.is_some(), with);
-    let fp = key.fingerprint();
+    assert_eq!(key.has_passphrase, with);
+    let fp = key.fingerprint;
     app.press(Action::KeyWallet(fp.0, 1));
     app.press(Action::Seeds(S::Make));
     let w = app.session.wallets.len() - 1;
@@ -165,7 +165,7 @@ fn reopened(app: &mut Faraday) -> Vec<Fingerprint> {
     let mut next = device(vec![vault]);
     unlock(&mut next);
     next.press(Action::Vault(V::LoadChosen(0)));
-    next.session.keys.iter().map(|k| k.fingerprint()).collect()
+    next.session.keys.all().map(|k| k.fingerprint).collect()
 }
 
 /// The seed as a file in the Outbox, in form `form` (0 the words, 1 the
@@ -201,7 +201,7 @@ fn scanned(png: &[u8]) -> Fingerprint {
     );
     app.press(Action::SeedRead(faraday_core::seeds::read::Choice::Plain));
     assert_eq!(app.session.keys.len(), 1, "the scanner loaded no key");
-    app.session.keys[0].fingerprint()
+    app.session.keys[0].fingerprint
 }
 
 const STICK: &str = "S1";
@@ -315,7 +315,7 @@ fn the_words_file_read_from_a_stick_loads_the_same_key() {
         .expect("not copied in");
     next.press(Action::LoadKey(k));
     assert_eq!(next.session.keys.len(), 1, "the key did not load");
-    assert_eq!(next.session.keys[0].fingerprint(), fp);
+    assert_eq!(next.session.keys[0].fingerprint, fp);
 }
 
 #[test]
@@ -541,7 +541,7 @@ fn a_matched_copy_check_marks_that_seed_only() {
 fn a_two_of_three_with_one_seed_here_lists_the_other_two_as_not_here() {
     let mut app = device(Vec::new());
     let k = add_key(&mut app, 1);
-    let fp = app.session.keys[k].fingerprint();
+    let fp = app.session.keys[k].fingerprint;
     savings_backup(&mut app);
     let seeds = kept(&app).seeds;
     assert_eq!(seeds.len(), 3);

@@ -73,13 +73,13 @@ impl Faraday {
         };
         let found: Result<Node, String> = match l.source {
             Some(NodeSource::Key(fp)) => {
-                let key = self.session.keys.iter().find(|k| k.fingerprint().0 == fp);
-                match key.and_then(|k| Some((k, k.words.as_ref()?))) {
+                match self.session.keys.position_of(fp).and_then(|k| {
+                    self.session
+                        .keys
+                        .lightning_node(&c, k, faraday_keys::Reveal::LightningKey)
+                }) {
                     None => Err(EN.lightning_this_key.to_string()),
-                    Some((k, words)) => {
-                        let p = k.passphrase.as_deref().map_or("", |p| p.as_str());
-                        faraday_keys::lightning::node_from_words(&c, k.language, words, p, net)
-                    }
+                    Some(node) => node.map(faraday_keys::Held::release),
                 }
             }
             Some(NodeSource::Aezeed) => {

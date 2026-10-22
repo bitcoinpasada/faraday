@@ -133,7 +133,7 @@ fn backing_up_on(app: &mut Faraday, words: &str, camera: bool, copies: (bool, bo
     }
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
-    let fp = app.session.keys[0].fingerprint().0;
+    let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(S::Make));
     assert_eq!(app.session.wallets.len(), 1);
@@ -506,7 +506,7 @@ fn a_drawn_standard_seedqr_of_the_seed_matches_and_adds_nothing() {
     app.press(Action::BScan);
     assert_eq!(app.sheet, Some(Sheet::Scan));
     assert!(commands(&mut app).contains(&Command::CameraOn));
-    let fp = app.session.keys[0].fingerprint();
+    let fp = app.session.keys[0].fingerprint;
     assert_eq!(
         app.scan.as_ref().map(|s| s.purpose),
         Some(ScanPurpose::CheckCopy(fp))
@@ -656,7 +656,10 @@ fn each_seed_is_checked_by_its_own_forms() {
     let second = bstep::COPY + seeds[1] as u8;
     let words_of = |app: &Faraday, i: usize| {
         let k = app.backup_seed_list_now(w)[i].1.unwrap();
-        app.session.keys[k].words.as_ref().unwrap().to_string()
+        app.session
+            .keys
+            .reveal(k, faraday_keys::Reveal::Words)
+            .to_string()
     };
     // The words seed: typed.
     if app.backup.as_ref().unwrap().open != Some(first) {
@@ -691,7 +694,7 @@ fn the_chart_checks_a_copy_by_the_form_of_its_line() {
         app.press(Action::Cancel);
         offers
     };
-    let fp_of = |app: &Faraday| app.session.keys[0].fingerprint().0;
+    let fp_of = |app: &Faraday| app.session.keys[0].fingerprint.0;
 
     // Words: typed; a camera changes nothing.
     let mut app = backing_up(ATTACK, true, WORDS_ONLY);
@@ -877,7 +880,7 @@ fn scan_another(app: &mut Faraday) {
 
 fn misses(app: &Faraday) -> u8 {
     let b = app.backup.as_ref().unwrap();
-    b.misses_of(app.session.keys[b.key].fingerprint().0)
+    b.misses_of(app.session.keys[b.key].fingerprint.0)
 }
 
 /// A 12-word seed's SeedQR copy item, with a camera, the seed hidden so
@@ -1010,7 +1013,7 @@ fn the_grid_dropped_for_the_words_stays_on_the_map_drawn_in_part_until_destroyed
     use faraday_core::plan::{Edit, Mark, What};
     let c = testkit::compute();
     let mut app = backing_up(ATTACK, true, SEEDQR_ONLY);
-    let fp = app.session.keys[0].fingerprint().to_string();
+    let fp = app.session.keys[0].fingerprint.to_string();
     app.press(Action::BKeepWords);
     let line = format!("Seed {fp}'s SeedQR, drawn in part, stays on the map until destroyed");
     assert!(says(&mut app, &line), "the item does not say so");

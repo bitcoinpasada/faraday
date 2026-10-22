@@ -213,7 +213,7 @@ fn a_secret_let_out_stays_a_secret_across_a_lock() {
     let mut app = device(Vec::new());
     add_key(&mut app, 0);
     app.press(Action::Lightning);
-    let fp = app.session.keys[0].fingerprint().0;
+    let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::LKey(fp));
     app.press(Action::LOut);
     app.press(Action::SecretAck);

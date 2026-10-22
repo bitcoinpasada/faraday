@@ -361,6 +361,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         let fpt = fp_text(faraday_bip::keys::Fingerprint(*fp));
                         let name = app
                             .session
+                            .keys
                             .key_label(faraday_bip::keys::Fingerprint(*fp))
                             .unwrap_or("");
                         (fill(EN.create_loaded_here, &[&fpt.to_string(), name]), OK)
@@ -406,7 +407,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         if c.kind.threshold() && k.share.is_none() {
                             continue;
                         }
-                        let fp = k.fingerprint();
+                        let fp = k.fingerprint;
                         if used_elsewhere_here(fp.0) {
                             continue;
                         }

@@ -270,7 +270,8 @@ fn a_key_scanned_with_no_name_shows_its_fingerprint_once() {
     let fp = {
         let mut s = testkit::session();
         faraday_core::wallet::fp_text(
-            s.add_words(&c, &testkit::test_words("zebra"), "", None)
+            s.keys
+                .add_words(&c, &testkit::test_words("zebra"), "", None)
                 .unwrap(),
         )
     };

@@ -194,6 +194,7 @@ fn every_seed_form_and_xpub_on_the_test_stick_is_its_key() {
     for (n, (word, _)) in testkit::TEST_SEEDS.iter().enumerate() {
         let mut s = testkit::session();
         let fp = s
+            .keys
             .add_words(&c, &testkit::test_words(word), "", None)
             .unwrap();
         let stem = format!("seed-{}-{}", n + 1, faraday_core::wallet::fp_text(fp));
@@ -237,7 +238,10 @@ const ABANDON: &str = "abandon abandon abandon abandon abandon abandon abandon a
 fn a_key_reads_the_same_fingerprint_on_the_wallets_page_on_either_network() {
     let c = testkit::compute();
     let mut app = testkit::started();
-    app.session.add_words(&c, ABANDON, "Seed", None).unwrap();
+    app.session
+        .keys
+        .add_words(&c, ABANDON, "Seed", None)
+        .unwrap();
     app.press(Action::Nav(Screen::Wallets));
     assert!(crate::common::has(&mut app, "73c5da0a · Seed"));
 

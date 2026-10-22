@@ -21,7 +21,7 @@ pub(crate) fn standard_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("std-1-create-kind")?;
     // A single key from the key loaded.
     t.press(Action::CNext(cstep::KIND));
-    let fp = t.app.session.keys[0].fingerprint().0;
+    let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));
     // The vault question with its line (§19.21 item 5), then Create's
@@ -44,7 +44,7 @@ pub(crate) fn standard_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     for slot in 0..3u8 {
-        let fp = t.app.session.keys[usize::from(slot)].fingerprint().0;
+        let fp = t.app.session.keys[usize::from(slot)].fingerprint.0;
         t.press(Action::CSlotHere(slot, fp));
     }
     t.press(Action::CNext(cstep::KEYS));

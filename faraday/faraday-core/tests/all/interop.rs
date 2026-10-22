@@ -1129,6 +1129,7 @@ fn a_psbt_electrum_builds_from_a_bare_zpub_is_not_signed_here() {
     let sign = |psbt: &mut _| {
         let mut session = testkit::session();
         session
+            .keys
             .add_words(
                 &c,
                 &testkit::test_words(testkit::TEST_SEEDS[0].0),

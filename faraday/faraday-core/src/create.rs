@@ -5,7 +5,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use faraday_bip::keys::{MasterKey, MultisigScriptType, ScriptType};
+use faraday_bip::keys::{MasterKey, MultisigScriptType, Network, ScriptType};
 use faraday_bip::policy::{PolicyKey, WalletPolicy};
 use faraday_bip::slip132;
 use faraday_crypto::work::Compute;
@@ -187,96 +187,87 @@ impl NewKind {
         !matches!(self, NewKind::MultiLegacy | NewKind::Threshold)
     }
 
+    /// Which key text this kind is at `account` on `network`: its script's
+    /// account key, or its path (`docs/history/NEW-WALLET.md` §16.2). The
+    /// shares dealt here have none.
+    pub fn spec(self, network: Network, account: u32) -> Result<faraday_keys::Spec, String> {
+        use faraday_keys::Spec;
+        Ok(match self {
+            NewKind::Threshold => return Err(EN.create_a_share_has.to_string()),
+            NewKind::NativeSegwit => Spec::Single(ScriptType::NativeSegwit, account),
+            // A MuSig2 participant's key is its Taproot account.
+            NewKind::Taproot | NewKind::MuSig => Spec::Single(ScriptType::Taproot, account),
+            NewKind::NestedSegwit => Spec::Single(ScriptType::NestedSegwit, account),
+            NewKind::Legacy => Spec::Single(ScriptType::Legacy, account),
+            NewKind::Multi => Spec::Multisig(MultisigScriptType::NativeSegwit, account),
+            NewKind::MultiNested => Spec::Multisig(MultisigScriptType::NestedSegwit, account),
+            NewKind::MultiLegacy | NewKind::TapMulti => Spec::Path(
+                self.path_at(network, account)
+                    .parse()
+                    .map_err(|e| format!("{e}"))?,
+            ),
+        })
+    }
+
     /// Costs a key derivation. `[fingerprint/path]xpub` of a master key, at
-    /// this kind's path with account `account` in place of 0
-    /// (`docs/history/NEW-WALLET.md` §16.2).
+    /// this kind's path with account `account` in place of 0. For a master
+    /// key a test holds; the session's keys go through
+    /// [`crate::wallet::KeyTexts`].
     pub fn key_text_account(
         self,
         c: &Compute,
         master: &MasterKey,
         account: u32,
     ) -> Result<String, String> {
-        let key = match self {
-            NewKind::Threshold => return Err(EN.create_a_share_has.to_string()),
-            NewKind::NativeSegwit
-            | NewKind::Taproot
-            | NewKind::NestedSegwit
-            | NewKind::Legacy
-            | NewKind::MuSig => {
-                let t = match self {
-                    NewKind::NativeSegwit => ScriptType::NativeSegwit,
-                    // A MuSig2 participant's key is its Taproot account.
-                    NewKind::Taproot | NewKind::MuSig => ScriptType::Taproot,
-                    NewKind::NestedSegwit => ScriptType::NestedSegwit,
-                    _ => ScriptType::Legacy,
-                };
-                faraday_keys::texts::single_account(c, master, t, account)?
-            }
-            NewKind::Multi | NewKind::MultiNested => {
-                let t = if self == NewKind::Multi {
-                    MultisigScriptType::NativeSegwit
-                } else {
-                    MultisigScriptType::NestedSegwit
-                };
-                faraday_keys::texts::multisig_account(c, master, t, account)?
-            }
-            NewKind::MultiLegacy | NewKind::TapMulti => {
-                let path: faraday_bip::bitcoin::bip32::DerivationPath = self
-                    .path_at(master.network(), account)
-                    .parse()
-                    .map_err(|e| format!("{e}"))?;
-                faraday_keys::texts::account_at(c, master, &path)
-            }
-        };
-        let shown = format!("{}", key.path)
-            .trim_start_matches("m/")
-            .replace('\'', "h");
-        Ok(format!("[{}/{shown}]{}", key.fingerprint, key.xpub))
+        faraday_keys::texts::key_text(c, master, &self.spec(master.network(), account)?)
     }
 
-    /// Costs a key derivation. A `wsh` multisig key as the
-    /// `ur:crypto-account` SeedSigner shows for one; `None` for any other
-    /// kind.
-    pub fn account_ur(self, c: &Compute, master: &MasterKey) -> Option<String> {
-        self.account_ur_at(c, master, 0)
+    /// Costs a key derivation. A `wsh` multisig key of session key `i` as
+    /// the `ur:crypto-account` SeedSigner shows for one; `None` for any
+    /// other kind.
+    pub fn account_ur(self, c: &Compute, keys: &faraday_keys::Keys, i: usize) -> Option<String> {
+        self.account_ur_at(c, keys, i, 0)
     }
 
     /// Costs a key derivation. [`NewKind::account_ur`] at account
     /// `account`.
-    pub fn account_ur_at(self, c: &Compute, master: &MasterKey, account: u32) -> Option<String> {
+    pub fn account_ur_at(
+        self,
+        c: &Compute,
+        keys: &faraday_keys::Keys,
+        i: usize,
+        account: u32,
+    ) -> Option<String> {
         if self != NewKind::Multi {
             return None;
         }
-        let a = faraday_keys::texts::multisig_account(
-            c,
-            master,
-            MultisigScriptType::NativeSegwit,
-            account,
-        )
-        .ok()?;
+        let a = keys
+            .multisig_account(c, i, MultisigScriptType::NativeSegwit, account)?
+            .ok()?;
         let path: Vec<_> = a.path.into_iter().copied().collect();
         let cbor = faraday_qr::registry::account_cbor(a.fingerprint.0, &path, &a.xpub, false);
         Some(faraday_codec::ur::encode_single("crypto-account", &cbor))
     }
 
-    /// Costs a key derivation and a signature. A key's BIP 129 key record,
-    /// signed by the account key itself: what Coldcard, Sparrow, Nunchuk
-    /// and Keystone take from a signer. For the multisig kinds BIP 129
-    /// covers (`wsh` and `sh(wsh)`), at account `account` of the kind's
-    /// path.
+    /// Costs a key derivation and a signature. Session key `i`'s BIP 129
+    /// key record, signed by the account key itself: what Coldcard,
+    /// Sparrow, Nunchuk and Keystone take from a signer. For the multisig
+    /// kinds BIP 129 covers (`wsh` and `sh(wsh)`), at account `account` of
+    /// the kind's path, described by the key's fingerprint text `fp`.
     pub fn bsms_record(
         self,
         c: &Compute,
-        master: &MasterKey,
+        keys: &faraday_keys::Keys,
+        i: usize,
         account: u32,
-        description: &str,
+        fp: &str,
     ) -> Option<String> {
         let script = match self {
             NewKind::Multi => MultisigScriptType::NativeSegwit,
             NewKind::MultiNested => MultisigScriptType::NestedSegwit,
             _ => return None,
         };
-        faraday_keys::texts::bsms_record(c, master, script, account, description)
+        keys.bsms_record(c, i, script, account, &format!("Faraday key {fp}"))
     }
 
     /// The descriptor over these keys.
@@ -319,22 +310,20 @@ pub fn account_of(policy: &WalletPolicy) -> u32 {
         })
 }
 
-/// Costs what `derive` and `to_xpub` cost. `[fingerprint/path]xpub` of
-/// a master key at `path`, written `m/48'/0'/0'/2'` or `48h/0h/0h/2h`:
-/// what [`NewKind::key_text`] gives at a kind's own path, at any other.
-pub fn key_text_at(c: &Compute, master: &MasterKey, path: &str) -> Result<String, String> {
+/// Costs what `derive` and `to_xpub` cost. The key text at `path`, written
+/// `m/48'/0'/0'/2'` or `48h/0h/0h/2h`, as a [`faraday_keys::Spec`]: what
+/// [`NewKind::spec`] gives at a kind's own path, at any other.
+pub fn path_spec(path: &str) -> Result<faraday_keys::Spec, String> {
     let path = normal_path(path).ok_or_else(|| fill(EN.create_not_a_derivation, &[path]))?;
     let parsed: faraday_bip::bitcoin::bip32::DerivationPath =
         path.parse().map_err(|e| format!("{e}"))?;
-    let key = faraday_keys::texts::account_at(c, master, &parsed);
-    let shown = path
-        .trim_start_matches('m')
-        .trim_start_matches('/')
-        .replace('\'', "h");
-    if shown.is_empty() {
-        return Ok(format!("[{}]{}", key.fingerprint, key.xpub));
-    }
-    Ok(format!("[{}/{shown}]{}", key.fingerprint, key.xpub))
+    Ok(faraday_keys::Spec::Path(parsed))
+}
+
+/// Costs a key derivation. `[fingerprint/path]xpub` of a master key a test
+/// holds at `path`.
+pub fn key_text_at(c: &Compute, master: &MasterKey, path: &str) -> Result<String, String> {
+    faraday_keys::texts::key_text(c, master, &path_spec(path)?)
 }
 
 /// A derivation path as typed, `m/48'/0'/0'/2'`, `48h/0h/0h/2h` or with

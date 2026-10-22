@@ -90,7 +90,7 @@ impl Faraday {
             self.toast(EN.silent_load_a_key_first);
             return;
         }
-        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint().0);
+        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint.0);
         self.silent = Some(SilentState {
             open: Some(if key.is_some() {
                 sstep::ADDRESS
@@ -164,18 +164,14 @@ impl Faraday {
     /// the wallet is the two points).
     fn silent_receiver(&self, c: &Compute) -> Option<(Receiver, [u8; 4])> {
         let s = self.silent.as_ref()?;
-        let key = self
-            .session
-            .keys
-            .iter()
-            .find(|k| Some(k.fingerprint().0) == s.key)?;
-        let r = faraday_keys::silent::receiver(c, key.master(), 0);
+        let place = self.session.keys.position_of(s.key?)?;
+        let r = self.session.keys.silent_receiver(c, place, 0)?;
         if let Some(w) = self.silent_wallet()
             && w.spend != r.spend_public_key()
         {
             return None;
         }
-        Some((r, key.fingerprint().0))
+        Some((r, self.session.keys[place].fingerprint.0))
     }
 
     /// Costs two key derivations and an address the first time. What the
@@ -189,9 +185,9 @@ impl Faraday {
         let loaded = self
             .session
             .keys
-            .iter()
-            .find(|k| Some(k.fingerprint().0) == s.key)
-            .map(|k| k.master_id());
+            .all()
+            .find(|k| Some(k.fingerprint.0) == s.key)
+            .map(|k| k.id.0);
         let of = (s.key, s.label, s.wallet, loaded, self.session.network());
         if let Some((o, shown)) = s.shown.borrow().as_ref()
             && *o == of

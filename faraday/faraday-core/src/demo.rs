@@ -33,7 +33,7 @@ impl Faraday {
     /// while the demo is on (`Session::demo`), true otherwise, on the
     /// stick and on a test network alike (`docs/DEMO.md` §2).
     pub fn makes_secrets(&self) -> bool {
-        !self.session.demo()
+        !self.session.keys.demo()
     }
 
     /// Whether `action` is one the demo refuses as it stands now: an
@@ -65,7 +65,7 @@ impl Faraday {
                     .keygen
                     .as_ref()
                     .is_some_and(crate::keygen::KeyGen::typed)
-                    && self.session.next_handout().is_none()
+                    && self.session.keys.next_handout().is_none()
             }
             // Make the key, for a GPG key, Secure Boot keys or an APK key.
             Action::Flow(F::Make) => self

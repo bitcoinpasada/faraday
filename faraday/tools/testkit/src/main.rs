@@ -34,6 +34,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     let mut session = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[0];
     session
+        .keys
         .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     session
@@ -89,7 +90,8 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         let (u, cosigned) = testkit::spend_of(&kit)?;
         let mut all = testkit::session();
         for (word, label) in testkit::TEST_SEEDS {
-            all.add_words(c, &testkit::test_words(word), label, None)
+            all.keys
+                .add_words(c, &testkit::test_words(word), label, None)
                 .map_err(|e| e.text())?;
         }
         all.add_wallet(
@@ -138,6 +140,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     let mut second = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[1];
     second
+        .keys
         .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     second
@@ -165,7 +168,8 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     let (mu, nonce_files, partial_files) = testkit::musig_rounds()?;
     let mut s1 = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[0];
-    s1.add_words(c, &testkit::test_words(word), label, None)
+    s1.keys
+        .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     s1.add_wallet(
         c,
@@ -204,6 +208,7 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
     let mut second = testkit::session();
     let (word, label) = testkit::TEST_SEEDS[1];
     second
+        .keys
         .add_words(c, &testkit::test_words(word), label, None)
         .map_err(|e| e.text())?;
     second

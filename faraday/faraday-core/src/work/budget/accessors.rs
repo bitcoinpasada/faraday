@@ -75,7 +75,7 @@ fn reads(app: &Faraday) -> Vec<Read> {
     let salt = app.vaults.open[app.vaults.current].header().salt;
     let slot = app.session.slots(&app.session.wallets[w]).remove(0);
     let seeds = SeedsState {
-        keys: app.session.keys.iter().map(|k| k.fingerprint().0).collect(),
+        keys: app.session.keys.all().map(|k| k.fingerprint.0).collect(),
         shaping: true,
         m: 2,
         n: app.session.keys.len(),
@@ -116,19 +116,19 @@ fn reads(app: &Faraday) -> Vec<Read> {
         (
             "account_text",
             Box::new(|v| {
-                let _ = v.account_text(&v.session.keys[0], NewKind::NativeSegwit, 1);
+                let _ = v.account_text(0, NewKind::NativeSegwit, 1);
             }),
         ),
         (
             "text_at",
             Box::new(|v| {
-                let _ = v.text_at(&v.session.keys[0], "m/84h/1h/2h");
+                let _ = v.text_at(0, "m/84h/1h/2h");
             }),
         ),
         (
             "words_id",
             Box::new(|v| {
-                let _ = v.words_id(&v.session.keys[0]);
+                let _ = v.words_id(0);
             }),
         ),
         (

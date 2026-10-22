@@ -11,12 +11,23 @@ publish = false
 [dependencies]
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-psbt = { path = "../../core/faraday-psbt" }
+faraday-entropy = { path = "../../core/faraday-entropy" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-pgp = { path = "../faraday-pgp" }
 faraday-sb = { path = "../faraday-sb" }
 faraday-apk = { path = "../faraday-apk" }
 faraday-vault = { path = "../faraday-vault" }
+faraday-codec = { path = "../../core/faraday-codec", default-features = false }
+faraday-intake = { path = "../faraday-intake" }
+faraday-strings = { path = "../faraday-strings" }
 zeroize = { workspace = true, features = ["alloc"] }
+
+[features]
+# `Keys::master_for_tests`: a key's master key, for the tests that check a
+# public result against the one they derive themselves. Turned on by
+# faraday-core's dev-dependency only; `tools/lint-keys-tests.sh` fails if a
+# shipped binary has it.
+master-for-tests = []
 
 [dev-dependencies]
 serde_json.workspace = true

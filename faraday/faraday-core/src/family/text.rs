@@ -183,7 +183,7 @@ fn signers_missing(app: &View) -> bool {
         .inspection
         .participating_keys
         .iter()
-        .filter(|fp| app.session.key_label(**fp).is_some())
+        .filter(|fp| app.session.keys.key_label(**fp).is_some())
         .count();
     app.family.route != Some(Route::Paper) && here < app.spend_needed()
 }

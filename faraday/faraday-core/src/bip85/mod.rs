@@ -142,7 +142,7 @@ impl Faraday {
             self.toast(EN.bip85_load_a_key_first);
             return;
         }
-        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint().0);
+        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint.0);
         let (_, _, length) = lengths(Bip85App::Words);
         self.bip85 = Some(Bip85State {
             open: Some(if key.is_some() {
@@ -165,18 +165,13 @@ impl Faraday {
     /// Costs what `child_mnemonic`, `child_wif`, `child_xprv` and the rest
     /// it calls cost. The value the flow derives, as text: the child words,
     /// the WIF, the xprv, the hex or the password.
-    pub fn bip85_value(&self, c: &Compute) -> Option<Zeroizing<String>> {
+    pub fn bip85_value(&self, c: &Compute) -> Option<faraday_keys::Held<Zeroizing<String>>> {
         // The demo derives no BIP-85 output (`docs/DEMO.md` §4).
         if !self.makes_secrets() {
             return None;
         }
         let b = self.bip85.as_ref()?;
-        let master = &self
-            .session
-            .keys
-            .iter()
-            .find(|k| Some(k.fingerprint().0) == b.key)?
-            .master();
+        let place = self.session.keys.position_of(b.key?)?;
         let i = b.index()?;
         let app = match b.app {
             Bip85App::Words => faraday_keys::bip85::App::Words(b.length),
@@ -186,7 +181,9 @@ impl Faraday {
             Bip85App::Base64 => faraday_keys::bip85::App::Base64(b.length),
             Bip85App::Base85 => faraday_keys::bip85::App::Base85(b.length),
         };
-        faraday_keys::bip85::child(c, master, app, i)
+        self.session
+            .keys
+            .bip85_child(c, place, app, i, faraday_keys::Reveal::Bip85Child)
     }
 
     /// What the value is called where it is kept.
@@ -256,7 +253,7 @@ impl Faraday {
             return;
         };
         let title = self.bip85_title();
-        match self.session.add_words(&c, &value, &title, None) {
+        match self.session.keys.add_words(&c, &value, &title, None) {
             Ok(fp) => self.toast(&fill(EN.bip85_key_added, &[&fp_text(fp).to_string()])),
             Err(e) => self.toast(&e.text()),
         }

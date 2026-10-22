@@ -12,6 +12,7 @@ use crate::wallet::{Session, fp_text, key_line};
 use crate::{Action, Code, Faraday, Screen, flow, guide};
 use faraday_crypto::work::Compute;
 use faraday_draw::widgets::Icon;
+use faraday_keys::Reveal;
 use faraday_ui::parts::{button_rows, section_label, title, wrap_buttons};
 
 /// The rows of the software question.
@@ -753,8 +754,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 return cy + (if drawn { 48.0 } else { 8.0 }) - y;
             }
             let key = &app.session.keys[b.key];
-            let words = key.words.as_ref().map(|z| z.as_str()).unwrap_or("");
-            let list: Vec<&str> = words.split_whitespace().collect();
+            let word_count = usize::from(key.word_count.unwrap_or(0));
             // The seed's copies and the forms they take: the grid is drawn
             // for a SeedQR copy only (`docs/history/NEW-WALLET.md` §14.7).
             let forms = app.copy_forms(b, usize::from(n - bstep::COPY));
@@ -784,8 +784,8 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let info = fill(
                 EN.backup_words,
                 &[
-                    &key_line(key.fingerprint(), &key.label).to_string(),
-                    &list.len().to_string(),
+                    &key_line(key.fingerprint, &key.label).to_string(),
+                    &word_count.to_string(),
                 ],
             );
             let info = ui.fit(13.0, W::R, &info, x + w - ix);
@@ -793,6 +793,8 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             cy = iy + 52.0;
             // The seed is not drawn while the typed check is open.
             if b.reveal && b.check.is_none() {
+                let shown = app.reveal(b.key, Reveal::CopyByHand);
+                let list: Vec<&str> = shown.split_whitespace().collect();
                 // The words, with each word's index as SeedQR writes it.
                 let lang = key.language;
                 // Two columns on a small panel, the index at each one's end.
@@ -838,7 +840,8 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     .collect();
                     cy += wrap_buttons(ui, x, cy, w, 34.0, &items) + 6.0;
                     // A secret shown: drawn from the words each frame.
-                    let matrix = app.seedqr_shown(lang, words, b.compact);
+                    let matrix =
+                        app.seedqr_shown(lang, &app.reveal(b.key, Reveal::SeedQr), b.compact);
                     if let Some(mx) = matrix {
                         cy += seed_grid(ui, &mx, x, cy, w.min(560.0), b.pin) + 12.0;
                     }
@@ -1011,7 +1014,7 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
     };
-    let Some(key) = app.session.keys.get(b.key) else {
+    let Some(key) = app.session.keys.info(b.key) else {
         return 0.0;
     };
     let mut cy = y;
@@ -1034,13 +1037,10 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .map(|n| usize::from(n - crate::bstep::COPY))
     {
         if b.answers.part.iter().any(|&(_, s)| s == i) {
-            let line = fill(
-                EN.copy_check_drawn_in_part,
-                &[&key.fingerprint().to_string()],
-            );
+            let line = fill(EN.copy_check_drawn_in_part, &[&key.fingerprint.to_string()]);
             cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, &line) + 12.0;
         }
-        let misses = b.misses_of(key.fingerprint().0);
+        let misses = b.misses_of(key.fingerprint.0);
         if keep_words_offered(app, i) {
             if misses >= crate::copy_check::MISSES {
                 let line = fill(EN.copy_check_scans_without, &[&misses.to_string()]);
@@ -1068,7 +1068,7 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             (crate::plan::CopyForm::Words, EN.copy_check_your_copy)
         };
-        if b.checked.contains(&(key.fingerprint().0, form)) {
+        if b.checked.contains(&(key.fingerprint.0, form)) {
             cy += ui.wrap(x, cy, w, 13.0, W::S, OK, line) + 12.0;
         }
         return cy - y;
@@ -1169,7 +1169,7 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(b) = app.backup.as_ref() else {
         return 0.0;
     };
-    let Some(key) = app.session.keys.get(b.key) else {
+    let Some(key) = app.session.keys.info(b.key) else {
         ui.wrap(x, y, w, 13.0, W::R, MUTED, EN.backup_no_key_of_this);
         return 30.0;
     };
@@ -1198,16 +1198,18 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let info = fill(
         EN.backup_passphrase_of,
-        &[&key_line(key.fingerprint(), &key.label).to_string()],
+        &[&key_line(key.fingerprint, &key.label).to_string()],
     );
     let info = ui.fit(13.0, W::R, &info, x + w - ix);
     ui.text_mid(ix, iy, 38.0, 13.0, W::R, MUTED, &info);
     cy = iy + 52.0;
     // The passphrase is not drawn while the check is open.
     if b.reveal && b.check.is_none() {
-        match key.passphrase.as_ref() {
-            Some(p) => cy += ui.wrap(x, cy, w, 16.0, W::M, TEXT, p) + 16.0,
-            None => cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_no_passphrase_kept) + 12.0,
+        if key.has_passphrase {
+            let shown = app.reveal(b.key, Reveal::Passphrase);
+            cy += ui.wrap(x, cy, w, 16.0, W::M, TEXT, &shown) + 16.0;
+        } else {
+            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_no_passphrase_kept) + 12.0;
         }
     }
     cy += copy_check(app, ui, x, cy, w);
@@ -1248,8 +1250,8 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
         // (`docs/history/NEW-WALLET.md` §14.7 item 1).
         Item::Copy(i) => {
             use crate::plan::CopyForm;
-            let words_left = app.session.keys.get(b.key).is_none_or(|k| {
-                let fp = k.fingerprint().0;
+            let words_left = app.session.keys.info(b.key).is_none_or(|k| {
+                let fp = k.fingerprint.0;
                 let has = |f| b.checked.contains(&(fp, f));
                 app.copy_checks(b, i, k).typed
                     && !(has(CopyForm::Words)
@@ -1316,8 +1318,8 @@ fn copy_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> f32 {
     let missed = app.backup.as_ref().is_some_and(|b| {
         app.session
             .keys
-            .get(b.key)
-            .is_some_and(|k| b.misses_of(k.fingerprint().0) >= crate::copy_check::MISSES)
+            .info(b.key)
+            .is_some_and(|k| b.misses_of(k.fingerprint.0) >= crate::copy_check::MISSES)
     });
     if !(missed && keep_words_offered(app, i)) {
         return if item_next(app, ui, x, y, w, n) {
@@ -1459,8 +1461,8 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
     let mut rows: Vec<(String, bool)> = own
         .iter()
         .filter_map(|&(k, with)| {
-            let key = app.session.keys.get(k)?;
-            let name = fp_text(key.fingerprint());
+            let key = app.session.keys.info(k)?;
+            let name = fp_text(key.fingerprint);
             let label = if with {
                 fill(EN.vault_item_seed_with, &[&name.to_string()])
             } else {
@@ -1531,7 +1533,7 @@ fn seed_files(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let key = &app.session.keys[k];
         let made = app.seed_file_made(&stem, key);
         ui.dot(x + 4.0, cy + 9.0, 3.5, if made { OK } else { DIM });
-        let name = key_line(key.fingerprint(), &key.label);
+        let name = key_line(key.fingerprint, &key.label);
         let state = if made {
             app.medium.for_box()
         } else {

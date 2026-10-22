@@ -39,12 +39,13 @@ fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
             .map(|&w| Language::English.words()[usize::from(w)])
             .collect();
         app.session
+            .keys
             .add_words(&c, &words.join(" "), &format!("Seed {i}"), None)
             .unwrap();
     }
     let text = (wallets > 0).then(|| {
         faraday_core::create::NewKind::NativeSegwit
-            .key_text(&c, app.session.keys[0].master())
+            .key_text(&c, app.session.keys.master_for_tests(0))
             .unwrap()
     });
     for a in 0..wallets {
@@ -69,7 +70,7 @@ fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
 }
 
 fn fp(app: &Faraday, k: usize) -> [u8; 4] {
-    app.session.keys[k].fingerprint().0
+    app.session.keys[k].fingerprint.0
 }
 
 #[test]
@@ -95,7 +96,7 @@ fn the_session_strip_names_the_current_stage() {
     let mut app = with(0, 0);
     assert_eq!(app.session_stage(&c), "Open");
     app.session
-        .add_words(&c, "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "k", None)
+        .keys.add_words(&c, "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "k", None)
         .unwrap();
     assert_eq!(app.session_stage(&c), "Work");
     app.outbox.clear();
@@ -207,7 +208,7 @@ fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
     let mut app = with(2, 0);
     let text_of = |app: &Faraday, k: usize, a: usize| {
         faraday_core::create::NewKind::NativeSegwit
-            .key_text(&c, app.session.keys[k].master())
+            .key_text(&c, app.session.keys.master_for_tests(k))
             .unwrap()
             .replace("/0h]", &format!("/{a}h]"))
     };
@@ -245,8 +246,13 @@ fn a_wallet_the_seeds_here_sign_for_stays_in_view_among_many() {
 fn a_key_with_a_passphrase_says_so() {
     let c = testkit::compute();
     let mut app = with(1, 0);
-    let words = app.session.keys[0].words.as_deref().unwrap().to_string();
+    let words = app
+        .session
+        .keys
+        .reveal(0, faraday_keys::Reveal::Words)
+        .to_string();
     app.session
+        .keys
         .add_words_with(&c, &words, "TREZOR", "Seed 0", None)
         .unwrap();
     let _ = app.frame();
@@ -297,7 +303,7 @@ fn create_at_places() -> Faraday {
     app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
-        let fp = app.session.keys[usize::from(slot)].fingerprint().0;
+        let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
@@ -533,7 +539,7 @@ fn create_at_places_from_wallets() -> Faraday {
     app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
-        let fp = app.session.keys[usize::from(slot)].fingerprint().0;
+        let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
     }
     app.press(Action::CNext(cstep::KEYS));

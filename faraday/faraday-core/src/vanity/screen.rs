@@ -103,7 +103,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
     match s {
         vstep::KEY => {
             for k in &app.session.keys {
-                let id = k.fingerprint().0;
+                let id = k.fingerprint.0;
                 let on = v.key == Some(id);
                 ui.checkbox(x, cy + 11.0, on, true);
                 ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::M, TEXT, &fp(id));

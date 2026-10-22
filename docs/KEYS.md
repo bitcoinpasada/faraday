@@ -1,7 +1,7 @@
 # The key boundary: faraday-keys
 
 **Kind:** Spec
-**Status:** Not started; the owner answered §9 on 2026-10-21 (the recommendation on all four)
+**Status:** Steps 0 to 2 done; the owner answered §9 on 2026-10-21 (the recommendation on all four)
 **Decisions:** F70
 
 F70 decided that one crate, `faraday-keys`, owns every secret in memory,
@@ -196,6 +196,49 @@ checks, and a timed late-flow session for steps 2 and 3 (SPEED §7).
        -vault (`open`, `seal`, `Opened`).
    - AUDIT.md is rewritten around the boundary.
    - SECURITY-MODEL gains a paragraph.
+
+### Step 2 as built
+
+- `faraday-keys` has `session`: `Keys` (the store, with the network and the
+  demo's public seeds), `KeyInfo` and `KeyId`, `Reveal` and `Revealed`.
+  `Key`'s fields are private to that module.
+- faraday-core's `Session` holds `wallets` and `keys: Keys`, since the
+  wallets and the keys share one network. Callers address a key by its
+  place in the store, as before.
+- `Reveal` has eleven variants; `OutboxFile`, `BackupStick` and
+  `VaultEntry` carry `Part` (the words or the passphrase). A SeedQR
+  picture, a paper form, a Lightning key, a BIP-85 child, a vanity find and
+  a vault key record are operations of `Keys`, since they cost and take a
+  token.
+- Until the wallet kinds' derivation tables move in (step 4),
+  `Keys::with_master` and `Keys::public_text` hand a key's master key to a
+  closure that returns public text. Tests reach it through
+  `Keys::master_for_tests` (feature `master-for-tests`, which
+  `tools/lint-keys-tests.sh` keeps out of every shipped binary).
+
+### 4.1 Left after step 2, closed by step 4
+
+Step 2 (2026-10-21) removed every API that handed out a master key, a
+closure over one, or seed bytes. The operations that return secret
+material take their `Reveal` reason and return `Held<T>`, which is not
+`Clone` or `Debug`, wipes on drop, and has `release()` for the point
+where the secret goes into a vault record.
+
+Still open, for step 4's lint to refuse:
+- **Public types from step 1 that hold a secret:** `silent_receiver`
+  returns a `Receiver` with the scan key in it, and `gpg::Key`, `Dealt`
+  (FROST) and `Node` (Lightning) are `pub`. Each becomes `Held`, or stays
+  inside the crate behind operations.
+- **`wallet_seed_bases`** builds a words record only to read its
+  fingerprint. It becomes a fingerprint operation, not a reveal.
+- **FROST shares** leave as `PaperForm`, the reason that fits them: words
+  the person writes down.
+- **`Keys::master_for_tests`**, behind the `master-for-tests` feature,
+  stays for tests. `tools/lint-keys-tests.sh` keeps that feature out of
+  every binary Faraday ships.
+- **Names.** `Faraday.session` remains `Session { wallets, keys }`,
+  because the wallets and the keys share one network. Handles are still
+  indices and `[u8; 32]` ids. Neither weakens the boundary.
 
 ## 5. What does not change
 

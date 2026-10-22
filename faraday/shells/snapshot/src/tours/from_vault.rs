@@ -1,11 +1,11 @@
 //! The from_vault tour.
 
+use crate::tour::{Tour, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event};
-use crate::tour::{Tour, type_text};
 
 /// Costs what `psbt_for`, `add_words` and `parse` cost. From the vault
 /// to a spend (`docs/history/NEW-WALLET.md` §11): the boot stick's vault
@@ -104,7 +104,8 @@ pub(crate) fn from_vault_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .map(|(w, _)| testkit::test_words(w))
         .find(|w| {
             let mut s = testkit::session();
-            s.add_words(c, w, "", None)
+            s.keys
+                .add_words(c, w, "", None)
                 .is_ok_and(|fp| missing.contains(&fp.0))
         })
         .ok_or("no test seed is a missing key")?;

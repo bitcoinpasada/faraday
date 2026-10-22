@@ -47,7 +47,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         section_label(ui, x, y, EN.start_keys_without);
         y += 24.0;
         for fp in &loose {
-            let line = key_line(*fp, app.session.key_label(*fp).unwrap_or(""));
+            let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
             let line = ui.fit(14.0, W::M, &line, width);
             ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &line);
             y += 34.0;

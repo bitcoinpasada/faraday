@@ -88,7 +88,8 @@ fn drawn(app: &mut Faraday) -> String {
 fn fingerprint(word: &str) -> Fingerprint {
     let c = testkit::compute();
     let mut s = testkit::session();
-    s.add_words(&c, &testkit::test_words(word), "", None)
+    s.keys
+        .add_words(&c, &testkit::test_words(word), "", None)
         .unwrap()
 }
 
@@ -211,7 +212,7 @@ fn a_seed_of_no_key_of_the_wallet_asks_its_passphrase_and_refuses_it_without_one
     assert!(!camera_on(&app));
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
     let mut probe = testkit::session();
-    let fp = fp_text(probe.add_words(&c, OTHER, "", None).unwrap());
+    let fp = fp_text(probe.keys.add_words(&c, OTHER, "", None).unwrap());
     let line = format!("{fp} is not one of Savings's keys");
     let text = drawn(&mut app);
     assert!(text.contains(&line), "{text}");
@@ -256,7 +257,7 @@ fn the_words_typed_instead_load_any_missing_key_and_refuse_another_seed() {
     app.press(Action::EntryAdd);
     assert_eq!(app.screen, Screen::Entry);
     let mut probe = testkit::session();
-    let fp = fp_text(probe.add_words(&c, OTHER, "", None).unwrap());
+    let fp = fp_text(probe.keys.add_words(&c, OTHER, "", None).unwrap());
     assert_eq!(
         app.entry.error.as_deref(),
         Some(format!("These words give {fp}, not a key of Savings").as_str())

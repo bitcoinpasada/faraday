@@ -2557,7 +2557,7 @@ impl Faraday {
                     .find(|it| it.name == meant)
                     .is_some_and(|it| it.bytes == bytes);
                 let key = (0..self.session.keys.len())
-                    .find(|&k| crate::wallet::fp_text(self.session.keys[k].fingerprint()) == fp);
+                    .find(|&k| crate::wallet::fp_text(self.session.keys[k].fingerprint) == fp);
                 let reads = match (key, codes.as_slice()) {
                     (_, []) => false,
                     (Some(k), [one]) => self.seedqr_reads_as(&c, k, one).unwrap_or(true),

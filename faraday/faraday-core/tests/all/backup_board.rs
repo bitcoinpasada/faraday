@@ -42,7 +42,7 @@ fn key_in(app: &mut Faraday, n: usize) -> [u8; 4] {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
-    app.session.keys.last().unwrap().fingerprint().0
+    app.session.keys.last().unwrap().fingerprint.0
 }
 
 fn multi_index() -> u8 {
@@ -88,7 +88,7 @@ fn three_here() -> Faraday {
     app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
-        let fp = app.session.keys[usize::from(slot)].fingerprint().0;
+        let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
@@ -398,7 +398,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     }
     app.press(Action::KNext);
     app.press(Action::KLock);
-    let fp = app.session.keys.last().unwrap().fingerprint().0;
+    let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::KNext);
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
@@ -799,7 +799,7 @@ fn three_on_an_empty_board() -> Faraday {
     app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
-        let fp = app.session.keys[usize::from(slot)].fingerprint().0;
+        let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
@@ -2143,7 +2143,7 @@ fn fresh_three() -> Faraday {
     app.press(Action::CreateWallet);
     app.press(Action::CKind(multi_index()));
     for slot in 0..3u8 {
-        let fp = app.session.keys[usize::from(slot)].fingerprint().0;
+        let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
     }
     app.press(Action::CNext(cstep::KEYS));

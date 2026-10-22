@@ -219,6 +219,7 @@ pub use wallet_backup::BackupState;
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::wallet::KeyTexts;
 use faraday_intake::{arrival, seed_in_code, seedqr_words};
 use std::collections::{BTreeSet, VecDeque};
 
@@ -860,7 +861,7 @@ fn what_instead_of_a_seed(c: &Compute, text: &str) -> Option<&'static str> {
 
 /// An account key of a loaded wallet held here, as
 /// [`Faraday::wallet_key`] finds it.
-pub struct WalletKey<'a> {
+pub struct WalletKey {
     /// The master fingerprint, as text.
     pub fp: String,
     /// `[fingerprint/path]xpub`, as the wallet's descriptor writes it.
@@ -869,8 +870,8 @@ pub struct WalletKey<'a> {
     pub kind: String,
     /// The kind, when the key is at Create's own account for it.
     pub standard: Option<create::NewKind>,
-    /// The seed's master key.
-    pub master: &'a faraday_bip::keys::MasterKey,
+    /// The seed's place among the session's keys.
+    pub key: usize,
 }
 
 /// A signed message checked, by what its check is worked out from
@@ -3882,10 +3883,10 @@ impl Faraday {
             return self
                 .session
                 .keys
-                .iter()
+                .all()
                 .enumerate()
                 .filter(|(_, k)| {
-                    k.words.is_some()
+                    k.has_words()
                         && k.share
                             .is_some_and(|p| record.info.pubshares.contains(&Some(p)))
                 })
@@ -3900,9 +3901,9 @@ impl Faraday {
             .collect();
         self.session
             .keys
-            .iter()
+            .all()
             .enumerate()
-            .filter(|(_, k)| k.words.is_some() && fps.contains(&k.fingerprint()))
+            .filter(|(_, k)| k.has_words() && fps.contains(&k.fingerprint))
             .map(|(i, _)| i)
             .collect()
     }
@@ -3934,8 +3935,8 @@ impl Faraday {
         };
         let stem = file_stem(&wallet.name);
         let here = self.backup_keys(b.wallet);
-        let seed_lines = |key: &wallet::Key| -> Vec<(String, Tone)> {
-            let fp = key.fingerprint();
+        let seed_lines = |key: &faraday_keys::KeyInfo| -> Vec<(String, Tone)> {
+            let fp = key.fingerprint;
             let mut lines = Vec::new();
             lines.push(
                 match open
@@ -3991,7 +3992,7 @@ impl Faraday {
                     .find(|k| pubshare.is_some() && k.share.as_ref() == pubshare.as_ref());
                 seeds.push(match key {
                     Some(key) => KeptSeed {
-                        name: fp_text(key.fingerprint()),
+                        name: fp_text(key.fingerprint),
                         lines: seed_lines(key),
                     },
                     None => KeptSeed {
@@ -4016,7 +4017,7 @@ impl Faraday {
                 let key = here
                     .iter()
                     .map(|&k| &self.session.keys[k])
-                    .find(|k| k.fingerprint() == fp);
+                    .find(|k| k.fingerprint == fp);
                 seeds.push(KeptSeed {
                     name: fp_text(fp),
                     lines: key.map_or_else(away, seed_lines),
@@ -4059,7 +4060,7 @@ impl Faraday {
                             && self.session.keys[k].share.as_ref() == pubshare.as_ref()
                     });
                     match key {
-                        Some(k) => (fp_text(self.session.keys[k].fingerprint()), Some(k)),
+                        Some(k) => (fp_text(self.session.keys[k].fingerprint), Some(k)),
                         None => (
                             fill(EN.backup_seed_list_of_share, &[&(id + 1).to_string()]),
                             None,
@@ -4084,7 +4085,7 @@ impl Faraday {
                 let key = here
                     .iter()
                     .copied()
-                    .find(|&k| self.session.keys[k].fingerprint() == fp);
+                    .find(|&k| self.session.keys[k].fingerprint == fp);
                 (fp_text(fp), key)
             })
             .collect()
@@ -4254,9 +4255,7 @@ impl Faraday {
             .map(|(name, key)| plan::Seed {
                 name,
                 here: key.is_some(),
-                passphrase: key
-                    .and_then(|k| self.session.keys[k].passphrase.as_ref())
-                    .is_some_and(|p| !p.is_empty()),
+                passphrase: key.is_some_and(|k| self.session.keys[k].has_passphrase),
             })
             .collect();
         // The vaults set up before the keys are the plan's first vaults.
@@ -4533,10 +4532,10 @@ impl Faraday {
                 || self.wallet_wrote(name)
         };
         let seeds = self.backup_seed_list_now(b.wallet);
-        let here: Vec<(usize, &wallet::Key)> = seeds
+        let here: Vec<(usize, &faraday_keys::KeyInfo)> = seeds
             .iter()
             .enumerate()
-            .filter_map(|(i, (_, k))| Some((i, self.session.keys.get((*k)?)?)))
+            .filter_map(|(i, (_, k))| Some((i, self.session.keys.info((*k)?)?)))
             .collect();
         match item {
             // Printed from Faraday Starter: no file is made here.
@@ -4548,7 +4547,7 @@ impl Faraday {
             plan::Item::Passphrase(i) => {
                 here.iter().find(|(j, _)| *j == i).is_some_and(|(_, k)| {
                     b.checked
-                        .contains(&(k.fingerprint().0, plan::CopyForm::Passphrase))
+                        .contains(&(k.fingerprint.0, plan::CopyForm::Passphrase))
                 })
             }
             plan::Item::Vault(v) => self.backup_vault_fits(c, v).is_some(),
@@ -4573,8 +4572,8 @@ impl Faraday {
 
     /// Whether a file of key `k`'s seed, for the wallet whose files are
     /// named `stem`, is For the stick or was written by the last visit.
-    pub(crate) fn seed_file_made(&self, stem: &str, k: &wallet::Key) -> bool {
-        let fps = fp_text(k.fingerprint()).to_lowercase();
+    pub(crate) fn seed_file_made(&self, stem: &str, k: &faraday_keys::KeyInfo) -> bool {
+        let fps = fp_text(k.fingerprint).to_lowercase();
         ["words.txt", "seedqr.png", "compactseedqr.png"]
             .iter()
             .any(|end| {
@@ -4601,7 +4600,7 @@ impl Faraday {
         let list = self.backup_seed_list_now(b.wallet);
         let fp = |i: usize| {
             let k = list.get(i)?.1?;
-            Some(self.session.keys.get(k)?.fingerprint())
+            Some(self.session.keys.info(k)?.fingerprint)
         };
         let own = b.answers.vault_seeds(&shape, v);
         let mut others: Vec<usize> = b
@@ -4748,8 +4747,8 @@ impl Faraday {
             .filter(|&k| {
                 self.session
                     .keys
-                    .get(k)
-                    .is_some_and(|key| key.passphrase.as_ref().is_some_and(|p| !p.is_empty()))
+                    .info(k)
+                    .is_some_and(|key| key.has_passphrase)
             })
             .collect()
     }
@@ -4758,13 +4757,16 @@ impl Faraday {
     /// passphrase record: its fingerprint and its passphrase.
     pub(crate) fn vault_holds_passphrase(&self, o: usize, k: usize) -> bool {
         use faraday_vault::records::{field, kind};
-        let (Some(open), Some(key)) = (self.vaults.open.get(o), self.session.keys.get(k)) else {
+        let (Some(open), Some(key)) = (self.vaults.open.get(o), self.session.keys.info(k)) else {
             return false;
         };
-        let fp = key.fingerprint().0;
+        let fp = key.fingerprint.0;
         open.contents.of(kind::PASSPHRASE).any(|(_, r)| {
             r.field(field::PASSPHRASE_KEY) == Some(&fp[..])
-                && r.text(field::PASSPHRASE) == key.passphrase.as_ref().map(|p| p.as_str())
+                && match r.text(field::PASSPHRASE) {
+                    Some(t) => self.session.keys.passphrase_is(k, t),
+                    None => !key.has_passphrase,
+                }
         })
     }
 
@@ -5566,7 +5568,7 @@ impl Faraday {
     /// wallet `i`, when this session holds its seed: for the cosigners of a
     /// wallet of more than one key. `None` for a threshold or silent
     /// payments wallet, whose slots are not account keys.
-    pub fn wallet_key(&self, c: &Compute, i: usize, slot: u8) -> Result<WalletKey<'_>, String> {
+    pub fn wallet_key(&self, c: &Compute, i: usize, slot: u8) -> Result<WalletKey, String> {
         let w = self
             .session
             .wallets
@@ -5584,14 +5586,15 @@ impl Faraday {
         let key = self
             .session
             .keys
-            .iter()
-            .find(|k| k.fingerprint() == fp)
+            .position(fp)
             .ok_or(EN.wallet_key_that_key)?;
         let kind = create::NewKind::of(w.policy());
         // Create's own account for its kind: what its BIP 129 record and
         // its account code are made at. A key elsewhere has neither.
         let standard = kind.filter(|k| {
-            key.account_text(c, *k, 0)
+            self.session
+                .keys
+                .account_text(c, key, *k, 0)
                 .ok()
                 .and_then(|t| faraday_bip::policy::PolicyKey::parse(&t).ok())
                 .is_some_and(|t| t.xpub() == pk.xpub() && t.path() == pk.path())
@@ -5601,7 +5604,7 @@ impl Faraday {
             text: pk.key_text(),
             kind: kind.map_or_else(|| Session::shape(w), |k| k.name().to_string()),
             standard,
-            master: key.master(),
+            key,
         })
     }
 
@@ -5640,8 +5643,8 @@ impl Faraday {
         let fp = w.policy().keys().get(usize::from(slot))?.fingerprint()?;
         self.session
             .keys
-            .iter()
-            .any(|k| k.fingerprint() == fp)
+            .all()
+            .any(|k| k.fingerprint == fp)
             .then_some(fp)
     }
 
@@ -5656,7 +5659,7 @@ impl Faraday {
     ) -> Result<(String, String), String> {
         let k = self.wallet_key(c, i, slot)?;
         k.standard
-            .and_then(|kind| kind.bsms_record(c, k.master, 0, &format!("Faraday key {}", k.fp)))
+            .and_then(|kind| kind.bsms_record(c, &self.session.keys, k.key, 0, &k.fp))
             .map(|r| (k.fp.clone(), r))
             .ok_or_else(|| EN.wallet_key_record_bip.to_string())
     }
@@ -5716,12 +5719,13 @@ impl Faraday {
         let key = self
             .session
             .keys
-            .iter()
-            .find(|k| k.fingerprint().0 == *fp)
+            .position_of(*fp)
             .ok_or(EN.create_key_text_a_chosen)?;
         Ok((
             fp_text(faraday_bip::keys::Fingerprint(*fp)),
-            key.account_text(c, cs.kind, cs.account)?,
+            self.session
+                .keys
+                .account_text(c, key, cs.kind, cs.account)?,
         ))
     }
 
@@ -5733,12 +5737,9 @@ impl Faraday {
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
             return None;
         };
-        let key = self
-            .session
-            .keys
-            .iter()
-            .find(|k| k.fingerprint().0 == *fp)?;
-        cs.kind.account_ur_at(c, key.master(), cs.account)
+        let key = self.session.keys.position_of(*fp)?;
+        cs.kind
+            .account_ur_at(c, &self.session.keys, key, cs.account)
     }
 
     /// Costs a key derivation (through `bsms_record`). A slot's key as a
@@ -5749,14 +5750,10 @@ impl Faraday {
         let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
             return None;
         };
-        let key = self
-            .session
-            .keys
-            .iter()
-            .find(|x| x.fingerprint().0 == *fp)?;
+        let key = self.session.keys.position_of(*fp)?;
         let fpt = fp_text(faraday_bip::keys::Fingerprint(*fp));
         cs.kind
-            .bsms_record(c, key.master(), cs.account, &format!("Faraday key {fpt}"))
+            .bsms_record(c, &self.session.keys, key, cs.account, &fpt)
             .map(|r| (fpt, r))
     }
 
@@ -5765,9 +5762,11 @@ impl Faraday {
     pub fn create_keys(&self, c: &Compute) -> Result<Vec<String>, String> {
         let cs = self.create.as_ref().ok_or(EN.create_keys_nothing)?;
         if cs.kind.threshold() {
-            return self
-                .create_shares()
-                .map(|keys| keys.iter().map(|k| fp_text(k.fingerprint())).collect());
+            return self.create_shares().map(|keys| {
+                keys.iter()
+                    .map(|&k| fp_text(self.session.keys[k].fingerprint))
+                    .collect()
+            });
         }
         let mut out = Vec::new();
         for (i, s) in cs.slots.iter().enumerate() {
@@ -5785,10 +5784,13 @@ impl Faraday {
                     let key = self
                         .session
                         .keys
-                        .iter()
-                        .find(|k| k.fingerprint().0 == *fp)
+                        .position_of(*fp)
                         .ok_or(EN.create_keys_a_chosen)?;
-                    out.push(key.account_text(c, cs.kind, cs.account)?);
+                    out.push(
+                        self.session
+                            .keys
+                            .account_text(c, key, cs.kind, cs.account)?,
+                    );
                 }
                 create::Source::Cosigner(text) => out.push(text.clone()),
             }
@@ -5818,9 +5820,9 @@ impl Faraday {
 
     /// The loaded keys a threshold creation deals from, in slot order:
     /// each must be 24 words, since 24 words are a share's 32 bytes.
-    fn create_shares(&self) -> Result<Vec<&wallet::Key>, String> {
+    fn create_shares(&self) -> Result<Vec<usize>, String> {
         let c = self.create.as_ref().ok_or(EN.create_shares_nothing)?;
-        let mut out: Vec<&wallet::Key> = Vec::new();
+        let mut out: Vec<usize> = Vec::new();
         for (i, s) in c.slots.iter().enumerate() {
             let create::Source::Here(fp) = s else {
                 return Err(fill(EN.create_shares_share_has, &[&(i + 1).to_string()]));
@@ -5828,13 +5830,15 @@ impl Faraday {
             let key = self
                 .session
                 .keys
-                .iter()
-                .find(|k| k.fingerprint().0 == *fp)
+                .position_of(*fp)
                 .ok_or(EN.create_shares_a_chosen)?;
-            if key.share.is_none() {
+            if self.session.keys[key].share.is_none() {
                 return Err(fill(EN.create_shares_share, &[&(i + 1).to_string()]));
             }
-            if out.iter().any(|k| k.fingerprint().0 == *fp) {
+            if out
+                .iter()
+                .any(|&k| self.session.keys[k].fingerprint.0 == *fp)
+            {
                 return Err(EN.create_shares_the_same.into());
             }
             out.push(key);
@@ -5857,19 +5861,13 @@ impl Faraday {
             None => return,
         };
         let dealt = self.create_shares().and_then(|keys| {
-            let dealers: Vec<faraday_keys::frost::Dealer<'_>> = keys
-                .iter()
-                .map(|key| faraday_keys::frost::Dealer {
-                    language: key.language,
-                    words: key.words.as_ref().map(|w| w.as_str()),
-                })
-                .collect();
-            faraday_keys::frost::make_group(&c, &dealers, n, m, self.session.network()).map_err(
-                |e| match e {
+            self.session
+                .keys
+                .deal(&c, &keys, n, m, faraday_keys::Reveal::PaperForm)
+                .map_err(|e| match e {
                     faraday_keys::frost::DealError::NoShare => EN.create_deal_a_chosen.to_string(),
                     faraday_keys::frost::DealError::Refused(e) => e,
-                },
-            )
+                })
         });
         let dealt = match dealt {
             Ok(d) => d,
@@ -5904,7 +5902,7 @@ impl Faraday {
                 EN.create_deal_share_of,
                 &[&(id + 1).to_string(), &name.to_string()],
             );
-            let _ = self.session.add_words(&c, words, &label, None);
+            let _ = self.session.keys.add_words(&c, words, &label, None);
         }
         self.chart_work.moved_to(&self.session, i);
         self.wallet = i;
@@ -6153,9 +6151,9 @@ impl Faraday {
             && self
                 .session
                 .keys
-                .iter()
-                .find(|k| k.fingerprint().0 == *fp)
-                .is_some_and(|k| k.words.is_some() && k.passphrase.is_none())
+                .all()
+                .find(|k| k.fingerprint.0 == *fp)
+                .is_some_and(|k| k.has_words() && !k.has_passphrase)
     }
 
     /// Lock in under a Create slot: adds the key the slot's words and the
@@ -6189,24 +6187,26 @@ impl Faraday {
         };
         let mut pass = secret_text::room();
         pass.push_str(cs.pass.as_str());
-        let Some(key) = self
+        let Some(place) = self.session.keys.position_of(first) else {
+            return;
+        };
+        let key = &self.session.keys[place];
+        if !key.has_words() {
+            return;
+        }
+        let label = fill(EN.create_pass_lock_passphrase, &[&key.label.to_string()]);
+        let (added, new) = match self
             .session
             .keys
-            .iter()
-            .find(|k| k.fingerprint().0 == first)
-        else {
-            return;
-        };
-        let Some(words) = key.words.clone() else {
-            return;
-        };
-        let label = fill(EN.create_pass_lock_passphrase, &[&key.label.to_string()]);
-        let (added, new) = match self.session.add_words_with(&c, &words, &pass, &label, None) {
+            .add_with_passphrase(&c, place, &pass, &label)
+        {
             Ok(fp) => (Ok(fp), true),
             // Loaded already with this passphrase: that key is the one.
             Err(wallet::Refusal::Duplicate(_)) => (
-                faraday_keys::identity::fingerprint_of_words(&c, &words, &pass)
-                    .map_err(|e| wallet::Refusal::Words(e).text()),
+                self.session
+                    .keys
+                    .fingerprint_with(&c, place, &pass)
+                    .ok_or_else(|| wallet::Refusal::Words(String::new()).text()),
                 false,
             ),
             Err(e) => (Err(e.text()), false),
@@ -6722,25 +6722,19 @@ impl Faraday {
             }
             return;
         };
-        let seed = self
+        let found = self
             .session
             .keys
-            .iter()
-            .find(|k| k.fingerprint() == fp)
-            .and_then(|k| {
-                let words = k.words.as_ref()?;
-                crate::wallet::parse_words(&c, k.language, words.as_str()).ok()
-            });
-        let Some(seed) = seed else {
+            .position(fp)
+            .and_then(|k| self.session.keys.words_match(&c, k, &copy));
+        let Some(found) = found else {
             // The seed is no longer here: nothing to compare with.
             self.scan = None;
             self.sheet = None;
             self.commands.push_back(Command::CameraOff);
             return;
         };
-        let found = wallet_backup::compare_words(&copy, seed.indices());
         drop(copy);
-        drop(seed);
         let matched = found == wallet_backup::CopyCheck::Matches;
         if matched {
             self.copy_matched(fp.0, plan::CopyForm::SeedQr);
@@ -7144,7 +7138,9 @@ impl Faraday {
             }
             Code::WalletKey(i, slot) => {
                 let k = self.wallet_key(c, i, slot)?;
-                let account = k.standard.and_then(|kind| kind.account_ur(c, k.master));
+                let account = k
+                    .standard
+                    .and_then(|kind| kind.account_ur(c, &self.session.keys, k.key));
                 let lines = vec![
                     key_label(&k.fp, &k.kind, &k.text),
                     EN.code_view_public_spends.to_string(),
@@ -7364,7 +7360,7 @@ impl Faraday {
         said: impl FnOnce(&mut Self, faraday_bip::keys::Fingerprint),
     ) -> Result<faraday_bip::keys::Fingerprint, wallet::Refusal> {
         let c = self.compute();
-        let fp = self.session.add_mnemonic(&c, m, pass, label, wanted)?;
+        let fp = self.session.keys.add_mnemonic(&c, m, pass, label, wanted)?;
         said(self, fp);
         self.seeds_took(fp, back);
         Ok(fp)
@@ -7554,7 +7550,7 @@ impl Faraday {
         };
         let label = stem(&item.name);
         let words = forms::file_words(text);
-        match self.session.add_words(&c, &words, &label, None) {
+        match self.session.keys.add_words(&c, &words, &label, None) {
             Ok(fp) => {
                 self.toast(&fill(EN.load_key_key_added, &[&fp_text(fp).to_string()]));
                 self.screen = Screen::Wallets;
@@ -8081,14 +8077,13 @@ impl Faraday {
             .inputs
             .first()
             .and_then(|i| i.threshold.as_ref());
-        let can_sign_here = match threshold {
-            Some(t) => t.ours.iter().any(|id| !t.signed.contains(id)),
-            None => s
-                .inspection
-                .participating_keys
-                .iter()
-                .any(|fp| self.session.key_label(*fp).is_some() && !s.signers.contains(&fp.0)),
-        };
+        let can_sign_here =
+            match threshold {
+                Some(t) => t.ours.iter().any(|id| !t.signed.contains(id)),
+                None => s.inspection.participating_keys.iter().any(|fp| {
+                    self.session.keys.key_label(*fp).is_some() && !s.signers.contains(&fp.0)
+                }),
+            };
         let carry = threshold.is_some() && (s.carry_out.is_some() || s.out_signed) && !complete;
         if carry {
             if s.out_signed {
@@ -8331,7 +8326,7 @@ impl Faraday {
         }
         if self.screen == Screen::Entry && self.entry.on_passphrase {
             match key {
-                // BIP-39 passphrases here are printable ASCII (`to_seed`).
+                // BIP-39 passphrases here are printable ASCII (BIP-39's seed derivation).
                 KeyIn::Char(c) if (' '..='~').contains(&c) => self.entry.passphrase.push(c),
                 KeyIn::Backspace => {
                     self.entry.passphrase.pop();

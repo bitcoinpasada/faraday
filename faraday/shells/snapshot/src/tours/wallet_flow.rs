@@ -1,11 +1,11 @@
 //! The wallet_flow tour.
 
+use crate::tour::{Tour, bmap, boff, keep_vault, type_text, vault_place};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
 use faraday_core::plan::{self as fplan, At, What};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StickInfo, StorageEvent, bstep, qstep};
 use faraday_crypto::work::Compute;
-use crate::tour::{Tour, bmap, boff, keep_vault, type_text, vault_place};
 
 /// Costs a map of the plan (through `bmap`). Every seed's words and
 /// SeedQR taken off every place's paper.
@@ -85,15 +85,7 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.shot("wallet-flow-6-create-keys")?;
     t.press(Action::Entry(None));
     t.type_key(1);
-    let fp = t
-        .app
-        .session
-        .keys
-        .last()
-        .ok_or("no key")?
-        .master()
-        .fingerprint()
-        .0;
+    let fp = t.app.session.keys.last().ok_or("no key")?.fingerprint.0;
     t.press(Action::Nav(Screen::Create));
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));

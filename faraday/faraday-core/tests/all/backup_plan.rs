@@ -318,7 +318,7 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
     app.press(Action::CreateWallet);
     app.press(Action::CKind(multi));
     for slot in 0..3u8 {
-        let fp = app.session.keys[usize::from(slot)].fingerprint().0;
+        let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
@@ -926,7 +926,7 @@ fn three_here() -> Faraday {
     app.press(Action::CreateWallet);
     app.press(Action::CKind(multi));
     for slot in 0..3u8 {
-        let fp = app.session.keys[usize::from(slot)].fingerprint().0;
+        let fp = app.session.keys[usize::from(slot)].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
@@ -1332,7 +1332,7 @@ fn a_seed_file_at_a_place_has_that_places_stick_of_files_and_is_held_until_writt
     use faraday_bip::keys::Fingerprint;
     use faraday_core::{Action, bstep};
     let mut app = passphrase_key();
-    let fp = app.session.keys.last().unwrap().fingerprint();
+    let fp = app.session.keys.last().unwrap().fingerprint;
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     // The seed as a file at Place 2, its passphrase at Place 1; nothing

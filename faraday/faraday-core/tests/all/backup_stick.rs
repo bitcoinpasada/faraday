@@ -226,14 +226,14 @@ fn with_seed(app: &mut Faraday) -> String {
     }
     app.press(Action::EntryAdd);
     assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
-    let fp = app.session.keys[0].fingerprint().0;
+    let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(S::Make));
     assert_eq!(app.session.wallets.len(), 1);
     // A key typed in has no name of its own: it goes by its fingerprint.
     format!(
         "Seed {}",
-        faraday_core::wallet::fp_text(app.session.keys[0].fingerprint())
+        faraday_core::wallet::fp_text(app.session.keys[0].fingerprint)
     )
 }
 

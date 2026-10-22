@@ -17,6 +17,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::wallet::KeyTexts;
 use std::collections::BTreeSet;
 
 use faraday_bip::bip39::{Language, Mnemonic};
@@ -162,8 +163,8 @@ impl SessionSeen {
         SessionSeen {
             keys: s
                 .keys
-                .iter()
-                .map(|k| (k.fingerprint(), k.label.clone(), k.share))
+                .all()
+                .map(|k| (k.fingerprint, k.label.clone(), k.share))
                 .collect(),
             wallets: s
                 .wallets
@@ -181,8 +182,8 @@ impl SessionSeen {
             && self
                 .keys
                 .iter()
-                .zip(&s.keys)
-                .all(|(a, k)| a.0 == k.fingerprint() && a.1 == k.label && a.2 == k.share)
+                .zip(s.keys.all())
+                .all(|(a, k)| a.0 == k.fingerprint && a.1 == k.label && a.2 == k.share)
             && self
                 .wallets
                 .iter()
@@ -333,14 +334,14 @@ impl Secret {
         &self,
         c: &Compute,
         passphrase: &str,
-        session: &Session,
+        network: faraday_bip::keys::Network,
     ) -> Option<Fingerprint> {
         let material = match self {
             Secret::Words(m) => faraday_keys::Material::Words(m),
             Secret::Slip39(shares) => faraday_keys::Material::Slip39(shares),
             Secret::Seed(s) => faraday_keys::Material::Seed(s),
         };
-        faraday_keys::fingerprint(c, material, passphrase, session.network())
+        faraday_keys::fingerprint(c, material, passphrase, network)
     }
 
     /// Costs what `add_words_with`, `recover` and `add_seed` cost. Adds the
@@ -350,16 +351,16 @@ impl Secret {
         c: &Compute,
         passphrase: &str,
         label: &str,
-        session: &mut Session,
+        keys: &mut faraday_keys::Keys,
     ) -> Result<Fingerprint, Refusal> {
         match self {
-            Secret::Words(m) => session.add_words_with(c, &phrase(m), passphrase, label, None),
+            Secret::Words(m) => keys.add_words_with(c, &phrase(m), passphrase, label, None),
             Secret::Slip39(shares) => {
-                let secret = slip39::recover(c, shares, passphrase.as_bytes())
+                let secret = faraday_keys::slip39_seed(c, shares, passphrase.as_bytes())
                     .map_err(|e| Refusal::Words(format!("{e:?}")))?;
-                session.add_seed(c, secret.expose().as_bytes(), label)
+                keys.add_seed(c, &secret, label)
             }
-            Secret::Seed(s) => session.add_seed(c, s, label),
+            Secret::Seed(s) => keys.add_seed(c, s, label),
         }
     }
 }
@@ -449,12 +450,8 @@ impl Faraday {
                         _ => None,
                     })
                     .collect();
-                let seed = match parts.iter().find(|c| c.is_secret()) {
-                    Some(s) => s.to_seed(),
-                    None => Codex32::recover(&parts).and_then(|s| s.to_seed()),
-                }
-                .ok()?;
-                Some(Secret::Seed(Zeroizing::new(seed.expose().bytes().to_vec())))
+                let seed = faraday_keys::codex32_seed(&parts).ok()?;
+                Some(Secret::Seed(seed))
             }
             SeedSource::Loaded => None,
         }
@@ -495,7 +492,7 @@ impl Faraday {
             self.secret_in(c, items, source)?.fingerprint(
                 c,
                 &self.source_passphrase(items, source),
-                &self.session,
+                self.session.network(),
             )
         })
     }
@@ -564,7 +561,7 @@ impl Faraday {
                     }),
                 }
             };
-        let loaded_fp = |fp: Fingerprint| self.session.keys.iter().any(|k| k.fingerprint() == fp);
+        let loaded_fp = |fp: Fingerprint| self.session.keys.all().any(|k| k.fingerprint == fp);
         // A passphrase file a stick keeps beside a seed's words, named by
         // the fingerprint the words make with it (`docs/BACKUP-FLOW.md`
         // §17.12 item 6): the words with it are that key, and the words
@@ -675,10 +672,10 @@ impl Faraday {
                 }),
             }
         }
-        for key in &self.session.keys {
+        for key in self.session.keys.all() {
             add_seed(
                 &mut found,
-                key.fingerprint(),
+                key.fingerprint,
                 key.label.clone(),
                 SeedSource::Loaded,
                 true,
@@ -927,7 +924,9 @@ impl Faraday {
                     .sources
                     .first()
                     .and_then(|src| self.secret_in(&c, items, src))
-                    && secret.add(&c, &pass, &s.label, &mut self.session).is_ok()
+                    && secret
+                        .add(&c, &pass, &s.label, &mut self.session.keys)
+                        .is_ok()
                 {
                     keys += 1;
                 }
@@ -962,7 +961,7 @@ impl Faraday {
     pub(crate) fn inbox_load_named(&mut self) -> usize {
         let c = self.compute();
         let found = self.inbox_found_now(&c);
-        let loaded: Vec<Fingerprint> = self.session.keys.iter().map(|k| k.fingerprint()).collect();
+        let loaded: Vec<Fingerprint> = self.session.keys.all().map(|k| k.fingerprint).collect();
         let mut n = 0;
         for w in found.to_load() {
             if !w.keys.iter().any(|k| loaded.contains(k)) {
@@ -1139,15 +1138,12 @@ impl Faraday {
         } else {
             let pass = p.passphrase.clone();
             match self.potential_seed(&c) {
-                Some((_, Some(secret))) => secret.fingerprint(&c, &pass, &self.session),
+                Some((_, Some(secret))) => secret.fingerprint(&c, &pass, self.session.network()),
                 Some((seed, None)) => self
                     .session
                     .keys
-                    .iter()
-                    .find(|k| k.fingerprint() == seed.fingerprint)
-                    .and_then(|k| k.words.as_ref().map(|w| (w.clone(), k.language)))
-                    .and_then(|(w, lang)| crate::wallet::parse_words(&c, lang, &w).ok())
-                    .and_then(|m| Secret::Words(m).fingerprint(&c, &pass, &self.session)),
+                    .position(seed.fingerprint)
+                    .and_then(|k| self.session.keys.fingerprint_with(&c, k, &pass)),
                 None => None,
             }
         };
@@ -1211,17 +1207,16 @@ impl Faraday {
         // The key itself: already loaded with no passphrase, or added now.
         let added = match (&secret, pass.is_empty()) {
             (_, true) if seed.loaded => Ok(seed.fingerprint),
-            (Some(s), true) => s.add(&c, &kept, &label, &mut self.session),
-            (Some(s), _) => s.add(&c, &pass, &label, &mut self.session),
+            (Some(s), true) => s.add(&c, &kept, &label, &mut self.session.keys),
+            (Some(s), _) => s.add(&c, &pass, &label, &mut self.session.keys),
             (None, false) => {
-                let words = self
+                match self
                     .session
                     .keys
-                    .iter()
-                    .find(|k| k.fingerprint() == seed.fingerprint)
-                    .and_then(|k| k.words.clone());
-                match words {
-                    Some(w) => self.session.add_words_with(&c, &w, &pass, &label, None),
+                    .position(seed.fingerprint)
+                    .filter(|&k| self.session.keys[k].has_words())
+                {
+                    Some(k) => self.session.keys.add_with_passphrase(&c, k, &pass, &label),
                     None => Err(Refusal::Words(EN.inbox_this_seed_was.to_string())),
                 }
             }
@@ -1258,10 +1253,10 @@ impl Faraday {
             return;
         }
         // Else a single-key wallet of the kind chosen.
-        let Some(key) = self.session.keys.iter().find(|k| k.fingerprint() == fp) else {
+        let Some(key) = self.session.keys.position(fp) else {
             return;
         };
-        let text = match key.account_text(&c, kind, 0) {
+        let text = match self.session.keys.account_text(&c, key, kind, 0) {
             Ok(t) => t,
             Err(e) => {
                 if let Some(p) = self.potential.as_mut() {
@@ -1314,11 +1309,13 @@ impl Faraday {
         let result: Result<String, String> = match opened {
             Ok(Opened::Words(m)) => self
                 .session
+                .keys
                 .add_words(&c, &phrase(&m), &label, None)
                 .map(|fp| fill(EN.inbox_loaded_n, &[&fp_text(fp).to_string()]))
                 .map_err(|e| e.text()),
             Ok(Opened::Seed(s)) => self
                 .session
+                .keys
                 .add_seed(&c, &s, &label)
                 .map(|fp| fill(EN.inbox_loaded_n, &[&fp_text(fp).to_string()]))
                 .map_err(|e| e.text()),

@@ -99,9 +99,9 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
             let row: Vec<(String, Style, Action)> = app
                 .session
                 .keys
-                .iter()
+                .all()
                 .map(|key| {
-                    let fp = key.fingerprint();
+                    let fp = key.fingerprint;
                     (
                         crate::wallet::key_line(fp, &key.label),
                         if s.key == Some(fp.0) {

@@ -86,13 +86,14 @@ fn fingerprint(words: &Mnemonic) -> [u8; 4] {
         .collect();
     let mut probe = faraday_core::wallet::Session::default();
     probe
+        .keys
         .add_words_with(&c, &phrase.join(" "), "", "", None)
         .unwrap()
         .0
 }
 
 fn added(app: &Faraday) -> Vec<[u8; 4]> {
-    app.session.keys.iter().map(|k| k.fingerprint().0).collect()
+    app.session.keys.all().map(|k| k.fingerprint.0).collect()
 }
 
 #[test]
@@ -366,7 +367,7 @@ fn the_demo_adds_the_next_public_seed_not_loaded() {
         let mut app = faraday_core::testkit::started();
         app.session.set_demo(&c);
         for w in loaded {
-            app.session.add_words(&c, &words(w), "", None).unwrap();
+            app.session.keys.add_words(&c, &words(w), "", None).unwrap();
         }
         app.press(Action::Entry(None));
         app.press(Action::KeyGen(None));
@@ -460,7 +461,7 @@ fn a_key_made_for_a_create_slot_fills_it() {
     app.press(Action::KLock);
     app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create);
-    let fp = app.session.keys[0].fingerprint().0;
+    let fp = app.session.keys[0].fingerprint.0;
     let c = app.create.as_ref().unwrap();
     assert_eq!(c.slots[1], faraday_core::create::Source::Here(fp));
 }
@@ -699,10 +700,12 @@ fn lock_in_with_a_passphrase_adds_the_key_of_the_words_with_that_passphrase() {
     app.press(Action::KLock);
     let mut probe = faraday_core::wallet::Session::default();
     let with = probe
+        .keys
         .add_words_with(&c, &phrase, "Ride the 7 bus", "", None)
         .unwrap()
         .0;
     let without = faraday_core::wallet::Session::default()
+        .keys
         .add_words_with(&c, &phrase, "", "", None)
         .unwrap()
         .0;
@@ -756,7 +759,7 @@ fn the_demo_locks_in_its_public_seed_whatever_passphrase_is_typed() {
     app.session.set_demo(&c);
     flip_all(&mut app);
     app.press(Action::KNext);
-    let (word, fp) = app.session.next_handout().unwrap();
+    let (word, fp) = app.session.keys.next_handout().unwrap();
     assert!(texts(&mut app).contains(&format!(
         "Lock in adds public seed {word} ({}) in place of these words",
         fp_text(fp)
@@ -881,7 +884,7 @@ fn new_key_on_its_own_asks_for_no_passphrase_and_adds_the_key_without_one() {
     let m = Mnemonic::parse(&c, Language::English, &phrase).unwrap();
     app.press(Action::KLock);
     assert_eq!(added(&app), vec![fingerprint(&m)]);
-    assert!(app.session.keys[0].passphrase.is_none());
+    assert!(!app.session.keys[0].has_passphrase);
 }
 
 /// The colour drawn just inside the left end of what `action` presses,
@@ -1054,9 +1057,10 @@ fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_he
         .session
         .keys
         .last()
-        .map(|k| k.fingerprint())
+        .map(|k| k.fingerprint)
         .expect("loaded");
     let want = faraday_core::wallet::Session::default()
+        .keys
         .add_words_with(&c, &words, "Ride the 7 bus", "", None)
         .unwrap();
     assert_eq!(fp, want);
@@ -1069,7 +1073,7 @@ fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_he
     entry.press(Action::EntryPassphrase);
     typed(&mut entry, "Ride the 7 bus");
     entry.press(Action::EntryAdd);
-    assert_eq!(entry.session.keys.last().map(|k| k.fingerprint()), Some(fp));
+    assert_eq!(entry.session.keys.last().map(|k| k.fingerprint), Some(fp));
 
     // Continue leaves the flow: no Words or Quiz for words held already.
     app.press(Action::KNext);
@@ -1106,6 +1110,7 @@ fn words_typed_for_a_create_slot_fill_the_slot_with_that_key() {
     type_the_words(&mut app, &words);
     app.press(Action::KLock);
     let fp = faraday_core::wallet::Session::default()
+        .keys
         .add_words_with(&c, &words, "", "", None)
         .unwrap();
     let c = app.create.as_ref().unwrap();

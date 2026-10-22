@@ -242,7 +242,7 @@ fn a_loaded_key_taken_into_a_slot_asks_for_its_passphrase() {
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words("summer"));
     app.press(Action::EntryAdd);
-    let summer = app.session.keys[0].fingerprint();
+    let summer = app.session.keys[0].fingerprint;
     app.press(Action::RestoreWallet);
     app.press(Action::RKind(MULTI));
     app.press(Action::RNext(KIND));
@@ -566,7 +566,7 @@ fn wallets_opens_the_wallet() {
 #[test]
 fn another_wallet_from_these_seeds_opens_create_at_the_next_account() {
     let (mut app, w) = single_key_done();
-    let fp = app.session.keys[0].fingerprint().0;
+    let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::NewWalletFrom(w));
     assert_eq!(app.screen, Screen::Create);
     let c = app.create.as_ref().unwrap();

@@ -58,6 +58,7 @@ fn any_two_of_the_three_shares_restore_the_key() {
         let two = [k.shares[pair[0]].clone(), k.shares[pair[1]].clone()];
         let secret = faraday_bip::slip39::recover(&c, &two, b"").unwrap();
         let got = faraday_core::wallet::Session::default()
+            .keys
             .add_seed(&c, secret.expose().as_bytes(), "")
             .unwrap();
         assert_eq!(got.0, fp, "shares {pair:?} restore another key");
@@ -91,9 +92,9 @@ fn the_key_loads_once_every_share_is_quizzed() {
     );
     app.press(Action::KAdd);
     assert_eq!(app.session.keys.len(), 1);
-    assert_eq!(app.session.keys[0].fingerprint().0, fp);
+    assert_eq!(app.session.keys[0].fingerprint.0, fp);
     assert!(
-        app.session.keys[0].words.is_none(),
+        !app.session.keys[0].has_words(),
         "a SLIP-39 key has no BIP-39 words"
     );
 }

@@ -9,7 +9,7 @@ use crate::{Action, Faraday, Screen, Sheet, family, result_stem, secrets, wallet
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
 use faraday_bip::bitcoin::{Transaction, Txid};
-use faraday_bip::keys::{Fingerprint, MasterKey, Network, ScriptType};
+use faraday_bip::keys::{Fingerprint, Network, ScriptType};
 use faraday_bip::policy::{Template, WalletPolicy, Wrapper};
 use faraday_crypto::work::Compute;
 use faraday_psbt::verify::Verdict;
@@ -23,29 +23,8 @@ pub const START_NETWORK: Network = Network::Mainnet;
 // at the paths this crate has always had them.
 pub use faraday_intake::wallet::{Refusal, network_name, network_of_key, policy_network};
 
-/// What tells one seed's words from another's, from whichever list they
-/// are read: the SHA-256 of their entropy, all 32 bytes, so that two
-/// seeds never pass for one (F65: what cannot be told apart is not
-/// counted as kept). A hash of secret entropy: kept only beside what it
-/// is of (a key, an open vault's records), wiped when dropped, never
-/// written anywhere.
-pub type WordsId = zeroize::Zeroizing<[u8; 32]>;
-
-/// Costs an elliptic-curve multiplication. What tells one master key
-/// from another in all 32 bytes, the passphrase applied: the SHA-256 of
-/// its public key and chain code, the same on every network. Public (a
-/// hash of public data); what "this vault holds this key" compares,
-/// where the 4-byte fingerprint only finds a candidate (F65).
-pub fn master_id(c: &Compute, m: &MasterKey) -> [u8; 32] {
-    faraday_keys::identity::master_id(c, m)
-}
-
-/// Costs a hash; the words are parsed already. [`WordsId`] of `m`'s
-/// words.
-pub fn words_id(c: &Compute, m: &Mnemonic) -> WordsId {
-    let entropy = m.entropy();
-    zeroize::Zeroizing::new(crate::sha256_of(c, entropy.expose().as_bytes()))
-}
+pub use faraday_keys::identity::master_id;
+pub use faraday_keys::{WordsId, words_id};
 
 /// Costs a parse of the description and its keys: reads a wallet
 /// description with `faraday_intake`'s reader, which counts through the
@@ -73,9 +52,6 @@ pub fn record_words(c: &Compute, r: &faraday_vault::Record) -> Option<Mnemonic> 
 }
 pub(crate) use faraday_intake::wallet::{json_label, network_of_kind};
 
-/// The most key texts a key keeps ([`Key::account_text`],
-/// [`Key::text_at`]); the next one empties the list.
-pub(crate) const KEY_TEXTS_KEPT: usize = 64;
 /// The most scripts a wallet keeps ([`Wallet::script_at`]); the next one
 /// empties the list.
 pub(crate) const WALLET_SCRIPTS_KEPT: usize = 256;
@@ -83,160 +59,45 @@ pub(crate) const WALLET_SCRIPTS_KEPT: usize = 256;
 /// one empties the list.
 pub(crate) const WALLET_ADDRESSES_KEPT: usize = 256;
 
-/// A key that can sign, held for this session only.
-pub struct Key {
-    /// The master key.
-    master: MasterKey,
-    /// [`master_id`] of the master key, worked out once when the key is
-    /// made; the same on every network.
-    master_id: [u8; 32],
-    /// What the person called it.
-    pub label: String,
-    /// The words it was loaded from, for the backup's copy-by-hand step.
-    /// Wiped with the session.
-    pub words: Option<zeroize::Zeroizing<String>>,
-    /// The BIP-39 list those words are from.
-    pub language: Language,
-    /// The public share these words are as a FROST share: 24 words'
-    /// 32 bytes read as the share's scalar.
-    /// Every 24-word key has one; it signs as a share only for a loaded
-    /// threshold record that lists it.
-    pub share: Option<faraday_bip::bitcoin::secp256k1::PublicKey>,
-    /// The BIP-39 passphrase it was loaded with, when it has one. Wiped
-    /// with the session.
-    pub passphrase: Option<zeroize::Zeroizing<String>>,
-    /// Its public key texts asked for, each derived once
-    /// ([`Key::account_text`], [`Key::text_at`]), by what was asked:
-    /// public, and dropped when the master key moves network.
-    public: std::cell::RefCell<Vec<(PublicAsk, Result<String, String>)>>,
-    /// Its words' [`WordsId`] ([`Key::words_id`]), once worked out:
-    /// wiped with the key.
-    words_id: std::cell::OnceCell<Option<WordsId>>,
-}
-
-/// A public key text a [`Key`] keeps: a kind's account, or a path.
-#[derive(Debug, Clone, PartialEq, Eq)]
-enum PublicAsk {
-    Account(crate::create::NewKind, u32),
-    Path(String),
-}
-
-impl Key {
-    /// Costs an elliptic-curve multiplication with the master private
-    /// key, for its [`master_id`]. Makes a key.
-    pub fn new(
-        c: &Compute,
-        master: MasterKey,
-        label: String,
-        words: Option<zeroize::Zeroizing<String>>,
-        language: Language,
-        share: Option<faraday_bip::bitcoin::secp256k1::PublicKey>,
-        passphrase: Option<zeroize::Zeroizing<String>>,
-    ) -> Key {
-        let master_id = master_id(c, &master);
-        Key {
-            master,
-            master_id,
-            label,
-            words,
-            language,
-            share,
-            passphrase,
-            public: std::cell::RefCell::new(Vec::new()),
-            words_id: std::cell::OnceCell::new(),
-        }
-    }
-
-    /// Costs a parse of the words the first time. What tells its words
-    /// apart from other words, whatever list they were typed from and
-    /// whatever passphrase is added ([`WordsId`]): worked out the first
-    /// time it is asked, by whoever asks, a frame included, and kept on the
-    /// key until it is dropped. `None` for a key with no words.
-    pub fn words_id(&self, c: &Compute) -> Option<&[u8; 32]> {
-        let words = self.words.as_ref()?;
-        self.words_id
-            .get_or_init(|| Some(words_id(c, &parse_words(c, self.language, words).ok()?)))
-            .as_deref()
-    }
-
-    /// Costs a key derivation the first time. `[fingerprint/path]xpub` at
-    /// `kind`'s path with account `account`
+/// Key texts by wallet kind, asked of a key of the store: derived once
+/// per key and kept with it ([`faraday_keys::Keys::public_text`]).
+pub trait KeyTexts {
+    /// Costs a key derivation the first time. `[fingerprint/path]xpub` of
+    /// key `i` at `kind`'s path with account `account`
     /// ([`crate::create::NewKind::key_text_account`]): derived the first
-    /// time it is asked, by whoever asks, a frame included, and kept on the
-    /// key, a lookup after.
-    pub fn account_text(
+    /// time it is asked, by whoever asks, a frame included, and kept on
+    /// the key, a lookup after.
+    fn account_text(
         &self,
         c: &Compute,
+        i: usize,
+        kind: crate::create::NewKind,
+        account: u32,
+    ) -> Result<String, String>;
+
+    /// Costs a key derivation the first time. `[fingerprint/path]xpub` of
+    /// key `i` at `path` ([`crate::create::key_text_at`]), kept as
+    /// [`KeyTexts::account_text`] is.
+    fn text_at(&self, c: &Compute, i: usize, path: &str) -> Result<String, String>;
+}
+
+impl KeyTexts for faraday_keys::Keys {
+    fn account_text(
+        &self,
+        c: &Compute,
+        i: usize,
         kind: crate::create::NewKind,
         account: u32,
     ) -> Result<String, String> {
-        self.public_text(PublicAsk::Account(kind, account), || {
-            kind.key_text_account(c, &self.master, account)
-        })
+        let spec = kind.spec(self.network(), account)?;
+        self.key_text(c, i, &spec)
+            .unwrap_or_else(|| Err(String::new()))
     }
 
-    /// Costs a key derivation the first time. `[fingerprint/path]xpub` at
-    /// `path` ([`crate::create::key_text_at`]), kept as
-    /// [`Key::account_text`] is.
-    pub fn text_at(&self, c: &Compute, path: &str) -> Result<String, String> {
-        self.public_text(PublicAsk::Path(path.to_string()), || {
-            crate::create::key_text_at(c, &self.master, path)
-        })
-    }
-
-    fn public_text(
-        &self,
-        ask: PublicAsk,
-        derive: impl FnOnce() -> Result<String, String>,
-    ) -> Result<String, String> {
-        if let Some((_, t)) = self.public.borrow().iter().find(|(a, _)| *a == ask) {
-            return t.clone();
-        }
-        let t = derive();
-        let mut kept = self.public.borrow_mut();
-        if kept.len() >= KEY_TEXTS_KEPT {
-            kept.clear();
-        }
-        kept.push((ask, t.clone()));
-        t
-    }
-
-    /// The master key.
-    pub fn master(&self) -> &MasterKey {
-        &self.master
-    }
-
-    /// [`master_id`] of its master key; a lookup, kept when the key was
-    /// made.
-    pub fn master_id(&self) -> [u8; 32] {
-        self.master_id
-    }
-
-    /// The master key's fingerprint; a lookup, kept by the master key.
-    pub fn fingerprint(&self) -> Fingerprint {
-        self.master.fingerprint()
-    }
-
-    /// Moves the master key to `network`; the fingerprint is the same on
-    /// every network.
-    pub fn set_network(&mut self, network: Network) {
-        self.master = self.master.for_network(network);
-        self.public.borrow_mut().clear();
-    }
-
-    /// Costs what `parse_words` costs. Runs `take` on the secret share
-    /// these words are, rebuilt for the call and wiped after it.
-    pub fn with_secret_share(
-        &self,
-        c: &Compute,
-        take: &mut dyn FnMut(&faraday_bip::frost::SecShare),
-    ) {
-        faraday_keys::frost::with_secret_share(
-            c,
-            self.language,
-            self.words.as_ref().map(|w| w.as_str()),
-            take,
-        );
+    fn text_at(&self, c: &Compute, i: usize, path: &str) -> Result<String, String> {
+        let spec = crate::create::path_spec(path)?;
+        self.key_text(c, i, &spec)
+            .unwrap_or_else(|| Err(String::new()))
     }
 }
 
@@ -448,10 +309,7 @@ impl Slot {
     }
 }
 
-/// The fingerprint as eight hex digits.
-pub fn fp_text(fp: Fingerprint) -> String {
-    String::from_utf8_lossy(&fp.to_hex()).into_owned()
-}
+pub use faraday_keys::fp_text;
 
 /// A wallet's source as a tag: "Vault" reads "From Vault" (`cap`) or
 /// "from Vault" (inline, after another phrase), but a source whose
@@ -482,29 +340,17 @@ pub fn key_line(fp: Fingerprint, label: &str) -> String {
 
 /// Keys and wallets for this session. Nothing here is written anywhere.
 pub struct Session {
-    /// Keys that can sign.
-    pub keys: Vec<Key>,
+    /// Keys that can sign, and the network they derive for.
+    pub keys: faraday_keys::Keys,
     /// Wallets.
     pub wallets: Vec<Wallet>,
-    /// The network every key derives for and every address is shown on.
-    network: Network,
-    /// The demo's public seeds and their fingerprints, when the shell
-    /// set it ([`Session::set_demo`], F20). Empty, as on the stick: the
-    /// session takes any key.
-    demo: Vec<(&'static str, Fingerprint)>,
-    /// Set by a shell that must stay on the network it started on
-    /// ([`Session::fix_network`]): every other one is refused.
-    network_fixed: bool,
 }
 
 impl Default for Session {
     fn default() -> Self {
         Session {
-            keys: Vec::new(),
+            keys: faraday_keys::Keys::on(START_NETWORK),
             wallets: Vec::new(),
-            network: START_NETWORK,
-            demo: Vec::new(),
-            network_fixed: false,
         }
     }
 }
@@ -556,14 +402,14 @@ impl Session {
     /// A session on `network`.
     pub fn on(network: Network) -> Session {
         Session {
-            network,
-            ..Session::default()
+            keys: faraday_keys::Keys::on(network),
+            wallets: Vec::new(),
         }
     }
 
     /// The network every key derives for.
     pub fn network(&self) -> Network {
-        self.network
+        self.keys.network()
     }
 
     /// Moves the session to `network`. Keys are re-derived for it. While
@@ -572,35 +418,14 @@ impl Session {
     /// network. A session whose network is fixed stays on it, and the
     /// demo goes to mainnet only with nothing but public seeds loaded.
     pub fn set_network(&mut self, network: Network) -> Result<(), Refusal> {
-        if network == self.network {
-            return Ok(());
-        }
-        if self.network_fixed {
-            return Err(Refusal::NetworkFixed(self.network));
-        }
-        if network.is_mainnet()
-            && let Some(k) = self.keys.iter().find(|k| !self.is_public(k.fingerprint()))
-        {
-            return Err(Refusal::NotPublicLoaded(fp_text(k.fingerprint())));
-        }
-        if !self.wallets.is_empty() && network.kind() != self.network.kind() {
-            return Err(Refusal::Network {
-                offered: network,
-                loaded: self.network,
-            });
-        }
-        for k in &mut self.keys {
-            k.set_network(network);
-        }
-        self.network = network;
-        Ok(())
+        self.keys.set_network(network, !self.wallets.is_empty())
     }
 
     /// Takes the network a wallet or a PSBT is on: the session moves to it
     /// when no wallet holds it elsewhere, and refuses it otherwise.
     pub fn follow(&mut self, network: Option<Network>) -> Result<(), Refusal> {
         let Some(n) = network else { return Ok(()) };
-        if n.kind() == self.network.kind() {
+        if n.kind() == self.network().kind() {
             return Ok(());
         }
         self.set_network(n)
@@ -608,198 +433,7 @@ impl Session {
 
     /// Takes the network of a PSBT that is about to be signed.
     pub fn follow_psbt(&mut self, psbt: &Psbt) -> Result<(), Refusal> {
-        self.follow(psbt_network(psbt, self.network))
-    }
-
-    /// Whether any secret is held: the stick rule's test
-    /// (`docs/history/PLAN.md` §5.1).
-    pub fn holds_secret(&self) -> bool {
-        !self.keys.is_empty()
-    }
-
-    /// Costs what `add_words_with` costs. Adds the key the words give.
-    /// `wanted` is the slot's fingerprint when the key is meant for one.
-    pub fn add_words(
-        &mut self,
-        c: &Compute,
-        words: &str,
-        label: &str,
-        wanted: Option<Fingerprint>,
-    ) -> Result<Fingerprint, Refusal> {
-        self.add_words_with(c, words, "", label, wanted)
-    }
-
-    /// Costs what `parse_words` and `add_mnemonic` cost. Adds the key the
-    /// words and a BIP-39 passphrase give. The same words with another
-    /// passphrase are another key. English is read first, then the other
-    /// lists in BIP-39's order.
-    pub fn add_words_with(
-        &mut self,
-        c: &Compute,
-        words: &str,
-        passphrase: &str,
-        label: &str,
-        wanted: Option<Fingerprint>,
-    ) -> Result<Fingerprint, Refusal> {
-        let normal =
-            zeroize::Zeroizing::new(words.split_whitespace().collect::<Vec<_>>().join(" "));
-        let mut first = None;
-        for lang in Language::ALL {
-            match crate::wallet::parse_words(c, lang, &normal) {
-                Ok(m) => return self.add_mnemonic(c, &m, passphrase, label, wanted),
-                Err(e) => {
-                    first.get_or_insert(e);
-                }
-            }
-        }
-        Err(Refusal::Words(
-            first.map(|e| e.to_string()).unwrap_or_default(),
-        ))
-    }
-
-    /// Costs what `to_seed`, `from_seed` and `new` cost. Adds the key a
-    /// mnemonic and a BIP-39 passphrase give, keeping its words in its own
-    /// list.
-    pub fn add_mnemonic(
-        &mut self,
-        c: &Compute,
-        mnemonic: &Mnemonic,
-        passphrase: &str,
-        label: &str,
-        wanted: Option<Fingerprint>,
-    ) -> Result<Fingerprint, Refusal> {
-        let lang = mnemonic.language();
-        let seed = mnemonic
-            .to_seed(c, passphrase.as_bytes())
-            .map_err(|e| Refusal::Words(e.to_string()))?;
-        let master = MasterKey::from_seed(c, &seed, self.network);
-        let fp = master.fingerprint();
-        if let Some(w) = wanted
-            && w != fp
-        {
-            return Err(Refusal::WrongKey {
-                wanted: fp_text(w),
-                got: fp_text(fp),
-            });
-        }
-        self.allowed(fp)?;
-        if self.keys.iter().any(|k| k.fingerprint() == fp) {
-            return Err(Refusal::Duplicate(fp_text(fp)));
-        }
-        let label = if label.trim().is_empty() {
-            fp_text(fp)
-        } else {
-            label.trim().to_string()
-        };
-        let mut words = crate::secret_text::room();
-        for (k, &i) in mnemonic.indices().iter().enumerate() {
-            if k > 0 {
-                words.push(' ');
-            }
-            words.push_str(lang.word(i));
-        }
-        let share = faraday_keys::frost::public_share(mnemonic);
-        self.keys.push(Key::new(
-            c,
-            master,
-            label,
-            Some(words),
-            lang,
-            share,
-            (!passphrase.is_empty()).then(|| zeroize::Zeroizing::new(passphrase.to_string())),
-        ));
-        Ok(fp)
-    }
-
-    /// Refuses a key that is not a public seed while the demo is on
-    /// ([`Session::demo`]).
-    fn allowed(&self, fp: Fingerprint) -> Result<(), Refusal> {
-        if self.demo() && !self.is_public(fp) {
-            return Err(Refusal::NotAllowed(fp_text(fp)));
-        }
-        Ok(())
-    }
-
-    /// Whether the demo would take this key: always, when the shell set
-    /// no demo.
-    fn is_public(&self, fp: Fingerprint) -> bool {
-        self.demo.is_empty() || self.demo.iter().any(|(_, f)| *f == fp)
-    }
-
-    /// Costs what `add_words` costs. Sets the demo up (F20): while the
-    /// session is on mainnet it takes only the public seeds
-    /// ([`crate::demo::SEEDS`]), every address it shows carries a broken
-    /// checksum ([`broken_checksum`]) so that no wallet sends to it
-    /// (scripts, PSBTs, files, signatures and every comparison keep the
-    /// real address), and New key adds the next public seed in place of the
-    /// key it made ([`Session::next_handout`]). On a test network none of
-    /// that applies.
-    pub fn set_demo(&mut self, c: &Compute) {
-        self.demo = crate::demo::SEEDS
-            .iter()
-            .filter_map(|&w| {
-                let mut probe = Session::on(self.network);
-                probe
-                    .add_words(c, &crate::demo::words(w), "", None)
-                    .ok()
-                    .map(|fp| (w, fp))
-            })
-            .collect();
-    }
-
-    /// Whether the shell set the demo up, on any network.
-    pub fn has_demo(&self) -> bool {
-        !self.demo.is_empty()
-    }
-
-    /// Whether the demo is on: set up, and the session on mainnet.
-    pub fn demo(&self) -> bool {
-        !self.demo.is_empty() && self.network.is_mainnet()
-    }
-
-    /// Keeps the session on the network it is on: every move to another
-    /// is refused, a wallet's or a PSBT's included.
-    pub fn fix_network(&mut self) {
-        self.network_fixed = true;
-    }
-
-    /// Whether the session's network is fixed ([`Session::fix_network`]).
-    pub fn network_fixed(&self) -> bool {
-        self.network_fixed
-    }
-
-    /// Costs what `from_seed_bytes` and `new` cost. Adds the key a master
-    /// seed gives, as an `.oskb` kind-2 backup carries one: there are
-    /// no words to copy by hand.
-    pub fn add_seed(
-        &mut self,
-        c: &Compute,
-        seed: &[u8],
-        label: &str,
-    ) -> Result<Fingerprint, Refusal> {
-        let bytes = faraday_crypto::SeedBytes::new(seed)
-            .ok_or_else(|| Refusal::Words(EN.wallet_a_master_seed.to_string()))?;
-        let master =
-            MasterKey::from_seed_bytes(c, &faraday_crypto::Secret::new(bytes), self.network);
-        let fp = master.fingerprint();
-        self.allowed(fp)?;
-        if self.keys.iter().any(|k| k.fingerprint() == fp) {
-            return Err(Refusal::Duplicate(fp_text(fp)));
-        }
-        self.keys.push(Key::new(
-            c,
-            master,
-            if label.trim().is_empty() {
-                fp_text(fp)
-            } else {
-                label.trim().to_string()
-            },
-            None,
-            Language::English,
-            None,
-            None,
-        ));
-        Ok(fp)
+        self.follow(psbt_network(psbt, self.network()))
     }
 
     /// Costs what `read_wallet` costs. Adds the wallet the text describes,
@@ -835,7 +469,7 @@ impl Session {
         {
             return Ok(i);
         }
-        self.follow(policy_network(&policy, self.network))?;
+        self.follow(policy_network(&policy, self.network()))?;
         self.wallets.push(Wallet::new(
             name.to_string(),
             policy,
@@ -845,26 +479,34 @@ impl Session {
         Ok(self.wallets.len() - 1)
     }
 
+    /// Costs what `add_words` costs. Sets the demo up (F20): while the
+    /// session is on mainnet it takes only the public seeds
+    /// ([`crate::demo::SEEDS`]), every address it shows carries a broken
+    /// checksum ([`broken_checksum`]) so that no wallet sends to it
+    /// (scripts, PSBTs, files, signatures and every comparison keep the
+    /// real address), and New key adds the next public seed in place of the
+    /// key it made ([`faraday_keys::Keys::next_handout`]). On a test
+    /// network none of that applies.
+    pub fn set_demo(&mut self, c: &Compute) {
+        let seeds: Vec<(&'static str, String)> = crate::demo::SEEDS
+            .iter()
+            .map(|&w| (w, crate::demo::words(w)))
+            .collect();
+        self.keys.set_demo(c, &seeds);
+    }
+
     /// Drops every key and wallet.
     pub fn wipe(&mut self) {
         self.keys.clear();
         self.wallets.clear();
     }
 
-    /// The label of the session key with `fp`.
-    pub fn key_label(&self, fp: Fingerprint) -> Option<&str> {
-        self.keys
-            .iter()
-            .find(|k| k.fingerprint() == fp)
-            .map(|k| k.label.as_str())
-    }
-
     /// The keys loaded that no wallet loaded uses, in the order they
     /// were added.
     pub fn loose_keys(&self) -> Vec<Fingerprint> {
         self.keys
-            .iter()
-            .map(|k| k.fingerprint())
+            .all()
+            .map(|k| k.fingerprint)
             .filter(|&fp| {
                 !self
                     .wallets
@@ -881,7 +523,7 @@ impl Session {
         if let Some(r) = wallet.policy.silent() {
             return vec![Slot {
                 fingerprint: Some(r.fingerprint),
-                held_by: self.key_label(r.fingerprint).map(str::to_string),
+                held_by: self.keys.key_label(r.fingerprint).map(str::to_string),
                 key: None,
             }];
         }
@@ -909,7 +551,7 @@ impl Session {
                 Slot {
                     fingerprint,
                     held_by: fingerprint
-                        .and_then(|fp| self.key_label(fp))
+                        .and_then(|fp| self.keys.key_label(fp))
                         .map(str::to_string),
                     key: Some(k.clone()),
                 }
@@ -975,20 +617,7 @@ impl Session {
     /// the wallet, on the session's network. Derived once per wallet and
     /// kept on it ([`Wallet::address_on`]).
     pub fn address(&self, c: &Compute, wallet: &Wallet, change: bool, index: u32) -> String {
-        wallet.address_on(c, self.network, change, index)
-    }
-
-    /// The public seed New key adds next while the demo is on, as its
-    /// word and fingerprint: the first one not loaded. `None` with the
-    /// demo off, as on the stick.
-    pub fn next_handout(&self) -> Option<(&'static str, Fingerprint)> {
-        if !self.demo() {
-            return None;
-        }
-        self.demo
-            .iter()
-            .find(|(_, fp)| !self.keys.iter().any(|k| k.fingerprint() == *fp))
-            .copied()
+        wallet.address_on(c, self.network(), change, index)
     }
 
     /// Costs an address derivation (through `address`). An address of the
@@ -998,9 +627,9 @@ impl Session {
     }
 
     /// `address` as the screen shows it: as it is, or with its checksum
-    /// broken while the demo is on ([`Session::set_demo`]).
+    /// broken while the demo is on ([`faraday_keys::Keys::set_demo`]).
     pub fn shown(&self, address: &str) -> String {
-        if self.demo() {
+        if self.keys.demo() {
             broken_checksum(address)
         } else {
             address.to_string()
@@ -1009,8 +638,7 @@ impl Session {
 
     /// Costs a key derivation (through `from_master`).
     fn key_refs(&self, c: &Compute) -> Vec<KeyRef> {
-        let masters: Vec<&MasterKey> = self.keys.iter().map(|k| &k.master).collect();
-        faraday_keys::psbt::key_refs(c, &masters)
+        self.keys.key_refs(c)
     }
 
     fn policies(&self) -> Vec<WalletPolicy> {
@@ -1026,9 +654,8 @@ impl Session {
     pub fn nonce_check(&self, c: &Compute, psbt: &Psbt) -> NonceCheck {
         let refs = self.key_refs(c);
         let policies = self.policies();
-        let ctx = context(self.network, &refs, &policies);
-        let masters: Vec<&MasterKey> = self.keys.iter().map(|k| &k.master).collect();
-        let made = faraday_keys::psbt::recompute_signatures(c, psbt, &masters);
+        let ctx = context(self.network(), &refs, &policies);
+        let made = self.keys.recompute_signatures(c, psbt);
         let mut rows = Vec::new();
         for input in faraday_psbt::verify::verify_signatures(psbt, &ctx) {
             for sig in input.signatures {
@@ -1050,20 +677,13 @@ impl Session {
         }
     }
 
-    fn share_refs(&self) -> Vec<faraday_psbt::ShareRef> {
-        self.keys
-            .iter()
-            .filter_map(|k| k.share.map(|pubshare| faraday_psbt::ShareRef { pubshare }))
-            .collect()
-    }
-
     /// What an inspection is worked out from beside the PSBT
     /// ([`InspectInputs`]). Lookups: each key's id and each wallet's
     /// checksum are kept.
     pub fn inspect_inputs(&self) -> InspectInputs {
         InspectInputs {
-            network: self.network,
-            keys: self.keys.iter().map(Key::master_id).collect(),
+            network: self.network(),
+            keys: self.keys.all().map(|k| k.id.0).collect(),
             wallets: self
                 .wallets
                 .iter()
@@ -1088,8 +708,8 @@ impl Session {
     ) -> Inspection {
         let refs = self.key_refs(c);
         let policies = self.policies();
-        let shares = self.share_refs();
-        let mut ctx = context(self.network, &refs, &policies);
+        let shares = self.keys.share_refs();
+        let mut ctx = context(self.network(), &refs, &policies);
         ctx.shares = &shares;
         ctx.carry = carry;
         faraday_psbt::inspect(c, psbt, &ctx)
@@ -1097,18 +717,14 @@ impl Session {
 
     /// The loaded keys that are shares of the threshold wallet `w`, by
     /// identifier.
-    pub fn shares_here(&self, w: &Wallet) -> Vec<(u32, &Key)> {
+    pub fn shares_here(&self, w: &Wallet) -> Vec<(u32, &faraday_keys::KeyInfo)> {
         let Some(record) = w.policy.record() else {
             return Vec::new();
         };
         let mut out = Vec::new();
         for (id, pubshare) in record.info.pubshares.iter().enumerate() {
             let Some(pubshare) = pubshare else { continue };
-            if let Some(k) = self
-                .keys
-                .iter()
-                .find(|k| k.share.as_ref() == Some(pubshare))
-            {
+            if let Some(k) = self.keys.all().find(|k| k.share.as_ref() == Some(pubshare)) {
                 out.push((id as u32, k));
             }
         }
@@ -1148,8 +764,8 @@ impl Session {
     ) -> Result<Signed, String> {
         let refs = self.key_refs(c);
         let policies = self.policies();
-        let share_refs = self.share_refs();
-        let mut ctx = context(self.network, &refs, &policies);
+        let share_refs = self.keys.share_refs();
+        let mut ctx = context(self.network(), &refs, &policies);
         ctx.shares = &share_refs;
         ctx.carry = carry;
         let own;
@@ -1164,7 +780,7 @@ impl Session {
             .participating_keys
             .iter()
             .copied()
-            .filter(|fp| self.keys.iter().any(|k| k.fingerprint() == *fp))
+            .filter(|fp| self.keys.position(*fp).is_some())
             .collect();
         let shares_sign = inspection
             .inputs
@@ -1173,24 +789,10 @@ impl Session {
         if selection.is_empty() && !shares_sign {
             return Err(EN.wallet_no_key_in_this.to_string());
         }
-        let masters: Vec<&MasterKey> = self.keys.iter().map(|k| &k.master).collect();
-        // A share's scalar is rebuilt from its words only inside the call
-        // the signer makes through its door.
-        let holders: Vec<faraday_keys::psbt::ShareHolder<'_>> = self
+        let result = self
             .keys
-            .iter()
-            .filter_map(|key| {
-                Some(faraday_keys::psbt::ShareHolder {
-                    pubshare: key.share?,
-                    language: key.language,
-                    words: key.words.as_ref().map(|w| w.as_str()),
-                })
-            })
-            .collect();
-        let result = faraday_keys::psbt::sign(
-            c, psbt, &masters, &selection, &ctx, musig, seed, &holders, others,
-        )
-        .map_err(|e| e.to_string())?;
+            .sign(c, psbt, &selection, &ctx, musig, seed, others)
+            .map_err(|e| e.to_string())?;
         let mut by: Vec<Fingerprint> = result.signed_inputs.iter().map(|s| s.fingerprint).collect();
         by.dedup();
         Ok(Signed {
@@ -1870,7 +1472,7 @@ impl Session {
                     .keys()
                     .first()
                     .and_then(|k| k.fingerprint())
-                    .is_some_and(|fp| self.key_label(fp).is_some())
+                    .is_some_and(|fp| self.keys.key_label(fp).is_some())
             })
             .map(|(i, _)| i)
             .collect()
@@ -1892,12 +1494,7 @@ impl Session {
         };
         let key = w.policy.keys().first().ok_or(EN.wallet_the_wallet_has)?;
         let fp = key.fingerprint().ok_or(EN.wallet_the_wallet_s_xpub)?;
-        let master = &self
-            .keys
-            .iter()
-            .find(|k| k.fingerprint() == fp)
-            .ok_or(EN.wallet_the_wallet_s_key)?
-            .master;
+        let place = self.keys.position(fp).ok_or(EN.wallet_the_wallet_s_key)?;
         let origin = key.path().ok_or(EN.wallet_the_wallet_s)?;
         let path = origin
             .child(
@@ -1908,7 +1505,9 @@ impl Session {
                 faraday_bip::bitcoin::bip32::ChildNumber::from_normal_idx(index)
                     .map_err(|e| e.to_string())?,
             );
-        faraday_keys::message::sign(c, master, &path, script, self.network, message, format)
+        self.keys
+            .sign_message(c, place, &path, script, message, format)
+            .ok_or(EN.wallet_the_wallet_s_key)?
             .map_err(|e| format!("{e:?}"))
     }
 
@@ -1921,14 +1520,14 @@ impl Session {
             .address
             .parse::<faraday_bip::bitcoin::Address<_>>()
             .ok()?
-            .require_network(self.network.into())
+            .require_network(self.network().into())
             .ok()?;
         let verdict = faraday_psbt::message::verify(&address, &signed.message, &signed.signature)
             .map(|c| c.format)
             .map_err(|e| format!("{e:?}"));
         let wallet = self.wallets.iter().enumerate().find_map(|(i, w)| {
             w.policy
-                .find_address(c, self.network, &address, 100)
+                .find_address(c, self.network(), &address, 100)
                 .map(|(change, index)| (i, change, index))
         });
         Some(MessageCheck {
@@ -2339,13 +1938,5 @@ impl Wallet {
     /// the caches.
     pub(crate) fn kept(&self) -> (usize, usize) {
         (self.addresses.borrow().len(), self.scripts.borrow().len())
-    }
-}
-
-#[cfg(test)]
-impl Key {
-    /// How many key texts it keeps, for the test that bounds the caches.
-    pub(crate) fn kept(&self) -> usize {
-        self.public.borrow().len()
     }
 }

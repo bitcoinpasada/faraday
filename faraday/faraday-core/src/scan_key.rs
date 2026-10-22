@@ -155,7 +155,11 @@ impl Faraday {
             }
             Found::Missing(n) => {
                 let label = self.wallet_key_label(&c, w, fp);
-                match self.session.add_words_with(&c, words, "", &label, None) {
+                match self
+                    .session
+                    .keys
+                    .add_words_with(&c, words, "", &label, None)
+                {
                     Ok(_) => self.wallet_key_added(w, n),
                     Err(e) => {
                         if let Some(scan) = self.scan.as_mut() {

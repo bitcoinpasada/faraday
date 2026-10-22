@@ -36,7 +36,7 @@ fn the_address_is_bip352s_for_the_key_and_a_label_makes_another() {
     app.press(Action::Silent);
     assert_eq!(app.screen, Screen::Silent);
     let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::new();
-    let r = Receiver::derive(&c, app.session.keys[0].master(), 0);
+    let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), 0);
     let plain = r.address(&secp).unwrap().as_str().to_string();
     assert!(plain.starts_with("sp1"), "{plain}");
     assert_eq!(app.silent_address(&c).as_deref(), Some(plain.as_str()));
@@ -178,7 +178,7 @@ fn the_key_s_silent_payments_wallet_is_among_the_wallets_and_keeps_its_labels() 
     let w = &app.session.wallets[0];
     assert_eq!(Kind::of(w.policy()), Kind::Silent);
     let secp = Secp256k1::new();
-    let r = Receiver::derive(&c, app.session.keys[0].master(), 0);
+    let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), 0);
     let plain = r.address(&secp).unwrap().as_str().to_string();
     assert_eq!(w.policy().silent().unwrap().address(), plain);
     // Its one key is here.
@@ -223,7 +223,7 @@ fn a_payment_to_this_wallet_is_found_and_one_to_another_is_not() {
     let c = faraday_core::testkit::compute();
     let mut app = with_key();
     let secp = Secp256k1::new();
-    let r = Receiver::derive(&c, app.session.keys[0].master(), 0);
+    let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), 0);
     let scan = r.scan_public_key(&secp);
     let (paid, funding_tx) = payment(&scan, &r.spend_public_key());
     // Someone else's address: the same scan key, another spend key.
@@ -260,7 +260,7 @@ fn a_payment_to_a_label_names_the_label_and_one_missing_its_funding_waits() {
     let c = faraday_core::testkit::compute();
     let mut app = with_key();
     let secp = Secp256k1::new();
-    let r = Receiver::derive(&c, app.session.keys[0].master(), 0);
+    let r = Receiver::derive(&c, app.session.keys.master_for_tests(0), 0);
     let scan = r.scan_public_key(&secp);
     let (paid, funding_tx) = payment(&scan, &r.labelled_spend_key(&secp, 2).unwrap());
     files(&mut app, &[("payment.txn", consensus::serialize(&paid))]);

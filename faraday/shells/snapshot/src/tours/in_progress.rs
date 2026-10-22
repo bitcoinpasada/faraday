@@ -42,7 +42,7 @@ pub(crate) fn in_progress_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
     for slot in 0..3u8 {
-        let fp = t.app.session.keys[usize::from(slot)].fingerprint().0;
+        let fp = t.app.session.keys[usize::from(slot)].fingerprint.0;
         t.press(Action::CSlotHere(slot, fp));
     }
     t.press(Action::CNext(cstep::KEYS));

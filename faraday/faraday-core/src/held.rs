@@ -22,8 +22,10 @@ use crate::{Action, BStage, Faraday, Screen, bstep, plan};
 /// list: told by the SHA-256 of each one's entropy
 /// ([`wallet::WordsId`]), all 32 bytes, both kept once worked out, so
 /// nothing parses the words again and two seeds never pass for one.
-fn same_words(c: &Compute, app: &Faraday, r: &Record, key: &wallet::Key) -> bool {
-    key.words_id(c)
+fn same_words(c: &Compute, app: &Faraday, r: &Record, key: usize) -> bool {
+    app.session
+        .keys
+        .words_id(c, key)
         .is_some_and(|id| app.record_words_id(c, r).is_some_and(|x| *x == *id))
 }
 
@@ -45,14 +47,14 @@ impl Faraday {
         k: usize,
         with_pass: bool,
     ) -> bool {
-        let (Some(open), Some(key)) = (self.vaults.open.get(o), self.session.keys.get(k)) else {
+        let Some(open) = self.vaults.open.get(o) else {
             return false;
         };
         open.contents.of(kind::KEY).any(|(_, r)| {
-            same_words(c, self, r, key)
+            same_words(c, self, r, k)
                 && (!with_pass
                     || r.text(field::KEY_PASSPHRASE)
-                        .is_some_and(|p| key.passphrase.as_ref().is_some_and(|q| q.as_str() == p)))
+                        .is_some_and(|p| self.session.keys.passphrase_is(k, p)))
         })
     }
 
@@ -88,8 +90,8 @@ impl Faraday {
             let Some(w) = f.wallet.as_ref().filter(|_| f.made) else {
                 continue;
             };
-            for k in &self.session.keys {
-                let fp = k.fingerprint();
+            for k in self.session.keys.all() {
+                let fp = k.fingerprint;
                 if w.held.iter().any(|h| h.eq_ignore_ascii_case(&fp_text(fp)))
                     && !out.contains(&fp)
                     && !self.wallet_seed_released(i, fp)
@@ -133,21 +135,19 @@ impl Faraday {
                     if let Some(k) = self
                         .session
                         .keys
-                        .iter()
-                        .find(|k| fp_text(k.fingerprint()).eq_ignore_ascii_case(&held))
+                        .all()
+                        .find(|k| fp_text(k.fingerprint).eq_ignore_ascii_case(&held))
                     {
-                        add(k.fingerprint());
+                        add(k.fingerprint);
                     }
                 }
             }
             for (_, r) in open.contents.of(kind::KEY).filter(|(_, r)| pending(r)) {
-                for k in self
-                    .session
-                    .keys
-                    .iter()
-                    .filter(|k| same_words(c, self, r, k))
-                {
-                    add(k.fingerprint());
+                for (i, k) in self.session.keys.all().enumerate() {
+                    if !same_words(c, self, r, i) {
+                        continue;
+                    }
+                    add(k.fingerprint);
                 }
             }
         }
@@ -204,8 +204,8 @@ impl Faraday {
         }
         self.backup_keys(w)
             .into_iter()
-            .filter_map(|k| self.session.keys.get(k))
-            .map(|k| k.fingerprint())
+            .filter_map(|k| self.session.keys.info(k))
+            .map(|k| k.fingerprint)
             .filter(|fp| held.contains(fp))
             .collect()
     }
@@ -229,16 +229,15 @@ impl Faraday {
         let held = self.held_keys_stored(&c);
         self.made_here = held.clone();
         let keys: Vec<usize> = (0..self.session.keys.len())
-            .filter(|&k| held.contains(&self.session.keys[k].fingerprint()))
+            .filter(|&k| held.contains(&self.session.keys[k].fingerprint))
             .collect();
         for v in 0..self.vaults.open.len() {
             let mut changed = false;
             for &k in &keys {
-                let key = &self.session.keys[k];
                 let marks: Vec<usize> = self.vaults.open[v]
                     .contents
                     .of(kind::KEY)
-                    .filter(|(_, r)| same_words(&c, self, r, key) && !pending(r))
+                    .filter(|(_, r)| same_words(&c, self, r, k) && !pending(r))
                     .map(|(i, _)| i)
                     .collect();
                 for i in marks {
@@ -292,7 +291,7 @@ impl Faraday {
             .filter(|&i| plan::kept_nowhere_on(&shape, &mapped, &[i]).is_none())
             .filter_map(|i| {
                 let k = list.get(i)?.1?;
-                Some((self.session.keys.get(k)?.fingerprint(), k))
+                Some((self.session.keys.info(k)?.fingerprint, k))
             })
             .collect();
         if released.is_empty() {
@@ -300,13 +299,12 @@ impl Faraday {
         }
         for &(fp, k) in &released {
             // The same words without that passphrase are kept too.
-            let words = self.session.keys[k].words.clone();
             let same: Vec<Fingerprint> = self
                 .session
                 .keys
-                .iter()
-                .filter(|o| o.words.is_some() && o.words == words)
-                .map(|o| o.fingerprint())
+                .with_same_words(k)
+                .into_iter()
+                .map(|o| self.session.keys[o].fingerprint)
                 .collect();
             self.made_here.retain(|f| *f != fp && !same.contains(f));
             self.held_clear_marks(fp, k);
@@ -325,13 +323,13 @@ impl Faraday {
         let text = fp_text(fp);
         for v in 0..self.vaults.open.len() {
             let mut changed = false;
-            let Some(key) = self.session.keys.get(k) else {
+            if self.session.keys.info(k).is_none() {
                 return;
-            };
+            }
             let marks: Vec<usize> = self.vaults.open[v]
                 .contents
                 .of(kind::KEY)
-                .filter(|(_, r)| same_words(&c, self, r, key) && pending(r))
+                .filter(|(_, r)| same_words(&c, self, r, k) && pending(r))
                 .map(|(i, _)| i)
                 .collect();
             for i in marks {
@@ -540,13 +538,22 @@ impl Faraday {
             if self.vault_holds_passphrase(cur, k) {
                 continue;
             }
-            let Some(key) = self.session.keys.get(k) else {
+            let Some(key) = self.session.keys.info(k) else {
                 continue;
             };
-            let fp = key.fingerprint();
-            let Some(pass) = key.passphrase.clone() else {
+            let fp = key.fingerprint;
+            if !key.has_passphrase {
                 continue;
-            };
+            }
+            let pass = zeroize::Zeroizing::new(
+                self.session
+                    .keys
+                    .reveal(
+                        k,
+                        faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Passphrase),
+                    )
+                    .to_string(),
+            );
             if let Some(open) = self.vaults.open.get_mut(cur) {
                 open.contents.records.retain(|r| {
                     !(r.kind == kind::PASSPHRASE
@@ -711,8 +718,8 @@ pub(crate) fn backup_held_seeds_on(r: &impl Reads) -> Vec<usize> {
         .iter()
         .enumerate()
         .filter_map(|(i, (_, k))| {
-            let key = app.session.keys.get((*k)?)?;
-            held.contains(&key.fingerprint()).then_some(i)
+            let key = app.session.keys.info((*k)?)?;
+            held.contains(&key.fingerprint).then_some(i)
         })
         .collect()
 }

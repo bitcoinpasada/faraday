@@ -33,7 +33,7 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
     assert_eq!(cs.m, cs.n, "every key signs");
     app.press(Action::CNext(cstep::QUORUM));
     for (slot, k) in [(0u8, 0usize), (1, 1)] {
-        let fp = app.session.keys[k].fingerprint().0;
+        let fp = app.session.keys[k].fingerprint.0;
         app.press(Action::CSlotHere(slot, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
@@ -49,7 +49,7 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
     // Each key's Taproot account on the session's network.
     let account = |k: usize| {
         NewKind::Taproot
-            .key_text(&c, app.session.keys[k].master())
+            .key_text(&c, app.session.keys.master_for_tests(k))
             .unwrap()
     };
     let (a, b) = (account(0), account(1));

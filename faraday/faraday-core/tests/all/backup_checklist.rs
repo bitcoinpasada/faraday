@@ -73,7 +73,7 @@ fn one_key(app: &mut Faraday) -> usize {
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
-    let fp = app.session.keys.last().unwrap().fingerprint();
+    let fp = app.session.keys.last().unwrap().fingerprint;
     app.press(Action::KeyWallet(fp.0, 1));
     app.press(Action::Seeds(S::Make));
     app.session.wallets.len() - 1
@@ -514,7 +514,11 @@ fn ticked(boxes: &[TextBox], title: &str, number: usize) -> bool {
 /// back.
 fn check_copy(app: &mut Faraday, w: usize, i: usize) {
     let k = app.backup_seed_list_now(w)[i].1.expect("the seed is here");
-    let words = app.session.keys[k].words.as_ref().unwrap().to_string();
+    let words = app
+        .session
+        .keys
+        .reveal(k, faraday_keys::Reveal::Words)
+        .to_string();
     let item = bstep::COPY + i as u8;
     if app.backup.as_ref().unwrap().open != Some(item) {
         press_offered(app, Action::BStep(item));

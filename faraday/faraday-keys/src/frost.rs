@@ -9,7 +9,7 @@ use faraday_crypto::work::Compute;
 use zeroize::{Zeroize, Zeroizing};
 
 /// The FROST share 24 words are, when they are 24 words.
-pub fn secret_share(m: &Mnemonic) -> Option<SecShare> {
+pub(crate) fn secret_share(m: &Mnemonic) -> Option<SecShare> {
     if m.word_count() != 24 {
         return None;
     }
@@ -31,7 +31,7 @@ pub fn public_share(m: &Mnemonic) -> Option<PublicKey> {
 /// Costs a parse of the words. Runs `take` on the secret share `words`
 /// (in `language`) are, rebuilt for the call and wiped after it; it runs
 /// on nothing when there are no words or they are not 24 words.
-pub fn with_secret_share(
+pub(crate) fn with_secret_share(
     c: &Compute,
     language: Language,
     words: Option<&str>,

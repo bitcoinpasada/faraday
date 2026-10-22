@@ -244,30 +244,26 @@ impl Faraday {
             _ => EN.forms_seed_xor_key,
         };
         match form {
-            Form::Slip39 => slip39::recover(
+            Form::Slip39 => faraday_keys::slip39_seed(
                 &c,
                 &self.entry.parts.slip39,
                 self.entry.passphrase.as_bytes(),
             )
             .map_err(|e| fill(EN.forms_the_shares_do, &[&format!("{e:?}")]))
-            .and_then(|secret| {
+            .and_then(|seed| {
                 self.session
-                    .add_seed(&c, secret.expose().as_bytes(), label)
+                    .keys
+                    .add_seed(&c, &seed, label)
                     .map_err(|e| e.text())
             }),
-            Form::Codex32 => {
-                let parts = &self.entry.parts.codex32;
-                let seed = match parts.iter().find(|c| c.is_secret()) {
-                    Some(s) => s.to_seed(),
-                    None => Codex32::recover(parts).and_then(|s| s.to_seed()),
-                };
-                seed.map_err(|e| fill(EN.forms_the_strings_do, &[&e.to_string()]))
-                    .and_then(|seed| {
-                        self.session
-                            .add_seed(&c, seed.expose().bytes(), label)
-                            .map_err(|e| e.text())
-                    })
-            }
+            Form::Codex32 => faraday_keys::codex32_seed(&self.entry.parts.codex32)
+                .map_err(|e| fill(EN.forms_the_strings_do, &[&e.to_string()]))
+                .and_then(|seed| {
+                    self.session
+                        .keys
+                        .add_seed(&c, &seed, label)
+                        .map_err(|e| e.text())
+                }),
             Form::Xor => self
                 .entry
                 .parts
@@ -286,6 +282,7 @@ impl Faraday {
                         .collect();
                     let phrase = zeroize::Zeroizing::new(words.join(" "));
                     self.session
+                        .keys
                         .add_words_with(&c, &phrase, &self.entry.passphrase, label, None)
                         .map_err(|e| e.text())
                 }),

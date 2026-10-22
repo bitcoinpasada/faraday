@@ -125,7 +125,7 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
         for fp in &loose {
             let on = fp.0 == picked;
             ui.checkbox(x, cy + 11.0, on, true);
-            let line = key_line(*fp, app.session.key_label(*fp).unwrap_or(""));
+            let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
             let line = ui.fit(14.0, W::M, &line, w - 30.0);
             ui.text_mid(
                 x + 30.0,
@@ -299,7 +299,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         section_label(ui, x + 4.0, ly, EN.wallets_keys_without);
         ly += 26.0;
         for fp in &loose {
-            let line = key_line(*fp, app.session.key_label(*fp).unwrap_or(""));
+            let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
             let line = ui.fit(13.0, W::R, &line, listw - 8.0);
             ui.text(x + 4.0, ly, 13.0, W::R, TEXT, &line);
             ly += KEY_ROW;
@@ -656,7 +656,7 @@ fn silent_wallet_card(
     let mut cy = y;
     ui.text(ix, cy, 13.0, W::S, MUTED, EN.silent_wallet_card_key);
     cy += 24.0;
-    let held = app.session.key_label(r.fingerprint);
+    let held = app.session.keys.key_label(r.fingerprint);
     ui.text_mid(ix, cy, 46.0, 14.0, W::M, TEXT, &fp_text(r.fingerprint));
     if let Some(label) = held {
         ui.text_mid(ix + 104.0, cy, 46.0, 13.0, W::R, MUTED, label);

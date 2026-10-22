@@ -41,7 +41,7 @@ fn key_in(app: &mut Faraday, n: usize, pass: &str) -> [u8; 4] {
         type_text(app, pass);
     }
     app.press(Action::EntryAdd);
-    app.session.keys.last().unwrap().fingerprint().0
+    app.session.keys.last().unwrap().fingerprint.0
 }
 
 fn kind_index(kind: NewKind) -> u8 {
@@ -204,7 +204,7 @@ fn seed_made_wallet(app: &mut Faraday, fp: [u8; 4]) -> String {
     app.press(Action::PotentialOpen(fp));
     app.press(Action::PotentialMake);
     assert_eq!(app.session.keys.len(), 1);
-    assert_eq!(app.session.keys[0].fingerprint().0, fp);
+    assert_eq!(app.session.keys[0].fingerprint.0, fp);
     assert_eq!(app.session.wallets.len(), 1);
     app.session.address(&c, &app.session.wallets[0], false, 0)
 }
@@ -707,7 +707,7 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
         .unwrap();
     app.press(Action::Vault(V::LoadAll(v)));
     assert_eq!(app.session.keys.len(), 1);
-    assert_eq!(app.session.keys[0].fingerprint().0, with);
+    assert_eq!(app.session.keys[0].fingerprint.0, with);
     // The words' vault alone: the words alone.
     let mut app = testkit::started();
     app.storage(StorageEvent::Restored {
@@ -718,5 +718,5 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
     unlock_file(&mut app, "words.ofv", "words phrase");
     app.press(Action::Vault(V::LoadAll(0)));
     assert_eq!(app.session.keys.len(), 1);
-    assert_eq!(app.session.keys[0].fingerprint().0, fp_of(2, ""));
+    assert_eq!(app.session.keys[0].fingerprint.0, fp_of(2, ""));
 }

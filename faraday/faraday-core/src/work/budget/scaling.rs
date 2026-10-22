@@ -38,6 +38,7 @@ fn session(copies: usize, wallets: usize, spend: bool) -> Faraday {
     for (word, l) in &testkit::TEST_SEEDS[..2] {
         let _ = app
             .session
+            .keys
             .add_words(&c, &testkit::test_words(word), l, None);
     }
     let mut kits = testkit::kits();

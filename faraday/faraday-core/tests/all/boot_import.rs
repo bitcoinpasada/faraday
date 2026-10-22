@@ -214,8 +214,8 @@ fn key_fps(app: &Faraday) -> Vec<String> {
     let mut v: Vec<String> = app
         .session
         .keys
-        .iter()
-        .map(|k| faraday_core::wallet::fp_text(k.fingerprint()))
+        .all()
+        .map(|k| faraday_core::wallet::fp_text(k.fingerprint))
         .collect();
     v.sort();
     v
@@ -737,8 +737,8 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
     let key = app
         .session
         .keys
-        .iter()
-        .find(|k| faraday_core::wallet::fp_text(k.fingerprint()) == fp(0))
+        .all()
+        .find(|k| faraday_core::wallet::fp_text(k.fingerprint) == fp(0))
         .expect("the seed did not load");
     assert_eq!(
         key.label,
@@ -871,6 +871,7 @@ fn fp_with(passphrase: &str) -> String {
     let c = testkit::compute();
     let mut probe = faraday_core::wallet::Session::default();
     let fp = probe
+        .keys
         .add_words_with(
             &c,
             &testkit::test_words(testkit::TEST_SEEDS[2].0),

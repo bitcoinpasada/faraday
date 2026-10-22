@@ -18,8 +18,9 @@ use super::{unlock_test_vault, walk};
 use crate::create::NewKind;
 use crate::plan::{Answers, Preset};
 use crate::seeds::SeedsState;
-use crate::wallet::{KEY_TEXTS_KEPT, Origin, WALLET_ADDRESSES_KEPT, WALLET_SCRIPTS_KEPT};
+use crate::wallet::{KeyTexts, Origin, WALLET_ADDRESSES_KEPT, WALLET_SCRIPTS_KEPT};
 use crate::{Action, Faraday, Screen, StorageEvent, testkit};
+use faraday_keys::KEY_TEXTS_KEPT;
 
 /// Each kept list with its length and its bound.
 fn sizes(app: &Faraday) -> Vec<(String, usize, usize)> {
@@ -88,8 +89,12 @@ fn sizes(app: &Faraday) -> Vec<(String, usize, usize)> {
             WALLET_SCRIPTS_KEPT,
         ));
     }
-    for k in &app.session.keys {
-        out.push((format!("{}'s key texts", k.label), k.kept(), KEY_TEXTS_KEPT));
+    for (i, k) in app.session.keys.all().enumerate() {
+        out.push((
+            format!("{}'s key texts", k.label),
+            app.session.keys.texts_kept(i),
+            KEY_TEXTS_KEPT,
+        ));
     }
     out
 }
@@ -152,9 +157,12 @@ fn round(app: &mut Faraday, n: usize) {
             let _ = w.script_at(&c, true, i + 300 * n as u32);
         }
     }
-    for k in &app.session.keys {
+    for k in 0..app.session.keys.len() {
         for a in 0..80 {
-            let _ = k.account_text(&c, NewKind::NativeSegwit, a + 80 * n as u32);
+            let _ = app
+                .session
+                .keys
+                .account_text(&c, k, NewKind::NativeSegwit, a + 80 * n as u32);
         }
     }
     for i in 0..40 {
@@ -166,7 +174,7 @@ fn round(app: &mut Faraday, n: usize) {
     }
     for a in 0..20 {
         let s = SeedsState {
-            keys: vec![app.session.keys[0].fingerprint().0],
+            keys: vec![app.session.keys[0].fingerprint.0],
             m: 1,
             n: 1,
             kind: NewKind::NativeSegwit,

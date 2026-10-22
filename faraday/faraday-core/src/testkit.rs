@@ -89,6 +89,13 @@ fn master(word: &str) -> MasterKey {
     MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("seed"), NET)
 }
 
+/// Whether session key `i` has test seed `n`'s words, with or without a
+/// passphrase.
+pub fn has_test_words(keys: &faraday_keys::Keys, i: usize, n: usize) -> bool {
+    let words = keys.reveal(i, faraday_keys::Reveal::Words);
+    !words.is_empty() && *words == *test_words(TEST_SEEDS[n].0)
+}
+
 /// `[fingerprint/path]tpub` for test seed `n` at `path`.
 pub fn key(n: usize, path: &str) -> String {
     let c = compute();
@@ -376,6 +383,7 @@ pub fn spend_of(kit: &Kit) -> Result<(Psbt, Option<(String, Psbt)>), String> {
     let mut session = session();
     let (word, label) = TEST_SEEDS[n];
     let fp = session
+        .keys
         .add_words(&c, &test_words(word), label, None)
         .map_err(|e| e.text())?;
     session
@@ -572,7 +580,8 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
     // BIP-322.
     let mut one = session();
     let (word, label) = TEST_SEEDS[0];
-    one.add_words(&c, &test_words(word), label, None)
+    one.keys
+        .add_words(&c, &test_words(word), label, None)
         .map_err(|e| e.text())?;
     let spending = kits()
         .into_iter()
@@ -781,6 +790,7 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
     // What the inspector establishes: output key and tweaks.
     let mut session = session();
     session
+        .keys
         .add_words(&c, &test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
         .map_err(|e| e.text())?;
     session
@@ -927,6 +937,7 @@ pub fn threshold_carry() -> Result<Vec<u8>, String> {
     let c = compute();
     let mut session = session();
     session
+        .keys
         .add_words(&c, &test_words(TEST_SEEDS[0].0), TEST_SEEDS[0].1, None)
         .map_err(|e| e.text())?;
     session
@@ -1384,10 +1395,11 @@ pub fn type_passphrases(app: &mut crate::Faraday) {
         }
         let pass = {
             let b = app.backup.as_ref().expect("a backup is open");
-            let key = app.session.keys.get(b.key).expect("the open seed");
-            key.passphrase
-                .as_ref()
-                .expect("a key with a passphrase")
+            let key = app.session.keys.info(b.key).expect("the open seed");
+            assert!(key.has_passphrase, "a key with a passphrase");
+            app.session
+                .keys
+                .reveal(b.key, faraday_keys::Reveal::Passphrase)
                 .to_string()
         };
         app.press(Action::BCheck);
@@ -1404,8 +1416,12 @@ pub fn type_copy(app: &mut crate::Faraday) {
     use crate::Action;
     let words = {
         let b = app.backup.as_ref().expect("a backup is open");
-        let key = app.session.keys.get(b.key).expect("the open seed");
-        key.words.as_ref().expect("a seed with words").to_string()
+        let key = app.session.keys.info(b.key).expect("the open seed");
+        assert!(key.has_words(), "a seed with words");
+        app.session
+            .keys
+            .reveal(b.key, faraday_keys::Reveal::CopyByHand)
+            .to_string()
     };
     app.press(Action::BCheck);
     type_words(app, &words);

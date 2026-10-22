@@ -221,8 +221,8 @@ impl Faraday {
                 let loaded = self
                     .session
                     .keys
-                    .iter()
-                    .any(|k| fp_text(k.fingerprint()) == fp);
+                    .all()
+                    .any(|k| fp_text(k.fingerprint) == fp);
                 if loaded || self.vault_key_wallet(c, v, i).is_some() {
                     continue;
                 }
@@ -358,6 +358,7 @@ impl Faraday {
         let words = crate::vault::phrase_of(&m);
         match self
             .session
+            .keys
             .add_words_with(&c, &words, &passphrase, &label, None)
         {
             Ok(fp) => {
@@ -401,8 +402,8 @@ impl Faraday {
         let held = |fp: &str| {
             self.session
                 .keys
-                .iter()
-                .any(|k| fp_text(k.fingerprint()) == fp)
+                .all()
+                .any(|k| fp_text(k.fingerprint) == fp)
         };
         // The vault's keys: record, fingerprint, label.
         let keys: Vec<(usize, Option<String>, String)> = open

@@ -401,7 +401,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if r.described
         && let Some(wl) = r.wallet.and_then(|i| app.session.wallets.get(i))
     {
-        let here: Vec<[u8; 4]> = app.session.keys.iter().map(|k| k.fingerprint().0).collect();
+        let here: Vec<[u8; 4]> = app.session.keys.all().map(|k| k.fingerprint.0).collect();
         for (k, slot) in app.session.slots(wl).iter().enumerate() {
             let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
             let absent = r.absent.contains(&(k as u8));
@@ -458,7 +458,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let here = app.seeds_here(s);
         for (k, fp) in here.iter().enumerate() {
             let f = faraday_bip::keys::Fingerprint(*fp);
-            let label = app.session.key_label(f).unwrap_or("");
+            let label = app.session.keys.key_label(f).unwrap_or("");
             let line = if label.is_empty() || label.eq_ignore_ascii_case(&fp_text(f)) {
                 EN.restore_seeds_here.to_string()
             } else {

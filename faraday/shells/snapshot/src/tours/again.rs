@@ -1,9 +1,9 @@
 //! The again tour.
 
+use crate::tour::{Tour, scroll, scroll_to, to_checklist, type_text};
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StorageEvent, bstep, qrow};
-use crate::tour::{Tour, scroll, scroll_to, to_checklist, type_text};
 
 /// A loaded wallet backed up again: Savings loaded from its descriptor
 /// file with no seed here opens on its public files, every one on offer;
@@ -59,8 +59,7 @@ pub(crate) fn again_tour(t: &mut Tour) -> Result<(), String> {
         .keys
         .last()
         .ok_or("test key 2 did not load")?
-        .master()
-        .fingerprint();
+        .fingerprint;
     t.press(Action::KeyWallet(fp.0, 1));
     t.press(Action::Seeds(S::Make));
     let w = t.app.session.wallets.len() - 1;

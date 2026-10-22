@@ -1,9 +1,9 @@
 //! The desktop tours.
 
+use crate::tour::{Tour, type_text};
 use faraday_core::testkit;
 use faraday_core::{Action, Screen, StickInfo, StorageEvent};
 use faraday_crypto::work::Compute;
-use crate::tour::{Tour, type_text};
 
 /// The desktop app's stick pills: the default two, then a wallet's backup
 /// with five vaults.
@@ -70,8 +70,7 @@ pub(crate) fn demo_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .keys
         .first()
         .ok_or("bacon was not loaded")?
-        .master()
-        .fingerprint()
+        .fingerprint
         .0;
     t.press(Action::Bip85);
     t.press(Action::PKey(fp));

@@ -493,7 +493,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
         }
         // The demo adds a public seed in place of words made here (F20).
         if !k.typed()
-            && let Some((word, fp)) = app.session.next_handout()
+            && let Some((word, fp)) = app.session.keys.next_handout()
         {
             let line = fill(EN.keygen_lock_in_adds, &[word, &fp_text(fp)]);
             cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 6.0;

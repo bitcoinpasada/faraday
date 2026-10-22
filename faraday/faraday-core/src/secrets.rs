@@ -218,22 +218,24 @@ impl Faraday {
             return;
         };
         let (k, compact) = (b.key, b.compact);
-        let (Some(key), Some(wallet)) =
-            (self.session.keys.get(k), self.session.wallets.get(b.wallet))
-        else {
+        let (Some(key), Some(wallet)) = (
+            self.session.keys.info(k),
+            self.session.wallets.get(b.wallet),
+        ) else {
             return;
         };
-        let Some(words) = key.words.as_ref() else {
+        if !key.has_words() {
             return;
-        };
-        let Ok(m) = crate::wallet::parse_words(&c, key.language, words) else {
-            return;
-        };
-        let fp = key.fingerprint();
+        }
+        let fp = key.fingerprint;
         let fps = crate::wallet::fp_text(fp);
         let stem = format!("{}-{}", crate::file_stem(&wallet.name), fps.to_lowercase());
         // The words, one line, as Add a key and other signers read them.
         // Sized first so that no copy is left behind by a reallocation.
+        let words = self.session.keys.reveal(
+            k,
+            faraday_keys::Reveal::OutboxFile(faraday_keys::Part::Words),
+        );
         let mut text = Vec::with_capacity(words.len() + 1);
         text.extend_from_slice(words.as_bytes());
         text.push(b'\n');
@@ -250,31 +252,32 @@ impl Faraday {
             .iter()
             .position(|(_, i)| *i == Some(k))
             .is_none_or(|i| self.copy_forms(&c, b, i).seedqr);
-        if key.language == Language::English && seedqr {
-            let matrix = if compact {
-                faraday_codec::seedqr::encode_compact(&c, &m)
+        if key.language == Language::English
+            && seedqr
+            && let Some((mx, word_count)) = self.session.keys.seedqr_matrix(
+                &c,
+                k,
+                compact,
+                faraday_keys::Reveal::OutboxFile(faraday_keys::Part::SeedQr),
+            )
+        {
+            let title = fill(EN.secrets_seed, &[&fps.to_string()]);
+            let line = fill(EN.secrets_words_secret, &[&word_count.to_string()]);
+            let png =
+                zeroize::Zeroizing::new(crate::picture::labelled_png(&c, &mx, &title, &[line]));
+            let (label, name) = if compact {
+                (
+                    EN.secrets_compact_seedqr,
+                    format!("{stem}-compactseedqr.png"),
+                )
             } else {
-                faraday_codec::seedqr::encode_seedqr(&c, &m)
+                (EN.secrets_seedqr_png, format!("{stem}-seedqr.png"))
             };
-            if let Ok(mx) = matrix {
-                let title = fill(EN.secrets_seed, &[&fps.to_string()]);
-                let line = fill(EN.secrets_words_secret, &[&m.word_count().to_string()]);
-                let png =
-                    zeroize::Zeroizing::new(crate::picture::labelled_png(&c, &mx, &title, &[line]));
-                let (label, name) = if compact {
-                    (
-                        EN.secrets_compact_seedqr,
-                        format!("{stem}-compactseedqr.png"),
-                    )
-                } else {
-                    (EN.secrets_seedqr_png, format!("{stem}-seedqr.png"))
-                };
-                forms.push(SecretFile {
-                    label,
-                    name,
-                    bytes: png,
-                });
-            }
+            forms.push(SecretFile {
+                label,
+                name,
+                bytes: png,
+            });
         }
         let (need, _) = crate::wallet::Session::quorum(wallet);
         let gives = if need <= 1 {
@@ -343,8 +346,8 @@ impl Faraday {
                 let same = self
                     .session
                     .keys
-                    .get(*key)
-                    .is_some_and(|k| k.fingerprint() == *fp);
+                    .info(*key)
+                    .is_some_and(|k| k.fingerprint == *fp);
                 match same.then(|| self.key_record(*key, false)).flatten() {
                     Some((r, _)) => r,
                     None => {
@@ -396,7 +399,7 @@ impl Faraday {
                 let label = self
                     .session
                     .keys
-                    .get(key)
+                    .info(key)
                     .map(|k| k.label.clone())
                     .unwrap_or_default();
                 self.toast(&fill(

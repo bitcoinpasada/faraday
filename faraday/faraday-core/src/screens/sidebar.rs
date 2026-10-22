@@ -318,8 +318,8 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             *fy += ROW;
         }
     };
-    let mut seed_rows = app.session.keys.iter().map(|k| {
-        let fp = fp_text(k.fingerprint());
+    let mut seed_rows = app.session.keys.all().map(|k| {
+        let fp = fp_text(k.fingerprint);
         // A seed named by its fingerprint is not named twice.
         let label = if k.label.eq_ignore_ascii_case(&fp) {
             String::new()
@@ -330,9 +330,9 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             fp,
             label,
             true,
-            Action::ExploreKey(k.fingerprint().0),
+            Action::ExploreKey(k.fingerprint.0),
             None,
-            k.passphrase.is_some(),
+            k.has_passphrase,
         )
     });
     group(

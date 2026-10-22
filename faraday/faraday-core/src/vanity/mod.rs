@@ -14,7 +14,6 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::keys::{Fingerprint, ScriptType};
 use faraday_bip::vanity as engine;
-use zeroize::Zeroizing;
 
 use crate::create::NewKind;
 use crate::{Faraday, Screen, flow};
@@ -112,7 +111,7 @@ impl Faraday {
             self.toast(EN.vanity_load_a_key_first);
             return;
         }
-        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint().0);
+        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint.0);
         let net = self.session.network();
         self.vanity = Some(VanityState {
             open: Some(if key.is_some() {
@@ -133,15 +132,16 @@ impl Faraday {
     }
 
     /// The key chosen, from the session.
-    fn vanity_key(&self) -> Option<&crate::wallet::Key> {
+    fn vanity_key(&self) -> Option<usize> {
         let fp = self.vanity.as_ref()?.key?;
-        self.session.keys.iter().find(|k| k.fingerprint().0 == fp)
+        self.session.keys.position_of(fp)
     }
 
     /// Whether the chosen key can turn the passphrase dial: only a key
     /// loaded from BIP-39 words can.
     pub fn vanity_has_words(&self) -> bool {
-        self.vanity_key().is_some_and(|k| k.words.is_some())
+        self.vanity_key()
+            .is_some_and(|k| self.session.keys[k].has_words())
     }
 
     /// Runs one of the screen's actions.
@@ -238,7 +238,6 @@ impl Faraday {
         if self.screen != Screen::Vanity || !self.vanity.as_ref().is_some_and(|v| v.running) {
             return false;
         }
-        let net = self.session.network();
         let Some(key) = self.vanity_key() else {
             return false;
         };
@@ -247,19 +246,15 @@ impl Faraday {
         };
         let g = &v.grind;
         let dial = match g.dial {
-            Dial::Account => faraday_keys::vanity::Dial::Account(key.master()),
-            Dial::Passphrase => faraday_keys::vanity::Dial::Passphrase {
-                language: key.language,
-                words: key.words.as_ref().map(|w| w.as_str()),
-                base: key.passphrase.as_ref().map_or(&[], |p| p.as_bytes()),
-            },
+            Dial::Account => faraday_keys::Dial::Account,
+            Dial::Passphrase => faraday_keys::Dial::Passphrase,
         };
-        let Some(outcome) = faraday_keys::vanity::grind(
+        let Some(outcome) = self.session.keys.vanity_grind(
             &c,
+            key,
             dial,
             g.script,
             g.prefix.as_str(),
-            net,
             g.cursor,
             g.budget,
         ) else {
@@ -299,28 +294,18 @@ impl Faraday {
             return;
         };
         let script = v.grind.script;
-        let label = key.label.clone();
+        let label = self.session.keys[key].label.clone();
         let (master_fp, account) = match v.grind.dial {
-            Dial::Account => (key.fingerprint(), find.account),
+            Dial::Account => (self.session.keys[key].fingerprint, find.account),
             Dial::Passphrase => {
-                let Some(words) = key.words.clone() else {
+                if !self.session.keys[key].has_words() {
                     return;
-                };
-                let base = key
-                    .passphrase
-                    .as_ref()
-                    .map_or(String::new(), |p| p.to_string());
-                let passphrase = Zeroizing::new(format!("{base}{}", find.suffix.as_str()));
-                let lang = key.language;
-                let Ok(m) = crate::wallet::parse_words(&c, lang, &words) else {
-                    return;
-                };
-                match self.session.add_mnemonic(
+                }
+                match self.session.keys.add_with_suffix(
                     &c,
-                    &m,
-                    &passphrase,
+                    key,
+                    find.suffix.as_str(),
                     &fill(EN.vanity_vanity_passphrase, &[&label.to_string()]),
-                    None,
                 ) {
                     Ok(fp) => (fp, 0),
                     Err(e) => {
@@ -330,22 +315,18 @@ impl Faraday {
                 }
             }
         };
-        let Some(master) = self
-            .session
-            .keys
-            .iter()
-            .find(|k| k.fingerprint() == master_fp)
-            .map(|k| k.master())
+        let Some(place) = self.session.keys.position(master_fp) else {
+            return;
+        };
+        let Some(text) =
+            self.session
+                .keys
+                .key_text(&c, place, &faraday_keys::Spec::Single(script, account))
         else {
             return;
         };
-        let text = match faraday_keys::texts::single_account(&c, master, script, account) {
-            Ok(a) => {
-                let shown = format!("{}", a.path)
-                    .trim_start_matches("m/")
-                    .replace('\'', "h");
-                format!("[{}/{shown}]{}", a.fingerprint, a.xpub)
-            }
+        let text = match text {
+            Ok(text) => text,
             Err(e) => {
                 self.toast(&e);
                 return;

@@ -80,9 +80,9 @@ fn body(
     let mut row: Vec<(String, Style, Action)> = app
         .session
         .keys
-        .iter()
+        .all()
         .map(|k| {
-            let fp = k.fingerprint();
+            let fp = k.fingerprint;
             (
                 fill(
                     EN.lightning_ldk_node,

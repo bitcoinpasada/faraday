@@ -156,8 +156,9 @@ would silence clippy; only the costs lint rejects it, as it rejects
 - Accessors on `View` in `faraday-core/src/drawing/`: `memo.rs` (the 19
   memo fills), `kept.rs` (the ~15 kept values reached while drawing),
   `allowed.rs` (one named method per `Allowed` entry; today the three
-  `SecretShown`). No generic closure hands out a token; a new exception
-  is a new method, which the owner decides.
+  `SecretShown`, and `reveal`, a borrow of a key's words or passphrase
+  that costs nothing, `docs/KEYS.md` §3). No generic closure hands out a
+  token; a new exception is a new method, which the owner decides.
 - Decisions use `*_now(&self, c: &Compute)` forms on `Faraday`; the memo
   exists only on `View`, so SPEED §2 rule 3 becomes a type rule.
 - Screens that need no accessor may keep `app: &Faraday`; deref coercion

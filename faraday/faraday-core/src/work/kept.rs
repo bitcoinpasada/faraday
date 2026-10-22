@@ -131,6 +131,7 @@ fn a_vault_holds_a_seed_typed_from_any_list_and_never_another_seed() {
     let other = words(1);
     for (m, holds) in [(spanish, true), (other, false), (kept, true)] {
         app.session
+            .keys
             .add_mnemonic(&c, &m, "", "", None)
             .expect("the seed loads");
         let k = app.session.keys.len() - 1;
@@ -169,10 +170,12 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
     };
     let kept = app
         .session
+        .keys
         .add_mnemonic(&c, &words(0), "", "", None)
         .expect("key 1");
     let other = app
         .session
+        .keys
         .add_mnemonic(&c, &words(1), "", "", None)
         .expect("key 2");
     let (k1, k2) = (app.session.keys.len() - 2, app.session.keys.len() - 1);
@@ -390,13 +393,14 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
             .is_some_and(|s| s.inspection.participating_keys.iter().all(|fp| !app
                 .session
                 .keys
-                .iter()
-                .any(|k| k.fingerprint() == *fp))),
+                .all()
+                .any(|k| k.fingerprint == *fp))),
         "no seed of the spend is here yet"
     );
     for (word, l) in &testkit::TEST_SEEDS[..2] {
         let _ = app
             .session
+            .keys
             .add_words(&c, &testkit::test_words(word), l, None);
     }
     app.press(Action::SignHere);
@@ -522,17 +526,19 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
     step(&mut app, "a seed file added", true);
     assert!(!kept_found(&app).seeds[0].loaded);
     app.session
+        .keys
         .add_words(&c, &testkit::test_words(word), l, None)
         .expect("the seed loads");
     step(&mut app, "the seed loaded", true);
     assert!(kept_found(&app).seeds[0].loaded);
     let (word, l) = &testkit::TEST_SEEDS[1];
     app.session
+        .keys
         .add_words(&c, &testkit::test_words(word), l, None)
         .expect("the seed loads");
     step(&mut app, "another key loaded", true);
     assert_eq!(kept_found(&app).seeds.len(), 2);
-    app.session.keys[1].label = "Another label".to_string();
+    app.session.keys.set_label(1, "Another label");
     step(&mut app, "a key relabelled", true);
     assert_eq!(kept_found(&app).seeds[1].label, "Another label");
     app.session.keys.remove(0);

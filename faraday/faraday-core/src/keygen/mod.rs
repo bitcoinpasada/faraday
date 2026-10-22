@@ -18,6 +18,7 @@ pub(crate) mod screen;
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::wallet::KeyTexts;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_entropy::{
     CameraNoise, CardDraws, CoinFlips, DiceProcedure, DiceRolls, MIN_MIX, Mixed, RawHex, Strength,
@@ -1700,15 +1701,16 @@ impl crate::Faraday {
         let label = fill(EN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
         // The demo adds its next public seed in place of the key just
         // made, which goes unused (`Session::next_handout`).
-        let handed = self.session.next_handout().map(|(w, _)| w);
+        let handed = self.session.keys.next_handout().map(|(w, _)| w);
         let added = if let Some(word) = handed {
             self.session
+                .keys
                 .add_words(&c, &crate::demo::words(word), &label, None)
         } else {
             match k.secret.as_ref() {
                 Some(s) => {
                     let s = s.clone();
-                    self.session.add_seed(&c, &s, &label)
+                    self.session.keys.add_seed(&c, &s, &label)
                 }
                 None => return,
             }
@@ -1764,7 +1766,7 @@ impl crate::Faraday {
         // The demo adds its next public seed in place of the key just
         // made, which goes unused, and with no passphrase: a passphrase
         // typed is ignored (`Session::next_handout`, F20).
-        let handed = self.session.next_handout().map(|(w, _)| w);
+        let handed = self.session.keys.next_handout().map(|(w, _)| w);
         if handed.is_none() && k.slot.is_some() && k.passphrase.as_str() != k.passphrase2.as_str() {
             k.note = Some(EN.keygen_the_two_passphrases.to_string());
             return;
@@ -1779,9 +1781,12 @@ impl crate::Faraday {
         let label = fill(EN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
         let added = if let Some(word) = handed {
             self.session
+                .keys
                 .add_words(&c, &crate::demo::words(word), &label, None)
         } else {
-            self.session.add_words_with(&c, &words, &pass, &label, None)
+            self.session
+                .keys
+                .add_words_with(&c, &words, &pass, &label, None)
         };
         let fp = match added {
             Ok(fp) => fp,
@@ -1808,9 +1813,8 @@ impl crate::Faraday {
         let key_text = self
             .session
             .keys
-            .iter()
-            .find(|key| key.fingerprint() == fp)
-            .and_then(|key| key.account_text(&c, kind, account).ok());
+            .position(fp)
+            .and_then(|key| self.session.keys.account_text(&c, key, kind, account).ok());
         if let Some(k) = self.keygen.as_mut() {
             k.locked = true;
             k.with_passphrase = !pass.is_empty();
@@ -1931,9 +1935,8 @@ impl crate::Faraday {
         let key_text = self
             .session
             .keys
-            .iter()
-            .find(|key| key.fingerprint() == fp)
-            .and_then(|key| key.account_text(&c, kind, account).ok());
+            .position(fp)
+            .and_then(|key| self.session.keys.account_text(&c, key, kind, account).ok());
         // What was typed goes; the Key card keeps the words to show.
         self.entry = crate::EntryState::default();
         if let Some(k) = self.keygen.as_mut() {
@@ -2083,7 +2086,7 @@ impl crate::Faraday {
             return false;
         };
         // A passphrase field on the Key card takes printable ASCII, as
-        // BIP-39's `to_seed` reads it; Tab moves to the other field and
+        // BIP-39's seed derivation reads it; Tab moves to the other field and
         // Enter locks in.
         if k.open == Some(kstep::KEY)
             && !k.locked

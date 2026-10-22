@@ -74,8 +74,7 @@ fn add_key(app: &mut Faraday, n: usize) -> faraday_bip::keys::Fingerprint {
         .keys
         .last()
         .expect("the key was not added")
-        .master()
-        .fingerprint()
+        .fingerprint
 }
 
 fn in_outbox(app: &Faraday, name: &str) -> bool {

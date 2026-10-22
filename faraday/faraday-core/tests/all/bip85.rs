@@ -55,7 +55,7 @@ fn a_child_seed_loads_as_a_key_of_its_own() {
     app.press(Action::PNext);
     app.press(Action::PLoad);
     assert_eq!(app.session.keys.len(), 2);
-    let master = &app.session.keys[0].master();
+    let master = &app.session.keys.master_for_tests(0);
     let child = faraday_bip::bip85::child_mnemonic(&c, master, Language::English, 12, 7).unwrap();
     let words: Vec<&str> = child
         .indices()
@@ -64,9 +64,10 @@ fn a_child_seed_loads_as_a_key_of_its_own() {
         .collect();
     let mut probe = faraday_core::wallet::Session::default();
     let fp = probe
+        .keys
         .add_words_with(&c, &words.join(" "), "", "", None)
         .unwrap();
-    assert_eq!(app.session.keys[1].fingerprint(), fp);
+    assert_eq!(app.session.keys[1].fingerprint, fp);
 }
 
 #[test]
@@ -114,7 +115,8 @@ fn a_password_goes_into_the_vault_as_an_entry() {
     app.press(Action::PNext);
     app.press(Action::PVault);
     let want =
-        faraday_bip::bip85::child_password_base64(&c, app.session.keys[0].master(), 21, 0).unwrap();
+        faraday_bip::bip85::child_password_base64(&c, app.session.keys.master_for_tests(0), 21, 0)
+            .unwrap();
     let v = &app.vaults.open[0];
     let found = v
         .contents

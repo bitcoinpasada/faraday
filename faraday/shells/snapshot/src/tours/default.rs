@@ -221,13 +221,7 @@ pub(crate) fn keyed_entry(t: &mut Tour) -> Result<(), String> {
 pub(crate) fn silent_wallet(t: &mut Tour) -> Result<(), String> {
     use faraday_core::silent::sstep;
     t.press(Action::Silent);
-    if let Some(fp) = t
-        .app
-        .session
-        .keys
-        .first()
-        .map(|k| k.master().fingerprint().0)
-    {
+    if let Some(fp) = t.app.session.keys.first().map(|k| k.fingerprint.0) {
         t.press(Action::SKey(fp));
     }
     t.press(Action::SAddWallet);
@@ -717,8 +711,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
             .app
             .session
             .keys
-            .iter()
-            .any(|k| k.master().fingerprint().0 == zebra_fp)
+            .all()
+            .any(|k| k.fingerprint.0 == zebra_fp)
     {
         return Err("the scanned SeedQR did not add Test key 2".into());
     }
@@ -902,7 +896,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("create-kind")?;
     t.press(Action::CNext(0));
     t.press(Action::CNext(1));
-    let bacon = t.app.session.keys[0].master().fingerprint().0;
+    let bacon = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, bacon));
     dice_key(t, 1)?;
     // The third cosigner's key is not here yet: the slot waits for it.
@@ -1133,8 +1127,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .app
         .session
         .keys
-        .iter()
-        .position(|k| k.passphrase.is_some())
+        .all()
+        .position(|k| k.has_passphrase)
         .ok_or("the key with a passphrase was not added")?;
     t.press(Action::Nav(Screen::VaultContents));
     t.press(Action::Vault(V::Category(0)));

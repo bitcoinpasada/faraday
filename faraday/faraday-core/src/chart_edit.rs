@@ -612,19 +612,11 @@ impl Faraday {
         };
         let fp = self.chart_key_fp(&c, press, k);
         let matched = fp.and_then(|fp| {
-            let key = self
+            let key = self.session.keys.position_of(fp)?;
+            let made = self
                 .session
                 .keys
-                .iter()
-                .find(|key| key.fingerprint().0 == fp)?;
-            let words = key.words.as_ref()?;
-            let m = crate::wallet::parse_words(&c, key.language, words).ok()?;
-            let made = faraday_keys::fingerprint(
-                &c,
-                faraday_keys::Material::Words(&m),
-                &self.chart_work.secret,
-                self.session.network(),
-            )?;
+                .fingerprint_with(&c, key, &self.chart_work.secret)?;
             Some(made.0 == fp)
         });
         self.chart_work.secret.clear();

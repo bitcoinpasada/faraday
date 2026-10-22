@@ -28,10 +28,17 @@ pub(crate) enum Allowed {
 }
 
 impl View<'_> {
+    /// A key's words or passphrase, lent for this frame to be drawn
+    /// ([`faraday_keys::Keys::reveal`]; `docs/KEYS.md` §3). A borrow of
+    /// the store's own text: nothing is copied, and nothing costs.
+    pub fn reveal(&self, i: usize, why: faraday_keys::Reveal) -> faraday_keys::Revealed<'_> {
+        self.app.session.keys.reveal(i, why)
+    }
+
     /// The BIP-85 child shown, derived for this frame and wiped with it
     /// ([`crate::Faraday::bip85_value`]; [`Allowed::SecretShown`]). Costs a
     /// key derivation.
-    pub fn bip85_shown(&self) -> Option<Zeroizing<String>> {
+    pub fn bip85_shown(&self) -> Option<faraday_keys::Held<Zeroizing<String>>> {
         self.allowed(Allowed::SecretShown, |c| self.app.bip85_value(c))
     }
 

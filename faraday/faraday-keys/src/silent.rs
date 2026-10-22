@@ -11,7 +11,7 @@ pub use faraday_bip::silent::{Payment, Receiver};
 
 /// Costs two key derivations. The scan and spend keys of `master`, at
 /// `account`.
-pub fn receiver(c: &Compute, master: &MasterKey, account: u32) -> Receiver {
+pub(crate) fn receiver(c: &Compute, master: &MasterKey, account: u32) -> Receiver {
     Receiver::derive(c, master, account)
 }
 

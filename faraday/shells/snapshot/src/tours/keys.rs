@@ -1,7 +1,7 @@
 //! The keys tour.
 
-use faraday_core::{Action, Screen};
 use crate::tour::{Tour, scroll, type_text};
+use faraday_core::{Action, Screen};
 
 /// Keys in no wallet on Wallets: a key beside the test kit's wallets,
 /// with the column scrolled to its buttons; then one key added to an
@@ -30,7 +30,7 @@ pub(crate) fn keys_tour(t: &mut Tour) -> Result<(), String> {
         .session
         .keys
         .first()
-        .map(|k| k.master().fingerprint().0)
+        .map(|k| k.fingerprint.0)
         .ok_or("no key added")?;
     t.press(Action::KeyWallet(fp, 1));
     t.shot("from-key-shape")?;

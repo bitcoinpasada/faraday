@@ -75,7 +75,7 @@ impl Faraday {
             "1"
         };
         self.explore = Some(ExploreState {
-            key: Some(self.session.keys[0].fingerprint().0),
+            key: Some(self.session.keys[0].fingerprint.0),
             path: PRESETS[0].1.replace("{c}", coin),
             script: ScriptType::NativeSegwit,
             back: self.screen,
@@ -104,8 +104,8 @@ impl Faraday {
             self.session.network(),
             self.session
                 .keys
-                .iter()
-                .any(|k| Some(k.fingerprint().0) == e.key),
+                .all()
+                .any(|k| Some(k.fingerprint.0) == e.key),
         );
         if let Some((was, r)) = e.reading.borrow().as_ref()
             && *was == of
@@ -121,13 +121,8 @@ impl Faraday {
     fn explore_reading_now(&self, c: &Compute) -> Option<Reading> {
         let e = self.explore.as_ref()?;
         let path = self.explore_path().ok()?;
-        let master = &self
-            .session
-            .keys
-            .iter()
-            .find(|k| Some(k.fingerprint().0) == e.key)?
-            .master();
-        let xpub = master.derive(c, &path).to_xpub(c);
+        let place = self.session.keys.position_of(e.key?)?;
+        let xpub = self.session.keys.xpub_at(c, place, &path)?;
         let pk = CompressedPublicKey(xpub.public_key);
         let net: faraday_bip::bitcoin::Network = self.session.network().into();
         let kind = NetworkKind::from(net);
