@@ -9,6 +9,7 @@
 
 use faraday_bip::keys::Network;
 use faraday_core::create::NewKind;
+use faraday_core::testkit::KindText;
 use faraday_core::wallet::Session;
 use faraday_core::{
     Action, Faraday, Sheet, StickInfo, StorageCommand, StorageEvent, demo, testkit,

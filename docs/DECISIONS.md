@@ -2552,6 +2552,8 @@ have it.
 
 ### F70 One crate holds every key: faraday-keys (2026-10-21)
 
+*Built 2026-10-21 in five steps, not three (`docs/KEYS.md`, steps 0 to 4): hygiene, the operations, the session keys, the vault, and the lint. The eleven reasons stand; a file or a vault record also names the part it carries (`Part`).*
+
 **Why.** faraday-core derives and uses private keys in about 40 of its
 source files: message signing, Lightning, the BSMS signer record,
 BIP-85, the GPG, APK and Secure Boot keys, and a vault's master key

@@ -297,9 +297,10 @@ cryptography and why it holds up, is `docs/SECURITY-MODEL.md`.
 Faraday is built so that the part that decides what a signature or a
 ciphertext is can be read apart from everything that draws screens. The
 cryptographic core is a set of library crates with no screens, no input
-and no storage in them. The app's own crate, `faraday-core`, still
-derives keys and calls the signing functions itself, until F70 moves
-that into one crate. `docs/AUDIT.md` lists every crate that touches a key,
+and no storage in them. Key use is one crate, `faraday-keys`: it holds
+every key in memory and does every operation on one, and a secret
+leaves it only for one of eleven named reasons (`docs/KEYS.md`); `just`
+fails if other code touches a key. `docs/AUDIT.md` lists every crate that touches a key,
 what it computes, whether the code is written in this tree or taken from
 a vetted crate, and what it is checked against.
 
@@ -315,9 +316,8 @@ Why this is better than one repository and one application:
 - **A smaller thing to read.** An auditor of signing reads `core/`:
   libraries with no rendering, layout, fonts or event handling in them.
   The shells are input, storage and drawing. `faraday-core` is flows and
-  wording, but today it also derives keys and calls the signing
-  functions; F70 moves that into one crate, `faraday-keys`.
-  `docs/AUDIT.md` says which crate computes what.
+  wording, and holds handles to keys, not keys: key use is
+  `faraday-keys`. `docs/AUDIT.md` says which crate computes what.
 - **Every change traceable.** Faraday's own history records each
   change to `core/`.
 - **No interface pressure on the cryptography.** A screen that wants a

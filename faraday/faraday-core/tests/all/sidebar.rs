@@ -5,6 +5,7 @@
 //! and open step, which returns to it as it was left.
 
 use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_core::testkit::KindText;
 use faraday_core::{Action, Faraday, Screen, Sheet};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 

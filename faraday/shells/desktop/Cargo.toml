@@ -13,7 +13,9 @@ name = "faraday"
 path = "src/main.rs"
 
 [dependencies]
-faraday-core = { path = "../../faraday-core", features = ["testkit"] }
+faraday-core = { path = "../../faraday-core" }
+# The network the desktop app starts on.
+faraday-bip = { path = "../../../core/faraday-bip" }
 faraday-storage = { path = "../../faraday-storage" }
 faraday-shell-api = { path = "../../../core/faraday-shell-api" }
 # `pin-pages`: the `mlock` that keeps the loaded master keys out of swap.
@@ -27,4 +29,6 @@ faraday-window = { path = "../window" }
 workspace = true
 
 [dev-dependencies]
-faraday-bip = { path = "../../../core/faraday-bip" }
+# The tests' keys and wallets; never in the shipped app
+# (tools/lint-keys-tests.sh).
+faraday-core = { path = "../../faraday-core", features = ["testkit"] }

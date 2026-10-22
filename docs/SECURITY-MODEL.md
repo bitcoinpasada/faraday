@@ -213,6 +213,23 @@ Faraday still runs the Linux kernel, with its USB, input and camera
 drivers, and its own Rust dependencies. A bug in a driver Faraday keeps
 is still a risk. What Faraday removes is everything else.
 
+## Where keys live in the program
+
+Inside the app, one crate holds key material: `faraday-keys`
+(`docs/KEYS.md`, F70). The session's keys and an open vault's decrypted
+records are private fields there; the rest of the app holds a key's
+place and its public facts, and asks the crate to sign, derive or show.
+A secret leaves the crate only for one of eleven named reasons (shown on
+screen, copied by hand, a SeedQR, a paper form, a file to the Outbox and
+the like), as a value that is never printed, never copied by `Clone`,
+and wiped when dropped. `just` fails if code outside the crate names a
+master key, a seed or a private key, makes seed words into a key, or
+calls a primitive that takes a secret (`tools/lint-secrets.sh`, rule 4),
+or if a shipped binary carries the test helpers that can reach one
+(`tools/lint-keys-tests.sh`). This narrows what a bug in a screen or a
+flow can leak; it does not change what the process as a whole holds, and
+everything below about the process still applies.
+
 ## Vault cryptography
 
 - A vault is one file. Its header (format version, Argon2id cost and a

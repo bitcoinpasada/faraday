@@ -1423,3 +1423,27 @@ pub fn type_copy(app: &mut crate::Faraday) {
     app.press(Action::BCheck);
     type_words(app, &words);
 }
+
+/// A key kind's key text for a master key a test holds
+/// (`Keys::master_for_tests`); the session's keys go through
+/// [`crate::wallet::KeyTexts`]. Bring it in with `use
+/// faraday_core::testkit::KindText`.
+pub trait KindText {
+    /// Costs a key derivation. `[fingerprint/path]xpub` of `master` at the
+    /// kind's path, account 0.
+    fn key_text(
+        self,
+        c: &faraday_crypto::work::Compute,
+        master: &MasterKey,
+    ) -> Result<String, String>;
+}
+
+impl KindText for crate::create::NewKind {
+    fn key_text(
+        self,
+        c: &faraday_crypto::work::Compute,
+        master: &MasterKey,
+    ) -> Result<String, String> {
+        faraday_keys::texts::key_text(c, master, &self.spec(master.network(), 0)?)
+    }
+}

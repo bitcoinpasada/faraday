@@ -1,13 +1,26 @@
-//! Where Faraday's key material is used.
+//! Where Faraday's key material is held and used (`docs/KEYS.md`, F70).
 //!
-//! Every function here takes the secret it works on as an argument (a
-//! master key, seed words, a passphrase, a record's bytes) and gives back
-//! a public result, or a secret wrapped in `Zeroizing` where the caller
-//! needs one. The flow around each (state, sheets, toasts, the Outbox,
-//! strings) stays in faraday-core. The session's keys and the open
-//! vaults' slot keys and records are held here too (`docs/KEYS.md` steps
-//! 2 and 3), and nothing outside this crate touches the primitive
-//! crates' secret types.
+//! - **Held.** [`Keys`] holds the session's keys (words, passphrase,
+//!   master key) and [`vault::OpenVaults`] the open vaults' slot keys and
+//!   decrypted records, in private fields. Callers address a key by its
+//!   place and a record by its vault and index, and read public values.
+//! - **Used.** Every operation on a secret is here: signing
+//!   ([`psbt`], [`message`]), derivation and key texts ([`texts`],
+//!   [`identity`]), [`bip85`], [`lightning`], [`silent`], [`frost`],
+//!   [`vanity`], paper forms ([`operations`]), [`gpg`], [`apk`],
+//!   [`secure_boot`], [`totp`], the [`carry`] section of a FROST spend, and
+//!   seed words made into a `Mnemonic` ([`words`]). Each gives back a
+//!   public result. The flow around each (state, sheets, toasts, the
+//!   Outbox, strings) stays in faraday-core.
+//! - **Leaving.** A secret leaves only for a [`Reveal`] reason, lent as
+//!   [`Revealed`] or held as [`Held`], neither `Clone` nor `Debug`, wiped
+//!   when dropped. Types that hold a secret ([`silent::Receiver`],
+//!   [`lightning::Node`], [`frost::Dealt`], [`carry::Section`],
+//!   [`vault::MadeKey`]) give public values, and their secret only for a
+//!   reason.
+//! - **Held to.** `tools/lint-secrets.sh` rule 4 refuses key material and
+//!   the primitive crates' secret-taking functions anywhere else under
+//!   `faraday/`.
 //!
 //! This crate does not depend on faraday-core.
 
@@ -28,6 +41,7 @@ pub mod texts;
 pub mod totp;
 pub mod vanity;
 pub mod vault;
+pub mod words;
 
 pub use identity::{Material, fingerprint, fp_text};
 pub use operations::{Dial, Paper, codex32_seed, slip39_seed};

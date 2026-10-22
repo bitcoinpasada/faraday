@@ -40,16 +40,9 @@ pub fn parse_words(
     lang: Language,
     text: &str,
 ) -> Result<Mnemonic, faraday_bip::bip39::Error> {
-    Mnemonic::parse(c, lang, text)
+    faraday_keys::words::parse(c, lang, text)
 }
 
-/// Costs a parse of the words: a vault key record's seed words, when
-/// it holds words, read by the vault's reader and counted through the
-/// token.
-pub fn record_words(c: &Compute, r: &faraday_vault::Record) -> Option<Mnemonic> {
-    c.count(faraday_crypto::work::Work::WordsParse);
-    faraday_vault::records::words_of(r)
-}
 pub(crate) use faraday_intake::wallet::{json_label, network_of_kind};
 
 /// The most scripts a wallet keeps ([`Wallet::script_at`]); the next one
@@ -64,7 +57,7 @@ pub(crate) const WALLET_ADDRESSES_KEPT: usize = 256;
 pub trait KeyTexts {
     /// Costs a key derivation the first time. `[fingerprint/path]xpub` of
     /// key `i` at `kind`'s path with account `account`
-    /// ([`crate::create::NewKind::key_text_account`]): derived the first
+    /// ([`crate::create::NewKind::spec`]): derived the first
     /// time it is asked, by whoever asks, a frame included, and kept on
     /// the key, a lookup after.
     fn account_text(
@@ -76,7 +69,7 @@ pub trait KeyTexts {
     ) -> Result<String, String>;
 
     /// Costs a key derivation the first time. `[fingerprint/path]xpub` of
-    /// key `i` at `path` ([`crate::create::key_text_at`]), kept as
+    /// key `i` at `path` ([`crate::create::path_spec`]), kept as
     /// [`KeyTexts::account_text`] is.
     fn text_at(&self, c: &Compute, i: usize, path: &str) -> Result<String, String>;
 }

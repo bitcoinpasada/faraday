@@ -31,7 +31,7 @@ Where to look for what. Each document's header says what kind it is:
 | How do scrolling and motion work? | `docs/MOTION.md` |
 | Why is a dependency there? | `docs/deps/<crate>.md`; the policy is DECISIONS F71 |
 | Which tool or lint does what? | `tools/README.md` |
-| How will secrets be confined to one crate? | `docs/KEYS.md` |
+| Where are keys held, and how do they leave? | `docs/KEYS.md`, then `docs/AUDIT.md` §2 |
 | What is planned and not built? | `docs/NOSTR.md`, `docs/LARGE-FILES.md`, `docs/MULTIVENDOR.md`, `docs/STRUCTURE-PASS.md`; the board holds the rest |
 | How do I submit an audit? | `docs/AUDIT-SUBMISSIONS.md` |
 | How do I report a security problem? | `SECURITY.md` |
@@ -42,7 +42,7 @@ Where to look for what. Each document's header says what kind it is:
 
 **Reference**
 
-- `docs/AUDIT.md`: What is cryptography, and where it lives. Built; rewritten when the key boundary (F70) is built.
+- `docs/AUDIT.md`: What is cryptography, and where it lives. Built; rewritten 2026-10-21 around the key boundary (F70).
 - `docs/BACKUP-FORMAT.md`: `.oskb`: the encrypted backup Faraday reads. Built.
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built.
 - `docs/DESIGN.md`: Design system. Built; §4 and §5 still describe some screens Faraday does not have.
@@ -62,7 +62,7 @@ Where to look for what. Each document's header says what kind it is:
 - `docs/DEMO.md`: The demo, and Faraday Desktop for developers. Built; DM4 is in the website's repository.
 - `docs/FLOWS.md`: Flows. Draft; the code is the record where it differs.
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested; the batches that build §4 are in §5.
-- `docs/KEYS.md`: The key boundary: faraday-keys. Not started.
+- `docs/KEYS.md`: The key boundary: faraday-keys. Built 2026-10-21 (steps 0 to 4).
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built.
 - `docs/MAC.md`: Faraday on Macs. Partly built; a Mac is needed for the rest.
 - `docs/MULTIVENDOR.md`: Two implementations of every cryptographic step. Proposal; not scheduled.
@@ -70,7 +70,7 @@ Where to look for what. Each document's header says what kind it is:
 - `docs/QR.md`: QR transfer and scanning. Partly built; §6 says what; §7 not scheduled.
 - `docs/SPEED.md`: Speed in long flows. In progress (batches C to E).
 - `docs/STARTER.md`: The Starter. Built; the Mac parts (`docs/MAC.md`) are not.
-- `docs/STRUCTURE-PASS.md`: The structure pass. In progress (Wave A). §9's questions answered by the owner (2026-10-21).
+- `docs/STRUCTURE-PASS.md`: The structure pass. In progress: Waves A and B and phase 5 built; F74's layout lint and phases 6 and 7 to come.
 
 **Record**
 

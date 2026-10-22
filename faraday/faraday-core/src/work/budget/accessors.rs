@@ -6,7 +6,7 @@
 //! backup, a spend, the test vault open, and Explore, Tools, Silent
 //! payments and a Seeds piece open over a loaded key.
 
-use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::bip39::Language;
 use faraday_vault::records::kind;
 
 use super::walk;
@@ -52,8 +52,8 @@ fn session() -> Faraday {
 fn reads(app: &Faraday) -> Vec<Read> {
     let net = app.session.network();
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
-    let mnemonic =
-        Mnemonic::parse(&testkit::compute(), Language::English, &words).expect("the test words");
+    let mnemonic = faraday_keys::words::parse(&testkit::compute(), Language::English, &words)
+        .expect("the test words");
     let descriptor = testkit::kits()[0].descriptor.clone();
     let w = app.backup.as_ref().map_or(0, |b| b.wallet);
     let shape = app.plan_shape_now(w);

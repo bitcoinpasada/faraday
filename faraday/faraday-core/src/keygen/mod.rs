@@ -585,12 +585,14 @@ impl KeyGen {
         let identifier = u16::from_le_bytes(id) & 0x7fff;
         let mut out: Vec<slip39::Share> = Vec::new();
         out.resize_with(usize::from(self.slip_n), slip39::Share::default);
-        let groups = [slip39::GroupSpec {
-            threshold: self.slip_m,
-            count: self.slip_n,
-        }];
-        let n = slip39::split(
-            c, secret, b"", identifier, true, 1, 1, &groups, &mut fill, &mut out,
+        let n = faraday_keys::words::slip39_split(
+            c,
+            secret,
+            identifier,
+            self.slip_m,
+            self.slip_n,
+            &mut fill,
+            &mut out,
         )
         .map_err(|e| crate::strings::fill(EN.keygen_the_shares_could, &[&format!("{e:?}")]))?;
         out.truncate(n);
@@ -1045,7 +1047,7 @@ impl KeyGen {
         } else {
             self.coins.entropy(strength).ok()?.as_bytes().to_vec()
         };
-        let m = Mnemonic::from_entropy(Language::English, &bytes).ok();
+        let m = faraday_keys::words::from_entropy(Language::English, &bytes).ok();
         zeroize::Zeroize::zeroize(&mut bytes);
         m?.indices().get(self.words - 1).copied()
     }
@@ -1150,7 +1152,7 @@ impl KeyGen {
             self.secret = Some(zeroize::Zeroizing::new(entropy.to_vec()));
             return true;
         }
-        match Mnemonic::from_entropy(Language::English, entropy) {
+        match faraday_keys::words::from_entropy(Language::English, entropy) {
             Ok(m) => {
                 self.mnemonic = Some(m);
                 true
@@ -1901,7 +1903,7 @@ impl crate::Faraday {
         }
         let slot = k.slot;
         let words = match k.mnemonic.as_ref() {
-            Some(m) => Mnemonic::from_indices(m.language(), m.indices()).ok(),
+            Some(m) => faraday_keys::words::from_indices(m.language(), m.indices()).ok(),
             None => None,
         };
         let added = match words {

@@ -116,12 +116,12 @@ fn a_wallets_address_follows_its_network_and_its_policy() {
 #[test]
 fn a_vault_holds_a_seed_typed_from_any_list_and_never_another_seed() {
     let c = crate::testkit::compute();
-    use faraday_bip::bip39::{Language, Mnemonic};
+    use faraday_bip::bip39::Language;
     let (mut app, _) = heavy();
     unlock_test_vault(&mut app);
     let v = app.vaults.current;
     let words = |i: usize| {
-        Mnemonic::parse(
+        faraday_keys::words::parse(
             &c,
             Language::English,
             &testkit::test_words(testkit::TEST_SEEDS[i].0),
@@ -130,7 +130,8 @@ fn a_vault_holds_a_seed_typed_from_any_list_and_never_another_seed() {
     };
     // The vault keeps test key 1; test key 2 is another seed.
     let kept = words(0);
-    let spanish = Mnemonic::from_indices(Language::Spanish, kept.indices()).expect("Spanish");
+    let spanish =
+        faraday_keys::words::from_indices(Language::Spanish, kept.indices()).expect("Spanish");
     let other = words(1);
     for (m, holds) in [(spanish, true), (other, false), (kept, true)] {
         app.session
@@ -158,13 +159,13 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
     let c = crate::testkit::compute();
     use crate::vault::screen::{key_fingerprint, vault_has_key};
     use crate::wallet::fp_text;
-    use faraday_bip::bip39::{Language, Mnemonic};
+    use faraday_bip::bip39::Language;
     use faraday_vault::records::kind;
     let (mut app, _) = heavy();
     unlock_test_vault(&mut app);
     let v = app.vaults.current;
     let words = |i: usize| {
-        Mnemonic::parse(
+        faraday_keys::words::parse(
             &c,
             Language::English,
             &testkit::test_words(testkit::TEST_SEEDS[i].0),

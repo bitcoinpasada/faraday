@@ -2450,7 +2450,7 @@ impl Faraday {
             faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
         );
         let (record, category) = match opened {
-            Ok(Some(made)) => (made.record.release(), if made.key { 0 } else { 3 }),
+            Ok(Some(made)) => (made.record, if made.key { 0 } else { 3 }),
             Ok(None) => return,
             Err(e) => {
                 let why = match e {
@@ -3518,7 +3518,6 @@ impl Faraday {
         let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
             return false;
         };
-        let record = record.into_record();
         if !self.vaults.store().fits(id, &[], &[record.size()]) {
             self.toast(EN.vaults_that_does_not);
             return false;

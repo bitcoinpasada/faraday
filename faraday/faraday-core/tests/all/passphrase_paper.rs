@@ -8,6 +8,7 @@ use crate::common::type_text;
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_core::create::NewKind;
 use faraday_core::plan::{At, Item, Preset, What};
+use faraday_core::testkit::KindText;
 use faraday_core::{Action, Faraday, bstep, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};
 

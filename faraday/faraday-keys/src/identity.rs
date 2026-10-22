@@ -166,3 +166,9 @@ pub(crate) fn seed_of(
 pub fn fp_text(fp: Fingerprint) -> String {
     String::from_utf8_lossy(&fp.to_hex()).into_owned()
 }
+
+/// Costs a base58 checksum. Whether `text` is a WIF private key: asked to
+/// refuse it where a secret may not go, and kept nowhere.
+pub fn is_wif(text: &str) -> bool {
+    faraday_bip::bitcoin::PrivateKey::from_wif(text).is_ok()
+}

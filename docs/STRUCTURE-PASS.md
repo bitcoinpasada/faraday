@@ -1,11 +1,11 @@
 # The structure pass
 
 **Kind:** Spec
-**Status:** In progress (Wave A). §9's questions answered by the owner (2026-10-21).
+**Status:** In progress: Waves A and B and phase 5 (the key boundary) built 2026-10-21; F74's layout lint, phase 6 and phase 7 to come. §9's questions answered by the owner (2026-10-21).
 **Verified against:** 3bd25c2d (2026-10-21)
-**Decisions:** F70 (the key boundary), F71 (dependency policy) and F72
-(the hard fork), all still to be written into DECISIONS.md; their drafts
-are here.
+**Decisions:** F70 (the key boundary), F71 (dependency policy), F72
+(the hard fork) and F74 (the structure enforced), in DECISIONS.md; their
+drafts are here.
 
 This file is the plan for making the repository easy to audit: anyone
 opening it knows where to look, and the code that touches secrets sits
@@ -479,7 +479,7 @@ cannot quietly undo it. Already held:
 Added as each phase lands:
 1. **After phase 5:**
    - `lint-secrets` refuses secret types and secret-taking functions
-     outside faraday-keys (docs/KEYS.md §4 step 4).
+     outside faraday-keys (docs/KEYS.md, step 4b). Built 2026-10-21.
    - tools/lint-layout.sh checks:
      - **The code map:** every module `lib.rs` declares appears in its
        `//!` code map. Every `Screen` variant appears in the map's table,

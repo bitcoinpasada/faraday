@@ -1,7 +1,7 @@
 # The key boundary: faraday-keys
 
-**Kind:** Spec
-**Status:** Steps 0 to 3 done (3b: faraday-core reads only a vault's public fields); the owner answered §9 on 2026-10-21 (the recommendation on all four)
+**Kind:** Reference
+**Status:** Built 2026-10-21 (steps 0 to 4); each step's "as built" section is the record, §1 to §3 the plan they built
 **Decisions:** F70
 
 F70 decided that one crate, `faraday-keys`, owns every secret in memory,
@@ -351,6 +351,49 @@ now opaque: its secret is in a private field, it is neither `Clone` nor
 - **`MusigSession`** (faraday-psbt) was already opaque: its secret
   nonces are private fields.
 
+### Step 4b as built
+
+- **`faraday_keys::words`** is where seed words become a `Mnemonic`:
+  `from_indices`, `parse`, `from_entropy`, `from_seedqr_digits`,
+  `from_compact_seedqr`, and `slip39_split` for fresh entropy made into
+  SLIP-39 shares. faraday-core holds what comes back as input in hand
+  (§2): to check it, show it for writing down, or hand it to `Keys`. It
+  cannot derive a key from one: `to_seed` and the master key are refused
+  to it.
+- **The master-key test helpers** (`NewKind::key_text`,
+  `key_text_account`, `key_text_at`) left `create.rs`. Tests use
+  `testkit::KindText` over `Keys::master_for_tests`.
+- **A WIF private key** pasted is told by `identity::is_wif`.
+- **`IntoRecord`** gives a record's `size`, so faraday-core never takes a
+  held record out of its guard to measure it; a `.oskb` opened goes into
+  the vault held.
+- **The testkit was in the desktop app.** The desktop shell turned on
+  faraday-core's `testkit` feature for one constant, the network it
+  starts on. It names the network itself now, takes the testkit only in
+  its tests, and `tools/lint-keys-tests.sh` fails when a shipped binary
+  turns the feature on.
+- **The lint.** `tools/lint-secrets.sh` rule 4 refuses, under faraday/
+  outside faraday-keys:
+  - (a) a key or seed in hand: `MasterKey`, `SecretKey`, `Xpriv`,
+    `Keypair`, `PrivateKey`, `DerivedKey`, `SecShare`, `SecNonce`,
+    `SlotKey`, `to_seed`;
+  - (b) seed words made into a `Mnemonic`, a SeedQR decoded, a SLIP-39
+    split, a vault record's words read;
+  - (c) the primitive crates' secret-taking functions and types: a GPG
+    key, Secure Boot and APK keys made or used, a vault opened, sealed,
+    created or its slot key derived, a carry section's nonces, a PSBT
+    signed, BIP-352's receiver, a FROST deal or secret share, an aezeed
+    decoded, by path or in a `use` list;
+  - (d) `Held::release` and `into_record` outside the one named site, a
+    GPG paperkey drawn while it is held.
+
+  Exempt: the primitive crates themselves; `tests/`, `examples/` and
+  `fuzz/`; the snapshot shell and `faraday/tools/` (test renders and test
+  data, never shipped); faraday-core's `testkit.rs`, which
+  `lint-keys-tests.sh` keeps out of shipped binaries. faraday-intake is
+  exempt from (b) only: it reads text as it arrives and keeps none of it,
+  and faraday-keys depends on it.
+
 ### 4.1 Left after step 2, closed by step 4
 
 Step 2 (2026-10-21) removed every API that handed out a master key, a
@@ -409,13 +452,14 @@ What was open after step 3:
 
 ## 8. What it buys
 
-An auditor reads faraday/faraday-keys (new) and the primitive crates, plus
+An auditor reads faraday/faraday-keys and the primitive crates, plus
 the reveal list, and can state:
 - every byte of key material lives in one crate;
 - it leaves through these N named reasons;
 - `just` fails if any other code touches a secret type.
 
-Today that takes reading 36 files of faraday-core.
+Before F70 that took reading 36 files of faraday-core. As built, the
+three statements are `docs/AUDIT.md` §2.
 
 ## 9. Questions for the owner
 

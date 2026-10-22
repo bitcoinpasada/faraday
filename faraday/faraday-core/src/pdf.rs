@@ -608,10 +608,8 @@ fn probe_matrix(c: &Compute, words: usize) -> Result<QrMatrix, String> {
     // All-zero entropy: "abandon" ×11 "about", or ×23 "art".
     let entropy = [0u8; 32];
     let len = if words == 24 { 32 } else { 16 };
-    let m = faraday_bip::bip39::Mnemonic::from_entropy(
-        faraday_bip::bip39::Language::English,
-        &entropy[..len],
-    )
-    .map_err(|e| e.to_string())?;
+    let m =
+        faraday_keys::words::from_entropy(faraday_bip::bip39::Language::English, &entropy[..len])
+            .map_err(|e| e.to_string())?;
     faraday_codec::seedqr::encode_seedqr(c, &m).map_err(|e| format!("{e:?}"))
 }

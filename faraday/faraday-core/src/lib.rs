@@ -402,8 +402,8 @@ fn copy_indices(bytes: &[u8]) -> Option<zeroize::Zeroizing<Vec<u16>>> {
         }
         return Some(out);
     }
-    let m =
-        faraday_codec::seedqr::from_entropy(bytes, faraday_bip::bip39::Language::English).ok()?;
+    let m = faraday_keys::words::from_compact_seedqr(bytes, faraday_bip::bip39::Language::English)
+        .ok()?;
     Some(zeroize::Zeroizing::new(m.indices().to_vec()))
 }
 
@@ -829,7 +829,7 @@ fn pasted_secret(c: &Compute, text: &str) -> Option<&'static str> {
     if matches!(t.len(), 48 | 96) && t.bytes().all(|b| b.is_ascii_digit()) {
         return Some(EN.pasted_seedqr);
     }
-    if faraday_bip::bitcoin::PrivateKey::from_wif(t).is_ok() {
+    if faraday_keys::identity::is_wif(t) {
         return Some(EN.pasted_private_key);
     }
     let lower = zeroize::Zeroizing::new(t.to_lowercase());
@@ -6525,9 +6525,9 @@ impl Faraday {
             let lang = faraday_bip::bip39::Language::English;
             let digits = bytes.iter().all(u8::is_ascii_digit);
             let read = if digits {
-                faraday_codec::seedqr::from_digits(&bytes, lang)
+                faraday_keys::words::from_seedqr_digits(&bytes, lang)
             } else {
-                faraday_codec::seedqr::from_entropy(&bytes, lang)
+                faraday_keys::words::from_compact_seedqr(&bytes, lang)
             };
             zeroize::Zeroize::zeroize(&mut *bytes);
             match read {
@@ -7324,8 +7324,7 @@ impl Faraday {
         match self.entry.keys.as_ref() {
             Some(w) => {
                 let mut idx: Vec<u16> = w.committed_indices().collect();
-                let m = faraday_bip::bip39::Mnemonic::from_indices(lang, &idx)
-                    .map_err(|e| e.to_string());
+                let m = faraday_keys::words::from_indices(lang, &idx).map_err(|e| e.to_string());
                 zeroize::Zeroize::zeroize(&mut idx);
                 m
             }

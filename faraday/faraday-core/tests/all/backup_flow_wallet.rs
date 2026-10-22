@@ -14,6 +14,7 @@ use faraday_core::plan::{
     self, Answers, At, Item, Preset, Row, Shape, Spot, Tag, What, form, seeds, wallet,
 };
 use faraday_core::testkit;
+use faraday_core::testkit::KindText;
 use faraday_core::{Action, BStage, Faraday, PlanPress, Screen, Sheet, bstep, cstep, qrow};
 use faraday_shell_api::{App, Event, Key};
 use faraday_vault::records::kind;

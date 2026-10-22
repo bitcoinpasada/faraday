@@ -3,6 +3,7 @@
 //! first address is wrong is refused, and the key records and descriptor
 //! records Faraday writes read back as the same key and wallet.
 
+use faraday_core::testkit::KindText;
 use faraday_core::wallet::{FileKind, classify};
 use faraday_core::{Action, Faraday, StorageEvent};
 use faraday_shell_api::App;

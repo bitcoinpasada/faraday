@@ -12,6 +12,7 @@ use crate::common::{shown, type_text};
 use faraday_core::glance::sheet::{ChartAction as C, Step, Target};
 use faraday_core::glance::{Backup, BackupNode, Glance, Press};
 use faraday_core::plan::{At, Edit, Found, Lost, Mark, What};
+use faraday_core::testkit::KindText;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, BStage, Faraday, Screen, Sheet, StorageCommand, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware};

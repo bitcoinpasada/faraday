@@ -7,6 +7,7 @@ use crate::common::add_key;
 use faraday_bip::policy::WalletPolicy;
 use faraday_core::create::NewKind;
 use faraday_core::testkit;
+use faraday_core::testkit::KindText;
 use faraday_core::wallet::Kind;
 use faraday_core::{Action, cstep};
 

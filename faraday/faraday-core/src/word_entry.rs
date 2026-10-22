@@ -741,7 +741,6 @@ impl Faraday {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use faraday_bip::bip39::Mnemonic;
 
     fn type_word(w: &mut WordEntry, word: &str) {
         for c in word.chars() {
@@ -882,7 +881,7 @@ mod tests {
         assert_eq!(w.committed(), 11);
         assert!(w.commit_candidate(0));
         let taken: Vec<u16> = w.committed_indices().collect();
-        assert!(Mnemonic::from_indices(Language::English, &taken).is_ok());
+        assert!(faraday_keys::words::from_indices(Language::English, &taken).is_ok());
     }
 
     #[test]
@@ -905,7 +904,7 @@ mod tests {
         type_word(&mut w, "about");
         let taken: Vec<u16> = w.committed_indices().collect();
         assert_eq!(taken[11], 3, "about");
-        assert!(Mnemonic::from_indices(Language::English, &taken).is_ok());
+        assert!(faraday_keys::words::from_indices(Language::English, &taken).is_ok());
     }
 
     #[test]

@@ -271,7 +271,7 @@ impl Faraday {
                 .entropy()
                 .map_err(|_| EN.forms_seed_xor_needs.to_string())
                 .and_then(|e| {
-                    Mnemonic::from_entropy(Language::English, e.as_bytes())
+                    faraday_keys::words::from_entropy(Language::English, e.as_bytes())
                         .map_err(|e| e.to_string())
                 })
                 .and_then(|m| {
@@ -396,7 +396,7 @@ pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, String> {
             )
         })?);
     }
-    let m = Mnemonic::from_indices(lang, &idx).map_err(|e| e.to_string());
+    let m = faraday_keys::words::from_indices(lang, &idx).map_err(|e| e.to_string());
     zeroize::Zeroize::zeroize(&mut idx);
     m
 }

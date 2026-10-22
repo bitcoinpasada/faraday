@@ -247,21 +247,30 @@ impl Held<Record> {
 }
 
 /// What can be made a record of an open vault: a record built from input
-/// in hand, or one an operation of this crate made and holds.
+/// in hand, or one an operation of this crate made and holds. Only the
+/// edits of [`OpenVaults`] take the record out of it.
 pub trait IntoRecord {
     /// The record.
     fn into_record(self) -> Record;
+    /// The bytes the record takes in a slot.
+    fn size(&self) -> usize;
 }
 
 impl IntoRecord for Record {
     fn into_record(self) -> Record {
         self
     }
+    fn size(&self) -> usize {
+        Record::size(self)
+    }
 }
 
 impl IntoRecord for Held<Record> {
     fn into_record(self) -> Record {
         self.release()
+    }
+    fn size(&self) -> usize {
+        self.view().size()
     }
 }
 
@@ -292,6 +301,9 @@ impl MadeKey {
 impl IntoRecord for &MadeKey {
     fn into_record(self) -> Record {
         self.0.clone()
+    }
+    fn size(&self) -> usize {
+        MadeKey::size(self)
     }
 }
 
@@ -326,6 +338,9 @@ impl IntoRecord for Staged {
             Staged::Made(r) => r,
             Staged::Held(h) => h.release(),
         }
+    }
+    fn size(&self) -> usize {
+        Staged::size(self)
     }
 }
 

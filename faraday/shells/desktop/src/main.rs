@@ -683,7 +683,7 @@ fn desktop_app_for(release: bool) -> Faraday {
     let c = app.compute();
     app.session.set_demo(&c);
     app.session
-        .set_network(faraday_core::testkit::NET)
+        .set_network(faraday_bip::keys::Network::Testnet)
         .expect("a fresh session takes any network");
     if release {
         app.with_start_warning();

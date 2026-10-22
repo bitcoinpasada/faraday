@@ -6,6 +6,7 @@ use crate::common::type_text;
 use faraday_core::create::NewKind;
 use faraday_core::keygen::Way;
 use faraday_core::plan::Preset;
+use faraday_core::testkit::KindText;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent, bstep, cstep, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};

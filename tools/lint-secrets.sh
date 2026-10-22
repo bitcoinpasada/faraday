@@ -48,6 +48,8 @@
 #      secrets must be added to SECRET_FILES below; paths are relative to
 #      the repository root and need not be under core/.
 #
+# Rule 4, the key boundary, is described where it is checked, below.
+#
 # Exits non-zero on any hit and prints each offending line. Run from the
 # repository root; `just lint` does.
 set -u
@@ -113,6 +115,71 @@ done
 report "heap text in secret-handling source (rule 3)" \
     "$(grep -nE '\bString\b|alloc::string|\bto_string\b|\bto_owned\b|\bformat!' $SECRET_FILES \
         | grep -vE 'b"[^"]*</?String>')"
+
+# Rule 4: the key boundary (docs/KEYS.md, F70). Key material is used
+# only in faraday/faraday-keys. Everywhere else under faraday/ these are
+# refused, in code (comments are skipped):
+#   4a. a key or a seed in hand: MasterKey, SecretKey, Xpriv, Keypair,
+#       PrivateKey, DerivedKey, SecShare, SecNonce, SlotKey, to_seed;
+#   4b. seed words made into a Mnemonic (parse, from_indices,
+#       from_entropy), a SeedQR decoded into one, a SLIP-39 split, a
+#       vault record's words read (records::words_of): faraday_keys::words
+#       does these;
+#   4c. the primitive crates' secret-taking functions and types: a GPG
+#       key (faraday_pgp::Key), Secure Boot and APK keys made or used
+#       (faraday_sb make, enrolment, Keys, Pair, pe::sign; faraday_apk
+#       key::make, sign::), a vault opened, sealed, created or its slot
+#       key derived (faraday_vault open, open_with, create, derive, seal,
+#       Opened), a carry section's nonces (CarrySection, CarryEntry,
+#       Carry::parse), a PSBT signed (faraday_psbt::sign), BIP-352's
+#       receiver, a FROST deal or secret share, an aezeed decoded;
+#   4d. a held secret taken out of its guard (Held::release, release(),
+#       into_record()), except at the sites in RELEASES.
+# Exempt, as they are not shipped or are the boundary's own: faraday-keys;
+# the primitive crates faraday-pgp, -sb, -apk and -vault; tests/,
+# examples/ and fuzz/; the snapshot shell and faraday/tools/ (test
+# renders and test data); faraday-core's testkit.rs (the `testkit`
+# feature, which tools/lint-keys-tests.sh keeps out of every shipped
+# binary). faraday-intake is exempt from 4b only: it reads text as it
+# arrives (transient input, KEYS §2) and keeps none of it, and
+# faraday-keys depends on it.
+#
+# The one place a held secret leaves its guard outside faraday-keys:
+#   vault/screen.rs   a GPG key's paperkey text, drawn while it is held
+#                     (Reveal::GpgPaperkey)
+RELEASES="faraday/faraday-core/src/vault/screen.rs"
+boundary_files() {
+    find faraday -name '*.rs' \
+        -not -path 'faraday/faraday-keys/*' \
+        -not -path 'faraday/faraday-pgp/*' -not -path 'faraday/faraday-sb/*' \
+        -not -path 'faraday/faraday-apk/*' -not -path 'faraday/faraday-vault/*' \
+        -not -path '*/tests/*' -not -path '*/examples/*' -not -path 'faraday/fuzz/*' \
+        -not -path 'faraday/shells/snapshot/*' -not -path 'faraday/tools/*' \
+        -not -path 'faraday/faraday-core/src/testkit.rs' | sort
+}
+in_code() {
+    # $1 = pattern; the files follow. Comment lines are skipped.
+    local re=$1
+    shift
+    grep -nE "$re" "$@" | grep -vE '^[^:]+:[0-9]+:[[:space:]]*//'
+}
+mapfile -t BOUNDARY < <(boundary_files)
+mapfile -t WORDS_FILES < <(printf '%s\n' "${BOUNDARY[@]}" | grep -v '^faraday/faraday-intake/')
+mapfile -t RELEASE_FILES < <(printf '%s\n' "${BOUNDARY[@]}" | grep -vxF -f <(tr ' ' '\n' <<< "$RELEASES"))
+secret_types='\b(MasterKey|SecretKey|Xpriv|Keypair|PrivateKey|DerivedKey|SecShare|SecNonce|SlotKey)\b|\bto_seed\b'
+# `Work::MasterKey` is a kind of costly work, not the type, and so is the
+# enum variant work.rs declares for it.
+report "a key or seed outside faraday-keys (rule 4a)" \
+    "$(in_code "$secret_types" "${BOUNDARY[@]}" \
+        | sed -E 's/\b(Work|C)::MasterKey\b//g' \
+        | grep -E "$secret_types" \
+        | grep -vE '^faraday/faraday-core/src/work\.rs:[0-9]+:[[:space:]]*MasterKey,$')"
+report "seed words made outside faraday_keys::words (rule 4b)" \
+    "$(in_code 'Mnemonic::(parse|from_indices|from_entropy|from_phrase)|seedqr::from_(entropy|digits)|slip39::split|records::words_of' "${WORDS_FILES[@]}")"
+report "a primitive's secret-taking function outside faraday-keys (rule 4c)" \
+    "$(in_code 'faraday_pgp::Key\b|faraday_sb::(make|enrolment|Keys|Pair|x509::Pair|pe::sign)\b|faraday_apk::(key::make|sign::)|faraday_vault::(open|open_with|create|derive|seal|Opened)\b|CarrySection|CarryEntry|Carry::parse|faraday_psbt::sign\(|faraday_bip::silent::Receiver|frost::(deal|SecShare)|aezeed::(decode|node_key)|use faraday_(pgp|sb|apk|vault)::\{[^}]*\b(Key|make|enrolment|Keys|Pair|open|open_with|create|derive|seal|Opened)\b' "${BOUNDARY[@]}")"
+report "a held secret taken out of its guard outside the named sites (rule 4d)" \
+    "$(in_code 'Held::release|\.release\(\)|\.into_record\(\)' "${RELEASE_FILES[@]}")"
 
 if [ "$status" -eq 0 ]; then
     echo "lint-secrets: ok"

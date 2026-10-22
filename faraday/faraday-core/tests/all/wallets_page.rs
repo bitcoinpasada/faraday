@@ -3,6 +3,7 @@
 //! transaction, Back up, Show wallet QR, Sign a message) is reached
 //! from the wallet card.
 
+use faraday_core::testkit::KindText;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 

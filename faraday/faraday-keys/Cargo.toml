@@ -1,7 +1,7 @@
 [package]
 name = "faraday-keys"
 version = "0.1.5"
-description = "Where Faraday's key material is used: signing, derivation, key texts, BIP-85, Lightning, silent payments, FROST dealing and identity (docs/KEYS.md)"
+description = "Where Faraday's key material is held and used: the session's keys, the open vaults, every operation on them, and the eleven reasons a secret leaves (docs/KEYS.md)"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

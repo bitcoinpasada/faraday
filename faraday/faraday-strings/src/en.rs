@@ -1512,9 +1512,9 @@ pub struct Strings {
     pub create_any_m_of_n_shares: &'static str,
     /// Text in `line`.
     pub create_every_key_signs: &'static str,
-    /// Error in `key_text`.
+    /// Error in `spec`.
     pub create_a_share_has: &'static str,
-    /// Text in `key_text_at`. `{}`: `path`.
+    /// Text in `path_spec`. `{}`: `path`.
     pub create_not_a_derivation: &'static str,
     // ----- decode (faraday-core/src/decode.rs) -----
     /// Text in `script_kind`.

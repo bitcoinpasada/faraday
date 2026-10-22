@@ -5,7 +5,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
-use faraday_bip::keys::{MasterKey, MultisigScriptType, Network, ScriptType};
+use faraday_bip::keys::{MultisigScriptType, Network, ScriptType};
 use faraday_bip::policy::{PolicyKey, WalletPolicy};
 use faraday_bip::slip132;
 use faraday_crypto::work::Compute;
@@ -175,12 +175,6 @@ impl NewKind {
         steps.join("/")
     }
 
-    /// Costs a key derivation. `[fingerprint/path]xpub` of a master key, at
-    /// this kind's path.
-    pub fn key_text(self, c: &Compute, master: &MasterKey) -> Result<String, String> {
-        self.key_text_account(c, master, 0)
-    }
-
     /// Whether the kind's path has an account to choose: every kind but
     /// `m/45'` and the shares dealt here.
     pub fn has_account(self) -> bool {
@@ -207,19 +201,6 @@ impl NewKind {
                     .map_err(|e| format!("{e}"))?,
             ),
         })
-    }
-
-    /// Costs a key derivation. `[fingerprint/path]xpub` of a master key, at
-    /// this kind's path with account `account` in place of 0. For a master
-    /// key a test holds; the session's keys go through
-    /// [`crate::wallet::KeyTexts`].
-    pub fn key_text_account(
-        self,
-        c: &Compute,
-        master: &MasterKey,
-        account: u32,
-    ) -> Result<String, String> {
-        faraday_keys::texts::key_text(c, master, &self.spec(master.network(), account)?)
     }
 
     /// Costs a key derivation. A `wsh` multisig key of session key `i` as
@@ -318,12 +299,6 @@ pub fn path_spec(path: &str) -> Result<faraday_keys::Spec, String> {
     let parsed: faraday_bip::bitcoin::bip32::DerivationPath =
         path.parse().map_err(|e| format!("{e}"))?;
     Ok(faraday_keys::Spec::Path(parsed))
-}
-
-/// Costs a key derivation. `[fingerprint/path]xpub` of a master key a test
-/// holds at `path`.
-pub fn key_text_at(c: &Compute, master: &MasterKey, path: &str) -> Result<String, String> {
-    faraday_keys::texts::key_text(c, master, &path_spec(path)?)
 }
 
 /// A derivation path as typed, `m/48'/0'/0'/2'`, `48h/0h/0h/2h` or with

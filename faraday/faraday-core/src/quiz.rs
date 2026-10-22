@@ -276,7 +276,7 @@ mod tests {
     use faraday_bip::bip39::{Language, Mnemonic};
 
     fn abandon() -> Mnemonic {
-        Mnemonic::from_entropy(Language::English, &[0u8; 16]).unwrap()
+        faraday_keys::words::from_entropy(Language::English, &[0u8; 16]).unwrap()
     }
 
     #[test]

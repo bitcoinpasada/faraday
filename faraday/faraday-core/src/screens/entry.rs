@@ -322,7 +322,7 @@ pub(crate) fn keyed_status(
         return count();
     }
     // While typing goes on the key is not worked out: the count alone.
-    let added = match faraday_bip::bip39::Mnemonic::from_indices(lang, taken) {
+    let added = match faraday_keys::words::from_indices(lang, taken) {
         Err(e) => Err(crate::wallet::Refusal::Words(e.to_string()).text()),
         Ok(m) => match app.entry_probed(&m) {
             Some(r) => r,
