@@ -1759,11 +1759,11 @@ impl Faraday {
             visit: VisitState::default(),
             import: None,
             stick_settings: None,
-            // A device that has never had a setting saved opens Guided;
-            // Steps only is a choice (`docs/history/SIMPLIFY.md` §6.1). A saved
+            // A device that has never had a setting saved opens Steps
+            // only; Guided, with its explanations, is a choice (F82). A saved
             // value, from the kept state or the boot stick's settings
             // file, overwrites this before the person sees a screen.
-            guided: true,
+            guided: false,
             about_open: None,
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,

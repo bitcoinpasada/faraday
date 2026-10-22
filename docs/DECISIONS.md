@@ -96,3 +96,4 @@ Read this table, then only the decision you need.
 | [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Active | crypto |
 | [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Active | stick |
 | [F81](decisions/F81.md) | Modes: a pressable pill, Demo on testnet, samples at every step | 2026-10-22 | Active | design |
+| [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Active | design |

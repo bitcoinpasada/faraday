@@ -207,10 +207,9 @@ fn a_passphrase_field_brings_the_keyboard_and_stays_above_it() {
 #[test]
 fn a_step_s_walk_through_opens_and_closes_on_a_tap_in_steps_only_too() {
     let mut app = panel();
-    // A first start is Guided (`docs/history/SIMPLIFY.md` §6.1); Steps only is a
-    // choice, and this walk-through opens on a tap there too.
-    assert!(app.guided, "Guided is the first start");
-    app.press(Action::Guided(false));
+    // A first start is Steps only (F82), and this walk-through opens on
+    // a tap there too.
+    assert!(!app.guided, "Steps only is the first start");
     tap(&mut app, Action::Nav(Screen::Vaults));
     tap(&mut app, Action::Vault(V::Create));
     // Create a vault opens on its second card, Name and passphrases.

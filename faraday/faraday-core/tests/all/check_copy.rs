@@ -210,6 +210,25 @@ fn says(app: &mut Faraday, part: &str) -> bool {
 
 /// Whether the checklist offers `action` anywhere down its column,
 /// scrolled to as a person would.
+/// Whether the text is drawn once the page is scrolled down to it: the
+/// page is as long as the mode makes it, so where a line lands in the
+/// first frame is not what a person looks at.
+fn scrolled_to(app: &mut Faraday, text: &str) -> bool {
+    for _ in 0..20 {
+        app.settle();
+        let _ = app.frame();
+        if shown(app, text) {
+            return true;
+        }
+        app.event(Event::Scroll {
+            x: 683,
+            y: 384,
+            dy: 300,
+        });
+    }
+    false
+}
+
 fn offered(app: &mut Faraday, action: Action) -> bool {
     for _ in 0..20 {
         app.settle();
@@ -438,13 +457,13 @@ fn on_a_small_panel_the_check_is_typed_on_the_word_keyboard() {
 #[test]
 fn a_seedqr_copy_with_a_camera_is_checked_by_the_scan_and_words_alone_do_not() {
     let mut app = backing_up(ATTACK, true, SEEDQR_ONLY);
+    // The grid is drawn for the copy.
+    assert!(scrolled_to(&mut app, "Standard SeedQR"));
     assert!(
         offered(&mut app, Action::BScan),
         "no Scan my copy with a camera"
     );
     assert!(!app.offers(Action::BCheck));
-    // The grid is drawn for the copy.
-    assert!(shown(&mut app, "Standard SeedQR"));
     app.press(Action::BCheck);
     testkit::type_words(&mut app, ATTACK);
     assert!(!seeds_done(&app), "typed words checked a SeedQR copy");

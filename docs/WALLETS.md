@@ -587,10 +587,10 @@ That path is the **Spend** tab (`docs/FAMILY.md`): its first question is
 
 A switch beside each flow's title chooses **Steps only** or **Guided** (called Full until 2026-10-06); a wallet in
 progress carries over between them. The choice is one setting for every
-flow, kept with the others; Steps only is on the left, and Guided is
-where a first start is, on a device that has never had a setting saved
-(`docs/history/SIMPLIFY.md` §6.1, 2026-10-10; reverses the 2026-10-07 default
-for a first start only).
+flow, kept with the others; Steps only is on the left, and is where a
+first start is, on a device that has never had a setting saved (F82):
+a working screen carries no explanation unless the person turns Guided
+on.
 
 ## 7. Tools
 
