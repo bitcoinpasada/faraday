@@ -1,6 +1,6 @@
 //! The demo's public seeds (F20). A session set up for the demo
-//! ([`crate::wallet::Session::set_demo`]) takes only these on mainnet;
-//! on a test network it takes any seed.
+//! ([`crate::wallet::Session::set_demo`], on Testnet: Demo, F81) takes
+//! only these.
 
 /// The public seeds, as their words: each of these words, twenty-four
 /// times, is a valid BIP-39 phrase.
@@ -30,8 +30,8 @@ use crate::{Action, Faraday, Screen};
 
 impl Faraday {
     /// Whether this session makes secrets a person could take away: false
-    /// while the demo is on (`Session::demo`), true otherwise, on the
-    /// stick and on a test network alike (`docs/DEMO.md` §2).
+    /// in Demo (`Keys::demo`), true in every other mode, on the stick and
+    /// on a test network alike (`docs/DEMO.md` §2).
     pub fn makes_secrets(&self) -> bool {
         !self.session.keys.demo()
     }

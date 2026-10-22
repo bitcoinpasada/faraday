@@ -37,6 +37,7 @@ fn pump(app: &mut Faraday, vault: &[u8]) {
 fn unlocked() -> Faraday {
     let vault = testkit::test_vault().unwrap();
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });

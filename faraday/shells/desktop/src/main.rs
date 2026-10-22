@@ -689,12 +689,10 @@ fn desktop_app_for(release: bool) -> Faraday {
     // This shell answers `RequestClipboard` (faraday_window::clipboard).
     app.clipboard = true;
     app.shell_sticks = true;
-    app.session = faraday_core::wallet::Session::default();
+    app.session = faraday_core::wallet::Session::on(faraday_bip::keys::Network::Testnet);
     let c = app.compute();
     app.session.set_demo(&c);
-    app.session
-        .set_network(faraday_bip::keys::Network::Testnet)
-        .expect("a fresh session takes any network");
+    app.set_modes(faraday_core::DESKTOP_MODES);
     if release {
         app.with_start_warning();
     } else {
@@ -994,24 +992,19 @@ mod tests {
     }
 
     #[test]
-    fn the_desktop_opens_on_testnet_and_its_mainnet_is_the_demo() {
+    fn the_desktop_opens_in_demo_on_testnet_and_a_mode_change_locks() {
         let c = faraday_core::testkit::compute();
         let mut app = desktop_app();
+        assert_eq!(app.mode(), faraday_core::Mode::Demo);
         assert_eq!(app.session.network(), faraday_core::testkit::NET);
         let other = "abandon abandon abandon abandon abandon abandon \
                      abandon abandon abandon abandon abandon about";
-        assert!(app.session.keys.add_words(&c, other, "", None).is_ok());
-        let mut app = desktop_app();
-        app.press(faraday_core::Action::Network(
-            faraday_bip::keys::Network::Mainnet,
-        ));
-        assert!(app.session.network().is_mainnet());
         assert!(app.session.keys.add_words(&c, other, "", None).is_err());
         let public = faraday_core::demo::words("zebra");
         assert!(app.session.keys.add_words(&c, &public, "", None).is_ok());
-        app.press(faraday_core::Action::Network(faraday_core::testkit::NET));
-        assert_eq!(app.session.network(), faraday_core::testkit::NET);
-        assert!(app.sheet.is_none());
+        app.press(faraday_core::Action::Mode(faraday_core::Mode::Signet));
+        assert_eq!(app.mode_after_restart(), faraday_core::Mode::Signet);
+        assert!(app.restart_requested());
     }
 
     /// A release opens on testnet behind the online warning, which is

@@ -2,17 +2,13 @@
 
 ## What the demo is
 
-The demo is Faraday on mainnet on a computer that is online. The website runs it in a browser and stays on mainnet. Faraday Desktop starts on testnet, and is the same demo when Network is set to Mainnet. On mainnet the demo opens every screen and works as Faraday does, with keys that hold nothing.
+Demo is a mode of Faraday on a computer that is online: Faraday on testnet with sample keys. The website runs it in a browser and stays in it. Faraday Desktop starts in it, and Mode in Settings or the pill leaves it. Demo opens every screen and works as Faraday does, with keys that hold nothing.
 
 ## The public seeds
 
 Eleven seeds are public. Each is one word written twenty-four times: bacon, flag, gas, great, slice, solution, summer, they, trade, trap and zebra. Each is a valid BIP-39 phrase. Anyone can load them, so anything sent to their addresses can be taken by anyone.
 
-On mainnet the demo takes only these. Any other key is refused by its fingerprint.
-
-## Addresses with a broken checksum
-
-On mainnet every address the demo shows has one character changed, so its checksum fails and no wallet sends to it. A wallet given such an address refuses it. Scripts, transactions, files and signatures keep the real address.
+Demo takes only samples, on testnet. Any other key is refused by its fingerprint.
 
 ## New key in the demo
 

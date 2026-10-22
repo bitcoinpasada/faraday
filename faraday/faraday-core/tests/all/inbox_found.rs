@@ -14,6 +14,7 @@ use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 fn with_inbox(files: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,

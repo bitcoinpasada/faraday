@@ -365,6 +365,7 @@ fn the_demo_adds_the_next_public_seed_not_loaded() {
     let words = faraday_core::demo::words;
     let handing = |answer: [u8; 32], loaded: &[&str]| {
         let mut app = faraday_core::testkit::started();
+        faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
         app.session.set_demo(&c);
         for w in loaded {
             app.session.keys.add_words(&c, &words(w), "", None).unwrap();
@@ -756,6 +757,7 @@ fn the_demo_locks_in_its_public_seed_whatever_passphrase_is_typed() {
     let c = faraday_core::testkit::compute();
     use faraday_core::wallet::fp_text;
     let mut app = slot_flow(true);
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.session.set_demo(&c);
     flip_all(&mut app);
     app.press(Action::KNext);
@@ -780,15 +782,12 @@ fn the_demo_locks_in_its_public_seed_whatever_passphrase_is_typed() {
     assert!(shown.contains("Not set"), "no passphrase went with it");
 }
 
-/// On a test network the demo is off: New key adds the key it made.
+/// Outside Demo, on a test network too, New key adds the key it made.
 #[test]
-fn on_a_test_network_the_demo_adds_the_key_made() {
+fn on_a_test_network_outside_demo_new_key_adds_the_key_made() {
     let c = faraday_core::testkit::compute();
     let mut app = faraday_core::testkit::started();
-    app.session.set_demo(&c);
-    app.session
-        .set_network(faraday_bip::keys::Network::Testnet)
-        .unwrap();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
     app.press(Action::KWords(24));

@@ -16,6 +16,7 @@ fn kit(id: &str) -> Kit {
 
 fn with_inbox(files: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = faraday_core::testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Restored {
         inbox: files,
         outbox: Vec::new(),
@@ -107,6 +108,7 @@ fn the_shared_seed_signs_for_the_wallet_the_transaction_spends_from() {
 fn a_vault_with_both_wallets_loads_the_shared_seed_once() {
     let c = testkit::compute();
     let mut app = faraday_core::testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     // Unlocking runs on the tick after a drawn frame: a display to draw on.
     app.event(Event::Display(faraday_shell_api::DisplayInfo {
         width: 1366,

@@ -36,6 +36,7 @@ fn two_of_three_two_here(app: &mut Faraday) -> usize {
 /// clock known; tall enough that every card is drawn.
 fn later(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 2400,
@@ -129,6 +130,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     // A vault made on an earlier power-on, holding seed 2 and the wallet.
     let mut shell = Shell::new();
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     let w = two_of_three_two_here(&mut app);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));

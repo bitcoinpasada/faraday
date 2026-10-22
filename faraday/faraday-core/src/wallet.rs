@@ -3,6 +3,7 @@
 //! §2 and §4). Every piece of cryptography is `faraday-bip`'s or
 //! `faraday-psbt`'s; this module only decides which call comes next.
 
+use crate::modes::Mode;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::{Action, Faraday, Screen, Sheet, family, result_stem, secrets, wallet};
@@ -337,6 +338,10 @@ pub struct Session {
     pub keys: faraday_keys::Keys,
     /// Wallets.
     pub wallets: Vec<Wallet>,
+    /// The modes the app offers ([`crate::Faraday::modes`]): the ones a
+    /// wallet or a PSBT of another network may move an empty session to
+    /// ([`Session::follow`]).
+    pub modes: &'static [crate::modes::Mode],
 }
 
 impl Default for Session {
@@ -344,6 +349,7 @@ impl Default for Session {
         Session {
             keys: faraday_keys::Keys::on(START_NETWORK),
             wallets: Vec::new(),
+            modes: crate::modes::STICK_MODES,
         }
     }
 }
@@ -397,6 +403,7 @@ impl Session {
         Session {
             keys: faraday_keys::Keys::on(network),
             wallets: Vec::new(),
+            modes: crate::modes::STICK_MODES,
         }
     }
 
@@ -405,23 +412,29 @@ impl Session {
         self.keys.network()
     }
 
-    /// Moves the session to `network`. Keys are re-derived for it. While
-    /// wallets are loaded it moves only between networks whose keys are
-    /// written alike (the test networks), never between mainnet and a test
-    /// network. A session whose network is fixed stays on it, and the
-    /// demo goes to mainnet only with nothing but public seeds loaded.
-    pub fn set_network(&mut self, network: Network) -> Result<(), Refusal> {
-        self.keys.set_network(network, !self.wallets.is_empty())
-    }
-
-    /// Takes the network a wallet or a PSBT is on: the session moves to it
-    /// when no wallet holds it elsewhere, and refuses it otherwise.
+    /// Takes the network a wallet or a PSBT is on. The session moves to it
+    /// only when all hold: no key and no wallet is loaded, it is not
+    /// Demo, its network is not fixed, and the mode that network is
+    /// belongs to [`Session::modes`]; that is the same as choosing the
+    /// mode on an empty session, so no lock is needed (F81,
+    /// `docs/MODES.md` §2.8). A network of the same kind needs no move.
+    /// Anything else of another kind is refused, naming both networks.
     pub fn follow(&mut self, network: Option<Network>) -> Result<(), Refusal> {
         let Some(n) = network else { return Ok(()) };
         if n.kind() == self.network().kind() {
             return Ok(());
         }
-        self.set_network(n)
+        let empty = self.keys.is_empty() && self.wallets.is_empty();
+        if self.keys.network_fixed() {
+            return Err(Refusal::NetworkFixed(self.network()));
+        }
+        if !empty || self.keys.demo() || !self.modes.contains(&Mode::of(n)) {
+            return Err(Refusal::Network {
+                offered: n,
+                loaded: self.network(),
+            });
+        }
+        self.keys.set_network(n, false)
     }
 
     /// Takes the network of a PSBT that is about to be signed.
@@ -472,14 +485,12 @@ impl Session {
         Ok(self.wallets.len() - 1)
     }
 
-    /// Costs what `add_words` costs. Sets the demo up (F20): while the
-    /// session is on mainnet it takes only the public seeds
-    /// ([`crate::demo::SEEDS`]), every address it shows carries a broken
-    /// checksum ([`broken_checksum`]) so that no wallet sends to it
-    /// (scripts, PSBTs, files, signatures and every comparison keep the
-    /// real address), and New key adds the next public seed in place of the
-    /// key it made ([`faraday_keys::Keys::next_handout`]). On a test
-    /// network none of that applies.
+    /// Costs what `add_words` costs. Sets the demo up (F20, F81): the
+    /// session takes only the public seeds ([`crate::demo::SEEDS`]), and
+    /// New key adds the next public seed in place of the key it made
+    /// ([`faraday_keys::Keys::next_handout`]). A shell that wants Demo
+    /// makes the session on Testnet first: its addresses are then real
+    /// testnet addresses, which no mainnet wallet pays.
     pub fn set_demo(&mut self, c: &Compute) {
         let seeds: Vec<(&'static str, String)> = crate::demo::SEEDS
             .iter()
@@ -614,19 +625,9 @@ impl Session {
     }
 
     /// Costs an address derivation (through `address`). An address of the
-    /// wallet as the screen shows it ([`Session::shown`]).
+    /// wallet as the screen shows it: the address itself, in Demo too.
     pub fn address_shown(&self, c: &Compute, wallet: &Wallet, change: bool, index: u32) -> String {
-        self.shown(&self.address(c, wallet, change, index))
-    }
-
-    /// `address` as the screen shows it: as it is, or with its checksum
-    /// broken while the demo is on ([`faraday_keys::Keys::set_demo`]).
-    pub fn shown(&self, address: &str) -> String {
-        if self.keys.demo() {
-            broken_checksum(address)
-        } else {
-            address.to_string()
-        }
+        self.address(c, wallet, change, index)
     }
 
     /// Costs a key derivation (through `from_master`).
@@ -1634,45 +1635,6 @@ pub fn musig_nonces(
             )
         })
         .collect()
-}
-
-/// `address` with the last character of its checksum changed to the next
-/// one in its alphabet: a bech32 or bech32m address then fails its
-/// checksum whatever the character (both detect any one substitution),
-/// and a base58 one keeps its payload under a checksum that no longer
-/// matches it. Text that is not an address is left as it is.
-pub fn broken_checksum(address: &str) -> String {
-    const BECH32: &str = "qpzry9x8gf2tvdw0s3jn54khce6mua7l";
-    const BASE58: &str = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
-    let lower = address.to_ascii_lowercase();
-    let alphabet = match lower.rfind('1') {
-        Some(sep)
-            if sep > 0
-                && address.len() - sep > 6
-                && lower[sep + 1..].chars().all(|c| BECH32.contains(c)) =>
-        {
-            BECH32
-        }
-        _ if address.len() >= 26 && address.chars().all(|c| BASE58.contains(c)) => BASE58,
-        _ => return address.to_string(),
-    };
-    let mut chars: Vec<char> = address.chars().collect();
-    let Some(last) = chars.last_mut() else {
-        return address.to_string();
-    };
-    let lc = last.to_ascii_lowercase();
-    let at = alphabet
-        .chars()
-        .position(|c| c == if alphabet == BECH32 { lc } else { *last });
-    if let Some(i) = at {
-        let next = alphabet.chars().cycle().nth(i + 1).unwrap_or(*last);
-        *last = if last.is_ascii_uppercase() && alphabet == BECH32 {
-            next.to_ascii_uppercase()
-        } else {
-            next
-        };
-    }
-    chars.into_iter().collect()
 }
 
 /// A transaction being signed, with its screen's state.

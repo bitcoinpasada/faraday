@@ -34,7 +34,7 @@ fn session(copies: usize, wallets: usize, spend: bool) -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    let _ = app.session.set_network(testkit::NET);
+    let _ = testkit::move_to(&mut app.session, testkit::NET);
     for (word, l) in &testkit::TEST_SEEDS[..2] {
         let _ = app
             .session

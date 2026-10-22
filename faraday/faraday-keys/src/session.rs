@@ -370,14 +370,10 @@ impl Keys {
         self.network_fixed = true;
     }
 
-    /// Whether the shell set the demo up, on any network.
-    pub fn has_demo(&self) -> bool {
-        !self.demo.is_empty()
-    }
-
-    /// Whether the demo is on: set up, and the store on mainnet.
+    /// Whether the demo is on: the shell set it up ([`Keys::set_demo`]).
+    /// The network does not matter; the shell puts Demo on Testnet.
     pub fn demo(&self) -> bool {
-        !self.demo.is_empty() && self.network.is_mainnet()
+        !self.demo.is_empty()
     }
 
     /// The public seed New key adds next while the demo is on, as its
@@ -403,7 +399,7 @@ impl Keys {
 
     /// Costs what `set_demo`'s probes cost, an `add_words` each. Sets the
     /// demo up (F20): `seeds` are the public seeds, each a name and its
-    /// words. While the store is on mainnet it takes only these.
+    /// words. While the demo is on the store takes only these.
     pub fn set_demo(&mut self, c: &Compute, seeds: &[(&'static str, String)]) {
         self.demo = seeds
             .iter()
@@ -630,22 +626,18 @@ impl Keys {
         }
     }
 
-    /// Moves the store to `network`; every key is re-derived for it. The
-    /// caller says whether wallets are loaded: they stop it moving between
-    /// mainnet and a test network, or between networks whose keys are
-    /// written differently. A fixed store stays on its network, and the
-    /// demo goes to mainnet only with nothing but public seeds loaded.
+    /// Moves the store to `network`; every key is re-derived for it. For
+    /// a shell's start and for `Session::follow` (an empty session
+    /// taking the network of a wallet or a PSBT); no press of a person
+    /// reaches it (F81, `docs/MODES.md` §2.7). The caller says whether
+    /// wallets are loaded: they stop it moving between networks whose
+    /// keys are written differently. A fixed store stays on its network.
     pub fn set_network(&mut self, network: Network, wallets_loaded: bool) -> Result<(), Refusal> {
         if network == self.network {
             return Ok(());
         }
         if self.network_fixed {
             return Err(Refusal::NetworkFixed(self.network));
-        }
-        if network.is_mainnet()
-            && let Some(k) = self.all().find(|k| !self.is_public(k.fingerprint))
-        {
-            return Err(Refusal::NotPublicLoaded(fp_text(k.fingerprint)));
         }
         if wallets_loaded && network.kind() != self.network.kind() {
             return Err(Refusal::Network {

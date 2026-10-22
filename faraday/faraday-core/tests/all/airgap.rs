@@ -1,18 +1,18 @@
-//! The online app (the desktop) starts on mainnet as the demo, which
-//! takes only public seeds (F20). Before it goes to a test network, which
-//! takes any seed, it says it is for testing only and that this computer
-//! is not air-gapped: the network waits for "I understand", and Cancel
-//! leaves it on mainnet. Reaching a test network another way brings the
-//! same warning up with no way past it but the acknowledgement. The
-//! device never shows it. A released Faraday Desktop, which opens on
-//! testnet, shows it at start, before any key can be added (F61).
+//! The online app (the desktop) opens in Demo, which takes only public
+//! seeds (F20, F81). Before a release build leaves Demo for a test
+//! network, which takes any seed, it says it is for testing only and that
+//! this computer is not air-gapped: the change waits for "I understand",
+//! and Cancel leaves it in Demo. The device never shows it. A released
+//! Faraday Desktop that opens behind the warning shows it at start,
+//! before any key can be added (F61).
 
 use faraday_bip::keys::Network;
 use faraday_core::create::NewKind;
 use faraday_core::testkit::KindText;
 use faraday_core::wallet::Session;
 use faraday_core::{
-    Action, Faraday, Sheet, StickInfo, StorageCommand, StorageEvent, demo, testkit,
+    Action, DESKTOP_MODES, Faraday, Mode, Sheet, StickInfo, StorageCommand, StorageEvent, demo,
+    testkit,
 };
 use faraday_shell_api::App;
 
@@ -31,13 +31,15 @@ fn wallet_on(network: Network) -> String {
     format!("wpkh({key}/<0;1>/*)")
 }
 
-/// The desktop's app: online, on mainnet as the demo.
+/// The desktop's app: online, in Demo (the public seeds on testnet), a
+/// developer's build with no warning.
 fn desktop() -> Faraday {
     let c = testkit::compute();
     let mut app = testkit::started();
     app.online = true;
-    app.session = Session::default();
+    app.session = Session::on(Network::Testnet);
     app.session.set_demo(&c);
+    app.set_modes(DESKTOP_MODES);
     app
 }
 
@@ -51,63 +53,29 @@ fn load_wallet(app: &mut Faraday, text: &str) {
     app.press(Action::LoadWallet(0));
 }
 
-/// To testnet, through the warning.
-fn to_testnet(app: &mut Faraday) {
-    app.press(Action::Network(Network::Testnet));
-    app.press(Action::AirgapUnderstood);
-    assert_eq!(app.session.network(), Network::Testnet);
+#[test]
+fn a_mode_change_on_the_desktop_shows_no_warning() {
+    for mode in [Mode::Testnet, Mode::Signet, Mode::Regtest] {
+        let mut app = desktop();
+        app.press(Action::Mode(mode));
+        assert_eq!(app.sheet, None, "{mode:?}");
+        let _ = app.frame();
+        assert_eq!(app.sheet, None, "{mode:?}");
+        assert!(app.restart_requested());
+        assert_eq!(app.mode_after_restart(), mode);
+    }
 }
 
 #[test]
-fn a_test_network_waits_for_i_understand_on_the_desktop() {
+fn a_mode_not_offered_changes_nothing() {
     let mut app = desktop();
-    let _ = app.frame();
-    assert_eq!(app.sheet, None, "mainnet asks nothing");
-    app.press(Action::Network(Network::Testnet));
-    assert_eq!(app.sheet, Some(Sheet::NotAirgapped));
-    assert!(app.session.network().is_mainnet());
-    let _ = app.frame();
-    assert!(app.offers(Action::AirgapUnderstood));
-    assert!(app.offers(Action::Cancel));
-    app.press(Action::AirgapUnderstood);
-    assert_eq!(app.session.network(), Network::Testnet);
+    app.press(Action::Mode(Mode::Mainnet));
     assert_eq!(app.sheet, None);
-    // Once a session: back to mainnet and to a test network again asks
-    // nothing.
-    app.press(Action::Network(Network::Mainnet));
-    app.press(Action::Network(Network::Signet));
-    assert_eq!(app.session.network(), Network::Signet);
-    assert_eq!(app.sheet, None);
+    assert!(!app.restart_requested());
 }
 
 #[test]
-fn cancel_leaves_the_desktop_on_mainnet() {
-    let mut app = desktop();
-    app.press(Action::Network(Network::Regtest));
-    app.press(Action::Cancel);
-    assert!(app.session.network().is_mainnet());
-    assert_eq!(app.sheet, None);
-    let _ = app.frame();
-    assert_eq!(app.sheet, None, "and the warning does not come back");
-}
-
-#[test]
-fn a_test_wallet_loaded_on_the_desktop_brings_the_warning_up() {
-    let mut app = desktop();
-    load_wallet(&mut app, &wallet_on(Network::Testnet));
-    assert!(!app.session.network().is_mainnet());
-    let _ = app.frame();
-    assert_eq!(app.sheet, Some(Sheet::NotAirgapped));
-    let _ = app.frame();
-    assert!(app.offers(Action::AirgapUnderstood));
-    assert!(!app.offers(Action::Cancel), "only the acknowledgement");
-    app.press(Action::AirgapUnderstood);
-    let _ = app.frame();
-    assert_eq!(app.sheet, None);
-}
-
-#[test]
-fn mainnet_on_the_desktop_takes_only_public_seeds() {
+fn demo_takes_only_public_seeds_and_a_test_mode_takes_any() {
     let c = testkit::compute();
     let mut app = desktop();
     assert!(
@@ -117,19 +85,34 @@ fn mainnet_on_the_desktop_takes_only_public_seeds() {
             .is_ok()
     );
     assert!(app.session.keys.add_words(&c, OTHER, "", None).is_err());
-    // A test network takes any seed, and mainnet is refused while that
-    // key is loaded.
-    to_testnet(&mut app);
-    assert!(app.session.keys.add_words(&c, OTHER, "", None).is_ok());
-    app.press(Action::Network(Network::Mainnet));
-    assert_eq!(app.session.network(), Network::Testnet);
+    // The same key under a passphrase is another key: not public.
+    assert!(
+        app.session
+            .keys
+            .add_words_with(&c, &demo::words("zebra"), "x", "", None)
+            .is_err()
+    );
+    // A testnet session that is not Demo takes any seed.
+    let mut other = testkit::started();
+    assert!(other.session.keys.add_words(&c, OTHER, "", None).is_ok());
+}
+
+#[test]
+fn a_mainnet_wallet_is_refused_in_demo_even_where_mainnet_is_offered() {
+    let mut app = desktop();
+    app.set_modes(faraday_core::STICK_MODES);
+    load_wallet(&mut app, &wallet_on(Network::Mainnet));
+    assert_eq!(app.mode(), Mode::Demo);
+    assert!(app.session.wallets.is_empty());
+    assert!(app.toast_text().is_some());
 }
 
 #[test]
 fn a_mainnet_wallet_is_refused_on_a_test_network_holding_another_key() {
     let c = testkit::compute();
-    let mut app = desktop();
-    to_testnet(&mut app);
+    let mut app = testkit::started();
+    app.set_modes(DESKTOP_MODES);
+    testkit::move_to(&mut app.session, Network::Testnet).unwrap();
     app.session.keys.add_words(&c, OTHER, "", None).unwrap();
     load_wallet(&mut app, &wallet_on(Network::Mainnet));
     assert_eq!(app.session.network(), Network::Testnet);
@@ -137,46 +120,34 @@ fn a_mainnet_wallet_is_refused_on_a_test_network_holding_another_key() {
 }
 
 #[test]
-fn the_demo_shows_broken_addresses_on_mainnet_only() {
-    let mut app = desktop();
-    let address = "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu";
-    assert_ne!(app.session.shown(address), address);
-    to_testnet(&mut app);
-    let address = "tb1q6rz28mcfaxtmd6v789l9rrlrusdprr9pqcpvkl";
-    assert_eq!(app.session.shown(address), address);
-}
-
-#[test]
-fn a_fixed_network_stays_on_mainnet_whatever_is_loaded() {
+fn a_fixed_network_stays_whatever_is_chosen_or_loaded() {
     let mut app = desktop();
     app.session.keys.fix_network();
-    app.press(Action::Network(Network::Testnet));
-    assert!(app.session.network().is_mainnet());
+    app.press(Action::Mode(Mode::Signet));
+    assert!(!app.restart_requested());
+    assert_eq!(app.mode_after_restart(), Mode::Demo);
     assert_eq!(app.sheet, None);
-    load_wallet(&mut app, &wallet_on(Network::Testnet));
-    assert!(app.session.network().is_mainnet());
+    load_wallet(&mut app, &wallet_on(Network::Mainnet));
     assert!(app.session.wallets.is_empty());
     let _ = app.frame();
     assert_eq!(app.sheet, None);
 }
 
 #[test]
-fn the_device_goes_to_a_test_network_without_the_warning() {
+fn the_device_changes_mode_without_the_warning() {
     let c = testkit::compute();
     let mut app = testkit::started();
-    app.press(Action::Network(Network::Testnet));
+    app.press(Action::Mode(Mode::Signet));
     let _ = app.frame();
-    assert_eq!(app.session.network(), Network::Testnet);
     assert_eq!(app.sheet, None);
+    assert_eq!(app.mode_after_restart(), Mode::Signet);
     assert!(app.session.keys.add_words(&c, OTHER, "", None).is_ok());
 }
 
 #[test]
-fn the_demo_names_its_learn_page_first_and_the_device_never() {
+fn demo_names_its_learn_page_first_and_the_device_never() {
     let title = |app: &Faraday| app.learn_pages().first().map(|p| p.title);
-    let mut app = desktop();
-    assert_eq!(title(&app), Some("The demo and its public seeds"));
-    to_testnet(&mut app);
+    let app = desktop();
     assert_eq!(title(&app), Some("The demo and its public seeds"));
     let device = testkit::started();
     assert!(
@@ -187,11 +158,10 @@ fn the_demo_names_its_learn_page_first_and_the_device_never() {
     );
 }
 
-/// The released desktop's app: online, opening on testnet, with the start
-/// warning, before its first frame or stick (F61).
+/// The released desktop's app: online, with the start warning, before its
+/// first frame or stick (F61).
 fn released_desktop() -> Faraday {
     let mut app = desktop();
-    app.session.set_network(Network::Testnet).unwrap();
     app.with_start_warning();
     app
 }
@@ -211,20 +181,23 @@ fn the_released_desktop_warns_at_start_before_any_key_can_be_added() {
     app.press(Action::AirgapUnderstood);
     let _ = app.frame();
     assert_eq!(app.sheet, None);
-    assert_eq!(app.session.network(), Network::Testnet);
+    assert_eq!(app.mode(), Mode::Demo);
     assert!(app.offers(Action::Scan));
-    assert!(app.session.keys.add_words(&c, OTHER, "", None).is_ok());
+    assert!(
+        app.session
+            .keys
+            .add_words(&c, &demo::words("zebra"), "", None)
+            .is_ok()
+    );
 }
 
 #[test]
 fn the_start_warning_is_acknowledged_once_a_session() {
     let mut app = released_desktop();
     app.press(Action::AirgapUnderstood);
-    app.press(Action::Network(Network::Mainnet));
+    app.press(Action::Mode(Mode::Signet));
     let _ = app.frame();
-    app.press(Action::Network(Network::Signet));
-    let _ = app.frame();
-    assert_eq!(app.session.network(), Network::Signet);
+    assert_eq!(app.mode_after_restart(), Mode::Signet);
     assert_eq!(app.sheet, None);
 }
 
@@ -255,9 +228,8 @@ fn the_boot_import_waits_for_the_start_warning() {
 }
 
 #[test]
-fn a_developer_desktop_opens_on_testnet_with_no_warning() {
+fn a_developer_desktop_opens_with_no_warning() {
     let mut app = desktop();
-    app.session.set_network(Network::Testnet).unwrap();
     app.without_airgap_warning();
     let _ = app.frame();
     assert_eq!(app.sheet, None);

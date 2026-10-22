@@ -43,7 +43,6 @@ fn top(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, name: &str) -> f32 {
 /// found address (`mark` is where it matched) has the matched part in the
 /// accent and heavier. Returns the height used.
 fn row(
-    app: &View,
     ui: &mut Ui,
     (x, y, width): (f32, f32, f32),
     at: (bool, u32),
@@ -63,14 +62,13 @@ fn row(
         &fill(name, &[&at.1.to_string()]),
     );
     let y2 = y + T::PAD + T::GAP_SMALL;
-    let shown = app.session.shown(a);
     let none = 0..0;
     let used = ui.wrap_marked(
         (x, y2, width),
         T::LABEL,
         W::M,
         (TEXT, ACCENT),
-        &shown,
+        a,
         mark.unwrap_or(&none).clone(),
     );
     y2 - y + used + T::GAP
@@ -140,7 +138,7 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ];
     y += button_rows(ui, x, y, width, &steps);
     for (i, a) in app.explore_list() {
-        y += row(app, ui, (x, y, width), (e.change, i), (&a, None));
+        y += row(ui, (x, y, width), (e.change, i), (&a, None));
     }
     crate::compact::screen::finish(app, ui, x0, cw, h, y - start + T::PAD);
 }
@@ -199,7 +197,7 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += button_rows(ui, x, y, width, &[(go.0, go.1, xa(XAction::Search))]);
     let of = app.explore_account();
     if let Some(s) = e.search.as_ref().filter(|s| Some(&s.of) == of.as_ref()) {
-        y += result(app, ui, x, y, width, s);
+        y += result(ui, x, y, width, s);
     }
     crate::compact::screen::finish(app, ui, x0, cw, h, y - start + T::PAD);
 }
@@ -208,7 +206,7 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// match, receive or change and its index, and how many more there are
 /// than are listed; or that the address is not among those looked at.
 /// Returns the height used.
-fn result(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, s: &Search) -> f32 {
+fn result(ui: &mut Ui, x: f32, y: f32, width: f32, s: &Search) -> f32 {
     let mut cy = y;
     let depth = thousands(u64::from(s.depth));
     if s.running() {
@@ -227,7 +225,6 @@ fn result(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, s: &Search) -> f3
     }
     for f in &s.found {
         cy += row(
-            app,
             ui,
             (x, cy, width),
             (f.change, f.index),

@@ -111,7 +111,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 32.0;
     }
     y += button_rows(ui, px, y, pw, &scripts) + 6.0;
-    let shown = app.session.shown(&r.address);
+    let shown = r.address.clone();
     for (label, value) in [
         (EN.explore_address, shown.as_str()),
         (EN.explore_public_key, r.public_key.as_str()),

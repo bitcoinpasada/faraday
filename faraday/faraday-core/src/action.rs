@@ -210,10 +210,10 @@ pub enum Action {
     /// Restore the wallet in record r of open vault v, with the vault's
     /// keys for its slots.
     RFromVault(usize, usize),
-    /// Move the session to this network.
-    Network(faraday_bip::keys::Network),
+    /// Choose this mode: a lock, and a fresh session in the mode (F81).
+    Mode(crate::modes::Mode),
     /// The online app's not-air-gapped warning acknowledged: the test
-    /// network, if one was asked for, follows.
+    /// mode, if one was asked for, follows.
     AirgapUnderstood,
     /// Close a sheet.
     Cancel,

@@ -48,7 +48,7 @@ fn shown() -> Faraday {
         boot: BootState::Unknown,
         memory_mib: None,
     }));
-    app.press(Action::Network(testkit::NET));
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
     app
 }
 

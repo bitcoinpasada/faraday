@@ -51,13 +51,14 @@ fn tall(app: &mut Faraday) {
 }
 
 /// The app with the test vault in Files and the clock checked: as the
-/// demo has it (online, on mainnet, the public seeds set up), or as the
+/// demo has it (online, on testnet, the public seeds set up), or as the
 /// stick has it.
 fn app_on(demo: bool) -> Faraday {
     let c = testkit::compute();
     let mut app = crate::common::process(vec![vault_file()], Vec::new(), Vec::new());
     if demo {
         app.online = true;
+        testkit::move_to(&mut app.session, Network::Testnet).unwrap();
         app.session.set_demo(&c);
     }
     crate::common::keep_time(&mut app);
@@ -180,11 +181,9 @@ fn on_the_stick_and_on_a_test_network_make_a_gpg_key_makes_one() {
     assert!(opened && make);
     assert_eq!(keys, 1, "the stick makes the key");
 
-    // The demo set up, moved to a test network: the demo is off.
-    let mut app = app_on(true);
-    app.press(Action::Network(Network::Testnet));
-    app.press(Action::AirgapUnderstood);
-    assert_eq!(app.session.network(), Network::Testnet);
+    // A test network with no demo set up.
+    let mut app = app_on(false);
+    testkit::move_to(&mut app.session, Network::Testnet).unwrap();
     let (_, make, keys, _) = make_from_tools(&mut app, Kind::Gpg, &["Release", ""]);
     assert!(make);
     assert_eq!(keys, 1, "a test network makes the key");
@@ -206,10 +205,8 @@ fn in_the_demo_the_gpg_key_screen_names_the_demo_page_first() {
 
 #[test]
 fn on_a_test_network_the_gpg_key_screen_does_not_name_the_demo_page_first() {
-    let mut app = app_on(true);
-    app.press(Action::Network(Network::Testnet));
-    app.press(Action::AirgapUnderstood);
-    assert_eq!(app.session.network(), Network::Testnet);
+    let mut app = app_on(false);
+    testkit::move_to(&mut app.session, Network::Testnet).unwrap();
     crate::common::start(&mut app, Kind::Gpg);
     assert_eq!(app.screen, Screen::BackupFlow);
     assert_ne!(app.learn_pages().first().map(|p| p.title), Some(DEMO_PAGE));

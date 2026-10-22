@@ -54,7 +54,7 @@ fn not_drawn(app: &mut Faraday, secret: &[String]) {
 /// The app with the test seed loaded, on Wallets.
 fn with_key() -> Faraday {
     let mut app = testkit::started();
-    app.press(Action::Network(testkit::NET));
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
     app.press(Action::Entry(None));
     typed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));
     app.press(Action::EntryAdd);

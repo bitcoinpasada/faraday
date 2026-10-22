@@ -130,7 +130,7 @@ fn made() -> (Faraday, usize) {
 /// [`made`] on the test network.
 fn made_on_testnet() -> (Faraday, usize) {
     let mut app = testkit::started();
-    app.press(Action::Network(faraday_bip::keys::Network::Testnet));
+    testkit::move_to(&mut app.session, faraday_bip::keys::Network::Testnet).unwrap();
     assert_eq!(app.session.network(), faraday_bip::keys::Network::Testnet);
     made_on(app)
 }
@@ -547,6 +547,7 @@ fn a_cosigners_xpub_at_another_account_leaves_its_slot_to_someone_else() {
     let c = faraday_core::testkit::compute();
     use faraday_core::create::Source;
     let mut app = testkit::started();
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
     add_key(&mut app, "bacon");
     add_key(&mut app, "zebra");
     let keys: Vec<String> = (0..3).map(|n| testkit::key(n, "m/48'/1'/0'/2'")).collect();

@@ -93,8 +93,11 @@ fn a_scanned_address_with_one_character_wrong_is_refused_for_its_checksum() {
     )]);
     app.press(Action::LoadWallet(0));
     let ours = app.session.address(&c, &app.session.wallets[0], false, 0);
-    let wrong = faraday_core::wallet::broken_checksum(&ours);
-    assert_ne!(wrong, ours);
+    // The same address with its last character changed: a bech32
+    // checksum catches any one wrong character.
+    let mut wrong = ours.clone();
+    let last = wrong.pop().unwrap();
+    wrong.push(if last == 'q' { 'p' } else { 'q' });
     app.press(Action::Scan);
     scan(&mut app, &wrong);
     let said = note(&app);

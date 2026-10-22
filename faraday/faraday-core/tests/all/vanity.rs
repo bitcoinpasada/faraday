@@ -9,7 +9,7 @@ use faraday_shell_api::{App, Event, Key};
 
 fn with_key() -> Faraday {
     let mut app = faraday_core::testkit::started();
-    app.press(Action::Network(testkit::NET));
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
     app.press(Action::Entry(None));
     for c in testkit::test_words("bacon").chars() {
         app.event(Event::Key(Key::Char(c)));

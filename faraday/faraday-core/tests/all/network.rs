@@ -1,41 +1,13 @@
-//! The network follows what comes in: a testnet wallet or PSBT moves the
-//! session to testnet, and a wallet or PSBT from another network than the
-//! loaded wallets is refused. Every key and wallet form on the test stick
-//! loads as the wallet or key it stands for.
+//! The network follows what comes in, but only into an empty session: a
+//! testnet wallet or PSBT moves a session with no key and no wallet to
+//! testnet, and one from another network than the session's is refused
+//! once a key or a wallet is loaded (F81). Every key and wallet form on the
+//! test stick loads as the wallet or key it stands for.
 
 use faraday_bip::keys::Network;
 use faraday_core::testkit;
 use faraday_core::wallet::{FileKind, Session, classify};
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
-use faraday_shell_api::App;
-
-#[test]
-fn home_has_no_network_target_on_mainnet() {
-    let app = testkit::started();
-    assert_eq!(app.session.network(), Network::Mainnet);
-    assert!(!app.offers(Action::Network(Network::Testnet)));
-}
-
-#[test]
-fn settings_changes_the_network() {
-    let mut app = testkit::started();
-    app.press(Action::Nav(Screen::Settings));
-    let _ = app.frame();
-    assert!(app.offers(Action::Network(Network::Testnet)));
-    app.press(Action::Network(Network::Testnet));
-    assert_eq!(app.session.network(), Network::Testnet);
-    assert_eq!(app.sheet, None);
-}
-
-#[test]
-fn off_mainnet_home_is_still_a_badge_with_no_target() {
-    let mut app = testkit::started();
-    app.press(Action::Nav(Screen::Settings));
-    app.press(Action::Network(Network::Testnet));
-    app.press(Action::Nav(Screen::Home));
-    let _ = app.frame();
-    assert!(!app.offers(Action::Network(Network::Mainnet)));
-}
 
 /// BIP-84's account 0 for the "abandon … about" seed: a mainnet wallet.
 const MAINNET_WALLET: &str = "wpkh([73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)";
@@ -82,18 +54,41 @@ fn a_testnet_wallet_moves_the_session_to_testnet_and_a_mainnet_one_is_then_refus
 }
 
 #[test]
-fn moving_to_mainnet_is_refused_while_testnet_wallets_are_loaded() {
+fn a_testnet_wallet_is_refused_once_a_key_is_loaded() {
+    let c = testkit::compute();
     let mut app = with_inbox(vec![(
         "spending-wallet.txt",
         kit("spending").descriptor.into_bytes(),
     )]);
+    app.session
+        .keys
+        .add_words(
+            &c,
+            "abandon abandon abandon abandon abandon abandon \
+                        abandon abandon abandon abandon abandon about",
+            "",
+            None,
+        )
+        .unwrap();
     app.press(Action::LoadWallet(0));
-    app.press(Action::Network(Network::Mainnet));
-    assert_eq!(app.session.network(), Network::Testnet);
-    // Signet writes keys as testnet does: the same wallets stay.
-    app.press(Action::Network(Network::Signet));
-    assert_eq!(app.session.network(), Network::Signet);
+    assert!(
+        app.session.wallets.is_empty(),
+        "the testnet wallet was loaded"
+    );
+    assert_eq!(app.session.network(), Network::Mainnet);
+    assert!(app.toast_text().is_some_and(|t| t.contains("Testnet")));
+}
+
+#[test]
+fn a_signet_wallet_loads_on_testnet_where_keys_are_written_alike() {
+    let mut app = with_inbox(vec![(
+        "spending-wallet.txt",
+        kit("spending").descriptor.into_bytes(),
+    )]);
+    testkit::move_to(&mut app.session, Network::Signet).unwrap();
+    app.press(Action::LoadWallet(0));
     assert_eq!(app.session.wallets.len(), 1);
+    assert_eq!(app.session.network(), Network::Signet);
 }
 
 #[test]
@@ -245,13 +240,11 @@ fn a_key_reads_the_same_fingerprint_on_the_wallets_page_on_either_network() {
     app.press(Action::Nav(Screen::Wallets));
     assert!(crate::common::has(&mut app, "73c5da0a · Seed"));
 
-    app.press(Action::Nav(Screen::Settings));
-    app.press(Action::Network(Network::Testnet));
-    assert_eq!(app.session.network(), Network::Testnet);
+    testkit::move_to(&mut app.session, Network::Testnet).unwrap();
     app.press(Action::Nav(Screen::Wallets));
     assert!(crate::common::has(&mut app, "73c5da0a · Seed"));
 
-    app.session.set_network(Network::Mainnet).unwrap();
+    testkit::move_to(&mut app.session, Network::Mainnet).unwrap();
     app.press(Action::Nav(Screen::Wallets));
     assert!(crate::common::has(&mut app, "73c5da0a · Seed"));
 }

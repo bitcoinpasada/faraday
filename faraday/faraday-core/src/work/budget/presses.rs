@@ -13,14 +13,14 @@ use crate::{Action, Faraday, Screen};
 
 /// Presses left out, by the start of their name: each ends the session
 /// or drops what the next press needs (a lock, a wipe, a change of
-/// network, a removal; a shorter idle lock locks on the next tick), or
+/// mode, a removal; a shorter idle lock locks on the next tick), or
 /// is a hold that a press does not finish.
 const SKIP: [&str; 17] = [
     "Lock",
     "PowerOff",
     "Restart",
     "Wipe",
-    "Network",
+    "Mode",
     "Demo",
     "Forget",
     "Delete",

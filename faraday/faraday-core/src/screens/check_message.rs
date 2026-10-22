@@ -126,11 +126,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += card_h + 20.0;
     let rows = [
         (EN.check_file, item.name.clone(), W::M),
-        (
-            EN.check_address,
-            grouped(&app.session.shown(&c.signed.address)),
-            W::M,
-        ),
+        (EN.check_address, grouped(&c.signed.address), W::M),
         (
             EN.check_wallet,
             match c.wallet {

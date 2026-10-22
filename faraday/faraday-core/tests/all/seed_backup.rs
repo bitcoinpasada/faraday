@@ -35,6 +35,7 @@ fn kit_file(name: &str) -> (String, Vec<u8>) {
 
 fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     // The shell's randomness, which a lock seals a vault with.
     app.event(Event::Entropy(EntropyBytes::new([3u8; 32])));
     app.event(Event::Display(DisplayInfo {
@@ -298,6 +299,8 @@ fn the_words_file_read_from_a_stick_loads_the_same_key() {
     assert!(name.ends_with("-words.txt"), "{name}");
 
     let mut next = testkit::started();
+
+    faraday_core::testkit::move_to(&mut next.session, faraday_core::testkit::NET).unwrap();
     next.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: STICK.to_string(),

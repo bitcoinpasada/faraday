@@ -310,7 +310,7 @@ pub(crate) fn shape(
         Ok(a) => {
             ui.text(x, cy, 12.0, W::R, MUTED, EN.seeds_first_receive);
             cy += 22.0;
-            cy += ui.wrap(x, cy, w, 15.0, W::M, TEXT, &grouped(&app.session.shown(&a))) + 14.0;
+            cy += ui.wrap(x, cy, w, 15.0, W::M, TEXT, &grouped(&a)) + 14.0;
         }
         Err(e) => {
             cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, &e) + 12.0;

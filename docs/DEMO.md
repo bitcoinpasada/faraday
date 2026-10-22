@@ -29,29 +29,32 @@
 
 ## 2. What "the demo" is now
 
-The demo is a session whose shell called `Session::set_demo` and which
-is on mainnet: `Session::demo()` is true. Two builds have one:
+The demo is **Demo**, a mode (F81, `docs/MODES.md`): a session whose
+shell called `Session::set_demo`, on Testnet. `Keys::demo()` is true, and
+`Faraday::mode()` is Demo. Its keys derive at coin type 1 and its
+addresses are real testnet addresses, so nothing sent to a public seed's
+address is bitcoin. Two builds have it:
 
-- **The website**, which also calls `Session::fix_network`, so it is on
-  mainnet for the whole session and always the demo.
-- **Faraday Desktop**, a developer's build or a release, which opens on
-  testnet, where it is not the demo, and is the demo once moved to
-  mainnet (F20, F61). A release build first shows F20's online warning
-  once at start (F61).
+- **The website**, which also calls `Session::fix_network`, so it is in
+  Demo for the whole session.
+- **Faraday Desktop**, a developer's build or a release, which starts in
+  Demo. Leaving it for Testnet, Signet or Regtest is a lock into a
+  fresh session in that mode (F81); a release build first shows F20's
+  online warning once per program start (F61).
 
-The stick, the Pi and the `Faraday` the Starter holds for
-Transfer and Learn never call `set_demo`; nothing in this spec changes
-them.
+The stick, the Pi and the `Faraday` the Starter holds for Transfer and
+Learn never call `set_demo`: the stick has no Demo mode, and nothing in
+this spec changes them.
 
 **The gate.** One function in `faraday-core`, `Faraday::makes_secrets()`,
-is false while `Session::demo()` is true and true otherwise. Every
+is false while `Keys::demo()` is true (Demo) and true otherwise. Every
 action in §4 asks it, in two places: the screen draws the action with
 `Style::Disabled`, and the action's handler does nothing when it is
 false, so a key press, a click, a shell message or a test's action all
 meet the same refusal. No action in §4 has a path around it.
 
 **Test networks in Faraday Desktop** keep F20's rules: any seed, real
-addresses, the warning first. `Session::demo()` is false there, so every
+addresses, the warning first. `Keys::demo()` is false there, so every
 action in §4 is live on a test network, which is how a developer tries
 Make flows without a stick. A key made there is a real key made on an
 online computer; the test-network warning is the guard, as it is for
@@ -82,6 +85,9 @@ draws salts and nonces and signing draws nonces; neither is a secret a
 person keeps.
 
 ## 4. Disabled in the demo
+
+Every action below is dimmed in Demo and live in every other mode,
+Testnet, Signet and Regtest included.
 
 | Action | Screen | What it would make |
 |---|---|---|
@@ -117,7 +123,7 @@ public values work; only the actions in the table are disabled.
 - **Wallets**: every kind built from public seeds (single-key, multisig,
   Taproot multisig, MuSig2, miniscript and recovery, silent payments'
   address and labels), Restore, Check an
-  address, addresses with a broken checksum (F20), the wallet card and
+  address, addresses (real testnet addresses, F81), the wallet card and
   its chart.
 - **Spending**: Sign a transaction, the Spend tab, the nonce check,
   Decode, MuSig2 and FROST signing rounds.
@@ -175,7 +181,7 @@ any copy made away from the device is.
 | Case | Decision | Why |
 |---|---|---|
 | Typing a password or TOTP secret into a vault Entry | Open | Typed, not generated, and the only way to try entries, TOTP codes and KeePass export. The demo cannot tell a real password from a made-up one, as it cannot tell a funded seed on a test network; the demo's Learn page says to type nothing real |
-| Typing an LND cipher seed (aezeed) on Lightning node key | Disabled: the **An LND cipher seed** row of From? is dimmed | No public aezeed exists, so whatever is typed is someone's real node seed, and the demo cannot refuse it as it refuses a seed. A loaded public seed is the other source and stays |
+| Typing an LND cipher seed (aezeed) on Lightning node key | Open in Demo, taking LND's published vector only (F81, from batch M7 of `docs/MODES.md`; until then the **An LND cipher seed** row of From? stays dimmed) | Whatever else is typed would be someone's real node seed, so Demo refuses it as it refuses a key that is not public. A loaded public seed is the other source and stays |
 | Making a vault | Open, with a typed passphrase; **Generate with dice** open, its words replaced by the demo's public passphrase (§5.2) | It encrypts what the demo holds: public seeds and what was typed. Its keys are internal to the file and never shown. The rolled words are dropped, as New key's are, so the passphrase the vault takes is public |
 | BIP-85 outputs | Disabled, as the owner said | Derived from a public seed, so anyone can derive them, but they look like a fresh password or seed and would be used as one |
 | Lightning node private key, silent payments scan key | Disabled | Derived private keys for use in another program, as BIP-85's are |
@@ -183,7 +189,7 @@ any copy made away from the device is.
 | Seed XOR, codex32 and SLIP-39 splits of a public seed | Disabled | The parts are fresh randomness; a person copying them would hold something that looks like a real backup |
 | A single codex32 string of a public seed (k of 1), where offered | Open | Another spelling of a public seed, with no randomness |
 | Encrypted backup, KeePass export, sealed files | Open | Encryption of what is held, under a typed passphrase or password |
-| Vanity address's passphrase dial | Disabled | It makes a new key under a passphrase; F20 would refuse that key on mainnet anyway |
+| Vanity address's passphrase dial | Disabled | It makes a new key under a passphrase; Demo refuses that key anyway |
 | FROST deal | Disabled | The dealt shares are new seeds that are not public seeds |
 
 ## 7. How a disabled action looks

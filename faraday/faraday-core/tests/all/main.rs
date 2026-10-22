@@ -62,6 +62,7 @@ mod learn;
 mod left_by_tap;
 mod lightning;
 mod loose_key;
+mod modes;
 mod mouse_buttons;
 mod names_kept;
 mod network;

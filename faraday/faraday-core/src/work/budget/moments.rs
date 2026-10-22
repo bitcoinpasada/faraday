@@ -103,7 +103,7 @@ fn at_unlock() -> Faraday {
         kept: Vec::new(),
     });
     app.vaults.ms_per_unit = Some(180);
-    let _ = app.session.set_network(testkit::NET);
+    let _ = testkit::move_to(&mut app.session, testkit::NET);
     app.press(Action::Nav(Screen::Vaults));
     let n = app
         .vault_files()
@@ -227,7 +227,7 @@ fn unlock_to_the_load_sheet_and_load_do_their_fixed_work() {
 fn with_spend() -> Faraday {
     let c = crate::testkit::compute();
     let mut app = testkit::started();
-    let _ = app.session.set_network(testkit::NET);
+    let _ = testkit::move_to(&mut app.session, testkit::NET);
     for (word, l) in &testkit::TEST_SEEDS[..2] {
         let _ = app
             .session

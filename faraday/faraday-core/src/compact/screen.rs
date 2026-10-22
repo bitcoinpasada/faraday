@@ -402,15 +402,7 @@ fn silent_card(
     }
     cy += 10.0;
     cy += heading(ui, x, cy, EN.compact_address);
-    cy += ui.wrap(
-        x,
-        cy,
-        iw,
-        14.0,
-        W::M,
-        TEXT,
-        &app.session.shown(&r.address()),
-    ) + 14.0;
+    cy += ui.wrap(x, cy, iw, 14.0, W::M, TEXT, &r.address()) + 14.0;
     ui.text(x, cy, 13.0, W::S, MUTED, EN.compact_labels_handed);
     ui.text_right(
         x + iw,

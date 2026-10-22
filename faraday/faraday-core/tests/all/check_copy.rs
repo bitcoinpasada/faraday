@@ -39,6 +39,7 @@ const GOOD: &str = "good battle boil exact add seed angle hurry success glad car
 
 fn shown_on(width: u16, height: u16, dpi: u16) -> Faraday {
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
         width,
         height,

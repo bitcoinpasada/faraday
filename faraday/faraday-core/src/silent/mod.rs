@@ -267,9 +267,7 @@ impl Faraday {
         let mut lines = vec![fill(EN.silent_silent_payment, &[&fp.to_string()])];
         let (title, text, name) = match code {
             crate::Code::Silent(uri) => {
-                let a = self
-                    .session
-                    .shown(&self.silent_address(c).ok_or(EN.silent_no_address_for)?);
+                let a = self.silent_address(c).ok_or(EN.silent_no_address_for)?;
                 let mut name = format!("silent-{fp}");
                 if s.label > 0 {
                     lines.push(fill(EN.silent_label, &[&s.label.to_string()]));

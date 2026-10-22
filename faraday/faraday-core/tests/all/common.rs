@@ -1207,6 +1207,7 @@ pub fn shown(app: &mut Faraday, want: &str) -> bool {
 
 pub fn device(inbox: Files) -> Faraday {
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height: 768,

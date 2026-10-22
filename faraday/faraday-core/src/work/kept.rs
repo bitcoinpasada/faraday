@@ -345,7 +345,7 @@ fn a_psbt_waiting_in_files_is_offered_on_its_wallets_card_once_the_wallet_loads(
     let kits = testkit::kits();
     let savings = kits.iter().find(|k| k.id == "savings").expect("Savings");
     let mut app = testkit::started();
-    let _ = app.session.set_network(testkit::NET);
+    let _ = testkit::move_to(&mut app.session, testkit::NET);
     let psbt = testkit::unsigned(savings).expect("Savings' spend");
     app.storage(StorageEvent::Restored {
         inbox: vec![("savings-unsigned.psbt".into(), psbt.to_bytes())],
@@ -381,7 +381,7 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
     let kits = testkit::kits();
     let savings = kits.iter().find(|k| k.id == "savings").expect("Savings");
     let mut app = testkit::started();
-    let _ = app.session.set_network(testkit::NET);
+    let _ = testkit::move_to(&mut app.session, testkit::NET);
     app.session
         .add_wallet(&c, savings.name, &savings.descriptor, "test", Origin::Named)
         .expect("Savings loads");
@@ -461,7 +461,7 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
     let (n1, b1) = wallet_file(one.id);
     let (n2, b2) = wallet_file(two.id);
     let mut app = testkit::started();
-    let _ = app.session.set_network(testkit::NET);
+    let _ = testkit::move_to(&mut app.session, testkit::NET);
     let mut last = format!("{:?}", kept_found(&app));
     let mut step = |app: &mut crate::Faraday, what: &str, changes: bool| {
         let kept = format!("{:?}", kept_found(app));

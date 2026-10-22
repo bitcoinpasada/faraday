@@ -372,6 +372,7 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
         ("vault.ofv".into(), testkit::test_vault().unwrap()),
     ];
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });

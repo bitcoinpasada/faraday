@@ -15,6 +15,7 @@ const STICK: &str = "S1";
 /// A started app on Stick visit, with a stick in.
 fn visiting() -> Faraday {
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: STICK.to_string(),
@@ -75,6 +76,7 @@ fn checksum(text: &str) -> String {
 fn holding(name: &str, descriptor: &str) -> (Faraday, usize) {
     let c = faraday_core::testkit::compute();
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.session = testkit::session();
     let w = app
         .session
@@ -251,6 +253,7 @@ fn a_share_picture_names_what_it_holds_and_leaves_off() {
 fn checklist_for(name: &str, descriptor: &str) -> (Faraday, usize) {
     let c = faraday_core::testkit::compute();
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.press(Action::Entry(None));
     for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
         app.event(Event::Key(Key::Char(c)));

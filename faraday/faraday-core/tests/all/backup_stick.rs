@@ -101,6 +101,7 @@ fn display(app: &mut Faraday) {
 fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_seeds() {
     let files = testkit::backup_files().unwrap();
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     display(&mut app);
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
@@ -168,6 +169,7 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
 fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
     use faraday_core::family::FamilyAction as F;
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     display(&mut app);
     app.storage(StorageEvent::Restored {
         inbox: testkit::backup_files().unwrap(),
@@ -253,6 +255,7 @@ fn lock_sheet_lines(app: &mut Faraday) -> Vec<String> {
 #[test]
 fn the_lock_sheet_lists_a_seed_in_memory_only_as_nowhere_else() {
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     let label = with_seed(&mut app);
     let lines = lock_sheet_lines(&mut app);
     assert!(lines.iter().any(|l| l == "Kept"), "{lines:?}");
@@ -268,6 +271,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     let c = testkit::compute();
     use faraday_core::bstep;
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     // The shell's randomness, which a lock seals the vault with.
     app.event(Event::Entropy(EntropyBytes::new([3u8; 32])));
     app.storage(StorageEvent::Memory {
@@ -334,6 +338,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
 fn with_two_vault_files_waiting_a_visit_ticks_one() {
     let vault = testkit::test_vault().unwrap();
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     display(&mut app);
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),

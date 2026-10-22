@@ -4667,7 +4667,7 @@ pub struct Strings {
     pub step_to_2: &'static str,
     /// Text in `step_body`.
     pub step_change: &'static str,
-    /// Text in `step_body`. `{}`: `short(&app.session.shown(&o.address))`.
+    /// Text in `step_body`. `{}`: `short(&o.address)`.
     pub step_to: &'static str,
     /// Text in `step_body`.
     pub step_unverified: &'static str,
@@ -6221,9 +6221,6 @@ pub struct Strings {
     pub locked_no_power_off: &'static str,
     /// Button in `locked_sheet`.
     pub locked_continue: &'static str,
-    // ----- network_row_note (faraday-core/src/screens/settings.rs) -----
-    /// Text in `network_row_note`.
-    pub network_row_note_wallets: &'static str,
     // ----- not_airgapped (faraday-core/src/screens/sheets.rs) -----
     /// Text in `not_airgapped_sheet`.
     pub test_network_cancel: &'static str,
@@ -7844,6 +7841,9 @@ pub struct Strings {
     pub visit_taken_keep_both: &'static str,
     /// Text in `taken_sheet`.
     pub visit_taken_cancel: &'static str,
+    // ----- modes (faraday-core/src/modes/mod.rs) -----
+    /// Text in `Mode::name`.
+    pub mode_demo: &'static str,
     // ----- wallet (faraday-core/src/wallet.rs) -----
     /// Text in `network_name`.
     pub wallet_mainnet: &'static str,
@@ -7869,8 +7869,6 @@ pub struct Strings {
     pub wallet_is_not_a_key: &'static str,
     /// Text in `text`. `{}`: `network_name(*n)`.
     pub wallet_runs_on_only: &'static str,
-    /// Text in `text`. `{}`: `fp`.
-    pub wallet_public_seeds_only: &'static str,
     /// Text in `source_tag`. `{}`: `source`.
     pub wallet_from: &'static str,
     /// Text in `source_tag`. `{}`: `source`.
@@ -11859,7 +11857,6 @@ pub static EN: Strings = Strings {
     locked_powers_off_in: "Powers off in {} without input",
     locked_no_power_off: "{} {} · no power-off until written",
     locked_continue: "Continue",
-    network_row_note_wallets: "Wallets loaded",
     test_network_cancel: "Cancel",
     test_network_i_understand: "I understand",
     test_network_title: "Test network",
@@ -12652,6 +12649,7 @@ pub static EN: Strings = Strings {
     visit_taken_replace: "Replace",
     visit_taken_keep_both: "Keep both",
     visit_taken_cancel: "Cancel",
+    mode_demo: "Demo",
     wallet_mainnet: "Mainnet",
     wallet_testnet: "Testnet",
     wallet_signet: "Signet",
@@ -12664,7 +12662,6 @@ pub static EN: Strings = Strings {
     wallet_is_not_the_network: "{} is not {}, the network of the loaded wallets",
     wallet_is_not_a_key: "{} is not a public seed: on mainnet this app takes only those",
     wallet_runs_on_only: "This app runs on {} only",
-    wallet_public_seeds_only: "{} is loaded, and on mainnet this app takes only public seeds",
     wallet_from: "From {}",
     wallet_from_inline: "from {}",
     wallet_a_master_seed: "a master seed is 16 to 64 bytes",

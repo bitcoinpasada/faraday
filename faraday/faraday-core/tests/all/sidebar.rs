@@ -425,7 +425,7 @@ fn the_row_goes_when_the_flow_is_started_over() {
 #[test]
 fn the_row_goes_when_the_flow_is_finished() {
     let mut app = testkit::started();
-    app.press(Action::Network(testkit::NET));
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
     app.press(Action::RestoreWallet);
     app.press(Action::RNext(rstep::KIND));
     app.press(Action::RSeeds);
@@ -651,7 +651,7 @@ fn the_gpg_flows_cancel_removes_its_tools_row() {
 #[test]
 fn restores_cancel_ends_it_and_removes_its_row() {
     let mut app = testkit::started();
-    app.press(Action::Network(testkit::NET));
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::RestoreWallet);
     app.press(Action::RNext(rstep::KIND));

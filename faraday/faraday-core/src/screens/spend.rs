@@ -567,10 +567,7 @@ pub(crate) fn step_body(
                 rows.push((
                     EN.step_sends.into(),
                     btc(o.amount.to_sat()),
-                    fill(
-                        EN.step_to,
-                        &[&short(&app.session.shown(&o.address)).to_string()],
-                    ),
+                    fill(EN.step_to, &[&short(&o.address).to_string()]),
                     None,
                 ));
             }
@@ -595,10 +592,7 @@ pub(crate) fn step_body(
                         rows.push((
                             EN.step_change.into(),
                             btc(o.amount.to_sat()),
-                            fill(
-                                EN.step_to,
-                                &[&short(&app.session.shown(&o.address)).to_string()],
-                            ),
+                            fill(EN.step_to, &[&short(&o.address).to_string()]),
                             Some((EN.step_unverified, WARN)),
                         ));
                     }
@@ -733,13 +727,11 @@ pub(crate) fn step_body(
                             format!("{}:{}", short(&inp.txid.to_string()), inp.vout),
                         )
                     })
-                    .chain(i.outputs.iter().map(|o| {
-                        (
-                            EN.step_output,
-                            btc(o.amount.to_sat()),
-                            app.session.shown(&o.address),
-                        )
-                    }))
+                    .chain(
+                        i.outputs
+                            .iter()
+                            .map(|o| (EN.step_output, btc(o.amount.to_sat()), o.address.clone())),
+                    )
                     .collect::<Vec<_>>();
                 for (label, amount, what) in &lines {
                     ui.text(x, cy, 12.0, W::R, MUTED, label);
@@ -768,7 +760,7 @@ pub(crate) fn step_body(
                 }
                 for o in &i.outputs {
                     ui.text(x, cy, 12.0, W::R, MUTED, EN.step_output);
-                    let shown = app.session.shown(&o.address);
+                    let shown = o.address.clone();
                     let used = ui.wrap(x + 64.0, cy, w - 64.0 - 110.0, 12.0, W::M, TEXT, &shown);
                     ui.text_right(
                         x + w,
@@ -1663,7 +1655,7 @@ fn spend_panel(
     y += 30.0;
     let to = recipients(i)
         .first()
-        .map(|o| short(&app.session.shown(&o.address)))
+        .map(|o| short(&o.address))
         .unwrap_or_else(|| "·".into());
     let change = if i.outputs.iter().any(|o| o.is_ours()) {
         EN.spend_panel_verified.to_string()

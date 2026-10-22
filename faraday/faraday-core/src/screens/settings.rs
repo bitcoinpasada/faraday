@@ -6,7 +6,6 @@ use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Theme, Ui, W};
-use crate::wallet::network_name;
 use faraday_ui::parts::{title, wrap_buttons};
 
 /// The panic key, beside Power off on Settings: the stick shell powers
@@ -165,9 +164,6 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += section(ui, x, y, w, EN.settings_network, &|ui, x, y0, w| {
         let mut y = y0;
         y += wrap_buttons(ui, x, y, w, 38.0, &network_row_items(app));
-        if let Some(note) = network_row_note(app) {
-            y += ui.wrap(x, y, w, 13.0, W::R, MUTED, note) + 4.0;
-        }
         y - y0 - 8.0
     });
     y += section(ui, x, y, w, EN.settings_appearance, &|ui, x, y0, w| {
@@ -481,9 +477,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     for (label, style, action) in network_row_items(app) {
         sx += ui.button(sx, y + 46.0, None, 38.0, label, style, action) + 8.0;
     }
-    if let Some(note) = network_row_note(app) {
-        ui.text_mid(sx + 6.0, y + 46.0, 38.0, 13.0, W::R, MUTED, note);
-    }
     y += 114.0;
     // Each theme a tile in its own colours, in rows as wide as the card.
     let inner = width - 44.0;
@@ -704,38 +697,23 @@ fn idle_rows(app: &View) -> Vec<IdleRow> {
     rows
 }
 
-/// The Network row's buttons: every network, the one in use marked
-/// primary, and any not reachable from here (between mainnet and a test
-/// network, while wallets are loaded) disabled. A session whose network is
-/// fixed offers only the one in use.
+/// The Network row's buttons: every mode the app offers, the one in use
+/// marked primary, and every other disabled when the session's network is
+/// fixed (the website). A press is a lock into the mode (F81).
 pub(crate) fn network_row_items(app: &View) -> Vec<(&'static str, Style, Action)> {
-    use faraday_bip::keys::Network;
-    let now = app.session.network();
+    let now = app.mode();
     let fixed = app.session.keys.network_fixed();
-    Network::ALL
+    app.modes()
         .iter()
-        .filter(|&&n| !fixed || n == now)
-        .map(|&n| {
-            let here = n == now;
-            let open = here || n.kind() == now.kind() || app.session.wallets.is_empty();
-            let style = if here {
+        .map(|&m| {
+            let style = if m == now {
                 Style::Primary
-            } else if open {
-                Style::Secondary
-            } else {
+            } else if fixed {
                 Style::Disabled
+            } else {
+                Style::Secondary
             };
-            (network_name(n), style, Action::Network(n))
+            (m.name(), style, Action::Mode(m))
         })
         .collect()
-}
-
-/// "Wallets loaded", muted, after the Network row's buttons when one of
-/// them is disabled: the reason a network can't be chosen, as the old
-/// sheet said it.
-pub(crate) fn network_row_note(app: &View) -> Option<&'static str> {
-    network_row_items(app)
-        .iter()
-        .any(|(_, style, _)| *style == Style::Disabled)
-        .then_some(EN.network_row_note_wallets)
 }

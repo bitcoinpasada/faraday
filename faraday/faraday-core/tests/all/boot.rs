@@ -28,6 +28,7 @@ fn pump(app: &mut Faraday, vault: &[u8]) {
 fn booted() -> (Faraday, Vec<u8>) {
     let vault = testkit::test_vault().unwrap();
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
         width: 1280,
         height: 800,
@@ -114,6 +115,7 @@ fn unlocking_asks_what_to_load_and_load_ticked_loads_it_and_lands_on_wallets() {
 #[test]
 fn restore_starts_with_the_kind_of_wallet() {
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.press(Action::RestoreWallet);
     assert_eq!(
         app.restore.as_ref().unwrap().open,

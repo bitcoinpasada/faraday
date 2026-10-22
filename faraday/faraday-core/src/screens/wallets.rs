@@ -697,15 +697,7 @@ fn silent_wallet_card(
     cy += 64.0;
     ui.text(ix, cy, 13.0, W::S, MUTED, EN.silent_wallet_card_address_2);
     cy += 24.0;
-    cy += ui.wrap(
-        ix,
-        cy,
-        iw,
-        14.0,
-        W::M,
-        TEXT,
-        &app.session.shown(&r.address()),
-    ) + 18.0;
+    cy += ui.wrap(ix, cy, iw, 14.0, W::M, TEXT, &r.address()) + 18.0;
     ui.text(ix, cy, 13.0, W::S, MUTED, EN.silent_wallet_card_labels);
     ui.text(ix + 180.0, cy, 13.0, W::M, TEXT, &r.labels.to_string());
     let _ = card_actions(

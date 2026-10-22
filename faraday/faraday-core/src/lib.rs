@@ -58,7 +58,7 @@
 //! - Sticks, boot and files: `upgrade`, `transfer` (the desktop as the
 //!   device's QR link), `names` (the Starter's install names),
 //!   `secure_boot/state.rs`.
-//! - Support: `wordlist`, `learn`, `tools`, `testkit`.
+//! - Support: `wordlist`, `learn`, `modes` (F81), `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
 //! come before any action, then sends each `Action` to its area's
@@ -199,6 +199,7 @@ pub mod upgrade;
 
 // Support: word lists, the Learn pages, the tools page, test data.
 pub mod learn;
+pub mod modes;
 #[cfg(feature = "testkit")]
 pub mod testkit;
 pub mod tools;
@@ -217,6 +218,7 @@ pub use faraday_intake::secret_buf as secret_text;
 pub use faraday_strings as strings;
 pub use file_menu::Unrenamed;
 pub use medium::Medium;
+pub use modes::{DESKTOP_MODES, Mode, STICK_MODES};
 pub use qr_view::{
     Code, NoPicture, QR_PARTS, QR_SPEEDS, QrFormat, QrSource, QrView, SEEN_FRAMES, ScanPurpose,
     ScanState, Seen, TOO_FINE_TENTHS,
@@ -1638,12 +1640,13 @@ pub struct Faraday {
     /// What is attached that can capture the screen or the keys, as the
     /// stick shell read it (`devices`).
     pub devices: devices::DeviceCheck,
-    /// The online app's warning that this computer is not air-gapped has
-    /// been acknowledged this session: it comes before a test network
-    /// does (F20), and at start in a released Faraday Desktop (F61).
+    /// The online app's not-air-gapped warning has been acknowledged this
+    /// session: it comes before a test mode (F20) and at start (F61).
     airgap_warned: bool,
-    /// The test network asked for while that warning is on show.
-    test_asked: Option<faraday_bip::keys::Network>,
+    /// The test mode asked for while that warning is on show.
+    test_asked: Option<Mode>,
+    /// The mode a lock in progress ends in; cleared when it is not gone through.
+    next_mode: Option<Mode>,
     /// The backup flows, at most one on screen (`docs/BACKUP-FLOW.md` §7).
     pub backup_flows: Vec<backup_flow::BackupFlow>,
     /// The flow on screen.
@@ -1859,6 +1862,7 @@ impl Faraday {
             devices: devices::DeviceCheck::default(),
             airgap_warned: false,
             test_asked: None,
+            next_mode: None,
             backup_flows: Vec::new(),
             flow_on: None,
             stick_problems: Vec::new(),
@@ -3002,6 +3006,7 @@ impl Faraday {
     fn not_kept(&mut self) {
         if self.restart && self.backup_flows.iter().any(|f| f.waiting()) {
             self.restart = false;
+            self.next_mode = None;
             self.toast(EN.toast_lock_not_kept);
         }
     }
@@ -3276,6 +3281,7 @@ impl Faraday {
             Action::LockUnsealed => self.lock_now(),
             Action::LockAsk => self.lock_ask(false),
             Action::NotNow => {
+                self.next_mode = None;
                 self.sheet = None;
                 // Asked for by Upgrade, with no stick in: nothing waits.
                 self.not_now = !std::mem::take(&mut self.upgrade_after_lock);
@@ -3356,6 +3362,7 @@ impl Faraday {
                 self.delete_ask = None;
                 self.visit.taken.clear();
                 self.test_asked = None;
+                self.next_mode = None;
                 self.secret_cancel();
                 self.wordlist = None;
                 self.potential = None;
@@ -3693,7 +3700,7 @@ impl Faraday {
             | Action::IdleOff(..)) => self.power_act(a, &c),
             a @ (Action::InputUse(..)
             | Action::InputIgnore(..)
-            | Action::Network(..)
+            | Action::Mode(..)
             | Action::AirgapUnderstood
             | Action::DevicesCheck
             | Action::DevicesContinue
@@ -8903,16 +8910,6 @@ impl Faraday {
         let Some(mut canvas) = self.canvas.take() else {
             return;
         };
-        // The online app reached a test network some other way (a test
-        // wallet or transaction loaded): the warning comes up over it.
-        if self.online
-            && !self.held
-            && !self.session.network().is_mainnet()
-            && !self.airgap_warned
-            && self.sheet.is_none()
-        {
-            self.sheet = Some(Sheet::NotAirgapped);
-        }
         // A change of screen or sheet fades in from the frame before it.
         self.fade_begin(&canvas);
         let mut hits = std::mem::take(&mut self.hits);

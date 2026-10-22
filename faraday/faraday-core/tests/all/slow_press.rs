@@ -63,6 +63,7 @@ fn the_checklists_pictures_are_made_after_the_frame_that_shows_the_press() {
         .collect();
     let descriptor = format!("wsh(sortedmulti(2,{}))", keys.join(","));
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.press(Action::Entry(None));
     for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
         app.event(Event::Key(Key::Char(c)));
@@ -134,6 +135,7 @@ fn the_checklists_pictures_are_made_after_the_frame_that_shows_the_press() {
 #[test]
 fn a_key_added_by_a_tap_is_stretched_after_the_frame_that_shows_the_press() {
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.press(Action::Entry(None));
     for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
         app.event(Event::Key(Key::Char(c)));
@@ -157,6 +159,7 @@ fn an_aezeed_is_stretched_after_the_frame_that_shows_enter() {
     const CIPHER_SEED: &str = "above judge emerge veteran reform crunch system all snap please \
         shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.press(Action::Lightning);
     assert_eq!(app.screen, Screen::Lightning);
     app.press(Action::LAezeed);

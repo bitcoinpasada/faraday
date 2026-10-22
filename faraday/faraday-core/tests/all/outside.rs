@@ -33,11 +33,12 @@ fn the_camera_closes_on_a_press_beside_it() {
 }
 
 #[test]
-fn the_network_choice_in_settings_changes_the_network_with_no_sheet() {
+fn the_mode_choice_in_settings_locks_into_the_mode_with_no_sheet() {
     let mut app = testkit::started();
     app.press(Action::Nav(Screen::Settings));
-    app.press(Action::Network(faraday_bip::keys::Network::Testnet));
-    assert_eq!(app.session.network(), faraday_bip::keys::Network::Testnet);
+    app.press(Action::Mode(faraday_core::Mode::Signet));
+    assert!(app.restart_requested());
+    assert_eq!(app.mode_after_restart(), faraday_core::Mode::Signet);
     assert_eq!(app.sheet, None);
 }
 

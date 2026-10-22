@@ -109,6 +109,7 @@ fn pump(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
 /// A fresh process with a boot stick holding `files` in.
 fn booted_with(files: &[(String, Vec<u8>)]) -> Faraday {
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -397,6 +398,7 @@ fn import_with_the_stick_in_waits_for_the_pull_to_unlock() {
 fn the_reminders_before_the_passphrase_leave_the_sheet_where_it_was() {
     let files = stick_files();
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.devices =
         faraday_core::devices::DeviceCheck::machine("flags\t: fpu vme", "LENOVO", "20XW", "10");
     app.storage(StorageEvent::Memory {
@@ -650,6 +652,7 @@ fn a_lock_drops_the_import_and_the_next_process_visits_the_stick() {
         }
     }
     let mut next = testkit::started();
+    faraday_core::testkit::move_to(&mut next.session, faraday_core::testkit::NET).unwrap();
     next.storage(StorageEvent::Restored {
         inbox,
         outbox: Vec::new(),
@@ -664,6 +667,7 @@ fn a_lock_drops_the_import_and_the_next_process_visits_the_stick() {
 #[test]
 fn a_picture_on_a_visit_comes_in_ticked_and_has_its_codes_read_into_the_inbox() {
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: "S".into(),
@@ -709,6 +713,7 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
         (format!("{stem}-words.txt"), words.into_bytes()),
     ];
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -776,6 +781,7 @@ fn mouse(app: &mut Faraday) {
 fn a_mouse_plugged_in_at_boot_is_asked_about_before_the_import() {
     let files = stick_files();
     let mut app = testkit::started();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });

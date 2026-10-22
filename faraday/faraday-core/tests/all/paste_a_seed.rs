@@ -189,7 +189,7 @@ fn a_seed_pasted_into_what_do_you_have_asks_how_it_loads() {
     use faraday_core::Screen;
     use faraday_core::family::{FamilyAction as F, page};
     let mut app = desktop();
-    app.press(Action::Network(testkit::NET));
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Next(page::MAP)));
     app.press(Action::Family(F::Next(page::SAFE)));

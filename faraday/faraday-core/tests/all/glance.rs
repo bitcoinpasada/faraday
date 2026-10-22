@@ -35,6 +35,7 @@ fn device_with(width: u16, height: u16, dpi: u16, kept: Files) -> Faraday {
 
 fn device_full(width: u16, height: u16, dpi: u16, inbox: Files, kept: Files) -> Faraday {
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
         width,
         height,

@@ -42,6 +42,7 @@ fn shown() -> Faraday {
 /// money's buttons show under its addresses without scrolling.
 fn shown_at(height: u16) -> Faraday {
     let mut app = Faraday::new();
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
         height,
@@ -102,7 +103,7 @@ fn drawn(app: &mut Faraday) -> String {
 /// The tab on the testing network, past the map and the stick: What do
 /// you have? open.
 fn on_intake(app: &mut Faraday) {
-    app.press(Action::Network(testkit::NET));
+    testkit::move_to(&mut app.session, testkit::NET).unwrap();
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Next(page::MAP)));
     app.press(Action::Family(F::Next(page::SAFE)));

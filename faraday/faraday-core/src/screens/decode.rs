@@ -207,7 +207,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 12.0,
                 W::M,
                 TEXT,
-                &grouped(&app.session.shown(&out.address)),
+                &grouped(&out.address),
             );
             y += ah + 4.0;
             ui.text_mid(x + 26.0, y, 22.0, 12.0, W::R, MUTED, out.kind);
@@ -217,12 +217,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y += wh + 12.0;
             continue;
         }
-        let addr = ui.fit(
-            13.0,
-            W::M,
-            &grouped(&app.session.shown(&out.address)),
-            w - 220.0,
-        );
+        let addr = ui.fit(13.0, W::M, &grouped(&out.address), w - 220.0);
         ui.text_mid(x + 26.0, y, 26.0, 13.0, W::M, TEXT, &addr);
         y += 26.0;
         let kw = ui.text_mid(x + 26.0, y, 22.0, 12.0, W::R, MUTED, out.kind);

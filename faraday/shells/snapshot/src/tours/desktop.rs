@@ -42,12 +42,8 @@ pub(crate) fn pills_tour(t: &mut Tour) -> Result<(), String> {
 pub(crate) fn start_warning_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
     t.app.shell_sticks = true;
-    t.app.session = faraday_core::wallet::Session::default();
+    t.app.session = faraday_core::wallet::Session::on(testkit::NET);
     t.app.session.set_demo(c);
-    t.app
-        .session
-        .set_network(testkit::NET)
-        .map_err(|e| e.text())?;
     t.app.with_start_warning();
     t.shot("desktop-start-warning")?;
     t.press(Action::AirgapUnderstood);
@@ -59,7 +55,7 @@ pub(crate) fn start_warning_tour(c: &Compute, t: &mut Tour) -> Result<(), String
 /// on a public seed.
 pub(crate) fn demo_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
-    t.app.session = faraday_core::wallet::Session::default();
+    t.app.session = faraday_core::wallet::Session::on(testkit::NET);
     t.app.session.set_demo(c);
     t.press(Action::Entry(None));
     type_text(t, &faraday_core::demo::words("bacon"));

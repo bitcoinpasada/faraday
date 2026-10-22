@@ -21,7 +21,7 @@ fn on_page(network: Option<Network>, preset: u8, page: Page) -> Faraday {
     let mut app = faraday_core::testkit::started();
     if let Some(n) = network {
         app.press(Action::Nav(Screen::Settings));
-        app.press(Action::Network(n));
+        faraday_core::testkit::move_to(&mut app.session, n).unwrap();
     }
     app.press(Action::Entry(None));
     for c in ABANDON.chars() {

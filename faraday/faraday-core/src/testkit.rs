@@ -55,6 +55,16 @@ pub fn test_words(word: &str) -> String {
     vec![word; 24].join(" ")
 }
 
+/// Moves `session` to `network` as a shell's start does (no press of a
+/// person reaches this since F81: a mode change is a lock). Refused when
+/// wallets are loaded and `network` is of another kind, or the network
+/// is fixed.
+pub fn move_to(session: &mut Session, network: Network) -> Result<(), crate::wallet::Refusal> {
+    session
+        .keys
+        .set_network(network, !session.wallets.is_empty())
+}
+
 /// A session on the test network.
 pub fn session() -> Session {
     Session::on(NET)
