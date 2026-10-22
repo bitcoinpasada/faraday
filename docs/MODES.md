@@ -1,8 +1,8 @@
 # Modes, Demo and samples
 
 **Kind:** Spec
-**Status:** Partly built (F81): M1 to M5
-**Open:** M6, M7 and M8 of §10 here, and W1 in the website's repository.
+**Status:** Partly built (F81): M1 to M6
+**Open:** M7 and M8 of §10 here, and W1 in the website's repository.
 
 The owner's decisions are F81. This says how they are built. Where it
 and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
