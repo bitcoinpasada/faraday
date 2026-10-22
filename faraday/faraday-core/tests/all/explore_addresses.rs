@@ -228,7 +228,18 @@ fn search(app: &mut Faraday, query: &str, depth: u8) -> u32 {
 /// how many matched.
 fn found(app: &Faraday) -> (Vec<(bool, u32, String)>, u32) {
     let s = app.explore.as_ref().unwrap().search.as_ref().unwrap();
-    (s.found.clone(), s.matched)
+    let all = s
+        .found
+        .iter()
+        .map(|f| (f.change, f.index, f.address.clone()))
+        .collect();
+    (all, s.matched)
+}
+
+/// The ranges the search recorded for what it found.
+fn marks(app: &Faraday) -> Vec<std::ops::Range<usize>> {
+    let s = app.explore.as_ref().unwrap().search.as_ref().unwrap();
+    s.found.iter().map(|f| f.mark.clone()).collect()
 }
 
 #[test]
@@ -397,4 +408,64 @@ fn on_the_small_panel_the_bar_goes_back_to_the_path() {
     }));
     let _ = app.frame();
     assert!(app.offers(Action::X(XAction::Page(Page::Path))));
+}
+
+const CHANGE_0: &str = "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el";
+
+#[test]
+fn a_found_address_records_where_the_match_lies() {
+    let mut app = on_page(None, 0, Page::Find);
+    // A part from the middle of an address that no other holds.
+    let part = &CHANGE_0[20..27];
+    search(&mut app, part, 0);
+    assert_eq!(found(&app).1, 1);
+    assert_eq!(marks(&app), vec![20..27]);
+    assert_eq!(&CHANGE_0[marks(&app)[0].clone()], part);
+    // Typed in capitals, a bech32 address still matches where it lies.
+    search(&mut app, &part.to_ascii_uppercase(), 0);
+    assert_eq!(marks(&app), vec![20..27]);
+    // The whole address marks the whole address, in either case.
+    search(&mut app, CHANGE_0, 0);
+    assert_eq!(marks(&app), vec![0..CHANGE_0.len()]);
+    search(&mut app, &CHANGE_0.to_ascii_uppercase(), 0);
+    assert_eq!(marks(&app), vec![0..CHANGE_0.len()]);
+}
+
+/// The columns, from the left, of the pixels in `frame` drawn in the
+/// accent (blue, whichever theme: the text and the rest of the row are
+/// grey) that `baseline` does not have, as (first, last), or none.
+fn accent_columns(frame: &[u8], baseline: &[u8], width: usize) -> Option<(usize, usize)> {
+    let near = |p: &[u8]| p[2] > p[0].saturating_add(60);
+    let mut cols = frame
+        .chunks_exact(4)
+        .zip(baseline.chunks_exact(4))
+        .enumerate()
+        .filter(|(_, (f, b))| near(f) && !near(b))
+        .map(|(i, _)| i % width);
+    let first = cols.next()?;
+    Some((first, cols.fold(first, usize::max)))
+}
+
+#[test]
+fn the_found_row_draws_the_matched_part_in_the_accent() {
+    let mut app = on_page(None, 0, Page::Find);
+    let drawn = |app: &mut Faraday| {
+        let f = app.frame();
+        (f.rgba.to_vec(), usize::from(f.width))
+    };
+    for c in CHANGE_0[20..27].chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    let (before, width) = drawn(&mut app);
+    search(&mut app, &CHANGE_0[20..27], 0);
+    let (part, _) = drawn(&mut app);
+    search(&mut app, CHANGE_0, 0);
+    let (whole, _) = drawn(&mut app);
+    let (w0, w1) = accent_columns(&whole, &before, width).expect("the whole address is accent");
+    let (p0, p1) = accent_columns(&part, &before, width).expect("the matched part is accent");
+    // The part lies inside the address, and is a fraction of its width:
+    // 7 of 42 characters, with the start and the end left in the text colour.
+    assert!(p0 > w0 + (w1 - w0) / 4, "the start is not accent");
+    assert!(p1 < w1 - (w1 - w0) / 4, "the end is not accent");
+    assert!((p1 - p0) * 3 < w1 - w0, "only the matched characters");
 }

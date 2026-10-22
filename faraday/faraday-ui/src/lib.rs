@@ -1917,6 +1917,55 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         px as f32 / self.f
     }
 
+    /// `s` wrapped to `width` with the bytes `mark` of it drawn in
+    /// `mark_color` and heavier: the monospace face has one weight, so the
+    /// marked run is drawn again [`faraday_draw::tokens::MARK_BOLD`] to the right, which keeps
+    /// every character where it would be unmarked. Breaks as [`Ui::wrap`]
+    /// does. Returns the height used.
+    pub fn wrap_marked(
+        &mut self,
+        (x, y, width): (f32, f32, f32),
+        size: f32,
+        w: W,
+        colors: (Color, Color),
+        s: &str,
+        mark: std::ops::Range<usize>,
+    ) -> f32 {
+        let (color, mark_color) = (self.col(colors.0), self.col(colors.1));
+        let font = self.font(size, w);
+        let face = font.sized(self.c.scale());
+        let lines = text::wrap(&face, s, self.px(width));
+        let lh = face.line_height();
+        let bold = self.px(faraday_draw::tokens::MARK_BOLD).max(1);
+        let (x0, mut y0) = (self.px(x + self.ox), self.px(y + self.oy));
+        for &(start, end) in &lines {
+            let mut pen = x0;
+            let cuts = [
+                (start, mark.start.clamp(start, end), false),
+                (
+                    mark.start.clamp(start, end),
+                    mark.end.clamp(start, end),
+                    true,
+                ),
+                (mark.end.clamp(start, end), end, false),
+            ];
+            for (a, b, marked) in cuts {
+                if a >= b {
+                    continue;
+                }
+                let part = &s[a..b];
+                if marked {
+                    self.c.text(pen + bold, y0, part, font, mark_color);
+                    pen += self.c.text(pen, y0, part, font, mark_color);
+                } else {
+                    pen += self.c.text(pen, y0, part, font, color);
+                }
+            }
+            y0 += lh;
+        }
+        (lines.len() as i32 * lh) as f32 / self.f
+    }
+
     /// An icon centred in a square of side `boxw` at (x, y).
     pub fn icon(
         &mut self,

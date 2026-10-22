@@ -67,6 +67,8 @@ pub const GRID: f32 = 8.0;
 pub const GAP: f32 = GRID;
 /// The gap a dense list uses, where a full grid step would cost a row.
 pub const GAP_SMALL: f32 = 4.0;
+/// How far a marked run of monospace text is drawn again to the right to read heavier (the face has one weight).
+pub const MARK_BOLD: f32 = 0.5;
 /// Screen padding: the margin between the content and the screen edge.
 pub const PAD: f32 = 16.0;
 /// Corner radius of cards, rows, tiles and buttons.

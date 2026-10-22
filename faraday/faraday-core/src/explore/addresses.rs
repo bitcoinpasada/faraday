@@ -208,6 +208,23 @@ fn derive(
         .map_or_else(String::new, |a| a.to_string())
 }
 
+/// One address a search found, and where in it the match lies.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Found {
+    /// The chain: `true` for change.
+    pub change: bool,
+    /// The index on the chain.
+    pub index: u32,
+    /// The address.
+    pub address: String,
+    /// The bytes of `address` that matched, found once when the search
+    /// matched it (bech32 in either case). An address is ASCII, so a byte
+    /// is a character, and the screen's text of it
+    /// ([`Session::shown`](crate::wallet::Session::shown)) has the same
+    /// length, so the range holds for it too.
+    pub mark: std::ops::Range<usize>,
+}
+
 /// A search under way or done, and what it found.
 pub struct Search {
     /// The account it looks in.
@@ -221,10 +238,9 @@ pub struct Search {
     pub depth: u32,
     /// The next index it looks at on both chains; `depth` once done.
     pub next: u32,
-    /// The first [`MATCHES_KEPT`] matches: the chain (`true` for
-    /// change), the index and the address, the receive address before
+    /// The first [`MATCHES_KEPT`] matches, the receive address before
     /// the change one at each index.
-    pub found: Vec<(bool, u32, String)>,
+    pub found: Vec<Found>,
     /// How many addresses matched in all.
     pub matched: u32,
     /// Indices the next tick takes.
@@ -242,8 +258,23 @@ impl Search {
     /// Whether `address` is what is looked for: holds the text typed, in
     /// either case for a bech32 address.
     pub fn matches(&self, address: &str) -> bool {
-        !self.query.is_empty()
-            && (address.contains(&self.query) || (bech32(address) && address.contains(&self.lower)))
+        self.mark(address).is_some()
+    }
+
+    /// Where in `address` the text looked for lies, as bytes: the first
+    /// place it is, as typed, else (bech32 only) in either case.
+    fn mark(&self, address: &str) -> Option<std::ops::Range<usize>> {
+        if self.query.is_empty() {
+            return None;
+        }
+        let range = |q: &str, a: &str| a.find(q).map(|i| i..i + q.len());
+        range(&self.query, address).or_else(|| {
+            if bech32(address) {
+                range(&self.lower, &address.to_ascii_lowercase())
+            } else {
+                None
+            }
+        })
     }
 
     /// Whether `address` is the whole of what is looked for, which no
@@ -466,13 +497,18 @@ impl Faraday {
                     s.next = s.depth;
                     break 'indices;
                 };
-                if !s.matches(&a) {
+                let Some(mark) = s.mark(&a) else {
                     continue;
-                }
+                };
                 s.matched += 1;
                 let whole = s.whole(&a);
                 if s.found.len() < MATCHES_KEPT {
-                    s.found.push((change, i, a));
+                    s.found.push(Found {
+                        change,
+                        index: i,
+                        address: a,
+                        mark,
+                    });
                 }
                 // A whole address is one address: the search ends at it.
                 if whole {

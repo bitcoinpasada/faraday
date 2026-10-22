@@ -2788,7 +2788,9 @@ Entry rows).
   path's purpose names, or the one chosen on the path page.
 - **Addresses** lists the account's receive or change chain ten at a
   time from any index, typed in digits or paged; each row is the name
-  ("Receive 12") over the address.
+  ("Receive 12") over the address, a value row that opens nothing: the
+  wallet's own Address screen is where one receives, the explorer is for
+  checking.
 - **Find an address** takes an address or any part of one, typed on the
   address keyboard or pasted on the desktop (an address is not a secret;
   a pasted secret is refused, as the scanner's Paste refuses one), and
@@ -2801,7 +2803,10 @@ Entry rows).
   part matches every address holding it (in either case for bech32),
   listed index by index, receive first, the first fifty shown and the
   rest counted; a whole address ends the search where it is found. A
-  miss says how far it looked.
+  miss says how far it looked. A found row shows the whole address on
+  one line where it fits, else wrapped, with the part that matched in
+  the accent and heavier; where the match lies is found by the search
+  and kept with the match, so drawing reads it.
 - The addresses come from the account's extended public key as a
   single-key wallet over it, through `WalletPolicy`'s own derivation,
   which takes the compute token and counts each address. They are kept

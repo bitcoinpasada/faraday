@@ -39,9 +39,16 @@ fn top(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, name: &str) -> f32 {
 }
 
 /// One address row: its name ("Receive 12") above, the address below,
-/// whole on a small panel and cut to the width on the desktop. Returns
-/// the height used.
-fn row(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, at: (bool, u32), a: &str) -> f32 {
+/// always whole (§4.5), on one line where it fits and else wrapped; a
+/// found address (`mark` is where it matched) has the matched part in the
+/// accent and heavier. Returns the height used.
+fn row(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, width): (f32, f32, f32),
+    at: (bool, u32),
+    (a, mark): (&str, Option<&std::ops::Range<usize>>),
+) -> f32 {
     let name = if at.0 {
         EN.explore_change_n
     } else {
@@ -57,13 +64,15 @@ fn row(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, at: (bool, u32), a: 
     );
     let y2 = y + T::PAD + T::GAP_SMALL;
     let shown = app.session.shown(a);
-    let used = if ui.compact {
-        ui.wrap(x, y2, width, T::LABEL, W::M, TEXT, &shown)
-    } else {
-        let cut = ui.fit(T::LABEL, W::M, &shown, width);
-        ui.text(x, y2, T::LABEL, W::M, TEXT, &cut);
-        T::PAD + T::GAP_SMALL
-    };
+    let none = 0..0;
+    let used = ui.wrap_marked(
+        (x, y2, width),
+        T::LABEL,
+        W::M,
+        (TEXT, ACCENT),
+        &shown,
+        mark.unwrap_or(&none).clone(),
+    );
     y2 - y + used + T::GAP
 }
 
@@ -131,7 +140,7 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ];
     y += button_rows(ui, x, y, width, &steps);
     for (i, a) in app.explore_list() {
-        y += row(app, ui, x, y, width, (e.change, i), &a);
+        y += row(app, ui, (x, y, width), (e.change, i), (&a, None));
     }
     crate::compact::screen::finish(app, ui, x0, cw, h, y - start + T::PAD);
 }
@@ -216,8 +225,14 @@ fn result(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, s: &Search) -> f3
         let line = fill(EN.explore_found_n, &[&thousands(u64::from(s.matched))]);
         cy += ui.wrap(x, cy, width, T::LABEL, W::S, OK, &line) + T::GAP;
     }
-    for (change, i, a) in &s.found {
-        cy += row(app, ui, x, cy, width, (*change, *i), a);
+    for f in &s.found {
+        cy += row(
+            app,
+            ui,
+            (x, cy, width),
+            (f.change, f.index),
+            (&f.address, Some(&f.mark)),
+        );
     }
     let more = s.matched as usize - s.found.len();
     if more > 0 {
