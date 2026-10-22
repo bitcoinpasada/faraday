@@ -5,10 +5,10 @@ use crate::drawing::View;
 use crate::lightning::NodeSource;
 use crate::screens::{button_rows, guide_text, title};
 use crate::strings::EN;
-use faraday_draw::tokens as T;
 use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{CoreUi, Style, Ui, W};
+use faraday_draw::tokens as T;
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if app.lightning.is_none() {
