@@ -87,8 +87,10 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
 
 - **The pill** (DESIGN §4.8, Network): drawn where it is drawn today and
   only off Mainnet, now with a hit target: `Action::ModeSheet` opens
-  `Sheet::Mode`. Label: the mode's name ("Demo", "Testnet", "Signet",
-  "Regtest"), the same caution pill for each. Places:
+  `Sheet::Mode`. Label: the mode's name ("Testnet", "Signet",
+  "Regtest"), and for Demo its name and its network, "Demo · Testnet"
+  (owner, 2026-10-22: a person sees that Demo runs on testnet), on the
+  wide and the compact layout alike; the same caution pill for each. Places:
   `header_network_pill` and `network_pill_left`
   (`faraday/faraday-core/src/screens/mod.rs`), `compact::tools` and
   compact Home (`faraday/faraday-core/src/compact/mod.rs`). The
@@ -105,7 +107,8 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   door.
 - **The sheet** (`Sheet::Mode`, modes/screen.rs): title "Mode"; one row
   per mode in `self.modes`, in that order; the mode in use marked as a
-  single choice is (DESIGN §4.2); a press on another row is
+  single choice is (DESIGN §4.2); the Demo row carries "Testnet" as its
+  value, as a row with a value does (DESIGN §4.2); a press on another row is
   `Action::Mode(m)`; **Not now** at the foot. A row that cannot be
   chosen (the website's three) is dimmed, its label alone: no reason
   line (DESIGN §4.11, nothing on the device changes it). No line says a
@@ -424,6 +427,7 @@ the file has them.
 |---|---|
 | `mode_sheet_title` | Mode |
 | `mode_demo` | Demo |
+| `mode_demo_pill` | Demo · Testnet |
 | `mode_not_now` | Not now |
 | `settings_mode` | Mode |
 | `samples_pill` | Load samples |
