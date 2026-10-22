@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Documentation lint (docs/README.md, docs/STRUCTURE-PASS.md phase 2).
 #
-# Four rules, so that a document says what kind it is, cites only what
+# Five rules, so that a document says what kind it is, cites only what
 # exists, and holds what is true now or still to be built, not how it was
 # built (CLAUDE.md, "Docs").
 #
@@ -32,9 +32,17 @@
 #    Reference is what is built, so a heading of plan or build log in it
 #    (rules for the implementing agent, batches, order of work, how it
 #    gets built, what changes from today, estimates, questions for the
-#    owner, docs-and-tour task lists) fails. A section whose whole body is a stub naming where it
-#    moved ("Moved to `docs/history/X-LOG.md`.") passes, so a cited
-#    section number keeps resolving.
+#    owner, docs-and-tour task lists) fails, and so does a line of build
+#    log in its text: a dated "Built 2026-10-19", "Specified, not built",
+#    or words for the implementing agent. A section whose whole body is a
+#    stub naming where it moved ("Moved to `docs/history/X-LOG.md`.")
+#    passes, so a cited section number keeps resolving.
+#
+# 5. Decisions. docs/DECISIONS.md's table has one row per decision, F1
+#    upward with none missing or twice; each row links its file, under
+#    docs/history/decisions/ when its status is Replaced, Superseded or
+#    Withdrawn and under docs/decisions/ otherwise; the file's Status
+#    line is the row's; and every file in either folder has a row.
 #
 # Prints `file:line: message` for each failure and exits non-zero if
 # there is one. Run from the repository root; `just lint` does.
@@ -84,6 +92,9 @@ PLAN = re.compile(
     r"implementing agent|for the agent|order of work|how (this|it) gets built"
     r"|building it|what changes from today|docs and (snapshots|tour)"
     r"|\bbatch(es)?\b|estimate|questions for the owner|open questions", re.I)
+LOG_LINE = re.compile(
+    r"(^|[.;:]\s+|\()\**Built( on)? \(?\d{4}-\d{2}-\d{2}"
+    r"|specified, not built|implementing agent", re.I)
 STUB = re.compile(r"^(.*: )?[Mm]oved to `docs/history/[^`]+`\.?$")
 
 
@@ -96,9 +107,15 @@ def check_log(f, kind):
     for n, l in enumerate(lines):
         if re.match(r"\s*(```|~~~)", l):
             fenced = not fenced
-        m = None if fenced else re.match(r"(#+)\s+(.*)", l)
+            continue
+        if fenced:
+            continue
+        m = re.match(r"(#+)\s+(.*)", l)
         if m:
             heads.append((n, len(m.group(1)), m.group(2)))
+        elif not STUB.match(l.strip()) and LOG_LINE.search(l):
+            fail(f, n + 1, "a line of build log in a Reference; move it to "
+                           "docs/history/")
     for i, (n, level, title) in enumerate(heads):
         if not PLAN.search(title):
             continue
@@ -109,6 +126,47 @@ def check_log(f, kind):
         fail(f, n + 1, f"heading `{title}` is plan or build log in a "
                        "Reference; move the section to docs/history/ and "
                        "leave a one-line stub")
+
+
+# Rule 5: the decisions and their index.
+def check_decisions():
+    index = "docs/DECISIONS.md"
+    if index not in known:
+        return
+    rows = {}
+    for n, l in enumerate(open(index, encoding="utf-8").read().split("\n"), 1):
+        m = re.match(r"\| \[F(\d+)\]\(([^)]*)\) \|.*\| ([^|]+?) \| [^|]+ \|$", l)
+        if not m:
+            continue
+        num, link, status = int(m.group(1)), m.group(2), m.group(3)
+        if num in rows:
+            fail(index, n, f"F{num} has two rows")
+        rows[num] = (n, link, status)
+        retired = status.startswith(("Replaced", "Superseded", "Withdrawn"))
+        want = ("history/decisions/" if retired else "decisions/") + f"F{num}.md"
+        if link != want:
+            fail(index, n, f"F{num} links `{link}`; with status "
+                           f"`{status}` its file is `docs/{want}`")
+            continue
+        path = "docs/" + link
+        if path not in known:
+            fail(index, n, f"`{path}` does not exist")
+            continue
+        head = open(path, encoding="utf-8").read().split("\n")[:12]
+        st = next((l[len("**Status:** "):].strip() for l in head
+                   if l.startswith("**Status:**")), None)
+        if st != status:
+            fail(path, 1, f"Status `{st}` is not the index's `{status}`")
+    for num in range(1, max(rows, default=0) + 1):
+        if num not in rows:
+            fail(index, 1, f"no row for F{num}")
+    for f in files:
+        m = re.match(r"docs/(history/)?decisions/F(\d+)\.md$", f)
+        if m and int(m.group(2)) not in rows:
+            fail(f, 1, f"F{m.group(2)} has no row in docs/DECISIONS.md")
+
+
+check_decisions()
 
 
 # Rule 1: headers.

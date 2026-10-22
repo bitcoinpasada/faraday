@@ -21,8 +21,8 @@ changes and nothing else has to be kept in step.
   and makes it a Reference. A moved section keeps its heading, with one
   line under it, ``Moved to `docs/history/<NAME>-LOG.md`.``, so a cited
   section number still resolves; sections are never renumbered.
-  `lint-docs` holds the headers, the Open line and no plan in a
-  Reference.
+  `lint-docs` holds the headers, the Open line, no plan or build log in
+  a Reference, and the decisions' index against their files.
 - A screen is one of DESIGN §5's fourteen screens, built from the §4
   components. The Starter's screens are `docs/STARTER.md` §3, built from
   the same components, drawn with Faraday's own look (`faraday-ui`).
