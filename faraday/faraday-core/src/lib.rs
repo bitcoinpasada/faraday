@@ -3248,6 +3248,7 @@ impl Faraday {
     fn act(&mut self, action: Action) {
         // A choice in a file's ⋮ menu closes the menu first.
         self.file_menu_chosen(action);
+        self.sample_sheet.pass_pressed = crate::demo::presses_pass_field(action);
         self.act_inner(action);
         // A wallet's flow follows the plan and the keys the press left.
         self.wallet_flow_sync();
@@ -3685,6 +3686,7 @@ impl Faraday {
             | Action::DevicesCheck
             | Action::DevicesContinue
             | Action::DevicesUnderstood) => self.devices_act(a),
+            Action::PassChip(f) => self.demo_pass_chip(f),
             a @ (Action::Samples
             | Action::SampleTick(..)
             | Action::SamplesAll
@@ -8053,8 +8055,7 @@ impl Faraday {
 
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn key(&mut self, key: KeyIn) {
-        // Demo's passphrases take no typing (`docs/MODES.md` §6.2).
-        if self.selftest_failed() || self.demo_pass_swallows(key) {
+        if self.selftest_failed() || self.pass_typed(key) {
             return;
         }
         // Ctrl+V is the scanner's Paste, and nothing anywhere else.
@@ -9149,7 +9150,6 @@ impl Faraday {
             self.vaults.typed_shown = false;
             self.vaults.unlock_error = None;
         }
-        self.demo_pass_sync();
         // Leaving the new-key screen drops what it held.
         if self.screen != Screen::KeyGen && self.keygen.is_some() {
             self.keygen_drop();

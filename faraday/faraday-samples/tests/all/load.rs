@@ -153,7 +153,11 @@ fn the_sheet_says_the_passphrase_is_faraday_in_a_code_box_and_never_password() {
     let mut app = demo_app();
     open(&mut app);
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "In Demo, every passphrase is"));
+    assert!(
+        texts
+            .iter()
+            .any(|t| t == "In Demo, the sample passphrase is")
+    );
     assert!(texts.iter().any(|t| t == "faraday"));
     assert!(!texts.iter().any(|t| t.contains("password")));
     // The characters are drawn as they are, with no quote marks round them.

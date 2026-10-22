@@ -1650,7 +1650,7 @@ fn spend_panel(
     ui.fill(px, 0.0, 1.0, h, 0.0, LINE);
     let x = px + 26.0;
     let w = pw - 52.0;
-    let mut y = 32.0;
+    let mut y = faraday_draw::tokens::SIDE_PANEL_TOP;
     ui.text(x, y, 13.0, W::S, MUTED, EN.spend_panel_this_transaction);
     y += 30.0;
     let to = recipients(i)

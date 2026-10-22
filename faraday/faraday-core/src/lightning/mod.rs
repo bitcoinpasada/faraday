@@ -171,7 +171,6 @@ impl Faraday {
             }
             _ => {}
         }
-        let demo = self.demo_passphrase();
         let Some(l) = self.lightning.as_mut() else {
             return;
         };
@@ -186,12 +185,6 @@ impl Faraday {
                 l.source = Some(NodeSource::Aezeed);
                 l.node = None;
                 l.error = None;
-            }
-            // Demo: the press chooses whether to use `faraday`.
-            A::LPassphrase if demo => {
-                Faraday::demo_pass_toggle(&mut l.passphrase, None);
-                l.on_passphrase = true;
-                l.node = None;
             }
             A::LPassphrase => l.on_passphrase = !l.on_passphrase,
             A::LShow => l.shown = !l.shown,

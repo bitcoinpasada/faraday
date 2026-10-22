@@ -497,6 +497,11 @@ pub const NO_PICTURE_MS: u64 = 6000;
 /// scanner says how to hold it (`docs/QR.md` §8 item 8).
 pub const POOR_PICTURE_MS: u64 = 4000;
 
+/// Where the contents of a right-hand side panel (Spend, Back up, Create a
+/// vault, a board's list) start: below the header's row of pills and the ?,
+/// which stand over the panel's top (`docs/MODES.md` §3).
+pub const SIDE_PANEL_TOP: f32 = GRID * 6.0;
+
 /// The mode pill's height (`docs/MODES.md` §3).
 pub const MODE_PILL_HEIGHT: f32 = 28.0;
 

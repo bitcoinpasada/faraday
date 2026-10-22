@@ -45,7 +45,7 @@ pub(crate) use home::home_lead_beside_tiles;
 pub(crate) use message::MSTEPS;
 pub(crate) use parts::{
     buttons_and_next, code_field, descriptor_row, first_addresses, grid_never, guide_text,
-    keyed_pills, kind_line, kind_name, locked_tag, never_below, never_pass, never_real_seed,
+    keyed_pills, kind_line, kind_name, locked_tag, never_below, never_real_seed,
     never_real_seed_if, never_under, next_button, pass_field, pin_button, side_panel_w,
     sign_readiness, size_text, stepper, ticked, word_keys,
 };

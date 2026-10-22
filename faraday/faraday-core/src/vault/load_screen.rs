@@ -246,18 +246,19 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     .as_ref()
                     .is_none_or(|q| q.text.text.is_empty());
                 if let Some(q) = app.vaults.prompt.as_ref() {
-                    crate::vault::screen::secret_box(
+                    crate::demo::pass_box(
+                        app,
                         ui,
-                        x,
-                        cy,
-                        iw,
+                        (x, cy, iw),
                         &q.text,
-                        app.pass_shows(app.vaults.typed_shown),
-                        app.vaults.focus == Some(crate::vault::Focus::Prompt),
-                        va(V::FocusPrompt),
-                        va(V::ShowTyped),
+                        (
+                            app.vaults.typed_shown,
+                            app.vaults.focus == Some(crate::vault::Focus::Prompt),
+                        ),
+                        (va(V::FocusPrompt), va(V::ShowTyped)),
+                        crate::demo::PassField::Prompt,
                     );
-                    cy += 50.0 + crate::screens::never_pass(app, ui, x, cy, iw);
+                    cy += 50.0 + crate::screens::never_under(app, ui, x, cy, iw);
                     if let Some(e) = &q.error {
                         cy += ui.wrap(x, cy, iw, 13.0, W::R, ERR, e) + 10.0;
                     }

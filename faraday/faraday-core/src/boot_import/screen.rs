@@ -13,7 +13,7 @@ use crate::boot_import::{ImportAction as I, ImportCount, ImportVault, ImportView
 use crate::compact::{buttons, scroll_sheet, sheet_head};
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui, W};
-use crate::vault::screen::{secret_box, stick_banner, stick_field};
+use crate::vault::screen::{stick_banner, stick_field};
 use crate::vault::{Focus, VaultAction as V, Work};
 
 fn ia(a: I) -> Action {
@@ -173,21 +173,25 @@ fn unlock(
 fn passphrase(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f32 {
     let mut cy = y;
     if app.may_load_keys() {
-        secret_box(
+        crate::demo::pass_box(
+            app,
             ui,
-            x,
-            cy,
-            w,
+            (x, cy, w),
             &app.vaults.passphrase,
-            app.pass_shows(app.vaults.typed_shown),
-            app.vaults.focus == Some(Focus::Passphrase),
-            Action::Vault(V::FocusPassphrase),
-            Action::Vault(V::ShowTyped),
+            (
+                app.vaults.typed_shown,
+                app.vaults.focus == Some(Focus::Passphrase),
+            ),
+            (
+                Action::Vault(V::FocusPassphrase),
+                Action::Vault(V::ShowTyped),
+            ),
+            crate::demo::PassField::Unlock,
         );
     } else {
         stick_field(app.medium, ui, x, cy, w);
     }
-    cy += 50.0 + crate::screens::never_pass(app, ui, x, cy, w);
+    cy += 50.0 + crate::screens::never_under(app, ui, x, cy, w);
     if app.vaults.working == Some(Work::Unlock) {
         cy += ui.wrap(x, cy, w, 14.0, W::S, ACCENT, &unlocking(app, file)) + 10.0;
     }
@@ -210,18 +214,22 @@ fn typing(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, title: &str, file: us
         (title.to_string(), MUTED)
     };
     cy += ui.wrap(x, cy, w, 12.0, W::S, tone, &line) + 6.0;
-    secret_box(
+    crate::demo::pass_box(
+        app,
         ui,
-        x,
-        cy,
-        w,
+        (x, cy, w),
         &app.vaults.passphrase,
-        app.pass_shows(app.vaults.typed_shown),
-        app.vaults.focus == Some(Focus::Passphrase),
-        Action::Vault(V::FocusPassphrase),
-        Action::Vault(V::ShowTyped),
+        (
+            app.vaults.typed_shown,
+            app.vaults.focus == Some(Focus::Passphrase),
+        ),
+        (
+            Action::Vault(V::FocusPassphrase),
+            Action::Vault(V::ShowTyped),
+        ),
+        crate::demo::PassField::Unlock,
     );
-    cy += 44.0 + crate::screens::never_pass(app, ui, x, cy, w);
+    cy += 44.0 + crate::screens::never_under(app, ui, x, cy, w);
     cy - y
 }
 

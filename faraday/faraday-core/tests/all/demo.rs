@@ -876,12 +876,34 @@ fn in_the_demo_a_vault_from_the_dice_shows_the_rolled_words_then_opens_with_fara
 }
 
 #[test]
-fn in_the_demo_a_vault_takes_no_typed_passphrase_and_opens_with_faraday() {
+fn in_the_demo_a_vault_takes_a_typed_passphrase_and_opens_with_it() {
     let mut app = app_on(true);
     make_vault(&mut app, Some("harbour lantern"));
-    // Typing into the fields did nothing: they held faraday all along.
-    assert!(opens_with(&mut app, demo::PASSPHRASE));
+    assert!(!opens_with(&mut app, demo::PASSPHRASE));
+    assert!(opens_with(&mut app, "harbour lantern"));
     assert_eq!(app.vaults.open.len(), 1);
+}
+
+#[test]
+fn in_the_demo_a_chip_puts_faraday_in_a_vaults_passphrase_and_it_opens_with_it() {
+    let mut app = app_on(true);
+    app.press(Action::Nav(Screen::Vaults));
+    app.press(Action::Vault(V::Create));
+    let _ = crate::common::texts(&mut app);
+    for again in [false, true] {
+        let chip = Action::PassChip(demo::PassField::Phrase(0, again));
+        assert!(app.offers(chip), "each field offers faraday");
+        app.press(chip);
+        let _ = crate::common::texts(&mut app);
+        assert!(!app.offers(chip), "the chip goes once the field holds it");
+    }
+    let c = app.vaults.create.as_ref().expect("the form");
+    assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
+    assert_eq!(c.phrases[0].1.text.as_str(), "faraday");
+    app.press(Action::Vault(V::CGo));
+    crate::common::settle(&mut app, 1);
+    assert_eq!(app.screen, Screen::Unlock, "the vault was made");
+    assert!(opens_with(&mut app, demo::PASSPHRASE));
 }
 
 // ---------------------------------------------------------------------

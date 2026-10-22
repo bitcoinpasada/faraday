@@ -487,6 +487,20 @@ impl Faraday {
         true
     }
 
+    /// Field `i` of the seed read's passphrase pair was filled by a press
+    /// (Demo's `faraday` chip): focused, and the key the two make is
+    /// worked out once typing pauses, as when typed.
+    pub(crate) fn seed_read_filled(&mut self, i: u8) {
+        if let Some(s) = self.seed_read.as_mut() {
+            let t = if i == 0 { &mut s.pass } else { &mut s.pass2 };
+            t.set(crate::demo::PASSPHRASE);
+            s.focus = Some(i);
+            s.with = None;
+            s.error = None;
+            self.typed_at = s.pass_ready().then_some(self.now_ms);
+        }
+    }
+
     /// Works out the key the passphrase typed twice makes, typing having
     /// paused. Costs a PBKDF2 and an elliptic-curve multiplication when
     /// the two fields match.
@@ -570,7 +584,10 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 iw,
                 EN.seed_read_passphrase_2,
                 &s.pass,
-                (s.focus == Some(0), app.demo_passphrase()),
+                (
+                    s.focus == Some(0),
+                    app.pass_chip(crate::demo::PassField::SeedRead(0), s.focus == Some(0)),
+                ),
                 Action::SeedRead(Choice::Field(0)),
             );
             cy += pass_field(
@@ -580,10 +597,13 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 iw,
                 EN.seed_read_passphrase,
                 &s.pass2,
-                (s.focus == Some(1), app.demo_passphrase()),
+                (
+                    s.focus == Some(1),
+                    app.pass_chip(crate::demo::PassField::SeedRead(1), s.focus == Some(1)),
+                ),
                 Action::SeedRead(Choice::Field(1)),
             );
-            cy += crate::screens::never_real_seed_if(!app.demo_passphrase(), app, ui, x, cy, iw);
+            cy += crate::screens::never_real_seed(app, ui, x, cy, iw);
             if let Some(fp) = with {
                 cy += key_line(ui, x, cy, iw, EN.seed_read_with_this, fp);
             } else if differ {

@@ -8,13 +8,13 @@ use crate::vault::{CreateForm, Vaults};
 impl Faraday {
     /// The side panel's strength of the weakest passphrase, in bits with
     /// the unlock cost `cost`'s: known only when the dice made every one.
-    /// Empty in Demo, whose passphrase is `faraday` and is not measured
-    /// (`docs/MODES.md` §6.2): no line is drawn.
+    /// Empty where every passphrase is Demo's `faraday`, which is not
+    /// measured (`docs/MODES.md` §6.2): no line is drawn.
     pub(crate) fn weakest_text(&self, c: &CreateForm, cost: f32) -> String {
         let own: Vec<Option<f32>> = (0..c.phrases.len())
             .map(|i| Vaults::phrase_bits(c, i))
             .collect();
-        if self.demo_passphrase() {
+        if !c.phrases.is_empty() && c.phrases.iter().all(|(a, _)| self.pass_is_public(&a.text)) {
             String::new()
         } else if c.phrases.iter().all(|(a, _)| a.text.is_empty()) {
             EN.vault_no_passphrase.to_string()

@@ -8829,6 +8829,8 @@ pub struct Strings {
     // ----- New key's sources, checks and dice lists, the self-test, BIP-85's applications, Tools' calculators, Explore's path -----
     /// Row that declines a passphrase.
     pub passphrase_none: &'static str,
+    /// Chip in an empty passphrase field in Demo that fills it.
+    pub passphrase_chip: &'static str,
     /// Button that discards the entries.
     pub create_sanity_again: &'static str,
     /// Source: a six-sided die.
@@ -12798,7 +12800,7 @@ pub static EN: Strings = Strings {
     samples_unselect_all: "Unselect all",
     samples_not_now: "Not now",
     samples_load: "Load ticked",
-    samples_password: "In Demo, every passphrase is",
+    samples_password: "In Demo, the sample passphrase is",
     samples_loaded: "Loaded {}",
     samples_n_wallet: "{} wallet",
     samples_n_wallets: "{} wallets",
@@ -13248,6 +13250,7 @@ pub static EN: Strings = Strings {
     details_close: "Close",
     stick_wipe_hold_delete: "Hold to delete {} {} with zeros",
     passphrase_none: "No passphrase",
+    passphrase_chip: "faraday",
     create_sanity_again: "Roll again",
     create_source_dice: "Dice",
     create_source_coins: "Coin flips",

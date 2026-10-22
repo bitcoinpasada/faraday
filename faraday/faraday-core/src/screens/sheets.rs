@@ -1,6 +1,5 @@
 //! The sheets drawn over a screen.
 
-use super::parts::demo_choice;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -85,13 +84,9 @@ fn potential_compact(
                 _ => EN.potential_bip_39_passphrase,
             };
             cy += ui.wrap(x, cy, iw, 13.0, W::S, TEXT, label) + 6.0;
-            if app.demo_passphrase() {
-                demo_choice(
-                    ui,
-                    (x, cy, iw, T::TEXT_FIELD_SHEET),
-                    &p.passphrase,
-                    Action::PotentialType,
-                );
+            if app.pass_is_public(&p.passphrase) {
+                super::parts::code_field(ui, x, cy, iw, T::TEXT_FIELD_SHEET, &p.passphrase);
+                ui.hit(x, cy, iw, T::TEXT_FIELD_SHEET, Action::PotentialType);
             } else if app.may_load_keys() {
                 let shown = if p.shown {
                     zeroize::Zeroizing::new(p.passphrase.to_string())
@@ -115,6 +110,12 @@ fn potential_compact(
                     if p.shown { ACCENT } else { MUTED },
                 );
                 ui.hit(x + iw - 44.0, cy, 44.0, 44.0, Action::PotentialShow);
+                app.pass_chip_draw(
+                    ui,
+                    (x, cy, iw - T::TEXT_FIELD_SHEET, T::TEXT_FIELD_SHEET),
+                    (p.passphrase.is_empty(), p.typing, false),
+                    crate::demo::PassField::Potential,
+                );
             } else {
                 crate::vault::screen::stick_field(app.medium, ui, x, cy, iw);
             }
@@ -264,13 +265,9 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         };
         ui.text(ix, cy, 13.0, W::S, TEXT, label);
         cy += 24.0;
-        if app.demo_passphrase() {
-            demo_choice(
-                ui,
-                (ix, cy, iw, T::TEXT_FIELD),
-                &p.passphrase,
-                Action::PotentialType,
-            );
+        if app.pass_is_public(&p.passphrase) {
+            super::parts::code_field(ui, ix, cy, iw, T::TEXT_FIELD, &p.passphrase);
+            ui.hit(ix, cy, iw, T::TEXT_FIELD, Action::PotentialType);
         } else if app.may_load_keys() {
             let shown = if p.shown {
                 zeroize::Zeroizing::new(p.passphrase.to_string())
@@ -301,6 +298,12 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 if p.shown { ACCENT } else { MUTED },
             );
             ui.hit(ix + iw - 40.0, cy, 40.0, 40.0, Action::PotentialShow);
+            app.pass_chip_draw(
+                ui,
+                (ix, cy, iw - T::TEXT_FIELD_SHEET, T::TEXT_FIELD),
+                (p.passphrase.is_empty(), p.typing, false),
+                crate::demo::PassField::Potential,
+            );
         } else {
             crate::vault::screen::stick_field(app.medium, ui, ix, cy, iw);
         }

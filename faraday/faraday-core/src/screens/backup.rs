@@ -1005,6 +1005,39 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
+/// The passphrase typed back for Check my copy, as bullets (in Demo
+/// `faraday` in its code box, and its chip while empty), under its line.
+/// Returns its height.
+fn typed_passphrase(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), typed: &str) -> f32 {
+    let mut cy = y;
+    cy += ui.wrap(
+        x,
+        cy,
+        w,
+        12.0,
+        W::R,
+        DIM,
+        EN.copy_check_your_copys_passphrase,
+    ) + 4.0;
+    if app.pass_is_public(typed) {
+        crate::screens::code_field(ui, x, cy, w, T::TEXT_FIELD_TALL, typed);
+    } else {
+        ui.fill(x, cy, w, 42.0, 8.0, BG);
+        ui.stroke(x, cy, w, 42.0, 8.0, ACCENT);
+        let dots = "•".repeat(typed.chars().count());
+        let dots = ui.fit(14.0, W::M, &dots, w - 30.0);
+        ui.text_mid(x + 12.0, cy, 42.0, 14.0, W::M, TEXT, &dots);
+    }
+    app.pass_chip_draw(
+        ui,
+        (x, cy, w, T::TEXT_FIELD_TALL),
+        (typed.is_empty(), false, false),
+        crate::demo::PassField::Check,
+    );
+    cy += 42.0 + 12.0 + never_below(app, ui, x, cy + 42.0, w);
+    cy - y
+}
+
 /// The SeedQR as a ruled grid to copy by hand: numbers every five
 /// squares, the standard's fixed squares grey, the pinned row marked.
 /// Returns its height.
@@ -1078,27 +1111,7 @@ fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return cy - y;
     };
     if c.passphrase {
-        // The passphrase as typed, as bullets; the comparison's line.
-        cy += ui.wrap(
-            x,
-            cy,
-            w,
-            12.0,
-            W::R,
-            DIM,
-            EN.copy_check_your_copys_passphrase,
-        ) + 4.0;
-        if app.demo_passphrase() {
-            crate::screens::code_field(ui, x, cy, w, T::TEXT_FIELD_TALL, &c.typed);
-            cy += T::TEXT_FIELD_TALL + T::GAP + T::GAP_SMALL;
-        } else {
-            ui.fill(x, cy, w, 42.0, 8.0, BG);
-            ui.stroke(x, cy, w, 42.0, 8.0, ACCENT);
-            let dots = "•".repeat(c.typed.chars().count());
-            let dots = ui.fit(14.0, W::M, &dots, w - 30.0);
-            ui.text_mid(x + 12.0, cy, 42.0, 14.0, W::M, TEXT, &dots);
-            cy += 42.0 + 12.0 + never_below(app, ui, x, cy + 42.0, w);
-        }
+        cy += typed_passphrase(app, ui, (x, cy, w), &c.typed);
     } else {
         cy = word_check(app, ui, x, cy, w, c);
     }
@@ -1760,10 +1773,11 @@ fn backup_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     ui.hits.truncate(mark);
     ui.c.pop_clip();
     let foot = h - ch - 16.0;
-    ui.text(x, 28.0, 13.0, W::S, MUTED, EN.backup_panel_map);
-    let clip = ui.rect(px, 52.0, pw, foot - 60.0);
+    let top = faraday_draw::tokens::SIDE_PANEL_TOP;
+    ui.text(x, top, 13.0, W::S, MUTED, EN.backup_panel_map);
+    let clip = ui.rect(px, top + 24.0, pw, foot - top - 32.0);
     ui.c.push_clip(clip);
-    map_rows(app, ui, x, 56.0, w, true);
+    map_rows(app, ui, x, top + 28.0, w, true);
     ui.c.pop_clip();
     ui.rule(x, foot - 4.0, w, INNER);
     check_rows(app, ui, x, foot + 8.0, w);

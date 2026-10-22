@@ -135,22 +135,19 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("modes-mainnet-settings")
 }
 
-/// Passphrases in Demo (`docs/MODES.md` §6.2): Add a key's is chosen and
-/// never typed, the sample vault unlocks with `faraday` filled in, and
-/// Create a vault's pair is `faraday` twice.
+/// Passphrases in Demo (`docs/MODES.md` §6.2): each empty field offers the
+/// faraday chip, which fills it; Add a key's, the sample vault's unlock
+/// and Create a vault's pair are shown before and after it.
 fn demo_passphrases(t: &mut Tour) -> Result<(), String> {
-    // The passphrase is chosen, not typed: pressed, it is faraday in its
-    // code box, and nothing typed is taken.
+    use faraday_core::demo::PassField as P;
     t.press(Action::Nav(Screen::Home));
     t.press(Action::Entry(None));
     t.press(Action::UseSample);
-    t.press(Action::EntryPassphrase);
-    type_text(t, "x");
+    t.shot("modes-demo-add-key-passphrase-empty")?;
+    t.press(Action::PassChip(P::Entry));
     t.shot("modes-demo-add-key-passphrase")?;
     crate::tour::scroll(t, 700);
     t.shot("modes-demo-add-key-passphrase-foot")?;
-    // Vaults: the sample vault stands in for one to bring, unlocks with
-    // faraday filled in, and Create a vault's pair is faraday twice.
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
@@ -160,8 +157,13 @@ fn demo_passphrases(t: &mut Tour) -> Result<(), String> {
     t.press(Action::UseSample);
     t.press(Action::Vault(V::Open(0)));
     t.shot("modes-demo-unlock")?;
+    t.press(Action::PassChip(P::Unlock));
+    t.shot("modes-demo-unlock-chip")?;
     t.press(Action::Vault(V::Create));
     t.shot("modes-demo-create-vault")?;
+    t.press(Action::PassChip(P::Phrase(0, false)));
+    t.press(Action::PassChip(P::Phrase(0, true)));
+    t.shot("modes-demo-create-vault-chips")?;
     let rolls = "123456123456123456123456123456";
     t.press(Action::Vault(V::Dice(0)));
     type_text(t, rolls);

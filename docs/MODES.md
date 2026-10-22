@@ -366,43 +366,59 @@ against what the state keeps (a wallet's missing keys are kept on it).
 Nothing is derived while drawing. A press derives through the step's
 own path, with the handler's `Compute`.
 
-### 6.2 Every passphrase is `faraday`
+### 6.2 Every passphrase field offers `faraday`
 
-In Demo every passphrase and password field holds `faraday` (all
-lowercase; owner, 2026-10-22), drawn unmasked in the mono face inside a
-code box (a token-padded, tinted, rounded box, as inline code is drawn),
-so its exact characters are plain and nothing around them reads as part
-of it; the field takes no typing, no paste and no sample chip; the eye and
-its 30 s countdown are not drawn there. Where a field is optional (a
-key's BIP-39 passphrase, a seed read's, the potential wallet's), the
-person still chooses whether to use one; when they do, it is
-`faraday`. A second field that types a passphrase back is filled the
-same, so "The two passphrases differ" never shows. The Load samples
-sheet and the Learn page each say it once: "In Demo, every passphrase
-is" followed by `faraday` in the same code box. No field explains it.
+In Demo every passphrase and password field works as it does outside
+Demo: empty, typed by the person, masked, with the eye and with the
+caution line "Never type a seed that holds real bitcoin here." under it
+where the shell is online. In addition an empty field offers a chip
+inside it, "faraday", placed and behaving as Use a sample's chip does
+(§6.1, `samples::put`): a field of one line draws it at its text inset,
+an optional field draws it at its right end beside the **No passphrase**
+pill. It is gone when the person presses in the field or types (a press
+on anything else, or a field left, brings it back while the field is
+empty). A press on it puts `faraday` (all lowercase; owner, 2026-10-22)
+in the field, drawn unmasked in the mono face inside a code box (a
+token-padded, tinted, rounded box, as inline code is drawn), so its
+exact characters are plain; the eye is not drawn on it. A press in that
+field lets the person clear or replace it; what the person types is
+masked and is theirs. A second field that types a passphrase back, and
+an unlock, offer the same chip, so `faraday` is always one press away,
+and "The two passphrases differ" shows only when they do. Optional
+fields stay optional (**No passphrase** as before). The Load samples
+sheet and the Learn page each say once what the chip is: "In Demo, the
+sample passphrase is" followed by `faraday` in the same code box. No
+field explains it.
 
-`Faraday::demo_passphrase()` (true in Demo) is the one test; each field
-below asks it where it takes a key press and where it draws, and fills
-itself from `demo::PASSPHRASE` when its step opens.
+The KeePass export's passphrase has no chip: `faraday` is under its
+minimum of 8 characters, which is unchanged, so it is typed by the
+person, masked, with the eye and the caution line.
 
-| Field | Where |
+`Faraday::demo_passphrase()` (true in Demo) is the one test;
+`Faraday::pass_chip` and `pass_chip_draw` draw the chip and
+`Action::PassChip(PassField)` fills the field. Nothing is prefilled and
+no typing is swallowed.
+
+| Field (`demo::PassField`) | Where |
 |---|---|
-| New key's BIP-39 passphrase and its repeat | `faraday/faraday-core/src/keygen/mod.rs`, `keygen/screen.rs` (`KPassField`) |
-| A seed read's passphrase and repeat | `faraday/faraday-core/src/seeds/read.rs` (`Sheet::SeedRead`) |
-| The potential wallet's passphrase | `Sheet::Potential` (`potential_key`, lib.rs) |
-| Make a new wallet's passphrase slot | `faraday/faraday-core/src/create.rs` (`pass_slot`, `pass_focus`) |
-| Create a vault's passphrases (every slot) and their repeats | `faraday/faraday-core/src/vault/mod.rs` (`CreateForm::phrases`), `vault/screen.rs` |
-| Unlock, the boot import's passphrase, a passphrase prompt | `vault/mod.rs` `Focus::Passphrase`, `Focus::Prompt` (`Sheet::Import`, `Sheet::PassphraseSeeds`) |
-| The Spend tab's vault passphrase | `faraday/faraday-core/src/family/mod.rs` |
-| Check my copy's passphrase | `faraday/faraday-core/src/screens/backup.rs` (`check.passphrase`) |
-| An `.oskb` opened, and one written (Out to an encrypted backup) | `inbox.rs`; the backup flow's encrypted-backup step (`faraday/faraday-core/src/backup_flow/`) |
-| A KeePass export's password | the vault's KeePass export (`vault/out.rs`) |
-| A vault entry's password field | Vault contents' entry form (`vault/screen.rs`) |
-| An aezeed's passphrase, when added | `faraday/faraday-core/src/lightning/mod.rs` |
+| `KeyGen(0 or 1)`: New key's BIP-39 passphrase and its repeat | `faraday/faraday-core/src/keygen/mod.rs`, `keygen/screen.rs` (`KPassField`) |
+| `Entry`: Add a key's passphrase | `faraday/faraday-core/src/screens/entry.rs`, `compact/screen.rs` |
+| `SeedRead(0 or 1)`: a seed read's passphrase and repeat | `faraday/faraday-core/src/seeds/read.rs` (`Sheet::SeedRead`) |
+| `Potential`: the potential wallet's, and an `.oskb` opened | `Sheet::Potential` (`screens/sheets.rs`) |
+| `Slot(0 or 1)`: Make a new wallet's passphrase slot | `faraday/faraday-core/src/create.rs` (`pass_slot`, `pass_focus`) |
+| `Phrase(i, again)`: Create a vault's passphrases (every slot) and their repeats | `faraday/faraday-core/src/vault/mod.rs` (`CreateForm::phrases`), `vault/screen.rs` |
+| `Unlock`: unlock, the boot import's passphrase, a backup's | `vault/mod.rs` `Focus::Passphrase` (`Sheet::Import`) |
+| `Prompt`: a passphrase prompt | `vault/mod.rs` `Focus::Prompt` (`Sheet::PassphraseSeeds`); not the KeePass export's |
+| `Unlock`: the Spend tab's vault passphrase | `faraday/faraday-core/src/family/mod.rs` |
+| `Check`: Check my copy's passphrase | `faraday/faraday-core/src/screens/backup.rs` (`check.passphrase`) |
+| `Password(k)`: a vault entry's password field | Vault contents' entry form (`vault/screen.rs`) |
+| `Aezeed`: an aezeed's passphrase | `faraday/faraday-core/src/lightning/mod.rs` |
+| A KeePass export's password: no chip | the vault's KeePass export (`vault/out.rs`) |
 
 **Generate with dice** (DEMO §5.2) still takes the rolls and shows the
 words; when the last word is in, both fields take `faraday` in place
 of them, and the card's one line says so (`vault_demo_uses_public`).
+"or type your own below" stays beside it.
 
 **Refusals of a weak passphrase.** There are none to loosen: Faraday
 refuses an empty passphrase and a repeat that differs
@@ -411,8 +427,9 @@ refuses an empty passphrase and a repeat that differs
 strength only for words the dice made (`Vaults::phrase_bits`; a typed
 passphrase's is not measured). The dice count (how many rolls make a
 word, how many words) is unchanged. In Demo `phrase_bits` gives `None`
-for `faraday` (the dice's words are dropped), so no strength line and
-no "weakest passphrase" line is drawn; `PASSPHRASE_WORDS` goes. Outside
+for `faraday` (the dice's words are dropped), so no strength line is
+drawn for it and the "weakest passphrase" line is left out while every
+passphrase is `faraday`; `PASSPHRASE_WORDS` goes. Outside
 Demo nothing changes: a test types a short passphrase on Testnet and on
 the stick and sees it taken as typed, masked and editable, with the
 dice's strength line where the dice made it.
@@ -455,7 +472,7 @@ the file has them.
 | `samples_select_all` / `samples_unselect_all` | Select all / Unselect all |
 | `samples_not_now` | Not now |
 | `samples_load` | Load ticked |
-| `samples_password` | In Demo, every passphrase is (the passphrase follows in its code box) |
+| `samples_password` | In Demo, the sample passphrase is (the passphrase follows in its code box) |
 | `sample_type` | {} · {} (kind and script, or form and size) |
 | `sample_kind_single` / `sample_kind_multisig` / `sample_kind_musig` / `sample_kind_frost` / `sample_kind_timelock` / `sample_script_tree` | single-sig / {}-of-{} multisig / {}-key MuSig2 / {}-of-{} FROST / timelock recovery / Taproot, script tree (the other scripts are `wallet_legacy`, `wallet_nested_segwit`, `wallet_native_segwit`, `wallet_taproot`) |
 | `sample_form_bip39` / `_slip39` / `_codex32` / `_xor` / `_seed` / `_backup` / `_aezeed` | BIP-39 / SLIP-39 / codex32 / Seed XOR / Master seed / Encrypted backup (.oskb) / LND cipher seed |
@@ -679,7 +696,7 @@ wallet would notice.
   `Action::SampleTick`, `Action::SamplesLoad`); the pill in
   `screens/mod.rs` and `compact/mod.rs`; en.rs (`samples_*`,
   `sample_*`).
-- **One line** above the lists, muted: "In Demo, every passphrase is"
+- **One line** above the lists, muted: "In Demo, the sample passphrase is"
   (`samples_password`) then `faraday` (`demo::PASSPHRASE`) in the code
   box of §6.2. No "in use" list: with every
   passphrase `faraday`, what is in use is the keys and wallets loaded,
@@ -808,6 +825,8 @@ Owner, 2026-10-22, after M6.
   "mainnet" meaning the demo. DEMO is then Reference again with Demo as
   built; this file goes to `docs/history/` once W1 is done.
 - **Done**: `just` passes; `bash tools/lint-docs.sh` passes.
+- **Amended** (owner, 2026-10-22): fields are not fixed; each empty one
+  offers a `faraday` chip (§6.2), and the KeePass export is typed.
 
 ### W1. The website
 

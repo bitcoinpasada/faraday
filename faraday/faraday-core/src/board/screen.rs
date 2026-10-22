@@ -1761,7 +1761,7 @@ pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     let pad = tokens::BOARD_PAD;
     let (x, w) = (px + tokens::GRID * 2.0, pw - tokens::GRID * 4.0);
     // Clear of the network pill and the ? at the window's top right.
-    let top = tokens::GRID * 6.0;
+    let top = tokens::SIDE_PANEL_TOP;
     let view = (h - top).max(0.0);
     let draw = |ui: &mut Ui, fr: &mut Frame, y: f32| -> f32 {
         let mut cy = y + tokens::GRID;

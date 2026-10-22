@@ -2,8 +2,8 @@
 //! ([`crate::wallet::Session::set_demo`], on Testnet) takes only the
 //! samples (`crate::samples`).
 
-/// The one passphrase and password of Demo, all lowercase: every field
-/// that takes one holds it and takes no typing (`docs/MODES.md` §6.2).
+/// The passphrase and password of Demo, all lowercase: every field that
+/// takes one offers it in a chip (`docs/MODES.md` §6.2).
 /// Generate with dice on Create a vault puts it in place of the rolled
 /// words (`docs/DEMO.md` §5.2).
 pub const PASSPHRASE: &str = "faraday";
@@ -128,13 +128,76 @@ pub(crate) enum Show {
     Masked,
     /// In the clear; the eye hides it.
     Shown,
-    /// Demo's: [`PASSPHRASE`] in its code box, unmasked, with no eye, and
-    /// no typing.
-    Fixed,
+    /// Demo's [`PASSPHRASE`] in its code box, unmasked, with no eye: it is
+    /// public, and a press in the field lets the person clear or replace
+    /// it.
+    Code,
+}
+
+/// A passphrase or password field that offers [`PASSPHRASE`] in Demo.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PassField {
+    /// Add a key's BIP-39 passphrase.
+    Entry,
+    /// New key's passphrase (0) and its repeat (1).
+    KeyGen(u8),
+    /// The potential wallet's passphrase.
+    Potential,
+    /// A seed read's passphrase (0) and its repeat (1).
+    SeedRead(u8),
+    /// A Create slot's passphrase (0) and its repeat (1).
+    Slot(u8),
+    /// Create a vault's passphrase `i`, and its repeat.
+    Phrase(u8, bool),
+    /// The vault's unlock, the boot import's, a backup's.
+    Unlock,
+    /// A passphrase prompt's.
+    Prompt,
+    /// A vault entry's password field `k` of its form.
+    Password(u8),
+    /// Check my copy's passphrase typed back.
+    Check,
+    /// An aezeed's passphrase.
+    Aezeed,
+}
+
+/// A passphrase field with an eye at its right end, as
+/// [`secret_box`](crate::vault::screen::secret_box) draws it: in Demo what
+/// holds `faraday` is in its code box, and an empty field not pressed in
+/// offers its chip. `(shown, focused)`, `(action, eye)`.
+pub(crate) fn pass_box(
+    app: &crate::drawing::View,
+    ui: &mut crate::ui::Ui,
+    (x, y, w): (f32, f32, f32),
+    b: &crate::vault::TextBox,
+    (shown, focused): (bool, bool),
+    (action, eye): (Action, Action),
+    field: PassField,
+) {
+    let h = faraday_draw::tokens::TEXT_FIELD;
+    crate::vault::screen::secret_box(
+        ui,
+        x,
+        y,
+        w,
+        b,
+        app.pass_shows(shown, &b.text),
+        focused,
+        action,
+        eye,
+    );
+    app.pass_chip_draw(ui, (x, y, w, h), (b.text.is_empty(), focused, false), field);
+}
+
+/// Whether pressing `a` puts the caret in a passphrase field: the chip of
+/// an empty field is gone from then on, until another press.
+pub(crate) fn presses_pass_field(a: Action) -> bool {
+    crate::field_action(a) || matches!(a, Action::PotentialType | Action::LPassphrase)
 }
 
 impl crate::vault::Form {
-    /// Whether field `k` is a vault entry's password, which Demo fixes.
+    /// Whether field `k` is a vault entry's password, which Demo offers
+    /// [`PASSPHRASE`] for.
     pub(crate) fn is_password(&self, k: usize) -> bool {
         use faraday_vault::records::{field, kind};
         self.kind == kind::ENTRY && self.fields.get(k).is_some_and(|f| f.0 == field::PASSWORD)
@@ -142,9 +205,9 @@ impl crate::vault::Form {
 }
 
 impl Faraday {
-    /// Whether this is Demo, where every passphrase and password is
-    /// [`PASSPHRASE`] (`docs/MODES.md` §6.2). The one test every
-    /// passphrase field asks, where it takes a key and where it draws.
+    /// Whether this is Demo, where every passphrase field offers
+    /// [`PASSPHRASE`] in a chip (`docs/MODES.md` §6.2). The one test every
+    /// passphrase field asks.
     pub fn demo_passphrase(&self) -> bool {
         self.session.keys.demo()
     }
@@ -160,159 +223,209 @@ impl Faraday {
                 .is_some_and(|(made, _)| made.as_str() == PASSPHRASE)
     }
 
-    /// How a field draws that the eye masks or shows: fixed in Demo.
-    pub(crate) fn pass_shows(&self, shown: bool) -> Show {
-        match (self.demo_passphrase(), shown) {
-            (true, _) => Show::Fixed,
-            (false, true) => Show::Shown,
-            (false, false) => Show::Masked,
+    /// Whether `text` is Demo's public [`PASSPHRASE`], which is not
+    /// measured for strength.
+    pub(crate) fn pass_is_public(&self, text: &str) -> bool {
+        self.demo_passphrase() && text == PASSPHRASE
+    }
+
+    /// How a field holding `text` draws that the eye masks or shows: in
+    /// Demo what holds [`PASSPHRASE`] draws in its code box, unmasked.
+    pub(crate) fn pass_shows(&self, shown: bool, text: &str) -> Show {
+        if self.demo_passphrase() && text == PASSPHRASE {
+            Show::Code
+        } else if shown {
+            Show::Shown
+        } else {
+            Show::Masked
         }
     }
 
-    /// How field `k` of the entry form draws: an entry's password is
-    /// fixed in Demo, any other secret field masks or shows.
+    /// How field `k` of the entry form draws: masked or shown by the eye,
+    /// and an entry's password holding [`PASSPHRASE`] in Demo in its code
+    /// box.
     pub(crate) fn field_shows(&self, form: &crate::vault::Form, k: usize) -> Show {
-        match (
-            self.demo_passphrase() && form.is_password(k),
-            self.vaults.typed_shown,
-        ) {
-            (true, _) => Show::Fixed,
-            (false, true) => Show::Shown,
-            (false, false) => Show::Masked,
+        let text = form.fields.get(k).map_or("", |f| f.2.text.as_str());
+        if form.is_password(k) {
+            self.pass_shows(self.vaults.typed_shown, text)
+        } else if self.vaults.typed_shown {
+            Show::Shown
+        } else {
+            Show::Masked
         }
     }
 
-    /// Whether typing goes now to a passphrase field that holds
-    /// [`PASSPHRASE`] in Demo: the keys do nothing there and no keyboard
-    /// docks for it. A lookup.
-    pub(crate) fn demo_pass_typing(&self) -> bool {
+    /// The press that fills `field` with [`PASSPHRASE`], in Demo only:
+    /// what a field draws its chip for,
+    /// and whether it is drawn now: not while the person has pressed in
+    /// the field `focused`, or typed.
+    pub(crate) fn pass_chip(&self, field: PassField, focused: bool) -> Option<(Action, bool)> {
+        self.demo_passphrase().then_some((
+            Action::PassChip(field),
+            !(focused && self.sample_sheet.pass_pressed),
+        ))
+    }
+
+    /// Draws the `faraday` chip inside the empty, unfocused field `r`
+    /// (x, y, w, h) of `field`, at its left; `right` puts it at the right
+    /// end, beside the **No passphrase** pill of an optional field. The
+    /// KeePass export's prompt has none: `faraday` is under its minimum.
+    pub(crate) fn pass_chip_draw(
+        &self,
+        ui: &mut crate::ui::Ui,
+        r: (f32, f32, f32, f32),
+        (empty, focused, right): (bool, bool, bool),
+        field: PassField,
+    ) {
+        if !empty {
+            return;
+        }
+        if field == PassField::Prompt && !self.prompt_chip() {
+            return;
+        }
+        if let Some((a, true)) = self.pass_chip(field, focused) {
+            crate::samples::put::pass_chip(ui, r, a, right);
+        }
+    }
+
+    /// The chip of a vault entry's password field `k` of `form`, when it
+    /// is one, empty and not pressed in.
+    pub(crate) fn password_chip(
+        &self,
+        ui: &mut crate::ui::Ui,
+        form: &crate::vault::Form,
+        k: usize,
+        (x, y, w): (f32, f32, f32),
+        (b, focused): (&crate::vault::TextBox, bool),
+    ) {
+        if form.is_password(k) {
+            let h = faraday_draw::tokens::TEXT_FIELD;
+            let field = PassField::Password(k as u8);
+            self.pass_chip_draw(ui, (x, y, w, h), (b.text.is_empty(), focused, false), field);
+        }
+    }
+
+    /// A key is typed (or erased): the chip of a field in focus is gone.
+    /// Returns false: the key goes on.
+    pub(crate) fn pass_typed(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
+        if matches!(key, K::Char(_) | K::Backspace) {
+            self.sample_sheet.pass_pressed = true;
+        }
+        false
+    }
+
+    /// Whether the keyboard waits on a small panel: in Demo the field in
+    /// focus is an empty passphrase the person has not pressed in, so its
+    /// chip shows and the keyboard does not cover it. A lookup.
+    pub(crate) fn pass_chip_waiting(&self) -> bool {
         use crate::vault::Focus as F;
-        use crate::{Screen as S, Sheet};
-        if !self.demo_passphrase() {
+        if !self.demo_passphrase() || self.sample_sheet.pass_pressed {
             return false;
         }
-        let vault = || match self.vaults.focus {
-            Some(F::Passphrase | F::Phrase(..) | F::Prompt) => true,
-            Some(F::Field(k)) => self.vaults.form.as_ref().is_some_and(|f| f.is_password(k)),
+        let v = &self.vaults;
+        match v.focus {
+            Some(F::Passphrase) => v.passphrase.text.is_empty(),
+            Some(F::Prompt) => {
+                self.prompt_chip() && v.prompt.as_ref().is_some_and(|p| p.text.text.is_empty())
+            }
+            Some(F::Phrase(i, again)) => v.create.as_ref().is_some_and(|c| {
+                c.phrases
+                    .get(i)
+                    .is_some_and(|(a, b)| if again { b } else { a }.text.is_empty())
+            }),
             _ => false,
-        };
-        match self.sheet {
-            Some(Sheet::Potential) => self.potential.as_ref().is_some_and(|p| p.typing),
-            Some(Sheet::SeedRead) => self.seed_read.as_ref().is_some_and(|s| s.focus.is_some()),
-            Some(Sheet::Import | Sheet::PassphraseSeeds) => vault(),
-            _ => match self.screen {
-                S::Unlock | S::CreateVault | S::VaultContents | S::BackupFlow | S::Family => {
-                    vault()
-                }
-                S::Entry => self.entry.on_passphrase,
-                S::KeyGen => self.keygen.as_ref().is_some_and(|k| {
-                    !k.locked && k.open == Some(crate::keygen::kstep::KEY) && k.focus.is_some()
-                }),
-                S::Create => self.create.as_ref().is_some_and(|c| c.pass_focus.is_some()),
-                S::Backup => self
-                    .backup
-                    .as_ref()
-                    .and_then(|b| b.check.as_ref())
-                    .is_some_and(|c| c.passphrase),
-                S::Lightning => self.lightning.as_ref().is_some_and(|l| l.on_passphrase),
-                _ => false,
-            },
         }
     }
 
-    /// Whether `key` would be typed into a Demo passphrase field, which
-    /// takes no typing: swallowed. Enter, Escape and Tab still go on.
-    pub(crate) fn demo_pass_swallows(&self, key: faraday_shell_api::Key) -> bool {
-        use faraday_shell_api::Key as K;
-        matches!(key, K::Char(_) | K::Backspace | K::Delete) && self.demo_pass_typing()
+    /// Whether the open prompt takes the `faraday` chip: not the KeePass
+    /// export's.
+    fn prompt_chip(&self) -> bool {
+        !self
+            .vaults
+            .prompt
+            .as_ref()
+            .is_some_and(|p| matches!(p.purpose, crate::vault::Purpose::Kdbx))
     }
 
-    /// Puts [`PASSPHRASE`] in every passphrase field in Demo that is not
-    /// optional, or that the person has chosen to use, once an event is
-    /// done: the vault's unlock, Create a vault's pairs, a prompt, Add a
-    /// passphrase on a slot or a seed read, a backup's, Check my copy's.
-    /// The optional ones (Add a key's, New key's, the potential wallet's,
-    /// an aezeed's) are filled by a press on them
-    /// ([`Faraday::demo_pass_toggle`]). A field already holding it is
-    /// left; nothing is derived unless a field was empty.
-    pub(crate) fn demo_pass_sync(&mut self) {
+    /// A press on the `faraday` chip of `field`: the field holds
+    /// [`PASSPHRASE`], and what depends on it is worked out as it is when
+    /// typed. A field's repeat is its own chip.
+    pub(crate) fn demo_pass_chip(&mut self, field: PassField) {
         if !self.demo_passphrase() {
             return;
         }
-        let v = &mut self.vaults;
-        if v.passphrase.text.is_empty() {
-            v.passphrase.set(PASSPHRASE);
-        }
-        if let Some(c) = v.create.as_mut() {
-            for (a, b) in &mut c.phrases {
-                for t in [a, b] {
-                    if t.text.as_str() != PASSPHRASE {
-                        t.set(PASSPHRASE);
-                    }
+        match field {
+            PassField::Entry => {
+                self.entry.passphrase.set(PASSPHRASE);
+                self.entry.error = None;
+            }
+            PassField::KeyGen(i) => {
+                if let Some(k) = self.keygen.as_mut() {
+                    let t = if i == 0 {
+                        &mut k.passphrase
+                    } else {
+                        &mut k.passphrase2
+                    };
+                    t.set(PASSPHRASE);
+                    k.focus = Some(i);
+                    k.note = None;
                 }
             }
-        }
-        if let Some(p) = v.prompt.as_mut()
-            && p.text.text.is_empty()
-        {
-            p.text.set(PASSPHRASE);
-        }
-        // A new entry's password; an entry edited keeps the one it has.
-        if let Some(f) = v.form.as_mut().filter(|f| f.record.is_none()) {
-            for k in 0..f.fields.len() {
-                if f.is_password(k) && f.fields[k].2.text.is_empty() {
-                    f.fields[k].2.set(PASSPHRASE);
+            PassField::Potential => {
+                if let Some(p) = self.potential.as_mut() {
+                    p.passphrase.set(PASSPHRASE);
+                    p.typing = true;
+                    p.error = None;
+                    self.potential_typed();
                 }
             }
-        }
-        if let Some(c) = self.create.as_mut()
-            && c.pass_slot.is_some()
-            && (c.pass.is_empty() || c.pass2.is_empty())
-        {
-            c.pass.set(PASSPHRASE);
-            c.pass2.set(PASSPHRASE);
-        }
-        if let Some(c) = self.backup.as_mut().and_then(|b| b.check.as_mut())
-            && c.passphrase
-            && c.typed.is_empty()
-        {
-            c.typed.set(PASSPHRASE);
-        }
-        let asked = self.seed_read.as_mut().is_some_and(|s| {
-            let fill = s.adding && s.pass.is_empty();
-            if fill {
-                s.pass.set(PASSPHRASE);
-                s.pass2.set(PASSPHRASE);
+            PassField::SeedRead(i) => self.seed_read_filled(i),
+            PassField::Slot(i) => {
+                if let Some(c) = self.create.as_mut() {
+                    let t = if i == 0 { &mut c.pass } else { &mut c.pass2 };
+                    t.set(PASSPHRASE);
+                    c.pass_focus = Some(i);
+                    c.pass_note = None;
+                }
             }
-            fill
-        });
-        if asked {
-            self.seed_read_typed();
-        }
-        let backup = self.potential.as_mut().is_some_and(|p| {
-            let fill = p.backup.is_some() && p.passphrase.is_empty();
-            if fill {
-                p.passphrase.set(PASSPHRASE);
+            PassField::Phrase(i, again) => {
+                if let Some(c) = self.vaults.create.as_mut()
+                    && let Some((a, b)) = c.phrases.get_mut(usize::from(i))
+                {
+                    if again { b } else { a }.set(PASSPHRASE);
+                }
+                self.vaults.unlock_error = None;
             }
-            fill
-        });
-        if backup {
-            self.potential_typed();
-        }
-    }
-
-    /// A press on an optional passphrase field in Demo: the person
-    /// chooses whether to use a passphrase, and when they do it is
-    /// [`PASSPHRASE`]. Both fields of a pair are filled alike, or both
-    /// emptied.
-    pub(crate) fn demo_pass_toggle(
-        a: &mut crate::secret_text::SecretText,
-        b: Option<&mut crate::secret_text::SecretText>,
-    ) {
-        let text = if a.is_empty() { PASSPHRASE } else { "" };
-        a.set(text);
-        if let Some(b) = b {
-            b.set(text);
+            PassField::Unlock => {
+                self.vaults.passphrase.set(PASSPHRASE);
+                self.vaults.unlock_error = None;
+            }
+            PassField::Prompt => {
+                if let Some(p) = self.vaults.prompt.as_mut() {
+                    p.text.set(PASSPHRASE);
+                    p.error = None;
+                }
+            }
+            PassField::Password(k) => {
+                if let Some(f) = self.vaults.form.as_mut()
+                    && let Some(x) = f.fields.get_mut(usize::from(k))
+                {
+                    x.2.set(PASSPHRASE);
+                }
+            }
+            PassField::Check => {
+                if let Some(c) = self.backup.as_mut().and_then(|b| b.check.as_mut()) {
+                    c.typed.set(PASSPHRASE);
+                }
+            }
+            PassField::Aezeed => {
+                if let Some(l) = self.lightning.as_mut() {
+                    l.passphrase.set(PASSPHRASE);
+                    l.node = None;
+                    l.error = None;
+                }
+            }
         }
     }
 }

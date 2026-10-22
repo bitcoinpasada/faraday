@@ -35,16 +35,6 @@ pub(crate) fn never_under(app: &View, ui: &mut Ui, x: f32, top: f32, w: f32) -> 
     never_below(app, ui, x, top + tokens::TEXT_FIELD, w)
 }
 
-/// [`never_under`] for a passphrase field: none in Demo, where it takes no
-/// typing.
-pub(crate) fn never_pass(app: &View, ui: &mut Ui, x: f32, top: f32, w: f32) -> f32 {
-    if app.demo_passphrase() {
-        0.0
-    } else {
-        never_under(app, ui, x, top, w)
-    }
-}
-
 /// The line one gap under a field whose bottom edge is at `bottom`, on an
 /// online shell. Returns the gap and the line's height; 0 elsewhere.
 pub(crate) fn never_below(app: &View, ui: &mut Ui, x: f32, bottom: f32, w: f32) -> f32 {
@@ -548,9 +538,9 @@ fn file_row_extra(
 /// chevron; the whole row opens `action`. Returns its height.
 /// A masked passphrase field with its label at the left (above it on a
 /// small panel): dots for what is typed, the **No passphrase** pill
-/// while it is empty, the caret while it is focused. In Demo (`fixed`)
-/// the passphrase it holds is drawn in its code box, and the field is
-/// pressed to use one or not. Returns the height used.
+/// while it is empty, the caret while it is focused. In Demo `chip` is the press of the
+/// `faraday` chip the empty field offers, and `faraday` is drawn in its
+/// code box. Returns the height used.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn pass_field(
     ui: &mut Ui,
@@ -559,7 +549,7 @@ pub(crate) fn pass_field(
     w: f32,
     label: &str,
     text: &crate::secret_text::SecretText,
-    (on, fixed): (bool, bool),
+    (on, chip): (bool, Option<(Action, bool)>),
     action: Action,
 ) -> f32 {
     let (px, py, pw) = if ui.compact {
@@ -571,28 +561,32 @@ pub(crate) fn pass_field(
     };
     ui.fill(px, py, pw, 40.0, 8.0, BG);
     ui.stroke(px, py, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
-    dots_field(ui, px, py, pw, text, (on, fixed), action);
-    ui.hit(px, py, pw, 40.0, action);
+    dots_field(ui, px, py, pw, text, (on, chip), action);
     py - y + 48.0
 }
 
 /// What a BIP-39 passphrase field 40 tall and `w` wide at (x, y) shows:
 /// a dot for each character typed, with the selection and the caret
 /// while `on`, or the **No passphrase** pill while it is empty
-/// (`docs/history/NEW-WALLET.md` §13.4). In Demo (`fixed`) what it holds
-/// is `faraday` in its code box and nothing is typed.
+/// (`docs/history/NEW-WALLET.md` §13.4). In Demo (`chip`) the empty field
+/// offers the `faraday` chip, and `faraday` is drawn in its code box.
 pub(crate) fn dots_field(
     ui: &mut Ui,
     x: f32,
     y: f32,
     w: f32,
     text: &str,
-    (on, fixed): (bool, bool),
+    (on, chip): (bool, Option<(Action, bool)>),
     action: Action,
 ) {
+    // The chip, drawn after, is pressed before the field.
+    ui.hit(x, y, w, tokens::TEXT_FIELD, action);
     if text.is_empty() {
-        ui.no_passphrase(x, y, 40.0, on && !fixed);
-    } else if fixed {
+        ui.no_passphrase(x, y, 40.0, on);
+        if let Some((a, true)) = chip {
+            crate::samples::put::pass_chip(ui, (x, y, w, tokens::TEXT_FIELD), a, true);
+        }
+    } else if chip.is_some() && text == crate::demo::PASSPHRASE {
         code_field(ui, x, y, w, tokens::TEXT_FIELD, text);
     } else {
         let dots = "•".repeat(text.chars().count());
@@ -611,28 +605,8 @@ pub(crate) fn dots_field(
     }
 }
 
-/// Demo's optional passphrase field `(x, y, w, h)`: the **No passphrase**
-/// pill while empty, `faraday` in its code box once chosen; a press
-/// chooses or unchooses it.
-pub(crate) fn demo_choice(
-    ui: &mut Ui,
-    (x, y, w, h): (f32, f32, f32, f32),
-    text: &str,
-    action: Action,
-) {
-    if text.is_empty() {
-        ui.fill(x, y, w, h, tokens::FIELD_RADIUS, BG);
-        ui.stroke(x, y, w, h, tokens::FIELD_RADIUS, BORDER);
-        ui.no_passphrase(x, y, h, false);
-    } else {
-        code_field(ui, x, y, w, h, text);
-    }
-    ui.hit(x, y, w, h, action);
-}
-
-/// A passphrase field in Demo that takes no typing: the passphrase it
-/// holds in its code box at the field's text inset, unmasked
-/// (`docs/MODES.md` §6.2). No eye, no caret, nothing pressed.
+/// A passphrase field in Demo that holds `faraday`: it in its code box at
+/// the field's text inset, unmasked (`docs/MODES.md` §6.2). No eye.
 pub(crate) fn code_field(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, text: &str) {
     ui.fill(x, y, w, h, tokens::FIELD_RADIUS, BG);
     ui.stroke(x, y, w, h, tokens::FIELD_RADIUS, BORDER);

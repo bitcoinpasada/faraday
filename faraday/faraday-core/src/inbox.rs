@@ -1485,15 +1485,6 @@ impl Faraday {
                     p.shown = !p.shown;
                 }
             }
-            // Demo: the press on the wallet's passphrase chooses whether
-            // to use `faraday`; a backup's is always filled.
-            Action::PotentialType if self.demo_passphrase() => {
-                if let Some(p) = self.potential.as_mut().filter(|p| p.backup.is_none()) {
-                    Self::demo_pass_toggle(&mut p.passphrase, None);
-                    p.typing = true;
-                    self.potential_typed();
-                }
-            }
             Action::PotentialType => {
                 if let Some(p) = self.potential.as_mut() {
                     p.typing = self.sticks.is_empty();

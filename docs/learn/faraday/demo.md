@@ -12,13 +12,13 @@ Demo takes only samples, on testnet. Any other key is refused by its fingerprint
 
 ## New key in the demo
 
-New key runs as on the device: the dice, the coins, the cards, hex digits, the camera or the computer's generator make the words, and the quiz checks them. At Lock in, the demo adds the next sample of the length chosen that is not loaded, in place of the key made, and the Key card says which. There are samples of 12, 15, 18, 21 and 24 words: four of 12, two each of 15, 18 and 21, and eleven of 24. A passphrase there is chosen, not typed: with one, the sample is added with it, and the field takes no typing. The key made is not kept. With every sample of that length loaded, Lock in is dimmed.
+New key runs as on the device: the dice, the coins, the cards, hex digits, the camera or the computer's generator make the words, and the quiz checks them. At Lock in, the demo adds the next sample of the length chosen that is not loaded, in place of the key made, and the Key card says which. There are samples of 12, 15, 18, 21 and 24 words: four of 12, two each of 15, 18 and 21, and eleven of 24. A passphrase there is optional: type one or press its faraday chip, and the sample is added with it. The key made is not kept. With every sample of that length loaded, Lock in is dimmed.
 
-Generate with dice on Create a vault runs the same way: the rolls make the words, and the card shows them, then the demo puts `faraday` in place of them. The vault is made under it; the rolled words are not kept. Every other passphrase and password field in the demo holds `faraday` too and takes no typing; where a passphrase is optional, a press on its field chooses whether to use one.
+Generate with dice on Create a vault runs the same way: the rolls make the words, and the card shows them, then the demo puts `faraday` in place of them. The vault is made under it; the rolled words are not kept. Every other passphrase and password field in the demo is typed as anywhere else, and also offers a faraday chip that puts `faraday` in the field. The KeePass export takes one you type, of 8 characters or more.
 
 ## Samples
 
-Load samples is a pill beside the Demo pill. It opens a list of sample wallets and sample keys, each with a tick box. Load ticked puts the ticked ones in as if they had been typed or scanned. A set loads as one key, from as many shares or parts as it needs. A wallet loads with the sample keys it uses. A sample already loaded is ticked and dimmed. Each row says what the sample is under its name: a wallet its kind and script, a key its form and size. In Demo, every passphrase is `faraday`.
+Load samples is a pill beside the Demo pill. It opens a list of sample wallets and sample keys, each with a tick box. Load ticked puts the ticked ones in as if they had been typed or scanned. A set loads as one key, from as many shares or parts as it needs. A wallet loads with the sample keys it uses. A sample already loaded is ticked and dimmed. Each row says what the sample is under its name: a wallet its kind and script, a key its form and size. In Demo, the sample passphrase is `faraday`.
 
 Every sample is public, and anything sent to a sample's addresses can be taken by anyone. The words, shares and strings below can be typed where a screen asks for them.
 
@@ -54,7 +54,7 @@ LND cipher seed: above judge emerge veteran reform crunch system all snap please
 
 ## Other samples
 
-Where a screen asks for a vault, a signed message or an address, Use a sample puts one in. Vaults with none offers a sample vault, which opens with the passphrase already filled in. The Check a signed message tile in Tools opens a sample message made by sample Spending's first receive address. Find an address takes that address in its field, and finds it once Spending is loaded. The LND cipher seed field takes the sample cipher seed. They are public, so anything sent to that address can be taken by anyone.
+Where a screen asks for a vault, a signed message or an address, Use a sample puts one in. Vaults with none offers a sample vault, which opens with the faraday chip. The Check a signed message tile in Tools opens a sample message made by sample Spending's first receive address. Find an address takes that address in its field, and finds it once Spending is loaded. The LND cipher seed field takes the sample cipher seed. They are public, so anything sent to that address can be taken by anyone.
 
 ## What the demo does not make
 

@@ -1172,21 +1172,22 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += 22.0;
     if app.may_load_keys() {
         let focused = app.vaults.focus == Some(crate::vault::Focus::Passphrase);
-        crate::vault::screen::secret_box(
+        crate::demo::pass_box(
+            app,
             ui,
-            x,
-            cy,
-            w,
+            (x, cy, w),
             &app.vaults.passphrase,
-            app.pass_shows(app.vaults.typed_shown),
-            focused,
-            Action::Vault(VaultAction::FocusPassphrase),
-            Action::Vault(VaultAction::ShowTyped),
+            (app.vaults.typed_shown, focused),
+            (
+                Action::Vault(VaultAction::FocusPassphrase),
+                Action::Vault(VaultAction::ShowTyped),
+            ),
+            crate::demo::PassField::Unlock,
         );
     } else {
         crate::vault::screen::stick_field(app.medium, ui, x, cy, w);
     }
-    cy += 52.0 + crate::screens::never_pass(app, ui, x, cy, w);
+    cy += 52.0 + crate::screens::never_under(app, ui, x, cy, w);
     if app.vaults.working == Some(crate::vault::Work::Unlock) {
         ui.text_mid(x, cy, 42.0, 14.0, W::S, ACCENT, EN.family_unlocking);
     } else {

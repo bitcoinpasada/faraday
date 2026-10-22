@@ -464,16 +464,21 @@ fn pass_field(
     w: f32,
     label: &str,
     secret: &str,
-    (on, fixed): (bool, bool),
+    (on, chip): (bool, Option<(Action, bool)>),
     action: Action,
 ) -> f32 {
     ui.text(x, y, 12.0, W::R, MUTED, label);
     let fy = y + 18.0;
     ui.fill(x, fy, w, 42.0, 8.0, BG);
     ui.stroke(x, fy, w, 42.0, 8.0, if on { ACCENT } else { BORDER });
+    // The chip, drawn after, is pressed before the field.
+    ui.hit(x, fy, w, T::TEXT_FIELD_TALL, action);
     if secret.is_empty() {
-        ui.no_passphrase(x, fy, 42.0, on && !fixed);
-    } else if fixed {
+        ui.no_passphrase(x, fy, 42.0, on);
+        if let Some((a, true)) = chip {
+            crate::samples::put::pass_chip(ui, (x, fy, w, T::TEXT_FIELD_TALL), a, true);
+        }
+    } else if chip.is_some() && secret == crate::demo::PASSPHRASE {
         crate::screens::code_field(ui, x, fy, w, T::TEXT_FIELD_TALL, secret);
     } else {
         let dots = "•".repeat(secret.chars().count());
@@ -490,7 +495,6 @@ fn pass_field(
             action,
         );
     }
-    ui.hit(x, fy, w, 42.0, action);
     18.0 + 42.0 + 12.0
 }
 
@@ -571,7 +575,10 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         iw,
         EN.compact_bip_39_passphrase,
         &app.entry.passphrase,
-        (app.entry.on_passphrase, app.demo_passphrase()),
+        (
+            app.entry.on_passphrase,
+            app.pass_chip(crate::demo::PassField::Entry, app.entry.on_passphrase),
+        ),
         Action::EntryPassphrase,
     );
     // Add key is pinned at the foot.
@@ -863,7 +870,10 @@ pub(crate) fn entry_form(
             iw,
             EN.compact_passphrase,
             &app.entry.passphrase,
-            (app.entry.on_passphrase, app.demo_passphrase()),
+            (
+                app.entry.on_passphrase,
+                app.pass_chip(crate::demo::PassField::Entry, app.entry.on_passphrase),
+            ),
             Action::EntryPassphrase,
         );
     }

@@ -163,7 +163,7 @@ fn body(
             8.0,
             if l.on_passphrase { ACCENT } else { BORDER },
         );
-        if app.demo_passphrase() && !l.passphrase.is_empty() {
+        if app.pass_is_public(&l.passphrase) {
             crate::screens::code_field(ui, px, y, pw, T::TEXT_FIELD, &l.passphrase);
         } else {
             let p = if l.passphrase.is_empty() && !l.on_passphrase {
@@ -175,6 +175,12 @@ fn body(
             ui.text_mid(px + 12.0, y, 40.0, 13.0, W::M, TEXT, &p);
         }
         ui.hit(px, y, pw, 40.0, Action::LPassphrase);
+        app.pass_chip_draw(
+            ui,
+            (px, y, pw, T::TEXT_FIELD),
+            (l.passphrase.is_empty(), l.on_passphrase, true),
+            crate::demo::PassField::Aezeed,
+        );
         let (rx, ry) = if below > 0.0 {
             (px, y + 48.0)
         } else {

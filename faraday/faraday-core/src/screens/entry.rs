@@ -407,10 +407,9 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         y,
         pw,
         &app.entry.passphrase,
-        (on, app.demo_passphrase()),
+        (on, app.pass_chip(crate::demo::PassField::Entry, on)),
         Action::EntryPassphrase,
     );
-    ui.hit(px, y, pw, 40.0, Action::EntryPassphrase);
     // The stick row and the buttons sit at the bottom of the screen, but
     // move down below the passphrase field when the words above it (up
     // to 24 of them) would otherwise run under it.
@@ -621,10 +620,9 @@ pub(crate) fn entry_form(
             y,
             pw,
             &app.entry.passphrase,
-            (on, app.demo_passphrase()),
+            (on, app.pass_chip(crate::demo::PassField::Entry, on)),
             Action::EntryPassphrase,
         );
-        ui.hit(px, y, pw, 40.0, Action::EntryPassphrase);
     }
     // As `entry_finish`: the stick row and the buttons sit at the bottom
     // of the screen, but move down below what is above them (the

@@ -10,7 +10,7 @@ use crate::drawing::{Scrolled, View};
 use crate::strings::{EN as FEN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use crate::vault::screen::{hold_button_in, secret_box, stick_banner, stick_field, text_box};
+use crate::vault::screen::{hold_button_in, stick_banner, stick_field, text_box};
 use crate::vault::{self, Focus, VaultAction as V};
 use crate::{Action, Faraday, flow};
 use faraday_draw::widgets::Icon;
@@ -917,21 +917,22 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             ) + 10.0;
             let focused = app.vaults.focus == Some(Focus::Passphrase);
             if app.may_load_keys() {
-                secret_box(
+                crate::demo::pass_box(
+                    app,
                     ui,
-                    x,
-                    cy,
-                    w,
+                    (x, cy, w),
                     &app.vaults.passphrase,
-                    app.pass_shows(app.vaults.typed_shown),
-                    focused,
-                    Action::Vault(V::FocusPassphrase),
-                    Action::Vault(V::ShowTyped),
+                    (app.vaults.typed_shown, focused),
+                    (
+                        Action::Vault(V::FocusPassphrase),
+                        Action::Vault(V::ShowTyped),
+                    ),
+                    crate::demo::PassField::Unlock,
                 );
             } else {
                 stick_field(app.medium, ui, x, cy, w);
             }
-            cy += 52.0 + crate::screens::never_pass(app, ui, x, cy, w);
+            cy += 52.0 + crate::screens::never_under(app, ui, x, cy, w);
             if app.vaults.working == Some(vault::Work::Unlock) {
                 cy += line(ui, x, cy, w, FEN.backup_flow_unlocking, ACCENT);
             } else {

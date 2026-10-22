@@ -9,9 +9,7 @@ use faraday_draw::widgets::Icon;
 
 use crate::demo::Show;
 use crate::drawing::{Scrolled, View};
-use crate::screens::{
-    guide_text, never_pass, never_real_seed_if, never_under, section_label, title,
-};
+use crate::screens::{guide_text, never_real_seed_if, never_under, section_label, title};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vault::{
@@ -137,9 +135,12 @@ pub(crate) fn secret_box(
     action: Action,
     eye: Action,
 ) {
-    // Demo's passphrase: in its code box, no eye, nothing to press.
-    if show == Show::Fixed {
-        return crate::screens::code_field(ui, x, y, w, tokens::TEXT_FIELD, &b.text);
+    // Demo's `faraday`: in its code box, no eye; a press in it focuses the
+    // field.
+    if show == Show::Code {
+        crate::screens::code_field(ui, x, y, w, tokens::TEXT_FIELD, &b.text);
+        ui.hit(x, y, w, tokens::TEXT_FIELD, action);
+        return;
     }
     let shown = show == Show::Shown;
     text_box(ui, x, y, w, b, !shown, focused, action);
@@ -607,21 +608,19 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 26.0;
     if app.may_load_keys() {
         let focused = app.vaults.focus == Some(Focus::Passphrase);
-        secret_box(
+        crate::demo::pass_box(
+            app,
             ui,
-            x,
-            y,
-            w,
+            (x, y, w),
             &app.vaults.passphrase,
-            app.pass_shows(app.vaults.typed_shown),
-            focused,
-            va(V::FocusPassphrase),
-            va(V::ShowTyped),
+            (app.vaults.typed_shown, focused),
+            (va(V::FocusPassphrase), va(V::ShowTyped)),
+            crate::demo::PassField::Unlock,
         );
     } else {
         stick_field(app.medium, ui, x, y, w);
     }
-    y += 56.0 + never_pass(app, ui, x, y, w);
+    y += 56.0 + never_under(app, ui, x, y, w);
     let working = app.vaults.working == Some(vault::Work::Unlock);
     if working {
         let f = files.get(app.vaults.pick);
@@ -970,21 +969,19 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 24.0;
     if app.may_load_keys() {
         let focused = app.vaults.focus == Some(Focus::Passphrase);
-        secret_box(
+        crate::demo::pass_box(
+            app,
             ui,
-            x,
-            y,
-            w,
+            (x, y, w),
             &app.vaults.passphrase,
-            app.pass_shows(app.vaults.typed_shown),
-            focused,
-            va(V::FocusPassphrase),
-            va(V::ShowTyped),
+            (app.vaults.typed_shown, focused),
+            (va(V::FocusPassphrase), va(V::ShowTyped)),
+            crate::demo::PassField::Unlock,
         );
     } else {
         stick_field(app.medium, ui, x, y, w);
     }
-    y += 52.0 + never_pass(app, ui, x, y, w);
+    y += 52.0 + never_under(app, ui, x, y, w);
     if app.vaults.working == Some(vault::Work::Unlock) {
         let f = files.get(app.vaults.pick);
         let t = f
@@ -1558,15 +1555,20 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 let pull = fill(EN.vault_remove_the_then, &[app.medium.noun()]);
                 cy += stick_banner(ui, x, cy, w, &pull);
             }
-            if !app.demo_passphrase() {
-                let eye = if c.shown {
+            ui.button(
+                x,
+                cy,
+                None,
+                32.0,
+                if c.shown {
                     EN.vault_hide_passphrases
                 } else {
                     EN.vault_show_passphrases
-                };
-                ui.button(x, cy, None, 32.0, eye, Style::Ghost, va(V::CShow));
-                cy += 42.0;
-            }
+                },
+                Style::Ghost,
+                va(V::CShow),
+            );
+            cy += 42.0;
             for (i, (a, b)) in c.phrases.iter().enumerate() {
                 let rolling = app.vaults.dice.as_ref().is_some_and(|d| d.0 == i);
                 ui.text_mid(
@@ -1629,33 +1631,29 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 if may {
                     let fa = app.vaults.focus == Some(Focus::Phrase(i, false));
                     let fb = app.vaults.focus == Some(Focus::Phrase(i, true));
-                    secret_box(
+                    crate::demo::pass_box(
+                        app,
                         ui,
-                        x,
-                        cy,
-                        half,
+                        (x, cy, half),
                         a,
-                        app.pass_shows(c.shown),
-                        fa,
-                        va(V::CFocus(i, false)),
-                        va(V::CShow),
+                        (c.shown, fa),
+                        (va(V::CFocus(i, false)), va(V::CShow)),
+                        crate::demo::PassField::Phrase(i as u8, false),
                     );
-                    secret_box(
+                    crate::demo::pass_box(
+                        app,
                         ui,
-                        x + half + 12.0,
-                        cy,
-                        half,
+                        (x + half + 12.0, cy, half),
                         b,
-                        app.pass_shows(c.shown),
-                        fb,
-                        va(V::CFocus(i, true)),
-                        va(V::CShow),
+                        (c.shown, fb),
+                        (va(V::CFocus(i, true)), va(V::CShow)),
+                        crate::demo::PassField::Phrase(i as u8, true),
                     );
                 } else {
                     stick_field(app.medium, ui, x, cy, half);
                     stick_field(app.medium, ui, x + half + 12.0, cy, half);
                 }
-                cy += 46.0 + never_real_seed_if(may && !app.demo_passphrase(), app, ui, x, cy, w);
+                cy += 46.0 + never_real_seed_if(may, app, ui, x, cy, w);
                 let (status, color) = if !b.text.is_empty() && *a.text == *b.text {
                     (EN.vault_matches, OK)
                 } else if !b.text.is_empty() {
@@ -1685,7 +1683,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             MUTED
                         },
                     )),
-                    None if !a.text.is_empty() && !app.demo_passphrase() => {
+                    None if !a.text.is_empty() && !app.pass_is_public(&a.text) => {
                         Some((fill(EN.vault_typed_its_own, &[&format!("{cost:.1}")]), DIM))
                     }
                     None => None,
@@ -1925,7 +1923,7 @@ fn create_panel(
     ui.fill(px, 0.0, 1.0, h, 0.0, LINE);
     let x = px + 26.0;
     let w = pw - 52.0;
-    let mut y = 32.0;
+    let mut y = tokens::SIDE_PANEL_TOP;
     ui.text(x, y, 13.0, W::S, MUTED, EN.vault_your_choices);
     y += 28.0;
     for (k, label) in [
@@ -3076,6 +3074,7 @@ pub(crate) fn codes_form(app: &View, ui: &mut Ui, dx: f32, dy: f32, dw: f32) -> 
                 va(V::FocusField(k)),
                 va(V::ShowTyped),
             );
+            app.password_chip(ui, form, k, (dx, dy, dw), (b, focused));
             dy += 52.0;
         } else {
             text_box(ui, dx, dy, dw, b, false, focused, va(V::FocusField(k)));
@@ -3155,6 +3154,7 @@ fn detail(
                         va(V::FocusField(k)),
                         va(V::ShowTyped),
                     );
+                    app.password_chip(ui, form, k, (dx, dy, dw), (b, focused));
                 } else {
                     text_box(ui, dx, dy, dw, b, false, focused, va(V::FocusField(k)));
                 }
@@ -3223,18 +3223,16 @@ fn detail(
         ui.text(dx, dy, 12.0, W::R, MUTED, EN.vault_passphrase);
         dy += 20.0;
         let focused = app.vaults.focus == Some(Focus::Prompt);
-        secret_box(
+        crate::demo::pass_box(
+            app,
             ui,
-            dx,
-            dy,
-            dw,
+            (dx, dy, dw),
             &p.text,
-            app.pass_shows(app.vaults.typed_shown),
-            focused,
-            va(V::FocusPrompt),
-            va(V::ShowTyped),
+            (app.vaults.typed_shown, focused),
+            (va(V::FocusPrompt), va(V::ShowTyped)),
+            crate::demo::PassField::Prompt,
         );
-        dy += 56.0 + never_pass(app, ui, dx, dy, dw);
+        dy += 56.0 + never_under(app, ui, dx, dy, dw);
         if app.vaults.working == Some(vault::Work::Backup) {
             ui.text_mid(dx, dy, 40.0, 15.0, W::S, ACCENT, EN.vault_opening);
         } else if app.vaults.working == Some(vault::Work::Kdbx) {

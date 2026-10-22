@@ -70,6 +70,31 @@ pub(crate) fn chip(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), action: Acti
     ui.field_action(x, y, w, h, label, action);
 }
 
+/// The `faraday` chip inside the passphrase field at (`x`, `y`, `w`, `h`),
+/// at its left, or at its right end where the field holds the **No
+/// passphrase** pill at the left (`docs/MODES.md` §6.2).
+pub(crate) fn pass_chip(
+    ui: &mut Ui,
+    (x, y, w, h): (f32, f32, f32, f32),
+    action: Action,
+    right: bool,
+) {
+    let label = EN.passphrase_chip;
+    if right {
+        let width = ui.measure(FIELD_ACTION_TEXT, W::S, label) + 2.0 * FIELD_ACTION_INSET;
+        ui.field_action(
+            x + w - width - 2.0 * FIELD_ACTION_INSET,
+            y,
+            w,
+            h,
+            label,
+            action,
+        );
+    } else {
+        ui.field_action(x, y, w, h, label, action);
+    }
+}
+
 /// Add a key's word grid on a wide display, empty: the chip inside cell 1
 /// only, after its number, where the word would be; a press anywhere in
 /// the grid focuses it. `boxes` cells are drawn by the grid itself.

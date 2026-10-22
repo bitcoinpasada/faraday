@@ -32,7 +32,7 @@ use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use faraday_crypto::work::Compute;
 
 use crate::forms::Form;
-use crate::{Faraday, Screen, flow};
+use crate::{Screen, flow};
 
 /// The word counts on offer.
 pub const COUNTS: [u8; 5] = faraday_entropy::WORD_COUNTS;
@@ -1426,7 +1426,6 @@ impl crate::Faraday {
             }
             return;
         }
-        let demo = self.demo_passphrase();
         let Some(k) = self.keygen.as_mut() else {
             return;
         };
@@ -1447,11 +1446,6 @@ impl crate::Faraday {
             A::KOthers => k.others_open = !k.others_open,
             A::KPassField(f) => {
                 if k.open == Some(kstep::KEY) && k.asks_passphrase() && f < 2 {
-                    // Demo: a press on the first field chooses whether to use
-                    // `faraday`; the repeat follows it.
-                    if demo && f == 0 {
-                        Faraday::demo_pass_toggle(&mut k.passphrase, Some(&mut k.passphrase2));
-                    }
                     k.focus = Some(f);
                     k.note = None;
                 }

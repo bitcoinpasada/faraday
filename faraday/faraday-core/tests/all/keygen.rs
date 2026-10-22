@@ -750,8 +750,8 @@ fn unequal_passphrases_lock_nothing_in() {
 }
 
 /// The demo on a Create slot (F20, `docs/MODES.md` §7): the passphrase is
-/// chosen, not typed, and is `faraday`; Lock in adds the next sample with
-/// it, saying so before and after.
+/// `faraday` once the chip on each field is pressed; Lock in adds the next
+/// sample with it, saying so before and after.
 #[test]
 fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
     use faraday_core::wallet::fp_text;
@@ -767,17 +767,15 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
         "Lock in adds sample {word} ×{n} ({}) in place of these words",
         fp_text(fp)
     )));
-    app.press(Action::KPassField(0));
-    type_text(&mut app, "one");
-    app.press(Action::KPassField(1));
-    type_text(&mut app, "two");
+    let _ = texts(&mut app);
+    for f in 0..2 {
+        let chip = Action::PassChip(faraday_core::demo::PassField::KeyGen(f));
+        assert!(app.offers(chip), "each field offers faraday");
+        app.press(chip);
+    }
     let k = app.keygen.as_ref().unwrap();
-    assert_eq!(k.passphrase.as_str(), "faraday", "nothing typed is taken");
-    assert_eq!(
-        k.passphrase2.as_str(),
-        "faraday",
-        "the repeat is filled the same"
-    );
+    assert_eq!(k.passphrase.as_str(), "faraday");
+    assert_eq!(k.passphrase2.as_str(), "faraday");
     app.press(Action::KLock);
     let with = faraday_core::wallet::Session::default()
         .keys
@@ -801,8 +799,8 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
     assert!(!shown.contains("Not set"), "faraday went with it");
 }
 
-/// The passphrase stays optional in Demo: chosen and chosen again it is
-/// none, and the sample goes in as it is.
+/// The passphrase stays optional in Demo: left empty, the sample goes in
+/// as it is.
 #[test]
 fn the_demo_locks_in_its_sample_with_no_passphrase_unless_one_is_chosen() {
     use faraday_core::wallet::fp_text;
@@ -813,8 +811,6 @@ fn the_demo_locks_in_its_sample_with_no_passphrase_unless_one_is_chosen() {
     app.press(Action::KNext);
     let n = app.keygen.as_ref().unwrap().handout_words();
     let (word, fp) = app.session.keys.next_handout(n).unwrap();
-    // Chosen, then unchosen.
-    app.press(Action::KPassField(0));
     app.press(Action::KPassField(0));
     app.press(Action::KLock);
     assert_eq!(added(&app), vec![fp.0]);

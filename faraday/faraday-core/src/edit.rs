@@ -87,7 +87,7 @@ impl Faraday {
         {
             return Some(Action::BName(u8::try_from(p).unwrap_or(u8::MAX)));
         }
-        if !self.typing_field() || self.demo_pass_typing() {
+        if !self.typing_field() {
             return None;
         }
         if self.sheet == Some(Sheet::Import) {

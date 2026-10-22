@@ -284,6 +284,10 @@ pub(crate) struct SheetState {
     pub(crate) wallets: Vec<Row>,
     /// The sample keys the sheet lists, in the order of [`Samples::keys`].
     pub(crate) keys: Vec<Row>,
+    /// Demo's `faraday` chips: the person pressed in a passphrase field,
+    /// or typed, and has done nothing else since, so a field in focus
+    /// shows no chip (`docs/MODES.md` §6.2).
+    pub(crate) pass_pressed: bool,
 }
 
 impl SheetState {
@@ -528,7 +532,11 @@ impl Faraday {
                 loaded: k.held(&self.session.keys),
             })
             .collect();
-        SheetState { wallets, keys }
+        SheetState {
+            wallets,
+            keys,
+            ..Default::default()
+        }
     }
 
     /// Handles the Load samples actions (`Samples`, `SampleTick`,

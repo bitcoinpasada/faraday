@@ -229,6 +229,9 @@ pub enum Action {
     /// Use a sample: the chip inside an empty field where a key is typed
     /// (Demo, with samples set).
     UseSample,
+    /// The `faraday` chip inside an empty passphrase field, in Demo: fills
+    /// that field with it.
+    PassChip(crate::demo::PassField),
     /// The scanner's Sample tile: reads a sample as the camera would.
     ScanSample,
     /// Close a sheet.
