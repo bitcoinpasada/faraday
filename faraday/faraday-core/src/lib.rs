@@ -8801,10 +8801,8 @@ impl Faraday {
                 ui.dimmed = self.demo_dimmed();
                 ui.stretch = stretch;
                 ui.bar = (bar > 0).then_some((bar, offset));
-                ui.stretch_in_sheet = matches!(
-                    self.sheet,
-                    Some(Sheet::Learn | Sheet::WordList | Sheet::Import | Sheet::UnlockLoad)
-                ) || (self.compact && self.sheet.is_some());
+                ui.stretch_in_sheet = self.sheet.is_some_and(Sheet::scrolls_with_bar)
+                    || (self.compact && self.sheet.is_some());
                 ui.disclosure = disclosure;
                 let frost_key = ((self.screen, self.sheet), self.theme);
                 ui.frost = self

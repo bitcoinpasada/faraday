@@ -17,12 +17,16 @@ fn savings() -> Pick {
 }
 
 fn stick(app: &mut Faraday, attached: bool) {
+    sticks_in(app, attached, false);
+}
+
+fn sticks_in(app: &mut Faraday, attached: bool, boot: bool) {
     let sticks = if attached {
         vec![StickInfo {
             serial: None,
             id: "stick".into(),
             label: "STICK".into(),
-            boot: false,
+            boot,
             files: Vec::new(),
         }]
     } else {
@@ -80,4 +84,46 @@ fn load_ticked_with_no_stick_loads_at_once() {
     load_savings(&mut app);
     assert_eq!(app.sheet, None);
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
+}
+
+fn says_pull(app: &mut Faraday) -> bool {
+    app.press(Action::Nav(Screen::Home));
+    let _ = app.frame();
+    app.press(Action::Samples);
+    let _ = app.frame();
+    app.drawn_texts()
+        .iter()
+        .any(|t| t.starts_with("Pull the") && t.contains("to load the samples"))
+}
+
+#[test]
+fn the_sheet_says_to_pull_the_stick_while_one_is_in() {
+    let mut app = demo_app();
+    assert!(!says_pull(&mut app), "no stick, no line");
+    stick(&mut app, true);
+    assert!(says_pull(&mut app));
+    app.press(Action::SampleTick(savings()));
+    let _ = app.frame();
+    assert!(
+        app.hit_box(Action::SamplesLoad).is_some(),
+        "Load ticked can be pressed with the stick in"
+    );
+    stick(&mut app, false);
+    let _ = app.frame();
+    assert!(!app.drawn_texts().iter().any(|t| t.starts_with("Pull the")));
+    sticks_in(&mut app, true, true);
+    assert!(says_pull(&mut app), "the boot stick too");
+}
+
+#[test]
+fn load_ticked_with_the_boot_stick_in_asks_for_it_out_and_then_loads() {
+    let mut app = demo_app();
+    sticks_in(&mut app, true, true);
+    load_savings(&mut app);
+    assert_eq!(app.sheet, Some(Sheet::Pull));
+    assert!(app.session.wallets.is_empty());
+    sticks_in(&mut app, false, true);
+    assert_eq!(app.sheet, None);
+    assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
+    assert!(!app.session.keys.is_empty());
 }

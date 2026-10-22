@@ -1155,13 +1155,23 @@ fn word_check(
     match c.keys.as_deref() {
         None => {
             cy += ui.wrap(x, cy, w, 13.0, W::S, MUTED, &label) + 8.0;
+            let chip = app.copy_check_sample_shown();
             let cells = Cells {
                 boxes: c.count,
                 masked: true,
-                caret: true,
+                caret: !chip,
                 never: app.online,
             };
+            let grid = cy;
             cy = typed_cells(ui, (x, cy, w), lang, &c.typed, cells);
+            if chip {
+                crate::samples::put::grid_chip_labelled(
+                    ui,
+                    (x, grid, w),
+                    c.count,
+                    (EN.fill_words, EN.fill_words),
+                );
+            }
         }
         Some(k) if ui.compact => {
             let status = error.map(|e| (e, ERR));
@@ -1172,7 +1182,12 @@ fn word_check(
                 lang,
                 &label,
                 status,
-                (true, c.shift, false),
+                (
+                    true,
+                    c.shift,
+                    app.copy_check_sample_shown()
+                        .then_some((EN.fill_words, EN.fill_words)),
+                ),
             );
             cy += never_real_seed(app, ui, x, cy, w);
         }

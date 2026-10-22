@@ -676,7 +676,8 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
         (
             !app.entry.on_passphrase,
             app.entry.shift,
-            app.entry_sample_shown(),
+            app.entry_sample_shown()
+                .then_some((EN.use_a_sample, EN.scan_sample)),
         ),
     );
     // The words taken, as many boxes as the count chosen.
@@ -707,7 +708,7 @@ pub(crate) fn keyed_head(
     lang: faraday_bip::bip39::Language,
     label: &str,
     status: Option<(&str, faraday_draw::Color)>,
-    (caret, shift, chip): (bool, bool, bool),
+    (caret, shift, chip): (bool, bool, Option<(&'static str, &'static str)>),
 ) -> f32 {
     let mut y = y;
     let prefix: String = w.prefix().iter().collect();
@@ -720,9 +721,9 @@ pub(crate) fn keyed_head(
         prefix.clone()
     };
     let pw = ui.text(x + off, y - 4.0, 18.0, W::M, ACCENT, &shown);
-    if chip {
+    if let Some(labels) = chip {
         let lift = faraday_draw::tokens::KEYED_HEAD_LIFT;
-        crate::samples::put::head_chip(ui, (x + off, y - lift, iw - off));
+        crate::samples::put::head_chip(ui, (x + off, y - lift, iw - off), labels);
     } else if caret {
         ui.caret(x + off + 2.0 + pw, y - 2.0, 20.0);
     }

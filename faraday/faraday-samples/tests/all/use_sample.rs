@@ -515,3 +515,79 @@ fn no_button_is_offered_on_testnet_or_where_no_samples_are_set() {
     add_a_key(&mut app);
     assert!(!app.offers(Action::UseSample), "the stick has no samples");
 }
+
+/// A twelve-word sample key loaded, its backup open on the copy item,
+/// with the typed words check open.
+fn open_words_check(app: &mut Faraday) {
+    use faraday_core::bstep;
+    let c = testkit::compute();
+    add_a_key(app);
+    app.press(Action::UseSample);
+    app.press(Action::EntryAdd);
+    let key = words_of("twelve");
+    assert!(held(app, key), "{:?}", app.entry.error);
+    app.press(Action::KeyWallet(key.plain.unwrap(), 1));
+    app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
+    app.press(Action::Backup(0));
+    testkit::backup_as(app, faraday_core::plan::Preset::Paper);
+    app.press(Action::BChecklist);
+    if app.backup_items_now(&c).contains(&bstep::BLANK) {
+        app.press(Action::BNext(bstep::BLANK));
+    }
+    if app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
+        app.press(Action::BStep(bstep::COPY));
+    }
+    app.press(Action::BCheck);
+    let _ = app.frame();
+    assert!(app.backup.as_ref().is_some_and(|b| b.check.is_some()));
+}
+
+fn copy_checked(app: &Faraday) -> bool {
+    let fp = words_of("twelve").plain.unwrap();
+    app.backup
+        .as_ref()
+        .is_some_and(|b| b.checked.iter().any(|(f, _)| *f == fp))
+}
+
+#[test]
+fn the_copy_check_offers_fill_words_in_an_empty_grid_and_it_completes_the_check() {
+    let mut app = demo_app();
+    open_words_check(&mut app);
+    assert!(app.drawn_texts().iter().any(|t| t == "Fill words"));
+    assert!(app.offers(Action::UseSample));
+    app.press(Action::UseSample);
+    assert!(copy_checked(&app), "the words were checked as typed");
+    assert!(app.backup.as_ref().unwrap().check.is_none());
+}
+
+#[test]
+fn typing_or_pressing_in_the_grid_hides_fill_words() {
+    let mut app = demo_app();
+    open_words_check(&mut app);
+    app.event(Event::Key(Key::Char('a')));
+    let _ = app.frame();
+    assert!(!app.drawn_texts().iter().any(|t| t == "Fill words"));
+    let mut app = demo_app();
+    open_words_check(&mut app);
+    app.press(Action::EntryField);
+    let _ = app.frame();
+    assert!(!app.drawn_texts().iter().any(|t| t == "Fill words"));
+}
+
+#[test]
+fn outside_demo_the_copy_check_has_no_fill_words() {
+    let mut app = demo_app();
+    open_words_check(&mut app);
+    app.samples = None;
+    let _ = app.frame();
+    assert!(!app.drawn_texts().iter().any(|t| t == "Fill words"));
+    app.press(Action::UseSample);
+    assert!(!copy_checked(&app));
+}
+
+#[test]
+fn the_template_offered_first_is_the_one_the_seeds_fit() {
+    let mut app = demo_app();
+    open_words_check(&mut app);
+    assert_eq!(app.backup.as_ref().unwrap().words, 12);
+}

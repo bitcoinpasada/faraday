@@ -567,6 +567,20 @@ impl Faraday {
                         .into_iter()
                         .flat_map(|fp| [(fp, plan::CopyForm::Words), (fp, plan::CopyForm::SeedQr)])
                         .collect();
+                    // The template offered first is the one the seeds to
+                    // copy fit: 12 words when none has more, else 24.
+                    let counts: Vec<Option<u8>> = self
+                        .backup_keys(i)
+                        .into_iter()
+                        .map(|k| self.session.keys[k].word_count)
+                        .collect();
+                    let words = if !counts.is_empty()
+                        && counts.iter().all(|n| n.is_some_and(|n| n <= 12))
+                    {
+                        12
+                    } else {
+                        24
+                    };
                     self.backup = Some(BackupState {
                         wallet: i,
                         q,
@@ -574,7 +588,7 @@ impl Faraday {
                         names,
                         checked,
                         key: first_key,
-                        words: 24,
+                        words,
                         ..BackupState::default()
                     });
                     self.screen = Screen::Backup;

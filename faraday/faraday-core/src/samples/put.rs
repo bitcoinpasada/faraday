@@ -60,12 +60,22 @@ impl Use {
 
 /// The chip inside the empty field at (`x`, `y`, `w`, `h`), its label the
 /// shorter one where the field is narrower than the long one.
-pub(crate) fn chip(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), action: Action) {
-    let long = ui.measure(FIELD_ACTION_TEXT, W::S, EN.use_a_sample) + 2.0 * FIELD_ACTION_INSET;
-    let label = if long + 2.0 * FIELD_ACTION_INSET <= w {
-        EN.use_a_sample
+pub(crate) fn chip(ui: &mut Ui, rect: (f32, f32, f32, f32), action: Action) {
+    chip_labelled(ui, rect, action, (EN.use_a_sample, EN.scan_sample));
+}
+
+/// [`chip`] with its own `(long, short)` labels.
+pub(crate) fn chip_labelled(
+    ui: &mut Ui,
+    (x, y, w, h): (f32, f32, f32, f32),
+    action: Action,
+    (long, short): (&'static str, &'static str),
+) {
+    let need = ui.measure(FIELD_ACTION_TEXT, W::S, long) + 2.0 * FIELD_ACTION_INSET;
+    let label = if need + 2.0 * FIELD_ACTION_INSET <= w {
+        long
     } else {
-        EN.scan_sample
+        short
     };
     ui.field_action(x, y, w, h, label, action);
 }
@@ -98,22 +108,37 @@ pub(crate) fn pass_chip(
 /// Add a key's word grid on a wide display, empty: the chip inside cell 1
 /// only, after its number, where the word would be; a press anywhere in
 /// the grid focuses it. `boxes` cells are drawn by the grid itself.
-pub(crate) fn grid_chip(ui: &mut Ui, (x, y, w): (f32, f32, f32), boxes: usize) {
+pub(crate) fn grid_chip(ui: &mut Ui, pos: (f32, f32, f32), boxes: usize) {
+    grid_chip_labelled(ui, pos, boxes, (EN.use_a_sample, EN.scan_sample));
+}
+
+/// [`grid_chip`] with its own labels: Check my copy's **Fill words**.
+pub(crate) fn grid_chip_labelled(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    boxes: usize,
+    labels: (&'static str, &'static str),
+) {
     let rows = boxes.div_ceil(4) as f32 * tokens::ENTRY_ROW - tokens::FIELD_RADIUS;
     ui.hit(x, y, w, rows, Action::EntryField);
     let cell = (w - tokens::ENTRY_CELL_GAP * 3_f32) / 4_f32;
     let at = tokens::ENTRY_CELL_NUMBER;
     let h = tokens::ENTRY_CELL_HEIGHT;
-    chip(ui, (x + at, y, cell - at, h), Action::UseSample);
+    chip_labelled(ui, (x + at, y, cell - at, h), Action::UseSample, labels);
 }
 
 /// The chip in the word being typed on a small panel, in the place of its
 /// keys: a press in it is not a press in the field, which has none.
-pub(crate) fn head_chip(ui: &mut Ui, (x, y, w): (f32, f32, f32)) {
-    chip(
+pub(crate) fn head_chip(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    labels: (&'static str, &'static str),
+) {
+    chip_labelled(
         ui,
         (x, y, w, tokens::FIELD_ACTION_HEIGHT),
         Action::UseSample,
+        labels,
     );
 }
 
@@ -701,6 +726,7 @@ impl Faraday {
             Screen::Vaults => self.vaults_use_sample(),
             Screen::Lightning => self.lightning_use_sample(),
             Screen::Explore => self.explore_use_sample(),
+            Screen::Backup => self.copy_check_use_sample(),
             _ => self.entry_use_sample(),
         }
     }
@@ -783,6 +809,58 @@ impl Faraday {
             e.search = None;
             e.note = None;
             e.sample.filled = true;
+        }
+    }
+}
+
+// Check my copy (the backup flow's typed words check).
+
+impl Faraday {
+    /// The words of the sample whose seed the open copy check is of:
+    /// English words of the check's count. A lookup.
+    fn copy_check_sample_words(&self) -> Option<&'static str> {
+        let set = self.put_on()?;
+        let b = self.backup.as_ref()?;
+        let chk = b.check.as_ref().filter(|c| !c.passphrase)?;
+        let fp = self.session.keys.info(b.key)?.fingerprint.0;
+        english_keys(set)
+            .find(|(_, k)| {
+                (k.plain == Some(fp) || k.with_passphrase == Some(fp)) && word_count(k) == chk.count
+            })
+            .and_then(|(_, k)| k.parts.first().copied())
+    }
+
+    /// Whether Check my copy's empty grid draws **Fill words**: Demo with
+    /// samples set, the key checked a sample, nothing typed or pressed.
+    /// A lookup.
+    pub fn copy_check_sample_shown(&self) -> bool {
+        self.backup
+            .as_ref()
+            .and_then(|b| b.check.as_ref())
+            .is_some_and(|c| {
+                !c.sample_gone
+                    && c.lang == Language::English
+                    && c.taken() == 0
+                    && c.typing().is_empty()
+            })
+            && self.copy_check_sample_words().is_some()
+    }
+
+    /// Costs what `copy_check_after` costs. Handles `Action::UseSample` on
+    /// Check my copy: the sample's words are typed key by key, as a person
+    /// would, and the check runs when the last is taken.
+    pub(crate) fn copy_check_use_sample(&mut self) {
+        if !self.copy_check_sample_shown() {
+            return;
+        }
+        let Some(words) = self.copy_check_sample_words() else {
+            return;
+        };
+        for word in words.split_whitespace() {
+            for ch in word.chars() {
+                self.copy_check_key(faraday_shell_api::Key::Char(ch));
+            }
+            self.copy_check_key(faraday_shell_api::Key::Char(' '));
         }
     }
 }

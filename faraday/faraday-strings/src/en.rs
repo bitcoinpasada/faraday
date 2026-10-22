@@ -7854,6 +7854,9 @@ pub struct Strings {
     /// The same where the field is narrower than the chip, and the
     /// scanner's tile that reads a sample.
     pub scan_sample: &'static str,
+    /// The chip in Check my copy's empty grid, in Demo: it types the
+    /// sample's words.
+    pub fill_words: &'static str,
     /// The scanner's tile, and the step's button, that hands over the
     /// sample transaction.
     pub scan_sample_psbt: &'static str,
@@ -12813,6 +12816,7 @@ pub static EN: Strings = Strings {
     mode_not_now: "Not now",
     never_real_seed: "Never type a seed that holds real bitcoin here.",
     use_a_sample: "Use a sample",
+    fill_words: "Fill words",
     scan_sample: "Sample",
     scan_sample_psbt: "Load sample PSBT",
     scan_sample_wallet: "Load sample wallet",

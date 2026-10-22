@@ -5,6 +5,7 @@ use faraday_core::samples::Pick;
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Screen, StickInfo, StorageEvent};
+use faraday_shell_api::App as _;
 
 /// The desktop app's stick pills: the default two, then a wallet's backup
 /// with five vaults.
@@ -106,13 +107,31 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::ScanSeed);
     t.shot("modes-demo-scan-sample")?;
     t.press(Action::Cancel);
+    // The boot stick is in, as on the desktop; the lock it asks for is
+    // put off.
+    t.app.storage(faraday_core::StorageEvent::Sticks(vec![
+        faraday_core::StickInfo {
+            serial: None,
+            id: "boot".into(),
+            label: "BOOT".into(),
+            boot: true,
+            files: Vec::new(),
+        },
+    ]));
+    t.press(Action::Cancel);
     t.press(Action::Samples);
     t.shot("modes-demo-samples-sheet")?;
     t.press(Action::SampleTick(Pick::Wallet(0)));
     t.shot("modes-demo-samples-ticked")?;
+    // The list is longer than the sheet: its scrollbar shows with the
+    // pointer at the sheet's right edge.
+    t.app
+        .event(faraday_shell_api::Event::Hover { x: 955, y: 400 });
+    t.shot("modes-demo-samples-bar")?;
+    t.app
+        .event(faraday_shell_api::Event::Hover { x: 100, y: 400 });
     // With a stick in, keys do not load: the Pull sheet asks for it out,
     // and pulling it loads the samples.
-    t.sticks(true);
     t.press(Action::SamplesLoad);
     t.shot("modes-demo-samples-pull")?;
     t.sticks(false);
@@ -123,6 +142,7 @@ pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     crate::tour::scroll(t, 700);
     t.shot("modes-demo-samples-after-foot")?;
     t.press(Action::Cancel);
+    demo_copy_check(t)?;
     t.app.session = faraday_core::wallet::Session::on(testkit::NET);
     t.app.set_modes(faraday_core::DESKTOP_MODES);
     t.press(Action::Nav(Screen::Home));
@@ -227,4 +247,26 @@ fn testnet_passphrases(t: &mut Tour) -> Result<(), String> {
     type_text(t, "ab");
     t.shot("modes-testnet-create-vault")?;
     Ok(())
+}
+
+/// Check my copy's word grid in Demo, empty with Fill words in its first
+/// cell, and the backup's template count.
+fn demo_copy_check(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::bstep;
+    let c = testkit::compute();
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::Backup(0));
+    testkit::backup_as(&mut t.app, faraday_core::plan::Preset::Paper);
+    t.press(Action::BChecklist);
+    if t.app.backup_items_now(&c).contains(&bstep::BLANK) {
+        t.shot("modes-demo-backup-template")?;
+        t.press(Action::BNext(bstep::BLANK));
+    }
+    if t.app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
+        t.press(Action::BStep(bstep::COPY));
+    }
+    t.press(Action::BCheck);
+    t.shot("modes-demo-copy-check")?;
+    t.press(Action::UseSample);
+    t.shot("modes-demo-copy-checked")
 }

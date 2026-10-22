@@ -37,6 +37,8 @@ pub struct WordCheck {
     pub count: usize,
     /// A passphrase is typed, whole, not the words.
     pub passphrase: bool,
+    /// The person pressed in the grid or typed: **Fill words** is gone.
+    pub sample_gone: bool,
 }
 
 impl WordCheck {
@@ -51,6 +53,7 @@ impl WordCheck {
             lang,
             count,
             passphrase: false,
+            sample_gone: false,
         }
     }
 
@@ -286,6 +289,7 @@ impl Faraday {
         let Some(c) = self.backup.as_mut().and_then(|b| b.check.as_mut()) else {
             return;
         };
+        c.sample_gone = true;
         if c.passphrase {
             match key {
                 // BIP-39 passphrases here are printable ASCII.

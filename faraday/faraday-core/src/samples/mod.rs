@@ -613,3 +613,21 @@ impl Faraday {
         }
     }
 }
+
+impl Sheet {
+    /// Whether this sheet scrolls its own region on a wide display, with
+    /// the page's overlay scrollbar (`docs/MOTION.md` §3.8): the sheets
+    /// whose long content sits under pinned buttons or a head.
+    pub(crate) fn scrolls_with_bar(self) -> bool {
+        matches!(
+            self,
+            Sheet::Learn
+                | Sheet::WordList
+                | Sheet::Import
+                | Sheet::UnlockLoad
+                | Sheet::Samples
+                | Sheet::Mode
+                | Sheet::Pull
+        )
+    }
+}

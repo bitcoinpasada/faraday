@@ -377,3 +377,42 @@ fn every_sample_has_a_name_a_person_reads() {
         Some("bacon ×24")
     );
 }
+
+/// The Load samples sheet on a 1280 x 800 window, longer than the window.
+fn long_sheet() -> faraday_core::Faraday {
+    let mut app = demo_app();
+    crate::common::show(&mut app, 1280, 800, 160);
+    app.press(Action::Samples);
+    let _ = app.frame();
+    app
+}
+
+#[test]
+fn the_load_sheet_shows_a_scrollbar_with_the_pointer_over_its_edge_and_it_can_be_dragged() {
+    use faraday_shell_api::{Event, TouchPhase};
+    let mut app = long_sheet();
+    let rest = app.frame().rgba.to_vec();
+    // The sheet is 640 wide, centred: its right edge is at 960.
+    app.event(Event::Hover { x: 955, y: 400 });
+    assert!(app.frame().rgba.to_vec() != rest, "the bar shows");
+    let first = |app: &faraday_core::Faraday| {
+        app.hit_box(Action::SampleTick(Pick::Wallet(0)))
+            .map(|b| b.1)
+    };
+    let at_rest = first(&app);
+    let touch = |app: &mut faraday_core::Faraday, y: u16, phase| {
+        app.event(Event::Touch { x: 955, y, phase });
+        let _ = app.frame();
+    };
+    touch(&mut app, 650, TouchPhase::Down);
+    let low = first(&app);
+    touch(&mut app, 0, TouchPhase::Move);
+    let top = first(&app);
+    touch(&mut app, 0, TouchPhase::Up);
+    assert!(
+        low.is_none_or(|y| Some(y) < at_rest),
+        "pressed low on the track, the list went there"
+    );
+    assert_eq!(top, at_rest, "dragged to the top, it followed");
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Samples));
+}

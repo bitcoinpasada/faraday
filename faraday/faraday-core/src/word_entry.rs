@@ -727,6 +727,9 @@ impl Faraday {
             }
             Action::EntryOtherForms => self.entry.other_forms = true,
             Action::EntryField => {
+                if let Some(c) = self.backup.as_mut().and_then(|b| b.check.as_mut()) {
+                    c.sample_gone = true;
+                }
                 self.entry.on_passphrase = false;
                 self.entry.sample.dismiss();
             }

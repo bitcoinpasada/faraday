@@ -9,7 +9,7 @@ use crate::Action;
 use crate::compact::{buttons, scroll_sheet};
 use crate::drawing::View;
 use crate::modes::screen::{head, place};
-use crate::strings::EN;
+use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use faraday_draw::tokens::{CAPTION, GAP, LABEL, PAD, TOUCH};
@@ -55,6 +55,15 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     cy += head(ui, (x, cy, w), Icon::Download, EN.samples_title);
     cy += ui.code_line((x, cy, w), LABEL, MUTED, EN.samples_password, PASSPHRASE) + PAD;
+    // Load ticked with a stick in asks for it out (the Pull sheet); the
+    // line is at the top, where the scrolled list does not hide it.
+    if app.selftest_passed() && !app.sticks.is_empty() {
+        let line = fill(
+            EN.pull_pull_the_to,
+            &[app.medium.noun(), EN.pull_what_load_samples],
+        );
+        cy += ui.wrap(x, cy, w, LABEL, W::S, WARN, &line) + PAD;
+    }
     // Unselect all while any is ticked; Select all once none is.
     let any = state.any_ticked();
     let link = if any {
@@ -76,7 +85,8 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += heading(ui, x, cy, EN.samples_keys);
     let (keys, kinds) = list(&state.keys, |i| set.keys[i].label(), Pick::Key);
     cy += ui.multi_list_valued(x, cy, w, &keys, &kinds) + PAD;
-    let load = if any && app.may_load_keys() {
+    // Pressable while a stick is in: the press opens the Pull sheet.
+    let load = if any && app.selftest_passed() {
         Style::Primary
     } else {
         Style::Disabled
