@@ -9,10 +9,14 @@
 //! - [`Pinned`]: hold a long-lived secret on pages of its own that the
 //!   kernel is asked not to write to swap. Its five small
 //!   `unsafe` blocks — the page-aligned allocation, its release, the two
-//!   dereferences and the `mlock`/`munlock` pair — are the crate's
-//!   audited `unsafe` and the only `unsafe` in the core. The syscalls
+//!   dereferences and the `mlock`/`munlock` pair — are, with
+//!   [`WipeOnFree`]'s, the crate's audited `unsafe` and the only `unsafe`
+//!   in the core. The syscalls
 //!   themselves are behind the `pin-pages` feature, which the desktop
 //!   and Pi shells turn on and the browser and Android builds leave off.
+//! - [`WipeOnFree`]: a global allocator wrapper a binary may install,
+//!   which zeroes every heap block as it is freed, for the copies of a
+//!   secret that other code makes and frees out of `zeroize`'s reach.
 //! - [`Sealed`] and [`SessionKey`]: keep a secret encrypted while it is
 //!   not in use, so that plaintext exists only inside a closure and only
 //!   for as long as the closure runs (§5.1, §5.2, §16.21).
@@ -46,6 +50,7 @@ mod pinned;
 mod scrypt;
 mod sealed;
 mod secret;
+mod wipe;
 pub mod work;
 
 pub use blake2b::{MAX_OUT as BLAKE2B_MAX_OUT, blake2b};
@@ -60,4 +65,5 @@ pub use sealed::{
     SealedBytes, SeedBytes, SessionKey, TAG_LEN,
 };
 pub use secret::Secret;
+pub use wipe::WipeOnFree;
 pub use zeroize::{Zeroize, ZeroizeOnDrop};

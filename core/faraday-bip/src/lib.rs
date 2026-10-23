@@ -59,6 +59,7 @@ pub mod compile;
 pub mod core_import;
 pub mod descriptor;
 pub mod diceware;
+pub mod dleq;
 pub mod frost;
 pub mod hangul;
 pub mod hashes;

@@ -40,8 +40,9 @@ libc = { workspace = true, optional = true }
 # Audited unsafe is allowed here for mlock and zeroize.
 # `deny` rather than `forbid` so that `pinned.rs` — the page-aligned
 # allocation, its release, the two dereferences of the pointer to it and
-# the `mlock`/`munlock` pair, and nothing else in the workspace core —
-# can allow it for itself.
+# the `mlock`/`munlock` pair — and `wipe.rs` — the volatile zeroing of a
+# block before it is freed and the `GlobalAlloc` wrapper that calls it —
+# and nothing else in the workspace core, can allow it for themselves.
 unsafe_code = "deny"
 unsafe_op_in_unsafe_fn = "deny"
 missing_docs = "warn"

@@ -14,6 +14,7 @@ mod multisig;
 mod musig;
 mod nonce;
 mod sign;
+mod silent;
 mod tapmulti;
 mod threshold;
 mod transaction;

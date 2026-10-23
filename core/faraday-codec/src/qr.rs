@@ -21,7 +21,7 @@ use alloc::vec::Vec;
 use core::fmt;
 
 use faraday_crypto::work::{Compute, Work};
-use zeroize::{Zeroize, Zeroizing};
+use zeroize::{Zeroize, ZeroizeOnDrop, Zeroizing};
 
 /// Largest side of a QR code in modules (version 40).
 pub const MAX_SIZE: usize = 177;
@@ -189,6 +189,10 @@ impl Drop for QrMatrix {
         self.zeroize();
     }
 }
+
+/// The drop above zeroizes, so a `QrMatrix` meets the bound that
+/// generic code holding a secret asks for.
+impl ZeroizeOnDrop for QrMatrix {}
 
 /// Costs a QR encoding (the codewords, the error correction and eight
 /// masks scored): encodes `payload` at level `ecc` in the smallest
@@ -946,6 +950,23 @@ mod tests {
             err(encode_bounded(&c, Payload::Bytes(&big[..100]), Ecc::Low, 1)),
             Error::TooLong
         );
+    }
+
+    #[test]
+    fn a_seedqr_matrix_is_wiped() {
+        // A SeedQR's modules are the seed, so the matrix is wiped when
+        // it is dropped, and no module stays dark after a wipe.
+        fn wiped_on_drop<T: ZeroizeOnDrop>() {}
+        wiped_on_drop::<QrMatrix>();
+        let c = Compute::unchecked();
+        let digits = [b'7'; 48];
+        let mut qr = encode(&c, Payload::Numeric(&digits), Ecc::Low).unwrap();
+        let side = qr.size();
+        assert!((0..side).any(|y| (0..side).any(|x| qr.module(x, y))));
+        qr.zeroize();
+        assert_eq!(qr.size(), 0);
+        assert_eq!(qr.version(), 0);
+        assert!(qr.bits.iter().all(|b| *b == 0), "every module light");
     }
 
     #[test]

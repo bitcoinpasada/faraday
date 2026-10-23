@@ -15,6 +15,7 @@ mod core_import;
 mod crosscheck;
 mod descriptor;
 mod diceware;
+mod dleq;
 mod frost;
 mod json;
 mod miniscript;
