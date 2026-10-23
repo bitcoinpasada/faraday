@@ -961,10 +961,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // Keys' Continue deals the shares.
     t.press(Action::CNext(2));
     t.shot("create-frost-dealt")?;
-    let made = t.app.create.as_ref().and_then(|c| c.built).ok_or_else(|| {
+    let made = t.app.create().and_then(|c| c.built).ok_or_else(|| {
         format!(
             "the deal made no wallet: {:?}",
-            t.app.create.as_ref().and_then(|c| c.error.clone())
+            t.app.create().and_then(|c| c.error.clone())
         )
     })?;
     let w = &t.app.session.wallets[made];

@@ -609,7 +609,7 @@ fn a_flow_on_its_first_card_ends_without_the_sheet() {
     assert!(!row_on_settings(&mut app, Going::Create));
     // Make a new wallet opens afresh, on Kind.
     app.press(Action::CreateWallet);
-    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::KIND));
+    assert_eq!(app.create().unwrap().open, Some(cstep::KIND));
 }
 
 #[test]

@@ -351,7 +351,7 @@ fn count_card(
 
 /// Make a new wallet's question of vaults.
 pub(crate) fn create_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
-    let c = app.create.as_ref()?;
+    let c = app.create.state()?;
     Some(ask_card(
         ui,
         (x, y, w),
@@ -364,7 +364,7 @@ pub(crate) fn create_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> O
 
 /// Make a new wallet's count of vaults.
 pub(crate) fn create_count(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
-    let c = app.create.as_ref()?;
+    let c = app.create.state()?;
     Some(count_card(
         ui,
         (x, y, w),
@@ -411,7 +411,7 @@ pub(crate) fn create_flow_card(
     y: f32,
     w: f32,
 ) -> Option<f32> {
-    let i = app.wallet_flow_of_owner(app.create.as_ref()?.owner)?;
+    let i = app.wallet_flow_of_owner(app.create.state()?.owner)?;
     let f = &app.backup_flows[i];
     let mut cy = y;
     let line = match step {

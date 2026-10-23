@@ -1000,7 +1000,7 @@ impl Faraday {
                 self.vaults.focus,
                 self.entry.state().on_passphrase,
                 self.keygen.state().and_then(|k| k.focus),
-                self.create.as_ref().and_then(|c| c.pass_focus),
+                self.create.state().and_then(|c| c.pass_focus),
                 self.seed_read.as_ref().and_then(|s| s.focus)
             )
         })

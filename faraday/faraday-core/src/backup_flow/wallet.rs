@@ -113,7 +113,7 @@ impl Faraday {
     pub(crate) fn wallet_placeholder(&self, owner: u64) -> Option<plan::Shape> {
         use crate::create::NewKind as K;
         let (kind, m, n_keys) = match (
-            self.create.as_ref().filter(|c| c.owner == owner),
+            self.create.state().filter(|c| c.owner == owner),
             self.restore.as_ref().filter(|r| r.owner == owner),
         ) {
             (Some(c), _) => (c.kind, c.m, c.n),
@@ -153,7 +153,7 @@ impl Faraday {
     /// out to use, when the person answered yes.
     fn wallet_vault_count(&self, owner: u64) -> Option<usize> {
         let ask = match (
-            self.create.as_ref().filter(|c| c.owner == owner),
+            self.create.state().filter(|c| c.owner == owner),
             self.restore.as_ref().filter(|r| r.owner == owner),
         ) {
             (Some(c), _) => c.vaults,
@@ -273,7 +273,7 @@ impl Faraday {
     /// The keys chosen for the wallet being made by Make a new wallet or
     /// Restore number `owner`, by slot.
     fn wallet_owner_slots(&self, owner: u64) -> Vec<crate::create::Source> {
-        match (self.create.as_ref(), self.restore.as_ref()) {
+        match (self.create.state(), self.restore.as_ref()) {
             (Some(c), _) if c.owner == owner => c.slots.clone(),
             (_, Some(r)) if r.owner == owner => r
                 .seeds
@@ -338,10 +338,10 @@ impl Faraday {
         }
         let creating = self
             .create
-            .as_ref()
+            .state()
             .is_some_and(|c| c.owner == owner && c.built.is_none());
         if creating {
-            if let Some(c) = self.create.as_mut() {
+            if let Some(c) = self.create.state_mut() {
                 c.open = Some(cstep::KEYS);
                 c.scroll.follow = true;
             }
@@ -365,7 +365,7 @@ impl Faraday {
             return false;
         }
         let owner = w.owner;
-        let to = if self.create.as_ref().is_some_and(|c| c.owner == owner) {
+        let to = if self.create.state().is_some_and(|c| c.owner == owner) {
             Screen::Create
         } else if self.restore.as_ref().is_some_and(|r| r.owner == owner) {
             Screen::Restore
@@ -1819,7 +1819,7 @@ impl Faraday {
     /// vaults, and, when the answer is yes, how many and the two cards of
     /// their setup (Bring in the sticks, Vaults), then Keys.
     pub fn create_cards(&self) -> Vec<u8> {
-        let Some(c) = self.create.as_ref() else {
+        let Some(c) = self.create.state() else {
             return Vec::new();
         };
         let mut v = crate::create_steps(c.kind);
@@ -1841,7 +1841,7 @@ impl Faraday {
     /// count are done only when the person has pressed their own Continue;
     /// the two cards of the setup are, once the flow is past them.
     pub fn create_card_done(&self, k: u8) -> bool {
-        let Some(c) = self.create.as_ref() else {
+        let Some(c) = self.create.state() else {
             return false;
         };
         let at = |step: Step| {
@@ -1865,13 +1865,13 @@ impl Faraday {
         let cards = self.create_cards();
         let pending = self
             .create
-            .as_ref()
+            .state()
             .is_some_and(|c| self.setup_pending(c.owner, c.into_vaults(), c.built.is_some()));
         let next = cards
             .iter()
             .copied()
             .find(|&k| !self.create_card_done(k) && !(pending && k == cstep::KEYS));
-        if let Some(c) = self.create.as_mut() {
+        if let Some(c) = self.create.state_mut() {
             c.open = next;
             c.scroll.follow = true;
         }
@@ -2279,7 +2279,7 @@ impl Faraday {
         };
         let (m, n) = crate::wallet::Session::quorum(wl);
         let owner = self.fresh_owner();
-        self.create = Some(crate::CreateState {
+        self.create.set(crate::CreateState {
             owner,
             open: Some(cstep::KEYS),
             m,
@@ -2290,7 +2290,7 @@ impl Faraday {
             pass_focus: Some(0),
             ..crate::CreateState::default()
         });
-        if let Some(c) = self.create.as_mut() {
+        if let Some(c) = self.create.state_mut() {
             c.done[cstep::WHERE as usize] = true;
             c.vaults.answer = Some(false);
         }
@@ -2755,7 +2755,7 @@ impl Faraday {
             };
             let again = if let Some(c) = self
                 .create
-                .as_ref()
+                .state()
                 .filter(|c| c.owner == owner && c.built.is_none())
             {
                 Some(crate::backup_flow::Again {
@@ -2838,7 +2838,7 @@ impl Faraday {
                 for k in [cstep::KIND, cstep::QUORUM, cstep::WHERE, cstep::HOW_MANY] {
                     c.done[k as usize] = true;
                 }
-                self.create = Some(c);
+                self.create.set(c);
                 self.create_open_next();
             }
             // The flow's own setup is what the person continues with.

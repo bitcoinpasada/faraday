@@ -238,7 +238,7 @@ fn once_make_a_new_wallet_ends_the_idle_lock_comes_back() {
     if app.sheet == Some(Sheet::CancelFlow(faraday_core::in_progress::Going::Create)) {
         app.press(Action::CancelFlowNow);
     }
-    assert!(app.create.is_none());
+    assert!(app.create().is_none());
     assert!(!app.lock_held(&c));
     tick(&mut app, 0);
     assert!(tick(&mut app, 30 * MIN).contains(&Command::Exit));
@@ -264,7 +264,7 @@ fn a_lock_while_held_says_it_ends_make_a_new_wallet_and_ends_it() {
         outbox: Vec::new(),
         kept,
     });
-    assert!(next.create.is_none());
+    assert!(next.create().is_none());
     assert!(
         next.flows_in_progress_now(&c).is_empty(),
         "nothing to come back to"

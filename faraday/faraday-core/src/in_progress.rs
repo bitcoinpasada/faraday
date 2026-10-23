@@ -97,7 +97,7 @@ impl Faraday {
         let mut v = Vec::new();
         if self
             .create
-            .as_ref()
+            .state()
             .is_some_and(|c| c.built.is_some() || c.done.iter().any(|d| *d))
         {
             v.push(Going::Create);
@@ -159,7 +159,7 @@ impl Faraday {
     /// the wallet just made there, else its own.
     fn backup_going(&self) -> Option<Going> {
         let b = self.backup.as_ref()?;
-        if self.create.as_ref().and_then(|c| c.built) == Some(b.wallet) {
+        if self.create.state().and_then(|c| c.built) == Some(b.wallet) {
             Some(Going::Create)
         } else {
             Some(Going::Backup)
@@ -172,7 +172,7 @@ impl Faraday {
     fn flow_held_by(&self, i: usize) -> Option<Going> {
         let f = self.backup_flows.get(i)?;
         let owner = f.wallet.as_ref().map_or(0, |w| w.owner);
-        if owner != 0 && self.create.as_ref().is_some_and(|c| c.owner == owner) {
+        if owner != 0 && self.create.state().is_some_and(|c| c.owner == owner) {
             return Some(Going::Create);
         }
         if owner != 0 && self.restore.as_ref().is_some_and(|r| r.owner == owner) {
@@ -192,7 +192,7 @@ impl Faraday {
     /// The flow now on screen, when it is one that can be in progress.
     pub(crate) fn flow_on_screen(&self) -> Option<Going> {
         match self.screen {
-            Screen::Create if self.create.is_some() => Some(Going::Create),
+            Screen::Create if self.create.state().is_some() => Some(Going::Create),
             Screen::Restore if self.restore.is_some() => Some(Going::Restore),
             Screen::Backup => self.backup_going(),
             Screen::Spend | Screen::Family => Some(Going::Spend),
@@ -250,7 +250,7 @@ impl Faraday {
         };
         match g {
             Going::Create => {
-                let Some(owner) = self.create.as_ref().map(|c| c.owner) else {
+                let Some(owner) = self.create.state().map(|c| c.owner) else {
                     return;
                 };
                 match left {
@@ -365,7 +365,7 @@ impl Faraday {
             |cards: &[u8], done: &dyn Fn(u8) -> bool| cards.iter().skip(1).any(|&k| done(k));
         match g {
             Going::Create => {
-                let c = self.create.as_ref()?;
+                let c = self.create.state()?;
                 if self.backup_going() == Some(Going::Create) && self.backup_begun() {
                     return Some(EN.flow_lost_plan);
                 }
@@ -511,7 +511,7 @@ impl Faraday {
     /// stays. Returns whether it was opened from Home; `None` when none
     /// was under way.
     pub(crate) fn create_drop(&mut self) -> Option<bool> {
-        let c = self.create.as_ref()?;
+        let c = self.create.state()?;
         let (owner, home) = (c.owner, c.from_home);
         // Its Back up goes with it.
         let backup = (self.backup_going() == Some(Going::Create))
@@ -520,7 +520,7 @@ impl Faraday {
         if self.backup_going() == Some(Going::Create) {
             self.backup = None;
         }
-        self.create = None;
+        self.create.clear();
         let setup = self.wallet_flow_of_owner(owner);
         // The later index first, so the earlier stays where it is.
         let mut drop: Vec<usize> = setup.into_iter().chain(backup).collect();
@@ -645,7 +645,7 @@ impl Faraday {
 
     /// Make a new wallet's open card, or the first not done.
     fn create_step(&self) -> Option<String> {
-        let c = self.create.as_ref()?;
+        let c = self.create.state()?;
         let cards = self.create_cards();
         let k = c
             .open
@@ -752,7 +752,7 @@ pub(crate) fn cancel_sheet(app: &View, ui: &mut crate::ui::Ui, g: Going, w: f32,
 /// [`Faraday::lock_held`] read through `r` ([`Reads`]).
 pub(crate) fn lock_held_on(r: &impl Reads) -> bool {
     let app = r.app();
-    let Some(cs) = app.create.as_ref() else {
+    let Some(cs) = app.create.state() else {
         return false;
     };
     let begun = cs.built.is_some() || cs.done.iter().any(|d| *d);
@@ -767,7 +767,7 @@ fn flow_finished_on(r: &impl Reads, g: Going) -> bool {
     let app = r.app();
     match g {
         Going::Create => {
-            app.create.as_ref().is_some_and(|c| c.built.is_some())
+            app.create.state().is_some_and(|c| c.built.is_some())
                 && app.backup_going() == Some(Going::Create)
                 && backup_finished_on(r)
         }

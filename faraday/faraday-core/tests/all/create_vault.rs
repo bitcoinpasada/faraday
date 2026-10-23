@@ -52,7 +52,7 @@ fn create_to_vault_step() -> Faraday {
     app.press(Action::KNext); // back to Create, on Back up
     assert_eq!(app.screen, Screen::Create, "New key returns to Create");
     assert!(
-        app.create.as_ref().unwrap().built.is_some(),
+        app.create().unwrap().built.is_some(),
         "the wallet did not build"
     );
     app.press(Action::CBackup);
@@ -182,7 +182,7 @@ fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
 fn a_finished_backup_offers_a_stick_and_asks_to_lock_first() {
     let c = faraday_core::testkit::compute();
     let mut app = create_to_vault_step();
-    let wallet = app.create.as_ref().unwrap().built.unwrap();
+    let wallet = app.create().unwrap().built.unwrap();
     app.press(Action::Backup(wallet));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     app.press(Action::BChecklist);

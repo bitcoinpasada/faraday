@@ -123,7 +123,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // After the check, the backup plan: Paper and vault, every seed
     // ticked into Vault 1, puts the new keys and the wallet into the open
     // vault from the checklist.
-    let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
+    let built = t.app.create().and_then(|c| c.built).unwrap_or(0);
     t.press(Action::CBackup);
     t.backup_as(faraday_core::plan::Preset::PaperVault);
     let here = t.app.plan_shape_now(built).here();

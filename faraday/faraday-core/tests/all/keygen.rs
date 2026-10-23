@@ -495,7 +495,7 @@ fn a_key_made_for_a_create_slot_fills_it() {
     app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create);
     let fp = app.session.keys[0].fingerprint.0;
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!(c.slots[1], faraday_core::create::Source::Here(fp));
 }
 
@@ -744,7 +744,7 @@ fn lock_in_with_a_passphrase_adds_the_key_of_the_words_with_that_passphrase() {
         .0;
     assert_ne!(with, without);
     assert_eq!(added(&app), vec![with]);
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!(c.slots[0], faraday_core::create::Source::Here(with));
     let shown = texts(&mut app);
     assert!(shown.contains("Locked in"));
@@ -754,10 +754,7 @@ fn lock_in_with_a_passphrase_adds_the_key_of_the_words_with_that_passphrase() {
     // Continue returns to Create on Keys, with the slot filled.
     app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create);
-    assert_eq!(
-        app.create.as_ref().unwrap().open,
-        Some(faraday_core::cstep::KEYS)
-    );
+    assert_eq!(app.create().unwrap().open, Some(faraday_core::cstep::KEYS));
 }
 
 #[test]
@@ -821,7 +818,7 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
         .unwrap()
         .0;
     assert_eq!(added(&app), vec![with]);
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!(c.slots[0], faraday_core::create::Source::Here(with));
     let shown = texts(&mut app);
     assert!(shown.contains(&format!(
@@ -915,7 +912,7 @@ fn a_single_key_create_opens_on_back_up_and_the_key_card_holds_the_address_back(
     assert!(on_key.contains("Back up before you receive"));
     app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create);
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!(c.open, Some(faraday_core::cstep::BACKUP));
     assert!(c.done[faraday_core::cstep::KEYS as usize]);
     assert!(c.done[faraday_core::cstep::CHECK as usize]);
@@ -1187,7 +1184,7 @@ fn words_typed_for_a_create_slot_fill_the_slot_with_that_key() {
         .keys
         .add_words_with(&c, &words, "", "", None)
         .unwrap();
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!(c.slots[0], Source::Here(fp.0));
     app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create, "back to Create");

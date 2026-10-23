@@ -1607,7 +1607,7 @@ impl crate::Faraday {
         }
         // A flow already open ends first, giving back what it kept.
         self.keygen_drop();
-        let only_24 = slot.is_some() && self.create.as_ref().is_some_and(|c| c.kind.threshold());
+        let only_24 = slot.is_some() && self.create.state().is_some_and(|c| c.kind.threshold());
         let back = self.screen;
         let mut k = KeyGen::new(slot, back, only_24);
         k.entropy_source = self.keygen.entropy_source;
@@ -1895,7 +1895,7 @@ impl crate::Faraday {
             Ok(fp) => {
                 self.keygen.new_keys += 1;
                 if let Some(slot) = slot
-                    && let Some(c) = self.create.as_mut()
+                    && let Some(c) = self.create.state_mut()
                 {
                     c.made += 1;
                     if let Some(s) = c.slots.get_mut(usize::from(slot)) {
@@ -1993,7 +1993,7 @@ impl crate::Faraday {
         let (kind, account) = match slot {
             Some(_) => self
                 .create
-                .as_ref()
+                .state()
                 .map(|c| (c.kind, c.account))
                 .unwrap_or_default(),
             None => (crate::create::NewKind::NativeSegwit, 0),
@@ -2027,7 +2027,7 @@ impl crate::Faraday {
         let Some(slot) = slot else {
             return;
         };
-        let Some(c) = self.create.as_mut() else {
+        let Some(c) = self.create.state_mut() else {
             return;
         };
         if made {
@@ -2038,7 +2038,7 @@ impl crate::Faraday {
         }
         if !c.kind.multi() && c.built.is_none() {
             self.create_make();
-            if let Some(c) = self.create.as_mut()
+            if let Some(c) = self.create.state_mut()
                 && c.built.is_some()
             {
                 c.done[usize::from(crate::cstep::KEYS)] = true;
@@ -2046,7 +2046,7 @@ impl crate::Faraday {
                 c.open = Some(crate::cstep::BACKUP);
                 c.scroll.follow = true;
             }
-            if let Some(w) = self.create.as_ref().and_then(|c| c.built)
+            if let Some(w) = self.create.state().and_then(|c| c.built)
                 && let Some(wallet) = self.session.wallets.get(w)
             {
                 let checksum = wallet.checksum().to_string();
@@ -2115,7 +2115,7 @@ impl crate::Faraday {
         let (kind, account) = match slot {
             Some(_) => self
                 .create
-                .as_ref()
+                .state()
                 .map(|c| (c.kind, c.account))
                 .unwrap_or_default(),
             None => (crate::create::NewKind::NativeSegwit, 0),
@@ -2168,7 +2168,7 @@ impl crate::Faraday {
         };
         self.return_back(k.back);
         if k.slot.is_some()
-            && let Some(c) = self.create.as_mut()
+            && let Some(c) = self.create.state_mut()
             && c.built.is_none()
         {
             c.open = Some(crate::cstep::KEYS);

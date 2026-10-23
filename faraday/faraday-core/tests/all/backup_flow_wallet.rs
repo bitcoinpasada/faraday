@@ -382,10 +382,10 @@ pub(crate) fn single_key_plan(
         0,
         "no key is in a vault until the plan says which"
     );
-    if app.create.as_ref().unwrap().built.is_none() {
+    if app.create().unwrap().built.is_none() {
         app.press(Action::CNext(cstep::KEYS));
     }
-    let w = app.create.as_ref().unwrap().built.expect("wallet made");
+    let w = app.create().unwrap().built.expect("wallet made");
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
@@ -734,7 +734,7 @@ fn two_of_three_ready(shell: &mut Shell, software: bool) -> Faraday {
         app.press(Action::CSlotHere(i as u8, *fp));
     }
     app.press(Action::CNext(cstep::KEYS));
-    assert!(app.create.as_ref().unwrap().built.is_some(), "wallet made");
+    assert!(app.create().unwrap().built.is_some(), "wallet made");
     // Three vaults are open and hold no key yet.
     assert_eq!(app.vaults.open.len(), 3);
     for o in &app.vaults.open {
@@ -921,7 +921,7 @@ fn a_two_of_three_with_key_3_on_paper_asks_for_two_sticks_and_holds_key_3_until_
     app.press(Action::Nav(Screen::Create));
     let fps: Vec<[u8; 4]> = (0..3u8).map(|s| new_key_at(&mut app, s)).collect();
     app.press(Action::CNext(cstep::KEYS));
-    assert!(app.create.as_ref().unwrap().built.is_some(), "wallet made");
+    assert!(app.create().unwrap().built.is_some(), "wallet made");
     assert_eq!(app.vaults.open.len(), 2);
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup);
@@ -1120,7 +1120,7 @@ fn the_lines_are_drawn_and_add_a_passphrase_opens_the_key_with_its_fields() {
     // Create opens on Keys with the key in its slot and the fields open:
     // the key with a passphrase is another key.
     assert_eq!(app.screen, Screen::Create);
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!(c.open, Some(cstep::KEYS));
     assert_eq!(c.pass_slot, Some(0));
 }
@@ -1566,7 +1566,7 @@ fn a_wallet_left_with_its_vaults_open_does_not_take_the_next_wallets_keys() {
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));
-    assert!(app.create.as_ref().unwrap().built.is_some());
+    assert!(app.create().unwrap().built.is_some());
     assert_eq!(
         app.vaults
             .store()
@@ -1762,13 +1762,17 @@ fn a_vault_stays_with_its_own_salt_when_a_slot_turns_out_to_be_a_cosigners() {
     app.session.keys.retain(|k| k.fingerprint.0 != b);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, a));
-    app.create.as_mut().unwrap().slots[1] = faraday_core::create::Source::Cosigner(cosigner);
+    faraday_core::testkit::create_set_slot(
+        &mut app,
+        1,
+        faraday_core::create::Source::Cosigner(cosigner),
+    );
     app.press(Action::CSlotHere(2, k3));
     app.press(Action::CNext(cstep::KEYS));
     assert!(
-        app.create.as_ref().unwrap().built.is_some(),
+        app.create().unwrap().built.is_some(),
         "{:?}",
-        app.create.as_ref().unwrap().error
+        app.create().unwrap().error
     );
     // The vaults set up stay as they are, each with its own salt, however
     // the keys turned out: all three are the plan's.
@@ -2133,7 +2137,7 @@ fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::CHECK));
-    assert!(!app.create.as_ref().unwrap().into_vaults());
+    assert!(!app.create().unwrap().into_vaults());
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(faraday_core::vault::VaultAction::Open(0)));
     app.vaults.ms_per_unit = Some(180);
@@ -2169,9 +2173,9 @@ fn where_reads_its_answer_after_the_wallet_is_made_and_check_goes_to_back_up() {
     let (mut app, _, _) = single_key(&mut shell, false);
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CNext(cstep::KEYS));
-    assert!(app.create.as_ref().unwrap().built.is_some());
+    assert!(app.create().unwrap().built.is_some());
     assert!(
-        app.create.as_ref().unwrap().into_vaults(),
+        app.create().unwrap().into_vaults(),
         "the question reads what was answered"
     );
     for k in [cstep::WHERE, cstep::HOW_MANY, cstep::STICKS, cstep::VAULTS] {
@@ -2179,7 +2183,7 @@ fn where_reads_its_answer_after_the_wallet_is_made_and_check_goes_to_back_up() {
     }
     // Check's Continue opens Back up's card, not the vaults.
     app.press(Action::CNext(cstep::CHECK));
-    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::BACKUP));
+    assert_eq!(app.create().unwrap().open, Some(cstep::BACKUP));
 }
 
 /// Whether a closed card titled `title` reads `summary` under it.
@@ -2205,7 +2209,7 @@ fn the_setups_cards_and_the_plan_read_what_is_so_after_the_keys() {
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));
-    assert!(app.create.as_ref().unwrap().built.is_some());
+    assert!(app.create().unwrap().built.is_some());
     let text = app.drawn_texts().join("\n");
     assert!(
         summary_is(&mut app, "Bring in the sticks", "1 of 1 read"),
@@ -2800,7 +2804,7 @@ fn the_vaults_set_up_stay_the_plans_when_a_key_turns_out_not_to_be_here() {
         app.press(Action::CSlotHere(i as u8, *fp));
     }
     app.press(Action::CNext(cstep::KEYS));
-    let w = app.create.as_ref().unwrap().built.expect("made");
+    let w = app.create().unwrap().built.expect("made");
     // Key 2's words go: no vault is dropped for it.
     app.session.keys.retain(|k| k.fingerprint.0 != b);
     app.press(Action::CNext(cstep::CHECK));
@@ -2961,7 +2965,7 @@ fn add_a_passphrase_acts_on_the_wallet_shown_not_the_one_a_backup_was_left_on() 
         app.press(Action::Nav(Screen::Create));
         app.press(Action::CSlotHere(0, fp));
         app.press(Action::CNext(cstep::KEYS));
-        assert!(app.create.as_ref().unwrap().built.is_some());
+        assert!(app.create().unwrap().built.is_some());
         fps.push(fp);
     }
     assert_eq!(app.session.wallets.len(), 2);
@@ -2970,7 +2974,7 @@ fn add_a_passphrase_acts_on_the_wallet_shown_not_the_one_a_backup_was_left_on() 
     app.press(Action::Nav(Screen::Wallets));
     app.wallet = 0;
     app.press(Action::PlanAddPass);
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!(c.slots, vec![faraday_core::create::Source::Here(fps[0])]);
 }
 
@@ -3037,7 +3041,7 @@ fn answering_no_goes_to_the_keys_with_no_stick_or_vault_step_and_back_up_asks_th
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
-    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::KEYS));
+    assert_eq!(app.create().unwrap().open, Some(cstep::KEYS));
     assert_eq!(app.screen, Screen::Create);
     assert!(app.backup_flows.is_empty(), "no stick or vault step");
     let cards = app.create_cards();
@@ -3048,7 +3052,7 @@ fn answering_no_goes_to_the_keys_with_no_stick_or_vault_step_and_back_up_asks_th
         "{cards:?}"
     );
     new_key(&mut app);
-    if app.create.as_ref().unwrap().built.is_none() {
+    if app.create().unwrap().built.is_none() {
         app.press(Action::CNext(cstep::KEYS));
     }
     app.press(Action::CNext(cstep::CHECK));
@@ -3119,7 +3123,7 @@ fn two_vaults_ask_for_two_sticks_read_before_any_unlock_and_are_open_before_the_
     // Both vaults are open before the keys, inside the flow.
     assert_eq!(app.vaults.open.len(), 2, "{:?}", app.vaults.unlock_error);
     assert_eq!(app.screen, Screen::Create);
-    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::KEYS));
+    assert_eq!(app.create().unwrap().open, Some(cstep::KEYS));
     no_visit(&shell);
 }
 
@@ -3202,18 +3206,18 @@ fn the_question_of_vaults_is_not_done_before_it_is_answered_and_continued() {
     assert!(!app.create_card_done(cstep::WHERE));
     // Kind's Continue opens the question, and it is not done.
     app.press(Action::CNext(cstep::KIND));
-    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::WHERE));
+    assert_eq!(app.create().unwrap().open, Some(cstep::WHERE));
     assert!(!app.create_card_done(cstep::WHERE));
     // Unanswered, Continue does nothing.
     app.press(Action::CNext(cstep::WHERE));
     assert!(!app.create_card_done(cstep::WHERE));
-    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::WHERE));
+    assert_eq!(app.create().unwrap().open, Some(cstep::WHERE));
     // Answered but not continued: still not done.
     app.press(Action::CVaults(false));
     assert!(!app.create_card_done(cstep::WHERE));
     app.press(Action::CNext(cstep::WHERE));
     assert!(app.create_card_done(cstep::WHERE));
-    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::KEYS));
+    assert_eq!(app.create().unwrap().open, Some(cstep::KEYS));
     // The same on Restore.
     app.press(Action::RestoreWallet);
     assert!(!app.restore.as_ref().unwrap().done[faraday_core::rstep::WHERE as usize]);
@@ -3238,19 +3242,19 @@ fn the_count_of_vaults_is_one_to_1024_and_nothing_starts_before_its_continue() {
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(true));
     app.press(Action::CNext(cstep::WHERE));
-    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::HOW_MANY));
+    assert_eq!(app.create().unwrap().open, Some(cstep::HOW_MANY));
     assert!(!app.create_card_done(cstep::HOW_MANY));
     assert!(
         app.backup_flows.is_empty(),
         "nothing starts before Continue"
     );
     app.press(Action::CVaultN(0));
-    assert_eq!(app.create.as_ref().unwrap().vaults.count, 1, "one at least");
+    assert_eq!(app.create().unwrap().vaults.count, 1, "one at least");
     app.press(Action::CVaultN(25));
-    assert_eq!(app.create.as_ref().unwrap().vaults.count, 25);
+    assert_eq!(app.create().unwrap().vaults.count, 25);
     // A count a saved plan could not read back is refused.
     app.press(Action::CVaultN(5000));
-    assert_eq!(app.create.as_ref().unwrap().vaults.count, 1024);
+    assert_eq!(app.create().unwrap().vaults.count, 1024);
     app.press(Action::CVaultN(25));
     assert!(!app.create_card_done(cstep::HOW_MANY));
     app.press(Action::CNext(cstep::HOW_MANY));
@@ -3423,7 +3427,7 @@ fn a_setup_survives_the_lock_that_makes_the_process_clean() {
     shell.flow(&mut app, F::LockBring);
     let mut app = restart(&mut shell, &mut app);
     // The wallet being made is there again, past its questions.
-    let c = app.create.as_ref().expect("Make a new wallet is kept");
+    let c = app.create().expect("Make a new wallet is kept");
     assert_eq!(c.kind, NewKind::Multi);
     assert_eq!((c.vaults.answer, c.vaults.count), (Some(true), 2));
     assert!(app.create_card_done(cstep::WHERE) && app.create_card_done(cstep::HOW_MANY));
@@ -3431,7 +3435,7 @@ fn a_setup_survives_the_lock_that_makes_the_process_clean() {
     // Keys stay closed until the setup is done.
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CStep(cstep::KEYS));
-    assert_ne!(app.create.as_ref().unwrap().open, Some(cstep::KEYS));
+    assert_ne!(app.create().unwrap().open, Some(cstep::KEYS));
     let flow = flow_names(&app);
     let names: Vec<&str> = flow.iter().map(String::as_str).collect();
     app.press(Action::Nav(Screen::BackupFlow));
@@ -3439,7 +3443,7 @@ fn a_setup_survives_the_lock_that_makes_the_process_clean() {
     create_vault(&mut shell, &mut app, 0, PHRASE);
     create_vault(&mut shell, &mut app, 1, PHRASE_2);
     assert_eq!(app.screen, Screen::Create);
-    assert_eq!(app.create.as_ref().unwrap().open, Some(cstep::KEYS));
+    assert_eq!(app.create().unwrap().open, Some(cstep::KEYS));
 }
 
 #[test]
@@ -3481,7 +3485,7 @@ fn the_question_and_the_count_are_fixed_once_a_vault_of_the_setup_is_open() {
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CVaults(false));
     app.press(Action::CVaultN(3));
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!((c.vaults.answer, c.vaults.count), (Some(true), 1));
     assert!(!app.backup_flows.is_empty(), "the setup stays");
 }
@@ -3495,7 +3499,7 @@ fn a_wallet_made_without_the_question_continued_does_not_read_it_as_done() {
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));
-    assert!(app.create.as_ref().unwrap().built.is_some());
+    assert!(app.create().unwrap().built.is_some());
     assert!(!app.create_card_done(cstep::WHERE));
     assert!(!app.create_card_done(cstep::HOW_MANY));
 }
@@ -3669,7 +3673,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
         app.press(Action::CSlotHere(i as u8, *fp));
     }
     app.press(Action::CNext(cstep::KEYS));
-    let w = app.create.as_ref().unwrap().built.expect("wallet made");
+    let w = app.create().unwrap().built.expect("wallet made");
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
@@ -3881,7 +3885,7 @@ fn single_key_one_stick(shell: &mut Shell) -> Faraday {
     let fp = key_in(&mut app, 1);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
-    if app.create.as_ref().unwrap().built.is_none() {
+    if app.create().unwrap().built.is_none() {
         app.press(Action::CNext(cstep::KEYS));
     }
     app.press(Action::CNext(cstep::CHECK));
@@ -3963,7 +3967,7 @@ fn two_wallets_of_one_name_keep_each_its_own_share_in_one_vault() {
         app.press(Action::CSlotHere(i as u8, *fp));
     }
     app.press(Action::CNext(cstep::KEYS));
-    let a = app.create.as_ref().unwrap().built.expect("wallet made");
+    let a = app.create().unwrap().built.expect("wallet made");
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
@@ -4077,7 +4081,7 @@ fn a_passphrase_taken_out_of_a_vault_after_the_lock_starts_a_round_and_leaves_it
     let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
-    if app.create.as_ref().unwrap().built.is_none() {
+    if app.create().unwrap().built.is_none() {
         app.press(Action::CNext(cstep::KEYS));
     }
     app.press(Action::CNext(cstep::CHECK));
@@ -4210,7 +4214,7 @@ fn the_flows_slider_sets_its_keys_left_off_and_the_vault_takes_the_share_it_impl
         app.press(Action::CSlotHere(i as u8, *fp));
     }
     app.press(Action::CNext(cstep::KEYS));
-    let w = app.create.as_ref().unwrap().built.expect("wallet made");
+    let w = app.create().unwrap().built.expect("wallet made");
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
@@ -4367,7 +4371,7 @@ fn a_wallet_rebuilt_from_its_share_files_has_the_checksum_it_was_made_with() {
         app.press(Action::CSlotHere(i as u8, *fp));
     }
     app.press(Action::CNext(cstep::KEYS));
-    let w = app.create.as_ref().unwrap().built.expect("wallet made");
+    let w = app.create().unwrap().built.expect("wallet made");
     let wallet = &app.session.wallets[w];
     let made = wallet.policy().to_descriptor_checksummed();
     let (m, n) = faraday_core::wallet::Session::quorum(wallet);
@@ -4539,7 +4543,7 @@ fn a_key_an_existing_vault_held_before_the_flow_is_never_taken_out() {
     let fp = key_in(&mut app, 1);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
-    if app.create.as_ref().unwrap().built.is_none() {
+    if app.create().unwrap().built.is_none() {
         app.press(Action::CNext(cstep::KEYS));
     }
     app.press(Action::CNext(cstep::CHECK));
@@ -4925,7 +4929,7 @@ fn a_held_key_is_not_left_on_a_stale_file_after_the_lock() {
     create_vault(&mut shell, &mut app, 0, PHRASE);
     app.press(Action::Nav(Screen::Create));
     let fp = new_key(&mut app);
-    if app.create.as_ref().unwrap().built.is_none() {
+    if app.create().unwrap().built.is_none() {
         app.press(Action::CNext(cstep::KEYS));
     }
     app.press(Action::CNext(cstep::CHECK));
@@ -5180,7 +5184,7 @@ fn the_round_adds_a_planned_key_record_once_beside_another_of_its_words() {
     let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
-    if app.create.as_ref().unwrap().built.is_none() {
+    if app.create().unwrap().built.is_none() {
         app.press(Action::CNext(cstep::KEYS));
     }
     app.press(Action::CNext(cstep::CHECK));
@@ -5324,10 +5328,10 @@ fn a_written_stick_of_files_is_never_sent_back_after_the_lock() {
     let fp = key_in(&mut app, 1);
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
-    if app.create.as_ref().unwrap().built.is_none() {
+    if app.create().unwrap().built.is_none() {
         app.press(Action::CNext(cstep::KEYS));
     }
-    let w = app.create.as_ref().unwrap().built.unwrap();
+    let w = app.create().unwrap().built.unwrap();
     let name = app.session.wallets[w].name.clone();
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup);
@@ -5448,7 +5452,7 @@ fn a_passphrase_taken_out_leaves_the_earlier_bare_record_alone() {
     let fp = app.session.keys.last().unwrap().fingerprint.0;
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
-    if app.create.as_ref().unwrap().built.is_none() {
+    if app.create().unwrap().built.is_none() {
         app.press(Action::CNext(cstep::KEYS));
     }
     app.press(Action::CNext(cstep::CHECK));
@@ -5828,7 +5832,7 @@ fn the_vault_question_says_vaults_on_sticks_are_brought_in_here() {
     const LINE: &str = "Vaults already on sticks are brought in here, not later.";
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     app.press(Action::CreateWallet);
-    if app.create.as_ref().unwrap().open != Some(cstep::WHERE) {
+    if app.create().unwrap().open != Some(cstep::WHERE) {
         app.press(Action::CStep(cstep::WHERE));
     }
     assert!(has(&mut app, "Will you use vaults as part of this backup?"));
@@ -5882,7 +5886,7 @@ fn a_wallet_taken_back_from_check_after_the_vault_setup_backs_up_as_remade() {
     app.press(Action::Nav(Screen::Create));
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));
-    let first = app.create.as_ref().unwrap().built.expect("wallet made");
+    let first = app.create().unwrap().built.expect("wallet made");
     let first_sum = app.session.wallets[first].checksum().to_string();
     let wallets = app.session.wallets.len();
     let _ = app.frame();
@@ -5898,15 +5902,10 @@ fn a_wallet_taken_back_from_check_after_the_vault_setup_backs_up_as_remade() {
     );
     app.press(Action::CAccount(1));
     app.press(Action::CNext(cstep::KIND));
-    if app.create.as_ref().unwrap().built.is_none() {
+    if app.create().unwrap().built.is_none() {
         app.press(Action::CNext(cstep::KEYS));
     }
-    let w = app
-        .create
-        .as_ref()
-        .unwrap()
-        .built
-        .expect("wallet made again");
+    let w = app.create().unwrap().built.expect("wallet made again");
     assert_eq!(app.session.wallets.len(), wallets, "one wallet, not two");
     let sum = app.session.wallets[w].checksum().to_string();
     assert_ne!(sum, first_sum, "another account, another wallet");

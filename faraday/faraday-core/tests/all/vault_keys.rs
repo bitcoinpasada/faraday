@@ -422,7 +422,7 @@ fn create_on_keys(app: &mut Faraday, kind: faraday_core::create::NewKind) {
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CNext(cstep::QUORUM));
-    assert_eq!(app.create.as_ref().and_then(|c| c.open), Some(cstep::KEYS));
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
 }
 
 #[test]
@@ -452,7 +452,7 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
     assert_eq!(app.session.keys.len(), 3, "the key is loaded");
     assert!(app.session.keys.all().any(|k| k.fingerprint.0 == fp));
     assert_eq!(
-        app.create.as_ref().map(|c| c.slots[0].clone()),
+        app.create().map(|c| c.slots[0].clone()),
         Some(Source::Here(fp)),
         "and fills Key 1"
     );
@@ -541,7 +541,7 @@ fn a_locked_vault_reads_unlock_and_unlocking_returns_to_keys_with_its_keys() {
     type_and_unlock(&mut app);
     assert_eq!(app.screen, Screen::Create, "unlocking comes back");
     assert_eq!(
-        app.create.as_ref().and_then(|c| c.open),
+        app.create().and_then(|c| c.open),
         Some(cstep::KEYS),
         "to the Keys card"
     );

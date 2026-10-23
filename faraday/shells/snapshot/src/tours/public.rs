@@ -54,7 +54,7 @@ pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // The public files are the backup checklist's item; with every
     // software chosen and the description going as files, it offers
     // them all.
-    let built = t.app.create.as_ref().and_then(|c| c.built).unwrap_or(0);
+    let built = t.app.create().and_then(|c| c.built).unwrap_or(0);
     t.press(Action::CBackup);
     t.backup_as(faraday_core::plan::Preset::PaperVaultSoftware);
     for row in 0..5u8 {

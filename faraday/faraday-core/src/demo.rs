@@ -64,7 +64,7 @@ impl Faraday {
                 k == crate::cstep::KEYS
                     && self
                         .create
-                        .as_ref()
+                        .state()
                         .is_some_and(|c| c.kind.threshold() && c.built.is_none())
             }
             // A node's private key and a scan key leaving Faraday. An LND
@@ -415,7 +415,7 @@ impl Faraday {
             }
             PassField::SeedRead(i) => self.seed_read_filled(i),
             PassField::Slot(i) => {
-                if let Some(c) = self.create.as_mut() {
+                if let Some(c) = self.create.state_mut() {
                     let t = if i == 0 { &mut c.pass } else { &mut c.pass2 };
                     t.set(PASSPHRASE);
                     c.pass_focus = Some(i);

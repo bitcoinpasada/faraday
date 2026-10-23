@@ -651,14 +651,14 @@ fn in_demo_a_wallet_slots_passphrase_offers_faraday() {
     app.press(Action::CSlotHere(0, first));
     let _ = app.frame();
     app.press(Action::CPassOpen(0));
-    let c = app.create.as_ref().expect("Create");
+    let c = app.create().expect("Create");
     assert!(c.pass.is_empty() && c.pass2.is_empty());
     let _ = app.frame();
     for f in 0..2 {
         assert!(app.offers(Action::PassChip(PassField::Slot(f))));
         app.press(Action::PassChip(PassField::Slot(f)));
     }
-    let c = app.create.as_ref().expect("Create");
+    let c = app.create().expect("Create");
     assert_eq!(c.pass.as_str(), "faraday");
     assert_eq!(c.pass2.as_str(), "faraday");
     app.press(Action::CPassLock);
@@ -667,7 +667,7 @@ fn in_demo_a_wallet_slots_passphrase_offers_faraday() {
         .iter()
         .filter_map(|k| k.with_passphrase)
         .collect::<Vec<_>>();
-    let c = app.create.as_ref().expect("Create");
+    let c = app.create().expect("Create");
     assert!(
         matches!(c.slots[0], faraday_core::create::Source::Here(fp) if with.contains(&fp)),
         "the slot holds the key with faraday: {:?}",

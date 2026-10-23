@@ -90,7 +90,7 @@ fn made_here(app: &mut Faraday) -> (usize, Fingerprint) {
     );
     app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create);
-    let w = app.create.as_ref().and_then(|c| c.built).expect("built");
+    let w = app.create().and_then(|c| c.built).expect("built");
     let fp = app.session.keys.last().unwrap().fingerprint;
     (w, fp)
 }

@@ -164,10 +164,10 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::KNext);
     assert_eq!(app.screen, Screen::Create, "the key fills its slot");
     assert_eq!(
-        app.create.as_ref().and_then(|c| c.open),
+        app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::BACKUP)
     );
-    let made = app.create.as_ref().and_then(|c| c.built);
+    let made = app.create().and_then(|c| c.built);
     assert!(made.is_some(), "Lock in made the wallet");
 }
 
@@ -300,20 +300,20 @@ fn kind_is_offered_on_the_keys_page_and_opens() {
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
     assert_eq!(
-        app.create.as_ref().and_then(|c| c.open),
+        app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::KIND),
         "Create opens on Kind"
     );
     tap(&mut app, Action::CNext(faraday_core::cstep::KIND));
     assert_eq!(
-        app.create.as_ref().and_then(|c| c.open),
+        app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::WHERE),
         "Continue opens Where"
     );
     tap(&mut app, Action::CVaults(false));
     tap(&mut app, Action::CNext(faraday_core::cstep::WHERE));
     assert_eq!(
-        app.create.as_ref().and_then(|c| c.open),
+        app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::KEYS),
         "Where's Continue opens Keys"
     );
@@ -324,7 +324,7 @@ fn kind_is_offered_on_the_keys_page_and_opens() {
     );
     tap(&mut app, kind);
     assert_eq!(
-        app.create.as_ref().and_then(|c| c.open),
+        app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::KIND),
         "Change opens Kind"
     );
@@ -339,7 +339,7 @@ fn the_page_title_shows_the_steps() {
     tap(&mut app, Action::CreateWallet);
     let kind = Action::CStep(faraday_core::cstep::KIND);
     tap(&mut app, kind);
-    assert_eq!(app.create.as_ref().and_then(|c| c.open), None);
+    assert_eq!(app.create().and_then(|c| c.open), None);
     let back_up = Action::CStep(faraday_core::cstep::BACKUP);
     assert!(
         on_panel(&mut app, back_up).is_some(),
@@ -347,7 +347,7 @@ fn the_page_title_shows_the_steps() {
     );
     tap(&mut app, kind);
     assert_eq!(
-        app.create.as_ref().and_then(|c| c.open),
+        app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::KIND)
     );
 }
@@ -426,7 +426,7 @@ fn the_small_homes_first_tile_opens_the_flow_in_progress() {
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
     app.press(Action::CNext(faraday_core::cstep::KIND));
-    let open = app.create.as_ref().unwrap().open;
+    let open = app.create().unwrap().open;
     tap(&mut app, Action::Nav(Screen::Home));
     assert_eq!(app.screen, Screen::Home);
     let (_, at) = on_panel(&mut app, row).expect("at the head of Home, in view");
@@ -439,7 +439,7 @@ fn the_small_homes_first_tile_opens_the_flow_in_progress() {
     assert!(at < tiles, "before the other tiles");
     tap(&mut app, row);
     assert_eq!(app.screen, Screen::Create);
-    assert_eq!(app.create.as_ref().unwrap().open, open, "as it was left");
+    assert_eq!(app.create().unwrap().open, open, "as it was left");
 }
 
 /// A lead that would start the flow in progress over is not drawn beside

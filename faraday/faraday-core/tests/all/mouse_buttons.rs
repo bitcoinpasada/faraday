@@ -28,17 +28,13 @@ fn back_goes_where_the_back_link_goes_and_forward_comes_back_as_it_was() {
     app.press(Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
     app.press(Action::CKind(1));
-    let kind = app.create.as_ref().unwrap().kind;
+    let kind = app.create().unwrap().kind;
     let _ = app.frame();
     button(&mut app, Event::Back);
     assert_ne!(app.screen, Screen::Create);
     button(&mut app, Event::Forward);
     assert_eq!(app.screen, Screen::Create);
-    assert_eq!(
-        app.create.as_ref().unwrap().kind,
-        kind,
-        "kept as it was left"
-    );
+    assert_eq!(app.create().unwrap().kind, kind, "kept as it was left");
 }
 
 #[test]

@@ -466,9 +466,7 @@ fn frost(app: &mut Faraday) -> bool {
     app.press(Action::CKind(at));
     app.press(Action::CSlotHere(0, a));
     app.press(Action::CSlotHere(1, b));
-    if let Some(c) = app.create.as_mut() {
-        c.open = Some(cstep::KEYS);
-    }
+    testkit::create_open_card(app, cstep::KEYS);
     let live = offered(app, Action::CNext(cstep::KEYS));
     app.press(Action::CNext(cstep::KEYS));
     live
@@ -478,16 +476,16 @@ fn frost(app: &mut Faraday) -> bool {
 fn in_the_demo_the_frost_deal_is_dimmed() {
     let mut app = app_on(true);
     assert!(!frost(&mut app), "Keys' Continue is offered");
-    assert!(app.create.as_ref().unwrap().built.is_none(), "dealt");
+    assert!(app.create().unwrap().built.is_none(), "dealt");
     assert!(app.session.wallets.is_empty());
     assert_eq!(app.session.keys.len(), 2, "no share loaded");
 
     let mut app = app_on(false);
     assert!(frost(&mut app));
     assert!(
-        app.create.as_ref().unwrap().built.is_some(),
+        app.create().unwrap().built.is_some(),
         "{:?}",
-        app.create.as_ref().unwrap().error
+        app.create().unwrap().error
     );
 }
 

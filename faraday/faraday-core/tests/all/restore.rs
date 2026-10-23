@@ -569,7 +569,7 @@ fn another_wallet_from_these_seeds_opens_create_at_the_next_account() {
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::NewWalletFrom(w));
     assert_eq!(app.screen, Screen::Create);
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!(c.kind, NewKind::NativeSegwit);
     assert_eq!(c.account, 1, "the next account the seed does not use");
     assert_eq!(c.slots, vec![Source::Here(fp)], "the restored seed");

@@ -72,7 +72,7 @@ fn the_musig2_tile_opens_create_with_musig2_chosen() {
     let mut app = shown();
     app.press(Action::Catalog(tile("MuSig2")));
     assert_eq!(app.screen, Screen::Create);
-    assert_eq!(app.create.as_ref().unwrap().kind, NewKind::MuSig);
+    assert_eq!(app.create().unwrap().kind, NewKind::MuSig);
 }
 
 #[test]

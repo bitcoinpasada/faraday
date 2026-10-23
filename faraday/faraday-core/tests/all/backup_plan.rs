@@ -322,7 +322,7 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
         app.press(Action::CSlotHere(slot, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
-    let built = app.create.as_ref().and_then(|c| c.built).expect("made");
+    let built = app.create().and_then(|c| c.built).expect("made");
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, Preset::PaperVaultSoftware);
@@ -437,7 +437,7 @@ fn passphrase_key() -> Faraday {
     }
     app.press(Action::KLock);
     app.press(Action::KNext);
-    let c = app.create.as_ref().expect("create");
+    let c = app.create().expect("create");
     assert_eq!(c.open, Some(cstep::BACKUP));
     app
 }

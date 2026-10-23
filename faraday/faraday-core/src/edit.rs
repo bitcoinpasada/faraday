@@ -191,7 +191,7 @@ impl Faraday {
             }),
             Screen::Create => self
                 .create
-                .as_ref()
+                .state()
                 .is_some_and(|c| c.pass_slot.is_some() && c.pass_focus.is_some()),
             _ => false,
         }
@@ -257,7 +257,7 @@ impl Faraday {
                     _ => Some(Action::KTyping(true)),
                 }
             }
-            Screen::Create => self.create.as_ref()?.pass_focus.map(Action::CPassField),
+            Screen::Create => self.create.state()?.pass_focus.map(Action::CPassField),
             _ => None,
         }
     }
@@ -299,8 +299,8 @@ impl Faraday {
             Action::KPassField(0) => &self.keygen.state()?.passphrase,
             Action::KPassField(_) => &self.keygen.state()?.passphrase2,
             Action::KTyping(_) => &self.keygen.state()?.entered,
-            Action::CPassField(0) => &self.create.as_ref()?.pass,
-            Action::CPassField(_) => &self.create.as_ref()?.pass2,
+            Action::CPassField(0) => &self.create.state()?.pass,
+            Action::CPassField(_) => &self.create.state()?.pass2,
             _ => return None,
         };
         Some(SecretText::of(text))
@@ -553,7 +553,7 @@ impl Faraday {
     pub(crate) fn can_show(&self, s: Screen) -> bool {
         match s {
             Screen::KeyGen => self.keygen.state().is_some(),
-            Screen::Create => self.create.is_some(),
+            Screen::Create => self.create.state().is_some(),
             Screen::Backup => self.backup.is_some(),
             Screen::Spend => self.spend.is_some(),
             Screen::Restore => self.restore.is_some(),

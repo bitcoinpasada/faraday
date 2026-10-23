@@ -386,7 +386,7 @@ fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_k
         .unwrap();
     assert!(app.offers(faraday_core::Action::CSlotFile(1, at)));
     app.press(faraday_core::Action::CSlotFile(1, at));
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     match &c.slots[1] {
         faraday_core::create::Source::Cosigner(k) => {
             assert!(

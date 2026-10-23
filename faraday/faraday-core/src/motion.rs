@@ -679,7 +679,7 @@ impl Faraday {
             Screen::Spend => &mut self.spend.as_mut()?.scroll,
             Screen::Backup => &mut self.backup.as_mut()?.scroll.y,
             Screen::Message => self.message.scroll_y_mut()?,
-            Screen::Create => &mut self.create.as_mut()?.scroll.y,
+            Screen::Create => &mut self.create.state_mut()?.scroll.y,
             Screen::Restore => &mut self.restore.as_mut()?.scroll.y,
             _ => return None,
         })

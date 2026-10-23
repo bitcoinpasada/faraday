@@ -554,7 +554,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
     }
     cy += handed_line(k, ui, x, cy, w);
     cy += 6.0;
-    let create = app.create.as_ref().filter(|_| k.slot.is_some());
+    let create = app.create.state().filter(|_| k.slot.is_some());
     match create {
         // A single-key wallet is this key: its descriptor and its first
         // address.

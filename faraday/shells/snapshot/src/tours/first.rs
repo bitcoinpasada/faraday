@@ -31,8 +31,7 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     device_key(t, 0);
     let w = t
         .app
-        .create
-        .as_ref()
+        .create()
         .and_then(|c| c.built)
         .ok_or("the wallet was not made")?;
     t.press(Action::OpenWallet(w));

@@ -35,7 +35,7 @@ fn opened() -> Faraday {
 #[test]
 fn a_fresh_create_opens_on_kind_with_the_single_key_kind() {
     let app = opened();
-    let c = app.create.as_ref().expect("create");
+    let c = app.create().expect("create");
     assert_eq!(c.kind, NewKind::NativeSegwit);
     assert_eq!(
         c.open,
@@ -50,20 +50,20 @@ fn continue_closes_kind_and_change_reopens_it_keeping_the_choice() {
     let mut app = opened();
     app.press(Action::CKind(1)); // Taproot, ticked while Kind is open
     app.press(Action::CNext(cstep::KIND)); // Kind's own Continue
-    assert_eq!(app.create.as_ref().map(|c| c.kind), Some(NewKind::Taproot));
+    assert_eq!(app.create().map(|c| c.kind), Some(NewKind::Taproot));
     assert_eq!(
-        app.create.as_ref().and_then(|c| c.open),
+        app.create().and_then(|c| c.open),
         Some(cstep::WHERE),
         "Continue closes Kind as done and opens Where"
     );
     app.press(Action::CStep(cstep::KIND));
     assert_eq!(
-        app.create.as_ref().and_then(|c| c.open),
+        app.create().and_then(|c| c.open),
         Some(cstep::KIND),
         "Change opens Kind"
     );
     assert_eq!(
-        app.create.as_ref().map(|c| c.kind),
+        app.create().map(|c| c.kind),
         Some(NewKind::Taproot),
         "the kind chosen earlier is kept"
     );
@@ -95,7 +95,7 @@ fn a_tools_tile_for_musig2_opens_create_on_kind_with_musig2_ticked() {
         .expect("a MuSig2 tile");
     app.press(Action::Catalog(i as u8));
     assert_eq!(app.screen, Screen::Create);
-    let c = app.create.as_ref().expect("create");
+    let c = app.create().expect("create");
     assert_eq!(c.kind, NewKind::MuSig);
     assert_eq!(
         c.open,
@@ -113,7 +113,7 @@ fn a_tools_tile_for_multisig_ticks_its_quorum_default_too() {
         .position(|t| t.name == "Multisig")
         .expect("a Multisig tile");
     app.press(Action::Catalog(i as u8));
-    let c = app.create.as_ref().expect("create");
+    let c = app.create().expect("create");
     assert_eq!(c.kind, NewKind::Multi);
     assert_eq!(c.m, 2, "2 of 3 default");
     assert_eq!(c.n, 3);
@@ -148,7 +148,7 @@ fn made_on(mut app: Faraday) -> (Faraday, usize) {
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::CSlotHere(0, fp));
     app.press(Action::CNext(cstep::KEYS));
-    let c = app.create.as_ref().expect("create");
+    let c = app.create().expect("create");
     let built = c.built.expect("Keys' Continue makes the wallet");
     assert_eq!(c.open, Some(cstep::CHECK), "Check follows Keys");
     (app, built)
@@ -159,7 +159,7 @@ fn after_check_the_next_card_is_back_up_with_one_button() {
     let (mut app, _) = made();
     app.press(Action::CNext(cstep::CHECK));
     assert_eq!(
-        app.create.as_ref().and_then(|c| c.open),
+        app.create().and_then(|c| c.open),
         Some(cstep::BACKUP),
         "Back up follows Check"
     );
@@ -325,7 +325,7 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
         .unwrap()
         .0;
     assert_ne!(with, first);
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!(c.slots[0], faraday_core::create::Source::Here(with));
     assert!(
         app.session.keys.all().any(|k| k.fingerprint.0 == first),
@@ -333,12 +333,7 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
     );
     assert!(app.drawn_texts().iter().any(|t| t == "Locked in"));
     app.press(Action::CNext(cstep::KEYS));
-    let w = app
-        .create
-        .as_ref()
-        .unwrap()
-        .built
-        .expect("the wallet is made");
+    let w = app.create().unwrap().built.expect("the wallet is made");
     let fps: Vec<[u8; 4]> = app
         .session
         .slots(&app.session.wallets[w])
@@ -390,7 +385,7 @@ fn unequal_passphrases_in_a_slot_lock_nothing_in() {
     app.press(Action::CPassLock);
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(
-        app.create.as_ref().unwrap().slots[0],
+        app.create().unwrap().slots[0],
         faraday_core::create::Source::Here(plain)
     );
     assert!(
@@ -406,7 +401,7 @@ fn unequal_passphrases_in_a_slot_lock_nothing_in() {
 /// wallet is made; returns it.
 fn continue_throughout(app: &mut Faraday) -> usize {
     for _ in 0..12 {
-        let c = app.create.as_ref().expect("create");
+        let c = app.create().expect("create");
         if let Some(b) = c.built {
             return b;
         }
@@ -418,7 +413,7 @@ fn continue_throughout(app: &mut Faraday) -> usize {
     }
     panic!(
         "the wallet was not made: {:?}",
-        app.create.as_ref().and_then(|c| c.error.clone())
+        app.create().and_then(|c| c.error.clone())
     );
 }
 
@@ -475,7 +470,7 @@ fn new_wallet_from_a_single_key_wallet_is_its_words_at_account_1() {
         .address(&c, &app.session.wallets[original], false, 0);
     app.press(Action::NewWalletFrom(original));
     assert_eq!(app.screen, Screen::Create);
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!(c.kind, NewKind::NativeSegwit, "the wallet's kind");
     assert_eq!(c.account, 1, "the next account its keys do not use");
     assert!(
@@ -523,7 +518,7 @@ fn new_wallet_from_a_two_of_three_held_here_takes_every_key_at_account_1() {
         app.press(Action::CSlotHere(k, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
-    let original = app.create.as_ref().and_then(|c| c.built).expect("made");
+    let original = app.create().and_then(|c| c.built).expect("made");
     let sum = app.session.wallets[original].checksum().to_string();
     app.press(Action::NewWalletFrom(original));
     let made = continue_throughout(&mut app);
@@ -570,26 +565,23 @@ fn a_cosigners_xpub_at_another_account_leaves_its_slot_to_someone_else() {
         .unwrap();
     let xpub = app.session.wallets[i].policy().keys()[pos].key_text();
     app.press(Action::NewWalletFrom(i));
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert_eq!(c.account, 1);
     assert_eq!(c.slots[pos], Source::Later, "Someone else");
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
-    assert_eq!(app.create.as_ref().and_then(|c| c.open), Some(cstep::KEYS));
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
     let line = format!("Needs Key {}'s xpub at account 1", pos + 1);
     let texts = app.drawn_texts();
     assert!(texts.contains(&line), "{line}: {texts:?}");
     app.press(Action::CNext(cstep::KEYS));
     assert!(
-        app.create.as_ref().unwrap().built.is_none(),
+        app.create().unwrap().built.is_none(),
         "no wallet until the cosigner's xpub is in"
     );
     // At the wallet's own account the xpub it has is that key again.
     app.press(Action::CAccount(-1));
-    assert_eq!(
-        app.create.as_ref().unwrap().slots[pos],
-        Source::Cosigner(xpub)
-    );
+    assert_eq!(app.create().unwrap().slots[pos], Source::Cosigner(xpub));
 }
 
 #[test]
@@ -637,7 +629,7 @@ fn check_shows_the_path_and_change_makes_the_wallet_again_at_another_account() {
         "the Path row offers Change"
     );
     app.press(Action::CPathChange);
-    let c = app.create.as_ref().expect("create");
+    let c = app.create().expect("create");
     assert_eq!(c.built, None, "the wallet is taken back");
     assert_eq!(c.open, Some(cstep::KIND), "Kind opens on its Account");
     assert!(app.session.wallets.is_empty(), "no wallet left behind");
@@ -677,7 +669,7 @@ fn a_fresh_two_of_three_at_account_1_uses_every_key_there() {
         app.press(Action::CSlotHere(k, fp));
     }
     app.press(Action::CNext(cstep::KEYS));
-    let made = app.create.as_ref().and_then(|c| c.built).expect("made");
+    let made = app.create().and_then(|c| c.built).expect("made");
     for k in app.session.wallets[made].policy().keys() {
         assert_eq!(account_of_key(k), 1, "{} is at account 1", k.key_text());
     }

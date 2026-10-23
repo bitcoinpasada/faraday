@@ -1602,3 +1602,17 @@ pub fn entry(app: &crate::Faraday) -> &crate::EntryState {
 pub fn secret_out(app: &crate::Faraday) -> Option<&crate::secrets::SecretOut> {
     app.secrets.out()
 }
+
+/// Opens Create's card `step`, as a press on it does.
+pub fn create_open_card(app: &mut crate::Faraday, step: u8) {
+    if let Some(c) = app.create.state_mut() {
+        c.open = Some(step);
+    }
+}
+
+/// Puts `source` in Create's key slot `slot`.
+pub fn create_set_slot(app: &mut crate::Faraday, slot: usize, source: crate::create::Source) {
+    if let Some(c) = app.create.state_mut() {
+        c.slots[slot] = source;
+    }
+}

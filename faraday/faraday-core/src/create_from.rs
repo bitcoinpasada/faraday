@@ -125,7 +125,7 @@ impl Faraday {
         if !self.may_load_keys() {
             return;
         }
-        let Some(cs) = self.create.as_ref() else {
+        let Some(cs) = self.create.state() else {
             return;
         };
         if cs.built.is_some() || usize::from(slot) >= cs.slots.len() {
@@ -156,7 +156,7 @@ impl Faraday {
             EN.vaults_loaded_note,
             &[&fp_text(Fingerprint(fp)), &name],
         ));
-        if let Some(c) = self.create.as_mut()
+        if let Some(c) = self.create.state_mut()
             && let Some(s) = c.slots.get_mut(usize::from(slot))
         {
             *s = Source::Here(fp);
@@ -256,7 +256,7 @@ impl Faraday {
             account,
             xpubs,
         };
-        self.create = Some(CreateState {
+        self.create.set(CreateState {
             owner,
             done,
             kind,
@@ -279,7 +279,7 @@ impl Faraday {
     /// account or script type needs the cosigner's xpub again. A slot the
     /// person filled otherwise is kept.
     pub(crate) fn create_from_refresh(&mut self) {
-        let Some(c) = self.create.as_mut() else {
+        let Some(c) = self.create.state_mut() else {
             return;
         };
         if c.built.is_some() {
@@ -307,7 +307,7 @@ impl Faraday {
     /// used at (`docs/history/NEW-WALLET.md` §16.2, §17), for every kind that
     /// has one.
     pub(crate) fn create_account_step(&mut self, d: i8) {
-        if let Some(c) = self.create.as_mut()
+        if let Some(c) = self.create.state_mut()
             && c.built.is_none()
             && c.kind.has_account()
         {
@@ -321,7 +321,7 @@ impl Faraday {
     /// started from a wallet that has the cosigner's key at another
     /// account or script type: "Needs Key n's xpub at account n".
     pub(crate) fn create_slot_needs(&self, slot: usize) -> Option<String> {
-        let c = self.create.as_ref()?;
+        let c = self.create.state()?;
         let f = c.from.as_ref()?;
         if c.slots.get(slot)? != &Source::Later {
             return None;
@@ -338,7 +338,7 @@ impl Faraday {
     /// not started, and the flow that set up its vaults is where it was
     /// when the wallet was made (`docs/history/NEW-WALLET.md` §17).
     pub(crate) fn create_can_take_back(&self) -> bool {
-        let Some(c) = self.create.as_ref() else {
+        let Some(c) = self.create.state() else {
             return false;
         };
         let Some(w) = c.built else {
@@ -370,7 +370,7 @@ impl Faraday {
         if !self.create_can_take_back() {
             return;
         }
-        let Some(c) = self.create.as_mut() else {
+        let Some(c) = self.create.state_mut() else {
             return;
         };
         let Some(w) = c.built.take() else {

@@ -1305,7 +1305,7 @@ pub struct Faraday {
     /// Signing a message.
     message: state::MessageArea,
     /// Creating a wallet.
-    pub create: Option<CreateState>,
+    create: create::CreateArea,
     /// Restoring a wallet.
     pub restore: Option<RestoreState>,
     /// New key: the key being made, the keys made this session, the
@@ -1542,7 +1542,7 @@ impl Faraday {
             vanity: vanity::VanityArea::default(),
             backup: None,
             message: state::MessageArea::default(),
-            create: None,
+            create: create::CreateArea::default(),
             restore: None,
             keygen: keygen::KeyGenArea::default(),
             learn: learn::LearnArea::default(),
@@ -2755,7 +2755,7 @@ impl Faraday {
         self.spend = None;
         self.backup = None;
         self.message.clear();
-        self.create = None;
+        self.create.clear();
         self.restore = None;
         self.keygen.forget();
         self.wordlist.clear();
@@ -5274,229 +5274,6 @@ impl Faraday {
         }
     }
 
-    /// A creation that has keys chosen and is not made yet: Create comes
-    /// back to it.
-    pub fn create_unfinished(&self) -> bool {
-        self.create.as_ref().is_some_and(|c| {
-            c.built.is_none() && c.slots.iter().any(|s| *s != create::Source::Empty)
-        })
-    }
-
-    /// Slots left for a cosigner's key, in the creation under way.
-    pub fn create_waiting(&self) -> usize {
-        self.create.as_ref().map_or(0, |c| {
-            c.slots
-                .iter()
-                .filter(|s| **s == create::Source::Later)
-                .count()
-        })
-    }
-
-    /// Costs what `account_text` costs. The account key expression for a
-    /// slot held here, with its fingerprint, for the cosigners.
-    fn create_key_text(&self, c: &Compute, slot: u8) -> Result<(String, String), String> {
-        let cs = self.create.as_ref().ok_or(EN.create_key_text_nothing)?;
-        let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
-            return Err(EN.create_key_text_not_held.into());
-        };
-        let key = self
-            .session
-            .keys
-            .position_of(*fp)
-            .ok_or(EN.create_key_text_a_chosen)?;
-        Ok((
-            fp_text(faraday_bip::keys::Fingerprint(*fp)),
-            self.session
-                .keys
-                .account_text(c, key, cs.kind, cs.account)?,
-        ))
-    }
-
-    /// Costs a key derivation (through `account_ur_at`). A slot's key as
-    /// `ur:crypto-account`, for a `wsh` multisig, the one script that type
-    /// writes a cosigner's key under.
-    fn create_key_account(&self, c: &Compute, slot: u8) -> Option<String> {
-        let cs = self.create.as_ref()?;
-        let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
-            return None;
-        };
-        let key = self.session.keys.position_of(*fp)?;
-        cs.kind
-            .account_ur_at(c, &self.session.keys, key, cs.account)
-    }
-
-    /// Costs a key derivation (through `bsms_record`). A slot's key as a
-    /// signed BIP 129 key record, with its fingerprint: for a `wsh` or
-    /// `sh(wsh)` multisig only.
-    fn create_key_bsms(&self, c: &Compute, slot: u8) -> Option<(String, String)> {
-        let cs = self.create.as_ref()?;
-        let Some(create::Source::Here(fp)) = cs.slots.get(slot as usize) else {
-            return None;
-        };
-        let key = self.session.keys.position_of(*fp)?;
-        let fpt = fp_text(faraday_bip::keys::Fingerprint(*fp));
-        cs.kind
-            .bsms_record(c, &self.session.keys, key, cs.account, &fpt)
-            .map(|r| (fpt, r))
-    }
-
-    /// Costs what `account_text` costs. The key texts of a creation's
-    /// slots, or why they are not ready.
-    pub fn create_keys(&self, c: &Compute) -> Result<Vec<String>, String> {
-        let cs = self.create.as_ref().ok_or(EN.create_keys_nothing)?;
-        if cs.kind.threshold() {
-            return self.create_shares().map(|keys| {
-                keys.iter()
-                    .map(|&k| fp_text(self.session.keys[k].fingerprint))
-                    .collect()
-            });
-        }
-        let mut out = Vec::new();
-        for (i, s) in cs.slots.iter().enumerate() {
-            match s {
-                create::Source::Empty => {
-                    return Err(fill(EN.create_keys_key_has, &[&(i + 1).to_string()]));
-                }
-                create::Source::Later => {
-                    return Err(fill(
-                        EN.create_keys_key_waits,
-                        &[&(i + 1).to_string(), self.medium.a(), &(i + 1).to_string()],
-                    ));
-                }
-                create::Source::Here(fp) => {
-                    let key = self
-                        .session
-                        .keys
-                        .position_of(*fp)
-                        .ok_or(EN.create_keys_a_chosen)?;
-                    out.push(
-                        self.session
-                            .keys
-                            .account_text(c, key, cs.kind, cs.account)?,
-                    );
-                }
-                create::Source::Cosigner(text) => out.push(text.clone()),
-            }
-        }
-        let mut seen = out.clone();
-        seen.sort();
-        seen.dedup();
-        if seen.len() != out.len() {
-            return Err(EN.create_keys_the_same.into());
-        }
-        Ok(out)
-    }
-
-    /// The slot a cosigner's key goes in, while a multisig is being made:
-    /// one marked for later, else the first with no key.
-    fn create_waiting_slot(&self) -> Option<u8> {
-        let c = self.create.as_ref()?;
-        if c.built.is_some() || !c.kind.multi() || c.kind.threshold() {
-            return None;
-        }
-        c.slots
-            .iter()
-            .position(|s| *s == create::Source::Later)
-            .or_else(|| c.slots.iter().position(|s| *s == create::Source::Empty))
-            .map(|i| i as u8)
-    }
-
-    /// The loaded keys a threshold creation deals from, in slot order:
-    /// each must be 24 words, since 24 words are a share's 32 bytes.
-    fn create_shares(&self) -> Result<Vec<usize>, String> {
-        let c = self.create.as_ref().ok_or(EN.create_shares_nothing)?;
-        let mut out: Vec<usize> = Vec::new();
-        for (i, s) in c.slots.iter().enumerate() {
-            let create::Source::Here(fp) = s else {
-                return Err(fill(EN.create_shares_share_has, &[&(i + 1).to_string()]));
-            };
-            let key = self
-                .session
-                .keys
-                .position_of(*fp)
-                .ok_or(EN.create_shares_a_chosen)?;
-            if self.session.keys[key].share.is_none() {
-                return Err(fill(EN.create_shares_share, &[&(i + 1).to_string()]));
-            }
-            if out
-                .iter()
-                .any(|&k| self.session.keys[k].fingerprint.0 == *fp)
-            {
-                return Err(EN.create_shares_the_same.into());
-            }
-            out.push(key);
-        }
-        Ok(out)
-    }
-
-    /// Deals a threshold wallet from the chosen keys: the other shares and
-    /// the group key are computed, the record becomes the wallet, and each
-    /// computed share is loaded as a key so its words can be written down
-    /// in the backup. Locking forgets all of them.
-    fn create_deal(&mut self) {
-        let c = self.compute();
-        // The dealt shares are new seeds: none in the demo.
-        if !self.makes_secrets() {
-            return;
-        }
-        let (m, n) = match self.create.as_ref() {
-            Some(c) => (c.m, c.n),
-            None => return,
-        };
-        let dealt = self.create_shares().and_then(|keys| {
-            self.session
-                .keys
-                .deal(&c, &keys, n, m)
-                .map_err(|e| match e {
-                    faraday_keys::frost::DealError::NoShare => EN.create_deal_a_chosen.to_string(),
-                    faraday_keys::frost::DealError::Refused(e) => e,
-                })
-        });
-        let dealt = match dealt {
-            Ok(d) => d,
-            Err(e) => {
-                if let Some(c) = self.create.as_mut() {
-                    c.error = Some(e);
-                }
-                return;
-            }
-        };
-        let name = fill(
-            EN.create_deal_new_wallet,
-            &[&(self.session.wallets.len() + 1).to_string()],
-        );
-        let i = match self.session.add_wallet(
-            &c,
-            &name,
-            &dealt.record,
-            EN.create_deal_dealt_here,
-            wallet::Origin::Statement,
-        ) {
-            Ok(i) => i,
-            Err(e) => {
-                if let Some(c) = self.create.as_mut() {
-                    c.error = Some(e.text());
-                }
-                return;
-            }
-        };
-        self.session.keys.add_dealt(&c, dealt, |id| {
-            fill(
-                EN.create_deal_share_name,
-                &[&(id + 1).to_string(), &name.to_string()],
-            )
-        });
-        self.chart_work.moved_to(&self.session, i);
-        self.wallet = i;
-        if let Some(c) = self.create.as_mut() {
-            c.built = Some(i);
-            c.error = None;
-            c.done[cstep::KEYS as usize] = true;
-            c.open = Some(cstep::CHECK);
-            c.scroll.follow = true;
-        }
-    }
-
     /// Restore's Kind: a row pressed. The quorum goes to 2 of 3 for a
     /// multisig, one key for a single key; a description read has chosen
     /// already.
@@ -5716,202 +5493,6 @@ impl Faraday {
                     &source.to_string(),
                 ],
             ));
-        }
-    }
-
-    /// Whether the key in a Create slot can take a passphrase there: one
-    /// loaded here from BIP-39 words without one, on a wallet that is not
-    /// a threshold wallet (`docs/history/NEW-WALLET.md` §3.6).
-    pub fn create_pass_offered(&self, slot: usize) -> bool {
-        let Some(c) = self.create.as_ref() else {
-            return false;
-        };
-        let Some(create::Source::Here(fp)) = c.slots.get(slot) else {
-            return false;
-        };
-        !c.kind.threshold()
-            && c.built.is_none()
-            && self
-                .session
-                .keys
-                .all()
-                .find(|k| k.fingerprint.0 == *fp)
-                .is_some_and(|k| k.has_words() && !k.has_passphrase)
-    }
-
-    /// Lock in under a Create slot: adds the key the slot's words and the
-    /// passphrase typed make, and puts it in the slot in place of the
-    /// first, which stays loaded (`docs/history/NEW-WALLET.md` §3.6).
-    fn create_pass_lock(&mut self) {
-        let c = self.compute();
-        if !self.selftest_passed() {
-            return;
-        }
-        let Some(slot) = self.create.as_ref().and_then(|cs| cs.pass_slot) else {
-            return;
-        };
-        if !self.create_pass_offered(usize::from(slot)) {
-            return;
-        }
-        let Some(cs) = self.create.as_mut() else {
-            return;
-        };
-        if cs.pass.as_str() != cs.pass2.as_str() {
-            cs.pass_note = Some(EN.create_pass_lock_mismatch.to_string());
-            return;
-        }
-        // Empty means none: the key stays as it is.
-        if cs.pass.as_str().is_empty() {
-            cs.close_pass();
-            return;
-        }
-        let Some(create::Source::Here(first)) = cs.slots.get(usize::from(slot)).cloned() else {
-            return;
-        };
-        let mut pass = secret_text::room();
-        pass.push_str(cs.pass.as_str());
-        let Some(place) = self.session.keys.position_of(first) else {
-            return;
-        };
-        let key = &self.session.keys[place];
-        if !key.has_words() {
-            return;
-        }
-        let label = fill(EN.create_pass_lock_passphrase, &[&key.label.to_string()]);
-        let (added, new) = match self
-            .session
-            .keys
-            .add_with_passphrase(&c, place, &pass, &label)
-        {
-            Ok(fp) => (Ok(fp), true),
-            // Loaded already with this passphrase: that key is the one.
-            Err(wallet::Refusal::Duplicate(_)) => (
-                self.session
-                    .keys
-                    .fingerprint_with(&c, place, &pass)
-                    .ok_or_else(|| wallet::Refusal::Words(String::new()).text()),
-                false,
-            ),
-            Err(e) => (Err(e.text()), false),
-        };
-        // The passphrase exists nowhere else: the key is made here
-        // (`docs/history/NEW-WALLET.md` §14.3).
-        if new && let Ok(fp) = &added {
-            self.mark_made_here(*fp);
-        }
-        let Some(cs) = self.create.as_mut() else {
-            return;
-        };
-        match added {
-            Ok(fp) => {
-                if let Some(s) = cs.slots.get_mut(usize::from(slot)) {
-                    *s = create::Source::Here(fp.0);
-                }
-                if !cs.pass_locked.contains(&fp.0) {
-                    cs.pass_locked.push(fp.0);
-                }
-                cs.close_pass();
-                self.refresh_spend();
-            }
-            Err(e) => cs.pass_note = Some(e),
-        }
-    }
-
-    /// Keys typed while a Create slot's passphrase fields have focus.
-    /// Returns whether they took the key.
-    fn create_pass_key(&mut self, key: KeyIn) -> bool {
-        if self.screen != Screen::Create || self.sheet.is_some() {
-            return false;
-        }
-        let Some(c) = self.create.as_mut() else {
-            return false;
-        };
-        let (Some(_), Some(f)) = (c.pass_slot, c.pass_focus) else {
-            return false;
-        };
-        let field = if f == 0 { &mut c.pass } else { &mut c.pass2 };
-        match key {
-            KeyIn::Char(ch) if (' '..='~').contains(&ch) => field.push(ch),
-            KeyIn::Backspace => {
-                field.pop();
-            }
-            KeyIn::Tab => c.pass_focus = Some(1 - f.min(1)),
-            KeyIn::Escape => c.pass_focus = None,
-            KeyIn::Enter => {
-                self.create_pass_lock();
-                return true;
-            }
-            _ => return false,
-        }
-        c.pass_note = None;
-        true
-    }
-
-    fn create_make(&mut self) {
-        let k = self.compute();
-        if self.create.as_ref().is_some_and(|c| c.kind.threshold()) {
-            self.create_deal();
-            return;
-        }
-        let keys = match self.create_keys(&k) {
-            Ok(k) => k,
-            Err(e) => {
-                if let Some(c) = self.create.as_mut() {
-                    c.error = Some(e);
-                }
-                return;
-            }
-        };
-        let Some(c) = self.create.as_ref() else {
-            return;
-        };
-        let descriptor = c.kind.descriptor(c.m, &keys);
-        // A wallet made from another is named after it, with the account
-        // (`docs/history/NEW-WALLET.md` §16.2).
-        let name = match c.from.as_ref() {
-            Some(f) => f.name_at(c.kind, c.account),
-            None => fill(
-                EN.create_make_new_wallet,
-                &[&(self.session.wallets.len() + 1).to_string()],
-            ),
-        };
-        let before = self.session.wallets.len();
-        match self.session.add_wallet(
-            &k,
-            &name,
-            &descriptor,
-            EN.create_make_made_here,
-            wallet::Origin::Statement,
-        ) {
-            Ok(i) => {
-                self.chart_work.moved_to(&self.session, i);
-                self.wallet = i;
-                let path = create::paths_text(self.session.wallets[i].policy());
-                let owner = self.create.as_ref().map(|c| c.owner);
-                let before_made = owner
-                    .and_then(|o| self.wallet_flow_pre_of(o))
-                    .map(|f| (f, Box::new(self.backup_flows[f].clone())));
-                if let Some(c) = self.create.as_mut() {
-                    c.built = Some(i);
-                    c.error = None;
-                    c.done[cstep::KEYS as usize] = true;
-                    c.open = Some(cstep::CHECK);
-                    c.scroll.follow = true;
-                    c.path = path;
-                    c.added = i == before;
-                    c.before_made = before_made;
-                }
-                // The flow that decided where its keys go knows the wallet
-                // now.
-                if let Some(owner) = owner {
-                    self.wallet_flow_attach(i, owner);
-                }
-            }
-            Err(e) => {
-                if let Some(c) = self.create.as_mut() {
-                    c.error = Some(e.text());
-                }
-            }
         }
     }
 
@@ -6618,7 +6199,7 @@ impl Faraday {
             }
             Code::Key(k) => {
                 let (fp, text) = self.create_key_text(c, k)?;
-                let kind = self.create.as_ref().map_or("", |c| c.kind.name());
+                let kind = self.create.state().map_or("", |c| c.kind.name());
                 let account = self.create_key_account(c, k);
                 let lines = vec![
                     key_label(&fp, kind, &text),
@@ -6635,7 +6216,7 @@ impl Faraday {
             }
             Code::KeyBsms(k) => {
                 let (fp, key) = self.create_key_text(c, k)?;
-                let kind = self.create.as_ref().map_or("", |c| c.kind.name());
+                let kind = self.create.state().map_or("", |c| c.kind.name());
                 let (_, text) = self
                     .create_key_bsms(c, k)
                     .ok_or(EN.code_view_bip_129_covers)?;

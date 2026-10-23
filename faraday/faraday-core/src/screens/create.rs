@@ -29,7 +29,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::cstep;
     let col_x = x0 + 40.0;
     let col_w = (cw - 80.0).min(900.0);
-    let Some(c) = app.create.as_ref() else { return };
+    let Some(c) = app.create.state() else { return };
     let steps = app.create_cards();
     let filled = c
         .slots
@@ -129,7 +129,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// person answered and what the setup has done.
 fn create_flow_summary(app: &View, k: u8) -> String {
     use crate::cstep;
-    let Some(c) = app.create.as_ref() else {
+    let Some(c) = app.create.state() else {
         return String::new();
     };
     let flow = app
@@ -175,7 +175,7 @@ fn create_vault_rows(
     w: f32,
 ) -> f32 {
     use crate::create::Source;
-    let Some(c) = app.create.as_ref() else {
+    let Some(c) = app.create.state() else {
         return 0.0;
     };
     let mut cy = y;
@@ -227,7 +227,7 @@ fn create_vault_rows(
 fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::create::Source;
     use crate::cstep;
-    let c = app.create.as_ref().expect("create");
+    let c = app.create.state().expect("create");
     let locked = c.built.is_some();
     let mut cy = y;
     match n {

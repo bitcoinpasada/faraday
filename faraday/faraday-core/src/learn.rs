@@ -117,7 +117,7 @@ impl Faraday {
             }
             Screen::Create => self
                 .create
-                .as_ref()
+                .state()
                 .map_or_else(|| vec![&EN.wallet_kinds], |c| for_new(c.kind)),
             Screen::KeyGen => vec![&EN.randomness, &EN.where_randomness, &EN.words],
             Screen::Entry => vec![&EN.words, &EN.passphrases],

@@ -208,7 +208,7 @@ fn a_flows_cancel_lands_where_the_flow_was_opened() {
     if app.sheet == Some(Sheet::CancelFlow(Going::Create)) {
         app.press(Action::CancelFlowNow);
     }
-    assert!(app.create.is_none(), "Cancel ends the flow");
+    assert!(app.create().is_none(), "Cancel ends the flow");
     assert_eq!(app.screen, Screen::Catalog);
     assert_eq!(app.list_offset, scrolled);
 }

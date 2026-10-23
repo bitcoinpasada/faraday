@@ -260,7 +260,7 @@ pub(super) fn heavy_on(panel: Panel) -> (Faraday, usize) {
     app.press(Action::CNext(cstep::KIND));
     let mut w = None;
     for _ in 0..16 {
-        let c = app.create.as_ref().expect("Create is open");
+        let c = app.create.state().expect("Create is open");
         if let Some(b) = c.built {
             w = Some(b);
             break;

@@ -163,7 +163,7 @@ fn a_cosigners_key_scanned_while_making_a_multisig_fills_the_waiting_slot() {
     let key = testkit::key(2, "48h/1h/0h/2h");
     scan(&mut app, &key);
     assert_eq!(app.screen, faraday_core::Screen::Create);
-    let c = app.create.as_ref().unwrap();
+    let c = app.create().unwrap();
     assert!(
         matches!(&c.slots[1], faraday_core::create::Source::Cosigner(k) if k.replace('\'', "h") == key.replace('\'', "h")),
         "{:?}",

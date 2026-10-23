@@ -29,7 +29,7 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
     app.press(Action::CNext(cstep::KIND));
     // Two keys: one fewer than Create starts with.
     app.press(Action::CN(-1));
-    let cs = app.create.as_ref().unwrap();
+    let cs = app.create().unwrap();
     assert_eq!(cs.n, 2);
     assert_eq!(cs.m, cs.n, "every key signs");
     app.press(Action::CNext(cstep::QUORUM));
@@ -39,8 +39,7 @@ fn a_musig2_wallet_made_here_is_bip390s_over_the_taproot_accounts() {
     }
     app.press(Action::CNext(cstep::KEYS));
     let built = app
-        .create
-        .as_ref()
+        .create()
         .unwrap()
         .built
         .expect("the wallet did not build");
@@ -65,10 +64,10 @@ fn the_signatures_needed_follow_the_keys() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::CreateWallet);
     app.press(Action::CKind(musig_index()));
-    let n = app.create.as_ref().unwrap().n;
+    let n = app.create().unwrap().n;
     app.press(Action::CN(1));
     app.press(Action::CM(-1));
-    let cs = app.create.as_ref().unwrap();
+    let cs = app.create().unwrap();
     assert_eq!(cs.n, n + 1);
     assert_eq!(
         cs.m,
