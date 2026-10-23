@@ -30,7 +30,16 @@ pub struct ConfigParts {
     pub keys: Vec<(String, String, String)>,
 }
 
-/// Reads a multisig config's lines without requiring every key.
+/// The longest `Derivation:` value read: a BIP-32 path at its deepest,
+/// `m` and 255 steps of `/2147483647h`. Each key line keeps a copy
+/// of the derivation in force, so a longer one is refused rather than
+/// copied fifteen times.
+const MAX_DERIVATION_LEN: usize = 1 + 255 * 12;
+
+/// Reads a multisig config's lines without requiring every key. A
+/// policy of more than [`multisig_config::MAX_KEYS`] keys, more key
+/// lines than the policy names, a sixteenth key line or a derivation longer than a BIP-32 path can be is refused,
+/// so a long file costs no more than a wallet does.
 pub fn parts(text: &str) -> Option<ConfigParts> {
     let mut name = None;
     let mut policy = None;
@@ -50,15 +59,23 @@ pub fn parts(text: &str) -> Option<ConfigParts> {
                 policy = Some((m.trim().parse().ok()?, n.trim().parse().ok()?));
             }
             "format" => format = Some(v.to_string()),
-            "derivation" => derivation = v.to_string(),
+            "derivation" => {
+                if v.len() > MAX_DERIVATION_LEN {
+                    return None;
+                }
+                derivation = v.to_string();
+            }
             fp if fp.len() == 8 && fp.chars().all(|c| c.is_ascii_hexdigit()) => {
+                if keys.len() == multisig_config::MAX_KEYS {
+                    return None;
+                }
                 keys.push((fp.to_string(), derivation.clone(), v.to_string()));
             }
             _ => {}
         }
     }
     let (m, n) = policy?;
-    if keys.is_empty() {
+    if keys.is_empty() || n > multisig_config::MAX_KEYS || keys.len() > n {
         return None;
     }
     Some(ConfigParts {
@@ -88,7 +105,7 @@ pub struct Merged {
 }
 
 /// Merges shares of one wallet. Shares that disagree on the quorum or the
-/// format are refused.
+/// format, or that hold more keys than the policy names, are refused.
 pub fn merge(texts: &[String]) -> Result<Merged, String> {
     let mut all: Option<ConfigParts> = None;
     for t in texts {
@@ -101,6 +118,9 @@ pub fn merge(texts: &[String]) -> Result<Merged, String> {
                 }
                 for k in p.keys {
                     if !a.keys.iter().any(|x| x.0.eq_ignore_ascii_case(&k.0)) {
+                        if a.keys.len() >= a.n {
+                            return Err(EN.restore_these_shares.into());
+                        }
                         a.keys.push(k);
                     }
                 }
@@ -963,6 +983,42 @@ mod tests {
             multisig_config::parse(&c, &full).unwrap().to_descriptor()
         );
         assert!(readable(&c, &rebuilt));
+    }
+
+    /// A config of fifteen keys (`Policy: 2 of 15`) is read; a file with
+    /// a sixteenth key line, a policy over fifteen keys, more key lines
+    /// than its policy names, or a derivation longer than a BIP-32 path
+    /// can be is refused before it is copied into every key. Shares that
+    /// add up to more keys than the policy are refused.
+    #[test]
+    fn a_config_is_read_up_to_fifteen_keys_and_refused_past_them() {
+        let config = |n: usize, lines: usize, derivation: &str| {
+            let mut s = format!("Policy: 2 of {n}\nFormat: P2WSH\nDerivation: {derivation}\n");
+            for i in 0..lines {
+                s.push_str(&format!("{i:08x}: xpub{i}\n"));
+            }
+            s
+        };
+        let path = "m/48'/0'/0'/2'";
+        assert_eq!(parts(&config(15, 15, path)).map(|p| p.keys.len()), Some(15));
+        assert!(parts(&config(15, 16, path)).is_none());
+        assert!(parts(&config(16, 16, path)).is_none());
+        assert!(parts(&config(3, 4, path)).is_none());
+        let deepest = format!("m{}", "/2147483647h".repeat(255));
+        assert!(parts(&config(3, 3, &deepest)).is_some());
+        assert!(parts(&config(3, 3, &format!("{deepest}/"))).is_none());
+        let share = |first: usize| {
+            let mut s = String::from("Policy: 2 of 3\nFormat: P2WSH\nDerivation: m/0\n");
+            for i in first..first + 2 {
+                s.push_str(&format!("{i:08x}: xpub{i}\n"));
+            }
+            s
+        };
+        assert!(merge(&[share(0), share(1)]).is_ok());
+        assert!(
+            merge(&[share(0), share(2)]).is_err(),
+            "four keys in a 2 of 3"
+        );
     }
 
     /// A rebuilt config is checked as any other: a key whose SLIP-132
