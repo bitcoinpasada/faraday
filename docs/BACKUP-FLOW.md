@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the APK key, GPG keys, the Secure Boot keys and the Bitcoin wallet
-**Open:** the Nostr key's part (`docs/NOSTR.md`, not scheduled)
+**Open:** the Nostr key's part (`docs/NOSTR.md`, not scheduled); backups age, when each copy was last checked and a recovery path's wait (§18, planned, not scheduled)
 
 Decided by the owner (`docs/DECISIONS.md` F31; the plan by place F35,
 the backup board F37).
@@ -2242,3 +2242,316 @@ dropped reads "Spends with 1 more place" and asks; a second seed put in
 the place's vault reads "Spends with the vault's passphrase and 1 more
 place"; a first seed at a place asks nothing; a single key asks
 nothing.
+
+## 18. Backups age (planned, not built; F87)
+
+A backup is only as good as its last check: paper fades, a box is
+moved, a stick stops reading, a share goes missing. And a wallet with a
+timelocked recovery path has a second clock, one Faraday cannot see:
+each coin's wait runs from the block it arrived in. This section adds
+both clocks to what the plan already shows. It is planned, not
+scheduled; `docs/FLOWS.md` (Wallets tab, the chart's sheets) points
+here.
+
+### 18.1 What is built today
+
+Read from the tree on 2026-10-23, so that this section adds only what
+is missing.
+
+- **Dates already kept.** The plan's notes in the vault
+  (`plan::Note`, `faraday/faraday-core/src/plan/mod.rs`) hold
+  `checked <at> <what> <date>` per thing at a spot and
+  `keychecked <fp> <date>` per key a holder keeps. Three presses write
+  them (`faraday/faraday-core/src/chart_edit.rs`): a place's **Mark
+  checked** (every thing in the node), a key's **Mark checked** (its
+  holder confirmed it), and a passphrase's **Check it** that matched.
+  The date is `Faraday::today`, the clock's local date when the clock is
+  known, checked or not, and empty when it is not known.
+- **Dates already shown.** The chart's sheets show "Last checked" and
+  "Last checked here" with the date ("Checked 2026-10-10", or "Checked"
+  for an empty date; `faraday/faraday-core/src/glance/sheet.rs`); a
+  place's sheet shows the oldest of its things' dates. No age ("14
+  months ago") is shown anywhere, and nothing is ever marked due.
+- **Checks that keep no date.** The checklist's **Check my copy** (words
+  typed back, a SeedQR scanned; and the chart's **Type my copy** and
+  **Scan my copy**, which open it) counts a match in the power-on's
+  backup record (`Record::checks`, `faraday/faraday-core/src/backups/mod.rs`),
+  which Backups reads as **Checked** or **Not checked** per paper place
+  and which power-off loses. It writes no vault note: the vault never
+  learns that the copy matched, or when, and a check does not know
+  which place's copy it was when a seed has copies at two places.
+- **Spend paths.** The one place a wallet's waits are shown is the spend
+  review's **Path** (`wallet::paths`, `faraday/faraday-core/src/wallet.rs`):
+  "52560 blocks after the coins arrived (about 365 days)". The wallet
+  card, the chart and the wallet sheet PDF (`wallet_sheet`,
+  `faraday/faraday-core/src/pdf.rs`: name, shape, descriptor and its
+  code, xpubs, first addresses, three lines to fill) say nothing about
+  paths or waits.
+- **Recovery wallets.** `core/faraday-bip/src/recovery.rs` builds a
+  Liana-shaped wallet from keys and delays (`blocks_for_days`,
+  `days_of_blocks`, 144 blocks a day, at most 455 days). Make a new
+  wallet does not offer the kind yet (`docs/learn/21-wallet-kinds.md`);
+  such a wallet arrives by its descriptor, from Liana or the Miniscript
+  compiler. Its create step, **After how long?** (30, 90, 180 or 365
+  days, or a number typed from 1 to 455), is `docs/WALLETS.md` §5's
+  Recovery row and not in the tree; where it is built it shows each
+  choice in days and blocks ("365 days · 52 560 blocks").
+
+### 18.2 Words
+
+- **A copy**: one thing at one place of the plan: a seed's words or
+  SeedQR, a codex32 string, a share sheet, the wallet sheet, a vault's
+  stick, a passphrase, a key a holder keeps.
+- **Checked**: a copy matched here (typed back, scanned, read and
+  unlocked) or marked checked by the person, on a date.
+- **Age**: today's date less the copy's last checked date.
+- **Due**: a copy whose age is the check interval or more, or that was
+  never checked with a date.
+- **Wait**: a spend path's relative timelock, `older(n)`, in blocks (or
+  in 512-second units) from the block each coin arrived in.
+
+### 18.3 Part 1: when each copy was last checked
+
+**What records a check.** Every way a copy is checked writes the same
+vault note, `checked <at> <what> <date>`, for that copy alone:
+
+| Check | Copy dated |
+|---|---|
+| Check my copy, words typed back and matched (the checklist, or the chart's **Type my copy**) | that seed's words at the place checked |
+| Check my copy, SeedQR scanned and matched (the checklist, or **Scan my copy**) | that seed's SeedQR at the place checked |
+| A codex32 string's Check my copy (`docs/CODEX32.md` §9.4) | that string at its place |
+| A passphrase's **Check it** (built) | that passphrase line |
+| A place's **Mark checked** (built) | every thing at the place |
+| A key's **Mark checked** for its holder (built, `keychecked`) | the key |
+| A vault's stick read on a stick visit, and the vault unlocked from it, where the plan keeps one stick of that vault | that stick at its place |
+
+**Which place.** A check opened from the chart knows its place: the line
+pressed. A check opened from the checklist knows its seed and form, not
+its place; where the plan keeps that form of the seed at more than one
+place, the match result asks **Which copy was this?**, one option button
+per place by its name (from the vault) or number, and dates the one
+pressed. One place: no question. The power-on count Backups shows
+(`Record::checks`) keeps working as it does.
+
+**Where it is kept.** In the plan's notes in the vault, as today. With
+no vault open, a check matched in the checklist is kept for the power-on
+with the backup record (place by number, the thing by kind, the date; no
+names) and written into the plan's notes when the vault that keeps the
+plan is next opened in that power-on; power-off before then loses it.
+This is a change to FLOWS' rule "in the vault alone, never in the kept
+state" (Q3, §18.7). The chart's **Mark checked** with no vault open
+reads "Open a vault to keep this", as today.
+
+**The age, shown.** A date becomes an age by one function in
+`faraday-core`, `glance::age_text(date, today)`: "today", "yesterday",
+"{n} days ago" under 60 days, "{n} months ago" under 24 months (whole
+months, rounded down), "{n} years ago" after. Where it shows:
+
+- **The chart's place nodes** (the wallet card's At a glance, an open
+  vault's wallet item; DESIGN §4.16): a line under the place's name,
+  "Last checked 14 months ago" from the oldest of its copies' dates,
+  in `WARN` with **To check** at the node's right when any copy there
+  is due; "Never checked" in `WARN` when a copy there has no date.
+  Vault and files nodes the same.
+- **The place's sheet**: per line, "Last checked 2025-08-14 · 14 months
+  ago", the line's due mark, and **Mark checked** as today.
+- **The wallet card's strip** (the plan's three checks above the
+  chart): a fourth line, "Every copy checked in the last 12 months" in
+  `OK`, or "To check: Bank box, Home" in `WARN`, its press opening the
+  first due place's sheet. The small panel's At a glance page carries
+  the same line, and each place row its age.
+- **Backups**: a paper place reads "Checked 14 months ago" (and **To
+  check** in `WARN` when due) where a date is kept, in place of
+  **Checked** or **Not checked**; with no date kept, as today.
+- **Home's lead tile** does not change (Q5, §18.7).
+
+**The interval.** Proposed: **12 months** for every copy, one constant
+in `faraday-core`. A copy is due when its age is 12 months or more.
+Owner to set (Q1); a per-plan interval, kept as a plan note
+`interval <days>`, is a later step if wanted (Q2).
+
+**With no trusted clock.** A check's date is a kept time, so it follows
+`docs/TOTP.md` §1.3: a date is written only from a checked clock
+(`clock_checked`: Set the time or Keep this time pressed this
+power-on, or the desktop app with its clock known).
+
+1. A check that matches with the clock not checked shows its result as
+   today ("Matches"), with **Set the time** beside it, which opens Set
+   the time over the page and returns to it; once set, the check is
+   dated with that day. Without it, the note is written with an empty
+   date, shown "Checked · no date".
+2. With the clock not checked, no age is shown and nothing is marked
+   due: each place shows its date ("Last checked 2025-08-14"), and the
+   strip's fourth line reads "Set the time to see what is due" with
+   **Set the time**.
+3. A date later than today (a clock set wrong before, or now) shows as
+   the date, with no age, and is not due.
+4. A copy whose last check has an empty date is due once the clock is
+   checked: Faraday cannot say how old it is (Q4).
+
+`Faraday::today` changes to read the checked clock only; the three
+built presses then follow rule 1.
+
+**Drawing reads.** The ages and due marks are drawing's, from the dates
+kept on the chart's state and the clock: `glance::of` (through the
+drawing memo, `docs/SPEED.md` §3.3) gains each node's oldest date and
+due flag; the date strings are parsed once, where the notes are read.
+Today's date is read once per frame. A decision (the strip's press)
+computes from the state as it is (`*_now`).
+
+### 18.4 Part 2: a recovery path's wait
+
+**What is stated.** For a wallet with at least one spend path that
+carries a relative timelock (`Lock::Blocks` or `Lock::Intervals`,
+`core/faraday-bip/src/spend.rs`), whatever made it (Liana, the
+Miniscript compiler, Make a new wallet's Recovery kind once built):
+
+- **The wallet card**, under the shape, a **Spend paths** group (one
+  fact row per path, DESIGN §4.11): the keys ("Key 1", "Keys 2 and 3, 2
+  of 2") and when: "Any time"; "52 560 blocks after each coin arrives ·
+  about 365 days"; "After block 900 000" or "After 2027-01-01" for an
+  absolute lock. Under the group, for the shortest relative wait, one
+  row: **Move each coin within** "about 328 days of arriving" (§18.5's
+  margin). On the small panel, a **Spend paths** row opens the group as
+  its own page, as At a glance does.
+- **The chart's wallet node sheet**: the same rows.
+- **The wallet sheet** (PDF; and the blank template's wallet sheet, the
+  Starter's, `docs/STARTER.md` §3.8): a **Spend paths** block after the
+  xpubs: per path its keys and its wait in blocks and days; then, when
+  any path has a relative wait, the line "Coins left unmoved for {days}
+  days ({blocks} blocks) can be spent by {keys} alone. Move every coin
+  to a new address of this wallet before then." and a table to fill by
+  hand per deposit: **Received on** · **Amount** · **Move before**,
+  eight empty rows, with "Move before = received on + {margin days}
+  days" over it. The sheet file gains `path` and `wait` fields
+  (`faraday-sheet 1` stays readable; a sheet without them prints as
+  today).
+- **The split sheets** (shares of the description): one line, "This
+  wallet has a recovery path: see its wallet sheet", where it has one.
+- **The spend review's Path step** keeps its text and adds the margin
+  row nowhere: it states the transaction, not the wallet.
+
+**What Faraday cannot do, and says nowhere on a working screen.**
+Faraday is offline: it does not know when a coin arrived or whether it
+moved. It shows the wait and the margin; the dates are the person's to
+keep, on the sheet. Learn says why (below).
+
+**Learn.** Edited as `docs/learn/`:
+
+- `docs/learn/14-spend-paths.md` gains **Moving coins before the wait
+  ends**: each coin's wait starts at its own block; a spend that moves
+  every coin to the wallet starts them all again; blocks come about
+  every ten minutes on average and faster while mining grows, so a
+  wait in blocks can end days early; the wallet card's **Move each coin
+  within** keeps a margin; the wallet sheet's table is where deposits
+  and their dates go, since this device cannot see them.
+- `docs/learn/16-inheritance.md` gains **A wallet that opens to an heir
+  after a wait**: what the heir does (waits, then spends with the
+  recovery keys alone), what the owner must do meanwhile (move coins
+  before each wait ends), and that a wait which ends while the owner is
+  alive lets the recovery keys spend.
+
+### 18.5 Days, blocks and the margin
+
+- Blocks to days: `recovery::days_of_blocks` (144 a day, rounded down),
+  shown as "about {days} days".
+- 512-second units to days: `n × 512 / 86 400`, rounded down, shown
+  without "about": the network counts them by median time past.
+- **The margin** (proposed; Q6): **Move each coin within** is 90 % of
+  the shortest relative wait, rounded down to whole days ("about 328
+  days" for 52 560 blocks). The wallet sheet's table uses the same
+  number.
+- An absolute lock (`after`) gets no margin row: moving coins does not
+  change it.
+
+### 18.6 Edit list, tests, batches
+
+**Edit list.**
+
+| File | Change |
+|---|---|
+| `faraday/faraday-core/src/chart_edit.rs` | `today` reads the checked clock; a dated note from the checklist's checks; the pending notes written at unlock |
+| `faraday/faraday-core/src/backups/mod.rs` | `copy_matched` takes the place; the pending dated checks on `Record`, written at unlock |
+| `faraday/faraday-core/src/screens/backup.rs` | **Which copy was this?**; **Set the time** beside a match with the clock not checked |
+| `faraday/faraday-core/src/glance/mod.rs`, `faraday/faraday-core/src/glance/sheet.rs` | `age_text`, each node's oldest date and due flag, the strip's fourth line, the wallet node's spend paths |
+| `faraday/faraday-core/src/screens/wallets.rs` | the card's **Spend paths** group; the small panel's row and page |
+| `faraday/faraday-core/src/wallet.rs` | the wallet's paths kept on `Wallet` when it is loaded (the policy is read once), with each path's wait and the margin |
+| `faraday/faraday-core/src/pdf.rs` | the wallet sheet's **Spend paths** block and table; the split sheets' line |
+| `faraday/faraday-strings/src/en.rs` | the strings above |
+| `docs/learn/14-spend-paths.md`, `docs/learn/16-inheritance.md` | the two Learn sections (and `faraday/faraday-learn/src/pages/en.rs` from them) |
+| `docs/FLOWS.md` | the chart's sheets and Backups bullets: the planned lines become the rule as built; the "never in the kept state" sentence amended per Q3 |
+| `docs/DESIGN.md` §4.16 | the node's age line and **To check** mark |
+| `docs/STARTER.md` §3.8 | the blank wallet sheet's **Spend paths** block, if Q7 says yes |
+
+**Tests** (user-facing; `faraday-core` unless named):
+
+1. A copy checked on 2025-08-14 reads "14 months ago" on 2026-10-23 and
+   is due; one checked on 2026-01-10 is not. `age_text` at each of its
+   boundaries (59 and 60 days, 23 and 24 months, a month-end day).
+2. Check my copy matched in the checklist, clock checked: the vault's
+   plan notes gain the place's dated note; locked and unlocked again,
+   and in a new process from the vault file (power-off), the date is
+   still there and the chart shows it.
+3. A seed with words at two places: the match asks which copy, and only
+   the one pressed is dated.
+4. The chart's **Type my copy** on a place's line dates that place's
+   copy without asking.
+5. Clock not checked: a match writes an empty date; **Set the time** on
+   its result dates it; no age and no due mark is shown; the strip reads
+   "Set the time to see what is due".
+6. A date later than today shows as a date and is not due.
+7. No vault open: a matched check is kept for the power-on and written
+   to the plan's notes when the vault opens; after a power-off before
+   that, it is gone.
+8. The invariant on the memo: changing a note (Mark checked) changes the
+   node's age line on the next frame (`docs/SPEED.md` §3.3's test form).
+9. A wallet `wsh(or_d(pk(A),and_v(v:pkh(B),older(52560))))`: the card's
+   paths read "Any time" and "52 560 blocks after each coin arrives ·
+   about 365 days", and **Move each coin within** "about 328 days"; a
+   2-of-2 or single-key wallet has no group; `older` with the time flag
+   reads days without "about"; `after` has no margin row.
+10. The wallet sheet's text for that wallet carries the paths and the
+    table's header; a sheet file without `path` fields prints as before.
+11. Budget: a frame drawn again with a chart on screen does no costly
+    work (`faraday/faraday-core/src/work/budget/`): the dates and paths are kept.
+
+**Batches** (after the structure pass's phase 7 touches `backups` and
+`glance`, so as not to fight its moves):
+
+| Batch | What | Model | Estimate |
+|---|---|---|---|
+| A1 | The dated checks: `today` on the checked clock, the checklist's notes with **Which copy was this?**, the pending notes, tests 2 to 7 | Sonnet | 1 day |
+| A2 | The ages: `age_text`, the nodes, sheets, strip, Backups, small panel; tests 1, 8, 11 | Sonnet | 1 day |
+| A3 | The paths: kept on `Wallet`, the card's group, the chart sheet, the wallet sheet and split sheets; test 9, 10 | Sonnet | 1 day |
+| A4 | Learn's two sections, FLOWS and DESIGN as built, this section's plan to `docs/history/BACKUP-FLOW-LOG.md` | Sonnet | 0.5 day |
+
+About 3.5 days. A1 before A2; A3 stands alone; A4 last.
+
+### 18.7 Questions for the owner
+
+1. **The interval.** 12 months for every copy (proposed)? Or shorter for
+   a vault's stick (flash kept unpowered loses charge over years) and a
+   passphrase (memory fades)?
+2. **One interval or per plan.** One constant (proposed), or a setting
+   per plan kept with its notes?
+3. **Kept state.** May a check matched with no vault open be kept for
+   the power-on (places by number, no names) and written at the next
+   unlock (proposed)? FLOWS says these dates live "in the vault alone,
+   never in the kept state".
+4. **Undated checks.** Is a copy whose last check has no date due once
+   the clock is checked (proposed), or not due until a dated check?
+5. **Home.** Should Home's lead tile say "Copies to check" when any
+   copy of a loaded wallet is due, or is the card and Backups enough
+   (proposed)?
+6. **The margin.** 90 % of the shortest wait (proposed), a fixed 30
+   days, or the full wait with no margin?
+7. **Blank templates.** Should the Starter's blank wallet sheet carry an
+   empty Spend paths block, or only a filled sheet (proposed)?
+8. **Coins last moved.** Should a recovery wallet's card offer **I moved
+   every coin** (a dated vault note, as Mark checked), so the card can
+   show "Coins last moved 300 days ago · the wait ends at about 365"?
+   Faraday would still not see the chain; the date is the person's word.
+   Not in the batches above until answered.
+9. **The two clocks together.** For a recovery wallet, should the check
+   interval be no longer than the margin, so each move of the coins and
+   each check of the copies fall due together?

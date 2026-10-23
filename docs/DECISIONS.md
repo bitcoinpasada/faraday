@@ -101,3 +101,5 @@ Read this table, then only the decision you need.
 | [F84](decisions/F84.md) | Check a signer fails closed; unknown fields are findings there and Info in a review | 2026-10-23 | Active | crypto |
 | [F85](decisions/F85.md) | Text size: Standard, Large, Larger, and the layout steps down for it | 2026-10-23 | Active | design |
 | [F86](decisions/F86.md) | Your own randomness is mixed into the session's; the stick's kernel credits what it says it does | 2026-10-23 | Active | security |
+| [F87](decisions/F87.md) | A backup's copies carry the date they were last checked, and a recovery path's wait is stated | 2026-10-23 | Active | backup |
+| [F88](decisions/F88.md) | Seed conversions are one tool, and only to forms that restore the same wallet | 2026-10-23 | Active | keys |

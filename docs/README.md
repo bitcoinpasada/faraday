@@ -31,6 +31,7 @@ need. Each document's header says what kind it is:
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | Can a person add their own randomness, and when is the stick's kernel ready? | `docs/OWN-RANDOMNESS.md` |
+| How does a seed change form and stay the same wallet? | `docs/SEED-CONVERSION.md` |
 | What about Macs? | `docs/MAC.md` |
 | What are TOTP codes and the clock? | `docs/TOTP.md` |
 | How are APKs signed? | `docs/APK-SIGNING.md` |
@@ -82,6 +83,7 @@ need. Each document's header says what kind it is:
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified (F86), not built.
 - `docs/QR.md`: QR transfer and scanning. Built, except §7.
+- `docs/SEED-CONVERSION.md`: Convert a seed. Specified (F88), not built.
 - `docs/SIGNER-CHECK.md`: Check a signer. Planned, not built.
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.

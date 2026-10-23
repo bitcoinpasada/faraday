@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built but for the items under Open; the code is the record where it differs
-**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), public values and the TOTP secret as codes (`docs/QR.md` §7)
+**Open:** files over 64 MiB on a stick visit (`docs/LARGE-FILES.md`), the Nostr key (`docs/NOSTR.md`), public values and the TOTP secret as codes (`docs/QR.md` §7); backups age, each copy's last check and a recovery path's wait (`docs/BACKUP-FLOW.md` §18, planned)
 
 Every flow, where it starts, and where it leaves the person.
 
@@ -1183,6 +1183,20 @@ guarantees for this file's rule:
   field, the key it makes with the seed here compared by fingerprint, the
   typed text wiped at once; "Matches: it makes key {fp}" or "Does not
   match", and a match dates the line in the vault.
+- **Backups age** (planned, not built; `docs/BACKUP-FLOW.md` §18).
+  Every check of a copy (Check my copy typed or scanned, a codex32
+  string's check, a passphrase's Check it, a place's Mark checked, a
+  vault's stick read and unlocked) dates that copy in the plan's notes
+  in the vault, asking **Which copy was this?** where the seed has that
+  form at more than one place; a date is written only from a checked
+  clock (`docs/TOTP.md` §1.3). The chart's place nodes, their sheets,
+  the card's strip ("To check: Bank box") and Backups show each copy's
+  age ("Last checked 14 months ago") and mark it **To check** past the
+  interval (12 months proposed); with the clock not checked they show
+  dates only. A wallet with a relative timelock shows its **Spend
+  paths** on the card, the chart's wallet sheet and the wallet sheet
+  PDF, each wait in blocks and days with **Move each coin within**, and
+  the PDF a table to fill by hand per deposit.
 - **Restore** (decision 48): **Kind** (Single key · native SegWit
   ticked, Multisig · native SegWit, More kinds), with **I have the wallet
   description: Scan it** and **From Files** above it; **Quorum** for a
