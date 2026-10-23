@@ -1,7 +1,7 @@
 //! Faraday's samples (F81, `docs/MODES.md` §5): the public dummies Demo
 //! takes, as data. Keys in every form Faraday reads (a repeated word at
 //! every length, test vectors of BIP-39, SLIP-39, codex32 and Seed XOR, an
-//! encrypted backup, an LND cipher seed), the testkit's wallets with an
+//! LND cipher seed), the testkit's wallets with an
 //! unsigned spend each, a vault, a signed message, an address and a TOTP
 //! setup code.
 //!

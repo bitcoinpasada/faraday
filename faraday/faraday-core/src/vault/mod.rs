@@ -918,21 +918,6 @@ impl Faraday {
                 self.vaults.state.dice = None;
                 self.vaults.state.focus = None;
             }
-            V::ImportBackup(k) => {
-                if self.vaults.open.is_empty() {
-                    self.toast(EN.vaults_unlock_a_vault);
-                } else {
-                    self.vaults.state.prompt = Some(Prompt {
-                        purpose: Purpose::Backup(k),
-                        text: TextBox::default(),
-                        error: None,
-                    });
-                    self.vaults.state.form = None;
-                    self.vaults.state.saving = false;
-                    self.vaults.state.focus = Some(Focus::Prompt);
-                    self.screen = Screen::VaultContents;
-                }
-            }
             V::LoadWithPassphrase => {
                 self.vaults.state.prompt = Some(Prompt {
                     purpose: Purpose::KeyPassphrase,
@@ -1181,10 +1166,6 @@ impl Faraday {
         };
         match p.purpose {
             Purpose::ForWallet(v, r) => self.pass_seed_try(v, r),
-            Purpose::Backup(k) => {
-                let bytes = self.inbox.get(k).map_or(&[][..], |i| &i.bytes[..]);
-                self.vaults.state.backup_go(bytes);
-            }
             Purpose::Kdbx => {
                 if p.text.text.chars().count() < 8 {
                     p.error = Some(EN.vaults_a_passphrase.to_string());
@@ -1232,56 +1213,6 @@ impl Faraday {
         }
     }
 
-    /// Opens the backup the prompt names and keeps what it holds in the
-    /// open vault.
-    fn vault_open_backup(&mut self) {
-        let c = self.compute();
-        let Some(p) = self.vaults.prompt.as_ref() else {
-            return;
-        };
-        let Purpose::Backup(k) = p.purpose else {
-            return;
-        };
-        let Some(item) = self.inbox.get(k) else {
-            return;
-        };
-        let label = crate::stem(&item.name);
-        let opened = faraday_keys::vault::open_backup(
-            &c,
-            &item.bytes,
-            p.text.text.as_bytes(),
-            &label,
-            faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Words),
-        );
-        let (record, category) = match opened {
-            Ok(Some(made)) => (made.record, if made.key { 0 } else { 3 }),
-            Ok(None) => return,
-            Err(e) => {
-                let why = match e {
-                    faraday_backup::oskb::Error::Passphrase => {
-                        EN.vaults_that_passphrase.to_string()
-                    }
-                    faraday_backup::oskb::Error::Memory(mib) => {
-                        fill(EN.vaults_needs_mib_which, &[&mib.to_string()])
-                    }
-                    faraday_backup::oskb::Error::Format => EN.vaults_not_a_backup.to_string(),
-                };
-                if let Some(p) = self.vaults.state.prompt.as_mut() {
-                    p.text.clear();
-                    p.error = Some(why);
-                }
-                return;
-            }
-        };
-        self.vaults.state.prompt = None;
-        self.vaults.state.focus = None;
-        self.vaults.state.category = category;
-        self.vault_push(
-            record,
-            &fill(EN.vaults_is_in_the_vault, &[&label.to_string()]),
-        );
-    }
-
     /// What a tick does for vaults: runs work whose frame has been drawn,
     /// finishes a measurement, and fires a hold. Returns whether to redraw.
     pub(crate) fn vault_tick(&mut self, now_ms: u64) -> bool {
@@ -1310,7 +1241,6 @@ impl Faraday {
                     faraday_keys::vault::measure(&c, &header);
                 }
                 Work::Unlock => self.vault_unlock(),
-                Work::Backup => self.vault_open_backup(),
                 Work::FlowMake => self.flow_make_work(),
                 Work::Kdbx => self.vault_kdbx(),
                 Work::Create => self.vault_create(),

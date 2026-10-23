@@ -1120,8 +1120,6 @@ pub enum FileKind {
     Vault,
     /// Entries for a vault: `otpauth://` URIs and `field: value` lines.
     Entries,
-    /// An encrypted backup (`.oskb`).
-    Backup,
     /// An EFI image to sign or check for Secure Boot.
     EfiImage,
     /// A threshold spend part-signed at another location: the PSBT with
@@ -1237,9 +1235,6 @@ impl From<FileKind> for Classified {
 pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
     if faraday_vault::read_header(bytes).is_ok() {
         return FileKind::Vault.into();
-    }
-    if faraday_backup::oskb::is_backup(bytes) {
-        return FileKind::Backup.into();
     }
     if bytes.starts_with(b"%PDF-") {
         return FileKind::Pdf.into();

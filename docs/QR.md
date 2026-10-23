@@ -92,7 +92,7 @@ on is held back until it is off (`docs/history/PLAN.md` §5.4).
 | PSBT, raw transaction | The transaction step of the wallet it belongs to (`docs/WALLETS.md` §2) |
 | Descriptor, policy, multisig config, BSMS, account key (`crypto-account`, `crypto-hdkey`, xpub) | A new wallet card, or the piece a wallet in progress is missing |
 | SeedQR, CompactSeedQR, words | Add a key, added as its own **Scan a SeedQR** adds them; never Files or the Inbox |
-| codex32, encrypted backup | The slot of the wallet it belongs to, or **Keys without a wallet**; then **Save to vault** |
+| codex32 | The slot of the wallet it belongs to, or **Keys without a wallet**; then **Save to vault** |
 | Private key, xprv | Named: Add a key takes seeds as words or a SeedQR |
 | `otpauth://` URI | A new entry, filled in, in the open vault |
 | Faraday file envelope | The Inbox, after its SHA-256 is checked |
@@ -231,7 +231,7 @@ read by eye (fingerprints, hashes, GUIDs) or taken from a stick
 
 **The rule for secrets.** A secret gets no QR. It reaches a code only by
 these doors: its encrypted form carries the code in its place (the
-ncryptsec, an `.oskb`); a file let out through the secret sheet is shown
+ncryptsec); a file let out through the secret sheet is shown
 by Files, marked Secret (`docs/FLOWS.md` decision 6); a seed's SeedQR in
 the backup's checklist; and the two exceptions the owner has made,
 each because the secret's usual destination takes it by scanning and

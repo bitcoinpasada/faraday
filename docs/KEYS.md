@@ -151,9 +151,7 @@ can read.
   - `load_from_vault` and `load_key_record`, which add key records to
     `Keys`, and `passphrase_kept_for`, now theirs.
   - `vault::create`, `vault::measure`, `vault::write_kdbx` (encrypted
-    bytes), `vault::open_backup` (a `.oskb` as a `Held` record) and
-    `Keys::add_backup` (a `.oskb` added to the keys), `seed_of` and
-    `sheet_parts`.
+    bytes), `seed_of` and `sheet_parts`.
 - **Temporary.** `OpenVaults::vault_records` and `vault_records_mut` lent
   the records to faraday-core's reads and edits. Step 3b removed them.
 - The slot key is private to `vault`, as before.
@@ -275,8 +273,7 @@ now opaque: its secret is in a private field, it is neither `Clone` nor
   `testkit::KindText` over `Keys::master_for_tests`.
 - **A WIF private key** pasted is told by `identity::is_wif`.
 - **`IntoRecord`** gives a record's `size`, so faraday-core never takes a
-  held record out of its guard to measure it; a `.oskb` opened goes into
-  the vault held.
+  held record out of its guard to measure it.
 - **The testkit was in the desktop app.** The desktop shell turned on
   faraday-core's `testkit` feature for one constant, the network it
   starts on. It names the network itself now, takes the testkit only in
@@ -327,7 +324,7 @@ What was open after step 3:
 
 ## 5. What does not change
 
-- No format: vaults, `.oskb`, KDBX, PSBTs and files written to sticks.
+- No format: vaults, KDBX, PSBTs and files written to sticks.
 - No screen and no string: every test passes unchanged, except where a
   test reached a secret field directly. That test moves to an operation
   or `reveal`.

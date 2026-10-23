@@ -401,7 +401,6 @@ pub fn stick_kind(name: &str) -> Option<&'static str> {
         "ofv" => Some(EN.stick_kind_vault),
         "efi" => Some(EN.stick_kind_efi_image),
         "osk" => Some(EN.stick_kind_threshold),
-        "oskb" => Some(EN.stick_kind_oskb),
         "png" => Some(EN.stick_kind_qr_codes),
         _ => Some(EN.stick_kind_file),
     }
@@ -595,7 +594,7 @@ pub enum Sheet {
     /// The idle lock coming: a countdown, and what the lock does.
     IdleWarn,
     /// A seed from the Inbox becoming a wallet: a passphrase or none, and
-    /// its kind; or a sealed backup's passphrase.
+    /// its kind.
     Potential,
     /// What the boot stick brought: remove the stick, unlock its vaults,
     /// choose what to import.
@@ -2263,7 +2262,6 @@ impl Faraday {
             // The ticks stay on the Load samples state while the sheet
             // waits; the load runs when the stick is out.
             Action::SamplesLoad if self.sample_area.any_ticked() => EN.pull_what_load_samples,
-            Action::BackupOpen(_) => EN.pull_what_open_backup,
             // Unlocking for another flow: the Pull sheet asks first, and
             // Unlock opens once the stick is out.
             Action::Vault(vault::VaultAction::OpenFrom(i, _))
@@ -3210,7 +3208,6 @@ impl Faraday {
             | Action::InboxChoose(..)
             | Action::PotentialOpen(..)
             | Action::XpubOpen(..)
-            | Action::BackupOpen(..)
             | Action::PotentialKind(..)
             | Action::PotentialShow
             | Action::PotentialType

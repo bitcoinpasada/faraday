@@ -750,8 +750,6 @@ pub enum Action {
     InboxChoose(usize),
     /// Make the seed with this fingerprint a wallet.
     PotentialOpen([u8; 4]),
-    /// Open the .oskb backup in this Inbox file with its passphrase.
-    BackupOpen(usize),
     /// Make the Inbox's account xpub n a watch-only wallet.
     XpubOpen(usize),
     /// The potential wallet's kind, by its place in `inbox::KINDS`.

@@ -32,7 +32,6 @@ faraday-intake = { path = "../faraday-intake" }
 faraday-pgp = { path = "../faraday-pgp" }
 faraday-sb = { path = "../faraday-sb" }
 faraday-apk = { path = "../faraday-apk" }
-faraday-backup = { path = "../../core/faraday-backup" }
 faraday-keys = { path = "../faraday-keys" }
 zeroize = { workspace = true, features = ["alloc"] }
 
@@ -49,6 +48,8 @@ guides = ["dep:faraday-guides"]
 faraday-core = { path = ".", features = ["testkit"] }
 # `Keys::master_for_tests`, for tests that derive a public result themselves.
 faraday-keys = { path = "../faraday-keys", features = ["master-for-tests"] }
+# The KDBX writer, read back by a test.
+faraday-backup = { path = "../../core/faraday-backup" }
 # The disk process's picture reader: what a PNG on a stick reads as.
 faraday-files = { path = "../faraday-files" }
 # The test binary's allocator, counting each thread's allocations for the

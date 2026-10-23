@@ -25,7 +25,7 @@ need. Each document's header says what kind it is:
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/FAMILY.md` |
 | How will codex32 shares be made, checked by hand and repaired? | `docs/CODEX32.md` |
 | How is a vault stored? | `docs/VAULT.md` |
-| What is an `.oskb` backup, byte by byte? | `docs/BACKUP-FORMAT.md` |
+| What is in the KeePass (KDBX 4) file Faraday writes? | `docs/KDBX.md` |
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |
 | Which other wallets' files and codes does Faraday read and write? | `docs/INTEROP.md`, `docs/WALLETS.md` |
 | How does the Starter write a stick and start a computer from it? | `docs/STARTER.md` |
@@ -58,11 +58,11 @@ need. Each document's header says what kind it is:
 - `docs/APK-SIGNING.md`: The APK signing key. Built.
 - `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record. Built (F19).
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
-- `docs/BACKUP-FORMAT.md`: `.oskb`: the encrypted backup Faraday reads. Built.
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
 - `docs/DEMO.md`: The demo, and Faraday Desktop for developers. Built (F30, F61).
 - `docs/DESIGN.md`: Design system. Built.
 - `docs/FAMILY.md`: The Spend tab. Built.
+- `docs/KDBX.md`: KDBX 4: the encrypted file Faraday writes for others. Built.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
 - `docs/README.md`: Faraday's documents. Built.
 - `docs/SECURITY-MODEL.md`: Security model. Built.

@@ -13,7 +13,7 @@
 use alloc::string::String;
 use alloc::vec::Vec;
 
-use faraday_bip::bip39::{Language, Mnemonic};
+use faraday_bip::bip39::Mnemonic;
 use zeroize::Zeroizing;
 
 use crate::Error;
@@ -63,7 +63,7 @@ pub mod field {
     /// Slot label: the label.
     pub const LABEL: u8 = 1;
 
-    /// Bitcoin key: the `.oskb` kind-1 or kind-2 payload.
+    /// Bitcoin key: the words or the seed payload (§7).
     pub const KEY: u8 = 1;
     /// Bitcoin key: what the person calls it.
     pub const KEY_LABEL: u8 = 2;
@@ -84,7 +84,7 @@ pub mod field {
 
     /// Note: the text.
     pub const NOTE: u8 = 1;
-    /// Recovery sheet: the `.oskb` kind-4 payload.
+    /// Recovery sheet: the sheet payload (§7).
     pub const SHEET: u8 = 1;
 
     /// Entry: title.
@@ -441,17 +441,17 @@ impl Record {
             && let Some(payload) = self.field(field::KEY)
         {
             let k = if payload.len() == 34 {
-                faraday_backup::oskb::KIND_WORDS
+                crate::layouts::KIND_WORDS
             } else {
-                faraday_backup::oskb::KIND_SEED
+                crate::layouts::KIND_SEED
             };
-            if faraday_backup::oskb::payload_of(k, payload).is_none() {
+            if crate::layouts::payload_of(k, payload).is_none() {
                 return Err(Fault::Value(self.kind, field::KEY));
             }
         }
         if self.kind == kind::SHEET
             && let Some(payload) = self.field(field::SHEET)
-            && faraday_backup::oskb::payload_of(faraday_backup::oskb::KIND_SHEET, payload).is_none()
+            && crate::layouts::payload_of(crate::layouts::KIND_SHEET, payload).is_none()
         {
             return Err(Fault::Value(self.kind, field::SHEET));
         }
@@ -622,27 +622,13 @@ pub fn set_loads_at_unlock(record: &mut Record, loads: bool) {
     }
 }
 
-/// A key's words as the `.oskb` kind-1 payload a key record holds:
-/// the word count, the wordlist, and the entropy padded to 32 bytes.
-pub fn words_payload(m: &Mnemonic) -> Zeroizing<Vec<u8>> {
-    let entropy = m.entropy();
-    let bytes = entropy.expose().as_bytes();
-    let lang = Language::ALL
-        .iter()
-        .position(|l| *l == m.language())
-        .unwrap_or(0) as u8;
-    let mut out: Zeroizing<Vec<u8>> = Zeroizing::new(alloc::vec![0u8; 34]);
-    out[0] = m.word_count() as u8;
-    out[1] = lang;
-    out[2..2 + bytes.len()].copy_from_slice(bytes);
-    out
-}
+pub use crate::layouts::words_payload;
 
 /// The words a key record holds, when it holds words rather than a seed.
 pub fn words_of(record: &Record) -> Option<Mnemonic> {
     let payload = record.field(field::KEY)?;
-    match faraday_backup::oskb::payload_of(faraday_backup::oskb::KIND_WORDS, payload)? {
-        faraday_backup::oskb::Opened::Words(m) => Some(m),
+    match crate::layouts::payload_of(crate::layouts::KIND_WORDS, payload)? {
+        crate::layouts::Opened::Words(m) => Some(m),
         _ => None,
     }
 }

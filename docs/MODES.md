@@ -160,7 +160,7 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   bitcoin here.", in every mode, Demo included: words (BIP-39, every
   length), a seed scanner's Type and Paste, a SLIP-39 share, a codex32
   string, an LND cipher seed and its passphrase, hex entropy, an xprv or
-  a WIF, a BIP-39 passphrase, a vault's or a backup's passphrase where it
+  a WIF, a BIP-39 passphrase, a vault's passphrase where it
   can be typed (not in Demo, where it is `faraday`, §6.2). A statement
   of fact in the caution tone, as a key card's line is (DESIGN §4.11);
   one string, one placement rule (under the field, above the keyboard,
@@ -198,7 +198,6 @@ sample. "Public set" means its fingerprint (or node id) is in
 | codex32 secret | codex32, k = 0 | `tools/vectors/bip93/vectors.json`, secrets, vector 1 | the vector's seed and xprv |
 | codex32, 2 shares | codex32 set; the tick loads both shares | sets, vector 2 | the same |
 | Seed XOR, 2 parts | Seed XOR set; the tick loads the combined key | `tools/vectors/xor/12-words-2-parts.txt` (constructed, not Coldcard's; its README says so) | the file's seed words |
-| Encrypted backup | an `.oskb` holding a 32-byte master seed, no words | new, made under `faraday` with `tools/vectors/backup/backup-v3-seed-32.oskb`'s payload (every byte `42`) | opened by `faraday-backup` and by `tools/backup/decrypt.py` to that payload |
 | LND cipher seed | aezeed, for Lightning node key only; public node id | LND's published vector, `PRODUCTION_1` in `core/faraday-bip/src/aezeed.rs` (no passphrase) | the node id `aezeed.rs`'s test names |
 
 **With a passphrase.** Every key form that takes a passphrase (BIP-39,
@@ -222,7 +221,7 @@ part is Add a key's job, with Use a sample filling the next part (§6).
 one): words, through `Keys::add_words_with`; SLIP-39 shares and a
 codex32 or Seed XOR set, through `inbox::Secret::add` (words,
 `slip39_seed` then `add_seed`, `codex32_seed` then `add_seed`); the
-`.oskb`, through `Keys::add_backup`; the cipher seed, through
+cipher seed, through
 `faraday_keys::lightning::node_from_aezeed`.
 
 **Constraints already in place.** New key's handout (§7) and
@@ -270,7 +269,7 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
 ### 5.4 Where they live
 
 - A new crate, faraday/faraday-samples, of public data only: `&str`,
-  `&[u8]` (the `.oskb` and the vault, `include_bytes!` of files in the
+  `&[u8]` (the vault, `include_bytes!` of a file in the
   crate) and fingerprints as `[u8; 4]`, in the types
   `faraday_core::samples` defines (`SampleKey`, `SampleWallet`,
   `Samples`, plain structs of `&'static` fields). Its one item:
@@ -291,8 +290,8 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
   `Keys::add_words_with` gives; every wallet's descriptor equals the
   testkit's; every unsigned spend equals the testkit's bytes; every
   vector sample equals its vector file read at test time (words,
-  shares, strings, seed, xprv where the vector has one); the `.oskb`
-  and the vault open under `faraday` to what the table says;
+  shares, strings, seed, xprv where the vector has one); the vault
+  opens under `faraday` to what the table says;
   the cipher seed's node id is the one `aezeed.rs`'s test names; and
   the handout list holds every length New key offers.
 - `demo::SEEDS` and `demo::words` move into the crate; `demo.rs` keeps
@@ -421,10 +420,10 @@ no typing is swallowed.
 | `KeyGen(0 or 1)`: New key's BIP-39 passphrase and its repeat | `faraday/faraday-core/src/keygen/mod.rs`, `keygen/screen.rs` (`KPassField`) |
 | `Entry`: Add a key's passphrase | `faraday/faraday-core/src/screens/entry.rs`, `compact/screen.rs` |
 | `SeedRead(0 or 1)`: a seed read's passphrase and repeat | `faraday/faraday-core/src/seeds/read.rs` (`Sheet::SeedRead`) |
-| `Potential`: the potential wallet's, and an `.oskb` opened | `Sheet::Potential` (`screens/sheets.rs`) |
+| `Potential`: the potential wallet's | `Sheet::Potential` (`screens/sheets.rs`) |
 | `Slot(0 or 1)`: Make a new wallet's passphrase slot | `faraday/faraday-core/src/create.rs` (`pass_slot`, `pass_focus`) |
 | `Phrase(i, again)`: Create a vault's passphrases (every slot) and their repeats | `faraday/faraday-core/src/vault/mod.rs` (`CreateForm::phrases`), `vault/screen.rs` |
-| `Unlock`: unlock, the boot import's passphrase, a backup's | `vault/mod.rs` `Focus::Passphrase` (`Sheet::Import`) |
+| `Unlock`: unlock, the boot import's passphrase | `vault/mod.rs` `Focus::Passphrase` (`Sheet::Import`) |
 | `Prompt`: a passphrase prompt | `vault/mod.rs` `Focus::Prompt` (`Sheet::PassphraseSeeds`); not the KeePass export's |
 | `Unlock`: the Spend tab's vault passphrase | `faraday/faraday-core/src/family/mod.rs` |
 | `Check`: Check my copy's passphrase | `faraday/faraday-core/src/screens/backup.rs` (`check.passphrase`) |
@@ -492,7 +491,7 @@ the file has them.
 | `samples_password` | In Demo, the sample passphrase is (the passphrase follows in its code box) |
 | `sample_type` | {} · {} (kind and script, or form and size) |
 | `sample_kind_single` / `sample_kind_multisig` / `sample_kind_musig` / `sample_kind_frost` / `sample_kind_timelock` / `sample_script_tree` | single-sig / {}-of-{} multisig / {}-key MuSig2 / {}-of-{} FROST / timelock recovery / Taproot, script tree (the other scripts are `wallet_legacy`, `wallet_nested_segwit`, `wallet_native_segwit`, `wallet_taproot`) |
-| `sample_form_bip39` / `_slip39` / `_codex32` / `_xor` / `_seed` / `_backup` / `_aezeed` | BIP-39 / SLIP-39 / codex32 / Seed XOR / Master seed / Encrypted backup (.oskb) / LND cipher seed |
+| `sample_form_bip39` / `_slip39` / `_codex32` / `_xor` / `_seed` / `_aezeed` | BIP-39 / SLIP-39 / codex32 / Seed XOR / Master seed / LND cipher seed |
 | `sample_size_words` / `_words_japanese` / `_share` / `_shares` / `_threshold` / `_groups` / `_secret` / `_parts` / `_bytes` | {} words / {} words, Japanese / 1 share / {} shares / {} of {} shares / groups, {} shares / secret / {} parts / {} bytes |
 | `samples_loaded` | Loaded {} (`{}`: how many, as the Load sheet's toast counts) |
 | `use_a_sample` | Use a sample |
@@ -503,7 +502,6 @@ the file has them.
 | `sample_slip39_one` / `sample_slip39_two_of_three` / `sample_slip39_groups` | SLIP-39, one share / SLIP-39, 2 of 3 / SLIP-39, groups |
 | `sample_codex32_secret` / `sample_codex32_shares` | codex32 secret / codex32, 2 shares |
 | `sample_xor` | Seed XOR, 2 parts |
-| `sample_backup` | Encrypted backup |
 | `sample_aezeed` | LND cipher seed |
 | `sample_savings` … `sample_tree` | Savings, Spending, Taproot, Nested SegWit, Legacy, Nested multisig, Legacy multisig, Taproot multisig, Inheritance, Taproot tree |
 | `sample_musig` / `sample_frost` / `sample_three_of_five` | MuSig2 / FROST 2 of 3 / 3 of 5 |
@@ -671,7 +669,7 @@ wallet would notice.
 ### M5. The samples crate, the public set, handouts by length
 
 - **Files**: faraday/faraday-samples (new: `Cargo.toml`, `src/lib.rs`,
-  the `.oskb` and vault files, tests/); `faraday/faraday-core/src/demo.rs`
+  the vault file, tests/); `faraday/faraday-core/src/demo.rs`
   (`SEEDS`, `words` moved out); samples/mod.rs in faraday-core (the
   types); `faraday/faraday-keys/src/session.rs` (`set_demo` by
   fingerprints, `next_handout(words)`, `is_public_node`);
@@ -727,7 +725,7 @@ wallet would notice.
   ticking Savings and Load ticked loads Savings and bacon, zebra and
   summer, and Savings' first address is the testkit's; ticking the
   SLIP-39 2 of 3 set loads its key, whose fingerprint is the vector's;
-  the `.oskb` tick loads the 32-byte seed's key; loaded samples come
+  loaded samples come
   back ticked and dimmed; New key's next handout skips a sample the
   sheet loaded; on Testnet and on the stick no pill shows and the action
   does nothing. Budget: the sheet's frames do no costly work; Load
@@ -752,19 +750,19 @@ Owner, 2026-10-22, after M6.
   SegWit". Keys: form and size, e.g. "bacon ×24" · "BIP-39 · 24 words",
   "twelve ×12" · "BIP-39 · 12 words", "SLIP-39 2 of 3" · "SLIP-39 · 2 of
   3 shares", "codex32" · "codex32 · secret", "Seed XOR" · "Seed XOR · 2
-  parts", the backup · "Encrypted backup (.oskb)". The labels are
+  parts". The labels are
   en.rs strings composed from the script and threshold the sample
   already records; a new sample takes its label from the same parts.
 - **The passphrase is `faraday`**, all lowercase, in place of
   `password` everywhere M5 and M6 used it: `demo::PASSPHRASE`, the
-  handouts' second fingerprint, the sample vault and the sample backup
+  handouts' second fingerprint and the sample vault
   (remade under `faraday` by `examples/regenerate.rs`), the tests, the
   Learn page and DEMO.
 - **The code box** of §6.2: the Load samples sheet's line shows
   `faraday` in it; the Learn page's Samples section shows it as inline
   code. M8 draws every Demo passphrase field the same way.
-- **Tests**: every sample row offers its type; the sample vault and the
-  backup open under `faraday` and not under `password`; Demo takes a
+- **Tests**: every sample row offers its type; the sample vault
+  opens under `faraday` and not under `password`; Demo takes a
   sample with `faraday` as its passphrase and refuses it with
   `password`.
 
@@ -823,8 +821,7 @@ Owner, 2026-10-22, after M6.
   typing, and the flow goes on: New key with a passphrase adds the
   handout's `faraday` key, which the public set takes; Create a vault
   makes one that unlocks with `faraday`; Generate with dice shows the
-  rolled words and the field takes `faraday`; an `.oskb` written in
-  Demo opens with `faraday`; the sample vault appears in Vaults and
+  rolled words and the field takes `faraday`; the sample vault appears in Vaults and
   unlocks to the Load sheet; Lightning's cipher seed row fills LND's
   vector and shows its node id, a typed cipher seed that is not the
   vector is refused, and Show stays dimmed; the signed message checks

@@ -1,13 +1,12 @@
 //! What the Inbox holds, put together: every wallet its files describe,
-//! once each however many forms it came in, every seed its backups give,
+//! once each however many forms it came in, every seed its files give,
 //! once each, and which seeds belong to which wallets.
 //!
 //! A wallet description comes as a descriptor, a wallet .json, a BIP 129
 //! record, a multisig config, Bitcoin Core's import file, or split sheets
 //! that add up. A seed comes as words in a text file (a SeedQR or
 //! CompactSeedQR picture read at a stick visit arrives as one), as SLIP-39
-//! shares or codex32 strings that add up, or out of an .oskb backup
-//! opened with its passphrase. A seed whose fingerprint names a key of a
+//! shares or codex32 strings that add up. A seed whose fingerprint names a key of a
 //! wallet here loads with that wallet; a seed no wallet names is a
 //! potential wallet: the person adds a BIP-39 passphrase or does not, and
 //! chooses the kind of single-key wallet, before it becomes one.
@@ -107,13 +106,11 @@ pub struct FoundWallet {
     pub loaded: bool,
 }
 
-/// A backup still short of parts, or sealed.
+/// A backup still short of parts.
 #[derive(Debug, Clone)]
 pub struct Waiting {
     /// What it is and what it lacks.
     pub line: String,
-    /// The .oskb backup to open, by Inbox place.
-    pub backup: Option<usize>,
 }
 
 /// The Inbox's files, with what they give ([`Found`]) kept worked out
@@ -226,8 +223,7 @@ pub(crate) struct InboxArea {
     /// Wallets the Inbox describes left out of its next load, by
     /// descriptor.
     skip: BTreeSet<String>,
-    /// A seed from the Inbox being made a wallet, or a sealed backup
-    /// being opened.
+    /// A seed from the Inbox being made a wallet.
     potential: Option<Potential>,
     /// When a passphrase was last typed on a sheet that shows the key it
     /// makes (the potential wallet's, a seed read's), until the key is
@@ -305,7 +301,7 @@ impl InboxArea {
         &mut self.skip
     }
 
-    /// The seed being made a wallet, or the backup being opened.
+    /// The seed being made a wallet.
     pub(crate) fn potential(&self) -> Option<&Potential> {
         self.potential.as_ref()
     }
@@ -315,7 +311,7 @@ impl InboxArea {
         self.potential.as_mut()
     }
 
-    /// Starts making a wallet of a seed, or opening a backup.
+    /// Starts making a wallet of a seed.
     pub(crate) fn set_potential(&mut self, p: Potential) {
         self.potential = Some(p);
     }
@@ -342,7 +338,7 @@ impl Faraday {
         &self.inbox.files
     }
 
-    /// The seed being made a wallet, or the backup being opened.
+    /// The seed being made a wallet.
     pub fn potential(&self) -> Option<&Potential> {
         self.inbox.potential()
     }
@@ -405,7 +401,7 @@ pub struct Found {
     pub wallets: Vec<FoundWallet>,
     /// Seeds, once each.
     pub seeds: Vec<FoundSeed>,
-    /// Backups short of parts, and sealed backups.
+    /// Backups short of parts.
     pub waiting: Vec<Waiting>,
     /// Account xpubs no wallet here uses and no seed here gives: each a
     /// potential watch-only wallet.
@@ -770,7 +766,6 @@ impl Faraday {
                         EN.inbox_slip_39_shares,
                         &[&ks.len().to_string(), &need.to_string()],
                     ),
-                    backup: None,
                 }),
             }
         }
@@ -792,7 +787,6 @@ impl Faraday {
                         EN.inbox_codex32_shares_inline,
                         &[&ks.len().to_string(), &need.to_string()],
                     ),
-                    backup: None,
                 }),
             }
         }
@@ -804,14 +798,6 @@ impl Faraday {
                 SeedSource::Loaded,
                 true,
             );
-        }
-        for (k, item) in items.iter().enumerate() {
-            if item.kind == FileKind::Backup {
-                found.waiting.push(Waiting {
-                    line: fill(EN.inbox_oskb_backup, &[&item.name.to_string()]),
-                    backup: Some(k),
-                });
-            }
         }
 
         // Wallets: every file that reads as one, once each by descriptor,
@@ -903,12 +889,10 @@ impl Faraday {
                             EN.inbox_split_sheets_progress,
                             &[&m.have.len().to_string(), &m.n.to_string()],
                         ),
-                        backup: None,
                     }),
                 },
                 Err(e) => found.waiting.push(Waiting {
                     line: fill(EN.inbox_split_sheets, &[&e.to_string()]),
-                    backup: None,
                 }),
             }
         }
@@ -1137,8 +1121,6 @@ pub struct Potential {
     pub with: Option<Fingerprint>,
     /// The last refusal.
     pub error: Option<String>,
-    /// An .oskb backup being opened instead, by Inbox place.
-    pub backup: Option<usize>,
     /// An account xpub becoming a watch-only wallet instead, with whether
     /// its path fixes the kind.
     pub xpub: Option<(String, bool)>,
@@ -1162,7 +1144,7 @@ impl Faraday {
         let Some(p) = self.inbox.potential_mut() else {
             return;
         };
-        if p.passphrase.is_empty() || p.backup.is_some() || p.xpub.is_some() {
+        if p.passphrase.is_empty() || p.xpub.is_some() {
             self.inbox.set_typed_at(None);
             self.potential_refresh();
             return;
@@ -1276,16 +1258,6 @@ impl Faraday {
         }
     }
 
-    /// Opens the sheet for an .oskb backup's passphrase.
-    pub(crate) fn backup_open(&mut self, k: usize) {
-        self.inbox.set_potential(Potential {
-            backup: Some(k),
-            typing: true,
-            ..Potential::default()
-        });
-        self.sheet = Some(crate::Sheet::Potential);
-    }
-
     /// Costs what `inbox_found_now` and `inbox_secret` cost. The seed being
     /// made a wallet, as the Inbox or the session holds it.
     fn potential_seed(&self, c: &Compute) -> Option<(FoundSeed, Option<Secret>)> {
@@ -1309,7 +1281,7 @@ impl Faraday {
         let Some(p) = self.inbox.potential() else {
             return;
         };
-        if p.backup.is_some() || p.xpub.is_some() {
+        if p.xpub.is_some() {
             return;
         }
         let with = if p.passphrase.is_empty() {
@@ -1359,10 +1331,6 @@ impl Faraday {
             if let Some(p) = self.inbox.potential_mut() {
                 p.error = Some(error);
             }
-            return;
-        }
-        if self.inbox.potential().is_some_and(|p| p.backup.is_some()) {
-            self.backup_unseal();
             return;
         }
         let Some(p) = self.inbox.potential() else {
@@ -1471,91 +1439,11 @@ impl Faraday {
             }
         }
     }
-
-    /// Opens an .oskb backup with the passphrase typed: its words or
-    /// seed load as a key, which is then a potential wallet or loads with
-    /// its wallet; its recovery sheet loads as a wallet.
-    fn backup_unseal(&mut self) {
-        let c = self.compute();
-        let Some(p) = self.inbox.potential() else {
-            return;
-        };
-        let Some(k) = p.backup else {
-            return;
-        };
-        let Some(item) = self.inbox.get(k) else {
-            return;
-        };
-        // The memory the backup asks for, against what is free, before
-        // any Argon2id work.
-        let free = self.vaults.memory_free_mib;
-        if let Some(why) = crate::vault::backup_memory_refusal(&item.bytes, free) {
-            if let Some(p) = self.inbox.potential_mut() {
-                p.error = Some(why);
-                p.passphrase.clear();
-            }
-            return;
-        }
-        let label = stem(&item.name);
-        use faraday_backup::oskb::Error;
-        use faraday_keys::vault::Added;
-        let opened = self
-            .session
-            .keys
-            .add_backup(&c, &item.bytes, p.passphrase.as_bytes(), &label);
-        let result: Result<String, String> = match opened {
-            Ok(Added::Key(added)) => added
-                .map(|fp| fill(EN.inbox_loaded_n, &[&fp_text(fp).to_string()]))
-                .map_err(|e| e.text()),
-            Ok(Added::Sheet(sheet)) => {
-                let text = String::from_utf8_lossy(&sheet.descriptor).into_owned();
-                let name = String::from_utf8_lossy(&sheet.name).into_owned();
-                let name = if name.trim().is_empty() {
-                    label.clone()
-                } else {
-                    name
-                };
-                self.session
-                    .add_wallet(
-                        &c,
-                        &name,
-                        &text,
-                        &item_name(self, k),
-                        crate::wallet::Origin::Named,
-                    )
-                    .map(|_| fill(EN.inbox_loaded_n, &[&name.to_string()]))
-                    .map_err(|e| e.text())
-            }
-            Ok(Added::Note) => Err(EN.inbox_this_backup_holds.to_string()),
-            Err(Error::Passphrase) => Err(EN.inbox_not_this_backup.to_string()),
-            Err(Error::Memory(mib)) => Err(fill(EN.vaults_needs_mib_which, &[&mib.to_string()])),
-            Err(Error::Format) => Err(EN.vaults_not_a_backup.to_string()),
-        };
-        match result {
-            Ok(said) => {
-                self.inbox_load_named();
-                self.refresh_spend();
-                self.inbox.clear_potential();
-                self.sheet = None;
-                self.toast(&said);
-            }
-            Err(e) => {
-                if let Some(p) = self.inbox.potential_mut() {
-                    p.error = Some(e);
-                    p.passphrase.clear();
-                }
-            }
-        }
-    }
-}
-
-fn item_name(app: &Faraday, k: usize) -> String {
-    app.inbox.get(k).map_or(String::new(), |i| i.name.clone())
 }
 
 impl Faraday {
     /// Costs what the actions below cost, the keys' and wallets' work among
-    /// it: handles the Inbox's actions (`InboxLoad`, `InboxChoose`, `InboxRemove`, `OutboxRemove`, `Potential*`, `XpubOpen`, `BackupOpen`).
+    /// it: handles the Inbox's actions (`InboxLoad`, `InboxChoose`, `InboxRemove`, `OutboxRemove`, `Potential*`, `XpubOpen`).
     pub(crate) fn inbox_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::InboxRemove(i) => {
@@ -1603,13 +1491,6 @@ impl Faraday {
                 }
             }
             Action::XpubOpen(i) => self.xpub_open(i),
-            Action::BackupOpen(k) => {
-                if self.may_load_keys() {
-                    self.backup_open(k);
-                } else {
-                    self.toast(&fill(EN.act_remove_the_first, &[self.medium.noun()]));
-                }
-            }
             Action::PotentialKind(k) => {
                 if let (Some(p), Some(&kind)) =
                     (self.inbox.potential_mut(), inbox::KINDS.get(usize::from(k)))

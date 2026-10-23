@@ -1160,10 +1160,6 @@ strings! {
     /// Text in `TILES`.
     catalog_vaults_group: "Vaults and other keys",
     /// Text in `TILES`.
-    catalog_open_an_oskb: "Open an .oskb backup",
-    /// Text in `TILES`.
-    catalog_open_oskb_line: "An .oskb with its passphrase",
-    /// Text in `TILES`.
     catalog_hashes: "Hashes",
     /// Text in `TILES`.
     catalog_sha_256_sha: "SHA-256, SHA-256d and HASH160",
@@ -1227,8 +1223,6 @@ strings! {
     catalog_make_a_vault: "Make a vault first",
     /// Text in `tile_need`.
     catalog_unlock_a_vault: "Unlock a vault first",
-    /// Text in `tile_need`.
-    catalog_copy_an_oskb: "Copy an .oskb in first",
     /// Tools tile: APK signing key.
     catalog_apk_signing_key: "APK signing key",
     /// Tools tile line: APK signing key.
@@ -2824,8 +2818,6 @@ strings! {
     inbox_codex32_seed: "codex32 seed",
     /// Text in `found_in`. `{}`: `ks.len()`, `need`.
     inbox_codex32_shares_inline: "codex32 shares · {} of {} in Files",
-    /// Text in `found_in`. `{}`: `item.name`.
-    inbox_oskb_backup: "{} · .oskb backup, sealed",
     /// Text in `found_in`.
     inbox_restored_wallet: "Restored wallet",
     /// Text in `found_in`. `{}`: `m.have.len()`, `m.n`.
@@ -2852,12 +2844,6 @@ strings! {
     inbox_a_seed_in_files: "a seed in Files",
     /// Toast in `potential_make`. `{}`: `name`.
     inbox_is_a_wallet: "{} is a wallet",
-    /// Text in `backup_unseal`. `{}`: `name`.
-    inbox_loaded_n: "{} loaded",
-    /// Error in `backup_unseal`.
-    inbox_this_backup_holds: "This backup holds a note: import it into a vault",
-    /// Error in `backup_unseal`.
-    inbox_not_this_backup: "Not this backup's passphrase",
     // ----- inputs (faraday-core/src/inputs.rs) -----
     /// Toast in `input_believe`. `{}`: `d.name`.
     inputs_is_in_use: "{} is in use",
@@ -3259,8 +3245,6 @@ strings! {
     /// Text in `stick_kind`.
     stick_kind_threshold: "Threshold spend, part-signed",
     /// Text in `stick_kind`.
-    stick_kind_oskb: ".oskb backup",
-    /// Text in `stick_kind`.
     stick_kind_qr_codes: "QR codes in a PNG",
     /// Text in `stick_kind`.
     stick_kind_file: "File",
@@ -3359,8 +3343,6 @@ strings! {
     // ----- pull_what (faraday-core/src/lib.rs) -----
     /// Text in `pull_what`.
     pull_what_load_wallet: "load the wallet",
-    /// Text in `pull_what`.
-    pull_what_open_backup: "open the backup",
     /// Text in `pull_what`.
     pull_what_unlock: "unlock",
     /// Text in `pull_what`.
@@ -4318,8 +4300,6 @@ strings! {
     inbox_panel_make_watch_only: "Make it a watch-only wallet",
     /// Line in `inbox_panel`.
     inbox_panel_not_complete: "Not complete or sealed",
-    /// Text in `inbox_panel`.
-    inbox_panel_open_passphrase: "Open with its passphrase",
     // ----- potential (faraday-core/src/screens/sheets.rs) -----
     /// Text in `potential_sheet`. `{}`: `item.name`.
     potential_open: "Open {}",
@@ -4331,8 +4311,6 @@ strings! {
     potential_a_wallet: "A wallet from {}",
     /// Text in `potential_sheet`. `{}`: `from.join(" · ")`.
     potential_sources: "From {}",
-    /// Text in `potential_sheet`.
-    potential_the_backup: "The backup's passphrase",
     /// Text in `potential_sheet`.
     potential_slip_39_passphrase: "SLIP-39 passphrase · none if left empty",
     /// Text in `potential_sheet`.
@@ -4347,8 +4325,6 @@ strings! {
     potential_single_key: "Single-key wallet",
     /// Button in `potential_sheet`.
     potential_cancel: "Cancel",
-    /// Text in `potential_sheet`.
-    potential_open_button: "Open it",
     /// Text in `potential_sheet`. `{}`: `name`.
     potential_load: "Load {}",
     /// Text in `potential_sheet`.
@@ -5487,8 +5463,6 @@ strings! {
     /// Text in `kind_name`.
     kind_name_vault_entries: "Entries for a vault",
     /// Text in `kind_name`.
-    kind_name_oskb: ".oskb backup, encrypted",
-    /// Text in `kind_name`.
     kind_name_keepass_database: "KeePass database, encrypted",
     /// Text in `kind_name`.
     kind_name_pdf_to_print: "PDF to print",
@@ -5673,8 +5647,6 @@ strings! {
     inbox_make_it_a_watch: "Make it a watch-only wallet",
     /// Line in `inbox_panel_compact`.
     inbox_not_complete: "Not complete or sealed",
-    /// Text in `inbox_panel_compact`.
-    inbox_open_passphrase: "Open with its passphrase",
     // ----- vault (faraday-core/src/screens/files.rs) -----
     /// Text in `vault_panel_compact`. `{}`: `open.name`, `open.label()`.
     vault_open: "{} · {} · open",
@@ -7296,8 +7268,6 @@ strings! {
     vault_scan_a_code: "Scan a code",
     /// Text in `contents_compact`. `{}`: `entries_files`.
     vault_import_from_files: "Import from Files ({})",
-    /// Text in `contents_compact`. `{}`: `i.name`.
-    vault_import_n: "Import {}",
     /// Text in `contents_compact`.
     vault_totp_codes: "TOTP codes",
     /// Line in `contents_compact`.
@@ -7324,16 +7294,10 @@ strings! {
     vault_make_the_key: "Make the key",
     /// Text in `detail`.
     vault_make_the_keys: "Make the keys",
-    /// Text in `detail`. `{}`: `app.inbox.get(k).map_or(FEN.vault_the…`.
-    vault_open_item: "Open {}",
-    /// Text in `detail`.
-    vault_the_backup: "the backup",
     /// Text in `detail`.
     vault_load_with_a_bip: "Load with a BIP-39 passphrase",
     /// Line in `detail`.
     vault_passphrase: "Passphrase",
-    /// Line in `detail`.
-    vault_opening: "Opening",
     /// Line in `detail`.
     vault_sealing: "Sealing",
     /// Text in `detail`.
@@ -7666,15 +7630,7 @@ strings! {
     /// Error in `vault_scanned_entry`.
     vaults_not_a_totp_setup: "Not a TOTP setup code",
     /// Error in `vault_prompt_go`.
-    vaults_type_the_backup: "Type the backup's passphrase",
-    /// Error in `vault_prompt_go`.
     vaults_a_passphrase: "A passphrase of 8 characters or more",
-    /// Text in `vault_open_backup`.
-    vaults_that_passphrase: "That passphrase does not open this backup",
-    /// Text in `vault_open_backup`. `{}`: `mib`.
-    vaults_needs_mib_which: "Needs {} MiB, which this computer cannot spare",
-    /// Text in `vault_open_backup`.
-    vaults_not_a_backup: "Not a backup this build reads",
     /// Text in `vault_unlock_check`. `{}`: `self.medium.noun()`.
     vaults_remove_to_unlock: "Remove the {} to unlock",
     /// Text in `vault_unlock_check`.
@@ -7906,8 +7862,6 @@ strings! {
     sample_codex32_shares: "codex32, 2 shares",
     /// Key row in Load samples.
     sample_xor: "Seed XOR, 2 parts",
-    /// Key row in Load samples.
-    sample_backup: "Encrypted backup",
     /// Name of the LND cipher seed sample.
     sample_aezeed: "LND cipher seed",
     /// File name of the sample vault, which Use a sample puts in the Inbox.
@@ -7965,8 +7919,6 @@ strings! {
     sample_form_xor: "Seed XOR",
     /// Form of a sample key that is a master seed.
     sample_form_seed: "Master seed",
-    /// Whole type of the sample encrypted backup.
-    sample_form_backup: "Encrypted backup (.oskb)",
     /// Form of the sample LND cipher seed.
     sample_form_aezeed: "LND cipher seed",
     /// Size of a sample key of BIP-39 words. `{}`: how many.

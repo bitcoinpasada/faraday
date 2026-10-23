@@ -42,8 +42,6 @@ pub enum SampleForm {
     Xor,
     /// A master seed, which has no words (a 64-byte hex seed).
     Seed,
-    /// An `.oskb` backup holding a master seed.
-    Backup,
     /// An LND cipher seed, for the Lightning node key only.
     Aezeed,
 }
@@ -85,8 +83,6 @@ pub enum SampleSize {
     Parts(u8),
     /// A master seed of this many bytes.
     Bytes(u8),
-    /// A file: the form says all.
-    File,
 }
 
 /// A sample key.
@@ -108,12 +104,9 @@ pub struct SampleKey {
     /// What is typed or scanned, one text per part: the phrase, the
     /// shares (as many as load the key), the codex32 strings, the Seed XOR
     /// parts' words, the hex master seed, the cipher seed's words.
-    /// Empty for a backup.
     pub parts: &'static [&'static str],
     /// For Seed XOR: the words of the key the parts make; else "".
     pub combined: &'static str,
-    /// For a backup: the `.oskb` file; else empty.
-    pub file: &'static [u8],
     /// The key's fingerprint with no passphrase; `None` for a cipher
     /// seed, which loads no key.
     pub plain: Option<[u8; 4]>,
@@ -345,7 +338,6 @@ pub fn label(name: &str, word: &str, count: u8) -> Option<String> {
         "sample_codex32_secret" => en.sample_codex32_secret.to_string(),
         "sample_codex32_shares" => en.sample_codex32_shares.to_string(),
         "sample_xor" => en.sample_xor.to_string(),
-        "sample_backup" => en.sample_backup.to_string(),
         "sample_aezeed" => en.sample_aezeed.to_string(),
         "sample_savings" => en.sample_savings.to_string(),
         "sample_spending" => en.sample_spending.to_string(),
@@ -375,7 +367,6 @@ impl SampleKey {
             SampleForm::Codex32 => en.sample_form_codex32,
             SampleForm::Xor => en.sample_form_xor,
             SampleForm::Seed => en.sample_form_seed,
-            SampleForm::Backup => en.sample_form_backup,
             SampleForm::Aezeed => en.sample_form_aezeed,
         };
         let n = |n: u8| n.to_string();
@@ -391,7 +382,6 @@ impl SampleKey {
             SampleSize::Secret => en.sample_size_secret.to_string(),
             SampleSize::Parts(c) => fill(en.sample_size_parts, &[&n(c)]),
             SampleSize::Bytes(c) => fill(en.sample_size_bytes, &[&n(c)]),
-            SampleSize::File => return form.to_string(),
         };
         fill(en.sample_type, &[form, &size])
     }
@@ -456,12 +446,6 @@ impl SampleKey {
                 }
             }
             SampleForm::Seed => keys.add_seed(c, &unhex(part(0)), &label),
-            SampleForm::Backup => {
-                match keys.add_backup(c, self.file, PASSPHRASE.as_bytes(), &label) {
-                    Ok(faraday_keys::vault::Added::Key(added)) => added,
-                    _ => return false,
-                }
-            }
             SampleForm::Aezeed => return false,
         };
         added.is_ok()

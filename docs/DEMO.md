@@ -116,8 +116,7 @@ public values work; only the actions in the table are disabled.
 ## 5. Open in the demo
 
 - **Keys**: typing, scanning or reading a public seed in any form (words,
-  SeedQR, CompactSeedQR, SLIP-39 shares, Seed XOR parts, codex32, an
-  encrypted backup), refused unless it is a
+  SeedQR, CompactSeedQR, SLIP-39 shares, Seed XOR parts, codex32), refused unless it is a
   public seed (F20); a passphrase, chosen and never typed: it is `faraday`
   (§5.4); **Load samples**,
   the pill beside the Demo pill, which loads ticked sample wallets and
@@ -146,8 +145,8 @@ public values work; only the actions in the table are disabled.
 - **Vaults**: Create a vault, its passphrase `faraday` or **Generate with
   dice**, whose words `faraday` replaces (§5.2), a sample vault where
   none is in Files (**Use a sample**), Unlock, Vault
-  contents, entries, notes, TOTP codes, KeePass export, Open an
-  .oskb backup, the stick visit and Files.
+  contents, entries, notes, TOTP codes, KeePass export, the stick
+  visit and Files.
 - **Vanity address** on the account dial; **Lightning node key**'s node
   id from a loaded public seed, and its LND cipher seed row, which takes
   only LND's published seed and offers it (**Use a sample**); **Silent payments**' address, labels,
@@ -221,7 +220,7 @@ any copy made away from the device is.
 | The secret sheet and **Out unprotected…** for a public seed | Open | Every value they can carry in the demo is a public seed's own spelling; the sources of every other secret are disabled at §4 |
 | Seed XOR, codex32 and SLIP-39 splits of a public seed | Disabled | The parts are fresh randomness; a person copying them would hold something that looks like a real backup |
 | A single codex32 string of a public seed (k of 1), where offered | Open | Another spelling of a public seed, with no randomness |
-| Encrypted backup, KeePass export, sealed files | Open | Encryption of what is held, under `faraday` from its chip or one the person types (§5.4). The KeePass export's passphrase is typed by the person, masked with the eye, and its minimum of 8 characters holds (§5.4) |
+| KeePass export, sealed files | Open | Encryption of what is held, under `faraday` from its chip or one the person types (§5.4). The KeePass export's passphrase is typed by the person, masked with the eye, and its minimum of 8 characters holds (§5.4) |
 | Vanity address's passphrase dial | Disabled | It makes a new key under a passphrase; Demo refuses that key anyway |
 | FROST deal | Disabled | The dealt shares are new seeds that are not public seeds |
 

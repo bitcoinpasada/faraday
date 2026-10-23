@@ -1,7 +1,7 @@
 [package]
 name = "faraday-backup"
 version = "0.1.0"
-description = "Encrypted file formats: the .oskb backup and a KDBX 4 writer, no_std + alloc"
+description = "Encrypted file formats: a KDBX 4 writer, no_std + alloc"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
@@ -9,13 +9,10 @@ repository.workspace = true
 publish = false
 
 [dependencies]
-faraday-bip = { path = "../faraday-bip" }
 faraday-crypto = { path = "../faraday-crypto" }
 zeroize = { workspace = true, features = ["alloc"] }
-# Argon2id over the passphrase, in both formats.
+# Argon2id over the passphrase.
 argon2 = { workspace = true }
-# `faraday-backup`'s cipher.
-chacha20poly1305 = { workspace = true }
 # KDBX 4: ChaCha20 over the body and the inner random stream, SHA-256
 # and SHA-512 for its keys, HMAC-SHA-256 over its header and blocks.
 chacha20 = { workspace = true }
@@ -26,5 +23,6 @@ hmac = { workspace = true }
 workspace = true
 
 [dev-dependencies]
+faraday-bip = { path = "../faraday-bip" }
 # A token that counts nothing, for the tests (docs/COMPUTE.md §3).
 faraday-crypto = { path = "../faraday-crypto", features = ["unchecked"] }

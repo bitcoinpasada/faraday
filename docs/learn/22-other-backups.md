@@ -42,7 +42,7 @@ If the problem is that you want no single person or place to be able to act alon
 
 ## What this device reads today
 
-Faraday writes and reads Seed XOR parts, keeps words in vaults, reads an .oskb backup into a vault, and reads and writes BIP-39 words as every wallet does.
+Faraday writes and reads Seed XOR parts, keeps words in vaults, and reads and writes BIP-39 words as every wallet does.
 
 It reads and writes SLIP-39 shares. Add a key › Type SLIP-39 shares loads the key a backup's shares hold, under its passphrase if it has one, groups and all. Add a key › Make SLIP-39 shares makes a new key and writes it as one group of shares: you choose how many shares there are and how many are needed, and Faraday shows every share in turn with the quiz.
 

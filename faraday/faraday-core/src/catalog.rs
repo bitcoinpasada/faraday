@@ -57,8 +57,6 @@ pub enum Go {
     VaultCategory(usize),
     /// TOTP codes for the entries in open vaults (`docs/TOTP.md` §5).
     Codes,
-    /// Open an .oskb backup in the Inbox.
-    OpenBackup,
     /// One of the calculators, by place in `Tool::ALL`.
     Calculator(u8),
     /// Scan a QR code into Files.
@@ -327,13 +325,6 @@ pub const TILES: &[Tile] = &[
         go: Go::VaultCategory(2),
     },
     Tile {
-        group: EN.catalog_vaults_group,
-        name: EN.catalog_open_an_oskb,
-        line: EN.catalog_open_oskb_line,
-        tags: &[".oskb"],
-        go: Go::OpenBackup,
-    },
-    Tile {
         group: EN.catalog_calculators,
         name: EN.catalog_hashes,
         line: EN.catalog_sha_256_sha,
@@ -489,9 +480,6 @@ impl Faraday {
                     EN.catalog_unlock_a_vault
                 }
             }
-            Go::OpenBackup if !self.inbox.iter().any(|i| i.kind == FileKind::Backup) => {
-                EN.catalog_copy_an_oskb
-            }
             _ => return None,
         };
         Some(need)
@@ -599,11 +587,6 @@ impl Faraday {
                 }
             }
             Go::Codes => self.act(Action::OpenCodes),
-            Go::OpenBackup => {
-                if let Some(k) = self.inbox.iter().position(|i| i.kind == FileKind::Backup) {
-                    self.act(Action::BackupOpen(k));
-                }
-            }
             Go::WordList(k) => self.act(Action::WordList(crate::wordlist::WordListAction::Open(
                 k, None,
             ))),

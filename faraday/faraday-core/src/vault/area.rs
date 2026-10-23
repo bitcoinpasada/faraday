@@ -418,8 +418,6 @@ impl VaultArea {
 /// What a one-line prompt in the contents is for.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Purpose {
-    /// The passphrase of an Inbox backup, by Inbox position.
-    Backup(usize),
     /// A BIP-39 passphrase to load the selected key with.
     KeyPassphrase,
     /// A BIP-39 passphrase for seed record r of open vault v, checked
@@ -886,8 +884,6 @@ pub enum Work {
     Create,
     /// Time one Argon2id pass over 64 MiB, for the unlock estimates.
     Measure,
-    /// Open the backup the prompt names.
-    Backup,
     /// Make the key the backup flow's form described.
     FlowMake,
     /// Write the KeePass export the prompt is for.
@@ -1609,49 +1605,6 @@ pub fn vault_need_mib(memory_mib: u32, slot_len: u32) -> u32 {
     memory_mib + twice as u32 + APP_MIB
 }
 
-/// Why the `.oskb` backup `bytes` cannot be opened on this computer, read
-/// from its header before any Argon2id work: the memory it asks for with
-/// [`APP_MIB`], against `free`, the MiB the shell says are free, both
-/// amounts named. `None` where it fits, where the shell does not say, or
-/// where `bytes` are not a backup this build reads (opening says why).
-pub fn backup_memory_refusal(bytes: &[u8], free: Option<u32>) -> Option<String> {
-    let free = free?;
-    let need = faraday_backup::oskb::cost_of(bytes)?
-        .memory_kib
-        .div_ceil(1024)
-        + APP_MIB;
-    (need > free).then(|| {
-        fill(
-            EN.vaults_needs_this_computer,
-            &[&mib_text(need).to_string(), &mib_text(free).to_string()],
-        )
-    })
-}
-
-impl Vaults {
-    /// The Import backup prompt's Open: refuses an empty passphrase or a
-    /// backup asking for more memory than this computer has free
-    /// ([`backup_memory_refusal`]); otherwise the backup `bytes` open once
-    /// the frame saying so is drawn.
-    pub fn backup_go(&mut self, bytes: &[u8]) {
-        let refusal = backup_memory_refusal(bytes, self.memory_free_mib);
-        let Some(p) = self.prompt.as_mut() else {
-            return;
-        };
-        p.error = if p.text.text.is_empty() {
-            Some(EN.vaults_type_the_backup.to_string())
-        } else {
-            refusal
-        };
-        if p.error.is_some() {
-            p.text.clear();
-        } else {
-            self.working = Some(Work::Backup);
-            self.drawn = false;
-        }
-    }
-}
-
 /// A custom cost's memory choices, MiB.
 pub const CUSTOM_MEMORY: [u32; 8] = [64, 128, 256, 512, 1024, 2048, 3072, 4096];
 /// A custom cost's pass choices.
@@ -1885,8 +1838,6 @@ pub enum VaultAction {
     DiceUse,
     /// Put the dice away.
     DiceClose,
-    /// Open an Inbox `.oskb` file into the vault.
-    ImportBackup(usize),
     /// The selected entry out as a KeePass database, under a passphrase
     /// asked for first.
     ExportKdbx,

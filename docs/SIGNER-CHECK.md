@@ -503,7 +503,7 @@ only fall.
 | `faraday/faraday-core/src/file_menu.rs`, `faraday/faraday-core/src/screens/files.rs` | S4: **Check a signer** on a PSBT row's ⋮ (§3) |
 | `faraday/faraday-strings/src/en.rs` | S3, S4 |
 | `tools/lint-layout.counts` | S4: the decode line renamed |
-| `docs/learn/10-verifying.md` | S4: a section on checking a signer, which the ? opens |
+| `docs/learn/09-verifying.md` | S4: a section on checking a signer, which the ? opens |
 | `docs/FLOWS.md` | S4: a section "Check a signer" (the text is in the report that brought this spec); A ⋮ on every file, item 1, gains **Check a signer** after **Show as QR** |
 | `docs/DESIGN.md` | S4: §5's table, a row for `SignerCheck`, and the count of `Screen`'s variants |
 | `docs/README.md` | S4: this file under Spec now, under Reference when built; a By-question row |

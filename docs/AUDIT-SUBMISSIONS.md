@@ -98,7 +98,7 @@ The page offers them as a starting point for the audit's scope:
 > - **Signing:** whether what the screen shows (amounts, fee,
 >   destinations, change) is what gets signed.
 > - **Correct results:** derivations, addresses, mnemonics, SLIP-39 and
->   codex32 shares, backup files (`.oskb`, KDBX), MuSig2 and FROST,
+>   codex32 shares, backup files (KDBX), MuSig2 and FROST,
 >   against published vectors and other implementations.
 > - **The vault:** each slot's passphrase opens only that slot, the
 >   key-stretching cost is the one stated, the file does not reveal how

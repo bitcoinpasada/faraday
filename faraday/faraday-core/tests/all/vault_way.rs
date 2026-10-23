@@ -411,76 +411,31 @@ fn going_back_on_the_way_drops_the_secret() {
     assert_eq!(app.vaults().back_to, None);
 }
 
-/// An `.oskb` in Files with no vault offers no way to one on its row
+/// An entries file in Files with no vault offers no way to one on its row
 /// (F60); once a vault is made and open, its Import is live.
 #[test]
-fn an_oskb_in_files_offers_import_once_a_vault_is_open() {
-    let (name, bytes) = testkit::files()
-        .unwrap()
-        .into_iter()
-        .find(|(n, _)| n.ends_with(".oskb"))
-        .unwrap();
-    let mut app = device(vec![(name.clone(), bytes)]);
+fn an_entries_file_in_files_offers_import_once_a_vault_is_open() {
+    let name = "entries.txt".to_string();
+    let mut app = device(vec![(
+        name.clone(),
+        testkit::ENTRIES_FILE.as_bytes().to_vec(),
+    )]);
     app.press(Action::Nav(Screen::Files));
     let k = app.inbox().iter().position(|i| i.name == name).unwrap();
     assert!(!offered(
         &mut app,
         Action::Vault(V::CreateFrom(Screen::Files))
     ));
-    assert!(!offered(&mut app, Action::Vault(V::ImportBackup(k))));
+    assert!(!offered(&mut app, Action::Vault(V::ImportEntries(k))));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     make_the_vault(&mut app);
     unlock_with(&mut app, NEW_PHRASE);
     app.press(Action::Nav(Screen::Files));
     assert!(
-        offered(&mut app, Action::Vault(V::ImportBackup(k))),
+        offered(&mut app, Action::Vault(V::ImportEntries(k))),
         "Import into the vault is live"
     );
-}
-
-/// Importing an `.oskb` into the vault is refused, before its passphrase
-/// is tried, on a computer without the memory free that the backup's
-/// Argon2id memory and the app need, naming both amounts; with the memory
-/// free it opens.
-#[test]
-fn importing_a_backup_is_refused_short_of_memory_before_its_passphrase_is_tried() {
-    let (name, bytes) = testkit::files()
-        .unwrap()
-        .into_iter()
-        .find(|(n, _)| n.ends_with(".oskb"))
-        .unwrap();
-    let cost = faraday_backup::oskb::cost_of(&bytes).unwrap();
-    // The Argon2id memory and 100 MiB for the app.
-    let need = cost.memory_kib.div_ceil(1024) + 100;
-    assert!(need < 1024);
-    let mut app = device(vec![(name.clone(), bytes)]);
-    let k = app.inbox().iter().position(|i| i.name == name).unwrap();
-    app.press(Action::Nav(Screen::Vaults));
-    app.press(Action::Vault(V::Create));
-    make_the_vault(&mut app);
-    unlock_with(&mut app, NEW_PHRASE);
-    app.press(Action::Vault(V::ImportBackup(k)));
-    app.storage(StorageEvent::Memory {
-        available_mib: need - 1,
-    });
-    // A wrong passphrase: the refusal names the memory, not the
-    // passphrase, so nothing was tried.
-    type_text(&mut app, "wrong");
-    app.press(Action::Vault(V::PromptGo));
-    settle(&mut app, |a| a.vaults().prompt.is_none());
-    let prompt = app.vaults().prompt.as_ref().expect("the prompt stays");
-    assert_eq!(
-        prompt.error.as_deref(),
-        Some(format!("Needs {need} MiB. This computer has {} MiB free.", need - 1).as_str())
-    );
-    app.storage(StorageEvent::Memory {
-        available_mib: need,
-    });
-    type_text(&mut app, testkit::BACKUP_PASSPHRASE);
-    app.press(Action::Vault(V::PromptGo));
-    settle(&mut app, |a| a.vaults().prompt.is_none());
-    assert!(app.vaults().prompt.is_none(), "the backup did not open");
 }
 
 // ---------------------------------------------------------------------

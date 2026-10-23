@@ -992,7 +992,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .ok_or("the kit has no vault.ofv")?;
     t.press(Action::VisitInAll);
     t.press(Action::VisitIn(vi));
-    for name in ["vault-entries.txt", "seed-2-5d388376.oskb", "BOOTX64.EFI"] {
+    for name in ["vault-entries.txt", "BOOTX64.EFI"] {
         let k = t
             .stick()
             .files
@@ -1086,32 +1086,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         ));
     }
     t.shot("vault-entries-imported")?;
-    // Test key 2 from an .oskb backup.
     t.press(Action::Vault(V::Category(0)));
-    let backup = t
-        .app
-        .inbox()
-        .iter()
-        .position(|i| i.name == "seed-2-5d388376.oskb")
-        .ok_or("the backup was not copied in")?;
-    t.press(Action::Vault(V::ImportBackup(backup)));
-    type_text(t, testkit::BACKUP_PASSPHRASE);
-    t.shot("vault-backup-prompt")?;
-    t.press(Action::Vault(V::PromptGo));
-    t.tick();
-    let keys = |t: &Tour| {
-        t.app
-            .vaults()
-            .records(t.app.vaults().open[0].id)
-            .of(2)
-            .count()
-    };
-    if keys(t) != 2 {
-        return Err(format!(
-            "the backup's key is not in the vault: {:?}",
-            t.app.vaults().prompt.as_ref().and_then(|p| p.error.clone())
-        ));
-    }
     // Test key 3 with a BIP-39 passphrase, saved with it.
     t.press(Action::Entry(None));
     type_text(t, &testkit::test_words(testkit::TEST_SEEDS[2].0));
@@ -1143,10 +1118,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     }) {
         return Err("the key was not saved with its passphrase".into());
     }
-    t.shot("vault-keys-three")?;
-    println!(
-        "entries imported and scanned, a backup opened, a key saved with its BIP-39 passphrase"
-    );
+    t.shot("vault-keys-two")?;
+    println!("entries imported and scanned, a key saved with its BIP-39 passphrase");
     // The vault's Spending wallet backed up with Paper and vault, its
     // copy checked once for each place: Backups, and the card's line.
     let spending = t

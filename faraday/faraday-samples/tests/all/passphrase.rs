@@ -474,35 +474,6 @@ fn in_demo_the_check_a_signed_message_tile_checks_the_sample_message() {
     assert_ne!(app.screen, Screen::CheckMessage);
 }
 
-// A backup's passphrase.
-
-#[test]
-fn in_demo_the_sample_backup_opens_with_faraday_from_its_chip() {
-    let mut app = demo_app();
-    let backup = SAMPLES
-        .keys
-        .iter()
-        .find(|k| k.form == SampleForm::Backup)
-        .expect("the backup");
-    app.storage(faraday_core::StorageEvent::Restored {
-        inbox: vec![("sample.oskb".to_string(), backup.file.to_vec())],
-        outbox: Vec::new(),
-        kept: Vec::new(),
-    });
-    app.press(Action::BackupOpen(0));
-    assert_eq!(app.sheet, Some(Sheet::Potential));
-    assert!(app.potential().unwrap().passphrase.is_empty());
-    let _ = app.frame();
-    assert!(app.offers(Action::PassChip(PassField::Potential)));
-    app.press(Action::PassChip(PassField::Potential));
-    assert_eq!(app.potential().unwrap().passphrase.as_str(), "faraday");
-    let _ = app.frame();
-    assert!(shows(&mut app, "faraday"));
-    app.press(Action::PotentialMake);
-    settle(&mut app);
-    assert!(held(&app, backup.plain.unwrap()), "the backup opened");
-}
-
 // An entry's password, a KeePass export, a seed read, a slot.
 
 /// Demo with the sample vault open and one entry made and selected,

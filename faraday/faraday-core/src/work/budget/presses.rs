@@ -114,6 +114,12 @@ const PRESS_BUDGETS: &[(&str, Work, u64, &str)] = &[
         "each key added gets the id its entry keeps, a hash of its secret (three: Savings' keys)",
     ),
     (
+        "LoadWallet",
+        Work::DescriptorParse,
+        1,
+        "a wallet file in Files is read once as a typed descriptor is, when its Load is pressed",
+    ),
+    (
         "SamplesLoad",
         Work::DescriptorParse,
         1,

@@ -181,10 +181,10 @@ fn folder(tag: &str, files: &[(String, Vec<u8>)]) -> PathBuf {
 fn a_public_file_copied_from_one_stick_is_written_to_the_next_as_it_came() {
     let mut app = testkit::started();
     let share = kit("savings-share-1-of-3.txt");
-    let backup = kit_ending(".oskb");
-    let a = Stick::new("a", &[share.clone(), backup.clone()]);
+    let xpub = kit_ending("-single.txt");
+    let a = Stick::new("a", &[share.clone(), xpub.clone()]);
     attach(&mut app, &[&a]);
-    copy_in(&mut app, &[&a], &[&share.0, &backup.0]);
+    copy_in(&mut app, &[&a], &[&share.0, &xpub.0]);
     // On the stick it came from it is not offered again.
     assert_eq!(row(&app, &share.0), None);
 
@@ -198,7 +198,7 @@ fn a_public_file_copied_from_one_stick_is_written_to_the_next_as_it_came() {
         "an Inbox file is ticked before anyone chose it"
     );
     app.press(share_row);
-    app.press(row(&app, &backup.0).unwrap());
+    app.press(row(&app, &xpub.0).unwrap());
     let wrote = write(&mut app, &[&b]);
     assert_eq!(
         wrote.len(),
@@ -208,11 +208,7 @@ fn a_public_file_copied_from_one_stick_is_written_to_the_next_as_it_came() {
     );
     for (stick, name, bytes) in &wrote {
         assert_eq!(stick, "b");
-        let want = if *name == share.0 {
-            &share.1
-        } else {
-            &backup.1
-        };
+        let want = if *name == share.0 { &share.1 } else { &xpub.1 };
         assert_eq!(bytes, want, "{name} changed on its way");
     }
     // The copy stays in the Inbox, for the next stick; the Outbox is

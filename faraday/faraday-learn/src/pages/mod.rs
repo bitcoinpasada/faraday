@@ -28,7 +28,7 @@ pub struct Section {
 }
 
 /// How many pages there are.
-pub const PAGES: usize = 25;
+pub const PAGES: usize = 24;
 
 /// Every page, in one language.
 pub struct Learn {
@@ -53,9 +53,6 @@ pub struct Learn {
     /// "Backups": paper and steel, what destroys
     /// them, where to keep them, the never list, and the quiz.
     pub backups: Page,
-    /// "Encrypted backups": what an .oskb backup is, and how
-    /// Faraday reads one into a vault.
-    pub encrypted_backups: Page,
     /// "Seed XOR": what a part is, that every part is needed,
     /// that a part is itself a real key, and that XOR is not Shamir.
     pub seed_xor: Page,
@@ -129,7 +126,6 @@ impl Learn {
             &self.randomness,
             &self.where_randomness,
             &self.backups,
-            &self.encrypted_backups,
             &self.seed_xor,
             &self.passphrases,
             &self.verifying,

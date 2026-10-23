@@ -6,7 +6,7 @@
 
 The problem it solves: a signer that chooses its own nonce can hide the
 private key in it, and the signature it makes that way verifies like an
-honest one (`docs/learn/17-nonces.md`). Faraday's nonces are
+honest one (`docs/learn/16-nonces.md`). Faraday's nonces are
 deterministic (RFC 6979 with low R, BIP-340 with no auxiliary
 randomness), so a hidden key is caught by signing the same transaction
 again on a second implementation that holds the seed. Anti-exfil

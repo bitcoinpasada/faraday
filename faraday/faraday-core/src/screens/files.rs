@@ -265,23 +265,6 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         for q in found.waiting.iter().take(ROWS) {
             let line = ui.fit(13.0, W::R, &q.line, w - 200.0);
             ui.text_mid(x + 20.0, ty, 36.0, 13.0, W::R, MUTED, &line);
-            if let Some(k) = q.backup {
-                let label = EN.inbox_panel_open_passphrase;
-                let bw = ui.measure(13.0, W::S, label) + 28.0;
-                ui.button(
-                    x + w - 20.0 - bw,
-                    ty + 2.0,
-                    Some(bw),
-                    32.0,
-                    label,
-                    if may {
-                        Style::Secondary
-                    } else {
-                        Style::Disabled
-                    },
-                    Action::BackupOpen(k),
-                );
-            }
             ty += 40.0;
         }
     }
@@ -463,12 +446,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Action::Collect(k),
                 ) + 8.0;
             }
-            FileKind::Entries | FileKind::Backup => {
-                let action = if item.kind == FileKind::Entries {
-                    crate::vault::VaultAction::ImportEntries(k)
-                } else {
-                    crate::vault::VaultAction::ImportBackup(k)
-                };
+            FileKind::Entries => {
+                let action = crate::vault::VaultAction::ImportEntries(k);
                 // No vault open: no button (F60).
                 if app.vault_way(Screen::Files).is_none() {
                     bx += ui.button(
@@ -1318,21 +1297,6 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ty += 24.0;
             for q in found.waiting.iter().take(ROWS) {
                 ty += ui.wrap(ix, ty, iw, 13.0, W::R, MUTED, &q.line) + 8.0;
-                if let Some(k) = q.backup {
-                    let style = if may {
-                        Style::Secondary
-                    } else {
-                        Style::Disabled
-                    };
-                    ty += wrap_buttons(
-                        ui,
-                        ix,
-                        ty,
-                        iw,
-                        32.0,
-                        &[(EN.inbox_open_passphrase, style, Action::BackupOpen(k))],
-                    );
-                }
             }
         }
         ty - y + 6.0
@@ -1604,12 +1568,8 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
                 Action::Collect(k),
             ));
         }
-        FileKind::Entries | FileKind::Backup => {
-            let action = if item.kind == FileKind::Entries {
-                crate::vault::VaultAction::ImportEntries(k)
-            } else {
-                crate::vault::VaultAction::ImportBackup(k)
-            };
+        FileKind::Entries => {
+            let action = crate::vault::VaultAction::ImportEntries(k);
             out.extend(into_vault(
                 EN.inbox_actions_import,
                 Style::Primary,

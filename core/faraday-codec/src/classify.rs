@@ -24,9 +24,6 @@ pub enum PayloadKind {
         /// 12 or 24.
         words: u8,
     },
-    /// An `.oskb` file: a key's words encrypted under a passphrase,
-    /// which the magic `OSKB` names outright.
-    EncryptedBackup,
     /// 16 or 32 raw bytes: entropy.
     CompactSeedQr {
         /// 12 or 24.
@@ -88,26 +85,16 @@ pub enum PayloadKind {
     Unknown,
 }
 
-/// The first four bytes of an encrypted backup
-/// (`faraday_backup::oskb`). Routing reads the magic and nothing else;
-/// whether the rest of the header is one this build reads is
-/// `faraday-backup`'s answer, since it is that crate that holds the
-/// cryptography.
-pub const BACKUP_MAGIC: &[u8; 4] = b"OSKB";
-
 /// The first four bytes of a threshold carry file
-/// (`faraday_psbt::threshold`). As with a backup, the magic is read and
+/// (`faraday_psbt::threshold`). The magic is read and
 /// nothing else: the app holds the format.
 pub const CARRY_MAGIC: &[u8; 4] = b"OSKC";
 
 /// Classifies `bytes`.
 pub fn classify(bytes: &[u8]) -> PayloadKind {
-    // The magic comes first and is not trimmed: a backup is binary, and
-    // a header the app cannot read is still a backup, refused with a
+    // The magic comes first and is not trimmed: a carry file is binary, and
+    // a header the app cannot read is still a carry file, refused with a
     // reason rather than routed as something else.
-    if bytes.starts_with(BACKUP_MAGIC) {
-        return PayloadKind::EncryptedBackup;
-    }
     if bytes.starts_with(CARRY_MAGIC) {
         return PayloadKind::ThresholdCarry;
     }
@@ -492,10 +479,6 @@ mod tests {
                 .as_bytes()
             ),
             PayloadKind::ColdcardXpubs
-        );
-        assert_eq!(
-            classify(b"OSKB\x01rest of a header"),
-            PayloadKind::EncryptedBackup
         );
         assert_eq!(classify(b"hello world"), PayloadKind::Unknown);
         assert_eq!(classify(b"nothing(here"), PayloadKind::Unknown);

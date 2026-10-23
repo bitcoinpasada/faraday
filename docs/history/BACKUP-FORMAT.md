@@ -1,7 +1,13 @@
-# `.oskb`: the encrypted backup Faraday reads
+# `.oskb`: the encrypted backup Faraday read
 
-**Kind:** Reference
-**Status:** Built
+**Kind:** History
+**Status:** Kept as written
+
+Moved out of the documents on 2026-10-23 (F97): Faraday no longer reads
+`.oskb` files. The file sections here describe a format that is gone from
+the code, its reference decryptor and its vectors. The KDBX 4 sections
+are now `docs/KDBX.md`; the vault's record layouts, which borrowed this
+format's payloads, are `docs/VAULT.md` §7.
 
 An `.oskb` file holds one thing encrypted under a passphrase a person
 types: a key's words, a master seed, a note or a wallet's recovery

@@ -259,44 +259,6 @@ pub static EN: Learn = Learn {
             },
         ],
     },
-    encrypted_backups: Page {
-        title: "Encrypted backups",
-        sections: &[
-            Section {
-                heading: "What it is",
-                paragraphs: &[
-                    "An .oskb backup is one small file: something locked under a passphrase chosen when it was made. Faraday does not write one. It reads one into a vault, where it is kept under the vault's passphrase from then on.",
-                ],
-            },
-            Section {
-                heading: "What it can hold",
-                paragraphs: &[
-                    "One of four things. A key's seed words. A key's master seed, which is what a SLIP-39 or a Codex32 key is and which has no words. A note. Or a wallet's recovery sheet: its descriptor, its name and a note.",
-                    "A key with a wallet passphrase is backed up as its words alone. The wallet passphrase is typed again when the key is loaded.",
-                ],
-            },
-            Section {
-                heading: "Reading one into a vault",
-                paragraphs: &[
-                    "Copy the file onto a stick and bring it in, so it is in the Inbox, and unlock the vault it is to go into. Import into the vault on the file in the Inbox, or Import with the file's name on the vault's Bitcoin keys or Notes, asks for the backup's passphrase.",
-                    "Words and a master seed become a key in the vault. A note becomes a note, and a recovery sheet becomes a recovery sheet. The file in the Inbox is not changed.",
-                    "A wrong passphrase opens nothing, and Faraday says that passphrase does not open this backup. There is no other way in: without the passphrase the file is a few hundred bytes that look random.",
-                ],
-            },
-            Section {
-                heading: "The memory it needs",
-                paragraphs: &[
-                    "The passphrase is stretched with Argon2id at the memory the file states in its header, 64 MiB, 256 MiB or 1 GiB, chosen when it was made. A computer that cannot spare that memory cannot open it, and Faraday says how much it needs.",
-                ],
-            },
-            Section {
-                heading: "Reading one without Faraday",
-                paragraphs: &[
-                    "The OSKB format is written down in docs/BACKUP-FORMAT.md and in Faraday's source, and tools/backup/decrypt.py opens a file on any computer with Python.",
-                ],
-            },
-        ],
-    },
     seed_xor: Page {
         title: "Seed XOR",
         sections: &[
@@ -1251,7 +1213,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "What this device reads today",
                 paragraphs: &[
-                    "Faraday writes and reads Seed XOR parts, keeps words in vaults, reads an .oskb backup into a vault, and reads and writes BIP-39 words as every wallet does.",
+                    "Faraday writes and reads Seed XOR parts, keeps words in vaults, and reads and writes BIP-39 words as every wallet does.",
                     "It reads and writes SLIP-39 shares. Add a key › Type SLIP-39 shares loads the key a backup's shares hold, under its passphrase if it has one, groups and all. Add a key › Make SLIP-39 shares makes a new key and writes it as one group of shares: you choose how many shares there are and how many are needed, and Faraday shows every share in turn with the quiz.",
                     "A key made of BIP-39 words is not backed up as SLIP-39 shares, and never will be. What a set of shares gives back is the seed itself, and a BIP-39 key's seed is 64 bytes, which no SLIP-39 implementation will take.",
                     "It reads and writes Codex32. Add a key › Type a codex32 secret loads the key a string or its shares hold, and a backup's copies by hand write a key made of words as codex32 shares of its seed. A backup of a key made of BIP-39 words holds the 512-bit seed those words come to, which is 127 characters, and a wallet that expects words cannot read it back.",

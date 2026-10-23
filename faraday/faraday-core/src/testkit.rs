@@ -166,7 +166,6 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
                     listed: true,
                     parts: Box::leak(vec![phrase].into_boxed_slice()),
                     combined: "",
-                    file: &[],
                     plain: Some(fp(phrase, "")),
                     size: crate::samples::SampleSize::Words(count),
                     with_passphrase: Some(fp(phrase, crate::samples::PASSPHRASE)),
@@ -694,7 +693,6 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
             format!("{stem}-compactseedqr.png"),
             faraday_codec::png::qr_png(&qr, 8),
         ));
-        out.push((format!("{stem}.oskb"), test_backup(n)?));
         // The account xpubs a cosigner's device exports.
         for (what, path) in [
             ("multisig", "m/48'/1'/0'/2'"),
@@ -1264,29 +1262,6 @@ title: Router admin\n\
 username: admin\n\
 password: router-password\n\
 url: http://192.168.1.1\n";
-
-/// The passphrase of the test stick's .oskb backup.
-pub const BACKUP_PASSPHRASE: &str = "backup";
-
-/// Test key `n`'s words as an .oskb encrypted backup, at Argon2id's
-/// smallest cost: a dummy.
-pub fn test_backup(n: usize) -> Result<Vec<u8>, String> {
-    let c = compute();
-    let m = Mnemonic::parse(&c, Language::English, &test_words(TEST_SEEDS[n].0))
-        .map_err(|e| format!("{e:?}"))?;
-    let mut seed = [0u8; faraday_backup::oskb::SEED_LEN];
-    for (i, b) in seed.iter_mut().enumerate() {
-        *b = i as u8;
-    }
-    faraday_backup::oskb::seal(
-        &c,
-        &m,
-        BACKUP_PASSPHRASE.as_bytes(),
-        faraday_backup::MIN_PARAMS,
-        &seed,
-    )
-    .ok_or_else(|| "the backup would not seal".to_string())
-}
 
 /// A minimal PE32+ EFI application, for Secure Boot signing: headers and
 /// one section holding a return. It does nothing if started.

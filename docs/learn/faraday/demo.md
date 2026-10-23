@@ -48,8 +48,6 @@ codex32, 2 shares: MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM and MS12NAME
 
 Seed XOR, 2 parts: float vendor rabbit upgrade alter globe right toddler window roof black rule and icon weasel expose grace stand spike plastic high runway betray prevent axis
 
-Encrypted backup: a file, in Load samples only, opened with the passphrase `faraday`; it holds a master seed of 32 bytes, each byte 42.
-
 LND cipher seed: above judge emerge veteran reform crunch system all snap please shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body; it gives a Lightning node key, and Load samples does not list it.
 
 ## Other samples

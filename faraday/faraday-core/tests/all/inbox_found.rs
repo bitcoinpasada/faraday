@@ -2,8 +2,7 @@
 //! wallet; a seed that comes in several backups is one seed; a seed a
 //! wallet names loads with it; a seed no wallet names is a potential
 //! wallet, made one with a passphrase or without; split seeds (SLIP-39,
-//! codex32) count once they add up; a sealed .oskb backup opens with
-//! its passphrase.
+//! codex32) count once they add up.
 
 use crate::common::type_text;
 use faraday_core::inbox::SeedSource;
@@ -206,70 +205,6 @@ fn slip39_shares_count_once_they_add_up() {
     let found = app.inbox_found_now(&c);
     assert_eq!(found.seeds.len(), 1);
     assert!(matches!(found.seeds[0].sources[0], SeedSource::Slip39(_)));
-}
-
-#[test]
-fn a_sealed_backup_opens_with_its_passphrase() {
-    let c = testkit::compute();
-    let files = kit_files(|n| n.ends_with(".oskb"));
-    assert!(!files.is_empty());
-    let mut app = with_inbox(files);
-    let k = app
-        .inbox()
-        .iter()
-        .position(|i| i.kind == FileKind::Backup)
-        .unwrap();
-    assert!(
-        app.inbox_found_now(&c)
-            .waiting
-            .iter()
-            .any(|q| q.backup == Some(k))
-    );
-    app.press(Action::BackupOpen(k));
-    type_text(&mut app, "wrong");
-    app.press(Action::PotentialMake);
-    assert!(app.session.keys.is_empty());
-    assert!(app.potential().unwrap().error.is_some());
-    type_text(&mut app, "backup");
-    app.press(Action::PotentialMake);
-    assert_eq!(app.session.keys.len(), 1, "the backup's seed did not load");
-}
-
-/// A sealed backup asking for more memory than this computer has free is
-/// refused before its passphrase is tried, naming both amounts; with the
-/// memory free it opens.
-#[test]
-fn a_sealed_backup_is_refused_short_of_memory_before_its_passphrase_is_tried() {
-    let files = kit_files(|n| n.ends_with(".oskb"));
-    let cost = faraday_backup::oskb::cost_of(&files[0].1).unwrap();
-    // The Argon2id memory and 100 MiB for the app.
-    let need = cost.memory_kib.div_ceil(1024) + 100;
-    assert!(need < 1024);
-    let mut app = with_inbox(files);
-    let k = app
-        .inbox()
-        .iter()
-        .position(|i| i.kind == FileKind::Backup)
-        .unwrap();
-    app.storage(StorageEvent::Memory {
-        available_mib: need - 1,
-    });
-    app.press(Action::BackupOpen(k));
-    // A wrong passphrase: the refusal names the memory, not the
-    // passphrase, so nothing was tried.
-    type_text(&mut app, "wrong");
-    app.press(Action::PotentialMake);
-    assert!(app.session.keys.is_empty());
-    assert_eq!(
-        app.potential().unwrap().error.as_deref(),
-        Some(format!("Needs {need} MiB. This computer has {} MiB free.", need - 1).as_str())
-    );
-    app.storage(StorageEvent::Memory {
-        available_mib: need,
-    });
-    type_text(&mut app, "backup");
-    app.press(Action::PotentialMake);
-    assert_eq!(app.session.keys.len(), 1, "the backup's seed did not load");
 }
 
 #[test]

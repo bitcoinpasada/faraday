@@ -25,6 +25,7 @@
 extern crate alloc;
 
 pub mod entries;
+pub mod layouts;
 pub mod records;
 pub mod totp;
 

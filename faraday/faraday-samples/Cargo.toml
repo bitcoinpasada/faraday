@@ -19,7 +19,6 @@ faraday-core = { path = "../faraday-core", features = ["testkit"] }
 faraday-keys = { path = "../faraday-keys" }
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-psbt = { path = "../../core/faraday-psbt" }
-faraday-backup = { path = "../../core/faraday-backup" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-intake = { path = "../faraday-intake" }
 faraday-crypto = { path = "../../core/faraday-crypto" }

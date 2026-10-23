@@ -38,9 +38,9 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/crosscheck/` | test | `just crosscheck` (`run.sh`) | the crypto cross-check (F79): Faraday's Rust against the vendored Python references over the published vectors and a seeded random corpus; writes `stamp` ([README](crosscheck/README.md)) |
 | `tools/scripts/threshold-reference.py` | test | `just threshold-reference` | replays the threshold fixture session against BIP 445's reference |
 | `tools/scripts/{musig,tapmulti,threshold}-regtest.sh` | generator | by hand; `core/faraday-psbt/examples/` and `just psbt-fixtures` write the rest | Bitcoin Core regtest round trips behind the MuSig2, taproot-multisig and threshold PSBT fixtures |
-| `tools/backup/decrypt.py` | test, dev aid | `faraday-backup` `tests/vectors.rs` | reads a `.oskb` backup with published libraries, no Faraday code |
 | `tools/backup/read-kdbx.py` | test, dev aid | `faraday-backup` `tests/vectors.rs` | opens a KDBX 4 file Faraday wrote and prints its entries |
 | `tools/vault/open.py` | test, dev aid | `faraday-vault` `tests/open_py.rs` | opens a Faraday vault with published libraries |
+| `tools/vault/primitives.py` | test, dev aid | `tools/vault/open.py` | Argon2id, XChaCha20-Poly1305 and the BIP-39 wordlists for the vault reader |
 | `tools/winvm/` | dev aid | `docs/history/BITLOCKER-ACCEPTANCE.md`, `docs/STARTER.md` | Windows 11 test machine in QEMU for the Starter's BitLocker checks |
 | `faraday/tools/testkit/` | test | `just faraday-testkit`, `just faraday-snap`, `just faraday-snapshots` | writes the test stick's files after checking every spend signs |
 | `faraday/tools/alloc-count/` | test | `faraday-core`'s frame budgets (`docs/SPEED.md`) | allocator that counts allocations per thread; tests only |
@@ -78,7 +78,7 @@ Two places, split by origin and not by how many crates read them:
 - `tools/vectors/<spec>/` holds vectors published by a spec or another
   implementation (BIP texts, RFC numbers, Bitcoin Core's PSBTs, Trezor's
   BIP-39 data) and fixtures a second implementation also reads (the
-  `.oskb`, vault and KDBX files that the Python readers open). Tests refer
+  vault and KDBX files that the Python readers open). Tests refer
   to them by path, from `core/` and `faraday/` alike (`tools/vectors/psbt/`
   is read by `faraday-bip`, `faraday-psbt` and `faraday-selftest`;
   `tools/vectors/bip39/` by `faraday-bip` and `faraday-selftest`). Most

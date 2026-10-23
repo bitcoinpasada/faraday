@@ -81,7 +81,7 @@ back is taken); BIP-85, the Lightning node key and the Silent payments
 scan key (**Save into {vault}**); the secret sheet (the FROST carry, a
 seed from the backup's files item), which closes on the way, keeps its
 secret, and opens again on return; the backup's vault items; Files (an
-entries file, an `.oskb`, a file added to a vault); Vault contents with
+entries file, a file added to a vault); Vault contents with
 none open; and Restore's seeds route, which offers Unlock only, as a new
 vault holds no seed. Going back anywhere on the way, or leaving for
 another page, ends it: a secret held for it is dropped, wiped, as Cancel

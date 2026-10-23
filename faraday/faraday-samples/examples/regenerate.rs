@@ -35,7 +35,6 @@ struct Key {
     listed: bool,
     parts: Vec<String>,
     combined: String,
-    file: Option<&'static str>,
     plain: Option<[u8; 4]>,
     with_passphrase: Option<[u8; 4]>,
     node: Option<[u8; 33]>,
@@ -80,7 +79,6 @@ fn words_key(c: &Compute, name: &'static str, word: &'static str, count: u8) -> 
         ),
         parts: vec![phrase],
         combined: String::new(),
-        file: None,
         node: None,
     }
 }
@@ -111,7 +109,6 @@ fn plain_words(
         ),
         parts: vec![phrase.to_string()],
         combined: String::new(),
-        file: None,
         node: None,
     }
 }
@@ -144,7 +141,6 @@ fn slip39_key(c: &Compute, name: &'static str, shares: &[String], size: String) 
         listed: true,
         parts: shares.to_vec(),
         combined: String::new(),
-        file: None,
         plain: Some(fp("")),
         with_passphrase: Some(fp(PASSPHRASE)),
         node: None,
@@ -169,7 +165,6 @@ fn codex32_key(c: &Compute, name: &'static str, strings: &[String], size: String
         listed: true,
         parts: strings.to_vec(),
         combined: String::new(),
-        file: None,
         plain: Some(seed_fp(c, &seed)),
         with_passphrase: None,
         node: None,
@@ -236,23 +231,6 @@ fn slip_shares(case: usize) -> Vec<String> {
         .collect()
 }
 
-/// The `.oskb` holding the 32-byte master seed that is every byte 0x42,
-/// under `faraday`, at the cost of the vectors, with a salt and a nonce
-/// counted up from 0x20.
-fn backup_file(c: &Compute) -> Vec<u8> {
-    let mut seed = [0u8; faraday_backup::oskb::SEED_LEN];
-    for (i, b) in seed.iter_mut().enumerate() {
-        *b = 0x20 + i as u8;
-    }
-    let cost = faraday_backup::Cost {
-        memory_kib: 65_536,
-        passes: 3,
-        lanes: 1,
-    };
-    faraday_backup::oskb::seal_seed(c, &[0x42u8; 32], PASSPHRASE.as_bytes(), cost, &seed)
-        .expect("a backup")
-}
-
 fn aezeed_key() -> Key {
     let words = "above judge emerge veteran reform crunch system all snap please shoulder \
                  vault hurt city quarter cover enlist swear success suggest drink wagon enrich body";
@@ -266,7 +244,6 @@ fn aezeed_key() -> Key {
         listed: true,
         parts: vec![words.to_string()],
         combined: String::new(),
-        file: None,
         plain: None,
         with_passphrase: None,
         node: Some(node.try_into().expect("33 bytes")),
@@ -321,20 +298,6 @@ fn keys(c: &Compute) -> Vec<Key> {
         format!("Shares({count})"),
     ));
     all.push(xor_key(c));
-    all.push(Key {
-        name: "sample_backup",
-        word: "",
-        count: 0,
-        form: "Backup",
-        size: "File".to_string(),
-        listed: true,
-        parts: Vec::new(),
-        combined: String::new(),
-        file: Some("data/sample.oskb"),
-        plain: Some(seed_fp(c, &[0x42u8; 32])),
-        with_passphrase: None,
-        node: None,
-    });
     all.push(aezeed_key());
     for b in 1u8..=5 {
         all.push(Key {
@@ -346,7 +309,6 @@ fn keys(c: &Compute) -> Vec<Key> {
             listed: false,
             parts: vec![hex(&[b; 64])],
             combined: String::new(),
-            file: None,
             plain: Some(seed_fp(c, &[b; 64])),
             with_passphrase: None,
             node: None,
@@ -557,13 +519,10 @@ fn opt(fp: Option<&[u8]>) -> String {
 
 fn emit_key(out: &mut String, k: &Key) {
     let parts: Vec<String> = k.parts.iter().map(|p| format!("{p:?}")).collect();
-    let file = k
-        .file
-        .map_or("&[]".to_string(), |f| format!("include_bytes!(\"../{f}\")"));
     writeln!(
         out,
         "    SampleKey {{ name: {:?}, word: {:?}, count: {}, form: SampleForm::{}, \
-         size: SampleSize::{}, listed: {}, parts: &[{}], combined: {:?}, file: {}, plain: {}, with_passphrase: {}, node: {} }},",
+         size: SampleSize::{}, listed: {}, parts: &[{}], combined: {:?}, plain: {}, with_passphrase: {}, node: {} }},",
         k.name,
         k.word,
         k.count,
@@ -572,7 +531,6 @@ fn emit_key(out: &mut String, k: &Key) {
         k.listed,
         parts.join(", "),
         k.combined,
-        file,
         opt(k.plain.as_ref().map(|f| &f[..])),
         opt(k.with_passphrase.as_ref().map(|f| &f[..])),
         opt(k.node.as_ref().map(|f| &f[..])),
@@ -605,7 +563,6 @@ fn main() {
     std::fs::create_dir_all(root().join("data")).expect("data dir");
     let keys = keys(&c);
     let wallets = wallets(&c, &keys);
-    std::fs::write(root().join("data/sample.oskb"), backup_file(&c)).expect("write");
     std::fs::write(root().join("data/sample.ofv"), vault_file(&c)).expect("write");
     let (address, message) = signed_message(&c);
     let totp = testkit::ENTRIES_FILE.lines().next().expect("a line");

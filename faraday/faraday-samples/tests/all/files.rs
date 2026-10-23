@@ -1,92 +1,13 @@
-//! The sample files open the way a person opens them: the encrypted
-//! backup and the vault under `faraday`, the signed message against its
-//! address, the setup code as the vault takes it.
+//! The sample files open the way a person opens them: the vault under
+//! `faraday`, the signed message against its address, the setup code as
+//! the vault takes it.
 
 use crate::common::{PASSPHRASE, key};
-use faraday_backup::oskb::{self, Opened};
 use faraday_bip::keys::Network;
 use faraday_core::testkit::{self, compute};
 use faraday_core::wallet::{Origin, Session};
 use faraday_samples::SAMPLES;
 use faraday_vault::records::{field, kind};
-
-#[test]
-fn the_backup_opens_under_the_passphrase_to_the_master_seed_of_every_byte_0x42() {
-    let c = compute();
-    let sample = key("sample_backup");
-    match oskb::open_payload(&c, sample.file, PASSPHRASE.as_bytes()).expect("it opens") {
-        Opened::Seed(seed) => assert_eq!(seed.as_slice(), [0x42u8; 32]),
-        _ => panic!("a master seed"),
-    }
-    // Another passphrase does not open it.
-    assert!(oskb::open_payload(&c, sample.file, b"password").is_err());
-    assert!(oskb::open_payload(&c, sample.file, b"Faraday").is_err());
-    // It is the vectors' payload: the same seed their backup holds.
-    assert_eq!(
-        sample.plain,
-        Some(crate::common::fingerprint_of_seed(&[0x42u8; 32]))
-    );
-}
-
-/// The other implementation of the format, `tools/backup/decrypt.py`,
-/// prints the same master seed. `None` where python3 or its libraries are
-/// not installed, which skips the check.
-fn decrypt_with_script(bytes: &[u8]) -> Option<(String, String)> {
-    use std::process::Command;
-    let root = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let probe = Command::new("python3")
-        .arg("-c")
-        .arg(
-            "import sys, pathlib; sys.path.insert(0, str(pathlib.Path('tools/backup')));\n\
-             import decrypt;\n\
-             decrypt.argon2id(b'x', bytes(32), 8, 1, 1);\n\
-             decrypt.xchacha20poly1305_open(bytes(32), bytes(24), b'', bytes(16))",
-        )
-        .current_dir(&root)
-        .output()
-        .ok()?;
-    if !probe.status.success() {
-        return None;
-    }
-    let path = std::env::temp_dir().join(format!("faraday-samples-{}.oskb", std::process::id()));
-    std::fs::write(&path, bytes).expect("write the backup");
-    let out = Command::new("python3")
-        .arg(root.join("tools/backup/decrypt.py"))
-        .arg(&path)
-        .arg("--passphrase")
-        .arg(PASSPHRASE)
-        .current_dir(&root)
-        .output()
-        .expect("run the script");
-    std::fs::remove_file(&path).ok();
-    assert!(
-        out.status.success(),
-        "{}",
-        String::from_utf8_lossy(&out.stderr)
-    );
-    let kind = String::from_utf8_lossy(&out.stderr)
-        .lines()
-        .next_back()
-        .unwrap_or_default()
-        .trim()
-        .to_string();
-    Some((
-        kind,
-        String::from_utf8_lossy(&out.stdout).trim().to_string(),
-    ))
-}
-
-#[test]
-fn the_backup_opens_in_the_python_reader_to_the_same_seed() {
-    let Some((kind, printed)) = decrypt_with_script(key("sample_backup").file) else {
-        eprintln!(
-            "skipped: python3 with argon2-cffi and pynacl, or cryptography 44+, is not installed"
-        );
-        return;
-    };
-    assert_eq!(kind, "seed");
-    assert_eq!(printed, "42".repeat(32));
-}
 
 #[test]
 fn the_vault_opens_under_the_passphrase_to_sample_key_1_and_the_savings_wallet() {

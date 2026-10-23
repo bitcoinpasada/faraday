@@ -123,7 +123,6 @@ const TYPES: &[&str] = &[
     "codex32 \u{b7} secret",
     "codex32 \u{b7} 2 shares",
     "Seed XOR \u{b7} 2 parts",
-    "Encrypted backup (.oskb)",
 ];
 
 #[test]
@@ -214,15 +213,6 @@ fn ticking_the_slip39_set_loads_its_key_with_the_vectors_fingerprint() {
         .collect();
     let seed = faraday_keys::slip39_seed(&c, &shares, b"").expect("recovers");
     assert!(held(&app, fingerprint_of_seed(&seed)));
-}
-
-#[test]
-fn ticking_the_backup_loads_the_key_of_its_32_byte_seed() {
-    let mut app = demo_app();
-    open(&mut app);
-    load(&mut app, &[key_pick("sample_backup", "")]);
-    assert_eq!(app.session.keys.len(), 1);
-    assert!(held(&app, fingerprint_of_seed(&[0x42; 32])));
 }
 
 #[test]

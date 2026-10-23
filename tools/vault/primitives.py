@@ -1,87 +1,32 @@
 #!/usr/bin/env python3
-"""Decrypt an .oskb encrypted backup (versions 2 and 3).
+"""The primitives `tools/vault/open.py` reads a vault with: Argon2id and
+XChaCha20-Poly1305 through two published libraries, and the BIP-39
+wordlists read out of this repository's own copies
+(`core/faraday-bip/src/wordlists/`), each checked against the SHA-256 of
+the published file recorded beside it.
 
-The format is documented in
-`docs/BACKUP-FORMAT.md` and `core/faraday-backup/src/oskb.rs` and is not this app's
-secret: these ninety lines and two published libraries read it. A person
-who has the file and the passphrase needs no app to get their
-words back.
-
-Usage:
-
-    python3 tools/backup/decrypt.py BACKUP.oskb
-    python3 tools/backup/decrypt.py BACKUP.oskb --passphrase PASSPHRASE
-
-With no `--passphrase` the passphrase is read from the terminal without
-echo. What the file holds is printed on standard output — the words of a
-key, a master seed in hex, a note as its text, a recovery sheet as its
-three parts; nothing is written back.
-
-Dependencies — the standard library plus **either**:
+Dependencies, the standard library plus **either**:
 
   * `argon2-cffi` and `pynacl`  (pip install argon2-cffi pynacl), or
   * `cryptography` 44 or newer, built against OpenSSL 3.2 or newer,
     which is where its Argon2id comes from.
 
-Whichever is installed is used; the first is tried first. The BIP-39
-wordlists are read out of this repository's own copies
-(`core/faraday-bip/src/wordlists/`), and each one is checked against the
-SHA-256 of the published file recorded beside it, so nothing is
-downloaded and a tampered list is caught.
-
-The layout is written down byte for byte in `docs/BACKUP-FORMAT.md`. In short,
-all little-endian:
-
-     0   magic "OSKB", 4 bytes
-     4   version, 1 byte, 2 or 3
-     5   Argon2id memory cost, u32, KiB
-     9   Argon2id passes, u32
-    13   Argon2id lanes, u32
-    17   salt, 32 bytes                    -- 0..49 is the associated data
-    49   nonce, 24 bytes
-    73   ciphertext, then a 16-byte tag
-
-The key is Argon2id(passphrase, salt) with a 32-byte output, the cipher
-is XChaCha20-Poly1305, and the associated data is bytes 0..49, so a
-header that was changed fails the tag.
-
-A version-2 plaintext is 34 bytes and always words: the word count, the
+A words payload is 34 bytes (`docs/VAULT.md` §7): the word count, the
 wordlist's index in the order below, and 32 bytes of entropy padded on
-the right with zeros. A version-3 plaintext is a kind byte, the
-payload's length as a u16, the payload, and zero padding to the next
-multiple of 256 bytes. The kinds are 1 words (the version-2 plaintext),
-2 a master seed (its length, then 64 bytes zero-padded), 3 a note as
-UTF-8 text, and 4 a recovery sheet: the descriptor, the wallet's name
-and a note, each a u16 length and that many bytes, in that order.
+the right with zeros.
 """
 
 from __future__ import annotations
 
-import argparse
-import getpass
 import hashlib
 import re
 import struct
-import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 WORDLISTS = ROOT / "core" / "faraday-bip" / "src" / "wordlists"
 
-MAGIC = b"OSKB"
-VERSIONS = (2, 3)
-HEADER_LEN = 49
-NONCE_LEN = 24
-TAG_LEN = 16
-V2_PLAIN_LEN = 34
-V2_BACKUP_LEN = HEADER_LEN + NONCE_LEN + V2_PLAIN_LEN + TAG_LEN
-STEP = 256
-TYPE_LEN = 3
-
-KIND_WORDS = 1
-KIND_SEED = 2
-KIND_NOTE = 3
-KIND_SHEET = 4
+WORDS_LEN = 34
 
 # The order `Language::ALL` lists the wordlists in, which is the index
 # the plaintext's second byte carries. The names are the module names
@@ -225,73 +170,13 @@ def words_of(entropy: bytes, language: str) -> list[str]:
     return [wordlist[(bits >> (11 * (count - 1 - i))) & 0x7FF] for i in range(count)]
 
 
-# ----- the backup -----------------------------------------------------------
 
-
-def decrypt(blob: bytes, passphrase: bytes) -> tuple[str, str]:
-    """`(kind, text)` of `blob` under `passphrase`, ready to print."""
-    if blob[:4] != MAGIC:
-        raise SystemExit("not an .oskb file: wrong magic")
-    version = blob[4]
-    if version not in VERSIONS:
-        raise SystemExit(f".oskb version {version}, this script reads {VERSIONS}")
-    sealed_len = len(blob) - HEADER_LEN - NONCE_LEN - TAG_LEN
-    if version == 2:
-        if len(blob) != V2_BACKUP_LEN:
-            raise SystemExit(f"{len(blob)} bytes is not the length of a version-2 backup")
-    elif sealed_len <= 0 or sealed_len % STEP:
-        raise SystemExit(f"{len(blob)} bytes is not the length of a version-3 backup")
-    memory_kib, passes, lanes = struct.unpack("<III", blob[5:17])
-    salt = blob[17:HEADER_LEN]
-    nonce = blob[HEADER_LEN : HEADER_LEN + NONCE_LEN]
-    sealed = blob[HEADER_LEN + NONCE_LEN :]
-
-    key = argon2id(passphrase, salt, memory_kib, passes, lanes)
-    plain = xchacha20poly1305_open(key, nonce, blob[:HEADER_LEN], sealed)
-    if plain is None:
-        raise SystemExit("wrong passphrase")
-
-    if version == 2:
-        return "words", " ".join(words_of_payload(plain)[1])
-
-    kind = plain[0]
-    length = int.from_bytes(plain[1:3], "little")
-    if length > len(plain) - TYPE_LEN:
-        raise SystemExit("the payload is longer than the plaintext")
-    if any(plain[TYPE_LEN + length :]):
-        raise SystemExit("the padding after the payload is not zero")
-    payload = plain[TYPE_LEN : TYPE_LEN + length]
-
-    if kind == KIND_WORDS:
-        language, words = words_of_payload(payload)
-        print(language, file=sys.stderr)
-        return "words", " ".join(words)
-    if kind == KIND_SEED:
-        n = payload[0]
-        if not 16 <= n <= 64 or len(payload) != 65 or any(payload[1 + n :]):
-            raise SystemExit("not a master seed")
-        return "seed", payload[1 : 1 + n].hex()
-    if kind == KIND_NOTE:
-        return "note", payload.decode("utf-8")
-    if kind == KIND_SHEET:
-        parts, at = [], 0
-        for _ in range(3):
-            n = int.from_bytes(payload[at : at + 2], "little")
-            at += 2
-            if at + n > len(payload):
-                raise SystemExit("a recovery sheet's field runs past its payload")
-            parts.append(payload[at : at + n].decode("utf-8"))
-            at += n
-        if at != len(payload):
-            raise SystemExit("a recovery sheet has bytes after its three fields")
-        descriptor, name, note = parts
-        return "sheet", f"descriptor: {descriptor}\nname: {name}\nnote: {note}"
-    raise SystemExit(f"unknown payload kind {kind}")
+# ----- the words payload ----------------------------------------------------
 
 
 def words_of_payload(payload: bytes) -> tuple[str, list[str]]:
     """The wordlist and the words a words payload holds."""
-    if len(payload) != V2_PLAIN_LEN:
+    if len(payload) != WORDS_LEN:
         raise SystemExit("a words payload is 34 bytes")
     count, language_index = payload[0], payload[1]
     if language_index >= len(LANGUAGES):
@@ -303,25 +188,3 @@ def words_of_payload(payload: bytes) -> tuple[str, list[str]]:
         raise SystemExit("the padding after the entropy is not zero")
     language = LANGUAGES[language_index]
     return language, words_of(entropy, language)
-
-
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Decrypt an .oskb encrypted backup.")
-    parser.add_argument("backup", type=Path, help="the .oskb file")
-    parser.add_argument(
-        "--passphrase",
-        help="the backup passphrase; read from the terminal without echo when absent",
-    )
-    args = parser.parse_args()
-
-    blob = args.backup.read_bytes()
-    passphrase = args.passphrase
-    if passphrase is None:
-        passphrase = getpass.getpass("Backup passphrase: ")
-    kind, text = decrypt(blob, passphrase.encode("utf-8"))
-    print(kind, file=sys.stderr)
-    print(text)
-
-
-if __name__ == "__main__":
-    main()

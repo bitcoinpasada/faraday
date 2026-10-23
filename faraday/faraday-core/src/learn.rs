@@ -157,17 +157,6 @@ impl Faraday {
             Screen::Files | Screen::Visit => vec![&EN.air_gap, &EN.coordinators],
             // An APK signing key's page, and the form that makes one, name
             // the page about it (`docs/APK-SIGNING.md` §10).
-            // An .oskb backup being read into the vault names the
-            // page about encrypted backups first.
-            Screen::VaultContents
-                if self
-                    .vaults
-                    .prompt
-                    .as_ref()
-                    .is_some_and(|p| matches!(p.purpose, crate::vault::Purpose::Backup(_))) =>
-            {
-                vec![&EN.encrypted_backups, vaults_page(), &EN.passphrases]
-            }
             Screen::VaultContents if self.vaults.category == 6 => {
                 vec![apk_key_page(), vaults_page(), &EN.passphrases]
             }

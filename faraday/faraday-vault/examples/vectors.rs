@@ -49,7 +49,7 @@ pub fn contents(label: &str) -> Contents {
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
     )
     .expect("the BIP-39 test phrase");
-    let sheet = faraday_backup::oskb::sheet_payload(
+    let sheet = faraday_vault::layouts::sheet_payload(
         b"wpkh([73c5da0a/84h/0h/0h]xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V/<0;1>/*)",
         label.as_bytes(),
         b"Third key is with the lawyer.",

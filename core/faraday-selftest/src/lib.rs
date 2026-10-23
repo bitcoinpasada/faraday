@@ -320,8 +320,8 @@ fn scrypt_vector(c: &Compute) -> bool {
 
 // ----- Argon2id: the known answer in `tools/vectors/kdf/README.md` -----
 //
-// The KDF of an `.oskb` file, a KDBX database and the kept-key
-// blob, all three through `faraday_backup::argon2id`, at 256 KiB rather than
+// The KDF of a KDBX database and the kept-key blob, both through
+// `faraday_backup::argon2id`, at 256 KiB rather than
 // their 64 MiB. The answer is the reference C implementation's
 // (argon2-cffi) and OpenSSL's, which agree.
 

@@ -25,12 +25,12 @@
 use std::cell::OnceCell;
 use std::collections::BTreeSet;
 
-use faraday_backup::oskb;
 use faraday_bip::bip39::Mnemonic;
 use faraday_bip::bitcoin::bip32::DerivationPath;
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_crypto::work::{Compute, Work};
 use faraday_intake::wallet::Refusal;
+use faraday_vault::layouts;
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Contents, Header, Record};
 use zeroize::Zeroizing;
@@ -40,9 +40,6 @@ use crate::session::{Held, Keys, Part, Reveal, Revealed, WordsId, words_id};
 
 /// The random bytes one KDBX database needs.
 pub const KDBX_SEED_LEN: usize = faraday_backup::kdbx::SEED_LEN;
-
-/// A recovery sheet's three parts, as they were sealed.
-pub use faraday_backup::oskb::Sheet;
 
 /// The fields of a GPG record (type 7), by number
 /// (`docs/VAULT.md` §7).
@@ -1619,8 +1616,8 @@ fn phrase_of(m: &Mnemonic) -> Zeroizing<String> {
 /// The master seed a key record holds, when it holds a seed rather than
 /// words.
 fn seed_of(r: &Record) -> Option<Zeroizing<Vec<u8>>> {
-    match oskb::payload_of(oskb::KIND_SEED, r.field(field::KEY)?)? {
-        oskb::Opened::Seed(s) => Some(s),
+    match layouts::payload_of(layouts::KIND_SEED, r.field(field::KEY)?)? {
+        layouts::Opened::Seed(s) => Some(s),
         _ => None,
     }
 }
@@ -1630,9 +1627,9 @@ fn seed_of(r: &Record) -> Option<Zeroizing<Vec<u8>>> {
 pub fn sheet_parts(r: RecordView<'_>) -> (String, String, String) {
     match r
         .public(field::SHEET)
-        .and_then(|p| oskb::payload_of(oskb::KIND_SHEET, p))
+        .and_then(|p| layouts::payload_of(layouts::KIND_SHEET, p))
     {
-        Some(oskb::Opened::Sheet(s)) => (
+        Some(layouts::Opened::Sheet(s)) => (
             String::from_utf8_lossy(&s.descriptor).into_owned(),
             String::from_utf8_lossy(&s.name).into_owned(),
             String::from_utf8_lossy(&s.note).into_owned(),
@@ -1660,90 +1657,6 @@ pub fn create(
 /// vault's unlock takes on this computer, measured.
 pub fn measure(c: &Compute, header: &Header) {
     let _ = fv::derive(c, header, b"measure");
-}
-
-/// What a `.oskb` backup held, made into a vault record.
-pub struct BackupRecord {
-    /// The record: a key (words or a seed), a note or a sheet.
-    pub record: Held<Record>,
-    /// It is a key record, not a note or a sheet.
-    pub key: bool,
-}
-
-/// Costs an Argon2id run (through `open_payload`) and what a key's words
-/// cost to write. Opens the `.oskb` backup `bytes` under `passphrase` and
-/// makes what it held into a vault record, a key labelled `label` or a
-/// note or a sheet. `Ok(None)` for a sheet that cannot be made a record.
-/// The record is key material (`Reveal::VaultEntry`), so it comes back
-/// held.
-pub fn open_backup(
-    c: &Compute,
-    bytes: &[u8],
-    passphrase: &[u8],
-    label: &str,
-    _why: Reveal,
-) -> Result<Option<BackupRecord>, oskb::Error> {
-    let (record, key) = match oskb::open_payload(c, bytes, passphrase)? {
-        oskb::Opened::Words(m) => (
-            Record::new(kind::KEY)
-                .with(field::KEY, &records::words_payload(&m))
-                .with(field::KEY_LABEL, label.as_bytes()),
-            true,
-        ),
-        oskb::Opened::Seed(seed) => {
-            let mut payload = Zeroizing::new(vec![0u8; 1 + oskb::MAX_SEED]);
-            payload[0] = seed.len() as u8;
-            payload[1..1 + seed.len()].copy_from_slice(&seed);
-            (
-                Record::new(kind::KEY)
-                    .with(field::KEY, &payload)
-                    .with(field::KEY_LABEL, label.as_bytes()),
-                true,
-            )
-        }
-        oskb::Opened::Note(text) => (Record::new(kind::NOTE).with(field::NOTE, &text), false),
-        oskb::Opened::Sheet(sheet) => {
-            match oskb::sheet_payload(&sheet.descriptor, &sheet.name, &sheet.note) {
-                Some(payload) => (Record::new(kind::SHEET).with(field::SHEET, &payload), false),
-                None => return Ok(None),
-            }
-        }
-    };
-    Ok(Some(BackupRecord {
-        record: Held::of(record),
-        key,
-    }))
-}
-
-/// What a `.oskb` backup held, when it is loaded into the session.
-pub enum Added {
-    /// A key's words or a master seed: added to the keys, or refused.
-    Key(Result<Fingerprint, Refusal>),
-    /// A wallet's recovery sheet: its parts, for the wallets to add.
-    Sheet(Sheet),
-    /// A note, which loads nothing.
-    Note,
-}
-
-impl Keys {
-    /// Costs an Argon2id run (through `open_payload`) and what
-    /// `add_words` or `add_seed` costs. Opens the `.oskb` backup `bytes`
-    /// under `passphrase` and adds the key it holds, labelled `label`. A
-    /// sheet is handed back for the wallets, and a note loads nothing.
-    pub fn add_backup(
-        &mut self,
-        c: &Compute,
-        bytes: &[u8],
-        passphrase: &[u8],
-        label: &str,
-    ) -> Result<Added, oskb::Error> {
-        Ok(match oskb::open_payload(c, bytes, passphrase)? {
-            oskb::Opened::Words(m) => Added::Key(self.add_words(c, &phrase_of(&m), label, None)),
-            oskb::Opened::Seed(s) => Added::Key(self.add_seed(c, &s, label)),
-            oskb::Opened::Sheet(sheet) => Added::Sheet(sheet),
-            oskb::Opened::Note(_) => Added::Note,
-        })
-    }
 }
 
 /// Costs a KDBX 4 database's Argon2id run. A KeePass database holding one

@@ -694,7 +694,6 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::Carry => EN.kind_name_threshold,
         FileKind::Vault => EN.kind_name_vault_locked,
         FileKind::Entries => EN.kind_name_vault_entries,
-        FileKind::Backup => EN.kind_name_oskb,
         FileKind::Kdbx => EN.kind_name_keepass_database,
         FileKind::Pdf => EN.kind_name_pdf_to_print,
         FileKind::EfiImage => EN.kind_name_efi_image,

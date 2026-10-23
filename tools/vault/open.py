@@ -28,8 +28,8 @@ counting from 1; without it the command refuses and says how many there are.
 
 Dependencies: the standard library plus either `argon2-cffi` and
 `pynacl`, or `cryptography` 44 or newer on OpenSSL 3.2 or newer. The two
-primitives and the BIP-39 wordlists are those of the backup reader,
-`tools/backup/decrypt.py`, imported from this repository.
+primitives and the BIP-39 wordlists are those of the vault primitives,
+`tools/vault/primitives.py`, imported from this repository.
 
 The layout, all little-endian:
 
@@ -62,7 +62,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 
-_spec = importlib.util.spec_from_file_location("osk_decrypt", ROOT / "tools" / "backup" / "decrypt.py")
+_spec = importlib.util.spec_from_file_location("vault_primitives", ROOT / "tools" / "vault" / "primitives.py")
 osk = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(osk)
 

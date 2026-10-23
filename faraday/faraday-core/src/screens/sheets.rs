@@ -15,7 +15,6 @@ use faraday_ui::parts::{
 
 /// Making a seed from the Inbox a wallet: a passphrase or none, the fingerprint it gives,
 /// the wallet here it opens if any, else the kind of single-key wallet.
-/// Or a sealed backup's passphrase.
 /// The potential sheet on a small panel: the same fields, one under
 /// another.
 #[allow(clippy::too_many_arguments)]
@@ -26,20 +25,18 @@ fn potential_compact(
     ui: &mut Ui,
     w: f32,
     h: f32,
-    backup: Option<&crate::Item>,
     seed: Option<&crate::inbox::FoundSeed>,
     xpub: Option<&(String, bool)>,
     takes: bool,
     matched: Option<&str>,
 ) {
-    let title = match (backup, xpub, p.fingerprint) {
-        (Some(item), _, _) => fill(EN.potential_open, &[&item.name.to_string()]),
-        (None, Some(_), Some(fp)) => fill(
+    let title = match (xpub, p.fingerprint) {
+        (Some(_), Some(fp)) => fill(
             EN.potential_a_watch_only_wallet,
             &[&fp_text(fp).to_string()],
         ),
-        (None, Some(_), None) => EN.potential_a_watch_only.to_string(),
-        (None, None, Some(fp)) => fill(EN.potential_a_wallet, &[&fp_text(fp).to_string()]),
+        (Some(_), None) => EN.potential_a_watch_only.to_string(),
+        (None, Some(fp)) => fill(EN.potential_a_wallet, &[&fp_text(fp).to_string()]),
         _ => String::new(),
     };
     let kinds = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
@@ -76,11 +73,8 @@ fn potential_compact(
             ) + 10.0;
         }
         if takes {
-            let label = match (backup.is_some(), seed.and_then(|s| s.sources.first())) {
-                (true, _) => EN.potential_the_backup,
-                (false, Some(crate::inbox::SeedSource::Slip39(_))) => {
-                    EN.potential_slip_39_passphrase
-                }
+            let label = match seed.and_then(|s| s.sources.first()) {
+                Some(crate::inbox::SeedSource::Slip39(_)) => EN.potential_slip_39_passphrase,
                 _ => EN.potential_bip_39_passphrase,
             };
             cy += ui.wrap(x, cy, iw, 13.0, W::S, TEXT, label) + 6.0;
@@ -140,7 +134,7 @@ fn potential_compact(
             } else {
                 cy += kinds(ui, x, cy, iw);
             }
-        } else if backup.is_none() {
+        } else {
             if let Some(with) = p.with {
                 ui.text(x, cy, 12.0, W::R, MUTED, EN.potential_fingerprint);
                 ui.text(x + 90.0, cy, 13.0, W::M, TEXT, &fp_text(with));
@@ -161,9 +155,8 @@ fn potential_compact(
         if let Some(e) = &p.error {
             cy += ui.wrap(x, cy, iw, 13.0, W::R, ERR, e) + 8.0;
         }
-        let go = match (backup.is_some(), matched) {
-            (true, _) => EN.potential_open_button.to_string(),
-            (false, Some(name)) if xpub.is_none() => fill(EN.potential_load, &[name]),
+        let go = match matched {
+            Some(name) if xpub.is_none() => fill(EN.potential_load, &[name]),
             _ => EN.potential_make_wallet.to_string(),
         };
         cy += crate::compact::buttons(
@@ -194,7 +187,6 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         return;
     };
     let sw = 620.0;
-    let backup = p.backup.and_then(|k| app.inbox.get(k));
     let seed = p.fingerprint.and_then(|fp| {
         app.inbox_found()
             .seeds
@@ -214,7 +206,6 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ui,
             w,
             h,
-            backup,
             seed.as_ref(),
             xpub,
             takes,
@@ -222,9 +213,7 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         );
         return;
     }
-    let sh = if backup.is_some() {
-        300.0
-    } else if xpub.is_some() {
+    let sh = if xpub.is_some() {
         370.0
     } else if takes {
         440.0
@@ -235,14 +224,13 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let ix = x + 32.0;
     let iw = sw - 64.0;
     let mut cy = y + 30.0;
-    let title_text = match (backup, xpub, p.fingerprint) {
-        (Some(item), _, _) => fill(EN.potential_open, &[&item.name.to_string()]),
-        (None, Some(_), Some(fp)) => fill(
+    let title_text = match (xpub, p.fingerprint) {
+        (Some(_), Some(fp)) => fill(
             EN.potential_a_watch_only_wallet,
             &[&fp_text(fp).to_string()],
         ),
-        (None, Some(_), None) => EN.potential_a_watch_only.to_string(),
-        (None, None, Some(fp)) => fill(EN.potential_a_wallet, &[&fp_text(fp).to_string()]),
+        (Some(_), None) => EN.potential_a_watch_only.to_string(),
+        (None, Some(fp)) => fill(EN.potential_a_wallet, &[&fp_text(fp).to_string()]),
         _ => String::new(),
     };
     ui.icon(ix, cy, 30.0, Icon::Keys, 18.0, ACCENT);
@@ -261,12 +249,8 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         cy += 30.0;
     }
     if takes {
-        let label = match (
-            backup.is_some(),
-            seed.as_ref().and_then(|s| s.sources.first()),
-        ) {
-            (true, _) => EN.potential_the_backup,
-            (false, Some(crate::inbox::SeedSource::Slip39(_))) => EN.potential_slip_39_passphrase,
+        let label = match seed.as_ref().and_then(|s| s.sources.first()) {
+            Some(crate::inbox::SeedSource::Slip39(_)) => EN.potential_slip_39_passphrase,
             _ => EN.potential_bip_39_passphrase,
         };
         ui.text(ix, cy, 13.0, W::S, TEXT, label);
@@ -360,7 +344,7 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
         }
         cy += 46.0;
-    } else if backup.is_none() {
+    } else {
         if let Some(with) = p.with {
             ui.text_mid(ix, cy, 24.0, 13.0, W::R, MUTED, EN.potential_fingerprint);
             ui.text_mid(ix + 110.0, cy, 24.0, 14.0, W::M, TEXT, &fp_text(with));
@@ -418,9 +402,8 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Style::Secondary,
         Action::Cancel,
     );
-    let go = match (backup.is_some(), &matched) {
-        (true, _) => EN.potential_open_button.to_string(),
-        (false, Some(name)) if xpub.is_none() => fill(EN.potential_load, &[&name.to_string()]),
+    let go = match &matched {
+        Some(name) if xpub.is_none() => fill(EN.potential_load, &[&name.to_string()]),
         _ => EN.potential_make_wallet.to_string(),
     };
     ui.button(

@@ -196,7 +196,7 @@ fn records_of_every_type_read_back() {
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
     )
     .unwrap();
-    let sheet = faraday_backup::oskb::sheet_payload(b"wpkh(...)", b"Savings", b"").unwrap();
+    let sheet = crate::layouts::sheet_payload(b"wpkh(...)", b"Savings", b"").unwrap();
     let c = Contents {
         records: vec![
             Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Main"),

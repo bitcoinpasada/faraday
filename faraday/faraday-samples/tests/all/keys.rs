@@ -56,13 +56,6 @@ fn load(keys: &mut Keys, sample: &SampleKey, passphrase: &str) -> Result<Fingerp
         SampleForm::Seed => keys
             .add_seed(&c, &unhex(sample.parts[0]), "")
             .map_err(refused),
-        SampleForm::Backup => match keys
-            .add_backup(&c, sample.file, PASSPHRASE.as_bytes(), "")
-            .map_err(|e| format!("{e:?}"))?
-        {
-            faraday_keys::vault::Added::Key(r) => r.map_err(refused),
-            _ => Err("not a key".to_string()),
-        },
         SampleForm::Aezeed => Err("loads no key".to_string()),
     }
 }
@@ -188,9 +181,8 @@ fn the_lnd_cipher_seed_is_the_one_public_node_and_another_is_refused() {
 fn a_sample_carries_what_a_flow_needs_to_load_it() {
     for k in SAMPLES.keys {
         match k.form {
-            SampleForm::Backup => assert!(!k.file.is_empty() && k.parts.is_empty()),
             SampleForm::Xor => assert!(!k.combined.is_empty() && k.parts.len() == 2),
-            _ => assert!(!k.parts.is_empty() && k.file.is_empty(), "{}", k.name),
+            _ => assert!(!k.parts.is_empty(), "{}", k.name),
         }
         assert_eq!(k.node.is_some(), k.form == SampleForm::Aezeed);
         assert_eq!(k.plain.is_none(), k.form == SampleForm::Aezeed);
@@ -198,8 +190,8 @@ fn a_sample_carries_what_a_flow_needs_to_load_it() {
     }
     let listed = SAMPLES.keys.iter().filter(|k| k.listed).count();
     // 21 repeated words, abandon, Japanese, three SLIP-39, two codex32,
-    // Seed XOR, the backup and the cipher seed.
-    assert_eq!(listed, 21 + 2 + 3 + 2 + 1 + 1 + 1);
+    // Seed XOR and the cipher seed.
+    assert_eq!(listed, 21 + 2 + 3 + 2 + 1 + 1);
     let _: &Samples = &SAMPLES;
 }
 
@@ -214,7 +206,6 @@ fn the_size_a_key_sample_records_is_what_its_data_holds() {
             S::Shares(n) | S::GroupShares(n) | S::Parts(n) => assert_eq!(n, parts, "{}", k.name),
             S::Secret => assert_eq!(parts, 1, "{}", k.name),
             S::Bytes(n) => assert_eq!(usize::from(n), unhex(k.parts[0]).len(), "{}", k.name),
-            S::File => assert!(!k.file.is_empty(), "{}", k.name),
             S::Threshold { need, total } => {
                 // A share states how many shares recover its key; the set
                 // it came from is as large as the vector says.

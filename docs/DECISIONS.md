@@ -86,8 +86,8 @@ Read this table, then only the decision you need.
 | [F69](decisions/F69.md) | Costly work takes a token; drawing cannot mint one | 2026-10-21 | Active | speed |
 | [F70](decisions/F70.md) | One crate holds every key: faraday-keys | 2026-10-21 | Active | keys |
 | [F71](decisions/F71.md) | Dependencies: what cargo-vet says is true | 2026-10-21 | Active | dependencies |
-| [F72](decisions/F72.md) | Faraday's code is its own: a hard fork | 2026-10-21 | Amended by F73 | repository |
-| [F73](decisions/F73.md) | The upstream project is named only in LICENSE | 2026-10-21 | Active | repository |
+| [F72](decisions/F72.md) | Faraday's code is its own: a hard fork | 2026-10-21 | Amended by F73, F97 | repository |
+| [F73](decisions/F73.md) | The upstream project is named only in LICENSE | 2026-10-21 | Amended by F97 | repository |
 | [F74](decisions/F74.md) | The structure is held by `just` | 2026-10-21 | Active | repository |
 | [F75](decisions/F75.md) | A seed can be pasted on the desktop | 2026-10-22 | Active | keys |
 | [F76](decisions/F76.md) | The key explorer lists an account's addresses and finds one | 2026-10-22 | Active | wallets |
@@ -111,3 +111,4 @@ Read this table, then only the decision you need.
 | [F94](decisions/F94.md) | Codex32 error correction, opt-in | 2026-10-22 | Active | crypto |
 | [F95](decisions/F95.md) | Codex32QR/v1-48: read, shown, tested | 2026-10-22 | Active | keys |
 | [F96](decisions/F96.md) | Faraday Desktop's dice rollers | 2026-10-22 | Active | keys |
+| [F97](decisions/F97.md) | .oskb files are no longer read; the vault's record layouts are its own | 2026-10-23 | Active | backup |

@@ -9,7 +9,7 @@
 //! <https://keepass.info/help/kb/kdbx.html> and
 //! <https://keepass.info/help/kb/kdbx_4.html>; both pages are in
 //! `tools/reference/kdbx4/` with the date they were fetched and their
-//! SHA-256. `docs/BACKUP-FORMAT.md` writes down what this module puts in one.
+//! SHA-256. `docs/KDBX.md` writes down what this module puts in one.
 //! The version written is 4.0, because 4.1 adds only XML elements this
 //! writer has no use for and 4.0 is what every KDBX 4 reader takes.
 //!
@@ -136,7 +136,7 @@ pub const MAX_ITEMS: usize = 8;
 pub const MAX_FIELD: usize = 16 * 1024;
 
 /// The most Argon2id memory this build will allocate for a KDBX file,
-/// in KiB — the same bound [`crate::oskb`] puts on a file's stated
+/// in KiB; a file stating more is refused by its stated
 /// cost.
 const MAX_MEMORY_KIB: u32 = 4 * 1024 * 1024;
 

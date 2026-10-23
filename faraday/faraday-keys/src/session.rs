@@ -549,7 +549,7 @@ impl Keys {
     }
 
     /// Costs what `from_seed_bytes` and `info_of` cost. Adds the key a
-    /// master seed gives, as an `.oskb` kind-2 backup carries one: there
+    /// master seed gives, as a SLIP-39 or codex32 key does: there
     /// are no words to copy by hand.
     pub fn add_seed(
         &mut self,

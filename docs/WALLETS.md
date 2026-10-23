@@ -38,7 +38,7 @@ review. Its wording is in the one strings file.
    only where the protocol has a round no other scheme has.
 5. **Shared logic lives in `core/`.** Code that defines
    bytes, or answers a question with no screen in it, is a `core/` crate.
-   That put the `.oskb` format, the KDBX writer and the
+   That put the KDBX writer and the
    Argon2id `Cost` in **`faraday-backup`**, the signed-message text form and a
    transaction with its previous outputs in `faraday-psbt`, and address parsing
    and a wallet's address search in `faraday-bip`. The Wallets tab therefore
@@ -607,7 +607,7 @@ first"). The groups and their tiles:
 | Wallets | Single-key wallet · Multisig · Taproot multisig · MuSig2 · FROST threshold · Miniscript and inheritance · Restore an existing wallet · Back up a wallet |
 | Transactions | Sign a transaction · Nonce check · Decode a transaction · Check an address |
 | Messages | Sign a message · Check a signed message |
-| Vaults and other keys | Vaults · TOTP codes · Diceware passphrase · GPG key · Secure Boot keys · APK signing key (only with APK signing on, F59) · KeePass export · Open an .oskb backup |
+| Vaults and other keys | Vaults · TOTP codes · Diceware passphrase · GPG key · Secure Boot keys · APK signing key (only with APK signing on, F59) · KeePass export |
 | Calculators | Hashes · Encodings · Descriptor checksum · Convert an xpub · Units · Miniscript compiler |
 | Word lists | BIP-39 words · EFF large list · EFF short list 1 · EFF short list 2 |
 | QR | Scan a QR code |

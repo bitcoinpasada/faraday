@@ -2539,33 +2539,15 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .iter()
         .filter(|i| i.kind == crate::FileKind::Entries)
         .count();
-    let backups: Vec<usize> = app
-        .inbox
-        .iter()
-        .enumerate()
-        .filter(|(_, i)| i.kind == crate::FileKind::Backup)
-        .map(|(k, _)| k)
-        .collect();
     let mut extra: Vec<(String, V)> = Vec::new();
-    match app.vaults.category {
-        2 => {
-            extra.push((EN.vault_scan_a_code.to_string(), V::ScanEntry));
-            if entries_files > 0 {
-                extra.push((
-                    fill(EN.vault_import_from_files, &[&entries_files.to_string()]),
-                    V::ImportAllEntries,
-                ));
-            }
+    if app.vaults.category == 2 {
+        extra.push((EN.vault_scan_a_code.to_string(), V::ScanEntry));
+        if entries_files > 0 {
+            extra.push((
+                fill(EN.vault_import_from_files, &[&entries_files.to_string()]),
+                V::ImportAllEntries,
+            ));
         }
-        0 | 3 => {
-            for k in &backups {
-                extra.push((
-                    fill(EN.vault_import_n, &[&app.inbox[*k].name.to_string()]),
-                    V::ImportBackup(*k),
-                ));
-            }
-        }
-        _ => {}
     }
     if !extra.is_empty() {
         let mut bx = ix;
@@ -2937,27 +2919,14 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some(a) = add {
         extra.push((a.to_string(), V::Add));
     }
-    match app.vaults.category {
-        2 => {
-            extra.push((EN.vault_scan_a_code.to_string(), V::ScanEntry));
-            if entries_files > 0 {
-                extra.push((
-                    fill(EN.vault_import_from_files, &[&entries_files.to_string()]),
-                    V::ImportAllEntries,
-                ));
-            }
+    if app.vaults.category == 2 {
+        extra.push((EN.vault_scan_a_code.to_string(), V::ScanEntry));
+        if entries_files > 0 {
+            extra.push((
+                fill(EN.vault_import_from_files, &[&entries_files.to_string()]),
+                V::ImportAllEntries,
+            ));
         }
-        0 | 3 => {
-            for (k, i) in app.inbox.iter().enumerate() {
-                if i.kind == crate::FileKind::Backup {
-                    extra.push((
-                        fill(EN.vault_import_n, &[&i.name.to_string()]),
-                        V::ImportBackup(k),
-                    ));
-                }
-            }
-        }
-        _ => {}
     }
     let extra_items: Vec<(&str, Style, Action)> = extra
         .iter()
@@ -3169,13 +3138,6 @@ fn detail(
     }
     if let Some(p) = &app.vaults.prompt {
         let heading = match p.purpose {
-            vault::Purpose::Backup(k) => fill(
-                EN.vault_open_item,
-                &[(app
-                    .inbox
-                    .get(k)
-                    .map_or(EN.vault_the_backup, |i| i.name.as_str()))],
-            ),
             vault::Purpose::KeyPassphrase | vault::Purpose::ForWallet(..) => {
                 EN.vault_load_with_a_bip.to_string()
             }
@@ -3197,13 +3159,10 @@ fn detail(
             crate::demo::PassField::Prompt,
         );
         dy += 56.0 + never_under(app, ui, dx, dy, dw);
-        if app.vaults.working == Some(vault::Work::Backup) {
-            ui.text_mid(dx, dy, 40.0, 15.0, W::S, ACCENT, EN.vault_opening);
-        } else if app.vaults.working == Some(vault::Work::Kdbx) {
+        if app.vaults.working == Some(vault::Work::Kdbx) {
             ui.text_mid(dx, dy, 40.0, 15.0, W::S, ACCENT, EN.vault_sealing);
         } else {
             let label = match p.purpose {
-                vault::Purpose::Backup(_) => EN.vault_open_button,
                 vault::Purpose::Kdbx => EN.vault_seal_and_export,
                 vault::Purpose::KeyPassphrase | vault::Purpose::ForWallet(..) => EN.vault_load,
             };

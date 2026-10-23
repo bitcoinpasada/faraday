@@ -244,8 +244,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   codex32 form: a seed's paper forms are `What::Words` and
   `What::SeedQr`, and the checklist has no codex32 item, although
   `docs/DEMO.md` §4 and §5.3 name one.
-- **A key loaded from a master seed** (codex32, SLIP-39, an `.oskb`
-  kind 2) keeps its master key and not the seed bytes
+- **A key loaded from a master seed** (codex32, SLIP-39) keeps its master key and not the seed bytes
   (`Keys::add_seed`, `faraday/faraday-keys/src/session.rs`), so no paper
   form of it can be written again.
 - **Demo** refuses a split with k of 2 or more (`faraday/faraday-core/src/demo.rs`,
@@ -1073,7 +1072,7 @@ ticked), then makes the strings (§5.4) and shows them as §6.6 to §6.8 do,
 - a key made of BIP-39 words: its 64-byte seed, 127 characters, with
   "Holds · the seed, not the words" and "Not for checking by hand" on
   the Result;
-- a key loaded from a master seed (codex32, SLIP-39, an `.oskb` kind 2):
+- a key loaded from a master seed (codex32, SLIP-39):
   its own seed, 48 characters for 16 bytes. For this `faraday-keys` keeps
   the seed bytes of a key added by `add_seed` beside its master key (owner,
   §1.1 item 10; KEYS §2 already lists "seed" as key material).
@@ -1603,8 +1602,8 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 | `docs/MODES.md` | §7 | the samples for §6 and §8 |
 | `docs/AUDIT.md`, `core/faraday-bip/README.md` | the faraday-bip row | worksheets and correction, their vectors |
 | `docs/MULTIVENDOR.md` | §4 | codex32 sets and correction, python-codex32 |
-| `docs/learn/23-other-backups.md` | Codex32 | making shares here and by hand, the booklet, lengths, checking on another device, corrections; a link to the codex32 user flow guide, https://github.com/FractalEncrypt/FractalEncrypt_seedsigner/blob/codex/codex32-error-correction/docs/codex32_qr/Codex32_User_Flow_Guide.md, as the guide to read beside it (owner, 2026-10-23) |
-| `docs/learn/19-glossary.md` | Codex32 | identifier, share index, translation symbol |
+| `docs/learn/22-other-backups.md` | Codex32 | making shares here and by hand, the booklet, lengths, checking on another device, corrections; a link to the codex32 user flow guide, https://github.com/FractalEncrypt/FractalEncrypt_seedsigner/blob/codex/codex32-error-correction/docs/codex32_qr/Codex32_User_Flow_Guide.md, as the guide to read beside it (owner, 2026-10-23) |
+| `docs/learn/18-glossary.md` | Codex32 | identifier, share index, translation symbol |
 | `docs/README.md` | Spec list | the status as built |
 
 ### 15.4 Questions for the owner

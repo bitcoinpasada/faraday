@@ -204,11 +204,6 @@ fn every_seed_form_and_xpub_on_the_test_stick_is_its_key() {
         // The words file holds the words.
         let words = String::from_utf8(get("-words.txt")).unwrap();
         assert!(words.contains(&testkit::test_words(word)));
-        // The backup is an .oskb backup.
-        assert_eq!(
-            classify(&c, &format!("{stem}.oskb"), &get(".oskb")),
-            FileKind::Backup
-        );
         // Each account xpub is a cosigner's with this key's fingerprint,
         // on testnet.
         for what in ["multisig", "nested-multisig", "taproot-multisig", "single"] {

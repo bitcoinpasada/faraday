@@ -79,18 +79,35 @@ CIPHER_CHACHA20 = bytes.fromhex("d6038a2b8b6f4cb5a524339a31dbb59a")
 KDF_ARGON2D = bytes.fromhex("ef636ddf8c29444b91f7a9a403e30a0c")
 KDF_ARGON2ID = bytes.fromhex("9e298b1956db4773b23dfc3ec6f0a1e6")
 
-HERE = Path(__file__).resolve().parent
-
 
 # ----- the reader in this file ----------------------------------------------
 
 
 def argon2id(password: bytes, salt: bytes, memory_kib: int, passes: int, lanes: int) -> bytes:
     """32 bytes of Argon2id 1.3, through whichever library is here."""
-    sys.path.insert(0, str(HERE))
-    import decrypt
-
-    return decrypt.argon2id(password, salt, memory_kib, passes, lanes)
+    try:
+        from argon2.low_level import Type, hash_secret_raw
+    except ImportError:
+        pass
+    else:
+        return hash_secret_raw(
+            secret=password,
+            salt=salt,
+            time_cost=passes,
+            memory_cost=memory_kib,
+            parallelism=lanes,
+            hash_len=32,
+            type=Type.ID,
+        )
+    try:
+        from cryptography.hazmat.primitives.kdf.argon2 import Argon2id
+    except ImportError:
+        raise SystemExit(
+            "no Argon2id: install argon2-cffi, or cryptography 44+ on OpenSSL 3.2+"
+        )
+    return Argon2id(
+        salt=salt, length=32, iterations=passes, lanes=lanes, memory_cost=memory_kib
+    ).derive(password)
 
 
 def chacha20(key: bytes, nonce: bytes, data: bytes) -> bytes:

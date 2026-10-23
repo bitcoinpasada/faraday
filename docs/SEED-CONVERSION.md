@@ -42,7 +42,7 @@ standard it is and which software restores it.
    tool. Typed words therefore follow Add a key's rules for transient
    input, and the tool holds no secret of its own (`docs/KEYS.md` §2).
 6. **The seed bytes must exist.** A key loaded from a master seed
-   (codex32, SLIP-39, an `.oskb` kind 2) keeps its master key and not
+   (codex32, SLIP-39) keeps its master key and not
    its seed today (`Keys::add_seed`, `faraday/faraday-keys/src/session.rs`);
    `docs/CODEX32.md` batch C4 keeps the seed bytes. Until then, such a
    key offers only the conversions from its master key (xprv).
@@ -311,7 +311,7 @@ keys loaded from a seed); S6 after C8 (codex32 in the backup).
 | S4 | §4.2 and §4.4, settings for splits and groups | Sonnet | 1.5 days |
 | S5 | §4.5 (aezeed) | Sonnet | 0.5 day |
 | S6 | §8 with the backup's set actions | Opus | 1.5 days |
-| S7 | Demo (§7), Learn (`docs/learn/23-other-backups.md` gains a section on converting), DESIGN §5's row, this file's plan to a history log of its own and its Kind to Reference | Sonnet | 0.5 day |
+| S7 | Demo (§7), Learn (`docs/learn/22-other-backups.md` gains a section on converting), DESIGN §5's row, this file's plan to a history log of its own and its Kind to Reference | Sonnet | 0.5 day |
 
 About 8.5 days.
 

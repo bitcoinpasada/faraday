@@ -15,9 +15,8 @@ the format; where an implementation and this file disagree, this file is
 what a second implementation is written against, and the vectors under
 `tools/vectors/vault/` settle it.
 
-The cryptography is the `.oskb` format (`docs/BACKUP-FORMAT.md`),
-whose crate `core/faraday-backup` also provides the Argon2id `Cost` type:
-Argon2id version 1.3 and XChaCha20-Poly1305. An unused slot is random bytes
+The cryptography is Argon2id version 1.3 and XChaCha20-Poly1305; the
+Argon2id `Cost` type is `core/faraday-backup`'s. An unused slot is random bytes
 the size of a used one (§8, step 4), as the duress record of upstream's
 kept-key blob was when no duress PIN was set; Faraday has no duress PIN,
 and that blob went with the upstream app (F68).
@@ -71,7 +70,7 @@ K_slot = HKDF-SHA256(ikm = K, salt = empty, info = "Faraday vault v1 slot")
 AD_i   = bytes 0..53 of the file || i      (one byte, 0 to 3)
 ```
 
-The passphrase is its UTF-8 bytes, unnormalised, as in `.oskb`. One
+The passphrase is its UTF-8 bytes, unnormalised. One
 passphrase gives one `K_slot`; it is tried against every slot. The header
 is associated data for every slot, so a changed header fails every tag
 rather than costing work under the wrong parameters.
@@ -333,10 +332,10 @@ exactly where its last field does, refuses the slot.
 | Type | Record | Fields |
 |---|---|---|
 | 1 | Slot label | 1 label (≤ 64 bytes). At most one per slot. |
-| 2 | Bitcoin key | 1 key: an `.oskb` kind-1 (34 bytes) or kind-2 (65 bytes) payload; 2 label; 3 flags (`u8`: bit 0 not loaded at unlock, so the Load sheet an unlock shows starts it unticked, `docs/DECISIONS.md` F62; absent, or bit 0 clear, it starts ticked; bit 1 made in Faraday with its backup not done, so it signs nothing until it is, `docs/history/NEW-WALLET.md` §14.3); 4 BIP-39 passphrase, present only when the person chose to store it |
+| 2 | Bitcoin key | 1 key: a words payload (34 bytes) or a seed payload (65 bytes), below; 2 label; 3 flags (`u8`: bit 0 not loaded at unlock, so the Load sheet an unlock shows starts it unticked, `docs/DECISIONS.md` F62; absent, or bit 0 clear, it starts ticked; bit 1 made in Faraday with its backup not done, so it signs nothing until it is, `docs/history/NEW-WALLET.md` §14.3); 4 BIP-39 passphrase, present only when the person chose to store it |
 | 3 | Wallet | 1 BIP-388 text, or the descriptor for a wallet whose key has no origin; 2 name; 3 flags (`u8`: bit 0 not loaded at unlock, as a key's; absent, it loads; F62, and a build before F62 refuses a slot whose wallet holds it) |
-| 4 | Note | 1 the note, as `.oskb` kind 3 |
-| 5 | Recovery sheet | 1 the sheet, as `.oskb` kind 4 |
+| 4 | Note | 1 the note, its UTF-8 bytes |
+| 5 | Recovery sheet | 1 the sheet, as a sheet payload, below |
 | 6 | Entry | 1 title (required); 2 username; 3 password; 4 URL; 5 notes; 6 TOTP secret, an `otpauth://` URI (a bare key is stored as one, `docs/TOTP.md` §4.3) |
 | 7 | GPG key | 1 primary Ed25519 seed (32 bytes); 2 primary creation time (`u32`); 3 signing subkey seed (32 bytes); 4 subkey creation time; 5 user ID (repeatable); 6 expiry (`u32` seconds after creation, 0 for none); 7 the public certificate as last exported; 8 the revocation certificate made with the key, as OpenPGP packets, secret (F32); 9 when the key was marked revoked (`u32`) |
 | 8 | Secure Boot keys | 1 owner GUID (16 bytes); 2 PK private key, PKCS#8 DER; 3 PK certificate, DER; 4 KEK key; 5 KEK certificate; 6 db key; 7 db certificate |
@@ -359,8 +358,21 @@ first. Opening one writes nothing into the slot.
 In each type the first field is required and every other field is
 optional; type 10's field 2, type 12's fields 2 and 3 and type 14's field 2 are also required. A type 7 record without field 3, the signing subkey's seed, is kept and shown by its user IDs and signs, exports and renews nothing: the format keeps the field optional so that no slot is refused over it, and Faraday's own keys always write it. A build before F32 refuses a slot holding a type 7 record with field 8 or 9. Fields marked repeatable
 may appear more than once; no other field may. A key's field 1 must be a
-payload `.oskb` reads as its kind, and a recovery sheet's field 1
-likewise.
+words payload or a seed payload, and a recovery sheet's field 1 a sheet
+payload, exactly as laid out below.
+
+**Payload layouts.** Four byte strings are the vault's own, written and
+read by `faraday/faraday-vault/src/layouts.rs`:
+
+| Payload | Bytes |
+|---|---|
+| Words (a key record's field 1, 34 bytes) | the word count (`u8`: 12, 15, 18, 21 or 24); the word list's index (`u8`): 0 English, 1 Japanese, 2 Korean, 3 Spanish, 4 Chinese (simplified), 5 Chinese (traditional), 6 French, 7 Italian, 8 Czech, 9 Portuguese; the entropy (16 to 32 bytes, `count x 4 / 3` of them) zero-padded on the right to 32 bytes. Every pad byte must be zero. |
+| Seed (a key record's field 1, 65 bytes) | the seed's length (`u8`, 16 to 64), then the seed zero-padded on the right to 64 bytes. Every pad byte must be zero. |
+| Note (a note record's field 1) | the note's UTF-8 bytes. |
+| Recovery sheet (a sheet record's field 1) | three fields in this order, the wallet's descriptor, its name and the sheet's note, each a little-endian `u16` length followed by that many bytes of UTF-8. Nothing may follow the third; the whole is at most 16 KiB. |
+
+A key record's field 1 of 34 bytes is read as words and any other length
+as a seed.
 
 Records appear in any order. A slot with no records holds only the format
 byte and the end record, and is still a used slot.
@@ -418,7 +430,7 @@ cannot alter its contents.
 `tools/vault/open.py` opens a vault with a passphrase and prints the
 records of the slot it opens, over the standard library and either
 `argon2-cffi` with `pynacl` or `cryptography` 44 or newer, as
-`tools/backup/decrypt.py` does. A vault therefore opens without
+`tools/vault/primitives.py` does. A vault therefore opens without
 Faraday. It writes nothing, except with `--field TYPE.FIELD --out
 FILE` (`docs/APK-SIGNING.md` §3, §7): then it prints nothing of the
 slot and writes that one field's bytes, of the record of that type

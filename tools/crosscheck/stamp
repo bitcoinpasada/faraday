@@ -1,9 +1,9 @@
 # The last passing crypto cross-check (`just crosscheck`, F79).
 # `just lint` fails when `inputs` no longer matches the crypto sources,
 # the cross-check and the crypto crates' Cargo.lock entries.
-inputs 83c14ba1c9e274261917f5288b6472e7c4ce0f032367bcdc2edc171d1defd209
+inputs c1036415ec60900627d5e731007a7bd44ef29fd57a252781d2f8092eb85930a1
 references 11d882f620c251ebbcceeae70042f23fc92c7e0a59af15883c800f99b3d8f3f3
 python 3.14.4
 seed faraday-crosscheck-1
 scale 1.0
-seconds 194.2
+seconds 414.8
