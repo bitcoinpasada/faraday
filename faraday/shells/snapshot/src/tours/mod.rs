@@ -7,6 +7,7 @@ pub(crate) mod boot;
 pub(crate) mod boot_place;
 pub(crate) mod cancel;
 pub(crate) mod chart_edit;
+pub(crate) mod codex32;
 pub(crate) mod codex32_correct;
 pub(crate) mod compact;
 pub(crate) mod copy;

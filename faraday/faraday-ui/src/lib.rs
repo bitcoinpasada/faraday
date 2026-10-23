@@ -365,7 +365,7 @@ impl Theme {
         }
     }
 
-    fn table(self) -> Option<&'static [(Color, Color); 31]> {
+    fn table(self) -> Option<&'static [(Color, Color); 33]> {
         match self {
             Theme::Dark => None,
             Theme::Light => Some(&pal::LIGHT),
@@ -2127,6 +2127,30 @@ mod tests {
                             theme.id()
                         ));
                     }
+                }
+            }
+        }
+        assert!(short.is_empty(), "{short:#?}");
+    }
+
+    /// A codex32 worksheet's characters read on its checksum squares and
+    /// its table rows in every theme (`docs/CODEX32.md` §7.5), and the
+    /// rows stand apart from the card they are on.
+    #[test]
+    fn a_codex32_worksheets_characters_are_legible_on_every_fill_in_every_theme() {
+        let mut short = Vec::new();
+        for theme in Theme::ALL {
+            let need = if theme.is_high_contrast() { 7.0 } else { 4.5 };
+            for (name, fill) in [
+                ("checksum square", pal::CODEX32_CHECKSUM_FILL),
+                ("table row", pal::CODEX32_LOOKUP_FILL),
+            ] {
+                let got = contrast(theme.color(pal::TEXT), theme.color(fill));
+                if got < need {
+                    short.push(format!("{} text on a {name} is {got:.2}:1", theme.id()));
+                }
+                if theme.color(fill) == theme.color(pal::SURFACE) {
+                    short.push(format!("{} {name} is the card's own colour", theme.id()));
                 }
             }
         }

@@ -13,9 +13,12 @@
 //!
 //! **Kept in step.** `entered[s]` is how many data characters initial
 //! share `s` has. Its worksheet holds the header and exactly those
-//! characters, and, once all of them are in, the checksum. The made set
-//! exists exactly when every initial share is complete. A push or a pop
-//! updates the three together, and nothing else changes them.
+//! characters, and, once all of them are in, the checksum. Each live
+//! translation worksheet (one per derived share and one towards `s`,
+//! at a threshold of 2 or more) holds, for input `s`, the same header,
+//! characters and checksum as that worksheet. The made set exists
+//! exactly when every initial share is complete. A push or a pop updates
+//! them all together, and nothing else changes them.
 
 use faraday_bip::codex32::{
     ChecksumWorksheet, Error, FreshSet, Scheme, TranslationWorksheet, fresh_set,
@@ -38,13 +41,17 @@ pub struct WorkSet {
     entered: Vec<Zeroizing<Vec<u8>>>,
     /// One checksum worksheet per initial share, header first.
     sheets: Vec<ChecksumWorksheet>,
+    /// The translation worksheets filling as the characters arrive, one
+    /// per target of [`Self::targets`], in that order (none at threshold 0).
+    live: Vec<TranslationWorksheet>,
     /// The made set, once every initial share is complete.
     made: Option<FreshSet>,
 }
 
 impl WorkSet {
-    /// Costs the header's columns of each initial share's worksheet. A
-    /// work set for `scheme`, nothing entered.
+    /// Costs the header's columns of each initial share's worksheet and
+    /// of each live translation worksheet. A work set for `scheme`,
+    /// nothing entered.
     pub fn new(c: &Compute, scheme: Scheme) -> Result<WorkSet, Error> {
         let mut sheets = Vec::new();
         let mut entered = Vec::new();
@@ -56,12 +63,42 @@ impl WorkSet {
             sheets.push(sheet);
             entered.push(Zeroizing::new(Vec::new()));
         }
+        let mut live = Vec::new();
+        let initial = scheme.initial_indices();
+        for target in Self::targets_of(&scheme) {
+            let mut sheet = TranslationWorksheet::new(scheme.length().chars(), initial, target)?;
+            for (i, &index) in initial.iter().enumerate() {
+                for symbol in scheme.header(index)? {
+                    sheet.push(c, i, symbol)?;
+                }
+            }
+            live.push(sheet);
+        }
         Ok(WorkSet {
             scheme,
             entered,
             sheets,
+            live,
             made: None,
         })
+    }
+
+    /// The share indices the live translation worksheets make: each
+    /// derived share in index order, then `s`; none at threshold 0.
+    fn targets_of(scheme: &Scheme) -> Vec<u8> {
+        if scheme.threshold() == 0 {
+            return Vec::new();
+        }
+        let mut out = scheme.derived_indices().to_vec();
+        out.push(b's');
+        out
+    }
+
+    /// The share indices of the live translation worksheets, in their
+    /// order: each derived share, then `s` (the secret). Public. None at
+    /// threshold 0. Cheap.
+    pub fn targets(&self) -> Vec<u8> {
+        Self::targets_of(&self.scheme)
     }
 
     /// The scheme. Public.
@@ -81,8 +118,9 @@ impl WorkSet {
         self.made.is_some()
     }
 
-    /// Costs a worksheet column, and at the last character the
-    /// checksum's columns and, once every initial share is complete, the
+    /// Costs a worksheet column and that column of each live translation
+    /// worksheet, and at the last character the checksum's columns (in
+    /// every sheet) and, once every initial share is complete, the
     /// interpolation of the whole set. Hands initial share `share` its
     /// next character, a symbol `0..32`. Refused past the last one.
     pub fn push(&mut self, c: &Compute, share: usize, symbol: u8) -> Result<(), Error> {
@@ -96,8 +134,19 @@ impl WorkSet {
         }
         sheet.push(c, symbol)?;
         have.push(symbol);
+        for live in &mut self.live {
+            live.push(c, share, symbol)?;
+        }
         if have.len() == data_len {
             sheet.finish(c)?;
+            let chars = sheet.chars();
+            let first = chars - sheet.checksum_len() + 1;
+            for b in first..=chars {
+                let v = sheet.symbol(b).ok_or(Error::BadLength)?;
+                for live in &mut self.live {
+                    live.push(c, share, v)?;
+                }
+            }
             self.make(c)?;
         }
         Ok(())
@@ -114,13 +163,20 @@ impl WorkSet {
         if have.is_empty() {
             return;
         }
+        let mut back = 1;
         if have.len() == data_len {
             for _ in 0..sheet.checksum_len() {
                 sheet.pop();
             }
+            back += sheet.checksum_len();
         }
         sheet.pop();
         have.pop();
+        for live in &mut self.live {
+            for _ in 0..back {
+                live.pop(share);
+            }
+        }
         self.made = None;
     }
 
@@ -142,6 +198,16 @@ impl WorkSet {
     pub fn worksheet(&self, share: usize, why: Reveal) -> Option<&ChecksumWorksheet> {
         (why == Reveal::PaperForm)
             .then(|| self.sheets.get(share))
+            .flatten()
+    }
+
+    /// The live translation worksheet towards the `n`-th of
+    /// [`Self::targets`], filled as far as the initial shares are
+    /// entered, lent to drawing as a paper form. A lookup. `None` for no
+    /// such sheet or any reason but `Reveal::PaperForm`.
+    pub fn live_translation(&self, n: usize, why: Reveal) -> Option<&TranslationWorksheet> {
+        (why == Reveal::PaperForm)
+            .then(|| self.live.get(n))
             .flatten()
     }
 

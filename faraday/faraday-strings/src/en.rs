@@ -2829,7 +2829,7 @@ strings! {
     /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
     keygen_type_slip_39_shares: "Type SLIP-39 shares",
     /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
-    keygen_type_a_codex32: "Type a codex32 secret",
+    keygen_type_a_codex32: "Type codex32 strings",
     /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
     keygen_type_seed_xor: "Type Seed XOR parts",
     /// Text in `draw`.
@@ -8956,4 +8956,233 @@ strings! {
     roller_bits_simulated: "{} bits from simulated dice + ≈{} from the unlock cost ≈ {} bits",
     /// A passphrase's strength, made by the roller and real dice. `{}`: its own bits, the unlock cost's, the sum.
     roller_bits_both: "{} bits from simulated dice and your dice + ≈{} from the unlock cost ≈ {} bits",
+    // ----- Make codex32 shares (docs/CODEX32.md §6, §7), faraday-core/src/codex32/ -----
+    /// New key's Start card: the label over the ways to add a key held.
+    keygen_add_a_key_you_have: "Add a key you have",
+    /// New key's Start card, under Make a new key: BIP-39 words.
+    keygen_bip39_words: "BIP-39 words",
+    /// New key's Start card, under Make a new key: Make codex32 shares.
+    keygen_codex32: "Codex32",
+    /// The Start card closed on a way under Make a new key. `{}`: the way.
+    keygen_start_new_key: "Make a new key · {}",
+    /// Make codex32 shares' card in New key's step list.
+    codex32_codex32: "Codex32",
+    /// Card title (§6.1).
+    codex32_scheme: "Scheme",
+    /// Card title (§6.2), and a row of Strings made.
+    codex32_identifier: "Identifier",
+    /// Card title (§6.3), and a row of Strings made.
+    codex32_entropy: "Entropy",
+    /// Card title (§6.4) once every character is in.
+    codex32_enter: "Characters",
+    /// Card title (§6.5).
+    codex32_worksheets: "Worksheets",
+    /// Card title (§6.6), a stepper's label, and the closed card's name.
+    codex32_strings: "Strings",
+    /// Card title (§6.7).
+    codex32_strings_made: "Strings made",
+    /// The entry's title. `{}`: the share ("Share A"), the character, the characters in all.
+    codex32_share_character: "{} · character {} of {}",
+    /// The Strings card's title. `{}`: which string, how many.
+    codex32_share_n_of: "Share {} of {}",
+    /// A share named by its index. `{}`: the index, upper case.
+    codex32_share_x: "Share {}",
+    /// The string whose index is s.
+    codex32_the_secret: "Secret",
+    /// The Scheme card closed. `{}`: the length, the split.
+    codex32_scheme_summary: "{} characters · {}",
+    /// A split. `{}`: the threshold, the strings.
+    codex32_k_of_n: "{} of {}",
+    /// A card closed once its work is done.
+    codex32_done: "Done",
+    /// The Strings card closed. `{}`: how many strings.
+    codex32_strings_n: "{} written",
+    /// The Scheme card's first Choice, and a row of Strings made.
+    codex32_length: "Length",
+    /// Length: 48 characters.
+    codex32_chars_48: "48 characters",
+    /// Length: 74 characters.
+    codex32_chars_74: "74 characters",
+    /// The Scheme card's second Choice, and a row of Strings made.
+    codex32_split: "Split",
+    /// Split: 2 of 3.
+    codex32_two_of_three: "2 of 3",
+    /// Split: 3 of 5.
+    codex32_three_of_five: "3 of 5",
+    /// Split: the steppers.
+    codex32_other: "Other",
+    /// Split: no threshold.
+    codex32_split_alone: "None, the secret alone",
+    /// Other's first stepper.
+    codex32_threshold: "Threshold",
+    /// Under the split where k is 4 or more. `{}`: k.
+    codex32_no_translation_sheet: "The booklet publishes no translation sheet for k = {}; derived shares are this device's arithmetic",
+    /// The identifier's Suggest button.
+    codex32_suggest: "Suggest",
+    /// The identifier's Continue before four characters are in.
+    codex32_four_characters: "Four characters",
+    /// Where an identifier is already used: the codex32 strings in Add a key.
+    codex32_used_in_add_a_key: "Used by the strings typed in Add a key",
+    /// The Entropy card's Choice: dice.
+    codex32_roll_dice: "Roll dice",
+    /// The Entropy card's Choice: characters typed.
+    codex32_type_the_characters: "Type the characters",
+    /// Above the entry of characters typed (§5.2, owner 2026-10-23).
+    codex32_not_chosen: "Characters from dice or a worksheet, not chosen",
+    /// A refusal from the codec. `{}`: its reason.
+    codex32_refused: "Refused: {}",
+    /// The small panel's tile: the dice sheet.
+    codex32_tile_dice: "Dice",
+    /// The small panel's tile and the strip's first chip: the checksum worksheet.
+    codex32_tile_checksum: "Checksum",
+    /// The small panel's tile: the share's string.
+    codex32_tile_string: "String",
+    /// The dice de-biasing sheet's head.
+    codex32_dice_sheet: "Dice de-biasing",
+    /// A die's track. `{}`: its number.
+    codex32_die_n: "Die {}",
+    /// A die's pair. `{}`: first, second, lower or higher, the bit.
+    codex32_die_then: "{} then {} · {} · {}",
+    /// A second value lower than the first.
+    codex32_lower: "lower",
+    /// A second value higher than the first.
+    codex32_higher: "higher",
+    /// An equal pair, struck. `{}`: the die, its first and second value.
+    codex32_die_equal: "Die {} · {} then {} · equal · roll both again",
+    /// A die's pair in a cell's working. `{}`: the die, first, second, the bit.
+    codex32_die_row: "Die {} · {} then {} · {}",
+    /// The tree's path reaching its leaf. `{}`: the bits, their value, the character.
+    codex32_path_leaf: "{} = {} → {}",
+    /// The checksum worksheet's head. `{}`: the share.
+    codex32_checksum_of: "Checksum of {}",
+    /// The review's checksum worksheet head. `{}`: the share, where its data came from.
+    codex32_checksum_of_marked: "Checksum of {} · {}",
+    /// The data came from dice.
+    codex32_from_your_rolls: "from your rolls",
+    /// The data was typed.
+    codex32_as_typed: "as typed",
+    /// A worksheet row: the string.
+    codex32_row_string: "String",
+    /// A worksheet row: the residue of MS.
+    codex32_row_ms: "MS",
+    /// A worksheet row: a sum. `{}`: its number.
+    codex32_row_sum: "Sum {}",
+    /// A worksheet row: a lookup from the checksum table. `{}`: its number.
+    codex32_row_lookup: "Table {}",
+    /// A worksheet row: the final row.
+    codex32_row_final: "Final",
+    /// A worksheet row: what the final row must read.
+    codex32_row_must_read: "Must read",
+    /// A translation worksheet row: an input times its symbol. `{}`: the input.
+    codex32_row_times: "{} × symbol",
+    /// A translation worksheet's head. `{}`: what it makes.
+    codex32_translation_to: "Translation to {}",
+    /// Label over a sheet's translation symbols.
+    codex32_translation_symbols: "Translation symbols",
+    /// Label over a recovery sheet's symbols.
+    codex32_recovery_symbols: "Recovery symbols",
+    /// Label over a symbol's pair symbols.
+    codex32_pair_symbols: "Pair symbols",
+    /// An input's symbol. `{}`: the input, the symbol's name.
+    codex32_symbol_of: "{} {}",
+    /// The review's Previous, on the small panel.
+    codex32_previous: "Previous",
+    /// The review's Next, on the small panel.
+    codex32_next: "Next",
+    /// A review tab: a share's dice. `{}`: the share.
+    codex32_tab_dice: "Dice · {}",
+    /// A review tab: a share's checksum. `{}`: the share.
+    codex32_tab_checksum: "Checksum · {}",
+    /// A review tab: a derived share. `{}`: its index.
+    codex32_tab_share: "Share {}",
+    /// A rolled character in the dice review. `{}`: the box, the rows, the bits, the character.
+    codex32_box_rolled: "Box {} · {} · {} → {}",
+    /// A typed character in the dice review. `{}`: the box, the character.
+    codex32_box_typed: "Box {} · typed · {}",
+    /// The Strings card's toggle: the string.
+    codex32_string: "String",
+    /// The Strings card's toggle: the Codex32QR code.
+    codex32_codex32qr: "Codex32QR",
+    /// A string typed back with a box that differs. `{}`: the box.
+    codex32_box_differs: "Box {} differs",
+    /// A string typed back the same.
+    codex32_typed_back_same: "Typed back the same",
+    /// Continue before the string is typed back.
+    codex32_type_it_back: "Type the string back, or skip",
+    /// The Strings card's Skip.
+    codex32_skip: "Skip",
+    /// After a first press on Skip (§6.6).
+    codex32_skip_caution: "Without typing it back, a box copied wrongly is found only when the strings are needed. Press Skip again to go on.",
+    /// A row of Strings made.
+    codex32_fingerprint: "Fingerprint",
+    /// Strings made's entropy: dice.
+    codex32_your_dice: "your dice",
+    /// Strings made's entropy: characters typed.
+    codex32_your_characters: "your characters",
+    /// Strings made's entropy: both.
+    codex32_your_dice_and_characters: "your dice and your characters",
+    /// Strings made's button (§6.8).
+    codex32_check_on_another: "Check on another device",
+    /// Check on another device's row: the subsets to try.
+    codex32_sets_to_try: "Sets to try",
+    /// The cell sheet's Done.
+    codex32_done_button: "Done",
+    /// A cell sheet's head: a box. `{}`: the box.
+    codex32_cell_box: "Box {}",
+    /// A cell sheet's head: the residue of MS. `{}`: the box.
+    codex32_cell_ms: "Box {} · residue of MS",
+    /// A cell sheet's head: a sum. `{}`: the box, the row.
+    codex32_cell_sum: "Box {} · sum row {}",
+    /// A cell sheet's head: a lookup. `{}`: the box, the row.
+    codex32_cell_lookup: "Box {} · table row {}",
+    /// A cell named in a working. `{}`: its row, its box, its value.
+    codex32_named_cell: "{}, box {}: {}",
+    /// The residue of MS row's working.
+    codex32_ms_residue: "The residue of MS: the same on every codex32 sheet",
+    /// A cell's value in its working. `{}`: the value.
+    codex32_this_is: "This cell: {}",
+    /// How a sum is worked.
+    codex32_addition_wheel: "Addition wheel, or the addition table",
+    /// A checksum box's rule.
+    codex32_worked_from_below: "Worked from the bottom row up: the cell below and the table cell added",
+    /// The final row reads what it must. `{}`: the letter.
+    codex32_should_read_does: "Should read {}: it does",
+    /// The final row does not. `{}`: the letter.
+    codex32_should_read_not: "Should read {}: it does not",
+    /// A lookup's leading pair. `{}`: the row, the pair.
+    codex32_sum_starts: "Sum row {} starts {}",
+    /// A lookup's table row. `{}`: the pair, the character, of how many.
+    codex32_table_row: "Checksum table, row {}, character {} of {} (booklet pages 15 and 16)",
+    /// A header box: the threshold. `{}`: it.
+    codex32_header_threshold: "Threshold · {}",
+    /// A header box: the identifier. `{}`: it.
+    codex32_header_identifier: "Identifier · {}",
+    /// A header box: the share index. `{}`: it.
+    codex32_header_index: "Share index · {}",
+    /// A data cell typed.
+    codex32_typed: "Typed",
+    /// A translated cell. `{}`: the input, the box, its character, the symbol, the product.
+    codex32_translated_is: "Share {}, box {}: {} × {} = {}",
+    /// The translation wheel's setting. `{}`: the symbol.
+    codex32_wheel_set_to: "Translation wheel set to {}",
+    /// A translation sum. `{}`: the cells added, the sum.
+    codex32_sum_is: "{} = {}",
+    /// A symbol's value. `{}`: its name, its value.
+    codex32_symbol_value: "{} · value {}",
+    /// What a symbol is the fusion of. `{}`: the kind, the symbols.
+    codex32_fused_from: "{}: {}",
+    /// Guided: the Scheme card.
+    guide_codex32_scheme: "Choose how long each string is and how many strings any rebuild needs. Continue goes on to the identifier.",
+    /// Guided: the Identifier card.
+    guide_codex32_identifier: "Type four characters that name this set on every string. Continue goes on to where the randomness comes from.",
+    /// Guided: the Entropy card.
+    guide_codex32_entropy: "Choose five dice rolled on the de-biasing sheet, or characters you made on paper. Continue opens the sheets.",
+    /// Guided: the entry.
+    guide_codex32_enter: "Enter each roll or character; the sheets fill as you go, as on paper. Continue opens the finished worksheets.",
+    /// Guided: the worksheets.
+    guide_codex32_sheets: "Read each worksheet against your paper, a tab each. Continue shows the strings to write.",
+    /// Guided: the strings.
+    guide_codex32_strings: "Write each string down, then type it back to check the copy. Continue goes to the next string.",
+    /// Guided: Strings made.
+    guide_codex32_made: "These facts let another device check the strings. Lock in loads the key the strings make.",
 }

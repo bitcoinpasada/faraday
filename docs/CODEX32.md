@@ -1,8 +1,8 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2, §2), and §8.4's screens behind the interface a form holds (C7, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
-**Open:** batches C3 to C12 (§15.2): the dice method, `faraday-keys`, every screen, backups, templates, the rollers, Demo and Learn; D5 (§14); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), §8.4's screens behind the interface a form holds (C7) and Faraday Desktop's one-die roller (C12, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
+**Open:** of C5, the wallet kind of §6.9, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); batches C6, C8 to C11 (§15.2): hand-made shares, add a share, check a string, scanning and the correction screens in the form, backups, templates, the five-dice roller, Demo and Learn; D5 (§14); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -254,7 +254,44 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   work (`faraday/faraday-core/tests/all/codex32_correct.rs`). The codex32
   form does not hold it yet: the tick, `?` on the keyboard and the
   fingerprint's line appear once the form (C5, C6) carries it.
-- **Add a key › Type a codex32 secret** (`faraday/faraday-core/src/forms.rs`):
+- **Make codex32 shares** (C5, §6, §7), the area
+  `faraday/faraday-core/src/codex32/` (`mod.rs`, the flow's state and
+  presses; `screen.rs`, its cards), opened from New key's Start card
+  (Make a new key › Codex32, `faraday/faraday-core/src/keygen/mod.rs`),
+  offered on its own and in a single-key Create's slot, not in a slot of
+  a wallet of several keys. Built: the Scheme card (48 or 74 characters;
+  2 of 3, 3 of 5, Other with its steppers, None; the line for k of 4 or
+  more); the Identifier typed on the codex32 keyboard or suggested from
+  this device's randomness, refused where the strings typed in Add a key
+  carry it; Entropy (dice by the booklet's de-biasing sheet, or
+  characters typed); the entry, its title "Share A · character 7 of 26",
+  with the dice sheet (tracks, pairs, an equal pair struck and rolled
+  again, the bits, the tree's path), the share's string in numbered
+  boxes, and the checksum worksheet's rows round the front column or a
+  translation worksheet from the strip, all filling per press from the
+  work set, which now also keeps one live translation worksheet per
+  derived share and towards `s` (`WorkSet::live_translation`); the
+  layout by the window's class (`docs/LAYOUT.md` §2): expanded and up
+  side by side, medium stacked, compact one panel at a time under the
+  pad; every cell opening its working (§7.4) on a sheet; Worksheets as
+  tabs (Dice and Checksum per initial share, each derived share, the
+  secret), ticked once shown, Previous and Next on a compact window;
+  Strings, each typed back on the codex32 keyboard ("Box 17 differs") or
+  skipped, with String · Codex32QR at 48 characters (byte mode, version
+  3, level L, upper case); Strings made with Check on another device
+  (§6.8) and Lock in (`Keys::add_codex32`, marked made here, a Create
+  slot filled). The sheets' colour roles are `CODEX32_CHECKSUM_FILL` and
+  `CODEX32_LOOKUP_FILL` in every theme. Tested in
+  `faraday/faraday-core/tests/all/codex32_make.rs` against BIP 93's
+  vectors 1 and 2, a press's work in
+  `faraday/faraday-core/src/work/budget/codex32.rs`, the live
+  translation worksheets in `faraday/faraday-keys/tests/codex32.rs`; the
+  snapshot tour `codex32`. Not built: the wallet kind of §6.9 (D5), the
+  masking of §6.4.6 (the sheets are drawn unmasked on every shell), the
+  translation symbols in the booklet's second alphabet (Faraday's faces
+  lack most of its glyphs, so each is named as `SYMBOL_NAMES` names it),
+  Demo (§12, C10), hand-made shares as a way in (§5.3, C6).
+- **Add a key › Type codex32 strings** (`faraday/faraday-core/src/forms.rs`):
   one string at a time; a second string with another identifier is
   refused (`forms_other_seed_string`), and one whose share index is already
   in is refused (`forms_share_duplicate`), identical or not.

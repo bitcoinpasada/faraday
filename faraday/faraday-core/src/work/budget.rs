@@ -11,6 +11,7 @@
 
 mod accessors;
 mod caches;
+mod codex32;
 mod fades;
 mod idle;
 mod keys;

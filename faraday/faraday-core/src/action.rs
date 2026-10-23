@@ -780,4 +780,6 @@ pub enum Action {
     /// A file row's ⋮, its menu, Rename and Details (`docs/FLOWS.md`
     /// decision 61).
     File(file_menu::FilePress),
+    /// A press inside Make codex32 shares (`docs/CODEX32.md` §6).
+    Codex32(crate::codex32::C32),
 }

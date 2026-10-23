@@ -44,7 +44,7 @@
 //!   printed sheets), `picture` (a QR code to keep), `demo` (what Demo
 //!   refuses), `devices` (what else captures the screen or the keys) and
 //!   `edid` (what a screen says it is).
-//! - Flows around a key, seed, words or passphrase: `keygen`, `seeds`
+//! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`), `seeds`
 //!   (with `seeds/read.rs`), `wallet`, `inbox`, `create`, `create_from`,
 //!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`,
 //!   `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`,
@@ -157,6 +157,7 @@ mod screens;
 pub mod bip85;
 pub mod boot_import;
 pub mod chart_edit;
+pub mod codex32;
 pub mod codex32_correct;
 pub mod create;
 mod create_from;
@@ -263,8 +264,7 @@ pub const IDLE_OFF_MIN: u16 = 60;
 /// lock time when that is shorter.
 pub const IDLE_WARN_MS: u64 = 5 * 60_000;
 
-/// The exit code that asks the app loop for a fresh process
-/// (`docs/history/PLAN.md` §5.3).
+/// The exit code that asks the app loop for a fresh process (`docs/history/PLAN.md` §5.3).
 pub const RESTART_CODE: u8 = 75;
 
 /// The exit code that asks init to restart the computer instead of
@@ -278,8 +278,7 @@ pub enum Screen {
     Home,
     /// The Wallets tab's first page: every flow, by what the person has.
     WalletsStart,
-    /// The Wallets tab: the wallets, the wallet card, and every flow
-    /// (`docs/WALLETS.md`).
+    /// The Wallets tab: the wallets, the wallet card, and every flow (`docs/WALLETS.md`).
     Wallets,
     /// Signing a transaction.
     Spend,
@@ -3105,6 +3104,7 @@ impl Faraday {
             | Action::KSlipN(_)
             | Action::KShare(_)
             | Action::KeyGenSlip39 => self.keygen_act(action),
+            Action::Codex32(p) => self.keygen_codex32(p),
             Action::Nav(Screen::Transfer) => self.transfer_open(),
             Action::Back => self.back(),
             Action::Resume(g) => self.flow_resume(g),

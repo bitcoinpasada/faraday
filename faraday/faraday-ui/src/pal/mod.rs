@@ -87,6 +87,16 @@ pub const FILES_TEXT: Color = Color::rgb(0x8d, 0xb0, 0xd9);
 /// A chip's edge on the board: a neutral a step stronger than `BORDER`.
 pub const CHIP_EDGE: Color = Color::rgb(0x69, 0x71, 0x79);
 
+// The codex32 worksheets (`docs/CODEX32.md` §7.5): the booklet's colour
+// roles, each theme its own, characters 4.5:1 or more on each (7:1 in
+// the high-contrast themes).
+/// The checksum squares, worked from the bottom up: the booklet's pink
+/// on a light page, a muted rose on a dark one.
+pub const CODEX32_CHECKSUM_FILL: Color = Color::rgb(0x41, 0x2e, 0x3b);
+/// The rows read from a table (sums and lookups): a raised surface,
+/// the booklet's light grey.
+pub const CODEX32_LOOKUP_FILL: Color = Color::rgb(0x27, 0x2f, 0x38);
+
 /// The boot stick's pill and render: Bitcoin's orange, as the Bitcoin
 /// Orange theme's accent, on a dark page.
 pub const STICK_BOOT: Color = Color::rgb(0xf7, 0x93, 0x1a);

@@ -1020,13 +1020,14 @@ fn add_a_key() -> Faraday {
     app
 }
 
-/// Whether Start offers each of the seven ways in, Other forms opened.
+/// Whether Start offers each way in, Other forms opened: codex32 to type
+/// at the top level (`docs/CODEX32.md` §6).
 fn offers_every_start(app: &mut Faraday) {
     let _ = app.frame();
-    for s in [Start::Make, Start::Words, Start::Scan] {
+    for s in [Start::Make, Start::Words, Start::Scan, Start::Codex32] {
         assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
     }
-    let others = [Start::MakeShares, Start::Shares, Start::Codex32, Start::Xor];
+    let others = [Start::MakeShares, Start::Shares, Start::Xor];
     for s in others {
         assert!(!app.offers(Action::KStart(s.index())), "{s:?} waits");
     }

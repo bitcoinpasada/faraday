@@ -259,7 +259,7 @@ impl Warnings {
     }
 }
 
-mod booklet;
+pub mod booklet;
 mod camera;
 mod cards;
 mod coins;

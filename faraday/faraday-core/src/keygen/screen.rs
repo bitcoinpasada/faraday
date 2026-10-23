@@ -31,6 +31,7 @@ const TITLES: [&str; kstep::COUNT] = [
     EN.keygen_words,
     EN.keygen_quiz,
     EN.keygen_words,
+    EN.codex32_codex32,
 ];
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -40,7 +41,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let steps = k.steps();
     // The walk-through is New key's own: a key typed has none.
     let guided = |s: u8| s != kstep::TYPED && !(s == kstep::KEY && k.typed());
-    let cards: Vec<flow::Card> = steps
+    let mut cards: Vec<flow::Card> = steps
         .iter()
         .map(|&s| flow::Card {
             title: title_of(k, s),
@@ -56,6 +57,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             learn: guided(s).then(|| guide::keygen_topic(s, k)).flatten(),
         })
         .collect();
+    // Make codex32 shares draws a card each of its own (`docs/CODEX32.md` §6).
+    let mut at: Vec<Option<crate::codex32::Card>> = steps.iter().map(|_| None).collect();
+    if let Some(m) = k.codex32.as_ref()
+        && let Some(p) = steps.iter().position(|&s| s == kstep::CODEX32)
+    {
+        let more = crate::codex32::screen::cards(k, m);
+        at.splice(p..=p, more.iter().map(|(c, _)| Some(*c)));
+        cards.splice(p..=p, more.into_iter().map(|(_, c)| c));
+    }
     let back_label = match k.back {
         crate::Screen::Create => EN.keygen_make_a_new_wallet,
         crate::Screen::Entry => EN.keygen_add_a_key,
@@ -88,14 +98,20 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (next, again) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            match app_ref.keygen.state() {
-                Some(k) => card_body(app_ref, k, ui, steps[i], x, y, w),
-                None => 0.0,
+            match (app_ref.keygen.state(), at[i]) {
+                (Some(k), Some(card)) => k.codex32.as_ref().map_or(0.0, |m| {
+                    crate::codex32::screen::body(app_ref, m, card, ui, x, y, w)
+                }),
+                (Some(k), None) => card_body(app_ref, k, ui, steps[i], x, y, w),
+                (None, _) => 0.0,
             }
         };
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::KeyGen, next, again);
+    if let Some(m) = k.codex32.as_ref() {
+        crate::codex32::screen::cell_sheet(m, ui, x0, cw, h);
+    }
 }
 
 /// A card's title.
@@ -132,8 +148,24 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         );
         *cy += 60.0;
     };
-    for &s in offered.iter().filter(|s| !s.other()) {
-        one(ui, &mut cy, s);
+    // Make a new key, then Add a key you have, each under its label
+    // (`docs/CODEX32.md` §6).
+    for (label, new) in [
+        (EN.keygen_make_a_new_key, true),
+        (EN.keygen_add_a_key_you_have, false),
+    ] {
+        let rows: Vec<Start> = offered
+            .iter()
+            .copied()
+            .filter(|s| !s.other() && s.new_key() == new)
+            .collect();
+        if rows.len() < offered.iter().filter(|s| !s.other()).count() {
+            section_label(ui, x, cy, label);
+            cy += faraday_draw::tokens::PAD + faraday_draw::tokens::GAP_SMALL;
+        }
+        for s in rows {
+            one(ui, &mut cy, s);
+        }
     }
     if offered.iter().any(|s| s.other()) {
         let open = k.others_open || k.start.other();
@@ -243,7 +275,8 @@ fn asks(k: &KeyGen, s: Source) -> String {
 /// A Start choice's name, on the card and in its summary.
 fn start_name(s: Start) -> &'static str {
     match s {
-        Start::Make => EN.keygen_make_a_new_key,
+        Start::Make => EN.keygen_bip39_words,
+        Start::MakeCodex32 => EN.keygen_codex32,
         Start::Words => EN.keygen_type_the_words,
         Start::Scan => EN.keygen_scan_a_seedqr,
         Start::MakeShares => EN.keygen_make_slip_39_shares,
@@ -255,6 +288,7 @@ fn start_name(s: Start) -> &'static str {
 
 fn summary(k: &KeyGen, s: u8) -> String {
     match s {
+        kstep::START if k.start.new_key() => fill(EN.keygen_start_new_key, &[start_name(k.start)]),
         kstep::START => start_name(k.start).to_string(),
         kstep::TYPED => match k.mnemonic.as_ref() {
             _ if !k.done[usize::from(kstep::TYPED)] => EN.keygen_not_yet.to_string(),

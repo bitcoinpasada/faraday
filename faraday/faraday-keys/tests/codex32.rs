@@ -162,6 +162,56 @@ fn the_derived_share_is_made_by_its_translation_worksheet() {
 }
 
 #[test]
+fn the_live_translation_worksheets_fill_to_the_published_strings() {
+    let c = compute();
+    for vector in ["2", "3"] {
+        let all = published(vector);
+        let k = usize::from(all[0].as_bytes()[3] - b'0');
+        let id: [u8; 4] = all[0].as_bytes()[4..8].try_into().unwrap();
+        let scheme = Scheme::new(k as u8, all.len() as u8, id, Length::Chars48).unwrap();
+        let mut work = WorkSet::new(&c, scheme).unwrap();
+        let targets = work.targets();
+        assert_eq!(
+            targets.len(),
+            all.len() - k + 1,
+            "every derived share and s"
+        );
+        assert_eq!(*targets.last().unwrap(), b's');
+        for (share, s) in all[..k].iter().enumerate() {
+            for (n, &ch) in s.as_bytes()[9..9 + 26].iter().enumerate() {
+                work.push(&c, share, sym(ch)).unwrap();
+                // Share A's translated rows fill while A is entered; no
+                // sum cell fills before the last share's entry.
+                let sheet = work.live_translation(0, Reveal::PaperForm).unwrap();
+                assert!(sheet.translated_cell(share, 10 + n).is_some());
+                assert_eq!(sheet.sum_cell(10 + n).is_some(), share == k - 1);
+            }
+        }
+        for (n, &target) in targets.iter().enumerate() {
+            let live = work.live_translation(n, Reveal::PaperForm).unwrap();
+            let whole = work.translation(&c, target, Reveal::PaperForm).unwrap();
+            for b in 4..=48 {
+                assert_eq!(
+                    live.sum_cell(b),
+                    whole.sum_cell(b),
+                    "vector {vector} {target} box {b}"
+                );
+            }
+            let made = live.result().expect("a valid string").encode();
+            if target != b's' {
+                assert!(all.iter().any(|s| s == made.as_str()), "vector {vector}");
+            }
+        }
+        // A character taken back empties its column in every sheet.
+        work.pop(k - 1);
+        let live = work.live_translation(0, Reveal::PaperForm).unwrap();
+        assert!(live.sum_cell(35).is_none());
+        assert!(live.sum_cell(36).is_none());
+        assert!(live.sum_cell(34).is_some());
+    }
+}
+
+#[test]
 fn the_finished_set_loads_as_the_key_it_carries_with_its_seed_kept() {
     let c = compute();
     let (work, all) = typed(&c, "3");

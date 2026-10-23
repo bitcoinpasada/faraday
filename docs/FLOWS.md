@@ -286,14 +286,18 @@ words by hand.
 
 ## New key and Add a key
 
-Codex32's planned flows (making shares, checking a string, corrections) are `docs/CODEX32.md`. Its error correction (§8.4) is built as a part a codex32 form holds (`faraday/faraday-core/src/codex32_correct/`): the tick **Suggest corrections**, off whenever the form opens; a failing string's one proposal, box by box, four to a page; **I mistyped**, **The paper is damaged** and **Unreadable on the paper**; the changed boxes typed again from the paper, taken only on an exact match; and "Share entry corrected" or "Share repairs unchecked" beside the key's fingerprint. The form does not carry it yet.
+Codex32's flows are `docs/CODEX32.md`: making shares (§6) is built,
+below; checking a string is planned. Its error correction (§8.4) is built as a part a codex32 form holds (`faraday/faraday-core/src/codex32_correct/`): the tick **Suggest corrections**, off whenever the form opens; a failing string's one proposal, box by box, four to a page; **I mistyped**, **The paper is damaged** and **Unreadable on the paper**; the changed boxes typed again from the paper, taken only on an exact match; and "Share entry corrected" or "Share repairs unchecked" beside the key's fingerprint. The form does not carry it yet.
 
 **Add a key is New key, opening on Start** (decision 60, F44). New key's
-first card is **Start**: **Make a new key** (ticked), **Type the
-words**, **Scan a SeedQR**, and under **Other forms** (closed) **Make
-SLIP-39 shares**, **Type SLIP-39 shares**, **Type a codex32 secret**,
-**Type Seed XOR parts**; closed, it shows the choice and **Change** until
-the key is locked in. A key typed is Start · **Words** · Key, one scanned
+first card is **Start**: under **Make a new key**, **BIP-39 words**
+(ticked) and **Codex32**; under **Add a key you have**, **Type the
+words**, **Scan a SeedQR** and **Type codex32 strings**; and under
+**Other forms** (closed) **Make SLIP-39 shares**, **Type SLIP-39
+shares**, **Type Seed XOR parts**; closed, it shows the choice ("Make a
+new key · Codex32") and **Change** until the key is locked in. Codex32
+under Make a new key is offered only where a single-key wallet is made:
+on its own, and in a single-key Create's slot (`docs/CODEX32.md` §6.9). A key typed is Start · **Words** · Key, one scanned
 Start · Key: Words is Add a key's form drawn by its own code (count,
 boxes or keyboard, lists; the other forms' fields with **Add this one**
 and **Scan a QR code**), whose Continue opens Key once the words are
@@ -355,6 +359,33 @@ with a tumble before it and a short pause after it; under Reduce motion
 ends a click's rolls. The entropy line reads "simulated dice", or
 "simulated dice and your dice" where both made the entries; the roller
 makes no value a real die did not, and the flow is otherwise unchanged.
+
+**Make codex32 shares** (`docs/CODEX32.md` §6, §7). Start's Codex32
+opens the flow's own cards: **Scheme** (Length 48 · 74 characters; Split
+2 of 3 · 3 of 5 · Other, with a threshold stepper 2 to 9 and a strings
+stepper k to 31 · None, the secret alone; for k of 4 or more a line that
+the booklet publishes no translation sheet for it), **Identifier** (four
+characters typed on the codex32 keyboard, or **Suggest**; one used by
+the strings typed in Add a key is refused), **Entropy** (Roll dice ·
+Type the characters, the latter with the line "Characters from dice or
+a worksheet, not chosen"), the entry, titled "Share A · character 7 of
+26", **Worksheets**, **Strings** and **Strings made**. The entry shows
+the booklet's sheets filling as each value is pressed: the share's
+string in numbered boxes, the dice de-biasing sheet (five tracks, the
+pairs, an equal pair struck and rolled again, the bits and the tree's
+path to the character), and the checksum worksheet's rows that hold the
+column being entered, or a translation worksheet chosen from the strip
+(Share D, Secret); expanded windows side by side, medium stacked,
+compact one panel at a time (Dice · Checksum · String) under the pad. A
+press on a cell opens its working. Backspace takes back the last roll,
+then the last character. Worksheets reads each sheet back whole, a tab
+each, ticked once shown (on a compact window **Previous** and **Next**).
+Strings shows each string in groups of four, or its Codex32QR code at 48
+characters, to be typed back ("Box 17 differs") or skipped with a second
+press. Strings made shows the split, length, identifier, fingerprint and
+entropy, **Check on another device** (the fingerprint, the identifier,
+the split and the sets to try), and **Lock in**, which loads the key as
+a key made here and fills a Create slot; **Done** then leaves the flow.
 
 **Words typed** (decision 58). Add a key's words take a count first,
 **12 · 15 · 18 · 21 · 24** above the boxes, 12 chosen; typing past the

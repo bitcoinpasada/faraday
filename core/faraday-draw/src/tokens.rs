@@ -15,7 +15,7 @@
 //! `gallery.rs` or a file under `components/` writes a layout number of
 //! its own instead of naming one here.
 
-use crate::geom::SizeClass;
+use crate::geom::{SizeClass, WindowClass};
 
 // ---------------------------------------------------------------------
 // Type ramp
@@ -779,3 +779,64 @@ pub const ROLLER_LABEL: f32 = 12.0;
 
 /// The roller: the width of the typed number's field.
 pub const ROLLER_COUNT_FIELD: f32 = 64.0;
+// ---------------------------------------------------------------------
+// Codex32 worksheets (`docs/CODEX32.md` §6.4.7, §7.5, §13.4)
+// ---------------------------------------------------------------------
+
+/// A worksheet box's side in dp, by the window's class: 16 compact, 18
+/// medium, 20 expanded and up. Under the touch floor everywhere.
+pub const fn codex32_box(class: WindowClass) -> f32 {
+    match class {
+        WindowClass::Compact => 16.0,
+        WindowClass::Medium => 18.0,
+        _ => 20.0,
+    }
+}
+
+/// A character's size in a worksheet box, by the window's class: room
+/// round it.
+pub const fn codex32_char(class: WindowClass) -> f32 {
+    match class {
+        WindowClass::Compact => 11.0,
+        WindowClass::Medium => 12.0,
+        _ => 13.0,
+    }
+}
+
+/// The gap between two boxes side by side in a group of four.
+pub const CODEX32_BOX_GAP: f32 = 2.0;
+/// The gap between two groups of four boxes.
+pub const CODEX32_GROUP_GAP: f32 = 6.0;
+/// The air between two rows of the staircase.
+pub const CODEX32_ROW_GAP: f32 = 3.0;
+/// A box number's size, above its box.
+pub const CODEX32_NUMBER: f32 = 8.0;
+/// The room the box numbers take above a row.
+pub const CODEX32_NUMBER_ROW: f32 = 11.0;
+/// A box's corners.
+pub const CODEX32_RADIUS: f32 = 3.0;
+/// The heavier outline of a given box (the person's data, the header)
+/// and the bolded checksum squares.
+pub const CODEX32_GIVEN_STROKE: f32 = 1.5;
+/// The accent outline of the cell being filled.
+pub const CODEX32_FRONT_STROKE: f32 = 2.0;
+/// The column of row names left of a worksheet.
+pub const CODEX32_LABEL_W: f32 = 76.0;
+/// The dice sheet's panel beside the checksum worksheet on `wide`.
+pub const CODEX32_DICE_W: f32 = 320.0;
+/// The gap between the two panels on `wide`.
+pub const CODEX32_PANEL_GAP: f32 = 24.0;
+/// A pad on a die's track: the free space and the values 1 to 6.
+pub const CODEX32_PAD: f32 = 24.0;
+/// One level of the dice sheet's tree.
+pub const CODEX32_TREE_LEVEL: f32 = 14.0;
+/// A node of the tree.
+pub const CODEX32_TREE_NODE: f32 = 2.0;
+/// The tree's path, in the accent.
+pub const CODEX32_PATH_STROKE: f32 = 2.0;
+/// Columns shown either side of the front on `small`'s checksum panel.
+pub const CODEX32_BAND_SIDE: usize = 2;
+/// A worksheet tab's height (`docs/CODEX32.md` §6.5).
+pub const CODEX32_TAB: f32 = 32.0;
+/// The most rows of a worksheet the entry shows round its front column.
+pub const CODEX32_BAND_ROWS: usize = 16;

@@ -95,7 +95,7 @@ pub const MAX_SHARES: u8 = 31;
 
 /// Share indices in the order BIP 93 hands them out: the letters of the
 /// alphabet that bech32 has, `s` excluded, then the digits.
-const INDEX_ORDER: &[u8; MAX_SHARES as usize] = b"acdefghjklmnpqrtuvwxyz023456789";
+pub const INDEX_ORDER: &[u8; MAX_SHARES as usize] = b"acdefghjklmnpqrtuvwxyz023456789";
 
 /// Why a codex32 string, or a set of them, was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

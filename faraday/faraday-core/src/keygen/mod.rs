@@ -178,8 +178,11 @@ pub mod kstep {
     /// The words, shares, codex32 strings or Seed XOR parts typed: Add a
     /// key's form, drawn by the same code (`docs/history/NEW-WALLET.md` §15.2).
     pub const TYPED: u8 = 8;
+    /// Make codex32 shares' own cards (`docs/CODEX32.md` §6), drawn as
+    /// a card each by [`crate::codex32`].
+    pub const CODEX32: u8 = 9;
     /// How many cards.
-    pub const COUNT: usize = 9;
+    pub const COUNT: usize = 10;
 }
 
 /// The choices on the Start card (`docs/history/NEW-WALLET.md` §15.1).
@@ -199,17 +202,20 @@ pub enum Start {
     Codex32,
     /// Type Seed XOR parts.
     Xor,
+    /// Make a new key as codex32 shares, by hand (`docs/CODEX32.md` §6).
+    MakeCodex32,
 }
 
 /// The choices, in the order the card lists them. Actions carry a
 /// choice by its place here.
-pub const STARTS: [Start; 7] = [
+pub const STARTS: [Start; 8] = [
     Start::Make,
+    Start::MakeCodex32,
     Start::Words,
     Start::Scan,
+    Start::Codex32,
     Start::MakeShares,
     Start::Shares,
-    Start::Codex32,
     Start::Xor,
 ];
 
@@ -221,15 +227,18 @@ impl Start {
 
     /// Listed under Other forms, closed at first.
     pub fn other(self) -> bool {
-        matches!(
-            self,
-            Start::MakeShares | Start::Shares | Start::Codex32 | Start::Xor
-        )
+        matches!(self, Start::MakeShares | Start::Shares | Start::Xor)
+    }
+
+    /// Listed under Make a new key, rather than Add a key you have
+    /// (`docs/CODEX32.md` §6).
+    pub fn new_key(self) -> bool {
+        matches!(self, Start::Make | Start::MakeCodex32)
     }
 
     /// The key is made here from randomness.
     pub fn makes(self) -> bool {
-        matches!(self, Start::Make | Start::MakeShares)
+        matches!(self, Start::Make | Start::MakeShares | Start::MakeCodex32)
     }
 
     /// The form typed on the Words card, for a key typed.
@@ -375,6 +384,12 @@ pub struct KeyGen {
     pub started: Option<Start>,
     /// The Start card's Other forms are shown.
     pub others_open: bool,
+    /// Make codex32 shares is offered: a key on its own, or for a
+    /// single-key wallet's slot (`docs/CODEX32.md` §6.9).
+    pub codex32_offered: bool,
+    /// Make codex32 shares, while it is the Start card's choice and its
+    /// cards are open (`docs/CODEX32.md` §6).
+    pub codex32: Option<crate::codex32::Codex32Make>,
     /// Add a key's own state, kept here while the flow types into the
     /// app's (`Faraday::entry`), and put back when the flow ends.
     pub entry_kept: crate::EntryState,
@@ -454,6 +469,8 @@ impl KeyGen {
             start: Start::Make,
             started: None,
             others_open: false,
+            codex32_offered: slot.is_none(),
+            codex32: None,
             entry_kept: crate::EntryState::default(),
             entropy_source: None,
         }
@@ -486,7 +503,9 @@ impl KeyGen {
     /// one scanned Start · Key (§15.2).
     pub fn steps(&self) -> Vec<u8> {
         use kstep::*;
-        if self.start == Start::Scan {
+        if self.start == Start::MakeCodex32 {
+            vec![START, CODEX32]
+        } else if self.start == Start::Scan {
             vec![START, KEY]
         } else if self.typed() {
             vec![START, TYPED, KEY]
@@ -506,6 +525,7 @@ impl KeyGen {
             .iter()
             .copied()
             .filter(|s| !self.only_24 || s.for_threshold())
+            .filter(|s| *s != Start::MakeCodex32 || self.codex32_offered)
             .collect()
     }
 
@@ -1612,6 +1632,9 @@ impl crate::Faraday {
         let back = self.screen;
         let mut k = KeyGen::new(slot, back, only_24);
         k.entropy_source = self.keygen.entropy_source;
+        // Codex32 is made for single-key wallets only (`docs/CODEX32.md`
+        // §6.9).
+        k.codex32_offered = slot.is_none() || self.create.state().is_some_and(|c| !c.kind.multi());
         // A small panel is a touch screen with no keyboard of its own:
         // the faces are pressed, not typed.
         k.typing = !self.compact;
@@ -1662,9 +1685,12 @@ impl crate::Faraday {
             for s in [kstep::TYPED, kstep::KEY] {
                 k.done[usize::from(s)] = false;
             }
-            if start.makes() {
+            if matches!(start, Start::Make | Start::MakeShares) {
                 k.set_slip39(start == Start::MakeShares);
             }
+            k.codex32 = (start == Start::MakeCodex32).then(|| {
+                crate::codex32::Codex32Make::new(crate::codex32::taken(&k.entry_kept.parts.codex32))
+            });
             // What was typed for another choice goes.
             let mut e = crate::EntryState::default();
             if let Some(f) = start.form() {
@@ -1687,6 +1713,7 @@ impl crate::Faraday {
                 return;
             }
             Start::Make | Start::MakeShares => kstep::LENGTH,
+            Start::MakeCodex32 => kstep::CODEX32,
             _ => kstep::TYPED,
         };
         k.done[usize::from(kstep::START)] = true;
@@ -2186,7 +2213,7 @@ impl crate::Faraday {
                 EN.keygen_key_added_back,
                 &[
                     &crate::wallet::fp_text(faraday_bip::keys::Fingerprint(fp)).to_string(),
-                    (if k.slip39 {
+                    (if k.slip39 || k.codex32.is_some() {
                         EN.keygen_shares_inline
                     } else {
                         EN.keygen_words_inline
@@ -2247,6 +2274,100 @@ impl crate::Faraday {
             .camera(self.screen == Screen::KeyGen, &mut self.out);
     }
 
+    /// One press inside Make codex32 shares (`docs/CODEX32.md` §6): Lock
+    /// in loads the key, Suggest draws this device's randomness first.
+    pub(crate) fn keygen_codex32(&mut self, press: crate::codex32::C32) {
+        use crate::codex32::{C32, Card};
+        let locked_next = self.keygen.state().is_some_and(|k| {
+            k.codex32
+                .as_ref()
+                .is_some_and(|m| m.locked() && m.open() == Some(Card::Made))
+        });
+        match press {
+            C32::Lock => return self.keygen_codex32_lock(),
+            C32::Next | C32::Key(faraday_ui::keyboard::OskPress::Done) if locked_next => {
+                return self.keygen_done();
+            }
+            _ => {}
+        }
+        let c = self.compute();
+        let fresh = (press == C32::Suggest)
+            .then(|| self.fresh(b"codex32 identifier"))
+            .flatten();
+        let Some(k) = self.keygen.state.as_mut() else {
+            return;
+        };
+        if matches!(press, C32::Card(_)) {
+            k.open = Some(kstep::CODEX32);
+            k.scroll.follow = true;
+        }
+        if let Some(m) = k.codex32.as_mut() {
+            let before = m.open();
+            m.act(&c, press, fresh);
+            k.scroll.follow |= m.open() != before;
+        }
+    }
+
+    /// Costs what `add_seed` costs, and the key's account text. Lock in on
+    /// Strings made: the key the set carries, loaded as a key made here
+    /// (`docs/CODEX32.md` §6.7); a Create slot is filled with it.
+    fn keygen_codex32_lock(&mut self) {
+        let c = self.compute();
+        if !self.selftest_passed() || !self.may_load_keys() || !self.makes_secrets() {
+            return;
+        }
+        let label = fill(
+            EN.keygen_new_key_n,
+            &[&(self.keygen.new_keys + 1).to_string()],
+        );
+        let Some(k) = self.keygen.state.as_ref() else {
+            return;
+        };
+        let Some(work) = k
+            .codex32
+            .as_ref()
+            .filter(|m| m.ready_to_lock())
+            .and_then(|m| m.work())
+        else {
+            return;
+        };
+        let slot = k.slot;
+        let fp = match self.session.keys.add_codex32(&c, work, &label) {
+            Ok(fp) => fp,
+            Err(e) => {
+                if let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+                    m.refused(e.text());
+                }
+                return;
+            }
+        };
+        self.mark_made_here(fp);
+        self.keygen.new_keys += 1;
+        let (kind, account) = match slot {
+            Some(_) => self
+                .create
+                .state()
+                .map(|c| (c.kind, c.account))
+                .unwrap_or_default(),
+            None => (crate::create::NewKind::NativeSegwit, 0),
+        };
+        let key_text = self
+            .session
+            .keys
+            .position(fp)
+            .and_then(|key| self.session.keys.account_text(&c, key, kind, account).ok());
+        if let Some(k) = self.keygen.state.as_mut() {
+            k.locked = true;
+            k.fingerprint = Some(fp.0);
+            k.key_text = key_text;
+            if let Some(m) = k.codex32.as_mut() {
+                m.set_locked();
+            }
+        }
+        self.keygen_fill(slot, fp, true);
+        self.refresh_spend();
+    }
+
     /// Keys typed while the flow is on screen. Returns whether it took
     /// the key.
     pub(crate) fn keygen_key(&mut self, key: faraday_shell_api::Key) -> bool {
@@ -2288,6 +2409,17 @@ impl crate::Faraday {
         }
         if key == KeyIn::Escape {
             self.keygen_leave();
+            return true;
+        }
+        // Make codex32 shares: the keyboard's keys to its open card.
+        if k.open == Some(kstep::CODEX32) && k.codex32.is_some() {
+            let press = match key {
+                KeyIn::Char(c) => faraday_ui::keyboard::OskPress::Char(c),
+                KeyIn::Backspace => faraday_ui::keyboard::OskPress::Back,
+                KeyIn::Enter => faraday_ui::keyboard::OskPress::Done,
+                _ => return false,
+            };
+            self.keygen_codex32(crate::codex32::C32::Key(press));
             return true;
         }
         // The Words card of a key typed: Add a key's own typing reads the
