@@ -141,8 +141,9 @@ impl LightningArea {
         Some((id, n.private_hex(why)?))
     }
 
-    /// A press that changes only this screen: a source chosen, the
-    /// passphrase field, the private key shown.
+    /// Costs a key derivation when a loaded key is chosen. A press that
+    /// changes only this screen: a source chosen, the passphrase field, the
+    /// private key shown.
     pub(crate) fn act(&mut self, c: &Compute, keys: &Keys, action: crate::Action) {
         use crate::Action as A;
         let Some(l) = self.state.as_mut() else {
@@ -176,8 +177,8 @@ impl LightningArea {
                 .is_some_and(|l| l.source == Some(NodeSource::Aezeed))
     }
 
-    /// Typing the aezeed and its passphrase, on `screen`. Returns whether
-    /// the key was taken. Escape leaves the screen for where it came from.
+    /// Costs the aezeed's scrypt on Enter. Typing the aezeed and its
+    /// passphrase, on `screen`. Returns whether the key was taken. Escape leaves the screen for where it came from.
     pub(crate) fn key(
         &mut self,
         key: faraday_shell_api::Key,
