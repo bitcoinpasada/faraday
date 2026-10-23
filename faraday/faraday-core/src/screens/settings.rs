@@ -479,12 +479,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += time_section(app, ui, x, y, width) + 20.0;
     y += mode_card(app, ui, x, y, width) + 20.0;
     // Each theme a tile in its own colours, in rows as wide as the card.
-    let inner = width - 44.0;
-    let per_row =
-        (((inner + 8.0) / (ui.theme_tile_min() + 8.0)).floor() as usize).clamp(1, Theme::ALL.len());
-    let tile_w = (inner - 8.0 * (per_row - 1) as f32) / per_row as f32;
+    let (per_row, tile_w, tile_h) = ui.theme_grid(width - 44.0);
     let rows = Theme::ALL.len().div_ceil(per_row);
-    let tile_h = 72.0;
     let card_h = 54.0 + rows as f32 * (tile_h + 10.0) - 10.0 + 22.0;
     ui.card(x, y, width, card_h, LINE);
     ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_appearance);

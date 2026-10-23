@@ -587,3 +587,26 @@ pub const TEXT_FIELD_TALL: f32 = 42.0;
 /// A one-line text field of a sheet and of the Lightning screen's cipher
 /// seed.
 pub const TEXT_FIELD_SHEET: f32 = 44.0;
+
+/// A theme tile on Settings: its height, room for a name on two lines
+/// under its sample card.
+pub const THEME_TILE_HEIGHT: f32 = 72.0;
+
+/// A theme tile: the size of its name.
+pub const THEME_TILE_TEXT: f32 = 12.0;
+
+/// A theme tile: the step from one line of its name to the next.
+pub const THEME_TILE_LINE: f32 = 15.0;
+
+/// A theme tile: how far its sample card and its name stand in from its
+/// edges.
+pub const THEME_TILE_INSET: f32 = 10.0;
+
+/// A theme tile: the height of its sample card.
+pub const THEME_TILE_SAMPLE: f32 = 22.0;
+
+/// A theme tile: the narrowest it is drawn, whatever its name.
+pub const THEME_TILE_MIN: f32 = 96.0;
+
+/// Theme tiles: the gap between two side by side.
+pub const THEME_TILE_GAP: f32 = 8.0;

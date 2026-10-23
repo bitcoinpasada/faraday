@@ -362,7 +362,7 @@ extent; a motion left from another screen or sheet is stopped.
 | DIM | `#6f8291` | `#7a8894` |
 | ACCENT | `#83d8ef` | `#0b7a9e` |
 | ON_ACCENT | `#0d1219` | `#ffffff` |
-| OK | `#8bd4b2` | `#1d8556` |
+| OK | `#8bd4b2` | `#1c8053` |
 | WARN | `#f0c077` | `#9a5d00` |
 | ERR | `#ef9b9b` | `#bf3434` |
 
@@ -389,6 +389,22 @@ buttons, since white on it is 2.1:1; its accent text on the page is
 Lamplight (2026-10-09, `ui::pal::LAMPLIGHT`) is Faraday's own light
 theme: warm cream page, espresso text, a terracotta accent (#A34E26,
 5.2:1 on the page) and a sage, amber and brick at 4.5:1 or more.
+High contrast dark and High contrast light (`ui::pal::HIGH_CONTRAST_DARK`,
+`HIGH_CONTRAST_LIGHT`; light is `Theme::is_light`) are pure black and
+pure white pages with white and black text and one strong accent, yellow
+and deep blue (#0000CC): every text pair is 7:1 or more on the page and
+the card, and edges, rules and focus rings 3:1 or more. Mars
+(`ui::pal::MARS`, id `mars`) is a warm near-black page with butterscotch
+text and Mars's rust red-orange accent, #D9603B (5.2:1 on the page).
+The palettes are in `faraday/faraday-ui/src/pal/`: the colours and
+Dark in `mod.rs`, the other themes' tables in `light.rs`, `dark.rs` and
+`high_contrast.rs`.
+Since 2026-10-23 (owner) every theme's text, accent, positive and
+warning read at 4.5:1 or more on its page and its cards, and its dimmed
+text at 3:1 or more, Bitcoin Orange Light's accent alone excepted: the
+positive green of Light (#1C8053), Cobalt (#1C7F52) and Bitcoin Orange
+Light (#1C7E52), and Rosé Pine's warning (#A26111) and dimmed text
+(#918B9F), each darkened by the least that reaches it.
 
 ### 3.8 The caret and the scrollbar (2026-10-07)
 

@@ -59,533 +59,7 @@ impl BarGeometry {
 }
 
 /// The prototype's palette.
-pub mod pal {
-    use faraday_draw::Color;
-
-    /// The page.
-    pub const BG: Color = Color::rgb(0x11, 0x16, 0x1c);
-    /// The sidebar.
-    pub const SIDEBAR: Color = Color::rgb(0x0d, 0x12, 0x18);
-    /// A card.
-    pub const SURFACE: Color = Color::rgb(0x19, 0x21, 0x2a);
-    /// A card's edge and the sidebar's.
-    pub const LINE: Color = Color::rgb(0x1f, 0x29, 0x33);
-    /// A rule inside a card, and an idle badge.
-    pub const INNER: Color = Color::rgb(0x22, 0x2c, 0x37);
-    /// A secondary button's edge.
-    pub const BORDER: Color = Color::rgb(0x30, 0x3d, 0x49);
-    /// Text.
-    pub const TEXT: Color = Color::rgb(0xe0, 0xe9, 0xef);
-    /// Labels.
-    pub const MUTED: Color = Color::rgb(0x9a, 0xac, 0xb9);
-    /// What is not there yet.
-    pub const DIM: Color = Color::rgb(0x6f, 0x82, 0x91);
-    /// The accent.
-    pub const ACCENT: Color = Color::rgb(0x83, 0xd8, 0xef);
-    /// Text on the accent. One step from `SIDEBAR`, so the light theme
-    /// can tell them apart.
-    pub const ON_ACCENT: Color = Color::rgb(0x0d, 0x12, 0x19);
-    /// Done, verified, can sign.
-    pub const OK: Color = Color::rgb(0x8b, 0xd4, 0xb2);
-    /// Waiting, unsaved, needs attention.
-    pub const WARN: Color = Color::rgb(0xf0, 0xc0, 0x77);
-    /// Refused.
-    pub const ERR: Color = Color::rgb(0xef, 0x9b, 0x9b);
-
-    /// Over a camera's picture (`docs/QR.md` §8 item 4), whatever the
-    /// theme: none of these is in the themes' tables, since the picture
-    /// is the same in every theme. The corner brackets while looking,
-    /// and the words on the state line's band.
-    pub const VIEWFINDER: Color = Color::rgb(0xff, 0xff, 0xff);
-    /// The corner brackets while a QR that read is in view.
-    pub const VIEWFINDER_READ: Color = Color::rgb(0x4c, 0xd9, 0x7b);
-    /// The band under the state line, drawn at
-    /// `tokens::VIEWFINDER_BAND_ALPHA`.
-    pub const VIEWFINDER_BAND: Color = Color::rgb(0x05, 0x08, 0x0b);
-
-    /// A chip's faint shadow on the board, at a low opacity. Not in the
-    /// themes' tables: every theme draws it as it is.
-    pub const SHADOW: Color = Color::rgb(0x0a, 0x10, 0x16);
-
-    // The backup board's boxes (`docs/BACKUP-FLOW.md` §17.15): one hue
-    // per kind of box, pale fills and strong edges, each theme its own.
-    /// A place on the backup board: its fill, a pale green (`docs/DESIGN.md` §4.17).
-    pub const PLACE_FILL: Color = Color::rgb(0x1e, 0x2e, 0x30);
-    /// A place's header band.
-    pub const PLACE_BAND: Color = Color::rgb(0x24, 0x3f, 0x38);
-    /// A place's edge and its thick left stripe: 3:1 or more against the page.
-    pub const PLACE_EDGE: Color = Color::rgb(0x5e, 0x9a, 0x73);
-    /// A place's name, glyph and ×: 4.5:1 or more on its band and its fill.
-    pub const PLACE_TEXT: Color = Color::rgb(0x86, 0xb3, 0x96);
-    /// A stick box on the board, and **+ stick**: a cool slate grey.
-    pub const STICK_FILL: Color = Color::rgb(0x2b, 0x34, 0x3e);
-    /// A stick box's edge: 3:1 or more against the place round it.
-    pub const STICK_EDGE: Color = Color::rgb(0x7d, 0x8b, 0x98);
-    /// "Stick n", its glyph and ×: 4.5:1 or more on the stick's fill.
-    pub const STICK_TEXT: Color = Color::rgb(0x96, 0xa1, 0xac);
-    /// A vault box on the board: a pale tint of the accent.
-    pub const VAULT_FILL: Color = Color::rgb(0x2a, 0x3e, 0x4a);
-    /// A vault box's edge and its solid header band, and the lock mark: the accent, moved where it must be to stand 3:1 against the stick round it. One step from `ACCENT` in this table, so the themes can tell them apart.
-    pub const VAULT_EDGE: Color = Color::rgb(0x83, 0xd8, 0xee);
-    /// "Vault n · sealed" and its × on the vault's band: 4.5:1 or more on it. One step from `ON_ACCENT`, so the themes can tell them apart.
-    pub const VAULT_ON: Color = Color::rgb(0x0d, 0x12, 0x1a);
-    /// Paper (and Scanned in) on the board: a warm cream.
-    pub const PAPER_FILL: Color = Color::rgb(0x34, 0x37, 0x35);
-    /// Paper's edge, a brown: 3:1 or more against the place round it.
-    pub const PAPER_EDGE: Color = Color::rgb(0xb8, 0x98, 0x50);
-    /// "Paper", its glyph: 4.5:1 or more on paper's fill.
-    pub const PAPER_TEXT: Color = Color::rgb(0xc8, 0xa8, 0x60);
-    /// The files box inside a stick box on the board (`docs/BACKUP-FLOW.md`
-    /// §17.17): the files kept on the stick outside any vault, a pale blue.
-    pub const FILES_FILL: Color = Color::rgb(0x2e, 0x40, 0x55);
-    /// The files box's edge: 3:1 or more against the stick round it.
-    pub const FILES_EDGE: Color = Color::rgb(0x53, 0x8c, 0xcd);
-    /// "Files · not sealed", its glyph: 4.5:1 or more on the files fill.
-    pub const FILES_TEXT: Color = Color::rgb(0x8d, 0xb0, 0xd9);
-    /// A chip's edge on the board: a neutral a step stronger than `BORDER`.
-    pub const CHIP_EDGE: Color = Color::rgb(0x69, 0x71, 0x79);
-
-    /// The boot stick's pill and render: Bitcoin's orange, as the Bitcoin
-    /// Orange theme's accent, on a dark page.
-    pub const STICK_BOOT: Color = Color::rgb(0xf7, 0x93, 0x1a);
-    /// The backup sticks' pills and renders on a dark page, Stick 1, 2,
-    /// 3 and on in turn, then again from the first: red, yellow, green,
-    /// cyan, blue, violet, magenta. Orange is the boot stick's alone.
-    pub const STICKS: [Color; 7] = [
-        Color::rgb(0xef, 0x7a, 0x7a),
-        Color::rgb(0xe9, 0xd8, 0x6b),
-        Color::rgb(0x8b, 0xd4, 0x7a),
-        Color::rgb(0x6f, 0xd6, 0xe0),
-        Color::rgb(0x7a, 0xa2, 0xf0),
-        Color::rgb(0xa9, 0x8b, 0xf0),
-        Color::rgb(0xe3, 0x7d, 0xd0),
-    ];
-    /// [`STICK_BOOT`] on a light page, darkened to read there as text.
-    pub const STICK_BOOT_LIGHT: Color = Color::rgb(0xc2, 0x5e, 0x00);
-    /// [`STICKS`] on a light page, darkened to read there as text.
-    pub const STICKS_LIGHT: [Color; 7] = [
-        Color::rgb(0xb8, 0x2f, 0x2f),
-        Color::rgb(0x8a, 0x6d, 0x00),
-        Color::rgb(0x2a, 0x7d, 0x2a),
-        Color::rgb(0x00, 0x7a, 0x8a),
-        Color::rgb(0x2c, 0x5f, 0xc9),
-        Color::rgb(0x6a, 0x45, 0xc8),
-        Color::rgb(0xb0, 0x2f, 0x98),
-    ];
-
-    /// The colour of a stick's pill: `n` 0 the boot stick, `n` the
-    /// backup Stick `n` otherwise, on a light page or a dark one. These
-    /// are not in the themes' tables: each theme draws them as they are.
-    pub fn stick_tone(n: usize, light: bool) -> Color {
-        match (n, light) {
-            (0, false) => STICK_BOOT,
-            (0, true) => STICK_BOOT_LIGHT,
-            (n, false) => STICKS[(n - 1) % STICKS.len()],
-            (n, true) => STICKS_LIGHT[(n - 1) % STICKS_LIGHT.len()],
-        }
-    }
-
-    /// The colours of a PC's text mode (the VGA palette), which a
-    /// firmware sketch is drawn in and nothing else is (`docs/STARTER.md`
-    /// §7.8, `docs/DECISIONS.md` F18). Every theme draws them as they
-    /// are.
-    pub mod vga {
-        use faraday_draw::Color;
-
-        /// Black.
-        pub const BLACK: Color = Color::rgb(0x00, 0x00, 0x00);
-        /// Blue.
-        pub const BLUE: Color = Color::rgb(0x00, 0x00, 0xaa);
-        /// Green.
-        pub const GREEN: Color = Color::rgb(0x00, 0xaa, 0x00);
-        /// Cyan.
-        pub const CYAN: Color = Color::rgb(0x00, 0xaa, 0xaa);
-        /// Red.
-        pub const RED: Color = Color::rgb(0xaa, 0x00, 0x00);
-        /// Brown, which firmware draws as a dark gold.
-        pub const BROWN: Color = Color::rgb(0xaa, 0x55, 0x00);
-        /// Light grey: text-mode body text.
-        pub const LIGHT_GREY: Color = Color::rgb(0xaa, 0xaa, 0xaa);
-        /// Dark grey.
-        pub const DARK_GREY: Color = Color::rgb(0x55, 0x55, 0x55);
-        /// Light cyan.
-        pub const LIGHT_CYAN: Color = Color::rgb(0x55, 0xff, 0xff);
-        /// Light green.
-        pub const LIGHT_GREEN: Color = Color::rgb(0x55, 0xff, 0x55);
-        /// Light red.
-        pub const LIGHT_RED: Color = Color::rgb(0xff, 0x55, 0x55);
-        /// Yellow.
-        pub const YELLOW: Color = Color::rgb(0xff, 0xff, 0x55);
-        /// White.
-        pub const WHITE: Color = Color::rgb(0xff, 0xff, 0xff);
-    }
-
-    /// The structure chart's line colours (`docs/DESIGN.md` §4.16), one
-    /// per key held here, in turn: the theme's own colours, so each theme
-    /// draws them as it draws the rest.
-    pub const KEY_LINES: [Color; 5] = [ACCENT, OK, WARN, ERR, MUTED];
-
-    /// Each colour above and what it is in the light theme
-    /// (`docs/MOTION.md` §3.6).
-    pub const LIGHT: [(Color, Color); 31] = [
-        (BG, Color::rgb(0xf4, 0xf6, 0xf8)),
-        (SIDEBAR, Color::rgb(0xe9, 0xed, 0xf1)),
-        (SURFACE, Color::rgb(0xff, 0xff, 0xff)),
-        (LINE, Color::rgb(0xdc, 0xe2, 0xe8)),
-        (INNER, Color::rgb(0xe8, 0xed, 0xf1)),
-        (BORDER, Color::rgb(0xc6, 0xd0, 0xd8)),
-        (TEXT, Color::rgb(0x15, 0x1c, 0x23)),
-        (MUTED, Color::rgb(0x4f, 0x5d, 0x69)),
-        (DIM, Color::rgb(0x7a, 0x88, 0x94)),
-        (ACCENT, Color::rgb(0x0b, 0x7a, 0x9e)),
-        (ON_ACCENT, Color::rgb(0xff, 0xff, 0xff)),
-        (OK, Color::rgb(0x1d, 0x85, 0x56)),
-        (WARN, Color::rgb(0x9a, 0x5d, 0x00)),
-        (ERR, Color::rgb(0xbf, 0x34, 0x34)),
-        (PLACE_FILL, Color::rgb(0xed, 0xf6, 0xef)),
-        (PLACE_BAND, Color::rgb(0xdc, 0xee, 0xe1)),
-        (PLACE_EDGE, Color::rgb(0x5e, 0x9a, 0x73)),
-        (PLACE_TEXT, Color::rgb(0x1e, 0x5b, 0x35)),
-        (STICK_FILL, Color::rgb(0xe3, 0xe8, 0xed)),
-        (STICK_EDGE, Color::rgb(0x7d, 0x8b, 0x98)),
-        (STICK_TEXT, Color::rgb(0x36, 0x42, 0x4d)),
-        (VAULT_FILL, Color::rgb(0xd3, 0xea, 0xf3)),
-        (VAULT_EDGE, Color::rgb(0x0b, 0x7a, 0x9e)),
-        (VAULT_ON, Color::rgb(0xff, 0xff, 0xff)),
-        (PAPER_FILL, Color::rgb(0xfb, 0xf5, 0xe6)),
-        (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
-        (PAPER_TEXT, Color::rgb(0x6a, 0x50, 0x1a)),
-        (CHIP_EDGE, Color::rgb(0xae, 0xb9, 0xc3)),
-        (FILES_FILL, Color::rgb(0xe3, 0xec, 0xf7)),
-        (FILES_EDGE, Color::rgb(0x4f, 0x82, 0xbc)),
-        (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
-    ];
-
-    /// Nord (nordtheme.com): Polar Night, Snow Storm and Frost.
-    pub const NORD: [(Color, Color); 31] = [
-        (BG, Color::rgb(0x2e, 0x34, 0x40)),
-        (SIDEBAR, Color::rgb(0x27, 0x2c, 0x36)),
-        (SURFACE, Color::rgb(0x3b, 0x42, 0x52)),
-        (LINE, Color::rgb(0x43, 0x4c, 0x5e)),
-        (INNER, Color::rgb(0x47, 0x4f, 0x62)),
-        (BORDER, Color::rgb(0x5a, 0x65, 0x7c)),
-        (TEXT, Color::rgb(0xec, 0xef, 0xf4)),
-        (MUTED, Color::rgb(0xb7, 0xc0, 0xcf)),
-        (DIM, Color::rgb(0x86, 0x91, 0xa7)),
-        (ACCENT, Color::rgb(0x88, 0xc0, 0xd0)),
-        (ON_ACCENT, Color::rgb(0x2e, 0x34, 0x40)),
-        (OK, Color::rgb(0xa3, 0xbe, 0x8c)),
-        (WARN, Color::rgb(0xeb, 0xcb, 0x8b)),
-        (ERR, Color::rgb(0xeb, 0xa1, 0xa8)),
-        (PLACE_FILL, Color::rgb(0x3d, 0x4c, 0x54)),
-        (PLACE_BAND, Color::rgb(0x3f, 0x58, 0x57)),
-        (PLACE_EDGE, Color::rgb(0x73, 0xa7, 0x85)),
-        (PLACE_TEXT, Color::rgb(0xba, 0xd4, 0xc3)),
-        (STICK_FILL, Color::rgb(0x48, 0x50, 0x60)),
-        (STICK_EDGE, Color::rgb(0x9a, 0xa5, 0xaf)),
-        (STICK_TEXT, Color::rgb(0xc2, 0xc8, 0xcf)),
-        (VAULT_FILL, Color::rgb(0x47, 0x56, 0x66)),
-        (VAULT_EDGE, Color::rgb(0x88, 0xc0, 0xd0)),
-        (VAULT_ON, Color::rgb(0x2e, 0x34, 0x40)),
-        (PAPER_FILL, Color::rgb(0x51, 0x53, 0x58)),
-        (PAPER_EDGE, Color::rgb(0xc1, 0xa4, 0x65)),
-        (PAPER_TEXT, Color::rgb(0xde, 0xcb, 0xa0)),
-        (CHIP_EDGE, Color::rgb(0x82, 0x87, 0x93)),
-        (FILES_FILL, Color::rgb(0x44, 0x5f, 0x7e)),
-        (FILES_EDGE, Color::rgb(0x8e, 0xb4, 0xde)),
-        (FILES_TEXT, Color::rgb(0xcd, 0xdd, 0xee)),
-    ];
-
-    /// Catppuccin Mocha (catppuccin.com): base, mantle, surfaces, mauve.
-    pub const CATPPUCCIN: [(Color, Color); 31] = [
-        (BG, Color::rgb(0x1e, 0x1e, 0x2e)),
-        (SIDEBAR, Color::rgb(0x18, 0x18, 0x25)),
-        (SURFACE, Color::rgb(0x31, 0x32, 0x44)),
-        (LINE, Color::rgb(0x3b, 0x3d, 0x52)),
-        (INNER, Color::rgb(0x45, 0x47, 0x5a)),
-        (BORDER, Color::rgb(0x58, 0x5b, 0x70)),
-        (TEXT, Color::rgb(0xcd, 0xd6, 0xf4)),
-        (MUTED, Color::rgb(0xa6, 0xad, 0xc8)),
-        (DIM, Color::rgb(0x7f, 0x84, 0x9c)),
-        (ACCENT, Color::rgb(0xcb, 0xa6, 0xf7)),
-        (ON_ACCENT, Color::rgb(0x1e, 0x1e, 0x2e)),
-        (OK, Color::rgb(0xa6, 0xe3, 0xa1)),
-        (WARN, Color::rgb(0xf9, 0xe2, 0xaf)),
-        (ERR, Color::rgb(0xf3, 0x8b, 0xa8)),
-        (PLACE_FILL, Color::rgb(0x34, 0x3e, 0x48)),
-        (PLACE_BAND, Color::rgb(0x37, 0x4c, 0x4c)),
-        (PLACE_EDGE, Color::rgb(0x5e, 0x9a, 0x73)),
-        (PLACE_TEXT, Color::rgb(0xa2, 0xc4, 0xae)),
-        (STICK_FILL, Color::rgb(0x40, 0x43, 0x54)),
-        (STICK_EDGE, Color::rgb(0x89, 0x95, 0xa1)),
-        (STICK_TEXT, Color::rgb(0xae, 0xb7, 0xbf)),
-        (VAULT_FILL, Color::rgb(0x4a, 0x45, 0x61)),
-        (VAULT_EDGE, Color::rgb(0xcb, 0xa6, 0xf7)),
-        (VAULT_ON, Color::rgb(0x1e, 0x1e, 0x2e)),
-        (PAPER_FILL, Color::rgb(0x49, 0x46, 0x4c)),
-        (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
-        (PAPER_TEXT, Color::rgb(0xd2, 0xb8, 0x7d)),
-        (CHIP_EDGE, Color::rgb(0x6f, 0x74, 0x8a)),
-        (FILES_FILL, Color::rgb(0x3d, 0x55, 0x71)),
-        (FILES_EDGE, Color::rgb(0x7b, 0xa6, 0xd9)),
-        (FILES_TEXT, Color::rgb(0xb6, 0xcd, 0xe7)),
-    ];
-
-    /// Tokyo Night (enkia's theme): night background, storm cards, blue.
-    pub const TOKYO_NIGHT: [(Color, Color); 31] = [
-        (BG, Color::rgb(0x1a, 0x1b, 0x26)),
-        (SIDEBAR, Color::rgb(0x16, 0x16, 0x1e)),
-        (SURFACE, Color::rgb(0x24, 0x28, 0x3b)),
-        (LINE, Color::rgb(0x2f, 0x34, 0x4d)),
-        (INNER, Color::rgb(0x2f, 0x35, 0x49)),
-        (BORDER, Color::rgb(0x3b, 0x42, 0x61)),
-        (TEXT, Color::rgb(0xc0, 0xca, 0xf5)),
-        (MUTED, Color::rgb(0xa9, 0xb1, 0xd6)),
-        (DIM, Color::rgb(0x73, 0x7a, 0xa2)),
-        (ACCENT, Color::rgb(0x7a, 0xa2, 0xf7)),
-        (ON_ACCENT, Color::rgb(0x1a, 0x1b, 0x26)),
-        (OK, Color::rgb(0x9e, 0xce, 0x6a)),
-        (WARN, Color::rgb(0xe0, 0xaf, 0x68)),
-        (ERR, Color::rgb(0xf7, 0x76, 0x8e)),
-        (PLACE_FILL, Color::rgb(0x28, 0x35, 0x40)),
-        (PLACE_BAND, Color::rgb(0x2d, 0x44, 0x45)),
-        (PLACE_EDGE, Color::rgb(0x5e, 0x9a, 0x73)),
-        (PLACE_TEXT, Color::rgb(0x92, 0xba, 0xa0)),
-        (STICK_FILL, Color::rgb(0x35, 0x3a, 0x4c)),
-        (STICK_EDGE, Color::rgb(0x7d, 0x8b, 0x98)),
-        (STICK_TEXT, Color::rgb(0xa1, 0xab, 0xb5)),
-        (VAULT_FILL, Color::rgb(0x32, 0x3c, 0x59)),
-        (VAULT_EDGE, Color::rgb(0x7a, 0xa2, 0xf7)),
-        (VAULT_ON, Color::rgb(0x1a, 0x1b, 0x26)),
-        (PAPER_FILL, Color::rgb(0x3d, 0x3d, 0x44)),
-        (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
-        (PAPER_TEXT, Color::rgb(0xc9, 0xaa, 0x63)),
-        (CHIP_EDGE, Color::rgb(0x62, 0x69, 0x85)),
-        (FILES_FILL, Color::rgb(0x36, 0x4c, 0x64)),
-        (FILES_EDGE, Color::rgb(0x68, 0x9a, 0xd3)),
-        (FILES_TEXT, Color::rgb(0xa4, 0xc1, 0xe1)),
-    ];
-
-    /// Gruvbox dark (morhetz): bg0 to bg2, fg, yellow, and its bright accents.
-    pub const GRUVBOX: [(Color, Color); 31] = [
-        (BG, Color::rgb(0x28, 0x28, 0x28)),
-        (SIDEBAR, Color::rgb(0x1d, 0x20, 0x21)),
-        (SURFACE, Color::rgb(0x32, 0x30, 0x2f)),
-        (LINE, Color::rgb(0x3c, 0x38, 0x36)),
-        (INNER, Color::rgb(0x45, 0x40, 0x3d)),
-        (BORDER, Color::rgb(0x50, 0x49, 0x45)),
-        (TEXT, Color::rgb(0xeb, 0xdb, 0xb2)),
-        (MUTED, Color::rgb(0xbd, 0xae, 0x93)),
-        (DIM, Color::rgb(0x92, 0x83, 0x74)),
-        (ACCENT, Color::rgb(0xfa, 0xbd, 0x2f)),
-        (ON_ACCENT, Color::rgb(0x28, 0x28, 0x28)),
-        (OK, Color::rgb(0xb8, 0xbb, 0x26)),
-        (WARN, Color::rgb(0xfe, 0x80, 0x19)),
-        (ERR, Color::rgb(0xfd, 0x6f, 0x5a)),
-        (PLACE_FILL, Color::rgb(0x35, 0x3c, 0x35)),
-        (PLACE_BAND, Color::rgb(0x38, 0x4a, 0x3c)),
-        (PLACE_EDGE, Color::rgb(0x5e, 0x9a, 0x73)),
-        (PLACE_TEXT, Color::rgb(0x9d, 0xc1, 0xaa)),
-        (STICK_FILL, Color::rgb(0x41, 0x41, 0x42)),
-        (STICK_EDGE, Color::rgb(0x85, 0x92, 0x9e)),
-        (STICK_TEXT, Color::rgb(0xaa, 0xb4, 0xbc)),
-        (VAULT_FILL, Color::rgb(0x52, 0x47, 0x2f)),
-        (VAULT_EDGE, Color::rgb(0xfa, 0xbd, 0x2f)),
-        (VAULT_ON, Color::rgb(0x28, 0x28, 0x28)),
-        (PAPER_FILL, Color::rgb(0x4a, 0x44, 0x3a)),
-        (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
-        (PAPER_TEXT, Color::rgb(0xd0, 0xb4, 0x76)),
-        (CHIP_EDGE, Color::rgb(0x7c, 0x74, 0x63)),
-        (FILES_FILL, Color::rgb(0x37, 0x4d, 0x66)),
-        (FILES_EDGE, Color::rgb(0x6a, 0x9b, 0xd4)),
-        (FILES_TEXT, Color::rgb(0xa6, 0xc2, 0xe1)),
-    ];
-
-    /// Rosé Pine Dawn (rosepinetheme.com): base, surface, overlay, pine. Its
-    /// gold, love and a green beside them are darkened to read on its paper.
-    pub const ROSE_PINE: [(Color, Color); 31] = [
-        (BG, Color::rgb(0xfa, 0xf4, 0xed)),
-        (SIDEBAR, Color::rgb(0xf2, 0xe9, 0xe1)),
-        (SURFACE, Color::rgb(0xff, 0xfa, 0xf3)),
-        (LINE, Color::rgb(0xe6, 0xdf, 0xd8)),
-        (INNER, Color::rgb(0xf4, 0xed, 0xe8)),
-        (BORDER, Color::rgb(0xce, 0xca, 0xcd)),
-        (TEXT, Color::rgb(0x57, 0x52, 0x79)),
-        (MUTED, Color::rgb(0x6e, 0x6a, 0x86)),
-        (DIM, Color::rgb(0x98, 0x93, 0xa5)),
-        (ACCENT, Color::rgb(0x28, 0x69, 0x83)),
-        (ON_ACCENT, Color::rgb(0xff, 0xfa, 0xf3)),
-        (OK, Color::rgb(0x3d, 0x7a, 0x52)),
-        (WARN, Color::rgb(0xa8, 0x64, 0x12)),
-        (ERR, Color::rgb(0xa4, 0x50, 0x6a)),
-        (PLACE_FILL, Color::rgb(0xed, 0xf2, 0xe5)),
-        (PLACE_BAND, Color::rgb(0xdb, 0xea, 0xd8)),
-        (PLACE_EDGE, Color::rgb(0x59, 0x92, 0x6d)),
-        (PLACE_TEXT, Color::rgb(0x42, 0x6c, 0x50)),
-        (STICK_FILL, Color::rgb(0xe5, 0xe4, 0xe1)),
-        (STICK_EDGE, Color::rgb(0x72, 0x7e, 0x8a)),
-        (STICK_TEXT, Color::rgb(0x59, 0x63, 0x6c)),
-        (VAULT_FILL, Color::rgb(0xd8, 0xe0, 0xdf)),
-        (VAULT_EDGE, Color::rgb(0x28, 0x69, 0x83)),
-        (VAULT_ON, Color::rgb(0xff, 0xfa, 0xf3)),
-        (PAPER_FILL, Color::rgb(0xfa, 0xf0, 0xdc)),
-        (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
-        (PAPER_TEXT, Color::rgb(0x7f, 0x66, 0x2d)),
-        (CHIP_EDGE, Color::rgb(0xb2, 0xae, 0xb3)),
-        (FILES_FILL, Color::rgb(0xe3, 0xec, 0xf7)),
-        (FILES_EDGE, Color::rgb(0x4c, 0x80, 0xbb)),
-        (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
-    ];
-
-    /// Bitcoin Orange: a warm near-black page, Bitcoin's orange
-    /// (#F7931A) as the accent at full strength. Light text on a dark
-    /// page needs no darkening to read against it.
-    pub const BITCOIN_ORANGE: [(Color, Color); 31] = [
-        (BG, Color::rgb(0x1c, 0x14, 0x10)),
-        (SIDEBAR, Color::rgb(0x14, 0x0e, 0x0a)),
-        (SURFACE, Color::rgb(0x27, 0x1d, 0x17)),
-        (LINE, Color::rgb(0x33, 0x26, 0x19)),
-        (INNER, Color::rgb(0x3a, 0x2c, 0x1e)),
-        (BORDER, Color::rgb(0x4a, 0x38, 0x28)),
-        (TEXT, Color::rgb(0xf2, 0xe9, 0xdf)),
-        (MUTED, Color::rgb(0xc9, 0xb8, 0xa4)),
-        (DIM, Color::rgb(0x8f, 0x7d, 0x6c)),
-        (ACCENT, Color::rgb(0xf7, 0x93, 0x1a)),
-        (ON_ACCENT, Color::rgb(0x1c, 0x14, 0x10)),
-        (OK, Color::rgb(0x8e, 0xcb, 0x86)),
-        (WARN, Color::rgb(0xe8, 0xb9, 0x4c)),
-        (ERR, Color::rgb(0xe5, 0x48, 0x4d)),
-        (PLACE_FILL, Color::rgb(0x2b, 0x2b, 0x1f)),
-        (PLACE_BAND, Color::rgb(0x2f, 0x3c, 0x29)),
-        (PLACE_EDGE, Color::rgb(0x5e, 0x9a, 0x73)),
-        (PLACE_TEXT, Color::rgb(0x83, 0xb1, 0x93)),
-        (STICK_FILL, Color::rgb(0x37, 0x30, 0x2d)),
-        (STICK_EDGE, Color::rgb(0x7d, 0x8b, 0x98)),
-        (STICK_TEXT, Color::rgb(0x94, 0xa0, 0xab)),
-        (VAULT_FILL, Color::rgb(0x48, 0x30, 0x17)),
-        (VAULT_EDGE, Color::rgb(0xf7, 0x93, 0x1a)),
-        (VAULT_ON, Color::rgb(0x1c, 0x14, 0x10)),
-        (PAPER_FILL, Color::rgb(0x40, 0x33, 0x25)),
-        (PAPER_EDGE, Color::rgb(0xb8, 0x98, 0x50)),
-        (PAPER_TEXT, Color::rgb(0xc8, 0xa8, 0x60)),
-        (CHIP_EDGE, Color::rgb(0x78, 0x6f, 0x67)),
-        (FILES_FILL, Color::rgb(0x2c, 0x3d, 0x52)),
-        (FILES_EDGE, Color::rgb(0x4e, 0x88, 0xcb)),
-        (FILES_TEXT, Color::rgb(0x89, 0xae, 0xd8)),
-    ];
-
-    /// Bitcoin Orange Light: a warm paper page, Bitcoin's orange
-    /// (#F7931A) as the accent at full strength (owner, 2026-10-11),
-    /// with dark text on it: white on that orange is 2.1:1.
-    pub const BITCOIN_ORANGE_LIGHT: [(Color, Color); 31] = [
-        (BG, Color::rgb(0xfd, 0xf1, 0xe7)),
-        (SIDEBAR, Color::rgb(0xf5, 0xe6, 0xd7)),
-        (SURFACE, Color::rgb(0xff, 0xfc, 0xf8)),
-        (LINE, Color::rgb(0xe9, 0xd9, 0xc5)),
-        (INNER, Color::rgb(0xf2, 0xe4, 0xd3)),
-        (BORDER, Color::rgb(0xd8, 0xc0, 0xa3)),
-        (TEXT, Color::rgb(0x2a, 0x1c, 0x0f)),
-        (MUTED, Color::rgb(0x6b, 0x54, 0x40)),
-        (DIM, Color::rgb(0x9c, 0x88, 0x72)),
-        (ACCENT, Color::rgb(0xf7, 0x93, 0x1a)),
-        (ON_ACCENT, Color::rgb(0x2a, 0x1c, 0x0f)),
-        (OK, Color::rgb(0x1d, 0x85, 0x56)),
-        (WARN, Color::rgb(0x7a, 0x64, 0x00)),
-        (ERR, Color::rgb(0xbf, 0x34, 0x34)),
-        (PLACE_FILL, Color::rgb(0xed, 0xf4, 0xea)),
-        (PLACE_BAND, Color::rgb(0xdb, 0xeb, 0xdc)),
-        (PLACE_EDGE, Color::rgb(0x59, 0x92, 0x6d)),
-        (PLACE_TEXT, Color::rgb(0x42, 0x6c, 0x50)),
-        (STICK_FILL, Color::rgb(0xe5, 0xe5, 0xe5)),
-        (STICK_EDGE, Color::rgb(0x73, 0x80, 0x8c)),
-        (STICK_TEXT, Color::rgb(0x59, 0x63, 0x6c)),
-        (VAULT_FILL, Color::rgb(0xfe, 0xe9, 0xd0)),
-        (VAULT_EDGE, Color::rgb(0xb4, 0x6b, 0x13)),
-        (VAULT_ON, Color::rgb(0x00, 0x00, 0x00)),
-        (PAPER_FILL, Color::rgb(0xfa, 0xf2, 0xe0)),
-        (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
-        (PAPER_TEXT, Color::rgb(0x7f, 0x66, 0x2d)),
-        (CHIP_EDGE, Color::rgb(0xbb, 0xb5, 0xae)),
-        (FILES_FILL, Color::rgb(0xe3, 0xec, 0xf7)),
-        (FILES_EDGE, Color::rgb(0x4d, 0x80, 0xbb)),
-        (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
-    ];
-
-    /// Cobalt: a cool blue-white page (its sidebar the owner's #E8EEFA)
-    /// with a deep cobalt blue (#0062A3, 6.0:1 on the page) as the
-    /// accent.
-    pub const COBALT: [(Color, Color); 31] = [
-        (BG, Color::rgb(0xf1, 0xf4, 0xfb)),
-        (SIDEBAR, Color::rgb(0xe8, 0xee, 0xfa)),
-        (SURFACE, Color::rgb(0xff, 0xff, 0xff)),
-        (LINE, Color::rgb(0xd9, 0xe1, 0xf0)),
-        (INNER, Color::rgb(0xe6, 0xec, 0xf7)),
-        (BORDER, Color::rgb(0xc3, 0xcf, 0xe3)),
-        (TEXT, Color::rgb(0x13, 0x1b, 0x27)),
-        (MUTED, Color::rgb(0x4d, 0x5b, 0x6e)),
-        (DIM, Color::rgb(0x78, 0x86, 0x99)),
-        (ACCENT, Color::rgb(0x00, 0x62, 0xa3)),
-        (ON_ACCENT, Color::rgb(0xff, 0xff, 0xff)),
-        (OK, Color::rgb(0x1d, 0x85, 0x56)),
-        (WARN, Color::rgb(0x9a, 0x5d, 0x00)),
-        (ERR, Color::rgb(0xbf, 0x34, 0x34)),
-        (PLACE_FILL, Color::rgb(0xed, 0xf6, 0xf0)),
-        (PLACE_BAND, Color::rgb(0xdb, 0xee, 0xe1)),
-        (PLACE_EDGE, Color::rgb(0x5a, 0x94, 0x6e)),
-        (PLACE_TEXT, Color::rgb(0x43, 0x6d, 0x52)),
-        (STICK_FILL, Color::rgb(0xe5, 0xe8, 0xea)),
-        (STICK_EDGE, Color::rgb(0x74, 0x81, 0x8d)),
-        (STICK_TEXT, Color::rgb(0x5b, 0x65, 0x6f)),
-        (VAULT_FILL, Color::rgb(0xd1, 0xe3, 0xee)),
-        (VAULT_EDGE, Color::rgb(0x00, 0x62, 0xa3)),
-        (VAULT_ON, Color::rgb(0xff, 0xff, 0xff)),
-        (PAPER_FILL, Color::rgb(0xfa, 0xf4, 0xe6)),
-        (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
-        (PAPER_TEXT, Color::rgb(0x80, 0x68, 0x2e)),
-        (CHIP_EDGE, Color::rgb(0xaf, 0xb2, 0xb4)),
-        (FILES_FILL, Color::rgb(0xe3, 0xec, 0xf7)),
-        (FILES_EDGE, Color::rgb(0x50, 0x83, 0xbd)),
-        (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
-    ];
-
-    /// Lamplight: warm cream paper and espresso text, a terracotta
-    /// accent darkened to read at 4.5:1 against the page for text and
-    /// the focus ring (#A34E26 is 5.2:1), and a muted sage, amber and
-    /// brick that read at 4.5:1 there too.
-    pub const LAMPLIGHT: [(Color, Color); 31] = [
-        (BG, Color::rgb(0xfb, 0xf3, 0xe6)),
-        (SIDEBAR, Color::rgb(0xf3, 0xe6, 0xd2)),
-        (SURFACE, Color::rgb(0xff, 0xfa, 0xf2)),
-        (LINE, Color::rgb(0xeb, 0xdc, 0xc6)),
-        (INNER, Color::rgb(0xf5, 0xea, 0xd9)),
-        (BORDER, Color::rgb(0xd8, 0xc2, 0xa3)),
-        (TEXT, Color::rgb(0x3a, 0x2a, 0x1f)),
-        (MUTED, Color::rgb(0x6b, 0x54, 0x44)),
-        (DIM, Color::rgb(0x97, 0x80, 0x6c)),
-        (ACCENT, Color::rgb(0xa3, 0x4e, 0x26)),
-        (ON_ACCENT, Color::rgb(0xff, 0xfa, 0xf2)),
-        (OK, Color::rgb(0x3f, 0x73, 0x50)),
-        (WARN, Color::rgb(0x8a, 0x5c, 0x0e)),
-        (ERR, Color::rgb(0xa3, 0x39, 0x2e)),
-        (PLACE_FILL, Color::rgb(0xed, 0xf2, 0xe4)),
-        (PLACE_BAND, Color::rgb(0xdb, 0xea, 0xd7)),
-        (PLACE_EDGE, Color::rgb(0x58, 0x91, 0x6c)),
-        (PLACE_TEXT, Color::rgb(0x41, 0x6a, 0x4f)),
-        (STICK_FILL, Color::rgb(0xe5, 0xe4, 0xe0)),
-        (STICK_EDGE, Color::rgb(0x72, 0x7e, 0x8a)),
-        (STICK_TEXT, Color::rgb(0x59, 0x63, 0x6c)),
-        (VAULT_FILL, Color::rgb(0xee, 0xdb, 0xcd)),
-        (VAULT_EDGE, Color::rgb(0xa3, 0x4e, 0x26)),
-        (VAULT_ON, Color::rgb(0xff, 0xfa, 0xf2)),
-        (PAPER_FILL, Color::rgb(0xfa, 0xf0, 0xdb)),
-        (PAPER_EDGE, Color::rgb(0x97, 0x7a, 0x36)),
-        (PAPER_TEXT, Color::rgb(0x7f, 0x66, 0x2d)),
-        (CHIP_EDGE, Color::rgb(0xb6, 0xaf, 0xa6)),
-        (FILES_FILL, Color::rgb(0xe3, 0xec, 0xf7)),
-        (FILES_EDGE, Color::rgb(0x4d, 0x80, 0xbb)),
-        (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
-    ];
-}
+pub mod pal;
 
 use pal::*;
 
@@ -780,11 +254,20 @@ pub enum Theme {
     /// Dark espresso text on warm cream paper, with a terracotta accent:
     /// light, warm and calm.
     Lamplight,
+    /// Pure white text on a pure black page, one strong yellow accent:
+    /// every text pair 7:1 or more, every edge 3:1 or more.
+    HighContrastDark,
+    /// Pure black text on a pure white page, one strong deep blue accent:
+    /// every text pair 7:1 or more, every edge 3:1 or more.
+    HighContrastLight,
+    /// Mars: a warm near-black page, butterscotch text and the planet's
+    /// rust red-orange as the accent.
+    Mars,
 }
 
 impl Theme {
     /// Every theme, in the order Settings offers them.
-    pub const ALL: [Theme; 11] = [
+    pub const ALL: [Theme; 14] = [
         Theme::Dark,
         Theme::Light,
         Theme::Cobalt,
@@ -796,6 +279,9 @@ impl Theme {
         Theme::BitcoinOrange,
         Theme::BitcoinOrangeLight,
         Theme::Lamplight,
+        Theme::HighContrastDark,
+        Theme::HighContrastLight,
+        Theme::Mars,
     ];
 
     /// What Settings calls it.
@@ -812,6 +298,9 @@ impl Theme {
             Theme::BitcoinOrange => EN.ui_bitcoin_orange,
             Theme::BitcoinOrangeLight => EN.ui_bitcoin_orange_light,
             Theme::Lamplight => EN.ui_lamplight,
+            Theme::HighContrastDark => EN.ui_high_contrast_dark,
+            Theme::HighContrastLight => EN.ui_high_contrast_light,
+            Theme::Mars => EN.ui_mars,
         }
     }
 
@@ -829,6 +318,9 @@ impl Theme {
             Theme::BitcoinOrange => "bitcoin-orange",
             Theme::BitcoinOrangeLight => "bitcoin-orange-light",
             Theme::Lamplight => "lamplight",
+            Theme::HighContrastDark => "high-contrast-dark",
+            Theme::HighContrastLight => "high-contrast-light",
+            Theme::Mars => "mars",
         }
     }
 
@@ -846,6 +338,7 @@ impl Theme {
                 | Theme::RosePine
                 | Theme::BitcoinOrangeLight
                 | Theme::Lamplight
+                | Theme::HighContrastLight
         )
     }
 
@@ -862,6 +355,9 @@ impl Theme {
             Theme::BitcoinOrange => Some(&pal::BITCOIN_ORANGE),
             Theme::BitcoinOrangeLight => Some(&pal::BITCOIN_ORANGE_LIGHT),
             Theme::Lamplight => Some(&pal::LAMPLIGHT),
+            Theme::HighContrastDark => Some(&pal::HIGH_CONTRAST_DARK),
+            Theme::HighContrastLight => Some(&pal::HIGH_CONTRAST_LIGHT),
+            Theme::Mars => Some(&pal::MARS),
         }
     }
 
@@ -1574,6 +1070,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         current: bool,
         action: A,
     ) {
+        use faraday_draw::tokens::{
+            THEME_TILE_INSET as IN, THEME_TILE_LINE as STEP, THEME_TILE_SAMPLE,
+            THEME_TILE_TEXT as SIZE,
+        };
         let ring = if current {
             Some(ACCENT)
         } else if self.is_hovered(action) || self.is_pressed(action) {
@@ -1587,59 +1087,111 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         }
         let now = self.theme;
         self.theme = theme;
-        self.fill(x, y, w, h, 10.0, BG);
-        self.stroke(x, y, w, h, 10.0, LINE);
-        self.fill(x + 10.0, y + 10.0, w - 20.0, 30.0, 6.0, SURFACE);
-        self.fill(x + 17.0, y + 19.0, 24.0, 12.0, 6.0, ACCENT);
+        self.fill(x, y, w, h, IN, BG);
+        self.stroke(x, y, w, h, IN, LINE);
+        self.fill(
+            x + IN,
+            y + IN,
+            w - 2.0 * IN,
+            THEME_TILE_SAMPLE,
+            6.0,
+            SURFACE,
+        );
+        // The button and the three states, centred down the sample card.
+        let mid = y + IN + THEME_TILE_SAMPLE / 2.0;
+        self.fill(x + 17.0, mid - SIZE / 2.0, 24.0, SIZE, 6.0, ACCENT);
         for (i, c) in [OK, WARN, ERR].into_iter().enumerate() {
-            self.dot(x + w - 38.0 + 9.0 * i as f32, y + 25.0, 3.0, c);
+            self.dot(x + w - 38.0 + 9.0 * i as f32, mid, 3.0, c);
         }
         // A name too long for the tile wraps at its spaces, the tile being
-        // drawn taller for it (`theme_tile_h`).
-        let lines = self.theme_name_lines(theme, w - 20.0);
-        let mut ty = y + h - 22.0 - 15.0 * (lines.len() - 1) as f32;
-        for line in lines {
-            let line = self.fit(12.0, W::S, &line, w - 20.0);
-            self.text(x + 10.0, ty, 12.0, W::S, TEXT, &line);
-            ty += 15.0;
+        // drawn taller for a third line (`theme_tile_h`). Each line is a
+        // part of the name itself: no text is made unless a word alone is
+        // too wide and is cut.
+        let room = w - 2.0 * IN;
+        let (lines, n) = self.theme_name_lines(theme, room);
+        let name = theme.name();
+        let mut ty = y + h - 22.0 - STEP * (n - 1) as f32;
+        for &(a, b) in &lines[..n] {
+            let line = &name[a..b];
+            if self.measure(SIZE, W::S, line) <= room {
+                self.text(x + IN, ty, SIZE, W::S, TEXT, line);
+            } else {
+                let cut = self.fit(SIZE, W::S, line, room);
+                self.text(x + IN, ty, SIZE, W::S, TEXT, &cut);
+            }
+            ty += STEP;
         }
         self.theme = now;
         self.hit(x, y, w, h, action);
     }
 
-    /// The narrowest a theme tile can be with every theme's name in
-    /// full.
+    /// The narrowest a theme tile can be with every theme's name on at
+    /// most two lines.
     pub fn theme_tile_min(&self) -> f32 {
+        use faraday_draw::tokens::{THEME_TILE_INSET, THEME_TILE_MIN, THEME_TILE_TEXT};
+        let width = |s: &str| self.measure(THEME_TILE_TEXT, W::S, s);
         Theme::ALL
             .into_iter()
-            .map(|t| self.measure(12.0, W::S, t.name()) + 20.0)
-            .fold(96.0, f32::max)
+            .map(|t| {
+                let name = t.name();
+                // Whole, or broken at the space that leaves the longer
+                // line shortest.
+                name.match_indices(' ')
+                    .map(|(i, _)| width(&name[..i]).max(width(&name[i + 1..])))
+                    .fold(width(name), f32::min)
+                    + 2.0 * THEME_TILE_INSET
+            })
+            .fold(THEME_TILE_MIN, f32::max)
     }
 
-    /// How tall theme tiles `w` wide are drawn: a line taller for each
-    /// line a name wraps onto.
+    /// How tall theme tiles `w` wide are drawn: room for a name on two
+    /// lines, and a line taller for each line beyond.
     pub fn theme_tile_h(&self, w: f32) -> f32 {
+        use faraday_draw::tokens::{THEME_TILE_HEIGHT, THEME_TILE_INSET, THEME_TILE_LINE};
         let lines = Theme::ALL
             .into_iter()
-            .map(|t| self.theme_name_lines(t, w - 20.0).len())
+            .map(|t| self.theme_name_lines(t, w - 2.0 * THEME_TILE_INSET).1)
             .max()
             .unwrap_or(1);
-        72.0 + 15.0 * (lines - 1) as f32
+        THEME_TILE_HEIGHT + THEME_TILE_LINE * lines.saturating_sub(2) as f32
     }
 
-    /// A theme's name in lines no wider than `max`, broken at spaces.
-    fn theme_name_lines(&self, theme: Theme, max: f32) -> Vec<String> {
-        let mut lines: Vec<String> = Vec::new();
-        for word in theme.name().split(' ') {
-            match lines.last_mut() {
-                Some(last) if self.measure(12.0, W::S, &format!("{last} {word}")) <= max => {
-                    last.push(' ');
-                    last.push_str(word);
-                }
-                _ => lines.push(word.to_string()),
+    /// Theme tiles in rows across `inner` units: how many to a row, and
+    /// each tile's width and height. As few rows as tiles at
+    /// [`Ui::theme_tile_min`] allow, the tiles shared out evenly over
+    /// them.
+    pub fn theme_grid(&self, inner: f32) -> (usize, f32, f32) {
+        use faraday_draw::tokens::THEME_TILE_GAP as GAP;
+        let n = Theme::ALL.len();
+        let most = (((inner + GAP) / (self.theme_tile_min() + GAP)).floor() as usize).clamp(1, n);
+        let per_row = n.div_ceil(n.div_ceil(most));
+        let w = (inner - GAP * (per_row - 1) as f32) / per_row as f32;
+        (per_row, w, self.theme_tile_h(w))
+    }
+
+    /// A theme's name in lines no wider than `max`, broken at spaces: up
+    /// to four lines, as byte ranges of the name, and how many there
+    /// are. Words past a fourth line join the fourth.
+    fn theme_name_lines(&self, theme: Theme, max: f32) -> ([(usize, usize); 4], usize) {
+        use faraday_draw::tokens::THEME_TILE_TEXT;
+        let name = theme.name();
+        let mut lines = [(0, 0); 4];
+        let mut n = 0;
+        let mut a = 0;
+        for word in name.split(' ') {
+            let b = a + word.len();
+            let joins = n > 0
+                && (n == lines.len()
+                    || self.measure(THEME_TILE_TEXT, W::S, &name[lines[n - 1].0..b]) <= max);
+            if joins {
+                lines[n - 1].1 = b;
+            } else {
+                lines[n] = (a, b);
+                n += 1;
             }
+            a = b + 1;
         }
-        lines
+        (lines, n)
     }
 
     /// Faraday's mark in a box `w` by `h` units at (x, y): the keyhole
@@ -2401,6 +1953,81 @@ fn shield(x: f32, y: f32, w: f32, h: f32) -> Vec<(f32, f32)> {
 mod tests {
     use super::*;
     use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
+
+    /// WCAG relative luminance of a colour.
+    fn luminance(c: Color) -> f32 {
+        let lin = |v: u8| {
+            let v = f32::from(v) / 255.0;
+            if v <= 0.03928 {
+                v / 12.92
+            } else {
+                ((v + 0.055) / 1.055).powf(2.4)
+            }
+        };
+        0.2126 * lin(c.r) + 0.7152 * lin(c.g) + 0.0722 * lin(c.b)
+    }
+
+    /// WCAG contrast ratio of two colours.
+    fn contrast(a: Color, b: Color) -> f32 {
+        let (x, y) = (luminance(a), luminance(b));
+        (x.max(y) + 0.05) / (x.min(y) + 0.05)
+    }
+
+    #[test]
+    fn text_and_tones_are_legible_on_the_page_and_the_card_in_every_theme() {
+        let mut short = Vec::new();
+        for theme in Theme::ALL {
+            let high = matches!(theme, Theme::HighContrastDark | Theme::HighContrastLight);
+            for (name, fg, standard) in [
+                ("text", pal::TEXT, 4.5),
+                ("accent", pal::ACCENT, 4.5),
+                ("positive", pal::OK, 4.5),
+                ("warning", pal::WARN, 4.5),
+                ("dimmed", pal::DIM, 3.0),
+            ] {
+                // Bitcoin Orange Light takes the orange itself as its
+                // accent, at 2.1:1 (owner, 2026-10-11).
+                if theme == Theme::BitcoinOrangeLight && name == "accent" {
+                    continue;
+                }
+                let need = if high { 7.0 } else { standard };
+                for (on_name, on) in [("page", pal::BG), ("card", pal::SURFACE)] {
+                    let got = contrast(theme.color(fg), theme.color(on));
+                    if got < need {
+                        short.push(format!(
+                            "{} {name} on the {on_name} is {got:.2}:1, needs {need}",
+                            theme.id()
+                        ));
+                    }
+                }
+            }
+        }
+        assert!(short.is_empty(), "{short:#?}");
+    }
+
+    #[test]
+    fn the_high_contrast_themes_draw_edges_at_3_to_1() {
+        for theme in [Theme::HighContrastDark, Theme::HighContrastLight] {
+            for (name, edge) in [
+                ("card edge", pal::LINE),
+                ("rule", pal::INNER),
+                ("button edge", pal::BORDER),
+                ("place edge", pal::PLACE_EDGE),
+                ("chip edge", pal::CHIP_EDGE),
+                ("focus ring", pal::ACCENT),
+            ] {
+                let got = contrast(theme.color(edge), theme.color(pal::BG));
+                assert!(got >= 3.0, "{} {name} is {got:.2}:1", theme.id());
+            }
+        }
+    }
+
+    #[test]
+    fn a_kept_theme_id_names_its_theme() {
+        for theme in Theme::ALL {
+            assert_eq!(Theme::from_id(theme.id()), Some(theme));
+        }
+    }
 
     /// `fit` as it was until 2026-10-21: one character off the end at a
     /// time, the rest measured again with "…" after it each time.

@@ -6839,6 +6839,12 @@ strings! {
     ui_bitcoin_orange_light: "Bitcoin Orange Light",
     /// Text in `name`.
     ui_lamplight: "Lamplight",
+    /// Text in `name`.
+    ui_high_contrast_dark: "High contrast dark",
+    /// Text in `name`.
+    ui_high_contrast_light: "High contrast light",
+    /// Text in `name`.
+    ui_mars: "Mars",
     // ----- upgrade (faraday-core/src/upgrade/mod.rs) -----
     /// Text in `version`.
     upgrade_0_1_0_or_earlier: "0.1.0 or earlier",
