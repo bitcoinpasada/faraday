@@ -504,16 +504,16 @@ fn pass_field(
 /// words taken, the passphrase and the buttons under them. The other
 /// forms type on the docked keyboard.
 pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    let es = app.entry.state();
     use crate::forms::Form;
     let (x, iw) = (x0 + M, cw - 2.0 * M);
     let top = -app.list_offset;
     let mut y = top + 10.0;
-    let for_wallet = app
-        .entry
+    let for_wallet = es
         .wallet
         .and_then(|w| app.session.wallets.get(w))
         .map(|wl| fill(EN.compact_entry_for_wallet, &[&wl.name.to_string()]));
-    let wanted = app.entry.wanted.map(|fp| {
+    let wanted = es.wanted.map(|fp| {
         fill(
             EN.compact_for_key,
             &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
@@ -524,14 +524,14 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x, y, 13.0, W::S, ACCENT, &line);
         y += 22.0;
     }
-    if app.entry.other_forms {
+    if es.other_forms {
         let forms: Vec<(String, Style, Action)> = Form::ALL
             .iter()
             .enumerate()
             .map(|(i, f)| {
                 (
                     f.name().to_string(),
-                    if *f == app.entry.form {
+                    if *f == es.form {
                         Style::Primary
                     } else {
                         Style::Secondary
@@ -542,7 +542,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .collect();
         y += crate::screens::button_rows(ui, x, y, iw, &forms) - 4.0;
     }
-    if app.entry.form != Form::Words {
+    if es.form != Form::Words {
         let y = entry_form(app, ui, x, y, iw, None);
         finish(app, ui, x0, cw, h, y - top + 8.0);
         return;
@@ -564,7 +564,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::screens::entry_scan(app),
     );
     y += 48.0;
-    if app.entry.keys.is_none() {
+    if es.keys.is_none() {
         entry_words(app, ui, x, y, iw, true);
         return;
     }
@@ -575,10 +575,10 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y,
         iw,
         EN.compact_bip_39_passphrase,
-        &app.entry.passphrase,
+        &es.passphrase,
         (
-            app.entry.on_passphrase,
-            app.pass_chip(crate::demo::PassField::Entry, app.entry.on_passphrase),
+            es.on_passphrase,
+            app.pass_chip(crate::demo::PassField::Entry, es.on_passphrase),
         ),
         Action::EntryPassphrase,
     );
@@ -616,11 +616,11 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// starts.
 pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page: bool) -> f32 {
     let mut y = y;
-    let lang = app.entry.language();
+    let lang = app.entry.state().language();
     let english = lang == faraday_bip::bip39::Language::English;
     // One button for the list in use; the lists open from it; unless
     // the chips are already shown, Other forms beside it.
-    let mut langs: Vec<(String, Style, Action)> = if !app.entry.languages {
+    let mut langs: Vec<(String, Style, Action)> = if !app.entry.state().languages {
         vec![(
             if english {
                 EN.compact_other_languages.to_string()
@@ -647,7 +647,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
             })
             .collect()
     };
-    if page && !app.entry.other_forms {
+    if page && !app.entry.state().other_forms {
         langs.insert(
             0,
             (
@@ -657,12 +657,12 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
             ),
         );
     }
-    let Some(w) = app.entry.keys.as_deref() else {
+    let Some(w) = app.entry.state().keys.as_deref() else {
         y += never_real_seed(app, ui, x, y, iw);
         return y + crate::screens::button_rows(ui, x, y, iw, &langs);
     };
     let taken: Vec<u16> = w.committed_indices().collect();
-    let (status, tone) = match &app.entry.error {
+    let (status, tone) = match &app.entry.state().error {
         Some(e) => (e.clone(), ERR),
         None => crate::screens::keyed_status(app, lang, &taken),
     };
@@ -674,8 +674,8 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
         &fill(EN.compact_word, &[&(taken.len() + 1).to_string()]),
         Some((&status, tone)),
         (
-            !app.entry.on_passphrase,
-            app.entry.shift,
+            !app.entry.state().on_passphrase,
+            app.entry.state().shift,
             app.entry_sample_shown()
                 .then_some((EN.use_a_sample, EN.scan_sample)),
         ),
@@ -689,7 +689,11 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
         (x, y, iw),
         lang,
         &taken,
-        (app.entry.word_boxes(taken.len() + 1), false, app.seed_line),
+        (
+            app.entry.state().word_boxes(taken.len() + 1),
+            false,
+            app.seed_line,
+        ),
     );
     // Under the word fields.
     y + crate::screens::button_rows(ui, x, y, iw, &langs) - 6.0
@@ -803,10 +807,10 @@ pub(crate) fn entry_form(
     flow: Option<Action>,
 ) -> f32 {
     use crate::forms::Form;
-    let form = app.entry.form;
+    let form = app.entry.state().form;
     let mut y = y;
-    let on = !app.entry.on_passphrase;
-    let empty = app.entry.typed.is_empty();
+    let on = !app.entry.state().on_passphrase;
+    let empty = app.entry.state().typed.is_empty();
     // Use a sample stands where the hint would, in Demo.
     let chip = app.entry_sample_shown();
     let typed = if chip {
@@ -817,7 +821,7 @@ pub(crate) fn entry_form(
             _ => EN.compact_words_of_one.to_string(),
         }
     } else {
-        let mut t = app.entry.typed.to_string();
+        let mut t = app.entry.state().typed.to_string();
         if on {
             t.push_str(ui.caret_char());
         }
@@ -845,10 +849,10 @@ pub(crate) fn entry_form(
         crate::samples::put::field_chip(ui, (x, y, iw, bh));
     }
     y += bh + 10.0 + crate::screens::never_below(app, ui, x, y + bh, iw);
-    if let Some(e) = &app.entry.error {
+    if let Some(e) = &app.entry.state().error {
         y += ui.wrap(x, y, iw, 13.0, W::R, ERR, e) + 8.0;
     }
-    let lines = app.entry.parts.lines(form);
+    let lines = app.entry.state().parts.lines(form);
     y += heading(
         ui,
         x,
@@ -871,15 +875,18 @@ pub(crate) fn entry_form(
             y,
             iw,
             EN.compact_passphrase,
-            &app.entry.passphrase,
+            &app.entry.state().passphrase,
             (
-                app.entry.on_passphrase,
-                app.pass_chip(crate::demo::PassField::Entry, app.entry.on_passphrase),
+                app.entry.state().on_passphrase,
+                app.pass_chip(
+                    crate::demo::PassField::Entry,
+                    app.entry.state().on_passphrase,
+                ),
             ),
             Action::EntryPassphrase,
         );
     }
-    let ready = app.entry.parts.ready(form);
+    let ready = app.entry.state().parts.ready(form);
     y += stack(
         ui,
         x,
@@ -888,7 +895,7 @@ pub(crate) fn entry_form(
         &[
             (
                 EN.compact_add_this_one,
-                if app.entry.typed.trim().is_empty() {
+                if app.entry.state().typed.trim().is_empty() {
                     Style::Disabled
                 } else {
                     Style::Secondary

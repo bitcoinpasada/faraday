@@ -899,9 +899,9 @@ impl Faraday {
         }
         match self.screen {
             Screen::Entry => {
-                self.entry.on_passphrase
-                    || self.entry.form != crate::forms::Form::Words
-                    || self.entry.keys.is_none()
+                self.entry.state().on_passphrase
+                    || self.entry.state().form != crate::forms::Form::Words
+                    || self.entry.state().keys.is_none()
             }
             // The vault's list has no field; its item page may.
             Screen::VaultContents => {
@@ -920,8 +920,8 @@ impl Faraday {
                 !k.locked
                     && ((k.focus.is_some() && k.open == Some(crate::keygen::kstep::KEY))
                         || (k.open == Some(crate::keygen::kstep::TYPED)
-                            && (self.entry.form != crate::forms::Form::Words
-                                || self.entry.keys.is_none())))
+                            && (self.entry.state().form != crate::forms::Form::Words
+                                || self.entry.state().keys.is_none())))
             }),
             _ => self.typing_field(),
         }
@@ -998,7 +998,7 @@ impl Faraday {
                 self.screen,
                 self.sheet,
                 self.vaults.focus,
-                self.entry.on_passphrase,
+                self.entry.state().on_passphrase,
                 self.keygen.as_ref().and_then(|k| k.focus),
                 self.create.as_ref().and_then(|c| c.pass_focus),
                 self.seed_read.as_ref().and_then(|s| s.focus)

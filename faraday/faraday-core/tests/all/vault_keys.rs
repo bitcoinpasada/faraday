@@ -375,7 +375,12 @@ fn a_key_whose_words_are_in_the_vault_reads_as_kept_there_and_another_does_not()
     // The same seed typed from another language's list reads as kept too.
     let es = Mnemonic::from_indices(Language::Spanish, made.indices()).unwrap();
     type_words(&mut app, Language::Spanish, &es);
-    assert_eq!(app.session.keys.len(), 3, "{:?}", app.entry.error);
+    assert_eq!(
+        app.session.keys.len(),
+        3,
+        "{:?}",
+        testkit::entry(&app).error
+    );
     assert!(app.key_held(&c, app.session.keys[2].fingerprint));
 }
 

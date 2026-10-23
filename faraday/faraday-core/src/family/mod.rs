@@ -605,10 +605,11 @@ impl Faraday {
                     if self.sheet == Some(Sheet::Scan) {
                         self.sheet = None;
                     }
-                    self.entry = crate::EntryState::default();
-                    self.entry.back = Some(Screen::Family);
+                    self.entry.reset();
+                    self.entry.state_mut().back = Some(Screen::Family);
                     if self.compact {
-                        self.entry.keys = Some(crate::forms::word_typer(self.entry.language()));
+                        self.entry.state_mut().keys =
+                            Some(crate::forms::word_typer(self.entry.state().language()));
                     }
                     self.screen = Screen::Entry;
                 }
@@ -1008,7 +1009,7 @@ impl Faraday {
         if let Some(i) = crate::forms::Form::ALL.iter().position(|f| *f == form) {
             self.act(Action::EntryForm(i as u8));
         }
-        self.entry.typed.set(&text);
+        self.entry.state_mut().typed.set(&text);
         self.form_add_part();
         true
     }
@@ -1606,7 +1607,7 @@ impl Faraday {
     /// What the tab keeps across a lock: nothing secret.
     pub(crate) fn family_kept(&self) -> Option<Vec<u8>> {
         let active = self.screen == Screen::Family
-            || (self.screen == Screen::Entry && self.entry.back == Some(Screen::Family));
+            || (self.screen == Screen::Entry && self.entry.state().back == Some(Screen::Family));
         if self.family.route.is_none() && self.family.came.is_empty() && !active {
             return None;
         }

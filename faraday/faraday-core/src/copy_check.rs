@@ -167,11 +167,12 @@ impl Faraday {
                 in_check: true,
             };
         }
-        let lang = self.entry.language();
+        let e = self.entry.state_mut();
+        let lang = e.language();
         WordsUse {
-            keys: &mut self.entry.keys,
-            shift: &mut self.entry.shift,
-            error: &mut self.entry.error,
+            keys: &mut e.keys,
+            shift: &mut e.shift,
+            error: &mut e.error,
             lang,
             in_check: false,
         }

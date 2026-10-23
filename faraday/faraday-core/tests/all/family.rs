@@ -317,7 +317,7 @@ fn a_key_from_another_wallet_is_refused_on_the_signing_card() {
     type_text(&mut app, &unrelated);
     app.press(Action::EntryAdd);
     assert_eq!(app.screen, Screen::Entry, "a key for no slot was taken");
-    let error = app.entry.error.clone().unwrap_or_default();
+    let error = testkit::entry(&app).error.clone().unwrap_or_default();
     assert!(error.ends_with("not a key of Savings"), "{error}");
     assert_eq!(app.session.keys.len(), 1);
 }

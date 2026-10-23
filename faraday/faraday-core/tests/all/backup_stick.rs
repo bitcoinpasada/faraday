@@ -227,7 +227,7 @@ fn with_seed(app: &mut Faraday) -> String {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::EntryAdd);
-    assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
+    assert_eq!(app.session.keys.len(), 1, "{:?}", testkit::entry(app).error);
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::KeyWallet(fp, 1));
     app.press(Action::Seeds(S::Make));

@@ -50,7 +50,7 @@ fn on_passphrase() -> Faraday {
     let mut app = wide();
     app.press(Action::Entry(None));
     app.press(Action::EntryPassphrase);
-    assert!(app.entry.on_passphrase);
+    assert!(faraday_core::testkit::entry(&app).on_passphrase);
     app
 }
 
@@ -93,13 +93,13 @@ fn its_keys_type_into_a_passphrase_field_as_physical_keys_do() {
     }
     click(&mut app, Action::Osk(OskPress::Back));
     click(&mut app, Action::Osk(OskPress::Char('c')));
-    assert_eq!(app.entry.passphrase.as_str(), "ac");
+    assert_eq!(faraday_core::testkit::entry(&app).passphrase.as_str(), "ac");
     assert_eq!(
-        app.entry.passphrase.as_str(),
-        by_hand.entry.passphrase.as_str()
+        faraday_core::testkit::entry(&app).passphrase.as_str(),
+        faraday_core::testkit::entry(&by_hand).passphrase.as_str()
     );
     // The field kept its focus through every key.
-    assert!(app.entry.on_passphrase);
+    assert!(faraday_core::testkit::entry(&app).on_passphrase);
 }
 
 #[test]

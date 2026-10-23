@@ -3,10 +3,16 @@
 
 use std::collections::BTreeSet;
 
+use crate::forms::{Form, completion, slip39_completion};
+use crate::strings::{EN, fill};
+use crate::wallet::fp_text;
 use crate::{
     Action, Code, Column, Faraday, Screen, VisitBarAt, Writing, flow, forms, mstep, secret_text,
     visit_taken,
 };
+use faraday_bip::bip39::Language;
+use faraday_bip::codex32::Codex32;
+use faraday_bip::slip39;
 use faraday_crypto::work::Compute;
 
 /// Seed entry.
@@ -119,6 +125,238 @@ impl EntryState {
     }
 }
 
+/// What a key on Add a key leaves to the caller.
+pub(crate) enum Keyed {
+    /// The area took it.
+    Taken,
+    /// Add the words typed as a key.
+    Add,
+    /// Put the parts together and add the key.
+    Recover,
+    /// Take the text typed as one more part.
+    AddPart,
+    /// Leave Add a key.
+    Leave,
+}
+
+/// Seed entry's area: its state, which only its own methods replace and
+/// which other areas reach through [`EntryArea::state`] to read and
+/// [`EntryArea::state_mut`] to change a field.
+#[derive(Default)]
+pub(crate) struct EntryArea {
+    state: EntryState,
+}
+
+impl EntryArea {
+    /// The entry's state.
+    pub(crate) fn state(&self) -> &EntryState {
+        &self.state
+    }
+
+    /// The entry's state, to change a field of.
+    pub(crate) fn state_mut(&mut self) -> &mut EntryState {
+        &mut self.state
+    }
+
+    /// Forgets everything typed and chosen.
+    pub(crate) fn reset(&mut self) {
+        self.state = EntryState::default();
+    }
+
+    /// Takes the state, leaving a fresh one.
+    pub(crate) fn take(&mut self) -> EntryState {
+        std::mem::take(&mut self.state)
+    }
+
+    /// Puts a state back in place of the current one.
+    pub(crate) fn put(&mut self, state: EntryState) {
+        self.state = state;
+    }
+
+    /// The word just typed into `typed`, the way Tab completes it: the
+    /// one word of the list this form's words come from that its letters
+    /// can still become, if only one. `Codex32` has none, since it is
+    /// typed as a string, not words.
+    pub(crate) fn tab_word(&self) -> Option<String> {
+        let e = &self.state;
+        match e.form {
+            Form::Words => completion(e.language(), &e.typed),
+            Form::Xor => completion(faraday_bip::bip39::Language::English, &e.typed),
+            Form::Slip39 => slip39_completion(&e.typed),
+            Form::Codex32 => None,
+        }
+    }
+
+    /// Completes the word just typed into `typed`, the way Tab does for
+    /// every form that types BIP-39 or SLIP-39 words one at a time.
+    pub(crate) fn complete_word(&mut self) {
+        if let Some(word) = self.tab_word() {
+            let cut = self.state.typed.rfind(' ').map(|i| i + 1).unwrap_or(0);
+            self.state.typed.truncate(cut);
+            self.state.typed.push_str(&word);
+            self.state.typed.push(' ');
+        }
+    }
+
+    /// Whether the word just typed into `typed` is already whole and the
+    /// only one it can be: the point at which it moves on by itself, the
+    /// same move Tab makes for you.
+    pub(crate) fn word_whole(&self) -> bool {
+        let prefix = self.state.typed.rsplit(' ').next().unwrap_or("");
+        !prefix.is_empty() && self.tab_word().as_deref() == Some(prefix)
+    }
+
+    /// The words typed on Add a key's words form, the word being typed
+    /// on a list's own keyboard taken first, as a key's words: whole and
+    /// with a checksum that holds, or what is wrong with them.
+    pub(crate) fn mnemonic(&mut self) -> Result<faraday_bip::bip39::Mnemonic, String> {
+        let e = &mut self.state;
+        let lang = e.language();
+        if let Some(w) = e.keys.as_mut() {
+            forms::take_typed(w, lang);
+        }
+        match e.keys.as_ref() {
+            Some(w) => {
+                let mut idx: Vec<u16> = w.committed_indices().collect();
+                let m = faraday_keys::words::from_indices(lang, &idx).map_err(|e| e.to_string());
+                zeroize::Zeroize::zeroize(&mut idx);
+                m
+            }
+            None => forms::typed_mnemonic(lang, &e.typed),
+        }
+    }
+
+    /// A key while the passphrase field has the keyboard. Enter says
+    /// what to do with the words or parts typed.
+    pub(crate) fn passphrase_key(&mut self, key: faraday_shell_api::Key) -> Keyed {
+        use faraday_shell_api::Key as K;
+        let e = &mut self.state;
+        let mut to = Keyed::Taken;
+        match key {
+            // BIP-39 passphrases here are printable ASCII (BIP-39's seed derivation).
+            K::Char(c) if (' '..='~').contains(&c) => e.passphrase.push(c),
+            K::Backspace => {
+                e.passphrase.pop();
+            }
+            K::Enter if e.form == Form::Words => to = Keyed::Add,
+            K::Enter => to = Keyed::Recover,
+            K::Escape | K::Tab => e.on_passphrase = false,
+            _ => {}
+        }
+        to
+    }
+
+    /// Forgets the last refusal.
+    pub(crate) fn clear_error(&mut self) {
+        self.state.error = None;
+    }
+
+    /// A key typed into a form other than words: SLIP-39 shares, a codex32
+    /// string or Seed XOR parts. Letters complete a word that is whole; Tab
+    /// completes the one it can only be.
+    pub(crate) fn part_key(&mut self, key: faraday_shell_api::Key) -> Keyed {
+        use faraday_shell_api::Key as K;
+        let codex32 = self.state.form == Form::Codex32;
+        match key {
+            K::Char(c) if c.is_ascii_alphabetic() || (codex32 && c.is_ascii_digit()) => {
+                self.state.typed.push(c.to_ascii_lowercase());
+                self.state.error = None;
+                if !codex32 && self.word_whole() {
+                    self.complete_word();
+                }
+            }
+            K::Char(' ') if !codex32 => {
+                if !self.state.typed.is_empty() && !self.state.typed.ends_with(' ') {
+                    self.state.typed.push(' ');
+                }
+            }
+            K::Tab if !codex32 => self.complete_word(),
+            K::Backspace => {
+                self.state.typed.pop();
+                self.state.error = None;
+            }
+            K::Enter if self.state.typed.trim().is_empty() => return Keyed::Recover,
+            K::Enter => return Keyed::AddPart,
+            K::Escape => return Keyed::Leave,
+            _ => {}
+        }
+        Keyed::Taken
+    }
+
+    /// Costs what reading a Seed XOR part's words costs, a checksum and a
+    /// hash, and nothing for the other forms. Takes the typed text as one more part of the form
+    /// being read; a refusal is left in `error`. Returns whether a codex32
+    /// string just completed the key (it is the key already).
+    pub(crate) fn add_part(&mut self, c: &Compute) -> bool {
+        let e = &mut self.state;
+        let form = e.form;
+        let text = zeroize::Zeroizing::new(e.typed.trim().to_lowercase());
+        // A codex32 string is read as typed: BIP 93 refuses mixed case.
+        let given = zeroize::Zeroizing::new(e.typed.trim().to_string());
+        let result: Result<(), String> = match form {
+            Form::Slip39 => add_slip39(&mut e.parts, &text),
+            Form::Codex32 => add_codex32(&mut e.parts, &given),
+            Form::Xor => add_xor(c, &mut e.parts, &text),
+            Form::Words => Ok(()),
+        };
+        match result {
+            Ok(()) => {
+                e.sample.emptied();
+                e.typed.clear();
+                e.error = None;
+                form == Form::Codex32 && e.parts.ready(form)
+            }
+            Err(msg) => {
+                e.error = Some(msg);
+                false
+            }
+        }
+    }
+}
+
+/// One SLIP-39 share more, refused when it is not one or is a repeat.
+fn add_slip39(parts: &mut forms::Parts, text: &str) -> Result<(), String> {
+    let s = slip39::Share::parse(text)
+        .map_err(|e| fill(EN.forms_not_slip39_share, &[&format!("{e:?}")]))?;
+    if parts.slip39.iter().any(|t| t.indices() == s.indices()) {
+        return Err(EN.forms_share_duplicate.to_string());
+    }
+    parts.slip39.push(s);
+    Ok(())
+}
+
+/// One codex32 string more, refused when it is not one, is of another
+/// seed or is a repeat.
+fn add_codex32(parts: &mut forms::Parts, given: &str) -> Result<(), String> {
+    let c = Codex32::parse(given).map_err(|e| fill(EN.forms_not_a_codex32, &[&e.to_string()]))?;
+    if let Some(first) = parts.codex32.first()
+        && first.identifier() != c.identifier()
+    {
+        return Err(EN.forms_other_seed_string.to_string());
+    }
+    if parts
+        .codex32
+        .iter()
+        .any(|d| d.share_index() == c.share_index())
+    {
+        return Err(EN.forms_share_duplicate.to_string());
+    }
+    parts.codex32.push(c);
+    Ok(())
+}
+
+/// Costs what reading the words costs, a checksum and a hash. One Seed
+/// XOR part more, its words checked.
+fn add_xor(c: &Compute, parts: &mut forms::Parts, text: &str) -> Result<(), String> {
+    let m = crate::wallet::parse_words(c, Language::English, text)
+        .map_err(|e| fill(EN.forms_not_bip_39_words, &[&e.to_string()]))?;
+    let ent = m.entropy();
+    parts
+        .xor
+        .push(ent.expose().as_bytes())
+        .map_err(|_| EN.forms_every_part_has.to_string())
+}
+
 /// Signing a message: the cards' state.
 #[derive(Default)]
 pub struct MessageState {
@@ -185,6 +423,50 @@ impl MessageArea {
         if let Some(m) = self.state.as_mut() {
             m.scroll = to;
         }
+    }
+
+    /// The actions that change only the cards: whether `action` was one.
+    pub(crate) fn edit(&mut self, action: &Action) -> bool {
+        let Some(m) = self.state.as_mut() else {
+            return matches!(
+                action,
+                Action::MStep(_)
+                    | Action::MNext(_)
+                    | Action::MWallet(_)
+                    | Action::MIndex(_)
+                    | Action::MType
+                    | Action::MFormat(_)
+            );
+        };
+        match *action {
+            Action::MStep(n) => {
+                m.open = if m.open == Some(n) { None } else { Some(n) };
+                m.scroll.follow = true;
+                m.typing = m.open == Some(mstep::TEXT);
+            }
+            Action::MNext(n) => {
+                m.done[n as usize] = true;
+                m.open = (0..4u8).find(|&i| !m.done[i as usize]);
+                m.scroll.follow = true;
+                m.typing = m.open == Some(mstep::TEXT);
+            }
+            Action::MWallet(i) => {
+                m.wallet = Some(i);
+                m.index = 0;
+                m.signed = None;
+            }
+            Action::MIndex(d) => {
+                m.index = (i64::from(m.index) + i64::from(d)).clamp(0, 9999) as u32;
+                m.signed = None;
+            }
+            Action::MType => m.typing = !m.typing,
+            Action::MFormat(b) => {
+                m.bip322 = b;
+                m.signed = None;
+            }
+            _ => return false,
+        }
+        true
     }
 
     /// A key while the message is being typed: whether it was taken.
@@ -274,6 +556,9 @@ impl Faraday {
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the message-signing flow's actions (`SignMessage`, `M*`, `CheckMessage`).
     pub(crate) fn message_act(&mut self, action: Action, c: &Compute) {
+        if self.message.edit(&action) {
+            return;
+        }
         match action {
             Action::SignMessage => {
                 let first = self.session.message_wallets().first().copied();
@@ -284,45 +569,6 @@ impl Faraday {
                     ..MessageState::default()
                 });
                 self.screen = Screen::Message;
-            }
-            Action::MStep(n) => {
-                if let Some(m) = self.message.state.as_mut() {
-                    m.open = if m.open == Some(n) { None } else { Some(n) };
-                    m.scroll.follow = true;
-                    m.typing = m.open == Some(mstep::TEXT);
-                }
-            }
-            Action::MNext(n) => {
-                if let Some(m) = self.message.state.as_mut() {
-                    m.done[n as usize] = true;
-                    m.open = (0..4u8).find(|&i| !m.done[i as usize]);
-                    m.scroll.follow = true;
-                    m.typing = m.open == Some(mstep::TEXT);
-                }
-            }
-            Action::MWallet(i) => {
-                if let Some(m) = self.message.state.as_mut() {
-                    m.wallet = Some(i);
-                    m.index = 0;
-                    m.signed = None;
-                }
-            }
-            Action::MIndex(d) => {
-                if let Some(m) = self.message.state.as_mut() {
-                    m.index = (i64::from(m.index) + i64::from(d)).clamp(0, 9999) as u32;
-                    m.signed = None;
-                }
-            }
-            Action::MType => {
-                if let Some(m) = self.message.state.as_mut() {
-                    m.typing = !m.typing;
-                }
-            }
-            Action::MFormat(b) => {
-                if let Some(m) = self.message.state.as_mut() {
-                    m.bip322 = b;
-                    m.signed = None;
-                }
             }
             Action::MSign => {
                 if let Some(m) = self.message.state.as_mut()
@@ -343,7 +589,12 @@ impl Faraday {
                     }
                 }
                 // The signed message goes For the stick as it is made.
-                if self.message.state.as_ref().is_some_and(|m| m.signed.is_some()) {
+                if self
+                    .message
+                    .state
+                    .as_ref()
+                    .is_some_and(|m| m.signed.is_some())
+                {
                     self.act(Action::MOut);
                 }
             }
@@ -374,6 +625,103 @@ impl Faraday {
             }
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
+        }
+    }
+}
+
+impl Faraday {
+    /// The typed text as one more part; a codex32 secret is the key
+    /// already: Add a key adds it, New key opens its Key card.
+    pub(crate) fn form_add_part(&mut self) {
+        let c = self.compute();
+        if self.entry.add_part(&c) {
+            if self.screen == Screen::KeyGen {
+                self.act(Action::KNext);
+            } else {
+                self.form_recover();
+            }
+        }
+    }
+
+    /// Puts the parts together and adds the key.
+    pub(crate) fn form_recover(&mut self) {
+        if !self.may_load_keys() || self.entry.state().form == Form::Words {
+            return;
+        }
+        match self.form_key() {
+            Ok(fp) => {
+                self.toast(&fill(EN.forms_key_added, &[&fp_text(fp).to_string()]));
+                let back = self.entry.state().back;
+                self.seeds_took(fp, back);
+                self.entry.reset();
+                self.refresh_spend();
+                self.screen = back.unwrap_or(crate::Screen::Wallets);
+                if back == Some(crate::Screen::Family) {
+                    self.family_key_added();
+                }
+            }
+            Err(e) => self.entry.state_mut().error = Some(e),
+        }
+    }
+
+    /// Puts the parts typed together and loads the key they make, with
+    /// the passphrase typed (not for codex32); what is wrong otherwise.
+    /// Add a key's Make the key and New key's Lock in for a form other
+    /// than words both load through here (`docs/history/NEW-WALLET.md` §15.2).
+    pub(crate) fn form_key(&mut self) -> Result<faraday_bip::keys::Fingerprint, String> {
+        let c = self.compute();
+        let form = self.entry.state().form;
+        let label = match form {
+            Form::Slip39 => EN.forms_slip_39_key,
+            Form::Codex32 => EN.forms_codex32_key,
+            _ => EN.forms_seed_xor_key,
+        };
+        match form {
+            Form::Slip39 => faraday_keys::slip39_seed(
+                &c,
+                &self.entry.state().parts.slip39,
+                self.entry.state().passphrase.as_bytes(),
+            )
+            .map_err(|e| fill(EN.forms_the_shares_do, &[&format!("{e:?}")]))
+            .and_then(|seed| {
+                self.session
+                    .keys
+                    .add_seed(&c, &seed, label)
+                    .map_err(|e| e.text())
+            }),
+            Form::Codex32 => faraday_keys::codex32_seed(&self.entry.state().parts.codex32)
+                .map_err(|e| fill(EN.forms_the_strings_do, &[&e.to_string()]))
+                .and_then(|seed| {
+                    self.session
+                        .keys
+                        .add_seed(&c, &seed, label)
+                        .map_err(|e| e.text())
+                }),
+            Form::Xor => self
+                .entry
+                .state()
+                .parts
+                .xor
+                .entropy()
+                .map_err(|_| EN.forms_seed_xor_needs.to_string())
+                .and_then(|e| {
+                    faraday_keys::words::from_entropy(Language::English, e.as_bytes())
+                        .map_err(|e| e.to_string())
+                })
+                .and_then(|m| {
+                    let words: Vec<&str> = m
+                        .indices()
+                        .iter()
+                        .map(|&i| Language::English.word(i))
+                        .collect();
+                    let phrase = zeroize::Zeroizing::new(words.join(" "));
+                    self.session
+                        .keys
+                        .add_words_with(&c, &phrase, &self.entry.state().passphrase, label, None)
+                        .map_err(|e| e.text())
+                }),
+            // Words are loaded as words (`Faraday::typed_load`), never here.
+            Form::Words => Err(String::new()),
         }
     }
 }

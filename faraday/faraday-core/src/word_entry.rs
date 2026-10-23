@@ -629,13 +629,14 @@ impl Faraday {
                         Screen::Restore | Screen::Family | Screen::Spend
                     )
                     .then_some(self.screen);
-                    self.entry = EntryState::default();
-                    self.entry.wanted = wanted;
-                    self.entry.back = back;
+                    self.entry.reset();
+                    self.entry.state_mut().wanted = wanted;
+                    self.entry.state_mut().back = back;
                     // A small panel has no keyboard of its own: every
                     // list's words go on the word keyboard.
                     if self.compact {
-                        self.entry.keys = Some(forms::word_typer(self.entry.language()));
+                        self.entry.state_mut().keys =
+                            Some(forms::word_typer(self.entry.state().language()));
                     }
                     self.screen = Screen::Entry;
                     // Opened at its top, whatever the page it came from
@@ -645,37 +646,40 @@ impl Faraday {
             }
             Action::EntryWordCount(n) => {
                 if EntryState::COUNTS.contains(&n) {
-                    self.entry.word_count = n;
+                    self.entry.state_mut().word_count = n;
                 }
             }
             Action::EntryClear => {
-                self.entry.sample.emptied();
-                self.entry.word_count = 0;
-                self.entry.typed.clear();
-                if self.entry.keys.is_some() {
-                    self.entry.keys = Some(forms::word_typer(self.entry.language()));
+                self.entry.state_mut().sample.emptied();
+                self.entry.state_mut().word_count = 0;
+                self.entry.state_mut().typed.clear();
+                if self.entry.state().keys.is_some() {
+                    self.entry.state_mut().keys =
+                        Some(forms::word_typer(self.entry.state().language()));
                 }
-                self.entry.label.clear();
-                self.entry.error = None;
+                self.entry.state_mut().label.clear();
+                self.entry.state_mut().error = None;
             }
             Action::EntryAdd => self.entry_add(),
-            Action::EntryLanguages => self.entry.languages = !self.entry.languages,
+            Action::EntryLanguages => {
+                self.entry.state_mut().languages = !self.entry.state().languages
+            }
             Action::EntryLanguage(i) => {
                 if let Some(&lang) = forms::LANGUAGES.get(usize::from(i)) {
-                    self.entry.language_at = i;
-                    self.entry.error = None;
-                    self.entry.shift = false;
+                    self.entry.state_mut().language_at = i;
+                    self.entry.state_mut().error = None;
+                    self.entry.state_mut().shift = false;
                     // A list with a keyboard of its own starts its words
                     // over; one typed in Latin letters keeps them.
-                    self.entry.keys =
+                    self.entry.state_mut().keys =
                         (forms::on_screen(lang) || self.compact).then(|| forms::word_typer(lang));
                     if self.compact {
-                        self.entry.languages = false;
+                        self.entry.state_mut().languages = false;
                     }
                 }
             }
             Action::EntryKey(c) => {
-                self.entry.sample.dismiss();
+                self.entry.state_mut().sample.dismiss();
                 let w = self.words_use();
                 let (lang, in_check) = (w.lang, w.in_check);
                 if let Some(k) = w.keys.as_mut() {
@@ -702,7 +706,7 @@ impl Faraday {
                 *w.shift = !*w.shift;
             }
             Action::EntryCandidate(n) => {
-                self.entry.sample.dismiss();
+                self.entry.state_mut().sample.dismiss();
                 let w = self.words_use();
                 let in_check = w.in_check;
                 if let Some(k) = w.keys.as_mut() {
@@ -715,27 +719,29 @@ impl Faraday {
             }
             Action::EntryForm(i) => {
                 if let Some(&f) = forms::Form::ALL.get(usize::from(i)) {
-                    let (wanted, back) = (self.entry.wanted, self.entry.back);
-                    self.entry = EntryState::default();
-                    self.entry.wanted = wanted;
-                    self.entry.back = back;
-                    self.entry.form = f;
+                    let (wanted, back) = (self.entry.state().wanted, self.entry.state().back);
+                    self.entry.reset();
+                    self.entry.state_mut().wanted = wanted;
+                    self.entry.state_mut().back = back;
+                    self.entry.state_mut().form = f;
                     // Chosen from the chips, or opened by a Tools tile
                     // for this form: the chips stay in view.
-                    self.entry.other_forms = true;
+                    self.entry.state_mut().other_forms = true;
                 }
             }
-            Action::EntryOtherForms => self.entry.other_forms = true,
+            Action::EntryOtherForms => self.entry.state_mut().other_forms = true,
             Action::EntryField => {
                 if let Some(c) = self.backup.as_mut().and_then(|b| b.check.as_mut()) {
                     c.sample_gone = true;
                 }
-                self.entry.on_passphrase = false;
-                self.entry.sample.dismiss();
+                self.entry.state_mut().on_passphrase = false;
+                self.entry.state_mut().sample.dismiss();
             }
             Action::EntryPart => self.form_add_part(),
             Action::EntryRecover => self.form_recover(),
-            Action::EntryPassphrase => self.entry.on_passphrase = !self.entry.on_passphrase,
+            Action::EntryPassphrase => {
+                self.entry.state_mut().on_passphrase = !self.entry.state().on_passphrase
+            }
             Action::EntryWallet(w) => {
                 if self.may_load_keys() && w < self.session.wallets.len() {
                     if self.camera.take().is_some() {
@@ -743,7 +749,7 @@ impl Faraday {
                     }
                     self.sheet = None;
                     self.act(Action::Entry(None));
-                    self.entry.wallet = Some(w);
+                    self.entry.state_mut().wallet = Some(w);
                 }
             }
             // `act_inner` passes only the actions matched above.

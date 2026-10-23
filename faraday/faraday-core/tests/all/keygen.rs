@@ -1159,7 +1159,10 @@ fn typed_words_whose_checksum_fails_do_not_open_key() {
     typed(&mut app, &["abandon"; 12].join(" "));
     app.press(Action::KNext);
     assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::TYPED));
-    assert!(app.entry.error.is_some(), "Add a key's own message stands");
+    assert!(
+        faraday_core::testkit::entry(&app).error.is_some(),
+        "Add a key's own message stands"
+    );
 }
 
 #[test]

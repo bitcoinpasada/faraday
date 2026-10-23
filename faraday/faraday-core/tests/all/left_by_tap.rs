@@ -89,7 +89,7 @@ fn new_key_left_by_a_tap_on_the_sidebar_forgets_the_words_typed() {
     assert_eq!(app.screen, Screen::Settings);
     assert!(app.keygen.is_none(), "New key keeps nothing when left");
     assert!(
-        app.entry.typed.as_str().is_empty(),
+        testkit::entry(&app).typed.as_str().is_empty(),
         "nor do its words stay typed"
     );
     not_drawn(&mut app, &shown);

@@ -57,7 +57,12 @@ fn added_from(form: u8, parts: &[&str]) -> [u8; 4] {
         app.event(Event::Key(Key::Enter));
     }
     app.event(Event::Key(Key::Enter));
-    assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
+    assert_eq!(
+        app.session.keys.len(),
+        1,
+        "{:?}",
+        testkit::entry(&app).error
+    );
     app.session.keys[0].fingerprint.0
 }
 

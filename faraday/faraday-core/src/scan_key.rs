@@ -317,8 +317,8 @@ impl Faraday {
         self.refresh_spend();
         // Scanned from Add a key: back where Add a key was opened from.
         if self.screen == crate::Screen::Entry {
-            let back = self.entry.back;
-            self.entry = crate::EntryState::default();
+            let back = self.entry.state().back;
+            self.entry.reset();
             self.screen = match back {
                 Some(s) => s,
                 None if self.spend.is_some() => crate::Screen::Spend,

@@ -9,8 +9,8 @@ use faraday_bip::multisig_config;
 use faraday_crypto::work::Compute;
 
 use crate::{
-    Action, EntryState, Faraday, FileKind, MAX_VAULTS, Screen, VaultAsk, create, flow, restore,
-    rstep, seeds, stem, wallet,
+    Action, Faraday, FileKind, MAX_VAULTS, Screen, VaultAsk, create, flow, restore, rstep, seeds,
+    stem, wallet,
 };
 
 /// What one multisig config file, whole or a share, says.
@@ -401,8 +401,8 @@ impl Faraday {
                     if let Some(r) = self.restore.as_mut() {
                         r.error = None;
                     }
-                    self.entry = EntryState::default();
-                    self.entry.back = Some(Screen::Restore);
+                    self.entry.reset();
+                    self.entry.state_mut().back = Some(Screen::Restore);
                     self.act(Action::ScanSeed);
                 }
             }

@@ -290,11 +290,11 @@ impl Faraday {
     /// Whether Add a key's field is empty: nothing typed, and on a list
     /// typed on its own keyboard no word taken or begun.
     fn entry_empty(&self) -> bool {
-        match self.entry.keys.as_deref() {
-            Some(w) if self.entry.form == Form::Words => {
+        match self.entry.state().keys.as_deref() {
+            Some(w) if self.entry.state().form == Form::Words => {
                 w.committed() == 0 && w.prefix().is_empty()
             }
-            _ => self.entry.typed.is_empty(),
+            _ => self.entry.state().typed.is_empty(),
         }
     }
 
@@ -303,7 +303,7 @@ impl Faraday {
     pub fn entry_sample_shown(&self) -> bool {
         self.put_on().is_some()
             && self.may_load_keys()
-            && self.entry.sample.shown()
+            && self.entry.state().sample.shown()
             && self.entry_empty()
     }
 
@@ -313,7 +313,7 @@ impl Faraday {
     pub(crate) fn entry_typing_key(&mut self) -> bool {
         let here = self.entry_typing_here();
         if here {
-            self.entry.sample.dismiss();
+            self.entry.state_mut().sample.dismiss();
         }
         here
     }
@@ -334,7 +334,7 @@ impl Faraday {
     /// The words sample Add a key is for, when it is for one key: the
     /// key `wanted`, else any key the wallet it is opened for is short of.
     fn entry_wanted_sample(&self, set: &Samples) -> Option<usize> {
-        let missing = match (self.entry.wanted, self.entry.wallet) {
+        let missing = match (self.entry.state().wanted, self.entry.state().wallet) {
             (Some(fp), _) => vec![fp],
             (None, Some(w)) => self.wallet_missing(w),
             (None, None) => return None,
@@ -347,12 +347,12 @@ impl Faraday {
     /// The words Add a key's chip gives: the key it is for, else the next
     /// words sample of the word count chosen that is not loaded.
     fn entry_sample_words(&mut self, set: &'static Samples) -> Option<&'static str> {
-        let chosen = self.entry.words_chosen();
+        let chosen = self.entry.state().words_chosen();
         let at = crate::EntryState::COUNTS
             .iter()
             .position(|n| usize::from(*n) == chosen)
             .unwrap_or(0);
-        let cursor = self.entry.sample.next[at];
+        let cursor = self.entry.state().sample.next[at];
         let (i, next) = match self.entry_wanted_sample(set) {
             Some(i) => (i, cursor),
             None => {
@@ -364,24 +364,25 @@ impl Faraday {
             }
         };
         let k = &set.keys[i];
-        self.entry.sample.next[at] = next;
-        self.entry.word_count = word_count(k) as u8;
+        self.entry.state_mut().sample.next[at] = next;
+        self.entry.state_mut().word_count = word_count(k) as u8;
         k.parts.first().copied()
     }
 
     /// The part Add a key's chip gives on a form of parts: the next part
     /// of the set begun, else part one of the first set not loaded.
     fn entry_sample_part(&mut self, set: &'static Samples) -> Option<&'static str> {
-        let form = self.entry.form;
+        let form = self.entry.state().form;
         let want = match form {
             Form::Slip39 => SampleForm::Slip39,
             Form::Codex32 => SampleForm::Codex32,
             Form::Xor => SampleForm::Xor,
             Form::Words => return None,
         };
-        let have = self.entry.parts.lines(form).len();
+        let have = self.entry.state().parts.lines(form).len();
         let begun = self
             .entry
+            .state()
             .sample
             .begun
             .filter(|_| have > 0)
@@ -397,9 +398,9 @@ impl Faraday {
             .filter(|(_, k)| k.form == want && k.plain.is_some() && !k.parts.is_empty())
             .map(|(i, _)| i)
             .collect();
-        let (i, next) = self.sample_choose(set, &cands, self.entry.sample.next[0])?;
-        self.entry.sample.next[0] = next;
-        self.entry.sample.begun = u8::try_from(i).ok();
+        let (i, next) = self.sample_choose(set, &cands, self.entry.state().sample.next[0])?;
+        self.entry.state_mut().sample.next[0] = next;
+        self.entry.state_mut().sample.begun = u8::try_from(i).ok();
         set.keys[i].parts.first().copied()
     }
 
@@ -411,7 +412,7 @@ impl Faraday {
         if !self.entry_typing_here() || !self.may_load_keys() {
             return;
         }
-        let words = self.entry.form == Form::Words;
+        let words = self.entry.state().form == Form::Words;
         let Some(text) = (if words {
             self.entry_sample_words(set)
         } else {
@@ -419,30 +420,30 @@ impl Faraday {
         }) else {
             return;
         };
-        self.entry.on_passphrase = false;
+        self.entry.state_mut().on_passphrase = false;
         if words {
             // The samples' words are English, whatever list was chosen.
             let english = forms::LANGUAGES
                 .iter()
                 .position(|l| *l == Language::English)
                 .unwrap_or(0) as u8;
-            if self.entry.language_at != english {
+            if self.entry.state().language_at != english {
                 self.act(Action::EntryLanguage(english));
             }
-            if self.entry.keys.is_some() {
+            if self.entry.state().keys.is_some() {
                 let mut w = forms::word_typer(Language::English);
                 forms::type_words(&mut w, Language::English, text);
-                self.entry.keys = Some(w);
+                self.entry.state_mut().keys = Some(w);
             } else {
-                self.entry.typed.set(text);
-                self.entry.typed.push(' ');
+                self.entry.state_mut().typed.set(text);
+                self.entry.state_mut().typed.push(' ');
             }
         } else {
-            self.entry.typed.set(text);
+            self.entry.state_mut().typed.set(text);
         }
-        self.entry.error = None;
-        self.entry.sample.filled = true;
-        self.entry.forget_probe();
+        self.entry.state_mut().error = None;
+        self.entry.state_mut().sample.filled = true;
+        self.entry.state().forget_probe();
     }
 
     // The scanner.
@@ -460,7 +461,7 @@ impl Faraday {
         };
         match scan.purpose {
             ScanPurpose::Seed => self.may_load_keys(),
-            ScanPurpose::KeyPart => self.may_load_keys() && self.entry.form != Form::Words,
+            ScanPurpose::KeyPart => self.may_load_keys() && self.entry.state().form != Form::Words,
             ScanPurpose::WalletKey(w) => {
                 let missing = self.wallet_missing(w);
                 self.may_load_keys()

@@ -53,7 +53,7 @@ fn add_a_key(app: &mut Faraday) {
 }
 
 fn words_typed(app: &Faraday) -> String {
-    app.entry.typed.trim().to_string()
+    testkit::entry(app).typed.trim().to_string()
 }
 
 #[test]
@@ -70,7 +70,11 @@ fn add_a_key_with_twelve_words_takes_the_first_sample_and_a_second_press_the_nex
     app.press(Action::UseSample);
     assert_eq!(words_typed(&app), words_of("ocean").parts[0]);
     app.press(Action::EntryAdd);
-    assert!(held(&app, words_of("ocean")), "{:?}", app.entry.error);
+    assert!(
+        held(&app, words_of("ocean")),
+        "{:?}",
+        testkit::entry(&app).error
+    );
     assert!(!held(&app, words_of("twelve")));
 }
 
@@ -112,10 +116,17 @@ fn a_small_panel_fills_its_word_entry_from_the_chip() {
     add_a_key(&mut app);
     assert!(app.offers(Action::UseSample));
     app.press(Action::UseSample);
-    let w = app.entry.keys.as_ref().expect("the word keyboard");
+    let w = testkit::entry(&app)
+        .keys
+        .as_ref()
+        .expect("the word keyboard");
     assert_eq!(w.committed(), 12);
     app.press(Action::EntryAdd);
-    assert!(held(&app, words_of("twelve")), "{:?}", app.entry.error);
+    assert!(
+        held(&app, words_of("twelve")),
+        "{:?}",
+        testkit::entry(&app).error
+    );
 }
 
 #[test]
@@ -134,7 +145,7 @@ fn pressing_in_the_field_or_typing_hides_the_chip_and_keeps_what_was_typed() {
         app.event(Event::Key(Key::Backspace));
     }
     let _ = app.frame();
-    assert!(app.entry.typed.is_empty());
+    assert!(testkit::entry(&app).typed.is_empty());
     assert!(!app.offers(Action::UseSample));
     // Typing without a press.
     let mut app = demo_app();
@@ -158,23 +169,30 @@ fn a_slip39_share_fills_then_the_set_s_second_share_and_the_key_loads() {
     assert!(app.offers(Action::UseSample));
     // The first set is the one-share backup; a press again takes the next.
     app.press(Action::UseSample);
-    assert_eq!(&*app.entry.typed, named("sample_slip39_one").parts[0]);
+    assert_eq!(
+        &*testkit::entry(&app).typed,
+        named("sample_slip39_one").parts[0]
+    );
     app.press(Action::UseSample);
     let set = named("sample_slip39_two_of_three");
-    assert_eq!(&*app.entry.typed, set.parts[0]);
+    assert_eq!(&*testkit::entry(&app).typed, set.parts[0]);
     // The share is drawn as it is, not masked.
     let shown = app.drawn_texts().join("\n");
     assert!(shown.contains(&set.parts[0][..24]), "{shown}");
     app.press(Action::EntryPart);
     let _ = app.frame();
-    assert!(app.entry.typed.is_empty());
+    assert!(testkit::entry(&app).typed.is_empty());
     assert!(app.offers(Action::UseSample), "the second share's chip");
     app.press(Action::UseSample);
-    assert_eq!(&*app.entry.typed, set.parts[1], "the same set's next share");
+    assert_eq!(
+        &*testkit::entry(&app).typed,
+        set.parts[1],
+        "the same set's next share"
+    );
     app.press(Action::EntryPart);
     let _ = app.frame();
     app.press(Action::EntryRecover);
-    assert!(held(&app, set), "{:?}", app.entry.error);
+    assert!(held(&app, set), "{:?}", testkit::entry(&app).error);
 }
 
 #[test]
@@ -185,9 +203,9 @@ fn a_codex32_secret_loads_at_once_and_its_shares_after_two() {
     let _ = app.frame();
     app.press(Action::UseSample);
     let secret = named("sample_codex32_secret");
-    assert_eq!(&*app.entry.typed, secret.parts[0]);
+    assert_eq!(&*testkit::entry(&app).typed, secret.parts[0]);
     app.press(Action::EntryPart);
-    assert!(held(&app, secret), "{:?}", app.entry.error);
+    assert!(held(&app, secret), "{:?}", testkit::entry(&app).error);
 
     let mut app = demo_app();
     add_a_key(&mut app);
@@ -196,14 +214,14 @@ fn a_codex32_secret_loads_at_once_and_its_shares_after_two() {
     // The secret is the first set; a press again takes the shares.
     app.press(Action::UseSample);
     app.press(Action::UseSample);
-    assert_eq!(&*app.entry.typed, shares.parts[0]);
+    assert_eq!(&*testkit::entry(&app).typed, shares.parts[0]);
     app.press(Action::EntryPart);
     app.press(Action::UseSample);
-    assert_eq!(&*app.entry.typed, shares.parts[1]);
+    assert_eq!(&*testkit::entry(&app).typed, shares.parts[1]);
     app.press(Action::EntryPart);
     let _ = app.frame();
     app.press(Action::EntryRecover);
-    assert!(held(&app, shares), "{:?}", app.entry.error);
+    assert!(held(&app, shares), "{:?}", testkit::entry(&app).error);
 }
 
 #[test]
@@ -214,14 +232,14 @@ fn seed_xor_parts_fill_one_after_the_other_and_make_the_key() {
     let _ = app.frame();
     let set = named("sample_xor");
     app.press(Action::UseSample);
-    assert_eq!(&*app.entry.typed, set.parts[0]);
+    assert_eq!(&*testkit::entry(&app).typed, set.parts[0]);
     app.press(Action::EntryPart);
     app.press(Action::UseSample);
-    assert_eq!(&*app.entry.typed, set.parts[1]);
+    assert_eq!(&*testkit::entry(&app).typed, set.parts[1]);
     app.press(Action::EntryPart);
     let _ = app.frame();
     app.press(Action::EntryRecover);
-    assert!(held(&app, set), "{:?}", app.entry.error);
+    assert!(held(&app, set), "{:?}", testkit::entry(&app).error);
 }
 
 #[test]
@@ -236,7 +254,10 @@ fn new_key_typed_and_the_spend_tab_s_words_offer_the_chip_too() {
     assert_eq!(app.screen, Screen::KeyGen);
     assert!(app.offers(Action::UseSample), "New key's typed card");
     app.press(Action::UseSample);
-    assert_eq!(&*app.entry.typed, named("sample_slip39_one").parts[0]);
+    assert_eq!(
+        &*testkit::entry(&app).typed,
+        named("sample_slip39_one").parts[0]
+    );
 
     // The Spend tab's Type the words.
     let mut app = demo_app();
@@ -249,7 +270,11 @@ fn new_key_typed_and_the_spend_tab_s_words_offer_the_chip_too() {
     assert!(app.offers(Action::UseSample));
     app.press(Action::UseSample);
     app.press(Action::EntryAdd);
-    assert!(held(&app, words_of("twelve")), "{:?}", app.entry.error);
+    assert!(
+        held(&app, words_of("twelve")),
+        "{:?}",
+        testkit::entry(&app).error
+    );
 }
 
 #[test]
@@ -266,7 +291,11 @@ fn the_seed_scanner_reads_a_sample_through_its_seedqr() {
         "the seed asks how it loads"
     );
     app.press(Action::SeedRead(Choice::Plain));
-    assert!(held(&app, words_of("bacon")), "{:?}", app.entry.error);
+    assert!(
+        held(&app, words_of("bacon")),
+        "{:?}",
+        testkit::entry(&app).error
+    );
 }
 
 #[test]
@@ -358,7 +387,11 @@ fn a_cosigner_s_box_takes_the_account_key_of_the_next_sample_seed_at_the_path() 
         app.press(Action::Entry(None));
         type_in(&mut app, &format!("{} ", words_of(word).parts[0]));
         app.press(Action::EntryAdd);
-        assert!(held(&app, words_of(word)), "{:?}", app.entry.error);
+        assert!(
+            held(&app, words_of(word)),
+            "{:?}",
+            testkit::entry(&app).error
+        );
     }
     app.press(Action::Slide(SLIDE_N, 2));
     app.event(Event::Key(Key::Right));
@@ -463,7 +496,7 @@ fn the_copy_check_s_scanner_reads_the_seedqr_of_a_sample_key() {
     app.press(Action::UseSample);
     app.press(Action::EntryAdd);
     let key = words_of("twelve");
-    assert!(held(&app, key), "{:?}", app.entry.error);
+    assert!(held(&app, key), "{:?}", testkit::entry(&app).error);
     app.press(Action::KeyWallet(key.plain.unwrap(), 1));
     app.press(Action::Seeds(S::Make));
     app.press(Action::Backup(0));
@@ -505,7 +538,10 @@ fn no_button_is_offered_on_testnet_or_where_no_samples_are_set() {
     add_a_key(&mut app);
     assert!(!app.offers(Action::UseSample), "Testnet");
     app.press(Action::UseSample);
-    assert!(app.entry.typed.is_empty(), "the press does nothing");
+    assert!(
+        testkit::entry(&app).typed.is_empty(),
+        "the press does nothing"
+    );
     app.press(Action::ScanSeed);
     let _ = app.frame();
     assert!(!app.offers(Action::ScanSample));
@@ -525,7 +561,7 @@ fn open_words_check(app: &mut Faraday) {
     app.press(Action::UseSample);
     app.press(Action::EntryAdd);
     let key = words_of("twelve");
-    assert!(held(app, key), "{:?}", app.entry.error);
+    assert!(held(app, key), "{:?}", testkit::entry(app).error);
     app.press(Action::KeyWallet(key.plain.unwrap(), 1));
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
     app.press(Action::Backup(0));

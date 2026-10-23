@@ -399,8 +399,8 @@ impl Faraday {
         }
         match field {
             PassField::Entry => {
-                self.entry.passphrase.set(PASSPHRASE);
-                self.entry.error = None;
+                self.entry.state_mut().passphrase.set(PASSPHRASE);
+                self.entry.state_mut().error = None;
             }
             PassField::KeyGen(i) => {
                 if let Some(k) = self.keygen.as_mut() {

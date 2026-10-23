@@ -43,7 +43,12 @@ fn spanish_words_typed_without_accents_make_the_spanish_key() {
     app.press(Action::EntryLanguage(at as u8));
     type_folded(&mut app, &es);
     app.press(Action::EntryAdd);
-    assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
+    assert_eq!(
+        app.session.keys.len(),
+        1,
+        "{:?}",
+        faraday_core::testkit::entry(&app).error
+    );
     let key = &app.session.keys[0];
     assert_eq!(key.fingerprint.0, fingerprint(&es));
     assert_ne!(key.fingerprint.0, fingerprint(&en));
@@ -65,7 +70,7 @@ fn a_word_from_another_list_is_named_as_not_on_this_one() {
     app.press(Action::EntryAdd);
     assert!(app.session.keys.is_empty());
     assert!(
-        app.entry
+        faraday_core::testkit::entry(&app)
             .error
             .as_deref()
             .is_some_and(|e| e.contains("French"))
@@ -120,11 +125,16 @@ fn type_on_keys(app: &mut Faraday, lang: Language, i: u16) {
         }
         _ => lang.typed(i).unwrap().as_chars().to_vec(),
     };
-    let before = app.entry.keys.as_ref().unwrap().committed_indices().count();
+    let before = faraday_core::testkit::entry(app)
+        .keys
+        .as_ref()
+        .unwrap()
+        .committed_indices()
+        .count();
     for c in keys {
         app.press(Action::EntryKey(c));
     }
-    let w = app.entry.keys.as_ref().unwrap();
+    let w = faraday_core::testkit::entry(app).keys.as_ref().unwrap();
     // A word with no other word starting the same way is taken as its
     // last key is typed, with no word pressed.
     if w.committed_indices().count() > before {
@@ -158,14 +168,13 @@ fn words_typed_on_the_kana_jamo_pinyin_and_zhuyin_keyboards_make_that_list_s_key
             .unwrap();
         app.press(Action::EntryLanguage(at as u8));
         assert!(
-            app.entry.keys.is_some(),
+            faraday_core::testkit::entry(&app).keys.is_some(),
             "{lang:?} has a keyboard of its own"
         );
         for &i in m.indices() {
             type_on_keys(&mut app, lang, i);
         }
-        let typed: Vec<u16> = app
-            .entry
+        let typed: Vec<u16> = faraday_core::testkit::entry(&app)
             .keys
             .as_ref()
             .unwrap()
@@ -173,7 +182,12 @@ fn words_typed_on_the_kana_jamo_pinyin_and_zhuyin_keyboards_make_that_list_s_key
             .collect();
         assert_eq!(&typed[..], m.indices(), "{lang:?}");
         app.press(Action::EntryAdd);
-        assert_eq!(app.session.keys.len(), 1, "{lang:?}: {:?}", app.entry.error);
+        assert_eq!(
+            app.session.keys.len(),
+            1,
+            "{lang:?}: {:?}",
+            faraday_core::testkit::entry(&app).error
+        );
         let key = &app.session.keys[0];
         assert_eq!(key.fingerprint.0, fingerprint(&m), "{lang:?}");
         assert_eq!(key.language, lang);
@@ -191,10 +205,25 @@ fn a_key_that_leads_to_no_word_is_not_taken() {
     app.press(Action::EntryLanguage(at as u8));
     // No pinyin syllable starts with "v".
     app.event(Event::Key(Key::Char('v')));
-    assert!(app.entry.keys.as_ref().unwrap().prefix().is_empty());
+    assert!(
+        faraday_core::testkit::entry(&app)
+            .keys
+            .as_ref()
+            .unwrap()
+            .prefix()
+            .is_empty()
+    );
     // "shi" and a tone are, typed on the computer's keyboard.
     for c in "shi4".chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    assert!(app.entry.keys.as_ref().unwrap().candidates().count() > 1);
+    assert!(
+        faraday_core::testkit::entry(&app)
+            .keys
+            .as_ref()
+            .unwrap()
+            .candidates()
+            .count()
+            > 1
+    );
 }

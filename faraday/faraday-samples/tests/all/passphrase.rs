@@ -73,14 +73,14 @@ fn in_demo_add_a_keys_passphrase_offers_faraday_and_can_be_typed_over() {
     app.press(Action::Entry(None));
     app.press(Action::UseSample);
     let _ = app.frame();
-    assert!(app.entry.passphrase.is_empty());
+    assert!(testkit::entry(&app).passphrase.is_empty());
     assert!(
         shows(&mut app, "No passphrase"),
         "an optional passphrase stays optional"
     );
     assert!(app.offers(Action::PassChip(PassField::Entry)));
     app.press(Action::PassChip(PassField::Entry));
-    assert_eq!(app.entry.passphrase.as_str(), "faraday");
+    assert_eq!(testkit::entry(&app).passphrase.as_str(), "faraday");
     let _ = app.frame();
     assert!(shows(&mut app, "faraday"), "drawn unmasked in a code box");
     assert!(!app.offers(Action::PassChip(PassField::Entry)), "chip gone");
@@ -89,7 +89,7 @@ fn in_demo_add_a_keys_passphrase_offers_faraday_and_can_be_typed_over() {
     assert!(
         held(&app, sample.with_passphrase.unwrap()),
         "the sample with faraday is in: {:?}",
-        app.entry.error
+        testkit::entry(&app).error
     );
     assert!(!held(&app, sample.plain.unwrap()));
 
@@ -102,7 +102,7 @@ fn in_demo_add_a_keys_passphrase_offers_faraday_and_can_be_typed_over() {
     let _ = app.frame();
     assert!(!app.offers(Action::PassChip(PassField::Entry)));
     type_in(&mut app, "mine");
-    assert_eq!(app.entry.passphrase.as_str(), "mine");
+    assert_eq!(testkit::entry(&app).passphrase.as_str(), "mine");
     let _ = app.frame();
     assert!(!shows(&mut app, "mine"), "masked");
 }
@@ -117,11 +117,14 @@ fn on_testnet_add_a_keys_passphrase_is_typed_masked_and_edited_as_before() {
         "no chip outside Demo"
     );
     app.press(Action::EntryPassphrase);
-    assert!(app.entry.on_passphrase, "a press focuses the field");
+    assert!(
+        testkit::entry(&app).on_passphrase,
+        "a press focuses the field"
+    );
     type_in(&mut app, "ab");
-    assert_eq!(app.entry.passphrase.as_str(), "ab");
+    assert_eq!(testkit::entry(&app).passphrase.as_str(), "ab");
     app.event(Event::Key(Key::Backspace));
-    assert_eq!(app.entry.passphrase.as_str(), "a");
+    assert_eq!(testkit::entry(&app).passphrase.as_str(), "a");
     let _ = app.frame();
     assert!(shows(&mut app, "•"), "masked");
     assert!(!shows(&mut app, "a"));

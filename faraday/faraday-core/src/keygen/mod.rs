@@ -1216,7 +1216,7 @@ impl crate::Faraday {
         k.typing = !self.compact;
         // Add a key's own state waits in the flow, which types into the
         // app's; it comes back when the flow ends.
-        k.entry_kept = std::mem::take(&mut self.entry);
+        k.entry_kept = self.entry.take();
         // Add a key's Make a new key chose already: Start is closed on it
         // and Length is open, as before Start was (`docs/history/NEW-WALLET.md`
         // §15.3).
@@ -1274,7 +1274,7 @@ impl crate::Faraday {
             if compact && e.form == Form::Words {
                 e.keys = Some(crate::forms::word_typer(e.language()));
             }
-            self.entry = e;
+            self.entry.put(e);
         }
         let Some(k) = self.keygen.as_mut() else {
             return;
@@ -1338,23 +1338,23 @@ impl crate::Faraday {
         let only_24 = k.only_24;
         let mut words = None;
         if form == Form::Words {
-            let m = match self.entry_mnemonic() {
+            let m = match self.entry.mnemonic() {
                 Ok(m) => m,
                 Err(e) => {
-                    self.entry.error = Some(e);
+                    self.entry.state_mut().error = Some(e);
                     return;
                 }
             };
             if only_24 && m.word_count() != 24 {
-                self.entry.error = Some(EN.keygen_a_threshold.to_string());
+                self.entry.state_mut().error = Some(EN.keygen_a_threshold.to_string());
                 return;
             }
             words = Some(m);
-        } else if !self.entry.parts.ready(form) {
+        } else if !self.entry.state().parts.ready(form) {
             return;
         }
-        let parts = self.entry.parts.lines(form).len();
-        self.entry.error = None;
+        let parts = self.entry.state().parts.lines(form).len();
+        self.entry.state_mut().error = None;
         let Some(k) = self.keygen.as_mut() else {
             return;
         };
@@ -1945,7 +1945,7 @@ impl crate::Faraday {
                 .typed_load(&m, &pass, "", None, None, |_, _| {})
                 .map_err(|e| e.text()),
             None if form != Form::Words => {
-                self.entry.passphrase.set(&pass);
+                self.entry.state_mut().passphrase.set(&pass);
                 self.form_key()
             }
             None => return,
@@ -1974,7 +1974,7 @@ impl crate::Faraday {
             .position(fp)
             .and_then(|key| self.session.keys.account_text(&c, key, kind, account).ok());
         // What was typed goes; the Key card keeps the words to show.
-        self.entry = crate::EntryState::default();
+        self.entry.reset();
         if let Some(k) = self.keygen.as_mut() {
             k.locked = true;
             k.with_passphrase = !pass.is_empty();
@@ -2054,7 +2054,7 @@ impl crate::Faraday {
     /// the flow typed, which goes. Returns the flow, to be dropped.
     pub(crate) fn keygen_drop(&mut self) -> Option<KeyGen> {
         let mut k = self.keygen.take()?;
-        self.entry = std::mem::take(&mut k.entry_kept);
+        self.entry.put(std::mem::take(&mut k.entry_kept));
         Some(k)
     }
 

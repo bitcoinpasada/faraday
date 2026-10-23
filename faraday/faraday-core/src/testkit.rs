@@ -1592,3 +1592,8 @@ pub fn message(app: &crate::Faraday) -> Option<&crate::MessageState> {
 pub fn message_text(app: &mut crate::Faraday, text: &str) {
     app.message.set_text(text);
 }
+
+/// Add a key's state: what was typed and chosen.
+pub fn entry(app: &crate::Faraday) -> &crate::EntryState {
+    app.entry.state()
+}

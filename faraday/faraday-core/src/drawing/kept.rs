@@ -405,9 +405,9 @@ impl View<'_> {
     /// elliptic-curve multiplication the first time after typing pauses.
     pub fn entry_probed(&self, m: &Mnemonic) -> Option<Result<Fingerprint, String>> {
         if self.typing_now() {
-            return self.entry.probe_kept();
+            return self.entry.state().probe_kept();
         }
-        Some(self.kept(|c| self.entry.probed(c, m)))
+        Some(self.kept(|c| self.entry.state().probed(c, m)))
     }
 
     /// Explore's reading ([`crate::Faraday::explore_reading`]), kept by

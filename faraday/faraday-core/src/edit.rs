@@ -244,7 +244,7 @@ impl Faraday {
                 F::Name => V::CName,
                 F::Second => V::ApkSecond,
             })),
-            Screen::Entry if self.entry.on_passphrase => Some(Action::EntryPassphrase),
+            Screen::Entry if self.entry.state().on_passphrase => Some(Action::EntryPassphrase),
             Screen::Wallets => Some(Action::Rename),
             Screen::Message => Some(Action::MType),
             Screen::KeyGen => {
@@ -290,7 +290,7 @@ impl Faraday {
                     F::Second => &v.apk.second.text,
                 }
             }
-            Action::EntryPassphrase => &self.entry.passphrase,
+            Action::EntryPassphrase => &self.entry.state().passphrase,
             Action::SeedRead(_) => self.seed_read.as_ref()?.field()?,
             Action::Rename => self.renaming.as_deref()?,
             crate::file_menu::FIELD => &self.files_menu.renaming.as_ref()?.stem,

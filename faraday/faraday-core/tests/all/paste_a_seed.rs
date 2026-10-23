@@ -150,7 +150,12 @@ fn a_part_of_a_key_pasted_goes_into_its_form() {
         "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw",
         false,
     );
-    assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
+    assert_eq!(
+        app.session.keys.len(),
+        1,
+        "{:?}",
+        testkit::entry(&app).error
+    );
     assert_eq!(
         app.session.keys[0].fingerprint.0,
         fingerprint_of(

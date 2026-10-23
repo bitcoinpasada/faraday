@@ -49,17 +49,18 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 22.0;
     let for_wallet = app
         .entry
+        .state()
         .wallet
         .and_then(|w| app.session.wallets.get(w))
         .map(|wl| wl.name.as_str());
-    let heading = match (app.entry.wanted, for_wallet) {
+    let heading = match (app.entry.state().wanted, for_wallet) {
         (Some(fp), _) => fill(
             EN.entry_add_key,
             &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
         ),
         (None, Some(name)) => fill(EN.entry_add_key_title, &[name]),
-        (None, None) if app.entry.form != crate::forms::Form::Words => {
-            fill(EN.entry_add_a_key_n, &[app.entry.form.name()])
+        (None, None) if app.entry.state().form != crate::forms::Form::Words => {
+            fill(EN.entry_add_a_key_n, &[app.entry.state().form.name()])
         }
         (None, None) => EN.entry_add_a_key.to_string(),
     };
@@ -69,14 +70,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The words form is the one everyday way in; the other three are
     // behind Other forms, or already shown when a Tools tile opened one
     // of them (`docs/history/SIMPLIFY.md` §2.4).
-    if app.entry.other_forms {
+    if app.entry.state().other_forms {
         let forms: Vec<(String, Style, Action)> = crate::forms::Form::ALL
             .iter()
             .enumerate()
             .map(|(i, f)| {
                 (
                     f.name().to_string(),
-                    if *f == app.entry.form {
+                    if *f == app.entry.state().form {
                         Style::Primary
                     } else {
                         Style::Secondary
@@ -87,7 +88,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .collect();
         y += button_rows(ui, x, y, width, &forms) + 4.0;
     }
-    if app.entry.form != crate::forms::Form::Words {
+    if app.entry.state().form != crate::forms::Form::Words {
         let bottom = entry_form(app, ui, x, y, width, h, None);
         entry_scrolled(app, ui, clip, h, bottom);
         return;
@@ -133,9 +134,9 @@ pub(crate) fn entry_words(
     // Which list the words are from: English, the others one press away;
     // and, unless the chips are already shown, the way to them. Under the
     // word fields, or above the keyboard of a list typed on its own keys.
-    let lang = app.entry.language();
+    let lang = app.entry.state().language();
     let english = lang == faraday_bip::bip39::Language::English;
-    let mut langs: Vec<(String, Style, Action)> = if english && !app.entry.languages {
+    let mut langs: Vec<(String, Style, Action)> = if english && !app.entry.state().languages {
         vec![(
             EN.entry_other_languages.to_string(),
             Style::Ghost,
@@ -158,7 +159,7 @@ pub(crate) fn entry_words(
             })
             .collect()
     };
-    if page && !app.entry.other_forms {
+    if page && !app.entry.state().other_forms {
         langs.insert(
             0,
             (
@@ -168,26 +169,26 @@ pub(crate) fn entry_words(
             ),
         );
     }
-    if let Some(w) = app.entry.keys.as_deref() {
+    if let Some(w) = app.entry.state().keys.as_deref() {
         y += button_rows(ui, x, y, width, &langs);
         return keyed_words(app, w, ui, x, y, width, h);
     }
     y += guide_text(app, ui, x, y, width, EN.entry_type_the_words);
 
-    let words: Vec<&str> = app.entry.typed.split_whitespace().collect();
+    let words: Vec<&str> = app.entry.state().typed.split_whitespace().collect();
     y += word_count_row(app, ui, x, y, width, true);
     // Use a sample stands in the empty grid, in Demo (`docs/MODES.md` §6.1).
     let chip = app.entry_sample_shown();
-    let grid = (y, app.entry.word_boxes(words.len()));
+    let grid = (y, app.entry.state().word_boxes(words.len()));
     y = typed_cells(
         ui,
         (x, y, width),
         lang,
-        &app.entry.typed,
+        &app.entry.state().typed,
         Cells {
             boxes: grid.1,
             masked: false,
-            caret: !app.entry.on_passphrase && !chip,
+            caret: !app.entry.state().on_passphrase && !chip,
             never: app.seed_line,
         },
     );
@@ -202,7 +203,7 @@ pub(crate) fn entry_words(
         && words
             .iter()
             .all(|wd| crate::forms::typed_index(lang, wd).is_some());
-    let m = complete.then(|| crate::forms::typed_mnemonic(lang, &app.entry.typed));
+    let m = complete.then(|| crate::forms::typed_mnemonic(lang, &app.entry.state().typed));
     entry_status(app, ui, x, y, n, m)
 }
 
@@ -227,7 +228,7 @@ pub(crate) fn word_count_row(
     w: f32,
     labelled: bool,
 ) -> f32 {
-    let chosen = app.entry.words_chosen();
+    let chosen = app.entry.state().words_chosen();
     let mut bx = x;
     if labelled {
         ui.text_mid(x, y, 32.0, 13.0, W::S, MUTED, EN.word_count_row_words);
@@ -271,7 +272,7 @@ fn keyed_words(
     h: f32,
 ) -> f32 {
     use faraday_draw::widgets::keyboard;
-    let lang = app.entry.language();
+    let lang = app.entry.state().language();
     let kind = w.keyboard();
     let mut y = y;
     y += guide_text(
@@ -297,16 +298,16 @@ fn keyed_words(
         &taken,
         &prefix,
         Cells {
-            boxes: app.entry.word_boxes(taken.len() + 1),
+            boxes: app.entry.state().word_boxes(taken.len() + 1),
             masked: false,
-            caret: !app.entry.on_passphrase,
+            caret: !app.entry.state().on_passphrase,
             never: app.seed_line,
         },
     );
     // The count and, when the words are a whole key, its checksum and
     // fingerprint, or the last refusal: on the line above the
     // candidates, to keep the keyboard on screen.
-    let (status, tone) = match &app.entry.error {
+    let (status, tone) = match &app.entry.state().error {
         Some(e) => (e.clone(), ERR),
         None => keyed_status(app, lang, &taken),
     };
@@ -318,7 +319,7 @@ fn keyed_words(
     let rows = faraday_draw::widgets::keyboard::rows(kind) as f32;
     let room = h - 82.0 - 8.0 - 40.0 - 12.0 - y;
     let kh = (room / rows).clamp(22.0, 36.0);
-    word_keys(app.entry.shift, w, ui, x, y, width, kh)
+    word_keys(app.entry.state().shift, w, ui, x, y, width, kh)
 }
 
 /// The words typed on a list's own keyboard, as a status line: the
@@ -382,7 +383,7 @@ fn entry_status(
     };
     ui.text(x, y, 14.0, W::S, status.1, &status.0);
     y += 30.0;
-    if let Some(e) = &app.entry.error {
+    if let Some(e) = &app.entry.state().error {
         ui.text(x, y, 13.0, W::R, ERR, e);
     }
     y + 34.0
@@ -406,7 +407,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
     );
     let px = x + 150.0;
     let pw = 380.0f32.min(width - 150.0);
-    let on = app.entry.on_passphrase;
+    let on = app.entry.state().on_passphrase;
     ui.fill(px, y, pw, 40.0, 8.0, BG);
     ui.stroke(px, y, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
     dots_field(
@@ -414,7 +415,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         px,
         y,
         pw,
-        &app.entry.passphrase,
+        &app.entry.state().passphrase,
         (on, app.pass_chip(crate::demo::PassField::Entry, on)),
         Action::EntryPassphrase,
     );
@@ -469,16 +470,16 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
 
 /// Whether any of a key's words is typed on Add a key.
 pub(crate) fn entry_typed(app: &View) -> bool {
-    match app.entry.keys.as_deref() {
+    match app.entry.state().keys.as_deref() {
         Some(w) => w.committed_indices().next().is_some() || !w.prefix().is_empty(),
-        None => !app.entry.typed.trim().is_empty(),
+        None => !app.entry.state().typed.trim().is_empty(),
     }
 }
 
 /// Add a key's Scan a SeedQR: for a wallet's missing key, that wallet's
 /// key scanner; else the SeedQR scanner.
 pub(crate) fn entry_scan(app: &View) -> Action {
-    match app.entry.wallet {
+    match app.entry.state().wallet {
         Some(w) if w < app.session.wallets.len() => Action::ScanKey(w),
         _ => Action::ScanSeed,
     }
@@ -531,7 +532,7 @@ pub(crate) fn entry_form(
     flow: Option<Action>,
 ) -> f32 {
     use crate::forms::Form;
-    let form = app.entry.form;
+    let form = app.entry.state().form;
     let mut y = y;
     let guide = match form {
         Form::Slip39 => EN.entry_form_type_one_share,
@@ -547,14 +548,14 @@ pub(crate) fn entry_form(
         width,
         44.0,
         8.0,
-        if app.entry.on_passphrase {
+        if app.entry.state().on_passphrase {
             BORDER
         } else {
             ACCENT
         },
     );
-    let on = !app.entry.on_passphrase;
-    let empty = app.entry.typed.is_empty();
+    let on = !app.entry.state().on_passphrase;
+    let empty = app.entry.state().typed.is_empty();
     // Use a sample stands where the hint would, in Demo.
     let chip = app.entry_sample_shown();
     if chip {
@@ -571,7 +572,7 @@ pub(crate) fn entry_form(
             _ => crate::secret_text::SecretText::of(EN.entry_form_one_share_words),
         }
     } else {
-        let mut t = crate::secret_text::SecretText::of(&app.entry.typed);
+        let mut t = crate::secret_text::SecretText::of(&app.entry.state().typed);
         if on {
             t.push_str(ui.caret_char());
         }
@@ -584,7 +585,7 @@ pub(crate) fn entry_form(
         44.0,
         14.0,
         W::M,
-        if app.entry.typed.is_empty() {
+        if app.entry.state().typed.is_empty() {
             DIM
         } else {
             TEXT
@@ -592,11 +593,11 @@ pub(crate) fn entry_form(
         &shown,
     );
     y += 54.0 + never_below(app, ui, x, y + 44.0, width);
-    if let Some(e) = &app.entry.error {
+    if let Some(e) = &app.entry.state().error {
         y += ui.wrap(x, y, width, 13.0, W::R, ERR, e) + 8.0;
     }
     // What is in.
-    let lines = app.entry.parts.lines(form);
+    let lines = app.entry.state().parts.lines(form);
     section_label(
         ui,
         x,
@@ -619,7 +620,7 @@ pub(crate) fn entry_form(
         ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.entry_form_passphrase);
         let px = x + 150.0;
         let pw = 380.0f32.min(width - 150.0);
-        let on = app.entry.on_passphrase;
+        let on = app.entry.state().on_passphrase;
         ui.fill(px, y, pw, 40.0, 8.0, BG);
         ui.stroke(px, y, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
         dots_field(
@@ -627,7 +628,7 @@ pub(crate) fn entry_form(
             px,
             y,
             pw,
-            &app.entry.passphrase,
+            &app.entry.state().passphrase,
             (on, app.pass_chip(crate::demo::PassField::Entry, on)),
             Action::EntryPassphrase,
         );
@@ -643,14 +644,14 @@ pub(crate) fn entry_form(
     if flow.is_none() {
         entry_stick(app, ui, x, by - 48.0);
     }
-    let ready = app.entry.parts.ready(form);
+    let ready = app.entry.state().parts.ready(form);
     let aw = ui.button(
         x,
         by,
         None,
         46.0,
         EN.entry_form_add_share,
-        if app.entry.typed.trim().is_empty() {
+        if app.entry.state().typed.trim().is_empty() {
             Style::Disabled
         } else {
             Style::Secondary

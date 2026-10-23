@@ -339,7 +339,7 @@ impl Faraday {
             self.family_settle();
             return;
         }
-        let restoring = self.entry.back == Some(Screen::Restore)
+        let restoring = self.entry.state().back == Some(Screen::Restore)
             || (s.loaded.is_some() && self.screen == Screen::Restore);
         if restoring && let Some(why) = self.restore_refusal(fp) {
             if let Some(s) = self.seed_read.as_mut() {
@@ -441,12 +441,13 @@ impl Faraday {
     /// through the word keyboard, which a small panel gets back if they
     /// are refused.
     fn seed_read_load(&mut self, words: &str, pass: &str) {
-        self.entry.typed.set(words);
-        self.entry.passphrase.set(pass);
-        let keys = self.entry.keys.take();
+        self.entry.state_mut().typed.set(words);
+        self.entry.state_mut().passphrase.set(pass);
+        let keys = self.entry.state_mut().keys.take();
         self.entry_add();
         if self.screen == Screen::Entry && keys.is_some() {
-            self.entry.keys = Some(crate::forms::word_typer(self.entry.language()));
+            self.entry.state_mut().keys =
+                Some(crate::forms::word_typer(self.entry.state().language()));
         }
     }
 

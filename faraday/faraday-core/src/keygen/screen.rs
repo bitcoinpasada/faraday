@@ -176,7 +176,7 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 fn typed(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // The room a list's own keyboard is sized to: the card grows to it.
     let room = y + 2000.0;
-    let words = app.entry.form == crate::forms::Form::Words;
+    let words = app.entry.state().form == crate::forms::Form::Words;
     let mut cy = match (words, ui.compact) {
         (true, false) => crate::screens::entry_words(app, ui, x, y, w, room, false),
         (true, true) => crate::compact::screen::entry_words(app, ui, x, y, w, false),
@@ -452,7 +452,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
     if let Some(m) = k.mnemonic.as_ref() {
         cy += word_grid(ui, m, k.shown, x, cy, w);
     } else if !k.locked {
-        for l in app.entry.parts.lines(app.entry.form) {
+        for l in app.entry.state().parts.lines(app.entry.state().form) {
             ui.icon(x, cy - 2.0, 18.0, Icon::Done, 10.0, OK);
             cy += ui.wrap(x + 24.0, cy, w - 24.0, 13.0, W::R, TEXT, &l) + 10.0;
         }

@@ -126,7 +126,10 @@ fn the_codex32_tile_opens_new_key_on_the_codex32_words_card() {
     let k = app.keygen.as_ref().unwrap();
     assert_eq!(k.start, Start::Codex32);
     assert_eq!(k.open, Some(kstep::TYPED), "Start closed, on the next card");
-    assert_eq!(app.entry.form, faraday_core::forms::Form::Codex32);
+    assert_eq!(
+        faraday_core::testkit::entry(&app).form,
+        faraday_core::forms::Form::Codex32
+    );
 }
 
 #[test]

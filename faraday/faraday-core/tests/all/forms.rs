@@ -38,7 +38,12 @@ fn fingerprint_of(xprv: &str) -> [u8; 4] {
 }
 
 fn only_key(app: &Faraday) -> [u8; 4] {
-    assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
+    assert_eq!(
+        app.session.keys.len(),
+        1,
+        "{:?}",
+        faraday_core::testkit::entry(app).error
+    );
     app.session.keys[0].fingerprint.0
 }
 
@@ -57,7 +62,7 @@ fn two_slip39_shares_and_the_passphrase_make_the_vectors_key() {
         "shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed",
     );
     enter(&mut app);
-    assert!(app.entry.error.is_some());
+    assert!(faraday_core::testkit::entry(&app).error.is_some());
     app.press(Action::EntryClear);
     typed(
         &mut app,
@@ -153,7 +158,12 @@ fn a_codex32_string_and_a_slip39_share_can_be_scanned_instead_of_typed() {
         bytes: b"MS10TESTSXXXXXXXXXXXXXXXXXXXXXXXXXX4NZVCA9CMCZLW".to_vec(),
     });
     assert!(app.scan().is_none(), "the camera stayed open");
-    assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
+    assert_eq!(
+        app.session.keys.len(),
+        1,
+        "{:?}",
+        faraday_core::testkit::entry(&app).error
+    );
 
     // One SLIP-39 share scanned: in, waiting for the second.
     let mut app = adding(1);
@@ -162,7 +172,7 @@ fn a_codex32_string_and_a_slip39_share_can_be_scanned_instead_of_typed() {
         bytes: b"shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed".to_vec(),
     });
     assert_eq!(
-        app.entry
+        faraday_core::testkit::entry(&app)
             .parts
             .lines(faraday_core::forms::Form::Slip39)
             .len(),
@@ -222,8 +232,15 @@ fn the_slip39_tile_opens_on_shares() {
     let k = app.keygen.as_ref().unwrap();
     assert_eq!(k.start, faraday_core::keygen::Start::Shares);
     assert_eq!(k.open, Some(faraday_core::keygen::kstep::TYPED));
-    assert_eq!(app.entry.form, faraday_core::forms::Form::Slip39);
-    assert_eq!(app.entry.wanted, None, "not for a missing key in a wallet");
+    assert_eq!(
+        faraday_core::testkit::entry(&app).form,
+        faraday_core::forms::Form::Slip39
+    );
+    assert_eq!(
+        faraday_core::testkit::entry(&app).wanted,
+        None,
+        "not for a missing key in a wallet"
+    );
     assert!(
         app.offers(Action::KStep(faraday_core::keygen::kstep::START)),
         "Start's Change is there to choose another way in"
@@ -237,7 +254,7 @@ fn an_unambiguous_word_moves_on_from_typing_alone() {
     // pressed.
     let mut app = adding(0);
     typed(&mut app, "zebra");
-    assert_eq!(&*app.entry.typed, "zebra ");
+    assert_eq!(&*faraday_core::testkit::entry(&app).typed, "zebra ");
 }
 
 #[test]
@@ -246,9 +263,9 @@ fn a_word_that_starts_a_longer_one_waits_for_a_space() {
     // does not move on by itself; a space still does, as it always has.
     let mut app = adding(0);
     typed(&mut app, "act");
-    assert_eq!(&*app.entry.typed, "act");
+    assert_eq!(&*faraday_core::testkit::entry(&app).typed, "act");
     typed(&mut app, " ");
-    assert_eq!(&*app.entry.typed, "act ");
+    assert_eq!(&*faraday_core::testkit::entry(&app).typed, "act ");
 }
 
 #[test]
@@ -256,7 +273,7 @@ fn an_unambiguous_slip39_word_moves_on_from_typing_alone() {
     // SLIP-39's list has no other word starting "academic".
     let mut app = adding(1);
     typed(&mut app, "academic");
-    assert_eq!(&*app.entry.typed, "academic ");
+    assert_eq!(&*faraday_core::testkit::entry(&app).typed, "academic ");
 }
 
 /// Add a key with the words form, `count` chosen first, the vector's

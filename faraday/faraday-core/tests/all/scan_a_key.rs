@@ -258,7 +258,7 @@ fn the_words_typed_instead_load_any_missing_key_and_refuse_another_seed() {
     let mut probe = testkit::session();
     let fp = fp_text(probe.keys.add_words(&c, OTHER, "", None).unwrap());
     assert_eq!(
-        app.entry.error.as_deref(),
+        testkit::entry(&app).error.as_deref(),
         Some(format!("These words give {fp}, not a key of Savings").as_str())
     );
     assert_eq!(app.session.keys.len(), 1);

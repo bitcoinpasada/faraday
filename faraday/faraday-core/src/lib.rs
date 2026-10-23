@@ -1249,7 +1249,7 @@ pub struct Faraday {
     /// The flow a stick visit returns to when the stick is pulled.
     pub after_visit: Option<Screen>,
     /// Seed entry.
-    pub entry: EntryState,
+    entry: state::EntryArea,
     /// The wallet chosen on the Wallets tab.
     pub wallet: usize,
     /// The key in no wallet chosen on the Wallets tab, by fingerprint,
@@ -1528,7 +1528,7 @@ impl Faraday {
             not_now: false,
             pull: None,
             after_visit: None,
-            entry: EntryState::default(),
+            entry: state::EntryArea::default(),
             wallet: 0,
             loose_pick: None,
             visit: VisitState::default(),
@@ -1995,8 +1995,8 @@ impl Faraday {
         self.keygen.is_some()
             || self.secret_out.as_ref().is_some_and(|o| !o.to_visit)
             || self.lightning.state().is_some()
-            || !self.entry.typed.is_empty()
-            || !self.entry.passphrase.is_empty()
+            || !self.entry.state().typed.is_empty()
+            || !self.entry.state().passphrase.is_empty()
             || !self.vaults.passphrase.text.is_empty()
             || self
                 .potential
@@ -2772,7 +2772,7 @@ impl Faraday {
         self.wordlist.clear();
         self.bip85.clear();
         self.secret_out = None;
-        self.entry = EntryState::default();
+        self.entry.reset();
         self.save_boxes_for_lock();
         self.restart = true;
         self.out.commands.push_back(Command::Exit);
@@ -6090,17 +6090,17 @@ impl Faraday {
                 Some(w) => w,
                 None => zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string()),
             };
-            self.entry.typed.set(&text);
-            self.entry.error = None;
+            self.entry.state_mut().typed.set(&text);
+            self.entry.state_mut().error = None;
             self.form_add_part();
-            match self.entry.error.clone() {
+            match self.entry.state().error.clone() {
                 None => {
                     self.camera.close();
                     self.sheet = None;
                     self.out.commands.push_back(Command::CameraOff);
                 }
                 Some(why) => {
-                    zeroize::Zeroize::zeroize(&mut self.entry.typed);
+                    zeroize::Zeroize::zeroize(&mut self.entry.state_mut().typed);
                     if let Some(scan) = self.camera.scan_mut() {
                         scan.note = Some(why);
                     }
@@ -6269,7 +6269,7 @@ impl Faraday {
     fn seed_scanned(&mut self, words: &str) {
         // A scan fills the words from a camera frame, which keeps the
         // status line's probe: it is worked out again for these.
-        self.entry.forget_probe();
+        self.entry.state().forget_probe();
         // New key's Scan a SeedQR: its Key card takes the words and asks
         // the passphrase there (`docs/history/NEW-WALLET.md` §15.2).
         if self.keygen_scanned(words) {
@@ -6804,31 +6804,12 @@ impl Faraday {
     /// Where leaving Add a key goes: the Spend tab when it came from
     /// there, else Wallets.
     pub(crate) fn entry_leave(&self) -> Screen {
-        match self.entry.back {
+        match self.entry.state().back {
             Some(s @ (Screen::Family | Screen::Spend)) => s,
             Some(Screen::Restore) if self.restore.as_ref().is_some_and(|r| r.seeds.is_some()) => {
                 Screen::Restore
             }
             _ => Screen::Wallets,
-        }
-    }
-
-    /// The words typed on Add a key's words form, the word being typed
-    /// on a list's own keyboard taken first, as a key's words: whole and
-    /// with a checksum that holds, or what is wrong with them.
-    pub(crate) fn entry_mnemonic(&mut self) -> Result<faraday_bip::bip39::Mnemonic, String> {
-        let lang = self.entry.language();
-        if let Some(w) = self.entry.keys.as_mut() {
-            forms::take_typed(w, lang);
-        }
-        match self.entry.keys.as_ref() {
-            Some(w) => {
-                let mut idx: Vec<u16> = w.committed_indices().collect();
-                let m = faraday_keys::words::from_indices(lang, &idx).map_err(|e| e.to_string());
-                zeroize::Zeroize::zeroize(&mut idx);
-                m
-            }
-            None => forms::typed_mnemonic(lang, &self.entry.typed),
         }
     }
 
@@ -6881,29 +6862,37 @@ impl Faraday {
         if !self.may_load_keys() {
             return;
         }
-        let wanted = self.entry.wanted.map(faraday_bip::keys::Fingerprint);
-        let label = self.entry.label.clone();
-        let typed = self.entry_mnemonic();
+        let wanted = self
+            .entry
+            .state()
+            .wanted
+            .map(faraday_bip::keys::Fingerprint);
+        let label = self.entry.state().label.clone();
+        let typed = self.entry.mnemonic();
         let m = match typed {
             Ok(m) => m,
             Err(e) => {
-                self.entry.error = Some(e);
+                self.entry.state_mut().error = Some(e);
                 return;
             }
         };
         // A SeedQR scanned over the Spend tab or Restore returns to it too.
-        let back = self
-            .entry
-            .back
-            .or(matches!(self.screen, Screen::Family | Screen::Restore).then_some(self.screen));
+        let back =
+            self.entry
+                .state()
+                .back
+                .or(matches!(self.screen, Screen::Family | Screen::Restore).then_some(self.screen));
         // Add a key for a wallet takes only a key the wallet is missing
         // (`docs/history/SCAN-TO-SIGN.md` §2.1).
         let mut label = label;
         let mut for_wallet = None;
-        if let Some(w) = self.entry.wallet {
-            let fp =
-                faraday_keys::identity::fingerprint_of_mnemonic(&c, &m, &self.entry.passphrase)
-                    .ok();
+        if let Some(w) = self.entry.state().wallet {
+            let fp = faraday_keys::identity::fingerprint_of_mnemonic(
+                &c,
+                &m,
+                &self.entry.state().passphrase,
+            )
+            .ok();
             if let Some(fp) = fp {
                 match self.wallet_key_found(w, fp) {
                     scan_key::Found::None => {
@@ -6913,7 +6902,7 @@ impl Faraday {
                             .get(w)
                             .map(|wl| wl.name.clone())
                             .unwrap_or_default();
-                        self.entry.error = Some(
+                        self.entry.state_mut().error = Some(
                             wallet::Refusal::NotOfWallet {
                                 got: fp_text(fp),
                                 wallet,
@@ -6935,26 +6924,29 @@ impl Faraday {
         // Restore takes a seed only into a slot it fills: with the
         // description known, one of its keys (`docs/history/NEW-WALLET.md` §12.1).
         if back == Some(Screen::Restore) {
-            let fp =
-                faraday_keys::identity::fingerprint_of_mnemonic(&c, &m, &self.entry.passphrase)
-                    .ok();
+            let fp = faraday_keys::identity::fingerprint_of_mnemonic(
+                &c,
+                &m,
+                &self.entry.state().passphrase,
+            )
+            .ok();
             if let Some(why) = fp.and_then(|fp| self.restore_refusal(fp)) {
                 if let Some(r) = self.restore.as_mut() {
                     r.error = Some(why);
                 }
-                self.entry = EntryState::default();
+                self.entry.reset();
                 self.screen = Screen::Restore;
                 return;
             }
         }
-        let pass = secret_text::SecretText::of(self.entry.passphrase.as_str());
+        let pass = secret_text::SecretText::of(self.entry.state().passphrase.as_str());
         let said = |app: &mut Self, fp: faraday_bip::keys::Fingerprint| match for_wallet {
             Some((w, n)) => app.wallet_key_said(w, n),
             None => app.toast(&fill(EN.entry_add_key_added, &[&fp_text(fp).to_string()])),
         };
         match self.typed_load(&m, &pass, &label, wanted, back, said) {
             Ok(_) => {
-                self.entry = EntryState::default();
+                self.entry.reset();
                 self.refresh_spend();
                 self.screen = match back {
                     Some(s) => s,
@@ -6968,11 +6960,13 @@ impl Faraday {
             // A seed already loaded comes in on the Spend tab's What do
             // you have? as it is (`docs/history/SCAN-TO-SIGN.md` §4).
             Err(wallet::Refusal::Duplicate(_)) if back == Some(Screen::Family) => {
-                if let Ok(fp) =
-                    faraday_keys::identity::fingerprint_of_mnemonic(&c, &m, &self.entry.passphrase)
-                {
+                if let Ok(fp) = faraday_keys::identity::fingerprint_of_mnemonic(
+                    &c,
+                    &m,
+                    &self.entry.state().passphrase,
+                ) {
                     self.seeds_took(fp, back);
-                    self.entry = EntryState::default();
+                    self.entry.reset();
                     self.refresh_spend();
                     self.screen = Screen::Family;
                     self.family_key_added();
@@ -6983,9 +6977,9 @@ impl Faraday {
                 if let Some(r) = self.restore.as_mut() {
                     r.error = Some(e.text());
                 }
-                self.entry = EntryState::default();
+                self.entry.reset();
             }
-            Err(e) => self.entry.error = Some(e.text()),
+            Err(e) => self.entry.state_mut().error = Some(e.text()),
         }
     }
 
@@ -7710,51 +7704,27 @@ impl Faraday {
         if self.set_time_key(key) {
             return;
         }
-        if self.screen == Screen::Entry && self.entry.on_passphrase {
-            match key {
-                // BIP-39 passphrases here are printable ASCII (BIP-39's seed derivation).
-                KeyIn::Char(c) if (' '..='~').contains(&c) => self.entry.passphrase.push(c),
-                KeyIn::Backspace => {
-                    self.entry.passphrase.pop();
-                }
-                KeyIn::Enter if self.entry.form == forms::Form::Words => self.entry_add(),
-                KeyIn::Enter => self.form_recover(),
-                KeyIn::Escape | KeyIn::Tab => self.entry.on_passphrase = false,
+        if self.screen == Screen::Entry && self.entry.state().on_passphrase {
+            match self.entry.passphrase_key(key) {
+                state::Keyed::Add => self.entry_add(),
+                state::Keyed::Recover => self.form_recover(),
                 _ => {}
             }
-            self.entry.error = None;
+            self.entry.clear_error();
             return;
         }
         let here = self.entry_typing_key();
-        if here && self.entry.form != forms::Form::Words {
-            let codex32 = self.entry.form == forms::Form::Codex32;
-            match key {
-                KeyIn::Char(c) if c.is_ascii_alphabetic() || (codex32 && c.is_ascii_digit()) => {
-                    self.entry.typed.push(c.to_ascii_lowercase());
-                    self.entry.error = None;
-                    if !codex32 && self.entry_word_whole() {
-                        self.entry_complete_word();
-                    }
-                }
-                KeyIn::Char(' ') if !codex32 => {
-                    if !self.entry.typed.is_empty() && !self.entry.typed.ends_with(' ') {
-                        self.entry.typed.push(' ');
-                    }
-                }
-                KeyIn::Tab if !codex32 => self.entry_complete_word(),
-                KeyIn::Backspace => {
-                    self.entry.typed.pop();
-                    self.entry.error = None;
-                }
-                KeyIn::Enter if self.entry.typed.trim().is_empty() => {
+        if here && self.entry.state().form != forms::Form::Words {
+            match self.entry.part_key(key) {
+                state::Keyed::Recover => {
                     if self.screen == Screen::KeyGen {
                         self.keygen_act(Action::KNext);
                     } else {
                         self.form_recover();
                     }
                 }
-                KeyIn::Enter => self.form_add_part(),
-                KeyIn::Escape => {
+                state::Keyed::AddPart => self.form_add_part(),
+                state::Keyed::Leave => {
                     let to = self.entry_leave();
                     self.back();
                     if self.screen == Screen::Entry {
@@ -7771,12 +7741,13 @@ impl Faraday {
         // typed in Latin letters. Check my copy types through the same
         // function (`forms::word_key`).
         if here {
-            let lang = self.entry.language();
+            let e = self.entry.state_mut();
+            let lang = e.language();
             let typed = forms::word_key(
                 forms::WordsMut {
-                    typed: &mut self.entry.typed,
-                    keys: &mut self.entry.keys,
-                    error: &mut self.entry.error,
+                    typed: &mut e.typed,
+                    keys: &mut e.keys,
+                    error: &mut e.error,
                     lang,
                     numbers: false,
                 },
@@ -8501,7 +8472,7 @@ impl Faraday {
         // An action may change the words typed: the status line's key is
         // worked out again, once typing pauses when the action is a
         // character from the on-screen keyboard.
-        self.entry.forget_probe();
+        self.entry.state().forget_probe();
         if matches!(
             action,
             Action::EntryKey(_) | Action::EntryKeyBack | Action::EntryCandidate(_)
@@ -8918,7 +8889,7 @@ impl App for Faraday {
                 | Event::Shift { .. }
                 | Event::KeyUp(_)
         ) {
-            self.entry.forget_probe();
+            self.entry.state().forget_probe();
             // A character typed into the words or the passphrase: the key
             // they make is worked out once typing pauses.
             if matches!(event, Event::Key(_)) && self.entry_typing_here() {
