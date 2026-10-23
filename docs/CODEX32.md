@@ -123,6 +123,14 @@ Sources read for it, each as data and none vendored:
     several vaults add up to the key; the standard way, as BIP-39's,
     paper only: one string per place, with Customize backup for vaults,
     files and Codex32QR (§9.5).
+20. **Codex32 is made for single-key wallets only**: Make codex32
+    shares is not offered in a multisig, Taproot multisig, MuSig2, FROST
+    or recovery wallet's slot; a codex32 key already loaded is accepted
+    in any slot (§6.9).
+21. **A wallet kind, "Single key, backup in shares"**, on Make a new
+    wallet's Kind card between Single key and Multisig: single-sig on
+    chain, its Quorum the share scheme, its one slot made by Make codex32
+    shares; codex32 only, not SLIP-39 (§6.9).
 14. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
     keep real dice typed on the pad): five dice for codex32, one die for
     BIP-39 words and Generate with dice, their values this computer's
@@ -697,6 +705,60 @@ A Record, opened from Strings made and from the key's backup checks:
 
 The record names no product. Learn (§15.3) names the implementations
 that read codex32 as of the build, with the date.
+
+### 6.9 A wallet kind: Single key, backup in shares (owner, 2026-10-22)
+
+Codex32 gives a single-key wallet much of what a person reaches for
+multisig to get, on the backup side: no one paper or place loses the
+wallet, and fewer than k papers reveal nothing. It does not do what
+multisig does at spending: to sign, the whole key is on one device. So
+it is offered where the person chooses what kind of wallet to make, as
+an answer of its own, each row stating plainly what it is.
+
+**Make a new wallet's Kind card** (FLOWS, Make a new wallet; DESIGN §5
+Choice, "What kind of wallet?"):
+
+- **Single key**: one key, its words on paper.
+- **Single key, backup in shares**: one key, its backup in 3 shares, any
+  2 rebuild it (the line follows the scheme chosen).
+- **Multisig**: 3 keys, any 2 sign.
+- **More kinds**, as today.
+
+The second line of each row is a fact of the row, not an explanation;
+how the two compare is Learn's (§15.3). The new kind is single-sig on
+chain, native SegWit, as Single key is; its descriptor is a single-key
+descriptor, and a coordinator sees one xpub.
+
+**Its cards** follow the wallet flow's (Kind · Quorum · Keys · Check ·
+Back up), each doing codex32's part:
+
+- **Quorum** asks the scheme: **How many to rebuild it?** (2 ticked, to
+  9) and **How many shares?** (k to 31, 3 ticked), the steppers of
+  §6.1's Other; "None, the secret alone" is not offered here (that is
+  Single key with a codex32 seed, §6). The Account row follows, as the
+  Account work places it after Quorum.
+- **Keys** has one slot; its button opens Make codex32 shares (§6) with
+  the scheme already chosen, so §6.1 is skipped, starting at the
+  identifier (§6.2). Lock in fills the slot and returns to Keys.
+- **Check** as for Single key, with "Backup · codex32 w0za · 2 of 3" among
+  its rows.
+- **Back up** opens on the standard way for a codex32 key (§9.5): one
+  string per place, on paper, Customize backup for the rest.
+
+It is codex32 only (owner, §1.1 item 21); SLIP-39 stays under New key's
+Other forms.
+
+**Where codex32 is offered, and where not** (owner, §1.1 item 20):
+
+- Make codex32 shares is offered where a single-key wallet is made: this
+  kind's slot; Single key's slot and Add a key on its own, through New
+  key's Start card (§6), BIP-39 words ticked there.
+- A slot of a multisig, Taproot multisig, MuSig2, FROST or recovery
+  wallet offers BIP-39 words only under Make a new key: two thresholds
+  stacked add work and ways to go wrong for little more safety.
+- A codex32 key already loaded (typed, scanned, from a vault) is refused
+  nowhere: it can fill any slot a key can, as a cosigner, and its backup
+  places the set it has (§9.4).
 
 ## 7. The worksheets as Faraday shows them
 
@@ -1339,6 +1401,9 @@ time, F83 onward as of this writing), each its own file and a row in
   "Rolled by this computer" and "simulated dice"; the exception to §5's
   rule that Faraday's own randomness never makes a fresh seed in these
   flows.
+- **D5. Single key, backup in shares.** §6.9: the wallet kind on
+  Make a new wallet's Kind card, codex32 only; codex32 made for
+  single-key wallets only, a loaded codex32 key accepted anywhere.
 
 ## 15. Plan
 
@@ -1390,6 +1455,8 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 | `docs/VAULT.md` | §7, new type 15 | the codex32 share record (§9.5); a vector with it |
 | `docs/BACKUP-FLOW.md` | §17.1, §17.3, §17.5, §17.21 | the codex32 seed group and its string chips, the forms per zone, the checks, the preset (§9.5) |
 | `docs/BACKUP-FLOW.md` | §17.3, the checklist | a key with a codex32 set: the form fixed to the set, Check my copy per string, no Make them (§9.4) |
+| `docs/FLOWS.md` | Make a new wallet | the Kind card's Single key, backup in shares; its Quorum as the scheme; its slot opening Make codex32 shares; no codex32 in other kinds' slots (§6.9) |
+| `docs/DESIGN.md` | §5 Choice, "What kind of wallet?" | the new kind's row and its second line; the rows' second lines (§6.9) |
 | `docs/DESIGN.md` | §4.10 | the worksheet's look, §7.5: the booklet's colour roles as named fills and outlines per theme |
 | `docs/DESIGN.md` | §4 (new component) | the tab row: one tab per item, a check mark once shown, wrapping on `wide` and `mobile`, a Choice with Previous and Next on `small` (§6.5) |
 | `docs/DEMO.md` | §5.2 | the roller in the demo: Generate with dice and New key unchanged in outcome |
