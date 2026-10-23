@@ -35,6 +35,21 @@ decision that took FROST out of the app):
   of Faraday's own is in the app only once it has been reviewed, or
   when it can only add to a standard's strength (mixing a person's own
   randomness into the system's); §7 lists them for outside review.
+- **Checked against an implementation Faraday did not write.** Anything
+  that makes or reads a key, a secret, a seed or backup encoding, an
+  address, a signature or a transaction is checked against an
+  independent implementation: an F79 cross-check area against a pinned
+  reference (`tools/crosscheck/README.md`), or the other tool itself end
+  to end (Bitcoin Core, `gpg`, `openssl`); and against the standard's
+  published vectors where they exist. Where no other implementation
+  exists (Faraday's own formats and procedures), a reference written
+  separately from the spec's text, never from Faraday's code, counts.
+  Exceptions: flow and screen logic, and plumbing that carries bytes it
+  does not interpret (the backup plan, the file envelope's framing), rest
+  on Faraday's own tests; a small standard its published vectors cover in
+  full (TOTP's RFC 6238, the Diceware lists' digests) may rest on them.
+  New cryptographic code lands with its check; a gap found later is
+  closed before 1.0, not a block on every release.
 - **Otherwise it waits in the repository.** Work on a feature whose
   standard is unpublished, or whose construction is Faraday's own and not
   yet reviewed, stays in the repository, built and tested but compiled
