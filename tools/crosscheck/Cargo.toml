@@ -15,11 +15,17 @@ path = "src/main.rs"
 [dependencies]
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-entropy = { path = "../../core/faraday-entropy" }
+faraday-backup = { path = "../../core/faraday-backup" }
+faraday-psbt = { path = "../../core/faraday-psbt" }
+faraday-vault = { path = "../../faraday/faraday-vault" }
 # The token that counts nothing (docs/COMPUTE.md §3): this command is a
 # test, and `tools/lint-unchecked.sh` keeps the feature out of every
 # shipped binary.
 faraday-crypto = { path = "../../core/faraday-crypto", features = ["unchecked"] }
 bitcoin.workspace = true
+# XChaCha20-Poly1305 called as `faraday-vault` calls it, for the vault
+# area's checks of the cipher on its own.
+chacha20poly1305.workspace = true
 serde_json.workspace = true
 
 [lints]

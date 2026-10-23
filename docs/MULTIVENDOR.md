@@ -1,8 +1,8 @@
 # Two implementations of every cryptographic step
 
 **Kind:** Spec
-**Status:** Option A decided (F79), its first batch built; options B and C deferred
-**Open:** §10.5 items 2 to 4 of the build-time cross-check (the vault; BIP-39 and BIP-32; what comes from rust-bitcoin and rust-miniscript); B and C wait for the owner (§9).
+**Status:** Option A decided (F79) and built, §10.5 items 1 to 4; options B and C deferred
+**Open:** what §10.5 item 4 leaves (PSBT signing and finalizing end to end, taproot outputs with script trees, miniscript); B and C wait for the owner (§9).
 
 ## 1. The idea
 
@@ -139,10 +139,11 @@ Only for B and C, when they come back:
 
 ## 10. The build-time cross-check (option A)
 
-Decided 2026-10-22 (owner, F79). Item 1 of §10.5 is built, in
-`tools/crosscheck/` (its README says how to run it and what each area
-checks), with the stamp check `tools/lint-crosscheck.sh`; items 2 to 4
-are not.
+Decided 2026-10-22 (owner, F79). Items 1 to 4 of §10.5 are built, in
+`tools/crosscheck/` (its README says how to run it, what each area
+checks and where Faraday reads a case otherwise than its reference),
+with the stamp check `tools/lint-crosscheck.sh`. What item 4 leaves is
+listed under it.
 
 ### 10.1 What runs
 
@@ -171,7 +172,8 @@ parallel. Secrets in the cross-check are test data only.
   security control.
 - **What the stamp covers.** `core/faraday-crypto`, `core/faraday-bip`,
   `core/faraday-psbt`, `core/faraday-entropy`, `core/faraday-backup`,
-  the signing and derivation code in `faraday/faraday-keys`, and the
+  `faraday/faraday-vault`, the signing and derivation code in
+  `faraday/faraday-keys`, and the
   `Cargo.lock` entries of rust-bitcoin, rust-miniscript, secp256k1 and
   the RustCrypto crates. A version bump of one of those crates counts as
   a crypto change.
@@ -182,13 +184,16 @@ parallel. Secrets in the cross-check are test data only.
 ### 10.3 How long
 
 Each run has a time budget, and each area's corpus is sized to fit it,
-so adding an area does not lengthen the run. Estimates until measured:
+so adding an area does not lengthen the run much.
 
-- The stamp run: about 2 to 5 minutes. Pure-Python curve arithmetic
-  takes about 5 to 30 ms an operation, so an area gets a few thousand
-  random cases; the vault gets dozens, because Argon2id is memory-hard by
-  design.
-- The run before a release: about 30 to 60 minutes.
+- The stamp run, all fifteen areas in parallel on the build machine
+  (2026-10-23, shared with other work): 184 s, the slowest area MuSig2
+  at 181 s; the batch 2 to 4 areas 27 to 160 s each (vault 61 s, of
+  which 26 whole vaults at 8 MiB of Argon2id; BIP-39 144 s; signed
+  messages 160 s). Pure-Python curve arithmetic takes about 5 to 30 ms
+  an operation, so an area gets a few thousand random cases.
+- The run before a release: about ten times the cases, estimated at 30
+  to 60 minutes.
 
 ### 10.4 Offline, and pinned
 
@@ -204,10 +209,14 @@ The cross-check fetches nothing, ever.
   web's certificates: the BIPs repository's commit hash, Core's signed
   tag, Trezor's signed release.
 - **Argon2id and XChaCha20-Poly1305** come from the Linux
-  distribution's packages (`python3-argon2`, `python3-nacl` or their
-  equivalents), installed once on the machine that runs the cross-check
-  and verified by the distribution's signatures, not by pip. Their
-  versions are in the stamp.
+  distribution's packages (argon2-cffi and PyNaCl: `python3-argon2`,
+  `python3-nacl` or their equivalents), installed once on the machine
+  that runs the cross-check and verified by the distribution's
+  signatures, not by pip. Their versions are in the stamp.
+- **Bitcoin Core's functional-test framework** is copied from the
+  release tag `v31.1` (`tools/reference/core/`); BIP-32, BIP-137,
+  BIP-322 and the PSBT BIPs' readers are written in the areas from the
+  BIPs' text, each checked against the BIPs' own vectors first.
 - **No network.** Python runs in a network namespace with no
   interfaces, and the Rust command is built with `--offline --frozen`.
   Anything that tries to fetch fails instead of downloading.
@@ -216,11 +225,17 @@ The cross-check fetches nothing, ever.
 
 1. Faraday's own Rust, which no other library checks: MuSig2 (BIP-327,
    328, 390), FROST (BIP-445), silent payments (BIP-352), BIP-85,
-   SLIP-39, codex32 (BIP-93) and Seed XOR.
-2. The vault: Argon2id, HKDF, XChaCha20-Poly1305 (`docs/VAULT.md`).
-3. BIP-39 and BIP-32 derivation.
+   SLIP-39, codex32 (BIP-93) and Seed XOR. Built.
+2. The vault: Argon2id, HKDF, XChaCha20-Poly1305 and the vault's own
+   construction (`docs/VAULT.md`). Built (area `vault`).
+3. BIP-39 and BIP-32 derivation. Built (areas `bip39`, `bip32`).
 4. What comes from rust-bitcoin and rust-miniscript: sighash, PSBT,
    addresses, descriptor checksums, transaction ids, signed messages.
+   Built (areas `addr`, `tx`, `psbt`, `msg`), except: PSBT signing and
+   finalizing end to end (`faraday_psbt::sign`, `finalize`), whose
+   nonces and sighashes are checked separately but not the signed PSBT;
+   taproot outputs with script trees (BIP-341's `scriptPubKey` vectors);
+   and miniscript's scripts and satisfactions. Not scheduled.
 
 ### 10.6 What it does not catch
 

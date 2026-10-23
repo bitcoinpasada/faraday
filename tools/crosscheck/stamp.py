@@ -34,11 +34,13 @@ CRATES = [
     "core/faraday-entropy",
     "core/faraday-backup",
     "faraday/faraday-keys",
+    "faraday/faraday-vault",
     "tools/crosscheck",
 ]
 # The published vectors the cross-check reads (tools/vectors/<name>/).
-VECTORS = ["bip327", "bip352", "bip445", "bip85", "bip93", "codex32-booklet", "codex32-correction",
-           "codex32-volvelle", "codex32qr", "slip39", "xor"]
+VECTORS = ["addresses", "bip32", "bip327", "bip352", "bip39", "bip445", "bip85", "bip93",
+           "codex32-booklet", "codex32-correction", "codex32-volvelle", "codex32qr", "kdf",
+           "message", "psbt-bips", "sighash", "slip39", "vault", "vault-primitives", "xor"]
 # Everything under tools/crosscheck/ that is the harness, not its output.
 HARNESS_SKIP = {"stamp", "found", "__pycache__", "README.md"}
 
@@ -50,7 +52,8 @@ NOT_CRYPTO = {
     "bip39", "serde_json", "unicode-normalization", "serde", "serde_core", "serde_derive",
     "proc-macro2", "quote", "syn", "unicode-ident", "libc", "getrandom", "r-efi",
 }
-CORE = ["faraday-crypto", "faraday-bip", "faraday-psbt", "faraday-entropy", "faraday-backup"]
+CORE = ["faraday-crypto", "faraday-bip", "faraday-psbt", "faraday-entropy", "faraday-backup",
+        "faraday-vault"]
 
 
 def source_files():
@@ -119,10 +122,24 @@ def write(seed, scale, seconds):
         f"inputs {digest()}\n"
         f"references {refs}\n"
         f"python {platform.python_version()}\n"
+        f"{distribution_versions()}"
         f"seed {seed}\n"
         f"scale {scale}\n"
         f"seconds {seconds}\n"
     )
+
+
+def distribution_versions():
+    """The versions of the distribution's packages the vault area uses
+    (F79, docs/MULTIVENDOR.md §10.4), a line each."""
+    from importlib import metadata
+    out = ""
+    for name in ("argon2-cffi", "PyNaCl"):
+        try:
+            out += f"{name} {metadata.version(name)}\n"
+        except metadata.PackageNotFoundError:
+            out += f"{name} missing\n"
+    return out
 
 
 def recorded():

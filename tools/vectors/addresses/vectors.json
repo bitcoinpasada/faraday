@@ -1,0 +1,296 @@
+{
+ "segwit_valid": [
+  {
+   "address": "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
+   "script": "0014751e76e8199196d454941c45d1b3a323f1433bd6",
+   "source": "BIP-350"
+  },
+  {
+   "address": "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
+   "script": "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262",
+   "source": "BIP-350"
+  },
+  {
+   "address": "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kt5nd6y",
+   "script": "5128751e76e8199196d454941c45d1b3a323f1433bd6751e76e8199196d454941c45d1b3a323f1433bd6",
+   "source": "BIP-350"
+  },
+  {
+   "address": "BC1SW50QGDZ25J",
+   "script": "6002751e",
+   "source": "BIP-350"
+  },
+  {
+   "address": "bc1zw508d6qejxtdg4y5r3zarvaryvaxxpcs",
+   "script": "5210751e76e8199196d454941c45d1b3a323",
+   "source": "BIP-350"
+  },
+  {
+   "address": "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
+   "script": "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433",
+   "source": "BIP-350"
+  },
+  {
+   "address": "tb1pqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesf3hn0c",
+   "script": "5120000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433",
+   "source": "BIP-350"
+  },
+  {
+   "address": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqzk5jj0",
+   "script": "512079be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+   "source": "BIP-350"
+  },
+  {
+   "address": "BC1QW508D6QEJXTDG4Y5R3ZARVARY0C5XW7KV8F3T4",
+   "script": "0014751e76e8199196d454941c45d1b3a323f1433bd6",
+   "source": "BIP-173"
+  },
+  {
+   "address": "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sl5k7",
+   "script": "00201863143c14c5166804bd19203356da136c985678cd4d27a1b8c6329604903262",
+   "source": "BIP-173"
+  },
+  {
+   "address": "tb1qqqqqp399et2xygdj5xreqhjjvcmzhxw4aywxecjdzew6hylgvsesrxh6hy",
+   "script": "0020000000c4a5cad46221b2a187905e5266362b99d5e91c6ce24d165dab93e86433",
+   "source": "BIP-173"
+  }
+ ],
+ "segwit_invalid": [
+  {
+   "address": "tc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq5zuyut",
+   "reason": "Invalid human-readable part",
+   "source": "BIP-350"
+  },
+  {
+   "address": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqh2y7hd",
+   "reason": "Invalid checksum (Bech32 instead of Bech32m)",
+   "source": "BIP-350"
+  },
+  {
+   "address": "tb1z0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vqglt7rf",
+   "reason": "Invalid checksum (Bech32 instead of Bech32m)",
+   "source": "BIP-350"
+  },
+  {
+   "address": "BC1S0XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQ54WELL",
+   "reason": "Invalid checksum (Bech32 instead of Bech32m)",
+   "source": "BIP-350"
+  },
+  {
+   "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kemeawh",
+   "reason": "Invalid checksum (Bech32m instead of Bech32)",
+   "source": "BIP-350"
+  },
+  {
+   "address": "tb1q0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq24jc47",
+   "reason": "Invalid checksum (Bech32m instead of Bech32)",
+   "source": "BIP-350"
+  },
+  {
+   "address": "bc1p38j9r5y49hruaue7wxjce0updqjuyyx0kh56v8s25huc6995vvpql3jow4",
+   "reason": "Invalid character in checksum",
+   "source": "BIP-350"
+  },
+  {
+   "address": "BC130XLXVLHEMJA6C4DQV22UAPCTQUPFHLXM9H8Z3K2E72Q4K9HCZ7VQ7ZWS8R",
+   "reason": "Invalid witness version",
+   "source": "BIP-350"
+  },
+  {
+   "address": "bc1pw5dgrnzv",
+   "reason": "Invalid program length (1 byte)",
+   "source": "BIP-350"
+  },
+  {
+   "address": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7v8n0nx0muaewav253zgeav",
+   "reason": "Invalid program length (41 bytes)",
+   "source": "BIP-350"
+  },
+  {
+   "address": "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
+   "reason": "Invalid program length for witness version 0 (per BIP141)",
+   "source": "BIP-350"
+  },
+  {
+   "address": "tb1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vq47Zagq",
+   "reason": "Mixed case",
+   "source": "BIP-350"
+  },
+  {
+   "address": "bc1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7v07qwwzcrf",
+   "reason": "zero padding of more than 4 bits",
+   "source": "BIP-350"
+  },
+  {
+   "address": "tb1p0xlxvlhemja6c4dqv22uapctqupfhlxm9h8z3k2e72q4k9hcz7vpggkg4j",
+   "reason": "Non-zero padding in 8-to-5 conversion",
+   "source": "BIP-350"
+  },
+  {
+   "address": "bc1gmk9yu",
+   "reason": "Empty data section",
+   "source": "BIP-350"
+  },
+  {
+   "address": "tc1qw508d6qejxtdg4y5r3zarvary0c5xw7kg3g4ty",
+   "reason": "Invalid human-readable part",
+   "source": "BIP-173"
+  },
+  {
+   "address": "bc1qw508d6qejxtdg4y5r3zarvary0c5xw7kv8f3t5",
+   "reason": "Invalid checksum",
+   "source": "BIP-173"
+  },
+  {
+   "address": "BC13W508D6QEJXTDG4Y5R3ZARVARY0C5XW7KN40WF2",
+   "reason": "Invalid witness version",
+   "source": "BIP-173"
+  },
+  {
+   "address": "bc1rw5uspcuh",
+   "reason": "Invalid program length",
+   "source": "BIP-173"
+  },
+  {
+   "address": "bc10w508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7kw5rljs90",
+   "reason": "Invalid program length",
+   "source": "BIP-173"
+  },
+  {
+   "address": "BC1QR508D6QEJXTDG4Y5R3ZARVARYV98GJ9P",
+   "reason": "Invalid program length for witness version 0 (per BIP141)",
+   "source": "BIP-173"
+  },
+  {
+   "address": "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3q0sL5k7",
+   "reason": "Mixed case",
+   "source": "BIP-173"
+  },
+  {
+   "address": "bc1zw508d6qejxtdg4y5r3zarvaryvqyzf3du",
+   "reason": "zero padding of more than 4 bits",
+   "source": "BIP-173"
+  },
+  {
+   "address": "tb1qrp33g0q5c5txsp9arysrx4k6zdkfs4nce4xj0gdcccefvpysxf3pjxtptv",
+   "reason": "Non-zero padding in 8-to-5 conversion",
+   "source": "BIP-173"
+  },
+  {
+   "address": "bc1gmk9yu",
+   "reason": "Empty data section",
+   "source": "BIP-173"
+  },
+  {
+   "address": "bc1pw508d6qejxtdg4y5r3zarvary0c5xw7kw508d6qejxtdg4y5r3zarvary0c5xw7k7grplx",
+   "reason": "Bech32 for a version above 0 (BIP-350)",
+   "source": "BIP-173"
+  },
+  {
+   "address": "BC1SW50QA3JX3S",
+   "reason": "Bech32 for a version above 0 (BIP-350)",
+   "source": "BIP-173"
+  },
+  {
+   "address": "bc1zw508d6qejxtdg4y5r3zarvaryvg6kdaj",
+   "reason": "Bech32 for a version above 0 (BIP-350)",
+   "source": "BIP-173"
+  }
+ ],
+ "descriptor_checksums": [
+  {
+   "name": "Valid checksum",
+   "text": "raw(deadbeef)#89f8spxm"
+  },
+  {
+   "name": "No checksum",
+   "text": "raw(deadbeef)"
+  },
+  {
+   "name": "Missing checksum",
+   "text": "raw(deadbeef)#"
+  },
+  {
+   "name": "Too long checksum (9 chars)",
+   "text": "raw(deadbeef)#89f8spxmx"
+  },
+  {
+   "name": "Too short checksum (7 chars)",
+   "text": "raw(deadbeef)#89f8spx"
+  },
+  {
+   "name": "Error in payload",
+   "text": "raw(deedbeef)#89f8spxm"
+  },
+  {
+   "name": "Error in checksum",
+   "text": "raw(deedbeef)##9f8spxm"
+  },
+  {
+   "name": "Invalid characters in payload",
+   "text": "raw(Ü)#00000000"
+  }
+ ],
+ "accounts": [
+  {
+   "purpose": 49,
+   "network": "testnet",
+   "addresses": [
+    {
+     "change": 0,
+     "index": 0,
+     "address": "2Mww8dCYPUpKHofjgcXcBCEGmniw9CoaiD2"
+    }
+   ],
+   "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+   "xpub": "upub5EFU65HtV5TeiSHmZZm7FUffBGy8UKeqp7vw43jYbvZPpoVsgU93oac7Wk3u6moKegAEWtGNF8DehrnHtv21XXEMYRUocHqguyjknFHYfgY"
+  },
+  {
+   "purpose": 84,
+   "network": "mainnet",
+   "addresses": [
+    {
+     "change": 0,
+     "index": 0,
+     "address": "bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu"
+    },
+    {
+     "change": 0,
+     "index": 1,
+     "address": "bc1qnjg0jd8228aq7egyzacy8cys3knf9xvrerkf9g"
+    },
+    {
+     "change": 1,
+     "index": 0,
+     "address": "bc1q8c6fshw2dlwun7ekn9qwf37cu2rn755upcp6el"
+    }
+   ],
+   "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+   "xpub": "zpub6rFR7y4Q2AijBEqTUquhVz398htDFrtymD9xYYfG1m4wAcvPhXNfE3EfH1r1ADqtfSdVCToUG868RvUUkgDKf31mGDtKsAYz2oz2AGutZYs"
+  },
+  {
+   "purpose": 86,
+   "network": "mainnet",
+   "addresses": [
+    {
+     "change": 0,
+     "index": 0,
+     "address": "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr"
+    },
+    {
+     "change": 0,
+     "index": 1,
+     "address": "bc1p4qhjn9zdvkux4e44uhx8tc55attvtyu358kutcqkudyccelu0was9fqzwh"
+    },
+    {
+     "change": 1,
+     "index": 0,
+     "address": "bc1p3qkhfews2uk44qtvauqyr2ttdsw7svhkl9nkm9s9c3x4ax5h60wqwruhk7"
+    }
+   ],
+   "mnemonic": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+   "xpub": "xpub6BgBgsespWvERF3LHQu6CnqdvfEvtMcQjYrcRzx53QJjSxarj2afYWcLteoGVky7D3UKDP9QyrLprQ3VCECoY49yfdDEHGCtMMj92pReUsQ"
+  }
+ ]
+}

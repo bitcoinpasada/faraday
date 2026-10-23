@@ -46,6 +46,13 @@ AREAS = {
     "codex32": ("area_codex32", "Codex32", "codex32.recover"),
     "codex32-correct": ("area_codex32_correct", "Codex32Correct", "codex32.correct"),
     "xor": ("area_xor", "Xor", "xor.combine"),
+    "vault": ("area_vault", "Vault", "vault.open"),
+    "bip39": ("area_bip39", "Bip39", "bip39.seed"),
+    "bip32": ("area_bip32", "Bip32", "bip32.derive"),
+    "addr": ("area_addr", "Addr", "addr.parse"),
+    "tx": ("area_tx", "Tx", "tx.sighash"),
+    "psbt": ("area_psbt", "Psbt", "psbt.v0"),
+    "msg": ("area_msg", "Msg", "msg.sign"),
 }
 
 
@@ -61,7 +68,7 @@ def worker(args):
             area.run()
         finally:
             area.close()
-        result.update(status="pass", compared=area.compared)
+        result.update(status="pass", compared=area.compared, known=getattr(area, "known", 0))
     except common.Mismatch as m:
         result.update(status="mismatch", report=m.report(), op=m.op, inputs=m.inputs,
                       rust=m.rust, reference=m.reference)
@@ -156,7 +163,8 @@ def main():
     for area in areas:
         r = results[area]
         if r["status"] == "pass":
-            print(f"  {area}: {r['compared']} answers agree ({r['seconds']} s)")
+            known = f", {r['known']} of them a known difference" if r.get("known") else ""
+            print(f"  {area}: {r['compared']} answers agree{known} ({r['seconds']} s)")
         else:
             failed = True
             print(f"  {area}: {r['status'].upper()} after {r['seconds']} s")

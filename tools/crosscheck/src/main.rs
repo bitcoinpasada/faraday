@@ -15,13 +15,19 @@
 //! operation, which is how the harness's self-test proves that a wrong
 //! answer is caught.
 
+mod addr;
+mod bip32;
 mod bip85;
 mod codex32;
 mod frost;
 mod json;
+mod msg;
 mod musig;
+mod psbt;
 mod silent;
 mod slip39;
+mod tx;
+mod vault;
 mod xor;
 
 use std::io::{BufRead, Write};
@@ -38,10 +44,17 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "musig" => musig::handle(name, req),
         "frost" => frost::handle(name, req),
         "bip85" => bip85::handle(name, req),
+        "bip39" => bip32::handle_bip39(name, req),
+        "bip32" => bip32::handle_bip32(name, req),
+        "addr" => addr::handle(name, req),
+        "tx" => tx::handle(name, req),
+        "psbt" => psbt::handle(name, req),
+        "msg" => msg::handle(name, req),
         "slip39" => slip39::handle(name, req),
         "codex32" => codex32::handle(name, req),
         "xor" => xor::handle(name, req),
         "sp" => silent::handle(name, req),
+        "vault" => vault::handle(name, req),
         _ => Err(format!("unknown area {area}")),
     }
 }
