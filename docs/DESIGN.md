@@ -9,72 +9,58 @@ way.
 
 ## 1. Why this exists
 
-Six fix passes and one batch of composed screens improved individual
-screens without making the product uniform. Screens were built one at a
-time from findings, so the same kind of content is drawn several ways.
-The fix is to decide once, per kind of content, how it is shown and how
-it behaves, and then build every screen from those decisions.
-
-This document is that decision list: the principles, the inventory of
-content kinds with one rule each, and the reusable screens built from
-them. A screen spec after this is short: which reusable screen, which
-content, what is left off.
+Faraday's screens were built one at a time, so the same kind of content
+could be drawn several ways. This document fixes, per kind of content,
+how it is drawn, how it behaves and what draws it, and names every
+screen and how it is laid out: the principles (§2), the two layouts and
+the theme (§3), the content kinds (§4) and the screens (§5).
 
 ## 2. Principles
 
-1. **Labels, not prose.** The interface is titles, labels, values and
-   actions. Sentences appear only as a one-line reason on a dimmed
-   control ("no camera"), or in Learn.
-   Nothing on a working screen tells a story or restates what the action
-   button already says. Idioms are not labelled: an orange-outlined box
-   is a secret and needs no "hold to show" under it. Learn and About are
-   not working screens and may hold paragraphs. Text longer than a label,
-   wherever it appears, is plain statement of fact in an encyclopedia
-   voice, never metaphor or flourish in place of direct statement.
-2. **One kind of content, one rendering.** Every content kind in §4 has
-   exactly one way of being shown. A screen never invents a variant.
-3. **One screen per kind of data.** Seed words, a PIN, a QR code, an
-   address, a secret string, a derivation path each have one screen that
-   every flow reuses. The flow changes the title and the action, not the
-   layout.
-4. **One item per row on touch screens.** Options are a list, one per
-   row. The one exception is a pair of short options (Receive | Change),
-   which sit side by side as two equal buttons.
-5. **Fixed geometry for anything the user sees repeatedly.** The PIN
-   pad, the keyboard, the secret panel and the record table are the same
-   size in the same place every time. Content never resizes a control.
-6. **Every screen has one intent, and one placement law places it.**
-   A screen navigates, chooses, enters, helps understand, transcribes,
-   shows to a camera or reads (§5). The law: actions and the controls the
-   thumb works (buttons, keyboards, pads, toggles, pairs) are
-   bottom-anchored; lists and documents start at the top and scroll;
-   everything else is one block, vertically centred in the space between
-   the app bar and the actions. Nothing else is top-anchored, and no
-   block is placed by how tall it happens to be. A block that does not
-   fit pages or scrolls. The same law holds on `wide` inside the width
-   caps, with the primary action bottom-right at its natural width.
-   Every screen is designed for the 268 × 358 dp panel first, where the
-   law and "it fits" coincide.
-7. **Direct manipulation, one confirm idiom.** A choice is checked, then
-   confirmed with Continue. Typed or rolled input has a Continue. A hold
-   confirms an action the app cannot undo on its own: signing, forgetting
-   a key, wiping. No other confirm dialog, and the word "irreversible"
-   appears nowhere: the app is offline, and nothing it does is final
-   until something outside it acts.
-8. **Secrets are a place, not a state.** Short secrets (words, one-line
-   values) live in a panel that masks in place with the same geometry
-   either way. Long secrets and long strings live on their own screen,
-   reached by a row. Nobody is shown a hundred bullets or a six-line
-   string inside another screen.
-9. **One unit.** Amounts are shown in sats or in BTC, by setting, never
-   both.
-10. **No pressure.** Nothing counts down at the user except the eye's
-    own timer. Status shows state, not urgency.
+1. **Labels, not prose.** A working screen is titles, labels, values and
+   actions. Longer text on one is a single line: the reason under a
+   dimmed control ("Load a key first"), an error or warning line, a
+   toast, a sheet's line naming what an act loses. Paragraphs are on
+   Learn and About, which are not working screens, in Guided mode's
+   walk-through at the top of an open step (§4.12), and behind the Spend
+   tab's **More about this**, closed until pressed. Text longer than a
+   label, wherever it appears, is plain statement of fact in an
+   encyclopedia voice, never metaphor or flourish in place of direct
+   statement.
+2. **One kind of content, one rendering.** Each content kind in §4 is
+   drawn the way its row says, by what the row names.
+3. **One screen per kind of data.** Moved to `docs/history/DESIGN-LOG.md`.
+4. **One item per row on touch screens.** Moved to `docs/history/DESIGN-LOG.md`.
+5. **Fixed geometry for the keyboards.** An on-screen keyboard is the
+   same size in the same place every time it is up: the docked keyboard
+   at the foot of the panel or of the page beside the sidebar, word
+   entry's keys under the word grid (§4.3).
+6. **One placement law.** Moved to `docs/history/DESIGN-LOG.md`.
+7. **Direct manipulation, few confirms.** A choice is made by pressing
+   or ticking it; where a step asks for one, Continue confirms it (the
+   words quiz checks a word and Continue answers). Signing a transaction
+   is a button, **Sign with** (§4.4). A hold (§4.13) confirms signing
+   with a GPG, Secure Boot or APK key from a vault, deleting from a
+   vault, marking a key revoked, the stick a backup writes to, and wiping
+   a stick; **Hold to show** reveals a held secret (§4.10). A question
+   before an act is a sheet: Lock's, and a flow's Cancel where ending it
+   loses something (§4.13).
+8. **Secrets are hidden where they are read.** Words, seeds, private
+   keys, passphrases and shares are masked in place: a held secret's box
+   shows its value only while held, a **Show** button shows one until
+   **Hide**, a passphrase field shows dots (§4.3, §4.10). Faraday has no
+   screen for one secret or one string alone (F68).
+9. **One unit.** Amounts are in BTC with eight decimals; there is no
+   unit setting (§4.7). A fee is in sats with its rate.
+10. **No pressure.** Two things count down: the idle warning before the
+    lock, and a TOTP code's bar for the time left in its period (§4.14).
+    Status shows state, not urgency.
 11. **Common idioms, not invented ones.** Where a phone or a desktop has
-    a well-understood pattern, the screen uses it: a keyboard has a
-    focused text field above it; a settings list is rows; a choice is a
-    row with a check; a review is a table. Spare space is never filled
-    with decoration or with a second rendering of the same value.
+    a well-understood pattern, the screen uses it: a keyboard types into
+    the field with the caret; a list of options is rows; several choices
+    are ticked boxes; a fact is a label and its value. Spare space is
+    never filled with decoration or with a second rendering of the same
+    value.
 
 ## 3. Sizes
 

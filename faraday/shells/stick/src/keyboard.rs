@@ -18,9 +18,9 @@
 //! with a held key: holding Down walks a list, and holding a letter
 //! down should not type it fifty times into a seed word.
 //!
-//! A key coming up is reported as well as a key going down, because a
-//! hold is held with Enter the way it is held with a finger
-//! (`docs/DESIGN.md` §4.15).
+//! A key coming up is reported as well as a key going down, as
+//! `Event::KeyUp`. Faraday's core does nothing with it: a hold is held by
+//! a touch or a pointer button, never by a key.
 //!
 //! Super (either one) with S is the panic chord: held for [`PANIC_HOLD`]
 //! it powers the machine off at once, whatever is on screen. The

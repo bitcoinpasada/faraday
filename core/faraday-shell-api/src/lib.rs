@@ -64,10 +64,12 @@
 //!
 //! Both are emitted only for a user action: a tap on "Paste" or on
 //! "Copy". The shell never reads the clipboard unasked, never watches
-//! it, and never puts anything on it the core did not hand over. What
-//! the core hands over is never a secret: seed words, a SeedQR, an
-//! extended private key and a private key are refused on the way in and
-//! carry no Copy row on the way out (`docs/DESIGN.md` §4.10).
+//! it, and never puts anything on it the core did not hand over. A
+//! secret (seed words, a SeedQR, an extended private key, a private
+//! key) is refused on the way in, except a seed pasted into a scanner
+//! that loads one, on the desktop (F75), and is never copied to the
+//! clipboard (`docs/DESIGN.md` §4.9, §4.10). Faraday's screens have no
+//! Copy action, so the core emits no [`Command::WriteClipboard`].
 //!
 //! Camera channel (§4.4, §7): the core asks with [`Command::CameraOn`]
 //! and the shell streams [`Event::CameraFrame`]s until
@@ -405,8 +407,9 @@ pub enum Event {
     Key(Key),
     /// A physical keyboard key coming up again (desktop/TUI only).
     ///
-    /// Optional: a shell that cannot see a key released never sends it,
-    /// and on that shell a hold cannot be held with a key (§4.15).
+    /// Optional: a shell that cannot see a key released never sends it.
+    /// Faraday's core does nothing with it: a hold is held by a touch or
+    /// a pointer button, never by a key.
     KeyUp(Key),
     /// A scroll-wheel step at a position. `dy` is in pixels; positive means
     /// the content should move up (the user scrolls down).
@@ -735,10 +738,10 @@ pub enum Command {
     /// delivering; a shell with no clipboard answers
     /// `ClipboardNotWritten` at once.
     ///
-    /// The text is never a secret: the core copies addresses, extended
-    /// public keys, descriptors, policies, transaction ids, signatures,
-    /// signed transactions and encrypted backups, and nothing else
-    /// (`docs/DESIGN.md` §4.10).
+    /// The text is never a secret (`docs/DESIGN.md` §4.10, Mask
+    /// policy). Faraday's screens have no Copy action, so the core
+    /// emits none of these; the stick answers `ClipboardNotWritten` and
+    /// the desktop does not answer.
     WriteClipboard {
         /// What the text is.
         kind: FileKind,

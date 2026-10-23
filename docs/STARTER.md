@@ -292,11 +292,13 @@ Starter itself about 13 MB).
 
 ## 3. Screens
 
-Every screen uses DESIGN §4's components and §5's intents. Titles and
+Every screen is drawn with `faraday-ui`, in DESIGN §3's themes and
+faces, from DESIGN §4's buttons, lines and sheets, as a page from the
+top as DESIGN §5's pages are. Titles and
 labels are the defaults; the build may tighten wording, not change
 what a screen does.
 
-### 3.1 Home (Navigate): a checklist, then the rows
+### 3.1 Home: a checklist, then the rows
 
 Title: the wordmark with **Starter** beside it (F16), the second word in
 the same Archivo Expanded at a lighter weight (400) and in the grey of
@@ -513,12 +515,12 @@ in the firmware. Uninstall removes it too.
 
 ### 3.2 Make a Faraday stick
 
-0. **For which computer?** (Choose), only once the payload carries
+0. **For which computer?**, only once the payload carries
    both stick images (MAC A1): "A PC or an Intel Mac" or "A Mac with
    M1 or M2". Nothing is chosen for the person, as with the disk; the
    row that fits this computer says "This computer". Keep data refuses
    a stick of the other kind (MAC §4.8).
-1. **Which stick?** (Navigate) The USB disks attached now, each as a
+1. **Which stick?** The USB disks attached now, each as a
    row for a person, not for a developer: maker and model, size, and
    what is on it. A Faraday stick says "Faraday stick" and the Faraday
    version it holds (§4.1); any other disk says the names of its
@@ -530,7 +532,7 @@ in the firmware. Uninstall removes it too.
    cannot be chosen. **No disk is ever chosen for the person**, even
    when there is one (owner, 2026-10-12): the one attached USB disk is
    as often a backup drive as a stick.
-2. **What to write?** (Choose)
+2. **What to write?**
    - *New Faraday stick*: the whole stick; everything on it is lost.
    - *Replace Faraday, keep data*: only on a Faraday stick. The boot
      partition is written; the data partition, with its vaults and
@@ -581,7 +583,8 @@ follow this computer's state.
 
 **Write down** (owner, 2026-10-15 and 2026-10-19, F47),
 before step 1: what the person needs once the computer restarts and
-the Starter is no longer on screen, as three value rows, then
+the Starter is no longer on screen, as three rows, a label and its
+value each, then
 **Print**:
 
 - **Boot menu key**: the maker's, to start the stick (`faraday_learn::Maker::boot_key`);
@@ -731,8 +734,11 @@ blank template holds nothing of any wallet. Faraday's backup checklist
 says to print them from here (its **Templates** item) and writes none to
 a stick.
 
-A Menu of value rows (DESIGN §5), titled **Blank templates**, from the
-rows' **Blank templates**, each row opening its Choice:
+A page titled **Blank templates**, opened from Home's row **Blank
+templates**: a row each for Words, Copy and Places, its value at the
+right, each opening a page of its options (a ring each, filled on the
+one chosen) or, for Places, **Fewer** and **More**, with **Continue**
+back; then the buttons:
 
 - **Words**: **12** · **24**, 24 chosen;
 - **Copy**: **Words** · **SeedQR** · **Both**, Words chosen: the word

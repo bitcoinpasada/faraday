@@ -113,13 +113,13 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   and compact Home. `network_pill_left` returns the left edge of the
   pair, so the row's next item moves along.
 - **Settings**: the Network row (`network_row_items`) is replaced by one
-  reference row, **Mode**, its value the mode's name, a chevron; it
+  row, **Mode**, the mode's name muted at its right, a chevron; it
   opens the same sheet. On Mainnet, where no pill shows, it is the only
   door.
 - **The sheet** (`Sheet::Mode`, modes/screen.rs): title "Mode"; one row
-  per mode in `self.modes`, in that order; the mode in use marked as a
-  single choice is (DESIGN §4.2); the Demo row carries "Testnet" as its
-  value, as a row with a value does (DESIGN §4.2); a press on another row is
+  per mode in `self.modes`, in that order, divided by rules; the mode in
+  use marked by a tick in the accent at the row's right; the Demo row
+  carries "Testnet" muted before the tick's place; a press on another row is
   `Action::Mode(m)`; **Not now** at the foot. A row that cannot be
   chosen (the website's three) is dimmed, its label alone: no reason
   line (DESIGN §4.11, nothing on the device changes it). No line says a

@@ -168,10 +168,11 @@ KEK, so they wait.
 
 ### 4.1 Where it will be kept
 
-A Choice-and-rows card (DESIGN §5, Menu rows with Add):
+A step card of rows, a place's options as buttons under its row
+(DESIGN §4.2, Option buttons):
 
 - one row per place, "Place 1", "Place 2", with what it keeps; **Add a
-  place**; a place's row opens it: **A stick with** a vault (Vault 1,
+  place**; a place's buttons choose **A stick with** a vault (Vault 1,
   Vault 2, **A new vault**) or nothing; for a wallet, the paper forms
   stay in Back up's plan (NEW-WALLET §4 and §5);
 - one row per vault: "Vault 1 · new" or "Vault 1 · an existing vault",

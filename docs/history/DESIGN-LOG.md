@@ -4,7 +4,7 @@
 **Status:** Kept as written
 
 Sections moved out of `docs/DESIGN.md` on 2026-10-22, and on 2026-10-23
-the third pass below. Each keeps its
+the third and fourth passes below. Each keeps its
 original number; the source keeps a one-line stub under the same heading.
 
 ## Header (from docs/DESIGN.md)
@@ -551,6 +551,88 @@ A Menu with few rows on `mobile` keeps its start-the-flow buttons at the
 bottom, where the thumb is, and leaves the space between empty. A row
 whose value is a neutral state ("verified", "no") keeps the value in the
 body tone; only the label is muted, so the row does not read as dead.
+
+### Fourth pass, 2026-10-23: §1 and §2 as they stood
+
+Checked against `faraday-ui`, `faraday-draw`, `faraday-core` and DESIGN's
+rewritten §3 to §5: §1 described a set of reusable screens Faraday does
+not have, and §2 held upstream rules that are not true of Faraday. One
+screen per kind of data (§2.3; F68 removed those screens), one item per
+row (§2.4; option buttons wrap) and the placement law (§2.6; Faraday's
+pages start at the top and scroll) went; §1 and §2.1, §2.2, §2.5 and
+§2.7 to §2.11 were rewritten to what Faraday does (they had stated a
+hold to sign a transaction, the eye's countdown, a unit setting, a
+secret panel of fixed geometry, and the word "irreversible" nowhere). Both sections are as they stood before,
+their headings two levels down.
+
+#### 1. Why this exists
+
+Six fix passes and one batch of composed screens improved individual
+screens without making the product uniform. Screens were built one at a
+time from findings, so the same kind of content is drawn several ways.
+The fix is to decide once, per kind of content, how it is shown and how
+it behaves, and then build every screen from those decisions.
+
+This document is that decision list: the principles, the inventory of
+content kinds with one rule each, and the reusable screens built from
+them. A screen spec after this is short: which reusable screen, which
+content, what is left off.
+
+#### 2. Principles
+
+1. **Labels, not prose.** The interface is titles, labels, values and
+   actions. Sentences appear only as a one-line reason on a dimmed
+   control ("no camera"), or in Learn.
+   Nothing on a working screen tells a story or restates what the action
+   button already says. Idioms are not labelled: an orange-outlined box
+   is a secret and needs no "hold to show" under it. Learn and About are
+   not working screens and may hold paragraphs. Text longer than a label,
+   wherever it appears, is plain statement of fact in an encyclopedia
+   voice, never metaphor or flourish in place of direct statement.
+2. **One kind of content, one rendering.** Every content kind in §4 has
+   exactly one way of being shown. A screen never invents a variant.
+3. **One screen per kind of data.** Seed words, a PIN, a QR code, an
+   address, a secret string, a derivation path each have one screen that
+   every flow reuses. The flow changes the title and the action, not the
+   layout.
+4. **One item per row on touch screens.** Options are a list, one per
+   row. The one exception is a pair of short options (Receive | Change),
+   which sit side by side as two equal buttons.
+5. **Fixed geometry for anything the user sees repeatedly.** The PIN
+   pad, the keyboard, the secret panel and the record table are the same
+   size in the same place every time. Content never resizes a control.
+6. **Every screen has one intent, and one placement law places it.**
+   A screen navigates, chooses, enters, helps understand, transcribes,
+   shows to a camera or reads (§5). The law: actions and the controls the
+   thumb works (buttons, keyboards, pads, toggles, pairs) are
+   bottom-anchored; lists and documents start at the top and scroll;
+   everything else is one block, vertically centred in the space between
+   the app bar and the actions. Nothing else is top-anchored, and no
+   block is placed by how tall it happens to be. A block that does not
+   fit pages or scrolls. The same law holds on `wide` inside the width
+   caps, with the primary action bottom-right at its natural width.
+   Every screen is designed for the 268 × 358 dp panel first, where the
+   law and "it fits" coincide.
+7. **Direct manipulation, one confirm idiom.** A choice is checked, then
+   confirmed with Continue. Typed or rolled input has a Continue. A hold
+   confirms an action the app cannot undo on its own: signing, forgetting
+   a key, wiping. No other confirm dialog, and the word "irreversible"
+   appears nowhere: the app is offline, and nothing it does is final
+   until something outside it acts.
+8. **Secrets are a place, not a state.** Short secrets (words, one-line
+   values) live in a panel that masks in place with the same geometry
+   either way. Long secrets and long strings live on their own screen,
+   reached by a row. Nobody is shown a hundred bullets or a six-line
+   string inside another screen.
+9. **One unit.** Amounts are shown in sats or in BTC, by setting, never
+   both.
+10. **No pressure.** Nothing counts down at the user except the eye's
+    own timer. Status shows state, not urgency.
+11. **Common idioms, not invented ones.** Where a phone or a desktop has
+    a well-understood pattern, the screen uses it: a keyboard has a
+    focused text field above it; a settings list is rows; a choice is a
+    row with a check; a review is a table. Spare space is never filled
+    with decoration or with a second rendering of the same value.
 
 ## §6 What changes from today (from docs/DESIGN.md)
 

@@ -109,7 +109,7 @@ offset in use, including +05:30 and +05:45.
 - **Settings** gains a section **Time** after **Session**. Under its
   title the line **For TOTP codes, GPG and Secure Boot signatures, and
   backup check dates** (everything that reads `clock_now`). It holds a
-  value row **Now**, the live local date and time (`2026-10-11
+  row **Now**, the live local date and time (`2026-10-11
   14:02:37`) or `Not known`; a row **Time zone** showing `UTC+02:00`
   (`UTC+00:00` for zero, `UTC−03:30` with a minus sign) between a −
   and a + button that step 15 minutes and stop at the ends; and the
@@ -151,11 +151,11 @@ signature's time, Secure Boot timestamps, the TOTP counter.
 
 ## 3. Set the time
 
-A new screen, `Screen::SetTime`, of the Enter intent (DESIGN §5):
-title **Set the time**, the entry group at the bottom, its context
-centred above it.
+A screen, `Screen::SetTime`, drawn as a page (DESIGN §5): the back
+link and the title **Set the time**, then from the top a card with
+**Now** and **Time zone**, the two fields, and the buttons under them.
 
-- **Context:** the value row **Now**, live as in §2.1, and the **Time
+- **Context:** the row **Now**, live as in §2.1, and the **Time
   zone** row with its − and + buttons (the same actions as Settings').
 - **Entry:** two fields, **Date** (`YYYY-MM-DD`) and **Time** (`HH:MM`,
   24-hour). Date starts filled with the clock's local date when the
@@ -176,8 +176,8 @@ centred above it.
 screen (§5), which then shows its codes. The ? button opens the Learn
 page **Time and TOTP codes** (`docs/learn/faraday/time.md`).
 
-Compact layout: the same order, scrolled where it does not fit, as the
-other compact Enter screens.
+Compact layout: the same order, scrolled where it does not fit, as
+every small-panel page is.
 
 ## 4. Reading a TOTP secret
 
@@ -237,8 +237,8 @@ lines already do.
 
 ## 5. The codes screen
 
-`Screen::Codes`, of the Navigate intent (DESIGN §5, the Addresses list's
-layout): title **TOTP codes**.
+`Screen::Codes`, drawn as a page (DESIGN §5): title **TOTP codes**,
+then the list from the top.
 
 ### 5.1 Ways in
 
@@ -263,7 +263,7 @@ again after a lock in the same power-on.
 
 ### 5.3 The list
 
-- At the top, the value row **Now**, local time with seconds and the
+- At the top, the row **Now**, local time with seconds and the
   zone (`14:02:37 UTC+02:00`), with **Set the time** on its right.
 - Then one row per type 6 record whose field 6 `parse`s, in every open
   vault, vault by vault in the order they were opened, then in record
@@ -281,12 +281,12 @@ again after a lock in the same power-on.
   **Unreadable** badge. Neither has a bar.
 - Pressing a row opens that entry in its vault (Vault contents, Entries,
   the record selected), where §6 shows the same code.
-- Foot actions: **Scan a setup code** (`VaultAction::ScanEntry`, into
+- Under the list, two buttons: **Scan a setup code** (`VaultAction::ScanEntry`, into
   the current vault) and **Add an entry** (the entry form). Saving the
   form opened from here comes back to the codes screen, with the new
   entry's row in the list.
-- No rows: the line **No entries with a TOTP secret**, and the two foot
-  actions.
+- No rows: the line **No entries with a TOTP secret**, and the two
+  buttons under it.
 
 The screen redraws on the shell's ticks whenever the second shown has
 changed, and the code changes on the tick that crosses its period. It is

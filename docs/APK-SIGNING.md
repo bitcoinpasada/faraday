@@ -254,8 +254,8 @@ boundary: `docs/KEYS.md`, F70.
 ## 4. Screens and flow
 
 On the stick and the Pi. Faraday Desktop has the same screens, as it
-has GPG's and Secure Boot's (§12). Drawn from DESIGN §5's
-screens; every string in `faraday/faraday-strings/src/en.rs` with the
+has GPG's and Secure Boot's (§12). Drawn as DESIGN §5's step flows
+and pages are; every string in `faraday/faraday-strings/src/en.rs` with the
 prefix `apk_`, the Tools tile's with `catalog_`. `docs/FLOWS.md`'s
 "APK signing key" section is the flow.
 
@@ -286,16 +286,16 @@ The time first where it is not known. The package is refused, "Not a
 package name" (`apk_package_invalid`), unless it is Android's form: at
 least two parts joined by dots, each a letter followed by letters,
 digits or underscores, ASCII only, at most 255 bytes. **Make the key**
-→ Result, "APK key made": Name, **Package**, **Certificate SHA-256** (a
-reference row opening Compare), Key "RSA 3072", and the
+→ Result, "APK key made": Name, **Package**, **Certificate SHA-256** (whole,
+in groups of four, in the mono face, DESIGN §4.5), Key "RSA 3072", and the
 certificate For the stick as it is made (as GPG's public key is), its
 row carrying **Show as QR** and **PNG**, and a row per vault it was
 made into. The flow goes on to its lock and the writes by place.
 
 ### 4.3 The key's page
 
-Vault contents' item page, as GPG's and Secure Boot's are (Faraday has no
-Compare screen, `docs/DESIGN.md` §4.5): **Name**, **Package**,
+Vault contents' item page, as GPG's and Secure Boot's are (a string is
+whole where it is read, `docs/DESIGN.md` §4.5): **Name**, **Package**,
 **Certificate SHA-256** (the whole value, in groups of four, in the mono
 face), **Key** "RSA 3072", **Made** (the date), then
 **Certificate** (written For the stick again; **Show as QR**, **PNG**),
@@ -352,7 +352,9 @@ alignment. The output is `x.apk` only for `x-unsigned.apk`; any other
 name, `x-unsigned` included, gains `-signed`, so `x-unsigned` becomes
 `x-unsigned-signed.apk`.
 
-**The review** is a Hold screen, "Sign this APK?":
+**The review** takes the key's place in Vault contents' item page,
+titled "Sign this APK?", and ends in **Hold to sign** (DESIGN §4.13,
+Hold):
 
 - **File**: the name as copied in; **Size**.
 - **SHA-256**: of the file as copied in, in groups of four. For a

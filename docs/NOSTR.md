@@ -216,12 +216,10 @@ account".
 - **Find a pair** turns the card's body into the list below; **Type a
   pair** turns it back.
 
-**Find a pair** is DESIGN §5's Menu, a Navigate list, with §4.5's
-reference-row value (the npub elided to its first and last 8, in groups
-of four), as Silent payments' Labels list is. In Faraday's column it is
-drawn with `button_rows`, the row the Key card already uses, one line
-per row: the pair, then the elided npub, "1 · 1 npub1qqq … 2wxy". It
-lists:
+**Find a pair** is a list, one pair a row, drawn with `button_rows`
+(DESIGN §4.2, Option buttons), the row the Key card already uses, one
+line per row: the pair, then the npub elided (its first and last 8, in
+groups of four), "1 · 1 npub1qqq … 2wxy". It lists:
 
 - under "Account 1", identities 1 to 5 at account 1;
 - under "Identity {n}", accounts 1 to 5 at the identity in the

@@ -107,8 +107,8 @@ pub const MENU_ROW: f32 = 72.0;
 /// have to share 358 dp.
 pub const MENU_ROW_SMALL: f32 = 52.0;
 
-/// Menu row height in dp for the size class (`docs/DESIGN.md` §3: row 52
-/// on `small` and 72 elsewhere).
+/// Menu row height in dp for the size class: 52 on `small`, 72
+/// elsewhere.
 pub const fn menu_row(class: SizeClass) -> f32 {
     match class {
         SizeClass::Small => MENU_ROW_SMALL,
@@ -116,13 +116,10 @@ pub const fn menu_row(class: SizeClass) -> f32 {
     }
 }
 
-/// Height in dp of a row that carries a value under its label
-/// (`docs/DESIGN.md` §4.1: "label above, value below, everywhere a row
-/// carries a value").
+/// Height in dp of a row that carries a value under its label.
 ///
-/// One height for every such row — menu row with a value, value row,
-/// path row, script-type row, key row, reference row, secret row — so a
-/// list of mixed kinds reads as one list.
+/// One height for every such row, so a list of mixed kinds reads as one
+/// list.
 pub const fn stacked_row(class: SizeClass) -> f32 {
     match class {
         SizeClass::Small => ROW,
@@ -130,8 +127,8 @@ pub const fn stacked_row(class: SizeClass) -> f32 {
     }
 }
 
-/// A value row (`docs/DESIGN.md` §4.2 "Value row"): the label above, the
-/// value below, a chevron at the right. The two-line row's height.
+/// A row with its label above its value and a chevron at the right: the
+/// two-line row's height.
 pub const fn value_row(class: SizeClass) -> f32 {
     stacked_row(class)
 }
@@ -140,13 +137,11 @@ pub const fn value_row(class: SizeClass) -> f32 {
 // Entry
 // ---------------------------------------------------------------------
 
-/// Height of a one-row text field above a keyboard (`docs/DESIGN.md`
-/// §4.3: "52 dp, single line — 40 dp on `small`, a letter key's own
-/// height").
+/// Height of a one-row text field above a keyboard: 52 dp, and on
+/// `small` a letter key's own height, 40 dp.
 ///
-/// On the panel the field is as tall as a letter key, which is what
-/// leaves the entry group room for two rows of candidates over three
-/// rows of keys.
+/// On the panel the field is as tall as a letter key, which leaves room
+/// for two rows of candidates over three rows of keys.
 pub const fn field(class: SizeClass) -> f32 {
     match class {
         SizeClass::Small => key_height(SizeClass::Small),
@@ -160,8 +155,8 @@ pub const TEXT_FIELD: f32 = 40.0;
 /// The field's height off the panel.
 pub const FIELD: f32 = 52.0;
 
-/// Letter-key height in dp for the size class (`docs/DESIGN.md` §4.3:
-/// "Keys 40 dp on `small`, 56 dp on `mobile`").
+/// Letter-key height in dp for the size class: 40 on `small`, 56
+/// elsewhere.
 pub const fn key_height(class: SizeClass) -> f32 {
     match class {
         SizeClass::Small => 40.0,
@@ -199,8 +194,7 @@ pub fn key_bottom_reserve(inset_bottom: f32) -> f32 {
 pub const PAD_COLUMNS: f32 = 4.0;
 
 /// Width in key units of an edge key that takes a key and a half:
-/// shift, backspace and ✓ at the ends of a letter row (`docs/DESIGN.md`
-/// §4.3).
+/// shift, backspace and ✓ at the ends of a letter row.
 pub const KEY_UNITS_EDGE: f32 = 1.5;
 /// Width in key units of ✓ where it closes a row of its own: the card
 /// pad's row of suits.
@@ -227,11 +221,9 @@ pub const CANDIDATE_CELLS_HANZI: usize = 10;
 /// [`CANDIDATE_CELLS_HANZI`] short of a whole tone group.
 pub const CANDIDATE_ROWS_HANZI: usize = 2;
 
-/// Rows of candidates between the field and the keys
-/// (`docs/DESIGN.md` §4.3: "Two rows of 3 at 36 dp (`small`), two rows
-/// of 4 (`mobile`), one row of natural-width chips (`wide`); a list
-/// whose words are one character shows ten a row, two rows, on every
-/// class").
+/// Rows of candidates between the field and the keys: two on `small`
+/// and `mobile`, one on `wide`; a list whose words are one character
+/// has two rows of ten on every class ([`candidates_per_row`]).
 ///
 /// `one_char` is that list: a Chinese one, whose words are single
 /// characters and whose strip is [`CANDIDATE_CELLS_HANZI`] wide.
@@ -269,17 +261,10 @@ pub const fn candidates(class: SizeClass, one_char: bool) -> usize {
 // Codes
 // ---------------------------------------------------------------------
 
-/// Side in dp of a QR code for the size class (`docs/DESIGN.md` §3:
-/// "Code side: 198 on `small`, 260 on `mobile`, 240 on `wide`").
-///
-/// One side per class rather than "as large as the width allows", so a
-/// code is the same square wherever a flow shows one and a reader knows
-/// what to aim a camera at. §4.9: "The screen finds the room; on `small`
-/// the toggle row and the progress row give way ... before the square
-/// does." The QR screen's budget on `small`, which is the tightest of
-/// them: 56 app bar + 198 square + 4 gap + 20 label + 4 gap + 44 toggle
-/// ([`qr_toggle_row`]) + 4 gap + 6 progress ([`qr_progress_row`]) + 16
-/// under it = 352 of 358 dp.
+/// Side in dp of a QR code for the size class: 198 on `small`, 260 on
+/// `mobile`, 240 on `wide`. A held SeedQR in a vault is drawn at this
+/// side, or the field's width where that is less; `mobile` scales the
+/// PNG a QR code is saved as (`docs/DESIGN.md` §3).
 pub const fn qr_side(class: SizeClass) -> f32 {
     match class {
         SizeClass::Small => 198.0,
@@ -289,7 +274,7 @@ pub const fn qr_side(class: SizeClass) -> f32 {
 }
 
 /// Largest short side in pixels of the camera preview the scanner keeps
-/// and draws (`docs/DESIGN.md` §4.9). The largest viewfinder is
+/// and draws (`docs/DESIGN.md` §4.9, Scanner). The largest viewfinder is
 /// [`VIEWFINDER_MAX`] dp on `wide` at 160 dpi, 360 px, and the reference
 /// panel's is 286 px, so a frame reduced to this covers every square
 /// without carrying pixels no display can show.
@@ -299,8 +284,7 @@ pub const PREVIEW_MAX: usize = 400;
 pub const BAR_HEIGHT: f32 = 6.0;
 
 /// A corner bracket's arm over a camera's picture, as a share of the
-/// picture's short side (`docs/DESIGN.md` §4.9: "a square viewfinder
-/// with corner brackets").
+/// picture's short side (`docs/DESIGN.md` §4.9, Scanner).
 pub const VIEWFINDER_BRACKET_SHARE: f32 = 1.0 / 6.0;
 /// Stroke in dp of a corner bracket.
 pub const VIEWFINDER_BRACKET_STROKE: f32 = 3.0;
@@ -480,15 +464,16 @@ pub const BOARD_VAULT_HOT: u8 = 40;
 // Timings
 // ---------------------------------------------------------------------
 
-/// Stroke width in dp of the focus ring a keyboard leaves on the item it
-/// has moved focus to (`docs/DESIGN.md` §4.15).
+/// Stroke width in dp of the accent edge on what the keyboard is on: a
+/// ⋮ it has moved to, and the row of a ⋮ menu the arrows are on
+/// (`docs/DESIGN.md` §4.15, §4.17).
 pub const FOCUS_STROKE: f32 = 2.0;
 
 /// Hold-button duration in milliseconds (`docs/DESIGN.md` §4.13).
 pub const HOLD_MS: u64 = 1500;
 /// Milliseconds a passing state stays on a line before the line goes
-/// back to what it said (`docs/DESIGN.md` §4.9: "Nothing to paste" on
-/// the scanner's state line "for two seconds").
+/// back to what it said: "Nothing to paste" on the scanner's state line
+/// (`docs/DESIGN.md` §4.9, Scanner).
 pub const NOTE_FLASH_MS: u64 = 2000;
 /// Milliseconds the scanner waits for the camera's first frame before
 /// it says the camera sends no picture (`docs/QR.md` §8 item 6).

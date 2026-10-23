@@ -235,8 +235,8 @@ any copy made away from the device is.
   for a condition they cannot change with its label alone. In the demo
   nothing on the screen changes it, so no "Not in the demo" appears.
   Working screens carry no explanation (CLAUDE.md).
-- It holds focus and does nothing on Enter or a tap (DESIGN §4.13's
-  focus row). It opens no Pull sheet and no vault lead.
+- A press on it does nothing (DESIGN §4.11, Dimmed). It opens no Pull
+  sheet and no vault lead.
 - **Where the reason is.** The demo's Learn page (`docs/learn/faraday/demo.md`)
   comes first in the info button's list on every screen of §4, as it
   does today on Home, Entry, New key and Settings. Its "New key in the

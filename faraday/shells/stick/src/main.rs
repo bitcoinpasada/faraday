@@ -177,8 +177,9 @@ enum Wake {
     Pointed(Option<Pointed>),
     /// One key from a keyboard, going down.
     Key(Key),
-    /// One key from a keyboard, coming up: a hold is held with Enter the
-    /// way it is held with a finger (`docs/DESIGN.md` §4.15).
+    /// One key from a keyboard, coming up, sent on as `Event::KeyUp`.
+    /// Faraday's core does nothing with it: a hold is held by a touch or
+    /// a pointer button, never by a key.
     KeyUp(Key),
     /// An input reader has ended: the device is gone, or `--input` named
     /// a file that has been read to the end. The number is the device's,
