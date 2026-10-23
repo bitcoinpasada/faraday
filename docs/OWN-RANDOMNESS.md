@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified, partly built (F86): §2.3's mixing into the seed and the pool, and the lock (R1, `faraday/faraday-core/src/fresh.rs`); option A (§3.3, R4); the kernel check of §3 done from the repository
-**Open:** the rest of §2: the mix's known answers in the Python cross-check (§4), New key's This device mixing (§2.3), the Add randomness page and the status line (R2), pointer and keys (R3); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Open:** the rest of §2: the mix's known answers in the Python cross-check (§4), New key's This device mixing (§2.3), the Add randomness page and the status line (R2), pointer and keys (R3); §3.5's late seed and the Pi's generator (R5, R6, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer movement and
@@ -32,7 +32,8 @@ configuration, and a plan for the boot measurement (QEMU, then one real PC in pa
   `sign_seed` draws a MuSig2 or FROST round's nonces from the seed with a
   count. Nothing is made before the first answer: `seeded()` is false,
   `fresh` and `sign_seed` return `None`, and after two seconds Home says
-  the system gave no randomness.
+  the system gave no randomness (changed by F102, §3.5: nothing is said
+  at start; a press that needs the seed waits for it).
 - **New key** (`faraday/faraday-core/src/keygen/mod.rs`, `core/faraday-entropy`)
   already offers dice, coins, cards, hex, camera noise, this device
   (`DeviceRandom`, one answer of its own, not the pool) and a mix of two
@@ -81,8 +82,8 @@ automatically, and that answer changes this paragraph, the table's row,
   until Back.
 - **New key, This device**: its row's label carries the status (§2.4),
   and the source's step has a link to Add randomness.
-- Not on Home: Home is a working screen and its one randomness line,
-  the missing seed, stays as it is.
+- Not on Home: Home is a working screen. Its missing-seed line goes
+  (F102, §3.5).
 - Not at boot: the stick's and the Pi's shells do not offer it before
   the passphrase; it is reached from Settings and New key only.
 
@@ -280,6 +281,29 @@ pool is ready within about a quarter of a second of the app asking for
 it, and before anything a person does needs randomness. Item 2, one
 real PC, is still to read.
 
+### 3.5 A late seed, and the Pi's generator (F102)
+
+- **Nothing at start.** Home's missing-seed line and `SEED_GRACE_MS`'s
+  two seconds go. Nothing a person does in the first seconds needs
+  randomness.
+- **A press that needs it waits.** Making a key, a vault, a share set,
+  a signing round's nonces: while the seed has not arrived, the button
+  reads "Waiting for randomness" and the action goes on by itself when
+  the seed arrives.
+- **No randomness at all.** A seed still missing 60 seconds after the
+  first display is a system that gives none: a press that needs it then
+  says so and does nothing.
+- **The Pi mixes bcm2835-rng and does not credit it.** `rng_core.`'s
+  quality is set to 0 on the command line. Where the Pi's 6.1 kernel
+  then stops feeding the generator into the pool (its hwrng thread
+  starts only for a quality above 0), the Pi's shell reads
+  `/dev/hwrng` and writes the bytes to `/dev/random`, which mixes them
+  without crediting them, before its own read of `/dev/random`. The
+  pool is then ready on the kernel's jitter alone, timed by the ARM
+  generic timer.
+- **The Pi's wait** is read off a dev Pi's log in passing (the owner),
+  as the PC's is in §3.4.
+
 ## 4. Tests
 
 In `faraday/faraday-core/tests/all/` (a new `own_randomness.rs`):
@@ -338,6 +362,9 @@ the page opens on it, and the others stay available (§2.2).
 | R2 | The Add randomness page: camera (the default), dice, coins and cards on every shell, through `faraday-entropy`'s accumulators; Settings' row and the status line; New key's label and link; tests 5 | medium |
 | R3 | Pointer and keys on the desktop, once the owner decides §5 item 4; test 6 | small |
 | R4 | The kernel: A (§3.3), the comments at `faraday/image/boards/x86_64-uefi/linux.fragment:267-275`, `kernel.forbidden:8-9`, the Pi fragments' lines 81-82, the stick shell's comment; the dev instrumentation; then the measurement on hardware | small, then hardware |
+
+| R5 | §3.5: the late seed (Home's line gone, a press waiting with "Waiting for randomness", the minute's bound) in `fresh.rs` and the screens that need the seed; tests that a press made before the seed goes on when it arrives and that a minute without one says so | small |
+| R6 | §3.5: the Pi's generator mixed, not credited (the command line, and the shell's write where the kernel needs it), checked against the Pi kernel's source | small |
 
 R4 does not wait for the measurement; the measurement confirms it, and
 the comments say what the kernel does.
