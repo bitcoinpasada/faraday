@@ -547,7 +547,7 @@ text steps the layout down as a narrower window would):
 |---|---|---|---|---|
 | Compact | under 600 dp | the navigation bar at the foot | 16 dp | one column |
 | Medium | 600 to 839 dp | the navigation rail at the left | 24 dp | one column |
-| Expanded | 840 dp and over | the navigation rail at the left | 24 dp | two columns; three from 1200 dp |
+| Expanded | 840 dp and over | the navigation rail at the left | 24 dp | as many columns of `CARD_MIN_W` or more as fit, the This computer card across all of them |
 
 Every class change re-lays the page out at that width; nothing is
 scaled to fit. A page's content is at most 1040 dp wide, centred in the
@@ -601,6 +601,15 @@ cannot be left by a press beside it. Back lands on the destination and
 the scroll it was opened from (F77). Transfer and Learn are the
 desktop app's screens (§2), drawn in the space under the top app bar.
 
+**Nothing stretches to fill the window** (Material 3, owner
+2026-10-23). A button is as wide as its label and padding, never the
+column's width, except on compact where a card's only button may take
+the card's width. Cards sit in a grid whose columns are at least
+`CARD_MIN_W` wide: a wider window gains columns, and a row with fewer
+cards than columns leaves the rest empty rather than widening the
+cards. A card's content hugs its start edge; text runs at most about 70
+characters a line.
+
 **One primary action a screen** (Material's filled button is Faraday's
 `Style::Primary`, tonal is `Secondary`, outlined is `Ghost`): Home's is
 the This computer card's button (§3.1's table), a destination's is
@@ -612,7 +621,7 @@ screen is secondary or ghost.
 1200), `CONTENT_MAX` 1040, `RAIL_W` 80, `NAV_BAR_H` 80, `APP_BAR_H` 64,
 `MARGIN_COMPACT` 16, `MARGIN_WIDE` 24, the destination pill
 (`NAV_PILL_W` 56, `NAV_PILL_H` 32), and Home's card minimum width
-(`CARD_MIN_W` 320). All are multiples of Material's 4 dp grid. None of
+(`CARD_MIN_W` 300). All are multiples of Material's 4 dp grid. None of
 the Starter's pages writes a number in place for them.
 
 **Building it** (planned; Sonnet from this section, then the owner's
