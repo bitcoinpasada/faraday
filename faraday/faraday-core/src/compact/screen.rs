@@ -448,7 +448,27 @@ fn silent_card(
 /// What explains a page, after its controls and behind a tap, as a
 /// step's is. Returns its height.
 pub(crate) fn about(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
-    crate::flow::about(ui, x, y, w, EN.compact_about_page, crate::ABOUT_PAGE, text)
+    about_learn(ui, x, y, w, text, None)
+}
+
+/// [`about`] with a link to the Learn page on `learn` under the text.
+pub(crate) fn about_learn(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    text: &str,
+    learn: Option<crate::learn::Topic>,
+) -> f32 {
+    crate::flow::about(
+        ui,
+        x,
+        y,
+        w,
+        EN.compact_about_page,
+        crate::ABOUT_PAGE,
+        (text, learn),
+    )
 }
 
 /// Reports how tall the page is, so it scrolls.

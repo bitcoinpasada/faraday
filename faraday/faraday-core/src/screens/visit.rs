@@ -1,6 +1,6 @@
 //! `Screen::Visit`: a stick visit.
 
-use super::parts::{guide_text, kind_line, pull_line, size_text};
+use super::parts::{guide_text_learn, kind_line, pull_line, size_text};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -16,7 +16,7 @@ use faraday_ui::parts::{title, wrap_buttons};
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
-    use crate::compact::screen::{about, finish};
+    use crate::compact::screen::{about_learn, finish};
     let (x, w) = (x0 + M, cw - 2.0 * M);
     let top = 12.0 - app.list_offset;
     let mut y = top;
@@ -351,7 +351,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Action::VisitWrite,
     );
     y += 54.0;
-    y += about(
+    y += about_learn(
         ui,
         x,
         y,
@@ -360,6 +360,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.visit_write_what_waits,
             &[app.medium.noun(), app.medium.noun(), app.medium.noun()],
         ),
+        Some(crate::learn::Topic::AirGap),
     );
     finish(app, ui, x0, cw, h, y - top + 16.0);
 }
@@ -418,7 +419,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         chx -= 8.0;
     }
     y += 64.0;
-    y += guide_text(
+    y += guide_text_learn(
         app,
         ui,
         x,
@@ -428,6 +429,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.visit_write_what_waits,
             &[app.medium.noun(), app.medium.noun(), app.medium.noun()],
         ),
+        crate::learn::Topic::AirGap,
     );
     let Some(stick) = app.stick.get(app.visit.stick) else {
         ui.text(

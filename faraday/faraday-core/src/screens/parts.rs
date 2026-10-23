@@ -21,6 +21,27 @@ pub(crate) fn guide_text(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: 
     h + 18.0
 }
 
+/// [`guide_text`] with a ghost button under it to the Learn page on
+/// `topic`, as the backup's Extra copies line has. Returns the height it
+/// took; nothing in Steps only.
+pub(crate) fn guide_text_learn(
+    app: &View,
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    text: &str,
+    topic: crate::learn::Topic,
+) -> f32 {
+    let h = guide_text(app, ui, x, y, w, text);
+    if h == 0.0 {
+        return 0.0;
+    }
+    let text_h = h - tokens::GUIDE_AFTER;
+    let indent = tokens::GUIDE_INDENT;
+    h + crate::flow::learn_link(ui, x + indent, y + text_h, w - indent, topic)
+}
+
 /// The caution under a field where a seed or a secret is typed or
 /// pasted, where `Faraday::seed_line` is set (the desktop) only: a statement of fact in the caution
 /// tone, in every mode. Returns the height it took, with the gap under

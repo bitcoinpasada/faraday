@@ -18,6 +18,132 @@ use crate::create::NewKind;
 use crate::wallet::Kind;
 use crate::{Faraday, Screen};
 
+/// A Learn page a Guided card links to, named by what it explains. Merged
+/// pages are named by the page they are in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Topic {
+    /// Start here.
+    StartHere,
+    /// Words.
+    Words,
+    /// Randomness.
+    Randomness,
+    /// Backups.
+    Backups,
+    /// Backups in other forms (SLIP-39, codex32, Seed XOR).
+    OtherBackups,
+    /// Passphrases.
+    Passphrases,
+    /// Verifying.
+    Verifying,
+    /// The air gap.
+    AirGap,
+    /// Multisig.
+    Multisig,
+    /// Spend paths and timelocks.
+    SpendPaths,
+    /// Xpubs and privacy.
+    Xpubs,
+    /// Nonces.
+    Nonces,
+    /// Signing a message.
+    Message,
+    /// Tools.
+    Tools,
+    /// Kinds of wallets.
+    WalletKinds,
+    /// FROST.
+    Frost,
+    /// Coordinator files.
+    Coordinators,
+    /// Silent payments.
+    SilentPayments,
+    /// Shares of a wallet description.
+    Shares,
+    /// A backup plan's check.
+    BackupPlanCheck,
+    /// Vaults.
+    Vaults,
+    /// Extra copies, from the backup's last card.
+    ExtraCopies,
+}
+
+impl Topic {
+    /// Every topic, in declaration order.
+    const ALL: [Topic; 21] = [
+        Topic::StartHere,
+        Topic::Words,
+        Topic::Randomness,
+        Topic::Backups,
+        Topic::OtherBackups,
+        Topic::Passphrases,
+        Topic::Verifying,
+        Topic::AirGap,
+        Topic::Multisig,
+        Topic::SpendPaths,
+        Topic::Xpubs,
+        Topic::Nonces,
+        Topic::Message,
+        Topic::Tools,
+        Topic::WalletKinds,
+        Topic::Frost,
+        Topic::Coordinators,
+        Topic::SilentPayments,
+        Topic::Shares,
+        Topic::BackupPlanCheck,
+        Topic::Vaults,
+    ];
+
+    /// The label of the link to this page, made once and kept: drawing
+    /// reads it and allocates nothing.
+    pub fn label(self) -> &'static str {
+        static LABELS: std::sync::OnceLock<Vec<String>> = std::sync::OnceLock::new();
+        let labels = LABELS.get_or_init(|| {
+            let make = |t: Topic| {
+                crate::strings::fill(faraday_strings::EN.guide_learn_link, &[t.page().title])
+            };
+            Topic::ALL
+                .iter()
+                .copied()
+                .chain([Topic::ExtraCopies])
+                .map(make)
+                .collect()
+        });
+        &labels[Topic::ALL
+            .iter()
+            .position(|&t| t == self)
+            .unwrap_or(Topic::ALL.len())]
+    }
+
+    /// The page this topic is.
+    pub fn page(self) -> &'static LearnPage {
+        match self {
+            Topic::StartHere => &EN.start_here,
+            Topic::Words => &EN.words,
+            Topic::Randomness => &EN.randomness,
+            Topic::Backups => &EN.backups,
+            Topic::OtherBackups => &EN.other_backups,
+            Topic::Passphrases => &EN.passphrases,
+            Topic::Verifying => &EN.verifying,
+            Topic::AirGap => &EN.air_gap,
+            Topic::Multisig => &EN.multisig,
+            Topic::SpendPaths => &EN.spend_paths,
+            Topic::Xpubs => &EN.xpubs,
+            Topic::Nonces => &EN.nonces,
+            Topic::Message => &EN.message,
+            Topic::Tools => &EN.tools,
+            Topic::WalletKinds => &EN.wallet_kinds,
+            Topic::Frost => &EN.frost,
+            Topic::Coordinators => &EN.coordinators,
+            Topic::SilentPayments => &EN.silent_payments,
+            Topic::Shares => shares_page(),
+            Topic::BackupPlanCheck => backup_plan_check_page(),
+            Topic::Vaults => vaults_page(),
+            Topic::ExtraCopies => faraday_learn::extra_copies_page(),
+        }
+    }
+}
+
 /// The Learn sheet's state: which pages, which one is open, and how far
 /// it is scrolled.
 #[derive(Default)]
@@ -186,6 +312,11 @@ impl Faraday {
             return;
         }
         self.learn.open(pages, &mut self.sheet);
+    }
+
+    /// Opens the Learn sheet on a Guided card's topic.
+    pub(crate) fn learn_topic(&mut self, topic: Topic) {
+        self.learn_on(topic.page());
     }
 
     /// Opens the Learn sheet on the page about shares; closing it leaves

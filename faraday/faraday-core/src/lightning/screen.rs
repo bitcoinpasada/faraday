@@ -3,7 +3,7 @@
 use crate::Action;
 use crate::drawing::View;
 use crate::lightning::NodeSource;
-use crate::screens::{button_rows, guide_text, title};
+use crate::screens::{button_rows, guide_text_learn, title};
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
@@ -36,7 +36,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     let end = body(app, ui, x, y, width, (vx, vw, below));
     if compact {
-        let y = end + crate::compact::screen::about(ui, x, end, width, guide);
+        let y = end
+            + crate::compact::screen::about_learn(
+                ui,
+                x,
+                end,
+                width,
+                guide,
+                Some(crate::learn::Topic::Tools),
+            );
         crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 16.0);
     }
 }
@@ -62,7 +70,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) 
     y += 22.0;
     title(ui, x, y, EN.lightning_lightning_node);
     y += 52.0;
-    y + guide_text(app, ui, x, y, width, guide)
+    y + guide_text_learn(app, ui, x, y, width, guide, crate::learn::Topic::Tools)
 }
 
 /// The sources, the aezeed's words, and the node. `vx`, `vw` are where

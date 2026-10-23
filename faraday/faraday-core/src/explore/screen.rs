@@ -6,7 +6,7 @@ use faraday_bip::keys::ScriptType;
 
 use crate::Action;
 use crate::explore::{PRESETS, Page, XAction};
-use crate::screens::{button_rows, guide_text, title};
+use crate::screens::{button_rows, guide_text_learn, title};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 
@@ -140,7 +140,14 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += button_rows(ui, x, y, width, &more);
     }
     if compact {
-        y += crate::compact::screen::about(ui, x, y, width, guide);
+        y += crate::compact::screen::about_learn(
+            ui,
+            x,
+            y,
+            width,
+            guide,
+            Some(crate::learn::Topic::Xpubs),
+        );
     }
     crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 16.0);
 }
@@ -187,7 +194,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, guide: &str) -> f
         app.named_back((EN.explore_wallets, Action::Nav(e.back))),
         EN.explore_explore,
     );
-    y + guide_text(app, ui, x, y, width, guide)
+    y + guide_text_learn(app, ui, x, y, width, guide, crate::learn::Topic::Xpubs)
 }
 
 /// The way back, named, and the title, as the desktop draws them.

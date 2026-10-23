@@ -33,6 +33,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: false,
             toggle: Action::PStep(s),
             guide: Some(guide(s, b.app)),
+            learn: (s == pstep::KEY).then_some(crate::learn::Topic::Words),
         })
         .collect();
     let col = flow::Column {

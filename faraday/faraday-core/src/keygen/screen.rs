@@ -38,6 +38,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     let steps = k.steps();
+    // The walk-through is New key's own: a key typed has none.
+    let guided = |s: u8| s != kstep::TYPED && !(s == kstep::KEY && k.typed());
     let cards: Vec<flow::Card> = steps
         .iter()
         .map(|&s| flow::Card {
@@ -50,9 +52,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             // Once locked in, nothing before Key changes: no Change.
             default: !k.locked && matches!(s, kstep::START | kstep::LENGTH | kstep::SOURCE),
             toggle: Action::KStep(s),
-            // The walk-through is New key's own: a key typed has none.
-            guide: (s != kstep::START && s != kstep::TYPED && !(s == kstep::KEY && k.typed()))
-                .then(|| guide::keygen(s, k)),
+            guide: guided(s).then(|| guide::keygen(s, k)),
+            learn: guided(s).then(|| guide::keygen_topic(s, k)).flatten(),
         })
         .collect();
     let back_label = match k.back {

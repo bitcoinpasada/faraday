@@ -80,7 +80,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: (!r.described && (k == rstep::KIND || k == rstep::QUORUM))
                 || k == rstep::WHERE,
             toggle: Action::RStep(k),
-            guide: Some(guide::restore(k)),
+            guide: (r.open == Some(k)).then(|| guide::restore(k, app.medium)),
+            learn: guide::restore_topic(k),
         })
         .collect();
     let col = flow::Column {

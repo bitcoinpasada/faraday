@@ -17,6 +17,7 @@ use crate::Action;
 use crate::ui::Disclosure;
 use crate::ui::pal::*;
 use crate::ui::{Ui, W};
+use faraday_draw::tokens;
 
 /// How far in from a step's left edge its body is drawn, under its title.
 pub const BODY_INDENT: f32 = 58.0;
@@ -43,6 +44,8 @@ pub struct Card {
     pub toggle: Action,
     /// The walk-through shown in Guided mode while it is open.
     pub guide: Option<String>,
+    /// The Learn page under the walk-through, one press away.
+    pub learn: Option<crate::learn::Topic>,
 }
 
 /// Where the column is scrolled, and whether to bring the open card into
@@ -218,6 +221,7 @@ pub fn column_foot(
             open_top = Some(y + settled - top);
         }
         let guide = card.guide.as_deref().filter(|_| col.guided && card.open);
+        let learn = card.learn.filter(|_| guide.is_some());
         // Measured in a pass that draws nothing and keeps no hits, so the
         // card's surface can go down before what is on it.
         let mut draw_open = |ui: &mut Ui| -> f32 {
@@ -233,7 +237,11 @@ pub fn column_foot(
                     text,
                 );
                 ui.fill(inner_x, y + 56.0, 3.0, gh, 1.5, ACCENT.with_alpha(140));
-                used += gh + 18.0;
+                used += gh;
+                if let Some(t) = learn {
+                    used += learn_link(ui, inner_x, y + tokens::GUIDE_CARD_HEAD + used, inner_w, t);
+                }
+                used += 18.0;
             }
             used + body(ui, i, inner_x, y + 56.0 + used, inner_w)
         };
@@ -453,7 +461,8 @@ fn paged(
             // tab) has a lead that is its own text, always shown.
             if let Some(text) = card.guide.as_deref() {
                 if col.switch {
-                    y += about(ui, M, y, inner, EN.flow_about_this_step, i as u8, text);
+                    let label = EN.flow_about_this_step;
+                    y += about(ui, M, y, inner, label, i as u8, (text, card.learn));
                 } else {
                     y += 8.0;
                     let gh = ui.wrap(M + 12.0, y, inner - 12.0, 13.0, W::R, MUTED, text);
@@ -538,7 +547,15 @@ fn paged(
 /// A walk-through behind a tap, after a small panel's controls: a row
 /// that opens it and closes it, and the text while open. `k` is the
 /// step's place, or [`crate::ABOUT_PAGE`]. Returns its height.
-pub(crate) fn about(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, k: u8, text: &str) -> f32 {
+pub(crate) fn about(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    label: &str,
+    k: u8,
+    (text, learn): (&str, Option<crate::learn::Topic>),
+) -> f32 {
     let open = ui.about_open == Some(k);
     let action = Action::About(k);
     let mut cy = y + 8.0;
@@ -566,7 +583,29 @@ pub(crate) fn about(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, k: u8, tex
     if open {
         let gh = ui.wrap(x + 12.0, cy, w - 12.0, 13.0, W::R, MUTED, text);
         ui.fill(x, cy, 3.0, gh, 1.5, ACCENT.with_alpha(140));
-        cy += gh + 8.0;
+        cy += gh;
+        if let Some(t) = learn {
+            cy += learn_link(ui, x, cy, w, t);
+        }
+        cy += 8.0;
     }
     cy - y
+}
+
+/// A Guided text's link to its Learn page: a ghost button under the text,
+/// labelled with the page's title, as the backup's Extra copies line has.
+/// Returns its height with the gap above it.
+pub(crate) fn learn_link(ui: &mut Ui, x: f32, y: f32, w: f32, topic: crate::learn::Topic) -> f32 {
+    let label = topic.label();
+    let bw = (ui.measure(tokens::GUIDE_LINK_TEXT, W::S, label) + tokens::GUIDE_LINK_PAD).min(w);
+    ui.button(
+        x,
+        y + tokens::GUIDE_LINK_ABOVE,
+        Some(bw),
+        tokens::GUIDE_LINK_H,
+        label,
+        crate::ui::Style::Ghost,
+        Action::LearnTopic(topic),
+    );
+    tokens::GUIDE_LINK_ABOVE + tokens::GUIDE_LINK_H
 }

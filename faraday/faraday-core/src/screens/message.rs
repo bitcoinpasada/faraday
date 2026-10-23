@@ -60,6 +60,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: false,
             toggle: Action::MStep(k),
             guide: Some(guide::message(k)),
+            learn: guide::message_topic(k),
         })
         .collect();
     let col = flow::Column {

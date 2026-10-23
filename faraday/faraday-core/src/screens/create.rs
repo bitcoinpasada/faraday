@@ -51,7 +51,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: c.open == Some(k),
             default: k == cstep::KIND || k == cstep::QUORUM || k == cstep::WHERE,
             toggle: Action::CStep(k),
-            guide: Some(guide::create(k, c.kind, c.m, c.n, app.medium)).filter(|g| !g.is_empty()),
+            // Only the open card shows its walk-through: the others make none.
+            guide: (c.open == Some(k))
+                .then(|| guide::create(k, c.kind, c.m, c.n, app.medium))
+                .filter(|g| !g.is_empty()),
+            learn: guide::create_topic(k, c.kind),
         })
         .collect();
     let col = flow::Column {

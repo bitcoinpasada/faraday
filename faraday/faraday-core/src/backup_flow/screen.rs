@@ -191,6 +191,7 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
         default: false,
         toggle: fa(F::Open(s.n())),
         guide: None,
+        learn: None,
     }
 }
 

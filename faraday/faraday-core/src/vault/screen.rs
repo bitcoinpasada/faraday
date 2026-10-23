@@ -1076,10 +1076,10 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             mono: false,
             done: c.done[k as usize],
             open: c.open == Some(k),
-            // The size has a default: closed at entry, with Change.
-            default: k == vstep::PRESET,
+            default: k == vstep::PRESET, // the size: closed at entry, with Change
             toggle: va(V::CStep(k)),
             guide: Some(create_guide(k)),
+            learn: Some(crate::learn::Topic::Vaults),
         })
         .collect();
     // A small panel has no side panel: its summary and Create vault

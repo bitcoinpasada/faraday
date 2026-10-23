@@ -1,6 +1,6 @@
 //! `Screen::CheckMessage`: checking a signed message.
 
-use super::parts::guide_text;
+use super::parts::guide_text_learn;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -44,7 +44,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let guide = EN.check_a_valid_signature;
     // On a small panel it comes after what it explains.
     if !compact {
-        y += guide_text(app, ui, x, y, width, guide);
+        y += guide_text_learn(app, ui, x, y, width, guide, crate::learn::Topic::Message);
     }
     let Some(item) = app.message.checking().and_then(|i| app.inbox.get(i)) else {
         ui.text(x, y, 14.0, W::R, MUTED, EN.check_no_signed_message);
@@ -163,7 +163,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     y += ui.wrap(x + vx, y, width - vx, 14.0, W::R, TEXT, &c.signed.message);
     if compact {
-        y += 16.0 + crate::compact::screen::about(ui, x, y + 16.0, width, guide);
+        y += 16.0
+            + crate::compact::screen::about_learn(
+                ui,
+                x,
+                y + 16.0,
+                width,
+                guide,
+                Some(crate::learn::Topic::Message),
+            );
         crate::compact::screen::finish(app, ui, x0, cw, h, y - top + 24.0);
     }
 }

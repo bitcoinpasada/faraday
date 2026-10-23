@@ -38,6 +38,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: false,
             toggle: va(V::Step(s)),
             guide: Some(guide(s).to_string()),
+            learn: matches!(s, vstep::KEY | vstep::DIAL).then_some(crate::learn::Topic::Xpubs),
         })
         .collect();
     let col = flow::Column {

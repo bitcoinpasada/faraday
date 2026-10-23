@@ -1,6 +1,6 @@
 //! `Screen::Files`: Inbox and Outbox.
 
-use super::parts::{guide_text, kind_line, pull_line};
+use super::parts::{guide_text_learn, kind_line, pull_line};
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -343,7 +343,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Action::Scan,
     );
     y += 64.0;
-    y += guide_text(
+    y += guide_text_learn(
         app,
         ui,
         x,
@@ -351,12 +351,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         width.min(900.0),
         &fill(
             EN.files_holds_what_was,
-            &[
-                app.medium.from_box(),
-                app.medium.nouns(),
-                app.medium.for_box(),
-            ],
+            &[app.medium.from_box(), app.medium.for_box()],
         ),
+        crate::learn::Topic::AirGap,
     );
     // Arrived from Import and load: pulling the stick is the next step.
     if !app.stick.is_empty() && !app.visit.load_after.is_empty() {
@@ -1752,7 +1749,7 @@ fn file_card(
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
-    use crate::compact::screen::{about, finish};
+    use crate::compact::screen::{about_learn, finish};
     use crate::secrets::Exposure;
     let (x, w) = (x0 + M, cw - 2.0 * M);
     let top = 12.0 - app.list_offset;
@@ -1974,19 +1971,16 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &fill(EN.files_power_off_asks, &[app.medium.for_the()]),
         ) + 10.0;
     }
-    y += about(
+    y += about_learn(
         ui,
         x,
         y,
         w,
         &fill(
             EN.files_holds_what_was,
-            &[
-                app.medium.from_box(),
-                app.medium.nouns(),
-                app.medium.for_box(),
-            ],
+            &[app.medium.from_box(), app.medium.for_box()],
         ),
+        Some(crate::learn::Topic::AirGap),
     );
     finish(app, ui, x0, cw, h, y - top + 16.0);
 }

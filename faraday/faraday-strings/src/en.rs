@@ -925,7 +925,7 @@ strings! {
     /// Text in `summary`.
     bip85_not_chosen: "Not chosen",
     /// Text in `guide`.
-    bip85_bip_85_turns: "BIP-85 turns one key you already back up into many others: child seeds for other wallets, passwords, keys. Each comes back from the same key, application and index, so the key's backup is theirs too.",
+    bip85_bip_85_turns: "Choose the key to derive from. Each value comes back from the same key, application and index, so this key's backup covers them all.",
     /// Text in `guide`.
     bip85_guide_child_seed: "A child seed is a key of its own, for another wallet or another device. It reveals nothing about this key.",
     /// Text in `guide`.
@@ -2648,28 +2648,28 @@ strings! {
     /// Row on Sign with {key}: the time the signatures will carry.
     vault_signature_time: "Signature time",
     // ----- guide (faraday-core/src/guide.rs) -----
+    /// A Guided text's link to its Learn page. `{}`: the page's title.
+    guide_learn_link: "Learn: {}",
     /// Text in `spend`.
-    guide_this_is_the_wallet: "This is the wallet the transaction spends from. Faraday found it by rebuilding the wallet's address from the key paths the transaction carries, so the match is exact. If the name is not the wallet you meant to spend from, stop here.",
+    guide_this_is_the_wallet: "This is the wallet the transaction spends from, matched from its inputs. If it is not the wallet you meant, stop here.",
     /// Text in `spend`.
-    guide_no_wallet_loaded: "No wallet loaded here matches this transaction. You can still sign it from the key paths it carries, but Faraday cannot tell change from a payment to someone else. Load the wallet first if you have its description.",
+    guide_no_wallet_loaded: "Load the wallet first if you have its description. Continue goes on without it, and no output can be shown as change.",
     /// Text in `spend`.
-    guide_open_the_same: "Open the same wallet in the software that made this transaction and compare these addresses with the ones it shows. If they match, both programs are looking at the same wallet, and the change address is one you control.",
+    guide_open_the_same: "Compare these addresses with the ones the software that made this transaction shows. If they match, both read the same wallet and the change comes back to you.",
     /// Text in `spend`.
-    guide_read_each_line: "Read each line against what you meant to do. Sends is the amount leaving and where it goes. Change is the rest coming back; Verified means Faraday rebuilt that address from the wallet's own keys. The fee goes to the miner. If anything here is not what you expected, stop: nothing has been signed yet.",
+    guide_read_each_line: "Check each line against what you meant to send: the amount, the address, the change and the fee. Nothing is signed yet; if anything differs, stop.",
     /// Text in `spend`.
-    guide_musig2_signs: "MuSig2 signs in two rounds and every key takes part. In the first, each signer adds a nonce: a one-time number its signature will use. The easiest order is for this device to sign last: add the copies on which the others put their nonce, then sign. Or go first, share this device's nonce and carry the PSBT to them; keep this session open until their signatures come back, because locking forgets the nonce.",
+    guide_musig2_signs: "Every key adds a one-time nonce before anyone signs. Add the others' copies with their nonces, or go first and share this device's. Keep this session unlocked until the signatures return: locking forgets the nonce.",
     /// Text in `spend`.
-    guide_this_wallet_can: "This wallet can be spent more than one way. Each path names the keys it needs and how long it waits: a recovery path opens only after the coins have sat unspent that many blocks. Faraday reads which paths this transaction can take from its own sequence numbers; whether the coins are old enough on the chain is something only the network can say.",
-    /// Text in `spend`.
-    guide_this_is_the_transaction: "This is the transaction's id, fixed before anyone signs. Signatures do not change it, so you can write it down now and look for it after the transaction is broadcast.",
+    guide_this_wallet_can: "Each path lists the keys it needs and how long it waits. The line under it says whether this transaction's sequence allows that path; only the network knows whether the coins are old enough.",
     /// Text in `spend`. `{}`: `needed`, `if needed == 2 { EN.guide_one_other.t…`.
-    guide_any_of_these: "Any {} of these shares sign together, and on the chain the result is one ordinary Taproot signature. Shares sign one after another, each at its own place. The first share to sign chooses who follows: pick {} here. After that the transaction names them, and no other share can join.",
+    guide_any_of_these: "Any {} shares sign, one after another, each at its own place. Pick {} to follow this one; after that no other share can join.",
     /// Text in `spend`.
     guide_one_other: "one other",
     /// Text in `spend`. `{}`: `needed - 1`.
     guide_others: "{} others",
     /// Text in `spend`.
-    guide_this_wallet_has: "This wallet has more than one way to spend. Each key below can sign; which keys are enough depends on the path this transaction takes, and some paths wait for a timelock. The last step says whether the script is satisfied.",
+    guide_this_wallet_has: "Each key below can sign. Which keys are enough depends on the path this transaction takes; some paths wait for a timelock.",
     /// Text in `spend`. `{}`: `needed`, `if needed == 1 { EN.guide_of_these } …`.
     guide_keys_must_sign: "{} {} keys must sign. Keys marked Signs here are loaded on this device. The others are on other devices or with other people; each of them signs the same PSBT and hands it back.",
     /// Text in `spend`.
@@ -2678,8 +2678,10 @@ strings! {
     guide_keys_must_sign_plural: "of the",
     /// Text in `spend`.
     guide_signed_each_signature: "Signed. Each signature was checked against its key before it was kept.",
+    /// Text in `spend`, Signers, with no wallet loaded.
+    guide_keys_signs_here: "Keys marked Signs here are loaded on this device. The others sign the same PSBT elsewhere.",
     /// Text in `spend`. `{}`: `m.noun()`.
-    guide_spend_share_nonce: "Signing as a share draws a fresh secret nonce for each share that signs, adds this share's part, and puts the next share's nonce in a carry file. The carry file is a secret until that share has signed: keep the {} with you and sign the same day. The last share to sign checks every part before it combines them.",
+    guide_spend_share_nonce: "Signing adds this share's part and writes a carry file for the next share. The carry file is secret until that share signs: keep the {} with you and sign the same day.",
     /// Text in `spend`.
     guide_spend_round_two: "Round two: this device adds its partial signature over everyone's nonces. The others do the same on their copies; when theirs come back, Faraday combines all of them into one signature.",
     /// Text in `spend`. `{}`: `needed`, `if needed == 1 { EN.guide_signature }…`.
@@ -2688,18 +2690,18 @@ strings! {
     guide_signature: "signature",
     /// Text in `spend`.
     guide_signatures: "signatures",
-    /// Text in `spend`. `{}`: `m.a()`.
-    guide_signing_uses: "Signing uses the key loaded on this device. Faraday checks the signature before keeping it, and nothing leaves the device until {} visit writes it.",
-    /// Text in `spend`. `{}`: `m.a()`, `m.a()`.
-    guide_get_the_other: "Get the other signatures. Carry the PSBT, which waits in Files, on {}, or let each cosigner sign the copy they already have. When a signed copy comes back, copy it in on {} visit and add it here. Each signature is checked against its key, and a copy of any other transaction is refused.",
+    /// Text in `spend`. `{}`: `m.a()`, "a stick".
+    guide_signing_uses: "Signing uses the key loaded here and checks the signature before keeping it. Nothing leaves the device until you write it to {} or show it as a QR code.",
+    /// Text in `spend`. `{}`: `m.a()`, "a stick".
+    guide_get_the_other: "Each cosigner signs the same PSBT on their own device. Hand it over as a QR code or on {}; scan or copy in each signed copy that comes back. A copy of another transaction is refused.",
     /// Text in `spend`.
     guide_there_are_two: "There are two results. The signed PSBT goes back to the wallet that made the transaction, which can broadcast it. The finished transaction can be broadcast as it is, from any node you trust. Either one is enough.",
     /// Text in `spend`. `{}`: `m.a()`.
     guide_keep_the_carry: "Keep the carry file in the vault, or write it to {}. At the next share's place, copy it into Faraday with that share loaded, open it from Files and sign. The share that signs last gets the finished transaction.",
     /// Text in `spend`.
     guide_the_transaction: "The transaction is finished when enough keys have signed. Until then it cannot be broadcast.",
-    /// Text in `backup`. `{}`: `medium.for_the()`.
-    guide_print_the_blank: "Print the blank template first, anywhere: it holds no secret, only numbered lines for the words and the squares every SeedQR of this length shares. It waits {}: carry it to the desktop app, and print one copy per seed. You write on it by hand in the next step.",
+    /// Text in `backup`.
+    guide_print_the_blank: "Print the blank templates from Faraday Starter on the online computer: they hold no secret. Done marks them printed; you copy each seed onto one by hand next.",
     /// Text in `backup`.
     guide_backup_none_typed: "None of this wallet's seeds were typed into this session, so there is nothing to copy here. Each seed is backed up on the device that holds it.",
     /// Text in `backup`.
@@ -2707,75 +2709,93 @@ strings! {
     /// Text in `backup`, a passphrase on paper.
     guide_passphrase_on_paper: "Write the passphrase on paper by hand, exactly as it is, capitals and spaces included. Then type your copy back; it is compared whole.",
     /// Text in `backup`, a copy of the SeedQR.
-    guide_copy_seedqr: "Copy each seed onto its own template by hand, the SeedQR square by square. The grey squares are already on the template. Click a row to keep your place, or move it with the arrow keys. Then scan your copy with the camera; a mistake is named by its word. With no camera, type the seed's words back.",
+    guide_copy_seedqr: "Copy each seed's SeedQR onto its own template by hand, square by square; the grey squares are printed already. Then scan your copy; with no camera, type its words back.",
     /// Text in `backup`, a copy of both.
-    guide_copy_both: "Copy each seed onto its own template by hand: the words, and the SeedQR square by square. The grey squares are already on the template. Click a row to keep your place, or move it with the arrow keys. Then type your copy's words back and scan the grid with the camera; a mistake is named by its word. With no camera, type the words back.",
-    /// Text in `backup`. `{}`: `lead`, `further`.
-    guide_backup_paper: "{}{} A printer is a computer with memory and often a network, so a seed never goes to one. There is no line for a passphrase: written beside the words it stops being a second factor.",
-    /// Text in `backup`, after a space. `{}`: `medium.for_the()`, `medium.noun()`.
-    guide_paper_comes_first: "Paper comes first. Under the copy, Save into the open vault keeps a further copy sealed under the vault's passphrase. Save as a file makes the words or the SeedQR picture a file {}, unprotected, only after you tick that anyone who copies the {} can spend with it: the least safe of the three. A file never holds the passphrase; the vault keeps it only when saved with its passphrase.",
+    guide_copy_both: "Copy each seed onto its own template by hand: the words, then the SeedQR square by square. Type the words back and scan the grid; a mistake is named by its word.",
+    /// Text in `backup`. `{}`: the Copy card's lead.
+    guide_backup_paper: "{} A seed never goes to a printer.",
     /// Text in `backup`. `{}`: `medium.for_the()`.
-    guide_backup_xpub_half: "This half is xpubs only. It can spend nothing, but it is the only thing that puts the keys back together into this wallet, so keep copies. Show the descriptor as a QR to load the wallet into watch-only software, or keep the QR as a picture with the wallet's name, keys and checksum under it, to print or to scan later. The files and the backup sheet wait {} from the moment the checklist is made; the sheet goes as a PDF to print. Sparrow imports the .json under Specter Desktop, and the multisig config under Coldcard Multisig.",
-    /// Text in `backup`. `{}`: `keys`, `m.saturating_sub(1)`, `m`, `m`, `medium.for_the()`.
-    guide_instead_of_one: "Instead of one sheet with every key, give each of the {} signers a share that leaves some keys off. With {} left off each, any {} shares together hold every key, so any {} signers can rebuild the wallet, and one share alone cannot watch it. This is not secret sharing: the keys are public, and the shares only decide who can see the balance. Each share waits {} as a sheet to print, a text file and a picture of its QR; Restore takes the text file or a scan of the picture.",
+    guide_backup_xpub_half: "These files hold xpubs only: they cannot spend, but only they put the keys back together into this wallet. Make the file for each program you use; it waits {}.",
+    /// Text in `backup`, when the plan splits. `{}`: `medium.for_the()`.
+    guide_instead_of_one: "Each signer gets a share of the wallet description with some keys left off: one share alone cannot watch the wallet, enough together rebuild it. Make them; each waits {} to print.",
     /// Text in `backup`.
-    guide_one_envelope: "One envelope per place, holding what the plan puts there. Store the envelopes apart. A copy kept in a vault is one more copy, not a replacement for paper.",
+    guide_one_envelope: "Put each place's papers in their own envelope and store the envelopes apart. A copy in a vault is one more copy, not a replacement for paper.",
+    /// Text in `backup`, Write to sticks. `{}`: `medium.noun()`.
+    guide_backup_sticks: "Lock and write locks this session, then each {} of the plan is written in turn, by its place.",
+    /// Text in `backup`, a vault's card. `{}`: `medium.noun()`.
+    guide_backup_vault: "This vault keeps a further copy of the seed, sealed under its passphrase. Save into it; Lock and write, the last item, seals it and writes it to its {}.",
+    /// Text in `backup`, the wallet sheet of a plan that does not split. `{}`: `medium.for_the()`.
+    guide_backup_sheet: "One sheet with the wallet's name, every xpub and the checksum: it cannot spend, but it rebuilds the wallet. Make it; the PDF waits {} to print.",
+    /// Text in `backup`, the descriptor shown to the software.
+    guide_backup_show: "Show this QR code to the watch-only software to load the wallet. It holds xpubs only: it can watch the wallet, not spend.",
+    /// Text in `backup`, the seeds as files. `{}`: `medium.for_the()`, `medium.noun()`.
+    guide_backup_files: "Each seed as a file {}, unprotected: anyone who copies the {} can spend with it. Make it only if your plan needs it; a file never holds the passphrase.",
     /// Text in `message`.
-    guide_a_signed_message: "A signed message proves that whoever holds the key behind one address agreed to some text. Pick the wallet and the address: usually the one someone asked you to prove you control. Only single-key wallets whose key is loaded here can sign.",
+    guide_a_signed_message: "Pick the wallet and the receive address someone asked you to prove you control. Only single-key wallets whose key is loaded here are listed.",
     /// Text in `message`.
     guide_type_the_message: "Type the message exactly as the other side gave it. A single changed character, a space or a line break, makes a different message and the signature will not check.",
     /// Text in `message`.
-    guide_message_formats: "BIP-322 is the newer format and the only one for Taproot addresses. BIP-137 is what older wallets and exchanges ask for, and the only one for legacy and nested SegWit addresses. Use whichever the other side asked for.",
+    guide_message_formats: "Use the format the other side asked for. A format this address cannot use is greyed out.",
     /// Text in `message`.
     guide_signing_moves: "Signing moves no money and spends nothing. The result is three lines: the address, the signature and the message. Carry it out as a file or show it as a QR code.",
     /// Text in `create`. `{}`: `m`, `keys`.
-    guide_any_of_shares: "Any {} of {} shares sign. On the chain the wallet is one Taproot key, and a spend looks like any single-key spend. Keep the shares in different places, or the threshold protects nothing. This build deals up to five.",
+    guide_any_of_shares: "Any {} of {} shares sign; on the chain the wallet is one Taproot key. Keep the shares in different places, or the threshold protects nothing. Up to five shares are dealt.",
     /// Text in `create`. `{}`: `m`, `keys - m`.
     guide_choose_loaded: "Choose {} loaded keys of 24 words as the first shares. Their words become shares as they are, so a person who already keeps one of these seeds keeps only that. The deal computes the other {} from them.",
     /// Text in `create`.
-    guide_create_kinds: "Choose how the wallet locks its coins. One key is simplest: lose the seed and the money is gone, so its backup matters more. A multisig needs several keys to sign, so one lost or stolen key is not the end of it. If another program will use this wallet, pick a kind it supports.",
+    guide_create_kinds: "Choose how the wallet locks its coins. One key is simplest; a multisig needs several keys, so one lost or stolen key does not lose the money. Pick a kind your other software supports.",
     /// Text in `create`. `{}`: `m`, `keys`, `m`.
     guide_of_every_spend: "{} of {}: every spend needs {} signatures. Keep the keys apart, on different devices or with different people, or the quorum protects nothing.",
-    /// Text in `create`. `{}`: `medium.a()`.
-    guide_fill_each_slot: "Fill each slot. A key loaded here signs on this device. New key makes a fresh seed here; write its words down in the backup step before any money goes in. A cosigner's slot takes the account xpub their device exports, copied in on {} visit; it never brings a secret. If a cosigner's xpub is not here yet, mark the slot for later and carry on; this wallet waits under Nothing yet on the Wallets page. Each key held here can give its xpub as a file or a QR code, so the cosigners can make the same wallet on their side.",
+    /// Text in `create`.
+    guide_fill_each_slot: "Fill each slot with a key loaded here, a New key, or a cosigner's xpub, scanned or from a file. Someone else adds it later keeps a slot open; the wallet is made once every slot is filled.",
     /// Text in `create`.
     guide_choose_the_key: "Choose the key: one loaded here, or a new one made here from fresh randomness. A new key exists only in this session until its words are written down in the backup step.",
     /// Text in `create`.
     guide_load_the_wallet: "Load the wallet into the software you will receive with, by the QR code or the descriptor file, and compare these addresses. They must match before you send anything to it.",
     /// Text in `create`.
     guide_the_plan_says: "The backup opens on the standard way: each seed's words on paper with the wallet description, one place for each key. Go through it before any money goes in.",
+    /// Text in `create`, making the vaults.
+    guide_create_vaults: "Make or unlock each vault now, before the keys exist, so each new seed can be saved into it.",
+    /// Text in `create`, bringing in the sticks. `{}`: `medium.noun()` twice.
+    guide_create_sticks: "Insert each vault's {} in turn. Keys are made only after the {} is removed.",
+    /// Text in `create` and `restore`, Number of vaults. `{}`: `medium.noun()`.
+    guide_create_vaults_how_many: "How many vaults the backup uses. Each is made on its own {}.",
+    /// Text in `create` and `restore`, Use vaults.
+    guide_create_vaults_where: "Choose whether vaults are part of the backup. A vault keeps a further copy of the seeds, sealed under a passphrase, beside the paper.",
     /// Text in `restore`.
-    guide_the_kind_of_wallet: "The kind of wallet the backup is. A wallet description, scanned or in Files, says the kind, the quorum and every key, and the seeds are then matched to its keys.",
+    guide_the_kind_of_wallet: "Choose the kind written on the backup. A wallet description, scanned or in Files, sets the kind, the quorum and every key for you.",
     /// Text in `restore`.
     guide_how_many_keys: "How many keys the wallet has and how many sign, as written on the backup, often as 2 of 3.",
     /// Text in `restore`.
     guide_the_descriptor: "The descriptor, wallet file, BIP 129 record or split sheets. Without one, the wallet is made from the seeds and the cosigners' xpubs at the kind's standard path.",
     /// Text in `restore`.
-    guide_one_slot_per: "One slot per key: its seed with its passphrase, if it has one, or a cosigner's xpub. With the description known, a seed that is not one of its keys is refused, so a wrong word or passphrase is caught here.",
+    guide_one_slot_per: "One slot per key: its seed and passphrase, if it has one, or a cosigner's xpub. A seed that is not one of the description's keys is refused, so a wrong word or passphrase is caught here.",
     /// Text in `restore`.
     guide_compare_these: "Compare these addresses with the backup sheet or the wallet software that holds the history. If they match, the wallet is back as it was.",
     /// Text in `restore`.
     guide_restore_session: "The wallet is in this session until you lock.",
     /// Text in `keygen`.
-    guide_a_slip_39_key: "A SLIP-39 key is a master secret of 128 or 256 bits, never written whole: it is dealt as shares of 20 or 33 words, and any of them up to the number needed restore it. It has no BIP-39 words.",
+    guide_a_slip_39_key: "Choose the length: shares of 20 words for 128 bits or 33 words for 256. A SLIP-39 key has no BIP-39 words.",
     /// Text in `keygen`.
     guide_write_each_share: "Write each share down on its own paper, in order, and keep the papers apart: in different places or with different people. Any of them up to the number needed are the key; fewer are nothing.",
     /// Text in `keygen`.
     guide_answer_from_your_papers: "Answer from your papers, not from memory: each share is asked in turn, every word once in a random order. A wrong answer means that share's paper needs correcting.",
     /// Text in `keygen`.
     guide_12_words_carry: "12 words carry 128 bits and 24 words 256. Either is beyond guessing; most wallets and signers read every length here.",
+    /// Text in `keygen`, the Start card.
+    guide_keygen_start: "Choose how the key comes in: made here from randomness, typed from words you hold, or scanned from a SeedQR. SLIP-39 shares, codex32 and Seed XOR are here too.",
     /// Text in `keygen`.
-    guide_randomness_you_make: "Randomness you make yourself, with dice, coins or cards, does not depend on this device's software: you can make the same secret again elsewhere from the same rolls. The shares are worked out from it by the device. This device's generator is the operating system's; nothing on the screen can show whether it was faulty or rigged, so a key made from it trusts this device. A mix combines several sources, so the key is as good as the best of them.",
+    guide_randomness_you_make: "Dice, coins or cards make a secret that does not depend on this device's software. The device's generator is quicker, but trusts this device. A mix is as good as its best source.",
     /// Text in `keygen`.
-    guide_randomness_you: "Randomness you make yourself, with dice, coins or cards, does not depend on this device's software. In the first group every word is your entries' own bits: each one shows as it comes in, and you can find it in the list by hand. In the second the device hashes your entries into the words, which you can check only by making the same key again elsewhere. This device's generator is the operating system's; nothing on the screen can show whether it was faulty or rigged, so a key made from it trusts this device. A mix combines several sources, so the key is as good as the best of them.",
+    guide_randomness_you: "Dice, coins or cards do not depend on this device's software. In the first group each word is your entries' own bits; in the second they are hashed. The device's generator trusts this device.",
     /// Text in `keygen`.
-    guide_roll_one_die_at_a_time: "Roll one die at a time and enter the face that came up. Each roll is one flip, 1 to 3 tails and 4 to 6 heads, so the secret is the one a coin would make from the same flips.",
+    guide_roll_one_die_at_a_time: "Roll one die at a time and enter the face: 1 to 3 counts as tails, 4 to 6 as heads.",
     /// Text in `keygen`.
-    guide_keygen_dice_flips: "Roll one die at a time and enter the face that came up. Each roll is one flip, 1 to 3 tails (0) and 4 to 6 heads (1), so the key is the one a coin would make from the same flips. Every 11 flips are a word's number in the list, counted from 0, and the word shows as its 11th flip comes in.",
-    /// Text in `keygen`. `{}`: `k.last_bits()`, `k.words / 3`.
-    guide_keygen_dice_words: "Roll one die at a time and enter the face that came up. A word takes six rolls. In its first five, 1 is 00, 2 is 01, 3 is 10 and 4 is 11; a 5 or a 6 there stands for nothing and is rolled again. The sixth roll is one bit: 1 to 3 is 0, 4 to 6 is 1. The 11 bits, in order, are the word's number in the list counted from 0: 3 1 4 2 2 5 is 10 00 11 01 01 1, which is 1131, the list's word 1132, \"miracle\". The last word is rolled the same way; the key keeps its first {} bits, and its other {} are the checksum, which the device works out from all the others and writes in their place.",
+    guide_keygen_dice_flips: "Roll one die at a time and enter the face: 1 to 3 is 0, 4 to 6 is 1. Every 11 rolls make one word, shown as its 11th roll comes in.",
     /// Text in `keygen`.
-    guide_flip_a_coin_and_enter: "Flip a coin and enter what came up, once per flip. Catching the coin in the air is fine; choosing the side is not. Heads is 1 and tails 0; every 11 flips are a word's number in the list, counted from 0, and the word shows as its 11th flip comes in.",
+    guide_keygen_dice_words: "Roll one die at a time and enter the face; six rolls make a word, as the line below shows. A 5 or 6 in the first five is rolled again. The last word's checksum is worked out for you.",
+    /// Text in `keygen`.
+    guide_flip_a_coin_and_enter: "Flip a coin and enter each result: heads is 1, tails 0. Every 11 flips make one word, shown as its 11th flip comes in. Never choose the side.",
     /// Text in `keygen`.
     guide_roll_one_die: "Roll one die at a time and press the face that came up. Use a real die on a flat surface, not the same throw twice, and do not pick numbers in your head.",
     /// Text in `keygen`.
@@ -2789,15 +2809,15 @@ strings! {
     /// Text in `keygen`.
     guide_this_device_asks: "This device asks the operating system's generator for 32 fresh bytes when this card opens. The key is those bytes, hashed. Nothing on the screen can show whether they were random.",
     /// Text in `keygen`.
-    guide_keygen_lock_step: "Lock in adds the key these words make, with the passphrase if one is typed, and puts it in its slot. A passphrase makes another key from the same words: both the words and the passphrase are then needed to spend, and Back up asks where each is kept. Leave the fields empty for none.",
+    guide_keygen_lock_step: "Lock in adds the key these words make to its slot. A passphrase makes a different key: then both words and passphrase are needed to spend. Leave it empty for none.",
     /// Text in `keygen`.
-    guide_lock_in_adds: "Lock in adds the key these words make. Its fingerprint and its key show at once, so you can see the words you entered are the key that was added. Words and Quiz follow, to write the words down and check the copy.",
+    guide_lock_in_adds: "Lock in adds the key these words make; its fingerprint shows at once. Words and Quiz follow, to write the words down and check the copy.",
     /// Text in `keygen`.
-    guide_these_counts: "These counts catch the mistakes hands make: a die that favours one face, the same result typed over and over, or a sequence counted out instead of rolled. A caution is not a refusal; if one appears and you are not sure why, roll again.",
+    guide_these_counts: "These counts catch a biased die or entries typed instead of rolled. A caution is not a refusal; if one appears and you are not sure why, roll again.",
     /// Text in `keygen`.
-    guide_write_the_words: "Write the words down in order, on paper, before any money goes to this key, and keep them where only you can reach them. The words are the key: anyone who has them can spend, and without them a lost device loses the money.",
+    guide_write_the_words: "Write the words in order on paper before any money goes to this key. Anyone with the words can spend; without them, a lost device loses the money.",
     /// Text in `keygen`.
-    guide_answer_from_your: "Answer from your paper, not from memory: the quiz checks the copy you will rely on. Each word is asked once, in a random order. A wrong answer means a word on the paper needs correcting; look at the words again, fix the copy, and carry on.",
+    guide_answer_from_your: "Answer from your paper, not from memory: each word is asked once, in a random order. A wrong answer means the paper needs correcting.",
     // ----- held (faraday-core/src/held.rs) -----
     /// Toast in `backup_settle`. `{}`: `names.join(", ")`.
     held_signs_from_now: "{} signs from now on",
@@ -3767,7 +3787,7 @@ strings! {
     lightning_whoever_has: "Whoever has it is the node: its channels and their money",
     // ----- lightning (faraday-core/src/lightning/screen.rs) -----
     /// Text in `draw`.
-    lightning_a_lightning_node: "A Lightning node's key, made the way its software makes it: ldk-node from a BIP-39 key, LND from its own 24-word cipher seed. Its public key is the node id, safe to share; its private key is the node, and goes into a vault.",
+    lightning_a_lightning_node: "A Lightning node's key, made the way ldk-node or LND makes it. Its public key is the node id, safe to share; its private key is the node, and goes into a vault.",
     /// Line in `header`.
     lightning_wallets: "Wallets",
     /// Title in `header`.
@@ -5566,7 +5586,7 @@ strings! {
     /// Text in `files_compact`. `{}`: `app.medium.for_the()`.
     files_power_off_asks: "Power off asks first while files wait {}",
     /// Text in `files_compact`. `{}`: `app.medium.from_box()`, `app.medium.nouns()`, `app.medium.for_box()`.
-    files_holds_what_was: "{} holds what was copied in from {}; {} holds what waits to be written to one, and what the last visit wrote. Both live in memory and are emptied at power-off. Public files are listed apart from vaults, which carry secrets sealed under a passphrase; a secret goes out unprotected only when you say so after a warning, and is listed apart.",
+    files_holds_what_was: "{} holds what was copied in; {} holds what waits to be written. Both are emptied at power-off. A secret goes out unprotected only after a warning.",
     // ----- receipt_rows (faraday-core/src/screens/files.rs) -----
     /// Text in `receipt_rows`.
     receipt_rows_verified: "verified",
@@ -5821,7 +5841,7 @@ strings! {
     /// Button in `entry`.
     entry_scan_a_seedqr: "Scan a SeedQR",
     /// Text in `entry`.
-    entry_type_the_words: "Type the words in order. Each word is checked against the BIP-39 list as you type, and Tab finishes a word once only one fits. The last word carries a checksum, so a mistyped word is caught when the count is complete. The words stay in memory for this session only.",
+    entry_type_the_words: "Type the words in order; Tab finishes a word once only one fits. The last word carries a checksum, so a mistyped word is caught when the count is complete.",
     /// Text in `entry`.
     entry_no_word_starts: "No word starts with that",
     /// Text in `entry`, after the candidates and three spaces.
@@ -5831,9 +5851,9 @@ strings! {
     word_count_row_words: "Words",
     // ----- keyed_words (faraday-core/src/screens/entry.rs) -----
     /// Text in `keyed_words`.
-    keyed_words_type_each_word_s: "Type each word's pinyin and then its tone, 1 to 5, on the keys below or the computer's keyboard, and press the character among those it offers. Keys that lead to no word are off. The last word carries a checksum, checked when the count is complete.",
+    keyed_words_type_each_word_s: "Type each word's pinyin, then its tone 1 to 5, and press the character among those offered. The last word's checksum is checked when the count is complete.",
     /// Text in `keyed_words`.
-    keyed_words_type_each_word: "Type each word's 注音 and then its tone on the keys below, and press the character among those it offers. Keys that lead to no word are off. The last word carries a checksum, checked when the count is complete.",
+    keyed_words_type_each_word: "Type each word's 注音 and then its tone on the keys below, and press the character among those offered. The last word's checksum is checked when the count is complete.",
     /// Text in `keyed_words`.
     keyed_words_type_each: "Type each word on the keys below and press it among the words it can be. Keys that lead to no word are off. The last word carries a checksum, checked when the count is complete.",
     /// Text in `keyed_words`.
@@ -5875,7 +5895,7 @@ strings! {
     entry_stick_copy_files: "Copy files in",
     // ----- entry_form (faraday-core/src/screens/entry.rs) -----
     /// Text in `entry_form`.
-    entry_form_type_one_share: "Type one share at a time, its 20 or 33 words, and press Enter. Shares of every group the backup needs go in, in any order; then the passphrase, if the backup has one, and Make the key. A SLIP-39 key has no BIP-39 words.",
+    entry_form_type_one_share: "Type one share at a time, 20 or 33 words, and press Enter, in any order. Then the passphrase, if the backup has one, and Make the key.",
     /// Text in `entry_form`.
     entry_form_type_one_codex32: "Type one codex32 string at a time, ms1 and all, and press Enter. The secret string is the key at once; shares need as many as the digit after ms1 says.",
     /// Text in `entry_form`.
@@ -6516,11 +6536,11 @@ strings! {
     /// Text in `guide`.
     silent_a_silent_payments_address: "A silent payments address is one address you can give out many times: each payment to it lands at an address nobody else can link to it or to the others.",
     /// Text in `guide`.
-    silent_give_this_address: "Give this address to whoever pays you. A label makes another address of the same wallet, so you can tell who paid; the payer cannot tell the two apart. The record lists the labels handed out, for the wallet software that watches for payments.",
+    silent_give_this_address: "Give this address to whoever pays you. A label makes another address of the same wallet, so you can tell payers apart; the record lists the labels for the software that watches.",
     /// Text in `guide`.
     silent_finding_payments: "Finding payments needs the scan key: it shows every payment to this address, though it cannot spend them. It goes into the vault, or to a scanning wallet you run yourself.",
     /// Text in `guide`.
-    silent_guide_payment: "A payment to a silent payments address goes to an address only this key can find. Copy the transaction into Files, signed, with the transactions it spends from; this works out whether any of its outputs pay this wallet, and to which label.",
+    silent_guide_payment: "Copy the signed transaction into Files with the transactions it spends from. This works out whether any output pays this wallet, and to which label.",
     /// Line in `card`.
     silent_its_key_is_not_loaded: "Its key is not loaded: labels, the scan key and a check need it",
     /// Text in `card`.
@@ -7027,7 +7047,7 @@ strings! {
     /// Text in `list_compact`.
     vault_view_contents: "View contents",
     /// Text in `list_compact`. `{}`: `app.medium.a()`, `app.medium.for_the()`.
-    vault_a_vault_holds: "A vault holds keys, wallets, entries and notes under one to four passphrases, each opening its own contents. A locked vault shows only what its file states: its size and unlock cost. A vault is copied in on {} visit, and is sealed {} again when the session locks with changes in it.",
+    vault_a_vault_holds: "A vault holds keys, wallets, entries and notes under one to four passphrases. It is copied in on {} visit and sealed {} again when the session locks with changes.",
     /// Text in `unlock_compact`. `{}`: `app.medium.noun()`.
     vault_remove_the_then_type: "Remove the {}, then type the passphrase",
     /// Line in `unlock_compact`.
@@ -7053,13 +7073,13 @@ strings! {
     /// Text in `create_guide`.
     vault_a_vault_opens_only: "A vault opens only on a machine with the memory its cost asks for. Choose every kind of machine it will ever be opened on; the cost suggested next fits the one with the least memory.",
     /// Text in `create_guide`.
-    vault_guide_guess_cost: "Each guess at a passphrase costs this much memory and time. Argon2id works through the memory 1 KiB at a time, once each pass, so a guess is memory in KiB times passes block steps, and the cost adds the base-2 logarithm of that to the passphrase's own bits: 64 MiB with 3 passes is 196,608 steps, ≈17.6 bits, and doubling the memory or the passes adds ≈1. These are estimates, marked ≈: they count work, not how much harder memory is than time for an attacker. A dice passphrase's own bits are exact. Memory is a hard limit: a machine without it cannot open the vault at any speed. The passphrase matters more: one more dice word adds 12.9 bits, and this whole range of cost adds ≈6. The cost cannot be changed later.",
+    vault_guide_guess_cost: "Each guess at a passphrase costs this much memory and time; a machine without the memory cannot open the vault at all. The passphrase counts for more than the cost. The cost cannot be changed later.",
     /// Text in `create_guide`.
     vault_every_passphrase: "Every passphrase gets the same space, fixed for the life of the vault. 256 KiB holds keys, wallets, notes and about a hundred entries.",
     /// Text in `create_guide`.
-    vault_a_vault_opens: "A vault opens only on a machine with the memory its cost asks for, and the cost cannot be changed later. 512 MiB opens on PCs; 64 MiB opens on a Raspberry Pi as well. Customise chooses the machines, the cost and the space per passphrase one by one.",
+    vault_a_vault_opens: "512 MiB opens on PCs; 64 MiB on a Raspberry Pi as well. The cost cannot be changed later. Customise sets the machines, the cost and the space one by one.",
     /// Text in `create_guide`.
-    vault_each_passphrase: "Each passphrase opens its own contents, and the file does not say how many there are. They are set now: adding or changing one later means making a new vault and moving the contents across. The passphrase matters more than the cost: six words from the EFF long list are 77.5 bits, out of reach at any cost here, while a short or reused passphrase is not protected at any cost.",
+    vault_each_passphrase: "Each passphrase opens its own contents, and the file does not say how many there are. They are fixed now: a change later means a new vault. Six EFF words are out of reach at any cost.",
     /// Text in `create_summaries`.
     vault_none_chosen: "None chosen",
     /// Text. `{}`: `name`, `mib_text(mem)`, `passes`.
@@ -8727,9 +8747,8 @@ strings! {
     board_sees_warn: "{} can see the balance. {}",
     /// A warning: a place keeps no seed. `{}`: the place.
     board_no_seed: "{} holds no seed",
-    /// The backup's last card, in Guided only (`docs/BACKUP-FLOW.md`
-    /// §17.19 item 7).
-    backup_extra_copies: "More copies can be made once the wallet is made: a vault copied to another stick, words copied by hand. They are not part of the plan.",
+    /// The backup's last card, in Guided. `{}`: `medium.noun()`.
+    backup_extra_copies: "More copies can be made once the wallet is made: a vault copied to another {}, words copied by hand. They are not part of the plan.",
     /// The Learn link under it.
     backup_extra_copies_link: "Extra copies",
     /// "Any one place lost" with a single place (§19.19).

@@ -34,8 +34,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             EN.start_start_from_what.to_string()
         };
-        let used = ui.wrap(x, y, width.min(820.0), 14.0, W::R, MUTED, &text);
-        y += used + 20.0;
+        let lead_w = width.min(820.0);
+        let used = ui.wrap(x, y, lead_w, 14.0, W::R, MUTED, &text);
+        let link = crate::flow::learn_link(ui, x, y + used, lead_w, crate::learn::Topic::StartHere);
+        y += used + link + 20.0;
     }
     section_label(ui, x, y, EN.start_your_wallets);
     y += if compact { 24.0 } else { 30.0 };

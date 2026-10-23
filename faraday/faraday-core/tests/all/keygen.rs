@@ -1244,3 +1244,23 @@ fn a_threshold_slot_offers_only_make_a_new_key_and_type_the_words() {
     assert!(!app.offers(Action::KStart(Start::Scan.index())));
     assert!(!app.offers(Action::KOthers));
 }
+
+/// A card's Guided text carries a link to its Learn page, one press
+/// away: Length links Words and opens the Learn sheet on it; Steps only
+/// shows no link.
+#[test]
+fn a_guided_card_links_its_learn_page_and_steps_only_does_not() {
+    use faraday_core::keygen::kstep;
+    use faraday_core::learn::Topic;
+    let mut app = opened();
+    app.press(Action::KStep(kstep::LENGTH));
+    let _ = app.frame();
+    assert!(!app.offers(Action::LearnTopic(Topic::Words)), "Steps only");
+    app.press(Action::Guided(true));
+    let _ = app.frame();
+    assert!(app.offers(Action::LearnTopic(Topic::Words)));
+    app.press(Action::LearnTopic(Topic::Words));
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
+    let l = app.learn();
+    assert!(std::ptr::eq(l.pages[l.page], Topic::Words.page()));
+}

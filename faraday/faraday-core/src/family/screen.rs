@@ -53,6 +53,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             default: false,
             toggle: crate::family::toggle(app, id),
             guide: Some(text::lead(app, id)).filter(|s| !s.is_empty()),
+            learn: None,
         })
         .collect();
     // From a wallet's card: the wallet's name, and no word on the

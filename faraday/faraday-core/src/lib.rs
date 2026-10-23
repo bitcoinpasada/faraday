@@ -3012,7 +3012,7 @@ impl Faraday {
             Action::Vanity(v) => self.vanity_act(v),
             Action::Learn => self.learn_open(),
             Action::LearnShares => self.learn_shares(),
-            Action::LearnExtraCopies => self.learn_on(faraday_learn::extra_copies_page()),
+            Action::LearnTopic(t) => self.learn_topic(t),
             Action::LearnSpend => {
                 self.sheet = None;
                 self.screen = Screen::Family;

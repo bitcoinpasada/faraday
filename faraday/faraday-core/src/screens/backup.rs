@@ -203,8 +203,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     let keys = app.backup_keys(b.wallet);
-    let (m, n) = Session::quorum(wallet);
     let checklist = b.stage == BStage::Checklist;
+    let split = b.answers.split && crate::wallet_backup::splits(wallet);
     let steps = if checklist {
         app.backup_items()
     } else {
@@ -259,10 +259,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     open: b.open == Some(k),
                     default: false,
                     toggle: Action::BStep(k),
+                    learn: guide::backup_topic(k, split),
                     guide: Some(guide::backup(
                         k,
-                        m,
-                        n,
+                        split,
                         keys.len(),
                         app.medium,
                         if crate::bstep::is_copy(k) {
@@ -287,6 +287,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     default: false,
                     toggle: Action::BQ(k),
                     guide: None,
+                    learn: None,
                 }
             }
         })
@@ -542,7 +543,8 @@ pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         return 0.0;
     }
     let mut cy = y;
-    cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_extra_copies) + 6.0;
+    let text = fill(EN.backup_extra_copies, &[app.medium.noun()]);
+    cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, &text) + 6.0;
     let label = EN.backup_extra_copies_link;
     let bw = (ui.measure(13.0, W::S, label) + 24.0).min(w);
     ui.button(
@@ -552,7 +554,7 @@ pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         32.0,
         label,
         Style::Ghost,
-        Action::LearnExtraCopies,
+        Action::LearnTopic(crate::learn::Topic::ExtraCopies),
     );
     cy += 32.0 + 12.0;
     cy - y
