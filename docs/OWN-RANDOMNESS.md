@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified, not built (F86); the kernel check of §3 done from the repository
-**Open:** all of §2 (adding your own randomness, R1 to R3); the boot measurement that confirms option A brings no long wait (§3.4: QEMU on the build machine, not yet run; then one real PC in passing). Option A itself (§3.3, R4) is built.
+**Open:** all of §2 (adding your own randomness, R1 to R3); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured). Option A itself (§3.3, R4) is built.
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer movement and
@@ -265,11 +265,21 @@ it (owner, 2026-10-23: no session on several PCs).
 The results go in this section; the dev instrumentation stays in the
 dev variant only.
 
-Results: none yet (2026-10-23). The dev image could not be built from a
-worktree: the remote run script gives a worktree's checkout on the build
-machine a new empty git repository, and `faraday/image/build-id.sh`
-(`git diff HEAD`) fails there with "bad revision 'HEAD'" before any
-compile. QEMU, `stick-qemu.py` and OVMF were not reached.
+Results (2026-10-23, item 1): the dev stick image at 0e781882, ten
+boots on QEMU's `qemu64` CPU (no RDRAND) under TCG, since the build
+machine offers no KVM; option A; times from power-on (CLOCK_BOOTTIME).
+
+| | Best | Worst |
+|---|---|---|
+| The kernel's "random: crng init done" | 2.22 s | 3.04 s |
+| The app's first read of `/dev/random` returned | 2.17 s | 3.00 s |
+| Time the app's read waited | 0 ms | 260 ms |
+
+Under TCG every instruction is emulated, so a real PC is faster; the
+pool is ready within about a quarter of a second of the app asking for
+it, and before anything a person does needs randomness. Item 2, one
+real PC, is still to read.
+
 ## 4. Tests
 
 In `faraday/faraday-core/tests/all/` (a new `own_randomness.rs`):
