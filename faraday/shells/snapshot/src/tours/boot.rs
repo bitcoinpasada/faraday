@@ -220,8 +220,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::X(XAction::Search));
     let searching = |t: &Tour| {
         t.app
-            .explore
-            .as_ref()
+            .explore()
             .and_then(|e| e.search.as_ref())
             .is_some_and(|s| s.running())
     };

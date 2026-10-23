@@ -1379,7 +1379,7 @@ pub struct Faraday {
     /// Silent payments on show.
     silent: silent::SilentArea,
     /// Explore on show.
-    pub explore: Option<explore::ExploreState>,
+    explore: explore::ExploreArea,
     /// The Lightning node key on show.
     lightning: lightning::LightningArea,
     /// Tools on show.
@@ -1687,7 +1687,7 @@ impl Faraday {
             wordlist: wordlist::WordListArea::default(),
             bip85: bip85::Bip85Area::default(),
             silent: silent::SilentArea::default(),
-            explore: None,
+            explore: explore::ExploreArea::default(),
             lightning: lightning::LightningArea::default(),
             tools: None,
             secret_out: None,
@@ -8902,7 +8902,7 @@ impl Faraday {
             self.bip85.clear();
         }
         if self.screen != Screen::Explore {
-            self.explore = None;
+            self.explore.clear();
         }
         if self.screen != Screen::Tools {
             self.tools = None;

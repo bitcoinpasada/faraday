@@ -242,7 +242,7 @@ fn help(ui: &mut Ui, x: f32, y: f32) {
 /// A page that is not one of the step flows: its bar, then the page
 /// under it as the desktop draws it, in the panel's width.
 pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
-    let explore = app.explore.as_ref().map(|e| e.page);
+    let explore = app.explore.page();
     let name = match app.session.wallets.get(app.wallet) {
         _ if app.screen == Screen::Explore && explore == Some(crate::explore::Page::Addresses) => {
             EN.explore_addresses
@@ -758,8 +758,8 @@ impl Faraday {
             // Find an address's field.
             Screen::Explore => self
                 .explore
-                .as_ref()
-                .is_some_and(|e| e.page == crate::explore::Page::Find),
+                .page()
+                .is_some_and(|p| p == crate::explore::Page::Find),
             // The Key card's passphrase, and the Words card of a key typed
             // as Add a key's form docks it; the box of rolls has buttons
             // of its own on a small panel.
@@ -816,8 +816,8 @@ impl Faraday {
                 if self.sheet.is_none()
                     && self
                         .explore
-                        .as_ref()
-                        .is_some_and(|e| e.page == crate::explore::Page::Find) =>
+                        .page()
+                        .is_some_and(|p| p == crate::explore::Page::Find) =>
             {
                 K::Address
             }

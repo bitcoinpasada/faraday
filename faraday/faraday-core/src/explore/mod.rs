@@ -17,6 +17,7 @@ use faraday_bip::bitcoin::{Address, CompressedPublicKey, NetworkKind};
 use faraday_bip::keys::ScriptType;
 use faraday_crypto::work::Compute;
 
+use crate::wallet::Session;
 use crate::{Faraday, Screen};
 
 /// The presets, by purpose: BIP-84, 86, 49 and 44 receive address 0,
@@ -88,22 +89,48 @@ pub struct Reading {
     pub address: String,
 }
 
-impl Faraday {
-    /// Opens Explore.
-    pub(crate) fn explore_open(&mut self) {
-        if self.session.keys.is_empty() {
-            return self.toast(EN.explore_load_a_key);
+/// Explore's area: its state while it is open.
+#[derive(Default)]
+pub(crate) struct ExploreArea {
+    state: Option<ExploreState>,
+}
+
+impl ExploreArea {
+    /// Explore's state, while it is open.
+    pub(crate) fn state(&self) -> Option<&ExploreState> {
+        self.state.as_ref()
+    }
+
+    /// Sets the address list's first index, for the test kit.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn set_from(&mut self, from: u32) {
+        if let Some(e) = self.state.as_mut() {
+            e.from = from;
         }
-        let coin = if self.session.network().is_mainnet() {
-            "0"
-        } else {
-            "1"
-        };
-        self.explore = Some(ExploreState {
-            key: Some(self.session.keys[0].fingerprint.0),
+    }
+
+    /// Replaces the path as typed and returns the one it replaced, for
+    /// the test kit.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn swap_path(&mut self, path: String) -> Option<String> {
+        self.state
+            .as_mut()
+            .map(|e| std::mem::replace(&mut e.path, path))
+    }
+
+    /// Forgets Explore's state.
+    pub(crate) fn clear(&mut self) {
+        self.state = None;
+    }
+
+    /// Opens Explore on key `fp`, at the first preset on coin type
+    /// `coin`, to return to `back`.
+    pub(crate) fn open(&mut self, fp: [u8; 4], coin: &str, back: Screen) {
+        self.state = Some(ExploreState {
+            key: Some(fp),
             path: PRESETS[0].1.replace("{c}", coin),
             script: ScriptType::NativeSegwit,
-            back: self.screen,
+            back,
             reading: Default::default(),
             page: Page::Path,
             change: false,
@@ -115,50 +142,46 @@ impl Faraday {
             sample: Default::default(),
             kept: Default::default(),
         });
-        self.screen = Screen::Explore;
     }
 
     /// The path read, or why it is not one.
-    pub fn explore_path(&self) -> Result<DerivationPath, &'static str> {
-        let e = self.explore.as_ref().ok_or("")?;
+    pub(crate) fn path(&self) -> Result<DerivationPath, &'static str> {
+        let e = self.state.as_ref().ok_or("")?;
         let t = e.path.trim().trim_start_matches("m/").replace('\'', "h");
         parse_path(&t).map_err(|p| p.message(&EN))
     }
 
     /// Costs a key derivation the first time. What the path gives for the
-    /// chosen key: worked out the first time it is asked with these key,
-    /// path and script, by whoever asks, a frame included, and kept on
-    /// Explore's state, a lookup after.
-    pub fn explore_reading(&self, c: &Compute) -> Option<std::rc::Rc<Reading>> {
-        let e = self.explore.as_ref()?;
+    /// chosen key in `session`: worked out the first time it is asked with
+    /// these key, path and script, by whoever asks, a frame included, and
+    /// kept on Explore's state, a lookup after.
+    pub(crate) fn reading(&self, c: &Compute, session: &Session) -> Option<std::rc::Rc<Reading>> {
+        let e = self.state.as_ref()?;
         let of: ReadingOf = (
             e.key,
             e.path.clone(),
             e.script,
-            self.session.network(),
-            self.session
-                .keys
-                .all()
-                .any(|k| Some(k.fingerprint.0) == e.key),
+            session.network(),
+            session.keys.all().any(|k| Some(k.fingerprint.0) == e.key),
         );
         if let Some((was, r)) = e.reading.borrow().as_ref()
             && *was == of
         {
             return r.clone();
         }
-        let r = self.explore_reading_now(c).map(std::rc::Rc::new);
+        let r = self.reading_now(c, session).map(std::rc::Rc::new);
         *e.reading.borrow_mut() = Some((of, r.clone()));
         r
     }
 
-    /// Costs a key derivation. Works out [`Faraday::explore_reading`].
-    fn explore_reading_now(&self, c: &Compute) -> Option<Reading> {
-        let e = self.explore.as_ref()?;
-        let path = self.explore_path().ok()?;
-        let place = self.session.keys.position_of(e.key?)?;
-        let xpub = self.session.keys.xpub_at(c, place, &path)?;
+    /// Costs a key derivation. Works out [`ExploreArea::reading`].
+    fn reading_now(&self, c: &Compute, session: &Session) -> Option<Reading> {
+        let e = self.state.as_ref()?;
+        let path = self.path().ok()?;
+        let place = session.keys.position_of(e.key?)?;
+        let xpub = session.keys.xpub_at(c, place, &path)?;
         let pk = CompressedPublicKey(xpub.public_key);
-        let net: faraday_bip::bitcoin::Network = self.session.network().into();
+        let net: faraday_bip::bitcoin::Network = session.network().into();
         let kind = NetworkKind::from(net);
         let script = implied_script(&path).unwrap_or(e.script);
         let secp = faraday_bip::bitcoin::secp256k1::Secp256k1::verification_only();
@@ -176,21 +199,11 @@ impl Faraday {
         })
     }
 
-    /// One press inside Explore.
-    pub(crate) fn explore_act(&mut self, action: crate::Action) {
+    /// A press that changes only the key, the path or the script, on
+    /// coin type `coin`.
+    pub(crate) fn act(&mut self, action: crate::Action, coin: &str) {
         use crate::Action as A;
-        if action == A::Explore {
-            return self.explore_open();
-        }
-        if let A::X(x) = action {
-            return self.explore_x(x);
-        }
-        let coin = if self.session.network().is_mainnet() {
-            "0"
-        } else {
-            "1"
-        };
-        let Some(e) = self.explore.as_mut() else {
+        let Some(e) = self.state.as_mut() else {
             return;
         };
         match action {
@@ -229,18 +242,16 @@ impl Faraday {
         }
     }
 
-    /// Typing into the path. Returns whether the key was taken.
-    pub(crate) fn explore_key(&mut self, key: faraday_shell_api::Key) -> bool {
+    /// Typing into the path, on `screen`. Returns whether the key was
+    /// taken.
+    pub(crate) fn path_key(
+        &mut self,
+        key: faraday_shell_api::Key,
+        screen: &mut Screen,
+        coin: &str,
+    ) -> bool {
         use faraday_shell_api::Key as K;
-        if self.screen != Screen::Explore {
-            return false;
-        }
-        match self.explore.as_ref().map(|e| e.page) {
-            Some(Page::Path) => {}
-            Some(_) => return self.explore_page_key(key),
-            None => return false,
-        }
-        let Some(e) = self.explore.as_mut() else {
+        let Some(e) = self.state.as_mut() else {
             return false;
         };
         match key {
@@ -253,14 +264,77 @@ impl Faraday {
                 e.path.pop();
             }
             K::Escape => {
-                self.screen = e.back;
-                self.explore = None;
+                *screen = e.back;
+                self.state = None;
             }
-            K::Down => self.explore_act(crate::Action::XIndex(1)),
-            K::Up => self.explore_act(crate::Action::XIndex(-1)),
+            K::Down => self.act(crate::Action::XIndex(1), coin),
+            K::Up => self.act(crate::Action::XIndex(-1), coin),
             _ => return false,
         }
         true
+    }
+}
+
+impl Faraday {
+    /// Explore's state, while it is open.
+    pub fn explore(&self) -> Option<&ExploreState> {
+        self.explore.state()
+    }
+
+    /// The coin type of the session's network, as a path level.
+    fn explore_coin(&self) -> &'static str {
+        if self.session.network().is_mainnet() {
+            "0"
+        } else {
+            "1"
+        }
+    }
+
+    /// Opens Explore.
+    pub(crate) fn explore_open(&mut self) {
+        if self.session.keys.is_empty() {
+            return self.toast(EN.explore_load_a_key);
+        }
+        let fp = self.session.keys[0].fingerprint.0;
+        self.explore.open(fp, self.explore_coin(), self.screen);
+        self.screen = Screen::Explore;
+    }
+
+    /// The path read, or why it is not one.
+    pub fn explore_path(&self) -> Result<DerivationPath, &'static str> {
+        self.explore.path()
+    }
+
+    /// Costs a key derivation the first time. What the path gives for the
+    /// chosen key, kept on Explore's state.
+    pub fn explore_reading(&self, c: &Compute) -> Option<std::rc::Rc<Reading>> {
+        self.explore.reading(c, &self.session)
+    }
+
+    /// One press inside Explore.
+    pub(crate) fn explore_act(&mut self, action: crate::Action) {
+        use crate::Action as A;
+        if action == A::Explore {
+            return self.explore_open();
+        }
+        if let A::X(x) = action {
+            return self.explore_x(x);
+        }
+        self.explore.act(action, self.explore_coin());
+    }
+
+    /// Typing into the path. Returns whether the key was taken.
+    pub(crate) fn explore_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        if self.screen != Screen::Explore {
+            return false;
+        }
+        match self.explore.state().map(|e| e.page) {
+            Some(Page::Path) => {}
+            Some(_) => return self.explore_page_key(key),
+            None => return false,
+        }
+        let coin = self.explore_coin();
+        self.explore.path_key(key, &mut self.screen, coin)
     }
 }
 

@@ -435,10 +435,10 @@ fn in_demo_find_an_addresss_field_takes_the_sample_address_and_finds_it_in_spend
     let _ = app.frame();
     assert!(app.offers(Action::UseSample));
     app.press(Action::UseSample);
-    assert_eq!(app.explore.as_ref().unwrap().query, SAMPLES.inputs.address);
+    assert_eq!(app.explore().unwrap().query, SAMPLES.inputs.address);
     app.press(Action::X(XAction::Search));
     settle(&mut app);
-    let e = app.explore.as_ref().unwrap();
+    let e = app.explore().unwrap();
     assert!(e.search.as_ref().is_some_and(|s| s.matched > 0), "found");
 }
 

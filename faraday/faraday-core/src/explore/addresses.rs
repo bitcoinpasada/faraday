@@ -18,8 +18,10 @@ use faraday_bip::keys::{Network, ScriptType};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
 
+use super::ExploreArea;
 use super::implied_script;
 use crate::strings::EN;
+use crate::wallet::Session;
 use crate::{Faraday, Screen};
 
 /// Addresses on one page of the list.
@@ -324,27 +326,47 @@ pub fn account_of(path: &DerivationPath) -> Option<DerivationPath> {
     }
 }
 
-impl Faraday {
+/// What a press on the list or the search asks of the caller.
+#[derive(Default)]
+pub(crate) struct XEffect {
+    /// The list goes back to its top.
+    pub(crate) list_top: bool,
+    /// The clipboard is asked for.
+    pub(crate) paste: bool,
+}
+
+/// What a key on the list or the search leaves to the caller.
+pub(crate) enum PageKeyed {
+    /// The key is not the page's.
+    NotMine,
+    /// The page took it.
+    Taken,
+    /// The page took it, and the press `.0` follows.
+    Then(XAction),
+}
+
+impl ExploreArea {
+    /// The page on screen, while Explore is open.
+    pub(crate) fn page(&self) -> Option<Page> {
+        self.state.as_ref().map(|e| e.page)
+    }
+
     /// What the explored path's account's addresses are worked out from,
     /// or `None` where the path is in no account (`account_of`).
-    pub fn explore_account(&self) -> Option<AccountOf> {
-        let e = self.explore.as_ref()?;
-        let path = self.explore_path().ok()?;
+    pub(crate) fn account(&self, session: &Session) -> Option<AccountOf> {
+        let e = self.state.as_ref()?;
+        let path = self.path().ok()?;
         let account = account_of(&path)?;
         let script = implied_script(&path).unwrap_or(e.script);
-        let loaded = self
-            .session
-            .keys
-            .all()
-            .any(|k| Some(k.fingerprint.0) == e.key);
-        Some((e.key, account, script, self.session.network(), loaded))
+        let loaded = session.keys.all().any(|k| Some(k.fingerprint.0) == e.key);
+        Some((e.key, account, script, session.network(), loaded))
     }
 
     /// Costs a key derivation the first time for an account. Explore's
     /// kept addresses made those of `of`, with the account's extended
     /// public key derived the first time.
-    fn explore_keep(&self, c: &Compute, of: &AccountOf) {
-        let Some(e) = self.explore.as_ref() else {
+    fn keep(&self, c: &Compute, session: &Session, of: &AccountOf) {
+        let Some(e) = self.state.as_ref() else {
             return;
         };
         if !e.kept.borrow_mut().of_account(of) {
@@ -352,8 +374,8 @@ impl Faraday {
         }
         let (key, account, script, ..) = of;
         let policy = key
-            .and_then(|fp| self.session.keys.position_of(fp))
-            .and_then(|place| self.session.keys.xpub_at(c, place, account))
+            .and_then(|fp| session.keys.position_of(fp))
+            .and_then(|place| session.keys.xpub_at(c, place, account))
             .and_then(|xpub| WalletPolicy::from_xpub(xpub, *script).ok());
         e.kept.borrow_mut().policy = policy;
     }
@@ -362,31 +384,39 @@ impl Faraday {
     /// address not yet kept. The list's page as it stands: each index
     /// with its address, worked out by whoever asks first, a frame
     /// included, and kept on Explore's state ([`Kept`]), a lookup after.
-    pub fn explore_list(&self, c: &Compute) -> Vec<(u32, String)> {
-        let (Some(e), Some(of)) = (self.explore.as_ref(), self.explore_account()) else {
+    pub(crate) fn list(&self, c: &Compute, session: &Session) -> Vec<(u32, String)> {
+        let (Some(e), Some(of)) = (self.state.as_ref(), self.account(session)) else {
             return Vec::new();
         };
-        self.explore_keep(c, &of);
-        let net = self.session.network();
+        self.keep(c, session, &of);
+        let net = session.network();
         e.kept.borrow_mut().page(c, net, e.change, e.from)
     }
 
     /// How many addresses Explore keeps.
-    pub fn explore_kept(&self) -> usize {
-        self.explore.as_ref().map_or(0, |e| e.kept.borrow().len())
+    pub(crate) fn kept_count(&self) -> usize {
+        self.state.as_ref().map_or(0, |e| e.kept.borrow().len())
     }
 
-    /// A press on the address list or the search.
-    pub(crate) fn explore_x(&mut self, a: XAction) {
-        let clipboard = self.clipboard;
-        let Some(e) = self.explore.as_mut() else {
-            return;
+    /// A press on the address list or the search. `of` is the account
+    /// explored (for Search), `now` the tick, `clipboard` whether the
+    /// shell has one.
+    pub(crate) fn x(
+        &mut self,
+        a: XAction,
+        of: Option<AccountOf>,
+        now: u64,
+        clipboard: bool,
+    ) -> XEffect {
+        let mut effect = XEffect::default();
+        let Some(e) = self.state.as_mut() else {
+            return effect;
         };
         match a {
             XAction::Page(p) => {
                 e.page = p;
                 e.note = None;
-                self.list_offset = 0.0;
+                effect.list_top = true;
             }
             XAction::Chain(change) => e.change = change,
             XAction::Step(d) => {
@@ -399,33 +429,16 @@ impl Faraday {
                     e.search = None;
                 }
             }
-            XAction::Search => self.explore_search(),
-            XAction::Paste => {
-                if clipboard {
-                    self.out
-                        .commands
-                        .push_back(faraday_shell_api::Command::RequestClipboard {
-                            kind: faraday_shell_api::FileKind::Text,
-                        });
-                }
-            }
+            XAction::Search => self.search(of, now),
+            XAction::Paste => effect.paste = clipboard,
         }
-        if self
-            .explore
-            .as_ref()
-            .is_some_and(|e| e.page == Page::Addresses)
-        {
-            let c = self.compute();
-            let _ = self.explore_list(&c);
-        }
+        effect
     }
 
     /// Search starts on what is typed, or the one under way stops where
     /// it is.
-    fn explore_search(&mut self) {
-        let of = self.explore_account();
-        let now = self.now_ms;
-        let Some(e) = self.explore.as_mut() else {
+    fn search(&mut self, of: Option<AccountOf>, now: u64) {
+        let Some(e) = self.state.as_mut() else {
             return;
         };
         if let Some(s) = e.search.as_mut()
@@ -457,20 +470,18 @@ impl Faraday {
     /// Costs an address derivation for each address of the tick's
     /// indices not yet kept, on both chains. One tick of a search under
     /// way. Returns whether to draw.
-    pub(crate) fn explore_tick(&mut self, now_ms: u64) -> bool {
-        if self.screen != Screen::Explore
-            || !self
-                .explore
-                .as_ref()
-                .and_then(|e| e.search.as_ref())
-                .is_some_and(Search::running)
+    pub(crate) fn tick(&mut self, now_ms: u64, c: &Compute, session: &Session) -> bool {
+        if !self
+            .state
+            .as_ref()
+            .and_then(|e| e.search.as_ref())
+            .is_some_and(Search::running)
         {
             return false;
         }
-        let c = self.compute();
-        let of = self.explore_account();
-        let net = self.session.network();
-        let Some(e) = self.explore.as_mut() else {
+        let of = self.account(session);
+        let net = session.network();
+        let Some(e) = self.state.as_mut() else {
             return false;
         };
         // A search of another account than the one explored now is gone.
@@ -481,8 +492,8 @@ impl Faraday {
         let Some(of) = of else {
             return false;
         };
-        self.explore_keep(&c, &of);
-        let Some(e) = self.explore.as_mut() else {
+        self.keep(c, session, &of);
+        let Some(e) = self.state.as_mut() else {
             return false;
         };
         let (Some(s), kept) = (e.search.as_mut(), &e.kept) else {
@@ -494,7 +505,7 @@ impl Faraday {
         let start = s.next;
         'indices: for i in start..end {
             for change in [false, true] {
-                let Some(a) = kept.at(&c, &secp, net, change, i) else {
+                let Some(a) = kept.at(c, &secp, net, change, i) else {
                     s.next = s.depth;
                     break 'indices;
                 };
@@ -527,40 +538,39 @@ impl Faraday {
 
     /// A key on the address list or the search: the list's first index
     /// typed in digits, a page on or back with the arrows; the search's
-    /// text, Enter to search, Paste; Escape back to the path. Returns
-    /// whether the key was taken.
-    pub(crate) fn explore_page_key(&mut self, key: faraday_shell_api::Key) -> bool {
+    /// text, Enter to search, Paste; Escape back to the path.
+    pub(crate) fn page_key(&mut self, key: faraday_shell_api::Key) -> PageKeyed {
         use faraday_shell_api::Key as K;
-        let Some(e) = self.explore.as_mut() else {
-            return false;
+        let Some(e) = self.state.as_mut() else {
+            return PageKeyed::NotMine;
         };
         match (e.page, key) {
-            (_, K::Escape) => self.explore_x(XAction::Page(Page::Path)),
-            (Page::Find, K::Char(ch)) => self.explore_type(Some(ch)),
-            (Page::Find, K::Backspace) => self.explore_type(None),
-            (Page::Find, K::Enter) => self.explore_x(XAction::Search),
-            (Page::Find, K::Paste) => self.explore_x(XAction::Paste),
+            (_, K::Escape) => return PageKeyed::Then(XAction::Page(Page::Path)),
+            (Page::Find, K::Char(ch)) => self.type_in(Some(ch)),
+            (Page::Find, K::Backspace) => self.type_in(None),
+            (Page::Find, K::Enter) => return PageKeyed::Then(XAction::Search),
+            (Page::Find, K::Paste) => return PageKeyed::Then(XAction::Paste),
             (Page::Addresses, K::Char(ch)) if ch.is_ascii_digit() => {
                 let n = u64::from(e.from) * 10 + u64::from(ch as u8 - b'0');
                 e.from = n.min(u64::from(LAST_FROM)) as u32;
-                self.explore_x(XAction::Step(0));
+                return PageKeyed::Then(XAction::Step(0));
             }
             (Page::Addresses, K::Backspace) => {
                 e.from /= 10;
-                self.explore_x(XAction::Step(0));
+                return PageKeyed::Then(XAction::Step(0));
             }
-            (Page::Addresses, K::Down) => self.explore_x(XAction::Step(1)),
-            (Page::Addresses, K::Up) => self.explore_x(XAction::Step(-1)),
-            _ => return false,
+            (Page::Addresses, K::Down) => return PageKeyed::Then(XAction::Step(1)),
+            (Page::Addresses, K::Up) => return PageKeyed::Then(XAction::Step(-1)),
+            _ => return PageKeyed::NotMine,
         }
-        true
+        PageKeyed::Taken
     }
 
     /// Typing into the search field: an address's characters, and
     /// Backspace. Any change drops the result, which was for the text
     /// before.
-    pub(crate) fn explore_type(&mut self, ch: Option<char>) {
-        let Some(e) = self.explore.as_mut() else {
+    pub(crate) fn type_in(&mut self, ch: Option<char>) {
+        let Some(e) = self.state.as_mut() else {
             return;
         };
         e.sample.dismiss();
@@ -579,25 +589,15 @@ impl Faraday {
         e.note = None;
     }
 
-    /// Costs what `pasted_secret` costs. The clipboard's text into the
-    /// search field, when Find an address is on screen: an address, or a
-    /// payment link's address, whole or in part; a secret is refused and
-    /// named, and nothing to paste says so. Returns whether it was taken
-    /// here.
-    pub(crate) fn explore_pasted(&mut self, text: &str) -> bool {
-        if self.screen != Screen::Explore
-            || self.sheet.is_some()
-            || !self.explore.as_ref().is_some_and(|e| e.page == Page::Find)
-        {
-            return false;
-        }
-        let c = self.compute();
+    /// The clipboard's text into the search field: an address, or a
+    /// payment link's address, whole or in part; `secret` is why a secret
+    /// found in it is refused, and nothing to paste says so.
+    pub(crate) fn paste_in(&mut self, text: &str, secret: Option<&'static str>) {
         let t = text.trim();
-        let secret = crate::scan_key::pasted_secret(&c, t, false);
         let t = t.strip_prefix("bitcoin:").unwrap_or(t);
         let t = t.split('?').next().unwrap_or(t);
-        let Some(e) = self.explore.as_mut() else {
-            return true;
+        let Some(e) = self.state.as_mut() else {
+            return;
         };
         e.search = None;
         e.note = if t.is_empty() {
@@ -610,6 +610,104 @@ impl Faraday {
             e.query = t.to_string();
             None
         };
+    }
+
+    /// Whether Find an address's field draws Use a sample: nothing typed
+    /// or pressed.
+    pub(crate) fn sample_shown(&self) -> bool {
+        self.state
+            .as_ref()
+            .is_some_and(|e| e.page == Page::Find && e.query.is_empty() && e.sample.shown())
+    }
+
+    /// The sample address put in as typed.
+    pub(crate) fn use_sample(&mut self, address: &str) {
+        if let Some(e) = self.state.as_mut() {
+            e.query = address.to_string();
+            e.search = None;
+            e.note = None;
+            e.sample.fill();
+        }
+    }
+}
+
+impl Faraday {
+    /// What the explored path's account's addresses are worked out from,
+    /// or `None` where the path is in no account (`account_of`).
+    pub fn explore_account(&self) -> Option<AccountOf> {
+        self.explore.account(&self.session)
+    }
+
+    /// Costs a key derivation and an address derivation for each address
+    /// not yet kept. The list's page as it stands, kept on Explore's
+    /// state.
+    pub fn explore_list(&self, c: &Compute) -> Vec<(u32, String)> {
+        self.explore.list(c, &self.session)
+    }
+
+    /// How many addresses Explore keeps.
+    pub fn explore_kept(&self) -> usize {
+        self.explore.kept_count()
+    }
+
+    /// A press on the address list or the search.
+    pub(crate) fn explore_x(&mut self, a: XAction) {
+        let of = if a == XAction::Search {
+            self.explore_account()
+        } else {
+            None
+        };
+        let effect = self.explore.x(a, of, self.now_ms, self.clipboard);
+        if effect.list_top {
+            self.list_offset = 0.0;
+        }
+        if effect.paste {
+            self.out
+                .command(faraday_shell_api::Command::RequestClipboard {
+                    kind: faraday_shell_api::FileKind::Text,
+                });
+        }
+        if self.explore.page() == Some(Page::Addresses) {
+            let c = self.compute();
+            let _ = self.explore_list(&c);
+        }
+    }
+
+    /// One tick of a search under way. Returns whether to draw.
+    pub(crate) fn explore_tick(&mut self, now_ms: u64) -> bool {
+        if self.screen != Screen::Explore {
+            return false;
+        }
+        let c = self.compute();
+        self.explore.tick(now_ms, &c, &self.session)
+    }
+
+    /// A key on the address list or the search. Returns whether the key
+    /// was taken.
+    pub(crate) fn explore_page_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        match self.explore.page_key(key) {
+            PageKeyed::NotMine => false,
+            PageKeyed::Taken => true,
+            PageKeyed::Then(x) => {
+                self.explore_x(x);
+                true
+            }
+        }
+    }
+
+    /// Costs what `pasted_secret` costs. The clipboard's text into the
+    /// search field, when Find an address is on screen. Returns whether it
+    /// was taken here.
+    pub(crate) fn explore_pasted(&mut self, text: &str) -> bool {
+        if self.screen != Screen::Explore
+            || self.sheet.is_some()
+            || self.explore.page() != Some(Page::Find)
+        {
+            return false;
+        }
+        let c = self.compute();
+        let secret = crate::scan_key::pasted_secret(&c, text.trim(), false);
+        self.explore.paste_in(text, secret);
         true
     }
 }

@@ -12,7 +12,7 @@ use crate::ui::{Style, Ui, W};
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let Some(e) = app.explore.as_ref() else {
+    let Some(e) = app.explore.state() else {
         return;
     };
     match e.page {
@@ -177,7 +177,7 @@ pub(super) fn frame(app: &View, ui: &Ui, x0: f32, cw: f32) -> (f32, f32, f32, f3
 /// The way back, the title and what explains the page, as the desktop
 /// draws them. Returns where the page goes on.
 fn header(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, guide: &str) -> f32 {
-    let Some(e) = app.explore.as_ref() else {
+    let Some(e) = app.explore.state() else {
         return y;
     };
     let y = head(

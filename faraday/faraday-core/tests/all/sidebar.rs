@@ -184,7 +184,7 @@ fn a_few_are_each_named_and_open_what_they_name() {
     let first = fp(&app, 0);
     app.press(Action::ExploreKey(first));
     assert_eq!(app.screen, Screen::Explore);
-    assert_eq!(app.explore.as_ref().and_then(|e| e.key), Some(first));
+    assert_eq!(app.explore().and_then(|e| e.key), Some(first));
 }
 
 #[test]

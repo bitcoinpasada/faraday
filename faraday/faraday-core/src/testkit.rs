@@ -1551,3 +1551,14 @@ pub fn learn_scroll_to(app: &mut crate::Faraday, y: f32) {
 pub fn vanity_open_card(app: &mut crate::Faraday, step: u8) {
     app.vanity.open_card(step);
 }
+
+/// Sets Explore's address list to start at index `from`.
+pub fn explore_list_from(app: &mut crate::Faraday, from: u32) {
+    app.explore.set_from(from);
+}
+
+/// Replaces the path Explore holds as typed with `path`, returning the
+/// one it replaced.
+pub fn explore_swap_path(app: &mut crate::Faraday, path: String) -> Option<String> {
+    app.explore.swap_path(path)
+}

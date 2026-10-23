@@ -183,13 +183,13 @@ fn a_calculator_left_by_a_tap_forgets_what_was_typed() {
 fn explore_left_by_a_tap_opens_again_on_its_first_path() {
     let mut app = with_key();
     app.press(Action::Explore);
-    let first = app.explore.as_ref().unwrap().path.clone();
+    let first = app.explore().unwrap().path.clone();
     app.press(Action::XPreset(1));
-    assert_ne!(app.explore.as_ref().unwrap().path, first);
+    assert_ne!(app.explore().unwrap().path, first);
     tap(&mut app, Action::Nav(Screen::Settings));
-    assert!(app.explore.is_none(), "Explore keeps nothing when left");
+    assert!(app.explore().is_none(), "Explore keeps nothing when left");
     app.press(Action::Explore);
-    assert_eq!(app.explore.as_ref().unwrap().path, first);
+    assert_eq!(app.explore().unwrap().path, first);
 }
 
 #[test]

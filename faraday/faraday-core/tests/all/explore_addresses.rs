@@ -39,9 +39,7 @@ fn on_page(network: Option<Network>, preset: u8, page: Page) -> Faraday {
 fn listed(app: &mut Faraday, change: bool, from: u32) -> Vec<(u32, String)> {
     let c = faraday_core::testkit::compute();
     app.press(Action::X(XAction::Chain(change)));
-    if let Some(e) = app.explore.as_mut() {
-        e.from = from;
-    }
+    faraday_core::testkit::explore_list_from(app, from);
     app.explore_list(&c)
 }
 
@@ -50,12 +48,12 @@ fn listed(app: &mut Faraday, change: bool, from: u32) -> Vec<(u32, String)> {
 /// the account's chains.
 fn read_at(app: &mut Faraday, change: bool, index: u32) -> String {
     let c = faraday_core::testkit::compute();
-    let e = app.explore.as_mut().unwrap();
-    let account: Vec<&str> = e.path.split('/').take(3).collect();
+    let path = app.explore().unwrap().path.clone();
+    let account: Vec<&str> = path.split('/').take(3).collect();
     let whole = format!("{}/{}/{index}", account.join("/"), u8::from(change));
-    let saved = std::mem::replace(&mut e.path, whole);
+    let saved = faraday_core::testkit::explore_swap_path(app, whole).unwrap();
     let a = app.explore_reading(&c).unwrap().address.clone();
-    app.explore.as_mut().unwrap().path = saved;
+    faraday_core::testkit::explore_swap_path(app, saved);
     a
 }
 
@@ -187,15 +185,15 @@ fn the_first_index_is_typed_and_paged() {
     for c in "1234".chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    assert_eq!(app.explore.as_ref().unwrap().from, 1234);
+    assert_eq!(app.explore().unwrap().from, 1234);
     app.press(Action::X(XAction::Step(1)));
-    assert_eq!(app.explore.as_ref().unwrap().from, 1244);
+    assert_eq!(app.explore().unwrap().from, 1244);
     app.event(Event::Key(Key::Backspace));
-    assert_eq!(app.explore.as_ref().unwrap().from, 124);
+    assert_eq!(app.explore().unwrap().from, 124);
     for _ in 0..20 {
         app.press(Action::X(XAction::Step(-1)));
     }
-    assert_eq!(app.explore.as_ref().unwrap().from, 0);
+    assert_eq!(app.explore().unwrap().from, 0);
 }
 
 /// Types `query`, picks the depth at `depth`, searches with Enter and
@@ -211,8 +209,7 @@ fn search(app: &mut Faraday, query: &str, depth: u8) -> u32 {
     app.event(Event::Key(Key::Enter));
     let mut ticks = 0;
     while app
-        .explore
-        .as_ref()
+        .explore()
         .and_then(|e| e.search.as_ref())
         .is_some_and(|s| s.running())
     {
@@ -227,7 +224,7 @@ fn search(app: &mut Faraday, query: &str, depth: u8) -> u32 {
 /// What the search found: chain, index and address of each match, and
 /// how many matched.
 fn found(app: &Faraday) -> (Vec<(bool, u32, String)>, u32) {
-    let s = app.explore.as_ref().unwrap().search.as_ref().unwrap();
+    let s = app.explore().unwrap().search.as_ref().unwrap();
     let all = s
         .found
         .iter()
@@ -238,7 +235,7 @@ fn found(app: &Faraday) -> (Vec<(bool, u32, String)>, u32) {
 
 /// The ranges the search recorded for what it found.
 fn marks(app: &Faraday) -> Vec<std::ops::Range<usize>> {
-    let s = app.explore.as_ref().unwrap().search.as_ref().unwrap();
+    let s = app.explore().unwrap().search.as_ref().unwrap();
     s.found.iter().map(|f| f.mark.clone()).collect()
 }
 
@@ -298,7 +295,7 @@ fn a_miss_says_how_far_it_looked() {
         "bc1p5cyxnuxmeuwuvkwfem96lqzszd02n6xdcjrs20cac6yqjjwudpxqkedrcr",
         0,
     );
-    let s = app.explore.as_ref().unwrap().search.as_ref().unwrap();
+    let s = app.explore().unwrap().search.as_ref().unwrap();
     assert_eq!((s.matched, s.next, s.depth), (0, 100, 100));
     let _ = app.frame();
 }
@@ -313,14 +310,14 @@ fn the_deepest_search_runs_a_tick_at_a_time_and_can_stop() {
     app.press(Action::X(XAction::Search));
     let now = app.now_ms() + 16;
     app.event(Event::Tick { now_ms: now });
-    let s = app.explore.as_ref().unwrap().search.as_ref().unwrap();
+    let s = app.explore().unwrap().search.as_ref().unwrap();
     assert!(
         s.running() && s.next <= 4,
         "the first tick takes a few indices"
     );
     // Stop: the search ends where it is.
     app.press(Action::X(XAction::Search));
-    let s = app.explore.as_ref().unwrap().search.as_ref().unwrap();
+    let s = app.explore().unwrap().search.as_ref().unwrap();
     assert!(!s.running() && s.depth == s.next);
     // The whole of it, timed.
     let started = std::time::Instant::now();
@@ -330,7 +327,7 @@ fn the_deepest_search_runs_a_tick_at_a_time_and_can_stop() {
         DEPTHS[2],
         started.elapsed()
     );
-    let s = app.explore.as_ref().unwrap().search.as_ref().unwrap();
+    let s = app.explore().unwrap().search.as_ref().unwrap();
     assert_eq!((s.matched, s.next), (0, DEPTHS[2]));
     assert!(ticks > 1, "the search was spread over ticks");
 }
@@ -346,14 +343,14 @@ fn a_paste_fills_the_field_and_a_secret_is_refused() {
         kind: FileKind::Text,
         text: format!("bitcoin:{change_0}?amount=1"),
     });
-    let e = app.explore.as_ref().unwrap();
+    let e = app.explore().unwrap();
     assert_eq!((e.query.as_str(), e.note), (change_0, None));
     app.press(Action::X(XAction::Paste));
     app.event(Event::Clipboard {
         kind: FileKind::Text,
         text: ABANDON.into(),
     });
-    let e = app.explore.as_ref().unwrap();
+    let e = app.explore().unwrap();
     assert_eq!(e.query, change_0);
     assert!(e.note.is_some(), "the words are refused and named");
 }
@@ -362,26 +359,26 @@ fn a_paste_fills_the_field_and_a_secret_is_refused() {
 fn back_from_the_list_and_the_search_returns_to_the_path_as_it_was() {
     let mut app = on_page(None, 1, Page::Path);
     app.press(Action::XIndex(3));
-    let path = app.explore.as_ref().unwrap().path.clone();
+    let path = app.explore().unwrap().path.clone();
     app.press(Action::X(XAction::Page(Page::Addresses)));
     app.event(Event::Key(Key::Char('7')));
     let _ = app.frame();
     // The way back the page draws.
     assert!(app.offers(Action::X(XAction::Page(Page::Path))));
     app.press(Action::X(XAction::Page(Page::Path)));
-    let e = app.explore.as_ref().unwrap();
+    let e = app.explore().unwrap();
     assert_eq!(
         (app.screen, e.page, &e.path),
         (Screen::Explore, Page::Path, &path)
     );
     // The list again where it was left.
     app.press(Action::X(XAction::Page(Page::Addresses)));
-    assert_eq!(app.explore.as_ref().unwrap().from, 7);
+    assert_eq!(app.explore().unwrap().from, 7);
     // Escape from the search is the same way back; a second leaves
     // Explore.
     app.press(Action::X(XAction::Page(Page::Find)));
     app.event(Event::Key(Key::Escape));
-    let e = app.explore.as_ref().unwrap();
+    let e = app.explore().unwrap();
     assert_eq!(
         (app.screen, e.page, &e.path),
         (Screen::Explore, Page::Path, &path)

@@ -788,10 +788,7 @@ impl Faraday {
     /// Whether Find an address's field draws Use a sample: Demo, nothing
     /// typed or pressed. A lookup.
     pub fn explore_sample_shown(&self) -> bool {
-        self.put_on().is_some()
-            && self.explore.as_ref().is_some_and(|e| {
-                e.page == crate::explore::Page::Find && e.query.is_empty() && e.sample.shown()
-            })
+        self.put_on().is_some() && self.explore.sample_shown()
     }
 
     /// Handles `UseSample` on Find an address: the sample address is put
@@ -801,12 +798,7 @@ impl Faraday {
         if !self.explore_sample_shown() {
             return;
         }
-        if let Some(e) = self.explore.as_mut() {
-            e.query = set.inputs.address.to_string();
-            e.search = None;
-            e.note = None;
-            e.sample.filled = true;
-        }
+        self.explore.use_sample(set.inputs.address);
     }
 }
 

@@ -100,7 +100,7 @@ fn field(ui: &mut Ui, x: f32, y: f32, width: f32, text: &str, bad: bool, chip: b
 /// typed in digits with a page back and on beside it, then a page of
 /// rows.
 pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let Some(e) = app.explore.as_ref() else {
+    let Some(e) = app.explore.state() else {
         return;
     };
     let (x, width, start, y) = frame(app, ui, x0, cw);
@@ -150,7 +150,7 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// Find an address: the field and its Paste, how deep to look, Search
 /// (Stop while it looks), then what it found.
 pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let Some(e) = app.explore.as_ref() else {
+    let Some(e) = app.explore.state() else {
         return;
     };
     let (x, width, start, y) = frame(app, ui, x0, cw);
