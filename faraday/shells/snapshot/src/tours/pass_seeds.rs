@@ -26,14 +26,15 @@ pub(crate) fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             .with(field::KEY_LABEL, label.as_bytes())
     };
     let p = "m/48'/1'/0'/2'";
+    let shown = testkit::on_net("m/48h/1h/0h/2h").replacen("m/", "", 1);
     let third = words(&testkit::test_words(testkit::TEST_SEEDS[2].0))?;
     let seed = third
         .to_seed(c, b"kept apart")
         .map_err(|e| format!("{e:?}"))?;
-    let master = faraday_bip::keys::MasterKey::from_seed(c, &seed, testkit::NET);
-    let path: DerivationPath = p.parse().map_err(|e| format!("{e:?}"))?;
+    let master = faraday_bip::keys::MasterKey::from_seed(c, &seed, testkit::net());
+    let path: DerivationPath = testkit::on_net(p).parse().map_err(|e| format!("{e:?}"))?;
     let trio = format!(
-        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,[{}/48h/1h/0h/2h]{}/<0;1>/*))",
+        "wsh(sortedmulti(2,{}/<0;1>/*,{}/<0;1>/*,[{}/{shown}]{}/<0;1>/*))",
         testkit::key(0, p),
         testkit::key(1, p),
         master.fingerprint(),

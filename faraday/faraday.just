@@ -153,10 +153,17 @@ faraday-panel inches="2.8" *flags="":
 
 # The test stick's files, all on testnet (every test wallet in each backup
 # form with its spends, the test keys in each form, the vault), after
-# checking every spend signs and finishes.
+# checking every spend signs and finishes. `net` makes them on another
+# network instead: `just faraday-testkit out/testkit-mainnet mainnet`.
 [group('dev')]
-faraday-testkit out="out/testkit":
-    cargo run -q -p faraday-testkit -- "{{out}}"
+faraday-testkit out="out/testkit" net="testnet":
+    cargo run -q -p faraday-testkit -- --network "{{net}}" "{{out}}"
+
+# The network faraday-snap's tour runs on: FARADAY_SNAP_NET=mainnet takes
+# it as a Mainnet stick shows it, from its own test kit.
+snap_net := env_var_or_default("FARADAY_SNAP_NET", "testnet")
+snap_kit := if snap_net == "testnet" { "out/testkit" } else { "out/testkit-" + snap_net }
+snap_suffix := if snap_net == "testnet" { "" } else { "-" + snap_net }
 
 # Every screen along the snapshot tour, at each size, into
 # out/snapshots/faraday/WxH/. Desktop sizes first (160 dpi, the
@@ -184,9 +191,13 @@ faraday-snapshots: faraday-testkit
 # out/snapshots/faraday/WxH[/TOUR]. Known sizes (480x640, 240x320,
 # 1280x800, 1920x1080, 1024x768, 3840x2160) carry their own dpi; any other
 # size needs `WxH@DPI` spelled out (`just faraday-snap 320x480@213`), or
-# it renders at 160.
+# it renders at 160. The tour runs on testnet; `FARADAY_SNAP_NET=mainnet
+# just faraday-snap 1280x800 spend` runs it as a Mainnet stick shows it
+# (no network pill, bc1 addresses, xpubs; the same test seeds at coin
+# type 0), from out/testkit-mainnet into
+# out/snapshots/faraday/WxH-mainnet[/TOUR].
 [group('test')]
-faraday-snap size tour="": faraday-testkit
+faraday-snap size tour="": (faraday-testkit snap_kit snap_net)
     #!/usr/bin/env bash
     set -euo pipefail
     arg="{{size}}"
@@ -194,13 +205,13 @@ faraday-snap size tour="": faraday-testkit
         480x640) arg="480x640@286" ;;
         240x320) arg="240x320@143" ;;
     esac
-    out="out/snapshots/faraday/{{size}}"
+    out="out/snapshots/faraday/{{size}}{{snap_suffix}}"
     tour=()
     if [ -n "{{tour}}" ]; then
         out="$out/{{tour}}"
         tour=("{{tour}}")
     fi
-    cargo run -q -p faraday-snapshot -- "$arg" out/testkit "$out" ${tour[@]+"${tour[@]}"}
+    cargo run -q -p faraday-snapshot -- --network "{{snap_net}}" "$arg" "{{snap_kit}}" "$out" ${tour[@]+"${tour[@]}"}
     echo "$out"
 
 # The Starter (docs/STARTER.md), built and run here: `just faraday-starter`, or

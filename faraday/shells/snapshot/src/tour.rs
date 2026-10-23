@@ -206,7 +206,7 @@ impl Tour {
         self.app.medium = medium;
         // A lock keeps the mode, and the tours' wallets are on the test
         // network.
-        let _ = faraday_core::testkit::move_to(&mut self.app.session, faraday_core::testkit::NET);
+        let _ = faraday_core::testkit::move_to(&mut self.app.session, faraday_core::testkit::net());
         if medium == Medium::Stick {
             self.app.devices = laptop();
         }

@@ -2,16 +2,21 @@
 //! end to end before a screen is involved.
 //!
 //! ```text
-//! faraday-testkit OUT_DIR
-//! faraday-testkit --backup OUT_DIR
+//! faraday-testkit [--network mainnet] OUT_DIR
+//! faraday-testkit [--network mainnet] --backup OUT_DIR
 //! ```
+//!
+//! With `--network mainnet` (any name `Network::from_name` reads), every
+//! file is made on that network instead of testnet
+//! (`faraday_core::testkit::use_network`): the same test seeds at coin
+//! type 0, `xpub`s and `bc1` addresses, as a Mainnet stick holds them.
 //!
 //! With `--backup`, only the backup test stick
 //! (`faraday_core::testkit::backup_files`): what backing up the 2-of-3
 //! Taproot multisig leaves, with the three seeds in a vault.
 //!
 //! Into `OUT_DIR`: every file of the test stick (`faraday_core::testkit`),
-//! all on testnet: each test wallet in every backup form, its unsigned
+//! all on testnet unless `--network` says otherwise: each test wallet in every backup form, its unsigned
 //! spend and a cosigner's signed copy, the test keys in every form a key
 //! arrives in, and the test vault.
 
@@ -82,7 +87,8 @@ fn run(c: &Compute, out: &Path) -> Result<(), String> {
         return Err("a PSBT for another transaction was merged".into());
     }
 
-    if finished_txid != SPEND_TXID {
+    // The txid is known on the test network only; Mainnet's keys differ.
+    if testkit::net() == testkit::NET && finished_txid != SPEND_TXID {
         return Err("the finished transaction has another txid".into());
     }
     // Every other test wallet: its spend signs with the test keys, and
@@ -270,14 +276,27 @@ fn run_backup(out: &Path) -> Result<(), String> {
 }
 
 fn main() -> ExitCode {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+    let mut args: Vec<String> = std::env::args().skip(1).collect();
+    if let Some(i) = args.iter().position(|a| a == "--network") {
+        let Some(network) = args
+            .get(i + 1)
+            .and_then(|n| faraday_bip::keys::Network::from_name(n))
+        else {
+            eprintln!("faraday-testkit: --network takes mainnet, testnet, signet or regtest");
+            return ExitCode::from(2);
+        };
+        args.drain(i..=i + 1);
+        if testkit::use_network(network).is_err() {
+            return ExitCode::FAILURE;
+        }
+    }
     // The test stick's files are made as the tests make theirs.
     let compute = testkit::compute();
     let result = match args.as_slice() {
         [flag, out] if flag == "--backup" => run_backup(Path::new(out)),
         [out] => run(&compute, Path::new(out)),
         _ => {
-            eprintln!("usage: faraday-testkit [--backup] OUT_DIR");
+            eprintln!("usage: faraday-testkit [--network NAME] [--backup] OUT_DIR");
             return ExitCode::from(2);
         }
     };

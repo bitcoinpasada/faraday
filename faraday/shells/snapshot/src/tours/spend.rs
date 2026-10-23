@@ -126,6 +126,6 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
         ));
     }
     t.shot("vanity-found")?;
-    println!("vanity: test key 1's account dial found an address beginning tb1qqq");
+    println!("vanity: test key 1's account dial found an address with its prefix");
     Ok(())
 }

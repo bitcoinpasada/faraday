@@ -12,7 +12,7 @@ use faraday_core::testkit;
 pub(crate) fn restore_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::rstep;
     use faraday_core::seeds::SeedsAction as S;
-    testkit::move_to(&mut t.app.session, testkit::NET).map_err(|e| e.text())?;
+    testkit::move_to(&mut t.app.session, testkit::net()).map_err(|e| e.text())?;
     t.copy_wallets();
     t.sticks(false);
     t.press(Action::RestoreWallet);

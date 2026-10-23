@@ -44,7 +44,7 @@ pub(crate) fn pills_tour(t: &mut Tour) -> Result<(), String> {
 pub(crate) fn demo_tour(t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
     t.app.seed_line = true;
-    t.app.session = faraday_core::wallet::Session::on(testkit::NET);
+    t.app.session = faraday_core::wallet::Session::on(testkit::net());
     t.app
         .session
         .set_demo(faraday_core::testkit::demo_samples());
@@ -75,7 +75,7 @@ pub(crate) fn demo_tour(t: &mut Tour) -> Result<(), String> {
 pub(crate) fn modes_tour(t: &mut Tour) -> Result<(), String> {
     t.app.online = true;
     t.app.seed_line = true;
-    t.app.session = faraday_core::wallet::Session::on(testkit::NET);
+    t.app.session = faraday_core::wallet::Session::on(testkit::net());
     t.app.session.set_demo(&faraday_samples::SAMPLES);
     t.app.samples = Some(&faraday_samples::SAMPLES);
     t.app.set_modes(faraday_core::DESKTOP_MODES);

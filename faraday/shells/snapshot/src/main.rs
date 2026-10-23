@@ -1,12 +1,19 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills]
+//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
 //! with the removable medium an SD card (`Medium::SdCard`), so every
 //! screen names it as the Pi does.
+//!
+//! `--network mainnet` runs the tour as a Mainnet stick shows it (no
+//! network pill, `bc1` addresses, `xpub`s): the session stays on
+//! Mainnet and the test wallets the tour makes in process are made on
+//! it (`faraday_core::testkit::use_network`); `TESTKIT_DIR` must then be
+//! what `faraday-testkit --network mainnet` wrote. Without it, both are
+//! on testnet. The `modes` tour's Testnet screens stay on testnet.
 //!
 //! `TESTKIT_DIR` is what `faraday-testkit` wrote; its files stand in
 //! for a stick called TESTSTICK. Each step of the tour is one numbered
@@ -108,9 +115,10 @@ fn run(
     let mut app = Faraday::new();
     app.medium = medium;
     app.event(display(size, dpi));
-    // The test wallets and vault are on the test network, which a
-    // Mainnet session takes none of once a key is loaded.
-    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET)
+    // The session goes to the test wallets' network (testnet unless
+    // `--network` chose another), since a session on one network takes
+    // none of another's wallets once a key is loaded.
+    faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::net())
         .map_err(|e| e.text())?;
     // `FARADAY_SNAP_THEME=<id>` takes the tour in that theme ("light",
     // "dark" …) instead of the first start's.
@@ -189,9 +197,22 @@ fn main() -> ExitCode {
         }
         None => Medium::Stick,
     };
+    if let Some(i) = args.iter().position(|a| a == "--network") {
+        let Some(network) = args
+            .get(i + 1)
+            .and_then(|n| faraday_bip::keys::Network::from_name(n))
+        else {
+            eprintln!("--network takes mainnet, testnet, signet or regtest");
+            return ExitCode::from(2);
+        };
+        args.drain(i..=i + 1);
+        if faraday_core::testkit::use_network(network).is_err() {
+            return ExitCode::FAILURE;
+        }
+    }
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel]"
+            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel]"
         );
         return ExitCode::from(2);
     }

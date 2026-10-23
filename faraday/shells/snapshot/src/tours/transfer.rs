@@ -29,7 +29,7 @@ pub(crate) fn transfer_tour(t: &mut Tour) -> Result<(), String> {
     put("savings-unsigned.psbt", &psbt)?;
     // The online app starts in Demo, on testnet.
     t.app.online = true;
-    t.app.session = faraday_core::wallet::Session::on(testkit::NET);
+    t.app.session = faraday_core::wallet::Session::on(testkit::net());
     t.app
         .session
         .set_demo(faraday_core::testkit::demo_samples());

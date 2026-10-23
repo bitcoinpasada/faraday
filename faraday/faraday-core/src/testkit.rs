@@ -4,8 +4,11 @@
 //! test keys in every form a key arrives in; the wallets in every form a
 //! wallet backup takes; and a vault.
 //!
-//! Everything is on testnet. Every key comes from the three test seeds
-//! ([`TEST_SEEDS`]) at coin type 1. Each spend takes 0.1 tBTC from the
+//! Everything is on testnet ([`NET`]) unless a tool chose Mainnet for
+//! its process ([`use_network`]): then every key is at coin type 0 and
+//! every file is as a Mainnet stick holds it. Every key comes from the
+//! three test seeds ([`TEST_SEEDS`]) at coin type 1 (0 on Mainnet). Each
+//! spend takes 0.1 tBTC from the
 //! wallet's first receive address, pays 0.015 tBTC to [`RECIPIENT`] and
 //! returns the rest, less the fee, to the wallet's first change address.
 //! The funding transaction is made up: its one input spends an outpoint
@@ -29,8 +32,47 @@ use faraday_psbt::Psbt;
 
 use crate::wallet::Session;
 
-/// The network of every test wallet.
+/// The network of every test wallet, unless a tool chose another for
+/// its process ([`use_network`]): the tests' and the default tours'.
 pub const NET: Network = Network::Testnet;
+
+/// The network a tool chose for the test wallets, once, at its start.
+static CHOSEN: std::sync::OnceLock<Network> = std::sync::OnceLock::new();
+
+/// Makes every test wallet, key and file of this process on `network`:
+/// the testkit generator's and the snapshot tool's `--network`, before
+/// either makes anything. Refused (with the network already in use) when
+/// another was chosen before.
+pub fn use_network(network: Network) -> Result<(), Network> {
+    let chosen = *CHOSEN.get_or_init(|| network);
+    if chosen == network {
+        Ok(())
+    } else {
+        Err(chosen)
+    }
+}
+
+/// The network the test wallets are made on: [`NET`] unless a tool
+/// chose another ([`use_network`]).
+pub fn net() -> Network {
+    CHOSEN.get().copied().unwrap_or(NET)
+}
+
+/// `path`, an account path written at coin type 1 as this kit writes
+/// them (`m/48'/1'/0'/2'`), at [`net`]'s coin type: unchanged on the test
+/// networks, `m/48'/0'/0'/2'` on Mainnet.
+pub fn on_net(path: &str) -> String {
+    let coin = net().coin_type();
+    path.split('/')
+        .enumerate()
+        .map(|(i, step)| match (i, step) {
+            (2, "1'") => format!("{coin}'"),
+            (2, "1h") => format!("{coin}h"),
+            _ => step.to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join("/")
+}
 
 /// The three dummy seeds of the test wallets: the QR test kit's signers
 /// 1 to 3, each one word repeated twenty-four times.
@@ -65,9 +107,9 @@ pub fn move_to(session: &mut Session, network: Network) -> Result<(), crate::wal
         .set_network(network, !session.wallets.is_empty())
 }
 
-/// A session on the test network.
+/// A session on the test wallets' network ([`net`]).
 pub fn session() -> Session {
-    Session::on(NET)
+    Session::on(net())
 }
 
 /// The words samples made of one word, with how many times it is
@@ -145,7 +187,7 @@ pub fn demo_samples() -> &'static crate::samples::Samples {
     })
 }
 
-/// The Savings spend's txid.
+/// The Savings spend's txid on the test network ([`NET`]).
 pub const SPEND_TXID: &str = "e65b496fcae9385082643e05b11fac9bd90461bf3c940a805052fb78a673561f";
 /// Where every spend pays 0.015 tBTC: the testnet address of BIP-84's
 /// first test key.
@@ -171,7 +213,7 @@ pub struct Kit {
 fn master(word: &str) -> MasterKey {
     let c = compute();
     let m = Mnemonic::parse(&c, Language::English, &test_words(word)).expect("test words");
-    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("seed"), NET)
+    MasterKey::from_seed(&c, &m.to_seed(&c, b"").expect("seed"), net())
 }
 
 /// Whether session key `i` has test seed `n`'s words, with or without a
@@ -181,10 +223,12 @@ pub fn has_test_words(keys: &faraday_keys::Keys, i: usize, n: usize) -> bool {
     !words.is_empty() && *words == *test_words(TEST_SEEDS[n].0)
 }
 
-/// `[fingerprint/path]tpub` for test seed `n` at `path`.
+/// `[fingerprint/path]tpub` for test seed `n` at `path`, its coin type
+/// [`net`]'s ([`on_net`]): an `xpub` at coin type 0 on Mainnet.
 pub fn key(n: usize, path: &str) -> String {
     let c = compute();
     let m = master(TEST_SEEDS[n].0);
+    let path = on_net(path);
     let p: DerivationPath = path.parse().expect("path");
     let shown = path.trim_start_matches("m/").replace('\'', "h");
     format!(
@@ -215,12 +259,14 @@ pub fn savings() -> String {
 /// for the backup's shares, which a 3-of-5 can leave up to two keys off.
 pub fn three_of_five() -> String {
     let c = compute();
-    let p: DerivationPath = "m/48'/1'/0'/2'".parse().expect("path");
+    let p: DerivationPath = on_net("m/48'/1'/0'/2'").parse().expect("path");
+    let shown = on_net("m/48h/1h/0h/2h");
+    let shown = shown.trim_start_matches("m/");
     let keys: Vec<String> = (1u8..=5)
         .map(|b| {
-            let m = MasterKey::from_seed(&c, &faraday_crypto::Secret::new([b; 64]), NET);
+            let m = MasterKey::from_seed(&c, &faraday_crypto::Secret::new([b; 64]), net());
             format!(
-                "[{}/48h/1h/0h/2h]{}/<0;1>/*",
+                "[{}/{shown}]{}/<0;1>/*",
                 m.fingerprint(),
                 m.derive(&c, &p).to_xpub(&c)
             )
@@ -745,7 +791,7 @@ fn musig_tweaks(
     use faraday_bip::bitcoin::taproot::TapTweakHash;
     let secp = Secp256k1::verification_only();
     let mut xpub =
-        faraday_bip::musig::aggregate_xpub(participants, NET).map_err(|e| format!("{e:?}"))?;
+        faraday_bip::musig::aggregate_xpub(participants, net()).map_err(|e| format!("{e:?}"))?;
     let mut tweaks = Vec::new();
     for step in [u32::from(change), index] {
         let child = ChildNumber::from_normal_idx(step).map_err(|e| e.to_string())?;
@@ -803,7 +849,7 @@ pub fn musig_unsigned() -> Result<Psbt, String> {
     let internal = internal.x_only_public_key().0;
     inner.inputs[0].tap_internal_key = Some(internal);
     let aggregate =
-        faraday_bip::musig::aggregate_xpub(&participants, NET).map_err(|e| format!("{e:?}"))?;
+        faraday_bip::musig::aggregate_xpub(&participants, net()).map_err(|e| format!("{e:?}"))?;
     let mut origins = BTreeMap::new();
     origins.insert(
         internal,
@@ -826,7 +872,7 @@ pub fn musig_unsigned() -> Result<Psbt, String> {
                 Vec::new(),
                 (
                     faraday_bip::bitcoin::bip32::Fingerprint::from(m.fingerprint().0),
-                    "m/86'/1'/0'"
+                    on_net("m/86'/1'/0'")
                         .parse::<DerivationPath>()
                         .map_err(|e| format!("{e}"))?,
                 ),
@@ -901,7 +947,10 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
     for n in [1usize, 2] {
         let m = master(TEST_SEEDS[n].0);
         let sk = *m
-            .derive(&c, &"m/86'/1'/0'".parse().map_err(|e| format!("{e}"))?)
+            .derive(
+                &c,
+                &on_net("m/86'/1'/0'").parse().map_err(|e| format!("{e}"))?,
+            )
             .secret_key();
         let pk = taproot_account(n).public_key;
         let (sec, pubn) = faraday_bip::musig::nonce_gen(
@@ -990,7 +1039,7 @@ pub fn threshold_record() -> Result<faraday_bip::threshold::ThresholdRecord, Str
         .take(2)
         .map(|(word, _)| test_words(word))
         .collect();
-    let mut keys = faraday_keys::Keys::on(NET);
+    let mut keys = faraday_keys::Keys::on(net());
     for (i, w) in words.iter().enumerate() {
         keys.add_words(&c, w, &format!("dealer {i}"), None)
             .map_err(|e| format!("{e:?}"))?;
