@@ -8,22 +8,14 @@ A common shape is one key that can spend at any time and a second key that can s
 
 ## older and after
 
-A timelock written as older counts from the coins arriving. "Key B after 52 560 blocks" means that particular coin must have been sitting in the wallet for that many blocks before key B can move it. The count is per coin, and it starts again whenever the coins move.
+A timelock written as older counts from the coins arriving. "Key B after 52 560 blocks" means that particular coin must have been sitting in the wallet for that many blocks before key B can move it. The count is per coin and starts when the coin was received, not when the wallet was made and not when you last used the device. If you spend and the change comes back, the change is a new coin and its clock starts again. A recovery plan that assumes otherwise fails at the moment it is needed.
 
 A timelock written as after is a point on the chain, not a wait: a block height the chain must reach, or a date its clock must pass. It is the same moment for every coin in the wallet.
 
 Blocks are not minutes. Ten minutes a block is the average the network aims for, not a promise, so the durations the review shows beside a block count are approximate and are said as such.
 
-## When the clock starts
-
-A recovery path with an older timelock starts counting when the coins were received, not when the wallet was made and not when you last used the device. If you spend from the wallet and the change comes back, the change is a new coin and its clock starts again. A recovery plan that assumes otherwise fails at the moment it is needed.
-
-## Writing one here
-
-Tools › Miniscript compiler compiles a policy into a descriptor. Where a policy names a key, the fingerprint of a key this device already holds stands for that key's account key, so pk(73c5da0a) is accepted and needs no xpub typed. The Keys row above the field lists the fingerprints it will take; with no key loaded there is no such row and every key must be written out.
-
 ## Who chooses the path
 
 The coordinator builds the transaction, and the transaction is what picks the path: the sequence and locktime fields it sets, and the signatures it collects. This device does not choose. It reads what arrived, shows you the wallet and its paths, and signs what you approve.
 
-So a spend path you can see in the review is not a spend path that will work today. Whether the wait has passed is a fact about the chain, and this device is not connected to it.
+So a spend path you can see in the review is not a spend path that will work today. Whether the wait has passed is a fact about the chain, and this device is not connected to it. Tools › Miniscript compiler writes a policy of your own as a descriptor; the Tools page describes it.

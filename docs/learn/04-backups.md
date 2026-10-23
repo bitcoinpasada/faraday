@@ -2,19 +2,13 @@
 
 ## What a backup is
 
-A backup is your seed words written down and kept away from every computer. That is all it is. If you have a passphrase, the passphrase is part of the backup too, stored separately.
+A backup is your seed words written down and kept away from every computer. If you have a passphrase, the passphrase is part of the backup too, stored separately.
 
-Paper is enough against forgetting. Steel, stamped or punched with the words, is what survives fire and flooding. Steel backup plates are cheap compared to what they protect.
+Paper is enough against forgetting. Steel, stamped or punched with the words, is what survives fire and flooding.
 
 ## What destroys a backup
 
-Fire. Water. Damp. Ink that fades. A house move. A relative tidying up. A safe that nobody else can open.
-
-Two copies in two places are far better than one perfect copy in one place. If one location is lost, the other still works.
-
-## Where to keep it
-
-Somewhere you control, that a burglar does not search first, and that a person you trust can reach if you cannot. A bank deposit box, a safe at a family member's house, or a fireproof box hidden at home are all common choices, each with their own trade-offs. Think about who could reach it and who could not.
+Fire, water, damp, fading ink, a house move, a relative tidying up. Two copies in two places are far better than one perfect copy in one place. The backup plan lists the places and what each holds.
 
 ## Never
 

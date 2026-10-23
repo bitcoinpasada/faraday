@@ -362,14 +362,14 @@ Edit list:
   signing round, and says the system gave no randomness. What a person
   adds (dice, camera, pointer and keys) is mixed with the shell's bytes
   in the core; the shell's bytes are never replaced."
-- `docs/learn/04-randomness.md`, at the end of "Computer randomness":
+- `docs/learn/03-randomness.md`, at the end of "This device":
   "Faraday also uses the computer's generator for keys it makes itself,
   such as a vault's, and for the one-time numbers a signature needs. You
   can add camera noise, dice rolls, coin flips or cards to it in
   Settings › Randomness.
   What you add is mixed in, not used instead, so the result is as good
   as the better of the two."
-- `docs/learn/05-where-randomness.md`, a section after "Mixing":
+- `docs/learn/03-randomness.md`, a section after "Mixing":
   "## Adding your own to the device's. Settings › Randomness takes
   camera noise, dice rolls, coin flips and cards, and on a computer the
   pointer's movement and your typing while the page is open. They are hashed together with the
@@ -378,7 +378,7 @@ Edit list:
   The device's randomness stays in the hash, so adding yours can only
   help. The row shows what you added; nothing you add is kept after a
   lock."
-- `docs/learn/05-where-randomness.md`, "This device", after "it is what
+- `docs/learn/03-randomness.md`, "This device", after "it is what
   this device uses to blind its own calculations": "If you added your
   own randomness in Settings, this row uses it too, and says so."
 - `docs/README.md`, the Spec list: "`docs/OWN-RANDOMNESS.md`: Your own

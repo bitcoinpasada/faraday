@@ -2,13 +2,15 @@
 
 ## Why you must check addresses
 
-Every address you pay to, and every address you receive on, reaches you through software on an internet-connected machine: your coordinator. Software that has been tampered with can show you one address and send the funds to another. Malware does exactly this.
+Every address you pay to, and every address you receive on, reaches you through software on an internet-connected machine: your coordinator. Software that has been tampered with can show you one address and send the funds to another. Malware does exactly this, including by swapping an address as you copy it.
 
 An address shown on Faraday was derived on Faraday, from your key, on a device with no network. It is the one thing in the process you can trust.
 
 ## What a bad coordinator can do
 
 The coordinator builds the transaction. It chooses the inputs, the outputs, the amounts, and the change address. A coordinator that lies, or that is simply misconfigured, can point your change at an address that is not yours. Change is often most of the money in a transaction, and the loss looks like an ordinary payment until it is too late.
+
+The device therefore trusts nothing it is sent. A wallet is shown in full before it is accepted, and you accept it on this screen. A transaction is shown with every output and its amount, and an output counts as your change only when the device derives its address from a wallet you accepted. An output it cannot account for is shown as a payment.
 
 ## Receiving
 
@@ -18,7 +20,9 @@ You can also check an address the other way round: Tools › Check an address sc
 
 ## Sending
 
-Before you sign, read every output. Confirm that the destination address and amount match what you intended, and that the change output is marked as derived from your key. An output that Faraday cannot confirm as yours is not yours.
+Before you sign, Faraday shows what the transaction sends, the change and the fee. Read every output. Confirm that the destination address and amount match what you intended. Change that Faraday rebuilt from the wallet's own keys is marked Verified; an output that Faraday cannot confirm as yours is not yours, and if it cannot derive a change output, treat that output as a payment to somebody else.
+
+The Nonce check lists every signature the transaction already carries, with the key it is under and whether it verifies. Compare every address and amount in full with what your coordinator shows. If anything differs, do not sign.
 
 ## Warning cards
 

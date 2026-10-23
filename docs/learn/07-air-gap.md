@@ -10,7 +10,7 @@ Faraday Desktop runs on an ordinary computer that is online. It has no air gap, 
 
 Into Faraday: an unsigned transaction (a PSBT), an address to check, a signed message to check, a wallet description, a vault, and your seed words when you load a key.
 
-Out of Faraday: a public key for your coordinator, a signed transaction, a signed message, and vaults. Your seed words and private keys leave only sealed in a vault, or unprotected when you ask for that and confirm the warning.
+Out of Faraday: a public key for your coordinator, a signed transaction, a signed message, a vault, GPG certificates and signatures, and Secure Boot enrolment files and signed EFI images. Your seed words and private keys leave only sealed in a vault, or unprotected when you ask for that and confirm the warning; word and SeedQR files leave after a warning.
 
 ## What it protects against
 

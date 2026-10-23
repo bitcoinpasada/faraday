@@ -28,7 +28,7 @@ pub struct Section {
 }
 
 /// How many pages there are.
-pub const PAGES: usize = 24;
+pub const PAGES: usize = 21;
 
 /// Every page, in one language.
 pub struct Learn {
@@ -40,27 +40,17 @@ pub struct Learn {
     /// "Words": what the words are, why 12 or 24,
     /// and that anyone holding them holds the coins.
     pub words: Page,
-    /// "Transactions": inputs, outputs, change, fees
-    /// and what the Sign screens list.
-    pub transactions: Page,
-    /// "Randomness": why dice or coins, what a
-    /// computer's randomness is, and what can be checked.
+    /// "Randomness": one section per entropy source the Create
+    /// wizard offers, stating what each one asks you to trust.
     pub randomness: Page,
-    /// "Where randomness comes from": one section per entropy
-    /// source the Create wizard offers, stating what each one asks you
-    /// to trust.
-    pub where_randomness: Page,
     /// "Backups": paper and steel, what destroys
-    /// them, where to keep them, the never list, and the quiz.
+    /// them, the never list, and the quiz.
     pub backups: Page,
-    /// "Seed XOR": what a part is, that every part is needed,
-    /// that a part is itself a real key, and that XOR is not Shamir.
-    pub seed_xor: Page,
     /// "Passphrases": what one adds, that it makes a
     /// different key, that forgetting it is loss.
     pub passphrases: Page,
     /// "Verifying": why to check addresses and
-    /// change, and what the danger cards mean.
+    /// change, what the Sign screens list, and what the danger cards mean.
     pub verifying: Page,
     /// "The air gap": what moves in and out, and
     /// what the gap does and does not protect against.
@@ -103,8 +93,7 @@ pub struct Learn {
     /// and the decoy property.
     pub frost: Page,
     /// "Backups in other forms": SLIP-39, Codex32, Seed XOR and
-    /// a vault, what each trades away, and what this
-    /// device reads today.
+    /// a vault, and what each trades away.
     pub other_backups: Page,
     /// "Coordinator files": what a coordinator is, what crosses
     /// between it and the device in each direction, BSMS, and why the
@@ -122,11 +111,8 @@ impl Learn {
         [
             &self.start_here,
             &self.words,
-            &self.transactions,
             &self.randomness,
-            &self.where_randomness,
             &self.backups,
-            &self.seed_xor,
             &self.passphrases,
             &self.verifying,
             &self.air_gap,

@@ -1052,7 +1052,7 @@ cards, keeping what each checked; none is deleted.
 
 `docs/WALLETS.md` §5 (the questions), `docs/history/NEW-WALLET.md` §5.2 (marked
 "Changed by BACKUP-FLOW §17", now §15), `docs/DESIGN.md` §4.2's "Used for".
-`docs/learn/06-backups.md` is not part of this batch: leave it, and say in the
+`docs/learn/04-backups.md` is not part of this batch: leave it, and say in the
 report what in it no longer matches.
 
 ### 15.6 A share in a vault
@@ -2291,7 +2291,7 @@ is missing.
 - **Recovery wallets.** `core/faraday-bip/src/recovery.rs` builds a
   Liana-shaped wallet from keys and delays (`blocks_for_days`,
   `days_of_blocks`, 144 blocks a day, at most 455 days). Make a new
-  wallet does not offer the kind yet (`docs/learn/20-wallet-kinds.md`);
+  wallet does not offer the kind yet (`docs/learn/17-wallet-kinds.md`);
   such a wallet arrives by its descriptor, from Liana or the Miniscript
   compiler. Its create step, **After how long?** (30, 90, 180 or 365
   days, or a number typed from 1 to 455), is `docs/WALLETS.md` §5's
@@ -2451,14 +2451,14 @@ keep, on the sheet. Learn says why (below).
 
 **Learn.** Edited as `docs/learn/`:
 
-- `docs/learn/13-spend-paths.md` gains **Moving coins before the wait
+- `docs/learn/10-spend-paths.md` gains **Moving coins before the wait
   ends**: each coin's wait starts at its own block; a spend that moves
   every coin to the wallet starts them all again; blocks come about
   every ten minutes on average and faster while mining grows, so a
   wait in blocks can end days early; the wallet card's **Move each coin
   within** keeps a margin; the wallet sheet's table is where deposits
   and their dates go, since this device cannot see them.
-- `docs/learn/15-inheritance.md` gains **A wallet that opens to an heir
+- `docs/learn/12-inheritance.md` gains **A wallet that opens to an heir
   after a wait**: what the heir does (waits, then spends with the
   recovery keys alone), what the owner must do meanwhile (move coins
   before each wait ends), and that a wait which ends while the owner is
@@ -2491,7 +2491,7 @@ keep, on the sheet. Learn says why (below).
 | `faraday/faraday-core/src/wallet.rs` | the wallet's paths kept on `Wallet` when it is loaded (the policy is read once), with each path's wait and the margin |
 | `faraday/faraday-core/src/pdf.rs` | the wallet sheet's **Spend paths** block and table; the split sheets' line |
 | `faraday/faraday-strings/src/en.rs` | the strings above |
-| `docs/learn/13-spend-paths.md`, `docs/learn/15-inheritance.md` | the two Learn sections (and `faraday/faraday-learn/src/pages/en.rs` from them) |
+| `docs/learn/10-spend-paths.md`, `docs/learn/12-inheritance.md` | the two Learn sections (and `faraday/faraday-learn/src/pages/en.rs` from them) |
 | `docs/FLOWS.md` | the chart's sheets and Backups bullets: the planned lines become the rule as built, the sentence on a check held until the next unlock among them (its rule, "never in the kept state or on disk outside the vault", amended 2026-10-23) |
 | `docs/DESIGN.md` §4.16 | the node's age line and **To check** mark |
 | `docs/STARTER.md` §3.8 | the blank wallet sheet's empty **Spend paths** block (Q7) |

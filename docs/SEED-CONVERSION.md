@@ -311,7 +311,7 @@ keys loaded from a seed); S6 after C8 (codex32 in the backup).
 | S4 | §4.2 and §4.4, settings for splits and groups | Sonnet | 1.5 days |
 | S5 | §4.5 (aezeed) | Sonnet | 0.5 day |
 | S6 | §8 with the backup's set actions | Opus | 1.5 days |
-| S7 | Demo (§7), Learn (`docs/learn/22-other-backups.md` gains a section on converting), DESIGN §5's row, this file's plan to a history log of its own and its Kind to Reference | Sonnet | 0.5 day |
+| S7 | Demo (§7), Learn (`docs/learn/19-other-backups.md` gains a section on converting), DESIGN §5's row, this file's plan to a history log of its own and its Kind to Reference | Sonnet | 0.5 day |
 
 About 8.5 days.
 

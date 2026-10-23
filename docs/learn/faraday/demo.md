@@ -6,7 +6,7 @@ Demo is a mode of Faraday on a computer that is online: Faraday on testnet with 
 
 ## The public seeds
 
-Eleven seeds are public. Each is one word written twenty-four times: bacon, flag, gas, great, slice, solution, summer, they, trade, trap and zebra. Each is a valid BIP-39 phrase. Anyone can load them, so anything sent to their addresses can be taken by anyone.
+Public seeds are each one word written over and over; each is a valid BIP-39 phrase. Of 24 words: bacon, flag, gas, great, slice, solution, summer, they, trade, trap and zebra. Of 12 words: twelve, ocean, piano and silver. Of 15 words: lucky and olive. Of 18 words: glad and school. Of 21 words: brave and sunset. Anyone can load them, so anything sent to their addresses can be taken by anyone.
 
 Demo takes only samples, on testnet. Any other key is refused by its fingerprint.
 
@@ -20,35 +20,16 @@ Generate with dice on Create a vault runs the same way: the rolls make the words
 
 Load samples is a pill beside the Demo pill. It opens a list of sample wallets and sample keys, each with a tick box. Load ticked puts the ticked ones in as if they had been typed or scanned. A set loads as one key, from as many shares or parts as it needs. A wallet loads with the sample keys it uses. A sample already loaded is ticked and dimmed. Each row says what the sample is under its name: a wallet its kind and script, a key its form and size. In Demo, the sample passphrase is `faraday`.
 
-Every sample is public, and anything sent to a sample's addresses can be taken by anyone. The words, shares and strings below can be typed where a screen asks for them.
-
+Every sample is public, and anything sent to a sample's addresses can be taken by anyone.
 ## Sample wallets
 
 Savings (2 of 3), Spending, Taproot, Nested SegWit, Legacy, Nested multisig, Legacy multisig, Taproot multisig, Inheritance, Taproot tree, MuSig2, FROST 2 of 3 and 3 of 5. All are on testnet. They use the sample keys bacon, zebra and summer, except 3 of 5, whose five keys are master seeds of 32 bytes, each byte 01, 02, 03, 04 and 05, and which loads them with it.
 
-## Sample keys of one repeated word
-
-Each is one word written the number of times shown, and each is a valid BIP-39 phrase. Of 24 words: bacon, flag, gas, great, slice, solution, summer, they, trade, trap and zebra. Of 12 words: twelve, ocean, piano and silver. Of 15 words: lucky and olive. Of 18 words: glad and school. Of 21 words: brave and sunset.
-
 ## Other sample keys
 
-abandon … about: abandon written 11 times, then about; BIP-39, 12 words, the all-zero seed.
+Load samples also lists keys of other forms: the all-zero BIP-39 seed (abandon … about), a Japanese BIP-39 phrase, SLIP-39 shares (one share, 2 of 3, and groups), codex32 secrets and shares, and Seed XOR parts.
 
-Japanese words: あいこくしん あいこくしん あいこくしん あいこくしん あいこくしん あいこくしん あいこくしん あいこくしん あいこくしん あいこくしん あいこくしん あおぞら; BIP-39 Japanese, 12 words.
-
-SLIP-39, one share: duckling enlarge academic academic agency result length solution fridge kidney coal piece deal husband erode duke ajar critical decision keyboard
-
-SLIP-39, 2 of 3, two shares: shadow pistol academic always adequate wildlife fancy gross oasis cylinder mustang wrist rescue view short owner flip making coding armed and shadow pistol academic acid actress prayer class unknown daughter sweater depict flip twice unkind craft early superior advocate guest smoking
-
-SLIP-39, groups, three shares: wildlife deal decision scared acne fatal snake paces obtain election dryer dominant romp tactics railroad marvel trust helpful flip peanut theory theater photo luck install entrance taxi step oven network dictate intimate listen and wildlife deal beard romp alcohol space mild usual clothes union nuclear testify course research heat listen task location thank hospital slice smell failure fawn helpful priest ambition average recover lecture process dough stadium and wildlife deal decision smug ancestor genuine move huge cubic strategy smell game costume extend swimming false desire fake traffic vegan senior twice timber submit leader payroll fraction apart exact forward pulse tidy install
-
-codex32 secret: ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw
-
-codex32, 2 shares: MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM and MS12NAMECACDEFGHJKLMNPQRSTUVWXYZ023FTR2GDZMPY6PN
-
-Seed XOR, 2 parts: float vendor rabbit upgrade alter globe right toddler window roof black rule and icon weasel expose grace stand spike plastic high runway betray prevent axis
-
-LND cipher seed: above judge emerge veteran reform crunch system all snap please shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body; it gives a Lightning node key, and Load samples does not list it.
+The LND cipher seed, which Load samples does not list, gives a Lightning node key: above judge emerge veteran reform crunch system all snap please shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body
 
 ## Other samples
 

@@ -82,7 +82,6 @@ as a secret is.
 
 ## Faraday Desktop
 
-Faraday Desktop is an ordinary computer on a network, as the computers
-GnuPG runs on are. The GPG key page is the same there. A key made on it
-meets whatever else runs on that computer. A key made on the stick meets
-no network.
+Faraday Desktop is online and testnet-only; a key made on it meets
+whatever else runs on that computer. A key made on the stick meets no
+network.

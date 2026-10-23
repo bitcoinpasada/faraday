@@ -8,13 +8,9 @@ A vault is made to keep seed words: a key sealed in a vault is its words, encryp
 
 ## Slots and decoy passphrases
 
-Every vault has four slots of the same size, and each passphrase opens one of them. A vault is made with one to four passphrases. A slot no passphrase opens is random bytes, and looks the same as a slot in use, so the file does not say how many passphrases it has.
+Every vault has four slots of the same size, and each passphrase opens one of them. A vault is made with one to four passphrases. A slot no passphrase opens is random bytes and looks the same as a slot in use, so the file does not say how many passphrases it has. A second passphrase can open a decoy slot that holds less; unlocking takes the same work whichever slot opens.
 
-A second passphrase can open a decoy slot that holds less. Unlocking takes the same work whichever slot opens, and every slot starts named after the vault, so a slot opened under pressure names no other.
-
-This does not hold against two copies of the same vault from different times: a slot whose bytes changed between them is in use. It also does not hide that a vault exists, or that Faraday has slots.
-
-Passphrases are set only when the vault is made. Adding or changing one, or changing the cost or the size, means making a new vault and moving what it holds into it.
+This does not hold against two copies of the same vault from different times: a slot whose bytes changed between them is in use. It does not hide that a vault exists. Passphrases are set only when the vault is made; changing one, the cost or the size means making a new vault and moving what it holds into it.
 
 ## The cost of a guess
 

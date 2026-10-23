@@ -8,13 +8,9 @@ Nothing about it touches the blockchain. It is text, and it is checked by whoeve
 
 ## What it proves
 
-That whoever made the signature holds the key behind that address, and that this exact text was signed with it. People use this to prove ownership of an address to an exchange, to prove control of funds without moving them, or to sign a statement in a way that cannot be forged.
+That whoever made the signature holds the key behind that address, and that this exact text was signed with it. It moves no funds and says nothing about what the address holds.
 
-## What it does not prove
-
-It moves no funds and says nothing about what the address holds.
-
-Anyone can copy the three lines and pass them on. Only the key can make a new one. So if someone wants to prove something to you, ask for a signature over text that you chose, including the date, and treat a ready-made signature you were handed as proof of nothing.
+Anyone can copy the three lines and pass them on; only the key can make a new one. If someone wants to prove something to you, ask for a signature over text that you chose, including the date, and treat a ready-made signature as proof of nothing.
 
 ## Formats
 

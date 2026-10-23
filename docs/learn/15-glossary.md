@@ -4,14 +4,6 @@
 
 One branch of a key with its own addresses and its own history. A coordinator usually watches one account at a time.
 
-## Address
-
-Where a payment goes. It is derived from a key, so a wallet can make as many as it needs. Every address should be used once.
-
-## Air gap
-
-No network connection of any kind. Data crosses as QR codes or as files that you carry.
-
 ## BSMS
 
 Bitcoin Secure Multisig Setup, BIP-129: a procedure in which every signer confirms the same multisig description on its own screen before the wallet is used.
@@ -19,10 +11,6 @@ Bitcoin Secure Multisig Setup, BIP-129: a procedure in which every signer confir
 ## Carry file
 
 The file that carries a part-signed FROST transaction from one signer to the next, holding the transaction and the secret nonce of each signer still to sign.
-
-## Change
-
-The part of an input that comes back to you, at an address derived from your own key.
 
 ## Checksum
 
@@ -52,14 +40,6 @@ One line of text that describes a whole wallet: which keys, which script type, w
 
 A way of picking words at random by throwing dice. Each throw of four or five dice names one word of a published list, and the words together are a passphrase. Faraday carries the three lists the Electronic Frontier Foundation publishes.
 
-## Entropy
-
-Randomness, measured in bits. 128 bits of real entropy is unguessable. Entropy from a memorable phrase is far lower than it looks.
-
-## Fee
-
-The inputs less the outputs. It goes to the miner of the block.
-
 ## Fingerprint
 
 Four bytes that identify a key, so a coordinator and a signer can confirm they mean the same one.
@@ -71,14 +51,6 @@ A scheme in which one key is split into n shares, any m of which sign, and the c
 ## Group record
 
 The public file that states a FROST wallet's threshold, its group key, the public half of every share, and its descriptor. A share without it opens nothing.
-
-## Hot wallet
-
-Wallet software that holds keys on an internet-connected device.
-
-## Input
-
-A coin being spent. An input is always spent whole, and the remainder returns as change.
 
 ## Key
 
@@ -94,19 +66,11 @@ A wallet with several keys that spends only when a set number of them sign.
 
 ## Network
 
-Which chain a key and its addresses belong to: mainnet, testnet, signet, or regtest. Funds on one network do not exist on another.
-
-## Node
-
-Software that keeps a full copy of the blockchain and validates every transaction. A coordinator connects to one.
+Which chain a key and its addresses belong to: mainnet, testnet, signet or regtest. Funds on one network do not exist on another. Settings chooses it as the Mode: Demo, Mainnet, Testnet, Signet or Regtest.
 
 ## NUMS point
 
 A public key chosen so that nobody knows a private key for it. It is used as a Taproot internal key when a wallet is meant to be spendable only by its scripts.
-
-## Output
-
-A coin being created: an address and an amount.
 
 ## Passphrase
 
@@ -136,21 +100,9 @@ The form of a wallet's addresses: legacy, nested SegWit, native SegWit, or Tapro
 
 The 64 bytes that the seed words and passphrase are stretched into. Every key of the wallet comes from it.
 
-## Seed words
-
-The 12 to 24 words that are the key. Whoever reads them controls the funds.
-
 ## Share
 
-One of the n pieces a FROST wallet's key is split into, held as 24 words. Any m of them sign; one alone can do nothing.
-
-## Signature
-
-Proof that a key agreed to a transaction or a message. On its own it moves nothing.
-
-## Signer
-
-The offline software or device that holds the keys and signs transactions. Faraday is a signer.
+One of the pieces a key or a description is split into. A FROST wallet's key is split into n shares held as 24 words, any m of which sign; SLIP-39 and codex32 split a seed into shares; a backup can split a multisig's description into shares. One share alone can do nothing.
 
 ## SLIP-39
 

@@ -102,11 +102,11 @@ impl Faraday {
         };
         match self.screen {
             Screen::Home => vec![&EN.start_here, &EN.air_gap],
-            Screen::Family => vec![&EN.inheritance, &EN.transactions, &EN.air_gap, &EN.scams],
+            Screen::Family => vec![&EN.inheritance, &EN.verifying, &EN.air_gap, &EN.scams],
             Screen::WalletsStart => vec![&EN.wallet_kinds, &EN.start_here],
             Screen::Wallets => wallet().map_or_else(|| vec![&EN.wallet_kinds], for_kind),
             Screen::Spend => {
-                let mut p = vec![&EN.transactions, &EN.verifying];
+                let mut p = vec![&EN.verifying];
                 if let Some(k) = wallet()
                     && matches!(k, Kind::MuSig | Kind::Threshold)
                 {
@@ -119,14 +119,14 @@ impl Faraday {
                 .create
                 .state()
                 .map_or_else(|| vec![&EN.wallet_kinds], |c| for_new(c.kind)),
-            Screen::KeyGen => vec![&EN.randomness, &EN.where_randomness, &EN.words],
+            Screen::KeyGen => vec![&EN.randomness, &EN.words],
             Screen::Entry => vec![&EN.words, &EN.passphrases],
             Screen::Silent => vec![&EN.silent_payments, &EN.xpubs],
             Screen::Explore => vec![&EN.xpubs, &EN.glossary],
             Screen::Vanity => vec![&EN.passphrases, &EN.wallet_kinds],
-            Screen::Lightning => vec![&EN.glossary],
+            Screen::Lightning => vec![&EN.tools, &EN.glossary],
             Screen::Tools => vec![&EN.tools, &EN.glossary],
-            Screen::Bip85 => vec![&EN.passphrases, &EN.glossary],
+            Screen::Bip85 => vec![&EN.words, &EN.passphrases, &EN.glossary],
             Screen::Backup => {
                 // A multisig's backup can keep shares of its description.
                 let splits = self
@@ -140,15 +140,9 @@ impl Faraday {
                         backup_plan_check_page(),
                         shares_page(),
                         &EN.other_backups,
-                        &EN.seed_xor,
                     ]
                 } else {
-                    vec![
-                        &EN.backups,
-                        backup_plan_check_page(),
-                        &EN.other_backups,
-                        &EN.seed_xor,
-                    ]
+                    vec![&EN.backups, backup_plan_check_page(), &EN.other_backups]
                 }
             }
             Screen::Backups => vec![&EN.backups, backup_plan_check_page(), vaults_page()],
@@ -179,7 +173,7 @@ impl Faraday {
                 vec![upgrade_page(), known("replace-faraday")]
             }
             Screen::Upgrade => vec![upgrade_page()],
-            Screen::Decode => vec![&EN.transactions, &EN.verifying],
+            Screen::Decode => vec![&EN.verifying, &EN.tools],
             Screen::Catalog => vec![&EN.tools, &EN.glossary],
             Screen::Transfer => vec![&EN.air_gap, &EN.coordinators],
         }
