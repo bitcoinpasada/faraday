@@ -143,7 +143,7 @@ faraday-windows-bin what="build" out="out/windows" cache="out/build/run" package
 faraday-panel inches="2.8" *flags="":
     #!/usr/bin/env bash
     set -euo pipefail
-    cargo build -q --release -p faraday-desktop
+    cargo build -q --release --locked -p faraday-desktop
     if command -v hyprctl >/dev/null && hyprctl monitors 2>/dev/null | grep -q '^Monitor eDP'; then
         output="$(hyprctl monitors | awk '/^Monitor eDP/ {print $2; exit}')"
         hyprctl dispatch "hl.dsp.focus({ monitor = \"$output\" })" >/dev/null 2>&1 \
@@ -221,7 +221,7 @@ faraday-starter *args="":
         . faraday/image/path-remap.sh
         profile=(--release)
     fi
-    cargo build -q "${profile[@]}" -p faraday-starter-shell --bin faraday-starter
+    cargo build -q --locked "${profile[@]}" -p faraday-starter-shell --bin faraday-starter
     dir=debug
     [ "{{release}}" = 1 ] && dir=release
     exec "target/$dir/faraday-starter" {{args}}
@@ -293,7 +293,7 @@ faraday-stick-bin:
     # status hides a failure of the command inside it.
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV={{dev}} FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
     export FARADAY_BUILD
-    cargo build --release --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
+    cargo build --release --locked --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
     mkdir -p out/faraday/{{stick_board}}
     cp "target/$RUST_TARGET/release/faraday" "target/$RUST_TARGET/release/faraday-disk" \
         "target/$RUST_TARGET/release/faraday-grant" "target/$RUST_TARGET/release/faraday-boot" \
@@ -383,7 +383,7 @@ faraday-pi-bin:
     # status hides a failure of the command inside it.
     FARADAY_BUILD="$(FARADAY_RELEASE={{release}} FARADAY_DEV={{dev}} FARADAY_VERSION={{version}} faraday/image/build-id.sh)"
     export FARADAY_BUILD
-    cargo build --release --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
+    cargo build --release --locked --target "$RUST_TARGET" -p faraday-stick -p faraday-disk -p faraday-grant -p faraday-boot
     mkdir -p out/faraday/{{board}}
     cp "target/$RUST_TARGET/release/faraday" "target/$RUST_TARGET/release/faraday-disk" \
         "target/$RUST_TARGET/release/faraday-grant" "target/$RUST_TARGET/release/faraday-boot" \

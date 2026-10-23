@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: phases 0 to 5 (the hard fork F72, the docs layout, phase 3's dead code, phase 4's layout, the key boundary F70) and F74's lints are built.
-**Open:** phase 6 (`cargo vet --locked` in `just lint` and `--locked` on every build, §6; faraday-intake's vector tests, §4; the strings' layout and names, §7; faraday-entropy split by source) and phase 7 (per-area structs, explicit glue, the `impl Faraday` ratchet, §7.2 and §7.3).
+**Open:** phase 6 (`cargo vet --locked` in `just lint`, §6; faraday-intake's vector tests, §4; the strings' layout and names, §7; faraday-entropy split by source) and phase 7 (per-area structs, explicit glue, the `impl Faraday` ratchet, §7.2 and §7.3).
 **Decisions:** F70 (the key boundary), F71 (dependency policy), F72
 (the hard fork) and F74 (the structure enforced).
 
@@ -117,8 +117,10 @@ the build machine.
   miniscript), RustCrypto and dalek.
 - **`--locked` everywhere:** F71 says every build passes `--locked`.
   The container builds (`faraday/build/linux`, `faraday/build/windows`)
-  do; the stick and Pi image builds, the desktop build and the Starter
-  build in `faraday/faraday.just` do not yet (phase 6).
+  do, and so, since phase 6, do the stick and Pi binary builds, the
+  desktop build and the Starter build in `faraday/faraday.just`, and
+  `just`'s tests and clippy, so no build or check rewrites
+  `Cargo.lock`.
 
 ## 7. Phases 3, 4, 6 and 7
 

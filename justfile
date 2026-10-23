@@ -9,8 +9,8 @@ default: test lint
 # follow. `cargo install cargo-nextest --locked` puts it on a machine.
 [group('test')]
 test:
-    cargo nextest run --workspace
-    cargo test --workspace --doc
+    cargo nextest run --locked --workspace
+    cargo test --locked --workspace --doc
 
 # Clippy with warnings as errors, and failing on a warning about its own
 # configuration (tools/clippy.py), formatting check, the secret-hygiene
@@ -24,7 +24,7 @@ test:
 # long functions, counts that only fall, tools/lint-layout.sh).
 [group('lint')]
 lint:
-    python3 tools/clippy.py --workspace --all-targets
+    python3 tools/clippy.py --locked --workspace --all-targets
     # Advisories, licences, duplicates and sources, against deny.toml.
     # `cargo install --locked cargo-deny` puts it on a machine (README,
     # "Faraday Desktop, for developers").
