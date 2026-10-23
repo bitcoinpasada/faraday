@@ -226,7 +226,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   `docs/DEMO.md` §4 and §6) and has the BIP 93 samples
   (`docs/MODES.md` §7).
 - **The dice flow** for BIP-39 words (`faraday/faraday-core/src/keygen/mod.rs`,
-  `core/faraday-entropy/src/lib.rs`) shows every entry and, for
+  `core/faraday-entropy/src/dice.rs`) shows every entry and, for
   Dice that name words, every word as it is made.
 - **Blank templates** (`docs/STARTER.md` §3.8,
   `faraday/faraday-starter/src/template.rs`, `faraday/faraday-core/src/pdf.rs`)
@@ -1408,8 +1408,8 @@ person chose is kept for the process; the sample's own scheme (2 of 3,
   (the decoder of §8.4). Each new file joins `tools/lint-secrets.sh`'s
   secret files, as `codex32.rs` is.
 - `faraday-entropy`: the booklet's dice method, a new module
-  core/faraday-entropy/src/booklet.rs (new), not `lib.rs`, which is over
-  2,500 lines (`tools/lint-layout.counts`). In the secret files.
+  core/faraday-entropy/src/booklet.rs (new), one file a source like the
+  others. In the secret files.
 - `faraday-keys`: a codex32 work set held as a new secret, as a BIP-85
   child or a FROST share is (KEYS §3: it "leaves only by `add_*` or
   `reveal`"): the characters handed in one by one as each is complete

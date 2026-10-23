@@ -26,7 +26,7 @@ Keystone and BitBox publish.
 ## Checked against
 
 - `tools/reference/dice/README.md` quotes each procedure's source; the
-  inline unit tests in `src/lib.rs` check against it.
+  inline unit tests in `src/dice.rs` check against it.
 - `tools/vectors/xor/` (`12-words-2-parts.txt`), read by
   `faraday/faraday-core/tests/all/forms.rs`.
 - End to end through `faraday/faraday-core/tests/all/keygen.rs`.
@@ -39,4 +39,4 @@ None. The workspace sets `unsafe_code = "forbid"`.
 
 `RawEntropy`, `DiceRolls`, `CoinFlips`, `RawHex`, `CardDraws` and `SeedXor`
 are fixed buffers that implement `Zeroize` and `ZeroizeOnDrop` and are
-erased on drop. `src/lib.rs` is in `tools/lint-secrets.sh`'s `SECRET_FILES`.
+erased on drop. Every file of `src/` is in `tools/lint-secrets.sh`'s `SECRET_FILES`.

@@ -2,7 +2,6 @@
 # is the owner's decision, recorded in DECISIONS.
 #
 # Files over 2,500 lines, at their size: split them, and lower the line.
-file core/faraday-entropy/src/lib.rs 2549
 file core/faraday-psbt/src/inspect.rs 2687
 file faraday/faraday-core/src/backup_flow/steps.rs 3143
 file faraday/faraday-core/src/backup_flow/wallet.rs 2868
