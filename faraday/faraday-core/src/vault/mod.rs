@@ -1484,7 +1484,7 @@ impl Faraday {
                 .map_or(crate::strings::EN.backup_flow_heading, |f| f.kind.name()),
             Screen::Bip85 => EN.vaults_child_seeds,
             Screen::Lightning => EN.vaults_lightning_node,
-            Screen::Home if self.import.is_some() => EN.vaults_import,
+            Screen::Home if self.import.state().is_some() => EN.vaults_import,
             Screen::VaultContents => crate::catalog::TILES
                 .iter()
                 .find(|t| t.go == crate::catalog::Go::VaultCategory(self.vaults.category))
@@ -2594,7 +2594,7 @@ impl Faraday {
         };
         let name = f.name.clone();
         // Unlocked on the boot import's sheet: the unlock imports.
-        let for_import = self.sheet == Some(crate::Sheet::Import) && self.import.is_some();
+        let for_import = self.sheet == Some(crate::Sheet::Import) && self.import.state().is_some();
         let result = self
             .vaults
             .store
@@ -2666,9 +2666,9 @@ impl Faraday {
                     self.vaults.back_to = None;
                     let before = self
                         .import
-                        .as_ref()
+                        .state()
                         .map_or(self.session.wallets.len(), |i| i.wallets_before);
-                    let label = self.import.as_ref().map(|i| i.label.clone());
+                    let label = self.import.state().map(|i| i.label.clone());
                     if self.import_unlocked(v) {
                         let file = self.vaults.open[v].name.clone();
                         self.unlock_landed(before, &file, label.as_deref());
@@ -2709,7 +2709,7 @@ impl Faraday {
                 }
                 // Unlocked for the boot import: its sheet again, with the
                 // vault's wallets and keys in it.
-                if back == Some(Screen::Home) && self.import.is_some() {
+                if back == Some(Screen::Home) && self.import.state().is_some() {
                     self.sheet = Some(crate::Sheet::Import);
                 }
                 // Unlocked for a secret: its sheet again, with the vault.

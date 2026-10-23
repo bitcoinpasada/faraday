@@ -234,7 +234,84 @@ impl ImportState {
     }
 }
 
+/// The boot import's area: what the boot stick brought at its first
+/// look, the files whose seeds load once the stick is pulled, and whether
+/// its sheet waits under the new-device sheet.
+#[derive(Default)]
+pub(crate) struct BootImportArea {
+    state: Option<ImportState>,
+    /// Files the boot import brought in with the stick still in, by name:
+    /// the seeds they hold load once it is pulled (F60).
+    load_after: BTreeSet<String>,
+    /// The boot import's sheet waits under the new-device sheet, and
+    /// comes up once every waiting device is decided.
+    under_input: bool,
+}
+
+impl BootImportArea {
+    /// What the boot stick brought, while it waits to be imported.
+    pub(crate) fn state(&self) -> Option<&ImportState> {
+        self.state.as_ref()
+    }
+
+    /// Whether an import waits.
+    pub(crate) fn open(&self) -> bool {
+        self.state.is_some()
+    }
+
+    /// The import, to change it.
+    pub(crate) fn state_mut(&mut self) -> Option<&mut ImportState> {
+        self.state.as_mut()
+    }
+
+    /// Starts an import of `state`.
+    pub(crate) fn set(&mut self, state: ImportState) {
+        self.state = Some(state);
+    }
+
+    /// Ends the import, leaving the files that wait for the pull.
+    pub(crate) fn clear(&mut self) {
+        self.state = None;
+    }
+
+    /// Ends the import and forgets the files that wait for the pull.
+    pub(crate) fn clear_all(&mut self) {
+        self.state = None;
+        self.load_after.clear();
+    }
+
+    /// Whether the sheet waits under the new-device sheet.
+    pub(crate) fn set_under_input(&mut self, on: bool) {
+        self.under_input = on;
+    }
+
+    /// Takes the wait under the new-device sheet, whether there was one.
+    pub(crate) fn take_under_input(&mut self) -> bool {
+        std::mem::take(&mut self.under_input)
+    }
+
+    /// Notes `names` as files whose seeds load once the stick is pulled.
+    pub(crate) fn hold_for_pull(&mut self, names: impl IntoIterator<Item = String>) {
+        self.load_after.extend(names);
+    }
+
+    /// Whether no file waits for the pull.
+    pub(crate) fn load_after_is_empty(&self) -> bool {
+        self.load_after.is_empty()
+    }
+
+    /// Takes the files that wait for the pull.
+    pub(crate) fn take_load_after(&mut self) -> BTreeSet<String> {
+        std::mem::take(&mut self.load_after)
+    }
+}
+
 impl Faraday {
+    /// What the boot stick brought, while it waits to be imported.
+    pub fn import(&self) -> Option<&ImportState> {
+        self.import.state()
+    }
+
     /// The boot stick has arrived for the first time this power-on with
     /// files on it: every one is asked for, the sheet comes up over Home.
     pub(crate) fn import_start(&mut self, boot: &StickInfo) {
@@ -267,13 +344,13 @@ impl Faraday {
                 StorageCommand::Read { stick, name }
             });
         }
-        self.import = Some(state);
+        self.import.set(state);
         self.after_visit = None;
         self.screen = Screen::Home;
         // A device waiting to be believed is asked about first
         // (`docs/history/PLAN.md` §4.6); this sheet comes up after.
         if matches!(self.sheet, Some(Sheet::NewInput)) {
-            self.import_under_input = true;
+            self.import.set_under_input(true);
         } else {
             self.sheet = Some(Sheet::Import);
         }
@@ -291,7 +368,7 @@ impl Faraday {
                 name,
                 reason,
             } if self.import_waits(Some(&stick), &name) => {
-                if let Some(imp) = self.import.as_mut()
+                if let Some(imp) = self.import.state_mut()
                     && let Some(f) = imp.waiting(&name)
                 {
                     imp.files[f].state = Staged::Failed(reason);
@@ -310,7 +387,7 @@ impl Faraday {
     /// Whether the import waits for `name` from `stick` (any stick for a
     /// picture's codes, whose answer names none).
     fn import_waits(&self, stick: Option<&str>, name: &str) -> bool {
-        self.import.as_ref().is_some_and(|i| {
+        self.import.state().is_some_and(|i| {
             stick.is_none_or(|s| s == i.stick)
                 && i.waiting(name).is_some()
                 && (stick.is_some() || is_png(name))
@@ -321,7 +398,7 @@ impl Faraday {
     /// the person chooses.
     fn import_read(&mut self, name: &str, bytes: Vec<u8>) {
         let c = self.compute();
-        let Some(imp) = self.import.as_mut() else {
+        let Some(imp) = self.import.state_mut() else {
             return;
         };
         let Some(f) = imp.waiting(name) else {
@@ -340,7 +417,7 @@ impl Faraday {
     /// item remembered as coming from it, a SeedQR as its words.
     fn import_codes(&mut self, name: &str, payloads: Vec<Vec<u8>>) {
         let c = self.compute();
-        let Some(f) = self.import.as_ref().and_then(|i| i.waiting(name)) else {
+        let Some(f) = self.import.state().and_then(|i| i.waiting(name)) else {
             return;
         };
         let stem = stem(name);
@@ -375,7 +452,7 @@ impl Faraday {
         if got.is_empty() && note.is_none() {
             note = left.and_then(|s| s.note.clone());
         }
-        let Some(imp) = self.import.as_mut() else {
+        let Some(imp) = self.import.state_mut() else {
             return;
         };
         let said = if codes == 0 {
@@ -417,7 +494,7 @@ impl Faraday {
     pub(crate) fn import_stick_gone(&mut self) {
         let present: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
         let noun = self.medium.noun();
-        let Some(imp) = self.import.as_mut() else {
+        let Some(imp) = self.import.state_mut() else {
             return;
         };
         if present.contains(&imp.stick) {
@@ -463,7 +540,7 @@ impl Faraday {
     ///
     /// Works out [`crate::drawing::View::import_count`].
     pub fn import_count_now(&self, c: &Compute) -> Option<ImportCount> {
-        let imp = self.import.as_ref()?;
+        let imp = self.import.state()?;
         let found = self.found_in(c, &imp.items);
         let mut c = ImportCount::default();
         let mut known: BTreeSet<usize> = BTreeSet::new();
@@ -513,7 +590,7 @@ impl Faraday {
     /// What the import sheet lists: while it picks, every file with its
     /// checkbox; after Import, the vaults it brought still locked.
     pub fn import_view(&self) -> Option<ImportView> {
-        let imp = self.import.as_ref()?;
+        let imp = self.import.state()?;
         let mut view = ImportView::default();
         if let Some(names) = &imp.unlocking {
             let files = self.vault_files();
@@ -569,7 +646,7 @@ impl Faraday {
         use ImportAction as I;
         match a {
             I::Open => {
-                if self.import.is_some() {
+                if self.import.state().is_some() {
                     self.vaults.back_to = None;
                     self.screen = Screen::Home;
                     self.sheet = Some(Sheet::Import);
@@ -591,7 +668,7 @@ impl Faraday {
                 else {
                     return;
                 };
-                if let Some(imp) = self.import.as_mut()
+                if let Some(imp) = self.import.state_mut()
                     && !imp.skip.remove(&f.name)
                 {
                     imp.skip.insert(f.name);
@@ -602,7 +679,7 @@ impl Faraday {
                     return;
                 };
                 let any = view.files.iter().any(|f| f.chosen);
-                if let Some(imp) = self.import.as_mut() {
+                if let Some(imp) = self.import.state_mut() {
                     if any {
                         imp.skip
                             .extend(view.files.into_iter().filter(|f| f.enabled).map(|f| f.name));
@@ -626,7 +703,7 @@ impl Faraday {
                 let Some(v) = self.import_field() else {
                     return;
                 };
-                if let Some(names) = self.import.as_mut().and_then(|i| i.unlocking.as_mut()) {
+                if let Some(names) = self.import.state_mut().and_then(|i| i.unlocking.as_mut()) {
                     names.retain(|n| *n != v.name);
                 }
                 self.vaults.passphrase.clear();
@@ -644,7 +721,7 @@ impl Faraday {
     /// load's do); the vaults into Files, locked, each then offered its
     /// Unlock. The rest is wiped.
     pub(crate) fn import_go(&mut self) {
-        let Some(imp) = self.import.as_mut() else {
+        let Some(imp) = self.import.state_mut() else {
             return;
         };
         if imp.unlocking.is_some() {
@@ -680,15 +757,15 @@ impl Faraday {
             }
         }
         let (keys_before, wallets_before) = (self.session.keys.len(), self.session.wallets.len());
-        if let Some(imp) = self.import.as_mut() {
+        if let Some(imp) = self.import.state_mut() {
             imp.wallets_before = wallets_before;
         }
         // Every wallet and seed they hold; with the stick in, the seeds,
         // of any kind, wait for the pull.
         self.load_found_in(&plain, &BTreeSet::new(), &|_| true);
         if !self.may_load_keys() {
-            self.import_load_after
-                .extend(plain.iter().map(|i| i.name.clone()));
+            self.import
+                .hold_for_pull(plain.iter().map(|i| i.name.clone()));
         }
         self.inbox.extend(plain);
         self.save_boxes();
@@ -716,7 +793,7 @@ impl Faraday {
                 .to_string(),
             ],
         ));
-        if let Some(imp) = self.import.as_mut() {
+        if let Some(imp) = self.import.state_mut() {
             imp.unlocking = Some(vaults);
         }
         self.import_next();
@@ -726,10 +803,10 @@ impl Faraday {
     /// it still in hold loads now (F60), whatever its kind, and the
     /// wallets that name them. Returns how many keys loaded.
     pub(crate) fn import_load_after_pull(&mut self) -> usize {
-        if self.import_load_after.is_empty() || !self.may_load_keys() {
+        if self.import.load_after_is_empty() || !self.may_load_keys() {
             return 0;
         }
-        let names = std::mem::take(&mut self.import_load_after);
+        let names = self.import.take_load_after();
         let items: Vec<Item> = self
             .inbox
             .iter()
@@ -753,7 +830,7 @@ impl Faraday {
             self.import_field_ready();
             return;
         }
-        self.import = None;
+        self.import.clear();
         if self.sheet == Some(Sheet::Import) {
             self.sheet = None;
             self.screen = Screen::Home;
@@ -767,9 +844,9 @@ impl Faraday {
     /// After Import, with every vault it brought open (unlocked from
     /// Vaults, say): the import is over.
     pub(crate) fn import_settle(&mut self) {
-        let waiting = self.import.as_ref().is_some_and(|i| i.unlocking.is_some());
+        let waiting = self.import.state().is_some_and(|i| i.unlocking.is_some());
         if waiting && self.import_field().is_none() {
-            self.import = None;
+            self.import.clear();
         }
     }
 
@@ -779,7 +856,7 @@ impl Faraday {
     pub(crate) fn import_unlocked(&mut self, v: usize) -> bool {
         let before = self
             .import
-            .as_ref()
+            .state()
             .map_or(self.session.wallets.len(), |i| i.wallets_before);
         if self.load_sheet_offer(v, true, before) {
             return false;
@@ -792,7 +869,7 @@ impl Faraday {
     /// it is over.
     pub(crate) fn import_after_unlock(&mut self) -> bool {
         self.import_next();
-        self.import.is_none()
+        self.import.state().is_none()
     }
 }
 

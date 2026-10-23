@@ -91,7 +91,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         t.press(Action::Vault(V::LoadTicked));
     }
     if t.app.vaults.open.len() != 1
-        || t.app.import.is_some()
+        || t.app.import().is_some()
         || t.app.sheet.is_some()
         || t.app.screen != Screen::Wallets
     {

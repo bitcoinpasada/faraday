@@ -673,7 +673,7 @@ impl Faraday {
         }
         let file = self.vaults.open[v].name.clone();
         if s.boot {
-            let label = self.import.as_ref().map(|i| i.label.clone());
+            let label = self.import.state().map(|i| i.label.clone());
             if self.import_after_unlock() {
                 self.unlock_landed(s.wallets_before, &file, label.as_deref());
             }

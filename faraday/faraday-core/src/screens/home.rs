@@ -126,7 +126,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
     }
     // Rule 3: an import waiting (F60). Put off after Import with a vault
     // it brought still locked, it is that vault's Unlock, on the sheet.
-    if let Some(imp) = app.import.as_ref() {
+    if let Some(imp) = app.import.state() {
         let lead = if let Some(lv) = app.import_field() {
             (
                 Glyph::Icon(Icon::Lock),

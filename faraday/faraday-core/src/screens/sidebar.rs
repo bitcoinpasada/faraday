@@ -412,7 +412,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     fy += 30.0;
     // With no stick attached, an import the boot stick brought waits
     // behind this row.
-    let waiting = app.import.is_some() && app.sticks.is_empty();
+    let waiting = app.import.state().is_some() && app.sticks.is_empty();
     let sticks = match app.sticks.len() {
         0 if waiting => EN.sidebar_import_waiting.to_string(),
         0 => EN.sidebar_none.to_string(),

@@ -423,7 +423,7 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
         Some(format!("also in {n} other wallets"))
     );
     app.press(Action::Vault(V::LoadTicked));
-    assert!(app.import.is_none());
+    assert!(app.import().is_none());
     assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
     assert_eq!(app.vaults.open.len(), 2);

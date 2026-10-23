@@ -310,7 +310,7 @@ fn import_brings_in_every_ticked_file_then_the_vaults_unlock_loads_its_wallets()
         (Screen::Home, Some(Sheet::UnlockLoad))
     );
     app.press(Action::Vault(V::LoadTicked));
-    assert!(app.import.is_none());
+    assert!(app.import().is_none());
     assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
     for name in ["Savings", "Spending", "Zebra"] {
         assert!(
@@ -356,7 +356,7 @@ fn a_wrong_passphrase_stays_on_the_sheet_and_says_so() {
     run_unlock(&mut app);
     assert!(app.vaults.open.is_empty());
     assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
-    assert!(app.import.is_some());
+    assert!(app.import().is_some());
     let error = app.vaults.unlock_error.clone().expect("no error said");
     assert!(
         drawn(&mut app).contains(&error),
@@ -369,7 +369,7 @@ fn a_wrong_passphrase_stays_on_the_sheet_and_says_so() {
     run_unlock(&mut app);
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
     app.press(Action::Vault(V::LoadNotNow));
-    assert!(app.import.is_none() && app.vaults.open.len() == 1);
+    assert!(app.import().is_none() && app.vaults.open.len() == 1);
 }
 
 #[test]
@@ -426,7 +426,7 @@ fn the_reminders_before_the_passphrase_leave_the_sheet_where_it_was() {
     run_unlock(&mut app);
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
     app.press(Action::Vault(V::LoadTicked));
-    assert!(app.import.is_none() && app.vaults.open.len() == 1);
+    assert!(app.import().is_none() && app.vaults.open.len() == 1);
 }
 
 #[test]
@@ -434,7 +434,7 @@ fn later_brings_in_nothing_and_home_leads_with_the_import() {
     let mut app = pulled();
     app.press(Action::Import(I::Later));
     assert_eq!((app.screen, app.sheet), (Screen::Home, None));
-    assert!(app.import.is_some());
+    assert!(app.import().is_some());
     assert!(app.inbox().is_empty() && app.session.keys.is_empty());
     let texts = drawn(&mut app);
     assert!(texts.contains("Import from Boot stick"), "{texts}");
@@ -507,7 +507,7 @@ fn with_two_vaults_each_is_offered_in_turn_and_cancel_leaves_it_locked() {
     assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
     assert_eq!(app.import_field().map(|v| v.name), Some("spare.ofv".into()));
     app.press(Action::Import(I::Cancel));
-    assert!(app.import.is_none());
+    assert!(app.import().is_none());
     assert_eq!(app.sheet, None);
     let spare = app
         .vault_files()
@@ -522,7 +522,7 @@ fn cancel_leaves_the_only_vault_locked_in_files() {
     let mut app = pulled();
     app.press(Action::Import(I::Go));
     app.press(Action::Import(I::Cancel));
-    assert!(app.import.is_none());
+    assert!(app.import().is_none());
     assert_eq!((app.screen, app.sheet), (Screen::Home, None));
     let files = app.vault_files();
     assert_eq!(files.len(), 1);
@@ -537,9 +537,9 @@ fn with_no_vault_import_brings_the_files_in_and_home_leads_with_the_psbt() {
         .collect();
     let mut app = booted_with(&files);
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert!(app.import.is_some() && app.inbox().is_empty());
+    assert!(app.import().is_some() && app.inbox().is_empty());
     app.press(Action::Import(I::Go));
-    assert!(app.import.is_none());
+    assert!(app.import().is_none());
     assert_eq!((app.screen, app.sheet), (Screen::Home, None));
     let psbt = app
         .inbox()
@@ -560,7 +560,7 @@ fn with_only_the_settings_file_no_sheet_comes_up() {
         b"faraday-settings 1\n".to_vec(),
     )];
     let app = booted_with(&files);
-    assert!(app.import.is_none());
+    assert!(app.import().is_none());
     assert_eq!((app.screen, app.sheet), (Screen::Home, None));
 }
 
@@ -610,7 +610,7 @@ fn an_unticked_vault_stays_out_of_files_and_nothing_asks_to_unlock_it() {
     app.press(Action::Import(I::File(k)));
     app.press(Action::Import(I::Go));
     assert!(!app.inbox().iter().any(|i| i.name == "vault.ofv"));
-    assert!(app.import.is_none());
+    assert!(app.import().is_none());
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.wallets.len(), 1);
     assert_eq!(app.session.keys.len(), 2);
@@ -631,14 +631,14 @@ fn a_tap_beside_the_sheet_is_later() {
         phase: TouchPhase::Up,
     });
     assert_eq!(app.sheet, None);
-    assert!(app.import.is_some() && app.inbox().is_empty());
+    assert!(app.import().is_some() && app.inbox().is_empty());
 }
 
 #[test]
 fn a_lock_drops_the_import_and_the_next_process_visits_the_stick() {
     let mut app = unlocked_elsewhere();
     app.press(Action::Lock);
-    assert!(app.import.is_none());
+    assert!(app.import().is_none());
     assert!(app.restart_requested());
     let mut kept = Vec::new();
     let mut inbox = Vec::new();
@@ -660,7 +660,7 @@ fn a_lock_drops_the_import_and_the_next_process_visits_the_stick() {
     });
     next.storage(StorageEvent::Sticks(vec![boot_stick(&stick_files())]));
     pump(&mut next, &stick_files());
-    assert!(next.import.is_none());
+    assert!(next.import().is_none());
     assert_eq!((next.screen, next.sheet), (Screen::Visit, None));
 }
 
@@ -738,7 +738,7 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
     // No vault: Import brings it in.
     app.storage(StorageEvent::Sticks(Vec::new()));
     app.press(Action::Import(I::Go));
-    assert!(app.import.is_none());
+    assert!(app.import().is_none());
     let key = app
         .session
         .keys
@@ -762,7 +762,7 @@ fn a_vault_imported_then_unlocked_on_vaults_loads_its_own_wallets() {
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
     app.press(Action::Vault(V::LoadTicked));
     assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
-    assert!(app.import.is_none());
+    assert!(app.import().is_none());
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
     assert_eq!(app.vaults.back_to, None);
 }
@@ -850,7 +850,7 @@ fn unselect_all_unticks_every_file_and_import_then_waits_for_a_choice() {
     assert!(!app.offers(Action::Import(I::Go)));
     app.press(Action::Import(I::Go));
     assert_eq!(app.sheet, Some(Sheet::Import));
-    assert!(app.import.is_some() && app.inbox().is_empty());
+    assert!(app.import().is_some() && app.inbox().is_empty());
     // Select all ticks them again.
     app.press(Action::Import(I::All));
     let view = app.import_view().unwrap();

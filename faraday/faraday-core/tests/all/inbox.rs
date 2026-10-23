@@ -324,7 +324,7 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
     let mut all = Vec::new();
     // The boot import sheet, then a stick visit with nothing held.
     boot_stick(&mut app, &[("notes.txt".to_string(), b"a note".to_vec())]);
-    if app.import.is_some() {
+    if app.import().is_some() {
         app.sheet = Some(Sheet::Import);
         texts_at(&mut app, "boot import sheet", &mut all);
     }

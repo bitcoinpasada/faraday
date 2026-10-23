@@ -405,7 +405,7 @@ fn home_lead_rule_3_an_import_waiting() {
     app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
     pump(&mut app, &files);
     let _ = app.frame();
-    assert!(app.import.is_some());
+    assert!(app.import().is_some());
     // The sheet comes up over Home on arrival; Later leaves it waiting,
     // and Home leads with it once the sheet is closed.
     app.press(faraday_core::boot_import::LATER);

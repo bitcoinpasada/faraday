@@ -719,7 +719,7 @@ fn just_made_picked(app: &View) -> bool {
 /// opened from there, else the vault list.
 pub(crate) fn unlock_back(app: &View) -> (&'static str, Action) {
     match app.vaults.back_to {
-        Some(Screen::Home) if app.import.is_some() => (EN.vault_import, crate::boot_import::OPEN),
+        Some(Screen::Home) if app.import.open() => (EN.vault_import, crate::boot_import::OPEN),
         // Unlocking for another flow: back to it.
         Some(s) => (app.back_link_name(s), va(V::Back)),
         None => (EN.vault_vaults, Action::Nav(Screen::Vaults)),

@@ -22,7 +22,7 @@ fn ia(a: I) -> Action {
 
 /// The sheet over Home.
 pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(imp) = app.import.as_ref() else {
+    let Some(imp) = app.import.state() else {
         return;
     };
     let label = imp.label.clone();

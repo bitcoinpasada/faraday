@@ -233,7 +233,7 @@ impl Faraday {
         // The boot import waits for it: which pointer and keyboard are
         // believed is the first thing settled (`docs/history/PLAN.md` §4.6).
         if self.sheet == Some(Sheet::Import) {
-            self.import_under_input = true;
+            self.import.set_under_input(true);
             self.sheet = None;
         }
         if self.sheet.is_none() {
@@ -289,8 +289,8 @@ impl Faraday {
     pub(crate) fn input_sheet(&mut self) {
         if self.inputs.held().is_empty() {
             if self.sheet == Some(Sheet::NewInput) {
-                let import = std::mem::take(&mut self.import_under_input);
-                self.sheet = (import && self.import.is_some()).then_some(Sheet::Import);
+                let import = self.import.take_under_input();
+                self.sheet = (import && self.import.state().is_some()).then_some(Sheet::Import);
             }
         } else if self.sheet.is_none() {
             self.sheet = Some(Sheet::NewInput);

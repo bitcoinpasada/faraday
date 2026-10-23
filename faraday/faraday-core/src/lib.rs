@@ -1170,12 +1170,6 @@ pub struct Faraday {
     /// New input devices waiting to be believed, and those kept out
     /// (`docs/history/PLAN.md` §4.6).
     inputs: inputs::InputsArea,
-    /// The boot import's sheet waits under the new-device sheet, and
-    /// comes up once every waiting device is decided.
-    import_under_input: bool,
-    /// Files the boot import brought in with the stick still in, by name:
-    /// the seeds they hold load once it is pulled (F60).
-    pub(crate) import_load_after: BTreeSet<String>,
     /// The keys made here whose backup is not yet done, by fingerprint
     /// (`docs/history/NEW-WALLET.md` §14.3): they sign nothing until it is. Never
     /// a secret; kept in a vault beside the seed and in the plan record.
@@ -1253,7 +1247,7 @@ pub struct Faraday {
     pub visit: VisitState,
     /// What the boot stick brought at its first look this power-on,
     /// waiting to be imported (`boot_import`).
-    pub import: Option<boot_import::ImportState>,
+    import: boot_import::BootImportArea,
     /// The settings the boot stick holds, as `settings_body` writes them:
     /// read from it at boot, or written to it since; `None` until the
     /// boot stick has been looked at (`stick_settings`).
@@ -1460,8 +1454,6 @@ impl Faraday {
             tainted: false,
             stick_held: false,
             inputs: inputs::InputsArea::default(),
-            import_under_input: false,
-            import_load_after: BTreeSet::new(),
             made_here: Vec::new(),
             drawing: drawing::Drawing::default(),
             kept: drawing::Kept::default(),
@@ -1497,7 +1489,7 @@ impl Faraday {
             entry: state::EntryArea::default(),
             wallets: wallet::WalletsArea::default(),
             visit: VisitState::default(),
-            import: None,
+            import: boot_import::BootImportArea::default(),
             stick_settings: None,
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
@@ -2306,7 +2298,7 @@ impl Faraday {
                 self.screen = Screen::Visit;
             }
             if first_look
-                && self.import.is_none()
+                && self.import.state().is_none()
                 && let Some(b) = boot.as_ref()
                 && b.files.iter().any(|(n, _)| !stick::settings::is_file(n))
             {
@@ -2708,8 +2700,7 @@ impl Faraday {
         self.vault_seal_all();
         // What the boot stick brought and was not imported is not kept:
         // its bytes are wiped as it drops.
-        self.import = None;
-        self.import_load_after.clear();
+        self.import.clear_all();
         // Nothing secret copied in outlives the process that read it
         // (`docs/history/PLAN.md` §5.3): the next process is clean, and these would be
         // in its memory and in `/run/faraday`. They are still on the stick
@@ -2916,7 +2907,7 @@ impl Faraday {
     /// is files For the stick, or a vault changed since it was written
     /// (§3.5), with no stick attached.
     pub fn session_stage(&self, c: &Compute) -> &'static str {
-        if !self.sticks.is_empty() || self.import.is_some() {
+        if !self.sticks.is_empty() || self.import.state().is_some() {
             EN.session_stage_bring
         } else if !self.outbox.is_empty() || self.vault_changed(c).is_some() {
             EN.session_stage_write
