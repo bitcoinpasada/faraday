@@ -352,7 +352,7 @@ impl Faraday {
     pub(crate) fn pass_typed(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as K;
         if matches!(key, K::Char(_) | K::Backspace) {
-            self.sample_area.set_pass_pressed(true);
+            self.sample_area.pressed_past();
         }
         false
     }

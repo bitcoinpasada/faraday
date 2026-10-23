@@ -2351,9 +2351,7 @@ impl Faraday {
             Action::PotentialOpen(_) => EN.pull_what_load_wallet,
             // The ticks stay on the Load samples state while the sheet
             // waits; the load runs when the stick is out.
-            Action::SamplesLoad if self.sample_area.sheet().any_ticked() => {
-                EN.pull_what_load_samples
-            }
+            Action::SamplesLoad if self.sample_area.any_ticked() => EN.pull_what_load_samples,
             Action::BackupOpen(_) => EN.pull_what_open_backup,
             // Unlocking for another flow: the Pull sheet asks first, and
             // Unlock opens once the stick is out.
@@ -2907,8 +2905,7 @@ impl Faraday {
     fn act(&mut self, action: Action) {
         // A choice in a file's ⋮ menu closes the menu first.
         self.file_menu_chosen(action);
-        self.sample_area
-            .set_pass_pressed(crate::demo::presses_pass_field(action));
+        self.sample_area.note_press(action);
         self.act_inner(action);
         // A wallet's flow follows the plan and the keys the press left.
         self.wallet_flow_sync();

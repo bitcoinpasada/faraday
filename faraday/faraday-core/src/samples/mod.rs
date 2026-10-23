@@ -503,14 +503,24 @@ impl SamplesArea {
         &self.sheet
     }
 
+    /// Whether any row of the sheet is ticked.
+    pub(crate) fn any_ticked(&self) -> bool {
+        self.sheet.any_ticked()
+    }
+
     /// Whether the passphrase field's chip has been pressed past.
     pub(crate) fn pass_pressed(&self) -> bool {
         self.sheet.pass_pressed
     }
 
-    /// Notes whether the passphrase field's chip has been pressed past.
-    pub(crate) fn set_pass_pressed(&mut self, on: bool) {
-        self.sheet.pass_pressed = on;
+    /// Notes whether `action` presses a passphrase field, past its chip.
+    pub(crate) fn note_press(&mut self, action: crate::Action) {
+        self.sheet.pass_pressed = crate::demo::presses_pass_field(action);
+    }
+
+    /// Notes that the passphrase field's chip has been pressed past.
+    pub(crate) fn pressed_past(&mut self) {
+        self.sheet.pass_pressed = true;
     }
 }
 

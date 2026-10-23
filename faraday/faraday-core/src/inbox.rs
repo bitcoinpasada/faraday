@@ -275,6 +275,7 @@ impl InboxArea {
     }
 
     /// File `at`, to change it.
+    #[cfg(any(test, feature = "testkit"))]
     pub(crate) fn item_mut(&mut self, at: usize) -> &mut Item {
         &mut self.files[at]
     }
