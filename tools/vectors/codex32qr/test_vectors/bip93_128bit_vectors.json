@@ -1,0 +1,165 @@
+{
+  "source": "https://github.com/bitcoin/bips/blob/master/bip-0093.mediawiki#test-vectors",
+  "source_checked": "2026-10-03",
+  "scope": "All split shares and principal S outputs in the 48-character vectors 1-3. Padding alternatives and longer vectors are not included.",
+  "qr_profile": {
+    "version": 3,
+    "modules": 29,
+    "error_correction": "L",
+    "quiet_zone_modules": 4,
+    "pixels_per_module": 8,
+    "payload": "uppercase raw Codex32 text only"
+  },
+  "cases": [
+    {
+      "vector": 1,
+      "identifier": "test",
+      "threshold": 0,
+      "shares": {},
+      "secret": "ms10testsxxxxxxxxxxxxxxxxxxxxxxxxxx4nzvca9cmczlw",
+      "seed_hex": "318c6318c6318c6318c6318c6318c631",
+      "fingerprint": "3f3521a6",
+      "qrs": {
+        "s": "bip93-v1-secret.png"
+      }
+    },
+    {
+      "vector": 2,
+      "identifier": "NAME",
+      "threshold": 2,
+      "shares": {
+        "a": "MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM",
+        "c": "MS12NAMECACDEFGHJKLMNPQRSTUVWXYZ023FTR2GDZMPY6PN",
+        "d": "MS12NAMEDLL4F8JLH4E5VDVULDLFXU2JHDNLSM97XVENRXEG"
+      },
+      "secret": "MS12NAMES6XQGUZTTXKEQNJSJZV4JV3NZ5K3KWGSPHUH6EVW",
+      "seed_hex": "d1808e096b35b209ca12132b264662a5",
+      "fingerprint": "fab6868a",
+      "qrs": {
+        "a": "bip93-v2-share-a.png",
+        "c": "bip93-v2-share-c.png",
+        "d": "bip93-v2-share-d.png",
+        "s": "bip93-v2-secret.png"
+      }
+    },
+    {
+      "vector": 3,
+      "identifier": "cash",
+      "threshold": 3,
+      "shares": {
+        "a": "ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t",
+        "c": "ms13cashcacdefghjklmnpqrstuvwxyz023949xq35my48dr",
+        "d": "ms13cashd0wsedstcdcts64cd7wvy4m90lm28w4ffupqs7rm",
+        "e": "ms13casheekgpemxzshcrmqhaydlp6yhms3ws7320xyxsar9",
+        "f": "ms13cashf8jh6sdrkpyrsp5ut94pj8ktehhw2hfvyrj48704"
+      },
+      "secret": "ms13cashsllhdmn9m42vcsamx24zrxgs3qqjzqud4m0d6nln",
+      "seed_hex": "ffeeddccbbaa99887766554433221100",
+      "fingerprint": "1e50c111",
+      "qrs": {
+        "a": "bip93-v3-share-a.png",
+        "c": "bip93-v3-share-c.png",
+        "d": "bip93-v3-share-d.png",
+        "e": "bip93-v3-share-e.png",
+        "f": "bip93-v3-share-f.png",
+        "s": "bip93-v3-secret.png"
+      }
+    }
+  ],
+  "images": [
+    {
+      "vector": 1,
+      "index": "s",
+      "file": "bip93-v1-secret.png",
+      "payload": "MS10TESTSXXXXXXXXXXXXXXXXXXXXXXXXXX4NZVCA9CMCZLW",
+      "sha256": "67bb1741b270e2cacf97481c848812742bca98a21463d691d686c1e73376dcd4",
+      "bytes": 473
+    },
+    {
+      "vector": 2,
+      "index": "a",
+      "file": "bip93-v2-share-a.png",
+      "payload": "MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM",
+      "sha256": "2b824db792dcd7773443817c8ccd587f8e050c53604db832561b50abb7859917",
+      "bytes": 483
+    },
+    {
+      "vector": 2,
+      "index": "c",
+      "file": "bip93-v2-share-c.png",
+      "payload": "MS12NAMECACDEFGHJKLMNPQRSTUVWXYZ023FTR2GDZMPY6PN",
+      "sha256": "4961ae14ccd90b2843cc774bcaef45c19c1bdcfdd28dbf4b033ae09c9b025d2a",
+      "bytes": 478
+    },
+    {
+      "vector": 2,
+      "index": "d",
+      "file": "bip93-v2-share-d.png",
+      "payload": "MS12NAMEDLL4F8JLH4E5VDVULDLFXU2JHDNLSM97XVENRXEG",
+      "sha256": "064b67b3c45feae7b50c9186fbf7938c541f5a9a1d37c75fa0d88dabedd9959e",
+      "bytes": 484
+    },
+    {
+      "vector": 2,
+      "index": "s",
+      "file": "bip93-v2-secret.png",
+      "payload": "MS12NAMES6XQGUZTTXKEQNJSJZV4JV3NZ5K3KWGSPHUH6EVW",
+      "sha256": "489da613770895a2c05ba57f89cc1da2949226fbf77d720f273ec59560939d20",
+      "bytes": 480
+    },
+    {
+      "vector": 3,
+      "index": "a",
+      "file": "bip93-v3-share-a.png",
+      "payload": "MS13CASHA320ZYXWVUTSRQPNMLKJHGFEDCA2A8D0ZEHN8A0T",
+      "sha256": "d76f13db9856ad6eccd7b2c6c068f10883e9d37063deae2f954e862e01ffaacf",
+      "bytes": 483
+    },
+    {
+      "vector": 3,
+      "index": "c",
+      "file": "bip93-v3-share-c.png",
+      "payload": "MS13CASHCACDEFGHJKLMNPQRSTUVWXYZ023949XQ35MY48DR",
+      "sha256": "4cf0fe63772b242dc199e4452552eadc17ad971b4b43839e53d7c5a09a809702",
+      "bytes": 472
+    },
+    {
+      "vector": 3,
+      "index": "d",
+      "file": "bip93-v3-share-d.png",
+      "payload": "MS13CASHD0WSEDSTCDCTS64CD7WVY4M90LM28W4FFUPQS7RM",
+      "sha256": "40e17260b365615df62a0bc999fd68b8c5f1e627bbacd21b7d4e014cd8b38fb8",
+      "bytes": 493
+    },
+    {
+      "vector": 3,
+      "index": "e",
+      "file": "bip93-v3-share-e.png",
+      "payload": "MS13CASHEEKGPEMXZSHCRMQHAYDLP6YHMS3WS7320XYXSAR9",
+      "sha256": "de1ceac40dcceec61b073767f03d00b64e295aee5ee41fc98ce48fa245caa960",
+      "bytes": 490
+    },
+    {
+      "vector": 3,
+      "index": "f",
+      "file": "bip93-v3-share-f.png",
+      "payload": "MS13CASHF8JH6SDRKPYRSP5UT94PJ8KTEHHW2HFVYRJ48704",
+      "sha256": "f5726dd40d76dc574bd9222abf181cde1ba9f94e7e03537fea452d58b2a7d32a",
+      "bytes": 489
+    },
+    {
+      "vector": 3,
+      "index": "s",
+      "file": "bip93-v3-secret.png",
+      "payload": "MS13CASHSLLHDMN9M42VCSAMX24ZRXGS3QQJZQUD4M0D6NLN",
+      "sha256": "e10d3c171d79fcc2f151bfd73676e492f227c3042e68de15d049f4c3c9b15ee6",
+      "bytes": 488
+    }
+  ],
+  "validation": {
+    "qr_roundtrips": 11,
+    "application_qr_decodes": 11,
+    "threshold_recoveries": 13,
+    "seed_hex_and_fingerprints": 3
+  }
+}

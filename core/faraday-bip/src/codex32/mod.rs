@@ -35,11 +35,29 @@
 //! detects; it does not correct. A string whose checksum fails is
 //! refused with [`Error::BadChecksum`] and nothing is offered in its
 //! place.
+//!
+//! Two more files hold what the codex32 booklet works by hand:
+//! `worksheet.rs`, the checksum worksheet's rows and the translation
+//! worksheet with its translation, recovery and fused symbols, in the
+//! booklet's second alphabet ([`SYMBOL_GLYPHS`]); and `fresh.rs`, a set
+//! made from `k` initial shares of fresh entropy ([`Scheme`],
+//! [`fresh_set`]), the secret and the derived shares interpolated from
+//! them, for any threshold and up to 31 strings.
 
 use alloc::vec::Vec;
 use core::fmt;
 
+use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, Zeroize, ZeroizeOnDrop};
+
+mod fresh;
+mod worksheet;
+
+pub use fresh::{FreshSet, Length, Scheme, fresh_set};
+pub use worksheet::{
+    ChecksumWorksheet, SYMBOL_GLYPHS, SYMBOL_NAMES, TranslationWorksheet, checksum_table,
+    pair_symbol, translation_symbols,
+};
 
 /// The bech32 alphabet, symbol value by position (BIP-0173).
 const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
@@ -155,6 +173,14 @@ impl fmt::Display for Error {
 
 impl core::error::Error for Error {}
 
+/// Costs nothing yet: notes one piece of codex32 work against the
+/// token. Core's work kinds have no codex32 kind; until the batch that
+/// counts drawing's work adds one (`docs/CODEX32.md` §13.2), the token
+/// only gates the call, and this is the one place the count goes.
+fn note(c: &Compute) {
+    let _ = c;
+}
+
 // ---------------------------------------------------------------------
 // The bech32 alphabet
 // ---------------------------------------------------------------------
@@ -187,8 +213,14 @@ fn charval(c: u8) -> Option<u8> {
 
 const MS32_CONST: u128 = 0x1_0ce0_795c_2fd1_e62a;
 const MS32_LONG_CONST: u128 = 0x433_81e5_70bf_4798_ab26;
+/// The residue of the expanded human-readable part `ms`, where every
+/// checksum starts before the first character after `ms1`.
+const MS32_HRP_RESIDUE: u128 = 0x23181b3;
 
-fn polymod(values: &[u8], zeros: usize) -> u128 {
+/// One character fed into a checksum's residue: the residue times `x`
+/// plus the character, reduced by the regular checksum's generator, or
+/// by the long checksum's where `long` is set.
+const fn residue_step(residue: u128, v: u8, long: bool) -> u128 {
     const GEN: [u128; 5] = [
         0x1_9dc5_00ce_73fd_e210,
         0x1_bfae_00de_f77f_e529,
@@ -196,46 +228,44 @@ fn polymod(values: &[u8], zeros: usize) -> u128 {
         0x1_7396_40bd_eee3_fdad,
         0x0_7729_a039_cfc7_5f5a,
     ];
-    let mut residue: u128 = 0x23181b3;
-    for v in values
-        .iter()
-        .copied()
-        .chain(core::iter::repeat_n(0u8, zeros))
-    {
-        let b = residue >> 60;
-        residue = ((residue & 0x0fff_ffff_ffff_ffff) << 5) ^ u128::from(v);
-        for (i, g) in GEN.iter().enumerate() {
-            if (b >> i) & 1 == 1 {
-                residue ^= g;
-            }
-        }
-    }
-    residue
-}
-
-fn long_polymod(values: &[u8], zeros: usize) -> u128 {
-    const GEN: [u128; 5] = [
+    const LONG_GEN: [u128; 5] = [
         0x3d5_9d27_3535_ea62_d897,
         0x7a9_becb_6361_c6c5_1507,
         0x543_f9b7_e6c3_8d8a_2a0e,
         0x0c5_77ea_eccf_1990_d13c,
         0x188_7f74_f8dc_71b1_0651,
     ];
-    let mut residue: u128 = 0x23181b3;
-    for v in values
+    let (generator, shift) = if long {
+        (&LONG_GEN, 5 * (LONG_CHECKSUM_LEN - 1))
+    } else {
+        (&GEN, 5 * (CHECKSUM_LEN - 1))
+    };
+    let b = residue >> shift;
+    let mut residue = ((residue & ((1u128 << shift) - 1)) << 5) ^ v as u128;
+    let mut i = 0;
+    while i < 5 {
+        if (b >> i) & 1 == 1 {
+            residue ^= generator[i];
+        }
+        i += 1;
+    }
+    residue
+}
+
+fn polymod(values: &[u8], zeros: usize) -> u128 {
+    values
         .iter()
         .copied()
         .chain(core::iter::repeat_n(0u8, zeros))
-    {
-        let b = residue >> 70;
-        residue = ((residue & 0x3f_ffff_ffff_ffff_ffff) << 5) ^ u128::from(v);
-        for (i, g) in GEN.iter().enumerate() {
-            if (b >> i) & 1 == 1 {
-                residue ^= g;
-            }
-        }
-    }
-    residue
+        .fold(MS32_HRP_RESIDUE, |r, v| residue_step(r, v, false))
+}
+
+fn long_polymod(values: &[u8], zeros: usize) -> u128 {
+    values
+        .iter()
+        .copied()
+        .chain(core::iter::repeat_n(0u8, zeros))
+        .fold(MS32_HRP_RESIDUE, |r, v| residue_step(r, v, true))
 }
 
 /// Whether the data part (checksum included) carries a valid checksum of

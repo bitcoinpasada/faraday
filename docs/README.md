@@ -74,7 +74,7 @@ need. Each document's header says what kind it is:
 
 - `docs/ANTI-EXFIL.md`: Anti-exfil. Planned, not scheduled.
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
-- `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Not built (owner, 2026-10-22).
+- `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Its worksheets, symbols and fresh sets in `faraday-bip` are built; the flows are not (owner, 2026-10-22).
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/GUIDE.md`: Faraday user guide. Sections 1 to 3 written; 4 to 7 planned.
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.

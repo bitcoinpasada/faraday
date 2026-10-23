@@ -1,0 +1,17 @@
+# Runs volvelle-website's checksum worksheet natively over codex32
+# strings and writes its cells (README.md one folder up). Not a member of
+# the repository's workspace; it has no dependency from crates.io.
+[package]
+name = "volvelle-cells"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+wasm-bindgen = { path = "wasm-bindgen" }
+
+# As every crate in the repository (tools/lint-layout.sh).
+[lints.clippy]
+too_many_lines = "warn"

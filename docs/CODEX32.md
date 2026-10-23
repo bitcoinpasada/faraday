@@ -1,8 +1,8 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open), not built; its five decisions are proposed in §14, not yet recorded
-**Open:** all of it, batches C1 to C10 (§15.2); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
+**Open:** batches C2 to C12 (§15.2): the decoder, the dice method, `faraday-keys`, every screen, backups, templates, the rollers, Demo and Learn; D5 (§14); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -174,7 +174,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
 
 ## 2. What is built today
 
-- **The codec**, `core/faraday-bip/src/codex32.rs`: `Codex32::parse`
+- **The codec**, `core/faraday-bip/src/codex32/mod.rs`: `Codex32::parse`
   (every rule of BIP 93; one case, mixed case refused), `from_seed`,
   `split(threshold, shares, fresh)` (an existing secret and k − 1
   random shares, then the rest interpolated), `derive_share`, `recover`,
@@ -182,9 +182,35 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   (the first 20 bits of the master fingerprint), `symbols_for` and
   `seed_symbols`. It detects errors and corrects none. Tested in
   `core/faraday-bip/tests/all/codex32.rs` against every BIP 93 vector
-  (`tools/vectors/bip93/vectors.json`). There is no function that makes
-  a fresh secret from k initial shares (`recover` over them does it),
-  and none that exposes a checksum's intermediate rows.
+  (`tools/vectors/bip93/vectors.json`).
+- **The worksheets and fresh sets** (C1), in the same folder, tested in
+  `core/faraday-bip/tests/all/codex32_sheets.rs` and cross-checked
+  against python-codex32 (F79, `tools/crosscheck/area_codex32.py`):
+  - `worksheet.rs`: `ChecksumWorksheet`, the booklet's checksum
+    worksheet of one string (§7.1), every cell kept, filled one box at a
+    time (`push`, `pop`) or whole (`of`), the checksum made from the
+    bottom row (`finish`), the final row against `SECRETSHARE32`
+    (`holds`, `first_difference`), at every length BIP 93 allows (the
+    long checksum's at 127; a first step of one box where the
+    characters after the first row are odd in number, as at 54, 61, 67
+    and 127, for which the booklet prints no sheet);
+    `TranslationWorksheet` (§7.2, §7.3), its translation symbols, each
+    input's pair symbols (the recovery symbols towards `s`), the
+    translated rows and the sum, filled one input's box at a time;
+    `checksum_table`, `pair_symbol`, `translation_symbols`, and the
+    booklet's second alphabet (`SYMBOL_GLYPHS`, `SYMBOL_NAMES`).
+  - `fresh.rs`: `Scheme` (a threshold of 0 or 2 to 9, up to 31
+    strings, an identifier, 48, 74 or 127 characters) and `fresh_set`,
+    a set made from the k initial shares' data: each checksummed, the
+    secret and the derived shares interpolated.
+  - Fixtures: volvelle-website's worksheet cells for every published
+    string at 48 and 74 characters (`tools/vectors/codex32-volvelle/`),
+    the booklet's checksum, derivation, recovery, addition, translation
+    and fusion tables (`tools/vectors/codex32-booklet/`), and the
+    Codex32QR profile's vectors and pictures (`tools/vectors/codex32qr/`).
+  - The costly functions take the compute token and say "Costs …";
+    they count nothing yet, since core's work kinds have no codex32
+    kind (§13.2).
 - **Add a key › Type a codex32 secret** (`faraday/faraday-core/src/forms.rs`):
   one string at a time; a second string with another identifier is
   refused (`forms_other_seed_string`), and one whose share index is already
@@ -1305,8 +1331,8 @@ template has a blank 29 × 29 grid for copying one by hand (§11).
   (`third_party/rqrr` decoding the picture) to the expected string; each
   set recovers to the stated S and the stated fingerprint (vectors 1, 3,
   4 also to the stated xpub at the stated path on testnet). The vectors
-  and pictures are copied, with the commit and SHA-256 of each, into a
-  folder under `tools/vectors/` (C1), as `tools/vectors/bip93/` is.
+  and pictures are copied, with the commit and SHA-256 of each, into
+  `tools/vectors/codex32qr/` (C1), as `tools/vectors/bip93/` is.
   This spec checked the strings of vectors 1 to 4 with BIP 93's
   reference arithmetic: every checksum holds and every S is the
   interpolation of its shares. Vector 2's xpub in the profile is 81
@@ -1400,13 +1426,12 @@ person chose is kept for the process; the sample's own scheme (2 of 3,
 
 ### 13.1 Where things live
 
-- `faraday-bip`: `core/faraday-bip/src/codex32.rs` becomes a folder,
-  core/faraday-bip/src/codex32/ (new): mod.rs (today's file), worksheet.rs
-  (checksum rows, translation and recovery symbols, the code2 value
-  order), fresh.rs (a set from k initial shares: S and the derived
-  shares, headers written once the identifier is set) and correct.rs
-  (the decoder of §8.4). Each new file joins `tools/lint-secrets.sh`'s
-  secret files, as `codex32.rs` is.
+- `faraday-bip`: the folder `core/faraday-bip/src/codex32/` (C1):
+  `mod.rs` (the codec), `worksheet.rs` (checksum rows, translation and
+  recovery symbols, the code2 value order), `fresh.rs` (a set from k
+  initial shares: S and the derived shares, headers written once the
+  identifier is set), and correct.rs (new, the decoder of §8.4). Each
+  file is among `tools/lint-secrets.sh`'s secret files.
 - `faraday-entropy`: the booklet's dice method, a new module
   core/faraday-entropy/src/booklet.rs (new), one file a source like the
   others. In the secret files.
@@ -1493,17 +1518,18 @@ name.
 ## 14. Decisions to record
 
 The build's first batch records these (the next free numbers at the
-time, F83 onward as of this writing), each its own file and a row in
-`docs/DECISIONS.md`:
+time), each its own file and a row in `docs/DECISIONS.md`. D1 to D4 are
+recorded (C1): F93, F94, F95 and F96. D5 is proposed; the batch that
+builds §6.9 records it.
 
-- **D1. Codex32 made by hand, any split.** §1 items 1 to 8 and 12: the
+- **D1. Codex32 made by hand, any split** (recorded, F93). §1 items 1 to 8 and 12: the
   main flow, lengths, identifier, hand-made shares, add a share, check a
   string, backups and templates, with the owner's answers (§1.1).
-- **D2. Codex32 error correction, opt-in.** §8.4. It replaces the
+- **D2. Codex32 error correction, opt-in** (recorded, F94). §8.4. It replaces the
   module's statement that it "detects; it does not correct".
-- **D3. Codex32QR/v1-48.** §10: read, shown, tested; nothing longer
+- **D3. Codex32QR/v1-48** (recorded, F95). §10: read, shown, tested; nothing longer
   until its author publishes it; the duplicate-index rule of §8.5.
-- **D4. Faraday Desktop's dice rollers.** §5.5, §5.6: on Faraday Desktop
+- **D4. Faraday Desktop's dice rollers** (recorded, F96). §5.5, §5.6: on Faraday Desktop
   only, simulated dice from this computer's randomness, labelled
   "Rolled by this computer" and "simulated dice"; the exception to §5's
   rule that Faraday's own randomness never makes a fresh seed in these

@@ -1,0 +1,13 @@
+[package]
+name = "wasm-bindgen-macro"
+version = "0.2.100"
+edition = "2021"
+publish = false
+description = "Stands in for wasm-bindgen's attribute: passes the item through unchanged"
+
+[lib]
+proc-macro = true
+
+# As every crate in the repository (tools/lint-layout.sh).
+[lints.clippy]
+too_many_lines = "warn"

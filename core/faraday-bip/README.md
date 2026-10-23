@@ -39,7 +39,10 @@ Vectors under `tools/vectors/`, tests under `tests/all/`:
   language and length against the `bip39` crate, a dev-dependency
   (`crosscheck.rs`).
 - `slip39`: `slip39/vectors.json` (`slip39.rs`).
-- `codex32`: `bip93/vectors.json` (`codex32.rs`).
+- `codex32`: `bip93/vectors.json` (`codex32.rs`); the worksheets and fresh
+  sets against volvelle-website's cells (`codex32-volvelle/`), the codex32
+  booklet's tables (`codex32-booklet/`) and the Codex32QR profile's vectors
+  (`codex32qr/`) (`codex32_sheets.rs`).
 - `musig`: `bip327/`, `bip328/`, `bip390/`, `bip32/`, `bip39/` (`musig.rs`).
 - `frost`: `bip445/` and RFC 9591 appendix F.5 for the dealer (`frost.rs`);
   `tools/scripts/threshold-reference.py` replays a session against BIP 445's
@@ -69,5 +72,5 @@ Every module in the list below is in `tools/lint-secrets.sh`'s
 - `slip39.rs`: `Share`, `SecretBytes`, `Points`.
 - `frost.rs`: `SecShare`, `SecNonce`; `musig.rs`: `SecNonce`.
 - `bip85.rs`: `Bytes`, `HexBytes`, `Password`.
-- `aez.rs`, `aezeed.rs`, `codex32.rs`, `xkey.rs`, `base64.rs`: `Zeroizing`
+- `aez.rs`, `aezeed.rs`, `codex32/`, `xkey.rs`, `base64.rs`: `Zeroizing`
   buffers for intermediate values.

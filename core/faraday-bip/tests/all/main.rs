@@ -9,6 +9,7 @@ mod bip85;
 mod bsms;
 mod calculators;
 mod codex32;
+mod codex32_sheets;
 mod coldcard;
 mod common;
 mod core_import;

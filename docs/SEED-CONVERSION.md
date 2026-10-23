@@ -57,7 +57,7 @@ standard it is and which software restores it.
 - **Readers and writers in `core/`**: BIP-39 (`core/faraday-bip/src/bip39.rs`,
   every list), SeedQR and CompactSeedQR (`core/faraday-codec/src/seedqr.rs`),
   Seed XOR split and combine (`core/faraday-entropy/src/xor.rs`), codex32
-  (`core/faraday-bip/src/codex32.rs`: parse, `from_seed`, `split`,
+  (`core/faraday-bip/src/codex32/mod.rs`: parse, `from_seed`, `split`,
   `derive_share`, `recover`, `identifier_for`, 16 to 64 bytes), SLIP-39
   (`core/faraday-bip/src/slip39.rs`: `split`, `recover`, `encrypt`,
   `decrypt`; 16 to 32 bytes; extendable flag and iteration exponent as

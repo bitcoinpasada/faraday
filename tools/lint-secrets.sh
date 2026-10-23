@@ -17,7 +17,9 @@
 # core/faraday-crypto/src/sealed.rs (the session key and sealed values),
 # core/faraday-bip/src/bip39.rs (mnemonics, entropy, seeds),
 #   core/faraday-bip/src/slip39.rs (SLIP-39 shares and master secrets),
-#   core/faraday-bip/src/codex32.rs (codex32 secrets, shares and master seeds),
+#   core/faraday-bip/src/codex32/ (mod.rs: codex32 secrets, shares and master
+#     seeds; worksheet.rs: the worksheets of a set's strings; fresh.rs: a set
+#     made from fresh entropy),
 #   core/faraday-bip/src/silent.rs (a silent payments wallet's scan private
 #     key, the label tweaks and the shared secrets it derives, and the
 #     BIP-392 key expression that carries the scan key as text),
@@ -111,7 +113,7 @@ rule2() {
 report "Debug derived on a secret type (rule 2)" "$(rule2)"
 
 # Rule 3: no heap text in the files that hold secret material.
-SECRET_FILES="core/faraday-crypto/src/sealed.rs core/faraday-bip/src/bip39.rs core/faraday-bip/src/slip39.rs core/faraday-bip/src/frost.rs core/faraday-psbt/src/threshold.rs core/faraday-bip/src/keys.rs core/faraday-bip/src/bip85.rs core/faraday-bip/src/xkey.rs core/faraday-entropy/src/lib.rs core/faraday-entropy/src/dice.rs core/faraday-entropy/src/coins.rs core/faraday-entropy/src/hex.rs core/faraday-entropy/src/xor.rs core/faraday-entropy/src/cards.rs core/faraday-entropy/src/camera.rs core/faraday-entropy/src/device.rs core/faraday-entropy/src/mix.rs core/faraday-backup/src/oskb.rs core/faraday-backup/src/kdbx.rs core/faraday-bip/src/codex32.rs core/faraday-bip/src/silent.rs core/faraday-bip/src/dleq.rs core/faraday-psbt/src/silent.rs core/faraday-bip/src/aez.rs core/faraday-bip/src/aezeed.rs core/faraday-bip/src/vanity.rs faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs"
+SECRET_FILES="core/faraday-crypto/src/sealed.rs core/faraday-bip/src/bip39.rs core/faraday-bip/src/slip39.rs core/faraday-bip/src/frost.rs core/faraday-psbt/src/threshold.rs core/faraday-bip/src/keys.rs core/faraday-bip/src/bip85.rs core/faraday-bip/src/xkey.rs core/faraday-entropy/src/lib.rs core/faraday-entropy/src/dice.rs core/faraday-entropy/src/coins.rs core/faraday-entropy/src/hex.rs core/faraday-entropy/src/xor.rs core/faraday-entropy/src/cards.rs core/faraday-entropy/src/camera.rs core/faraday-entropy/src/device.rs core/faraday-entropy/src/mix.rs core/faraday-backup/src/oskb.rs core/faraday-backup/src/kdbx.rs core/faraday-bip/src/codex32/mod.rs core/faraday-bip/src/codex32/worksheet.rs core/faraday-bip/src/codex32/fresh.rs core/faraday-bip/src/silent.rs core/faraday-bip/src/dleq.rs core/faraday-psbt/src/silent.rs core/faraday-bip/src/aez.rs core/faraday-bip/src/aezeed.rs core/faraday-bip/src/vanity.rs faraday/faraday-core/src/word_entry.rs faraday/faraday-core/src/quiz.rs faraday/faraday-core/src/grind.rs"
 for f in $SECRET_FILES; do
     [ -f "$f" ] || { echo "lint-secrets: missing $f (update SECRET_FILES)"; status=1; }
 done

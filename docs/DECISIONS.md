@@ -107,3 +107,7 @@ Read this table, then only the decision you need.
 | [F90](decisions/F90.md) | Where Faraday refuses input its standard allows | 2026-10-23 | Active | crypto |
 | [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Active | design |
 | [F92](decisions/F92.md) | Faraday is laid out to Material 3 at every window size, from the Pi to a full monitor | 2026-10-23 | Active | design |
+| [F93](decisions/F93.md) | Codex32 made by hand, any split | 2026-10-22 | Active | keys |
+| [F94](decisions/F94.md) | Codex32 error correction, opt-in | 2026-10-22 | Active | crypto |
+| [F95](decisions/F95.md) | Codex32QR/v1-48: read, shown, tested | 2026-10-22 | Active | keys |
+| [F96](decisions/F96.md) | Faraday Desktop's dice rollers | 2026-10-22 | Active | keys |

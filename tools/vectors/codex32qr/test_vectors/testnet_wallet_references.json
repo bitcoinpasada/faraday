@@ -1,0 +1,54 @@
+{
+  "notice": "PUBLIC TEST KEYS. Computed account keys and addresses, not additional official BIP93 vectors. Do not fund.",
+  "network": "testnet",
+  "accounts": [
+    {
+      "vector": 1,
+      "fingerprint": "3f3521a6",
+      "single_sig": {
+        "derivation": "m/84'/1'/0'",
+        "normalized_tpub": "tpubDCxaS63wE5UAu6QqXRitsFT5NryY7pB99jXapqRhQ7AWSku2EvZExS7CUXWCZgqqQnPAuCAoEi6aiA6P5Db4VsTCdbxeoauMXvFzeUwQF6M",
+        "receive_0": "tb1qjdflnc5slzhgdeed3dk3k3e8z66zhd2spwq85k",
+        "change_0": "tb1q7z7zcyhplegtt6c9tpkfqcstz2wqdetcaydjv6"
+      },
+      "multisig": {
+        "derivation": "m/48'/1'/0'/2'",
+        "normalized_tpub": "tpubDEUjY16dYpyHHANGvHei5TM54QQ4rhyMd33QcXYBm9gocAjpKAirBDeQ3AXTT48JfczHgTLkvzs6QznmPwrvkNH7FuUk17uFXKecAqQr71V"
+      }
+    },
+    {
+      "vector": 2,
+      "fingerprint": "fab6868a",
+      "single_sig": {
+        "derivation": "m/84'/1'/0'",
+        "normalized_tpub": "tpubDDgVfZtofLwCT1LSnvB66fgABacaPHCVMojsdkYCYsBLPsLB3G36NDRgq4FimtjXBrrKLPN5WChC9UPE3fpjqUoGg7k8VwBTeHjFSRSWunj",
+        "receive_0": "tb1qd8lkxcn54rt5jhdwlaawvfgc97zyun3as4p3lj",
+        "change_0": "tb1qezqrac2z7hnhwgex5cqg527em89fypxpu2qhad"
+      },
+      "multisig": {
+        "derivation": "m/48'/1'/0'/2'",
+        "normalized_tpub": "tpubDEcyNU4mph6sKJTepNY4pEUTpUWe4LStDPdSBrQdwm3BCAheRJ2E7pr6o3gWxzV4PdHN7bs4Gtgcrzq76QKL91hrug8VQmc9J75rqPW6a53"
+      }
+    },
+    {
+      "vector": 3,
+      "fingerprint": "1e50c111",
+      "single_sig": {
+        "derivation": "m/84'/1'/0'",
+        "normalized_tpub": "tpubDCU9HZWD9PCJwQFh2LyzwuS8VaGJDJS93sA28V69HoqHXSHACZTxkyw3BLw4xTBAUadA9RmKFTGybctnZboe8BZjywrBXcbJHmj1stHr6EG",
+        "receive_0": "tb1qcnfn2zgjjgavcl6svj0gt6undzd64n2q04p3pw",
+        "change_0": "tb1q2zvanfeh0sw8uuqmz5qe2kmaektsrvtc2zw8c8"
+      },
+      "multisig": {
+        "derivation": "m/48'/1'/0'/2'",
+        "normalized_tpub": "tpubDEPsjBSUuYDz9jBp5oyFUjN1uobwWHuFNzzi1zeikVVXUAMNMkJwR9MQaKkoewcidmZY9RrVEuBg6KaPs8H5epRQjCyRqvXoM2Fb49Zxdss"
+      }
+    }
+  ],
+  "multisig_2of2_vectors_2_and_3": {
+    "policy": "Native Segwit P2WSH, sortedmulti(2), account 0, vectors 2 and 3",
+    "descriptor_without_checksum": "wsh(sortedmulti(2,[fab6868a/48h/1h/0h/2h]tpubDEcyNU4mph6sKJTepNY4pEUTpUWe4LStDPdSBrQdwm3BCAheRJ2E7pr6o3gWxzV4PdHN7bs4Gtgcrzq76QKL91hrug8VQmc9J75rqPW6a53/{0,1}/*,[1e50c111/48h/1h/0h/2h]tpubDEPsjBSUuYDz9jBp5oyFUjN1uobwWHuFNzzi1zeikVVXUAMNMkJwR9MQaKkoewcidmZY9RrVEuBg6KaPs8H5epRQjCyRqvXoM2Fb49Zxdss/{0,1}/*))",
+    "receive_0": "tb1q9p4mnuuct36kd5mzcyxyfrl9jlu6h40zllffnl3pjqnm97ql2wsswat9fd",
+    "change_0": "tb1q8fx9axn6pas9hdjhk5v38zcxku5vgkunpsnqugtv0epxp4ad3vlsumh0em"
+  }
+}

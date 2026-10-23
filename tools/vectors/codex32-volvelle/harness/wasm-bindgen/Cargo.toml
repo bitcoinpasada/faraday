@@ -1,0 +1,15 @@
+[package]
+name = "wasm-bindgen"
+version = "0.2.100"
+edition = "2021"
+publish = false
+# rustc refuses a crate named wasm-bindgen older than 0.2.88, so the
+# stand-in carries a later number; it is not that crate.
+description = "Stands in for wasm-bindgen's prelude, so volvelle's worksheet builds natively"
+
+[dependencies]
+wasm-bindgen-macro = { path = "../wasm-bindgen-macro" }
+
+# As every crate in the repository (tools/lint-layout.sh).
+[lints.clippy]
+too_many_lines = "warn"
