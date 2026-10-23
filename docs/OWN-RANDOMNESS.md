@@ -1,8 +1,8 @@
 # Your own randomness, and the kernel's at boot
 
 **Kind:** Spec
-**Status:** Specified, not built (F86); the kernel check of §3 done from the repository
-**Open:** all of §2 (adding your own randomness, R1 to R3); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured). Option A itself (§3.3, R4) is built.
+**Status:** Specified, partly built (F86): §2.3's mixing into the seed and the pool, and the lock (R1, `faraday/faraday-core/src/fresh.rs`); option A (§3.3, R4); the kernel check of §3 done from the repository
+**Open:** the rest of §2: the mix's known answers in the Python cross-check (§4), New key's This device mixing (§2.3), the Add randomness page and the status line (R2), pointer and keys (R3); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer movement and

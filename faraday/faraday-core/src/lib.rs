@@ -162,7 +162,7 @@ pub mod codex32_correct;
 pub mod create;
 mod create_from;
 pub mod forms;
-mod fresh;
+pub mod fresh;
 pub mod gpg;
 pub mod grind;
 pub mod inbox;
@@ -2576,11 +2576,11 @@ impl Faraday {
         // (`docs/history/PLAN.md` §5.3): the next process is clean, and these would be
         // in its memory and in `/run/faraday`. They are still on the stick
         // they came from.
-        // A picture goes as what its codes hold, and as Other when none
-        // read.
+        // A picture goes as what its codes hold, and as Other when none read.
         self.inbox
             .retain(|i| !i.holds().may_be_secret() && !i.secret);
         self.session.wipe();
+        self.own_wipe();
         self.wallets.clear_spend();
         self.backup.close();
         self.message.clear();

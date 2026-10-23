@@ -70,6 +70,7 @@ mod mouse_buttons;
 mod names_kept;
 mod network;
 mod outside;
+mod own_randomness;
 mod paper;
 mod passphrase_kept;
 mod passphrase_paper;

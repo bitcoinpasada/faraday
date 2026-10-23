@@ -45,7 +45,7 @@ fn pass_quiz(app: &mut Faraday) {
 /// The app on Add a key, with New key opened from there and carried past
 /// Length and Randomness to the entries, each on its default
 /// (`docs/history/NEW-WALLET.md` §2.1: New key opens on Length, not the entries).
-fn opened() -> Faraday {
+pub(crate) fn opened() -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));

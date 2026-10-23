@@ -15,7 +15,7 @@ use faraday_vault::records::kind;
 
 /// A device whose shell has not answered a request for randomness, the
 /// test vault in its Inbox.
-fn device(vault: Vec<u8>) -> Faraday {
+pub(crate) fn device(vault: Vec<u8>) -> Faraday {
     let mut app = testkit::started();
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
@@ -53,7 +53,7 @@ fn open(app: &mut Faraday) -> usize {
 }
 
 /// Opens the vault and saves test key 2 into it: the keys it held.
-fn open_and_change(app: &mut Faraday) -> usize {
+pub(crate) fn open_and_change(app: &mut Faraday) -> usize {
     let held = open(app);
     app.press(Action::Entry(None));
     type_text(app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
@@ -67,7 +67,7 @@ fn open_and_change(app: &mut Faraday) -> usize {
     held
 }
 
-fn sealed(app: &Faraday) -> Option<Vec<u8>> {
+pub(crate) fn sealed(app: &Faraday) -> Option<Vec<u8>> {
     app.outbox
         .iter()
         .find(|i| i.kind == FileKind::Vault)
@@ -75,7 +75,7 @@ fn sealed(app: &Faraday) -> Option<Vec<u8>> {
 }
 
 /// Each slot's nonce.
-fn nonces(file: &[u8]) -> Vec<Vec<u8>> {
+pub(crate) fn nonces(file: &[u8]) -> Vec<Vec<u8>> {
     use faraday_vault::{HEADER_LEN, NONCE_LEN, SLOTS, TAG_LEN};
     let slot = faraday_vault::read_header(file).unwrap().slot_len as usize;
     (0..SLOTS)

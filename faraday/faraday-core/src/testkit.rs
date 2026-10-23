@@ -1750,3 +1750,15 @@ pub fn open_scan(app: &mut crate::Faraday, purpose: crate::ScanPurpose) {
     app.camera.open(scan);
     app.sheet = Some(crate::Sheet::Scan);
 }
+
+/// The 32 bytes a key made now for `what` takes from the session's fresh
+/// randomness ([`crate::Faraday::fresh`]): one pooled answer, used up.
+pub fn fresh(app: &mut crate::Faraday, what: &[u8]) -> Option<[u8; 32]> {
+    app.fresh(what)
+}
+
+/// The session seed's draw for `what` and `count`, as a seal nonce or a
+/// keyboard's code draws it.
+pub fn seed_draw(app: &crate::Faraday, what: &[u8], count: &[u8]) -> Option<[u8; 32]> {
+    app.fresh.draw(what, count)
+}

@@ -10,6 +10,11 @@
 //! code are drawn from the seed too (`vault/mod.rs`, `inputs.rs`). The seed
 //! is a [`Seed`] held as an `Option`: until the shell's first answer there
 //! is none, and nothing drawn from it is made.
+//!
+//! What a person adds of their own (dice, coins, cards, camera noise;
+//! `docs/OWN-RANDOMNESS.md` §2.3) is hashed into [`Own`]'s accumulator,
+//! which is mixed into the seed and into every pooled answer taken; it
+//! never stands in for the system's bytes, and alone it makes nothing.
 
 use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use faraday_shell_api::Command;
@@ -28,9 +33,100 @@ pub const POOL: usize = 3;
 /// missing then is a system that gives no randomness, not a slow one.
 pub const SEED_GRACE_MS: u64 = 2_000;
 
-/// The session's seed: the shell's first 32 bytes, wiped when the app
-/// goes. It exists only once they arrived.
+/// The session's seed: the shell's first 32 bytes, hashed with what the
+/// person added of their own when they have, and again at each addition
+/// after; wiped when the app goes. It exists only once the shell's bytes
+/// arrived.
 pub(crate) struct Seed(Zeroizing<[u8; 32]>);
+
+/// SHA-256("faraday reseed" ‖ `base` ‖ `acc`): the seed from the system's
+/// bytes (or the seed before) and the person's accumulator.
+fn reseed(base: &[u8; 32], acc: &[u8; 32]) -> Zeroizing<[u8; 32]> {
+    let mut e = sha256::Hash::engine();
+    e.input(b"faraday reseed");
+    e.input(base);
+    e.input(acc);
+    Zeroizing::new(sha256::Hash::from_engine(e).to_byte_array())
+}
+
+/// A source a person adds randomness from (`docs/OWN-RANDOMNESS.md`
+/// §2.1). Each batch arrives as its commitment, as New key's sources
+/// make it (`faraday-entropy`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OwnSource {
+    /// Camera frames; the count is frames.
+    Camera,
+    /// Dice rolls; the count is rolls.
+    Dice,
+    /// Coin flips; the count is flips.
+    Coins,
+    /// Cards drawn; the count is cards.
+    Cards,
+    /// Pointer moves and keys while Add randomness is open; the count is
+    /// events.
+    PointerKeys,
+}
+
+/// What a person added in this session, counted as it was taken. Nothing
+/// is credited: a count says what was taken, not how strong it is.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct OwnCounts {
+    /// Camera frames.
+    pub camera_frames: u32,
+    /// Dice rolls.
+    pub dice_rolls: u32,
+    /// Coin flips.
+    pub coin_flips: u32,
+    /// Cards drawn.
+    pub cards: u32,
+    /// Pointer moves and keys.
+    pub pointer_keys: u32,
+}
+
+impl OwnCounts {
+    /// Whether anything was added.
+    pub fn any(&self) -> bool {
+        *self != Self::default()
+    }
+}
+
+/// The person's own randomness: an accumulator over every commitment
+/// added, and the counts. Kept in the session only: a lock wipes it,
+/// and it is never written or shown. Invariant: `acc` is `Some` exactly
+/// when a count is above zero, since only a taken batch changes either.
+#[derive(Default)]
+pub(crate) struct Own {
+    /// SHA-256 chained over the commitments; `None` before the first.
+    acc: Option<Zeroizing<[u8; 32]>>,
+    /// What was added, for the status line.
+    counts: OwnCounts,
+}
+
+impl Own {
+    /// `acc` ← SHA-256("faraday own" ‖ `acc` ‖ `commitment`), all zero
+    /// before the first. A batch of nothing is refused: it adds no
+    /// randomness, so it is neither counted nor mixed.
+    fn add(&mut self, source: OwnSource, commitment: &[u8; 32], n: u32) -> bool {
+        if n == 0 {
+            return false;
+        }
+        let mut e = sha256::Hash::engine();
+        e.input(b"faraday own");
+        e.input(self.acc.as_deref().unwrap_or(&[0u8; 32]));
+        e.input(commitment);
+        self.acc = Some(Zeroizing::new(sha256::Hash::from_engine(e).to_byte_array()));
+        let c = &mut self.counts;
+        let count = match source {
+            OwnSource::Camera => &mut c.camera_frames,
+            OwnSource::Dice => &mut c.dice_rolls,
+            OwnSource::Coins => &mut c.coin_flips,
+            OwnSource::Cards => &mut c.cards,
+            OwnSource::PointerKeys => &mut c.pointer_keys,
+        };
+        *count = count.saturating_add(n);
+        true
+    }
+}
 
 impl Seed {
     /// `what` hashed with the seed and `count`: 32 bytes no other
@@ -62,6 +158,8 @@ pub(crate) struct Fresh {
     pool: Vec<Zeroizing<[u8; 32]>>,
     /// The shell offers the dice roller (Faraday Desktop only).
     roller: bool,
+    /// What the person added of their own.
+    own: Own,
 }
 
 impl Fresh {
@@ -70,7 +168,11 @@ impl Fresh {
     /// that arrived first then gets its code).
     pub(crate) fn arrived(&mut self, bytes: [u8; 32]) -> bool {
         if self.seed.is_none() {
-            self.seed = Some(Seed(Zeroizing::new(bytes)));
+            let seed = match self.own.acc.as_deref() {
+                Some(acc) => reseed(&bytes, acc),
+                None => Zeroizing::new(bytes),
+            };
+            self.seed = Some(Seed(seed));
             true
         } else {
             if self.pool.len() < POOL * 2 {
@@ -81,7 +183,9 @@ impl Fresh {
     }
 
     /// 32 bytes of their own for `what`, or `None` while the system has
-    /// not answered yet; either way another answer is asked for.
+    /// not answered yet; either way another answer is asked for. With
+    /// the person's own randomness added, it is hashed in after the
+    /// system's answer.
     pub(crate) fn take(&mut self, what: &[u8], out: &mut Out) -> Option<[u8; 32]> {
         out.command(Command::RequestEntropy);
         let bytes = self.pool.pop()?;
@@ -89,7 +193,35 @@ impl Fresh {
         e.input(b"faraday fresh");
         e.input(what);
         e.input(&bytes[..]);
+        if let Some(acc) = self.own.acc.as_deref() {
+            e.input(acc);
+        }
         Some(sha256::Hash::from_engine(e).to_byte_array())
+    }
+
+    /// The person added a batch of their own: hashed into the
+    /// accumulator, and the seed, when there is one, hashed again with
+    /// it. The draws' counts go on, so no draw repeats one made before.
+    /// Returns whether it was taken (a batch of nothing is not).
+    pub(crate) fn own_add(&mut self, source: OwnSource, commitment: &[u8; 32], n: u32) -> bool {
+        if !self.own.add(source, commitment, n) {
+            return false;
+        }
+        if let (Some(seed), Some(acc)) = (self.seed.as_mut(), self.own.acc.as_deref()) {
+            seed.0 = reseed(&seed.0, acc);
+        }
+        true
+    }
+
+    /// What the person added in this session.
+    pub(crate) fn own_counts(&self) -> OwnCounts {
+        self.own.counts
+    }
+
+    /// The lock: what the person added is wiped, and the next session
+    /// starts with none.
+    pub(crate) fn own_wipe(&mut self) {
+        self.own = Own::default();
     }
 
     /// The seed a signing pass draws a MuSig2 or FROST round's secret
@@ -178,6 +310,26 @@ impl Faraday {
     /// allowed to load.
     pub fn roller_offered(&self) -> bool {
         self.fresh.roller && self.may_load_keys()
+    }
+
+    /// A batch of the person's own randomness (Add randomness,
+    /// `docs/OWN-RANDOMNESS.md` §2.3): `commitment` is the batch's, as
+    /// New key's source makes it, and `n` how many it holds. Mixed into
+    /// the seed and every fresh draw from now on, never used alone.
+    /// Returns whether it was taken.
+    pub fn own_add(&mut self, source: OwnSource, commitment: &[u8; 32], n: u32) -> bool {
+        self.fresh.own_add(source, commitment, n)
+    }
+
+    /// What the person added of their own in this session, for the
+    /// status line.
+    pub fn own_counts(&self) -> OwnCounts {
+        self.fresh.own_counts()
+    }
+
+    /// The lock wipes what the person added.
+    pub(crate) fn own_wipe(&mut self) {
+        self.fresh.own_wipe();
     }
 
     /// The seed a signing pass draws a MuSig2 or FROST round's secret

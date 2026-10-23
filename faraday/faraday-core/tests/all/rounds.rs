@@ -15,13 +15,13 @@ fn kit_files(prefix: &str) -> Vec<(String, Vec<u8>)> {
         .collect()
 }
 
-fn at(app: &Faraday, name: &str) -> usize {
+pub(crate) fn at(app: &Faraday, name: &str) -> usize {
     app.inbox().iter().position(|i| i.name == name).unwrap()
 }
 
 /// Test key 1 and the MuSig2 wallet loaded, the unsigned spend and the
 /// other signers' nonce copies in the Inbox; seeded when `seeded`.
-fn device(seeded: bool) -> Faraday {
+pub(crate) fn device(seeded: bool) -> Faraday {
     let mut app = testkit::started();
     if seeded {
         app.event(Event::Entropy(EntropyBytes::new([5u8; 32])));
@@ -41,7 +41,7 @@ fn device(seeded: bool) -> Faraday {
 }
 
 /// This device's public nonce on the spend, if one is there.
-fn our_nonce(app: &Faraday) -> Option<Vec<u8>> {
+pub(crate) fn our_nonce(app: &Faraday) -> Option<Vec<u8>> {
     let c = testkit::compute();
     let s = app.spend()?;
     let ours = app
