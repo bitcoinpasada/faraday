@@ -113,6 +113,9 @@ Sources read for it, each as data and none vendored:
     splits the seed again; the key record keeps the set (k, identifier,
     length, indices, k − 1 strings besides S); a new set only on purpose,
     behind a caution (§9.4).
+18. **Codex32 on New key's Start card at its top level**, beside BIP-39
+    words, with BIP-39 words ticked; the default to be looked at again
+    when more wallets read codex32 (§6).
 14. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
     keep real dice typed on the pad): five dice for codex32, one die for
     BIP-39 words and Generate with dice, their values this computer's
@@ -387,9 +390,21 @@ unchanged; FLOWS and DESIGN take this (§15.3).
 
 ## 6. Make codex32 shares: the main flow
 
-**Where**: New key's Start card, under **Other forms**, a new choice
-**Make codex32 shares** after **Make SLIP-39 shares**
-(`faraday/faraday-core/src/keygen/mod.rs`, `Start`), and the codex32 tile
+**Where**: New key's Start card (`faraday/faraday-core/src/keygen/mod.rs`,
+`Start`), at its top level, not under **Other forms** (owner, §1.1 item
+18). The card's choices become:
+
+- **Make a new key**: **BIP-39 words** (ticked) · **Codex32**, side by
+  side; Codex32 opens this flow.
+- **Add a key you have**: **Type the words** · **Scan a SeedQR** ·
+  **Type codex32 strings** (§8.1) · **Scan a Codex32QR** (§10.1).
+- **Other forms** (closed): Make SLIP-39 shares · Type SLIP-39 shares ·
+  Type Seed XOR parts.
+
+BIP-39 words stays the default while few wallets other than Faraday
+restore a codex32 seed; the default is to be looked at again when more
+do. A threshold wallet's slot (FROST) still offers Make a new key's
+BIP-39 words and Type the words only. Also reached from the codex32 tile
 of Tools. The flow is its own area (§13.1). Its cards, each a card of
 New key's column (`docs/history/NEW-WALLET.md` §15), are below. Back
 returns a card at a time; Cancel is F51's.
@@ -1292,7 +1307,7 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 
 | Document | Section | Change |
 |---|---|---|
-| `docs/FLOWS.md` | New key and Add a key | Make codex32 shares under Other forms; the form's Add a share, Check a string and Suggest corrections; Scan a SeedQR taking a codex32 string |
+| `docs/FLOWS.md` | New key and Add a key | Start's top level: BIP-39 words · Codex32 under Make a new key, the codex32 and Codex32QR ways under Add a key you have, SLIP-39 and Seed XOR left under Other forms; the form's Add a share, Check a string and Suggest corrections; Scan a SeedQR taking a codex32 string |
 | `docs/FLOWS.md` | Backups, Backup flow, Wallets tab | the one codex32 choice; the plan's codex32 form and item |
 | `docs/DESIGN.md` | §4.3 Entry | the codex32 keyboard's numbered boxes, `?` with the tick |
 | `docs/DESIGN.md` | §4.10, §5 Pad, Secret, Result, Choice | the worksheet as a Secret panel; the booklet dice pad; String · Codex32QR; Strings made as built; the Scheme choices |
