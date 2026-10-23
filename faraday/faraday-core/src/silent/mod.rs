@@ -20,7 +20,7 @@ use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
 use zeroize::Zeroizing;
 
-use crate::wallet::fp_text;
+use crate::wallet::{Session, fp_text};
 use crate::{Faraday, QrFormat, QrSource, QrView, Screen, flow};
 
 /// The cards of the flow.
@@ -83,15 +83,43 @@ pub(crate) type SilentShownOf = (
     faraday_bip::keys::Network,
 );
 
-impl Faraday {
-    /// Opens the flow.
-    pub(crate) fn silent_open(&mut self) {
-        if self.session.keys.is_empty() {
-            self.toast(EN.silent_load_a_key_first);
-            return;
+/// The Silent payments flow's area: its state while it is open.
+#[derive(Default)]
+pub(crate) struct SilentArea {
+    state: Option<SilentState>,
+}
+
+impl SilentArea {
+    /// The flow's state, while it is open.
+    pub(crate) fn state(&self) -> Option<&SilentState> {
+        self.state.as_ref()
+    }
+
+    /// Forgets the flow's state.
+    pub(crate) fn clear(&mut self) {
+        self.state = None;
+    }
+
+    /// The column's scroll, while the flow is open.
+    pub(crate) fn scroll_mut(&mut self) -> Option<&mut flow::Scroll> {
+        self.state.as_mut().map(|s| &mut s.scroll)
+    }
+
+    /// Takes the column's scroll as the pass left it.
+    pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
+        if let Some(s) = self.state.as_mut() {
+            s.scroll = to;
         }
-        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint.0);
-        self.silent = Some(SilentState {
+    }
+
+    /// Opens the flow over the session's keys, to return to `back`.
+    pub(crate) fn open(&mut self, session: &Session, back: Screen) {
+        let key = (session.keys.len() == 1).then(|| session.keys[0].fingerprint.0);
+        let wallet = key.and_then(|fp| Self::wallet_of(session, fp));
+        let labels = wallet
+            .and_then(|i| session.wallets[i].policy().silent())
+            .map_or(0, |r| r.labels);
+        self.state = Some(SilentState {
             open: Some(if key.is_some() {
                 sstep::ADDRESS
             } else {
@@ -101,34 +129,23 @@ impl Faraday {
             scroll: flow::Scroll::default(),
             key,
             label: 0,
-            labels: 0,
-            wallet: key.and_then(|fp| self.silent_wallet_of(fp)),
+            labels,
+            wallet,
             check: None,
-            back: self.screen,
+            back,
             shown: Default::default(),
         });
-        if let Some(i) = self.silent.as_ref().and_then(|s| s.wallet)
-            && let Some(r) = self.session.wallets[i].policy().silent()
-            && let Some(s) = self.silent.as_mut()
-        {
-            s.labels = r.labels;
-        }
-        self.screen = Screen::Silent;
     }
 
     /// Opens the flow as the page of session wallet `i`, a silent
     /// payments wallet: its address shows whether or not its key is
-    /// loaded; its labels, its scan key and a check need the key.
-    pub(crate) fn silent_open_wallet(&mut self, i: usize) {
-        let Some(r) = self
-            .session
-            .wallets
-            .get(i)
-            .and_then(|w| w.policy().silent())
-        else {
-            return;
+    /// loaded; its labels, its scan key and a check need the key. Returns
+    /// whether it opened.
+    pub(crate) fn open_wallet(&mut self, session: &Session, i: usize) -> bool {
+        let Some(r) = session.wallets.get(i).and_then(|w| w.policy().silent()) else {
+            return false;
         };
-        self.silent = Some(SilentState {
+        self.state = Some(SilentState {
             open: Some(sstep::ADDRESS),
             done: [true, false, false, false],
             scroll: flow::Scroll::default(),
@@ -140,63 +157,62 @@ impl Faraday {
             back: Screen::Wallets,
             shown: Default::default(),
         });
-        self.screen = Screen::Silent;
+        true
     }
 
     /// The session's silent payments wallet over key `fp`, if there is
     /// one.
-    fn silent_wallet_of(&self, fp: [u8; 4]) -> Option<usize> {
-        self.session
+    fn wallet_of(session: &Session, fp: [u8; 4]) -> Option<usize> {
+        session
             .wallets
             .iter()
             .position(|w| w.policy().silent().is_some_and(|r| r.fingerprint.0 == fp))
     }
 
     /// The record of the wallet the flow is the page of.
-    pub fn silent_wallet(&self) -> Option<&SilentWallet> {
-        let i = self.silent.as_ref()?.wallet?;
-        self.session.wallets.get(i)?.policy().silent()
+    pub(crate) fn wallet<'a>(&self, session: &'a Session) -> Option<&'a SilentWallet> {
+        let i = self.state.as_ref()?.wallet?;
+        session.wallets.get(i)?.policy().silent()
     }
 
     /// Costs what `derive` costs. The scan and spend keys, derived from the
     /// loaded key: `None` while that key is not loaded, or where it is not
     /// the key the wallet was written from (a fingerprint is four bytes;
     /// the wallet is the two points).
-    fn silent_receiver(&self, c: &Compute) -> Option<(Receiver, [u8; 4])> {
-        let s = self.silent.as_ref()?;
-        let place = self.session.keys.position_of(s.key?)?;
-        let r = self.session.keys.silent_receiver(c, place, 0)?;
-        if let Some(w) = self.silent_wallet()
+    fn receiver(&self, c: &Compute, session: &Session) -> Option<(Receiver, [u8; 4])> {
+        let s = self.state.as_ref()?;
+        let place = session.keys.position_of(s.key?)?;
+        let r = session.keys.silent_receiver(c, place, 0)?;
+        if let Some(w) = self.wallet(session)
             && w.spend != r.spend_public_key()
         {
             return None;
         }
-        Some((r, self.session.keys[place].fingerprint.0))
+        Some((r, session.keys[place].fingerprint.0))
     }
 
     /// Costs two key derivations and an address the first time. What the
     /// page shows of its key ([`SilentShown`]), kept on the flow's state by
     /// what it is derived from, by whoever asks first, a frame included: a
     /// lookup after.
-    pub(crate) fn silent_shown(&self, c: &Compute) -> SilentShown {
-        let Some(s) = self.silent.as_ref() else {
+    pub(crate) fn shown(&self, c: &Compute, session: &Session) -> SilentShown {
+        let Some(s) = self.state.as_ref() else {
             return SilentShown::default();
         };
-        let loaded = self
-            .session
+        let loaded = session
             .keys
             .all()
             .find(|k| Some(k.fingerprint.0) == s.key)
             .map(|k| k.id.0);
-        let of = (s.key, s.label, s.wallet, loaded, self.session.network());
+        let of = (s.key, s.label, s.wallet, loaded, session.network());
         if let Some((o, shown)) = s.shown.borrow().as_ref()
             && *o == of
         {
             return shown.clone();
         }
         let shown = SilentShown {
-            key_here: self.silent_key_here(c),
-            address: self.silent_address(c),
+            key_here: self.key_here(c, session),
+            address: self.address(c, session),
         };
         *s.shown.borrow_mut() = Some((of, shown.clone()));
         shown
@@ -204,34 +220,34 @@ impl Faraday {
 
     /// Costs two key derivations: whether the wallet's key is loaded, which
     /// labels, the scan key and a check need.
-    pub fn silent_key_here(&self, c: &Compute) -> bool {
-        self.silent_receiver(c).is_some()
+    pub(crate) fn key_here(&self, c: &Compute, session: &Session) -> bool {
+        self.receiver(c, session).is_some()
     }
 
     /// Costs two key derivations and an address, none for the wallet's own:
     /// the address on show, unlabelled or with the chosen label. The
     /// unlabelled one is the wallet's own, with or without its key; a
     /// labelled one needs the scan private key.
-    pub fn silent_address(&self, c: &Compute) -> Option<String> {
-        let s = self.silent.as_ref()?;
+    pub(crate) fn address(&self, c: &Compute, session: &Session) -> Option<String> {
+        let s = self.state.as_ref()?;
         if s.label == 0
-            && let Some(w) = self.silent_wallet()
+            && let Some(w) = self.wallet(session)
         {
             return Some(w.address());
         }
-        let (r, _) = self.silent_receiver(c)?;
+        let (r, _) = self.receiver(c, session)?;
         r.address(s.label)
     }
 
-    /// Costs what `silent_receiver` costs. The public record a coordinator
-    /// keeps: the network, the key's origin, the labels handed out and the
+    /// Costs what `receiver` costs. The public record a coordinator keeps:
+    /// the network, the key's origin, the labels handed out and the
     /// address.
-    pub fn silent_record(&self, c: &Compute) -> Option<String> {
-        if let Some(w) = self.silent_wallet() {
+    pub(crate) fn record(&self, c: &Compute, session: &Session) -> Option<String> {
+        if let Some(w) = self.wallet(session) {
             return Some(w.to_text());
         }
-        let s = self.silent.as_ref()?;
-        let (r, fp) = self.silent_receiver(c)?;
+        let s = self.state.as_ref()?;
+        let (r, fp) = self.receiver(c, session)?;
         Some(
             SilentWallet {
                 network: r.network(),
@@ -245,29 +261,35 @@ impl Faraday {
         )
     }
 
-    /// Costs what `silent_receiver` costs. The scan key, BIP-392's
-    /// `spscan1q…`, for `why`, and the key's fingerprint.
-    fn silent_scan_key(
+    /// Costs what `receiver` costs. The scan key, BIP-392's `spscan1q…`,
+    /// for `why`, and the key's fingerprint.
+    pub(crate) fn scan_key(
         &self,
         c: &Compute,
+        session: &Session,
         why: faraday_keys::Reveal,
     ) -> Option<(faraday_keys::Held<Zeroizing<String>>, [u8; 4])> {
-        let (r, fp) = self.silent_receiver(c)?;
+        let (r, fp) = self.receiver(c, session)?;
         Some((r.scan_key(why)?, fp))
     }
 
-    /// Costs what `silent_address`, `silent_record` and `of` cost. The QR
-    /// view of the address on show (as it is, or as a `bitcoin:` link) or
-    /// of the record, with the name and label of its picture.
-    pub(crate) fn silent_code(&self, c: &Compute, code: crate::Code) -> Result<QrView, String> {
-        let s = self.silent.as_ref().ok_or(EN.silent_not_open)?;
+    /// Costs what `address`, `record` and `of` cost. The QR view of the
+    /// address on show (as it is, or as a `bitcoin:` link) or of the
+    /// record, with the name and label of its picture.
+    pub(crate) fn code(
+        &self,
+        c: &Compute,
+        session: &Session,
+        code: crate::Code,
+    ) -> Result<QrView, String> {
+        let s = self.state.as_ref().ok_or(EN.silent_not_open)?;
         let fp = fp_text(faraday_bip::keys::Fingerprint(
             s.key.ok_or(EN.silent_choose_a_key)?,
         ));
         let mut lines = vec![fill(EN.silent_silent_payment, &[&fp.to_string()])];
         let (title, text, name) = match code {
             crate::Code::Silent(uri) => {
-                let a = self.silent_address(c).ok_or(EN.silent_no_address)?;
+                let a = self.address(c, session).ok_or(EN.silent_no_address)?;
                 let mut name = format!("silent-{fp}");
                 if s.label > 0 {
                     lines.push(fill(EN.silent_label, &[&s.label.to_string()]));
@@ -285,7 +307,7 @@ impl Faraday {
                 (EN.silent_silent_payments_address, text, name)
             }
             _ => {
-                let text = self.silent_record(c).ok_or(EN.silent_no_record)?;
+                let text = self.record(c, session).ok_or(EN.silent_no_record)?;
                 lines.push(EN.silent_public_watch.to_string());
                 (
                     EN.silent_silent_payments_record,
@@ -304,77 +326,18 @@ impl Faraday {
         .public(&format!("{name}.png"), lines))
     }
 
-    /// One press inside the flow.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-    pub(crate) fn silent_act(&mut self, action: crate::Action) {
-        let c = self.compute();
+    /// A press that changes only this flow: a card, the key, the label.
+    /// Returns the silent payments record a label handed out makes the
+    /// session wallet `.0` carry, for the caller to put there.
+    pub(crate) fn act(
+        &mut self,
+        action: crate::Action,
+        session: &Session,
+    ) -> Option<(usize, SilentWallet)> {
         use crate::Action as A;
-        match action {
-            A::Silent => return self.silent_open(),
-            A::SQr(uri) => {
-                if self.silent_address(&c).is_some() {
-                    let view = self.silent_code(&c, crate::Code::Silent(uri));
-                    self.open_qr(view);
-                }
-                return;
-            }
-            A::SRecord => {
-                let fp = self.silent.as_ref().and_then(|s| s.key);
-                if let (Some(text), Some(fp)) = (self.silent_record(&c), fp) {
-                    let name =
-                        format!("silent-{}.txt", fp_text(faraday_bip::keys::Fingerprint(fp)));
-                    self.put_outbox(&name, text.into_bytes());
-                    self.toast_out(&name);
-                }
-                return;
-            }
-            A::SScanVault => {
-                if self.vaults.open.get(self.vaults.current).is_none() {
-                    return self.toast(EN.silent_no_vault_open);
-                }
-                let Some((key, fp)) = self.silent_scan_key(
-                    &c,
-                    faraday_keys::Reveal::VaultEntry(faraday_keys::Part::ScanKey),
-                ) else {
-                    return;
-                };
-                let title = fill(
-                    EN.silent_silent_payments_scan,
-                    &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
-                );
-                let note = Zeroizing::new(format!("{title}\n{}", key.as_str()));
-                self.vault_push(
-                    Record::new(kind::NOTE).with(field::NOTE, note.as_bytes()),
-                    &fill(EN.silent_is_in_the_vault, &[&title.to_string()]),
-                );
-                return;
-            }
-            A::SScanOut => {
-                let Some((key, fp)) = self.silent_scan_key(
-                    &c,
-                    faraday_keys::Reveal::OutboxFile(faraday_keys::Part::ScanKey),
-                ) else {
-                    return;
-                };
-                let name = format!("spscan-{}.txt", fp_text(faraday_bip::keys::Fingerprint(fp)));
-                self.offer_secret(crate::secrets::SecretOut::new(
-                    name,
-                    Zeroizing::new(format!("{}\n", key.as_str()).into_bytes()),
-                    EN.silent_a_silent_payments,
-                    EN.silent_whoever_has,
-                ));
-                return;
-            }
-            A::SAddWallet => return self.silent_add_wallet(),
-            A::SWallet(i) => return self.silent_open_wallet(i),
-            A::SCheck(k) => return self.silent_check(k),
-            _ => {}
-        }
-        let wallet = self.silent.as_ref().and_then(|s| s.wallet);
-        let record = self.silent_wallet().cloned();
-        let Some(s) = self.silent.as_mut() else {
-            return;
-        };
+        let wallet = self.state.as_ref().and_then(|s| s.wallet);
+        let record = self.wallet(session).cloned();
+        let s = self.state.as_mut()?;
         match action {
             A::SStep(k) => {
                 // A wallet's page opens any card; the first time through,
@@ -403,8 +366,7 @@ impl Faraday {
                     && s.labels > r.labels
                 {
                     r.labels = s.labels;
-                    self.session.wallets[i]
-                        .set_policy(faraday_bip::policy::WalletPolicy::of_silent(r));
+                    return Some((i, r));
                 }
             }
             A::SNext => {
@@ -418,6 +380,189 @@ impl Faraday {
             }
             _ => {}
         }
+        None
+    }
+
+    /// The session wallet `i` is now the flow's page.
+    pub(crate) fn set_wallet(&mut self, i: usize) {
+        if let Some(s) = self.state.as_mut() {
+            s.wallet = Some(i);
+        }
+    }
+
+    /// The transaction checked, with the file it came from.
+    pub(crate) fn set_check(&mut self, name: String, check: crate::silent::check::Check) {
+        if let Some(s) = self.state.as_mut() {
+            s.check = Some((name, check));
+        }
+    }
+
+    /// Costs what `receiver` costs. What a check of `check` comes to, or
+    /// `None` while a previous transaction is still missing. An unsigned
+    /// input is no answer, and the change label is always looked for.
+    pub(crate) fn answer(
+        &self,
+        c: &Compute,
+        session: &Session,
+        check: &crate::silent::check::Check,
+    ) -> Option<crate::silent::check::Checked> {
+        use crate::silent::check::{Checked, Paid};
+        let prevouts = check.prevouts()?;
+        let tx = check.tx();
+        for (i, input) in tx.input.iter().enumerate() {
+            if faraday_bip::silent::needs_signature_data(prevouts[i].as_bytes())
+                && !faraday_psbt::transaction::is_signed(&input.script_sig, &input.witness)
+            {
+                return Some(Checked::Unsigned);
+            }
+        }
+        let Some((receiver, _)) = self.receiver(c, session) else {
+            return Some(Checked::KeyNotLoaded);
+        };
+        let labels_out = self
+            .wallet(session)
+            .map_or(0, |w| w.labels)
+            .max(self.state.as_ref().map_or(0, |s| s.labels));
+        let labels: Vec<u32> = (0..=labels_out).collect();
+        let scripts: Vec<&[u8]> = prevouts.iter().map(|s| s.as_bytes()).collect();
+        match receiver.payments_in(tx, &scripts, &labels) {
+            Err(_) => Some(Checked::NoInputs),
+            Ok(found) if found.is_empty() => Some(Checked::NotPaid),
+            Ok(found) => Some(Checked::Paid(
+                found
+                    .into_iter()
+                    .map(|p| Paid {
+                        vout: p.vout,
+                        amount: p.amount,
+                        label: p.label,
+                    })
+                    .collect(),
+            )),
+        }
+    }
+}
+
+impl Faraday {
+    /// The flow's state, while it is open.
+    pub fn silent(&self) -> Option<&SilentState> {
+        self.silent.state()
+    }
+
+    /// Opens the flow.
+    pub(crate) fn silent_open(&mut self) {
+        if self.session.keys.is_empty() {
+            self.toast(EN.silent_load_a_key_first);
+            return;
+        }
+        self.silent.open(&self.session, self.screen);
+        self.screen = Screen::Silent;
+    }
+
+    /// The record of the wallet the flow is the page of.
+    pub fn silent_wallet(&self) -> Option<&SilentWallet> {
+        self.silent.wallet(&self.session)
+    }
+
+    /// Costs two key derivations and an address the first time. What the
+    /// page shows of its key ([`SilentShown`]), kept on the flow's state.
+    pub(crate) fn silent_shown(&self, c: &Compute) -> SilentShown {
+        self.silent.shown(c, &self.session)
+    }
+
+    /// Costs two key derivations: whether the wallet's key is loaded.
+    pub fn silent_key_here(&self, c: &Compute) -> bool {
+        self.silent.key_here(c, &self.session)
+    }
+
+    /// Costs two key derivations and an address, none for the wallet's own:
+    /// the address on show.
+    pub fn silent_address(&self, c: &Compute) -> Option<String> {
+        self.silent.address(c, &self.session)
+    }
+
+    /// Costs two key derivations. The public record a coordinator keeps.
+    pub fn silent_record(&self, c: &Compute) -> Option<String> {
+        self.silent.record(c, &self.session)
+    }
+
+    /// Costs what `silent_address`, `silent_record` and `of` cost. The QR
+    /// view of the address on show or of the record.
+    pub(crate) fn silent_code(&self, c: &Compute, code: crate::Code) -> Result<QrView, String> {
+        self.silent.code(c, &self.session, code)
+    }
+
+    /// One press inside the flow.
+    pub(crate) fn silent_act(&mut self, action: crate::Action) {
+        let c = self.compute();
+        use crate::Action as A;
+        match action {
+            A::Silent => self.silent_open(),
+            A::SQr(uri) => {
+                if self.silent_address(&c).is_some() {
+                    let view = self.silent_code(&c, crate::Code::Silent(uri));
+                    self.open_qr(view);
+                }
+            }
+            A::SRecord => {
+                let fp = self.silent.state().and_then(|s| s.key);
+                if let (Some(text), Some(fp)) = (self.silent_record(&c), fp) {
+                    let name =
+                        format!("silent-{}.txt", fp_text(faraday_bip::keys::Fingerprint(fp)));
+                    self.put_outbox(&name, text.into_bytes());
+                    self.toast_out(&name);
+                }
+            }
+            A::SScanVault => {
+                if self.vaults.open.get(self.vaults.current).is_none() {
+                    return self.toast(EN.silent_no_vault_open);
+                }
+                let Some((key, fp)) = self.silent.scan_key(
+                    &c,
+                    &self.session,
+                    faraday_keys::Reveal::VaultEntry(faraday_keys::Part::ScanKey),
+                ) else {
+                    return;
+                };
+                let title = fill(
+                    EN.silent_silent_payments_scan,
+                    &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
+                );
+                let note = Zeroizing::new(format!("{title}\n{}", key.as_str()));
+                self.vault_push(
+                    Record::new(kind::NOTE).with(field::NOTE, note.as_bytes()),
+                    &fill(EN.silent_is_in_the_vault, &[&title.to_string()]),
+                );
+            }
+            A::SScanOut => {
+                let Some((key, fp)) = self.silent.scan_key(
+                    &c,
+                    &self.session,
+                    faraday_keys::Reveal::OutboxFile(faraday_keys::Part::ScanKey),
+                ) else {
+                    return;
+                };
+                let name = format!("spscan-{}.txt", fp_text(faraday_bip::keys::Fingerprint(fp)));
+                self.offer_secret(crate::secrets::SecretOut::new(
+                    name,
+                    Zeroizing::new(format!("{}\n", key.as_str()).into_bytes()),
+                    EN.silent_a_silent_payments,
+                    EN.silent_whoever_has,
+                ));
+            }
+            A::SAddWallet => self.silent_add_wallet(),
+            A::SWallet(i) => {
+                if self.silent.open_wallet(&self.session, i) {
+                    self.screen = Screen::Silent;
+                }
+            }
+            A::SCheck(k) => self.silent_check(k),
+            _ => {
+                if let Some((i, r)) = self.silent.act(action, &self.session) {
+                    self.session.wallets[i]
+                        .set_policy(faraday_bip::policy::WalletPolicy::of_silent(r));
+                }
+            }
+        }
     }
 
     /// The key's silent payments wallet into the session's wallets: the
@@ -427,7 +572,7 @@ impl Faraday {
         let Some(text) = self.silent_record(&c) else {
             return self.toast(EN.silent_load_the_key);
         };
-        let Some(fp) = self.silent.as_ref().and_then(|s| s.key) else {
+        let Some(fp) = self.silent.state().and_then(|s| s.key) else {
             return;
         };
         let name = fill(
@@ -442,9 +587,7 @@ impl Faraday {
             crate::wallet::Origin::Named,
         ) {
             Ok(i) => {
-                if let Some(s) = self.silent.as_mut() {
-                    s.wallet = Some(i);
-                }
+                self.silent.set_wallet(i);
                 self.toast(EN.silent_added_to_your);
             }
             Err(e) => self.toast(&e.text()),
@@ -471,55 +614,9 @@ impl Faraday {
                 break;
             }
         }
-        if let Some(answer) = self.silent_answer(&c, &check) {
+        if let Some(answer) = self.silent.answer(&c, &self.session, &check) {
             check.set_result(answer);
         }
-        if let Some(s) = self.silent.as_mut() {
-            s.check = Some((name, check));
-        }
-    }
-
-    /// Costs what `silent_receiver` costs. What a check of `check` comes
-    /// to, or `None` while a previous transaction is still missing. As
-    /// An unsigned input is no answer, and the
-    /// change label is always looked for.
-    fn silent_answer(
-        &self,
-        c: &Compute,
-        check: &crate::silent::check::Check,
-    ) -> Option<crate::silent::check::Checked> {
-        use crate::silent::check::{Checked, Paid};
-        let prevouts = check.prevouts()?;
-        let tx = check.tx();
-        for (i, input) in tx.input.iter().enumerate() {
-            if faraday_bip::silent::needs_signature_data(prevouts[i].as_bytes())
-                && !faraday_psbt::transaction::is_signed(&input.script_sig, &input.witness)
-            {
-                return Some(Checked::Unsigned);
-            }
-        }
-        let Some((receiver, _)) = self.silent_receiver(c) else {
-            return Some(Checked::KeyNotLoaded);
-        };
-        let labels_out = self
-            .silent_wallet()
-            .map_or(0, |w| w.labels)
-            .max(self.silent.as_ref().map_or(0, |s| s.labels));
-        let labels: Vec<u32> = (0..=labels_out).collect();
-        let scripts: Vec<&[u8]> = prevouts.iter().map(|s| s.as_bytes()).collect();
-        match receiver.payments_in(tx, &scripts, &labels) {
-            Err(_) => Some(Checked::NoInputs),
-            Ok(found) if found.is_empty() => Some(Checked::NotPaid),
-            Ok(found) => Some(Checked::Paid(
-                found
-                    .into_iter()
-                    .map(|p| Paid {
-                        vout: p.vout,
-                        amount: p.amount,
-                        label: p.label,
-                    })
-                    .collect(),
-            )),
-        }
+        self.silent.set_check(name, check);
     }
 }

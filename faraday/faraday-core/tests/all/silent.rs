@@ -164,7 +164,7 @@ fn files(app: &mut Faraday, files: &[(&str, Vec<u8>)]) {
 
 /// What the check of Files' first file came to.
 fn checked(app: &Faraday) -> Option<Checked> {
-    let (_, check) = app.silent.as_ref()?.check.as_ref()?;
+    let (_, check) = app.silent()?.check.as_ref()?;
     check.result().cloned()
 }
 
@@ -270,7 +270,7 @@ fn a_payment_to_a_label_names_the_label_and_one_missing_its_funding_waits() {
     app.press(Action::SLabel(1));
     // Without the transaction it spends from there is no answer yet.
     app.press(Action::SCheck(0));
-    let (_, check) = app.silent.as_ref().unwrap().check.as_ref().unwrap();
+    let (_, check) = app.silent().unwrap().check.as_ref().unwrap();
     assert_eq!(check.waiting_for(), Some(funding_tx.compute_txid()));
     assert_eq!(checked(&app), None);
     files(

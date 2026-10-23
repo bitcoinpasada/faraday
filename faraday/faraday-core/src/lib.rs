@@ -1377,7 +1377,7 @@ pub struct Faraday {
     /// BIP-85 being derived.
     pub bip85: Option<bip85::Bip85State>,
     /// Silent payments on show.
-    pub silent: Option<silent::SilentState>,
+    silent: silent::SilentArea,
     /// Explore on show.
     pub explore: Option<explore::ExploreState>,
     /// The Lightning node key on show.
@@ -1686,7 +1686,7 @@ impl Faraday {
             learn: learn::LearnArea::default(),
             wordlist: wordlist::WordListArea::default(),
             bip85: None,
-            silent: None,
+            silent: silent::SilentArea::default(),
             explore: None,
             lightning: lightning::LightningArea::default(),
             tools: None,
@@ -8923,7 +8923,7 @@ impl Faraday {
             self.lightning.clear();
         }
         if !silent && self.sheet != Some(Sheet::Qr) {
-            self.silent = None;
+            self.silent.clear();
         }
         self.keygen_camera();
         self.keygen_device();

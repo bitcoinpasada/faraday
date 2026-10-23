@@ -219,15 +219,15 @@ fn silent_payments_left_by_a_tap_opens_again_fresh() {
     let mut app = with_key();
     app.press(Action::Silent);
     assert_eq!(app.screen, Screen::Silent);
-    let fresh = app.silent.as_ref().unwrap().open;
+    let fresh = app.silent().unwrap().open;
     app.press(Action::SLabel(1));
     tap(&mut app, Action::Nav(Screen::Settings));
     assert!(
-        app.silent.is_none(),
+        app.silent().is_none(),
         "Silent payments keeps nothing when left"
     );
     app.press(Action::Silent);
-    assert_eq!(app.silent.as_ref().unwrap().open, fresh);
+    assert_eq!(app.silent().unwrap().open, fresh);
 }
 
 #[test]

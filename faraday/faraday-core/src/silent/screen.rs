@@ -19,7 +19,7 @@ const TITLES: [&str; sstep::COUNT] = [
 ];
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let Some(s) = app.silent.as_ref() else {
+    let Some(s) = app.silent.state() else {
         return;
     };
     let cards: Vec<flow::Card> = (0..sstep::COUNT as u8)
@@ -53,7 +53,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (next, again) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            match app_ref.silent.as_ref() {
+            match app_ref.silent.state() {
                 Some(s) => card(app_ref, s, ui, i as u8, x, y, w),
                 None => 0.0,
             }

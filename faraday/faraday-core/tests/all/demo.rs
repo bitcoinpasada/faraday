@@ -585,7 +585,7 @@ fn scan_key(app: &mut Faraday) -> [bool; 2] {
     app.press(Action::SKey(fp));
     app.press(Action::SNext);
     assert_eq!(
-        app.silent.as_ref().unwrap().open,
+        app.silent().unwrap().open,
         Some(faraday_core::silent::sstep::SCAN)
     );
     [Action::SScanVault, Action::SScanOut].map(|a| offered(app, a))
