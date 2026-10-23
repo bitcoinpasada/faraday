@@ -136,6 +136,10 @@ Sources read for it, each as data and none vendored:
     always the same words, with Check a copy and Done; never in making a
     wallet, never on the backup board, never stored; no SLIP-39 split of
     a codex32 key (§10.5).
+24. **A codex32 key in a vault**: saved as any key is; its item shows the
+    unsplit string, the set's shares, SLIP-39 words where they exist and
+    Check a copy; a share-only item shows its string alone; the board
+    names a backup-in-shares seed placed whole in a vault (§9.5, §9.6).
 23. **Typed characters**: the line "Characters from dice or a
     worksheet, not chosen" above the entry (§5.2).
 14. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
@@ -1165,6 +1169,9 @@ place with that vault's passphrase, as a vault's seed does
 - "Share C of 9a6a2580 is kept nowhere";
 - "Home keeps 2 shares of w0za: the seed";
 - "Vault 1 holds 9a6a2580 and a share of it";
+- "Vault 1 holds 9a6a2580 whole: one place with its passphrase is
+  enough", where a backup-in-shares key's seed (not a string) is placed
+  in a vault: allowed, and named, since it sidesteps the threshold;
 - "Fewer than 2 places keep shares of w0za" where losing one place
   leaves fewer than k strings anywhere;
 - the files warning, for a string in a stick's files.
@@ -1186,6 +1193,35 @@ added in Customize, as a vault and a SeedQR are for BIP-39 words, and
 everything in it changes there (places, which string goes where, forms,
 more strings by + share, another k and n where the plan makes the set,
 §9.2; a set made already keeps its k, §9.4).
+
+### 9.6 A codex32 key's item in a vault (owner, 2026-10-23)
+
+How a codex32 key gets into a vault is how any key does: the plan's
+vault item (**Save into Vault 1**, BACKUP-FLOW §17.3) where the plan
+places the seed there, or **Save to vault** for anything loaded in a
+session. The key record holds the seed (VAULT §7, type 2, the seed
+payload) and the key's codex32 set (§9.4); a string alone goes in as a
+share record (§9.5) and is not a key.
+
+The vault's item for a key holding the seed shows, top to bottom, each
+secret behind hold-to-show as a word key's words are (DESIGN §4.10):
+
+- **Fingerprint** (not a secret);
+- **Codex32**: the unsplit string (k = 0 form, identifier from the
+  fingerprint), always the same;
+- **Shares of w0za**: where the record keeps a set (§9.4), one row per
+  string by index (**A**, **C**, **D**), each shown as §6.6 shows a
+  string, with **Codex32QR** at 48 characters; **Add a share** (§8.2);
+- **SLIP-39 words** (16- and 32-byte seeds, §10.5);
+- **Check a copy**, for any of the forms above: a copy typed or scanned
+  is checked against this key ("C · matches the set", "Box 17
+  differs");
+- the rows every key item has today: Load at unlock, Load into session,
+  Save to a stick.
+
+An item holding only a share shows that string (hold-to-show), its
+index, set and fingerprint, and **Check a copy**; no SLIP-39 row, no
+other string: a share is not the key.
 
 ## 10. Codex32QR
 
@@ -1542,7 +1578,7 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 | `docs/FLOWS.md` | Make a new wallet | the Kind card's Single key, backup in shares; its Quorum as the scheme; its slot opening Make codex32 shares; no codex32 in other kinds' slots (§6.9) |
 | `docs/DESIGN.md` | §5 Choice, "What kind of wallet?" | the new kind's row and its second line; the rows' second lines (§6.9) |
 | `docs/INTEROP.md` | SLIP-39 | a key of a 16- or 32-byte seed written as SLIP-39 words, 1 of 1, and read back (§10.5) |
-| `docs/VAULT.md`, FLOWS (Vaults) | a key's item | the SLIP-39 words row (§10.5) |
+| `docs/VAULT.md`, FLOWS (Vaults) | a key's item | the codex32, shares, SLIP-39 words and Check a copy rows (§9.6, §10.5) |
 | `docs/DESIGN.md` | §4.10 | the worksheet's look, §7.5: the booklet's colour roles as named fills and outlines per theme |
 | `docs/DESIGN.md` | §4 (new component) | the tab row: one tab per item, a check mark once shown, wrapping on `wide` and `mobile`, a Choice with Previous and Next on `small` (§6.5) |
 | `docs/DEMO.md` | §5.2 | the roller in the demo: Generate with dice and New key unchanged in outcome |
