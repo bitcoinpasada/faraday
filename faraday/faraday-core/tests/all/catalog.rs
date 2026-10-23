@@ -4,7 +4,7 @@
 
 use faraday_core::catalog::{TILES, matches};
 use faraday_core::create::NewKind;
-use faraday_core::{Action, Faraday, Screen};
+use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware};
 
 fn shown() -> Faraday {
@@ -62,9 +62,9 @@ fn typing_on_the_page_goes_to_find_a_tool() {
     for c in "slip".chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    assert_eq!(app.catalog_find, "slip");
+    assert_eq!(testkit::catalog_find(&app), "slip");
     app.event(Event::Key(Key::Escape));
-    assert!(app.catalog_find.is_empty());
+    assert!(testkit::catalog_find(&app).is_empty());
 }
 
 #[test]

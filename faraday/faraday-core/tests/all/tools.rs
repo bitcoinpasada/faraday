@@ -5,7 +5,7 @@ use faraday_bip::hashes::hashes;
 use faraday_bip::slip132::{KeyReading, key_facts};
 use faraday_codec::encodings::read_input;
 use faraday_core::tools::Tool;
-use faraday_core::{Action, Faraday, Screen};
+use faraday_core::{Action, Faraday, Screen, testkit};
 use faraday_shell_api::{App, Event, Key};
 
 fn tool(app: &mut Faraday, t: Tool) {
@@ -26,7 +26,7 @@ fn what_is_typed_reaches_the_calculator() {
     assert_eq!(app.screen, Screen::Tools);
     tool(&mut app, Tool::Hashes);
     typed(&mut app, "abc");
-    let t = app.tools.as_ref().unwrap();
+    let t = testkit::tools(&app).unwrap();
     let h = hashes(&read_input(&t.typed, t.read_as));
     let hex: String = h.sha256.iter().map(|b| format!("{b:02x}")).collect();
     assert_eq!(
@@ -35,12 +35,12 @@ fn what_is_typed_reaches_the_calculator() {
     );
     // A new tool starts with an empty field.
     tool(&mut app, Tool::ConvertKey);
-    assert!(app.tools.as_ref().unwrap().typed.is_empty());
+    assert!(testkit::tools(&app).unwrap().typed.is_empty());
     typed(
         &mut app,
         "xpub6CatWdiZiodmUeTDp8LT5or8nmbKNcuyvz7WyksVFkKB4RHwCD3XyuvPEbvqAQY3rAPshWcMLoP2fMFMKHPJ4ZeZXYVUhLv1VMrjPC7PW6V",
     );
-    let t = app.tools.as_ref().unwrap();
+    let t = testkit::tools(&app).unwrap();
     let KeyReading::Public(f) = key_facts(&t.typed, app.session.network()) else {
         panic!("not read as a public key");
     };
@@ -55,5 +55,5 @@ fn the_units_field_takes_digits_only() {
     app.press(Action::Tools);
     tool(&mut app, Tool::Units);
     typed(&mut app, "12a3");
-    assert_eq!(app.tools.as_ref().unwrap().typed, "123");
+    assert_eq!(testkit::tools(&app).unwrap().typed, "123");
 }

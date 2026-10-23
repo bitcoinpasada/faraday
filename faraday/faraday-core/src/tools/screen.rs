@@ -22,7 +22,7 @@ fn hex(b: &[u8]) -> String {
 const GUIDE: &str = EN.tools_calculators_each;
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    if app.tools.is_none() {
+    if app.tools.state().is_none() {
         return;
     }
     // A small panel has its bar for the way back and the name, and puts
@@ -44,7 +44,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// The way back, the title and what explains the page, as the desktop
 /// draws them. Returns where the page goes on.
 fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
-    let Some(t) = app.tools.as_ref() else {
+    let Some(t) = app.tools.state() else {
         return y;
     };
     ui.icon(
@@ -69,7 +69,7 @@ fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
 /// ends.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
-    let Some(t) = app.tools.as_ref() else {
+    let Some(t) = app.tools.state() else {
         return y;
     };
     let tools: Vec<(String, Style, Action)> = Tool::ALL

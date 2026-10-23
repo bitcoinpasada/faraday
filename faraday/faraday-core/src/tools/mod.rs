@@ -119,32 +119,52 @@ pub const UNITS: [(&str, u64); 4] = [
     ("bits", 100),
 ];
 
-impl Faraday {
-    /// Opens Tools.
-    pub(crate) fn tools_open(&mut self) {
+/// Tools' state: the open calculator, and what is typed in the Tools
+/// page's Find a tool.
+#[derive(Default)]
+pub struct ToolsArea {
+    /// The calculator on show, while Tools is open.
+    tools: Option<ToolsState>,
+    /// What is typed in Tools' Find a tool.
+    catalog_find: String,
+}
+
+impl ToolsArea {
+    /// The open calculator's state, with Tools open.
+    pub fn state(&self) -> Option<&ToolsState> {
+        self.tools.as_ref()
+    }
+
+    /// What is typed in Find a tool.
+    pub fn find(&self) -> &str {
+        &self.catalog_find
+    }
+
+    /// Opens Tools, returning to `back`.
+    pub(crate) fn open(&mut self, back: Screen) {
         self.tools = Some(ToolsState {
             tool: Tool::Hashes,
             typed: crate::secret_text::SecretText::new(),
             read_as: ReadAs::Auto,
             unit: 0,
             script: PolicyScript::Segwit,
-            back: self.screen,
+            back,
             read: std::cell::RefCell::new(None),
         });
-        self.screen = Screen::Tools;
+    }
+
+    /// Closes Tools and keeps nothing.
+    pub(crate) fn close(&mut self) {
+        self.tools = None;
     }
 
     /// Costs what `account_text` costs. The loaded keys a policy may name
     /// by fingerprint: each one's multisig account key with both chains.
-    pub fn tools_keys(&self, c: &Compute) -> Vec<(String, String)> {
-        self.session
-            .keys
-            .all()
+    pub fn keys(c: &Compute, keys: &faraday_keys::Keys) -> Vec<(String, String)> {
+        keys.all()
             .enumerate()
             .filter_map(|(i, k)| {
-                let text = self
-                    .session
-                    .keys
+                let text = keys
                     .account_text(c, i, crate::create::NewKind::Multi, 0)
                     .ok()?;
                 Some((
@@ -160,15 +180,19 @@ impl Faraday {
     /// what it worked out of what is typed, kept on its state by the
     /// calculator, the text, its modes, the network and the keys a policy
     /// may name. `None` with Tools closed or nothing typed.
-    pub(crate) fn tools_reading(&self, c: &Compute) -> Option<std::rc::Rc<Reading>> {
+    pub(crate) fn reading(
+        &self,
+        c: &Compute,
+        session: &crate::wallet::Session,
+    ) -> Option<std::rc::Rc<Reading>> {
         use faraday_codec::encodings::{read as encoding_of, read_input};
         let t = self.tools.as_ref()?;
         if t.typed.trim().is_empty() {
             return None;
         }
-        let network = self.session.network();
+        let network = session.network();
         let keys = if t.tool == Tool::Miniscript {
-            self.tools_keys(c)
+            Self::keys(c, &session.keys)
         } else {
             Vec::new()
         };
@@ -209,12 +233,9 @@ impl Faraday {
         Some(reading)
     }
 
-    /// One press on the screen.
-    pub(crate) fn tools_act(&mut self, action: crate::Action) {
+    /// One press on the screen, other than opening it.
+    pub(crate) fn act(&mut self, action: crate::Action) {
         use crate::Action as A;
-        if action == A::Tools {
-            return self.tools_open();
-        }
         let Some(t) = self.tools.as_mut() else {
             return;
         };
@@ -244,17 +265,15 @@ impl Faraday {
         }
     }
 
-    /// Typing into the field. Returns whether the key was taken.
-    pub(crate) fn tools_key(&mut self, key: faraday_shell_api::Key) -> bool {
+    /// Typing into the field. Returns whether the key was taken and,
+    /// for Escape, where the screen goes back to.
+    pub(crate) fn key(&mut self, key: faraday_shell_api::Key) -> (bool, Option<Screen>) {
         use faraday_shell_api::Key as K;
-        if self.screen != Screen::Tools {
-            return false;
-        }
         let Some(t) = self.tools.as_mut() else {
-            return false;
+            return (false, None);
         };
         match key {
-            K::Char(c) if t.tool == Tool::Units && !c.is_ascii_digit() => return true,
+            K::Char(c) if t.tool == Tool::Units && !c.is_ascii_digit() => {}
             K::Char(c) => {
                 if t.typed.chars().count() < 1024 {
                     t.typed.push(c);
@@ -264,11 +283,85 @@ impl Faraday {
                 t.typed.pop();
             }
             K::Escape => {
-                self.screen = t.back;
+                let back = t.back;
                 self.tools = None;
+                return (true, Some(back));
             }
+            _ => return (false, None),
+        }
+        (true, None)
+    }
+
+    /// Typing on the Tools page goes to Find a tool. Returns whether the
+    /// key was taken.
+    pub(crate) fn find_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
+        match key {
+            K::Char(c) if !c.is_control() && self.catalog_find.chars().count() < 40 => {
+                self.catalog_find.push(c);
+            }
+            K::Backspace => {
+                self.catalog_find.pop();
+            }
+            K::Escape => self.catalog_find.clear(),
             _ => return false,
         }
+        true
+    }
+
+    /// The calculator's state, for the test kit.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn state_mut(&mut self) -> Option<&mut ToolsState> {
+        self.tools.as_mut()
+    }
+}
+
+impl Faraday {
+    /// Opens Tools.
+    pub(crate) fn tools_open(&mut self) {
+        self.tools.open(self.screen);
+        self.screen = Screen::Tools;
+    }
+
+    /// Costs what `account_text` costs. The loaded keys a policy may name
+    /// by fingerprint ([`ToolsArea::keys`]).
+    pub fn tools_keys(&self, c: &Compute) -> Vec<(String, String)> {
+        ToolsArea::keys(c, &self.session.keys)
+    }
+
+    /// Costs what the open calculator works out the first time, a lookup
+    /// after ([`ToolsArea::reading`]).
+    pub(crate) fn tools_reading(&self, c: &Compute) -> Option<std::rc::Rc<Reading>> {
+        self.tools.reading(c, &self.session)
+    }
+
+    /// One press on the screen.
+    pub(crate) fn tools_act(&mut self, action: crate::Action) {
+        if action == crate::Action::Tools {
+            return self.tools_open();
+        }
+        self.tools.act(action);
+    }
+
+    /// Typing into the field. Returns whether the key was taken.
+    pub(crate) fn tools_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        if self.screen != Screen::Tools {
+            return false;
+        }
+        let (taken, back) = self.tools.key(key);
+        if let Some(back) = back {
+            self.screen = back;
+        }
+        taken
+    }
+
+    /// Typing on the Tools page goes to Find a tool. Returns whether the
+    /// key was taken.
+    pub(crate) fn catalog_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        if self.screen != Screen::Catalog || !self.tools.find_key(key) {
+            return false;
+        }
+        self.list_offset = 0.0;
         true
     }
 }

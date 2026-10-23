@@ -613,25 +613,4 @@ impl Faraday {
             }
         }
     }
-
-    /// Typing on the Tools page goes to Find a tool. Returns whether the
-    /// key was taken.
-    pub(crate) fn catalog_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        use faraday_shell_api::Key as K;
-        if self.screen != Screen::Catalog {
-            return false;
-        }
-        match key {
-            K::Char(c) if !c.is_control() && self.catalog_find.chars().count() < 40 => {
-                self.catalog_find.push(c);
-            }
-            K::Backspace => {
-                self.catalog_find.pop();
-            }
-            K::Escape => self.catalog_find.clear(),
-            _ => return false,
-        }
-        self.list_offset = 0.0;
-        true
-    }
 }

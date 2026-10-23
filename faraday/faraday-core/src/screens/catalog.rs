@@ -36,17 +36,17 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let fx = x + width - fw;
     ui.fill(fx, y - 2.0, fw, 40.0, 8.0, BG);
     ui.stroke(fx, y - 2.0, fw, 40.0, 8.0, ACCENT.with_alpha(110));
-    let (shown, tone) = if app.catalog_find.is_empty() {
+    let (shown, tone) = if app.tools.find().is_empty() {
         (EN.catalog_find_a_tool.to_string(), DIM)
     } else {
-        (app.catalog_find.clone(), TEXT)
+        (app.tools.find().to_string(), TEXT)
     };
     let shown = ui.fit(14.0, W::R, &shown, fw - 28.0);
     let tw = ui.text_mid(fx + 12.0, y - 2.0, 40.0, 14.0, W::R, tone, &shown);
     // Typing on this page always lands here, with no click to focus it
     // first, so the caret is drawn whether or not anything is typed yet:
     // the one sign that this box is already live.
-    let caret_x = if app.catalog_find.is_empty() {
+    let caret_x = if app.tools.find().is_empty() {
         fx + 12.0
     } else {
         fx + 14.0 + tw
@@ -62,7 +62,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let tiles: Vec<(usize, &crate::catalog::Tile)> = TILES
             .iter()
             .enumerate()
-            .filter(|(_, t)| t.group == group && app.tile_shown(t) && matches(t, &app.catalog_find))
+            .filter(|(_, t)| t.group == group && app.tile_shown(t) && matches(t, app.tools.find()))
             .collect();
         if tiles.is_empty() {
             continue;

@@ -171,7 +171,7 @@ fn a_calculator_left_by_a_tap_forgets_what_was_typed() {
     assert!(!shown.is_empty());
     tap(&mut app, Action::Nav(Screen::Settings));
     assert!(
-        app.tools.is_none(),
+        testkit::tools(&app).is_none(),
         "the calculators keep nothing when left"
     );
     app.press(Action::Tools);

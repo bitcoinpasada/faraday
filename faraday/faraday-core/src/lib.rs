@@ -1265,8 +1265,6 @@ pub struct Faraday {
     pub spend: Option<SpendState>,
     /// The transaction being decoded.
     pub decode: Option<DecodeState>,
-    /// What is typed in Tools' Find a tool.
-    pub catalog_find: String,
     /// APK signing is in the app: off by default (F59).
     pub apk_signing: bool,
     /// Files read from sticks.
@@ -1383,7 +1381,7 @@ pub struct Faraday {
     /// The Lightning node key on show.
     lightning: lightning::LightningArea,
     /// Tools on show.
-    pub tools: Option<tools::ToolsState>,
+    tools: tools::ToolsArea,
     /// A secret waiting for the person to say where it goes.
     pub secret_out: Option<secrets::SecretOut>,
     /// The person has read what that secret gives away.
@@ -1637,7 +1635,6 @@ impl Faraday {
             session: Session::default(),
             spend: None,
             decode: None,
-            catalog_find: String::new(),
             apk_signing: false,
             inbox: inbox::InboxFiles::default(),
             outbox: Vec::new(),
@@ -1689,7 +1686,7 @@ impl Faraday {
             silent: silent::SilentArea::default(),
             explore: explore::ExploreArea::default(),
             lightning: lightning::LightningArea::default(),
-            tools: None,
+            tools: tools::ToolsArea::default(),
             secret_out: None,
             secret_ack: false,
             keygen_camera_on: false,
@@ -8905,7 +8902,7 @@ impl Faraday {
             self.explore.clear();
         }
         if self.screen != Screen::Tools {
-            self.tools = None;
+            self.tools.close();
         }
         // Leaving the upgrade ends it: the copier drops the source and
         // the boot partitions go back to root.

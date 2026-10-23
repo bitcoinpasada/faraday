@@ -1562,3 +1562,18 @@ pub fn explore_list_from(app: &mut crate::Faraday, from: u32) {
 pub fn explore_swap_path(app: &mut crate::Faraday, path: String) -> Option<String> {
     app.explore.swap_path(path)
 }
+
+/// The open calculator's state, while Tools is open.
+pub fn tools(app: &crate::Faraday) -> Option<&crate::tools::ToolsState> {
+    app.tools.state()
+}
+
+/// What is typed in Tools' Find a tool.
+pub fn catalog_find(app: &crate::Faraday) -> &str {
+    app.tools.find()
+}
+
+/// The open calculator's state, to set what it holds.
+pub fn tools_mut(app: &mut crate::Faraday) -> Option<&mut crate::tools::ToolsState> {
+    app.tools.state_mut()
+}

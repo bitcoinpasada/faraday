@@ -36,7 +36,7 @@ fn session() -> Faraday {
     app.explore_open();
     app.silent_open();
     app.tools_open();
-    if let Some(t) = app.tools.as_mut() {
+    if let Some(t) = testkit::tools_mut(&mut app) {
         t.tool = crate::tools::Tool::Descriptor;
         for ch in testkit::kits()[0].descriptor.chars() {
             t.typed.push(ch);
