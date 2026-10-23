@@ -448,10 +448,11 @@ pub enum Action {
     /// Fill slot s with key record r of open vault v, loading that key
     /// (`docs/history/NEW-WALLET.md` §16.1).
     CSlotVault(u8, usize, usize),
-    /// Kind's Account stepper (`docs/history/NEW-WALLET.md` §16.2, §17).
+    /// The Account row (F98): 0 its **Change**, opening the stepper;
+    /// −1 and +1 the stepper (`docs/history/NEW-WALLET.md` §16.2, §17).
     CAccount(i8),
-    /// Check's Path row **Change**: the made wallet taken back, Kind
-    /// open on its Account (`docs/history/NEW-WALLET.md` §17).
+    /// Check's Path row **Change**: the made wallet taken back, the
+    /// Account row's card open on its stepper (F98).
     CPathChange,
     /// A wallet card's **New wallet from this one**: Create filled from
     /// wallet i (`docs/history/NEW-WALLET.md` §16.2).

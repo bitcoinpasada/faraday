@@ -101,6 +101,8 @@ pub const LIST_INDENT: f32 = 40.0;
 /// What a multi-choice row's label leaves free at its right: the
 /// checkbox's place and the row's edge.
 pub const LIST_RESERVE: f32 = 50.0;
+/// A stepper's row: its buttons and the gap under them.
+pub const STEPPER_ROW: f32 = 50.0;
 /// Primary menu row height: an icon, a label and a chevron.
 pub const MENU_ROW: f32 = 72.0;
 /// Menu row height on a `small` panel, where five rows and the app bar

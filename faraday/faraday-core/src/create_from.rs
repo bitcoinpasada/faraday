@@ -303,14 +303,16 @@ impl Faraday {
         }
     }
 
-    /// Kind's Account stepper: the account every key of the creation is
-    /// used at (`docs/history/NEW-WALLET.md` §16.2, §17), for every kind that
-    /// has one.
+    /// The Account row (F98, `docs/history/NEW-WALLET.md` §16.2, §17): the
+    /// account every key of the creation is used at, for every kind that
+    /// has one. `d` 0 is the row's **Change**, which opens its stepper;
+    /// −1 and +1 step it.
     pub(crate) fn create_account_step(&mut self, d: i8) {
         if let Some(c) = self.create.state_mut()
             && c.built.is_none()
             && c.kind.has_account()
         {
+            c.account_open = true;
             c.account =
                 (i64::from(c.account) + i64::from(d)).clamp(0, i64::from(u32::MAX >> 1)) as u32;
         }
@@ -363,9 +365,11 @@ impl Faraday {
         }
     }
 
-    /// Check's Path row **Change**: the made wallet is taken back and
-    /// Kind opens on its Account. The keys stay in their slots; Keys'
-    /// Continue makes the wallet again at the account chosen.
+    /// Check's Path row **Change**: the made wallet is taken back and the
+    /// card that carries the Account row opens with its stepper open
+    /// (F98): Quorum, or Keys for a kind with no Quorum card. The keys
+    /// stay in their slots; Keys' Continue makes the wallet again at the
+    /// account chosen.
     pub(crate) fn create_take_back(&mut self) {
         if !self.create_can_take_back() {
             return;
@@ -378,7 +382,8 @@ impl Faraday {
         };
         c.done[crate::cstep::KEYS as usize] = false;
         c.done[crate::cstep::CHECK as usize] = false;
-        c.open = Some(crate::cstep::KIND);
+        c.open = Some(c.kind.account_card().unwrap_or(crate::cstep::KIND));
+        c.account_open = true;
         c.scroll.follow = true;
         c.path.clear();
         c.error = None;

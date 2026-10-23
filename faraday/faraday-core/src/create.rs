@@ -183,6 +183,20 @@ impl NewKind {
         !matches!(self, NewKind::MultiLegacy | NewKind::Threshold)
     }
 
+    /// The card that carries the kind's Account row (F98): Quorum, at its
+    /// foot, for a kind that has one; else Keys, at its head. `None` for
+    /// a kind with no account.
+    pub fn account_card(self) -> Option<u8> {
+        if !self.has_account() {
+            return None;
+        }
+        Some(if crate::create_steps(self).contains(&cstep::QUORUM) {
+            cstep::QUORUM
+        } else {
+            cstep::KEYS
+        })
+    }
+
     /// Which key text this kind is at `account` on `network`: its script's
     /// account key, or its path (`docs/history/NEW-WALLET.md` §16.2). The
     /// shares dealt here have none.
@@ -573,6 +587,9 @@ pub struct CreateState {
     /// The account every key is used at (`docs/history/NEW-WALLET.md` §16.2): 0
     /// unless the creation was started from a wallet.
     pub account: u32,
+    /// The Account row's − n + stepper is open, by its **Change** or by
+    /// Check's Path **Change** (F98); closed, the row shows the account.
+    pub account_open: bool,
     /// The wallet the creation was started from, by **New wallet from
     /// this one**.
     pub from: Option<FromWallet>,

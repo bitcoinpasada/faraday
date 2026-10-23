@@ -12,8 +12,9 @@ use faraday_crypto::work::Compute;
 /// locked, then unlocked from there with test key 1 offered under its
 /// name; a 2-of-3 over the vault's key, test key 2 here and test key
 /// 3's xpub, its card with New wallet from this one, and Create filled
-/// from it: Kind with the Account stepper, then Keys with key 3 waiting
-/// for its xpub at account 1.
+/// from it: Quorum with its Account row (F98), then Keys with key 3
+/// waiting for its xpub at account 1; a fresh single key's Check, and its
+/// Path Change back to the Account row at the head of Keys.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::create::NewKind;
@@ -111,15 +112,15 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.shot("wallet-new-from")?;
     down(t, Action::NewWalletFrom(i), "wallet-new-from-down")?;
     t.press(Action::NewWalletFrom(i));
-    t.press(Action::CStep(cstep::KIND));
-    t.shot("create-from-kind")?;
-    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CStep(cstep::QUORUM));
+    t.shot("create-from-quorum")?;
+    t.press(Action::CNext(cstep::QUORUM));
     t.press(Action::CVaults(false));
     t.press(Action::CNext(cstep::WHERE));
     t.shot("create-from-keys")?;
     down(t, Action::CSlotClear(2), "create-from-keys-down")?;
-    // A fresh single-key wallet: Check's Path, and Change back to Kind's
-    // Account (`docs/history/NEW-WALLET.md` §17).
+    // A fresh single-key wallet: Check's Path, and Change back to the
+    // Account row at the head of Keys (F98).
     t.press(Action::CreateOver);
     t.press(Action::CNext(cstep::KIND));
     t.press(Action::CVaults(false));
@@ -131,5 +132,5 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     down(t, Action::CPathChange, "create-check-path-down")?;
     t.press(Action::CPathChange);
     t.press(Action::CAccount(1));
-    t.shot("create-path-kind-account")
+    t.shot("create-path-keys-account")
 }

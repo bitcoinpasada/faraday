@@ -808,8 +808,8 @@ Back up), each doing codex32's part:
 - **Quorum** asks the scheme: **How many to rebuild it?** (2 ticked, to
   9) and **How many shares?** (k to 31, 3 ticked), the steppers of
   §6.1's Other; "None, the secret alone" is not offered here (that is
-  Single key with a codex32 seed, §6). The Account row follows, as the
-  Account work places it after Quorum.
+  Single key with a codex32 seed, §6). The Account row follows, at the
+  foot of Quorum as F98 places it.
 - **Keys** has one slot; its button opens Make codex32 shares (§6) with
   the scheme already chosen, so §6.1 is skipped, starting at the
   identifier (§6.2). Lock in fills the slot and returns to Keys.

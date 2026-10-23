@@ -5220,15 +5220,20 @@ strings! {
     /// Text in `create_body`: a slot left for a cosigner's xpub at
     /// another account. `{}`: the slot's number, the account.
     create_needs_xpub_account: "Needs Key {}'s xpub at account {}",
-    /// Text in `create_body`: the Kind card's account stepper.
+    /// Label in `account_row`: the Account row and its stepper, at the
+    /// foot of Quorum or the head of Keys (F98).
     create_account: "Account",
-    /// Kind's closed line and the proposed name of a wallet made from
-    /// another. `{}`: the kind's or the wallet's name, the account.
+    /// Button in `account_row`: opens the Account row's stepper (F98).
+    create_account_change: "Change",
+    /// The closed line of the card that carries the Account row, and the
+    /// proposed name of a wallet made from another. `{}`: the card's
+    /// line, the kind's or the wallet's name; the account.
     create_at_account: "{} · account {}",
     /// Label in `create_body`: Check's row of the made wallet's
     /// derivation paths (`docs/history/NEW-WALLET.md` §17).
     create_path: "Path",
-    /// Button in `create_body`: Check's Path row, back to Kind's Account.
+    /// Button in `create_body`: Check's Path row, back to the Account
+    /// row (F98).
     create_path_change: "Change",
     /// Text in Check's Path row: a key that came with no origin.
     create_path_not_given: "no path given",

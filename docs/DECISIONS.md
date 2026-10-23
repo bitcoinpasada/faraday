@@ -69,7 +69,7 @@ Read this table, then only the decision you need.
 | [F52](decisions/F52.md) | At most one place per key; partial descriptions by one button | 2026-10-19 | Active | backup |
 | [F53](decisions/F53.md) | One way to start a backup; Customize for the rest | 2026-10-20 | Active | backup |
 | [F54](decisions/F54.md) | A ⋮ on every file; files renamed | 2026-10-20 | Active | stick |
-| [F55](decisions/F55.md) | The derivation path on Check, its account on Kind | 2026-10-20 | Active | wallets |
+| [F55](decisions/F55.md) | The derivation path on Check, its account on Kind | 2026-10-20 | Amended by F98 | wallets |
 | [F56](decisions/F56.md) | Seeds alone spend; a place says how near it brings a spend | 2026-10-20 | Active | backup |
 | [F57](decisions/F57.md) | A new vault's slots go by the vault's name | 2026-10-20 | Active | vault |
 | [F58](decisions/F58.md) | No idle lock while a new wallet's keys are kept nowhere; 30 and 60 minutes | 2026-10-20 | Active | backup |
@@ -112,3 +112,4 @@ Read this table, then only the decision you need.
 | [F95](decisions/F95.md) | Codex32QR/v1-48: read, shown, tested | 2026-10-22 | Active | keys |
 | [F96](decisions/F96.md) | Faraday Desktop's dice rollers | 2026-10-22 | Active | keys |
 | [F97](decisions/F97.md) | .oskb files are no longer read; the vault's record layouts are its own | 2026-10-23 | Active | backup |
+| [F98](decisions/F98.md) | A new wallet's account is asked after its quorum, not on Kind | 2026-10-23 | Active | wallets |

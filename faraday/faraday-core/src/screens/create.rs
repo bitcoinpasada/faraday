@@ -10,6 +10,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::{FileKind, fp_text, key_line};
 use crate::{Action, Code, Screen, flow, guide};
+use faraday_draw::tokens;
 use faraday_ui::parts::button_rows;
 
 pub(crate) const CSTEPS: [&str; crate::cstep::COUNT] = [
@@ -44,48 +45,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             } else {
                 CSTEPS[k as usize].to_string()
             },
-            summary: match k {
-                cstep::WHERE | cstep::HOW_MANY | cstep::STICKS | cstep::VAULTS => {
-                    create_flow_summary(app, k)
-                }
-                // A wallet made from another, or at another account than
-                // 0, says its account (`docs/history/NEW-WALLET.md` §16.2, §17).
-                cstep::KIND if (c.from.is_some() || c.account != 0) && c.kind.has_account() => {
-                    fill(
-                        EN.create_at_account,
-                        &[c.kind.name(), &c.account.to_string()],
-                    )
-                }
-                cstep::KIND => c.kind.name().to_string(),
-                cstep::QUORUM => fill(EN.create_threshold, &[&c.m.to_string(), &c.n.to_string()]),
-                cstep::KEYS if c.kind.threshold() => fill(
-                    EN.create_of_chosen_computed,
-                    &[
-                        &filled.to_string(),
-                        &c.slots.len().to_string(),
-                        &(c.n - c.m).to_string(),
-                    ],
-                ),
-                cstep::KEYS => match app.create_waiting() {
-                    0 => fill(
-                        EN.create_of_chosen,
-                        &[&filled.to_string(), &c.slots.len().to_string()],
-                    ),
-                    k => fill(
-                        EN.create_slots_progress,
-                        &[
-                            &(filled - k).to_string(),
-                            &c.slots.len().to_string(),
-                            &k.to_string(),
-                        ],
-                    ),
-                },
-                cstep::CHECK => match c.built.and_then(|i| app.session.wallets.get(i)) {
-                    Some(w) => fill(EN.create_first_addresses, &[&w.name.to_string()]),
-                    None => EN.create_not_made_yet.to_string(),
-                },
-                _ => EN.create_opens_on_standard.to_string(),
-            },
+            summary: card_summary(app, k, filled),
             mono: false,
             done: app.create_card_done(k),
             open: c.open == Some(k),
@@ -123,6 +83,56 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::Create, next, again);
+}
+
+/// The closed line of Make a new wallet's card `k`, with the account on
+/// the card that carries the Account row (F98); `filled`, the slots with
+/// a key.
+fn card_summary(app: &View, k: u8, filled: usize) -> String {
+    use crate::cstep;
+    let Some(c) = app.create.state() else {
+        return String::new();
+    };
+    let line = match k {
+        cstep::WHERE | cstep::HOW_MANY | cstep::STICKS | cstep::VAULTS => {
+            create_flow_summary(app, k)
+        }
+        cstep::KIND => c.kind.name().to_string(),
+        cstep::QUORUM => fill(EN.create_threshold, &[&c.m.to_string(), &c.n.to_string()]),
+        cstep::KEYS if c.kind.threshold() => fill(
+            EN.create_of_chosen_computed,
+            &[
+                &filled.to_string(),
+                &c.slots.len().to_string(),
+                &(c.n - c.m).to_string(),
+            ],
+        ),
+        cstep::KEYS => match app.create_waiting() {
+            0 => fill(
+                EN.create_of_chosen,
+                &[&filled.to_string(), &c.slots.len().to_string()],
+            ),
+            k => fill(
+                EN.create_slots_progress,
+                &[
+                    &(filled - k).to_string(),
+                    &c.slots.len().to_string(),
+                    &k.to_string(),
+                ],
+            ),
+        },
+        cstep::CHECK => match c.built.and_then(|i| app.session.wallets.get(i)) {
+            Some(w) => fill(EN.create_first_addresses, &[&w.name.to_string()]),
+            None => EN.create_not_made_yet.to_string(),
+        },
+        _ => EN.create_opens_on_standard.to_string(),
+    };
+    // A wallet made from another, or at an account other than 0, says
+    // its account (`docs/history/NEW-WALLET.md` §16.2, §17).
+    if c.kind.account_card() == Some(k) && (c.from.is_some() || c.account != 0) {
+        return fill(EN.create_at_account, &[&line, &c.account.to_string()]);
+    }
+    line
 }
 
 /// The closed line of Make a new wallet's cards before Keys: what the
@@ -244,22 +254,6 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 Action::CMoreKinds,
             );
             cy += 6.0;
-            // The account its keys are used at, for every kind whose
-            // path has one (`docs/history/NEW-WALLET.md` §16.2, §17).
-            if c.kind.has_account() {
-                stepper(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    EN.create_account,
-                    c.account as usize,
-                    Action::CAccount(-1),
-                    Action::CAccount(1),
-                    !locked,
-                );
-                cy += 50.0;
-            }
             let over: &[(&str, Style, Action)] = if app.create_unfinished() {
                 &[(EN.create_start_over, Style::Ghost, Action::CreateOver)]
             } else {
@@ -291,7 +285,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             };
             for &(label, value, minus, plus) in rows {
                 stepper(ui, x, cy, w, label, value, minus, plus, !locked);
-                cy += 50.0;
+                cy += tokens::STEPPER_ROW;
             }
             let sentence = if c.kind.all_sign() {
                 fill(EN.create_all_keys_sign, &[&c.n.to_string()])
@@ -312,11 +306,20 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 )
             };
             cy += ui.wrap(x, cy, w, 13.0, W::R, TEXT, &sentence) + 14.0;
+            // The account, below the quorum (F98).
+            if c.kind.account_card() == Some(n) {
+                cy += account_row(ui, x, cy, w, c);
+            }
             if next_button(ui, x, cy, w, EN.create_continue, Action::CNext(n)) {
                 cy += 48.0;
             }
         }
         cstep::KEYS => {
+            // The account, at the head of Keys for a kind with no Quorum
+            // card (F98).
+            if c.kind.account_card() == Some(n) {
+                cy += account_row(ui, x, cy, w, c);
+            }
             let key_files: Vec<(usize, String, String)> = app
                 .inbox
                 .iter()
@@ -717,27 +720,74 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// Check's Path row: the made wallet's derivation paths, worked out when
-/// it was made, with **Change** back to Kind's Account while the wallet
-/// can be taken back (`docs/history/NEW-WALLET.md` §17). Nothing when there is no
-/// path. Returns its height.
+/// it was made, with **Change** back to the Account row while the wallet
+/// can be taken back (F98, `docs/history/NEW-WALLET.md` §17). Nothing when
+/// there is no path. Returns its height.
 fn path_row(ui: &mut Ui, x: f32, y: f32, w: f32, path: &str, change: bool) -> f32 {
     if path.is_empty() {
         return 0.0;
     }
-    let bw = ui.measure(13.0, W::S, EN.create_path_change) + 32.0;
-    let vw = if change { w - bw - 10.0 } else { w };
-    ui.text(x, y, 12.0, W::R, MUTED, EN.create_path);
-    let vh = ui.wrap(x, y + 20.0, vw, 13.0, W::M, TEXT, path).max(18.0);
+    let change = change.then_some((EN.create_path_change, Action::CPathChange));
+    change_row(ui, x, y, w, EN.create_path, path, change)
+}
+
+/// The Account row (F98), for a kind whose path has an account: its
+/// value with **Change**, or, once Change is pressed, its − n + stepper.
+/// The made wallet's row has no Change. Returns its height.
+fn account_row(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::CreateState) -> f32 {
+    let locked = c.built.is_some();
+    if c.account_open && !locked {
+        stepper(
+            ui,
+            x,
+            y,
+            w,
+            EN.create_account,
+            c.account as usize,
+            Action::CAccount(-1),
+            Action::CAccount(1),
+            true,
+        );
+        return tokens::STEPPER_ROW;
+    }
+    let change = (!locked).then_some((EN.create_account_change, Action::CAccount(0)));
+    change_row(
+        ui,
+        x,
+        y,
+        w,
+        EN.create_account,
+        &c.account.to_string(),
+        change,
+    )
+}
+
+/// A value row: `label` above, `value` mono and wrapped below, and a
+/// **Change** button at the right when `change` is given. Returns its
+/// height.
+fn change_row(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    label: &str,
+    value: &str,
+    change: Option<(&str, Action)>,
+) -> f32 {
+    let bw = change.map_or(0.0, |(l, _)| ui.measure(13.0, W::S, l) + 32.0);
+    let vw = if change.is_some() { w - bw - 10.0 } else { w };
+    ui.text(x, y, 12.0, W::R, MUTED, label);
+    let vh = ui.wrap(x, y + 20.0, vw, 13.0, W::M, TEXT, value).max(18.0);
     let h = 20.0 + vh + 8.0;
-    if change {
+    if let Some((l, action)) = change {
         ui.button(
             x + w - bw,
             y + (h - 34.0) / 2.0,
             Some(bw),
             34.0,
-            EN.create_path_change,
+            l,
             Style::Ghost,
-            Action::CPathChange,
+            action,
         );
     }
     ui.rule(x, y + h, w, INNER);

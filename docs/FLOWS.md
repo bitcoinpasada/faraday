@@ -848,15 +848,20 @@ guarantees for this file's rule:
   (offered with wallets loaded as well; the Spend tab lights **Wallets**
   in the sidebar) and last **Add a key**, "Keys first, wallets later"
   (decision 50).
-- **Make a new wallet** (decisions 17, 20 and 37; F53, F55). The cards
-  are Kind · Quorum · Keys · Check · Back up; Kind opens first. Kind
-  offers Single key and Multisig, both native SegWit; the other eight
-  kinds are behind **More kinds**. Kind carries an **Account** − n +
-  stepper for every kind whose path has one, starting at 0. Keys'
-  Continue makes the wallet; Check shows the descriptor as a summary row
-  that opens its code with the whole text under it, a **Path** row under
-  it with **Change** (which takes the made wallet back and opens Kind on
-  its Account), and the section label **The wallet's first addresses**
+- **Make a new wallet** (decisions 17, 20 and 37; F53, F55, F98). The
+  cards are Kind · Quorum · Keys · Check · Back up; Kind opens first.
+  Kind offers Single key and Multisig, both native SegWit; the other
+  eight kinds are behind **More kinds**. Every kind whose path has an
+  account has an **Account** row, at the foot of Quorum under the
+  quorum's line, or at the head of Keys for a kind with no Quorum card:
+  "Account" and its number, starting at 0, with **Change**, which opens
+  the − n + stepper in its place. The card that carries it says the
+  account on its closed line ("2 of 3 · account 1") when it is not 0.
+  Keys' Continue makes the wallet; Check shows the descriptor as a
+  summary row that opens its code with the whole text under it, a
+  **Path** row under it with **Change** (which takes the made wallet
+  back and opens the Account row's card on its stepper), and the
+  section label **The wallet's first addresses**
   above the address rows, so that a multisig's three rows do not read as
   one address per key. Back up has one button, **Back up this wallet**,
   which opens the backup on the new wallet (its chip "Then: Wallets", its
@@ -969,8 +974,9 @@ guarantees for this file's rule:
   Rename (on a small panel, in its list of buttons) for every kind
   Create makes but a threshold wallet. It
   opens Create filled from the wallet: Kind and Quorum closed with their
-  values, Kind carrying an **Account** − n + stepper starting at the
-  lowest account no loaded wallet of the same keys and kind uses; each
+  values, the **Account** row (on Quorum, or at the head of Keys, as for
+  any new wallet) starting at the lowest account no loaded wallet of the
+  same keys and kind uses; each
   slot its key, loaded from an open vault where it is kept there; a
   cosigner's key held only as an xpub stays at the wallet's own account
   and script type, and otherwise its slot is Someone else reading

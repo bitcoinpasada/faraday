@@ -5764,7 +5764,7 @@ fn change_the_plan_from_a_wallet_flow_opens_its_board() {
     assert!(app.offers(Action::Board(BoardPress::Zone(Zone::Paper(0)))));
 }
 
-/// NEW-WALLET §17 (F55): with the vaults set up before the keys, Check's
+/// NEW-WALLET §17 (F55, F98): with the vaults set up before the keys, Check's
 /// Path Change takes the wallet back and the remade wallet, at another
 /// account, is the one the backup is for.
 #[test]
@@ -5795,10 +5795,7 @@ fn a_wallet_taken_back_from_check_after_the_vault_setup_backs_up_as_remade() {
         "the wallet is taken back"
     );
     app.press(Action::CAccount(1));
-    app.press(Action::CNext(cstep::KIND));
-    if app.create().unwrap().built.is_none() {
-        app.press(Action::CNext(cstep::KEYS));
-    }
+    app.press(Action::CNext(cstep::KEYS));
     let w = app.create().unwrap().built.expect("wallet made again");
     assert_eq!(app.session.wallets.len(), wallets, "one wallet, not two");
     let sum = app.session.wallets[w].checksum().to_string();

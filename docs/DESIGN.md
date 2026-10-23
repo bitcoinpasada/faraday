@@ -195,7 +195,8 @@ whole where it is read.
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Path | A mono string, `m/84h/0h/0h/0/0`. As a row: "Path" above, the paths below, wrapped, with **Change** at the right while the wallet can be taken back (`path_row`, Create's Check). | **Change** goes back to Kind's Account. |
+| Path | A mono string, `m/84h/0h/0h/0/0`. As a row: "Path" above, the paths below, wrapped, with **Change** at the right while the wallet can be taken back (`path_row`, Create's Check). | **Change** goes back to the Account row (F98). |
+| Account | Create's account, as the Path row is drawn: "Account" above, the number below, with **Change** at the right (`account_row`), at the foot of Quorum or the head of Keys (F98). | **Change** puts the Stepper (§4.2) in its place. |
 | Path field | Explore's path: a field typed on the path keyboard (`KeyboardKind::Path`), with **Index -1** and **Index +1** beside it. | The values under it follow the path as it is typed. |
 | Script type | Named in one vocabulary: Native SegWit, Nested SegWit, Taproot, Legacy; on Explore one button each (`explore::screen::script_name`), in a wallet's shape after its kind ("Single key · native SegWit"). | Never "BIP-84" or "p2wpkh" on a working screen. |
 
