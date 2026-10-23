@@ -287,6 +287,8 @@ words by hand.
 
 ## New key and Add a key
 
+Codex32's planned flows (making shares, checking a string, corrections) are `docs/CODEX32.md`.
+
 **Add a key is New key, opening on Start** (decision 60, F44). New key's
 first card is **Start**: **Make a new key** (ticked), **Type the
 words**, **Scan a SeedQR**, and under **Other forms** (closed) **Make
