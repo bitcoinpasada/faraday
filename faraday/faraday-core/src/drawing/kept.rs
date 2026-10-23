@@ -468,7 +468,7 @@ impl View<'_> {
         key: &faraday_keys::KeyInfo,
     ) -> plan::CopyChecks {
         self.copy_forms(b, i).checks(
-            !self.cameras.is_empty(),
+            !self.cameras().is_empty(),
             key.language == faraday_bip::bip39::Language::English,
         )
     }

@@ -33,7 +33,139 @@ pub(crate) enum Found {
     None,
 }
 
+/// The camera's area: the scan sheet's state, a transfer in parts kept
+/// across closing the camera, and the cameras the shell can open.
+#[derive(Default)]
+pub(crate) struct Camera {
+    /// The camera sheet.
+    scan: Option<ScanState>,
+    /// A transfer in parts the camera was closed on, kept for the next
+    /// scan.
+    parts: Option<(faraday_codec::ur::Decoder, faraday_qr::Assembler)>,
+    /// The cameras the shell can open (id, name). With none, the
+    /// backup's seeds step checks a copy by its typed numbers instead of
+    /// the camera.
+    cameras: Vec<(String, String)>,
+    /// The one chosen, by id; the shell's first when none is.
+    chosen: Option<String>,
+    /// A camera chosen that the shell has not opened yet.
+    change: Option<String>,
+    /// Files made of codes read, for their names.
+    scanned: u32,
+}
+
+impl Camera {
+    /// The scan sheet's state, while it is open.
+    pub(crate) fn scan(&self) -> Option<&ScanState> {
+        self.scan.as_ref()
+    }
+
+    /// The scan sheet's state to change: the one door the code routing
+    /// writes the sheet's note, frame and decoders through.
+    pub(crate) fn scan_mut(&mut self) -> Option<&mut ScanState> {
+        self.scan.as_mut()
+    }
+
+    /// Opens the scan sheet's state (the caller shows the sheet and
+    /// turns the camera on).
+    pub(crate) fn open(&mut self, scan: ScanState) {
+        self.scan = Some(scan);
+    }
+
+    /// Drops the scan sheet's state.
+    pub(crate) fn close(&mut self) {
+        self.scan = None;
+    }
+
+    /// Takes the scan sheet's state out, as closing it.
+    pub(crate) fn take(&mut self) -> Option<ScanState> {
+        self.scan.take()
+    }
+
+    /// Puts `scan` in place and gives back what was there.
+    pub(crate) fn swap(&mut self, scan: Option<ScanState>) -> Option<ScanState> {
+        std::mem::replace(&mut self.scan, scan)
+    }
+
+    /// Closing the camera: a transfer in parts under way, but not
+    /// Transfer's own, waits for the next scan.
+    pub(crate) fn keep_parts(&mut self) {
+        if let Some(s) = self.scan.as_mut()
+            && s.in_parts()
+            && s.purpose != ScanPurpose::Transfer
+        {
+            self.parts = Some((
+                std::mem::take(&mut s.decoder),
+                std::mem::take(&mut s.assembler),
+            ));
+        }
+    }
+
+    /// The transfer in parts kept, once.
+    pub(crate) fn take_parts(
+        &mut self,
+    ) -> Option<(faraday_codec::ur::Decoder, faraday_qr::Assembler)> {
+        self.parts.take()
+    }
+
+    /// The cameras the shell can open.
+    pub(crate) fn cameras(&self) -> &[(String, String)] {
+        &self.cameras
+    }
+
+    /// Takes the shell's list; whether it differs from the last.
+    pub(crate) fn set_cameras(&mut self, list: Vec<(String, String)>) -> bool {
+        if self.cameras == list {
+            return false;
+        }
+        self.cameras = list;
+        true
+    }
+
+    /// The camera chosen, by id.
+    pub(crate) fn chosen(&self) -> Option<&str> {
+        self.chosen.as_deref()
+    }
+
+    /// Chooses the `i`th camera for the shell to open; whether there is
+    /// one.
+    pub(crate) fn choose(&mut self, i: usize) -> bool {
+        let Some((id, _)) = self.cameras.get(i) else {
+            return false;
+        };
+        self.chosen = Some(id.clone());
+        self.change = Some(id.clone());
+        true
+    }
+
+    /// The camera chosen since the last call.
+    pub(crate) fn take_change(&mut self) -> Option<String> {
+        self.change.take()
+    }
+
+    /// The number the next file made of a code read is named by.
+    pub(crate) fn next_number(&mut self) -> u32 {
+        self.scanned += 1;
+        self.scanned
+    }
+}
+
 impl Faraday {
+    /// The scan sheet's state, while the camera sheet is open.
+    pub fn scan(&self) -> Option<&ScanState> {
+        self.camera.scan()
+    }
+
+    /// The cameras the shell can open.
+    pub fn cameras(&self) -> &[(String, String)] {
+        self.camera.cameras()
+    }
+
+    /// The camera chosen, by id.
+    pub fn camera(&self) -> Option<&str> {
+        self.camera.chosen()
+    }
+
     /// Whether loaded wallet `w` has enough keys here to sign.
     pub fn can_spend(&self, w: usize) -> bool {
         self.session
@@ -144,14 +276,14 @@ impl Faraday {
     pub(crate) fn wallet_key_scanned(&mut self, w: usize, words: &str) {
         let c = self.compute();
         let Some(fp) = key_of(&c, words, "") else {
-            if let Some(scan) = self.scan.as_mut() {
+            if let Some(scan) = self.camera.scan_mut() {
                 scan.note = Some(EN.scan_key_not_a_seedqr.to_string());
             }
             return;
         };
         match self.wallet_key_found(w, fp) {
             Found::Here(n) => {
-                if let Some(scan) = self.scan.as_mut() {
+                if let Some(scan) = self.camera.scan_mut() {
                     scan.note = Some(fill(EN.scan_key_key_already, &[&(n + 1).to_string()]));
                 }
             }
@@ -164,7 +296,7 @@ impl Faraday {
                 {
                     Ok(_) => self.wallet_key_added(w, n),
                     Err(e) => {
-                        if let Some(scan) = self.scan.as_mut() {
+                        if let Some(scan) = self.camera.scan_mut() {
                             scan.note = Some(e.text());
                         }
                     }
@@ -205,7 +337,7 @@ impl Faraday {
     pub(crate) fn wallet_key_said(&mut self, w: usize, n: usize) {
         let short = self.keys_short(w);
         if short > 0
-            && let Some(scan) = self.scan.as_mut()
+            && let Some(scan) = self.camera.scan_mut()
         {
             scan.note = Some(fill(
                 EN.scan_key_key_added_more,
@@ -213,7 +345,7 @@ impl Faraday {
             ));
             return;
         }
-        if self.scan.take().is_some() {
+        if self.camera.take().is_some() {
             self.out.commands.push_back(Command::CameraOff);
             if self.sheet == Some(Sheet::Scan) {
                 self.sheet = None;
@@ -236,20 +368,18 @@ impl Faraday {
         match action {
             Action::ScanPaste => self.scan_paste(),
             Action::ScanCamera(i) => {
-                if let Some((id, _)) = self.cameras.get(usize::from(i)) {
-                    self.camera = Some(id.clone());
-                    self.camera_change = Some(id.clone());
-                    if let Some(s) = self.scan.as_mut() {
-                        s.seen = None;
-                        s.too_fine = 0;
-                    }
+                if self.camera.choose(usize::from(i))
+                    && let Some(s) = self.camera.scan_mut()
+                {
+                    s.seen = None;
+                    s.too_fine = 0;
                 }
             }
             Action::ScanPart => {
                 if self.may_load_keys() {
                     let mut scan = ScanState::default();
                     scan.purpose = ScanPurpose::KeyPart;
-                    self.scan = Some(scan);
+                    self.camera.open(scan);
                     self.sheet = Some(Sheet::Scan);
                     self.out.commands.push_back(Command::CameraOn);
                 }
@@ -258,7 +388,7 @@ impl Faraday {
                 if self.may_load_keys() {
                     let mut scan = ScanState::default();
                     scan.purpose = ScanPurpose::Seed;
-                    self.scan = Some(scan);
+                    self.camera.open(scan);
                     self.sheet = Some(Sheet::Scan);
                     self.out.commands.push_back(Command::CameraOn);
                 }
@@ -267,19 +397,19 @@ impl Faraday {
                 if self.may_load_keys() && w < self.session.wallets.len() {
                     let mut scan = ScanState::default();
                     scan.purpose = ScanPurpose::WalletKey(w);
-                    self.scan = Some(scan);
+                    self.camera.open(scan);
                     self.sheet = Some(Sheet::Scan);
                     self.out.commands.push_back(Command::CameraOn);
                 }
             }
             Action::Scan => {
                 let mut scan = ScanState::default();
-                if let Some((decoder, assembler)) = self.scan_parts.take() {
+                if let Some((decoder, assembler)) = self.camera.take_parts() {
                     scan.decoder = decoder;
                     scan.assembler = assembler;
                     scan.note = Some(EN.act_carrying_on_parts.to_string());
                 }
-                self.scan = Some(scan);
+                self.camera.open(scan);
                 self.sheet = Some(Sheet::Scan);
                 self.out.commands.push_back(Command::CameraOn);
             }
@@ -342,7 +472,7 @@ impl Faraday {
     /// check's (`docs/QR.md` §8 item 5).
     pub fn scan_pastes(&self) -> bool {
         self.sheet == Some(Sheet::Scan)
-            && self.scan.as_ref().is_some_and(|s| match s.purpose {
+            && self.camera.scan().is_some_and(|s| match s.purpose {
                 ScanPurpose::Files | ScanPurpose::Transfer | ScanPurpose::Intake => true,
                 ScanPurpose::Seed | ScanPurpose::KeyPart | ScanPurpose::WalletKey(_) => {
                     self.clipboard
@@ -356,7 +486,7 @@ impl Faraday {
     /// do you have?, on a shell with a clipboard.
     fn scan_takes_pasted_seed(&self) -> bool {
         self.clipboard
-            && self.scan.as_ref().is_some_and(|s| {
+            && self.camera.scan().is_some_and(|s| {
                 matches!(
                     s.purpose,
                     ScanPurpose::Seed
@@ -392,7 +522,7 @@ impl Faraday {
         let seeds = self.scan_takes_pasted_seed();
         let until = self.now_ms + faraday_draw::tokens::NOTE_FLASH_MS;
         let t = text.trim();
-        if let Some(scan) = self.scan.as_mut() {
+        if let Some(scan) = self.camera.scan_mut() {
             if t.is_empty() {
                 scan.nothing_to_paste = Some(until);
                 return;

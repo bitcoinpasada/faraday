@@ -25,7 +25,7 @@ fn read_png(png: &[u8]) -> String {
 
 /// The code the QR sheet shows, as a camera reads it.
 fn shown(app: &Faraday) -> String {
-    let q = app.qr.as_ref().expect("no QR sheet");
+    let q = app.qr().expect("no QR sheet");
     assert_eq!(q.frames.len(), 1, "{}: one code", q.title);
     read_png(&faraday_codec::png::qr_png(&q.frames[0], 4))
 }
@@ -52,7 +52,7 @@ fn text(bytes: &[u8]) -> String {
 /// The text the picture of the sheet's code is labelled with, its
 /// wrapped lines joined.
 fn label(app: &Faraday) -> String {
-    let q = app.qr.as_ref().expect("no QR sheet");
+    let q = app.qr().expect("no QR sheet");
     faraday_core::picture::draw(&q.frames[0], &q.title, &q.label)
         .ink()
         .iter()
@@ -69,7 +69,7 @@ fn label(app: &Faraday) -> String {
 fn reads_back(app: &mut Faraday, code: Code, png: &str, want: &str) {
     app.press(Action::ShowCode(code));
     assert_eq!(shown(app).trim(), want.trim(), "{code:?} shown");
-    assert!(app.qr.as_ref().unwrap().offers_png(), "{code:?}");
+    assert!(app.qr().unwrap().offers_png(), "{code:?}");
     app.press(Action::QrPng);
     assert_eq!(read_png(&outbox(app, png)).trim(), want.trim(), "{png}");
     app.press(Action::Cancel);
@@ -179,7 +179,7 @@ fn a_cosigners_key_reads_back_from_its_code_and_its_picture() {
     let want = plain(&text(&outbox(&app, &format!("xpub-{fp}.txt"))));
     // Shown as Sparrow and SeedSigner read a wsh key: ur:crypto-account.
     app.press(Action::CKeyQr(0));
-    let q = app.qr.as_ref().unwrap();
+    let q = app.qr().unwrap();
     assert!(q.offers_png());
     let sheet = faraday_codec::png::qr_png(&q.frames[0], 4);
     assert_eq!(key_scanned("sheet.png", &sheet), want);
@@ -408,7 +408,7 @@ fn a_secret_shown_as_a_code_offers_no_picture() {
         kept: Vec::new(),
     });
     app.press(Action::QrOutbox(0));
-    let q = app.qr.as_ref().expect("no QR");
+    let q = app.qr().expect("no QR");
     assert!(q.secret);
     assert!(!q.offers_png());
     app.press(Action::QrPng);
@@ -432,7 +432,7 @@ fn files_show_as_qr_is_the_file_and_offers_no_picture() {
     });
     app.press(Action::QrOutbox(0));
     assert_eq!(shown(&app), spending.descriptor);
-    assert!(!app.qr.as_ref().unwrap().offers_png());
+    assert!(!app.qr().unwrap().offers_png());
     app.press(Action::QrPng);
     assert_eq!(app.outbox.len(), 1);
 }

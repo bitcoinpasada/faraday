@@ -567,7 +567,7 @@ impl Faraday {
             Screen::Upgrade => self.upgrade.state().is_some(),
             Screen::CreateVault => self.vaults.create.is_some(),
             Screen::BackupFlow => self.flow().is_some(),
-            Screen::Decode => self.decode.is_some(),
+            Screen::Decode => self.decode().is_some(),
             Screen::CheckMessage => self.checking.is_some(),
             Screen::Visit => !self.sticks.is_empty(),
             Screen::Transfer => self.online,

@@ -808,7 +808,7 @@ impl Faraday {
                 if let Some(fp) = fp {
                     let mut scan = ScanState::default();
                     scan.purpose = ScanPurpose::CheckCopy(fp);
-                    self.scan = Some(scan);
+                    self.camera.open(scan);
                     self.sheet = Some(Sheet::Scan);
                     self.out.commands.push_back(Command::CameraOn);
                 }

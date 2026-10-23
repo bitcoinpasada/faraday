@@ -854,7 +854,7 @@ pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(sc) = app.scan.as_ref() else { return };
+    let Some(sc) = app.scan() else { return };
     let pad = if ui.compact { 16.0 } else { 32.0 };
     let side_w = if ui.compact {
         w - 16.0 - 2.0 * pad
@@ -863,8 +863,8 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let side_h = side_w * 0.75;
     let sw = side_w + 2.0 * pad;
-    let rows = if ui.compact && app.cameras.len() > 1 {
-        app.cameras.len() as f32 * 40.0
+    let rows = if ui.compact && app.cameras().len() > 1 {
+        app.cameras().len() as f32 * 40.0
     } else {
         0.0
     };
@@ -986,10 +986,10 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         0.0
     };
     // Which camera, when there is more than one.
-    if app.cameras.len() > 1 && ui.compact {
-        let chosen = app.camera.as_deref();
+    if app.cameras().len() > 1 && ui.compact {
+        let chosen = app.camera();
         let row: Vec<(String, Style, Action)> = app
-            .cameras
+            .cameras()
             .iter()
             .enumerate()
             .map(|(i, (id, name))| {
@@ -1002,10 +1002,10 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             })
             .collect();
         button_rows(ui, x + 32.0, y + top + side_h + 12.0, sw - 64.0, &row);
-    } else if app.cameras.len() > 1 {
-        let chosen = app.camera.as_deref();
+    } else if app.cameras().len() > 1 {
+        let chosen = app.camera();
         let row: Vec<(String, Style, Action)> = app
-            .cameras
+            .cameras()
             .iter()
             .enumerate()
             .map(|(i, (id, name))| {
@@ -1175,7 +1175,7 @@ fn viewfinder_over(
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(q) = app.qr.as_ref() else { return };
+    let Some(q) = app.qr() else { return };
     if ui.compact {
         qr_sheet_compact(app, q, ui, w, h);
         return;

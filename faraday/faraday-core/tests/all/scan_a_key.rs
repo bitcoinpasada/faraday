@@ -119,14 +119,11 @@ fn scan_seedqr(app: &mut Faraday, words: &str) {
 }
 
 fn camera_on(app: &Faraday) -> bool {
-    app.sheet == Some(Sheet::Scan) && app.scan.is_some()
+    app.sheet == Some(Sheet::Scan) && app.scan().is_some()
 }
 
 fn note(app: &Faraday) -> String {
-    app.scan
-        .as_ref()
-        .and_then(|s| s.note.clone())
-        .unwrap_or_default()
+    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
 }
 
 /// The Savings wallet alone loaded, with none of its keys.
@@ -287,7 +284,7 @@ fn with_a_stick_attached_scan_a_key_asks_for_it_to_be_pulled() {
     let _ = app.frame();
     app.press(Action::ScanKey(w));
     assert_eq!(app.sheet, Some(Sheet::Pull));
-    assert!(app.scan.is_none(), "the camera turned on");
+    assert!(app.scan().is_none(), "the camera turned on");
 }
 
 #[test]

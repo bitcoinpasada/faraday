@@ -188,7 +188,7 @@ impl Faraday {
     /// key as typed words, which says what is wrong with them.
     pub(crate) fn seed_read_open(&mut self, words: &str) {
         let c = self.compute();
-        self.scan = None;
+        self.camera.close();
         self.out
             .commands
             .push_back(faraday_shell_api::Command::CameraOff);
@@ -210,7 +210,7 @@ impl Faraday {
     /// its passphrase, saying why.
     pub(crate) fn seed_read_for_wallet(&mut self, words: &str, w: usize, reason: String) {
         let c = self.compute();
-        self.scan = None;
+        self.camera.close();
         self.out
             .commands
             .push_back(faraday_shell_api::Command::CameraOff);

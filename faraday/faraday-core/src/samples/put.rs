@@ -455,7 +455,7 @@ impl Faraday {
         if self.sheet != Some(Sheet::Scan) {
             return false;
         }
-        let Some(scan) = self.scan.as_ref() else {
+        let Some(scan) = self.camera.scan() else {
             return false;
         };
         match scan.purpose {
@@ -477,7 +477,7 @@ impl Faraday {
     /// What the Sample tile on the scanner on screen hands over, as the
     /// words on it: a lookup.
     pub fn scan_sample_label(&self) -> &'static str {
-        let purpose = self.scan.as_ref().map(|s| s.purpose);
+        let purpose = self.camera.scan().map(|s| s.purpose);
         match purpose {
             Some(ScanPurpose::Seed) => EN.scan_sample_seed,
             Some(ScanPurpose::KeyPart) => EN.scan_sample_share,
@@ -506,7 +506,7 @@ impl Faraday {
         let Some(bytes) = self.sample_spend(&c, set) else {
             return;
         };
-        let had = self.scan.is_some();
+        let had = self.camera.scan().is_some();
         if !had {
             let holding = self.screen == Screen::Family
                 && self.family.open
@@ -517,11 +517,11 @@ impl Faraday {
             } else {
                 ScanPurpose::Files
             };
-            self.scan = Some(scan);
+            self.camera.open(scan);
         }
         self.scanned(bytes.to_vec());
         if !had {
-            self.scan = None;
+            self.camera.close();
         }
     }
 
@@ -566,13 +566,13 @@ impl Faraday {
     /// Costs a wallet read for each sample wallet. What the Sample tile
     /// scans for the scanner on screen, and moves the tile's cursor.
     fn scan_sample_bytes(&mut self, c: &Compute, set: &'static Samples) -> Option<Vec<u8>> {
-        let scan = self.scan.as_ref()?;
+        let scan = self.camera.scan()?;
         let (purpose, cursor) = (scan.purpose, scan.sample);
         match purpose {
             ScanPurpose::Seed => {
                 let cands: Vec<usize> = english_keys(set).map(|(i, _)| i).collect();
                 let (i, next) = self.sample_choose(set, &cands, cursor)?;
-                if let Some(s) = self.scan.as_mut() {
+                if let Some(s) = self.camera.scan_mut() {
                     s.sample = next;
                 }
                 seedqr_digits(set.keys[i].parts.first()?)
@@ -599,7 +599,7 @@ impl Faraday {
                 let all: Vec<usize> = (0..set.wallets.len()).collect();
                 let list = if open.is_empty() { &all } else { &open };
                 let at = usize::from(cursor) % list.len().max(1);
-                if let Some(s) = self.scan.as_mut() {
+                if let Some(s) = self.camera.scan_mut() {
                     s.sample = ((at + 1) % list.len().max(1)) as u8;
                 }
                 list.get(at)
@@ -624,14 +624,14 @@ impl Faraday {
         let c = self.compute();
         if let Some(bytes) = self.scan_sample_bytes(&c, set) {
             let intake = self
-                .scan
-                .as_ref()
+                .camera
+                .scan()
                 .is_some_and(|s| s.purpose == ScanPurpose::Intake);
             self.scanned(bytes);
             // The intake scanner stays on for the next code; the sample
             // transaction is the last thing it has to bring.
-            if intake && self.scan.is_some() {
-                self.scan = None;
+            if intake && self.camera.scan().is_some() {
+                self.camera.close();
                 self.sheet = None;
                 self.out.commands.push_back(crate::Command::CameraOff);
             }

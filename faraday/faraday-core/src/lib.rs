@@ -1264,7 +1264,7 @@ pub struct Faraday {
     /// The transaction being signed.
     pub spend: Option<SpendState>,
     /// The transaction being decoded.
-    pub decode: Option<DecodeState>,
+    decode: decode::DecodeArea,
     /// APK signing is in the app: off by default (F59).
     pub apk_signing: bool,
     /// Files read from sticks.
@@ -1345,7 +1345,7 @@ pub struct Faraday {
     /// opened).
     bar_seen: (RegionKey, f32, u64),
     /// The QR sheet's contents.
-    pub qr: Option<QrView>,
+    qr: qr_view::QrArea,
     /// The Spend tab.
     pub family: family::FamilyState,
     /// A vanity address being searched for.
@@ -1384,18 +1384,9 @@ pub struct Faraday {
     pub secret_ack: bool,
     /// The camera is on for camera noise.
     keygen_camera_on: bool,
-    /// A transfer in parts the camera was closed on, kept for the next
-    /// scan.
-    scan_parts: Option<(faraday_codec::ur::Decoder, faraday_qr::Assembler)>,
-    /// The cameras the shell can open. With none, the backup's seeds
-    /// step checks a copy by its typed numbers instead of the camera.
-    pub cameras: Vec<(String, String)>,
-    /// The one chosen, by id; the shell's first when none is.
-    pub camera: Option<String>,
-    /// A camera chosen that the shell has not opened yet.
-    camera_change: Option<String>,
-    /// The camera sheet.
-    pub scan: Option<ScanState>,
+    /// The camera sheet, the cameras the shell can open and the one
+    /// chosen.
+    camera: scan_key::Camera,
     /// Transfer, in the online app.
     transfer: transfer::TransferArea,
     /// The upgrade, while it is on screen.
@@ -1468,7 +1459,6 @@ pub struct Faraday {
     selftest: Option<faraday_selftest::Outcome>,
     /// What can be pressed under it.
     hovered: Option<Action>,
-    scanned: u32,
     /// Running on an online machine (the desktop app); sheets become PDFs.
     pub online: bool,
     /// A seed typed here is on an online computer: the seed line is drawn.
@@ -1599,7 +1589,7 @@ impl Faraday {
             panel: compact::CompactArea::default(),
             session: Session::default(),
             spend: None,
-            decode: None,
+            decode: decode::DecodeArea::default(),
             apk_signing: false,
             inbox: inbox::InboxFiles::default(),
             outbox: Vec::new(),
@@ -1634,7 +1624,7 @@ impl Faraday {
             extent: None,
             region: ui::Slot::Page,
             bar_seen: (((Screen::Home, None), ui::Slot::Page), 0.0, 0),
-            qr: None,
+            qr: qr_view::QrArea::default(),
             family: family::FamilyState::default(),
             vanity: vanity::VanityArea::default(),
             backup: None,
@@ -1654,14 +1644,9 @@ impl Faraday {
             secret_out: None,
             secret_ack: false,
             keygen_camera_on: false,
-            scan_parts: None,
-            cameras: Vec::new(),
-            camera: None,
-            camera_change: None,
-            scan: None,
+            camera: scan_key::Camera::default(),
             transfer: transfer::TransferArea::default(),
             upgrade: upgrade::UpgradeArea::default(),
-            scanned: 0,
             renaming: None,
             typing: edit::TypingArea::new(),
             trail: trail::Trail::default(),
@@ -1713,7 +1698,7 @@ impl Faraday {
     /// The camera the person chose since the last call, by the id
     /// [`StorageEvent::Cameras`] gave it, for the shell to open.
     pub fn take_camera(&mut self) -> Option<String> {
-        self.camera_change.take()
+        self.camera.take_change()
     }
 
     /// Whether the last exit asked for a fresh process.
@@ -1956,10 +1941,9 @@ impl Faraday {
             StorageEvent::Cameras(list) => {
                 // Sent as the shell looks again: drawn again only when it
                 // changes, since what the copy item offers depends on it.
-                if self.cameras == list {
+                if !self.camera.set_cameras(list) {
                     return;
                 }
-                self.cameras = list;
             }
             StorageEvent::QrSeen {
                 width,
@@ -1969,7 +1953,7 @@ impl Faraday {
                 read,
             } => {
                 let now_ms = self.now_ms;
-                if let Some(s) = self.scan.as_mut() {
+                if let Some(s) = self.camera.scan_mut() {
                     let now = s.frames;
                     let away = s
                         .seen
@@ -2143,8 +2127,8 @@ impl Faraday {
     /// never clean of the network, and no stick waits on its camera.
     fn camera_on(&self) -> bool {
         let transfer = self
-            .scan
-            .as_ref()
+            .camera
+            .scan()
             .is_some_and(|s| s.purpose == ScanPurpose::Transfer);
         (self.sheet == Some(Sheet::Scan) && !transfer) || self.keygen_camera_on
     }
@@ -3190,16 +3174,8 @@ impl Faraday {
                 self.potential = None;
                 // A transfer in parts survives closing the camera: the
                 // parts read so far wait for the next scan.
-                if let Some(s) = self.scan.as_mut()
-                    && s.in_parts()
-                    && s.purpose != ScanPurpose::Transfer
-                {
-                    self.scan_parts = Some((
-                        std::mem::take(&mut s.decoder),
-                        std::mem::take(&mut s.assembler),
-                    ));
-                }
-                if let Some(scan) = self.scan.take() {
+                self.camera.keep_parts();
+                if let Some(scan) = self.camera.take() {
                     self.out.commands.push_back(Command::CameraOff);
                     // A copy's scan closed by the person: one scan without
                     // a match (a match closes the camera itself).
@@ -3208,7 +3184,7 @@ impl Faraday {
                     }
                 }
                 self.sheet = None;
-                self.qr = None;
+                self.qr.close();
                 self.chart = None;
                 self.chart_work.secret.clear();
                 self.chart_work.ask = None;
@@ -6157,7 +6133,7 @@ impl Faraday {
         let camera = self.sheet == Some(Sheet::Scan);
         let sticks = !self.sticks.is_empty();
         let medium = self.medium;
-        let Some(scan) = self.scan.as_mut() else {
+        let Some(scan) = self.camera.scan_mut() else {
             return;
         };
         // Transfer's Receive takes anything and files nothing.
@@ -6180,12 +6156,12 @@ impl Faraday {
             let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).into_owned());
             match self.vault_scanned_entry(&text) {
                 Ok(()) => {
-                    self.scan = None;
+                    self.camera.close();
                     self.sheet = None;
                     self.out.commands.push_back(Command::CameraOff);
                 }
                 Err(why) => {
-                    if let Some(scan) = self.scan.as_mut() {
+                    if let Some(scan) = self.camera.scan_mut() {
                         scan.note = Some(why);
                     }
                 }
@@ -6202,13 +6178,13 @@ impl Faraday {
             self.form_add_part();
             match self.entry.error.clone() {
                 None => {
-                    self.scan = None;
+                    self.camera.close();
                     self.sheet = None;
                     self.out.commands.push_back(Command::CameraOff);
                 }
                 Some(why) => {
                     zeroize::Zeroize::zeroize(&mut self.entry.typed);
-                    if let Some(scan) = self.scan.as_mut() {
+                    if let Some(scan) = self.camera.scan_mut() {
                         scan.note = Some(why);
                     }
                 }
@@ -6303,7 +6279,7 @@ impl Faraday {
                 return;
             }
             if sticks {
-                if let Some(scan) = self.scan.as_mut() {
+                if let Some(scan) = self.camera.scan_mut() {
                     scan.note = Some(stick_keys(medium));
                 }
                 return;
@@ -6312,17 +6288,17 @@ impl Faraday {
         let Some((named, ext, data)) = self.read_code(bytes) else {
             return;
         };
-        self.scanned += 1;
+        let number = self.camera.next_number();
         // A file in the Faraday file envelope is a file sent as one, of
         // whatever kind (`docs/QR.md` §2): it is filed under its name.
         let enveloped = named.is_some();
         let name = match named {
             Some(n) => self.free_inbox_name(&n),
-            None => format!("scanned-{}.{ext}", self.scanned),
+            None => format!("scanned-{number}.{ext}"),
         };
         let item = Item::new(&c, &name, data);
         if item.kind == FileKind::Other && !enveloped {
-            if let Some(scan) = self.scan.as_mut() {
+            if let Some(scan) = self.camera.scan_mut() {
                 scan.note = Some(EN.scanned_not_a_psbt.to_string());
                 scan.decoder = faraday_codec::ur::Decoder::new();
             }
@@ -6336,7 +6312,7 @@ impl Faraday {
             self.family_intake_file(at);
             return;
         }
-        self.scan = None;
+        self.camera.close();
         self.sheet = None;
         self.out.commands.push_back(Command::CameraOff);
         // A cosigner's account key scanned while a wallet is made from
@@ -6398,7 +6374,7 @@ impl Faraday {
         let copy = copy_indices(&bytes);
         drop(bytes);
         let Some(copy) = copy else {
-            if let Some(scan) = self.scan.as_mut() {
+            if let Some(scan) = self.camera.scan_mut() {
                 scan.note = Some(EN.copy_scanned_not_seedqr.to_string());
             }
             return;
@@ -6410,7 +6386,7 @@ impl Faraday {
             .and_then(|k| self.session.keys.words_match(&c, k, &copy));
         let Some(found) = found else {
             // The seed is no longer here: nothing to compare with.
-            self.scan = None;
+            self.camera.close();
             self.sheet = None;
             self.out.commands.push_back(Command::CameraOff);
             return;
@@ -6424,10 +6400,10 @@ impl Faraday {
             b.scanned = Some(found.clone());
         }
         if matched {
-            self.scan = None;
+            self.camera.close();
             self.sheet = None;
             self.out.commands.push_back(Command::CameraOff);
-        } else if let Some(scan) = self.scan.as_mut() {
+        } else if let Some(scan) = self.camera.scan_mut() {
             scan.note = Some(wallet_backup::copy_scan_line(&found));
         }
     }
@@ -6442,7 +6418,7 @@ impl Faraday {
         bytes: zeroize::Zeroizing<Vec<u8>>,
     ) -> Option<(Option<String>, &'static str, Vec<u8>)> {
         let c = self.compute();
-        let scan = self.scan.as_mut()?;
+        let scan = self.camera.scan_mut()?;
         scan.reads += 1;
         let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).trim().to_string());
         // A SeedQR is digits only; a seed never arrives by this door.
@@ -6531,7 +6507,7 @@ impl Faraday {
                 // An address is checked against the loaded wallets, not
                 // filed.
                 if let Some(said) = self.address_note(&c, &text) {
-                    if let Some(scan) = self.scan.as_mut() {
+                    if let Some(scan) = self.camera.scan_mut() {
                         scan.note = Some(said);
                     }
                     return None;
@@ -6546,7 +6522,7 @@ impl Faraday {
     /// with the reason in its square and its other ways in live
     /// (`docs/QR.md` §8 item 6).
     fn camera_failed(&mut self, why: NoPicture) {
-        if let Some(s) = self.scan.as_mut() {
+        if let Some(s) = self.camera.scan_mut() {
             s.no_picture = Some(why);
             s.waiting_since = None;
         }
@@ -6557,7 +6533,7 @@ impl Faraday {
     /// picture, and "Nothing to paste" running out. Whether the sheet
     /// changed.
     fn scan_tick(&mut self, now_ms: u64) -> bool {
-        let Some(s) = self.scan.as_mut() else {
+        let Some(s) = self.camera.scan_mut() else {
             return false;
         };
         let mut changed = false;
@@ -6644,10 +6620,7 @@ impl Faraday {
 
     fn open_qr(&mut self, view: Result<QrView, String>) {
         match view {
-            Ok(v) => {
-                self.qr = Some(v);
-                self.sheet = Some(Sheet::Qr);
-            }
+            Ok(v) => self.qr.open(v, &mut self.sheet),
             Err(e) => self.toast(&fill(EN.open_qr_cannot_make, &[&e.to_string()])),
         }
     }
@@ -7195,8 +7168,8 @@ impl Faraday {
         } else {
             // An image is read as the camera reads: a UR in parts can
             // span several images.
-            if self.scan.is_none() {
-                self.scan = Some(ScanState::default());
+            if self.camera.scan().is_none() {
+                self.camera.open(ScanState::default());
             }
             let before = self.inbox.len();
             let mut seeds = 0;
@@ -7221,10 +7194,10 @@ impl Faraday {
                     ));
                     continue;
                 }
-                if self.scan.is_none() {
-                    self.scan = Some(ScanState::default());
+                if self.camera.scan().is_none() {
+                    self.camera.open(ScanState::default());
                 }
-                let parts = self.scan.as_ref().is_some_and(ScanState::in_parts);
+                let parts = self.camera.scan().is_some_and(ScanState::in_parts);
                 let n = self.inbox.len();
                 self.scanned(p);
                 // A transfer in parts that has just come together
@@ -7233,7 +7206,7 @@ impl Faraday {
                     break;
                 }
             }
-            let note = self.scan.as_ref().and_then(|s| s.note.clone());
+            let note = self.camera.scan().and_then(|s| s.note.clone());
             let seed_last = self
                 .inbox
                 .last()
@@ -9326,12 +9299,7 @@ impl App for Faraday {
                     self.out.commands.push_back(Command::Draw);
                 }
                 self.zero_tick();
-                if let Some(q) = self.qr.as_mut()
-                    && q.frames.len() > 1
-                    && now_ms >= q.next_ms
-                {
-                    q.frame = (q.frame + 1) % q.frames.len();
-                    q.next_ms = now_ms + self.qr_frame_ms;
+                if self.qr.tick(now_ms, self.qr_frame_ms) {
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
                 }
@@ -9358,7 +9326,7 @@ impl App for Faraday {
                 height,
                 luma,
                 chroma,
-            } => match self.scan.as_mut() {
+            } => match self.camera.scan_mut() {
                 Some(s) => {
                     if let Some((_, _, old)) = s.frame.as_mut() {
                         zeroize::Zeroize::zeroize(old);

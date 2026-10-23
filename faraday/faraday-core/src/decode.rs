@@ -226,7 +226,49 @@ pub struct DecodeState {
     pub show_hex: bool,
 }
 
+/// The Decode screen's area: the transaction taken apart, while it is
+/// open.
+#[derive(Default)]
+pub(crate) struct DecodeArea {
+    state: Option<DecodeState>,
+}
+
+impl DecodeArea {
+    /// The transaction on show.
+    pub(crate) fn state(&self) -> Option<&DecodeState> {
+        self.state.as_ref()
+    }
+
+    /// Shows `decoded` on the Decode screen, whose back link returns to
+    /// the screen on show.
+    pub(crate) fn show(&mut self, decoded: Decoded, screen: &mut Screen) {
+        self.state = Some(DecodeState {
+            decoded,
+            back: *screen,
+            show_hex: false,
+        });
+        *screen = Screen::Decode;
+    }
+
+    /// The whole transaction in hex.
+    pub(crate) fn hex(&self) -> Option<&str> {
+        self.state.as_ref().map(|d| d.decoded.hex.as_str())
+    }
+
+    /// Shows or hides the hex.
+    pub(crate) fn toggle_hex(&mut self) {
+        if let Some(d) = self.state.as_mut() {
+            d.show_hex = !d.show_hex;
+        }
+    }
+}
+
 impl Faraday {
+    /// The transaction on the Decode screen, while it is open.
+    pub fn decode(&self) -> Option<&DecodeState> {
+        self.decode.state()
+    }
+
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the Decode screen's actions (`DecodeFinished`, `DecodeInbox`, `QrDecoded`, `DecodeHex`, `SpendHex`).
     pub(crate) fn decode_act(&mut self, action: Action, c: &Compute) {
@@ -238,12 +280,7 @@ impl Faraday {
                     let prevouts = decode::prevouts_of(&s.spend.psbt);
                     let source = fill(EN.act_finished_from_source, &[&s.spend.source.to_string()]);
                     let decoded = decode::decode(c, tx, &prevouts, &self.session, &source);
-                    self.decode = Some(DecodeState {
-                        decoded,
-                        back: self.screen,
-                        show_hex: false,
-                    });
-                    self.screen = Screen::Decode;
+                    self.decode.show(decoded, &mut self.screen);
                 }
             }
             Action::DecodeInbox(k) => {
@@ -266,25 +303,18 @@ impl Faraday {
                         });
                     let prevouts = psbt.map(|p| decode::prevouts_of(&p)).unwrap_or_default();
                     let decoded = decode::decode(c, &tx, &prevouts, &self.session, &item.name);
-                    self.decode = Some(DecodeState {
-                        decoded,
-                        back: self.screen,
-                        show_hex: false,
-                    });
-                    self.screen = Screen::Decode;
+                    self.decode.show(decoded, &mut self.screen);
                     self.list_offset = 0.0;
                 }
             }
             Action::QrDecoded => {
-                if let Some(d) = self.decode.as_ref() {
-                    let hex = d.decoded.hex.clone();
+                if let Some(hex) = self.decode.hex() {
+                    let hex = hex.to_string();
                     self.open_qr(QrView::text(c, EN.act_transaction, &hex));
                 }
             }
             Action::DecodeHex => {
-                if let Some(d) = self.decode.as_mut() {
-                    d.show_hex = !d.show_hex;
-                }
+                self.decode.toggle_hex();
             }
             Action::SpendHex => {
                 if let Some(s) = self.spend.as_mut() {

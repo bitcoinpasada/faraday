@@ -285,7 +285,7 @@ fn with_a_key_loaded_a_stick_plugged_in_while_scanning_waits_then_asks_to_lock()
     stick(&mut app, true);
     // The scanner is not replaced with its camera still on.
     assert_eq!(app.sheet, Some(Sheet::Scan));
-    assert!(app.scan.is_some());
+    assert!(app.scan().is_some());
     app.press(Action::Cancel);
     let _ = app.frame();
     assert_eq!(app.sheet, Some(Sheet::Lock));

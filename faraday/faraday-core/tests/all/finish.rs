@@ -144,7 +144,7 @@ fn the_finished_transaction_decodes_to_what_it_pays() {
     let tx = app.spend.as_ref().unwrap().spend.finished.clone().unwrap();
     app.press(Action::DecodeFinished);
     assert_eq!(app.screen, Screen::Decode);
-    let d = &app.decode.as_ref().unwrap().decoded;
+    let d = &app.decode().unwrap().decoded;
     assert_eq!(d.txid, tx.compute_txid().to_string());
     assert_eq!(d.outputs.len(), tx.output.len());
     assert!(
@@ -185,7 +185,7 @@ fn a_raw_transaction_in_a_text_file_decodes() {
     )]);
     assert_eq!(alone.inbox[0].kind, FileKind::Transaction);
     alone.press(Action::DecodeInbox(0));
-    let d = &alone.decode.as_ref().unwrap().decoded;
+    let d = &alone.decode().unwrap().decoded;
     assert_eq!(d.txid, txid);
     assert_eq!(d.fee, None);
 
@@ -196,7 +196,7 @@ fn a_raw_transaction_in_a_text_file_decodes() {
         ("spend.psbt".to_string(), psbt.to_bytes()),
     ]);
     beside.press(Action::DecodeInbox(0));
-    assert!(beside.decode.as_ref().unwrap().decoded.fee.is_some());
+    assert!(beside.decode().unwrap().decoded.fee.is_some());
 }
 
 /// Spending offered to a process that starts from `kept`: the wallet

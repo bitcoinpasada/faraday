@@ -280,7 +280,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             .all()
             .find(|k| k.fingerprint.0 == fp)
             .is_none_or(|k| k.language == faraday_bip::bip39::Language::English);
-        let checks = forms.checks(!app.cameras.is_empty(), english);
+        let checks = forms.checks(!app.cameras().is_empty(), english);
         let mut rows = Vec::new();
         if checks.scan {
             rows.push((EN.glance_sheet_scan_my, doing(Step::Scan(fp))));

@@ -1317,7 +1317,7 @@ impl crate::Faraday {
         k.started = Some(Start::Scan);
         k.open = Some(kstep::KEY);
         k.scroll.follow = true;
-        self.scan = None;
+        self.camera.close();
         self.sheet = None;
         self.out
             .commands

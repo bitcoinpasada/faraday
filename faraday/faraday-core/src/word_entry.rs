@@ -738,7 +738,7 @@ impl Faraday {
             Action::EntryPassphrase => self.entry.on_passphrase = !self.entry.on_passphrase,
             Action::EntryWallet(w) => {
                 if self.may_load_keys() && w < self.session.wallets.len() {
-                    if self.scan.take().is_some() {
+                    if self.camera.take().is_some() {
                         self.out.commands.push_back(Command::CameraOff);
                     }
                     self.sheet = None;

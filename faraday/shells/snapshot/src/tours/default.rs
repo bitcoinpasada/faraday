@@ -734,7 +734,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     });
     let mut enc = faraday_codec::ur::Encoder::psbt(&savings, 120).map_err(|e| format!("{e:?}"))?;
     let mut parts = 0;
-    while t.app.scan.is_some() && parts < 40 {
+    while t.app.scan().is_some() && parts < 40 {
         let part = enc.next_part();
         t.app.event(Event::Scanned {
             bytes: part.into_bytes(),

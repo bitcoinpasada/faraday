@@ -993,7 +993,7 @@ fn the_signature_code_follows_the_file_not_its_place() {
         },
     );
     app.press(Action::ShowCode(code));
-    let q = app.qr.as_ref().expect("the QR sheet");
+    let q = app.qr().expect("the QR sheet");
     assert!(q.title.contains("SHA256SUMS"), "{}", q.title);
     let key = key_of(&app);
     let now = u32::try_from(app.clock_now().unwrap()).unwrap();
@@ -1010,10 +1010,10 @@ fn the_signature_code_follows_the_file_not_its_place() {
     // And once the file is gone, the code is not another file's.
     app.press(Action::Cancel);
     app.inbox.retain(|i| i.name != "SHA256SUMS");
-    app.qr = None;
+    testkit::qr_close(&mut app);
     app.press(Action::ShowCode(code));
     assert!(
-        app.qr.is_none(),
+        app.qr().is_none(),
         "no signature over a file that is not there"
     );
 }

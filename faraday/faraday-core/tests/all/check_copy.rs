@@ -192,10 +192,7 @@ fn scan(app: &mut Faraday, bytes: Vec<u8>) {
 }
 
 fn note(app: &Faraday) -> String {
-    app.scan
-        .as_ref()
-        .and_then(|s| s.note.clone())
-        .unwrap_or_default()
+    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
 }
 
 fn seeds_done(app: &Faraday) -> bool {
@@ -528,7 +525,7 @@ fn a_drawn_standard_seedqr_of_the_seed_matches_and_adds_nothing() {
     assert!(commands(&mut app).contains(&Command::CameraOn));
     let fp = app.session.keys[0].fingerprint;
     assert_eq!(
-        app.scan.as_ref().map(|s| s.purpose),
+        app.scan().map(|s| s.purpose),
         Some(ScanPurpose::CheckCopy(fp))
     );
     let inbox = app.inbox.len();
@@ -538,7 +535,7 @@ fn a_drawn_standard_seedqr_of_the_seed_matches_and_adds_nothing() {
     scan(&mut app, code);
 
     assert!(
-        app.scan.is_none() && app.sheet.is_none(),
+        app.scan().is_none() && app.sheet.is_none(),
         "the camera stayed open"
     );
     assert!(commands(&mut app).contains(&Command::CameraOff));
@@ -559,7 +556,7 @@ fn a_drawn_compact_seedqr_of_the_seed_matches() {
     let code = compact(FORUM);
     assert_eq!(code, FORUM_COMPACT, "the published bytes");
     scan(&mut app, code);
-    assert!(app.scan.is_none(), "the camera stayed open");
+    assert!(app.scan().is_none(), "the camera stayed open");
     assert!(seeds_done(&app));
     assert_eq!(app.session.keys.len(), 1);
 }
@@ -586,7 +583,7 @@ fn a_copy_with_one_word_wrong_names_that_word_and_stays_open() {
 
     // Fixed and scanned again, it matches.
     scan(&mut app, standard(ATTACK));
-    assert!(app.scan.is_none());
+    assert!(app.scan().is_none());
     assert!(seeds_done(&app));
 }
 
@@ -608,7 +605,7 @@ fn a_seedqr_of_another_seed_is_not_loaded_and_names_the_first_word() {
     // Closed by the person: the camera is off, the line stays.
     let _ = commands(&mut app);
     app.press(Action::Cancel);
-    assert!(app.scan.is_none());
+    assert!(app.scan().is_none());
     assert!(commands(&mut app).contains(&Command::CameraOff));
     let b = app.backup.as_ref().unwrap();
     assert_eq!(
@@ -623,7 +620,7 @@ fn escape_closes_the_scanner_with_its_camera() {
     app.press(Action::BScan);
     assert!(commands(&mut app).contains(&Command::CameraOn));
     app.event(Event::Key(Key::Escape));
-    assert!(app.sheet.is_none() && app.scan.is_none());
+    assert!(app.sheet.is_none() && app.scan().is_none());
     assert!(
         commands(&mut app).contains(&Command::CameraOff),
         "the camera stayed on"
@@ -1006,7 +1003,7 @@ fn a_scan_closed_by_the_person_counts_once_however_many_codes_it_read() {
     scan(&mut app, standard(GOOD));
     scan(&mut app, b"not a seedqr".to_vec());
     app.event(Event::Key(Key::Escape));
-    assert!(app.scan.is_none());
+    assert!(app.scan().is_none());
     assert_eq!(misses(&app), 1);
 }
 

@@ -108,7 +108,7 @@ fn read(m: &faraday_codec::qr::QrMatrix) -> Vec<u8> {
 
 /// What a camera reads off each code the QR sheet shows, in turn.
 fn codes(app: &Faraday) -> Vec<Vec<u8>> {
-    let q = app.qr.as_ref().expect("no codes shown");
+    let q = app.qr().expect("no codes shown");
     q.frames.iter().map(read).collect()
 }
 
@@ -128,7 +128,7 @@ fn send(app: &mut Faraday, boxes: &mut Boxes, host: &Host, name: &str) {
 /// The device's Files scanner reading the codes `app` shows, in turn,
 /// until something lands in its Inbox.
 fn device_reads(app: &Faraday) -> faraday_core::Item {
-    let q = app.qr.as_ref().expect("no codes shown");
+    let q = app.qr().expect("no codes shown");
     let mut device = Faraday::new();
     device.press(Action::Scan);
     for m in &q.frames {
@@ -139,7 +139,7 @@ fn device_reads(app: &Faraday) -> faraday_core::Item {
     }
     panic!(
         "the device read nothing whole: {:?}",
-        device.scan.as_ref().and_then(|s| s.note.clone())
+        device.scan().and_then(|s| s.note.clone())
     );
 }
 
@@ -190,7 +190,7 @@ fn a_file_over_256_kib_is_refused_unread() {
         app.transfer().refused.as_deref(),
         Some("Larger than 256 KiB: carry it on a stick")
     );
-    assert!(app.qr.is_none());
+    assert!(app.qr().is_none());
     assert!(
         !std::iter::from_fn(|| app.poll_storage())
             .any(|c| matches!(c, StorageCommand::ReadHost { .. })),
@@ -314,10 +314,7 @@ fn a_seeds_words_received_are_saved_and_said_to_hold_a_secret() {
     let path = dir.join("seed-words.txt");
     assert_eq!(fs::read_to_string(&path).unwrap(), words);
     let said = format!("Saved {}: this file holds a secret", path.display());
-    assert_eq!(
-        app.scan.as_ref().and_then(|s| s.note.clone()),
-        Some(said.clone())
-    );
+    assert_eq!(app.scan().and_then(|s| s.note.clone()), Some(said.clone()));
     assert_eq!(app.transfer().saved.last(), Some(&(said, true)));
 }
 
@@ -395,7 +392,7 @@ fn transfer_is_offered_only_in_the_online_app() {
         device.press(Action::Nav(Screen::Transfer));
         assert_ne!(device.screen, Screen::Transfer);
         device.press(Action::TransferReceive);
-        assert!(device.scan.is_none() && device.sheet.is_none());
+        assert!(device.scan().is_none() && device.sheet.is_none());
         device.storage(StorageEvent::Dropped {
             path: path.display().to_string(),
             size: 1,

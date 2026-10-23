@@ -71,10 +71,7 @@ fn paste(app: &mut Faraday, text: &str, ctrl_v: bool) {
 }
 
 fn note(app: &Faraday) -> String {
-    app.scan
-        .as_ref()
-        .and_then(|s| s.note.clone())
-        .unwrap_or_default()
+    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
 }
 
 /// Add a key's scanner, a seed pasted into it, and the seed loaded with

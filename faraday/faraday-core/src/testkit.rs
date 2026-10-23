@@ -1577,3 +1577,8 @@ pub fn catalog_find(app: &crate::Faraday) -> &str {
 pub fn tools_mut(app: &mut crate::Faraday) -> Option<&mut crate::tools::ToolsState> {
     app.tools.state_mut()
 }
+
+/// Closes the QR view, as closing its sheet does.
+pub fn qr_close(app: &mut crate::Faraday) {
+    app.qr.close();
+}

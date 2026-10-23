@@ -599,7 +599,7 @@ impl Faraday {
             F::TypeWords => {
                 if self.may_load_keys() {
                     // From the intake scanner's Type the words instead.
-                    if self.scan.take().is_some() {
+                    if self.camera.take().is_some() {
                         self.out.commands.push_back(Command::CameraOff);
                     }
                     if self.sheet == Some(Sheet::Scan) {
@@ -916,13 +916,13 @@ impl Faraday {
     /// The intake scanner: anything, one code after another, until Done.
     pub(crate) fn family_scan(&mut self, note: Option<String>) {
         let mut scan = ScanState::default();
-        if let Some((decoder, assembler)) = self.scan_parts.take() {
+        if let Some((decoder, assembler)) = self.camera.take_parts() {
             scan.decoder = decoder;
             scan.assembler = assembler;
         }
         scan.purpose = ScanPurpose::Intake;
         scan.note = note;
-        self.scan = Some(scan);
+        self.camera.open(scan);
         self.sheet = Some(Sheet::Scan);
         self.out.commands.push_back(Command::CameraOn);
         if !self.family_ready() {
@@ -938,7 +938,7 @@ impl Faraday {
     pub(crate) fn family_intake_seed(&mut self, words: &str) {
         let c = self.compute();
         let Some(fp) = key_of(&c, words, "") else {
-            if let Some(scan) = self.scan.as_mut() {
+            if let Some(scan) = self.camera.scan_mut() {
                 scan.note = Some(EN.family_not_a_seedqr.to_string());
             }
             return;
@@ -976,7 +976,7 @@ impl Faraday {
                 return;
             }
         };
-        if let Some(scan) = self.scan.as_mut() {
+        if let Some(scan) = self.camera.scan_mut() {
             scan.note = Some(note);
         }
     }
@@ -996,12 +996,12 @@ impl Faraday {
             return false;
         };
         if !self.may_load_keys() {
-            if let Some(scan) = self.scan.as_mut() {
+            if let Some(scan) = self.camera.scan_mut() {
                 scan.note = Some(crate::stick_keys(self.medium));
             }
             return true;
         }
-        self.scan = None;
+        self.camera.close();
         self.sheet = None;
         self.out.commands.push_back(Command::CameraOff);
         self.act(Action::Entry(None));
@@ -1058,7 +1058,7 @@ impl Faraday {
             _ => fill(EN.family_is_in_files, &[&name.to_string()]),
         };
         let note = self.family.error.clone().unwrap_or(note);
-        if let Some(scan) = self.scan.as_mut() {
+        if let Some(scan) = self.camera.scan_mut() {
             scan.note = Some(note);
         }
     }

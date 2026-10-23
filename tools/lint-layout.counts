@@ -6,7 +6,7 @@ file core/faraday-psbt/src/inspect.rs 2673
 file faraday/faraday-core/src/backup_flow/steps.rs 3143
 file faraday/faraday-core/src/backup_flow/wallet.rs 2868
 file faraday/faraday-core/src/board/mod.rs 2688
-file faraday/faraday-core/src/lib.rs 9531
+file faraday/faraday-core/src/lib.rs 9499
 file faraday/faraday-core/src/plan/mod.rs 4357
 file faraday/faraday-core/src/vault/mod.rs 4512
 file faraday/faraday-core/src/vault/screen.rs 4862
@@ -20,7 +20,7 @@ expect too_many_lines 206
 allow too_many_arguments 72
 
 # Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.
-fields Faraday 164
+fields Faraday 159
 
 # Files under faraday/ with an inherent `impl Faraday {`: the list only
 # shrinks.

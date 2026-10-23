@@ -284,7 +284,7 @@ pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
             Action::Vault(crate::vault::VaultAction::Back),
         ),
         // Decode goes back where it was opened from.
-        Screen::Decode => match app.decode.as_ref() {
+        Screen::Decode => match app.decode() {
             Some(d) => (crate::screens::decode_back(d.back), Action::Nav(d.back)),
             None => (EN.compact_tools, Action::Nav(Screen::Catalog)),
         },

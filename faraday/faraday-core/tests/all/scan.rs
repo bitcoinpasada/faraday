@@ -31,10 +31,7 @@ fn scan(app: &mut Faraday, text: &str) {
 }
 
 fn note(app: &Faraday) -> String {
-    app.scan
-        .as_ref()
-        .and_then(|s| s.note.clone())
-        .unwrap_or_default()
+    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
 }
 
 #[test]
@@ -148,10 +145,10 @@ fn a_code_says_whether_it_is_safe_to_scan() {
         kept: Vec::new(),
     });
     app.press(Action::QrOutbox(0));
-    assert!(!app.qr.as_ref().expect("no QR").secret);
+    assert!(!app.qr().expect("no QR").secret);
     app.press(Action::Cancel);
     app.press(Action::QrOutbox(1));
-    assert!(app.qr.as_ref().expect("no QR").secret);
+    assert!(app.qr().expect("no QR").secret);
 }
 
 #[test]
@@ -193,7 +190,7 @@ fn a_code_too_fine_for_the_camera_is_said_to_be() {
     seen(&mut app, 14, false);
     assert!(note(&app).contains("Too fine"), "{}", note(&app));
     // The outline is there for the sheet to draw.
-    assert!(app.scan.as_ref().unwrap().seen.is_some());
+    assert!(app.scan().unwrap().seen.is_some());
     // A code with modules large enough does not count.
     let mut app = scanning(Vec::new());
     for _ in 0..5 {
@@ -213,7 +210,7 @@ fn a_camera_chosen_on_the_sheet_goes_to_the_shell() {
     app.press(Action::ScanCamera(1));
     assert_eq!(app.take_camera().as_deref(), Some("/dev/video2"));
     assert_eq!(app.take_camera(), None);
-    assert_eq!(app.camera.as_deref(), Some("/dev/video2"));
+    assert_eq!(app.camera(), Some("/dev/video2"));
 }
 
 /// Pixels of the drawn frame that are strongly blue.
@@ -274,8 +271,7 @@ fn ur_frames(psbt: &[u8], n: usize) -> (Vec<String>, usize) {
 }
 
 fn state(app: &Faraday) -> String {
-    app.scan
-        .as_ref()
+    app.scan()
         .map(|s| s.state_line().to_string())
         .unwrap_or_default()
 }
@@ -304,7 +300,7 @@ fn a_second_ur_animation_starts_again_instead_of_sticking() {
     scan(&mut app, &b[2]);
     for p in &b {
         scan(&mut app, p);
-        if app.scan.is_none() {
+        if app.scan().is_none() {
             break;
         }
     }
@@ -319,7 +315,7 @@ fn a_second_ur_animation_starts_again_instead_of_sticking() {
     for p in &a {
         scan(&mut app, p);
         assert!(!note(&app).contains("Mismatch"), "{}", note(&app));
-        if app.scan.is_none() {
+        if app.scan().is_none() {
             break;
         }
     }
@@ -364,7 +360,7 @@ fn ur_progress_names_the_missing_parts() {
         "{said}"
     );
     // The bar inside the viewfinder follows the parts read.
-    let share = app.scan.as_ref().unwrap().parts_read().unwrap();
+    let share = app.scan().unwrap().parts_read().unwrap();
     assert!((share - 2.0 / count as f32).abs() < 1e-6, "{share}");
 }
 
@@ -424,7 +420,7 @@ fn a_secret_pasted_where_it_is_not_taken_is_refused() {
         assert!(note(&app).contains(said), "{secret}: {}", note(&app));
         assert!(app.inbox.is_empty(), "{secret} was filed");
         assert!(app.session.keys.is_empty(), "{secret} loaded a key");
-        assert!(app.scan.is_some(), "{secret} closed the scanner");
+        assert!(app.scan().is_some(), "{secret} closed the scanner");
     }
 }
 
@@ -448,7 +444,7 @@ fn a_seed_scanner_pastes_only_where_the_shell_has_a_clipboard() {
         // No key loads before the self-test, which the display starts.
         display(&mut app);
         app.press(Action::ScanSeed);
-        assert!(app.scan.is_some(), "the seed scanner did not open");
+        assert!(app.scan().is_some(), "the seed scanner did not open");
         assert_eq!(app.scan_pastes(), clipboard);
     }
 }

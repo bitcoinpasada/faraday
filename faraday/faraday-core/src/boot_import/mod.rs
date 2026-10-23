@@ -350,7 +350,7 @@ impl Faraday {
         // reading of its own so a transfer in parts started elsewhere is
         // not mixed in.
         let codes = payloads.len();
-        let scan = self.scan.replace(crate::ScanState::default());
+        let scan = self.camera.swap(Some(crate::ScanState::default()));
         for mut p in payloads {
             // A SeedQR's digits are a seed: wiped once read as words.
             if let Some(words) = crate::seedqr_words(&p) {
@@ -371,7 +371,7 @@ impl Faraday {
                 }
             }
         }
-        let left = std::mem::replace(&mut self.scan, scan);
+        let left = self.camera.swap(scan);
         if got.is_empty() && note.is_none() {
             note = left.and_then(|s| s.note.clone());
         }

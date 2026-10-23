@@ -402,7 +402,7 @@ impl Faraday {
         self.transfer.receive_begin();
         let mut scan = ScanState::default();
         scan.purpose = ScanPurpose::Transfer;
-        self.scan = Some(scan);
+        self.camera.open(scan);
         self.sheet = Some(Sheet::Scan);
         self.out.commands.push_back(Command::CameraOn);
     }
@@ -410,7 +410,7 @@ impl Faraday {
     /// One code read on Receive.
     pub(crate) fn transfer_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
         let c = self.compute();
-        let Some(scan) = self.scan.as_mut() else {
+        let Some(scan) = self.camera.scan_mut() else {
             return;
         };
         self.transfer.scanned(&c, scan, &bytes, &mut self.out);
@@ -418,7 +418,7 @@ impl Faraday {
 
     /// The shell saved a received file, or could not.
     pub(crate) fn transfer_saved(&mut self, saved: Result<String, String>) {
-        self.transfer.saved(saved, self.scan.as_mut());
+        self.transfer.saved(saved, self.camera.scan_mut());
     }
 
     /// Opens the Downloads folder in this computer's file manager.

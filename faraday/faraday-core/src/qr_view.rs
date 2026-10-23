@@ -1,7 +1,9 @@
 //! The QR view (a code shown, in parts) and the camera's scan state.
 
 use crate::strings::{EN, fill};
-use crate::{Action, Faraday, Screen, part_note, picture, qr_fits, secrets, transfer, wallet};
+use crate::{
+    Action, Faraday, Screen, Sheet, part_note, picture, qr_fits, secrets, transfer, wallet,
+};
 use faraday_crypto::work::Compute;
 
 /// What a scan pass saw of a code ([`StorageEvent::QrSeen`]).
@@ -477,7 +479,60 @@ impl QrView {
     }
 }
 
+/// The QR sheet's area: the code on show, while the sheet is open.
+#[derive(Default)]
+pub(crate) struct QrArea {
+    view: Option<QrView>,
+}
+
+impl QrArea {
+    /// The view on show.
+    pub(crate) fn view(&self) -> Option<&QrView> {
+        self.view.as_ref()
+    }
+
+    /// Shows `view` on the QR sheet.
+    pub(crate) fn open(&mut self, view: QrView, sheet: &mut Option<Sheet>) {
+        self.view = Some(view);
+        *sheet = Some(Sheet::Qr);
+    }
+
+    /// Drops the view (its source is wiped).
+    pub(crate) fn close(&mut self) {
+        self.view = None;
+    }
+
+    /// Takes the view out, to work on it beside the rest of the app.
+    pub(crate) fn take(&mut self) -> Option<QrView> {
+        self.view.take()
+    }
+
+    /// Puts back a view taken out; the sheet is as it was.
+    pub(crate) fn put(&mut self, view: QrView) {
+        self.view = Some(view);
+    }
+
+    /// Moves an animated view to its next frame when one is due. Whether
+    /// the frame changed.
+    pub(crate) fn tick(&mut self, now_ms: u64, frame_ms: u64) -> bool {
+        if let Some(q) = self.view.as_mut()
+            && q.frames.len() > 1
+            && now_ms >= q.next_ms
+        {
+            q.frame = (q.frame + 1) % q.frames.len();
+            q.next_ms = now_ms + frame_ms;
+            return true;
+        }
+        false
+    }
+}
+
 impl Faraday {
+    /// The code on show on the QR sheet, while it is open.
+    pub fn qr(&self) -> Option<&QrView> {
+        self.qr.view()
+    }
+
     /// Costs what the actions below cost, the keys' and wallets' work among
     /// it: handles the QR view's and the PDF buttons' actions (`Qr*`, `ShowCode`, `CodePng`, `Pdf*`).
     pub(crate) fn qr_act(&mut self, action: Action, c: &Compute) {
@@ -531,7 +586,7 @@ impl Faraday {
             Action::QrPng => {
                 if let Some(q) = self.qr.take() {
                     self.code_png(Ok(&q));
-                    self.qr = Some(q);
+                    self.qr.put(q);
                 }
             }
             Action::QrOutbox(i) => {
@@ -550,14 +605,14 @@ impl Faraday {
                 }
             }
             Action::QrFormat(i) => {
-                if let Some(q) = self.qr.as_ref() {
+                if let Some(q) = self.qr.view() {
                     let f = QrFormat::ALL[usize::from(i) % QrFormat::ALL.len()];
                     let v = q.redo(c, f, q.part);
                     self.open_qr(v);
                 }
             }
             Action::QrPartSize(n) => {
-                if let Some(q) = self.qr.as_ref() {
+                if let Some(q) = self.qr.view() {
                     let v = q.redo(c, q.format, n);
                     self.open_qr(v);
                 }

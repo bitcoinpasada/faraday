@@ -2055,7 +2055,7 @@ impl Faraday {
             V::ScanEntry => {
                 let mut scan = crate::ScanState::default();
                 scan.purpose = crate::ScanPurpose::VaultEntry;
-                self.scan = Some(scan);
+                self.camera.open(scan);
                 self.sheet = Some(crate::Sheet::Scan);
                 self.out.command(faraday_shell_api::Command::CameraOn);
             }

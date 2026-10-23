@@ -55,7 +55,7 @@ pub(crate) fn transfer_tour(t: &mut Tour) -> Result<(), String> {
     };
     let i = at(t, "savings-unsigned.psbt")?;
     t.press(Action::TransferSend(i));
-    if t.app.qr.is_none() {
+    if t.app.qr().is_none() {
         return Err("the PSBT was not shown as codes".into());
     }
     t.shot("transfer-send-psbt")?;

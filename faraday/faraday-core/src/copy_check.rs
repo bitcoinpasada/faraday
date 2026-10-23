@@ -194,8 +194,10 @@ impl Faraday {
         i: usize,
         key: &faraday_keys::KeyInfo,
     ) -> CopyChecks {
-        self.copy_forms(c, b, i)
-            .checks(!self.cameras.is_empty(), key.language == Language::English)
+        self.copy_forms(c, b, i).checks(
+            !self.cameras().is_empty(),
+            key.language == Language::English,
+        )
     }
 
     /// Costs what `copy_checks` and `copy_forms` cost. Whether every check

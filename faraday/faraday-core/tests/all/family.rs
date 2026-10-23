@@ -112,7 +112,7 @@ fn on_intake(app: &mut Faraday) {
 
 /// The camera, opened by Scan the QR codes you have, reads this code.
 fn scan(app: &mut Faraday, bytes: Vec<u8>) {
-    if app.scan.is_none() {
+    if app.scan().is_none() {
         app.press(Action::Family(F::Scan));
     }
     assert_eq!(app.sheet, Some(Sheet::Scan), "the camera is not on");
@@ -141,10 +141,7 @@ fn scan_seed(app: &mut Faraday, word: &str) {
 
 /// The camera's note.
 fn note(app: &Faraday) -> String {
-    app.scan
-        .as_ref()
-        .and_then(|s| s.note.clone())
-        .unwrap_or_default()
+    app.scan().and_then(|s| s.note.clone()).unwrap_or_default()
 }
 
 /// The first receive address of the test kit's wallet `id`.

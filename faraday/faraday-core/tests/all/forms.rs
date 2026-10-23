@@ -146,14 +146,13 @@ fn a_codex32_string_and_a_slip39_share_can_be_scanned_instead_of_typed() {
     let mut app = adding(2);
     app.press(Action::ScanPart);
     assert!(
-        app.scan
-            .as_ref()
+        app.scan()
             .is_some_and(|s| s.purpose == faraday_core::ScanPurpose::KeyPart)
     );
     app.event(Event::Scanned {
         bytes: b"MS10TESTSXXXXXXXXXXXXXXXXXXXXXXXXXX4NZVCA9CMCZLW".to_vec(),
     });
-    assert!(app.scan.is_none(), "the camera stayed open");
+    assert!(app.scan().is_none(), "the camera stayed open");
     assert_eq!(app.session.keys.len(), 1, "{:?}", app.entry.error);
 
     // One SLIP-39 share scanned: in, waiting for the second.
@@ -187,7 +186,7 @@ fn a_codex32_string_and_a_slip39_share_can_be_scanned_instead_of_typed() {
     app.event(Event::Scanned {
         bytes: b"hello".to_vec(),
     });
-    assert!(app.scan.as_ref().is_some_and(|s| s.note.is_some()));
+    assert!(app.scan().is_some_and(|s| s.note.is_some()));
 }
 
 #[test]

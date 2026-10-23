@@ -242,7 +242,7 @@ fn a_wallet_s_show_as_qr_is_its_descriptor_and_loads_nothing() {
     assert!(app.offers(Action::Vault(V::WalletQr)));
     app.press(Action::Vault(V::WalletQr));
     assert_eq!(app.sheet, Some(Sheet::Qr));
-    let q = app.qr.as_ref().expect("the QR view");
+    let q = app.qr().expect("the QR view");
     let kit = testkit::kits()
         .into_iter()
         .find(|k| k.id == "savings")

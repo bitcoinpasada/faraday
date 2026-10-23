@@ -481,13 +481,13 @@ fn the_copy_check_s_scanner_reads_the_seedqr_of_a_sample_key() {
     app.press(Action::BScan);
     let _ = app.frame();
     assert!(matches!(
-        app.scan.as_ref().map(|s| s.purpose),
+        app.scan().map(|s| s.purpose),
         Some(ScanPurpose::CheckCopy(_))
     ));
     assert!(app.offers(Action::ScanSample), "the Sample tile");
     app.press(Action::ScanSample);
     assert!(
-        app.scan.is_none() && app.sheet.is_none(),
+        app.scan().is_none() && app.sheet.is_none(),
         "the scan read it"
     );
     let line = faraday_core::wallet_backup::copy_scan_line(
