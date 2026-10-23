@@ -53,21 +53,17 @@ fn multi_index() -> u8 {
 }
 
 fn backup_places(app: &Faraday) -> usize {
-    app.backup.as_ref().unwrap().answers.places
+    app.backup().unwrap().answers.places
 }
 
 fn backup_shape(app: &Faraday) -> Shape {
-    app.plan_shape_now(app.backup.as_ref().unwrap().wallet)
+    app.plan_shape_now(app.backup().unwrap().wallet)
 }
 
 /// The plan's map as it is, sticks and all.
 fn the_map(app: &Faraday) -> Vec<Spot> {
     let c = faraday_core::testkit::compute();
-    plan::map(
-        &c,
-        &backup_shape(app),
-        &app.backup.as_ref().unwrap().answers,
-    )
+    plan::map(&c, &backup_shape(app), &app.backup().unwrap().answers)
 }
 
 /// What spot `at` holds on the map `m`.
@@ -212,7 +208,7 @@ fn a_vault_at_two_places_is_held_once() {
     assert!(held(&m, At::Place(0)).iter().all(|w| !plan::on_stick(*w)));
     // The write step writes a copy of it at each place.
     let shape = backup_shape(&app);
-    let flow = BackupFlow::new_wallet(&c, shape, app.backup.as_ref().unwrap().answers.clone(), "w");
+    let flow = BackupFlow::new_wallet(&c, shape, app.backup().unwrap().answers.clone(), "w");
     assert_eq!(
         places_targets(&flow),
         vec![Target::Place(0), Target::Place(2)]
@@ -238,7 +234,7 @@ fn a_second_vault_at_a_place_goes_on_a_second_stick() {
     let flow = BackupFlow::new_wallet(
         &c,
         shape.clone(),
-        app.backup.as_ref().unwrap().answers.clone(),
+        app.backup().unwrap().answers.clone(),
         "w",
     );
     assert_eq!(
@@ -247,7 +243,7 @@ fn a_second_vault_at_a_place_goes_on_a_second_stick() {
     );
     // The board's drop: Vault 1 again at Place 1 is a second stick of it
     // (§19.12 item 7).
-    let a = &mut app.backup.as_mut().unwrap().answers;
+    let a = faraday_core::testkit::backup_answers_mut(&mut app);
     a.add_vault_stick(&shape, 0, 0);
     let m = plan::map(&c, &shape, a);
     assert_eq!(plan::sticks_at(&m, 0), 3);
@@ -325,7 +321,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     );
     assert_eq!(app.backup_kept_nowhere(&c), None);
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     // The files are no items of their own: they go with their sticks.
     assert_eq!(
         app.backup_items_now(&c),
@@ -407,7 +403,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     assert!(app.backup_kept_nowhere(&c).is_some(), "kept nowhere");
     app.press(Action::BChecklist);
     assert_eq!(
-        app.backup.as_ref().unwrap().stage,
+        app.backup().unwrap().stage,
         BStage::Plan,
         "a seed kept nowhere holds The plan"
     );
@@ -422,7 +418,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     );
     assert_eq!(app.backup_kept_nowhere(&c), None);
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     assert_eq!(
         app.backup_items_now(&c),
         vec![bstep::ENVELOPE, bstep::STICKS]
@@ -631,7 +627,7 @@ fn two_sticks_of_vault_1_at_one_place_are_written_as_two_sticks_each_recognised(
     assert_eq!(held(&m, At::Stick(0, 0)), vec![What::VaultStick(0)]);
     assert_eq!(held(&m, At::Stick(0, 1)), vec![What::VaultStick(0)]);
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     save_vaults(&mut app);
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
@@ -706,7 +702,7 @@ fn two_sticks_of_files_at_one_place_are_written_as_two_sticks_each_recognised() 
         vec![What::SeedFile(1), What::SeedFile(2)]
     );
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(let_seed_files_out(&mut app), 3);
@@ -752,7 +748,7 @@ fn a_seeds_words_file_on_a_stick_is_made_only_past_the_warning() {
     no_paper_description(&mut app);
     files_at(&mut app, 0, &[0, 1, 2]);
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(app.sheet, Some(Sheet::SecretOut), "the warning first");
@@ -818,7 +814,7 @@ fn three_on_an_empty_board() -> Faraday {
 
 /// The board's card opened, as a person opens it.
 fn open_board(app: &mut Faraday) {
-    if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
+    if app.backup().unwrap().q != Some(qstep::BOARD) {
         app.press(Action::BQ(qstep::BOARD));
     }
     app.settle();
@@ -1044,7 +1040,7 @@ fn tap_to_place_gives_the_same_map_as_a_drag() {
     tap(&mut tapped, list(Thing::Seed(0)));
     // The zones that take it are edged; nothing is placed yet.
     assert_eq!(
-        tapped.backup.as_ref().unwrap().board.held,
+        tapped.backup().unwrap().board.held,
         Some(Chip::List(Thing::Seed(0)))
     );
     assert!(held(&the_map(&tapped), At::Place(0)).is_empty());
@@ -1053,7 +1049,7 @@ fn tap_to_place_gives_the_same_map_as_a_drag() {
     // A tap on a chip and then on it again lets it go.
     tap(&mut tapped, list(Thing::Seed(1)));
     tap(&mut tapped, list(Thing::Seed(1)));
-    assert_eq!(tapped.backup.as_ref().unwrap().board.held, None);
+    assert_eq!(tapped.backup().unwrap().board.held, None);
 }
 
 /// Vault 1 dragged onto Place 1 and onto Place 3 makes a stick at each;
@@ -1199,7 +1195,7 @@ fn a_seed_kept_nowhere_on_the_board_holds_the_plan() {
         "The plan is held"
     );
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
+    assert_eq!(app.backup().unwrap().stage, BStage::Plan);
     open_board(&mut app);
     drag(&mut app, list(Thing::Seed(0)), BP::Zone(Zone::Paper(1)));
     app.press(Action::BQ(qstep::PLAN));
@@ -1251,7 +1247,7 @@ fn a_cosigners_seed_is_dim_and_does_not_move() {
     touch(&mut app, end, TouchPhase::Move);
     touch(&mut app, end, TouchPhase::Up);
     assert_eq!(the_map(&app), before);
-    assert_eq!(app.backup.as_ref().unwrap().board.held, None);
+    assert_eq!(app.backup().unwrap().board.held, None);
     // Tapping it and then a zone places nothing either.
     app.press(Action::Board(list(Thing::Seed(away))));
     app.press(Action::Board(BP::Zone(Zone::Paper(0))));
@@ -1289,7 +1285,7 @@ fn partial_descriptions_are_added_by_one_button_and_follow_the_places() {
     app.press(Action::Board(BP::PartialsWholeOff));
     assert_eq!(app.sheet, None);
     let shape = backup_shape(&app);
-    let a = app.backup.as_ref().unwrap().answers.clone();
+    let a = app.backup().unwrap().answers.clone();
     assert_eq!(a.omit, 1);
     for p in 0..3 {
         assert!(!a.sheet_at(&shape, p), "Place {}: the whole is off", p + 1);
@@ -1299,7 +1295,7 @@ fn partial_descriptions_are_added_by_one_button_and_follow_the_places() {
     // A place taken off and one added: every place has its share.
     app.press(Action::Board(BP::RemovePlace(2)));
     app.press(Action::Board(BP::AddPlace));
-    let a = app.backup.as_ref().unwrap().answers.clone();
+    let a = app.backup().unwrap().answers.clone();
     assert_eq!(a.places, 3);
     for p in 0..3 {
         assert_eq!(a.shares_at(&shape, p).len(), 1, "Place {}", p + 1);
@@ -1309,7 +1305,7 @@ fn partial_descriptions_are_added_by_one_button_and_follow_the_places() {
     // be put back together.
     expect(&mut app, "Remove partial descriptions");
     app.press(Action::Board(BP::Partials));
-    let a = app.backup.as_ref().unwrap().answers.clone();
+    let a = app.backup().unwrap().answers.clone();
     assert!((0..3).all(|p| a.shares_at(&shape, p).is_empty()));
     expect_down_part(&mut app, "The description cannot be put back together");
 }
@@ -1347,7 +1343,7 @@ fn the_software_place_scans_the_description_in_and_keeps_it_through_any_loss() {
         drag(&mut app, list(Thing::Seed(p)), BP::Zone(Zone::Paper(p)));
     }
     let shape = backup_shape(&app);
-    let lost = |app: &Faraday| plan::check(&c, &shape, &app.backup.as_ref().unwrap().answers).lost;
+    let lost = |app: &Faraday| plan::check(&c, &shape, &app.backup().unwrap().answers).lost;
     assert_eq!(lost(&app), plan::Lost::No, "no description kept");
     tap(&mut app, list(Thing::Software));
     expect(&mut app, "Scanned in");
@@ -1684,11 +1680,7 @@ fn a_narrow_window_places_from_the_add_sheets_menu_as_a_drag_does_on_wide() {
     tap(&mut app, list(Thing::Seed(0)));
     assert_eq!(app.sheet, Some(Sheet::BoardMenu), "its Add to…");
     expect(&mut app, "Add to…");
-    assert_eq!(
-        app.backup.as_ref().unwrap().board.held,
-        None,
-        "nothing held"
-    );
+    assert_eq!(app.backup().unwrap().board.held, None, "nothing held");
     tap(&mut app, BP::MenuTo(Zone::Paper(0)));
     assert_eq!(app.sheet, None, "the menu closes on the board");
     assert_eq!(the_map(&app), the_map(&wide));
@@ -1892,7 +1884,7 @@ fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
     let c = faraday_core::testkit::compute();
     let mut app = three_on_an_empty_board();
     let shape = backup_shape(&app);
-    let before = app.backup.as_ref().unwrap().answers.clone();
+    let before = app.backup().unwrap().answers.clone();
     tap(&mut app, BP::Zone(Zone::NewStick(0)));
     expect(&mut app, "Stick 1");
     expect(&mut app, "Files · not sealed");
@@ -1905,7 +1897,7 @@ fn a_press_on_plus_stick_adds_an_empty_stick_that_the_plan_does_not_see() {
         &mut app,
         Action::Board(BP::Zone(Zone::NewStick(0)))
     ));
-    let after = app.backup.as_ref().unwrap().answers.clone();
+    let after = app.backup().unwrap().answers.clone();
     assert_eq!(
         the_map(&app),
         plan::map(&c, &shape, &before),
@@ -1984,7 +1976,7 @@ fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held(
     tap(&mut app, BP::RemovePlace(2));
     tap(&mut app, BP::RemovePlace(1));
     let shape = backup_shape(&app);
-    let a = app.backup.as_ref().unwrap().answers.clone();
+    let a = app.backup().unwrap().answers.clone();
     let m = the_map(&app);
     assert!(m.iter().any(|s| s.at == At::Vault(0)));
     for v in [1, 2] {
@@ -2019,7 +2011,7 @@ fn a_vault_kept_at_no_place_is_out_of_the_plan_and_comes_back_with_what_it_held(
     drag(&mut app, list(Thing::Vault(1)), BP::Zone(Zone::Card(0)));
     let m = the_map(&app);
     assert_eq!(held(&m, At::Vault(1)), vec![What::Seed(1)]);
-    let a = app.backup.as_ref().unwrap().answers.clone();
+    let a = app.backup().unwrap().answers.clone();
     assert!(kept_nowhere(&c, &shape, &a, &[1]).is_none());
 }
 
@@ -2166,7 +2158,7 @@ fn paper(app: &Faraday, p: usize) -> Vec<What> {
 #[test]
 fn a_fresh_two_of_three_opens_on_the_board_with_the_standard_way_placed() {
     let mut app = fresh_three();
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!(b.q, Some(qstep::BOARD), "the board is open");
     assert!(!b.answers.custom, "read-only");
     assert_eq!(backup_places(&app), 3);
@@ -2200,7 +2192,7 @@ fn a_single_keys_standard_way_is_one_place() {
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
     let w = app.session.wallets.len() - 1;
     app.press(Action::Backup(w));
-    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
+    assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
     assert_eq!(backup_places(&app), 1);
     assert_eq!(paper(&app, 0), vec![What::Words(0), What::Sheet]);
 }
@@ -2253,7 +2245,7 @@ fn the_board_is_read_only_until_customize_backup() {
         "{:?}",
         paper(&app, 0)
     );
-    assert!(app.backup.as_ref().unwrap().answers.custom);
+    assert!(app.backup().unwrap().answers.custom);
 }
 
 /// **Add watch-only software** on the read-only board adds the software
@@ -2267,7 +2259,7 @@ fn another_preset_replaces_the_standard_way_in_both_states() {
     let _ = app.frame();
     assert!(app.offers(Action::Board(BP::Software)));
     app.press(Action::Board(BP::Software));
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert!(!b.answers.custom, "still read-only");
     assert_eq!(held(&the_map(&app), At::Software), vec![What::Wallet]);
     let shape = backup_shape(&app);
@@ -2285,7 +2277,7 @@ fn another_preset_replaces_the_standard_way_in_both_states() {
     }
     app.press(Action::Board(BP::Software));
     assert!(held(&the_map(&app), At::Software).is_empty(), "taken off");
-    assert!(!app.backup.as_ref().unwrap().answers.custom);
+    assert!(!app.backup().unwrap().answers.custom);
     let _ = app.frame();
     expect(&mut app, "Add watch-only software");
 }
@@ -2299,7 +2291,7 @@ fn the_standard_ways_checklist_writes_its_copies() {
     let mut app = fresh_three();
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     let items = app.backup_items_now(&c);
     for i in 0..3 {
         assert!(
@@ -2432,11 +2424,7 @@ fn add_to_on_a_seed_lists_the_boxes_that_take_it_by_place_and_places_it_as_a_dro
     let s = vault_stick(&app, 0, 0).unwrap();
     tap(&mut app, dots(Chip::List(Thing::Seed(0))));
     assert_eq!(app.sheet, Some(Sheet::BoardMenu));
-    assert_eq!(
-        app.backup.as_ref().unwrap().board.held,
-        None,
-        "not selected"
-    );
+    assert_eq!(app.backup().unwrap().board.held, None, "not selected");
     expect(&mut app, "Add to…");
     let boxes = [
         Zone::Paper(0),
@@ -2545,12 +2533,12 @@ fn a_press_on_the_dots_neither_selects_nor_drags() {
     touch(&mut app, at, TouchPhase::Down);
     touch(&mut app, (at.0 - 200, at.1 + 40), TouchPhase::Move);
     let _ = app.frame();
-    let b = &app.backup.as_ref().unwrap().board;
+    let b = &app.backup().unwrap().board;
     assert_eq!(b.held, None, "not held");
     assert_eq!(b.drag, None, "not dragged");
     touch(&mut app, (at.0 - 200, at.1 + 40), TouchPhase::Up);
     app.settle();
-    assert_eq!(app.backup.as_ref().unwrap().board.held, None);
+    assert_eq!(app.backup().unwrap().board.held, None);
     assert_eq!(the_map(&app), before, "nothing placed");
 }
 
@@ -2566,7 +2554,7 @@ fn the_menu_by_the_keys_and_escape_closes_it_back_to_its_dots() {
     app.press(Action::Board(BP::Zone(Zone::Paper(0))));
     app.settle();
     let chip = Chip::Placed(Zone::Paper(0), Thing::Seed(0));
-    let focus = |app: &Faraday| app.backup.as_ref().unwrap().board.focus;
+    let focus = |app: &Faraday| app.backup().unwrap().board.focus;
     let _ = app.frame();
     for _ in 0..40 {
         if focus(&app) == Some(chip) {
@@ -2736,9 +2724,9 @@ fn change_the_plan_from_the_checklist_shows_the_board() {
     let c = faraday_core::testkit::compute();
     let mut app = fresh_three();
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     app.press(Action::BPlan);
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!(b.stage, BStage::Plan);
     assert_eq!(b.q, Some(qstep::BOARD), "the board card is open");
     let _ = app.frame();
@@ -2748,7 +2736,7 @@ fn change_the_plan_from_the_checklist_shows_the_board() {
     app.press(Action::Board(BP::Form(Zone::Paper(0), Thing::Seed(0), 0)));
     app.press(Action::BQNext(qstep::BOARD));
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     assert_eq!(
         sorted(paper(&app, 0)),
         sorted(vec![What::SeedQr(0), What::Sheet])

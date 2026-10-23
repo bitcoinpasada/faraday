@@ -254,9 +254,9 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
 /// places for a single key: as a plan saved before plans kept at most one
 /// place per key has it (`docs/BACKUP-FLOW.md` §17.19).
 fn preset_saved(app: &mut Faraday, k: u8) {
-    let w = app.backup.as_ref().unwrap().wallet;
+    let w = app.backup().unwrap().wallet;
     let shape = app.plan_shape_now(w);
     let preset = faraday_core::plan::Preset::ALL[usize::from(k)];
-    app.backup.as_mut().unwrap().answers =
+    *faraday_core::testkit::backup_answers_mut(app) =
         faraday_core::plan::Answers::preset_at(&shape, preset, 2);
 }

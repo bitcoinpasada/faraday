@@ -561,11 +561,7 @@ impl Faraday {
                 }
             }
             Action::QrWallet(i) => {
-                if let Some(b) = self.backup.as_mut()
-                    && b.wallet == i
-                    && self.screen == Screen::Backup
-                {
-                    b.shown = true;
+                if self.screen == Screen::Backup && self.backup.shown(i) {
                     self.backups_shown();
                 }
                 if i < self.session.wallets.len() {

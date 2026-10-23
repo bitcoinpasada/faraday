@@ -76,11 +76,11 @@ fn at_the_passphrase(app: &mut Faraday) {
     {
         app.press(Action::BNext(bstep::BLANK));
     }
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY));
     testkit::type_copy(app);
     app.press(Action::BNext(bstep::COPY));
     assert_eq!(
-        app.backup.as_ref().unwrap().open,
+        app.backup().unwrap().open,
         Some(bstep::PASSPHRASE),
         "the passphrase's item does not follow the copy"
     );
@@ -102,9 +102,9 @@ fn says(app: &mut Faraday, part: &str) -> bool {
 #[test]
 fn a_passphrase_on_paper_is_its_own_item_after_its_seeds_copy() {
     let mut app = backing_up(PASSPHRASE);
-    let w = app.backup.as_ref().unwrap().wallet;
+    let w = app.backup().unwrap().wallet;
     let shape = app.plan_shape_now(w);
-    let a = app.backup.as_ref().unwrap().answers.clone();
+    let a = app.backup().unwrap().answers.clone();
     let map = faraday_core::plan::map(&testkit::compute(), &shape, &a);
     assert!(
         map.iter().any(|s| matches!(s.at, At::Place(_))
@@ -132,7 +132,7 @@ fn typing_the_right_passphrase_back_completes_the_item() {
     app.event(Event::Key(Key::Enter));
     assert!(done(&app), "the right passphrase did not complete the item");
     assert!(
-        app.backup.as_ref().unwrap().check.is_none(),
+        app.backup().unwrap().check.is_none(),
         "the field stays open"
     );
     assert!(says(&mut app, "Your copy matches the passphrase"));
@@ -155,8 +155,7 @@ fn a_wrong_passphrase_leaves_the_item_undone_and_wipes_what_was_typed() {
     assert!(!done(&app), "a wrong passphrase completed the item");
     assert!(says(&mut app, "Your copy differs from the passphrase"));
     let check = app
-        .backup
-        .as_ref()
+        .backup()
         .unwrap()
         .check
         .as_ref()
@@ -187,7 +186,7 @@ fn show_the_passphrase_shows_it_and_the_check_hides_it() {
     // Show ends the check and wipes what was typed.
     type_text(&mut app, "lan");
     app.press(Action::BReveal);
-    assert!(app.backup.as_ref().unwrap().check.is_none());
+    assert!(app.backup().unwrap().check.is_none());
     assert!(says(&mut app, PASSPHRASE));
 }
 

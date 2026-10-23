@@ -8,7 +8,7 @@ use faraday_crypto::work::Compute;
 
 /// Scrolls the checklist until the open item's Continue is on screen.
 pub(crate) fn scroll_to_open_next(t: &mut Tour) {
-    if let Some(n) = t.app.backup.as_ref().and_then(|b| b.open) {
+    if let Some(n) = t.app.backup().and_then(|b| b.open) {
         scroll_to(t, Action::BNext(n));
     }
 }

@@ -49,7 +49,7 @@ fn kind_index(kind: NewKind) -> u8 {
 }
 
 fn backup_shape(app: &Faraday) -> Shape {
-    app.plan_shape_now(app.backup.as_ref().unwrap().wallet)
+    app.plan_shape_now(app.backup().unwrap().wallet)
 }
 
 /// A change to Back up's plan made straight to its map, as a drop on the
@@ -57,7 +57,7 @@ fn backup_shape(app: &Faraday) -> Shape {
 fn board_edit(app: &mut Faraday, f: impl FnOnce(Vec<Spot>) -> Vec<Spot>) {
     let c = faraday_core::testkit::compute();
     let shape = backup_shape(app);
-    let a = &mut app.backup.as_mut().unwrap().answers;
+    let a = faraday_core::testkit::backup_answers_mut(app);
     let m = plan::map(&c, &shape, a);
     a.set_map(f(m));
 }
@@ -126,7 +126,7 @@ fn lock_and_write(shell: &mut Shell, app: &mut Faraday) -> Faraday {
     let c = testkit::compute();
     app.press(Action::BChecklist);
     assert_eq!(
-        app.backup.as_ref().unwrap().stage,
+        app.backup().unwrap().stage,
         BStage::Checklist,
         "{:?}",
         app.backup_kept_nowhere(&c)

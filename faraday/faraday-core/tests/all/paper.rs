@@ -71,7 +71,7 @@ fn a_seed_xor_split_typed_back_is_the_same_key() {
     let mut app = backing_up();
     let want = app.session.keys[0].fingerprint.0;
     app.press(Action::BXor(3));
-    let Some(PaperForm::Xor(parts)) = &app.backup.as_ref().unwrap().paper else {
+    let Some(PaperForm::Xor(parts)) = &app.backup().unwrap().paper else {
         panic!("no split");
     };
     assert_eq!(parts.len(), 3);
@@ -84,7 +84,7 @@ fn two_of_three_codex32_shares_typed_back_are_the_same_key() {
     let mut app = backing_up();
     let want = app.session.keys[0].fingerprint.0;
     app.press(Action::BCodex32(2, 3));
-    let Some(PaperForm::Codex32 { k, strings }) = &app.backup.as_ref().unwrap().paper else {
+    let Some(PaperForm::Codex32 { k, strings }) = &app.backup().unwrap().paper else {
         panic!("no shares");
     };
     assert_eq!((*k, strings.len()), (2, 3));

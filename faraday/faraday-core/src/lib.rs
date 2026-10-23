@@ -1250,8 +1250,8 @@ pub struct Faraday {
     family: family::FamilyArea,
     /// A vanity address being searched for.
     vanity: vanity::VanityArea,
-    /// The backup flow.
-    pub backup: Option<BackupState>,
+    /// The wallet backup checklist (`Screen::Backup`), while it is open.
+    backup: wallet_backup::WalletBackupArea,
     /// Signing a message.
     message: state::MessageArea,
     /// Creating a wallet.
@@ -1447,7 +1447,7 @@ impl Faraday {
             qr: qr_view::QrArea::default(),
             family: family::FamilyArea::default(),
             vanity: vanity::VanityArea::default(),
-            backup: None,
+            backup: wallet_backup::WalletBackupArea::default(),
             message: state::MessageArea::default(),
             create: create::CreateArea::default(),
             restore: restore::RestoreArea::default(),
@@ -2665,7 +2665,7 @@ impl Faraday {
             .retain(|i| !i.holds().may_be_secret() && !i.secret);
         self.session.wipe();
         self.wallets.clear_spend();
-        self.backup = None;
+        self.backup.close();
         self.message.clear();
         self.create.clear();
         self.restore.clear();
@@ -2998,7 +2998,7 @@ impl Faraday {
                     // A copy's scan closed by the person: one scan without
                     // a match (a match closes the camera itself).
                     if let ScanPurpose::CheckCopy(fp) = scan.purpose {
-                        self.copy_missed(fp.0);
+                        self.backup.copy_missed(fp.0);
                     }
                 }
                 self.sheet = None;
@@ -3006,9 +3006,7 @@ impl Faraday {
                 self.glance.set_chart(None);
                 self.glance.work_mut().secret.clear();
                 self.glance.work_mut().ask = None;
-                if let Some(b) = self.backup.as_mut() {
-                    b.pick = false;
-                }
+                self.backup.close_pick();
                 // A device still waiting comes back up.
                 self.input_sheet();
             }
@@ -3530,129 +3528,6 @@ impl Faraday {
             .collect()
     }
 
-    /// Costs what `vault_has_wallet`, `vault_key` and `seed_copy_checked`
-    /// cost. Where the wallet being backed up and each of its keys are
-    /// kept, as the small panel's copy page lists them: in which open
-    /// vault, whether the copy by hand was checked, whether a file of it is
-    /// in the Outbox unprotected, or not here at all.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-    pub fn backup_kept(&self, c: &Compute) -> Option<wallet_backup::Kept> {
-        use crate::vault::screen::{vault_has_wallet, vault_key};
-        use wallet_backup::{KeptSeed, Tone};
-        let b = self.backup.as_ref()?;
-        let wallet = self.session.wallets.get(b.wallet)?;
-        let open = 0..self.vaults.open.len();
-        // A locked vault cannot be looked into.
-        let unknown = self.vaults.open.is_empty() && !self.vault_files().is_empty();
-        let not_known = || (EN.backup_kept_not_checked.to_string(), Tone::Dim);
-        let wallet_line = match open.clone().find(|&v| vault_has_wallet(c, self, v, wallet)) {
-            Some(v) => (
-                fill(
-                    EN.backup_kept_wallet_vault,
-                    &[&self.vaults.open[v].name.to_string()],
-                ),
-                Tone::Ok,
-            ),
-            None if unknown => not_known(),
-            None => (EN.backup_kept_wallet.to_string(), Tone::Warn),
-        };
-        let stem = file_stem(&wallet.name);
-        let here = self.backup_keys(b.wallet);
-        let seed_lines = |key: &faraday_keys::KeyInfo| -> Vec<(String, Tone)> {
-            let fp = key.fingerprint;
-            let mut lines = Vec::new();
-            lines.push(
-                match open
-                    .clone()
-                    .find_map(|v| vault_key(c, self, v, key).map(|p| (v, p)))
-                {
-                    Some((v, with)) => (
-                        fill(
-                            EN.backup_kept_vault,
-                            &[
-                                &self.vaults.open[v].name.to_string(),
-                                &(if with {
-                                    format!(" {}", EN.backup_with_its_passphrase)
-                                } else {
-                                    String::new()
-                                }),
-                            ],
-                        ),
-                        Tone::Ok,
-                    ),
-                    None if unknown => not_known(),
-                    None => (EN.backup_kept_no_vault.to_string(), Tone::Warn),
-                },
-            );
-            lines.push(if self.seed_copy_checked(c, fp.0) {
-                (EN.backup_kept_paper_copy.to_string(), Tone::Ok)
-            } else {
-                (EN.backup_kept_paper_unchecked.to_string(), Tone::Warn)
-            });
-            let fps = fp_text(fp).to_lowercase();
-            let files = ["words.txt", "seedqr.png", "compactseedqr.png"]
-                .map(|end| format!("{stem}-{fps}-{end}"));
-            if self
-                .outbox
-                .iter()
-                .any(|i| i.secret && files.contains(&i.name))
-            {
-                lines.push((
-                    fill(EN.backup_kept_file_unprotected, &[self.medium.for_the()]),
-                    Tone::Err,
-                ));
-            }
-            lines
-        };
-        let away = || vec![(EN.backup_kept_not_here.to_string(), Tone::Dim)];
-        let mut seeds = Vec::new();
-        if let Some(record) = wallet.policy().record() {
-            // A threshold wallet's keys are its shares, by number.
-            for (id, pubshare) in record.info.pubshares.iter().enumerate() {
-                let key = here
-                    .iter()
-                    .map(|&k| &self.session.keys[k])
-                    .find(|k| pubshare.is_some() && k.share.as_ref() == pubshare.as_ref());
-                seeds.push(match key {
-                    Some(key) => KeptSeed {
-                        name: fp_text(key.fingerprint),
-                        lines: seed_lines(key),
-                    },
-                    None => KeptSeed {
-                        name: fill(EN.backup_kept_share, &[&(id + 1).to_string()]),
-                        lines: away(),
-                    },
-                });
-            }
-        } else {
-            let mut fps: Vec<faraday_bip::keys::Fingerprint> = Vec::new();
-            for f in wallet
-                .policy()
-                .keys()
-                .iter()
-                .filter_map(|k| k.fingerprint())
-            {
-                if !fps.contains(&f) {
-                    fps.push(f);
-                }
-            }
-            for fp in fps {
-                let key = here
-                    .iter()
-                    .map(|&k| &self.session.keys[k])
-                    .find(|k| k.fingerprint == fp);
-                seeds.push(KeptSeed {
-                    name: fp_text(fp),
-                    lines: key.map_or_else(away, seed_lines),
-                });
-            }
-        }
-        Some(wallet_backup::Kept {
-            wallet: wallet_line,
-            seeds,
-        })
-    }
-
     /// Wallet `w`'s seeds, in its order, as the plan and the panel list
     /// them: a name each (its fingerprint, or a share not here by number)
     /// and the session key that holds it, when its words are here.
@@ -3768,104 +3643,6 @@ impl Faraday {
         }
     }
 
-    /// Costs what `plan_mapped` costs. The cards of the backup's plan, in
-    /// order (`docs/BACKUP-FLOW.md` §15.1): the board, the software where
-    /// the description goes into software or as files, and The plan.
-    pub fn backup_questions(&self, c: &Compute) -> Vec<u8> {
-        let Some(b) = self.backup.as_ref() else {
-            return Vec::new();
-        };
-        // The board replaces the cards from Places to Where the
-        // description goes (`docs/BACKUP-FLOW.md` §17.1); the software and
-        // The plan stay. Start from is gone (§19.21 item 1).
-        let shape = self.plan_shape_now(b.wallet);
-        plan_cards_on(&self.kept.plan_mapped(c, &shape, &b.answers))
-    }
-
-    /// Costs what `plan_mapped` costs. The backup's checklist, by
-    /// [`bstep`]: only what the plan needs. Works out the plan's shape
-    /// (kept for the frame while one is drawn).
-    ///
-    /// Works out [`crate::drawing::View::backup_items`] from the state as it is.
-    pub fn backup_items_now(&self, c: &Compute) -> Vec<u8> {
-        let Some(b) = self.backup.as_ref() else {
-            return Vec::new();
-        };
-        let shape = self.plan_shape_now(b.wallet);
-        plan::checklist_on(
-            &shape,
-            &b.answers,
-            &self.kept.plan_mapped(c, &shape, &b.answers),
-        )
-        .into_iter()
-        .map(bstep::of)
-        .collect()
-    }
-
-    /// Opens checklist item `n`, or closes them all. A seed's copy shows
-    /// that seed.
-    fn backup_item_open(&mut self, n: Option<u8>) {
-        let shape = self.backup.as_ref().map(|b| self.plan_shape_now(b.wallet));
-        let key = n
-            .and_then(bstep::item)
-            .and_then(|it| match it {
-                plan::Item::Copy(i) | plan::Item::Passphrase(i) => Some(i),
-                // A vault's item shows its first seed.
-                plan::Item::Vault(v) => {
-                    let b = self.backup.as_ref()?;
-                    b.answers.vault_seeds(shape.as_ref()?, v).first().copied()
-                }
-                _ => None,
-            })
-            .and_then(|i| {
-                let w = self.backup.as_ref()?.wallet;
-                self.backup_seed_list_now(w).get(i)?.1
-            });
-        // More options opens closed, unless a file under it is already
-        // For the stick.
-        let more = n == Some(bstep::PUBLIC)
-            && self.backup.as_ref().is_some_and(|b| {
-                self.session.wallets.get(b.wallet).is_some_and(|w| {
-                    wallet_backup::public_more_files(w)
-                        .iter()
-                        .any(|(_, f)| self.outbox.iter().any(|i| i.name == *f))
-                })
-            });
-        if let Some(b) = self.backup.as_mut() {
-            // A passphrase item opens, and closes, with it hidden.
-            if n.is_some_and(bstep::is_passphrase) || b.open.is_some_and(bstep::is_passphrase) {
-                b.reveal = false;
-            }
-            b.open = n;
-            b.public_more = more;
-            b.scroll.follow = true;
-            b.check = None;
-            if let Some(k) = key
-                && b.key != k
-            {
-                b.key = k;
-                b.reveal = false;
-                b.scanned = None;
-                b.paper = None;
-            }
-        }
-    }
-
-    /// The public files the plan's software calls for, as
-    /// [`Faraday::public_out`] numbers their text: Sparrow the wallet
-    /// file, Coldcard, Keystone and Passport the multisig config, Nunchuk
-    /// the BSMS record, Bitcoin Core its import, each the descriptor where
-    /// the wallet has no such file; "Not sure" the descriptor.
-    pub fn backup_public(&self) -> Vec<u8> {
-        let Some(b) = self.backup.as_ref() else {
-            return Vec::new();
-        };
-        let Some(w) = self.session.wallets.get(b.wallet) else {
-            return Vec::new();
-        };
-        Self::backup_public_for(w, &b.answers)
-    }
-
     /// [`Faraday::backup_public`] for wallet `w` under answers `a`.
     pub(crate) fn backup_public_for(w: &wallet::Wallet, a: &plan::Answers) -> Vec<u8> {
         use faraday_bip::policy::{Template, Wrapper};
@@ -3901,16 +3678,6 @@ impl Faraday {
             add(&mut v, 1);
         }
         v
-    }
-
-    /// Costs what `backup_public_names_for_now` costs. The files
-    /// [`Faraday::backup_public`] makes, in the form chosen: the text, the
-    /// labelled picture, or both; a file with no picture as its text.
-    fn backup_public_names(&self, c: &Compute) -> Vec<String> {
-        let Some(b) = self.backup.as_ref() else {
-            return Vec::new();
-        };
-        self.backup_public_names_for_now(c, b.wallet, &b.answers)
     }
 
     /// Costs what `account_key_names` costs.
@@ -4009,67 +3776,6 @@ impl Faraday {
         out
     }
 
-    /// Costs what `copy_checked`, `backup_vault_fits`,
-    /// `backup_public_names` and the rest it calls cost. Whether a
-    /// checklist item is done, by what it does (it names files and may read
-    /// the outbox, so kept for the frame while one is drawn): its file For
-    /// the stick or written, its seeds or the wallet in the open vault, the
-    /// copy matched, the descriptor shown; the envelopes alone by a press.
-    ///
-    /// Works out [`crate::drawing::View::backup_item_done`] from the state as it is.
-    pub fn backup_item_done_now(&self, c: &Compute, item: plan::Item) -> bool {
-        let Some(b) = self.backup.as_ref() else {
-            return false;
-        };
-        let Some(w) = self.session.wallets.get(b.wallet) else {
-            return false;
-        };
-        let stem = file_stem(&w.name);
-        // For the stick, or written by the last visit, or by the flow.
-        let out = |name: &str| {
-            self.outbox.iter().any(|i| i.name == name)
-                || self.visit.receipt().as_ref().is_some_and(|r| r.wrote(name))
-                || self.wallet_wrote(name)
-        };
-        let seeds = self.backup_seed_list_now(b.wallet);
-        let here: Vec<(usize, &faraday_keys::KeyInfo)> = seeds
-            .iter()
-            .enumerate()
-            .filter_map(|(i, (_, k))| Some((i, self.session.keys.info((*k)?)?)))
-            .collect();
-        match item {
-            // Printed from Faraday Starter: no file is made here.
-            plan::Item::Templates => b.printed,
-            plan::Item::Copy(i) => here
-                .iter()
-                .find(|(j, _)| *j == i)
-                .is_some_and(|(_, k)| self.copy_checked(c, b, i, k)),
-            plan::Item::Passphrase(i) => {
-                here.iter().find(|(j, _)| *j == i).is_some_and(|(_, k)| {
-                    b.checked
-                        .contains(&(k.fingerprint.0, plan::CopyForm::Passphrase))
-                })
-            }
-            plan::Item::Vault(v) => self.backup_vault_fits(c, v).is_some(),
-            plan::Item::SeedFiles => {
-                !here.is_empty() && here.iter().all(|(_, k)| self.seed_file_made(&stem, k))
-            }
-            plan::Item::Sheets => {
-                if b.answers.split && wallet_backup::splits(w) {
-                    let (_, n) = Session::quorum(w);
-                    out(&format!("{stem}-share-1-of-{n}.pdf"))
-                } else {
-                    out(&format!("{stem}-backup.pdf"))
-                }
-            }
-            plan::Item::PublicFiles => self.backup_public_names(c).iter().all(|n| out(n)),
-            plan::Item::ShowDescriptor => b.shown,
-            plan::Item::Envelopes => b.envelopes,
-            // Every stick of the plan written, inside the flow.
-            plan::Item::Sticks => self.wallet_sticks_done(c),
-        }
-    }
-
     /// Whether a file of key `k`'s seed, for the wallet whose files are
     /// named `stem`, is For the stick or was written by the last visit.
     pub(crate) fn seed_file_made(&self, stem: &str, k: &faraday_keys::KeyInfo) -> bool {
@@ -4086,73 +3792,6 @@ impl Faraday {
                         .is_some_and(|r| r.wrote(&name))
                     || self.wallet_wrote(&name)
             })
-    }
-
-    /// The fingerprints of the seeds the plan puts into vault `v`, and of
-    /// those it puts into another vault and not this one.
-    pub(crate) fn backup_vault_keys(
-        &self,
-        v: usize,
-    ) -> (
-        Vec<faraday_bip::keys::Fingerprint>,
-        Vec<faraday_bip::keys::Fingerprint>,
-    ) {
-        let Some(b) = self.backup.as_ref() else {
-            return (Vec::new(), Vec::new());
-        };
-        let shape = self.plan_shape_now(b.wallet);
-        let list = self.backup_seed_list_now(b.wallet);
-        let fp = |i: usize| {
-            let k = list.get(i)?.1?;
-            Some(self.session.keys.info(k)?.fingerprint)
-        };
-        let own = b.answers.vault_seeds(&shape, v);
-        let mut others: Vec<usize> = b
-            .answers
-            .vaults_made(&shape)
-            .into_iter()
-            .filter(|&u| u != v)
-            .flat_map(|u| b.answers.vault_seeds(&shape, u))
-            .filter(|i| !own.contains(i))
-            .collect();
-        others.sort_unstable();
-        others.dedup();
-        (
-            own.into_iter().filter_map(fp).collect(),
-            others.into_iter().filter_map(fp).collect(),
-        )
-    }
-
-    /// The session keys of the seeds the plan puts into vault `v`, each
-    /// with whether its passphrase goes in with it, and those of the seeds
-    /// it puts into another vault and not this one.
-    pub(crate) fn backup_vault_seeds(&self, v: usize) -> (Vec<(usize, bool)>, Vec<usize>) {
-        let Some(b) = self.backup.as_ref() else {
-            return (Vec::new(), Vec::new());
-        };
-        let shape = self.plan_shape_now(b.wallet);
-        let list = self.backup_seed_list_now(b.wallet);
-        let own = b.answers.vault_seeds(&shape, v);
-        let mut others: Vec<usize> = b
-            .answers
-            .vaults_made(&shape)
-            .into_iter()
-            .filter(|&u| u != v)
-            .flat_map(|u| b.answers.vault_seeds(&shape, u))
-            .filter(|i| !own.contains(i))
-            .filter_map(|i| list.get(i)?.1)
-            .collect();
-        others.sort_unstable();
-        others.dedup();
-        let own = own
-            .into_iter()
-            .filter_map(|i| {
-                let k = list.get(i)?.1?;
-                let with = shape.seeds[i].passphrase && b.answers.pass_in_vault(i);
-                Some((k, with))
-            })
-            .collect();
-        (own, others)
     }
 
     /// Costs what `vault_holds_seed` costs. Whether open vault `o` holds a
@@ -4223,41 +3862,6 @@ impl Faraday {
         (!self.backup_vaults_set_up_but(v).contains(&cur)).then_some(cur)
     }
 
-    /// Costs what `backup_vault_shares` and `backup_vault_passphrases`
-    /// cost. Whether the plan puts anything in vault `v`.
-    fn backup_vault_wanted(&self, c: &Compute, v: usize) -> Option<()> {
-        let b = self.backup.as_ref()?;
-        self.session.wallets.get(b.wallet)?;
-        let (own_seeds, _) = self.backup_vault_seeds(v);
-        let shares = !self.backup_vault_shares(c, v).is_empty();
-        let passphrases = !self.backup_vault_passphrases(c, v).is_empty();
-        (!own_seeds.is_empty() || b.answers.wallet_in_vault(v) || shares || passphrases)
-            .then_some(())
-    }
-
-    /// Costs what `plan_mapped` costs. The session keys whose passphrase
-    /// the plan keeps alone in vault `v`, as a passphrase record
-    /// (`docs/BACKUP-FLOW.md` §17.12 item 4): a key with a passphrase only.
-    pub(crate) fn backup_vault_passphrases(&self, c: &Compute, v: usize) -> Vec<usize> {
-        let Some(b) = self.backup.as_ref() else {
-            return Vec::new();
-        };
-        let shape = self.plan_shape_now(b.wallet);
-        let list = self.backup_seed_list_now(b.wallet);
-        self.kept
-            .plan_mapped(c, &shape, &b.answers)
-            .vault_passphrases(v)
-            .into_iter()
-            .filter_map(|i| list.get(i)?.1)
-            .filter(|&k| {
-                self.session
-                    .keys
-                    .info(k)
-                    .is_some_and(|key| key.has_passphrase)
-            })
-            .collect()
-    }
-
     /// Whether open vault `o` holds session key `k`'s passphrase as a
     /// passphrase record: its fingerprint and its passphrase.
     pub(crate) fn vault_holds_passphrase(&self, o: usize, k: usize) -> bool {
@@ -4278,27 +3882,6 @@ impl Faraday {
             })
     }
 
-    /// Costs what `plan_mapped` costs. The shares the plan keeps in vault
-    /// `v`, each with its text and how many shares there are
-    /// (`docs/BACKUP-FLOW.md` §15.6).
-    pub(crate) fn backup_vault_shares(&self, c: &Compute, v: usize) -> Vec<(usize, String, usize)> {
-        let Some(b) = self.backup.as_ref() else {
-            return Vec::new();
-        };
-        let Some(w) = self.session.wallets.get(b.wallet) else {
-            return Vec::new();
-        };
-        let shape = self.plan_shape_now(b.wallet);
-        let (m, n) = Session::quorum(w);
-        let plan = wallet_backup::split_plan(n, m, b.answers.omit);
-        self.kept
-            .plan_mapped(c, &shape, &b.answers)
-            .vault_shares(v)
-            .into_iter()
-            .filter_map(|j| Some((j, wallet_backup::split_share(w, plan.get(j)?)?, plan.len())))
-            .collect()
-    }
-
     /// Costs what `share_record_is` costs. Whether open vault `o` holds
     /// share `j` of the wallet with checksum `cs` (type 13, told by its
     /// field 5 and field 3), with this text.
@@ -4316,99 +3899,6 @@ impl Faraday {
                 share_record_is(c, r, cs, Some(j)) && r.public_text(field::SHARE) == Some(text)
             })
         })
-    }
-
-    /// Costs what `backup_vault_wanted`, `vault_holds_seed`,
-    /// `vault_has_wallet` and the rest it calls cost. Whether open vault
-    /// `o` holds what the plan puts in vault `v` and no seed only another
-    /// vault is to hold.
-    pub(crate) fn backup_open_fits(&self, c: &Compute, v: usize, o: usize) -> bool {
-        use crate::vault::screen::vault_has_wallet;
-        let Some(b) = self.backup.as_ref() else {
-            return false;
-        };
-        let Some(w) = self.session.wallets.get(b.wallet) else {
-            return false;
-        };
-        if self.backup_vault_wanted(c, v).is_none() {
-            return false;
-        }
-        let (own_seeds, other_seeds) = self.backup_vault_seeds(v);
-        let wallet_too = b.answers.wallet_in_vault(v);
-        own_seeds
-            .iter()
-            .all(|&(k, with)| self.vault_holds_seed(c, o, k, with))
-            && !other_seeds
-                .iter()
-                .any(|&k| self.vault_holds_seed(c, o, k, false))
-            && (!wallet_too || vault_has_wallet(c, self, o, w))
-            && self
-                .backup_vault_shares(c, v)
-                .iter()
-                .all(|(j, text, _)| self.vault_holds_share(c, o, w.checksum(), *j, text))
-            && self
-                .backup_vault_passphrases(c, v)
-                .iter()
-                .all(|&k| self.vault_holds_passphrase(o, k))
-    }
-
-    /// Costs what `backup_vault_shares`, `backup_vault_passphrases` and
-    /// `backup_vault_open` cost. The vault that does the plan's vault `v`:
-    /// an open vault, or one locked since this power-on by what it was seen
-    /// to hold, that holds every seed the plan puts into `v` (with its
-    /// passphrase where the plan puts it there), the wallet where the plan
-    /// puts it there, and no seed only another vault is to hold. Its name.
-    pub(crate) fn backup_vault_fits(&self, c: &Compute, v: usize) -> Option<String> {
-        let b = self.backup.as_ref()?;
-        let w = self.session.wallets.get(b.wallet)?;
-        let wallet_too = b.answers.wallet_in_vault(v);
-        let (own_seeds, _) = self.backup_vault_seeds(v);
-        let shares = !self.backup_vault_shares(c, v).is_empty();
-        let passphrases = !self.backup_vault_passphrases(c, v).is_empty();
-        if own_seeds.is_empty() && !wallet_too && !shares && !passphrases {
-            return None;
-        }
-        if let Some(o) = self.backup_vault_open(c, v) {
-            return Some(self.vaults.open[o].name.clone());
-        }
-        // A locked vault's summary lists no shares and no passphrases: a
-        // vault that is to hold one is done only while it is open.
-        if shares || passphrases {
-            return None;
-        }
-        let (own, others) = self.backup_vault_keys(v);
-        let sum = w.checksum().to_string();
-        // Each seed told by its whole master id, the session key's else
-        // the backup record's (F65); one that cannot be told is not done.
-        let record = self.backups_area.record(&sum);
-        let has = |s: &crate::vault::VaultSummary, f: &faraday_bip::keys::Fingerprint| {
-            crate::backups::summary_has_seed(s, f.0, self.seed_id(record, f.0))
-        };
-        let salts: Vec<[u8; 32]> = self.vaults.open.iter().map(|o| o.header().salt).collect();
-        self.vaults
-            .summaries
-            .iter()
-            .filter(|s| !salts.contains(&s.salt))
-            .find(|s| {
-                own.iter().all(|f| has(s, f) == Some(true))
-                    && others.iter().all(|f| has(s, f) == Some(false))
-                    && (!wallet_too || s.sums.contains(&sum))
-            })
-            .map(|s| s.file.clone())
-    }
-
-    /// What place `p` is called on screen: its name, kept in the vault, or
-    /// "Place 1", "Place 2".
-    pub fn place_name(&self, p: usize) -> String {
-        self.backup
-            .as_ref()
-            .and_then(|b| b.names.get(p))
-            .map(|n| n.trim())
-            .filter(|n| !n.is_empty())
-            .map_or_else(
-                || fill(EN.place_name_place, &[&(p + 1).to_string()]),
-                str::to_string,
-            )
     }
 
     /// The text a vault keeps a wallet under, as Vaults saves it.
@@ -4478,7 +3968,7 @@ impl Faraday {
     /// written, else the current one.
     fn plan_save(&mut self) {
         let c = self.compute();
-        let Some(b) = self.backup.as_ref() else {
+        let Some(b) = self.backup.state() else {
             return;
         };
         let Some(w) = self.session.wallets.get(b.wallet) else {
@@ -4651,13 +4141,6 @@ impl Faraday {
         }
     }
 
-    fn backup_out(&mut self, what: u8) {
-        let Some(wallet) = self.backup.as_ref().map(|b| b.wallet) else {
-            return;
-        };
-        self.public_out(wallet, what);
-    }
-
     /// Costs a QR encoding (through `picture_codes`). The labelled pictures
     /// among a wallet's public files `what` (as [`Faraday::public_out`]
     /// numbers them): for 8, the descriptor's code, in parts past one code;
@@ -4736,7 +4219,7 @@ impl Faraday {
                 // As the shares' sheets and text are split.
                 let omit = self
                     .backup
-                    .as_ref()
+                    .state()
                     .map_or(m.saturating_sub(1), |b| b.answers.omit);
                 let plan = wallet_backup::split_plan(n, m, omit);
                 let mut out = Vec::new();
@@ -4817,95 +4300,6 @@ impl Faraday {
         }
     }
 
-    /// The backup under way's wallet, when its checklist is showing and
-    /// file `what` is For the stick: that file is made again when what it
-    /// depends on changes. The old one goes now.
-    fn backup_remake(&mut self, what: u8) -> Option<usize> {
-        let b = self.backup.as_ref()?;
-        if b.stage != BStage::Checklist {
-            return None;
-        }
-        let w = b.wallet;
-        let made = self.public_names(w, what);
-        if !self.outbox.iter().any(|i| made.contains(&i.name)) {
-            return None;
-        }
-        self.public_remove(w, what);
-        Some(w)
-    }
-
-    /// Making the checklist makes every public file it calls for, For
-    /// the stick: the blank template, the sheet or the shares, and the
-    /// files for the software chosen. Made again, each replaces its
-    /// namesake.
-    fn backup_files_make(&mut self) {
-        let c = self.compute();
-        let Some(b) = self.backup.as_ref() else {
-            return;
-        };
-        let w = b.wallet;
-        let (qr, text) = (
-            b.answers.form[plan::form::QR],
-            b.answers.form[plan::form::TEXT],
-        );
-        let split = self
-            .session
-            .wallets
-            .get(w)
-            .is_some_and(|wl| b.answers.split && wallet_backup::splits(wl));
-        let items: Vec<plan::Item> = self
-            .backup_items_now(&c)
-            .into_iter()
-            .filter_map(bstep::item)
-            .collect();
-        let mut files: Vec<(String, Vec<u8>)> = Vec::new();
-        for item in items {
-            match item {
-                plan::Item::Sheets => files.extend(self.public_made(w, if split { 4 } else { 3 })),
-                plan::Item::PublicFiles => {
-                    // In the form chosen, as `backup_public_names` lists
-                    // them: the picture, the text, or both.
-                    for what in self.backup_public() {
-                        let picture: Vec<(String, Vec<u8>)> = match what {
-                            _ if !qr => Vec::new(),
-                            1 => self.public_made(w, 8),
-                            2 | 6 => {
-                                let code = if what == 2 {
-                                    Code::MultisigConfig(w)
-                                } else {
-                                    Code::Bsms(w)
-                                };
-                                self.code_view(&c, code)
-                                    .ok()
-                                    .and_then(|v| v.png(&c))
-                                    .into_iter()
-                                    .collect()
-                            }
-                            _ => Vec::new(),
-                        };
-                        if picture.is_empty() || text {
-                            files.extend(self.public_made(w, what));
-                        }
-                        files.extend(picture);
-                    }
-                    // Each key's account key files go with them.
-                    files.extend(self.account_key_files(&c, w));
-                }
-                _ => {}
-            }
-        }
-        let names: Vec<String> = files.iter().map(|(n, _)| n.clone()).collect();
-        for (name, bytes) in files {
-            self.put_outbox(&name, bytes);
-        }
-        self.backup_sent(w, &names);
-        match names.len() {
-            0 => {}
-            1 => self.toast_out(&names[0]),
-            k => self.toast_out(&fill(EN.backup_files_make_files, &[&k.to_string()])),
-        }
-    }
-
     /// The files [`Faraday::public_out`] makes, with their bytes.
     fn public_made(&mut self, wallet: usize, what: u8) -> Vec<(String, Vec<u8>)> {
         self.public_files(wallet, what, true)
@@ -4930,7 +4324,7 @@ impl Faraday {
         };
         let omit = self
             .backup
-            .as_ref()
+            .state()
             .map_or(Session::quorum(w).0.saturating_sub(1), |b| b.answers.omit);
 
         let stem = file_stem(&w.name);
@@ -5046,20 +4440,6 @@ impl Faraday {
             _ => {}
         }
         files
-    }
-
-    /// Files of wallet `wallet` just put in the Outbox, for the summary
-    /// of its backup when one is under way.
-    fn backup_sent(&mut self, wallet: usize, names: &[String]) {
-        if let Some(b) = self.backup.as_mut()
-            && b.wallet == wallet
-        {
-            for n in names {
-                if !b.sent.contains(n) {
-                    b.sent.push(n.clone());
-                }
-            }
-        }
     }
 
     /// Costs what `account_text` costs. The account key in slot `slot` of
@@ -5474,9 +4854,7 @@ impl Faraday {
         if matched {
             self.copy_matched(fp.0, plan::CopyForm::SeedQr);
         }
-        if let Some(b) = self.backup.as_mut() {
-            b.scanned = Some(found.clone());
-        }
+        self.backup.set_scanned(found.clone());
         if matched {
             self.camera.close();
             self.sheet = None;
@@ -6947,49 +6325,16 @@ impl Faraday {
             return;
         }
         // The words of a copy, typed back for Check my copy.
-        if self.screen == Screen::Backup && self.backup.as_ref().is_some_and(|b| b.check.is_some())
-        {
+        if self.screen == Screen::Backup && self.backup.state().is_some_and(|b| b.check.is_some()) {
             self.copy_check_key(key);
             return;
         }
         // A place's name is typed on Back up's plan, and on a wallet
         // flow's plan card before its lock (`docs/BACKUP-FLOW.md` §15.7).
         let naming_in_flow = self.screen == Screen::BackupFlow
-            && self.backup.as_ref().is_some_and(|b| b.naming.is_some());
-        if (self.screen == Screen::Backup || naming_in_flow)
-            && let Some(b) = self.backup.as_mut()
-        {
-            match key {
-                KeyIn::Down if b.open.is_some_and(bstep::is_copy) => {
-                    b.pin += 1;
-                    return;
-                }
-                KeyIn::Up if b.open.is_some_and(bstep::is_copy) => {
-                    b.pin = b.pin.saturating_sub(1);
-                    return;
-                }
-                // A place's name, typed: kept in the vault alone.
-                KeyIn::Char(c) if b.naming.is_some() => {
-                    if let Some(name) = b.naming.and_then(|p| b.names.get_mut(p))
-                        && name.chars().count() < 32
-                        && !c.is_control()
-                    {
-                        name.push(c);
-                    }
-                    return;
-                }
-                KeyIn::Backspace if b.naming.is_some() => {
-                    if let Some(name) = b.naming.and_then(|p| b.names.get_mut(p)) {
-                        name.pop();
-                    }
-                    return;
-                }
-                KeyIn::Enter | KeyIn::Escape if b.naming.is_some() => {
-                    b.naming = None;
-                    return;
-                }
-                _ => {}
-            }
+            && self.backup.state().is_some_and(|b| b.naming.is_some());
+        if (self.screen == Screen::Backup || naming_in_flow) && self.backup.name_key(key) {
+            return;
         }
         match key {
             KeyIn::Escape => {

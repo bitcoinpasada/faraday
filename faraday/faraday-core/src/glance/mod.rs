@@ -405,7 +405,7 @@ fn plan_on(r: &impl Reads, w: usize) -> Option<(plan::Answers, Vec<String>)> {
     let app = r.app();
     let wallet = app.session.wallets.get(w)?;
     let shape = r.plan_shape(w);
-    if let Some(b) = app.backup.as_ref()
+    if let Some(b) = app.backup()
         && b.wallet == w
         && b.stage == crate::BStage::Checklist
     {

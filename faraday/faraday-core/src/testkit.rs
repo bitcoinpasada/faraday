@@ -1475,11 +1475,11 @@ pub fn type_passphrases(app: &mut crate::Faraday) {
         if !bstep::is_passphrase(n) {
             continue;
         }
-        if app.backup.as_ref().and_then(|b| b.open) != Some(n) {
+        if app.backup().and_then(|b| b.open) != Some(n) {
             app.press(Action::BStep(n));
         }
         let pass = {
-            let b = app.backup.as_ref().expect("a backup is open");
+            let b = app.backup().expect("a backup is open");
             let key = app.session.keys.info(b.key).expect("the open seed");
             assert!(key.has_passphrase, "a key with a passphrase");
             app.session
@@ -1500,7 +1500,7 @@ pub fn type_passphrases(app: &mut crate::Faraday) {
 pub fn type_copy(app: &mut crate::Faraday) {
     use crate::Action;
     let words = {
-        let b = app.backup.as_ref().expect("a backup is open");
+        let b = app.backup().expect("a backup is open");
         let key = app.session.keys.info(b.key).expect("the open seed");
         assert!(key.has_words(), "a seed with words");
         app.session
@@ -1640,4 +1640,22 @@ pub fn inbox_retain(app: &mut crate::Faraday, keep: impl FnMut(&crate::Item) -> 
 /// Inbox file `at`, to change it.
 pub fn inbox_item_mut(app: &mut crate::Faraday, at: usize) -> &mut crate::Item {
     app.inbox.item_mut(at)
+}
+
+/// Back up's plan answers, to set what they hold. Panics where no backup
+/// is open.
+pub fn backup_answers_mut(app: &mut crate::Faraday) -> &mut crate::plan::Answers {
+    &mut app.backup.state_mut().expect("Back up is open").answers
+}
+
+/// Opens Back up's question `q`, or none.
+pub fn backup_set_q(app: &mut crate::Faraday, q: Option<u8>) {
+    if let Some(b) = app.backup.state_mut() {
+        b.q = q;
+    }
+}
+
+/// Drops the backup under way, as a lock does.
+pub fn backup_drop(app: &mut crate::Faraday) {
+    app.backup.close();
 }

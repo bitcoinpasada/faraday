@@ -291,7 +291,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
-    if app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
+    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
         app.press(Action::BStep(bstep::COPY));
     }
     app.press(Action::BReveal);

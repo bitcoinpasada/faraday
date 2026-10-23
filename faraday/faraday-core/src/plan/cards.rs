@@ -44,7 +44,7 @@ pub(crate) struct PlanCtx {
 impl PlanCtx {
     /// Back up's plan.
     pub(crate) fn backup(app: &View) -> Option<PlanCtx> {
-        let b = app.backup.as_ref()?;
+        let b = app.backup()?;
         let shape = app.plan_shape(b.wallet);
         let a = b.answers.clone();
         let names = (0..a.places.max(1) + 1)
@@ -73,7 +73,7 @@ impl PlanCtx {
         // typed there (kept in the vaults alone); after it, "Place n"
         // (§17.7). The flow keeps no name.
         let backup_names = !f.made
-            && app.backup.as_ref().is_some_and(|b| {
+            && app.backup().is_some_and(|b| {
                 app.session.wallets.get(b.wallet).map(|w| w.checksum()) == wf.checksum.as_deref()
             });
         let names = (0..a.places.max(1) + 1)

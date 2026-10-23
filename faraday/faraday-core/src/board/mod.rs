@@ -799,7 +799,7 @@ impl Faraday {
             self.backup_flows[i].wallet.as_ref()?;
             return Some(BoardOf::Flow(i));
         }
-        self.backup.as_ref().map(|_| BoardOf::Backup)
+        self.backup.state().map(|_| BoardOf::Backup)
     }
 
     /// Whether the board is on screen: Back up's plan with its board card
@@ -807,7 +807,7 @@ impl Faraday {
     /// lookup.
     pub fn board_shown(&self) -> bool {
         match self.board_of() {
-            Some(BoardOf::Backup) => self.backup.as_ref().is_some_and(|b| {
+            Some(BoardOf::Backup) => self.backup.state().is_some_and(|b| {
                 self.screen == crate::Screen::Backup
                     && b.stage == crate::BStage::Plan
                     && b.q == Some(crate::qstep::BOARD)
@@ -823,7 +823,7 @@ impl Faraday {
     /// What the board on screen holds between presses.
     pub(crate) fn board_state(&self) -> Option<&BoardState> {
         match self.board_of()? {
-            BoardOf::Backup => self.backup.as_ref().map(|b| &b.board),
+            BoardOf::Backup => self.backup.state().map(|b| &b.board),
             BoardOf::Flow(i) => self.backup_flows.get(i).map(|f| &f.live.board),
         }
     }
@@ -831,7 +831,7 @@ impl Faraday {
     /// What the board on screen holds between presses, to change.
     fn board_state_mut(&mut self) -> Option<&mut BoardState> {
         match self.board_of()? {
-            BoardOf::Backup => self.backup.as_mut().map(|b| &mut b.board),
+            BoardOf::Backup => self.backup.board_mut(),
             BoardOf::Flow(i) => self.backup_flows.get_mut(i).map(|f| &mut f.live.board),
         }
     }
@@ -857,7 +857,7 @@ impl Faraday {
             let wf = self.backup_flows.get(i)?.wallet.as_ref()?;
             return Some((wf.shape.clone(), wf.answers.clone()));
         }
-        let b = self.backup.as_ref()?;
+        let b = self.backup.state()?;
         Some((self.plan_shape_now(b.wallet), b.answers.clone()))
     }
 
@@ -885,7 +885,7 @@ impl Faraday {
                 };
                 let cs = f.wallet.as_ref().and_then(|w| w.checksum.as_deref());
                 !f.made
-                    && self.backup.as_ref().is_some_and(|b| {
+                    && self.backup.state().is_some_and(|b| {
                         self.session.wallets.get(b.wallet).map(|w| w.checksum()) == cs
                     })
             }
@@ -1194,7 +1194,7 @@ impl Faraday {
         let names_typed = !locked && !self.vaults.open.is_empty() && self.board_backup_names();
         let naming = self
             .backup
-            .as_ref()
+            .state()
             .and_then(|b| b.naming)
             .filter(|_| names_typed);
         let stick_word = self.board_stick_word();
@@ -1253,7 +1253,7 @@ impl Faraday {
                 let alone = plan::alone_on(&shape, &a, &mapped, At::Place(p));
                 // The name being typed is drawn as it is typed, the field's
                 // own text (§19.18).
-                let name = match self.backup.as_ref() {
+                let name = match self.backup.state() {
                     Some(b) if naming == Some(p) => b.names.get(p).cloned().unwrap_or_default(),
                     _ => place_name(p),
                 };
@@ -1440,7 +1440,7 @@ impl Faraday {
                 )
             }
             _ => {
-                let Some(b) = self.backup.as_ref() else {
+                let Some(b) = self.backup.state() else {
                     return Vec::new();
                 };
                 let sum = self
@@ -1546,15 +1546,11 @@ impl Faraday {
         if let Some(i) = self.backup_locked_flow() {
             return self.flow_wallet_edit(i, f);
         }
-        let Some(w) = self.backup.as_ref().map(|b| b.wallet) else {
+        let Some(w) = self.backup.state().map(|b| b.wallet) else {
             return;
         };
         let shape = self.plan_shape_now(w);
-        if let Some(b) = self.backup.as_mut() {
-            f(&mut b.answers, &shape);
-            let places = b.answers.places;
-            b.naming = b.naming.filter(|&p| p < places);
-        }
+        self.backup.change_answers(&shape, f);
     }
 
     /// Whether `c` can be picked up: not a cosigner's seed, not what an
@@ -1863,21 +1859,8 @@ impl Faraday {
                 {
                     st.empty.remove(p);
                 }
-                if names
-                    && self.board_plan().is_some_and(|(_, a)| a.places < places)
-                    && let Some(b) = self.backup.as_mut()
-                    && p < b.names.len()
-                {
-                    // A name left as its place's own ("Place 3", put in
-                    // the field by a press on it) is no name: the places
-                    // after are numbered anew.
-                    for (q, n) in b.names.iter_mut().enumerate() {
-                        if *n == fill(EN.place_name_place, &[&(q + 1).to_string()]) {
-                            n.clear();
-                        }
-                    }
-                    b.names.remove(p);
-                    b.naming = None;
+                if names && self.board_plan().is_some_and(|(_, a)| a.places < places) {
+                    self.backup.place_removed(p);
                 }
             }
             BoardPress::AddVault => {
@@ -2209,7 +2192,7 @@ impl Faraday {
         if !(self.sheet.is_none() || self.sheet == Some(crate::Sheet::BoardList)) {
             return false;
         }
-        if self.backup.as_ref().is_some_and(|b| b.naming.is_some()) {
+        if self.backup.state().is_some_and(|b| b.naming.is_some()) {
             return false;
         }
         // The ⋮s the frame on screen offers, in the order drawn: the Tab
@@ -2439,12 +2422,8 @@ impl Faraday {
     /// hold nothing, so nothing is lost. Costs a lookup.
     pub(crate) fn board_tidy(&mut self) {
         let shown = self.board_shown().then(|| self.board_of()).flatten();
-        if shown != Some(BoardOf::Backup)
-            && let Some(b) = self.backup.as_mut()
-        {
-            b.board.empty.clear();
-            b.board.menu = None;
-            b.board.focus = None;
+        if shown != Some(BoardOf::Backup) {
+            self.backup.board_tidy();
         }
         for (i, f) in self.backup_flows.iter_mut().enumerate() {
             if shown != Some(BoardOf::Flow(i)) {

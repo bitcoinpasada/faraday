@@ -401,7 +401,7 @@ pub(crate) fn test_key_1(t: &Tour) -> Result<[u8; 4], String> {
 /// shows, as a camera reads them off the copy; with `wrong`, that
 /// word's number one off.
 pub(crate) fn copy_digits(c: &Compute, t: &Tour, wrong: Option<usize>) -> Result<Vec<u8>, String> {
-    let b = t.app.backup.as_ref().ok_or("no backup")?;
+    let b = t.app.backup().ok_or("no backup")?;
     let key = t.app.session.keys.info(b.key).ok_or("no key")?;
     let words = t
         .app
@@ -427,7 +427,7 @@ pub(crate) fn copy_digits(c: &Compute, t: &Tour, wrong: Option<usize>) -> Result
 /// The open copy item's seed typed back as its words, a space after
 /// each, `count` words of it (all when `None`).
 pub(crate) fn type_words(t: &mut Tour, count: Option<usize>) -> Result<(), String> {
-    let b = t.app.backup.as_ref().ok_or("no backup")?;
+    let b = t.app.backup().ok_or("no backup")?;
     let key = t.app.session.keys.info(b.key).ok_or("no key")?;
     if !key.has_words() {
         return Err("no words".to_string());

@@ -1035,11 +1035,11 @@ pub fn description_file_at(app: &mut Faraday, p: usize) {
 /// board offers no **+ place** past one per key, and a plan that has more
 /// keeps them. The flows these tests drive write any number of places.
 pub fn second_place(app: &mut Faraday) {
-    let w = app.backup.as_ref().expect("Back up").wallet;
+    let w = app.backup().expect("Back up").wallet;
     let shape = app.plan_shape_now(w);
-    let b = app.backup.as_mut().expect("Back up");
-    if b.answers.places < 2 {
-        b.answers.add_place(&shape);
+    let a = faraday_core::testkit::backup_answers_mut(app);
+    if a.places < 2 {
+        a.add_place(&shape);
     }
 }
 
@@ -1047,14 +1047,13 @@ pub fn second_place(app: &mut Faraday) {
 /// two places for a single key, as a plan saved before plans kept at most
 /// one place per key has it (`docs/BACKUP-FLOW.md` §17.19), customised.
 pub fn preset_two_places(app: &mut Faraday, k: u8) {
-    let w = app.backup.as_ref().expect("Back up").wallet;
+    let w = app.backup().expect("Back up").wallet;
     let shape = app.plan_shape_now(w);
     let preset = plan::Preset::ALL[usize::from(k)];
     let mut a = plan::Answers::preset_at(&shape, preset, 2);
     a.custom = true;
-    let b = app.backup.as_mut().expect("Back up");
-    b.answers = a;
-    b.q = Some(faraday_core::qstep::BOARD);
+    *faraday_core::testkit::backup_answers_mut(app) = a;
+    faraday_core::testkit::backup_set_q(app, Some(faraday_core::qstep::BOARD));
 }
 
 /// Vault `v`'s stick kept at place `p` too, dropped on its card where

@@ -265,7 +265,7 @@ fn demo_copy_check(t: &mut Tour) -> Result<(), String> {
         t.shot("modes-demo-backup-template")?;
         t.press(Action::BNext(bstep::BLANK));
     }
-    if t.app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
+    if t.app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
         t.press(Action::BStep(bstep::COPY));
     }
     t.press(Action::BCheck);

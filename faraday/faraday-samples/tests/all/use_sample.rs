@@ -506,7 +506,7 @@ fn the_copy_check_s_scanner_reads_the_seedqr_of_a_sample_key() {
     if app.backup_items_now(&c).contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
-    if app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
+    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
         app.press(Action::BStep(bstep::COPY));
     }
     app.press(Action::BReveal);
@@ -524,7 +524,7 @@ fn the_copy_check_s_scanner_reads_the_seedqr_of_a_sample_key() {
         "the scan read it"
     );
     let line = faraday_core::wallet_backup::copy_scan_line(
-        app.backup.as_ref().unwrap().scanned.as_ref().unwrap(),
+        app.backup().unwrap().scanned.as_ref().unwrap(),
     );
     assert_eq!(line, "Your copy scans and matches the seed");
 }
@@ -570,18 +570,17 @@ fn open_words_check(app: &mut Faraday) {
     if app.backup_items_now(&c).contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
-    if app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
+    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
         app.press(Action::BStep(bstep::COPY));
     }
     app.press(Action::BCheck);
     let _ = app.frame();
-    assert!(app.backup.as_ref().is_some_and(|b| b.check.is_some()));
+    assert!(app.backup().is_some_and(|b| b.check.is_some()));
 }
 
 fn copy_checked(app: &Faraday) -> bool {
     let fp = words_of("twelve").plain.unwrap();
-    app.backup
-        .as_ref()
+    app.backup()
         .is_some_and(|b| b.checked.iter().any(|(f, _)| *f == fp))
 }
 
@@ -593,7 +592,7 @@ fn the_copy_check_offers_fill_words_in_an_empty_grid_and_it_completes_the_check(
     assert!(app.offers(Action::UseSample));
     app.press(Action::UseSample);
     assert!(copy_checked(&app), "the words were checked as typed");
-    assert!(app.backup.as_ref().unwrap().check.is_none());
+    assert!(app.backup().unwrap().check.is_none());
 }
 
 #[test]
@@ -625,5 +624,5 @@ fn outside_demo_the_copy_check_has_no_fill_words() {
 fn the_template_offered_first_is_the_one_the_seeds_fit() {
     let mut app = demo_app();
     open_words_check(&mut app);
-    assert_eq!(app.backup.as_ref().unwrap().words, 12);
+    assert_eq!(app.backup().unwrap().words, 12);
 }

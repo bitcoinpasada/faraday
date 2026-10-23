@@ -98,7 +98,7 @@ pub(crate) fn board_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // it selected; after one key, that key alone (§19.18).
     open_a_vault(t, "board phrase")?;
     t.press(Action::Backup(savings));
-    if t.app.backup.as_ref().and_then(|b| b.q) != Some(qstep::BOARD) {
+    if t.app.backup().and_then(|b| b.q) != Some(qstep::BOARD) {
         t.press(Action::BQ(qstep::BOARD));
     }
     scroll_to(t, Action::BName(0));

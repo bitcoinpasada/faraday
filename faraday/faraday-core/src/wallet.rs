@@ -1967,11 +1967,7 @@ impl Faraday {
             }
             Action::PublicOut(i, what) => self.public_out(i, what),
             Action::PublicMore(i) => {
-                if let Some(b) = self.backup.as_mut()
-                    && b.wallet == i
-                {
-                    b.public_more = true;
-                }
+                self.backup.public_more(i);
             }
             Action::PublicRemove(i, what) => self.public_remove(i, what),
             Action::WalletKeyOut(i, k) => self.wallet_key_out(i, k),

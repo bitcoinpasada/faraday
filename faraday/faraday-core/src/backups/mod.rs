@@ -653,7 +653,7 @@ impl Faraday {
     /// kept.
     pub(crate) fn backups_sync(&mut self) {
         let c = self.compute();
-        let Some(b) = self.backup.as_ref() else {
+        let Some(b) = self.backup.state() else {
             return;
         };
         let Some(wallet) = self.session.wallets.get(b.wallet) else {
@@ -681,17 +681,13 @@ impl Faraday {
     /// record.
     pub(crate) fn copy_matched(&mut self, fp: [u8; 4], form: crate::plan::CopyForm) {
         let c = self.compute();
-        if let Some(b) = self.backup.as_mut()
-            && !b.checked.contains(&(fp, form))
-        {
-            b.checked.push((fp, form));
-        }
+        self.backup.note_checked(fp, form);
         if !self.seed_copy_checked(&c, fp) {
             return;
         }
         let Some(sum) = self
             .backup
-            .as_ref()
+            .state()
             .and_then(|b| self.session.wallets.get(b.wallet))
             .map(|w| w.checksum().to_string())
         else {
@@ -707,7 +703,7 @@ impl Faraday {
     pub(crate) fn backups_shown(&mut self) {
         let Some(sum) = self
             .backup
-            .as_ref()
+            .state()
             .and_then(|b| self.session.wallets.get(b.wallet))
             .map(|w| w.checksum())
         else {
@@ -720,7 +716,7 @@ impl Faraday {
     /// done by their press: the record keeps it, for a backup opened again
     /// after a lock. The record was made when the checklist was.
     pub(crate) fn backups_marked(&mut self) {
-        let Some((sum, printed, envelopes)) = self.backup.as_ref().and_then(|b| {
+        let Some((sum, printed, envelopes)) = self.backup.state().and_then(|b| {
             let w = self.session.wallets.get(b.wallet)?;
             Some((w.checksum().to_string(), b.printed, b.envelopes))
         }) else {
@@ -734,7 +730,7 @@ impl Faraday {
     pub(crate) fn backups_passphrase_checked(&mut self, fp: [u8; 4]) {
         let Some(sum) = self
             .backup
-            .as_ref()
+            .state()
             .and_then(|b| self.session.wallets.get(b.wallet))
             .map(|w| w.checksum().to_string())
         else {
@@ -855,7 +851,7 @@ impl Faraday {
         let shape = self.plan_shape_of(w);
         let kept = self.plan_load_of(c, w, &shape);
         // The places' names: the backup under way's, else the vault's.
-        let names = match self.backup.as_ref() {
+        let names = match self.backup.state() {
             Some(b) if wi.is_some_and(|i| i == b.wallet) => b.names.clone(),
             _ => kept.as_ref().map(|(_, n)| n.clone()).unwrap_or_default(),
         };

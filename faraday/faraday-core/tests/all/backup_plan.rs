@@ -327,7 +327,7 @@ fn the_public_files_item_offers_the_files_create_offered_for_the_wallet() {
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, Preset::PaperVaultSoftware);
     for row in 0..5u8 {
-        if !app.backup.as_ref().unwrap().answers.software[usize::from(row)] {
+        if !app.backup().unwrap().answers.software[usize::from(row)] {
             app.press(Action::BAnswer(qrow::SOFTWARE, row));
         }
     }
@@ -396,14 +396,14 @@ fn a_single_key_create_with_a_passphrase_asks_where_the_passphrase_goes() {
     let mut app = passphrase_key();
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
-    assert!(app.backup.is_some(), "the backup is open");
+    assert!(app.backup().is_some(), "the backup is open");
     // The board offers the passphrase, and each place's paper takes it.
     open_board(&mut app);
     assert!(shows(
         &mut app,
         Action::Board(BoardPress::Chip(Chip::List(Thing::Pass(0))))
     ));
-    for p in 0..app.backup.as_ref().unwrap().answers.places {
+    for p in 0..app.backup().unwrap().answers.places {
         assert!(
             shows(&mut app, Action::Board(BoardPress::Zone(Zone::Paper(p)))),
             "Place {}'s paper",
@@ -483,7 +483,7 @@ fn places_of(name: &str) -> faraday_core::Faraday {
     app.press(Action::Backup(w));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     // The preset opens the board itself, opened for changes.
-    if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
+    if app.backup().unwrap().q != Some(qstep::BOARD) {
         app.press(Action::BQ(qstep::BOARD));
     }
     app.press(Action::Board(faraday_core::board::BoardPress::Customize));
@@ -499,7 +499,7 @@ fn a_fresh_multisig_plan_keeps_the_whole_sheet_in_each_place() {
     use faraday_core::Action;
     use faraday_shell_api::App;
     let mut app = places_of("Savings");
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert!(!b.answers.split);
     let shape = app.plan_shape_now(b.wallet);
     for p in 0..b.answers.places {
@@ -544,14 +544,14 @@ fn a_three_of_five_over_five_places_leaves_two_keys_off_each_share() {
     app.press(Action::Board(BoardPress::Partials));
     assert_eq!(app.sheet, Some(faraday_core::Sheet::BoardPartials));
     app.press(Action::Board(BoardPress::PartialsWholeOff));
-    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 2);
+    assert_eq!(app.backup().unwrap().answers.omit, 2);
     app.press(Action::BQ(faraday_core::qstep::PLAN));
     app.press(Action::BChecklist);
     app.press(Action::BStep(bstep::SHEETS));
     let _ = app.frame();
     assert!(app.offers(Action::Slide(SLIDE_OMIT, 1)), "the Shares card");
     app.press(Action::Slide(SLIDE_OMIT, 1));
-    assert_eq!(app.backup.as_ref().unwrap().answers.omit, 1);
+    assert_eq!(app.backup().unwrap().answers.omit, 1);
 }
 
 /// What is a share? opens Learn on the page about shares; closing it
@@ -570,7 +570,7 @@ fn what_is_a_share_opens_the_page_and_back_returns_to_places() {
     app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
+    assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
 }
 
 /// A 2-of-3 with seeds 1 and 2 typed in here and the third a cosigner's.
@@ -808,7 +808,7 @@ fn a_vault_with_no_stick_place_is_out_of_the_plan() {
     use faraday_core::plan::Item;
     use faraday_core::{Action, qstep};
     let mut app = places_of("Savings");
-    let w = app.backup.as_ref().unwrap().wallet;
+    let w = app.backup().unwrap().wallet;
     let shape = app.plan_shape_now(w);
     // Vault 1 at Place 3 with the description in it, then Place 3 gone.
     // No seed of Savings is here: the vault's row ticks at once.
@@ -817,10 +817,10 @@ fn a_vault_with_no_stick_place_is_out_of_the_plan() {
     put(&mut app, Thing::Vault(0), Zone::Card(2));
     let s = vault_stick(&app, 2, 0).expect("its stick at Place 3");
     put(&mut app, Thing::Whole, Zone::Vault(2, s, 0));
-    let a = app.backup.as_ref().unwrap().answers.clone();
+    let a = app.backup().unwrap().answers.clone();
     assert_eq!(a.vaults_made(&shape), vec![0]);
     board(&mut app, BoardPress::RemovePlace(2));
-    let a = app.backup.as_ref().unwrap().answers.clone();
+    let a = app.backup().unwrap().answers.clone();
     assert!(a.vaults_made(&shape).is_empty(), "out of The plan");
     assert!(!faraday_core::plan::checklist(&c, &shape, &a).contains(&Item::Vault(0)));
     app.press(Action::BQ(qstep::PLAN));
@@ -830,7 +830,7 @@ fn a_vault_with_no_stick_place_is_out_of_the_plan() {
     open_board(&mut app);
     board(&mut app, BoardPress::AddPlace);
     put(&mut app, Thing::Vault(0), Zone::Card(2));
-    let a = app.backup.as_ref().unwrap().answers.clone();
+    let a = app.backup().unwrap().answers.clone();
     assert_eq!(a.vaults_made(&shape), vec![0]);
     assert!(faraday_core::plan::checklist(&c, &shape, &a).contains(&Item::Vault(0)));
 }
@@ -880,7 +880,7 @@ fn shows_text(app: &mut Faraday, part: &str) -> bool {
 fn open_board(app: &mut Faraday) {
     use faraday_core::{Action, qstep};
     use faraday_shell_api::App;
-    if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
+    if app.backup().unwrap().q != Some(qstep::BOARD) {
         app.press(Action::BQ(qstep::BOARD));
     }
     // Opened for changes (`docs/BACKUP-FLOW.md` §17.6).
@@ -892,7 +892,7 @@ fn open_board(app: &mut Faraday) {
 /// sticks keep.
 fn the_map(app: &Faraday) -> Vec<Spot> {
     let c = faraday_core::testkit::compute();
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     place_map(&c, &app.plan_shape_now(b.wallet), &b.answers)
 }
 
@@ -933,7 +933,7 @@ fn three_here() -> Faraday {
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
-    assert_eq!(app.backup.as_ref().unwrap().answers.places, 3);
+    assert_eq!(app.backup().unwrap().answers.places, 3);
     app
 }
 
@@ -1001,7 +1001,7 @@ fn words_at_a_place_are_on_the_map_and_its_card_says_what_finding_it_alone_gives
         vec![What::Words(0)],
         "Place 3 keeps the first seed's words"
     );
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     let found = alone(&c, &app.plan_shape_now(b.wallet), &b.answers, At::Place(2));
     // One seed of a 2-of-3 and the whole sheet: the balance, not a spend.
     assert_eq!((found.spend, found.balance), (Found::No, Found::Yes));
@@ -1023,11 +1023,11 @@ fn done_with_no_seed_ticked_leaves_the_row_unticked_and_the_map_as_it_was() {
     let before = the_map(&app);
     let chip = Action::Board(BoardPress::Chip(Chip::List(Thing::Seed(0))));
     app.press(chip);
-    assert!(app.backup.as_ref().unwrap().board.held.is_some());
+    assert!(app.backup().unwrap().board.held.is_some());
     app.press(chip);
-    assert_eq!(app.backup.as_ref().unwrap().board.held, None);
+    assert_eq!(app.backup().unwrap().board.held, None);
     assert_eq!(the_map(&app), before);
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!(
         b.answers
             .row_seeds(&c, &app.plan_shape_now(b.wallet), 2, Row::SeedQr),
@@ -1046,7 +1046,7 @@ fn a_vault_with_no_seed_keeps_its_stick_and_holds_the_plan_until_it_holds_someth
     open_board(&mut app);
     vault_made(&mut app, 0);
     put(&mut app, Thing::Vault(0), Zone::Card(2));
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     let shape = app.plan_shape_now(b.wallet);
     assert_eq!(
         b.answers.row_seeds(&c, &shape, 2, Row::Vault(0)),
@@ -1061,7 +1061,7 @@ fn a_vault_with_no_seed_keeps_its_stick_and_holds_the_plan_until_it_holds_someth
     assert!(!shows(&mut app, Action::BChecklist));
     assert!(shows_text(&mut app, "Vault 1 holds nothing"));
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
+    assert_eq!(app.backup().unwrap().stage, BStage::Plan);
     // The description into it, at Place 3.
     open_board(&mut app);
     let s = vault_stick(&app, 2, 0).expect("its stick at Place 3");
@@ -1102,15 +1102,15 @@ fn words_cannot_be_ticked_where_the_passphrase_is_kept() {
 fn an_old_plans_stick_of_files_shows_under_not_a_place_and_can_be_emptied() {
     use faraday_core::Action;
     let mut app = three_here();
-    let w = app.backup.as_ref().unwrap().wallet;
+    let w = app.backup().unwrap().wallet;
     let shape = app.plan_shape_now(w);
     let old =
         "seeds 1001\nplaces 3\nsplit 0\nsticks 000\nwallet 1001\nsoftware 00001\nform 10\nomit 1\n";
     let a = Answers::from_text(&shape, old).expect("the old plan loads");
     assert!(the_files(&shape, &a) > 0);
-    app.backup.as_mut().unwrap().answers = a;
+    *faraday_core::testkit::backup_answers_mut(&mut app) = a;
     open_board(&mut app);
-    let n = the_files(&shape, &app.backup.as_ref().unwrap().answers);
+    let n = the_files(&shape, &app.backup().unwrap().answers);
     assert_eq!(n, 4, "three seeds and the description");
     let things = [Thing::Seed(0), Thing::Seed(1), Thing::Seed(2), Thing::Whole];
     for t in things {
@@ -1137,13 +1137,13 @@ fn change_the_plan_from_the_checklist_opens_the_place_cards_with_the_map_kept() 
     let before = the_map(&app);
     app.press(Action::BQ(qstep::PLAN));
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     assert!(shows(&mut app, Action::BPlan));
     app.press(Action::BPlan);
     assert_eq!(app.sheet, None, "nothing is asked");
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
+    assert_eq!(app.backup().unwrap().stage, BStage::Plan);
     assert_eq!(the_map(&app), before);
-    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
+    assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
     let s = vault_stick(&app, 0, 0).expect("Vault 1's stick at Place 1");
     assert!(shows(
         &mut app,
@@ -1186,7 +1186,7 @@ fn a_passphrase_cannot_be_ticked_where_its_words_are() {
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     open_board(&mut app);
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     let shape = app.plan_shape_now(b.wallet);
     assert_eq!(
         b.answers.row_seeds(&c, &shape, 0, Row::Words),
@@ -1317,11 +1317,11 @@ fn no_preset_makes_more_than_one_place_per_key() {
         }
     }
     let mut app = places_of("Savings");
-    assert_eq!(app.backup.as_ref().unwrap().answers.places, 3);
+    assert_eq!(app.backup().unwrap().answers.places, 3);
     let _ = app.frame();
     assert!(!shows(&mut app, Action::Board(BoardPress::AddPlace)));
     app.press(Action::Board(BoardPress::AddPlace));
-    assert_eq!(app.backup.as_ref().unwrap().answers.places, 3, "none added");
+    assert_eq!(app.backup().unwrap().answers.places, 3, "none added");
     app.press(Action::Board(BoardPress::RemovePlace(2)));
     assert!(shows(&mut app, Action::Board(BoardPress::AddPlace)));
 }
@@ -1375,14 +1375,14 @@ fn fewer_places_take_the_last_with_what_it_held_and_a_seed_kept_nowhere_holds_th
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     // The words at Place 1, the passphrase alone at Place 2 (§19.19).
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
-    assert_eq!(app.backup.as_ref().unwrap().answers.places, 2);
+    assert_eq!(app.backup().unwrap().answers.places, 2);
     // The seed's words at Place 2 alone, its passphrase at Place 1.
     put(&mut app, Thing::Seed(0), Zone::Paper(1));
     words_off_at(&mut app, 0);
     put(&mut app, Thing::Pass(0), Zone::Paper(0));
     // Place 2's ×: it goes with what it kept.
     board(&mut app, BoardPress::RemovePlace(1));
-    assert_eq!(app.backup.as_ref().unwrap().answers.places, 1);
+    assert_eq!(app.backup().unwrap().answers.places, 1);
     assert!(the_map(&app).iter().all(|s| s.at != At::Place(1)));
     assert!(
         !the_map(&app)
@@ -1395,7 +1395,7 @@ fn fewer_places_take_the_last_with_what_it_held_and_a_seed_kept_nowhere_holds_th
     app.press(Action::BQ(qstep::PLAN));
     assert!(shows_text(&mut app, "is kept nowhere"));
     app.press(Action::BChecklist);
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
+    assert_eq!(app.backup().unwrap().stage, BStage::Plan);
 }
 
 #[test]
@@ -1406,7 +1406,7 @@ fn make_the_checklist_is_on_the_plan_card_alone_and_the_checklist_is_the_maps() 
     vault_at(&mut app, 0, 0, &[0, 1]);
     for q in app.backup_questions(&c) {
         app.press(Action::BQ(q));
-        if app.backup.as_ref().unwrap().q != Some(q) {
+        if app.backup().unwrap().q != Some(q) {
             app.press(Action::BQ(q));
         }
         assert_eq!(
@@ -1415,7 +1415,7 @@ fn make_the_checklist_is_on_the_plan_card_alone_and_the_checklist_is_the_maps() 
             "card {q}"
         );
     }
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     let want: Vec<u8> = checklist(&c, &app.plan_shape_now(b.wallet), &b.answers)
         .into_iter()
         .map(bstep::of)
@@ -1438,10 +1438,10 @@ fn a_single_key_with_a_passphrase_has_a_second_place_for_it() {
     use faraday_core::Action;
     let mut app = passphrase_key();
     app.press(Action::CBackup);
-    let w = app.backup.as_ref().unwrap().wallet;
+    let w = app.backup().unwrap().wallet;
     let shape = app.plan_shape_now(w);
     assert_eq!(faraday_core::plan::max_places(&shape), 2);
-    let a = &app.backup.as_ref().unwrap().answers;
+    let a = &app.backup().unwrap().answers;
     assert_eq!(a.places, 2);
     assert!(
         a.pass_at(0, 1) && !a.pass_at(0, 0),
@@ -1457,7 +1457,7 @@ fn a_single_key_with_a_passphrase_has_a_second_place_for_it() {
         "offered at 1"
     );
     board(&mut app, BoardPress::AddPlace);
-    assert_eq!(app.backup.as_ref().unwrap().answers.places, 2);
+    assert_eq!(app.backup().unwrap().answers.places, 2);
     assert!(!shows(&mut app, Action::Board(BoardPress::AddPlace)));
 }
 
@@ -1484,9 +1484,9 @@ fn each_preset_fills_the_board() {
         let mut app = passphrase_key();
         app.press(Action::CBackup);
         faraday_core::testkit::backup_as(&mut app, *preset);
-        let w = app.backup.as_ref().unwrap().wallet;
+        let w = app.backup().unwrap().wallet;
         let shape = app.plan_shape_now(w);
-        let a = &app.backup.as_ref().unwrap().answers;
+        let a = &app.backup().unwrap().answers;
         assert_eq!(
             a.row_seeds(&c, &shape, 0, Row::Words),
             Some(vec![0]),

@@ -347,7 +347,7 @@ impl Faraday {
         if !c.kind.has_account() || c.kind.threshold() {
             return false;
         }
-        if self.backup.as_ref().is_some_and(|b| b.wallet == w) {
+        if self.backup.state().is_some_and(|b| b.wallet == w) {
             return false;
         }
         // A wallet added here comes off the end; one found loaded already

@@ -345,13 +345,13 @@ fn the_seeds_vault_item_makes_a_vault_and_comes_back_with_save_live() {
     app.press(Action::BPlan);
     crate::common::no_words(&mut app);
     app.press(Action::BChecklist);
-    let step = app.backup.as_ref().unwrap().open;
+    let step = app.backup().unwrap().open;
     assert_eq!(step, Some(bstep::VAULT));
     press_make(&mut app, Screen::Backup);
     make_the_vault(&mut app);
     unlock_with(&mut app, NEW_PHRASE);
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(app.backup.as_ref().unwrap().open, step, "the same step");
+    assert_eq!(app.backup().unwrap().open, step, "the same step");
     assert!(
         offered(&mut app, Action::BVaultSave(0)),
         "Save into the vault is live"

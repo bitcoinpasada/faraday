@@ -81,7 +81,7 @@ fn the_checklists_pictures_are_made_after_the_frame_that_shows_the_press() {
         .expect("a wallet");
     app.press(Action::Backup(w));
     testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVaultSoftware);
-    let answers = &app.backup.as_ref().unwrap().answers;
+    let answers = &app.backup().unwrap().answers;
     if !answers.software[faraday_core::plan::software::NOT_SURE] {
         app.press(Action::BAnswer(
             qrow::SOFTWARE,
@@ -90,14 +90,13 @@ fn the_checklists_pictures_are_made_after_the_frame_that_shows_the_press() {
     }
     // The descriptor as a picture and as text.
     for row in [faraday_core::plan::form::QR, faraday_core::plan::form::TEXT] {
-        if !app.backup.as_ref().unwrap().answers.form[row] {
+        if !app.backup().unwrap().answers.form[row] {
             app.press(Action::BAnswer(qrow::FORM, row as u8));
         }
     }
     // Make the checklist is on The plan card: a person opens it first.
     if app
-        .backup
-        .as_ref()
+        .backup()
         .is_some_and(|b| b.q != Some(faraday_core::qstep::PLAN))
     {
         app.press(Action::BQ(faraday_core::qstep::PLAN));

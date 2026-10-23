@@ -235,7 +235,7 @@ fn backing_up(app: &mut Faraday) -> usize {
     if app.backup_items_now(&c).contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
-    if app.backup.as_ref().unwrap().open != Some(bstep::COPY) {
+    if app.backup().unwrap().open != Some(bstep::COPY) {
         app.press(Action::BStep(bstep::COPY));
     }
     app.press(Action::BReveal);
@@ -277,10 +277,7 @@ fn in_the_demo_seed_xor_and_codex32_shares_are_dimmed_and_make_nothing() {
     for a in SPLITS {
         assert!(!offered_anywhere(&mut app, a), "{a:?} is offered");
         app.press(a);
-        assert!(
-            app.backup.as_ref().unwrap().paper.is_none(),
-            "{a:?} made parts"
-        );
+        assert!(app.backup().unwrap().paper.is_none(), "{a:?} made parts");
     }
     assert!(app.outbox.iter().all(|i| !i.name.contains("xor")));
 }
@@ -292,10 +289,7 @@ fn on_the_stick_seed_xor_and_codex32_shares_are_made() {
         backing_up(&mut app);
         assert!(offered_anywhere(&mut app, a), "{a:?} is not offered");
         app.press(a);
-        assert!(
-            app.backup.as_ref().unwrap().paper.is_some(),
-            "{a:?} made nothing"
-        );
+        assert!(app.backup().unwrap().paper.is_some(), "{a:?} made nothing");
     }
 }
 
@@ -310,7 +304,7 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
     app.press(Action::Backup(w));
     faraday_core::testkit::backup_as(&mut app, Preset::Paper);
     // The board: none of what it offers or keeps is a split of the seed.
-    if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
+    if app.backup().unwrap().q != Some(qstep::BOARD) {
         app.press(Action::BQ(qstep::BOARD));
     }
     let texts = crate::common::texts(&mut app);
@@ -326,7 +320,7 @@ fn in_the_demo_a_backup_plan_offers_no_split_and_its_checklist_can_be_finished()
         app.press(Action::BNext(bstep::BLANK));
     }
     // The copy, typed back.
-    if app.backup.as_ref().unwrap().open != Some(bstep::COPY) {
+    if app.backup().unwrap().open != Some(bstep::COPY) {
         app.press(Action::BStep(bstep::COPY));
     }
     app.press(Action::BReveal);

@@ -226,7 +226,7 @@ impl View<'_> {
         // answers are another question.
         let own = self
             .backup
-            .as_ref()
+            .state()
             .is_some_and(|b| b.wallet == wi && b.answers == *a);
         if !own {
             return self.filled(|c| self.app.backup_public_names_for_now(c, wi, a));

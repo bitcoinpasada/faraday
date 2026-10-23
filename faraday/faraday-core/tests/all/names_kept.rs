@@ -172,7 +172,7 @@ fn a_place_names_name_never_leaves_the_vault() {
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     // Start from goes on to the board itself; a place's name is typed
     // on its card there (`docs/BACKUP-FLOW.md` §17.12 item 2).
-    if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
+    if app.backup().unwrap().q != Some(qstep::BOARD) {
         press_offered(&mut app, Action::BQ(qstep::BOARD));
     }
     press_offered(&mut app, Action::BName(0));
@@ -249,7 +249,7 @@ fn a_place_names_name_never_leaves_the_vault() {
     );
     app.press(Action::Backup(0));
     assert_eq!(
-        app.backup.as_ref().map(|b| b.q),
+        app.backup().map(|b| b.q),
         Some(None),
         "a fresh backup flow started instead of reading the kept plan"
     );

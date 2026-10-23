@@ -271,7 +271,7 @@ fn checklist_for(name: &str, descriptor: &str) -> (Faraday, usize) {
         .expect("a wallet");
     app.press(Action::Backup(w));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVaultSoftware);
-    let answers = &app.backup.as_ref().unwrap().answers;
+    let answers = &app.backup().unwrap().answers;
     // The descriptor as a picture and as text.
     if !answers.software[plan::software::NOT_SURE] {
         app.press(Action::BAnswer(
@@ -280,7 +280,7 @@ fn checklist_for(name: &str, descriptor: &str) -> (Faraday, usize) {
         ));
     }
     for (row, on) in [(plan::form::QR, true), (plan::form::TEXT, true)] {
-        if app.backup.as_ref().unwrap().answers.form[row] != on {
+        if app.backup().unwrap().answers.form[row] != on {
             app.press(Action::BAnswer(qrow::FORM, row as u8));
         }
     }

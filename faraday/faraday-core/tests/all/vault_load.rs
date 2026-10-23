@@ -486,7 +486,7 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
             "no Load at unlock: {:?} {:?} {:?} {texts:?}",
             app.screen,
             app.sheet,
-            app.backup.as_ref().map(|b| b.open),
+            app.backup().map(|b| b.open),
         );
         if off {
             app.press(Action::BVaultLoad(0));

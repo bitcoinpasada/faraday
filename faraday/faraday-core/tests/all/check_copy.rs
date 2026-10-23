@@ -147,7 +147,7 @@ fn backing_up_on(app: &mut Faraday, words: &str, camera: bool, copies: (bool, bo
     }
     // The template is made with the checklist, so the copy is the first
     // item left and opens by itself.
-    if app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
+    if app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
         app.press(Action::BStep(bstep::COPY));
     }
     app.press(Action::BReveal);
@@ -412,7 +412,7 @@ fn a_lock_in_the_middle_of_the_check_leaves_nothing_of_it() {
     app.press(Action::BCheck);
     testkit::type_words(&mut app, "attack pizza motion");
     app.press(Action::Lock);
-    assert!(app.backup.is_none(), "the backup survived the lock");
+    assert!(app.backup().is_none(), "the backup survived the lock");
     assert!(app.session.keys.is_empty());
     // The next power-on starts with the seed and its check empty.
     let mut app = backing_up(ATTACK, true, WORDS_ONLY);
@@ -542,7 +542,7 @@ fn a_drawn_standard_seedqr_of_the_seed_matches_and_adds_nothing() {
     assert_eq!(app.session.keys.len(), 1, "a key was added");
     assert_eq!(app.inbox().len(), inbox, "something went to Files");
     assert!(seeds_done(&app), "the seeds step is not done");
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!(
         faraday_core::wallet_backup::copy_scan_line(b.scanned.as_ref().unwrap()),
         "Your copy scans and matches the seed"
@@ -607,7 +607,7 @@ fn a_seedqr_of_another_seed_is_not_loaded_and_names_the_first_word() {
     app.press(Action::Cancel);
     assert!(app.scan().is_none());
     assert!(commands(&mut app).contains(&Command::CameraOff));
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!(
         faraday_core::wallet_backup::copy_scan_line(b.scanned.as_ref().unwrap()),
         "Your copy scans but word 1 differs"
@@ -679,7 +679,7 @@ fn each_seed_is_checked_by_its_own_forms() {
             .to_string()
     };
     // The words seed: typed.
-    if app.backup.as_ref().unwrap().open != Some(first) {
+    if app.backup().unwrap().open != Some(first) {
         app.press(Action::BStep(first));
     }
     assert!(offered(&mut app, Action::BCheck));
@@ -690,7 +690,7 @@ fn each_seed_is_checked_by_its_own_forms() {
     assert!(app.backup_item_done_now(&c, Item::Copy(seeds[0])));
     app.press(Action::BNext(first));
     // The SeedQR seed: scanned.
-    if app.backup.as_ref().unwrap().open != Some(second) {
+    if app.backup().unwrap().open != Some(second) {
         app.press(Action::BStep(second));
     }
     assert!(offered(&mut app, Action::BScan));
@@ -772,7 +772,7 @@ fn checklist(app: &mut Faraday) -> Shown {
     (
         boxes,
         app.backup_items_now(&c),
-        app.backup.as_ref().and_then(|b| b.open),
+        app.backup().and_then(|b| b.open),
         seeds_done(app),
     )
 }
@@ -878,7 +878,7 @@ fn save_as_a_file_offers_no_seedqr_picture_for_a_words_only_copy() {
 /// The forms of seed 0's copies the backup's plan keeps now.
 fn plan_forms(app: &Faraday) -> plan::CopyForms {
     let c = testkit::compute();
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     let shape = app.plan_shape_now(b.wallet);
     plan::copy_forms(&c, &shape, &b.answers, 0)
 }
@@ -895,7 +895,7 @@ fn scan_another(app: &mut Faraday) {
 }
 
 fn misses(app: &Faraday) -> u8 {
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     b.misses_of(app.session.keys[b.key].fingerprint.0)
 }
 
@@ -928,7 +928,7 @@ fn keep_the_words_only_turns_the_seedqr_item_into_a_typed_words_check() {
     let forms = plan_forms(&app);
     assert!(forms.words && !forms.seedqr, "the plan's copies: {forms:?}");
     assert!(!seeds_done(&app), "the item is done with nothing checked");
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY));
     // Now typed back: no scan, no Keep the words only, no grid.
     assert!(offered(&mut app, Action::BCheck));
     assert!(!app.offers(Action::BScan), "the scan is still asked for");
@@ -960,7 +960,7 @@ fn keep_the_words_only_with_the_words_already_checked_completes_the_item_at_once
         "the item waits for a check already passed"
     );
     assert_ne!(
-        app.backup.as_ref().unwrap().open,
+        app.backup().unwrap().open,
         Some(bstep::COPY),
         "the checklist did not move on"
     );
@@ -1014,7 +1014,7 @@ fn a_lock_drops_the_count_of_scans_without_a_match() {
     }
     assert!(top_of(&mut app, "3 scans without a match").is_some());
     app.press(Action::Lock);
-    assert!(app.backup.is_none());
+    assert!(app.backup().is_none());
     let mut app = seedqr_hidden();
     assert_eq!(misses(&app), 0);
     assert!(!says(&mut app, "scans without a match"));
@@ -1072,7 +1072,7 @@ fn the_grid_dropped_for_the_words_stays_on_the_map_drawn_in_part_until_destroyed
     app.press(confirm);
     let _ = app.frame();
     assert!(part_line(&app).is_none(), "the line stayed once destroyed");
-    assert!(app.backup.as_ref().unwrap().answers.part.is_empty());
+    assert!(app.backup().unwrap().answers.part.is_empty());
     // The words stay where they were.
     let forms = plan_forms(&app);
     assert!(forms.words && !forms.seedqr, "{forms:?}");

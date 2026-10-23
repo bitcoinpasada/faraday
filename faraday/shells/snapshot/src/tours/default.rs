@@ -1145,7 +1145,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Backup(spending));
     t.backup_as(faraday_core::plan::Preset::PaperVault);
     t.press(Action::BChecklist);
-    if t.app.backup.as_ref().and_then(|b| b.open) != Some(bstep::COPY) {
+    if t.app.backup().and_then(|b| b.open) != Some(bstep::COPY) {
         t.press(Action::BStep(bstep::COPY));
     }
     t.press(Action::BReveal);

@@ -67,10 +67,7 @@ fn create_to_vault_step() -> Faraday {
     {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
-    assert_eq!(
-        app.backup.as_ref().unwrap().open,
-        Some(faraday_core::bstep::VAULT)
-    );
+    assert_eq!(app.backup().unwrap().open, Some(faraday_core::bstep::VAULT));
     let _ = app.frame();
     assert!(
         app.offers(Action::Vault(V::CreateFrom(Screen::Backup))),

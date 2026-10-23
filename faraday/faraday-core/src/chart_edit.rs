@@ -396,12 +396,7 @@ impl Faraday {
                 return;
             }
         }
-        let mut extras = Vec::new();
-        if let Some(b) = self.backup.as_mut() {
-            b.answers = ask.answers.clone();
-            b.names = ask.names.clone();
-            extras = b.extras.clone();
-        }
+        let mut extras = self.backup.chart_edit(&ask.answers, &ask.names);
         self.backups_sync();
         if let Some(v) = self.notes_vault(&c, ask.press, w)
             && let Some(wallet) = self.session.wallets.get(w)

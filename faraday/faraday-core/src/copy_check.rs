@@ -3,20 +3,16 @@
 //! typed check, which types through the word entry Add a key uses
 //! ([`crate::forms::word_key`]), and the rules for which checks a copy
 //! item asks for. A passphrase on paper is checked the same way, typed
-//! back whole with the passphrase hidden (§14.7 item 5).
+//! back whole with the passphrase hidden (§14.7 item 5). The presses
+//! that open, type into and compare the check are the wallet backup's
+//! (`crate::wallet_backup`).
 
+use crate::BackupState;
 use crate::forms::{self, WordKey, WordsMut};
-use crate::plan::{self, CopyChecks, CopyForm, CopyForms};
 use crate::secret_text::SecretText;
-use crate::strings::EN;
-use crate::strings::fill;
-use crate::wallet_backup::CopyCheck;
 use crate::word_entry::WordEntry;
-use crate::{BackupState, Faraday, Screen};
 use faraday_bip::bip39::Language;
-use faraday_crypto::work::Compute;
 use faraday_shell_api::Key as KeyIn;
-use zeroize::Zeroize;
 
 /// The typed check of a copy of the words, or of a passphrase on paper,
 /// while it is open: what is typed so far, wiped whenever it is dropped.
@@ -44,7 +40,7 @@ pub struct WordCheck {
 impl WordCheck {
     /// A check with nothing typed, for a seed of `count` words from
     /// `lang`; on an on-screen keyboard when `keyed`.
-    fn new(lang: Language, count: usize, keyed: bool) -> WordCheck {
+    pub(crate) fn new(lang: Language, count: usize, keyed: bool) -> WordCheck {
         WordCheck {
             typed: SecretText::new(),
             keys: keyed.then(|| forms::word_typer(lang)),
@@ -58,7 +54,7 @@ impl WordCheck {
     }
 
     /// A check of a passphrase on paper, with nothing typed.
-    fn passphrase() -> WordCheck {
+    pub(crate) fn passphrase() -> WordCheck {
         WordCheck {
             passphrase: true,
             ..WordCheck::new(Language::English, 0, false)
@@ -91,7 +87,7 @@ impl WordCheck {
 
     /// The words taken, as the list's numbers; a word not on the list as
     /// `u16::MAX`. Costs a lookup a word. The caller wipes them.
-    fn indices(&self) -> Vec<u16> {
+    pub(crate) fn indices(&self) -> Vec<u16> {
         match &self.keys {
             Some(w) => w.committed_indices().collect(),
             None => self
@@ -137,6 +133,58 @@ impl WordCheck {
             }
         }
     }
+    /// One key typed into the check, through Add a key's word entry,
+    /// with a word's four-digit number accepted: what it asks of the
+    /// backup.
+    pub(crate) fn key(&mut self, key: KeyIn) -> Typed {
+        self.sample_gone = true;
+        if self.passphrase {
+            match key {
+                // BIP-39 passphrases here are printable ASCII.
+                KeyIn::Char(ch) if (' '..='~').contains(&ch) => {
+                    self.typed.push(ch);
+                    self.error = None;
+                }
+                KeyIn::Backspace | KeyIn::Delete => {
+                    self.typed.pop();
+                    self.error = None;
+                }
+                KeyIn::Enter => return Typed::Compare,
+                KeyIn::Escape => return Typed::Close,
+                _ => {}
+            }
+            return Typed::Nothing;
+        }
+        match forms::word_key(self.entry(), key) {
+            // The word as typed is taken, as a space takes it.
+            WordKey::Enter => {
+                forms::word_key(self.entry(), KeyIn::Char(' '));
+            }
+            WordKey::Escape => return Typed::Close,
+            _ => {}
+        }
+        Typed::Words
+    }
+
+    /// Word `k` differs, as `line` says: the words before it stay and
+    /// typing resumes at it.
+    pub(crate) fn wrong(&mut self, k: usize, line: String) {
+        self.keep(k - 1);
+        self.error = Some(line);
+    }
+}
+
+/// What a key typed into the check asks of the backup.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Typed {
+    /// Nothing more.
+    Nothing,
+    /// The check closes.
+    Close,
+    /// The passphrase typed is compared.
+    Compare,
+    /// The words typed are compared once the last is taken.
+    Words,
 }
 
 /// The state a word entry on screen types into: Check my copy's while it
@@ -147,241 +195,6 @@ pub(crate) struct WordsUse<'a> {
     pub error: &'a mut Option<String>,
     pub lang: Language,
     pub in_check: bool,
-}
-
-impl Faraday {
-    /// The word entry the on-screen keys and the candidates press into.
-    pub(crate) fn words_use(&mut self) -> WordsUse<'_> {
-        if self.screen == Screen::Backup
-            && let Some(c) = self
-                .backup
-                .as_mut()
-                .and_then(|b| b.check.as_mut())
-                .filter(|c| !c.passphrase)
-        {
-            return WordsUse {
-                keys: &mut c.keys,
-                shift: &mut c.shift,
-                error: &mut c.error,
-                lang: c.lang,
-                in_check: true,
-            };
-        }
-        let e = self.entry.state_mut();
-        let lang = e.language();
-        WordsUse {
-            keys: &mut e.keys,
-            shift: &mut e.shift,
-            error: &mut e.error,
-            lang,
-            in_check: false,
-        }
-    }
-
-    /// Costs what `plan_mapped` costs. The forms of the copies of seed `i`
-    /// the backup's map keeps, read from the plan's map
-    /// ([`Kept::plan_mapped`]: once a frame while drawing).
-    pub(crate) fn copy_forms(&self, c: &Compute, b: &BackupState, i: usize) -> CopyForms {
-        let shape = self.plan_shape_now(b.wallet);
-        plan::copy_forms_on(&self.kept.plan_mapped(c, &shape, &b.answers), i)
-    }
-
-    /// Costs what `copy_forms` costs. What checking seed `i`'s copies asks
-    /// for with the cameras listed now.
-    pub(crate) fn copy_checks(
-        &self,
-        c: &Compute,
-        b: &BackupState,
-        i: usize,
-        key: &faraday_keys::KeyInfo,
-    ) -> CopyChecks {
-        self.copy_forms(c, b, i).checks(
-            !self.cameras().is_empty(),
-            key.language == Language::English,
-        )
-    }
-
-    /// Costs what `copy_checks` and `copy_forms` cost. Whether every check
-    /// seed `i`'s copy item asks for has matched in this backup. A scan of
-    /// the drawn grid also stands for the words of a seed with no copy of
-    /// its words.
-    pub(crate) fn copy_checked(
-        &self,
-        c: &Compute,
-        b: &BackupState,
-        i: usize,
-        key: &faraday_keys::KeyInfo,
-    ) -> bool {
-        let fp = key.fingerprint.0;
-        let checks = self.copy_checks(c, b, i, key);
-        let has = |f: CopyForm| b.checked.contains(&(fp, f));
-        (checks.typed || checks.scan)
-            && (!checks.typed
-                || has(CopyForm::Words)
-                || (!self.copy_forms(c, b, i).words && has(CopyForm::SeedQr)))
-            && (!checks.scan || has(CopyForm::SeedQr))
-    }
-
-    /// Costs what `copy_checked` costs. Whether seed `fp`'s copy item is
-    /// done in the backup under way; a seed the backup has no item for is
-    /// checked by any match.
-    pub(crate) fn seed_copy_checked(&self, c: &Compute, fp: [u8; 4]) -> bool {
-        let Some(b) = self.backup.as_ref() else {
-            return false;
-        };
-        let at = self
-            .backup_seed_list_now(b.wallet)
-            .iter()
-            .enumerate()
-            .find_map(|(i, (_, k))| {
-                let key = self.session.keys.info((*k)?)?;
-                (key.fingerprint.0 == fp).then_some((i, key))
-            });
-        match at {
-            Some((i, key)) => self.copy_checked(c, b, i, key),
-            None => b
-                .checked
-                .iter()
-                .any(|(f, form)| *f == fp && *form != CopyForm::Passphrase),
-        }
-    }
-
-    /// Check my copy: opens the typed check, with nothing typed and the
-    /// seed hidden. With a passphrase's check open, Compare.
-    pub(crate) fn copy_check_open(&mut self) {
-        let Some(b) = self.backup.as_ref() else {
-            return;
-        };
-        if let Some(c) = b.check.as_ref() {
-            if c.passphrase {
-                self.passphrase_check_try();
-            }
-            return;
-        }
-        let check = self.copy_check_new();
-        if let Some(b) = self.backup.as_mut() {
-            b.reveal = false;
-            b.check = check;
-        }
-    }
-
-    /// Clear: the check starts again from word 1.
-    pub(crate) fn copy_check_clear(&mut self) {
-        let check = self.copy_check_new();
-        if let Some(b) = self.backup.as_mut()
-            && b.check.is_some()
-        {
-            b.check = check;
-        }
-    }
-
-    fn copy_check_new(&self) -> Option<WordCheck> {
-        let b = self.backup.as_ref()?;
-        if b.open.is_some_and(crate::bstep::is_passphrase) {
-            return Some(WordCheck::passphrase());
-        }
-        let key = self.session.keys.info(b.key)?;
-        let count = usize::from(key.word_count?);
-        let keyed = forms::on_screen(key.language) || self.compact;
-        Some(WordCheck::new(key.language, count, keyed))
-    }
-
-    /// One key of the open check, typed through Add a key's word entry,
-    /// with a word's four-digit number accepted.
-    pub(crate) fn copy_check_key(&mut self, key: KeyIn) {
-        let Some(c) = self.backup.as_mut().and_then(|b| b.check.as_mut()) else {
-            return;
-        };
-        c.sample_gone = true;
-        if c.passphrase {
-            match key {
-                // BIP-39 passphrases here are printable ASCII.
-                KeyIn::Char(ch) if (' '..='~').contains(&ch) => {
-                    c.typed.push(ch);
-                    c.error = None;
-                }
-                KeyIn::Backspace | KeyIn::Delete => {
-                    c.typed.pop();
-                    c.error = None;
-                }
-                KeyIn::Enter => self.passphrase_check_try(),
-                KeyIn::Escape => {
-                    if let Some(b) = self.backup.as_mut() {
-                        b.check = None;
-                    }
-                }
-                _ => {}
-            }
-            return;
-        }
-        match forms::word_key(c.entry(), key) {
-            // The word as typed is taken, as a space takes it.
-            WordKey::Enter => {
-                forms::word_key(c.entry(), KeyIn::Char(' '));
-            }
-            WordKey::Escape => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.check = None;
-                }
-                return;
-            }
-            _ => {}
-        }
-        self.copy_check_after();
-    }
-
-    /// Compares the words with the seed once the last is taken, not
-    /// before. A match is the item's words check, done: the words are
-    /// wiped and the check closes. A word that differs is named; the
-    /// words before it stay and typing resumes at it.
-    pub(crate) fn copy_check_after(&mut self) {
-        let c = self.compute();
-        let Some(b) = self.backup.as_ref() else {
-            return;
-        };
-        let Some(chk) = b.check.as_ref() else {
-            return;
-        };
-        if chk.passphrase || chk.taken() < chk.count {
-            return;
-        }
-        let Some(key) = self.session.keys.info(b.key) else {
-            return;
-        };
-        let fp = key.fingerprint.0;
-        let mut typed = chk.indices();
-        let Some(found) = self.session.keys.words_match(&c, b.key, &typed) else {
-            typed.zeroize();
-            return;
-        };
-        let off_list = match found {
-            CopyCheck::WrongWord(k) => typed.get(k - 1) == Some(&u16::MAX),
-            CopyCheck::Matches => false,
-        };
-        typed.zeroize();
-        match found {
-            CopyCheck::Matches => {
-                if let Some(b) = self.backup.as_mut() {
-                    b.check = None;
-                }
-                self.copy_matched(fp, CopyForm::Words);
-            }
-            CopyCheck::WrongWord(k) => {
-                let line = if off_list {
-                    fill(
-                        EN.forms_word_not_in_list,
-                        &[&k.to_string(), forms::language_name(key_language(self))],
-                    )
-                } else {
-                    fill(EN.copy_check_word_differs, &[&k.to_string()])
-                };
-                if let Some(c) = self.backup.as_mut().and_then(|b| b.check.as_mut()) {
-                    c.keep(k - 1);
-                    c.error = Some(line);
-                }
-            }
-        }
-    }
 }
 
 /// The scans without a match after which **Keep the words only** moves
@@ -397,90 +210,4 @@ impl BackupState {
             .find(|(f, _)| *f == fp)
             .map_or(0, |(_, n)| *n)
     }
-}
-
-impl Faraday {
-    /// A scan of seed `fp`'s copy closed without a match: counted once
-    /// for the backup under way.
-    pub(crate) fn copy_missed(&mut self, fp: [u8; 4]) {
-        let Some(b) = self.backup.as_mut() else {
-            return;
-        };
-        match b.misses.iter_mut().find(|(f, _)| *f == fp) {
-            Some((_, n)) => *n = n.saturating_add(1),
-            None => b.misses.push((fp, 1)),
-        }
-    }
-
-    /// Keep the words only, on the open copy item: its seed's SeedQR
-    /// copies become copies of the words, the grid kept on the map drawn
-    /// in part ([`plan::keep_words`]), and the plan saved. Items done stay
-    /// done; the item now asks for typed words, and with those already
-    /// checked it is done at once and the checklist moves on.
-    pub(crate) fn keep_words_only(&mut self) {
-        let c = self.compute();
-        let Some(b) = self.backup.as_ref() else {
-            return;
-        };
-        let Some(n) = b.open.filter(|&n| crate::bstep::is_copy(n)) else {
-            return;
-        };
-        let i = usize::from(n - crate::bstep::COPY);
-        if !self.copy_forms(&c, b, i).seedqr {
-            return;
-        }
-        let shape = self.plan_shape_now(b.wallet);
-        let answers = plan::keep_words(&shape, &b.answers, i);
-        if let Some(b) = self.backup.as_mut() {
-            b.answers = answers;
-            b.scanned = None;
-            b.check = None;
-        }
-        self.plan_save();
-        self.backups_sync();
-        if crate::bstep::item(n).is_some_and(|it| self.backup_item_done_now(&c, it)) {
-            self.act(crate::Action::BNext(n));
-        }
-    }
-}
-
-impl Faraday {
-    /// Compare: the passphrase typed against the one the key was loaded
-    /// with, whole, exactly and in constant time. A match is the item
-    /// done; either way what was typed is wiped. A key that keeps no
-    /// passphrase matches nothing.
-    pub(crate) fn passphrase_check_try(&mut self) {
-        let Some(b) = self.backup.as_ref() else {
-            return;
-        };
-        let Some(chk) = b.check.as_ref().filter(|c| c.passphrase) else {
-            return;
-        };
-        let Some(key) = self.session.keys.info(b.key) else {
-            return;
-        };
-        let fp = key.fingerprint.0;
-        let matched = self.session.keys.passphrase_matches(b.key, &chk.typed);
-        let Some(b) = self.backup.as_mut() else {
-            return;
-        };
-        if matched {
-            b.check = None;
-            if !b.checked.contains(&(fp, CopyForm::Passphrase)) {
-                b.checked.push((fp, CopyForm::Passphrase));
-            }
-            self.backups_passphrase_checked(fp);
-        } else if let Some(c) = b.check.as_mut() {
-            c.typed.clear();
-            c.error = Some(EN.copy_check_passphrase_differs.to_string());
-        }
-    }
-}
-
-/// The list of the seed under check.
-fn key_language(app: &Faraday) -> Language {
-    app.backup
-        .as_ref()
-        .and_then(|b| b.check.as_ref())
-        .map_or(Language::English, |c| c.lang)
 }

@@ -64,7 +64,8 @@ fn the_checklist_follows_a_plan_changed_since_the_last_frame() {
     let mut changed = false;
     for preset in Preset::ALL {
         let answers = Answers::preset(&shape, preset);
-        app.backup.as_mut().expect("the backup is open").answers = answers.clone();
+        assert!(app.backup().is_some(), "the backup is open");
+        app.backup.set_answers(answers.clone());
         let _ = app.frame();
         let want: Vec<u8> = crate::plan::checklist(&c, &shape, &answers)
             .into_iter()

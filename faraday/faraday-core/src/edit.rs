@@ -172,13 +172,13 @@ impl Faraday {
             | Screen::BackupFlow => {
                 self.vaults.focus.is_some()
                     || (self.screen == Screen::BackupFlow
-                        && self.backup.as_ref().is_some_and(|b| b.naming.is_some()))
+                        && self.backup.state().is_some_and(|b| b.naming.is_some()))
             }
             Screen::Entry => true,
             // A passphrase on paper typed back for Check my copy.
             Screen::Backup => self
                 .backup
-                .as_ref()
+                .state()
                 .and_then(|b| b.check.as_ref())
                 .is_some_and(|c| c.passphrase),
             Screen::Wallets => self.wallets.renaming().is_some(),
@@ -205,7 +205,7 @@ impl Faraday {
         // (`docs/BACKUP-FLOW.md` §17.18).
         if (self.screen == Screen::Backup
             || (self.screen == Screen::BackupFlow && self.vaults.focus.is_none()))
-            && let Some(p) = self.backup.as_ref().and_then(|b| b.naming)
+            && let Some(p) = self.backup.state().and_then(|b| b.naming)
         {
             return Some(Action::BName(u8::try_from(p).unwrap_or(u8::MAX)));
         }
@@ -294,7 +294,7 @@ impl Faraday {
             Action::SeedRead(_) => self.seed_read.state()?.field()?,
             Action::Rename => self.wallets.renaming().map(String::as_str)?,
             crate::file_menu::FIELD => &self.visit.files_menu().renaming.as_ref()?.stem,
-            Action::BName(p) => self.backup.as_ref()?.names.get(usize::from(p))?,
+            Action::BName(p) => self.backup.state()?.names.get(usize::from(p))?,
             Action::MType => &self.message.state()?.text,
             Action::KPassField(0) => &self.keygen.state()?.passphrase,
             Action::KPassField(_) => &self.keygen.state()?.passphrase2,
@@ -554,7 +554,7 @@ impl Faraday {
         match s {
             Screen::KeyGen => self.keygen.state().is_some(),
             Screen::Create => self.create.state().is_some(),
-            Screen::Backup => self.backup.is_some(),
+            Screen::Backup => self.backup.state().is_some(),
             Screen::Spend => self.wallets.spend().is_some(),
             Screen::Restore => self.restore.state().is_some(),
             Screen::Message => self.message.state().is_some(),

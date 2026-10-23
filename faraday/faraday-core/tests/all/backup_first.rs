@@ -109,7 +109,7 @@ fn checklist(app: &mut Faraday, p: Preset) {
     {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
 }
 
 /// The copy by hand of the key's seed, checked by its words typed back.
@@ -131,10 +131,10 @@ fn check_the_copy(app: &mut Faraday, fp: Fingerprint) {
 
 /// The rest of a Paper only checklist after the copy: the envelopes.
 fn the_envelopes(app: &mut Faraday) {
-    if app.backup.as_ref().unwrap().open != Some(bstep::ENVELOPE) {
+    if app.backup().unwrap().open != Some(bstep::ENVELOPE) {
         app.press(Action::BStep(bstep::ENVELOPE));
     }
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::ENVELOPE));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::ENVELOPE));
     app.press(Action::BNext(bstep::ENVELOPE));
 }
 
@@ -266,7 +266,7 @@ fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
     checklist(&mut app, Preset::PaperVault);
     check_the_copy(&mut app, fp);
     app.press(Action::BStep(bstep::VAULT));
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
     unlock(&mut app);
     app.press(Action::Nav(Screen::Backup));
     app.press(Action::BVaultSave(0));
@@ -465,7 +465,7 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
     let _ = app.frame();
     let make = Action::Vault(V::CreateFrom(Screen::Backup));
     assert!(app.offers(make), "Make a vault");
@@ -474,7 +474,7 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     // The next item does not open, nor does Continue pass it.
     app.press(Action::BStep(bstep::SHEETS));
     app.press(Action::BNext(bstep::VAULT));
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
     // The vault made: one button saves everything.
     app.press(make);
     for second in [false, true] {
@@ -510,7 +510,7 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     assert!(app.offers(Action::BNext(bstep::VAULT)), "Continue");
     assert!(!app.offers(Action::BVaultSave(0)));
     app.press(Action::BNext(bstep::VAULT));
-    assert_ne!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
+    assert_ne!(app.backup().unwrap().open, Some(bstep::VAULT));
 }
 
 #[test]
@@ -579,7 +579,7 @@ fn a_plan_with_the_seed_unticked_everywhere_offers_no_make_the_checklist() {
     {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Plan);
+    assert_eq!(app.backup().unwrap().stage, BStage::Plan);
 }
 
 /// The backup's last card, in Guided, says extra copies are made outside

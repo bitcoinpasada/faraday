@@ -85,12 +85,7 @@ fn one_key(app: &mut Faraday) -> usize {
 fn press_offered(app: &mut Faraday, action: Action) {
     // Make the checklist is on The plan card (`docs/BACKUP-FLOW.md`
     // §15.1): a person opens it first.
-    if action == Action::BChecklist
-        && app
-            .backup
-            .as_ref()
-            .is_some_and(|b| b.q != Some(qstep::PLAN))
-    {
+    if action == Action::BChecklist && app.backup().is_some_and(|b| b.q != Some(qstep::PLAN)) {
         app.press(Action::BQ(qstep::PLAN));
     }
     for _ in 0..20 {
@@ -121,7 +116,7 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     let w = one_key(&mut app);
     unlock(&mut app);
     app.press(Action::Backup(w));
-    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
+    assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVault);
     press_offered(&mut app, Action::BChecklist);
     if app
@@ -130,7 +125,7 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
-    assert_eq!(app.backup.as_ref().unwrap().stage, BStage::Checklist);
+    assert_eq!(app.backup().unwrap().stage, BStage::Checklist);
     assert_eq!(
         app.backup_items_now(&c),
         vec![
@@ -159,7 +154,7 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
         assert!(!done(&app, item), "{item:?} done before anything");
     }
     // So the checklist opens on the copy, which is typed back.
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY));
     app.press(Action::BReveal);
     app.storage(StorageEvent::Cameras(Vec::new()));
     press_offered(&mut app, Action::BCheck);
@@ -184,7 +179,7 @@ fn the_checklist_marks_each_item_done_by_what_it_does() {
     press_offered(&mut app, Action::BNext(bstep::ENVELOPE));
     assert!(done(&app, Item::Envelopes));
     // The envelopes' press opened the writes, the last item.
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::STICKS));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::STICKS));
     press_offered(
         &mut app,
         Action::Flow(faraday_core::backup_flow::steps::FlowAction::WalletLock),
@@ -206,7 +201,7 @@ fn a_fresh_backup_starts_with_the_templates_and_envelopes_not_done() {
 /// What a lock does to the backup under way: it is gone, and opened again
 /// from the wallet, which an unlock loads back.
 fn reopened(app: &mut Faraday, w: usize) {
-    app.backup = None;
+    faraday_core::testkit::backup_drop(app);
     app.press(Action::Backup(w));
     app.press(Action::BChecklist);
 }
@@ -270,7 +265,7 @@ fn a_passphrase_typed_back_stays_checked_when_the_backup_is_opened_again() {
         app.backup_items_now(&c)
     );
     assert!(!done(&app, Item::Passphrase(0)));
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::PASSPHRASE));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::PASSPHRASE));
     app.press(Action::BCheck);
     type_text(&mut app, "lantern-orchid-41");
     app.event(Event::Key(Key::Enter));
@@ -327,7 +322,7 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::PaperVaultSoftware);
     // Start from goes on to the board itself; a place's name is typed
     // on its card there (`docs/BACKUP-FLOW.md` §17.12 item 2).
-    if app.backup.as_ref().unwrap().q != Some(qstep::BOARD) {
+    if app.backup().unwrap().q != Some(qstep::BOARD) {
         press_offered(&mut app, Action::BQ(qstep::BOARD));
     }
     press_offered(&mut app, Action::BName(0));
@@ -397,10 +392,10 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
         1
     );
     // The next backup of the wallet starts from it.
-    let answers = app.backup.as_ref().unwrap().answers.clone();
+    let answers = app.backup().unwrap().answers.clone();
     app.press(Action::Nav(Screen::Wallets));
     app.press(Action::Backup(w));
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!(b.answers, answers);
     assert_eq!(b.q, None, "not the presets");
     assert_eq!(app.place_name(0), NAME);
@@ -429,7 +424,7 @@ fn the_blank_template_has_a_line_per_place_and_no_name() {
     // Paper only over two places, as a plan saved before one place per
     // key (`docs/BACKUP-FLOW.md` §17.19): the seed's words at each.
     crate::common::preset_two_places(&mut app, 1);
-    assert_eq!(app.backup.as_ref().unwrap().answers.places, 2);
+    assert_eq!(app.backup().unwrap().answers.places, 2);
     app.press(Action::BName(1));
     type_text(&mut app, NAME);
     app.press(Action::BChecklist);
@@ -547,10 +542,10 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
         "no vault for the cosigner's seed"
     );
     // Vault 1, open first: made, its seed and the wallet saved into it.
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
     press_offered(&mut app, Action::Vault(V::CreateFrom(Screen::Backup)));
     make_the_vault(&mut app);
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
     press_offered(&mut app, Action::BVaultSave(0));
     assert!(done(&app, Item::Vault(0)));
     assert!(!done(&app, Item::Vault(1)));
@@ -579,7 +574,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
     app.press(Action::BNewVault(1));
     assert_eq!(app.vaults.open.len(), 0, "the first vault is locked");
     make_the_vault(&mut app);
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT + 1));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT + 1));
     press_offered(&mut app, Action::BVaultSave(1));
     assert!(done(&app, Item::Vault(1)));
     assert!(
@@ -621,7 +616,7 @@ fn check_copy(app: &mut Faraday, w: usize, i: usize) {
         .reveal(k, faraday_keys::Reveal::Words)
         .to_string();
     let item = bstep::COPY + i as u8;
-    if app.backup.as_ref().unwrap().open != Some(item) {
+    if app.backup().unwrap().open != Some(item) {
         press_offered(app, Action::BStep(item));
     }
     app.press(Action::BReveal);
@@ -763,14 +758,11 @@ fn offered_anywhere(app: &mut Faraday, action: Action) -> bool {
 
 /// Opens the checklist's public files item afresh: closed, then opened.
 fn reopen_public(app: &mut Faraday) {
-    if app.backup.as_ref().and_then(|b| b.open) == Some(bstep::PUBLIC) {
+    if app.backup().and_then(|b| b.open) == Some(bstep::PUBLIC) {
         app.press(Action::BStep(bstep::PUBLIC));
     }
     app.press(Action::BStep(bstep::PUBLIC));
-    assert_eq!(
-        app.backup.as_ref().and_then(|b| b.open),
-        Some(bstep::PUBLIC)
-    );
+    assert_eq!(app.backup().and_then(|b| b.open), Some(bstep::PUBLIC));
 }
 
 #[test]

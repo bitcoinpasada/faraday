@@ -495,7 +495,7 @@ fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
     assert_eq!(app.screen, Screen::Backup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(
-        app.backup.as_ref().unwrap().answers.vaults.len(),
+        app.backup().unwrap().answers.vaults.len(),
         1,
         "the vault set up is the plan's"
     );
@@ -544,7 +544,7 @@ fn back_up_this_wallet_opens_back_up_on_it() {
     let (mut app, w) = single_key_done();
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(app.backup.as_ref().unwrap().wallet, w);
+    assert_eq!(app.backup().unwrap().wallet, w);
 }
 
 #[test]
@@ -585,10 +585,10 @@ fn with_vaults_back_up_this_wallet_resumes_at_the_plan_with_its_vaults() {
     let (_shell, mut app, w) = two_vaults_done();
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(app.backup.as_ref().unwrap().wallet, w);
+    assert_eq!(app.backup().unwrap().wallet, w);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(
-        app.backup.as_ref().unwrap().answers.vaults.len(),
+        app.backup().unwrap().answers.vaults.len(),
         2,
         "the vaults set up are the plan's"
     );
@@ -625,7 +625,7 @@ fn the_wallets_card_and_backups_offer_the_unfinished_backup() {
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
-    assert_eq!(app.backup.as_ref().unwrap().answers.vaults.len(), 2);
+    assert_eq!(app.backup().unwrap().answers.vaults.len(), 2);
 
     // With no vaults, nothing is left part way.
     let (mut app, w) = single_key_done();

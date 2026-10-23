@@ -194,7 +194,7 @@ impl Faraday {
     /// chosen, a plan saved before, something placed), or its checklist
     /// is made.
     fn backup_begun(&self) -> bool {
-        self.backup.as_ref().is_some_and(|b| {
+        self.backup.state().is_some_and(|b| {
             b.stage == BStage::Checklist
                 || b.answers.map.as_ref().is_none_or(|m| {
                     m.iter()
@@ -206,7 +206,7 @@ impl Faraday {
     /// Which row Back up is part of: Make a new wallet's when it backs up
     /// the wallet just made there, else its own.
     fn backup_going(&self) -> Option<Going> {
-        let b = self.backup.as_ref()?;
+        let b = self.backup.state()?;
         if self.create.state().and_then(|c| c.built) == Some(b.wallet) {
             Some(Going::Create)
         } else {
@@ -309,7 +309,7 @@ impl Faraday {
                     _ => self.go(Screen::Restore),
                 }
             }
-            Going::Backup if self.backup.is_some() => self.go(Screen::Backup),
+            Going::Backup if self.backup.state().is_some() => self.go(Screen::Backup),
             Going::Spend => match left {
                 Some(Screen::Spend) if self.wallets.spend().is_some() => self.go(Screen::Spend),
                 _ => self.go(Screen::Family),
@@ -558,7 +558,7 @@ impl Faraday {
             .then(|| self.wallet_flow_of_backup())
             .flatten();
         if self.backup_going() == Some(Going::Create) {
-            self.backup = None;
+            self.backup.close();
         }
         self.create.clear();
         let setup = self.wallet_flow_of_owner(owner);
@@ -695,7 +695,7 @@ impl Faraday {
     /// `item_title_now` cost. Back up's open card: a card of the plan, or
     /// an item of the checklist, else the first item not done.
     fn backup_step(&self, c: &Compute) -> Option<String> {
-        let b = self.backup.as_ref()?;
+        let b = self.backup.state()?;
         if b.stage == BStage::Plan {
             return Some(crate::plan::cards::q_title(
                 b.q.unwrap_or(crate::qstep::PLAN),
@@ -823,7 +823,7 @@ fn flow_finished_on(r: &impl Reads, g: Going) -> bool {
 /// Back up's checklist is made and every item on it done, read through
 /// `r` ([`Reads`]).
 fn backup_finished_on(r: &impl Reads) -> bool {
-    r.app().backup.as_ref().is_some_and(|b| {
+    r.app().backup().is_some_and(|b| {
         b.stage == BStage::Checklist
             && r.backup_items()
                 .into_iter()

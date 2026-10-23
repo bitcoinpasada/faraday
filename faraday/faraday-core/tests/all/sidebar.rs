@@ -312,7 +312,7 @@ fn create_at_places() -> Faraday {
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
+    assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
     app
 }
 
@@ -367,7 +367,7 @@ fn lit(app: &mut Faraday, label: &str) -> bool {
 #[test]
 fn make_a_new_wallet_left_on_places_for_settings_comes_back_as_it_was_left() {
     let mut app = create_at_places();
-    let answers = app.backup.as_ref().unwrap().answers.clone();
+    let answers = app.backup().unwrap().answers.clone();
     app.press(Action::Nav(Screen::Settings));
     let row = Action::Resume(Going::Create);
     assert!(offered(&mut app, row));
@@ -388,7 +388,7 @@ fn make_a_new_wallet_left_on_places_for_settings_comes_back_as_it_was_left() {
 
     app.press(row);
     assert_eq!(app.screen, Screen::Backup);
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!(b.q, Some(qstep::BOARD), "on Places");
     assert_eq!(b.answers, answers, "the board as it was left");
 }
@@ -580,14 +580,14 @@ fn cancel_on_places_asks_then_ends_the_flow_on_wallets_with_the_keys_still_loade
 #[test]
 fn keep_going_leaves_the_flow_as_it_was() {
     let mut app = create_at_places_from_wallets();
-    let answers = app.backup.as_ref().unwrap().answers.clone();
+    let answers = app.backup().unwrap().answers.clone();
     app.press(Action::CancelFlow);
     assert!(app.sheet.is_some());
     assert!(offered(&mut app, Action::Cancel), "Keep going");
     app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Backup);
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!(b.q, Some(qstep::BOARD), "still on Places");
     assert_eq!(b.answers, answers, "the board as it was");
     assert!(row_on_settings(&mut app, Going::Create), "the row stays");

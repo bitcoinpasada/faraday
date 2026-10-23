@@ -30,10 +30,10 @@ fn a_notch_moves_the_page_by_its_pixels_in_the_direction_asked() {
     assert_eq!(app.screen, Screen::Backup);
     // Content up: the page scrolls down by the notch.
     scroll(&mut app, 48);
-    assert_eq!(app.backup.as_ref().unwrap().scroll.y, 48.0);
+    assert_eq!(app.backup().unwrap().scroll.y, 48.0);
     // Content down: back up, and no further than the top.
     scroll(&mut app, -96);
-    assert_eq!(app.backup.as_ref().unwrap().scroll.y, 0.0);
+    assert_eq!(app.backup().unwrap().scroll.y, 0.0);
 }
 
 #[test]

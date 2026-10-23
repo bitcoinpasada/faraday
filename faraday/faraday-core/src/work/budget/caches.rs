@@ -105,12 +105,10 @@ fn round(app: &mut Faraday, n: usize) {
         let _ = app.frame();
     }
     // The backup's plan through every preset, drawn.
-    if let Some(b) = app.backup.as_ref() {
+    if let Some(b) = app.backup() {
         let shape = app.plan_shape_now(b.wallet);
         for preset in Preset::ALL {
-            if let Some(b) = app.backup.as_mut() {
-                b.answers = Answers::preset(&shape, preset);
-            }
+            app.backup.set_answers(Answers::preset(&shape, preset));
             let _ = app
                 .kept
                 .plan_mapped(&c, &shape, &Answers::preset(&shape, preset));

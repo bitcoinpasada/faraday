@@ -855,9 +855,7 @@ impl Faraday {
             Action::CBackup => {
                 if let Some(i) = self.create.state.as_ref().and_then(|c| c.built) {
                     self.act(Action::Backup(i));
-                    if let Some(b) = self.backup.as_mut() {
-                        b.from_create = true;
-                    }
+                    self.backup.set_from_create();
                 }
             }
             Action::CVaults(_) | Action::CVaultN(_)

@@ -181,7 +181,7 @@ fn back_up_this_wallet_opens_the_board_read_only_on_the_standard_way() {
     app.press(Action::CNext(cstep::CHECK));
     app.press(Action::CBackup);
     assert_eq!(app.screen, Screen::Backup);
-    let b = app.backup.as_ref().expect("backup");
+    let b = app.backup().expect("backup");
     assert_eq!(b.wallet, built, "the backup is of the wallet just made");
     assert_eq!(b.q, Some(faraday_core::qstep::BOARD), "on the board");
     assert_eq!(

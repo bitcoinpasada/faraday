@@ -42,7 +42,7 @@ fn session() -> Faraday {
             t.typed.push(ch);
         }
     }
-    assert!(app.backup.is_some(), "the backup is open");
+    assert!(app.backup().is_some(), "the backup is open");
     assert!(app.wallets.spend().is_some(), "the spend is open");
     assert!(!app.vaults.open.is_empty(), "the test vault is open");
     app
@@ -56,7 +56,7 @@ fn reads(app: &Faraday) -> Vec<Read> {
     let mnemonic = faraday_keys::words::parse(&testkit::compute(), Language::English, &words)
         .expect("the test words");
     let descriptor = testkit::kits()[0].descriptor.clone();
-    let w = app.backup.as_ref().map_or(0, |b| b.wallet);
+    let w = app.backup().map_or(0, |b| b.wallet);
     let shape = app.plan_shape_now(w);
     let answers = Answers::preset(&shape, Preset::PaperVault);
     let seen = app.inbox.iter().find_map(|i| i.psbt().cloned());
@@ -189,17 +189,13 @@ fn reads(app: &Faraday) -> Vec<Read> {
         (
             "copy_forms",
             Box::new(|v| {
-                let _ = v.copy_forms(v.backup.as_ref().expect("the backup"), 0);
+                let _ = v.copy_forms(v.backup().expect("the backup"), 0);
             }),
         ),
         (
             "copy_checks",
             Box::new(|v| {
-                let _ = v.copy_checks(
-                    v.backup.as_ref().expect("the backup"),
-                    0,
-                    &v.session.keys[0],
-                );
+                let _ = v.copy_checks(v.backup().expect("the backup"), 0, &v.session.keys[0]);
             }),
         ),
         (

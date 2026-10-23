@@ -60,8 +60,7 @@ pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     for row in 0..5u8 {
         let on = t
             .app
-            .backup
-            .as_ref()
+            .backup()
             .is_some_and(|b| b.answers.software[usize::from(row)]);
         if !on {
             t.press(Action::BAnswer(faraday_core::qrow::SOFTWARE, row));

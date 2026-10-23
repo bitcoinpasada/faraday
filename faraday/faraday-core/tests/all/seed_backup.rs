@@ -110,7 +110,7 @@ fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
     if with {
         // The passphrase dropped into the vault that holds its seed, on
         // the board, at the place that keeps its stick.
-        let places = app.backup.as_ref().unwrap().answers.places;
+        let places = app.backup().unwrap().answers.places;
         let (p, s) = (0..places)
             .find_map(|p| vault_stick(app, p, 0).map(|s| (p, s)))
             .expect("Vault 1's stick has a place");
@@ -119,7 +119,7 @@ fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
     // The seed as a file, at Place 1.
     files_at(app, 0, &[0]);
     if seedqr {
-        let p = (0..app.backup.as_ref().unwrap().answers.places)
+        let p = (0..app.backup().unwrap().answers.places)
             .find(|&p| {
                 crate::common::backup_map(app).iter().any(|s| {
                     s.at == faraday_core::plan::At::Place(p)
@@ -512,7 +512,7 @@ fn a_matched_copy_check_marks_that_seed_only() {
     // The copy of the seed of test key 1, the first, by its place in the
     // wallet.
     let i = app
-        .backup_seed_list_now(app.backup.as_ref().unwrap().wallet)
+        .backup_seed_list_now(app.backup().unwrap().wallet)
         .iter()
         .position(|(_, k)| *k == Some(k1))
         .expect("test key 1 is a seed of Savings") as u8;
@@ -524,8 +524,8 @@ fn a_matched_copy_check_marks_that_seed_only() {
     {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY + i));
-    assert_eq!(app.backup.as_ref().unwrap().key, k1);
+    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY + i));
+    assert_eq!(app.backup().unwrap().key, k1);
     app.press(Action::BReveal);
     app.press(Action::BCheck);
     testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));

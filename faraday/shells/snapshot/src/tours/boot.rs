@@ -129,8 +129,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let here = t.app.plan_shape_now(built).here();
     let vaults = t
         .app
-        .backup
-        .as_ref()
+        .backup()
         .map_or(0, |b| b.answers.vault_count(&t.app.plan_shape_now(built)));
     let p = vault_place(c, t, 0).unwrap_or(0);
     keep_vault(c, t, p, 0, &here);
@@ -145,7 +144,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // The items before the vault's wait for it (`docs/history/NEW-WALLET.md`
     // §14.1): each copy by hand checked in turn, then the vault.
     items_before(c, t, faraday_core::bstep::VAULT)?;
-    if t.app.backup.as_ref().and_then(|b| b.open) != Some(faraday_core::bstep::VAULT) {
+    if t.app.backup().and_then(|b| b.open) != Some(faraday_core::bstep::VAULT) {
         t.press(Action::BStep(faraday_core::bstep::VAULT));
     }
     // Making the checklist saved the plan into the vault already.
@@ -266,7 +265,7 @@ pub(crate) fn items_before(c: &Compute, t: &mut Tour, target: u8) -> Result<(), 
         if n == target {
             break;
         }
-        if t.app.backup.as_ref().and_then(|b| b.open) != Some(n) {
+        if t.app.backup().and_then(|b| b.open) != Some(n) {
             t.press(Action::BStep(n));
         }
         if bstep::is_copy(n) {

@@ -410,7 +410,7 @@ fn changing_the_plan_after_an_edit_opens_the_cards_with_the_edit_kept() {
         press,
         Edit::Move(At::Place(0), What::Words(0), At::Place(2)),
     );
-    let edited = app.backup.as_ref().unwrap().answers.map.clone();
+    let edited = app.backup().unwrap().answers.map.clone();
     assert!(edited.is_some());
     // The plan's cards show the map as it is: nothing is replaced, so
     // nothing is asked (`docs/BACKUP-FLOW.md` §15.2).
@@ -426,7 +426,7 @@ fn changing_the_plan_after_an_edit_opens_the_cards_with_the_edit_kept() {
     assert_eq!(app.chart(), None);
     assert!(!shown(&mut app, "Your changes on the chart are replaced"));
     assert_eq!(app.screen, Screen::Backup);
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!(b.stage, BStage::Plan);
     assert_eq!(b.answers.map, edited, "the chart's edit is the plan");
 }
@@ -671,10 +671,10 @@ fn in_an_open_vaults_view_a_change_is_kept_in_that_vault() {
 /// per key, two for a single key: as a plan saved before plans kept at
 /// most one place per key has it (`docs/BACKUP-FLOW.md` §17.19).
 fn preset_saved(app: &mut Faraday, k: u8) {
-    let w = app.backup.as_ref().unwrap().wallet;
+    let w = app.backup().unwrap().wallet;
     let shape = app.plan_shape_now(w);
     let base = if shape.multi() { shape.seeds.len() } else { 2 };
     let preset = faraday_core::plan::Preset::ALL[usize::from(k)];
-    app.backup.as_mut().unwrap().answers =
+    *faraday_core::testkit::backup_answers_mut(app) =
         faraday_core::plan::Answers::preset_at(&shape, preset, base);
 }

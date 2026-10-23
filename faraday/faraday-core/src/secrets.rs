@@ -266,7 +266,7 @@ impl Faraday {
     pub(crate) fn offer_seed(&mut self) {
         let c = self.compute();
         use faraday_bip::bip39::Language;
-        let Some(b) = self.backup.as_ref() else {
+        let Some(b) = self.backup.state() else {
             return;
         };
         let (k, compact) = (b.key, b.compact);
@@ -489,11 +489,7 @@ impl Faraday {
         }
         // The seed's files on a stick, let out: Lock and write goes on.
         if let Some(fp) = out.to_lock {
-            if let Some(b) = self.backup.as_mut()
-                && !b.files_warned.contains(&fp)
-            {
-                b.files_warned.push(fp);
-            }
+            self.backup.files_warned(fp);
             self.wallet_lock_write();
             return;
         }

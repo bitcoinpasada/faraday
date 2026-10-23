@@ -810,7 +810,7 @@ impl Faraday {
     /// English words of the check's count. A lookup.
     fn copy_check_sample_words(&self) -> Option<&'static str> {
         let set = self.put_on()?;
-        let b = self.backup.as_ref()?;
+        let b = self.backup.state()?;
         let chk = b.check.as_ref().filter(|c| !c.passphrase)?;
         let fp = self.session.keys.info(b.key)?.fingerprint.0;
         english_keys(set)
@@ -825,7 +825,7 @@ impl Faraday {
     /// A lookup.
     pub fn copy_check_sample_shown(&self) -> bool {
         self.backup
-            .as_ref()
+            .state()
             .and_then(|b| b.check.as_ref())
             .is_some_and(|c| {
                 !c.sample_gone

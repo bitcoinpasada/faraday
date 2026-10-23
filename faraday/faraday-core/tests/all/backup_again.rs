@@ -86,12 +86,7 @@ fn in_outbox(app: &Faraday, name: &str) -> bool {
 fn press_offered(app: &mut Faraday, action: Action) {
     // Make the checklist is on The plan card (`docs/BACKUP-FLOW.md`
     // §15.1): a person opens it first.
-    if action == Action::BChecklist
-        && app
-            .backup
-            .as_ref()
-            .is_some_and(|b| b.q != Some(qstep::PLAN))
-    {
+    if action == Action::BChecklist && app.backup().is_some_and(|b| b.q != Some(qstep::PLAN)) {
         app.press(Action::BQ(qstep::PLAN));
     }
     for _ in 0..20 {
@@ -142,7 +137,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     assert!(app.session.keys.is_empty());
     app.press(Action::Backup(w));
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(app.backup.as_ref().unwrap().q, Some(qstep::BOARD));
+    assert_eq!(app.backup().unwrap().q, Some(qstep::BOARD));
     // The board offers no seed: each is a cosigner's, not here; a vault
     // may still be added once Customize backup is pressed.
     app.press(Action::Board(BoardPress::Customize));
@@ -209,7 +204,7 @@ fn a_watch_only_wallet_plans_no_seeds_and_puts_each_public_file_in_the_outbox() 
     // The whole wallet sheet, the plan's default, made with the
     // checklist.
     press_offered(&mut app, Action::BStep(bstep::SHEETS));
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::SHEETS));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::SHEETS));
     assert!(in_outbox(&app, "savings-backup.pdf"));
     assert!(app.backup_item_done_now(&c, plan::Item::Sheets));
 }
@@ -234,10 +229,10 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     // Seeds here: the blank template is printed from Faraday Starter and
     // done by its press, so the checklist opens on the copy.
     assert!(app.backup_item_done_now(&c, plan::Item::Templates));
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY));
     // The vault's item opens once the copy is checked.
     app.press(Action::BStep(bstep::VAULT));
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::COPY));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::COPY));
     press_offered(&mut app, Action::BCheck);
     testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     assert!(app.backup_item_done_now(&c, plan::Item::Copy(0)));
@@ -256,7 +251,7 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     }
     assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
     assert_eq!(app.backup_kept(&c).unwrap().wallet.1, Tone::Warn);
     assert!(!app.backup_item_done_now(&c, plan::Item::Vault(0)));
     // One press saves the seed and the wallet.
@@ -288,19 +283,19 @@ fn back_up_from_tools_takes_the_wallet_picked_and_its_chip_switches_to_the_other
     app.press(Action::Nav(Screen::Catalog));
     app.press(Action::Catalog(tile));
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(app.backup.as_ref().unwrap().wallet, spending);
+    assert_eq!(app.backup().unwrap().wallet, spending);
     // The chip names it, and lists the loaded wallets.
     press_offered(&mut app, Action::BWallets);
     press_offered(&mut app, Action::Backup(savings));
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!(b.wallet, savings);
     assert!(!b.pick, "the list closes");
     // A press beside the list closes it, the backup unchanged.
     press_offered(&mut app, Action::BWallets);
-    assert!(app.backup.as_ref().unwrap().pick);
+    assert!(app.backup().unwrap().pick);
     app.press(Action::BWallets);
-    assert!(!app.backup.as_ref().unwrap().pick);
-    assert_eq!(app.backup.as_ref().unwrap().wallet, savings);
+    assert!(!app.backup().unwrap().pick);
+    assert_eq!(app.backup().unwrap().wallet, savings);
 }
 
 #[test]
@@ -365,6 +360,6 @@ fn the_key_rows_list_the_keys_whose_seeds_are_here() {
         press_offered(&mut app, Action::CodePng(Code::WalletKey(w, slot)));
         assert!(in_outbox(&app, &format!("xpub-{name}.png")));
     }
-    let sent = &app.backup.as_ref().unwrap().sent;
+    let sent = &app.backup().unwrap().sent;
     assert!(sent.iter().any(|n| n.ends_with("-bsms.txt")), "{sent:?}");
 }

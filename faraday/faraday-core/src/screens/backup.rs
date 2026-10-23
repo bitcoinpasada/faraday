@@ -42,7 +42,7 @@ pub(crate) fn item_title_now(c: &Compute, app: &Faraday, n: u8) -> (String, Stri
 fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
     use crate::plan::Item;
     let app = reads.app();
-    let Some(b) = app.backup.as_ref() else {
+    let Some(b) = app.backup() else {
         return (String::new(), String::new());
     };
     let Some(wallet) = app.session.wallets.get(b.wallet) else {
@@ -195,7 +195,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let panel_w = side_panel_w(cw);
     let col_x = x0 + 40.0;
     let col_w = cw - panel_w - 72.0;
-    let Some(b) = app.backup.as_ref() else {
+    let Some(b) = app.backup() else {
         title(ui, col_x, 28.0, EN.backup_back_up_a_wallet);
         return;
     };
@@ -468,7 +468,7 @@ fn check_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// (x, y): a press on one starts its backup, a press beside the list
 /// closes it.
 fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32) {
-    let current = app.backup.as_ref().map_or(0, |b| b.wallet);
+    let current = app.backup().map_or(0, |b| b.wallet);
     let lw = 340.0_f32.max(chip_w).min(right - x);
     let rh = 44.0;
     let n = app.session.wallets.len();
@@ -501,7 +501,7 @@ fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32)
 /// height.
 fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::glance::{self, Backup, Direction};
-    let Some(b) = app.backup.as_ref() else {
+    let Some(b) = app.backup() else {
         return 0.0;
     };
     let mut cy = y;
@@ -686,7 +686,7 @@ pub(crate) fn shares_table(
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::bstep;
-    let b = app.backup.as_ref().expect("backup");
+    let b = app.backup().expect("backup");
     let wallet = &app.session.wallets[b.wallet];
     let mut cy = y;
     match n {
@@ -1052,7 +1052,7 @@ fn typed_passphrase(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), typed: 
 /// typed, the words taken masked, and how the last comparison went.
 /// Returns its height.
 fn copy_check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let Some(b) = app.backup.as_ref() else {
+    let Some(b) = app.backup() else {
         return 0.0;
     };
     let Some(key) = app.session.keys.info(b.key) else {
@@ -1217,7 +1217,7 @@ fn word_check(
 /// Show the passphrase, and the passphrase while shown and no check is
 /// open; then the check. Returns its height.
 fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let Some(b) = app.backup.as_ref() else {
+    let Some(b) = app.backup() else {
         return 0.0;
     };
     let Some(key) = app.session.keys.info(b.key) else {
@@ -1282,7 +1282,7 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
     if item == Item::Envelopes || app.backup_item_done(item) {
         return next;
     }
-    let Some(b) = app.backup.as_ref() else {
+    let Some(b) = app.backup() else {
         return next;
     };
     let split = b.answers.split
@@ -1356,7 +1356,7 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
 /// (`docs/history/NEW-WALLET.md` §14.7 item 3): the seed has a SeedQR copy and
 /// the item is not done.
 fn keep_words_offered(app: &View, i: usize) -> bool {
-    app.backup.as_ref().is_some_and(|b| {
+    app.backup().is_some_and(|b| {
         app.copy_forms(b, i).seedqr && !app.backup_item_done(crate::plan::Item::Copy(i))
     })
 }
@@ -1366,7 +1366,7 @@ fn keep_words_offered(app: &View, i: usize) -> bool {
 /// 3). Returns the height used in the column.
 fn copy_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> f32 {
     let i = usize::from(n - crate::bstep::COPY);
-    let missed = app.backup.as_ref().is_some_and(|b| {
+    let missed = app.backup().is_some_and(|b| {
         app.session
             .keys
             .info(b.key)
@@ -1380,7 +1380,7 @@ fn copy_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> f32 {
         };
     }
     let (label, action) = item_action(app, n);
-    let typing = app.backup.as_ref().and_then(|b| b.check.as_ref()).is_some();
+    let typing = app.backup().and_then(|b| b.check.as_ref()).is_some();
     let next = (!(typing && action == Action::BCheck)).then_some((label.as_str(), action));
     buttons_and_next(
         ui,
@@ -1404,8 +1404,7 @@ fn item_next(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, n: u8) -> bool {
     // foot's Check my copy would do nothing, so it is not drawn.
     if action == Action::BCheck
         && app
-            .backup
-            .as_ref()
+            .backup()
             .and_then(|b| b.check.as_ref())
             .is_some_and(|c| !c.passphrase)
     {
@@ -1484,7 +1483,7 @@ fn sticks_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// another vault's seed, that. Its one button is the foot's. Returns its
 /// height.
 fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 {
-    let Some(b) = app.backup.as_ref() else {
+    let Some(b) = app.backup() else {
         return 0.0;
     };
     let mut cy = y;
@@ -1572,7 +1571,7 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
 /// marked once its file is made. The foot's Make it makes the next one.
 /// Returns the height used.
 fn seed_files(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let Some(b) = app.backup.as_ref() else {
+    let Some(b) = app.backup() else {
         return 0.0;
     };
     let Some(wallet) = app.session.wallets.get(b.wallet) else {
@@ -1609,7 +1608,7 @@ fn seed_files(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::paper::PaperForm;
-    let Some(b) = app.backup.as_ref() else {
+    let Some(b) = app.backup() else {
         return 0.0;
     };
     let mut cy = y + 8.0;
@@ -1778,7 +1777,7 @@ fn seed_grid(
 /// in the checklist each line marked by its item's state; the check at
 /// its foot.
 fn backup_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
-    if app.backup.is_none() {
+    if app.backup().is_none() {
         return;
     }
     ui.fill(px, 0.0, pw, h, 0.0, SURFACE);
@@ -1998,15 +1997,11 @@ fn public_rows_for(
     only: Option<&[u8]>,
 ) -> f32 {
     let qr = app
-        .backup
-        .as_ref()
+        .backup()
         .is_none_or(|b| only.is_none() || b.answers.form[crate::plan::form::QR]);
     let mut cy = y;
     let (primary, more) = public_files(app, i);
-    let open = app
-        .backup
-        .as_ref()
-        .is_some_and(|b| b.wallet == i && b.public_more);
+    let open = app.backup().is_some_and(|b| b.wallet == i && b.public_more);
     let shown = primary
         .iter()
         .filter(|(_, _, _, action, _)| match (only, action) {

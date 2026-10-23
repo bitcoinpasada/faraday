@@ -477,7 +477,7 @@ impl View<'_> {
     /// ([`crate::Faraday::backup_questions`]), from the memo's shape and
     /// the kept map. Costs a map the first time.
     pub(crate) fn backup_questions(&self) -> Vec<u8> {
-        let Some(b) = self.backup.as_ref() else {
+        let Some(b) = self.backup.state() else {
             return Vec::new();
         };
         let shape = self.plan_shape(b.wallet);

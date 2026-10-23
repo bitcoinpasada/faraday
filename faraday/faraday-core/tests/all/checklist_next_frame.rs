@@ -158,7 +158,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     if app.backup_items_now(&c).contains(&bstep::BLANK) {
         app.press(Action::BNext(bstep::BLANK));
     }
-    assert_eq!(app.backup.as_ref().unwrap().open, Some(bstep::VAULT));
+    assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
     app.press(Action::Vault(V::CreateFrom(Screen::Backup)));
     make_vault(&mut app, "first vault phrase");
     assert_eq!(app.screen, Screen::Backup);

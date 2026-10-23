@@ -448,7 +448,7 @@ impl Faraday {
                 }
             }
             PassField::Check => {
-                if let Some(c) = self.backup.as_mut().and_then(|b| b.check.as_mut()) {
+                if let Some(c) = self.backup.check_mut() {
                     c.typed.set(PASSPHRASE);
                 }
             }

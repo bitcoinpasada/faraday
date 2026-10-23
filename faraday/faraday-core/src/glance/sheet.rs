@@ -30,7 +30,7 @@ use crate::plan::{self, At, Edit, Item, Mark, What};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vault::VaultAction as V;
-use crate::{Action, BStage, Faraday, Screen, Sheet, bstep};
+use crate::{Action, Faraday, Screen, Sheet, bstep};
 use faraday_keys::Reveal;
 
 /// What on the chart a sheet is for.
@@ -1678,15 +1678,7 @@ impl Faraday {
         if !self.chart_backup(w, from_vault) {
             return false;
         }
-        if let Some(b) = self.backup.as_mut()
-            && b.stage != BStage::Checklist
-        {
-            b.stage = BStage::Checklist;
-            b.q = None;
-            b.naming = None;
-            b.open = None;
-            b.scroll = crate::flow::Scroll::default();
-        }
+        self.backup.checklist_closed();
         self.backups_sync();
         true
     }
@@ -1696,16 +1688,9 @@ impl Faraday {
     fn chart_plan(&mut self, w: usize, from_vault: bool, q: Option<u8>) {
         if !self.chart_backup(w, from_vault) {
             self.act(Action::Backup(w));
-            if let Some(b) = self.backup.as_mut() {
-                b.from_vault = from_vault;
-            }
+            self.backup.set_from_vault(from_vault);
         }
-        if let Some(b) = self.backup.as_mut() {
-            b.stage = BStage::Plan;
-            b.q = q;
-            b.check = None;
-            b.scroll = crate::flow::Scroll::default();
-        }
+        self.backup.back_to_plan(q);
         self.screen = Screen::Backup;
     }
 
@@ -1716,7 +1701,7 @@ impl Faraday {
     pub(crate) fn chart_backup(&mut self, w: usize, from_vault: bool) -> bool {
         let c = self.compute();
         let known = glance::plan_of_now(&c, self, w);
-        let mine = self.backup.as_ref().is_some_and(|b| b.wallet == w);
+        let mine = self.backup.state().is_some_and(|b| b.wallet == w);
         if !mine {
             if known.is_none() {
                 return false;
@@ -1725,19 +1710,6 @@ impl Faraday {
             self.act(Action::Backup(w));
             self.screen = screen;
         }
-        let Some(b) = self.backup.as_mut() else {
-            return false;
-        };
-        b.from_vault = from_vault;
-        if b.stage != BStage::Checklist
-            && let Some((answers, names)) = known
-        {
-            b.answers = answers;
-            if b.names.iter().all(|n| n.trim().is_empty()) {
-                b.names = names;
-            }
-            b.q = None;
-        }
-        true
+        self.backup.chart_plan(from_vault, known)
     }
 }

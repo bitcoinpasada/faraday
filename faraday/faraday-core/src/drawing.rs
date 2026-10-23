@@ -336,9 +336,7 @@ impl Faraday {
                     }
                 }
                 Scrolled::Backup => {
-                    if let Some(b) = self.backup.as_mut() {
-                        b.scroll = to;
-                    }
+                    self.backup.set_scroll(to);
                 }
                 Scrolled::Message => {
                     self.message.set_scroll(to);

@@ -206,7 +206,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   it must be refused. §8.5 fixes this.
 - **A backup's Other paper forms** (`paper_section`,
   `faraday/faraday-core/src/screens/backup.rs`; `paper_codex32`,
-  `faraday/faraday-core/src/paper.rs`; `Keys::codex32_shares`,
+  `faraday/faraday-core/src/wallet_backup.rs`; `Keys::codex32_shares`,
   `faraday/faraday-keys/src/operations.rs`): two chips, "codex32, 2 of 3"
   and "codex32, 3 of 5", for a key with words only; the 64-byte BIP-39
   seed as 127-character shares, from the system's randomness spread by

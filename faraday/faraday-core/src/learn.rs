@@ -131,7 +131,7 @@ impl Faraday {
                 // A multisig's backup can keep shares of its description.
                 let splits = self
                     .backup
-                    .as_ref()
+                    .state()
                     .and_then(|b| self.session.wallets.get(b.wallet))
                     .is_some_and(crate::wallet_backup::splits);
                 if splits {

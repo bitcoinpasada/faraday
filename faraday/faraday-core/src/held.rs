@@ -279,7 +279,7 @@ impl Faraday {
     /// more, here and in every open vault.
     pub(crate) fn backup_settle(&mut self) {
         let c = self.compute();
-        let Some(b) = self.backup.as_ref() else {
+        let Some(b) = self.backup.state() else {
             return;
         };
         if b.stage != BStage::Checklist {
@@ -410,7 +410,7 @@ impl Faraday {
     /// Finish the backup first: the wallet's checklist, or its plan when
     /// none is made.
     pub(crate) fn backup_first(&mut self, w: usize) {
-        if let Some(b) = self.backup.as_ref()
+        if let Some(b) = self.backup.state()
             && b.wallet == w
             && b.stage == BStage::Plan
         {
@@ -447,18 +447,9 @@ impl Faraday {
     /// plan vault `v`, and set on the wallet's record there when the vault
     /// holds it already.
     pub(crate) fn backup_vault_load_toggle(&mut self, v: usize) {
-        let Some(b) = self.backup.as_mut() else {
-            return;
-        };
-        if !b.answers.wallet_in_vault(v) {
-            return;
+        if self.backup.load_toggle(v) {
+            self.backup_vault_load_set(v);
         }
-        if let Some(k) = b.no_load.iter().position(|&x| x == v) {
-            b.no_load.remove(k);
-        } else {
-            b.no_load.push(v);
-        }
-        self.backup_vault_load_set(v);
     }
 
     /// Sets the wallet's record in the vault plan vault `v` is saved into
@@ -466,7 +457,7 @@ impl Faraday {
     /// the vault's wallet records.
     fn backup_vault_load_set(&mut self, v: usize) {
         let c = self.compute();
-        let Some(b) = self.backup.as_ref() else {
+        let Some(b) = self.backup.state() else {
             return;
         };
         let loads = !b.no_load.contains(&v);
@@ -523,15 +514,13 @@ impl Faraday {
         let salt = self.vaults.open[cur].header().salt;
         if self
             .backup
-            .as_ref()
+            .state()
             .is_some_and(|b| !b.before.iter().any(|(s, _)| *s == salt))
         {
             let held = self.vault_tokens(&c, cur);
-            if let Some(b) = self.backup.as_mut() {
-                b.before.push((salt, held));
-            }
+            self.backup.note_before(salt, held);
         }
-        let Some(b) = self.backup.as_ref() else {
+        let Some(b) = self.backup.state() else {
             return;
         };
         let w = b.wallet;
@@ -635,7 +624,7 @@ impl Faraday {
     /// with the seeds each holds.
     pub(crate) fn backup_prior(&mut self) {
         let c = self.compute();
-        let Some(b) = self.backup.as_ref() else {
+        let Some(b) = self.backup.state() else {
             return;
         };
         if b.stage != BStage::Checklist {
@@ -655,16 +644,14 @@ impl Faraday {
                 .collect();
             prior.push((name, seeds));
         }
-        if let Some(b) = self.backup.as_mut() {
-            b.prior = prior;
-        }
+        self.backup.set_prior(prior);
     }
 
     /// On Make the checklist: what the last checklist put in a vault that
     /// the new plan has no vault for stays on the map as what it is.
     pub(crate) fn backup_extras(&mut self) {
         let c = self.compute();
-        let Some(b) = self.backup.as_ref() else {
+        let Some(b) = self.backup.state() else {
             return;
         };
         let shape = self.plan_shape_now(b.wallet);
@@ -686,10 +673,7 @@ impl Faraday {
                 }
             }
         }
-        if let Some(b) = self.backup.as_mut() {
-            b.extras = extras;
-            b.prior.clear();
-        }
+        self.backup.set_extras(extras);
     }
 }
 
@@ -739,7 +723,7 @@ pub(crate) fn receive_line_on(
 /// held. Read through `r` ([`Reads`]).
 pub(crate) fn backup_held_seeds_on(r: &impl Reads) -> Vec<usize> {
     let app = r.app();
-    let Some(b) = app.backup.as_ref() else {
+    let Some(b) = app.backup() else {
         return Vec::new();
     };
     let held = r.held_keys();
@@ -757,7 +741,7 @@ pub(crate) fn backup_held_seeds_on(r: &impl Reads) -> Vec<usize> {
 /// copy of a key made here, or of its passphrase. Read through `r`
 /// ([`Reads`]).
 pub(crate) fn backup_kept_nowhere_on(r: &impl Reads) -> Option<String> {
-    let b = r.app().backup.as_ref()?;
+    let b = r.app().backup()?;
     let shape = r.plan_shape(b.wallet);
     plan::kept_nowhere_on(
         &shape,

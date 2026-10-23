@@ -80,7 +80,7 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     scroll_to(t, Action::BNext(bstep::VAULT));
     t.shot("first-vault-saved")?;
     t.press(Action::BNext(bstep::VAULT));
-    if t.app.backup.as_ref().and_then(|b| b.open) != Some(bstep::ENVELOPE) {
+    if t.app.backup().and_then(|b| b.open) != Some(bstep::ENVELOPE) {
         t.press(Action::BStep(bstep::ENVELOPE));
     }
     t.press(Action::BNext(bstep::ENVELOPE));

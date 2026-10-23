@@ -257,7 +257,7 @@ fn pressing_a_place_opens_its_sheet_and_puts_nothing_for_the_stick() {
     // A backup of it opened again starts on the presets; the card still
     // charts the plan this power-on made.
     app.press(Action::Backup(w));
-    assert_eq!(app.backup.as_ref().map(|b| b.stage), Some(BStage::Plan));
+    assert_eq!(app.backup().map(|b| b.stage), Some(BStage::Plan));
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
     assert_eq!(nodes(&chart(&app, w)).len(), 3, "the plan is still charted");
@@ -279,7 +279,7 @@ fn pressing_a_place_opens_its_sheet_and_puts_nothing_for_the_stick() {
     app.press(envelope);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Backup);
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!(b.stage, BStage::Checklist);
     assert_eq!(b.open, Some(bstep::ENVELOPE));
     assert!(b.answers.seeds[faraday_core::plan::seeds::VAULT]);
@@ -351,7 +351,7 @@ fn a_key_held_here_shows_its_xpub_and_where_its_seed_is() {
     open(&mut app, press, Target::Key(0));
     app.press(Action::Chart(C::Do(press, Step::Type(fp, bstep::COPY))));
     assert_eq!(app.screen, Screen::Backup);
-    assert!(app.backup.as_ref().is_some_and(|b| b.check.is_some()));
+    assert!(app.backup().is_some_and(|b| b.check.is_some()));
 }
 
 #[test]
@@ -660,10 +660,7 @@ fn an_open_vault_shows_its_wallet_from_the_places_down_to_the_wallet() {
     open(&mut app, press, Target::Node(0));
     app.press(Action::Chart(C::Do(press, Step::Item(bstep::ENVELOPE))));
     assert_eq!(app.screen, Screen::Backup);
-    assert_eq!(
-        app.backup.as_ref().map(|b| b.stage),
-        Some(BStage::Checklist)
-    );
+    assert_eq!(app.backup().map(|b| b.stage), Some(BStage::Checklist));
     let _ = app.frame();
     let back = Action::Nav(Screen::VaultContents);
     assert!(
@@ -676,7 +673,7 @@ fn an_open_vault_shows_its_wallet_from_the_places_down_to_the_wallet() {
     open(&mut app, press, Target::Node(0));
     app.press(Action::Chart(C::Do(press, Step::RenamePlace(0))));
     assert_eq!(app.screen, Screen::Backup);
-    let b = app.backup.as_ref().unwrap();
+    let b = app.backup().unwrap();
     assert_eq!((b.stage, b.naming), (BStage::Plan, Some(0)));
 }
 
@@ -698,10 +695,10 @@ fn a_wallet_with_no_plan_in_the_vault_shows_its_wallet_and_keys_only() {
 /// per key, two for a single key: as a plan saved before plans kept at
 /// most one place per key has it (`docs/BACKUP-FLOW.md` §17.19).
 fn preset_saved(app: &mut Faraday, k: u8) {
-    let w = app.backup.as_ref().unwrap().wallet;
+    let w = app.backup().unwrap().wallet;
     let shape = app.plan_shape_now(w);
     let base = if shape.multi() { shape.seeds.len() } else { 2 };
     let preset = faraday_core::plan::Preset::ALL[usize::from(k)];
-    app.backup.as_mut().unwrap().answers =
+    *faraday_core::testkit::backup_answers_mut(app) =
         faraday_core::plan::Answers::preset_at(&shape, preset, base);
 }

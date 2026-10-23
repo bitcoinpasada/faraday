@@ -4,14 +4,14 @@
 # Files over 2,500 lines, at their size: split them, and lower the line.
 file core/faraday-psbt/src/inspect.rs 2673
 file faraday/faraday-core/src/backup_flow/steps.rs 3142
-file faraday/faraday-core/src/backup_flow/wallet.rs 2868
-file faraday/faraday-core/src/board/mod.rs 2688
-file faraday/faraday-core/src/lib.rs 8466
+file faraday/faraday-core/src/backup_flow/wallet.rs 2867
+file faraday/faraday-core/src/board/mod.rs 2667
+file faraday/faraday-core/src/lib.rs 7811
 file faraday/faraday-core/src/plan/mod.rs 4357
 file faraday/faraday-core/src/vault/mod.rs 4506
 file faraday/faraday-core/src/vault/screen.rs 4862
-file faraday/faraday-core/tests/all/backup_board.rs 2795
-file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5928
+file faraday/faraday-core/tests/all/backup_board.rs 2783
+file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5927
 
 # Functions over 100 lines (clippy's too_many_lines, each under an
 # `expect`), and functions with too many arguments (each under an
@@ -37,7 +37,6 @@ impl-faraday faraday/faraday-core/src/chart_edit.rs
 impl-faraday faraday/faraday-core/src/codes/mod.rs
 impl-faraday faraday/faraday-core/src/compact/mod.rs
 impl-faraday faraday/faraday-core/src/compute.rs
-impl-faraday faraday/faraday-core/src/copy_check.rs
 impl-faraday faraday/faraday-core/src/create.rs
 impl-faraday faraday/faraday-core/src/create_from.rs
 impl-faraday faraday/faraday-core/src/decode.rs
@@ -64,7 +63,6 @@ impl-faraday faraday/faraday-core/src/lightning/mod.rs
 impl-faraday faraday/faraday-core/src/memory.rs
 impl-faraday faraday/faraday-core/src/modes/mod.rs
 impl-faraday faraday/faraday-core/src/motion.rs
-impl-faraday faraday/faraday-core/src/paper.rs
 impl-faraday faraday/faraday-core/src/qr_view.rs
 impl-faraday faraday/faraday-core/src/restore.rs
 impl-faraday faraday/faraday-core/src/samples/mod.rs
