@@ -1,5 +1,6 @@
 //! The end of signing: the nonce check recomputes every signature a key
-//! held here made and says which came from elsewhere; the finished
+//! held here made and says which came from elsewhere, and calls none
+//! valid that it could not check; the finished
 //! transaction decodes to what it spends and pays, with its change marked
 //! as the wallet's own; and a raw transaction in a text file decodes too.
 //! Before signing, the card after Wallet is Transaction, with the txid
@@ -105,6 +106,36 @@ fn a_signature_from_another_device_is_checked_but_not_recomputed() {
     let elsewhere = check.rows.iter().filter(|r| r.recomputed.is_none()).count();
     assert!(here > 0 && elsewhere > 0);
     assert_eq!(here, elsewhere, "one of each per input");
+}
+
+/// A signature on an input that carries no previous output cannot be
+/// checked: the nonce check's headline says how many were not checked,
+/// in place of calling them valid.
+#[test]
+fn a_signature_that_could_not_be_checked_is_not_called_valid() {
+    let c = testkit::compute();
+    let app = spending_finished();
+    let signed = &app.spend.as_ref().unwrap().spend.psbt;
+    let valid = app.session.nonce_check(&c, signed);
+    assert!(valid.sound());
+
+    let mut stripped = signed.clone();
+    let input = &mut stripped.inner_mut().inputs[0];
+    input.witness_utxo = None;
+    input.non_witness_utxo = None;
+    let check = app.session.nonce_check(&c, &stripped);
+    assert!(
+        check.unchecked() > 0,
+        "the signature was checked without its output"
+    );
+    assert!(!check.sound());
+    assert!(!check.wrong(), "nothing was found wrong, only not checked");
+    assert_ne!(check.headline(), valid.headline());
+    assert!(
+        check.headline().contains(&check.unchecked().to_string()),
+        "{}",
+        check.headline()
+    );
 }
 
 #[test]

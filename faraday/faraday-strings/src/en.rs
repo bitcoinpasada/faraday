@@ -4284,6 +4284,8 @@ pub struct Strings {
     pub nonce_check_none_wrong: &'static str,
     /// Text in `nonce_check`.
     pub nonce_check_one_is: &'static str,
+    /// Headline of `nonce_check` when some signatures could not be checked. `{}`: how many were not checked, how many there are, `nonce_check_signature(s)`.
+    pub nonce_unchecked_head: &'static str,
     // ----- inbox_panel (faraday-core/src/screens/files.rs) -----
     /// Line in `inbox_panel`.
     pub inbox_panel_wallets: &'static str,
@@ -11105,6 +11107,7 @@ pub static EN: Strings = Strings {
     nonce_check_more: "{} more {}",
     nonce_check_none_wrong: "· none wrong",
     nonce_check_one_is: "· one is wrong",
+    nonce_unchecked_head: "Nonce check · {} of {} {} not checked",
     inbox_panel_wallets: "Wallets",
     inbox_panel_of_here: "{} · {} of {} {} here{}",
     inbox_panel_files_say_it: "· {} files say it",

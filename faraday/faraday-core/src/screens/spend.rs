@@ -14,45 +14,23 @@ use faraday_ui::parts::{title, wrap_buttons};
 /// The nonce check: each signature against its key and this
 /// transaction, each one made here recomputed from its key, and any nonce
 /// used twice. Returns its height.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f32, w: f32) -> f32 {
     use faraday_psbt::verify::Verdict;
     let Some(check) = app.nonce_check(psbt) else {
         return 0.0;
     };
     let mut cy = y;
-    let here = check.rows.iter().filter(|r| r.recomputed.is_some()).count();
-    let (head, tone) = if check.sound() {
-        (
-            fill(
-                EN.nonce_check_nonce_check_valid,
-                &[
-                    &check.rows.len().to_string(),
-                    (if check.rows.len() == 1 {
-                        EN.nonce_check_signature
-                    } else {
-                        EN.nonce_check_signatures
-                    }),
-                    &here.to_string(),
-                ],
-            ),
-            OK,
-        )
+    let head = check.headline();
+    // Sound: green. A signature wrong: red. Otherwise some were not
+    // checked: amber, as the review's own card for one reads.
+    let (tone, icon) = if check.sound() {
+        (OK, Icon::Success)
+    } else if check.wrong() {
+        (ERR, Icon::Error)
     } else {
-        (EN.nonce_check_nonce_check.to_string(), ERR)
+        (WARN, Icon::Warning)
     };
-    ui.icon(
-        x,
-        cy + 8.0,
-        20.0,
-        if check.sound() {
-            Icon::Success
-        } else {
-            Icon::Error
-        },
-        12.0,
-        tone,
-    );
+    ui.icon(x, cy + 8.0, 20.0, icon, 12.0, tone);
     if ui.compact {
         // Wrapped beside its icon on a small panel.
         cy += ui
@@ -108,9 +86,7 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
     }
     if check.rows.len() > SHOWN {
         let rest = &check.rows[SHOWN..];
-        let ok = rest
-            .iter()
-            .all(|r| !r.verdict.is_invalid() && !matches!(r.recomputed, Some(None)));
+        let ok = !rest.iter().any(crate::wallet::NonceRow::wrong);
         ui.text_mid(
             x,
             cy,

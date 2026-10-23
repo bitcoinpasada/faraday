@@ -2,7 +2,7 @@
 # is the owner's decision, recorded in DECISIONS.
 #
 # Files over 2,500 lines, at their size: split them, and lower the line.
-file core/faraday-psbt/src/inspect.rs 2687
+file core/faraday-psbt/src/inspect.rs 2673
 file faraday/faraday-core/src/backup_flow/steps.rs 3143
 file faraday/faraday-core/src/backup_flow/wallet.rs 2868
 file faraday/faraday-core/src/board/mod.rs 2688
@@ -16,5 +16,5 @@ file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5930
 # Functions over 100 lines (clippy's too_many_lines, each under an
 # `expect`), and functions with too many arguments (each under an
 # `allow`).
-expect too_many_lines 208
+expect too_many_lines 207
 allow too_many_arguments 72

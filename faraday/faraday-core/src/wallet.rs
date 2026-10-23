@@ -254,14 +254,52 @@ pub struct NonceCheck {
 }
 
 impl NonceCheck {
-    /// Whether nothing is wrong: every signature checked is valid, every
-    /// one made here was recomputed, and no nonce repeats.
+    /// Whether nothing is wrong and nothing was left out: every signature
+    /// was checked and is valid, every one made here was recomputed, and
+    /// no nonce repeats. A signature that could not be checked (no
+    /// previous output, a script that names no key) is not sound: it is
+    /// not known to be this transaction's. A lookup per row.
     pub fn sound(&self) -> bool {
-        self.reused.is_empty()
-            && self
-                .rows
-                .iter()
-                .all(|r| !r.verdict.is_invalid() && !matches!(r.recomputed, Some(None)))
+        self.reused.is_empty() && self.rows.iter().all(|r| !r.wrong() && !r.unchecked())
+    }
+
+    /// Whether a signature is wrong or a nonce repeats: an invalid
+    /// signature, one made here by no nonce rule, or a nonce used twice.
+    /// A lookup per row.
+    pub fn wrong(&self) -> bool {
+        !self.reused.is_empty() || self.rows.iter().any(NonceRow::wrong)
+    }
+
+    /// How many signatures could not be checked. A lookup per row.
+    pub fn unchecked(&self) -> usize {
+        self.rows.iter().filter(|r| r.unchecked()).count()
+    }
+
+    /// The check's headline, as the spend screen shows it: how many
+    /// signatures are valid and recomputed here when it is sound, that a
+    /// signature is wrong when one is, and otherwise how many of them
+    /// were not checked. A lookup per row.
+    pub fn headline(&self) -> String {
+        let total = self.rows.len();
+        let noun = if total == 1 {
+            EN.nonce_check_signature
+        } else {
+            EN.nonce_check_signatures
+        };
+        if self.wrong() {
+            EN.nonce_check_nonce_check.to_string()
+        } else if self.unchecked() > 0 {
+            fill(
+                EN.nonce_unchecked_head,
+                &[&self.unchecked().to_string(), &total.to_string(), noun],
+            )
+        } else {
+            let here = self.rows.iter().filter(|r| r.recomputed.is_some()).count();
+            fill(
+                EN.nonce_check_nonce_check_valid,
+                &[&total.to_string(), noun, &here.to_string()],
+            )
+        }
     }
 }
 
@@ -277,6 +315,19 @@ pub struct NonceRow {
     /// inside when none did. `None` outside for a key held elsewhere,
     /// whose nonce cannot be recomputed without its private key.
     pub recomputed: Option<Option<faraday_psbt::verify::NonceMode>>,
+}
+
+impl NonceRow {
+    /// Whether this signature is wrong: invalid, or made here by no
+    /// nonce rule. A lookup.
+    pub fn wrong(&self) -> bool {
+        self.verdict.is_invalid() || matches!(self.recomputed, Some(None))
+    }
+
+    /// Whether this signature could not be checked. A lookup.
+    pub fn unchecked(&self) -> bool {
+        matches!(self.verdict, Verdict::Unchecked(_))
+    }
 }
 
 /// One key slot of a wallet, in the descriptor's order.
