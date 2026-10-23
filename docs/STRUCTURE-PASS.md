@@ -95,8 +95,10 @@ those groups: `crypto-primes` (fjarri), `fiat-crypto` (JasonGross),
 desktop window stack's long tail. `just vet-refresh` (online) updates the
 imports and prunes. Every direct dependency has a `docs/deps/` page with
 a **Review.** line saying which of the three covers it. `third_party/rqrr`
-needed no policy line: cargo vet takes the vendored copy as first-party
-already. No real audit was written (F71's sha1 and PGP case): `sha1` and
+carries `[policy.rqrr] audit-as-crates-io = false`: offline, cargo vet
+took the vendored copy as first-party already, but `cargo vet` online
+(as `vet-refresh` runs it) refuses it without the line, since it matches
+a published version. No real audit was written (F71's sha1 and PGP case): `sha1` and
 every crate `faraday-pgp` uses are now trusted by publisher; an audit by
 reading remains possible, and would be labelled by who read it.
 

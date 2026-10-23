@@ -49,4 +49,4 @@ of this crate and never was. It is in the graph because `tiny-skia` calls
 target lands and the decoder must move to the shell side of the
 contract.
 
-**Review.** First-party: vendored in `third_party/rqrr` and patched (`third_party/rqrr/PATCHES.md`); cargo vet treats it as part of this workspace, not as the crates.io release.
+**Review.** First-party: vendored in `third_party/rqrr` and patched (`third_party/rqrr/PATCHES.md`); `supply-chain/config.toml`'s `[policy.rqrr] audit-as-crates-io = false` has cargo vet treat it as part of this workspace, not as the crates.io release.
