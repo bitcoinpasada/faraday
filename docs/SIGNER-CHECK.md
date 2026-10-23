@@ -240,7 +240,8 @@ output key of the `tap_internal_key` it names with an origin.
 | S2 | Caution | "Input {i}: the signature under {key} was not checked: {reason}" | Added, `Verdict::Unchecked` |
 | S3 | Danger | "Input {i}: signature under {key}, a key the sent PSBT does not name" | Added under a key not named |
 | S4 | Danger | "Input {i}: the signature under {key} signs with {kind}, not the {asked} asked for" | The sighash card's rule (`inspect/sighash.rs`) |
-| S4n | Blocked | the same, with ": outputs are not committed to" | as S4, a `NONE` sighash |
+| S4n | Blocked | the same, with ": outputs are not committed to" | as S4, a `NONE` sighash the input does not ask for |
+| S4m | Caution | "Input {i}: the signature under {key} signs with {kind}, which commits to more than the {asked} asked for" | as S4, a sighash committing to everything asked and more: every input over `ANYONECANPAY`, `ALL` over `SINGLE` over `NONE` (a `SINGLE` with no output at its index commits to none) |
 | S5 | Blocked | "{key}: one nonce on inputs {list}" | `repeated_nonces` over the Returned PSBT, sent signatures included |
 | S6 | Danger | "Input {i}: the signature under {fp} was not made by RFC 6979 or BIP-340" | The key's seed is loaded and `deterministic` finds no rule |
 | S7 | Caution | "Input {i}: the signature under {key} was removed" | On Sent, not on Returned (in no field and not in a final field) |

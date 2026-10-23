@@ -235,6 +235,43 @@ fn a_sealed_backup_opens_with_its_passphrase() {
     assert_eq!(app.session.keys.len(), 1, "the backup's seed did not load");
 }
 
+/// A sealed backup asking for more memory than this computer has free is
+/// refused before its passphrase is tried, naming both amounts; with the
+/// memory free it opens.
+#[test]
+fn a_sealed_backup_is_refused_short_of_memory_before_its_passphrase_is_tried() {
+    let files = kit_files(|n| n.ends_with(".oskb"));
+    let cost = faraday_backup::oskb::cost_of(&files[0].1).unwrap();
+    // The Argon2id memory and 100 MiB for the app.
+    let need = cost.memory_kib.div_ceil(1024) + 100;
+    assert!(need < 1024);
+    let mut app = with_inbox(files);
+    let k = app
+        .inbox()
+        .iter()
+        .position(|i| i.kind == FileKind::Backup)
+        .unwrap();
+    app.storage(StorageEvent::Memory {
+        available_mib: need - 1,
+    });
+    app.press(Action::BackupOpen(k));
+    // A wrong passphrase: the refusal names the memory, not the
+    // passphrase, so nothing was tried.
+    type_text(&mut app, "wrong");
+    app.press(Action::PotentialMake);
+    assert!(app.session.keys.is_empty());
+    assert_eq!(
+        app.potential().unwrap().error.as_deref(),
+        Some(format!("Needs {need} MiB. This computer has {} MiB free.", need - 1).as_str())
+    );
+    app.storage(StorageEvent::Memory {
+        available_mib: need,
+    });
+    type_text(&mut app, "backup");
+    app.press(Action::PotentialMake);
+    assert_eq!(app.session.keys.len(), 1, "the backup's seed did not load");
+}
+
 #[test]
 fn an_account_xpub_alone_becomes_a_watch_only_wallet_of_its_paths_kind() {
     let c = testkit::compute();

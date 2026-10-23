@@ -1486,6 +1486,16 @@ impl Faraday {
         let Some(item) = self.inbox.get(k) else {
             return;
         };
+        // The memory the backup asks for, against what is free, before
+        // any Argon2id work.
+        let free = self.vaults.memory_free_mib;
+        if let Some(why) = crate::vault::backup_memory_refusal(&item.bytes, free) {
+            if let Some(p) = self.inbox.potential_mut() {
+                p.error = Some(why);
+                p.passphrase.clear();
+            }
+            return;
+        }
         let label = stem(&item.name);
         use faraday_backup::oskb::Error;
         use faraday_keys::vault::Added;
@@ -1518,7 +1528,8 @@ impl Faraday {
             }
             Ok(Added::Note) => Err(EN.inbox_this_backup_holds.to_string()),
             Err(Error::Passphrase) => Err(EN.inbox_not_this_backup.to_string()),
-            Err(e) => Err(format!("{e:?}")),
+            Err(Error::Memory(mib)) => Err(fill(EN.vaults_needs_mib_which, &[&mib.to_string()])),
+            Err(Error::Format) => Err(EN.vaults_not_a_backup.to_string()),
         };
         match result {
             Ok(said) => {

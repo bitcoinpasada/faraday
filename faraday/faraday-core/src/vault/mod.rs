@@ -1181,13 +1181,9 @@ impl Faraday {
         };
         match p.purpose {
             Purpose::ForWallet(v, r) => self.pass_seed_try(v, r),
-            Purpose::Backup(_) => {
-                if p.text.text.is_empty() {
-                    p.error = Some(EN.vaults_type_the_backup.to_string());
-                } else {
-                    self.vaults.state.working = Some(Work::Backup);
-                    self.vaults.state.drawn = false;
-                }
+            Purpose::Backup(k) => {
+                let bytes = self.inbox.get(k).map_or(&[][..], |i| &i.bytes[..]);
+                self.vaults.state.backup_go(bytes);
             }
             Purpose::Kdbx => {
                 if p.text.text.chars().count() < 8 {
