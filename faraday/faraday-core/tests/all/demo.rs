@@ -939,10 +939,10 @@ fn in_the_demo_public_seeds_sign_keep_entries_and_go_into_a_vault() {
     // A message.
     app.press(Action::SignMessage);
     assert_eq!(app.screen, Screen::Message, "Sign a message opens");
-    app.message.as_mut().unwrap().text = "Faraday signs this".to_string();
+    testkit::message_text(&mut app, "Faraday signs this");
     app.press(Action::MSign);
     assert!(
-        app.message.as_ref().unwrap().signed.is_some(),
+        testkit::message(&app).unwrap().signed.is_some(),
         "the message is not signed"
     );
 

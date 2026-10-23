@@ -1305,9 +1305,7 @@ pub struct Faraday {
     /// The backup flow.
     pub backup: Option<BackupState>,
     /// Signing a message.
-    pub message: Option<MessageState>,
-    /// The Inbox file of the signed message being checked.
-    pub checking: Option<usize>,
+    message: state::MessageArea,
     /// Creating a wallet.
     pub create: Option<CreateState>,
     /// Restoring a wallet.
@@ -1551,8 +1549,7 @@ impl Faraday {
             family: family::FamilyState::default(),
             vanity: vanity::VanityArea::default(),
             backup: None,
-            message: None,
-            checking: None,
+            message: state::MessageArea::default(),
             create: None,
             restore: None,
             keygen: None,
@@ -2768,8 +2765,7 @@ impl Faraday {
         self.session.wipe();
         self.spend = None;
         self.backup = None;
-        self.message = None;
-        self.checking = None;
+        self.message.clear();
         self.create = None;
         self.restore = None;
         self.keygen = None;
@@ -6735,7 +6731,7 @@ impl Faraday {
             }
             Code::Silent(_) | Code::SilentRecord => self.silent_code(c, code),
             Code::Message => {
-                let m = self.message.as_ref().ok_or(EN.code_view_no_message)?;
+                let m = self.message.state().ok_or(EN.code_view_no_message)?;
                 let sig = m.signed.as_ref().ok_or(EN.code_view_the_message)?;
                 let text =
                     faraday_keys::message::signed_text(&sig.address, &sig.signature, &m.text);
@@ -7815,26 +7811,7 @@ impl Faraday {
             }
             return;
         }
-        if self.screen == Screen::Message
-            && let Some(m) = self.message.as_mut()
-            && m.typing
-        {
-            match key {
-                KeyIn::Char(c) => {
-                    m.text.push(c);
-                    m.signed = None;
-                }
-                KeyIn::Enter => {
-                    m.text.push('\n');
-                    m.signed = None;
-                }
-                KeyIn::Backspace => {
-                    m.text.pop();
-                    m.signed = None;
-                }
-                KeyIn::Escape => m.typing = false,
-                _ => {}
-            }
+        if self.screen == Screen::Message && self.message.key(key) {
             return;
         }
         // The words of a copy, typed back for Check my copy.

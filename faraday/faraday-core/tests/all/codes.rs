@@ -272,11 +272,9 @@ fn a_signed_message_reads_back_from_its_code_and_its_picture() {
         )
         .expect("the wallet");
     app.press(Action::SignMessage);
-    app.message.as_mut().unwrap().text = "Faraday signs this".to_string();
+    testkit::message_text(&mut app, "Faraday signs this");
     app.press(Action::MSign);
-    let address = app
-        .message
-        .as_ref()
+    let address = testkit::message(&app)
         .unwrap()
         .signed
         .as_ref()

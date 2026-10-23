@@ -46,7 +46,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !compact {
         y += guide_text(app, ui, x, y, width, guide);
     }
-    let Some(item) = app.checking.and_then(|i| app.inbox.get(i)) else {
+    let Some(item) = app.message.checking().and_then(|i| app.inbox.get(i)) else {
         ui.text(x, y, 14.0, W::R, MUTED, EN.check_no_signed_message);
         return;
     };

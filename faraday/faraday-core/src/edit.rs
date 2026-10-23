@@ -182,7 +182,7 @@ impl Faraday {
                 .and_then(|b| b.check.as_ref())
                 .is_some_and(|c| c.passphrase),
             Screen::Wallets => self.renaming.is_some(),
-            Screen::Message => self.message.as_ref().is_some_and(|m| m.typing),
+            Screen::Message => self.message.state().is_some_and(|m| m.typing),
             Screen::KeyGen => self.keygen.as_ref().is_some_and(|k| {
                 !k.locked
                     && ((k.focus.is_some() && k.open == Some(keygen::kstep::KEY))
@@ -295,7 +295,7 @@ impl Faraday {
             Action::Rename => self.renaming.as_deref()?,
             crate::file_menu::FIELD => &self.files_menu.renaming.as_ref()?.stem,
             Action::BName(p) => self.backup.as_ref()?.names.get(usize::from(p))?,
-            Action::MType => &self.message.as_ref()?.text,
+            Action::MType => &self.message.state()?.text,
             Action::KPassField(0) => &self.keygen.as_ref()?.passphrase,
             Action::KPassField(_) => &self.keygen.as_ref()?.passphrase2,
             Action::KTyping(_) => &self.keygen.as_ref()?.entered,
@@ -557,7 +557,7 @@ impl Faraday {
             Screen::Backup => self.backup.is_some(),
             Screen::Spend => self.spend.is_some(),
             Screen::Restore => self.restore.is_some(),
-            Screen::Message => self.message.is_some(),
+            Screen::Message => self.message.state().is_some(),
             Screen::Vanity => self.vanity.state().is_some(),
             Screen::Bip85 => self.bip85.state().is_some(),
             Screen::Silent => self.silent.state().is_some(),
@@ -568,7 +568,7 @@ impl Faraday {
             Screen::CreateVault => self.vaults.create.is_some(),
             Screen::BackupFlow => self.flow().is_some(),
             Screen::Decode => self.decode().is_some(),
-            Screen::CheckMessage => self.checking.is_some(),
+            Screen::CheckMessage => self.message.checking().is_some(),
             Screen::Visit => !self.sticks.is_empty(),
             Screen::Transfer => self.online,
             _ => true,

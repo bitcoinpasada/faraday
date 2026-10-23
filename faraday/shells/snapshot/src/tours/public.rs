@@ -25,9 +25,7 @@ pub(crate) fn public_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // A signed message: For the stick as it is signed, as a code, as a
     // picture.
     t.press(Action::SignMessage);
-    if let Some(m) = t.app.message.as_mut() {
-        m.text = "Faraday signs this".to_string();
-    }
+    testkit::message_text(&mut t.app, "Faraday signs this");
     t.press(Action::MSign);
     t.press(Action::MStep(faraday_core::mstep::SIGN));
     scroll_to(t, Action::MQr);

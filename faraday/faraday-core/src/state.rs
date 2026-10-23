@@ -144,6 +144,83 @@ pub struct MessageState {
     pub error: Option<String>,
 }
 
+/// The message-signing area: the cards while they are open, and the
+/// Inbox file of a signed message being checked.
+#[derive(Default)]
+pub(crate) struct MessageArea {
+    state: Option<MessageState>,
+    /// The Inbox file of the signed message being checked.
+    checking: Option<usize>,
+}
+
+impl MessageArea {
+    /// The cards' state, while the flow is open.
+    pub(crate) fn state(&self) -> Option<&MessageState> {
+        self.state.as_ref()
+    }
+
+    /// The Inbox file being checked, by index.
+    pub(crate) fn checking(&self) -> Option<usize> {
+        self.checking
+    }
+
+    /// Forgets the cards, leaving the screen to the caller.
+    pub(crate) fn clear_state(&mut self) {
+        self.state = None;
+    }
+
+    /// Forgets the cards and the file being checked.
+    pub(crate) fn clear(&mut self) {
+        self.state = None;
+        self.checking = None;
+    }
+
+    /// The column's scroll offset, while the flow is open.
+    pub(crate) fn scroll_y_mut(&mut self) -> Option<&mut f32> {
+        self.state.as_mut().map(|m| &mut m.scroll.y)
+    }
+
+    /// Takes the scroll a frame drew the column with.
+    pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
+        if let Some(m) = self.state.as_mut() {
+            m.scroll = to;
+        }
+    }
+
+    /// A key while the message is being typed: whether it was taken.
+    pub(crate) fn key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key as K;
+        let Some(m) = self.state.as_mut().filter(|m| m.typing) else {
+            return false;
+        };
+        match key {
+            K::Char(c) => {
+                m.text.push(c);
+                m.signed = None;
+            }
+            K::Enter => {
+                m.text.push('\n');
+                m.signed = None;
+            }
+            K::Backspace => {
+                m.text.pop();
+                m.signed = None;
+            }
+            K::Escape => m.typing = false,
+            _ => {}
+        }
+        true
+    }
+
+    /// Types a text into the message, as a test does.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn set_text(&mut self, text: &str) {
+        if let Some(m) = self.state.as_mut() {
+            m.text = text.to_string();
+        }
+    }
+}
+
 /// The visit screen's choices.
 #[derive(Default)]
 pub struct VisitState {
@@ -200,7 +277,7 @@ impl Faraday {
         match action {
             Action::SignMessage => {
                 let first = self.session.message_wallets().first().copied();
-                self.message = Some(MessageState {
+                self.message.state = Some(MessageState {
                     open: Some(mstep::ADDRESS),
                     wallet: first,
                     bip322: true,
@@ -209,14 +286,14 @@ impl Faraday {
                 self.screen = Screen::Message;
             }
             Action::MStep(n) => {
-                if let Some(m) = self.message.as_mut() {
+                if let Some(m) = self.message.state.as_mut() {
                     m.open = if m.open == Some(n) { None } else { Some(n) };
                     m.scroll.follow = true;
                     m.typing = m.open == Some(mstep::TEXT);
                 }
             }
             Action::MNext(n) => {
-                if let Some(m) = self.message.as_mut() {
+                if let Some(m) = self.message.state.as_mut() {
                     m.done[n as usize] = true;
                     m.open = (0..4u8).find(|&i| !m.done[i as usize]);
                     m.scroll.follow = true;
@@ -224,31 +301,31 @@ impl Faraday {
                 }
             }
             Action::MWallet(i) => {
-                if let Some(m) = self.message.as_mut() {
+                if let Some(m) = self.message.state.as_mut() {
                     m.wallet = Some(i);
                     m.index = 0;
                     m.signed = None;
                 }
             }
             Action::MIndex(d) => {
-                if let Some(m) = self.message.as_mut() {
+                if let Some(m) = self.message.state.as_mut() {
                     m.index = (i64::from(m.index) + i64::from(d)).clamp(0, 9999) as u32;
                     m.signed = None;
                 }
             }
             Action::MType => {
-                if let Some(m) = self.message.as_mut() {
+                if let Some(m) = self.message.state.as_mut() {
                     m.typing = !m.typing;
                 }
             }
             Action::MFormat(b) => {
-                if let Some(m) = self.message.as_mut() {
+                if let Some(m) = self.message.state.as_mut() {
                     m.bip322 = b;
                     m.signed = None;
                 }
             }
             Action::MSign => {
-                if let Some(m) = self.message.as_mut()
+                if let Some(m) = self.message.state.as_mut()
                     && let Some(w) = m.wallet
                 {
                     let format = if m.bip322 {
@@ -266,12 +343,12 @@ impl Faraday {
                     }
                 }
                 // The signed message goes For the stick as it is made.
-                if self.message.as_ref().is_some_and(|m| m.signed.is_some()) {
+                if self.message.state.as_ref().is_some_and(|m| m.signed.is_some()) {
                     self.act(Action::MOut);
                 }
             }
             Action::MOut | Action::MQr => {
-                if let Some(m) = self.message.as_ref()
+                if let Some(m) = self.message.state.as_ref()
                     && let Some(sig) = m.signed.as_ref()
                 {
                     let text =
@@ -291,7 +368,7 @@ impl Faraday {
             }
             Action::CheckMessage(i) => {
                 if i < self.inbox.len() {
-                    self.checking = Some(i);
+                    self.message.checking = Some(i);
                     self.screen = Screen::CheckMessage;
                 }
             }

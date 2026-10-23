@@ -117,7 +117,7 @@ impl Faraday {
         }
         if self
             .message
-            .as_ref()
+            .state()
             .is_some_and(|m| m.done.iter().any(|d| *d))
         {
             v.push(Going::Message);
@@ -196,7 +196,7 @@ impl Faraday {
             Screen::Restore if self.restore.is_some() => Some(Going::Restore),
             Screen::Backup => self.backup_going(),
             Screen::Spend | Screen::Family => Some(Going::Spend),
-            Screen::Message if self.message.is_some() => Some(Going::Message),
+            Screen::Message if self.message.state().is_some() => Some(Going::Message),
             Screen::CreateVault if self.vaults.create.is_some() => match self.vaults.back_to {
                 None => Some(Going::Vault),
                 Some(Screen::BackupFlow) => self.flow_on.map(|i| self.flow_going(i)),
@@ -279,7 +279,7 @@ impl Faraday {
                 Some(Screen::Spend) if self.spend.is_some() => self.go(Screen::Spend),
                 _ => self.go(Screen::Family),
             },
-            Going::Message if self.message.is_some() => self.go(Screen::Message),
+            Going::Message if self.message.state().is_some() => self.go(Screen::Message),
             Going::Vault if self.vaults.create.is_some() => self.go(Screen::CreateVault),
             Going::Flow(i) if i < self.backup_flows.len() => self.flow_show(i),
             _ => {}
@@ -390,7 +390,7 @@ impl Faraday {
                 .is_some_and(|s| s.done.iter().any(|d| *d))
                 .then_some(EN.flow_lost_spend),
             Going::Message => {
-                let m = self.message.as_ref()?;
+                let m = self.message.state()?;
                 m.done[1..]
                     .iter()
                     .any(|d| *d)
@@ -465,7 +465,7 @@ impl Faraday {
                 to
             }
             Going::Message => {
-                self.message = None;
+                self.message.clear_state();
                 Action::Nav(Screen::WalletsStart)
             }
             Going::Vault => {
@@ -603,7 +603,7 @@ impl Faraday {
                 self.spend_step(),
             ),
             Going::Message => {
-                let m = self.message.as_ref()?;
+                let m = self.message.state()?;
                 let k = m
                     .open
                     .or_else(|| (0..4u8).find(|&k| !m.done[k as usize]))
@@ -777,7 +777,7 @@ fn flow_finished_on(r: &impl Reads, g: Going) -> bool {
             .is_some_and(|x| x.done[crate::rstep::CHECK as usize]),
         Going::Backup => backup_finished_on(r),
         Going::Spend => app.spend.as_ref().is_some_and(|s| s.out_tx || s.out_signed),
-        Going::Message => app.message.as_ref().is_some_and(|m| m.signed.is_some()),
+        Going::Message => app.message.state().is_some_and(|m| m.signed.is_some()),
         Going::Vault => false,
         Going::Flow(i) => app.backup_flows.get(i).is_none_or(|f| f.step == Step::Done),
     }

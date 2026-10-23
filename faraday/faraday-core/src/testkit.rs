@@ -1582,3 +1582,13 @@ pub fn tools_mut(app: &mut crate::Faraday) -> Option<&mut crate::tools::ToolsSta
 pub fn qr_close(app: &mut crate::Faraday) {
     app.qr.close();
 }
+
+/// The message-signing flow's state, while it is open.
+pub fn message(app: &crate::Faraday) -> Option<&crate::MessageState> {
+    app.message.state()
+}
+
+/// Types `text` into the message being signed.
+pub fn message_text(app: &mut crate::Faraday, text: &str) {
+    app.message.set_text(text);
+}

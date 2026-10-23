@@ -343,9 +343,7 @@ impl Faraday {
                     }
                 }
                 Scrolled::Message => {
-                    if let Some(m) = self.message.as_mut() {
-                        m.scroll = to;
-                    }
+                    self.message.set_scroll(to);
                 }
                 Scrolled::Create => {
                     if let Some(c) = self.create.as_mut() {

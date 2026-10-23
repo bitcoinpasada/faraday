@@ -19,7 +19,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::mstep;
     let col_x = x0 + 40.0;
     let col_w = (cw - 80.0).min(880.0);
-    let Some(m) = app.message.as_ref() else {
+    let Some(m) = app.message.state() else {
         return;
     };
     let address = m.wallet.and_then(|w| app.session.wallets.get(w)).map(|w| {
@@ -91,7 +91,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::mstep;
-    let m = app.message.as_ref().expect("message");
+    let m = app.message.state().expect("message");
     let mut cy = y;
     match n {
         mstep::ADDRESS => {
