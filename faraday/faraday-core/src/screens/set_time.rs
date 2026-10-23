@@ -26,7 +26,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         12.0,
         W::R,
         MUTED,
-        app.named_back((app.back_link_name(app.set_time.back_to), back))
+        app.named_back((app.back_link_name(app.set_time.back_to()), back))
             .0,
     );
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back);
@@ -49,9 +49,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         220.0,
-        &app.set_time.date,
+        app.set_time.date(),
         false,
-        app.set_time.focus == Some(crate::set_time::Focus::Date),
+        app.set_time.focus() == Some(crate::set_time::Focus::Date),
         Action::SetTimeFocus(crate::set_time::Focus::Date),
     );
     y += 56.0;
@@ -62,9 +62,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x,
         y,
         220.0,
-        &app.set_time.time,
+        app.set_time.time(),
         false,
-        app.set_time.focus == Some(crate::set_time::Focus::Time),
+        app.set_time.focus() == Some(crate::set_time::Focus::Time),
         Action::SetTimeFocus(crate::set_time::Focus::Time),
     );
     y += 70.0;
@@ -123,9 +123,9 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         x,
         y,
         w,
-        &app.set_time.date,
+        app.set_time.date(),
         false,
-        app.set_time.focus == Some(crate::set_time::Focus::Date),
+        app.set_time.focus() == Some(crate::set_time::Focus::Date),
         Action::SetTimeFocus(crate::set_time::Focus::Date),
     );
     y += 56.0;
@@ -136,9 +136,9 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         x,
         y,
         w,
-        &app.set_time.time,
+        app.set_time.time(),
         false,
-        app.set_time.focus == Some(crate::set_time::Focus::Time),
+        app.set_time.focus() == Some(crate::set_time::Focus::Time),
         Action::SetTimeFocus(crate::set_time::Focus::Time),
     );
     y += 66.0;

@@ -122,7 +122,7 @@ fn a_pi_like_clock_opens_set_the_time_first_then_shows_the_code() {
         Screen::SetTime,
         "the clock is not known, so Set the time comes first"
     );
-    assert_eq!(app.set_time.back_to, Screen::Codes);
+    assert_eq!(app.set_time_returns_to(), Screen::Codes);
     assert!(
         app.clock_now().is_none(),
         "no Keep this time without a clock"

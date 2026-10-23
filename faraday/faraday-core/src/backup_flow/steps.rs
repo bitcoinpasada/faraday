@@ -2054,7 +2054,7 @@ impl Faraday {
     pub(crate) fn flow_before_lock(&mut self) {
         self.flow_keep_makers();
         let on = self.screen == Screen::BackupFlow
-            || (self.screen == Screen::SetTime && self.set_time.back_to == Screen::BackupFlow);
+            || (self.screen == Screen::SetTime && self.set_time.back_to() == Screen::BackupFlow);
         let cur = self.fi();
         for (k, f) in self.backup_flows.iter_mut().enumerate() {
             f.on_screen = on && Some(k) == cur;

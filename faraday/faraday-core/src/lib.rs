@@ -1141,7 +1141,7 @@ pub struct Faraday {
     /// time zone and guided mode (`stick/settings.rs`).
     settings: stick::settings::Settings,
     /// Setting the time by hand (`docs/TOTP.md` §3).
-    pub set_time: set_time::SetTime,
+    set_time: set_time::SetTimeArea,
     /// When the last input came, on this process's clock; set at the
     /// first tick.
     last_input: Option<u64>,
@@ -1511,7 +1511,7 @@ impl Faraday {
             restart_computer: false,
             last_display: None,
             settings: stick::settings::Settings::default(),
-            set_time: set_time::SetTime::default(),
+            set_time: set_time::SetTimeArea::default(),
             last_input: None,
             idle_carry: 0,
             idle_locking: None,

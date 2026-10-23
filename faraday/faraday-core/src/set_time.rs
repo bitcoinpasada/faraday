@@ -19,30 +19,141 @@ pub enum Focus {
     Time,
 }
 
-/// Set the time's own state.
-pub struct SetTime {
+/// Set the time's area: what is typed, where typing goes, and where Back
+/// returns to. Its fields are private; the glue below reaches the clock.
+pub(crate) struct SetTimeArea {
     /// The date typed, `YYYY-MM-DD`.
-    pub date: TextBox,
+    date: TextBox,
     /// The time typed, `HH:MM`.
-    pub time: TextBox,
+    time: TextBox,
     /// Where typing goes; `None` while neither field is focused.
-    pub focus: Option<Focus>,
+    focus: Option<Focus>,
     /// The screen Back, Set and Keep this time return to: Settings, or
     /// (batch 2) the codes screen.
-    pub back_to: Screen,
+    back_to: Screen,
     /// The sheet Set the time was opened from (Sign with {key}, F63),
     /// shown again over `back_to` by Back, Set and Keep this time.
-    pub sheet: Option<Sheet>,
+    sheet: Option<Sheet>,
 }
 
-impl Default for SetTime {
+impl Default for SetTimeArea {
     fn default() -> Self {
-        SetTime {
+        SetTimeArea {
             date: TextBox::default(),
             time: TextBox::default(),
             focus: None,
             back_to: Screen::Settings,
             sheet: None,
+        }
+    }
+}
+
+/// What a key typed on the Set the time screen asks for.
+enum Typed {
+    /// Not taken.
+    Ignored,
+    /// Taken by the fields.
+    Taken,
+    /// Enter with a real date and time: Set.
+    Set,
+    /// Escape: Back.
+    Back,
+}
+
+impl SetTimeArea {
+    /// The date typed.
+    pub(crate) fn date(&self) -> &TextBox {
+        &self.date
+    }
+
+    /// The time typed.
+    pub(crate) fn time(&self) -> &TextBox {
+        &self.time
+    }
+
+    /// Where typing goes.
+    pub(crate) fn focus(&self) -> Option<Focus> {
+        self.focus
+    }
+
+    /// The screen Back, Set and Keep this time return to.
+    pub(crate) fn back_to(&self) -> Screen {
+        self.back_to
+    }
+
+    /// Focuses a field.
+    pub(crate) fn set_focus(&mut self, f: Focus) {
+        self.focus = Some(f);
+    }
+
+    /// Opens on `screen`, which it returns to, and the sheet over it
+    /// (taken from `sheet`), which it shows again; the date starts at
+    /// `local_date` when the clock is known.
+    pub(crate) fn open(
+        &mut self,
+        screen: Screen,
+        sheet: &mut Option<Sheet>,
+        local_date: Option<&str>,
+    ) {
+        self.back_to = screen;
+        self.sheet = sheet.take();
+        self.date = TextBox::default();
+        self.time = TextBox::default();
+        if let Some(d) = local_date {
+            self.date.text.set(d);
+        }
+        self.focus = Some(Focus::Time);
+    }
+
+    /// Whether a real date and a real 24-hour time are typed.
+    pub(crate) fn ready(&self) -> bool {
+        valid_date(&self.date.text).is_some() && valid_time(&self.time.text).is_some()
+    }
+
+    /// The local time typed, as seconds since 1970 read as if local, at
+    /// :00 seconds, with its hour and minute; `None` unless both are
+    /// real.
+    pub(crate) fn typed_local(&self) -> Option<(i64, u32, u32)> {
+        let (y, m, d) = valid_date(&self.date.text)?;
+        let (h, mi) = valid_time(&self.time.text)?;
+        let local = days_from_civil(y, m, d) * 86_400 + i64::from(h) * 3600 + i64::from(mi) * 60;
+        Some((local, h, mi))
+    }
+
+    /// The screen to go back to, and the sheet to show again over it.
+    pub(crate) fn take_return(&mut self) -> (Screen, Option<Sheet>) {
+        (self.back_to, self.sheet.take())
+    }
+
+    /// A key typed: into the focused field, or to move focus.
+    fn key(&mut self, key: KeyIn) -> Typed {
+        let Some(focus) = self.focus else {
+            return Typed::Ignored;
+        };
+        match key {
+            KeyIn::Char(c) if c.is_ascii_digit() || c == '-' || c == ':' => {
+                self.field(focus).text.push(c);
+            }
+            KeyIn::Backspace => {
+                self.field(focus).text.pop();
+            }
+            KeyIn::Tab => {
+                self.focus = Some(match focus {
+                    Focus::Date => Focus::Time,
+                    Focus::Time => Focus::Date,
+                });
+            }
+            KeyIn::Enter if self.ready() => return Typed::Set,
+            KeyIn::Escape => return Typed::Back,
+            _ => return Typed::Ignored,
+        }
+        Typed::Taken
+    }
+
+    fn field(&mut self, focus: Focus) -> &mut TextBox {
+        match focus {
+            Focus::Date => &mut self.date,
+            Focus::Time => &mut self.time,
         }
     }
 }
@@ -133,15 +244,11 @@ impl Faraday {
     /// Opens Set the time from `self.screen`, which it returns to, and
     /// from the sheet over it, which it shows again.
     pub(crate) fn open_set_time(&mut self) {
-        self.set_time.back_to = self.screen;
-        self.set_time.sheet = self.sheet.take();
-        self.set_time.date = TextBox::default();
-        self.set_time.time = TextBox::default();
-        if let Some(t) = self.clock_now() {
-            let local = crate::vault::local_secs(t, self.tz_min());
-            self.set_time.date.text.set(&crate::gpg::date(local));
-        }
-        self.set_time.focus = Some(Focus::Time);
+        let date = self
+            .clock_now()
+            .map(|t| crate::gpg::date(crate::vault::local_secs(t, self.tz_min())));
+        self.set_time
+            .open(self.screen, &mut self.sheet, date.as_deref());
         self.screen = Screen::SetTime;
     }
 
@@ -163,21 +270,16 @@ impl Faraday {
     /// Whether Set the time's Set button is enabled: a real date and a
     /// real 24-hour time are typed.
     pub(crate) fn set_time_ready(&self) -> bool {
-        valid_date(&self.set_time.date.text).is_some()
-            && valid_time(&self.set_time.time.text).is_some()
+        self.set_time.ready()
     }
 
     /// Set: the local time typed, at :00 seconds, becomes the offset
     /// against the shell's own clock (`docs/TOTP.md` §1.2 and §3). Never
     /// writes the computer's clock.
     pub(crate) fn set_time_set(&mut self) {
-        let Some((y, m, d)) = valid_date(&self.set_time.date.text) else {
+        let Some((local, h, mi)) = self.set_time.typed_local() else {
             return;
         };
-        let Some((h, mi)) = valid_time(&self.set_time.time.text) else {
-            return;
-        };
-        let local = days_from_civil(y, m, d) * 86_400 + i64::from(h) * 3600 + i64::from(mi) * 60;
         let utc = local - i64::from(self.tz_min()) * 60;
         let raw = self.vaults.unix_secs.unwrap_or(0) as i64
             + (self.now_ms.saturating_sub(self.vaults.clock_at_ms) / 1000) as i64;
@@ -194,8 +296,8 @@ impl Faraday {
     /// Back to the screen and the sheet Set the time was opened from.
     /// Signs nothing and makes nothing there (F63).
     fn set_time_return(&mut self) {
-        self.return_back(self.set_time.back_to);
-        let sheet = self.set_time.sheet.take();
+        let (back_to, sheet) = self.set_time.take_return();
+        self.return_back(back_to);
         if self.sheet.is_none() {
             self.sheet = sheet;
         }
@@ -221,34 +323,18 @@ impl Faraday {
         if self.screen != Screen::SetTime {
             return false;
         }
-        let Some(focus) = self.set_time.focus else {
-            return false;
-        };
-        match key {
-            KeyIn::Char(c) if c.is_ascii_digit() || c == '-' || c == ':' => {
-                self.set_time_box(focus).text.push(c);
-            }
-            KeyIn::Backspace => {
-                self.set_time_box(focus).text.pop();
-            }
-            KeyIn::Tab => {
-                self.set_time.focus = Some(match focus {
-                    Focus::Date => Focus::Time,
-                    Focus::Time => Focus::Date,
-                });
-            }
-            KeyIn::Enter if self.set_time_ready() => self.set_time_set(),
-            KeyIn::Escape => self.set_time_back(),
-            _ => return false,
+        match self.set_time.key(key) {
+            Typed::Ignored => return false,
+            Typed::Taken => {}
+            Typed::Set => self.set_time_set(),
+            Typed::Back => self.set_time_back(),
         }
         true
     }
 
-    fn set_time_box(&mut self, focus: Focus) -> &mut TextBox {
-        match focus {
-            Focus::Date => &mut self.set_time.date,
-            Focus::Time => &mut self.set_time.time,
-        }
+    /// The screen Set the time returns to.
+    pub fn set_time_returns_to(&self) -> Screen {
+        self.set_time.back_to()
     }
 }
 
@@ -258,7 +344,7 @@ impl Faraday {
         match action {
             Action::TzStep(delta) => self.tz_step(delta),
             Action::OpenSetTime => self.open_set_time(),
-            Action::SetTimeFocus(f) => self.set_time.focus = Some(f),
+            Action::SetTimeFocus(f) => self.set_time.set_focus(f),
             Action::SetTimeSet => {
                 if self.set_time_ready() {
                     self.set_time_set();
