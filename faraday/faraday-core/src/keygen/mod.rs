@@ -2074,6 +2074,28 @@ impl crate::Faraday {
         }
     }
 
+    /// The shell named what it reads its randomness from
+    /// (`Event::EntropySource`): kept on `Faraday::entropy_source`, which
+    /// is `None` until one is named, and copied into an open New key, as
+    /// a new one copies it when it opens (`KeyGen::entropy_source`).
+    pub(crate) fn entropy_source_named(&mut self, name: &'static str) {
+        self.entropy_source = Some(name);
+        if let Some(k) = self.keygen.as_mut() {
+            k.entropy_source = Some(name);
+        }
+    }
+
+    /// The shell's answer to a `RequestEntropy`. Asked for by New key,
+    /// the bytes are the key's, and the session's own seed stays as it
+    /// was; otherwise they are the session's fresh seed.
+    pub(crate) fn entropy_arrived(&mut self, e: faraday_shell_api::EntropyBytes) {
+        let mut bytes = e.into_bytes();
+        if !self.keygen_entropy(&mut bytes) {
+            self.fresh_arrived(bytes);
+            zeroize::Zeroize::zeroize(&mut bytes);
+        }
+    }
+
     /// Takes the shell's answer when the flow asked for it. Returns
     /// whether it did.
     pub(crate) fn keygen_entropy(&mut self, bytes: &mut [u8; 32]) -> bool {

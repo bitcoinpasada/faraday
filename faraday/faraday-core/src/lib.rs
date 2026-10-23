@@ -1459,10 +1459,7 @@ pub struct Faraday {
     pub restore: Option<RestoreState>,
     /// A new key being made.
     pub keygen: Option<keygen::KeyGen>,
-    /// What the shell reads its randomness from, as its last
-    /// `Event::EntropySource` named it; `None` until one is sent. A new
-    /// key's flow takes a copy when it opens (`KeyGen::entropy_source`),
-    /// and the event updates an open one too.
+    /// The shell's randomness source (`Faraday::entropy_source_named`).
     pub entropy_source: Option<&'static str>,
     /// The Learn sheet.
     pub learn: learn::LearnState,
@@ -9633,23 +9630,8 @@ impl App for Faraday {
                     return;
                 }
             }
-            Event::EntropySource(name) => {
-                self.entropy_source = Some(name);
-                if let Some(k) = self.keygen.as_mut() {
-                    k.entropy_source = Some(name);
-                }
-                return;
-            }
-            Event::Entropy(e) => {
-                let mut bytes = e.into_bytes();
-                // Asked for by New key: the bytes are the key's, and the
-                // session's own seed stays as it was.
-                if !self.keygen_entropy(&mut bytes) {
-                    self.fresh_arrived(bytes);
-                    zeroize::Zeroize::zeroize(&mut bytes);
-                }
-                return;
-            }
+            Event::EntropySource(name) => return self.entropy_source_named(name),
+            Event::Entropy(e) => return self.entropy_arrived(e),
             Event::CameraFrame { luma, .. } if self.keygen_camera_on => {
                 if let Some(k) = self.keygen.as_mut() {
                     if let Some(old) = k.frame.as_mut() {
