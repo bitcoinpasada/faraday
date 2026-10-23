@@ -35,13 +35,14 @@ SHA-256 of a label:
 The mnemonics are the standard BIP-39 encoding of those bytes.
 
 Because the files were not taken from a published source, the test that
-read them did not trust either the files or `faraday_entropy::SeedXor`
-alone: it packed the word indices itself, checked the BIP-39 checksum
-itself, XORed the parts with a plain byte fold, and compared all three
-answers. That test went with the deleted app (F68); until
-it is restored beside `SeedXor`, no test reads these files.
+reads them, `core/faraday-entropy/tests/xor.rs`, trusts neither the files
+nor `faraday_entropy::SeedXor` alone: each part's words and the seed's
+are decoded by rust-bitcoin's `bip39`, which checks their checksum, and
+must be the file's hex; the parts XORed by a plain byte fold must be the
+seed; and `SeedXor` must give the same seed.
 `seed_xor_parts_combine_into_the_seeds_words`
-(`faraday/faraday-core/tests/all/forms.rs`) uses the 12-word example's words.
+(`faraday/faraday-core/tests/all/forms.rs`) also uses the 12-word
+example's words.
 
 Swap these for Coldcard's own examples when a machine with network
 access can fetch them; the file format and the test do not change.

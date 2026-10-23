@@ -865,6 +865,7 @@ dependencies = [
 name = "faraday-entropy"
 version = "0.1.0"
 dependencies = [
+ "bip39",
  "faraday-crypto",
  "zeroize",
 ]
