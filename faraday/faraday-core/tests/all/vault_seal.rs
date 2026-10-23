@@ -131,7 +131,7 @@ fn a_new_keyboard_and_a_lock_wait_for_the_same_randomness() {
         keyboard: true,
         pointer: false,
     });
-    assert_eq!(app.inputs[0].code, None);
+    assert_eq!(app.new_inputs()[0].code, None);
     app.press(Action::InputIgnore(4));
     // After it: both.
     randomness(&mut app, 0x22);
@@ -141,7 +141,7 @@ fn a_new_keyboard_and_a_lock_wait_for_the_same_randomness() {
         keyboard: true,
         pointer: false,
     });
-    assert!(app.inputs[0].code.is_some());
+    assert!(app.new_inputs()[0].code.is_some());
     app.press(Action::InputIgnore(5));
     open_and_change(&mut app);
     app.press(Action::Lock);

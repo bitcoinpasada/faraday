@@ -172,7 +172,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Lock => Some(Action::NotNow),
             Sheet::Import => Some(crate::boot_import::LATER),
             Sheet::UnlockLoad => Some(Action::Vault(crate::vault::VaultAction::LoadNotNow)),
-            Sheet::NewInput => app.inputs.first().map(|d| Action::InputIgnore(d.id)),
+            Sheet::NewInput => app.new_inputs().first().map(|d| Action::InputIgnore(d.id)),
             // Zeroing stops by its own Stop, never by a press beside it.
             Sheet::WordList | Sheet::IdleWarn | Sheet::Zeroing => None,
             Sheet::BoardMenu => Some(Action::Board(crate::board::BoardPress::MenuClose)),

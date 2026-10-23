@@ -20,7 +20,7 @@ fn seeded() -> Faraday {
 
 /// The code the first waiting device must type.
 fn code_of(app: &Faraday) -> String {
-    app.inputs[0].code.clone().expect("a code")
+    app.new_inputs()[0].code.clone().expect("a code")
 }
 
 fn new_device(app: &mut Faraday, id: u32, keyboard: bool, pointer: bool) {
@@ -50,7 +50,7 @@ fn a_new_keyboard_is_believed_once_it_types_the_code() {
     assert_eq!(app.poll_input_decision(), None);
     type_on(&mut app, 4, &code);
     assert_eq!(app.poll_input_decision(), Some((4, true)));
-    assert!(app.inputs.is_empty());
+    assert!(app.new_inputs().is_empty());
     assert_eq!(app.sheet, None);
 }
 
@@ -63,7 +63,7 @@ fn a_keyboard_that_keeps_guessing_is_kept_out_until_it_is_unplugged() {
     // after another types them.
     type_on(&mut app, 5, &"z".repeat(18));
     assert_eq!(app.poll_input_decision(), Some((5, false)));
-    assert_eq!(app.ignored_inputs.len(), 1);
+    assert_eq!(app.ignored_inputs().len(), 1);
     assert_eq!(app.sheet, None);
     // The right code no longer gets it in.
     type_on(&mut app, 5, &code);
@@ -88,9 +88,9 @@ fn after_three_keyboards_are_kept_out_new_keyboards_get_no_code() {
     }
     new_device(&mut app, 4, true, false);
     assert_eq!(app.poll_input_decision(), Some((4, false)));
-    assert!(app.inputs.is_empty());
+    assert!(app.new_inputs().is_empty());
     assert_eq!(app.sheet, None);
-    assert_eq!(app.ignored_inputs.len(), 1);
+    assert_eq!(app.ignored_inputs().len(), 1);
     // A new pointer is still asked about.
     new_device(&mut app, 5, false, true);
     assert_eq!(app.sheet, Some(Sheet::NewInput));
@@ -143,12 +143,12 @@ fn an_ignored_device_stays_out_until_it_is_unplugged() {
     new_device(&mut app, 2, true, true);
     app.press(Action::InputIgnore(2));
     assert_eq!(app.poll_input_decision(), Some((2, false)));
-    assert_eq!(app.ignored_inputs.len(), 1);
+    assert_eq!(app.ignored_inputs().len(), 1);
     // Typing on it now does nothing.
     type_on(&mut app, 2, "acdefh");
     assert_eq!(app.poll_input_decision(), None);
     app.storage(StorageEvent::InputGone { id: 2 });
-    assert!(app.ignored_inputs.is_empty());
+    assert!(app.ignored_inputs().is_empty());
 }
 
 #[test]
@@ -165,11 +165,11 @@ fn a_keyboard_before_the_systems_randomness_gets_no_code_until_it_arrives() {
     let mut app = testkit::started();
     new_device(&mut app, 8, true, false);
     assert_eq!(app.sheet, Some(Sheet::NewInput));
-    assert_eq!(app.inputs[0].code, None);
+    assert_eq!(app.new_inputs()[0].code, None);
     // Nothing it types lets it in or counts against it.
     type_on(&mut app, 8, &"acdefh".repeat(4));
     assert_eq!(app.poll_input_decision(), None);
-    assert_eq!(app.inputs.len(), 1);
+    assert_eq!(app.new_inputs().len(), 1);
     // Past the first moments with no randomness, the sheet says so.
     app.event(Event::Tick { now_ms: 1 });
     app.event(Event::Tick { now_ms: 5_000 });

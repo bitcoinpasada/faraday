@@ -139,8 +139,12 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 .collect();
             y += wrap_buttons(ui, x, y, w, 36.0, &items) + 2.0;
         }
-        if !app.ignored_inputs.is_empty() {
-            let names: Vec<&str> = app.ignored_inputs.iter().map(|(_, n)| n.as_str()).collect();
+        if !app.ignored_inputs().is_empty() {
+            let names: Vec<&str> = app
+                .ignored_inputs()
+                .iter()
+                .map(|(_, n)| n.as_str())
+                .collect();
             let line = fill(EN.settings_ignored_until, &[&names.join(", ").to_string()]);
             y += ui.wrap(x, y, w, 13.0, W::R, WARN, &line) + 6.0;
         }
@@ -373,7 +377,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     title(ui, x, y, EN.settings_settings);
     y += 64.0;
     // Devices kept out until unplugged (`docs/history/PLAN.md` §4.6) take a line.
-    let ignored_h = if app.ignored_inputs.is_empty() {
+    let ignored_h = if app.ignored_inputs().is_empty() {
         0.0
     } else {
         30.0
@@ -461,8 +465,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         ry += 46.0;
     }
-    if !app.ignored_inputs.is_empty() {
-        let names: Vec<&str> = app.ignored_inputs.iter().map(|(_, n)| n.as_str()).collect();
+    if !app.ignored_inputs().is_empty() {
+        let names: Vec<&str> = app
+            .ignored_inputs()
+            .iter()
+            .map(|(_, n)| n.as_str())
+            .collect();
         let line = fill(EN.settings_ignored_until, &[&names.join(", ").to_string()]);
         let line = ui.fit(13.0, W::R, &line, width - 44.0);
         ui.text_mid(x + 22.0, ry, 26.0, 13.0, W::R, WARN, &line);

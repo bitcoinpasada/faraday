@@ -244,7 +244,7 @@ use crate::strings::EN;
 use crate::strings::fill;
 use crate::wallet::KeyTexts;
 use faraday_intake::{arrival, seed_in_code, seedqr_words};
-use std::collections::{BTreeSet, VecDeque};
+use std::collections::BTreeSet;
 
 use faraday_crypto::work::Compute;
 use faraday_draw::{Canvas, Rect};
@@ -1167,20 +1167,15 @@ pub struct Faraday {
     /// A stick arrived while the camera was on: held back, and taken as
     /// arriving once the camera is off.
     stick_held: bool,
-    /// New input devices waiting to be believed (`docs/history/PLAN.md` §4.6).
-    pub inputs: Vec<inputs::NewInput>,
-    /// Devices kept out until unplugged, by id and name.
-    pub ignored_inputs: Vec<(u32, String)>,
-    /// Keyboards kept out this session for typing the wrong code.
-    inputs_kept_out: usize,
+    /// New input devices waiting to be believed, and those kept out
+    /// (`docs/history/PLAN.md` §4.6).
+    inputs: inputs::InputsArea,
     /// The boot import's sheet waits under the new-device sheet, and
     /// comes up once every waiting device is decided.
     import_under_input: bool,
     /// Files the boot import brought in with the stick still in, by name:
     /// the seeds they hold load once it is pulled (F60).
     pub(crate) import_load_after: BTreeSet<String>,
-    /// Decisions the shell has not taken yet.
-    input_decisions: VecDeque<(u32, bool)>,
     /// New keys made this session, which number their labels.
     new_keys: u32,
     /// The keys made here whose backup is not yet done, by fingerprint
@@ -1520,12 +1515,9 @@ impl Faraday {
             idle_warn_min: 0,
             tainted: false,
             stick_held: false,
-            inputs: Vec::new(),
-            ignored_inputs: Vec::new(),
-            inputs_kept_out: 0,
+            inputs: inputs::InputsArea::default(),
             import_under_input: false,
             import_load_after: BTreeSet::new(),
-            input_decisions: VecDeque::new(),
             new_keys: 0,
             made_here: Vec::new(),
             drawing: drawing::Drawing::default(),

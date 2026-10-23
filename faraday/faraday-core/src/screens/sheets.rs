@@ -1449,7 +1449,9 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
 /// code a keyboard must type, and the person's choice.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(d) = app.inputs.first() else { return };
+    let Some(d) = app.new_inputs().first() else {
+        return;
+    };
     if ui.compact {
         let what = match (d.keyboard, d.pointer) {
             (true, true) => EN.new_input_title,
