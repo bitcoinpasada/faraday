@@ -76,7 +76,7 @@ fn type_text(app: &mut Faraday, text: &str) {
 /// `screen` with nothing open over it.
 fn on(app: &mut Faraday, screen: Screen) {
     app.potential = None;
-    app.seed_read = None;
+    app.seed_read.clear();
     app.sheet = None;
     app.press(Action::Nav(screen));
 }
@@ -298,7 +298,7 @@ fn a_passphrase_typed_shows_the_key_it_makes_once_typing_pauses() {
         1,
         "the key is worked out once typing pauses"
     );
-    let shown = app.seed_read.as_ref().and_then(|s| s.with_key());
+    let shown = app.seed_read.state().and_then(|s| s.with_key());
     let want = crate::scan_key::key_of(
         &c,
         &testkit::test_words(testkit::TEST_SEEDS[2].0),

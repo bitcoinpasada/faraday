@@ -1353,7 +1353,7 @@ pub struct Faraday {
     /// worked out once typing has paused ([`motion::TYPED_PAUSE_MS`]).
     typed_at: Option<u64>,
     /// A seed the camera read, waiting on [`Sheet::SeedRead`].
-    pub seed_read: Option<seeds::read::SeedRead>,
+    seed_read: seeds::SeedsArea,
     /// What [`Sheet::Delete`] is choosing.
     pub delete_ask: Option<stick::wipe::DeleteAsk>,
     /// A file row's ⋮ menu, Rename and Details (`docs/FLOWS.md`
@@ -1562,7 +1562,7 @@ impl Faraday {
             inbox_skip: BTreeSet::new(),
             potential: None,
             typed_at: None,
-            seed_read: None,
+            seed_read: seeds::SeedsArea::default(),
             delete_ask: None,
             files_menu: Default::default(),
             zeroing: None,
@@ -3071,7 +3071,7 @@ impl Faraday {
                 self.devices.after = None;
                 self.devices.over_import = false;
                 // A seed read and not loaded is wiped.
-                self.seed_read = None;
+                self.seed_read.clear();
                 self.delete_ask = None;
                 self.visit.taken.clear();
                 self.next_mode.clear();

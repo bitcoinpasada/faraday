@@ -154,7 +154,7 @@ impl Faraday {
             return self.vaults.focus == Some(vault::Focus::Passphrase);
         }
         if self.sheet == Some(Sheet::SeedRead) {
-            return self.seed_read.as_ref().is_some_and(|s| s.focus.is_some());
+            return self.seed_read.state().is_some_and(|s| s.focus.is_some());
         }
         if self.sheet == Some(Sheet::PassphraseSeeds) {
             return self.vaults.focus == Some(vault::Focus::Prompt);
@@ -221,7 +221,7 @@ impl Faraday {
         if self.sheet == Some(Sheet::SeedRead) {
             return self
                 .seed_read
-                .as_ref()?
+                .state()?
                 .focus
                 .map(|f| Action::SeedRead(crate::seeds::read::Choice::Field(f)));
         }
@@ -291,7 +291,7 @@ impl Faraday {
                 }
             }
             Action::EntryPassphrase => &self.entry.state().passphrase,
-            Action::SeedRead(_) => self.seed_read.as_ref()?.field()?,
+            Action::SeedRead(_) => self.seed_read.state()?.field()?,
             Action::Rename => self.renaming.as_deref()?,
             crate::file_menu::FIELD => &self.files_menu.renaming.as_ref()?.stem,
             Action::BName(p) => self.backup.as_ref()?.names.get(usize::from(p))?,

@@ -331,6 +331,31 @@ pub fn cosigner_label(key: &str) -> String {
     }
 }
 
+/// The seed reader's area: the sheet that asks how a seed loads, while
+/// it is open.
+#[derive(Default)]
+pub(crate) struct SeedsArea {
+    state: Option<read::SeedRead>,
+}
+
+impl SeedsArea {
+    /// The sheet's state, while it is open.
+    pub(crate) fn state(&self) -> Option<&read::SeedRead> {
+        self.state.as_ref()
+    }
+
+    /// The sheet's state, for the writers in other areas, until they are
+    /// narrowed.
+    pub(crate) fn state_mut(&mut self) -> Option<&mut read::SeedRead> {
+        self.state.as_mut()
+    }
+
+    /// Forgets the sheet.
+    pub(crate) fn clear(&mut self) {
+        self.state = None;
+    }
+}
+
 impl Faraday {
     /// The piece the screen shows: Restore's in seeds-first mode, or the
     /// Spend tab's.

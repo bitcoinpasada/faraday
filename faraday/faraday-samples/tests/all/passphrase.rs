@@ -607,7 +607,7 @@ fn in_demo_a_seed_read_adds_its_passphrase_from_the_chips_and_loads_that_key() {
     app.press(Action::ScanSample);
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
     app.press(Action::SeedRead(Choice::AddPass));
-    let s = app.seed_read.as_ref().expect("the sheet");
+    let s = app.seed_read().expect("the sheet");
     assert!(s.pass.is_empty() && s.pass2.is_empty(), "nothing is put in");
     let _ = app.frame();
     for f in 0..2 {
@@ -615,7 +615,7 @@ fn in_demo_a_seed_read_adds_its_passphrase_from_the_chips_and_loads_that_key() {
     }
     app.press(Action::PassChip(PassField::SeedRead(0)));
     app.press(Action::PassChip(PassField::SeedRead(1)));
-    let s = app.seed_read.as_ref().expect("the sheet");
+    let s = app.seed_read().expect("the sheet");
     assert_eq!(s.pass.as_str(), "faraday");
     assert_eq!(s.pass2.as_str(), "faraday");
     let _ = app.frame();
@@ -632,7 +632,7 @@ fn in_demo_a_seed_read_adds_its_passphrase_from_the_chips_and_loads_that_key() {
             .all()
             .any(|k| with.contains(&k.fingerprint.0)),
         "the sample with faraday is in: {:?}",
-        app.seed_read.as_ref().map(|s| s.error.clone())
+        app.seed_read().map(|s| s.error.clone())
     );
 }
 

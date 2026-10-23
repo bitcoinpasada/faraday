@@ -570,7 +570,7 @@ fn a_seed_of_another_wallet_after_the_description_is_not_one_of_its_keys() {
     assert!(app.offers(Action::SeedRead(Choice::Skip)));
     app.press(Action::SeedRead(Choice::Skip));
     assert_eq!(app.sheet, Some(Sheet::Scan));
-    assert!(app.seed_read.is_none());
+    assert!(app.seed_read().is_none());
     assert!(app.session.keys.is_empty());
 }
 

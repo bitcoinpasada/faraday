@@ -271,13 +271,13 @@ fn passphrases_that_differ_on_the_sheet_load_no_seed() {
     app.press(Action::SeedRead(Choice::WithPass));
     assert_eq!(app.sheet, Some(Sheet::SeedRead), "the sheet stays");
     assert_eq!(
-        app.seed_read.as_ref().unwrap().error.as_deref(),
+        app.seed_read().unwrap().error.as_deref(),
         Some("The two passphrases differ")
     );
     assert_eq!(app.session.keys.len(), keys);
     // Cancel wipes what was read and loads nothing.
     app.press(Action::Cancel);
-    assert!(app.seed_read.is_none());
+    assert!(app.seed_read().is_none());
     assert_eq!(app.session.keys.len(), keys);
 }
 
@@ -311,10 +311,7 @@ fn the_description_scanned_first_fills_the_quorum_and_refuses_what_is_not_its_ke
     sheet_passphrase(&mut app, "wrong", "wrong");
     app.press(Action::SeedRead(Choice::WithPass));
     assert_eq!(app.sheet, Some(Sheet::SeedRead));
-    assert_eq!(
-        app.seed_read.as_ref().unwrap().error.as_deref(),
-        Some(NOT_A_KEY)
-    );
+    assert_eq!(app.seed_read().unwrap().error.as_deref(), Some(NOT_A_KEY));
     assert_eq!(
         app.session.keys.len(),
         keys,

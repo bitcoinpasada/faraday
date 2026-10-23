@@ -946,7 +946,7 @@ impl Faraday {
         };
         let Some(w) = self.family_described() else {
             self.seed_read_open(words);
-            if let Some(s) = self.seed_read.as_mut() {
+            if let Some(s) = self.seed_read.state_mut() {
                 s.family = Some(crate::seeds::read::ForFamily::Intake);
             }
             return;
@@ -971,7 +971,7 @@ impl Faraday {
             Found::None => {
                 let reason = self.not_a_wallet_key(w, fp);
                 self.seed_read_for_wallet(words, w, reason);
-                if let Some(s) = self.seed_read.as_mut() {
+                if let Some(s) = self.seed_read.state_mut() {
                     s.family = Some(crate::seeds::read::ForFamily::Intake);
                 }
                 return;

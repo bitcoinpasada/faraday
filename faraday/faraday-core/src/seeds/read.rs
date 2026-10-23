@@ -183,6 +183,11 @@ impl SeedRead {
 }
 
 impl Faraday {
+    /// The seed reader's sheet, while it is open.
+    pub fn seed_read(&self) -> Option<&SeedRead> {
+        self.seed_read.state()
+    }
+
     /// The camera read a seed's words: the camera closes and the sheet
     /// asks how it loads. Words that are not a BIP-39 seed go to Add a
     /// key as typed words, which says what is wrong with them.
@@ -197,7 +202,7 @@ impl Faraday {
             self.seed_read_load(words, "");
             return;
         };
-        self.seed_read = Some(SeedRead {
+        self.seed_read.state = Some(SeedRead {
             source: Source::Words(SecretText::of(words)),
             plain: Some(plain),
             ..SeedRead::default()
@@ -214,7 +219,7 @@ impl Faraday {
         self.out
             .commands
             .push_back(faraday_shell_api::Command::CameraOff);
-        self.seed_read = Some(SeedRead {
+        self.seed_read.state = Some(SeedRead {
             source: Source::Words(SecretText::of(words)),
             plain: key_of(&c, words, ""),
             wallet: Some(w),
@@ -234,7 +239,7 @@ impl Faraday {
         if !key.has_words() || key.has_passphrase {
             return false;
         }
-        self.seed_read = Some(SeedRead {
+        self.seed_read.state = Some(SeedRead {
             source: Source::Loaded(fp),
             loaded: Some(fp),
             plain: Some(fp),
@@ -251,7 +256,7 @@ impl Faraday {
             return;
         }
         let start_adding = why != ForFamily::Intake;
-        self.seed_read = Some(SeedRead {
+        self.seed_read.state = Some(SeedRead {
             source: Source::Loaded(fp),
             loaded: Some(fp),
             plain: Some(fp),
@@ -267,19 +272,19 @@ impl Faraday {
     /// passphrase is asked, and only a key of the wallet loads.
     pub(crate) fn seed_read_stray(&mut self, fp: Fingerprint, w: usize, reason: String) {
         self.seed_read_family(fp, ForFamily::Stray);
-        if let Some(s) = self.seed_read.as_mut() {
+        if let Some(s) = self.seed_read.state.as_mut() {
             s.wallet = Some(w);
             s.reason = Some(reason);
         }
     }
 
     pub(crate) fn seed_read_act(&mut self, choice: Choice) {
-        let Some(s) = self.seed_read.as_mut() else {
+        let Some(s) = self.seed_read.state.as_mut() else {
             return;
         };
         match choice {
             Choice::Skip => {
-                self.seed_read = None;
+                self.seed_read.state = None;
                 self.sheet = None;
                 self.family_intake_again(None);
             }
@@ -307,7 +312,7 @@ impl Faraday {
     /// stays, for the passphrase to be typed again.
     fn seed_read_choose(&mut self, with_pass: bool) {
         let c = self.compute();
-        let Some(s) = self.seed_read.as_ref() else {
+        let Some(s) = self.seed_read.state.as_ref() else {
             return;
         };
         let pass = if with_pass {
@@ -327,7 +332,7 @@ impl Faraday {
         if let (Some(why @ (ForFamily::Guess | ForFamily::Replace)), Some(plain)) =
             (s.family, s.loaded)
         {
-            let Some(s) = self.seed_read.take() else {
+            let Some(s) = self.seed_read.state.take() else {
                 return;
             };
             self.sheet = None;
@@ -342,12 +347,12 @@ impl Faraday {
         let restoring = self.entry.state().back == Some(Screen::Restore)
             || (s.loaded.is_some() && self.screen == Screen::Restore);
         if restoring && let Some(why) = self.restore_refusal(fp) {
-            if let Some(s) = self.seed_read.as_mut() {
+            if let Some(s) = self.seed_read.state.as_mut() {
                 s.error = Some(why);
             }
             return;
         }
-        let Some(s) = self.seed_read.take() else {
+        let Some(s) = self.seed_read.state.take() else {
             return;
         };
         self.sheet = None;
@@ -369,7 +374,7 @@ impl Faraday {
         let c = self.compute();
         let refused = match self.wallet_key_found(w, fp) {
             Found::Missing(n) => {
-                let Some(s) = self.seed_read.take() else {
+                let Some(s) = self.seed_read.state.take() else {
                     return;
                 };
                 self.sheet = None;
@@ -398,7 +403,7 @@ impl Faraday {
             Found::Here(n) => fill(EN.seed_read_key_already, &[&(n + 1).to_string()]),
             Found::None => self.not_a_wallet_key(w, fp),
         };
-        if let Some(s) = self.seed_read.as_mut() {
+        if let Some(s) = self.seed_read.state.as_mut() {
             s.error = Some(refused);
         }
     }
@@ -457,7 +462,7 @@ impl Faraday {
         if self.sheet != Some(Sheet::SeedRead) {
             return false;
         }
-        let Some(s) = self.seed_read.as_mut() else {
+        let Some(s) = self.seed_read.state.as_mut() else {
             return false;
         };
         let Some(f) = s.focus else {
@@ -494,7 +499,7 @@ impl Faraday {
     /// (Demo's `faraday` chip): focused, and the key the two make is
     /// worked out once typing pauses, as when typed.
     pub(crate) fn seed_read_filled(&mut self, i: u8) {
-        if let Some(s) = self.seed_read.as_mut() {
+        if let Some(s) = self.seed_read.state.as_mut() {
             let t = if i == 0 { &mut s.pass } else { &mut s.pass2 };
             t.set(crate::demo::PASSPHRASE);
             s.focus = Some(i);
@@ -509,7 +514,7 @@ impl Faraday {
     /// the two fields match.
     pub(crate) fn seed_read_typed(&mut self) {
         let c = self.compute();
-        if let Some(s) = self.seed_read.as_mut() {
+        if let Some(s) = self.seed_read.state.as_mut() {
             s.with = s.with_key_now(&c, &self.session.keys);
         }
     }
@@ -519,7 +524,7 @@ impl Faraday {
 /// one typed, and the way it loads.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(s) = app.seed_read.as_ref() else {
+    let Some(s) = app.seed_read.state() else {
         return;
     };
     let with = s.with_key();
