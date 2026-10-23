@@ -777,7 +777,7 @@ pub fn make_released(app: &mut Faraday, kind: Kind, fields: &[&str]) -> Option<S
 pub fn let_seed_files_out(app: &mut Faraday) -> usize {
     let mut n = 0;
     while app.sheet == Some(Sheet::SecretOut)
-        && app.secret_out.as_ref().is_some_and(|o| o.to_lock.is_some())
+        && testkit::secret_out(app).is_some_and(|o| o.to_lock.is_some())
         && n < 16
     {
         app.press(Action::SecretAck);

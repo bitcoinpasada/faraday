@@ -1329,9 +1329,7 @@ pub struct Faraday {
     /// Tools on show.
     tools: tools::ToolsArea,
     /// A secret waiting for the person to say where it goes.
-    pub secret_out: Option<secrets::SecretOut>,
-    /// The person has read what that secret gives away.
-    pub secret_ack: bool,
+    secrets: secrets::SecretsArea,
     /// The camera is on for camera noise.
     keygen_camera_on: bool,
     /// The camera sheet, the cameras the shell can open and the one
@@ -1561,8 +1559,7 @@ impl Faraday {
             explore: explore::ExploreArea::default(),
             lightning: lightning::LightningArea::default(),
             tools: tools::ToolsArea::default(),
-            secret_out: None,
-            secret_ack: false,
+            secrets: secrets::SecretsArea::default(),
             keygen_camera_on: false,
             camera: scan_key::Camera::default(),
             transfer: transfer::TransferArea::default(),
@@ -1993,7 +1990,7 @@ impl Faraday {
     /// open (`docs/history/PLAN.md` §5.4).
     fn secret_typed(&self) -> bool {
         self.keygen.is_some()
-            || self.secret_out.as_ref().is_some_and(|o| !o.to_visit)
+            || self.secrets.out().is_some_and(|o| !o.to_visit)
             || self.lightning.state().is_some()
             || !self.entry.state().typed.is_empty()
             || !self.entry.state().passphrase.is_empty()
@@ -2771,7 +2768,7 @@ impl Faraday {
         self.keygen = None;
         self.wordlist.clear();
         self.bip85.clear();
-        self.secret_out = None;
+        self.secrets.clear();
         self.entry.reset();
         self.save_boxes_for_lock();
         self.restart = true;

@@ -511,7 +511,7 @@ fn the_revocation_is_exported_through_the_secret_sheet_as_a_rev_file() {
     app.press(Action::Vault(V::GpgExportRevocation));
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
     assert_eq!(
-        app.secret_out.as_ref().map(|o| o.name.clone()),
+        testkit::secret_out(&app).map(|o| o.name.clone()),
         Some(format!("release-{fpr}.rev"))
     );
     // Nothing is in the Outbox until the person says they understand.
@@ -570,7 +570,7 @@ fn a_new_revocation_asks_the_reason_as_gnupg_does() {
     type_text(&mut app, "My key was stolen");
     app.press(Action::Vault(V::FormSave));
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
-    let out = app.secret_out.as_ref().unwrap();
+    let out = testkit::secret_out(&app).unwrap();
     let text = String::from_utf8(out.bytes.to_vec()).unwrap();
     assert!(text.contains(":-----BEGIN PGP PUBLIC KEY BLOCK-----"));
     assert_eq!(

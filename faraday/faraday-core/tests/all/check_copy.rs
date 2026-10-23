@@ -856,8 +856,7 @@ fn save_as_a_file_offers_no_seedqr_picture_for_a_words_only_copy() {
     let labels = |copies| {
         let mut app = backing_up(ATTACK, true, copies);
         app.press(Action::BFile);
-        app.secret_out
-            .as_ref()
+        testkit::secret_out(&app)
             .expect("the file is offered")
             .forms
             .iter()

@@ -1597,3 +1597,8 @@ pub fn message_text(app: &mut crate::Faraday, text: &str) {
 pub fn entry(app: &crate::Faraday) -> &crate::EntryState {
     app.entry.state()
 }
+
+/// The secret waiting on the secret sheet, if one is.
+pub fn secret_out(app: &crate::Faraday) -> Option<&crate::secrets::SecretOut> {
+    app.secrets.out()
+}

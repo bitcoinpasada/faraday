@@ -1986,7 +1986,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// understand what it gives away, the Outbox unprotected.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(out) = app.secret_out.as_ref() else {
+    let Some(out) = app.secrets.out() else {
         return;
     };
     // Where it would go into a vault: a seed the vault holds already
@@ -2019,7 +2019,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             (f.label, style, Action::SecretForm(i as u8))
         })
         .collect();
-    let out_style = if app.secret_ack {
+    let out_style = if app.secrets.ack() {
         Style::Secondary
     } else {
         Style::Disabled
@@ -2097,7 +2097,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             if forms.len() > 1 {
                 cy += wrap_buttons(ui, x, cy, iw, 34.0, &forms) + 4.0;
             }
-            ui.checkbox(x, cy + 1.0, app.secret_ack, true);
+            ui.checkbox(x, cy + 1.0, app.secrets.ack(), true);
             let lh = ui.wrap(
                 x + 28.0,
                 cy,
@@ -2202,7 +2202,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if forms.len() > 1 {
         cy += wrap_buttons(ui, bx, cy, bw, 34.0, &forms) + 2.0;
     }
-    ui.checkbox(bx, cy + 1.0, app.secret_ack, true);
+    ui.checkbox(bx, cy + 1.0, app.secrets.ack(), true);
     let lh = ui.wrap(
         bx + 28.0,
         cy,

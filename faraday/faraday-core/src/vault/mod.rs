@@ -2713,7 +2713,7 @@ impl Faraday {
                     self.sheet = Some(crate::Sheet::Import);
                 }
                 // Unlocked for a secret: its sheet again, with the vault.
-                if back.is_some() && self.secret_out.is_some() {
+                if back.is_some() && self.secrets.out().is_some() {
                     self.sheet = Some(crate::Sheet::SecretOut);
                 }
             }

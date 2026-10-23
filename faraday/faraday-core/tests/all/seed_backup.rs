@@ -283,7 +283,10 @@ fn cancelling_the_sheet_lets_nothing_out() {
     app.press(Action::BFile);
     app.press(Action::SecretAck);
     app.press(Action::Cancel);
-    assert!(app.secret_out.is_none(), "the secret is still held");
+    assert!(
+        testkit::secret_out(&app).is_none(),
+        "the secret is still held"
+    );
     assert_eq!(secrets_out(&app), 0);
     // Opened again, the warning is unticked.
     app.press(Action::BFile);

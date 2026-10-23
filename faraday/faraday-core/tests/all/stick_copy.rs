@@ -281,7 +281,7 @@ fn a_seed_in_the_inbox_is_written_only_past_the_secret_sheet() {
         let r = row(&app, name).expect("not offered");
         app.press(r);
         assert_eq!(app.sheet, Some(Sheet::SecretOut), "{name}: no secret sheet");
-        assert_eq!(app.secret_out.as_ref().map(|o| o.ack), Some(Ack::Seed));
+        assert_eq!(testkit::secret_out(&app).map(|o| o.ack), Some(Ack::Seed));
         // Nothing until the line is ticked.
         app.press(Action::SecretUnprotected);
         assert!(
@@ -324,7 +324,7 @@ fn text_is_offered_as_something_faraday_cannot_tell_about() {
     app.press(Action::VisitOutAll);
     assert!(app.visit.from_inbox.is_empty(), "Select all ticked text");
     app.press(row(&app, &notes.0).unwrap());
-    let out = app.secret_out.as_ref().expect("no secret sheet");
+    let out = testkit::secret_out(&app).expect("no secret sheet");
     assert_eq!(out.ack, Ack::Unknown);
     assert_eq!(
         out.ack.text(app.medium),
@@ -524,7 +524,7 @@ fn a_gpg_public_key_and_signature_copied_between_sticks_are_public() {
         assert!(app.visit.from_inbox.contains(name), "{name} not ticked");
     }
     assert_eq!(app.sheet, None);
-    assert!(app.secret_out.is_none(), "a secret sheet opened");
+    assert!(testkit::secret_out(&app).is_none(), "a secret sheet opened");
     let wrote = write(&mut app, &[&b]);
     assert_eq!(wrote.len(), 2);
     for (stick, name, bytes) in &wrote {
@@ -589,6 +589,6 @@ fn a_gpg_private_key_block_is_still_offered_as_something_that_may_be_a_secret() 
     app.press(Action::VisitOutAll);
     assert!(app.visit.from_inbox.is_empty(), "Select all ticked it");
     app.press(row(&app, &file.0).unwrap());
-    let out = app.secret_out.as_ref().expect("no secret sheet");
+    let out = testkit::secret_out(&app).expect("no secret sheet");
     assert_eq!(out.ack, Ack::Unknown);
 }

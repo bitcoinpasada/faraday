@@ -756,7 +756,7 @@ fn a_seeds_words_file_on_a_stick_is_made_only_past_the_warning() {
     app.press(Action::BNext(bstep::ENVELOPE));
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(app.sheet, Some(Sheet::SecretOut), "the warning first");
-    let out = app.secret_out.as_ref().unwrap();
+    let out = testkit::secret_out(&app).unwrap();
     assert_eq!(out.ack, faraday_core::secrets::Ack::Seed);
     assert!(out.name.starts_with("seed-") && out.name.ends_with(".txt"));
     let nothing_yet = |app: &Faraday, shell: &Shell| {

@@ -366,9 +366,9 @@ fn the_secret_sheet_waits_while_a_vault_is_made_and_saves_into_it() {
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
     press_make(&mut app, Screen::Backup);
     assert_eq!(app.sheet, None, "the sheet closes on the way");
-    assert!(app.secret_out.is_some(), "its secret is kept");
+    assert!(testkit::secret_out(&app).is_some(), "its secret is kept");
     make_the_vault(&mut app);
-    assert!(app.secret_out.is_some(), "its secret is kept");
+    assert!(testkit::secret_out(&app).is_some(), "its secret is kept");
     unlock_with(&mut app, NEW_PHRASE);
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.sheet, Some(Sheet::SecretOut), "the sheet is back");
@@ -385,7 +385,7 @@ fn the_secret_sheet_waits_while_a_vault_is_made_and_saves_into_it() {
             .count(),
         1
     );
-    assert!(app.secret_out.is_none());
+    assert!(testkit::secret_out(&app).is_none());
     assert!(
         app.outbox.iter().all(|i| !i.secret),
         "nothing went out bare"
@@ -401,13 +401,13 @@ fn going_back_on_the_way_drops_the_secret() {
     app.press(Action::Vault(V::Back));
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.sheet, None);
-    assert!(app.secret_out.is_none(), "the secret is dropped");
+    assert!(testkit::secret_out(&app).is_none(), "the secret is dropped");
 
     // Leaving the way for another page drops it too.
     app.press(Action::BFile);
     press_make(&mut app, Screen::Backup);
     app.press(Action::Nav(Screen::Home));
-    assert!(app.secret_out.is_none(), "the secret is dropped");
+    assert!(testkit::secret_out(&app).is_none(), "the secret is dropped");
     assert_eq!(app.vaults.back_to, None);
 }
 

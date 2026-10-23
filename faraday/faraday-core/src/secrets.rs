@@ -199,13 +199,65 @@ pub fn tx_hash(psbt: &faraday_psbt::Psbt) -> [u8; 32] {
     sha256::Hash::hash(&tx).to_byte_array()
 }
 
+/// The secret sheet's area: a secret waiting for the person to say where
+/// it goes, and whether they have read what it gives away.
+#[derive(Default)]
+pub(crate) struct SecretsArea {
+    out: Option<SecretOut>,
+    ack: bool,
+}
+
+impl SecretsArea {
+    /// The secret waiting, if one is.
+    pub(crate) fn out(&self) -> Option<&SecretOut> {
+        self.out.as_ref()
+    }
+
+    /// The person has read what that secret gives away.
+    pub(crate) fn ack(&self) -> bool {
+        self.ack
+    }
+
+    /// Asks where a secret goes: a vault, or, after the warning, the
+    /// Outbox.
+    pub(crate) fn offer(&mut self, out: SecretOut, sheet: &mut Option<Sheet>) {
+        self.out = Some(out);
+        self.ack = false;
+        *sheet = Some(Sheet::SecretOut);
+    }
+
+    /// Takes the secret away, to be put somewhere or dropped.
+    pub(crate) fn take(&mut self) -> Option<SecretOut> {
+        self.out.take()
+    }
+
+    /// Drops the secret, its bytes wiped.
+    pub(crate) fn clear(&mut self) {
+        self.out = None;
+    }
+
+    /// Ticks or unticks the warning.
+    pub(crate) fn toggle_ack(&mut self) {
+        self.ack = !self.ack;
+    }
+
+    /// The file's form `i`, picked on the sheet.
+    pub(crate) fn pick_form(&mut self, i: usize) {
+        if let Some(out) = self.out.as_mut()
+            && let Some(f) = out.forms.get(i)
+        {
+            out.name = f.name.clone();
+            out.bytes = f.bytes.clone();
+            out.form = i;
+        }
+    }
+}
+
 impl Faraday {
     /// Asks where a secret goes: a vault, or, after the warning, the
     /// Outbox.
     pub(crate) fn offer_secret(&mut self, out: SecretOut) {
-        self.secret_out = Some(out);
-        self.secret_ack = false;
-        self.sheet = Some(Sheet::SecretOut);
+        self.secrets.offer(out, &mut self.sheet);
     }
 
     /// The seed shown on the backup's checklist, offered as a secret:
@@ -313,17 +365,6 @@ impl Faraday {
         self.offer_secret(out);
     }
 
-    /// The file's form `i`, picked on the sheet.
-    pub(crate) fn secret_form(&mut self, i: usize) {
-        if let Some(out) = self.secret_out.as_mut()
-            && let Some(f) = out.forms.get(i)
-        {
-            out.name = f.name.clone();
-            out.bytes = f.bytes.clone();
-            out.form = i;
-        }
-    }
-
     /// The secret into the open vault; its public half, if it has one, to
     /// the Outbox.
     pub(crate) fn secret_to_vault(&mut self) {
@@ -332,7 +373,7 @@ impl Faraday {
             return;
         };
         let vault = v.name.clone();
-        let Some(out) = self.secret_out.take() else {
+        let Some(out) = self.secrets.take() else {
             return;
         };
         let record = match &out.keep {
@@ -433,10 +474,10 @@ impl Faraday {
     /// they understand what it gives away.
     pub(crate) fn secret_unprotected(&mut self) {
         let c = self.compute();
-        if !self.secret_ack {
+        if !self.secrets.ack() {
             return;
         }
-        let Some(out) = self.secret_out.take() else {
+        let Some(out) = self.secrets.take() else {
             return;
         };
         self.sheet = None;
@@ -475,7 +516,7 @@ impl Faraday {
     /// Nothing chosen: a carry file goes back to the spend it came from;
     /// any other secret is dropped, its bytes wiped.
     pub(crate) fn secret_cancel(&mut self) {
-        if let Some(out) = self.secret_out.take() {
+        if let Some(out) = self.secrets.take() {
             self.secret_back(out);
         }
     }
@@ -523,9 +564,9 @@ impl Faraday {
     pub(crate) fn secret_act(&mut self, action: Action) {
         match action {
             Action::SecretVault => self.secret_to_vault(),
-            Action::SecretAck => self.secret_ack = !self.secret_ack,
+            Action::SecretAck => self.secrets.toggle_ack(),
             Action::SecretUnprotected => self.secret_unprotected(),
-            Action::SecretForm(i) => self.secret_form(usize::from(i)),
+            Action::SecretForm(i) => self.secrets.pick_form(usize::from(i)),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
         }
