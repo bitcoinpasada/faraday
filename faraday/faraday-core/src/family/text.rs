@@ -90,9 +90,9 @@ pub fn title(app: &Faraday, id: CardId) -> String {
             page::SAFE => return fill(EN.family_title_start, &[app.medium.noun()]),
             page::HOLDING => EN.family_what_do_you,
             page::OPEN => EN.family_open_the_wallet,
-            page::CHECK if app.family.from_card => EN.family_load_the_wallet,
+            page::CHECK if app.family.state.from_card => EN.family_load_the_wallet,
             page::CHECK if app.family_guess().is_some() => EN.family_title_check_money,
-            page::WRITE if app.family.from_card => EN.family_title_write_payment,
+            page::WRITE if app.family.state.from_card => EN.family_title_write_payment,
             page::CHECK => EN.family_check_the_money,
             page::WRITE => EN.family_write_the_payment,
             page::BRING => EN.family_bring_the_transaction,
@@ -103,7 +103,9 @@ pub fn title(app: &Faraday, id: CardId) -> String {
             step::TXID => EN.family_the_transaction,
             step::PATH => EN.family_title_which_way,
             step::NONCES => EN.family_nonces,
-            step::SIGNERS if app.family.route == Some(Route::Paper) => EN.family_add_the_seeds,
+            step::SIGNERS if app.family.state.route == Some(Route::Paper) => {
+                EN.family_add_the_seeds
+            }
             step::SIGNERS => EN.family_who_signs,
             step::SIGN => EN.family_title_sign,
             step::COLLECT => EN.family_the_other_signatures,
@@ -126,8 +128,8 @@ pub fn lead(app: &View, id: CardId) -> String {
         }
         CardId::Page(page::HOLDING | page::OPEN) => EN.family_scan_or_type,
         // From the wallet's card: what to press, no more.
-        CardId::Page(page::CHECK) if app.family.from_card => EN.family_in_sparrow_file_new,
-        CardId::Page(page::WRITE) if app.family.from_card => EN.family_in_sparrow_s,
+        CardId::Page(page::CHECK) if app.family.state.from_card => EN.family_in_sparrow_file_new,
+        CardId::Page(page::WRITE) if app.family.state.from_card => EN.family_in_sparrow_s,
         CardId::Page(page::CHECK) if app.family_guess().is_some() => EN.family_words_alone,
         CardId::Page(page::CHECK) => EN.family_load_this_same,
         CardId::Page(page::WRITE) => EN.family_this_part_happens,
@@ -152,7 +154,7 @@ pub fn lead(app: &View, id: CardId) -> String {
         CardId::Step(step::TRANSACTION) => EN.family_read_the_summary,
         CardId::Step(step::TXID) => EN.family_lead_write_down_id,
         CardId::Step(step::SIGNERS) if signers_missing(app) => EN.family_lead_every_key,
-        CardId::Step(step::SIGNERS) if app.family.route == Some(Route::Paper) => {
+        CardId::Step(step::SIGNERS) if app.family.state.route == Some(Route::Paper) => {
             EN.family_lead_one_seed
         }
         CardId::Step(step::SIGN) => EN.family_signing_adds,
@@ -185,7 +187,7 @@ fn signers_missing(app: &View) -> bool {
         .iter()
         .filter(|fp| app.session.keys.key_label(**fp).is_some())
         .count();
-    app.family.route != Some(Route::Paper) && here < app.spend_needed()
+    app.family.state.route != Some(Route::Paper) && here < app.spend_needed()
 }
 
 /// A card's More about this, as separate paragraphs.

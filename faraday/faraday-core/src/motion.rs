@@ -666,7 +666,7 @@ impl Faraday {
             {
                 &mut self.list_offset
             }
-            Screen::Family => &mut self.family.scroll.y,
+            Screen::Family => self.family.scroll_y_mut(),
             Screen::Vanity => &mut self.vanity.scroll_mut()?.y,
             Screen::KeyGen => &mut self.keygen.scroll_mut()?.y,
             Screen::Bip85 => &mut self.bip85.scroll_mut()?.y,

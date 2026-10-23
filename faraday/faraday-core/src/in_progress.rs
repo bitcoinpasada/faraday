@@ -112,7 +112,7 @@ impl Faraday {
         if self.backup_going() == Some(Going::Backup) && self.backup_begun() {
             v.push(Going::Backup);
         }
-        if self.wallets.spend().is_some() || self.family.route.is_some() {
+        if self.wallets.spend().is_some() || self.family.state().route.is_some() {
             v.push(Going::Spend);
         }
         if self
@@ -455,9 +455,14 @@ impl Faraday {
                 }
             }
             Going::Spend => {
-                let to = match self.family_wallet().filter(|_| self.family.from_card) {
+                let to = match self
+                    .family_wallet()
+                    .filter(|_| self.family.state().from_card)
+                {
                     Some(w) => Action::OpenWallet(w),
-                    None if self.family.from == Some(Screen::Home) => Action::Nav(Screen::Home),
+                    None if self.family.state().from == Some(Screen::Home) => {
+                        Action::Nav(Screen::Home)
+                    }
                     None => Action::Nav(Screen::WalletsStart),
                 };
                 self.wallets.clear_spend();
@@ -693,7 +698,7 @@ impl Faraday {
         {
             return spend_open().unwrap_or_else(|| EN.sidebar_flow_spend.to_string());
         }
-        match self.family.open {
+        match self.family.state().open {
             Some(Open::Page(p)) => crate::family::text::title(self, CardId::Page(p)),
             Some(Open::Spend) => spend_open().unwrap_or_else(|| EN.sidebar_flow_spend.to_string()),
             None => spend_open().unwrap_or_else(|| {

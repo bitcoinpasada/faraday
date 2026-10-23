@@ -135,7 +135,7 @@ fn spend_from_this_wallet_opens_on_load_the_wallet_in_sparrow() {
     assert!(app.offers(Action::Family(F::SpendFrom(w))));
     app.press(Action::Family(F::SpendFrom(w)));
     assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
     // Past What do you have?.
     let cards = app.family_cards();
     assert_eq!(cards.first(), Some(&CardId::Page(page::CHECK)));
@@ -146,7 +146,7 @@ fn spend_from_this_wallet_opens_on_load_the_wallet_in_sparrow() {
     assert!(app.offers(Action::QrWallet(w)), "the wallet QR");
     // It is loaded: Write the payment in Sparrow, with the PSBT's ways in.
     app.press(Action::Family(F::Next(page::CHECK)));
-    assert_eq!(app.family.open, Some(Open::Page(page::WRITE)));
+    assert_eq!(app.family().open, Some(Open::Page(page::WRITE)));
     let text = drawn(&mut app);
     assert!(text.contains("Write the payment in Sparrow"), "{text}");
     assert!(text.contains("Scan the PSBT"), "{text}");
@@ -166,7 +166,7 @@ fn the_shortcut_scans_the_psbt_from_sparrow_and_opens_its_review() {
     let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
     scan_psbt(&mut app, &psbt);
     assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family.open, Some(Open::Spend));
+    assert_eq!(app.family().open, Some(Open::Spend));
     let s = app.spend().expect("no spend");
     assert_eq!(s.wallet, Some(w));
     assert_eq!(s.open, Some(step::TRANSACTION), "the review is not next");
@@ -186,7 +186,7 @@ fn with_its_psbt_in_files_the_button_signs_it_and_opens_its_review() {
     assert!(text.contains("Sign the PSBT from the stick"), "{text}");
     app.press(Action::Family(F::SpendFrom(w)));
     assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family.open, Some(Open::Spend));
+    assert_eq!(app.family().open, Some(Open::Spend));
     let s = app.spend().expect("no spend");
     assert_eq!(s.wallet, Some(w));
     assert_eq!(s.open, Some(step::TRANSACTION));
@@ -216,7 +216,7 @@ fn a_two_of_three_with_one_key_here_offers_scanning_a_key_and_collecting_a_signa
         "Collect a signature"
     );
     app.press(Action::Step(step::COLLECT));
-    assert_eq!(app.family.open, Some(Open::Spend));
+    assert_eq!(app.family().open, Some(Open::Spend));
     assert_eq!(app.spend().unwrap().open, Some(step::COLLECT));
 }
 
@@ -291,7 +291,7 @@ fn leaving_the_spend_and_coming_back_resumes_it() {
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
     app.press(Action::Family(F::SpendFrom(w)));
-    assert_eq!(app.family.open, Some(Open::Page(page::WRITE)));
+    assert_eq!(app.family().open, Some(Open::Page(page::WRITE)));
 
     // With the PSBT: the card and Home say how far it is, and resume it.
     let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
@@ -311,7 +311,7 @@ fn leaving_the_spend_and_coming_back_resumes_it() {
     assert!(app.offers(Action::Family(F::SpendFrom(w))));
     app.press(Action::Family(F::SpendFrom(w)));
     assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family.open, Some(Open::Spend));
+    assert_eq!(app.family().open, Some(Open::Spend));
     assert_eq!(app.spend().unwrap().open, open);
 }
 

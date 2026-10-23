@@ -145,14 +145,14 @@ fn the_spend_tab_takes_two_seeds_and_an_xpub_to_check() {
     // One seed opens nothing yet: anything else in the envelope?
     assert!(app.family_wallet().is_none());
     assert_eq!(app.family_question(), Question::Anything);
-    assert_eq!(app.family.open, Some(Open::Page(page::HOLDING)));
+    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
     add_seed(&mut app, "zebra");
     // Two: the description is asked for; without one, how many sign
     // comes up.
     assert!(app.family_wallet().is_none());
     assert_eq!(app.family_question(), Question::Description);
     app.press(Action::Family(F::NoDescription));
-    assert!(app.family.seeds.shaping);
+    assert!(app.family().seeds.shaping);
     app.press(Action::Slide(SLIDE_N, 3));
     app.press(Action::Slide(SLIDE_M, 2));
     app.press(Action::Seeds(S::Focus(Focus::Cosigner(0))));
@@ -163,5 +163,5 @@ fn the_spend_tab_takes_two_seeds_and_an_xpub_to_check() {
         desc(&app.session.wallets[w].policy().to_descriptor()),
         desc(&testkit::savings())
     );
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
 }

@@ -262,6 +262,82 @@ pub struct FamilyState {
     pub guess: Option<Guess>,
 }
 
+/// The Spend tab's area: its state, private outside this folder.
+#[derive(Debug, Default)]
+pub(crate) struct FamilyArea {
+    state: FamilyState,
+}
+
+impl FamilyArea {
+    /// The tab's state, to read.
+    pub(crate) fn state(&self) -> &FamilyState {
+        &self.state
+    }
+
+    /// Whether the tab opens on what is loaded rather than on its
+    /// walk-through: something is loaded (`loaded`), and no route has been
+    /// taken.
+    pub(crate) fn overview(&self, loaded: bool) -> bool {
+        !self.state.walkthrough && self.state.route.is_none() && loaded
+    }
+
+    /// The tab's pages before the spend's steps. From a wallet's card
+    /// the wallet is open already: Load the wallet in Sparrow, then Write
+    /// the payment, which brings the PSBT too.
+    pub(crate) fn pages(&self) -> Vec<u8> {
+        if self.state.from_card {
+            vec![page::CHECK, page::WRITE]
+        } else {
+            (0..=page::BRING).filter(|&p| p != page::OPEN).collect()
+        }
+    }
+
+    /// The page that brings the transaction here.
+    pub(crate) fn bring_page(&self) -> u8 {
+        if self.state.from_card {
+            page::WRITE
+        } else {
+            page::BRING
+        }
+    }
+
+    /// Chooses the wallet to spend from, by name.
+    pub(crate) fn choose(&mut self, name: String) {
+        self.state.wallet = Some(name);
+    }
+
+    /// Sets the column's scroll, as the drawing pass notes it.
+    pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
+        self.state.scroll = to;
+    }
+
+    /// The column's scroll offset, to move it.
+    pub(crate) fn scroll_y_mut(&mut self) -> &mut f32 {
+        &mut self.state.scroll.y
+    }
+
+    /// Notes the screen the tab is opened from, for Back: Home or
+    /// Wallets, else none.
+    pub(crate) fn opened_from(&mut self, from: Screen) {
+        self.state.from = matches!(from, Screen::Home | Screen::WalletsStart).then_some(from);
+    }
+
+    /// The seeds typed on the words route, to change them.
+    pub(crate) fn seeds_mut(&mut self) -> &mut crate::seeds::SeedsState {
+        &mut self.state.seeds
+    }
+
+    /// A seed that came in unprotected is now the key `plain` was read as:
+    /// what came in is renamed by its fingerprint.
+    pub(crate) fn seed_became(&mut self, plain: [u8; 4], fp: [u8; 4]) {
+        for c in self.state.came.iter_mut() {
+            if *c == Came::Seed(plain) {
+                *c = Came::Seed(fp);
+            }
+        }
+    }
+}
+
 /// The single-key wallets typed words may open, the most common first.
 pub const SINGLE: [NewKind; 4] = [
     NewKind::NativeSegwit,
@@ -282,12 +358,16 @@ pub fn more_bit(id: CardId) -> u8 {
 }
 
 impl Faraday {
+    /// The Spend tab's state.
+    pub fn family(&self) -> &FamilyState {
+        &self.family.state
+    }
+
     /// Whether the tab opens on what is loaded rather than on its
     /// walk-through: something is loaded, and no route has been taken.
     pub fn family_overview(&self) -> bool {
-        !self.family.walkthrough
-            && self.family.route.is_none()
-            && (!self.session.keys.is_empty() || !self.session.wallets.is_empty())
+        self.family
+            .overview(!self.session.keys.is_empty() || !self.session.wallets.is_empty())
     }
 
     /// Costs what `spends_from` costs. The PSBT in Files that spends from
@@ -314,7 +394,7 @@ impl Faraday {
             .wallets
             .spend()
             .and_then(|s| s.wallet)
-            .filter(|&w| self.family.route.is_some() && self.family_wallet() == Some(w));
+            .filter(|&w| self.family.state.route.is_some() && self.family_wallet() == Some(w));
         match on_tab {
             Some(w) => Action::Family(FamilyAction::SpendFrom(w)),
             None => Action::Nav(Screen::Spend),
@@ -364,7 +444,7 @@ pub(crate) fn spend_button_on(r: &impl crate::glance::Reads, w: usize) -> (Strin
 impl Faraday {
     /// The wallet chosen to spend from, by its place in the session.
     pub fn family_wallet(&self) -> Option<usize> {
-        let name = self.family.wallet.as_deref()?;
+        let name = self.family.state.wallet.as_deref()?;
         self.session.wallets.iter().position(|w| w.name == name)
     }
 
@@ -375,13 +455,13 @@ impl Faraday {
 
     /// Whether a page is done.
     pub fn family_page_done(&self, p: u8) -> bool {
-        if self.family.from_card {
+        if self.family.state.from_card {
             match p {
                 // Loaded in Sparrow: said so here, or the wallet checked
                 // this power-on.
                 page::CHECK => {
                     return self.family_ready()
-                        && (self.family.closed[p as usize]
+                        && (self.family.state.closed[p as usize]
                             || self.family_wallet().is_some_and(|i| {
                                 self.is_checked(self.session.wallets[i].checksum())
                             }));
@@ -393,10 +473,18 @@ impl Faraday {
         }
         match p {
             page::HOLDING | page::OPEN => self.family_ready(),
-            page::CHECK | page::WRITE => self.family.closed[p as usize] && self.family_ready(),
+            page::CHECK | page::WRITE => {
+                self.family.state.closed[p as usize] && self.family_ready()
+            }
             page::BRING => self.wallets.spend().is_some(),
             page::AWAY => false,
-            _ => self.family.closed.get(p as usize).copied().unwrap_or(false),
+            _ => self
+                .family
+                .state
+                .closed
+                .get(p as usize)
+                .copied()
+                .unwrap_or(false),
         }
     }
 
@@ -423,25 +511,17 @@ impl Faraday {
     /// the wallet is open already: Load the wallet in Sparrow, then Write
     /// the payment, which brings the PSBT too.
     pub fn family_pages(&self) -> Vec<u8> {
-        if self.family.from_card {
-            vec![page::CHECK, page::WRITE]
-        } else {
-            (0..=page::BRING).filter(|&p| p != page::OPEN).collect()
-        }
+        self.family.pages()
     }
 
     /// The page that brings the transaction here.
     pub fn family_bring_page(&self) -> u8 {
-        if self.family.from_card {
-            page::WRITE
-        } else {
-            page::BRING
-        }
+        self.family.bring_page()
     }
 
     /// The card open now.
     pub fn family_open_card(&self) -> Option<CardId> {
-        match self.family.open? {
+        match self.family.state.open? {
             Open::Page(p) => Some(CardId::Page(p)),
             Open::Spend => self.wallets.spend()?.open.map(CardId::Step),
         }
@@ -474,8 +554,8 @@ impl Faraday {
     }
 
     fn family_advance(&mut self, from: u8) {
-        self.family.open = Some(self.family_first_open(from));
-        self.family.scroll.follow = true;
+        self.family.state.open = Some(self.family_first_open(from));
+        self.family.state.scroll.follow = true;
     }
 
     /// Keeps the open card one that can be reached: no page past What do
@@ -484,14 +564,14 @@ impl Faraday {
         self.family_auto_wallet();
         let ready = self.family_ready();
         // The wallet the card opened on is gone: the whole column again.
-        if self.family.from_card && !ready {
-            self.family.from_card = false;
+        if self.family.state.from_card && !ready {
+            self.family.state.from_card = false;
         }
         // A guess is of the wallet it made: gone with it.
-        if self.family.guess.is_some() && !self.family_guessed_wallet() {
-            self.family.guess = None;
+        if self.family.state.guess.is_some() && !self.family_guessed_wallet() {
+            self.family.state.guess = None;
         }
-        let open = match self.family.open {
+        let open = match self.family.state.open {
             Some(Open::Page(page::OPEN)) => Some(Open::Page(page::HOLDING)),
             Some(Open::Page(p)) if p > page::HOLDING && p != page::AWAY && !ready => {
                 Some(Open::Page(page::HOLDING))
@@ -503,9 +583,9 @@ impl Faraday {
             })),
             o => o,
         };
-        if open != self.family.open {
-            self.family.open = open;
-            self.family.scroll.follow = true;
+        if open != self.family.state.open {
+            self.family.state.open = open;
+            self.family.state.scroll.follow = true;
         }
     }
 
@@ -515,26 +595,26 @@ impl Faraday {
         let c = self.compute();
         use FamilyAction as F;
         if !matches!(a, F::More(_) | F::Unsure | F::MoreAddresses | F::Scan) {
-            self.family.error = None;
+            self.family.state.error = None;
         }
         match a {
             F::Card(p) => {
-                self.family.open = if self.family.open == Some(Open::Page(p)) {
+                self.family.state.open = if self.family.state.open == Some(Open::Page(p)) {
                     None
                 } else {
                     Some(Open::Page(p))
                 };
-                self.family.scroll.follow = true;
+                self.family.state.scroll.follow = true;
             }
             F::Next(p) => {
-                if let Some(c) = self.family.closed.get_mut(p as usize) {
+                if let Some(c) = self.family.state.closed.get_mut(p as usize) {
                     *c = true;
                 }
                 // "Yes, my money shows": this wallet is checked this
                 // power-on (`docs/WALLETS.md` §4). "It is loaded" says
                 // less.
                 if p == page::CHECK
-                    && !self.family.from_card
+                    && !self.family.state.from_card
                     && let Some(w) = self.family_wallet()
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
@@ -543,18 +623,18 @@ impl Faraday {
                 }
                 self.family_advance(p);
             }
-            F::Unsure => self.family.help = !self.family.help,
+            F::Unsure => self.family.state.help = !self.family.state.help,
             F::Scan => self.family_scan(None),
             F::Everything => {
-                self.family.everything = true;
+                self.family.state.everything = true;
                 self.family_words_kind(NewKind::NativeSegwit);
                 self.family_guess_start(false);
                 self.refresh_spend();
                 self.family_opened();
             }
             F::NoDescription => {
-                self.family.no_description = true;
-                let s = &mut self.family.seeds;
+                self.family.state.no_description = true;
+                let s = &mut self.family.state.seeds;
                 if !s.shaping {
                     s.start_shape();
                 }
@@ -582,11 +662,11 @@ impl Faraday {
                 self.family_drop_guess();
                 if scan {
                     self.family_scan(None);
-                } else if let Some(fp) = self.family.seeds.keys.first().copied() {
+                } else if let Some(fp) = self.family.state.seeds.keys.first().copied() {
                     self.seed_read_family(Fingerprint(fp), crate::seeds::read::ForFamily::Replace);
                 }
             }
-            F::More(k) => self.family.more ^= 1 << u32::from(k),
+            F::More(k) => self.family.state.more ^= 1 << u32::from(k),
             F::Pick(i) => {
                 self.vault_act(VaultAction::Pick(i));
                 self.vault_measure();
@@ -634,15 +714,17 @@ impl Faraday {
             }
             F::Choose(i) => {
                 if let Some(w) = self.session.wallets.get(i) {
-                    self.family.wallet = Some(w.name.clone());
+                    self.family.state.wallet = Some(w.name.clone());
                     self.wallets.set_wallet(i);
-                    if self.family.open == Some(Open::Page(page::HOLDING)) {
+                    if self.family.state.open == Some(Open::Page(page::HOLDING)) {
                         self.family_advance(page::HOLDING);
                     }
                 }
             }
             F::UsePsbt(i) => self.family_use_psbt(i),
-            F::MoreAddresses => self.family.addresses = (self.family.addresses + 5).min(47),
+            F::MoreAddresses => {
+                self.family.state.addresses = (self.family.state.addresses + 5).min(47)
+            }
             F::QrTx => {
                 if let Some(hex) = self.wallets.spend().and_then(|s| s.spend.finished_hex()) {
                     self.open_qr(QrView::text(&c, EN.family_finished_transaction, &hex));
@@ -653,10 +735,10 @@ impl Faraday {
                     return;
                 };
                 // Another wallet's pages said nothing of this one.
-                if self.family.wallet.as_deref() != Some(w.name.as_str()) {
-                    self.family.closed[page::CHECK as usize] = false;
-                    self.family.closed[page::WRITE as usize] = false;
-                    self.family.addresses = 0;
+                if self.family.state.wallet.as_deref() != Some(w.name.as_str()) {
+                    self.family.state.closed[page::CHECK as usize] = false;
+                    self.family.state.closed[page::WRITE as usize] = false;
+                    self.family.state.addresses = 0;
                 }
                 // Another wallet's spend gives way, as a new Sign does;
                 // its PSBT stays in Files.
@@ -664,12 +746,12 @@ impl Faraday {
                     self.wallets.clear_spend();
                 }
                 let w = &self.session.wallets[i];
-                self.family.wallet = Some(w.name.clone());
+                self.family.state.wallet = Some(w.name.clone());
                 self.wallets.set_wallet(i);
-                self.family.from_card = true;
-                self.family.help = false;
+                self.family.state.from_card = true;
+                self.family.state.help = false;
                 self.screen = Screen::Family;
-                self.family.route = Some(match w.origin {
+                self.family.state.route = Some(match w.origin {
                     crate::wallet::Origin::TypedWords | crate::wallet::Origin::TypedSeeds => {
                         Route::Words
                     }
@@ -678,48 +760,48 @@ impl Faraday {
                 });
                 // Someone who loaded a wallet already knows the map and
                 // the stick.
-                self.family.closed[page::MAP as usize] = true;
-                self.family.closed[page::SAFE as usize] = true;
-                self.family.walkthrough = true;
+                self.family.state.closed[page::MAP as usize] = true;
+                self.family.state.closed[page::SAFE as usize] = true;
+                self.family.state.walkthrough = true;
                 let psbt = self.psbt_for(&c, i);
                 match (self.wallets.spend().map(|s| s.wallet), psbt) {
-                    (Some(Some(w)), _) if w == i => self.family.open = Some(Open::Spend),
+                    (Some(Some(w)), _) if w == i => self.family.state.open = Some(Open::Spend),
                     (_, Some(k)) if self.wallets.spend().is_none() => self.family_use_psbt(k),
                     _ => self.family_advance(page::HOLDING),
                 }
-                self.family.scroll.follow = true;
+                self.family.state.scroll.follow = true;
             }
             F::Walkthrough => {
-                self.family.walkthrough = true;
-                self.family.from_card = false;
-                self.family.open = Some(Open::Page(page::MAP));
-                self.family.scroll = Default::default();
+                self.family.state.walkthrough = true;
+                self.family.state.from_card = false;
+                self.family.state.open = Some(Open::Page(page::MAP));
+                self.family.state.scroll = Default::default();
             }
             F::SeedWallet => {
-                self.family.from_card = false;
-                self.family.route = Some(Route::Words);
-                self.family.walkthrough = true;
-                self.family.closed[page::MAP as usize] = true;
-                self.family.closed[page::SAFE as usize] = true;
-                self.family.everything = true;
+                self.family.state.from_card = false;
+                self.family.state.route = Some(Route::Words);
+                self.family.state.walkthrough = true;
+                self.family.state.closed[page::MAP as usize] = true;
+                self.family.state.closed[page::SAFE as usize] = true;
+                self.family.state.everything = true;
                 self.family_words_kind(NewKind::NativeSegwit);
                 self.family_guess_start(false);
                 self.refresh_spend();
                 self.family_advance(page::HOLDING);
             }
             F::StartOver => {
-                self.family = FamilyState {
+                self.family.state = FamilyState {
                     open: Some(Open::Page(page::HOLDING)),
                     closed: {
                         let mut c = [false; page::COUNT as usize];
-                        c[page::MAP as usize] = self.family.closed[page::MAP as usize];
-                        c[page::SAFE as usize] = self.family.closed[page::SAFE as usize];
+                        c[page::MAP as usize] = self.family.state.closed[page::MAP as usize];
+                        c[page::SAFE as usize] = self.family.state.closed[page::SAFE as usize];
                         c
                     },
                     walkthrough: true,
                     ..FamilyState::default()
                 };
-                self.family.scroll.follow = true;
+                self.family.state.scroll.follow = true;
             }
         }
         self.family_settle();
@@ -736,7 +818,7 @@ impl Faraday {
         if !self.session.wallets.is_empty() {
             return;
         }
-        let all = match self.family.route {
+        let all = match self.family.state.route {
             Some(Route::Paper) => false,
             Some(Route::Vault) => {
                 if self.vaults.open.is_empty()
@@ -754,7 +836,12 @@ impl Faraday {
         let mut wallets: Vec<(usize, String)> = Vec::new();
         for (k, it) in self.inbox.iter().enumerate() {
             if it.kind != FileKind::Wallet
-                || !(all || self.family.came.contains(&Came::File(it.name.clone())))
+                || !(all
+                    || self
+                        .family
+                        .state
+                        .came
+                        .contains(&Came::File(it.name.clone())))
             {
                 continue;
             }
@@ -786,7 +873,7 @@ impl Faraday {
                 .and_then(|p| self.session.spends_from(&c, p))
         };
         if let Some(i) = only.or_else(by_psbt) {
-            self.family.wallet = Some(self.session.wallets[i].name.clone());
+            self.family.state.wallet = Some(self.session.wallets[i].name.clone());
             self.wallets.set_wallet(i);
         }
     }
@@ -801,7 +888,7 @@ impl Faraday {
         }
         if self.family_ready()
             && matches!(
-                self.family.open,
+                self.family.state.open,
                 Some(Open::Page(page::HOLDING | page::OPEN))
             )
             && self.family_strays().is_empty()
@@ -818,8 +905,8 @@ impl Faraday {
         if let Some(o) = self.vaults.open.get_mut(v) {
             o.skip.clear();
         }
-        self.family.route = Some(Route::Vault);
-        self.family.walkthrough = true;
+        self.family.state.route = Some(Route::Vault);
+        self.family.state.walkthrough = true;
     }
 
     /// A vault's seeds loaded on What do you have? with no wallet: they
@@ -830,10 +917,10 @@ impl Faraday {
         }
         let fps: Vec<[u8; 4]> = self.session.keys.all().map(|k| k.fingerprint.0).collect();
         for fp in fps {
-            self.family.seeds.take(fp);
+            self.family.state.seeds.take(fp);
             self.family_came(Came::Seed(fp));
         }
-        if self.family.seeds.keys.len() >= 2 {
+        if self.family.state.seeds.keys.len() >= 2 {
             self.family_several_seeds();
         }
     }
@@ -851,9 +938,9 @@ impl Faraday {
 
     /// Something came in: listed once, newest last.
     pub(crate) fn family_came(&mut self, c: Came) {
-        self.family.walkthrough = true;
-        if !self.family.came.contains(&c) {
-            self.family.came.push(c);
+        self.family.state.walkthrough = true;
+        if !self.family.state.came.contains(&c) {
+            self.family.state.came.push(c);
         }
     }
 
@@ -876,6 +963,7 @@ impl Faraday {
             return Vec::new();
         };
         self.family
+            .state
             .came
             .iter()
             .filter_map(|c| match c {
@@ -893,14 +981,14 @@ impl Faraday {
             return Question::None;
         }
         // Several wallets loaded, from a vault say: the choice is asked.
-        if !self.session.wallets.is_empty() && self.family.route == Some(Route::Vault) {
+        if !self.session.wallets.is_empty() && self.family.state.route == Some(Route::Vault) {
             return Question::None;
         }
-        match self.seeds_here(&self.family.seeds).len() {
+        match self.seeds_here(&self.family.state.seeds).len() {
             0 => Question::None,
-            1 if self.family.everything => Question::None,
+            1 if self.family.state.everything => Question::None,
             1 => Question::Anything,
-            _ if self.family.no_description => Question::Shape,
+            _ if self.family.state.no_description => Question::Shape,
             _ => Question::Description,
         }
     }
@@ -927,7 +1015,7 @@ impl Faraday {
         self.sheet = Some(Sheet::Scan);
         self.out.commands.push_back(Command::CameraOn);
         if !self.family_ready() {
-            self.family.open = Some(Open::Page(page::HOLDING));
+            self.family.state.open = Some(Open::Page(page::HOLDING));
         }
     }
 
@@ -1021,7 +1109,7 @@ impl Faraday {
             return;
         };
         self.family_came(Came::File(name.clone()));
-        self.family.error = None;
+        self.family.state.error = None;
         let note = match kind {
             FileKind::Wallet => {
                 if self.family_ready() && self.family_described().is_some() {
@@ -1058,7 +1146,7 @@ impl Faraday {
             }
             _ => fill(EN.family_is_in_files, &[&name.to_string()]),
         };
-        let note = self.family.error.clone().unwrap_or(note);
+        let note = self.family.state.error.clone().unwrap_or(note);
         if let Some(scan) = self.camera.scan_mut() {
             scan.note = Some(note);
         }
@@ -1069,7 +1157,7 @@ impl Faraday {
         self.inbox
             .iter()
             .filter(|i| i.kind == FileKind::Share)
-            .filter(|i| self.family.came.contains(&Came::File(i.name.clone())))
+            .filter(|i| self.family.state.came.contains(&Came::File(i.name.clone())))
             .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
             .collect()
     }
@@ -1091,8 +1179,8 @@ impl Faraday {
             if self.family_wallet().is_some()
                 && self.session.spends_from(&c, &p) == self.family_wallet()
             {
-                self.family.everything = true;
-                self.family.guess = None;
+                self.family.state.everything = true;
+                self.family.state.guess = None;
                 self.refresh_spend();
                 self.family_opened();
                 return;
@@ -1105,7 +1193,7 @@ impl Faraday {
         self.session
             .wallets
             .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
-        self.family.wallet = None;
+        self.family.state.wallet = None;
         let last = self.session.wallets.len().saturating_sub(1);
         self.wallets.set_wallet(self.wallets.wallet().min(last));
     }
@@ -1133,22 +1221,23 @@ impl Faraday {
         let at = if multi {
             MULTI_ORDER
                 .iter()
-                .position(|k| *k == self.family.seeds.kind)
+                .position(|k| *k == self.family.state.seeds.kind)
                 .unwrap_or(0)
         } else {
             0
         };
-        self.family.guess = Some(Guess {
+        self.family.state.guess = Some(Guess {
             multi,
             at,
             ..Guess::default()
         });
-        self.family.closed[page::CHECK as usize] = false;
+        self.family.state.closed[page::CHECK as usize] = false;
     }
 
     /// The guessed wallet's ways, and the one tried now.
     pub fn family_guess(&self) -> Option<&Guess> {
         self.family
+            .state
             .guess
             .as_ref()
             .filter(|_| self.family_guessed_wallet())
@@ -1182,7 +1271,7 @@ impl Faraday {
     /// No money shows: the way tried is listed as such, and the next one
     /// replaces the wallet; for one key, first the passphrase question.
     fn family_no_money(&mut self) {
-        let Some(g) = self.family.guess.as_mut() else {
+        let Some(g) = self.family.state.guess.as_mut() else {
             return;
         };
         let (kind, pass) = Self::guess_way(g, g.at);
@@ -1204,7 +1293,7 @@ impl Faraday {
     /// The guess goes on to way `at`: the wallet made again of that
     /// kind, or None of these show money after the last.
     pub(crate) fn family_guess_step(&mut self, at: usize) {
-        let Some(g) = self.family.guess.as_mut() else {
+        let Some(g) = self.family.state.guess.as_mut() else {
             return;
         };
         g.asking = false;
@@ -1215,8 +1304,8 @@ impl Faraday {
         g.at = at;
         let (kind, _) = Self::guess_way(g, at);
         let multi = g.multi;
-        self.family.addresses = 0;
-        self.family.closed[page::CHECK as usize] = false;
+        self.family.state.addresses = 0;
+        self.family.state.closed[page::CHECK as usize] = false;
         if multi {
             self.family_seeds_kind(kind);
         } else {
@@ -1232,12 +1321,12 @@ impl Faraday {
         let Some(w) = self.family_wallet() else {
             return;
         };
-        self.family.seeds.kind = kind;
-        let s = self.family.seeds.clone();
+        self.family.state.seeds.kind = kind;
+        let s = self.family.state.seeds.clone();
         let d = match self.seeds_descriptor(&c, &s) {
             Ok(d) => d,
             Err(e) => {
-                self.family.error = Some(e);
+                self.family.state.error = Some(e);
                 return;
             }
         };
@@ -1251,10 +1340,10 @@ impl Faraday {
             crate::wallet::Origin::TypedSeeds,
         ) {
             Ok(i) => {
-                self.family.wallet = Some(self.session.wallets[i].name.clone());
+                self.family.state.wallet = Some(self.session.wallets[i].name.clone());
                 self.wallets.set_wallet(i);
             }
-            Err(e) => self.family.error = Some(e.text()),
+            Err(e) => self.family.state.error = Some(e.text()),
         }
     }
 
@@ -1274,7 +1363,7 @@ impl Faraday {
         if self.family_seed_with(plain, source, pass).is_none() {
             return;
         }
-        if let Some(g) = self.family.guess.as_mut() {
+        if let Some(g) = self.family.state.guess.as_mut() {
             g.pass = true;
         }
         self.family_guess_step(1);
@@ -1311,15 +1400,15 @@ impl Faraday {
                 return None;
             }
         };
-        for k in self.family.seeds.keys.iter_mut() {
+        for k in self.family.state.seeds.keys.iter_mut() {
             if *k == plain.0 {
                 *k = fp.0;
             }
         }
-        if self.family.seeds.keys.is_empty() {
-            self.family.seeds.keys.push(fp.0);
+        if self.family.state.seeds.keys.is_empty() {
+            self.family.state.seeds.keys.push(fp.0);
         }
-        for c in self.family.came.iter_mut() {
+        for c in self.family.state.came.iter_mut() {
             if *c == Came::Seed(plain.0) {
                 *c = Came::Seed(fp.0);
             }
@@ -1343,24 +1432,25 @@ impl Faraday {
         self.session
             .wallets
             .retain(|w| w.origin != crate::wallet::Origin::TypedWords);
-        self.family.wallet = None;
+        self.family.state.wallet = None;
         let last = self.session.wallets.len().saturating_sub(1);
         self.wallets.set_wallet(self.wallets.wallet().min(last));
-        self.family.guess = None;
-        self.family.everything = false;
-        self.family.no_description = false;
-        self.family.seeds.shaping = false;
-        self.family.closed[page::CHECK as usize] = false;
-        self.family.addresses = 0;
+        self.family.state.guess = None;
+        self.family.state.everything = false;
+        self.family.state.no_description = false;
+        self.family.state.seeds.shaping = false;
+        self.family.state.closed[page::CHECK as usize] = false;
+        self.family.state.addresses = 0;
         self.refresh_spend();
-        self.family.open = Some(Open::Page(page::HOLDING));
-        self.family.scroll.follow = true;
+        self.family.state.open = Some(Open::Page(page::HOLDING));
+        self.family.state.scroll.follow = true;
     }
 
     /// The key the words route's single-key wallet is opened from: the
     /// first seed typed on the route, else the last loaded.
     pub(crate) fn family_words_key(&self) -> Option<usize> {
         self.family
+            .state
             .seeds
             .keys
             .first()
@@ -1378,7 +1468,7 @@ impl Faraday {
         let text = match self.session.keys.account_text(&c, key, kind, 0) {
             Ok(t) => t,
             Err(e) => {
-                self.family.error = Some(e);
+                self.family.state.error = Some(e);
                 return;
             }
         };
@@ -1399,10 +1489,10 @@ impl Faraday {
             crate::wallet::Origin::TypedWords,
         ) {
             Ok(i) => {
-                self.family.wallet = Some(name);
+                self.family.state.wallet = Some(name);
                 self.wallets.set_wallet(i);
             }
-            Err(e) => self.family.error = Some(e.text()),
+            Err(e) => self.family.state.error = Some(e.text()),
         }
     }
 
@@ -1437,24 +1527,24 @@ impl Faraday {
             .add_wallet(&c, &name, &text, &source, crate::wallet::Origin::Named)
         {
             Ok(i) => {
-                self.family.wallet = Some(self.session.wallets[i].name.clone());
+                self.family.state.wallet = Some(self.session.wallets[i].name.clone());
                 self.wallets.set_wallet(i);
                 self.family_described_in();
                 self.refresh_spend();
                 self.family_opened();
             }
-            Err(e) => self.family.error = Some(e.text()),
+            Err(e) => self.family.state.error = Some(e.text()),
         }
     }
 
     /// A description came in: the wallet is opened from it, and a guess
     /// made from seeds before it goes.
     fn family_described_in(&mut self) {
-        if self.family.route != Some(Route::Vault) {
-            self.family.route = Some(Route::Paper);
+        if self.family.state.route != Some(Route::Vault) {
+            self.family.state.route = Some(Route::Paper);
         }
-        self.family.walkthrough = true;
-        self.family.guess = None;
+        self.family.state.walkthrough = true;
+        self.family.state.guess = None;
         // Only a wallet guessed from Family's own typed words is dropped
         // here; one guessed from Seeds' typed seeds (`Origin::TypedSeeds`)
         // is left alone. Deliberate, not an oversight: the two screens
@@ -1495,17 +1585,17 @@ impl Faraday {
                         crate::wallet::Origin::Named,
                     ) {
                         Ok(i) => {
-                            self.family.wallet = Some(self.session.wallets[i].name.clone());
+                            self.family.state.wallet = Some(self.session.wallets[i].name.clone());
                             self.wallets.set_wallet(i);
                             self.family_described_in();
                             self.refresh_spend();
                             self.family_opened();
                         }
-                        Err(e) => self.family.error = Some(e.text()),
+                        Err(e) => self.family.state.error = Some(e.text()),
                     }
                 }
                 None if loud => {
-                    self.family.error = Some(fill(
+                    self.family.state.error = Some(fill(
                         EN.family_of_keys_in_hand,
                         &[&m.have.len().to_string(), &m.n.to_string()],
                     ));
@@ -1514,7 +1604,7 @@ impl Faraday {
             },
             Err(e) => {
                 if loud {
-                    self.family.error = Some(e);
+                    self.family.state.error = Some(e);
                 }
             }
         }
@@ -1530,8 +1620,8 @@ impl Faraday {
             return;
         };
         if s.wallet.is_none()
-            && self.family.route == Some(Route::Words)
-            && self.family.seeds.keys.len() <= 1
+            && self.family.state.route == Some(Route::Words)
+            && self.family.state.seeds.keys.len() <= 1
         {
             let before = self.family_words_kind_now();
             let mut found = false;
@@ -1553,7 +1643,7 @@ impl Faraday {
         if let Some(w) = w
             && let Some(wl) = self.session.wallets.get(w)
         {
-            self.family.wallet = Some(wl.name.clone());
+            self.family.state.wallet = Some(wl.name.clone());
             self.wallets.set_wallet(w);
         }
         if let Some(s) = self.wallets.spend_mut() {
@@ -1562,8 +1652,8 @@ impl Faraday {
             s.done[step::CHECK as usize] = true;
             s.open = s.steps.iter().copied().find(|&n| !s.done[n as usize]);
         }
-        self.family.open = Some(Open::Spend);
-        self.family.scroll.follow = true;
+        self.family.state.open = Some(Open::Spend);
+        self.family.state.scroll.follow = true;
     }
 
     /// A file that arrived by camera while the tab is open: a wallet or
@@ -1582,7 +1672,7 @@ impl Faraday {
                 self.family_rebuild(false);
                 true
             }
-            FileKind::Psbt if self.family_ready() || self.family.route.is_some() => {
+            FileKind::Psbt if self.family_ready() || self.family.state.route.is_some() => {
                 self.family_use_psbt(index);
                 true
             }
@@ -1594,45 +1684,45 @@ impl Faraday {
     /// follows the spend's, and the last page opens after the last step.
     pub(crate) fn family_step_moved(&mut self, closed_as_done: bool) {
         let open = self.wallets.spend().and_then(|s| s.open);
-        self.family.open = match (open, closed_as_done) {
+        self.family.state.open = match (open, closed_as_done) {
             (Some(_), _) => Some(Open::Spend),
             (None, true) => Some(Open::Page(page::AWAY)),
             (None, false) => None,
         };
-        self.family.scroll.follow = true;
+        self.family.state.scroll.follow = true;
     }
 
     /// What the tab keeps across a lock: nothing secret.
     pub(crate) fn family_kept(&self) -> Option<Vec<u8>> {
         let active = self.screen == Screen::Family
             || (self.screen == Screen::Entry && self.entry.state().back == Some(Screen::Family));
-        if self.family.route.is_none() && self.family.came.is_empty() && !active {
+        if self.family.state.route.is_none() && self.family.state.came.is_empty() && !active {
             return None;
         }
-        let open = match self.family.open {
+        let open = match self.family.state.open {
             Some(Open::Page(p)) => p.to_string(),
             Some(Open::Spend) => "spend".to_string(),
             None => String::new(),
         };
         let closed: Vec<String> = (0..page::COUNT)
-            .filter(|&p| self.family.closed[p as usize])
+            .filter(|&p| self.family.state.closed[p as usize])
             .map(|p| p.to_string())
             .collect();
         let mut text = format!(
             "active={}\nroute={}\nopen={open}\nclosed={}\n",
             u8::from(active),
-            self.family.route.map(Route::code).unwrap_or(""),
+            self.family.state.route.map(Route::code).unwrap_or(""),
             closed.join(",")
         );
-        if let Some(w) = &self.family.wallet {
+        if let Some(w) = &self.family.state.wallet {
             text.push_str(&format!("wallet={}\n", w.replace('\n', " ")));
         }
-        if self.family.from_card {
+        if self.family.state.from_card {
             text.push_str("card=1\n");
         }
         // The files that came in; seeds come back by the vault or not
         // at all.
-        for c in &self.family.came {
+        for c in &self.family.state.came {
             if let Came::File(name) = c {
                 text.push_str(&format!("came={}\n", name.replace('\n', " ")));
             }
@@ -1673,11 +1763,68 @@ impl Faraday {
             }
         }
         f.scroll.follow = true;
-        self.family = f;
+        self.family.state = f;
         if active {
             self.screen = Screen::Family;
         }
         self.family_settle();
+    }
+}
+
+impl Faraday {
+    /// A seed typed on What do you have? with no wallet open yet: the
+    /// seeds the wallet is worked out from (`docs/history/SCAN-TO-SIGN.md`
+    /// §4).
+    pub(crate) fn family_seed_took(&mut self, fp: Fingerprint) {
+        self.family_came(Came::Seed(fp.0));
+        if self.family.state.route.is_none() {
+            self.family.state.route = Some(Route::Words);
+        }
+        // A seed typed before this flow kept its list, as the wallet the
+        // words route opened from it: it is the first.
+        if self.family.state.seeds.keys.is_empty()
+            && let Some(w) = self
+                .session
+                .wallets
+                .iter()
+                .find(|w| w.source == WORDS_SOURCE)
+            && let Some(first) = self.session.slots(w).first().and_then(|s| s.fingerprint)
+            && first != fp
+        {
+            self.family.state.seeds.keys.push(first.0);
+        }
+        self.family.state.seeds.take(fp.0);
+        if self.family.state.seeds.keys.len() >= 2 {
+            self.family_several_seeds();
+        }
+    }
+
+    /// Two seeds or more and no description: the single-key wallet the
+    /// first opened goes, and once I can't find one is pressed, the
+    /// wallet's shape comes up.
+    pub(crate) fn family_several_seeds(&mut self) {
+        let before = self.session.wallets.len();
+        self.session.wallets.retain(|w| w.source != WORDS_SOURCE);
+        if self.session.wallets.len() != before {
+            if self
+                .family
+                .state
+                .wallet
+                .as_deref()
+                .is_some_and(|n| !self.session.wallets.iter().any(|w| w.name == n))
+            {
+                self.family.state.wallet = None;
+            }
+            let last = self.session.wallets.len().saturating_sub(1);
+            self.wallets.set_wallet(self.wallets.wallet().min(last));
+        }
+        self.family.state.everything = false;
+        let s = &mut self.family.state.seeds;
+        if s.shaping {
+            s.fit();
+        } else if self.family.state.no_description {
+            s.start_shape();
+        }
     }
 }
 

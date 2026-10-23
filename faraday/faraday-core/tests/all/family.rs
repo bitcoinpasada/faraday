@@ -107,7 +107,7 @@ fn on_intake(app: &mut Faraday) {
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Next(page::MAP)));
     app.press(Action::Family(F::Next(page::SAFE)));
-    assert_eq!(app.family.open, Some(Open::Page(page::HOLDING)));
+    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
 }
 
 /// The camera, opened by Scan the QR codes you have, reads this code.
@@ -243,15 +243,15 @@ fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
     assert!(app.session.wallets.len() > 1);
     let savings = wallet_at(&app, "Savings");
     assert_eq!(app.family_wallet(), Some(savings));
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
     app.press(Action::Family(F::Next(page::CHECK)));
     app.press(Action::Family(F::Next(page::WRITE)));
-    assert_eq!(app.family.open, Some(Open::Page(page::BRING)));
+    assert_eq!(app.family().open, Some(Open::Page(page::BRING)));
 
     let at = inbox_at(&app, "savings-unsigned.psbt");
     app.press(Action::Family(F::UsePsbt(at)));
     assert_eq!(app.screen, Screen::Family, "the spend left the tab");
-    assert_eq!(app.family.open, Some(Open::Spend));
+    assert_eq!(app.family().open, Some(Open::Spend));
     let s = app.spend().unwrap();
     assert_eq!(s.wallet, Some(savings), "the spend's wallet is not Savings");
     assert_eq!(s.open, Some(step::TRANSACTION), "the review is not first");
@@ -329,7 +329,7 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
     let savings = wallet_at(&app, "Savings");
     // Choosing the wallet is the card done.
     app.press(Action::Family(F::Choose(savings)));
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
     app.press(Action::Family(F::Next(page::CHECK)));
     app.press(Action::Family(F::Next(page::WRITE)));
 
@@ -340,8 +340,8 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
         Screen::Family,
         "the lock did not return to the tab"
     );
-    assert_eq!(app.family.route, Some(Route::Vault));
-    assert_eq!(app.family.open, Some(Open::Page(page::HOLDING)));
+    assert_eq!(app.family().route, Some(Route::Vault));
+    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
     // The PSBT copied in during the visit.
     let (name, bytes) = savings_psbt();
     app.storage(StorageEvent::Restored {
@@ -370,7 +370,7 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
     )));
     assert_eq!(app.family_wallet(), Some(wallet_at(&app, "Savings")));
     assert_eq!(
-        app.family.open,
+        app.family().open,
         Some(Open::Page(page::BRING)),
         "the pages done before the lock were asked for again"
     );
@@ -430,7 +430,7 @@ fn split_sheets_scanned_in_any_order_rebuild_the_wallet() {
     );
     assert_eq!(chosen_address(&app), kit_address("savings"));
     app.press(Action::Cancel);
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
@@ -460,7 +460,7 @@ fn a_description_in_files_is_offered_on_the_card_and_opens_the_wallet() {
     assert!(app.offers(Action::Family(F::UseWallet(k))));
     app.press(Action::Family(F::UseWallet(k)));
     assert_eq!(chosen_address(&app), kit_address("savings"));
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
@@ -468,10 +468,10 @@ fn with_several_wallets_and_no_transaction_the_person_chooses() {
     let mut app = with_files(vec![vault_file()], Vec::new());
     unlock_on_tab(&mut app);
     assert!(app.family_wallet().is_none());
-    assert_eq!(app.family.open, Some(Open::Page(page::HOLDING)));
+    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
     let savings = wallet_at(&app, "Savings");
     app.press(Action::Family(F::Choose(savings)));
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
@@ -479,9 +479,9 @@ fn no_page_past_the_wallet_opens_without_one() {
     let mut app = shown();
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Card(page::BRING)));
-    assert_eq!(app.family.open, Some(Open::Page(page::HOLDING)));
+    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
     app.press(Action::Family(F::Card(page::CHECK)));
-    assert_eq!(app.family.open, Some(Open::Page(page::HOLDING)));
+    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
     // Open the wallet is one card with What do you have?.
     assert!(!app.family_cards().contains(&CardId::Page(page::OPEN)));
 }
@@ -510,7 +510,7 @@ fn one_seed_asks_for_anything_else_and_thats_everything_opens_native_segwit() {
     assert!(text.contains("That's everything"), "{text}");
     app.press(Action::Family(F::Everything));
     assert_eq!(chosen_address(&app), kit_address("spending"));
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
@@ -542,7 +542,7 @@ fn two_seeds_then_the_description_open_the_wallet_with_both_keys_here() {
         .count();
     assert_eq!(here, 2, "both seeds are not keys of the wallet here");
     app.press(Action::Cancel);
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
@@ -593,7 +593,7 @@ fn two_seeds_and_no_description_make_the_two_of_three_from_all_three_seeds() {
     assert_eq!(app.screen, Screen::Family);
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
     assert_eq!(chosen_address(&app), kit_address("savings"));
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
 }
 
 #[test]
@@ -610,7 +610,7 @@ fn a_transaction_scanned_on_the_card_is_kept_for_bring() {
     assert!(app.spend().is_none(), "the spend started before Bring");
     app.press(Action::Family(F::Next(page::CHECK)));
     app.press(Action::Family(F::Next(page::WRITE)));
-    assert_eq!(app.family.open, Some(Open::Page(page::BRING)));
+    assert_eq!(app.family().open, Some(Open::Page(page::BRING)));
     let _ = drawn(&mut app);
     let k = app
         .inbox()
@@ -635,7 +635,7 @@ fn a_lock_on_the_card_comes_back_with_what_came_in() {
     assert!(text.contains("Seed · "), "{text}");
     let mut app = after_lock(app);
     assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family.open, Some(Open::Page(page::HOLDING)));
+    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
     let text = drawn(&mut app);
     assert!(text.contains("Transaction · kept for later"), "{text}");
     // Keys come back by a vault or not at all.
@@ -663,7 +663,7 @@ fn guessed_single() -> Faraday {
     scan_seed(&mut app, "bacon");
     app.press(Action::Cancel);
     app.press(Action::Family(F::Everything));
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
     app
 }
 
@@ -704,16 +704,16 @@ fn no_money_shows_walks_through_the_passphrase_taproot_nested_and_legacy() {
     app.press(Action::Family(F::NoMoney));
     assert_eq!(chosen_address(&app), kit_address("legacy"));
     // No money shows is never the way on.
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
     app.press(Action::Family(F::NoMoney));
     let text = drawn(&mut app);
     assert!(text.contains("None of these show money."), "{text}");
     assert!(text.contains("legacy · no money"), "{text}");
     assert!(!text.contains("Yes, my money shows"), "{text}");
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
     // Scan more: back to What do you have?, the camera on.
     app.press(Action::Family(F::Again(true)));
-    assert_eq!(app.family.open, Some(Open::Page(page::HOLDING)));
+    assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
     assert_eq!(app.sheet, Some(Sheet::Scan));
     assert!(app.family_wallet().is_none());
 }
@@ -726,7 +726,7 @@ fn yes_my_money_shows_is_the_way_on() {
     let text = drawn(&mut app);
     assert!(text.contains("Yes, my money shows"), "{text}");
     app.press(Action::Family(F::Next(page::CHECK)));
-    assert_eq!(app.family.open, Some(Open::Page(page::WRITE)));
+    assert_eq!(app.family().open, Some(Open::Page(page::WRITE)));
     // The Taproot wallet is the one spent from.
     assert_eq!(chosen_address(&app), kit_address("taproot"));
 }
@@ -757,7 +757,7 @@ fn a_described_wallets_check_has_no_no_money_shows() {
     on_intake(&mut app);
     scan(&mut app, testkit::savings().into_bytes());
     app.press(Action::Cancel);
-    assert_eq!(app.family.open, Some(Open::Page(page::CHECK)));
+    assert_eq!(app.family().open, Some(Open::Page(page::CHECK)));
     let text = drawn(&mut app);
     assert!(text.contains("Yes, my money shows"), "{text}");
     assert!(!text.contains("No money shows"), "{text}");

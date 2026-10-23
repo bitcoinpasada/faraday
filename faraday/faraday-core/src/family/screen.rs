@@ -29,10 +29,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let content = loaded(app, ui, x0, cw);
         // Scrolled no further than its end.
         let max = (content - h).max(0.0);
-        if crate::flow::past_end(app.family.scroll.y, max) {
+        if crate::flow::past_end(app.family.state.scroll.y, max) {
             let to = flow::Scroll {
                 y: max,
-                ..app.family.scroll
+                ..app.family.state.scroll
             };
             app.scroll(Scrolled::Family, to, true);
         }
@@ -59,7 +59,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // walk-through.
     let from = app
         .family_wallet()
-        .filter(|_| app.family.from_card)
+        .filter(|_| app.family.state.from_card)
         .map(|i| {
             fill(
                 EN.family_spend_from_n,
@@ -76,9 +76,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         // from, by the trail (F77).
         back: app
             .family_wallet()
-            .filter(|_| app.family.from_card)
+            .filter(|_| app.family.state.from_card)
             .map(|i| (EN.family_wallets, Action::OpenWallet(i)))
-            .or(match app.family.from {
+            .or(match app.family.state.from {
                 Some(crate::Screen::Home) => {
                     Some((EN.family_home, Action::Nav(crate::Screen::Home)))
                 }
@@ -98,7 +98,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         chip_tap: None,
         cancel: app.cancel_offered().is_some(),
     };
-    let scroll = app.family.scroll;
+    let scroll = app.family.state.scroll;
     let (next, again) = {
         let app_ref: &View = app;
         let mut draw_body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
@@ -115,7 +115,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     let x = x0 + 48.0;
     let w = (cw - 96.0).min(980.0);
-    let scrolled = app.family.scroll.y;
+    let scrolled = app.family.state.scroll.y;
     let mut y = 36.0 - scrolled;
     // Opened from another screen: the way back to it, over the title, so
     // the page is the same height either way (F77).
@@ -331,7 +331,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     let (x, w) = (M, cw - 2.0 * M);
     let clip = ui.rect(0.0, BAR_H, cw, h - BAR_H);
     ui.c.push_clip(clip);
-    let top = BAR_H + 12.0 - app.family.scroll.y;
+    let top = BAR_H + 12.0 - app.family.state.scroll.y;
     let mut y = top;
     y += wrap_buttons(
         ui,
@@ -522,10 +522,10 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     let content = y - top + 24.0;
     let max = (content - (h - BAR_H)).max(0.0);
     ui.report_scroll(clip, max);
-    if crate::flow::past_end(app.family.scroll.y, max) {
+    if crate::flow::past_end(app.family.state.scroll.y, max) {
         let to = flow::Scroll {
             y: max,
-            ..app.family.scroll
+            ..app.family.state.scroll
         };
         app.scroll(Scrolled::Family, to, true);
     }
@@ -593,12 +593,14 @@ fn summary(app: &View, id: CardId) -> String {
                 },
             };
         }
-        CardId::Page(page::CHECK) if app.family.from_card && app.family_page_done(page::CHECK) => {
+        CardId::Page(page::CHECK)
+            if app.family.state.from_card && app.family_page_done(page::CHECK) =>
+        {
             EN.family_loaded_in_sparrow
         }
         CardId::Page(page::CHECK) if app.family_page_done(page::CHECK) => EN.family_money_shows,
         // From the wallet's card Write the payment brings the PSBT too.
-        CardId::Page(page::WRITE) if app.family.from_card => {
+        CardId::Page(page::WRITE) if app.family.state.from_card => {
             return match app.wallets.spend() {
                 Some(s) => fill(EN.family_signing, &[&s.spend.source.to_string()]),
                 None => String::new(),
@@ -642,9 +644,11 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         CardId::Page(page::HOLDING | page::OPEN) => holding(app, ui, x, cy, w),
-        CardId::Page(page::CHECK) if app.family.from_card => loaded_in_sparrow(app, ui, x, cy, w),
+        CardId::Page(page::CHECK) if app.family.state.from_card => {
+            loaded_in_sparrow(app, ui, x, cy, w)
+        }
         CardId::Page(page::CHECK) => check(app, ui, x, cy, w),
-        CardId::Page(page::WRITE) if app.family.from_card => bring(app, ui, x, cy, w),
+        CardId::Page(page::WRITE) if app.family.state.from_card => bring(app, ui, x, cy, w),
         CardId::Page(page::WRITE) => {
             if next_button(
                 ui,
@@ -699,7 +703,7 @@ fn threshold(app: &View) -> bool {
 /// More about this: a quiet button, and the paragraphs while it is open.
 fn more(app: &View, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32, w: f32) -> f32 {
     let bit = more_bit(id);
-    let shown = app.family.more & (1 << u32::from(bit)) != 0;
+    let shown = app.family.state.more & (1 << u32::from(bit)) != 0;
     let mut cy = y + 4.0;
     ui.button(
         x - 12.0,
@@ -840,7 +844,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         fa(F::Unsure),
     );
     cy += 40.0;
-    if app.family.help {
+    if app.family.state.help {
         for (look, what) in text::looks(app.medium) {
             cy += ui.wrap(x, cy, w, 14.0, W::S, TEXT, &look) + 4.0;
             cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, &what) + 14.0;
@@ -907,11 +911,11 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
     }
     cy += question(app, ui, x, cy, w);
-    if let Some(e) = &app.family.error {
+    if let Some(e) = &app.family.state.error {
         cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 10.0;
     }
     cy += opened(app, ui, x, cy, w);
-    if !rows.is_empty() || app.family.route.is_some() {
+    if !rows.is_empty() || app.family.state.route.is_some() {
         cy += crate::screens::wrap_buttons(
             ui,
             x - 12.0,
@@ -944,7 +948,7 @@ fn came_rows(app: &View) -> Vec<String> {
     let mut rows = Vec::new();
     // Split sheets already in Files, copied in from a stick say, are
     // listed after what came in on the card.
-    let mut came = app.family.came.clone();
+    let mut came = app.family.state.came.clone();
     for it in app.inbox.iter().filter(|i| i.kind == FileKind::Share) {
         let c = Came::File(it.name.clone());
         if !came.contains(&c) {
@@ -1067,7 +1071,7 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             );
         }
         Question::Shape => {
-            let s = &app.family.seeds;
+            let s = &app.family.state.seeds;
             let here = app.seeds_here(s).len();
             if s.n > here {
                 let line = fill(EN.family_without_description, &[&s.n.to_string()]);
@@ -1538,7 +1542,7 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         };
         cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, open) + 14.0;
     }
-    let n = 3 + app.family.addresses;
+    let n = 3 + app.family.state.addresses;
     for (head, change) in [(EN.family_receive, false), (EN.family_change, true)] {
         ui.text(x, cy, 13.0, W::S, MUTED, head);
         cy += 24.0;
@@ -1585,7 +1589,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // From the wallet's card this is Write the payment's own: Scan the
     // PSBT is the shortcut here.
-    let card = app.family.from_card;
+    let card = app.family.state.from_card;
     // The money moving to a new wallet (`docs/history/NEW-WALLET.md` §9.6): every
     // coin, to its first address.
     if card && let Some((name, address)) = app.family_wallet().and_then(|i| app.moving_to(i)) {

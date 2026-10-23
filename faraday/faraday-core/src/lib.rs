@@ -1257,7 +1257,7 @@ pub struct Faraday {
     /// The QR sheet's contents.
     qr: qr_view::QrArea,
     /// The Spend tab.
-    pub family: family::FamilyState,
+    family: family::FamilyArea,
     /// A vanity address being searched for.
     vanity: vanity::VanityArea,
     /// The backup flow.
@@ -1458,7 +1458,7 @@ impl Faraday {
             glance: glance::GlanceArea::default(),
             scroll: motion::Scroll::default(),
             qr: qr_view::QrArea::default(),
-            family: family::FamilyState::default(),
+            family: family::FamilyArea::default(),
             vanity: vanity::VanityArea::default(),
             backup: None,
             message: state::MessageArea::default(),
@@ -3237,8 +3237,7 @@ impl Faraday {
                 }
                 // Spend's way back is to where it was opened from.
                 if s == Screen::Family && self.screen != Screen::Family {
-                    self.family.from = matches!(self.screen, Screen::Home | Screen::WalletsStart)
-                        .then_some(self.screen);
+                    self.family.opened_from(self.screen);
                 }
                 self.screen = s;
                 self.osk_leave();

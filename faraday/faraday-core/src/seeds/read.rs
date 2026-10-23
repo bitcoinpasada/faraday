@@ -384,11 +384,7 @@ impl Faraday {
                         // A seed that came in on What do you have? is
                         // this key from now on.
                         if let Some(plain) = s.plain.filter(|_| s.family.is_some()) {
-                            for c in self.family.came.iter_mut() {
-                                if *c == crate::family::Came::Seed(plain.0) {
-                                    *c = crate::family::Came::Seed(fp.0);
-                                }
-                            }
+                            self.family.seed_became(plain.0, fp.0);
                             self.family_came(crate::family::Came::Seed(fp.0));
                         }
                         self.wallet_key_added(w, n);

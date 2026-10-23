@@ -232,7 +232,7 @@ impl SeedsState {
     }
 
     /// The cosigners' boxes, one for each key the seeds do not make.
-    fn fit(&mut self) {
+    pub(crate) fn fit(&mut self) {
         if !self.shaping {
             return;
         }
@@ -362,7 +362,7 @@ impl Faraday {
     pub fn seeds(&self) -> Option<&SeedsState> {
         match self.screen {
             Screen::Restore => self.restore.state()?.seeds.as_ref(),
-            Screen::Family => Some(&self.family.seeds),
+            Screen::Family => Some(&self.family.state().seeds),
             _ => None,
         }
     }
@@ -370,7 +370,7 @@ impl Faraday {
     pub(crate) fn seeds_mut(&mut self) -> Option<&mut SeedsState> {
         match self.screen {
             Screen::Restore => self.restore.state_mut()?.seeds.as_mut(),
-            Screen::Family => Some(&mut self.family.seeds),
+            Screen::Family => Some(self.family.seeds_mut()),
             _ => None,
         }
     }
@@ -402,60 +402,9 @@ impl Faraday {
             // On What do you have? with no wallet open yet: the seeds
             // the wallet is worked out from (`docs/history/SCAN-TO-SIGN.md` §4).
             // With a wallet open, a key fills its slot and no more.
-            Some(Screen::Family) if !self.family_ready() => {
-                self.family_came(family::Came::Seed(fp.0));
-                if self.family.route.is_none() {
-                    self.family.route = Some(family::Route::Words);
-                }
-                // A seed typed before this flow kept its list, as the
-                // wallet the words route opened from it: it is the first.
-                if self.family.seeds.keys.is_empty()
-                    && let Some(w) = self
-                        .session
-                        .wallets
-                        .iter()
-                        .find(|w| w.source == family::WORDS_SOURCE)
-                    && let Some(first) = self.session.slots(w).first().and_then(|s| s.fingerprint)
-                    && first != fp
-                {
-                    self.family.seeds.keys.push(first.0);
-                }
-                self.family.seeds.take(fp.0);
-                if self.family.seeds.keys.len() >= 2 {
-                    self.family_several_seeds();
-                }
-            }
+            Some(Screen::Family) if !self.family_ready() => self.family_seed_took(fp),
             Some(Screen::Family) => self.family_came(family::Came::Seed(fp.0)),
             _ => {}
-        }
-    }
-
-    /// Two seeds or more and no description: the single-key wallet the
-    /// first opened goes, and once I can't find one is pressed, the
-    /// wallet's shape comes up.
-    pub(crate) fn family_several_seeds(&mut self) {
-        let before = self.session.wallets.len();
-        self.session
-            .wallets
-            .retain(|w| w.source != family::WORDS_SOURCE);
-        if self.session.wallets.len() != before {
-            if self
-                .family
-                .wallet
-                .as_deref()
-                .is_some_and(|n| !self.session.wallets.iter().any(|w| w.name == n))
-            {
-                self.family.wallet = None;
-            }
-            let last = self.session.wallets.len().saturating_sub(1);
-            self.wallets.set_wallet(self.wallets.wallet().min(last));
-        }
-        self.family.everything = false;
-        let s = &mut self.family.seeds;
-        if s.shaping {
-            s.fit();
-        } else if self.family.no_description {
-            s.start_shape();
         }
     }
 
@@ -761,7 +710,7 @@ impl Faraday {
                     crate::wallet::Origin::TypedSeeds,
                 ) {
                     Ok(i) => {
-                        self.family.wallet = Some(self.session.wallets[i].name.clone());
+                        self.family.choose(self.session.wallets[i].name.clone());
                         self.wallets.set_wallet(i);
                         // Made without its description: a guess, which Check
                         // the money walks through (`docs/history/SCAN-TO-SIGN.md` §5).
@@ -770,7 +719,7 @@ impl Faraday {
                         self.family_opened();
                         self.family_settle();
                     }
-                    Err(e) => self.family.seeds.error = Some(e.text()),
+                    Err(e) => self.family.seeds_mut().error = Some(e.text()),
                 }
             }
             _ => {}

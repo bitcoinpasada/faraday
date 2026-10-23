@@ -353,7 +353,7 @@ impl Faraday {
                         r.scroll = to;
                     }
                 }
-                Scrolled::Family => self.family.scroll = to,
+                Scrolled::Family => self.family.set_scroll(to),
             }
         }
         if let Some((max, scroll)) = a.learn {

@@ -77,7 +77,7 @@ fn a_ready_wallet_goes_straight_to_its_next_page() {
     assert!(!app.family_overview());
     assert_eq!(app.family_wallet(), Some(0));
     assert_eq!(
-        app.family.open,
+        app.family().open,
         Some(Open::Page(page::CHECK)),
         "the map, the stick and the wallet are behind it"
     );
@@ -96,7 +96,7 @@ fn a_ready_wallet_with_its_transaction_in_files_goes_to_signing() {
         "the PSBT in Files is the one to sign"
     );
     assert_eq!(app.screen, Screen::Family);
-    assert_eq!(app.family.open, Some(Open::Spend));
+    assert_eq!(app.family().open, Some(Open::Spend));
     assert!(app.spend().unwrap().steps.contains(&step::SIGN));
 }
 
@@ -131,5 +131,5 @@ fn the_walk_through_is_one_press_away() {
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Walkthrough));
     assert!(!app.family_overview());
-    assert_eq!(app.family.open, Some(Open::Page(page::MAP)));
+    assert_eq!(app.family().open, Some(Open::Page(page::MAP)));
 }

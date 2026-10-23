@@ -1901,7 +1901,7 @@ impl Faraday {
                     // On the Spend tab a step opened from another card
                     // stays open.
                     let from_page = self.screen == Screen::Family
-                        && self.family.open != Some(family::Open::Spend);
+                        && self.family.state().open != Some(family::Open::Spend);
                     s.open = if s.open == Some(n) && !from_page {
                         None
                     } else {
