@@ -1370,12 +1370,8 @@ pub struct Faraday {
     pub keygen: Option<keygen::KeyGen>,
     /// The shell's randomness source (`Faraday::entropy_source_named`).
     pub entropy_source: Option<&'static str>,
-    /// The Learn sheet.
-    pub learn: learn::LearnState,
-    /// The steps ticked on each guide page the Learn sheet has shown
-    /// this session, by page; a page with none ticked is not here.
-    /// Session state only, in memory, never written to a file.
-    learn_ticks: Vec<(&'static faraday_learn::Page, Vec<u32>)>,
+    /// The Learn sheet and the steps ticked on its pages.
+    learn: learn::LearnArea,
     /// The word-list sheet, while it is open.
     wordlist: wordlist::WordListArea,
     /// BIP-85 being derived.
@@ -1687,8 +1683,7 @@ impl Faraday {
             restore: None,
             keygen: None,
             entropy_source: None,
-            learn: learn::LearnState::default(),
-            learn_ticks: Vec::new(),
+            learn: learn::LearnArea::default(),
             wordlist: wordlist::WordListArea::default(),
             bip85: None,
             silent: None,
@@ -3414,8 +3409,8 @@ impl Faraday {
             | Action::SecretAck
             | Action::SecretUnprotected
             | Action::SecretForm(..)) => self.secret_act(a),
-            Action::LearnPage(i) => self.learn_page(i),
-            Action::LearnStep(n) => self.learn_tick_step(n),
+            Action::LearnPage(i) => self.learn.show_page(i),
+            Action::LearnStep(n) => self.learn.tick_step(n),
             Action::WordList(a) => self.wordlist.act(a, &mut self.sheet),
             Action::KeyGen(_)
             | Action::KStep(_)

@@ -1862,7 +1862,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ((w - 80.0).min(860.0), h - 64.0, 28.0)
     };
     let (x, y) = sheet_box(ui, w, h, sw, sh);
-    let Some(page) = app.learn.pages.get(app.learn.page).copied() else {
+    let Some(page) = app.learn().pages.get(app.learn().page).copied() else {
         return;
     };
     let ticked = app.learn_ticked(page);
@@ -1888,8 +1888,8 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             Action::LearnSpend,
         ));
     }
-    tabs.extend(app.learn.pages.iter().enumerate().map(|(i, p)| {
-        let style = if i == app.learn.page {
+    tabs.extend(app.learn().pages.iter().enumerate().map(|(i, p)| {
+        let style = if i == app.learn().page {
             Style::Primary
         } else {
             Style::Secondary
@@ -1907,7 +1907,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let view = sh - (top - y) - 12.0;
     let clip = ui.rect(x, top, sw, view);
     ui.c.push_clip(clip);
-    let mut cy = top + 12.0 - app.learn.scroll;
+    let mut cy = top + 12.0 - app.learn().scroll;
     cy += ui.wrap(
         bx,
         cy,
@@ -1973,9 +1973,9 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         cy += 10.0;
     }
     ui.c.pop_clip();
-    let content = cy + app.learn.scroll - top;
+    let content = cy + app.learn().scroll - top;
     let max = (content - view).max(0.0);
-    app.learn_scroll(max, app.learn.scroll.min(max));
+    app.learn_scroll(max, app.learn().scroll.min(max));
     // The overlay scrollbar, held and dragged as on any page.
     ui.report_scroll(clip, max);
 }

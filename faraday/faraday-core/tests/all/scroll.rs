@@ -432,9 +432,9 @@ fn the_learn_scrollbar_can_be_held_and_dragged() {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Learn);
     let _ = app.frame();
-    assert!(app.learn.max > 0.0, "the page is longer than the sheet");
+    assert!(app.learn().max > 0.0, "the page is longer than the sheet");
     // The sheet is 860 wide, centred: its right edge is at 1070.
-    let (low, top) = drag_bar(&mut app, 1066, 740, |a| a.learn.scroll);
+    let (low, top) = drag_bar(&mut app, 1066, 740, |a| a.learn().scroll);
     assert!(low > 0.0, "pressed low on the track, the page went there");
     assert_eq!(top, 0.0, "dragged to the top, it followed");
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));

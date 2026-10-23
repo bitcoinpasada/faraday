@@ -791,12 +791,12 @@ fn sketch_shots(s: &Snap) -> Result<(), String> {
         let mut h = s.starter();
         h.press(StarterAction::LearnPage(LearnId::Maker(page)));
         let _ = h.drawn_texts();
-        let max = h.held().learn.max;
+        let max = h.held().learn().max;
         // The last offset the line is still in view at: it is at the
         // top then.
         let (mut seen, mut at, mut y) = (false, 0.0, 0.0);
         while y <= max {
-            h.held().learn.scroll = y;
+            faraday_core::testkit::learn_scroll_to(h.held(), y);
             if h.drawn_texts().iter().any(|t| t == line) {
                 (seen, at) = (true, y);
             } else if seen {
@@ -807,7 +807,7 @@ fn sketch_shots(s: &Snap) -> Result<(), String> {
         if !seen {
             eprintln!("{name}: \"{line}\" not drawn");
         }
-        h.held().learn.scroll = (at - above).max(0.0);
+        faraday_core::testkit::learn_scroll_to(h.held(), (at - above).max(0.0));
         s.shot(&mut h, name)?;
     }
     Ok(())

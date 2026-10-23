@@ -25,14 +25,15 @@ fn starter() -> Starter {
 /// Every string drawn while the page is scrolled from its top to its end.
 fn seen_scrolling(starter: &mut Starter) -> Vec<String> {
     let mut seen = Vec::new();
-    starter.held().learn.scroll = 0.0;
+    faraday_core::testkit::learn_scroll_to(starter.held(), 0.0);
     loop {
         seen.extend(starter.drawn_texts());
-        let learn = &mut starter.held().learn;
-        if learn.scroll >= learn.max {
+        let held = starter.held();
+        let (scroll, max) = (held.learn().scroll, held.learn().max);
+        if scroll >= max {
             return seen;
         }
-        learn.scroll = (learn.scroll + 200.0).min(learn.max);
+        faraday_core::testkit::learn_scroll_to(held, (scroll + 200.0).min(max));
     }
 }
 

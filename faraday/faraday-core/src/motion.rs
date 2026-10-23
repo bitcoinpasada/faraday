@@ -433,7 +433,7 @@ impl Faraday {
     /// is cleared, and another kind of sheet starts afresh.
     pub(crate) fn page_slot(&mut self) -> Option<&mut f32> {
         match self.sheet {
-            Some(Sheet::Learn) => Some(&mut self.learn.scroll),
+            Some(Sheet::Learn) => Some(self.learn.scroll_mut()),
             Some(Sheet::WordList) => self.wordlist.scroll_mut(),
             Some(s) => {
                 if self.sheet_scroll.1 != Some(s) {

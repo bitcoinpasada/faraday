@@ -36,6 +36,9 @@ zeroize = { workspace = true, features = ["alloc"] }
 # The screens written as PNG by `examples/snap.rs` (`just
 # faraday-starter-snap`); never in the Starter itself.
 png.workspace = true
+# The test kit's `learn_scroll_to`, for the tests and `examples/snap.rs`;
+# never in the Starter itself.
+faraday-core = { path = "../faraday-core", features = ["guides", "testkit"] }
 
 [lints]
 workspace = true

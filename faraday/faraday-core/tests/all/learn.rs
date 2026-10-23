@@ -5,7 +5,7 @@
 use faraday_core::{Action, Faraday, Sheet};
 
 fn shown(app: &Faraday) -> &'static str {
-    app.learn.pages[app.learn.page].title
+    app.learn().pages[app.learn().page].title
 }
 
 #[test]

@@ -202,11 +202,7 @@ impl Faraday {
         if pages.is_empty() {
             return;
         }
-        self.learn = LearnState {
-            pages,
-            ..LearnState::default()
-        };
-        self.sheet = Some(crate::Sheet::Learn);
+        self.learn.open(pages, &mut self.sheet);
     }
 
     /// Opens the Learn sheet on the page about shares; closing it leaves
@@ -219,15 +215,7 @@ impl Faraday {
     /// have it, else on it alone.
     pub(crate) fn learn_on(&mut self, page: &'static LearnPage) {
         self.learn_open();
-        if let Some(i) = self.learn.pages.iter().position(|p| std::ptr::eq(*p, page)) {
-            self.learn.page = i;
-        } else {
-            self.learn = LearnState {
-                pages: vec![page],
-                ..LearnState::default()
-            };
-            self.sheet = Some(crate::Sheet::Learn);
-        }
+        self.learn.on(page, &mut self.sheet);
     }
 
     /// Opens the Learn sheet on `pages` over the screen on show: for the
@@ -237,23 +225,14 @@ impl Faraday {
         if pages.is_empty() {
             return;
         }
-        self.learn = LearnState {
-            pages,
-            ..LearnState::default()
-        };
-        self.sheet = Some(crate::Sheet::Learn);
+        self.learn.open(pages, &mut self.sheet);
         self.out.dirty = true;
-        self.out
-            .commands
-            .push_back(faraday_shell_api::Command::Draw);
+        self.out.command(faraday_shell_api::Command::Draw);
     }
 
-    /// Shows the sheet's page `i`.
-    pub(crate) fn learn_page(&mut self, i: u8) {
-        if usize::from(i) < self.learn.pages.len() {
-            self.learn.page = usize::from(i);
-            self.learn.scroll = 0.0;
-        }
+    /// The Learn sheet's state: its pages, the one on show and its scroll.
+    pub fn learn(&self) -> &LearnState {
+        self.learn.state()
     }
 
     /// The steps ticked on `page` this session, in order.
@@ -261,7 +240,72 @@ impl Faraday {
     /// reopening the page in the same session keeps them; a new session
     /// starts unticked.
     pub fn learn_ticked(&self, page: &'static LearnPage) -> &[u32] {
-        self.learn_ticks
+        self.learn.ticked(page)
+    }
+}
+
+/// The Learn sheet's area: its state and the steps ticked in this
+/// session.
+#[derive(Default)]
+pub(crate) struct LearnArea {
+    state: LearnState,
+    /// The steps ticked on each guide page the Learn sheet has shown
+    /// this session, by page; a page with none ticked is not here.
+    /// Session state only, in memory, never written to a file.
+    ticks: Vec<(&'static LearnPage, Vec<u32>)>,
+}
+
+impl LearnArea {
+    /// The sheet's state.
+    pub(crate) fn state(&self) -> &LearnState {
+        &self.state
+    }
+
+    /// The sheet's scroll offset.
+    pub(crate) fn scroll_mut(&mut self) -> &mut f32 {
+        &mut self.state.scroll
+    }
+
+    /// Takes the extent and offset a frame drew the sheet with.
+    pub(crate) fn set_scroll(&mut self, max: f32, scroll: f32) {
+        self.state.max = max;
+        self.state.scroll = scroll;
+    }
+
+    /// Opens the sheet on `pages`, at the first, and shows it.
+    pub(crate) fn open(
+        &mut self,
+        pages: Vec<&'static LearnPage>,
+        sheet: &mut Option<crate::Sheet>,
+    ) {
+        self.state = LearnState {
+            pages,
+            ..LearnState::default()
+        };
+        *sheet = Some(crate::Sheet::Learn);
+    }
+
+    /// Moves the sheet to `page`'s tab where it has one, else shows
+    /// `page` alone.
+    pub(crate) fn on(&mut self, page: &'static LearnPage, sheet: &mut Option<crate::Sheet>) {
+        if let Some(i) = self.state.pages.iter().position(|p| std::ptr::eq(*p, page)) {
+            self.state.page = i;
+        } else {
+            self.open(vec![page], sheet);
+        }
+    }
+
+    /// Shows the sheet's page `i`.
+    pub(crate) fn show_page(&mut self, i: u8) {
+        if usize::from(i) < self.state.pages.len() {
+            self.state.page = usize::from(i);
+            self.state.scroll = 0.0;
+        }
+    }
+
+    /// The steps ticked on `page` this session, in order.
+    pub(crate) fn ticked(&self, page: &'static LearnPage) -> &[u32] {
+        self.ticks
             .iter()
             .find(|(p, _)| std::ptr::eq(*p, page))
             .map_or(&[], |(_, d)| d.as_slice())
@@ -269,24 +313,24 @@ impl Faraday {
 
     /// Ticks step `n` of the Learn sheet's page on show, or clears its
     /// tick if it is ticked already.
-    pub(crate) fn learn_tick_step(&mut self, n: u32) {
-        let Some(page) = self.learn.pages.get(self.learn.page).copied() else {
+    pub(crate) fn tick_step(&mut self, n: u32) {
+        let Some(page) = self.state.pages.get(self.state.page).copied() else {
             return;
         };
         let all = faraday_learn::steps(page);
         if !all.contains(&n) {
             return;
         }
-        let mut done = self.learn_ticked(page).to_vec();
+        let mut done = self.ticked(page).to_vec();
         if let Some(at) = done.iter().position(|d| *d == n) {
             done.remove(at);
         } else {
             done.push(n);
         }
         let done: Vec<u32> = all.into_iter().filter(|s| done.contains(s)).collect();
-        self.learn_ticks.retain(|(p, _)| !std::ptr::eq(*p, page));
+        self.ticks.retain(|(p, _)| !std::ptr::eq(*p, page));
         if !done.is_empty() {
-            self.learn_ticks.push((page, done));
+            self.ticks.push((page, done));
         }
     }
 }

@@ -367,8 +367,7 @@ impl Faraday {
             }
         }
         if let Some((max, scroll)) = a.learn {
-            self.learn.max = max;
-            self.learn.scroll = scroll;
+            self.learn.set_scroll(max, scroll);
         }
         if let Some((max, scroll)) = a.wordlist {
             self.wordlist.set_scroll(max, scroll);

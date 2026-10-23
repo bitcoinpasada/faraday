@@ -564,7 +564,7 @@ fn what_is_a_share_opens_the_page_and_back_returns_to_places() {
     app.press(Action::LearnShares);
     assert_eq!(app.sheet, Some(Sheet::Learn));
     assert_eq!(
-        app.learn.pages[app.learn.page].title,
+        app.learn().pages[app.learn().page].title,
         "Shares of a wallet description"
     );
     app.press(Action::Cancel);

@@ -84,7 +84,7 @@ impl Faraday {
     /// copy of the whole canvas when a fade starts.
     pub(crate) fn fade_begin(&mut self, canvas: &Canvas) {
         let page = if self.sheet == Some(Sheet::Learn) {
-            self.learn.page
+            self.learn.state().page
         } else {
             0
         };

@@ -161,14 +161,14 @@ fn back_from_spend_opened_in_learn_opens_learn_again_on_the_same_page() {
     assert_eq!(app.sheet, Some(Sheet::Learn));
     app.press(Action::LearnPage(1));
     let _ = app.frame();
-    let page = app.learn.page;
+    let page = app.learn().page;
     assert_eq!(page, 1);
     app.press(Action::LearnSpend);
     assert_eq!((app.screen, app.sheet), (Screen::Family, None));
     tap_back(&mut app);
     assert_eq!((app.screen, app.wallet), (Screen::Wallets, 0));
     assert_eq!(app.sheet, Some(Sheet::Learn));
-    assert_eq!(app.learn.page, page);
+    assert_eq!(app.learn().page, page);
 }
 
 #[test]
