@@ -168,7 +168,7 @@ fn seedqr(c: &Compute, n: usize) -> Result<Vec<u8>, String> {
 }
 
 /// A camera's frame with nothing to read in it.
-fn camera(t: &mut Tour) {
+pub(crate) fn camera(t: &mut Tour) {
     t.app.event(Event::CameraFrame {
         width: 640,
         height: 480,

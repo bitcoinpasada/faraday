@@ -24,20 +24,15 @@ pub(crate) fn receiver(bolt: bool) -> faraday_core::devices::UsbDevice {
     }
 }
 
-/// The stick's device check (`docs/STARTER.md` §3.1a, F24): before the
-/// first secret, the reminders with a wireless receiver attached, and
-/// with a Bolt receiver; an IP-KVM named at start, and Continue anyway
-/// asking; a virtual machine with an IP-KVM, which has no way on; a
-/// desktop's reminder alone, and the same desktop whose firmware passed
-/// a TV's EDID. Home empty ends it.
-pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::devices::{DeviceCheck, Interface, UsbDevice};
+/// An IP-KVM, PiKVM's composite device: a keyboard, a mouse and a disk.
+pub(crate) fn kvm() -> faraday_core::devices::UsbDevice {
+    use faraday_core::devices::{Interface, UsbDevice};
     let hid = |protocol| Interface {
         class: 3,
         subclass: 1,
         protocol,
     };
-    let kvm = UsbDevice {
+    UsbDevice {
         port: "1-1".into(),
         vendor: 0x1d6b,
         product: 0x0104,
@@ -52,7 +47,18 @@ pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
                 protocol: 0x50,
             },
         ],
-    };
+    }
+}
+
+/// The stick's device check (`docs/STARTER.md` §3.1a, F24): before the
+/// first secret, the reminders with a wireless receiver attached, and
+/// with a Bolt receiver; an IP-KVM named at start, and Continue anyway
+/// asking; a virtual machine with an IP-KVM, which has no way on; a
+/// desktop's reminder alone, and the same desktop whose firmware passed
+/// a TV's EDID. Home empty ends it.
+pub(crate) fn devices_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::devices::DeviceCheck;
+    let kvm = kvm();
     t.go_on = false;
     t.app.devices = laptop();
     t.app.usb_devices(&[receiver(false)]);

@@ -195,7 +195,7 @@ fn run(
         Some("cancel") => return tours::cancel::cancel_tour(&mut t),
         Some("std") => return tours::standard::standard_tour(&mut t),
         Some("parts") => return tours::partials::partials_tour(&mut t),
-        Some("guide") => return tours::guide::guide_tour(&mut t),
+        Some("guide") => return tours::guide::guide_tour(c, &mut t),
         Some("tour") => return tours::site_tour::site_tour(c, &mut t),
         Some("codex32") => return tours::codex32::codex32_tour(&mut t),
         _ => {}

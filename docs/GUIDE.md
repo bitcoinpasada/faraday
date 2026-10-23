@@ -1,8 +1,8 @@
 # Faraday user guide
 
 **Kind:** Spec
-**Status:** Sections 1 to 3 written, checked against the app's screens and strings
-**Open:** sections 4 to 7 (Back it up, A wallet, Receive and spend, Restore), planned
+**Status:** Sections 1 to 5 written, checked against the app's screens and strings
+**Open:** sections 6 and 7 (Receive and spend, Restore), planned
 
 Each step is one thing to do, in the order it is done. A path in bold is
 what the screen shows: **Wallets → Add a key** is the Wallets row in the
@@ -32,6 +32,10 @@ From the release page, download `Faraday-Starter-X.Y.Z-Windows.exe` or
 `Faraday-Starter-X.Y.Z-Linux.tar.gz`, and `SHA256SUMS` and
 `SHA256SUMS.asc`. Check them as the README's "Verifying a release" says.
 
+The check proves that the file is the one the release key signed. It
+does not prove who holds the release key: compare the key's fingerprint
+with one from a second place.
+
 ### 1.2 Open the Starter
 
 - **Windows:** open the `.exe`. Windows shows "Windows protected your
@@ -48,6 +52,20 @@ The Starter opens on its Home.
 | **Checklist** | **1 Make a Faraday stick**, then **2 Start this computer from the stick**; the step to do now is highlighted |
 | the button on the card | the next step for this PC: here **Make a Faraday stick** |
 
+The card says so when this PC cannot start the stick, and when
+something attached to it can record the screen or the keys:
+
+| Card says | Meaning | Do |
+|---|---|---|
+| **This computer cannot start a Faraday stick** | an ARM PC, such as a Windows laptop with a Snapdragon processor | make the stick here and start another PC from it |
+| **Started in legacy BIOS mode: UEFI has to be on** | the PC started in legacy mode | set the BIOS's boot mode to UEFI before step 1.8 |
+| "… is a TV. A TV can record what it shows: use another screen or computer." | a screen is a TV | use another screen, then **Check again** |
+| "… is a KVM switch. It can capture the screen and type: connect the screen and keyboard directly." | a KVM switch is attached | connect the screen and keyboard directly, then **Check again** |
+| "… is a virtual machine. Faraday must start on the real computer, …" | the Starter runs in a virtual machine | run the Starter on the real PC |
+
+While a TV, a KVM switch or a virtual machine is listed, the restart
+buttons stay grey. **Continue anyway** lets the steps go on.
+
 Press **Make a Faraday stick**.
 
 ### 1.3 Which stick?
@@ -58,15 +76,26 @@ what is on it. Nothing is chosen for you.
 ![Which stick? with two sticks listed](guide/1-2-which-stick.png)
 
 Press the stick to write. Check the size: a backup drive is listed the
-same way as a stick. A disk the computer is using is dimmed and cannot
-be pressed.
+same way as a stick.
+
+| Row says | Meaning |
+|---|---|
+| **Empty** | nothing is on the stick |
+| a volume name, then **files on them** | the stick holds files; writing erases them |
+| **Faraday stick ·** and a version | the stick already holds Faraday |
+| dimmed, **Smaller than the image: needs …** | the stick is too small; it cannot be pressed |
+| dimmed, **Used by this computer: mounted at …**, **Used by this computer: swap** or **Holds this computer's system** | the PC uses this disk; it cannot be pressed |
+
+With no USB disk attached the page reads **No USB stick attached · 256
+MB or larger**. The list follows sticks as they are plugged in and
+pulled out: a stick not listed is pulled out and plugged in again.
 
 ### 1.4 What to write?
 
 ![What to write? for an empty stick](guide/1-3-what-to-write.png)
 
-Tick **New Faraday stick** (Everything on it is lost), then press
-**Continue**. Continue stays grey until it is ticked.
+**New Faraday stick** (Everything on it is lost) is ticked, the only
+choice for this stick. Press **Continue**.
 
 A stick that already holds Faraday also offers keeping its data; that
 is for upgrading, and is not covered here.
@@ -80,6 +109,17 @@ then press **Erase and write**. On Windows, Windows asks for
 administrator permission: answer *Yes*. On Linux the system may ask
 for your password.
 
+| Row | What it is |
+|---|---|
+| **Device**, **Serial** | the system's name for the disk, and its serial number |
+| **Writes** | **New Faraday stick** |
+| **Build** | the Faraday version written |
+| **SHA-256 of the image** | the image's sum; it is the `.img` line of the release's `SHA256SUMS` |
+
+**Not the stick confirmed: it was removed or changed** under the rows
+means the stick was pulled out or another disk took its place. The
+button is grey. Press **Choose again** and choose the stick again.
+
 ### 1.6 Writing, then Written
 
 ![Writing](guide/1-5-writing.png)
@@ -89,8 +129,17 @@ stick in until the result shows.
 
 | Result | Meaning | Press |
 |---|---|---|
-| ![Written](guide/1-6-written.png) | **Written**: the stick holds Faraday and was read back. **In the boot menu** is roughly the name the PC's boot menu will show for the stick. | **Start this computer from the stick**, with the stick still in |
-| ![Not written](guide/1-6-not-written.png) | **Not written**: the reason is in red. Nothing on the stick can be trusted. | **Try again**; if it fails again, use another stick |
+| ![Written](guide/1-6-written.png) | **Written**: the stick holds Faraday and was read back. "Keep the stick in to start this computer from it. To start another computer, pull it out." **In the boot menu** is roughly the name the PC's boot menu will show for the stick. | **Start this computer from the stick**, with the stick still in |
+| ![Not written](guide/1-6-not-written.png) | **Not written**: the reason is in red (below). Nothing on the stick can be trusted. | as the reason's row says |
+
+| Red line begins | Meaning | Do |
+|---|---|---|
+| "Reading back …: what was read differs from what was written at byte …" | the stick did not keep what was written | **Try again**; if it fails again, use another stick |
+| "Reading back … failed", "Writing failed", "Flushing … failed" | the system reported an error from the stick | pull the stick out, plug it in, **Try again**; then another USB port or stick |
+| "… is no longer the disk that was confirmed …", "The disk is no longer attached." | the stick was pulled out or replaced; nothing was written | plug it in and start again from **Make a Faraday stick** |
+| "A partition on it is mounted at …", "Unmounting it failed" | the system is using the stick; nothing was written | close any window showing the stick's files, **Try again** |
+| "Administrator permission was declined. Nothing was changed." | the permission prompt was declined | **Try again** and answer *Yes* |
+| "The payload file does not match the manifest", "The .xz file is damaged", "The decompressed image's SHA-256 is …, not the expected one" | the Starter's own copy of Faraday is damaged | download the Starter again and check it (step 1.1) |
 
 ### 1.7 Start this computer from the stick
 
@@ -102,8 +151,8 @@ Written page, or item 2 of Home's checklist, opens this page:
 Under **Write down**, copy **Boot menu key**, **BIOS key** and **Secure
 Boot setting**, or press **Print** for a sheet with them and the steps.
 The PC restarts later and the Starter is then off the screen. For a PC
-the Starter does not know, the rows read **Not known** and the printed
-sheet lists the keys to try.
+the Starter does not know, the key rows read **Not known: try** and
+the keys most makers use; the printed sheet lists them too.
 
 The stick cannot start while Secure Boot is on. Back on Home (**Home**
 at the top left), the card's button shows which case this PC is in:
@@ -117,6 +166,38 @@ On Windows the first checklist line reads **Faraday stick attached ·
 version not read**: the Starter reads a stick's version on Windows only
 with administrator permission. Nothing here needs it.
 
+**BitLocker (Windows).** With BitLocker on, the Start page shows a row
+**BitLocker, drive C:** under **Print**. Nothing here is required:
+with Secure Boot back on before Windows starts (step 1.10), Windows
+usually starts as before. A PC whose BIOS changes its Secure Boot keys
+when the setting is turned off and on makes Windows ask for the
+48-digit BitLocker recovery key.
+
+| BitLocker on | Suspended |
+|---|---|
+| ![BitLocker on](guide/1-7-bitlocker-on.png) | ![BitLocker suspended](guide/1-7-bitlocker-suspended.png) |
+| **Temporarily suspend BitLocker** (For the next 3 times Windows starts; then it turns back on by itself): Windows then does not ask for the recovery key. Windows asks for administrator permission once. | The row reads **Suspended · turns back on by itself after Windows starts 3 times**. **Resume BitLocker** turns it back on now. |
+
+**Include the BitLocker recovery key**, beside **Print**, puts the
+recovery key of drive C: on the printed sheet. Windows asks once for
+administrator permission; the key is never shown on the page. Keep
+that sheet as you keep the key.
+
+| Red line | Meaning |
+|---|---|
+| "BitLocker was not suspended (…). This computer's BitLocker is managed: its administrator has to suspend it." | an employer or school manages this PC; ask its administrator, or go on without suspending |
+| "An administrator of this computer has to do this step." | your Windows account is not an administrator's |
+| "The drive has no BitLocker recovery key." | there is nothing to print |
+
+If Windows asks for the recovery key: Control Panel → BitLocker Drive
+Encryption → Back up your recovery key shows where it is kept; on a PC
+signed in with a Microsoft account, also aka.ms/myrecoverykey. If it
+asks while Secure Boot is still off, turn the PC off, turn Secure Boot
+back on (step 1.10), and Windows starts without it.
+
+On Linux, a disk that the TPM unlocks shows **A disk here is unlocked
+by the TPM: have its passphrase ready** at the top of the Start page.
+
 ### 1.8 Restart into the BIOS (Secure Boot on)
 
 1. Press **Restart into the BIOS**, on Home's card or as step 1 of the
@@ -124,13 +205,17 @@ with administrator permission. Nothing here needs it.
 
    ![Restart into the BIOS sheet](guide/1-8-restart-into-bios.png)
 
-   The QR code opens the same steps on a phone. Press **Restart**.
+   The QR code opens the same steps on a phone. **Keep the stick in.**
+   Press **Restart**.
 2. In the BIOS, turn Secure Boot off, at the **Secure Boot setting**
    written down. Turn Fast Boot off too if it hides USB devices. If the
    setting cannot be found, exit the BIOS without saving changes:
    Windows starts as before.
 3. Save and exit. As the PC restarts, press the **Boot menu key** and
-   choose the stick (the **In the boot menu** name from step 1.6).
+   choose the stick (the **In the boot menu** name from step 1.6). It
+   is not *Windows Boot Manager*, a Linux name such as *ubuntu*, or the
+   PC's own disk. Listed twice, it is the entry that begins with UEFI.
+   A stick not listed: the table at the end of step 1.9.
 
 ### 1.9 Restart from the stick (Secure Boot already off)
 
@@ -138,9 +223,31 @@ Press **Restart from the stick**.
 
 ![Restart from the stick sheet](guide/1-9-restart-from-stick.png)
 
-Press **Restart**. On Linux the system asks for your password, then the
-PC starts from the stick by itself. On Windows, Windows' own menu
-opens: choose *Use a device*, then the stick.
+Keep the stick in and press **Restart**. On Linux the system asks for
+your password, then the PC starts from the stick by itself. On Windows
+the sheet says what follows: "Windows shows Choose an option: Use a
+device, then the stick."
+
+On Windows the Start page's step 3 offers the same restart as **Restart
+to choose a device**.
+
+On Linux, when the restart cannot be set up, Home's card reads
+**Restart from the stick did not happen:** and the reason, and its
+button becomes **Restart into the BIOS**: go to step 1.8.
+
+Faraday shows its logo a few seconds after the stick starts, then its
+first screen (section 2). If it does not (the Starter's Learn page
+**When the stick does not start** has the same table):
+
+| What happens | Do |
+|---|---|
+| the stick is not in the boot menu | set the BIOS's Fast Boot to Disabled, or to Thorough; turn on a setting such as Enable USB Boot Support where there is one |
+| the stick is in a USB-C or Thunderbolt port | use a USB-A port, or turn on the BIOS's USB-C or Thunderbolt boot support |
+| the PC is set to legacy BIOS or CSM | set the BIOS's boot mode to UEFI; turning CSM on does not help |
+| choosing the stick returns to the menu, or shows a Secure Boot message | Secure Boot is still on: step 1.8 |
+| the screen stays black, with no logo | the BIOS did not start the stick: check that Secure Boot is off, try another USB port |
+| the logo, then a black screen for more than a minute | Faraday did not start its screen on this PC: hold the power button until the PC turns off |
+| the BIOS asks for a password you do not have | only whoever set it can open it; this PC cannot start the stick |
 
 ### 1.10 Before starting Windows again
 
@@ -148,6 +255,15 @@ When done with Faraday, turn Secure Boot back on in the BIOS before
 starting Windows (the Start page's step 4, **Turn Secure Boot back on
 before starting Windows**). Faraday's power sheet says the same (step
 2.3).
+
+1. Power off from Faraday (step 2.3) and pull the stick out.
+2. Turn the PC on and press the **BIOS key** written down.
+3. Set Secure Boot to Enabled. Save and exit.
+
+If Secure Boot cannot be enabled, or Windows does not start with it on,
+load the PC's own Secure Boot keys in the BIOS (Restore Factory Keys,
+or the setting that loads the keys built into the PC). Back in Windows,
+the Starter's Home lists **Turn Secure Boot back on** until it is on.
 
 ### 1.11 Faraday Desktop, the alternative
 
@@ -171,8 +287,19 @@ noted there.
 
 ### 2.1 Home
 
-The stick starts Faraday into memory and shows Home. A new stick holds
-no files, so nothing is offered to import.
+The stick starts Faraday into memory. Before Home it checks itself and
+what is attached to the PC:
+
+| Screen | Meaning | Press |
+|---|---|---|
+| **Self-test failed**, with the **Check** that failed, over the whole window | Faraday's own cryptography did not reproduce a published test vector | **Exit**. Do not use this stick: write a new one (section 1) and report the check's name. |
+| ![Attached to this computer](guide/2-1-attached.png) **Attached to this computer**, naming a KVM ("a KVM can show this screen and type on this computer from elsewhere") or a TV ("a TV can record what it shows") | that device can record the screen or type | unplug it and press **Check again**. **Continue anyway** asks once more (**What is listed stays possible while they are attached.**) with **Yes, continue**. |
+| the same sheet naming a virtual machine ("a virtual machine's host sees and can change everything in it") | Faraday is not running on the PC itself | **Power off**: Faraday must start on a real computer |
+
+A keyboard or mouse plugged in after Faraday starts does nothing until
+it types the code Faraday shows, or clicks the target it draws.
+
+A new stick holds no files, so nothing is offered to import.
 
 ![Home on a new stick](guide/2-1-home.png)
 
@@ -202,9 +329,37 @@ At its foot:
 
 The **?** at the top right opens Learn's page for the screen on show.
 
-### 2.3 Power off
+### 2.3 Lock and Power off
 
-Press the power button at the foot of the sidebar.
+Faraday keeps everything in memory. What is not in a vault on a stick,
+or on paper, is gone after a lock or a power-off.
+
+| | Lock | Power off |
+|---|---|---|
+| Where | **Lock** at the foot of the sidebar, once a key is loaded; **Settings → Session** | the power button at the foot of the sidebar; **Power off** in **Settings → Session**; Super + S held 2 seconds |
+| What it does | wipes the session (every key and wallet loaded), seals open vaults, and starts again on Home | turns the PC off |
+| What stays | the stick's files, and the Inbox and Outbox | the stick's files only |
+
+**Lock** asks first only while a lock would end something under way
+(a wallet being made, a vault with changes). The sheet lists what is
+not saved and what ends:
+
+![The Lock sheet while a wallet is being made](guide/2-3-lock.png)
+
+**Lock** wipes them; **Back to the vault** closes the sheet. With
+nothing under way, Lock wipes at once, without a sheet: a key made in
+section 3 and not yet backed up is lost.
+
+A stick plugged in while a key is loaded opens **A stick is attached**:
+**Lock and use stick** locks and opens the stick's files; **Not now**
+keeps working, and a banner says to remove the stick.
+
+**Settings → Session** also sets **Lock after** (30 min at first) and
+**Power off after** (60 min at first). From **Make a new wallet** until
+its backup is done there is no idle lock, and the sidebar reads
+**Auto-lock off until backup complete**.
+
+Power off: press the power button at the foot of the sidebar.
 
 ![The power sheet on a stick started with Secure Boot off](guide/2-3-power.png)
 
@@ -315,7 +470,12 @@ With the last roll in, the card ends with **Randomness check**:
 | Verdict | Meaning | Press |
 |---|---|---|
 | **Fair: no cautions** | the counts and runs look like a fair die | **Continue** |
-| a caution, with **Roll again** | the rolls look uneven (for example a long run of one face); a caution does not stop the key | **Roll again** to start the rolls over, or **Continue** to keep them |
+| **A long run of one result**, with **Roll again** | the same face many times in a row | if you rolled them, **Continue**; if not sure, **Roll again** |
+| **Far from even: one result came up much more than the others** | one face is far more common: a worn die, or a typing habit | the same |
+| **A long run counting up or down** | rolls such as 1 2 3 4 5 6, counted out rather than rolled | the same |
+
+A caution does not stop the key. The check catches mistakes hands
+make; it cannot prove the rolls were random.
 
 **Undo** takes the last roll back; **Clear** removes every roll.
 
@@ -331,6 +491,10 @@ in**.
 **Locked in** shows, with **Fingerprint** `3dca6805` and the key's
 account key. The key is now loaded: the sidebar lists it under **Keys**
 as `3dca6805 New key 1`. Press **Continue**.
+
+A fingerprint of `3dca6805` proves that the words on screen are the
+test words and the key loaded is the one they make. It does not prove
+that the paper copy is right: the quiz (step 3.9) checks that.
 
 In Faraday Desktop's Demo, Lock in adds a public sample in place of the
 words made, and the card names the sample; the fingerprint is the
@@ -359,7 +523,10 @@ Answer from the paper copy, not from memory.
 | wrong | ![A wrong answer](guide/3-9-quiz-wrong.png) **Not that one. Check your copy against the words** | **Show the words** to correct the copy, then **Ask it again** |
 | all right | ![The quiz passed](guide/3-9-quiz-passed.png) **All 12 words right** | **Done** |
 
-**Skip the quiz** asks once more before it skips.
+**Skip the quiz** asks once more ("Without the quiz, a word copied
+wrongly is found only when the backup is needed"); skipped, the card
+reads **Skipped: the copy is not checked**. Do not skip it for a real
+key.
 
 ### 3.10 After Done
 
@@ -369,15 +536,421 @@ Faraday returns to Wallets. The key is loaded and shows in the sidebar
 under **Keys**. It is in memory only: Lock or Power off wipes it, and
 the paper copy is then the only one.
 
-Next: back the key up (section 4), or make a wallet from it (section 5).
+Next: section 4 makes a wallet from the key and backs it up.
 
 ## 4. Back it up
 
-Planned.
+What you will do: make a single-key wallet from key `3dca6805`, plan
+its backup on the backup board, and carry the plan out with its
+checklist: the words and the SeedQR copied by hand and checked, a vault
+made, and the sticks written. Faraday backs up a wallet, not a key on
+its own, so the wallet comes first (step 4.1).
+
+What you need:
+
+- Faraday with key `3dca6805` loaded (section 3) and no stick attached.
+- A blank template for 12 words, printed from the Starter (**Blank
+  templates** on its Home), and a pen.
+- Two USB sticks formatted FAT32, other than the Faraday stick: one for
+  the vault, one for the public files.
+- An envelope.
+
+A single key has one place, **Place 1**: everything in this section is
+kept there. A copy kept anywhere else is made outside the plan, and the
+plan does not track it.
+
+### 4.1 Make the wallet
+
+Press **Wallets** in the sidebar, then **Make a new wallet**. The page
+is **Make a new wallet**, one card per step.
+
+| Kind | Use vaults |
+|---|---|
+| ![Kind](guide/4-1-kind.png) | ![Use vaults](guide/4-1-use-vaults.png) |
+| **Single key · native SegWit** is chosen. Press **Continue**. | **Will you use vaults as part of this backup?** Press **No**, then **Continue**. The vault in this section is a new one, made in the checklist; **Yes** is for a vault already on a stick, which is brought in here. |
+
+| Keys | Check |
+|---|---|
+| ![Keys](guide/4-1-keys.png) | ![Check](guide/4-1-check.png) |
+| Under **Key 1**, press **3dca6805 · New key 1**; the row reads **3dca6805 · New key 1 · loaded here**. Press **Continue**. | **Descriptor** reads **Single key · native SegWit · 3dca6805** and a checksum; **Path** reads **m/84'/0'/0'**. Under **The wallet's first addresses** it reads **Back up before you receive**: a key made on this device shows no address until its backup is done. Press **Continue**. |
+
+![The Back up card](guide/4-1-back-up.png)
+
+The wallet is **New wallet 1** in the sidebar. Press **Back up this
+wallet**.
+
+### 4.2 The board, the standard way
+
+Back up opens on the board with the standard way placed: the seed's
+words and the wallet description on paper at Place 1. Nothing can be
+moved yet.
+
+![The board, the standard way](guide/4-2-board-standard.png)
+
+| On screen | Meaning |
+|---|---|
+| **Place 1** | the place's card; the tags beside the name say what someone who finds this place alone gets: **Sees the balance**, **Can spend alone** |
+| **Paper** | what the place keeps on paper: **3dca6805 · Words**, the seed's 12 words, and **Whole**, the whole wallet description, as the printed wallet sheet |
+
+Under the board, three lines check the plan:
+
+| Line | Here | Meaning |
+|---|---|---|
+| **Any one place lost: the rest rebuild the wallet** | **No: a single place** | losing Place 1 loses the wallet |
+| **One place found: can spend** | **Yes** | whoever finds Place 1 can spend |
+| **One place found: sees the balance** | **Yes** | whoever finds Place 1 sees every address and the balance |
+
+**Add a passphrase** adds a BIP-39 passphrase to the key; this guide
+uses none. In the right-hand column, **Add watch-only software** adds a
+place for a watch-only wallet (step 5.4), and **Customize backup** makes
+the board editable.
+
+To keep the standard way, press **Continue**, then go to step 4.6.
+
+### 4.3 Customize backup
+
+Press **Customize backup**.
+
+![The board after Customize backup](guide/4-3-customize.png)
+
+| On screen | Meaning |
+|---|---|
+| the list on the right | everything the backup can keep: **Seeds**, **Wallet description** (**Whole**), **Vaults** with **+ new vault**, **Watch-only software**; "1 place" beside each says how many places keep it |
+| on a placed chip, **Words** and **SeedQR** | the forms it is kept in; a press turns one on or off, and the last one on stays on |
+| **×** | takes the chip off that place |
+| **⋮** | its menu (step 4.5) |
+| **+ stick** | adds an empty stick to the place |
+| the mark after a chip | a check under the board names it |
+
+A chip from the list is never used up: placing it places a copy.
+
+### 4.4 A vault on a stick
+
+A vault is a file sealed with a passphrase, kept on a stick. Press
+**+ new vault**: **Vault 1** joins the list. Drag it onto Place 1's
+card. The place under it is edged while it takes the vault:
+
+| Dragging | Dropped |
+|---|---|
+| ![Vault 1 dragged over Place 1](guide/4-4-drag.png) | ![Vault 1 on Stick 1](guide/4-4-dropped.png) |
+
+Place 1 now has **Stick 1**, with two boxes: **Vault 1 · new** (made in
+the checklist) and **Files · not sealed** (files kept on the same stick
+outside the vault). The line **Vault 1 holds nothing** shows until
+something is put in it.
+
+Without dragging: press a chip, then press the box it goes in. A press
+anywhere else lets it go.
+
+| Box | Keeps | Tag on the map |
+|---|---|---|
+| **Paper** | the words, the SeedQR, the printed wallet sheet | secret; the sheet public |
+| **Vault 1** | the seed and the description, sealed in the vault file | sealed |
+| **Files** | the seed as a `.txt` or `.png` file, the description as a file | secret: a seed file is not sealed |
+
+### 4.5 The ⋮ menu, and the SeedQR
+
+Press **⋮** on the seed chip in the list. **Add to…** lists every box
+that takes the seed, under its place:
+
+![Add to… on the seed](guide/4-5-menu.png)
+
+Press **Stick 1 · Vault 1**. Put **Whole** into Vault 1 the same way.
+On a chip already placed, ⋮ offers **Move to…**, **Copy to…** and
+**Take off**.
+
+On the seed chip in **Paper**, press **SeedQR**: the paper copy is now
+the words and the SeedQR.
+
+![The board for this guide](guide/4-5-board-done.png)
+
+A drop never refuses: a plan that keeps something unwise shows a
+warning line and a mark on the chip it names. On a wallet of several
+keys a drop can also open a sheet (step 5.5). Only **Seed … is kept
+nowhere** holds the plan back.
+
+Press **Continue**, then **Make the checklist** on **The plan**.
+
+### 4.6 The checklist
+
+The checklist has an item for each thing the plan needs, in the order
+they are done. An item opens once the one before it is done ("After:
+…"). The **Map** on the right shows each place and the vault, and what
+each keeps; a dot turns green when that copy is made. **Change the
+plan** returns to the board.
+
+![The checklist](guide/4-6-checklist.png)
+
+**Print 1 blank template**: **Words on the seed** is **12**. Faraday
+prints nothing: the template comes from the Starter (**Blank
+templates**, 12 words), on another computer. Press **Done**.
+
+**The wallet sheet** is ticked already: it is a PDF, **For the stick**,
+written in step 4.10 and printed from the stick on another computer.
+
+### 4.7 Copy the seed by hand, and Check my copy
+
+| Copy seed 3dca6805 by hand | Show the seed |
+|---|---|
+| ![The copy item](guide/4-7-copy.png) | ![The seed shown](guide/4-7-copy-shown.png) |
+| Press **Show the seed**. | The 12 words, each with its number in the word list, and the SeedQR's grid. On the template, write the words in order, then fill the SeedQR square by square; the grey squares are printed already. **Compact SeedQR** shows the smaller grid. Press **Hide the seed**. |
+
+**Keep the words only** takes the SeedQR off the plan; the item then
+asks for the words alone.
+
+Press **Check my copy** and type your copy's words back, from the
+paper:
+
+![Check my copy, five words in](guide/4-7-check-copy.png)
+
+Each word shows as dots once typed. Then hold the SeedQR you drew up to
+the camera (**Scan your copy**).
+
+| Result | Meaning | Do |
+|---|---|---|
+| ![Matched](guide/4-7-matched.png) **Your copy scans and matches the seed** and **Your copy matches the seed** | the words typed and the SeedQR scanned are this seed's | **Continue** |
+| **Word … differs from the seed** | that word on the paper is wrong | correct the paper from **Show the seed**, **Clear**, type it again |
+| **Your copy scans but word … differs** | that word's squares are wrong | correct those squares and scan again |
+
+A match proves the paper holds this seed. It does not prove the paper
+will stay readable: keep it dry, and check it again from time to time.
+
+### 4.8 The vault
+
+![The vault item](guide/4-8-vault-item.png)
+
+**Into the vault** lists **Seed 3dca6805** and **Wallet description**.
+**Load at unlock** (ticked) loads them whenever the vault is unlocked.
+Press **Make a vault**.
+
+![Create a vault](guide/4-8-create-vault.png)
+
+**Create a vault** opens with **Size** chosen (**PCs and a Raspberry Pi
+· 64 MiB · 3 passes**). Under **Name and passphrases**:
+
+1. **Name**: leave it empty for `vault.ofv`, or type what the vault
+   holds; the name is visible to anyone who sees the stick.
+2. **Passphrase 1**: type it in the first field, then again in the
+   second, or press **Generate with dice**. Write it down: the vault
+   cannot be opened without it.
+3. Press **Create vault**.
+
+Faraday makes the vault, then asks its passphrase once to unlock it.
+Back on the checklist:
+
+![Save into vault.ofv](guide/4-8-save.png)
+
+Press **Save into vault.ofv**. The item reads **In vault.ofv**. The
+vault is in memory until step 4.10 writes it.
+
+### 4.9 One envelope per place
+
+![One envelope per place](guide/4-9-envelope.png)
+
+The item lists what goes into Place 1's envelope: the seed's words, the
+wallet sheet, the seed's SeedQR, and the stick with Vault 1. Press
+**Done**.
+
+### 4.10 Write to sticks
+
+![Write to sticks, before the lock](guide/4-10-lock-and-write.png)
+
+The item lists what the lock keeps (**Kept**: the vault and the files
+for the stick) and what it wipes (**Wiped from memory**: the key and
+the wallet, which are in the vault; **Make a new wallet · ends**), then
+the sticks to write. Press **Lock and write**.
+
+The session locks. The page becomes the backup's own steps, open on
+**Write the sticks**:
+
+| Insert | Stick read | Written |
+|---|---|---|
+| ![Insert Stick 2](guide/4-10-insert.png) | ![This is the stick for Vault 1](guide/4-10-this-is-the-stick.png) | ![Written and checked](guide/4-10-written.png) |
+| **Insert Stick 2: Vault 1 (Place 1)**. The pills at the top name every stick: the Faraday stick is **Boot stick**, the board's Stick 1 is **Stick 2** here, and the public files go on **Stick 3**. Plug in a stick. | Press **This is the stick for Vault 1 (Place 1)**, or **Use another stick**. | **Written and checked on** and the stick's name. Write "Stick 2" on the stick (**Mark it as Stick 2**), then pull it (**Pull the stick**). |
+
+Then **Insert Stick 3: Public files** the same way.
+
+| Line | Meaning | Do |
+|---|---|---|
+| **Not a FAT32 stick. Format it as FAT32, or use another stick** | the stick cannot take the files | format it on another computer, or use another |
+| **Not enough room: … needed, … free** | the stick is full | another stick |
+| **Not the stick read for …** | a different stick from the one read for this slot | the stick read before |
+| **Pulled before the copy was checked. Nothing counted** | the stick came out too soon | plug it in again |
+| **… did not read back from …; try another stick** | the stick did not keep what was written | another stick |
+
+![Done](guide/4-10-done.png)
+
+**Done** lists each stick written and what it holds. **Unlock Vault 1**
+opens the vault with its passphrase and loads the wallet and the key
+again.
+
+What "Written and checked" proves: the stick read back what was
+written. It does not prove the stick will last: keep the paper copy as
+well.
 
 ## 5. A wallet
 
-Planned.
+What you will do: load three keys, make a 2-of-3 multisig wallet from
+them, read its wallet card, show it to a watch-only wallet and compare
+an address, plan its backup, and add a missing key by scanning its
+SeedQR.
+
+What you need:
+
+- Faraday with no key loaded (press **Lock** if one is) and no stick
+  attached.
+- The paper copy of key `3dca6805` from section 4.
+- Two more public test keys: twenty-four times **zebra**
+  (fingerprint `5d388376`) and twenty-four times **summer**
+  (`cf2e083d`).
+- Sparrow, or another watch-only wallet, on an online computer
+  (step 5.4).
+
+The places of this section are Place 1, Place 2 and Place 3.
+
+### 5.1 Load the keys
+
+Press **Wallets**, then **Add a key**.
+
+![Add a key](guide/5-1-type-words.png)
+
+| On screen | Meaning |
+|---|---|
+| **Scan a SeedQR** | reads a SeedQR with the camera |
+| **Words** **12 · 15 · 18 · 21 · 24** | how many words; typing past the boxes adds more |
+| **Other forms** | SLIP-39 shares, codex32, Seed XOR |
+| **BIP-39 passphrase** | **No passphrase** unless one is typed |
+| **Add key** | loads the key |
+
+Type key `3dca6805`'s 12 words from the paper, then press **Add key**.
+
+![Key 3dca6805 loaded](guide/5-1-key-loaded.png)
+
+**Key 3dca6805 is loaded. No wallet uses it.** The fingerprint proves
+the words typed are the test words. Press **Add a key** in the left
+column again, press **24**, type **zebra** twenty-four times and press
+**Add key**; then the same with **summer**. The sidebar lists three
+keys: `3dca6805`, `5d388376`, `cf2e083d`.
+
+### 5.2 Make a new wallet
+
+Press **Home**, then **Make a new wallet**.
+
+| Kind | Quorum |
+|---|---|
+| ![Kind, multisig](guide/5-2-kind.png) | ![Quorum](guide/5-2-quorum.png) |
+| Press **Multisig · native SegWit**, then **Continue**. | **Signatures needed** 2 and **Keys** 3 (**-** and **+** change them). The line under them says what the quorum means: **Any 2 of the 3 keys can spend. Losing 1 key still leaves the money spendable; 2 keys together can take it.** **Account** 0. Press **Continue**. |
+
+On **Use vaults**, press **No**, then **Continue**.
+
+| Keys | Check |
+|---|---|
+| ![Keys, all three chosen](guide/5-2-keys.png) | ![Check, with the first addresses](guide/5-2-check.png) |
+| Each **Key** row offers the keys loaded. Press `3dca6805` for Key 1, `5d388376` for Key 2, `cf2e083d` for Key 3. **Show xpub QR**, **Xpub PNG for the stick** and **Xpub file for the stick** give a key's public part to another wallet; **New key** makes one here. Press **Continue**. | **Descriptor** reads **2 of 3 · native SegWit multisig · 3dca6805, 5d388376, cf2e083d** and a checksum; **Path** **m/48'/0'/0'/2'**. **The wallet's first addresses**: **Receive 0/0**, **Receive 0/1** and **Change 1/0**. With these test keys, Receive 0/0 begins `bc1q rfhg t7dv` and ends `ecxs 0246 6p`. Press **Continue**. |
+
+Then **Back up** (step 5.5).
+
+### 5.3 The wallet card
+
+Press **Wallets**, then the wallet in the left column.
+
+![The wallet card](guide/5-3-card.png)
+
+| On screen | Meaning |
+|---|---|
+| **New wallet 1**, **2 of 3 · native SegWit multisig** | the name and the kind; **Rename** changes the name |
+| **Not backed up** | no backup plan yet (step 5.5) |
+| **2 of 2 signatures possible here**, **Can spend** | the quorum is 2, and 2 of the keys that sign are loaded |
+| **At a glance** | the wallet, each key (**Can sign here** while loaded), and the backup |
+| **First receive address · 0/0** | the address to compare (step 5.4) |
+| **Spend from this wallet** | section 6 |
+| **Show wallet QR** | the wallet description as a QR code (step 5.4) |
+| **Remove from session** | takes the wallet out of memory |
+
+### 5.4 Show the wallet to a watch-only wallet
+
+A watch-only wallet, such as Sparrow on an online computer, shows the
+balance and makes the transactions Faraday signs. It needs the wallet
+description, which holds no key that can spend. Press **Show wallet
+QR**.
+
+![The wallet QR](guide/5-4-wallet-qr.png)
+
+The sheet is **New wallet 1 · wallet descriptor**, **Public · safe to
+scan**, with the descriptor written under the code. **UR** and
+**BBQr** are the two QR formats; use the one the other wallet reads.
+**PNG for the stick** puts the code on a stick as a picture.
+
+1. In Sparrow: File, New Wallet, then scan the wallet QR.
+2. Compare Sparrow's first receive address with **First receive
+   address · 0/0** on the card, character by character.
+3. Press **Done**.
+
+| Result | Meaning |
+|---|---|
+| the addresses match | both programs derive the same addresses from the same description |
+| they differ | something was scanned or chosen wrongly; do not receive to this wallet until they match |
+
+A match does not prove the backups are right: that is the copy check
+of section 4. The description shows the wallet's whole history to
+whoever has it: do not post it.
+
+### 5.5 Back it up
+
+Press **Back up** on the card. The board opens with the standard way
+for a 2-of-3: one place per key, each keeping one seed's words and the
+whole description.
+
+![The 2-of-3's board](guide/5-5-board.png)
+
+Each place reads **Sees the balance** and **Spends with 1 more place**.
+The three lines read **Yes**, **No** and **Yes**: any one place lost,
+the other two rebuild the wallet; no place alone can spend; any place
+alone sees the balance.
+
+After **Customize backup**, a drop that changes what a place alone can
+do asks first:
+
+| Seeing the balance | Spending |
+|---|---|
+| ![Place 3 can see the wallet's balance](guide/5-5-sees.png) | ![Anyone with access to Place 1 can spend](guide/5-5-spend.png) |
+| **Place 3 can see the wallet's balance**: what was dropped there completes the description at that place. | **Anyone with access to Place 1 can spend**: Place 1 now keeps as many seeds as a spend needs. |
+| **Keep it** keeps the drop; **Take it off** undoes it. | the same |
+
+The rest is section 4: the checklist, a copy checked per seed, any
+vaults, and the sticks, each place in its turn.
+
+### 5.6 Scan a key
+
+A key does not have to stay loaded: its SeedQR is scanned when it is
+needed, as on a SeedSigner. **Settings → Session → Remove every key**
+takes every key out of memory and leaves the wallet.
+
+![Settings, Session](guide/5-6-settings.png)
+
+![The card with no key loaded](guide/5-6-card-short.png)
+
+The card reads **0 of 2 signatures possible here**, each key **Not
+here**, and **A vault on a stick, a paper backup or a SeedQR may hold
+them**. Press **Scan a key** (or **Scan a key for New wallet 1** in the
+left column).
+
+![Scan a key for New wallet 1](guide/5-6-camera.png)
+
+The sheet lists the keys still missing. Hold a SeedQR up to the camera.
+Faraday works out which key it is; no choice is made first.
+
+| After | Screen | Meaning |
+|---|---|---|
+| Key 2's SeedQR | ![Key 2 added · 1 more](guide/5-6-one-more.png) **Key 2 added · 1 more** | the camera stays on for the next key |
+| Key 1's SeedQR, from Place 1's paper | ![Key 1 added · Can spend](guide/5-6-can-spend.png) **Key 1 added · Can spend** | enough keys to sign; the camera closes. Key 3 reads **Cosigner · xpub only**. |
+| a key loaded already | **Key … · already here** | scan another |
+| a seed of no key of this wallet | "… is not one of New wallet 1's keys", on the passphrase sheet | a passphrase that gives one of the missing keys loads it; otherwise **Cancel** |
+| anything else | **Not a SeedQR or a CompactSeedQR** | scan the seed's SeedQR |
+
+No SeedQR carries a passphrase: a key with a passphrase is typed with
+**Type the words instead**, which also takes keys with no SeedQR, such
+as the test keys' twenty-four words.
 
 ## 6. Receive and spend
 

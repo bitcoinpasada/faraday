@@ -790,8 +790,8 @@ fn guide_shots(s: &Snap) -> Result<(), String> {
     h.press(StarterAction::Write);
     h.starter_event(StarterEvent::WriteProgress {
         stage: WriteStage::Writing,
-        done: 1_400_000_000,
-        total: 3_900_000_000,
+        done: STICK_IMAGE / 3,
+        total: STICK_IMAGE,
     });
     s.shot(&mut h, "guide-writing")?;
     h.starter_event(StarterEvent::Written(Ok(())));
@@ -810,7 +810,8 @@ fn guide_shots(s: &Snap) -> Result<(), String> {
 
 /// The pictures in `docs/GUIDE.md` §1, starting from the stick: Home with
 /// the stick written, Secure Boot on, its restart sheet and the Start
-/// page; then Secure Boot off, Home's button and its sheet.
+/// page, with BitLocker on and then suspended; then Secure Boot off,
+/// Home's button and its sheet.
 fn guide_start_shots(s: &Snap) -> Result<(), String> {
     let written = || {
         let mut d = plain(1, 32 * GB, &[]);
@@ -830,6 +831,23 @@ fn guide_start_shots(s: &Snap) -> Result<(), String> {
     h.press(StarterAction::Start);
     s.shot(&mut h, "guide-start")?;
     s.shot_end(&mut h, "guide-start-end")?;
+    // BitLocker on drive C:, then suspended for three starts.
+    let read = |protection, starts_left| {
+        StarterEvent::BitLocker(Some(BitLocker {
+            drive: "C:".into(),
+            protection,
+            starts_left,
+        }))
+    };
+    h.starter_event(read(Protection::On, None));
+    s.shot(&mut h, "guide-bitlocker-on")?;
+    h.press(StarterAction::SuspendBitLocker);
+    h.starter_event(StarterEvent::BitLockerDone {
+        step: BitLockerStep::Suspend,
+        result: Ok(()),
+    });
+    h.starter_event(read(Protection::Suspended, Some(3)));
+    s.shot(&mut h, "guide-bitlocker-suspended")?;
     let mut h = s.starter();
     h.starter_event(StarterEvent::Computer(laptop(Os::Windows, false)));
     h.starter_event(written());
