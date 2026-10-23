@@ -610,3 +610,13 @@ pub const THEME_TILE_MIN: f32 = 96.0;
 
 /// Theme tiles: the gap between two side by side.
 pub const THEME_TILE_GAP: f32 = 8.0;
+
+/// Theme tiles: the gap between two rows.
+pub const THEME_TILE_ROW_GAP: f32 = 10.0;
+
+/// A theme group on Settings: its label's row, from the label's top to
+/// the group's first tiles.
+pub const THEME_GROUP_HEAD: f32 = 22.0;
+
+/// Theme groups: the space above each after the first.
+pub const THEME_GROUP_GAP: f32 = 14.0;

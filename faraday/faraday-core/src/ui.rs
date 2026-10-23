@@ -6,8 +6,8 @@ use crate::Action;
 
 pub use faraday_ui::pal;
 pub use faraday_ui::{
-    BAR_GRAB, BarGeometry, Disclosure, Glyph, NameSuffix, Scrolled, Slot, Style, Theme, W, btc,
-    grouped, short, thousands,
+    BAR_GRAB, BarGeometry, Disclosure, Glyph, NameSuffix, Scrolled, Slot, Style, Theme, ThemeGroup,
+    W, btc, grouped, short, thousands,
 };
 
 use pal::*;

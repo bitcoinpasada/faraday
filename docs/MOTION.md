@@ -406,6 +406,14 @@ positive green of Light (#1C8053), Cobalt (#1C7F52) and Bitcoin Orange
 Light (#1C7E52), and Rosé Pine's warning (#A26111) and dimmed text
 (#918B9F), each darkened by the least that reaches it.
 
+Settings › Appearance (since 2026-10-23) groups the tiles under three
+small labels, Light, Dark and High contrast (`ThemeGroup`, worked out
+from `Theme::is_high_contrast` and `Theme::is_light`), each group's
+tiles in order of their names (`Ui::theme_groups`), as many to a row
+as `Ui::theme_grid` fits so the groups' tiles line up. The tile of the
+theme a first start is in, Cobalt (`Theme`'s default), carries a small
+Default mark after its name.
+
 ### 3.8 The caret and the scrollbar (2026-10-07)
 
 - The caret of the field typing goes to blinks: on 530 ms, off 530 ms

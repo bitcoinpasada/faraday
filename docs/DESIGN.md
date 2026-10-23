@@ -452,7 +452,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/FAMILY.md`.
 | `CreateVault` | Making a vault: where it will be opened, the cost of unlocking, the space per passphrase, its name and passphrases, its size. | Step flow |
 | `Codes` | TOTP codes for the entries in open vaults, with the time they are computed for (`docs/TOTP.md` §5). | Page |
 | `SetTime` | Setting the time by hand: Date and Time (`docs/TOTP.md` §3). | Page |
-| `Settings` | The session and Lock; lock and power-off timers; Mode; Appearance (the themes, §3), Motion and the display scale; what is remembered; About. | Page |
+| `Settings` | The session and Lock; lock and power-off timers; Mode; Appearance (the themes, §3, as tiles in three groups, Light, Dark and High contrast, each in order of its names, Cobalt's tile marked Default), Motion and the display scale; what is remembered; About. | Page |
 | `Transfer` | The desktop app as the device's QR link: files out as codes, in by camera. Only in the desktop app. | Page |
 | `Upgrade` | Upgrading another Faraday stick from the one Faraday started from. Never in the desktop app. | Page |
 

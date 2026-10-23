@@ -6817,6 +6817,14 @@ strings! {
     ui_high_contrast_light: "High contrast light",
     /// Text in `name`.
     ui_mars: "Mars",
+    /// Section label over the light themes in `settings`.
+    ui_themes_light: "Light",
+    /// Section label over the dark themes in `settings`.
+    ui_themes_dark: "Dark",
+    /// Section label over the high-contrast themes in `settings`.
+    ui_themes_high_contrast: "High contrast",
+    /// Mark on the tile of the theme a first start is in, in `theme_tile`.
+    ui_default_theme: "Default",
     // ----- upgrade (faraday-core/src/upgrade/mod.rs) -----
     /// Text in `version`.
     upgrade_0_1_0_or_earlier: "0.1.0 or earlier",

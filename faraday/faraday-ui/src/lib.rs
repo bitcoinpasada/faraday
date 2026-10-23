@@ -24,6 +24,12 @@ use std::sync::OnceLock;
 
 /// The overlay scrollbar's thumb, units wide.
 const BAR_W: f32 = 6.0;
+
+/// How wide each of `per_row` theme tiles side by side in `w` is.
+fn theme_tile_w(w: f32, per_row: usize) -> f32 {
+    use faraday_draw::tokens::THEME_TILE_GAP;
+    (w - THEME_TILE_GAP * (per_row - 1) as f32) / per_row as f32
+}
 /// How far in from a scrolled region's right edge a press takes the
 /// scrollbar rather than the content, in units.
 pub const BAR_GRAB: f32 = 16.0;
@@ -266,7 +272,8 @@ pub enum Theme {
 }
 
 impl Theme {
-    /// Every theme, in the order Settings offers them.
+    /// Every theme. Settings offers them by [`Theme::group`], each group
+    /// in order of its names ([`ThemeGroup::themes`]).
     pub const ALL: [Theme; 14] = [
         Theme::Dark,
         Theme::Light,
@@ -342,6 +349,22 @@ impl Theme {
         )
     }
 
+    /// Text 7:1 or more on the page and the card, edges 3:1 or more.
+    pub fn is_high_contrast(self) -> bool {
+        matches!(self, Theme::HighContrastDark | Theme::HighContrastLight)
+    }
+
+    /// The group Settings offers it under.
+    pub fn group(self) -> ThemeGroup {
+        if self.is_high_contrast() {
+            ThemeGroup::HighContrast
+        } else if self.is_light() {
+            ThemeGroup::Light
+        } else {
+            ThemeGroup::Dark
+        }
+    }
+
     fn table(self) -> Option<&'static [(Color, Color); 31]> {
         match self {
             Theme::Dark => None,
@@ -372,6 +395,43 @@ impl Theme {
             .iter()
             .find(|(dark, _)| (dark.r, dark.g, dark.b) == (c.r, c.g, c.b))
             .map_or(c, |(_, to)| to.with_alpha(c.a))
+    }
+}
+
+/// The groups Settings offers the themes in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ThemeGroup {
+    /// Dark text on a light page.
+    Light,
+    /// Light text on a dark page.
+    Dark,
+    /// Text 7:1 or more, light or dark.
+    HighContrast,
+}
+
+impl ThemeGroup {
+    /// Every group, in the order Settings offers them.
+    pub const ALL: [ThemeGroup; 3] = [
+        ThemeGroup::Light,
+        ThemeGroup::Dark,
+        ThemeGroup::HighContrast,
+    ];
+
+    /// The label Settings puts over the group.
+    pub fn name(self) -> &'static str {
+        match self {
+            ThemeGroup::Light => EN.ui_themes_light,
+            ThemeGroup::Dark => EN.ui_themes_dark,
+            ThemeGroup::HighContrast => EN.ui_themes_high_contrast,
+        }
+    }
+
+    /// The themes in this group ([`Theme::group`]), in order of their
+    /// names.
+    pub fn themes(self) -> impl Iterator<Item = Theme> {
+        let mut all = Theme::ALL;
+        all.sort_unstable_by_key(|t| t.name());
+        all.into_iter().filter(move |t| t.group() == self)
     }
 }
 
@@ -1059,6 +1119,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// A theme as a tile drawn in its own colours: its page, a card with
     /// a primary button and the three states, and its name. The theme on
     /// screen is ringed in its accent; another is ringed while hovered.
+    /// The theme a first start is in carries a Default mark after its
+    /// name.
     #[allow(clippy::too_many_arguments)]
     pub fn theme_tile(
         &mut self,
@@ -1111,15 +1173,26 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let (lines, n) = self.theme_name_lines(theme, room);
         let name = theme.name();
         let mut ty = y + h - 22.0 - STEP * (n - 1) as f32;
+        let mut last = 0.0;
         for &(a, b) in &lines[..n] {
             let line = &name[a..b];
-            if self.measure(SIZE, W::S, line) <= room {
+            last = self.measure(SIZE, W::S, line);
+            if last <= room {
                 self.text(x + IN, ty, SIZE, W::S, TEXT, line);
             } else {
                 let cut = self.fit(SIZE, W::S, line, room);
-                self.text(x + IN, ty, SIZE, W::S, TEXT, &cut);
+                last = self.text(x + IN, ty, SIZE, W::S, TEXT, &cut);
             }
             ty += STEP;
+        }
+        // The theme a first start is in: a Default mark at the right of
+        // its name's last line, where it fits beside the name.
+        if theme == Theme::default() {
+            let mark = self.measure(SIZE, W::R, EN.ui_default_theme);
+            if last + faraday_draw::tokens::GAP + mark <= room {
+                let at = x + w - IN - mark;
+                self.text(at, ty - STEP, SIZE, W::R, MUTED, EN.ui_default_theme);
+            }
         }
         self.theme = now;
         self.hit(x, y, w, h, action);
@@ -1156,17 +1229,72 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         THEME_TILE_HEIGHT + THEME_TILE_LINE * lines.saturating_sub(2) as f32
     }
 
-    /// Theme tiles in rows across `inner` units: how many to a row, and
-    /// each tile's width and height. As few rows as tiles at
-    /// [`Ui::theme_tile_min`] allow, the tiles shared out evenly over
-    /// them.
-    pub fn theme_grid(&self, inner: f32) -> (usize, f32, f32) {
+    /// How many theme tiles a row `inner` units across holds: as many as
+    /// tiles at [`Ui::theme_tile_min`] allow, so each group
+    /// ([`ThemeGroup`]) takes as few rows as it can and the groups'
+    /// tiles line up.
+    pub fn theme_grid(&self, inner: f32) -> usize {
         use faraday_draw::tokens::THEME_TILE_GAP as GAP;
         let n = Theme::ALL.len();
-        let most = (((inner + GAP) / (self.theme_tile_min() + GAP)).floor() as usize).clamp(1, n);
-        let per_row = n.div_ceil(n.div_ceil(most));
-        let w = (inner - GAP * (per_row - 1) as f32) / per_row as f32;
-        (per_row, w, self.theme_tile_h(w))
+        (((inner + GAP) / (self.theme_tile_min() + GAP)).floor() as usize).clamp(1, n)
+    }
+
+    /// The themes as tiles in their groups ([`ThemeGroup`]), each group
+    /// under its label and its tiles in rows of `per_row`, `w` wide from
+    /// (x, y); the theme on screen, `current`, is ringed. `action` names
+    /// what a press on a theme's tile does. Returns the height used, as
+    /// [`Ui::theme_groups_h`] works it out.
+    pub fn theme_groups(
+        &mut self,
+        x: f32,
+        y: f32,
+        w: f32,
+        per_row: usize,
+        current: Theme,
+        action: impl Fn(Theme) -> A,
+    ) -> f32 {
+        use faraday_draw::tokens::{
+            CAPTION, THEME_GROUP_GAP, THEME_GROUP_HEAD, THEME_TILE_GAP, THEME_TILE_ROW_GAP,
+        };
+        let per_row = per_row.max(1);
+        let tile_w = theme_tile_w(w, per_row);
+        let tile_h = self.theme_tile_h(tile_w);
+        let mut at = y;
+        for (g, group) in ThemeGroup::ALL.into_iter().enumerate() {
+            if g > 0 {
+                at += THEME_GROUP_GAP;
+            }
+            self.text(x, at, CAPTION, W::R, MUTED, group.name());
+            at += THEME_GROUP_HEAD;
+            let mut n = 0;
+            for theme in group.themes() {
+                self.theme_tile(
+                    x + (n % per_row) as f32 * (tile_w + THEME_TILE_GAP),
+                    at + (n / per_row) as f32 * (tile_h + THEME_TILE_ROW_GAP),
+                    tile_w,
+                    tile_h,
+                    theme,
+                    theme == current,
+                    action(theme),
+                );
+                n += 1;
+            }
+            at += n.div_ceil(per_row) as f32 * (tile_h + THEME_TILE_ROW_GAP) - THEME_TILE_ROW_GAP;
+        }
+        at - y
+    }
+
+    /// How tall [`Ui::theme_groups`] draws the groups, `w` wide in rows
+    /// of `per_row`.
+    pub fn theme_groups_h(&self, w: f32, per_row: usize) -> f32 {
+        use faraday_draw::tokens::{THEME_GROUP_GAP, THEME_GROUP_HEAD, THEME_TILE_ROW_GAP};
+        let per_row = per_row.max(1);
+        let tile_h = self.theme_tile_h(theme_tile_w(w, per_row));
+        let groups = ThemeGroup::ALL.into_iter().map(|g| {
+            let rows = g.themes().count().div_ceil(per_row);
+            THEME_GROUP_HEAD + rows as f32 * (tile_h + THEME_TILE_ROW_GAP) - THEME_TILE_ROW_GAP
+        });
+        groups.sum::<f32>() + THEME_GROUP_GAP * (ThemeGroup::ALL.len() - 1) as f32
     }
 
     /// A theme's name in lines no wider than `max`, broken at spaces: up
@@ -1977,7 +2105,7 @@ mod tests {
     fn text_and_tones_are_legible_on_the_page_and_the_card_in_every_theme() {
         let mut short = Vec::new();
         for theme in Theme::ALL {
-            let high = matches!(theme, Theme::HighContrastDark | Theme::HighContrastLight);
+            let high = theme.is_high_contrast();
             for (name, fg, standard) in [
                 ("text", pal::TEXT, 4.5),
                 ("accent", pal::ACCENT, 4.5),
@@ -2007,7 +2135,7 @@ mod tests {
 
     #[test]
     fn the_high_contrast_themes_draw_edges_at_3_to_1() {
-        for theme in [Theme::HighContrastDark, Theme::HighContrastLight] {
+        for theme in Theme::ALL.into_iter().filter(|t| t.is_high_contrast()) {
             for (name, edge) in [
                 ("card edge", pal::LINE),
                 ("rule", pal::INNER),

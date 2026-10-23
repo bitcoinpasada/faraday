@@ -5,7 +5,7 @@ use crate::Action;
 use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Theme, Ui, W};
+use crate::ui::{Style, Ui, W};
 use faraday_ui::parts::{title, wrap_buttons};
 
 /// The panic key, beside Power off on Settings: the stick shell powers
@@ -169,21 +169,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y - y0
     });
     y += section(ui, x, y, w, EN.settings_appearance, &|ui, x, y0, w| {
-        let per_row = 2;
-        let tile_w = (w - 8.0) / 2.0;
-        let tile_h = ui.theme_tile_h(tile_w);
-        for (i, theme) in Theme::ALL.into_iter().enumerate() {
-            ui.theme_tile(
-                x + (i % per_row) as f32 * (tile_w + 8.0),
-                y0 + (i / per_row) as f32 * (tile_h + 10.0),
-                tile_w,
-                tile_h,
-                theme,
-                app.theme() == theme,
-                Action::Theme(theme),
-            );
-        }
-        Theme::ALL.len().div_ceil(per_row) as f32 * (tile_h + 10.0) - 10.0
+        ui.theme_groups(x, y0, w, 2, app.theme(), Action::Theme)
     });
     y += section(ui, x, y, w, EN.settings_motion, &|ui, x, y0, w| {
         let items: Vec<(&str, Style, Action)> =
@@ -478,23 +464,21 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 244.0 - fewer + ignored_h;
     y += time_section(app, ui, x, y, width) + 20.0;
     y += mode_card(app, ui, x, y, width) + 20.0;
-    // Each theme a tile in its own colours, in rows as wide as the card.
-    let (per_row, tile_w, tile_h) = ui.theme_grid(width - 44.0);
-    let rows = Theme::ALL.len().div_ceil(per_row);
-    let card_h = 54.0 + rows as f32 * (tile_h + 10.0) - 10.0 + 22.0;
+    // Each theme a tile in its own colours, in its group, in rows as wide
+    // as the card.
+    let inner = width - 44.0;
+    let per_row = ui.theme_grid(inner);
+    let card_h = 54.0 + ui.theme_groups_h(inner, per_row) + 22.0;
     ui.card(x, y, width, card_h, LINE);
     ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_appearance);
-    for (i, theme) in Theme::ALL.into_iter().enumerate() {
-        ui.theme_tile(
-            x + 22.0 + (i % per_row) as f32 * (tile_w + 8.0),
-            y + 54.0 + (i / per_row) as f32 * (tile_h + 10.0),
-            tile_w,
-            tile_h,
-            theme,
-            app.theme() == theme,
-            Action::Theme(theme),
-        );
-    }
+    ui.theme_groups(
+        x + 22.0,
+        y + 54.0,
+        inner,
+        per_row,
+        app.theme(),
+        Action::Theme,
+    );
     y += card_h + 20.0;
     ui.card(x, y, width, 112.0, LINE);
     ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_motion);
