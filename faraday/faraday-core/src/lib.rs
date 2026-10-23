@@ -1538,7 +1538,7 @@ pub struct Faraday {
     /// stick shell read it (`devices`).
     pub devices: devices::DeviceCheck,
     /// The mode a lock in progress ends in; cleared when it is not gone through.
-    next_mode: Option<Mode>,
+    next_mode: modes::ModesArea,
     /// The samples Demo offers, set by the desktop; none elsewhere.
     pub samples: Option<&'static samples::Samples>,
     /// The Load samples sheet's rows (`samples::SheetState`).
@@ -1744,7 +1744,7 @@ impl Faraday {
             maker_family: String::new(),
             maker_model: String::new(),
             devices: devices::DeviceCheck::default(),
-            next_mode: None,
+            next_mode: modes::ModesArea::default(),
             samples: None,
             sample_sheet: samples::SheetState::default(),
             backup_flows: Vec::new(),
@@ -2876,7 +2876,7 @@ impl Faraday {
     fn not_kept(&mut self) {
         if self.restart && self.backup_flows.iter().any(|f| f.waiting()) {
             self.restart = false;
-            self.next_mode = None;
+            self.next_mode.clear();
             self.toast(EN.toast_lock_not_kept);
         }
     }
@@ -3152,7 +3152,7 @@ impl Faraday {
             Action::LockUnsealed => self.lock_now(),
             Action::LockAsk => self.lock_ask(false),
             Action::NotNow => {
-                self.next_mode = None;
+                self.next_mode.clear();
                 self.sheet = None;
                 // Asked for by Upgrade, with no stick in: nothing waits.
                 self.not_now = !self.upgrade.take_after_lock();
@@ -3228,7 +3228,7 @@ impl Faraday {
                 self.seed_read = None;
                 self.delete_ask = None;
                 self.visit.taken.clear();
-                self.next_mode = None;
+                self.next_mode.clear();
                 self.secret_cancel();
                 self.wordlist.clear();
                 self.potential = None;

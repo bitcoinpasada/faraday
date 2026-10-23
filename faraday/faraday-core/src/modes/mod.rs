@@ -64,6 +64,35 @@ impl Mode {
     }
 }
 
+/// The mode a lock in progress changes to, if the lock is a mode change.
+#[derive(Debug, Default)]
+pub struct ModesArea {
+    next_mode: Option<Mode>,
+}
+
+impl ModesArea {
+    /// The mode chosen, once the lock for it is asked.
+    pub(crate) fn choose(&mut self, m: Mode) {
+        self.next_mode = Some(m);
+    }
+
+    /// No mode change is asked for.
+    pub(crate) fn clear(&mut self) {
+        self.next_mode = None;
+    }
+
+    /// The mode the fresh session starts in: the one chosen, or `in_use`
+    /// (a lock keeps the mode).
+    pub(crate) fn after_restart(&self, in_use: Mode) -> Mode {
+        self.next_mode.unwrap_or(in_use)
+    }
+
+    /// Whether the lock now asked for is a mode change.
+    pub(crate) fn changing(&self) -> bool {
+        self.next_mode.is_some()
+    }
+}
+
 impl Faraday {
     /// The modes this app offers, in the order the sheet lists them.
     pub fn modes(&self) -> &'static [Mode] {
@@ -93,7 +122,7 @@ impl Faraday {
     /// one chosen, or the one in use (a lock keeps the mode). The shell
     /// reads it before it drops the app.
     pub fn mode_after_restart(&self) -> Mode {
-        self.next_mode.unwrap_or_else(|| self.mode())
+        self.next_mode.after_restart(self.mode())
     }
 
     /// What a lock hands the shell to keep in memory: the boxes as they
@@ -118,7 +147,7 @@ impl Faraday {
     /// Whether the lock now asked for is a mode change: it keeps nothing
     /// but the mode. A lookup.
     pub fn mode_changing(&self) -> bool {
-        self.next_mode.is_some()
+        self.next_mode.changing()
     }
 
     /// Handles `Action::ModeSheet`: the pill or Settings' Mode row opens
@@ -133,11 +162,11 @@ impl Faraday {
     /// Lock, and a fresh session in the mode; no warning comes first.
     pub(crate) fn mode_act(&mut self, m: Mode) {
         if m == self.mode() || !self.modes().contains(&m) || self.session.keys.network_fixed() {
-            self.next_mode = None;
+            self.next_mode.clear();
             self.sheet = None;
             return;
         }
-        self.next_mode = Some(m);
+        self.next_mode.choose(m);
         self.sheet = None;
         self.lock_ask(false);
     }
