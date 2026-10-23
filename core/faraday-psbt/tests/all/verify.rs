@@ -681,7 +681,9 @@ fn mismatch_levels(psbt: &Psbt) -> Vec<Level> {
 /// A signer asked for nothing (or for ALL) that answers with a good
 /// SIGHASH_NONE|ANYONECANPAY signature has signed no output: anyone can
 /// redirect the funds, and the review blocks it. One under SINGLE where
-/// ALL was asked is a danger. One under the sighash asked for passes.
+/// ALL was asked is a danger. One stricter than asked (ALL where
+/// ALL|ANYONECANPAY was asked) is a caution. One under the sighash asked
+/// for passes.
 #[test]
 fn a_signature_under_a_sighash_not_asked_for_is_flagged_ecdsa() {
     let t = ScriptType::NativeSegwit;
@@ -702,6 +704,22 @@ fn a_signature_under_a_sighash_not_asked_for_is_flagged_ecdsa() {
             ty(EcdsaSighashType::Single)
         )),
         vec![Level::Danger]
+    );
+    assert_eq!(
+        mismatch_levels(&answered_with(
+            t,
+            Some(ty(EcdsaSighashType::AllPlusAnyoneCanPay)),
+            ty(EcdsaSighashType::All)
+        )),
+        vec![Level::Caution]
+    );
+    assert_eq!(
+        mismatch_levels(&answered_with(
+            t,
+            Some(ty(EcdsaSighashType::Single)),
+            ty(EcdsaSighashType::All)
+        )),
+        vec![Level::Caution]
     );
     assert!(mismatch_levels(&answered_with(t, None, ty(EcdsaSighashType::All))).is_empty());
     assert!(
@@ -732,6 +750,14 @@ fn a_signature_under_a_sighash_not_asked_for_is_flagged_taproot() {
             ty(TapSighashType::AllPlusAnyoneCanPay)
         )),
         vec![Level::Danger]
+    );
+    assert_eq!(
+        mismatch_levels(&answered_with(
+            t,
+            Some(ty(TapSighashType::AllPlusAnyoneCanPay)),
+            ty(TapSighashType::Default)
+        )),
+        vec![Level::Caution]
     );
     assert!(mismatch_levels(&answered_with(t, None, ty(TapSighashType::Default))).is_empty());
     assert!(mismatch_levels(&answered_with(t, None, ty(TapSighashType::All))).is_empty());

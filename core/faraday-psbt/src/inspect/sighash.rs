@@ -12,9 +12,10 @@ use super::{InputInfo, Level, SighashKind, Warning, WarningKind, warn};
 /// (Caution), and one made under a sighash other than the one its input
 /// asks for, or other than `ALL`/`DEFAULT` where the input asks for none
 /// (Danger; Blocked when it is a `NONE` sighash, which commits to no
-/// output). A signature is checked under the sighash it states, so a
-/// signer that answered with another one passes that check: this is the
-/// card that catches it. A lookup per signature.
+/// output; Caution when it is stricter than asked, committing to all the
+/// asked one does and more). A signature is checked under the sighash it
+/// states, so a signer that answered with another one passes that check:
+/// this is the card that catches it. A lookup per signature.
 pub(super) fn signature_cards(
     warnings: &mut Vec<Warning>,
     signatures: &[crate::verify::InputSignatures],
@@ -66,6 +67,16 @@ pub(super) fn signature_cards(
                     sig.sighash
                 ),
             )
+        } else if sighash_stricter(asked, sig.sighash) {
+            (
+                Level::Caution,
+                format!(
+                    "input {}: the signature under {} signs with {}, stricter than the {asked} asked for: the transaction cannot be changed as the request allows",
+                    sig.input,
+                    sig.name(),
+                    sig.sighash
+                ),
+            )
         } else {
             (
                 Level::Danger,
@@ -94,4 +105,35 @@ pub(super) fn signature_cards(
 /// `DEFAULT`, which commit to the same. A lookup.
 fn sighash_answers(asked: SighashKind, signed: SighashKind) -> bool {
     asked == signed || (asked.is_default() && signed.is_default())
+}
+
+/// Whether a signature made under `signed` commits to everything one
+/// under `asked` would, and more: as many outputs or more (`ALL` over
+/// `SINGLE` over `NONE`), and the other inputs where `asked` leaves them
+/// out (`ANYONECANPAY`). A lookup.
+fn sighash_stricter(asked: SighashKind, signed: SighashKind) -> bool {
+    let (Some((asked_outputs, asked_acp)), Some((signed_outputs, signed_acp))) =
+        (commitment(asked), commitment(signed))
+    else {
+        return false;
+    };
+    signed_outputs >= asked_outputs && (asked_acp || !signed_acp)
+}
+
+/// What a sighash commits to: its outputs (2 for every output, 1 for its
+/// own, 0 for none) and whether it leaves the other inputs out
+/// (`ANYONECANPAY`); `None` for a non-standard value. A lookup.
+fn commitment(kind: SighashKind) -> Option<(u8, bool)> {
+    let byte = match kind {
+        SighashKind::Ecdsa(t) => t.to_u32(),
+        SighashKind::Taproot(t) => u32::from(t as u8),
+        SighashKind::NonStandard(_) => return None,
+    };
+    let outputs = match byte & 0x1f {
+        0 | 1 => 2,
+        3 => 1,
+        2 => 0,
+        _ => return None,
+    };
+    Some((outputs, byte & 0x80 != 0))
 }
