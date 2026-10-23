@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified from the owner's ask (2026-10-15), not built; the decision is drafted in §10 as F-next, for the owner
-**Open:** all of it, batches P1 to P6 (§11.2): reading a paperkey and a certificate in `faraday-pgp`, the restore set in `faraday-keys`, the flow, scanning, and the docs; the owner's answers to §11.4
+**Open:** all of it, batches P1 to P6 (§11.2): reading a paperkey and a certificate in `faraday-pgp`, the restore set in `faraday-keys`, the flow, scanning, and the docs
 
 A person whose GPG key's vault is lost, but who wrote down its paperkey,
 brings the key back into a vault and signs with it again. Today the
@@ -691,6 +691,11 @@ last.
 | `docs/learn/faraday/gpg.md`, `docs/FLOWS.md`, `docs/QR.md`, `docs/DEMO.md`, `docs/DESIGN.md` §5's sheets, `docs/README.md` | P6 |
 
 ### 11.4 Questions for the owner
+
+Answered by the owner on 2026-10-23: every proposal below is taken (Q1
+refused; Q2 at once; Q3 two or more places; Q4 set aside and counted;
+Q5 P5 builds scanning; Q6 not offered; Q7 armour only; Q8 not offered;
+Q9 dimmed in Demo; Q10 not copied; Q11 refused).
 
 - **Q1. Keys made elsewhere.** A key of Faraday's shape made by GnuPG
   (an Ed25519 key that certifies, one Ed25519 signing subkey, no
