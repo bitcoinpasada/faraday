@@ -98,3 +98,4 @@ Read this table, then only the decision you need.
 | [F81](decisions/F81.md) | Modes: a pressable pill, Demo on testnet, samples at every step | 2026-10-22 | Active | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Active | design |
 | [F83](decisions/F83.md) | Faraday Desktop is inside the Starter, and not published on its own | 2026-10-23 | Active | release |
+| [F84](decisions/F84.md) | Check a signer fails closed; unknown fields are findings there and Info in a review | 2026-10-23 | Active | crypto |

@@ -28,6 +28,7 @@ need. Each document's header says what kind it is:
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |
 | Which other wallets' files and codes does Faraday read and write? | `docs/INTEROP.md`, `docs/WALLETS.md` |
 | How does the Starter write a stick and start a computer from it? | `docs/STARTER.md` |
+| Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
 | What about Macs? | `docs/MAC.md` |
 | What are TOTP codes and the clock? | `docs/TOTP.md` |
 | How are APKs signed? | `docs/APK-SIGNING.md` |
@@ -78,6 +79,7 @@ need. Each document's header says what kind it is:
 - `docs/MULTIVENDOR.md`: Two implementations of every cryptographic step. Option A decided (F79), not built.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/QR.md`: QR transfer and scanning. Built, except §7.
+- `docs/SIGNER-CHECK.md`: Check a signer. Planned, not built.
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.
 - `docs/STRUCTURE-PASS.md`: The structure pass. Partly built.
