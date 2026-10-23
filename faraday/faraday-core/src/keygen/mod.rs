@@ -1324,8 +1324,9 @@ impl KeyGenArea {
         }
     }
 
-    /// A press that changes only the flow. `draw` is the fresh draw
-    /// dealing shares takes, asked for before the flow is borrowed.
+    /// Costs a seed's fingerprint and a share deal when the entry is
+    /// finished. A press that changes only the flow. `draw` is the fresh
+    /// draw dealing shares takes, asked for before the flow is borrowed.
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn act(
         &mut self,
