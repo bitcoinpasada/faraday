@@ -44,8 +44,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += target(app, ui, u, step, x, y, w) + 20.0;
     y += done(app, ui, u, step, x, y, w);
     ui.c.pop_clip();
-    app.content_h.set(y - top + 24.0);
-    ui.report_scroll(clip, app.content_h.get() - h);
+    app.scroll.content_h().set(y - top + 24.0);
+    ui.report_scroll(clip, app.scroll.content_h().get() - h);
 }
 
 /// A step's number, or a tick once it is behind, and its label. Returns

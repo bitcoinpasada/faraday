@@ -449,7 +449,7 @@ pub(crate) fn about(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
 
 /// Reports how tall the page is, so it scrolls.
 pub(crate) fn finish(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32, content: f32) {
-    app.content_h.set(content);
+    app.scroll.content_h().set(content);
     let view = ui.rect(x0, 0.0, cw, h);
     ui.report_scroll(view, content - h);
 }

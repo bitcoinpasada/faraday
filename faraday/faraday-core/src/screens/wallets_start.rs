@@ -115,9 +115,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if compact {
             crate::compact::screen::finish(app, ui, x0, cw, h, y + 16.0 + app.list_offset);
         } else {
-            app.content_h.set(y + app.list_offset + 24.0);
+            app.scroll.content_h().set(y + app.list_offset + 24.0);
             let view = ui.rect(x0, 0.0, cw, h);
-            ui.report_scroll(view, app.content_h.get() - h);
+            ui.report_scroll(view, app.scroll.content_h().get() - h);
         }
         return;
     }

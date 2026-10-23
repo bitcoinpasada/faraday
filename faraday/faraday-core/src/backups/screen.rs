@@ -118,8 +118,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += ch + GAP;
     }
     ui.c.pop_clip();
-    app.content_h.set(y - top + 40.0);
-    ui.report_scroll(clip, app.content_h.get() - h);
+    app.scroll.content_h().set(y - top + 40.0);
+    ui.report_scroll(clip, app.scroll.content_h().get() - h);
 }
 
 /// A wallet's Back up, or Continue the backup for one left part way

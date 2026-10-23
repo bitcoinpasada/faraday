@@ -1674,7 +1674,7 @@ impl Faraday {
                     m.rows = rows;
                     m.at = 0;
                 }
-                self.sheet_scroll = (0.0, None);
+                self.scroll.reset_sheet();
             }
             BoardPress::MenuTo(z) => {
                 let Some(menu) = state.menu else {
@@ -1771,7 +1771,7 @@ impl Faraday {
             BoardPress::OpenList => {
                 set(self, None);
                 self.sheet = Some(crate::Sheet::BoardList);
-                self.sheet_scroll = (0.0, None);
+                self.scroll.reset_sheet();
             }
             BoardPress::Chip(c) => {
                 if c == Chip::List(Thing::Software) {
@@ -1987,7 +1987,7 @@ impl Faraday {
             });
         }
         self.sheet = Some(crate::Sheet::BoardMenu);
-        self.sheet_scroll = (0.0, None);
+        self.scroll.reset_sheet();
     }
 
     /// The open menu closed, its sheet with it.
@@ -2353,7 +2353,7 @@ impl Faraday {
                 });
             }
             self.sheet = Some(crate::Sheet::BoardSees);
-            self.sheet_scroll = (0.0, None);
+            self.scroll.reset_sheet();
             return;
         }
         let sees = |a: &Answers, m: &plan::Mapped, p: usize| {
@@ -2375,7 +2375,7 @@ impl Faraday {
             });
         }
         self.sheet = Some(crate::Sheet::BoardSees);
-        self.sheet_scroll = (0.0, None);
+        self.scroll.reset_sheet();
     }
 
     /// While partial descriptions are on, a place added or taken off has
@@ -2431,7 +2431,7 @@ impl Faraday {
             st.partials = Some((line, off));
         }
         self.sheet = Some(crate::Sheet::BoardPartials);
-        self.sheet_scroll = (0.0, None);
+        self.scroll.reset_sheet();
     }
 
     /// The board's empty sticks go when it is left: its card closed or

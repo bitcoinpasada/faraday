@@ -260,6 +260,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += th + 32.0;
     }
     ui.c.pop_clip();
-    app.content_h.set(y - top + 40.0);
-    ui.report_scroll(clip, app.content_h.get() - h);
+    app.scroll.content_h().set(y - top + 40.0);
+    ui.report_scroll(clip, app.scroll.content_h().get() - h);
 }

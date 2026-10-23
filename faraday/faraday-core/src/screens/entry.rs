@@ -212,8 +212,8 @@ pub(crate) fn entry_words(
 /// scroll leaves the footer and its margin inside the window.
 fn entry_scrolled(app: &View, ui: &mut Ui, clip: faraday_draw::Rect, h: f32, bottom: f32) {
     ui.c.pop_clip();
-    app.content_h.set(bottom + app.list_offset + 24.0);
-    ui.report_scroll(clip, app.content_h.get() - h);
+    app.scroll.content_h().set(bottom + app.list_offset + 24.0);
+    ui.report_scroll(clip, app.scroll.content_h().get() - h);
 }
 
 /// Add a key's word count: 12 · 15 · 18 · 21 · 24 as a row of equal

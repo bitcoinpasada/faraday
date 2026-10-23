@@ -316,7 +316,7 @@ impl Faraday {
                     ext,
                 });
                 self.sheet = Some(Sheet::Rename);
-                self.sheet_scroll = (0.0, None);
+                self.scroll.reset_sheet();
             }
             FilePress::Field => {}
             FilePress::RenameGo => self.file_rename_go(),
@@ -348,7 +348,7 @@ impl Faraday {
                     stick,
                 });
                 self.sheet = Some(Sheet::Details);
-                self.sheet_scroll = (0.0, None);
+                self.scroll.reset_sheet();
             }
             FilePress::StickDelete(k) => {
                 let Some((name, _)) = self.stick_file(k) else {
@@ -410,7 +410,7 @@ impl Faraday {
             self.files_menu.focus = Some(row);
         }
         self.sheet = Some(Sheet::FileMenu);
-        self.sheet_scroll = (0.0, None);
+        self.scroll.reset_sheet();
     }
 
     /// Why the Rename popup's name cannot be used, as its line; `Err(None)`

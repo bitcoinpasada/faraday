@@ -268,7 +268,7 @@ impl Faraday {
         });
         self.chart = Some((press, Target::Confirm));
         self.sheet = Some(Sheet::Chart);
-        self.sheet_scroll = (0.0, None);
+        self.scroll.reset_sheet();
     }
 
     /// Costs what `of_now` and `of_vault_now` cost. What an edit does, in
@@ -512,7 +512,7 @@ impl Faraday {
         if kept {
             self.chart = Some((press, Target::Marked(n, line)));
             self.sheet = Some(Sheet::Chart);
-            self.sheet_scroll = (0.0, None);
+            self.scroll.reset_sheet();
         }
     }
 

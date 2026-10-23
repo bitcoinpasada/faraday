@@ -573,7 +573,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
 
     let content = y - top;
-    app.content_h.set(content);
+    app.scroll.content_h().set(content);
     ui.report_scroll(clip, content - view_h);
     ui.c.pop_clip();
 

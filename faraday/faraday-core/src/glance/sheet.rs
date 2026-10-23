@@ -1559,7 +1559,7 @@ impl Faraday {
                 self.chart = Some((press, target));
                 self.chart_focus = None;
                 self.sheet = Some(Sheet::Chart);
-                self.sheet_scroll = (0.0, None);
+                self.scroll.reset_sheet();
             }
             ChartAction::Where(press, k) => {
                 self.close_chart();
@@ -1636,7 +1636,7 @@ impl Faraday {
                     Step::Addresses => {
                         self.chart = Some((Press::Loaded(w), Target::Addresses));
                         self.sheet = Some(Sheet::Chart);
-                        self.sheet_scroll = (0.0, None);
+                        self.scroll.reset_sheet();
                     }
                     Step::Envelopes => self.envelopes_out(w),
                 }

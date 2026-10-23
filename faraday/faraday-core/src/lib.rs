@@ -1223,9 +1223,6 @@ pub struct Faraday {
     pub screen: Screen,
     /// A sheet over it.
     pub sheet: Option<Sheet>,
-    /// How far a sheet taller than a small panel is scrolled, and which
-    /// sheet it was: another sheet starts at its top.
-    sheet_scroll: (f32, Option<Sheet>),
     /// The open sheet's offset as the frame draws it.
     sheet_offset: f32,
     /// A small panel's docked keyboard and walk-through.
@@ -1295,24 +1292,10 @@ pub struct Faraday {
     /// What the chart's sheets hold between presses: a change asked for,
     /// a name or a passphrase typed (`docs/history/NEW-WALLET.md` §9.5–§9.7).
     pub chart_work: chart_edit::Work,
-    /// The height a scrolled page last drew to, design units: how far its
-    /// scroll may go.
-    pub(crate) content_h: std::cell::Cell<f32>,
-    /// What moves the scrolled region: pans, glides, coasts and the
-    /// stretch at its ends (`docs/MOTION.md` §3.3).
-    motion: motion::Motion,
-    /// The screen, sheet and region the motion belongs to.
-    motion_for: RegionKey,
-    /// The scrolled regions the last frame drew, and the screen and
-    /// sheet they were drawn for.
-    extent: Option<(ScreenKey, Vec<ui::Scrolled>)>,
-    /// The region the wheel, a trackpad and a finger last went to: the
-    /// one under the pointer when it started.
-    region: ui::Slot,
-    /// For the overlay scrollbar: the screen, sheet and region, the
-    /// offset last drawn, and when it last changed (0 for not since it
-    /// opened).
-    bar_seen: (RegionKey, f32, u64),
+    /// What scrolls: the motion, the regions the last frame drew, the
+    /// scrollbar's memory, the sheet's offset and the page's height
+    /// (`motion.rs`, `docs/MOTION.md` §3.3).
+    scroll: motion::Scroll,
     /// The QR sheet's contents.
     qr: qr_view::QrArea,
     /// The Spend tab.
@@ -1535,7 +1518,6 @@ impl Faraday {
             now_ms: 0,
             screen: Screen::Home,
             sheet: None,
-            sheet_scroll: (0.0, None),
             sheet_offset: 0.0,
             panel: compact::CompactArea::default(),
             session: Session::default(),
@@ -1564,12 +1546,7 @@ impl Faraday {
             chart: None,
             chart_focus: None,
             chart_work: chart_edit::Work::default(),
-            content_h: std::cell::Cell::new(0.0),
-            motion: motion::Motion::default(),
-            motion_for: ((Screen::Home, None), ui::Slot::Page),
-            extent: None,
-            region: ui::Slot::Page,
-            bar_seen: (((Screen::Home, None), ui::Slot::Page), 0.0, 0),
+            scroll: motion::Scroll::default(),
             qr: qr_view::QrArea::default(),
             family: family::FamilyState::default(),
             vanity: vanity::VanityArea::default(),
@@ -3604,7 +3581,7 @@ impl Faraday {
             }
             Action::ReduceMotion(on) => {
                 self.settings.set_reduce_motion(on);
-                self.motion.stop();
+                self.scroll.stop();
                 self.save_boxes();
             }
             Action::Theme(theme) => {
@@ -7936,57 +7913,18 @@ impl Faraday {
     /// Which region scrolls now: the one the pointer last went to, while
     /// it can be reached; else the screen's or the sheet's own.
     fn slot(&self) -> ui::Slot {
-        match self.region {
-            ui::Slot::VisitOut
-                if self.screen == Screen::Visit
-                    && !self.compact
-                    && self.region_key().1.is_none() =>
-            {
-                ui::Slot::VisitOut
-            }
-            ui::Slot::Card
-                if self.screen == Screen::Wallets
-                    && !self.compact
-                    && self.region_key().1.is_none() =>
-            {
-                ui::Slot::Card
-            }
-            ui::Slot::VaultItem
-                if self.screen == Screen::VaultContents
-                    && !self.compact
-                    && self.region_key().1.is_none() =>
-            {
-                ui::Slot::VaultItem
-            }
-            ui::Slot::FilesOut
-                if self.screen == Screen::Files
-                    && !self.compact
-                    && self.region_key().1.is_none() =>
-            {
-                ui::Slot::FilesOut
-            }
-            ui::Slot::BoardList
-                if self.board_shown() && !self.compact && self.region_key().1.is_none() =>
-            {
-                ui::Slot::BoardList
-            }
-            _ => ui::Slot::Page,
-        }
+        self.scroll
+            .slot(self.screen, self.sheet.is_none(), self.compact, || {
+                self.board_shown()
+            })
     }
 
     /// The regions the last frame drew that can be reached now, last
     /// drawn first: through a sheet that does not scroll, none.
     fn regions(&self) -> std::vec::IntoIter<ui::Scrolled> {
         let key = self.region_key();
-        let reachable = self.sheet.is_none() || key.1.is_some();
-        let v: Vec<ui::Scrolled> = self
-            .extent
-            .iter()
-            .filter(|(k, _)| reachable && *k == key)
-            .flat_map(|(_, v)| v.iter().rev().copied())
-            .filter(|e| e.slot == ui::Slot::Page || key.1.is_none())
-            .collect();
-        v.into_iter()
+        self.scroll
+            .regions(key, self.sheet.is_none() || key.1.is_some())
     }
 
     /// What the region that scrolls now rounds an offset to: whole
@@ -8004,22 +7942,17 @@ impl Faraday {
 
     /// The region that scrolls now, as the last frame drew it.
     fn region_now(&self) -> Option<ui::Scrolled> {
-        let slot = self.slot();
-        let key = self.region_key();
-        self.extent
-            .iter()
-            .filter(|(k, _)| *k == key)
-            .flat_map(|(_, v)| v.iter().copied())
-            .find(|e| e.slot == slot)
+        self.scroll.region_now(self.region_key(), self.slot())
     }
 
     /// The wheel, a trackpad or a finger starts at (x, y): the region
     /// under it is the one they move, the page's when none is.
     fn point_region(&mut self, x: i32, y: i32) {
-        self.region = self
+        let slot = self
             .regions()
             .find(|e| e.view.contains(x, y))
             .map_or(ui::Slot::Page, |e| e.slot);
+        self.scroll.went_to(slot);
     }
 
     /// Which region scrolls now: the screen, or the sheet over it when
@@ -8033,10 +7966,7 @@ impl Faraday {
     /// another screen, sheet or region is stopped.
     fn own_motion(&mut self) {
         let key = (self.region_key(), self.slot());
-        if self.motion_for != key {
-            self.motion_for = key;
-            self.motion.stop();
-        }
+        self.scroll.own(key);
     }
 
     /// Runs `go` on the motion and the region that scrolls now, with how
@@ -8049,8 +7979,7 @@ impl Faraday {
         self.own_motion();
         let extent = self.region_now();
         let (f, h) = (self.f.max(0.1), self.h);
-        let mut m = std::mem::take(&mut self.motion);
-        m.rigid = self.reduce_motion();
+        let mut m = self.scroll.take_motion(self.reduce_motion());
         let out = self.scroll_slot().map(|offset| {
             let mut region = motion::Region {
                 offset,
@@ -8060,7 +7989,7 @@ impl Faraday {
             };
             go(&mut m, &mut region)
         });
-        self.motion = m;
+        self.scroll.put_back(m);
         out
     }
 
@@ -8090,7 +8019,7 @@ impl Faraday {
             // A glide on the region the pointer has just moved to starts
             // there, not on the region that was moving.
             self.own_motion();
-            self.motion.glide(dy);
+            self.scroll.glide(dy);
         }
     }
 
@@ -8100,7 +8029,7 @@ impl Faraday {
         match self.with_region(|m, r| m.tick(r, now_ms)) {
             Some(moved) => moved,
             None => {
-                self.motion.stop();
+                self.scroll.stop();
                 false
             }
         }
@@ -8134,7 +8063,7 @@ impl Faraday {
                         g.thumb / 2
                     };
                     self.bar_held = Some(grab);
-                    self.motion.stop();
+                    self.scroll.stop();
                     self.pressed = None;
                     self.drag = None;
                     self.swallow = false;
@@ -8152,9 +8081,9 @@ impl Faraday {
                     .find(|e| e.slot == slot && e.view.contains(x, y))
                     .map(|_| (y, false));
                 // A touch on content that is still flying only stops it.
-                self.swallow = self.motion.flung(self.f);
+                self.swallow = self.scroll.flung(self.f);
                 if self.swallow {
-                    self.motion.stop();
+                    self.scroll.stop();
                     self.pressed = None;
                     return;
                 }
@@ -8251,7 +8180,7 @@ impl Faraday {
                 let dragged = self.drag.take().is_some_and(|(_, d)| d);
                 if dragged {
                     self.pressed = None;
-                    self.motion.release(self.f);
+                    self.scroll.release(self.f);
                 }
                 if dragged || std::mem::take(&mut self.swallow) {
                     return;
@@ -8379,7 +8308,7 @@ impl Faraday {
         if let Some(offset) = self.scroll_slot() {
             *offset = whole(*offset);
         }
-        let stretch = (self.motion.stretch() * f).round() as i32;
+        let stretch = (self.scroll.stretch() * f).round() as i32;
         // The overlay scrollbar shows while the offset moves and fades
         // once it has rested a moment.
         let key = self.region_key();
@@ -8387,7 +8316,7 @@ impl Faraday {
         let offset = self.scroll_slot().map_or(0.0, |o| *o);
         let page_offset = self.screen_slot().map_or(0.0, |o| *o);
         self.sheet_offset = self.page_slot().map_or(0.0, |o| *o);
-        let (seen_key, seen_offset, moved_at) = self.bar_seen;
+        let (seen_key, seen_offset, moved_at) = self.scroll.bar_seen();
         let moved_at = if seen_key != (key, slot) {
             0
         } else if seen_offset != offset || stretch != 0 {
@@ -8399,7 +8328,7 @@ impl Faraday {
         let hot =
             self.bar_held.is_some() || self.hover.is_some_and(|(x, y)| self.bar_at(x, y).is_some());
         let moved_at = if hot { self.now_ms.max(1) } else { moved_at };
-        self.bar_seen = ((key, slot), offset, moved_at);
+        self.scroll.set_bar_seen((key, slot), offset, moved_at);
         let bar = motion::bar_alpha(moved_at, self.now_ms);
         // Drawn twice when a step card has just opened: the first time
         // finds out, the second draws it growing from closed.
@@ -8470,12 +8399,13 @@ impl Faraday {
             if self.reduce_motion() {
                 self.with_region(|m, r| m.jump(r, want - now));
             } else {
-                self.motion.glide_to(want - now);
+                self.scroll.glide_to(want - now);
             }
             self.out.dirty = true;
             self.out.commands.push_back(Command::Draw);
         }
-        self.extent = (!scrolled.is_empty()).then(|| (self.region_key(), scrolled));
+        let drew = self.region_key();
+        self.scroll.drew(drew, scrolled);
         self.typing.set_caret_drawn(caret);
         self.vaults.drawn = true;
         self.later_drawn = true;
@@ -8569,7 +8499,7 @@ impl Faraday {
     pub fn settle(&mut self) {
         self.typing.blink_from(self.now_ms);
         let _ = self.with_region(|m, r| m.settle(r));
-        self.motion.stop();
+        self.scroll.stop();
         self.scroll_at = None;
         if let Some(d) = self.disclosed.as_mut() {
             d.moving = false;
@@ -8577,7 +8507,8 @@ impl Faraday {
         self.guided_moving = None;
         let whole = self.whole_offset();
         let offset = self.scroll_slot().map_or(0.0, |o| whole(*o));
-        self.bar_seen = ((self.region_key(), self.slot()), offset, 0);
+        self.scroll
+            .set_bar_seen((self.region_key(), self.slot()), offset, 0);
         if self.out.toast.is_some() {
             self.out.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
         }
@@ -9121,7 +9052,7 @@ impl App for Faraday {
             }
             Event::ScrollEnd { .. } => {
                 self.scroll_at = None;
-                self.motion.release(self.f);
+                self.scroll.release(self.f);
             }
             // A frame only when what is under the pointer changes.
             Event::Hover { x, y } => {
@@ -9149,7 +9080,7 @@ impl App for Faraday {
                 self.fade.tick_clock(now_ms);
                 // The scrollbar was showing at the last tick: this one
                 // draws its next step of fading, the last one included.
-                let fading = motion::bar_alpha(self.bar_seen.2, self.now_ms) > 0;
+                let fading = motion::bar_alpha(self.scroll.bar_moved_at(), self.now_ms) > 0;
                 self.now_ms = now_ms;
                 // Asked for on every tick while something moves, so the
                 // shell keeps drawing at its frame rate.
@@ -9189,7 +9120,7 @@ impl App for Faraday {
                     .is_some_and(|at| now_ms.saturating_sub(at) > motion::SCROLL_QUIET_MS)
                 {
                     self.scroll_at = None;
-                    self.motion.release(self.f);
+                    self.scroll.release(self.f);
                 }
                 if self.motion_tick(now_ms) || fading {
                     self.out.dirty = true;

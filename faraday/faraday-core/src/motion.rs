@@ -11,7 +11,7 @@
 //! app; `f` is pixels per design unit. Which offset each screen and
 //! sheet scrolls is here too (`Faraday::screen_slot`).
 
-use crate::{Faraday, Screen, Sheet};
+use crate::{Faraday, RegionKey, Screen, ScreenKey, Sheet, ui};
 
 /// How long a glide takes to cover most of its way: each millisecond it
 /// covers 1/τ of what is left, so a notch settles in about 140 ms.
@@ -413,6 +413,199 @@ fn unrubber(stretch: f32, d: f32) -> f32 {
     if stretch < 0.0 { -x } else { x }
 }
 
+/// The scrolled regions' area: what moves the region that scrolls now,
+/// the regions the last frame drew, which of them the pointer went to,
+/// the overlay scrollbar's memory and the sheet's own offset. Its fields
+/// are private; the offsets themselves stay where each screen keeps them
+/// (`Faraday::screen_slot`).
+pub(crate) struct Scroll {
+    /// What moves the scrolled region: pans, glides, coasts and the
+    /// stretch at its ends (`docs/MOTION.md` §3.3).
+    motion: Motion,
+    /// The screen, sheet and region the motion belongs to.
+    motion_for: RegionKey,
+    /// The scrolled regions the last frame drew, and the screen and
+    /// sheet they were drawn for.
+    extent: Option<(ScreenKey, Vec<ui::Scrolled>)>,
+    /// The region the wheel, a trackpad and a finger last went to: the
+    /// one under the pointer when it started.
+    region: ui::Slot,
+    /// For the overlay scrollbar: the screen, sheet and region, the
+    /// offset last drawn, and when it last changed (0 for not since it
+    /// opened).
+    bar_seen: (RegionKey, f32, u64),
+    /// How far a sheet taller than a small panel is scrolled, and which
+    /// sheet it was: another sheet starts at its top.
+    sheet_scroll: (f32, Option<Sheet>),
+    /// The height a scrolled page last drew to, design units: how far its
+    /// scroll may go.
+    content_h: std::cell::Cell<f32>,
+}
+
+impl Default for Scroll {
+    fn default() -> Self {
+        let home = ((Screen::Home, None), ui::Slot::Page);
+        Scroll {
+            motion: Motion::default(),
+            motion_for: home,
+            extent: None,
+            region: ui::Slot::Page,
+            bar_seen: (home, 0.0, 0),
+            sheet_scroll: (0.0, None),
+            content_h: std::cell::Cell::new(0.0),
+        }
+    }
+}
+
+impl Scroll {
+    /// The height a scrolled page last drew to: how far its scroll may
+    /// go. Written by the screen as it draws.
+    pub(crate) fn content_h(&self) -> &std::cell::Cell<f32> {
+        &self.content_h
+    }
+
+    /// How far the content is shown past an end, units.
+    pub(crate) fn stretch(&self) -> f32 {
+        self.motion.stretch()
+    }
+
+    /// Whether the content is coasting fast enough that a touch should
+    /// only stop it.
+    pub(crate) fn flung(&self, f: f32) -> bool {
+        self.motion.flung(f)
+    }
+
+    /// Stops everything at once, the stretch included.
+    pub(crate) fn stop(&mut self) {
+        self.motion.stop();
+    }
+
+    /// The fingers lifted.
+    pub(crate) fn release(&mut self, f: f32) {
+        self.motion.release(f);
+    }
+
+    /// The content glides `dy` from where it is, whatever it was doing.
+    pub(crate) fn glide_to(&mut self, dy: f32) {
+        self.motion.glide_to(dy);
+    }
+
+    /// A wheel notch or an arrow key asked for `dy`.
+    pub(crate) fn glide(&mut self, dy: f32) {
+        self.motion.glide(dy);
+    }
+
+    /// The motion belongs to the region that scrolls now: what moved
+    /// another screen, sheet or region is stopped.
+    pub(crate) fn own(&mut self, key: RegionKey) {
+        if self.motion_for != key {
+            self.motion_for = key;
+            self.motion.stop();
+        }
+    }
+
+    /// Takes the motion out to run it on a region whose offset is
+    /// borrowed from elsewhere; [`Scroll::put_back`] returns it.
+    pub(crate) fn take_motion(&mut self, rigid: bool) -> Motion {
+        let mut m = std::mem::take(&mut self.motion);
+        m.rigid = rigid;
+        m
+    }
+
+    /// Returns the motion [`Scroll::take_motion`] took.
+    pub(crate) fn put_back(&mut self, m: Motion) {
+        self.motion = m;
+    }
+
+    /// The regions the last frame drew for `key` that can be reached
+    /// (`reachable`), last drawn first.
+    pub(crate) fn regions(
+        &self,
+        key: ScreenKey,
+        reachable: bool,
+    ) -> std::vec::IntoIter<ui::Scrolled> {
+        let v: Vec<ui::Scrolled> = self
+            .extent
+            .iter()
+            .filter(|(k, _)| reachable && *k == key)
+            .flat_map(|(_, v)| v.iter().rev().copied())
+            .filter(|e| e.slot == ui::Slot::Page || key.1.is_none())
+            .collect();
+        v.into_iter()
+    }
+
+    /// The region `slot` of `key`, as the last frame drew it.
+    pub(crate) fn region_now(&self, key: ScreenKey, slot: ui::Slot) -> Option<ui::Scrolled> {
+        self.extent
+            .iter()
+            .filter(|(k, _)| *k == key)
+            .flat_map(|(_, v)| v.iter().copied())
+            .find(|e| e.slot == slot)
+    }
+
+    /// Takes the regions a frame drew for `key`.
+    pub(crate) fn drew(&mut self, key: ScreenKey, scrolled: Vec<ui::Scrolled>) {
+        self.extent = (!scrolled.is_empty()).then_some((key, scrolled));
+    }
+
+    /// The wheel, a trackpad or a finger went to `slot`.
+    pub(crate) fn went_to(&mut self, slot: ui::Slot) {
+        self.region = slot;
+    }
+
+    /// For the overlay scrollbar: the region, the offset last drawn, and
+    /// when it last changed.
+    pub(crate) fn bar_seen(&self) -> (RegionKey, f32, u64) {
+        self.bar_seen
+    }
+
+    /// Notes the offset the scrollbar's region was drawn at.
+    pub(crate) fn set_bar_seen(&mut self, key: RegionKey, offset: f32, moved_at: u64) {
+        self.bar_seen = (key, offset, moved_at);
+    }
+
+    /// When the scrollbar's region last moved (0: not since it opened).
+    pub(crate) fn bar_moved_at(&self) -> u64 {
+        self.bar_seen.2
+    }
+
+    /// The next sheet starts at its top.
+    pub(crate) fn reset_sheet(&mut self) {
+        self.sheet_scroll = (0.0, None);
+    }
+
+    /// The offset of the open sheet `s`, which starts at its top when it
+    /// is not the one scrolled last.
+    pub(crate) fn sheet_offset_of(&mut self, s: Sheet) -> &mut f32 {
+        if self.sheet_scroll.1 != Some(s) {
+            self.sheet_scroll = (0.0, Some(s));
+        }
+        &mut self.sheet_scroll.0
+    }
+
+    /// Which region scrolls now: the one the pointer last went to, while
+    /// it can be reached (`sheet_none`, not `compact`, on its own
+    /// screen); else the screen's or the sheet's own. `board_shown` is
+    /// asked only when the pointer went to the board's list.
+    pub(crate) fn slot(
+        &self,
+        screen: Screen,
+        sheet_none: bool,
+        compact: bool,
+        board_shown: impl FnOnce() -> bool,
+    ) -> ui::Slot {
+        let reach = !compact && sheet_none;
+        match self.region {
+            ui::Slot::VisitOut if screen == Screen::Visit && reach => ui::Slot::VisitOut,
+            ui::Slot::Card if screen == Screen::Wallets && reach => ui::Slot::Card,
+            ui::Slot::VaultItem if screen == Screen::VaultContents && reach => ui::Slot::VaultItem,
+            ui::Slot::FilesOut if screen == Screen::Files && reach => ui::Slot::FilesOut,
+            ui::Slot::BoardList if reach && board_shown() => ui::Slot::BoardList,
+            _ => ui::Slot::Page,
+        }
+    }
+}
+
 /// Which offset each screen and sheet scrolls.
 impl Faraday {
     /// A key while the word-list sheet is open ([`wordlist::WordListArea::key`]),
@@ -435,14 +628,9 @@ impl Faraday {
         match self.sheet {
             Some(Sheet::Learn) => Some(self.learn.scroll_mut()),
             Some(Sheet::WordList) => self.wordlist.scroll_mut(),
-            Some(s) => {
-                if self.sheet_scroll.1 != Some(s) {
-                    self.sheet_scroll = (0.0, Some(s));
-                }
-                Some(&mut self.sheet_scroll.0)
-            }
+            Some(s) => Some(self.scroll.sheet_offset_of(s)),
             None => {
-                self.sheet_scroll = (0.0, None);
+                self.scroll.reset_sheet();
                 self.screen_slot()
             }
         }
