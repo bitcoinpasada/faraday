@@ -501,7 +501,7 @@ impl Faraday {
             Screen::Bip85 => self.bip85.is_some(),
             Screen::Silent => self.silent.is_some(),
             Screen::Explore => self.explore.is_some(),
-            Screen::Lightning => self.lightning.is_some(),
+            Screen::Lightning => self.lightning.state().is_some(),
             Screen::Tools => self.tools.is_some(),
             Screen::Upgrade => self.upgrade.is_some(),
             Screen::CreateVault => self.vaults.create.is_some(),

@@ -364,12 +364,12 @@ fn in_demo_lightnings_cipher_seed_row_fills_lnds_vector_and_shows_its_node_id() 
         .find(|k| k.form == SampleForm::Aezeed)
         .expect("the cipher seed");
     assert_eq!(
-        app.lightning.as_ref().unwrap().typed.as_str(),
+        app.lightning().unwrap().typed.as_str(),
         sample.parts[0]
     );
     app.press(Action::LResolve);
     settle(&mut app);
-    let l = app.lightning.as_ref().unwrap();
+    let l = app.lightning().unwrap();
     assert_eq!(l.source, Some(NodeSource::Aezeed));
     assert_eq!(
         *l.node.as_ref().expect("a node").public(),
@@ -389,7 +389,7 @@ fn in_demo_a_cipher_seed_that_is_not_the_vector_is_refused() {
     type_in(&mut app, &["abandon"; 24].join(" "));
     app.press(Action::LResolve);
     settle(&mut app);
-    let l = app.lightning.as_ref().unwrap();
+    let l = app.lightning().unwrap();
     assert!(l.node.is_none());
     assert!(l.error.is_some());
 }
@@ -403,7 +403,7 @@ fn in_demo_an_aezeed_passphrase_offers_faraday_and_can_be_typed() {
     assert!(app.offers(Action::PassChip(PassField::Aezeed)));
     app.press(Action::PassChip(PassField::Aezeed));
     assert_eq!(
-        app.lightning.as_ref().unwrap().passphrase.as_str(),
+        app.lightning().unwrap().passphrase.as_str(),
         "faraday"
     );
     let _ = app.frame();
@@ -411,7 +411,7 @@ fn in_demo_an_aezeed_passphrase_offers_faraday_and_can_be_typed() {
     app.press(Action::LPassphrase);
     type_in(&mut app, "q");
     assert_eq!(
-        app.lightning.as_ref().unwrap().passphrase.as_str(),
+        app.lightning().unwrap().passphrase.as_str(),
         "faradayq",
         "a press in the field lets the person go on typing"
     );

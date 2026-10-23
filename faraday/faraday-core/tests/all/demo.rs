@@ -532,7 +532,7 @@ fn lightning(app: &mut Faraday) -> [bool; 3] {
     app.press(Action::Lightning);
     assert_eq!(app.screen, Screen::Lightning, "Lightning node key opens");
     app.press(Action::LKey(fp));
-    assert!(app.lightning.as_ref().unwrap().node.is_some(), "no node id");
+    assert!(app.lightning().unwrap().node.is_some(), "no node id");
     [Action::LAezeed, Action::LVault, Action::LOut].map(|a| offered(app, a))
 }
 
@@ -546,11 +546,11 @@ fn in_the_demo_a_lightning_node_key_stays_in_faraday() {
     let files = app.outbox.len();
     app.press(Action::LShow);
     assert!(
-        !app.lightning.as_ref().unwrap().shown,
+        !app.lightning().unwrap().shown,
         "the private key is shown"
     );
     let private = {
-        let n = app.lightning.as_ref().unwrap().node.as_ref().unwrap();
+        let n = app.lightning().unwrap().node.as_ref().unwrap();
         n.private_hex(faraday_keys::Reveal::LightningKey)
             .unwrap()
             .to_string()
@@ -571,7 +571,7 @@ fn in_the_demo_a_lightning_node_key_stays_in_faraday() {
     // The cipher seed row opens (LND's published seed is the one it takes).
     app.press(Action::LAezeed);
     assert_eq!(
-        app.lightning.as_ref().unwrap().source,
+        app.lightning().unwrap().source,
         Some(faraday_core::lightning::NodeSource::Aezeed)
     );
 

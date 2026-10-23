@@ -15,6 +15,8 @@ use faraday_vault::records::{field, kind};
 use zeroize::Zeroizing;
 
 use crate::{Faraday, Screen};
+use faraday_crypto::work::Compute;
+use faraday_keys::Keys;
 
 /// Where the node key comes from.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -50,10 +52,21 @@ pub struct LightningState {
     pub(crate) sample: crate::samples::put::Use,
 }
 
-impl Faraday {
-    /// Opens the screen.
-    pub(crate) fn lightning_open(&mut self) {
-        self.lightning = Some(LightningState {
+/// The Lightning screen's area: its state while it is open.
+#[derive(Default)]
+pub(crate) struct LightningArea {
+    state: Option<LightningState>,
+}
+
+impl LightningArea {
+    /// The screen's state, while it is open.
+    pub(crate) fn state(&self) -> Option<&LightningState> {
+        self.state.as_ref()
+    }
+
+    /// Opens the screen, to return to `back`.
+    pub(crate) fn open(&mut self, back: Screen) {
+        self.state = Some(LightningState {
             source: None,
             typed: crate::secret_text::SecretText::new(),
             passphrase: crate::secret_text::SecretText::new(),
@@ -61,26 +74,25 @@ impl Faraday {
             node: None,
             error: None,
             shown: false,
-            back: self.screen,
+            back,
             sample: Default::default(),
         });
-        self.screen = Screen::Lightning;
     }
 
-    /// Finds the node key for the source chosen.
-    fn lightning_resolve(&mut self) {
-        let c = self.compute();
-        let Some(l) = self.lightning.as_ref() else {
+    /// Forgets the screen's state: the words, the passphrase and the key.
+    pub(crate) fn clear(&mut self) {
+        self.state = None;
+    }
+
+    /// Costs a key derivation, and an aezeed's scrypt. Finds the node key
+    /// for the source chosen.
+    pub(crate) fn resolve(&mut self, c: &Compute, keys: &Keys) {
+        let Some(l) = self.state.as_ref() else {
             return;
         };
         let found: Result<Node, String> = match l.source {
             Some(NodeSource::Key(fp)) => {
-                match self
-                    .session
-                    .keys
-                    .position_of(fp)
-                    .and_then(|k| self.session.keys.lightning_node(&c, k))
-                {
+                match keys.position_of(fp).and_then(|k| keys.lightning_node(c, k)) {
                     None => Err(EN.lightning_this_key.to_string()),
                     Some(node) => node,
                 }
@@ -99,10 +111,8 @@ impl Faraday {
                     for (slot, w) in idx.iter_mut().zip(&words) {
                         *slot = Language::English.index_of(w).unwrap_or(0);
                     }
-                    let r = self
-                        .session
-                        .keys
-                        .node_from_aezeed(&c, &idx, l.passphrase.as_bytes())
+                    let r = keys
+                        .node_from_aezeed(c, &idx, l.passphrase.as_bytes())
                         .map_err(|e| fill(EN.lightning_not_an_aezeed, &[&e]));
                     faraday_keys::lightning::wipe_words(&mut idx);
                     r
@@ -110,7 +120,7 @@ impl Faraday {
             }
             None => return,
         };
-        if let Some(l) = self.lightning.as_mut() {
+        if let Some(l) = self.state.as_mut() {
             match found {
                 Ok(n) => {
                     l.node = Some(n);
@@ -122,56 +132,20 @@ impl Faraday {
     }
 
     /// The node id and the private key, for `why`.
-    fn lightning_secret_text(
+    pub(crate) fn secret_text(
         &self,
         why: faraday_keys::Reveal,
     ) -> Option<(String, Zeroizing<String>)> {
-        let n = self.lightning.as_ref()?.node.as_ref()?;
+        let n = self.state.as_ref()?.node.as_ref()?;
         let id: String = n.public().iter().map(|b| format!("{b:02x}")).collect();
         Some((id, n.private_hex(why)?))
     }
 
-    /// One press on the screen.
-    pub(crate) fn lightning_act(&mut self, action: crate::Action) {
+    /// A press that changes only this screen: a source chosen, the
+    /// passphrase field, the private key shown.
+    pub(crate) fn act(&mut self, c: &Compute, keys: &Keys, action: crate::Action) {
         use crate::Action as A;
-        match action {
-            A::Lightning => return self.lightning_open(),
-            A::LResolve => return self.lightning_resolve(),
-            A::LVault => {
-                if self.vaults.open.get(self.vaults.current).is_none() {
-                    return self.toast(EN.lightning_no_vault);
-                }
-                let Some((id, private)) = self.lightning_secret_text(
-                    faraday_keys::Reveal::VaultEntry(faraday_keys::Part::NodeKey),
-                ) else {
-                    return;
-                };
-                let note = fill_secret(EN.lightning_lightning, &[&id, private.as_str()]);
-                self.vault_push(
-                    Record::new(kind::NOTE).with(field::NOTE, note.as_bytes()),
-                    EN.lightning_the_node,
-                );
-                return;
-            }
-            A::LOut => {
-                let Some((id, private)) = self.lightning_secret_text(
-                    faraday_keys::Reveal::OutboxFile(faraday_keys::Part::NodeKey),
-                ) else {
-                    return;
-                };
-                self.offer_secret(crate::secrets::SecretOut::new(
-                    format!("lightning-{}.txt", &id[..16]),
-                    Zeroizing::new(
-                        format!("node id {id}\nprivate key {}\n", private.as_str()).into_bytes(),
-                    ),
-                    EN.lightning_a_lightning,
-                    EN.lightning_whoever_has,
-                ));
-                return;
-            }
-            _ => {}
-        }
-        let Some(l) = self.lightning.as_mut() else {
+        let Some(l) = self.state.as_mut() else {
             return;
         };
         match action {
@@ -179,7 +153,7 @@ impl Faraday {
                 l.source = Some(NodeSource::Key(fp));
                 l.node = None;
                 l.error = None;
-                self.lightning_resolve();
+                self.resolve(c, keys);
             }
             A::LAezeed => {
                 l.source = Some(NodeSource::Aezeed);
@@ -194,27 +168,33 @@ impl Faraday {
 
     /// Whether the screen reads a typed aezeed, whose Enter stretches it
     /// with scrypt.
-    pub(crate) fn lightning_reads_aezeed(&self) -> bool {
-        self.sheet.is_none()
+    pub(crate) fn reads_aezeed(&self, no_sheet: bool) -> bool {
+        no_sheet
             && self
-                .lightning
+                .state
                 .as_ref()
                 .is_some_and(|l| l.source == Some(NodeSource::Aezeed))
     }
 
-    /// Typing the aezeed and its passphrase. Returns whether the key was
-    /// taken.
-    pub(crate) fn lightning_key(&mut self, key: faraday_shell_api::Key) -> bool {
+    /// Typing the aezeed and its passphrase, on `screen`. Returns whether
+    /// the key was taken. Escape leaves the screen for where it came from.
+    pub(crate) fn key(
+        &mut self,
+        key: faraday_shell_api::Key,
+        screen: &mut Screen,
+        c: &Compute,
+        keys: &Keys,
+    ) -> bool {
         use faraday_shell_api::Key as K;
-        if self.screen != Screen::Lightning {
+        if *screen != Screen::Lightning {
             return false;
         }
-        let Some(l) = self.lightning.as_mut() else {
+        let Some(l) = self.state.as_mut() else {
             return false;
         };
         if key == K::Escape {
-            self.screen = l.back;
-            self.lightning = None;
+            *screen = l.back;
+            self.state = None;
             return true;
         }
         if l.source != Some(NodeSource::Aezeed) {
@@ -240,14 +220,111 @@ impl Faraday {
             K::Tab => l.on_passphrase = !l.on_passphrase,
             K::Enter => {
                 l.on_passphrase = false;
-                self.lightning_resolve();
+                self.resolve(c, keys);
                 return true;
             }
             _ => return false,
         }
-        if let Some(l) = self.lightning.as_mut() {
+        if let Some(l) = self.state.as_mut() {
             l.node = None;
         }
         true
+    }
+
+    /// Demo's passphrase typed into the aezeed's passphrase field.
+    pub(crate) fn set_passphrase(&mut self, text: &str) {
+        if let Some(l) = self.state.as_mut() {
+            l.passphrase.set(text);
+            l.node = None;
+            l.error = None;
+        }
+    }
+
+    /// Whether the aezeed's words field draws Use a sample: the cipher
+    /// seed chosen, nothing typed or pressed.
+    pub(crate) fn sample_shown(&self) -> bool {
+        self.state.as_ref().is_some_and(|l| {
+            l.source == Some(NodeSource::Aezeed) && l.typed.is_empty() && l.sample.shown()
+        })
+    }
+
+    /// Types the sample cipher seed's `words` in.
+    pub(crate) fn use_sample(&mut self, words: &str) {
+        if let Some(l) = self.state.as_mut() {
+            l.typed.set(words);
+            l.node = None;
+            l.error = None;
+            l.sample.fill();
+        }
+    }
+}
+
+impl Faraday {
+    /// The Lightning screen's state, while it is open.
+    pub fn lightning(&self) -> Option<&LightningState> {
+        self.lightning.state()
+    }
+
+    /// One press on the screen.
+    pub(crate) fn lightning_act(&mut self, action: crate::Action) {
+        use crate::Action as A;
+        match action {
+            A::Lightning => {
+                self.lightning.open(self.screen);
+                self.screen = Screen::Lightning;
+            }
+            A::LResolve => {
+                let c = self.compute();
+                self.lightning.resolve(&c, &self.session.keys);
+            }
+            A::LVault => {
+                if self.vaults.open.get(self.vaults.current).is_none() {
+                    return self.toast(EN.lightning_no_vault);
+                }
+                let Some((id, private)) = self.lightning.secret_text(
+                    faraday_keys::Reveal::VaultEntry(faraday_keys::Part::NodeKey),
+                ) else {
+                    return;
+                };
+                let note = fill_secret(EN.lightning_lightning, &[&id, private.as_str()]);
+                self.vault_push(
+                    Record::new(kind::NOTE).with(field::NOTE, note.as_bytes()),
+                    EN.lightning_the_node,
+                );
+            }
+            A::LOut => {
+                let Some((id, private)) = self.lightning.secret_text(
+                    faraday_keys::Reveal::OutboxFile(faraday_keys::Part::NodeKey),
+                ) else {
+                    return;
+                };
+                self.offer_secret(crate::secrets::SecretOut::new(
+                    format!("lightning-{}.txt", &id[..16]),
+                    Zeroizing::new(
+                        format!("node id {id}\nprivate key {}\n", private.as_str()).into_bytes(),
+                    ),
+                    EN.lightning_a_lightning,
+                    EN.lightning_whoever_has,
+                ));
+            }
+            _ => {
+                let c = self.compute();
+                self.lightning.act(&c, &self.session.keys, action);
+            }
+        }
+    }
+
+    /// Whether the screen reads a typed aezeed, whose Enter stretches it
+    /// with scrypt.
+    pub(crate) fn lightning_reads_aezeed(&self) -> bool {
+        self.lightning.reads_aezeed(self.sheet.is_none())
+    }
+
+    /// Typing the aezeed and its passphrase. Returns whether the key was
+    /// taken.
+    pub(crate) fn lightning_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        let c = self.compute();
+        self.lightning
+            .key(key, &mut self.screen, &c, &self.session.keys)
     }
 }

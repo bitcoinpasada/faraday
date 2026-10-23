@@ -38,7 +38,7 @@ fn an_lnd_cipher_seed_gives_lnds_node_id() {
     let _ = app.frame();
     let now = app.now_ms() + 16;
     app.event(Event::Tick { now_ms: now });
-    let l = app.lightning.as_ref().unwrap();
+    let l = app.lightning().unwrap();
     let n = l.node.as_ref().unwrap_or_else(|| panic!("{:?}", l.error));
     assert_eq!(hex(n.public()), NODE_KEY);
     assert!(n.birthday().is_some());
@@ -60,7 +60,7 @@ fn a_loaded_key_gives_ldk_nodes_node_id() {
     app.press(Action::Lightning);
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::LKey(fp));
-    let n = app.lightning.as_ref().unwrap().node.as_ref().unwrap();
+    let n = app.lightning().unwrap().node.as_ref().unwrap();
     assert_eq!(
         hex(n.public()),
         "027cf7c81dc777e46572ff964f17650a0f6f783319fcc140fb9a69425e2fbdc93c"

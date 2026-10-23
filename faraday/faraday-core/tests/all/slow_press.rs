@@ -175,7 +175,7 @@ fn an_aezeed_is_stretched_after_the_frame_that_shows_enter() {
     app.event(Event::Key(Key::Enter));
     let pressed = since(&before);
     assert!(light(&pressed), "Enter stretched the aezeed: {pressed:?}");
-    assert!(app.lightning.as_ref().unwrap().node.is_none());
+    assert!(app.lightning().unwrap().node.is_none());
     let _ = app.frame();
     assert_eq!(
         app.toast_text(),
@@ -188,7 +188,7 @@ fn an_aezeed_is_stretched_after_the_frame_that_shows_enter() {
         "the tick after stretched it: {done:?}"
     );
     assert!(
-        app.lightning.as_ref().unwrap().node.is_some(),
+        app.lightning().unwrap().node.is_some(),
         "the node key"
     );
 }

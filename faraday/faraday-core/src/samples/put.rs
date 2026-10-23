@@ -51,6 +51,11 @@ impl Use {
         !self.dismissed && !self.filled
     }
 
+    /// A press of the chip filled the field.
+    pub(crate) fn fill(&mut self) {
+        self.filled = true;
+    }
+
     /// What the chip filled is used or cleared: the field takes the chip
     /// again.
     pub(crate) fn emptied(&mut self) {
@@ -761,11 +766,7 @@ impl Faraday {
     /// cipher seed chosen, nothing typed or pressed. A lookup.
     pub fn lightning_sample_shown(&self) -> bool {
         self.put_on().is_some()
-            && self.lightning.as_ref().is_some_and(|l| {
-                l.source == Some(crate::lightning::NodeSource::Aezeed)
-                    && l.typed.is_empty()
-                    && l.sample.shown()
-            })
+            && self.lightning.sample_shown()
     }
 
     /// Handles `UseSample` on Lightning: the sample cipher seed's words
@@ -780,11 +781,8 @@ impl Faraday {
             .iter()
             .find(|k| k.form == SampleForm::Aezeed)
             .and_then(|k| k.parts.first().copied());
-        if let (Some(words), Some(l)) = (words, self.lightning.as_mut()) {
-            l.typed.set(words);
-            l.node = None;
-            l.error = None;
-            l.sample.filled = true;
+        if let Some(words) = words {
+            self.lightning.use_sample(words);
         }
     }
 

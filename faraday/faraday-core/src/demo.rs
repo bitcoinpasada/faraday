@@ -462,11 +462,7 @@ impl Faraday {
                 }
             }
             PassField::Aezeed => {
-                if let Some(l) = self.lightning.as_mut() {
-                    l.passphrase.set(PASSPHRASE);
-                    l.node = None;
-                    l.error = None;
-                }
+                self.lightning.set_passphrase(PASSPHRASE);
             }
         }
     }

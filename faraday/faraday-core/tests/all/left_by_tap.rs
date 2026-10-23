@@ -143,13 +143,13 @@ fn lightning_left_by_a_tap_forgets_the_node_key_shown() {
     let _ = app.frame();
     let now = app.now_ms() + 16;
     app.event(Event::Tick { now_ms: now });
-    assert!(app.lightning.as_ref().unwrap().node.is_some());
+    assert!(app.lightning().unwrap().node.is_some());
     let shown = revealed(&mut app, Action::LShow);
     tap(&mut app, Action::Nav(Screen::Settings));
-    assert!(app.lightning.is_none(), "Lightning keeps nothing when left");
+    assert!(app.lightning().is_none(), "Lightning keeps nothing when left");
     not_drawn(&mut app, &shown);
     app.press(Action::Lightning);
-    assert!(app.lightning.as_ref().unwrap().node.is_none());
+    assert!(app.lightning().unwrap().node.is_none());
     not_drawn(&mut app, &shown);
 }
 

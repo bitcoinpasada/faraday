@@ -1381,7 +1381,7 @@ pub struct Faraday {
     /// Explore on show.
     pub explore: Option<explore::ExploreState>,
     /// The Lightning node key on show.
-    pub lightning: Option<lightning::LightningState>,
+    lightning: lightning::LightningArea,
     /// Tools on show.
     pub tools: Option<tools::ToolsState>,
     /// A secret waiting for the person to say where it goes.
@@ -1688,7 +1688,7 @@ impl Faraday {
             bip85: None,
             silent: None,
             explore: None,
-            lightning: None,
+            lightning: lightning::LightningArea::default(),
             tools: None,
             secret_out: None,
             secret_ack: false,
@@ -2143,7 +2143,7 @@ impl Faraday {
     fn secret_typed(&self) -> bool {
         self.keygen.is_some()
             || self.secret_out.as_ref().is_some_and(|o| !o.to_visit)
-            || self.lightning.is_some()
+            || self.lightning.state().is_some()
             || !self.entry.typed.is_empty()
             || !self.entry.passphrase.is_empty()
             || !self.vaults.passphrase.text.is_empty()
@@ -8920,7 +8920,7 @@ impl Faraday {
             self.vanity = None;
         }
         if !lightning && self.sheet != Some(Sheet::SecretOut) {
-            self.lightning = None;
+            self.lightning.clear();
         }
         if !silent && self.sheet != Some(Sheet::Qr) {
             self.silent = None;

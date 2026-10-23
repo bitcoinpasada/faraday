@@ -11,7 +11,7 @@ use crate::ui::{CoreUi, Style, Ui, W};
 use faraday_draw::tokens as T;
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    if app.lightning.is_none() {
+    if app.lightning.state().is_none() {
         return;
     }
     // A small panel has its bar for the way back and the name, and puts
@@ -44,7 +44,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// The way back, the title and what explains the page, as the desktop
 /// draws them. Returns where the page goes on.
 fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) -> f32 {
-    let Some(l) = app.lightning.as_ref() else {
+    let Some(l) = app.lightning.state() else {
         return y;
     };
     ui.icon(
@@ -77,7 +77,7 @@ fn body(
     width: f32,
     (vx, vw, below): (f32, f32, f32),
 ) -> f32 {
-    let Some(l) = app.lightning.as_ref() else {
+    let Some(l) = app.lightning.state() else {
         return y;
     };
     let mut row: Vec<(String, Style, Action)> = app
