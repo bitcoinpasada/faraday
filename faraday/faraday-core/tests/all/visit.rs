@@ -52,12 +52,12 @@ fn with_stick_at(n: usize, (width, height, dpi): (u16, u16, u16)) -> Faraday {
 fn every_file_comes_in_ticked_and_unselect_all_clears_them() {
     let mut app = with_stick(5);
     assert_eq!(
-        app.visit.inn.len(),
+        app.visit().inn.len(),
         7,
         "the PSBTs, the picture and a file of a kind Faraday does not know"
     );
-    assert!(app.visit.inn.contains("photo.png"));
-    assert!(app.visit.inn.contains("notes.docx"));
+    assert!(app.visit().inn.contains("photo.png"));
+    assert!(app.visit().inn.contains("notes.docx"));
     assert!(app.offers(Action::VisitInAll));
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == "Unselect all"), "{texts:?}");
@@ -68,7 +68,7 @@ fn every_file_comes_in_ticked_and_unselect_all_clears_them() {
         "{texts:?}"
     );
     app.press(Action::VisitInAll);
-    assert!(app.visit.inn.is_empty());
+    assert!(app.visit().inn.is_empty());
 }
 
 #[test]
@@ -100,7 +100,7 @@ fn a_fresh_visit_has_the_psbts_and_descriptors_ticked_and_the_words_file_not() {
         ],
     }]));
     assert_eq!(app.screen, Screen::Visit);
-    let ticked: Vec<&str> = app.visit.inn.iter().map(String::as_str).collect();
+    let ticked: Vec<&str> = app.visit().inn.iter().map(String::as_str).collect();
     assert_eq!(ticked, ["savings-descriptor.txt", "savings-unsigned.psbt"]);
 }
 
@@ -110,7 +110,7 @@ fn dragging_the_scrollbar_to_the_bottom_shows_the_end_of_a_long_list() {
     let (x, y) = app
         .where_offered(Action::VisitBar(Column::Stick))
         .expect("a long list has no scrollbar");
-    let (top, h, _, max) = app.visit.bar(Column::Stick).get().unwrap();
+    let (top, h, _, max) = app.visit().bar(Column::Stick).get().unwrap();
     app.event(Event::Touch {
         x,
         y,
@@ -220,7 +220,7 @@ fn the_wheel_over_the_outbox_brings_its_last_file_into_reach_and_leaves_the_stic
         .expect("the last Outbox file cannot be scrolled to");
     tap(&mut app, last);
     assert!(
-        !app.visit.out.contains("backup-19.pdf"),
+        !app.visit().out.contains("backup-19.pdf"),
         "it did not untick"
     );
     app.press(Action::VisitWrite);
@@ -235,7 +235,7 @@ fn the_wheel_over_the_stick_files_moves_them_and_not_the_outbox() {
     let over = app.where_offered(Action::VisitIn(0)).unwrap();
     wheel(&mut app, over, 3000);
     assert!(app.list_offset > 0.0, "the stick's file list did not move");
-    assert_eq!(app.visit.out_offset, 0.0, "the Outbox list moved");
+    assert_eq!(app.visit().out_offset, 0.0, "the Outbox list moved");
     assert!(app.offers(Action::VisitIn(29)));
     assert!(app.offers(Action::VisitOut(0)));
 }
@@ -246,7 +246,7 @@ fn dragging_the_outbox_scrollbar_to_the_bottom_shows_its_last_file() {
     let (x, _) = app
         .where_offered(Action::VisitBar(Column::Outbox))
         .expect("20 Outbox files have no scrollbar");
-    let (top, h, _, max) = app.visit.bar(Column::Outbox).get().unwrap();
+    let (top, h, _, max) = app.visit().bar(Column::Outbox).get().unwrap();
     app.event(Event::Touch {
         x,
         y: top as u16,
@@ -262,7 +262,7 @@ fn dragging_the_outbox_scrollbar_to_the_bottom_shows_its_last_file() {
         y: (top + h + 40) as u16,
         phase: TouchPhase::Up,
     });
-    assert_eq!(app.visit.out_offset, max);
+    assert_eq!(app.visit().out_offset, max);
     let _ = app.frame();
     assert!(app.offers(Action::VisitOut(19)));
 }
@@ -283,23 +283,23 @@ fn select_all_on_the_outbox_leaves_an_unprotected_secret_alone() {
             wheel(&mut app, (w / 2, h / 2), 200);
         }
         assert!(app.offers(Action::VisitOutAll), "{display:?}");
-        assert!(!app.visit.out.contains("seed-words.txt"));
+        assert!(!app.visit().out.contains("seed-words.txt"));
         // The settings are off on a stick that did not boot: the first
         // press ticks them too.
         app.press(Action::VisitOutAll);
         app.press(Action::VisitOutAll);
-        assert!(app.visit.out.is_empty(), "{display:?}: not all unticked");
+        assert!(app.visit().out.is_empty(), "{display:?}: not all unticked");
         app.press(Action::VisitWrite);
         assert!(written(&mut app).is_empty());
         app.press(Action::VisitOutAll);
-        assert_eq!(app.visit.out.len(), 20, "{display:?}");
-        assert!(!app.visit.out.contains("seed-words.txt"));
+        assert_eq!(app.visit().out.len(), 20, "{display:?}");
+        assert!(!app.visit().out.contains("seed-words.txt"));
         // With the secret ticked by hand as well, every row is ticked
         // and a press unticks them all.
         let secret = app.outbox.len() - 1;
         app.press(Action::VisitOut(secret));
         app.press(Action::VisitOutAll);
-        assert!(app.visit.out.is_empty());
+        assert!(app.visit().out.is_empty());
     }
 }
 
@@ -324,10 +324,10 @@ fn a_finger_dragged_on_the_outbox_moves_it_and_not_the_stick_list() {
         y: y - 200,
         phase: TouchPhase::Up,
     });
-    assert!(app.visit.out_offset > 0.0, "the Outbox did not move");
+    assert!(app.visit().out_offset > 0.0, "the Outbox did not move");
     assert_eq!(app.list_offset, 0.0, "the stick's file list moved");
     assert!(
-        app.visit.out.contains("backup-03.pdf"),
+        app.visit().out.contains("backup-03.pdf"),
         "the drag ticked or unticked the file it started on"
     );
 }
@@ -550,7 +550,7 @@ fn chosen_files_are_deleted_only_from_the_sheet() {
         name: "spend-01.psbt".into(),
     });
     let _ = app.frame();
-    assert!(!app.visit.inn.contains("spend-01.psbt"));
+    assert!(!app.visit().inn.contains("spend-01.psbt"));
     let text = app.drawn_texts().join("\n");
     assert!(text.contains("spend-01.psbt deleted"), "{text}");
 }
@@ -726,7 +726,7 @@ fn writing_over(on_stick: &[(&str, u64)], outbox: Vec<(&str, Vec<u8>)>) -> Farad
     app.press(Action::Nav(Screen::Visit));
     let names: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
     for (i, n) in names.iter().enumerate() {
-        if !app.visit.out.contains(n) {
+        if !app.visit().out.contains(n) {
             app.press(Action::VisitOut(i));
         }
     }

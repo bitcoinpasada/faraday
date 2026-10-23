@@ -203,7 +203,7 @@ fn the_settings_file_is_not_copied_into_the_inbox() {
     let mut app = booted(Some(b"faraday-settings 1\ntheme=nord\n"));
     app.press(Action::Nav(Screen::Visit));
     // Every file comes in ticked but the settings, which are not offered.
-    assert!(!app.visit.inn.contains(FILE));
+    assert!(!app.visit().inn.contains(FILE));
     app.press(Action::VisitCopy);
     pump(&mut app, Some(b"faraday-settings 1\ntheme=nord\n"));
     assert!(app.inbox().iter().all(|i| i.name != FILE));

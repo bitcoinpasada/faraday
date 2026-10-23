@@ -624,7 +624,8 @@ pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// the stick is pulled.
 pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let what = app
-        .pull
+        .visit
+        .pull()
         .and_then(|a| app.pull_what(a))
         .unwrap_or(EN.pull_default_reason);
     let title = fill(EN.pull_medium_to_reason, &[app.medium.noun(), what]);

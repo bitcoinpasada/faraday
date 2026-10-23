@@ -162,7 +162,7 @@ fn key_scanned(name: &str, png: &[u8]) -> String {
         .inbox()
         .iter()
         .find(|i| i.kind == FileKind::Key)
-        .unwrap_or_else(|| panic!("no key read: {:?}", app.visit.log));
+        .unwrap_or_else(|| panic!("no key read: {:?}", app.visit().log));
     plain(&text(&item.bytes))
 }
 

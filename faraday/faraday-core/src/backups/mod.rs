@@ -845,7 +845,8 @@ impl Faraday {
         let named = |n: &str| prefixes.iter().any(|p| n.starts_with(p.as_str()));
         self.outbox.iter().any(|i| i.secret && named(&i.name))
             || self
-                .receipt
+                .visit
+                .receipt()
                 .as_ref()
                 .is_some_and(|r| r.files.iter().any(|f| f.verified && named(&f.name)))
     }
@@ -853,8 +854,8 @@ impl Faraday {
     /// Where public files stand: on the stick the last visit wrote them
     /// to, For the stick, or not made.
     fn files_state(&self, names: &[String]) -> (String, Tone) {
-        let written = |n: &String| self.receipt.as_ref().is_some_and(|r| r.wrote(n));
-        if let Some(r) = self.receipt.as_ref()
+        let written = |n: &String| self.visit.receipt().as_ref().is_some_and(|r| r.wrote(n));
+        if let Some(r) = self.visit.receipt().as_ref()
             && names.iter().all(written)
         {
             return (on_stick(&r.label, r.time, self.tz_min()), Tone::Ok);
@@ -964,7 +965,8 @@ impl Faraday {
         let (state, tone) = match self.currency(c, f) {
             Some(Currency::Current(label)) => {
                 let time = self
-                    .receipt
+                    .visit
+                    .receipt()
                     .as_ref()
                     .filter(|r| r.label == label && r.wrote(&f.name))
                     .and_then(|r| r.time);

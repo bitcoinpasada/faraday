@@ -117,7 +117,7 @@ fn descriptor_picture_reads_back(id: &str) {
         .inbox()
         .iter()
         .find(|i| i.kind == FileKind::Wallet)
-        .unwrap_or_else(|| panic!("no wallet in {:?}", app.visit.log));
+        .unwrap_or_else(|| panic!("no wallet in {:?}", app.visit().log));
     let got = String::from_utf8_lossy(&item.bytes).into_owned();
     assert_eq!(checksum(&got), checksum(&want));
     assert_eq!(first_address(&got), first_address(&want));
@@ -179,7 +179,7 @@ fn a_descriptor_past_one_code_goes_as_parts_that_assemble_to_it() {
         .inbox()
         .iter()
         .find(|i| i.kind == FileKind::Wallet)
-        .unwrap_or_else(|| panic!("not assembled: {:?}", reader.visit.log));
+        .unwrap_or_else(|| panic!("not assembled: {:?}", reader.visit().log));
     let got = String::from_utf8_lossy(&item.bytes).into_owned();
     assert_eq!(got.trim(), want);
 }
@@ -212,7 +212,7 @@ fn shares_rebuild(id: &str) {
             .iter()
             .filter(|i| i.kind == FileKind::Share)
             .count();
-        assert_eq!(shares, 2, "{pair:?}: {:?}", app.visit.log);
+        assert_eq!(shares, 2, "{pair:?}: {:?}", app.visit().log);
         app.storage(StorageEvent::Sticks(Vec::new()));
         app.press(Action::RestoreShares);
         assert!(

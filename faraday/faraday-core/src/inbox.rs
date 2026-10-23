@@ -1555,7 +1555,7 @@ impl Faraday {
             Action::OutboxRemove(i) => {
                 if i < self.outbox.len() {
                     let gone = self.outbox.remove(i);
-                    self.files_menu.renamed.remove(&gone.name);
+                    self.visit.files_menu_mut().renamed.remove(&gone.name);
                     self.save_boxes();
                 }
             }

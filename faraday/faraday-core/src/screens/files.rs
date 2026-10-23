@@ -409,13 +409,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let view = (bottom - top).max(0.0);
     let groups = 3.0;
     // The receipt under For the stick: its heading and a row per file.
-    let receipt_h = app.receipt.as_ref().map_or(0.0, |r| {
+    let receipt_h = app.visit.receipt().as_ref().map_or(0.0, |r| {
         30.0 + r.files.len() as f32 * 28.0 + if app.outbox.is_empty() { 84.0 } else { 0.0 }
     });
     let content_in = app.inbox.len().max(1) as f32 * 124.0 + 8.0;
     let content_out = app.outbox.len() as f32 * 78.0 + groups * 30.0 + receipt_h + 8.0;
     let shift = app.list_offset.min((content_in - view).max(0.0));
-    let shift_out = app.files_out_offset.min((content_out - view).max(0.0));
+    let shift_out = app
+        .visit
+        .files_out_offset()
+        .min((content_out - view).max(0.0));
     let split = x + colw + 10.0;
     let clip = ui.rect(x0, top, split - x0, view);
     let clip_out = ui.rect(split, top, x0 + cw - split, view);
@@ -761,7 +764,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text_mid(ox + (colw - tw) / 2.0, oy, 72.0, 13.0, W::R, DIM, t);
         oy += 84.0;
     }
-    if let Some(r) = app.receipt.as_ref() {
+    if let Some(r) = app.visit.receipt().as_ref() {
         receipt_rows(ui, r, app.tz_min(), ox, oy, colw);
     }
     ui.c.pop_clip();
@@ -770,7 +773,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::ui::Slot::FilesOut,
         clip_out,
         content_out - view,
-        app.files_out_offset,
+        *app.visit.files_out_offset(),
     );
     // Foot.
     let fy = h - 32.0 - 48.0;
@@ -1995,7 +1998,7 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x, y, 13.0, W::R, DIM, EN.files_empty);
         y += 26.0;
     }
-    if let Some(r) = app.receipt.as_ref() {
+    if let Some(r) = app.visit.receipt().as_ref() {
         y += receipt_rows(ui, r, app.tz_min(), x, y, w) + 8.0;
     }
     if !app.outbox.is_empty() {

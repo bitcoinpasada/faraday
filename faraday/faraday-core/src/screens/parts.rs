@@ -368,7 +368,8 @@ pub(super) fn made_place(app: &View, file: &str) -> Option<(String, Option<usize
     if let Some(k) = app.outbox.iter().position(|i| i.name == file) {
         return Some((app.medium.for_box().to_string(), Some(k)));
     }
-    app.receipt
+    app.visit
+        .receipt()
         .as_ref()
         .filter(|r| r.wrote(file))
         .map(|r| (fill(EN.made_place_written, &[&r.label.to_string()]), None))

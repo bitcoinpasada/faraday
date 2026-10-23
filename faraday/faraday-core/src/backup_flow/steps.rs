@@ -1229,9 +1229,8 @@ impl Faraday {
             return String::new();
         };
         let hash = it.hash(c);
-        self.vault_from
-            .iter()
-            .find(|(n, h, _)| n == &it.name || *h == hash)
+        self.visit
+            .vault_from_find(|(n, h, _)| n == &it.name || *h == hash)
             .map_or_else(|| it.name.clone(), |(_, _, label)| label.clone())
     }
 
@@ -1573,7 +1572,7 @@ impl Faraday {
             Step::Vaults | Step::Make => {
                 // Unlock and Make wait for the stick to be pulled.
                 if self.sheet.is_none() {
-                    self.pull = None;
+                    *self.visit.pull_mut() = None;
                     self.sheet = Some(Sheet::Pull);
                 }
             }
@@ -2667,7 +2666,7 @@ impl Faraday {
             time,
             files: done.clone(),
         });
-        self.receipt = Some(crate::Receipt {
+        *self.visit.receipt_mut() = Some(crate::Receipt {
             by_flow: true,
             label,
             stick: id,

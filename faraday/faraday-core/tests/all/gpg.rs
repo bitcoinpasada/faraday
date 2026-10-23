@@ -122,9 +122,9 @@ fn copied_in() -> Faraday {
 fn a_stick_visit_copies_in_files_of_no_kind_faraday_knows() {
     let app = copied_in();
     assert!(
-        app.visit.log.iter().all(|(_, ok)| *ok),
+        app.visit().log.iter().all(|(_, ok)| *ok),
         "{:?}",
-        app.visit.log
+        app.visit().log
     );
     for (name, bytes) in release_files() {
         let item = app.inbox().iter().find(|i| i.name == name);

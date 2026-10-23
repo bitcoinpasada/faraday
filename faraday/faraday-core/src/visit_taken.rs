@@ -82,7 +82,136 @@ fn free_name(taken: &[String], name: &str) -> String {
         .unwrap_or_else(|| name.to_string())
 }
 
+/// The stick visit's area: its state, the pull waiting, the receipt of
+/// what was written, the vault files written from, Files' row menus and
+/// the For the stick list's scroll. The visit state is reached through
+/// [`std::ops::Deref`] and [`std::ops::DerefMut`]; the rest through the
+/// accessors below.
+#[derive(Default)]
+pub(crate) struct VisitArea {
+    visit: crate::VisitState,
+    /// What was pressed with a stick attached, done when it is pulled
+    /// ([`Sheet::Pull`]).
+    pull: Option<Action>,
+    /// The flow a stick visit returns to when the stick is pulled.
+    after_visit: Option<Screen>,
+    /// What the last stick visit wrote, this power-on (§4.3).
+    receipt: Option<crate::Receipt>,
+    /// Each vault file read from a stick this power-on: its name, the
+    /// hash of its bytes as read, and the stick's label (§3.5).
+    vault_from: Vec<(String, [u8; 32], String)>,
+    /// A file row's ⋮ menu, Rename and Details (`docs/FLOWS.md`
+    /// decision 61).
+    files_menu: crate::file_menu::FileMenus,
+    /// How far Files' For the stick list is scrolled on a desktop, apart
+    /// from From the stick's.
+    files_out_offset: f32,
+}
+
+impl std::ops::Deref for VisitArea {
+    type Target = crate::VisitState;
+    fn deref(&self) -> &crate::VisitState {
+        &self.visit
+    }
+}
+
+impl std::ops::DerefMut for VisitArea {
+    fn deref_mut(&mut self) -> &mut crate::VisitState {
+        &mut self.visit
+    }
+}
+
+impl VisitArea {
+    /// What was pressed with a stick attached, done when it is pulled.
+    pub(crate) fn pull(&self) -> &Option<Action> {
+        &self.pull
+    }
+
+    /// The press waiting for the pull, to change it.
+    pub(crate) fn pull_mut(&mut self) -> &mut Option<Action> {
+        &mut self.pull
+    }
+
+    /// The flow a stick visit returns to when the stick is pulled.
+    pub(crate) fn after_visit(&self) -> &Option<Screen> {
+        &self.after_visit
+    }
+
+    /// The flow the visit returns to, to change it.
+    pub(crate) fn after_visit_mut(&mut self) -> &mut Option<Screen> {
+        &mut self.after_visit
+    }
+
+    /// What the last write to a stick wrote.
+    pub(crate) fn receipt(&self) -> &Option<crate::Receipt> {
+        &self.receipt
+    }
+
+    /// The receipt, to change it.
+    pub(crate) fn receipt_mut(&mut self) -> &mut Option<crate::Receipt> {
+        &mut self.receipt
+    }
+
+    /// Vault files written from: name, hash and the stick's id.
+    pub(crate) fn vault_from(&self) -> &Vec<(String, [u8; 32], String)> {
+        &self.vault_from
+    }
+
+    /// The first vault file read from a stick that `matches`.
+    pub(crate) fn vault_from_find(
+        &self,
+        matches: impl Fn(&(String, [u8; 32], String)) -> bool,
+    ) -> Option<&(String, [u8; 32], String)> {
+        self.vault_from.iter().find(|x| matches(x))
+    }
+
+    /// The vault files written from, to change them.
+    pub(crate) fn vault_from_mut(&mut self) -> &mut Vec<(String, [u8; 32], String)> {
+        &mut self.vault_from
+    }
+
+    /// Files' row menus.
+    pub(crate) fn files_menu(&self) -> &crate::file_menu::FileMenus {
+        &self.files_menu
+    }
+
+    /// Files' row menus, to change them.
+    pub(crate) fn files_menu_mut(&mut self) -> &mut crate::file_menu::FileMenus {
+        &mut self.files_menu
+    }
+
+    /// How far the For the stick list is scrolled.
+    pub(crate) fn files_out_offset(&self) -> &f32 {
+        &self.files_out_offset
+    }
+
+    /// The scroll of the For the stick list, to change it.
+    pub(crate) fn files_out_offset_mut(&mut self) -> &mut f32 {
+        &mut self.files_out_offset
+    }
+}
+
 impl Faraday {
+    /// The stick visit's state.
+    pub fn visit(&self) -> &crate::VisitState {
+        &self.visit
+    }
+
+    /// What the last stick visit wrote, this power-on.
+    pub fn receipt(&self) -> Option<&crate::Receipt> {
+        self.visit.receipt().as_ref()
+    }
+
+    /// Files' row menus.
+    pub fn files_menu(&self) -> &crate::file_menu::FileMenus {
+        self.visit.files_menu()
+    }
+
+    /// How far Files' For the stick list is scrolled on a desktop.
+    pub fn files_out_offset(&self) -> f32 {
+        *self.visit.files_out_offset()
+    }
+
     /// What the visit's Write writes, the settings file aside: each
     /// chosen Outbox file, then each chosen Inbox file the visit lists,
     /// with its bytes and whether it came from the Inbox.
@@ -206,7 +335,7 @@ impl Faraday {
             .map(|(n, b, _)| (n.clone(), sha256_of(&c, b)))
             .collect();
         for (name, bytes, replace) in sends {
-            let renamed = self.files_menu.renamed.contains(&name);
+            let renamed = self.visit.files_menu_mut().renamed.contains(&name);
             self.out.storage_out.push_back(StorageCommand::Write {
                 stick: id.clone(),
                 name,
@@ -331,7 +460,8 @@ impl Faraday {
             Action::VisitKeepBoth => self.visit_write(false),
             Action::VisitCopy => self.visit_copy(),
             Action::VisitCopyAndLoad => {
-                self.visit.load_after.extend(self.visit.inn.iter().cloned());
+                let inn = self.visit.inn.clone();
+                self.visit.load_after.extend(inn);
                 self.visit_copy();
                 // Straight to the Inbox, where they arrive; the stick's
                 // pull loads them from there.
@@ -339,7 +469,7 @@ impl Faraday {
             }
             Action::VisitFrom(back) => {
                 if !self.stick.is_empty() && !self.holds_secret() {
-                    self.after_visit = Some(back);
+                    *self.visit.after_visit_mut() = Some(back);
                     self.act(Action::Nav(Screen::Visit));
                 }
             }

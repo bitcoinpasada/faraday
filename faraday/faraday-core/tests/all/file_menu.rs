@@ -21,7 +21,7 @@ fn menu_of(app: &mut Faraday, row: Row) -> Vec<String> {
     assert!(app.offers(dots), "{row:?} has a ⋮");
     app.press(dots);
     assert_eq!(app.sheet, Some(Sheet::FileMenu));
-    app.files_menu
+    app.files_menu()
         .menu
         .as_ref()
         .expect("its menu")
@@ -34,7 +34,7 @@ fn menu_of(app: &mut Faraday, row: Row) -> Vec<String> {
 /// The choice in the open menu that reads `label`, pressed.
 fn choose(app: &mut Faraday, label: &str) {
     let a = app
-        .files_menu
+        .files_menu()
         .menu
         .as_ref()
         .and_then(|m| m.lines.iter().find(|(l, _)| l == label).map(|(_, a)| *a))
@@ -48,7 +48,7 @@ fn choose(app: &mut Faraday, label: &str) {
 fn type_name(app: &mut Faraday, stem: &str) {
     assert_eq!(app.sheet, Some(Sheet::Rename));
     let n = app
-        .files_menu
+        .files_menu()
         .renaming
         .as_ref()
         .map_or(0, |r| r.stem.chars().count());
@@ -76,7 +76,7 @@ fn visiting(outbox: Files, on_stick: Files) -> (Shell, Faraday) {
     shell.press(&mut app, Action::Nav(Screen::Visit));
     let names: Vec<String> = app.outbox.iter().map(|i| i.name.clone()).collect();
     for (i, n) in names.iter().enumerate() {
-        if !app.visit.out.contains(n) {
+        if !app.visit().out.contains(n) {
             shell.press(&mut app, Action::VisitOut(i));
         }
     }
@@ -110,7 +110,7 @@ fn a_file_for_the_stick_renamed_is_written_under_its_new_name() {
     shell.add(Disk::empty("S1", "TESTSTICK"));
     shell.plug(&mut app, "S1");
     shell.press(&mut app, Action::Nav(Screen::Visit));
-    if !app.visit.out.contains("march-rent.psbt") {
+    if !app.visit().out.contains("march-rent.psbt") {
         shell.press(&mut app, Action::VisitOut(0));
     }
     shell.press(&mut app, Action::VisitWrite);
@@ -133,7 +133,7 @@ fn a_vault_renamed_goes_over_the_same_vault_on_the_stick_under_its_new_name() {
     menu_of(&mut app, Row::Out(0));
     choose(&mut app, "Rename");
     assert_eq!(
-        app.files_menu.renaming.as_ref().map(|r| r.ext.as_str()),
+        app.files_menu().renaming.as_ref().map(|r| r.ext.as_str()),
         Some(".ofv"),
         "a vault keeps .ofv"
     );
@@ -254,7 +254,7 @@ fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named() {
     app.press(Action::File(FilePress::RenameGo));
     shell.pump(&mut app);
     assert_eq!(shell.disk("S1").files, before, "nothing written");
-    let log: Vec<&str> = app.visit.log.iter().map(|(l, _)| l.as_str()).collect();
+    let log: Vec<&str> = app.visit().log.iter().map(|(l, _)| l.as_str()).collect();
     assert!(log.contains(&"b.txt is already on this stick"), "{log:?}");
     assert!(
         log.contains(&"vault.ofv on this stick is this same vault"),

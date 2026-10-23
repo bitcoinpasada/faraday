@@ -149,7 +149,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
     // Rule 4: a receipt from this power-on's last stick visit, and
     // nothing loaded.
     let fresh = !app.holds_secret() && app.session.wallets.is_empty();
-    if fresh && let Some(r) = app.receipt.as_ref() {
+    if fresh && let Some(r) = app.visit.receipt().as_ref() {
         let names: Vec<&str> = r.files.iter().map(|f| f.name.as_str()).collect();
         v.push((
             None,

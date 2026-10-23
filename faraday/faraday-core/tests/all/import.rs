@@ -60,7 +60,7 @@ fn import_and_load_loads_the_key_once_the_stick_is_pulled() {
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitIn(0));
     app.press(Action::VisitCopyAndLoad);
-    assert!(app.visit.load_after.contains(FILE));
+    assert!(app.visit().load_after.contains(FILE));
     assert_eq!(
         app.screen,
         Screen::Files,
@@ -74,7 +74,7 @@ fn import_and_load_loads_the_key_once_the_stick_is_pulled() {
     assert!(app.session.keys.is_empty(), "loaded before the stick left");
     detach(&mut app);
     assert_eq!(app.session.keys.len(), 1, "the key did not load on its own");
-    assert!(app.visit.load_after.is_empty());
+    assert!(app.visit().load_after.is_empty());
 }
 
 /// The test stick's own words file, as the backup writes it: a note line
@@ -114,7 +114,7 @@ fn a_words_file_with_a_note_line_is_copied_and_loads_on_pulling_the_stick() {
         "the words file was refused at the copy"
     );
     assert!(
-        app.visit.log.iter().all(|(_, ok)| *ok),
+        app.visit().log.iter().all(|(_, ok)| *ok),
         "a refusal was logged"
     );
     detach(&mut app);
@@ -169,7 +169,7 @@ fn a_seedqr_picture_read_on_a_visit_loads_its_key_when_the_stick_is_pulled() {
             panic!(
                 "not in Files: {:?} {:?}",
                 app.inbox().iter().map(|i| &i.name).collect::<Vec<_>>(),
-                app.visit.log
+                app.visit().log
             )
         });
     assert_eq!(item.kind, FileKind::Words);

@@ -411,7 +411,8 @@ impl Faraday {
         // sealings do not, so that a later ordinary visit never writes the
         // flow's bytes over a newer copy on another stick.
         let hash = sha_of(c, bytes);
-        self.receipt
+        self.visit
+            .receipt()
             .as_ref()
             .is_some_and(|r| !r.by_flow && r.holds_hash(&hash))
     }

@@ -289,7 +289,7 @@ fn written_to_stick_shows_the_local_time() {
             });
         }
     }
-    let r = app.receipt.as_ref().expect("a receipt");
+    let r = app.receipt().expect("a receipt");
     assert_eq!(r.heading(app.tz_min()), "Written to FIRST at 08:02");
 }
 

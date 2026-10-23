@@ -116,7 +116,7 @@ fn a_visit_lists_and_copies_the_psbt_alone() {
         assert!(!texts.contains(top), "{top} is shown:\n{texts}");
     }
     // Everything on the stick is ticked to come in: the PSBT alone.
-    assert_eq!(app.visit.inn.iter().collect::<Vec<_>>(), [PSBT]);
+    assert_eq!(app.visit().inn.iter().collect::<Vec<_>>(), [PSBT]);
     app.press(Action::VisitCopy);
     assert_eq!(pump(&mut app, &dir), [PSBT]);
     assert_eq!(inbox(&app), [PSBT]);

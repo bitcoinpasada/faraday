@@ -4441,7 +4441,7 @@ impl Faraday {
             .open
             .and_then(|o| self.vaults.open.get(o))
             .is_some_and(|v| v.changes > 0);
-        let named = self.receipt.as_ref().filter(|r| r.wrote(&f.name));
+        let named = self.visit.receipt().as_ref().filter(|r| r.wrote(&f.name));
         match named {
             Some(r) => {
                 let boxes = if f.in_outbox {
@@ -4465,7 +4465,7 @@ impl Faraday {
             // from, as it is, when that stick is known.
             // A vault file's hash was taken when it came in
             // ([`crate::Item::sha`]): drawing asks this on every frame.
-            None if !self.vault_from.iter().any(|(n, ..)| *n == f.name) => {
+            None if !self.visit.vault_from().iter().any(|(n, ..)| *n == f.name) => {
                 Some(Currency::Unchanged)
             }
             None => {
@@ -4475,9 +4475,8 @@ impl Faraday {
                     .find(|i| i.name == f.name)
                     .map(|i| i.hash(c));
                 Some(
-                    self.vault_from
-                        .iter()
-                        .find(|(n, h, _)| *n == f.name && Some(*h) == hash)
+                    self.visit
+                        .vault_from_find(|(n, h, _)| *n == f.name && Some(*h) == hash)
                         .map_or(Currency::Unchanged, |(.., label)| {
                             Currency::Current(label.clone())
                         }),

@@ -210,8 +210,14 @@ impl Faraday {
         }
         // The files For the stick the person renamed and no visit has
         // written yet (`docs/FLOWS.md` decision 61).
-        if !self.files_menu.renamed.is_empty() {
-            let names: Vec<&str> = self.files_menu.renamed.iter().map(String::as_str).collect();
+        if !self.visit.files_menu().renamed.is_empty() {
+            let names: Vec<&str> = self
+                .visit
+                .files_menu()
+                .renamed
+                .iter()
+                .map(String::as_str)
+                .collect();
             out.push(("renamed".to_string(), names.join("\n").into_bytes()));
         }
         // What each picture in the Inbox holds: the next process does not
@@ -247,7 +253,7 @@ impl Faraday {
         }
         // What the last visit wrote, for Files, Home and each vault's
         // currency (§4.3).
-        if let Some(r) = &self.receipt {
+        if let Some(r) = &self.visit.receipt() {
             out.push(("receipt".to_string(), r.encode()));
         }
         // The backup flows: the plan, what each stick read, the step and
@@ -266,9 +272,10 @@ impl Faraday {
             out.insert(0, ("backup-gate".to_string(), gate));
         }
         // Which stick each vault file came from, for its currency (§3.5).
-        if !self.vault_from.is_empty() {
+        if !self.visit.vault_from().is_empty() {
             let lines: Vec<String> = self
-                .vault_from
+                .visit
+                .vault_from()
                 .iter()
                 .map(|(name, hash, label)| {
                     let hex: String = hash.iter().map(|b| format!("{b:02x}")).collect();
@@ -342,9 +349,9 @@ impl Faraday {
                         }
                     }
                 }
-                "receipt" => self.receipt = crate::Receipt::decode(bytes),
+                "receipt" => *self.visit.receipt_mut() = crate::Receipt::decode(bytes),
                 "renamed" => {
-                    self.files_menu.renamed = String::from_utf8_lossy(bytes)
+                    self.visit.files_menu_mut().renamed = String::from_utf8_lossy(bytes)
                         .lines()
                         .map(str::to_string)
                         .collect();
@@ -368,8 +375,11 @@ impl Faraday {
                                     .is_ok()
                             });
                         if ok {
-                            self.vault_from
-                                .push((name.to_string(), hash, label.to_string()));
+                            self.visit.vault_from_mut().push((
+                                name.to_string(),
+                                hash,
+                                label.to_string(),
+                            ));
                         }
                     }
                 }

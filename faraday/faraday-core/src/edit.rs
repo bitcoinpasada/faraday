@@ -160,7 +160,7 @@ impl Faraday {
             return self.vaults.focus == Some(vault::Focus::Prompt);
         }
         if self.sheet == Some(Sheet::Rename) {
-            return self.files_menu.renaming.is_some();
+            return self.visit.files_menu().renaming.is_some();
         }
         match self.screen {
             Screen::Family => self.vaults.focus.is_some() || self.seeds_typing(),
@@ -293,7 +293,7 @@ impl Faraday {
             Action::EntryPassphrase => &self.entry.state().passphrase,
             Action::SeedRead(_) => self.seed_read.state()?.field()?,
             Action::Rename => self.wallets.renaming().map(String::as_str)?,
-            crate::file_menu::FIELD => &self.files_menu.renaming.as_ref()?.stem,
+            crate::file_menu::FIELD => &self.visit.files_menu().renaming.as_ref()?.stem,
             Action::BName(p) => self.backup.as_ref()?.names.get(usize::from(p))?,
             Action::MType => &self.message.state()?.text,
             Action::KPassField(0) => &self.keygen.state()?.passphrase,

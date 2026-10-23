@@ -345,7 +345,7 @@ impl Faraday {
             });
         }
         self.import.set(state);
-        self.after_visit = None;
+        *self.visit.after_visit_mut() = None;
         self.screen = Screen::Home;
         // A device waiting to be believed is asked about first
         // (`docs/history/PLAN.md` §4.6); this sheet comes up after.

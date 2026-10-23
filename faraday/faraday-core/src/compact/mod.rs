@@ -892,7 +892,7 @@ impl Faraday {
             return self.vaults.focus == Some(crate::vault::Focus::Passphrase);
         }
         if self.sheet == Some(crate::Sheet::Rename) {
-            return self.files_menu.renaming.is_some();
+            return self.visit.files_menu().renaming.is_some();
         }
         if self.sheet.is_some() {
             return false;

@@ -403,9 +403,9 @@ fn a_stick_visit_leaves_the_seed_file_unticked() {
         }]));
         app.press(Action::Nav(Screen::Visit));
         let _ = app.frame();
-        assert!(app.visit.out.contains("wallet-descriptor.txt"));
+        assert!(app.visit().out.contains("wallet-descriptor.txt"));
         assert!(
-            !app.visit.out.contains(&name),
+            !app.visit().out.contains(&name),
             "{name} is ticked for writing"
         );
     }

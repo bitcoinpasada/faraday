@@ -124,9 +124,9 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
         }
     }
     assert!(
-        app.visit.log.iter().all(|(_, ok)| *ok),
+        app.visit().log.iter().all(|(_, ok)| *ok),
         "{:?}",
-        app.visit.log
+        app.visit().log
     );
     // F4: the stick out, Home. The unsigned PSBT also copied in leads
     // Home (`docs/history/SIMPLIFY.md` §1.2 rule 2); the vault opens from Vaults.
@@ -353,7 +353,7 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
         files: Vec::new(),
     };
     let ticked = |app: &Faraday| -> Vec<String> {
-        app.visit
+        app.visit()
             .out
             .iter()
             .filter(|n| n.ends_with(".ofv"))
@@ -373,7 +373,7 @@ fn with_two_vault_files_waiting_a_visit_ticks_one() {
             });
         }
     }
-    let r = app.receipt.as_ref().expect("a receipt");
+    let r = app.receipt().expect("a receipt");
     assert_eq!(r.label, "FIRST");
     assert!(r.wrote("vault.ofv") && !r.wrote("vault-2.ofv"));
     app.storage(StorageEvent::Sticks(Vec::new()));

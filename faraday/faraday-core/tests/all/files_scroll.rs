@@ -45,7 +45,7 @@ fn wheel(app: &mut Faraday, x: u16, y: u16) {
 fn for_the_stick_scrolls_alone() {
     let mut app = files();
     wheel(&mut app, 1100, 600);
-    assert!(app.files_out_offset > 0.0, "For the stick did not move");
+    assert!(app.files_out_offset() > 0.0, "For the stick did not move");
     assert_eq!(app.list_offset, 0.0, "From the stick moved with it");
 }
 
@@ -54,5 +54,5 @@ fn from_the_stick_scrolls_alone() {
     let mut app = files();
     wheel(&mut app, 500, 600);
     assert!(app.list_offset > 0.0, "From the stick did not move");
-    assert_eq!(app.files_out_offset, 0.0, "For the stick moved with it");
+    assert_eq!(app.files_out_offset(), 0.0, "For the stick moved with it");
 }

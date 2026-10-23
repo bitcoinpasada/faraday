@@ -129,7 +129,7 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
 
 /// Copies `names` in from the stick on show.
 fn copy_in(app: &mut Faraday, sticks: &[&Stick], names: &[&str]) {
-    let shown = &app.sticks()[app.visit.stick];
+    let shown = &app.sticks()[app.visit().stick];
     let ks: Vec<usize> = names
         .iter()
         .map(|n| {
@@ -194,7 +194,7 @@ fn a_public_file_copied_from_one_stick_is_written_to_the_next_as_it_came() {
     let share_row = row(&app, &share.0).expect("not offered under From the Inbox");
     assert!(app.offers(share_row), "not on screen");
     assert!(
-        app.visit.from_inbox.is_empty(),
+        app.visit().from_inbox.is_empty(),
         "an Inbox file is ticked before anyone chose it"
     );
     app.press(share_row);
@@ -232,7 +232,7 @@ fn a_picture_copied_in_keeps_its_bytes_and_its_codes_are_still_read() {
     assert!(
         app.inbox().iter().any(|i| i.kind == FileKind::Wallet),
         "the wallet in its code was not read: {:?}",
-        app.visit.log
+        app.visit().log
     );
     let picture = app
         .inbox()
@@ -274,8 +274,8 @@ fn a_seed_in_the_inbox_is_written_only_past_the_secret_sheet() {
 
     // Select all leaves both alone.
     app.press(Action::VisitOutAll);
-    assert!(!app.visit.from_inbox.contains(&words.0));
-    assert!(!app.visit.from_inbox.contains(&seedqr.0));
+    assert!(!app.visit().from_inbox.contains(&words.0));
+    assert!(!app.visit().from_inbox.contains(&seedqr.0));
 
     for (name, bytes) in [&words, &seedqr] {
         let r = row(&app, name).expect("not offered");
@@ -285,13 +285,13 @@ fn a_seed_in_the_inbox_is_written_only_past_the_secret_sheet() {
         // Nothing until the line is ticked.
         app.press(Action::SecretUnprotected);
         assert!(
-            !app.visit.from_inbox.contains(name),
+            !app.visit().from_inbox.contains(name),
             "{name} ticked unasked"
         );
         app.press(Action::SecretAck);
         app.press(Action::SecretUnprotected);
         assert_eq!(app.sheet, None);
-        assert!(app.visit.from_inbox.contains(name), "{name} not ticked");
+        assert!(app.visit().from_inbox.contains(name), "{name} not ticked");
         assert!(app.outbox.is_empty(), "{name} went to the Outbox");
         let wrote = write(&mut app, &[&a, &b]);
         assert_eq!(wrote.len(), 1);
@@ -303,7 +303,7 @@ fn a_seed_in_the_inbox_is_written_only_past_the_secret_sheet() {
     // Cancel ticks nothing.
     app.press(row(&app, &words.0).unwrap());
     app.press(Action::Cancel);
-    assert!(app.visit.from_inbox.is_empty());
+    assert!(app.visit().from_inbox.is_empty());
     assert!(write(&mut app, &[&a, &b]).is_empty());
 }
 
@@ -322,7 +322,7 @@ fn text_is_offered_as_something_faraday_cannot_tell_about() {
     let b = Stick::new("b", &[]);
     attach(&mut app, &[&b]);
     app.press(Action::VisitOutAll);
-    assert!(app.visit.from_inbox.is_empty(), "Select all ticked text");
+    assert!(app.visit().from_inbox.is_empty(), "Select all ticked text");
     app.press(row(&app, &notes.0).unwrap());
     let out = testkit::secret_out(&app).expect("no secret sheet");
     assert_eq!(out.ack, Ack::Unknown);
@@ -362,8 +362,8 @@ fn a_file_larger_than_18_mib_is_not_read() {
     );
     app.press(Action::VisitIn(0));
     // It is not ticked with everything else, nor by its own press.
-    assert!(!app.visit.inn.contains("film.mp4"));
-    assert!(app.visit.inn.contains("savings-share-1-of-3.txt"));
+    assert!(!app.visit().inn.contains("film.mp4"));
+    assert!(app.visit().inn.contains("savings-share-1-of-3.txt"));
     app.press(Action::VisitCopy);
     while let Some(c) = app.poll_storage() {
         if let StorageCommand::Read { name, .. } | StorageCommand::ReadQr { name, .. } = c {
@@ -462,7 +462,7 @@ fn a_file_just_copied_in_shows_on_both_sides_and_waits_for_the_next_stick() {
     // On the stick it holds, the row cannot be ticked.
     assert_eq!(row(&app, &share.0), None);
     app.press(Action::VisitInbox(0));
-    assert!(app.visit.from_inbox.is_empty(), "a held file was ticked");
+    assert!(app.visit().from_inbox.is_empty(), "a held file was ticked");
 
     // On another stick it is an ordinary row.
     app.storage(StorageEvent::Sticks(Vec::new()));
@@ -521,7 +521,7 @@ fn a_gpg_public_key_and_signature_copied_between_sticks_are_public() {
 
     app.press(Action::VisitOutAll);
     for (name, _) in &files {
-        assert!(app.visit.from_inbox.contains(name), "{name} not ticked");
+        assert!(app.visit().from_inbox.contains(name), "{name} not ticked");
     }
     assert_eq!(app.sheet, None);
     assert!(testkit::secret_out(&app).is_none(), "a secret sheet opened");
@@ -587,7 +587,7 @@ fn a_gpg_private_key_block_is_still_offered_as_something_that_may_be_a_secret() 
     let b = Stick::new("b", &[]);
     attach(&mut app, &[&b]);
     app.press(Action::VisitOutAll);
-    assert!(app.visit.from_inbox.is_empty(), "Select all ticked it");
+    assert!(app.visit().from_inbox.is_empty(), "Select all ticked it");
     app.press(row(&app, &file.0).unwrap());
     let out = testkit::secret_out(&app).expect("no secret sheet");
     assert_eq!(out.ack, Ack::Unknown);

@@ -452,7 +452,11 @@ fn later_with_the_stick_in_leaves_the_files_to_the_stick_visit() {
     app.press(Action::Import(I::Later));
     assert!(app.inbox().is_empty());
     app.press(Action::Nav(Screen::Visit));
-    assert!(app.visit.inn.contains("notes.txt"), "{:?}", app.visit.inn);
+    assert!(
+        app.visit().inn.contains("notes.txt"),
+        "{:?}",
+        app.visit().inn
+    );
     app.press(Action::VisitCopy);
     pump(&mut app, &files);
     assert!(app.inbox().iter().any(|i| i.name == "notes.txt"));
@@ -681,7 +685,10 @@ fn a_picture_on_a_visit_comes_in_ticked_and_has_its_codes_read_into_the_inbox() 
         app.offers(Action::VisitIn(0)),
         "the picture cannot be ticked"
     );
-    assert!(app.visit.inn.contains("wallet-qr.png"), "it is not ticked");
+    assert!(
+        app.visit().inn.contains("wallet-qr.png"),
+        "it is not ticked"
+    );
     app.press(Action::VisitCopy);
     let mut asked = false;
     while let Some(c) = app.poll_storage() {
