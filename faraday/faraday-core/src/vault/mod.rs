@@ -1535,13 +1535,13 @@ impl Faraday {
     /// [`Faraday::fresh`] instead. `None` before the seed arrived: nothing
     /// is sealed then, and the shell is asked again.
     pub(crate) fn vault_draw(&mut self, what: &[u8]) -> Option<[u8; 32]> {
-        let Some(seed) = self.seed.as_ref() else {
+        if !self.fresh.seeded() {
             self.out.command(faraday_shell_api::Command::RequestEntropy);
             return None;
-        };
+        }
         self.vaults.draws += 1;
         let what = [b"faraday vault draw".as_slice(), what].concat();
-        Some(seed.draw(&what, &self.vaults.draws.to_le_bytes()))
+        self.fresh.draw(&what, &self.vaults.draws.to_le_bytes())
     }
 
     /// Runs a vault action.
@@ -3574,7 +3574,7 @@ impl Faraday {
         let c = self.compute();
         // Everything random in a vault comes from fresh system entropy of
         // its own; a vault is never made before it has arrived.
-        if self.pool.is_empty() {
+        if self.fresh.pool_is_empty() {
             self.out.command(faraday_shell_api::Command::RequestEntropy);
             if let Some(c) = self.vaults.create.as_mut() {
                 c.error = Some(EN.vaults_no_randomness.to_string());

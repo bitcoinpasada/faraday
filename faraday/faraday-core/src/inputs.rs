@@ -91,7 +91,7 @@ impl Faraday {
     /// seed arrived.
     fn input_code(&self, id: u32) -> Option<String> {
         let count = [id.to_le_bytes().as_slice(), &self.now_ms.to_le_bytes()].concat();
-        let draw = self.seed.as_ref()?.draw(b"faraday input code", &count);
+        let draw = self.fresh.draw(b"faraday input code", &count)?;
         Some(
             draw.iter()
                 .take(CODE_LEN)

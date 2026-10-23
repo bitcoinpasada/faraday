@@ -1234,18 +1234,8 @@ pub struct Faraday {
     /// Each vault file read from a stick this power-on: its name, the
     /// hash of its bytes as read, and the stick's label (§3.5).
     pub vault_from: Vec<(String, [u8; 32], String)>,
-    /// The session's seed, once the shell's first answer arrived
-    /// (`fresh.rs`).
-    seed: Option<fresh::Seed>,
-    /// When the wait for the seed started: the first tick after the
-    /// display.
-    seed_wait_from: Option<u64>,
-    /// Whether the last frame said the seed is missing.
-    seed_missing_drawn: bool,
-    /// Signing passes that drew a seed of their own (`fresh.rs`).
-    sign_draws: u64,
-    /// Fresh answers waiting for the next key (`fresh.rs`).
-    pool: Vec<zeroize::Zeroizing<[u8; 32]>>,
+    /// The session's seed and the pool of fresh answers (`fresh.rs`).
+    fresh: fresh::Fresh,
     now_ms: u64,
 
     /// The screen shown.
@@ -1576,11 +1566,7 @@ impl Faraday {
             backups_at: 0,
             receipt: None,
             vault_from: Vec::new(),
-            seed: None,
-            seed_wait_from: None,
-            seed_missing_drawn: false,
-            sign_draws: 0,
-            pool: Vec::new(),
+            fresh: fresh::Fresh::default(),
             now_ms: 0,
             screen: Screen::Home,
             sheet: None,

@@ -15,7 +15,7 @@ use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use faraday_shell_api::Command;
 use zeroize::Zeroizing;
 
-use crate::Faraday;
+use crate::{Faraday, out::Out};
 
 /// Answers kept waiting for the next key.
 pub const POOL: usize = 3;
@@ -42,22 +42,44 @@ impl Seed {
     }
 }
 
-impl Faraday {
+/// Fresh randomness's state: the session's seed, the pool of answers
+/// waiting for the next key, and the wait for a seed that does not come.
+/// Its fields are private; it is given `out` to ask the shell for more.
+#[derive(Default)]
+pub(crate) struct Fresh {
+    /// The session's seed, once the shell's first answer arrived.
+    seed: Option<Seed>,
+    /// When the wait for the seed started: the first tick after the
+    /// display.
+    seed_wait_from: Option<u64>,
+    /// Whether the last frame said the seed is missing.
+    seed_missing_drawn: bool,
+    /// Signing passes that drew a seed of their own.
+    sign_draws: u64,
+    /// Fresh answers waiting for the next key.
+    pool: Vec<Zeroizing<[u8; 32]>>,
+}
+
+impl Fresh {
     /// The shell answered: the session's seed first, then the pool.
-    pub(crate) fn fresh_arrived(&mut self, bytes: [u8; 32]) {
+    /// Returns whether the answer was the session's seed (a keyboard
+    /// that arrived first then gets its code).
+    pub(crate) fn arrived(&mut self, bytes: [u8; 32]) -> bool {
         if self.seed.is_none() {
             self.seed = Some(Seed(Zeroizing::new(bytes)));
-            // A keyboard that arrived first gets its code now.
-            self.inputs_coded();
-        } else if self.pool.len() < POOL * 2 {
-            self.pool.push(Zeroizing::new(bytes));
+            true
+        } else {
+            if self.pool.len() < POOL * 2 {
+                self.pool.push(Zeroizing::new(bytes));
+            }
+            false
         }
     }
 
     /// 32 bytes of their own for `what`, or `None` while the system has
     /// not answered yet; either way another answer is asked for.
-    pub(crate) fn fresh(&mut self, what: &[u8]) -> Option<[u8; 32]> {
-        self.out.commands.push_back(Command::RequestEntropy);
+    pub(crate) fn take(&mut self, what: &[u8], out: &mut Out) -> Option<[u8; 32]> {
+        out.command(Command::RequestEntropy);
         let bytes = self.pool.pop()?;
         let mut e = sha256::Hash::engine();
         e.input(b"faraday fresh");
@@ -71,48 +93,102 @@ impl Faraday {
     /// passes, so a nonce shared again is never the one shared before.
     /// `None` until the session is seeded, and the shell is asked: a
     /// round is never opened on bytes the system did not give.
-    pub(crate) fn sign_seed(&mut self) -> Option<[u8; 32]> {
+    pub(crate) fn sign_seed(&mut self, out: &mut Out) -> Option<[u8; 32]> {
         let Some(seed) = self.seed.as_ref() else {
-            self.out.commands.push_back(Command::RequestEntropy);
+            out.command(Command::RequestEntropy);
             return None;
         };
         self.sign_draws += 1;
         Some(seed.draw(b"faraday sign seed", &self.sign_draws.to_le_bytes()))
     }
 
+    /// `what` hashed with the session's seed and `count`, or `None`
+    /// before the seed arrived.
+    pub(crate) fn draw(&self, what: &[u8], count: &[u8]) -> Option<[u8; 32]> {
+        Some(self.seed.as_ref()?.draw(what, count))
+    }
+
+    /// Whether the session's seed has arrived.
+    pub(crate) fn seeded(&self) -> bool {
+        self.seed.is_some()
+    }
+
+    /// Whether no answer waits in the pool.
+    pub(crate) fn pool_is_empty(&self) -> bool {
+        self.pool.is_empty()
+    }
+
+    /// The seed is still missing well after the first display.
+    pub(crate) fn missing(&self, now_ms: u64) -> bool {
+        self.seed.is_none()
+            && self
+                .seed_wait_from
+                .is_some_and(|from| now_ms.saturating_sub(from) >= SEED_GRACE_MS)
+    }
+
+    /// The tick: the wait for the seed starts at the first one after
+    /// the display (`displayed`); returns whether the missing seed's
+    /// line changed.
+    pub(crate) fn tick(&mut self, displayed: bool, now_ms: u64) -> bool {
+        if self.seed.is_none() && displayed && self.seed_wait_from.is_none() {
+            self.seed_wait_from = Some(now_ms);
+        }
+        let missing = self.missing(now_ms);
+        missing != std::mem::replace(&mut self.seed_missing_drawn, missing)
+    }
+
+    /// The first display asks for the seed and fills the pool.
+    pub(crate) fn ask(&self, out: &mut Out) {
+        if self.seed.is_some() {
+            return;
+        }
+        for _ in 0..=POOL {
+            out.command(Command::RequestEntropy);
+        }
+    }
+}
+
+impl Faraday {
+    /// The shell answered: the session's seed first, then the pool.
+    pub(crate) fn fresh_arrived(&mut self, bytes: [u8; 32]) {
+        if self.fresh.arrived(bytes) {
+            // A keyboard that arrived first gets its code now.
+            self.inputs_coded();
+        }
+    }
+
+    /// 32 bytes of their own for `what`, or `None` while the system has
+    /// not answered yet; either way another answer is asked for.
+    pub(crate) fn fresh(&mut self, what: &[u8]) -> Option<[u8; 32]> {
+        self.fresh.take(what, &mut self.out)
+    }
+
+    /// The seed a signing pass draws a MuSig2 or FROST round's secret
+    /// nonces from (see [`Fresh::sign_seed`]).
+    pub(crate) fn sign_seed(&mut self) -> Option<[u8; 32]> {
+        self.fresh.sign_seed(&mut self.out)
+    }
+
     /// Whether the session's seed has arrived: a vault seals, and a new
     /// keyboard gets its code, only once it has.
     pub fn seeded(&self) -> bool {
-        self.seed.is_some()
+        self.fresh.seeded()
     }
 
     /// The seed is still missing well after the first display: the
     /// system gives no randomness, and the screen says Faraday has to
     /// restart.
     pub fn seed_missing(&self) -> bool {
-        self.seed.is_none()
-            && self
-                .seed_wait_from
-                .is_some_and(|from| self.now_ms.saturating_sub(from) >= SEED_GRACE_MS)
+        self.fresh.missing(self.now_ms)
     }
 
-    /// The tick: the wait for the seed starts at the first one after
-    /// the display; returns whether the missing seed's line changed.
+    /// The tick: see [`Fresh::tick`].
     pub(crate) fn seed_tick(&mut self) -> bool {
-        if self.seed.is_none() && self.canvas.is_some() && self.seed_wait_from.is_none() {
-            self.seed_wait_from = Some(self.now_ms);
-        }
-        let missing = self.seed_missing();
-        missing != std::mem::replace(&mut self.seed_missing_drawn, missing)
+        self.fresh.tick(self.canvas.is_some(), self.now_ms)
     }
 
     /// The first display asks for the seed and fills the pool.
     pub(crate) fn fresh_ask(&mut self) {
-        if self.seed.is_some() {
-            return;
-        }
-        for _ in 0..=POOL {
-            self.out.commands.push_back(Command::RequestEntropy);
-        }
+        self.fresh.ask(&mut self.out);
     }
 }
