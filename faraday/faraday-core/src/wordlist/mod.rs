@@ -14,7 +14,8 @@ use crate::strings::EN;
 use faraday_bip::bip39::Language;
 use faraday_bip::diceware::List;
 
-use crate::{Faraday, Sheet};
+use crate::Sheet;
+use crate::out::Out;
 
 /// Said once beside words shown as pills, each of which opens its list.
 pub const PRESS_A_WORD: &str = EN.wordlist_press_a_word;
@@ -121,16 +122,57 @@ pub enum WordListAction {
     Outside,
 }
 
-impl Faraday {
+/// What a key on the open sheet leaves to the caller.
+pub(crate) enum Keyed {
+    /// The sheet is not open: the key is not its.
+    NotMine,
+    /// The sheet took the key.
+    Taken,
+    /// The sheet took the key, and its list scrolls by this much
+    /// ([`crate::Faraday::glide`]).
+    Glide(f32),
+}
+
+/// The word-list sheet's area: its state while it is open.
+#[derive(Default)]
+pub(crate) struct WordListArea {
+    state: Option<WordListState>,
+}
+
+impl WordListArea {
+    /// The sheet's state, while it is open.
+    pub(crate) fn state(&self) -> Option<&WordListState> {
+        self.state.as_ref()
+    }
+
+    /// The sheet's scroll offset, while it is open.
+    pub(crate) fn scroll_mut(&mut self) -> Option<&mut f32> {
+        self.state.as_mut().map(|w| &mut w.scroll)
+    }
+
+    /// Takes the extent and offset a frame drew the sheet with.
+    pub(crate) fn set_scroll(&mut self, max: f32, scroll: f32) {
+        if let Some(st) = self.state.as_mut() {
+            st.max = max;
+            st.scroll = scroll;
+            st.follow = false;
+        }
+    }
+
+    /// Forgets the state, leaving the sheet to the caller.
+    pub(crate) fn clear(&mut self) {
+        self.state = None;
+    }
+
     /// One press on the sheet, or a link to it.
-    pub(crate) fn wordlist_act(&mut self, a: WordListAction) {
+    pub(crate) fn act(&mut self, a: WordListAction, sheet: &mut Option<Sheet>) {
         match a {
             WordListAction::Open(k, mark) => {
                 let Some(&list) = LISTS.get(usize::from(k)) else {
                     return;
                 };
                 let mark = mark.map(usize::from).filter(|&m| m < list.words().len());
-                self.wordlist = Some(WordListState {
+                self.state = Some(WordListState {
                     list,
                     mark,
                     find: String::new(),
@@ -138,10 +180,10 @@ impl Faraday {
                     max: 0.0,
                     follow: mark.is_some(),
                 });
-                self.sheet = Some(Sheet::WordList);
+                *sheet = Some(Sheet::WordList);
             }
             WordListAction::List(k) => {
-                if let (Some(w), Some(&list)) = (self.wordlist.as_mut(), LISTS.get(usize::from(k)))
+                if let (Some(w), Some(&list)) = (self.state.as_mut(), LISTS.get(usize::from(k)))
                     && w.list != list
                 {
                     w.list = list;
@@ -151,40 +193,46 @@ impl Faraday {
                 }
             }
             WordListAction::Mark(i) => {
-                if let Some(w) = self.wordlist.as_mut()
+                if let Some(w) = self.state.as_mut()
                     && usize::from(i) < w.list.words().len()
                 {
                     w.mark = Some(usize::from(i));
                 }
             }
-            WordListAction::Close | WordListAction::Outside => self.wordlist_close(),
+            WordListAction::Close | WordListAction::Outside => self.close(sheet),
         }
     }
 
     /// Closes the sheet and forgets the word marked.
-    pub(crate) fn wordlist_close(&mut self) {
-        self.wordlist = None;
-        if self.sheet == Some(Sheet::WordList) {
-            self.sheet = None;
+    pub(crate) fn close(&mut self, sheet: &mut Option<Sheet>) {
+        self.state = None;
+        if *sheet == Some(Sheet::WordList) {
+            *sheet = None;
         }
     }
 
     /// Keys while the sheet is open: letters find a word, Backspace takes
     /// one back, the arrows scroll, Escape closes it. Every key is the
     /// sheet's while it is open, so none reaches the screen under it.
-    pub(crate) fn wordlist_key(&mut self, key: faraday_shell_api::Key) -> bool {
+    pub(crate) fn key(
+        &mut self,
+        key: faraday_shell_api::Key,
+        sheet: &mut Option<Sheet>,
+        out: &mut Out,
+    ) -> Keyed {
         use faraday_shell_api::Key as K;
-        if self.sheet != Some(Sheet::WordList) {
-            return false;
+        if *sheet != Some(Sheet::WordList) {
+            return Keyed::NotMine;
         }
-        let Some(w) = self.wordlist.as_mut() else {
-            self.sheet = None;
-            return true;
+        let Some(w) = self.state.as_mut() else {
+            *sheet = None;
+            return Keyed::Taken;
         };
+        let mut glide = None;
         match key {
-            K::Escape => self.wordlist_close(),
-            K::Down => self.glide(60.0),
-            K::Up => self.glide(-60.0),
+            K::Escape => self.close(sheet),
+            K::Down => glide = Some(60.0),
+            K::Up => glide = Some(-60.0),
             K::Char(c) if c.is_ascii_alphabetic() && w.find.len() < 12 => {
                 w.find.push(c.to_ascii_lowercase());
                 w.find_mark();
@@ -195,8 +243,8 @@ impl Faraday {
             }
             _ => {}
         }
-        self.out.dirty = true;
-        true
+        out.dirty = true;
+        glide.map_or(Keyed::Taken, Keyed::Glide)
     }
 }
 

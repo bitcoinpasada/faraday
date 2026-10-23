@@ -412,7 +412,7 @@ fn the_word_list_scrollbar_can_be_held_and_dragged() {
     app.press(Action::WordList(WL::Open(0, None)));
     let _ = app.frame();
     // The sheet is 860 wide, centred: its right edge is at 1070.
-    let scroll = |a: &Faraday| a.wordlist.as_ref().unwrap().scroll;
+    let scroll = |a: &Faraday| testkit::wordlist(a).unwrap().scroll;
     let (low, top) = drag_bar(&mut app, 1066, 740, scroll);
     assert!(
         low > 1000.0,
@@ -421,7 +421,7 @@ fn the_word_list_scrollbar_can_be_held_and_dragged() {
     assert_eq!(top, 0.0, "dragged to the top, it followed");
     assert_eq!(app.sheet, Some(faraday_core::Sheet::WordList));
     assert!(
-        app.wordlist.as_ref().unwrap().mark.is_none(),
+        testkit::wordlist(&app).unwrap().mark.is_none(),
         "no word pressed"
     );
 }

@@ -1377,7 +1377,7 @@ pub struct Faraday {
     /// Session state only, in memory, never written to a file.
     learn_ticks: Vec<(&'static faraday_learn::Page, Vec<u32>)>,
     /// The word-list sheet, while it is open.
-    pub wordlist: Option<wordlist::WordListState>,
+    wordlist: wordlist::WordListArea,
     /// BIP-85 being derived.
     pub bip85: Option<bip85::Bip85State>,
     /// Silent payments on show.
@@ -1689,7 +1689,7 @@ impl Faraday {
             entropy_source: None,
             learn: learn::LearnState::default(),
             learn_ticks: Vec::new(),
-            wordlist: None,
+            wordlist: wordlist::WordListArea::default(),
             bip85: None,
             silent: None,
             explore: None,
@@ -2924,7 +2924,7 @@ impl Faraday {
         self.create = None;
         self.restore = None;
         self.keygen = None;
-        self.wordlist = None;
+        self.wordlist.clear();
         self.bip85 = None;
         self.secret_out = None;
         self.entry = EntryState::default();
@@ -3242,7 +3242,7 @@ impl Faraday {
                 self.visit.taken.clear();
                 self.next_mode = None;
                 self.secret_cancel();
-                self.wordlist = None;
+                self.wordlist.clear();
                 self.potential = None;
                 // A transfer in parts survives closing the camera: the
                 // parts read so far wait for the next scan.
@@ -3416,7 +3416,7 @@ impl Faraday {
             | Action::SecretForm(..)) => self.secret_act(a),
             Action::LearnPage(i) => self.learn_page(i),
             Action::LearnStep(n) => self.learn_tick_step(n),
-            Action::WordList(a) => self.wordlist_act(a),
+            Action::WordList(a) => self.wordlist.act(a, &mut self.sheet),
             Action::KeyGen(_)
             | Action::KStep(_)
             | Action::KStart(_)
@@ -8918,7 +8918,7 @@ impl Faraday {
             self.upgrade_leave();
         }
         if self.sheet != Some(Sheet::WordList) {
-            self.wordlist = None;
+            self.wordlist.clear();
         }
         // Leaving the vanity screen stops a search and drops a find.
         if self.screen != Screen::Vanity {

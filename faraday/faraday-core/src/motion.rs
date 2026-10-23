@@ -415,13 +415,26 @@ fn unrubber(stretch: f32, d: f32) -> f32 {
 
 /// Which offset each screen and sheet scrolls.
 impl Faraday {
+    /// A key while the word-list sheet is open ([`wordlist::WordListArea::key`]),
+    /// and the glide it asks for: true when the sheet took it.
+    pub(crate) fn wordlist_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        match self.wordlist.key(key, &mut self.sheet, &mut self.out) {
+            crate::wordlist::Keyed::NotMine => false,
+            crate::wordlist::Keyed::Taken => true,
+            crate::wordlist::Keyed::Glide(dy) => {
+                self.glide(dy);
+                true
+            }
+        }
+    }
+
     /// The open sheet's offset, or the screen's region's. A sheet starts
     /// at its top each time it opens: with none open the sheet's offset
     /// is cleared, and another kind of sheet starts afresh.
     pub(crate) fn page_slot(&mut self) -> Option<&mut f32> {
         match self.sheet {
             Some(Sheet::Learn) => Some(&mut self.learn.scroll),
-            Some(Sheet::WordList) => self.wordlist.as_mut().map(|w| &mut w.scroll),
+            Some(Sheet::WordList) => self.wordlist.scroll_mut(),
             Some(s) => {
                 if self.sheet_scroll.1 != Some(s) {
                     self.sheet_scroll = (0.0, Some(s));

@@ -15,7 +15,7 @@ use faraday_bip::diceware::List;
 use faraday_core::keygen::{Way, kstep};
 use faraday_core::vault::VaultAction as V;
 use faraday_core::wordlist::{LISTS, WordList, WordListAction as WL};
-use faraday_core::{Action, Faraday, Screen, Sheet};
+use faraday_core::{Action, Faraday, Screen, Sheet, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
 
 /// A tall display, so that a whole New key card is on screen at once.
@@ -374,7 +374,7 @@ fn a_word_s_link_marks_it_in_the_list_and_back_returns_to_the_card() {
     app.press(open);
     assert_eq!(app.sheet, Some(Sheet::WordList));
     assert_eq!(app.screen, Screen::KeyGen);
-    let st = app.wordlist.as_ref().unwrap();
+    let st = testkit::wordlist(&app).unwrap();
     assert_eq!(st.list, WordList::Bip39);
     assert_eq!(st.mark, Some(usize::from(word)));
     // The marked word's row is on screen, among its neighbours.
@@ -441,7 +441,7 @@ fn a_passphrase_word_s_link_marks_it_in_its_eff_list_and_back_keeps_the_rolls() 
     let _ = app.frame();
     assert!(app.offers(open));
     app.press(open);
-    let st = app.wordlist.as_ref().unwrap();
+    let st = testkit::wordlist(&app).unwrap();
     assert_eq!(st.list, WordList::Eff(List::Short1));
     assert_eq!(st.list.words()[st.mark.unwrap()], word);
     let _ = app.frame();
@@ -466,12 +466,12 @@ fn the_lists_are_the_real_lists_with_their_numbers_and_codes() {
             .unwrap();
         app.press(Action::Catalog(tile as u8));
         assert_eq!(app.sheet, Some(Sheet::WordList));
-        assert_eq!(app.wordlist.as_ref().unwrap().list, *list);
+        assert_eq!(testkit::wordlist(&app).unwrap().list, *list);
         // The first word is on screen, and a press marks it.
         let _ = app.frame();
         assert!(app.offers(Action::WordList(WL::Mark(0))));
         app.press(Action::WordList(WL::Mark(0)));
-        assert_eq!(app.wordlist.as_ref().unwrap().mark, Some(0));
+        assert_eq!(testkit::wordlist(&app).unwrap().mark, Some(0));
         app.press(Action::WordList(WL::Close));
         assert_eq!(app.screen, Screen::Catalog);
     }
@@ -505,7 +505,7 @@ fn typing_on_the_sheet_marks_the_first_word_that_begins_so() {
     for c in "zo".chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    let i = app.wordlist.as_ref().unwrap().mark.unwrap();
+    let i = testkit::wordlist(&app).unwrap().mark.unwrap();
     assert_eq!(Language::English.word(i as u16), "zone");
     let _ = app.frame();
     assert!(app.offers(Action::WordList(WL::Mark(i as u16))));

@@ -95,4 +95,3 @@ impl-faraday faraday/faraday-core/src/visit_taken.rs
 impl-faraday faraday/faraday-core/src/wallet.rs
 impl-faraday faraday/faraday-core/src/wallet_backup.rs
 impl-faraday faraday/faraday-core/src/word_entry.rs
-impl-faraday faraday/faraday-core/src/wordlist/mod.rs

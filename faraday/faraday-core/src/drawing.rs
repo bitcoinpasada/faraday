@@ -370,12 +370,8 @@ impl Faraday {
             self.learn.max = max;
             self.learn.scroll = scroll;
         }
-        if let Some((max, scroll)) = a.wordlist
-            && let Some(st) = self.wordlist.as_mut()
-        {
-            st.max = max;
-            st.scroll = scroll;
-            st.follow = false;
+        if let Some((max, scroll)) = a.wordlist {
+            self.wordlist.set_scroll(max, scroll);
         }
         if let Some(lift) = a.lift {
             self.osk_set_lift(lift);

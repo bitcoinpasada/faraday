@@ -17,7 +17,7 @@ const ROW: f32 = 28.0;
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(st) = app.wordlist.as_ref() else {
+    let Some(st) = app.wordlist.state() else {
         return;
     };
     let compact = ui.compact;

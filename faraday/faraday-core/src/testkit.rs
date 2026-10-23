@@ -1535,3 +1535,8 @@ impl KindText for crate::create::NewKind {
         faraday_keys::texts::key_text(c, master, &self.spec(master.network(), 0)?)
     }
 }
+
+/// The word-list sheet's state, while it is open.
+pub fn wordlist(app: &crate::Faraday) -> Option<&crate::wordlist::WordListState> {
+    app.wordlist.state()
+}
