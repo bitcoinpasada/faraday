@@ -18,6 +18,7 @@ need. Each document's header says what kind it is:
 | Question | Look in |
 |---|---|
 | What runs on the device, as whom, and what can each part reach? | `docs/SECURITY-MODEL.md` |
+| Which standard does each wallet kind, key method, format and tool follow, how fully, and where did Faraday decide for itself? | `docs/STANDARDS.md` |
 | Which code computes cryptography, and what checks it? | `docs/AUDIT.md`, then each crypto crate's README (`core/faraday-bip/README.md` and the others) |
 | Why is something the way it is? | `docs/DECISIONS.md`, the index; then the one decision, `docs/decisions/F<n>.md` |
 | How does a person use Faraday, step by step, with the screens? | `docs/GUIDE.md` |
@@ -66,6 +67,7 @@ need. Each document's header says what kind it is:
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
 - `docs/README.md`: Faraday's documents. Built.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
+- `docs/STANDARDS.md`: Standards: what Faraday follows, how fully, and where it decides. Built.
 - `docs/TOTP.md`: TOTP codes and the time. Built.
 - `docs/VAULT.md`: The Faraday vault. Built.
 - `docs/WALLETS.md`: The Wallets tab. Built.
