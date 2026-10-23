@@ -105,6 +105,9 @@ Sources read for it, each as data and none vendored:
 15. **The review after entry**: tabs, one per worksheet in the booklet's
     order, each scrolling within itself and checked once shown; on the
     small panel a Choice with Previous and Next (§6.5).
+16. **The sheets' look**: the booklet's layout and colour roles, so they
+    feel familiar; more beautiful where possible; every colour, line and
+    motion helping the reader follow, none distracting (§7.5).
 14. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
     keep real dice typed on the pad): five dice for codex32, one die for
     BIP-39 words and Generate with dice, their values this computer's
@@ -756,6 +759,71 @@ cell:
 The values in these sheets are read from the kept worksheet (§13.2);
 opening one computes nothing.
 
+### 7.5 How the sheets look (owner, 2026-10-22)
+
+The owner: the sheets match the look of the worksheets people already
+know, so they feel familiar; more beautiful where that is possible; and
+every colour, shade and line helps the reader follow along rather than
+distracting.
+
+**Familiar: the booklet's sheets, cell for cell.** Each worksheet keeps
+the layout and the colour roles of the booklet's (SSS32.ps, the colour
+edition and its black-and-white one), so a person who has filled one on
+paper recognises it at a glance:
+
+| Booklet | Role | Faraday |
+|---|---|---|
+| Plain squares on thin black rules, in the booklet's staircase, rows offset as the ladder works down | the grid | the same staircase and offsets; rules in the theme's inner-edge colour |
+| Bold-outlined squares | the given data (the person's characters, the header) | a heavier outline in the text colour |
+| Pink fill (`/pink`, RGB 1, 0.9, 0.9) on the checksum squares, bolded | the checksum, worked from the bottom up | a pink-family fill named for the role (`CODEX32_CHECKSUM_FILL`), with a light and a dark value per theme so it reads as the booklet's pink on light themes and as a muted rose on dark ones |
+| Light grey fill (0.95, 0.85) | rows read from a table, the sum and lookup rows | a raised-surface fill (`CODEX32_LOOKUP_FILL`) |
+| The final row, `SECRETSHARE32` | the check | its own row under a rule, set in the text colour, the fixed letters in bold |
+| The dice worksheet's five tracks and pads, the 32-leaf tree | the dice | drawn as the booklet draws them: tracks left to right, the tree's leaves in its order |
+| The second alphabet (`code2`) for translation symbols | the multipliers | the same glyphs |
+
+Names, numbers and the order of the boxes are the booklet's (§3), and so
+is the box numbering above each group of four.
+
+**More beautiful, without changing what is where.** Even spacing and
+alignment on the token grid; characters set in the mono face at a size
+where each box holds its character with room around it; rounded box
+corners at the radius the rest of Faraday uses; the staircase given air
+between rows so the diagonal reads as one line of work; no ornament
+that carries no meaning.
+
+**Readability: every visual element points at the work.**
+- **The cell being filled** has an accent outline, and the row it
+  belongs to a faint accent tint, so the eye knows where the next value
+  goes. Only one cell at a time is outlined.
+- **A value that just landed** fades in over the motion time
+  (MOTION; at once under Reduce motion), so a change is noticed without
+  anything moving across the sheet.
+- **Cells already done stay at full contrast.** Nothing is dimmed to
+  show progress: dimmed text is harder to check against paper, which is
+  what the sheet is for.
+- **Lines that connect** (the tree's path, the cells a lookup used) are
+  drawn only while that step is the current one, or in a cell's working
+  sheet (§7.4), never all at once.
+- **No shadows on the sheet**, which is one flat surface as paper is;
+  the cell sheet of §7.4 keeps the ordinary sheet shadow as every sheet
+  does.
+- **Colour is never the only cue**: the checksum squares are also
+  bolded, the given data also outlined, a failing final-row cell also
+  marked with a symbol, as the booklet relies on outlines in its
+  black-and-white edition. The sheets read in the high-contrast themes
+  and in grey.
+- **Contrast**: characters on every fill at least 4.5:1 in every theme
+  (7:1 in the high-contrast themes); rules at least 3:1 against the page.
+- **Rolled by this computer** (§5.5) is a small mark in the cell's
+  corner, not a colour, so a mixed sheet stays one sheet.
+
+Tokens: the fills, outlines, the radius and the spacing are named in
+`core/faraday-draw/src/tokens.rs` and `faraday-ui`'s palettes (§13.4),
+one value per theme. A test checks the contrast of the characters on
+each fill in every theme, which is what a reader notices; the snapshot
+tours render each worksheet in a light, a dark and a high-contrast theme
+for the owner's look before the batch is committed.
+
 ## 8. The other flows
 
 ### 8.1 Shares made by hand, typed in
@@ -1171,6 +1239,7 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 | `docs/DESIGN.md` | §4.10, §5 Pad, Secret, Result, Choice | the worksheet as a Secret panel; the booklet dice pad; String · Codex32QR; Strings made as built; the Scheme choices |
 | `docs/FLOWS.md` | New key and Add a key; Vaults (Create a vault) | §5.6: the roller on Faraday Desktop for dice words and Generate with dice |
 | `docs/DESIGN.md` | §5 Pad; §4.10 | the dice row and the one die, Rolls per click, "Rolled by this computer"; the masking exception of §6.4.6 |
+| `docs/DESIGN.md` | §4.10 | the worksheet's look, §7.5: the booklet's colour roles as named fills and outlines per theme |
 | `docs/DESIGN.md` | §4 (new component) | the tab row: one tab per item, a check mark once shown, wrapping on `wide` and `mobile`, a Choice with Previous and Next on `small` (§6.5) |
 | `docs/DEMO.md` | §5.2 | the roller in the demo: Generate with dice and New key unchanged in outcome |
 | `docs/STARTER.md` | §3.8 | the Form row and §11 |
