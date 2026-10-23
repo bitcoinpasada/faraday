@@ -1,7 +1,7 @@
 //! Renders Faraday's screens to PNG along one scripted tour.
 //!
 //! ```text
-//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|guide]
+//! faraday-snapshot [--sd-card] [--network mainnet] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|board|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|bootplace|passseeds|power|pills|guide|tour]
 //! ```
 //!
 //! `--sd-card` runs the tour as the Pi's stick shell starts the app:
@@ -86,7 +86,14 @@
 //! SeedQR held (`docs/BACKUP-FLOW.md` §17.7), its Save to a stick, and a
 //! wallet's Save to a stick; with `guide`, the pictures in
 //! `docs/GUIDE.md` §2 and §3: a fresh stick session's Home, the power
-//! sheet, and New key from Wallets, from the dice transcript.
+//! sheet, and New key from Wallets, from the dice transcript; with
+//! `tour`, the user guide's and the website tour's pictures (run it with
+//! `--network mainnet`): Home with nothing loaded, the vault read from
+//! the boot stick at power-on, New key from dice, a SeedQR scanned and a
+//! wallet's missing key scanned, a 2-of-3 made and its backup board
+//! edited by a finger's drag, its menus and sheets, a backup's checklist
+//! and sticks written, a spend signed with its animated code, a stick
+//! visit, Files and a vault, the Spend tab's map and a restore.
 //!
 //! `@DPI` defaults to 160 (a desktop monitor); a real panel must give
 //! its own, since the core picks `small`/`medium`/`wide` from physical
@@ -185,6 +192,7 @@ fn run(
         Some("std") => return tours::standard::standard_tour(&mut t),
         Some("parts") => return tours::partials::partials_tour(&mut t),
         Some("guide") => return tours::guide::guide_tour(&mut t),
+        Some("tour") => return tours::site_tour::site_tour(c, &mut t),
         _ => {}
     }
     tours::default::default_tour(c, &mut t, medium)
@@ -215,7 +223,7 @@ fn main() -> ExitCode {
     }
     if !(4..=5).contains(&args.len()) {
         eprintln!(
-            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|guide]"
+            "usage: faraday-snapshot [--sd-card] [--network NAME] WxH[@DPI] TESTKIT_DIR OUT_DIR [spend|themes|compact|seeds|keys|visit|copy|scan|public|seedfile|vaultway|kept|again|plan|inbox|transfer|upgrade|glance|chartedit|fromvault|first|restore|osk|flow|walletflow|demo|modes|vaultshow|addkey|cancel|guide|tour]"
         );
         return ExitCode::from(2);
     }
@@ -295,11 +303,12 @@ fn main() -> ExitCode {
             "std",
             "parts",
             "guide",
+            "tour",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, createfrom, inprogress, cancel, std, parts or guide"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, createfrom, inprogress, cancel, std, parts, guide or tour"
         );
         return ExitCode::from(2);
     }

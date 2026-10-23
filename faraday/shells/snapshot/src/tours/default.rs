@@ -32,6 +32,8 @@ pub(crate) fn pass_quiz(t: &mut Tour) {
 /// card on the way.
 pub(crate) fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
     t.press(Action::KeyGen(Some(slot)));
+    // Start's Continue: the Length card open.
+    t.press(Action::KNext);
     t.shot("keygen-length")?;
     t.press(Action::KWords(24));
     t.shot("keygen-source")?;
@@ -165,8 +167,8 @@ pub(crate) fn rolled_words(t: &mut Tour) -> Result<(), String> {
     t.shot("keygen-bitbox-made")?;
     // On its own, New key goes from Key to Words and the Quiz, the key
     // added at Lock in and the Quiz's Done leaving the flow
-    // (`docs/history/NEW-WALLET.md` §3.4).
-    t.press(Action::KStep(kstep::KEY));
+    // (`docs/history/NEW-WALLET.md` §3.4). The words made opened the Key
+    // card already.
     t.shot("keygen-key-own")?;
     t.press(Action::KLock);
     t.shot("keygen-key-own-locked")?;
@@ -1503,9 +1505,16 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::CNext(faraday_core::cstep::KIND));
     t.press(Action::CNext(faraday_core::cstep::QUORUM));
     t.shot("create-musig")?;
-    // Left alone for five minutes with a key loaded: the warning and its
-    // countdown.
-    t.now += 5 * 60_000 + 20_000;
+    // Left alone with a key loaded until the warning before the idle
+    // lock (`IDLE_WARN_MS` before `IDLE_LOCK_MIN`): the warning and its
+    // countdown. Not over Make a new wallet, whose keys wait for their
+    // backup and keep the auto-lock off: a fresh session, test key 1
+    // typed.
+    t.restart();
+    t.app.event(Event::Tick { now_ms: t.now });
+    t.press(Action::Entry(None));
+    t.type_key(0);
+    t.now += u64::from(faraday_core::IDLE_LOCK_MIN) * 60_000 - faraday_core::IDLE_WARN_MS + 20_000;
     t.app.event(Event::Tick { now_ms: t.now });
     t.shot("idle-warning")?;
     t.app.event(Event::Key(Key::Escape));

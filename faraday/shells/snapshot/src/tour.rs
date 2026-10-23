@@ -340,6 +340,12 @@ impl Tour {
     /// has just come up.
     pub(crate) fn shot_after(&mut self, name: &str, ms: u64) -> Result<(), String> {
         self.pump();
+        self.shot_unanswered(name, ms)
+    }
+
+    /// [`Tour::shot_after`] with what the app asked of the shell left
+    /// unanswered: a write still under way.
+    pub(crate) fn shot_unanswered(&mut self, name: &str, ms: u64) -> Result<(), String> {
         self.now += ms;
         self.app.event(Event::Tick { now_ms: self.now });
         // A frame that asked for another (a scroll to the open step) is

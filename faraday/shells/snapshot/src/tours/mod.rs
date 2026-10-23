@@ -30,6 +30,7 @@ pub(crate) mod public;
 pub(crate) mod restore;
 pub(crate) mod seedfile;
 pub(crate) mod seeds;
+pub(crate) mod site_tour;
 pub(crate) mod spend;
 pub(crate) mod standard;
 pub(crate) mod themes;
