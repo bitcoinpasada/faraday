@@ -106,7 +106,7 @@ Read this table, then only the decision you need.
 | [F89](decisions/F89.md) | Silent payment signing counts a stated key only where the input's script commits to it | 2026-10-23 | Active | crypto |
 | [F90](decisions/F90.md) | Where Faraday refuses input its standard allows | 2026-10-23 | Active | crypto |
 | [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Active | design |
-| [F92](decisions/F92.md) | Faraday is laid out to Material 3 at every window size, from the Pi to a full monitor | 2026-10-23 | Active | design |
+| [F92](decisions/F92.md) | Faraday is laid out to Material 3 at every window size, from the Pi to a full monitor | 2026-10-23 | Amended by F100 | design |
 | [F93](decisions/F93.md) | Codex32 made by hand, any split | 2026-10-22 | Active | keys |
 | [F94](decisions/F94.md) | Codex32 error correction, opt-in | 2026-10-22 | Active | crypto |
 | [F95](decisions/F95.md) | Codex32QR/v1-48: read, shown, tested | 2026-10-22 | Active | keys |
@@ -114,3 +114,4 @@ Read this table, then only the decision you need.
 | [F97](decisions/F97.md) | .oskb files are no longer read; the vault's record layouts are its own | 2026-10-23 | Active | backup |
 | [F98](decisions/F98.md) | A new wallet's account is asked after its quorum, not on Kind | 2026-10-23 | Active | wallets |
 | [F99](decisions/F99.md) | APK signing is removed | 2026-10-23 | Active | keys |
+| [F100](decisions/F100.md) | The 7-inch and 10-inch panels run in landscape, with portrait a setting | 2026-10-23 | Active | design |

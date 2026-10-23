@@ -39,10 +39,10 @@ layout down as a smaller window would.
 
 | Class | Width | Typical screen |
 |---|---|---|
-| Compact | under 600 dp | the Pi panel (268 × 358), a narrow window |
-| Medium | 600 to 839 dp | a half-screen window, a portrait tablet |
-| Expanded | 840 to 1199 dp | a 7-inch panel (960 × 580), a small laptop window |
-| Large | 1200 to 1599 dp | the desktop app's default window (1280 × 800), a 10-inch panel |
+| Compact | under 600 dp | the Pi panel (268 × 358), a narrow window, a 7-inch panel in portrait (580 × 960) |
+| Medium | 600 to 839 dp | a half-screen window, a 10-inch panel in portrait (800 × 1280) |
+| Expanded | 840 to 1199 dp | a 7-inch panel in landscape (960 × 580), a small laptop window |
+| Large | 1200 to 1599 dp | the desktop app's default window (1280 × 800), a 10-inch panel in landscape |
 | Extra-large | 1600 dp and over | a full monitor at 1×: 1920 × 1080, 2560 × 1440 |
 
 Height matters where it is short. Under 480 dp tall is a **short**
