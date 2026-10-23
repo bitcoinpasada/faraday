@@ -14,13 +14,135 @@
 
 use faraday_shell_api::Key as KeyIn;
 
+use crate::motion;
 use crate::secret_text::SecretText;
-use crate::ui::Edit;
+use crate::ui::{Edit, FieldAt};
 use crate::vault::{self, VaultAction as V};
 use crate::{Action, Faraday, Screen, Sheet, keygen};
 
-/// The most screens kept for the forward button.
-const FORWARD_MAX: usize = 8;
+/// Where the caret and the selection are in the field typing goes to,
+/// whether an edit inside a field is under way, whether Shift is held,
+/// where the last frame drew each field's characters, and the caret's
+/// blink. Which field typing goes to is worked out by the glue on
+/// [`Faraday`], which reaches every area that has a field; this holds
+/// only what typing itself keeps. Holds no text: the characters stay in
+/// the fields, which wipe what they drop.
+pub(crate) struct TypingArea {
+    /// Where the caret and the selection are in the field typing goes
+    /// to (`docs/history/NEW-WALLET.md` §13.2).
+    edit: Edit,
+    /// An edit inside a field is being typed through the field's own
+    /// keys.
+    editing: bool,
+    /// Shift is held.
+    shift: bool,
+    /// Where the last frame drew each line of typing's characters.
+    fields: Vec<FieldAt>,
+    /// The tick the text caret's blink last started over at: a key or a
+    /// press, so it shows while typing goes on.
+    caret_at: u64,
+    /// The last frame drew a caret, and whether it showed.
+    caret_drawn: Option<bool>,
+}
+
+impl TypingArea {
+    pub(crate) fn new() -> Self {
+        Self {
+            edit: Edit::default(),
+            editing: false,
+            shift: false,
+            fields: Vec::new(),
+            caret_at: 0,
+            caret_drawn: None,
+        }
+    }
+
+    /// The caret and the selection now in `target`, the field typing
+    /// goes to: the kept ones if they are of that field, else the caret
+    /// at the end.
+    pub(crate) fn edit_in(&self, target: Option<Action>) -> Edit {
+        match target {
+            Some(t) if self.edit.field == Some(t) => self.edit,
+            t => Edit {
+                field: t,
+                ..Edit::default()
+            },
+        }
+    }
+
+    /// Sets the caret and the selection.
+    pub(crate) fn set_edit(&mut self, e: Edit) {
+        self.edit = e;
+    }
+
+    /// Puts the caret at the end of the kept field's text.
+    pub(crate) fn caret_to_end(&mut self) {
+        self.edit.caret = None;
+    }
+
+    /// Whether an edit inside a field is under way.
+    pub(crate) fn editing(&self) -> bool {
+        self.editing
+    }
+
+    /// Sets whether an edit inside a field is under way.
+    pub(crate) fn set_editing(&mut self, on: bool) {
+        self.editing = on;
+    }
+
+    /// Whether Shift is held.
+    pub(crate) fn shift(&self) -> bool {
+        self.shift
+    }
+
+    /// Sets whether Shift is held.
+    pub(crate) fn set_shift(&mut self, held: bool) {
+        self.shift = held;
+    }
+
+    /// Keeps where the frame just drawn put each field's characters.
+    pub(crate) fn set_fields(&mut self, fields: Vec<FieldAt>) {
+        self.fields = fields;
+    }
+
+    /// The last drawn edge before character `i` of the field pressed
+    /// with `action`, in pixels.
+    fn edge(&self, action: Action, i: usize) -> Option<i32> {
+        let f = self.fields.iter().rev().find(|f| f.action == action)?;
+        f.edges.get(i.checked_sub(f.first)?).copied()
+    }
+
+    /// The character index nearest pixel column `x` in the field pressed
+    /// with `action`, as the last frame drew it.
+    fn index_at(&self, action: Action, x: i32) -> Option<usize> {
+        self.fields
+            .iter()
+            .rev()
+            .find(|f| f.action == action)
+            .map(|f| f.index_at(x))
+    }
+
+    /// Restarts the caret's blink at `now`: a key or a press.
+    pub(crate) fn blink_from(&mut self, now: u64) {
+        self.caret_at = now;
+    }
+
+    /// Whether the caret shows at `now`: it blinks, on for a half
+    /// period and off for one, starting on at the last key or press.
+    pub(crate) fn caret_on(&self, now: u64, steady: bool) -> bool {
+        steady || (now.saturating_sub(self.caret_at) / motion::CARET_HALF_MS).is_multiple_of(2)
+    }
+
+    /// Keeps whether the frame just drawn showed a caret.
+    pub(crate) fn set_caret_drawn(&mut self, shown: Option<bool>) {
+        self.caret_drawn = shown;
+    }
+
+    /// Whether the last frame's caret differs from what it is now.
+    pub(crate) fn caret_changed(&self, now: bool) -> bool {
+        self.caret_drawn.is_some_and(|on| on != now)
+    }
+}
 
 impl Faraday {
     /// Whether typing goes to a text field now.
@@ -201,21 +323,14 @@ impl Faraday {
     /// The caret and the selection now: those of the field typing goes
     /// to, or the caret at the end of any other.
     pub(crate) fn edit_now(&self) -> Edit {
-        match self.typing_target() {
-            Some(t) if self.edit.field == Some(t) => self.edit,
-            t => Edit {
-                field: t,
-                ..Edit::default()
-            },
-        }
+        self.typing.edit_in(self.typing_target())
     }
 
     /// Where the last frame drew the edge before character `i` of the
     /// field pressed with `action`, in pixels, at the middle of the
     /// field's height: for tests that press or drag there.
     pub fn where_typed(&self, action: Action, i: usize) -> Option<(u16, u16)> {
-        let f = self.fields.iter().rev().find(|f| f.action == action)?;
-        let x = *f.edges.get(i.checked_sub(f.first)?)?;
+        let x = self.typing.edge(action, i)?;
         let (_, y) = self.where_offered(action)?;
         Some((u16::try_from(x).ok()?, y))
     }
@@ -231,7 +346,7 @@ impl Faraday {
     /// whether it took the key; one it did not take goes to the field
     /// as it always has, and is typed at the end.
     pub(crate) fn edit_key(&mut self, key: KeyIn) -> bool {
-        if self.editing {
+        if self.typing.editing() {
             return false;
         }
         let Some(target) = self.typing_target() else {
@@ -248,7 +363,7 @@ impl Faraday {
             KeyIn::Left | KeyIn::Right if self.caret_moves(target) => {
                 let left = key == KeyIn::Left;
                 let to = match selected {
-                    Some((lo, hi)) if !self.shift => {
+                    Some((lo, hi)) if !self.typing.shift() => {
                         if left {
                             lo
                         } else {
@@ -258,7 +373,7 @@ impl Faraday {
                     _ if left => caret.saturating_sub(1),
                     _ => (caret + 1).min(n),
                 };
-                e.anchor = if self.shift {
+                e.anchor = if self.typing.shift() {
                     e.anchor.or(Some(caret))
                 } else {
                     None
@@ -268,20 +383,20 @@ impl Faraday {
                 if e.anchor == Some(to) {
                     e.anchor = None;
                 }
-                self.edit = e;
+                self.typing.set_edit(e);
                 true
             }
             // Home and End let a selection go and put the caret at the
             // field's start or end.
             KeyIn::Home | KeyIn::End if self.caret_moves(target) => {
                 let to = if key == KeyIn::Home { 0 } else { n };
-                e.anchor = if self.shift {
+                e.anchor = if self.typing.shift() {
                     e.anchor.or(Some(caret)).filter(|&a| a != to)
                 } else {
                     None
                 };
                 e.caret = (to < n).then_some(to);
-                self.edit = e;
+                self.typing.set_edit(e);
                 true
             }
             KeyIn::Backspace | KeyIn::Delete | KeyIn::Char(_) => {
@@ -293,7 +408,7 @@ impl Faraday {
                 let (lo, hi) = match (selected, key) {
                     (Some(r), _) => r,
                     (None, KeyIn::Backspace) if caret == n => {
-                        self.edit.caret = None;
+                        self.typing.caret_to_end();
                         return false;
                     }
                     (None, KeyIn::Backspace) if caret == 0 => return true,
@@ -302,10 +417,10 @@ impl Faraday {
                     (None, KeyIn::Delete) => (caret, caret + 1),
                     (None, _) if caret == n => {
                         // Typed at the end, as it always is.
-                        self.edit = Edit {
+                        self.typing.set_edit(Edit {
                             field: Some(target),
                             ..Edit::default()
-                        };
+                        });
                         return false;
                     }
                     (None, _) => (caret, caret),
@@ -325,7 +440,7 @@ impl Faraday {
         let byte = |i: usize| text.char_indices().nth(i).map_or(text.len(), |(b, _)| b);
         let tail = SecretText::of(&text[byte(hi)..]);
         let len = |app: &Faraday| app.typing_text().map(|t| t.chars().count());
-        self.editing = true;
+        self.typing.set_editing(true);
         // What is after `lo` comes off, one character at a time.
         let mut have = n;
         while have > lo {
@@ -341,7 +456,7 @@ impl Faraday {
             for c in text[byte(have)..byte(n)].chars() {
                 self.type_back(c);
             }
-            self.editing = false;
+            self.typing.set_editing(false);
             return;
         }
         if let Some(c) = insert {
@@ -351,13 +466,13 @@ impl Faraday {
         for c in tail.chars() {
             self.type_back(c);
         }
-        self.editing = false;
+        self.typing.set_editing(false);
         let end = len(self).unwrap_or(caret);
-        self.edit = Edit {
+        self.typing.set_edit(Edit {
             field: self.typing_target(),
             caret: (caret < end).then_some(caret),
             anchor: None,
-        };
+        });
     }
 
     /// A character typed back after an edit: a line's end as Enter.
@@ -382,17 +497,11 @@ impl Faraday {
         x: i32,
         double: bool,
     ) -> Option<bool> {
-        let index = |app: &Faraday, x: i32| {
-            app.fields
-                .iter()
-                .rev()
-                .find(|f| f.action == a)
-                .map(|f| f.index_at(x))
-        };
+        let index = |app: &Faraday, x: i32| app.typing.index_at(a, x);
         let dx = (x - from).abs();
         let dragged = dx > 12 || (dx > 3 && index(self, x) != index(self, from));
         if self.typing_target() != Some(a) {
-            if double || dragged || self.shift {
+            if double || dragged || self.typing.shift() {
                 // A drag or a second press on a field not yet typed in
                 // opens it first.
                 self.act(a);
@@ -424,7 +533,7 @@ impl Faraday {
         } else {
             let anchor = if dragged {
                 Some(at(self, from).map_or(0, |i| i.min(n)))
-            } else if self.shift {
+            } else if self.typing.shift() {
                 Some(e.anchor.unwrap_or(e.caret_in(n)))
             } else {
                 None
@@ -435,56 +544,8 @@ impl Faraday {
                 anchor: anchor.filter(|&p| p != to),
             };
         }
-        self.edit = e;
+        self.typing.set_edit(e);
         Some(dragged)
-    }
-
-    /// The mouse's back button: the screen's back link, or Escape; a
-    /// screen it leaves can be opened again with the forward button.
-    pub(crate) fn mouse_back(&mut self) {
-        let before = self.screen;
-        if self.landed != Some(before) {
-            self.forward.clear();
-        }
-        let link = self
-            .back_link
-            .filter(|(s, _)| *s == self.screen)
-            .map(|(_, a)| a);
-        match (self.sheet, link) {
-            // A sheet's own way out, as Escape takes it.
-            (Some(Sheet::Lock), _) => {}
-            (Some(_), _) => self.act(Action::Cancel),
-            // Out of the screen, where the link lands (F77); a step
-            // within it, as the link takes it.
-            (None, Some(a)) => self.act(self.as_back(a)),
-            (None, None) => self.key(KeyIn::Escape),
-        }
-        if self.screen != before {
-            if self.forward.len() == FORWARD_MAX {
-                self.forward.remove(0);
-            }
-            self.forward.push(before);
-            self.landed = Some(self.screen);
-        }
-    }
-
-    /// The mouse's forward button: the screen the back button last left,
-    /// while nothing else has been opened since and it can still be
-    /// shown as it was left.
-    pub(crate) fn mouse_forward(&mut self) {
-        if self.landed != Some(self.screen) || self.sheet.is_some() {
-            self.forward.clear();
-            return;
-        }
-        let Some(s) = self.forward.pop() else {
-            return;
-        };
-        if !self.can_show(s) {
-            self.forward.clear();
-            return;
-        }
-        self.act(Action::Nav(s));
-        self.landed = Some(self.screen);
     }
 
     /// Whether screen `s` still has what it shows: a flow left keeps its

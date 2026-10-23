@@ -661,11 +661,11 @@ impl Faraday {
                     }
                 }
                 if focused {
-                    self.edit = ui::Edit {
+                    self.typing.set_edit(ui::Edit {
                         field: Some(Action::BName(p8)),
                         caret: None,
                         anchor: Some(0),
-                    };
+                    });
                 }
             }
             Action::BChecklist => {

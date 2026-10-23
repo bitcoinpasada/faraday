@@ -215,9 +215,9 @@ fn a_step_s_walk_through_opens_and_closes_on_a_tap_in_steps_only_too() {
     // Create a vault opens on its second card, Name and passphrases.
     let about = Action::About(1);
     tap(&mut app, about);
-    assert_eq!(app.about_open, Some((Screen::CreateVault, 1)));
+    assert_eq!(app.about_open(), Some((Screen::CreateVault, 1)));
     tap(&mut app, about);
-    assert_eq!(app.about_open, None, "a second tap puts it away");
+    assert_eq!(app.about_open(), None, "a second tap puts it away");
 }
 
 /// The app on a phone's panel, 5 inches at 9:16, as `faraday --panel 5`

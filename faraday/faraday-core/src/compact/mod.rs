@@ -725,7 +725,160 @@ pub(crate) struct Osk {
     lift: f32,
 }
 
+/// A small panel's own state: the docked keyboard and the walk-through
+/// opened behind a tap. What decides whether typing goes to a field is
+/// worked out by the glue on [`Faraday`], which reaches every area that
+/// has one, and is given here as plain values.
+#[derive(Debug, Default)]
+pub(crate) struct CompactArea {
+    /// The docked keyboard.
+    osk: Osk,
+    /// On a small panel, the walk-through shown: the screen, and the
+    /// step's place or [`ABOUT_PAGE`]. Behind a tap there, so the
+    /// controls keep the panel.
+    about_open: Option<(Screen, u8)>,
+}
+
+impl CompactArea {
+    /// The walk-through shown: the screen, and the step's place.
+    pub(crate) fn about_open(&self) -> Option<(Screen, u8)> {
+        self.about_open
+    }
+
+    /// A tap on a step's About on `screen`: opens it, or puts it away
+    /// when it was open.
+    pub(crate) fn toggle_about(&mut self, screen: Screen, k: u8) {
+        let this = (screen, k);
+        self.about_open = (self.about_open != Some(this)).then_some(this);
+    }
+
+    /// The walk-through to draw on `screen`: none behind a sheet or on
+    /// another screen.
+    pub(crate) fn about_on(&self, screen: Screen, sheet_none: bool) -> Option<u8> {
+        self.about_open
+            .filter(|(s, _)| *s == screen && sheet_none)
+            .map(|(_, k)| k)
+    }
+
+    /// The keyboard's Shift and symbol layer.
+    pub(crate) fn keys(&self) -> faraday_ui::keyboard::Keys {
+        self.osk.keys
+    }
+
+    /// Whether the keyboard is up. On a small panel it rises by itself
+    /// where a field takes typing (`auto`); in the wide layout it is up
+    /// only once brought up by hand, and only while typing goes
+    /// somewhere (`wanted`). `offered`: the page takes typing with no
+    /// field.
+    pub(crate) fn shown(&self, compact: bool, auto: bool, offered: bool, wanted: bool) -> bool {
+        if compact {
+            (auto && !self.osk.hidden) || (self.osk.manual && offered)
+        } else {
+            self.osk.manual && wanted
+        }
+    }
+
+    /// A field newly focused, or another field than before, brings the
+    /// keyboard up again. `field` tells fields apart, `down_y` is where
+    /// the last press was, pixels down the window. Returns whether it
+    /// came up on this frame.
+    pub(crate) fn track(
+        &mut self,
+        field: Option<String>,
+        down_y: i32,
+        compact: bool,
+        wanted: bool,
+    ) -> bool {
+        let rose = field.is_some() && field != self.osk.was_field;
+        if rose {
+            self.osk.hidden = false;
+            self.osk.field_at = down_y;
+        }
+        self.osk.was_field = field;
+        // In the wide layout the keyboard goes once nothing takes typing,
+        // and does not come back by itself with the next field.
+        if !compact && !wanted {
+            self.osk.manual = false;
+        }
+        rose
+    }
+
+    /// How far the wide layout draws the page up while its keyboard is
+    /// up (`height` tall), so the focused field (`auto`) stays in view
+    /// above it, given `visible` and `f` pixels a unit.
+    pub(crate) fn lift_now(&self, auto: bool, height: f32, visible: f32, f: f32) -> f32 {
+        let foot = if auto {
+            self.osk
+                .caret
+                .or(Some(self.osk.field_at as f32 / f.max(0.01) + 24.0))
+        } else {
+            self.osk.caret
+        };
+        foot.map_or(0.0, |y| (y + 24.0 - visible).clamp(0.0, height))
+    }
+
+    /// Keeps how far the frame drew the page up.
+    pub(crate) fn set_lift(&mut self, lift: f32) {
+        self.osk.lift = lift;
+    }
+
+    /// The caret the frame drew, where it would be unmoved.
+    pub(crate) fn caret(&mut self, foot: Option<f32>, compact: bool, shown: bool) {
+        self.osk.caret = foot.map(|y| y + self.osk.lift);
+        if compact || !shown {
+            self.osk.lift = 0.0;
+        }
+    }
+
+    /// Leaving a page puts away a keyboard brought up by hand.
+    pub(crate) fn leave(&mut self) {
+        self.osk.manual = false;
+        self.osk.keys.reset();
+    }
+
+    /// Done was pressed: the keyboard is put away, so the page's pinned
+    /// action shows again; another field brings it back.
+    pub(crate) fn done(&mut self) {
+        self.osk.hidden = true;
+        self.osk.manual = false;
+    }
+
+    /// A press other than Done: the key it types, if any. `address`:
+    /// the address keyboard, whose shift is base58, not a capital, and
+    /// stays on after a letter.
+    pub(crate) fn press(&mut self, p: OskPress, address: bool) -> Option<faraday_shell_api::Key> {
+        use faraday_shell_api::Key as K;
+        use faraday_ui::keyboard::Typed;
+        match p {
+            OskPress::Done => None,
+            OskPress::Show => {
+                self.osk.manual = true;
+                self.osk.hidden = false;
+                None
+            }
+            OskPress::Hide => {
+                self.osk.manual = false;
+                self.osk.hidden = true;
+                None
+            }
+            OskPress::Char(ch) if address => Some(K::Char(ch)),
+            _ => match self.osk.keys.press(p) {
+                Some(Typed::Char(c)) => Some(K::Char(c)),
+                Some(Typed::Backspace) => Some(K::Backspace),
+                Some(Typed::Enter) => Some(K::Enter),
+                None => None,
+            },
+        }
+    }
+}
+
 impl Faraday {
+    /// On a small panel, the walk-through shown: the screen, and the
+    /// step's place. For tests that tap an About.
+    pub fn about_open(&self) -> Option<(Screen, u8)> {
+        self.panel.about_open()
+    }
+
     /// A field with focus takes typing now.
     fn osk_auto(&self) -> bool {
         // An empty passphrase offering its chip is not covered by the keys.
@@ -792,11 +945,12 @@ impl Faraday {
     /// where a field takes typing; in the wide layout it is up only once
     /// brought up by hand, and only while typing goes somewhere.
     pub(crate) fn osk_shown(&self) -> bool {
-        if self.compact {
-            (self.osk_auto() && !self.osk.hidden) || (self.osk.manual && self.osk_offered())
-        } else {
-            self.osk.manual && self.osk_wanted()
-        }
+        self.panel.shown(
+            self.compact,
+            self.osk_auto(),
+            self.osk_offered(),
+            self.osk_wanted(),
+        )
     }
 
     /// Typing goes somewhere on this page: a field has focus, or the page
@@ -856,18 +1010,9 @@ impl Faraday {
     /// keyboard up again. Returns whether it came up on this frame.
     pub(crate) fn osk_track(&mut self) -> bool {
         let field = self.osk_field();
-        let rose = field.is_some() && field != self.osk.was_field;
-        if rose {
-            self.osk.hidden = false;
-            self.osk.field_at = self.down_at.1;
-        }
-        self.osk.was_field = field;
-        // In the wide layout the keyboard goes once nothing takes typing,
-        // and does not come back by itself with the next field.
-        if !self.compact && !self.osk_wanted() {
-            self.osk.manual = false;
-        }
-        rose
+        let wanted = self.osk_wanted();
+        self.panel
+            .track(field, self.down_at.1, self.compact, wanted)
     }
 
     /// The keyboard just came up over the panel's foot: when the press
@@ -899,67 +1044,36 @@ impl Faraday {
     /// Drawing asks it through [`crate::drawing::View::osk_lift`], which
     /// keeps it for the caret after the pass ([`Self::osk_set_lift`]).
     pub(crate) fn osk_lift_now(&self, visible: f32, f: f32) -> f32 {
-        let foot = if self.osk_auto() {
-            self.osk
-                .caret
-                .or(Some(self.osk.field_at as f32 / f.max(0.01) + 24.0))
-        } else {
-            self.osk.caret
-        };
-        foot.map_or(0.0, |y| (y + 24.0 - visible).clamp(0.0, self.osk_height()))
+        self.panel
+            .lift_now(self.osk_auto(), self.osk_height(), visible, f)
     }
 
     /// Keeps how far the frame drew the page up ([`Self::osk_lift_now`]).
     pub(crate) fn osk_set_lift(&mut self, lift: f32) {
-        self.osk.lift = lift;
+        self.panel.set_lift(lift);
     }
 
     /// The caret the frame drew, where it would be unmoved.
     pub(crate) fn osk_caret(&mut self, foot: Option<f32>) {
-        self.osk.caret = foot.map(|y| y + self.osk.lift);
-        if self.compact || !self.osk_shown() {
-            self.osk.lift = 0.0;
-        }
+        let shown = self.osk_shown();
+        self.panel.caret(foot, self.compact, shown);
     }
 
     /// Leaving a page puts away a keyboard brought up by hand.
     pub(crate) fn osk_leave(&mut self) {
-        self.osk.manual = false;
-        self.osk.keys.reset();
+        self.panel.leave();
     }
 
     pub(crate) fn osk_press(&mut self, p: OskPress) {
-        use faraday_shell_api::Key as K;
-        use faraday_ui::keyboard::Typed;
-        match p {
-            // Done is Enter, and puts the keyboard away, so the page's
-            // pinned action shows again; another field brings it back.
-            OskPress::Done => {
-                self.key(K::Enter);
-                self.osk.hidden = true;
-                self.osk.manual = false;
-            }
-            OskPress::Show => {
-                self.osk.manual = true;
-                self.osk.hidden = false;
-            }
-            OskPress::Hide => {
-                self.osk.manual = false;
-                self.osk.hidden = true;
-            }
-            // The address keyboard's shift is base58, not a capital: it
-            // stays on after a letter.
-            OskPress::Char(ch)
-                if self.osk_kind() == faraday_draw::widgets::keyboard::KeyboardKind::Address =>
-            {
-                self.key(K::Char(ch));
-            }
-            _ => match self.osk.keys.press(p) {
-                Some(Typed::Char(c)) => self.key(K::Char(c)),
-                Some(Typed::Backspace) => self.key(K::Backspace),
-                Some(Typed::Enter) => self.key(K::Enter),
-                None => {}
-            },
+        // Done is Enter, and puts the keyboard away.
+        if p == OskPress::Done {
+            self.key(faraday_shell_api::Key::Enter);
+            self.panel.done();
+            return;
+        }
+        let address = self.osk_kind() == faraday_draw::widgets::keyboard::KeyboardKind::Address;
+        if let Some(k) = self.panel.press(p, address) {
+            self.key(k);
         }
     }
 }
@@ -973,7 +1087,7 @@ pub(crate) fn keyboard(app: &View, ui: &mut Ui, x: f32, w: f32, y: f32) {
         w,
         y,
         app.osk_kind(),
-        app.osk.keys,
+        app.panel.keys(),
         app.compact,
         Action::Osk,
     );

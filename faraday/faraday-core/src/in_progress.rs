@@ -287,7 +287,7 @@ impl Faraday {
         // Opened again from where the person is now: Back goes there, not
         // to where the flow was first opened from (F77).
         let here = self.screen;
-        self.trail.retain(|s| s.screen() != here);
+        self.trail.drop_screen(here);
     }
 
     /// To a screen as the sidebar goes there.

@@ -1257,8 +1257,8 @@ pub struct Faraday {
     sheet_scroll: (f32, Option<Sheet>),
     /// The open sheet's offset as the frame draws it.
     sheet_offset: f32,
-    /// A small panel's docked keyboard.
-    osk: compact::Osk,
+    /// A small panel's docked keyboard and walk-through.
+    panel: compact::CompactArea,
     /// The Wallets tab's session.
     pub session: Session,
     /// The transaction being signed.
@@ -1301,10 +1301,6 @@ pub struct Faraday {
     /// On a small panel, the height of the pinned bar the last frame
     /// drew: the page is laid out above it.
     pub(crate) pin_h: std::cell::Cell<f32>,
-    /// On a small panel, the walk-through shown: the screen, and the
-    /// step's place or [`ABOUT_PAGE`]. Behind a tap there, so the
-    /// controls keep the panel.
-    pub about_open: Option<(Screen, u8)>,
     /// Pixels scrolled past in the long list on screen (the stick's
     /// files, Files, the wallet list): continuous, not row-snapped, so a
     /// wheel notch moves the content by its own pixels like everywhere
@@ -1406,35 +1402,12 @@ pub struct Faraday {
     upgrade: upgrade::UpgradeArea,
     /// The chosen wallet's new name, while it is typed.
     pub renaming: Option<String>,
-    /// Where the caret and the selection are in the field typing goes
-    /// to (`docs/history/NEW-WALLET.md` §13.2).
-    pub(crate) edit: ui::Edit,
-    /// An edit inside a field is being typed through the field's own
-    /// keys.
-    editing: bool,
-    /// Shift is held.
-    shift: bool,
-    /// Where the last frame drew each line of typing's characters.
-    fields: Vec<ui::FieldAt>,
-    /// The screen's back link, as the last frame drew it, with the
-    /// screen it was drawn on: what [`Action::Back`] does first.
-    back_link: Option<(Screen, Action)>,
-    /// Where in `hits` the last frame drew the back link's press.
-    back_hit: Option<usize>,
-    /// The screens left for another, each as it was seen, the last left
-    /// last: where Back lands ([`trail`], F77).
-    pub(crate) trail: Vec<trail::Spot>,
-    /// The screen as the input being handled found it, until the input
-    /// is done ([`Faraday::trail_note`]).
-    entered: Option<trail::Spot>,
-    /// The input being handled went back: the screen it left is not
-    /// put on the trail.
-    backing: bool,
-    /// Screens left by the mouse's back button, the last left last
-    /// (`docs/history/NEW-WALLET.md` §13.1).
-    forward: Vec<Screen>,
-    /// The screen the last back or forward button landed on.
-    landed: Option<Screen>,
+    /// The caret, the selection, Shift, where the last frame drew the
+    /// fields' characters and the caret's blink.
+    typing: edit::TypingArea,
+    /// The trail Back follows (F77), the mouse's forward button and the
+    /// way back the last frame drew.
+    trail: trail::Trail,
     /// Wallets the Inbox describes left out of its next load, by
     /// descriptor.
     pub inbox_skip: BTreeSet<String>,
@@ -1467,11 +1440,6 @@ pub struct Faraday {
     /// The overlay scrollbar is held: how far down its thumb, in pixels,
     /// the finger or pointer took it.
     bar_held: Option<i32>,
-    /// The tick the text caret's blink last started over at: a key or a
-    /// press, so it shows while typing goes on.
-    caret_at: u64,
-    /// The last frame drew a caret, and whether it showed.
-    caret_drawn: Option<bool>,
     /// A press whose work waits for a frame (`docs/SPEED.md` §9), and
     /// whether a frame has been drawn since it was pressed.
     later: Option<Later>,
@@ -1628,7 +1596,7 @@ impl Faraday {
             sheet: None,
             sheet_scroll: (0.0, None),
             sheet_offset: 0.0,
-            osk: compact::Osk::default(),
+            panel: compact::CompactArea::default(),
             session: Session::default(),
             spend: None,
             decode: None,
@@ -1650,7 +1618,6 @@ impl Faraday {
             // value, from the kept state or the boot stick's settings
             // file, overwrites this before the person sees a screen.
             guided: false,
-            about_open: None,
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
             card_offset: 0.0,
@@ -1696,17 +1663,8 @@ impl Faraday {
             upgrade: upgrade::UpgradeArea::default(),
             scanned: 0,
             renaming: None,
-            edit: ui::Edit::default(),
-            editing: false,
-            shift: false,
-            fields: Vec::new(),
-            back_link: None,
-            back_hit: None,
-            trail: Vec::new(),
-            entered: None,
-            backing: false,
-            forward: Vec::new(),
-            landed: None,
+            typing: edit::TypingArea::new(),
+            trail: trail::Trail::default(),
             inbox_skip: BTreeSet::new(),
             potential: None,
             typed_at: None,
@@ -1719,8 +1677,6 @@ impl Faraday {
             drag: None,
             swallow: false,
             bar_held: None,
-            caret_at: 0,
-            caret_drawn: None,
             later: None,
             later_drawn: false,
             scroll_at: None,
@@ -1808,7 +1764,7 @@ impl Faraday {
             // this one as a press would.
             self.after_input();
         } else {
-            self.entered = None;
+            self.trail.forget_entered();
             // A device still waiting comes back up once no other sheet is.
             self.input_sheet();
             self.device_sheet();
@@ -3603,8 +3559,7 @@ impl Faraday {
             a @ Action::Cancel => self.cancel_act(a),
             Action::File(p) => self.file_act(p),
             Action::About(k) => {
-                let this = (self.screen, k);
-                self.about_open = (self.about_open != Some(this)).then_some(this);
+                self.panel.toggle_about(self.screen, k);
             }
             Action::Guided(on) => {
                 if on != self.guided {
@@ -8576,10 +8531,7 @@ impl Faraday {
                     .filter(|(k, _)| *k == frost_key)
                     .map(|(_, page)| page);
                 ui.guided_shown = self.guided_shown();
-                ui.about_open = self
-                    .about_open
-                    .filter(|(s, _)| *s == self.screen && self.sheet.is_none())
-                    .map(|(_, k)| k);
+                ui.about_open = self.panel.about_on(self.screen, self.sheet.is_none());
                 ui.offset = page_offset;
                 ui.active = slot;
                 ui.compact = self.compact;
@@ -8589,9 +8541,8 @@ impl Faraday {
                 self.apply_after(view.into_after());
                 caret = ui.caret_drawn.then_some(ui.caret_on);
                 self.osk_caret(ui.caret_foot);
-                self.fields = std::mem::take(&mut ui.fields);
-                self.back_link = ui.back_link.map(|a| (self.screen, a));
-                self.back_hit = ui.back_hit;
+                self.typing.set_fields(std::mem::take(&mut ui.fields));
+                self.trail.set_link(self.screen, ui.back_link, ui.back_hit);
                 scrolled = std::mem::take(&mut ui.scrolled);
                 follow_to = follow_to.or(ui.follow_to);
                 self.frost = ui.frost.take().map(|page| (frost_key, page));
@@ -8612,7 +8563,7 @@ impl Faraday {
             self.out.commands.push_back(Command::Draw);
         }
         self.extent = (!scrolled.is_empty()).then(|| (self.region_key(), scrolled));
-        self.caret_drawn = caret;
+        self.typing.set_caret_drawn(caret);
         self.vaults.drawn = true;
         self.later_drawn = true;
         self.hits = hits;
@@ -8630,8 +8581,7 @@ impl Faraday {
     /// and off for one, starting on at the last key or press. Steady with
     /// reduce motion.
     fn caret_on(&self) -> bool {
-        self.reduce_motion
-            || (self.now_ms.saturating_sub(self.caret_at) / motion::CARET_HALF_MS).is_multiple_of(2)
+        self.typing.caret_on(self.now_ms, self.reduce_motion)
     }
 
     /// Where the Guided switch's pill shows: 0 on Steps only, 1 on
@@ -8704,7 +8654,7 @@ impl Faraday {
     /// and a text caret shows. For drivers that take pictures of the screens,
     /// such as the snapshot tool, so a picture shows where things end up.
     pub fn settle(&mut self) {
-        self.caret_at = self.now_ms;
+        self.typing.blink_from(self.now_ms);
         let _ = self.with_region(|m, r| m.settle(r));
         self.motion.stop();
         self.scroll_at = None;
@@ -9180,7 +9130,7 @@ impl App for Faraday {
             Event::Display(d) => self.display(d),
             Event::Touch { x, y, phase } => {
                 self.input_now();
-                self.caret_at = self.now_ms;
+                self.typing.blink_from(self.now_ms);
                 // Any input puts the idle lock off; the press that does
                 // it does nothing else.
                 if self.sheet == Some(Sheet::IdleWarn) {
@@ -9194,7 +9144,7 @@ impl App for Faraday {
             }
             Event::Key(k) => {
                 self.input_now();
-                self.caret_at = self.now_ms;
+                self.typing.blink_from(self.now_ms);
                 if self.sheet == Some(Sheet::IdleWarn) {
                     self.sheet = None;
                 } else if self.key_slow(k) {
@@ -9213,7 +9163,7 @@ impl App for Faraday {
                 }
             }
             Event::Shift { held } => {
-                self.shift = held;
+                self.typing.set_shift(held);
                 return;
             }
             Event::Back => {
@@ -9313,7 +9263,7 @@ impl App for Faraday {
                     self.out.toast_at = Some(now_ms);
                 }
                 let fading = fading
-                    || self.caret_drawn.is_some_and(|on| on != self.caret_on())
+                    || self.typing.caret_changed(self.caret_on())
                     || self.disclosed.is_some_and(|d| d.moving)
                     || self.guided_moving.is_some()
                     || self.out.toast.as_ref().is_some_and(|(_, until)| {
