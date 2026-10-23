@@ -156,6 +156,23 @@ each at the text size the person's system asks for.
   takes the column.
 - **Margins and spacers** are Material's: 16 dp on compact, 24 dp
   otherwise, on the 4 dp grid.
+- **One size set** (owner, 2026-10-23, from the Material 3 review):
+  - every button 40 dp tall (`BUTTON_H`), its label 14;
+  - every text field 56 dp tall (`FIELD_H`), outlined: a 1 dp
+    `OUTLINE` edge, 2 dp `ACCENT` when focused, 2 dp `ERR` with its
+    error line under it, the label kept outside. Whether the desktop
+    is drawn denser (48) is decided in L5 and recorded;
+  - list rows 56, 72 or 88 dp by one, two or three lines (`LIST_1`,
+    `LIST_2`, `LIST_3`), the headline 16 and the supporting line 14.
+- **Type** is Material's roles, by size: `HEADLINE_M` 28, `HEADLINE_S`
+  24, `TITLE_L` 22, `TITLE_M` 16, `TITLE_S` 14, `BODY_L` 16, `BODY_M`
+  14, `BODY_S` 12, `LABEL_L` 14, `LABEL_M` 12, `LABEL_S` 11. They
+  replace the fifteen sizes the screens write today, each moved to its
+  nearest role by use (13 to 12 or 14, 15 to 14 or 16, 17 to 16, 26 to
+  24 or 28, 10 to 11). A page's title is `HEADLINE_M`, a step flow's
+  heading one of 28 or 24 for every flow, a sheet's head 24 (22 on the
+  small panel), and `TITLE` 20 is retired. Each role carries its line
+  height. The typeface stays Noto (F91, F92).
 
 ## 9. Tokens
 
@@ -230,7 +247,7 @@ The snapshot tours gain the sizes 760x1000, 960x580@133, 1920x1080 and
 | L2 | Navigation (§3): the bar, the rail and the top app bar as `faraday-ui` components; the sidebar drawn as the expanded rail; the status strip; DESIGN §4.1 | Opus |
 | L3 | Home (§4): the lead tile and the tile grid | Sonnet |
 | L4 | List and detail (§5) for Wallets, Files, Vaults and Backups | Opus |
-| L5 | Components keep their size (§8): buttons, fields, the measure, across the screens; the `lint-tokens` counts fall | Sonnet |
+| L5 | Components keep their size (§8): buttons, fields, the measure, across the screens; the size set (`BUTTON_H`, `FIELD_H` outlined, `LIST_1`–`LIST_3`) and the type roles in place of the fifteen sizes, by file owner, after the Material 3 components (`OUTLINE`, Tonal, the field box) are in `faraday-ui`; the `lint-tokens` counts fall | Sonnet |
 | L6 | The supporting pane (§6) | Sonnet |
 | L7 | The tours at the new sizes, the tests (§11), DESIGN §3 rewritten to this spec, then this plan to `docs/history/` and this file a Reference | Sonnet |
 
