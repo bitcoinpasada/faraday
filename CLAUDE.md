@@ -12,6 +12,10 @@ changes and nothing else has to be kept in step.
   `docs/LAYOUT.md`), checked against Material's own pages and drawn with
   Faraday's own look (`faraday-ui`). Where Faraday differs, a decision
   says so; a difference without one is a defect to fix.
+- What the app takes in is `docs/STANDARDS.md` §0: a published standard,
+  followed and checked, or Faraday's own rule that fails closed; work on
+  an unpublished standard or an unreviewed construction of Faraday's own
+  stays in the repository, compiled out of the app.
 - Faraday's decisions are numbered F1 onward, one file each
   (`docs/decisions/F<n>.md`), indexed in `docs/DECISIONS.md`: read the
   index, then only the decision you need. A new decision is a new file

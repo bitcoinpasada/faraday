@@ -14,6 +14,45 @@ checked against is in `docs/AUDIT.md` and `docs/MULTIVENDOR.md`.
 
 Taken from the working tree on 2026-10-23.
 
+## 0. What goes into Faraday
+
+The rule for what the app offers (owner, 2026-10-23; written in the
+decision that took FROST out of the app):
+
+- **A published standard, followed and checked.** A wallet kind, key
+  method, format or signing procedure is in the app when it follows a
+  published standard (a BIP at Complete or Deployed, a SLIP, an RFC, or a
+  convention other wallets already use), is built in full or names the
+  part it leaves out, and is checked against that standard's vectors or
+  another implementation (F79's cross-check, other wallets).
+- **A draft that is stable enough.** A draft whose text has held still,
+  that has independent implementations and that Faraday's cross-check
+  agrees with, can be in the app; the table says it is a draft (codex32,
+  BIP 93).
+- **Faraday's own, conservative.** Where no standard exists, Faraday's
+  own format or rule is in the app when it fails closed (a refusal, a
+  record layout) and a decision records it. A cryptographic construction
+  of Faraday's own is in the app only once it has been reviewed, or
+  when it can only add to a standard's strength (mixing a person's own
+  randomness into the system's); §7 lists them for outside review.
+- **Otherwise it waits in the repository.** Work on a feature whose
+  standard is unpublished, or whose construction is Faraday's own and not
+  yet reviewed, stays in the repository, built and tested but compiled
+  out of the app, until its standard is published or it is reviewed.
+- **Scope.** Faraday is an offline Bitcoin signer and its keys' keeper; a
+  feature outside that, however well specified, is not taken on.
+
+### 0.1 Left out, and why
+
+| Left out | Why | Where it stands |
+|---|---|---|
+| FROST threshold wallets | BIP 445 is not published, and signing across places is Faraday's own construction, not yet reviewed | Kept in the repository (`core/faraday-bip`, `core/faraday-psbt`), compiled out of the app; back when the BIP is published and signing across places is reviewed |
+| MuSig2 signing across places | Secret nonces drawn at one place and carried or kept in the vault between visits; BIP 327 advises against storing a secret nonce | Kept in the repository, compiled out of the app |
+| Sending to silent payments | BIP 374 and BIP 375 are drafts; receiving (BIP 352) is in the app | Built in `core/`, not reached from the app |
+| SSH signatures and an SSH CA, minisign and signify, an X.509 certificate authority | Outside a Bitcoin signer's scope | Not planned |
+| The Companion phone app, and APK signing with it | Dropped (F34); APK signing removed (F99) | Removed |
+| Reading `.oskb` backups | A format Faraday no longer writes; the vault's records are its own (F97) | Removed |
+
 ## 1. How to read it
 
 **BIP statuses.** The BIPs repository uses BIP 3's statuses: Draft,
