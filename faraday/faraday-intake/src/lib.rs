@@ -175,7 +175,8 @@ pub fn part_of(text: &str) -> Option<Part> {
     if let Ok(s) = slip39::Share::parse(&t) {
         return Some(Part::Slip39(s));
     }
-    Codex32::parse(&t).ok().map(Part::Codex32)
+    // As given, not lowercased: BIP 93 refuses a string in mixed case.
+    Codex32::parse(text.trim()).ok().map(Part::Codex32)
 }
 
 /// The first four bytes of every Faraday vault (`docs/VAULT.md`).

@@ -169,7 +169,20 @@ fn a_codex32_string_and_a_slip39_share_can_be_scanned_instead_of_typed() {
             .len(),
         1
     );
+    // A codex32 string in mixed case is refused, as BIP 93 says, though
+    // its letters are those of a valid string (BIP 93's invalid vectors).
+    let mut app = adding(2);
+    app.press(Action::ScanPart);
+    app.event(Event::Scanned {
+        bytes: b"Ms10fauxsxxxxxxxxxxxxxxxxxxxxxxxxxxuqxkk05lyf3x2".to_vec(),
+    });
+    assert!(
+        app.session.keys.is_empty(),
+        "a mixed-case string made a key"
+    );
+
     // Something that is no share says so, and the camera stays open.
+    let mut app = adding(1);
     app.press(Action::ScanPart);
     app.event(Event::Scanned {
         bytes: b"hello".to_vec(),

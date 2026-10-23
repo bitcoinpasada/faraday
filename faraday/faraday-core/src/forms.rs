@@ -144,6 +144,8 @@ impl Faraday {
         let c = self.compute();
         let form = self.entry.form;
         let text = zeroize::Zeroizing::new(self.entry.typed.trim().to_lowercase());
+        // A codex32 string is read as typed: BIP 93 refuses mixed case.
+        let given = zeroize::Zeroizing::new(self.entry.typed.trim().to_string());
         let result: Result<(), String> = match form {
             Form::Slip39 => slip39::Share::parse(&text)
                 .map_err(|e| fill(EN.forms_not_a_slip_39, &[&format!("{e:?}")]))
@@ -160,7 +162,7 @@ impl Faraday {
                     self.entry.parts.slip39.push(s);
                     Ok(())
                 }),
-            Form::Codex32 => Codex32::parse(&text)
+            Form::Codex32 => Codex32::parse(&given)
                 .map_err(|e| fill(EN.forms_not_a_codex32, &[&e.to_string()]))
                 .and_then(|c| {
                     if let Some(first) = self.entry.parts.codex32.first()

@@ -985,11 +985,13 @@ impl Faraday {
     /// Add a key opens on its form with it in, and returns to the Spend
     /// tab once the key is put together. Returns whether it was one.
     pub(crate) fn intake_key_part(&mut self, bytes: &[u8]) -> bool {
-        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_lowercase());
-        let form = if faraday_bip::slip39::Share::parse(&text).is_ok() {
-            crate::forms::Form::Slip39
-        } else if faraday_bip::codex32::Codex32::parse(&text).is_ok() {
-            crate::forms::Form::Codex32
+        let given = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
+        let lower = zeroize::Zeroizing::new(given.to_lowercase());
+        // A codex32 string as given: BIP 93 refuses mixed case.
+        let (form, text) = if faraday_bip::slip39::Share::parse(&lower).is_ok() {
+            (crate::forms::Form::Slip39, lower)
+        } else if faraday_bip::codex32::Codex32::parse(&given).is_ok() {
+            (crate::forms::Form::Codex32, given)
         } else {
             return false;
         };
