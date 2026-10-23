@@ -48,6 +48,7 @@ as a disagreement: a cross-check that cannot fail is worse than none.
 | `bip85` | `faraday_bip::bip85` | `ethankosakovsky/bip85` over python-mnemonic and a hardened-BIP-32 shim (`bip85/`, `bip39/`) | every application vector of `tools/vectors/bip85/` | random master keys, indices, languages, word counts and lengths, with refusals |
 | `slip39` | `faraday_bip::slip39` | python-shamir-mnemonic (`slip39/`) | all 45 of `tools/vectors/slip39/` | splits fed the same random bytes, which must match word for word; recovery from qualifying and short subsets and a changed word; the passphrase cipher |
 | `codex32` | `faraday_bip::codex32` | python-codex32 (`codex32/`); the worksheet's rows written in the area from its polymod | every vector of `tools/vectors/bip93/`, the 55 invalid strings included; volvelle-website's worksheet cells (`tools/vectors/codex32-volvelle/`); the booklet's checksum, derivation, recovery, addition, translation and fusion tables (`tools/vectors/codex32-booklet/`); the Codex32QR profile's sets (`tools/vectors/codex32qr/`) | secrets, splits (the same randomness), recovery, derived shares, corrupted strings; fresh sets of every threshold up to 31 strings at 48, 74 and 127 characters, the checksum worksheets of their strings and of corrupted ones, checksums made on a sheet, translation and recovery symbols, translation worksheets |
+| `codex32-correct` | `faraday_bip::codex32::correct` | python-codex32's decoder, `correction.py` at a later commit (`codex32/correction/`), asked with BIP 93's bound | python-codex32's frozen correction corpus, 57 cases (`tools/vectors/codex32-correction/`) | random strings of every length with substitutions and unreadable boxes up to and past the bound, runs of unreadable boxes around the checksum's length, a held string's header fixed, upper case, `ms1` damaged |
 | `xor` | `faraday_entropy::SeedXor` with `faraday_bip::bip39` | python-mnemonic and a byte XOR (`bip39/`) | Coldcard's two examples (`tools/vectors/xor/coldcard.json`) and this tree's two | splits and combines in all ten languages and five lengths, with refusals |
 
 Where a reference leaves a rule to its caller, the area writes the
@@ -67,6 +68,11 @@ corpus keeps out of it and the area says why.
 - Codex32: Faraday recovers only from exactly `k` shares without the
   secret, and derives a share only from exactly `k` strings at an unused
   index; the reference also takes more strings or a used index.
+- Codex32 correction: python-codex32 reads a character outside the
+  bech32 alphabet as unreadable, and fills more than 8 unreadable boxes
+  that are not one run when its equations allow; Faraday refuses both
+  (`docs/CODEX32.md` §8.4). The corpus damages strings with bech32
+  characters and `?` only.
 - BIP-445: the vectors' tweak lists whose flag list has another length
   are skipped; each of Faraday's tweaks carries its own flag.
 - BIP-352: Faraday's sender arithmetic is test-only and has no K_max,

@@ -42,7 +42,9 @@ Vectors under `tools/vectors/`, tests under `tests/all/`:
 - `codex32`: `bip93/vectors.json` (`codex32.rs`); the worksheets and fresh
   sets against volvelle-website's cells (`codex32-volvelle/`), the codex32
   booklet's tables (`codex32-booklet/`) and the Codex32QR profile's vectors
-  (`codex32qr/`) (`codex32_sheets.rs`).
+  (`codex32qr/`) (`codex32_sheets.rs`); error correction against
+  python-codex32's frozen corpus (`codex32-correction/`)
+  (`codex32_correct.rs`).
 - `musig`: `bip327/`, `bip328/`, `bip390/`, `bip32/`, `bip39/` (`musig.rs`).
 - `frost`: `bip445/` and RFC 9591 appendix F.5 for the dealer (`frost.rs`);
   `tools/scripts/threshold-reference.py` replays a session against BIP 445's

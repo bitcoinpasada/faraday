@@ -152,6 +152,32 @@ fn translate(c: &Compute, req: &Value) -> Answer {
     }))
 }
 
+/// The one correction of a damaged string (`?` for an unreadable box),
+/// the boxes of `held` (a string of the same set) fixed where given.
+fn correct(c: &Compute, req: &Value) -> Answer {
+    let held = match req.get("held").and_then(Value::as_str) {
+        Some(h) => Some(Codex32::parse(h).map_err(err)?),
+        None => None,
+    };
+    let p = codex32::correct(c, text(req, "string"), held.as_ref()).map_err(err)?;
+    let edits: Vec<Value> = p
+        .edits()
+        .iter()
+        .map(|e| {
+            json!([
+                e.position(),
+                (e.was() as char).to_string(),
+                (e.now() as char).to_string()
+            ])
+        })
+        .collect();
+    Ok(json!({
+        "string": p.string().encode().as_str(),
+        "edits": edits,
+        "run": p.assumes_the_rest(),
+    }))
+}
+
 /// Handles `codex32.<name>`.
 pub fn handle(name: &str, req: &Value) -> Answer {
     match name {
@@ -194,6 +220,7 @@ pub fn handle(name: &str, req: &Value) -> Answer {
             num(req, "chars") as usize,
         ),
         "fresh" => fresh(&Compute::unchecked(), req),
+        "correct" => correct(&Compute::unchecked(), req),
         "symbols" => translation_symbols(req),
         "translate" => translate(&Compute::unchecked(), req),
         "checksum_table" => {

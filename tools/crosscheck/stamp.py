@@ -37,8 +37,8 @@ CRATES = [
     "tools/crosscheck",
 ]
 # The published vectors the cross-check reads (tools/vectors/<name>/).
-VECTORS = ["bip327", "bip352", "bip445", "bip85", "bip93", "codex32-booklet", "codex32-volvelle",
-           "codex32qr", "slip39", "xor"]
+VECTORS = ["bip327", "bip352", "bip445", "bip85", "bip93", "codex32-booklet", "codex32-correction",
+           "codex32-volvelle", "codex32qr", "slip39", "xor"]
 # Everything under tools/crosscheck/ that is the harness, not its output.
 HARNESS_SKIP = {"stamp", "found", "__pycache__", "README.md"}
 

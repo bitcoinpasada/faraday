@@ -18,6 +18,12 @@ Moved to `docs/history/KEYS-LOG.md`.
   - a key's words, passphrase, seed and master key;
   - anything derived from them that is secret;
   - FROST and MuSig secret nonces;
+  - the master seed bytes of a key loaded from a seed (`Keys::add_seed`:
+    codex32, SLIP-39), kept with the key so that
+    its paper forms can be written again;
+  - a codex32 work set, the set being made by hand (`WorkSet`,
+    `faraday/faraday-keys/src/codex32.rs`): the characters entered, the
+    checksum worksheets and strings made from them, and the seed;
   - GPG, APK and Secure Boot private keys;
   - TOTP secrets;
   - the whole open vault: every decrypted record, passwords and notes
@@ -32,7 +38,8 @@ Moved to `docs/history/KEYS-LOG.md`.
   The list of reasons is closed, eleven `Reveal` variants
   (`faraday/faraday-keys/src/session.rs`; owner, 2026-10-21, Q2 of §9):
   the words shown; the typed passphrase shown; SeedQR; a copy-by-hand
-  check; paper forms (Seed XOR, codex32, SLIP-39 shares); a BIP-85 child
+  check; paper forms (Seed XOR, codex32, SLIP-39 shares, and the work
+  set's worksheets and strings); a BIP-85 child
   shown; a Lightning node key shown; GPG paperkey; a vault entry's secret
   (a password or TOTP code); an unprotected file to the Outbox; the
   backup flow writing words or a SeedQR picture to a stick. A new reason
@@ -94,6 +101,22 @@ impl Keys {
 }
 ```
 
+- A codex32 work set is a new secret in the same way: `WorkSet::new`
+  takes a public `Scheme`; `push` hands it the person's characters one
+  at a time as each is complete (the rolls of the character in progress
+  stay on the pad, as keygen's do); it computes the worksheet rows, the
+  checksums, the derived shares, the secret and the seed there and keeps
+  them in step with the characters at every push and pop. It leaves only
+  as a paper form: `worksheet`, `translation` and `strings` lend their
+  results for `Reveal::PaperForm` and for no other reason (no twelfth
+  variant), and as a key through `Keys::add_codex32`, which hands the
+  seed to `add_seed`. It wipes on drop.
+- A key loaded by `add_seed` keeps its seed bytes (`holds_seed_bytes`
+  tells whether), wiped when the key is dropped.
+  `Keys::codex32_shares(c, i, k, n, draw, why)` makes any `k` (2 to 9)
+  of `n` (`k` to 31) shares, or with `k` 0 and `n` 1 the secret alone,
+  from the 64-byte BIP-39 seed of a key with words or from the seed
+  bytes of one without, at that seed's own length.
 - A BIP-85 child, a vanity find or a FROST share is a new secret. It comes
   back as a `Child` held inside the crate, which leaves only by `add_*` or
   `reveal`.

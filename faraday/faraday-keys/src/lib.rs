@@ -7,7 +7,8 @@
 //! - **Used.** Every operation on a secret is here: signing
 //!   ([`psbt`], [`message`]), derivation and key texts ([`texts`],
 //!   [`identity`]), [`bip85`], [`lightning`], [`silent`], [`frost`],
-//!   [`vanity`], paper forms ([`operations`]), [`gpg`], [`apk`],
+//!   [`vanity`], paper forms ([`operations`], and [`codex32`], the work
+//!   set of a codex32 set being made), [`gpg`], [`apk`],
 //!   [`secure_boot`], [`totp`], the [`carry`] section of a FROST spend, and
 //!   seed words made into a `Mnemonic` ([`words`]). Each gives back a
 //!   public result. The flow around each (state, sheets, toasts, the
@@ -27,6 +28,7 @@
 pub mod apk;
 pub mod bip85;
 pub mod carry;
+pub mod codex32;
 pub mod frost;
 pub mod gpg;
 pub mod identity;
@@ -43,6 +45,7 @@ pub mod vanity;
 pub mod vault;
 pub mod words;
 
+pub use codex32::WorkSet;
 pub use identity::{Material, fingerprint, fp_text};
 pub use operations::{Dial, Paper, codex32_seed, slip39_seed};
 pub use session::{

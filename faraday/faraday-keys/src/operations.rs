@@ -215,9 +215,14 @@ impl Keys {
         Ok(Held::of(lines))
     }
 
-    /// Costs a parse of the words and a PBKDF2. Key `i`'s BIP-32 seed as
-    /// `n` codex32 shares (BIP 93), any `k` enough. `draw` is fresh
-    /// randomness the other shares are spread from.
+    /// Costs a parse of the words and a PBKDF2 for a key with words;
+    /// a split of the seed in either case. Key `i`'s BIP-32 seed as
+    /// codex32 strings (BIP 93): `n` shares, any `k` enough (`k` from 2
+    /// to 9, `n` from `k` to 31), or, with `k` 0 and `n` 1, the secret
+    /// itself. A key with words gives its 64-byte BIP-39 seed (127
+    /// characters); a key loaded from a master seed (`add_seed`) gives
+    /// the seed it was loaded from, at that seed's own length. `draw` is
+    /// fresh randomness the other shares are spread from.
     pub fn codex32_shares(
         &self,
         c: &Compute,
@@ -228,14 +233,32 @@ impl Keys {
         _why: Reveal,
     ) -> Result<Held<Vec<Zeroizing<String>>>, Paper> {
         let s = self.secrets(i).ok_or(Paper::NoWords)?;
-        let m = Mnemonic::parse(c, s.language, s.words.ok_or(Paper::NoWords)?)
-            .map_err(|_| Paper::NoWords)?;
         let fp = s.master.fingerprint().0;
-        let seed =
-            crate::identity::seed_of(c, &m, s.passphrase.unwrap_or("")).ok_or(Paper::Failed)?;
-        let need = usize::from(k.saturating_sub(1)) * codex32::symbols_for(seed.expose().len());
+        let made;
+        let seed: &[u8] = match (s.words, s.seed) {
+            (Some(words), _) => {
+                let m = Mnemonic::parse(c, s.language, words).map_err(|_| Paper::NoWords)?;
+                made = crate::identity::seed_of(c, &m, s.passphrase.unwrap_or(""))
+                    .ok_or(Paper::Failed)?;
+                made.expose()
+            }
+            (None, Some(bytes)) => bytes,
+            (None, None) => return Err(Paper::NoWords),
+        };
+        let one = |e: codex32::Error| Paper::Refused(e.to_string());
+        let id = codex32::identifier_for(fp);
+        if k == 0 {
+            if n != 1 {
+                return Err(Paper::Refused(codex32::Error::BadSplit.to_string()));
+            }
+            let secret = Codex32::from_seed(0, id, seed).map_err(one)?;
+            return Ok(Held::of(vec![Zeroizing::new(
+                secret.encode().as_str().to_string(),
+            )]));
+        }
+        let need = usize::from(k.saturating_sub(1)) * codex32::symbols_for(seed.len());
         let fresh = spread(draw, b"codex32 shares", need);
-        Codex32::from_seed(k, codex32::identifier_for(fp), seed.expose())
+        Codex32::from_seed(k, id, seed)
             .and_then(|secret| secret.split(k, n, &fresh))
             .map(|shares| {
                 shares
@@ -244,7 +267,7 @@ impl Keys {
                     .collect()
             })
             .map(Held::of)
-            .map_err(|e| Paper::Refused(e.to_string()))
+            .map_err(one)
     }
 }
 

@@ -53,6 +53,9 @@ pub enum Work {
     Blur,
     /// A whole canvas copied: a snapshot taken, restored or blended.
     FullCanvas,
+    /// A codex32 piece of work: a checksum, a worksheet column or an
+    /// interpolation of strings (`faraday-bip`'s `codex32`).
+    Codex32,
 }
 
 /// The token a costly function takes: proof that its caller may do

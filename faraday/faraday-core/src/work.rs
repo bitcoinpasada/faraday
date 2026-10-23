@@ -70,10 +70,13 @@ pub enum Work {
     /// A whole canvas copied: a snapshot taken, put back or blended
     /// (`faraday-draw`): a sheet's kept backdrop each frame, a fade's.
     FullCanvas,
+    /// A codex32 checksum, worksheet column or interpolation of strings
+    /// (`faraday-bip`'s `codex32`).
+    Codex32,
 }
 
 /// Every kind, in the order the counts keep them.
-pub const KINDS: [Work; 18] = [
+pub const KINDS: [Work; 19] = [
     Work::MasterKey,
     Work::KeyDerive,
     Work::Address,
@@ -92,6 +95,7 @@ pub const KINDS: [Work; 18] = [
     Work::Kdf,
     Work::Blur,
     Work::FullCanvas,
+    Work::Codex32,
 ];
 
 /// The kinds that are drawing's own pixel work: a frame does them (a
@@ -118,6 +122,7 @@ fn of_core(w: faraday_crypto::work::Work) -> Work {
         C::Address => Work::Address,
         C::Blur => Work::Blur,
         C::FullCanvas => Work::FullCanvas,
+        C::Codex32 => Work::Codex32,
     }
 }
 

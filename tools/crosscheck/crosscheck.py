@@ -44,6 +44,7 @@ AREAS = {
     "bip85": ("area_bip85", "Bip85", "bip85.wif"),
     "slip39": ("area_slip39", "Slip39", "slip39.recover"),
     "codex32": ("area_codex32", "Codex32", "codex32.recover"),
+    "codex32-correct": ("area_codex32_correct", "Codex32Correct", "codex32.correct"),
     "xor": ("area_xor", "Xor", "xor.combine"),
 }
 

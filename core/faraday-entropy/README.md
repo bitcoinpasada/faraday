@@ -8,6 +8,7 @@ draws no randomness itself; `no_std` + `alloc`.
 
 - `DiceRolls`: three published dice procedures (SHA-256 of the rolls as ASCII
   digits, the same with 6 written as 0, and the BitBox word-by-word one).
+- `BookletChar`: the codex32 booklet's dice de-biasing worksheet, ten rolls of five dice to one character.
 - `CoinFlips`: one bit a flip, packed MSB first.
 - `RawHex`: hex digits taken as they are.
 - `CardDraws`: SHA-256 of the cards' indices, with a deck tracker.
@@ -25,6 +26,7 @@ Keystone and BitBox publish.
 
 ## Checked against
 
+- `tools/reference/booklet-dice/README.md` quotes the booklet's worksheet and tree; the unit tests in `src/booklet.rs` walk all 32 paths of its tree.
 - `tools/reference/dice/README.md` quotes each procedure's source; the
   inline unit tests in `src/dice.rs` check against it.
 - `tools/vectors/xor/` (`12-words-2-parts.txt`), read by

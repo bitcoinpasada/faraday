@@ -31,10 +31,13 @@
 //! edges, as `&str` in and [`Codex32Ascii`] out.
 //!
 //! The checksum is a BCH code that detects any error touching at most 8
-//! characters and could correct up to 4 substitutions. This module
-//! detects; it does not correct. A string whose checksum fails is
-//! refused with [`Error::BadChecksum`] and nothing is offered in its
-//! place.
+//! characters. [`Codex32::parse`] refuses a string whose checksum fails
+//! with [`Error::BadChecksum`]. Correction is asked for separately
+//! (F94): `correct.rs` proposes the one correction the checksum
+//! justifies, up to 4 substitutions, 8 unreadable boxes, any mix within
+//! BIP 93's bound, or one run of unreadable boxes as long as the
+//! checksum ([`correct`]), and the proposal is parsed again before
+//! anything takes it.
 //!
 //! Two more files hold what the codex32 booklet works by hand:
 //! `worksheet.rs`, the checksum worksheet's rows and the translation
@@ -50,9 +53,11 @@ use core::fmt;
 use faraday_crypto::work::Compute;
 use faraday_crypto::{Secret, Zeroize, ZeroizeOnDrop};
 
+mod correct;
 mod fresh;
 mod worksheet;
 
+pub use correct::{CORRECTION_BOUND, Edit, MAX_EDITS, Proposal, Refusal, UNREADABLE, correct};
 pub use fresh::{FreshSet, Length, Scheme, fresh_set};
 pub use worksheet::{
     ChecksumWorksheet, SYMBOL_GLYPHS, SYMBOL_NAMES, TranslationWorksheet, checksum_table,
@@ -173,12 +178,10 @@ impl fmt::Display for Error {
 
 impl core::error::Error for Error {}
 
-/// Costs nothing yet: notes one piece of codex32 work against the
-/// token. Core's work kinds have no codex32 kind; until the batch that
-/// counts drawing's work adds one (`docs/CODEX32.md` §13.2), the token
-/// only gates the call, and this is the one place the count goes.
+/// Costs an add. Notes one piece of codex32 work against the token
+/// (`docs/COMPUTE.md`): the one place the count goes.
 fn note(c: &Compute) {
-    let _ = c;
+    c.count(faraday_crypto::work::Work::Codex32);
 }
 
 // ---------------------------------------------------------------------

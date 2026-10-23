@@ -1,8 +1,8 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
-**Open:** batches C2 to C12 (§15.2): the decoder, the dice method, `faraday-keys`, every screen, backups, templates, the rollers, Demo and Learn; D5 (§14); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), and the error-correction decoder (C2, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
+**Open:** batches C3 to C12 (§15.2): the dice method, `faraday-keys`, every screen, backups, templates, the rollers, Demo and Learn; D5 (§14); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -180,7 +180,8 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   random shares, then the rest interpolated), `derive_share`, `recover`,
   `to_seed` (padding bits ignored, as BIP 93 says), `identifier_for`
   (the first 20 bits of the master fingerprint), `symbols_for` and
-  `seed_symbols`. It detects errors and corrects none. Tested in
+  `seed_symbols`. It detects errors; correcting them is the decoder's,
+  below. Tested in
   `core/faraday-bip/tests/all/codex32.rs` against every BIP 93 vector
   (`tools/vectors/bip93/vectors.json`).
 - **The worksheets and fresh sets** (C1), in the same folder, tested in
@@ -208,9 +209,29 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
     the booklet's checksum, derivation, recovery, addition, translation
     and fusion tables (`tools/vectors/codex32-booklet/`), and the
     Codex32QR profile's vectors and pictures (`tools/vectors/codex32qr/`).
-  - The costly functions take the compute token and say "Costs …";
-    they count nothing yet, since core's work kinds have no codex32
-    kind (§13.2).
+  - The costly functions take the compute token, say "Costs …" and
+    count themselves as `Work::Codex32` (core's kind, mapped by
+    faraday-core's `of_core`; C4).
+- **The decoder** (C2, §8.4, F94), `core/faraday-bip/src/codex32/correct.rs`:
+  `correct(c, text, held)` reads a string in which `?` marks an
+  unreadable box and returns the one correction the checksum justifies
+  (`Proposal`: the string, parsed again by `Codex32::parse`, and its
+  edits, box by box, `was` and `now`) or a `Refusal`. Within BIP 93's
+  bound, `2 × substitutions + unreadable ≤ 8`, at every length, by
+  syndromes over GF(1024), Berlekamp–Massey and Forney; a run of 9 to 13
+  unreadable boxes in a row (9 to 15 at 127 characters, the bound of the
+  corpus below) by solving the checksum's equations, marked
+  `assumes_the_rest`. `ms1` is never changed; given `held`, a string of
+  the set already in, boxes 4 to 8 must read as its and are never
+  changed. Anything else is refused: more unreadable boxes not in one
+  run, more changes than the bound, a character neither bech32 nor `?`.
+  Tested in `core/faraday-bip/tests/all/codex32_correct.rs` against
+  python-codex32's frozen corpus of 57 cases
+  (`tools/vectors/codex32-correction/`) and every mix and run within the
+  bound at every length BIP 93 publishes a string of; cross-checked
+  against python-codex32's decoder (F79,
+  `tools/crosscheck/area_codex32_correct.py`) over that corpus and random
+  damage up to and past the bound. The screens are C7's.
 - **Add a key › Type a codex32 secret** (`faraday/faraday-core/src/forms.rs`):
   one string at a time; a second string with another identifier is
   refused (`forms_other_seed_string`), and one whose share index is already
@@ -244,9 +265,13 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   codex32 form: a seed's paper forms are `What::Words` and
   `What::SeedQr`, and the checklist has no codex32 item, although
   `docs/DEMO.md` §4 and §5.3 name one.
-- **A key loaded from a master seed** (codex32, SLIP-39) keeps its master key and not the seed bytes
-  (`Keys::add_seed`, `faraday/faraday-keys/src/session.rs`), so no paper
-  form of it can be written again.
+- **A key loaded from a master seed** (codex32, SLIP-39) keeps its seed
+  bytes with its master key (`Keys::add_seed`,
+  `faraday/faraday-keys/src/session.rs`; C4), so `Keys::codex32_shares`
+  writes any k of n again for it, as it does for a key with words.
+- **The work set** (C4), `faraday/faraday-keys/src/codex32.rs`: the
+  secret `WorkSet`, held in faraday-keys, lent only as a paper form
+  (§13.1); `Keys::add_codex32` loads the finished set's key.
 - **Demo** refuses a split with k of 2 or more (`faraday/faraday-core/src/demo.rs`,
   `docs/DEMO.md` §4 and §6) and has the BIP 93 samples
   (`docs/MODES.md` §7).
@@ -1429,7 +1454,7 @@ person chose is kept for the process; the sample's own scheme (2 of 3,
   `mod.rs` (the codec), `worksheet.rs` (checksum rows, translation and
   recovery symbols, the code2 value order), `fresh.rs` (a set from k
   initial shares: S and the derived shares, headers written once the
-  identifier is set), and correct.rs (new, the decoder of §8.4). Each
+  identifier is set), and `correct.rs` (the decoder of §8.4). Each
   file is among `tools/lint-secrets.sh`'s secret files.
 - `faraday-entropy`: the booklet's dice method, a new module
   core/faraday-entropy/src/booklet.rs (new), one file a source like the

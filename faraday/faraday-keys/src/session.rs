@@ -230,6 +230,11 @@ struct Key {
     master: MasterKey,
     words: Option<Zeroizing<String>>,
     passphrase: Option<Zeroizing<String>>,
+    /// The master seed bytes a key loaded by [`Keys::add_seed`] came
+    /// from (codex32, SLIP-39), so that a paper form
+    /// of it can be written again; `None` for a key made of words. Wiped
+    /// with the key.
+    seed: Option<Zeroizing<Vec<u8>>>,
     /// Its public key texts asked for, each derived once
     /// ([`Keys::public_text`]), by what was asked: public, and dropped
     /// when the master key moves network.
@@ -243,6 +248,8 @@ pub(crate) struct Secrets<'a> {
     pub(crate) master: &'a MasterKey,
     pub(crate) words: Option<&'a str>,
     pub(crate) passphrase: Option<&'a str>,
+    /// The master seed bytes of a key loaded by `add_seed`.
+    pub(crate) seed: Option<&'a [u8]>,
     pub(crate) language: Language,
 }
 
@@ -322,6 +329,12 @@ impl Keys {
     /// (`docs/history/PLAN.md` §5.1).
     pub fn holds_secret(&self) -> bool {
         !self.entries.is_empty()
+    }
+
+    /// Whether key `i` holds the master seed bytes it was loaded from
+    /// (`add_seed`), so a paper form can be made without words. A lookup.
+    pub fn holds_seed_bytes(&self, i: usize) -> bool {
+        self.entries.get(i).is_some_and(|e| e.key.seed.is_some())
     }
 
     /// What key `i` says about itself; a lookup, kept when it was added.
@@ -544,13 +557,16 @@ impl Keys {
             word_count,
             share,
             (!passphrase.is_empty()).then(|| Zeroizing::new(passphrase.to_string())),
+            None,
         ));
         Ok(fp)
     }
 
     /// Costs what `from_seed_bytes` and `info_of` cost. Adds the key a
     /// master seed gives, as a SLIP-39 or codex32 key does: there
-    /// are no words to copy by hand.
+    /// are no words to copy by hand. The seed bytes are kept with the key,
+    /// wiped when it is dropped, so a paper form of it
+    /// (`Keys::codex32_shares`) can be written again.
     pub fn add_seed(
         &mut self,
         c: &Compute,
@@ -580,6 +596,7 @@ impl Keys {
             None,
             None,
             None,
+            Some(Zeroizing::new(seed.to_vec())),
         ));
         Ok(fp)
     }
@@ -693,6 +710,7 @@ impl Keys {
             master: &e.key.master,
             words: e.key.words.as_deref().map(|w| w.as_str()),
             passphrase: e.key.passphrase.as_deref().map(|p| p.as_str()),
+            seed: e.key.seed.as_deref().map(|v| v.as_slice()),
             language: e.info.language,
         })
     }
@@ -1078,6 +1096,7 @@ impl Entry {
         word_count: Option<u8>,
         share: Option<PublicKey>,
         passphrase: Option<Zeroizing<String>>,
+        seed: Option<Zeroizing<Vec<u8>>>,
     ) -> Entry {
         let info = KeyInfo {
             id: KeyId(master_id(c, &master)),
@@ -1093,6 +1112,7 @@ impl Entry {
                 master,
                 words,
                 passphrase,
+                seed,
                 public: std::cell::RefCell::new(Vec::new()),
                 words_id: std::cell::OnceCell::new(),
             },

@@ -259,6 +259,7 @@ impl Warnings {
     }
 }
 
+mod booklet;
 mod camera;
 mod cards;
 mod coins;
@@ -268,6 +269,10 @@ mod hex;
 mod mix;
 mod xor;
 
+pub use booklet::{
+    BOOKLET_DICE, BOOKLET_ROLLS, BookletChar, BookletError, TREE as BOOKLET_TREE,
+    character as booklet_character,
+};
 pub use camera::{
     CAMERA_FRAMES_128, CAMERA_FRAMES_256, CAMERA_MIN_DISTINCT, CameraNoise, FrameStats, MAX_FRAMES,
 };
