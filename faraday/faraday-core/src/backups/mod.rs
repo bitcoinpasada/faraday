@@ -340,6 +340,169 @@ pub(crate) fn decode(bytes: &[u8]) -> Vec<Record> {
     out
 }
 
+/// The Backups area: the wallet the screen shows, and what this power-on
+/// saw of each wallet's backup, one record per descriptor checksum. The
+/// records are kept across a lock by `memory.rs`'s glue and gone at
+/// power-off.
+#[derive(Default)]
+pub(crate) struct BackupsArea {
+    at: usize,
+    records: Vec<Record>,
+}
+
+impl BackupsArea {
+    /// The wallet Backups shows, a page each on a small panel.
+    pub(crate) fn at(&self) -> usize {
+        self.at
+    }
+
+    /// Shows the wallet at `at`.
+    pub(crate) fn set_at(&mut self, at: usize) {
+        self.at = at;
+    }
+
+    /// Every record.
+    pub(crate) fn records(&self) -> &[Record] {
+        &self.records
+    }
+
+    /// The record of the wallet of descriptor checksum `sum`.
+    pub(crate) fn record(&self, sum: &str) -> Option<&Record> {
+        self.records.iter().find(|r| r.sum == sum)
+    }
+
+    /// Takes in the records the previous process kept.
+    pub(crate) fn set_records(&mut self, records: Vec<Record>) {
+        self.records = records;
+    }
+
+    fn record_mut(&mut self, sum: &str) -> Option<&mut Record> {
+        self.records.iter_mut().find(|r| r.sum == sum)
+    }
+
+    /// Makes or brings up to date the record of wallet `sum` from its
+    /// plan. What was checked is kept.
+    pub(crate) fn sync(&mut self, rec: Synced) {
+        let Synced {
+            sum,
+            name,
+            spots,
+            ids,
+            shown,
+            answers,
+        } = rec;
+        match self.record_mut(&sum) {
+            Some(r) => {
+                // An id the session no longer holds the key of is kept.
+                for (fp, id) in ids {
+                    match r.ids.iter_mut().find(|(f, _)| *f == fp) {
+                        Some(e) => e.1 = id,
+                        None => r.ids.push((fp, id)),
+                    }
+                }
+                r.spots = spots;
+                r.name = name;
+                r.shown |= shown;
+                r.answers = answers;
+            }
+            None => self.records.push(Record {
+                sum,
+                name,
+                spots,
+                checks: Vec::new(),
+                shown,
+                printed: false,
+                envelopes: false,
+                passphrases: Vec::new(),
+                answers,
+                ids,
+            }),
+        }
+    }
+
+    /// Whether wallet `sum` has a record.
+    pub(crate) fn has(&self, sum: &str) -> bool {
+        self.records.iter().any(|r| r.sum == sum)
+    }
+
+    /// One more copy by hand of seed `fp` is checked in wallet `sum`'s
+    /// record: one count per copy on paper the plan keeps of the seed,
+    /// and checks past them count no further copy.
+    pub(crate) fn copy_checked(&mut self, sum: &str, fp: [u8; 4]) {
+        if let Some(r) = self.record_mut(sum) {
+            let copies = r
+                .spots
+                .iter()
+                .filter(|s| matches!(s.at, At::Place(_)) && s.copies.contains(&fp))
+                .count()
+                .max(1) as u32;
+            match r.checks.iter_mut().find(|(f, _)| *f == fp) {
+                Some((_, n)) => *n = (*n + 1).min(copies),
+                None => r.checks.push((fp, 1)),
+            }
+        }
+    }
+
+    /// The descriptor was shown in wallet `sum`'s backup.
+    pub(crate) fn shown(&mut self, sum: &str) {
+        if let Some(r) = self.record_mut(sum) {
+            r.shown = true;
+        }
+    }
+
+    /// The templates or the envelopes of wallet `sum`'s backup were
+    /// marked done.
+    pub(crate) fn marked(&mut self, sum: &str, printed: bool, envelopes: bool) {
+        if let Some(r) = self.record_mut(sum) {
+            r.printed |= printed;
+            r.envelopes |= envelopes;
+        }
+    }
+
+    /// A passphrase of seed `fp` typed back matched in wallet `sum`'s
+    /// backup.
+    pub(crate) fn passphrase_checked(&mut self, sum: &str, fp: [u8; 4]) {
+        if let Some(r) = self.record_mut(sum)
+            && !r.passphrases.contains(&fp)
+        {
+            r.passphrases.push(fp);
+        }
+    }
+
+    /// What wallet `sum`'s backup was marked with that nothing else holds.
+    pub(crate) fn marks(&self, sum: &str) -> Marks {
+        self.record(sum).map_or_else(Marks::default, |r| Marks {
+            printed: r.printed,
+            envelopes: r.envelopes,
+            shown: r.shown,
+            passphrases: r.passphrases.clone(),
+        })
+    }
+
+    /// The seeds of wallet `sum` whose copy was checked this power-on.
+    pub(crate) fn checked(&self, sum: &str) -> Vec<[u8; 4]> {
+        self.record(sum)
+            .map(|r| {
+                r.checks
+                    .iter()
+                    .filter(|(_, n)| *n > 0)
+                    .map(|(f, _)| *f)
+                    .collect()
+            })
+            .unwrap_or_default()
+    }
+}
+
+/// What a plan gives its wallet's record when the checklist is made.
+pub(crate) struct Synced {
+    pub sum: String,
+    pub name: String,
+    pub spots: Vec<Spot>,
+    pub ids: Vec<([u8; 4], [u8; 32])>,
+    pub shown: bool,
+    pub answers: String,
+}
+
 impl Record {
     /// The [`crate::wallet::master_id`] the record keeps for seed `fp`.
     /// A lookup.
@@ -502,33 +665,14 @@ impl Faraday {
         let name = wallet.name.clone();
         let shown = b.shown;
         let answers = b.answers.to_text();
-        match self.backup_records.iter_mut().find(|r| r.sum == sum) {
-            Some(r) => {
-                // An id the session no longer holds the key of is kept.
-                for (fp, id) in ids {
-                    match r.ids.iter_mut().find(|(f, _)| *f == fp) {
-                        Some(e) => e.1 = id,
-                        None => r.ids.push((fp, id)),
-                    }
-                }
-                r.spots = spots;
-                r.name = name;
-                r.shown |= shown;
-                r.answers = answers;
-            }
-            None => self.backup_records.push(Record {
-                sum,
-                name,
-                spots,
-                checks: Vec::new(),
-                shown,
-                printed: false,
-                envelopes: false,
-                passphrases: Vec::new(),
-                answers,
-                ids,
-            }),
-        }
+        self.backups_area.sync(Synced {
+            sum,
+            name,
+            spots,
+            ids,
+            shown,
+            answers,
+        });
     }
 
     /// A copy by hand of seed `fp` matched in the backup under way in
@@ -553,23 +697,10 @@ impl Faraday {
         else {
             return;
         };
-        if !self.backup_records.iter().any(|r| r.sum == sum) {
+        if !self.backups_area.has(&sum) {
             self.backups_sync();
         }
-        if let Some(r) = self.backup_records.iter_mut().find(|r| r.sum == sum) {
-            // One count per copy on paper the plan keeps of the seed:
-            // checks past them count no further copy.
-            let copies = r
-                .spots
-                .iter()
-                .filter(|s| matches!(s.at, At::Place(_)) && s.copies.contains(&fp))
-                .count()
-                .max(1) as u32;
-            match r.checks.iter_mut().find(|(f, _)| *f == fp) {
-                Some((_, n)) => *n = (*n + 1).min(copies),
-                None => r.checks.push((fp, 1)),
-            }
-        }
+        self.backups_area.copy_checked(&sum, fp);
     }
 
     /// The descriptor was shown in the backup under way.
@@ -582,9 +713,7 @@ impl Faraday {
         else {
             return;
         };
-        if let Some(r) = self.backup_records.iter_mut().find(|r| r.sum == sum) {
-            r.shown = true;
-        }
+        self.backups_area.shown(sum);
     }
 
     /// The templates or the envelopes of the backup under way were marked
@@ -597,10 +726,7 @@ impl Faraday {
         }) else {
             return;
         };
-        if let Some(r) = self.backup_records.iter_mut().find(|r| r.sum == sum) {
-            r.printed |= printed;
-            r.envelopes |= envelopes;
-        }
+        self.backups_area.marked(&sum, printed, envelopes);
     }
 
     /// A passphrase of seed `fp` typed back matched in the backup under
@@ -614,11 +740,7 @@ impl Faraday {
         else {
             return;
         };
-        if let Some(r) = self.backup_records.iter_mut().find(|r| r.sum == sum)
-            && !r.passphrases.contains(&fp)
-        {
-            r.passphrases.push(fp);
-        }
+        self.backups_area.passphrase_checked(&sum, fp);
     }
 
     /// What loaded wallet `i`'s backup was marked with that nothing else
@@ -628,15 +750,7 @@ impl Faraday {
         let Some(sum) = self.session.wallets.get(i).map(|w| w.checksum()) else {
             return Marks::default();
         };
-        self.backup_records
-            .iter()
-            .find(|r| r.sum == sum)
-            .map_or_else(Marks::default, |r| Marks {
-                printed: r.printed,
-                envelopes: r.envelopes,
-                shown: r.shown,
-                passphrases: r.passphrases.clone(),
-            })
+        self.backups_area.marks(sum)
     }
 
     /// The seeds of loaded wallet `i` whose copy was checked this
@@ -645,17 +759,7 @@ impl Faraday {
         let Some(sum) = self.session.wallets.get(i).map(|w| w.checksum()) else {
             return Vec::new();
         };
-        self.backup_records
-            .iter()
-            .find(|r| r.sum == sum)
-            .map(|r| {
-                r.checks
-                    .iter()
-                    .filter(|(_, n)| *n > 0)
-                    .map(|(f, _)| *f)
-                    .collect()
-            })
-            .unwrap_or_default()
+        self.backups_area.checked(sum)
     }
 
     /// Costs what `backup_lines`, `described_of` and `record_lines` cost.
@@ -713,7 +817,7 @@ impl Faraday {
                 if seen(&out, sum) {
                     continue;
                 }
-                let lines = match self.backup_records.iter().find(|r| &r.sum == sum) {
+                let lines = match self.backups_area.record(sum) {
                     Some(r) => Some(self.record_lines(c, r, &[])),
                     None if s.planned.contains(sum) => Some(vec![Line {
                         place: EN.backups_plan.to_string(),
@@ -755,7 +859,7 @@ impl Faraday {
             Some(b) if wi.is_some_and(|i| i == b.wallet) => b.names.clone(),
             _ => kept.as_ref().map(|(_, n)| n.clone()).unwrap_or_default(),
         };
-        if let Some(r) = self.backup_records.iter().find(|r| r.sum == sum) {
+        if let Some(r) = self.backups_area.record(sum) {
             return Some(self.record_lines(c, r, &names));
         }
         let (a, _) = kept?;
@@ -1070,13 +1174,13 @@ impl Faraday {
                     .position(|e| Some(&e.sum) == sum.as_ref())
                     .unwrap_or(0);
                 self.act(Action::Nav(Screen::Backups));
-                self.backups_at = at;
+                self.backups_area.set_at(at);
                 if !self.compact {
                     self.list_offset = crate::backups::screen::offset_of_now(c, self, at);
                 }
             }
             Action::BackupsPage(i) => {
-                self.backups_at = i;
+                self.backups_area.set_at(i);
                 self.list_offset = 0.0;
             }
             // `act_inner` passes only the actions matched above.

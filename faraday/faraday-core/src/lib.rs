@@ -1192,13 +1192,10 @@ pub struct Faraday {
     /// (Spend tab) for, this power-on, kept across a lock
     /// (`docs/WALLETS.md` §4).
     pub checked_wallets: Vec<String>,
-    /// What this power-on saw of each wallet's backup, by descriptor
-    /// checksum (`docs/history/SIMPLIFY.md` §5): kept across a lock, gone at
-    /// power-off.
-    pub backup_records: Vec<backups::Record>,
-    /// The wallet the Backups screen is on, by its place in
-    /// [`Faraday::backups_now`].
-    pub backups_at: usize,
+    /// The wallet the Backups screen is on, and what this power-on saw of
+    /// each wallet's backup (`docs/history/SIMPLIFY.md` §5): kept across a
+    /// lock, gone at power-off.
+    backups_area: backups::BackupsArea,
     /// The session's seed and the pool of fresh answers (`fresh.rs`).
     fresh: fresh::Fresh,
     now_ms: u64,
@@ -1433,8 +1430,7 @@ impl Faraday {
             signed_amounts: Vec::new(),
             seal_amounts: true,
             checked_wallets: Vec::new(),
-            backup_records: Vec::new(),
-            backups_at: 0,
+            backups_area: backups::BackupsArea::default(),
             fresh: fresh::Fresh::default(),
             now_ms: 0,
             screen: Screen::Home,
@@ -3233,7 +3229,7 @@ impl Faraday {
             Action::Nav(s) => {
                 self.glance.set_focus(None);
                 if s == Screen::Backups {
-                    self.backups_at = 0;
+                    self.backups_area.set_at(0);
                 }
                 // Spend's way back is to where it was opened from.
                 if s == Screen::Family && self.screen != Screen::Family {
@@ -4393,7 +4389,7 @@ impl Faraday {
         let sum = w.checksum().to_string();
         // Each seed told by its whole master id, the session key's else
         // the backup record's (F65); one that cannot be told is not done.
-        let record = self.backup_records.iter().find(|r| r.sum == sum);
+        let record = self.backups_area.record(&sum);
         let has = |s: &crate::vault::VaultSummary, f: &faraday_bip::keys::Fingerprint| {
             crate::backups::summary_has_seed(s, f.0, self.seed_id(record, f.0))
         };

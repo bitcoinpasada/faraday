@@ -245,10 +245,10 @@ impl Faraday {
         }
         // What was seen of each wallet's backup, for Backups and the
         // wallet card (`docs/history/SIMPLIFY.md` §5).
-        if !self.backup_records.is_empty() {
+        if !self.backups_area.records().is_empty() {
             out.push((
                 "backups".to_string(),
-                crate::backups::encode(&self.backup_records),
+                crate::backups::encode(self.backups_area.records()),
             ));
         }
         // What the last visit wrote, for Files, Home and each vault's
@@ -358,7 +358,7 @@ impl Faraday {
                 }
                 "backup-flow" => self.flow_restore(bytes),
                 "backup-gate" => gate = Some(bytes),
-                "backups" => self.backup_records = crate::backups::decode(bytes),
+                "backups" => self.backups_area.set_records(crate::backups::decode(bytes)),
                 "vault-from" => {
                     for line in String::from_utf8_lossy(bytes).lines() {
                         let mut parts = line.splitn(3, '\t');

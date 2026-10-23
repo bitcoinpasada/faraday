@@ -414,7 +414,8 @@ fn plan_on(r: &impl Reads, w: usize) -> Option<(plan::Answers, Vec<String>)> {
     let kept = r.plan_load_of(wallet, &shape);
     let sum = wallet.checksum();
     let recorded = app
-        .backup_records
+        .backups_area
+        .records()
         .iter()
         .find(|r| r.sum == sum && !r.answers.is_empty())
         .and_then(|r| plan::Answers::from_text(&shape, &r.answers));

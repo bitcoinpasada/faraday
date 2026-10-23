@@ -76,7 +76,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     for (k, e) in entries.iter().enumerate() {
         let ch = card_h(e);
-        let edge = if k == app.backups_at && app.backups_at > 0 {
+        let edge = if k == app.backups_area.at() && app.backups_area.at() > 0 {
             ACCENT.with_alpha(100)
         } else {
             LINE
@@ -167,11 +167,11 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entry])
     let top = 12.0 - app.list_offset;
     let mut y = top;
     let n = entries.len();
-    let Some(e) = entries.get(app.backups_at.min(n.saturating_sub(1))) else {
+    let Some(e) = entries.get(app.backups_area.at().min(n.saturating_sub(1))) else {
         ui.text(x, y, 14.0, W::R, MUTED, EN.backups_no_wallet);
         return;
     };
-    let at = app.backups_at.min(n - 1);
+    let at = app.backups_area.at().min(n - 1);
     y += ui.wrap(x, y, w, 16.0, W::S, TEXT, &e.name) + 4.0;
     y += ui.wrap(x, y, w, 12.0, W::R, MUTED, &e.shape) + 14.0;
     match e.lines.as_ref() {

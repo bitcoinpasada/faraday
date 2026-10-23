@@ -249,7 +249,7 @@ impl Faraday {
             files_out_offset: *self.visit.files_out_offset(),
             vault_item_offset: self.vault_item_offset,
             board_list_offset: self.board_list_offset,
-            backups_at: self.backups_at,
+            backups_at: self.backups_area.at(),
             vault_current: self.vaults.current,
             vault_category: self.vaults.category,
             vault_category_chosen: self.vaults.category_chosen,
@@ -406,7 +406,7 @@ impl Faraday {
                 self.wallets.set_wallet(s.wallet);
                 self.glance.set_open(s.glance);
             }
-            Screen::Backups => self.backups_at = s.backups_at,
+            Screen::Backups => self.backups_area.set_at(s.backups_at),
             Screen::VaultContents => {
                 self.vaults.current = s.vault_current;
                 self.vaults.category = s.vault_category;
