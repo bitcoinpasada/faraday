@@ -76,7 +76,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             EN.keygen_add_a_key
         },
-        guided: app.guided,
+        guided: app.guided(),
         switch: true,
         note: None,
         chip: None,

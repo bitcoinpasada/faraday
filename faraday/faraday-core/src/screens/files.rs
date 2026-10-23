@@ -762,7 +762,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         oy += 84.0;
     }
     if let Some(r) = app.receipt.as_ref() {
-        receipt_rows(ui, r, app.tz_min, ox, oy, colw);
+        receipt_rows(ui, r, app.tz_min(), ox, oy, colw);
     }
     ui.c.pop_clip();
     ui.report_scroll(clip, content_in - view);
@@ -1996,7 +1996,7 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 26.0;
     }
     if let Some(r) = app.receipt.as_ref() {
-        y += receipt_rows(ui, r, app.tz_min, x, y, w) + 8.0;
+        y += receipt_rows(ui, r, app.tz_min(), x, y, w) + 8.0;
     }
     if !app.outbox.is_empty() {
         y += 6.0;

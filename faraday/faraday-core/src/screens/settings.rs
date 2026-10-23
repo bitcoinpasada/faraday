@@ -51,7 +51,7 @@ fn time_section(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
     );
     let now = app.now_local_text();
     ui.text_right(x + width - 22.0, y + 50.0 + d, 32.0, 15.0, W::S, TEXT, &now);
-    tz_row(ui, x + 22.0, y + 94.0 + d, width - 44.0, app.tz_min);
+    tz_row(ui, x + 22.0, y + 94.0 + d, width - 44.0, app.tz_min());
     ui.button(
         x + 22.0,
         y + 150.0 + d,
@@ -152,7 +152,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x, y, 13.0, W::R, MUTED, EN.settings_now);
         y += 20.0;
         y += ui.wrap(x, y, w, 15.0, W::S, TEXT, &app.now_local_text()) + 10.0;
-        y += tz_row(ui, x, y, w, app.tz_min) + 10.0;
+        y += tz_row(ui, x, y, w, app.tz_min()) + 10.0;
         y += ui.button(
             x,
             y,
@@ -175,7 +175,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 tile_w,
                 tile_h,
                 theme,
-                app.theme == theme,
+                app.theme() == theme,
                 Action::Theme(theme),
             );
         }
@@ -186,7 +186,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             [(EN.settings_full, false), (EN.settings_reduced, true)]
                 .into_iter()
                 .map(|(label, reduced)| {
-                    let style = if app.reduce_motion == reduced {
+                    let style = if app.reduce_motion() == reduced {
                         Style::Primary
                     } else {
                         Style::Secondary
@@ -213,7 +213,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let items: Vec<(&str, Style, Action)> = labels
             .iter()
             .map(|(l, pct)| {
-                let style = if app.scale_pct == *pct {
+                let style = if app.scale_pct() == *pct {
                     Style::Primary
                 } else {
                     Style::Secondary
@@ -487,7 +487,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             tile_w,
             tile_h,
             theme,
-            app.theme == theme,
+            app.theme() == theme,
             Action::Theme(theme),
         );
     }
@@ -496,7 +496,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_motion);
     let mut sx = x + 22.0;
     for (label, reduced) in [(EN.settings_full, false), (EN.settings_reduced, true)] {
-        let style = if app.reduce_motion == reduced {
+        let style = if app.reduce_motion() == reduced {
             Style::Primary
         } else {
             Style::Secondary
@@ -528,7 +528,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             format!("{pct} %")
         };
-        let style = if app.scale_pct == pct {
+        let style = if app.scale_pct() == pct {
             Style::Primary
         } else {
             Style::Secondary
@@ -674,14 +674,14 @@ type IdleRow = (&'static str, u16, &'static [u16], fn(u16) -> Action);
 fn idle_rows(app: &View) -> Vec<IdleRow> {
     let mut rows: Vec<IdleRow> = vec![(
         EN.settings_lock_after,
-        app.idle_lock_min,
+        app.idle_lock_min(),
         &crate::stick::settings::IDLE_LOCK_CHOICES,
         Action::IdleLock,
     )];
     if !app.online {
         rows.push((
             EN.settings_power_off,
-            app.idle_off_min,
+            app.idle_off_min(),
             &crate::stick::settings::IDLE_OFF_CHOICES,
             Action::IdleOff,
         ));

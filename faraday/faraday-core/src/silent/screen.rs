@@ -42,7 +42,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h,
         back: Some(app.named_back((EN.silent_wallets, Action::Nav(s.back)))),
         heading: EN.silent_silent_payments,
-        guided: app.guided,
+        guided: app.guided(),
         switch: true,
         note: None,
         chip: None,

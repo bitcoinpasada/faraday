@@ -3134,7 +3134,7 @@ impl Faraday {
                 FEN.backup_flow_seen,
                 &[
                     &s.name,
-                    &crate::vault::time_of_day(crate::vault::local_secs(t, self.tz_min)),
+                    &crate::vault::time_of_day(crate::vault::local_secs(t, self.tz_min())),
                 ],
             ),
             None => s.name.clone(),

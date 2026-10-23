@@ -14,7 +14,7 @@ use faraday_shell_api::{App, Event, Key};
 /// place.
 pub(crate) fn board_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::board::{BoardPress as B, Chip, Thing, Zone};
-    let was = t.app.theme;
+    let was = t.app.theme();
     t.load_kit()?;
     for n in 1..3 {
         t.press(Action::Entry(None));

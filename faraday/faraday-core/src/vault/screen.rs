@@ -678,7 +678,7 @@ fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> String {
         )
     } else {
         match app.vault_summary(f) {
-            Some(s) => s.line(app.tz_min),
+            Some(s) => s.line(app.tz_min()),
             None => EN.vault_unlock_to_see.to_string(),
         }
     };
@@ -1098,7 +1098,7 @@ pub(crate) fn create(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             None => (EN.vault_vaults, Action::Nav(Screen::Vaults)),
         })),
         heading: EN.vault_create_a_vault,
-        guided: app.guided,
+        guided: app.guided(),
         switch: true,
         note: None,
         chip: then.as_deref(),
@@ -2182,7 +2182,7 @@ fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
             )
         }
         kind::GPG => {
-            let line = match crate::gpg::shown(r, app.tz_min) {
+            let line = match crate::gpg::shown(r, app.tz_min()) {
                 Some(g) if g.expires == EN.gpg_never => EN.vault_ed25519_does.to_string(),
                 Some(g) => fill(EN.vault_ed25519_expires, &[&g.expires.to_string()]),
                 None => "Ed25519".to_string(),
@@ -2229,7 +2229,7 @@ fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
                 .unwrap_or_default();
             (fill(EN.plan_passphrase_label, &[&fp]), String::new(), true)
         }
-        kind::APK_KEY => match crate::apk::shown(r, app.tz_min) {
+        kind::APK_KEY => match crate::apk::shown(r, app.tz_min()) {
             Some(s) => (s.name, s.package, false),
             None => (EN.vault_record.to_string(), String::new(), false),
         },
@@ -3289,7 +3289,7 @@ fn detail(
         // ID, key IDs and creation date, and which subkey signs.
         if let Some(g) = items
             .get(sel)
-            .and_then(|r| crate::gpg::shown(*r, app.tz_min))
+            .and_then(|r| crate::gpg::shown(*r, app.tz_min()))
         {
             if let Some(uid) = g.user_ids.first() {
                 dy += ui.wrap(dx, dy, dw, 14.0, W::S, TEXT, &format!("\"{uid}\"")) + 4.0;
@@ -3648,7 +3648,7 @@ fn detail(
             }
         }
         kind::GPG => {
-            if let Some(g) = crate::gpg::shown(r, app.tz_min) {
+            if let Some(g) = crate::gpg::shown(r, app.tz_min()) {
                 field_row(ui, &mut dy, EN.vault_fingerprint, &g.fingerprint, true);
                 field_row(ui, &mut dy, EN.vault_signing_subkey, &g.subkey, true);
                 for uid in &g.user_ids {
@@ -3817,7 +3817,7 @@ fn detail(
             let waiting = fp.and_then(|fp| app.backup_waits(crate::backup_flow::Kind::Apk, &fp));
             // The page leads with the backup while the key waits for it.
             dy += backup_row(app, ui, crate::backup_flow::Kind::Apk, r, dx, dy, dw);
-            if let Some(s) = crate::apk::shown(r, app.tz_min) {
+            if let Some(s) = crate::apk::shown(r, app.tz_min()) {
                 field_row(ui, &mut dy, EN.apk_name, &s.name, false);
                 field_row(ui, &mut dy, EN.apk_package, &s.package, false);
                 field_row(
@@ -3940,7 +3940,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let now = app.clock_now();
     let when = match now {
         Some(_) => {
-            let zone = format!("UTC{}", vault::tz_offset_text(app.tz_min));
+            let zone = format!("UTC{}", vault::tz_offset_text(app.tz_min()));
             format!("{} {zone}", app.now_local_text())
         }
         None => EN.set_time_not_known.to_string(),
@@ -4814,7 +4814,7 @@ fn apk_review(
     }
     if let Some((v, at)) = app.apk_find(&review.key)
         && let Some(rec) = app.vaults.records(app.vaults.open[v].id).get(at)
-        && let Some(s) = crate::apk::shown(rec, app.tz_min)
+        && let Some(s) = crate::apk::shown(rec, app.tz_min())
     {
         let key = format!("{} · {}", s.name, &s.hex[..16]);
         dy += apk_row(ui, dx, dy, dw, EN.apk_key_row, &key, true);

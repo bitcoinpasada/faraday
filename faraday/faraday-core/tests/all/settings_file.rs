@@ -84,13 +84,13 @@ fn defaults() -> Faraday {
 }
 
 fn same_settings(a: &Faraday, b: &Faraday) -> bool {
-    a.theme == b.theme
-        && a.scale_pct == b.scale_pct
-        && a.reduce_motion == b.reduce_motion
-        && a.guided == b.guided
-        && a.qr_frame_ms == b.qr_frame_ms
-        && a.idle_lock_min == b.idle_lock_min
-        && a.idle_off_min == b.idle_off_min
+    a.theme() == b.theme()
+        && a.scale_pct() == b.scale_pct()
+        && a.reduce_motion() == b.reduce_motion()
+        && a.guided() == b.guided()
+        && a.qr_frame_ms() == b.qr_frame_ms()
+        && a.idle_lock_min() == b.idle_lock_min()
+        && a.idle_off_min() == b.idle_off_min()
         && a.seal_amounts == b.seal_amounts
 }
 
@@ -98,14 +98,14 @@ fn same_settings(a: &Faraday, b: &Faraday) -> bool {
 fn the_boot_sticks_settings_apply_before_the_passphrase() {
     let file = b"faraday-settings 1\nscale=125\ntheme=gruvbox\nmotion=reduced\nidle-lock=10\nidle-off=20\nqr-ms=200\n";
     let mut app = booted(Some(file));
-    assert_eq!(app.theme, Theme::Gruvbox);
-    assert_eq!(app.scale_pct, 125);
-    assert!(app.reduce_motion);
-    assert_eq!((app.idle_lock_min, app.idle_off_min), (10, 20));
-    assert_eq!(app.qr_frame_ms, 200);
+    assert_eq!(app.theme(), Theme::Gruvbox);
+    assert_eq!(app.scale_pct(), 125);
+    assert!(app.reduce_motion());
+    assert_eq!((app.idle_lock_min(), app.idle_off_min()), (10, 20));
+    assert_eq!(app.qr_frame_ms(), 200);
     // Pulling the stick asks for nothing the settings did not already set.
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert_eq!(app.theme, Theme::Gruvbox);
+    assert_eq!(app.theme(), Theme::Gruvbox);
 }
 
 #[test]
@@ -165,7 +165,7 @@ fn every_theme_round_trips_through_the_settings_file() {
             .find(|(s, n, _)| s == "boot" && n == FILE)
             .unwrap_or_else(|| panic!("{} is not written to the boot stick", theme.name()));
         let back = booted(Some(bytes));
-        assert_eq!(back.theme, theme, "{} did not read back", theme.name());
+        assert_eq!(back.theme(), theme, "{} did not read back", theme.name());
     }
 }
 
@@ -230,7 +230,7 @@ fn after_a_lock_the_boot_stick_is_not_read_again() {
     let file = b"faraday-settings 1\ntheme=light\n";
     next.storage(StorageEvent::Sticks(vec![stick("boot", true, Some(file))]));
     pump(&mut next, Some(file));
-    assert_eq!(next.theme, Theme::Catppuccin);
+    assert_eq!(next.theme(), Theme::Catppuccin);
     // And the settings changed since boot are still offered to the stick.
     next.press(Action::Nav(Screen::Visit));
     next.press(Action::VisitWrite);
@@ -242,14 +242,14 @@ fn a_fresh_app_opens_steps_only() {
     // No kept state and no stick settings file: a device that has never
     // had a setting saved opens Steps only; Guided is a choice (F82).
     let app = defaults();
-    assert!(!app.guided);
+    assert!(!app.guided());
     let booted = booted(None);
-    assert!(!booted.guided);
+    assert!(!booted.guided());
 }
 
 #[test]
 fn a_settings_file_saying_guided_0_is_steps_only() {
     let file = b"faraday-settings 1\nguided=0\n";
     let app = booted(Some(file));
-    assert!(!app.guided);
+    assert!(!app.guided());
 }

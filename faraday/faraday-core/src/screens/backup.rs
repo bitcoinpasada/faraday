@@ -315,7 +315,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (EN.backup_wallets, Action::OpenWallet(b.wallet))
         })),
         heading: &heading,
-        guided: app.guided,
+        guided: app.guided(),
         switch: checklist,
         note: None,
         // From Create the wallet is the one just made, and the way on is
@@ -538,7 +538,7 @@ fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// item 7): copies made outside the plan, and the Learn page on them.
 /// Returns its height; nothing in Steps only.
 pub(crate) fn extra_copies(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    if !app.guided {
+    if !app.guided() {
         return 0.0;
     }
     let mut cy = y;

@@ -172,7 +172,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 y: s.scroll,
                 follow: s.follow,
             },
-            app.guided,
+            app.guided(),
         )
     };
     let compact = ui.compact;

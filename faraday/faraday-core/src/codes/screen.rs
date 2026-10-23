@@ -18,11 +18,11 @@ use crate::vault::VaultAction as V;
 fn now_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let label = fill(
         EN.codes_now_utc,
-        &[&crate::vault::tz_offset_text(app.tz_min).to_string()],
+        &[&crate::vault::tz_offset_text(app.tz_min()).to_string()],
     );
     ui.text(x, y + 10.0, 12.0, W::R, MUTED, &label);
     let text = match app.clock_now() {
-        Some(t) => crate::vault::time_of_day_secs(crate::vault::local_secs(t, app.tz_min)),
+        Some(t) => crate::vault::time_of_day_secs(crate::vault::local_secs(t, app.tz_min())),
         None => EN.codes_not_known.to_string(),
     };
     let bw = ui.measure(14.0, W::S, EN.codes_set_the_time) + 32.0;

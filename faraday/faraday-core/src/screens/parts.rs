@@ -13,7 +13,7 @@ use faraday_ui::parts::{section_label, wrap_buttons};
 /// A screen's walk-through in Guided mode, under its title. Returns the
 /// height it took: nothing in Steps only.
 pub(crate) fn guide_text(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
-    if !app.guided {
+    if !app.guided() {
         return 0.0;
     }
     let h = ui.wrap(x + 14.0, y, w - 14.0, 14.0, W::R, TEXT, text);

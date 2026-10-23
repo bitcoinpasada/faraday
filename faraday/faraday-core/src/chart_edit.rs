@@ -105,7 +105,7 @@ impl Faraday {
     /// known (`docs/TOTP.md` §2.3).
     pub(crate) fn today(&self) -> String {
         self.clock_now()
-            .map(|t| crate::gpg::date(crate::vault::local_secs(t, self.tz_min)))
+            .map(|t| crate::gpg::date(crate::vault::local_secs(t, self.tz_min())))
             .unwrap_or_default()
     }
 

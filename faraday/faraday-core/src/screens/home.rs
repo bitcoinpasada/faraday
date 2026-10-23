@@ -170,7 +170,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
             // By its name, with what it held when last seen open (§3.4),
             // when it was.
             let (name, line) = match app.vault_summary(f) {
-                Some(s) => (s.name.clone(), s.line(app.tz_min)),
+                Some(s) => (s.name.clone(), s.line(app.tz_min())),
                 None => (
                     f.name.clone(),
                     fill(EN.home_job_in_files, &[&f.name.to_string()]),

@@ -138,7 +138,7 @@ fn the_idle_warning_carries_no_clock() {
     let first_body = body(&first);
     // The minutes without input when it opened, and the lock setting: two
     // durations, never a clock time.
-    let lock = app.idle_lock_min;
+    let lock = app.idle_lock_min();
     assert_eq!(
         first_body,
         format!(

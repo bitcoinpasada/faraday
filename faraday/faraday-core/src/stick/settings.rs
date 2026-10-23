@@ -39,10 +39,136 @@ pub fn is_file(name: &str) -> bool {
     name.eq_ignore_ascii_case(FILE)
 }
 
-impl Faraday {
+/// The settings: what the person chose for the display, motion, QR
+/// speed, idle times, time zone and guided mode. Its fields are private;
+/// the rest of the crate reads them through the accessors and changes
+/// them through the methods.
+pub(crate) struct Settings {
+    /// The person's display scale, in percent of the automatic one.
+    scale_pct: u16,
+    /// The palette the screens are drawn in.
+    theme: crate::ui::Theme,
+    /// Reduce motion: nothing slides, glides, coasts or stretches.
+    reduce_motion: bool,
+    /// Minutes without input before the session locks; 0 for never
+    /// (`docs/history/PLAN.md` §12.3).
+    idle_lock_min: u16,
+    /// How long each frame of an animated code stays up, in ms.
+    qr_frame_ms: u64,
+    /// Minutes without input before the machine powers off, when nothing
+    /// is held and the Outbox is empty; 0 for never.
+    idle_off_min: u16,
+    /// The time zone, minutes east of UTC (`docs/TOTP.md` §2.1): −720 to
+    /// +840, a multiple of 15.
+    tz_min: i16,
+    /// Guided mode: flows show their written walk-through.
+    guided: bool,
+}
+
+impl Default for Settings {
+    fn default() -> Self {
+        Self {
+            scale_pct: 100,
+            theme: crate::ui::Theme::default(),
+            reduce_motion: false,
+            idle_lock_min: crate::IDLE_LOCK_MIN,
+            qr_frame_ms: crate::QR_SPEEDS[0],
+            idle_off_min: crate::IDLE_OFF_MIN,
+            tz_min: 0,
+            // A device that has never had a setting saved opens Steps
+            // only; Guided, with its explanations, is a choice (F82). A saved
+            // value, from the kept state or the boot stick's settings
+            // file, overwrites this before the person sees a screen.
+            guided: false,
+        }
+    }
+}
+
+impl Settings {
+    /// The display scale, in percent.
+    pub(crate) fn scale_pct(&self) -> u16 {
+        self.scale_pct
+    }
+
+    /// The palette.
+    pub(crate) fn theme(&self) -> crate::ui::Theme {
+        self.theme
+    }
+
+    /// Whether motion is reduced.
+    pub(crate) fn reduce_motion(&self) -> bool {
+        self.reduce_motion
+    }
+
+    /// Minutes of idle before the lock; 0 for never.
+    pub(crate) fn idle_lock_min(&self) -> u16 {
+        self.idle_lock_min
+    }
+
+    /// Milliseconds each frame of an animated code stays up.
+    pub(crate) fn qr_frame_ms(&self) -> u64 {
+        self.qr_frame_ms
+    }
+
+    /// Minutes of idle before the power-off; 0 for never.
+    pub(crate) fn idle_off_min(&self) -> u16 {
+        self.idle_off_min
+    }
+
+    /// The time zone, minutes east of UTC.
+    pub(crate) fn tz_min(&self) -> i16 {
+        self.tz_min
+    }
+
+    /// Whether guided mode is on.
+    pub(crate) fn guided(&self) -> bool {
+        self.guided
+    }
+
+    /// Sets the display scale.
+    pub(crate) fn set_scale(&mut self, pct: u16) {
+        self.scale_pct = pct;
+    }
+
+    /// Sets the palette.
+    pub(crate) fn set_theme(&mut self, theme: crate::ui::Theme) {
+        self.theme = theme;
+    }
+
+    /// Sets reduce motion.
+    pub(crate) fn set_reduce_motion(&mut self, on: bool) {
+        self.reduce_motion = on;
+    }
+
+    /// Sets the idle lock time.
+    pub(crate) fn set_idle_lock_min(&mut self, m: u16) {
+        self.idle_lock_min = m;
+    }
+
+    /// Sets the idle power-off time.
+    pub(crate) fn set_idle_off_min(&mut self, m: u16) {
+        self.idle_off_min = m;
+    }
+
+    /// Sets how long each frame of an animated code stays up.
+    pub(crate) fn set_qr_frame_ms(&mut self, ms: u64) {
+        self.qr_frame_ms = ms;
+    }
+
+    /// Sets guided mode.
+    pub(crate) fn set_guided(&mut self, on: bool) {
+        self.guided = on;
+    }
+
+    /// Steps the time zone by `delta` minutes, stopping at −12:00 and
+    /// +14:00.
+    pub(crate) fn step_tz(&mut self, delta: i16) {
+        self.tz_min = (self.tz_min + delta).clamp(-720, 840);
+    }
+
     /// The settings a stick carries, one `key=value` line each: what the
     /// file holds after its first line, and the start of the kept set.
-    pub(crate) fn settings_body(&self) -> String {
+    pub(crate) fn body(&self) -> String {
         format!(
             "scale={}\ntheme={}\nmotion={}\nguided={}\nqr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
             self.scale_pct,
@@ -60,20 +186,17 @@ impl Faraday {
         )
     }
 
-    /// The settings file's whole text.
-    pub(crate) fn settings_file_text(&self) -> String {
-        format!("{HEADER}\n{}", self.settings_body())
-    }
-
     /// Takes one setting if its value is one Settings offers. A line from
     /// a stick (`from_stick`) cannot choose never for an idle time.
-    pub(crate) fn apply_setting(&mut self, key: &str, value: &str, from_stick: bool) {
+    /// Returns whether it was a scale, which the glue lays out at once.
+    pub(crate) fn apply(&mut self, key: &str, value: &str, from_stick: bool) -> bool {
         match key {
             "scale" => {
                 if let Ok(p) = value.parse::<u16>()
                     && (50..=300).contains(&p)
                 {
-                    self.set_scale_kept(p);
+                    self.scale_pct = p;
+                    return true;
                 }
             }
             "theme" => {
@@ -121,11 +244,31 @@ impl Faraday {
             }
             _ => {}
         }
+        false
+    }
+}
+
+impl Faraday {
+    /// The settings a stick carries (see [`Settings::body`]).
+    pub(crate) fn settings_body(&self) -> String {
+        self.settings.body()
     }
 
-    /// A scale from the kept set or a stick, laid out at once.
-    fn set_scale_kept(&mut self, pct: u16) {
-        self.scale_pct = pct;
+    /// The settings file's whole text.
+    pub(crate) fn settings_file_text(&self) -> String {
+        format!("{HEADER}\n{}", self.settings_body())
+    }
+
+    /// Takes one setting if its value is one Settings offers; a scale is
+    /// laid out at once.
+    pub(crate) fn apply_setting(&mut self, key: &str, value: &str, from_stick: bool) {
+        if self.settings.apply(key, value, from_stick) {
+            self.layout_scale();
+        }
+    }
+
+    /// The scale just set, from the kept set or a stick, laid out at once.
+    fn layout_scale(&mut self) {
         if let Some(d) = self.last_display {
             // Only what this display adds is dropped: the first request
             // for entropy may still be waiting.
@@ -221,5 +364,48 @@ impl Faraday {
                     .as_ref()
                     .is_some_and(|b| *b != self.settings_body())
         })
+    }
+}
+
+impl Faraday {
+    /// The person's display scale, in percent of the automatic one.
+    pub fn scale_pct(&self) -> u16 {
+        self.settings.scale_pct()
+    }
+
+    /// The palette the screens are drawn in.
+    pub fn theme(&self) -> crate::ui::Theme {
+        self.settings.theme()
+    }
+
+    /// Reduce motion: nothing slides, glides, coasts or stretches.
+    pub fn reduce_motion(&self) -> bool {
+        self.settings.reduce_motion()
+    }
+
+    /// Minutes without input before the session locks; 0 for never.
+    pub fn idle_lock_min(&self) -> u16 {
+        self.settings.idle_lock_min()
+    }
+
+    /// How long each frame of an animated code stays up, in ms.
+    pub fn qr_frame_ms(&self) -> u64 {
+        self.settings.qr_frame_ms()
+    }
+
+    /// Minutes without input before the machine powers off, when nothing
+    /// is held and the Outbox is empty; 0 for never.
+    pub fn idle_off_min(&self) -> u16 {
+        self.settings.idle_off_min()
+    }
+
+    /// The time zone, minutes east of UTC: −720 to +840, a multiple of 15.
+    pub fn tz_min(&self) -> i16 {
+        self.settings.tz_min()
+    }
+
+    /// Guided mode: flows show their written walk-through.
+    pub fn guided(&self) -> bool {
+        self.settings.guided()
     }
 }

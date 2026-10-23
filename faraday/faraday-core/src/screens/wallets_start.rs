@@ -28,7 +28,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         && app.vaults.open.is_empty()
         && !app.create_unfinished()
         && app.spend.is_none();
-    if app.guided && !compact {
+    if app.guided() && !compact {
         let text = if empty {
             fill(EN.start_no_wallet_loaded, &[app.medium.a()])
         } else {

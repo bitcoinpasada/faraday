@@ -111,7 +111,7 @@ impl Faraday {
     pub fn now_local_text(&self) -> String {
         match self.clock_now() {
             Some(t) => {
-                let local = crate::vault::local_secs(t, self.tz_min);
+                let local = crate::vault::local_secs(t, self.tz_min());
                 format!(
                     "{} {}",
                     crate::gpg::date(local),
@@ -126,7 +126,7 @@ impl Faraday {
     /// +14:00 (`docs/TOTP.md` §2.1). The same action for Settings' row
     /// and Set the time's context row.
     pub(crate) fn tz_step(&mut self, delta: i16) {
-        self.tz_min = (self.tz_min + delta).clamp(-720, 840);
+        self.settings.step_tz(delta);
         self.save_boxes();
     }
 
@@ -138,7 +138,7 @@ impl Faraday {
         self.set_time.date = TextBox::default();
         self.set_time.time = TextBox::default();
         if let Some(t) = self.clock_now() {
-            let local = crate::vault::local_secs(t, self.tz_min);
+            let local = crate::vault::local_secs(t, self.tz_min());
             self.set_time.date.text.set(&crate::gpg::date(local));
         }
         self.set_time.focus = Some(Focus::Time);
@@ -178,7 +178,7 @@ impl Faraday {
             return;
         };
         let local = days_from_civil(y, m, d) * 86_400 + i64::from(h) * 3600 + i64::from(mi) * 60;
-        let utc = local - i64::from(self.tz_min) * 60;
+        let utc = local - i64::from(self.tz_min()) * 60;
         let raw = self.vaults.unix_secs.unwrap_or(0) as i64
             + (self.now_ms.saturating_sub(self.vaults.clock_at_ms) / 1000) as i64;
         self.vaults.clock_offset = Some(utc - raw);

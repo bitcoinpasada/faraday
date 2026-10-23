@@ -99,7 +99,7 @@ impl Faraday {
         let fades = self.last_drawn.is_some() && self.fades();
         if self.last_drawn.is_some() {
             let n = &mut self.fade.counts;
-            match (fades, self.reduce_motion) {
+            match (fades, self.settings.reduce_motion()) {
                 (true, _) => n.started += 1,
                 (false, true) => n.reduced += 1,
                 (false, false) => n.skipped += 1,
@@ -213,7 +213,7 @@ impl Faraday {
     /// apart for a fade to read as one rather than as steps. Until a few
     /// steps have been timed lately, it does.
     pub(crate) fn fades(&self) -> bool {
-        if self.reduce_motion {
+        if self.reduce_motion() {
             return false;
         }
         let mut gaps = self.fresh_gaps();

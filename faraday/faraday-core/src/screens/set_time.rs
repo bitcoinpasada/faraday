@@ -39,7 +39,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.text_mid(x + 22.0, y + 16.0, 32.0, 13.0, W::R, MUTED, EN.set_time_now);
     let now = app.now_local_text();
     ui.text_right(x + width - 22.0, y + 16.0, 32.0, 15.0, W::S, TEXT, &now);
-    tz_row(ui, x + 22.0, y + 60.0, width - 44.0, app.tz_min);
+    tz_row(ui, x + 22.0, y + 60.0, width - 44.0, app.tz_min());
     y += 132.0;
     // Entry: Date and Time.
     section_label(ui, x, y, EN.set_time_date);
@@ -113,7 +113,7 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     y += section(ui, x, y, w, EN.set_time_now, &|ui, x, y0, w| {
         let mut y = y0;
         y += ui.wrap(x, y, w, 15.0, W::S, TEXT, &app.now_local_text()) + 10.0;
-        y += tz_row(ui, x, y, w, app.tz_min);
+        y += tz_row(ui, x, y, w, app.tz_min());
         y - y0
     });
     section_label(ui, x, y, EN.set_time_date);

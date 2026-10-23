@@ -55,7 +55,7 @@ fn light_draws_the_page_light_and_dark_turns_it_back() {
 /// A first start is in Cobalt, on every shell.
 #[test]
 fn a_first_start_is_in_cobalt() {
-    assert_eq!(shown().theme, Theme::Cobalt);
+    assert_eq!(shown().theme(), Theme::Cobalt);
 }
 
 #[test]
@@ -74,7 +74,7 @@ fn the_choice_is_kept_across_a_lock() {
         outbox: Vec::new(),
         kept,
     });
-    assert_eq!(next.theme, Theme::Light);
+    assert_eq!(next.theme(), Theme::Light);
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn reduce_motion_is_kept_across_a_lock() {
         outbox: Vec::new(),
         kept,
     });
-    assert!(next.reduce_motion);
+    assert!(next.reduce_motion());
 }
 
 /// The page's colour in the screen's empty right margin, and the
@@ -131,7 +131,7 @@ fn every_theme_is_offered_and_each_draws_its_own_page() {
             theme.name()
         );
         app.press(Action::Theme(theme));
-        assert_eq!(app.theme, theme);
+        assert_eq!(app.theme(), theme);
         let colour = page(&mut app, &mut clock);
         assert!(
             !seen.contains(&colour),
@@ -159,6 +159,6 @@ fn a_named_theme_is_kept_across_a_lock() {
             outbox: Vec::new(),
             kept,
         });
-        assert_eq!(next.theme, theme);
+        assert_eq!(next.theme(), theme);
     }
 }

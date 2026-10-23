@@ -857,7 +857,7 @@ impl Faraday {
         if let Some(r) = self.receipt.as_ref()
             && names.iter().all(written)
         {
-            return (on_stick(&r.label, r.time, self.tz_min), Tone::Ok);
+            return (on_stick(&r.label, r.time, self.tz_min()), Tone::Ok);
         }
         if names
             .iter()
@@ -968,7 +968,10 @@ impl Faraday {
                     .as_ref()
                     .filter(|r| r.label == label && r.wrote(&f.name))
                     .and_then(|r| r.time);
-                (lower_first(&on_stick(&label, time, self.tz_min)), Tone::Ok)
+                (
+                    lower_first(&on_stick(&label, time, self.tz_min())),
+                    Tone::Ok,
+                )
             }
             Some(Currency::NeverWritten) => (self.medium.for_the().to_string(), Tone::Warn),
             Some(Currency::Changed) => (EN.backups_changed_since.to_string(), Tone::Warn),

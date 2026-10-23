@@ -1137,23 +1137,9 @@ pub struct Faraday {
     /// The exit asked for a restart of the computer, not a power-off.
     restart_computer: bool,
     last_display: Option<DisplayInfo>,
-    /// The person's display scale, in percent of the automatic one.
-    pub scale_pct: u16,
-    /// The palette the screens are drawn in.
-    pub theme: ui::Theme,
-    /// Reduce motion: nothing slides, glides, coasts or stretches.
-    pub reduce_motion: bool,
-    /// Minutes without input before the session locks; 0 for never
-    /// (`docs/history/PLAN.md` §12.3).
-    pub idle_lock_min: u16,
-    /// How long each frame of an animated code stays up, in ms.
-    pub qr_frame_ms: u64,
-    /// Minutes without input before the machine powers off, when nothing
-    /// is held and the Outbox is empty; 0 for never.
-    pub idle_off_min: u16,
-    /// The time zone, minutes east of UTC (`docs/TOTP.md` §2.1): −720 to
-    /// +840, a multiple of 15.
-    pub tz_min: i16,
+    /// What the person chose: scale, theme, motion, idle times, QR speed,
+    /// time zone and guided mode (`stick/settings.rs`).
+    settings: stick::settings::Settings,
     /// Setting the time by hand (`docs/TOTP.md` §3).
     pub set_time: set_time::SetTime,
     /// When the last input came, on this process's clock; set at the
@@ -1286,8 +1272,6 @@ pub struct Faraday {
     /// read from it at boot, or written to it since; `None` until the
     /// boot stick has been looked at (`stick_settings`).
     pub stick_settings: Option<String>,
-    /// Guided mode: flows show their written walk-through.
-    pub guided: bool,
     /// On a small panel, the height of the pinned bar the last frame
     /// drew: the page is laid out above it.
     pub(crate) pin_h: std::cell::Cell<f32>,
@@ -1526,13 +1510,7 @@ impl Faraday {
             restart: false,
             restart_computer: false,
             last_display: None,
-            scale_pct: 100,
-            theme: ui::Theme::default(),
-            reduce_motion: false,
-            idle_lock_min: IDLE_LOCK_MIN,
-            qr_frame_ms: QR_SPEEDS[0],
-            idle_off_min: IDLE_OFF_MIN,
-            tz_min: 0,
+            settings: stick::settings::Settings::default(),
             set_time: set_time::SetTime::default(),
             last_input: None,
             idle_carry: 0,
@@ -1589,11 +1567,6 @@ impl Faraday {
             visit: VisitState::default(),
             import: None,
             stick_settings: None,
-            // A device that has never had a setting saved opens Steps
-            // only; Guided, with its explanations, is a choice (F82). A saved
-            // value, from the kept state or the boot stick's settings
-            // file, overwrites this before the person sees a screen.
-            guided: false,
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
             card_offset: 0.0,
@@ -2171,8 +2144,8 @@ impl Faraday {
     /// When the idle warning comes up and when the lock follows, ms
     /// without input; `None` when the session never locks for idleness.
     pub(crate) fn idle_lock_at(&self) -> Option<(u64, u64)> {
-        (self.idle_lock_min > 0).then(|| {
-            let lock = u64::from(self.idle_lock_min) * 60_000;
+        (self.idle_lock_min() > 0).then(|| {
+            let lock = u64::from(self.idle_lock_min()) * 60_000;
             (lock - IDLE_WARN_MS.min(lock / 2), lock)
         })
     }
@@ -2180,12 +2153,12 @@ impl Faraday {
     /// Ms without input at which the machine powers off, when it would:
     /// nothing held, nothing in the Outbox, not the online app.
     pub(crate) fn idle_off_at(&self) -> Option<u64> {
-        (self.idle_off_min > 0
+        (self.idle_off_min() > 0
             && !self.online
             && !self.lockable()
             && self.outbox.is_empty()
             && !self.flow_screen())
-        .then(|| u64::from(self.idle_off_min) * 60_000)
+        .then(|| u64::from(self.idle_off_min()) * 60_000)
     }
 
     /// The idle timers (`docs/history/PLAN.md` §12.3). Returns whether the screen
@@ -2230,8 +2203,8 @@ impl Faraday {
                 }
             }
         }
-        if self.idle_lock_min > 0
-            && idle >= u64::from(self.idle_lock_min) * min
+        if self.idle_lock_min() > 0
+            && idle >= u64::from(self.idle_lock_min()) * min
             && self.lockable()
             && self.idle_locking.is_none()
             && !held
@@ -2243,8 +2216,8 @@ impl Faraday {
             self.lock_now();
             return true;
         }
-        if self.idle_off_min > 0
-            && idle >= u64::from(self.idle_off_min) * min
+        if self.idle_off_min() > 0
+            && idle >= u64::from(self.idle_off_min()) * min
             && !self.online
             && !self.lockable()
             && !self.flow_screen()
@@ -2476,7 +2449,7 @@ impl Faraday {
             motion::TOAST_MS,
         ));
         let left = until.saturating_sub(self.now_ms) as f32 / motion::TOAST_MS as f32;
-        let lift = if self.reduce_motion {
+        let lift = if self.reduce_motion() {
             0.0
         } else {
             10.0 * (1.0 - rise)
@@ -3108,11 +3081,11 @@ impl Faraday {
                 self.out.commands.push_back(Command::Exit);
             }
             Action::IdleLock(m) => {
-                self.idle_lock_min = m;
+                self.settings.set_idle_lock_min(m);
                 self.save_boxes();
             }
             Action::IdleOff(m) => {
-                self.idle_off_min = m;
+                self.settings.set_idle_off_min(m);
                 self.save_boxes();
             }
             // `act_inner` passes only the actions matched above.
@@ -3524,12 +3497,12 @@ impl Faraday {
                 self.panel.toggle_about(self.screen, k);
             }
             Action::Guided(on) => {
-                if on != self.guided {
+                if on != self.guided() {
                     // The switch's pill slides from where it shows now.
                     let from = self.guided_shown();
-                    self.guided_moving = (!self.reduce_motion).then_some((from, None));
+                    self.guided_moving = (!self.reduce_motion()).then_some((from, None));
                 }
-                self.guided = on;
+                self.settings.set_guided(on);
                 self.save_boxes();
             }
             Action::SealAmounts(on) => {
@@ -3638,19 +3611,19 @@ impl Faraday {
             | Action::QrPartSize(..)
             | Action::QrSpeed(..)) => self.qr_act(a, &c),
             Action::Scale(pct) => {
-                self.scale_pct = pct;
+                self.settings.set_scale(pct);
                 if let Some(d) = self.last_display {
                     self.display(d);
                 }
                 self.save_boxes();
             }
             Action::ReduceMotion(on) => {
-                self.reduce_motion = on;
+                self.settings.set_reduce_motion(on);
                 self.motion.stop();
                 self.save_boxes();
             }
             Action::Theme(theme) => {
-                self.theme = theme;
+                self.settings.set_theme(theme);
                 self.save_boxes();
             }
             // Acted on before any other press (`act_inner`).
@@ -8092,7 +8065,7 @@ impl Faraday {
         let extent = self.region_now();
         let (f, h) = (self.f.max(0.1), self.h);
         let mut m = std::mem::take(&mut self.motion);
-        m.rigid = self.reduce_motion;
+        m.rigid = self.reduce_motion();
         let out = self.scroll_slot().map(|offset| {
             let mut region = motion::Region {
                 offset,
@@ -8126,7 +8099,7 @@ impl Faraday {
 
     /// A wheel or a key asked for `dy` units: the content glides there.
     fn glide(&mut self, dy: f32) {
-        if self.reduce_motion {
+        if self.reduce_motion() {
             self.with_region(|m, r| m.jump(r, dy));
         } else if self.scroll_slot().is_some() {
             // A glide on the region the pointer has just moved to starts
@@ -8475,7 +8448,7 @@ impl Faraday {
             let column = {
                 let mut ui = ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed.map(|p| p.0));
                 ui.edit = self.edit_now();
-                ui.theme = self.theme;
+                ui.theme = self.theme();
                 ui.hovered = self.hovered;
                 ui.dimmed = self.demo_dimmed();
                 ui.stretch = stretch;
@@ -8483,7 +8456,7 @@ impl Faraday {
                 ui.stretch_in_sheet = self.sheet.is_some_and(Sheet::scrolls_with_bar)
                     || (self.compact && self.sheet.is_some());
                 ui.disclosure = disclosure;
-                let frost_key = ((self.screen, self.sheet), self.theme);
+                let frost_key = ((self.screen, self.sheet), self.theme());
                 ui.frost = self
                     .frost
                     .take()
@@ -8513,7 +8486,7 @@ impl Faraday {
         }
         if let Some(want) = follow_to {
             let now = self.scroll_slot().map_or(want, |o| *o);
-            if self.reduce_motion {
+            if self.reduce_motion() {
                 self.with_region(|m, r| m.jump(r, want - now));
             } else {
                 self.motion.glide_to(want - now);
@@ -8540,13 +8513,13 @@ impl Faraday {
     /// and off for one, starting on at the last key or press. Steady with
     /// reduce motion.
     fn caret_on(&self) -> bool {
-        self.typing.caret_on(self.now_ms, self.reduce_motion)
+        self.typing.caret_on(self.now_ms, self.reduce_motion())
     }
 
     /// Where the Guided switch's pill shows: 0 on Steps only, 1 on
     /// Guided, between while it slides.
     fn guided_shown(&self) -> f32 {
-        let to = if self.guided { 1.0 } else { 0.0 };
+        let to = if self.guided() { 1.0 } else { 0.0 };
         match self.guided_moving {
             Some((from, at)) => {
                 let t = motion::ease_out(motion::progress(at, self.now_ms, motion::SWITCH_MS));
@@ -8565,7 +8538,7 @@ impl Faraday {
             return false;
         };
         let opened = match self.disclosed.as_mut() {
-            Some(d) if d.key == key && d.open != open && self.reduce_motion => {
+            Some(d) if d.key == key && d.open != open && self.settings.reduce_motion() => {
                 d.open = open;
                 d.body_h = body_h;
                 false
@@ -9285,7 +9258,7 @@ impl App for Faraday {
                     self.out.commands.push_back(Command::Draw);
                 }
                 self.zero_tick();
-                if self.qr.tick(now_ms, self.qr_frame_ms) {
+                if self.qr.tick(now_ms, self.settings.qr_frame_ms()) {
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
                 }
@@ -9457,7 +9430,7 @@ impl Faraday {
         } else {
             fit.min(density * 1.25)
         };
-        let f = (base * f32::from(self.scale_pct) / 100.0).max(0.5);
+        let f = (base * f32::from(self.scale_pct()) / 100.0).max(0.5);
         let scaled = DisplayInfo {
             dpi: (160.0 * f).round().max(1.0) as u16,
             ..d

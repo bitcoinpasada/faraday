@@ -1266,7 +1266,7 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if q.frames.len() > 1 {
         bx += 14.0;
         for (label, ms) in ["2/s", "3/s", "5/s"].iter().zip(crate::QR_SPEEDS) {
-            let on = app.qr_frame_ms == ms;
+            let on = app.qr_frame_ms() == ms;
             bx += ui.button(
                 bx,
                 row,
@@ -1349,7 +1349,7 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
     let animated = q.frames.len() > 1;
     let sp = crate::QR_SPEEDS
         .iter()
-        .position(|ms| *ms == app.qr_frame_ms)
+        .position(|ms| *ms == app.qr_frame_ms())
         .unwrap_or(0);
     let pp = crate::QR_PARTS
         .iter()
@@ -1642,7 +1642,7 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             app.medium.for_the()
         ),
     ));
-    let off = match (app.idle_off_min, app.online) {
+    let off = match (app.idle_off_min(), app.online) {
         (0, _) | (_, true) => EN.idle_warn_no_power.to_string(),
         (m, false) => fill(
             EN.idle_warn_power_off,
@@ -1664,7 +1664,7 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         EN.idle_warn_no_input,
         &[
             &minutes(app.idle_warn_min).to_string(),
-            &minutes(u64::from(app.idle_lock_min)).to_string(),
+            &minutes(u64::from(app.idle_lock_min())).to_string(),
         ],
     );
     if ui.compact {

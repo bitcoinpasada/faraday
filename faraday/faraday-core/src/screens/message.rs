@@ -70,7 +70,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h,
         back: Some(app.named_back((EN.message_wallets, Action::Nav(Screen::WalletsStart)))),
         heading: EN.message_sign_a_message,
-        guided: app.guided,
+        guided: app.guided(),
         switch: true,
         note: None,
         chip: None,

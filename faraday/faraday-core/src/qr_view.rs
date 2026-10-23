@@ -618,7 +618,7 @@ impl Faraday {
                 }
             }
             Action::QrSpeed(ms) => {
-                self.qr_frame_ms = ms;
+                self.settings.set_qr_frame_ms(ms);
                 self.save_boxes();
             }
             // `act_inner` passes only the actions matched above.

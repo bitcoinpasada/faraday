@@ -431,7 +431,7 @@ fn cap(s: &str) -> String {
 }
 
 fn read_time(app: &View, at: Option<u64>) -> String {
-    at.map(|t| vault::time_of_day(vault::local_secs(t, app.tz_min)))
+    at.map(|t| vault::time_of_day(vault::local_secs(t, app.tz_min())))
         .unwrap_or_default()
 }
 
@@ -1162,7 +1162,7 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
     };
     match f.kind {
         Kind::Apk => {
-            if let Some(s) = crate::apk::shown(r, app.tz_min) {
+            if let Some(s) = crate::apk::shown(r, app.tz_min()) {
                 cy += row(ui, x, cy, w, FEN.apk_name, &s.name, false);
                 cy += row(ui, x, cy, w, FEN.apk_package, &s.package, false);
                 cy += row(
@@ -1183,7 +1183,7 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             }
         }
         Kind::Gpg => {
-            if let Some(g) = crate::gpg::shown(r, app.tz_min) {
+            if let Some(g) = crate::gpg::shown(r, app.tz_min()) {
                 for uid in &g.user_ids {
                     cy += row(ui, x, cy, w, FEN.vault_user_id, uid, false);
                 }

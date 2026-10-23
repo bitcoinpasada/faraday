@@ -374,7 +374,7 @@ impl Faraday {
                 if r.kind() != kind::APK_KEY || r.public_text(field::APK_PACKAGE) != Some(package) {
                     continue;
                 }
-                if let Some(s) = shown(r, self.tz_min) {
+                if let Some(s) = shown(r, self.tz_min()) {
                     out.push((v, at, s.name, fingerprint_of(r).unwrap_or_default()));
                 }
             }
@@ -579,7 +579,7 @@ impl Faraday {
         let (Some(cert), Some(fp)) = (r.public(field::APK_CERT), fingerprint_of(r)) else {
             return;
         };
-        let Some(s) = shown(r, self.tz_min) else {
+        let Some(s) = shown(r, self.tz_min()) else {
             return;
         };
         let name = format!("{}-certificate.pem", file_stem(&s.name, &fp));
@@ -597,7 +597,7 @@ impl Faraday {
             .public(field::APK_CERT)
             .ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
         let fp = fingerprint_of(r).unwrap_or_default();
-        let s = shown(r, self.tz_min).ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
+        let s = shown(r, self.tz_min()).ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
         let stem = file_stem(&s.name, &fp);
         let lines = vec![
             s.name.clone(),

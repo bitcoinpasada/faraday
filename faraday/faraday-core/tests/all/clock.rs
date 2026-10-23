@@ -248,8 +248,8 @@ fn a_tz_line_in_steps_of_15_minutes_is_applied() {
     let good = booted(Some(
         b"faraday-settings 1\ntz=+05:30\nscale=125\n".as_slice(),
     ));
-    assert_eq!(good.tz_min, 330);
-    assert_eq!(good.scale_pct, 125, "the rest of the file still applies");
+    assert_eq!(good.tz_min(), 330);
+    assert_eq!(good.scale_pct(), 125, "the rest of the file still applies");
     for bad in [
         "faraday-settings 1\ntz=+05:20\n",
         "faraday-settings 1\ntz=+15:00\n",
@@ -257,7 +257,7 @@ fn a_tz_line_in_steps_of_15_minutes_is_applied() {
         "faraday-settings 1\ntz=x\n",
     ] {
         let app = booted(Some(bad.as_bytes()));
-        assert_eq!(app.tz_min, 0, "{bad:?}");
+        assert_eq!(app.tz_min(), 0, "{bad:?}");
     }
 }
 
@@ -290,7 +290,7 @@ fn written_to_stick_shows_the_local_time() {
         }
     }
     let r = app.receipt.as_ref().expect("a receipt");
-    assert_eq!(r.heading(app.tz_min), "Written to FIRST at 08:02");
+    assert_eq!(r.heading(app.tz_min()), "Written to FIRST at 08:02");
 }
 
 #[test]

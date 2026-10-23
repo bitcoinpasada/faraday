@@ -33,7 +33,7 @@ fn pixels(app: &mut Faraday) -> Vec<u8> {
 #[test]
 fn a_button_under_the_pointer_shows_it_and_stops_when_the_pointer_leaves() {
     let mut app = settings();
-    let theme = app.theme;
+    let theme = app.theme();
     let before = pixels(&mut app);
     let (x, y) = app.where_offered(Action::Theme(Theme::Light)).unwrap();
     app.event(Event::Hover { x, y });
@@ -47,7 +47,7 @@ fn a_button_under_the_pointer_shows_it_and_stops_when_the_pointer_leaves() {
         pixels(&mut app) == before,
         "and as it was once the pointer leaves"
     );
-    assert_eq!(app.theme, theme, "hovering pressed nothing");
+    assert_eq!(app.theme(), theme, "hovering pressed nothing");
 }
 
 #[test]

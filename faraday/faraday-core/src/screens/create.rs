@@ -107,7 +107,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (EN.create_wallets, Action::Nav(Screen::WalletsStart))
         })),
         heading: EN.create_make_a_new_wallet,
-        guided: app.guided,
+        guided: app.guided(),
         switch: true,
         note: None,
         chip: None,
