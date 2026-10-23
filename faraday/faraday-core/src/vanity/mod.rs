@@ -16,7 +16,10 @@ use faraday_bip::keys::{Fingerprint, ScriptType};
 use faraday_bip::vanity as engine;
 
 use crate::create::NewKind;
+use crate::out::Out;
 use crate::{Faraday, Screen, flow};
+use faraday_crypto::work::Compute;
+use faraday_keys::Keys;
 
 /// The cards, in order.
 pub mod vstep {
@@ -105,15 +108,59 @@ pub fn dial_name(d: Dial) -> (&'static str, &'static str) {
     }
 }
 
-impl Faraday {
-    fn vanity_open(&mut self) {
-        if self.session.keys.is_empty() {
-            self.toast(EN.vanity_load_a_key_first);
-            return;
+/// The vanity screen's area: its state while it is open.
+#[derive(Default)]
+pub(crate) struct VanityArea {
+    state: Option<VanityState>,
+}
+
+impl VanityArea {
+    /// The screen's state, while it is open.
+    pub(crate) fn state(&self) -> Option<&VanityState> {
+        self.state.as_ref()
+    }
+
+    /// Opens card `step`, for the test kit.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn open_card(&mut self, step: u8) {
+        if let Some(v) = self.state.as_mut() {
+            v.open = Some(step);
         }
-        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint.0);
-        let net = self.session.network();
-        self.vanity = Some(VanityState {
+    }
+
+    /// Forgets the screen's state.
+    pub(crate) fn clear(&mut self) {
+        self.state = None;
+    }
+
+    /// The column's scroll, while the screen is open.
+    pub(crate) fn scroll_mut(&mut self) -> Option<&mut flow::Scroll> {
+        self.state.as_mut().map(|v| &mut v.scroll)
+    }
+
+    /// Takes the column's scroll as the pass left it.
+    pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
+        if let Some(v) = self.state.as_mut() {
+            v.scroll = to;
+        }
+    }
+
+    /// Whether the prefix card is open and its characters are being typed.
+    pub(crate) fn typing_prefix(&self) -> bool {
+        self.state
+            .as_ref()
+            .is_some_and(|v| v.open == Some(vstep::PREFIX) && !v.running)
+    }
+
+    /// Opens the screen on `key` (the only key loaded, if there is one),
+    /// to return to `back`, for addresses on `net`.
+    pub(crate) fn open(
+        &mut self,
+        key: Option<[u8; 4]>,
+        net: faraday_bip::keys::Network,
+        back: Screen,
+    ) {
+        self.state = Some(VanityState {
             open: Some(if key.is_some() {
                 vstep::DIAL
             } else {
@@ -125,39 +172,29 @@ impl Faraday {
             grind: Grind::new(Dial::Account, ScriptType::NativeSegwit, net),
             running: false,
             shown: false,
-            back: self.screen,
+            back,
             error: None,
         });
-        self.screen = Screen::Vanity;
     }
 
-    /// The key chosen, from the session.
-    fn vanity_key(&self) -> Option<usize> {
-        let fp = self.vanity.as_ref()?.key?;
-        self.session.keys.position_of(fp)
+    /// The key chosen, from `keys`.
+    pub(crate) fn key_in(&self, keys: &Keys) -> Option<usize> {
+        let fp = self.state.as_ref()?.key?;
+        keys.position_of(fp)
     }
 
-    /// Whether the chosen key can turn the passphrase dial: only a key
-    /// loaded from BIP-39 words can.
-    pub fn vanity_has_words(&self) -> bool {
-        self.vanity_key()
-            .is_some_and(|k| self.session.keys[k].has_words())
-    }
-
-    /// Runs one of the screen's actions.
-    pub(crate) fn vanity_act(&mut self, a: VanityAction) {
+    /// Runs one of the screen's actions other than Open and Use, for
+    /// addresses on `net` at `now`. `words` is whether the chosen key can
+    /// turn the passphrase dial and the session makes secrets.
+    pub(crate) fn act(
+        &mut self,
+        a: VanityAction,
+        net: faraday_bip::keys::Network,
+        now: u64,
+        words: bool,
+    ) {
         use VanityAction as V;
-        if a == V::Open {
-            return self.vanity_open();
-        }
-        if a == V::Use {
-            return self.vanity_use();
-        }
-        let net = self.session.network();
-        let now = self.now_ms;
-        // The demo searches no passphrase: what it finds is a new key.
-        let words = self.vanity_has_words() && self.makes_secrets();
-        let Some(v) = self.vanity.as_mut() else {
+        let Some(v) = self.state.as_mut() else {
             return;
         };
         v.error = None;
@@ -231,17 +268,16 @@ impl Faraday {
         }
     }
 
-    /// One tick of a search under way: a budget of candidates, the rate
-    /// measured, the find kept. Returns whether to draw.
-    pub(crate) fn vanity_tick(&mut self, now_ms: u64) -> bool {
-        let c = self.compute();
-        if self.screen != Screen::Vanity || !self.vanity.as_ref().is_some_and(|v| v.running) {
+    /// Costs a budget of candidates tested. One tick of a search under
+    /// way: the rate measured, the find kept. Returns whether to draw.
+    pub(crate) fn tick(&mut self, now_ms: u64, c: &Compute, keys: &Keys, out: &mut Out) -> bool {
+        if !self.state.as_ref().is_some_and(|v| v.running) {
             return false;
         }
-        let Some(key) = self.vanity_key() else {
+        let Some(key) = self.key_in(keys) else {
             return false;
         };
-        let Some(v) = self.vanity.as_ref() else {
+        let Some(v) = self.state.as_ref() else {
             return false;
         };
         let g = &v.grind;
@@ -249,8 +285,8 @@ impl Faraday {
             Dial::Account => faraday_keys::Dial::Account,
             Dial::Passphrase => faraday_keys::Dial::Passphrase,
         };
-        let Some(outcome) = self.session.keys.vanity_grind(
-            &c,
+        let Some(outcome) = keys.vanity_grind(
+            c,
             key,
             dial,
             g.script,
@@ -260,7 +296,7 @@ impl Faraday {
         ) else {
             return false;
         };
-        let Some(v) = self.vanity.as_mut() else {
+        let Some(v) = self.state.as_mut() else {
             return false;
         };
         v.grind.ticked(outcome.tested, now_ms);
@@ -272,11 +308,105 @@ impl Faraday {
             v.running = false;
             v.error = Some(EN.vanity_every_counter.into());
         }
-        self.out.dirty = true;
-        self.out
-            .commands
-            .push_back(faraday_shell_api::Command::Draw);
+        out.dirty = true;
+        out.command(faraday_shell_api::Command::Draw);
         true
+    }
+
+    /// Typing on the vanity screen: the prefix's characters, Backspace,
+    /// Enter to go on. Returns whether the key was taken.
+    pub(crate) fn key(
+        &mut self,
+        k: faraday_shell_api::Key,
+        screen: &mut Screen,
+        net: faraday_bip::keys::Network,
+        now: u64,
+        words: bool,
+    ) -> bool {
+        use faraday_shell_api::Key as K;
+        if *screen != Screen::Vanity {
+            return false;
+        }
+        let Some(v) = self.state.as_mut() else {
+            return false;
+        };
+        match k {
+            K::Escape => {
+                *screen = v.back;
+                self.state = None;
+            }
+            K::Char(c) if v.open == Some(vstep::PREFIX) && !v.running => {
+                if !v.grind.prefix.push(c, v.grind.script, net) {
+                    v.error = Some(fill(EN.vanity_cannot_stand, &[&c.to_string()]));
+                } else {
+                    v.error = None;
+                }
+            }
+            K::Backspace if v.open == Some(vstep::PREFIX) && !v.running => {
+                v.grind.prefix.pop(v.grind.script, net);
+                v.error = None;
+            }
+            K::Enter if v.open == Some(vstep::PREFIX) => {
+                self.act(VanityAction::Next(vstep::PREFIX), net, now, words);
+            }
+            _ => return false,
+        }
+        true
+    }
+}
+
+impl Faraday {
+    /// The vanity screen's state, while it is open.
+    pub fn vanity(&self) -> Option<&VanityState> {
+        self.vanity.state()
+    }
+
+    fn vanity_open(&mut self) {
+        if self.session.keys.is_empty() {
+            self.toast(EN.vanity_load_a_key_first);
+            return;
+        }
+        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint.0);
+        let net = self.session.network();
+        self.vanity.open(key, net, self.screen);
+        self.screen = Screen::Vanity;
+    }
+
+    /// The key chosen, from the session.
+    fn vanity_key(&self) -> Option<usize> {
+        self.vanity.key_in(&self.session.keys)
+    }
+
+    /// Whether the chosen key can turn the passphrase dial: only a key
+    /// loaded from BIP-39 words can.
+    pub fn vanity_has_words(&self) -> bool {
+        self.vanity_key()
+            .is_some_and(|k| self.session.keys[k].has_words())
+    }
+
+    /// Runs one of the screen's actions.
+    pub(crate) fn vanity_act(&mut self, a: VanityAction) {
+        match a {
+            VanityAction::Open => self.vanity_open(),
+            VanityAction::Use => self.vanity_use(),
+            _ => {
+                let net = self.session.network();
+                // The demo searches no passphrase: what it finds is a new key.
+                let words = self.vanity_has_words() && self.makes_secrets();
+                self.vanity.act(a, net, self.now_ms, words);
+            }
+        }
+    }
+
+    /// One tick of a search under way: a budget of candidates, the rate
+    /// measured, the find kept. Returns whether to draw.
+    pub(crate) fn vanity_tick(&mut self, now_ms: u64) -> bool {
+        let c = self.compute();
+        if self.screen != Screen::Vanity {
+            return false;
+        }
+        self.vanity
+            .tick(now_ms, &c, &self.session.keys, &mut self.out)
     }
 
     /// The wallet the find belongs to, opened: on the account dial the
@@ -289,7 +419,7 @@ impl Faraday {
         let Some(key) = self.vanity_key() else {
             return;
         };
-        let Some(v) = self.vanity.as_ref() else {
+        let Some(v) = self.vanity.state() else {
             return;
         };
         let Some(find) = v.grind.find.as_ref() else {
@@ -353,7 +483,7 @@ impl Faraday {
         ) {
             Ok(i) => {
                 self.refresh_spend();
-                self.vanity = None;
+                self.vanity.clear();
                 self.wallet = i;
                 self.screen = Screen::Wallets;
                 self.toast(&fill(EN.vanity_is_open, &[&name.to_string()]));
@@ -362,39 +492,12 @@ impl Faraday {
         }
     }
 
-    /// Typing on the vanity screen: the prefix's characters, Backspace,
-    /// Enter to go on. Returns whether the key was taken.
+    /// Typing on the vanity screen. Returns whether the key was taken.
     pub(crate) fn vanity_key_in(&mut self, k: faraday_shell_api::Key) -> bool {
-        use faraday_shell_api::Key as K;
-        if self.screen != Screen::Vanity {
-            return false;
-        }
         let net = self.session.network();
-        let Some(v) = self.vanity.as_mut() else {
-            return false;
-        };
-        match k {
-            K::Escape => {
-                self.screen = v.back;
-                self.vanity = None;
-            }
-            K::Char(c) if v.open == Some(vstep::PREFIX) && !v.running => {
-                if !v.grind.prefix.push(c, v.grind.script, net) {
-                    v.error = Some(fill(EN.vanity_cannot_stand, &[&c.to_string()]));
-                } else {
-                    v.error = None;
-                }
-            }
-            K::Backspace if v.open == Some(vstep::PREFIX) && !v.running => {
-                v.grind.prefix.pop(v.grind.script, net);
-                v.error = None;
-            }
-            K::Enter if v.open == Some(vstep::PREFIX) => {
-                self.vanity_act(VanityAction::Next(vstep::PREFIX));
-            }
-            _ => return false,
-        }
-        true
+        let words = self.vanity_has_words() && self.makes_secrets();
+        self.vanity
+            .key(k, &mut self.screen, net, self.now_ms, words)
     }
 }
 

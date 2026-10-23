@@ -110,16 +110,12 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
         t.now += 100;
         t.app.event(Event::Tick { now_ms: t.now });
         t.pump();
-        if t.app
-            .vanity
-            .as_ref()
-            .is_some_and(|v| v.grind.find.is_some())
-        {
+        if t.app.vanity().is_some_and(|v| v.grind.find.is_some()) {
             break;
         }
     }
-    if t.app.vanity.as_ref().is_none_or(|v| v.grind.find.is_none()) {
-        let v = t.app.vanity.as_ref();
+    if t.app.vanity().is_none_or(|v| v.grind.find.is_none()) {
+        let v = t.app.vanity();
         return Err(format!(
             "the vanity search found nothing: running {:?} tried {:?} prefix {:?} error {:?} screen {:?}",
             v.map(|v| v.running),

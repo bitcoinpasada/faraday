@@ -1546,3 +1546,8 @@ pub fn wordlist(app: &crate::Faraday) -> Option<&crate::wordlist::WordListState>
 pub fn learn_scroll_to(app: &mut crate::Faraday, y: f32) {
     *app.learn.scroll_mut() = y;
 }
+
+/// Opens the vanity screen's card `step`, as a press on it does.
+pub fn vanity_open_card(app: &mut crate::Faraday, step: u8) {
+    app.vanity.open_card(step);
+}

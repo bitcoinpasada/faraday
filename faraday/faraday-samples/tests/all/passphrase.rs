@@ -363,10 +363,7 @@ fn in_demo_lightnings_cipher_seed_row_fills_lnds_vector_and_shows_its_node_id() 
         .iter()
         .find(|k| k.form == SampleForm::Aezeed)
         .expect("the cipher seed");
-    assert_eq!(
-        app.lightning().unwrap().typed.as_str(),
-        sample.parts[0]
-    );
+    assert_eq!(app.lightning().unwrap().typed.as_str(), sample.parts[0]);
     app.press(Action::LResolve);
     settle(&mut app);
     let l = app.lightning().unwrap();
@@ -402,10 +399,7 @@ fn in_demo_an_aezeed_passphrase_offers_faraday_and_can_be_typed() {
     let _ = app.frame();
     assert!(app.offers(Action::PassChip(PassField::Aezeed)));
     app.press(Action::PassChip(PassField::Aezeed));
-    assert_eq!(
-        app.lightning().unwrap().passphrase.as_str(),
-        "faraday"
-    );
+    assert_eq!(app.lightning().unwrap().passphrase.as_str(), "faraday");
     let _ = app.frame();
     assert!(shows(&mut app, "faraday"));
     app.press(Action::LPassphrase);

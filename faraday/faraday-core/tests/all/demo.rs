@@ -504,9 +504,7 @@ fn vanity(app: &mut Faraday) -> bool {
     a_key(app);
     app.press(Action::Vanity(VA::Open));
     assert_eq!(app.screen, Screen::Vanity, "Vanity address opens");
-    if let Some(v) = app.vanity.as_mut() {
-        v.open = Some(faraday_core::vanity::vstep::DIAL);
-    }
+    testkit::vanity_open_card(app, faraday_core::vanity::vstep::DIAL);
     let live = offered(app, Action::Vanity(VA::Dial(passphrase_dial())));
     app.press(Action::Vanity(VA::Dial(passphrase_dial())));
     live
@@ -516,12 +514,12 @@ fn vanity(app: &mut Faraday) -> bool {
 fn in_the_demo_the_vanity_passphrase_dial_is_dimmed() {
     let mut app = app_on(true);
     assert!(!vanity(&mut app));
-    assert_eq!(app.vanity.as_ref().unwrap().grind.dial, Dial::Account);
+    assert_eq!(app.vanity().unwrap().grind.dial, Dial::Account);
     assert!(offered(&mut app, Action::Vanity(VA::Dial(0))) || passphrase_dial() == 0);
 
     let mut app = app_on(false);
     assert!(vanity(&mut app));
-    assert_eq!(app.vanity.as_ref().unwrap().grind.dial, Dial::Passphrase);
+    assert_eq!(app.vanity().unwrap().grind.dial, Dial::Passphrase);
 }
 
 /// Lightning node key from bacon, with the test vault open. Returns
@@ -545,10 +543,7 @@ fn in_the_demo_a_lightning_node_key_stays_in_faraday() {
     assert!(!offered(&mut app, Action::LShow), "Show is offered");
     let files = app.outbox.len();
     app.press(Action::LShow);
-    assert!(
-        !app.lightning().unwrap().shown,
-        "the private key is shown"
-    );
+    assert!(!app.lightning().unwrap().shown, "the private key is shown");
     let private = {
         let n = app.lightning().unwrap().node.as_ref().unwrap();
         n.private_hex(faraday_keys::Reveal::LightningKey)

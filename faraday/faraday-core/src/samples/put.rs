@@ -765,8 +765,7 @@ impl Faraday {
     /// Whether the aezeed's words field draws Use a sample: Demo, the
     /// cipher seed chosen, nothing typed or pressed. A lookup.
     pub fn lightning_sample_shown(&self) -> bool {
-        self.put_on().is_some()
-            && self.lightning.sample_shown()
+        self.put_on().is_some() && self.lightning.sample_shown()
     }
 
     /// Handles `UseSample` on Lightning: the sample cipher seed's words

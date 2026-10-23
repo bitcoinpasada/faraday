@@ -31,7 +31,7 @@ fn search(app: &mut Faraday, chars: &str) -> String {
     app.press(Action::Vanity(V::Start));
     for t in 1..5000u64 {
         app.event(Event::Tick { now_ms: t * 100 });
-        let v = app.vanity.as_ref().unwrap();
+        let v = app.vanity().unwrap();
         if let Some(f) = &v.grind.find {
             return f.address.as_str().to_string();
         }
@@ -53,15 +53,7 @@ fn the_account_dial_finds_an_address_and_opens_its_wallet() {
     let mut app = with_key();
     let found = search(&mut app, "q");
     assert!(found.starts_with("tb1qq"), "{found}");
-    let account = app
-        .vanity
-        .as_ref()
-        .unwrap()
-        .grind
-        .find
-        .as_ref()
-        .unwrap()
-        .account;
+    let account = app.vanity().unwrap().grind.find.as_ref().unwrap().account;
     assert!(account > 0, "account 0 already matched: a weak test");
     assert_eq!(opened_address(&mut app), found);
     assert_eq!(
@@ -98,7 +90,7 @@ fn a_character_that_cannot_start_the_address_is_refused() {
     app.press(Action::Vanity(V::Next(vstep::SCRIPT)));
     // Bech32 has no b, i, o or 1.
     app.event(Event::Key(Key::Char('b')));
-    let v = app.vanity.as_ref().unwrap();
+    let v = app.vanity().unwrap();
     assert!(v.error.is_some());
     assert_eq!(v.grind.prefix.as_str(), "tb1q");
 }

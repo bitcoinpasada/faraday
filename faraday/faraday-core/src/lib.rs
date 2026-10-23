@@ -1355,7 +1355,7 @@ pub struct Faraday {
     /// The Spend tab.
     pub family: family::FamilyState,
     /// A vanity address being searched for.
-    pub vanity: Option<vanity::VanityState>,
+    vanity: vanity::VanityArea,
     /// The backup flow.
     pub backup: Option<BackupState>,
     /// Signing a message.
@@ -1675,7 +1675,7 @@ impl Faraday {
             bar_seen: (((Screen::Home, None), ui::Slot::Page), 0.0, 0),
             qr: None,
             family: family::FamilyState::default(),
-            vanity: None,
+            vanity: vanity::VanityArea::default(),
             backup: None,
             message: None,
             checking: None,
@@ -8917,7 +8917,7 @@ impl Faraday {
         }
         // Leaving the vanity screen stops a search and drops a find.
         if self.screen != Screen::Vanity {
-            self.vanity = None;
+            self.vanity.clear();
         }
         if !lightning && self.sheet != Some(Sheet::SecretOut) {
             self.lightning.clear();

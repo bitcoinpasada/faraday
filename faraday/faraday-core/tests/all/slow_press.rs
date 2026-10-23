@@ -187,8 +187,5 @@ fn an_aezeed_is_stretched_after_the_frame_that_shows_enter() {
         done.of(Work::Kdf) > 0,
         "the tick after stretched it: {done:?}"
     );
-    assert!(
-        app.lightning().unwrap().node.is_some(),
-        "the node key"
-    );
+    assert!(app.lightning().unwrap().node.is_some(), "the node key");
 }

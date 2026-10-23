@@ -146,7 +146,10 @@ fn lightning_left_by_a_tap_forgets_the_node_key_shown() {
     assert!(app.lightning().unwrap().node.is_some());
     let shown = revealed(&mut app, Action::LShow);
     tap(&mut app, Action::Nav(Screen::Settings));
-    assert!(app.lightning().is_none(), "Lightning keeps nothing when left");
+    assert!(
+        app.lightning().is_none(),
+        "Lightning keeps nothing when left"
+    );
     not_drawn(&mut app, &shown);
     app.press(Action::Lightning);
     assert!(app.lightning().unwrap().node.is_none());
@@ -200,12 +203,15 @@ fn vanity_left_by_a_tap_stops_its_search() {
     app.press(Action::Vanity(V::Next(vstep::PREFIX)));
     app.press(Action::Vanity(V::Start));
     app.event(Event::Tick { now_ms: 100 });
-    assert!(app.vanity.as_ref().unwrap().running);
+    assert!(app.vanity().unwrap().running);
     tap(&mut app, Action::Nav(Screen::Settings));
-    assert!(app.vanity.is_none(), "the search ends when Vanity is left");
+    assert!(
+        app.vanity().is_none(),
+        "the search ends when Vanity is left"
+    );
     app.event(Event::Tick { now_ms: 200 });
     app.press(Action::Vanity(V::Open));
-    assert!(!app.vanity.as_ref().unwrap().running);
+    assert!(!app.vanity().unwrap().running);
 }
 
 #[test]

@@ -754,10 +754,7 @@ impl Faraday {
             Screen::VaultContents => {
                 self.vaults.focus.is_some() && crate::vault::screen::contents_detail(self)
             }
-            Screen::Vanity => self
-                .vanity
-                .as_ref()
-                .is_some_and(|v| v.open == Some(crate::vanity::vstep::PREFIX) && !v.running),
+            Screen::Vanity => self.vanity.typing_prefix(),
             // Find an address's field.
             Screen::Explore => self
                 .explore

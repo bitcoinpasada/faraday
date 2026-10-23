@@ -25,7 +25,7 @@ fn va(a: V) -> Action {
 }
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let Some(v) = app.vanity.as_ref() else {
+    let Some(v) = app.vanity.state() else {
         return;
     };
     let cards: Vec<flow::Card> = (0..vstep::COUNT as u8)
@@ -59,7 +59,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (next, again) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            match app_ref.vanity.as_ref() {
+            match app_ref.vanity.state() {
                 Some(v) => card(app_ref, v, ui, i as u8, x, y, w),
                 None => 0.0,
             }
