@@ -234,7 +234,7 @@ fn asks(k: &KeyGen, s: Source) -> String {
             &[&CameraNoise::needed(st).to_string()],
         ),
         Source::Mix => EN.keygen_two_or_more.to_string(),
-        Source::Device => fill(EN.keygen_device_source, &[EN.create_device_os]),
+        Source::Device => device_source(k),
         Source::SeedXor => String::new(),
     }
 }
@@ -1207,7 +1207,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy += 60.0;
         }
         Some(Source::Device) => {
-            cy = device_rows(ui, x, cy, w);
+            cy = device_rows(k, ui, x, cy, w);
         }
         _ => {}
     }
@@ -1681,9 +1681,19 @@ fn last_entry(k: &KeyGen) -> Option<String> {
     }
 }
 
-fn device_rows(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// This device's randomness as the shell named it: "operating system ·
+/// /dev/random", or "operating system" alone when it named none. A lookup.
+fn device_source(k: &KeyGen) -> String {
+    match k.entropy_source {
+        Some(name) => fill(EN.keygen_device_source, &[EN.create_device_os, name]),
+        None => EN.create_device_os.to_string(),
+    }
+}
+
+fn device_rows(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let source = device_source(k);
     let rows = [
-        (EN.create_device_row, EN.create_device_os, TEXT),
+        (EN.create_device_row, source.as_str(), TEXT),
         (EN.create_trust_row, EN.create_trust_device, WARN),
         (EN.keygen_result, EN.create_device_result, WARN),
     ];
@@ -1883,7 +1893,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 );
             }
         }
-        Some(Source::Device) => cy = device_rows(ui, x, cy, w),
+        Some(Source::Device) => cy = device_rows(k, ui, x, cy, w),
         _ => {}
     }
     cy

@@ -16,10 +16,28 @@ pub mod view;
 
 use faraday_shell_api::{EntropyBytes, Event};
 
-/// Fresh entropy for the app, when the system has it.
-pub fn entropy() -> Option<Event> {
+/// What `entropy` reads from on this system: the call the `getrandom`
+/// crate makes here.
+pub const ENTROPY_SOURCE: &str = if cfg!(windows) {
+    "ProcessPrng"
+} else if cfg!(target_vendor = "apple") {
+    "getentropy(2)"
+} else if cfg!(target_arch = "wasm32") {
+    "crypto.getRandomValues"
+} else {
+    "getrandom(2)"
+};
+
+/// Fresh entropy for the app, when the system has it: the source's name
+/// (`Event::EntropySource`), then the bytes. Nothing when the system has
+/// none.
+pub fn entropy() -> Vec<Event> {
     let mut bytes = [0u8; 32];
-    getrandom::fill(&mut bytes)
-        .ok()
-        .map(|()| Event::Entropy(EntropyBytes::new(bytes)))
+    match getrandom::fill(&mut bytes) {
+        Ok(()) => vec![
+            Event::EntropySource(ENTROPY_SOURCE),
+            Event::Entropy(EntropyBytes::new(bytes)),
+        ],
+        Err(_) => Vec::new(),
+    }
 }

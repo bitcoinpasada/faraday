@@ -101,7 +101,9 @@
 //! its session key (on lock, on wipe). A shell that cannot answer leaves
 //! the request unanswered; the core then keeps working without sealing
 //! its secrets in memory and reports the session as weak. The bytes are
-//! consumed into the session key and never echoed back.
+//! consumed into the session key and never echoed back. Just before each
+//! `Entropy`, a shell that knows it sends [`Event::EntropySource`]: the
+//! name of what it read the bytes from, which New key shows.
 //!
 //! Settings channel (§6, §5.3): the six non-secret settings a person
 //! chose survive a restart, and nothing else does. The core asks with
@@ -610,6 +612,12 @@ pub enum Event {
     /// shell's random number generator. Sent once per request, never
     /// unasked.
     Entropy(EntropyBytes),
+    /// What the shell reads its [`Event::Entropy`] bytes from, named as
+    /// its code calls it: `/dev/random`, `getrandom(2)`, `ProcessPrng`,
+    /// `getentropy(2)`. Sent just before each `Entropy`. A core that does
+    /// not know it ignores it; a shell that does not send it leaves the
+    /// core naming no source.
+    EntropySource(&'static str),
     /// Whether this shell is holding a kept secret. Sent once, after
     /// [`Event::Display`] and before any input, by a shell that can keep
     /// one; a shell that cannot sends nothing. The core shows the way

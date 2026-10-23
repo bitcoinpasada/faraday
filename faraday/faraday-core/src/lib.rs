@@ -1459,6 +1459,11 @@ pub struct Faraday {
     pub restore: Option<RestoreState>,
     /// A new key being made.
     pub keygen: Option<keygen::KeyGen>,
+    /// What the shell reads its randomness from, as its last
+    /// `Event::EntropySource` named it; `None` until one is sent. A new
+    /// key's flow takes a copy when it opens (`KeyGen::entropy_source`),
+    /// and the event updates an open one too.
+    pub entropy_source: Option<&'static str>,
     /// The Learn sheet.
     pub learn: learn::LearnState,
     /// The steps ticked on each guide page the Learn sheet has shown
@@ -1789,6 +1794,7 @@ impl Faraday {
             create: None,
             restore: None,
             keygen: None,
+            entropy_source: None,
             learn: learn::LearnState::default(),
             learn_ticks: Vec::new(),
             wordlist: None,
@@ -9626,6 +9632,13 @@ impl App for Faraday {
                 } else {
                     return;
                 }
+            }
+            Event::EntropySource(name) => {
+                self.entropy_source = Some(name);
+                if let Some(k) = self.keygen.as_mut() {
+                    k.entropy_source = Some(name);
+                }
+                return;
             }
             Event::Entropy(e) => {
                 let mut bytes = e.into_bytes();

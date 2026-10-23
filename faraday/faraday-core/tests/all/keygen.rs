@@ -340,6 +340,38 @@ fn three_one_four_two_two_five_is_miracle() {
     assert_eq!(Language::English.word(1131), "miracle");
 }
 
+/// This device's randomness is named as the shell names it, as it
+/// reads it: Windows' `ProcessPrng`, the stick's `/dev/random`; a shell
+/// that names none leaves "operating system" alone, naming no call.
+#[test]
+fn this_device_names_the_source_the_shell_reads() {
+    let device = |app: &mut Faraday| {
+        app.press(Action::KWords(12));
+        app.press(Action::KWay(Way::Device.index()));
+        app.press(Action::KNext);
+        texts(app)
+    };
+
+    let mut app = faraday_core::testkit::started();
+    app.event(Event::EntropySource("ProcessPrng"));
+    app.press(Action::Entry(None));
+    app.press(Action::KeyGen(None));
+    app.press(Action::KWords(12));
+    app.press(Action::KNext);
+    let shown = device(&mut app);
+    assert!(shown.contains("operating system · ProcessPrng"), "{shown}");
+    assert!(!shown.contains("getrandom(2)"), "{shown}");
+
+    // Named again while the flow is open, the new name shows.
+    app.event(Event::EntropySource("/dev/random"));
+    let shown = texts(&mut app);
+    assert!(shown.contains("operating system · /dev/random"), "{shown}");
+
+    let shown = device(&mut opened());
+    assert!(shown.contains("operating system"), "{shown}");
+    assert!(!shown.contains("operating system ·"), "{shown}");
+}
+
 /// A device key from the given answer, through the whole flow.
 fn device_key(answer: [u8; 32]) -> Faraday {
     let mut app = opened();

@@ -76,6 +76,7 @@ impl Tour {
             if c == Command::RequestEntropy {
                 let bytes = [0x5a ^ self.answers; 32];
                 self.answers = self.answers.wrapping_add(1);
+                self.app.event(Event::EntropySource("getrandom(2)"));
                 self.app
                     .event(Event::Entropy(faraday_shell_api::EntropyBytes::new(bytes)));
                 continue;

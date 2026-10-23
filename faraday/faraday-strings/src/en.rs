@@ -2967,8 +2967,8 @@ strings! {
     keygen_pictures_n: "{} pictures",
     /// Text in `asks`.
     keygen_two_or_more: "Two or more of these, combined",
-    /// Text in `asks`. `{}`: `EN.create_device_os`.
-    keygen_device_source: "{} · getrandom(2)",
+    /// This device's randomness, in `asks` and `device_rows`. `{}`: `EN.create_device_os`, the source the shell named (`/dev/random`, `getrandom(2)`, …).
+    keygen_device_source: "{} · {}",
     /// Text in `summary`. `{}`: `k.slip_m`, `k.slip_n`, `k.words`.
     keygen_slip_39_of_shares: "SLIP-39 · {} of {} shares · {} words each",
     /// Text in `summary`. `{}`: `source_name(Source::Coins)`.

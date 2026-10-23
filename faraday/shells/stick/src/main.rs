@@ -613,10 +613,13 @@ fn sysfs_dir(fb: &Path) -> Option<PathBuf> {
 /// randomness and Faraday has to restart.
 fn entropy() -> Option<Event> {
     let mut bytes = [0u8; 32];
-    let mut file = File::open("/dev/random").ok()?;
+    let mut file = File::open(ENTROPY_SOURCE).ok()?;
     file.read_exact(&mut bytes).ok()?;
     Some(Event::Entropy(EntropyBytes::new(bytes)))
 }
+
+/// What `entropy` reads, named to the core as it is opened.
+const ENTROPY_SOURCE: &str = "/dev/random";
 
 /// Appends what the shell found to the boot report `rcS` started.
 ///
@@ -1129,6 +1132,7 @@ impl Shell {
                     }
                     Command::RequestEntropy => {
                         if let Some(e) = entropy() {
+                            pending.push_back(Event::EntropySource(ENTROPY_SOURCE));
                             pending.push_back(e);
                         } else {
                             self.say(

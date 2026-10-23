@@ -378,6 +378,10 @@ pub struct KeyGen {
     /// Add a key's own state, kept here while the flow types into the
     /// app's (`Faraday::entry`), and put back when the flow ends.
     pub entry_kept: crate::EntryState,
+    /// What This device's randomness is read from, copied from
+    /// `Faraday::entropy_source` when the flow opens and kept in step by
+    /// `Event::EntropySource`; `None` when the shell named none.
+    pub entropy_source: Option<&'static str>,
 }
 
 impl Drop for KeyGen {
@@ -451,6 +455,7 @@ impl KeyGen {
             started: None,
             others_open: false,
             entry_kept: crate::EntryState::default(),
+            entropy_source: None,
         }
     }
 
@@ -1205,6 +1210,7 @@ impl crate::Faraday {
         let only_24 = slot.is_some() && self.create.as_ref().is_some_and(|c| c.kind.threshold());
         let back = self.screen;
         let mut k = KeyGen::new(slot, back, only_24);
+        k.entropy_source = self.entropy_source;
         // A small panel is a touch screen with no keyboard of its own:
         // the faces are pressed, not typed.
         k.typing = !self.compact;
