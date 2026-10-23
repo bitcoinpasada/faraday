@@ -190,7 +190,7 @@ fn edit_and_confirm(app: &mut Faraday, press: Press, edit: Edit) {
     app.press(Action::Chart(C::Edit(press, edit)));
     let _ = app.frame();
     assert_eq!(
-        app.chart,
+        app.chart(),
         Some((press, Target::Confirm)),
         "{edit:?} asked nothing"
     );
@@ -256,7 +256,7 @@ fn a_move_shows_the_check_before_and_after_and_is_made_only_once_confirmed() {
     let edit = Edit::Move(At::Place(1), What::VaultStick(0), At::Place(0));
     app.press(Action::Chart(C::Edit(press, edit)));
     let _ = app.frame();
-    let ask = app.chart_work.ask.as_ref().expect("the move is asked");
+    let ask = app.chart_work().ask.as_ref().expect("the move is asked");
     assert_eq!((ask.before.lost, ask.after.lost), (Lost::Yes, Lost::Yes));
     assert!(shown(
         &mut app,
@@ -289,7 +289,7 @@ fn a_change_that_makes_a_check_line_worse_says_so_before_it_is_made() {
         Edit::Drop(At::Place(0), What::Words(0)),
     )));
     let _ = app.frame();
-    let ask = app.chart_work.ask.as_ref().expect("asked");
+    let ask = app.chart_work().ask.as_ref().expect("asked");
     assert_eq!(ask.before.lost, Lost::Yes);
     assert_eq!(ask.after.lost, Lost::No);
     assert!(shown(&mut app, "Yes → No"), "{:?}", app.drawn_texts());
@@ -423,7 +423,7 @@ fn changing_the_plan_after_an_edit_opens_the_cards_with_the_edit_kept() {
     app.press(Action::Backup(w));
     app.press(Action::BPlan);
     let _ = app.frame();
-    assert_eq!(app.chart, None);
+    assert_eq!(app.chart(), None);
     assert!(!shown(&mut app, "Your changes on the chart are replaced"));
     assert_eq!(app.screen, Screen::Backup);
     let b = app.backup.as_ref().unwrap();
@@ -474,7 +474,7 @@ fn a_place_marked_exposed_with_the_words_in_it_leads_to_moving_the_money() {
     assert!(app.offers(mark));
     app.press(mark);
     let _ = app.frame();
-    assert_eq!(app.chart, Some((press, Target::Marked(n, None))));
+    assert_eq!(app.chart(), Some((press, Target::Marked(n, None))));
     assert!(shown(&mut app, "Someone can now spend"));
     // Marked, the place's lines are struck through and stay on the chart.
     let (_, node) = node_of(&app, w, "Place 1");
@@ -483,7 +483,7 @@ fn a_place_marked_exposed_with_the_words_in_it_leads_to_moving_the_money() {
     assert!(app.offers(go));
     app.press(go);
     assert_eq!(app.screen, Screen::Create);
-    assert!(app.chart_work.moving.is_some());
+    assert!(app.chart_work().moving.is_some());
     // The marked lines still on the card, marked.
     app.press(Action::OpenWallet(w));
     let texts = app.drawn_texts();
@@ -582,7 +582,7 @@ fn the_wallet_node_checks_its_addresses_and_a_cosigners_key_shows_its_xpub() {
     assert!(app.offers(check));
     app.press(check);
     let _ = app.frame();
-    assert_eq!(app.chart, Some((press, Target::Addresses)));
+    assert_eq!(app.chart(), Some((press, Target::Addresses)));
     assert!(shown(&mut app, "Receive 0/0"));
     app.press(Action::Cancel);
     open(&mut app, press, Target::Key(2));

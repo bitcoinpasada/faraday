@@ -2115,11 +2115,7 @@ impl BackupFlow {
         // wallet, is not one: its gate entry holds its keys instead.
         if self.kind.is_wallet()
             && (self.wallet.is_none()
-                || (self.made
-                    && self
-                        .wallet
-                        .as_ref()
-                        .is_some_and(|w| w.checksum.is_none())))
+                || (self.made && self.wallet.as_ref().is_some_and(|w| w.checksum.is_none())))
         {
             return false;
         }

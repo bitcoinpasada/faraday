@@ -1274,16 +1274,9 @@ pub struct Faraday {
     pub board_list_offset: f32,
     /// Design units scrolled past in Vault contents' item, on a desktop.
     pub vault_item_offset: f32,
-    /// The wallet's chart is open as its own page, on a small panel.
-    pub glance: bool,
-    /// The chart and the thing on it whose sheet is open.
-    pub chart: Option<(glance::Press, glance::sheet::Target)>,
-    /// A chart's key whose lines are drawn bold, by place among its keys:
-    /// **Where it is**.
-    pub chart_focus: Option<(glance::Press, usize)>,
-    /// What the chart's sheets hold between presses: a change asked for,
-    /// a name or a passphrase typed (`docs/history/NEW-WALLET.md` §9.5–§9.7).
-    pub chart_work: chart_edit::Work,
+    /// The wallet's chart: its page, its open sheet, the key drawn bold and
+    /// what the sheets hold.
+    glance: glance::GlanceArea,
     /// What scrolls: the motion, the regions the last frame drew, the
     /// scrollbar's memory, the sheet's offset and the page's height
     /// (`motion.rs`, `docs/MOTION.md` §3.3).
@@ -1521,10 +1514,7 @@ impl Faraday {
             files_out_offset: 0.0,
             board_list_offset: 0.0,
             vault_item_offset: 0.0,
-            glance: false,
-            chart: None,
-            chart_focus: None,
-            chart_work: chart_edit::Work::default(),
+            glance: glance::GlanceArea::default(),
             scroll: motion::Scroll::default(),
             qr: qr_view::QrArea::default(),
             family: family::FamilyState::default(),
@@ -3079,9 +3069,9 @@ impl Faraday {
                 }
                 self.sheet = None;
                 self.qr.close();
-                self.chart = None;
-                self.chart_work.secret.clear();
-                self.chart_work.ask = None;
+                self.glance.set_chart(None);
+                self.glance.work_mut().secret.clear();
+                self.glance.work_mut().ask = None;
                 if let Some(b) = self.backup.as_mut() {
                     b.pick = false;
                 }
@@ -3123,7 +3113,7 @@ impl Faraday {
         // sheet goes first.
         if self.sheet == Some(Sheet::Chart) && !matches!(action, Action::Chart(_)) {
             self.sheet = None;
-            self.chart = None;
+            self.glance.set_chart(None);
         }
         // While something that can capture the screen or the keys is
         // attached and not let through, what shows a secret waits under
@@ -3294,7 +3284,7 @@ impl Faraday {
             | Action::UpgradeDone) => self.upgrade_act(a),
             a @ (Action::BackupsOf(..) | Action::BackupsPage(..)) => self.backups_act(a, &c),
             Action::Nav(s) => {
-                self.chart_focus = None;
+                self.glance.set_focus(None);
                 if s == Screen::Backups {
                     self.backups_at = 0;
                 }
@@ -3308,7 +3298,7 @@ impl Faraday {
                 self.list_offset = 0.0;
                 self.wallets.set_card_offset(0.0);
                 self.files_out_offset = 0.0;
-                self.glance = false;
+                self.glance.set_open(false);
                 self.wallets.set_renaming(None);
                 if s == Screen::Visit {
                     self.visit.out = self.visit_default_out(&c);
@@ -3453,7 +3443,7 @@ impl Faraday {
             a @ (Action::OpenCodes | Action::CodesOpen(..) | Action::CodesAdd) => self.codes_act(a),
             Action::Chart(c) => self.chart_act(c),
             Action::Glance(open) => {
-                self.glance = open && self.screen == Screen::Wallets;
+                self.glance.set_open(open && self.screen == Screen::Wallets);
                 self.list_offset = 0.0;
             }
             a @ (Action::BackupChecklist(..)

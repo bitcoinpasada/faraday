@@ -209,18 +209,18 @@ fn a_passphrase_checked_by_its_fingerprint_leaves_no_trace_but_the_result() {
         Edit::Add(At::Place(2), What::Passphrase(0)),
     )));
     app.press(Action::Chart(C::Confirm(press)));
-    let Some((_, Target::PassShow(k, n, j))) = app.chart else {
-        panic!("the passphrase is not shown to copy: {:?}", app.chart);
+    let Some((_, Target::PassShow(k, n, j))) = app.chart() else {
+        panic!("the passphrase is not shown to copy: {:?}", app.chart());
     };
     app.press(Action::Chart(C::Open(press, Target::PassCheck(k, n, j))));
     type_text(&mut app, "not-the-passphrase");
     app.press(Action::Chart(C::PassTry(press)));
-    assert_eq!(app.chart_work.result, Some(false));
+    assert_eq!(app.chart_work().result, Some(false));
     type_text(&mut app, PASSPHRASE);
     app.event(Event::Key(Key::Enter));
-    assert_eq!(app.chart_work.result, Some(true));
+    assert_eq!(app.chart_work().result, Some(true));
     assert!(
-        app.chart_work.secret.is_empty(),
+        app.chart_work().secret.is_empty(),
         "the typed passphrase is kept"
     );
     let texts = app.drawn_texts();

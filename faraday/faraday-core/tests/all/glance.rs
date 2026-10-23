@@ -406,11 +406,11 @@ fn on_a_small_panel_the_chart_is_its_own_page() {
     assert!(shown(&mut app, "Back"), "the sheet has no Back");
     app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
-    assert!(app.glance, "Back left the chart");
+    assert!(app.glance(), "Back left the chart");
     let _ = app.frame();
     assert!(app.offers(Action::Glance(false)), "no way back to the card");
     app.press(Action::Glance(false));
-    assert!(!app.glance);
+    assert!(!app.glance());
     assert_eq!(app.screen, Screen::Wallets);
 }
 

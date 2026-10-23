@@ -1981,8 +1981,8 @@ impl Faraday {
                     self.wallets.set_wallet(i);
                     self.screen = Screen::Wallets;
                     self.wallets.set_card_offset(0.0);
-                    self.glance = false;
-                    self.chart_focus = None;
+                    self.glance.set_open(false);
+                    self.glance.set_focus(None);
                 }
             }
             Action::WriteAsk => {

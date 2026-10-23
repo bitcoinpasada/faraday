@@ -2745,7 +2745,7 @@ impl Faraday {
         self.wallets.set_wallet(signs.unwrap_or(first));
         self.screen = Screen::Wallets;
         self.wallets.set_card_offset(0.0);
-        self.glance = false;
+        self.glance.set_open(false);
         // From the vault, or from the stick it came on when the stick's
         // own files brought some.
         let from = match stick {

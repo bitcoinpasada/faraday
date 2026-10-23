@@ -250,13 +250,13 @@ pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
         _ if app.screen == Screen::Explore && explore == Some(crate::explore::Page::Find) => {
             EN.explore_find
         }
-        Some(_) if app.screen == Screen::Wallets && app.glance => EN.compact_at_a_glance,
+        Some(_) if app.screen == Screen::Wallets && app.glance.open() => EN.compact_at_a_glance,
         Some(w) if app.screen == Screen::Wallets => w.name.as_str(),
         _ => screen_name(app.screen, app.medium),
     };
     let back = match app.screen {
         // The chart's page goes back to the wallet's card.
-        Screen::Wallets if app.glance => (
+        Screen::Wallets if app.glance.open() => (
             app.session
                 .wallets
                 .get(app.wallets.wallet())

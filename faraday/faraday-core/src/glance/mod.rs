@@ -221,6 +221,65 @@ pub const RECEIVE_WARNING: &str = EN.glance_back_up_before;
 /// A key node's state while its key, made here, waits for its backup.
 pub const WAITING: &str = EN.glance_waiting_backup;
 
+/// The wallet chart's area: whether it is open as its own page, the
+/// thing on it whose sheet is open, the key drawn bold, and what the
+/// chart's sheets hold between presses.
+#[derive(Default)]
+pub(crate) struct GlanceArea {
+    /// The chart is open as its own page, on a small panel.
+    open: bool,
+    /// The chart and the thing on it whose sheet is open.
+    chart: Option<(Press, sheet::Target)>,
+    /// A chart's key whose lines are drawn bold, by place among its keys:
+    /// **Where it is**.
+    focus: Option<(Press, usize)>,
+    /// What the chart's sheets hold between presses: a change asked for,
+    /// a name or a passphrase typed (`docs/history/NEW-WALLET.md` §9.5–§9.7).
+    work: crate::chart_edit::Work,
+}
+
+impl GlanceArea {
+    /// Whether the chart is open as its own page.
+    pub(crate) fn open(&self) -> bool {
+        self.open
+    }
+
+    /// Opens or closes the chart's own page.
+    pub(crate) fn set_open(&mut self, open: bool) {
+        self.open = open;
+    }
+
+    /// The chart and the thing on it whose sheet is open.
+    pub(crate) fn chart(&self) -> Option<(Press, sheet::Target)> {
+        self.chart
+    }
+
+    /// Opens or closes a thing's sheet.
+    pub(crate) fn set_chart(&mut self, chart: Option<(Press, sheet::Target)>) {
+        self.chart = chart;
+    }
+
+    /// The key whose lines are drawn bold.
+    pub(crate) fn focus(&self) -> Option<(Press, usize)> {
+        self.focus
+    }
+
+    /// Draws a key's lines bold, or none.
+    pub(crate) fn set_focus(&mut self, focus: Option<(Press, usize)>) {
+        self.focus = focus;
+    }
+
+    /// What the chart's sheets hold between presses.
+    pub(crate) fn work(&self) -> &crate::chart_edit::Work {
+        &self.work
+    }
+
+    /// What the chart's sheets hold, for the glue that edits it.
+    pub(crate) fn work_mut(&mut self) -> &mut crate::chart_edit::Work {
+        &mut self.work
+    }
+}
+
 /// Where a chart is drawn, and so what its sheets' actions act on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Press {
@@ -618,7 +677,11 @@ fn build(
         ),
         None => none,
     };
-    let focus = app.chart_focus.filter(|(p, _)| *p == press).map(|(_, k)| k);
+    let focus = app
+        .glance
+        .focus()
+        .filter(|(p, _)| *p == press)
+        .map(|(_, k)| k);
     let held = slots
         .iter()
         .any(|s| s.held_by.is_some() && s.fingerprint.is_some_and(|f| held_keys.contains(&f)));

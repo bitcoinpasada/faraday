@@ -243,7 +243,7 @@ impl Faraday {
             screen: self.screen,
             learn: self.sheet == Some(Sheet::Learn),
             wallet: self.wallets.wallet(),
-            glance: self.glance,
+            glance: self.glance.open(),
             list_offset: self.list_offset,
             card_offset: self.wallets.card_offset(),
             files_out_offset: self.files_out_offset,
@@ -395,7 +395,7 @@ impl Faraday {
         }
         self.osk_leave();
         self.wallets.set_renaming(None);
-        self.chart_focus = None;
+        self.glance.set_focus(None);
         self.list_offset = s.list_offset;
         self.wallets.set_card_offset(s.card_offset);
         self.files_out_offset = s.files_out_offset;
@@ -404,7 +404,7 @@ impl Faraday {
         match s.screen {
             Screen::Wallets => {
                 self.wallets.set_wallet(s.wallet);
-                self.glance = s.glance;
+                self.glance.set_open(s.glance);
             }
             Screen::Backups => self.backups_at = s.backups_at,
             Screen::VaultContents => {
@@ -417,7 +417,7 @@ impl Faraday {
             _ => {}
         }
         if s.screen != Screen::Wallets {
-            self.glance = false;
+            self.glance.set_open(false);
         }
     }
 

@@ -260,11 +260,11 @@ fn back_from_a_key_explored_from_a_wallets_chart_lands_on_that_chart() {
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::OpenWallet(1));
     app.press(Action::Glance(true));
-    assert!(app.glance);
+    assert!(app.glance());
     let fp = app.session.keys[0].fingerprint.0;
     app.press(Action::ExploreKey(fp));
     assert_eq!(app.screen, Screen::Explore);
     tap_back(&mut app);
     assert_eq!((app.screen, app.wallet_index()), (Screen::Wallets, 1));
-    assert!(app.glance, "the chart, as it was left");
+    assert!(app.glance(), "the chart, as it was left");
 }

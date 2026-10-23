@@ -1081,7 +1081,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             Some(v)
         }
         Target::Confirm => {
-            let ask = app.chart_work.ask.as_ref()?;
+            let ask = app.glance.work().ask.as_ref()?;
             let mut v = View::new(Icon::House, ask.title.clone());
             v.facts = check_facts(ask.before, ask.after);
             if let Edit::Drop(..) | Edit::Clear(_) | Edit::RemovePlace(_) = ask.edit {
@@ -1176,7 +1176,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 fill(EN.glance_sheet_remove, &[&node.name.to_string()]),
             );
             for (j, label) in node.holds.iter().enumerate().take(node.whats.len()) {
-                let chosen = app.chart_work.dest.get(j).copied().flatten();
+                let chosen = app.glance.work().dest.get(j).copied().flatten();
                 let mut rows: Vec<Row> = places
                     .iter()
                     .filter(|(q, _)| *q != p)
@@ -1207,7 +1207,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 ));
             }
             let all = (0..node.whats.len())
-                .all(|j| app.chart_work.dest.get(j).copied().flatten().is_some());
+                .all(|j| app.glance.work().dest.get(j).copied().flatten().is_some());
             v.go = Some((
                 fill(EN.glance_sheet_remove, &[&node.name.to_string()]),
                 all.then_some(Action::Chart(ChartAction::Edit(
@@ -1226,7 +1226,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     &[&key.number.to_string(), &key.fingerprint.to_string()],
                 ),
             );
-            let t = &app.chart_work.text;
+            let t = &app.glance.work().text;
             v.field = Some(if t.is_empty() {
                 (
                     EN.glance_sheet_holder,
@@ -1245,7 +1245,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
         Target::VaultName(n) => {
             let node = nodes.get(usize::from(n))?;
             let mut v = View::new(Icon::Lock, node.name.clone());
-            let t = &app.chart_work.text;
+            let t = &app.glance.work().text;
             v.field = Some(if t.is_empty() {
                 (EN.glance_sheet_name, EN.glance_sheet_name.to_string(), true)
             } else {
@@ -1263,7 +1263,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 Icon::Passphrase,
                 fill(EN.glance_sheet_passphrase_n, &[&key.number.to_string()]),
             );
-            let typed = app.chart_work.secret.chars().count();
+            let typed = app.glance.work().secret.chars().count();
             v.field = Some(if typed == 0 {
                 (
                     EN.glance_sheet_passphrase,
@@ -1273,7 +1273,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             } else {
                 (EN.glance_sheet_passphrase, "•".repeat(typed), false)
             });
-            match app.chart_work.result {
+            match app.glance.work().result {
                 Some(true) => v.lines.push((
                     fill(EN.glance_sheet_matches, &[&key.fingerprint.to_string()]),
                     OK,
@@ -1299,7 +1299,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     .position_of(fp)
                     .filter(|&x| app.session.keys[x].has_passphrase)
             });
-            match (shown, app.chart_work.reveal) {
+            match (shown, app.glance.work().reveal) {
                 (Some(x), true) => v.secret_lines.push((
                     zeroize::Zeroizing::new(app.reveal(x, Reveal::Passphrase).to_string()),
                     TEXT,
@@ -1359,7 +1359,7 @@ fn tone_color(t: crate::wallet_backup::Tone) -> Color {
 /// The sheet over the chart. On a small panel it is the page itself, and
 /// Back returns to the chart.
 pub(crate) fn draw(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
-    let Some((press, target)) = app.chart else {
+    let Some((press, target)) = app.glance.chart() else {
         return;
     };
     let Some(v) = app.glance_sheet(press, target) else {
@@ -1507,6 +1507,21 @@ fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
 }
 
 impl Faraday {
+    /// Whether the wallet's chart is open as its own page.
+    pub fn glance(&self) -> bool {
+        self.glance.open()
+    }
+
+    /// The chart and the thing on it whose sheet is open.
+    pub fn chart(&self) -> Option<(Press, Target)> {
+        self.glance.chart()
+    }
+
+    /// What the chart's sheets hold between presses.
+    pub fn chart_work(&self) -> &crate::chart_edit::Work {
+        self.glance.work()
+    }
+
     /// What a press on the chart or its sheets does.
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn chart_act(&mut self, a: ChartAction) {
@@ -1524,46 +1539,50 @@ impl Faraday {
                                 _ => None,
                             })
                             .unwrap_or(0);
-                        self.chart_work.dest = vec![None; things];
+                        self.glance.work_mut().dest = vec![None; things];
                     }
                     Target::Holder(k) => {
-                        self.chart_work.text = chart(&glance::Now { app: self, c: &c }, press)
-                            .and_then(|g| g.keys.get(usize::from(k)).and_then(|k| k.holder.clone()))
-                            .unwrap_or_default();
+                        self.glance.work_mut().text =
+                            chart(&glance::Now { app: self, c: &c }, press)
+                                .and_then(|g| {
+                                    g.keys.get(usize::from(k)).and_then(|k| k.holder.clone())
+                                })
+                                .unwrap_or_default();
                     }
                     Target::VaultName(n) => {
-                        self.chart_work.text = chart(&glance::Now { app: self, c: &c }, press)
-                            .and_then(|g| match g.backup {
-                                Backup::Plan { nodes, .. } => {
-                                    nodes.get(usize::from(n)).map(|x| x.name.clone())
-                                }
-                                _ => None,
-                            })
-                            .filter(|name| {
-                                !name.starts_with(
-                                    EN.glance_vault.split("{}").next().unwrap_or_default(),
-                                )
-                            })
-                            .unwrap_or_default();
+                        self.glance.work_mut().text =
+                            chart(&glance::Now { app: self, c: &c }, press)
+                                .and_then(|g| match g.backup {
+                                    Backup::Plan { nodes, .. } => {
+                                        nodes.get(usize::from(n)).map(|x| x.name.clone())
+                                    }
+                                    _ => None,
+                                })
+                                .filter(|name| {
+                                    !name.starts_with(
+                                        EN.glance_vault.split("{}").next().unwrap_or_default(),
+                                    )
+                                })
+                                .unwrap_or_default();
                     }
                     Target::PassCheck(..) => {
-                        self.chart_work.secret.clear();
-                        self.chart_work.result = None;
+                        self.glance.work_mut().secret.clear();
+                        self.glance.work_mut().result = None;
                     }
-                    Target::PassShow(..) => self.chart_work.reveal = false,
+                    Target::PassShow(..) => self.glance.work_mut().reveal = false,
                     _ => {}
                 }
                 if target != Target::Confirm {
-                    self.chart_work.ask = None;
+                    self.glance.work_mut().ask = None;
                 }
-                self.chart = Some((press, target));
-                self.chart_focus = None;
+                self.glance.set_chart(Some((press, target)));
+                self.glance.set_focus(None);
                 self.sheet = Some(Sheet::Chart);
                 self.scroll.reset_sheet();
             }
             ChartAction::Where(press, k) => {
                 self.close_chart();
-                self.chart_focus = Some((press, usize::from(k)));
+                self.glance.set_focus(Some((press, usize::from(k))));
             }
             ChartAction::Edit(press, e) => self.chart_ask(press, e),
             ChartAction::Confirm(_) => self.chart_confirm(),
@@ -1572,14 +1591,14 @@ impl Faraday {
             ChartAction::KeyChecked(press, k) => self.chart_key_checked(press, k),
             ChartAction::Dest(j, p) => {
                 let j = usize::from(j);
-                if self.chart_work.dest.len() <= j {
-                    self.chart_work.dest.resize(j + 1, None);
+                if self.glance.work_mut().dest.len() <= j {
+                    self.glance.work_mut().dest.resize(j + 1, None);
                 }
-                self.chart_work.dest[j] = Some(p);
+                self.glance.work_mut().dest[j] = Some(p);
             }
             ChartAction::Save(press) => self.chart_save_name(press),
             ChartAction::PassTry(press) => self.chart_pass_try(press),
-            ChartAction::Reveal => self.chart_work.reveal = true,
+            ChartAction::Reveal => self.glance.work_mut().reveal = true,
             ChartAction::MoveMoney(press) => self.chart_move_money(press),
             ChartAction::Do(press, step) => {
                 self.close_chart();
@@ -1634,7 +1653,8 @@ impl Faraday {
                         self.act(Action::Rename);
                     }
                     Step::Addresses => {
-                        self.chart = Some((Press::Loaded(w), Target::Addresses));
+                        self.glance
+                            .set_chart(Some((Press::Loaded(w), Target::Addresses)));
                         self.sheet = Some(Sheet::Chart);
                         self.scroll.reset_sheet();
                     }
@@ -1648,7 +1668,7 @@ impl Faraday {
         if self.sheet == Some(Sheet::Chart) {
             self.sheet = None;
         }
-        self.chart = None;
+        self.glance.set_chart(None);
     }
 
     /// The backup of wallet `w` with the plan its chart shows, at its

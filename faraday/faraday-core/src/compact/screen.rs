@@ -109,7 +109,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     // The chart, as its own page.
-    if app.glance
+    if app.glance.open()
         && let Some(g) = app.glance_of(app.wallets.wallet())
     {
         cy += crate::glance::draw_column(ui, &g, crate::glance::Direction::WalletFirst, x, cy, iw);

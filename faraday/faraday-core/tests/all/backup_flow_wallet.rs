@@ -1929,7 +1929,7 @@ fn lone_passphrase_round(
         press,
         plan::Edit::Add(At::Vault(v), What::Passphrase(0)),
     )));
-    assert!(app.chart_work.ask.is_some(), "the chart asks to confirm");
+    assert!(app.chart_work().ask.is_some(), "the chart asks to confirm");
     app.press(Action::Chart(C::Confirm(press)));
     {
         let f = app.flow().unwrap();
