@@ -1,7 +1,8 @@
 //! `faraday-fat` over a partition's bytes: the boot sector, the FATs and
 //! the root directory are all the stick's to choose (`docs/history/PLAN.md` §4.4).
 //! Every file listed is read, and a file is created, renamed and deleted,
-//! so the write paths walk the same untrusted structures.
+//! so the write paths walk the same untrusted structures. The boot
+//! sector's label is read on its own as well.
 
 #![no_main]
 
@@ -9,6 +10,9 @@ use faraday_fat::Volume;
 use libfuzzer_sys::fuzz_target;
 
 fuzz_target!(|data: &[u8]| {
+    // The label read from the first sector alone, without opening the
+    // volume: what the disk process does to keep FARADAYBOOT back.
+    let _ = faraday_fat::boot_sector_label(data);
     let Ok(mut v) = Volume::open(data.to_vec()) else {
         return;
     };

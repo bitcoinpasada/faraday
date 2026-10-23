@@ -107,7 +107,10 @@ pub fn chroma(
     if width == 0 || height == 0 {
         return None;
     }
-    let mut out = vec![0u8; cw * ch * 2];
+    // Allocated once the buffer is known to hold the planes: a driver's
+    // width and height are its word, and a buffer that is too short must
+    // not cost the allocation they ask for.
+    let mut out: Vec<u8>;
     match format {
         // Packed 4:2:2: Y U Y V, so every second row of pixel pairs
         // gives the pair a 4:2:0 block wants.
@@ -115,6 +118,7 @@ pub fn chroma(
             if stride < width * 2 || src.len() < stride * (height - 1) + width * 2 {
                 return None;
             }
+            out = vec![0u8; cw * ch * 2];
             for y in 0..ch {
                 let row = &src[(y * 2) * stride..];
                 for x in 0..cw {
@@ -133,6 +137,7 @@ pub fn chroma(
             if c_stride < cw * 2 || plane.len() < c_stride * (ch - 1) + cw * 2 {
                 return None;
             }
+            out = vec![0u8; cw * ch * 2];
             for y in 0..ch {
                 let row = &plane[y * c_stride..];
                 out[y * cw * 2..(y + 1) * cw * 2].copy_from_slice(&row[..cw * 2]);
@@ -148,6 +153,7 @@ pub fn chroma(
             if planes.len() < plane_len * 2 {
                 return None;
             }
+            out = vec![0u8; cw * ch * 2];
             let (u, v) = planes.split_at(plane_len);
             for y in 0..ch {
                 for x in 0..cw {
@@ -408,5 +414,18 @@ mod tests {
         // Too small to shrink at all: handed back as it is.
         let (w, h, out) = downscale(vec![7; 4], 2, 2, 4);
         assert_eq!((w, h, out), (2, 2, vec![7; 4]));
+    }
+
+    /// A driver that reports a frame far larger than the buffer it filled
+    /// gets no colour, in every format, and nothing is allocated for the
+    /// size it claimed.
+    #[test]
+    fn a_frame_larger_than_its_buffer_gives_no_colour() {
+        let buffer = vec![0u8; 64];
+        for format in abi::FORMATS {
+            assert_eq!(chroma(format, &buffer, 65535, 65535, 0), None);
+            assert_eq!(chroma(format, &buffer, 65535, 65535, 65535), None);
+        }
+        assert_eq!(luma(&buffer, 65535, 65535, 65535, 1), None);
     }
 }

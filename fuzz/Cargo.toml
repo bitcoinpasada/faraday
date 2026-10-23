@@ -19,7 +19,6 @@ faraday-bip = { path = "../core/faraday-bip" }
 faraday-codec = { path = "../core/faraday-codec" }
 faraday-psbt = { path = "../core/faraday-psbt" }
 faraday-crypto = { path = "../core/faraday-crypto", features = ["unchecked"] }
-faraday-backup = { path = "../core/faraday-backup" }
 faraday-pgp = { path = "../faraday/faraday-pgp" }
 
 [profile.release]
@@ -91,6 +90,48 @@ bench = false
 [[bin]]
 name = "json"
 path = "fuzz_targets/json.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "seed_parts"
+path = "fuzz_targets/seed_parts.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "key_file"
+path = "fuzz_targets/key_file.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "transaction"
+path = "fuzz_targets/transaction.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "carry"
+path = "fuzz_targets/carry.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "encodings"
+path = "fuzz_targets/encodings.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "aezeed"
+path = "fuzz_targets/aezeed.rs"
 test = false
 doc = false
 bench = false

@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>AllDisks</key>
+	<array>
+		<string>disk0</string>
+		<string>disk4</string>
+	</array>
+	<key>Size</key>
+	<integer>16008609792</integer>
+	<key>Removable</key>
+	<true/>
+	<key>Name</key>
+	<string>Test &amp; stick</string>
+	<key>Data</key>
+	<data>SGVsbG8=</data>
+	<key>When</key>
+	<date>2026-10-23T12:00:00Z</date>
+	<key>Ratio</key>
+	<real>0.5</real>
+</dict>
+</plist>

@@ -215,7 +215,9 @@ fn read_signature(pe: &[u8], at: usize, size: usize, cert: &[u8]) -> Option<Chec
     if u16_at(table, 6)? != 0x0002 {
         return None;
     }
-    let ci = &table[8..u32_at(table, 0)?.min(table.len())];
+    // The table's own length field may be under the 8-byte header.
+    // The table's own length field may be under the 8-byte header.
+    let ci = table.get(8..u32_at(table, 0)?.min(table.len()))?;
     // ContentInfo → [0] → SignedData.
     let (_, ci_v, _) = der::read(ci, 0)?;
     let parts = der::children(&ci[ci_v.clone()])?;

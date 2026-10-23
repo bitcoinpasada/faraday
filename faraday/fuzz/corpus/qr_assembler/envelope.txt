@@ -1,0 +1,1 @@
+{"data":"aGVsbG8gZmFyYWRheQo=","format":"faraday-file-v1","kind":"file","name":"hello.txt","sha256":"9f0d4fa6231ccfa4d6ed6309d9e0b3443358d13ec2fa80f2a6e225fc3af9ccdc","size":14}

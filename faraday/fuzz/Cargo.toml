@@ -17,6 +17,20 @@ cargo-fuzz = true
 libfuzzer-sys = "0.4"
 faraday-fat = { path = "../faraday-fat" }
 faraday-intake = { path = "../faraday-intake" }
+# The app, with the test kit (the scan sheet opened for a purpose,
+# `testkit::open_scan`): `classify_file`, `inbox_found`, `app_scanned`,
+# `edid`, `bip39_words`. The shipped binaries are built without it.
+faraday-core = { path = "../faraday-core", features = ["testkit"] }
+faraday-shell-api = { path = "../../core/faraday-shell-api" }
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-qr = { path = "../faraday-qr" }
+faraday-files = { path = "../faraday-files" }
+faraday-vault = { path = "../faraday-vault" }
+faraday-boot = { path = "../faraday-boot" }
+faraday-sb = { path = "../faraday-sb" }
+faraday-payload = { path = "../faraday-payload" }
+# `gpt.rs` of the Starter shell is included by path and uses its api.
+faraday-starter = { path = "../faraday-starter" }
 # The token that counts nothing, for the readers the targets call
 # (docs/COMPUTE.md §3): a fuzz target keeps no drawing guarantee.
 faraday-crypto = { path = "../../core/faraday-crypto", features = ["unchecked"] }
@@ -34,6 +48,139 @@ bench = false
 [[bin]]
 name = "read_wallet"
 path = "fuzz_targets/read_wallet.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "classify_file"
+path = "fuzz_targets/classify_file.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "inbox_found"
+path = "fuzz_targets/inbox_found.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "qr_assembler"
+path = "fuzz_targets/qr_assembler.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "ur_registry"
+path = "fuzz_targets/ur_registry.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "png_qr"
+path = "fuzz_targets/png_qr.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "app_scanned"
+path = "fuzz_targets/app_scanned.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "edid"
+path = "fuzz_targets/edid.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "hid_ranges"
+path = "fuzz_targets/hid_ranges.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "bip39_words"
+path = "fuzz_targets/bip39_words.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "vault_header"
+path = "fuzz_targets/vault_header.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "vault_records"
+path = "fuzz_targets/vault_records.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "vault_entries"
+path = "fuzz_targets/vault_entries.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "files_proto"
+path = "fuzz_targets/files_proto.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "boot_proto"
+path = "fuzz_targets/boot_proto.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "pe_image"
+path = "fuzz_targets/pe_image.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "gpt"
+path = "fuzz_targets/gpt.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "v4l2_luma"
+path = "fuzz_targets/v4l2_luma.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "manifest"
+path = "fuzz_targets/manifest.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "plist"
+path = "fuzz_targets/plist.rs"
 test = false
 doc = false
 bench = false

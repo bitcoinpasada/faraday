@@ -244,6 +244,28 @@ fn a_signed_image_checks_and_an_altered_one_does_not() {
     }
 }
 
+/// A signed image whose certificate table says it is shorter than its own
+/// 8-byte header is not read as a signature, and checking it does not
+/// stop the program (a stick's file is anyone's to damage).
+#[test]
+fn an_image_whose_signature_table_is_shorter_than_its_header_reads_as_unreadable() {
+    let k = keys();
+    let mut image = pe::sign(&mut blind(), &tiny_pe(), &k.db).unwrap();
+    // The security data directory is entry 4 of the optional header's 16:
+    // its file offset is where the certificate table starts.
+    let entry = 0x44 + 20 + 112 + 4 * 8;
+    let table = u32::from_le_bytes(image[entry..entry + 4].try_into().unwrap()) as usize;
+    assert_ne!(table, 0, "the signed image has a certificate table");
+    for length in [0u32, 4, 7] {
+        image[table..table + 4].copy_from_slice(&length.to_le_bytes());
+        assert_eq!(
+            pe::check(&image, &k.db.cert).unwrap(),
+            Check::Unreadable,
+            "length {length}"
+        );
+    }
+}
+
 /// Blinding changes how the key's operation runs, never its result:
 /// PKCS #1 v1.5 signatures are deterministic, so a signature made under
 /// any blinding stream is the very bytes RustCrypto's unblinded signer

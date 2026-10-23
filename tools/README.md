@@ -23,6 +23,9 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/lint-layout.sh` | lint | `just lint` | layout lint: the code map, file sizes, long functions (below) |
 | `tools/lint-keys-tests.sh` | lint | `just lint` | no shipped binary carries the test helpers that reach a key (below) |
 | `tools/lint-unchecked.sh` | lint | `just lint` | no shipped binary compiles `Compute::unchecked` (below) |
+| `tools/fuzz-release.sh` | release | `just fuzz-release` | the fuzz run before a release: every target of `fuzz/` and `faraday/fuzz/`, 10 minutes each, in parallel, corpus kept between runs; writes `out/fuzz-release.txt` for the release notes |
+| `tools/fuzz-corpus-export.sh` | release | `just fuzz-corpus-export` | each target's kept corpus and seeds minimized with `cargo fuzz cmin` into `out/fuzz-corpus/<target>/`, for the repository that publishes the corpora |
+| `tools/fuzz-common.sh` | release | the two scripts above | the pinned nightly, each target's libFuzzer options, the corpus store |
 | `tools/check-macos.sh` | lint | `just lint` | clippy over the Starter's macOS code for both Mac targets, without a Mac |
 | `tools/lint-crosscheck.sh` | lint | `just lint` | the crypto has not changed since the last passing cross-check (below) |
 | `tools/costs-lint/` | lint | `just lint` (`cargo run -p costs-lint`) | who takes, mints and keeps the compute token (below) |
@@ -51,6 +54,41 @@ in `justfile` and `faraday/faraday.just`.
 | `faraday/tools/upgrade-check.py` | test | `just faraday-upgrade-check` | upgrades an older stick from a new one in QEMU and boots it |
 | `faraday/tools/sb-ovmf-check.py` | test | `just faraday-sb-ovmf` | Secure Boot end to end in OVMF with `faraday-sb`'s keys |
 | `faraday/tools/core-check.py` | test | by hand (`docs/INTEROP.md`) | Faraday against Bitcoin Core on regtest |
+
+## Before a release
+
+The checks that run before a release is staged. Each is its own recipe;
+none is part of `just`, which stays fast.
+
+1. `just` passes: the tests and the lints.
+2. `just crosscheck --fresh`: Faraday's own Rust against the Python
+   references with a new seed and ten times the random cases, over the
+   areas listed in `tools/crosscheck/README.md` (the vault, BIP-39 and
+   BIP-32 derivation and rust-bitcoin's results are not yet among them,
+   `docs/MULTIVENDOR.md` §10.5). A disagreement it finds is kept in
+   its `found` folder with its seed and inputs
+   (`docs/decisions/F79.md`).
+3. The fuzz run, and the corpora published after it (`fuzz/README.md`,
+   "Before a release"). On the build machine:
+   1. `just fuzz-release`, starting from the last published corpus
+      (`FARADAY_FUZZ_CORPUS=<checkout of the corpus repository>`): every
+      target for 10 minutes, in parallel, each keeping its corpus between
+      runs. Any crash fails it; fix the parser, add the input to the
+      target's corpus and run again.
+   2. `just fuzz-corpus-export`: each target's corpus, minimized, in
+      `out/fuzz-corpus/`.
+   3. Commit that folder's contents to the corpus repository and tag the
+      commit with the release's tag.
+   4. The release notes quote `out/fuzz-release.txt` (each target's
+      seconds, executions, corpus size and "no crashes", with the commit,
+      the nightly, the cargo-fuzz version and the corpus it started from)
+      and the corpus repository's commit from 3.
+4. The release is staged (`faraday/tools/stage-release.sh`, `docs/STARTER.md`
+   §1.3) and signed.
+
+A new parser of untrusted input gets its fuzz target in the change that
+adds it; `fuzz/README.md` and `faraday/fuzz/README.md` list what each
+feeds.
 
 ## The lints `just lint` runs
 

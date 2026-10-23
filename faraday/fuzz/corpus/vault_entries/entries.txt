@@ -1,0 +1,9 @@
+title: Mail
+username: me@example.org
+password: hunter2
+url: https://mail.example.org
+notes: a note
+
+title: Bank
+user: a
+pass: b

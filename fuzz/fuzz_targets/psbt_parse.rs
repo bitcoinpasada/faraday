@@ -4,7 +4,8 @@
 //! `inspect` walks every input, output, key origin and script in it to
 //! build the Sign screens. It is run twice: with no keys loaded, and
 //! with the BIP-39 test vector key, which is the path that re-derives
-//! origins and verifies change.
+//! origins and verifies change. A copy is then finalized, which is what
+//! Sign does with a complete one.
 
 #![no_main]
 
@@ -56,6 +57,9 @@ fn run(psbt: &Psbt) {
         carry: None,
     };
     let _ = inspect(&c, psbt, &loaded);
+
+    let mut copy = psbt.clone();
+    let _ = faraday_psbt::finalize(&mut copy);
 }
 
 fuzz_target!(|data: &[u8]| {

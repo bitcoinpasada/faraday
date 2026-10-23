@@ -46,6 +46,11 @@ criteria = "safe-to-deploy"
 version = "0.2.2"
 criteria = "safe-to-deploy"
 
+[[exemptions.arbitrary]]
+version = "1.5.0"
+criteria = "safe-to-deploy"
+notes = "F71: not reviewed; the fuzz crates only (docs/deps/libfuzzer-sys.md), in no shipped binary"
+
 [[exemptions.arrayvec]]
 version = "0.7.8"
 criteria = "safe-to-deploy"
@@ -226,6 +231,11 @@ criteria = "safe-to-deploy"
 [[exemptions.js-sys]]
 version = "0.3.105"
 criteria = "safe-to-deploy"
+
+[[exemptions.libfuzzer-sys]]
+version = "0.4.13"
+criteria = "safe-to-deploy"
+notes = "F71: not reviewed; the fuzz crates only (docs/deps/libfuzzer-sys.md), in no shipped binary"
 
 [[exemptions.libloading]]
 version = "0.8.9"

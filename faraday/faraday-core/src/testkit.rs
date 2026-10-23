@@ -1740,3 +1740,13 @@ pub fn flow_push(app: &mut crate::Faraday, f: crate::backup_flow::BackupFlow) ->
 pub fn flows_mut(app: &mut crate::Faraday) -> &mut Vec<crate::backup_flow::BackupFlow> {
     app.flows.all_mut()
 }
+
+/// The scan sheet open for `purpose`, as the press that opens it for that
+/// purpose leaves it: what the fuzz target `app_scanned` sends scanned
+/// codes into, one purpose at a time.
+pub fn open_scan(app: &mut crate::Faraday, purpose: crate::ScanPurpose) {
+    let mut scan = crate::ScanState::default();
+    scan.purpose = purpose;
+    app.camera.open(scan);
+    app.sheet = Some(crate::Sheet::Scan);
+}

@@ -1,0 +1,1 @@
+otpauth://totp/Example:me@example.org?secret=JBSWY3DPEHPK3PXP&issuer=Example&algorithm=SHA256&digits=8&period=60

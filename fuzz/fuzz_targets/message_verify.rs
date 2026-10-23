@@ -4,7 +4,9 @@
 //! The addresses are the four single-signature script types of the
 //! BIP-39 test vector key, built once. The input's first line is the
 //! signature and the rest is the message, so one corpus entry carries
-//! both.
+//! both. The whole input is also read as a signed-message file
+//! (`message::parse_signed`), which Files does to every text file, and a
+//! parsed one is verified against the addresses too.
 
 #![no_main]
 
@@ -56,6 +58,11 @@ fuzz_target!(|data: &[u8]| {
     let Ok(text) = core::str::from_utf8(data) else {
         return;
     };
+    if let Some(signed) = message::parse_signed(text) {
+        for address in addresses() {
+            let _ = message::verify(address, &signed.message, &signed.signature);
+        }
+    }
     let (signature, body) = text.split_once('\n').unwrap_or((text, ""));
     for address in addresses() {
         let _ = message::verify(address, body, signature);

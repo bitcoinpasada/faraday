@@ -35,6 +35,10 @@ lint:
     # --locked cargo-vet` puts it on a machine; `just vet-refresh` updates
     # the imports when chosen.
     cargo vet --locked
+    # The two fuzz crates are workspaces of their own: vetted against the
+    # same store (docs/deps/libfuzzer-sys.md).
+    cargo vet --locked --manifest-path fuzz/Cargo.toml --store-path supply-chain
+    cargo vet --locked --manifest-path faraday/fuzz/Cargo.toml --store-path supply-chain
     cargo fmt --all --check
     tools/lint-secrets.sh
     tools/lint-strings.sh
@@ -96,44 +100,71 @@ psbt-fixtures:
     cargo run -p faraday-psbt --release --example threshold -- tools/vectors/psbt
     cargo run -p faraday-psbt --release --example tapmulti -- tools/vectors/psbt
 
-# --- Fuzzing (fuzz/) --------------------------------
+# --- Fuzzing (fuzz/, faraday/fuzz/) -----------------
 #
-# Local only: no hosted CI runs this, and no release depends on it. It
-# needs a nightly toolchain and cargo-fuzz, both at user level:
+# Local only: no hosted CI runs this. It needs cargo-fuzz and the nightly
+# the fuzz crates pin (fuzz/rust-toolchain.toml, a dated one, so a run is
+# reproduced from its commit), both at user level:
 #
-#   rustup toolchain install nightly --profile minimal
 #   cargo install cargo-fuzz --locked
+#   rustup toolchain install nightly-2026-10-13 --profile minimal
 #
-#   just fuzz-list             the targets
-#   just fuzz classify         one target for the default time
-#   just fuzz decode_luma 300  one target for 300 seconds
+#   just fuzz-list                  the targets of both directories
+#   just fuzz classify              one target for the default time
+#   just fuzz decode_luma 300       one target for 300 seconds
+#   just fuzz-release               every target, 10 minutes each (before a release)
+#   just fuzz-corpus-export         every target's corpus, minimized, in out/fuzz-corpus/
 #
-# The fuzz crate is its own workspace (the root Cargo.toml excludes it),
-# so a sanitizer build never shares this workspace's target directory or
-# lock file.
+# Each fuzz crate is its own workspace (the root Cargo.toml excludes
+# them), so a sanitizer build never shares this workspace's target
+# directory or lock file; each has its own committed Cargo.lock. cargo-fuzz
+# has no --locked, so a recipe checks the lock with `cargo metadata
+# --locked` first: a lock that is out of date fails instead of changing.
+# `fuzz` finds a target's directory itself.
 
 fuzz_seconds := "60"
+fuzz_nightly := `sed -n 's/^channel *= *"\(.*\)"$/\1/p' fuzz/rust-toolchain.toml`
 
-# The fuzz targets, one per untrusted-input parser.
+# The fuzz targets, one per untrusted-input parser: `fuzz/` first (the
+# shared crates), then `faraday/fuzz/` (Faraday's own).
 [group('test')]
 fuzz-list:
-    cd fuzz && cargo +nightly fuzz list
+    cargo +{{fuzz_nightly}} fuzz list --fuzz-dir fuzz
+    cargo +{{fuzz_nightly}} fuzz list --fuzz-dir faraday/fuzz
 
-# Run one target. SECONDS defaults to fuzz_seconds; give decode_luma and
-# psbt_parse longer, since they are the widest surfaces.
+# Run one target of either directory. SECONDS defaults to fuzz_seconds;
+# give decode_luma and psbt_parse longer, since they are the widest
+# surfaces.
 [group('test')]
 fuzz TARGET seconds=fuzz_seconds:
-    cd fuzz && cargo +nightly fuzz run {{TARGET}} -- -max_total_time={{seconds}}
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for dir in fuzz faraday/fuzz; do
+        listing="$(cargo +{{fuzz_nightly}} fuzz list --fuzz-dir "$dir" 2>/dev/null)"
+        if grep -qx '{{TARGET}}' <<<"$listing"; then
+            cargo +{{fuzz_nightly}} metadata --locked --format-version 1 --manifest-path "$dir/Cargo.toml" >/dev/null
+            exec cargo +{{fuzz_nightly}} fuzz run --fuzz-dir "$dir" '{{TARGET}}' -- -max_total_time={{seconds}}
+        fi
+    done
+    echo "just fuzz: no target named {{TARGET}} (just fuzz-list)" >&2
+    exit 1
 
-# The same, for Faraday's own targets in faraday/fuzz/ (fat,
-# read_wallet; faraday/fuzz/README.md). Its own workspace, like fuzz/.
+# The fuzz run before a release (docs: tools/README.md, "Before a
+# release"): every target of both directories for SECONDS each (600), as
+# many at once as there are cores, each keeping its corpus between runs.
+# Any crash fails it. It writes out/fuzz-release.txt for the release
+# notes. Run it on the build machine and take the record from there.
+# FARADAY_FUZZ_CORPUS=DIR starts from a published corpus.
 [group('test')]
-fuzz-faraday-list:
-    cd faraday/fuzz && cargo +nightly fuzz list
+fuzz-release seconds="600":
+    tools/fuzz-release.sh {{seconds}}
 
+# Each target's kept corpus and seeds, minimized with `cargo fuzz cmin`
+# into out/fuzz-corpus/<target>/, ready to commit to the corpus
+# repository after a release. On the machine that ran fuzz-release.
 [group('test')]
-fuzz-faraday TARGET seconds=fuzz_seconds:
-    cd faraday/fuzz && cargo +nightly fuzz run {{TARGET}} -- -max_total_time={{seconds}}
+fuzz-corpus-export:
+    tools/fuzz-corpus-export.sh
 
 # The Learn pages as Markdown: docs/learn/ is where the text is edited,
 # en.rs is what the device reads; `lint` fails while the two differ.

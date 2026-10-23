@@ -18,17 +18,22 @@
 # Session handoff notes; private, never committed
 /.thoughts/
 
-# Fuzzing (fuzz/README.md). One rule for both directories: a file with
-# an extension was put there by hand and is committed -- the seed corpus,
-# and the minimized input of a crash that is still open. What a run
-# produces is named after its SHA-1, has no extension, and is not.
+# Fuzzing (fuzz/README.md, faraday/fuzz/README.md). One rule for both
+# directories: a file with an extension was put there by hand and is
+# committed -- the seed corpus, and the minimized input of a crash that is
+# still open. What a run produces is named after its SHA-1, has no
+# extension, and is not.
 /fuzz/corpus/*/*
 !/fuzz/corpus/*/*.*
 /fuzz/artifacts/*/*
 !/fuzz/artifacts/*/*.*
 /fuzz/coverage/
-/fuzz/Cargo.lock
-__pycache__/
+/faraday/fuzz/corpus/*/*
+!/faraday/fuzz/corpus/*/*.*
+/faraday/fuzz/artifacts/*/*
+!/faraday/fuzz/artifacts/*/*.*
+/faraday/fuzz/coverage/
+/faraday__pycache__/
 
 # faraday/build/ is the same: the Linux apps' container recipe.
 !/faraday/build/

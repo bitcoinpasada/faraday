@@ -1,58 +1,116 @@
 # Fuzzing
 
-Twelve `cargo fuzz` targets, one per parser that reads something the device
-did not write: a camera frame, a scanned payload, a PSBT from a
-coordinator, a file on storage.
-the 2026-09-11 security review item M5 is why they exist now. The Pi
+Sixteen `cargo fuzz` targets, one per parser of the shared crates that
+reads something the device did not write: a camera frame, a scanned
+payload, a PSBT from a coordinator, a key share, a file on storage. The
+parsers in Faraday's own crates have theirs in `faraday/fuzz/`
+(`faraday/fuzz/README.md`); `just fuzz-list` lists both.
+
+The 2026-09-11 security review item M5 is why they exist. The Pi
 shell is the only process on the board and is built with
 `panic = "abort"`, so a panic in any of these is a poweroff in the middle
 of a signing session.
 
 This runs on a developer's machine and nowhere else. There is no hosted
-CI, no GitHub Actions, and no release step that depends on it.
+CI and no GitHub Actions. The run before a release is `just fuzz-release`
+(below, and `tools/README.md`, "Before a release").
 
 ## Setup
 
-A nightly toolchain and `cargo-fuzz`, both at user level; the workspace
-itself stays on the pinned 1.97.0.
+`cargo-fuzz`, and the dated nightly that `fuzz/rust-toolchain.toml` (and
+`faraday/fuzz/rust-toolchain.toml`, which must say the same) pins, both at
+user level; the workspace itself stays on its pinned stable toolchain. A
+dated nightly keeps a run reproducible from its commit.
 
 ```
-rustup toolchain install nightly --profile minimal
 cargo install cargo-fuzz --locked
+rustup toolchain install nightly-2026-10-13 --profile minimal
 ```
+
+(The date is the one in the file; the recipes read it from there.)
 
 ## Running
 
 ```
-just fuzz-list                 the targets
+just fuzz-list                 the targets of both directories
 just fuzz classify             one target, 60 seconds
 just fuzz decode_luma 300      one target, 300 seconds
 ```
 
-`just fuzz` is `cargo +nightly fuzz run TARGET -- -max_total_time=N` in
-this directory. Run `cargo` here directly for anything libFuzzer can do
-that the recipe does not pass through. The one worth knowing:
+`just fuzz` finds the directory the target is in and runs
+`cargo +NIGHTLY fuzz run --fuzz-dir DIR TARGET -- -max_total_time=N` from
+the repository root, NIGHTLY being the pinned one. Run `cargo +NIGHTLY fuzz`
+with `--fuzz-dir fuzz` directly for anything libFuzzer can do that the
+recipe does not pass through. The one worth knowing:
 
 ```
-cargo +nightly fuzz run decode_luma -- -max_total_time=300 -fork=1 -ignore_crashes=1
+cargo +nightly-2026-10-13 fuzz run --fuzz-dir fuzz decode_luma -- -max_total_time=300 -fork=1 -ignore_crashes=1
 ```
 
 `-fork=1 -ignore_crashes=1` keeps going after a crash instead of exiting
 on the first one, which is what to use while a known crash is still open.
-None is, as of 2026-09-11: a plain `just fuzz` on any target runs its
+None is, as of 2026-10-23: a plain `just fuzz` on any target runs its
 whole time.
 
-This crate is its own workspace — the root `Cargo.toml` excludes it — so
-a sanitizer build shares neither the lock file nor the target directory
-with the rest of the repository. Everything it builds lands in
-`fuzz/target`.
+This crate is its own workspace, so a sanitizer build shares neither the
+lock file nor the target directory with the rest of the repository.
+Everything it builds lands in `fuzz/target`. Its `Cargo.lock` is committed,
+and `cargo-fuzz` has no `--locked` of its own, so the recipes run `cargo
+metadata --locked` on it first: a lock that is out of date fails instead of
+being changed. Its dependencies are vetted with the workspace's
+(`docs/deps/libfuzzer-sys.md`; `just lint` runs `cargo vet --locked` on it).
+
+To regenerate the lock (a dependency added or the workspace's lock
+changed): copy the root `Cargo.lock` over it, run `cargo +NIGHTLY metadata
+--manifest-path fuzz/Cargo.toml`, and commit it. Starting from the root lock
+keeps every crate the targets share with the shipped code at the shipped
+version, and keeps a newer release candidate of a pinned crate (the
+`pkcs1` that breaks `rsa`) out. A new external crate then needs an
+exemption in `supply-chain/config.toml` and a page in `docs/deps/`.
+
+## Before a release
+
+```
+just fuzz-release              every target, 10 minutes each
+just fuzz-corpus-export        then their corpora, minimized
+```
+
+`just fuzz-release [SECONDS]` runs `tools/fuzz-release.sh`: every target of
+`fuzz/` and `faraday/fuzz/` for SECONDS each (600), as many at once as
+there are cores. Any crash, out-of-memory or timeout fails it and names
+the input. It is run on the build machine, whose cores are the point, and
+the record is taken from there.
+
+Each target keeps the corpus it has grown between runs, in
+`~/.cache/faraday-fuzz/<target>/` on the machine that runs it (a synced
+checkout is replaced each time, so the corpus is not kept in it); the
+committed seeds in `corpus/<target>/` are read as well. With
+`FARADAY_FUZZ_CORPUS=DIR`, the inputs in `DIR/<target>/` that add coverage
+are merged into that corpus first: `DIR` is a checkout of the published
+corpora, or `out/fuzz-corpus/`. The record, `out/fuzz-release.txt`, has
+the date, the commit, the nightly and cargo-fuzz versions, the corpus the
+run started from (its folder name and commit) and, for each target, its
+seconds run, executions, corpus entries and bytes, and "no crashes". The
+release notes quote it.
+
+`just fuzz-corpus-export` (`tools/fuzz-corpus-export.sh`) minimizes each
+target's kept corpus and seeds with `cargo fuzz cmin` into
+`out/fuzz-corpus/<target>/`, to be committed to the repository that
+publishes the corpora.
+
+**Reproducing a release's run.** Check out the release's commit. Install
+the nightly `fuzz/rust-toolchain.toml` names and the cargo-fuzz version
+the record gives (`cargo install cargo-fuzz --locked --version X`). Check
+out the corpus repository at the commit the release notes quote, and run
+`FARADAY_FUZZ_CORPUS=<that checkout> just fuzz-release`. The locks are
+committed, so the dependencies are the release's.
 
 ## Layout
 
 - `fuzz_targets/` — one file per target.
 - `corpus/<target>/` — the seed inputs, committed, all with an extension.
   A run adds its own entries beside them, named after their SHA-1 and
-  ignored by git.
+  ignored by git. (`just fuzz-release` grows its corpus elsewhere, above.)
 - `artifacts/<target>/` — an input that crashed. Committed ones have an
   extension and a name: they are the minimized reproducer of a crash,
   kept while it is open and kept after it is fixed, since an input that
@@ -62,7 +120,7 @@ with the rest of the repository. Everything it builds lands in
 Reproduce a saved artifact with:
 
 ```
-cd fuzz && cargo +nightly fuzz run decode_luma artifacts/decode_luma/rqrr-perspective-map.bin
+cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/rqrr-perspective-map.bin
 ```
 
 ## The targets
@@ -72,13 +130,19 @@ cd fuzz && cargo +nightly fuzz run decode_luma artifacts/decode_luma/rqrr-perspe
 | `classify` | `faraday_codec::classify` |
 | `seedqr` | `faraday_codec::seedqr::from_digits`, `from_entropy` |
 | `ur_receive` | `faraday_codec::ur::Decoder::receive`, one part and a sequence |
-| `psbt_parse` | `faraday_psbt::Psbt::parse_bytes` / `parse_base64`, then `inspect` with no key loaded and with the BIP-39 test vector key |
+| `psbt_parse` | `faraday_psbt::Psbt::parse_bytes` / `parse_base64`, then `inspect` with no key loaded and with the BIP-39 test vector key, then `finalize` on a copy |
 | `policy` | `faraday_bip::policy::WalletPolicy::parse_any` |
-| `message_verify` | `faraday_psbt::message::verify` over the test vector key's four addresses |
+| `message_verify` | `faraday_psbt::message::verify` over the test vector key's four addresses; `parse_signed` on the whole input, its result verified |
 | `xkey` | `faraday_bip::xkey::decode_xpriv` / `decode_xpub`, `slip132::decode_xpub` |
-| `pgp_armor` | `faraday_pgp::read_public_armor` |
+| `pgp_armor` | `faraday_pgp::read_public` |
 | `json` | `faraday_bip::json::parse`, written back with `quote` and read again; `faraday_bip::coldcard::parse` |
 | `decode_luma` | `faraday_codec::decode_luma`, the frame's width and height taken from the first two bytes |
+| `seed_parts` | SLIP-39 `Share::parse` and codex32 `Codex32::parse` on every line, then `recover` over what parsed (SLIP-39 only at iteration exponent 0, so a run stays fast) |
+| `key_file` | a cosigner's key file: BSMS `SignerRecord::parse` and `verify`, `coldcard::cosigner_keys`, `slip132::key_line`, `PolicyKey::parse` |
+| `transaction` | `faraday_psbt::transaction::read_raw` and `Spending::read` |
+| `carry` | `faraday_psbt::threshold::Carry::parse`, then its PSBT read and inspected with the file's secret section as the context's carry |
+| `encodings` | `faraday_codec::encodings::read`, `from_hex` and `read_input` under each way of reading |
+| `aezeed` | `faraday_bip::aezeed::decode_at_cost` at a cost of 16 over 24 word indices and a passphrase taken from the input |
 
 One of them shapes the input before the call, because the code under
 test rejects anything else in its first few lines and a fuzzer would
@@ -181,7 +245,7 @@ Each committed artifact also runs clean on its own, which is
 the cheap check to repeat before touching the QR decoder:
 
 ```
-cd fuzz && cargo +nightly fuzz run decode_luma artifacts/decode_luma/rqrr-perspective-map.bin
+cargo +nightly fuzz run --fuzz-dir fuzz decode_luma fuzz/artifacts/decode_luma/rqrr-perspective-map.bin
 ```
 
 `keep_open` covers less than it did, because `header` now rejects a cost
