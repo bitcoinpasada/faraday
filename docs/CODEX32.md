@@ -1,7 +1,7 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1), not built; its four decisions are proposed in §14, not yet recorded
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open), not built; its four decisions are proposed in §14, not yet recorded
 **Open:** all of it, batches C1 to C10 (§15.2); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
@@ -102,6 +102,9 @@ Sources read for it, each as data and none vendored:
 11. **127 characters** are not offered in Make codex32 shares (§4, §6.1).
 12. **A fingerprint box** on the printed share sheet (§11).
 13. **"Identifier already in use"** also checks the open vaults (§6.4.5).
+15. **The review after entry**: tabs, one per worksheet in the booklet's
+    order, each scrolling within itself and checked once shown; on the
+    small panel a Choice with Previous and Next (§6.5).
 14. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
     keep real dice typed on the pad): five dice for codex32, one die for
     BIP-39 words and Generate with dice, their values this computer's
@@ -588,9 +591,13 @@ column's cells, each listed with its working (§7.4).
 ### 6.5 The worksheets
 
 After the last character, a review of every worksheet, already filled
-during entry, one card per worksheet, in the booklet's order (III.1.A,
+during entry, one tab per worksheet, in the booklet's order (III.1.A,
 III.1.B); nothing is computed here that was not drawn during entry:
 
+0. **Dice · A**, then of C, D, … (k = 0: of the secret), where the
+   entropy was rolled: the de-biasing rows of every character of that
+   string, struck-through pairs included, each character's five bits and
+   tree path, in box order.
 1. **Checksum of share A**, then of C, D, … (k = 0: of the secret): the
    checksum worksheet (§7.1) with the data from the entropy in its bold
    boxes, marked "from your rolls" or "as typed", and the 13 checksum
@@ -604,11 +611,22 @@ III.1.B); nothing is computed here that was not drawn during entry:
    so that a person can follow it; it is not among the strings to
    write.
 
-A strip above the card names the worksheets and marks the one shown; a
-press on one opens it. The live entry screen (§6.4) is where the sheets
-are worked; these cards are where each is read back whole, scrolling
-where it does not fit, with every cell still opening its working (§7.4).
-§15.4, question 1, asks the owner to confirm this split.
+**Tabs, each scrolling within itself** (owner, 2026-10-22, §1.1 item
+15). A tab row above the worksheet names every worksheet in the order
+above ("Dice · A", "Dice · C", "Checksum · A", "Checksum · C", "Share D",
+"Secret"); a press on a tab shows that worksheet, and each tab gains a
+check mark once it has been shown, so what is left to read is plain. The
+worksheet under the tabs scrolls vertically within itself, its box
+numbers kept in view as it scrolls, every cell still opening its working
+(§7.4). Not one long page (a 2 of 3 at 48 characters is the dice rows of
+52 characters and four worksheets; a 74-character checksum worksheet
+alone is some 60 rows), and not cards stepped one at a time (the person
+comparing with paper jumps to one sheet). On `wide` and `mobile` the
+tab row wraps to a second line where it does not fit; on `small`, where
+six tabs do not fit, the tab row is a Choice titled by the worksheet
+shown ("Checksum · A ▾") with **Previous** and **Next**. The tab row is
+new to DESIGN §4 (§15.3). The live entry screen (§6.4) is where the
+sheets are worked; the tabs are where each is read back whole.
 
 ### 6.6 The strings
 
@@ -1153,6 +1171,7 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 | `docs/DESIGN.md` | §4.10, §5 Pad, Secret, Result, Choice | the worksheet as a Secret panel; the booklet dice pad; String · Codex32QR; Strings made as built; the Scheme choices |
 | `docs/FLOWS.md` | New key and Add a key; Vaults (Create a vault) | §5.6: the roller on Faraday Desktop for dice words and Generate with dice |
 | `docs/DESIGN.md` | §5 Pad; §4.10 | the dice row and the one die, Rolls per click, "Rolled by this computer"; the masking exception of §6.4.6 |
+| `docs/DESIGN.md` | §4 (new component) | the tab row: one tab per item, a check mark once shown, wrapping on `wide` and `mobile`, a Choice with Previous and Next on `small` (§6.5) |
 | `docs/DEMO.md` | §5.2 | the roller in the demo: Generate with dice and New key unchanged in outcome |
 | `docs/STARTER.md` | §3.8 | the Form row and §11 |
 | `docs/BACKUP-FLOW.md` | §10.2, §12, §17.3, §17.6 | the Templates text; strings; the codex32 toggle and `What::Codex32Share`; presets unchanged |
@@ -1169,11 +1188,4 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 
 ### 15.4 Questions for the owner
 
-The owner answered the others on 2026-10-22 (§1.1). Open:
-
-1. **Live screen, then review cards.** With the sheets worked live on
-   the entry screen (§6.4), the worksheets are reviewed afterwards one
-   card per worksheet (§6.5), each scrolling where it does not fit.
-   Confirm, or one long scrolling worksheet for the review instead?
-   Recommended: the cards, since the live screen already follows the
-   front and a 74-character worksheet does not fit one screen.
+None open: the owner answered every question on 2026-10-22 (§1.1).
