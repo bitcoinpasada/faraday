@@ -151,7 +151,12 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     app.press(Action::Vault(V::LoadAll(0)));
     assert_eq!(app.session.keys.len(), 3, "the three seeds did not load");
     // The descriptor in Files, opened: every key of it signs here.
@@ -274,7 +279,7 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(100);
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
         inbox: vec![("vault.ofv".into(), testkit::test_vault().unwrap())],
         outbox: Vec::new(),
@@ -309,7 +314,12 @@ fn the_lock_sheet_lists_a_seed_checked_and_in_a_vault_as_kept() {
     app.press(Action::Vault(V::Unlock));
     let _ = app.frame();
     app.event(Event::Tick { now_ms: 1000 });
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     app.press(Action::Vault(V::SaveWallet(0)));
     let lines = lock_sheet_lines(&mut app);
     let line = lines

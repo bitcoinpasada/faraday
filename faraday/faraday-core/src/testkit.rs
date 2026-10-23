@@ -1659,3 +1659,49 @@ pub fn backup_set_q(app: &mut crate::Faraday, q: Option<u8>) {
 pub fn backup_drop(app: &mut crate::Faraday) {
     app.backup.close();
 }
+
+/// How long one Argon2id pass over 64 MiB takes here, ms, set as if
+/// measured: the costs and waits shown are worked out from it.
+pub fn vault_speed(app: &mut crate::Faraday, ms: Option<u64>) {
+    app.vaults.set_speed(ms);
+}
+
+/// Changes open vault `id`'s records through `change`, as the vault's
+/// own edits do.
+pub fn vault_edit<T>(
+    app: &mut crate::Faraday,
+    id: faraday_keys::vault::VaultId,
+    change: impl FnOnce(&mut faraday_keys::vault::OpenVaults) -> T,
+) -> T {
+    app.vaults.edit(id, change)
+}
+
+/// Open vault `o` has one more change not sealed.
+pub fn vault_bump(app: &mut crate::Faraday, o: usize) {
+    app.vaults.bump(o);
+}
+
+/// Closes the vault item's form.
+pub fn vault_close_form(app: &mut crate::Faraday) {
+    app.vaults.close_form();
+}
+
+/// The vaults' summaries, to change what they hold.
+pub fn vault_summaries_mut(app: &mut crate::Faraday) -> &mut Vec<crate::vault::VaultSummary> {
+    app.vaults.summaries_mut()
+}
+
+/// Open vault `id` changed, as the vault's own edits say it.
+pub fn vault_changed(app: &mut crate::Faraday, id: faraday_keys::vault::VaultId) {
+    app.vaults.changed(id);
+}
+
+/// Shows open vault `o` in the contents.
+pub fn vault_current(app: &mut crate::Faraday, o: usize) {
+    app.vaults.set_current(o);
+}
+
+/// Swaps open vaults `a` and `b` in the list.
+pub fn vault_swap_open(app: &mut crate::Faraday, a: usize, b: usize) {
+    app.vaults.swap_open(a, b);
+}

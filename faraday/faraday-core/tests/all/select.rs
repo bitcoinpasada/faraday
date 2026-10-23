@@ -73,10 +73,11 @@ fn a_double_click_selects_the_passphrase_and_backspace_empties_it() {
     click(&mut app, at, 1_200);
     assert!(app.selected_all());
     app.event(Event::Key(Key::Backspace));
-    assert!(app.vaults.passphrase.text.is_empty());
+    assert!(app.vaults().passphrase.text.is_empty());
     type_text(&mut app, "next");
     assert_eq!(
-        &*app.vaults.passphrase.text, "next",
+        &*app.vaults().passphrase.text,
+        "next",
         "typing goes on as before"
     );
 }
@@ -96,11 +97,11 @@ fn drag(app: &mut Faraday, field: Action, from: usize, to: usize) {
 #[test]
 fn a_drag_across_the_field_selects_it_and_typing_replaces_it() {
     let (mut app, _) = typed_passphrase();
-    let n = app.vaults.passphrase.text.chars().count();
+    let n = app.vaults().passphrase.text.chars().count();
     drag(&mut app, Action::Vault(V::FocusPassphrase), 0, n);
     assert!(app.selected_all());
     type_text(&mut app, "z");
-    assert_eq!(&*app.vaults.passphrase.text, "z");
+    assert_eq!(&*app.vaults().passphrase.text, "z");
 }
 
 #[test]
@@ -113,7 +114,7 @@ fn two_clicks_far_apart_in_time_select_nothing() {
     // The press put the caret where it landed: Backspace takes the one
     // character before it and leaves the rest as they were.
     let typed = "a long passphrase typed wrong somewhere";
-    let left = app.vaults.passphrase.text.to_string();
+    let left = app.vaults().passphrase.text.to_string();
     assert_eq!(left.len(), typed.len() - 1, "Backspace takes one character");
     assert!((0..typed.len()).any(|i| format!("{}{}", &typed[..i], &typed[i + 1..]) == left));
 }

@@ -1014,7 +1014,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.shot("vaults")?;
     t.press(Action::Vault(V::Open(0)));
@@ -1037,13 +1037,13 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     }
     t.shot("wallets-vault-open")?;
     t.press(Action::Nav(Screen::VaultContents));
-    if t.app.vaults.open.len() != 1
+    if t.app.vaults().open.len() != 1
         || t.app.session.keys.len() != 1
         || !t.app.session.wallets.iter().any(|w| w.name == "Spending")
     {
         return Err(format!(
             "the test vault did not unlock with its key and wallet: {:?}",
-            t.app.vaults.unlock_error
+            t.app.vaults().unlock_error
         ));
     }
     t.shot("vault-keys")?;
@@ -1070,7 +1070,13 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.pump();
     t.shot("vault-entry-scanned")?;
     t.press(Action::Vault(V::FormSave));
-    let entries = |t: &Tour| t.app.vaults.records(t.app.vaults.open[0].id).of(6).count();
+    let entries = |t: &Tour| {
+        t.app
+            .vaults()
+            .records(t.app.vaults().open[0].id)
+            .of(6)
+            .count()
+    };
     if entries(t) != 5 {
         return Err(format!(
             "expected 5 entries after the imports, found {}",
@@ -1091,11 +1097,17 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("vault-backup-prompt")?;
     t.press(Action::Vault(V::PromptGo));
     t.tick();
-    let keys = |t: &Tour| t.app.vaults.records(t.app.vaults.open[0].id).of(2).count();
+    let keys = |t: &Tour| {
+        t.app
+            .vaults()
+            .records(t.app.vaults().open[0].id)
+            .of(2)
+            .count()
+    };
     if keys(t) != 2 {
         return Err(format!(
             "the backup's key is not in the vault: {:?}",
-            t.app.vaults.prompt.as_ref().and_then(|p| p.error.clone())
+            t.app.vaults().prompt.as_ref().and_then(|p| p.error.clone())
         ));
     }
     // Test key 3 with a BIP-39 passphrase, saved with it.
@@ -1117,9 +1129,9 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Vault(V::Add));
     t.shot("vault-save-key")?;
     t.press(Action::Vault(V::SaveKeyWithPassphrase(with)));
-    let id = t.app.vaults.open[0].id;
-    if !t.app.vaults.records(id).of(2).any(|(i, _)| {
-        &*t.app.vaults.store().reveal(
+    let id = t.app.vaults().open[0].id;
+    if !t.app.vaults().records(id).of(2).any(|(i, _)| {
+        &*t.app.vaults().store().reveal(
             c,
             id,
             i,
@@ -1234,8 +1246,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("totp-codes")?;
     let totp_item = t
         .app
-        .vaults
-        .records(t.app.vaults.open[0].id)
+        .vaults()
+        .records(t.app.vaults().open[0].id)
         .of(6)
         .position(|(_, r)| r.public_text(1) == Some("Example Git"))
         .ok_or("the imported TOTP entry is not in the vault")?;
@@ -1248,8 +1260,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     type_text(t, "Test");
     flow_made(t, faraday_core::backup_flow::Kind::SecureBoot)?;
     if t.app
-        .vaults
-        .records(t.app.vaults.open[0].id)
+        .vaults()
+        .records(t.app.vaults().open[0].id)
         .of(8)
         .next()
         .is_none()
@@ -1282,8 +1294,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .ok_or("the signed image is not in the Outbox")?;
     let db_cert = t
         .app
-        .vaults
-        .records(t.app.vaults.open[0].id)
+        .vaults()
+        .records(t.app.vaults().open[0].id)
         .of(8)
         .find_map(|(_, r)| r.public(faraday_keys::vault::sb_field::DB_CERT))
         .ok_or("the keys do not read back")?;
@@ -1371,7 +1383,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Create));
     // It opens on Name and passphrases, the size closed on its default.
@@ -1405,7 +1417,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Vault(V::DiceUse));
     let dice_phrase = t
         .app
-        .vaults
+        .vaults()
         .create
         .as_ref()
         .map(|c| c.phrases[0].0.text.to_string())
@@ -1431,7 +1443,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         .ok_or_else(|| {
             format!(
                 "no vault was made: {:?}",
-                t.app.vaults.create.as_ref().and_then(|c| c.error.clone())
+                t.app.vaults().create.as_ref().and_then(|c| c.error.clone())
             )
         })?;
     for p in [dice_phrase.as_str(), "second passphrase"] {
@@ -1440,12 +1452,12 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // Made: Unlock, the new vault picked, its passphrase asked once more.
     t.shot("create-vault-unlock")?;
     println!("a vault made here opens with each of its two passphrases");
-    let before = t.app.vaults.open.len();
+    let before = t.app.vaults().open.len();
     let row = t
         .app
         .vault_files()
         .iter()
-        .position(|f| Some(&f.name) == t.app.vaults.just_made.as_ref())
+        .position(|f| Some(&f.name) == t.app.vaults().just_made.as_ref())
         .ok_or("the vault just made is not listed")?;
     t.press(Action::Vault(V::Open(row)));
     // Opening it now is the same Unlock screen as any other vault: its
@@ -1453,10 +1465,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     type_text(t, &dice_phrase);
     t.press(Action::Vault(V::Unlock));
     t.tick();
-    if t.app.vaults.open.len() != before + 1 {
+    if t.app.vaults().open.len() != before + 1 {
         return Err(format!(
             "the vault just made did not open on its own passphrase: {:?}",
-            t.app.vaults.unlock_error
+            t.app.vaults().unlock_error
         ));
     }
     t.shot("vault-kept-open")?;

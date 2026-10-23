@@ -1138,7 +1138,10 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
         .iter()
         .filter_map(|&v| {
             let salt = f.plan.vaults.get(v)?.salt?;
-            app.vaults.open.iter().position(|o| o.header().salt == salt)
+            app.vaults
+                .open
+                .iter()
+                .position(|o| o.header().salt == salt)
         })
         .find_map(|o| {
             let at = app.flow_record_in(o, f.kind, &sub.id)?;

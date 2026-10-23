@@ -39,7 +39,7 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app
 }
 
@@ -54,13 +54,13 @@ fn type_and_unlock(app: &mut Faraday) {
     }
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
 }
 
 fn add_key(app: &mut Faraday, n: usize) {
@@ -222,13 +222,13 @@ fn new_open_vault(app: &mut Faraday) {
     }
     app.press(Action::Vault(V::Unlock));
     for t in 60..120u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the new vault did not open");
+    assert_eq!(app.vaults().open.len(), 1, "the new vault did not open");
 }
 
 #[test]
@@ -299,7 +299,7 @@ fn vault_holding_a_made_key() -> (Vec<(String, Vec<u8>)>, faraday_bip::bip39::Mn
     let made =
         faraday_bip::bip39::Mnemonic::parse(&c, faraday_bip::bip39::Language::English, &words)
             .unwrap();
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_and_unlock(&mut app);
@@ -354,7 +354,7 @@ fn a_key_whose_words_are_in_the_vault_reads_as_kept_there_and_another_does_not()
     use faraday_bip::bip39::{Language, Mnemonic};
     let (vault, made) = vault_holding_a_made_key();
     let mut app = device(vault);
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_and_unlock(&mut app);
@@ -400,9 +400,9 @@ fn fp_of_words(words: &str) -> [u8; 4] {
 /// Where open vault 0 keeps the key whose label is `label`.
 fn key_record(app: &Faraday, label: &str) -> usize {
     use faraday_vault::records::{field, kind};
-    app.vaults
+    app.vaults()
         .store()
-        .contents_for_tests(app.vaults.open[0].id)
+        .contents_for_tests(app.vaults().open[0].id)
         .records
         .iter()
         .position(|r| r.kind == kind::KEY && r.text(field::KEY_LABEL) == Some(label))
@@ -456,7 +456,7 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
         Some(Source::Here(fp)),
         "and fills Key 1"
     );
-    assert_eq!(app.vaults.open.len(), 1, "the vault is still open");
+    assert_eq!(app.vaults().open.len(), 1, "the vault is still open");
     let _ = app.frame();
     assert!(
         !app.offers(Action::CSlotVault(1, 0, r)),

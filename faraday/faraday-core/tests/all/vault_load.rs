@@ -32,22 +32,22 @@ fn unlock_on_vaults(app: &mut Faraday, name: &str, phrase: &str) {
         .iter()
         .position(|f| f.name == name)
         .expect("the vault is listed");
-    let before = app.vaults.open.len();
+    let before = app.vaults().open.len();
     app.press(Action::Vault(V::Open(n)));
     type_text(app, phrase);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if app.vaults.open.len() > before {
+        if app.vaults().open.len() > before {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
     assert_eq!(
-        app.vaults.open.len(),
+        app.vaults().open.len(),
         before + 1,
         "{:?}",
-        app.vaults.unlock_error
+        app.vaults().unlock_error
     );
 }
 
@@ -219,7 +219,7 @@ fn not_now_loads_nothing_and_the_vault_can_still_load_later() {
     unlock_on_vaults(&mut app, "cellar.ofv", PHRASE);
     app.press(Action::Vault(V::LoadNotNow));
     assert_eq!((app.screen, app.sheet), (Screen::Files, None));
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
     app.press(Action::Vault(V::LoadAll(0)));
     assert_eq!(app.session.wallets.len(), 3);
@@ -242,18 +242,22 @@ fn a_wallet_set_not_to_load_ticked_on_the_sheet_loads_and_keeps_its_setting() {
     assert_eq!(wallet_names(&app), ["Spending"]);
     assert_eq!(key_labels(&app), ["Test key 1"]);
     let r = &app
-        .vaults
+        .vaults()
         .store()
-        .contents_for_tests(app.vaults.open[0].id)
+        .contents_for_tests(app.vaults().open[0].id)
         .records[spending];
     assert!(!records::loads_at_unlock(r), "the tick changed the setting");
     let r = &app
-        .vaults
+        .vaults()
         .store()
-        .contents_for_tests(app.vaults.open[0].id)
+        .contents_for_tests(app.vaults().open[0].id)
         .records[savings];
     assert!(records::loads_at_unlock(r));
-    assert_eq!(app.vaults.open[0].changes, 0, "the sheet changed the vault");
+    assert_eq!(
+        app.vaults().open[0].changes,
+        0,
+        "the sheet changed the vault"
+    );
 }
 
 /// A seed in two wallets loads with the one ticked, and the other wallet
@@ -376,7 +380,7 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(100);
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: "boot".into(),
@@ -426,7 +430,7 @@ fn from_the_boot_sheet_each_unlock_asks_what_to_load_before_the_next() {
     assert!(app.import().is_none());
     assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
-    assert_eq!(app.vaults.open.len(), 2);
+    assert_eq!(app.vaults().open.len(), 2);
 }
 
 /// A wallet the backup's checklist saves into a vault loads at unlock;
@@ -494,9 +498,9 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         app.press(Action::BVaultSave(0));
         let ours = |app: &Faraday| -> bool {
             let (_, r) = app
-                .vaults
+                .vaults()
                 .store()
-                .contents_for_tests(app.vaults.open[0].id)
+                .contents_for_tests(app.vaults().open[0].id)
                 .of(kind::WALLET)
                 .find(|(_, r)| r.text(field::WALLET_NAME) == Some(name.as_str()))
                 .expect("the wallet is in the vault");
@@ -646,7 +650,7 @@ fn a_seed_kept_without_its_passphrase_is_on_the_keys_card_and_loads_with_one_lat
     let mut app = trio_loaded(Vec::new());
     load_with_a_passphrase(&mut app);
     // One seed: its field, not the list.
-    assert!(app.vaults.pass_seeds.as_ref().unwrap().picked.is_some());
+    assert!(app.vaults().pass_seeds.as_ref().unwrap().picked.is_some());
     try_passphrase(&mut app, "kept apart");
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Wallets);
@@ -662,7 +666,7 @@ fn a_wrong_passphrase_loads_nothing_and_says_what_it_gave() {
     try_passphrase(&mut app, "kept apart, wrongly");
     assert_eq!(app.session.keys.len(), 2);
     assert_eq!(app.sheet, Some(Sheet::PassphraseSeeds));
-    let error = app.vaults.prompt.as_ref().unwrap().error.clone().unwrap();
+    let error = app.vaults().prompt.as_ref().unwrap().error.clone().unwrap();
     assert!(
         error.starts_with("This passphrase gives ") && error.ends_with(", not a key of Trio"),
         "{error}"
@@ -673,9 +677,9 @@ fn a_wrong_passphrase_loads_nothing_and_says_what_it_gave() {
     assert_eq!(held(&app), 3);
     // Never stored in the vault.
     let stored = app
-        .vaults
+        .vaults()
         .store()
-        .contents_for_tests(app.vaults.open[0].id)
+        .contents_for_tests(app.vaults().open[0].id)
         .of(kind::KEY)
         .any(|(_, r)| r.field(field::KEY_PASSPHRASE).is_some());
     assert!(!stored);
@@ -691,7 +695,7 @@ fn two_seeds_with_no_passphrase_are_listed_and_the_other_one_loads_nothing() {
         "Loose A",
     )]);
     load_with_a_passphrase(&mut app);
-    assert!(app.vaults.pass_seeds.as_ref().unwrap().picked.is_none());
+    assert!(app.vaults().pass_seeds.as_ref().unwrap().picked.is_none());
     let seeds = app.vault_passphrase_seeds_now(&c);
     assert_eq!(seeds.len(), 2);
     let _ = app.frame();
@@ -704,7 +708,7 @@ fn two_seeds_with_no_passphrase_are_listed_and_the_other_one_loads_nothing() {
     app.press(Action::Vault(V::PassphrasePick(loose.vault, loose.record)));
     try_passphrase(&mut app, "kept apart");
     assert_eq!(app.session.keys.len(), 2, "an unrelated key loaded");
-    assert!(app.vaults.prompt.as_ref().unwrap().error.is_some());
+    assert!(app.vaults().prompt.as_ref().unwrap().error.is_some());
     // Another seed: the list again, then the right one.
     app.press(Action::Vault(V::PassphraseList));
     let third = seeds

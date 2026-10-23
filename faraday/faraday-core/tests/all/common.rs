@@ -146,7 +146,7 @@ pub fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app
 }
 
@@ -707,7 +707,7 @@ pub fn at_make(app: &mut Faraday, kind: Kind) {
     let c = faraday_core::testkit::compute();
     use faraday_core::backup_flow::{BackupFlow, Plan, Step};
     let (salt, name) = {
-        let o = &app.vaults.open[app.vaults.current];
+        let o = &app.vaults().open[app.vaults().current];
         (o.header().salt, o.name.clone())
     };
     let mut plan = Plan::key_default();
@@ -733,7 +733,7 @@ pub fn make_in_form(app: &mut Faraday, fields: &[&str]) -> Option<String> {
     app.press(Action::Flow(F::Make));
     let toast = app.toast_text().map(str::to_string);
     // An RSA key is made on the tick after "Making the key" is drawn.
-    if app.vaults.working.is_some() {
+    if app.vaults().working.is_some() {
         settle_n(app, 300, 2);
     }
     toast
@@ -1227,7 +1227,7 @@ pub fn device(inbox: Files) -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     let _ = app.frame();
     app
 }
@@ -1258,4 +1258,16 @@ pub fn gpg_key_of(r: &faraday_vault::Record) -> Option<faraday_pgp::Key> {
             .collect(),
         expiry: u32_of(6).unwrap_or(0),
     })
+}
+
+/// Open vault `o`'s records as they are, through the store's test door.
+pub fn contents(app: &Faraday, o: usize) -> &faraday_vault::Contents {
+    app.vaults()
+        .store()
+        .contents_for_tests(app.vaults().open[o].id)
+}
+
+/// Why the last unlock failed, for an assertion's message.
+pub fn unlock_error(app: &Faraday) -> &Option<String> {
+    &app.vaults().unlock_error
 }

@@ -56,7 +56,7 @@ fn device_full(width: u16, height: u16, dpi: u16, inbox: Files, kept: Files) -> 
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     let _ = app.frame();
     app
 }
@@ -482,8 +482,8 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     settle(&mut app, |a| a.screen == Screen::Unlock);
     type_text(&mut app, "test phrase");
     app.press(Action::Vault(V::Unlock));
-    settle(&mut app, |a| !a.vaults.open.is_empty());
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
+    settle(&mut app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
     planned(&mut app, w, 2);
     app.press(Action::Backup(w));
     app.press(Action::BChecklist);
@@ -512,8 +512,8 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
     app.press(Action::Vault(V::Open(0)));
     type_text(&mut app, "test phrase");
     app.press(Action::Vault(V::Unlock));
-    settle(&mut app, |a| !a.vaults.open.is_empty());
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not unlock");
+    settle(&mut app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not unlock");
     app.press(Action::Vault(V::LoadTicked));
     assert_eq!(app.session.wallets.len(), 1, "the wallet did not load");
     app.press(Action::OpenWallet(0));
@@ -600,8 +600,8 @@ fn vault_holding(app: &mut Faraday, w: usize, plan: bool) {
     settle(app, |a| a.screen == Screen::Unlock);
     type_text(app, "test phrase");
     app.press(Action::Vault(V::Unlock));
-    settle(app, |a| !a.vaults.open.is_empty());
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
+    settle(app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
     if plan {
         planned(app, w, 2);
         app.press(Action::Backup(w));

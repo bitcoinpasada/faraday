@@ -63,7 +63,7 @@ fn later(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app
 }
 
@@ -71,7 +71,7 @@ fn later(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
 /// back where it was made from.
 fn make_vault(app: &mut Faraday, phrase: &str) {
     assert_eq!(app.screen, Screen::CreateVault);
-    let before = app.vaults.open.len();
+    let before = app.vaults().open.len();
     for second in [false, true] {
         app.press(Action::Vault(V::CFocus(0, second)));
         type_text(app, phrase);
@@ -88,17 +88,17 @@ fn make_vault(app: &mut Faraday, phrase: &str) {
     type_text(app, phrase);
     app.press(Action::Vault(V::Unlock));
     for t in 60..120u64 {
-        if app.vaults.open.len() > before {
+        if app.vaults().open.len() > before {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
     assert_eq!(
-        app.vaults.open.len(),
+        app.vaults().open.len(),
         before + 1,
         "{phrase}: {:?} on {:?}",
-        app.vaults.unlock_error,
+        app.vaults().unlock_error,
         app.screen
     );
 }
@@ -196,13 +196,18 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     type_text(&mut app, "earlier vault phrase");
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if app.vaults.open.len() == 2 {
+        if app.vaults().open.len() == 2 {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 2, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        2,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     // Its Load sheet put off: the vault stays open (F62).
     app.press(Action::Vault(V::LoadNotNow));
     app.press(Action::Nav(Screen::Backup));

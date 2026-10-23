@@ -113,7 +113,7 @@ fn booted_with(files: &[(String, Vec<u8>)]) -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(100);
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![boot_stick(files)]));
     pump(&mut app, files);
     app
@@ -158,7 +158,12 @@ fn unlocked_elsewhere() -> Faraday {
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     run_unlock(&mut app);
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     app
 }
 
@@ -287,7 +292,7 @@ fn import_brings_in_every_ticked_file_then_the_vaults_unlock_loads_its_wallets()
             "zebra-wallet.txt"
         ]
     );
-    assert!(app.vaults.open.is_empty());
+    assert!(app.vaults().open.is_empty());
     // Their wallet and keys: Zebra, test keys 2 and 3.
     assert!(app.session.wallets.iter().any(|w| w.name == "Zebra"));
     let mut want = vec![fp(1), fp(2)];
@@ -302,7 +307,12 @@ fn import_brings_in_every_ticked_file_then_the_vaults_unlock_loads_its_wallets()
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     // Its Load sheet (F62), everything ticked; Load ticked ends the
     // import and lands on Wallets.
     assert_eq!(
@@ -337,8 +347,13 @@ fn a_seed_imported_from_its_file_and_held_by_the_vault_loads_once() {
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
-    assert_eq!(app.vaults.unlock_error, None);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
+    assert_eq!(app.vaults().unlock_error, None);
     // The vault's copy of the key is Loaded on its Load sheet.
     app.press(Action::Vault(V::LoadTicked));
     let mut want = vec![fp(0), fp(1), fp(2)];
@@ -354,10 +369,10 @@ fn a_wrong_passphrase_stays_on_the_sheet_and_says_so() {
     type_in(&mut app, "not the passphrase");
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
-    assert!(app.vaults.open.is_empty());
+    assert!(app.vaults().open.is_empty());
     assert_eq!((app.screen, app.sheet), (Screen::Home, Some(Sheet::Import)));
     assert!(app.import().is_some());
-    let error = app.vaults.unlock_error.clone().expect("no error said");
+    let error = app.vaults().unlock_error.clone().expect("no error said");
     assert!(
         drawn(&mut app).contains(&error),
         "the error is not on the sheet"
@@ -369,7 +384,7 @@ fn a_wrong_passphrase_stays_on_the_sheet_and_says_so() {
     run_unlock(&mut app);
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
     app.press(Action::Vault(V::LoadNotNow));
-    assert!(app.import().is_none() && app.vaults.open.len() == 1);
+    assert!(app.import().is_none() && app.vaults().open.len() == 1);
 }
 
 #[test]
@@ -391,7 +406,12 @@ fn import_with_the_stick_in_waits_for_the_pull_to_unlock() {
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
 }
 
 #[test]
@@ -404,7 +424,7 @@ fn the_reminders_before_the_passphrase_leave_the_sheet_where_it_was() {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(100);
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
     pump(&mut app, &files);
     app.storage(StorageEvent::Sticks(Vec::new()));
@@ -426,7 +446,7 @@ fn the_reminders_before_the_passphrase_leave_the_sheet_where_it_was() {
     run_unlock(&mut app);
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
     app.press(Action::Vault(V::LoadTicked));
-    assert!(app.import().is_none() && app.vaults.open.len() == 1);
+    assert!(app.import().is_none() && app.vaults().open.len() == 1);
 }
 
 #[test]
@@ -477,7 +497,7 @@ fn put_off_after_import_home_leads_with_the_vaults_unlock() {
     app.press(Action::Import(I::Later));
     assert_eq!((app.screen, app.sheet), (Screen::Home, None));
     assert!(
-        app.vaults.passphrase.text.is_empty(),
+        app.vaults().passphrase.text.is_empty(),
         "what was typed stays"
     );
     let texts = drawn(&mut app);
@@ -499,7 +519,12 @@ fn with_two_vaults_each_is_offered_in_turn_and_cancel_leaves_it_locked() {
     type_in(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Import(I::Submit));
     run_unlock(&mut app);
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     // Its Load sheet, then the second vault.
     assert_eq!(
         (app.screen, app.sheet),
@@ -724,7 +749,7 @@ fn a_seed_on_the_stick_as_words_and_a_picture_is_labelled_from_the_words_file() 
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(100);
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![boot_stick(&files)]));
     while let Some(c) = app.poll_storage() {
         match c {
@@ -771,7 +796,7 @@ fn a_vault_imported_then_unlocked_on_vaults_loads_its_own_wallets() {
     assert_eq!((app.screen, app.sheet), (Screen::Wallets, None));
     assert!(app.import().is_none());
     assert!(app.session.wallets.iter().any(|w| w.name == "Savings"));
-    assert_eq!(app.vaults.back_to, None);
+    assert_eq!(app.vaults().back_to, None);
 }
 
 /// A USB mouse the shell holds back until a person says so.
@@ -1049,10 +1074,10 @@ fn a_vaults_words_and_master_seed_keys_load_on_unlock() {
         app.press(Action::Import(I::Submit));
         run_unlock(&mut app);
         assert_eq!(
-            app.vaults.open.len(),
+            app.vaults().open.len(),
             1,
             "{kind}: {:?}",
-            app.vaults.unlock_error
+            app.vaults().unlock_error
         );
         app.press(Action::Vault(V::LoadTicked));
         assert_eq!(
@@ -1071,10 +1096,10 @@ fn a_vaults_words_and_master_seed_keys_load_on_unlock() {
         app.press(Action::Vault(V::Unlock));
         run_unlock(&mut app);
         assert_eq!(
-            app.vaults.open.len(),
+            app.vaults().open.len(),
             1,
             "{kind}: {:?}",
-            app.vaults.unlock_error
+            app.vaults().unlock_error
         );
         app.press(Action::Vault(V::LoadTicked));
         assert_eq!(key_fps(&app), [want], "{kind}, Vaults");

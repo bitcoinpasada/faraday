@@ -113,7 +113,7 @@ fn copied_in() -> Faraday {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     visit(&mut app, &release_files());
     app
 }
@@ -142,7 +142,12 @@ fn unlocked() -> Faraday {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
     app.press(Action::Vault(V::LoadTicked));
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
     app
@@ -163,18 +168,18 @@ fn make_key(app: &mut Faraday, name: &str) {
 }
 
 fn gpg_keys(app: &Faraday) -> usize {
-    app.vaults
+    app.vaults()
         .store()
-        .contents_for_tests(app.vaults.open[app.vaults.current].id)
+        .contents_for_tests(app.vaults().open[app.vaults().current].id)
         .of(kind::GPG)
         .count()
 }
 
 /// The record of the GPG key last made.
 fn record(app: &Faraday) -> faraday_vault::Record {
-    app.vaults
+    app.vaults()
         .store()
-        .contents_for_tests(app.vaults.open[app.vaults.current].id)
+        .contents_for_tests(app.vaults().open[app.vaults().current].id)
         .of(kind::GPG)
         .last()
         .expect("a GPG key")
@@ -307,7 +312,7 @@ fn set_the_time_from_the_sheet_returns_to_it_and_signs_nothing() {
     assert_eq!(app.screen, Screen::VaultContents);
     assert_eq!(app.sheet, Some(Sheet::GpgSign), "back on the sheet");
     assert_eq!(app.outbox.len(), files, "returning signs nothing");
-    assert_eq!(app.vaults.sign_ticked.len(), 2, "the files still chosen");
+    assert_eq!(app.vaults().sign_ticked.len(), 2, "the files still chosen");
     // Back and Keep this time return to it too, and sign nothing.
     app.press(Action::OpenSetTime);
     app.press(Action::SetTimeBack);
@@ -384,8 +389,8 @@ fn cancel_signs_nothing_and_only_the_sheets_hold_signs() {
     app.press(Action::Cancel);
     assert_eq!(app.sheet, None);
     assert_eq!(app.outbox.len(), files, "nothing signed");
-    assert_eq!(app.vaults.sign_ticked.len(), 1, "still chosen");
-    assert!(app.vaults.signing, "the page stays");
+    assert_eq!(app.vaults().sign_ticked.len(), 1, "still chosen");
+    assert!(app.vaults().signing, "the page stays");
 }
 
 /// A new key's term is GnuPG's default for `--quick-generate-key`, three
@@ -396,7 +401,7 @@ fn making_a_key_keeps_its_revocation_with_it_and_not_in_the_outbox() {
     let mut app = unlocked();
     keep_the_time(&mut app);
     make_key(&mut app, "Release");
-    assert_eq!(app.vaults.gpg_years, 3);
+    assert_eq!(app.vaults().gpg_years, 3);
     let key = key_of(&app);
     assert_eq!(key.expiry, 3 * YEAR);
     let r = record(&app);
@@ -435,15 +440,15 @@ fn a_key_with_no_kept_revocation_makes_one_when_its_page_is_opened() {
     keep_the_time(&mut app);
     make_key(&mut app, "Release");
     let at = app
-        .vaults
+        .vaults()
         .store()
-        .contents_for_tests(app.vaults.open[app.vaults.current].id)
+        .contents_for_tests(app.vaults().open[app.vaults().current].id)
         .of(kind::GPG)
         .last()
         .unwrap()
         .0;
-    let id = app.vaults.open[app.vaults.current].id;
-    app.vaults.edit(id, |s| {
+    let id = app.vaults().open[app.vaults().current].id;
+    faraday_core::testkit::vault_edit(&mut app, id, |s| {
         s.set_secret(id, at, 8, &zeroize::Zeroizing::new(Vec::new()))
     });
     assert!(record(&app).field(8).is_none());
@@ -563,7 +568,7 @@ fn a_new_revocation_asks_the_reason_as_gnupg_does() {
     make_key(&mut app, "Release");
     let kept = record(&app).field(8).unwrap().to_vec();
     app.press(Action::Vault(V::GpgRevocationPage));
-    assert!(app.vaults.form.is_some());
+    assert!(app.vaults().form.is_some());
     // GnuPG's menu: 1 is "compromised", which the packet codes 2.
     app.press(Action::Vault(V::GpgReason(1)));
     app.press(Action::Vault(V::FocusField(0)));
@@ -633,7 +638,7 @@ fn ticking_two_files_and_signing_puts_two_signatures_in_the_outbox() {
     }
     assert!(app.screen != Screen::Home, "still on the vault");
     sign(&mut app);
-    assert!(app.vaults.signing, "the page stays open");
+    assert!(app.vaults().signing, "the page stays open");
     for name in names.iter().take(2) {
         let sig = app
             .outbox
@@ -651,7 +656,7 @@ fn ticking_two_files_and_signing_puts_two_signatures_in_the_outbox() {
             .any(|i| i.name == format!("{}.asc", names[2])),
         "the third file was never ticked"
     );
-    assert!(app.vaults.sign_ticked.is_empty(), "the ticks clear");
+    assert!(app.vaults().sign_ticked.is_empty(), "the ticks clear");
     assert_eq!(app.toast_text(), Some("2 signatures wait for the stick"));
 }
 
@@ -751,7 +756,7 @@ fn a_stick_visit_that_replaces_a_ticked_file_drops_its_tick() {
     let mut app = signing();
     let k = listed(&app, "SHA256SUMS");
     app.press(Action::Vault(V::GpgTick(k)));
-    assert_eq!(app.vaults.sign_ticked.len(), 1);
+    assert_eq!(app.vaults().sign_ticked.len(), 1);
     app.press(Action::Vault(V::GpgSign));
     assert_eq!(app.sheet, Some(Sheet::GpgSign));
     let changed = (
@@ -805,10 +810,10 @@ fn changing_the_key_the_category_or_the_vault_clears_the_signing_page() {
         app.press(Action::Vault(V::Item(1)));
         app.press(Action::Vault(V::GpgSignPick));
         app.press(Action::Vault(V::GpgTick(0)));
-        assert!(app.vaults.signing && !app.vaults.sign_ticked.is_empty());
+        assert!(app.vaults().signing && !app.vaults().sign_ticked.is_empty());
         app.press(change);
-        assert!(!app.vaults.signing, "{change:?}");
-        assert!(app.vaults.sign_ticked.is_empty(), "{change:?}");
+        assert!(!app.vaults().signing, "{change:?}");
+        assert!(app.vaults().sign_ticked.is_empty(), "{change:?}");
     }
 }
 
@@ -870,7 +875,7 @@ fn with_one_file_it_starts_ticked() {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
@@ -886,7 +891,7 @@ fn with_one_file_it_starts_ticked() {
     testkit::inbox_retain(&mut app, |i| i.kind != FileKind::Vault);
     app.press(Action::Vault(V::GpgSignPick));
     assert_eq!(
-        app.vaults.sign_ticked,
+        app.vaults().sign_ticked,
         vec![("SHA256SUMS".to_string(), gpg::sha256(&c, b"hello"))]
     );
     sign(&mut app);
@@ -1061,7 +1066,7 @@ fn renewing_asks_the_term_and_updates_the_record_and_the_export_together() {
         "Export is the record's"
     );
     // The choice is spent.
-    assert_eq!(app.vaults.renew_years, None);
+    assert_eq!(app.vaults().renew_years, None);
 
     // Never is a choice too, and is only made by choosing it.
     app.storage(StorageEvent::Clock {
@@ -1236,7 +1241,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     let boot = [("vault.ofv".to_string(), testkit::test_vault().unwrap())];
     let listing = |files: &[(String, Vec<u8>)]| -> Vec<(String, u64)> {
         files
@@ -1266,7 +1271,12 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
         faraday_core::boot_import::ImportAction::Submit,
     ));
     settle(&mut app, 1);
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
 
     let files = vec![
         (
@@ -1300,7 +1310,7 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     });
     app.storage(restored);
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.storage(StorageEvent::Sticks(vec![second]));
     assert_eq!(app.screen, Screen::Visit);
     app.press(Action::VisitCopy);
@@ -1318,7 +1328,12 @@ fn files_from_a_second_stick_after_the_boot_stick_are_offered_for_signing() {
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 30);
     app.press(Action::Vault(V::LoadTicked));
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
     keep_the_time(&mut app);
@@ -1346,7 +1361,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     let files = vec![
         (
             "SHA256SUMS".to_string(),
@@ -1391,7 +1406,12 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
         faraday_core::boot_import::ImportAction::Submit,
     ));
     settle(&mut app, 1);
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     app.press(Action::Vault(V::LoadTicked));
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
@@ -1413,7 +1433,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
 fn signs_both(app: &mut Faraday, files: &[(String, Vec<u8>)]) {
     for (name, _) in files {
         let k = listed(app, name);
-        if !app.vaults.sign_ticked.iter().any(|(n, _)| n == name) {
+        if !app.vaults().sign_ticked.iter().any(|(n, _)| n == name) {
             app.press(Action::Vault(V::GpgTick(k)));
         }
     }

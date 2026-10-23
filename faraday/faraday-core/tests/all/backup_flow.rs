@@ -63,7 +63,7 @@ fn to_make(shell: &mut Shell, kind: Kind) -> Faraday {
     bring_in(shell, &mut app, "S2", true);
     assert_eq!(step(&app), Step::Vaults);
     create_vault(shell, &mut app, 0, PHRASE);
-    assert_eq!(step(&app), Step::Make, "{:?}", app.vaults.unlock_error);
+    assert_eq!(step(&app), Step::Make, "{:?}", unlock_error(&app));
     app
 }
 
@@ -98,7 +98,7 @@ fn every_make_starts_on_where_it_will_be_kept() {
         let mut app = started(kind);
         assert!(offered(&mut app, Action::Flow(F::Continue)));
         assert!(!offered(&mut app, Action::Flow(F::Make)), "{kind:?}");
-        assert!(app.vaults.open.is_empty());
+        assert!(app.vaults().open.is_empty());
     }
 }
 
@@ -116,7 +116,7 @@ fn make_the_key_is_offered_only_once_the_sticks_are_read_and_the_vaults_open() {
     // Nor before the vault is made and open.
     assert_eq!(step(&app), Step::Vaults);
     assert!(!offered(&mut app, Action::Flow(F::Make)));
-    assert!(app.vaults.open.is_empty());
+    assert!(app.vaults().open.is_empty());
     create_vault(&mut shell, &mut app, 0, PHRASE);
     assert!(offered(&mut app, Action::Flow(F::Make)));
 }
@@ -131,7 +131,7 @@ fn with_a_vault_open_step_two_locks_first() {
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     unlock(&mut app, PHRASE);
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     app.press(Action::Vault(V::Category(4)));
     app.press(Action::Vault(V::Add));
     assert_eq!(app.screen, Screen::BackupFlow);
@@ -359,20 +359,20 @@ fn new_vaults_have_their_own_passphrases_and_the_key_is_in_every_one() {
     assert_eq!(step(&app), Step::Vaults);
     assert!(app.vault_files().is_empty());
     create_vault(&mut shell, &mut app, 0, PHRASE);
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     assert_eq!(step(&app), Step::Vaults);
     assert_eq!(app.screen, Screen::BackupFlow);
     create_vault(&mut shell, &mut app, 1, PHRASE_2);
-    assert_eq!(app.vaults.open.len(), 2);
+    assert_eq!(app.vaults().open.len(), 2);
     assert_eq!(step(&app), Step::Make);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     let ids: Vec<Vec<u8>> = app
-        .vaults
+        .vaults()
         .open
         .iter()
         .map(|o| {
             let keys: Vec<_> = app
-                .vaults
+                .vaults()
                 .store()
                 .contents_for_tests(o.id)
                 .of(kind::GPG)
@@ -586,7 +586,7 @@ fn a_power_off_between_writes_leaves_the_copy_and_the_key_signs_at_once_from_it(
     let _ = on_stick;
     fresh.press(Action::Vault(V::Open(0)));
     unlock(&mut fresh, PHRASE);
-    assert_eq!(fresh.vaults.open.len(), 1);
+    assert_eq!(fresh.vaults().open.len(), 1);
     fresh.press(Action::Nav(Screen::VaultContents));
     fresh.press(Action::Vault(V::Category(4)));
     fresh.press(Action::Vault(V::Item(0)));
@@ -594,7 +594,7 @@ fn a_power_off_between_writes_leaves_the_copy_and_the_key_signs_at_once_from_it(
     assert!(!has(&mut fresh, "Back up first"));
     assert!(has(&mut fresh, "Sign a file"));
     fresh.press(Action::Vault(V::GpgSignPick));
-    assert!(fresh.vaults.signing, "signing opens");
+    assert!(fresh.vaults().signing, "signing opens");
 }
 
 #[test]
@@ -610,7 +610,7 @@ fn signing_waits_until_every_place_is_written_then_works_after_the_unlock() {
     expect(&mut app, "Not written");
     assert!(!has(&mut app, "Sign a file"));
     app.press(Action::Vault(V::GpgSignPick));
-    assert!(!app.vaults.signing);
+    assert!(!app.vaults().signing);
     assert_eq!(
         app.screen,
         Screen::BackupFlow,
@@ -629,7 +629,7 @@ fn signing_waits_until_every_place_is_written_then_works_after_the_unlock() {
     assert!(!has(&mut app, "Back up first"));
     expect(&mut app, "Written to every place");
     app.press(Action::Vault(V::GpgSignPick));
-    assert!(app.vaults.signing);
+    assert!(app.vaults().signing);
 }
 
 #[test]
@@ -654,7 +654,7 @@ fn an_apk_key_waits_the_same_and_its_files_row_reads_back_up_first() {
     expect(&mut app, "Back up first");
     assert!(!has(&mut app, "Sign an APK"));
     app.press(Action::Vault(V::ApkSignOpen));
-    assert!(!app.vaults.apk.signing);
+    assert!(!app.vaults().apk.signing);
     shell.flow(&mut app, F::MadeContinue);
 }
 
@@ -750,7 +750,7 @@ fn a_plan_of_empty_sticks_makes_every_vault_at_step_three_inside_the_flow() {
     create_vault(&mut shell, &mut app, 0, PHRASE);
     create_vault(&mut shell, &mut app, 1, PHRASE_2);
     assert_eq!(app.vault_files().len(), 2);
-    assert_eq!(app.vaults.open.len(), 2);
+    assert_eq!(app.vaults().open.len(), 2);
     assert!(
         shell.screens[from..]
             .iter()
@@ -784,11 +784,11 @@ fn a_mix_of_existing_and_new_vaults_unlocks_the_existing_first_then_creates_the_
     assert!(!offered(&mut app, Action::Flow(F::CreateVault(1))));
     unlock(&mut app, PHRASE);
     assert_eq!(step(&app), Step::Vaults);
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     assert!(offered(&mut app, Action::Flow(F::CreateVault(1))));
     create_vault(&mut shell, &mut app, 1, PHRASE_2);
     assert_eq!(step(&app), Step::Make);
-    assert_eq!(app.vaults.open.len(), 2);
+    assert_eq!(app.vaults().open.len(), 2);
     assert_eq!(app.screen, Screen::BackupFlow);
 }
 
@@ -944,12 +944,12 @@ fn adding_a_stick_with_an_existing_vault_runs_the_extra_round_inside_the_flow() 
     // The added vault is unlocked, then one that holds the key.
     unlock(&mut app, PHRASE_2);
     unlock(&mut app, PHRASE);
-    assert_eq!(app.vaults.open.len(), 2, "{:?}", app.vaults.unlock_error);
+    assert_eq!(app.vaults().open.len(), 2, "{:?}", unlock_error(&app));
     assert_eq!(step(&app), Step::Make);
     shell.flow(&mut app, F::CopyKey);
-    for o in &app.vaults.open {
+    for o in &app.vaults().open {
         assert_eq!(
-            app.vaults
+            app.vaults()
                 .store()
                 .contents_for_tests(o.id)
                 .of(kind::GPG)
@@ -1151,7 +1151,7 @@ fn coming_back_to_the_writes_with_a_vault_open_again_is_on_lock_and_written_stic
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     unlock(&mut app, PHRASE);
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     let i = app.backup_pending().map(|(i, _)| i).unwrap();
     app.press(Action::Flow(F::Show(i)));
     assert_eq!(step(&app), Step::Lock);
@@ -1173,18 +1173,22 @@ fn enter_in_the_make_form_makes_the_key_and_adds_no_stray_record() {
     app.event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Enter));
     assert!(app.flow().unwrap().made, "{:?}", app.toast_text());
     let n: usize = app
-        .vaults
+        .vaults()
         .open
         .iter()
         .map(|o| {
-            app.vaults
+            app.vaults()
                 .store()
                 .contents_for_tests(o.id)
                 .of(kind::GPG)
                 .count()
         })
         .sum();
-    assert_eq!(n, app.vaults.open.len(), "one key in each vault, no stray");
+    assert_eq!(
+        n,
+        app.vaults().open.len(),
+        "one key in each vault, no stray"
+    );
 }
 
 // ---- the review's fixes ----
@@ -1376,7 +1380,7 @@ fn the_copy_not_picked_is_written_over_only_after_a_hold() {
     let kept = app.inbox().iter().find(|i| i.name == "main.ofv").unwrap();
     assert_eq!(kept.bytes, later, "the later copy is in Files");
     unlock(&mut app, PHRASE);
-    assert_eq!(step(&app), Step::Make, "{:?}", app.vaults.unlock_error);
+    assert_eq!(step(&app), Step::Make, "{:?}", unlock_error(&app));
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
     let mut app = shell.lock(&mut app);
@@ -1533,15 +1537,16 @@ fn a_new_vault_that_holds_other_entries_is_not_dropped_with_its_place() {
     create_vault(&mut shell, &mut app, 1, PHRASE_2);
     shell.flow(&mut app, F::CopyKey);
     // The person put something else in the new vault.
-    let id = app.vaults.open[1].id;
-    app.vaults
-        .edit(id, |s| s.insert(id, faraday_vault::Record::new(kind::NOTE)));
+    let id = app.vaults().open[1].id;
+    faraday_core::testkit::vault_edit(&mut app, id, |s| {
+        s.insert(id, faraday_vault::Record::new(kind::NOTE))
+    });
     shell.flow(&mut app, F::ChangePlan);
     shell.flow(&mut app, F::RemovePlace(2));
-    assert_eq!(app.vaults.open.len(), 2, "the vault stays open");
+    assert_eq!(app.vaults().open.len(), 2, "the vault stays open");
     assert!(
-        app.vaults.open.iter().any(|o| app
-            .vaults
+        app.vaults().open.iter().any(|o| app
+            .vaults()
             .store()
             .contents_for_tests(o.id)
             .of(kind::NOTE)
@@ -1550,11 +1555,11 @@ fn a_new_vault_that_holds_other_entries_is_not_dropped_with_its_place() {
         "with what it holds"
     );
     assert_eq!(
-        app.vaults
+        app.vaults()
             .open
             .iter()
             .map(|o| app
-                .vaults
+                .vaults()
                 .store()
                 .contents_for_tests(o.id)
                 .of(kind::GPG)
@@ -1582,11 +1587,11 @@ fn the_last_vault_holding_the_key_is_never_taken_out_of_the_plan() {
         "a vault that holds the key stays in the plan"
     );
     let holding: usize = app
-        .vaults
+        .vaults()
         .open
         .iter()
         .map(|o| {
-            app.vaults
+            app.vaults()
                 .store()
                 .contents_for_tests(o.id)
                 .of(kind::GPG)
@@ -1617,11 +1622,12 @@ fn a_key_deleted_from_a_vault_before_the_lock_is_not_sealed_and_not_written() {
     let mut app = to_make(&mut shell, Kind::Gpg);
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
-    for k in 0..app.vaults.open.len() {
-        let id = app.vaults.open[k].id;
-        app.vaults
-            .edit(id, |s| s.remove_where(id, |r| r.kind() == kind::GPG));
-        app.vaults.changed(id);
+    for k in 0..app.vaults().open.len() {
+        let id = app.vaults().open[k].id;
+        faraday_core::testkit::vault_edit(&mut app, id, |s| {
+            s.remove_where(id, |r| r.kind() == kind::GPG)
+        });
+        faraday_core::testkit::vault_changed(&mut app, id);
     }
     let mut app = shell.lock(&mut app);
     assert!(app.flow().is_none_or(|f| f.sealing.is_empty()));
@@ -1780,7 +1786,7 @@ fn a_place_may_keep_a_stick_for_each_vault_or_one_stick_for_both() {
     }
     create_vault(&mut shell, &mut app, 0, PHRASE);
     create_vault(&mut shell, &mut app, 1, PHRASE_2);
-    assert_eq!(step(&app), Step::Make, "{:?}", app.vaults.unlock_error);
+    assert_eq!(step(&app), Step::Make, "{:?}", unlock_error(&app));
     make_key(&mut shell, &mut app, &GPG_FIELDS);
     shell.flow(&mut app, F::MadeContinue);
     let mut app = shell.lock(&mut app);
@@ -1994,7 +2000,7 @@ fn a_copy_deleted_after_done_is_written_again_and_the_key_signs() {
     shell.flow(&mut app, F::UnlockDone(0));
     unlock(&mut app, PHRASE);
     app.press(Action::Vault(V::GpgSignPick));
-    assert!(app.vaults.signing);
+    assert!(app.vaults().signing);
 }
 
 #[test]

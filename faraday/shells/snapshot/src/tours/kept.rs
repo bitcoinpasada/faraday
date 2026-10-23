@@ -50,7 +50,7 @@ pub(crate) fn kept_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Open(0)));
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
@@ -58,7 +58,7 @@ pub(crate) fn kept_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     for _ in 0..20 {
         t.tick();
     }
-    if t.app.vaults.open.len() != 1 {
+    if t.app.vaults().open.len() != 1 {
         return Err("the test vault did not open".into());
     }
     t.press(Action::Backup(1));

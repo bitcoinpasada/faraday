@@ -283,8 +283,8 @@ impl Faraday {
         let utc = local - i64::from(self.tz_min()) * 60;
         let raw = self.vaults.unix_secs.unwrap_or(0) as i64
             + (self.now_ms.saturating_sub(self.vaults.clock_at_ms) / 1000) as i64;
-        self.vaults.clock_offset = Some(utc - raw);
-        self.vaults.clock_checked = true;
+        self.vaults.set_clock_offset(Some(utc - raw));
+        self.vaults.set_clock_checked(true);
         self.toast(&fill(
             EN.set_time_done_toast,
             &[&format!("{h:02}"), &format!("{mi:02}")],
@@ -306,7 +306,7 @@ impl Faraday {
     /// Keep this time: marks the clock checked, sets no offset.
     pub(crate) fn set_time_keep(&mut self) {
         if self.clock_now().is_some() {
-            self.vaults.clock_checked = true;
+            self.vaults.set_clock_checked(true);
         }
         self.set_time_return();
         self.save_boxes();

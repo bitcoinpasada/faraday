@@ -44,7 +44,7 @@ fn booted() -> (Faraday, Vec<u8>) {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(100);
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: "boot".into(),
@@ -83,7 +83,7 @@ fn the_boot_sticks_vault_waits_on_the_sheet_and_pulling_the_stick_leaves_it_up()
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.screen, Screen::Home, "pulling the stick left Home");
     assert_eq!(app.sheet, Some(Sheet::Import));
-    assert!(app.vaults.passphrase.text.is_empty());
+    assert!(app.vaults().passphrase.text.is_empty());
 }
 
 #[test]
@@ -92,7 +92,7 @@ fn unlocking_asks_what_to_load_and_load_ticked_loads_it_and_lands_on_wallets() {
     app.storage(StorageEvent::Sticks(Vec::new()));
     app.press(Action::Vault(V::Open(0)));
     unlock(&mut app);
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     // The Load sheet, everything ticked: nothing loaded yet.
     assert_eq!(app.sheet, Some(Sheet::UnlockLoad));
     assert!(app.session.keys.is_empty() && app.session.wallets.is_empty());
@@ -172,10 +172,10 @@ fn a_vault_passphrase_is_typed_only_once_the_stick_is_pulled() {
     app.press(Action::Vault(V::FocusPassphrase));
     unlock(&mut app);
     assert!(
-        app.vaults.passphrase.text.is_empty(),
+        app.vaults().passphrase.text.is_empty(),
         "nothing is typed into the passphrase while the stick is attached"
     );
-    assert!(app.vaults.open.is_empty());
+    assert!(app.vaults().open.is_empty());
     assert!(
         app.clean(),
         "the stick is still usable: no secret was typed"
@@ -184,5 +184,9 @@ fn a_vault_passphrase_is_typed_only_once_the_stick_is_pulled() {
     app.storage(StorageEvent::Sticks(Vec::new()));
     pump(&mut app, &vault);
     unlock(&mut app);
-    assert_eq!(app.vaults.open.len(), 1, "pulling the stick lets it unlock");
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "pulling the stick lets it unlock"
+    );
 }

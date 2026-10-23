@@ -581,13 +581,13 @@ impl Faraday {
                 }
             }
             Go::VaultCategory(c) if self.vaults.open.is_empty() => {
-                self.vaults.category = c;
+                self.vaults.set_category(c);
                 if let Some((_, a)) = self.vault_way(Screen::VaultContents) {
                     self.act(a);
                 }
             }
             Go::VaultCategory(c) => {
-                self.vaults.current = 0;
+                self.vaults.set_current(0);
                 self.act(Action::Nav(Screen::VaultContents));
                 self.act(Action::Vault(VaultAction::Category(c)));
             }

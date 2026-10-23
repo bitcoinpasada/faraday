@@ -202,7 +202,7 @@ fn demo_passphrases(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.shot("modes-demo-vaults-empty")?;
     t.press(Action::UseSample);
@@ -238,7 +238,7 @@ fn testnet_passphrases(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Open(0)));
     type_text(t, "ab");

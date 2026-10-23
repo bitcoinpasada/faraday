@@ -53,19 +53,19 @@ fn vault_file() -> (String, Vec<u8>) {
 }
 
 fn unlock(app: &mut Faraday) {
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
 }
 
 /// Test key 2 typed in and a one-key wallet made from it; returns the
@@ -348,9 +348,9 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     let plans: Vec<_> = app
-        .vaults
+        .vaults()
         .store()
-        .contents_for_tests(app.vaults.open[0].id)
+        .contents_for_tests(app.vaults().open[0].id)
         .of(kind::PLAN)
         .map(|(_, r)| r.clone())
         .collect();
@@ -384,9 +384,9 @@ fn a_place_name_is_kept_in_the_vault_and_in_no_file() {
         app.press(Action::BNext(faraday_core::bstep::BLANK));
     }
     assert_eq!(
-        app.vaults
+        app.vaults()
             .store()
-            .contents_for_tests(app.vaults.open[0].id)
+            .contents_for_tests(app.vaults().open[0].id)
             .of(kind::PLAN)
             .count(),
         1
@@ -491,7 +491,7 @@ fn two_of_three_two_here(app: &mut Faraday) -> usize {
 /// vault made, unlocked, and back to the backup.
 fn make_the_vault(app: &mut Faraday) {
     assert_eq!(app.screen, Screen::CreateVault);
-    let before = app.vaults.open.len();
+    let before = app.vaults().open.len();
     for second in [false, true] {
         app.press(Action::Vault(V::CFocus(0, second)));
         type_text(app, "test phrase");
@@ -507,13 +507,18 @@ fn make_the_vault(app: &mut Faraday) {
     type_text(app, "test phrase");
     app.press(Action::Vault(V::Unlock));
     for t in 60..120u64 {
-        if app.vaults.open.len() > before && app.screen == Screen::Backup {
+        if app.vaults().open.len() > before && app.screen == Screen::Backup {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.screen, Screen::Backup, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.screen,
+        Screen::Backup,
+        "{:?}",
+        app.vaults().unlock_error
+    );
 }
 
 #[test]
@@ -572,7 +577,7 @@ fn each_vault_is_its_own_item_and_the_second_does_not_take_the_vault_the_first_f
     }
     assert!(found, "Lock it and make a new vault is not offered");
     app.press(Action::BNewVault(1));
-    assert_eq!(app.vaults.open.len(), 0, "the first vault is locked");
+    assert_eq!(app.vaults().open.len(), 0, "the first vault is locked");
     make_the_vault(&mut app);
     assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT + 1));
     press_offered(&mut app, Action::BVaultSave(1));

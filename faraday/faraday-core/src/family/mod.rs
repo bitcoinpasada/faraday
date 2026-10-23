@@ -669,11 +669,11 @@ impl Faraday {
             F::More(k) => self.family.state.more ^= 1 << u32::from(k),
             F::Pick(i) => {
                 self.vault_act(VaultAction::Pick(i));
-                self.vault_measure();
+                self.vaults.measure();
             }
             F::Unlock => {
-                self.vaults.back_to = None;
-                self.vault_measure();
+                self.vaults.set_back_to(None);
+                self.vaults.measure();
                 self.vault_act(VaultAction::Unlock);
             }
             F::TypeWords => {
@@ -902,9 +902,7 @@ impl Faraday {
     /// person loads it or less from the list. The wallet is opened from
     /// the vault from now on.
     pub(crate) fn family_unlocked(&mut self, v: usize) {
-        if let Some(o) = self.vaults.open.get_mut(v) {
-            o.skip.clear();
-        }
+        self.vaults.load_all(v);
         self.family.state.route = Some(Route::Vault);
         self.family.state.walkthrough = true;
     }

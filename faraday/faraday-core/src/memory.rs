@@ -447,8 +447,8 @@ impl Faraday {
                 "clock" => {
                     for line in String::from_utf8_lossy(bytes).lines() {
                         match line.split_once('=') {
-                            Some(("offset", v)) => self.vaults.clock_offset = v.parse().ok(),
-                            Some(("checked", v)) => self.vaults.clock_checked = v == "1",
+                            Some(("offset", v)) => self.vaults.set_clock_offset(v.parse().ok()),
+                            Some(("checked", v)) => self.vaults.set_clock_checked(v == "1"),
                             _ => {}
                         }
                     }
@@ -488,7 +488,8 @@ impl Faraday {
                     }
                 }
                 "vault-summaries" => {
-                    self.vaults.summaries = crate::vault::summaries_decode(bytes);
+                    self.vaults
+                        .set_summaries(crate::vault::summaries_decode(bytes));
                 }
                 "secret-out" => {
                     let text = String::from_utf8_lossy(bytes);

@@ -431,7 +431,7 @@ fn a_passphrase_word_s_link_marks_it_in_its_eff_list_and_back_keeps_the_rolls() 
     app.event(Event::Key(Key::Char('z')));
     app.press(Action::WordList(WL::Close));
     assert_eq!(app.screen, Screen::CreateVault);
-    let (_, typed, list) = app.vaults.dice.as_ref().unwrap();
+    let (_, typed, list) = app.vaults().dice.as_ref().unwrap();
     assert_eq!(*typed.text, *rolls);
     assert_eq!(*list, List::Short1);
 }

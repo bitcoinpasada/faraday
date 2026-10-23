@@ -30,7 +30,7 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     let (word, label) = testkit::TEST_SEEDS[1];
     t.app
         .session
@@ -62,7 +62,7 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
     t.press(Action::Vault(V::Unlock));
     for _ in 0..10 {
-        if !t.app.vaults.open.is_empty() {
+        if !t.app.vaults().open.is_empty() {
             break;
         }
         t.tick();
@@ -73,8 +73,8 @@ pub(crate) fn create_from_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.shot("create-keys-vault-open")?;
     let record = t
         .app
-        .vaults
-        .records(t.app.vaults.open[0].id)
+        .vaults()
+        .records(t.app.vaults().open[0].id)
         .iter()
         .position(|(_, r)| r.kind() == faraday_vault::records::kind::KEY)
         .ok_or("no key in the test vault")?;

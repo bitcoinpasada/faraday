@@ -317,7 +317,7 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     let file = app
         .inbox()
         .iter()
@@ -327,9 +327,9 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
     let w = app.wallet_index();
     assert_eq!(Kind::of(app.session.wallets[w].policy()), Kind::Silent);
     app.press(Action::Vault(V::SaveWallet(w)));
-    let open = &app.vaults.open[0];
+    let open = &app.vaults().open[0];
     let (_, saved) = app
-        .vaults
+        .vaults()
         .store()
         .contents_for_tests(open.id)
         .of(kind::WALLET)

@@ -46,7 +46,7 @@ fn device(inbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Clock {
         unix_secs: 1_791_000_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     let _ = app.frame();
     app
 }
@@ -123,8 +123,8 @@ fn fresh_vault(app: &mut Faraday) {
     settle(app, |a| a.screen == Screen::Unlock);
     type_text(app, "test phrase");
     app.press(Action::Vault(V::Unlock));
-    settle(app, |a| !a.vaults.open.is_empty());
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
+    settle(app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
 }
 
 /// The backup of wallet `w` planned with preset `preset` and its
@@ -330,7 +330,7 @@ fn a_plan_edited_on_the_chart_loads_back_the_same_from_the_vault() {
     app.press(Action::Vault(V::Open(0)));
     type_text(&mut app, "test phrase");
     app.press(Action::Vault(V::Unlock));
-    settle(&mut app, |a| !a.vaults.open.is_empty());
+    settle(&mut app, |a| !a.vaults().open.is_empty());
     app.press(Action::Vault(V::LoadWithKeys(0)));
     assert_eq!(app.session.wallets.len(), 1, "the wallet did not load");
     let after = chart(&app, 0);

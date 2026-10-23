@@ -87,11 +87,11 @@ fn make_a_vault(app: &mut Faraday) {
     settle(app, 1);
     assert_eq!(app.screen, Screen::Unlock);
     let name = app
-        .vaults
+        .vaults()
         .just_made
         .clone()
         .expect("the vault was not made");
-    assert_eq!(app.vault_files()[app.vaults.pick].name, name);
+    assert_eq!(app.vault_files()[app.vaults().pick].name, name);
 }
 
 #[test]
@@ -104,7 +104,7 @@ fn going_back_from_unlock_leaves_the_new_vault_locked_and_returns_to_the_backup(
         Screen::Backup,
         "the way back should return to the backup still under way"
     );
-    assert!(app.vaults.open.is_empty(), "the new vault stays locked");
+    assert!(app.vaults().open.is_empty(), "the new vault stays locked");
 }
 
 #[test]
@@ -118,7 +118,7 @@ fn opening_a_just_made_vault_needs_its_passphrase_typed_again() {
         "nothing typed while making the vault should open it on its own"
     );
     assert!(
-        app.vaults.passphrase.text.is_empty(),
+        app.vaults().passphrase.text.is_empty(),
         "the passphrase must not be filled in for the person"
     );
 }
@@ -154,7 +154,7 @@ fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
     type_text(&mut app, "typed with a stick in");
     app.press(Action::Vault(V::Dice(0)));
     type_text(&mut app, "12345");
-    let c = app.vaults.create.as_ref().unwrap();
+    let c = app.vaults().create.as_ref().unwrap();
     assert!(
         c.phrases
             .iter()
@@ -162,7 +162,7 @@ fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
         "nothing secret is typed while a stick is attached"
     );
     assert!(
-        app.vaults.dice.is_none(),
+        app.vaults().dice.is_none(),
         "no dice are rolled with a stick in"
     );
 
@@ -170,7 +170,7 @@ fn a_new_vaults_passphrases_wait_until_the_stick_is_pulled() {
     app.press(Action::Vault(V::CFocus(0, false)));
     type_text(&mut app, "test phrase");
     assert_eq!(
-        &*app.vaults.create.as_ref().unwrap().phrases[0].0.text,
+        &*app.vaults().create.as_ref().unwrap().phrases[0].0.text,
         "test phrase"
     );
 }
@@ -235,7 +235,7 @@ fn on_create_vault() -> Faraday {
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x30 + i; 32])));
     }
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     let _ = app.frame();
@@ -252,7 +252,7 @@ fn create_and_read_cost(app: &mut Faraday) -> (u32, u32) {
     app.press(Action::Vault(V::CGo));
     settle(app, 1);
     assert_eq!(app.screen, Screen::Unlock, "the vault was made");
-    let made = app.vaults.just_made.clone().expect("the vault was made");
+    let made = app.vaults().just_made.clone().expect("the vault was made");
     let f = app
         .vault_files()
         .into_iter()
@@ -265,7 +265,7 @@ fn create_and_read_cost(app: &mut Faraday) -> (u32, u32) {
 fn a_fresh_create_a_vault_opens_on_name_and_passphrases_with_64_mib_chosen() {
     use faraday_core::vault::vstep;
     let mut app = on_create_vault();
-    let c = app.vaults.create.as_ref().unwrap();
+    let c = app.vaults().create.as_ref().unwrap();
     assert_eq!(c.open, Some(vstep::PHRASES), "it opens on the passphrases");
     assert!(
         app.offers(Action::Vault(V::CStep(vstep::PRESET))),
@@ -301,8 +301,8 @@ fn every_slot_of_a_new_vault_goes_by_the_vaults_name() {
     type_text(&mut app, "second phrase");
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 30);
-    assert_eq!(app.vaults.open.len(), 1, "it unlocked");
-    assert_eq!(app.vaults.open[0].label(app.vaults.store()), "Savings");
+    assert_eq!(app.vaults().open.len(), 1, "it unlocked");
+    assert_eq!(app.vaults().open[0].label(app.vaults().store()), "Savings");
 }
 
 #[test]
@@ -319,7 +319,7 @@ fn pcs_only_makes_a_512_mib_vault() {
     app.press(Action::Vault(V::CSizeRow(0)));
     app.press(Action::Vault(V::CNext(vstep::PRESET)));
     assert_eq!(
-        app.vaults.create.as_ref().unwrap().open,
+        app.vaults().create.as_ref().unwrap().open,
         Some(vstep::PHRASES),
         "Continue goes on to the passphrases"
     );
@@ -382,7 +382,7 @@ fn this_computer_gives_what_it_has_free_and_can_be_unticked() {
     let _ = app.frame();
     let text = app.drawn_texts();
     assert!(text.iter().any(|t| t == "1 GiB (1.2 GiB free)"), "{text:?}");
-    let suggested = |app: &Faraday| PRESETS[app.vaults.suggested()].1;
+    let suggested = |app: &Faraday| PRESETS[app.vaults().suggested()].1;
     // PCs and a Raspberry Pi chose other PCs and the Pi 3: half the
     // Pi's 1 GB.
     assert_eq!(suggested(&app), 512);
@@ -437,7 +437,7 @@ fn a_new_vault_reads_made_in_the_checklist_until_the_checklist_makes_it() {
     type_text(&mut app, "test phrase");
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 30);
-    assert_eq!(app.vaults.open.len(), 1, "the new vault is open");
+    assert_eq!(app.vaults().open.len(), 1, "the new vault is open");
     let after = band(&mut app);
     assert!(
         after.ends_with(" · sealed") && !after.contains("checklist"),

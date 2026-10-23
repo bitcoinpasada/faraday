@@ -311,11 +311,13 @@ impl Faraday {
     fn caret_moves(&self, target: Action) -> bool {
         match target {
             Action::MType => false,
-            Action::Vault(V::FocusField(k)) => !self.vaults.form.as_ref().is_some_and(|f| {
-                f.fields
-                    .get(k)
-                    .is_some_and(|field| vault::multiline(f.kind, field.0))
-            }),
+            Action::Vault(V::FocusField(k)) => {
+                !self.vaults.form.as_ref().is_some_and(|f| {
+                    f.fields
+                        .get(k)
+                        .is_some_and(|field| vault::multiline(f.kind, field.0))
+                })
+            }
             _ => true,
         }
     }

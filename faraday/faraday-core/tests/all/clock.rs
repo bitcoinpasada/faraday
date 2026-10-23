@@ -71,9 +71,9 @@ fn make_gpg_key(app: &mut Faraday) {
 /// The last GPG key made in the open vault's creation time, Unix
 /// seconds.
 fn gpg_created(app: &Faraday) -> u32 {
-    let v = &app.vaults.open[app.vaults.current];
+    let v = &app.vaults().open[app.vaults().current];
     let r = app
-        .vaults
+        .vaults()
         .store()
         .contents_for_tests(v.id)
         .records
@@ -87,9 +87,9 @@ fn gpg_created(app: &Faraday) -> u32 {
 }
 
 fn gpg_count(app: &Faraday) -> usize {
-    app.vaults
+    app.vaults()
         .store()
-        .contents_for_tests(app.vaults.open[app.vaults.current].id)
+        .contents_for_tests(app.vaults().open[app.vaults().current].id)
         .of(kind::GPG)
         .count()
 }
@@ -203,7 +203,7 @@ fn a_later_clock_reading_keeps_the_same_correction() {
     // offset carries the correction across it (`docs/TOTP.md` §1.2),
     // rather than the reading falling back to not known.
     app.storage(StorageEvent::Clock { unix_secs: 2000 });
-    app.vaults.form = None;
+    faraday_core::testkit::vault_close_form(&mut app);
     make_gpg_key(&mut app);
     let second = gpg_created(&app);
     assert_eq!(second as i64 - first as i64, 2000 - 1000);

@@ -784,12 +784,11 @@ impl Faraday {
             .chain([r])
             .collect();
         let all: BTreeSet<usize> = (0..self.vaults.records(open.id).len()).collect();
-        let saved = std::mem::replace(
-            &mut self.vaults.open[v].skip,
-            all.difference(&keep).copied().collect(),
-        );
+        let saved = self
+            .vaults
+            .swap_skip(v, all.difference(&keep).copied().collect());
         let (keys, _) = self.vault_load(v, false);
-        self.vaults.open[v].skip = saved;
+        self.vaults.swap_skip(v, saved);
         self.screen = Screen::Restore;
         if keys > 0 {
             self.toast(&fill(

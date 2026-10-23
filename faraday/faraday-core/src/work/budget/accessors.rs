@@ -61,7 +61,7 @@ fn reads(app: &Faraday) -> Vec<Read> {
     let answers = Answers::preset(&shape, Preset::PaperVault);
     let seen = app.inbox.iter().find_map(|i| i.psbt().cloned());
     let psbt = app.wallets.spend().map(|s| s.spend.psbt.clone());
-    let contents = &app.vaults.records(app.vaults.open[app.vaults.current].id);
+    let contents = &app.vaults().records(app.vaults.open[app.vaults.current].id);
     let key_record = contents
         .of(kind::KEY)
         .next()

@@ -37,7 +37,7 @@ fn unlocked() -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(100);
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Sticks(vec![StickInfo {
         serial: None,
         id: "boot".into(),
@@ -58,7 +58,12 @@ fn unlocked() -> Faraday {
     let _ = app.frame();
     app.event(Event::Tick { now_ms: 1000 });
     let _ = app.frame();
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     // Its Load sheet, everything ticked (F62).
     app.press(Action::Vault(faraday_core::vault::VaultAction::LoadTicked));
     app

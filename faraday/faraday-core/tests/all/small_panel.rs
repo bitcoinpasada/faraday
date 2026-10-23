@@ -197,7 +197,7 @@ fn a_passphrase_field_brings_the_keyboard_and_stays_above_it() {
     );
     tap(&mut app, key);
     tap(&mut app, key);
-    let typed = app.vaults.create.as_ref().unwrap().phrases[0]
+    let typed = app.vaults().create.as_ref().unwrap().phrases[0]
         .1
         .text
         .clone();

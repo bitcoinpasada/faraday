@@ -521,10 +521,8 @@ impl Faraday {
         if !self.may_load_keys() {
             return;
         }
-        self.vaults.pick = v.file;
-        self.vaults.back_to = None;
-        self.vaults.unlock_error = None;
-        self.vaults.focus = (!self.compact).then_some(Focus::Passphrase);
+        let focus = (!self.compact).then_some(Focus::Passphrase);
+        self.vaults.pick_unlock(v.file, None, focus);
     }
 
     /// The vault whose Unlock the sheet offers: after Import, the first
@@ -647,19 +645,17 @@ impl Faraday {
         match a {
             I::Open => {
                 if self.import.state().is_some() {
-                    self.vaults.back_to = None;
+                    self.vaults.set_back_to(None);
                     self.screen = Screen::Home;
                     self.sheet = Some(Sheet::Import);
-                    self.vaults.focus = None;
+                    self.vaults.set_focus(None);
                     self.import_field_ready();
                 }
             }
             I::Later => {
                 self.sheet = None;
-                self.vaults.passphrase.clear();
-                self.vaults.typed_shown = false;
-                self.vaults.focus = None;
-                self.vaults.unlock_error = None;
+                self.vaults.clear_unlock();
+                self.vaults.set_focus(None);
             }
             I::File(i) => {
                 let Some(f) = self
@@ -696,7 +692,7 @@ impl Faraday {
                 if !self.may_load_keys() {
                     return;
                 }
-                self.vaults.pick = v.file;
+                self.vaults.set_pick(v.file);
                 self.vault_act(VaultAction::Unlock);
             }
             I::Cancel => {
@@ -706,10 +702,8 @@ impl Faraday {
                 if let Some(names) = self.import.state_mut().and_then(|i| i.unlocking.as_mut()) {
                     names.retain(|n| *n != v.name);
                 }
-                self.vaults.passphrase.clear();
-                self.vaults.typed_shown = false;
-                self.vaults.unlock_error = None;
-                self.vaults.focus = None;
+                self.vaults.clear_unlock();
+                self.vaults.set_focus(None);
                 self.import_next();
             }
         }
@@ -826,7 +820,7 @@ impl Faraday {
         if self.import_field().is_some() {
             self.screen = Screen::Home;
             self.sheet = Some(Sheet::Import);
-            self.vaults.focus = None;
+            self.vaults.set_focus(None);
             self.import_field_ready();
             return;
         }
@@ -835,9 +829,9 @@ impl Faraday {
             self.sheet = None;
             self.screen = Screen::Home;
         }
-        self.vaults.passphrase.clear();
+        self.vaults.clear_passphrase();
         if self.vaults.focus == Some(Focus::Passphrase) {
-            self.vaults.focus = None;
+            self.vaults.set_focus(None);
         }
     }
 

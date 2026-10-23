@@ -1,20 +1,25 @@
 //! What Create a vault says of a passphrase's strength: the side panel's
 //! line for the weakest, and the pair's own under it.
 
-use crate::Faraday;
 use crate::strings::{EN, fill};
 use crate::vault::{CreateForm, Vaults};
 
-impl Faraday {
+impl CreateForm {
     /// The side panel's strength of the weakest passphrase, in bits with
     /// the unlock cost `cost`'s: known only when the dice made every one.
-    /// Empty where every passphrase is Demo's `faraday`, which is not
-    /// measured (`docs/MODES.md` §6.2): no line is drawn.
-    pub(crate) fn weakest_text(&self, c: &CreateForm, cost: f32) -> String {
+    /// Empty where every passphrase is Demo's `faraday` (`demo`: Demo's
+    /// passphrase is offered), which is not measured (`docs/MODES.md`
+    /// §6.2): no line is drawn.
+    pub(crate) fn weakest_text(&self, cost: f32, demo: bool) -> String {
+        let c = self;
         let own: Vec<Option<f32>> = (0..c.phrases.len())
             .map(|i| Vaults::phrase_bits(c, i))
             .collect();
-        if !c.phrases.is_empty() && c.phrases.iter().all(|(a, _)| self.pass_is_public(&a.text)) {
+        if !c.phrases.is_empty()
+            && c.phrases
+                .iter()
+                .all(|(a, _)| demo && a.text.as_str() == crate::demo::PASSPHRASE)
+        {
             String::new()
         } else if c.phrases.iter().all(|(a, _)| a.text.is_empty()) {
             EN.vault_no_passphrase.to_string()

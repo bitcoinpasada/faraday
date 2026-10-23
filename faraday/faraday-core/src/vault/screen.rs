@@ -2022,7 +2022,7 @@ fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     ui.text(x, y, 13.0, W::S, MUTED, EN.vault_will_create);
     y += 26.0;
     let cost = vault::cost_bits(mem, passes);
-    let strength = app.weakest_text(c, cost);
+    let strength = c.weakest_text(cost, app.demo_passphrase());
     let facts = [
         (
             EN.vault_file,
@@ -2277,10 +2277,7 @@ pub(crate) fn key_identity(
     app: &Faraday,
     r: RecordView<'_>,
 ) -> Option<(String, [u8; 32])> {
-    let id = faraday_keys::vault::key_record_id(r)?;
-    kept_identity(app, id, || {
-        faraday_keys::vault::key_identity(c, app.session.network(), r)
-    })
+    app.vaults.key_identity(c, app.session.network(), r)
 }
 
 /// Costs a parse of the words, and a PBKDF2 and two elliptic-curve
@@ -2289,33 +2286,8 @@ pub(crate) fn key_identity(
 /// records' by the same id.
 pub(crate) fn words_identity(c: &Compute, app: &Faraday, k: usize) -> Option<(String, [u8; 32])> {
     let id = app.session.keys.words_record_id(c, k)?;
-    kept_identity(app, id, || app.session.keys.words_identity(c, k))
-}
-
-/// The identity kept for key record id `id`, or `work`'s, kept by the id
-/// once worked out, by whoever asks first.
-fn kept_identity(
-    app: &Faraday,
-    id: [u8; 32],
-    work: impl FnOnce() -> Option<(faraday_bip::keys::Fingerprint, [u8; 32])>,
-) -> Option<(String, [u8; 32])> {
-    if let Some((_, fp, mid)) = app
-        .vaults
-        .fingerprints
-        .borrow()
-        .iter()
-        .find(|(k, ..)| *k == id)
-    {
-        return Some((fp.clone(), *mid));
-    }
-    let (fingerprint, mid) = work()?;
-    let fp = fp_text(fingerprint);
-    let mut kept = app.vaults.fingerprints.borrow_mut();
-    if kept.len() >= vault::FINGERPRINTS_KEPT {
-        kept.remove(0);
-    }
-    kept.push((id, fp.clone(), mid));
-    Some((fp, mid))
+    app.vaults
+        .kept_identity(id, || app.session.keys.words_identity(c, k))
 }
 
 /// Costs a PBKDF2 and a key derivation the first time for a record
@@ -2673,20 +2645,12 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let view_top = top - gap;
     let clip = ui.rect(detail_x - gap, view_top, detail_w + 2.0 * gap, h - view_top);
     ui.c.push_clip(clip);
-    let foot = detail(
-        app,
-        ui,
-        v,
-        &items,
-        sel,
-        detail_x,
-        top - app.vault_item_offset,
-        detail_w,
-    );
+    let off = app.vaults.item_offset();
+    let foot = detail(app, ui, v, &items, sel, detail_x, top - off, detail_w);
     ui.c.pop_clip();
-    let content = foot + app.vault_item_offset - top;
+    let content = foot + off - top;
     let max = content - (h - top);
-    ui.report_scroll_in(crate::ui::Slot::VaultItem, clip, max, app.vault_item_offset);
+    ui.report_scroll_in(crate::ui::Slot::VaultItem, clip, max, off);
 }
 
 /// What an open vault with nothing in it says.

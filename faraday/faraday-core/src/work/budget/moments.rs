@@ -102,7 +102,7 @@ fn at_unlock() -> Faraday {
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    app.vaults.ms_per_unit = Some(180);
+    app.vaults.set_speed(Some(180));
     let _ = testkit::move_to(&mut app.session, testkit::NET);
     app.press(Action::Nav(Screen::Vaults));
     let n = app

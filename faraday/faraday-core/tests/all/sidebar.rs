@@ -144,20 +144,20 @@ fn the_session_strip_reads_write_out_for_a_vault_changed_since_written() {
     app.storage(faraday_core::StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Vault(V::Open(0)));
     for c in faraday_core::testkit::VAULT_PASSPHRASES[0].chars() {
         app.event(Event::Key(faraday_shell_api::Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     assert_eq!(app.session_stage(&c), "Work", "open and unchanged");
     app.press(Action::Vault(V::AddKind(0)));
     app.press(Action::Vault(V::SaveKey(0)));
@@ -752,18 +752,18 @@ fn a_backup_flow_with_its_key_made_offers_no_cancel() {
     app.storage(faraday_core::StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Vault(V::Open(0)));
     type_in(&mut app, faraday_core::testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     app.press(Action::Vault(V::LoadTicked));
     // The randomness and the clock a shell gives.
     for i in 0..8u8 {

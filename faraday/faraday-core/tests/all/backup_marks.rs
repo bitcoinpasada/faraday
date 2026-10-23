@@ -24,7 +24,7 @@ fn the_templates_and_envelopes_pressed_stay_done_through_the_lock_and_the_unlock
     write_sticks(&mut shell, &mut app, &["S1", "S2", "S3"]);
     assert_eq!(step(&app), Step::Done);
     shell.flow(&mut app, F::UnlockDone(0));
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     unlock(&mut app, PHRASE);
     assert_eq!(app.screen, Screen::Backup, "{:?}", app.toast_text());
     assert!(app.backup_item_done_now(&c, Item::Templates), "templates");
@@ -62,7 +62,7 @@ fn the_done_card_unlocks_to_the_checklist_done_and_the_files_read_written_to() {
     }
     // Unlock: the wallet's checklist, done, with nothing For the stick.
     shell.flow(&mut app, F::UnlockDone(0));
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     unlock(&mut app, PHRASE);
     assert_eq!(app.screen, Screen::Backup, "{:?}", app.toast_text());
     assert!(app.backup_item_done_now(&c, Item::Sticks));

@@ -613,7 +613,7 @@ pub(crate) fn flow_at_make(c: &Compute, t: &mut Tour, kind: faraday_core::backup
     use faraday_core::backup_flow::steps::FlowAction as F;
     use faraday_core::backup_flow::{BackupFlow, Plan, Step};
     let (salt, name) = {
-        let o = &t.app.vaults.open[t.app.vaults.current];
+        let o = &t.app.vaults().open[t.app.vaults().current];
         (o.header().salt, o.name.clone())
     };
     let mut plan = Plan::key_default();

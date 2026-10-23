@@ -553,13 +553,13 @@ fn home_lead_rule_5_reads_what_the_vault_held_when_last_seen_open() {
     }
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     app.press(Action::Lock);
     let mut boxes = (Vec::new(), Vec::new(), Vec::new());
     while let Some(c) = app.poll_storage() {
@@ -671,13 +671,13 @@ fn home_lead_rule_6_a_vault_changed_since_written_offers_to_write_it() {
     }
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     app.press(Action::Vault(V::LoadTicked));
     app.press(Action::Vault(V::AddKind(0)));
     app.press(Action::Vault(V::SaveKey(0)));

@@ -177,8 +177,7 @@ impl Faraday {
         {
             Some(Ok(signed)) => {
                 self.put_outbox(&name, signed);
-                self.vaults.sb_sign = None;
-                self.vaults.sb_images = false;
+                self.vaults.sb_reset();
                 self.toast_out(&fill(EN.secureboot_signed, &[&name.to_string()]));
             }
             Some(Err(e)) => self.toast(e.reason()),
@@ -212,6 +211,6 @@ impl Faraday {
         };
         let line = format!("{}: {said}", item.name);
         self.toast(&line);
-        self.vaults.sb_checked = Some(line);
+        self.vaults.set_sb_checked(line);
     }
 }

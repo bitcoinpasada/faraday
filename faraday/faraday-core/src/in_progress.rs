@@ -510,8 +510,7 @@ impl Faraday {
             }
             Going::Vault => {
                 let home = self.vaults.from_home;
-                self.vaults.create = None;
-                self.vaults.focus = None;
+                self.vaults.drop_create();
                 if home {
                     Action::Nav(Screen::Home)
                 } else {
@@ -592,9 +591,7 @@ impl Faraday {
             Some(k) if k == i => {
                 self.flow_on = None;
                 if self.vaults.back_to == Some(Screen::BackupFlow) {
-                    self.vaults.back_to = None;
-                    self.vaults.create = None;
-                    self.vaults.focus = None;
+                    self.vaults.leave_create();
                 }
             }
             Some(k) if k > i => self.flow_on = Some(k - 1),

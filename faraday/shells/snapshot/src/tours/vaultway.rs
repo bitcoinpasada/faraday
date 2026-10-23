@@ -18,7 +18,7 @@ pub(crate) fn vaultway_tour(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     // On a small panel the tile is found by typing, as far down as it is.
     let find = |t: &mut Tour| {
         t.press(Action::Nav(Screen::Catalog));

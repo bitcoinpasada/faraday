@@ -483,11 +483,7 @@ impl Faraday {
                     .then(|| faraday_vault::read_header(&item.bytes).ok())
                     .flatten()
                 {
-                    for v in &mut self.vaults.open {
-                        if v.header().salt == h.salt && v.name == r.from {
-                            v.name = to.clone();
-                        }
-                    }
+                    self.vaults.rename_open(&h.salt, &r.from, &to);
                 }
                 self.save_boxes();
             }

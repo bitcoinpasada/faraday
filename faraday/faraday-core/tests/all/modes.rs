@@ -102,7 +102,7 @@ fn with_unsealed_change() -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(100);
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
         inbox: vec![("vault.ofv".into(), testkit::test_vault().unwrap())],
         outbox: Vec::new(),
@@ -112,19 +112,22 @@ fn with_unsealed_change() -> Faraday {
     crate::common::type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
     app.press(Action::Entry(None));
     crate::common::type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
     let k = app.session.keys.len() - 1;
     app.press(Action::Vault(V::SaveKey(k)));
-    assert!(app.vaults.open[0].changes > 0, "the vault was not changed");
+    assert!(
+        app.vaults().open[0].changes > 0,
+        "the vault was not changed"
+    );
     app.event(Event::Tick { now_ms: 120_000 });
     app
 }
@@ -135,7 +138,7 @@ fn choosing_a_mode_where_a_lock_asks_shows_the_lock_sheet_and_not_now_keeps_the_
     app.press(Action::Mode(Mode::Testnet));
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
     assert!(!app.restart_requested(), "nothing is wiped yet");
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     assert_eq!(app.mode_after_restart(), Mode::Testnet);
     // Not now: the person stays where they were, in the mode in use.
     app.press(Action::Cancel);

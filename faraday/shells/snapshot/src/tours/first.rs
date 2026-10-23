@@ -20,7 +20,7 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     let kind = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::NativeSegwit)
@@ -66,12 +66,12 @@ pub(crate) fn first_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     type_text(t, "first phrase");
     t.press(Action::Vault(V::Unlock));
     for _ in 0..10 {
-        if !t.app.vaults.open.is_empty() && t.app.screen == Screen::Backup {
+        if !t.app.vaults().open.is_empty() && t.app.screen == Screen::Backup {
             break;
         }
         t.tick();
     }
-    if t.app.vaults.open.is_empty() {
+    if t.app.vaults().open.is_empty() {
         return Err("the vault made for the first tour did not open".to_string());
     }
     scroll_to(t, Action::BVaultSave(0));

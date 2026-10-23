@@ -5,18 +5,15 @@
 //! vault as a type-7 record (`docs/VAULT.md` §7) and only its public
 //! results reach the Outbox. What GnuPG does, this does: F32 lists each
 //! behaviour copied and how it was checked against GnuPG 2.4.
+//!
+//! Its presses and what they change are the vault area's glue, in
+//! `vault/mod.rs`.
 
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_crypto::work::Compute;
-use faraday_pgp::{Armor, Reason, armor};
-use faraday_vault::records::kind;
-use zeroize::Zeroizing;
 
-use crate::backup_flow::steps::Built;
-use crate::{Faraday, Item};
-
-use faraday_keys::vault::{GpgFacts as Facts, RecordView, VaultId, gpg_facts, gpg_field as f};
+use faraday_keys::vault::{GpgFacts as Facts, RecordView, gpg_facts, gpg_field as f};
 
 /// GnuPG's year: 365 days, as `--quick-set-expire 2y` counts it.
 pub const YEAR: u32 = 31_536_000;
@@ -29,12 +26,12 @@ pub const DEFAULT_YEARS: u32 = 3;
 /// renewal to go on, in seconds: GnuPG makes the new signature one second
 /// after the last when the clock is within 4 seconds of it, and refuses
 /// ("Time conflict") from 5 on.
-const SKEW: u32 = 5;
+pub(crate) const SKEW: u32 = 5;
 
 /// The longest text a signing page shows of a file.
-const TEXT_MAX: usize = 2048;
+pub(crate) const TEXT_MAX: usize = 2048;
 
-fn u32_of(r: RecordView<'_>, n: u8) -> Option<u32> {
+pub(crate) fn u32_of(r: RecordView<'_>, n: u8) -> Option<u32> {
     Some(u32::from_le_bytes(r.public(n)?.try_into().ok()?))
 }
 
@@ -45,7 +42,7 @@ pub fn certified_at(r: RecordView<'_>) -> Option<u32> {
 }
 
 /// When a record's key was marked revoked.
-fn revoked_at(r: RecordView<'_>) -> Option<u32> {
+pub(crate) fn revoked_at(r: RecordView<'_>) -> Option<u32> {
     u32_of(r, f::REVOKED)
 }
 
@@ -76,7 +73,7 @@ pub fn key_id(fp: &[u8; 20]) -> String {
 
 /// A short name for files: the user ID's name part, lower-case, and the
 /// fingerprint's last eight digits.
-fn file_stem(key: &Facts) -> String {
+pub(crate) fn file_stem(key: &Facts) -> String {
     let name = name_part(key);
     let fp = key.fingerprint;
     let tail: String = fp[16..].iter().map(|b| format!("{b:02X}")).collect();
@@ -89,7 +86,7 @@ fn file_stem(key: &Facts) -> String {
 
 /// The user ID's name, as a file name part: lower-case letters and digits
 /// with dashes between.
-fn name_part(key: &Facts) -> String {
+pub(crate) fn name_part(key: &Facts) -> String {
     let name = key
         .user_ids
         .first()
@@ -105,7 +102,7 @@ fn name_part(key: &Facts) -> String {
 
 /// A revocation file's name, `{name}-{FPR}.rev`: the name GnuPG gives
 /// `openpgp-revocs.d/<FPR>.rev`, with the name before it.
-fn rev_name(key: &Facts) -> String {
+pub(crate) fn rev_name(key: &Facts) -> String {
     let fpr: String = key.fingerprint.iter().map(|b| format!("{b:02X}")).collect();
     match name_part(key) {
         n if n.is_empty() => format!("{fpr}.rev"),
@@ -114,7 +111,7 @@ fn rev_name(key: &Facts) -> String {
 }
 
 /// How long ago, as GnuPG says it: seconds below a day, then days.
-fn span(secs: u32) -> String {
+pub(crate) fn span(secs: u32) -> String {
     match secs {
         1 => fill(EN.gpg_second, &["1"]),
         s if s < 86_400 => fill(EN.gpg_seconds, &[&s.to_string()]),
@@ -126,7 +123,7 @@ fn span(secs: u32) -> String {
 /// Whether a key can sign at `now`: not revoked, not expired, and made
 /// before now. GnuPG's refusals: a key it cannot use is "Unusable secret
 /// key"; one made in the future says so, with its ID.
-fn usable(key: &Facts, revoked: Option<u32>, now: u32) -> Result<(), String> {
+pub(crate) fn usable(key: &Facts, revoked: Option<u32>, now: u32) -> Result<(), String> {
     if let Some(t) = revoked {
         return Err(fill(EN.gpg_revoked, &[&date(u64::from(t))]));
     }
@@ -168,20 +165,20 @@ pub struct GpgFile {
 /// signing in any case.
 #[derive(Debug, Clone)]
 pub struct Seen {
-    name: String,
-    probe: (usize, usize, Vec<u8>),
-    hash: [u8; 32],
-    text: Option<String>,
+    pub(crate) name: String,
+    pub(crate) probe: (usize, usize, Vec<u8>),
+    pub(crate) hash: [u8; 32],
+    pub(crate) text: Option<String>,
 }
 
-fn probe_of(bytes: &[u8]) -> (usize, usize, Vec<u8>) {
+pub(crate) fn probe_of(bytes: &[u8]) -> (usize, usize, Vec<u8>) {
     let mut ends = bytes[..bytes.len().min(32)].to_vec();
     ends.extend_from_slice(&bytes[bytes.len().saturating_sub(32)..]);
     (bytes.len(), bytes.as_ptr() as usize, ends)
 }
 
 /// A small text file's text: UTF-8, printable, a few lines.
-fn small_text(bytes: &[u8]) -> Option<String> {
+pub(crate) fn small_text(bytes: &[u8]) -> Option<String> {
     if bytes.is_empty() || bytes.len() > TEXT_MAX {
         return None;
     }
@@ -189,566 +186,6 @@ fn small_text(bytes: &[u8]) -> Option<String> {
     text.chars()
         .all(|c| !c.is_control() || matches!(c, '\n' | '\r' | '\t'))
         .then(|| text.to_string())
-}
-
-impl Faraday {
-    fn clock(&self) -> Result<u32, String> {
-        self.clock_now()
-            .map(|t| t as u32)
-            .ok_or_else(|| EN.gpg_this_computer_s.to_string())
-    }
-
-    /// The GPG key selected in the open vault: its vault, its record's
-    /// place and what it says of itself in public. Costs two Ed25519
-    /// public keys.
-    fn gpg_selected(&self) -> Option<(VaultId, usize, Facts)> {
-        let at = self.vault_selected_index()?;
-        let id = self.vaults.open.get(self.vaults.current)?.id;
-        let r = self.vaults.records(id).get(at)?;
-        (r.kind() == kind::GPG).then(|| gpg_facts(r).map(|k| (id, at, k)))?
-    }
-
-    /// Record `at` of open vault `id`.
-    fn gpg_record(&self, id: VaultId, at: usize) -> Option<RecordView<'_>> {
-        self.vaults.records(id).get(at)
-    }
-
-    /// Puts a file in the Outbox unless a file of that name is there that
-    /// `replaces` does not allow over: GnuPG's batch mode does not
-    /// overwrite ("File exists") either.
-    fn put_unless_taken(
-        &mut self,
-        name: &str,
-        bytes: Vec<u8>,
-        replaces: impl Fn(&Item) -> bool,
-    ) -> bool {
-        if self.outbox.iter().any(|i| i.name == name && !replaces(i)) {
-            return false;
-        }
-        self.put_outbox(name, bytes);
-        true
-    }
-
-    /// Makes a GPG key for the backup flow: an Ed25519 certification key
-    /// and signing subkey from fresh entropy, one user ID, the chosen
-    /// expiry. The record every vault of the plan takes and the public
-    /// certificate For the stick; the revocation certificate, as GnuPG 2.1
-    /// and later do, is kept with the key.
-    pub(crate) fn gpg_build(&mut self, name: &str, email: &str) -> Result<Built, String> {
-        let now = self.clock()?;
-        // `gpg --quick-generate-key` takes one string, trims it, and
-        // refuses only an empty one ("Invalid user ID"); it checks no
-        // address and no length.
-        let uid = match (name.trim(), email.trim()) {
-            ("", "") => return Err(EN.gpg_a_key_needs_a_name.to_string()),
-            (n, "") => n.to_string(),
-            ("", e) => format!("<{e}>"),
-            (n, e) => format!("{n} <{e}>"),
-        };
-        let (Some(primary), Some(subkey)) = (self.fresh(b"gpg primary"), self.fresh(b"gpg subkey"))
-        else {
-            return Err(EN.gpg_no_randomness.to_string());
-        };
-        let primary = Zeroizing::new(primary);
-        let subkey = Zeroizing::new(subkey);
-        let made = faraday_keys::gpg::create(
-            &primary,
-            &subkey,
-            now,
-            uid.clone(),
-            self.vaults.gpg_years * YEAR,
-        );
-        let stem = file_stem(&made.facts);
-        Ok(Built {
-            record: made.key,
-            subject: made.facts.fingerprint.to_vec(),
-            name: if name.trim().is_empty() {
-                uid
-            } else {
-                name.trim().to_string()
-            },
-            outbox: vec![(
-                format!("{stem}.asc"),
-                armor(Armor::PublicKey, &made.certificate).into_bytes(),
-            )],
-        })
-    }
-
-    /// The public key to the Outbox, unless a file of that name is there
-    /// that is not a public key.
-    pub(crate) fn gpg_put_public(&mut self, name: &str, bytes: Vec<u8>) {
-        self.put_unless_taken(name, bytes, |i| {
-            faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey)
-        });
-    }
-
-    /// Makes the revocation certificate a record lacks, with the clock as
-    /// it is: a key made before revocations were kept gets its one when
-    /// its page is first used. Nothing is made while the clock is not
-    /// known or not checked.
-    pub(crate) fn gpg_keep_revocation(&mut self) {
-        let Some((id, at, _)) = self.gpg_selected() else {
-            return;
-        };
-        if self.gpg_record(id, at).is_none_or(|r| r.has(f::REVOCATION)) || !self.clock_checked() {
-            return;
-        }
-        let Ok(now) = self.clock() else {
-            return;
-        };
-        if self.vaults.edit(id, |s| s.gpg_keep_revocation(id, at, now)) {
-            self.vaults.changed(id);
-        }
-    }
-
-    /// The selected key's public certificate, armoured, with the key.
-    fn gpg_certificate(&self) -> Option<(Facts, String)> {
-        let (id, at, key) = self.gpg_selected()?;
-        let r = self.gpg_record(id, at)?;
-        let cert = match r.public(f::CERTIFICATE) {
-            Some(c) => c.to_vec(),
-            None => self.vaults.store().gpg_certificate(
-                id,
-                at,
-                certified_at(r).unwrap_or(key.created),
-                None,
-            )?,
-        };
-        Some((key, armor(Armor::PublicKey, &cert)))
-    }
-
-    /// The selected key's public certificate to the Outbox.
-    pub(crate) fn gpg_export(&mut self) {
-        let Some((key, text)) = self.gpg_certificate() else {
-            return;
-        };
-        let name = format!("{}.asc", file_stem(&key));
-        if self.put_unless_taken(&name, text.into_bytes(), |i| {
-            faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey)
-        }) {
-            self.toast_out(&name);
-        } else {
-            self.toast(&fill(EN.gpg_exists, &[&name.to_string()]));
-        }
-    }
-
-    /// Costs what `gpg_files` and `text` cost. The QR view of the selected
-    /// key's certificate or its signature over an Inbox file, with the name
-    /// and label of its picture.
-    pub(crate) fn gpg_code(&self, c: &Compute, code: crate::Code) -> Result<crate::QrView, String> {
-        use crate::Code;
-        let (id, at, key) = self.gpg_selected().ok_or(EN.gpg_no_gpg_key_is_selected)?;
-        let stem = file_stem(&key);
-        let fp = fill(
-            EN.gpg_fingerprint,
-            &[&faraday_pgp::fingerprint_text(&key.fingerprint).to_string()],
-        );
-        let who = key.user_ids.first().cloned().unwrap_or_default();
-        let (title, text, name, lines) = match code {
-            Code::GpgKey => {
-                let (_, text) = self
-                    .gpg_certificate()
-                    .ok_or(EN.gpg_no_gpg_key_is_selected)?;
-                (
-                    EN.gpg_gpg_public_key.to_string(),
-                    text,
-                    format!("{stem}.png"),
-                    vec![who, fp, EN.gpg_public_checks_signatures.to_string()],
-                )
-            }
-            Code::GpgSignature(prefix) => {
-                // A key that waits for its backup signs nothing, a code of a
-                // signature included (`docs/BACKUP-FLOW.md` §8).
-                if self.selected_waits().is_some() {
-                    return Err(EN.backup_flow_first.to_string());
-                }
-                let now = self.clock()?;
-                usable(&key, self.gpg_record(id, at).and_then(revoked_at), now)?;
-                let item = self
-                    .gpg_files(c)
-                    .into_iter()
-                    .find(|f| f.hash[..8] == prefix)
-                    .and_then(|f| self.inbox.get(f.index))
-                    .ok_or(EN.gpg_file_gone)?;
-                (
-                    fill(EN.gpg_gpg_signature, &[&item.name.to_string()]),
-                    self.vaults
-                        .store()
-                        .gpg_sign_armored(id, at, &item.bytes, now)
-                        .ok_or(EN.gpg_no_gpg_key_is_selected)?,
-                    format!("{}.asc.png", item.name),
-                    vec![
-                        fill(EN.gpg_signs, &[&item.name.to_string()]),
-                        fill(EN.gpg_signer_line, &[&who.to_string()]),
-                        fp,
-                    ],
-                )
-            }
-            _ => return Err(EN.gpg_not_a_gpg_file.to_string()),
-        };
-        Ok(crate::QrView::text(c, &title, &text)?.public(&name, lines))
-    }
-
-    /// Offers a revocation file through the secret sheet: whoever has it
-    /// can revoke the key, so it is never a public file, a code or a
-    /// picture.
-    fn gpg_offer_revocation(&mut self, key: &Facts, file: &str) {
-        let mut out = crate::secrets::SecretOut::new(
-            rev_name(key),
-            Zeroizing::new(file.as_bytes().to_vec()),
-            EN.gpg_gpg_revocation,
-            EN.gpg_revocation_warning,
-        );
-        // It is in the vault already.
-        out.keep = crate::secrets::Keep::None;
-        self.offer_secret(out);
-    }
-
-    /// The revocation certificate kept with the selected key, through the
-    /// secret sheet as `{name}-{FPR}.rev`.
-    pub(crate) fn gpg_export_revocation(&mut self) {
-        self.gpg_keep_revocation();
-        let Some((id, at, key)) = self.gpg_selected() else {
-            return;
-        };
-        let Some(file) = self.vaults.store().gpg_revocation_file(
-            id,
-            at,
-            faraday_keys::Reveal::OutboxFile(faraday_keys::Part::Revocation),
-        ) else {
-            return self.toast(EN.gpg_no_revocation_kept);
-        };
-        self.gpg_offer_revocation(&key, &file);
-    }
-
-    /// A new revocation certificate for the selected key, with the reason
-    /// chosen (`gpg --generate-revocation`), through the secret sheet.
-    /// The kept one is not replaced.
-    pub(crate) fn gpg_make_revocation(&mut self, reason: Reason, text: &str) {
-        let Some((id, at, key)) = self.gpg_selected() else {
-            return;
-        };
-        let now = match self.clock() {
-            Ok(t) => t,
-            Err(e) => return self.toast(&e),
-        };
-        let Some(file) = self.vaults.store().gpg_new_revocation_file(
-            id,
-            at,
-            now,
-            reason,
-            text.trim(),
-            faraday_keys::Reveal::OutboxFile(faraday_keys::Part::Revocation),
-        ) else {
-            return;
-        };
-        self.gpg_offer_revocation(&key, &file);
-    }
-
-    /// The key is marked revoked, as importing its own revocation
-    /// certificate marks it in GnuPG: it signs nothing and renews
-    /// nothing after.
-    pub(crate) fn gpg_mark_revoked(&mut self) {
-        let Some((id, at, _)) = self.gpg_selected() else {
-            return;
-        };
-        let now = match self.clock() {
-            Ok(t) => t,
-            Err(e) => return self.toast(&e),
-        };
-        if self.gpg_record(id, at).is_some_and(|r| !r.has(f::REVOKED)) {
-            self.vaults
-                .edit(id, |s| s.set_public(id, at, f::REVOKED, &now.to_le_bytes()));
-            self.vaults.changed(id);
-        }
-        self.toast(EN.gpg_marked_revoked);
-    }
-
-    /// New self-signatures with the term chosen on the key's page,
-    /// counted from now as `gpg --quick-set-expire` counts it; the
-    /// record's certificate and the Outbox's change together.
-    pub(crate) fn gpg_renew(&mut self) {
-        if self.selected_waits().is_some() {
-            return;
-        }
-        let Some((id, at, key)) = self.gpg_selected() else {
-            return;
-        };
-        let Some(years) = self.vaults.renew_years else {
-            return self.toast(EN.gpg_choose_the_term);
-        };
-        let now = match self.clock() {
-            Ok(t) => t,
-            Err(e) => return self.toast(&e),
-        };
-        let Some(r) = self.gpg_record(id, at) else {
-            return;
-        };
-        let (revoked, certified) = (revoked_at(r), certified_at(r));
-        if revoked.is_some() {
-            return self.toast(&fill(
-                EN.gpg_revoked,
-                &[&date(u64::from(revoked.unwrap_or(0)))],
-            ));
-        }
-        // GnuPG signs one second after the last signature when the clock
-        // is within 4 seconds of it, and refuses a clock earlier than
-        // that ("Time conflict"): an older signature would be ignored.
-        let last = certified.unwrap_or(key.created);
-        if last > now && last - now >= SKEW {
-            return self.toast(EN.gpg_time_conflict);
-        }
-        let at_time = now.max(last.saturating_add(1));
-        let expiry = match years {
-            0 => 0,
-            y => now.saturating_sub(key.created) + y * YEAR,
-        };
-        let Some(cert) = self
-            .vaults
-            .store()
-            .gpg_certificate(id, at, at_time, Some(expiry))
-        else {
-            return;
-        };
-        let name = format!("{}.asc", file_stem(&key));
-        self.vaults.edit(id, |s| {
-            s.set_public(id, at, f::EXPIRY, &expiry.to_le_bytes());
-            s.set_public(id, at, f::CERTIFICATE, &cert);
-        });
-        self.vaults.changed(id);
-        self.vaults.renew_years = None;
-        if self.put_unless_taken(&name, armor(Armor::PublicKey, &cert).into_bytes(), |i| {
-            faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey)
-        }) {
-            self.toast(&fill(
-                EN.gpg_renewed_waits,
-                &[&name.to_string(), self.medium.for_the()],
-            ));
-        } else {
-            self.toast(&fill(EN.gpg_exists, &[&name.to_string()]));
-        }
-    }
-
-    /// Costs a hash of a whole file (through `hash`). The Inbox files a GPG
-    /// key can sign, each with its hash and, when small, its text: a `.asc`
-    /// file is a signature already, not something to sign again.
-    pub(crate) fn gpg_files(&self, c: &Compute) -> Vec<GpgFile> {
-        let mut seen = self.vaults.sign_seen.borrow_mut();
-        let mut out = Vec::new();
-        let mut keep = Vec::new();
-        for (index, it) in self.inbox.iter().enumerate() {
-            if it.name.ends_with(".asc") {
-                continue;
-            }
-            let probe = probe_of(&it.bytes);
-            let (hash, text) = match seen.iter().find(|s| s.name == it.name && s.probe == probe) {
-                Some(s) => (s.hash, s.text.clone()),
-                // Kept on the state (`sign_seen`) once worked out.
-                None => (it.hash(c), small_text(&it.bytes)),
-            };
-            keep.push(Seen {
-                name: it.name.clone(),
-                probe,
-                hash,
-                text: text.clone(),
-            });
-            out.push(GpgFile {
-                index,
-                name: it.name.clone(),
-                size: it.bytes.len(),
-                hash,
-                text,
-            });
-        }
-        *seen = keep;
-        out
-    }
-
-    /// Costs a hash of a whole file (through `gpg_files`). The code of the
-    /// selected key's signature over the Inbox file called `name`: it names
-    /// the file by its hash, as the signing page's buttons do.
-    pub fn signature_code(&self, c: &Compute, name: &str) -> Option<crate::Code> {
-        let f = self.gpg_files(c).into_iter().find(|f| f.name == name)?;
-        Some(crate::Code::GpgSignature(f.hash[..8].try_into().ok()?))
-    }
-
-    /// Whether a listed file is ticked: by its name and hash, so a file a
-    /// stick visit replaced is not.
-    pub(crate) fn gpg_ticked(&self, f: &GpgFile) -> bool {
-        self.vaults
-            .sign_ticked
-            .iter()
-            .any(|(n, h)| *n == f.name && *h == f.hash)
-    }
-
-    /// The signing page's ticks at their default: the only signable file
-    /// ticked, or none of several.
-    pub(crate) fn gpg_default_ticks(&mut self) {
-        let c = self.compute();
-        let files = self.gpg_files(&c);
-        self.vaults.sign_ticked = match files.as_slice() {
-            [one] => vec![(one.name.clone(), one.hash)],
-            _ => Vec::new(),
-        };
-    }
-
-    /// Ticks or unticks the listed file at `k`.
-    pub(crate) fn gpg_tick(&mut self, k: usize) {
-        let c = self.compute();
-        let Some(f) = self.gpg_files(&c).into_iter().nth(k) else {
-            return;
-        };
-        let tick = (f.name, f.hash);
-        match self.vaults.sign_ticked.iter().position(|t| *t == tick) {
-            Some(at) => {
-                self.vaults.sign_ticked.remove(at);
-            }
-            None => self.vaults.sign_ticked.push(tick),
-        }
-    }
-
-    /// Ticks every listed file, or none when every one is ticked.
-    pub(crate) fn gpg_tick_all(&mut self) {
-        let c = self.compute();
-        let files = self.gpg_files(&c);
-        if files.iter().all(|f| self.gpg_ticked(f)) {
-            self.vaults.sign_ticked.clear();
-        } else {
-            self.vaults.sign_ticked = files.into_iter().map(|f| (f.name, f.hash)).collect();
-        }
-    }
-
-    /// Clears the signing page, its ticks and the other GPG pages when the
-    /// vault, the category or the key selected changes.
-    pub(crate) fn gpg_page_reset(&mut self) {
-        if self.sheet == Some(crate::Sheet::GpgSign) {
-            self.sheet = None;
-        }
-        self.vaults.signing = false;
-        self.vaults.sign_ticked.clear();
-        self.vaults.sign_key = None;
-        self.vaults.renew_years = None;
-        self.vaults.revoke_reason = 0;
-    }
-
-    /// The selected key's fingerprint.
-    pub(crate) fn gpg_fingerprint(&self) -> Option<[u8; 20]> {
-        self.gpg_selected().map(|(_, _, k)| k.fingerprint)
-    }
-
-    /// The selected key's first user ID, which Sign with {key} names it
-    /// by.
-    pub(crate) fn gpg_user_id(&self) -> Option<String> {
-        let at = self.vault_selected_index()?;
-        let r = self
-            .vaults
-            .records(self.vaults.open.get(self.vaults.current)?.id)
-            .get(at)?;
-        let id = r.public_all(f::USER_ID).next()?;
-        Some(String::from_utf8_lossy(id).into_owned())
-    }
-
-    /// Costs a hash of a whole file (through `gpg_files`). The listed files
-    /// ticked to sign, as Sign's sheet lists them. Hashes a file the page
-    /// has not hashed yet.
-    pub(crate) fn gpg_chosen(&self, c: &Compute) -> Vec<GpgFile> {
-        self.gpg_files(c)
-            .into_iter()
-            .filter(|f| self.gpg_ticked(f))
-            .collect()
-    }
-
-    /// Sign a file's **Sign**: opens **Sign with {key}** over the page
-    /// when a listed file is ticked. Signs nothing and asks nothing: the
-    /// sheet shows the time the signatures will carry (F63).
-    pub(crate) fn gpg_sign_sheet_open(&mut self) {
-        let c = self.compute();
-        if !self.vaults.signing || self.vaults.sign_key != self.gpg_fingerprint() {
-            return;
-        }
-        if self.gpg_chosen(&c).is_empty() {
-            return;
-        }
-        self.sheet = Some(crate::Sheet::GpgSign);
-    }
-
-    /// The hold on **Sign with {key}**: signs the ticked files at the
-    /// time the sheet shows, then closes it. With the clock not known
-    /// the hold is disabled and signs nothing (F63). Nothing else signs:
-    /// pressed with no sheet open, it does nothing.
-    pub(crate) fn gpg_sign_sheet_hold(&mut self) {
-        if self.sheet != Some(crate::Sheet::GpgSign) || self.clock_now().is_none() {
-            return;
-        }
-        self.sheet = None;
-        self.gpg_sign_ticked();
-    }
-
-    /// Signs every ticked file in one go, after the hold: a detached
-    /// signature each, armoured, `{file}.asc` in the Outbox as `gpg
-    /// --armor --detach-sign` names it. A file whose bytes are no longer
-    /// those ticked is not signed. A signature is not written over a file
-    /// of that name. One toast says how many were written.
-    pub(crate) fn gpg_sign_ticked(&mut self) {
-        let c = self.compute();
-        if self.selected_waits().is_some() {
-            return;
-        }
-        let Some((id, at, key)) = self.gpg_selected() else {
-            return;
-        };
-        // The page was opened for another key: nothing is signed.
-        if self.vaults.sign_key != Some(key.fingerprint) {
-            self.gpg_page_reset();
-            return;
-        }
-        let now = match self.clock() {
-            Ok(t) => t,
-            Err(e) => return self.toast(&e),
-        };
-        if let Err(e) = usable(&key, self.gpg_record(id, at).and_then(revoked_at), now) {
-            return self.toast(&e);
-        }
-        let ticked = std::mem::take(&mut self.vaults.sign_ticked);
-        let (mut written, mut changed) = (0usize, 0usize);
-        let mut failure: Option<String> = None;
-        for (name, hash) in ticked {
-            let found = self
-                .inbox
-                .iter()
-                .position(|i| i.name == name && crate::sha256_of(&c, &i.bytes) == hash);
-            let Some(k) = found else {
-                changed += 1;
-                failure.get_or_insert_with(|| fill(EN.gpg_changed, &[&name.to_string()]));
-                continue;
-            };
-            let out = format!("{name}.asc");
-            if self.outbox.iter().any(|i| i.name == out) {
-                failure.get_or_insert_with(|| fill(EN.gpg_exists, &[&out.to_string()]));
-                continue;
-            }
-            let Some(sig) = self
-                .vaults
-                .store()
-                .gpg_sign_armored(id, at, &self.inbox[k].bytes, now)
-            else {
-                continue;
-            };
-            self.put_outbox(&out, sig.into_bytes());
-            written += 1;
-        }
-        let _ = changed;
-        let text = match (written, failure) {
-            (0, Some(e)) => e,
-            (0, None) => return,
-            (1, _) => fill(EN.gpg_1_signature_waits, &[self.medium.for_the()]),
-            (n, _) => fill(
-                EN.gpg_signatures_wait,
-                &[&n.to_string(), self.medium.for_the()],
-            ),
-        };
-        self.toast(&text);
-    }
 }
 
 /// What the detail column shows of a GPG key: its fingerprints, user IDs,

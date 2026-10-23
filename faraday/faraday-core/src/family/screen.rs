@@ -1141,7 +1141,10 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let mem = f.header.cost.memory_kib / 1024;
         let time = fill(
             EN.family_unlock_time,
-            &[&app.vaults.time_text(mem, f.header.cost.passes).to_string()],
+            &[&app
+                .vaults()
+                .time_text(mem, f.header.cost.passes)
+                .to_string()],
         );
         if compact {
             let room = w - 62.0 - 12.0;

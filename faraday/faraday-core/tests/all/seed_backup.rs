@@ -63,19 +63,19 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
 }
 
 fn unlock(app: &mut Faraday) {
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     app.press(Action::Nav(Screen::Backup));
 }
 
@@ -145,15 +145,15 @@ fn backing_up_as(app: &mut Faraday, with: bool, seedqr: bool) -> Fingerprint {
 }
 
 fn keys_in_vault(app: &Faraday) -> usize {
-    app.vaults
-        .records(app.vaults.open[0].id)
+    app.vaults()
+        .records(app.vaults().open[0].id)
         .of(kind::KEY)
         .count()
 }
 
 fn notes_in_vault(app: &Faraday) -> usize {
-    app.vaults
-        .records(app.vaults.open[0].id)
+    app.vaults()
+        .records(app.vaults().open[0].id)
         .of(kind::NOTE)
         .count()
 }

@@ -74,7 +74,7 @@ fn open_codes_from_tools(app: &mut Faraday) {
     assert_eq!(app.screen, Screen::Unlock, "no vault open leads to Unlock");
     type_text(app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
-    settle(app, |a| !a.vaults.open.is_empty());
+    settle(app, |a| !a.vaults().open.is_empty());
 }
 
 /// A minimal one-slot vault holding one entry with this field 6 value.
@@ -232,13 +232,13 @@ fn two_open_vaults_each_show_their_rows_and_a_hotp_entry_shows_no_code() {
     app.press(Action::Vault(V::Open(0)));
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
-    settle(&mut app, |a| a.vaults.open.len() == 1);
+    settle(&mut app, |a| a.vaults().open.len() == 1);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(1)));
     type_text(&mut app, "second");
     app.press(Action::Vault(V::Unlock));
-    settle(&mut app, |a| a.vaults.open.len() == 2);
-    assert_eq!(app.vaults.open.len(), 2);
+    settle(&mut app, |a| a.vaults().open.len() == 2);
+    assert_eq!(app.vaults().open.len(), 2);
     app.press(Action::OpenCodes);
     assert_eq!(app.screen, Screen::Codes);
     let now = app.clock_now().unwrap();
@@ -326,7 +326,7 @@ fn the_entry_form_saves_a_bare_key_and_refuses_garbage() {
     // A word, though every letter is Base32: too short for a key.
     type_text(&mut app, "hello");
     app.press(Action::Vault(V::FormSave));
-    assert!(app.vaults.form.is_some(), "the form is kept on a refusal");
+    assert!(app.vaults().form.is_some(), "the form is kept on a refusal");
     assert_eq!(app.toast_text(), Some("Not a TOTP key"));
 }
 

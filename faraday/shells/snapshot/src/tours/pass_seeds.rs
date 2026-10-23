@@ -75,7 +75,7 @@ pub(crate) fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Open(0)));
     type_text(t, "trio phrase");
@@ -84,7 +84,7 @@ pub(crate) fn pass_seeds_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     if t.app.sheet != Some(faraday_core::Sheet::UnlockLoad) {
         return Err(format!(
             "the trio vault did not ask what to load: {:?}",
-            t.app.vaults.unlock_error
+            t.app.vaults().unlock_error
         ));
     }
     t.shot("passseeds-load-sheet")?;

@@ -33,7 +33,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     if t.app.screen != Screen::Home
         || t.app.sheet != Some(Sheet::Import)
         || t.app.inbox().iter().any(|i| i.name == "vault.ofv")
@@ -64,7 +64,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     type_text(t, "not the passphrase");
     t.press(Action::Import(I::Submit));
     t.tick();
-    if t.app.sheet != Some(Sheet::Import) || t.app.vaults.unlock_error.is_none() {
+    if t.app.sheet != Some(Sheet::Import) || t.app.vaults().unlock_error.is_none() {
         return Err("a wrong passphrase did not stay on the sheet".into());
     }
     t.shot("boot-import-wrong")?;
@@ -90,7 +90,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         t.shot("boot-load-sheet")?;
         t.press(Action::Vault(V::LoadTicked));
     }
-    if t.app.vaults.open.len() != 1
+    if t.app.vaults().open.len() != 1
         || t.app.import().is_some()
         || t.app.sheet.is_some()
         || t.app.screen != Screen::Wallets
@@ -149,8 +149,14 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     }
     // Making the checklist saved the plan into the vault already.
     use faraday_vault::records::kind;
-    let count = |t: &Tour, k: u8| t.app.vaults.records(t.app.vaults.open[0].id).of(k).count();
-    let before = t.app.vaults.open[0].changes;
+    let count = |t: &Tour, k: u8| {
+        t.app
+            .vaults()
+            .records(t.app.vaults().open[0].id)
+            .of(k)
+            .count()
+    };
+    let before = t.app.vaults().open[0].changes;
     let plans = count(t, kind::PLAN);
     let keys = count(t, kind::KEY);
     let wallets = count(t, kind::WALLET);
@@ -161,7 +167,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // is kept as it is, one of it: nothing in it changed.
     t.press(Action::BVaultSave(0));
     t.shot("create-backup-vault-saved")?;
-    let saved = t.app.vaults.open[0].changes - before;
+    let saved = t.app.vaults().open[0].changes - before;
     if saved != 3 {
         return Err(format!("the checklist saved {saved} records, not 3"));
     }

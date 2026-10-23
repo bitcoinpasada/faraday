@@ -57,7 +57,7 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x20 + i; 32])));
     }
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     let _ = app.frame();
     app
 }
@@ -101,12 +101,12 @@ fn make_the_vault(app: &mut Faraday) {
         "a vault made for another flow goes straight to Unlock"
     );
     let made = app
-        .vaults
+        .vaults()
         .just_made
         .clone()
         .expect("the vault was not made");
     assert_eq!(
-        app.vault_files()[app.vaults.pick].name,
+        app.vault_files()[app.vaults().pick].name,
         made,
         "Unlock has the new vault picked"
     );
@@ -117,8 +117,8 @@ fn unlock_with(app: &mut Faraday, phrase: &str) {
     assert_eq!(app.screen, Screen::Unlock);
     type_text(app, phrase);
     app.press(Action::Vault(V::Unlock));
-    settle(app, |a| !a.vaults.open.is_empty());
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not unlock");
+    settle(app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not unlock");
 }
 
 /// Whether the page offers `action` anywhere down it, scrolled to as a
@@ -161,10 +161,10 @@ fn a_vault_tile_with_no_vault_says_make_one_and_makes_it_then_opens_its_category
         make_the_vault(&mut app);
         unlock_with(&mut app, NEW_PHRASE);
         assert_eq!(app.screen, Screen::VaultContents, "{name}");
-        assert_eq!(app.vaults.category, category, "{name}");
-        let made = app.vaults.just_made.clone();
+        assert_eq!(app.vaults().category, category, "{name}");
+        let made = app.vaults().just_made.clone();
         assert!(made.is_none(), "unlocking clears the new vault's mark");
-        assert_eq!(app.vaults.current, 0);
+        assert_eq!(app.vaults().current, 0);
     }
 }
 
@@ -180,10 +180,10 @@ fn a_vault_tile_with_a_locked_vault_unlocks_it_then_opens_its_category() {
         );
         app.press(Action::Catalog(i));
         assert_eq!(app.screen, Screen::Unlock, "{name}");
-        assert_eq!(app.vaults.pick, 0, "the only vault is picked");
+        assert_eq!(app.vaults().pick, 0, "the only vault is picked");
         unlock_with(&mut app, testkit::VAULT_PASSPHRASES[0]);
         assert_eq!(app.screen, Screen::VaultContents, "{name}");
-        assert_eq!(app.vaults.category, category, "{name}");
+        assert_eq!(app.vaults().category, category, "{name}");
     }
 }
 
@@ -205,7 +205,7 @@ fn a_vault_tile_with_a_stick_in_asks_for_the_stick_before_unlock() {
     assert_eq!(app.screen, Screen::Unlock, "Unlock opens once it is out");
     unlock_with(&mut app, testkit::VAULT_PASSPHRASES[0]);
     assert_eq!(app.screen, Screen::VaultContents);
-    assert_eq!(app.vaults.category, 2);
+    assert_eq!(app.vaults().category, 2);
 }
 
 #[test]
@@ -216,7 +216,7 @@ fn going_back_from_create_returns_to_tools_and_a_later_unlock_is_an_ordinary_one
     assert_eq!(app.screen, Screen::CreateVault);
     app.press(Action::Vault(V::Back));
     assert_eq!(app.screen, Screen::Catalog, "back returns to Tools");
-    assert_eq!(app.vaults.back_to, None);
+    assert_eq!(app.vaults().back_to, None);
 
     // A vault made and unlocked from Vaults afterwards does not open GPG.
     app.press(Action::Nav(Screen::Vaults));
@@ -234,7 +234,7 @@ fn going_back_from_create_returns_to_tools_and_a_later_unlock_is_an_ordinary_one
     app.press(Action::Vault(V::Open(0)));
     unlock_with(&mut app, NEW_PHRASE);
     assert!(
-        !(app.screen == Screen::VaultContents && app.vaults.category == 2),
+        !(app.screen == Screen::VaultContents && app.vaults().category == 2),
         "an unlock from Vaults does not open the KeePass export"
     );
 }
@@ -255,8 +255,8 @@ fn bip85_makes_a_vault_and_comes_back_to_save_the_value() {
     assert!(app.offers(Action::PVault), "Save into the vault is live");
     app.press(Action::PVault);
     assert_eq!(
-        app.vaults
-            .records(app.vaults.open[0].id)
+        app.vaults()
+            .records(app.vaults().open[0].id)
             .of(kind::ENTRY)
             .count(),
         1
@@ -277,14 +277,14 @@ fn lightning_makes_a_vault_and_comes_back_to_save_the_node_key() {
     let _ = app.frame();
     assert!(app.offers(Action::LVault), "Save into the vault is live");
     let notes = app
-        .vaults
-        .records(app.vaults.open[0].id)
+        .vaults()
+        .records(app.vaults().open[0].id)
         .of(kind::NOTE)
         .count();
     app.press(Action::LVault);
     assert_eq!(
-        app.vaults
-            .records(app.vaults.open[0].id)
+        app.vaults()
+            .records(app.vaults().open[0].id)
             .of(kind::NOTE)
             .count(),
         notes + 1
@@ -307,14 +307,14 @@ fn silent_payments_makes_a_vault_and_comes_back_to_save_the_scan_key() {
         "Save into the vault is live"
     );
     let notes = app
-        .vaults
-        .records(app.vaults.open[0].id)
+        .vaults()
+        .records(app.vaults().open[0].id)
         .of(kind::NOTE)
         .count();
     app.press(Action::SScanVault);
     assert_eq!(
-        app.vaults
-            .records(app.vaults.open[0].id)
+        app.vaults()
+            .records(app.vaults().open[0].id)
             .of(kind::NOTE)
             .count(),
         notes + 1
@@ -379,8 +379,8 @@ fn the_secret_sheet_waits_while_a_vault_is_made_and_saves_into_it() {
     );
     app.press(Action::SecretVault);
     assert_eq!(
-        app.vaults
-            .records(app.vaults.open[0].id)
+        app.vaults()
+            .records(app.vaults().open[0].id)
             .of(kind::KEY)
             .count(),
         1
@@ -408,7 +408,7 @@ fn going_back_on_the_way_drops_the_secret() {
     press_make(&mut app, Screen::Backup);
     app.press(Action::Nav(Screen::Home));
     assert!(testkit::secret_out(&app).is_none(), "the secret is dropped");
-    assert_eq!(app.vaults.back_to, None);
+    assert_eq!(app.vaults().back_to, None);
 }
 
 /// An `.oskb` in Files with no vault offers no way to one on its row
@@ -457,7 +457,7 @@ fn leaving_unlock_drops_a_half_typed_passphrase() {
         type_text(&mut app, "test phr");
         app.press(way_out);
         assert!(
-            app.vaults.passphrase.text.is_empty(),
+            app.vaults().passphrase.text.is_empty(),
             "{way_out:?} kept the typed passphrase"
         );
     }
@@ -477,10 +477,10 @@ fn unlock_counts_the_file_twice_in_the_memory_it_needs() {
     app.storage(StorageEvent::Memory { available_mib: 165 });
     type_text(&mut app, NEW_PHRASE);
     app.press(Action::Vault(V::Unlock));
-    settle(&mut app, |a| !a.vaults.open.is_empty());
-    assert!(app.vaults.open.is_empty(), "it unlocked short of memory");
+    settle(&mut app, |a| !a.vaults().open.is_empty());
+    assert!(app.vaults().open.is_empty(), "it unlocked short of memory");
     assert_eq!(
-        app.vaults.unlock_error.as_deref(),
+        app.vaults().unlock_error.as_deref(),
         Some("Needs 166 MiB. This computer has 165 MiB free.")
     );
     app.storage(StorageEvent::Memory { available_mib: 166 });

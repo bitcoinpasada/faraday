@@ -62,19 +62,19 @@ fn flip_all(app: &mut Faraday) {
 }
 
 fn unlock_vault(app: &mut Faraday) {
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     app.press(Action::Nav(Screen::Backup));
 }
 

@@ -130,14 +130,14 @@ fn a_vault_with_both_wallets_loads_the_shared_seed_once() {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Vault(V::Open(0)));
     for c in testkit::VAULT_PASSPHRASES[0].chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();

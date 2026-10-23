@@ -3,28 +3,27 @@
 #
 # Files over 2,500 lines, at their size: split them, and lower the line.
 file core/faraday-psbt/src/inspect.rs 2673
-file faraday/faraday-core/src/backup_flow/steps.rs 3142
-file faraday/faraday-core/src/backup_flow/wallet.rs 2867
+file faraday/faraday-core/src/backup_flow/steps.rs 3117
+file faraday/faraday-core/src/backup_flow/wallet.rs 2863
 file faraday/faraday-core/src/board/mod.rs 2667
-file faraday/faraday-core/src/lib.rs 7811
+file faraday/faraday-core/src/lib.rs 7801
 file faraday/faraday-core/src/plan/mod.rs 4357
-file faraday/faraday-core/src/vault/mod.rs 4506
-file faraday/faraday-core/src/vault/screen.rs 4862
+file faraday/faraday-core/src/vault/mod.rs 4489
+file faraday/faraday-core/src/vault/screen.rs 4826
 file faraday/faraday-core/tests/all/backup_board.rs 2783
-file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5927
+file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5823
 
 # Functions over 100 lines (clippy's too_many_lines, each under an
 # `expect`), and functions with too many arguments (each under an
 # `allow`).
-expect too_many_lines 206
+expect too_many_lines 205
 allow too_many_arguments 72
 
 # Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.
-fields Faraday 104
+fields Faraday 103
 
 # Files under faraday/ with an inherent `impl Faraday {`: the list only
 # shrinks.
-impl-faraday faraday/faraday-core/src/apk.rs
 impl-faraday faraday/faraday-core/src/backup_flow/mod.rs
 impl-faraday faraday/faraday-core/src/backup_flow/steps.rs
 impl-faraday faraday/faraday-core/src/backup_flow/wallet.rs
@@ -34,7 +33,6 @@ impl-faraday faraday/faraday-core/src/board/mod.rs
 impl-faraday faraday/faraday-core/src/boot_import/mod.rs
 impl-faraday faraday/faraday-core/src/catalog.rs
 impl-faraday faraday/faraday-core/src/chart_edit.rs
-impl-faraday faraday/faraday-core/src/codes/mod.rs
 impl-faraday faraday/faraday-core/src/compact/mod.rs
 impl-faraday faraday/faraday-core/src/compute.rs
 impl-faraday faraday/faraday-core/src/create.rs
@@ -51,7 +49,6 @@ impl-faraday faraday/faraday-core/src/family/mod.rs
 impl-faraday faraday/faraday-core/src/file_menu.rs
 impl-faraday faraday/faraday-core/src/fresh.rs
 impl-faraday faraday/faraday-core/src/glance/sheet.rs
-impl-faraday faraday/faraday-core/src/gpg.rs
 impl-faraday faraday/faraday-core/src/held.rs
 impl-faraday faraday/faraday-core/src/in_progress.rs
 impl-faraday faraday/faraday-core/src/inbox.rs
@@ -84,10 +81,7 @@ impl-faraday faraday/faraday-core/src/trail.rs
 impl-faraday faraday/faraday-core/src/transfer/mod.rs
 impl-faraday faraday/faraday-core/src/upgrade/mod.rs
 impl-faraday faraday/faraday-core/src/vanity/mod.rs
-impl-faraday faraday/faraday-core/src/vault/load.rs
 impl-faraday faraday/faraday-core/src/vault/mod.rs
-impl-faraday faraday/faraday-core/src/vault/out.rs
-impl-faraday faraday/faraday-core/src/vault/strength.rs
 impl-faraday faraday/faraday-core/src/visit_taken.rs
 impl-faraday faraday/faraday-core/src/wallet.rs
 impl-faraday faraday/faraday-core/src/wallet_backup.rs

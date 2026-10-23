@@ -1121,7 +1121,7 @@ pub enum Slot {
     VisitOut,
     /// The wallet card's body on a desktop (`Faraday::card_offset`).
     Card,
-    /// Vault contents' item on a desktop (`Faraday::vault_item_offset`).
+    /// Vault contents' item on a desktop (`VaultArea::item_offset`, `faraday-core`).
     VaultItem,
     /// Files' For the stick list on a desktop, beside From the stick
     /// (`Faraday::files_out_offset`).

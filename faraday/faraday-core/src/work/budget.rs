@@ -244,7 +244,7 @@ pub(super) fn heavy_on(panel: Panel) -> (Faraday, usize) {
         available_mib: 15_000,
     });
     app.storage(StorageEvent::Clock { unix_secs: CLOCK });
-    app.vaults.ms_per_unit = Some(180);
+    app.vaults.set_speed(Some(180));
     // On testnet, the test stick's network.
     testkit::move_to(&mut app.session, testkit::NET).unwrap();
     assert_eq!(app.session.network(), testkit::NET);

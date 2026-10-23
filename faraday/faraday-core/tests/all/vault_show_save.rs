@@ -46,20 +46,20 @@ fn opened() -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
     for c in testkit::VAULT_PASSPHRASES[0].chars() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     app.press(Action::Nav(Screen::VaultContents));
     app
 }
@@ -78,9 +78,9 @@ fn on_wallet(name: &str) -> Faraday {
     let mut app = opened();
     app.press(Action::Vault(V::Category(1)));
     let k = app
-        .vaults
+        .vaults()
         .store()
-        .contents_for_tests(app.vaults.open[0].id)
+        .contents_for_tests(app.vaults().open[0].id)
         .records
         .iter()
         .filter(|r| [kind::WALLET, kind::WALLET_SHARE].contains(&r.kind))
@@ -165,9 +165,9 @@ fn outbox_names(app: &Faraday) -> Vec<String> {
 
 /// The open vault's records and changes, to say nothing went in.
 fn vault_now(app: &Faraday) -> (usize, usize) {
-    let v = &app.vaults.open[0];
+    let v = &app.vaults().open[0];
     (
-        app.vaults.store().contents_for_tests(v.id).records.len(),
+        app.vaults().store().contents_for_tests(v.id).records.len(),
         v.changes,
     )
 }
@@ -272,7 +272,7 @@ fn a_wallet_s_save_writes_its_descriptor_text_qr_and_software_files() {
         !texts.contains(&"Anyone who finds this stick has this seed".to_string()),
         "a wallet's files are public"
     );
-    let files = &app.vaults.stick_save.as_ref().unwrap().files;
+    let files = &app.vaults().stick_save.as_ref().unwrap().files;
     // The descriptor ticked to begin with; the QR picture and Sparrow's
     // file not.
     let qr = files

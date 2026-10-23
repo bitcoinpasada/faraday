@@ -68,14 +68,14 @@ pub(crate) fn again_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::BStep(bstep::VAULT));
     scroll_to(t, Action::Vault(V::OpenFrom(0, Screen::Backup)));
     t.shot("again-restored-locked")?;
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Vault(V::OpenFrom(0, Screen::Backup)));
     type_text(t, testkit::VAULT_PASSPHRASES[0]);
     t.press(Action::Vault(V::Unlock));
     for _ in 0..20 {
         t.tick();
     }
-    if t.app.vaults.open.len() != 1 || t.app.screen != Screen::Backup {
+    if t.app.vaults().open.len() != 1 || t.app.screen != Screen::Backup {
         return Err("the test vault did not open back to the backup".into());
     }
     scroll_to(t, Action::Vault(V::SaveWallet(w)));

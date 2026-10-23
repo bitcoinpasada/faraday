@@ -46,7 +46,7 @@ fn unlocked(mut files: Vec<(String, Vec<u8>)>) -> Faraday {
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     // Its Load sheet's Not now: the vault stays open on Files (F62).
     app.press(Action::Vault(V::LoadNotNow));
     app
@@ -78,9 +78,9 @@ fn a_text_file_is_kept_and_offered_to_the_vault_as_a_note() {
     }
     assert!(offered, "Files does not offer Add to vault");
     app.press(Action::Vault(V::AddFile(k)));
-    let v = &app.vaults.open[0];
+    let v = &app.vaults().open[0];
     let note = app
-        .vaults
+        .vaults()
         .store()
         .contents_for_tests(v.id)
         .of(kind::NOTE)
@@ -103,16 +103,16 @@ fn a_seed_words_file_goes_into_the_vault_as_a_key() {
         .unwrap();
     let mut app = unlocked(vec![(name.clone(), bytes)]);
     let keys = app
-        .vaults
+        .vaults()
         .store()
-        .contents_for_tests(app.vaults.open[0].id)
+        .contents_for_tests(app.vaults().open[0].id)
         .of(kind::KEY)
         .count();
     app.press(Action::Vault(V::AddFile(at(&app, &name))));
     assert_eq!(
-        app.vaults
+        app.vaults()
             .store()
-            .contents_for_tests(app.vaults.open[0].id)
+            .contents_for_tests(app.vaults().open[0].id)
             .of(kind::KEY)
             .count(),
         keys + 1
@@ -174,7 +174,7 @@ fn a_text_file_offers_add_to_vault_only_while_a_vault_is_open() {
 fn without_an_open_vault_nothing_is_added() {
     let mut app = with_files(vec![("gmail-codes.txt".into(), CODES.into())]);
     app.press(Action::Vault(V::AddFile(0)));
-    assert!(app.vaults.open.is_empty());
+    assert!(app.vaults().open.is_empty());
     assert!(app.toast_text().is_some_and(|t| t.contains("Unlock")));
 }
 

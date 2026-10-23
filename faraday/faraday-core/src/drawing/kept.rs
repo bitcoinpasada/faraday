@@ -542,7 +542,7 @@ impl View<'_> {
     /// ([`crate::Faraday::record_word_count`]), as its open vault keeps it
     /// read. Costs a parse of the words the first time.
     pub(crate) fn record_word_count(&self, r: RecordView<'_>) -> Option<usize> {
-        self.kept(|c| self.app.record_word_count(c, r))
+        self.kept(|c| self.app.vaults.record_word_count(c, r))
     }
 
     /// The files GPG's sheet signs ([`crate::Faraday::gpg_chosen`]), each

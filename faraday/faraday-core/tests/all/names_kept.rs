@@ -40,7 +40,7 @@ fn shown(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     let _ = app.frame();
     app
 }
@@ -64,13 +64,13 @@ fn settle(app: &mut Faraday, until: impl Fn(&Faraday) -> bool) {
 }
 
 fn unlock(app: &mut Faraday) {
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
-    settle(app, |a| !a.vaults.open.is_empty());
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    settle(app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
 }
 
 /// Test key 2 typed in and a one-key wallet made from it; returns the
@@ -128,7 +128,7 @@ const VAULT_PHRASE: &str = "test phrase";
 /// own, so a wallet saved into it can be found again with no other
 /// wallet to confuse it with.
 fn made_and_unlocked(app: &mut Faraday) {
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(app, Some(180));
     for i in 0..8u8 {
         app.event(Event::Entropy(faraday_shell_api::EntropyBytes::new(
             [0x50 + i; 32],
@@ -144,18 +144,18 @@ fn made_and_unlocked(app: &mut Faraday) {
     settle(app, |a| a.screen == Screen::Unlock);
     type_text(app, VAULT_PHRASE);
     app.press(Action::Vault(V::Unlock));
-    settle(app, |a| !a.vaults.open.is_empty());
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not unlock");
+    settle(app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not unlock");
 }
 
 fn unlock_made(app: &mut Faraday) {
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(app, VAULT_PHRASE);
     app.press(Action::Vault(V::Unlock));
-    settle(app, |a| !a.vaults.open.is_empty());
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not unlock again");
+    settle(app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not unlock again");
 }
 
 /// A place named "Grandmas attic" with a vault open, a plan written for
@@ -198,9 +198,9 @@ fn a_place_names_name_never_leaves_the_vault() {
     app.press(Action::Vault(V::SaveWallet(w)));
     // The record kept in the vault holds the name in field 3 alone.
     let plan = app
-        .vaults
+        .vaults()
         .store()
-        .contents_for_tests(app.vaults.open[0].id)
+        .contents_for_tests(app.vaults().open[0].id)
         .of(kind::PLAN)
         .next()
         .expect("a plan record")
@@ -269,8 +269,8 @@ fn a_plan_written_the_old_way_is_read_with_its_place_named_by_number() {
     record.push(field::PLAN_PLACE, NAME.as_bytes());
     record.push(field::PLAN_HOLDS, format!("{NAME}: 24 words").as_bytes());
     {
-        let id = app.vaults.open[0].id;
-        app.vaults.edit(id, |s| s.insert(id, record));
+        let id = app.vaults().open[0].id;
+        faraday_core::testkit::vault_edit(&mut app, id, |s| s.insert(id, record));
     }
 
     app.press(Action::Lock);

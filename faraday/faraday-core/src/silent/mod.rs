@@ -513,7 +513,12 @@ impl Faraday {
                 }
             }
             A::SScanVault => {
-                if self.vaults.open.get(self.vaults.current).is_none() {
+                if self
+                    .vaults
+                    .open
+                    .get(self.vaults.current)
+                    .is_none()
+                {
                     return self.toast(EN.silent_no_vault_open);
                 }
                 let Some((key, fp)) = self.silent.scan_key(

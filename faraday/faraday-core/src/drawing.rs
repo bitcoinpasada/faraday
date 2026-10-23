@@ -325,9 +325,7 @@ impl Faraday {
                     self.vanity.set_scroll(to);
                 }
                 Scrolled::CreateVault => {
-                    if let Some(c) = self.vaults.create.as_mut() {
-                        c.scroll = to;
-                    }
+                    self.vaults.set_create_scroll(to);
                 }
                 Scrolled::Spend => {
                     if let Some(s) = self.wallets.spend_mut() {

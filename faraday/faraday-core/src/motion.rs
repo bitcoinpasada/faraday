@@ -671,9 +671,9 @@ impl Faraday {
             Screen::KeyGen => &mut self.keygen.scroll_mut()?.y,
             Screen::Bip85 => &mut self.bip85.scroll_mut()?.y,
             Screen::Silent => &mut self.silent.scroll_mut()?.y,
-            Screen::CreateVault => &mut self.vaults.create.as_mut()?.scroll.y,
-            Screen::BackupFlow => match self.vaults.create.as_mut() {
-                Some(c) => &mut c.scroll.y,
+            Screen::CreateVault => self.vaults.create_scroll_y_mut()?,
+            Screen::BackupFlow => match self.vaults.create_scroll_y_mut() {
+                Some(y) => y,
                 None => &mut self.backup_flows.get_mut(self.flow_on?)?.live.scroll.y,
             },
             Screen::Spend => &mut self.wallets.spend_mut()?.scroll,

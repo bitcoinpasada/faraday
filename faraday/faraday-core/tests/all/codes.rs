@@ -337,7 +337,7 @@ fn with_gpg_key() -> Faraday {
     app.storage(StorageEvent::Clock {
         unix_secs: 1_791_482_652,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
@@ -346,7 +346,12 @@ fn with_gpg_key() -> Faraday {
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(4)));
     // The clock checked, as on the stick before making a key.

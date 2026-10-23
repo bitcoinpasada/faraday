@@ -10,753 +10,40 @@
 //! unlocking and creating, Argon2id, runs on the tick after a frame that
 //! says it is working has been drawn.
 
+mod area;
 pub mod load;
 pub(crate) mod load_screen;
 pub mod out;
 pub(crate) mod screen;
 mod strength;
 
+pub use area::*;
+
 use crate::strings::EN;
 use crate::strings::fill;
 use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
 use faraday_crypto::work::Compute;
-use faraday_keys::vault::{IntoRecord, OpenVaults, RecordView, Records, VaultId};
+use faraday_keys::vault::{IntoRecord, RecordView, VaultId};
 use faraday_vault::records::{self, field, kind};
 use faraday_vault::{self as fv, Contents, Cost, Header, Record};
 use std::collections::BTreeSet;
 use zeroize::Zeroizing;
 
-use crate::{Action, Faraday, FileKind, Screen, flow};
-
-/// The presets of `docs/VAULT.md` §3.1: name, memory in MiB, passes, in
-/// order of memory.
-pub const PRESETS: [(&str, u32, u32); 5] = [
-    (EN.vaults_light, 64, 3),
-    (EN.vaults_standard, 256, 3),
-    (EN.vaults_medium, 512, 3),
-    (EN.vaults_strong, 1024, 4),
-    (EN.vaults_maximum, 2048, 2),
-];
-
-/// The place after the presets that stands for a custom cost.
-pub const CUSTOM: usize = PRESETS.len();
-
-/// Create a vault's two sizes (`docs/history/SIMPLIFY.md` §3.1): the label, the
-/// preset it takes, and the machines it is for besides this one, in
-/// `MACHINES` order. The second is the default.
-pub const SIZES: [(&str, usize, [bool; 5]); 2] = [
-    (EN.vaults_pcs_only, 2, [true, false, false, false, false]),
-    (
-        EN.vaults_pcs_and_a_raspberry,
-        0,
-        [true, false, false, true, false],
-    ),
-];
-
-/// The size a new vault starts on: PCs and a Raspberry Pi.
-pub const DEFAULT_SIZE: usize = 1;
-
-/// The machines a vault may be opened on, besides this one: label, short
-/// name, memory shown, memory in MiB.
-pub const MACHINES: [(&str, &str, &str, u32); 5] = [
-    (
-        EN.vaults_other_pcs,
-        EN.vaults_other_pcs_inline,
-        "4 GB",
-        4096,
-    ),
-    (EN.vaults_raspberry_pi_5, EN.vaults_pi_5, "4 GB", 4096),
-    (EN.vaults_raspberry_pi_4, EN.vaults_pi_4, "2 GB", 2048),
-    (EN.vaults_raspberry_pi_3, EN.vaults_pi_3, "1 GB", 1024),
-    (EN.vaults_pi_zero_2_w, EN.vaults_pi_zero_2_w, "512 MB", 512),
-];
-
-/// The most unlock memory This computer is suggested for, MiB: more
-/// buys a vault little.
-pub const MAX_UNLOCK_MIB: u32 = 4096;
-/// What the app itself takes beside a vault's unlock memory and file,
-/// MiB: a slot's plaintext and the app.
-pub const APP_MIB: u32 = 100;
-
-/// The memory a machine needs free to open a vault of this unlock memory
-/// and slot size, MiB: the Argon2id memory, twice the file (the file and
-/// a sealed copy beside it while it is written) and [`APP_MIB`]
-/// (`docs/VAULT.md` §3.1).
-pub fn vault_need_mib(memory_mib: u32, slot_len: u32) -> u32 {
-    const MIB: u64 = 1024 * 1024;
-    let twice = (2 * fv::file_len(slot_len) as u64 + MIB / 2) / MIB;
-    memory_mib + twice as u32 + APP_MIB
-}
-
-/// A custom cost's memory choices, MiB.
-pub const CUSTOM_MEMORY: [u32; 8] = [64, 128, 256, 512, 1024, 2048, 3072, 4096];
-/// A custom cost's pass choices.
-pub const CUSTOM_PASSES: [u32; 7] = [2, 3, 4, 5, 6, 8, 10];
-
-/// The kinds a vault's contents are listed by, with the record types each
-/// shows.
-pub const CATEGORIES: [(&str, &[u8]); 7] = [
-    (EN.vaults_bitcoin_keys, &[kind::KEY, kind::PASSPHRASE]),
-    (EN.vaults_wallets, &[kind::WALLET, kind::WALLET_SHARE]),
-    (EN.vaults_entries, &[kind::ENTRY]),
-    (EN.vaults_notes, &[kind::NOTE, kind::SHEET]),
-    (EN.vaults_gpg_keys, &[kind::GPG]),
-    (EN.vaults_secure_boot, &[kind::SECURE_BOOT]),
-    (EN.apk_signing_keys, &[kind::APK_KEY]),
-];
-
-/// The place of the APK signing keys in `CATEGORIES`.
-pub const APK_CATEGORY: usize = 6;
-
-/// Bits of a passphrase from dice counted strong: six words of the EFF
-/// long list (`docs/VAULT.md` §3.1).
-pub const STRONG_BITS: u32 = 77;
-
-/// The words this list needs for a strong passphrase, said with where the
-/// lists come from: text, since Faraday is offline.
-pub fn dice_aim(list: faraday_bip::diceware::List) -> String {
-    let n = (1..=20)
-        .find(|&n| list.bits(n) >= STRONG_BITS)
-        .unwrap_or(20);
-    fill(
-        EN.vaults_aim_for_words,
-        &[&n.to_string(), &STRONG_BITS.to_string()],
-    )
-}
-
-/// The bits an unlock cost adds to every passphrase (`docs/VAULT.md`
-/// §3.1): one guess is memory × passes of Argon2id's 1 KiB block steps,
-/// and the cost adds the base-2 logarithm of that count. Doubling the
-/// memory or the passes adds one bit. An estimate, shown with ≈: it
-/// counts work, and leaves out how much harder memory is than time for
-/// an attacker's hardware.
-pub fn cost_bits(memory_mib: u32, passes: u32) -> f32 {
-    (f64::from(memory_mib) * 1024.0 * f64::from(passes)).log2() as f32
-}
-
-/// How long "Hold to delete" is held before it deletes, in ms.
-pub const HOLD_MS: u64 = 1200;
-
-/// The steps of Create a vault.
-pub mod vstep {
-    /// Where it will be opened.
-    pub const WHERE: u8 = 0;
-    /// The Argon2id cost.
-    pub const COST: u8 = 1;
-    /// The slot size.
-    pub const SIZE: u8 = 2;
-    /// The passphrases.
-    pub const PHRASES: u8 = 3;
-    /// The size: one of two presets, standing for the first three steps
-    /// until Customise opens them.
-    pub const PRESET: u8 = 4;
-    /// How many steps there are.
-    pub const COUNT: usize = 5;
-}
-
-/// The wallet slot a seed is loaded from a vault for: its descriptor key
-/// is what says a vault's record is that slot's seed (F65).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum SlotOf {
-    /// Slot k of loaded wallet w.
-    Loaded(usize, usize),
-    /// Slot k of the wallet in open vault v's wallet record r.
-    Vault(usize, usize, usize),
-    /// A key no descriptor names with a path: a silent payments
-    /// wallet's, found by its fingerprint.
-    Bare,
-}
-
-/// Everything a vault screen can do.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum VaultAction {
-    /// Open a vault from the list: its contents when open, else Unlock.
-    Open(usize),
-    /// Start Create a vault.
-    Create,
-    /// Start Create a vault from another flow, which it returns to.
-    CreateFrom(Screen),
-    /// Unlock vault n from another flow, which it returns to.
-    OpenFrom(usize, Screen),
-    /// The vault list, to unlock one of several for another flow, which
-    /// the unlock returns to.
-    ListFrom(Screen),
-    /// Back from the vault list to the flow that made a vault.
-    Back,
-    /// Load the seed with this master fingerprint from whichever open
-    /// vault holds it, as the key of wallet slot [`SlotOf`]: a record is
-    /// loaded only when it is that slot's key.
-    LoadKeyOf([u8; 4], SlotOf),
-    /// Load the chosen wallets of open vault v with their seeds in it.
-    LoadWithKeys(usize),
-    /// From the vault's chart: load wallet record r of open vault v, with
-    /// its seeds there where keys may load, and open its card.
-    OpenWalletOf(usize, usize),
-    /// From the vault's chart: load wallet record r of open vault v as
-    /// [`VaultAction::OpenWalletOf`] does, and open its backup's
-    /// checklist.
-    ChecklistOf(usize, usize),
-    /// Show or hide open vault v's seeds and wallets one by one.
-    EachShown(usize),
-    /// Choose or drop record n of open vault v for the next load.
-    Choose(usize, usize),
-    /// Load every key and wallet of open vault v.
-    LoadAll(usize),
-    /// Load the chosen keys and wallets of open vault v.
-    LoadChosen(usize),
-    /// Choose every key and wallet of open vault v not loaded yet, or
-    /// none when all are chosen.
-    ChooseAll(usize),
-    /// Open or close a Create step.
-    CStep(u8),
-    /// Close a Create step as done.
-    CNext(u8),
-    /// Choose or drop a machine the vault will be opened on.
-    CMachine(usize),
-    /// Choose or drop this computer as one the vault is sized for.
-    CHere,
-    /// Choose a preset, or `CUSTOM`.
-    CPreset(usize),
-    /// Choose one of the two sizes, by its place in `SIZES`.
-    CSizeRow(usize),
-    /// Open the three cards the two sizes stand for: where it opens, the
-    /// unlock cost and the space per passphrase.
-    CCustomise,
-    /// A custom cost's memory.
-    CMemory(usize),
-    /// A custom cost's passes.
-    CPasses(usize),
-    /// The slot size.
-    CSize(usize),
-    /// Another passphrase.
-    CAddPhrase,
-    /// Remove a passphrase.
-    CRemovePhrase(usize),
-    /// Type into passphrase n, its first or second field.
-    CFocus(usize, bool),
-    /// Type the vault's name.
-    CName,
-    /// Show or hide every passphrase being typed.
-    CShow,
-    /// Make the vault.
-    CGo,
-    /// Choose the vault to unlock.
-    Pick(usize),
-    /// Type the passphrase.
-    FocusPassphrase,
-    /// Unlock.
-    Unlock,
-    /// Show an open vault's contents.
-    Show(usize),
-    /// The selected APK signing key's certificate to the Outbox.
-    ApkExport,
-    /// Open Sign an APK on the selected key.
-    ApkSignOpen,
-    /// Look at Inbox APK n before signing it with the selected key.
-    ApkPick(usize),
-    /// Held to sign the APK looked at.
-    ApkHoldSign,
-    /// Type the second build's SHA-256.
-    ApkSecond,
-    /// Back from the review to the list of APKs, or from the list to the
-    /// key's page.
-    ApkBack,
-    /// Sign Inbox APK n with a key of an open vault, from Files.
-    ApkFromFiles(usize),
-    /// Choose the key, by vault and place, to sign the APK Files offered.
-    ApkKeyPick(usize, usize),
-    /// A kind in the contents.
-    Category(usize),
-    /// An item of the kind.
-    Item(usize),
-    /// Held to show a secret field; does nothing when released.
-    Reveal(usize),
-    /// Held to delete the item.
-    HoldDelete,
-    /// Held to delete the files chosen on the Delete files sheet, a vault
-    /// among them (`docs/FLOWS.md` decisions 4 and 61).
-    HoldWipe,
-    /// A key loads at unlock, or stops loading.
-    ToggleLoad,
-    /// Load the item into the session.
-    Load,
-    /// Edit the item.
-    Edit,
-    /// Add an item of the current kind.
-    Add,
-    /// Add an item of kind n: the contents' row for that kind.
-    AddKind(usize),
-    /// An empty vault's Write it to a stick: Files.
-    WriteOut,
-    /// Save session key n into the vault.
-    SaveKey(usize),
-    /// Save session wallet n into the vault.
-    SaveWallet(usize),
-    /// Type into the form's field n.
-    FocusField(usize),
-    /// Keep the form.
-    FormSave,
-    /// Leave the form.
-    FormCancel,
-    /// Rename the open vault's slot.
-    Rename,
-    /// Show what is typed into a passphrase field in the clear, or mask
-    /// it again: Unlock's, a prompt's, and an entry's secret fields.
-    ShowTyped,
-    /// Import the entries in an Inbox text file.
-    ImportEntries(usize),
-    /// Keep Inbox file n in the open vault as what it is: a text file as a
-    /// note, words as a key, a descriptor as a wallet.
-    AddFile(usize),
-    /// Import the entries in every Inbox entries file.
-    ImportAllEntries,
-    /// Scan a TOTP setup code into a new entry.
-    ScanEntry,
-    /// Roll dice for passphrase n.
-    Dice(usize),
-    /// Choose which of the three EFF lists to roll from, by index into
-    /// [`faraday_bip::diceware::List::ALL`].
-    DiceList(u8),
-    /// Fill the passphrase with the rolled words.
-    DiceUse,
-    /// Put the dice away.
-    DiceClose,
-    /// Open an Inbox `.oskb` file into the vault.
-    ImportBackup(usize),
-    /// The selected entry out as a KeePass database, under a passphrase
-    /// asked for first.
-    ExportKdbx,
-    /// Load the selected key with a BIP-39 passphrase typed now.
-    LoadWithPassphrase,
-    /// Save session key n into the vault with its BIP-39 passphrase.
-    SaveKeyWithPassphrase(usize),
-    /// Type into the prompt.
-    FocusPrompt,
-    /// Do what the prompt asks.
-    PromptGo,
-    /// Leave the prompt.
-    PromptCancel,
-    /// A GPG key's expiry, in years; 0 for never.
-    GpgYears(u32),
-    /// The selected GPG key's public certificate to the Outbox.
-    GpgExport,
-    /// The revocation certificate kept with the selected GPG key, through
-    /// the secret sheet.
-    GpgExportRevocation,
-    /// The page that asks why the selected GPG key is revoked
-    /// (`gpg --generate-revocation`).
-    GpgRevocationPage,
-    /// The reason chosen on that page, by GnuPG's menu number 0 to 3.
-    GpgReason(u8),
-    /// The new term chosen for the selected GPG key's renewal, in years;
-    /// 0 for never.
-    GpgRenewTerm(u32),
-    /// Held to mark the selected GPG key revoked.
-    GpgHoldRevoke,
-    /// New self-signatures with the term chosen.
-    GpgRenew,
-    /// Choose Inbox files for the selected GPG key to sign.
-    GpgSignPick,
-    /// Tick or untick Inbox file n to sign.
-    GpgTick(usize),
-    /// Tick every signable file, or untick them all when every one is
-    /// already ticked.
-    GpgTickAll,
-    /// Sign a file's **Sign**: the sheet over the page with the files
-    /// ticked, the time and the hold (F63). Signs nothing.
-    GpgSign,
-    /// Held on that sheet to sign every ticked file with the selected GPG
-    /// key, one signature each to the Outbox.
-    GpgHoldSign,
-    /// Choose the Windows-compatible enrolment policy, or own keys only.
-    SbOwnOnly(bool),
-    /// The enrolment files to the Outbox.
-    SbEnrol,
-    /// Show the Inbox's EFI images, to sign or check.
-    SbImages,
-    /// Look at image n before signing it.
-    SbPick(usize),
-    /// Held to sign the image looked at.
-    SbHoldSign,
-    /// Check image n's signature.
-    SbCheck(usize),
-    /// On a small panel, back from an item, or what was being added or
-    /// made, to the vault's list.
-    ItemBack,
-    /// Held to show the selected key's SeedQR (`docs/BACKUP-FLOW.md`
-    /// §17.7); does nothing when released.
-    ShowSeedQr,
-    /// The selected wallet's descriptor as the Wallets page shows it.
-    WalletQr,
-    /// The Load sheet (F62): tick or untick wallet record or Keys-card
-    /// key record n.
-    LoadTick(usize),
-    /// The Load sheet's Unselect all, or Select all once none is ticked.
-    LoadTickAll,
-    /// The Load sheet's Load ticked.
-    LoadTicked,
-    /// The Load sheet's Not now: nothing loads, the vault stays open.
-    LoadNotNow,
-    /// From wallet n short of a key: the seeds open vaults keep without
-    /// a passphrase, one to load with a passphrase typed now (F62).
-    PassphraseKey(usize),
-    /// On that sheet: seed record r of open vault v, its field.
-    PassphrasePick(usize, usize),
-    /// On that sheet: back from a seed's field to the list.
-    PassphraseList,
-    /// Save to a stick: the popup of the selected key's or wallet's files.
-    SaveToStick,
-    /// Tick or untick the popup's file n.
-    SaveTick(u8),
-    /// The ticked files to the Outbox, for the stick.
-    SaveToStickGo,
-}
-
-/// Whether an action acts when held long enough rather than on release.
-pub fn is_hold(a: Action) -> bool {
-    matches!(
-        a,
-        Action::Vault(
-            VaultAction::HoldDelete
-                | VaultAction::HoldWipe
-                | VaultAction::SbHoldSign
-                | VaultAction::GpgHoldSign
-                | VaultAction::GpgHoldRevoke
-                | VaultAction::ApkHoldSign
-        ) | Action::Flow(crate::backup_flow::steps::FlowAction::Hold)
-    )
-}
-
-/// What a one-line prompt in the contents is for.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Purpose {
-    /// The passphrase of an Inbox backup, by Inbox position.
-    Backup(usize),
-    /// A BIP-39 passphrase to load the selected key with.
-    KeyPassphrase,
-    /// A BIP-39 passphrase for seed record r of open vault v, checked
-    /// against the keys a wallet is missing (F62).
-    ForWallet(usize, usize),
-    /// The passphrase a KeePass export of the selected entry is sealed
-    /// under.
-    Kdbx,
-}
-
-/// A one-line prompt in the contents' detail column.
-pub struct Prompt {
-    /// What it is for.
-    pub purpose: Purpose,
-    /// What is typed.
-    pub text: TextBox,
-    /// Why the last try failed.
-    pub error: Option<String>,
-}
-
-/// A line of typing, wiped when dropped, cleared or moved.
-#[derive(Default)]
-pub struct TextBox {
-    /// What is typed.
-    pub text: crate::secret_text::SecretText,
-}
-
-impl TextBox {
-    pub(crate) fn clear(&mut self) {
-        self.text.clear();
-    }
-    pub(crate) fn set(&mut self, s: &str) {
-        self.text.set(s);
-    }
-}
-
-/// Where typing goes.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Focus {
-    /// The unlock passphrase.
-    Passphrase,
-    /// Create's passphrase n, first or second field.
-    Phrase(usize, bool),
-    /// The form's field n.
-    Field(usize),
-    /// The dice rolls.
-    Dice,
-    /// The prompt.
-    Prompt,
-    /// Create's name for the vault.
-    Name,
-    /// Sign an APK's field for the second build's SHA-256.
-    Second,
-}
-
-/// One vault file the Inbox or Outbox holds.
-pub struct VaultFile {
-    /// Its file name.
-    pub name: String,
-    /// It waits in the Outbox (made or sealed here), rather than having
-    /// come from a stick.
-    pub in_outbox: bool,
-    /// Its header.
-    pub header: Header,
-    /// Its length in bytes.
-    pub len: usize,
-    /// The open vault it is, when one of its slots is open.
-    pub open: Option<usize>,
-}
-
-/// A wallet in an open vault that holds some of its seeds too.
-#[derive(Debug, Clone)]
-pub struct VaultWallet {
-    /// The wallet's record.
-    pub record: usize,
-    /// Its name.
-    pub name: String,
-    /// The records of its seeds in the same vault.
-    pub keys: Vec<usize>,
-    /// Signatures it needs.
-    pub needed: usize,
-    /// Keys it has.
-    pub total: usize,
-    /// It and those seeds are all loaded.
-    pub done: bool,
-    /// Chosen for the next load.
-    pub chosen: bool,
-}
-
-/// A key or wallet in an open vault, as its load list shows it.
-#[derive(Debug, Clone)]
-pub struct VaultRow {
-    /// Its record's place in the slot.
-    pub record: usize,
-    /// Its label or name.
-    pub name: String,
-    /// A seed's fingerprint, a wallet's shape.
-    pub detail: String,
-    /// A seed rather than a wallet.
-    pub seed: bool,
-    /// The session has it already.
-    pub loaded: bool,
-    /// Chosen for the next load.
-    pub chosen: bool,
-}
-
-/// A wallet description a vault record holds, read once
-/// ([`Vaults::described`]): a wallet record's wallet, a plan's, a
-/// wallet share's. Public data only.
-#[derive(Debug, Clone)]
-pub struct Described {
-    /// The description, parsed.
-    pub policy: faraday_bip::policy::WalletPolicy,
-    /// [`crate::wallet::same_wallet`] of it: what tells two descriptions
-    /// of one wallet apart from another wallet's.
-    pub same: String,
-    /// Its descriptor checksum.
-    pub checksum: String,
-    /// Its shape as the session names one: "Single key", "2 of 3".
-    pub shape: String,
-}
-
-impl Described {
-    /// What is kept of a parsed description.
-    fn of(policy: faraday_bip::policy::WalletPolicy) -> Described {
-        Described {
-            same: crate::wallet::same_wallet(&policy),
-            checksum: policy.checksum().to_string(),
-            shape: crate::vault::screen::policy_shape(policy.clone()),
-            policy,
-        }
-    }
-}
-
-/// The most key records' fingerprints kept ([`Vaults::fingerprints`]),
-/// far more than open vaults hold; the next one drops the oldest.
-pub(crate) const FINGERPRINTS_KEPT: usize = 256;
-/// The most key records' account keys kept ([`Vaults::accounts`]); the
-/// next one drops the oldest.
-pub(crate) const ACCOUNTS_KEPT: usize = 256;
-
-/// What an open vault keeps read of its public records
-/// (`docs/SPEED.md` §2 rules 2 and 4, §3.3): the wallet description each
-/// record holds, by record place, and the version of the records it was
-/// read from.
-///
-/// Invariant: a vault's `Read` is what its records hold as they are.
-/// Every change to the records goes through [`Vaults::edit`], which drops
-/// it; the next ask reads them again, and every frame reads them before it
-/// draws ([`Vaults::warm`] from `before_frame`), so drawing only looks
-/// them up. [`OpenVaults::version`] says whether a `Read` is the records'
-/// own: it is checked at every lookup in a debug build, and
-/// `a_wallet_record_changed_in_an_open_vault_shows_as_it_now_is` changes the records
-/// to test it.
-struct Read {
-    /// [`OpenVaults::version`] of the records when this was read.
-    version: u64,
-    /// The wallet description each holds.
-    described: Vec<Option<Described>>,
-}
-
-impl Vaults {
-    /// The open vaults' records, for reading. Every change goes through
-    /// [`Vaults::edit`].
-    pub fn store(&self) -> &OpenVaults {
-        &self.store
-    }
-
-    /// Open vault `id`'s records, for reading.
-    pub fn records(&self, id: VaultId) -> Records<'_> {
-        self.store.records(id)
-    }
-
-    /// Changes open vault `id`'s records with `change`, which has the
-    /// store to edit, and drops what was read of them ([`Read`]). The one
-    /// way the records of an open vault change.
-    pub fn edit<T>(&mut self, id: VaultId, change: impl FnOnce(&mut OpenVaults) -> T) -> T {
-        let out = change(&mut self.store);
-        if let Some(o) = self.open.iter_mut().find(|o| o.id == id) {
-            o.read = std::cell::OnceCell::new();
-        }
-        out
-    }
-
-    /// Counts one change not yet sealed in open vault `id`.
-    pub fn changed(&mut self, id: VaultId) {
-        if let Some(o) = self.open.iter_mut().find(|o| o.id == id) {
-            o.changes += 1;
-        }
-    }
-
-    /// The open vault on the contents screen.
-    pub fn current_id(&self) -> Option<VaultId> {
-        self.open.get(self.current).map(|o| o.id)
-    }
-
-    /// Costs a parse of each wallet description and of each key record's
-    /// words the first time after a change, a lookup after. Reads open
-    /// vault `id`'s records, unless they are read already.
-    pub fn warm(&self, c: &Compute, id: VaultId) {
-        let _ = self.read(c, id);
-    }
-
-    /// Costs what `warm` costs. What is read of open vault `id`'s records.
-    fn read(&self, c: &Compute, id: VaultId) -> Option<&Read> {
-        let o = self.open.iter().find(|o| o.id == id)?;
-        let read = o.read.get_or_init(|| {
-            // The key records' words are read with the descriptions, once.
-            self.store.warm(c, id);
-            Read {
-                version: self.store.version(id),
-                described: self
-                    .store
-                    .records(id)
-                    .iter()
-                    .map(|(_, r)| {
-                        let f = match r.kind() {
-                            kind::WALLET => field::WALLET,
-                            kind::PLAN => field::PLAN_WALLET,
-                            kind::WALLET_SHARE => field::SHARE_WALLET,
-                            _ => return None,
-                        };
-                        let policy = crate::wallet::read_wallet(c, r.public_text(f)?).ok()?;
-                        Some(Described::of(policy))
-                    })
-                    .collect(),
-            }
-        });
-        debug_assert_eq!(
-            read.version,
-            self.store.version(id),
-            "an edit of the records that did not go through Vaults::edit"
-        );
-        Some(read)
-    }
-
-    /// Costs what `warm` costs. The wallet description record `i` of open
-    /// vault `id` holds, read: a wallet record's wallet, a plan's, a
-    /// wallet share's; `None` for another record or one whose description
-    /// does not read. A lookup once the records are read.
-    pub fn described(&self, c: &Compute, id: VaultId, i: usize) -> Option<&Described> {
-        self.read(c, id)?.described.get(i)?.as_ref()
-    }
-
-    /// Costs what `described` costs. The wallet description record `r`
-    /// holds, read, when `r` is an open vault's own record (told by where
-    /// it is, not by what it says); `None` for a copy.
-    pub fn described_rec(&self, c: &Compute, r: RecordView<'_>) -> Option<&Described> {
-        let (id, i) = r.home()?;
-        self.described(c, id, i)
-    }
-
-    /// Costs what `described` costs. Each record of kind `k` of open vault
-    /// `id` with the wallet description it holds, read.
-    pub fn described_of(
-        &self,
-        c: &Compute,
-        id: VaultId,
-        k: u8,
-    ) -> impl Iterator<Item = (usize, RecordView<'_>, &Described)> {
-        self.store
-            .records(id)
-            .of(k)
-            .filter_map(move |(i, r)| self.described(c, id, i).map(|d| (i, r, d)))
-    }
-
-    /// Costs what `warm` costs. How many words key record `r`'s seed has,
-    /// as its open vault keeps it read; a record that is no open vault's
-    /// own (a copy) is read afresh, which costs a parse.
-    pub fn record_word_count(&self, c: &Compute, r: RecordView<'_>) -> Option<usize> {
-        if let Some((id, _)) = r.home() {
-            self.warm(c, id);
-        }
-        self.store.record_word_count(c, r)
-    }
-
-    /// Costs what `warm` costs. Key record `r`'s words'
-    /// [`crate::wallet::WordsId`], as its open vault keeps it; a record
-    /// that is no open vault's own (a copy) is read afresh, which costs a
-    /// parse.
-    pub fn record_words_id(
-        &self,
-        c: &Compute,
-        r: RecordView<'_>,
-    ) -> Option<crate::wallet::WordsId> {
-        if let Some((id, _)) = r.home() {
-            self.warm(c, id);
-        }
-        self.store.record_words_id(c, r)
-    }
-
-    /// Costs what `warm` costs. Key record `i` of open vault `id`'s words'
-    /// [`crate::wallet::WordsId`]; a lookup once the records are read.
-    pub fn words_id(&self, c: &Compute, id: VaultId, i: usize) -> Option<&[u8; 32]> {
-        self.warm(c, id);
-        self.store.words_id(c, id, i)
-    }
-
-    /// Costs what `warm` costs. How many words key record `i` of open
-    /// vault `id` has; a lookup once the records are read.
-    pub fn word_count(&self, c: &Compute, id: VaultId, i: usize) -> Option<usize> {
-        self.warm(c, id);
-        self.store.word_count(c, id, i)
-    }
-}
+use crate::backup_flow::Kind;
+use crate::backup_flow::steps::Built;
+use crate::wallet::fp_text;
+use crate::{Action, Faraday, FileKind, Item, Screen, apk, gpg};
+use crate::{Code, Sheet};
+use faraday_apk::{Apk, Info, Refusal, Slice, key, pem, sign};
+use faraday_bip::keys::Fingerprint;
+use faraday_keys::vault::{GpgFacts as Facts, gpg_facts, gpg_field as f};
+use faraday_pgp::{Armor, Reason, armor};
+use std::rc::Rc;
 
 impl Faraday {
-    /// Costs what `word_count` costs. How many words key record `r`'s seed
-    /// has, as its open vault keeps it read ([`Vaults::record_word_count`]);
-    /// a record that is no open vault's own (a copy) is read afresh, which
-    /// costs a parse.
-    pub(crate) fn record_word_count(&self, c: &Compute, r: RecordView<'_>) -> Option<usize> {
-        self.vaults.record_word_count(c, r)
-    }
-
-    /// Costs what `words_id` costs. Key record `r`'s words'
-    /// [`crate::wallet::WordsId`], as its open vault keeps it
-    /// ([`Vaults::record_words_id`]); a record that is no open vault's own
-    /// (a copy) is read afresh, which costs a parse.
-    pub(crate) fn record_words_id(
-        &self,
-        c: &Compute,
-        r: RecordView<'_>,
-    ) -> Option<crate::wallet::WordsId> {
-        self.vaults.record_words_id(c, r)
+    /// The open vaults and the vault screens' state.
+    pub fn vaults(&self) -> &Vaults {
+        self.vaults.vaults()
     }
 
     /// Costs what `described_rec` and `read_kept` cost. The wallet
@@ -783,458 +70,6 @@ impl Faraday {
     }
 }
 
-/// What a form field of a record of type `kind` is, when it holds a
-/// secret: the part a reveal names.
-fn form_part(kind_: u8, number: u8) -> Option<faraday_keys::Part> {
-    use faraday_keys::Part;
-    match (kind_, number) {
-        (kind::ENTRY, field::PASSWORD) => Some(Part::Password),
-        (kind::ENTRY, field::NOTES) => Some(Part::EntryNotes),
-        (kind::ENTRY, field::TOTP) => Some(Part::Totp),
-        (kind::NOTE, field::NOTE) => Some(Part::Note),
-        _ => None,
-    }
-}
-
-/// A key record's identity, kept once worked out: the record's id (a
-/// hash of its payload and passphrase), its fingerprint, and its master
-/// key's [`crate::wallet::master_id`].
-pub type KeyIdentity = ([u8; 32], String, [u8; 32]);
-
-/// A key record's account key at a path, kept once worked out: the
-/// record's id, the path as text, and the account key's public key and
-/// chain code.
-pub(crate) type KeyAccount = ([u8; 32], String, Option<[u8; 65]>);
-
-/// One open slot of one vault: what the screens say of it. Its slot key
-/// and records are in [`Vaults::store`], under [`OpenVault::id`].
-pub struct OpenVault {
-    /// The file name it came under, and goes back under.
-    pub name: String,
-    /// Which slot of [`Vaults::store`] it is.
-    pub id: VaultId,
-    /// The header of the file it was opened from, copied from the store
-    /// when it opened: public, and the same for as long as it is open.
-    header: Header,
-    /// Changes not yet sealed.
-    pub changes: usize,
-    /// Keys and wallets left out of the next load, by record position.
-    pub skip: std::collections::BTreeSet<usize>,
-    /// Its seeds and wallets listed one by one on Files, under its
-    /// wallets with their seeds.
-    pub each_shown: bool,
-    /// What is read of its records ([`Read`]); dropped by every edit.
-    read: std::cell::OnceCell<Read>,
-}
-
-impl OpenVault {
-    /// The slot's label, or "Vault". `store` is the [`Vaults::store`] it
-    /// is in.
-    pub fn label(&self, store: &OpenVaults) -> String {
-        store
-            .records(self.id)
-            .of(kind::SLOT_LABEL)
-            .next()
-            .and_then(|(_, r)| r.public_text(field::LABEL))
-            .unwrap_or(EN.vaults_vault)
-            .to_string()
-    }
-
-    /// The header of the file it was opened from.
-    pub fn header(&self) -> &Header {
-        &self.header
-    }
-}
-
-/// Create a vault's form.
-pub struct CreateForm {
-    /// The open step.
-    pub open: Option<u8>,
-    /// Steps closed as done, by `vstep`.
-    pub done: [bool; vstep::COUNT],
-    /// Customise has opened the three cards the size stands for.
-    pub customise: bool,
-    /// The column's scroll.
-    pub scroll: flow::Scroll,
-    /// The machines chosen, in `MACHINES` order.
-    pub on: [bool; 5],
-    /// This computer is not one the vault is sized for: it is chosen
-    /// until unticked, for a vault that asks less than it can give.
-    pub not_here: bool,
-    /// The preset chosen, `CUSTOM` for Custom; `None` takes the
-    /// suggestion.
-    pub preset: Option<usize>,
-    /// A custom cost's memory, MiB.
-    pub memory: u32,
-    /// A custom cost's passes.
-    pub passes: u32,
-    /// The slot size.
-    pub slot: u32,
-    /// The vault's name, which its file is named after.
-    pub name: TextBox,
-    /// Each passphrase, typed twice.
-    pub phrases: Vec<(TextBox, TextBox)>,
-    /// For each passphrase the dice made, what they made and its bits:
-    /// its strength holds while the field still holds those words.
-    pub from_dice: Vec<Option<(zeroize::Zeroizing<String>, f32)>>,
-    /// The passphrases are shown in the clear, not masked: a person
-    /// cannot accept one on faith, only on seeing it.
-    pub shown: bool,
-    /// What stops the vault being made.
-    pub error: Option<String>,
-}
-
-impl Default for CreateForm {
-    fn default() -> Self {
-        // The size has a default, so the flow opens on Name and
-        // passphrases (`DESIGN.md` §4.14).
-        let mut done = [false; vstep::COUNT];
-        done[usize::from(vstep::PRESET)] = true;
-        let (_, preset, on) = SIZES[DEFAULT_SIZE];
-        CreateForm {
-            open: Some(vstep::PHRASES),
-            done,
-            customise: false,
-            scroll: flow::Scroll::default(),
-            on,
-            not_here: false,
-            preset: Some(preset),
-            memory: 512,
-            passes: 3,
-            slot: fv::DEFAULT_SLOT,
-            name: TextBox::default(),
-            phrases: vec![(TextBox::default(), TextBox::default())],
-            from_dice: vec![None],
-            shown: false,
-            error: None,
-        }
-    }
-}
-
-impl CreateForm {
-    /// The steps shown, in order: the size and the passphrases, or, once
-    /// Customise is pressed, the three cards the size stands for in its
-    /// place.
-    pub fn steps(&self) -> &'static [u8] {
-        if self.customise {
-            &[vstep::WHERE, vstep::COST, vstep::SIZE, vstep::PHRASES]
-        } else {
-            &[vstep::PRESET, vstep::PHRASES]
-        }
-    }
-}
-
-/// The form adding or editing an item.
-pub struct Form {
-    /// The record type.
-    pub kind: u8,
-    /// The record being edited, by position; `None` adds one.
-    pub record: Option<usize>,
-    /// The fields: number, label, typing, shown masked.
-    pub fields: Vec<(u8, &'static str, TextBox, bool)>,
-}
-
-/// Work that waits for a frame saying it is under way.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Work {
-    /// Unlock the chosen vault.
-    Unlock,
-    /// Make the vault the form describes.
-    Create,
-    /// Time one Argon2id pass over 64 MiB, for the unlock estimates.
-    Measure,
-    /// Open the backup the prompt names.
-    Backup,
-    /// Make the key the backup flow's form described.
-    FlowMake,
-    /// Write the KeePass export the prompt is for.
-    Kdbx,
-}
-
-/// The app's vaults.
-#[derive(Default)]
-pub struct Vaults {
-    /// The open slots, as the screens say them.
-    pub open: Vec<OpenVault>,
-    /// The open slots' keys and records, held by faraday-keys: each of
-    /// [`Vaults::open`] is a slot of it, by its `id`. They are made and
-    /// closed together ([`Vaults::close`], [`Vaults::close_all`]). Read
-    /// through [`Vaults::store`]; changed through [`Vaults::edit`].
-    store: OpenVaults,
-    /// Create a vault, while it is on screen.
-    pub create: Option<CreateForm>,
-    /// The vault chosen to unlock, by its place in the list.
-    pub pick: usize,
-    /// The unlock passphrase.
-    pub passphrase: TextBox,
-    /// Why the last unlock failed.
-    pub unlock_error: Option<String>,
-    /// The open vault on the contents screen.
-    pub current: usize,
-    /// The kind shown.
-    pub category: usize,
-    /// The kind shown was chosen, by the person or the flow that opened
-    /// the contents, rather than set at unlock: it is listed even while it
-    /// holds nothing.
-    pub category_chosen: bool,
-    /// The item shown in each kind.
-    pub item: [usize; 7],
-    /// On a small panel, the chosen item is the page, not the list.
-    pub item_open: bool,
-    /// Adding or editing an item.
-    pub form: Option<Form>,
-    /// Saving session keys or wallets into the vault.
-    pub saving: bool,
-    /// Where typing goes.
-    pub focus: Option<Focus>,
-    /// Free memory, MiB, as the shell last said.
-    pub memory_free_mib: Option<u32>,
-    /// One Argon2id pass over 64 MiB, ms, as measured here.
-    pub ms_per_unit: Option<u64>,
-    measure_from: Option<u64>,
-    /// Work waiting for its frame.
-    pub working: Option<Work>,
-    /// A frame has been drawn since the work was asked for.
-    pub(crate) drawn: bool,
-    /// When the press now held began, ms.
-    pub(crate) pressed_at: u64,
-    /// The vault just made, by file name, until it is unlocked or the
-    /// person leaves the list.
-    pub just_made: Option<String>,
-    /// Where an unlock or a creation started from another flow returns.
-    pub back_to: Option<Screen>,
-    /// Create a vault was opened from Home: Back goes to Home, not the
-    /// list.
-    pub from_home: bool,
-    /// Dice being rolled for a passphrase: which one, the rolls, and
-    /// which of the three EFF lists.
-    pub dice: Option<(usize, TextBox, faraday_bip::diceware::List)>,
-    /// The prompt in the contents.
-    pub prompt: Option<Prompt>,
-    /// This computer's clock, Unix seconds, as the shell last said.
-    pub unix_secs: Option<u64>,
-    /// When the shell last said it, on the app's own ticks, ms.
-    pub(crate) clock_at_ms: u64,
-    /// A time set by hand (`docs/TOTP.md` §1.2): the Unix seconds the
-    /// person set minus the shell's clock at that moment. `None` until
-    /// the first Set or Keep this time this power-on.
-    pub(crate) clock_offset: Option<i64>,
-    /// Set or Keep this time has been pressed this power-on
-    /// (`docs/TOTP.md` §1.3). The desktop app is always checked, once its
-    /// clock is known.
-    pub(crate) clock_checked: bool,
-    /// What is remembered of each vault seen open since power-on.
-    pub summaries: Vec<VaultSummary>,
-    /// The expiry chosen for a GPG key being made or renewed, in years;
-    /// 0 for never.
-    pub gpg_years: u32,
-    /// Choosing Inbox files for the selected GPG key to sign.
-    pub signing: bool,
-    /// The signable Inbox files ticked to sign, by name and SHA-256: a
-    /// file replaced by a stick visit is no longer ticked. Set to its
-    /// default (the only file ticked, several none) whenever the page
-    /// opens.
-    pub sign_ticked: Vec<(String, [u8; 32])>,
-    /// The fingerprint of the key the signing page was opened for.
-    pub sign_key: Option<[u8; 20]>,
-    /// The files the signing page hashed, so that it hashes each once.
-    pub sign_seen: std::cell::RefCell<Vec<crate::gpg::Seen>>,
-    /// The term chosen to renew the selected GPG key for, in years; none
-    /// until the person chooses.
-    pub renew_years: Option<u32>,
-    /// The reason chosen for a revocation, by GnuPG's menu number.
-    pub revoke_reason: u8,
-    /// What is typed into passphrase fields is shown in the clear.
-    pub typed_shown: bool,
-    /// APK signing keys: the form, the result, Sign an APK, and the keys
-    /// that wait for their copies.
-    pub apk: crate::apk::ApkState,
-    /// The owner name Secure Boot keys are being made under.
-    pub sb_owner: String,
-    /// Enrolment adds the owner's keys alone, not Microsoft's.
-    pub sb_own_only: bool,
-    /// The Inbox's EFI images are shown, to sign or check.
-    pub sb_images: bool,
-    /// The image being looked at before signing, by Inbox position.
-    pub sb_sign: Option<usize>,
-    /// What the last check said.
-    pub sb_checked: Option<String>,
-    /// Key fingerprints worked out for the contents screen, by the
-    /// SHA-256 of the key's payload and the passphrase stored with it:
-    /// deriving one takes 2048 rounds. In memory only.
-    /// With each, the key's [`crate::wallet::master_id`], which says it
-    /// is a given key where the fingerprint only finds it.
-    pub fingerprints: std::cell::RefCell<Vec<KeyIdentity>>,
-    /// Key records' account keys at a wallet's path, by the record's id
-    /// and the path: public key and chain code, `None` where it could not
-    /// be derived. What confirms a record is a wallet slot's key
-    /// ([`crate::vault::screen::record_is_policy_key`]). In memory only.
-    pub(crate) accounts: std::cell::RefCell<Vec<KeyAccount>>,
-    draws: u64,
-    /// The selected key's SeedQR while Show SeedQR is held, by record
-    /// index: made at the press, dropped at the lift.
-    pub(crate) seedqr: Option<(usize, faraday_codec::qr::QrMatrix)>,
-    /// Save to a stick's popup, while it is open.
-    pub stick_save: Option<crate::vault::out::StickSave>,
-    /// The Load sheet an unlock shows, while it is up (F62).
-    pub load: Option<crate::vault::load::LoadSheet>,
-    /// The sheet of seeds kept with no passphrase, while it is up (F62).
-    pub pass_seeds: Option<crate::vault::load::PassSeeds>,
-}
-
-/// Memory in MiB as a person reads it.
-pub fn mib_text(mib: u32) -> String {
-    if mib >= 1024 {
-        if mib.is_multiple_of(1024) {
-            fill(EN.vaults_gib, &[&(mib / 1024).to_string()])
-        } else {
-            fill(EN.vaults_gib, &[&format!("{:.1}", f64::from(mib) / 1024.0)])
-        }
-    } else {
-        fill(EN.vaults_mib, &[&mib.to_string()])
-    }
-}
-
-/// A slot size as a person reads it.
-pub fn size_text(slot: u32) -> String {
-    if slot >= 1_048_576 {
-        fill(EN.vaults_mib, &[&(slot / 1_048_576).to_string()])
-    } else {
-        fill(EN.vaults_kib, &[&(slot / 1024).to_string()])
-    }
-}
-
-/// A file size as a person reads it.
-pub fn file_text(len: usize) -> String {
-    if len >= 1_000_000 {
-        fill(EN.vaults_mb, &[&format!("{:.1}", len as f64 / 1e6)])
-    } else {
-        fill(EN.vaults_kb, &[&len.div_ceil(1000).to_string()])
-    }
-}
-
-/// A cost as a person reads it.
-pub fn cost_text(cost: &Cost) -> String {
-    format!(
-        "{} · {} {}",
-        mib_text(cost.memory_kib / 1024),
-        cost.passes,
-        if cost.passes == 1 {
-            EN.vaults_pass
-        } else {
-            EN.vaults_passes
-        }
-    )
-}
-
-impl Vaults {
-    /// Closes open vault `i`: its slot key and records are wiped with it.
-    pub fn close(&mut self, i: usize) {
-        let gone = self.open.remove(i);
-        self.store.close(gone.id);
-    }
-
-    /// Closes every open vault.
-    pub fn close_all(&mut self) {
-        self.open.clear();
-        self.store.clear();
-    }
-
-    /// Seconds to unlock at a cost on this computer, when measured.
-    pub fn seconds(&self, memory_mib: u32, passes: u32) -> Option<f64> {
-        self.ms_per_unit
-            .map(|ms| ms as f64 * f64::from(memory_mib) / 64.0 * f64::from(passes) / 1000.0)
-    }
-
-    /// "about 1.8 s", or that it is not measured yet.
-    pub fn time_text(&self, memory_mib: u32, passes: u32) -> String {
-        match self.seconds(memory_mib, passes) {
-            Some(s) if s < 10.0 => fill(EN.vaults_about_s, &[&format!("{s:.1}")]),
-            Some(s) => fill(EN.vaults_about_s, &[&(s.round() as u64).to_string()]),
-            None => EN.vaults_not_measured.to_string(),
-        }
-    }
-
-    /// Create's cost: memory MiB and passes.
-    pub fn form_cost(&self) -> Option<(usize, u32, u32)> {
-        let c = self.create.as_ref()?;
-        let k = c.preset.unwrap_or_else(|| self.suggested());
-        Some(match k {
-            CUSTOM => (CUSTOM, c.memory, c.passes),
-            k => (k, PRESETS[k].1, PRESETS[k].2),
-        })
-    }
-
-    /// The most unlock memory this computer gives a vault, MiB: the
-    /// largest custom memory that fits in what it has free beside twice
-    /// the file and the app ([`vault_need_mib`]), at most 4 GiB, which is
-    /// as much as a vault needs; 4 GiB when it does not say.
-    pub fn here_limit(&self) -> u32 {
-        let Some(free) = self.memory_free_mib else {
-            return MAX_UNLOCK_MIB;
-        };
-        let slot = self.create.as_ref().map_or(fv::DEFAULT_SLOT, |c| c.slot);
-        CUSTOM_MEMORY
-            .iter()
-            .copied()
-            .filter(|m| *m <= MAX_UNLOCK_MIB && vault_need_mib(*m, slot) <= free)
-            .max()
-            .unwrap_or(CUSTOM_MEMORY[0])
-    }
-
-    /// The machine that gives a vault the least unlock memory among
-    /// those chosen, label and MiB: this computer what it has free (see
-    /// `here_limit`), any other half of its memory. With none chosen,
-    /// this computer.
-    pub fn weakest(&self) -> (String, u32) {
-        let here = (EN.vaults_this_computer_name.to_string(), self.here_limit());
-        let Some(c) = self.create.as_ref() else {
-            return here;
-        };
-        let mut w: Option<(String, u32)> = (!c.not_here).then_some(here.clone());
-        for (k, m) in MACHINES.iter().enumerate() {
-            if c.on[k] && w.as_ref().is_none_or(|w| m.3 / 2 < w.1) {
-                w = Some((m.0.to_string(), m.3 / 2));
-            }
-        }
-        w.unwrap_or(here)
-    }
-
-    /// The largest preset the weakest machine gives the memory for.
-    pub fn suggested(&self) -> usize {
-        let (_, limit) = self.weakest();
-        (0..PRESETS.len())
-            .rev()
-            .find(|&k| PRESETS[k].1 <= limit)
-            .unwrap_or(0)
-    }
-
-    /// The size row chosen, while the preset and machines are one of
-    /// `SIZES`.
-    pub fn size_row(&self) -> Option<usize> {
-        let c = self.create.as_ref()?;
-        SIZES
-            .iter()
-            .position(|(_, p, on)| c.preset == Some(*p) && c.on == *on && !c.not_here)
-    }
-
-    /// Whether a passphrase pair is typed the same twice, and not empty.
-    pub fn phrase_ok(c: &CreateForm, i: usize) -> bool {
-        let (a, b) = &c.phrases[i];
-        !a.text.is_empty() && *a.text == *b.text
-    }
-
-    /// Passphrase `i`'s own bits, known only while it is the words the
-    /// dice made: a typed passphrase's strength is not measured, nor is
-    /// Demo's `faraday`, which stands in for the rolled words.
-    pub fn phrase_bits(c: &CreateForm, i: usize) -> Option<f32> {
-        let (made, bits) = c.from_dice.get(i)?.as_ref()?;
-        let (a, b) = c.phrases.get(i)?;
-        let same = made.as_str() == a.text.as_str() && made.as_str() == b.text.as_str();
-        (same && made.as_str() != crate::demo::PASSPHRASE).then_some(*bits)
-    }
-}
-
 impl Faraday {
     /// Whether anything secret is in memory: a key, or an open vault.
     pub fn holds_secret(&self) -> bool {
@@ -1248,37 +83,7 @@ impl Faraday {
     ///
     /// Works out [`crate::drawing::View::unsaved`]. Costs a parse of each key's words.
     pub fn unsaved_now(&self, c: &Compute) -> (Vec<String>, Vec<String>) {
-        let held_wallets: Vec<String> = self
-            .vaults
-            .open
-            .iter()
-            .flat_map(|v| {
-                self.vaults
-                    .described_of(c, v.id, kind::WALLET)
-                    .map(|(_, _, d)| d.policy.to_descriptor())
-            })
-            .collect();
-        let keys = self
-            .session
-            .keys
-            .all()
-            .enumerate()
-            .filter(|(i, _)| {
-                !self
-                    .vaults
-                    .store()
-                    .holds_session_words(c, &self.session.keys, *i)
-            })
-            .map(|(_, k)| k.label.clone())
-            .collect();
-        let wallets = self
-            .session
-            .wallets
-            .iter()
-            .filter(|w| !held_wallets.contains(&w.policy().to_descriptor()))
-            .map(|w| w.name.clone())
-            .collect();
-        (keys, wallets)
+        self.vaults.unsaved(c, &self.session)
     }
 
     /// Costs what `lock_held`, `currency`, `words_id` and the rest it calls
@@ -1539,7 +344,7 @@ impl Faraday {
             self.out.command(faraday_shell_api::Command::RequestEntropy);
             return None;
         }
-        self.vaults.draws += 1;
+        self.vaults.state.draws += 1;
         let what = [b"faraday vault draw".as_slice(), what].concat();
         self.fresh.draw(&what, &self.vaults.draws.to_le_bytes())
     }
@@ -1569,14 +374,15 @@ impl Faraday {
                 if let Some(f) = files.get(i) {
                     match f.open {
                         Some(o) => {
-                            self.vaults.current = o;
-                            self.vaults.item_open = false;
+                            self.vaults.state.current = o;
+                            self.vaults.state.item_open = false;
                             self.screen = Screen::VaultContents;
                         }
                         None => {
-                            self.vaults.pick = i;
-                            self.vaults.unlock_error = None;
-                            self.vaults.focus = self.may_load_keys().then_some(Focus::Passphrase);
+                            self.vaults.state.pick = i;
+                            self.vaults.state.unlock_error = None;
+                            self.vaults.state.focus =
+                                self.may_load_keys().then_some(Focus::Passphrase);
                             self.screen = Screen::Unlock;
                             // The import sheet's way back is set afresh by
                             // `OpenFrom` below each time; one left from
@@ -1584,43 +390,43 @@ impl Faraday {
                             // linger. Create's and Restore's stay: a vault
                             // just made there is opened through here.
                             if self.vaults.back_to == Some(Screen::Home) {
-                                self.vaults.back_to = None;
+                                self.vaults.state.back_to = None;
                             }
-                            self.vault_measure();
+                            self.vaults.measure();
                         }
                     }
                 }
             }
             V::Create | V::CreateFrom(_) => {
-                self.vaults.back_to = match a {
+                self.vaults.state.back_to = match a {
                     V::CreateFrom(s) => Some(s),
                     _ => None,
                 };
-                self.vaults.from_home = self.screen == Screen::Home;
+                self.vaults.state.from_home = self.screen == Screen::Home;
                 self.secret_sheet_waits();
-                self.vaults.create = Some(CreateForm::default());
-                self.vaults.just_made = None;
+                self.vaults.state.create = Some(CreateForm::default());
+                self.vaults.state.just_made = None;
                 // It opens on Name and passphrases: the first passphrase
                 // takes the typing, as Continue into that card does.
-                self.vaults.focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
+                self.vaults.state.focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
                 self.screen = Screen::CreateVault;
-                self.vault_measure();
+                self.vaults.measure();
             }
             V::OpenFrom(i, back) => {
                 self.vault_act(V::Open(i));
                 if self.screen == Screen::Unlock {
-                    self.vaults.back_to = Some(back);
+                    self.vaults.state.back_to = Some(back);
                     self.secret_sheet_waits();
                 }
             }
             V::ListFrom(back) => {
-                self.vaults.back_to = Some(back);
-                self.vaults.just_made = None;
+                self.vaults.state.back_to = Some(back);
+                self.vaults.state.just_made = None;
                 self.secret_sheet_waits();
                 self.screen = Screen::Vaults;
             }
             V::EachShown(v) => {
-                if let Some(o) = self.vaults.open.get_mut(v) {
+                if let Some(o) = self.vaults.state.open.get_mut(v) {
                     o.each_shown = !o.each_shown;
                 }
             }
@@ -1692,15 +498,15 @@ impl Faraday {
                 }
             }
             V::Back => {
-                self.vaults.just_made = None;
+                self.vaults.state.just_made = None;
                 self.flow_create_left();
-                if let Some(s) = self.vaults.back_to.take() {
-                    self.vaults.passphrase.clear();
-                    self.vaults.typed_shown = false;
-                    self.vaults.unlock_error = None;
-                    self.vaults.create = None;
-                    self.vaults.dice = None;
-                    self.vaults.focus = None;
+                if let Some(s) = self.vaults.state.back_to.take() {
+                    self.vaults.state.passphrase.clear();
+                    self.vaults.state.typed_shown = false;
+                    self.vaults.state.unlock_error = None;
+                    self.vaults.state.create = None;
+                    self.vaults.state.dice = None;
+                    self.vaults.state.focus = None;
                     // The way back from making or unlocking a vault for a
                     // secret is its Cancel: the secret is dropped.
                     self.secret_cancel();
@@ -1716,7 +522,7 @@ impl Faraday {
                 }
             }
             V::Choose(v, r) => {
-                if let Some(o) = self.vaults.open.get_mut(v)
+                if let Some(o) = self.vaults.state.open.get_mut(v)
                     && !o.skip.remove(&r)
                 {
                     o.skip.insert(r);
@@ -1724,7 +530,7 @@ impl Faraday {
             }
             V::ChooseAll(v) => {
                 let rows = self.vault_rows_now(&c, v);
-                if let Some(o) = self.vaults.open.get_mut(v) {
+                if let Some(o) = self.vaults.state.open.get_mut(v) {
                     let open: Vec<usize> = rows
                         .iter()
                         .filter(|r| !r.loaded)
@@ -1769,19 +575,19 @@ impl Faraday {
                 ));
             }
             V::CStep(k) => {
-                if let Some(c) = self.vaults.create.as_mut() {
+                if let Some(c) = self.vaults.state.create.as_mut() {
                     c.open = if c.open == Some(k) { None } else { Some(k) };
                     c.scroll.follow = true;
                     if c.open == Some(vstep::PHRASES) {
-                        self.vaults.focus = Some(Focus::Phrase(0, false));
+                        self.vaults.state.focus = Some(Focus::Phrase(0, false));
                     } else if matches!(self.vaults.focus, Some(Focus::Phrase(..) | Focus::Name)) {
                         // Typing goes nowhere on a card with no field.
-                        self.vaults.focus = None;
+                        self.vaults.state.focus = None;
                     }
                 }
             }
             V::CNext(k) => {
-                if let Some(c) = self.vaults.create.as_mut()
+                if let Some(c) = self.vaults.state.create.as_mut()
                     && usize::from(k) < vstep::COUNT
                 {
                     c.done[k as usize] = true;
@@ -1789,18 +595,18 @@ impl Faraday {
                     c.scroll.follow = true;
                     c.error = None;
                     if c.open == Some(vstep::PHRASES) {
-                        self.vaults.focus = Some(Focus::Phrase(0, false));
+                        self.vaults.state.focus = Some(Focus::Phrase(0, false));
                     }
                 }
             }
             V::CHere => {
-                if let Some(c) = self.vaults.create.as_mut() {
+                if let Some(c) = self.vaults.state.create.as_mut() {
                     c.not_here = !c.not_here;
                     c.error = None;
                 }
             }
             V::CMachine(k) => {
-                if let Some(c) = self.vaults.create.as_mut()
+                if let Some(c) = self.vaults.state.create.as_mut()
                     && k < MACHINES.len()
                 {
                     c.on[k] = !c.on[k];
@@ -1808,13 +614,13 @@ impl Faraday {
                 }
             }
             V::CPreset(k) => {
-                if let Some(c) = self.vaults.create.as_mut() {
+                if let Some(c) = self.vaults.state.create.as_mut() {
                     c.preset = Some(k.min(CUSTOM));
                     c.error = None;
                 }
             }
             V::CSizeRow(k) => {
-                if let Some(c) = self.vaults.create.as_mut()
+                if let Some(c) = self.vaults.state.create.as_mut()
                     && let Some(&(_, preset, on)) = SIZES.get(k)
                 {
                     c.preset = Some(preset);
@@ -1824,15 +630,18 @@ impl Faraday {
                 }
             }
             V::CCustomise => {
-                if let Some(c) = self.vaults.create.as_mut() {
+                if let Some(c) = self.vaults.state.create.as_mut() {
                     // The three cards open on the size's values, to be
                     // walked through in order.
                     c.customise = true;
                     for k in [vstep::WHERE, vstep::COST, vstep::SIZE] {
                         c.done[usize::from(k)] = false;
                     }
-                    if matches!(self.vaults.focus, Some(Focus::Phrase(..) | Focus::Name)) {
-                        self.vaults.focus = None;
+                    if matches!(
+                        self.vaults.state.focus,
+                        Some(Focus::Phrase(..) | Focus::Name)
+                    ) {
+                        self.vaults.state.focus = None;
                     }
                     c.open = Some(vstep::WHERE);
                     c.scroll.follow = true;
@@ -1840,33 +649,33 @@ impl Faraday {
                 }
             }
             V::CMemory(k) => {
-                if let Some(c) = self.vaults.create.as_mut() {
+                if let Some(c) = self.vaults.state.create.as_mut() {
                     c.memory = CUSTOM_MEMORY[k.min(CUSTOM_MEMORY.len() - 1)];
                     c.preset = Some(CUSTOM);
                 }
             }
             V::CPasses(k) => {
-                if let Some(c) = self.vaults.create.as_mut() {
+                if let Some(c) = self.vaults.state.create.as_mut() {
                     c.passes = CUSTOM_PASSES[k.min(CUSTOM_PASSES.len() - 1)];
                     c.preset = Some(CUSTOM);
                 }
             }
             V::CSize(k) => {
-                if let Some(c) = self.vaults.create.as_mut() {
+                if let Some(c) = self.vaults.state.create.as_mut() {
                     c.slot = fv::SLOT_SIZES[k.min(3)];
                 }
             }
             V::CAddPhrase => {
-                if let Some(c) = self.vaults.create.as_mut()
+                if let Some(c) = self.vaults.state.create.as_mut()
                     && c.phrases.len() < fv::SLOTS
                 {
                     c.phrases.push((TextBox::default(), TextBox::default()));
                     c.from_dice.push(None);
-                    self.vaults.focus = Some(Focus::Phrase(c.phrases.len() - 1, false));
+                    self.vaults.state.focus = Some(Focus::Phrase(c.phrases.len() - 1, false));
                 }
             }
             V::CRemovePhrase(i) => {
-                if let Some(c) = self.vaults.create.as_mut()
+                if let Some(c) = self.vaults.state.create.as_mut()
                     && c.phrases.len() > 1
                     && i < c.phrases.len()
                 {
@@ -1874,74 +683,74 @@ impl Faraday {
                     if i < c.from_dice.len() {
                         c.from_dice.remove(i);
                     }
-                    self.vaults.focus = None;
+                    self.vaults.state.focus = None;
                 }
             }
             V::CFocus(i, second) => {
-                self.vaults.focus = self.may_load_keys().then_some(Focus::Phrase(i, second));
+                self.vaults.state.focus = self.may_load_keys().then_some(Focus::Phrase(i, second));
             }
-            V::CName => self.vaults.focus = Some(Focus::Name),
+            V::CName => self.vaults.state.focus = Some(Focus::Name),
             V::CShow => {
-                if let Some(c) = self.vaults.create.as_mut() {
+                if let Some(c) = self.vaults.state.create.as_mut() {
                     c.shown = !c.shown;
                 }
             }
             V::CGo => self.vault_create_check(),
             V::Pick(i) => {
-                self.vaults.pick = i;
-                self.vaults.unlock_error = None;
-                self.vaults.focus = self.may_load_keys().then_some(Focus::Passphrase);
+                self.vaults.state.pick = i;
+                self.vaults.state.unlock_error = None;
+                self.vaults.state.focus = self.may_load_keys().then_some(Focus::Passphrase);
             }
             V::FocusPassphrase => {
-                self.vaults.focus = self.may_load_keys().then_some(Focus::Passphrase);
+                self.vaults.state.focus = self.may_load_keys().then_some(Focus::Passphrase);
             }
             V::Unlock => self.vault_unlock_check(),
             V::Show(i) => {
                 self.gpg_page_reset();
                 if i < self.vaults.open.len() {
-                    self.vaults.current = i;
-                    self.vaults.apk.leave();
-                    self.vaults.form = None;
-                    self.vaults.saving = false;
-                    self.vaults.item_open = false;
-                    self.vault_item_offset = 0.0;
+                    self.vaults.state.current = i;
+                    self.vaults.state.apk.leave();
+                    self.vaults.state.form = None;
+                    self.vaults.state.saving = false;
+                    self.vaults.state.item_open = false;
+                    self.vaults.set_item_offset(0.0);
                 }
             }
             V::Category(k) if !self.category_listed(k) => {}
             V::AddKind(k) if !self.category_listed(k) => {}
             V::ApkSignOpen | V::ApkFromFiles(_) if !self.category_listed(APK_CATEGORY) => {}
             V::Category(k) => {
-                self.vaults.apk.leave();
+                self.vaults.state.apk.leave();
                 self.gpg_page_reset();
-                self.vaults.category = k.min(CATEGORIES.len() - 1);
-                self.vault_item_offset = 0.0;
-                self.vaults.category_chosen = true;
-                self.vaults.form = None;
-                self.vaults.saving = false;
-                self.vaults.item_open = false;
+                self.vaults.state.category = k.min(CATEGORIES.len() - 1);
+                self.vaults.set_item_offset(0.0);
+                self.vaults.state.category_chosen = true;
+                self.vaults.state.form = None;
+                self.vaults.state.saving = false;
+                self.vaults.state.item_open = false;
             }
             V::Item(k) => {
-                self.vaults.apk.leave();
+                self.vaults.state.apk.leave();
                 self.gpg_page_reset();
-                self.vaults.item[self.vaults.category] = k;
-                self.vault_item_offset = 0.0;
-                self.vaults.form = None;
-                self.vaults.saving = false;
-                self.vaults.item_open = true;
+                self.vaults.state.item[self.vaults.category] = k;
+                self.vaults.set_item_offset(0.0);
+                self.vaults.state.form = None;
+                self.vaults.state.saving = false;
+                self.vaults.state.item_open = true;
                 // A key made before revocations were kept gets its one
                 // now, on first use of its page.
                 self.gpg_keep_revocation();
             }
             V::ItemBack => {
                 self.gpg_page_reset();
-                self.vaults.item_open = false;
-                self.vaults.form = None;
-                self.vaults.prompt = None;
-                self.vaults.saving = false;
-                self.vaults.sb_images = false;
-                self.vaults.sb_sign = None;
-                self.vaults.apk.leave();
-                self.vaults.focus = None;
+                self.vaults.state.item_open = false;
+                self.vaults.state.form = None;
+                self.vaults.state.prompt = None;
+                self.vaults.state.saving = false;
+                self.vaults.state.sb_images = false;
+                self.vaults.state.sb_sign = None;
+                self.vaults.state.apk.leave();
+                self.vaults.state.focus = None;
             }
             V::Reveal(_) | V::ShowSeedQr => {}
             V::WalletQr => self.vault_wallet_qr(),
@@ -1949,6 +758,7 @@ impl Faraday {
             V::SaveTick(k) => {
                 if let Some(f) = self
                     .vaults
+                    .state
                     .stick_save
                     .as_mut()
                     .and_then(|s| s.files.get_mut(usize::from(k)))
@@ -2000,26 +810,26 @@ impl Faraday {
                 // by the backup flow, which decides where it will be kept
                 // first (`docs/BACKUP-FLOW.md`).
                 if let Some(k) = crate::backup_flow::Kind::of_category(self.vaults.category) {
-                    self.vaults.form = None;
+                    self.vaults.state.form = None;
                     return self.flow_begin(k);
                 }
-                self.vaults.sb_images = false;
-                self.vaults.sb_sign = None;
-                self.vaults.apk.leave();
+                self.vaults.state.sb_images = false;
+                self.vaults.state.sb_sign = None;
+                self.vaults.state.apk.leave();
                 if kinds.contains(&kind::KEY) || kinds.contains(&kind::WALLET) {
-                    self.vaults.saving = !self.vaults.saving;
-                    self.vaults.form = None;
+                    self.vaults.state.saving = !self.vaults.saving;
+                    self.vaults.state.form = None;
                 } else {
                     self.vault_form(false);
                 }
             }
             V::SaveKey(k) => self.vault_save_key(k),
             V::SaveWallet(k) => self.vault_save_wallet(k),
-            V::FocusField(k) => self.vaults.focus = Some(Focus::Field(k)),
+            V::FocusField(k) => self.vaults.state.focus = Some(Focus::Field(k)),
             V::FormSave => self.vault_form_save(),
             V::FormCancel => {
-                self.vaults.form = None;
-                self.vaults.focus = None;
+                self.vaults.state.form = None;
+                self.vaults.state.focus = None;
             }
             V::Rename => {
                 let label = self
@@ -2030,16 +840,16 @@ impl Faraday {
                 if let Some(label) = label {
                     let mut name = TextBox::default();
                     name.set(&label);
-                    self.vaults.form = Some(Form {
+                    self.vaults.state.form = Some(Form {
                         kind: kind::SLOT_LABEL,
                         record: None,
                         fields: vec![(field::LABEL, EN.vaults_name, name, false)],
                     });
-                    self.vaults.saving = false;
-                    self.vaults.focus = Some(Focus::Field(0));
+                    self.vaults.state.saving = false;
+                    self.vaults.state.focus = Some(Focus::Field(0));
                 }
             }
-            V::ShowTyped => self.vaults.typed_shown = !self.vaults.typed_shown,
+            V::ShowTyped => self.vaults.state.typed_shown = !self.vaults.typed_shown,
             V::ImportEntries(k) => self.vault_import_entries(&[k]),
             V::AddFile(k) => self.vault_add_file(k),
             V::ImportAllEntries => {
@@ -2063,13 +873,13 @@ impl Faraday {
             V::Dice(i) => {
                 // Pressed again, the rolls box keeps what is rolled.
                 if self.vaults.dice.as_ref().is_none_or(|d| d.0 != i) {
-                    self.vaults.dice =
+                    self.vaults.state.dice =
                         Some((i, TextBox::default(), faraday_bip::diceware::List::Large));
                 }
-                self.vaults.focus = Some(Focus::Dice);
+                self.vaults.state.focus = Some(Focus::Dice);
             }
             V::DiceList(k) => {
-                if let Some((_, rolls, list)) = self.vaults.dice.as_mut()
+                if let Some((_, rolls, list)) = self.vaults.state.dice.as_mut()
                     && let Some(&l) = faraday_bip::diceware::List::ALL.get(usize::from(k))
                     && l != *list
                 {
@@ -2078,12 +888,12 @@ impl Faraday {
                 }
             }
             V::DiceUse => {
-                if let Some((i, rolls, list)) = self.vaults.dice.take() {
+                if let Some((i, rolls, list)) = self.vaults.state.dice.take() {
                     let words = dice_words(&rolls.text, list);
                     // The demo puts its public passphrase in place of the
                     // rolled words, which are dropped (`docs/DEMO.md` §5.2).
                     let public = !self.makes_secrets();
-                    if let Some(c) = self.vaults.create.as_mut()
+                    if let Some(c) = self.vaults.state.create.as_mut()
                         && let Some((a, b)) = c.phrases.get_mut(i)
                         && !words.is_empty()
                     {
@@ -2101,50 +911,50 @@ impl Faraday {
                             *d = Some((phrase, bits));
                         }
                     }
-                    self.vaults.focus = None;
+                    self.vaults.state.focus = None;
                 }
             }
             V::DiceClose => {
-                self.vaults.dice = None;
-                self.vaults.focus = None;
+                self.vaults.state.dice = None;
+                self.vaults.state.focus = None;
             }
             V::ImportBackup(k) => {
                 if self.vaults.open.is_empty() {
                     self.toast(EN.vaults_unlock_a_vault);
                 } else {
-                    self.vaults.prompt = Some(Prompt {
+                    self.vaults.state.prompt = Some(Prompt {
                         purpose: Purpose::Backup(k),
                         text: TextBox::default(),
                         error: None,
                     });
-                    self.vaults.form = None;
-                    self.vaults.saving = false;
-                    self.vaults.focus = Some(Focus::Prompt);
+                    self.vaults.state.form = None;
+                    self.vaults.state.saving = false;
+                    self.vaults.state.focus = Some(Focus::Prompt);
                     self.screen = Screen::VaultContents;
                 }
             }
             V::LoadWithPassphrase => {
-                self.vaults.prompt = Some(Prompt {
+                self.vaults.state.prompt = Some(Prompt {
                     purpose: Purpose::KeyPassphrase,
                     text: TextBox::default(),
                     error: None,
                 });
-                self.vaults.focus = Some(Focus::Prompt);
+                self.vaults.state.focus = Some(Focus::Prompt);
             }
             V::SaveKeyWithPassphrase(k) => self.vault_save_key_with(k, true),
-            V::FocusPrompt => self.vaults.focus = Some(Focus::Prompt),
+            V::FocusPrompt => self.vaults.state.focus = Some(Focus::Prompt),
             V::PromptGo => self.vault_prompt_go(),
             V::ExportKdbx => {
-                self.vaults.prompt = Some(Prompt {
+                self.vaults.state.prompt = Some(Prompt {
                     purpose: Purpose::Kdbx,
                     text: TextBox::default(),
                     error: None,
                 });
-                self.vaults.focus = Some(Focus::Prompt);
+                self.vaults.state.focus = Some(Focus::Prompt);
             }
             V::PromptCancel => {
-                self.vaults.prompt = None;
-                self.vaults.focus = None;
+                self.vaults.state.prompt = None;
+                self.vaults.state.focus = None;
             }
             // A key made in the backup flow signs nothing until every place
             // of its plan is written: the action opens the flow.
@@ -2159,15 +969,15 @@ impl Faraday {
             {
                 self.flow_resume_selected();
             }
-            V::GpgYears(y) => self.vaults.gpg_years = y,
+            V::GpgYears(y) => self.vaults.state.gpg_years = y,
             V::GpgExport => self.gpg_export(),
             V::GpgExportRevocation => self.gpg_export_revocation(),
             V::GpgRevocationPage => {
                 self.gpg_keep_revocation();
                 self.vault_form_for_revocation();
             }
-            V::GpgReason(n) => self.vaults.revoke_reason = n.min(3),
-            V::GpgRenewTerm(y) => self.vaults.renew_years = Some(y),
+            V::GpgReason(n) => self.vaults.state.revoke_reason = n.min(3),
+            V::GpgRenewTerm(y) => self.vaults.state.renew_years = Some(y),
             V::GpgHoldRevoke => self.gpg_mark_revoked(),
             V::GpgRenew => {
                 if !self.time_asked() {
@@ -2175,13 +985,13 @@ impl Faraday {
                 }
             }
             V::GpgSignPick => {
-                self.vaults.signing = !self.vaults.signing;
-                self.vaults.form = None;
-                self.vaults.sign_key = self.gpg_fingerprint();
+                self.vaults.state.signing = !self.vaults.signing;
+                self.vaults.state.form = None;
+                self.vaults.state.sign_key = self.gpg_fingerprint();
                 if self.vaults.signing {
                     self.gpg_default_ticks();
                 } else {
-                    self.vaults.sign_ticked.clear();
+                    self.vaults.state.sign_ticked.clear();
                 }
             }
             V::GpgTick(k) => self.gpg_tick(k),
@@ -2190,18 +1000,18 @@ impl Faraday {
             // time the sheet shows rather than asking for it (F63).
             V::GpgSign => self.gpg_sign_sheet_open(),
             V::GpgHoldSign => self.gpg_sign_sheet_hold(),
-            V::SbOwnOnly(on) => self.vaults.sb_own_only = on,
+            V::SbOwnOnly(on) => self.vaults.state.sb_own_only = on,
             V::SbEnrol => {
                 if !self.time_asked() {
                     self.sb_enrol();
                 }
             }
             V::SbImages => {
-                self.vaults.sb_images = !self.vaults.sb_images;
-                self.vaults.sb_sign = None;
-                self.vaults.sb_checked = None;
+                self.vaults.state.sb_images = !self.vaults.sb_images;
+                self.vaults.state.sb_sign = None;
+                self.vaults.state.sb_checked = None;
             }
-            V::SbPick(k) => self.vaults.sb_sign = Some(k),
+            V::SbPick(k) => self.vaults.state.sb_sign = Some(k),
             V::SbHoldSign => {
                 if let Some(k) = self.vaults.sb_sign {
                     self.sb_sign(k);
@@ -2216,9 +1026,9 @@ impl Faraday {
                         .backup_waits(crate::backup_flow::Kind::Apk, &fp)
                         .is_none()
                 {
-                    self.vaults.apk.signing = true;
-                    self.vaults.apk.review = None;
-                    self.vaults.apk.which = None;
+                    self.vaults.state.apk.signing = true;
+                    self.vaults.state.apk.review = None;
+                    self.vaults.state.apk.which = None;
                 }
             }
             V::ApkPick(k) => {
@@ -2233,14 +1043,14 @@ impl Faraday {
                 }
             }
             V::ApkHoldSign => self.apk_sign(),
-            V::ApkSecond => self.vaults.focus = Some(Focus::Second),
+            V::ApkSecond => self.vaults.state.focus = Some(Focus::Second),
             V::ApkBack => {
                 if self.vaults.apk.review.is_some() {
-                    self.vaults.apk.review = None;
-                    self.vaults.apk.second.clear();
-                    self.vaults.focus = None;
+                    self.vaults.state.apk.review = None;
+                    self.vaults.state.apk.second.clear();
+                    self.vaults.state.focus = None;
                 } else {
-                    self.vaults.apk.leave();
+                    self.vaults.state.apk.leave();
                 }
             }
             V::ApkFromFiles(k) => self.apk_from_files(k),
@@ -2289,9 +1099,9 @@ impl Faraday {
         if n > 0 {
             self.vaults.changed(id);
         }
-        self.vaults.category = 2;
-        self.vaults.form = None;
-        self.vaults.saving = false;
+        self.vaults.state.category = 2;
+        self.vaults.state.form = None;
+        self.vaults.state.saving = false;
         self.screen = Screen::VaultContents;
         self.toast(&fill(
             EN.vaults_added,
@@ -2320,9 +1130,9 @@ impl Faraday {
             Screen::VaultContents
         };
         if let Some((title, account)) = fv::entries::otpauth_names(t) {
-            self.vaults.category = 2;
+            self.vaults.state.category = 2;
             self.vault_form(false);
-            if let Some(f) = self.vaults.form.as_mut() {
+            if let Some(f) = self.vaults.state.form.as_mut() {
                 for (n, _, b, _) in f.fields.iter_mut() {
                     match *n {
                         field::TITLE => b.set(&title),
@@ -2345,7 +1155,7 @@ impl Faraday {
                     }
                 });
                 self.vaults.changed(id);
-                self.vaults.category = 2;
+                self.vaults.state.category = 2;
                 self.screen = back;
                 self.toast(&fill(
                     EN.vaults_added,
@@ -2366,7 +1176,7 @@ impl Faraday {
 
     fn vault_prompt_go(&mut self) {
         let c = self.compute();
-        let Some(p) = self.vaults.prompt.as_mut() else {
+        let Some(p) = self.vaults.state.prompt.as_mut() else {
             return;
         };
         match p.purpose {
@@ -2375,16 +1185,16 @@ impl Faraday {
                 if p.text.text.is_empty() {
                     p.error = Some(EN.vaults_type_the_backup.to_string());
                 } else {
-                    self.vaults.working = Some(Work::Backup);
-                    self.vaults.drawn = false;
+                    self.vaults.state.working = Some(Work::Backup);
+                    self.vaults.state.drawn = false;
                 }
             }
             Purpose::Kdbx => {
                 if p.text.text.chars().count() < 8 {
                     p.error = Some(EN.vaults_a_passphrase.to_string());
                 } else {
-                    self.vaults.working = Some(Work::Kdbx);
-                    self.vaults.drawn = false;
+                    self.vaults.state.working = Some(Work::Kdbx);
+                    self.vaults.state.drawn = false;
                 }
             }
             Purpose::KeyPassphrase => {
@@ -2408,8 +1218,8 @@ impl Faraday {
                 };
                 match loaded {
                     Ok(fp) => {
-                        self.vaults.prompt = None;
-                        self.vaults.focus = None;
+                        self.vaults.state.prompt = None;
+                        self.vaults.state.focus = None;
                         self.refresh_spend();
                         self.toast(&fill(
                             EN.vaults_key_is_loaded,
@@ -2417,7 +1227,7 @@ impl Faraday {
                         ));
                     }
                     Err(e) => {
-                        if let Some(p) = self.vaults.prompt.as_mut() {
+                        if let Some(p) = self.vaults.state.prompt.as_mut() {
                             p.error = Some(e.text());
                         }
                     }
@@ -2460,28 +1270,20 @@ impl Faraday {
                     }
                     faraday_backup::oskb::Error::Format => EN.vaults_not_a_backup.to_string(),
                 };
-                if let Some(p) = self.vaults.prompt.as_mut() {
+                if let Some(p) = self.vaults.state.prompt.as_mut() {
                     p.text.clear();
                     p.error = Some(why);
                 }
                 return;
             }
         };
-        self.vaults.prompt = None;
-        self.vaults.focus = None;
-        self.vaults.category = category;
+        self.vaults.state.prompt = None;
+        self.vaults.state.focus = None;
+        self.vaults.state.category = category;
         self.vault_push(
             record,
             &fill(EN.vaults_is_in_the_vault, &[&label.to_string()]),
         );
-    }
-
-    /// Asks for the one-pass measurement, once.
-    pub(crate) fn vault_measure(&mut self) {
-        if self.vaults.ms_per_unit.is_none() && self.vaults.working.is_none() {
-            self.vaults.working = Some(Work::Measure);
-            self.vaults.drawn = false;
-        }
     }
 
     /// What a tick does for vaults: runs work whose frame has been drawn,
@@ -2489,14 +1291,14 @@ impl Faraday {
     pub(crate) fn vault_tick(&mut self, now_ms: u64) -> bool {
         let c = self.compute();
         let mut redraw = false;
-        if let Some(t0) = self.vaults.measure_from.take() {
-            self.vaults.ms_per_unit = Some(now_ms.saturating_sub(t0).max(1));
+        if let Some(t0) = self.vaults.state.measure_from.take() {
+            self.vaults.state.ms_per_unit = Some(now_ms.saturating_sub(t0).max(1));
             redraw = true;
         }
         if let Some(work) = self.vaults.working
             && self.vaults.drawn
         {
-            self.vaults.working = None;
+            self.vaults.state.working = None;
             match work {
                 Work::Measure => {
                     let header = Header {
@@ -2508,7 +1310,7 @@ impl Faraday {
                         slot_len: fv::SLOT_SIZES[0],
                         salt: [0; 32],
                     };
-                    self.vaults.measure_from = Some(now_ms);
+                    self.vaults.state.measure_from = Some(now_ms);
                     faraday_keys::vault::measure(&c, &header);
                 }
                 Work::Unlock => self.vault_unlock(),
@@ -2559,10 +1361,10 @@ impl Faraday {
                 _ => None,
             }
         };
-        self.vaults.unlock_error = error;
+        self.vaults.state.unlock_error = error;
         if self.vaults.unlock_error.is_none() {
-            self.vaults.working = Some(Work::Unlock);
-            self.vaults.drawn = false;
+            self.vaults.state.working = Some(Work::Unlock);
+            self.vaults.state.drawn = false;
         }
     }
 
@@ -2576,7 +1378,7 @@ impl Faraday {
             self.flow_vault_opened();
             let from_tab = self.vaults.load.as_ref().is_some_and(|l| !l.boot);
             if self.screen != screen && from_tab && self.sheet == Some(crate::Sheet::UnlockLoad) {
-                self.vaults.load = None;
+                self.vaults.state.load = None;
                 self.sheet = None;
             }
         }
@@ -2595,16 +1397,17 @@ impl Faraday {
         let name = f.name.clone();
         // Unlocked on the boot import's sheet: the unlock imports.
         let for_import = self.sheet == Some(crate::Sheet::Import) && self.import.state().is_some();
-        let result = self
-            .vaults
-            .store
-            .unlock(&c, bytes, self.vaults.passphrase.text.as_bytes());
+        let result =
+            self.vaults
+                .state
+                .store
+                .unlock(&c, bytes, self.vaults.state.passphrase.text.as_bytes());
         match result {
             Ok((id, header)) => {
-                self.vaults.passphrase.clear();
-                self.vaults.typed_shown = false;
-                self.vaults.focus = None;
-                self.vaults.open.push(OpenVault {
+                self.vaults.state.passphrase.clear();
+                self.vaults.state.typed_shown = false;
+                self.vaults.state.focus = None;
+                self.vaults.state.open.push(OpenVault {
                     name,
                     id,
                     header,
@@ -2613,7 +1416,7 @@ impl Faraday {
                     each_shown: false,
                     read: Default::default(),
                 });
-                self.vaults.current = self.vaults.open.len() - 1;
+                self.vaults.state.current = self.vaults.open.len() - 1;
                 // Unlocked for a vault category from Tools: that category.
                 // Otherwise the first kind it holds.
                 if self.vaults.back_to != Some(Screen::VaultContents) {
@@ -2624,7 +1427,7 @@ impl Faraday {
                             .any(|(_, r)| kinds.contains(&r.kind()))
                     };
                     // Its wallets first, each with its chart (§7.2).
-                    self.vaults.category = if held(CATEGORIES[1].1) {
+                    self.vaults.state.category = if held(CATEGORIES[1].1) {
                         1
                     } else {
                         CATEGORIES
@@ -2632,11 +1435,11 @@ impl Faraday {
                             .position(|(_, kinds)| held(kinds))
                             .unwrap_or(0)
                     };
-                    self.vaults.category_chosen = false;
+                    self.vaults.state.category_chosen = false;
                 } else {
-                    self.vaults.category_chosen = true;
+                    self.vaults.state.category_chosen = true;
                 }
-                self.vaults.item = [0; 7];
+                self.vaults.state.item = [0; 7];
                 // Keys and wallets set not to load at unlock start
                 // unchosen on the Vaults tab's load list.
                 let v = self.vaults.current;
@@ -2649,11 +1452,12 @@ impl Faraday {
                     })
                     .map(|(i, _)| i)
                     .collect();
-                self.vaults.open[v].skip = skip;
+                self.vaults.state.open[v].skip = skip;
                 self.amounts_from_vault(self.vaults.open[v].id);
                 // The vault just made opens on its contents, empty, with
                 // what to do next.
-                let made = self.vaults.just_made.take() == Some(self.vaults.open[v].name.clone());
+                let made =
+                    self.vaults.state.just_made.take() == Some(self.vaults.open[v].name.clone());
                 self.toast(&fill(
                     EN.vaults_unlocked,
                     &[&self.vaults.open[v].name.to_string()],
@@ -2663,7 +1467,7 @@ impl Faraday {
                     // Its Load sheet (F62); after it, the next vault the
                     // import brought is offered, or, with none left, the
                     // landing (F60).
-                    self.vaults.back_to = None;
+                    self.vaults.state.back_to = None;
                     let before = self
                         .import
                         .state()
@@ -2679,7 +1483,7 @@ impl Faraday {
                 // the import is over (F60).
                 self.import_settle();
                 // Unlocked from the Spend tab, or for it: everything loads.
-                let back = self.vaults.back_to.take();
+                let back = self.vaults.state.back_to.take();
                 if self.screen == Screen::Family || back == Some(Screen::Family) {
                     self.screen = Screen::Family;
                     self.family_unlocked(v);
@@ -2718,8 +1522,8 @@ impl Faraday {
                 }
             }
             Err(e) => {
-                self.vaults.passphrase.clear();
-                self.vaults.unlock_error = Some(e.reason());
+                self.vaults.state.passphrase.clear();
+                self.vaults.state.unlock_error = Some(e.reason());
             }
         }
     }
@@ -2774,50 +1578,7 @@ impl Faraday {
     /// Works out [`crate::drawing::View::vault_rows`] from the wallet records as the
     /// vault keeps them read ([`Vaults::described`]).
     pub fn vault_rows_now(&self, c: &Compute, v: usize) -> Vec<VaultRow> {
-        let Some(open) = self.vaults.open.get(v) else {
-            return Vec::new();
-        };
-        let mut rows = Vec::new();
-        for (i, r) in self.vaults.records(open.id).of(kind::WALLET) {
-            let described = self.vaults.described(c, open.id, i);
-            let loaded = described.is_some_and(|d| {
-                self.session
-                    .wallets
-                    .iter()
-                    .any(|w| crate::wallet::same_wallet(w.policy()) == d.same)
-            });
-            rows.push(VaultRow {
-                record: i,
-                name: r
-                    .public_text(field::WALLET_NAME)
-                    .unwrap_or(EN.vaults_wallet)
-                    .to_string(),
-                detail: described.map(|d| d.shape.clone()).unwrap_or_default(),
-                seed: false,
-                loaded,
-                chosen: !open.skip.contains(&i),
-            });
-        }
-        for (i, r) in self.vaults.records(open.id).of(kind::KEY) {
-            let fp = crate::vault::screen::key_fingerprint(c, self, r).unwrap_or_default();
-            let loaded = self
-                .session
-                .keys
-                .all()
-                .any(|k| crate::wallet::fp_text(k.fingerprint) == fp);
-            rows.push(VaultRow {
-                record: i,
-                name: r
-                    .public_text(field::KEY_LABEL)
-                    .unwrap_or(EN.vaults_seed)
-                    .to_string(),
-                detail: fp,
-                seed: true,
-                loaded,
-                chosen: !open.skip.contains(&i),
-            });
-        }
-        rows
+        self.vaults.rows(c, &self.session, v)
     }
 
     /// Costs a PBKDF2 and two elliptic-curve multiplications per key
@@ -3071,7 +1832,7 @@ impl Faraday {
         // The database's own randomness: one fresh draw, spread over the
         // bytes the format needs.
         let Some(draw) = self.fresh(b"kdbx") else {
-            if let Some(p) = self.vaults.prompt.as_mut() {
+            if let Some(p) = self.vaults.state.prompt.as_mut() {
                 p.error = Some(EN.vaults_no_randomness.to_string());
             }
             return;
@@ -3097,8 +1858,8 @@ impl Faraday {
             Some(file) => {
                 let stem: String = crate::file_stem(&title);
                 let name = format!("{stem}.kdbx");
-                self.vaults.prompt = None;
-                self.vaults.focus = None;
+                self.vaults.state.prompt = None;
+                self.vaults.state.focus = None;
                 self.put_outbox(&name, file);
                 self.toast(&fill(
                     EN.vaults_waits_sealed,
@@ -3106,7 +1867,7 @@ impl Faraday {
                 ));
             }
             None => {
-                if let Some(p) = self.vaults.prompt.as_mut() {
+                if let Some(p) = self.vaults.state.prompt.as_mut() {
                     p.error = Some(EN.vaults_entry_too_large_kdbx.to_string());
                 }
             }
@@ -3197,15 +1958,15 @@ impl Faraday {
     /// optional description, with the reason chosen by buttons. Its one
     /// field is number 3, which the Make form does not have.
     pub(crate) fn vault_form_for_revocation(&mut self) {
-        self.vaults.signing = false;
-        self.vaults.revoke_reason = 0;
-        self.vaults.form = Some(Form {
+        self.vaults.state.signing = false;
+        self.vaults.state.revoke_reason = 0;
+        self.vaults.state.form = Some(Form {
             kind: kind::GPG,
             record: self.vault_selected_index(),
             fields: vec![(3, EN.vaults_description, TextBox::default(), false)],
         });
-        self.vaults.saving = false;
-        self.vaults.focus = Some(Focus::Field(0));
+        self.vaults.state.saving = false;
+        self.vaults.state.focus = Some(Focus::Field(0));
     }
 
     fn vault_form(&mut self, edit: bool) {
@@ -3262,13 +2023,13 @@ impl Faraday {
                 (*n, *label, b, *secret)
             })
             .collect();
-        self.vaults.form = Some(Form {
+        self.vaults.state.form = Some(Form {
             kind: k,
             record: at,
             fields,
         });
-        self.vaults.saving = false;
-        self.vaults.focus = Some(Focus::Field(0));
+        self.vaults.state.saving = false;
+        self.vaults.state.focus = Some(Focus::Field(0));
     }
 
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -3277,12 +2038,12 @@ impl Faraday {
         if self.screen == Screen::BackupFlow {
             return self.flow_act(crate::backup_flow::steps::FlowAction::Make);
         }
-        let Some(form) = self.vaults.form.take() else {
+        let Some(form) = self.vaults.state.form.take() else {
             return;
         };
-        self.vaults.focus = None;
+        self.vaults.state.focus = None;
         if form.kind == kind::GPG && self.time_asked() {
-            self.vaults.form = Some(form);
+            self.vaults.state.form = Some(form);
             return;
         }
         if form.kind == kind::GPG && form.fields.first().is_some_and(|f| f.0 == 3) {
@@ -3321,7 +2082,7 @@ impl Faraday {
             } else {
                 EN.vaults_an_entry_needs
             };
-            self.vaults.form = Some(form);
+            self.vaults.state.form = Some(form);
             self.toast(what);
             return;
         }
@@ -3348,7 +2109,7 @@ impl Faraday {
                 .ok_or(()),
         };
         let Ok(totp_store) = totp_store else {
-            self.vaults.form = Some(form);
+            self.vaults.state.form = Some(form);
             self.toast(EN.vaults_not_a_totp_key);
             return;
         };
@@ -3373,7 +2134,7 @@ impl Faraday {
             .vaults
             .edit(id, |s| s.set_fields(id, form.record, form.kind, &typed));
         let Ok(_place) = placed else {
-            self.vaults.form = Some(form);
+            self.vaults.state.form = Some(form);
             self.toast(EN.vaults_slot_too_small);
             return;
         };
@@ -3384,7 +2145,7 @@ impl Faraday {
                 .iter()
                 .filter(|(_, r)| kinds.contains(&r.kind()))
                 .count();
-            self.vaults.item[self.vaults.category] = n.saturating_sub(1);
+            self.vaults.state.item[self.vaults.category] = n.saturating_sub(1);
         }
         self.vaults.changed(id);
     }
@@ -3437,7 +2198,7 @@ impl Faraday {
         let before = self.vaults.open.get(self.vaults.current).map(|v| v.changes);
         self.vault_push(record, &said);
         if self.vaults.open.get(self.vaults.current).map(|v| v.changes) != before {
-            self.vaults.category = category;
+            self.vaults.state.category = category;
         }
     }
 
@@ -3532,7 +2293,7 @@ impl Faraday {
         let free = self.vaults.memory_free_mib;
         let cost = self.vaults.form_cost();
         let medium = self.medium;
-        let Some(c) = self.vaults.create.as_mut() else {
+        let Some(c) = self.vaults.state.create.as_mut() else {
             return;
         };
         let error = if !self.stick.is_empty() {
@@ -3565,8 +2326,8 @@ impl Faraday {
         c.error = error;
         if c.error.is_none() {
             c.done[vstep::PHRASES as usize] = true;
-            self.vaults.working = Some(Work::Create);
-            self.vaults.drawn = false;
+            self.vaults.state.working = Some(Work::Create);
+            self.vaults.state.drawn = false;
         }
     }
 
@@ -3576,7 +2337,7 @@ impl Faraday {
         // its own; a vault is never made before it has arrived.
         if self.fresh.pool_is_empty() {
             self.out.command(faraday_shell_api::Command::RequestEntropy);
-            if let Some(c) = self.vaults.create.as_mut() {
+            if let Some(c) = self.vaults.state.create.as_mut() {
                 c.error = Some(EN.vaults_no_randomness.to_string());
             }
             return;
@@ -3636,9 +2397,9 @@ impl Faraday {
                     self.toast(EN.vaults_vault_created);
                     return;
                 }
-                self.vaults.just_made = Some(name.clone());
-                self.vaults.create = None;
-                self.vaults.focus = None;
+                self.vaults.state.just_made = Some(name.clone());
+                self.vaults.state.create = None;
+                self.vaults.state.focus = None;
                 self.screen = Screen::Vaults;
                 self.toast(EN.vaults_vault_created);
                 // Unlock, the new vault picked (FLOWS decision 10): its
@@ -3649,7 +2410,7 @@ impl Faraday {
                 }
             }
             Err(e) => {
-                if let Some(c) = self.vaults.create.as_mut() {
+                if let Some(c) = self.vaults.state.create.as_mut() {
                     c.error = Some(e.reason());
                 }
             }
@@ -3690,9 +2451,9 @@ impl Faraday {
         for (name, bytes) in sealed {
             self.put_outbox(&name, bytes);
         }
-        self.vaults.close_all();
-        self.vaults.load = None;
-        self.vaults.pass_seeds = None;
+        self.vaults.state.close_all();
+        self.vaults.state.load = None;
+        self.vaults.state.pass_seeds = None;
     }
 
     /// Open vault `i`, with the signed-amount memory added, sealed: its
@@ -3769,10 +2530,10 @@ impl Faraday {
         if let Some((name, bytes)) = self.vault_sealed(i) {
             self.put_outbox(&name, bytes);
         }
-        self.vaults.close(i);
-        self.vaults.current = 0;
-        self.vaults.item_open = false;
-        self.vaults.form = None;
+        self.vaults.state.close(i);
+        self.vaults.state.current = 0;
+        self.vaults.state.item_open = false;
+        self.vaults.state.form = None;
         true
     }
 
@@ -3806,19 +2567,19 @@ impl Faraday {
         if !self.may_load_keys()
             && matches!(focus, Focus::Passphrase | Focus::Phrase(..) | Focus::Dice)
         {
-            self.vaults.focus = None;
+            self.vaults.state.focus = None;
             return true;
         }
         if key == K::Escape {
-            self.vaults.focus = None;
+            self.vaults.state.focus = None;
             // The backup flow's Make form is not left by Escape.
             if self.vaults.form.is_some() && self.screen != Screen::BackupFlow {
-                self.vaults.form = None;
+                self.vaults.state.form = None;
             }
             return true;
         }
         if focus == Focus::Dice {
-            if let Some((_, rolls, _)) = self.vaults.dice.as_mut() {
+            if let Some((_, rolls, _)) = self.vaults.state.dice.as_mut() {
                 match key {
                     K::Char(c) if ('1'..='6').contains(&c) => rolls.text.push(c),
                     K::Backspace => {
@@ -3831,7 +2592,7 @@ impl Faraday {
             return true;
         }
         if focus == Focus::Prompt {
-            if let Some(p) = self.vaults.prompt.as_mut() {
+            if let Some(p) = self.vaults.state.prompt.as_mut() {
                 match key {
                     K::Char(c) if !c.is_control() => p.text.text.push(c),
                     K::Backspace => {
@@ -3840,7 +2601,7 @@ impl Faraday {
                     K::Enter => self.vault_act(VaultAction::PromptGo),
                     _ => {}
                 }
-                if let Some(p) = self.vaults.prompt.as_mut() {
+                if let Some(p) = self.vaults.state.prompt.as_mut() {
                     p.error = None;
                 }
             }
@@ -3857,11 +2618,12 @@ impl Faraday {
                     }
                 }
                 Focus::Name => {
-                    self.vaults.focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
+                    self.vaults.state.focus =
+                        self.may_load_keys().then_some(Focus::Phrase(0, false));
                 }
                 Focus::Phrase(i, second) => {
                     let n = self.vaults.create.as_ref().map_or(0, |c| c.phrases.len());
-                    self.vaults.focus = if !second {
+                    self.vaults.state.focus = if !second {
                         Some(Focus::Phrase(i, true))
                     } else if i + 1 < n {
                         Some(Focus::Phrase(i + 1, false))
@@ -3880,19 +2642,19 @@ impl Faraday {
                         .as_ref()
                         .is_some_and(|f| multiline(f.kind, f.fields[k].0));
                     if key == K::Enter && lines {
-                        if let Some(b) = self.vault_box(focus) {
+                        if let Some(b) = self.vaults.text_box(focus) {
                             b.text.push('\n');
                         }
                     } else if key == K::Enter && (k + 1 >= n) {
                         self.vault_act(VaultAction::FormSave);
                     } else {
-                        self.vaults.focus = Some(Focus::Field((k + 1) % n.max(1)));
+                        self.vaults.state.focus = Some(Focus::Field((k + 1) % n.max(1)));
                     }
                 }
             }
             return true;
         }
-        let Some(b) = self.vault_box(focus) else {
+        let Some(b) = self.vaults.text_box(focus) else {
             return false;
         };
         match key {
@@ -3904,407 +2666,12 @@ impl Faraday {
             }
             _ => return false,
         }
-        if let Some(c) = self.vaults.create.as_mut() {
+        if let Some(c) = self.vaults.state.create.as_mut() {
             c.error = None;
         }
-        self.vaults.unlock_error = None;
+        self.vaults.state.unlock_error = None;
         true
     }
-
-    fn vault_box(&mut self, focus: Focus) -> Option<&mut TextBox> {
-        match focus {
-            Focus::Passphrase => Some(&mut self.vaults.passphrase),
-            Focus::Phrase(i, second) => self
-                .vaults
-                .create
-                .as_mut()?
-                .phrases
-                .get_mut(i)
-                .map(|(a, b)| if second { b } else { a }),
-            Focus::Field(k) => self
-                .vaults
-                .form
-                .as_mut()?
-                .fields
-                .get_mut(k)
-                .map(|f| &mut f.2),
-            Focus::Dice => self.vaults.dice.as_mut().map(|d| &mut d.1),
-            Focus::Prompt => self.vaults.prompt.as_mut().map(|p| &mut p.text),
-            Focus::Name => self.vaults.create.as_mut().map(|c| &mut c.name),
-            Focus::Second => Some(&mut self.vaults.apk.second),
-        }
-    }
-}
-
-/// Longest name a vault's file takes, before `.ofv`.
-pub const NAME_MAX: usize = 40;
-
-/// The file name, less `.ofv`, a vault named `typed` is written under:
-/// letters, digits, hyphens and underscores, spaces made hyphens,
-/// anything else left out; `vault` when that leaves nothing.
-pub fn vault_stem(typed: &str) -> String {
-    let mut out = String::new();
-    for c in typed.trim().chars() {
-        if out.chars().count() >= NAME_MAX {
-            break;
-        }
-        if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-            out.push(c);
-        } else if c.is_whitespace() && !out.ends_with('-') {
-            out.push('-');
-        }
-    }
-    let out = out.trim_matches('-');
-    if out.is_empty() {
-        "vault".to_string()
-    } else {
-        out.to_string()
-    }
-}
-
-/// The words a list's dice rolls spell, for as many whole words as the
-/// rolls make (`faraday-bip`'s diceware lists, in roll order).
-pub fn dice_words(rolls: &str, list: faraday_bip::diceware::List) -> Vec<&'static str> {
-    let per = list.dice_per_word();
-    let digits: Vec<u8> = rolls
-        .bytes()
-        .filter(|b| (b'1'..=b'6').contains(b))
-        .map(|b| b - b'0')
-        .collect();
-    digits
-        .chunks_exact(per)
-        .filter_map(|w| list.word(w))
-        .collect()
-}
-
-/// The place in its list of each whole word the rolls make, in order:
-/// the dice read as a number in base 6, first die highest.
-pub fn dice_word_indices(rolls: &str, list: faraday_bip::diceware::List) -> Vec<u16> {
-    let digits: Vec<u16> = rolls
-        .bytes()
-        .filter(|b| (b'1'..=b'6').contains(b))
-        .map(|b| u16::from(b - b'1'))
-        .collect();
-    digits
-        .chunks_exact(list.dice_per_word())
-        .map(|w| w.iter().fold(0u16, |n, d| n * 6 + d))
-        .collect()
-}
-
-/// Whether a form field takes several lines, Enter starting a new one: a
-/// note's text and an entry's notes.
-pub fn multiline(kind: u8, number: u8) -> bool {
-    matches!(
-        (kind, number),
-        (kind::NOTE, field::NOTE) | (kind::ENTRY, field::NOTES)
-    )
-}
-
-/// What the lock, write-out and power-off sheets list (§4.5).
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct KeptWiped {
-    /// Kept: one line per vault with its currency, then the files For
-    /// the stick.
-    pub kept: Vec<String>,
-    /// Wiped from memory, or lost at power-off: one line each, `true` for
-    /// what is nowhere else.
-    pub wiped: Vec<(String, bool)>,
-}
-
-/// A vault file's currency (`docs/history/SIMPLIFY.md` §3.5), computed from the
-/// receipt's hashes, never stored.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Currency {
-    /// Sealed For the stick, and no receipt names it.
-    NeverWritten,
-    /// The last receipt that names it wrote the bytes it has now: on the
-    /// stick of this label.
-    Current(String),
-    /// Open with unsaved changes, or sealed bytes that differ from the
-    /// receipt's.
-    Changed,
-    /// Read from a stick and not changed since, the stick not known.
-    Unchanged,
-}
-
-impl Currency {
-    /// The line a person reads: "Never written", "On STICK · current",
-    /// "Changed since written", "Unchanged".
-    pub fn line(&self) -> String {
-        match self {
-            Currency::NeverWritten => EN.vaults_never_written.to_string(),
-            Currency::Current(label) => fill(EN.vaults_on_current, &[&label.to_string()]),
-            Currency::Changed => EN.vaults_changed_since.to_string(),
-            Currency::Unchanged => EN.vaults_unchanged.to_string(),
-        }
-    }
-}
-
-/// What the app remembers of a vault seen open, across a lock
-/// (`docs/VAULT.md` §11): names, fingerprints and master ids, never
-/// anything that spends. Kept in the kept state, so it is gone at power-off.
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
-pub struct VaultSummary {
-    /// The file it was opened from.
-    pub file: String,
-    /// The file's salt, which is the vault's identity.
-    pub salt: [u8; 32],
-    /// The open slot's name.
-    pub name: String,
-    /// Its wallets: name and shape.
-    pub wallets: Vec<(String, String)>,
-    /// Its wallets' descriptor checksums, in the same order.
-    pub sums: Vec<String>,
-    /// The descriptor checksums of the wallets it keeps a plan for.
-    pub planned: Vec<String>,
-    /// Its keys' fingerprints.
-    pub keys: Vec<String>,
-    /// Its keys' [`crate::wallet::master_id`]s, in the same order: what
-    /// says a seed is one of its keys while it is locked, where the
-    /// fingerprint only finds a candidate (F65). `None` for a key a
-    /// summary kept before the ids were.
-    pub ids: Vec<Option<[u8; 32]>>,
-    /// How many entries it holds.
-    pub entries: usize,
-    /// Its backup maps' lines: where each place is and what it holds
-    /// (record type 11, field 4).
-    pub map: Vec<String>,
-    /// When it was last seen open, Unix seconds, when the clock is known.
-    pub seen: Option<u64>,
-}
-
-impl VaultSummary {
-    /// The line a locked vault's row and Home's Unlock lead read under
-    /// its name: "Savings 2 of 3 · key 9a6a2580 · 12 entries · seen
-    /// 14:02". `tz_min` is the device's time zone (`docs/TOTP.md` §2.3).
-    pub fn line(&self, tz_min: i16) -> String {
-        let mut parts: Vec<String> = Vec::new();
-        // One or two wallets by name and the shape's first part ("2 of
-        // 3", "Single key"); more, by count.
-        if self.wallets.len() <= 2 {
-            for (name, shape) in &self.wallets {
-                let short = shape.split(" · ").next().unwrap_or(shape);
-                parts.push(format!("{name} {short}"));
-            }
-        } else {
-            parts.push(fill(
-                EN.vaults_wallets_n,
-                &[&self.wallets.len().to_string()],
-            ));
-        }
-        // The same for keys: one or two by fingerprint, more by count.
-        match self.keys.len() {
-            0 => {}
-            1 => parts.push(fill(EN.vaults_key, &[&self.keys[0].to_string()])),
-            2 => parts.push(fill(
-                EN.vaults_keys_inline,
-                &[&self.keys.join(", ").to_string()],
-            )),
-            n => parts.push(fill(EN.vaults_keys, &[&n.to_string()])),
-        }
-        match self.entries {
-            0 => {}
-            1 => parts.push(EN.vaults_1_entry.to_string()),
-            n => parts.push(fill(EN.vaults_entries_n, &[&n.to_string()])),
-        }
-        if let Some(t) = self.seen {
-            parts.push(fill(
-                EN.vaults_seen,
-                &[&time_of_day(local_secs(t, tz_min)).to_string()],
-            ));
-        }
-        if parts.is_empty() {
-            return EN.vaults_empty_line.to_string();
-        }
-        parts.join(" · ")
-    }
-}
-
-/// A time of day from local Unix-style seconds ([`local_secs`]), hh:mm.
-pub fn time_of_day(unix_secs: u64) -> String {
-    let s = unix_secs % 86_400;
-    format!("{:02}:{:02}", s / 3600, (s / 60) % 60)
-}
-
-/// [`time_of_day`], with seconds: hh:mm:ss, for Settings' and Set the
-/// time's Now row.
-pub fn time_of_day_secs(unix_secs: u64) -> String {
-    let s = unix_secs % 86_400;
-    format!("{:02}:{:02}:{:02}", s / 3600, (s / 60) % 60, s % 60)
-}
-
-/// One text field of the kept summaries: no tab or line break.
-fn kept_field(s: &str) -> String {
-    s.replace(['\t', '\n', '\r'], " ")
-}
-
-/// A record type 11 map line (field 4) with a leading place name
-/// replaced by "Place n": a vault written before place names moved out
-/// of this field named the place there; `names` are the same record's
-/// field 3 values, in place order. A line already naming the place by
-/// number, or one for a vault, files, software or an away seed, is
-/// returned unchanged.
-fn redact_place_name(line: &str, names: &[String]) -> String {
-    for (p, name) in names.iter().enumerate() {
-        let name = name.trim();
-        if name.is_empty() {
-            continue;
-        }
-        if let Some(rest) = line.strip_prefix(name).and_then(|r| r.strip_prefix(':')) {
-            return fill(EN.vaults_place, &[&(p + 1).to_string(), rest]);
-        }
-    }
-    line.to_string()
-}
-
-/// The summaries as the kept state holds them: a `vault` line per
-/// vault, then its `wallet`, `key` and `map` lines, fields split by tabs.
-pub(crate) fn summaries_encode(all: &[VaultSummary]) -> Vec<u8> {
-    let mut out = String::new();
-    for s in all {
-        let salt: String = s.salt.iter().map(|b| format!("{b:02x}")).collect();
-        let seen = s.seen.map(|t| t.to_string()).unwrap_or_default();
-        out.push_str(&format!(
-            "vault\t{salt}\t{}\t{}\t{}\t{seen}\n",
-            kept_field(&s.file),
-            kept_field(&s.name),
-            s.entries
-        ));
-        for (name, shape) in &s.wallets {
-            out.push_str(&format!(
-                "wallet\t{}\t{}\n",
-                kept_field(name),
-                kept_field(shape)
-            ));
-        }
-        for (i, k) in s.keys.iter().enumerate() {
-            match s.ids.get(i).copied().flatten() {
-                Some(id) => out.push_str(&format!(
-                    "key\t{}\t{}\n",
-                    kept_field(k),
-                    crate::backups::hex32(&id)
-                )),
-                None => out.push_str(&format!("key\t{}\n", kept_field(k))),
-            }
-        }
-        for c in &s.sums {
-            out.push_str(&format!("sum\t{}\n", kept_field(c)));
-        }
-        for c in &s.planned {
-            out.push_str(&format!("planned\t{}\n", kept_field(c)));
-        }
-        for m in &s.map {
-            out.push_str(&format!("map\t{}\n", kept_field(m)));
-        }
-    }
-    out.into_bytes()
-}
-
-/// The summaries read back; a line that does not read is skipped.
-pub(crate) fn summaries_decode(bytes: &[u8]) -> Vec<VaultSummary> {
-    let text = String::from_utf8_lossy(bytes);
-    let mut out: Vec<VaultSummary> = Vec::new();
-    for line in text.lines() {
-        let f: Vec<&str> = line.split('\t').collect();
-        match f[..] {
-            ["vault", salt, file, name, entries, seen] => {
-                let mut s = VaultSummary::default();
-                let bytes: Option<Vec<u8>> = (0..32)
-                    .map(|i| {
-                        salt.get(i * 2..i * 2 + 2)
-                            .and_then(|h| u8::from_str_radix(h, 16).ok())
-                    })
-                    .collect();
-                match bytes.and_then(|b| <[u8; 32]>::try_from(b).ok()) {
-                    Some(b) if salt.len() == 64 => s.salt = b,
-                    _ => continue,
-                }
-                s.file = file.to_string();
-                s.name = name.to_string();
-                s.entries = entries.parse().unwrap_or(0);
-                s.seen = seen.parse().ok();
-                out.push(s);
-            }
-            ["wallet", name, shape] => {
-                if let Some(s) = out.last_mut() {
-                    s.wallets.push((name.to_string(), shape.to_string()));
-                }
-            }
-            ["key", fp] => {
-                if let Some(s) = out.last_mut() {
-                    s.keys.push(fp.to_string());
-                    s.ids.push(None);
-                }
-            }
-            ["key", fp, id] => {
-                if let Some(s) = out.last_mut() {
-                    s.keys.push(fp.to_string());
-                    s.ids.push(crate::backups::read_hex32(id));
-                }
-            }
-            ["sum", c] => {
-                if let Some(s) = out.last_mut() {
-                    s.sums.push(c.to_string());
-                }
-            }
-            ["planned", c] => {
-                if let Some(s) = out.last_mut() {
-                    s.planned.push(c.to_string());
-                }
-            }
-            ["map", m] => {
-                if let Some(s) = out.last_mut() {
-                    s.map.push(m.to_string());
-                }
-            }
-            _ => {}
-        }
-    }
-    out
-}
-
-/// A clock reading below this is not known: the Pi has no real-time
-/// clock and starts at 1970 (`docs/TOTP.md` §1.1), the same floor
-/// `faraday/shells/stick/src/files.rs` uses for file dates.
-pub const CLOCK_FLOOR: u64 = 1_577_836_800;
-
-/// Unix seconds turned into local seconds for a time zone offset east of
-/// UTC, in minutes (`docs/TOTP.md` §2.3). Every date or time drawn on
-/// screen or written for the person goes through this; what goes into a
-/// format (a signature's time, the TOTP counter) stays UTC.
-pub fn local_secs(unix_secs: u64, tz_min: i16) -> u64 {
-    (unix_secs as i64 + i64::from(tz_min) * 60).max(0) as u64
-}
-
-/// A time zone offset, minutes east of UTC, as `+02:00`, `-03:30` or
-/// `+00:00` (`docs/TOTP.md` §2.1 and §2.2): the sign always written, two
-/// digits each of hours and minutes.
-pub fn tz_offset_text(tz_min: i16) -> String {
-    let sign = if tz_min < 0 { '-' } else { '+' };
-    let abs = tz_min.unsigned_abs();
-    format!("{sign}{:02}:{:02}", abs / 60, abs % 60)
-}
-
-/// `s` as a time zone offset `tz_offset_text` writes: the sign, two
-/// digits of hours, `:`, two digits of minutes a multiple of 15, in
-/// range −12:00 to +14:00.
-pub fn parse_tz_offset(s: &str) -> Option<i16> {
-    let b = s.as_bytes();
-    if b.len() != 6 || b[3] != b':' {
-        return None;
-    }
-    let sign: i16 = match b[0] {
-        b'+' => 1,
-        b'-' => -1,
-        _ => return None,
-    };
-    let hh: i16 = s.get(1..3)?.parse().ok()?;
-    let mm: i16 = s.get(4..6)?.parse().ok()?;
-    if !matches!(mm, 0 | 15 | 30 | 45) {
-        return None;
-    }
-    let total = sign * (hh * 60 + mm);
-    (-720..=840).contains(&total).then_some(total)
 }
 
 impl Faraday {
@@ -4420,9 +2787,15 @@ impl Faraday {
             });
         }
         for s in fresh {
-            match self.vaults.summaries.iter_mut().find(|o| o.salt == s.salt) {
+            match self
+                .vaults
+                .state
+                .summaries
+                .iter_mut()
+                .find(|o| o.salt == s.salt)
+            {
                 Some(o) => *o = s,
-                None => self.vaults.summaries.push(s),
+                None => self.vaults.state.summaries.push(s),
             }
         }
     }
@@ -4502,5 +2875,1615 @@ impl Faraday {
             .summaries
             .iter()
             .find(|s| s.salt == f.header.salt)
+    }
+}
+
+/// Glue of the TOTP codes screen (`crate::codes`).
+impl Faraday {
+    /// Opens the codes screen (§5.2): no vault open leads to Create or
+    /// Unlock first (handled by the tile and by `vault_way`); the clock
+    /// not checked this power-on opens Set the time first. Both checks
+    /// happen on the way in only.
+    pub(crate) fn open_codes(&mut self) {
+        self.screen = Screen::Codes;
+        if !self.clock_checked() {
+            self.open_set_time();
+        }
+    }
+
+    /// A row pressed: opens that entry in its vault (Vault contents,
+    /// Entries, the record selected).
+    pub(crate) fn open_code_row(&mut self, vault: usize, item: usize) {
+        self.vaults.state.current = vault;
+        self.vault_act(VaultAction::Category(2));
+        self.vault_act(VaultAction::Item(item));
+        self.screen = Screen::VaultContents;
+    }
+
+    /// Add an entry from the codes screen: the entry form, in the
+    /// current vault, the codes screen still showing behind it.
+    pub(crate) fn codes_add_entry(&mut self) {
+        self.vaults.state.category = 2;
+        self.vault_act(VaultAction::Add);
+    }
+
+    /// Handles the Codes screen's actions (`OpenCodes`, `CodesOpen`, `CodesAdd`).
+    pub(crate) fn codes_act(&mut self, action: Action) {
+        match action {
+            Action::OpenCodes => self.open_codes(),
+            Action::CodesOpen(v, item) => self.open_code_row(v, item),
+            Action::CodesAdd => self.codes_add_entry(),
+            // `act_inner` passes only the actions matched above.
+            _ => unreachable!(),
+        }
+    }
+}
+
+/// Glue of the vault's Android signing keys (`crate::apk`).
+impl Faraday {
+    /// Costs a hash of a whole file (through `sha_of`). What APK `item`
+    /// reads as, remembered while it stays as it is.
+    fn apk_read(&self, c: &Compute, item: &crate::Item) -> Result<Info, Refusal> {
+        // Read once per file, by the SHA-256 taken when it came in.
+        let sha = item.sha.unwrap_or_else(|| apk::sha_of(c, &item.bytes));
+        let mut cache = self.vaults.apk.listed.borrow_mut();
+        if let Some(e) = cache.iter().find(|e| e.sha == sha) {
+            return e.result.clone();
+        }
+        let result = Apk::read(&mut Slice(&item.bytes)).map(|a| a.info);
+        if cache.len() >= apk::APK_READS_KEPT {
+            cache.remove(0);
+        }
+        cache.push(apk::Read {
+            sha,
+            result: result.clone(),
+        });
+        result
+    }
+
+    /// Costs a hash of a whole file (through `apk_read`). What the Inbox
+    /// APK `name` states of itself, when it reads.
+    pub fn apk_info(&self, c: &Compute, name: &str) -> Option<Info> {
+        let item = self.inbox.iter().find(|i| i.name == name)?;
+        self.apk_read(c, item).ok()
+    }
+
+    /// Costs a hash of a whole file (through `apk_read`). The APKs in
+    /// Files, newest first, each with why it cannot be signed with a key
+    /// for `package` (`docs/APK-SIGNING.md` §4.4).
+    pub fn apk_listed(&self, c: &Compute, package: &str) -> Vec<apk::Listed> {
+        let mut out = Vec::new();
+        for (k, item) in self.inbox.iter().enumerate().rev() {
+            if item.kind != crate::FileKind::Apk {
+                continue;
+            }
+            let (info, why) = match self.apk_read(c, item) {
+                Ok(info) => {
+                    let why = if info.package != package {
+                        Some(apk::Why::Other(info.package.clone()))
+                    } else if apk::output_name(&item.name).len() > apk::NAME_MAX {
+                        Some(apk::Why::NameTooLong)
+                    } else if item.bytes.len() as u64 + 2 * sign::PAGE + 8192 > apk::FAT32_MAX {
+                        Some(apk::Why::TooBig)
+                    } else {
+                        None
+                    };
+                    (Some(info), why)
+                }
+                Err(Refusal::AlreadySigned) => (None, Some(apk::Why::AlreadySigned)),
+                Err(Refusal::NotAligned) => (None, Some(apk::Why::NotAligned)),
+                Err(Refusal::OldSdk) => (None, Some(apk::Why::OldSdk)),
+                Err(_) => (None, Some(apk::Why::NotApk)),
+            };
+            out.push(apk::Listed {
+                inbox: k,
+                name: item.name.clone(),
+                size: item.bytes.len(),
+                info,
+                why,
+            });
+        }
+        out
+    }
+
+    /// The selected type-12 record, with its vault and place.
+    pub(crate) fn apk_selected(&self) -> Option<(usize, RecordView<'_>)> {
+        let at = self.vault_selected_index()?;
+        let r = self
+            .vaults
+            .records(self.vaults.open.get(self.vaults.current)?.id)
+            .get(at)?;
+        (r.kind() == kind::APK_KEY).then_some((at, r))
+    }
+
+    /// Every APK signing key in the open vaults whose package is
+    /// `package`: vault, record place, name and fingerprint.
+    pub fn apk_keys_for(&self, package: &str) -> Vec<(usize, usize, String, [u8; 32])> {
+        let mut out = Vec::new();
+        for (v, open) in self.vaults.open.iter().enumerate() {
+            for (at, r) in self.vaults.records(open.id).iter() {
+                if r.kind() != kind::APK_KEY || r.public_text(field::APK_PACKAGE) != Some(package) {
+                    continue;
+                }
+                if let Some(s) = apk::shown(r, self.tz_min()) {
+                    out.push((v, at, s.name, apk::fingerprint_of(r).unwrap_or_default()));
+                }
+            }
+        }
+        out
+    }
+
+    /// The type-12 record whose certificate has this SHA-256, with its
+    /// vault and place.
+    pub(crate) fn apk_find(&self, fp: &[u8; 32]) -> Option<(usize, usize)> {
+        for (v, open) in self.vaults.open.iter().enumerate() {
+            for (at, r) in self.vaults.records(open.id).iter() {
+                if r.kind() == kind::APK_KEY && apk::fingerprint_of(r).as_ref() == Some(fp) {
+                    return Some((v, at));
+                }
+            }
+        }
+        None
+    }
+
+    /// Costs a hash of a whole file (through `sha_of`). A vault in Files
+    /// that this session unlocked or wrote: its salt is an open vault's, or
+    /// its bytes are what the last write of this session put on a stick. A
+    /// copy of any other vault never goes over a vault of the same size on
+    /// a stick.
+    pub(crate) fn vault_is_this_sessions(&self, c: &Compute, bytes: &[u8]) -> bool {
+        let Ok(h) = faraday_vault::read_header(bytes) else {
+            return false;
+        };
+        if self.vaults.open.iter().any(|v| v.header().salt == h.salt) {
+            return true;
+        }
+        // Only a write of this session's own visit counts: the flow's
+        // sealings do not, so that a later ordinary visit never writes the
+        // flow's bytes over a newer copy on another stick.
+        let hash = apk::sha_of(c, bytes);
+        self.visit
+            .receipt()
+            .as_ref()
+            .is_some_and(|r| !r.by_flow && r.holds_hash(&hash))
+    }
+
+    /// Costs a hash of a whole file (through `apk_read`). What an APK's row
+    /// in Files offers (`docs/APK-SIGNING.md` §4.1): to sign, when an open
+    /// vault holds a key for its package; a note of why not otherwise; and
+    /// Unlock or Make a vault, where none is open.
+    pub fn apk_files_row(&self, c: &Compute, k: usize) -> apk::Row {
+        if !self.apk_signing {
+            return apk::Row::None;
+        }
+        let Some(item) = self.inbox.get(k) else {
+            return apk::Row::None;
+        };
+        let info = match self.apk_read(c, item) {
+            Ok(i) => i,
+            Err(Refusal::AlreadySigned) => return apk::Row::Note(apk::Why::AlreadySigned.text()),
+            Err(Refusal::NotAligned) => return apk::Row::Note(apk::Why::NotAligned.text()),
+            Err(Refusal::OldSdk) => return apk::Row::Note(apk::Why::OldSdk.text()),
+            Err(_) => return apk::Row::Note(apk::Why::NotApk.text()),
+        };
+        if self.vaults.open.is_empty() {
+            return apk::Row::Sign;
+        }
+        if self.apk_keys_for(&info.package).is_empty() {
+            return apk::Row::Note(apk::Why::Other(info.package).text());
+        }
+        if apk::output_name(&item.name).len() > apk::NAME_MAX {
+            return apk::Row::Note(apk::Why::NameTooLong.text());
+        }
+        let keys = self.apk_keys_for(&info.package);
+        if keys
+            .iter()
+            .all(|k| self.backup_waits(Kind::Apk, &k.3).is_some())
+        {
+            return apk::Row::Back;
+        }
+        apk::Row::Sign
+    }
+
+    /// Selects a key by its place for the contents to show.
+    fn apk_select(&mut self, v: usize, at: usize) {
+        let Some(open) = self.vaults.open.get(v) else {
+            return;
+        };
+        let n = self
+            .vaults
+            .records(open.id)
+            .iter()
+            .take(at)
+            .filter(|(_, r)| r.kind() == kind::APK_KEY)
+            .count();
+        self.vaults.state.current = v;
+        self.vaults.state.category = 6;
+        self.vaults.state.category_chosen = true;
+        self.vaults.state.item[6] = n;
+        self.vaults.state.item_open = true;
+        self.vaults.state.form = None;
+        self.vaults.state.saving = false;
+        self.vaults.state.prompt = None;
+        self.vaults.state.signing = false;
+        self.vaults.state.sb_images = false;
+        self.vaults.set_item_offset(0.0);
+        self.screen = crate::Screen::VaultContents;
+    }
+
+    /// Files' Sign with APK key: with one key of an open vault for the
+    /// APK's package, its review; with several, which key.
+    pub(crate) fn apk_from_files(&mut self, k: usize) {
+        let c = self.compute();
+        let Some(item) = self.inbox.get(k) else {
+            return;
+        };
+        let name = item.name.clone();
+        let Ok(info) = self.apk_read(&c, item) else {
+            return;
+        };
+        let keys = self.apk_keys_for(&info.package);
+        let Some(&(v, at, _, fp)) = keys.first() else {
+            return;
+        };
+        if keys.len() == 1 && self.backup_waits(Kind::Apk, &fp).is_some() {
+            // The key waits for its backup: the flow opens on its step.
+            return self.backup_continue(Kind::Apk, &fp);
+        }
+        self.apk_select(v, at);
+        self.vaults.state.apk.leave();
+        self.vaults.state.apk.signing = true;
+        if keys.len() == 1 {
+            self.apk_open_review(&name, fp);
+        } else {
+            self.vaults.state.apk.which = Some(name);
+        }
+    }
+
+    /// "Which key?" was answered.
+    pub(crate) fn apk_key_picked(&mut self, v: usize, at: usize) {
+        let Some(name) = self.vaults.apk.which.clone() else {
+            return;
+        };
+        let Some(fp) = self
+            .vaults
+            .open
+            .get(v)
+            .and_then(|o| self.vaults.records(o.id).get(at))
+            .and_then(apk::fingerprint_of)
+        else {
+            return;
+        };
+        if self.backup_waits(Kind::Apk, &fp).is_some() {
+            return self.backup_continue(Kind::Apk, &fp);
+        }
+        self.apk_select(v, at);
+        self.vaults.state.apk.leave();
+        self.vaults.state.apk.signing = true;
+        self.apk_open_review(&name, fp);
+    }
+
+    /// Makes the key the flow's form described, once: the record every
+    /// vault of the plan takes, and the certificate For the stick.
+    pub(crate) fn apk_build(&mut self, name: &str, package: &str) -> Result<Built, String> {
+        let (name, package) = Self::apk_check_form(name, package).map_err(str::to_string)?;
+        let now = self
+            .clock_now()
+            .ok_or_else(|| EN.apk_this_computer.to_string())?;
+        let seed = self
+            .fresh(b"apk key")
+            .map(zeroize::Zeroizing::new)
+            .ok_or_else(|| EN.apk_no_randomness.to_string())?;
+        let made = faraday_keys::apk::create(&seed, &name, &package, now)
+            .map_err(|e| e.reason().to_string())?;
+        let fp = key::fingerprint(&made.cert);
+        let stem = apk::file_stem(&name, &fp);
+        Ok(Built {
+            record: made.key,
+            subject: fp.to_vec(),
+            name,
+            outbox: vec![(
+                format!("{stem}-certificate.pem"),
+                pem::encode(&made.cert).into_bytes(),
+            )],
+        })
+    }
+
+    /// The Make form's checks: the certificate's name and the package, in
+    /// the words they are refused in.
+    pub(crate) fn apk_check_form(
+        name: &str,
+        package: &str,
+    ) -> Result<(String, String), &'static str> {
+        let name = key::check_name(name).map_err(|_| EN.apk_name_the_certificate)?;
+        let package = package.trim();
+        if !key::valid_package(package) {
+            return Err(EN.apk_package_invalid);
+        }
+        Ok((name, package.to_string()))
+    }
+
+    /// The selected key's certificate to the Outbox.
+    pub(crate) fn apk_export(&mut self) {
+        let Some((_, r)) = self.apk_selected() else {
+            return;
+        };
+        let (Some(cert), Some(fp)) = (r.public(field::APK_CERT), apk::fingerprint_of(r)) else {
+            return;
+        };
+        let Some(s) = apk::shown(r, self.tz_min()) else {
+            return;
+        };
+        let name = format!("{}-certificate.pem", apk::file_stem(&s.name, &fp));
+        self.put_outbox(&name, pem::encode(cert).into_bytes());
+        self.toast_out(&name);
+    }
+
+    /// Costs what `text` costs. The QR view of the selected key's
+    /// certificate, with the name and label of its picture.
+    pub(crate) fn apk_code(&self, c: &Compute) -> Result<crate::QrView, String> {
+        let (_, r) = self
+            .apk_selected()
+            .ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
+        let cert = r
+            .public(field::APK_CERT)
+            .ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
+        let fp = apk::fingerprint_of(r).unwrap_or_default();
+        let s =
+            apk::shown(r, self.tz_min()).ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
+        let stem = apk::file_stem(&s.name, &fp);
+        let lines = vec![
+            s.name.clone(),
+            fill(EN.apk_cert_fingerprint_line, &[&s.fingerprint]),
+            EN.apk_public_checks.to_string(),
+        ];
+        Ok(
+            crate::QrView::text(c, EN.apk_certificate, &pem::encode(cert))?
+                .public(&format!("{stem}.png"), lines),
+        )
+    }
+
+    /// Opens the review of Inbox APK `name` for the key `fp`.
+    pub(crate) fn apk_open_review(&mut self, name: &str, fp: [u8; 32]) {
+        let c = self.compute();
+        let Some(item) = self.inbox.iter().find(|i| i.name == name) else {
+            return;
+        };
+        let sha = apk::sha_of(&c, &item.bytes);
+        self.vaults.state.apk.review = Some(apk::Review {
+            name: name.to_string(),
+            key: fp,
+            sha,
+        });
+        self.vaults.state.apk.second.clear();
+        self.vaults.state.apk.which = None;
+        self.vaults.state.focus = Some(crate::vault::Focus::Second);
+    }
+
+    /// The second build typed so far against the file under review.
+    pub fn apk_second(&self) -> apk::Second {
+        match &self.vaults.apk.review {
+            Some(r) => apk::compare_second(&self.vaults.apk.second.text, &r.sha),
+            None => apk::Second::Empty,
+        }
+    }
+
+    /// Signs the APK under review: the hold completed. Everything is
+    /// checked again here, and nothing is written when anything fails.
+    pub(crate) fn apk_sign(&mut self) {
+        let c = self.compute();
+        let Some(review) = self.vaults.apk.review.clone() else {
+            return;
+        };
+        if !matches!(self.apk_second(), apk::Second::Matches(_)) {
+            return;
+        }
+        if self.backup_waits(Kind::Apk, &review.key).is_some() {
+            return;
+        }
+        let Some((v, at)) = self.apk_find(&review.key) else {
+            return;
+        };
+        let id = self.vaults.open[v].id;
+        let Some(package) = self
+            .vaults
+            .records(id)
+            .get(at)
+            .and_then(|r| r.public_text(field::APK_PACKAGE))
+            .map(str::to_string)
+        else {
+            return;
+        };
+        let Some(seed) = self.fresh(b"apk signing").map(zeroize::Zeroizing::new) else {
+            return self.toast(EN.apk_no_randomness);
+        };
+        let Some(item) = self.inbox.iter().find(|i| i.name == review.name) else {
+            return;
+        };
+        // The bytes signed are the bytes reviewed.
+        if apk::sha_of(&c, &item.bytes) != review.sha {
+            self.toast(EN.apk_changed_since_review);
+            self.vaults.state.apk.review = None;
+            return;
+        }
+        let mut src = Slice(&item.bytes);
+        let apk = match Apk::read(&mut src) {
+            Ok(a) if a.info.package == package => a,
+            _ => return,
+        };
+        let out_name = apk::output_name(&item.name);
+        if out_name.len() > apk::NAME_MAX {
+            return;
+        }
+        let signed = match self.vaults.store().apk_sign(id, at, &seed, &mut src, &apk) {
+            Some(Ok(bytes)) => bytes,
+            Some(Err(e)) => return self.toast(e.reason()),
+            None => return,
+        };
+        self.put_outbox(&out_name, signed);
+        self.vaults.state.apk.review = None;
+        self.vaults.state.apk.second.clear();
+        self.vaults.state.focus = None;
+        self.vaults.state.apk.signing = true;
+        self.toast_out(&out_name);
+    }
+}
+
+/// Glue of the vault's GPG keys (`crate::gpg`).
+impl Faraday {
+    fn clock(&self) -> Result<u32, String> {
+        self.clock_now()
+            .map(|t| t as u32)
+            .ok_or_else(|| EN.gpg_this_computer_s.to_string())
+    }
+
+    /// The GPG key selected in the open vault: its vault, its record's
+    /// place and what it says of itself in public. Costs two Ed25519
+    /// public keys.
+    fn gpg_selected(&self) -> Option<(VaultId, usize, Facts)> {
+        let at = self.vault_selected_index()?;
+        let id = self.vaults.open.get(self.vaults.current)?.id;
+        let r = self.vaults.records(id).get(at)?;
+        (r.kind() == kind::GPG).then(|| gpg_facts(r).map(|k| (id, at, k)))?
+    }
+
+    /// Record `at` of open vault `id`.
+    fn gpg_record(&self, id: VaultId, at: usize) -> Option<RecordView<'_>> {
+        self.vaults.records(id).get(at)
+    }
+
+    /// Puts a file in the Outbox unless a file of that name is there that
+    /// `replaces` does not allow over: GnuPG's batch mode does not
+    /// overwrite ("File exists") either.
+    fn put_unless_taken(
+        &mut self,
+        name: &str,
+        bytes: Vec<u8>,
+        replaces: impl Fn(&Item) -> bool,
+    ) -> bool {
+        if self.outbox.iter().any(|i| i.name == name && !replaces(i)) {
+            return false;
+        }
+        self.put_outbox(name, bytes);
+        true
+    }
+
+    /// Makes a GPG key for the backup flow: an Ed25519 certification key
+    /// and signing subkey from fresh entropy, one user ID, the chosen
+    /// expiry. The record every vault of the plan takes and the public
+    /// certificate For the stick; the revocation certificate, as GnuPG 2.1
+    /// and later do, is kept with the key.
+    pub(crate) fn gpg_build(&mut self, name: &str, email: &str) -> Result<Built, String> {
+        let now = self.clock()?;
+        // `gpg --quick-generate-key` takes one string, trims it, and
+        // refuses only an empty one ("Invalid user ID"); it checks no
+        // address and no length.
+        let uid = match (name.trim(), email.trim()) {
+            ("", "") => return Err(EN.gpg_a_key_needs_a_name.to_string()),
+            (n, "") => n.to_string(),
+            ("", e) => format!("<{e}>"),
+            (n, e) => format!("{n} <{e}>"),
+        };
+        let (Some(primary), Some(subkey)) = (self.fresh(b"gpg primary"), self.fresh(b"gpg subkey"))
+        else {
+            return Err(EN.gpg_no_randomness.to_string());
+        };
+        let primary = Zeroizing::new(primary);
+        let subkey = Zeroizing::new(subkey);
+        let made = faraday_keys::gpg::create(
+            &primary,
+            &subkey,
+            now,
+            uid.clone(),
+            self.vaults.gpg_years * gpg::YEAR,
+        );
+        let stem = gpg::file_stem(&made.facts);
+        Ok(Built {
+            record: made.key,
+            subject: made.facts.fingerprint.to_vec(),
+            name: if name.trim().is_empty() {
+                uid
+            } else {
+                name.trim().to_string()
+            },
+            outbox: vec![(
+                format!("{stem}.asc"),
+                armor(Armor::PublicKey, &made.certificate).into_bytes(),
+            )],
+        })
+    }
+
+    /// The public key to the Outbox, unless a file of that name is there
+    /// that is not a public key.
+    pub(crate) fn gpg_put_public(&mut self, name: &str, bytes: Vec<u8>) {
+        self.put_unless_taken(name, bytes, |i| {
+            faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey)
+        });
+    }
+
+    /// Makes the revocation certificate a record lacks, with the clock as
+    /// it is: a key made before revocations were kept gets its one when
+    /// its page is first used. Nothing is made while the clock is not
+    /// known or not checked.
+    pub(crate) fn gpg_keep_revocation(&mut self) {
+        let Some((id, at, _)) = self.gpg_selected() else {
+            return;
+        };
+        if self.gpg_record(id, at).is_none_or(|r| r.has(f::REVOCATION)) || !self.clock_checked() {
+            return;
+        }
+        let Ok(now) = self.clock() else {
+            return;
+        };
+        if self.vaults.edit(id, |s| s.gpg_keep_revocation(id, at, now)) {
+            self.vaults.changed(id);
+        }
+    }
+
+    /// The selected key's public certificate, armoured, with the key.
+    fn gpg_certificate(&self) -> Option<(Facts, String)> {
+        let (id, at, key) = self.gpg_selected()?;
+        let r = self.gpg_record(id, at)?;
+        let cert = match r.public(f::CERTIFICATE) {
+            Some(c) => c.to_vec(),
+            None => self.vaults.store().gpg_certificate(
+                id,
+                at,
+                gpg::certified_at(r).unwrap_or(key.created),
+                None,
+            )?,
+        };
+        Some((key, armor(Armor::PublicKey, &cert)))
+    }
+
+    /// The selected key's public certificate to the Outbox.
+    pub(crate) fn gpg_export(&mut self) {
+        let Some((key, text)) = self.gpg_certificate() else {
+            return;
+        };
+        let name = format!("{}.asc", gpg::file_stem(&key));
+        if self.put_unless_taken(&name, text.into_bytes(), |i| {
+            faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey)
+        }) {
+            self.toast_out(&name);
+        } else {
+            self.toast(&fill(EN.gpg_exists, &[&name.to_string()]));
+        }
+    }
+
+    /// Costs what `gpg_files` and `text` cost. The QR view of the selected
+    /// key's certificate or its signature over an Inbox file, with the name
+    /// and label of its picture.
+    pub(crate) fn gpg_code(&self, c: &Compute, code: crate::Code) -> Result<crate::QrView, String> {
+        use crate::Code;
+        let (id, at, key) = self.gpg_selected().ok_or(EN.gpg_no_gpg_key_is_selected)?;
+        let stem = gpg::file_stem(&key);
+        let fp = fill(
+            EN.gpg_fingerprint,
+            &[&faraday_pgp::fingerprint_text(&key.fingerprint).to_string()],
+        );
+        let who = key.user_ids.first().cloned().unwrap_or_default();
+        let (title, text, name, lines) = match code {
+            Code::GpgKey => {
+                let (_, text) = self
+                    .gpg_certificate()
+                    .ok_or(EN.gpg_no_gpg_key_is_selected)?;
+                (
+                    EN.gpg_gpg_public_key.to_string(),
+                    text,
+                    format!("{stem}.png"),
+                    vec![who, fp, EN.gpg_public_checks_signatures.to_string()],
+                )
+            }
+            Code::GpgSignature(prefix) => {
+                // A key that waits for its backup signs nothing, a code of a
+                // signature included (`docs/BACKUP-FLOW.md` §8).
+                if self.selected_waits().is_some() {
+                    return Err(EN.backup_flow_first.to_string());
+                }
+                let now = self.clock()?;
+                gpg::usable(&key, self.gpg_record(id, at).and_then(gpg::revoked_at), now)?;
+                let item = self
+                    .gpg_files(c)
+                    .into_iter()
+                    .find(|f| f.hash[..8] == prefix)
+                    .and_then(|f| self.inbox.get(f.index))
+                    .ok_or(EN.gpg_file_gone)?;
+                (
+                    fill(EN.gpg_gpg_signature, &[&item.name.to_string()]),
+                    self.vaults
+                        .store()
+                        .gpg_sign_armored(id, at, &item.bytes, now)
+                        .ok_or(EN.gpg_no_gpg_key_is_selected)?,
+                    format!("{}.asc.png", item.name),
+                    vec![
+                        fill(EN.gpg_signs, &[&item.name.to_string()]),
+                        fill(EN.gpg_signer_line, &[&who.to_string()]),
+                        fp,
+                    ],
+                )
+            }
+            _ => return Err(EN.gpg_not_a_gpg_file.to_string()),
+        };
+        Ok(crate::QrView::text(c, &title, &text)?.public(&name, lines))
+    }
+
+    /// Offers a revocation file through the secret sheet: whoever has it
+    /// can revoke the key, so it is never a public file, a code or a
+    /// picture.
+    fn gpg_offer_revocation(&mut self, key: &Facts, file: &str) {
+        let mut out = crate::secrets::SecretOut::new(
+            gpg::rev_name(key),
+            Zeroizing::new(file.as_bytes().to_vec()),
+            EN.gpg_gpg_revocation,
+            EN.gpg_revocation_warning,
+        );
+        // It is in the vault already.
+        out.keep = crate::secrets::Keep::None;
+        self.offer_secret(out);
+    }
+
+    /// The revocation certificate kept with the selected key, through the
+    /// secret sheet as `{name}-{FPR}.rev`.
+    pub(crate) fn gpg_export_revocation(&mut self) {
+        self.gpg_keep_revocation();
+        let Some((id, at, key)) = self.gpg_selected() else {
+            return;
+        };
+        let Some(file) = self.vaults.store().gpg_revocation_file(
+            id,
+            at,
+            faraday_keys::Reveal::OutboxFile(faraday_keys::Part::Revocation),
+        ) else {
+            return self.toast(EN.gpg_no_revocation_kept);
+        };
+        self.gpg_offer_revocation(&key, &file);
+    }
+
+    /// A new revocation certificate for the selected key, with the reason
+    /// chosen (`gpg --generate-revocation`), through the secret sheet.
+    /// The kept one is not replaced.
+    pub(crate) fn gpg_make_revocation(&mut self, reason: Reason, text: &str) {
+        let Some((id, at, key)) = self.gpg_selected() else {
+            return;
+        };
+        let now = match self.clock() {
+            Ok(t) => t,
+            Err(e) => return self.toast(&e),
+        };
+        let Some(file) = self.vaults.store().gpg_new_revocation_file(
+            id,
+            at,
+            now,
+            reason,
+            text.trim(),
+            faraday_keys::Reveal::OutboxFile(faraday_keys::Part::Revocation),
+        ) else {
+            return;
+        };
+        self.gpg_offer_revocation(&key, &file);
+    }
+
+    /// The key is marked revoked, as importing its own revocation
+    /// certificate marks it in GnuPG: it signs nothing and renews
+    /// nothing after.
+    pub(crate) fn gpg_mark_revoked(&mut self) {
+        let Some((id, at, _)) = self.gpg_selected() else {
+            return;
+        };
+        let now = match self.clock() {
+            Ok(t) => t,
+            Err(e) => return self.toast(&e),
+        };
+        if self.gpg_record(id, at).is_some_and(|r| !r.has(f::REVOKED)) {
+            self.vaults
+                .edit(id, |s| s.set_public(id, at, f::REVOKED, &now.to_le_bytes()));
+            self.vaults.changed(id);
+        }
+        self.toast(EN.gpg_marked_revoked);
+    }
+
+    /// New self-signatures with the term chosen on the key's page,
+    /// counted from now as `gpg --quick-set-expire` counts it; the
+    /// record's certificate and the Outbox's change together.
+    pub(crate) fn gpg_renew(&mut self) {
+        if self.selected_waits().is_some() {
+            return;
+        }
+        let Some((id, at, key)) = self.gpg_selected() else {
+            return;
+        };
+        let Some(years) = self.vaults.renew_years else {
+            return self.toast(EN.gpg_choose_the_term);
+        };
+        let now = match self.clock() {
+            Ok(t) => t,
+            Err(e) => return self.toast(&e),
+        };
+        let Some(r) = self.gpg_record(id, at) else {
+            return;
+        };
+        let (revoked, certified) = (gpg::revoked_at(r), gpg::certified_at(r));
+        if revoked.is_some() {
+            return self.toast(&fill(
+                EN.gpg_revoked,
+                &[&gpg::date(u64::from(revoked.unwrap_or(0)))],
+            ));
+        }
+        // GnuPG signs one second after the last signature when the clock
+        // is within 4 seconds of it, and refuses a clock earlier than
+        // that ("Time conflict"): an older signature would be ignored.
+        let last = certified.unwrap_or(key.created);
+        if last > now && last - now >= gpg::SKEW {
+            return self.toast(EN.gpg_time_conflict);
+        }
+        let at_time = now.max(last.saturating_add(1));
+        let expiry = match years {
+            0 => 0,
+            y => now.saturating_sub(key.created) + y * gpg::YEAR,
+        };
+        let Some(cert) = self
+            .vaults
+            .store()
+            .gpg_certificate(id, at, at_time, Some(expiry))
+        else {
+            return;
+        };
+        let name = format!("{}.asc", gpg::file_stem(&key));
+        self.vaults.edit(id, |s| {
+            s.set_public(id, at, f::EXPIRY, &expiry.to_le_bytes());
+            s.set_public(id, at, f::CERTIFICATE, &cert);
+        });
+        self.vaults.changed(id);
+        self.vaults.state.renew_years = None;
+        if self.put_unless_taken(&name, armor(Armor::PublicKey, &cert).into_bytes(), |i| {
+            faraday_pgp::read_public_armor(&i.bytes) == Some(Armor::PublicKey)
+        }) {
+            self.toast(&fill(
+                EN.gpg_renewed_waits,
+                &[&name.to_string(), self.medium.for_the()],
+            ));
+        } else {
+            self.toast(&fill(EN.gpg_exists, &[&name.to_string()]));
+        }
+    }
+
+    /// Costs a hash of a whole file (through `hash`). The Inbox files a GPG
+    /// key can sign, each with its hash and, when small, its text: a `.asc`
+    /// file is a signature already, not something to sign again.
+    pub(crate) fn gpg_files(&self, c: &Compute) -> Vec<gpg::GpgFile> {
+        let mut seen = self.vaults.sign_seen.borrow_mut();
+        let mut out = Vec::new();
+        let mut keep = Vec::new();
+        for (index, it) in self.inbox.iter().enumerate() {
+            if it.name.ends_with(".asc") {
+                continue;
+            }
+            let probe = gpg::probe_of(&it.bytes);
+            let (hash, text) = match seen.iter().find(|s| s.name == it.name && s.probe == probe) {
+                Some(s) => (s.hash, s.text.clone()),
+                // Kept on the state (`sign_seen`) once worked out.
+                None => (it.hash(c), gpg::small_text(&it.bytes)),
+            };
+            keep.push(gpg::Seen {
+                name: it.name.clone(),
+                probe,
+                hash,
+                text: text.clone(),
+            });
+            out.push(gpg::GpgFile {
+                index,
+                name: it.name.clone(),
+                size: it.bytes.len(),
+                hash,
+                text,
+            });
+        }
+        *seen = keep;
+        out
+    }
+
+    /// Costs a hash of a whole file (through `gpg_files`). The code of the
+    /// selected key's signature over the Inbox file called `name`: it names
+    /// the file by its hash, as the signing page's buttons do.
+    pub fn signature_code(&self, c: &Compute, name: &str) -> Option<crate::Code> {
+        let f = self.gpg_files(c).into_iter().find(|f| f.name == name)?;
+        Some(crate::Code::GpgSignature(f.hash[..8].try_into().ok()?))
+    }
+
+    /// Whether a listed file is ticked: by its name and hash, so a file a
+    /// stick visit replaced is not.
+    pub(crate) fn gpg_ticked(&self, f: &gpg::GpgFile) -> bool {
+        self.vaults
+            .sign_ticked
+            .iter()
+            .any(|(n, h)| *n == f.name && *h == f.hash)
+    }
+
+    /// The signing page's ticks at their default: the only signable file
+    /// ticked, or none of several.
+    pub(crate) fn gpg_default_ticks(&mut self) {
+        let c = self.compute();
+        let files = self.gpg_files(&c);
+        self.vaults.state.sign_ticked = match files.as_slice() {
+            [one] => vec![(one.name.clone(), one.hash)],
+            _ => Vec::new(),
+        };
+    }
+
+    /// Ticks or unticks the listed file at `k`.
+    pub(crate) fn gpg_tick(&mut self, k: usize) {
+        let c = self.compute();
+        let Some(f) = self.gpg_files(&c).into_iter().nth(k) else {
+            return;
+        };
+        let tick = (f.name, f.hash);
+        match self.vaults.sign_ticked.iter().position(|t| *t == tick) {
+            Some(at) => {
+                self.vaults.state.sign_ticked.remove(at);
+            }
+            None => self.vaults.state.sign_ticked.push(tick),
+        }
+    }
+
+    /// Ticks every listed file, or none when every one is ticked.
+    pub(crate) fn gpg_tick_all(&mut self) {
+        let c = self.compute();
+        let files = self.gpg_files(&c);
+        if files.iter().all(|f| self.gpg_ticked(f)) {
+            self.vaults.state.sign_ticked.clear();
+        } else {
+            self.vaults.state.sign_ticked = files.into_iter().map(|f| (f.name, f.hash)).collect();
+        }
+    }
+
+    /// Clears the signing page, its ticks and the other GPG pages when the
+    /// vault, the category or the key selected changes.
+    pub(crate) fn gpg_page_reset(&mut self) {
+        if self.sheet == Some(crate::Sheet::GpgSign) {
+            self.sheet = None;
+        }
+        self.vaults.state.signing = false;
+        self.vaults.state.sign_ticked.clear();
+        self.vaults.state.sign_key = None;
+        self.vaults.state.renew_years = None;
+        self.vaults.state.revoke_reason = 0;
+    }
+
+    /// The selected key's fingerprint.
+    pub(crate) fn gpg_fingerprint(&self) -> Option<[u8; 20]> {
+        self.gpg_selected().map(|(_, _, k)| k.fingerprint)
+    }
+
+    /// The selected key's first user ID, which Sign with {key} names it
+    /// by.
+    pub(crate) fn gpg_user_id(&self) -> Option<String> {
+        let at = self.vault_selected_index()?;
+        let r = self
+            .vaults
+            .records(self.vaults.open.get(self.vaults.current)?.id)
+            .get(at)?;
+        let id = r.public_all(f::USER_ID).next()?;
+        Some(String::from_utf8_lossy(id).into_owned())
+    }
+
+    /// Costs a hash of a whole file (through `gpg_files`). The listed files
+    /// ticked to sign, as Sign's sheet lists them. Hashes a file the page
+    /// has not hashed yet.
+    pub(crate) fn gpg_chosen(&self, c: &Compute) -> Vec<gpg::GpgFile> {
+        self.gpg_files(c)
+            .into_iter()
+            .filter(|f| self.gpg_ticked(f))
+            .collect()
+    }
+
+    /// Sign a file's **Sign**: opens **Sign with {key}** over the page
+    /// when a listed file is ticked. Signs nothing and asks nothing: the
+    /// sheet shows the time the signatures will carry (F63).
+    pub(crate) fn gpg_sign_sheet_open(&mut self) {
+        let c = self.compute();
+        if !self.vaults.signing || self.vaults.sign_key != self.gpg_fingerprint() {
+            return;
+        }
+        if self.gpg_chosen(&c).is_empty() {
+            return;
+        }
+        self.sheet = Some(crate::Sheet::GpgSign);
+    }
+
+    /// The hold on **Sign with {key}**: signs the ticked files at the
+    /// time the sheet shows, then closes it. With the clock not known
+    /// the hold is disabled and signs nothing (F63). Nothing else signs:
+    /// pressed with no sheet open, it does nothing.
+    pub(crate) fn gpg_sign_sheet_hold(&mut self) {
+        if self.sheet != Some(crate::Sheet::GpgSign) || self.clock_now().is_none() {
+            return;
+        }
+        self.sheet = None;
+        self.gpg_sign_ticked();
+    }
+
+    /// Signs every ticked file in one go, after the hold: a detached
+    /// signature each, armoured, `{file}.asc` in the Outbox as `gpg
+    /// --armor --detach-sign` names it. A file whose bytes are no longer
+    /// those ticked is not signed. A signature is not written over a file
+    /// of that name. One toast says how many were written.
+    pub(crate) fn gpg_sign_ticked(&mut self) {
+        let c = self.compute();
+        if self.selected_waits().is_some() {
+            return;
+        }
+        let Some((id, at, key)) = self.gpg_selected() else {
+            return;
+        };
+        // The page was opened for another key: nothing is signed.
+        if self.vaults.sign_key != Some(key.fingerprint) {
+            self.gpg_page_reset();
+            return;
+        }
+        let now = match self.clock() {
+            Ok(t) => t,
+            Err(e) => return self.toast(&e),
+        };
+        if let Err(e) = gpg::usable(&key, self.gpg_record(id, at).and_then(gpg::revoked_at), now) {
+            return self.toast(&e);
+        }
+        let ticked = std::mem::take(&mut self.vaults.state.sign_ticked);
+        let (mut written, mut changed) = (0usize, 0usize);
+        let mut failure: Option<String> = None;
+        for (name, hash) in ticked {
+            let found = self
+                .inbox
+                .iter()
+                .position(|i| i.name == name && crate::sha256_of(&c, &i.bytes) == hash);
+            let Some(k) = found else {
+                changed += 1;
+                failure.get_or_insert_with(|| fill(EN.gpg_changed, &[&name.to_string()]));
+                continue;
+            };
+            let out = format!("{name}.asc");
+            if self.outbox.iter().any(|i| i.name == out) {
+                failure.get_or_insert_with(|| fill(EN.gpg_exists, &[&out.to_string()]));
+                continue;
+            }
+            let Some(sig) = self
+                .vaults
+                .store()
+                .gpg_sign_armored(id, at, &self.inbox[k].bytes, now)
+            else {
+                continue;
+            };
+            self.put_outbox(&out, sig.into_bytes());
+            written += 1;
+        }
+        let _ = changed;
+        let text = match (written, failure) {
+            (0, Some(e)) => e,
+            (0, None) => return,
+            (1, _) => fill(EN.gpg_1_signature_waits, &[self.medium.for_the()]),
+            (n, _) => fill(
+                EN.gpg_signatures_wait,
+                &[&n.to_string(), self.medium.for_the()],
+            ),
+        };
+        self.toast(&text);
+    }
+}
+
+/// Glue of the Load sheet and Load with a passphrase (`load`).
+impl Faraday {
+    /// Costs what `key_fingerprint` and `described_of` cost. The first
+    /// wallet of open vault `v` that key record `r` is a seed of, by name
+    /// ([`Vaults::key_wallet`]).
+    pub(crate) fn vault_key_wallet(&self, c: &Compute, v: usize, r: usize) -> Option<String> {
+        self.vaults.key_wallet(c, self.session.network(), v, r)
+    }
+
+    /// Costs a parse of each open vault's wallet records. The seeds open
+    /// vaults keep as words without a BIP-39 passphrase, not loaded, in no
+    /// wallet of their vault: ones a wallet short of a key may use with a
+    /// passphrase never stored (F62), each with its vault and line. Kept in
+    /// the drawing memo while a frame is drawn (`docs/SPEED.md` §3.3); a
+    /// press works it out afresh.
+    ///
+    /// Works out [`crate::drawing::View::vault_passphrase_seeds`]. Costs a parse of
+    /// each open vault's wallet records.
+    pub fn vault_passphrase_seeds_now(&self, c: &Compute) -> Rc<Vec<load::PassSeed>> {
+        Rc::new(self.vaults.passphrase_seeds(c, &self.session))
+    }
+
+    /// **Load with a passphrase** from wallet `w` short of a key (F62):
+    /// the sheet of the seeds kept with no passphrase, or, with one, its
+    /// passphrase field at once.
+    pub(crate) fn pass_seeds_open(&mut self, w: usize) {
+        let c = self.compute();
+        let seeds = self.vault_passphrase_seeds_now(&c);
+        let Some(wallet) = self.session.wallets.get(w) else {
+            return;
+        };
+        if seeds.is_empty() {
+            return;
+        }
+        let missing: Vec<[u8; 4]> = self
+            .session
+            .slots(wallet)
+            .iter()
+            .filter(|s| s.held_by.is_none())
+            .filter_map(|s| s.fingerprint.map(|f| f.0))
+            .collect();
+        self.vaults.state.pass_seeds = Some(load::PassSeeds {
+            wallet: w,
+            missing,
+            picked: None,
+        });
+        self.vaults.state.prompt = None;
+        self.sheet = Some(Sheet::PassphraseSeeds);
+        if let [one] = seeds.as_slice() {
+            self.pass_seed_pick(one.vault, one.record);
+        }
+    }
+
+    /// Seed `r` of open vault `v` picked on the sheet: its passphrase
+    /// field.
+    pub(crate) fn pass_seed_pick(&mut self, v: usize, r: usize) {
+        let Some(p) = self.vaults.state.pass_seeds.as_mut() else {
+            return;
+        };
+        p.picked = Some((v, r));
+        self.vaults.state.prompt = Some(crate::vault::Prompt {
+            purpose: crate::vault::Purpose::ForWallet(v, r),
+            text: Default::default(),
+            error: None,
+        });
+        self.vaults.state.focus = self.may_load_keys().then_some(crate::vault::Focus::Prompt);
+    }
+
+    /// Back from a seed's field to the list.
+    pub(crate) fn pass_seed_list(&mut self) {
+        if let Some(p) = self.vaults.state.pass_seeds.as_mut() {
+            p.picked = None;
+        }
+        self.vaults.state.prompt = None;
+        self.vaults.state.focus = None;
+    }
+
+    /// The sheet closed: nothing typed is kept.
+    pub(crate) fn pass_seeds_close(&mut self) {
+        self.vaults.state.pass_seeds = None;
+        self.vaults.state.prompt = None;
+        self.vaults.state.focus = None;
+        if self.sheet == Some(Sheet::PassphraseSeeds) {
+            self.sheet = None;
+        }
+    }
+
+    /// The passphrase typed for seed `r` of open vault `v`: the key it
+    /// gives loads only when it is one the wallet is missing here; else
+    /// nothing loads and the field says what key it gave. The passphrase
+    /// is never stored. Costs a BIP-39 seed and a master key.
+    pub(crate) fn pass_seed_try(&mut self, v: usize, r: usize) {
+        let c = self.compute();
+        if !self.may_load_keys() {
+            return;
+        }
+        let Some(p) = self.vaults.pass_seeds.as_ref() else {
+            return;
+        };
+        let (w, missing) = (p.wallet, p.missing.clone());
+        let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
+            return;
+        };
+        let passphrase = zeroize::Zeroizing::new(
+            self.vaults
+                .prompt
+                .as_ref()
+                .map(|p| p.text.text.to_string())
+                .unwrap_or_default(),
+        );
+        let wanted = |fp: Fingerprint| missing.contains(&fp.0);
+        let Some(loaded) = self.vaults.store().load_key_with_passphrase(
+            &c,
+            &mut self.session.keys,
+            (id, r),
+            &passphrase,
+            Some(&wanted),
+        ) else {
+            return;
+        };
+        let loaded = match loaded {
+            faraday_keys::vault::KeyLoad::Refused(fp) => {
+                let wallet = self
+                    .session
+                    .wallets
+                    .get(w)
+                    .map_or_else(String::new, |x| x.name.clone());
+                if let Some(p) = self.vaults.state.prompt.as_mut() {
+                    p.text.clear();
+                    p.error = Some(fill(EN.pass_seeds_not_a_key, &[&fp_text(fp), &wallet]));
+                }
+                return;
+            }
+            faraday_keys::vault::KeyLoad::Done(added) => added,
+        };
+        match loaded {
+            Ok(fp) => {
+                self.pass_seeds_close();
+                self.refresh_spend();
+                self.toast(&fill(EN.vaults_key_is_loaded, &[&fp_text(fp)]));
+            }
+            Err(e) => {
+                if let Some(p) = self.vaults.state.prompt.as_mut() {
+                    p.error = Some(e.text());
+                }
+            }
+        }
+    }
+
+    /// Costs what `load_view_of` costs. What the sheet shows, kept in the
+    /// drawing memo while a frame is drawn (`docs/SPEED.md` §3.3). Reads
+    /// the vault's wallet records as it keeps them read; the key
+    /// fingerprints are the ones the unlock worked out.
+    ///
+    /// Works out [`crate::drawing::View::vault_load_view`] from the state as it is.
+    pub fn vault_load_view_now(&self, c: &Compute) -> Option<Rc<load::LoadView>> {
+        let s = self.vaults.load.as_ref()?;
+        let v = self.vaults.load_sheet_vault()?;
+        Some(Rc::new(self.vaults.load_view(
+            c,
+            &self.session,
+            v,
+            &s.ticked,
+        )))
+    }
+
+    /// Open vault `v` was just unlocked from the boot sheet (`boot`) or
+    /// the Vaults tab: its Load sheet comes up, its cards ticked from
+    /// each record's Load at unlock. Returns false, showing nothing, when
+    /// the vault holds no wallet and no key, or the session holds all of
+    /// them already. Reads the wallet records as the vault keeps them read ([`crate::vault::Vaults::described`]).
+    pub(crate) fn load_sheet_offer(&mut self, v: usize, boot: bool, wallets_before: usize) -> bool {
+        let c = self.compute();
+        let Some(open) = self.vaults.open.get(v) else {
+            return false;
+        };
+        let records: BTreeSet<usize> = self
+            .vaults
+            .records(open.id)
+            .iter()
+            .filter(|(_, r)| matches!(r.kind(), kind::KEY | kind::WALLET))
+            .map(|(i, _)| i)
+            .collect();
+        if records.is_empty() {
+            return false;
+        }
+        // Every record that would load at unlock; the view leaves out a
+        // key on a wallet's card, which has no checkbox of its own, and
+        // anything loaded already.
+        let ticked: BTreeSet<usize> = records
+            .into_iter()
+            .filter(|&i| {
+                self.vaults
+                    .records(open.id)
+                    .get(i)
+                    .is_some_and(|r| r.loads_at_unlock())
+            })
+            .collect();
+        // Everything it holds is in the session already: nothing to ask.
+        if !self
+            .vaults
+            .load_view(&c, &self.session, v, &ticked)
+            .tickable()
+        {
+            return false;
+        }
+        let Some(open) = self.vaults.open.get(v) else {
+            return false;
+        };
+        self.vaults.state.load = Some(load::LoadSheet {
+            name: open.name.clone(),
+            boot,
+            wallets_before,
+            ticked,
+        });
+        self.sheet = Some(Sheet::UnlockLoad);
+        true
+    }
+
+    /// Runs a press on the Load sheet.
+    pub(crate) fn load_sheet_act(&mut self, a: VaultAction) {
+        let c = self.compute();
+        let Some(v) = self.vaults.load_sheet_vault() else {
+            // Its vault is gone (locked): nothing is left to load.
+            if self.sheet == Some(Sheet::UnlockLoad) {
+                self.sheet = None;
+            }
+            self.vaults.state.load = None;
+            return;
+        };
+        let Some(ticked) = self.vaults.load.as_ref().map(|s| s.ticked.clone()) else {
+            return;
+        };
+        let view = self.vaults.load_view(&c, &self.session, v, &ticked);
+        match a {
+            VaultAction::LoadTick(r) => {
+                if !view.tickable_records().contains(&r) {
+                    return;
+                }
+                if let Some(s) = self.vaults.state.load.as_mut()
+                    && !s.ticked.remove(&r)
+                {
+                    s.ticked.insert(r);
+                }
+            }
+            VaultAction::LoadTickAll => {
+                let all = view.tickable_records();
+                if let Some(s) = self.vaults.state.load.as_mut() {
+                    if view.any_ticked() {
+                        for r in all {
+                            s.ticked.remove(&r);
+                        }
+                    } else {
+                        s.ticked.extend(all);
+                    }
+                }
+            }
+            VaultAction::LoadTicked => {
+                if !view.any_ticked() || !self.may_load_keys() {
+                    return;
+                }
+                let set = view.to_load();
+                let (keys, wallets) = self.vault_load_set(v, &set);
+                if wallets == 0 && keys > 0 {
+                    self.toast(&fill(
+                        EN.vaults_loaded,
+                        &[
+                            &keys.to_string(),
+                            (if keys == 1 {
+                                EN.vaults_seed_inline
+                            } else {
+                                EN.vaults_seeds
+                            }),
+                        ],
+                    ));
+                }
+                self.load_sheet_close(v);
+            }
+            VaultAction::LoadNotNow => self.load_sheet_close(v),
+            _ => {}
+        }
+    }
+
+    /// The sheet is done with: the boot import goes on to its next vault
+    /// or lands, as F60 has it; an unlock from the Vaults tab lands on
+    /// Wallets when wallets loaded, else stays on Files.
+    fn load_sheet_close(&mut self, v: usize) {
+        let Some(s) = self.vaults.state.load.take() else {
+            return;
+        };
+        if self.sheet == Some(Sheet::UnlockLoad) {
+            self.sheet = None;
+        }
+        let file = self.vaults.open[v].name.clone();
+        if s.boot {
+            let label = self.import.state().map(|i| i.label.clone());
+            if self.import_after_unlock() {
+                self.unlock_landed(s.wallets_before, &file, label.as_deref());
+            }
+        } else {
+            if self.screen == Screen::Unlock {
+                self.screen = Screen::Files;
+            }
+            self.unlock_landed(s.wallets_before, &file, None);
+        }
+    }
+}
+
+/// Glue of what leaves a vault: Save to a stick, a SeedQR, a wallet's
+/// files (`out`).
+impl Faraday {
+    /// The selected vault record, when it is of kind `k`.
+    fn vault_record_of(&self, k: u8) -> Option<(usize, faraday_keys::vault::RecordView<'_>)> {
+        let at = self.vault_selected_index()?;
+        let v = self.vaults.open.get(self.vaults.current)?;
+        self.vaults
+            .records(v.id)
+            .get(at)
+            .filter(|r| r.kind() == k)
+            .map(|r| (at, r))
+    }
+
+    /// Makes a SeedQR when a press lands on Show SeedQR: the selected key
+    /// record's code, kept while the press is held (`docs/SPEED.md`
+    /// §3.3: drawing makes no code). Any other press drops one kept.
+    pub(crate) fn vault_seedqr_press(&mut self, pressed: Option<Action>) {
+        let c = self.compute();
+        self.vaults.state.seedqr = None;
+        if pressed != Some(Action::Vault(VaultAction::ShowSeedQr)) {
+            return;
+        }
+        let Some((at, r)) = self.vault_record_of(kind::KEY) else {
+            return;
+        };
+        let Some(m) = self
+            .vaults
+            .store()
+            .words_of(&c, r, faraday_keys::Reveal::SeedQr)
+        else {
+            return;
+        };
+        if m.language() != faraday_bip::bip39::Language::English {
+            return;
+        }
+        if let Ok(mx) = faraday_codec::seedqr::encode_seedqr(&c, &m) {
+            self.vaults.state.seedqr = Some((at, mx));
+        }
+    }
+
+    /// Runs `f` with the selected wallet record as a session wallet, by
+    /// its index: the session's own when it holds the same wallet, else
+    /// the record read in for `f` alone and taken out again, so the
+    /// session is as it was. Reads the descriptor.
+    fn with_vault_wallet<T>(&mut self, f: impl FnOnce(&mut Self, usize) -> T) -> Option<T> {
+        let c = self.compute();
+        let (_, r) = self.vault_record_of(kind::WALLET)?;
+        let text = r.public_text(field::WALLET)?.to_string();
+        let name = r
+            .public_text(field::WALLET_NAME)
+            .unwrap_or(EN.vaults_wallet)
+            .to_string();
+        let policy = crate::wallet::read_wallet(&c, &text).ok()?;
+        let same = crate::wallet::same_wallet(&policy);
+        if let Some(i) = self
+            .session
+            .wallets
+            .iter()
+            .position(|w| crate::wallet::same_wallet(w.policy()) == same)
+        {
+            return Some(f(self, i));
+        }
+        self.session.wallets.push(crate::wallet::Wallet::new(
+            name,
+            policy,
+            EN.vaults_vault.to_string(),
+            crate::wallet::Origin::Vault,
+        ));
+        let i = self.session.wallets.len() - 1;
+        let out = f(self, i);
+        self.session.wallets.truncate(i);
+        Some(out)
+    }
+
+    /// Makes the selected wallet record's code and shows it: the QR view
+    /// the Wallets page uses, several codes for a long descriptor.
+    pub(crate) fn vault_wallet_qr(&mut self) {
+        let c = self.compute();
+        if let Some(view) = self.with_vault_wallet(|app, i| app.code_view(&c, Code::Descriptor(i)))
+        {
+            self.open_qr(view);
+        }
+    }
+
+    /// Opens Save to a stick for the selected record, writing out the
+    /// names of its files: for a key its words and its SeedQR, both
+    /// ticked; for a wallet its descriptor, its QR pictures and the
+    /// software files Back up makes, which are made now (QR pictures
+    /// drawn), the descriptor alone ticked.
+    pub(crate) fn vault_stick_save_open(&mut self) {
+        let c = self.compute();
+        let Some(at) = self.vault_selected_index() else {
+            return;
+        };
+        let save = if self.vault_record_of(kind::KEY).is_some() {
+            let Some((_, r)) = self.vault_record_of(kind::KEY) else {
+                return;
+            };
+            let Some(m) = self.vaults.store().words_of(
+                &c,
+                r,
+                faraday_keys::Reveal::BackupStick(faraday_keys::Part::Words),
+            ) else {
+                return;
+            };
+            let fp = crate::vault::screen::key_fingerprint(&c, self, r).unwrap_or_default();
+            let mut files = Vec::new();
+            for (label, what, form) in [
+                (
+                    EN.board_words,
+                    out::SaveWhat::Words,
+                    crate::plan::What::SeedFile(0),
+                ),
+                (
+                    EN.board_seedqr,
+                    out::SaveWhat::SeedQr,
+                    crate::plan::What::SeedQrFile(0),
+                ),
+            ] {
+                if what == out::SaveWhat::SeedQr
+                    && m.language() != faraday_bip::bip39::Language::English
+                {
+                    continue;
+                }
+                if let Some(name) = crate::backup_flow::wallet::seed_stick_name(form, &fp) {
+                    files.push(out::SaveFile {
+                        label: label.to_string(),
+                        what,
+                        names: vec![name],
+                        made: Vec::new(),
+                        ticked: true,
+                    });
+                }
+            }
+            out::StickSave {
+                record: at,
+                seed: true,
+                files,
+            }
+        } else {
+            let Some(files) = self.with_vault_wallet(|app, i| app.wallet_save_files(i)) else {
+                return;
+            };
+            out::StickSave {
+                record: at,
+                seed: false,
+                files,
+            }
+        };
+        self.vaults.state.stick_save = Some(save);
+        self.sheet = Some(Sheet::VaultSave);
+    }
+
+    /// Makes session wallet `i`'s public files for the popup: the
+    /// descriptor's text, its QR pictures, and each file of the software
+    /// Back up writes for (Sparrow, the hardware signers, Nunchuk, Bitcoin
+    /// Core) that is not the descriptor.
+    fn wallet_save_files(&mut self, i: usize) -> Vec<out::SaveFile> {
+        let Some(w) = self.session.wallets.get(i) else {
+            return Vec::new();
+        };
+        let every = crate::plan::Answers {
+            software: [true, true, true, true, false],
+            ..Default::default()
+        };
+        let software = Self::backup_public_for(w, &every);
+        let mut files = Vec::new();
+        let mut add = |label: String, made: Vec<(String, Vec<u8>)>, ticked: bool| {
+            if !made.is_empty() {
+                files.push(out::SaveFile {
+                    label,
+                    what: out::SaveWhat::Public,
+                    names: made.iter().map(|(n, _)| n.clone()).collect(),
+                    made,
+                    ticked,
+                });
+            }
+        };
+        add(
+            EN.vault_descriptor.to_string(),
+            self.public_made(i, 1),
+            true,
+        );
+        add(
+            EN.board_qr_picture.to_string(),
+            self.public_made(i, 8),
+            false,
+        );
+        for x in software.into_iter().filter(|x| *x != 1) {
+            let name = match x {
+                5 => EN.app_sparrow,
+                2 => EN.app_coldcard_keystone,
+                6 => EN.app_nunchuk,
+                _ => EN.app_bitcoin_core,
+            };
+            add(
+                fill(EN.board_software_file, &[name]),
+                self.public_made(i, x),
+                false,
+            );
+        }
+        files
+    }
+
+    /// Writes the popup's ticked files to the Outbox, for the stick: a
+    /// wallet's as they were made, a key's words and SeedQR picture made
+    /// now from the record (a SeedQR drawn), as secrets let out
+    /// unprotected. The popup closes.
+    pub(crate) fn vault_stick_save_write(&mut self) {
+        let c = self.compute();
+        let Some(save) = self.vaults.state.stick_save.take() else {
+            return;
+        };
+        self.sheet = None;
+        let mut out: Vec<String> = Vec::new();
+        let words = self
+            .vaults
+            .open
+            .get(self.vaults.current)
+            .and_then(|v| self.vaults.records(v.id).get(save.record))
+            .filter(|r| r.kind() == kind::KEY)
+            .and_then(|r| {
+                let fp = crate::vault::screen::key_fingerprint(&c, self, r).unwrap_or_default();
+                self.vaults
+                    .store()
+                    .words_of(
+                        &c,
+                        r,
+                        faraday_keys::Reveal::OutboxFile(faraday_keys::Part::Words),
+                    )
+                    .map(|m| (m, fp))
+            });
+        for f in save.files.into_iter().filter(|f| f.ticked) {
+            match f.what {
+                out::SaveWhat::Public => {
+                    for (name, bytes) in f.made {
+                        self.put_outbox(&name, bytes);
+                        out.push(name);
+                    }
+                }
+                out::SaveWhat::Words | out::SaveWhat::SeedQr => {
+                    let (Some((m, fp)), Some(name)) = (words.as_ref(), f.names.first()) else {
+                        continue;
+                    };
+                    let bytes = if f.what == out::SaveWhat::Words {
+                        // The words, one line, as Add a key reads them.
+                        // Sized first so that no copy is left behind by a
+                        // reallocation.
+                        let lang = m.language();
+                        let mut v =
+                            zeroize::Zeroizing::new(Vec::with_capacity(m.indices().len() * 9 + 1));
+                        for (k, i) in m.indices().iter().enumerate() {
+                            if k > 0 {
+                                v.push(b' ');
+                            }
+                            v.extend_from_slice(lang.word(*i).as_bytes());
+                        }
+                        v.push(b'\n');
+                        Some(v)
+                    } else {
+                        crate::backup_flow::wallet::seedqr_png(&c, m, fp)
+                    };
+                    let Some(bytes) = bytes else {
+                        continue;
+                    };
+                    self.outbox.retain(|it| it.name != *name);
+                    let item = crate::Item::new(&c, name, bytes.to_vec());
+                    self.outbox_secret(crate::secrets::OutReason::VaultStick, item);
+                    out.push(name.clone());
+                }
+            }
+        }
+        self.save_boxes();
+        let what = match out.len() {
+            0 => return,
+            1 => out[0].clone(),
+            k => fill(EN.public_out_files, &[&k.to_string()]),
+        };
+        if save.seed {
+            self.toast(&fill(
+                EN.secrets_waits_unprotected,
+                &[&what, self.medium.for_the()],
+            ));
+        } else {
+            self.toast_out(&what);
+        }
     }
 }

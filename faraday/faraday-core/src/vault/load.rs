@@ -6,19 +6,18 @@
 //! here are for this unlock only. **Load ticked** loads what is ticked and
 //! not loaded already; **Not now** loads nothing and leaves the vault
 //! open. An unlock a flow asked for returns to its flow and shows none.
+//!
+//! What the sheet shows is worked out on [`super::Vaults`] here; its
+//! presses are the vault's glue, in `vault/mod.rs`.
 
-use std::collections::BTreeSet;
-use std::rc::Rc;
-
-use crate::strings::fill;
-use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_vault::records::{field, kind};
 
-use crate::strings::EN;
-use crate::vault::VaultAction;
-use crate::wallet::{fp_text, key_line, same_wallet};
-use crate::{Faraday, Screen, Sheet};
+use crate::strings::{EN, fill};
+use crate::wallet::{Session, fp_text, key_line, same_wallet};
+use std::collections::BTreeSet;
+
+use faraday_bip::keys::Fingerprint;
 
 /// The sheet's state while it is up.
 #[derive(Debug, Clone)]
@@ -125,7 +124,7 @@ impl LoadView {
     }
 
     /// The records a tick can name, each once.
-    fn tickable_records(&self) -> Vec<usize> {
+    pub(crate) fn tickable_records(&self) -> Vec<usize> {
         self.cards
             .iter()
             .filter(|c| !c.done)
@@ -136,7 +135,7 @@ impl LoadView {
 
     /// The records Load ticked loads: each ticked card's wallet and seeds,
     /// each ticked key, only what the session does not hold, each once.
-    fn to_load(&self) -> BTreeSet<usize> {
+    pub(crate) fn to_load(&self) -> BTreeSet<usize> {
         let mut set = BTreeSet::new();
         for c in self.cards.iter().filter(|c| c.ticked) {
             if !c.loaded {
@@ -155,28 +154,32 @@ impl LoadView {
 }
 
 /// A fingerprint written as eight hex digits.
-fn fp_of(text: &str) -> Option<Fingerprint> {
+pub(crate) fn fp_of(text: &str) -> Option<Fingerprint> {
     u32::from_str_radix(text, 16)
         .ok()
         .map(|n| Fingerprint(n.to_be_bytes()))
 }
 
-impl Faraday {
+impl super::Vaults {
     /// Costs what `key_fingerprint` and `described_of` cost. The first
     /// wallet of open vault `v` that key record `r` is a seed of, by name:
     /// such a key loads with it and has no Load at unlock of its own (F62).
     /// Reads the wallet records as the vault keeps them read
     /// ([`crate::vault::Vaults::described`]).
-    pub(crate) fn vault_key_wallet(&self, c: &Compute, v: usize, r: usize) -> Option<String> {
-        let open = self.vaults.open.get(v)?;
+    pub(crate) fn key_wallet(
+        &self,
+        c: &Compute,
+        network: faraday_bip::keys::Network,
+        v: usize,
+        r: usize,
+    ) -> Option<String> {
+        let open = self.open.get(v)?;
         let rec = self
-            .vaults
             .records(open.id)
             .get(r)
             .filter(|x| x.kind() == kind::KEY)?;
-        let fp = crate::vault::screen::key_fingerprint(c, self, rec)?;
-        self.vaults
-            .described_of(c, open.id, kind::WALLET)
+        let fp = self.key_fingerprint(c, network, rec)?;
+        self.described_of(c, open.id, kind::WALLET)
             .find_map(|(_, w, d)| {
                 let p = &d.policy;
                 p.keys()
@@ -190,45 +193,28 @@ impl Faraday {
             })
     }
 
-    /// Costs a parse of each open vault's wallet records. The seeds open
-    /// vaults keep as words without a BIP-39 passphrase, not loaded, in no
-    /// wallet of their vault: ones a wallet short of a key may use with a
-    /// passphrase never stored (F62), each with its vault and line. Kept in
-    /// the drawing memo while a frame is drawn (`docs/SPEED.md` §3.3); a
-    /// press works it out afresh.
-    ///
-    /// Works out [`crate::drawing::View::vault_passphrase_seeds`]. Costs a parse of
-    /// each open vault's wallet records.
-    pub fn vault_passphrase_seeds_now(&self, c: &Compute) -> Rc<Vec<PassSeed>> {
-        Rc::new(self.vault_passphrase_seeds_uncached(c))
-    }
-
     /// Costs what `word_count`, `key_fingerprint` and `vault_key_wallet`
     /// cost. Works out [`Faraday::vault_passphrase_seeds_now`].
-    fn vault_passphrase_seeds_uncached(&self, c: &Compute) -> Vec<PassSeed> {
+    pub(crate) fn passphrase_seeds(&self, c: &Compute, session: &Session) -> Vec<PassSeed> {
         let mut out = Vec::new();
-        for (v, open) in self.vaults.open.iter().enumerate() {
-            for (i, r) in self.vaults.records(open.id).of(kind::KEY) {
+        for (v, open) in self.open.iter().enumerate() {
+            for (i, r) in self.records(open.id).of(kind::KEY) {
                 // Words, as the vault keeps them read: no parse here.
-                if r.has(field::KEY_PASSPHRASE) || self.vaults.word_count(c, open.id, i).is_none() {
+                if r.has(field::KEY_PASSPHRASE) || self.word_count(c, open.id, i).is_none() {
                     continue;
                 }
-                let Some(fp) = crate::vault::screen::key_fingerprint(c, self, r) else {
+                let Some(fp) = self.key_fingerprint(c, session.network(), r) else {
                     continue;
                 };
-                let loaded = self
-                    .session
-                    .keys
-                    .all()
-                    .any(|k| fp_text(k.fingerprint) == fp);
-                if loaded || self.vault_key_wallet(c, v, i).is_some() {
+                let loaded = session.keys.all().any(|k| fp_text(k.fingerprint) == fp);
+                if loaded || self.key_wallet(c, session.network(), v, i).is_some() {
                     continue;
                 }
                 let label = r.public_text(field::KEY_LABEL).unwrap_or("");
                 out.push(PassSeed {
                     vault: v,
                     record: i,
-                    vault_name: open.label(self.vaults.store()),
+                    vault_name: open.label(self.store()),
                     line: fp_of(&fp).map_or_else(|| fp.clone(), |f| key_line(f, label)),
                 });
             }
@@ -236,174 +222,35 @@ impl Faraday {
         out
     }
 
-    /// **Load with a passphrase** from wallet `w` short of a key (F62):
-    /// the sheet of the seeds kept with no passphrase, or, with one, its
-    /// passphrase field at once.
-    pub(crate) fn pass_seeds_open(&mut self, w: usize) {
-        let c = self.compute();
-        let seeds = self.vault_passphrase_seeds_now(&c);
-        let Some(wallet) = self.session.wallets.get(w) else {
-            return;
-        };
-        if seeds.is_empty() {
-            return;
-        }
-        let missing: Vec<[u8; 4]> = self
-            .session
-            .slots(wallet)
-            .iter()
-            .filter(|s| s.held_by.is_none())
-            .filter_map(|s| s.fingerprint.map(|f| f.0))
-            .collect();
-        self.vaults.pass_seeds = Some(PassSeeds {
-            wallet: w,
-            missing,
-            picked: None,
-        });
-        self.vaults.prompt = None;
-        self.sheet = Some(Sheet::PassphraseSeeds);
-        if let [one] = seeds.as_slice() {
-            self.pass_seed_pick(one.vault, one.record);
-        }
-    }
-
-    /// Seed `r` of open vault `v` picked on the sheet: its passphrase
-    /// field.
-    pub(crate) fn pass_seed_pick(&mut self, v: usize, r: usize) {
-        let Some(p) = self.vaults.pass_seeds.as_mut() else {
-            return;
-        };
-        p.picked = Some((v, r));
-        self.vaults.prompt = Some(crate::vault::Prompt {
-            purpose: crate::vault::Purpose::ForWallet(v, r),
-            text: Default::default(),
-            error: None,
-        });
-        self.vaults.focus = self.may_load_keys().then_some(crate::vault::Focus::Prompt);
-    }
-
-    /// Back from a seed's field to the list.
-    pub(crate) fn pass_seed_list(&mut self) {
-        if let Some(p) = self.vaults.pass_seeds.as_mut() {
-            p.picked = None;
-        }
-        self.vaults.prompt = None;
-        self.vaults.focus = None;
-    }
-
-    /// The sheet closed: nothing typed is kept.
-    pub(crate) fn pass_seeds_close(&mut self) {
-        self.vaults.pass_seeds = None;
-        self.vaults.prompt = None;
-        self.vaults.focus = None;
-        if self.sheet == Some(Sheet::PassphraseSeeds) {
-            self.sheet = None;
-        }
-    }
-
-    /// The passphrase typed for seed `r` of open vault `v`: the key it
-    /// gives loads only when it is one the wallet is missing here; else
-    /// nothing loads and the field says what key it gave. The passphrase
-    /// is never stored. Costs a BIP-39 seed and a master key.
-    pub(crate) fn pass_seed_try(&mut self, v: usize, r: usize) {
-        let c = self.compute();
-        if !self.may_load_keys() {
-            return;
-        }
-        let Some(p) = self.vaults.pass_seeds.as_ref() else {
-            return;
-        };
-        let (w, missing) = (p.wallet, p.missing.clone());
-        let Some(id) = self.vaults.open.get(v).map(|o| o.id) else {
-            return;
-        };
-        let passphrase = zeroize::Zeroizing::new(
-            self.vaults
-                .prompt
-                .as_ref()
-                .map(|p| p.text.text.to_string())
-                .unwrap_or_default(),
-        );
-        let wanted = |fp: Fingerprint| missing.contains(&fp.0);
-        let Some(loaded) = self.vaults.store().load_key_with_passphrase(
-            &c,
-            &mut self.session.keys,
-            (id, r),
-            &passphrase,
-            Some(&wanted),
-        ) else {
-            return;
-        };
-        let loaded = match loaded {
-            faraday_keys::vault::KeyLoad::Refused(fp) => {
-                let wallet = self
-                    .session
-                    .wallets
-                    .get(w)
-                    .map_or_else(String::new, |x| x.name.clone());
-                if let Some(p) = self.vaults.prompt.as_mut() {
-                    p.text.clear();
-                    p.error = Some(fill(EN.pass_seeds_not_a_key, &[&fp_text(fp), &wallet]));
-                }
-                return;
-            }
-            faraday_keys::vault::KeyLoad::Done(added) => added,
-        };
-        match loaded {
-            Ok(fp) => {
-                self.pass_seeds_close();
-                self.refresh_spend();
-                self.toast(&fill(EN.vaults_key_is_loaded, &[&fp_text(fp)]));
-            }
-            Err(e) => {
-                if let Some(p) = self.vaults.prompt.as_mut() {
-                    p.error = Some(e.text());
-                }
-            }
-        }
-    }
-
     /// The open vault the sheet is for, by its place.
-    fn load_sheet_vault(&self) -> Option<usize> {
-        let s = self.vaults.load.as_ref()?;
-        self.vaults.open.iter().position(|o| o.name == s.name)
-    }
-
-    /// Costs what `load_view_of` costs. What the sheet shows, kept in the
-    /// drawing memo while a frame is drawn (`docs/SPEED.md` §3.3). Reads
-    /// the vault's wallet records as it keeps them read; the key
-    /// fingerprints are the ones the unlock worked out.
-    ///
-    /// Works out [`crate::drawing::View::vault_load_view`] from the state as it is.
-    pub fn vault_load_view_now(&self, c: &Compute) -> Option<Rc<LoadView>> {
-        let s = self.vaults.load.as_ref()?;
-        let v = self.load_sheet_vault()?;
-        Some(Rc::new(self.load_view_of(c, v, &s.ticked)))
+    pub(crate) fn load_sheet_vault(&self) -> Option<usize> {
+        let s = self.load.as_ref()?;
+        self.open.iter().position(|o| o.name == s.name)
     }
 
     /// Costs what `key_fingerprint` and `described` cost. Works out the
     /// sheet for open vault `v` with `ticked`, from the wallet records as
     /// the vault keeps them read ([`crate::vault::Vaults::described`]).
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-    fn load_view_of(&self, c: &Compute, v: usize, ticked: &BTreeSet<usize>) -> LoadView {
-        let Some(open) = self.vaults.open.get(v) else {
+    pub(crate) fn load_view(
+        &self,
+        c: &Compute,
+        session: &Session,
+        v: usize,
+        ticked: &BTreeSet<usize>,
+    ) -> LoadView {
+        let Some(open) = self.open.get(v) else {
             return LoadView::default();
         };
-        let held = |fp: &str| {
-            self.session
-                .keys
-                .all()
-                .any(|k| fp_text(k.fingerprint) == fp)
-        };
+        let held = |fp: &str| session.keys.all().any(|k| fp_text(k.fingerprint) == fp);
         // The vault's keys: record, fingerprint, label.
         let keys: Vec<(usize, Option<String>, String)> = self
-            .vaults
             .records(open.id)
             .of(kind::KEY)
             .map(|(i, r)| {
                 (
                     i,
-                    crate::vault::screen::key_fingerprint(c, self, r),
+                    self.key_fingerprint(c, session.network(), r),
                     r.public_text(field::KEY_LABEL).unwrap_or("").to_string(),
                 )
             })
@@ -418,7 +265,6 @@ impl Faraday {
             loaded: bool,
         }
         let wallets: Vec<W> = self
-            .vaults
             .records(open.id)
             .of(kind::WALLET)
             .map(|(i, r)| {
@@ -426,15 +272,15 @@ impl Faraday {
                     .public_text(field::WALLET_NAME)
                     .unwrap_or(EN.vaults_wallet)
                     .to_string();
-                let policy = self.vaults.described(c, open.id, i).map(|d| &d.policy);
+                let policy = self.described(c, open.id, i).map(|d| &d.policy);
                 let fps = policy.as_ref().map_or_else(Vec::new, |p| {
                     p.keys()
                         .iter()
                         .map(|k| k.fingerprint().map(fp_text))
                         .collect()
                 });
-                let loaded = self.vaults.described(c, open.id, i).is_some_and(|d| {
-                    self.session
+                let loaded = self.described(c, open.id, i).is_some_and(|d| {
+                    session
                         .wallets
                         .iter()
                         .any(|w| same_wallet(w.policy()) == d.same)
@@ -443,7 +289,6 @@ impl Faraday {
                     record: i,
                     name,
                     kind: self
-                        .vaults
                         .described(c, open.id, i)
                         .map(|d| d.shape.clone())
                         .unwrap_or_default(),
@@ -476,7 +321,7 @@ impl Faraday {
             }
         };
         let mut view = LoadView {
-            title: fill(EN.load_sheet_title, &[&open.label(self.vaults.store())]),
+            title: fill(EN.load_sheet_title, &[&open.label(self.store())]),
             ..LoadView::default()
         };
         for w in &wallets {
@@ -546,142 +391,5 @@ impl Faraday {
         .collect();
         view.count = parts.join(" · ");
         view
-    }
-
-    /// Open vault `v` was just unlocked from the boot sheet (`boot`) or
-    /// the Vaults tab: its Load sheet comes up, its cards ticked from
-    /// each record's Load at unlock. Returns false, showing nothing, when
-    /// the vault holds no wallet and no key, or the session holds all of
-    /// them already. Reads the wallet records as the vault keeps them read ([`crate::vault::Vaults::described`]).
-    pub(crate) fn load_sheet_offer(&mut self, v: usize, boot: bool, wallets_before: usize) -> bool {
-        let c = self.compute();
-        let Some(open) = self.vaults.open.get(v) else {
-            return false;
-        };
-        let records: BTreeSet<usize> = self
-            .vaults
-            .records(open.id)
-            .iter()
-            .filter(|(_, r)| matches!(r.kind(), kind::KEY | kind::WALLET))
-            .map(|(i, _)| i)
-            .collect();
-        if records.is_empty() {
-            return false;
-        }
-        // Every record that would load at unlock; the view leaves out a
-        // key on a wallet's card, which has no checkbox of its own, and
-        // anything loaded already.
-        let ticked: BTreeSet<usize> = records
-            .into_iter()
-            .filter(|&i| {
-                self.vaults
-                    .records(open.id)
-                    .get(i)
-                    .is_some_and(|r| r.loads_at_unlock())
-            })
-            .collect();
-        // Everything it holds is in the session already: nothing to ask.
-        if !self.load_view_of(&c, v, &ticked).tickable() {
-            return false;
-        }
-        let Some(open) = self.vaults.open.get(v) else {
-            return false;
-        };
-        self.vaults.load = Some(LoadSheet {
-            name: open.name.clone(),
-            boot,
-            wallets_before,
-            ticked,
-        });
-        self.sheet = Some(Sheet::UnlockLoad);
-        true
-    }
-
-    /// Runs a press on the Load sheet.
-    pub(crate) fn load_sheet_act(&mut self, a: VaultAction) {
-        let c = self.compute();
-        let Some(v) = self.load_sheet_vault() else {
-            // Its vault is gone (locked): nothing is left to load.
-            if self.sheet == Some(Sheet::UnlockLoad) {
-                self.sheet = None;
-            }
-            self.vaults.load = None;
-            return;
-        };
-        let Some(ticked) = self.vaults.load.as_ref().map(|s| s.ticked.clone()) else {
-            return;
-        };
-        let view = self.load_view_of(&c, v, &ticked);
-        match a {
-            VaultAction::LoadTick(r) => {
-                if !view.tickable_records().contains(&r) {
-                    return;
-                }
-                if let Some(s) = self.vaults.load.as_mut()
-                    && !s.ticked.remove(&r)
-                {
-                    s.ticked.insert(r);
-                }
-            }
-            VaultAction::LoadTickAll => {
-                let all = view.tickable_records();
-                if let Some(s) = self.vaults.load.as_mut() {
-                    if view.any_ticked() {
-                        for r in all {
-                            s.ticked.remove(&r);
-                        }
-                    } else {
-                        s.ticked.extend(all);
-                    }
-                }
-            }
-            VaultAction::LoadTicked => {
-                if !view.any_ticked() || !self.may_load_keys() {
-                    return;
-                }
-                let set = view.to_load();
-                let (keys, wallets) = self.vault_load_set(v, &set);
-                if wallets == 0 && keys > 0 {
-                    self.toast(&fill(
-                        EN.vaults_loaded,
-                        &[
-                            &keys.to_string(),
-                            (if keys == 1 {
-                                EN.vaults_seed_inline
-                            } else {
-                                EN.vaults_seeds
-                            }),
-                        ],
-                    ));
-                }
-                self.load_sheet_close(v);
-            }
-            VaultAction::LoadNotNow => self.load_sheet_close(v),
-            _ => {}
-        }
-    }
-
-    /// The sheet is done with: the boot import goes on to its next vault
-    /// or lands, as F60 has it; an unlock from the Vaults tab lands on
-    /// Wallets when wallets loaded, else stays on Files.
-    fn load_sheet_close(&mut self, v: usize) {
-        let Some(s) = self.vaults.load.take() else {
-            return;
-        };
-        if self.sheet == Some(Sheet::UnlockLoad) {
-            self.sheet = None;
-        }
-        let file = self.vaults.open[v].name.clone();
-        if s.boot {
-            let label = self.import.state().map(|i| i.label.clone());
-            if self.import_after_unlock() {
-                self.unlock_landed(s.wallets_before, &file, label.as_deref());
-            }
-        } else {
-            if self.screen == Screen::Unlock {
-                self.screen = Screen::Files;
-            }
-            self.unlock_landed(s.wallets_before, &file, None);
-        }
     }
 }

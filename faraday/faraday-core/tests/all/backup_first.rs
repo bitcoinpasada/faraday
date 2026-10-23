@@ -243,19 +243,19 @@ fn locked(app: &mut Faraday) -> Vec<(String, Vec<u8>)> {
 }
 
 fn unlock(app: &mut Faraday) {
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
 }
 
 #[test]
@@ -492,7 +492,7 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     type_text(&mut app, "test phrase");
     app.press(Action::Vault(V::Unlock));
     for t in 60..120u64 {
-        if !app.vaults.open.is_empty() && app.screen == Screen::Backup {
+        if !app.vaults().open.is_empty() && app.screen == Screen::Backup {
             break;
         }
         let _ = app.frame();

@@ -84,7 +84,7 @@ fn an_open_vault_is_locked_or_looked_into_from_the_list_and_the_sidebar() {
     type_text(&mut app, "test phrase");
     app.press(Action::Vault(V::Unlock));
     settle(&mut app);
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     app.press(Action::Nav(Screen::Vaults));
     let _ = app.frame();
     assert!(app.offers(Action::Vault(V::Open(0))), "its contents");

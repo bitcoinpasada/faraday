@@ -698,12 +698,12 @@ fn a_key_loads_with_its_passphrase_kept_in_another_open_vault() {
     });
     unlock_file(&mut app, "apart.ofv", "apart phrase");
     unlock_file(&mut app, "words.ofv", "words phrase");
-    assert_eq!(app.vaults.open.len(), 2, "{:?}", app.vaults.unlock_error);
+    assert_eq!(app.vaults().open.len(), 2, "{:?}", unlock_error(&app));
     let v = app
-        .vaults
+        .vaults()
         .open
         .iter()
-        .position(|o| app.vaults.records(o.id).of(kind::KEY).count() == 1)
+        .position(|o| app.vaults().records(o.id).of(kind::KEY).count() == 1)
         .unwrap();
     app.press(Action::Vault(V::LoadAll(v)));
     assert_eq!(app.session.keys.len(), 1);

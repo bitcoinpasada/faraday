@@ -16,7 +16,7 @@ pub(crate) fn flow_tour(t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Clock {
         unix_secs: 1_791_000_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::OpenSetTime);
     t.press(Action::SetTimeKeep);
     let tile = faraday_core::catalog::TILES

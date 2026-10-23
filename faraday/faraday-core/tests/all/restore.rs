@@ -592,7 +592,7 @@ fn with_vaults_back_up_this_wallet_resumes_at_the_plan_with_its_vaults() {
         2,
         "the vaults set up are the plan's"
     );
-    assert_eq!(app.vaults.open.len(), 2);
+    assert_eq!(app.vaults().open.len(), 2);
 }
 
 /// With vaults, Spend from this wallet opens the spend and the restored
@@ -666,7 +666,7 @@ fn single_key_at_check(shell: &mut crate::common::Shell, count: usize) -> (Farad
             crate::common::create_vault(shell, &mut app, v, phrase);
         }
         assert_eq!(app.screen, Screen::Restore, "back in Restore for the seeds");
-        assert_eq!(app.vaults.open.len(), count);
+        assert_eq!(app.vaults().open.len(), count);
     }
     assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
@@ -711,7 +711,7 @@ fn restored_from_vault_named(file: &str) -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(100);
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.press(Action::Vault(V::Open(0)));
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
@@ -719,12 +719,17 @@ fn restored_from_vault_named(file: &str) -> Faraday {
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     let record = {
         use faraday_vault::records::{field, kind};
-        app.vaults
+        app.vaults()
             .store()
-            .contents_for_tests(app.vaults.open[0].id)
+            .contents_for_tests(app.vaults().open[0].id)
             .of(kind::WALLET)
             .find(|(_, r)| r.text(field::WALLET_NAME) == Some("Spending"))
             .map(|(i, _)| i)

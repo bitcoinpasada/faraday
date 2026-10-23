@@ -27,7 +27,7 @@ fn same_words(c: &Compute, app: &Faraday, r: RecordView<'_>, key: usize) -> bool
     app.session
         .keys
         .words_id(c, key)
-        .is_some_and(|id| app.record_words_id(c, r).is_some_and(|x| *x == *id))
+        .is_some_and(|id| app.vaults.record_words_id(c, r).is_some_and(|x| *x == *id))
 }
 
 /// Whether vault key record `r` says its key's backup is pending.
@@ -269,7 +269,7 @@ impl Faraday {
                 }
             }
             if changed {
-                self.vaults.open[v].changes += 1;
+                self.vaults.bump(v);
             }
         }
     }
@@ -402,7 +402,7 @@ impl Faraday {
                 }
             }
             if changed {
-                self.vaults.open[v].changes += 1;
+                self.vaults.bump(v);
             }
         }
     }
@@ -509,7 +509,7 @@ impl Faraday {
         if self.backup_vault_taken(&c, v, cur) {
             return;
         }
-        self.vaults.current = cur;
+        self.vaults.set_current(cur);
         // What the vault held before this backup first saved into it.
         let salt = self.vaults.open[cur].header().salt;
         if self

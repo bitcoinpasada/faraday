@@ -317,9 +317,7 @@ impl Faraday {
         if self.flow_on == Some(i) {
             self.flow_on = None;
         }
-        self.vaults.back_to = None;
-        self.vaults.create = None;
-        self.vaults.focus = None;
+        self.vaults.leave_create();
         if self.restore.state().is_some_and(|r| r.owner == owner) {
             // A wallet read from its description exists already: it
             // belongs to the setup now.
@@ -376,9 +374,7 @@ impl Faraday {
         if self.flow_on == Some(i) {
             self.flow_on = None;
         }
-        self.vaults.back_to = None;
-        self.vaults.create = None;
-        self.vaults.focus = None;
+        self.vaults.leave_create();
         self.screen = to;
         self.out.dirty = true;
         true
@@ -938,7 +934,7 @@ impl Faraday {
                 vp.salt = Some(salt);
                 vp.file = Some(vname);
             }
-            self.vaults.open[o].changes += 1;
+            self.vaults.bump(o);
             // What the vault held before this backup put anything in it
             // (all it holds, where no save was seen), and the keys other
             // wallets' records in it name: the round takes none of them
@@ -1666,7 +1662,7 @@ impl Faraday {
                 });
                 self.vaults.changed(id);
             }
-            self.vaults.current = w.o;
+            self.vaults.set_current(w.o);
             for (k, with) in w.typed {
                 self.vault_act(if with {
                     V::SaveKeyWithPassphrase(k)

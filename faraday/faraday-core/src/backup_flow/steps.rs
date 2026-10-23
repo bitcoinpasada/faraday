@@ -172,7 +172,7 @@ impl Faraday {
         };
         match step {
             Step::Vaults => {
-                self.vaults.back_to = Some(Screen::BackupFlow);
+                self.vaults.set_back_to(Some(Screen::BackupFlow));
             }
             Step::Make if !made && !kind.is_wallet() => self.flow_make_form(kind),
             Step::Sticks | Step::Write => self.flow_examine(),
@@ -393,9 +393,7 @@ impl Faraday {
             F::Back => {
                 self.backup_flows[i].on_screen = false;
                 self.flow_on = None;
-                self.vaults.back_to = None;
-                self.vaults.create = None;
-                self.vaults.focus = None;
+                self.vaults.leave_create();
                 self.screen = Screen::Home;
             }
             F::ChangePlan => {
@@ -728,8 +726,7 @@ impl Faraday {
                 .as_deref()
                 .is_some_and(|id| self.flow_vault_holds_only(o, kind, id));
             if only_key && !vp.existing {
-                self.vaults.close(o);
-                self.vaults.current = 0;
+                self.vaults.close_at(o);
                 let same = |it: &Item| {
                     it.kind == FileKind::Vault
                         && fv::read_header(&it.bytes).is_ok_and(|h| h.salt == salt)
@@ -1643,23 +1640,19 @@ impl Faraday {
         else {
             return;
         };
-        self.vaults.pick = at;
-        self.vaults.unlock_error = None;
-        self.vaults.back_to = Some(Screen::BackupFlow);
-        self.vaults.focus = self.may_load_keys().then_some(Focus::Passphrase);
+        let focus = self.may_load_keys().then_some(Focus::Passphrase);
+        self.vaults.pick_unlock(at, Some(Screen::BackupFlow), focus);
         self.backup_flows[i].live.unlocking = Some(v);
-        self.vault_measure();
+        self.vaults.measure();
     }
 
     fn flow_create_start(&mut self, i: usize, v: usize) {
         let mut form = crate::vault::CreateForm::default();
         form.name.set(&BackupFlow::vault_name(v));
-        self.vaults.create = Some(form);
-        self.vaults.back_to = Some(Screen::BackupFlow);
-        self.vaults.just_made = None;
-        self.vaults.focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
+        let focus = self.may_load_keys().then_some(Focus::Phrase(0, false));
+        self.vaults.begin_create(form, Screen::BackupFlow, focus);
         self.backup_flows[i].live.creating = Some(v);
-        self.vault_measure();
+        self.vaults.measure();
     }
 
     /// Create a vault inside the flow made a vault: it is the plan's, and
@@ -1687,8 +1680,7 @@ impl Faraday {
             vp.len = len;
         }
         self.backup_flows[i].live.creating = None;
-        self.vaults.create = None;
-        self.vaults.focus = None;
+        self.vaults.drop_create();
         self.screen = Screen::BackupFlow;
         let Some(at) = self
             .vault_files()
@@ -1702,12 +1694,7 @@ impl Faraday {
         if !self.may_load_keys() {
             return true;
         }
-        self.vaults.pick = at;
-        self.vaults.passphrase.set(passphrase);
-        self.vaults.unlock_error = None;
-        self.vaults.back_to = Some(Screen::BackupFlow);
-        self.vaults.working = Some(Work::Unlock);
-        self.vaults.drawn = false;
+        self.vaults.unlock_with(at, passphrase, Screen::BackupFlow);
         true
     }
 
@@ -1813,7 +1800,7 @@ impl Faraday {
                 mk(2, crate::strings::EN.apk_package, ""),
             ],
             Kind::Gpg => {
-                self.vaults.gpg_years = crate::gpg::DEFAULT_YEARS;
+                self.vaults.set_gpg_years(crate::gpg::DEFAULT_YEARS);
                 vec![
                     mk(1, crate::strings::EN.vaults_name, ""),
                     mk(2, crate::strings::EN.vaults_email, ""),
@@ -1823,13 +1810,11 @@ impl Faraday {
             // A wallet's keys are made in Make a new wallet.
             Kind::Wallet => Vec::new(),
         };
-        self.vaults.form = Some(Form {
+        self.vaults.open_form(Form {
             kind: want,
             record: None,
             fields,
         });
-        self.vaults.saving = false;
-        self.vaults.focus = Some(Focus::Field(0));
     }
 
     fn flow_make_ask(&mut self, i: usize) {
@@ -1879,8 +1864,7 @@ impl Faraday {
             return self.flow_make_work();
         }
         self.backup_flows[i].live.making = true;
-        self.vaults.working = Some(Work::FlowMake);
-        self.vaults.drawn = false;
+        self.vaults.start_work(Work::FlowMake);
     }
 
     /// Makes the key once and saves it into every vault of the plan, in
@@ -1969,8 +1953,7 @@ impl Faraday {
             id: hex_text(&built.subject),
             name: built.name,
         });
-        self.vaults.form = None;
-        self.vaults.focus = None;
+        self.vaults.close_form();
         // The result's Show as QR and PNG point at the key just made.
         self.flow_point_at_subject(i);
         if kind_ == Kind::Gpg {
@@ -2776,8 +2759,7 @@ impl Faraday {
             }
             return self.flow_select_subject(i);
         };
-        self.vaults.category = kind_.category();
-        self.vaults.category_chosen = true;
+        self.vaults.choose_category(kind_.category());
         self.backup_flows[i].live.open = Some(u8::MAX);
         self.act(Action::Vault(crate::vault::VaultAction::OpenFrom(
             at,
@@ -2815,10 +2797,7 @@ impl Faraday {
         let Some((o, n)) = found else {
             return false;
         };
-        self.vaults.current = o;
-        self.vaults.category = cat;
-        self.vaults.category_chosen = true;
-        self.vaults.item[cat] = n;
+        self.vaults.point_at(o, cat, n);
         true
     }
 
@@ -2827,13 +2806,9 @@ impl Faraday {
         if !self.flow_point_at_subject(i) {
             return;
         }
-        self.vaults.item_open = true;
-        self.vaults.form = None;
-        self.vaults.saving = false;
-        self.vaults.prompt = None;
-        self.vaults.back_to = None;
+        self.vaults.open_item();
         self.backup_flows[i].live.open = Some(Step::Done.n());
-        self.vault_item_offset = 0.0;
+        self.vaults.set_item_offset(0.0);
         self.screen = Screen::VaultContents;
     }
 

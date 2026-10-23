@@ -296,7 +296,7 @@ fn seed_bs_words_file_beside_vault_1_is_written_in_one_visit_and_the_stick_is_re
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S1");
     create_vault(&mut shell, &mut app, 0, PHRASE);
-    assert_eq!(app.screen, Screen::Create, "{:?}", app.vaults.unlock_error);
+    assert_eq!(app.screen, Screen::Create, "{:?}", unlock_error(&app));
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -597,7 +597,7 @@ fn three_with_a_vault(shell: &mut Shell) -> (Faraday, Vec<[u8; 4]>) {
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S1");
     create_vault(shell, &mut app, 0, PHRASE);
-    assert_eq!(app.screen, Screen::Create, "{:?}", app.vaults.unlock_error);
+    assert_eq!(app.screen, Screen::Create, "{:?}", unlock_error(&app));
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {
@@ -1489,7 +1489,7 @@ fn main_vault_board(shell: &mut Shell) -> (Faraday, testkit::Kit) {
     shell.pull(&mut app, "S1");
     assert_eq!(step(&app), Step::Vaults);
     unlock(&mut app, PHRASE);
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(app.vaults().open.len(), 1, "{:?}", unlock_error(&app));
     let fps: Vec<[u8; 4]> = (0..3).map(|i| key_in(&mut app, i)).collect();
     app.press(Action::Nav(Screen::Create));
     for (i, fp) in fps.iter().enumerate() {

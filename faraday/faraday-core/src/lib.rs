@@ -1180,8 +1180,9 @@ pub struct Faraday {
     /// The last number given to a Make a new wallet or a Restore, which a
     /// wallet's backup flow is tied to while the wallet is being made.
     owner_seq: u64,
-    /// The vaults: the open slots and the vault screens' state.
-    pub vaults: vault::Vaults,
+    /// The vaults: the open slots and the vault screens' state, and the
+    /// item's scroll.
+    vaults: vault::VaultArea,
     /// What is kept across a lock besides the settings: the signed amounts,
     /// whether they are sealed into a vault, the wallets checked.
     memory: memory::MemoryArea,
@@ -1235,8 +1236,6 @@ pub struct Faraday {
     /// How far the backup board's list column is scrolled, in design
     /// units (`docs/BACKUP-FLOW.md` §17.14).
     pub board_list_offset: f32,
-    /// Design units scrolled past in Vault contents' item, on a desktop.
-    pub vault_item_offset: f32,
     /// The wallet's chart: its page, its open sheet, the key drawn bold and
     /// what the sheets hold.
     glance: glance::GlanceArea,
@@ -1414,12 +1413,7 @@ impl Faraday {
             drawing: drawing::Drawing::default(),
             kept: drawing::Kept::default(),
             owner_seq: 0,
-            // A new GPG key's term starts at GnuPG's default, never at "never".
-            vaults: {
-                let mut v = vault::Vaults::default();
-                v.gpg_years = gpg::DEFAULT_YEARS;
-                v
-            },
+            vaults: vault::VaultArea::default(),
             memory: memory::MemoryArea::default(),
             backups_area: backups::BackupsArea::default(),
             fresh: fresh::Fresh::default(),
@@ -1441,7 +1435,6 @@ impl Faraday {
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
             board_list_offset: 0.0,
-            vault_item_offset: 0.0,
             glance: glance::GlanceArea::default(),
             scroll: motion::Scroll::default(),
             qr: qr_view::QrArea::default(),
@@ -1733,12 +1726,11 @@ impl Faraday {
                 self.toast(&fill(EN.storage_event_saved, &[&path.to_string()]))
             }
             StorageEvent::Clock { unix_secs } => {
-                self.vaults.unix_secs = Some(unix_secs);
-                self.vaults.clock_at_ms = self.now_ms;
+                self.vaults.set_clock(unix_secs, self.now_ms);
                 return;
             }
             StorageEvent::Memory { available_mib } => {
-                self.vaults.memory_free_mib = Some(available_mib);
+                self.vaults.set_memory_free(available_mib);
                 if !matches!(self.screen, Screen::CreateVault | Screen::Unlock) {
                     return;
                 }
@@ -2120,7 +2112,7 @@ impl Faraday {
                 && self.vaults.focus.is_none()
                 && self.vault_files().iter().any(|f| f.open.is_none())
             {
-                self.vaults.focus = Some(vault::Focus::Passphrase);
+                self.vaults.set_focus(Some(vault::Focus::Passphrase));
             }
             if self.screen == Screen::Visit {
                 // Where the visit's chip said it goes (§4.7).
@@ -2199,7 +2191,7 @@ impl Faraday {
             self.vaults.focus,
             Some(vault::Focus::Passphrase | vault::Focus::Phrase(..) | vault::Focus::Dice)
         ) {
-            self.vaults.focus = None;
+            self.vaults.set_focus(None);
         }
         // The backup flow on screen takes the stick: never the visit, at any
         // step (`docs/BACKUP-FLOW.md` §5).
@@ -2979,7 +2971,7 @@ impl Faraday {
             Action::Cancel if self.sheet == Some(Sheet::PassphraseSeeds) => self.pass_seeds_close(),
             Action::Cancel => {
                 *self.visit.pull_mut() = None;
-                self.vaults.stick_save = None;
+                self.vaults.clear_stick_save();
                 self.devices.after = None;
                 self.devices.over_import = false;
                 // A seed read and not loaded is wiped.
@@ -6357,7 +6349,7 @@ impl Faraday {
         match self.slot() {
             ui::Slot::VisitOut => Some(&mut self.visit.out_offset),
             ui::Slot::Card => Some(self.wallets.card_offset_mut()),
-            ui::Slot::VaultItem => Some(&mut self.vault_item_offset),
+            ui::Slot::VaultItem => Some(self.vaults.item_offset_mut()),
             ui::Slot::FilesOut => Some(self.visit.files_out_offset_mut()),
             ui::Slot::BoardList => Some(&mut self.board_list_offset),
             ui::Slot::Page => self.page_slot(),
@@ -6542,7 +6534,7 @@ impl Faraday {
                     return;
                 }
                 self.pressed = found;
-                self.vaults.pressed_at = self.now_ms;
+                self.vaults.pressed(self.now_ms);
                 self.vault_seedqr_press(found.map(|f| f.0));
                 // A press on a chip of the backup board may be its drag:
                 // the page does not scroll under it (§19.2).
@@ -6640,7 +6632,7 @@ impl Faraday {
                     return;
                 }
                 let pressed = self.pressed.take();
-                self.vaults.seedqr = None;
+                self.vaults.clear_seedqr();
                 // A hold acts on the tick that completes it, never on release.
                 if let (Some((a, _)), Some((b, _))) = (pressed, found)
                     && a == b
@@ -6861,7 +6853,7 @@ impl Faraday {
         let drew = self.region_key();
         self.scroll.drew(drew, scrolled);
         self.typing.set_caret_drawn(caret);
-        self.vaults.drawn = true;
+        self.vaults.set_drawn();
         self.later_drawn = true;
         self.hits = hits;
         self.fade_end(&mut canvas);
@@ -7110,7 +7102,7 @@ impl Faraday {
             Screen::CreateVault | Screen::Vaults | Screen::Unlock | Screen::BackupFlow
         );
         if !detour {
-            self.vaults.back_to = None;
+            self.vaults.set_back_to(None);
         }
         let waiting = detour && self.vaults.back_to.is_some();
         if !waiting && !matches!(self.sheet, Some(Sheet::SecretOut | Sheet::Pull)) {
@@ -7130,9 +7122,7 @@ impl Faraday {
             Screen::Unlock | Screen::BackupFlow | Screen::Family
         ) || self.sheet == Some(Sheet::Import);
         if !typing && self.vaults.working != Some(vault::Work::Unlock) {
-            self.vaults.passphrase.clear();
-            self.vaults.typed_shown = false;
-            self.vaults.unlock_error = None;
+            self.vaults.clear_unlock();
         }
         // Leaving the new-key screen drops what it held.
         if self.screen != Screen::KeyGen && self.keygen.state().is_some() {

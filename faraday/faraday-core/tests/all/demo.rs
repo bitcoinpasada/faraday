@@ -72,7 +72,12 @@ fn unlock(app: &mut Faraday) {
     crate::common::type_text(app, VAULT_PHRASE);
     app.press(Action::Vault(V::Unlock));
     crate::common::settle(app, 1);
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
 }
 
 /// A public seed typed into Add a key. Returns its fingerprint.
@@ -108,8 +113,8 @@ fn a_key(app: &mut Faraday) -> [u8; 4] {
 }
 
 fn records(app: &Faraday, k: u8) -> usize {
-    app.vaults
-        .records(app.vaults.open[app.vaults.current].id)
+    app.vaults()
+        .records(app.vaults().open[app.vaults().current].id)
         .of(k)
         .count()
 }
@@ -823,9 +828,9 @@ fn make_vault(app: &mut Faraday, typed: Option<&str>) {
 
 /// Unlock with `phrase`. Returns whether the vault opened.
 fn opens_with(app: &mut Faraday, phrase: &str) -> bool {
-    let before = app.vaults.open.len();
+    let before = app.vaults().open.len();
     crate::common::unlock(app, phrase);
-    app.vaults.open.len() > before
+    app.vaults().open.len() > before
 }
 
 #[test]
@@ -846,7 +851,7 @@ fn in_the_demo_a_vault_from_the_dice_shows_the_rolled_words_then_opens_with_fara
         "Demo puts faraday in place of these words"
     ));
     // Both fields hold faraday, and the dice's strength is not measured.
-    let c = app.vaults.create.as_ref().expect("the form");
+    let c = app.vaults().create.as_ref().expect("the form");
     assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
     assert_eq!(c.phrases[0].1.text.as_str(), "faraday");
     assert!(!crate::common::has_part(&mut app, "bits from dice"));
@@ -868,7 +873,7 @@ fn in_the_demo_a_vault_takes_a_typed_passphrase_and_opens_with_it() {
     make_vault(&mut app, Some("harbour lantern"));
     assert!(!opens_with(&mut app, demo::PASSPHRASE));
     assert!(opens_with(&mut app, "harbour lantern"));
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
 }
 
 #[test]
@@ -884,7 +889,7 @@ fn in_the_demo_a_chip_puts_faraday_in_a_vaults_passphrase_and_it_opens_with_it()
         let _ = crate::common::texts(&mut app);
         assert!(!app.offers(chip), "the chip goes once the field holds it");
     }
-    let c = app.vaults.create.as_ref().expect("the form");
+    let c = app.vaults().create.as_ref().expect("the form");
     assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
     assert_eq!(c.phrases[0].1.text.as_str(), "faraday");
     app.press(Action::Vault(V::CGo));

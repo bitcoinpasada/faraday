@@ -96,19 +96,19 @@ fn a_password_goes_into_the_vault_as_an_entry() {
         .find(|(n, _)| n == "vault.ofv")
         .unwrap();
     let mut app = with_key(vec![vault]);
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     app.press(Action::Bip85);
     app.press(Action::PApp(4));
     app.press(Action::PNext);
@@ -117,9 +117,9 @@ fn a_password_goes_into_the_vault_as_an_entry() {
     let want =
         faraday_bip::bip85::child_password_base64(&c, app.session.keys.master_for_tests(0), 21, 0)
             .unwrap();
-    let v = &app.vaults.open[0];
+    let v = &app.vaults().open[0];
     let found = app
-        .vaults
+        .vaults()
         .store()
         .contents_for_tests(v.id)
         .of(kind::ENTRY)

@@ -279,7 +279,12 @@ impl Faraday {
                 self.lightning.resolve(&c, &self.session.keys);
             }
             A::LVault => {
-                if self.vaults.open.get(self.vaults.current).is_none() {
+                if self
+                    .vaults
+                    .open
+                    .get(self.vaults.current)
+                    .is_none()
+                {
                     return self.toast(EN.lightning_no_vault);
                 }
                 let Some((id, private)) = self.lightning.secret_text(

@@ -20,7 +20,7 @@ fn device(vault: Vec<u8>) -> Faraday {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(100);
+    faraday_core::testkit::vault_speed(&mut app, Some(100));
     app.storage(StorageEvent::Restored {
         inbox: vec![("vault.ofv".into(), vault)],
         outbox: Vec::new(),
@@ -39,15 +39,15 @@ fn open(app: &mut Faraday) -> usize {
     type_text(app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() {
+        if !app.vaults().open.is_empty() {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
-    app.vaults
-        .records(app.vaults.open[0].id)
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
+    app.vaults()
+        .records(app.vaults().open[0].id)
         .of(kind::KEY)
         .count()
 }
@@ -60,7 +60,10 @@ fn open_and_change(app: &mut Faraday) -> usize {
     app.press(Action::EntryAdd);
     let k = app.session.keys.len() - 1;
     app.press(Action::Vault(V::SaveKey(k)));
-    assert!(app.vaults.open[0].changes > 0, "the vault was not changed");
+    assert!(
+        app.vaults().open[0].changes > 0,
+        "the vault was not changed"
+    );
     held
 }
 
@@ -94,8 +97,8 @@ fn with_no_randomness_a_lock_seals_nothing_until_it_arrives() {
     // with its change, and the sheet says why it cannot be sealed.
     assert_eq!(sealed(&app), None);
     assert!(!app.restart_requested());
-    assert_eq!(app.vaults.open.len(), 1);
-    assert!(app.vaults.open[0].changes > 0);
+    assert_eq!(app.vaults().open.len(), 1);
+    assert!(app.vaults().open[0].changes > 0);
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == EN.seed_missing), "{texts:?}");
@@ -156,7 +159,7 @@ fn locking_without_sealing_writes_nothing() {
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
     app.press(Action::LockUnsealed);
     assert!(app.restart_requested());
-    assert!(app.vaults.open.is_empty());
+    assert!(app.vaults().open.is_empty());
     assert_eq!(sealed(&app), None);
 }
 

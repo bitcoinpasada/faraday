@@ -247,7 +247,7 @@ impl Faraday {
             list_offset: self.list_offset,
             card_offset: self.wallets.card_offset(),
             files_out_offset: *self.visit.files_out_offset(),
-            vault_item_offset: self.vault_item_offset,
+            vault_item_offset: self.vaults.item_offset(),
             board_list_offset: self.board_list_offset,
             backups_at: self.backups_area.at(),
             vault_current: self.vaults.current,
@@ -399,7 +399,7 @@ impl Faraday {
         self.list_offset = s.list_offset;
         self.wallets.set_card_offset(s.card_offset);
         *self.visit.files_out_offset_mut() = s.files_out_offset;
-        self.vault_item_offset = s.vault_item_offset;
+        self.vaults.set_item_offset(s.vault_item_offset);
         self.board_list_offset = s.board_list_offset;
         match s.screen {
             Screen::Wallets => {
@@ -408,11 +408,13 @@ impl Faraday {
             }
             Screen::Backups => self.backups_area.set_at(s.backups_at),
             Screen::VaultContents => {
-                self.vaults.current = s.vault_current;
-                self.vaults.category = s.vault_category;
-                self.vaults.category_chosen = s.vault_category_chosen;
-                self.vaults.item = s.vault_item;
-                self.vaults.item_open = s.vault_item_open;
+                self.vaults.restore_view(
+                    s.vault_current,
+                    s.vault_category,
+                    s.vault_category_chosen,
+                    s.vault_item,
+                    s.vault_item_open,
+                );
             }
             _ => {}
         }

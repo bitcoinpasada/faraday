@@ -37,7 +37,7 @@ fn shown(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Clock {
         unix_secs: 1_791_000_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     let _ = app.frame();
     app
 }
@@ -97,8 +97,8 @@ fn locked_with_a_wallet_and_a_key() -> ((Files, Files, Files), String, String) {
     settle(&mut app, |a| a.screen == Screen::Unlock);
     type_text(&mut app, "test phrase");
     app.press(Action::Vault(V::Unlock));
-    settle(&mut app, |a| !a.vaults.open.is_empty());
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
+    settle(&mut app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
     app.press(Action::Vault(V::AddKind(0)));
     app.press(Action::Vault(V::SaveKey(0)));
     app.press(Action::Vault(V::AddKind(1)));
@@ -220,8 +220,8 @@ fn a_vaults_currency_reads_never_written_then_current_then_changed() {
     app.press(Action::Vault(V::Open(0)));
     type_text(&mut app, "test phrase");
     app.press(Action::Vault(V::Unlock));
-    settle(&mut app, |a| !a.vaults.open.is_empty());
-    assert_eq!(app.vaults.open.len(), 1, "the written vault did not open");
+    settle(&mut app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the written vault did not open");
     app.press(Action::Vault(V::AddKind(0)));
     app.press(Action::Vault(V::SaveKey(0)));
     let texts = vaults_list(&mut app);

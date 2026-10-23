@@ -26,7 +26,7 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Clock {
         unix_secs: 1_791_000_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Entry(None));
     t.type_key(0);
     let one = {
@@ -58,12 +58,12 @@ pub(crate) fn chart_edit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     type_text(t, "chart phrase");
     t.press(Action::Vault(V::Unlock));
     for _ in 0..10 {
-        if !t.app.vaults.open.is_empty() {
+        if !t.app.vaults().open.is_empty() {
             break;
         }
         t.tick();
     }
-    if t.app.vaults.open.is_empty() {
+    if t.app.vaults().open.is_empty() {
         return Err("the vault made for the chart tour did not open".to_string());
     }
     t.press(Action::Backup(one));

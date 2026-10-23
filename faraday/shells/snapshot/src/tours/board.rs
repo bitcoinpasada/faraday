@@ -116,7 +116,7 @@ pub(crate) fn open_a_vault(t: &mut Tour, phrase: &str) -> Result<(), String> {
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Create));
     for second in [false, true] {
@@ -133,12 +133,12 @@ pub(crate) fn open_a_vault(t: &mut Tour, phrase: &str) -> Result<(), String> {
     type_text(t, phrase);
     t.press(Action::Vault(V::Unlock));
     for _ in 0..10 {
-        if !t.app.vaults.open.is_empty() {
+        if !t.app.vaults().open.is_empty() {
             break;
         }
         t.tick();
     }
-    if t.app.vaults.open.is_empty() {
+    if t.app.vaults().open.is_empty() {
         return Err("the vault made for the tour did not open".to_string());
     }
     Ok(())

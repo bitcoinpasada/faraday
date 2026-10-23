@@ -226,7 +226,7 @@ fn an_unlock_the_spend_asks_for_shows_no_load_sheet() {
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Family(F::Unlock));
     settle(&mut app);
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
     assert_eq!(app.screen, Screen::Family);
     assert_ne!(app.sheet, Some(Sheet::UnlockLoad));
 }
@@ -236,7 +236,7 @@ fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
     unlock_on_tab(&mut app);
     assert_eq!(app.screen, Screen::Family, "unlocking left the tab");
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
     assert!(!app.session.keys.is_empty(), "the vault's key did not load");
     // The test vault holds every test wallet; the PSBT waiting in Files
     // says which one it spends from.

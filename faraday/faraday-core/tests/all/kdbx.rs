@@ -51,13 +51,13 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
     app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
-    assert_eq!(app.vaults.open.len(), 1);
+    assert_eq!(app.vaults().open.len(), 1);
     app.press(Action::Nav(Screen::VaultContents));
     // An entry of its own, then exported.
     app.press(Action::Vault(V::Category(2)));
@@ -68,8 +68,8 @@ fn an_entry_exported_for_keepass_is_sealed_under_its_passphrase() {
     type_text(&mut app, "hunter22");
     app.press(Action::Vault(V::FormSave));
     let entries = app
-        .vaults
-        .records(app.vaults.open[0].id)
+        .vaults()
+        .records(app.vaults().open[0].id)
         .of(faraday_vault::records::kind::ENTRY)
         .count();
     app.press(Action::Vault(V::Item(entries - 1)));

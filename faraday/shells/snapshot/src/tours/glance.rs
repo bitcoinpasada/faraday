@@ -152,7 +152,7 @@ pub(crate) fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.storage(StorageEvent::Memory {
         available_mib: 15_000,
     });
-    t.app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut t.app, Some(180));
     t.press(Action::Nav(Screen::Vaults));
     t.press(Action::Vault(V::Create));
     for second in [false, true] {
@@ -169,12 +169,12 @@ pub(crate) fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     type_text(t, "glance phrase");
     t.press(Action::Vault(V::Unlock));
     for _ in 0..10 {
-        if !t.app.vaults.open.is_empty() {
+        if !t.app.vaults().open.is_empty() {
             break;
         }
         t.tick();
     }
-    if t.app.vaults.open.is_empty() {
+    if t.app.vaults().open.is_empty() {
         return Err("the vault made for the glance tour did not open".to_string());
     }
     t.press(Action::Backup(one));
@@ -225,7 +225,7 @@ pub(crate) fn glance_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         t.press(Action::Vault(V::Item(1)));
         shot_sheet(
             t,
-            Press::Vault(t.app.vaults.current, r),
+            Press::Vault(t.app.vaults().current, r),
             Target::Node(0),
             "glance-vault-sheet-place",
         )?;

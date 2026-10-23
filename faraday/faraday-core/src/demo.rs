@@ -423,29 +423,16 @@ impl Faraday {
                 }
             }
             PassField::Phrase(i, again) => {
-                if let Some(c) = self.vaults.create.as_mut()
-                    && let Some((a, b)) = c.phrases.get_mut(usize::from(i))
-                {
-                    if again { b } else { a }.set(PASSPHRASE);
-                }
-                self.vaults.unlock_error = None;
+                self.vaults.fill_phrase(usize::from(i), again, PASSPHRASE);
             }
             PassField::Unlock => {
-                self.vaults.passphrase.set(PASSPHRASE);
-                self.vaults.unlock_error = None;
+                self.vaults.fill_unlock(PASSPHRASE);
             }
             PassField::Prompt => {
-                if let Some(p) = self.vaults.prompt.as_mut() {
-                    p.text.set(PASSPHRASE);
-                    p.error = None;
-                }
+                self.vaults.fill_prompt(PASSPHRASE);
             }
             PassField::Password(k) => {
-                if let Some(f) = self.vaults.form.as_mut()
-                    && let Some(x) = f.fields.get_mut(usize::from(k))
-                {
-                    x.2.set(PASSPHRASE);
-                }
+                self.vaults.fill_field(usize::from(k), PASSPHRASE);
             }
             PassField::Check => {
                 if let Some(c) = self.backup.check_mut() {

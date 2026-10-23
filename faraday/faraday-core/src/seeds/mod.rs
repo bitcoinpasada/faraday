@@ -787,7 +787,7 @@ pub(crate) fn vault_seeds(c: &Compute, app: &Faraday) -> Vec<(usize, usize, Stri
     let mut out = Vec::new();
     for (v, open) in app.vaults.open.iter().enumerate() {
         for (i, r) in app
-            .vaults
+            .vaults()
             .records(open.id)
             .of(faraday_vault::records::kind::KEY)
         {

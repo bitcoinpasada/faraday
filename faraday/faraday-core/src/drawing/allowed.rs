@@ -106,7 +106,7 @@ impl View<'_> {
     pub fn paperkey_shown(&self, r: RecordView<'_>) -> Option<Held<Zeroizing<String>>> {
         self.allowed(Allowed::SecretShown, |_| {
             self.app
-                .vaults
+                .vaults()
                 .store()
                 .gpg_paperkey(r, faraday_keys::Reveal::GpgPaperkey)
         })

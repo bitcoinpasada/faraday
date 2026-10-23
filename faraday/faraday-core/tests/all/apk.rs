@@ -98,7 +98,7 @@ fn process(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Clock {
         unix_secs: 1_791_482_652,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     app
 }
 
@@ -109,7 +109,12 @@ fn unlock(mut app: Faraday) -> Faraday {
     type_text(&mut app, PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(&mut app, 1);
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     app.press(Action::Nav(Screen::VaultContents));
     app.press(Action::Vault(V::Category(6)));
     app.press(Action::OpenSetTime);
@@ -131,16 +136,16 @@ fn make(app: &mut Faraday, name: &str, package: &str) {
     let seed = [SEED.fetch_add(1, Ordering::Relaxed); 32];
     let name = name.trim();
     let made = faraday_keys::apk::create(&seed, name, package, 1_791_482_652).unwrap();
-    let cur = app.vaults.current;
+    let cur = app.vaults().current;
     {
-        let id = app.vaults.open[cur].id;
-        app.vaults.edit(id, |s| s.insert(id, &made.key));
+        let id = app.vaults().open[cur].id;
+        faraday_core::testkit::vault_edit(app, id, |s| s.insert(id, &made.key));
     }
-    app.vaults.open[cur].changes += 1;
+    faraday_core::testkit::vault_bump(app, cur);
     let n = app
-        .vaults
+        .vaults()
         .store()
-        .contents_for_tests(app.vaults.open[cur].id)
+        .contents_for_tests(app.vaults().open[cur].id)
         .of(kind::APK_KEY)
         .count();
     app.press(Action::Vault(V::Category(6)));
@@ -148,9 +153,9 @@ fn make(app: &mut Faraday, name: &str, package: &str) {
 }
 
 fn keys(app: &Faraday) -> Vec<faraday_vault::Record> {
-    app.vaults
+    app.vaults()
         .store()
-        .contents_for_tests(app.vaults.open[app.vaults.current].id)
+        .contents_for_tests(app.vaults().open[app.vaults().current].id)
         .of(kind::APK_KEY)
         .map(|(_, r)| r.clone())
         .collect()
@@ -322,7 +327,7 @@ fn a_certificate_name_left_empty_and_a_bad_package_are_refused() {
         let mut shell = Shell::new();
         let mut app = flow_to_make(&mut shell, true);
         let toast = crate::common::make_key(&mut shell, &mut app, &[name, package]);
-        assert!(app.vaults.form.is_some(), "{name:?} {package:?}");
+        assert!(app.vaults().form.is_some(), "{name:?} {package:?}");
         assert!(keys(&app).is_empty(), "{name:?} {package:?}");
         assert!(!app.flow().unwrap().made);
         toast
@@ -690,8 +695,8 @@ fn nothing_for_the_stick_ever_holds_the_private_key() {
     let apk = fixture("small-unsigned.apk");
     let mut app = unlocked(&[("x-unsigned.apk", apk.clone())]);
     let check = |app: &Faraday, what: &str| {
-        let Some((_, r)) = app.vaults.open.first().and_then(|v| {
-            app.vaults
+        let Some((_, r)) = app.vaults().open.first().and_then(|v| {
+            app.vaults()
                 .store()
                 .contents_for_tests(v.id)
                 .of(kind::APK_KEY)
@@ -730,9 +735,9 @@ fn nothing_for_the_stick_ever_holds_the_private_key() {
     assert!(out(&app, "x.apk").is_some());
     // The state a lock keeps holds none of it either.
     let secrets = secrets_of(
-        app.vaults
+        app.vaults()
             .store()
-            .contents_for_tests(app.vaults.open[0].id)
+            .contents_for_tests(app.vaults().open[0].id)
             .of(kind::APK_KEY)
             .next()
             .unwrap()
@@ -850,7 +855,12 @@ fn open_vault(app: &mut Faraday) {
     type_text(app, PASSPHRASE);
     app.press(Action::Vault(V::Unlock));
     settle(app, 1);
-    assert_eq!(app.vaults.open.len(), 1, "{:?}", app.vaults.unlock_error);
+    assert_eq!(
+        app.vaults().open.len(),
+        1,
+        "{:?}",
+        app.vaults().unlock_error
+    );
     app.press(Action::Nav(Screen::VaultContents));
 }
 
@@ -874,7 +884,7 @@ fn with_apk_signing_off_a_vault_without_an_apk_key_lists_no_such_category() {
     app.press(Action::Vault(V::AddKind(6)));
     assert!(!has(&mut app, "APK signing keys"));
     app.press(Action::Vault(V::ApkSignOpen));
-    assert!(!app.vaults.apk.signing);
+    assert!(!app.vaults().apk.signing);
 }
 
 #[test]
@@ -893,7 +903,7 @@ fn with_apk_signing_off_an_apk_in_files_has_no_sign_row_but_is_named_an_apk() {
         .position(|i| i.name == "x-unsigned.apk")
         .unwrap();
     app.press(Action::Vault(V::ApkFromFiles(k)));
-    assert!(!app.vaults.apk.signing);
+    assert!(!app.vaults().apk.signing);
     assert_ne!(app.screen, Screen::VaultContents);
 }
 
@@ -908,5 +918,5 @@ fn with_apk_signing_off_a_vault_that_holds_an_apk_key_still_lists_it() {
             .any(|t| t.starts_with("APK signing keys"))
     );
     app.press(Action::Vault(V::Category(6)));
-    assert_eq!(app.vaults.category, 6);
+    assert_eq!(app.vaults().category, 6);
 }

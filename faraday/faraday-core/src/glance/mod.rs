@@ -480,7 +480,7 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
     let app = reads.app();
     let open = app.vaults.open.get(v)?;
     let rec = app
-        .vaults
+        .vaults()
         .records(open.id)
         .get(r)
         .filter(|x| x.kind() == kind::WALLET)?;
@@ -495,7 +495,7 @@ pub(crate) fn of_vault_on(reads: &impl Reads, v: usize, r: usize) -> Option<Glan
     // The seeds this vault keeps: their fingerprints, and whether each
     // was kept with a passphrase.
     let kept: Vec<(String, bool)> = app
-        .vaults
+        .vaults()
         .records(open.id)
         .of(kind::KEY)
         .filter_map(|(_, k)| {
@@ -705,7 +705,7 @@ fn build(
 /// A plan kept in a locked vault seen this power-on, else no plan.
 fn locked(app: &Faraday, sum: &str) -> Backup {
     let Some(s) = app
-        .vaults
+        .vaults()
         .summaries
         .iter()
         .find(|s| s.planned.iter().any(|c| c == sum))

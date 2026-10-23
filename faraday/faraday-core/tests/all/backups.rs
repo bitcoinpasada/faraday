@@ -44,7 +44,7 @@ fn shown(inbox: Files, outbox: Files, kept: Files) -> Faraday {
     app.storage(StorageEvent::Clock {
         unix_secs: 1_791_000_000,
     });
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     let _ = app.frame();
     app
 }
@@ -99,8 +99,8 @@ fn open_a_vault(app: &mut Faraday) {
     settle(app, |a| a.screen == Screen::Unlock);
     type_text(app, "test phrase");
     app.press(Action::Vault(V::Unlock));
-    settle(app, |a| !a.vaults.open.is_empty());
-    assert_eq!(app.vaults.open.len(), 1, "the vault did not open");
+    settle(app, |a| !a.vaults().open.is_empty());
+    assert_eq!(app.vaults().open.len(), 1, "the vault did not open");
 }
 
 /// The copy of the seed on screen typed back as its words.
@@ -268,14 +268,14 @@ fn a_locked_vault_is_named_for_a_seed_it_held_and_not_for_another_with_its_finge
     app.press(Action::Lock);
     let (inbox, outbox, kept) = saved(&mut app);
     let mut app = shown(inbox, outbox, kept);
-    assert!(app.vaults.open.is_empty(), "the vault is locked");
+    assert!(app.vaults().open.is_empty(), "the vault is locked");
     assert!(app.session.keys.is_empty(), "no seed is loaded");
     let vault = line(&lines(&mut app), "Vault").clone();
     assert!(vault.state.starts_with(&format!("{file} · ")), "{vault:?}");
 
     // A summary kept before the ids were: nothing is verified.
-    let ids = app.vaults.summaries[0].ids.clone();
-    for id in &mut app.vaults.summaries[0].ids {
+    let ids = app.vaults().summaries[0].ids.clone();
+    for id in &mut faraday_core::testkit::vault_summaries_mut(&mut app)[0].ids {
         *id = None;
     }
     let vault = line(&lines(&mut app), "Vault").clone();
@@ -283,11 +283,11 @@ fn a_locked_vault_is_named_for_a_seed_it_held_and_not_for_another_with_its_finge
         (vault.state.as_str(), vault.tone),
         ("A vault is locked", Tone::Dim)
     );
-    app.vaults.summaries[0].ids = ids;
+    faraday_core::testkit::vault_summaries_mut(&mut app)[0].ids = ids;
 
     // Test key 2's entry under test key 1's fingerprint, and test key 1
     // gone from the summary.
-    let s = &mut app.vaults.summaries[0];
+    let s = &mut faraday_core::testkit::vault_summaries_mut(&mut app)[0];
     let i1 = s.keys.iter().position(|k| *k == fp1).expect("test key 1");
     let i2 = s.keys.iter().position(|k| *k == fp2).expect("test key 2");
     s.keys[i2] = fp1.clone();

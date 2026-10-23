@@ -191,7 +191,7 @@ fn a_seed_whose_fingerprint_finds_a_record_of_another_seed_is_not_kept_there() {
     assert!(!vault_has_key(&c, &app, v, &app.session.keys[k2]));
     // The vault's record of key 1 now looks up as key 2's fingerprint.
     let record_fp = app
-        .vaults
+        .vaults()
         .records(app.vaults.open[v].id)
         .of(kind::KEY)
         .find_map(|(_, r)| key_fingerprint(&c, &app, r))
@@ -223,7 +223,7 @@ fn a_vault_seed_whose_fingerprint_matches_a_slot_but_not_its_key_is_not_offered(
     unlock_test_vault(&mut app);
     let v = app.vaults.current;
     let record_fp = app
-        .vaults
+        .vaults()
         .records(app.vaults.open[v].id)
         .of(kind::KEY)
         .find_map(|(_, r)| key_fingerprint(&c, &app, r))
@@ -307,7 +307,7 @@ fn the_checklists_locked_vault_is_done_by_each_seeds_whole_id() {
         .header
         .salt;
     let at = app
-        .vaults
+        .vaults()
         .summaries
         .iter()
         .position(|s| s.salt == salt)
@@ -315,16 +315,16 @@ fn the_checklists_locked_vault_is_done_by_each_seeds_whole_id() {
 
     // A summary kept before the ids were: not done.
     let ids = app.vaults.summaries[at].ids.clone();
-    for id in &mut app.vaults.summaries[at].ids {
+    for id in &mut app.vaults.summaries_mut()[at].ids {
         *id = None;
     }
     assert_eq!(app.backup_vault_fits(&c, 0), None, "nothing is verified");
-    app.vaults.summaries[at].ids = ids;
+    app.vaults.summaries_mut()[at].ids = ids;
 
     // Another seed's entry under the first seed's fingerprint, and the
     // first seed's entry gone.
     let fp = fp_text(own[0]);
-    let s = &mut app.vaults.summaries[at];
+    let s = &mut app.vaults.summaries_mut()[at];
     let mine = s.keys.iter().position(|k| *k == fp).expect("the seed");
     let other = (0..s.keys.len())
         .find(|&i| i != mine && s.ids[i].is_some())

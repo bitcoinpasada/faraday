@@ -238,18 +238,18 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     assert!(app.backup_item_done_now(&c, plan::Item::Copy(0)));
     press_offered(&mut app, Action::BStep(bstep::VAULT));
     // The vault is locked: Unlock it, and back to this step.
-    app.vaults.ms_per_unit = Some(180);
+    faraday_core::testkit::vault_speed(&mut app, Some(180));
     press_offered(&mut app, Action::Vault(V::OpenFrom(0, Screen::Backup)));
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Vault(V::Unlock));
     for t in 1..60u64 {
-        if !app.vaults.open.is_empty() && app.screen == Screen::Backup {
+        if !app.vaults().open.is_empty() && app.screen == Screen::Backup {
             break;
         }
         let _ = app.frame();
         app.event(Event::Tick { now_ms: t * 1000 });
     }
-    assert_eq!(app.vaults.open.len(), 1, "the test vault did not unlock");
+    assert_eq!(app.vaults().open.len(), 1, "the test vault did not unlock");
     assert_eq!(app.screen, Screen::Backup);
     assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
     assert_eq!(app.backup_kept(&c).unwrap().wallet.1, Tone::Warn);

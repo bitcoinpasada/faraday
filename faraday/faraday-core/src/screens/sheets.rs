@@ -1594,7 +1594,7 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let keys = app.session.keys.len();
     let wallets = app.session.wallets.len();
     let sealed: Vec<String> = app
-        .vaults
+        .vaults()
         .open
         .iter()
         .filter(|v| v.changes > 0)

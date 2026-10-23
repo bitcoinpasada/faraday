@@ -22,7 +22,7 @@ fn rolling() -> Faraday {
 #[test]
 fn the_long_list_is_where_rolling_starts() {
     let app = rolling();
-    let (_, _, list) = app.vaults.dice.as_ref().unwrap();
+    let (_, _, list) = app.vaults().dice.as_ref().unwrap();
     assert_eq!(*list, List::Large);
 }
 
@@ -37,7 +37,7 @@ fn the_same_rolls_spell_different_words_on_different_lists() {
         )));
     }
     app.press(Action::Vault(V::DiceUse));
-    let long_word = app.vaults.create.as_ref().unwrap().phrases[0]
+    let long_word = app.vaults().create.as_ref().unwrap().phrases[0]
         .0
         .text
         .clone();
@@ -45,7 +45,7 @@ fn the_same_rolls_spell_different_words_on_different_lists() {
 
     let mut app = rolling();
     app.press(Action::Vault(V::DiceList(1))); // Short1
-    let (_, _, list) = app.vaults.dice.as_ref().unwrap();
+    let (_, _, list) = app.vaults().dice.as_ref().unwrap();
     assert_eq!(*list, List::Short1);
     for c in ['1', '2', '3', '4'] {
         app.event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Char(
@@ -53,7 +53,7 @@ fn the_same_rolls_spell_different_words_on_different_lists() {
         )));
     }
     app.press(Action::Vault(V::DiceUse));
-    let short_word = app.vaults.create.as_ref().unwrap().phrases[0]
+    let short_word = app.vaults().create.as_ref().unwrap().phrases[0]
         .0
         .text
         .clone();
@@ -73,7 +73,7 @@ fn dice_words_land_in_the_passphrase_field_with_no_spaces() {
         )));
     }
     app.press(Action::Vault(V::DiceUse));
-    let phrase = app.vaults.create.as_ref().unwrap().phrases[0]
+    let phrase = app.vaults().create.as_ref().unwrap().phrases[0]
         .0
         .text
         .clone();
@@ -91,10 +91,10 @@ fn choosing_a_list_clears_rolls_already_typed() {
             c,
         )));
     }
-    assert_eq!(app.vaults.dice.as_ref().unwrap().1.text.len(), 3);
+    assert_eq!(app.vaults().dice.as_ref().unwrap().1.text.len(), 3);
     app.press(Action::Vault(V::DiceList(1)));
     assert!(
-        app.vaults.dice.as_ref().unwrap().1.text.is_empty(),
+        app.vaults().dice.as_ref().unwrap().1.text.is_empty(),
         "switching lists mid-roll must not spell a word under the wrong list"
     );
 }
@@ -103,23 +103,23 @@ fn choosing_a_list_clears_rolls_already_typed() {
 fn passphrases_are_masked_until_shown() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Vault(V::Create));
-    assert!(!app.vaults.create.as_ref().unwrap().shown);
+    assert!(!app.vaults().create.as_ref().unwrap().shown);
     app.press(Action::Vault(V::CShow));
-    assert!(app.vaults.create.as_ref().unwrap().shown);
+    assert!(app.vaults().create.as_ref().unwrap().shown);
     app.press(Action::Vault(V::CShow));
-    assert!(!app.vaults.create.as_ref().unwrap().shown);
+    assert!(!app.vaults().create.as_ref().unwrap().shown);
 }
 
 #[test]
 fn a_second_passphrase_added_by_mistake_can_be_removed() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Vault(V::Create));
-    assert_eq!(app.vaults.create.as_ref().unwrap().phrases.len(), 1);
+    assert_eq!(app.vaults().create.as_ref().unwrap().phrases.len(), 1);
     app.press(Action::Vault(V::CAddPhrase));
-    assert_eq!(app.vaults.create.as_ref().unwrap().phrases.len(), 2);
+    assert_eq!(app.vaults().create.as_ref().unwrap().phrases.len(), 2);
     app.press(Action::Vault(V::CRemovePhrase(1)));
     assert_eq!(
-        app.vaults.create.as_ref().unwrap().phrases.len(),
+        app.vaults().create.as_ref().unwrap().phrases.len(),
         1,
         "the flow would otherwise be stuck on an extra, empty passphrase"
     );
@@ -158,9 +158,9 @@ fn unlock_has_an_eye_that_shows_the_passphrase_typed() {
     app.press(Action::Vault(V::Open(0)));
     let _ = app.frame();
     assert!(app.offers(Action::Vault(V::ShowTyped)), "no eye on Unlock");
-    assert!(!app.vaults.typed_shown);
+    assert!(!app.vaults().typed_shown);
     app.press(Action::Vault(V::ShowTyped));
-    assert!(app.vaults.typed_shown);
+    assert!(app.vaults().typed_shown);
 }
 
 #[test]
@@ -190,14 +190,14 @@ fn a_dice_passphrase_has_a_strength_until_it_is_changed() {
         app.event(Event::Key(Key::Char(c)));
     }
     app.press(Action::Vault(V::DiceUse));
-    let c = app.vaults.create.as_ref().unwrap();
+    let c = app.vaults().create.as_ref().unwrap();
     let own = Vaults::phrase_bits(c, 0).expect("the dice's bits");
     assert!((own - 6.0 * List::Large.bits_per_word()).abs() < 1e-3);
 
     // Changed by hand, it is a typed passphrase: no strength is claimed.
     app.press(Action::Vault(V::CFocus(0, false)));
     app.event(Event::Key(Key::Char('x')));
-    let c = app.vaults.create.as_ref().unwrap();
+    let c = app.vaults().create.as_ref().unwrap();
     assert!(c.phrases[0].0.text.ends_with('x'));
     assert_eq!(Vaults::phrase_bits(c, 0), None);
 }
