@@ -1410,15 +1410,10 @@ pub struct Faraday {
     hover: Option<(i32, i32)>,
     /// The step column's open card, and one opening or closing.
     disclosed: Option<Disclosed>,
-    /// The frosted page under the open sheet, and the screen, sheet and
-    /// theme it was made for.
-    frost: Option<((ScreenKey, ui::Theme), Vec<u8>)>,
-    /// A change of screen or sheet fading in, and how fast this
-    /// machine has lately shown a fade's steps (`fade.rs`).
+    /// A change of screen or sheet fading in, how fast this machine has
+    /// lately shown a fade's steps, the frosted page under the open
+    /// sheet, and the screen the last frame drew (`fade.rs`).
     fade: fade::Fade,
-    /// The screen and sheet the last frame drew, and the Learn sheet's
-    /// page, so that a change is known at the next.
-    last_drawn: Option<(ScreenKey, usize)>,
     /// The Guided switch's pill sliding: where it started, 0 on Steps
     /// only and 1 on Guided, and the tick it started at.
     guided_moving: Option<(f32, Option<u64>)>,
@@ -1618,9 +1613,7 @@ impl Faraday {
             scroll_at: None,
             hover: None,
             disclosed: None,
-            frost: None,
             fade: fade::Fade::default(),
-            last_drawn: None,
             guided_moving: None,
             selftest: None,
             hovered: None,
@@ -8449,11 +8442,7 @@ impl Faraday {
                     || (self.compact && self.sheet.is_some());
                 ui.disclosure = disclosure;
                 let frost_key = ((self.screen, self.sheet), self.theme());
-                ui.frost = self
-                    .frost
-                    .take()
-                    .filter(|(k, _)| *k == frost_key)
-                    .map(|(_, page)| page);
+                ui.frost = self.fade.take_frost(&frost_key);
                 ui.guided_shown = self.guided_shown();
                 ui.about_open = self.panel.about_on(self.screen, self.sheet.is_none());
                 ui.offset = page_offset;
@@ -8469,7 +8458,7 @@ impl Faraday {
                 self.trail.set_link(self.screen, ui.back_link, ui.back_hit);
                 scrolled = std::mem::take(&mut ui.scrolled);
                 follow_to = follow_to.or(ui.follow_to);
-                self.frost = ui.frost.take().map(|page| (frost_key, page));
+                self.fade.keep_frost(frost_key, ui.frost.take());
                 ui.column
             };
             if !self.disclose(key, column) {
@@ -8594,8 +8583,7 @@ impl Faraday {
         }
         // The next frame is the screen at rest, not part of the way from
         // the one before.
-        self.fade.end();
-        self.last_drawn = None;
+        self.fade.restart();
         self.out.dirty = true;
     }
 
@@ -9158,9 +9146,7 @@ impl App for Faraday {
                 // change was the last one, a frame back, so this frame
                 // is the first step of it rather than the old screen
                 // again.
-                if let Some((_, at @ None)) = self.fade.from.as_mut() {
-                    *at = Some(now_ms.saturating_sub(motion::FADE_FIRST_STEP_MS));
-                }
+                self.fade.tick_clock(now_ms);
                 // The scrollbar was showing at the last tick: this one
                 // draws its next step of fading, the last one included.
                 let fading = motion::bar_alpha(self.bar_seen.2, self.now_ms) > 0;
@@ -9212,8 +9198,7 @@ impl App for Faraday {
                 // A fade under way asks for its next step; unless
                 // something else asks for a frame too, the step blends
                 // the two kept frames (`Faraday::fade_step`).
-                if self.fade.from.is_some() {
-                    self.fade.due = true;
+                if self.fade.tick_due() {
                     self.out.commands.push_back(Command::Draw);
                 }
                 if self.idle_tick(now_ms) {
@@ -9329,7 +9314,7 @@ impl App for Faraday {
             self.out.dirty = false;
             self.before_frame();
             self.render();
-        } else if self.fade.due {
+        } else if self.fade.is_due() {
             self.fade_step();
         }
         match self.canvas.as_ref() {
@@ -9392,12 +9377,7 @@ impl Faraday {
         if self.selftest.is_none() {
             self.selftest = Some(faraday_selftest::run(&c));
         }
-        self.frost = None;
-        self.fade.end();
-        self.last_drawn = None;
-        // A fade's step costs a blend of the whole canvas: what it cost
-        // at another size says nothing of this one.
-        self.fade.gaps.clear();
+        self.fade.display_changed();
         // Fill a small display; on a large one, stop at a quarter more
         // than its density asks for, so a 4K monitor shows the screens
         // at a sensible size rather than magnified. The person's own

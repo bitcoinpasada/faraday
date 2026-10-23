@@ -7,9 +7,11 @@
 use faraday_draw::Canvas;
 use faraday_shell_api::Command;
 
-use crate::{Faraday, Sheet, motion};
+use crate::ui::Theme;
+use crate::{Faraday, ScreenKey, Sheet, motion};
 
-/// A change of screen or sheet fading in, kept on `Faraday`.
+/// A change of screen or sheet fading in, with the frosted page under an
+/// open sheet and the screen the last frame drew. Its fields are private.
 #[derive(Default)]
 pub(crate) struct Fade {
     /// The frame before a change of screen or sheet, kept while the new
@@ -17,7 +19,7 @@ pub(crate) struct Fade {
     /// for the frame that showed the change, whose cost (frosting the
     /// page under a sheet is the slowest frame there is) is not taken
     /// out of the fade.
-    pub(crate) from: Option<(Vec<u8>, Option<u64>)>,
+    from: Option<(Vec<u8>, Option<u64>)>,
     /// The new frame of the fade under way, as last drawn in full, kept
     /// aside so that a step of the fade nothing else asked a frame for
     /// blends the two kept frames instead of drawing the screen again
@@ -26,7 +28,7 @@ pub(crate) struct Fade {
     after: Vec<u8>,
     /// The fade asked for its next step and nothing has asked for a
     /// frame drawn in full since (`dirty` is not set).
-    pub(crate) due: bool,
+    due: bool,
     /// The tick of the last fade step, while the fade's steps follow one
     /// another with no frame drawn in full between: the gap to the next
     /// is how fast this machine shows a fade.
@@ -39,10 +41,16 @@ pub(crate) struct Fade {
     /// older than `motion::FADE_GAPS_FRESH_MS` are forgotten, so a run
     /// of slow ones, the machine busy for a moment, does not turn fades
     /// off for good.
-    pub(crate) gaps: Vec<(u64, u16)>,
+    gaps: Vec<(u64, u16)>,
     /// What fades have done since a shell's timings last took it
     /// (`Faraday::take_fade_counts`).
     counts: FadeCounts,
+    /// The frosted page under the open sheet, and the screen, sheet and
+    /// theme it was made for.
+    frost: Option<((ScreenKey, Theme), Vec<u8>)>,
+    /// The screen and sheet the last frame drew, and the Learn sheet's
+    /// page, so that a change is known at the next.
+    last_drawn: Option<(ScreenKey, usize)>,
 }
 
 impl Fade {
@@ -51,6 +59,85 @@ impl Fade {
     pub(crate) fn end(&mut self) {
         self.from = None;
         self.after = Vec::new();
+    }
+
+    /// The next frame is the screen at rest, not part of the way from
+    /// the one before.
+    pub(crate) fn restart(&mut self) {
+        self.end();
+        self.last_drawn = None;
+    }
+
+    /// The display changed: nothing kept is of this size. A fade's step
+    /// costs a blend of the whole canvas, and what it cost at another
+    /// size says nothing of this one.
+    pub(crate) fn display_changed(&mut self) {
+        self.frost = None;
+        self.restart();
+        self.gaps.clear();
+    }
+
+    /// The frosted page kept for `key`, taken out to be used by the
+    /// frame; `None` when it was made for another screen, sheet or
+    /// theme.
+    pub(crate) fn take_frost(&mut self, key: &(ScreenKey, Theme)) -> Option<Vec<u8>> {
+        self.frost
+            .take()
+            .filter(|(k, _)| k == key)
+            .map(|(_, page)| page)
+    }
+
+    /// Keeps the frosted page the frame made for `key`.
+    pub(crate) fn keep_frost(&mut self, key: (ScreenKey, Theme), page: Option<Vec<u8>>) {
+        self.frost = page.map(|page| (key, page));
+    }
+
+    /// A tick: a fade whose clock has not started starts it, a frame
+    /// back, so this frame is the first step of it rather than the old
+    /// screen again.
+    pub(crate) fn tick_clock(&mut self, now_ms: u64) {
+        if let Some((_, at @ None)) = self.from.as_mut() {
+            *at = Some(now_ms.saturating_sub(motion::FADE_FIRST_STEP_MS));
+        }
+    }
+
+    /// A tick: a fade under way asks for its next step; returns whether
+    /// it does.
+    pub(crate) fn tick_due(&mut self) -> bool {
+        if self.from.is_some() {
+            self.due = true;
+        }
+        self.from.is_some()
+    }
+
+    /// Whether the next frame is a fade's step.
+    pub(crate) fn is_due(&self) -> bool {
+        self.due
+    }
+
+    /// The gaps between fade steps recent enough to count, oldest first.
+    fn fresh_gaps(&self, now_ms: u64) -> Vec<u16> {
+        self.gaps
+            .iter()
+            .filter(|(at, _)| now_ms.saturating_sub(*at) <= motion::FADE_GAPS_FRESH_MS)
+            .map(|(_, gap)| *gap)
+            .collect()
+    }
+
+    /// Whether a change fades, given reduce motion: not with it, and not
+    /// on a machine whose last fades' steps came too far apart for a
+    /// fade to read as one rather than as steps. Until a few steps have
+    /// been timed lately, it does.
+    fn fades(&self, reduce_motion: bool, now_ms: u64) -> bool {
+        if reduce_motion {
+            return false;
+        }
+        let mut gaps = self.fresh_gaps(now_ms);
+        if gaps.len() < motion::FADE_GAPS_KNOWN {
+            return true;
+        }
+        gaps.sort_unstable();
+        f32::from(gaps[gaps.len() / 2]) <= motion::FADE_GAP_MS
     }
 }
 
@@ -93,11 +180,11 @@ impl Faraday {
         // and the gap across it is not a fade's step.
         self.fade.due = false;
         self.fade.step_at = None;
-        if self.last_drawn == Some(drawn_key) {
+        if self.fade.last_drawn == Some(drawn_key) {
             return;
         }
-        let fades = self.last_drawn.is_some() && self.fades();
-        if self.last_drawn.is_some() {
+        let fades = self.fade.last_drawn.is_some() && self.fades();
+        if self.fade.last_drawn.is_some() {
             let n = &mut self.fade.counts;
             match (fades, self.settings.reduce_motion()) {
                 (true, _) => n.started += 1,
@@ -115,7 +202,7 @@ impl Faraday {
             }
             (true, None) => Some((canvas.snapshot(), None)),
         };
-        self.last_drawn = Some(drawn_key);
+        self.fade.last_drawn = Some(drawn_key);
     }
 
     /// After a frame is drawn in full on `canvas`: while a fade is under
@@ -182,13 +269,13 @@ impl Faraday {
     /// Whether the next frame the shell asks for is a fade's step, a
     /// blend of the two kept frames, rather than a frame drawn in full.
     pub fn next_frame_blends(&self) -> bool {
-        !self.out.dirty && self.fade.due
+        !self.out.dirty && self.fade.is_due()
     }
 
     /// What fades have done since this was last called, and the counts
     /// set back to nothing. Costs a sort of the few gaps kept.
     pub fn take_fade_counts(&mut self) -> FadeCounts {
-        let mut gaps = self.fresh_gaps();
+        let mut gaps = self.fade.fresh_gaps(self.now_ms);
         gaps.sort_unstable();
         FadeCounts {
             gaps_known: gaps.len() as u8,
@@ -198,29 +285,11 @@ impl Faraday {
         }
     }
 
-    /// The gaps between fade steps recent enough to count, oldest first.
-    fn fresh_gaps(&self) -> Vec<u16> {
-        self.fade
-            .gaps
-            .iter()
-            .filter(|(at, _)| self.now_ms.saturating_sub(*at) <= motion::FADE_GAPS_FRESH_MS)
-            .map(|(_, gap)| *gap)
-            .collect()
-    }
-
     /// Whether a change of screen or sheet fades in: not with reduce
     /// motion, and not on a machine whose last fades' steps came too far
     /// apart for a fade to read as one rather than as steps. Until a few
     /// steps have been timed lately, it does.
     pub(crate) fn fades(&self) -> bool {
-        if self.reduce_motion() {
-            return false;
-        }
-        let mut gaps = self.fresh_gaps();
-        if gaps.len() < motion::FADE_GAPS_KNOWN {
-            return true;
-        }
-        gaps.sort_unstable();
-        f32::from(gaps[gaps.len() / 2]) <= motion::FADE_GAP_MS
+        self.fade.fades(self.settings.reduce_motion(), self.now_ms)
     }
 }
