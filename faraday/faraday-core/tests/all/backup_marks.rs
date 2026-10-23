@@ -46,7 +46,7 @@ fn the_done_card_unlocks_to_the_checklist_done_and_the_files_read_written_to() {
     // While the flow is left, a stick visit lists its files In the backup.
     shell.flow(&mut app, F::Back);
     let wrote: Vec<String> = app
-        .backup_flows
+        .backup_flows()
         .iter()
         .flat_map(|f| f.slots.iter().flat_map(|s| s.files.clone()))
         .collect();

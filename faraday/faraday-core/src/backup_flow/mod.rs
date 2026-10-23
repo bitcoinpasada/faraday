@@ -13,16 +13,18 @@
 //! map (batch B1b). Only places that keep a stick take part in the stick
 //! steps.
 
+mod area;
 pub(crate) mod screen;
 pub mod steps;
 pub(crate) mod wallet;
 pub(crate) mod wallet_screen;
 
+pub(crate) use area::BackupFlowArea;
+
 use faraday_crypto::work::Compute;
 use faraday_keys::vault::RecordView;
 use faraday_vault::records::kind as rkind;
 
-use crate::Faraday;
 use crate::flow;
 
 /// The fewest places a key that cannot be made again from seed words is
@@ -2224,191 +2226,22 @@ pub struct BackupRow {
     pub waiting: bool,
 }
 
-impl Faraday {
-    /// The flow that made the key `subject`, when it is kept.
-    pub(crate) fn flow_of(&self, kind: Kind, subject: &[u8]) -> Option<&BackupFlow> {
-        let id = hex_text(subject);
-        self.backup_flows
-            .iter()
-            .find(|f| f.kind == kind && f.made && f.subject.as_ref().is_some_and(|s| s.id == id))
-    }
-
-    /// The writes the key `subject` waits for: how many are done and how
-    /// many there are. `None` once every place the plan gives it is
-    /// written, and for a key no flow made here, which signs at once
-    /// (§8).
-    pub fn backup_waits(&self, kind: Kind, subject: &[u8]) -> Option<(usize, usize)> {
-        self.flow_of(kind, subject)
-            .filter(|f| f.waiting())
-            .map(|f| f.written_of())
-    }
-
-    /// The key page's Backup row: `None` for a key unlocked from a stick.
-    pub fn backup_row(&self, kind: Kind, subject: &[u8]) -> Option<BackupRow> {
-        let f = self.flow_of(kind, subject)?;
-        let (n, m) = f.written_of();
-        let en = &crate::strings::EN;
-        let line = if f.all_written() {
-            en.backup_flow_row_all.to_string()
-        } else if n == 0 {
-            en.backup_flow_row_none.to_string()
-        } else {
-            crate::strings::fill(en.backup_flow_row_some, &[&n.to_string(), &m.to_string()])
-        };
-        Some(BackupRow {
-            line,
-            waiting: !f.all_written(),
+/// Costs a lookup a record. The place of the record of `subject` in open
+/// vault `o` of `vaults`, to copy it across.
+pub(crate) fn record_in(
+    vaults: &crate::vault::Vaults,
+    o: usize,
+    kind: Kind,
+    subject: &str,
+) -> Option<usize> {
+    let open = vaults.open.get(o)?;
+    vaults
+        .records(open.id)
+        .iter()
+        .find(|(_, r)| {
+            r.kind() == kind.record_kind() && subject_of(kind, *r).as_deref() == Some(subject)
         })
-    }
-
-    /// Reads back what the previous process kept. A flow that was on screen
-    /// opens on its step (`docs/BACKUP-FLOW.md` §5).
-    pub(crate) fn flow_restore(&mut self, bytes: &[u8]) {
-        let c = self.compute();
-        let (flows, dropped) = decode(&c, bytes);
-        self.backup_flows = flows;
-        // The Make a new wallet or Restore a flow came from is gone with
-        // the lock: it keeps an id no screen has.
-        for k in 0..self.backup_flows.len() {
-            let id = self.fresh_owner();
-            if let Some(w) = self.backup_flows[k].wallet.as_mut() {
-                w.owner = id;
-            }
-        }
-        if dropped > 0 {
-            self.toast(crate::strings::EN.backup_flow_dropped);
-        }
-        self.flow_makers_return();
-        let on = self.backup_flows.iter().position(|f| f.on_screen);
-        self.flow_on = None;
-        if let Some(i) = on {
-            self.flow_show(i);
-        }
-    }
-
-    /// Reads the keys that wait. One whose flow did not read comes back as
-    /// a flow of its own at Where, made and unwritten, so it still waits.
-    pub(crate) fn flow_gate_restore(&mut self, bytes: &[u8]) {
-        let c = self.compute();
-        for line in String::from_utf8_lossy(bytes).lines() {
-            let mut p = line.splitn(4, '\t');
-            let (Some(k), Some(id), Some(name)) = (p.next(), p.next(), p.next()) else {
-                continue;
-            };
-            let held = p.next().unwrap_or("");
-            let Some(kind) = Kind::from_code(k) else {
-                continue;
-            };
-            let known = self.backup_flows.iter().any(|f| {
-                f.kind == kind && f.made && f.subject.as_ref().is_some_and(|s| s.id == id)
-            });
-            if known {
-                // What the gate holds back is held, whatever the flow's
-                // own state says.
-                if kind.is_wallet()
-                    && let Some(w) = self
-                        .backup_flows
-                        .iter_mut()
-                        .find(|f| {
-                            f.kind == kind
-                                && f.made
-                                && f.subject.as_ref().is_some_and(|s| s.id == id)
-                        })
-                        .and_then(|f| f.wallet.as_mut())
-                {
-                    for h in held.split(',').filter(|x| !x.is_empty()) {
-                        if !w.held.iter().any(|x| x.eq_ignore_ascii_case(h)) {
-                            w.held.push(h.to_string());
-                        }
-                    }
-                }
-                continue;
-            }
-            let mut f = BackupFlow::new(&c, kind);
-            f.made = true;
-            f.on_screen = false;
-            f.subject = Some(Subject {
-                id: id.to_string(),
-                name: name.to_string(),
-            });
-            if kind.is_wallet() {
-                let mut w = WalletFlow::blank();
-                w.checksum = Some(id.to_string());
-                w.name = name.to_string();
-                w.held = held
-                    .split(',')
-                    .filter(|x| !x.is_empty())
-                    .map(str::to_string)
-                    .collect();
-                f.wallet = Some(w);
-            }
-            self.backup_flows.push(f);
-        }
-    }
-
-    /// Opens the flow that made the key `subject` on its step: what a
-    /// waiting action, **Continue the backup**, does.
-    pub(crate) fn backup_continue(&mut self, kind: Kind, subject: &[u8]) {
-        let id = hex_text(subject);
-        if let Some(i) = self
-            .backup_flows
-            .iter()
-            .position(|f| f.kind == kind && f.subject.as_ref().is_some_and(|s| s.id == id))
-        {
-            self.flow_show(i);
-        }
-    }
-
-    /// The flow Home leads with and the Power sheet lists: made, and not
-    /// every place written.
-    pub fn backup_pending(&self) -> Option<(usize, &BackupFlow)> {
-        self.backup_flows
-            .iter()
-            .enumerate()
-            .find(|(_, f)| f.waiting())
-    }
-
-    /// What the Power sheet says of each backup not finished (§9).
-    pub(crate) fn backup_power_lines(&self) -> Vec<String> {
-        self.backup_flows
-            .iter()
-            .filter(|f| f.waiting())
-            .map(|f| {
-                let (n, m) = f.written_of();
-                crate::strings::fill(
-                    crate::strings::EN.backup_flow_power,
-                    &[
-                        &f.subject
-                            .as_ref()
-                            .map_or(f.kind.name().to_string(), |s| s.name.clone()),
-                        &n.to_string(),
-                        &m.to_string(),
-                    ],
-                )
-            })
-            .collect()
-    }
-
-    /// A flow not finished and not yet at the key made, of this kind: what
-    /// the kind's tile resumes (**Continue**).
-    pub(crate) fn flow_resumable(&self, kind: Kind) -> Option<usize> {
-        self.backup_flows
-            .iter()
-            .position(|f| f.kind == kind && !f.made && f.step != Step::Done)
-    }
-
-    /// The place of the record of `subject` in open vault `o`, to copy it
-    /// across.
-    pub(crate) fn flow_record_in(&self, o: usize, kind: Kind, subject: &str) -> Option<usize> {
-        let open = self.vaults.open.get(o)?;
-        self.vaults
-            .records(open.id)
-            .iter()
-            .find(|(_, r)| {
-                r.kind() == kind.record_kind() && subject_of(kind, *r).as_deref() == Some(subject)
-            })
-            .map(|(i, _)| i)
-    }
+        .map(|(i, _)| i)
 }
 
 /// Bytes as lower-case hex.

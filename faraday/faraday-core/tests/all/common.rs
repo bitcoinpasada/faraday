@@ -716,8 +716,7 @@ pub fn at_make(app: &mut Faraday, kind: Kind) {
     plan.vaults[0].existing = true;
     let mut f = BackupFlow::with_plan(&c, kind, plan);
     f.step = Step::Make;
-    app.backup_flows.push(f);
-    let i = app.backup_flows.len() - 1;
+    let i = faraday_core::testkit::flow_push(app, f);
     app.press(Action::Flow(F::Show(i)));
 }
 
@@ -743,7 +742,7 @@ pub fn make_in_form(app: &mut Faraday, fields: &[&str]) -> Option<String> {
 /// a vault unlocked from a stick holds signs at once.
 pub fn release_all(app: &mut Faraday) {
     use faraday_core::backup_flow::Written;
-    for f in &mut app.backup_flows {
+    for f in faraday_core::testkit::flows_mut(app) {
         for s in &mut f.slots {
             s.written = Some(Written {
                 stick: String::new(),
@@ -762,7 +761,7 @@ pub fn release_all(app: &mut Faraday) {
 pub fn make_released(app: &mut Faraday, kind: Kind, fields: &[&str]) -> Option<String> {
     at_make(app, kind);
     let toast = make_in_form(app, fields);
-    if app.backup_flows.last().is_some_and(|f| f.made) {
+    if app.backup_flows().last().is_some_and(|f| f.made) {
         release_all(app);
         app.press(Action::Nav(Screen::VaultContents));
         app.press(Action::Vault(V::Category(kind.category())));

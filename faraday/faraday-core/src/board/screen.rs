@@ -1782,7 +1782,7 @@ pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
         cy + pad - y
     };
     let content = measure(ui, &mut |ui| draw(ui, &mut fr, 0.0));
-    let shift = app.board_list_offset.min((content - view).max(0.0));
+    let shift = app.flows.board_list_offset().min((content - view).max(0.0));
     let clip = ui.rect(px, top, pw, view);
     ui.hit_quiet(
         px,
@@ -1819,7 +1819,7 @@ pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
         crate::ui::Slot::BoardList,
         clip,
         content - view,
-        app.board_list_offset,
+        app.flows.board_list_offset(),
     );
     // The chip being dragged, under the finger.
     if let (Some((dx, dy)), Some(c)) = (fr.drag, fr.held)

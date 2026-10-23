@@ -1211,11 +1211,7 @@ impl Faraday {
                 }
             }
             Action::BName(p8) => {
-                let open = self
-                    .vaults
-                    .open
-                    .get(self.vaults.current)
-                    .is_some();
+                let open = self.vaults.open.get(self.vaults.current).is_some();
                 if open && self.backup.name_press(usize::from(p8)) {
                     self.typing.set_edit(ui::Edit {
                         field: Some(Action::BName(p8)),
@@ -2151,12 +2147,7 @@ impl Faraday {
         let has = |s: &crate::vault::VaultSummary, f: &faraday_bip::keys::Fingerprint| {
             crate::backups::summary_has_seed(s, f.0, self.seed_id(record, f.0))
         };
-        let salts: Vec<[u8; 32]> = self
-            .vaults
-            .open
-            .iter()
-            .map(|o| o.header().salt)
-            .collect();
+        let salts: Vec<[u8; 32]> = self.vaults.open.iter().map(|o| o.header().salt).collect();
         self.vaults
             .summaries
             .iter()

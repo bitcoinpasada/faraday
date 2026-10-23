@@ -73,9 +73,7 @@ impl Faraday {
 
     /// Marks key `fp` as made here: held until its backup is done.
     pub(crate) fn mark_made_here(&mut self, fp: Fingerprint) {
-        if !self.made_here.contains(&fp) {
-            self.made_here.push(fp);
-        }
+        self.flows.note_made(fp);
     }
 
     /// Costs what `held_keys_stored_with` costs. The keys here that are
@@ -99,7 +97,7 @@ impl Faraday {
     /// done.
     pub(crate) fn flow_held(&self) -> Vec<Fingerprint> {
         let mut out: Vec<Fingerprint> = Vec::new();
-        for (i, f) in self.backup_flows.iter().enumerate() {
+        for (i, f) in self.flows.iter().enumerate() {
             let Some(w) = f.wallet.as_ref().filter(|_| f.made) else {
                 continue;
             };
@@ -129,7 +127,8 @@ impl Faraday {
     /// not work it out again.
     fn held_keys_stored_with(&self, c: &Compute, flow: &[Fingerprint]) -> Vec<Fingerprint> {
         let mut out: Vec<Fingerprint> = self
-            .made_here
+            .flows
+            .made_here()
             .iter()
             .copied()
             .filter(|f| !flow.contains(f))
@@ -245,7 +244,7 @@ impl Faraday {
     pub(crate) fn held_sweep(&mut self) {
         let c = self.compute();
         let held = self.held_keys_stored(&c);
-        self.made_here = held.clone();
+        self.flows.set_made_here(held.clone());
         let keys: Vec<usize> = (0..self.session.keys.len())
             .filter(|&k| held.contains(&self.session.keys[k].fingerprint))
             .collect();
@@ -324,7 +323,7 @@ impl Faraday {
                 .into_iter()
                 .map(|o| self.session.keys[o].fingerprint)
                 .collect();
-            self.made_here.retain(|f| *f != fp && !same.contains(f));
+            self.flows.release_made(fp, &same);
             self.held_clear_marks(fp, k);
         }
         let names: Vec<String> = released.iter().map(|(fp, _)| fp_text(*fp)).collect();

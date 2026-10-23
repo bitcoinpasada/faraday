@@ -474,7 +474,7 @@ impl Faraday {
             // it, and asks for no vault first (`docs/BACKUP-FLOW.md` §3).
             Go::VaultCategory(c)
                 if crate::backup_flow::Kind::of_category(c)
-                    .is_some_and(|k| self.flow_resumable(k).is_some()) =>
+                    .is_some_and(|k| self.flows.resumable(k).is_some()) =>
             {
                 EN.backup_flow_continue_make
             }
@@ -573,7 +573,7 @@ impl Faraday {
             // or one is waiting to be resumed.
             Go::VaultCategory(c)
                 if crate::backup_flow::Kind::of_category(c).is_some_and(|k| {
-                    self.vaults.open.is_empty() || self.flow_resumable(k).is_some()
+                    self.vaults.open.is_empty() || self.flows.resumable(k).is_some()
                 }) =>
             {
                 if let Some(k) = crate::backup_flow::Kind::of_category(c) {

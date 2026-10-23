@@ -352,12 +352,7 @@ impl Faraday {
     /// as a key, anything else as a note.
     pub(crate) fn bip85_to_vault(&mut self) {
         let c = self.compute();
-        if self
-            .vaults
-            .open
-            .get(self.vaults.current)
-            .is_none()
-        {
+        if self.vaults.open.get(self.vaults.current).is_none() {
             self.toast(EN.bip85_no_vault_is_open);
             return;
         }

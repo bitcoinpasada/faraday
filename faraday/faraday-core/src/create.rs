@@ -1379,7 +1379,7 @@ impl Faraday {
                 let owner = self.create.state.as_ref().map(|c| c.owner);
                 let before_made = owner
                     .and_then(|o| self.wallet_flow_pre_of(o))
-                    .map(|f| (f, Box::new(self.backup_flows[f].clone())));
+                    .map(|f| (f, Box::new(self.flows[f].clone())));
                 if let Some(c) = self.create.state.as_mut() {
                     c.built = Some(i);
                     c.error = None;

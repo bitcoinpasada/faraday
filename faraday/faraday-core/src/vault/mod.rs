@@ -105,7 +105,7 @@ impl Faraday {
             out.wiped.push((EN.lock_held_ends.to_string(), true));
         }
         if power_off {
-            for line in self.backup_power_lines() {
+            for line in self.flows.power_lines() {
                 out.wiped.push((line, true));
             }
         }

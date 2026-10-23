@@ -134,7 +134,7 @@ fn create_flow_summary(app: &View, k: u8) -> String {
     };
     let flow = app
         .wallet_flow_of_owner(c.owner)
-        .map(|i| (i, &app.backup_flows[i]));
+        .map(|i| (i, &app.flows[i]));
     match (k, flow) {
         (cstep::HOW_MANY, _) => c.vaults.count.to_string(),
         (cstep::STICKS, Some((_, f))) => {

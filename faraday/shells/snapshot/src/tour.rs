@@ -622,8 +622,7 @@ pub(crate) fn flow_at_make(c: &Compute, t: &mut Tour, kind: faraday_core::backup
     plan.vaults[0].existing = true;
     let mut f = BackupFlow::with_plan(c, kind, plan);
     f.step = Step::Make;
-    t.app.backup_flows.push(f);
-    let i = t.app.backup_flows.len() - 1;
+    let i = faraday_core::testkit::flow_push(&mut t.app, f);
     t.press(Action::Flow(F::Show(i)));
 }
 
@@ -641,10 +640,10 @@ pub(crate) fn flow_made(t: &mut Tour, kind: faraday_core::backup_flow::Kind) -> 
         t.tick();
         t.tick();
     }
-    if !t.app.backup_flows.last().is_some_and(|f| f.made) {
+    if !t.app.backup_flows().last().is_some_and(|f| f.made) {
         return Err("the flow made no key".into());
     }
-    for f in &mut t.app.backup_flows {
+    for f in faraday_core::testkit::flows_mut(&mut t.app) {
         for s in &mut f.slots {
             s.written = Some(faraday_core::backup_flow::Written {
                 stick: String::new(),

@@ -306,11 +306,7 @@ impl Faraday {
         for (column, to) in a.scrolls {
             match column {
                 Scrolled::BackupFlow => {
-                    if let Some(i) = self.flow_on
-                        && let Some(f) = self.backup_flows.get_mut(i)
-                    {
-                        f.live.scroll = to;
-                    }
+                    self.flows.set_scroll(to);
                 }
                 Scrolled::Silent => {
                     self.silent.set_scroll(to);

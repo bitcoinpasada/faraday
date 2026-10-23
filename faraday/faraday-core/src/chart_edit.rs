@@ -382,16 +382,10 @@ impl Faraday {
         // its refusals, and is kept only where the flow takes it
         // (`docs/BACKUP-FLOW.md` §15.8).
         if let Some(i) = self.backup_locked_flow() {
-            let before = self.backup_flows[i]
-                .wallet
-                .as_ref()
-                .map(|w| w.answers.clone());
+            let before = self.flows[i].wallet.as_ref().map(|w| w.answers.clone());
             let new = ask.answers.clone();
             self.flow_wallet_edit(i, &|a, _| *a = new.clone());
-            let after = self.backup_flows[i]
-                .wallet
-                .as_ref()
-                .map(|w| w.answers.clone());
+            let after = self.flows[i].wallet.as_ref().map(|w| w.answers.clone());
             if after == before {
                 return;
             }

@@ -412,7 +412,7 @@ pub(crate) fn create_flow_card(
     w: f32,
 ) -> Option<f32> {
     let i = app.wallet_flow_of_owner(app.create.state()?.owner)?;
-    let f = &app.backup_flows[i];
+    let f = &app.flows[i];
     let mut cy = y;
     let line = match step {
         Step::Sticks => {

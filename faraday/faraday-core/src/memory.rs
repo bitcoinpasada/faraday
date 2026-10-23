@@ -361,15 +361,15 @@ impl Faraday {
         // The backup flows: the plan, what each stick read, the step and
         // the written copies' SHA-256. Nothing in it is secret; gone at
         // power-off (`docs/BACKUP-FLOW.md` §7).
-        if !self.backup_flows.is_empty() {
+        if !self.flows.is_empty() {
             out.push((
                 "backup-flow".to_string(),
-                crate::backup_flow::encode(&self.backup_flows),
+                crate::backup_flow::encode(&self.flows),
             ));
         }
         // The keys that wait for their backup, apart from the flows: a flow
         // that does not read cannot lift the gate.
-        let gate = crate::backup_flow::gate_encode(&self.backup_flows);
+        let gate = crate::backup_flow::gate_encode(&self.flows);
         if !gate.is_empty() {
             out.insert(0, ("backup-gate".to_string(), gate));
         }

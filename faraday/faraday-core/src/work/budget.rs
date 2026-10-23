@@ -475,18 +475,18 @@ pub(super) fn walk_on(
     plan.vaults[0].existing = true;
     let mut f = BackupFlow::with_plan(c, Kind::Gpg, plan);
     f.step = Step::Make;
-    app.backup_flows.push(f);
-    app.press(Action::Flow(F::Show(app.backup_flows.len() - 1)));
+    app.flows.all_mut().push(f);
+    app.press(Action::Flow(F::Show(app.flows.len() - 1)));
     app.press(Action::Vault(V::FocusField(0)));
     type_text(&mut app, "Release");
     app.press(Action::Flow(F::Make));
     ticks(&mut app, 300, 2);
     assert!(
-        app.backup_flows.last().is_some_and(|f| f.made),
+        app.flows.last().is_some_and(|f| f.made),
         "the GPG key was made"
     );
     stop(&mut app, "GPG key flow");
-    for s in &mut app.backup_flows.last_mut().expect("the flow").slots {
+    for s in &mut app.flows.all_mut().last_mut().expect("the flow").slots {
         s.written = Some(Written {
             stick: String::new(),
             serial: None,

@@ -523,21 +523,7 @@ impl Faraday {
                     .find(|s| s.id == stick)
                     .map(|s| (s.label.clone(), s.serial))
                 {
-                    for f in &mut self.backup_flows {
-                        for slot in &mut f.slots {
-                            let Some(w) = slot.written.as_mut() else {
-                                continue;
-                            };
-                            if w.label != label || w.serial != serial {
-                                continue;
-                            }
-                            for (n, _) in &mut w.files {
-                                if n.eq_ignore_ascii_case(from) {
-                                    *n = to.to_string();
-                                }
-                            }
-                        }
-                    }
+                    self.flows.rename_written(&label, serial, from, to);
                 }
                 (fill(EN.rename_done, &[from, to]), true)
             }

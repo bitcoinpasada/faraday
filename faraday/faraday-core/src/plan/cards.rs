@@ -66,7 +66,7 @@ impl PlanCtx {
 
     /// Wallet flow `i`'s plan, drawn in the flow.
     pub(crate) fn flow(app: &View, i: usize) -> Option<PlanCtx> {
-        let f = app.backup_flows.get(i)?;
+        let f = app.flows.get(i)?;
         let wf = f.wallet.as_ref()?;
         let a = wf.answers.clone();
         // Before the lock, with Back up open on the wallet, the names

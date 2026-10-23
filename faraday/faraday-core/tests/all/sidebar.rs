@@ -777,13 +777,16 @@ fn a_backup_flow_with_its_key_made_offers_no_cancel() {
     crate::common::keep_time(&mut app);
     crate::common::at_make(&mut app, Kind::Gpg);
     let toast = crate::common::make_in_form(&mut app, &["Alice", ""]);
-    let i = app.backup_flows.len() - 1;
-    assert!(app.backup_flows[i].made, "the key was not made: {toast:?}");
+    let i = app.backup_flows().len() - 1;
+    assert!(
+        app.backup_flows()[i].made,
+        "the key was not made: {toast:?}"
+    );
     assert_eq!(app.screen, Screen::BackupFlow);
     assert!(!offered(&mut app, Action::CancelFlow), "no Cancel on it");
     app.press(Action::CancelFlow);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::BackupFlow, "the flow stays on screen");
-    assert!(app.backup_flows[i].made, "the flow is kept");
+    assert!(app.backup_flows()[i].made, "the flow is kept");
     assert!(row_on_settings(&mut app, Going::Flow(i)), "its row stays");
 }

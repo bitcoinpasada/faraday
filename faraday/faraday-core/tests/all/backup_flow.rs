@@ -577,7 +577,7 @@ fn a_power_off_between_writes_leaves_the_copy_and_the_key_signs_at_once_from_it(
     let (inbox, outbox, _) = shell.boxes.clone();
     let mut fresh = process(inbox, outbox, Vec::new());
     keep_time(&mut fresh);
-    assert!(fresh.backup_flows.is_empty());
+    assert!(fresh.backup_flows().is_empty());
     assert!(fresh.backup_pending().is_none());
     // The stick's vault is in Files, the key in it signs at once.
     let on_stick = shell.disk("S1").files[0].1.clone();
@@ -813,7 +813,7 @@ fn a_stick_pulled_while_writing_counts_nothing() {
 #[test]
 fn with_no_flow_in_the_kept_state_none_is_offered() {
     let app = process(Vec::new(), Vec::new(), Vec::new());
-    assert!(app.backup_flows.is_empty());
+    assert!(app.backup_flows().is_empty());
     assert!(app.flow().is_none());
 }
 
@@ -842,7 +842,7 @@ fn a_flow_left_hands_a_stick_to_the_visit_with_its_files_in_the_backup() {
     app.press(Action::Flow(F::Back));
     shell.plug(&mut app, "S1");
     assert_eq!(app.screen, Screen::Visit);
-    let sealed = app.backup_flows[0].sealing[0].name.clone();
+    let sealed = app.backup_flows()[0].sealing[0].name.clone();
     assert!(app.in_the_backup(&sealed));
     expect(&mut app, "In the backup");
 }
@@ -1101,7 +1101,7 @@ fn the_tools_tile_starts_the_flow_with_no_vault_and_reads_continue_once_one_wait
         start(&mut app, kind);
         assert_eq!(app.screen, Screen::BackupFlow);
         assert_eq!(
-            app.backup_flows.len(),
+            app.backup_flows().len(),
             1,
             "it resumes, it does not start another"
         );
@@ -1443,7 +1443,7 @@ fn a_lock_before_copy_the_key_in_the_added_vault_round_resumes_on_the_vaults() {
 fn a_kept_state_that_does_not_read_is_dropped_with_a_toast() {
     let mut shell = Shell::new();
     let app = gpg_locked(&mut shell);
-    let good = faraday_core::backup_flow::encode(&app.backup_flows);
+    let good = faraday_core::backup_flow::encode(app.backup_flows());
     let text = String::from_utf8(good.clone()).unwrap();
     assert!(text.starts_with("version\t3\n"));
     let cases: Vec<(&str, Vec<u8>)> = vec![
@@ -1696,7 +1696,7 @@ fn a_write_that_failed_or_read_back_wrong_is_not_counted() {
 
 /// The kept state names only what a stick shows and public values.
 fn nothing_secret_kept(app: &Faraday, secret: &[&str]) {
-    let bytes = faraday_core::backup_flow::encode(&app.backup_flows);
+    let bytes = faraday_core::backup_flow::encode(app.backup_flows());
     let text = String::from_utf8(bytes).expect("text");
     let lines = [
         "version", "flow", "plan", "pub", "place", "vault", "slot", "sfile", "bound", "list",
@@ -1857,7 +1857,7 @@ fn a_flow_with_nothing_sealed_past_the_lock_is_repaired_not_dropped() {
     let mut shell = Shell::new();
     let app = gpg_locked(&mut shell);
     let id = subject_bytes(&app);
-    let text = String::from_utf8(faraday_core::backup_flow::encode(&app.backup_flows)).unwrap();
+    let text = String::from_utf8(faraday_core::backup_flow::encode(app.backup_flows())).unwrap();
     let unsealed: String = text
         .lines()
         .filter(|l| !l.starts_with("seal\t"))
@@ -2016,7 +2016,7 @@ fn stopping_a_whole_wipe_after_the_partition_was_emptied_reopens_the_copies() {
     app.press(Action::DeletePasses(1));
     shell.press(&mut app, Action::DeleteGo);
     assert_eq!(
-        app.backup_flows[0].written_of(),
+        app.backup_flows()[0].written_of(),
         (2, 2),
         "nothing emptied yet"
     );
@@ -2030,7 +2030,7 @@ fn stopping_a_whole_wipe_after_the_partition_was_emptied_reopens_the_copies() {
     });
     assert!(app.zeroing().is_none(), "the wipe stopped");
     assert_eq!(
-        app.backup_flows[0].written_of(),
+        app.backup_flows()[0].written_of(),
         (1, 2),
         "the stick was made empty, so its copy is gone"
     );
@@ -2151,7 +2151,7 @@ fn a_whole_wipe_that_fails_or_is_cut_off_before_its_first_answer_reopens_the_cop
         app.press(Action::DeleteWhat(2));
         app.press(Action::DeletePasses(1));
         shell.press(&mut app, Action::DeleteGo);
-        assert_eq!(app.backup_flows[0].written_of(), (2, 2), "{cut}");
+        assert_eq!(app.backup_flows()[0].written_of(), (2, 2), "{cut}");
         if cut == "fails" {
             app.storage(faraday_core::StorageEvent::ZeroFailed {
                 stick: "S1".into(),
@@ -2161,7 +2161,7 @@ fn a_whole_wipe_that_fails_or_is_cut_off_before_its_first_answer_reopens_the_cop
             shell.pull(&mut app, "S1");
         }
         assert_eq!(
-            app.backup_flows[0].written_of(),
+            app.backup_flows()[0].written_of(),
             (1, 2),
             "{cut}: the FATs may be gone"
         );

@@ -248,7 +248,7 @@ impl Faraday {
             card_offset: self.wallets.card_offset(),
             files_out_offset: *self.visit.files_out_offset(),
             vault_item_offset: self.vaults.item_offset(),
-            board_list_offset: self.board_list_offset,
+            board_list_offset: self.flows.board_list_offset(),
             backups_at: self.backups_area.at(),
             vault_current: self.vaults.current,
             vault_category: self.vaults.category,
@@ -400,7 +400,7 @@ impl Faraday {
         self.wallets.set_card_offset(s.card_offset);
         *self.visit.files_out_offset_mut() = s.files_out_offset;
         self.vaults.set_item_offset(s.vault_item_offset);
-        self.board_list_offset = s.board_list_offset;
+        self.flows.set_board_list_offset(s.board_list_offset);
         match s.screen {
             Screen::Wallets => {
                 self.wallets.set_wallet(s.wallet);

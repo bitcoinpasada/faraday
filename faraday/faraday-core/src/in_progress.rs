@@ -182,7 +182,7 @@ impl Faraday {
         {
             v.push(Going::Vault);
         }
-        for (i, f) in self.backup_flows.iter().enumerate() {
+        for (i, f) in self.flows.iter().enumerate() {
             if (f.step > Step::Where || f.made) && self.flow_held_by(i).is_none() {
                 v.push(Going::Flow(i));
             }
@@ -218,7 +218,7 @@ impl Faraday {
     /// new wallet's or Restore's setup of the vaults, or the wallet flow
     /// of the Back up under way.
     fn flow_held_by(&self, i: usize) -> Option<Going> {
-        let f = self.backup_flows.get(i)?;
+        let f = self.flows.get(i)?;
         let owner = f.wallet.as_ref().map_or(0, |w| w.owner);
         if owner != 0 && self.create.state().is_some_and(|c| c.owner == owner) {
             return Some(Going::Create);
@@ -247,10 +247,10 @@ impl Faraday {
             Screen::Message if self.message.state().is_some() => Some(Going::Message),
             Screen::CreateVault if self.vaults.create.is_some() => match self.vaults.back_to {
                 None => Some(Going::Vault),
-                Some(Screen::BackupFlow) => self.flow_on.map(|i| self.flow_going(i)),
+                Some(Screen::BackupFlow) => self.flows.on().map(|i| self.flow_going(i)),
                 Some(_) => None,
             },
-            Screen::BackupFlow => self.flow_on.map(|i| self.flow_going(i)),
+            Screen::BackupFlow => self.flows.on().map(|i| self.flow_going(i)),
             _ => None,
         }
     }
@@ -316,7 +316,7 @@ impl Faraday {
             },
             Going::Message if self.message.state().is_some() => self.go(Screen::Message),
             Going::Vault if self.vaults.create.is_some() => self.go(Screen::CreateVault),
-            Going::Flow(i) if i < self.backup_flows.len() => self.flow_show(i),
+            Going::Flow(i) if i < self.flows.len() => self.flow_show(i),
             _ => {}
         }
         // Opened again from where the person is now: Back goes there, not
@@ -336,11 +336,11 @@ impl Faraday {
     /// hold (F6, F31) is never let go by a Cancel. Only lookups.
     pub(crate) fn cancel_offered(&self) -> Option<Going> {
         let g = self.flow_on_screen()?;
-        let made = |i: usize| self.backup_flows.get(i).is_some_and(|f| f.made);
+        let made = |i: usize| self.flows.get(i).is_some_and(|f| f.made);
         let shown = self.screen == Screen::BackupFlow
             || (self.screen == Screen::CreateVault
                 && self.vaults.back_to == Some(Screen::BackupFlow));
-        if shown && self.flow_on.is_some_and(made) {
+        if shown && self.flows.on().is_some_and(made) {
             return None;
         }
         if let Going::Flow(i) = g
@@ -382,7 +382,7 @@ impl Faraday {
             Going::Spend => EN.flow_cancel_spend,
             Going::Message => EN.flow_cancel_message,
             Going::Vault => EN.flow_cancel_vault,
-            Going::Flow(i) => match self.backup_flows.get(i).map(|f| f.kind) {
+            Going::Flow(i) => match self.flows.get(i).map(|f| f.kind) {
                 Some(Kind::SecureBoot) => EN.flow_cancel_keys,
                 Some(Kind::Apk | Kind::Gpg) => EN.flow_cancel_key,
                 _ => EN.flow_cancel_backup,
@@ -441,7 +441,7 @@ impl Faraday {
                     .then_some(EN.flow_lost_answers)
             }
             Going::Flow(i) => {
-                let f = self.backup_flows.get(i)?;
+                let f = self.flows.get(i)?;
                 (f.step > Step::Where).then_some(EN.flow_lost_plan)
             }
         }
@@ -518,7 +518,7 @@ impl Faraday {
                 }
             }
             Going::Flow(i) => {
-                let Some(f) = self.backup_flows.get(i) else {
+                let Some(f) = self.flows.get(i) else {
                     return;
                 };
                 let tab = if f.kind.is_wallet() {
@@ -539,7 +539,7 @@ impl Faraday {
     /// [`Self::flow_drop`] of backup flow `i`, unless its key is made.
     fn flow_drop_unmade(&mut self, i: Option<usize>) {
         if let Some(i) = i
-            && self.backup_flows.get(i).is_some_and(|f| !f.made)
+            && self.flows.get(i).is_some_and(|f| !f.made)
         {
             self.flow_drop(i);
         }
@@ -583,19 +583,11 @@ impl Faraday {
     /// Takes backup flow `i` out of the list, and with it the vault form
     /// it had open; what points into the list past it follows.
     fn flow_drop(&mut self, i: usize) {
-        if i >= self.backup_flows.len() {
+        if i >= self.flows.len() {
             return;
         }
-        self.backup_flows.remove(i);
-        match self.flow_on {
-            Some(k) if k == i => {
-                self.flow_on = None;
-                if self.vaults.back_to == Some(Screen::BackupFlow) {
-                    self.vaults.leave_create();
-                }
-            }
-            Some(k) if k > i => self.flow_on = Some(k - 1),
-            _ => {}
+        if self.flows.drop_flow(i) && self.vaults.back_to == Some(Screen::BackupFlow) {
+            self.vaults.leave_create();
         }
         self.in_progress.flow_removed(i);
     }
@@ -651,7 +643,7 @@ impl Faraday {
                 (Screen::Vaults, EN.sidebar_flow_vault.to_string(), step)
             }
             Going::Flow(i) => {
-                let f = self.backup_flows.get(i)?;
+                let f = self.flows.get(i)?;
                 let s = f.live.open.and_then(Step::of).unwrap_or(f.step);
                 let step = crate::backup_flow::screen::card_title(self, f, s);
                 match (f.kind, f.wallet.as_ref()) {
@@ -787,7 +779,7 @@ pub(crate) fn lock_held_on(r: &impl Reads) -> bool {
         return false;
     };
     let begun = cs.built.is_some() || cs.done.iter().any(|d| *d);
-    let kept = app.backup_flows.iter().any(|f| {
+    let kept = app.flows.iter().any(|f| {
         f.kind == Kind::Wallet && f.made && f.wallet.as_ref().is_some_and(|w| w.owner == cs.owner)
     });
     begun && !kept && !flow_finished_on(r, Going::Create)
@@ -813,7 +805,7 @@ fn flow_finished_on(r: &impl Reads, g: Going) -> bool {
             .is_some_and(|s| s.out_tx || s.out_signed),
         Going::Message => app.message.state().is_some_and(|m| m.signed.is_some()),
         Going::Vault => false,
-        Going::Flow(i) => app.backup_flows.get(i).is_none_or(|f| f.step == Step::Done),
+        Going::Flow(i) => app.flows.get(i).is_none_or(|f| f.step == Step::Done),
     }
 }
 

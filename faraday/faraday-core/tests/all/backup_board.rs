@@ -436,13 +436,13 @@ fn a_seed_kept_nowhere_holds_the_plan() {
     );
     let mut app = restart(&mut shell, &mut app);
     // No key is loaded after the lock: the flow holds it back.
-    let held = app.backup_flows[0].wallet.as_ref().unwrap().held.clone();
+    let held = app.backup_flows()[0].wallet.as_ref().unwrap().held.clone();
     let name = faraday_core::wallet::fp_text(Fingerprint(fp));
     assert!(
         held.iter().any(|h| h.eq_ignore_ascii_case(&name)),
         "held across the lock: {held:?}"
     );
-    assert!(app.backup_flows[0].waiting());
+    assert!(app.backup_flows()[0].waiting());
     write_stick(&mut shell, &mut app, "S1");
     assert_eq!(step(&app), Step::Done);
     assert!(
@@ -450,7 +450,7 @@ fn a_seed_kept_nowhere_holds_the_plan() {
         "{:?}",
         names(&shell, "S1")
     );
-    assert!(!app.backup_flows[0].waiting(), "released once written");
+    assert!(!app.backup_flows()[0].waiting(), "released once written");
 }
 
 fn seed(name: &str) -> Seed {
@@ -757,7 +757,7 @@ fn a_seeds_words_file_on_a_stick_is_made_only_past_the_warning() {
     assert!(out.name.starts_with("seed-") && out.name.ends_with(".txt"));
     let nothing_yet = |app: &Faraday, shell: &Shell| {
         assert!(app.outbox.iter().all(|i| !i.secret), "no seed file made");
-        assert!(app.backup_flows.iter().all(|f| f.step != Step::Write));
+        assert!(app.backup_flows().iter().all(|f| f.step != Step::Write));
         assert!(!app.restart_requested(), "no lock");
         assert!(shell.writes.is_empty(), "nothing written");
     };
@@ -1538,7 +1538,7 @@ fn an_existing_vaults_contents_are_drawn_dimmed_and_take_no_press() {
 /// before the lock, as a person opens it (`docs/BACKUP-FLOW.md` §17.12
 /// item 1).
 fn open_flow_board(shell: &mut Shell, app: &mut Faraday) {
-    let i = app.backup_flows.len() - 1;
+    let i = app.backup_flows().len() - 1;
     shell.flow(app, F::Show(i));
     shell.flow(app, F::ChangePlan);
     if app.flow().unwrap().live.plan_q != Some(qstep::BOARD) {

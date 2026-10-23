@@ -151,7 +151,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
             let (n, m) = app
                 .wallet_flow_of_backup()
                 .map_or((0, reads.wallet_stick_rows().len()), |i| {
-                    app.backup_flows[i].written_of()
+                    app.flows[i].written_of()
                 });
             (
                 fill(EN.backup_flow_item_sticks, &[app.medium.nouns()]),

@@ -458,7 +458,8 @@ drawn; the keys are made and copied, the checklist as today.
 ## 7. The state
 
 `faraday-core/src/backup_flow/mod.rs`, `BackupFlow`;
-`Faraday::backup_flows: Vec<BackupFlow>`, at most one on screen.
+`BackupFlowArea` (`faraday-core/src/backup_flow/area.rs`) on `Faraday`,
+read through `Faraday::backup_flows()`, at most one on screen.
 
 | Field | Holds |
 |---|---|

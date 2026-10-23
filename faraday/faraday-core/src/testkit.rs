@@ -1705,3 +1705,14 @@ pub fn vault_current(app: &mut crate::Faraday, o: usize) {
 pub fn vault_swap_open(app: &mut crate::Faraday, a: usize, b: usize) {
     app.vaults.swap_open(a, b);
 }
+
+/// Puts flow `f` at the end of the backup flows, returning its place.
+pub fn flow_push(app: &mut crate::Faraday, f: crate::backup_flow::BackupFlow) -> usize {
+    app.flows.all_mut().push(f);
+    app.flows.len() - 1
+}
+
+/// The backup flows, to set what they hold.
+pub fn flows_mut(app: &mut crate::Faraday) -> &mut Vec<crate::backup_flow::BackupFlow> {
+    app.flows.all_mut()
+}

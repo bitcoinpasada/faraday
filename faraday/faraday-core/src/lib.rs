@@ -1167,19 +1167,12 @@ pub struct Faraday {
     /// New input devices waiting to be believed, and those kept out
     /// (`docs/history/PLAN.md` §4.6).
     inputs: inputs::InputsArea,
-    /// The keys made here whose backup is not yet done, by fingerprint
-    /// (`docs/history/NEW-WALLET.md` §14.3): they sign nothing until it is. Never
-    /// a secret; kept in a vault beside the seed and in the plan record.
-    made_here: Vec<faraday_bip::keys::Fingerprint>,
     /// What a frame works out once (`docs/SPEED.md` §3.3): on only while
     /// `render` runs.
     drawing: drawing::Drawing,
     /// What is worked out once and kept by what it is worked out from
     /// (`drawing/kept.rs`).
     kept: drawing::Kept,
-    /// The last number given to a Make a new wallet or a Restore, which a
-    /// wallet's backup flow is tied to while the wallet is being made.
-    owner_seq: u64,
     /// The vaults: the open slots and the vault screens' state, and the
     /// item's scroll.
     vaults: vault::VaultArea,
@@ -1233,9 +1226,6 @@ pub struct Faraday {
     /// wheel notch moves the content by its own pixels like everywhere
     /// else.
     pub list_offset: f32,
-    /// How far the backup board's list column is scrolled, in design
-    /// units (`docs/BACKUP-FLOW.md` §17.14).
-    pub board_list_offset: f32,
     /// The wallet's chart: its page, its open sheet, the key drawn bold and
     /// what the sheets hold.
     glance: glance::GlanceArea,
@@ -1366,10 +1356,10 @@ pub struct Faraday {
     pub samples: Option<&'static samples::Samples>,
     /// The Load samples sheet's rows (`samples::SheetState`).
     sample_area: samples::SamplesArea,
-    /// The backup flows, at most one on screen (`docs/BACKUP-FLOW.md` §7).
-    pub backup_flows: Vec<backup_flow::BackupFlow>,
-    /// The flow on screen.
-    pub(crate) flow_on: Option<usize>,
+    /// The backup flows, at most one on screen (`docs/BACKUP-FLOW.md` §7),
+    /// the keys made here held until their backup is done, and the
+    /// board's list scroll.
+    flows: backup_flow::BackupFlowArea,
     /// The flows begun, in the order they were begun, each with the screen
     /// of its own it was last on (`docs/FLOWS.md`, Flows in progress):
     /// only the order and the way back, worked out after each press.
@@ -1409,10 +1399,8 @@ impl Faraday {
             idle_warn_min: 0,
             tainted: false,
             inputs: inputs::InputsArea::default(),
-            made_here: Vec::new(),
             drawing: drawing::Drawing::default(),
             kept: drawing::Kept::default(),
-            owner_seq: 0,
             vaults: vault::VaultArea::default(),
             memory: memory::MemoryArea::default(),
             backups_area: backups::BackupsArea::default(),
@@ -1434,7 +1422,6 @@ impl Faraday {
             import: boot_import::BootImportArea::default(),
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
-            board_list_offset: 0.0,
             glance: glance::GlanceArea::default(),
             scroll: motion::Scroll::default(),
             qr: qr_view::QrArea::default(),
@@ -1487,8 +1474,7 @@ impl Faraday {
             next_mode: modes::ModesArea::default(),
             samples: None,
             sample_area: samples::SamplesArea::default(),
-            backup_flows: Vec::new(),
-            flow_on: None,
+            flows: backup_flow::BackupFlowArea::default(),
             in_progress: in_progress::InProgress::default(),
         }
     }
@@ -2626,7 +2612,7 @@ impl Faraday {
     /// The state could not be kept. A lock that would lose the keys that
     /// wait for their backup does not go ahead.
     fn not_kept(&mut self) {
-        if self.restart && self.backup_flows.iter().any(|f| f.waiting()) {
+        if self.restart && self.flows.iter().any(|f| f.waiting()) {
             self.restart = false;
             self.next_mode.clear();
             self.toast(EN.toast_lock_not_kept);
@@ -3624,7 +3610,7 @@ impl Faraday {
         // The vaults set up before the keys are the plan's first vaults.
         let vaults = self
             .wallet_flow_active(wallet.checksum())
-            .and_then(|i| self.backup_flows[i].wallet.as_ref())
+            .and_then(|i| self.flows[i].wallet.as_ref())
             .map_or(0, |w| w.shape.vaults);
         plan::Shape {
             m: m.clamp(1, seeds.len().max(1)),
@@ -3837,7 +3823,7 @@ impl Faraday {
         let Some(i) = self.wallet_flow_of_backup() else {
             return Vec::new();
         };
-        (0..self.backup_flows[i].plan.vaults.len())
+        (0..self.flows[i].plan.vaults.len())
             .filter(|&w| w != v)
             .filter_map(|w| self.flow_open_index(i, w))
             .collect()
@@ -3981,7 +3967,7 @@ impl Faraday {
         // every vault holds the plan with its places' names
         // (`docs/BACKUP-FLOW.md` §15.7).
         if let Some(i) = self.wallet_flow_of_backup() {
-            let others: Vec<usize> = (0..self.backup_flows[i].plan.vaults.len())
+            let others: Vec<usize> = (0..self.flows[i].plan.vaults.len())
                 .filter_map(|pv| self.flow_open_index(i, pv))
                 .filter(|&o| o != v)
                 .collect();
@@ -6351,7 +6337,7 @@ impl Faraday {
             ui::Slot::Card => Some(self.wallets.card_offset_mut()),
             ui::Slot::VaultItem => Some(self.vaults.item_offset_mut()),
             ui::Slot::FilesOut => Some(self.visit.files_out_offset_mut()),
-            ui::Slot::BoardList => Some(&mut self.board_list_offset),
+            ui::Slot::BoardList => Some(self.flows.board_list_offset_mut()),
             ui::Slot::Page => self.page_slot(),
         }
     }

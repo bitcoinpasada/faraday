@@ -50,8 +50,9 @@ impl Faraday {
             }),
             // Make the key, for a GPG key, Secure Boot keys or an APK key.
             Action::Flow(F::Make) => self
-                .flow_on
-                .and_then(|i| self.backup_flows.get(i))
+                .flows
+                .on()
+                .and_then(|i| self.flows.get(i))
                 .is_some_and(|f| !f.kind.is_wallet()),
             // Every BIP-85 output, and the way to a vault to keep one.
             Action::PShow | Action::PVault | Action::PLoad | Action::POut => true,

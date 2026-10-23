@@ -795,8 +795,8 @@ impl Faraday {
     /// screen, Back up's otherwise, while Back up is open.
     pub fn board_of(&self) -> Option<BoardOf> {
         if self.screen == crate::Screen::BackupFlow {
-            let i = self.flow_on.filter(|&i| i < self.backup_flows.len())?;
-            self.backup_flows[i].wallet.as_ref()?;
+            let i = self.flows.on().filter(|&i| i < self.flows.len())?;
+            self.flows[i].wallet.as_ref()?;
             return Some(BoardOf::Flow(i));
         }
         self.backup.state().map(|_| BoardOf::Backup)
@@ -812,7 +812,7 @@ impl Faraday {
                     && b.stage == crate::BStage::Plan
                     && b.q == Some(crate::qstep::BOARD)
             }),
-            Some(BoardOf::Flow(i)) => self.backup_flows.get(i).is_some_and(|f| {
+            Some(BoardOf::Flow(i)) => self.flows.get(i).is_some_and(|f| {
                 f.live.open == Some(crate::backup_flow::Step::Where.n())
                     && f.live.plan_q == Some(crate::qstep::BOARD)
             }),
@@ -824,7 +824,7 @@ impl Faraday {
     pub(crate) fn board_state(&self) -> Option<&BoardState> {
         match self.board_of()? {
             BoardOf::Backup => self.backup.state().map(|b| &b.board),
-            BoardOf::Flow(i) => self.backup_flows.get(i).map(|f| &f.live.board),
+            BoardOf::Flow(i) => self.flows.get(i).map(|f| &f.live.board),
         }
     }
 
@@ -832,7 +832,7 @@ impl Faraday {
     fn board_state_mut(&mut self) -> Option<&mut BoardState> {
         match self.board_of()? {
             BoardOf::Backup => self.backup.board_mut(),
-            BoardOf::Flow(i) => self.backup_flows.get_mut(i).map(|f| &mut f.live.board),
+            BoardOf::Flow(i) => self.flows.board_mut(i),
         }
     }
 
@@ -854,7 +854,7 @@ impl Faraday {
             BoardOf::Backup => self.backup_locked_flow(),
         };
         if let Some(i) = flow {
-            let wf = self.backup_flows.get(i)?.wallet.as_ref()?;
+            let wf = self.flows.get(i)?.wallet.as_ref()?;
             return Some((wf.shape.clone(), wf.answers.clone()));
         }
         let b = self.backup.state()?;
@@ -867,7 +867,7 @@ impl Faraday {
         match self.board_of()? {
             BoardOf::Backup => self.backup_locked_flow(),
             BoardOf::Flow(i) => {
-                let f = self.backup_flows.get(i)?;
+                let f = self.flows.get(i)?;
                 (f.made && f.step != crate::backup_flow::Step::Done).then_some(i)
             }
         }
@@ -880,7 +880,7 @@ impl Faraday {
         match self.board_of() {
             Some(BoardOf::Backup) => true,
             Some(BoardOf::Flow(i)) => {
-                let Some(f) = self.backup_flows.get(i) else {
+                let Some(f) = self.flows.get(i) else {
                     return false;
                 };
                 let cs = f.wallet.as_ref().and_then(|w| w.checksum.as_deref());
@@ -1430,7 +1430,7 @@ impl Faraday {
         // backup or flow saw it first, and the wallet's checksum.
         let (o, before, sum) = match self.board_of() {
             Some(BoardOf::Flow(i)) => {
-                let Some(wf) = self.backup_flows.get(i).and_then(|f| f.wallet.as_ref()) else {
+                let Some(wf) = self.flows.get(i).and_then(|f| f.wallet.as_ref()) else {
                     return Vec::new();
                 };
                 (
@@ -2425,13 +2425,10 @@ impl Faraday {
         if shown != Some(BoardOf::Backup) {
             self.backup.board_tidy();
         }
-        for (i, f) in self.backup_flows.iter_mut().enumerate() {
-            if shown != Some(BoardOf::Flow(i)) {
-                f.live.board.empty.clear();
-                f.live.board.menu = None;
-                f.live.board.focus = None;
-            }
-        }
+        self.flows.board_tidy(match shown {
+            Some(BoardOf::Flow(i)) => Some(i),
+            _ => None,
+        });
     }
 
     /// A finger down on the board: a press on a movable chip may become

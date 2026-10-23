@@ -991,12 +991,9 @@ impl Faraday {
                         .all()
                         .find(|k| k.fingerprint.0 == *f)
                         .is_some_and(|k| {
-                            self.vaults
-                                .records(o.id)
-                                .of(kind::KEY)
-                                .any(|(_, rec)| {
-                                    crate::vault::screen::record_is_key(c, self, rec, k)
-                                })
+                            self.vaults.records(o.id).of(kind::KEY).any(|(_, rec)| {
+                                crate::vault::screen::record_is_key(c, self, rec, k)
+                            })
                         })
                 });
             }

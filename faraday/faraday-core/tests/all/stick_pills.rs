@@ -549,8 +549,8 @@ fn the_pill_edged_and_the_insert_line_name_the_same_stick() {
     let mut app = device();
     create_with_vaults(&mut app, 2);
     // Place 1 keeps a stick of files too, which the write step asks for.
-    let i = app.backup_flows.len() - 1;
-    app.backup_flows[i].slots.insert(
+    let i = app.backup_flows().len() - 1;
+    faraday_core::testkit::flows_mut(&mut app)[i].slots.insert(
         1,
         Slot {
             target: Target::PlaceFiles(0),

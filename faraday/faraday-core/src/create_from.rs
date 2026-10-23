@@ -357,7 +357,7 @@ impl Faraday {
         }
         match c.before_made.as_ref() {
             None => self.wallet_flow_of_owner(c.owner).is_none(),
-            Some((f, was)) => self.backup_flows.get(*f).is_some_and(|now| {
+            Some((f, was)) => self.flows.get(*f).is_some_and(|now| {
                 now.step == was.step && now.wallet.as_ref().is_some_and(|wf| wf.owner == c.owner)
             }),
         }
@@ -385,7 +385,7 @@ impl Faraday {
         let added = std::mem::take(&mut c.added);
         let before = c.before_made.take();
         if let Some((f, was)) = before {
-            self.backup_flows[f] = *was;
+            self.flows.restore(f, *was);
         }
         if added {
             let sum = self.session.wallets[w].checksum().to_string();
