@@ -229,7 +229,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     });
     y += section(ui, x, y, w, EN.settings_signed_amounts, &|ui, x, y0, w| {
         let mut y = y0;
-        let n = app.signed_amounts.len();
+        let n = app.memory.signed().len();
         let line = fill(
             EN.settings_remembered,
             &[
@@ -249,7 +249,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ]
         .into_iter()
         .map(|(label, on)| {
-            let style = if app.seal_amounts == on {
+            let style = if app.seal_amounts() == on {
                 Style::Primary
             } else {
                 Style::Secondary
@@ -561,7 +561,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         TEXT,
         EN.settings_signed_amounts,
     );
-    let n = app.signed_amounts.len();
+    let n = app.memory.signed().len();
     ui.text_right(
         x + width - 22.0,
         y + 16.0,
@@ -586,7 +586,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (EN.settings_sealed_into, true),
         (EN.settings_kept_until, false),
     ] {
-        let style = if app.seal_amounts == on {
+        let style = if app.seal_amounts() == on {
             Style::Primary
         } else {
             Style::Secondary

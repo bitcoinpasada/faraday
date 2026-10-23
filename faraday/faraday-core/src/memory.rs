@@ -126,9 +126,40 @@ pub fn from_record(r: faraday_keys::vault::RecordView<'_>) -> Option<Signed> {
     Some((hash, amounts))
 }
 
-impl Faraday {
+/// The memory area: the signed amounts, whether they are sealed into an
+/// open vault on lock, and the wallets checked this power-on. All three
+/// are kept across a lock by [`Faraday::kept`] and gone at power-off.
+#[derive(Debug)]
+pub(crate) struct MemoryArea {
+    /// The amounts each signed transaction's inputs stated
+    /// (`docs/WALLETS.md` §3.3).
+    signed_amounts: Vec<Signed>,
+    /// Seal the signed-amount memory into an open vault on lock.
+    seal_amounts: bool,
+    /// The wallets, by descriptor checksum, a person has pressed
+    /// Continue on Check (Sign a transaction, Create) or "It matches"
+    /// (Spend tab) for, this power-on (`docs/WALLETS.md` §4).
+    checked_wallets: Vec<String>,
+}
+
+impl Default for MemoryArea {
+    fn default() -> Self {
+        MemoryArea {
+            signed_amounts: Vec::new(),
+            seal_amounts: true,
+            checked_wallets: Vec::new(),
+        }
+    }
+}
+
+impl MemoryArea {
+    /// The signed transactions remembered, oldest first.
+    pub(crate) fn signed(&self) -> &[Signed] {
+        &self.signed_amounts
+    }
+
     /// Whether the same transaction was signed here stating other amounts.
-    pub fn amounts_refused(&self, psbt: &Psbt) -> bool {
+    pub(crate) fn refused(&self, psbt: &Psbt) -> bool {
         let Some((hash, amounts)) = stated(psbt) else {
             return false;
         };
@@ -138,7 +169,7 @@ impl Faraday {
     }
 
     /// Remembers what a signed transaction's inputs stated.
-    pub(crate) fn remember_amounts(&mut self, psbt: &Psbt) {
+    pub(crate) fn remember(&mut self, psbt: &Psbt) {
         let Some(entry) = stated(psbt) else {
             return;
         };
@@ -151,6 +182,77 @@ impl Faraday {
         }
     }
 
+    /// Takes in the signed amounts an open vault holds that are not
+    /// remembered yet.
+    pub(crate) fn take_held(&mut self, held: Vec<Signed>) {
+        for e in held {
+            if !self.signed_amounts.iter().any(|(h, _)| *h == e.0) {
+                self.signed_amounts.push(e);
+            }
+        }
+    }
+
+    /// The memory's transactions whose hash is not in `have`, as vault
+    /// records.
+    pub(crate) fn records_lacking(&self, have: &[[u8; 32]]) -> Vec<Record> {
+        self.signed_amounts
+            .iter()
+            .filter(|e| !have.contains(&e.0))
+            .map(record_of)
+            .collect()
+    }
+
+    /// Takes in the memory the previous process kept.
+    pub(crate) fn set_signed(&mut self, signed: Vec<Signed>) {
+        self.signed_amounts = signed;
+    }
+
+    /// Whether the memory is sealed into an open vault on lock.
+    pub(crate) fn seals(&self) -> bool {
+        self.seal_amounts
+    }
+
+    /// Sets whether the memory is sealed into an open vault on lock.
+    pub(crate) fn set_seals(&mut self, on: bool) {
+        self.seal_amounts = on;
+    }
+
+    /// Whether a wallet of this descriptor checksum has been checked
+    /// this power-on.
+    pub(crate) fn is_checked(&self, checksum: &str) -> bool {
+        self.checked_wallets.iter().any(|c| c == checksum)
+    }
+
+    /// Remembers that a wallet of this descriptor checksum has been
+    /// checked.
+    pub(crate) fn mark_checked(&mut self, checksum: &str) {
+        if !self.is_checked(checksum) {
+            self.checked_wallets.push(checksum.to_string());
+        }
+    }
+
+    /// The checksums of the wallets checked this power-on.
+    pub(crate) fn checked(&self) -> &[String] {
+        &self.checked_wallets
+    }
+
+    /// Takes in the checked wallets the previous process kept.
+    pub(crate) fn set_checked(&mut self, checked: Vec<String>) {
+        self.checked_wallets = checked;
+    }
+}
+
+impl Faraday {
+    /// Whether the same transaction was signed here stating other amounts.
+    pub fn amounts_refused(&self, psbt: &Psbt) -> bool {
+        self.memory.refused(psbt)
+    }
+
+    /// Remembers what a signed transaction's inputs stated.
+    pub(crate) fn remember_amounts(&mut self, psbt: &Psbt) {
+        self.memory.remember(psbt);
+    }
+
     /// Takes in the signed amounts an open vault holds.
     pub(crate) fn amounts_from_vault(&mut self, id: faraday_keys::vault::VaultId) {
         let held: Vec<Signed> = self
@@ -159,25 +261,25 @@ impl Faraday {
             .of(kind::AMOUNTS)
             .filter_map(|(_, r)| from_record(r))
             .collect();
-        for e in held {
-            if !self.signed_amounts.iter().any(|(h, _)| *h == e.0) {
-                self.signed_amounts.push(e);
-            }
-        }
+        self.memory.take_held(held);
     }
 
     /// Whether a wallet of this descriptor checksum has been checked
     /// this power-on (`docs/WALLETS.md` §4).
     pub fn is_checked(&self, checksum: &str) -> bool {
-        self.checked_wallets.iter().any(|c| c == checksum)
+        self.memory.is_checked(checksum)
     }
 
     /// Remembers that a wallet of this descriptor checksum has been
     /// checked.
     pub fn mark_checked(&mut self, checksum: &str) {
-        if !self.is_checked(checksum) {
-            self.checked_wallets.push(checksum.to_string());
-        }
+        self.memory.mark_checked(checksum);
+    }
+
+    /// Whether the signed-amount memory is sealed into an open vault on
+    /// lock.
+    pub fn seal_amounts(&self) -> bool {
+        self.memory.seals()
     }
 
     /// What is kept across a lock: the settings and the memory.
@@ -185,16 +287,16 @@ impl Faraday {
         let settings = format!(
             "{}seal-amounts={}\n",
             self.settings_body(),
-            u8::from(self.seal_amounts)
+            u8::from(self.memory.seals())
         );
         let mut out = vec![
             ("settings".to_string(), settings.into_bytes()),
-            ("signed-amounts".to_string(), encode(&self.signed_amounts)),
+            ("signed-amounts".to_string(), encode(self.memory.signed())),
         ];
-        if !self.checked_wallets.is_empty() {
+        if !self.memory.checked().is_empty() {
             out.push((
                 "checked-wallets".to_string(),
-                self.checked_wallets.join("\n").into_bytes(),
+                self.memory.checked().join("\n").into_bytes(),
             ));
         }
         // Which Outbox files are secrets let out: read again by the next
@@ -322,7 +424,7 @@ impl Faraday {
                 "settings" => {
                     for line in String::from_utf8_lossy(bytes).lines() {
                         match line.split_once('=') {
-                            Some(("seal-amounts", v)) => self.seal_amounts = v == "1",
+                            Some(("seal-amounts", v)) => self.memory.set_seals(v == "1"),
                             Some((k, v)) => self.apply_setting(k, v, false),
                             None => {}
                         }
@@ -332,12 +434,14 @@ impl Faraday {
                     self.stick
                         .set_settings(Some(String::from_utf8_lossy(bytes).into_owned()));
                 }
-                "signed-amounts" => self.signed_amounts = decode(bytes),
+                "signed-amounts" => self.memory.set_signed(decode(bytes)),
                 "checked-wallets" => {
-                    self.checked_wallets = String::from_utf8_lossy(bytes)
-                        .lines()
-                        .map(str::to_string)
-                        .collect();
+                    self.memory.set_checked(
+                        String::from_utf8_lossy(bytes)
+                            .lines()
+                            .map(str::to_string)
+                            .collect(),
+                    );
                 }
                 "family" => self.family_restore(bytes),
                 "clock" => {

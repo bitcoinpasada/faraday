@@ -1182,16 +1182,9 @@ pub struct Faraday {
     owner_seq: u64,
     /// The vaults: the open slots and the vault screens' state.
     pub vaults: vault::Vaults,
-    /// The amounts each signed transaction's inputs stated
-    /// (`docs/WALLETS.md` §3.3).
-    pub signed_amounts: Vec<memory::Signed>,
-    /// Seal the signed-amount memory into an open vault on lock.
-    pub seal_amounts: bool,
-    /// The wallets, by descriptor checksum, a person has pressed
-    /// Continue on Check (Sign a transaction, Create) or "It matches"
-    /// (Spend tab) for, this power-on, kept across a lock
-    /// (`docs/WALLETS.md` §4).
-    pub checked_wallets: Vec<String>,
+    /// What is kept across a lock besides the settings: the signed amounts,
+    /// whether they are sealed into a vault, the wallets checked.
+    memory: memory::MemoryArea,
     /// The wallet the Backups screen is on, and what this power-on saw of
     /// each wallet's backup (`docs/history/SIMPLIFY.md` §5): kept across a
     /// lock, gone at power-off.
@@ -1427,9 +1420,7 @@ impl Faraday {
                 v.gpg_years = gpg::DEFAULT_YEARS;
                 v
             },
-            signed_amounts: Vec::new(),
-            seal_amounts: true,
-            checked_wallets: Vec::new(),
+            memory: memory::MemoryArea::default(),
             backups_area: backups::BackupsArea::default(),
             fresh: fresh::Fresh::default(),
             now_ms: 0,
@@ -2802,7 +2793,7 @@ impl Faraday {
             // the next card without a default instead.
             if let Some(wallet) = wallet {
                 let checksum = wallet.checksum().to_string();
-                if self.checked_wallets.contains(&checksum) {
+                if self.memory.is_checked(&checksum) {
                     s.done[wallet::step::CHECK as usize] = true;
                 }
             }
@@ -3373,7 +3364,7 @@ impl Faraday {
                 self.save_boxes();
             }
             Action::SealAmounts(on) => {
-                self.seal_amounts = on;
+                self.memory.set_seals(on);
                 self.save_boxes();
             }
             a @ (Action::TzStep(..)

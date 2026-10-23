@@ -91,7 +91,7 @@ fn same_settings(a: &Faraday, b: &Faraday) -> bool {
         && a.qr_frame_ms() == b.qr_frame_ms()
         && a.idle_lock_min() == b.idle_lock_min()
         && a.idle_off_min() == b.idle_off_min()
-        && a.seal_amounts == b.seal_amounts
+        && a.seal_amounts() == b.seal_amounts()
 }
 
 #[test]

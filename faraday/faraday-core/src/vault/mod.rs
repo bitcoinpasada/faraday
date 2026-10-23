@@ -3705,7 +3705,7 @@ impl Faraday {
         // The signed-amount memory goes into every open vault that lacks
         // part of it, the oldest records leaving first when the slot is
         // full (`docs/VAULT.md` §7, type 10).
-        if self.seal_amounts
+        if self.memory.seals()
             && let Some(id) = self.vaults.open.get(i).map(|o| o.id)
         {
             let have: Vec<[u8; 32]> = self
@@ -3714,12 +3714,7 @@ impl Faraday {
                 .of(kind::AMOUNTS)
                 .filter_map(|(_, r)| crate::memory::from_record(r).map(|e| e.0))
                 .collect();
-            let new: Vec<Record> = self
-                .signed_amounts
-                .iter()
-                .filter(|e| !have.contains(&e.0))
-                .map(crate::memory::record_of)
-                .collect();
+            let new: Vec<Record> = self.memory.records_lacking(&have);
             if !new.is_empty() {
                 let slot_len = self.vaults.open[i].header().slot_len as usize;
                 self.vaults.edit(id, |s| {
