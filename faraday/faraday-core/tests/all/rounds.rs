@@ -43,7 +43,7 @@ fn device(seeded: bool) -> Faraday {
 /// This device's public nonce on the spend, if one is there.
 fn our_nonce(app: &Faraday) -> Option<Vec<u8>> {
     let c = testkit::compute();
-    let s = app.spend.as_ref()?;
+    let s = app.spend()?;
     let ours = app
         .session
         .keys
@@ -64,10 +64,7 @@ fn a_transaction_started_again_shares_another_nonce() {
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
     app.press(Action::SignHere);
     let first = our_nonce(&app).expect("round 1 shares this device's nonce");
-    assert!(
-        app.spend.as_ref().unwrap().musig.is_some(),
-        "the session is open"
-    );
+    assert!(app.spend().unwrap().musig.is_some(), "the session is open");
 
     // The same unsigned transaction, started over: a new round.
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
@@ -84,7 +81,7 @@ fn a_round_waits_for_the_systems_randomness() {
     let mut app = device(false);
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
     app.press(Action::SignHere);
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     assert_eq!(
         s.error.as_deref(),
         Some("No randomness from the system yet. Try again")
@@ -99,7 +96,7 @@ fn a_round_waits_for_the_systems_randomness() {
     app.event(Event::Entropy(EntropyBytes::new([5u8; 32])));
     app.press(Action::SignHere);
     assert!(our_nonce(&app).is_some());
-    assert_eq!(app.spend.as_ref().unwrap().error, None);
+    assert_eq!(app.spend().unwrap().error, None);
 }
 
 #[test]
@@ -107,7 +104,7 @@ fn a_session_whose_nonce_has_signed_is_over() {
     let mut app = device(true);
     app.press(Action::StartSpend(at(&app, "musig-unsigned.psbt")));
     app.press(Action::SignHere);
-    assert!(app.spend.as_ref().unwrap().musig.is_some());
+    assert!(app.spend().unwrap().musig.is_some());
     // The other signers' nonces arrive, and round 2 signs.
     let copies: Vec<usize> = app
         .inbox
@@ -121,7 +118,7 @@ fn a_session_whose_nonce_has_signed_is_over() {
         app.press(Action::Collect(i));
     }
     app.press(Action::SignHere);
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     assert_eq!(s.error, None);
     assert!(!s.spend.signed_here.is_empty(), "round 2 signed");
     assert!(s.musig.is_none(), "nothing left to sign with");

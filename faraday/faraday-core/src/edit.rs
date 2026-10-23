@@ -181,7 +181,7 @@ impl Faraday {
                 .as_ref()
                 .and_then(|b| b.check.as_ref())
                 .is_some_and(|c| c.passphrase),
-            Screen::Wallets => self.renaming.is_some(),
+            Screen::Wallets => self.wallets.renaming().is_some(),
             Screen::Message => self.message.state().is_some_and(|m| m.typing),
             Screen::KeyGen => self.keygen.state().is_some_and(|k| {
                 !k.locked
@@ -292,7 +292,7 @@ impl Faraday {
             }
             Action::EntryPassphrase => &self.entry.state().passphrase,
             Action::SeedRead(_) => self.seed_read.state()?.field()?,
-            Action::Rename => self.renaming.as_deref()?,
+            Action::Rename => self.wallets.renaming().map(String::as_str)?,
             crate::file_menu::FIELD => &self.files_menu.renaming.as_ref()?.stem,
             Action::BName(p) => self.backup.as_ref()?.names.get(usize::from(p))?,
             Action::MType => &self.message.state()?.text,
@@ -555,7 +555,7 @@ impl Faraday {
             Screen::KeyGen => self.keygen.state().is_some(),
             Screen::Create => self.create.state().is_some(),
             Screen::Backup => self.backup.is_some(),
-            Screen::Spend => self.spend.is_some(),
+            Screen::Spend => self.wallets.spend().is_some(),
             Screen::Restore => self.restore.state().is_some(),
             Screen::Message => self.message.state().is_some(),
             Screen::Vanity => self.vanity.state().is_some(),

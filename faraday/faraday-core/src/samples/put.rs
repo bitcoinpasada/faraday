@@ -557,7 +557,7 @@ impl Faraday {
         let has = |s: usize| !set.wallets[s].spend.is_empty();
         let pick = loaded
             .iter()
-            .find(|(s, w)| *w == self.wallet && has(*s))
+            .find(|(s, w)| *w == self.wallets.wallet() && has(*s))
             .or_else(|| loaded.iter().find(|(s, _)| has(*s)))
             .map(|(s, _)| *s)
             .or_else(|| (0..set.wallets.len()).find(|&s| has(s)))?;

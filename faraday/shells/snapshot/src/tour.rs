@@ -306,7 +306,7 @@ impl Tour {
             self.press(Action::Entry(None));
             self.type_key(0);
         }
-        self.app.wallet = 0;
+        faraday_core::testkit::select_wallet(&mut self.app, 0);
         self.press(Action::Nav(Screen::WalletsStart));
         Ok(())
     }

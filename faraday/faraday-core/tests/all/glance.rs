@@ -652,7 +652,7 @@ fn an_open_vault_shows_its_wallet_from_the_places_down_to_the_wallet() {
     assert!(app.offers(card));
     app.press(card);
     assert_eq!(app.screen, Screen::Wallets);
-    assert_eq!(app.wallet, w);
+    assert_eq!(app.wallet_index(), w);
     // A place pressed: its sheet; its envelope opens the backup's
     // checklist, whose way back is the vault.
     app.press(Action::Nav(Screen::VaultContents));

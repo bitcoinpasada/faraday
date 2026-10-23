@@ -324,7 +324,7 @@ fn a_silent_payments_wallet_saved_into_a_vault_reads_back_as_itself() {
         .position(|i| i.name == "silent-1.txt")
         .unwrap();
     app.press(Action::LoadWallet(file));
-    let w = app.wallet;
+    let w = app.wallet_index();
     assert_eq!(Kind::of(app.session.wallets[w].policy()), Kind::Silent);
     app.press(Action::Vault(V::SaveWallet(w)));
     let open = &app.vaults.open[0];

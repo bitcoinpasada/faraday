@@ -137,7 +137,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     y += 64.0;
 
     // A transaction being signed comes first.
-    if let Some(s) = app.spend.as_ref() {
+    if let Some(s) = app.wallets.spend() {
         let name = s
             .wallet
             .and_then(|i| app.session.wallets.get(i))
@@ -343,7 +343,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     ) + 4.0;
 
     // A transaction being signed comes first.
-    if let Some(s) = app.spend.as_ref() {
+    if let Some(s) = app.wallets.spend() {
         let name = s
             .wallet
             .and_then(|i| app.session.wallets.get(i))
@@ -571,7 +571,7 @@ fn next_row(
 fn done(app: &View, id: CardId) -> bool {
     match id {
         CardId::Page(p) => app.family_page_done(p),
-        CardId::Step(n) => app.spend.as_ref().is_some_and(|s| s.done[n as usize]),
+        CardId::Step(n) => app.wallets.spend().is_some_and(|s| s.done[n as usize]),
         CardId::Later(_) => false,
     }
 }
@@ -599,14 +599,14 @@ fn summary(app: &View, id: CardId) -> String {
         CardId::Page(page::CHECK) if app.family_page_done(page::CHECK) => EN.family_money_shows,
         // From the wallet's card Write the payment brings the PSBT too.
         CardId::Page(page::WRITE) if app.family.from_card => {
-            return match app.spend.as_ref() {
+            return match app.wallets.spend() {
                 Some(s) => fill(EN.family_signing, &[&s.spend.source.to_string()]),
                 None => String::new(),
             };
         }
         CardId::Page(page::WRITE) if app.family_page_done(page::WRITE) => EN.family_done_in_sparrow,
         CardId::Page(page::BRING) => {
-            return match app.spend.as_ref() {
+            return match app.wallets.spend() {
                 Some(s) => fill(EN.family_signing, &[&s.spend.source.to_string()]),
                 None => EN.family_not_here_yet.to_string(),
             };
@@ -620,7 +620,7 @@ fn summary(app: &View, id: CardId) -> String {
         }
         CardId::Page(_) => "",
         CardId::Step(n) => {
-            return match app.spend.as_ref() {
+            return match app.wallets.spend() {
                 Some(s) => step_summary(app, n, s.wallet, app.spend_needed()),
                 None => String::new(),
             };
@@ -663,7 +663,7 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
         CardId::Page(_) => away(app, ui, x, cy, w),
         CardId::Step(step::SIGNERS) if !threshold(app) => signers(app, ui, x, cy, w),
         CardId::Step(n) => {
-            let Some(s) = app.spend.as_ref() else {
+            let Some(s) = app.wallets.spend() else {
                 return 0.0;
             };
             let mut used = step_body(app, ui, n, x, cy, w, s.wallet, app.spend_needed());
@@ -689,8 +689,8 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
 }
 
 fn threshold(app: &View) -> bool {
-    app.spend
-        .as_ref()
+    app.wallets
+        .spend()
         .and_then(|s| s.wallet)
         .and_then(|w| app.session.wallets.get(w))
         .is_some_and(|w| Kind::of(w.policy()) == Kind::Threshold)
@@ -1370,7 +1370,7 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// The shortcut over a card's first page: the PSBT made in Sparrow
 /// already, scanned at once, which goes to its Check.
 fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    if app.spend.is_some() {
+    if app.wallets.spend().is_some() {
         return 0.0;
     }
     let sample = app.sample_psbt_offered();
@@ -1604,7 +1604,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             EN.family_scan
         },
-        if app.spend.is_some() {
+        if app.wallets.spend().is_some() {
             Style::Secondary
         } else {
             Style::Primary
@@ -1650,7 +1650,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += 24.0;
     }
     for (k, name) in &psbts {
-        let current = app.spend.as_ref().is_some_and(|s| s.spend.source == *name);
+        let current = app.wallets.spend().is_some_and(|s| s.spend.source == *name);
         // On a small panel the name has its own line.
         if ui.compact {
             let n = ui.fit(14.0, W::M, name, w);
@@ -1676,7 +1676,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         cy += 44.0;
     }
-    if let Some(s) = app.spend.as_ref() {
+    if let Some(s) = app.wallets.spend() {
         cy += 6.0;
         match s.wallet.and_then(|w| app.session.wallets.get(w)) {
             Some(wl) => {
@@ -1705,8 +1705,8 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 fn first_step(app: &View) -> u8 {
-    app.spend
-        .as_ref()
+    app.wallets
+        .spend()
         .and_then(|s| s.steps.iter().copied().find(|&n| !s.done[n as usize]))
         .unwrap_or(step::TRANSACTION)
 }
@@ -1718,7 +1718,7 @@ fn first_step(app: &View) -> u8 {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    let Some(s) = app.spend.as_ref() else {
+    let Some(s) = app.wallets.spend() else {
         return 0.0;
     };
     let needed = app.spend_needed();

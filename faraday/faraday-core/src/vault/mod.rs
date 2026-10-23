@@ -1742,7 +1742,7 @@ impl Faraday {
             V::LoadAll(v) | V::LoadChosen(v) => {
                 let all = matches!(a, V::LoadAll(_));
                 let (keys, wallets) = self.vault_load(v, all);
-                self.wallet = 0;
+                self.wallets.set_wallet(0);
                 // The list stays on screen with what loaded marked; the
                 // Spend tab goes on to what it needs next.
                 if self.screen == Screen::Family {
@@ -2742,9 +2742,9 @@ impl Faraday {
             let w = &self.session.wallets[i];
             self.session.slots(w).iter().any(|s| s.held_by.is_some())
         });
-        self.wallet = signs.unwrap_or(first);
+        self.wallets.set_wallet(signs.unwrap_or(first));
         self.screen = Screen::Wallets;
-        self.card_offset = 0.0;
+        self.wallets.set_card_offset(0.0);
         self.glance = false;
         // From the vault, or from the stick it came on when the stick's
         // own files brought some.
@@ -3182,7 +3182,7 @@ impl Faraday {
                     crate::wallet::Origin::Vault,
                 ) {
                     Ok(i) => {
-                        self.wallet = i;
+                        self.wallets.set_wallet(i);
                         self.screen = Screen::Wallets;
                     }
                     Err(e) => self.toast(&e.text()),

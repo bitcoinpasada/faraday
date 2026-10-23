@@ -44,7 +44,7 @@ fn opened_address(app: &mut Faraday) -> String {
     let c = faraday_core::testkit::compute();
     app.press(Action::Vanity(V::Use));
     assert_eq!(app.screen, Screen::Wallets);
-    let w = &app.session.wallets[app.wallet];
+    let w = &app.session.wallets[app.wallet_index()];
     app.session.address(&c, w, false, 0)
 }
 

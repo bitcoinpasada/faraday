@@ -96,7 +96,7 @@ fn a_testnet_psbt_moves_an_empty_session_to_testnet() {
     let psbt = testkit::unsigned(&kit("spending")).unwrap();
     let mut app = with_inbox(vec![("spend.psbt", psbt.to_bytes())]);
     app.press(Action::StartSpend(0));
-    assert!(app.spend.is_some());
+    assert!(app.spend().is_some());
     assert_eq!(app.session.network(), Network::Testnet);
 }
 
@@ -120,7 +120,7 @@ fn a_mainnet_psbt_is_refused_while_testnet_wallets_are_loaded() {
     ]);
     app.press(Action::LoadWallet(1));
     app.press(Action::StartSpend(0));
-    assert!(app.spend.is_none(), "a mainnet PSBT was opened");
+    assert!(app.spend().is_none(), "a mainnet PSBT was opened");
     assert_eq!(app.session.network(), Network::Testnet);
 }
 

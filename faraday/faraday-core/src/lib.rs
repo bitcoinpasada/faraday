@@ -1227,8 +1227,6 @@ pub struct Faraday {
     panel: compact::CompactArea,
     /// The Wallets tab's session.
     pub session: Session,
-    /// The transaction being signed.
-    pub spend: Option<SpendState>,
     /// The transaction being decoded.
     decode: decode::DecodeArea,
     /// APK signing is in the app: off by default (F59).
@@ -1248,11 +1246,9 @@ pub struct Faraday {
     pub after_visit: Option<Screen>,
     /// Seed entry.
     entry: state::EntryArea,
-    /// The wallet chosen on the Wallets tab.
-    pub wallet: usize,
-    /// The key in no wallet chosen on the Wallets tab, by fingerprint,
-    /// when several are loaded and none of them in a wallet.
-    pub loose_pick: Option<[u8; 4]>,
+    /// The Wallets tab: the wallet chosen, the new name being typed, the
+    /// card's scroll and the transaction being signed.
+    wallets: wallet::WalletsArea,
     /// The visit screen.
     pub visit: VisitState,
     /// What the boot stick brought at its first look this power-on,
@@ -1270,8 +1266,6 @@ pub struct Faraday {
     /// wheel notch moves the content by its own pixels like everywhere
     /// else.
     pub list_offset: f32,
-    /// Design units scrolled past in the wallet card's body, on a desktop.
-    pub card_offset: f32,
     /// How far Files' For the stick list is scrolled on a desktop, apart
     /// from From the stick's (`list_offset`).
     pub files_out_offset: f32,
@@ -1334,8 +1328,6 @@ pub struct Faraday {
     transfer: transfer::TransferArea,
     /// The upgrade, while it is on screen.
     upgrade: upgrade::UpgradeArea,
-    /// The chosen wallet's new name, while it is typed.
-    pub renaming: Option<String>,
     /// The caret, the selection, Shift, where the last frame drew the
     /// fields' characters and the caret's blink.
     typing: edit::TypingArea,
@@ -1511,7 +1503,6 @@ impl Faraday {
             sheet_offset: 0.0,
             panel: compact::CompactArea::default(),
             session: Session::default(),
-            spend: None,
             decode: decode::DecodeArea::default(),
             apk_signing: false,
             inbox: inbox::InboxFiles::default(),
@@ -1521,14 +1512,12 @@ impl Faraday {
             pull: None,
             after_visit: None,
             entry: state::EntryArea::default(),
-            wallet: 0,
-            loose_pick: None,
+            wallets: wallet::WalletsArea::default(),
             visit: VisitState::default(),
             import: None,
             stick_settings: None,
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
-            card_offset: 0.0,
             files_out_offset: 0.0,
             board_list_offset: 0.0,
             vault_item_offset: 0.0,
@@ -1556,7 +1545,6 @@ impl Faraday {
             camera: scan_key::Camera::default(),
             transfer: transfer::TransferArea::default(),
             upgrade: upgrade::UpgradeArea::default(),
-            renaming: None,
             typing: edit::TypingArea::new(),
             trail: trail::Trail::default(),
             inbox_skip: BTreeSet::new(),
@@ -2079,7 +2067,7 @@ impl Faraday {
         self.holds_secret()
             || !self.vaults.open.is_empty()
             || !self.session.wallets.is_empty()
-            || self.spend.is_some()
+            || self.wallets.spend().is_some()
     }
 
     /// Time without input so far, counted across an idle lock.
@@ -2752,7 +2740,7 @@ impl Faraday {
         self.inbox
             .retain(|i| !i.holds().may_be_secret() && !i.secret);
         self.session.wipe();
-        self.spend = None;
+        self.wallets.clear_spend();
         self.backup = None;
         self.message.clear();
         self.create.clear();
@@ -2840,14 +2828,14 @@ impl Faraday {
             opened: false,
         };
         state.done[0] = true;
-        self.spend = Some(state);
+        self.wallets.set_spend(state);
         self.refresh_spend();
         self.screen = Screen::Spend;
     }
 
     fn refresh_spend(&mut self) {
         let c = self.compute();
-        if let Some(s) = self.spend.as_mut() {
+        if let Some(s) = self.wallets.spend_mut() {
             // Inspected once each time the PSBT or the session changes,
             // not on every press that refreshes the spend.
             let inputs = self.session.inspect_inputs();
@@ -2899,7 +2887,7 @@ impl Faraday {
     /// transaction. One the person removed is not made again unless they
     /// ask.
     fn spend_files_out(&mut self) {
-        let Some(s) = self.spend.as_mut() else {
+        let Some(s) = self.wallets.spend_mut() else {
             return;
         };
         if s.spend.finished.is_none() {
@@ -2926,7 +2914,7 @@ impl Faraday {
     /// signers while more are needed. A threshold spend's part goes with
     /// its carry, through the secret sheet, instead.
     fn part_out(&mut self) {
-        let Some(s) = self.spend.as_ref() else {
+        let Some(s) = self.wallets.spend() else {
             return;
         };
         let threshold = s
@@ -2974,7 +2962,7 @@ impl Faraday {
 
     /// Signatures the open spend's wallet needs.
     pub fn spend_needed(&self) -> usize {
-        self.spend.as_ref().map(|s| s.needed).unwrap_or(1)
+        self.wallets.spend().map(|s| s.needed).unwrap_or(1)
     }
 
     fn act(&mut self, action: Action) {
@@ -3318,10 +3306,10 @@ impl Faraday {
                 self.screen = s;
                 self.osk_leave();
                 self.list_offset = 0.0;
-                self.card_offset = 0.0;
+                self.wallets.set_card_offset(0.0);
                 self.files_out_offset = 0.0;
                 self.glance = false;
-                self.renaming = None;
+                self.wallets.set_renaming(None);
                 if s == Screen::Visit {
                     self.visit.out = self.visit_default_out(&c);
                     self.visit.inn = self.visit_default_in();
@@ -6196,7 +6184,7 @@ impl Faraday {
                 self.refresh_spend();
                 self.screen = match back {
                     Some(s) => s,
-                    None if self.spend.is_some() => Screen::Spend,
+                    None if self.wallets.spend().is_some() => Screen::Spend,
                     None => Screen::Wallets,
                 };
                 if back == Some(Screen::Family) {
@@ -6256,7 +6244,7 @@ impl Faraday {
             .add_wallet(&c, &name, &text, &source, wallet::Origin::Named)
         {
             Ok(i) => {
-                self.wallet = i;
+                self.wallets.set_wallet(i);
                 self.screen = Screen::Wallets;
                 self.refresh_spend();
             }
@@ -6555,8 +6543,8 @@ impl Faraday {
         // (`docs/history/NEW-WALLET.md` §14.3).
         let held = self.held_keys_now(&c);
         let waiting: Vec<String> = self
-            .spend
-            .as_ref()
+            .wallets
+            .spend()
             .map(|s| {
                 s.inspection
                     .participating_keys
@@ -6567,7 +6555,7 @@ impl Faraday {
             })
             .unwrap_or_default();
         if !waiting.is_empty() {
-            if let Some(s) = self.spend.as_mut() {
+            if let Some(s) = self.wallets.spend_mut() {
                 s.error = Some(fill(
                     EN.sign_here_backup_first,
                     &[&waiting.join(", ").to_string()],
@@ -6581,13 +6569,13 @@ impl Faraday {
         // from a seed of this pass's own; a pass with no such input
         // draws nothing and needs none.
         let opens_round = self
-            .spend
-            .as_ref()
+            .wallets
+            .spend()
             .is_some_and(|s| spend_opens_round(&s.inspection));
         let seed = match self.sign_seed() {
             Some(seed) => seed,
             None if opens_round => {
-                if let Some(s) = self.spend.as_mut() {
+                if let Some(s) = self.wallets.spend_mut() {
                     s.error = Some(EN.sign_here_no_randomness.to_string());
                 }
                 return;
@@ -6597,17 +6585,17 @@ impl Faraday {
         // The same transaction stating other amounts than when it was
         // signed here is refused, with no override (`docs/WALLETS.md` §3.3).
         if self
-            .spend
-            .as_ref()
+            .wallets
+            .spend()
             .is_some_and(|s| self.amounts_refused(&s.spend.psbt))
         {
-            if let Some(s) = self.spend.as_mut() {
+            if let Some(s) = self.wallets.spend_mut() {
                 s.error = Some(EN.sign_here_this_transaction.to_string());
             }
             return;
         }
         let mut remember: Option<faraday_psbt::Psbt> = None;
-        let Some(s) = self.spend.as_mut() else {
+        let Some(s) = self.wallets.spend_mut() else {
             return;
         };
         let before = s.spend.psbt.to_bytes();
@@ -6709,7 +6697,7 @@ impl Faraday {
         if nonce_only {
             self.refresh_spend();
             self.part_out();
-            if let Some(s) = self.spend.as_mut() {
+            if let Some(s) = self.wallets.spend_mut() {
                 s.open = Some(wallet::step::NONCES);
                 s.follow = true;
             }
@@ -6718,13 +6706,13 @@ impl Faraday {
         }
         self.refresh_spend();
         if self
-            .spend
-            .as_ref()
+            .wallets
+            .spend()
             .is_some_and(|s| s.spend.psbt.to_bytes() != before)
         {
             self.part_out();
         }
-        if let Some(s) = self.spend.as_mut() {
+        if let Some(s) = self.wallets.spend_mut() {
             s.follow = true;
             if s.complete {
                 s.done[wallet::step::COLLECT as usize] = true;
@@ -6747,7 +6735,7 @@ impl Faraday {
         // Drawn before the spend is borrowed: a MuSig2 aggregation below
         // may still share a nonce, and never the one shared before.
         let seed = self.sign_seed();
-        let Some(s) = self.spend.as_mut() else {
+        let Some(s) = self.wallets.spend_mut() else {
             return;
         };
         let before = s.spend.psbt.to_bytes();
@@ -6783,13 +6771,13 @@ impl Faraday {
         }
         self.refresh_spend();
         if self
-            .spend
-            .as_ref()
+            .wallets
+            .spend()
             .is_some_and(|s| s.spend.psbt.to_bytes() != before)
         {
             self.part_out();
         }
-        if let Some(s) = self.spend.as_mut() {
+        if let Some(s) = self.wallets.spend_mut() {
             s.follow = true;
             if s.complete {
                 s.done[wallet::step::COLLECT as usize] = true;
@@ -6799,7 +6787,7 @@ impl Faraday {
     }
 
     fn primary(&mut self) {
-        let Some(s) = self.spend.as_mut() else {
+        let Some(s) = self.wallets.spend_mut() else {
             return;
         };
         let complete = s.complete;
@@ -7007,7 +6995,7 @@ impl Faraday {
             return;
         }
         if self.screen == Screen::Wallets
-            && let Some(name) = self.renaming.as_mut()
+            && let Some(name) = self.wallets.renaming_mut()
         {
             match key {
                 KeyIn::Char(c) if name.chars().count() < 40 => name.push(c),
@@ -7017,13 +7005,13 @@ impl Faraday {
                 KeyIn::Enter => {
                     let n = name.trim().to_string();
                     if !n.is_empty()
-                        && let Some(w) = self.session.wallets.get_mut(self.wallet)
+                        && let Some(w) = self.session.wallets.get_mut(self.wallets.wallet())
                     {
                         w.name = n;
                     }
-                    self.renaming = None;
+                    self.wallets.set_renaming(None);
                 }
-                KeyIn::Escape => self.renaming = None,
+                KeyIn::Escape => self.wallets.set_renaming(None),
                 _ => {}
             }
             return;
@@ -7096,7 +7084,7 @@ impl Faraday {
     fn scroll_slot(&mut self) -> Option<&mut f32> {
         match self.slot() {
             ui::Slot::VisitOut => Some(&mut self.visit.out_offset),
-            ui::Slot::Card => Some(&mut self.card_offset),
+            ui::Slot::Card => Some(self.wallets.card_offset_mut()),
             ui::Slot::VaultItem => Some(&mut self.vault_item_offset),
             ui::Slot::FilesOut => Some(&mut self.files_out_offset),
             ui::Slot::BoardList => Some(&mut self.board_list_offset),
@@ -7907,7 +7895,7 @@ impl Faraday {
         }
         self.keygen_camera();
         self.keygen_device();
-        let spent = self.spend.as_mut().filter(|s| s.round_spent).map(|s| {
+        let spent = self.wallets.spend_mut().filter(|s| s.round_spent).map(|s| {
             s.round_spent = false;
             s.spend.psbt.clone()
         });
@@ -7955,7 +7943,8 @@ impl Faraday {
     pub fn loose_keys(&self) -> (Vec<faraday_bip::keys::Fingerprint>, Option<[u8; 4]>) {
         let loose = self.session.loose_keys();
         let picked = self
-            .loose_pick
+            .wallets
+            .loose_pick()
             .filter(|p| loose.iter().any(|f| f.0 == *p))
             .or_else(|| loose.first().map(|f| f.0));
         (loose, picked)

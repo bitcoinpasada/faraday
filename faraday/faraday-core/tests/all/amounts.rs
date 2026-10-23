@@ -54,7 +54,7 @@ fn the_same_transaction_with_other_amounts_is_refused_across_a_lock() {
     let psbt = spending();
     let mut app = faraday_core::testkit::started();
     offer(&mut app, &psbt, Vec::new());
-    assert!(!app.spend.as_ref().unwrap().spend.signed_here.is_empty());
+    assert!(!app.spend().unwrap().spend.signed_here.is_empty());
     let kept = kept(&mut app);
 
     // A fresh process, as after a lock, offered the same transaction with
@@ -65,12 +65,12 @@ fn the_same_transaction_with_other_amounts_is_refused_across_a_lock() {
     let changed = faraday_psbt::Psbt::from(changed);
     let mut app = faraday_core::testkit::started();
     offer(&mut app, &changed, kept.clone());
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     assert!(s.spend.signed_here.is_empty());
     assert!(s.error.as_deref().is_some_and(|e| e.contains("refused")));
 
     // The same amounts again sign.
     let mut app = faraday_core::testkit::started();
     offer(&mut app, &psbt, kept);
-    assert!(!app.spend.as_ref().unwrap().spend.signed_here.is_empty());
+    assert!(!app.spend().unwrap().spend.signed_here.is_empty());
 }

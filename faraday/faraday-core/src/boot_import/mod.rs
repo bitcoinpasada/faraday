@@ -693,7 +693,7 @@ impl Faraday {
         self.inbox.extend(plain);
         self.save_boxes();
         self.refresh_spend();
-        self.wallet = 0;
+        self.wallets.set_wallet(0);
         let keys = self.session.keys.len() - keys_before;
         let wallets = self.session.wallets.len() - wallets_before;
         let count =

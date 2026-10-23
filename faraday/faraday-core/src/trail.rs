@@ -242,10 +242,10 @@ impl Faraday {
         Spot {
             screen: self.screen,
             learn: self.sheet == Some(Sheet::Learn),
-            wallet: self.wallet,
+            wallet: self.wallets.wallet(),
             glance: self.glance,
             list_offset: self.list_offset,
-            card_offset: self.card_offset,
+            card_offset: self.wallets.card_offset(),
             files_out_offset: self.files_out_offset,
             vault_item_offset: self.vault_item_offset,
             board_list_offset: self.board_list_offset,
@@ -394,16 +394,16 @@ impl Faraday {
             self.sheet = Some(Sheet::Learn);
         }
         self.osk_leave();
-        self.renaming = None;
+        self.wallets.set_renaming(None);
         self.chart_focus = None;
         self.list_offset = s.list_offset;
-        self.card_offset = s.card_offset;
+        self.wallets.set_card_offset(s.card_offset);
         self.files_out_offset = s.files_out_offset;
         self.vault_item_offset = s.vault_item_offset;
         self.board_list_offset = s.board_list_offset;
         match s.screen {
             Screen::Wallets => {
-                self.wallet = s.wallet;
+                self.wallets.set_wallet(s.wallet);
                 self.glance = s.glance;
             }
             Screen::Backups => self.backups_at = s.backups_at,

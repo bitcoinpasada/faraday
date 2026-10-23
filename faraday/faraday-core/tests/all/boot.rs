@@ -108,7 +108,7 @@ fn unlocking_asks_what_to_load_and_load_ticked_loads_it_and_lands_on_wallets() {
         Some(format!("{n} wallets loaded from vault.ofv").as_str())
     );
     // The wallet shown is the one with a key here (Savings' seed loaded).
-    let slots = app.session.slots(&app.session.wallets[app.wallet]);
+    let slots = app.session.slots(&app.session.wallets[app.wallet_index()]);
     assert!(slots.iter().any(|s| s.held_by.is_some()));
 }
 

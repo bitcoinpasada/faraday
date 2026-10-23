@@ -368,7 +368,7 @@ fn the_envelope_takes_the_spend_of_the_wallet_loaded() {
         .position(|i| i.kind == faraday_core::wallet::FileKind::Psbt)
         .expect("the spend is in the Inbox");
     app.press(Action::Family(F::UsePsbt(k)));
-    let spend = app.spend.as_ref().expect("the spend started");
+    let spend = app.spend().expect("the spend started");
     assert_eq!(spend.wallet, app.family_wallet(), "Savings' own spend");
 }
 

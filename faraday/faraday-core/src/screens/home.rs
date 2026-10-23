@@ -54,7 +54,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
     let mut v = Vec::new();
     // Rule 1: a spend under way; of a wallet loaded, as its card says it
     // (`docs/history/NEW-WALLET.md` §11.2).
-    if let Some(s) = app.spend.as_ref()
+    if let Some(s) = app.wallets.spend()
         && let Some(w) = s.wallet.and_then(|w| app.session.wallets.get(w))
     {
         v.push((
@@ -74,7 +74,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
                 true,
             ),
         ));
-    } else if let Some(s) = app.spend.as_ref() {
+    } else if let Some(s) = app.wallets.spend() {
         v.push((
             Some(Going::Spend),
             (

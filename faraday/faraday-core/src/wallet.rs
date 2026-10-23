@@ -1759,30 +1759,145 @@ impl SpendState {
     }
 }
 
+/// The Wallets tab's area: the wallet chosen, the key in no wallet
+/// chosen, the new name being typed, the wallet card's scroll and the
+/// transaction being signed.
+#[derive(Default)]
+pub(crate) struct WalletsArea {
+    /// The wallet chosen on the Wallets tab.
+    wallet: usize,
+    /// The key in no wallet chosen on the Wallets tab, by fingerprint,
+    /// when several are loaded and none of them in a wallet.
+    loose_pick: Option<[u8; 4]>,
+    /// The chosen wallet's new name, while it is typed.
+    renaming: Option<String>,
+    /// Design units scrolled past in the wallet card's body, on a desktop.
+    card_offset: f32,
+    /// The transaction being signed.
+    spend: Option<SpendState>,
+}
+
+impl WalletsArea {
+    /// The wallet chosen on the Wallets tab.
+    pub(crate) fn wallet(&self) -> usize {
+        self.wallet
+    }
+
+    /// Chooses wallet `i`.
+    pub(crate) fn set_wallet(&mut self, i: usize) {
+        self.wallet = i;
+    }
+
+    /// The key in no wallet chosen, by fingerprint.
+    pub(crate) fn loose_pick(&self) -> Option<[u8; 4]> {
+        self.loose_pick
+    }
+
+    /// Chooses the key in no wallet `pick`.
+    pub(crate) fn set_loose_pick(&mut self, pick: Option<[u8; 4]>) {
+        self.loose_pick = pick;
+    }
+
+    /// The new name being typed, if one is.
+    pub(crate) fn renaming(&self) -> Option<&String> {
+        self.renaming.as_ref()
+    }
+
+    /// The new name being typed, to change it.
+    pub(crate) fn renaming_mut(&mut self) -> Option<&mut String> {
+        self.renaming.as_mut()
+    }
+
+    /// Starts, changes or ends the typing of a new name.
+    pub(crate) fn set_renaming(&mut self, name: Option<String>) {
+        self.renaming = name;
+    }
+
+    /// Design units scrolled past in the wallet card's body.
+    pub(crate) fn card_offset(&self) -> f32 {
+        self.card_offset
+    }
+
+    /// The wallet card's scroll, to move it.
+    pub(crate) fn card_offset_mut(&mut self) -> &mut f32 {
+        &mut self.card_offset
+    }
+
+    /// Scrolls the wallet card's body to `to`.
+    pub(crate) fn set_card_offset(&mut self, to: f32) {
+        self.card_offset = to;
+    }
+
+    /// The transaction being signed, if one is.
+    pub(crate) fn spend(&self) -> Option<&SpendState> {
+        self.spend.as_ref()
+    }
+
+    /// The transaction being signed, to change it.
+    pub(crate) fn spend_mut(&mut self) -> Option<&mut SpendState> {
+        self.spend.as_mut()
+    }
+
+    /// Starts signing `state`.
+    pub(crate) fn set_spend(&mut self, state: SpendState) {
+        self.spend = Some(state);
+    }
+
+    /// Ends the signing.
+    pub(crate) fn clear_spend(&mut self) {
+        self.spend = None;
+    }
+}
+
 impl Faraday {
+    /// The wallet chosen on the Wallets tab.
+    pub fn wallet_index(&self) -> usize {
+        self.wallets.wallet()
+    }
+
+    /// The key in no wallet chosen on the Wallets tab, by fingerprint.
+    pub fn loose_pick(&self) -> Option<[u8; 4]> {
+        self.wallets.loose_pick()
+    }
+
+    /// The chosen wallet's new name, while it is typed.
+    pub fn renaming(&self) -> Option<&String> {
+        self.wallets.renaming()
+    }
+
+    /// Design units scrolled past in the wallet card's body.
+    pub fn card_offset(&self) -> f32 {
+        self.wallets.card_offset()
+    }
+
+    /// The transaction being signed, if one is.
+    pub fn spend(&self) -> Option<&SpendState> {
+        self.wallets.spend()
+    }
+
     /// Handles the open wallet's and spend's actions (`PickWallet`, `StartSpend`, `Step*`, `Sign*`, `Collect`, `Public*`, `WalletKey*`, `TOther` and the like).
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn wallet_act(&mut self, action: Action) {
         match action {
             Action::PickWallet(i) => {
-                self.wallet = i;
-                self.renaming = None;
-                self.card_offset = 0.0;
+                self.wallets.set_wallet(i);
+                self.wallets.set_renaming(None);
+                self.wallets.set_card_offset(0.0);
             }
-            Action::PickKey(fp) => self.loose_pick = Some(fp),
+            Action::PickKey(fp) => self.wallets.set_loose_pick(Some(fp)),
             Action::RemoveWallet(i) => {
                 if i < self.session.wallets.len() {
                     self.session.wallets.remove(i);
-                    self.wallet = 0;
+                    self.wallets.set_wallet(0);
                 }
             }
             Action::RemoveKeys => {
                 self.session.keys.clear();
-                self.spend = None;
+                self.wallets.clear_spend();
             }
             Action::StartSpend(i) => self.start_spend(i),
             Action::Step(n) => {
-                if let Some(s) = self.spend.as_mut() {
+                if let Some(s) = self.wallets.spend_mut() {
                     // On the Spend tab a step opened from another card
                     // stays open.
                     let from_page = self.screen == Screen::Family
@@ -1800,7 +1915,7 @@ impl Faraday {
                 }
             }
             Action::StepNext(n) => {
-                if let Some(s) = self.spend.as_mut() {
+                if let Some(s) = self.wallets.spend_mut() {
                     s.done[n as usize] = true;
                     s.open = s.steps.iter().copied().find(|&i| !s.done[i as usize]);
                     s.error = None;
@@ -1809,7 +1924,7 @@ impl Faraday {
                 // Check's own Continue: this wallet is checked this
                 // power-on (`docs/WALLETS.md` §4), kept across a lock.
                 if n == wallet::step::CHECK
-                    && let Some(w) = self.spend.as_ref().and_then(|s| s.wallet)
+                    && let Some(w) = self.wallets.spend().and_then(|s| s.wallet)
                     && let Some(wallet) = self.session.wallets.get(w)
                 {
                     let checksum = wallet.checksum().to_string();
@@ -1820,14 +1935,14 @@ impl Faraday {
                 }
             }
             Action::ToggleTable => {
-                if let Some(s) = self.spend.as_mut() {
+                if let Some(s) = self.wallets.spend_mut() {
                     s.table = !s.table;
                 }
             }
             Action::SignHere => self.sign_here(),
             Action::Collect(i) => self.collect(i),
             Action::SignedToOutbox => {
-                if let Some(s) = self.spend.as_mut() {
+                if let Some(s) = self.wallets.spend_mut() {
                     let name = format!("{}-signed.psbt", result_stem(&s.spend.source));
                     let bytes = s.spend.psbt.to_bytes();
                     s.out_signed = true;
@@ -1835,7 +1950,7 @@ impl Faraday {
                 }
             }
             Action::TxToOutbox => {
-                if let Some(s) = self.spend.as_mut()
+                if let Some(s) = self.wallets.spend_mut()
                     && let Some(hex) = s.spend.finished_hex()
                 {
                     let name = format!("{}-final.txn", result_stem(&s.spend.source));
@@ -1863,9 +1978,9 @@ impl Faraday {
             Action::WalletKeyBsms(i, k) => self.wallet_key_bsms(i, k),
             Action::OpenWallet(i) => {
                 if i < self.session.wallets.len() {
-                    self.wallet = i;
+                    self.wallets.set_wallet(i);
                     self.screen = Screen::Wallets;
-                    self.card_offset = 0.0;
+                    self.wallets.set_card_offset(0.0);
                     self.glance = false;
                     self.chart_focus = None;
                 }
@@ -1881,16 +1996,17 @@ impl Faraday {
             }
             Action::Rename => {
                 // Pressing the name field again keeps what is typed.
-                if self.renaming.is_none() {
-                    self.renaming = self
+                if self.wallets.renaming().is_none() {
+                    let name = self
                         .session
                         .wallets
-                        .get(self.wallet)
+                        .get(self.wallets.wallet())
                         .map(|w| w.name.clone());
+                    self.wallets.set_renaming(name);
                 }
             }
             Action::TOther(id) => {
-                if let Some(s) = self.spend.as_mut() {
+                if let Some(s) = self.wallets.spend_mut() {
                     if let Some(k) = s.others.iter().position(|o| *o == id) {
                         s.others.remove(k);
                     } else {
@@ -1903,7 +2019,7 @@ impl Faraday {
             Action::CarryToOutbox => {
                 // The carry holds the secret nonce the next share signs
                 // with: a vault by default, the Outbox only after a warning.
-                let out = self.spend.as_mut().and_then(|s| {
+                let out = self.wallets.spend_mut().and_then(|s| {
                     let stem = result_stem(&s.spend.source);
                     let bytes = s.carry_out.take()?;
                     let psbt = s.spend.psbt.to_bytes();

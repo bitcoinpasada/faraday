@@ -129,7 +129,7 @@ fn back_from_a_flow_opened_on_a_wallets_card_lands_on_that_card() {
     let mut app = with(3, 1280, 800);
     app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::OpenWallet(2));
-    assert_eq!((app.screen, app.wallet), (Screen::Wallets, 2));
+    assert_eq!((app.screen, app.wallet_index()), (Screen::Wallets, 2));
     app.press(Action::SignMessage);
     assert_eq!(app.screen, Screen::Message);
     let _ = app.frame();
@@ -138,7 +138,7 @@ fn back_from_a_flow_opened_on_a_wallets_card_lands_on_that_card() {
         "the way back is named after the wallet"
     );
     tap_back(&mut app);
-    assert_eq!((app.screen, app.wallet), (Screen::Wallets, 2));
+    assert_eq!((app.screen, app.wallet_index()), (Screen::Wallets, 2));
 }
 
 #[test]
@@ -166,7 +166,7 @@ fn back_from_spend_opened_in_learn_opens_learn_again_on_the_same_page() {
     app.press(Action::LearnSpend);
     assert_eq!((app.screen, app.sheet), (Screen::Family, None));
     tap_back(&mut app);
-    assert_eq!((app.screen, app.wallet), (Screen::Wallets, 0));
+    assert_eq!((app.screen, app.wallet_index()), (Screen::Wallets, 0));
     assert_eq!(app.sheet, Some(Sheet::Learn));
     assert_eq!(app.learn().page, page);
 }
@@ -222,7 +222,7 @@ fn the_mouses_back_button_lands_where_the_way_back_does() {
     assert_eq!(app.screen, Screen::Message);
     let _ = app.frame();
     app.event(Event::Back);
-    assert_eq!((app.screen, app.wallet), (Screen::Wallets, 1));
+    assert_eq!((app.screen, app.wallet_index()), (Screen::Wallets, 1));
 }
 
 #[test]
@@ -265,6 +265,6 @@ fn back_from_a_key_explored_from_a_wallets_chart_lands_on_that_chart() {
     app.press(Action::ExploreKey(fp));
     assert_eq!(app.screen, Screen::Explore);
     tap_back(&mut app);
-    assert_eq!((app.screen, app.wallet), (Screen::Wallets, 1));
+    assert_eq!((app.screen, app.wallet_index()), (Screen::Wallets, 1));
     assert!(app.glance, "the chart, as it was left");
 }

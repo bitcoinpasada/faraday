@@ -394,8 +394,8 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
     app.press(Action::StartSpend(0));
     let _ = app.frame();
     assert!(
-        app.spend
-            .as_ref()
+        app.wallets
+            .spend()
             .is_some_and(|s| s.inspection.participating_keys.iter().all(|fp| !app
                 .session
                 .keys
@@ -411,7 +411,7 @@ fn a_spend_opened_before_its_seeds_were_loaded_signs_with_them_once_they_are() {
     }
     app.press(Action::SignHere);
     let _ = app.frame();
-    let s = app.spend.as_ref().expect("the spend");
+    let s = app.wallets.spend().expect("the spend");
     assert_eq!(s.error, None);
     assert_eq!(
         s.spend.signed_here.len(),

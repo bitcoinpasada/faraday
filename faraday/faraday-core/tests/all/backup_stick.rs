@@ -210,12 +210,9 @@ fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
         .position(|i| i.name == "taproot-multisig-unsigned.psbt")
         .unwrap();
     app.press(Action::Family(F::UsePsbt(p)));
-    assert!(app.spend.as_ref().unwrap().wallet.is_some());
+    assert!(app.spend().unwrap().wallet.is_some());
     app.press(Action::SignHere);
-    assert!(
-        app.spend.as_ref().unwrap().complete,
-        "the spend did not complete"
-    );
+    assert!(app.spend().unwrap().complete, "the spend did not complete");
 }
 
 /// The seed of test key 1, the test vault's, typed into Add a key, and a

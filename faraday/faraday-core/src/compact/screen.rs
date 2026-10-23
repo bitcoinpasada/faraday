@@ -99,7 +99,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (x, iw) = (x0 + M, cw - 2.0 * M);
     let top = -app.list_offset;
     let mut cy = top + 12.0;
-    let Some(wlt) = app.session.wallets.get(app.wallet) else {
+    let Some(wlt) = app.session.wallets.get(app.wallets.wallet()) else {
         if app.session.loose_keys().is_empty() {
             ui.text(x, cy, 14.0, W::R, MUTED, EN.compact_no_wallet_loaded);
         } else {
@@ -110,7 +110,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     // The chart, as its own page.
     if app.glance
-        && let Some(g) = app.glance_of(app.wallet)
+        && let Some(g) = app.glance_of(app.wallets.wallet())
     {
         cy += crate::glance::draw_column(ui, &g, crate::glance::Direction::WalletFirst, x, cy, iw);
         finish(app, ui, x0, cw, h, cy - top + 8.0);
@@ -119,13 +119,13 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // A PSBT waiting leads, unless it is this wallet's: the card's first
     // button is for that.
-    let lead = match app.spend.as_ref() {
-        Some(s) if s.wallet == Some(app.wallet) => None,
+    let lead = match app.wallets.spend() {
+        Some(s) if s.wallet == Some(app.wallets.wallet()) => None,
         Some(s) => Some((
             fill(EN.compact_continue_signing, &[&s.spend.source.to_string()]),
             Action::Nav(Screen::Spend),
         )),
-        None if app.psbt_for(app.wallet).is_some() => None,
+        None if app.psbt_for(app.wallets.wallet()).is_some() => None,
         None => app.lead_psbt().map(|i| {
             (
                 fill(EN.compact_review, &[&app.inbox[i].name.to_string()]),
@@ -157,7 +157,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 
     // Its name, which can be changed.
-    match app.renaming.as_ref() {
+    match app.wallets.renaming() {
         Some(name) => {
             ui.fill(x, cy, iw, 44.0, 8.0, BG);
             ui.stroke(x, cy, iw, 44.0, 8.0, ACCENT.with_alpha(110));
@@ -198,7 +198,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     cy += ui.wrap(x, cy, iw, 12.0, W::R, MUTED, &line) + 8.0;
     // Where its backup is (§5.2): a press opens Backups on it.
-    cy += crate::screens::backup_line(app, ui, x, cy, iw, app.wallet);
+    cy += crate::screens::backup_line(app, ui, x, cy, iw, app.wallets.wallet());
 
     if let Some(r) = wlt.policy().silent() {
         silent_card(app, ui, r, x, iw, cy, top, h);
@@ -211,7 +211,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let here = slots.iter().filter(|s| s.held_by.is_some()).count().min(m);
     // Short: Scan a key under the line; enough: Can spend
     // (`docs/history/SCAN-TO-SIGN.md` §2.2).
-    let can = app.can_spend(app.wallet);
+    let can = app.can_spend(app.wallets.wallet());
     let box_h = if can { 76.0 } else { 90.0 };
     ui.fill(x, cy, iw, box_h, 10.0, BG);
     ui.stroke(x, cy, iw, box_h, 10.0, INNER);
@@ -242,14 +242,14 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             } else {
                 Style::Disabled
             },
-            Action::ScanKey(app.wallet),
+            Action::ScanKey(app.wallets.wallet()),
         );
     }
     cy += box_h + 16.0;
 
     // The first thing to do with it, on the first screen: from the vault
     // to a spend (`docs/history/NEW-WALLET.md` §11.2).
-    let (spend_label, spend_action) = app.spend_button(app.wallet);
+    let (spend_label, spend_action) = app.spend_button(app.wallets.wallet());
     cy += stack(
         ui,
         x,
@@ -261,7 +261,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // The wallet at a glance, as its own page: its keys and its backup.
     let quorum_here =
         slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wlt);
-    if let Some(g) = app.glance_of(app.wallet) {
+    if let Some(g) = app.glance_of(app.wallets.wallet()) {
         let sub = format!(
             "{} {} · {}",
             g.keys.len(),
@@ -313,16 +313,16 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (
             EN.compact_show_wallet,
             Style::Secondary,
-            Action::QrWallet(app.wallet),
+            Action::QrWallet(app.wallets.wallet()),
         ),
         (
-            if app.wallet_backup_unfinished(app.wallet) {
+            if app.wallet_backup_unfinished(app.wallets.wallet()) {
                 EN.backup_flow_continue
             } else {
                 EN.compact_back_up
             },
             Style::Secondary,
-            Action::Backup(app.wallet),
+            Action::Backup(app.wallets.wallet()),
         ),
     ];
     // Create filled from this wallet (`docs/history/NEW-WALLET.md` §16.2).
@@ -330,10 +330,14 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         buttons.push((
             EN.wallets_new_wallet_button,
             Style::Secondary,
-            Action::NewWalletFrom(app.wallet),
+            Action::NewWalletFrom(app.wallets.wallet()),
         ));
     }
-    if app.session.message_wallets().contains(&app.wallet) {
+    if app
+        .session
+        .message_wallets()
+        .contains(&app.wallets.wallet())
+    {
         buttons.push((
             EN.compact_sign_a_message,
             Style::Secondary,
@@ -343,7 +347,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     buttons.push((
         EN.compact_remove_from_session,
         Style::Ghost,
-        Action::RemoveWallet(app.wallet),
+        Action::RemoveWallet(app.wallets.wallet()),
     ));
     cy += stack(ui, x, cy, iw, &buttons);
     finish(app, ui, x0, cw, h, cy - top + 8.0);
@@ -424,17 +428,17 @@ fn silent_card(
             (
                 EN.compact_address_labels,
                 Style::Primary,
-                Action::SWallet(app.wallet),
+                Action::SWallet(app.wallets.wallet()),
             ),
             (
                 EN.compact_show_wallet,
                 Style::Secondary,
-                Action::QrWallet(app.wallet),
+                Action::QrWallet(app.wallets.wallet()),
             ),
             (
                 EN.compact_remove_from_session,
                 Style::Ghost,
-                Action::RemoveWallet(app.wallet),
+                Action::RemoveWallet(app.wallets.wallet()),
             ),
         ],
     );

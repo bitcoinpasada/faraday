@@ -331,7 +331,7 @@ fn a_psbt_opened_to_its_review_and_signed_do_their_fixed_work() {
 
     let before = snapshot();
     press_and_draw(&mut app, Action::SignHere);
-    let s = app.spend.as_ref().expect("the spend");
+    let s = app.wallets.spend().expect("the spend");
     assert_eq!(s.spend.signed_here.len(), 2, "both seeds signed");
     check("Sign here", &since(&before), SIGN);
 }

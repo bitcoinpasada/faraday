@@ -252,13 +252,13 @@ fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
     app.press(Action::Family(F::UsePsbt(at)));
     assert_eq!(app.screen, Screen::Family, "the spend left the tab");
     assert_eq!(app.family.open, Some(Open::Spend));
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     assert_eq!(s.wallet, Some(savings), "the spend's wallet is not Savings");
     assert_eq!(s.open, Some(step::TRANSACTION), "the review is not first");
 
     app.press(Action::SignHere);
-    let here = app.spend.as_ref().unwrap().spend.psbt.to_bytes();
-    assert!(!app.spend.as_ref().unwrap().spend.signed_here.is_empty());
+    let here = app.spend().unwrap().spend.psbt.to_bytes();
+    assert!(!app.spend().unwrap().spend.signed_here.is_empty());
 
     // Wallets › Sign a transaction, from the same files, signs the same
     // bytes.
@@ -271,7 +271,7 @@ fn the_vault_route_unlocks_loads_and_signs_without_leaving_the_tab() {
     let at = inbox_at(&other, "savings-unsigned.psbt");
     other.press(Action::StartSpend(at));
     other.press(Action::SignHere);
-    assert_eq!(here, other.spend.as_ref().unwrap().spend.psbt.to_bytes());
+    assert_eq!(here, other.spend().unwrap().spend.psbt.to_bytes());
 }
 
 #[test]
@@ -297,7 +297,7 @@ fn a_vault_with_the_wallet_and_one_key_takes_the_second_key_from_its_words() {
     assert_eq!(app.screen, Screen::Family, "adding the key left the tab");
     assert_eq!(app.session.keys.len(), 2);
     app.press(Action::SignHere);
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     assert_eq!(s.spend.signed_here.len(), 2, "both keys did not sign");
     assert!(s.complete, "two of three did not complete the spend");
 }
@@ -398,12 +398,12 @@ fn typed_words_open_the_kind_of_wallet_the_transaction_spends_from() {
     assert_eq!(desc(app.session.wallets[w].policy()), desc(&spending));
     // A Taproot spend opens the Taproot kind of the same words.
     app.press(Action::Family(F::UsePsbt(0)));
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     let w = s.wallet.expect("no wallet matched the Taproot spend");
     let tr = faraday_core::wallet::read_wallet(&c, &taproot.descriptor).unwrap();
     assert_eq!(desc(app.session.wallets[w].policy()), desc(&tr));
     app.press(Action::SignHere);
-    assert!(app.spend.as_ref().unwrap().complete);
+    assert!(app.spend().unwrap().complete);
 }
 
 /// Savings' split sheet `k` of three.
@@ -603,11 +603,11 @@ fn a_transaction_scanned_on_the_card_is_kept_for_bring() {
     let (_, psbt) = savings_psbt();
     scan(&mut app, psbt);
     assert_eq!(note(&app), "A transaction to sign · kept for later");
-    assert!(app.spend.is_none(), "the spend started before the wallet");
+    assert!(app.spend().is_none(), "the spend started before the wallet");
     scan(&mut app, testkit::savings().into_bytes());
     app.press(Action::Cancel);
     assert!(app.family_ready());
-    assert!(app.spend.is_none(), "the spend started before Bring");
+    assert!(app.spend().is_none(), "the spend started before Bring");
     app.press(Action::Family(F::Next(page::CHECK)));
     app.press(Action::Family(F::Next(page::WRITE)));
     assert_eq!(app.family.open, Some(Open::Page(page::BRING)));
@@ -619,7 +619,7 @@ fn a_transaction_scanned_on_the_card_is_kept_for_bring() {
         .expect("the transaction is not in Files");
     assert!(app.offers(Action::Family(F::UsePsbt(k))));
     app.press(Action::Family(F::UsePsbt(k)));
-    assert_eq!(app.spend.as_ref().unwrap().wallet, app.family_wallet());
+    assert_eq!(app.spend().unwrap().wallet, app.family_wallet());
 }
 
 #[test]

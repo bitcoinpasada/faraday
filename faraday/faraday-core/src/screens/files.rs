@@ -444,7 +444,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         ui.text(x + 66.0, iy + 36.0, 12.0, W::R, MUTED, &line);
         let mut bx = x + 66.0;
-        let same_spend = app.spend.as_ref().is_some_and(|s| {
+        let same_spend = app.wallets.spend().is_some_and(|s| {
             item.psbt()
                 .is_some_and(|p| p.txid == s.spend.txid && item.name != s.spend.source)
         });
@@ -1589,7 +1589,7 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
             Action::Vault(crate::vault::VaultAction::AddFile(k)),
         )
     };
-    let same_spend = app.spend.as_ref().is_some_and(|s| {
+    let same_spend = app.wallets.spend().is_some_and(|s| {
         item.psbt()
             .is_some_and(|p| p.txid == s.spend.txid && item.name != s.spend.source)
     });

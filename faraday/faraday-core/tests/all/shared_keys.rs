@@ -97,11 +97,11 @@ fn removing_one_wallet_leaves_the_seed_for_the_other() {
 fn the_shared_seed_signs_for_the_wallet_the_transaction_spends_from() {
     let mut app = both();
     app.press(Action::StartSpend(at(&app, "savings-unsigned.psbt")));
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     let w = s.wallet.map(|i| app.session.wallets[i].name.clone());
     assert_eq!(w.as_deref(), Some("Savings"));
     app.press(Action::SignHere);
-    assert_eq!(app.spend.as_ref().unwrap().spend.signed_here.len(), 1);
+    assert_eq!(app.spend().unwrap().spend.signed_here.len(), 1);
 }
 
 #[test]

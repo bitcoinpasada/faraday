@@ -160,7 +160,7 @@ pub fn lead(app: &View, id: CardId) -> String {
             return fill(EN.family_the_finished, &[app.medium.a()]);
         }
         CardId::Step(n) => {
-            let s = app.spend.as_ref();
+            let s = app.wallets.spend();
             let kind = s
                 .and_then(|s| s.wallet)
                 .and_then(|w| app.session.wallets.get(w))
@@ -176,7 +176,7 @@ pub fn lead(app: &View, id: CardId) -> String {
 
 /// The spend's wallet needs more keys than are here.
 fn signers_missing(app: &View) -> bool {
-    let Some(s) = app.spend.as_ref() else {
+    let Some(s) = app.wallets.spend() else {
         return false;
     };
     let here = s

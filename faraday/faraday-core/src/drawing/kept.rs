@@ -763,7 +763,7 @@ impl View<'_> {
     /// account keys, a derivation per signature made here and the checks
     /// the first time.
     pub(crate) fn nonce_check(&self, psbt: &faraday_psbt::Psbt) -> Option<Rc<NonceCheck>> {
-        let s = self.spend.as_ref()?;
+        let s = self.wallets.spend()?;
         let bytes = psbt.to_bytes();
         let mut cache = s.nonce_check.borrow_mut();
         if let Some((b, check)) = cache.as_ref()

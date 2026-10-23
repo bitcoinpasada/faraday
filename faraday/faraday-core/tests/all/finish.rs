@@ -43,7 +43,7 @@ fn spending_finished() -> Faraday {
     add_key(&mut app, "bacon");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
     app.press(Action::SignHere);
-    assert!(app.spend.as_ref().unwrap().spend.finished.is_some());
+    assert!(app.spend().unwrap().spend.finished.is_some());
     app
 }
 
@@ -51,7 +51,7 @@ fn spending_finished() -> Faraday {
 fn every_signature_made_here_is_recomputed() {
     let c = testkit::compute();
     let app = spending_finished();
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     let check = app.session.nonce_check(&c, &s.spend.psbt);
     assert!(!check.rows.is_empty());
     assert!(check.sound());
@@ -81,7 +81,7 @@ fn a_signature_from_another_device_is_checked_but_not_recomputed() {
     add_key(&mut a, "zebra");
     a.press(Action::StartSpend(at(&a, "spend.psbt")));
     a.press(Action::SignHere);
-    let from_a = a.spend.as_ref().unwrap().spend.psbt.to_bytes();
+    let from_a = a.spend().unwrap().spend.psbt.to_bytes();
 
     // Device B: test key 1 signs and adds A's signature.
     let mut b = with_inbox(vec![
@@ -94,7 +94,7 @@ fn a_signature_from_another_device_is_checked_but_not_recomputed() {
     b.press(Action::StartSpend(at(&b, "spend.psbt")));
     b.press(Action::SignHere);
     b.press(Action::Collect(at(&b, "from-a.psbt")));
-    let s = b.spend.as_ref().unwrap();
+    let s = b.spend().unwrap();
     assert!(s.spend.finished.is_some(), "two of three did not finish it");
     let check = b.session.nonce_check(&c, &s.spend.psbt);
     assert!(check.sound());
@@ -115,7 +115,7 @@ fn a_signature_from_another_device_is_checked_but_not_recomputed() {
 fn a_signature_that_could_not_be_checked_is_not_called_valid() {
     let c = testkit::compute();
     let app = spending_finished();
-    let signed = &app.spend.as_ref().unwrap().spend.psbt;
+    let signed = &app.spend().unwrap().spend.psbt;
     let valid = app.session.nonce_check(&c, signed);
     assert!(valid.sound());
 
@@ -141,7 +141,7 @@ fn a_signature_that_could_not_be_checked_is_not_called_valid() {
 #[test]
 fn the_finished_transaction_decodes_to_what_it_pays() {
     let mut app = spending_finished();
-    let tx = app.spend.as_ref().unwrap().spend.finished.clone().unwrap();
+    let tx = app.spend().unwrap().spend.finished.clone().unwrap();
     app.press(Action::DecodeFinished);
     assert_eq!(app.screen, Screen::Decode);
     let d = &app.decode().unwrap().decoded;
@@ -166,10 +166,9 @@ fn the_finished_transaction_decodes_to_what_it_pays() {
 #[test]
 fn a_raw_transaction_in_a_text_file_decodes() {
     let app = spending_finished();
-    let hex = app.spend.as_ref().unwrap().spend.finished_hex().unwrap();
+    let hex = app.spend().unwrap().spend.finished_hex().unwrap();
     let txid = app
-        .spend
-        .as_ref()
+        .spend()
         .unwrap()
         .spend
         .finished
@@ -223,7 +222,7 @@ fn spending_offered(kept: Vec<(String, Vec<u8>)>) -> Faraday {
 /// Whether the spend's Check card is closed, as for a wallet checked
 /// already.
 fn check_closed(app: &Faraday) -> bool {
-    app.spend.as_ref().unwrap().done[step::CHECK as usize]
+    app.spend().unwrap().done[step::CHECK as usize]
 }
 
 /// What a lock keeps, as the shell is told to save it.
@@ -241,7 +240,7 @@ fn kept_after_lock(app: &mut Faraday) -> Vec<(String, Vec<u8>)> {
 #[test]
 fn the_card_after_wallet_is_transaction_and_it_carries_the_txid() {
     let mut app = spending_offered(Vec::new());
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     assert_eq!(&s.steps[..2], &[step::WALLET, step::TRANSACTION]);
     let txid = s.spend.txid.to_string();
     let texts = app.drawn_texts();

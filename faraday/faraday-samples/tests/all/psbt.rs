@@ -68,7 +68,7 @@ fn the_scanner_of_the_write_step_offers_it_too() {
     assert!(app.offers(Action::ScanSample));
     app.press(Action::ScanSample);
     assert_eq!(app.sheet, None);
-    assert!(app.spend.is_some(), "the review opened");
+    assert!(app.spend().is_some(), "the review opened");
 }
 
 #[test]
@@ -81,10 +81,10 @@ fn the_spend_tab_loads_the_sample_psbt_reviews_and_signs_it() {
     assert!(app.drawn_texts().iter().any(|t| t == "Load sample PSBT"));
     app.press(Action::SamplePsbt);
     let _ = app.frame();
-    let s = app.spend.as_ref().expect("the spend opened");
+    let s = app.spend().expect("the spend opened");
     assert_eq!(s.wallet, Some(0));
     app.press(Action::SignHere);
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     assert!(s.spend.finished.is_some(), "not signed: {:?}", s.error);
     // Pressed again, no second copy.
     assert_eq!(psbt_files(&app), 1);
@@ -108,11 +108,11 @@ fn signed_through(scan_button: impl Fn(&mut Faraday)) {
     let _ = app.frame();
     assert_eq!(app.sheet, None, "the scanner closed");
     assert_eq!(app.screen, Screen::Family);
-    let s = app.spend.as_ref().expect("the spend opened");
+    let s = app.spend().expect("the spend opened");
     assert_eq!(s.wallet, Some(0));
     assert_eq!(s.open, Some(faraday_core::wallet::step::TRANSACTION));
     app.press(Action::SignHere);
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     assert!(s.spend.finished.is_some(), "not signed: {:?}", s.error);
     assert!(s.spend.signed_here.len() >= 2, "two of three signed");
     assert_eq!(psbt_files(&app), 1);

@@ -274,7 +274,7 @@ impl Faraday {
     pub(crate) fn decode_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::DecodeFinished => {
-                if let Some(s) = self.spend.as_ref()
+                if let Some(s) = self.wallets.spend()
                     && let Some(tx) = s.spend.finished.as_ref()
                 {
                     let prevouts = decode::prevouts_of(&s.spend.psbt);
@@ -291,8 +291,8 @@ impl Faraday {
                     // transaction when one is here.
                     let txid = tx.compute_txid();
                     let psbt = self
-                        .spend
-                        .as_ref()
+                        .wallets
+                        .spend()
                         .map(|s| s.spend.psbt.clone())
                         .filter(|p| p.unsigned_tx().compute_txid() == txid)
                         .or_else(|| {
@@ -317,7 +317,7 @@ impl Faraday {
                 self.decode.toggle_hex();
             }
             Action::SpendHex => {
-                if let Some(s) = self.spend.as_mut() {
+                if let Some(s) = self.wallets.spend_mut() {
                     s.show_hex = !s.show_hex;
                 }
             }

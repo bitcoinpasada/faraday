@@ -97,7 +97,7 @@ impl Faraday {
         let wallet = || {
             self.session
                 .wallets
-                .get(self.wallet)
+                .get(self.wallets.wallet())
                 .map(|w| Kind::of(w.policy()))
         };
         match self.screen {

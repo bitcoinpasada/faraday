@@ -484,7 +484,7 @@ impl Faraday {
             Ok(i) => {
                 self.refresh_spend();
                 self.vanity.clear();
-                self.wallet = i;
+                self.wallets.set_wallet(i);
                 self.screen = Screen::Wallets;
                 self.toast(&fill(EN.vanity_is_open, &[&name.to_string()]));
             }

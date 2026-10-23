@@ -321,7 +321,7 @@ impl Faraday {
             self.entry.reset();
             self.screen = match back {
                 Some(s) => s,
-                None if self.spend.is_some() => crate::Screen::Spend,
+                None if self.wallets.spend().is_some() => crate::Screen::Spend,
                 None => crate::Screen::Wallets,
             };
         }

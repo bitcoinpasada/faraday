@@ -243,7 +243,7 @@ fn help(ui: &mut Ui, x: f32, y: f32) {
 /// under it as the desktop draws it, in the panel's width.
 pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
     let explore = app.explore.page();
-    let name = match app.session.wallets.get(app.wallet) {
+    let name = match app.session.wallets.get(app.wallets.wallet()) {
         _ if app.screen == Screen::Explore && explore == Some(crate::explore::Page::Addresses) => {
             EN.explore_addresses
         }
@@ -259,7 +259,7 @@ pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
         Screen::Wallets if app.glance => (
             app.session
                 .wallets
-                .get(app.wallet)
+                .get(app.wallets.wallet())
                 .map_or(EN.compact_wallets, |w| w.name.as_str()),
             Action::Glance(false),
         ),

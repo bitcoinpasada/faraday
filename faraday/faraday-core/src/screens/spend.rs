@@ -129,7 +129,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let col_x = x0 + 40.0;
     let col_w = cw - panel_w - 72.0;
     let needed = app.spend_needed();
-    if app.spend.is_none() {
+    if app.wallets.spend().is_none() {
         title(ui, col_x, 28.0, EN.spend_sign_a_transaction);
         ui.text(col_x, 80.0, 15.0, W::R, MUTED, EN.spend_no_transaction);
         ui.button(
@@ -144,12 +144,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     }
     let (wallet_idx, steps) = {
-        let s = app.spend.as_ref().expect("spend");
+        let s = app.wallets.spend().expect("spend");
         (s.wallet, s.steps.clone())
     };
 
     let (cards, scroll, guided) = {
-        let s = app.spend.as_ref().expect("spend");
+        let s = app.wallets.spend().expect("spend");
         let kind = wallet_idx
             .and_then(|w| app.session.wallets.get(w))
             .map(|w| crate::wallet::Kind::of(w.policy()));
@@ -213,7 +213,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// Where a signing stands: the signatures there, how many are missing,
 /// the line that says what is left, and the main button's label.
 fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
-    let s = app.spend.as_ref().expect("spend");
+    let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
     // A threshold spend counts partial signatures and signs as shares.
     let threshold = threshold_of(s);
@@ -367,7 +367,7 @@ fn recipients(inspection: &faraday_psbt::Inspection) -> Vec<&faraday_psbt::Outpu
 }
 
 pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usize) -> String {
-    let s = app.spend.as_ref().expect("spend");
+    let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
     let reached = s.done[n as usize] || s.open == Some(n);
     match n {
@@ -465,7 +465,7 @@ pub(crate) fn step_body(
     wallet: Option<usize>,
     needed: usize,
 ) -> f32 {
-    let s = app.spend.as_ref().expect("spend");
+    let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
     let mut cy = y;
     // A step's Continue: on a small panel it takes the foot's button
@@ -1630,7 +1630,7 @@ fn spend_panel(
     wallet: Option<usize>,
     needed: usize,
 ) {
-    let s = app.spend.as_ref().expect("spend");
+    let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
     ui.fill(px, 0.0, pw, h, 0.0, SURFACE);
     ui.fill(px, 0.0, 1.0, h, 0.0, LINE);

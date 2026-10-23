@@ -213,7 +213,7 @@ fn back_from_the_backup_returns_to_the_wallet_card() {
     );
     app.press(Action::OpenWallet(built));
     assert_eq!(app.screen, Screen::Wallets);
-    assert_eq!(app.wallet, built, "on the wallet just made");
+    assert_eq!(app.wallet_index(), built, "on the wallet just made");
 }
 
 #[test]

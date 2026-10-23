@@ -931,7 +931,7 @@ fn in_the_demo_public_seeds_sign_keep_entries_and_go_into_a_vault() {
         .unwrap();
     app.press(Action::StartSpend(at));
     app.press(Action::SignHere);
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     assert!(s.spend.finished.is_some(), "not signed: {:?}", s.error);
 
     // A message.

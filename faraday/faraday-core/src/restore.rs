@@ -560,7 +560,7 @@ impl Faraday {
                             wallet::Origin::Named,
                         ) {
                             Ok(i) => {
-                                self.wallet = i;
+                                self.wallets.set_wallet(i);
                                 self.screen = Screen::Wallets;
                                 self.refresh_spend();
                                 self.toast(&fill(
@@ -866,7 +866,7 @@ impl Faraday {
         let c = self.compute();
         match self.session.add_wallet(&c, name, text, source, origin) {
             Ok(i) => {
-                self.wallet = i;
+                self.wallets.set_wallet(i);
                 let w = &self.session.wallets[i];
                 let kind = create::NewKind::of(w.policy());
                 let (m, n) = Session::quorum(w);

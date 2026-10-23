@@ -449,13 +449,13 @@ impl Faraday {
         // it waits for the stick to be pulled ([`crate::Sheet::Pull`]).
         let need = match go {
             Go::Explore | Go::Bip85 | Go::Vanity | Go::Silent if !keys => EN.catalog_load_a_key,
-            Go::Backup if self.session.wallets.get(self.wallet).is_none() => {
+            Go::Backup if self.session.wallets.get(self.wallets.wallet()).is_none() => {
                 EN.catalog_load_a_wallet
             }
             Go::NonceCheck
                 if !self
-                    .spend
-                    .as_ref()
+                    .wallets
+                    .spend()
                     .is_some_and(|s| s.spend.finished.is_some()) =>
             {
                 EN.catalog_at_the_end
@@ -535,13 +535,13 @@ impl Faraday {
                 }
             }
             Go::Restore => self.act(Action::RestoreWallet),
-            Go::Backup => self.act(Action::Backup(self.wallet)),
+            Go::Backup => self.act(Action::Backup(self.wallets.wallet())),
             Go::Sign => match self.lead_psbt() {
                 Some(k) => self.act(Action::StartSpend(k)),
                 None => self.act(Action::Scan),
             },
             Go::NonceCheck => {
-                if let Some(s) = self.spend.as_mut() {
+                if let Some(s) = self.wallets.spend_mut() {
                     s.open = Some(crate::wallet::step::FINISH);
                     s.follow = true;
                 }

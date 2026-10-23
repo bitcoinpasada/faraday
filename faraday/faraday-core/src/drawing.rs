@@ -330,7 +330,7 @@ impl Faraday {
                     }
                 }
                 Scrolled::Spend => {
-                    if let Some(s) = self.spend.as_mut() {
+                    if let Some(s) = self.wallets.spend_mut() {
                         s.scroll = to.y;
                         s.follow = to.follow;
                     }

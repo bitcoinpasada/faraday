@@ -68,14 +68,11 @@ fn sign(k: &Kit, seeds: &str, psbt: &Path, dir: &Path) -> Result<String, String>
     }
     let p = at(&app, "spend.psbt").ok_or("the PSBT was not read as one")?;
     app.press(Action::StartSpend(p));
-    if app.spend.is_none() {
+    if app.spend().is_none() {
         return Err("Faraday did not open the spend".into());
     }
     app.press(Action::SignHere);
-    let finished = app
-        .spend
-        .as_ref()
-        .is_some_and(|s| s.spend.finished.is_some());
+    let finished = app.spend().is_some_and(|s| s.spend.finished.is_some());
     app.press(if finished {
         Action::TxToOutbox
     } else {

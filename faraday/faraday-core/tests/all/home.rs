@@ -318,7 +318,7 @@ fn home_lead_rule_1_a_spend_under_way_continues_it() {
     let psbt = faraday_core::testkit::unsigned(&kit).unwrap().to_bytes();
     let mut app = with_inbox(vec![("spend.psbt", psbt)]);
     app.press(Action::StartSpend(0));
-    assert!(app.spend.is_some());
+    assert!(app.spend().is_some());
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
     assert!(

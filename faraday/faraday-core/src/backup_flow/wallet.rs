@@ -2266,7 +2266,7 @@ impl Faraday {
         // chosen.
         let w = match self.backup.as_ref() {
             Some(b) if self.screen == Screen::Backup => b.wallet,
-            _ => self.wallet,
+            _ => self.wallets.wallet(),
         };
         let Some(wl) = self.session.wallets.get(w) else {
             return;

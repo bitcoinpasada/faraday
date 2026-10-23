@@ -129,7 +129,7 @@ fn a_wallets_name_is_selected_and_typed_over() {
     click(&mut app, at, 1_000);
     click(&mut app, at, 1_200);
     app.event(Event::Key(Key::Backspace));
-    assert_eq!(app.renaming.as_deref(), Some(""));
+    assert_eq!(app.renaming().map(String::as_str), Some(""));
     type_text(&mut app, "Groceries");
     app.event(Event::Key(Key::Enter));
     assert_eq!(app.session.wallets[0].name, "Groceries");
@@ -154,7 +154,7 @@ fn a_drag_over_three_characters_and_backspace_leaves_the_rest() {
     let mut app = renamed("Groceries");
     drag(&mut app, Action::Rename, 2, 5);
     app.event(Event::Key(Key::Backspace));
-    assert_eq!(app.renaming.as_deref(), Some("Grries"));
+    assert_eq!(app.renaming().map(String::as_str), Some("Grries"));
 }
 
 #[test]
@@ -163,9 +163,9 @@ fn a_character_typed_over_a_selection_replaces_it_and_typing_goes_on_after_it() 
     // Dragged right to left, the same three.
     drag(&mut app, Action::Rename, 5, 2);
     type_text(&mut app, "a");
-    assert_eq!(app.renaming.as_deref(), Some("Graries"));
+    assert_eq!(app.renaming().map(String::as_str), Some("Graries"));
     type_text(&mut app, "b");
-    assert_eq!(app.renaming.as_deref(), Some("Grabries"));
+    assert_eq!(app.renaming().map(String::as_str), Some("Grabries"));
 }
 
 #[test]
@@ -179,7 +179,7 @@ fn shift_with_the_arrow_keys_selects_and_delete_takes_what_is_selected() {
     }
     app.event(Event::Shift { held: false });
     app.event(Event::Key(Key::Delete));
-    assert_eq!(app.renaming.as_deref(), Some("Groces"));
+    assert_eq!(app.renaming().map(String::as_str), Some("Groces"));
 }
 
 #[test]
@@ -192,7 +192,7 @@ fn shift_with_a_press_selects_from_the_caret_to_the_press() {
     click(&mut app, to, 7_000);
     app.event(Event::Shift { held: false });
     app.event(Event::Key(Key::Backspace));
-    assert_eq!(app.renaming.as_deref(), Some("Groces"));
+    assert_eq!(app.renaming().map(String::as_str), Some("Groces"));
 }
 
 /// A tall display, so a whole card is drawn at once.

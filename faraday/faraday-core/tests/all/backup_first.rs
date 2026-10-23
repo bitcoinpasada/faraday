@@ -169,7 +169,7 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
         .unwrap();
     app.press(Action::StartSpend(at));
     app.press(Action::SignHere);
-    let s = app.spend.as_ref().unwrap();
+    let s = app.spend().unwrap();
     assert!(s.spend.finished.is_none(), "a held key signed");
     assert!(s.spend.signed_here.is_empty());
     assert!(
@@ -196,9 +196,9 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
     app.press(Action::StartSpend(at));
     app.press(Action::SignHere);
     assert!(
-        app.spend.as_ref().unwrap().spend.finished.is_some(),
+        app.spend().unwrap().spend.finished.is_some(),
         "{:?}",
-        app.spend.as_ref().unwrap().error
+        app.spend().unwrap().error
     );
 }
 
@@ -227,7 +227,7 @@ fn a_restored_key_signs_at_once() {
     assert_ne!(app.spend_button(&c, 0).0, "Finish the backup first");
     app.press(Action::StartSpend(at(&app, "spend.psbt")));
     app.press(Action::SignHere);
-    assert!(app.spend.as_ref().unwrap().spend.finished.is_some());
+    assert!(app.spend().unwrap().spend.finished.is_some());
 }
 
 /// Locks `app` and returns what it queued for the stick.

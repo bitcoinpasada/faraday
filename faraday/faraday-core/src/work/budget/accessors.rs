@@ -43,7 +43,7 @@ fn session() -> Faraday {
         }
     }
     assert!(app.backup.is_some(), "the backup is open");
-    assert!(app.spend.is_some(), "the spend is open");
+    assert!(app.wallets.spend().is_some(), "the spend is open");
     assert!(!app.vaults.open.is_empty(), "the test vault is open");
     app
 }
@@ -60,7 +60,7 @@ fn reads(app: &Faraday) -> Vec<Read> {
     let shape = app.plan_shape_now(w);
     let answers = Answers::preset(&shape, Preset::PaperVault);
     let seen = app.inbox.iter().find_map(|i| i.psbt().cloned());
-    let psbt = app.spend.as_ref().map(|s| s.spend.psbt.clone());
+    let psbt = app.wallets.spend().map(|s| s.spend.psbt.clone());
     let contents = &app.vaults.records(app.vaults.open[app.vaults.current].id);
     let key_record = contents
         .of(kind::KEY)

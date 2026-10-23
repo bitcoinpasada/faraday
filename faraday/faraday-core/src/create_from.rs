@@ -393,7 +393,7 @@ impl Faraday {
                 self.chart_work.moving_to = None;
             }
             self.session.wallets.remove(w);
-            self.wallet = w.saturating_sub(1);
+            self.wallets.set_wallet(w.saturating_sub(1));
         }
     }
 }

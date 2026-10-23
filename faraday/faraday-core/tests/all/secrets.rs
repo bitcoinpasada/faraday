@@ -91,7 +91,7 @@ fn first_share(app: &mut Faraday) {
     app.press(Action::TOther(1));
     app.press(Action::StepNext(4));
     app.press(Action::SignHere);
-    assert!(app.spend.as_ref().unwrap().carry_out.is_some());
+    assert!(app.spend().unwrap().carry_out.is_some());
     app.press(Action::CarryToOutbox);
     assert_eq!(app.sheet, Some(Sheet::SecretOut));
     assert!(app.outbox.is_empty(), "nothing goes out before a choice");
@@ -123,7 +123,7 @@ fn cancelling_keeps_the_carry_for_later() {
     first_share(&mut app);
     app.press(Action::Cancel);
     assert!(app.outbox.is_empty());
-    assert!(app.spend.as_ref().unwrap().carry_out.is_some());
+    assert!(app.spend().unwrap().carry_out.is_some());
 }
 
 #[test]
@@ -164,14 +164,14 @@ fn the_carry_goes_into_the_vault_and_the_next_device_signs_with_it() {
     let p = find(&b, "threshold-part.psbt");
     b.press(Action::StartSpend(p));
     assert!(
-        b.spend.as_ref().unwrap().carry.is_some(),
+        b.spend().unwrap().carry.is_some(),
         "the vault's round was not found for this PSBT"
     );
     for n in [1u8, 2, 3, 4] {
         b.press(Action::StepNext(n));
     }
     b.press(Action::SignHere);
-    let s = b.spend.as_ref().unwrap();
+    let s = b.spend().unwrap();
     assert!(s.complete, "{:?}", s.error);
     // The round has been used: it leaves the vault.
     let v = &b.vaults.open[0];
@@ -317,16 +317,13 @@ fn a_round_signed_with_by_taps_leaves_the_vault_and_cannot_sign_again() {
     b.press(Action::LoadWallet(w));
     let p = find(&b, "threshold-part.psbt");
     b.press(Action::StartSpend(p));
-    assert!(
-        b.spend.as_ref().unwrap().carry.is_some(),
-        "the vault's round"
-    );
+    assert!(b.spend().unwrap().carry.is_some(), "the vault's round");
     for n in [1u8, 2, 3, 4] {
         b.press(Action::StepNext(n));
     }
     // The signing itself, a tap on Sign here.
     tap(&mut b, Action::SignHere);
-    let s = b.spend.as_ref().unwrap();
+    let s = b.spend().unwrap();
     assert!(s.complete, "{:?}", s.error);
     let v = &b.vaults.open[0];
     assert!(
@@ -341,7 +338,7 @@ fn a_round_signed_with_by_taps_leaves_the_vault_and_cannot_sign_again() {
     tap(&mut b, Action::Nav(Screen::WalletsStart));
     b.press(Action::StartSpend(p));
     assert!(
-        b.spend.as_ref().unwrap().carry.is_none(),
+        b.spend().unwrap().carry.is_none(),
         "a round signed with is never offered again"
     );
 }

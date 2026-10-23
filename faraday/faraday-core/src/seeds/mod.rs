@@ -447,9 +447,8 @@ impl Faraday {
             {
                 self.family.wallet = None;
             }
-            self.wallet = self
-                .wallet
-                .min(self.session.wallets.len().saturating_sub(1));
+            let last = self.session.wallets.len().saturating_sub(1);
+            self.wallets.set_wallet(self.wallets.wallet().min(last));
         }
         self.family.everything = false;
         let s = &mut self.family.seeds;
@@ -763,7 +762,7 @@ impl Faraday {
                 ) {
                     Ok(i) => {
                         self.family.wallet = Some(self.session.wallets[i].name.clone());
-                        self.wallet = i;
+                        self.wallets.set_wallet(i);
                         // Made without its description: a guess, which Check
                         // the money walks through (`docs/history/SCAN-TO-SIGN.md` §5).
                         self.family_guess_start(n > 1);

@@ -513,14 +513,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
         t.press(Action::Collect(i));
     }
     t.shot("musig-finished")?;
-    if t.app
-        .spend
-        .as_ref()
-        .is_none_or(|s| s.spend.finished.is_none())
-    {
+    if t.app.spend().is_none_or(|s| s.spend.finished.is_none()) {
         return Err(format!(
             "the MuSig2 spend did not finish: {:?}",
-            t.app.spend.as_ref().and_then(|s| s.error.clone())
+            t.app.spend().and_then(|s| s.error.clone())
         ));
     }
     println!("MuSig2 spend finished in the app");
@@ -558,10 +554,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::StepNext(4));
     t.press(Action::SignHere);
     t.shot("frost-carry")?;
-    if t.app.spend.as_ref().is_none_or(|s| s.carry_out.is_none()) {
+    if t.app.spend().is_none_or(|s| s.carry_out.is_none()) {
         return Err(format!(
             "share 1 left no carry file: {:?}",
-            t.app.spend.as_ref().and_then(|s| s.error.clone())
+            t.app.spend().and_then(|s| s.error.clone())
         ));
     }
     // The carry holds a secret nonce: the sheet asks where it goes.
@@ -618,10 +614,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("frost-second")?;
     t.press(Action::SignHere);
     t.shot("frost-finished")?;
-    if t.app.spend.as_ref().is_none_or(|s| !s.complete) {
+    if t.app.spend().is_none_or(|s| !s.complete) {
         return Err(format!(
             "the FROST spend did not finish: {:?}",
-            t.app.spend.as_ref().and_then(|s| s.error.clone())
+            t.app.spend().and_then(|s| s.error.clone())
         ));
     }
     println!("FROST spend signed at two places and finished in the app");

@@ -94,7 +94,7 @@ fn the_key_that_closes_the_warning_types_nothing() {
     assert_eq!(app.screen, Screen::Wallets);
     app.press(Action::Rename);
     app.event(Event::Key(Key::Char('a')));
-    let before = app.renaming.clone();
+    let before = app.renaming().cloned();
     assert!(
         before.as_ref().is_some_and(|n| n.ends_with('a')),
         "typing reaches the name"
@@ -102,7 +102,7 @@ fn the_key_that_closes_the_warning_types_nothing() {
     tick(&mut app, 0);
     tick(&mut app, 26 * MIN);
     app.event(Event::Key(Key::Char('x')));
-    assert_eq!(app.renaming, before);
+    assert_eq!(app.renaming().cloned(), before);
 }
 
 #[test]

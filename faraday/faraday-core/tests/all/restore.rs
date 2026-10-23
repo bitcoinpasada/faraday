@@ -552,7 +552,7 @@ fn wallets_opens_the_wallet() {
     let (mut app, w) = single_key_done();
     app.press(Action::OpenWallet(w));
     assert_eq!(app.screen, Screen::Wallets);
-    assert_eq!(app.wallet, w);
+    assert_eq!(app.wallet_index(), w);
 }
 
 /// Another wallet from these seeds is New wallet from this one: Create

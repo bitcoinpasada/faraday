@@ -78,7 +78,7 @@ fn renaming(name: &str) -> Faraday {
     });
     app.press(Action::LoadWallet(0));
     app.press(Action::Rename);
-    let renamed = app.renaming.as_ref().unwrap().chars().count();
+    let renamed = app.renaming().unwrap().chars().count();
     for _ in 0..renamed {
         app.event(Event::Key(Key::Backspace));
     }
@@ -111,7 +111,7 @@ fn a_press_puts_the_caret_where_it_lands_and_typing_goes_in_there() {
     press_at(&mut app, 3);
     app.event(Event::Key(Key::Char('x')));
     app.event(Event::Key(Key::Char('y')));
-    assert_eq!(app.renaming.as_deref(), Some("Groxycery"));
+    assert_eq!(app.renaming().map(String::as_str), Some("Groxycery"));
 }
 
 #[test]
@@ -119,9 +119,9 @@ fn backspace_takes_the_character_before_the_caret_and_delete_the_one_after() {
     let mut app = renaming("Grocery");
     press_at(&mut app, 3);
     app.event(Event::Key(Key::Backspace));
-    assert_eq!(app.renaming.as_deref(), Some("Grcery"));
+    assert_eq!(app.renaming().map(String::as_str), Some("Grcery"));
     app.event(Event::Key(Key::Delete));
-    assert_eq!(app.renaming.as_deref(), Some("Grery"));
+    assert_eq!(app.renaming().map(String::as_str), Some("Grery"));
 }
 
 #[test]
@@ -130,8 +130,8 @@ fn the_arrow_keys_move_the_caret() {
     app.event(Event::Key(Key::Left));
     app.event(Event::Key(Key::Left));
     app.event(Event::Key(Key::Char('-')));
-    assert_eq!(app.renaming.as_deref(), Some("Groce-ry"));
+    assert_eq!(app.renaming().map(String::as_str), Some("Groce-ry"));
     app.event(Event::Key(Key::Right));
     app.event(Event::Key(Key::Char('-')));
-    assert_eq!(app.renaming.as_deref(), Some("Groce-r-y"));
+    assert_eq!(app.renaming().map(String::as_str), Some("Groce-r-y"));
 }

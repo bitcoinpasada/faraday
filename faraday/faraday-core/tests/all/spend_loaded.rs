@@ -91,10 +91,13 @@ fn a_ready_wallet_with_its_transaction_in_files_goes_to_signing() {
     app.press(Action::LoadWallet(0));
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::SpendFrom(0)));
-    assert!(app.spend.is_some(), "the PSBT in Files is the one to sign");
+    assert!(
+        app.spend().is_some(),
+        "the PSBT in Files is the one to sign"
+    );
     assert_eq!(app.screen, Screen::Family);
     assert_eq!(app.family.open, Some(Open::Spend));
-    assert!(app.spend.as_ref().unwrap().steps.contains(&step::SIGN));
+    assert!(app.spend().unwrap().steps.contains(&step::SIGN));
 }
 
 #[test]

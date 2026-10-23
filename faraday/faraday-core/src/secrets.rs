@@ -424,7 +424,7 @@ impl Faraday {
         }
         self.sheet = None;
         if matches!(out.keep, Keep::Round(_))
-            && let Some(s) = self.spend.as_mut()
+            && let Some(s) = self.wallets.spend_mut()
         {
             s.out_signed = true;
         }
@@ -498,7 +498,7 @@ impl Faraday {
             return;
         }
         if matches!(out.keep, Keep::Round(_))
-            && let Some(s) = self.spend.as_mut()
+            && let Some(s) = self.wallets.spend_mut()
         {
             s.out_signed = true;
         }
@@ -523,7 +523,7 @@ impl Faraday {
 
     fn secret_back(&mut self, out: SecretOut) {
         if matches!(out.keep, Keep::Round(_))
-            && let Some(s) = self.spend.as_mut()
+            && let Some(s) = self.wallets.spend_mut()
             && s.carry_out.is_none()
         {
             s.carry_out = Some(out.bytes);

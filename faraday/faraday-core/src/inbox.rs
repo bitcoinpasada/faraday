@@ -1132,7 +1132,7 @@ impl Faraday {
             crate::wallet::Origin::Named,
         ) {
             Ok(i) => {
-                self.wallet = i;
+                self.wallets.set_wallet(i);
                 self.potential = None;
                 self.sheet = None;
                 self.refresh_spend();
@@ -1328,7 +1328,7 @@ impl Faraday {
             crate::wallet::Origin::Named,
         ) {
             Ok(i) => {
-                self.wallet = i;
+                self.wallets.set_wallet(i);
                 self.potential = None;
                 self.sheet = None;
                 self.refresh_spend();

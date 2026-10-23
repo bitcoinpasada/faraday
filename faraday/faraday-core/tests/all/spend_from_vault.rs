@@ -124,7 +124,7 @@ fn unlocking_the_boot_sticks_vault_lands_on_wallets_with_the_one_that_signs_and_
     );
     // The first wallet with a key here is the one shown.
     let first = (0..n).find(|&w| keys_here(&app, w) > 0).unwrap();
-    assert_eq!(app.wallet, first);
+    assert_eq!(app.wallet_index(), first);
 }
 
 #[test]
@@ -167,7 +167,7 @@ fn the_shortcut_scans_the_psbt_from_sparrow_and_opens_its_review() {
     scan_psbt(&mut app, &psbt);
     assert_eq!(app.screen, Screen::Family);
     assert_eq!(app.family.open, Some(Open::Spend));
-    let s = app.spend.as_ref().expect("no spend");
+    let s = app.spend().expect("no spend");
     assert_eq!(s.wallet, Some(w));
     assert_eq!(s.open, Some(step::TRANSACTION), "the review is not next");
 }
@@ -187,7 +187,7 @@ fn with_its_psbt_in_files_the_button_signs_it_and_opens_its_review() {
     app.press(Action::Family(F::SpendFrom(w)));
     assert_eq!(app.screen, Screen::Family);
     assert_eq!(app.family.open, Some(Open::Spend));
-    let s = app.spend.as_ref().expect("no spend");
+    let s = app.spend().expect("no spend");
     assert_eq!(s.wallet, Some(w));
     assert_eq!(s.open, Some(step::TRANSACTION));
 }
@@ -199,7 +199,7 @@ fn a_two_of_three_with_one_key_here_offers_scanning_a_key_and_collecting_a_signa
     app.press(Action::Family(F::SpendFrom(w)));
     let (psbt, _) = testkit::spend_of(&kit("savings")).unwrap();
     scan_psbt(&mut app, &psbt.to_bytes());
-    assert_eq!(app.spend.as_ref().and_then(|s| s.wallet), Some(w));
+    assert_eq!(app.spend().and_then(|s| s.wallet), Some(w));
     app.press(Action::Step(step::SIGNERS));
     let text = drawn(&mut app);
     assert!(
@@ -217,7 +217,7 @@ fn a_two_of_three_with_one_key_here_offers_scanning_a_key_and_collecting_a_signa
     );
     app.press(Action::Step(step::COLLECT));
     assert_eq!(app.family.open, Some(Open::Spend));
-    assert_eq!(app.spend.as_ref().unwrap().open, Some(step::COLLECT));
+    assert_eq!(app.spend().unwrap().open, Some(step::COLLECT));
 }
 
 /// On Savings' Who signs, with Test key 1 here.
@@ -297,7 +297,7 @@ fn leaving_the_spend_and_coming_back_resumes_it() {
     let psbt = testkit::unsigned(&kit("spending")).unwrap().to_bytes();
     scan_psbt(&mut app, &psbt);
     app.press(Action::StepNext(step::TRANSACTION));
-    let open = app.spend.as_ref().unwrap().open;
+    let open = app.spend().unwrap().open;
     assert_ne!(open, Some(step::TRANSACTION));
     app.press(Action::OpenWallet(w));
     let text = drawn(&mut app);
@@ -312,7 +312,7 @@ fn leaving_the_spend_and_coming_back_resumes_it() {
     app.press(Action::Family(F::SpendFrom(w)));
     assert_eq!(app.screen, Screen::Family);
     assert_eq!(app.family.open, Some(Open::Spend));
-    assert_eq!(app.spend.as_ref().unwrap().open, open);
+    assert_eq!(app.spend().unwrap().open, open);
 }
 
 #[test]

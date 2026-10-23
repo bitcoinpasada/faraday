@@ -112,7 +112,7 @@ impl Faraday {
         if self.backup_going() == Some(Going::Backup) && self.backup_begun() {
             v.push(Going::Backup);
         }
-        if self.spend.is_some() || self.family.route.is_some() {
+        if self.wallets.spend().is_some() || self.family.route.is_some() {
             v.push(Going::Spend);
         }
         if self
@@ -276,7 +276,7 @@ impl Faraday {
             }
             Going::Backup if self.backup.is_some() => self.go(Screen::Backup),
             Going::Spend => match left {
-                Some(Screen::Spend) if self.spend.is_some() => self.go(Screen::Spend),
+                Some(Screen::Spend) if self.wallets.spend().is_some() => self.go(Screen::Spend),
                 _ => self.go(Screen::Family),
             },
             Going::Message if self.message.state().is_some() => self.go(Screen::Message),
@@ -385,8 +385,8 @@ impl Faraday {
             }
             Going::Backup => self.backup_begun().then_some(EN.flow_lost_plan),
             Going::Spend => self
-                .spend
-                .as_ref()
+                .wallets
+                .spend()
                 .is_some_and(|s| s.done.iter().any(|d| *d))
                 .then_some(EN.flow_lost_spend),
             Going::Message => {
@@ -460,7 +460,7 @@ impl Faraday {
                     None if self.family.from == Some(Screen::Home) => Action::Nav(Screen::Home),
                     None => Action::Nav(Screen::WalletsStart),
                 };
-                self.spend = None;
+                self.wallets.clear_spend();
                 self.family_act(crate::family::FamilyAction::StartOver);
                 to
             }
@@ -684,12 +684,13 @@ impl Faraday {
     fn spend_step(&self) -> String {
         let step_of = |n: u8| crate::family::text::title(self, CardId::Step(n));
         let spend_open = || {
-            let s = self.spend.as_ref()?;
+            let s = self.wallets.spend()?;
             s.open
                 .or_else(|| s.steps.iter().copied().find(|&n| !s.done[n as usize]))
                 .map(step_of)
         };
-        if self.flow_left_on(Going::Spend) == Some(Screen::Spend) && self.spend.is_some() {
+        if self.flow_left_on(Going::Spend) == Some(Screen::Spend) && self.wallets.spend().is_some()
+        {
             return spend_open().unwrap_or_else(|| EN.sidebar_flow_spend.to_string());
         }
         match self.family.open {
@@ -776,7 +777,10 @@ fn flow_finished_on(r: &impl Reads, g: Going) -> bool {
             .state()
             .is_some_and(|x| x.done[crate::rstep::CHECK as usize]),
         Going::Backup => backup_finished_on(r),
-        Going::Spend => app.spend.as_ref().is_some_and(|s| s.out_tx || s.out_signed),
+        Going::Spend => app
+            .wallets
+            .spend()
+            .is_some_and(|s| s.out_tx || s.out_signed),
         Going::Message => app.message.state().is_some_and(|m| m.signed.is_some()),
         Going::Vault => false,
         Going::Flow(i) => app.backup_flows.get(i).is_none_or(|f| f.step == Step::Done),

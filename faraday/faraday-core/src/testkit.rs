@@ -1616,3 +1616,8 @@ pub fn create_set_slot(app: &mut crate::Faraday, slot: usize, source: crate::cre
         c.slots[slot] = source;
     }
 }
+
+/// Chooses wallet `i` on the Wallets tab.
+pub fn select_wallet(app: &mut crate::Faraday, i: usize) {
+    app.wallets.set_wallet(i);
+}

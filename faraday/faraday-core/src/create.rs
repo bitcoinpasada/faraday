@@ -1195,7 +1195,7 @@ impl Faraday {
             )
         });
         self.chart_work.moved_to(&self.session, i);
-        self.wallet = i;
+        self.wallets.set_wallet(i);
         if let Some(c) = self.create.state.as_mut() {
             c.built = Some(i);
             c.error = None;
@@ -1376,7 +1376,7 @@ impl Faraday {
         ) {
             Ok(i) => {
                 self.chart_work.moved_to(&self.session, i);
-                self.wallet = i;
+                self.wallets.set_wallet(i);
                 let path = create::paths_text(self.session.wallets[i].policy());
                 let owner = self.create.state.as_ref().map(|c| c.owner);
                 let before_made = owner

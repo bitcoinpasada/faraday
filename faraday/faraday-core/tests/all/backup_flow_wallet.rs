@@ -2972,7 +2972,7 @@ fn add_a_passphrase_acts_on_the_wallet_shown_not_the_one_a_backup_was_left_on() 
     // A backup is left open on the second wallet; the first is shown.
     app.press(Action::Backup(1));
     app.press(Action::Nav(Screen::Wallets));
-    app.wallet = 0;
+    faraday_core::testkit::select_wallet(&mut app, 0);
     app.press(Action::PlanAddPass);
     let c = app.create().unwrap();
     assert_eq!(c.slots, vec![faraday_core::create::Source::Here(fps[0])]);
