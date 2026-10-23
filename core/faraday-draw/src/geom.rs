@@ -138,6 +138,76 @@ impl SizeClass {
     }
 }
 
+/// A window's class by its width, as Material 3 names them
+/// (`docs/LAYOUT.md` §2): each lays the screen out again at its own
+/// width. Ordered, so `class >= WindowClass::Expanded` reads as "840 dp
+/// or wider".
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum WindowClass {
+    /// Under 600 dp: the Pi panel, a narrow window.
+    Compact,
+    /// 600 to 839 dp: a half-screen window.
+    Medium,
+    /// 840 to 1199 dp: a 7-inch panel, a small laptop window.
+    Expanded,
+    /// 1200 to 1599 dp: the desktop window's default size.
+    Large,
+    /// 1600 dp and over: a full monitor.
+    ExtraLarge,
+}
+
+/// A window's size in dp at its screen's density, divided by the text
+/// size factor, and what `docs/LAYOUT.md` §2 reads from it: its class by
+/// width, and whether it is short or low.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Window {
+    /// Width in dp.
+    pub width: f32,
+    /// Height in dp.
+    pub height: f32,
+}
+
+impl Window {
+    /// The window a display is, at its own density (160 dpi is 1 dp a
+    /// pixel), with text `text_factor` times its standard size: a larger
+    /// text makes the window count as smaller. A lookup.
+    pub fn of(display: &DisplayInfo, text_factor: f32) -> Window {
+        let density = f32::from(display.dpi.max(1)) / 160.0 * text_factor.max(1.0);
+        Window {
+            width: f32::from(display.width) / density,
+            height: f32::from(display.height) / density,
+        }
+    }
+
+    /// Its class by width. A lookup.
+    pub fn class(self) -> WindowClass {
+        use crate::tokens::{WINDOW_EXPANDED, WINDOW_EXTRA_LARGE, WINDOW_LARGE, WINDOW_MEDIUM};
+        if self.width < WINDOW_MEDIUM {
+            WindowClass::Compact
+        } else if self.width < WINDOW_EXPANDED {
+            WindowClass::Medium
+        } else if self.width < WINDOW_LARGE {
+            WindowClass::Expanded
+        } else if self.width < WINDOW_EXTRA_LARGE {
+            WindowClass::Large
+        } else {
+            WindowClass::ExtraLarge
+        }
+    }
+
+    /// Whether it is short: under `WINDOW_SHORT` tall (the Pi panel),
+    /// too short for a navigation bar. A lookup.
+    pub fn short(self) -> bool {
+        self.height < crate::tokens::WINDOW_SHORT
+    }
+
+    /// Whether it is low: under `WINDOW_LOW` tall (a 7-inch panel), so a
+    /// rail stands in for a bar or a sidebar. A lookup.
+    pub fn low(self) -> bool {
+        self.height < crate::tokens::WINDOW_LOW
+    }
+}
+
 /// Square root without std (Newton's method; plenty for a diagonal).
 fn sqrt(v: f32) -> f32 {
     if v <= 0.0 {

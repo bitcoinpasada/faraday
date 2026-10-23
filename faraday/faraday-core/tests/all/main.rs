@@ -115,5 +115,6 @@ mod visit;
 mod wallets_page;
 mod way_back;
 mod wide_keyboard;
+mod window_class;
 mod word_lists;
 mod wordmark;

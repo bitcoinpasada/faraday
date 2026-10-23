@@ -301,6 +301,27 @@ pub(crate) struct After {
 }
 
 impl Faraday {
+    /// Whether the display is a small panel, drawn one column at a time.
+    pub fn is_compact(&self) -> bool {
+        self.compact
+    }
+
+    /// The window as `docs/LAYOUT.md` §2 classes it: its size in dp at
+    /// the screen's own density, its class by width, and whether it is
+    /// short or low. Read from the last display the shell gave; before
+    /// any, a 1280 × 800 window at 160 dpi. Until the layout of LAYOUT
+    /// §3 is built, `is_compact` still decides the screens' layout. A
+    /// lookup.
+    pub fn window(&self) -> faraday_draw::geom::Window {
+        self.last_display.map_or(
+            faraday_draw::geom::Window {
+                width: faraday_draw::tokens::WINDOW_DEFAULT_W,
+                height: faraday_draw::tokens::WINDOW_DEFAULT_H,
+            },
+            |d| faraday_draw::geom::Window::of(&d, 1.0),
+        )
+    }
+
     /// Writes what a drawing pass noted. Cheap.
     pub(crate) fn apply_after(&mut self, a: After) {
         for (column, to) in a.scrolls {

@@ -7145,11 +7145,6 @@ impl Faraday {
             .or_else(|| loose.first().map(|f| f.0));
         (loose, picked)
     }
-
-    /// Whether the display is a small panel, drawn one column at a time.
-    pub fn is_compact(&self) -> bool {
-        self.compact
-    }
 }
 
 /// The create cards a kind shows.

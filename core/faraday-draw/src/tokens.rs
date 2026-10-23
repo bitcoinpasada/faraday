@@ -644,3 +644,31 @@ pub const GUIDE_CARD_HEAD: f32 = 56.0;
 
 /// A Guided text: the room under it.
 pub const GUIDE_AFTER: f32 = 18.0;
+
+// Window size classes (`docs/LAYOUT.md` §2, Material 3's widths and
+// heights, in dp).
+
+/// A window this wide or wider is medium, not compact.
+pub const WINDOW_MEDIUM: f32 = 600.0;
+
+/// A window this wide or wider is expanded.
+pub const WINDOW_EXPANDED: f32 = 840.0;
+
+/// A window this wide or wider is large.
+pub const WINDOW_LARGE: f32 = 1200.0;
+
+/// A window this wide or wider is extra-large.
+pub const WINDOW_EXTRA_LARGE: f32 = 1600.0;
+
+/// A window less tall than this is short (the Pi panel).
+pub const WINDOW_SHORT: f32 = 480.0;
+
+/// A window less tall than this is low (a 7-inch panel).
+pub const WINDOW_LOW: f32 = 600.0;
+
+/// The window assumed before a shell has said what its display is: the
+/// desktop window's default, 1280 × 800 dp.
+pub const WINDOW_DEFAULT_W: f32 = 1280.0;
+
+/// The default window's height (`WINDOW_DEFAULT_W`).
+pub const WINDOW_DEFAULT_H: f32 = 800.0;
