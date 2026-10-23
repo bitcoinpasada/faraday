@@ -392,12 +392,7 @@ impl Faraday {
             return;
         }
         let me = Action::File(FilePress::Menu(row));
-        let anchor = self
-            .hits
-            .iter()
-            .rev()
-            .find(|(_, a)| *a == me)
-            .map(|(r, _)| (r.x, r.y, r.w, r.h));
+        let anchor = self.pointer.rect_of(me).map(|r| (r.x, r.y, r.w, r.h));
         self.visit.files_menu_mut().menu = Some(FileMenu {
             row,
             title,
@@ -604,7 +599,7 @@ impl Faraday {
             }
             None if matches!(self.screen, Screen::Files | Screen::Visit) => {
                 let mut dots: Vec<Row> = Vec::new();
-                for (_, a) in &self.hits {
+                for (_, a) in self.pointer.hits() {
                     if let Action::File(FilePress::Menu(r)) = a
                         && !dots.contains(r)
                     {

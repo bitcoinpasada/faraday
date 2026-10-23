@@ -1321,20 +1321,20 @@ impl Faraday {
             }
             redraw = true;
         }
-        if let Some((Action::Vault(held), _)) = self.pressed
+        if let Some((Action::Vault(held), _)) = self.pointer.pressed()
             && is_hold(Action::Vault(held))
         {
             if now_ms.saturating_sub(self.vaults.pressed_at) >= HOLD_MS {
-                self.pressed = None;
+                self.pointer.set_pressed(None);
                 self.vault_act(held);
             }
             redraw = true;
         }
-        if let Some((Action::Flow(held), _)) = self.pressed
+        if let Some((Action::Flow(held), _)) = self.pointer.pressed()
             && is_hold(Action::Flow(held))
         {
             if now_ms.saturating_sub(self.vaults.pressed_at) >= HOLD_MS {
-                self.pressed = None;
+                self.pointer.set_pressed(None);
                 self.flow_act(held);
             }
             redraw = true;

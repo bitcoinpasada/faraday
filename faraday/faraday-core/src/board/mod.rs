@@ -1934,11 +1934,9 @@ impl Faraday {
     /// opened by Enter or Space, the arrows' choice drawn.
     pub(crate) fn board_menu_open(&mut self, c: Chip, keys: bool) {
         let anchor = self
-            .hits
-            .iter()
-            .rev()
-            .find(|(_, a)| *a == crate::Action::Board(BoardPress::Menu(c)))
-            .map(|(r, _)| (r.x, r.y, r.w, r.h));
+            .pointer
+            .rect_of(crate::Action::Board(BoardPress::Menu(c)))
+            .map(|r| (r.x, r.y, r.w, r.h));
         let from_list = self.sheet == Some(crate::Sheet::BoardList);
         let Some((shape, _)) = self.board_plan() else {
             return;
@@ -2198,7 +2196,7 @@ impl Faraday {
         // The ⋮s the frame on screen offers, in the order drawn: the Tab
         // order.
         let mut dots: Vec<Chip> = Vec::new();
-        for (_, a) in &self.hits {
+        for (_, a) in self.pointer.hits() {
             if let crate::Action::Board(BoardPress::Menu(c)) = a
                 && !dots.contains(c)
             {
@@ -2483,7 +2481,7 @@ impl Faraday {
             b.removing = None;
         }
         b.drag = Some((x, y));
-        self.pressed = None;
+        self.pointer.set_pressed(None);
         true
     }
 
@@ -2500,11 +2498,11 @@ impl Faraday {
         let Some((c, ..)) = down else {
             return false;
         };
-        self.pressed = None;
+        self.pointer.set_pressed(None);
         let t = c.thing();
         // The topmost zone under the finger that takes it: a chip or its
         // × stands for its zone.
-        let under = self.hits.iter().rev().find_map(|(r, a)| {
+        let under = self.pointer.hits().iter().rev().find_map(|(r, a)| {
             if !r.contains(x, y) {
                 return None;
             }

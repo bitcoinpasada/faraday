@@ -196,7 +196,7 @@ fn presses_hold_on(panel: Panel, least: usize) {
     for (screen_name, screen) in screens {
         on(&mut app, screen);
         let mut offered: Vec<Action> = Vec::new();
-        for (_, a) in app.hits.clone() {
+        for (_, a) in app.pointer.hits().to_vec() {
             if !offered.contains(&a) {
                 offered.push(a);
             }

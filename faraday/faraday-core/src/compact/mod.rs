@@ -1012,7 +1012,7 @@ impl Faraday {
         let field = self.osk_field();
         let wanted = self.osk_wanted();
         self.panel
-            .track(field, self.down_at.1, self.compact, wanted)
+            .track(field, self.pointer.down_at().1, self.compact, wanted)
     }
 
     /// The keyboard just came up over the panel's foot: when the press
@@ -1020,7 +1020,7 @@ impl Faraday {
     /// page scrolls that far, so the field stays in view. `f` is pixels a
     /// design unit; `visible` the height left above the keyboard.
     pub(crate) fn osk_reveal(&mut self, f: f32, visible: f32) {
-        self.osk_reveal_at(self.down_at.1, f, visible);
+        self.osk_reveal_at(self.pointer.down_at().1, f, visible);
     }
 
     fn osk_reveal_at(&mut self, at: i32, f: f32, visible: f32) {

@@ -28,7 +28,8 @@
 //! - State and actions: `work` (costly work counted), `compute` (where
 //!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
 //!   the selection), `motion` (scrolling), `out` (what the core
-//!   hands the shell: commands, storage commands, the toast), `fade` (a
+//!   hands the shell: commands, storage commands, the toast), `pointer` (the
+//!   hits, the press, the drag, the hover), `fade` (a
 //!   change fading in), `menu` (the ⋮ menus),
 //!   `file_menu`, `in_progress`, `compact` (the small panel), `medium`
 //!   (what the removable medium is called), `memory` (what is kept across
@@ -131,6 +132,7 @@ pub mod memory;
 mod menu;
 mod motion;
 mod out;
+mod pointer;
 pub mod set_time;
 pub mod stick;
 mod trail;
@@ -247,7 +249,7 @@ use faraday_intake::{arrival, seed_in_code, seedqr_words};
 use std::collections::BTreeSet;
 
 use faraday_crypto::work::Compute;
-use faraday_draw::{Canvas, Rect};
+use faraday_draw::Canvas;
 use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Key as KeyIn, TouchPhase};
 
 use wallet::{FileKind, Session, Spend, fp_text};
@@ -1126,8 +1128,7 @@ pub struct Faraday {
     /// The display is a small panel: under 600 dp wide, laid out one
     /// column, pages in place of the sidebar (`Faraday::is_compact`).
     compact: bool,
-    hits: Vec<(Rect, Action)>,
-    pressed: Option<(Action, Rect)>,
+    pointer: pointer::Pointer,
     out: out::Out,
     /// The second of the clock last drawn on a screen that shows it live
     /// (Now, a TOTP code and its seconds left), so a tick that moves it
@@ -1281,27 +1282,10 @@ pub struct Faraday {
     trail: trail::Trail,
     /// A seed the camera read, waiting on [`Sheet::SeedRead`].
     seed_read: seeds::SeedsArea,
-    /// The last tap that acted and when, for a double-click.
-    last_tap: Option<(Action, u64)>,
-    /// Where the finger or pointer went down, in pixels.
-    down_at: (i32, i32),
-    /// A finger on the scrolled region: the row it was last at, and
-    /// whether it has moved far enough to be scrolling rather than
-    /// pressing.
-    drag: Option<(i32, bool)>,
-    /// The touch now down only stopped a coast, and does nothing else.
-    swallow: bool,
-    /// The overlay scrollbar is held: how far down its thumb, in pixels,
-    /// the finger or pointer took it.
-    bar_held: Option<i32>,
     /// A press whose work waits for a frame (`docs/SPEED.md` §9), and
     /// whether a frame has been drawn since it was pressed.
     later: Option<Later>,
     later_drawn: bool,
-    /// The tick the last two-finger scroll came in at, until its end.
-    scroll_at: Option<u64>,
-    /// Where the pointer is, with no button down, in pixels.
-    hover: Option<(i32, i32)>,
     /// The step column's open card, and one opening or closing.
     disclosed: Option<Disclosed>,
     /// A change of screen or sheet fading in, how fast this machine has
@@ -1315,8 +1299,6 @@ pub struct Faraday {
     /// display first arrives, before any input. A failure blocks the app
     /// on a screen naming the check, with Exit its only control.
     selftest: Option<faraday_selftest::Outcome>,
-    /// What can be pressed under it.
-    hovered: Option<Action>,
     /// Running on an online machine (the desktop app); sheets become PDFs.
     pub online: bool,
     /// A seed typed here is on an online computer: the seed line is drawn.
@@ -1374,7 +1356,6 @@ impl Default for Faraday {
 
 impl Faraday {
     /// A fresh app: no keys, empty boxes, Home.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub fn new() -> Self {
         Faraday {
             canvas: None,
@@ -1382,8 +1363,7 @@ impl Faraday {
             w: 1280.0,
             h: 800.0,
             compact: false,
-            hits: Vec::new(),
-            pressed: None,
+            pointer: pointer::Pointer::new(),
             out: out::Out::new(),
             clock_drawn: None,
             restart: false,
@@ -1446,20 +1426,12 @@ impl Faraday {
             typing: edit::TypingArea::new(),
             trail: trail::Trail::default(),
             seed_read: seeds::SeedsArea::default(),
-            last_tap: None,
-            down_at: (0, 0),
-            drag: None,
-            swallow: false,
-            bar_held: None,
             later: None,
             later_drawn: false,
-            scroll_at: None,
-            hover: None,
             disclosed: None,
             fade: fade::Fade::default(),
             guided_moving: None,
             selftest: None,
-            hovered: None,
             online: false,
             seed_line: false,
             held: false,
@@ -6428,14 +6400,7 @@ impl Faraday {
     /// Finds what can be pressed under the pointer in the frame on
     /// screen. Returns whether that changed.
     fn find_hovered(&mut self) -> bool {
-        let now = self.hover.and_then(|(x, y)| {
-            self.hits
-                .iter()
-                .rev()
-                .find(|(r, _)| r.contains(x, y))
-                .map(|(_, a)| *a)
-        });
-        std::mem::replace(&mut self.hovered, now) != now
+        self.pointer.find_hovered()
     }
 
     /// Fingers moved the content by `dy` units: at once.
@@ -6470,15 +6435,10 @@ impl Faraday {
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn touch(&mut self, x: u16, y: u16, phase: TouchPhase) {
         let (x, y) = (i32::from(x), i32::from(y));
-        let found = self
-            .hits
-            .iter()
-            .rev()
-            .find(|(r, _)| r.contains(x, y))
-            .map(|(r, a)| (*a, *r));
+        let found = self.pointer.hit_at(x, y);
         match phase {
             TouchPhase::Down => {
-                self.down_at = (x, y);
+                self.pointer.set_down_at((x, y));
                 self.point_region(x, y);
                 // At the scrolled region's right edge a press takes the
                 // scrollbar: held on its thumb it follows from where it was
@@ -6494,11 +6454,11 @@ impl Faraday {
                     } else {
                         g.thumb / 2
                     };
-                    self.bar_held = Some(grab);
+                    self.pointer.set_bar_held(Some(grab));
                     self.scroll.stop();
-                    self.pressed = None;
-                    self.drag = None;
-                    self.swallow = false;
+                    self.pointer.set_pressed(None);
+                    self.pointer.set_drag(None);
+                    self.pointer.set_swallow(false);
                     self.bar_drag(y);
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
@@ -6508,31 +6468,32 @@ impl Faraday {
                 // drag; it is a press until it moves. Not through a sheet
                 // that does not scroll: the page under it is out of reach.
                 let slot = self.slot();
-                self.drag = self
+                let dragging = self
                     .regions()
                     .find(|e| e.slot == slot && e.view.contains(x, y))
                     .map(|_| (y, false));
+                self.pointer.set_drag(dragging);
                 // A touch on content that is still flying only stops it.
-                self.swallow = self.scroll.flung(self.f);
-                if self.swallow {
+                self.pointer.set_swallow(self.scroll.flung(self.f));
+                if self.pointer.swallow() {
                     self.scroll.stop();
-                    self.pressed = None;
+                    self.pointer.set_pressed(None);
                     return;
                 }
-                self.pressed = found;
+                self.pointer.set_pressed(found);
                 self.vaults.pressed(self.now_ms);
                 self.vault_seedqr_press(found.map(|f| f.0));
                 // A press on a chip of the backup board may be its drag:
                 // the page does not scroll under it (§19.2).
                 if self.board_down(found.map(|f| f.0), x, y) {
-                    self.drag = None;
+                    self.pointer.set_drag(None);
                 }
                 if let Some((Action::VisitBar(c), _)) = found {
                     self.visit_drag(c, y);
                 }
             }
             TouchPhase::Move => {
-                if self.bar_held.is_some() {
+                if self.pointer.bar_held().is_some() {
                     self.bar_drag(y);
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
@@ -6544,15 +6505,16 @@ impl Faraday {
                     self.out.commands.push_back(Command::Draw);
                     return;
                 }
-                let held_bar = match self.pressed {
+                let held_bar = match self.pointer.pressed() {
                     Some((Action::VisitBar(c), _)) => Some(c),
                     _ => None,
                 };
                 // A slider held follows the finger along its track.
-                if let Some((Action::Slide(id, _), r)) = self.pressed {
+                if let Some((Action::Slide(id, _), r)) = self.pointer.pressed() {
                     let row = r.y + r.h / 2;
                     let under = self
-                        .hits
+                        .pointer
+                        .hits()
                         .iter()
                         .rev()
                         .find(|(h, a)| {
@@ -6560,27 +6522,31 @@ impl Faraday {
                         })
                         .map(|(h, a)| (*a, *h));
                     if let Some((a, h)) = under
-                        && Some(a) != self.pressed.map(|p| p.0)
+                        && Some(a) != self.pointer.pressed().map(|p| p.0)
                     {
-                        self.pressed = Some((a, h));
+                        self.pointer.set_pressed(Some((a, h)));
                         self.act(a);
                         self.out.dirty = true;
                         self.out.commands.push_back(Command::Draw);
                     }
                     return;
                 }
-                if let Some((last, dragging)) = self.drag
+                if let Some((last, dragging)) = self.pointer.drag()
                     && held_bar.is_none()
                 {
                     let slop = motion::SLOP * self.f;
-                    let (dx, dy) = (x - self.down_at.0, y - self.down_at.1);
+                    let (dx, dy) = (x - self.pointer.down_at().0, y - self.pointer.down_at().1);
                     let start = !dragging && (dy as f32).abs() > slop && dy.abs() > dx.abs();
                     if dragging || start {
                         // Past the slop the press is a drag: nothing
                         // under the finger is pressed, the page follows.
-                        self.pressed = None;
-                        self.drag = Some((y, true));
-                        let from = if start { self.down_at.1 } else { last };
+                        self.pointer.set_pressed(None);
+                        self.pointer.set_drag(Some((y, true)));
+                        let from = if start {
+                            self.pointer.down_at().1
+                        } else {
+                            last
+                        };
                         self.pan((from - y) as f32 / self.f.max(0.1));
                         self.out.dirty = true;
                         self.out.commands.push_back(Command::Draw);
@@ -6592,32 +6558,32 @@ impl Faraday {
                     self.visit_drag(c, y);
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
-                } else if let Some((_, r)) = self.pressed
+                } else if let Some((_, r)) = self.pointer.pressed()
                     && !r.contains(x, y)
                 {
-                    self.pressed = None;
+                    self.pointer.set_pressed(None);
                 }
             }
             TouchPhase::Up => {
-                if self.bar_held.take().is_some() {
+                if self.pointer.take_bar_held().is_some() {
                     return;
                 }
                 // A board chip dragged is dropped where it is lifted.
                 if self.board_up(x, y) {
-                    self.drag = None;
+                    self.pointer.set_drag(None);
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
                     return;
                 }
-                let dragged = self.drag.take().is_some_and(|(_, d)| d);
+                let dragged = self.pointer.take_drag().is_some_and(|(_, d)| d);
                 if dragged {
-                    self.pressed = None;
+                    self.pointer.set_pressed(None);
                     self.scroll.release(self.f);
                 }
-                if dragged || std::mem::take(&mut self.swallow) {
+                if dragged || self.pointer.take_swallow() {
                     return;
                 }
-                let pressed = self.pressed.take();
+                let pressed = self.pointer.take_pressed();
                 self.vaults.clear_seedqr();
                 // A hold acts on the tick that completes it, never on release.
                 if let (Some((a, _)), Some((b, _))) = (pressed, found)
@@ -6628,15 +6594,18 @@ impl Faraday {
                     // second press selecting all of it, a drag what it
                     // went over (`docs/history/NEW-WALLET.md` §13.2).
                     let double = self
-                        .last_tap
+                        .pointer
+                        .last_tap()
                         .is_some_and(|(l, t)| l == a && self.now_ms.saturating_sub(t) <= 450);
                     if field_action(a)
-                        && let Some(dragged) = self.field_press(a, self.down_at.0, x, double)
+                        && let Some(dragged) =
+                            self.field_press(a, self.pointer.down_at().0, x, double)
                     {
-                        self.last_tap = (!double && !dragged).then_some((a, self.now_ms));
+                        self.pointer
+                            .set_last_tap((!double && !dragged).then_some((a, self.now_ms)));
                         return;
                     }
-                    self.last_tap = Some((a, self.now_ms));
+                    self.pointer.set_last_tap(Some((a, self.now_ms)));
                     // A press on the screen's way out is Back (F77).
                     let a = self.as_back_at(a, found.map(|f| f.1));
                     self.press_in(a);
@@ -6672,7 +6641,7 @@ impl Faraday {
     /// The scrolled region moved to where its held scrollbar is, at pixel
     /// row `y`.
     fn bar_drag(&mut self, y: i32) {
-        let Some(grab) = self.bar_held else {
+        let Some(grab) = self.pointer.bar_held() else {
             return;
         };
         let Some(e) = self.region_now() else {
@@ -6731,7 +6700,7 @@ impl Faraday {
         };
         // A change of screen or sheet fades in from the frame before it.
         self.fade_begin(&canvas);
-        let mut hits = std::mem::take(&mut self.hits);
+        let mut hits = self.pointer.take_hits();
         hits.clear();
         // Offsets in whole pixels, whoever set them last, so a scrolled
         // page moves as one.
@@ -6757,8 +6726,11 @@ impl Faraday {
             moved_at
         };
         // Held, or with the pointer over it, it stays in full.
-        let hot =
-            self.bar_held.is_some() || self.hover.is_some_and(|(x, y)| self.bar_at(x, y).is_some());
+        let hot = self.pointer.bar_held().is_some()
+            || self
+                .pointer
+                .hover()
+                .is_some_and(|(x, y)| self.bar_at(x, y).is_some());
         let moved_at = if hot { self.now_ms.max(1) } else { moved_at };
         self.scroll.set_bar_seen((key, slot), offset, moved_at);
         let bar = motion::bar_alpha(moved_at, self.now_ms);
@@ -6792,10 +6764,15 @@ impl Faraday {
                     )),
                 });
             let column = {
-                let mut ui = ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed.map(|p| p.0));
+                let mut ui = ui::Ui::new(
+                    &mut canvas,
+                    self.f,
+                    &mut hits,
+                    self.pointer.pressed().map(|p| p.0),
+                );
                 ui.edit = self.edit_now();
                 ui.theme = self.theme();
-                ui.hovered = self.hovered;
+                ui.hovered = self.pointer.hovered();
                 ui.dimmed = self.demo_dimmed();
                 ui.stretch = stretch;
                 ui.bar = (bar > 0).then_some((bar, offset));
@@ -6841,7 +6818,7 @@ impl Faraday {
         self.typing.set_caret_drawn(caret);
         self.vaults.set_drawn();
         self.later_drawn = true;
-        self.hits = hits;
+        self.pointer.set_hits(hits);
         self.fade_end(&mut canvas);
         self.canvas = Some(canvas);
         // The frame moved things under a still pointer: the next frame
@@ -6932,7 +6909,7 @@ impl Faraday {
         self.typing.blink_from(self.now_ms);
         let _ = self.with_region(|m, r| m.settle(r));
         self.scroll.stop();
-        self.scroll_at = None;
+        self.pointer.set_scroll_at(None);
         if let Some(d) = self.disclosed.as_mut() {
             d.moving = false;
         }
@@ -7028,7 +7005,7 @@ impl Faraday {
     /// pressed. Public files a slider asked for wait until it is let go.
     /// Returns whether it did.
     fn later_tick(&mut self) -> bool {
-        let held = matches!(self.pressed, Some((Action::Slide(..), _)));
+        let held = matches!(self.pointer.pressed(), Some((Action::Slide(..), _)));
         if !self.later_drawn
             || self.later.is_none()
             || (held && matches!(self.later, Some(Later::PublicOut(..))))
@@ -7159,7 +7136,7 @@ impl Faraday {
     /// Whether the last frame drawn offers `action` to a press: for
     /// tests that a control is on screen.
     pub fn offers(&self, action: Action) -> bool {
-        self.hits.iter().any(|(_, a)| *a == action)
+        self.pointer.offers(action)
     }
 
     /// The time of the last tick, ms: what a test's next tick follows.
@@ -7170,14 +7147,14 @@ impl Faraday {
     /// Where the last frame drawn offers `action`, in pixels: the middle
     /// of where it can be pressed, for tests that touch it.
     pub fn where_offered(&self, action: Action) -> Option<(u16, u16)> {
-        let (r, _) = self.hits.iter().rev().find(|(_, a)| *a == action)?;
+        let r = self.pointer.rect_of(action)?;
         Some(((r.x + r.w / 2) as u16, (r.y + r.h / 2) as u16))
     }
 
     /// The box the last frame drawn offers `action` in, in pixels
     /// (x, y, w, h): for a test that two controls do not overlap.
     pub fn hit_box(&self, action: Action) -> Option<(u16, u16, u16, u16)> {
-        let (r, _) = self.hits.iter().rev().find(|(_, a)| *a == action)?;
+        let r = self.pointer.rect_of(action)?;
         Some((r.x as u16, r.y as u16, r.w as u16, r.h as u16))
     }
 
@@ -7410,7 +7387,7 @@ impl App for Faraday {
                 if self.sheet == Some(Sheet::IdleWarn) {
                     if phase == TouchPhase::Down {
                         self.sheet = None;
-                        self.pressed = None;
+                        self.pointer.set_pressed(None);
                     }
                 } else {
                     self.touch(x, y, phase);
@@ -7462,13 +7439,13 @@ impl App for Faraday {
                     self.sheet = None;
                 }
                 // A gesture goes on moving the region it started over.
-                if self.scroll_at.is_none() {
+                if self.pointer.scroll_at().is_none() {
                     self.point_region(i32::from(x), i32::from(y));
                 }
                 // Pixels the content moves up, as the shell API states
                 // them, in this layout's units.
                 self.pan(f32::from(dy) / self.f.max(0.1));
-                self.scroll_at = Some(self.now_ms);
+                self.pointer.set_scroll_at(Some(self.now_ms));
             }
             Event::Wheel { x, y, dy } => {
                 self.input_now();
@@ -7482,22 +7459,28 @@ impl App for Faraday {
                 self.glide(f32::from(dy) / motion::SHELL_NOTCH_PX * motion::WHEEL_NOTCH);
             }
             Event::ScrollEnd { .. } => {
-                self.scroll_at = None;
+                self.pointer.set_scroll_at(None);
                 self.scroll.release(self.f);
             }
             // A frame only when what is under the pointer changes.
             Event::Hover { x, y } => {
                 self.input_now();
-                let was = self.hover.is_some_and(|(x, y)| self.bar_at(x, y).is_some());
-                self.hover = Some((i32::from(x), i32::from(y)));
-                let now = self.hover.is_some_and(|(x, y)| self.bar_at(x, y).is_some());
+                let was = self
+                    .pointer
+                    .hover()
+                    .is_some_and(|(x, y)| self.bar_at(x, y).is_some());
+                self.pointer.set_hover(Some((i32::from(x), i32::from(y))));
+                let now = self
+                    .pointer
+                    .hover()
+                    .is_some_and(|(x, y)| self.bar_at(x, y).is_some());
                 // Coming over the scrollbar shows it.
                 if !self.find_hovered() && was == now {
                     return;
                 }
             }
             Event::HoverEnd => {
-                self.hover = None;
+                self.pointer.set_hover(None);
                 if !self.find_hovered() {
                     return;
                 }
@@ -7547,10 +7530,11 @@ impl App for Faraday {
                 // Scrolling that stopped with no end said (a shell that
                 // never sends one) ends here, so a stretch springs back.
                 if self
-                    .scroll_at
+                    .pointer
+                    .scroll_at()
                     .is_some_and(|at| now_ms.saturating_sub(at) > motion::SCROLL_QUIET_MS)
                 {
-                    self.scroll_at = None;
+                    self.pointer.set_scroll_at(None);
                     self.scroll.release(self.f);
                 }
                 if self.motion_tick(now_ms) || fading {
