@@ -20,6 +20,7 @@ need. Each document's header says what kind it is:
 | What runs on the device, as whom, and what can each part reach? | `docs/SECURITY-MODEL.md` |
 | Which code computes cryptography, and what checks it? | `docs/AUDIT.md`, then each crypto crate's README (`core/faraday-bip/README.md` and the others) |
 | Why is something the way it is? | `docs/DECISIONS.md`, the index; then the one decision, `docs/decisions/F<n>.md` |
+| How does a person use Faraday, step by step, with the screens? | `docs/GUIDE.md` |
 | What does a screen look like, and what is it made of? | `docs/DESIGN.md`; the Starter's screens, `docs/STARTER.md` §3 |
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/FAMILY.md` |
 | How will codex32 shares be made, checked by hand and repaired? | `docs/CODEX32.md` |
@@ -75,6 +76,7 @@ need. Each document's header says what kind it is:
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Not built (owner, 2026-10-22).
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
+- `docs/GUIDE.md`: Faraday user guide. Sections 1 to 3 written; 4 to 7 planned.
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/LAYOUT.md`: Layout at every window size. Specified (F92), not built.
@@ -98,4 +100,4 @@ need. Each document's header says what kind it is:
 
 **History** (`docs/history/`): `APK-SIGNING-LOG.md`, `AUDIT-LOG.md`, `AUDIT-SUBMISSIONS-LOG.md`, `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `COMPUTE-LOG.md`, `DEMO-LOG.md`, `DESIGN-LOG.md`, `FAMILY-LOG.md`, `FLOWS-LOG.md`, `HANDOFF.md`, `INTEROP-LOG.md`, `KEYS-LOG.md`, `LARGE-FILES-LOG.md`, `MAC-LOG.md`, `MOTION-LOG.md`, `MULTIVENDOR-LOG.md`, `NEW-WALLET.md`, `NOSTR-LOG.md`, `PLAN.md`, `QR-LOG.md`, `SCAN-TO-SIGN.md`, `SIMPLIFY.md`, `SPEED-LOG.md`, `STARTER-LOG.md`, `STRUCTURE-PASS-LOG.md`, `TOTP-LOG.md`, `VAULT-LOG.md`, `WALLETS-LOG.md`; `decisions/` holds the decisions replaced, superseded or withdrawn.
 
-**Elsewhere:** `docs/decisions/` holds one file per decision, `docs/learn/` the Learn pages, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures.
+**Elsewhere:** `docs/decisions/` holds one file per decision, `docs/learn/` the Learn pages, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures, `docs/guide/` the user guide's.

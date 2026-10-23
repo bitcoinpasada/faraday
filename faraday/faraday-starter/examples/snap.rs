@@ -738,7 +738,93 @@ fn run(s: &Snap) -> Result<(), String> {
     h.press(StarterAction::Learn);
     s.shot(&mut h, "learn")?;
     sketch_shots(s)?;
-    step_shots(s)
+    step_shots(s)?;
+    guide_shots(s)?;
+    guide_start_shots(s)
+}
+
+/// A USB stick named for no maker, as `docs/GUIDE.md` shows one, as
+/// Windows names its disks: `n` is its number there.
+fn plain(n: u8, size: u64, volumes: &[(&str, bool)]) -> Disk {
+    Disk {
+        device: format!(r"\\.\PhysicalDrive{n}"),
+        ..disk(&format!("disk{n}"), "USB", "Flash Drive", size, volumes)
+    }
+}
+
+/// The pictures in `docs/GUIDE.md` §1, making the stick: a Windows laptop
+/// with Secure Boot on and two sticks named for no maker; Which stick?,
+/// What to write?, Confirm, the write, Done, and a write that failed.
+fn guide_shots(s: &Snap) -> Result<(), String> {
+    let windows = || StarterEvent::Computer(laptop(Os::Windows, true));
+    let sticks = || {
+        StarterEvent::Disks(vec![
+            plain(1, 32 * GB, &[]),
+            plain(2, 64 * GB, &[("PHOTOS", true)]),
+        ])
+    };
+    let mut h = s.starter();
+    h.starter_event(windows());
+    s.shot(&mut h, "guide-home")?;
+    h.press(StarterAction::Make(Target::Stick));
+    h.starter_event(sticks());
+    s.shot(&mut h, "guide-which-stick")?;
+    let n = StarterAction::Disk(h.disk_number("disk1"));
+    h.press(n);
+    s.shot(&mut h, "guide-what-to-write")?;
+    h.press(StarterAction::Mode(Mode::Whole));
+    h.press(StarterAction::Continue);
+    s.shot(&mut h, "guide-confirm")?;
+    s.shot_end(&mut h, "guide-confirm-end")?;
+    h.press(StarterAction::Write);
+    h.starter_event(StarterEvent::WriteProgress {
+        stage: WriteStage::Writing,
+        done: 1_400_000_000,
+        total: 3_900_000_000,
+    });
+    s.shot(&mut h, "guide-writing")?;
+    h.starter_event(StarterEvent::Written(Ok(())));
+    s.shot(&mut h, "guide-done")?;
+    let mut h = s.starter();
+    h.starter_event(windows());
+    h.starter_event(sticks());
+    to(&mut h, "disk1", Mode::Whole);
+    h.press(StarterAction::Write);
+    h.starter_event(StarterEvent::Written(Err(Reason::BackDiffers {
+        device: r"\\.\PhysicalDrive1".into(),
+        at: 1_200_000_000,
+    })));
+    s.shot(&mut h, "guide-write-failed")
+}
+
+/// The pictures in `docs/GUIDE.md` §1, starting from the stick: Home with
+/// the stick written, Secure Boot on, its restart sheet and the Start
+/// page; then Secure Boot off, Home's button and its sheet.
+fn guide_start_shots(s: &Snap) -> Result<(), String> {
+    let written = || {
+        let mut d = plain(1, 32 * GB, &[]);
+        d.faraday = Some(FaradayStick {
+            release: None,
+            read: false,
+        });
+        StarterEvent::Disks(vec![d])
+    };
+    let mut h = s.starter();
+    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
+    h.starter_event(written());
+    s.shot(&mut h, "guide-home-stick")?;
+    h.press(StarterAction::Next);
+    s.shot(&mut h, "guide-restart-bios-sheet")?;
+    h.press(StarterAction::Cancel);
+    h.press(StarterAction::Start);
+    s.shot(&mut h, "guide-start")?;
+    s.shot_end(&mut h, "guide-start-end")?;
+    let mut h = s.starter();
+    h.starter_event(StarterEvent::Computer(laptop(Os::Windows, false)));
+    h.starter_event(written());
+    s.shot(&mut h, "guide-home-secure-boot-off")?;
+    h.press(StarterAction::Next);
+    s.shot(&mut h, "guide-restart-stick-sheet")
 }
 
 /// Maker pages scrolled to one of their firmware sketches (§7.8): the
