@@ -57,7 +57,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// Send: the folder, why the last file was not sent, and its files.
 /// Returns its height.
 fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let t = &app.transfer;
+    let t = app.transfer();
     let mut y = y0;
     section_label(ui, x, y, EN.transfer_send);
     y += 24.0;
@@ -112,7 +112,7 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 /// Receive: the camera, the folder, and what was saved this session,
 /// newest first. Returns its height.
 fn receive(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let t = &app.transfer;
+    let t = app.transfer();
     let mut y = y0;
     section_label(ui, x, y, EN.transfer_receive);
     y += 28.0;

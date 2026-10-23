@@ -47,7 +47,7 @@ pub(crate) fn transfer_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("transfer")?;
     let at = |t: &Tour, name: &str| {
         t.app
-            .transfer
+            .transfer()
             .files
             .iter()
             .position(|(n, _)| n == name)

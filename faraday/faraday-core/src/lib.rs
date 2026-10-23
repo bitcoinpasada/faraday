@@ -1401,7 +1401,7 @@ pub struct Faraday {
     /// The camera sheet.
     pub scan: Option<ScanState>,
     /// Transfer, in the online app.
-    pub transfer: transfer::TransferState,
+    transfer: transfer::TransferArea,
     /// The upgrade, while it is on screen.
     pub upgrade: Option<upgrade::UpgradeState>,
     /// The lock sheet is up for the upgrade: the fresh process opens on
@@ -1695,7 +1695,7 @@ impl Faraday {
             camera: None,
             camera_change: None,
             scan: None,
-            transfer: transfer::TransferState::default(),
+            transfer: transfer::TransferArea::default(),
             upgrade: None,
             upgrade_after_lock: false,
             scanned: 0,

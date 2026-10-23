@@ -116,11 +116,11 @@ fn codes(app: &Faraday) -> Vec<Vec<u8>> {
 fn send(app: &mut Faraday, boxes: &mut Boxes, host: &Host, name: &str) {
     app.storage(host.files());
     let i = app
-        .transfer
+        .transfer()
         .files
         .iter()
         .position(|(n, _)| n == name)
-        .unwrap_or_else(|| panic!("{name} not listed: {:?}", app.transfer.files));
+        .unwrap_or_else(|| panic!("{name} not listed: {:?}", app.transfer().files));
     app.press(Action::TransferSend(i));
     serve_with(app, boxes, Some(host), &mut Dirs::default());
 }
@@ -187,7 +187,7 @@ fn a_file_over_256_kib_is_refused_unread() {
     app.storage(host.files());
     app.press(Action::TransferSend(0));
     assert_eq!(
-        app.transfer.refused.as_deref(),
+        app.transfer().refused.as_deref(),
         Some("Larger than 256 KiB: carry it on a stick")
     );
     assert!(app.qr.is_none());
@@ -269,7 +269,12 @@ fn each_file_received_is_saved_once_and_a_second_of_the_same_name_gets_2() {
         descriptor.as_bytes()
     );
     assert_eq!(fs::read(dir.join("notes.bin")).unwrap(), binary);
-    let saved: Vec<&str> = app.transfer.saved.iter().map(|(l, _)| l.as_str()).collect();
+    let saved: Vec<&str> = app
+        .transfer()
+        .saved
+        .iter()
+        .map(|(l, _)| l.as_str())
+        .collect();
     let path = |n: &str| format!("Saved {}", dir.join(n).display());
     assert_eq!(
         saved,
@@ -313,7 +318,7 @@ fn a_seeds_words_received_are_saved_and_said_to_hold_a_secret() {
         app.scan.as_ref().and_then(|s| s.note.clone()),
         Some(said.clone())
     );
-    assert_eq!(app.transfer.saved.last(), Some(&(said, true)));
+    assert_eq!(app.transfer().saved.last(), Some(&(said, true)));
 }
 
 #[test]

@@ -19,6 +19,8 @@ use std::collections::VecDeque;
 
 use faraday_shell_api::Command;
 
+use crate::medium::Medium;
+use crate::out::Out;
 use crate::secrets::Exposure;
 use crate::wallet::{self, FileKind};
 use crate::{
@@ -54,6 +56,12 @@ pub struct TransferState {
     /// What was saved this session: the line said for each, and whether
     /// it is a warning (a secret saved, or a save that failed).
     pub saved: Vec<(String, bool)>,
+}
+
+/// Transfer's state, with its logic.
+#[derive(Debug, Default)]
+pub struct TransferArea {
+    state: TransferState,
 }
 
 /// The last part of a path.
@@ -156,7 +164,181 @@ fn read_any(
     Some(received(faraday_qr::classify_text(text)))
 }
 
+impl TransferArea {
+    /// What Transfer holds.
+    pub fn state(&self) -> &TransferState {
+        &self.state
+    }
+
+    /// The path and size of file `i` of the Downloads list, to send.
+    pub(crate) fn pick(&mut self, i: usize, medium: Medium, out: &mut Out) {
+        let Some((name, size)) = self.state.files.get(i).cloned() else {
+            return;
+        };
+        let dir = self.state.dir.trim_end_matches('/');
+        let path = format!("{dir}/{name}");
+        self.send(path, size, medium, out);
+    }
+
+    /// Sends the file at `path`, `size` bytes long, once the shell has
+    /// read it; one over the envelope's limit is refused unread.
+    pub(crate) fn send(&mut self, path: String, size: u64, medium: Medium, out: &mut Out) {
+        self.state.refused = None;
+        if size > MAX_SEND {
+            self.state.refused = Some(fill(EN.transfer_larger_than, &[medium.a()]));
+            return;
+        }
+        if size == 0 {
+            self.state.refused = Some(fill(EN.transfer_is_empty, &[base_name(&path)]));
+            return;
+        }
+        self.state.reading = Some(path.clone());
+        out.storage_out.push_back(StorageCommand::ReadHost { path });
+    }
+
+    /// Costs what `QrView::of` costs, and a classification of the file.
+    /// A file the shell read for Send: the codes it shows as, or `None`
+    /// when it was not asked for.
+    pub(crate) fn read(
+        &mut self,
+        c: &Compute,
+        path: String,
+        mut bytes: Vec<u8>,
+        online: bool,
+        medium: Medium,
+        out: &mut Out,
+    ) -> Option<Result<QrView, String>> {
+        if self.state.reading.as_deref() != Some(path.as_str()) || !online {
+            zeroize::Zeroize::zeroize(&mut bytes);
+            return None;
+        }
+        self.state.reading = None;
+        if bytes.len() as u64 > MAX_SEND {
+            zeroize::Zeroize::zeroize(&mut bytes);
+            self.send(path, MAX_SEND + 1, medium, out);
+            return None;
+        }
+        let name = base_name(&path).to_string();
+        let kind = wallet::classify(c, &name, &bytes);
+        let secret = kind.exposure() == Exposure::Secret;
+        let source = qr_source(&name, &bytes, kind);
+        zeroize::Zeroize::zeroize(&mut bytes);
+        Some(
+            QrView::of(c, &name, source, QrFormat::Ur, QR_PARTS[1]).map(|mut v| {
+                v.secret |= secret;
+                v
+            }),
+        )
+    }
+
+    /// A file the shell could not read for Send.
+    pub(crate) fn read_failed(&mut self, path: String, reason: String) {
+        if self.state.reading.as_deref() != Some(path.as_str()) {
+            return;
+        }
+        self.state.reading = None;
+        self.state.refused = Some(format!("{}: {reason}", base_name(&path)));
+    }
+
+    /// The Downloads folder as the shell lists it. Whether anything
+    /// changed, to draw again.
+    pub(crate) fn listed(&mut self, dir: String, files: Vec<(String, u64)>, opens: bool) -> bool {
+        let t = &mut self.state;
+        if t.dir == dir && t.files == files && t.opens == opens {
+            return false;
+        }
+        t.dir = dir;
+        t.files = files;
+        t.opens = opens;
+        true
+    }
+
+    /// Receive starts afresh: nothing saved last, nothing refused.
+    pub(crate) fn receive_begin(&mut self) {
+        self.state.last = None;
+        self.state.refused = None;
+    }
+
+    /// Costs what reading a code costs (a PSBT parse, a SHA-256 of the
+    /// file). One code read on Receive, into the camera's `scan`. A whole
+    /// file goes to the shell to save in Downloads; the camera stays on
+    /// for the next.
+    pub(crate) fn scanned(
+        &mut self,
+        c: &Compute,
+        scan: &mut ScanState,
+        bytes: &zeroize::Zeroizing<Vec<u8>>,
+        out: &mut Out,
+    ) {
+        let Some((named, ext, data)) = read_any(c, scan, bytes) else {
+            return;
+        };
+        let digest = {
+            let mut whole = named.clone().unwrap_or_default().into_bytes();
+            whole.push(0);
+            whole.extend_from_slice(ext.as_bytes());
+            whole.push(0);
+            whole.extend_from_slice(&data);
+            let d = faraday_crypto::sha256_whole(c, &whole);
+            zeroize::Zeroize::zeroize(&mut whole);
+            d
+        };
+        if self.state.last == Some(digest) {
+            // Already saved: the line says so again.
+            scan.note = self.state.saved.last().map(|(l, _)| l.clone());
+            return;
+        }
+        self.state.last = Some(digest);
+        let name = match named {
+            Some(n) => n,
+            None => {
+                self.state.received += 1;
+                format!("received-{}.{ext}", self.state.received)
+            }
+        };
+        // A secret the device let out past its secret sheet is saved as
+        // asked, and said to be one.
+        let secret = wallet::classify(c, &name, &data).exposure() == Exposure::Secret
+            || crate::seed_in_code(c, bytes).is_some()
+            || crate::secret_text(c, &String::from_utf8_lossy(&data)).is_some();
+        scan.note = Some(fill(EN.transfer_saving, &[&name.to_string()]));
+        self.state.saving.push_back(secret);
+        out.storage_out
+            .push_back(StorageCommand::SaveDownload { name, bytes: data });
+    }
+
+    /// The shell saved a received file, or could not; Receive's camera
+    /// (`scan`, when open) says so.
+    pub(crate) fn saved(&mut self, saved: Result<String, String>, scan: Option<&mut ScanState>) {
+        let secret = self.state.saving.pop_front().unwrap_or(false);
+        let warn = secret || saved.is_err();
+        let line = match saved {
+            Ok(path) if secret => fill(EN.transfer_saved_secret, &[&path.to_string()]),
+            Ok(path) => fill(EN.transfer_saved, &[&path.to_string()]),
+            Err(reason) => fill(EN.transfer_not_saved, &[&reason.to_string()]),
+        };
+        if let Some(scan) = scan
+            && scan.purpose == ScanPurpose::Transfer
+        {
+            scan.note = Some(line.clone());
+        }
+        self.state.saved.push((line, warn));
+    }
+
+    /// Opens the Downloads folder in this computer's file manager.
+    pub(crate) fn open_folder(&self, online: bool, out: &mut Out) {
+        if online && self.state.opens {
+            out.storage_out.push_back(StorageCommand::OpenDownloads);
+        }
+    }
+}
+
 impl Faraday {
+    /// What Transfer holds.
+    pub fn transfer(&self) -> &TransferState {
+        self.transfer.state()
+    }
+
     /// Opens Transfer: only in the online app.
     pub(crate) fn transfer_open(&mut self) {
         if !self.online {
@@ -171,30 +353,7 @@ impl Faraday {
         if !self.online || self.screen != Screen::Transfer {
             return;
         }
-        let Some((name, size)) = self.transfer.files.get(i).cloned() else {
-            return;
-        };
-        let dir = self.transfer.dir.trim_end_matches('/');
-        let path = format!("{dir}/{name}");
-        self.transfer_send(path, size);
-    }
-
-    /// Sends the file at `path`, `size` bytes long, once the shell has
-    /// read it; one over the envelope's limit is refused unread.
-    fn transfer_send(&mut self, path: String, size: u64) {
-        self.transfer.refused = None;
-        if size > MAX_SEND {
-            self.transfer.refused = Some(fill(EN.transfer_larger_than, &[self.medium.a()]));
-            return;
-        }
-        if size == 0 {
-            self.transfer.refused = Some(fill(EN.transfer_is_empty, &[base_name(&path)]));
-            return;
-        }
-        self.transfer.reading = Some(path.clone());
-        self.out
-            .storage_out
-            .push_back(StorageCommand::ReadHost { path });
+        self.transfer.pick(i, self.medium, &mut self.out);
     }
 
     /// A file dropped on the window: Transfer opens and sends it.
@@ -205,40 +364,23 @@ impl Faraday {
         if self.screen != Screen::Transfer {
             self.transfer_open();
         }
-        self.transfer_send(path, size);
+        self.transfer.send(path, size, self.medium, &mut self.out);
     }
 
     /// A file the shell read for Send: shown as codes.
-    pub(crate) fn transfer_read(&mut self, path: String, mut bytes: Vec<u8>) {
+    pub(crate) fn transfer_read(&mut self, path: String, bytes: Vec<u8>) {
         let c = self.compute();
-        if self.transfer.reading.as_deref() != Some(path.as_str()) || !self.online {
-            zeroize::Zeroize::zeroize(&mut bytes);
-            return;
+        let view = self
+            .transfer
+            .read(&c, path, bytes, self.online, self.medium, &mut self.out);
+        if let Some(view) = view {
+            self.open_qr(view);
         }
-        self.transfer.reading = None;
-        if bytes.len() as u64 > MAX_SEND {
-            zeroize::Zeroize::zeroize(&mut bytes);
-            return self.transfer_send(path, MAX_SEND + 1);
-        }
-        let name = base_name(&path).to_string();
-        let kind = wallet::classify(&c, &name, &bytes);
-        let secret = kind.exposure() == Exposure::Secret;
-        let source = qr_source(&name, &bytes, kind);
-        zeroize::Zeroize::zeroize(&mut bytes);
-        let view = QrView::of(&c, &name, source, QrFormat::Ur, QR_PARTS[1]).map(|mut v| {
-            v.secret |= secret;
-            v
-        });
-        self.open_qr(view);
     }
 
     /// A file the shell could not read for Send.
     pub(crate) fn transfer_read_failed(&mut self, path: String, reason: String) {
-        if self.transfer.reading.as_deref() != Some(path.as_str()) {
-            return;
-        }
-        self.transfer.reading = None;
-        self.transfer.refused = Some(format!("{}: {reason}", base_name(&path)));
+        self.transfer.read_failed(path, reason);
     }
 
     /// The Downloads folder as the shell lists it. Whether anything
@@ -249,14 +391,7 @@ impl Faraday {
         files: Vec<(String, u64)>,
         opens: bool,
     ) -> bool {
-        let t = &mut self.transfer;
-        if t.dir == dir && t.files == files && t.opens == opens {
-            return false;
-        }
-        t.dir = dir;
-        t.files = files;
-        t.opens = opens;
-        true
+        self.transfer.listed(dir, files, opens)
     }
 
     /// Receive: the camera, reading anything, until Cancel.
@@ -264,8 +399,7 @@ impl Faraday {
         if !self.online {
             return;
         }
-        self.transfer.last = None;
-        self.transfer.refused = None;
+        self.transfer.receive_begin();
         let mut scan = ScanState::default();
         scan.purpose = ScanPurpose::Transfer;
         self.scan = Some(scan);
@@ -273,84 +407,25 @@ impl Faraday {
         self.out.commands.push_back(Command::CameraOn);
     }
 
-    /// One code read on Receive. A whole file goes to the shell to save
-    /// in Downloads; the camera stays on for the next.
+    /// One code read on Receive.
     pub(crate) fn transfer_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
         let c = self.compute();
         let Some(scan) = self.scan.as_mut() else {
             return;
         };
-        let Some((named, ext, data)) = read_any(&c, scan, &bytes) else {
-            return;
-        };
-        let digest = {
-            let mut whole = named.clone().unwrap_or_default().into_bytes();
-            whole.push(0);
-            whole.extend_from_slice(ext.as_bytes());
-            whole.push(0);
-            whole.extend_from_slice(&data);
-            let d = faraday_crypto::sha256_whole(&c, &whole);
-            zeroize::Zeroize::zeroize(&mut whole);
-            d
-        };
-        if self.transfer.last == Some(digest) {
-            // Already saved: the line says so again.
-            let said = self.transfer.saved.last().map(|(l, _)| l.clone());
-            if let Some(scan) = self.scan.as_mut() {
-                scan.note = said;
-            }
-            return;
-        }
-        self.transfer.last = Some(digest);
-        let name = match named {
-            Some(n) => n,
-            None => {
-                self.transfer.received += 1;
-                format!("received-{}.{ext}", self.transfer.received)
-            }
-        };
-        // A secret the device let out past its secret sheet is saved as
-        // asked, and said to be one.
-        let secret = wallet::classify(&c, &name, &data).exposure() == Exposure::Secret
-            || crate::seed_in_code(&c, &bytes).is_some()
-            || crate::secret_text(&c, &String::from_utf8_lossy(&data)).is_some();
-        if let Some(scan) = self.scan.as_mut() {
-            scan.note = Some(fill(EN.transfer_saving, &[&name.to_string()]));
-        }
-        self.transfer.saving.push_back(secret);
-        self.out
-            .storage_out
-            .push_back(StorageCommand::SaveDownload { name, bytes: data });
+        self.transfer.scanned(&c, scan, &bytes, &mut self.out);
     }
 
     /// The shell saved a received file, or could not.
     pub(crate) fn transfer_saved(&mut self, saved: Result<String, String>) {
-        let secret = self.transfer.saving.pop_front().unwrap_or(false);
-        let warn = secret || saved.is_err();
-        let line = match saved {
-            Ok(path) if secret => fill(EN.transfer_saved_secret, &[&path.to_string()]),
-            Ok(path) => fill(EN.transfer_saved, &[&path.to_string()]),
-            Err(reason) => fill(EN.transfer_not_saved, &[&reason.to_string()]),
-        };
-        if let Some(scan) = self.scan.as_mut()
-            && scan.purpose == ScanPurpose::Transfer
-        {
-            scan.note = Some(line.clone());
-        }
-        self.transfer.saved.push((line, warn));
+        self.transfer.saved(saved, self.scan.as_mut());
     }
 
     /// Opens the Downloads folder in this computer's file manager.
     pub(crate) fn transfer_open_folder(&mut self) {
-        if self.online && self.transfer.opens {
-            self.out
-                .storage_out
-                .push_back(StorageCommand::OpenDownloads);
-        }
+        self.transfer.open_folder(self.online, &mut self.out);
     }
-}
 
-impl Faraday {
     /// Handles the Transfer screen's actions (`Transfer*`).
     pub(crate) fn transfer_act(&mut self, action: Action) {
         match action {
