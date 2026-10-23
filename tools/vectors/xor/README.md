@@ -8,6 +8,7 @@ mnemonic of the same word count, and every part is needed.
 |---|---|---|
 | `12-words-2-parts.txt` | 12 | 2 |
 | `24-words-3-parts.txt` | 24 | 3 |
+| `coldcard.json` | 24 and 12 | 3 |
 
 Each file lists every part and then the seed, as entropy hex and as the
 English mnemonic that entropy encodes.
@@ -46,3 +47,12 @@ example's words.
 
 Swap these for Coldcard's own examples when a machine with network
 access can fetch them; the file format and the test do not change.
+
+## Coldcard's own examples
+
+`coldcard.json` holds the two worked examples of docs/seed-xor.md in
+Coldcard's firmware repository, at commit
+`f28e1b267dd61bbe5f0844edcd6dbd7fc28ba5b3`: each part's words and the
+seed's, as the document lists them. The crypto cross-check
+(`tools/crosscheck/area_xor.py`) combines them with Faraday and with
+python-mnemonic and requires the published seed from both.

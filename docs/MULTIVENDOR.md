@@ -1,8 +1,8 @@
 # Two implementations of every cryptographic step
 
 **Kind:** Spec
-**Status:** Option A decided (F79), not built; options B and C deferred
-**Open:** §10, the build-time cross-check (`just crosscheck` and its stamp in `just lint`); B and C wait for the owner (§9).
+**Status:** Option A decided (F79), its first batch built; options B and C deferred
+**Open:** §10.5 items 2 to 4 of the build-time cross-check (the vault; BIP-39 and BIP-32; what comes from rust-bitcoin and rust-miniscript); B and C wait for the owner (§9).
 
 ## 1. The idea
 
@@ -139,7 +139,10 @@ Only for B and C, when they come back:
 
 ## 10. The build-time cross-check (option A)
 
-Decided 2026-10-22 (owner, F79). Not built.
+Decided 2026-10-22 (owner, F79). Item 1 of §10.5 is built, in
+`tools/crosscheck/` (its README says how to run it and what each area
+checks), with the stamp check `tools/lint-crosscheck.sh`; items 2 to 4
+are not.
 
 ### 10.1 What runs
 

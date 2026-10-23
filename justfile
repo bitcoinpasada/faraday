@@ -43,6 +43,7 @@ lint:
     tools/lint-layout.sh
     cargo run -q -p costs-lint
     tools/lint-unchecked.sh
+    tools/lint-crosscheck.sh
     tools/lint-keys-tests.sh
     tools/check-macos.sh
     python3 tools/learn/sync.py check
@@ -147,3 +148,4 @@ learn-import:
 
 # Faraday's own recipes: faraday/faraday.just.
 import 'faraday/faraday.just'
+import 'tools/crosscheck/crosscheck.just'

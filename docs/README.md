@@ -79,7 +79,7 @@ need. Each document's header says what kind it is:
 - `docs/MAC.md`: Faraday on Macs. Partly built.
 - `docs/MODES.md`: Modes, Demo and samples. Specified (F81), not built.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
-- `docs/MULTIVENDOR.md`: Two implementations of every cryptographic step. Option A decided (F79), not built.
+- `docs/MULTIVENDOR.md`: Two implementations of every cryptographic step. Option A decided (F79), its first batch built.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
 - `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified (F86), not built.
 - `docs/QR.md`: QR transfer and scanning. Built, except §7.

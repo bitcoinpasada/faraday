@@ -14,6 +14,7 @@ members = [
     "faraday/shells/avfoundation",
     "tools/fontbake",
     "tools/costs-lint",
+    "tools/crosscheck",
     "faraday/faraday-core",
     "faraday/faraday-keys",
     "faraday/faraday-samples",

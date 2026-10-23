@@ -24,6 +24,7 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/lint-keys-tests.sh` | lint | `just lint` | no shipped binary carries the test helpers that reach a key (below) |
 | `tools/lint-unchecked.sh` | lint | `just lint` | no shipped binary compiles `Compute::unchecked` (below) |
 | `tools/check-macos.sh` | lint | `just lint` | clippy over the Starter's macOS code for both Mac targets, without a Mac |
+| `tools/lint-crosscheck.sh` | lint | `just lint` | the crypto has not changed since the last passing cross-check (below) |
 | `tools/costs-lint/` | lint | `just lint` (`cargo run -p costs-lint`) | who takes, mints and keeps the compute token (below) |
 | `tools/learn/sync.py` | lint, generator | `just lint` (`check`), `just learn-export`, `just learn-import` | keeps `docs/learn/*.md` and the Learn pages' `en.rs` identical |
 | `tools/fontbake/` | generator | `just fonts` | turns `tools/fonts/` into glyph outlines for `faraday-draw` |
@@ -33,7 +34,8 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/vectors/` | data | tests in `core/` and `faraday/` (see Vectors) | published and cross-implementation test vectors, one folder per spec |
 | `tools/vectors/psbt/extract.py` | generator | by hand | extracts the BIP-174 vectors from the BIP text into `bip174.txt` |
 | `tools/vectors/apk/make.sh`, `variants.py` | generator | `faraday-apk` tests (`docs/APK-SIGNING.md` §8) | make the unsigned APK fixtures with Android's own tools |
-| `tools/reference/` | data | comments and tests that cite it (`aezeed`, `vanity`, `dice`, `kdbx4`), `tools/scripts/threshold-reference.py` (`bip445`) | vendored or quoted reference code and notes, each with a README |
+| `tools/reference/` | data | comments and tests that cite it (`aezeed`, `vanity`, `dice`, `kdbx4`), `tools/scripts/threshold-reference.py` (`bip445`), `tools/crosscheck/` (`bip327`, `bip352`, `bip445`, `bip39`, `bip85`, `codex32`, `slip39`) | vendored or quoted reference code and notes, each with a README |
+| `tools/crosscheck/` | test | `just crosscheck` (`run.sh`) | the crypto cross-check (F79): Faraday's Rust against the vendored Python references over the published vectors and a seeded random corpus; writes `stamp` ([README](crosscheck/README.md)) |
 | `tools/scripts/threshold-reference.py` | test | `just threshold-reference` | replays the threshold fixture session against BIP 445's reference |
 | `tools/scripts/{musig,tapmulti,threshold}-regtest.sh` | generator | by hand; `core/faraday-psbt/examples/` and `just psbt-fixtures` write the rest | Bitcoin Core regtest round trips behind the MuSig2, taproot-multisig and threshold PSBT fixtures |
 | `tools/backup/decrypt.py` | test, dev aid | `faraday-backup` `tests/vectors.rs` | reads a `.oskb` backup with published libraries, no Faraday code |
@@ -65,6 +67,7 @@ in `justfile` and `faraday/faraday.just`.
 - `lint-docs.sh`: every document under `docs/` has a Kind and a Status in its first 12 lines; a Spec has an `**Open:**` line saying what is not built and a Reference or Record has none; a Reference has no heading of plan or build log (rules for the implementing agent, batches, order of work, estimates, questions for the owner) unless the section is a one-line stub naming where it moved in `docs/history/`, nor a line of build log ("Built 2026-10-19", "Specified, not built", words for the implementing agent); `docs/DECISIONS.md` has one row per decision with none missing, each linking its file in `docs/decisions/` or, once retired, `docs/history/decisions/`, with the file's Status the row's, and every decision file has a row; every backticked repository path in a tracked `.md` file exists; nothing outside `CLAUDE.md` cites the private folder.
 - `cargo run -p costs-lint`: a function taking `&Compute` has "Costs " first in its doc; `Compute::new` is minted only where listed; no `Compute` is stored except in `View`; drawing reaches the token only through `View`'s accessors (`docs/COMPUTE.md` §8).
 - `lint-unchecked.sh`: the `unchecked` feature of `faraday-crypto` is off in the dependency graph of every shipped binary (`docs/COMPUTE.md` §3).
+- `lint-crosscheck.sh`: the hash of the crypto sources, the cross-check, its references and vectors, and the crypto crates' `Cargo.lock` entries matches `tools/crosscheck/stamp`, which a passing `just crosscheck` writes; otherwise "crypto changed since the last cross-check: run `just crosscheck`" (F79).
 - `check-macos.sh`: clippy for `aarch64-apple-darwin` and `x86_64-apple-darwin` over the Starter's shell.
 - `python3 tools/learn/sync.py check`: fails while `docs/learn/` and `en.rs` differ.
 

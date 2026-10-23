@@ -816,6 +816,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "faraday-crosscheck"
+version = "0.1.0"
+dependencies = [
+ "bitcoin",
+ "faraday-bip",
+ "faraday-crypto",
+ "faraday-entropy",
+ "serde_json",
+]
+
+[[package]]
 name = "faraday-crypto"
 version = "0.1.0"
 dependencies = [

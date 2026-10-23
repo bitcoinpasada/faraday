@@ -1,0 +1,26 @@
+[package]
+name = "faraday-crosscheck"
+version = "0.1.0"
+description = "Answers the crypto cross-check's requests with Faraday's own code; test-only, never shipped (F79, docs/MULTIVENDOR.md §10)"
+edition.workspace = true
+license.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish = false
+
+[[bin]]
+name = "faraday-crosscheck"
+path = "src/main.rs"
+
+[dependencies]
+faraday-bip = { path = "../../core/faraday-bip" }
+faraday-entropy = { path = "../../core/faraday-entropy" }
+# The token that counts nothing (docs/COMPUTE.md §3): this command is a
+# test, and `tools/lint-unchecked.sh` keeps the feature out of every
+# shipped binary.
+faraday-crypto = { path = "../../core/faraday-crypto", features = ["unchecked"] }
+bitcoin.workspace = true
+serde_json.workspace = true
+
+[lints]
+workspace = true
