@@ -397,6 +397,19 @@ if [ -n "$linux_dir" ] && [ -d "$linux_dir/arch" ]; then
     fi
 fi
 
+# external.mk copies the boot logo into the kernel tree when it is
+# unpacked, once per tree, so a tree unpacked before the mark changed
+# keeps the old logo. Copy the new one in and drop the kernel's build
+# stamps, so the build below compiles the kernel again (Buildroot's
+# linux-rebuild, without building before the kernel is configured). A
+# tree the check above cleaned is unpacked with the new logo.
+if [ -n "$linux_dir" ] && [ -d "$linux_dir/drivers/video/logo" ] \
+        && ! cmp -s "$gen/logo.ppm" "$linux_dir/drivers/video/logo/logo_linux_clut224.ppm"; then
+    echo "==> the boot logo changed"
+    cp "$gen/logo.ppm" "$linux_dir/drivers/video/logo/logo_linux_clut224.ppm"
+    make -C /output linux-clean-for-rebuild
+fi
+
 # A build tree from before the image's names were Faraday's (2026-10-21):
 # the app was /usr/bin/opensigner-pi from the opensigner-pi package, its
 # arguments were in /etc/opensigner, and the image was opensigner-*.img.

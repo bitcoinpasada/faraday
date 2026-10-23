@@ -309,8 +309,11 @@ until the app's first frame paints over it.
 
 Two details. The file is a plain (ASCII, `P3`) PPM because the kernel's
 `pnmtologo` refuses binary PNM outright. And the copy happens once per
-unpacked kernel tree, so a changed mark in an existing build tree needs
-`make linux-dirclean` in that variant's output directory.
+unpacked kernel tree, so `build.sh` compares an existing tree's logo
+with the generated one on every build and, when they differ, copies the
+new one in and has the kernel compiled again ("==> the boot logo
+changed"). A stick or card already written keeps its old logo until it
+is written again from a new image.
 
 ### The app is not root
 

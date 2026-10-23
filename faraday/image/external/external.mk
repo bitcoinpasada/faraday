@@ -9,8 +9,9 @@ include $(sort $(wildcard $(BR2_EXTERNAL_FARADAY_PATH)/package/*/*.mk))
 # what make the kernel draw it.
 #
 # It runs at post-patch, once per unpacked kernel tree. A regenerated logo
-# in an existing build tree therefore needs the tree unpacked again:
-# `make linux-dirclean` in that variant's output directory.
+# in an existing build tree is build.sh's to copy in: it compares the
+# tree's logo with the generated one and, when they differ, copies it and
+# has the kernel compiled again.
 FARADAY_IMAGE_BOOT_LOGO = $(BASE_DIR)/gen/logo.ppm
 
 define FARADAY_IMAGE_INSTALL_BOOT_LOGO
