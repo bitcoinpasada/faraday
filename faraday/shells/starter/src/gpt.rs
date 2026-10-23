@@ -131,11 +131,29 @@ fn read_with(
         return Err(StickFault::EntriesDamaged);
     }
     let entries_len = count * entry_size;
-    if entries_lba.saturating_mul(sector) + entries_len as u64 > len {
+    let entry_sectors = (entries_len as u64).div_ceil(sector);
+    // Every offset below is the header's own numbers times the sector
+    // size, so each is worked out checked: a header whose numbers run
+    // past what a disk can address is refused, not wrapped.
+    let entries_at = entries_lba
+        .checked_mul(sector)
+        .ok_or(StickFault::EntriesPastEnd)?;
+    let primary_end = entries_lba
+        .checked_add(entry_sectors)
+        .and_then(|s| s.checked_mul(sector))
+        .ok_or(StickFault::EntriesPastEnd)?;
+    if entries_at
+        .checked_add(entries_len as u64)
+        .is_none_or(|end| end > len)
+    {
         return Err(StickFault::EntriesPastEnd);
     }
+    let backup_end = alternate
+        .checked_add(1)
+        .and_then(|s| s.checked_mul(sector))
+        .ok_or(StickFault::HeaderDamaged)?;
     let mut entries = vec![0u8; entries_len];
-    read_at(entries_lba * sector, &mut entries).map_err(|e| StickFault::Reading(e.to_string()))?;
+    read_at(entries_at, &mut entries).map_err(|e| StickFault::Reading(e.to_string()))?;
     if crc32(&entries) != le32(&header, 88) {
         return Err(StickFault::EntriesChecksum);
     }
@@ -157,14 +175,10 @@ fn read_with(
             name: String::from_utf16_lossy(&units),
         });
     }
-    let entry_sectors = (entries_len as u64).div_ceil(sector);
-    let mut regions = vec![(0, (entries_lba + entry_sectors) * sector)];
+    let mut regions = vec![(0, primary_end)];
     // The backup: its entries just before its header, at the disk's end.
-    if alternate > entry_sectors && (alternate + 1) * sector <= len {
-        regions.push((
-            (alternate - entry_sectors) * sector,
-            (alternate + 1) * sector,
-        ));
+    if alternate > entry_sectors && backup_end <= len {
+        regions.push(((alternate - entry_sectors) * sector, backup_end));
     }
     Ok(Table {
         sector,
@@ -198,7 +212,16 @@ pub fn faraday_boot(table: &Table, needs: u64) -> Result<Boot, StickFault> {
     if boot.last < boot.first {
         return Err(StickFault::BootDamaged);
     }
-    let len = (boot.last - boot.first + 1) * table.sector;
+    // The partition's sectors are the table's own numbers: one that
+    // runs past what a disk can address is damaged, not wrapped.
+    let (Some(offset), Some(len)) = (
+        boot.first.checked_mul(table.sector),
+        (boot.last - boot.first)
+            .checked_add(1)
+            .and_then(|n| n.checked_mul(table.sector)),
+    ) else {
+        return Err(StickFault::BootDamaged);
+    };
     if len < needs {
         return Err(StickFault::BootSmall {
             boot: len,
@@ -208,8 +231,5 @@ pub fn faraday_boot(table: &Table, needs: u64) -> Result<Boot, StickFault> {
     if boot.last >= data.first {
         return Err(StickFault::Overlap);
     }
-    Ok(Boot {
-        offset: boot.first * table.sector,
-        len,
-    })
+    Ok(Boot { offset, len })
 }

@@ -62,6 +62,18 @@ pub const MAX_COUNT: usize = 16;
 pub const MAX_PASSPHRASE_BYTES: usize = 256;
 /// Largest iteration exponent the four-bit field holds.
 pub const MAX_ITERATION_EXPONENT: u8 = 15;
+/// Largest iteration exponent this implementation computes: 320,000
+/// PBKDF2-HMAC-SHA256 rounds, a few seconds on a Raspberry Pi 3. The
+/// field allows 15, which is 327,680,000 rounds, close to an hour there,
+/// and a set of shares is read from outside, so a higher exponent is
+/// refused by [`Error::IterationExponentTooHigh`] before any round runs.
+///
+/// Every wallet's sets fall under it: Trezor writes 1, the reference
+/// implementation (`python-shamir-mnemonic`) writes 1 by default and 0
+/// from its command line, Faraday writes 1, and the published vectors
+/// use 0, 2 and 3. Two steps above the vectors cover a set someone made
+/// by hand with a raised exponent.
+pub const MAX_READ_ITERATION_EXPONENT: u8 = 5;
 /// PBKDF2 rounds at iteration exponent 0, across all four Feistel rounds.
 pub const BASE_ITERATION_COUNT: u32 = 10_000;
 
@@ -153,6 +165,13 @@ pub enum Error {
     /// A threshold, a count, an identifier or an iteration exponent is
     /// outside what the share format holds.
     InvalidParameters,
+    /// The iteration exponent is above [`MAX_READ_ITERATION_EXPONENT`]:
+    /// the shares ask for more PBKDF2 rounds than this implementation
+    /// runs.
+    IterationExponentTooHigh {
+        /// The exponent the shares carry, or the one asked for.
+        exponent: u8,
+    },
     /// The output slice is too short for the shares asked for.
     OutputTooSmall,
 }
@@ -214,6 +233,12 @@ impl fmt::Display for Error {
                 write!(f, "passphrase exceeds {MAX_PASSPHRASE_BYTES} bytes")
             }
             Error::InvalidParameters => f.write_str("thresholds and counts are 1 to 16"),
+            Error::IterationExponentTooHigh { exponent } => write!(
+                f,
+                "iteration exponent {exponent} asks for {} PBKDF2 rounds; \
+                 {MAX_READ_ITERATION_EXPONENT} is the most read",
+                u64::from(BASE_ITERATION_COUNT) << exponent
+            ),
             Error::OutputTooSmall => f.write_str("not enough room for the shares"),
         }
     }
@@ -774,6 +799,14 @@ impl Share {
 
 // --- the master secret's encryption ----------------------------------------
 
+/// The exponent's refusal where it is above what is computed.
+fn check_iteration_exponent(exponent: u8) -> Result<(), Error> {
+    if exponent > MAX_READ_ITERATION_EXPONENT {
+        return Err(Error::IterationExponentTooHigh { exponent });
+    }
+    Ok(())
+}
+
 fn check_passphrase(passphrase: &[u8]) -> Result<(), Error> {
     if passphrase.len() > MAX_PASSPHRASE_BYTES {
         return Err(Error::PassphraseTooLong);
@@ -917,6 +950,7 @@ fn feistel_call(
     if identifier >= 1 << 15 || iteration_exponent > MAX_ITERATION_EXPONENT {
         return Err(Error::InvalidParameters);
     }
+    check_iteration_exponent(iteration_exponent)?;
     let value = SecretBytes::new(value)?;
     Ok(Secret::new(feistel(
         c,
@@ -940,7 +974,8 @@ fn feistel_call(
 /// Every refusal names what is wrong with the set: a share from another
 /// backup, a group short of shares, a digest that does not match. A wrong
 /// passphrase is not one of them — it gives a different master secret,
-/// and so a different wallet.
+/// and so a different wallet. A set whose iteration exponent is above
+/// [`MAX_READ_ITERATION_EXPONENT`] is refused before any PBKDF2 round.
 pub fn recover(
     c: &Compute,
     shares: &[Share],
@@ -974,6 +1009,7 @@ pub fn recover(
     if first.group_threshold > first.group_count {
         return Err(Error::GroupThresholdExceedsCount);
     }
+    check_iteration_exponent(first.iteration_exponent)?;
 
     // One entry per group index present, in the order first met.
     let mut order = [0u8; MAX_COUNT];
@@ -1084,6 +1120,7 @@ pub fn split(
     {
         return Err(Error::InvalidParameters);
     }
+    check_iteration_exponent(iteration_exponent)?;
     for g in groups {
         if g.threshold == 0
             || g.count == 0

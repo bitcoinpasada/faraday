@@ -582,6 +582,82 @@ fn keep_data_checks_the_partition_table_with_reads_a_stick_accepts() {
     assert_eq!(read, expected);
 }
 
+/// `image` with the primary GPT header's eight-byte field at `at` set to
+/// `value` and the header's checksum written again.
+fn with_header_field(mut image: Vec<u8>, at: usize, value: u64) -> Vec<u8> {
+    image[512 + at..512 + at + 8].copy_from_slice(&value.to_le_bytes());
+    image[512 + 16..512 + 20].fill(0);
+    let crc = faraday_crypto::crc32(&image[512..512 + 92]);
+    image[512 + 16..512 + 20].copy_from_slice(&crc.to_le_bytes());
+    image
+}
+
+/// The table of `image`, read as a stick is: a read past its end fails.
+fn read_table(image: &[u8]) -> Result<gpt::Table, StickFault> {
+    gpt::read(
+        &mut |at, buf| {
+            let from = usize::try_from(at)
+                .ok()
+                .filter(|&a| {
+                    a.checked_add(buf.len())
+                        .is_some_and(|end| end <= image.len())
+                })
+                .ok_or_else(|| std::io::Error::other("past the end"))?;
+            buf.copy_from_slice(&image[from..from + buf.len()]);
+            Ok(())
+        },
+        image.len() as u64,
+    )
+}
+
+/// A header whose backup or entries sit at a sector no disk can address
+/// is refused rather than wrapped round to a small offset; one at the
+/// last sector a disk can address is read.
+#[test]
+fn a_partition_table_whose_sectors_run_past_what_a_disk_addresses_is_refused() {
+    let past = u64::MAX / SECTOR;
+    // The backup header at the last addressable sector: past this stick's
+    // end, so no backup region, but the table reads.
+    let image = with_header_field(stick_image(gpt::DISK_UUID, 0xDA), 32, past - 1);
+    let table = read_table(&image).expect("a header whose backup is past the end reads");
+    assert_eq!(table.regions.len(), 1);
+    assert!(gpt::faraday_boot(&table, 0).is_ok());
+    // One sector further, its end is past what 64 bits hold.
+    let image = with_header_field(stick_image(gpt::DISK_UUID, 0xDA), 32, past);
+    assert!(read_table(&image).is_err());
+    // The entries the same way.
+    for lba in [past + 1, u64::MAX] {
+        let image = with_header_field(stick_image(gpt::DISK_UUID, 0xDA), 72, lba);
+        assert!(read_table(&image).is_err());
+    }
+}
+
+/// A boot partition whose sectors run past what a disk addresses is
+/// damaged; one that ends at the last addressable byte is read.
+#[test]
+fn a_boot_partition_past_what_a_disk_addresses_is_damaged() {
+    let image = stick_image(gpt::DISK_UUID, 0xDA);
+    let mut table = read_table(&image).expect("a Faraday stick's table");
+    let past = u64::MAX / SECTOR;
+    table.parts[0].first = past - 10;
+    table.parts[0].last = past - 1;
+    table.parts[1].first = past;
+    assert_eq!(
+        gpt::faraday_boot(&table, 0),
+        Ok(gpt::Boot {
+            offset: (past - 10) * SECTOR,
+            len: 10 * SECTOR,
+        })
+    );
+    table.parts[0].first = past + 1;
+    table.parts[0].last = past + 10;
+    table.parts[1].first = past + 11;
+    assert_eq!(gpt::faraday_boot(&table, 0), Err(StickFault::BootDamaged));
+    table.parts[0].first = 0;
+    table.parts[0].last = u64::MAX;
+    assert_eq!(gpt::faraday_boot(&table, 0), Err(StickFault::BootDamaged));
+}
+
 #[test]
 fn an_image_that_ends_inside_a_block_is_written_to_a_disk_that_takes_whole_blocks_only() {
     // A developer's image 100 bytes past a whole number of sectors, to a

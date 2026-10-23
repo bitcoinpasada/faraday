@@ -141,6 +141,12 @@ impl ThresholdRecord {
                 // the record's last line.
                 Some(_) if descriptor.is_some() => return Err(Error::Template),
                 Some(share) => {
+                    // A share past the most a record holds is refused
+                    // before its point is decompressed, so a file of
+                    // thousands of share lines costs what a group does.
+                    if pubshares.len() == MAX_PARTICIPANTS {
+                        return Err(Error::Threshold);
+                    }
                     let (id, key) = share.split_once(' ').ok_or(Error::Share)?;
                     // The identifiers are 0, 1, … in order with none
                     // missing: BIP 445 allows a record to leave a share

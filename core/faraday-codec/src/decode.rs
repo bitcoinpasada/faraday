@@ -26,7 +26,10 @@ pub struct Decoded {
 /// error correction fails are skipped. A frame with the wrong number of
 /// bytes yields nothing.
 pub fn decode_luma(c: &Compute, width: usize, height: usize, luma: &[u8]) -> Vec<Decoded> {
-    if width == 0 || height == 0 || luma.len() != width * height {
+    if width
+        .checked_mul(height)
+        .is_none_or(|n| n == 0 || n != luma.len())
+    {
         return Vec::new();
     }
     c.count(Work::QrDecode);
@@ -45,7 +48,10 @@ pub fn decode_luma(c: &Compute, width: usize, height: usize, luma: &[u8]) -> Vec
 /// picture: a third of a second for a 12-megapixel photograph on a
 /// desktop, seconds on a Pi.
 pub fn decode_picture(c: &Compute, width: usize, height: usize, luma: &[u8]) -> Vec<Decoded> {
-    if width == 0 || height == 0 || luma.len() != width * height {
+    if width
+        .checked_mul(height)
+        .is_none_or(|n| n == 0 || n != luma.len())
+    {
         return Vec::new();
     }
     c.count(Work::QrDecode);
@@ -142,5 +148,15 @@ mod tests {
         assert!(decode_luma(&c, 0, 0, &[]).is_empty());
         assert!(decode_luma(&c, 10, 10, &[0; 50]).is_empty());
         assert!(decode_luma(&c, 64, 64, &[128; 64 * 64]).is_empty());
+    }
+
+    /// A picture whose stated size overflows is refused, not wrapped
+    /// round to the length of the bytes it came with.
+    #[test]
+    fn a_frame_whose_size_overflows_yields_nothing() {
+        let c = Compute::unchecked();
+        let wide = usize::MAX / 2 + 1;
+        assert!(decode_luma(&c, wide, 2, &[]).is_empty());
+        assert!(decode_picture(&c, 2, wide, &[]).is_empty());
     }
 }

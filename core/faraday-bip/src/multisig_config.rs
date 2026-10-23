@@ -42,6 +42,12 @@ use faraday_crypto::work::Compute;
 use crate::policy::{Error, WalletPolicy};
 use crate::slip132::{self, Mismatch, Script};
 
+/// The most cosigner lines read: fifteen, the most keys a multisig
+/// policy takes (`OP_CHECKMULTISIG`'s limit, [`Error::Threshold`]). A
+/// file with more is refused at the sixteenth, before its other keys
+/// are decoded, so a long file costs no more than a wallet does.
+pub const MAX_KEYS: usize = 15;
+
 /// Costs a parse of the policy and its keys: reads a coordinator's
 /// multisig config as a wallet policy.
 pub fn parse(c: &Compute, text: &str) -> Result<WalletPolicy, Error> {
@@ -86,6 +92,9 @@ pub fn parse_named(c: &Compute, text: &str) -> Result<(WalletPolicy, Option<Stri
         } else if label.eq_ignore_ascii_case("format") {
             wrapper = Some(wrapper_of(value).ok_or(Error::Template)?);
         } else if is_fingerprint(label) {
+            if keys.len() == MAX_KEYS {
+                return Err(Error::Threshold);
+            }
             let path = derivation.as_deref().ok_or(Error::Derivation)?;
             let key = slip132::decode(value).map_err(|_| Error::Key)?;
             keys.push(format!(
@@ -143,7 +152,7 @@ fn script_of(wrapper: &str) -> Script {
 /// The first key of a config whose SLIP-132 version names another
 /// script than its `Format:` line, which [`parse`] refuses as
 /// [`Error::Key`]; `None` when there is none, or no format to compare
-/// with. Costs a base58 decode per key.
+/// with. Costs a base58 decode per key, of the first [`MAX_KEYS`].
 pub fn slip132_mismatch(text: &str) -> Option<Mismatch> {
     let mut around = None;
     let mut keys = Vec::new();
@@ -158,7 +167,7 @@ pub fn slip132_mismatch(text: &str) -> Option<Mismatch> {
         let label = label.trim();
         if label.eq_ignore_ascii_case("format") {
             around = wrapper_of(value).map(script_of);
-        } else if is_fingerprint(label) {
+        } else if is_fingerprint(label) && keys.len() < MAX_KEYS {
             keys.push(value.trim());
         }
     }
@@ -287,6 +296,38 @@ Derivation: m/48'/1'/0'/2'
             Err(Error::Template),
             "a format no multisig script here pays to"
         );
+    }
+
+    /// A P2WSH config of `n` distinct cosigners, two of them needed.
+    fn config_of(n: usize) -> String {
+        use bitcoin::NetworkKind;
+        use bitcoin::bip32::{Xpriv, Xpub};
+        let secp = bitcoin::secp256k1::Secp256k1::new();
+        let mut text = format!("Policy: 2 of {n}\nDerivation: m/48'/1'/0'/2'\nFormat: P2WSH\n");
+        for i in 0..n {
+            let xpriv = Xpriv::new_master(NetworkKind::Test, &[i as u8 + 1; 32]).unwrap();
+            let xpub = Xpub::from_priv(&secp, &xpriv);
+            text.push_str(&format!("{}: {xpub}\n", xpub.fingerprint()));
+        }
+        text
+    }
+
+    /// A config of the most cosigners a multisig takes is read; one more
+    /// is refused at that key, and so is a file of thousands.
+    #[test]
+    fn a_config_of_more_cosigners_than_a_multisig_takes_is_refused() {
+        let c = Compute::unchecked();
+        let most = parse(&c, &config_of(MAX_KEYS)).expect("fifteen cosigners");
+        assert_eq!(most.quorum(), Some((2, MAX_KEYS)));
+        assert_eq!(parse(&c, &config_of(MAX_KEYS + 1)), Err(Error::Threshold));
+        let mut long = config_of(MAX_KEYS + 1);
+        let last = String::from(long.lines().last().unwrap());
+        for _ in 0..5000 {
+            long.push_str(&last);
+            long.push('\n');
+        }
+        assert_eq!(parse(&c, &long), Err(Error::Threshold));
+        assert_eq!(slip132_mismatch(&long), None);
     }
 
     /// The same key spelled `Vpub` (SLIP-132's P2WSH multisig prefix for a

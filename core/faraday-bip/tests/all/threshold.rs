@@ -149,6 +149,25 @@ fn a_record_that_states_something_untrue_is_refused() {
         Err(Error::Threshold),
         "sixteen participants"
     );
+    // Thousands of share lines are refused at the sixteenth, as sixteen
+    // are, whatever the lines after it hold.
+    let text = big.to_text();
+    let (head, descriptor) = text.rsplit_once('\n').expect("the descriptor line");
+    let last_share = head.lines().last().expect("a share line");
+    let mut long = format!("{head}\n");
+    for _ in 0..5000 {
+        long.push_str(last_share);
+        long.push('\n');
+    }
+    long.push_str(descriptor);
+    assert_eq!(ThresholdRecord::parse(&c, &long), Err(Error::Threshold));
+    // Fifteen, the most a record holds, read.
+    let most = frost::deal(&secp, 15, 2, &chosen).expect("a group of fifteen");
+    let most = ThresholdRecord::new(most.info, NetworkKind::Test);
+    assert_eq!(
+        ThresholdRecord::parse(&c, &most.to_text()).map(|r| r.n()),
+        Ok(15)
+    );
 
     // Another group's shares under this group key, which is the same
     // refusal by another road.

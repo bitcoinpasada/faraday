@@ -324,6 +324,138 @@ fn shares_of_two_backups_do_not_combine() {
     );
 }
 
+/// RS1024 as SLIP-39 states it, written here from the specification so
+/// that a share can carry any iteration exponent the field holds.
+fn rs1024_checksum(extendable: bool, data: &[u16]) -> [u16; 3] {
+    const GEN: [u32; 10] = [
+        0x00E0_E040,
+        0x01C1_C080,
+        0x0383_8100,
+        0x0707_0200,
+        0x0E0E_0009,
+        0x1C0C_2412,
+        0x3808_6C24,
+        0x3090_FC48,
+        0x21B1_F890,
+        0x03F3_F120,
+    ];
+    let customization: &[u8] = if extendable {
+        b"shamir_extendable"
+    } else {
+        b"shamir"
+    };
+    let values = customization
+        .iter()
+        .map(|&b| u32::from(b))
+        .chain(data.iter().map(|&w| u32::from(w)))
+        .chain([0, 0, 0]);
+    let mut chk: u32 = 1;
+    for v in values {
+        let b = chk >> 20;
+        chk = ((chk & 0x000F_FFFF) << 10) ^ v;
+        for (i, g) in GEN.iter().enumerate() {
+            if (b >> i) & 1 != 0 {
+                chk ^= g;
+            }
+        }
+    }
+    chk ^= 1;
+    [
+        ((chk >> 20) & 1023) as u16,
+        ((chk >> 10) & 1023) as u16,
+        (chk & 1023) as u16,
+    ]
+}
+
+/// `share` with its iteration exponent set to `exponent` and its
+/// checksum written again: a well-formed share asking for that many
+/// rounds.
+fn with_exponent(share: &Share, exponent: u8) -> Share {
+    let mut words = share.indices().to_vec();
+    // The exponent is the low four bits of the second word.
+    words[1] = (words[1] & !0xF) | u16::from(exponent);
+    let n = words.len();
+    let sum = rs1024_checksum(share.is_extendable(), &words[..n - 3]);
+    words[n - 3..].copy_from_slice(&sum);
+    Share::from_indices(&words).unwrap()
+}
+
+/// A one-of-one set at `exponent`, written by `split`.
+fn single_share(secret: &[u8], exponent: u8) -> Result<Share, slip39::Error> {
+    let c = Compute::unchecked();
+    let mut stream = Stream(11);
+    let mut out = vec![Share::default()];
+    slip39::split(
+        &c,
+        secret,
+        PASSPHRASE,
+        0x0321,
+        true,
+        exponent,
+        1,
+        &[GroupSpec {
+            threshold: 1,
+            count: 1,
+        }],
+        &mut |buf| stream.fill(buf),
+        &mut out,
+    )?;
+    Ok(out.remove(0))
+}
+
+/// A set at the highest exponent read opens.
+#[test]
+fn a_set_at_the_highest_iteration_exponent_read_opens() {
+    let c = Compute::unchecked();
+    let secret = unhex("bb54aac4b89dc868ba37d9cc21b2cece");
+    let e = slip39::MAX_READ_ITERATION_EXPONENT;
+    let share = single_share(&secret, e).unwrap();
+    assert_eq!(share.iteration_exponent(), e);
+    let got = recover(&c, &[share], PASSPHRASE).unwrap();
+    assert_eq!(got.expose().as_bytes(), &secret[..]);
+}
+
+/// A set asking for one exponent more, or for the 327 million rounds
+/// the field allows, is refused before any round runs, naming the
+/// exponent.
+#[test]
+fn a_set_above_the_highest_iteration_exponent_read_is_refused() {
+    let secret = unhex("bb54aac4b89dc868ba37d9cc21b2cece");
+    let base = single_share(&secret, 1).unwrap();
+    for exponent in [slip39::MAX_READ_ITERATION_EXPONENT + 1, 15] {
+        let share = with_exponent(&base, exponent);
+        assert_eq!(share.iteration_exponent(), exponent);
+        let c = Compute::unchecked();
+        assert_eq!(
+            recover(&c, &[share], PASSPHRASE).err(),
+            Some(slip39::Error::IterationExponentTooHigh { exponent })
+        );
+        let text = slip39::Error::IterationExponentTooHigh { exponent }.to_string();
+        assert!(text.contains(&format!("iteration exponent {exponent}")));
+    }
+    // The forged share is otherwise sound: set back to 1 it opens.
+    let c = Compute::unchecked();
+    let again = with_exponent(&with_exponent(&base, 15), 1);
+    let got = recover(&c, &[again], PASSPHRASE).unwrap();
+    assert_eq!(got.expose().as_bytes(), &secret[..]);
+}
+
+/// Neither a split nor a bare decryption runs above the exponent read.
+#[test]
+fn nothing_is_computed_above_the_highest_iteration_exponent_read() {
+    let secret = unhex("bb54aac4b89dc868ba37d9cc21b2cece");
+    let exponent = slip39::MAX_READ_ITERATION_EXPONENT + 1;
+    assert_eq!(
+        single_share(&secret, exponent).err(),
+        Some(slip39::Error::IterationExponentTooHigh { exponent })
+    );
+    let c = Compute::unchecked();
+    assert_eq!(
+        slip39::decrypt(&c, &secret, PASSPHRASE, 1, true, exponent).err(),
+        Some(slip39::Error::IterationExponentTooHigh { exponent })
+    );
+}
+
 #[test]
 fn the_embedded_wordlist_is_the_published_file() {
     let mut rebuilt = String::new();
