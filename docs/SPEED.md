@@ -1,8 +1,8 @@
 # Speed in long flows
 
 **Kind:** Spec
-**Status:** Built but for the glyph cache (§3.8). The web demo's part is in the website's own repository.
-**Open:** the glyph cache at the stick's full-screen sizes on high-density panels: measured, then changed only if a frame clears it (§3.8).
+**Status:** Built; the glyph cache measured (§3.8). The web demo's part is in the website's own repository.
+**Open:** the glyph cache's least-recently-used eviction (§3.8), not scheduled: measured, a frame drawn again never misses, and a dense panel clears once in about ten screen visits.
 
 §2 and §7 are standing rules; §3.3, §8.3 and §9 to §11 say what holds now.
 
@@ -257,9 +257,19 @@ nothing changes and the issue is closed with the numbers.
 Measured 2026-10-16 at 2560×1600 scale 2: no screen (the checklist at
 every stage, the Wallets page, Create's Keys card) cleared the cache, in
 a frame, a scroll or the whole session; the most it held was 171,800 of
-its 262,144 bytes. Still to measure: the stick full screen on a
-high-density panel (a layout scale of about 2.5), where a dense screen's
-glyphs may pass the budget.
+its 262,144 bytes.
+
+Measured (2026-10-23), the heavy-session walk of §7 over 23 screens in
+the release profile: a frame drawn again misses no glyph on any screen
+at any size. The cache cleared once in the whole walk at 3200 × 1800
+(scale 2, Wallets after Home, at 261,294 bytes; refilled to 97 KB in
+that frame), never at 1366 × 768, 2560 × 1600 (scale 2) or 1920 × 1080
+at 400 dpi (scale 2.5). Redraws at scale 2 cost the pixel count, not the
+cache: Home 1.7, 4.7 and 6.4 ms at scale 1, 2560 × 1600 and 3200 × 1800;
+the backup board 4.0, 11.1 and 15.1 ms. Evicting the least-recently-used
+glyphs until a new one fits (`GlyphCache::glyph`,
+`core/faraday-draw/src/fonts/mod.rs`) instead of `clear()` would remove
+that one slow frame; not scheduled.
 
 ### 3.9 The web demo (issue 128, built in the website's own repository)
 
