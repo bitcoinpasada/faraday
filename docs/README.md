@@ -24,6 +24,7 @@ need. Each document's header says what kind it is:
 | What does a screen look like, and what is it made of? | `docs/DESIGN.md`; the Starter's screens, `docs/STARTER.md` §3 |
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/FAMILY.md` |
 | How will codex32 shares be made, checked by hand and repaired? | `docs/CODEX32.md` |
+| How will a lost GPG key be restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
 | How is a vault stored? | `docs/VAULT.md` |
 | What is in the KeePass (KDBX 4) file Faraday writes? | `docs/KDBX.md` |
 | How does data move by QR code, and how is a code scanned? | `docs/QR.md` |
@@ -75,6 +76,7 @@ need. Each document's header says what kind it is:
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Its worksheets, symbols and fresh sets in `faraday-bip` are built; the flows are not (owner, 2026-10-22).
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
+- `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey. Not built; its decision is a draft.
 - `docs/GUIDE.md`: Faraday user guide. Sections 1 to 5 written; 6 and 7 planned.
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
