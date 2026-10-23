@@ -79,3 +79,5 @@ come every few weeks: read the changelog's decoder entries and the
 diff of the decoding path before taking one, and move the
 `supply-chain` exemption with it), or when the payload stops being
 `.xz`.
+
+**Review.** Not reviewed: an exemption in `supply-chain/config.toml` (F71).

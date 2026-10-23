@@ -24,3 +24,5 @@ a vault's seeds, never from an RNG inside the crate.
 
 **Reopen when** OpenPGP v6 keys (RFC 9580) are wanted, which take Ed25519
 the same way but would let SHA-1 go.
+
+**Review.** Trusted by publisher (rozbb) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

@@ -14,3 +14,5 @@ feature: no crates beyond `hmac` and `digest`. The `password-hash`,
 off.
 
 **Reopen when** never on its own; it goes wherever `hmac` goes.
+
+**Review.** Trusted by publisher (github:RustCrypto/password-hashes) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

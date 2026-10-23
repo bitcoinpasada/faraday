@@ -48,3 +48,5 @@ of this crate and never was. It is in the graph because `tiny-skia` calls
 **Reopen when** a `no_std` decoder appears, or when the bare-metal
 target lands and the decoder must move to the shell side of the
 contract.
+
+**Review.** First-party: vendored in `third_party/rqrr` and patched (`third_party/rqrr/PATCHES.md`); cargo vet treats it as part of this workspace, not as the crates.io release.

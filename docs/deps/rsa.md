@@ -35,3 +35,5 @@ certificates, CMS and Authenticode structures around them are
 moves to keys firmware verifies some other way, or when the APK key's
 algorithm changes (a key that cannot change without v3 rotation, so not
 lightly).
+
+**Review.** Trusted by publisher (github:RustCrypto/RSA) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

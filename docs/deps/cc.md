@@ -71,3 +71,5 @@ its public API is entirely safe.
 vendor and review, which would make the `.m` or the `.c` file
 unnecessary. (Windows capture, which §16.33 deferred, has since been
 built the same way: `faraday-mediafoundation`, in C rather than C++.)
+
+**Review.** Not reviewed: an exemption in `supply-chain/config.toml` (F71).

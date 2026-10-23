@@ -24,3 +24,5 @@ optional SIMD paths, which are gated on target features.
 **Reopen when** KDBX is dropped, or if `chacha20poly1305` ever exposes
 its inner cipher, in which case the edge goes away and nothing else
 changes.
+
+**Review.** Covered by audits imported from other organisations (`supply-chain/imports.lock`); not read here.

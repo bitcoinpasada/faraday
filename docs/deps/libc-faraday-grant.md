@@ -24,3 +24,5 @@ and says so in its `Cargo.toml`. Each `unsafe` block is one `libc` call
 with integers or a buffer that outlives it. The helper's decisions are in
 its library, which has no `unsafe` and is tested without privilege
 against a stand-in `/sys` (`faraday-grant/tests/grant.rs`).
+
+**Review.** Trusted by publisher (rust-lang-owner) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

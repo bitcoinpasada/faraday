@@ -14,3 +14,5 @@ plumbing.
 
 **Reopen when** never, realistically; a hand-written `ct_eq` would be a
 copy of the same eight lines without the review history.
+
+**Review.** Covered by audits imported from other organisations (`supply-chain/imports.lock`); not read here.

@@ -18,3 +18,5 @@ graph twice through `winit`'s platform crates, so it costs nothing.
 
 **Reopen when** the desktop shell moves to a platform layer that
 exposes an RNG of its own.
+
+**Review.** Not reviewed: an exemption in `supply-chain/config.toml` (F71).

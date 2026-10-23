@@ -38,3 +38,5 @@ raising them costs nothing but the write), or when a device wants the
 platform's own hardware-backed KDF instead — on Android, deriving inside
 the secure element rather than beside it would remove this crate and the
 memory it needs.
+
+**Review.** Trusted by publisher (github:RustCrypto/password-hashes) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

@@ -2,3 +2,619 @@
 # cargo-vet audits file
 
 [audits]
+
+[[trusted.aead]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/traits"
+start = "2026-06-08"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.argon2]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/password-hashes"
+start = "2026-08-27"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.autocfg]]
+criteria = "safe-to-deploy"
+user-id = 539 # Josh Stone (cuviper)
+start = "2019-05-22"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.base16ct]]
+criteria = "safe-to-deploy"
+user-id = 267 # Tony Arcieri (tarcieri)
+start = "2022-01-13"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.base58ck]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2024-04-02"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.base64ct]]
+criteria = "safe-to-deploy"
+user-id = 267 # Tony Arcieri (tarcieri)
+start = "2021-01-21"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.bech32]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2021-06-18"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.bitcoin]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2019-03-01"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.bitcoin-consensus-encoding]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2023-05-28"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.bitcoin-internals]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2023-07-17"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.bitcoin-io]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2024-02-18"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.bitcoin-units]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2023-05-27"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.bitcoin_hashes]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2019-03-04"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.blake2]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/hashes"
+start = "2026-04-15"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.block-buffer]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/utils"
+start = "2026-02-24"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.chacha20poly1305]]
+criteria = "safe-to-deploy"
+user-id = 267 # Tony Arcieri (tarcieri)
+start = "2019-08-30"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.cipher]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/traits"
+start = "2026-02-04"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.cmov]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/utils"
+start = "2026-04-02"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.const-oid]]
+criteria = "safe-to-deploy"
+user-id = 267 # Tony Arcieri (tarcieri)
+start = "2020-08-04"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.cpubits]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/utils"
+start = "2026-04-28"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.crypto-bigint]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/crypto-bigint"
+start = "2026-02-12"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.crypto-common]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/traits"
+start = "2026-02-04"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.ctutils]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/utils"
+start = "2026-04-02"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.curve25519-dalek]]
+criteria = "safe-to-deploy"
+user-id = 6979 # Michael Rosenberg (rozbb)
+start = "2022-12-13"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.curve25519-dalek-derive]]
+criteria = "safe-to-deploy"
+user-id = 6979 # Michael Rosenberg (rozbb)
+start = "2023-06-24"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.der]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/formats"
+start = "2026-02-11"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.digest]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/traits"
+start = "2026-02-12"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.ed25519]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/signatures"
+start = "2026-05-03"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.ed25519-dalek]]
+criteria = "safe-to-deploy"
+user-id = 6979 # Michael Rosenberg (rozbb)
+start = "2023-02-04"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.hashbrown]]
+criteria = "safe-to-deploy"
+user-id = 55123 # rust-lang-owner
+start = "2025-04-30"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.hex-conservative]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2023-04-30"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.hmac]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/MACs"
+start = "2026-03-20"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.hybrid-array]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/hybrid-array"
+start = "2026-03-08"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.indexmap]]
+criteria = "safe-to-deploy"
+user-id = 539 # Josh Stone (cuviper)
+start = "2020-01-15"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.itoa]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2019-05-02"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.jobserver]]
+criteria = "safe-to-deploy"
+user-id = 55123 # rust-lang-owner
+start = "2024-07-23"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.libc]]
+criteria = "safe-to-deploy"
+user-id = 55123 # rust-lang-owner
+start = "2024-08-15"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.libm]]
+criteria = "safe-to-deploy"
+user-id = 55123 # rust-lang-owner
+start = "2024-10-26"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.linux-raw-sys]]
+criteria = "safe-to-deploy"
+user-id = 6825 # Dan Gohman (sunfishcode)
+start = "2021-06-12"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.memchr]]
+criteria = "safe-to-deploy"
+user-id = 189 # Andrew Gallant (BurntSushi)
+start = "2019-07-07"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.miniscript]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2019-03-02"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.num-traits]]
+criteria = "safe-to-deploy"
+user-id = 539 # Josh Stone (cuviper)
+start = "2019-05-20"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.pbkdf2]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/password-hashes"
+start = "2026-04-21"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.pem-rfc7468]]
+criteria = "safe-to-deploy"
+user-id = 267 # Tony Arcieri (tarcieri)
+start = "2021-02-16"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.pin-utils]]
+criteria = "safe-to-deploy"
+user-id = 55123 # rust-lang-owner
+start = "2026-10-01"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.pkcs1]]
+criteria = "safe-to-deploy"
+user-id = 267 # Tony Arcieri (tarcieri)
+start = "2020-06-12"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.pkcs8]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/formats"
+start = "2026-02-11"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.poly1305]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/universal-hashes"
+start = "2026-05-10"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.proc-macro2]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2019-04-23"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.rsa]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/RSA"
+start = "2026-02-27"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.rustix]]
+criteria = "safe-to-deploy"
+user-id = 6825 # Dan Gohman (sunfishcode)
+start = "2021-10-29"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.rustversion]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2019-07-08"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.same-file]]
+criteria = "safe-to-deploy"
+user-id = 189 # Andrew Gallant (BurntSushi)
+start = "2019-07-16"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.scoped-tls]]
+criteria = "safe-to-deploy"
+user-id = 1 # Alex Crichton (alexcrichton)
+start = "2019-02-26"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.secp256k1]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2019-05-21"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.secp256k1-sys]]
+criteria = "safe-to-deploy"
+user-id = 1588 # Andrew Poelstra (apoelstra)
+start = "2019-12-10"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.serde]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2019-03-01"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.serde_core]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2025-09-13"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.serde_derive]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2019-03-01"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.serde_json]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2019-02-28"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.serdect]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/formats"
+start = "2026-05-04"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.sha1]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/hashes"
+start = "2026-03-27"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.sha2]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/hashes"
+start = "2026-03-25"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.signature]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/traits"
+start = "2026-05-02"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.spki]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/formats"
+start = "2026-04-04"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.syn]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2019-03-01"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.thiserror]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2019-10-09"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.thiserror-impl]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2019-10-09"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.toml_edit]]
+criteria = "safe-to-deploy"
+user-id = 6743 # Ed Page (epage)
+start = "2021-09-13"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.toml_parser]]
+criteria = "safe-to-deploy"
+user-id = 6743 # Ed Page (epage)
+start = "2025-07-08"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.unicode-ident]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2021-10-02"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.universal-hash]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/traits"
+start = "2026-02-27"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.walkdir]]
+criteria = "safe-to-deploy"
+user-id = 189 # Andrew Gallant (BurntSushi)
+start = "2019-06-09"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.winapi-util]]
+criteria = "safe-to-deploy"
+user-id = 189 # Andrew Gallant (BurntSushi)
+start = "2020-01-11"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.windows-sys]]
+criteria = "safe-to-deploy"
+user-id = 64539 # Kenny Kerr (kennykerr)
+start = "2021-11-15"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.windows-targets]]
+criteria = "safe-to-deploy"
+user-id = 64539 # Kenny Kerr (kennykerr)
+start = "2022-09-09"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.windows_aarch64_gnullvm]]
+criteria = "safe-to-deploy"
+user-id = 64539 # Kenny Kerr (kennykerr)
+start = "2022-09-01"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.windows_aarch64_msvc]]
+criteria = "safe-to-deploy"
+user-id = 64539 # Kenny Kerr (kennykerr)
+start = "2021-11-05"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.windows_i686_gnu]]
+criteria = "safe-to-deploy"
+user-id = 64539 # Kenny Kerr (kennykerr)
+start = "2021-10-28"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.windows_i686_gnullvm]]
+criteria = "safe-to-deploy"
+user-id = 64539 # Kenny Kerr (kennykerr)
+start = "2024-04-02"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.windows_i686_msvc]]
+criteria = "safe-to-deploy"
+user-id = 64539 # Kenny Kerr (kennykerr)
+start = "2021-10-27"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.windows_x86_64_gnu]]
+criteria = "safe-to-deploy"
+user-id = 64539 # Kenny Kerr (kennykerr)
+start = "2021-10-28"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.windows_x86_64_gnullvm]]
+criteria = "safe-to-deploy"
+user-id = 64539 # Kenny Kerr (kennykerr)
+start = "2022-09-01"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.windows_x86_64_msvc]]
+criteria = "safe-to-deploy"
+user-id = 64539 # Kenny Kerr (kennykerr)
+start = "2021-10-27"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.winnow]]
+criteria = "safe-to-deploy"
+user-id = 6743 # Ed Page (epage)
+start = "2023-02-22"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.zeroize]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/utils"
+start = "2026-06-12"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.zeroize_derive]]
+criteria = "safe-to-deploy"
+trusted-publisher = "github:RustCrypto/utils"
+start = "2026-06-12"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"
+
+[[trusted.zmij]]
+criteria = "safe-to-deploy"
+user-id = 3618 # David Tolnay (dtolnay)
+start = "2025-12-18"
+end = "2027-10-01"
+notes = "F71: trusted publisher (docs/decisions/F71.md)"

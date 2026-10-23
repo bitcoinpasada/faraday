@@ -15,3 +15,5 @@ nothing under it.
 
 **Reopen when** Faraday writes version-6 keys, whose fingerprints are
 SHA-256; this crate then goes.
+
+**Review.** Trusted by publisher (github:RustCrypto/hashes) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

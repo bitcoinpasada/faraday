@@ -21,7 +21,8 @@ test:
 # both Mac targets without a Mac (tools/check-macos.sh), the docs lint
 # (a Kind and Status header on every document, every cited path real,
 # tools/lint-docs.sh), and the layout lint (the code map, file sizes and
-# long functions, counts that only fall, tools/lint-layout.sh).
+# long functions, counts that only fall, tools/lint-layout.sh), and cargo
+# vet: every dependency trusted, audited or exempted (F71).
 [group('lint')]
 lint:
     python3 tools/clippy.py --locked --workspace --all-targets
@@ -29,6 +30,11 @@ lint:
     # `cargo install --locked cargo-deny` puts it on a machine (README,
     # "Faraday Desktop, for developers").
     cargo deny check
+    # Every dependency trusted, audited or exempted, against the committed
+    # imports, offline (F71, docs/STRUCTURE-PASS.md §6). `cargo install
+    # --locked cargo-vet` puts it on a machine; `just vet-refresh` updates
+    # the imports when chosen.
+    cargo vet --locked
     cargo fmt --all --check
     tools/lint-secrets.sh
     tools/lint-strings.sh
@@ -40,6 +46,14 @@ lint:
     tools/lint-keys-tests.sh
     tools/check-macos.sh
     python3 tools/learn/sync.py check
+
+# Fetch the audit sets supply-chain/config.toml imports, write them to
+# imports.lock, and drop exemptions they now cover (F71). Online; run it
+# when chosen, and when a trust entry is renewed before its end date.
+[group('lint')]
+vet-refresh:
+    cargo vet
+    cargo vet prune
 
 # BIP 445's reference implementation as the second share of the
 # threshold fixture spend. Not part of the

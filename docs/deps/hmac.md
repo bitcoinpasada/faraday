@@ -14,3 +14,5 @@ where hand-written versions go wrong; the crate has had those reviewed.
 `digest` and its subcrates, already required by `sha2`.
 
 **Reopen when** `sha2` is reopened; the two move together.
+
+**Review.** Trusted by publisher (github:RustCrypto/MACs) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

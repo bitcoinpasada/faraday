@@ -73,3 +73,5 @@ crate keeps `unsafe_code = "deny"` and allows it on that function alone.
 It has been type-checked for `aarch64-apple-darwin` and
 `x86_64-apple-darwin` (`tools/check-macos.sh`), not yet run: batch A3c
 runs it on a Mac.
+
+**Review.** Trusted by publisher (rust-lang-owner) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

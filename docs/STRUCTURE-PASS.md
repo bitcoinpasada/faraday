@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: phases 0 to 5 (the hard fork F72, the docs layout, phase 3's dead code, phase 4's layout, the key boundary F70) and F74's lints are built.
-**Open:** phase 6 (`cargo vet --locked` in `just lint`, §6; faraday-intake's vector tests, §4; the strings' layout and names, §7; faraday-entropy split by source) and phase 7 (per-area structs, explicit glue, the `impl Faraday` ratchet, §7.2 and §7.3).
+**Open:** phase 6 (faraday-intake's vector tests, §4; the strings' layout and names, §7; faraday-entropy split by source) and phase 7 (per-area structs, explicit glue, the `impl Faraday` ratchet, §7.2 and §7.3).
 **Decisions:** F70 (the key boundary), F71 (dependency policy), F72
 (the hard fork) and F74 (the structure enforced).
 
@@ -76,6 +76,31 @@ Built; the boundary is `docs/KEYS.md` (F70).
 The plan as written: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
 ## 6. Dependency policy (F71)
+
+**Built (phase 6, 2026-10-23).** `cargo vet --locked` is in `just lint`
+and passes: 88 trust entries, the imported audits, and 141 exemptions
+(223 before). Trust is by the publisher of each locked version, all
+under F71's named groups: rust-bitcoin (apoelstra: `bitcoin`,
+`bitcoin-io`, `bitcoin-internals`, `bech32`, `miniscript`), RustCrypto
+(tarcieri and RustCrypto's GitHub publishing, `github:RustCrypto/*`:
+the hashes, MACs, AEADs, password hashes, `rsa`, `der`/`spki`/`pkcs*`,
+`crypto-bigint`, `signature`, `ed25519`, `zeroize`), dalek (rozbb:
+`curve25519-dalek`, `ed25519-dalek`), and the publishers Mozilla, ISRG
+and the Bytecode Alliance already trust (dtolnay, sunfishcode,
+kennykerr, BurntSushi, epage, alexcrichton, rust-lang-owner, cuviper).
+Every trust entry ends on 2027-10-01; the board carries the renewal a
+month before. Exempt and not reviewed where the publisher is in none of
+those groups: `crypto-primes` (fjarri), `fiat-crypto` (JasonGross),
+`hex_lit` (another rust-bitcoin maintainer, not named in F71), and the
+desktop window stack's long tail. `just vet-refresh` (online) updates the
+imports and prunes. Every direct dependency has a `docs/deps/` page with
+a **Review.** line saying which of the three covers it. `third_party/rqrr`
+needed no policy line: cargo vet takes the vendored copy as first-party
+already. No real audit was written (F71's sha1 and PGP case): `sha1` and
+every crate `faraday-pgp` uses are now trusted by publisher; an audit by
+reading remains possible, and would be labelled by who read it.
+
+The measurements that led to F71 (2026-10-21, 3bd25c2d):
 
 Measured 2026-10-21 at 3bd25c2d with cargo-vet 0.10.2, now installed on
 the build machine.

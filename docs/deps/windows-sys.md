@@ -32,3 +32,5 @@ Not used from it: COM interfaces (it declares none). The Start menu
 shortcut is written as a Shell Link file's bytes by
 `windows/shortcut.rs` instead of through `IShellLinkW`, so no vtable is
 declared by hand.
+
+**Review.** Trusted by publisher (kennykerr) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

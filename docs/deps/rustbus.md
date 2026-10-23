@@ -69,3 +69,5 @@ parts listed above were read, the rest was not.
 **Reopen when** a `rustbus` release appears (read its changelog and
 the diff of the parts above), when `zbus` offers a blocking use with
 no executor, or if the Starter stops needing D-Bus on Linux.
+
+**Review.** Not reviewed: an exemption in `supply-chain/config.toml` (F71).

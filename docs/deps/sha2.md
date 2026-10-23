@@ -21,3 +21,5 @@ extensions on x86 and ARM; no `unsafe` on targets without them).
 the only hash crate in the graph, which would make a second SHA family
 worth removing. The 1.x copy that the `ur` crate brought left with it
 (§16.61).
+
+**Review.** Trusted by publisher (github:RustCrypto/hashes) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

@@ -98,6 +98,10 @@ changes and nothing else has to be kept in step.
     lines are counted and only fall (`lint-layout`,
     `tools/lint-layout.counts`); a new long function is split, not
     given an `expect`.
+  - A dependency passes `cargo vet --locked` (F71): trusted by a
+    publisher F71 names, covered by an imported audit, or an exemption
+    that its `docs/deps/` page calls "not reviewed"; every direct
+    dependency has that page. Builds and checks pass `--locked`.
   - Key material lives in `faraday-keys` and leaves only through its
     eleven named reveals (F70, `docs/KEYS.md`); `lint-secrets` rule 4
     holds it, and `lint-keys-tests` keeps the test helpers that reach a

@@ -20,3 +20,5 @@ allocate.
 
 **Reopen when** the standard library grows an equivalent, or if a target
 needs `mlock`-style page pinning, which is out of this crate's scope.
+
+**Review.** Trusted by publisher (github:RustCrypto/utils) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

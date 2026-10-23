@@ -24,3 +24,5 @@ features and absent from the Pi and generic builds.
 choice between this and an in-house implementation (~300 lines, but
 constant-time review is the cost), or if a platform's hardware AEAD is
 worth the shell-side plumbing.
+
+**Review.** Trusted by publisher (tarcieri) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

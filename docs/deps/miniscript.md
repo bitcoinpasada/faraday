@@ -74,3 +74,5 @@ existing wallets read as for no gain.
 `miniscript` 13; or if the `compiler` feature's cost in binary size
 stops being worth Tools › Miniscript, in which case the compiler moves
 out and the parser stays.
+
+**Review.** Trusted by publisher (apoelstra) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

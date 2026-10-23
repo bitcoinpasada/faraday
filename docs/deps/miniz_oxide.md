@@ -25,3 +25,5 @@ no crate enters the graph.
 
 **Reopen when** `png` leaves the graph or moves to another major version
 of `miniz_oxide`; then weigh the inflater on its own.
+
+**Review.** Not reviewed: an exemption in `supply-chain/config.toml` (F71).

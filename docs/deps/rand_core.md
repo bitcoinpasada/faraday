@@ -13,3 +13,5 @@ already in the graph for the vault, so the generator is a dozen lines.
 **Cost.** One crate, already brought by `rsa`.
 
 **Reopen when** `rsa` moves to another generator trait.
+
+**Review.** Covered by audits imported from other organisations (`supply-chain/imports.lock`); not read here.
