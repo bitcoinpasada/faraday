@@ -105,3 +105,4 @@ Read this table, then only the decision you need.
 | [F88](decisions/F88.md) | Seed conversions are one tool, and only to forms that restore the same wallet | 2026-10-23 | Active | keys |
 | [F89](decisions/F89.md) | Silent payment signing counts a stated key only where the input's script commits to it | 2026-10-23 | Active | crypto |
 | [F90](decisions/F90.md) | Where Faraday refuses input its standard allows | 2026-10-23 | Active | crypto |
+| [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Active | design |

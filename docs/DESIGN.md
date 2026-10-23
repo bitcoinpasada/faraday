@@ -68,7 +68,7 @@ Faraday lays every screen out one of two ways (`Faraday::is_compact`).
 
 | Layout | When | What changes |
 |---|---|---|
-| Small panel | A display under 600 dp wide (the Pi's 2.8" panel is 268 dp); a window the wide layout would draw too small (below); inside the Starter, a window under 1280 dp wide. | No sidebar: Home is a menu with a button for each of the sidebar's entries, and every other page has the bar across its top (§4.1). A step flow is a page per step. A sheet is the panel's width less a margin. The keyboard rises by itself under a field that takes typing. |
+| Small panel | A display under 600 dp wide (the Pi's 2.8" panel is 268 dp); a window the wide layout would draw too small (below); inside the Starter, its compact class (`docs/STARTER.md` §3.1d: under 600 dp, or narrower for a larger text size); its medium and expanded classes are the wide layout with the navigation rail in place of the sidebar (F91). | No sidebar: Home is a menu with a button for each of the sidebar's entries, and every other page has the bar across its top (§4.1). A step flow is a page per step. A sheet is the panel's width less a margin. The keyboard rises by itself under a field that takes typing. |
 | Wide | Every other window. | The sidebar, 240 units, beside the page; the two together at most 1600 units wide, centred on a wider display. A sheet is centred over the page. The keyboard comes up only from its button. |
 
 The desktop window fits the wide layout's 1280 × 800 dp to the window,
@@ -134,6 +134,9 @@ tokens), or in `faraday-core`, named by its module where it is not in
 | Home | On the wide layout: the lead tile while something is under way or waiting, then half-width tiles two to a row (`docs/FLOWS.md`, Home). On the small panel: the menu, a button for each of the sidebar's entries. **Scan** floats at the bottom-right on both (`Ui::fab`). | A tile or a button opens its screen; Scan opens the scanner. |
 | ⋮ menu | Three dots at the right end of a file row or a board chip, opening a popup under them on the wide layout and a sheet on the small panel (`faraday/faraday-core/src/menu.rs`; the board's, §4.17). | Arrows move, Enter chooses, Escape closes; a press outside closes it. |
 | Pager | **Previous · Next** at the foot of Backups on the small panel, one wallet a page. | For runs of same-kind pages only. |
+| Navigation rail (Starter, medium and expanded) | 80 units at the window's left in `SIDEBAR`: the destinations Home, Make, Tools and Learn from the top, each its icon over its caption label, the current one on an accent pill behind the icon (`docs/STARTER.md` §3.1d, F91). Not drawn on a page inside a task. | A press opens the destination as it was last seen; a press on the current one goes to its top. |
+| Navigation bar (Starter, compact) | 80 units across the window's foot: the same four destinations, evenly spaced, drawn as the rail draws them. Not drawn on a page inside a task. | As the rail. |
+| Top app bar (Starter) | 64 units across the page: the wordmark on Home, a destination's name on the others, a back arrow and the page's name on a page inside a task; at the right end Install or Update while it applies (secondary) and the ⋮ menu (About, Uninstall while installed, Remove the boot entry while offered). It stays while the page scrolls under it. | The back arrow lands on the destination it was opened from, as it was seen (F77). |
 
 ### 4.2 Choice
 

@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: the Starter on Linux and Windows, the Pi 3 card
-**Open:** Faraday Desktop back in the Starter (§5.3, F83, batch DS, planned after the codex32 work); keeping Secure Boot on (§7.7, D9, batch S); panel profiles and the Pi 4 and Pi 5 (§9.3, §9.4); macOS (`docs/MAC.md`)
+**Open:** Home and navigation to Material 3 (§3.1, §3.1d, F91, planned); Faraday Desktop back in the Starter (§5.3, F83, batch DS, planned after the codex32 work); keeping Secure Boot on (§7.7, D9, batch S); panel profiles and the Pi 4 and Pi 5 (§9.3, §9.4); macOS (`docs/MAC.md`)
 
 Decided by the owner (`docs/DECISIONS.md` F11, F12; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -298,16 +298,25 @@ top as DESIGN §5's pages are. Titles and
 labels are the defaults; the build may tighten wording, not change
 what a screen does.
 
-### 3.1 Home: a checklist, then the rows
+### 3.1 Home: this computer, its checklist, then the cards
 
-Title: the wordmark with **Starter** beside it (F16), the second word in
-the same Archivo Expanded at a lighter weight (400) and in the grey of
-secondary text,, on every page that
+The Starter's layout and navigation follow Material 3's rules (F91,
+planned, §3.1d): its window size classes, a navigation rail or bar, a
+top app bar, cards in a responsive grid and one primary action a
+screen. Only the rules are Material's; the look is Faraday's own
+(`faraday-ui`, DESIGN's tokens and components), never another app's
+colours or shapes. §3.1d says how the window is laid out; this section
+says what Home holds.
+
+Home's top app bar carries the wordmark with **Starter** beside it
+(F16), the second word in the same Archivo Expanded at a lighter
+weight (400) and in the grey of secondary text, on every page that
 shows the wordmark, so a person can tell the Starter from the desktop
-app and the stick at a glance. A card for this computer, then the checklist of
-the path from download to a running stick, then the other rows (owner,
-D12: Home leads with the next step for this computer's state, not with
-a menu).
+app and the stick at a glance. Under it, the This computer card, which
+holds the checklist of the path from download to a running stick and
+the screen's one primary button, then the other cards (owner, D12:
+Home leads with the next step for this computer's state, not with a
+menu).
 
 **This computer** (a card): maker and model (§7.1); whether Secure
 Boot is on (F33: no line on BitLocker, §6.2). On a
@@ -387,14 +396,29 @@ Secure Boot back on listed; a first-time visitor sees Make a Faraday
 stick. Nothing in
 the checklist writes to the computer except what its items do.
 
-**The rows**, under the checklist:
+**The checklist** is drawn inside the This computer card, under its
+facts and above its button, so the card reads as one thing: this
+computer, what is done, what is next.
 
-- **Make a Pi card** → §3.3
-- **Transfer** → the desktop app's Transfer (§2)
-- **Install** or **Installed** → §3.5
-- **Blank templates** → §3.8
-- **About** → §3.7
-- **Learn** → the Starter's Learn pages (§7)
+**The other cards**, under the This computer card in the grid
+(§3.1d), each a DESIGN §4.11 card with its heading and a row for each
+thing it opens. They hold only what is about this computer and this
+copy of the Starter; the destinations (§3.1d) hold the rest:
+
+- **Faraday Desktop** (F83, §5.3): one line, the version the payload
+  carries, and **Open Faraday Desktop**, a secondary button.
+- **Update the installed Faraday**, a card shown only while the running
+  copy is newer than the installed one (§3.5), with **Update**, a
+  secondary button. Install itself is the top app bar's action
+  (§3.1d).
+- **The Faraday stick boot entry**, a card shown only while the entry
+  is offered (§3.1c): its line (`starter_remove_entry_sub`, the
+  removal under way, or why it failed) and **Remove the boot entry**,
+  a secondary button.
+
+Nothing else is on Home: Make a Pi card, Transfer, Blank templates and
+Learn are destinations (§3.1d), About and Uninstall are in the top app
+bar's ⋮ menu.
 
 ### 3.1a Screens that can keep what they show (owner, 2026-10-12)
 
@@ -512,6 +536,116 @@ Faraday boot entry** beside the checklist. Setting the next start
 asks for the password every time, kept entry or not; keeping it only
 spares creating it again, and removing it leaves no trace of Faraday
 in the firmware. Uninstall removes it too.
+
+### 3.1d Navigation and size classes (Material 3, F91)
+
+**Size classes** (Material 3's window size classes, read from the
+window's width in dp divided by the text size factor, F85, so a larger
+text steps the layout down as a narrower window would):
+
+| Class | Width | Navigation | Margins and gutters | Home's grid |
+|---|---|---|---|---|
+| Compact | under 600 dp | the navigation bar at the foot | 16 dp | one column |
+| Medium | 600 to 839 dp | the navigation rail at the left | 24 dp | one column |
+| Expanded | 840 dp and over | the navigation rail at the left | 24 dp | two columns; three from 1200 dp |
+
+Every class change re-lays the page out at that width; nothing is
+scaled to fit. A page's content is at most 1040 dp wide, centred in the
+space beside the rail. DESIGN §3 maps the classes: the Starter's
+compact is DESIGN's small panel, its medium and expanded are DESIGN's
+wide layout with the rail in place of the sidebar.
+
+**Destinations**, four, each a page one level deep with no menu
+under it:
+
+| Destination | Icon | Page |
+|---|---|---|
+| **Home** | the shield (`Ui::mark`) | §3.1 |
+| **Make** | `Glyph::Stick` | two cards: **Faraday stick** (the attached stick's version, or "No Faraday stick attached"; **Make a Faraday stick**, §3.2) and **Pi card** (the Pi image's version, or "Not in this Starter"; **Make a Pi card**, §3.3, disabled without the image) |
+| **Tools** | `Icon::Qr` | two cards: **Transfer** (Send and Receive, §3.6) and **Blank templates** (§3.8) |
+| **Learn** | `Icon::Learn` | the Starter's Learn pages (§3.6, §7) |
+
+On each destination its first card's button is the primary; on Make,
+**Make a Faraday stick** is primary until a stick is attached, then
+neither is.
+
+**The navigation rail** (medium and expanded): 80 dp wide at the
+window's left, in `SIDEBAR`, the four destinations from the top under
+a 24 dp gap, each its icon over its label (caption), the current one
+on an accent pill behind the icon and its label in `TEXT`, the others
+in `MUTED`. **The navigation bar** (compact): 80 dp tall across the
+window's foot, the same four, evenly spaced, drawn the same way. A
+press opens the destination as it was last seen (F77's rule, per
+destination); a press on the current one goes to its top.
+
+**The top app bar**, 64 dp, across the page beside the rail (or the
+whole width on compact): on Home the wordmark, on another destination
+its name as the title. At the right end: the install action while it
+applies, **Install** while nothing is installed and **Update** while the
+running copy is newer (§3.5), a secondary button, and the ⋮ menu
+(DESIGN §4.1) with what is not a destination:
+
+- **About** → §3.7;
+- **Uninstall** → §3.5's Installed record, with its Uninstall, shown
+  while a copy is installed;
+- **Remove the boot entry**, shown while offered (§3.1c); the same as
+  its card on Home.
+
+The page scrolls under the top app bar, which stays.
+
+**Pages inside a task** (§3.2's steps, §3.4, §3.5, §3.7, §3.8's pages,
+and Transfer and Learn's own screens) are not destinations: they keep
+the top app bar with a back arrow and the page's name in place of the
+wordmark, and the rail or the bar is not drawn, so a write in progress
+cannot be left by a press beside it. Back lands on the destination and
+the scroll it was opened from (F77). Transfer and Learn are the
+desktop app's screens (§2), drawn in the space under the top app bar.
+
+**One primary action a screen** (Material's filled button is Faraday's
+`Style::Primary`, tonal is `Secondary`, outlined is `Ghost`): Home's is
+the This computer card's button (§3.1's table), a destination's is
+named above, a task page's is its step's own. Every other button on the
+screen is secondary or ghost.
+
+**Tokens** (`core/faraday-draw/src/tokens.rs`): the class widths
+(`WINDOW_MEDIUM` 600, `WINDOW_EXPANDED` 840, `WINDOW_GRID_THREE`
+1200), `CONTENT_MAX` 1040, `RAIL_W` 80, `NAV_BAR_H` 80, `APP_BAR_H` 64,
+`MARGIN_COMPACT` 16, `MARGIN_WIDE` 24, the destination pill
+(`NAV_PILL_W` 56, `NAV_PILL_H` 32), and Home's card minimum width
+(`CARD_MIN_W` 320). All are multiples of Material's 4 dp grid. None of
+the Starter's pages writes a number in place for them.
+
+**Building it** (planned; Sonnet from this section, then the owner's
+look on Linux and Windows at a narrow and a wide window):
+
+1. **N1, the frame.** The tokens; the size class in `faraday-starter`
+   (replacing `compact`'s single 600 dp test); the rail, the bar and the
+   top app bar as `faraday-ui` components (DESIGN §4.1); `Page` gains
+   `Make` and `Tools`; the frame draws the rail or the bar on the four
+   destinations and the back-arrow bar on task pages.
+2. **N2, the pages.** Home's This computer card with the checklist
+   inside it, the other cards in the grid; Make and Tools; the ⋮ menu;
+   Install and Update in the bar. Strings in `faraday-strings`.
+3. **N3, Transfer and Learn** drawn under the top app bar (§2's held
+   `Faraday` given the space below it; batch R's way of holding it is
+   kept).
+4. **Tests** (user-facing): at 400 dp the bar shows the four
+   destinations and at 700 dp and 1300 dp the rail does; each opens its
+   page; a task page shows neither and Back returns to the destination
+   and its scroll; every screen has one primary button; the ⋮ menu
+   lists Uninstall only while installed and Remove the boot entry only
+   while offered; Install and Update appear in the bar as §3.5 says;
+   Larger text (F85) at 700 dp takes the compact layout.
+
+**Questions for the owner** (each with what the spec assumes until
+answered):
+
+- Home holds only the cards about this computer (above), not a card per
+  destination as in the first sketch: the rail already shows them.
+  Assumed: no destination cards on Home.
+- Faraday Desktop's own windows keep DESIGN §3's two layouts and the
+  240-unit sidebar (F91 says so); Material 3 there would be a separate
+  decision. Assumed: the desktop app does not follow.
 
 ### 3.2 Make a Faraday stick
 
@@ -708,10 +842,11 @@ shell's `pdf.rs` as for §3.8.
 
 **Install** has no check box: **Install now** is one press, then Done,
 which shows where it went (F30). When the running copy
-is newer than the installed one, the row reads **Update the installed
-Faraday**.
+is newer than the installed one, the top app bar's action reads
+**Update** and Home shows the Update the installed Faraday card
+(§3.1d).
 
-**Installed** opens a Record of what is installed and where, with
+**Installed** (the ⋮ menu's Uninstall, §3.1d) opens a Record of what is installed and where, with
 **Uninstall**, which asks once. §5 says what each does.
 
 ### 3.6 Transfer and Learn
@@ -994,8 +1129,8 @@ checks its SHA-256 against the manifest, and runs it. Every start
 checks the cached copy again and writes it again when the sum is not
 the manifest's. The app is started on its own, so closing the Starter
 does not end it; a start that fails within 0.4 seconds is reported. If
-the Starter: Home and navigation layout (Material 3) lands first, the
-row goes where that layout puts actions of its kind.
+the Material 3 layout (§3.1d) lands first, it is Home's Faraday Desktop
+card (§3.1).
 
 **Install** (§3.5, §5.2) installs both, with no check box: **Install
 now** stays one press. Beside §5.2's rows:
@@ -1743,7 +1878,8 @@ what moved.
   reads what Windows writes there and never lists, reads or counts
   Windows' or macOS's own files, told by name (§4.4).
 - **D12 Home:** a checklist that leads with this computer's next step,
-  then the rows (§3.1).
+  then the rows (§3.1); since F91 the checklist is inside the This
+  computer card and the rows become destinations and cards (§3.1d).
 - **D13 Linux writer:** udisks2 over D-Bus, no root in the Starter;
   the pkexec path only if a tried distribution lacks udisks2 (§2).
 - **D14 Linux download:** a `.tar.gz`, so the executable bit survives
