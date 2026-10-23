@@ -115,10 +115,12 @@ pub fn settle_n(app: &mut Faraday, from: u64, n: u64) {
     }
 }
 
+/// A 1366 × 800 desktop window at 160 dpi: the wide layout, one pixel a
+/// unit.
 fn display(app: &mut Faraday) {
     app.event(Event::Display(DisplayInfo {
         width: 1366,
-        height: 768,
+        height: 800,
         dpi: 160,
         inset_bottom: 0,
         inset_top: 0,
@@ -1204,7 +1206,7 @@ pub fn device(inbox: Files) -> Faraday {
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.event(Event::Display(DisplayInfo {
         width: 1366,
-        height: 768,
+        height: 800,
         dpi: 160,
         inset_bottom: 0,
         inset_top: 0,

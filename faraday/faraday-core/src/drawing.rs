@@ -307,19 +307,33 @@ impl Faraday {
     }
 
     /// The window as `docs/LAYOUT.md` §2 classes it: its size in dp at
-    /// the screen's own density, its class by width, and whether it is
-    /// short or low. Read from the last display the shell gave; before
-    /// any, a 1280 × 800 window at 160 dpi. Until the layout of LAYOUT
-    /// §3 is built, `is_compact` still decides the screens' layout. A
-    /// lookup.
+    /// the screen's own density times the person's Display scale, its
+    /// class by width, and whether it is short or low. Read from the last
+    /// display the shell gave; before any, a 1280 × 800 window at 160
+    /// dpi. Its class decides `is_compact` until the navigation of LAYOUT
+    /// §3 is built. A lookup.
     pub fn window(&self) -> faraday_draw::geom::Window {
         self.last_display.map_or(
             faraday_draw::geom::Window {
                 width: faraday_draw::tokens::WINDOW_DEFAULT_W,
                 height: faraday_draw::tokens::WINDOW_DEFAULT_H,
             },
-            |d| faraday_draw::geom::Window::of(&d, 1.0),
+            |d| {
+                let f = self.pixels_per_unit_of(&d);
+                faraday_draw::geom::Window {
+                    width: f32::from(d.width) / f,
+                    height: f32::from(d.height) / f,
+                }
+            },
         )
+    }
+
+    /// Pixels per design unit on display `d`: its own density (160 dpi
+    /// is one pixel a unit) times the person's Display scale, never
+    /// scaled to fit a page (`docs/LAYOUT.md` §7, F101). A lookup.
+    pub(crate) fn pixels_per_unit_of(&self, d: &faraday_shell_api::DisplayInfo) -> f32 {
+        let density = f32::from(d.dpi.max(1)) / 160.0;
+        (density * f32::from(self.scale_pct()) / 100.0).max(0.5)
     }
 
     /// Writes what a drawing pass noted. Cheap.

@@ -7680,31 +7680,18 @@ impl Faraday {
             self.selftest = Some(faraday_selftest::run(&c));
         }
         self.fade.display_changed();
-        // Fill a small display; on a large one, stop at a quarter more
-        // than its density asks for, so a 4K monitor shows the screens
-        // at a sensible size rather than magnified. The person's own
-        // choice multiplies whatever that gives.
-        let fit = (f32::from(d.width) / 1280.0).min(f32::from(d.height) / 800.0);
-        let density = f32::from(d.dpi.max(1)) / 160.0;
-        // A panel under 600 dp wide (the Pi's 2.8" is 268) gets the
-        // one-column layout at its own density, not the desktop shrunk.
-        // So does a window the wide layout would draw below three quarters
-        // of its density, counted up to `WIDE_FLOOR_DENSITY` so that above
-        // it the window's pixels decide (F78): 960 × 640 at 160 dpi is wide.
-        let floor = density.min(faraday_draw::tokens::WIDE_FLOOR_DENSITY) * 0.75;
-        self.compact = f32::from(d.width) / density < 600.0 || fit < floor;
-        // Held inside the Starter, the screens draw at the desktop's own
-        // density, and take the one-column layout in any window narrower
-        // than the wide layout's 1280 dp, rather than shrinking it.
-        if self.held && f32::from(d.width) / density < 1280.0 {
-            self.compact = true;
-        }
-        let base = if self.compact || self.held {
-            density
-        } else {
-            fit.min(density * 1.25)
-        };
-        let f = (base * f32::from(self.scale_pct()) / 100.0).max(0.5);
+        // Laid out at the screen's own density, never scaled to fit a page
+        // (`docs/LAYOUT.md` §7, F101); the person's Display scale
+        // multiplies it.
+        let f = self.pixels_per_unit_of(&d);
+        // Until the navigation of LAYOUT §3 is built, the window's class
+        // picks between the two layouts: one column under large, the wide
+        // layout from it up (the wide pages overflow an expanded window's
+        // page). Held inside the Starter, the screens take the one-column
+        // layout in any window narrower than the wide layout's 1280 dp.
+        let window = self.window();
+        self.compact = window.class() < faraday_draw::geom::WindowClass::Large
+            || (self.held && window.width < faraday_draw::tokens::WINDOW_HELD_WIDE);
         let scaled = DisplayInfo {
             dpi: (160.0 * f).round().max(1.0) as u16,
             ..d

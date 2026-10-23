@@ -57,14 +57,20 @@ fn a_list_scrolls_by_the_same_pixels_continuously() {
 
 use faraday_shell_api::{BootState, DisplayInfo, SecureHardware, TouchPhase};
 
-/// Files on a 1280 × 800 panel, one pixel per unit, with an Inbox long
+/// Files on a panel at 160 dpi, one pixel per unit, with an Inbox long
 /// enough to scroll, drawn once.
 fn long_files(width: u16, height: u16) -> Faraday {
+    long_files_at(width, height, 160)
+}
+
+/// Files on a panel at `dpi`, with an Inbox long enough to scroll, drawn
+/// once.
+fn long_files_at(width: u16, height: u16, dpi: u16) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width,
         height,
-        dpi: 160,
+        dpi,
         inset_bottom: 0,
         inset_top: 0,
         buttons: 0,
@@ -161,19 +167,19 @@ fn the_wheel_stops_hard_at_the_top() {
 
 #[test]
 fn every_offset_is_a_whole_number_of_pixels() {
-    // 1366 × 768 is 0.96 pixels a unit.
-    let mut app = long_files(1366, 768);
+    // A screen at 192 dpi is 1.2 pixels a unit.
+    let mut app = long_files_at(1920, 1200, 192);
     wheel(&mut app, 48);
     let mut now = 1_000;
     for _ in 0..20 {
         now += 16;
         tick(&mut app, now);
-        let px = app.list_offset * 0.96;
+        let px = app.list_offset * 1.2;
         assert!((px - px.round()).abs() < 1e-3, "{px} pixels");
     }
-    // A notch is 56 units, 53.76 pixels here: it lands on the whole
+    // A notch is 56 units, 67.2 pixels here: it lands on the whole
     // pixel nearest.
-    assert!((app.list_offset * 0.96 - 56.0 * 0.96).abs() <= 0.5);
+    assert!((app.list_offset * 1.2 - 56.0 * 1.2).abs() <= 0.5);
 }
 
 #[test]

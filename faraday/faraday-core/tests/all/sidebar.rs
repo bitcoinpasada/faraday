@@ -10,13 +10,13 @@ use faraday_core::{Action, Faraday, Screen, Sheet};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
 /// `seeds` seeds and `wallets` single-key wallets over the first of them,
-/// on Files.
+/// on Files, in a 1366 × 800 window.
 fn with(seeds: u8, wallets: usize) -> Faraday {
-    with_height(seeds, wallets, 768)
+    with_height(seeds, wallets, 800)
 }
 
 /// `with`, at a chosen panel height, for a test that wants more room
-/// than the panel's own 768 to fit its counts.
+/// than 800 to fit its counts.
 fn with_height(seeds: u8, wallets: usize, height: u16) -> Faraday {
     let c = testkit::compute();
     let mut app = Faraday::new();

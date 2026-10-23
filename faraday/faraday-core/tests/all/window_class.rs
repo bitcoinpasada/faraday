@@ -2,7 +2,7 @@
 //! size at its own density, so the same panel or window is the same
 //! class wherever it is shown.
 
-use faraday_core::{Faraday, testkit};
+use faraday_core::{Action, Faraday, testkit};
 use faraday_draw::geom::WindowClass;
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -53,4 +53,64 @@ fn each_screen_gets_its_window_class() {
 fn a_scale_two_window_is_classed_by_its_dp_not_its_pixels() {
     let w = shown_on(1440, 900, 320).window();
     assert_eq!(w.class(), WindowClass::Medium);
+}
+
+/// That 720 dp window takes the one-column layout, at the screen's two
+/// pixels a unit (`docs/LAYOUT.md` §7, F101).
+#[test]
+fn a_scale_two_window_of_1440_by_900_pixels_lays_out_one_column() {
+    let app = shown_on(1440, 900, 320);
+    assert!(app.is_compact());
+    let (w, h) = app.size();
+    assert!(
+        (w - 720.0).abs() < 0.5 && (h - 450.0).abs() < 0.5,
+        "{w} {h}"
+    );
+}
+
+/// A 1920 × 1080 monitor at 160 dpi is laid out at 1920 × 1080 dp, one
+/// pixel a unit, with the sidebar: more room, not the 1280 × 800 page
+/// made larger. Its text is as tall in pixels as on a 1280 × 800 window.
+#[test]
+fn a_full_monitor_lays_out_wide_at_its_own_size() {
+    let mut app = shown_on(1920, 1080, 160);
+    assert!(!app.is_compact());
+    assert_eq!(app.size(), (1920.0, 1080.0));
+    let tallest = |app: &mut Faraday| {
+        app.drawn_text_boxes()
+            .into_iter()
+            .map(|(_, b)| b.3)
+            .max()
+            .expect("text drawn")
+    };
+    let big = tallest(&mut app);
+    let small = tallest(&mut shown_on(1280, 800, 160));
+    assert_eq!(big, small);
+}
+
+/// The Pi's 2.8-inch panel is one column at its 286 dpi: 268 × 358 dp.
+#[test]
+fn the_pi_panel_lays_out_one_column_at_its_density() {
+    let app = shown_on(480, 640, 286);
+    assert!(app.is_compact());
+    let (w, h) = app.size();
+    assert!(
+        (w - 268.5).abs() < 0.5 && (h - 358.0).abs() < 0.5,
+        "{w} {h}"
+    );
+}
+
+/// The person's Display scale still enlarges: at 150 % a 1920 × 1080
+/// window draws one and a half pixels a unit, and its 1280 dp take the
+/// wide layout; at 200 % its 960 dp take one column.
+#[test]
+fn the_display_scale_setting_enlarges() {
+    let mut app = shown_on(1920, 1080, 160);
+    app.press(Action::Scale(150));
+    assert!(!app.is_compact());
+    assert!((app.size().0 - 1280.0).abs() < 0.5);
+    app.press(Action::Scale(200));
+    assert!(app.is_compact());
+    assert_eq!(app.window().class(), WindowClass::Expanded);
+    assert!((app.size().0 - 960.0).abs() < 0.5);
 }

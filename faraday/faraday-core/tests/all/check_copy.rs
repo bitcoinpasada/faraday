@@ -155,7 +155,7 @@ fn backing_up_on(app: &mut Faraday, words: &str, camera: bool, copies: (bool, bo
 }
 
 fn backing_up(words: &str, camera: bool, copies: (bool, bool)) -> Faraday {
-    let mut app = shown_on(1366, 768, 160);
+    let mut app = shown_on(1366, 800, 160);
     backing_up_on(&mut app, words, camera, copies);
     app
 }

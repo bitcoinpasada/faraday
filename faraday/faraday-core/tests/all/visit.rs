@@ -207,7 +207,7 @@ fn written(app: &mut Faraday) -> Vec<String> {
 
 #[test]
 fn the_wheel_over_the_outbox_brings_its_last_file_into_reach_and_leaves_the_stick_list() {
-    let mut app = with_outbox(with_stick_at(30, (960, 640, 160)), 20, false);
+    let mut app = with_outbox(with_stick(30), 20, false);
     assert!(
         !app.offers(Action::VisitOut(19)),
         "the last of 20 Outbox files is on screen without scrolling"
@@ -231,7 +231,7 @@ fn the_wheel_over_the_outbox_brings_its_last_file_into_reach_and_leaves_the_stic
 
 #[test]
 fn the_wheel_over_the_stick_files_moves_them_and_not_the_outbox() {
-    let mut app = with_outbox(with_stick_at(30, (960, 640, 160)), 20, false);
+    let mut app = with_outbox(with_stick(30), 20, false);
     let over = app.where_offered(Action::VisitIn(0)).unwrap();
     wheel(&mut app, over, 3000);
     assert!(app.list_offset > 0.0, "the stick's file list did not move");
@@ -242,7 +242,7 @@ fn the_wheel_over_the_stick_files_moves_them_and_not_the_outbox() {
 
 #[test]
 fn dragging_the_outbox_scrollbar_to_the_bottom_shows_its_last_file() {
-    let mut app = with_outbox(with_stick_at(3, (960, 640, 160)), 20, false);
+    let mut app = with_outbox(with_stick(3), 20, false);
     let (x, _) = app
         .where_offered(Action::VisitBar(Column::Outbox))
         .expect("20 Outbox files have no scrollbar");
@@ -269,7 +269,7 @@ fn dragging_the_outbox_scrollbar_to_the_bottom_shows_its_last_file() {
 
 #[test]
 fn select_all_on_the_outbox_leaves_an_unprotected_secret_alone() {
-    for display in [(960, 640, 160), (480, 640, 286)] {
+    for display in [(1366, 768, 160), (480, 640, 286)] {
         let mut app = with_outbox(with_stick_at(3, display), 20, true);
         // The Pi's page scrolls as one: down to the Outbox.
         for _ in 0..20 {
@@ -305,7 +305,7 @@ fn select_all_on_the_outbox_leaves_an_unprotected_secret_alone() {
 
 #[test]
 fn a_finger_dragged_on_the_outbox_moves_it_and_not_the_stick_list() {
-    let mut app = with_outbox(with_stick_at(30, (960, 640, 160)), 20, false);
+    let mut app = with_outbox(with_stick(30), 20, false);
     let (x, y) = app.where_offered(Action::VisitOut(3)).unwrap();
     app.event(Event::Touch {
         x,

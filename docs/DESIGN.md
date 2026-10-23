@@ -73,16 +73,16 @@ Faraday lays every screen out one of two ways (`Faraday::is_compact`). `docs/LAY
 
 | Layout | When | What changes |
 |---|---|---|
-| Small panel | A display under 600 dp wide (the Pi's 2.8" panel is 268 dp); a window the wide layout would draw too small (below); inside the Starter, its compact class (`docs/STARTER.md` §3.1d: under 600 dp, or narrower for a larger text size); its medium and expanded classes are the wide layout with the navigation rail in place of the sidebar (F91). | No sidebar: Home is a menu with a button for each of the sidebar's entries, and every other page has the bar across its top (§4.1). A step flow is a page per step. A sheet is the panel's width less a margin. The keyboard rises by itself under a field that takes typing. |
+| Small panel | A window under 1200 dp wide, a compact, medium or expanded one (the Pi's 2.8" panel is 268 dp); inside the Starter, its compact class (`docs/STARTER.md` §3.1d: under 600 dp, or narrower for a larger text size); its medium and expanded classes are the wide layout with the navigation rail in place of the sidebar (F91). | No sidebar: Home is a menu with a button for each of the sidebar's entries, and every other page has the bar across its top (§4.1). A step flow is a page per step. A sheet is the panel's width less a margin. The keyboard rises by itself under a field that takes typing. |
 | Wide | Every other window. | The sidebar, 240 units, beside the page; the two together at most 1600 units wide, centred on a wider display. A sheet is centred over the page. The keyboard comes up only from its button. |
 
-The desktop window fits the wide layout's 1280 × 800 dp to the window,
-growing no more than a quarter beyond the screen's density. A window
-that would draw it below three quarters of that density takes the
-one-column layout at the screen's density instead; the density counted
-for that floor stops at `WIDE_FLOOR_DENSITY` (1.5), so on any screen of
-that scale or more a window of the same pixel size lays out the same
-(F78).
+Every window is laid out at its screen's own density, never scaled to
+fit: the desktop app at the compositor's scale, the stick at the
+density its kernel command line gives, the Pi panel at its 286 dpi, each
+times the person's Display scale (F101). The window's size class
+(`Faraday::window()`, `docs/LAYOUT.md` §2) picks the layout: one column
+under large (1200 dp), the wide layout from there, until LAYOUT's
+navigation is built.
 
 Sizes are design units (dp). The tokens are names in
 `core/faraday-draw/src/tokens.rs`: the type ramp (title 20, body 16,

@@ -62,7 +62,7 @@ fn device_full(width: u16, height: u16, dpi: u16, inbox: Files, kept: Files) -> 
 }
 
 fn desktop() -> Faraday {
-    device(1366, 768, 160)
+    device(1440, 900, 160)
 }
 
 fn add_key(app: &mut Faraday, n: usize) {
@@ -447,7 +447,7 @@ fn after_a_lock_the_wallet_loaded_again_still_charts_its_plan() {
     planned(&mut app, w, 2);
     let before = nodes(&chart(&app, w));
     let kept = kept_at_lock(&mut app);
-    let mut app = device_with(1366, 768, 160, kept);
+    let mut app = device_with(1440, 900, 160, kept);
     let w = one_key(&mut app);
     app.press(Action::OpenWallet(w));
     let _ = app.frame();
@@ -507,7 +507,7 @@ fn a_wallet_loaded_from_its_vault_on_another_power_on_charts_the_vaults_plan() {
         .filter(|(n, _)| n.ends_with(".ofv"))
         .collect();
     assert_eq!(vault.len(), 1, "the vault was not put For the stick");
-    let mut app = device_full(1366, 768, 160, vault, Vec::new());
+    let mut app = device_full(1440, 900, 160, vault, Vec::new());
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Open(0)));
     type_text(&mut app, "test phrase");

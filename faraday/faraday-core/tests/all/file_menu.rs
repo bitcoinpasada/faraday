@@ -301,10 +301,12 @@ fn a_vault_deleted_from_the_stick_takes_a_hold() {
     );
     let hold = Action::Vault(faraday_core::vault::VaultAction::HoldWipe);
     assert!(app.offers(hold));
+    let texts = app.drawn_texts();
     assert!(
-        app.drawn_texts()
+        texts
             .iter()
-            .any(|t| t == "Hold to delete 1 file with zeros")
+            .any(|t| t == "Hold to delete 1 file with zeros"),
+        "{texts:?}"
     );
 }
 

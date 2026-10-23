@@ -112,9 +112,10 @@ The one-column decision counts the text factor and the Display scale. Let
 
 - a panel is one-column when its width in dp at its density is under
   600 × `t` × `s` (today 600);
-- a window is one-column when its fit to 1280 × 800, divided by `t` ×
-  `s`, is under the floor (today the fit alone; F78's floor and
-  `WIDE_FLOOR_DENSITY` are unchanged);
+- a window is one-column when its width in dp, divided by `t`, is
+  under the wide layout's class (today its width at its density times
+  `s`, under 1200 dp: F101, which replaced the fit to 1280 × 800 and
+  F78's floor);
 - inside the Starter, the held app is one-column under 1280 × `t` × `s`
   dp (today 1280).
 

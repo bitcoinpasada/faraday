@@ -673,6 +673,11 @@ pub const WINDOW_DEFAULT_W: f32 = 1280.0;
 /// The default window's height (`WINDOW_DEFAULT_W`).
 pub const WINDOW_DEFAULT_H: f32 = 800.0;
 
+/// Held inside the Starter, a window narrower than this takes the
+/// one-column layout: the wide layout's 1280 dp page (`docs/STARTER.md`
+/// §3.1d).
+pub const WINDOW_HELD_WIDE: f32 = 1280.0;
+
 // ----- Codex32 error correction (docs/CODEX32.md §8.4) -----
 
 /// Codex32 correction: a box of the string as the re-entry shows it.
