@@ -79,7 +79,7 @@ need. Each document's header says what kind it is:
 - `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Its worksheets, symbols and fresh sets in `faraday-bip` are built; the flows are not (owner, 2026-10-22).
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey. Not built; its decision is a draft.
-- `docs/GUIDE.md`: Faraday user guide. Sections 1 to 5 written; 6 and 7 planned.
+- `docs/GUIDE.md`: Faraday user guide. Sections 1 to 7 written; some pictures of §6 and §7 to redraw.
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
 - `docs/LAYOUT.md`: Layout at every window size. Specified (F92), not built.

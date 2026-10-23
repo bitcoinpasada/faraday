@@ -1,8 +1,8 @@
 # Faraday user guide
 
 **Kind:** Spec
-**Status:** Sections 1 to 5 written, checked against the app's screens and strings
-**Open:** sections 6 and 7 (Receive and spend, Restore), planned
+**Status:** Sections 1 to 7 written, checked against the app's screens and strings
+**Open:** the pictures of §6.2 to §6.7 and §7.1 to §7.2, to redraw once the Spend tab's and Restore's cards change (fewer presses, Back within a flow); §6.8's pictures; the wording of each Continue those changes remove; a test by a reader new to Faraday
 
 Each step is one thing to do, in the order it is done. A path in bold is
 what the screen shows: **Wallets → Add a key** is the Wallets row in the
@@ -954,8 +954,343 @@ as the test keys' twenty-four words.
 
 ## 6. Receive and spend
 
-Planned.
+What you will do: check a receive address of section 5's 2-of-3 before
+money is sent to it; then spend from it: the watch-only wallet writes the
+transaction (a PSBT), Faraday reads it, two keys sign, and the signed
+transaction goes back to the watch-only wallet, by QR code or on a stick.
+
+What you need:
+
+- Faraday as section 5 left it: **New wallet 1** loaded, with keys
+  `3dca6805` and `5d388376` (**Can spend**).
+- Sparrow on an online computer, with the wallet loaded (step 5.4), and
+  a camera on the PC that runs Faraday. For the stick, a USB stick other
+  than the Faraday stick.
+
+The guide's transactions spend a coin that does not exist: each pays
+0.015 BTC to `bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu` (BIP 84's
+first test address) from an input of 0.1 BTC. Faraday reads and signs
+them; the network would refuse them.
+
+### 6.1 Receive: check the address
+
+Faraday never sends; it shows which addresses are the wallet's. In
+Sparrow, open the Receive tab: it shows the next unused address and its
+QR code. On Faraday, press **Scan** (at the foot of Home, or **Tools →
+Check an address**) and hold Sparrow's code up to the camera.
+
+![An address of New wallet 1, found](guide/6-1-found.png)
+
+| Line under the picture | Meaning | Do |
+|---|---|---|
+| "That address is New wallet 1's receive address 0" | the address derives from the wallet's keys, as Sparrow's does | give it to the payer |
+| "That address is not among the first 100 of any loaded wallet" | no loaded wallet makes this address in its first 100 receive and change addresses | do not receive to it until the wallet is found |
+| "That address is not on Mainnet" | the address is for another network | the same |
+| "That address fails its checksum: a character in it is wrong" | the code was read but the address is not valid | scan it again |
+
+The camera stays on for the next address; **Cancel** closes it.
+
+Without a camera, compare the address character by character with the
+card's **First receive address · 0/0** (receive address 0), as in step
+5.4. For receive address 0 the wallet here reads `bc1q rfhg t7dv … 0246
+6p`.
+
+A match proves the address belongs to the wallet whose keys are loaded
+here. It does not prove the payer sends to it: a payer copies the address
+from Sparrow, and malware on that computer can change what is copied.
+Compare what the payer received with what Faraday found.
+
+### 6.2 Spend from this wallet
+
+Press **Wallets**, then **New wallet 1**. The card's first button is
+**Spend from this wallet**.
+
+![The card, before a spend](guide/6-2-card.png)
+
+The page **Spend from New wallet 1** opens, one card per step.
+
+![Load the wallet in Sparrow](guide/6-2-sparrow.png)
+
+| On screen | Meaning |
+|---|---|
+| **I have the PSBT from Sparrow ready: Scan it** | for a wallet already in Sparrow: the camera, then step 6.4 |
+| **Show the wallet QR** | the wallet description, as in step 5.4 |
+| **Receive address 0** | the address Sparrow lists first |
+| **It is loaded** | Sparrow has the wallet; the next card opens |
+
+Press **It is loaded**.
+
+### 6.3 Write the payment, and bring it here
+
+![Write the payment in Sparrow](guide/6-3-write.png)
+
+In Sparrow, on the Send tab: the address to pay, the amount and a fee;
+then *Create Transaction*, *Finalize Transaction for Signing* and *Show
+QR*. Bring the PSBT to Faraday one of two ways:
+
+| By QR code | On a stick |
+|---|---|
+| ![Scanning, 2 of 8 parts](guide/6-3-scanning.png) | ![A stick is attached](guide/6-3-stick-attached.png) |
+| Press **Scan the PSBT** and hold Sparrow's animated code up to the camera. The line under the picture counts the parts (**UR: 2 of 8 · missing 3, 4, …**); the camera closes when every part is in. Go to step 6.4. | In Sparrow, *Save Transaction* to the stick. **On a stick** is grey while keys are loaded (**Faraday asks to lock first when a stick goes in**). Plug the stick in: **A stick is attached** lists what the lock keeps and what it wipes. Press **Lock and use stick**. |
+
+**Lock and use stick** wipes the keys and the wallet. What was not in a
+vault is listed in red, **· nowhere else**: here both keys and the
+wallet, which then come back only from their backups (section 7). With
+the wallet and its keys in a vault, **Unlock** brings them back.
+
+After the lock the stick visit opens:
+
+![The stick visit](guide/6-3-visit.png)
+
+**On the stick** lists the PSBT (`payment.psbt`) and the wallet's
+description (`new-wallet-1-descriptor.txt`), both ticked. Press **Import
+2 files**, pull the stick, and load the wallet and its keys again
+(section 7, or **Unlock** for a vault). The card then reads **Sign the
+PSBT from the stick**, and a bar above it, **payment.psbt in Files ·
+Review**:
+
+![The card with a PSBT in Files](guide/6-3-card-stick.png)
+
+Press **Sign the PSBT from the stick**: the review of step 6.4 opens at
+once. This picture and step 6.5's right-hand column show
+the wallet as section 7 restores it, named **new-wallet-1-descriptor**, with
+key `3dca6805` alone; its PSBT pays a fee of 1,850 sat. The other
+pictures of this section show the QR way, with both keys.
+
+### 6.4 Read the transaction
+
+![Read the transaction](guide/6-4-transaction.png)
+
+| Row | Here | Meaning |
+|---|---|---|
+| **Sends** | 0.01500000 to `bc1q cr8t … 6fyu` | what leaves the wallet, and to where |
+| **Change** | 0.08497860 to 1/0, **Verified** | what comes back: change address 1/0 of this wallet, derived again from its keys |
+| **Fee** | 0.00002140, 2,140 sat · 11.3 sat/vB | what the miners get |
+| **Spends** | 0.10000000, 1 input | the coins spent |
+| **Txid** | `1757 6707 … d6ee`, **Unchanged by signing** | the transaction's id, the same in Sparrow |
+| the chips | **No warnings**, **Mainnet** | nothing found to warn of; the network |
+
+Compare the address, the amount and the fee with what was typed into
+Sparrow. **Show the table** lists each input and output whole:
+
+![The table](guide/6-4-table.png)
+
+Press **Continue**. Step 6.8 has what the card shows when something is
+wrong.
+
+**Verified** proves the change goes back to this wallet. Nothing proves
+the address paid is the one meant: Faraday cannot know it, so compare it
+with the payee's.
+
+### 6.5 The keys that sign, and Sign it
+
+The next card, **Add the seeds that can sign**, lists the wallet's keys:
+
+| Both keys here | One key here |
+|---|---|
+| ![Two keys sign here](guide/6-5-signers.png) | ![One key here](guide/6-5-signers-short.png) |
+| `3dca6805` and `5d388376` read **Signs here**, `cf2e083d` **Not here**; **2 of 2 signatures here** and **Can spend**. | `3dca6805` reads **Signs here**, the others **Not here**; **1 of 2 signatures here · 1 more needed**. **Scan a key** loads the second key (step 6.6). |
+
+With both keys here, press **Continue**; with one, step 6.6 first.
+
+![Sign it](guide/6-5-sign.png)
+
+Press **Sign with 3dca6805, 5d388376**. Signing cannot be taken back:
+press it only when step 6.4 read right. The next card, **The other
+signatures**, reads **2 of 2** and closes by itself.
+
+### 6.6 The second key
+
+Both keys sign on this Faraday. With one here, load the second before
+signing: on **Add the seeds that can sign**, press **Scan a key** and
+hold that key's SeedQR up to the camera, as in step 5.6 (**Type the
+words instead** for a key with no SeedQR). Its row then reads **Signs
+here**, and the card **2 of 2 signatures here** and **Can spend**, as in
+step 6.5's left-hand column. Then **Continue** and **Sign it**: one press
+signs with both keys, and **The other signatures** reads **2 of 2**.
+
+### 6.7 Send it
+
+![Send it](guide/6-7-send.png)
+
+| Card | What it is | Press |
+|---|---|---|
+| **Signed PSBT** (For the wallet that wrote it · not finalised) | the PSBT with every signature, for Sparrow | **Show as QR** |
+| **Finished transaction** (Ready to broadcast) | the transaction the network takes, with its txid and size | **Show the finished transaction as QR**, under the cards |
+
+Both wait **For the stick** as well (**Remove** takes one off). Under the
+cards, **Nonce check · 2 signatures valid · 2 recomputed here** says the
+two signatures were checked here.
+
+| Signed PSBT | Finished transaction |
+|---|---|
+| ![The signed PSBT as an animated code](guide/6-7-qr-signed.png) | ![The finished transaction as one code](guide/6-7-qr-tx.png) |
+| In Sparrow, on the same transaction: *Scan QR*, hold it up to the webcam, then *Broadcast Transaction*. **UR** and **BBQr** are the formats; **2/s** to **5/s** the speed; **Small** to **Large** the size. | One code, for a wallet or a block explorer that reads a whole transaction. |
+
+The finished transaction is safe to hand to anyone: changing where it
+pays breaks its signatures. Whatever broadcasts it should report the
+txid Faraday showed (`1757 6707 … d6ee`); if it reports another, what
+was sent is not what was signed here.
+
+Then **Put everything away**:
+
+![Put everything away](guide/6-7-away.png)
+
+It lists the files waiting for the stick (`scanned-1-signed.psbt`,
+`scanned-1-final.txn`). **Lock** wipes the session and keeps them; plug
+a stick in and the stick visit writes them (**Write 2 files**). Then
+**Power off**.
+
+### 6.8 When the transaction is not right
+
+The card of step 6.4 says so in its rows and under them, each warning
+in its own words, in red for danger:
+
+| On the card | Meaning | Do |
+|---|---|---|
+| **Change** with **Unverified** | an output claims to be change but does not derive from this wallet's keys | do not sign: the "change" may pay someone else |
+| "fee … is …% of the amount sent" | the fee is a large share of the amount, or above 0.01 BTC | do not sign; write the payment again in Sparrow with a lower fee |
+| "fee rate is about … sat/vB" | 1,000 sat/vB or more | the same |
+| "No loaded wallet matches this transaction. Change cannot be verified until its wallet is loaded." | the PSBT spends from a wallet not loaded here | load the right wallet, or the right PSBT |
+| **Amount unchecked** on **Spends** | an input's amount is only stated, not proved by its previous transaction | do not sign a transaction of several inputs; Faraday refuses one, with no way past |
+| **No key in this session signs this transaction** | none of the keys here is one of the transaction's | load the wallet's keys |
+
+Declining costs nothing: press **Cancel** at the top right, and nothing
+is signed.
+
+### 6.9 Spend from a backup, step by step
+
+For someone spending for the first time, from what a backup left
+(a stick and its vault, words on paper, a wallet sheet), Home's **Spend
+from a backup, step by step** walks through the same spend with an
+explanation on every page: **How to spend bitcoin** (the map), **Start
+from the stick**, **What do you have?** (unlock the vault, or scan and
+type what is in the envelope; Faraday works out the wallet), **Check the
+money is really there** (in Sparrow, **Yes, my money shows**), **Write the
+payment**, **Bring the transaction here**, **Read the transaction**,
+**Sign it**, **Send it** and **Put everything away**. Each page is done
+as steps 6.2 to 6.7 do it here.
 
 ## 7. Restore
 
-Planned.
+What you will do: rebuild section 5's 2-of-3 from its backups, first
+from its wallet description and its keys, then from a vault; and check
+it before trusting it.
+
+What you need:
+
+- Faraday with no key loaded.
+- The wallet description: here `new-wallet-1-descriptor.txt`, brought
+  into Files from a stick (step 6.3); a printed wallet sheet's QR code
+  or the description's QR picture works the same way with **Scan it**.
+- The paper copy of key `3dca6805`. Keys `5d388376` and `cf2e083d` stay
+  away: two of three keys are enough to sign, and one is enough to
+  restore the wallet with its description.
+
+### 7.1 Restore an existing wallet
+
+Press **Home**, then **Restore an existing wallet**. The page is
+**Restore an existing wallet**, one card per step.
+
+![Kind](guide/7-1-kind.png)
+
+With the description at hand, Kind is not chosen by hand: press **From
+Files** beside **I have the wallet description** (or **Scan it** for its
+QR code). With more than one description in Files, the **Description**
+card lists them; press one.
+
+The description fills **Kind** (**2 of 3 · native SegWit multisig**),
+**Quorum** (**2 of 3**) and **Description** (the file's name), and the
+wallet loads under that name, here **new-wallet-1-descriptor** (**Rename**
+on its card changes it).
+
+![Use vaults](guide/7-1-vaults.png)
+
+**Will you use vaults as part of this backup?** Press **No**, then
+**Continue**, as in step 4.1.
+
+### 7.2 The keys
+
+![Keys, all empty](guide/7-2-keys.png)
+
+One row per key of the description, by fingerprint, each **Empty**. The
+buttons stand over the row they fill:
+
+| Button | Does |
+|---|---|
+| **Type the words** | opens Add a key; the words typed, **Add key** |
+| **Scan a SeedQR** | the camera; a passphrase is asked after the scan |
+| **Not here** | the key stays away; the wallet signs with the others |
+
+Press **Type the words**, type key `3dca6805`'s 12 words from the paper,
+and press **Add key**.
+
+| Result | Screen | Meaning | Do |
+|---|---|---|---|
+| a key of the wallet | ![Key 1 of the wallet](guide/7-2-key-1.png) **Key 1 of the wallet**, in green | the words make the key the description names in that row | the next row |
+| any other seed | ![Refused](guide/7-2-refused.png) **Not a key of this wallet: check the words or the passphrase**, in red | the words, or the passphrase, make a key the description does not name; nothing is loaded | check the copy, type it again |
+
+The second picture is of a seed of no key of this wallet (BIP 39's
+"abandon … about"). A word copied wrongly makes another key and is
+refused the same way.
+
+Press **Not here** for rows 2 and 3.
+
+![Keys 2 and 3 Not here](guide/7-2-not-here.png)
+
+Each row reads **Not here**, with **Change**. Press **Make the wallet**.
+
+### 7.3 Check, then Done
+
+![Check](guide/7-3-check.png)
+
+**Descriptor** reads **2 of 3 · native SegWit multisig · 3dca6805,
+5d388376, cf2e083d · #kudx02aw**; under **The wallet's first addresses**,
+**Receive 0/0** reads `bc1q rfhg t7dv … 0246 6p`, the same as in step
+5.2.
+
+Compare before pressing **It matches**:
+
+| Compare | With | A match proves |
+|---|---|---|
+| the descriptor's checksum (`#kudx02aw`) | the one on the wallet sheet or the card from before | the description is the one backed up, character for character |
+| **Receive 0/0** | the first receive address in Sparrow, or on the printed wallet sheet | the wallet makes the same addresses as before: the money is in it |
+| the fingerprints | the ones on the wallet sheet | each key is the one the backup names |
+
+If Receive 0/0 differs, do not receive to or spend from this wallet:
+the description is another wallet's, or was changed. Press **It
+matches**.
+
+![Done](guide/7-3-done.png)
+
+**Done** offers **Sign the PSBT from the stick** (with a PSBT for this
+wallet in Files; otherwise **Spend from this wallet**), **Back up this
+wallet**, **Another wallet from these seeds** and **Wallets**. A
+restored key is not held for a backup: it signs at once. The card reads
+**1 of 2 signatures possible here**, with **Scan a key** for the second
+(step 5.6).
+
+A match proves the description and the keys typed are the wallet's. It
+does not prove the balance: check that in Sparrow, which sees the
+blockchain.
+
+### 7.4 From a vault
+
+A wallet backed up into a vault (section 4) comes back from the vault's
+stick:
+
+1. Start Faraday from the Faraday stick that holds the vault, or plug
+   the vault's stick in on Home with no key loaded. Faraday reads the
+   stick (**Read from …**), lists **Locked · vault.ofv**, and asks
+   **Pull the stick to continue**.
+2. Pull the stick, type the vault's passphrase and press **Unlock**.
+3. **Load from vault.ofv** lists what the vault holds, each seed and
+   wallet saved with **Load at unlock** (step 4.8) ticked. Press **Load
+   ticked**: the wallet and its keys load, and Wallets opens.
+
+Then check it as in step 7.3: the checksum, Receive 0/0 against Sparrow
+or the wallet sheet, the fingerprints. **Unlock Vault 1** on the backup's
+**Done** (step 4.10) is the same unlock.
+
+A vault holds what was saved into it: a seed not saved there is
+restored from its paper copy as in step 7.2.

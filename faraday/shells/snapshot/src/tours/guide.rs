@@ -1,4 +1,4 @@
-//! The guide tour: the pictures in `docs/GUIDE.md` §2 to §5.
+//! The guide tour: the pictures in `docs/GUIDE.md` §2 to §7.
 
 use crate::tour::{Tour, display, scroll_to, type_text};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
@@ -18,8 +18,11 @@ const ROLLS: &str = "12341123412234123341234412341523412634123141234212341323412
 /// Wallets, and New key made from the dice transcript, with this
 /// device's randomness shown on the way, the words and the quiz; then a
 /// single-key wallet from that key, the Lock sheet while it waits for
-/// its backup, and the wallet backed up (§4); and a 2-of-3 over it and
-/// two test keys (§5).
+/// its backup, and the wallet backed up (§4); a 2-of-3 over it and two
+/// test keys (§5); an address checked, and that wallet's spend by QR,
+/// with two warnings (§6); then a lock for a stick, the wallet restored
+/// from the description on it (§7), and the PSBT on it signed after the
+/// second key is scanned in (§6).
 pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let size = t.size();
     t.app = Faraday::new();
@@ -72,8 +75,28 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     checklist(c, t)?;
     multisig(t)?;
     multisig_board(t)?;
-    scan_key(c, t)
+    scan_key(c, t)?;
+    // §6 and §7: each part is tried, and every one that fails is named.
+    let parts: [(&str, Part); 5] = [
+        ("receive", receive),
+        ("spend by QR", spend_by_qr),
+        ("warnings", spend_warnings),
+        ("stick and restore", stick_restore),
+        ("spend from the stick", spend_from_stick),
+    ];
+    let failed: Vec<String> = parts
+        .into_iter()
+        .filter_map(|(name, part)| part(c, t).err().map(|e| format!("{name}: {e}")))
+        .collect();
+    if failed.is_empty() {
+        Ok(())
+    } else {
+        Err(failed.join("; "))
+    }
 }
+
+/// One part of the guide's §6 and §7.
+type Part = fn(&Compute, &mut Tour) -> Result<(), String>;
 
 /// New key from Randomness on: this device's generator chosen and its
 /// entry card, then the dice transcript, the words and the quiz.
@@ -466,4 +489,320 @@ fn scan_key(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.pump();
     t.shot_after("guide-scan-key-two", 0)?;
     t.shot("guide-multi-card-can-spend")
+}
+
+/// The wallet the guide made last, by its place in the session.
+fn last_wallet(t: &Tour) -> Result<usize, String> {
+    t.app
+        .session
+        .wallets
+        .len()
+        .checked_sub(1)
+        .ok_or_else(|| "no wallet".to_string())
+}
+
+/// The wallet at `w` as a test kit's wallet, its spend paying `fee`.
+fn kit_of(t: &Tour, w: usize, fee: u64) -> faraday_core::testkit::Kit {
+    faraday_core::testkit::Kit {
+        id: "guide",
+        name: "New wallet 1",
+        descriptor: t.app.session.wallets[w]
+            .policy()
+            .to_descriptor_checksummed(),
+        cosigner: Some(1),
+        fee,
+    }
+}
+
+/// `bytes`, a PSBT, held up to the camera now open as animated UR
+/// parts until the camera closes; a shot named `mid` at the second part.
+fn show_psbt(t: &mut Tour, bytes: &[u8], mid: Option<&str>) -> Result<(), String> {
+    super::site_tour::camera(t);
+    let mut enc = faraday_codec::ur::Encoder::psbt(bytes, 120).map_err(|e| format!("{e:?}"))?;
+    let mut parts = 0;
+    while t.app.scan().is_some() && parts < 80 {
+        t.app.event(Event::Scanned {
+            bytes: enc.next_part().into_bytes(),
+        });
+        parts += 1;
+        if parts == 2
+            && let Some(name) = mid
+        {
+            t.app.storage(StorageEvent::QrSeen {
+                width: 640,
+                height: 480,
+                corners: [(220, 120), (430, 130), (420, 340), (210, 330)],
+                module_tenths: 60,
+                read: true,
+            });
+            t.shot(name)?;
+        }
+    }
+    t.pump();
+    if t.app.scan().is_some() {
+        return Err(format!("the camera still waits after {parts} parts"));
+    }
+    Ok(())
+}
+
+/// Costs an address derivation. §6.1: Scan; the wallet's receive
+/// address 0 as Sparrow shows it, found; then an address of no loaded
+/// wallet (BIP 84's first test address).
+fn receive(c: &Compute, t: &mut Tour) -> Result<(), String> {
+    let w = last_wallet(t)?;
+    let net = t.app.session.network();
+    let ours = t.app.session.wallets[w].address_on(c, net, false, 0);
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::Scan);
+    super::site_tour::camera(t);
+    t.shot("guide-receive-scan")?;
+    t.app.event(Event::Scanned {
+        bytes: ours.into_bytes(),
+    });
+    t.pump();
+    t.shot_after("guide-receive-found", 0)?;
+    t.app.event(Event::Scanned {
+        bytes: b"bc1qcr8te4kr609gcawutmrza0j4xv80jy8z306fyu".to_vec(),
+    });
+    t.pump();
+    t.shot_after("guide-receive-not-ours", 0)?;
+    t.press(Action::Cancel);
+    Ok(())
+}
+
+/// Costs what spending costs. §6.2 to §6.7: the card's Spend from this
+/// wallet; Load the wallet in
+/// Sparrow; Write the payment in Sparrow; the PSBT scanned as animated
+/// codes; the review and its table; Who signs with both keys here; Sign
+/// it; Send it, with the signed PSBT and the finished transaction as
+/// codes.
+fn spend_by_qr(_c: &Compute, t: &mut Tour) -> Result<(), String> {
+    use faraday_core::family::{FamilyAction as F, page};
+    use faraday_core::wallet::step;
+    let w = last_wallet(t)?;
+    let (psbt, _) = faraday_core::testkit::spend_of(&kit_of(t, w, 2_140))?;
+    t.press(Action::Nav(Screen::Wallets));
+    t.press(Action::OpenWallet(w));
+    t.shot("guide-spend-card")?;
+    t.press(Action::Family(F::SpendFrom(w)));
+    t.shot("guide-spend-sparrow")?;
+    t.press(Action::Family(F::Next(page::CHECK)));
+    t.shot("guide-spend-write")?;
+    t.press(Action::Scan);
+    show_psbt(t, &psbt.to_bytes(), Some("guide-spend-scanning"))?;
+    t.shot("guide-spend-transaction")?;
+    t.press(Action::ToggleTable);
+    t.shot("guide-spend-table")?;
+    t.press(Action::ToggleTable);
+    t.press(Action::StepNext(step::TRANSACTION));
+    if t.app.spend().and_then(|s| s.open) == Some(step::CHECK) {
+        t.shot("guide-spend-check")?;
+        t.press(Action::StepNext(step::CHECK));
+    }
+    t.shot("guide-spend-signers")?;
+    t.press(Action::StepNext(step::SIGNERS));
+    t.shot("guide-spend-sign")?;
+    t.press(Action::SignHere);
+    t.shot("guide-spend-signed")?;
+    if t.app.spend().and_then(|s| s.open) == Some(step::SIGN) {
+        t.press(Action::StepNext(step::SIGN));
+    }
+    if t.app.spend().and_then(|s| s.open) == Some(step::COLLECT) {
+        t.shot("guide-spend-collect")?;
+        t.press(Action::StepNext(step::COLLECT));
+    }
+    t.shot("guide-spend-send")?;
+    t.press(Action::QrSigned);
+    t.shot("guide-spend-qr-signed")?;
+    t.press(Action::Cancel);
+    t.press(Action::Family(F::QrTx));
+    t.shot("guide-spend-qr-tx")?;
+    t.press(Action::Cancel);
+    t.press(Action::StepNext(step::FINISH));
+    t.shot("guide-spend-away")
+}
+
+/// Costs what reading a PSBT costs. §6.8: a PSBT of the guide's wallet
+/// whose fee is 0.012 BTC, and the
+/// test kit's Savings PSBT, a wallet not loaded here: each scanned from
+/// Home, which files it while a spend is under way, then started from
+/// Files.
+fn spend_warnings(_c: &Compute, t: &mut Tour) -> Result<(), String> {
+    let w = last_wallet(t)?;
+    let fee = faraday_core::testkit::unsigned(&kit_of(t, w, 1_200_000))?.to_bytes();
+    let other = std::fs::read(t.kit.join("savings-unsigned.psbt")).map_err(|e| e.to_string())?;
+    for (bytes, name) in [(fee, "guide-warn-fee"), (other, "guide-warn-other-wallet")] {
+        t.press(Action::Nav(Screen::Home));
+        t.press(Action::Scan);
+        show_psbt(t, &bytes, None)?;
+        let at = t
+            .app
+            .inbox()
+            .iter()
+            .rposition(|i| i.bytes == bytes)
+            .ok_or("the scanned PSBT is not in Files")?;
+        t.press(Action::StartSpend(at));
+        t.shot(name)?;
+    }
+    Ok(())
+}
+
+/// Where the guide's stick keeps its files.
+fn stick_dir() -> std::path::PathBuf {
+    std::env::temp_dir().join("faraday-guide-stick")
+}
+
+/// The stick Sparrow wrote the PSBT to, beside the wallet's public
+/// description from its backup.
+fn guide_stick(files: &[(String, Vec<u8>)]) -> Result<StickInfo, String> {
+    let dir = stick_dir();
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    for (name, bytes) in files {
+        std::fs::write(dir.join(name), bytes).map_err(|e| e.to_string())?;
+    }
+    Ok(StickInfo {
+        id: dir.display().to_string(),
+        label: "TRANSFER".into(),
+        boot: false,
+        serial: Some(0x3000),
+        files: files
+            .iter()
+            .map(|(n, b)| (n.clone(), b.len() as u64))
+            .collect(),
+    })
+}
+
+/// Costs what restoring costs. §6.3 on a stick and §7.1: the stick
+/// plugged in with keys loaded, and
+/// Lock and use stick; the visit; then Restore an existing wallet from
+/// the description that came in, key 1 typed, a seed of no key of the
+/// wallet refused, keys 2 and 3 Not here, Check and Done.
+fn stick_restore(_c: &Compute, t: &mut Tour) -> Result<(), String> {
+    let w = last_wallet(t)?;
+    let kit = kit_of(t, w, 1_850);
+    let psbt = faraday_core::testkit::unsigned(&kit)?;
+    let mut files: Vec<(String, Vec<u8>)> =
+        faraday_core::testkit::public_files(kit.name, &kit.descriptor)?
+            .into_iter()
+            .filter(|(n, _)| n.ends_with("-descriptor.txt"))
+            .collect();
+    files.push(("payment.psbt".into(), psbt.to_bytes()));
+    let stick = guide_stick(&files)?;
+    // The PSBTs scanned so far, deleted from Files: the stick's is the
+    // one the card offers.
+    faraday_core::testkit::inbox_retain(&mut t.app, |i| !i.name.starts_with("scanned-"));
+    t.app.storage(StorageEvent::Sticks(vec![stick.clone()]));
+    t.pump();
+    t.shot("guide-stick-attached")?;
+    t.press(Action::Lock);
+    if let Some((inbox, outbox, kept)) = t.boxes.clone() {
+        t.app.storage(StorageEvent::Restored {
+            inbox,
+            outbox,
+            kept,
+        });
+    }
+    t.app.storage(StorageEvent::Sticks(vec![stick]));
+    t.pump();
+    t.shot("guide-stick-visit")?;
+    t.press(Action::VisitCopy);
+    t.shot("guide-stick-copied")?;
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    restore_wallet(t)
+}
+
+/// §7.1: Restore an existing wallet, from Files.
+fn restore_wallet(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::rstep;
+    use faraday_core::seeds::SeedsAction as S;
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::RestoreWallet);
+    t.shot("guide-restore-kind")?;
+    t.press(Action::RFromFiles);
+    t.shot("guide-restore-described")?;
+    t.press(Action::RVaults(false));
+    t.shot("guide-restore-vaults")?;
+    t.press(Action::RNext(rstep::WHERE));
+    t.shot("guide-restore-keys")?;
+    t.press(Action::RSlotWords);
+    t.shot("guide-restore-type")?;
+    type_text(t, DICE_WORDS);
+    t.press(Action::EntryAdd);
+    t.shot("guide-restore-key-1")?;
+    t.press(Action::RSlotWords);
+    type_text(
+        t,
+        "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
+    );
+    t.press(Action::EntryAdd);
+    t.shot("guide-restore-refused")?;
+    let w = t
+        .app
+        .restore()
+        .and_then(|r| r.wallet)
+        .ok_or("the description made no wallet")?;
+    let empty: Vec<u8> = t
+        .app
+        .session
+        .slots(&t.app.session.wallets[w])
+        .iter()
+        .enumerate()
+        .filter(|(_, s)| s.held_by.is_none())
+        .map(|(k, _)| k as u8)
+        .collect();
+    for k in empty {
+        t.press(Action::RAbsent(k));
+    }
+    t.shot("guide-restore-not-here")?;
+    t.press(Action::Seeds(S::Make));
+    t.shot("guide-restore-check")?;
+    scroll_to(t, Action::RNext(rstep::CHECK));
+    t.shot("guide-restore-check-addresses")?;
+    t.press(Action::RNext(rstep::CHECK));
+    t.shot("guide-restore-done")
+}
+
+/// Costs a mnemonic's checksum. §6.3 to §6.7 from the stick, with one
+/// key here: the card's Sign the PSBT from the stick; the review; Who
+/// signs, short a key; its Scan a key, test key 2's SeedQR; Sign it;
+/// Send it, and writing to a stick.
+fn spend_from_stick(c: &Compute, t: &mut Tour) -> Result<(), String> {
+    use faraday_core::family::FamilyAction as F;
+    use faraday_core::wallet::step;
+    let w = last_wallet(t)?;
+    t.press(Action::Nav(Screen::Wallets));
+    t.press(Action::OpenWallet(w));
+    t.shot("guide-stick-card")?;
+    t.press(Action::Family(F::SpendFrom(w)));
+    t.shot("guide-stick-transaction")?;
+    t.press(Action::StepNext(step::TRANSACTION));
+    if t.app.spend().and_then(|s| s.open) == Some(step::CHECK) {
+        t.shot("guide-stick-check")?;
+        t.press(Action::StepNext(step::CHECK));
+    }
+    t.shot("guide-stick-signers")?;
+    t.press(Action::ScanKey(w));
+    super::site_tour::camera(t);
+    t.shot("guide-stick-scan-key")?;
+    let zebra = faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[1].0);
+    t.app.event(Event::Scanned {
+        bytes: seedqr(c, &zebra)?,
+    });
+    t.pump();
+    t.shot_after("guide-stick-signers-two", 0)?;
+    t.press(Action::StepNext(step::SIGNERS));
+    t.press(Action::SignHere);
+    t.shot("guide-stick-signed")?;
+    for k in [step::SIGN, step::COLLECT] {
+        if t.app.spend().and_then(|s| s.open) == Some(k) {
+            t.press(Action::StepNext(k));
+        }
+    }
+    t.shot("guide-stick-send")?;
+    t.press(Action::Primary);
+    t.shot("guide-stick-write-out")?;
+    // The stick's files, gone with the tour.
+    let _ = std::fs::remove_dir_all(stick_dir());
+    Ok(())
 }
