@@ -38,7 +38,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 56.0;
     }
     let empty = UpgradeState::default();
-    let u = app.upgrade.as_ref().unwrap_or(&empty);
+    let u = app.upgrade.state().unwrap_or(&empty);
     let step = u.step();
     y += source(app, ui, u, step, x, y, w) + 20.0;
     y += target(app, ui, u, step, x, y, w) + 20.0;

@@ -1403,10 +1403,7 @@ pub struct Faraday {
     /// Transfer, in the online app.
     transfer: transfer::TransferArea,
     /// The upgrade, while it is on screen.
-    pub upgrade: Option<upgrade::UpgradeState>,
-    /// The lock sheet is up for the upgrade: the fresh process opens on
-    /// it.
-    pub upgrade_after_lock: bool,
+    upgrade: upgrade::UpgradeArea,
     /// The chosen wallet's new name, while it is typed.
     pub renaming: Option<String>,
     /// Where the caret and the selection are in the field typing goes
@@ -1696,8 +1693,7 @@ impl Faraday {
             camera_change: None,
             scan: None,
             transfer: transfer::TransferArea::default(),
-            upgrade: None,
-            upgrade_after_lock: false,
+            upgrade: upgrade::UpgradeArea::default(),
             scanned: 0,
             renaming: None,
             edit: ui::Edit::default(),
@@ -2369,7 +2365,7 @@ impl Faraday {
             self.stick_held = false;
             self.not_now = false;
             // The lock Upgrade asked for stays up: it waits on no stick.
-            if self.sheet == Some(Sheet::Lock) && !self.upgrade_after_lock {
+            if self.sheet == Some(Sheet::Lock) && !self.upgrade.after_lock() {
                 self.sheet = None;
             }
             // A passphrase waiting on the stick takes typing now.
@@ -2470,7 +2466,7 @@ impl Faraday {
         let boot = self.sticks.iter().find(|s| s.boot).cloned();
         if !self.clean() {
             self.not_now = false;
-            self.upgrade_after_lock = false;
+            self.upgrade.set_after_lock(false);
             self.sheet = Some(Sheet::Lock);
         } else if self.upgrading() {
             // The upgrade reads boot partitions; the data partitions the
@@ -3159,7 +3155,7 @@ impl Faraday {
                 self.next_mode = None;
                 self.sheet = None;
                 // Asked for by Upgrade, with no stick in: nothing waits.
-                self.not_now = !std::mem::take(&mut self.upgrade_after_lock);
+                self.not_now = !self.upgrade.take_after_lock();
             }
             Action::PowerAsk => {
                 // An open vault's changes are never sealed at power-off:

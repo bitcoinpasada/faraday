@@ -31,7 +31,18 @@ use crate::strings::EN;
 use crate::strings::fill;
 use faraday_shell_api::Command;
 
+use crate::out::Out;
 use crate::{Action, BootPart, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
+
+/// The upgrade, with the lock sheet it may wait behind.
+#[derive(Debug, Default)]
+pub struct UpgradeArea {
+    /// The upgrade, while it is on screen.
+    upgrade: Option<UpgradeState>,
+    /// The lock sheet is up for the upgrade: the fresh process opens on
+    /// it.
+    upgrade_after_lock: bool,
+}
 
 /// What the upgrade holds while it is on screen.
 #[derive(Debug, Default)]
@@ -224,60 +235,44 @@ impl UpgradeState {
     }
 }
 
-impl Faraday {
-    /// Whether the upgrade is on screen: the shell publishes the upgrade
-    /// marker beside the clean marker while it is, and polls the boot
-    /// copier for [`StorageEvent::Boots`].
-    pub fn upgrading(&self) -> bool {
-        self.screen == Screen::Upgrade && self.upgrade.is_some()
+impl UpgradeArea {
+    /// The upgrade, while it is on screen.
+    pub fn state(&self) -> Option<&UpgradeState> {
+        self.upgrade.as_ref()
     }
 
-    /// Whether a request that takes a while (reading or writing a boot
-    /// partition) is queued for the shell: it draws what is on screen
-    /// before serving it.
-    pub fn long_storage_queued(&self) -> bool {
-        self.out.storage_out.iter().any(|c| {
-            matches!(
-                c,
-                StorageCommand::BootRead | StorageCommand::BootWrite { .. }
-            )
-        })
+    /// The lock sheet is up for the upgrade.
+    pub fn after_lock(&self) -> bool {
+        self.upgrade_after_lock
     }
 
-    /// Settings → Upgrade: straight in when clean, else the lock sheet
-    /// first, and the fresh process opens here.
-    pub(crate) fn upgrade_open(&mut self) {
-        if self.online {
-            return;
-        }
-        if !self.clean() {
-            self.upgrade_after_lock = true;
-            self.not_now = false;
-            self.sheet = Some(Sheet::Lock);
-            return;
-        }
-        self.upgrade_start();
+    /// The lock sheet is (or is no longer) up for the upgrade.
+    pub(crate) fn set_after_lock(&mut self, on: bool) {
+        self.upgrade_after_lock = on;
+    }
+
+    /// Whether the lock sheet was up for the upgrade; it is not after.
+    pub(crate) fn take_after_lock(&mut self) -> bool {
+        std::mem::take(&mut self.upgrade_after_lock)
     }
 
     /// The flow from its first step.
-    pub(crate) fn upgrade_start(&mut self) {
+    pub(crate) fn start(&mut self) {
         self.upgrade_after_lock = false;
-        self.screen = Screen::Upgrade;
-        self.list_offset = 0.0;
         self.upgrade = Some(UpgradeState::default());
     }
 
     /// The flow left: the copier drops the source, and the shell stops
     /// publishing the marker.
-    pub(crate) fn upgrade_leave(&mut self) {
+    pub(crate) fn leave(&mut self, out: &mut Out) {
         if self.upgrade.take().is_some() {
-            self.out.storage_out.push_back(StorageCommand::BootForget);
+            out.storage_out.push_back(StorageCommand::BootForget);
         }
     }
 
     /// Asks for the source when a boot partition is in that has not been
     /// tried.
-    fn upgrade_read_if_new(&mut self) {
+    fn read_if_new(&mut self, out: &mut Out) {
         let Some(u) = self.upgrade.as_mut() else {
             return;
         };
@@ -289,11 +284,11 @@ impl Faraday {
         }
         u.reading = true;
         u.refused = None;
-        self.out.storage_out.push_back(StorageCommand::BootRead);
+        out.storage_out.push_back(StorageCommand::BootRead);
     }
 
     /// What the shell said about the copier; `None` when it was taken.
-    pub(crate) fn upgrade_event(&mut self, event: StorageEvent) -> Option<StorageEvent> {
+    pub(crate) fn event(&mut self, event: StorageEvent, out: &mut Out) -> Option<StorageEvent> {
         let Some(u) = self.upgrade.as_mut() else {
             return match event {
                 StorageEvent::Boots(_)
@@ -322,7 +317,7 @@ impl Faraday {
                 if u.tried.is_empty() {
                     u.refused = None;
                 }
-                self.upgrade_read_if_new();
+                self.read_if_new(out);
             }
             StorageEvent::BootSource { id, release, size } => {
                 u.reading = false;
@@ -345,13 +340,13 @@ impl Faraday {
             }
             other => return Some(other),
         }
-        self.out.dirty = true;
-        self.out.commands.push_back(Command::Draw);
+        out.dirty = true;
+        out.commands.push_back(Command::Draw);
         None
     }
 
     /// Upgrade: the target on show is written, if it can be.
-    pub(crate) fn upgrade_write(&mut self) {
+    pub(crate) fn write(&mut self, out: &mut Out) {
         let Some(u) = self.upgrade.as_mut() else {
             return;
         };
@@ -367,13 +362,12 @@ impl Faraday {
         let id = target.id.clone();
         u.failed = None;
         u.writing = Some(id.clone());
-        self.out
-            .storage_out
+        out.storage_out
             .push_back(StorageCommand::BootWrite { target: id });
     }
 
     /// The target on show, when more than one is in.
-    pub(crate) fn upgrade_pick(&mut self, i: u8) {
+    pub(crate) fn pick(&mut self, i: u8) {
         if let Some(u) = self.upgrade.as_mut()
             && u.writing.is_none()
             && let Some(id) = u.targets().get(usize::from(i)).map(|p| p.id.clone())
@@ -384,12 +378,77 @@ impl Faraday {
     }
 
     /// Another stick, from the same source.
-    pub(crate) fn upgrade_again(&mut self) {
+    pub(crate) fn again(&mut self) {
         if let Some(u) = self.upgrade.as_mut() {
             u.done = None;
             u.failed = None;
             u.pick = None;
         }
+    }
+}
+
+impl Faraday {
+    /// The upgrade, while it is on screen.
+    pub fn upgrade(&self) -> Option<&UpgradeState> {
+        self.upgrade.state()
+    }
+
+    /// The lock sheet is up for the upgrade: the fresh process opens on
+    /// it.
+    pub fn upgrade_after_lock(&self) -> bool {
+        self.upgrade.after_lock()
+    }
+
+    /// Whether the upgrade is on screen: the shell publishes the upgrade
+    /// marker beside the clean marker while it is, and polls the boot
+    /// copier for [`StorageEvent::Boots`].
+    pub fn upgrading(&self) -> bool {
+        self.screen == Screen::Upgrade && self.upgrade.state().is_some()
+    }
+
+    /// Whether a request that takes a while (reading or writing a boot
+    /// partition) is queued for the shell: it draws what is on screen
+    /// before serving it.
+    pub fn long_storage_queued(&self) -> bool {
+        self.out.storage_out.iter().any(|c| {
+            matches!(
+                c,
+                StorageCommand::BootRead | StorageCommand::BootWrite { .. }
+            )
+        })
+    }
+
+    /// Settings → Upgrade: straight in when clean, else the lock sheet
+    /// first, and the fresh process opens here.
+    pub(crate) fn upgrade_open(&mut self) {
+        if self.online {
+            return;
+        }
+        if !self.clean() {
+            self.upgrade.set_after_lock(true);
+            self.not_now = false;
+            self.sheet = Some(Sheet::Lock);
+            return;
+        }
+        self.upgrade_start();
+    }
+
+    /// The flow from its first step.
+    pub(crate) fn upgrade_start(&mut self) {
+        self.upgrade.start();
+        self.screen = Screen::Upgrade;
+        self.list_offset = 0.0;
+    }
+
+    /// The flow left: the copier drops the source, and the shell stops
+    /// publishing the marker.
+    pub(crate) fn upgrade_leave(&mut self) {
+        self.upgrade.leave(&mut self.out);
+    }
+
+    /// What the shell said about the copier; `None` when it was taken.
+    pub(crate) fn upgrade_event(&mut self, event: StorageEvent) -> Option<StorageEvent> {
+        self.upgrade.event(event, &mut self.out)
     }
 
     /// The data partition beside a boot partition: same disk, as the
@@ -407,9 +466,9 @@ impl Faraday {
     pub(crate) fn upgrade_act(&mut self, action: Action) {
         match action {
             Action::UpgradeOpen => self.upgrade_open(),
-            Action::UpgradePick(i) => self.upgrade_pick(i),
-            Action::UpgradeWrite => self.upgrade_write(),
-            Action::UpgradeAgain => self.upgrade_again(),
+            Action::UpgradePick(i) => self.upgrade.pick(i),
+            Action::UpgradeWrite => self.upgrade.write(&mut self.out),
+            Action::UpgradeAgain => self.upgrade.again(),
             Action::UpgradeDone => self.return_back(crate::Screen::Settings),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),

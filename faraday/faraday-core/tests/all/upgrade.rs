@@ -94,7 +94,7 @@ fn read_source(app: &mut Faraday) {
 }
 
 fn upgrade(app: &Faraday) -> &faraday_core::upgrade::UpgradeState {
-    app.upgrade.as_ref().expect("the upgrade is on screen")
+    app.upgrade().expect("the upgrade is on screen")
 }
 
 #[test]

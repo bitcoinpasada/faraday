@@ -298,7 +298,7 @@ impl Faraday {
         }
         // Locking for the upgrade (`docs/history/PLAN.md` §5.5): the next process, clean,
         // opens on it.
-        if self.upgrade_after_lock || self.upgrade.is_some() {
+        if self.upgrade.after_lock() || self.upgrade.state().is_some() {
             out.push(("upgrade".to_string(), b"1".to_vec()));
         }
         out

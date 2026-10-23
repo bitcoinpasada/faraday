@@ -135,7 +135,7 @@ fn an_older_stick_is_upgraded_from_the_boot_stick_and_keeps_its_data() {
     // app asks for.
     boot_poll(&mut app, &mut boots);
     serve(&mut app, &mut boots);
-    let u = app.upgrade.as_ref().unwrap();
+    let u = app.upgrade().unwrap();
     assert_eq!(u.step(), Step::Target);
     assert_eq!(u.source.as_ref().map(|s| s.0.as_str()), Some("sda1@sda#1"));
     // The boot stick out, the vault stick in.
@@ -145,14 +145,14 @@ fn an_older_stick_is_upgraded_from_the_boot_stick_and_keeps_its_data() {
     let vaults: Vec<u8> = (0..2 * MIB).map(|i| (i % 253) as u8).collect();
     m.stick("sdb", 2, &old, &vaults);
     boot_poll(&mut app, &mut boots);
-    let target = app.upgrade.as_ref().unwrap().target().cloned().unwrap();
+    let target = app.upgrade().unwrap().target().cloned().unwrap();
     assert_eq!(target.id, "sdb1@sdb#2");
     assert_eq!(target.release, None);
     let _ = app.frame();
     assert!(app.offers(Action::UpgradeWrite));
     app.press(Action::UpgradeWrite);
     serve(&mut app, &mut boots);
-    let u = app.upgrade.as_ref().unwrap();
+    let u = app.upgrade().unwrap();
     assert_eq!(u.step(), Step::Done);
     assert_eq!(
         u.parts
@@ -184,7 +184,7 @@ fn a_stick_with_a_smaller_boot_partition_is_not_written() {
     boot_poll(&mut app, &mut boots);
     app.press(Action::UpgradeWrite);
     serve(&mut app, &mut boots);
-    let u = app.upgrade.as_ref().unwrap();
+    let u = app.upgrade().unwrap();
     assert_eq!(u.step(), Step::Target);
     assert_eq!(m.node("sdb1"), small);
 }

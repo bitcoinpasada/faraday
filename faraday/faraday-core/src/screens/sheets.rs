@@ -800,7 +800,7 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .map(|s| s.label.clone())
         .unwrap_or_default();
     // Asked for by Upgrade rather than by a stick arriving.
-    let upgrade = app.upgrade_after_lock;
+    let upgrade = app.upgrade_after_lock();
     let then = if upgrade {
         EN.lock_fresh_start_upgrade.to_string()
     } else {
