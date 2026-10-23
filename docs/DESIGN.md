@@ -1,7 +1,7 @@
 # Design system
 
 **Kind:** Reference
-**Status:** Built; parts of §4.4 (Sign with, Then with) and §5 (reference rows, the Address screen, the Keys reviews, the Signatures review, Words' Show numbers) still describe the app before F68
+**Status:** Built
 
 Every dimension in it is a name in
 `core/faraday-draw/src/tokens.rs`, and `tools/lint-tokens.sh` keeps it that
@@ -78,11 +78,12 @@ content, what is left off.
 
 ## 3. Sizes
 
-| Class | dp frame | Renders | What changes |
-|---|---|---|---|
-| `small` | 268 × 358 | 480×640 @ 286 dpi (the 2.8" panel), 240×320 @ 143 dpi | the design target; everything fits; the text faces in their SemiCondensed cut |
-| `mobile` | 411 × 891 | 1080×2340 @ 420 dpi | type ×1.1; the content group sits above the bottom action; codes capped; keyboards grow |
-| `wide` | 960 × 640 with a 240 sidebar | the desktop window | type ×1.3; the sidebar on every screen; the same placement law inside the width caps; the column, the code, the pad and the viewfinder centred in the pane; the primary action at the pane's bottom-right |
+Faraday lays every screen out one of two ways (`Faraday::is_compact`).
+
+| Layout | When | What changes |
+|---|---|---|
+| Small panel | A display under 600 dp wide (the Pi's 2.8" panel is 268 dp); a window the wide layout would draw too small (below); inside the Starter, a window under 1280 dp wide. | No sidebar: Home is a menu with a button for each of the sidebar's entries, and every other page has the bar across its top (§4.1). A step flow is a page per step. A sheet is the panel's width less a margin. The keyboard rises by itself under a field that takes typing. |
+| Wide | Every other window. | The sidebar, 240 units, beside the page; the two together at most 1600 units wide, centred on a wider display. A sheet is centred over the page. The keyboard comes up only from its button. |
 
 The desktop window fits the wide layout's 1280 × 800 dp to the window,
 growing no more than a quarter beyond the screen's density. A window
@@ -92,179 +93,103 @@ for that floor stops at `WIDE_FLOOR_DENSITY` (1.5), so on any screen of
 that scale or more a window of the same pixel size lays out the same
 (F78).
 
-Tokens (dp): app bar 56, bottom action 52 with 16 below, screen padding
-16, gap 8, row 52 on `small` and 72 elsewhere, touch floor 44 — a
-candidate cell alone drops to 36 on `small`, so that two rows of them
-fit over the keys (§16.118). On
-`mobile` a 24 dp safe-area inset is added under everything at the bottom
-edge (the action row, a pad, the keyboard's bottom faces), because a
-phone draws under its gesture bar; the shell may report the real inset
-later and the token gives way to it. Type:
-title 20, body 16, label 14, caption 12, mono 16; a line box is about
-1.43 × the size. Mono 20 is the words panel on `mobile` and `wide`,
-where a word is copied character by character; mono 15 is that panel
-with the wordlist numbers beside the words, which is four more
-characters a row; mono 14 is a steel row, which is the widest row the
-panel draws; 13 is the size a dense row of chips drops to before it
-wraps. A comparison string steps the mono ramp — every second dp — from
-32 down to 8: 32 is the largest at which four groups of four fit the 480
-dp column, and below 8 a group of four is guessed rather than read. On
-`mobile` the ramp stops at 24, because there the box binds on nothing
-and the eye sets the ceiling instead.
-Width caps on `wide`: a form or list column
-480, a button 320, a code 240. Code side: 198 on `small`, 260 on
-`mobile`, 240 on `wide`. On `wide` the capped column, and every list in
-it, is centred in the pane under the centred title; a scrollbar is drawn
-against the column it scrolls, not against the window edge.
+Sizes are design units (dp). The tokens are names in
+`core/faraday-draw/src/tokens.rs`: the type ramp (title 20, body 16,
+label 14, caption 12), the grid and gaps, the radii, the touch floor,
+the field heights, the board's and the chart's dimensions, the scanner's
+and the QR code's. The size classes there, `small`, `mobile` and `wide`,
+size the keyboards and the QR side; Faraday's screens use `small` on the
+small panel and `wide` otherwise, and `mobile` only scales the PNG a QR
+code is saved as.
 
-Theme: background `#000000`, surface `#1C1C1E`, raised surface
-`#3A3A3C`, accent `#FF9F0A`, text `#FCFCFC`, muted `#98989E`, divider
-`#2C2C2E`, success `#30D158`, caution `#FFD60A`, danger `#FF453A`, info
-`#409CFF`. A pressed surface is drawn from its own resting fill: a
-neutral one mixed 35 % towards the accent, an accent one
-mixed 35 % towards white. A control drawn on the background
-itself — a Text button, the app bar's icon buttons and its eye while a
-reveal runs — has no fill of its own to tint, so it takes the raised
-surface mixed 35 % towards the accent (§16.132). The look outlasts the lift by
-200 ms in two steps — full strength for the first 100 ms, both mixes
-halved for the rest (§16.124).
-Faces: Noto Sans and Noto Sans SemiBold for text — their SemiCondensed
-cuts on `small`, the same letters with the same line height, so a row's
-label fits between its icon and its chevron (§16.130) — Iosevka for data, and
-a closed icon set (`widgets::Icon`, taken from the SeedSigner
-icon font and Font Awesome 6 Free Solid); no screen pulls a symbol out
-of a text face. Each glyph is stored once as an outline and filled at
-the exact pixel size a display asks for; no size is rounded to another
-size's bitmap.
-Anything read character by character is set in the mono face: fingerprints wherever they appear, including a title and a row label — and so a label or a title that names a key, such as a wallet called by its key ("73c5da0a · SegWit") or a signature ("#0 · 73c5da0a"), and an input's row, which states its amount, script and key —
-hex, paths, addresses, xpubs, every comparison string, the seed words
-and the words panel, the candidate strip and the entry field on a
-wordlist, the word list tool's rows and the word page's title and
-pager, and every keycap on every keyboard and pad; prose, labels, buttons and titles that are words stay in the
-text faces, and a kana, jamo, bopomofo or hanzi keycap or candidate is
-in the CJK face (§16.126).
-One meaning per glyph: a glyph is either a fact marker —
-the key and the eye of §4.4 — or the identity of one row, never both.
-Within one menu no two rows share a glyph, and a label that appears in
-two menus carries the same glyph in both. A result's severity marks
-(success, warning, error, info) are not row bullets, and a row that
-states a value carries no glyph.
+Theme: `faraday_ui::pal` names every colour a screen uses — `SURFACE`
+(the page and a sheet, F39), `SIDEBAR`, `LINE`, `INNER`, `BORDER`,
+`TEXT`, `MUTED`, `DIM`, `ACCENT`, `ON_ACCENT`, `OK`, `WARN`, `ERR`, and
+the board's and the sticks' own — and each `Theme` draws them in its own
+values: Dark, Light, Cobalt (the theme a first start is in), Nord,
+Catppuccin, Tokyo Night, Gruvbox, Rosé Pine, Bitcoin Orange, Bitcoin
+Orange Light and Lamplight, chosen in Settings. A QR code's black and
+white and a camera's picture are drawn as they are in every theme.
 
-Size classes swap variants, sizes and placement. They never reorder,
-hide or add content. A class may shorten a value ("9.0 · normal" for
-"9.0 · normal for 50 rolls") and may fold progress into the title where
-a progress row does not fit; it never drops a row and never changes a
-title's form. The one written exception: the Sign review on `small`
-leaves off the key context row to keep the table short, and the Hold
-screen names the signing key before anything is signed.
+Faces: Noto Sans and Noto Sans SemiBold for text, Noto Sans Mono for
+data, Noto Sans CJK for the characters the wordlists and their keyboards
+need and the text faces lack, Terminus for the firmware screens Faraday
+sketches (`faraday_ui::sketch`), and a closed icon set (`Icon`, from the
+SeedSigner icon font and Font Awesome 6 Free Solid) with Faraday's own
+drawings beside it (`Glyph::Stick`, the shield `Ui::mark`, the wordmark
+`Ui::wordmark`). Each glyph is stored once as an outline and filled at
+the exact pixel size a display asks for.
+Anything read character by character is set in the mono face:
+fingerprints, hex, paths, addresses, extended keys, txids, a descriptor
+row's value, and the words as typed and offered on word entry; prose,
+labels, buttons and titles that are words stay in the text faces.
+
+The small panel carries the same flows and the same steps as the wide
+layout. It lays them out a page a step and moves the sidebar's entries
+to Home.
 
 ## 4. Content inventory
 
-Each kind: its one rendering, how it behaves, the component that
-implements it. Names in `code` are components in `faraday-draw`.
+Each kind: how it is drawn, how it behaves, and what draws it. A name in
+`code` is a function or type in `faraday-ui` (`faraday_ui::…`, `Ui::…`,
+the `pal` colours), in `faraday-draw` (`Icon`, `KeyboardKind`, the
+tokens), or in `faraday-core`, named by its module where it is not in
+`screens/`.
 
 ### 4.1 Navigation
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| App bar | 56 dp: back chevron, centred title, one optional trailing action (`app_bar`). | The chevron is the only way back and the only cancel. It lands on the screen seen before this one, as it was seen: the same wallet's card or chart, the lists scrolled as far, the Learn sheet on the same page; it is named after where it lands (F77). The trailing slot holds the eye on a secret screen; otherwise it holds the info button on a screen that has a Learn page, which opens that page; otherwise it is empty. One control there, never two. |
-| Menu row | Full-width row: optional icon, label, chevron (`menu_row`); the label starts one gap (8) after the icon. With a value: the label above and the value below, both left-aligned, chevron right (label above, value below, everywhere a row carries a value). A label that does not fit at its size is drawn at the label size; one that still does not fit breaks at a space onto a second line at the label size, and the row grows where its height does not hold the two lines. A single word wider than the row is cut at the row's edge (§16.133). | Tap opens. |
-| Sidebar (`wide`) | One row per area, the current one in the accent (`sidebar`); Learn is the row after Tools, opening the Learn sheet rather than a screen. Below the rows, the session strip: one line, **Bring in · Open · Work · Write out**, the current stage in the accent, the rest dim. | Dimmed and inert during a wizard, the scanner, the lock screen and the hold screens. The session strip opens Files; it never carries a count down. |
-| Pager | `‹ label ›` in the bottom action slot (`pager`). | For runs of same-kind pages only (word pages, outputs). Never for two different views of one thing: those are a row or a button that opens a screen, and Back returns. |
-| Title | Short; carries progress where progress exists ("Word 7 of 12"). Where a Choice has a progress row and the row does not fit the class, the title carries the progress instead ("Word 10 · 1 of 12"). | No step indicators anywhere. |
+| Sidebar (wide) | 240 units at the left (`sidebar`): the wordmark; the tabs Home, Vaults, Files, Wallets, Tools, Learn, then the stick visit while a stick is attached and nothing is held, Transfer in the desktop app, and Settings, each with its icon, the current one lit; under its tab a row for each flow in progress with its open step at the right; the loaded keys under Keys and the wallets under Wallets, "+ N more" where they do not fit; the session strip, **Bring in · Open · Work · Write out**, the current stage in the accent; Files and the sticks attached; Lock and the power button. | A tab opens its screen; Learn opens the Learn sheet; a flow's row resumes it; a key opens Explore on it; a wallet opens its card; the session strip opens Files (`docs/FLOWS.md`, Sidebar). |
+| Back link (wide) | A chevron and the name of where it lands, small and muted, above the page's title (`flow::Column`'s `back`, and each screen's own head). | It lands on the screen seen before this one, as it was seen, and is named after it (F77). The mouse's back button does the same (`Ui::back`). |
+| Bar (small panel) | `compact::BAR_H` (44) across the top of every page but Home and a step flow (`compact::bar`): the chevron, where it goes back to small above the page's name, and at the right end the tools (`compact::tools`): **Cancel** on a flow in progress, the keyboard button where the page types, the mode pill off mainnet, and the ? where the page has a Learn page. A step flow draws its own top and the same tools (`compact::flow_bar_tools`). | The chevron goes back as the back link does. |
+| Top-right row (wide) | Beside the title: the mode pill off mainnet (§4.8), the ? where the page has a Learn page, and the keyboard button where typing goes somewhere (`compact::wide_keyboard_button`). | The ? opens the Learn sheet at the page's section; the keyboard button brings the docked keyboard up and puts it away. |
+| Title | The page's name, 28 units SemiBold (`faraday_ui::parts::title`); a step flow's heading is 26, with a chip beside it where the flow names what it works on, and **Steps only · Guided** and **Cancel** at the row's right (`flow::column`). | The step count sits beside a step's name as muted text (§4.14), never in the title. |
+| Home | On the wide layout: the lead tile while something is under way or waiting, then half-width tiles two to a row (`docs/FLOWS.md`, Home). On the small panel: the menu, a button for each of the sidebar's entries. **Scan** floats at the bottom-right on both (`Ui::fab`). | A tile or a button opens its screen; Scan opens the scanner. |
+| ⋮ menu | Three dots at the right end of a file row or a board chip, opening a popup under them on the wide layout and a sheet on the small panel (`faraday/faraday-core/src/menu.rs`; the board's, §4.17). | Arrows move, Enter chooses, Escape closes; a press outside closes it. |
+| Pager | **Previous · Next** at the foot of Backups on the small panel, one wallet a page. | For runs of same-kind pages only. |
 
 ### 4.2 Choice
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Choice | A list of full-width rows (`choice_list`), one option per row; the chosen row carries an accent check; Continue at the bottom. The question is the title ("How many words?"). The rows are one group centred in the space above Continue; a list taller than the space scrolls from the top. | Tap checks (the list keeps its scroll position). Continue is dimmed until a row is checked; a default is pre-checked where one exists. Used for: source, word count, language, how a transaction arrives, script type, unit, network, timers. |
-| Multi choice | A list of full-width rows (Faraday's `Ui::multi_list`; no `faraday-draw` component yet), one option per row, a checkbox at its start; any number ticked; Continue under it. The question is the card's or the page's title. A row that may not be ticked is dimmed and inert. Several lists may share a page, each under its own label. | Tap ticks or unticks the row. Nothing has to be ticked. A row may carry a value under its label, muted (`Ui::multi_list_valued`; the Load samples sheet's type of each sample). Used for: the backup plan's Software card (the software and the form), on Back up and in the wallet flow, and the Load samples sheet. |
-| Setting | The same rows with the check on the current value; no Continue. | Tap applies at once and the screen stays. Used inside Settings only. |
-| Pair | Two equal buttons side by side, the chosen one on the accent (`pair`). | Exactly two short options: Receive \| Change, One code \| Animated where a toggle does not fit. |
-| Toggle | A row with a switch (`toggle_row`). | A boolean setting; dimmed with a reason when forced. |
-| Value row | Label above, value below, chevron (`value_row`). | A mode shown as its value; tap opens the Choice screen for it. |
-
-Rows of more than two chips are not used on any class.
+| Option row | One rounded box 48 units tall per option: its name at the left and its line at the right, the line under the name on the small panel; the chosen one tinted and edged in the accent (`kind_rows`). Two everyday options first, the rest behind **More kinds**, a ghost button. | A press chooses it. Used for: Create's and Restore's Kind. |
+| Option buttons | A row of buttons that wraps at the width (`faraday_ui::parts::button_rows`, `wrap_buttons`), the chosen one `Style::Primary` and the others secondary or ghost. | A press chooses it. Used for: Add a key's list and form, Explore's script, the QR sheet's format, speed and size. |
+| Multi choice | A list of full-width rows (`Ui::multi_list`), one option per row, a checkbox at its start; any number ticked; Continue under it. The question is the card's or the page's title. A row that may not be ticked is dimmed and inert. Several lists may share a page, each under its own label. | Tap ticks or unticks the row. Nothing has to be ticked. A row may carry a value under its label, muted (`Ui::multi_list_valued`; the Load samples sheet's type of each sample). Used for: the backup plan's Software card (the software and the form), on Back up and in the wallet flow, and the Load samples sheet. |
+| Checkbox | A tick box (`Ui::checkbox`); one ticked and not enabled shows its tick dimmed. | A press ticks or unticks it; a dimmed tick is done and a press does not undo it. |
+| Stepper | A label and a count with − and + beside it, at the row's right end on the small panel (`stepper`). | Each press moves the count by one within its bounds. |
+| Slider | A track with a stop for each whole number and a round thumb carrying the value, the two ends' numbers under it (`CoreUi::slider`). | A press on a stop sets it; a drag presses each stop it crosses; the arrow keys step the slider last pressed. |
 
 ### 4.3 Entry
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Text field | 52 dp, single line — 40 dp on `small`, a letter key's own height — the value being typed (`text_field`). Directly above its candidates or keyboard, the same width as the pad or keyboard under it. | The tail stays in view for long values. Nothing is typed without a field. |
-| Keyboard | Bottom-anchored, full-bleed, one group with the field (`entry_group`). Keys 40 dp on `small`, 56 dp on `mobile`; on `wide` the keyboard is capped at 720 dp and centred. | Kinds: BIP-39, kana, jamo, pinyin, 注音, passphrase, path, hex, decimal, bech32/base58, codex32 (the bech32 alphabet alone: no `1`, no `b`, no shift to base58). Dead keys dimmed. ✓ dimmed until the input is acceptable. A key under a finger is drawn pressed — its own fill tinted towards the accent, ✓ mixed towards white — and stays so for 200 ms after the finger lifts, halved for the second step of that window, so the key is seen once the finger is off it (§16.120, §16.124); a dead key never is. A wordlist keyboard — BIP-39, kana, jamo, pinyin, 注音 — has no ✓ at all: a word is taken by a tap on its candidate and by nothing else (§16.118), and the backspace holds the bottom-right cell. On the BIP-39 rows it is the 1.5-unit key ending row three, the seven letters filling the rest. |
-| Kana keyboard | The 五十音 as a grid: ten columns of the consonant groups あかさたなはまやらわ, five rows of the vowels あいうえお, every key one unit wide. Keys 28 dp on `small`, where five rows are the height a three-row keyboard has. The cells the grid leaves empty carry ゛, ゜ and 小; the backspace takes the bottom-right cell, ん the one above it, and the fifth cell is empty, because four keys no longer fill five. | Types the Japanese list. ゛and ゜ add the voicing marks the list is written with; 小 turns the last kana into its small form and back. The field composes what has been typed: か and ゛ read as が. |
-| Jamo keyboard | The two-set layout on the QWERTY positions: ten, nine, and seven keys with shift at the left and the backspace at the right of the last row, the same 1.5-unit edge keys as the BIP-39 row 3. | Types the Korean list. Shift gives the five doubled consonants and the two shifted vowels and releases after one key; a shifted key is dead or live by the character it types. The field runs the keys through the two-set automaton, so ㄱㅏ reads as 가 and ㄱㅏㄱ as 각. |
-| Pinyin keyboard | The BIP-39 letter rows unchanged, and a fourth row of the five tone keys 1 2 3 4 5 with the 1.5-unit backspace ending it. Keys 28 dp on `small`, as the kana grid's: four rows over the two-row one-character strip are the height problem five rows of kana are (§16.121). | Types the Simplified Chinese list, which is looked up by a Mandarin reading rather than spelled: the syllable on the letters (`v` for `ü`), then its tone. A letter is live while some candidate's syllable continues with it; a tone key is live in the tones that syllable has. The tone completes the reading, and the strip fills only then: a syllable on its own leaves far too many characters to choose between, and an incomplete reading is not an error, so nothing is offered and nothing is said. The field shows what was typed, `zhong1`. |
-| 注音 keyboard | The 大千 layout, four rows on the QWERTY positions: eleven keys in the first two rows, ten in the others, the tone marks ˊ ˇ ˋ ˙ in the first row where that layout puts them and ㄦ at its end, ˉ ending the second row where 大千 has the space bar this keyboard has no room for, and the 1.5-unit backspace ending the last row. The key width follows the row. Keys 28 dp on `small`, as the kana grid's (§16.121). | Types the Traditional Chinese list. Every tone is a mark key, ˉ for the first, so a syllable ends the same way here as on the pinyin keyboard: the mark completes the reading and the strip fills only then. The field shows the bopomofo and the mark, ㄓㄨㄥˉ. |
-| Candidates | Two rows of 3 at 36 dp (`small`), two rows of 4 (`mobile`), one row of natural-width chips (`wide`) between the field and the keys (`candidate_strip`); on the two cell classes the cells are a fixed width whatever the count, the lone candidate in the first cell and the rest blank, so a cell never changes width from one word to the next (§16.120). A list whose words are one character — the two Chinese ones — shows ten a row and two rows on every class, full-bleed at the keyboard's own key pitch, so a whole tone group (20 at most) is on the screen at once. | A tap on a candidate is the only thing that takes a word: a word typed out in full is the one candidate left and waits in the strip until it is tapped, on every class (§16.118). Tap accepts on `mobile` and `wide`. On `small` the first tap selects a candidate and the second accepts it: the cell is 24 px there and a fingertip covers it, so the tap shows what it hit before it is taken. A selected cell is drawn as a chosen cell is, on the accent colour, and shows its own press by mixing that accent towards white; a tap on another cell moves the selection and accepts nothing; a key or a backspace clears it. An unselected cell under a finger takes the accent tint as a chip does, and a cell of either kind keeps its pressed look for 200 ms after the lift, halved for the second step of that window, as every tappable thing does (§16.120, §16.124). The strip's words are drawn at the largest size, up to the class's own (16 dp on `small`, 18 on `mobile`), at which a word of eight letters fills its cell; a longer word — Italian has nine-letter ones — takes the size at which it fits, in its own cell alone, and is never clipped. A lone candidate is already selected, so it takes one tap, and a reading that leaves one character is selected rather than committed. Where more candidates remain than the strip holds, the last cell carries the chevron instead of a word and turns the page; every key puts the strip back on the first page. The lone candidate is outlined where a tap accepts. A physical keyboard's Enter takes the selected candidate or the lone one and does nothing with several. Words are shown the way their readers write them: が as one kana, 가격 as syllables, ábaco with its accent. |
-| Dice, coin pads | Fixed pads, fixed size, centred. Directly above the pad, inside the pad group at the pad's width: the entries so far in groups of five, masked as a secret (the newest entry shows for half a second, then masks; hold or the eye shows them all), then the progress line "23 of 50 · 59 bits" and its bar. No colour on the groups. The eye moves nowhere between the pad and what it typed. | Continue when the target is reached. |
+| Text field | A rounded box with what is typed in it and the caret where typing goes (`Ui::typed`, `Ui::caret`); what is selected is drawn behind the text (`Ui::selection`). A passphrase field shows dots, and **No passphrase** while it is empty (`pass_field`, `CoreUi::no_passphrase`); a field that may hold a secret has an eye at its right end (`secret_box`). | A press places the caret and a drag selects. The eye shows the text in the clear until it is pressed again. A field that takes no typing while a stick is attached says so in place of its content. |
+| Keyboard | The on-screen keyboard docked at the foot of the panel or of the page beside the sidebar (`faraday_ui::keyboard::keyboard`): the path keyboard on Explore, the address keyboard on Explore's Find, the passphrase keyboard everywhere else (`KeyboardKind`). | On the small panel it rises by itself under a field that takes typing; on the wide layout only from the keyboard button. Its keys type into the field typing goes to, as a physical keyboard does (§4.15). |
+| Word keyboard | Word entry's own keys, in the page under the word grid (`word_keys`): the BIP-39 letters for a Latin list, and for the others the kana, jamo, pinyin or 注音 keyboard (`KeyboardKind::Kana`, `Jamo`, `Pinyin`, `Zhuyin`). A key that leads to no word on the list is dimmed. | Types the list being entered; the word is taken from the candidates. |
+| Kana keyboard | The 五十音 as a grid: ten columns of the consonant groups あかさたなはまやらわ, five rows of the vowels あいうえお, every key one unit wide. The cells the grid leaves empty carry ゛, ゜ and 小; the backspace takes the bottom-right cell, ん the one above it. | Types the Japanese list. ゛and ゜ add the voicing marks the list is written with; 小 turns the last kana into its small form and back. か and ゛ read as が. |
+| Jamo keyboard | The two-set layout on the QWERTY positions: ten, nine, and seven keys with shift at the left and the backspace at the right of the last row. | Types the Korean list. Shift gives the five doubled consonants and the two shifted vowels and releases after one key. The keys run through the two-set automaton, so ㄱㅏ reads as 가 and ㄱㅏㄱ as 각. |
+| Pinyin keyboard | The BIP-39 letter rows, and a fourth row of the five tone keys 1 2 3 4 5 with the backspace ending it. | Types the Simplified Chinese list, looked up by a Mandarin reading: the syllable on the letters (`v` for `ü`), then its tone. A letter is live while some candidate's syllable continues with it; a tone key is live in the tones that syllable has. The candidates fill only once the tone is typed. |
+| 注音 keyboard | The 大千 layout, four rows on the QWERTY positions, the tone marks ˊ ˇ ˋ ˙ in the first row and ˉ ending the second, the backspace ending the last row. | Types the Traditional Chinese list. Every tone is a mark key, ˉ for the first; the mark completes the reading and the candidates fill only then. |
+| Word grid | One numbered cell per word of the count, the count's buttons (12 · 15 · 18 · 21 · 24) above it, the word being typed in its cell (`typed_cells`, `keyed_cells`); a status line under it states the words and the checksum. | Each word is checked against the list as it is typed; Tab finishes a word on a Latin list once only one fits. |
+| Candidates | The words the keys typed can still become, a pill each in the mono face, wrapping at the width (`keyed_pills`, `Ui::word_pill`). | A press on a pill takes the word. |
+| Dice, coin, card keys | A row of buttons in New key's randomness step: 1 to 6 for a die, Heads and Tails for a coin, and the ranks and suits for cards, with the count so far, "{} of {}", and the words a run has made (keygen). A face a procedure does not take next is `Style::Disabled`. | Each press is one entry. |
 | Code box | A value whose exact characters must be plain, in the mono face on a tinted, rounded box padded by tokens, with no quotes (`Ui::code_box`; `Ui::code_line` puts one after a line of text, below it where it does not fit). Used for: the Demo passphrase. | Not a field: it takes no press. |
-| Inline error | One caption line under the field, always reserved at the caption's line box for the class (`inline_error`). | Appears in the danger tone; nothing moves. |
+| Error line | One line under the field or the grid in `ERR`: the codec's or the list's reason ("No word starts with that"). | Replaces the status line while it stands. |
 | Use a sample | In Demo, with samples set (F81, `docs/MODES.md` §6.1), a secondary chip inside the empty field where a key is typed (`Ui::field_action`), at the field's text inset and vertically centred, labelled "Use a sample", or "Sample" where the field is narrower than the chip. On Add a key's word grid the grid keeps all its numbered cells and the chip stands inside cell 1 only, where the word would be; on a small panel's word entry it stands where the word being typed is. Its hit target is the chip, as tall as the touch floor on the small panel and as the field on a wide one. The field's caret and placeholder are not drawn while it shows. | Puts the next sample not loaded in the field as typed; a part of a set fills the next part of the set begun. Gone for the visit once the person presses in the field or types; filling the field also hides it, and Clear or the next part brings it back. Never drawn outside Demo. |
 
-An Entry screen never carries the key row: typing words or a passphrase
-is not about a key yet. On `mobile` and `wide` the space above the entry
-group holds, for word entry, a masked words panel of the words accepted
-so far, centred in that space, so a typo can be checked without leaving
-the screen. The panel is drawn only once a word has been accepted (an
-empty panel says nothing), at the fixed geometry of the word count, and
-while it is drawn the app bar carries the eye, as on every screen with a
-words panel. On `small` the screen shows the word being typed and
-nothing else.
-
-An address being typed (Verify) is the one value whose tail is not
-enough: the space above the entry group holds the typed address whole,
-as a comparison string at the largest size that fits, on every class,
-and the field under it keeps the tail in view as usual.
-
-The same space holds a fact row above the entry group where what is
-typed derives one value the person will recognise: the fingerprint of a
-passphrase key or a child seed. It is one record row, label and value,
-centred in the space and reserved the way the typed address is, so the
-value changes on every keystroke and nothing under it moves. Where what
-is typed derives no key — an empty passphrase, an index out of range —
-the value is the placeholder for no value, so nothing on the screen
-reads as a key to add.
-
-The block above the field comes before the keys. Where the reserved
-block — a fact row, a mode row, or the typed address — does not fit
-above the field at the class's key height, the keyboard drops to the
-36 dp floor of the key range; where it still does not fit, the row is
-drawn on one line, the label and then the value, both at the label size.
-Nothing is drawn over the field on any class. On `small` both halves of
-the rule are in use: a typed address needs about 30 dp the 40 dp keys do
-not leave, and a mode row over the five-row passphrase keyboard has the
-height for one line and not two.
+A seed is typed on Add a key (`Screen::Entry`): **Scan a SeedQR** above
+the words, then the word grid, the candidates and the word keyboard,
+then the passphrase field and **Add key**. A line in `WARN` under it says
+never to type a seed that holds real bitcoin (`never_real_seed`).
 
 ### 4.4 Identity and keys
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Fingerprint | Eight hex characters in mono, never split. Shown as a value — a row's value, a fact row, a record cell, the key context, a chip — it is the fingerprint glyph and then the characters: the glyph at the value's size, one small gap before the first character, in the value's colour, and before each fingerprint of a value that lists several. Not on a row whose bullet is already the fingerprint glyph, not inside a longer string (an origin, a descriptor, an account key) and not in an app bar title (§16.131). | The key's name everywhere. |
-| Key row | The fingerprint glyph, the fingerprint above, what the key is made of below — "12 words", "24 words and a passphrase", "BIP-85 child", "SLIP-39 shares", "Codex32" — chevron (`key_row`). Never the network, which is the device's and not the key's. | Keys, and every key chooser. |
-| Wallet glyph | A wallet at the start of a row, where the row's icon sits. | This device holds a private key of the wallet, so it can sign for it: a 2-of-3 with one of this device's keys in it carries the wallet. Never on a key row, where the fingerprint glyph sits. |
-| Eye glyph | An eye at the start of a row, in the same place. | Public key only: look, derive and compare addresses, never spend. A wallet with none of this device's keys carries the eye. |
-| Fingerprint glyph | A fingerprint at the start of a row, or before the characters of a fingerprint shown as a value. | The eight hex characters beside it are a fingerprint. Every key row carries it. |
-| Key context | A two-line row like every other row with a value: "Key" above, the fingerprint(s) below in mono, chevron (`key_context`). No chip, no caret. On a surface among menu rows; flat inside a Record's table, like the reference row beside it. In Explore with typed words and no loaded key the value is "Typed words". | Only on the Sign review and in Explore, where the screen acts on a key the user can switch. Never on Entry, never with "Sign with". Tap opens the key chooser. |
-| Sign with | Caption and a row of fingerprint chips on the Hold screen. | Tap toggles a key in a multisig. |
-| Then with | A second "Sign with" row under the first, captioned "Then with": the other members of a FROST wallet that will sign at a later location, each named by its own fingerprint as the member row names it. Only at the first location of a FROST spend, where the signer set is chosen; a later one signs with the set the file it read names. | Tap toggles a member. Exactly the number still to sign may be chosen, and the hold is dead until they are. |
-| Member row | A row of a FROST wallet's Keys review: the fingerprint of that member's public share (hash160 of it), with the wallet glyph where a loaded key computes that public share and the eye where none does. | A 24-word key that is a member of a group has two fingerprints — its BIP-32 master's, which Keys shows, and its public share's, which this row shows — and the paper beside the words carries the second. The device matches by public share and never by either label (§16.104 rule 3). |
-
-The wallet and the eye appear wherever a row could be either: the rows
-of Wallets, a wallet's and a transaction's Keys review, and the member
-rows of a FROST record. They say whether this device can sign, so they
-appear nowhere else: no menu row uses the wallet or the eye as its
-bullet, and neither ever stands on a key row, where the fingerprint
-glyph says what the characters beside it are. A wallet's "Key" or
-"Keys" row carries the fingerprint glyph, and the scanner's way in from
-a loaded key carries it too. The MINE badge keeps its one meaning — an output or
-an address that pays one of this device's wallets — and is not used on a
-key row. Wording follows the glyph: a wallet's subtitle says "SegWit",
-never "read-only" or "watch-only".
-
-The eye also means "reveal" on the app bar of a screen with a secret
-panel (§4.10); there it is a button, here a marker, and the two never
-share a screen. Both meanings are "look".
+| Fingerprint | Eight hex characters in mono, never split (`fp_text`). | The key's name everywhere: the sidebar's Keys, a wallet's keys, "Sign with 73c5da0a", a board chip. |
+| Key in the sidebar | The key's fingerprint and what it is ("passphrase" where it has one) under Keys (`sidebar`). | A press opens Explore on that key. A key has no page of its own: BIP-85, a vanity address and a backup are Tools and wallet flows (F68). |
+| Sign with | A primary button in the Spend tab's signing step, "Sign with" and the fingerprints of the loaded keys that sign this transaction, beside the count of inputs (`step_body`); once signed, "Signed with" and the fingerprints in `OK`. | A press signs every input those keys can sign. Where no loaded key signs, the step says so and has no button. |
 
 ### 4.5 Long strings
 
@@ -281,106 +206,101 @@ whole where it is read.
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Path | A mono string: `m/84h/0h/0h/0/0`. As a row: label "Path" above, the string below, chevron when it opens the editor (`path_row`). | No per-level crumbs. |
-| Path editor | The Entry screen with the path keyboard. Above the field, in the space the law centres: the presets as two labelled groups, each with its own check, because they are two independent choices. "Purpose": four choice rows named in §4.6's vocabulary (Legacy, Nested, SegWit, Taproot) with the path as the value under the name; "Chain": the Receive \| Change pair. A row's check follows the typed path, so editing the text unchecks what no longer matches. On `small` the groups scroll from the top and the checked row is scrolled into view when the editor opens. | ✓ dead while the text does not parse. Never "BIP-84" on the screen; a dimmed reason names script types ("only for Nested and SegWit"). |
-| Script type | A value row: "Script type" above, "SegWit" below, chevron; chosen on a Choice screen. | One vocabulary: SegWit, Taproot, Nested, Legacy. Never "BIP-84" or "p2wpkh" on a working screen. |
+| Path | A mono string, `m/84h/0h/0h/0/0`. As a row: "Path" above, the paths below, wrapped, with **Change** at the right while the wallet can be taken back (`path_row`, Create's Check). | **Change** goes back to Kind's Account. |
+| Path field | Explore's path: a field typed on the path keyboard (`KeyboardKind::Path`), with **Index -1** and **Index +1** beside it. | The values under it follow the path as it is typed. |
+| Script type | Named in one vocabulary: Native SegWit, Nested SegWit, Taproot, Legacy; on Explore one button each (`explore::screen::script_name`), in a wallet's shape after its kind ("Single key · native SegWit"). | Never "BIP-84" or "p2wpkh" on a working screen. |
 
 ### 4.7 Amounts
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Amount | In the unit the setting names: "60 000 sats" or "0.00060000 BTC", grouped with a no-break space. | The setting's rows read "sats" and "BTC". No echo in the other unit. |
-| Fee, Rate | Two record rows: "Fee · 1 000 sats" and "Rate · 7.1 sat/vB". | The rate row is absent when unknown. |
+| Amount | In BTC with eight decimals, "0.00060000 BTC" (`faraday_ui::btc`). | One unit; there is no unit setting. |
+| Fee | One value, the fee and its rate: "{fee} sat · {rate} sat/vB". | The Spend review's and Decode's. |
 
 ### 4.8 Badges
 
 | Kind | Rendering |
 |---|---|
-| Network | A caution pill naming the mode, DEMO / TESTNET / SIGNET / REGTEST; absent on mainnet. Pressing it opens the mode sheet. On Home, on every page's top row, and on every Sign review screen. |
+| Network | A caution pill naming the mode off mainnet, `MODE_PILL_HEIGHT` tall (`modes::screen::pill`): on the wide layout's top-right row and in the small panel's bar. Pressing it opens the mode sheet; on mainnet the sheet is Settings' Mode row (F81, `docs/MODES.md`). |
 | Load samples | In Demo only, when the app has samples (Faraday Desktop and the website), immediately left of the Demo pill, a gap between, the same height and shape, in the accent tone: it is an action, the mode pill is a state. "Load samples", and "Samples" on the compact bar and Home. Pressing it opens the Load samples sheet: the line "In Demo, the sample passphrase is" with `faraday` in a code box, then a tick box row for each sample wallet and key with its type under its name (a wallet's kind and script, a key's form and size). |
-| Mine | On a transaction output that pays one of the loaded keys: "MINE" (success) when the change was verified, "MINE · NOT VERIFIED" (danger) when not. Outputs to others carry no badge; there is no "recipient" badge and no "kind" row. The review's change entry carries the same success badge under the amount when every change output was derived from a loaded key, so the state is read without walking the outputs; where one was not, the entry is the state value "not verified" in the danger tone instead of an amount. |
-| State value | Backup "not verified" in the caution tone as a row value; never a badge. |
+| Chip | A rounded label with a dot, in a tone (`Ui::chip`): beside a step flow's heading, where the flow goes next or what it works on (`flow::Column`'s `chip`). |
+| Pill | A rounded label with an edge (`Ui::pill`, `Ui::pill_in`): a stick's pill in its own colour (`faraday_ui::stick_tone`). The HOTP and Unreadable badges, in place of a TOTP code on Codes and on a vault entry, are the same shape. |
+| Step badge | A step's number in a circle, ticked once done (`Ui::badge`; a guide step's, `faraday_ui::parts::step_circle`). |
+| Pips | A threshold as `n` dots, `filled` of them filled (`Ui::pips`). |
 
 ### 4.9 Codes
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| QR out | A square at the class's side (198 / 260 / 240 dp), centred, its label under it (`qr_block`). The side is the token on every screen that shows a QR: the Address screen, the QR screen, the Secret screen for a SeedQR. The screen finds the room; on `small` the toggle row and the progress row give way before the square does: the toggle is one line at the touch floor with its reason beside the label, the progress row is the bar alone with the count folded into the title ("Transaction · 1 of 3", the §3 allowance), and a static QR has no progress row there. The word is "QR", never "code", including in the scanner's state and the unknown-QR result. The label under the square names what it is ("Descriptor", "Receive 2", "signed transaction"), never the screen's own title again. | The module pitch floor (0.5 mm) is a hard floor at the class's side. A payload whose one QR would fall below it is split into as many BC-UR parts as keep every part above the floor: the part count follows from the side and the floor, not from a fixed fragment size. A progress bar row, always present, blank when static. The wallet export animates on the panel like any other payload. |
-| Scanner | A viewfinder in the camera's own 4:3 shape with corner brackets, as wide as the pane allows, centred in the space above the actions, as a camera app's preview is. It shows the camera's latest frame whole, in colour where the camera gives colour and in grey where it does not, scaled to fit and never cropped to a square: what the scanner reads is what the person sees; the brackets, the state line and the parts bar are drawn over it, the line and the bar on a translucent band so they read over a light frame. Before the first frame, and where the shell has no camera, the viewfinder is the empty panel. The state ("Looking for a QR", "3 of 8") is drawn inside the picture, at its bottom; a progress bar inside it for parts (`viewfinder`). | No torch control. Under the picture, one band of equal tiles — the §4.1 idiom Home draws over its actions, a mark over a word — holding the ways in, in this order: "Paste", "Type", and in Demo with samples set (F81, `docs/MODES.md` §6) "Sample", which reads a public sample as the camera would, never drawn outside Demo: on a seed scanner a sample's SeedQR, on a wallet's key scanner the sample key it is short of, on the Spend tab's envelope the unsigned spend of a sample wallet, on Restore the next sample wallet, on a copy check the SeedQR of the key checked, on a TOTP scan the sample setup code, and none on Transfer's Receive. On the small panel it is a full-width button above the foot. There is no "Read a file": Files and the Inbox already load files. "Paste" is on the desktop only, never on the small panel; a scanner that loads a seed has it only where the shell has a clipboard (F75), and a scanner with no Paste (a seed scanner on the stick; any scanner on the small panel) holds "Type" alone, as does a flow with no keyboard hold "Paste" alone. One band on every class, whatever it holds, and the picture takes what the band leaves. "Paste" takes the clipboard through the same router a scan uses, and a clipboard with nothing on it puts "Nothing to paste" on the state line for two seconds. "Type" opens the keyboard the flow behind the scanner has for the value. A way this shell cannot serve is a dimmed tile and nothing else: §4.11's dimming already says unavailable, and a tile has no second line to say it again. A payload that classifies as words in the clear, a seed code, an extended private key or a private key is refused on the way in from the clipboard, and refused under every calculator whatever it arrived on (§4.10). The one exception is a scanner that loads a seed, on the desktop (F75): it takes a seed's words, SeedQR digits and shares pasted, as it takes them scanned or typed, and still refuses a private key. The scanner is the way in to every flow that takes a value, so a shell with no camera shows "No camera" in the picture and the band stays live. The expected type is in the title ("Scan a transaction"). |
+| QR sheet | A sheet (`qr_sheet`): the title, an animated code's frame "{} · frame {} of {}", whether scanning it is safe — "Secret · whoever scans this can use it" in `ERR` or "Public · safe to scan" in `OK` — the code on a white card with its quiet zone (`faraday_ui::parts::qr_code`), a descriptor's whole text under it; then the format (UR · BBQr · Parts, Parts for text only), an animated code's speed (2/s · 3/s · 5/s) and how much each frame holds (Small · Medium · Large), **PNG** for one code of public content, and **Done**. On the small panel the code is as large as the panel allows and the format line gives way to it. | The format and size choices take effect at once. PNG saves the code with its label. |
+| Scanner | A sheet (`scan_sheet`): the title names what is scanned ("Scan a SeedQR", "Scan a key for {wallet}", "Scan a QR code"); the camera's picture, its corner brackets white while looking and green while a QR that read is in view, the state line and the bar of parts read on a translucent band at its foot (`viewfinder_over`); under it the ways in: **Type the words instead** where the scanner takes a seed, **Paste** (dimmed where the shell has no clipboard), **Sample** in Demo, and **Cancel**, or **Done** on the Spend tab's intake; a camera chooser where there is more than one. | A code read routes by what it is (`docs/QR.md`). A scanner that takes a seed carries the never-type-a-real-seed line in `WARN`. Ctrl+V is Paste. A payload that is a secret is refused on the way in from the clipboard, except a seed pasted into a scanner that loads one, on the desktop (F75). With no camera the picture says so and the ways in stay live. |
 
 ### 4.10 Secrets
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Secret panel | An orange-outlined panel (`secret_panel`) sized to its content at the class's type, never to the screen: the words panel (numbered rows: six per page at 24 dp rows on `small`; twelve at 40 dp rows and mono 20 on `mobile` and `wide`) and the value panel (one line box). A words panel takes two columns where the width allows them at the class's monospace size and one column where it does not, and it is left off only where even one column is taller than the space it sits in — which is what the 240 dp panels hit, and why word entry there shows the word being typed and nothing else. The Words screen pages a one-column list as it pages any other; the Entry and Pad panels keep one row per word of the secret in that column, so nothing moves as the entry goes on. A row wider than its column drops a monospace step rather than crossing the panel's edge. The geometry is fixed per class and per word count, identical masked and revealed. No caption inside it, in either state. Masked: bullets per item, same rows. | Hold anywhere on it to show; release masks. The eye in the app bar shows it for 30 s; while it does, the eye is drawn as a ring that empties clockwise, which is the only countdown. |
-| Long secret | A reference row (bullets as the value while masked). | Opens the Secret screen: one panel as tall as the string at the largest mono size that fits the width and is not past the class's ceiling (§5 Transcribe: the top of the ramp on `small` and `wide`, 24 dp on `mobile`), centred in the space under the app bar. Masked, the panel holds one centred eye-slash icon and nothing else. |
-| Mask policy | Whatever the entropy becomes is a secret: words, numbers, dice entries, checksum bits, seed, keys. They mask together. | Fingerprint, checksum validity and addresses are not secrets. A secret is never copied: no screen with a secret panel carries a "Copy" row. A payload the policy calls a secret is refused on the way in from the clipboard, except a seed pasted into a scanner that loads one, on the desktop (F75). In Demo (F81, `docs/MODES.md` §6.2) a secret a sample filled is drawn unmasked, and a passphrase or password field is typed and masked as anywhere, and holds `faraday` in a code box, unmasked, with no eye, once its chip is pressed; an empty one draws the chip "faraday" inside it until the person presses in the field or types, and where it is optional **No passphrase** shows beside it. |
+| Held secret | A box outlined in `WARN`, bullets in place of the value and "Hold to show" under it (`secret_with`, `seedqr_box` in vault); the value, or the SeedQR, while it is held, with "Release to hide". | Shown only while a finger or the button is held; the value is made only then. |
+| Show and Hide | A **Show** button beside a masked value that becomes **Hide** (BIP-85's value, a vanity counter, a Lightning node key). | Shows the value until Hide. |
+| Secret out | A sheet before a secret leaves the session (`secret_out_sheet`): "This is a secret" or "This may be a secret", what it is, who can use it, and the ways out — sealed in a vault, or unprotected on the stick, ticked to write. | Cancel keeps it in memory. |
+| Mask policy | Words, seeds, private keys, passphrases and shares are secrets. | Fingerprints, checksums and addresses are not. A secret is never copied to a clipboard. In Demo (F81, `docs/MODES.md` §6.2) a secret a sample filled is drawn unmasked, and a passphrase or password field holds `faraday` in a code box, unmasked, with no eye, once its chip is pressed; an empty one draws the chip "faraday" inside it until the person presses in the field or types, and where it is optional **No passphrase** shows beside it. |
 
 ### 4.11 Records and results
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Record | A table: label column left, value column right, on every class (`record`). A short value sits beside its label and may wrap to a second line. A long string is a reference row drawn flat inside the table: the label in the label column, the elided value on the line under it, a chevron at the right, no surface. One fact per row. The table, with its badge and warnings, is one block centred above the action. | Sign review, stats, tiers, About. Nothing inline; every row looks like a table row. |
-| Result | Icon and a coloured title at the top of the body, then a record under it (`result`). | "Signed", "Yours", "Not found", "Passed", "Self-test failed". The colour is on the title. |
-| Warning | A card: level icon, label, value (`warning_card`). "Change · not verified", "Fee · 12 % of the amount". Two lines, as a row with a value is: the label above, the value below it across the card's whole width, the icon beside them. Nothing is cut and nothing is squeezed into half the panel. | Ranked blocked, danger, caution, info. A danger needs its own acknowledgement before the hold. A block offers no acknowledgement: the review ends there and the hold never opens. |
-| Dimmed reason | Two or three words under a dead row's label, on every class: a dead row with a reason is a two-line row, like a row with a value. | Only for a condition of this device or this state that the user could change: "no camera", "needs Tier B", "too dense". A row that is dead because the feature is not built yet is dimmed with its label and nothing else; dim already means unavailable. |
+| Fact | A label over its value, the value wrapped (`faraday_ui::sheet::kv`), or a label and value on one row in a card's table. | One fact per row. |
+| Card | A surface set apart by its edge alone, `BORDER` (`Ui::card`, F39): a wallet's card, a step's summary, Home's tiles. | — |
+| Result | A line with its icon in its tone: done in `OK` ("Signed with 73c5da0a"), refused in `ERR`, waiting in `WARN`. | — |
+| Warning | A line with the warning glyph in `WARN` (a backup's checks, a spend's cautions); "No warnings" where there are none. | — |
+| Dimmed | A control not available now, drawn `Style::Disabled`; where a step the person can take would make it available, a short line under it says which (Tools' rows: "Load a key first", "Make a vault first"). | A press does nothing. |
+| Toast | One line in a rounded box centred at the foot of the page, rising in and fading after three seconds (`notices`): "{what} waits for the stick". The same place holds "Remove the stick to keep working" in `WARN` while a stick stands in the way. | Says what a press did where the screen does not change to show it. |
 
 ### 4.12 Text
 
 | Kind | Rendering | Where |
 |---|---|---|
-| Title | Title token in the app bar. | Every screen. |
-| Label | Label token, muted. Above its value in rows; left of it in a record. | Record labels, row labels, "Key", "Sign with". |
-| Value | Body or mono token. | Everything a person reads or compares. |
-| Reason | Caption, muted, one line. | Dimmed controls only. |
-| Explainer | Body, a short paragraph, on a Learn page. | Never on a working screen and never behind a control on one. |
+| Title | §4.1. | Every page and sheet. |
+| Section label | 14 units SemiBold, muted (`faraday_ui::parts::section_label`). | Over a group of rows. |
+| Label | Caption or label size, muted, above or left of its value. | Every fact. |
+| Value | Body or mono. | Everything a person reads or compares. |
+| Walk-through | A short paragraph at the top of a step while it is open, in Guided mode only (`flow::Card`'s `guide`, `guide_text`); Steps only hides it. | Step flows (`docs/WALLETS.md` §6). |
+| Explainer | Paragraphs on a Learn page, in the Learn sheet (`learn_sheet`). | Never on a working screen outside Guided mode's walk-through. |
 
-The app bar's info button is the only bridge from a working screen to an
-explanation: it opens the Learn page the screen is about, and a screen
-carries no prose, no caption under a row and no link of its own.
+The ? on a page with a Learn page opens the Learn sheet at the section
+that page is about.
 
 ### 4.13 Actions
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Primary | One accent button at the bottom (`primary`). Full width on `small` and `mobile`; on `wide` natural width, at least 160 and at most 320 dp, at the pane's bottom-right. | Confirms a choice or typed input; moves on. A primary dead for a condition the person can change carries §4.11's reason as a caption above it, and keeps its own place and size. |
-| Secondary | Beside the primary. On `small` and `mobile` the two share the width equally; on `wide` both are natural width, secondary to the left of primary. Both buttons use one label font per class; a label that does not fit is shortened ("Numbers"), never shrunk. | The safe alternative ("Skip quiz" is never the accent). |
-| Hold | An outlined button that fills while held (`hold`), placed as a primary. One secondary may sit beside it, and then the pair shares the row as a secondary and a primary do. | Sign, forget a key, wipe. The label is the verb: "Hold to sign". No sentence above it.; the hold that signs a message. The secondary is the step that declines the hold, and only a hold the app offered carries one: the Keep offer's "Not now". |
-| Row action | A menu row. | Ways out of a result: "Show as QR", "Save to file". |
-| Cancel a flow | **Cancel**, a quiet outlined button at the right end of a flow's title row, beside **Steps only · Guided** (`flow::column`); on `small` and `mobile` at the bar's right end, left of the keyboard and the ? (`compact::tools`). On every flow that can have a sidebar row but a backup flow whose key is made, which ends only by finishing (Faraday's `docs/FLOWS.md`, Flows in progress, Cancel; F51). | Ends the flow and shows the screen it was opened from. When ending it loses something the person would notice, a sheet first: its question as the title ("Cancel making this wallet?"), one line naming what is lost, **Keep going** (secondary) and **Cancel the flow** (primary); a press beside the sheet keeps going. With nothing done past the first card, no sheet. |
+| Button | `Ui::button` in a `Style`: `Primary`, the one action a step leads with, in the accent; `Secondary`, edged; `Ghost`, quiet beside others; `Disabled`, shown but not available now. A row of them shares the width where every label fits its share and stands one under another, full width, where not (`faraday_ui::sheet::buttons`). | A press acts. |
+| Hold | An outlined button that fills while held (`hold_button`): "Hold to sign" with a GPG, Secure Boot or APK signing key from a vault, "Hold to delete from vault", "Hold to mark the key revoked". | Acts once held to the end; released before, nothing happens. |
+| Floating action | A pill in the accent over the page, its icon and its word, at the bottom-right (`Ui::fab`). | Home's **Scan**. |
+| Cancel a flow | **Cancel**, a quiet outlined button at the right end of a flow's title row, beside **Steps only · Guided** (`flow::column`); on the small panel in the bar's tools (`compact::tools`). On every flow that can have a sidebar row but a backup flow whose key is made, which ends only by finishing (`docs/FLOWS.md`, Flows in progress, Cancel; F51). | Ends the flow and shows the screen it was opened from. When ending it loses something the person would notice, a sheet first: its question as the title ("Cancel making this wallet?"), one line naming what is lost, **Keep going** (secondary) and **Cancel the flow** (primary); a press beside the sheet keeps going. With nothing done past the first card, no sheet. |
 
 ### 4.14 Progress and state
 
 | Kind | Rendering |
 |---|---|
-| Progress | A bar with a count "2 of 5" above it. Entropy entry, scanning parts, animated codes. |
-| Countdown | Only the eye's ring (§4.10). The status line has none. |
-| Default | A step card (in Faraday a flat section of its flow: no fill and no box, divided from the next by a rule in `LINE`, its number, title and value on its row, `docs/DECISIONS.md` F39) whose value has a default is closed at entry, showing its value and a **Change** text button at the card's right in place of the chevron that opens it. The flow opens on the first card with no default; opening a closed card does not reset the cards after it. On a small panel the same: the paged flow starts on the first open card, and that page carries at its head one row per earlier card closed on its default, "{title} · {value}" with **Change**, which opens it. Tapping the page's title (the card's name alone, "Kind", with "Step 1 of 8" beside it in the muted caption type) closes the card and shows the list of steps, from which any card opens; no step indicator is drawn (2026-10-10; the step count moved off the title and beside it as its own muted text, 2026-10-10). Create a wallet and New key are the exception: each opens on its first card — Kind, Length — whatever opened it, even with a default already ticked; a card still closed on its default shows its value and **Change** the same way once Continue has passed it (`docs/history/NEW-WALLET.md` §2.1, 2026-10-10). |
-| Empty state | A row that starts the flow: Keys with nothing loaded is "Load a key" and "Create a key"; Wallets with nothing registered is "Add a wallet" and "Scan a wallet"; the builder's Keys list with no key gathered is "Add a key". Never a sentence about emptiness. The bottom action — "Add a key", "Add a wallet" — is on the screen in every state. |
-| Terminal state | Result layout with no action and no back chevron: "Session ended", "Self-test failed · vector 3". |
+| Progress | A count "2 of 5": the Spend tab's signatures, New key's entries, a scan's parts with its bar (`BAR_HEIGHT`). A TOTP code's row has a bar under it for the time left in its period, the seconds at its end. |
+| Default | A step card (in Faraday a flat section of its flow: no fill and no box, divided from the next by a rule in `LINE`, its number, title and value on its row, `docs/DECISIONS.md` F39) whose value has a default is closed at entry, showing its value and a **Change** text button at the card's right in place of the chevron that opens it. The flow opens on the first card with no default; opening a closed card does not reset the cards after it. On a small panel the same: the paged flow starts on the first open card, and that page carries at its head one row per earlier card closed on its default, "{title} · {value}" with **Change**, which opens it. Tapping the page's title (the card's name alone, "Kind", with "Step 1 of 8" beside it in the muted caption type) closes the card and shows the list of steps, from which any card opens; no step indicator is drawn. Create a wallet and New key are the exception: each opens on its first card — Kind, Length — whatever opened it, even with a default already ticked; a card still closed on its default shows its value and **Change** the same way once Continue has passed it (`docs/history/NEW-WALLET.md` §2.1). |
+| Empty state | A line and the buttons that start the flow: Wallets with no wallet loaded, "No wallet is loaded" and its ways in (Make a new wallet, Restore an existing wallet, Spend from a backup, Add a key); TOTP codes with no entry, "No entries with a TOTP secret" and Scan a setup code. |
+| Locked | The sheet after the idle lock (`locked_sheet`): "Locked", that every key and vault was wiped, what waits for the stick, and Continue. The idle warning before it counts down (`idle_warn_sheet`). |
+| Self-test failed | The whole window: "Self-test failed", the check that failed, and Exit (`selftest_failed`). |
 
 ### 4.15 Keys
 
 A shell with a keyboard — a laptop booted from the stick, the desktop
-shell — drives every screen with it, by the idiom a desktop already has
-(§2.11). Nothing on any screen says so: a person who reaches for Tab or
-an arrow finds it works, and a person who does not is never told about
-it.
+shell — takes keys as a desktop app does. Nothing on a screen says so.
 
-| Kind | Rendering | Behaviour |
-|---|---|---|
-| Focus | One item at a time, outlined by a 2 dp ring just inside its own rectangle at its own corner radius (`focus_ring`): the accent on any item, and the accent's own text colour on an item whose fill is the accent (a primary button, a checked chip, a toggle that is on), since an accent ring on an accent fill cannot be seen; the item's content is otherwise unchanged. The ring exists only after a key has moved focus, and a touch or a pointer press removes it, as a desktop hides its focus ring until the keyboard is used. Nothing has focus when a screen opens. | Everything a tap could act on can hold focus: menu and value rows, choice rows, tiles, toggles, pair buttons, reference rows, the pager's arrows, the eye, the actions, a hold. A keyboard's keys and a pad's digits never hold focus: they are typed. A dimmed control holds focus and does nothing on Enter, as it does nothing on a tap. |
-| Tab, Shift+Tab | — | Focus moves to the next, or previous, focusable item in reading order (top to bottom, left to right, as the layout placed them), wrapping at the ends. An item inside a scrolling list is scrolled into view when it takes focus. |
-| Up, Down | — | The same as Tab and Shift+Tab while something has focus. While nothing has focus, they scroll the screen's first scrolling region by one line, as they do today. |
-| Left, Right | — | Focus moves within the same row — a pair, a band of tiles, the two actions, the pager's arrows, the sidebar's column on `wide` is a list and takes Up and Down — and does nothing when the focused item has no neighbour in that row. On a Words pager they turn the page, as the chevrons do. |
-| Enter, Space | — | Act on the focused item as a tap does: open a row, check a choice, flip a toggle, press an action, turn a page. On a screen with an on-screen keyboard or pad and nothing focused, Enter is the keyboard's ✓, as it is today. A hold is held: the key going down starts the fill, the key coming up before it completes cancels it, and the hold completes under the key exactly as it does under a finger. A shell that cannot report a key coming up cannot hold, and the hold button then does nothing on Enter. |
-| Escape | — | Back, as today. |
-| Typing | — | Characters, Backspace and Enter go to the screen's on-screen keyboard or pad whatever has focus (§4.5), so a person types a word and then presses Tab to reach Continue. |
-
-The focus ring is the only thing this adds to the screen, and it is
-drawn by the widget the way its pressed state is. The rules are the
-same on every screen because they are written once, over the layout's
-hit targets, and no screen has keys of its own.
+| Kind | Behaviour |
+|---|---|
+| Typing | Characters, Backspace, Delete and Enter go to the field typing goes to, and to the on-screen keyboard's field where it is up; Left, Right, Home and End move the caret (`edit`). |
+| Enter | Takes what is typed where the field has one action: a word on word entry, a share or a part, a name, a passphrase. |
+| Tab | Finishes a word on a Latin list once only one fits; moves between a passphrase and its repeat. On the backup board, Tab and Shift+Tab move among the chips' ⋮s, ringed in the accent at `FOCUS_STROKE` (§4.17). |
+| Escape | Closes the open sheet or ⋮ menu (a sheet's Cancel), leaves a field, and goes back from Add a key and Set the time. |
+| Up, Down | In a ⋮ menu, move between its rows; elsewhere scroll the region under the pointer, or the page's, by one wheel notch. On a slider the arrows step it (§4.2). |
+| Ctrl+V | The scanner's Paste, and nothing anywhere else. |
 
 ### 4.16 Structure chart
 
@@ -484,84 +404,84 @@ fill, edge and shadow, and its text is `TEXT` on `SURFACE`.
 | Link mark | Two links of a chain drawn as stroked boxes, in the accent. | On a vault's chip whose sticks are at more than one place: what it holds is drawn at each, and a drop into it at one is in it at all. |
 | Warning mark | The warning glyph in `WARN`, and the chip's pill edged in `WARN`. | On a placed chip that one of the plan's checks names. The checks themselves are lines under the board, the warning glyph before each, in `WARN`. |
 
-## 5. Screen intents and the reusable screens
+## 5. The screens
 
-Every screen does one of seven things. The intent decides the standard
-layout, so a person knows what a screen is for before reading it, and
-the title's form says it too.
+A screen is one of the thirty-three variants of `Screen` in
+`faraday/faraday-core/src/lib.rs`, drawn in the file that file's code
+map names: an area's `screen.rs`, or `screens/<name>.rs` for a screen
+with no area. Each is drawn in one of three ways:
 
-| Intent | What the user is here to do | Standard layout | Title | Screens |
-|---|---|---|---|---|
-| Navigate | go somewhere | a grid or list from the top; lists scroll | a noun ("Keys") | Menu, Addresses |
-| Choose | decide one thing | the options as one group centred above Continue | a question ("How many words?") | Choice |
-| Enter | type or roll | the entry group (field, candidates, keys or pad) at the bottom; its context (words so far, progress) centred above it | the step ("Word 7 of 12") | Entry, Pad |
-| Understand | review facts, then act | one block (badge, table, warnings) centred above the action | the subject ("Review", "Output 1 of 2") | Record, Result, Hold |
-| Transcribe | copy or compare carefully | one panel or string centred above the actions, at the largest type that fits: a comparison string steps up the mono sizes the tokens name until the next step would not fit the block's width and height in groups of four, and never past the class's ceiling — the top of the ramp on `small` and `wide`, 24 dp on `mobile`, where the string is read at arm's length beside body text and a words panel and a larger rung reads as a headline. One ladder and one ceiling for every long string, secret or public; the eye in the app bar for secrets | the thing ("Words", "Master key") | Words, Secret |
-| Show | hold up to a camera | the code and its label centred above the controls | the thing ("Receive 2", "Transaction") | QR, Address |
-| Read | read text | paragraphs from the top; scrolls | the subject | Document, Scanner is Show with the camera's own preview |
+- **Step flow**: the step-card column (`flow::column`): the back link,
+  the heading with its chip, **Steps only · Guided** and **Cancel**, then
+  one card open at a time, the others closed to a line that says what
+  was chosen (§4.14, Default). On the small panel, a page per step with
+  the bar's tools (§4.1).
+- **Page**: the title and what the screen holds, from the top, scrolling
+  where it is taller than the window; on the small panel under the bar.
+- **Sheet**: a box over the page, which is frosted and dimmed behind it
+  (`Ui::backdrop`, `faraday_ui::parts::sheet_box`); its head is its
+  icon and title (`faraday_ui::sheet::sheet_head`), its buttons at its
+  foot. On the small panel it is the panel's width less a margin, and a
+  long one scrolls (`faraday_ui::sheet::scroll_sheet`). A press beside
+  it closes it where closing loses nothing.
 
-The Scanner is a Show screen turned around: the viewfinder is the
-centred block, the rows the controls.
+What each flow does, step by step, is `docs/FLOWS.md`; the Wallets tab
+is `docs/WALLETS.md` and the Spend tab `docs/FAMILY.md`.
 
-Every flow is built from these fourteen screens. A screen spec names one
-of them.
-
-| Screen | Content | Used by |
+| `Screen` | What it holds | Drawn as |
 |---|---|---|
-| Menu | rows: menu, value, key, reference, secret, toggle; optional key context | a silent payments wallet's page (the Silent payments screen, opened from its card's "Address, labels and payments": its key, its address with the labels handed out ("Label 1" and its own address), the scan key, and "Check a payment", which reads a transaction from Files and states what it pays this wallet, or the transaction it still needs), the loaded keys (the sidebar's Keys group: each key's fingerprint and label, with a mark where it has a passphrase; a press opens the Key explorer on it. A key has no page of its own: BIP-85, a vanity address and a backup are Tools and wallet flows, F68), Wallets (the session's wallets as a list at the left, each its name above and its shape below — "Single key · native SegWit", "2 of 3 · native SegWit multisig" — with " · watch only" where none of its keys is here, " · 1 of 2 here" where some are, and "Can spend" at the right of the name where enough are; under them "Keys without a wallet", each key's fingerprint and label with "Make a wallet from this key"; then "Restore an existing wallet" where no wallet is loaded, and "Add a key", or "Scan a key for" the wallet shown where it is short of keys; a press on a wallet shows its card, below), a wallet's Keys review (the Keys screen filtered to the wallet's members: one row per member with the wallet glyph where this device holds it and the eye where it does not, the dimmed reason "not loaded" on a member it has no key for, which opens Add a key and comes back here once one is loaded; a key opened there with a passphrase or as a BIP-85 child is compared with the fingerprint the row named and is not kept when it is another key, while a key loaded from words is loaded whatever it is), the transaction's Keys review (the same screen over the keys a transaction names rather than a wallet's members, opened from the Sign review's key context row, with the same glyphs, the same "not loaded" reason and the same return path; the transaction is inspected again when a key comes back, so the review it returns through continues with that key), Add a key (New key's Start card, `docs/history/NEW-WALLET.md` §15.1: Make a new key · Type the words · Scan a SeedQR as radio rows, Make a new key ticked, then an **Other forms** link, closed at first, over Make SLIP-39 shares · Type SLIP-39 shares · Type a codex32 secret · Type Seed XOR parts, and Continue; closed, the card's summary is the choice with Change until the key is locked in. A threshold wallet's slot offers Make a new key and Type the words only. Nothing is done here with a key already loaded, which is a key's own page. Where one key in particular is asked for — a slot's fingerprint, a wallet's missing key, Restore's seed slots — the Add a key screen opens instead, its words form first with Scan a SeedQR above it), the key picker "Which key?" (the loaded keys as key rows; a tap is the answer; asked only where a wallet or a transaction is waiting for one key in particular), Check an address (Scan a QR · Type an address), Tools (Key explorer, Word list, Verify a message, the calculators, Decode a transaction and Lightning node key), Settings (a Mode row, a reference row with the mode's name that opens the mode sheet: the modes the app offers, the one in use marked, Not now), About, the key explorer's own menus, Files (one value row per file the shell listed, the date as the caption above and the name as the bold line below, since the name is what a person chooses by, newest first; tapping one is the answer), Faraday's Backups (`docs/history/SIMPLIFY.md` §5.1: every wallet known, once each, a card each with its name and shape and **Back up** where it is loaded, then one row per place of its backup map — where, what it holds, its tag secret, sealed or public, and what this device saw of it, in the state's tone — or "No backup plan"; a list from the top that scrolls, and on the small panel one wallet a page with Previous · Next), Faraday's wallet card (`docs/history/NEW-WALLET.md` §6: the name, shape and source, the backup line, the signatures possible here, then **At a glance**, §4.16's structure chart of the wallet, its keys and its backup with the plan's three checks as a strip above it, each node and each line of a backup node opening its sheet, then the first receive address and the card's actions along its foot; the body between the head and the actions scrolls; on the small panel an **At a glance** row opens the chart as its own page), Faraday's Vault contents (the kinds it holds, then a row per add action with the Add glyph in the accent colour, the chosen kind's items, the chosen item; opened just unlocked on Wallets where it holds one. A wallet's item is `docs/history/NEW-WALLET.md` §7.2's chart read parts first — the plan's check lines, the backup this vault keeps the plan of, the keys, the wallet — then its descriptor and actions; a wallet with no plan in this vault shows its wallet and keys with "No backup plan in this vault". While a wallet's item is shown the kinds column is `CHART_PANE_KINDS` wide and the items `CHART_PANE_ITEMS`, giving the chart the rest. Each node opens its sheet (§4.16), whose actions load the wallet and its seeds in the vault first; on the small panel the item's page carries the column the same way up) |
-| Choice | rows with a check, Continue | "How?" (which dial a vanity grind turns: Passphrase counter · Account index, each row's second line what one candidate costs — "a key derived each try", "an account derived each try" — with "slow here" at the trailing edge on a Tier A device, and the passphrase row dimmed with "has a passphrase" on a key this device cannot append to or "no words" on one with none), "From?" (where a Lightning node key comes from: An LND cipher seed · A loaded key, the second dimmed with "no key with words" where no loaded key has a BIP-39 seed), "Which form?" (over a silent payment address: Address · Payment URI, which is BIP-321's `bitcoin:?sp=…`), "Which form?" (how an export leaves the device, each row's second line the programs that open it: Encrypted backup, checked, "decrypt.py" · KDBX 4, "a KeePass app", which has no QR · Plain text, "any text editor · not encrypted", offered for a note and a recovery sheet and for nothing that holds a key; no QR row, since the Result shows an encrypted backup as one code where it fits one; the step before the passphrase for anything encrypted), "Which application?" (the BIP-85 applications a key derives: Words, which opens the child-key flow, · WIF · Extended private key · Hex · Password (base64) · Password (base85)), "How many bytes?" (16 · 32 · 64, for the hex application), source (Load's rows, most used first: Type the words · Scan a SeedQR · Read an encrypted backup · SLIP-39 shares · Seed XOR parts · Codex32 · Hex entropy; Codex32 has no count and no language step after it, and Hex entropy takes the count and the language like typed words), word count (12, 15, 18, 21, 24 for a key's words; 20 and 33 under the same question, "How many words?", for a SLIP-39 share, which has no language step after it), language, script type, arrival, unit, network, timers, the word list's notation, the diceware list and its length; and Add a wallet's own steps — "Passphrase?" (No, checked, · Yes), the first step where a key's page started the wizard with that key in hand, on a key whose words this device holds, and on no other path: No goes on over that key, and Yes opens that key's passphrase entry, titled "New key with passphrase", whose ✓ puts the new key on Keys beside it and goes on over the new key; Back from it, and from the kind step after it, is the key's page, and the discard question is asked there only once keys beyond the one in hand are gathered — "What kind of wallet?" (Single-sig · Multisig · Taproot multisig · MuSig2 · FROST · Recovery · Silent payments, whose Keys step takes one key, so a tap on another row moves the check, and which has no script step; with a key in hand, Single-sig and Silent payments go on past the Keys step over that key and every other kind opens its Keys step with that key checked), "Keys · 2" (the loaded keys as key rows, several of which may be checked, a key the kind cannot use dimmed with its reason — a kind built on one key dims none of them and a tap on another row moves the check, a kind full of several keys dims the rows it cannot take with "full" — the cosigners scanned in under them and "Scan a key" last where the kind takes one, and, for a FROST group short of its count, the dimmed row that states what it needs), "Which script type?" and "How many must sign?", with FROST's "How many keys?" and "How many must sign?" before its keys, and a recovery wallet's "Now · 1" and "Later · 1" — the same key list, a key already on the other path dimmed with "on the other path" — its "How many must sign now?" and "How many must sign later?" where a path has more than one key, "After how long?" (30, 90, 180 and 365 days, each with the blocks it is under its name, a wait at or below the path before this one dimmed with "not after 30 days", and "Type a number of days" last) and "Another path later?" (No, checked, · Yes), which follows every recovery path's wait until the wallet has three of them, where the source is the one the key was just made from |
-| Entry | field, one fact or mode row above it, candidates or presets, keyboard, error line | a vanity prefix ("Address prefix", on the address keyboard at the layer the script type decides, the fixed prefix its addresses all begin with already in the field and not deletable, every key the encoding cannot carry dimmed, the prefix whole above the field, and ✓ dead until one character past the fixed prefix is asked for), an LND cipher seed's passphrase (masked, after its twenty-four words; an empty field is LND's own default, so ✓ is live from the start), words (a SLIP-39 share's words on the same screen over the SLIP-39 list, titled "Share 1 · Word 7 of 20"), passphrase (opened from a wallet's not-loaded member row, its error line states which key the passphrase gave and which the wallet asked for, and the key is not kept), path, address (on the address keyboard: the bech32 layer, with `1` and `b` for the prefix, and a base58 layer behind shift, keys that cannot continue an address on the set network dimmed), Find an address (the key explorer's, F76: the account as Addresses states it, then "Address" on the address keyboard, an address or any part of one, typed or pasted, with Paste where the shell has a clipboard — a payment link is read for its address and a secret is refused and named under the field; "Look through" First 100 · First 1,000 · First 10,000 of each chain; Search, which is Stop while it looks; under them "Searched 3,400 of 10,000 on each chain" while it looks, then "8 found" in the positive colour and one Addresses row per match, index by index and receive before change, the first fifty listed and "12 more not listed" past them, or "Not in the first 1,000 receive and change addresses"; a whole address ends the search where it is found, a bech32 one in either case. Reached from Explore's "Find an address" row, and back to the path as it was left), a codex32 string (on the codex32 keyboard, `ms1` in the field and not deletable, the characters in groups of four with the string whole above the group, keys that cannot continue a string dimmed, ✓ live only once the whole string parses and the line under the field stating the codec's reason where it does not), a BSMS session token (on the hex keyboard, with "None · 00" as the one preset row above the field, ✓ live only on `00` or a nonce of sixteen or thirty-two hex digits), a BSMS description (on the passphrase keyboard, the device's fingerprint already in the field, ✓ dead and the error line stating the limit past eighty characters), hex, a key's entropy in hex ("Hex entropy" on the hex keyboard, the digits masked one by one, ✓ dead until the count's 32 to 64 digits are in), a wallet's name, a note (on the passphrase keyboard, up to 4 096 characters, ✓ dead while the field is empty), the word list's search |
-| Pad | count field directly above the pad, progress and masked entries for dice and coins, the words a run has completed on a masked panel above them where it builds words, pad | dice, coins, the dice passphrase's rolls, "Days" (a recovery path's wait typed on the digits pad, the blocks it is under the field), "Length" (a BIP-85 password's length, the application's bounds under the field) and "Index" (which child of a BIP-85 application is derived, the largest index under the field). |
-| Words | the words panel, pager when it pages (the title is "Words", the pager's label the page's name), primary, eye | Backup › words, Create › words, Load › check your words, quiz › show the words, Explore › words, one share of a SLIP-39 backup this device is writing (the title is where it stands in the plan, "Group 1 · Share 2 of 3", or "Share 2 of 3" where the backup has one group), and each computed key of a FROST group Add a wallet has just dealt (the title is that member's own fingerprint, "a4dc80c1", which is what the wallet's Keys review shows) |
-| Secret | the whole body as one panel, the facts it needs beside it, eye, one action where the screen ends a flow, with a second beside it where the flow can be gone on with without doing what the action asks | a vanity grind's counter ("Passphrase counter", what the find appends to the key's passphrase, masked because it is part of one), a Lightning node private key, with "Entropy" beside Done where it came from a cipher seed, which swaps the panel to the sixteen bytes and puts "Node private key" in its place, seed hex, master private key, SeedQR, CompactSeedQR, a rolled passphrase, a silent payments wallet's scan descriptor, `sp([73c5da0a/352h/0h/0h]spscan1q…)`, which the Export menu's row opens and which carries no code and no copy, a value BIP-85 derives (the title is the application and the index, "WIF · 0"; Done is the only action, because a secret is never copied), one codex32 string this device has just written (the title is "Codex32", or where it stands in the set, "Share 2 of 5"; the string is a comparison string in groups of four at the largest mono size that fits, 127 characters for a 512-bit seed; Continue types it back and Skip goes on without, behind the quiz's own caution) |
-| Addresses | script type value row, Receive \| Change pair, then one reference row per address ("Receive 2" above, the elided address below; a reference row opens the wallet's own Address screen, where one receives). The script type is a value row where it is a choice and a §4.12 fact where it follows from what is listed, as it does for a policy | a single-sig wallet's addresses, a policy's addresses, the key explorer › addresses (F76: the account the explored path is in — the path without its chain and index, or the path itself where every level is hardened, never a BIP-45 or BIP-48 multisig account — as a fact above the pair, "Account" over "m/84h/0h/0h · Native SegWit"; under the pair "From index", a field typed in digits on the path pad, and Previous 10 · Next 10; then ten rows from that index, any index up to the last unhardened one. The explorer's addresses are always whole, on one line where it fits and wrapped where not, never cut with an ellipsis. Its rows, here and on its Find page, are value rows that open nothing: "Receive 2" above and the address below, the wallet's own Address screen being where one receives and the explorer where one checks. A Find match shows the whole address, never cut, wrapped where it does not fit one line, with the matched part in the accent and heavier. Reached from Explore's "Addresses" row, under the path's values, and back to the path as it was left) |
-| Address | the QR at the class's side, the label under it and the whole address (comparison string) under that; the title is the address's name ("Receive 2") and the label under the QR is its script type ("SegWit"); indices are the derivation index, from 0. Where the address has more than one form, a §4.2 value row above the copy row names the form and opens the Choice for it | tap on an Addresses row; Verify result's address; a silent payments wallet's address and each of its labels (the title is "Address" or "Label 1", the label under the code "Silent payment", and the Format row switches between the address and its BIP-321 URI) |
-| QR | QR, label, progress row, and an action row where a flow carries on past the code | a key's export, a wallet's export, transaction, SeedQR (as a Secret); a message signature as one text code; an encrypted backup's and a sealed file's code (ciphertext). |
-| Record | optional key context, optional network badge, the table with reference rows for strings, optional warning cards, a pager where the record is one of a run, one action | Sign overview, output, inputs (one row per input, never a free block under the table, and the Signatures row where the transaction carries any), Signatures (one row per signature the transaction carries, whoever made it: the input and the key as the label, "valid", "invalid" or "not checked · <reason>" as the value, with "· deterministic · Low R" or "· not deterministic" after it for a key this device holds; reached from the inputs review, from Decode's and from the Sign result), stats, one word of a BIP-39 list, a wallet's keys — for a FROST wallet read from a record, one row per member with the glyph, "Key 1 of 3" as the label and that member's own fingerprint as the value; and Add a wallet's review of a FROST group before it is dealt, which states the kind, the network and the chosen keys, there being no descriptor until the deal has run. A taproot wallet whose internal key is BIP 341's NUMS point carries "Key path · unspendable". A wallet with a timelocked path carries "Kind · Recovery", "Now · 1 of 1" and one row per recovery path, "After 365 days · 1 of 1 · 52 560 blocks", whether it was built here or arrived as a descriptor. A wallet read from a BIP 129 descriptor record carries, beside its quorum, "Paths · /0/*,/1/*", "First address" and "This device · Key A" |
-| Result | icon and coloured title, a record, one or two actions | "Cipher seed read" / "Node key derived" (a Lightning node key: the node public key as a reference row, then "Cipher seed version", "Birthday" — the day and the count of days the seed holds, "2018-03-22 · 3365 days" — or the key it came from, then "Derived as · LND" or "Derived as · ldk-node", with "Show secret" beside Done; a cipher seed that does not open is the same screen with "Wrong passphrase", "The words do not check out" or "Not a version 0 cipher seed" and no rows), "Check a payment" ("Paid", with one row per output that pays this wallet — "Output 0" above, the amount and the label or "Address" beside it — or "Not paid here", or what stopped the check: no input a key can be read from, a transaction that is not signed yet, a wallet whose key is not loaded), Verify result, Sign result, quiz result, checksum, "Shares made" (a SLIP-39 backup this device has just written: "Groups · 2 of 3", one row per group "Group 1 · 2 of 3 shares", then "Random shares · <source>" with the Trust row for This device), "Strings made" (a codex32 backup this device has just written: "Split · 3 of 5" or "Split · none", "Random shares · <source>" with the same Trust row where the seed was split, and, for a key with words, "Holds · the seed, not the words"), "Encrypted backup" (a key's: Key, Inside, Bytes, Memory, then "Format" "OSKB 3" or "KDBX 4", "Cipher" "XChaCha20-Poly1305" or "ChaCha20", "Key derivation" "Argon2id · 3 passes · 1 lane" as the file's header states it, "Read with" the form's programs, then the File row once saved and Copy; "Save to file" or Done, and "Show as QR" except on KDBX) and "Sealed" (a note's or a sheet's: Bytes, Memory and the same four rows; "Save to file" or Done, and "Show as QR" on an encrypted backup that fits one code; a plain text file states its Bytes alone), scan results, wipe done |
-| Hold | a record of what will happen, "Sign with" chips where several keys could sign, the hold, and one plain action beside it where a step declines the hold | Sign confirm, Forget, Wipe, Keep ("Not now" beside the hold) |
-| Scanner | the camera's full 4:3 picture with the state inside, and one band of tiles under it — "Paste" (desktop only), "Type" | Scan, and every flow that takes a value |
-| Document | scrolling text with headings; may end in one Menu action row, carry one bottom action, or both | About, Learn (a page whose subject has a flow ends in its "Try it" row; a page opened from a working screen's info button draws no such row and opens at the section that screen is about), a message to sign or verify (the message whole, the address and the format as rows above it) |
+| `Home` | The lead tile while something is under way or waiting, then the tiles; on the small panel the menu of the sidebar's entries; **Scan** (`docs/FLOWS.md`, Home). | Page |
+| `WalletsStart` | The Wallets tab's first page: the wallets loaded, the keys without a wallet, and every way in by what the person has. | Page |
+| `Wallets` | The wallets as a list and the chosen wallet's card: its name and shape, the backup line, the signatures possible here, **At a glance** (§4.16), the first receive address and the card's actions (`docs/WALLETS.md`). | Page |
+| `Spend` | Signing a transaction: the review (what it sends, to whom, the fee, change, the txid, warnings), the signers, **Sign with** (§4.4), and the signed PSBT and finished transaction. | Step flow |
+| `Family` | The Spend tab: spending from a backup, step by step (`docs/FAMILY.md`). | Step flow |
+| `Files` | The Inbox and the Outbox: a row per file with its kind, size and ⋮, and what each file can do (Sign, Decode, Load the wallet, Unlock, Import into the vault). | Page |
+| `Visit` | A stick visit: what is on the stick, ticked to bring in, and what goes out to it. | Page |
+| `Entry` | Add a key: a seed typed or scanned (§4.3). | Page |
+| `Backup` | Backing up a wallet: the plan, the board (§4.17), each copy made and checked. | Step flow |
+| `BackupFlow` | The shared backup flow for a key that is not a wallet's: where it will be kept, its sticks and vaults, the lock and the writes (`docs/BACKUP-FLOW.md`). | Step flow |
+| `Backups` | Every wallet known and where its backup is, a card each; on the small panel one wallet a page with **Previous · Next**. | Page |
+| `Create` | Making a new wallet: Kind, the quorum, whether vaults are part of the backup, the keys, Check, Back up. | Step flow |
+| `Restore` | Restoring a wallet from its description and its seeds. | Step flow |
+| `KeyGen` | Making a new key: the source of randomness, its entries (§4.3), the length, the passphrase, lock in. | Step flow |
+| `Message` | Signing a message with a single-key wallet's key. | Step flow |
+| `CheckMessage` | Checking a signed message against its address. | Page |
+| `Decode` | A transaction taken apart, field by field. | Page |
+| `Explore` | A loaded key's public side at a path: the path field, the script, the address, public key and extended key; the account's addresses and Find an address (F76). | Page |
+| `Bip85` | BIP-85's applications from a loaded key: a child seed's words, a private key, a password, at an index. | Step flow |
+| `Silent` | Silent payments: a loaded key's address, its labels and the payments checked. | Step flow |
+| `Vanity` | A vanity address for a loaded key: the script, the prefix, the dial, the grind and its find. | Step flow |
+| `Lightning` | A Lightning node's key, from a loaded key or an LND aezeed. | Page |
+| `Catalog` | Tools: every flow on one page, by group, each with its line and the standard it follows; the sidebar's Tools. | Page |
+| `Tools` | The calculators: hashes, encodings, a descriptor's checksum, an xpub's spellings, units, the Miniscript compiler. | Page |
+| `Vaults` | The vaults in Files and those open. | Page |
+| `Unlock` | Unlocking one slot of a vault with its passphrase. | Page |
+| `VaultContents` | An open vault: its kinds, the chosen kind's items, the chosen item, with the add actions; a wallet's item is its chart read parts first (§4.16). | Page |
+| `CreateVault` | Making a vault: where it will be opened, the cost of unlocking, the space per passphrase, its name and passphrases, its size. | Step flow |
+| `Codes` | TOTP codes for the entries in open vaults, with the time they are computed for (`docs/TOTP.md` §5). | Page |
+| `SetTime` | Setting the time by hand: Date and Time (`docs/TOTP.md` §3). | Page |
+| `Settings` | The session and Lock; lock and power-off timers; Mode; Appearance (the themes, §3), Motion and the display scale; what is remembered; About. | Page |
+| `Transfer` | The desktop app as the device's QR link: files out as codes, in by camera. Only in the desktop app. | Page |
+| `Upgrade` | Upgrading another Faraday stick from the one Faraday started from. Never in the desktop app. | Page |
 
-Fourteen screens, placed by the law in §2.6:
+The sheets (`Sheet` in `faraday/faraday-core/src/lib.rs`, drawn in
+`faraday/faraday-core/src/screens/sheets.rs` and the area that owns
+them) include the QR sheet and the scanner (§4.9), the Learn sheet, the word list, a secret on its
+way out (§4.10), the lock and its question, the idle warning and the
+locked sheet (§4.14), power, a new input device, what is attached that
+can capture the screen or the keys, a seed read by the camera, a chart
+node's sheet (§4.16), the board's list, its balance and partials sheets
+and its ⋮ menu (§4.17), a file's ⋮ menu (§4.1), Rename and Details, the
+mode sheet, Load samples (§4.8), and the question a flow's Cancel asks
+(§4.13).
 
-| Screen | Centred block | Bottom (touch) | Starts at the top |
-|---|---|---|---|
-| Menu | — | — | the rows |
-| Choice | the option rows | Continue | (the rows, when taller than the space) |
-| Entry | the "Words so far" panel (`mobile`, `wide`), or the one fact or mode row above the field | field, candidates, keyboard | — |
-| Pad | the words a run has completed (`mobile`, `wide`) | entries and progress, field, pad, Continue | — |
-| Words | the words panel and its pager | Continue | — |
-| Secret | the panel and its facts | the action, where there is one | — |
-| Addresses | — | — | the value row, the pair, the rows |
-| Address | QR, label, the string | the Format and Copy rows where it has them | — |
-| QR | QR and label | progress | — |
-| Record | badge, table, warnings | the pager and the action | — |
-| Result | title, table | the actions | — |
-| Hold | the table | Sign with, the hold with its secondary where it has one | — |
-| Scanner | the viewfinder | the band of ways in: Paste (desktop only), Type | — |
-| Document | — | the one action, where there is one | the text, and its one row after it |
-
-On `wide` every screen is drawn in the sidebar frame inside
-the width caps, centred in the pane, with the same placement and the
-primary action at the pane's bottom-right. In Faraday (`faraday-ui`)
-every page's working area is one colour, the theme's surface (`SURFACE`,
-white in the light theme), and so is a sheet; the sidebar keeps its own
-shade (`SIDEBAR`). A step flow's steps (Create, New key, Restore, Back
-up, the checklist and every flow drawn with step cards) are flat
-sections divided by a thin rule in `LINE`, with no fill and no box. The
-right-hand column (Back up's list or Map, the side panel) is the same
+In Faraday (`faraday-ui`) every page's working area is one colour, the
+theme's surface (`SURFACE`), and so is a sheet; the sidebar keeps its
+own shade (`SIDEBAR`). A step flow's steps are flat sections divided by
+a thin rule in `LINE`, with no fill and no box. The right-hand column
+(Back up's list or Map, the side panel, `side_panel_w`) is the same
 colour, divided from the page by the same rule. A card or tile on the
-page is set apart by its edge alone, `BORDER` (`docs/DECISIONS.md`
-F39). The Pad group is
-bottom-anchored on every class; a dice or coin pad is its own, with
-its entries and progress above it. A centred block taller than its
-space scrolls from the top.
-
-A Menu with few rows on `mobile` keeps its start-the-flow buttons at the
-bottom, where the thumb is, and leaves the space between empty. A row
-whose value is a neutral state ("verified", "no") keeps the value in the
-body tone; only the label is muted, so the row does not read as dead.
+page is set apart by its edge alone, `BORDER` (`docs/DECISIONS.md` F39).
 
 ## 6. What changes from today
 
