@@ -30,6 +30,7 @@ need. Each document's header says what kind it is:
 | How does the Starter write a stick and start a computer from it? | `docs/STARTER.md` |
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
+| How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
 | Can a person add their own randomness, and when is the stick's kernel ready? | `docs/OWN-RANDOMNESS.md` |
 | How does a seed change form and stay the same wallet? | `docs/SEED-CONVERSION.md` |
 | What about Macs? | `docs/MAC.md` |
@@ -76,6 +77,7 @@ need. Each document's header says what kind it is:
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/INTEROP.md`: Interoperability with other wallets. Tested.
 - `docs/LARGE-FILES.md`: Large files on a stick visit. Not built (F26, amended by F30).
+- `docs/LAYOUT.md`: Layout at every window size. Specified (F92), not built.
 - `docs/MAC.md`: Faraday on Macs. Partly built.
 - `docs/MODES.md`: Modes, Demo and samples. Specified (F81), not built.
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.

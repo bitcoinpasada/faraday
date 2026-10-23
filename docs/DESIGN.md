@@ -64,7 +64,7 @@ the theme (§3), the content kinds (§4) and the screens (§5).
 
 ## 3. Sizes
 
-Faraday lays every screen out one of two ways (`Faraday::is_compact`).
+Faraday lays every screen out one of two ways (`Faraday::is_compact`). `docs/LAYOUT.md` (F92, planned) replaces these two with Material 3's five window size classes, a navigation bar, rail or expanded rail by class, and list-and-detail panes.
 
 | Layout | When | What changes |
 |---|---|---|
