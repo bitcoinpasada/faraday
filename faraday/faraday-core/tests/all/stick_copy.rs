@@ -129,7 +129,7 @@ fn pump(app: &mut Faraday, sticks: &[&Stick]) -> Vec<(String, String, Vec<u8>)> 
 
 /// Copies `names` in from the stick on show.
 fn copy_in(app: &mut Faraday, sticks: &[&Stick], names: &[&str]) {
-    let shown = &app.sticks[app.visit.stick];
+    let shown = &app.sticks()[app.visit.stick];
     let ks: Vec<usize> = names
         .iter()
         .map(|n| {

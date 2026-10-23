@@ -190,7 +190,7 @@ fn a_file_on_the_stick_renamed_is_listed_under_its_new_name_with_its_bytes() {
         Vec::new(),
         vec![file("old-notes.txt", b"the notes"), file("x.psbt", b"p")],
     );
-    let k = app.sticks[0]
+    let k = app.sticks()[0]
         .files
         .iter()
         .position(|(n, _)| n == "old-notes.txt")
@@ -201,7 +201,7 @@ fn a_file_on_the_stick_renamed_is_listed_under_its_new_name_with_its_bytes() {
     type_name(&mut app, "notes");
     app.press(Action::File(FilePress::RenameGo));
     shell.pump(&mut app);
-    let listed: Vec<&str> = app.sticks[0]
+    let listed: Vec<&str> = app.sticks()[0]
         .files
         .iter()
         .map(|(n, _)| n.as_str())
@@ -234,7 +234,7 @@ fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named() {
         ],
     );
     let at = |app: &Faraday, name: &str| {
-        app.sticks[0]
+        app.sticks()[0]
             .files
             .iter()
             .position(|(n, _)| n == name)
@@ -265,7 +265,7 @@ fn a_rename_to_a_name_on_the_stick_is_refused_and_a_same_vault_named() {
 #[test]
 fn delete_from_the_stick_opens_the_sheet_with_that_file_alone_chosen() {
     let (_shell, mut app) = visiting(Vec::new(), vec![file("a.txt", b"a"), file("b.txt", b"b")]);
-    let k = app.sticks[0]
+    let k = app.sticks()[0]
         .files
         .iter()
         .position(|(n, _)| n == "b.txt")
@@ -274,7 +274,7 @@ fn delete_from_the_stick_opens_the_sheet_with_that_file_alone_chosen() {
     choose(&mut app, "Delete from the stick");
     assert_eq!(app.sheet, Some(Sheet::Delete));
     assert_eq!(
-        app.delete_ask.as_ref().map(|d| d.chosen.clone()),
+        app.delete_ask().map(|d| d.chosen.clone()),
         Some(vec!["b.txt".to_string()])
     );
     let _ = app.frame();

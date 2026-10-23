@@ -141,7 +141,7 @@ impl Faraday {
         }
         let wanted = self.sticks_wanted();
         let held = self
-            .sticks
+            .stick
             .iter()
             .filter_map(|s| folder_number(&s.label))
             .max()
@@ -151,7 +151,7 @@ impl Faraday {
             .max(held)
             .max(FIRST_BACKUP);
         let asked = wanted.and_then(|w| w.now);
-        let is_in = |folder: &str| self.sticks.iter().any(|s| s.label == folder);
+        let is_in = |folder: &str| self.stick.iter().any(|s| s.label == folder);
         let mut boot = self.boot_pill();
         boot.asked = asked == Some(1);
         let mut pills = vec![boot];
@@ -179,7 +179,7 @@ impl Faraday {
             .to_string(),
             folder: BOOT_FOLDER.to_string(),
             // The core relabels the boot stick, so it is found by what it is.
-            inserted: self.sticks.iter().any(|s| s.boot),
+            inserted: self.stick.iter().any(|s| s.boot),
             asked: false,
         }
     }
@@ -199,7 +199,7 @@ impl Faraday {
         };
         // The numbers of the sticks in that read as one of the flow's.
         let lit: Vec<usize> = self
-            .sticks
+            .stick
             .iter()
             .filter_map(|st| self.flow_stick_slot(st))
             .map(|k| f.stick_number(k))
@@ -376,7 +376,7 @@ impl Faraday {
         if !r.pending.is_empty() || r.space_pending {
             return None;
         }
-        let st = self.sticks.iter().find(|s| s.id == r.id)?;
+        let st = self.stick.iter().find(|s| s.id == r.id)?;
         let m = self.flow_record_slot(st).filter(|&m| m != r.slot)?;
         let (word, n) = self.flow_slot_word_n(m)?;
         Some(fill(EN.backup_flow_reads_as, &[word, &n]))
@@ -404,7 +404,7 @@ impl Faraday {
         ) {
             return None;
         }
-        let st = self.sticks.iter().find(|s| s.id == r.id)?;
+        let st = self.stick.iter().find(|s| s.id == r.id)?;
         match self.flow_stick_slot(st) {
             Some(m) if m == r.slot => None,
             Some(m) => {
@@ -441,7 +441,7 @@ impl Faraday {
     /// names: the shell inserts each one that is out and pulls each one
     /// that is in.
     pub fn take_stick_toggles(&mut self) -> Vec<String> {
-        std::mem::take(&mut self.stick_toggles)
+        std::mem::take(&mut self.stick.toggles)
     }
 
     /// A press on pill `n`; none on a device, whose sticks are put in by
@@ -456,7 +456,7 @@ impl Faraday {
         } else {
             backup_folder(n)
         };
-        self.stick_toggles.push(folder);
+        self.stick.toggles.push(folder);
     }
 }
 

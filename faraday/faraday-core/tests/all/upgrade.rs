@@ -354,7 +354,7 @@ fn with_a_key_loaded_it_locks_first_and_the_fresh_process_opens_on_the_upgrade()
     // Not now: nothing waits.
     app.press(Action::NotNow);
     assert_eq!(app.sheet, None);
-    assert!(!app.not_now);
+    assert!(!app.not_now());
     app.press(Action::UpgradeOpen);
     app.press(Action::Lock);
     assert!(app.restart_requested());

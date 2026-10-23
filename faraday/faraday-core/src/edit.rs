@@ -569,7 +569,7 @@ impl Faraday {
             Screen::BackupFlow => self.flow().is_some(),
             Screen::Decode => self.decode().is_some(),
             Screen::CheckMessage => self.message.checking().is_some(),
-            Screen::Visit => !self.sticks.is_empty(),
+            Screen::Visit => !self.stick.is_empty(),
             Screen::Transfer => self.online,
             _ => true,
         }

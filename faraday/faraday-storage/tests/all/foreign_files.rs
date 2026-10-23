@@ -106,7 +106,7 @@ fn a_visit_lists_and_copies_the_psbt_alone() {
     )]));
     app.press(Action::Nav(Screen::Visit));
     assert_eq!(
-        app.sticks[0].files,
+        app.sticks()[0].files,
         [(PSBT.to_string(), psbt().len() as u64)],
         "the visit counts the PSBT alone"
     );

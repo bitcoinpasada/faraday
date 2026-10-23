@@ -376,7 +376,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
     );
     // Arrived from Import and load: pulling the stick is the next step.
-    if !app.sticks.is_empty() && !app.visit.load_after.is_empty() {
+    if !app.stick.is_empty() && !app.visit.load_after.is_empty() {
         ui.fill(x, y, width, 48.0, 10.0, WARN.with_alpha(22));
         ui.stroke(x, y, width, 48.0, 10.0, WARN.with_alpha(90));
         ui.icon(x + 16.0, y + 14.0, 20.0, app.medium.icon(), 13.0, WARN);
@@ -786,7 +786,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &fill(EN.files_power_off_asks, &[app.medium.for_the()]),
         );
     }
-    let (label, action) = if app.sticks.is_empty() {
+    let (label, action) = if app.stick.is_empty() {
         (fill(EN.files_waiting_medium, &[app.medium.a()]), None)
     } else if app.holds_secret() {
         (
@@ -797,7 +797,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (
             fill(
                 EN.files_visit,
-                &[&app.sticks[app.visit.stick.min(app.sticks.len() - 1)]
+                &[&app.stick[app.visit.stick.min(app.stick.len() - 1)]
                     .label
                     .to_string()],
             ),
@@ -1795,7 +1795,7 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let top = 12.0 - app.list_offset;
     let mut y = top;
     // The stick, or what waits for one.
-    let (label, action) = if app.sticks.is_empty() {
+    let (label, action) = if app.stick.is_empty() {
         (fill(EN.files_waiting_medium, &[app.medium.a()]), None)
     } else if app.holds_secret() {
         (
@@ -1806,7 +1806,7 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (
             fill(
                 EN.files_visit,
-                &[&app.sticks[app.visit.stick.min(app.sticks.len() - 1)]
+                &[&app.stick[app.visit.stick.min(app.stick.len() - 1)]
                     .label
                     .to_string()],
             ),
@@ -1835,7 +1835,7 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.text(x, y, 12.0, W::R, DIM, EN.files_in_memory_emptied);
     y += 26.0;
     // Arrived from Import and load: pulling the stick is the next step.
-    if !app.sticks.is_empty() && !app.visit.load_after.is_empty() {
+    if !app.stick.is_empty() && !app.visit.load_after.is_empty() {
         y += crate::vault::screen::stick_banner(ui, x, y, w, &pull_line(app));
     }
     for v in 0..app.vaults.open.len() {

@@ -22,7 +22,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = top;
     app.visit.bar(crate::Column::Outbox).set(None);
     app.visit.bar(crate::Column::Stick).set(None);
-    let Some(stick) = app.sticks.get(app.visit.stick) else {
+    let Some(stick) = app.stick.get(app.visit.stick) else {
         ui.text(
             x,
             y,
@@ -38,9 +38,9 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ui.chip(x, y, &then, ACCENT, ACCENT.with_alpha(30));
     y += 36.0;
     // One button per stick, the chosen one filled.
-    if app.sticks.len() > 1 {
+    if app.stick.len() > 1 {
         let items: Vec<(&str, Style, Action)> = app
-            .sticks
+            .stick
             .iter()
             .enumerate()
             .map(|(k, st)| {
@@ -384,7 +384,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     // One chip per stick; the chosen one is outlined.
     let mut chx = x + width;
-    for (k, st) in app.sticks.iter().enumerate().rev() {
+    for (k, st) in app.stick.iter().enumerate().rev() {
         let label = st.label.clone();
         let wdt = ui.measure(13.0, W::S, &label) + 28.0;
         chx -= wdt;
@@ -429,7 +429,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &[app.medium.noun(), app.medium.noun(), app.medium.noun()],
         ),
     );
-    let Some(stick) = app.sticks.get(app.visit.stick) else {
+    let Some(stick) = app.stick.get(app.visit.stick) else {
         ui.text(
             x,
             y,

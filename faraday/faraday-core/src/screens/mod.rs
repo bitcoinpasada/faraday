@@ -403,7 +403,7 @@ fn draw_compact(app: &View, ui: &mut Ui, w: f32, h: f32, kb: bool, y0: f32) {
 
 /// "Remove the stick" and the toast, centred in `cw` from `x`, at the foot.
 fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
-    if app.not_now && !app.sticks.is_empty() && app.sheet.is_none() {
+    if app.stick.not_now() && !app.stick.is_empty() && app.sheet.is_none() {
         let msg = &fill(EN.notices_remove_medium, &[app.medium.noun()]);
         let bw = ui.measure(14.0, W::S, msg) + 40.0;
         let bx = x + (cw - bw) / 2.0;

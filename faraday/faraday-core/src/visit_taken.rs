@@ -105,7 +105,7 @@ impl Faraday {
     /// The files the write would write whose names are taken on the stick
     /// shown, each with what becomes of it.
     pub fn visit_taken(&self) -> Vec<Taken> {
-        let Some(stick) = self.sticks.get(self.visit.stick) else {
+        let Some(stick) = self.stick.get(self.visit.stick) else {
             return Vec::new();
         };
         let mut names: Vec<String> = stick
@@ -164,7 +164,7 @@ impl Faraday {
             .filter(|t| matches!(t.fate, Fate::File { .. }))
             .map(|t| t.name)
             .collect();
-        let Some(stick) = self.sticks.get(self.visit.stick) else {
+        let Some(stick) = self.stick.get(self.visit.stick) else {
             return;
         };
         let id = stick.id.clone();
@@ -292,7 +292,7 @@ impl Faraday {
                 }
             }
             Action::VisitIn(i) => {
-                if let Some(stick) = self.sticks.get(self.visit.stick)
+                if let Some(stick) = self.stick.get(self.visit.stick)
                     && let Some((n, size)) = stick.files.get(i)
                     && *size <= READ_MAX
                 {
@@ -338,7 +338,7 @@ impl Faraday {
                 self.act(Action::Nav(Screen::Files));
             }
             Action::VisitFrom(back) => {
-                if !self.sticks.is_empty() && !self.holds_secret() {
+                if !self.stick.is_empty() && !self.holds_secret() {
                     self.after_visit = Some(back);
                     self.act(Action::Nav(Screen::Visit));
                 }

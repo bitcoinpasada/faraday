@@ -586,7 +586,7 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     let mut cy = y;
     // A stick.
-    let stick = !app.sticks.is_empty() && !app.holds_secret();
+    let stick = !app.stick.is_empty() && !app.holds_secret();
     ui.text_mid(x, cy, 40.0, 13.0, W::S, MUTED, app.medium.cap());
     let bw = ui.button(
         x + 90.0,
@@ -679,7 +679,7 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
     use faraday_vault::records::{field, kind};
     let mut cy = y;
     // A stick.
-    let stick = !app.sticks.is_empty() && !app.holds_secret();
+    let stick = !app.stick.is_empty() && !app.holds_secret();
     ui.text(x, cy, 13.0, W::S, MUTED, app.medium.cap());
     cy += 22.0;
     cy += wrap_buttons(

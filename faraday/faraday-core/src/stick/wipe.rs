@@ -146,16 +146,36 @@ fn minutes_text(ms: u64) -> String {
 }
 
 impl Faraday {
+    /// The sticks present.
+    pub fn sticks(&self) -> &[crate::StickInfo] {
+        &self.stick
+    }
+
+    /// Whether "Not now" was chosen for the sticks present.
+    pub fn not_now(&self) -> bool {
+        self.stick.not_now()
+    }
+
+    /// What the Delete sheet is choosing, while it is open.
+    pub fn delete_ask(&self) -> Option<&DeleteAsk> {
+        self.stick.delete_ask.as_ref()
+    }
+
+    /// The zeroing under way, if one is.
+    pub fn zeroing(&self) -> Option<&Zeroing> {
+        self.stick.zeroing.as_ref()
+    }
+
     /// The stick visit's Delete files: the sheet, on chosen files, with
     /// the stick asked for its space.
     pub(crate) fn delete_open(&mut self) {
-        let Some(stick) = self.sticks.get(self.visit.stick) else {
+        let Some(stick) = self.stick.get(self.visit.stick) else {
             return;
         };
         self.out.storage_out.push_back(StorageCommand::StickSpace {
             stick: stick.id.clone(),
         });
-        self.delete_ask = Some(DeleteAsk {
+        self.stick.delete_ask = Some(DeleteAsk {
             stick: stick.id.clone(),
             label: stick.label.clone(),
             what: What::Files,
@@ -169,14 +189,15 @@ impl Faraday {
     /// Whether the sheet's button is a hold: a vault is among the files
     /// chosen (`docs/FLOWS.md` decisions 4 and 61).
     pub(crate) fn delete_holds(&self) -> bool {
-        self.delete_ask
+        self.stick
+            .delete_ask
             .as_ref()
             .is_some_and(|d| d.what == What::Files && d.chosen.iter().any(|f| is_vault_name(f)))
     }
 
     /// The sheet's choice of what.
     pub(crate) fn delete_what(&mut self, k: u8) {
-        if let Some(d) = self.delete_ask.as_mut() {
+        if let Some(d) = self.stick.delete_ask.as_mut() {
             d.what = What::at(k);
         }
     }
@@ -184,11 +205,11 @@ impl Faraday {
     /// A file ticked or unticked, by its place on the stick.
     pub(crate) fn delete_pick(&mut self, k: usize) {
         let name = self
-            .sticks
+            .stick
             .get(self.visit.stick)
             .and_then(|s| s.files.get(k))
             .map(|(n, _)| n.clone());
-        let (Some(d), Some(name)) = (self.delete_ask.as_mut(), name) else {
+        let (Some(d), Some(name)) = (self.stick.delete_ask.as_mut(), name) else {
             return;
         };
         d.what = What::Files;
@@ -202,14 +223,14 @@ impl Faraday {
 
     /// One pass or two, for the whole partition.
     pub(crate) fn delete_passes(&mut self, n: u8) {
-        if let Some(d) = self.delete_ask.as_mut() {
+        if let Some(d) = self.stick.delete_ask.as_mut() {
             d.passes = n.clamp(1, 2);
         }
     }
 
     /// The sheet's button: the files deleted, or zeroing begun.
     pub(crate) fn delete_go(&mut self) {
-        let Some(d) = self.delete_ask.take() else {
+        let Some(d) = self.stick.delete_ask.take() else {
             return;
         };
         match d.what {
@@ -235,11 +256,11 @@ impl Faraday {
                     }
                 });
                 let serial = self
-                    .sticks
+                    .stick
                     .iter()
                     .find(|s| s.id == d.stick)
                     .and_then(|s| s.serial);
-                self.zeroing = Some(Zeroing {
+                self.stick.zeroing = Some(Zeroing {
                     serial,
                     stick: d.stick,
                     label: d.label,
@@ -277,14 +298,14 @@ impl Faraday {
 
     /// The stick's space, for the sheet.
     pub(crate) fn zero_space(&mut self, free: u64, size: u64) {
-        if let Some(d) = self.delete_ask.as_mut() {
+        if let Some(d) = self.stick.delete_ask.as_mut() {
             d.space = Some((free, size));
         }
     }
 
     /// Stop: no step after the one under way.
     pub(crate) fn zero_stop(&mut self) {
-        let Some(z) = self.zeroing.as_mut() else {
+        let Some(z) = self.stick.zeroing.as_mut() else {
             return;
         };
         if z.due {
@@ -304,12 +325,17 @@ impl Faraday {
         let now = self.now_ms;
         // The partition is empty from the first answer, whatever follows:
         // the copies the backup flow wrote on it are gone.
-        if let Some(z) = self.zeroing.as_mut().filter(|z| z.whole && !z.emptied) {
+        if let Some(z) = self
+            .stick
+            .zeroing
+            .as_mut()
+            .filter(|z| z.whole && !z.emptied)
+        {
             z.emptied = true;
             let (stick, label, serial) = (z.stick.clone(), z.label.clone(), z.serial);
             self.flow_copy_gone_for(&stick, &label, serial, None);
         }
-        let Some(z) = self.zeroing.as_mut() else {
+        let Some(z) = self.stick.zeroing.as_mut() else {
             return;
         };
         z.next = next;
@@ -347,7 +373,7 @@ impl Faraday {
 
     /// Asks for the next step, once a tick has let a frame draw.
     pub(crate) fn zero_tick(&mut self) {
-        let Some(z) = self.zeroing.as_mut().filter(|z| z.due) else {
+        let Some(z) = self.stick.zeroing.as_mut().filter(|z| z.due) else {
             return;
         };
         z.due = false;
@@ -366,11 +392,16 @@ impl Faraday {
         // A whole wipe that fails before its first answer, or whose stick
         // is pulled, may have emptied the FATs: its copies are not trusted
         // (fail closed).
-        if let Some(z) = self.zeroing.as_ref().filter(|z| z.whole && !z.emptied) {
+        if let Some(z) = self
+            .stick
+            .zeroing
+            .as_ref()
+            .filter(|z| z.whole && !z.emptied)
+        {
             let (stick, label, serial) = (z.stick.clone(), z.label.clone(), z.serial);
             self.flow_copy_gone_for(&stick, &label, serial, None);
         }
-        if let Some(z) = self.zeroing.as_ref() {
+        if let Some(z) = self.stick.zeroing.as_ref() {
             let share = (z.done_share() * 100.0) as u32;
             self.zero_end(
                 fill(EN.stick_wipe_stopped, &[&share.to_string(), why]),
@@ -382,20 +413,26 @@ impl Faraday {
     /// The sticks changed: the stick of the sheet or of zeroing gone ends
     /// them.
     pub(crate) fn zero_sticks_changed(&mut self) {
-        let here = |id: &str| self.sticks.iter().any(|s| s.id == id);
-        if self.delete_ask.as_ref().is_some_and(|d| !here(&d.stick)) {
-            self.delete_ask = None;
+        let ids: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
+        let here = |id: &str| ids.iter().any(|x| x == id);
+        if self
+            .stick
+            .delete_ask
+            .as_ref()
+            .is_some_and(|d| !here(&d.stick))
+        {
+            self.stick.delete_ask = None;
             if self.sheet == Some(Sheet::Delete) {
                 self.sheet = None;
             }
         }
-        if self.zeroing.as_ref().is_some_and(|z| !here(&z.stick)) {
+        if self.stick.zeroing.as_ref().is_some_and(|z| !here(&z.stick)) {
             self.zero_failed(&fill(EN.stick_wipe_the_was, &[self.medium.noun()]));
         }
     }
 
     fn zero_end(&mut self, line: String, ok: bool) {
-        self.zeroing = None;
+        self.stick.zeroing = None;
         if self.sheet == Some(Sheet::Zeroing) {
             self.sheet = None;
         }
@@ -410,11 +447,11 @@ impl Faraday {
 /// The sheet: what to delete, what it does, and what it does not reach.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(d) = app.delete_ask.as_ref() else {
+    let Some(d) = app.stick.delete_ask.as_ref() else {
         return;
     };
     let files: &[(String, u64)] = app
-        .sticks
+        .stick
         .get(app.visit.stick)
         .map_or(&[], |s| s.files.as_slice());
     let title = fill(EN.stick_wipe_delete_files, &[&d.label.to_string()]);
@@ -634,7 +671,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
 /// The sheet while zeroing: how far, how long left, and Stop.
 pub(crate) fn zeroing_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(z) = app.zeroing.as_ref() else {
+    let Some(z) = app.stick.zeroing.as_ref() else {
         return;
     };
     let title = if z.whole {

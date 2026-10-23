@@ -286,7 +286,7 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
         }
     } else if s.spend.finished.is_some() {
         // Both went For the stick at Finish: the next step is writing.
-        if app.sticks.is_empty() {
+        if app.stick.is_empty() {
             fill(EN.spend_status_insert, &[app.medium.a()])
         } else {
             EN.spend_status_open_files.to_string()

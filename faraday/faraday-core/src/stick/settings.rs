@@ -307,22 +307,22 @@ impl Faraday {
     /// What the boot stick holds is the settings now: read from it, or the
     /// settings it would have given had it held a file.
     pub(crate) fn settings_on_stick_known(&mut self) {
-        self.stick_settings = Some(self.settings_body());
+        self.stick.settings = Some(self.settings_body());
         self.save_boxes();
     }
 
     /// Takes the storage answers about the settings file and hands every
     /// other event back.
     pub(crate) fn settings_event(&mut self, event: StorageEvent) -> Option<StorageEvent> {
-        let boot = |app: &Faraday, id: &str| app.sticks.iter().any(|s| s.id == id && s.boot);
+        let boot = |app: &Faraday, id: &str| app.stick.iter().any(|s| s.id == id && s.boot);
         match event {
             StorageEvent::Read { stick, name, bytes } if is_file(&name) => {
-                if self.stick_settings.is_none() && boot(self, &stick) {
+                if self.stick.settings.is_none() && boot(self, &stick) {
                     self.settings_from_stick(&bytes);
                 }
             }
             StorageEvent::ReadFailed { stick, name, .. } if is_file(&name) => {
-                if self.stick_settings.is_none() && boot(self, &stick) {
+                if self.stick.settings.is_none() && boot(self, &stick) {
                     self.settings_on_stick_known();
                 }
             }
@@ -358,10 +358,10 @@ impl Faraday {
     /// or by default on the boot stick when the settings changed.
     pub fn visit_settings_on(&self) -> bool {
         self.visit.settings.unwrap_or_else(|| {
-            self.sticks.get(self.visit.stick).is_some_and(|s| s.boot)
+            self.stick.get(self.visit.stick).is_some_and(|s| s.boot)
                 && self
-                    .stick_settings
-                    .as_ref()
+                    .stick
+                    .settings()
                     .is_some_and(|b| *b != self.settings_body())
         })
     }

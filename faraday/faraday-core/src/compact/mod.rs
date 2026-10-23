@@ -649,7 +649,7 @@ fn tiles(app: &View) -> Vec<Tile> {
             ),
         );
     }
-    if !app.sticks.is_empty() && !app.holds_secret() {
+    if !app.stick.is_empty() && !app.holds_secret() {
         t.push((
             app.medium.icon(),
             app.medium.visit(),
@@ -1109,9 +1109,9 @@ impl Faraday {
     /// Home's status line on a small panel: Files by direction, and
     /// what is attached, by its label or by how many.
     pub fn home_files_line(&self) -> String {
-        let sticks = match self.sticks.len() {
+        let sticks = match self.stick.len() {
             0 => fill(EN.compact_no_medium, &[self.medium.noun()]),
-            1 => self.sticks[0].label.clone(),
+            1 => self.stick[0].label.clone(),
             k => format!("{k} {}", self.medium.nouns()),
         };
         format!("{} · {sticks}", self.files_count())

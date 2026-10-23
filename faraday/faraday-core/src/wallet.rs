@@ -1988,7 +1988,7 @@ impl Faraday {
             Action::WriteAsk => {
                 if !self.clean() {
                     self.sheet = Some(Sheet::WriteOut);
-                } else if self.sticks.is_empty() {
+                } else if self.stick.is_empty() {
                     self.toast(&fill(EN.act_plug_in_the_visit, &[self.medium.a()]));
                 } else {
                     self.act(Action::Nav(Screen::Visit));

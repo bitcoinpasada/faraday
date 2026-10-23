@@ -57,7 +57,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += ui.code_line((x, cy, w), LABEL, MUTED, EN.samples_password, PASSPHRASE) + PAD;
     // Load ticked with a stick in asks for it out (the Pull sheet); the
     // line is at the top, where the scrolled list does not hide it.
-    if app.selftest_passed() && !app.sticks.is_empty() {
+    if app.selftest_passed() && !app.stick.is_empty() {
         let line = fill(
             EN.pull_medium_to_reason,
             &[app.medium.noun(), EN.pull_what_load_samples],

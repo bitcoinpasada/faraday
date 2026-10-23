@@ -176,7 +176,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
                     fill(EN.home_job_in_files, &[&f.name.to_string()]),
                 ),
             };
-            let lead = if app.sticks.is_empty() {
+            let lead = if app.stick.is_empty() {
                 (
                     Glyph::Icon(Icon::Lock),
                     fill(EN.home_job_unlock, &[&name.to_string()]),
@@ -262,7 +262,7 @@ pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)
             )
         },
     ];
-    if !app.sticks.is_empty() && !app.holds_secret() {
+    if !app.stick.is_empty() && !app.holds_secret() {
         t.push((
             app.medium.icon(),
             app.medium.visit(),

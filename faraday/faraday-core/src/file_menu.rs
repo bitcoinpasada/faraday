@@ -177,7 +177,7 @@ impl Faraday {
     /// The file on the stick the visit shows at `k`, with its size: a
     /// lookup.
     fn stick_file(&self, k: usize) -> Option<(String, u64)> {
-        self.sticks.get(self.visit.stick)?.files.get(k).cloned()
+        self.stick.get(self.visit.stick)?.files.get(k).cloned()
     }
 
     /// Whether a file on the stick has a ⋮: every file Faraday lists but
@@ -330,7 +330,7 @@ impl Faraday {
                     Row::In(k) => (self.inbox.get(k).map(|i| Ok(sha256(&c, &i.bytes))), None),
                     Row::Out(k) => (self.outbox.get(k).map(|i| Ok(sha256(&c, &i.bytes))), None),
                     Row::Stick(_) => {
-                        let id = self.sticks.get(self.visit.stick).map(|s| s.id.clone());
+                        let id = self.stick.get(self.visit.stick).map(|s| s.id.clone());
                         if let Some(id) = &id {
                             self.out.storage_out.push_back(StorageCommand::Hash {
                                 stick: id.clone(),
@@ -355,7 +355,7 @@ impl Faraday {
                     return;
                 };
                 self.delete_open();
-                if let Some(d) = self.delete_ask.as_mut() {
+                if let Some(d) = self.stick.delete_ask_mut() {
                     d.chosen = vec![name];
                 }
             }
@@ -492,7 +492,7 @@ impl Faraday {
                 self.save_boxes();
             }
             Row::Stick(_) => {
-                if let Some(s) = self.sticks.get(self.visit.stick) {
+                if let Some(s) = self.stick.get(self.visit.stick) {
                     self.out.storage_out.push_back(StorageCommand::Rename {
                         stick: s.id.clone(),
                         from: r.from,
@@ -522,7 +522,7 @@ impl Faraday {
                     self.visit.inn.insert(to.to_string());
                 }
                 if let Some((label, serial)) = self
-                    .sticks
+                    .stick
                     .iter()
                     .find(|s| s.id == stick)
                     .map(|s| (s.label.clone(), s.serial))

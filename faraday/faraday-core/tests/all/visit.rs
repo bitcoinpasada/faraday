@@ -605,7 +605,7 @@ fn the_free_space_is_zeroed_a_step_a_tick() {
         done: true,
     });
     assert_eq!(app.sheet, None);
-    assert!(app.zeroing.is_none());
+    assert!(app.zeroing().is_none());
     let _ = app.frame();
     let text = app.drawn_texts().join(" ");
     assert!(text.contains("Free space on TESTSTICK zeroed"), "{text}");
@@ -649,7 +649,7 @@ fn the_whole_partition_is_made_empty_then_zeroed_for_each_pass() {
             done: true,
         });
     }
-    assert!(app.zeroing.is_none());
+    assert!(app.zeroing().is_none());
     let _ = app.frame();
     let text = app.drawn_texts().join(" ");
     assert!(
@@ -674,7 +674,7 @@ fn zeroing_stops_on_stop_and_on_a_pull() {
         total: 1000,
         done: false,
     });
-    assert!(app.zeroing.is_none());
+    assert!(app.zeroing().is_none());
     tick(&mut app, 9_000);
     assert!(asked(&mut app).is_empty(), "no step after Stop");
     let _ = app.frame();
@@ -684,7 +684,7 @@ fn zeroing_stops_on_stop_and_on_a_pull() {
     app.press(Action::DeleteWhat(1));
     app.press(Action::DeleteGo);
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert!(app.zeroing.is_none());
+    assert!(app.zeroing().is_none());
     assert_eq!(app.sheet, None);
 }
 

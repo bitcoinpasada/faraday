@@ -426,7 +426,7 @@ impl Faraday {
         }
         if !self.clean() {
             self.upgrade.set_after_lock(true);
-            self.not_now = false;
+            self.stick.set_not_now(false);
             self.sheet = Some(Sheet::Lock);
             return;
         }
@@ -455,7 +455,7 @@ impl Faraday {
     /// disk process names it (`sdb2@sdb#7` beside `sdb1@sdb#7`).
     pub fn upgrade_data_of(&self, boot: &BootPart) -> Option<&crate::StickInfo> {
         let disk = boot.id.split_once('@')?.1;
-        self.sticks
+        self.stick
             .iter()
             .find(|s| s.id.split_once('@').is_some_and(|(_, d)| d == disk))
     }

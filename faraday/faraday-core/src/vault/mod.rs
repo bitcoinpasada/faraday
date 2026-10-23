@@ -3535,7 +3535,7 @@ impl Faraday {
         let Some(c) = self.vaults.create.as_mut() else {
             return;
         };
-        let error = if !self.sticks.is_empty() {
+        let error = if !self.stick.is_empty() {
             Some(fill(EN.vaults_remove_the_first, &[medium.noun()]))
         } else if let Some(n) = c
             .steps()

@@ -492,7 +492,7 @@ impl Faraday {
     /// Nothing comes in by the pull (F60); a vault imported and waiting
     /// has its passphrase field ready.
     pub(crate) fn import_stick_gone(&mut self) {
-        let present: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
+        let present: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
         let noun = self.medium.noun();
         let Some(imp) = self.import.state_mut() else {
             return;

@@ -488,7 +488,7 @@ pub(crate) fn entry_scan(app: &View) -> Action {
 /// Add a key's way in from a stick: a key file on it is copied in on the
 /// stick visit and loads when the stick is pulled.
 pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
-    if app.sticks.is_empty() {
+    if app.stick.is_empty() {
         ui.icon(x - 2.0, y + 8.0, 20.0, app.medium.icon(), 12.0, DIM);
         ui.text_mid(
             x + 24.0,

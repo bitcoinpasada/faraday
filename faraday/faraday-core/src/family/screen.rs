@@ -1238,7 +1238,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// A stick visit from this tab, or what stops one.
 fn stick_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f32 {
     let open = app.holds_secret() || !app.vaults.open.is_empty();
-    let (style, note) = match (app.sticks.is_empty(), open) {
+    let (style, note) = match (app.stick.is_empty(), open) {
         (true, _) => (
             Style::Disabled,
             fill(EN.family_plug_medium, &[app.medium.noun()]),

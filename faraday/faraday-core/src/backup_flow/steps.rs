@@ -836,8 +836,8 @@ impl Faraday {
 
     /// The sticks in the machine that are not the medium it started from.
     fn flow_candidates(&self) -> Vec<usize> {
-        (0..self.sticks.len())
-            .filter(|&k| !self.sticks[k].boot)
+        (0..self.stick.len())
+            .filter(|&k| !self.stick[k].boot)
             .collect()
     }
 
@@ -876,7 +876,7 @@ impl Faraday {
         let [k] = cands[..] else {
             return;
         };
-        let st = self.sticks[k].clone();
+        let st = self.stick[k].clone();
         if self.backup_flows[i].live.ignored.contains(&st.id) {
             return;
         }
@@ -894,7 +894,7 @@ impl Faraday {
     }
 
     fn flow_use_present(&mut self, i: usize, k: usize) {
-        let Some(st) = self.sticks.get(k).cloned() else {
+        let Some(st) = self.stick.get(k).cloned() else {
             return;
         };
         let Some(slot) = self.flow_slot_wanted(i) else {
@@ -942,7 +942,8 @@ impl Faraday {
             first: false,
         };
         let found = self
-            .stick_problems
+            .stick
+            .problems()
             .iter()
             .find(|(id, _)| *id == st.id)
             .map(|(_, ro)| *ro);
@@ -1040,8 +1041,7 @@ impl Faraday {
     /// The shell says a stick cannot be used: not FAT32, or read-only. It is
     /// kept for the sticks read after it and applied to the one being read.
     pub(crate) fn flow_stick_problem(&mut self, stick: &str, read_only: bool) {
-        self.stick_problems.retain(|(id, _)| id != stick);
-        self.stick_problems.push((stick.to_string(), read_only));
+        self.stick.note_problem(stick, read_only);
         let Some(i) = self.fi() else {
             return;
         };
@@ -1585,7 +1585,7 @@ impl Faraday {
 
     /// The set of sticks changed while a flow is kept.
     pub(crate) fn flow_sticks_changed(&mut self) {
-        let ids: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
+        let ids: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
         for f in &mut self.backup_flows {
             f.live.ignored.retain(|id| ids.contains(id));
             let gone = f
@@ -1617,7 +1617,7 @@ impl Faraday {
             }) {
                 f.live.reading = None;
             }
-            f.live.crowd = self.sticks.iter().filter(|s| !s.boot).count() > 1;
+            f.live.crowd = self.stick.iter().filter(|s| !s.boot).count() > 1;
         }
         if self.flow_screen() {
             self.flow_settle();
@@ -2887,7 +2887,7 @@ impl Faraday {
     /// changes nothing. `name` is the file deleted, or `None` for a wipe.
     pub(crate) fn flow_copy_gone(&mut self, stick: &str, name: Option<&str>) {
         let Some((label, serial)) = self
-            .sticks
+            .stick
             .iter()
             .find(|s| s.id == stick)
             .map(|s| (s.label.clone(), s.serial))

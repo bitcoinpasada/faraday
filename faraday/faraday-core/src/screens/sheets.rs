@@ -628,10 +628,10 @@ pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .and_then(|a| app.pull_what(a))
         .unwrap_or(EN.pull_default_reason);
     let title = fill(EN.pull_medium_to_reason, &[app.medium.noun(), what]);
-    let line = match app.sticks.len() {
+    let line = match app.stick.len() {
         0 | 1 => fill(
             EN.pull_medium_attached,
-            &[(app.sticks.first().map_or("", |s| s.label.as_str()))],
+            &[(app.stick.first().map_or("", |s| s.label.as_str()))],
         ),
         k => fill(EN.pull_attached, &[&k.to_string(), app.medium.nouns()]),
     };
@@ -795,7 +795,7 @@ fn kept_sheet(
 
 pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let label = app
-        .sticks
+        .stick
         .first()
         .map(|s| s.label.clone())
         .unwrap_or_default();

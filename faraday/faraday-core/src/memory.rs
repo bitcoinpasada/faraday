@@ -226,7 +226,7 @@ impl Faraday {
         }
         // What the boot stick holds, so the next process neither reads it
         // again over settings changed since nor loses what to compare.
-        if let Some(b) = &self.stick_settings {
+        if let Some(b) = self.stick.settings() {
             out.push(("stick-settings".to_string(), b.clone().into_bytes()));
         }
         // What each vault seen open holds, for its locked row and Home
@@ -322,7 +322,8 @@ impl Faraday {
                     }
                 }
                 "stick-settings" => {
-                    self.stick_settings = Some(String::from_utf8_lossy(bytes).into_owned());
+                    self.stick
+                        .set_settings(Some(String::from_utf8_lossy(bytes).into_owned()));
                 }
                 "signed-amounts" => self.signed_amounts = decode(bytes),
                 "checked-wallets" => {

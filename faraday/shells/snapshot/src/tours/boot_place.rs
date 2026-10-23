@@ -32,7 +32,7 @@ pub(crate) fn boot_place_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("bootplace-1-insert")?;
     let k = t
         .app
-        .sticks
+        .sticks()
         .iter()
         .position(|s| s.boot)
         .ok_or("no boot stick")?;

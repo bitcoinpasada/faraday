@@ -534,7 +534,7 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         // holds another place: one stick, one place.
         let boot_placed = (0..f.slots.len()).any(|j| j != k && f.boot_holds(j));
         if matches!(f.step, Step::Sticks | Step::Write) && !boot_placed {
-            for (i, st) in app.sticks.iter().enumerate().filter(|(_, s)| s.boot) {
+            for (i, st) in app.stick.iter().enumerate().filter(|(_, s)| s.boot) {
                 let at = read_time(app, app.clock_now());
                 cy += btn(
                     ui,

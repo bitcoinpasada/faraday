@@ -516,7 +516,7 @@ fn the_boot_stick_taken_for_a_place_is_stick_1_and_the_others_count_on_from_2() 
     start(&mut app, Kind::Gpg);
     shell.flow(&mut app, F::Continue);
     assert_eq!(app.flow().unwrap().step, Step::Sticks);
-    let k = app.sticks.iter().position(|s| s.boot).unwrap();
+    let k = app.sticks().iter().position(|s| s.boot).unwrap();
     shell.flow(&mut app, F::UseBoot(k));
     shell.flow(&mut app, F::Tap);
     let f = app.flow().unwrap();

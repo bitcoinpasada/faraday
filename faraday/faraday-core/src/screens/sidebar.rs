@@ -90,7 +90,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         (Glyph::Icon(Icon::Tools), EN.sidebar_tools, Screen::Catalog),
     ];
     let mut tail = Vec::new();
-    if !app.sticks.is_empty() && !app.holds_secret() {
+    if !app.stick.is_empty() && !app.holds_secret() {
         tail.push((app.medium.icon(), app.medium.visit(), Screen::Visit));
     }
     // The online app is the device's QR link.
@@ -412,11 +412,11 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     fy += 30.0;
     // With no stick attached, an import the boot stick brought waits
     // behind this row.
-    let waiting = app.import.state().is_some() && app.sticks.is_empty();
-    let sticks = match app.sticks.len() {
+    let waiting = app.import.state().is_some() && app.stick.is_empty();
+    let sticks = match app.stick.len() {
         0 if waiting => EN.sidebar_import_waiting.to_string(),
         0 => EN.sidebar_none.to_string(),
-        1 => app.sticks[0].label.clone(),
+        1 => app.stick[0].label.clone(),
         k => fill(EN.sidebar_attached, &[&k.to_string()]),
     };
     if waiting && app.sheet == Some(Sheet::Import) {

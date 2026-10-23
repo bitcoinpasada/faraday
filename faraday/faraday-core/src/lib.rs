@@ -1164,9 +1164,6 @@ pub struct Faraday {
     /// A secret has been held or typed in this process. Only a fresh
     /// process is clean (`docs/history/PLAN.md` §5.1).
     tainted: bool,
-    /// A stick arrived while the camera was on: held back, and taken as
-    /// arriving once the camera is off.
-    stick_held: bool,
     /// New input devices waiting to be believed, and those kept out
     /// (`docs/history/PLAN.md` §4.6).
     inputs: inputs::InputsArea,
@@ -1229,10 +1226,8 @@ pub struct Faraday {
     inbox: inbox::InboxArea,
     /// Results waiting for a stick.
     pub outbox: Vec<Item>,
-    /// The sticks present.
-    pub sticks: Vec<StickInfo>,
-    /// "Not now" was chosen for the sticks present.
-    pub not_now: bool,
+    /// The sticks present and what is chosen about them.
+    stick: stick::StickArea,
     /// What was pressed with a stick attached, done when it is pulled
     /// ([`Sheet::Pull`]).
     pub pull: Option<Action>,
@@ -1248,10 +1243,6 @@ pub struct Faraday {
     /// What the boot stick brought at its first look this power-on,
     /// waiting to be imported (`boot_import`).
     import: boot_import::BootImportArea,
-    /// The settings the boot stick holds, as `settings_body` writes them:
-    /// read from it at boot, or written to it since; `None` until the
-    /// boot stick has been looked at (`stick_settings`).
-    pub stick_settings: Option<String>,
     /// On a small panel, the height of the pinned bar the last frame
     /// drew: the page is laid out above it.
     pub(crate) pin_h: std::cell::Cell<f32>,
@@ -1323,13 +1314,9 @@ pub struct Faraday {
     trail: trail::Trail,
     /// A seed the camera read, waiting on [`Sheet::SeedRead`].
     seed_read: seeds::SeedsArea,
-    /// What [`Sheet::Delete`] is choosing.
-    pub delete_ask: Option<stick::wipe::DeleteAsk>,
     /// A file row's ⋮ menu, Rename and Details (`docs/FLOWS.md`
     /// decision 61).
     pub files_menu: file_menu::FileMenus,
-    /// Zeroing a stick's free space or whole partition, under way.
-    pub zeroing: Option<stick::wipe::Zeroing>,
     /// The last tap that acted and when, for a double-click.
     last_tap: Option<(Action, u64)>,
     /// Where the finger or pointer went down, in pixels.
@@ -1383,9 +1370,6 @@ pub struct Faraday {
     /// desktop app. The scanner's Paste is dimmed where it is not set,
     /// which is never on the device (`docs/QR.md` §8 item 5).
     pub clipboard: bool,
-    /// Pills pressed since the shell last asked: the folder names to
-    /// insert or pull ([`Faraday::take_stick_toggles`]).
-    pub(crate) stick_toggles: Vec<String>,
     /// What the removable medium is called and drawn as: a stick, or an
     /// SD card on the Pi. The shell sets it at start.
     pub medium: Medium,
@@ -1412,8 +1396,6 @@ pub struct Faraday {
     pub backup_flows: Vec<backup_flow::BackupFlow>,
     /// The flow on screen.
     pub(crate) flow_on: Option<usize>,
-    /// The sticks the shell found unusable (not FAT32, read-only), by id.
-    pub(crate) stick_problems: Vec<(String, bool)>,
     /// The flows begun, in the order they were begun, each with the screen
     /// of its own it was last on (`docs/FLOWS.md`, Flows in progress):
     /// only the order and the way back, worked out after each press.
@@ -1452,7 +1434,6 @@ impl Faraday {
             idle_shown: None,
             idle_warn_min: 0,
             tainted: false,
-            stick_held: false,
             inputs: inputs::InputsArea::default(),
             made_here: Vec::new(),
             drawing: drawing::Drawing::default(),
@@ -1481,16 +1462,14 @@ impl Faraday {
             decode: decode::DecodeArea::default(),
             apk_signing: false,
             inbox: inbox::InboxArea::default(),
+            stick: stick::StickArea::default(),
             outbox: Vec::new(),
-            sticks: Vec::new(),
-            not_now: false,
             pull: None,
             after_visit: None,
             entry: state::EntryArea::default(),
             wallets: wallet::WalletsArea::default(),
             visit: VisitState::default(),
             import: boot_import::BootImportArea::default(),
-            stick_settings: None,
             pin_h: std::cell::Cell::new(0.0),
             list_offset: 0.0,
             files_out_offset: 0.0,
@@ -1520,9 +1499,7 @@ impl Faraday {
             typing: edit::TypingArea::new(),
             trail: trail::Trail::default(),
             seed_read: seeds::SeedsArea::default(),
-            delete_ask: None,
             files_menu: Default::default(),
-            zeroing: None,
             last_tap: None,
             down_at: (0, 0),
             drag: None,
@@ -1542,7 +1519,6 @@ impl Faraday {
             held: false,
             shell_sticks: false,
             clipboard: false,
-            stick_toggles: Vec::new(),
             medium: Medium::Stick,
             secure_boot: SecureBootAtStart::Unknown,
             maker: String::new(),
@@ -1554,7 +1530,6 @@ impl Faraday {
             sample_sheet: samples::SheetState::default(),
             backup_flows: Vec::new(),
             flow_on: None,
-            stick_problems: Vec::new(),
             flows_begun: Vec::new(),
         }
     }
@@ -1682,7 +1657,7 @@ impl Faraday {
                 // a File: to sign, or to send as codes.
                 let item = Item::new(&c, &name, bytes);
                 if item.kind == FileKind::Vault
-                    && let Some(s) = self.sticks.iter().find(|s| s.id == stick)
+                    && let Some(s) = self.stick.iter().find(|s| s.id == stick)
                 {
                     let label = s.label.clone();
                     self.vault_read_from(&name, &item.bytes, &label);
@@ -2001,11 +1976,11 @@ impl Faraday {
 
     /// A stick held back while the camera was on arrives once it is off.
     fn release_held_stick(&mut self) {
-        if !self.stick_held || self.camera_on() {
+        if !self.stick.held() || self.camera_on() {
             return;
         }
-        self.stick_held = false;
-        if !self.sticks.is_empty() {
+        self.stick.set_held(false);
+        if !self.stick.is_empty() {
             self.stick_arrived();
             self.out.dirty = true;
             self.out.commands.push_back(Command::Draw);
@@ -2142,34 +2117,34 @@ impl Faraday {
     }
 
     fn sticks_changed(&mut self, sticks: Vec<StickInfo>) {
-        let had = !self.sticks.is_empty();
-        let ids_before: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
-        self.sticks = sticks;
-        let present: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
+        let had = !self.stick.is_empty();
+        let ids_before: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
+        self.stick.set_sticks(sticks);
+        let present: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
         // What the shell found unusable comes with each listing: a stick
         // that no longer reports a problem has none.
         let _ = &present;
-        self.stick_problems.clear();
+        self.stick.clear_problems();
         // The medium the device started from goes by what it is, not by
         // its volume label.
         let boot = self.medium.boot();
-        for s in self.sticks.iter_mut().filter(|s| s.boot) {
+        for s in self.stick.iter_mut().filter(|s| s.boot) {
             s.label = boot.to_string();
         }
-        let ids_now: Vec<String> = self.sticks.iter().map(|s| s.id.clone()).collect();
-        if self.visit.stick >= self.sticks.len() {
+        let ids_now: Vec<String> = self.stick.iter().map(|s| s.id.clone()).collect();
+        if self.visit.stick >= self.stick.len() {
             self.visit.stick = 0;
         }
         let names: BTreeSet<String> = self
-            .sticks
+            .stick
             .get(self.visit.stick)
             .map(|s| s.files.iter().map(|(n, _)| n.clone()).collect())
             .unwrap_or_default();
         self.visit.inn.retain(|n| names.contains(n));
         self.flow_sticks_changed();
-        if self.sticks.is_empty() {
-            self.stick_held = false;
-            self.not_now = false;
+        if self.stick.is_empty() {
+            self.stick.set_held(false);
+            self.stick.set_not_now(false);
             // The lock Upgrade asked for stays up: it waits on no stick.
             if self.sheet == Some(Sheet::Lock) && !self.upgrade.after_lock() {
                 self.sheet = None;
@@ -2241,7 +2216,7 @@ impl Faraday {
         // process visits it and any other asks to lock first. The
         // scanner is never replaced with its camera still on.
         if self.camera_on() {
-            self.stick_held = true;
+            self.stick.set_held(true);
             return;
         }
         self.stick_arrived();
@@ -2268,10 +2243,10 @@ impl Faraday {
         self.visit.settings = None;
         // The first look at the boot stick this power-on: what it holds is
         // copied into memory for the import (`boot_import`).
-        let first_look = self.stick_settings.is_none();
-        let boot = self.sticks.iter().find(|s| s.boot).cloned();
+        let first_look = self.stick.settings().is_none();
+        let boot = self.stick.iter().find(|s| s.boot).cloned();
         if !self.clean() {
-            self.not_now = false;
+            self.stick.set_not_now(false);
             self.upgrade.set_after_lock(false);
             self.sheet = Some(Sheet::Lock);
         } else if self.upgrading() {
@@ -2285,7 +2260,7 @@ impl Faraday {
             }
             // The boot stick alone at its first look leaves Home on
             // screen, with the import over it when it holds anything.
-            let boot_only = self.sticks.iter().all(|s| s.boot);
+            let boot_only = self.stick.iter().all(|s| s.boot);
             if !(boot_only && first_look && self.screen == Screen::Home) {
                 // A stick arriving in the middle of Create or Restore
                 // brings the person back there when it is pulled.
@@ -2305,8 +2280,8 @@ impl Faraday {
                 self.import_start(b);
             }
             // The boot stick's settings, once a session (`stick_settings`).
-            if self.stick_settings.is_none()
-                && let Some(boot) = self.sticks.iter().find(|s| s.boot)
+            if self.stick.settings().is_none()
+                && let Some(boot) = self.stick.iter().find(|s| s.boot)
             {
                 match boot.files.iter().find(|(n, _)| stick::settings::is_file(n)) {
                     Some((n, _)) => self.out.storage_out.push_back(StorageCommand::Read {
@@ -2367,7 +2342,7 @@ impl Faraday {
     /// Whether loading a key is allowed now: only once the self-test has
     /// passed, and never with a stick attached.
     pub fn may_load_keys(&self) -> bool {
-        self.selftest_passed() && self.sticks.is_empty()
+        self.selftest_passed() && self.stick.is_empty()
     }
 
     /// What `action` does, named for the sheet that asks for the stick to
@@ -2571,7 +2546,7 @@ impl Faraday {
     /// (which comes in through its own tick), one over 18 MiB, and one
     /// From the stick already by name and size.
     pub(crate) fn visit_default_in(&self) -> std::collections::BTreeSet<String> {
-        let Some(stick) = self.sticks.get(self.visit.stick) else {
+        let Some(stick) = self.stick.get(self.visit.stick) else {
             return Default::default();
         };
         stick
@@ -2907,7 +2882,7 @@ impl Faraday {
     /// is files For the stick, or a vault changed since it was written
     /// (§3.5), with no stick attached.
     pub fn session_stage(&self, c: &Compute) -> &'static str {
-        if !self.sticks.is_empty() || self.import.state().is_some() {
+        if !self.stick.is_empty() || self.import.state().is_some() {
             EN.session_stage_bring
         } else if !self.outbox.is_empty() || self.vault_changed(c).is_some() {
             EN.session_stage_write
@@ -2959,7 +2934,7 @@ impl Faraday {
                 self.next_mode.clear();
                 self.sheet = None;
                 // Asked for by Upgrade, with no stick in: nothing waits.
-                self.not_now = !self.upgrade.take_after_lock();
+                self.stick.set_not_now(!self.upgrade.take_after_lock());
             }
             Action::PowerAsk => {
                 // An open vault's changes are never sealed at power-off:
@@ -3030,7 +3005,7 @@ impl Faraday {
                 self.devices.over_import = false;
                 // A seed read and not loaded is wiped.
                 self.seed_read.clear();
-                self.delete_ask = None;
+                self.stick.clear_delete_ask();
                 self.visit.taken.clear();
                 self.next_mode.clear();
                 self.secret_cancel();
@@ -3102,7 +3077,7 @@ impl Faraday {
             // Reminders alone ride on the sheet that asks for the stick
             // to be pulled: one sheet, and pulling it is going on.
             let pull = self.selftest_passed()
-                && !self.sticks.is_empty()
+                && !self.stick.is_empty()
                 && self.pull_what(action).is_some();
             if pull && self.devices.held.is_empty() {
                 self.pull = Some(action);
@@ -3114,7 +3089,7 @@ impl Faraday {
         }
         // Keys load only with no stick attached: what loads one waits,
         // under a sheet, for the stick to be pulled.
-        if self.selftest_passed() && !self.sticks.is_empty() && self.pull_what(action).is_some() {
+        if self.selftest_passed() && !self.stick.is_empty() && self.pull_what(action).is_some() {
             self.pull = Some(action);
             self.sheet = Some(Sheet::Pull);
             return;
@@ -5252,7 +5227,7 @@ impl Faraday {
         let c = self.compute();
         let bytes = zeroize::Zeroizing::new(bytes);
         let camera = self.sheet == Some(Sheet::Scan);
-        let sticks = !self.sticks.is_empty();
+        let sticks = !self.stick.is_empty();
         let medium = self.medium;
         let Some(scan) = self.camera.scan_mut() else {
             return;
@@ -6381,7 +6356,7 @@ impl Faraday {
     /// Whether the stick on show holds the Inbox file `item`, by name and
     /// size.
     fn visit_stick_holds(&self, item: &Item) -> bool {
-        self.sticks.get(self.visit.stick).is_some_and(|s| {
+        self.stick.get(self.visit.stick).is_some_and(|s| {
             s.files
                 .iter()
                 .any(|(n, len)| *n == item.name && *len == item.bytes.len() as u64)
@@ -6488,7 +6463,7 @@ impl Faraday {
 
     /// Reads every chosen stick file into the Inbox.
     fn visit_copy(&mut self) {
-        if let Some(stick) = self.sticks.get(self.visit.stick) {
+        if let Some(stick) = self.stick.get(self.visit.stick) {
             let id = stick.id.clone();
             self.visit.log.clear();
             for name in self.visit.inn.clone() {

@@ -1081,7 +1081,7 @@ fn the_stick_the_machine_started_from_is_offered_as_already_read() {
     app.storage(faraday_core::StorageEvent::Sticks(vec![info]));
     shell.pump(&mut app);
     expect_part(&mut app, "Use Boot stick, read at");
-    let k = app.sticks.iter().position(|s| s.boot).unwrap();
+    let k = app.sticks().iter().position(|s| s.boot).unwrap();
     shell.flow(&mut app, F::UseBoot(k));
     expect(&mut app, "This is the stick for Vault 1 (Place 1)");
 }
@@ -1226,7 +1226,7 @@ fn the_boot_stick_ends_at_the_bind_and_is_written_at_step_six_like_any_stick() {
     let mut app = started(Kind::Gpg);
     through_where(&mut shell, &mut app);
     shell.plug(&mut app, "BOOT");
-    let k = app.sticks.iter().position(|s| s.boot).unwrap();
+    let k = app.sticks().iter().position(|s| s.boot).unwrap();
     shell.flow(&mut app, F::UseBoot(k));
     shell.flow(&mut app, F::Tap);
     // It stays in: nothing waits for it to be pulled, the next is asked for.
@@ -1244,7 +1244,7 @@ fn the_boot_stick_ends_at_the_bind_and_is_written_at_step_six_like_any_stick() {
     assert_eq!(step(&app), Step::Write);
     // The stick it started from is offered for its place, and written.
     shell.plug(&mut app, "BOOT");
-    let k = app.sticks.iter().position(|s| s.boot).unwrap();
+    let k = app.sticks().iter().position(|s| s.boot).unwrap();
     assert!(offered(&mut app, Action::Flow(F::UseBoot(k))));
     shell.flow(&mut app, F::UseBoot(k));
     assert_eq!(app.flow().unwrap().written_of(), (1, 2));
@@ -2022,7 +2022,7 @@ fn stopping_a_whole_wipe_after_the_partition_was_emptied_reopens_the_copies() {
         total: 0,
         done: false,
     });
-    assert!(app.zeroing.is_none(), "the wipe stopped");
+    assert!(app.zeroing().is_none(), "the wipe stopped");
     assert_eq!(
         app.backup_flows[0].written_of(),
         (1, 2),
