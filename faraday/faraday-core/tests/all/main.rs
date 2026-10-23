@@ -77,6 +77,7 @@ mod pictures;
 mod quit;
 mod restart;
 mod restore;
+mod roller;
 mod rounds;
 mod scan;
 mod scan_a_key;

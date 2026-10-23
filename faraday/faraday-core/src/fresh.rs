@@ -17,6 +17,8 @@ use zeroize::Zeroizing;
 
 use crate::{Faraday, out::Out};
 
+pub(crate) mod roller;
+
 /// Answers kept waiting for the next key.
 pub const POOL: usize = 3;
 
@@ -58,6 +60,8 @@ pub(crate) struct Fresh {
     sign_draws: u64,
     /// Fresh answers waiting for the next key.
     pool: Vec<Zeroizing<[u8; 32]>>,
+    /// The shell offers the dice roller (Faraday Desktop only).
+    roller: bool,
 }
 
 impl Fresh {
@@ -161,6 +165,19 @@ impl Faraday {
     /// not answered yet; either way another answer is asked for.
     pub(crate) fn fresh(&mut self, what: &[u8]) -> Option<[u8; 32]> {
         self.fresh.take(what, &mut self.out)
+    }
+
+    /// The shell is Faraday Desktop and offers the dice roller
+    /// (`docs/CODEX32.md` §5.6): its values are this computer's
+    /// randomness. Never set on the stick, the Pi or the website.
+    pub fn set_roller_offered(&mut self, on: bool) {
+        self.fresh.roller = on;
+    }
+
+    /// Whether the dice roller is offered now: Faraday Desktop, with keys
+    /// allowed to load.
+    pub fn roller_offered(&self) -> bool {
+        self.fresh.roller && self.may_load_keys()
     }
 
     /// The seed a signing pass draws a MuSig2 or FROST round's secret

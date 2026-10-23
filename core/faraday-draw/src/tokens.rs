@@ -730,3 +730,52 @@ pub const CORRECT_TICK: f32 = 18.0;
 
 /// Codex32 correction: from the tick box to its label.
 pub const CORRECT_TICK_LABEL: f32 = 28.0;
+// ----- The dice roller on Faraday Desktop (docs/CODEX32.md §5.6) -----
+
+/// The roller's die: the side of its square.
+pub const ROLLER_DIE: f32 = 52.0;
+
+/// The roller's die: the radius of its corners.
+pub const ROLLER_DIE_RADIUS: f32 = 10.0;
+
+/// The roller's die: the radius of one pip.
+pub const ROLLER_PIP: f32 = 4.5;
+
+/// The roller's die: how far the outer pips stand from its centre.
+pub const ROLLER_PIP_OFFSET: f32 = 14.0;
+
+/// The roller's die: how high it jumps in a tumble, at the top of the
+/// bounce.
+pub const ROLLER_BOUNCE: f32 = 10.0;
+
+/// The roller's die: how far it tilts sideways in a tumble, at most.
+pub const ROLLER_SWAY: f32 = 6.0;
+
+/// The roller: how long one die tumbles before its value lands, ms.
+pub const ROLLER_TUMBLE_MS: u64 = 700;
+
+/// The roller: the pause after a value lands before the next tumble
+/// starts, ms, so each value can be followed.
+pub const ROLLER_PAUSE_MS: u64 = 350;
+
+/// The roller: how long a tumbling die shows one face before the next,
+/// ms.
+pub const ROLLER_FACE_MS: u64 = 90;
+
+/// The roller: the longest number of rolls a typed number may name.
+pub const ROLLER_COUNT_MAX: u32 = 9_999;
+
+/// The roller: the most digits a typed number has.
+pub const ROLLER_COUNT_DIGITS: usize = 4;
+
+/// The roller: the height of its choice chips and its button.
+pub const ROLLER_CHIP: f32 = 32.0;
+
+/// The roller: the gap between its parts.
+pub const ROLLER_GAP: f32 = 10.0;
+
+/// The roller: the size of its small labels.
+pub const ROLLER_LABEL: f32 = 12.0;
+
+/// The roller: the width of the typed number's field.
+pub const ROLLER_COUNT_FIELD: f32 = 64.0;

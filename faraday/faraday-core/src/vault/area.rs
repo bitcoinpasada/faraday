@@ -92,6 +92,7 @@ impl VaultArea {
                 .get_mut(k)
                 .map(|f| &mut f.2),
             Focus::Dice => self.state.dice.as_mut().map(|d| &mut d.1),
+            Focus::Rolls => None,
             Focus::Prompt => self.state.prompt.as_mut().map(|p| &mut p.text),
             Focus::Name => self.state.create.as_mut().map(|c| &mut c.name),
         }
@@ -453,6 +454,8 @@ impl TextBox {
     }
 }
 
+pub use crate::fresh::roller::{Act as RollerAct, PerClick as RollerPerClick};
+
 /// Where typing goes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Focus {
@@ -464,6 +467,8 @@ pub enum Focus {
     Field(usize),
     /// The dice rolls.
     Dice,
+    /// The roller's typed number of rolls per click.
+    Rolls,
     /// The prompt.
     Prompt,
     /// Create's name for the vault.
@@ -814,7 +819,7 @@ pub struct CreateForm {
     pub phrases: Vec<(TextBox, TextBox)>,
     /// For each passphrase the dice made, what they made and its bits:
     /// its strength holds while the field still holds those words.
-    pub from_dice: Vec<Option<(zeroize::Zeroizing<String>, f32)>>,
+    pub from_dice: Vec<Option<(zeroize::Zeroizing<String>, f32, crate::fresh::roller::Sim)>>,
     /// The passphrases are shown in the clear, not masked: a person
     /// cannot accept one on faith, only on seeing it.
     pub shown: bool,
@@ -945,6 +950,9 @@ pub struct Vaults {
     /// Dice being rolled for a passphrase: which one, the rolls, and
     /// which of the three EFF lists.
     pub dice: Option<(usize, TextBox, faraday_bip::diceware::List)>,
+    /// The roller beside the rolls (Faraday Desktop): which of their
+    /// positions this computer made.
+    pub roller: crate::fresh::roller::Roller,
     /// The prompt in the contents.
     pub prompt: Option<Prompt>,
     /// This computer's clock, Unix seconds, as the shell last said.
@@ -1157,11 +1165,24 @@ impl Vaults {
         !a.text.is_empty() && *a.text == *b.text
     }
 
+    /// The wording of passphrase `i`'s strength line: real dice, or the
+    /// roller's simulated dice, alone or with them (`docs/CODEX32.md`
+    /// §5.6).
+    pub fn bits_words(c: &CreateForm, i: usize) -> &'static str {
+        use crate::fresh::roller::Sim;
+        let en = &crate::strings::EN;
+        match c.from_dice.get(i).and_then(|d| d.as_ref()).map(|d| d.2) {
+            Some(Sim::All) => en.roller_bits_simulated,
+            Some(Sim::Some) => en.roller_bits_both,
+            _ => en.vault_bits_from_dice,
+        }
+    }
+
     /// Passphrase `i`'s own bits, known only while it is the words the
     /// dice made: a typed passphrase's strength is not measured, nor is
     /// Demo's `faraday`, which stands in for the rolled words.
     pub fn phrase_bits(c: &CreateForm, i: usize) -> Option<f32> {
-        let (made, bits) = c.from_dice.get(i)?.as_ref()?;
+        let (made, bits, _) = c.from_dice.get(i)?.as_ref()?;
         let (a, b) = c.phrases.get(i)?;
         let same = made.as_str() == a.text.as_str() && made.as_str() == b.text.as_str();
         (same && made.as_str() != crate::demo::PASSPHRASE).then_some(*bits)
@@ -1811,6 +1832,8 @@ pub enum VaultAction {
     DiceUse,
     /// Put the dice away.
     DiceClose,
+    /// A press on the roller beside the dice entry (Faraday Desktop).
+    Roller(crate::fresh::roller::Act),
     /// The selected entry out as a KeePass database, under a passphrase
     /// asked for first.
     ExportKdbx,

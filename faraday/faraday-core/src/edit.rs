@@ -240,6 +240,7 @@ impl Faraday {
                 F::Phrase(i, second) => V::CFocus(i, second),
                 F::Field(k) => V::FocusField(k),
                 F::Dice => V::Dice(self.vaults.dice.as_ref().map_or(0, |d| d.0)),
+                F::Rolls => V::Roller(crate::fresh::roller::Act::Count),
                 F::Prompt => V::FocusPrompt,
                 F::Name => V::CName,
             })),
@@ -284,6 +285,7 @@ impl Faraday {
                     }
                     F::Field(k) => &v.form.as_ref()?.fields.get(k)?.2.text,
                     F::Dice => &v.dice.as_ref()?.1.text,
+                    F::Rolls => v.roller.typed(),
                     F::Prompt => &v.prompt.as_ref()?.text.text,
                     F::Name => &v.create.as_ref()?.name.text,
                 }

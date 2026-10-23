@@ -29,6 +29,7 @@ pub(crate) mod pass_seeds;
 pub(crate) mod plan;
 pub(crate) mod public;
 pub(crate) mod restore;
+pub(crate) mod roller;
 pub(crate) mod seedfile;
 pub(crate) mod seeds;
 pub(crate) mod site_tour;

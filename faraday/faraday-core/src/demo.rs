@@ -233,7 +233,7 @@ impl Faraday {
             && c.from_dice
                 .get(i)
                 .and_then(|d| d.as_ref())
-                .is_some_and(|(made, _)| made.as_str() == PASSPHRASE)
+                .is_some_and(|(made, _, _)| made.as_str() == PASSPHRASE)
     }
 
     /// Whether `text` is Demo's public [`PASSPHRASE`], which is not

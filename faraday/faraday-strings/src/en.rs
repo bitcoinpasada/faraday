@@ -8933,4 +8933,27 @@ strings! {
     codex32_correct_repairs_unchecked: "Share repairs unchecked",
     /// Beside a string repaired or filled from the checksum.
     codex32_correct_repaired_not_checked: "Repaired, not checked",
+    // ----- The dice roller on Faraday Desktop (docs/CODEX32.md §5.6), faraday-core -----
+    /// Label over the roller's die: what its values are.
+    roller_by_this_computer: "Rolled by this computer",
+    /// Button: roll the die as many times as one click rolls.
+    roller_roll: "Roll",
+    /// Button: stop a click's rolls where they are.
+    roller_stop: "Stop",
+    /// Label of the roller's choice of how many values one click rolls.
+    roller_per_click: "Rolls per click",
+    /// Choice: one roll per click.
+    roller_one: "1",
+    /// Choice: five rolls per click.
+    roller_five: "5",
+    /// Choice: ten rolls per click.
+    roller_ten: "10",
+    /// Choice: rolls until the entry is full.
+    roller_to_the_end: "To the end",
+    /// The typed number's field when it is empty.
+    roller_number: "Number",
+    /// A passphrase's strength, made by the roller. `{}`: its own bits, the unlock cost's, the sum.
+    roller_bits_simulated: "{} bits from simulated dice + ≈{} from the unlock cost ≈ {} bits",
+    /// A passphrase's strength, made by the roller and real dice. `{}`: its own bits, the unlock cost's, the sum.
+    roller_bits_both: "{} bits from simulated dice and your dice + ≈{} from the unlock cost ≈ {} bits",
 }

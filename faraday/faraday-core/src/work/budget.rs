@@ -16,6 +16,7 @@ mod idle;
 mod keys;
 mod moments;
 mod presses;
+mod roller;
 mod scaling;
 
 /// The test binary's allocator, counting each thread's allocations for

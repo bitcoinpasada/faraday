@@ -11,6 +11,8 @@
 //! says it is working has been drawn.
 
 mod area;
+mod dice;
+mod dice_screen;
 pub mod load;
 pub(crate) mod load_screen;
 pub mod out;
@@ -859,54 +861,8 @@ impl Faraday {
                 self.sheet = Some(crate::Sheet::Scan);
                 self.out.command(faraday_shell_api::Command::CameraOn);
             }
-            V::Dice(_) if !self.may_load_keys() => {}
-            V::Dice(i) => {
-                // Pressed again, the rolls box keeps what is rolled.
-                if self.vaults.dice.as_ref().is_none_or(|d| d.0 != i) {
-                    self.vaults.state.dice =
-                        Some((i, TextBox::default(), faraday_bip::diceware::List::Large));
-                }
-                self.vaults.state.focus = Some(Focus::Dice);
-            }
-            V::DiceList(k) => {
-                if let Some((_, rolls, list)) = self.vaults.state.dice.as_mut()
-                    && let Some(&l) = faraday_bip::diceware::List::ALL.get(usize::from(k))
-                    && l != *list
-                {
-                    *list = l;
-                    rolls.clear();
-                }
-            }
-            V::DiceUse => {
-                if let Some((i, rolls, list)) = self.vaults.state.dice.take() {
-                    let words = dice_words(&rolls.text, list);
-                    // The demo puts its public passphrase in place of the
-                    // rolled words, which are dropped (`docs/DEMO.md` §5.2).
-                    let public = !self.makes_secrets();
-                    if let Some(c) = self.vaults.state.create.as_mut()
-                        && let Some((a, b)) = c.phrases.get_mut(i)
-                        && !words.is_empty()
-                    {
-                        let (phrase, bits) = if public {
-                            (Zeroizing::new(crate::demo::PASSPHRASE.to_string()), 0.0)
-                        } else {
-                            (
-                                Zeroizing::new(words.join("")),
-                                words.len() as f32 * list.bits_per_word(),
-                            )
-                        };
-                        a.set(&phrase);
-                        b.set(&phrase);
-                        if let Some(d) = c.from_dice.get_mut(i) {
-                            *d = Some((phrase, bits));
-                        }
-                    }
-                    self.vaults.state.focus = None;
-                }
-            }
-            V::DiceClose => {
-                self.vaults.state.dice = None;
-                self.vaults.state.focus = None;
+            V::Dice(_) | V::DiceList(_) | V::DiceUse | V::DiceClose | V::Roller(_) => {
+                dice::act(self, a);
             }
             V::LoadWithPassphrase => {
                 self.vaults.state.prompt = Some(Prompt {
@@ -1205,7 +1161,7 @@ impl Faraday {
             }
             redraw = true;
         }
-        redraw
+        redraw | dice::tick(self, now_ms)
     }
 
     fn vault_unlock_check(&mut self) {
@@ -2444,18 +2400,8 @@ impl Faraday {
             }
             return true;
         }
-        if focus == Focus::Dice {
-            if let Some((_, rolls, _)) = self.vaults.state.dice.as_mut() {
-                match key {
-                    K::Char(c) if ('1'..='6').contains(&c) => rolls.text.push(c),
-                    K::Backspace => {
-                        rolls.text.pop();
-                    }
-                    K::Enter => self.vault_act(VaultAction::DiceUse),
-                    _ => {}
-                }
-            }
-            return true;
+        if matches!(focus, Focus::Dice | Focus::Rolls) {
+            return dice::key(self, focus, key);
         }
         if focus == Focus::Prompt {
             if let Some(p) = self.vaults.state.prompt.as_mut() {
@@ -2475,7 +2421,7 @@ impl Faraday {
         }
         if key == K::Enter || key == K::Tab {
             match focus {
-                Focus::Dice | Focus::Prompt => {}
+                Focus::Dice | Focus::Rolls | Focus::Prompt => {}
                 Focus::Passphrase => {
                     if key == K::Enter && import {
                         self.import_act(crate::boot_import::ImportAction::Submit);

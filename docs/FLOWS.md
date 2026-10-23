@@ -342,6 +342,20 @@ and the Quiz, whose last button reads **Done**. A key added with a
 passphrase is a seed with a passphrase to Back up's plan, which asks
 where it goes.
 
+**The roller** (F96, `docs/CODEX32.md` §5.6; Faraday Desktop only, never
+the stick, the Pi or the website). Beside the dice entry of every dice
+way of the randomness step stands one die, drawn as the dice pad's row
+(DESIGN §4, Dice roller): **Rolled by this computer** over it, **Roll**
+beside it, and **Rolls per click**: **1** (the default) · **5** · **10** ·
+**To the end** · a number typed. The pad and its entries stay for real
+dice, and the person uses either or both. Each rolled value lands on the
+entries as a press would, from this computer's randomness (`fresh`),
+with a tumble before it and a short pause after it; under Reduce motion
+(MOTION) there is neither, and the click's values land at once. **Stop**
+ends a click's rolls. The entropy line reads "simulated dice", or
+"simulated dice and your dice" where both made the entries; the roller
+makes no value a real die did not, and the flow is otherwise unchanged.
+
 **Words typed** (decision 58). Add a key's words take a count first,
 **12 · 15 · 18 · 21 · 24** above the boxes, 12 chosen; typing past the
 boxes still grows them to 24; Clear starts the count over.
@@ -631,6 +645,17 @@ For the stick → **Unlock** → Vault contents, "Nothing in it yet", a
 button per add action and **Write it to a stick** (Files) (decision
 22). Opened from a flow that needs a vault (decision 10), it shows
 "Then: {flow}" by its title, and the unlock goes back to the flow.
+
+**Generate with dice** (a passphrase's card on Name and passphrases): the
+list (long, short, short 2), the rolls typed with the words they make,
+and the strength so far. On Faraday Desktop the roller of New key (above;
+F96, CODEX32 §5.6) stands under the rolls with the same **Rolls per
+click**; **To the end** rolls as far as a passphrase of 77 bits (six
+words of the long list), and at most 20 words' worth of rolls in a
+click. The roller's values are marked as this computer's: once **Use
+these words** has filled the passphrase, its strength line reads "{} bits
+from simulated dice + …", or "from simulated dice and your dice". Changing
+the list starts the rolls over, the roller's marks with them.
 
 Size (decisions 21 and 51) is **PCs only** (512 MiB) or **PCs and a
 Raspberry Pi** (64 MiB, the default), both 3 passes, so the flow opens on

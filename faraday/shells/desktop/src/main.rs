@@ -681,6 +681,8 @@ fn desktop_app_in(mode: faraday_core::Mode) -> Faraday {
     // This shell answers `RequestClipboard` (faraday_window::clipboard).
     app.clipboard = true;
     app.shell_sticks = true;
+    // The dice roller (`docs/CODEX32.md` §5.6) is Faraday Desktop's alone.
+    app.set_roller_offered(true);
     app.session = faraday_core::wallet::Session::on(mode.network());
     if mode == faraday_core::Mode::Demo {
         app.session.set_demo(&faraday_samples::SAMPLES);
