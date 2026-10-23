@@ -28,6 +28,7 @@ mod check_copy;
 mod checklist_next_frame;
 mod clock;
 mod codes;
+mod codex32_correct;
 mod collect;
 mod common;
 mod create_musig;

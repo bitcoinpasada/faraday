@@ -8880,4 +8880,57 @@ strings! {
     selftest_check_row: "Check",
     /// The only button.
     selftest_exit: "Exit",
+    // ----- Codex32 error correction (docs/CODEX32.md §8.4), faraday-core -----
+    /// The tick on a codex32 form, off whenever the form opens.
+    codex32_correct_suggest: "Suggest corrections",
+    /// Title over a proposal's pairs.
+    codex32_correct_possible: "Possible correction",
+    /// One box a proposal changes: `{}` the box, counted from 1 at `m`, what it was, what it would be.
+    codex32_correct_pair: "Box {} · {} → {}",
+    /// The page of pairs on show: `{}` the page, `{}` how many.
+    codex32_correct_page: "Page {} of {}",
+    /// Button: the proposal's previous page.
+    codex32_correct_previous: "Previous",
+    /// Button: the proposal's next page.
+    codex32_correct_next: "Next",
+    /// Button: the paper is right, the typing was wrong.
+    codex32_correct_mistyped: "I mistyped",
+    /// Button: the paper itself is wrong.
+    codex32_correct_damaged: "The paper is damaged",
+    /// Button: the boxes marked `?` cannot be read on the paper.
+    codex32_correct_unreadable: "Unreadable on the paper",
+    /// Button: back to the string as typed, to edit it.
+    codex32_correct_check_boxes: "Check the boxes",
+    /// Button: on past a caution or the repairs.
+    codex32_correct_continue: "Continue",
+    /// The caution before a proposal that fills a long run of unreadable boxes.
+    codex32_correct_assumes: "This assumes every other box is right",
+    /// Title over the pairs as repairs to write on a damaged paper.
+    codex32_correct_repairs: "Repairs to write on the paper",
+    /// Title over the re-entry of the changed boxes.
+    codex32_correct_type_again: "Type the changed boxes from the paper",
+    /// The re-entry's count: `{}` boxes typed, `{}` to type.
+    codex32_correct_typed_of: "{} of {} boxes typed",
+    /// The re-entry differed from the proposal: nothing taken.
+    codex32_correct_differs: "The boxes typed differ from the correction",
+    /// The caution before a proposal for unreadable boxes is taken as it is.
+    codex32_correct_from_checksum: "These characters come from the checksum, not from the paper",
+    /// Button: take the proposal as it is.
+    codex32_correct_take: "Take the correction",
+    /// No correction within BIP 93's bound.
+    codex32_correct_not_found: "No correction found within 4 changes or 8 unreadable boxes",
+    /// Too many unreadable boxes: `{}` the most, `{}` the longest run filled.
+    codex32_correct_too_many_unreadable: "More unreadable boxes than can be filled: at most {}, or one run of up to {}",
+    /// Boxes 4 to 8 differ from the strings already in, or are unreadable.
+    codex32_correct_header_fixed: "Boxes 4 to 8 must read as in the strings already in",
+    /// The text is not a codex32 string even with its unreadable boxes: `{}` why.
+    codex32_correct_malformed: "Not a codex32 string: {}",
+    /// The one correction is not a codex32 string: `{}` why.
+    codex32_correct_not_a_string: "The correction is not a codex32 string: {}",
+    /// Beside the fingerprint of a key whose strings were typed again from the paper.
+    codex32_correct_entry_corrected: "Share entry corrected",
+    /// Beside the fingerprint of a key whose strings were repaired or filled from the checksum.
+    codex32_correct_repairs_unchecked: "Share repairs unchecked",
+    /// Beside a string repaired or filled from the checksum.
+    codex32_correct_repaired_not_checked: "Repaired, not checked",
 }

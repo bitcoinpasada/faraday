@@ -286,7 +286,7 @@ words by hand.
 
 ## New key and Add a key
 
-Codex32's planned flows (making shares, checking a string, corrections) are `docs/CODEX32.md`.
+Codex32's planned flows (making shares, checking a string, corrections) are `docs/CODEX32.md`. Its error correction (§8.4) is built as a part a codex32 form holds (`faraday/faraday-core/src/codex32_correct/`): the tick **Suggest corrections**, off whenever the form opens; a failing string's one proposal, box by box, four to a page; **I mistyped**, **The paper is damaged** and **Unreadable on the paper**; the changed boxes typed again from the paper, taken only on an exact match; and "Share entry corrected" or "Share repairs unchecked" beside the key's fingerprint. The form does not carry it yet.
 
 **Add a key is New key, opening on Start** (decision 60, F44). New key's
 first card is **Start**: **Make a new key** (ticked), **Type the

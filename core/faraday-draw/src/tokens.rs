@@ -672,3 +672,61 @@ pub const WINDOW_DEFAULT_W: f32 = 1280.0;
 
 /// The default window's height (`WINDOW_DEFAULT_W`).
 pub const WINDOW_DEFAULT_H: f32 = 800.0;
+
+// ----- Codex32 error correction (docs/CODEX32.md §8.4) -----
+
+/// Codex32 correction: a box of the string as the re-entry shows it.
+pub const CORRECT_BOX: f32 = 22.0;
+
+/// Codex32 correction: the gap between two boxes of a group of four.
+pub const CORRECT_BOX_GAP: f32 = 2.0;
+
+/// Codex32 correction: a group of four boxes, from the first box's left
+/// edge to the fourth's right.
+pub const CORRECT_GROUP: f32 = 4.0 * CORRECT_BOX + 3.0 * CORRECT_BOX_GAP;
+
+/// Codex32 correction: the gap between two groups of four.
+pub const CORRECT_GROUP_GAP: f32 = GRID;
+
+/// Codex32 correction: a box's corner radius.
+pub const CORRECT_BOX_RADIUS: f32 = 4.0;
+
+/// Codex32 correction: the size of a box's character.
+pub const CORRECT_BOX_TEXT: f32 = 15.0;
+
+/// Codex32 correction: the row under a box that carries its number.
+pub const CORRECT_NUMBER_ROW: f32 = 16.0;
+
+/// Codex32 correction: the size of a box's number.
+pub const CORRECT_NUMBER_TEXT: f32 = 10.0;
+
+/// Codex32 correction: the gap between two rows of boxes.
+pub const CORRECT_ROW_GAP: f32 = GAP_SMALL;
+
+/// Codex32 correction: a pair's row, "Box 17 · q → p".
+pub const CORRECT_PAIR_ROW: f32 = 28.0;
+
+/// Codex32 correction: the size of a pair's text.
+pub const CORRECT_PAIR_TEXT: f32 = 15.0;
+
+/// Codex32 correction: the size of a line (a refusal, a caution, the
+/// count typed, the line beside a fingerprint).
+pub const CORRECT_LINE_TEXT: f32 = 13.0;
+
+/// Codex32 correction: the space between the panel's parts.
+pub const CORRECT_GAP: f32 = 10.0;
+
+/// Codex32 correction: the box a line's icon is centred in.
+pub const CORRECT_ICON: f32 = 18.0;
+
+/// Codex32 correction: a line's icon.
+pub const CORRECT_ICON_SIZE: f32 = 11.0;
+
+/// Codex32 correction: the tick's row, **Suggest corrections**.
+pub const CORRECT_TICK_ROW: f32 = 32.0;
+
+/// Codex32 correction: the tick box's side, as `Ui::checkbox` draws it.
+pub const CORRECT_TICK: f32 = 18.0;
+
+/// Codex32 correction: from the tick box to its label.
+pub const CORRECT_TICK_LABEL: f32 = 28.0;

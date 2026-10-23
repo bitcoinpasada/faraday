@@ -49,7 +49,7 @@
 //!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`,
 //!   `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`,
 //!   `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`),
-//!   `chart_edit`, `boot_import` and `backup_flow/wallet.rs`. They hold
+//!   `chart_edit`, `boot_import`, `backup_flow/wallet.rs` and `codex32_correct` (§8.4's correction, with its `screen.rs`). They hold
 //!   handles and public results; key use is `faraday-keys` (F70,
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
 //! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`.
@@ -157,6 +157,7 @@ mod screens;
 pub mod bip85;
 pub mod boot_import;
 pub mod chart_edit;
+pub mod codex32_correct;
 pub mod create;
 mod create_from;
 pub mod forms;
@@ -242,8 +243,7 @@ pub use version::{
 pub use wallet::SpendState;
 pub use wallet_backup::BackupState;
 
-use crate::strings::EN;
-use crate::strings::fill;
+use crate::strings::{EN, fill};
 use crate::wallet::KeyTexts;
 use faraday_intake::{arrival, seed_in_code, seedqr_words};
 use std::collections::BTreeSet;

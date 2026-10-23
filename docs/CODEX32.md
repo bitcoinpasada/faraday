@@ -1,7 +1,7 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), and the error-correction decoder (C2, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2, §2), and §8.4's screens behind the interface a form holds (C7, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
 **Open:** batches C3 to C12 (§15.2): the dice method, `faraday-keys`, every screen, backups, templates, the rollers, Demo and Learn; D5 (§14); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
@@ -231,7 +231,29 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   bound at every length BIP 93 publishes a string of; cross-checked
   against python-codex32's decoder (F79,
   `tools/crosscheck/area_codex32_correct.py`) over that corpus and random
-  damage up to and past the bound. The screens are C7's.
+  damage up to and past the bound.
+- **§8.4's screens** (C7), `faraday/faraday-core/src/codex32_correct/`:
+  `Correction`, which a codex32 form holds, fresh with the tick off each
+  time the form opens. Its `offer` makes the one decode, with a string of
+  the set already in as `held`; a refusal is its own line (no correction
+  within the bound, too many unreadable boxes, boxes 4 to 8 fixed by the
+  strings in, not a codex32 string) with **Check the boxes**; a proposal
+  is shown as "Box 17 · q → p", four to a page, a run of more than eight
+  unreadable boxes after its caution, and **I mistyped**, **The paper is
+  damaged** and, where every changed box was `?`, **Unreadable on the
+  paper** are pressable only once every page was seen. The re-entry
+  clears the changed boxes, locks the rest, takes bech32 characters only
+  and takes the string only on an exact match; what it hands the form is
+  read by `Codex32::parse` like any string typed. A string taken carries
+  its mark (`Mark::Corrected`, "Share entry corrected"; `Mark::Repaired`,
+  "Share repairs unchecked", the string "Repaired, not checked"), and the
+  key the strings make carries the strongest (`key_mark`, `KeyMarks` by
+  fingerprint, never removed). `screen.rs` draws the tick's row, the
+  panel in place of the form's field and the line beside a fingerprint;
+  drawing works nothing out, and a press, a key or a frame does no costly
+  work (`faraday/faraday-core/tests/all/codex32_correct.rs`). The codex32
+  form does not hold it yet: the tick, `?` on the keyboard and the
+  fingerprint's line appear once the form (C5, C6) carries it.
 - **Add a key › Type a codex32 secret** (`faraday/faraday-core/src/forms.rs`):
   one string at a time; a second string with another identifier is
   refused (`forms_other_seed_string`), and one whose share index is already
