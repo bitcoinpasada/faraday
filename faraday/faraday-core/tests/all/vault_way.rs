@@ -19,8 +19,8 @@ use faraday_vault::records::kind;
 
 const NEW_PHRASE: &str = "test phrase";
 
-/// The Tools tiles that open a vault category, with the category. The GPG,
-/// Secure Boot and APK tiles are not among them: they start the backup
+/// The Tools tiles that open a vault category, with the category. The GPG
+/// and Secure Boot tiles are not among them: they start the backup
 /// flow, which decides where the key will be kept (F31).
 const VAULT_TILES: [(&str, usize); 1] = [("KeePass export", 2)];
 
@@ -505,7 +505,6 @@ fn create_a_vault_lands_on_unlock_asking_for_the_passphrase_once_more() {
 #[test]
 fn an_empty_open_vault_offers_every_add_and_a_stick() {
     let mut app = device(Vec::new());
-    app.apk_signing = true;
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     make_the_vault(&mut app);

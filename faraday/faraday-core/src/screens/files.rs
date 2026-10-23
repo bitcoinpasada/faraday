@@ -568,36 +568,6 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Action::PdfInbox(k),
                 ) + 8.0;
             }
-            FileKind::Apk => match app.apk_files_row(k) {
-                crate::apk::Row::Sign if app.vault_way(Screen::Files).is_none() => {
-                    bx += ui.button(
-                        bx,
-                        iy + 64.0,
-                        None,
-                        36.0,
-                        EN.apk_sign_with_key,
-                        Style::Primary,
-                        Action::Vault(crate::vault::VaultAction::ApkFromFiles(k)),
-                    ) + 8.0;
-                }
-                crate::apk::Row::Sign => {}
-                crate::apk::Row::Back => {
-                    bx += ui.button(
-                        bx,
-                        iy + 64.0,
-                        None,
-                        36.0,
-                        crate::strings::EN.backup_flow_first,
-                        Style::Primary,
-                        Action::Vault(crate::vault::VaultAction::ApkFromFiles(k)),
-                    ) + 8.0;
-                }
-                crate::apk::Row::Note(text) => {
-                    let text = ui.fit(13.0, W::R, &text, colw - 66.0 - 120.0);
-                    bx += ui.text_mid(bx, iy + 64.0, 36.0, 13.0, W::R, WARN, &text) + 12.0;
-                }
-                crate::apk::Row::None => {}
-            },
             _ => {}
         }
         // The rest behind the ⋮ at the row's right end (decision 61).
@@ -1652,20 +1622,6 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
                 Action::LoadKey(k),
             ));
         }
-        FileKind::Apk => match app.apk_files_row(k) {
-            crate::apk::Row::Sign => out.extend(into_vault(
-                EN.apk_sign_with_key,
-                Style::Primary,
-                Action::Vault(crate::vault::VaultAction::ApkFromFiles(k)),
-            )),
-            crate::apk::Row::Back => out.push((
-                crate::strings::EN.backup_flow_first.into(),
-                Style::Primary,
-                Action::Vault(crate::vault::VaultAction::ApkFromFiles(k)),
-            )),
-            crate::apk::Row::Note(text) => note = Some((text, WARN)),
-            crate::apk::Row::None => {}
-        },
         FileKind::Message => {
             out.push((
                 EN.inbox_actions_check.into(),

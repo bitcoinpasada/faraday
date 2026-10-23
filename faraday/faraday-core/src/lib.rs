@@ -46,7 +46,7 @@
 //!   `edid` (what a screen says it is).
 //! - Flows around a key, seed, words or passphrase: `keygen`, `seeds`
 //!   (with `seeds/read.rs`), `wallet`, `inbox`, `create`, `create_from`,
-//!   `bip85`, `forms`, `fresh`, `gpg`, `apk`, `secure_boot`, `lightning`,
+//!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`,
 //!   `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`,
 //!   `word_entry`, `vault` (with `vault/load.rs` and `vault/out.rs`),
 //!   `chart_edit`, `boot_import` and `backup_flow/wallet.rs`. They hold
@@ -154,7 +154,6 @@ mod scan_key;
 mod screens;
 
 // Flows around a key, seed, words or passphrase; key use is faraday-keys (F70).
-pub mod apk;
 pub mod bip85;
 pub mod boot_import;
 pub mod chart_edit;
@@ -454,7 +453,7 @@ pub struct Item {
     /// the disk process decoded ([`FileKind::Other`] when none read). Its
     /// bytes are the picture's, kept to be written out as they came.
     pub picture: Option<FileKind>,
-    /// SHA-256 of an APK's, a vault's or an EFI image's bytes, taken once
+    /// SHA-256 of a vault's or an EFI image's bytes, taken once
     /// when the file came in (each is public: a vault's file is sealed);
     /// `None` for any other file. An Item's bytes never change after it
     /// is made.
@@ -495,12 +494,12 @@ impl Drop for Item {
 
 impl Item {
     /// Costs a classification, a parse of a wallet file's description and a
-    /// hash of an APK, a vault or an EFI image. The file as it came in,
+    /// hash of a vault or an EFI image. The file as it came in,
     /// classified, with what it describes read once.
     fn new(c: &Compute, name: &str, bytes: Vec<u8>) -> Item {
         let wallet::Classified { kind, psbt, wallet } = wallet::classify_read(c, name, &bytes);
-        let sha = matches!(kind, FileKind::Apk | FileKind::Vault | FileKind::EfiImage)
-            .then(|| sha256_of(c, &bytes));
+        let sha =
+            matches!(kind, FileKind::Vault | FileKind::EfiImage).then(|| sha256_of(c, &bytes));
         Item {
             name: name.to_string(),
             bytes,
@@ -525,7 +524,7 @@ impl Item {
     }
 
     /// Costs a hash of a whole file (through `sha256_of`). SHA-256 of its
-    /// bytes: the one taken when it came in ([`Item::sha`], an APK's, a
+    /// bytes: the one taken when it came in ([`Item::sha`], a
     /// vault's or an EFI image's), a lookup. Any other file is hashed now.
     pub fn hash(&self, c: &Compute) -> [u8; 32] {
         self.sha.unwrap_or_else(|| sha256_of(c, &self.bytes))
@@ -1183,8 +1182,6 @@ pub struct Faraday {
     pub session: Session,
     /// The transaction being decoded.
     decode: decode::DecodeArea,
-    /// APK signing is in the app: off by default (F59).
-    pub apk_signing: bool,
     /// Files read from sticks.
     inbox: inbox::InboxArea,
     /// Results waiting for a stick.
@@ -1370,7 +1367,6 @@ impl Faraday {
             panel: compact::CompactArea::default(),
             session: Session::default(),
             decode: decode::DecodeArea::default(),
-            apk_signing: false,
             inbox: inbox::InboxArea::default(),
             stick: stick::StickArea::default(),
             outbox: Vec::new(),
@@ -5206,7 +5202,6 @@ impl Faraday {
                 Ok(QrView::text(c, EN.code_view_signed_message, &text)?.public(&name, lines))
             }
             Code::GpgKey | Code::GpgSignature(_) => self.gpg_code(c, code),
-            Code::ApkCertificate => self.apk_code(c),
         }
     }
 

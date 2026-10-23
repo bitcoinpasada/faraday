@@ -84,10 +84,6 @@ pub fn contents(label: &str) -> Contents {
                 .with(5, b"Test <test@example.com>")
                 .with(6, &0u32.to_le_bytes()),
             Record::new(kind::SECURE_BOOT).with(1, &[0x33; 16]),
-            Record::new(kind::APK_KEY)
-                .with(field::APK_KEY, &[0x66; 64])
-                .with(field::APK_CERT, &[0x77; 48])
-                .with(field::APK_PACKAGE, b"app.faradayoffline.fixture"),
             Record::new(kind::ROUND)
                 .with(1, &[1])
                 .with(2, &[0x44; 32])

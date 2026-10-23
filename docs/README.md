@@ -36,7 +36,6 @@ need. Each document's header says what kind it is:
 | How does a seed change form and stay the same wallet? | `docs/SEED-CONVERSION.md` |
 | What about Macs? | `docs/MAC.md` |
 | What are TOTP codes and the clock? | `docs/TOTP.md` |
-| How are APKs signed? | `docs/APK-SIGNING.md` |
 | What are the demo and the developer builds? | `docs/DEMO.md` |
 | Why is a flow fast or slow, and how is costly work kept out of drawing? | `docs/SPEED.md`, `docs/COMPUTE.md` |
 | How do the modes, Demo and its samples work? | `docs/MODES.md` |
@@ -55,7 +54,6 @@ need. Each document's header says what kind it is:
 
 **Reference**
 
-- `docs/APK-SIGNING.md`: The APK signing key. Built.
 - `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record. Built (F19).
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
@@ -98,6 +96,6 @@ need. Each document's header says what kind it is:
 
 - `docs/DECISIONS.md`: Decisions. Kept as written.
 
-**History** (`docs/history/`): `APK-SIGNING-LOG.md`, `AUDIT-LOG.md`, `AUDIT-SUBMISSIONS-LOG.md`, `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `COMPUTE-LOG.md`, `DEMO-LOG.md`, `DESIGN-LOG.md`, `FAMILY-LOG.md`, `FLOWS-LOG.md`, `HANDOFF.md`, `INTEROP-LOG.md`, `KEYS-LOG.md`, `LARGE-FILES-LOG.md`, `MAC-LOG.md`, `MOTION-LOG.md`, `MULTIVENDOR-LOG.md`, `NEW-WALLET.md`, `NOSTR-LOG.md`, `PLAN.md`, `QR-LOG.md`, `SCAN-TO-SIGN.md`, `SIMPLIFY.md`, `SPEED-LOG.md`, `STARTER-LOG.md`, `STRUCTURE-PASS-LOG.md`, `TOTP-LOG.md`, `VAULT-LOG.md`, `WALLETS-LOG.md`; `decisions/` holds the decisions replaced, superseded or withdrawn.
+**History** (`docs/history/`): `APK-SIGNING.md`, `APK-SIGNING-LOG.md`, `AUDIT-LOG.md`, `AUDIT-SUBMISSIONS-LOG.md`, `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `COMPUTE-LOG.md`, `DEMO-LOG.md`, `DESIGN-LOG.md`, `FAMILY-LOG.md`, `FLOWS-LOG.md`, `HANDOFF.md`, `INTEROP-LOG.md`, `KEYS-LOG.md`, `LARGE-FILES-LOG.md`, `MAC-LOG.md`, `MOTION-LOG.md`, `MULTIVENDOR-LOG.md`, `NEW-WALLET.md`, `NOSTR-LOG.md`, `PLAN.md`, `QR-LOG.md`, `SCAN-TO-SIGN.md`, `SIMPLIFY.md`, `SPEED-LOG.md`, `STARTER-LOG.md`, `STRUCTURE-PASS-LOG.md`, `TOTP-LOG.md`, `VAULT-LOG.md`, `WALLETS-LOG.md`; `decisions/` holds the decisions replaced, superseded or withdrawn.
 
 **Elsewhere:** `docs/decisions/` holds one file per decision, `docs/learn/` the Learn pages, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures, `docs/guide/` the user guide's.

@@ -309,7 +309,7 @@ signature, PSBT and message signature is in the `core/` crates
 (`faraday-crypto`, `faraday-bip`, `faraday-psbt`, `faraday-entropy`). The rest
 is in Faraday's other crates, each a library with no interface: the
 vault (`faraday-vault`), OpenPGP (`faraday-pgp`), Secure Boot
-(`faraday-sb`) and APK signing (`faraday-apk`).
+(`faraday-sb`).
 
 Why this is better than one repository and one application:
 
@@ -565,7 +565,7 @@ The release tags are signed with the same key: `git tag -v v0.1.6`.
 `core/` holds the libraries with no flow and no wording in them: the
 cryptography, the codecs, the drawing base and the shell contract.
 `faraday/` is Faraday itself: `faraday-core`, the shells, the vault, GPG,
-Secure Boot, APK signing and QR codes. See `docs/FLOWS.md` for every
+Secure Boot and QR codes. See `docs/FLOWS.md` for every
 flow, and `docs/VAULT.md` and `docs/QR.md` for the vault and QR
 formats.
 

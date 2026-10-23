@@ -15,7 +15,6 @@ faraday-entropy = { path = "../../core/faraday-entropy" }
 faraday-crypto = { path = "../../core/faraday-crypto" }
 faraday-pgp = { path = "../faraday-pgp" }
 faraday-sb = { path = "../faraday-sb" }
-faraday-apk = { path = "../faraday-apk" }
 faraday-vault = { path = "../faraday-vault" }
 faraday-backup = { path = "../../core/faraday-backup" }
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }

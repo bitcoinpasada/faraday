@@ -52,8 +52,7 @@ the vanity grinder derives keys while it searches.
 
 | Crate | What it computes | Written here, or from a crate | Checked against |
 |---|---|---|---|
-| `faraday-keys` | **Holds and uses keys.** The session's keys (words, passphrase, master key), the open vaults' slot keys and decrypted records, and every operation on them: PSBT, message and BSMS signing, BIP-85, Lightning node keys, silent payments, FROST dealing and shares, vanity grinding, key texts and fingerprints, paper forms (Seed XOR, codex32, SLIP-39), the GPG, APK and Secure Boot keys and what is signed with them, TOTP codes, unlocking and sealing a vault and writing KDBX. Seed words become a `Mnemonic` only in its `words` module. A secret leaves only through one of eleven named reasons (§2). | No primitive is written here; every operation calls a crate in this section or `core/`. Which key is derived, when, and for what is written here. | `faraday/faraday-keys/tests/`: BIP-32/39, BIP-85, BIP-137, BIP-352 and RFC 6238 vectors, a vault and a deal end to end; `faraday/faraday-core/tests/` for each flow end to end (among others `bip85.rs`, `lightning.rs`, `gpg.rs`, `apk.rs`); the primitives' own vectors. |
-| `faraday-apk` | An APK signing key: RSA-3072 with a self-signed certificate; APK Signature Scheme v2 and v3 signatures over an APK, and reading a signed APK's signing block. | RSA: the `rsa` crate. The certificate and the APK signing block: written here. | `faraday/faraday-apk/tests/judged.rs`: `apksigner verify` accepts each signed fixture and prints the fingerprint Faraday shows, and `apksigner sign` with the same key makes the same file byte for byte; `tests/reader.rs` for the reader. |
+| `faraday-keys` | **Holds and uses keys.** The session's keys (words, passphrase, master key), the open vaults' slot keys and decrypted records, and every operation on them: PSBT, message and BSMS signing, BIP-85, Lightning node keys, silent payments, FROST dealing and shares, vanity grinding, key texts and fingerprints, paper forms (Seed XOR, codex32, SLIP-39), the GPG and Secure Boot keys and what is signed with them, TOTP codes, unlocking and sealing a vault and writing KDBX. Seed words become a `Mnemonic` only in its `words` module. A secret leaves only through one of eleven named reasons (§2). | No primitive is written here; every operation calls a crate in this section or `core/`. Which key is derived, when, and for what is written here. | `faraday/faraday-keys/tests/`: BIP-32/39, BIP-85, BIP-137, BIP-352 and RFC 6238 vectors, a vault and a deal end to end; `faraday/faraday-core/tests/` for each flow end to end (among others `bip85.rs`, `lightning.rs`, `gpg.rs`); the primitives' own vectors. |
 | `faraday-vault` | The Faraday vault: one file, four equal slots, each its own passphrase, a slot nobody opens filled with random-looking bytes so the file does not say how many are in use. Argon2id stretches the passphrase; **HKDF-SHA256 (hand-assembled from `hmac`+`sha2` — one extract and the first expand block, not a dedicated `hkdf` crate) takes the stretched key to each slot's key**; XChaCha20-Poly1305 is the slot cipher; a ChaCha20 keystream fills a new vault's salt, nonces and unused slots from the caller's seed. | Argon2id, XChaCha20-Poly1305, ChaCha20, SHA-256/HMAC: RustCrypto crates. The four-equal-slot container, and the HKDF construction over those primitives: written here. | `faraday/faraday-vault/tests/vectors.rs` against `tools/vectors/vault/`; `tools/vault/open.py` opens the same vectors independently, with either `argon2-cffi`+`pynacl` or `cryptography` on OpenSSL. |
 | `faraday-pgp` | Version-4 OpenPGP packets for one key shape (Ed25519 certification + Ed25519 signing subkey): self-signatures, the subkey's back-signature, detached signatures over SHA-256/512, a revocation certificate and its `.rev` file, a `paperkey`-format export, and the reader of public armour that decides what Faraday calls a public file (every packet read to its exact end). | Ed25519: `ed25519-dalek`. SHA-1 (fingerprints only, not signatures), SHA-256/512: `sha1`/`sha2`. The packet format: written here. | `faraday/faraday-pgp/tests/gnupg.rs`: every packet judged by `gpg` 2.4 (imports, verifies including signatures whose r or s starts with a zero byte, rejects other data, takes the revocation, sees a key expire and be renewed, refuses a `.rev` file until its colon is removed) and by `paperkey` 1.6 (identical lines, seeds with leading zero bytes); `tests/read.rs` and the `pgp_armor` fuzz target for the reader. |
 | `faraday-sb` | An owner's PK, KEK and db as RSA-2048 keys with self-signed X.509 certificates, EFI signature lists, signed `.auth` updates, Authenticode signatures over `BOOTX64.EFI`, and checking one against a db certificate. | RSA-2048 (**pinned to `0.10.0-rc.18`, a pre-1.0 release candidate — noted in `docs/deps/rsa.md`**): the `rsa` crate. The RNG `rsa` draws from is a **ChaCha20 keystream written here** (`rng.rs`) over the caller's own seed, implementing `rand_core`'s trait. X.509/CMS structure, Authenticode: written here over the RustCrypto DER/X.509/CMS crates. | `faraday/faraday-sb/tests/judged.rs`: every certificate and `.auth`'s PKCS #7 judged by `openssl`; signed images checked by `sbverify`. |
@@ -125,7 +124,6 @@ The highest-leverage single fact for an auditor: everything above marked
 - OpenPGP v4 packet construction (`faraday-pgp`)
 - X.509/CMS structure, Authenticode signing, and the RSA RNG adapter
   (`faraday-sb`)
-- The APK signing block and its v2 and v3 signatures (`faraday-apk`)
 
 Every one of these is checked against either a published vector set, an
 independent library or tool, or (BLAKE2b, scrypt) the RFC's own test
@@ -188,9 +186,8 @@ faraday-bip   faraday-entropy     (BIP-32/39/44.., in-house BIP-39/SLIP-39/MuSig
 faraday-psbt  faraday-backup  faraday-codec
    │          │           │
    │      faraday-vault   │
-   │      faraday-pgp     │     (Faraday's own: HKDF, OpenPGP, X.509/Authenticode, APK)
+   │      faraday-pgp     │     (Faraday's own: HKDF, OpenPGP, X.509/Authenticode)
    │      faraday-sb      │
-   │      faraday-apk     │
    │          │           │
    └──────────┴─────┬─────┘
                      ▼
@@ -230,8 +227,8 @@ makes it true.
 ## 8. Reading a change
 
 A diff under `core/faraday-crypto`, `faraday-bip`, `faraday-psbt`, `faraday-backup`,
-`faraday-entropy`, or `faraday/faraday-vault`, `faraday-pgp`, `faraday-sb`,
-`faraday-apk` or `faraday-keys`, can change cryptographic output and
+`faraday-entropy`, or `faraday/faraday-vault`, `faraday-pgp`, `faraday-sb`
+or `faraday-keys`, can change cryptographic output and
 needs §1 and §3's scrutiny:
 re-run the vectors named above, and for anything marked "written here",
 read the diff against the standard it implements, not just against its

@@ -100,7 +100,6 @@ Testnet, Signet and Regtest included.
 | Codex32 shares, k of n with k of 2 or more | a key's Backup menu; the backup checklist's codex32 item; Make another backup | fresh random shares |
 | **Make a GPG key** | Tools → GPG key; Vault contents' GPG kind | an OpenPGP key |
 | **Make Secure Boot keys** | Tools → Secure Boot keys; Vault contents' Secure Boot kind | PK, KEK and db keys |
-| **Make an APK key** (F25, when built) | Tools → APK signing key | an APK signing key |
 | **Derive with BIP-85**, every application (Words, WIF, Extended private key, Hex, Password base64, Password base85) | BIP-85 (a key's page → BIP-85; Tools → Child seeds and passwords) | a child seed, key or password |
 | **Open BIP-85 child** | Add a key, opened from a wallet's or a transaction's not-loaded row | a child seed loaded as a key |
 | The passphrase dial | Vanity address, the How? card | a new key under a found passphrase; the demo would refuse it anyway |

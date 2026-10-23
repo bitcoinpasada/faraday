@@ -1,7 +1,7 @@
 # The backup flow
 
 **Kind:** Spec
-**Status:** Partly built: the APK key, GPG keys, the Secure Boot keys and the Bitcoin wallet
+**Status:** Partly built: GPG keys, the Secure Boot keys and the Bitcoin wallet
 **Open:** the Nostr key's part (`docs/NOSTR.md`, not scheduled); backups age, when each copy was last checked and a recovery path's wait (§18, planned, not scheduled)
 
 Decided by the owner (`docs/DECISIONS.md` F31; the plan by place F35,
@@ -10,7 +10,7 @@ the backup board F37).
 The build log is `docs/history/BACKUP-FLOW-LOG.md`.
 
 One guided flow makes and backs up every kind of secret Faraday keeps
-in a vault: an APK signing key (`docs/APK-SIGNING.md`), a GPG key, a set
+in a vault: a GPG key, a set
 of Secure Boot keys, a Nostr key (`docs/NOSTR.md`), and the keys of a
 Bitcoin wallet with its backup plan (`docs/history/NEW-WALLET.md`). The person
 first says where the key will be kept; Faraday reads every stick that
@@ -22,7 +22,7 @@ first step to the last, and it never shows the stick visit page.
 **Why a document of its own.** Four of the five kinds are not wallets,
 and the Bitcoin wallet's plan uses the same steps around its own
 checklist. The flow is written here once; `docs/history/NEW-WALLET.md` §14.8,
-`docs/APK-SIGNING.md` §3 and §4, `docs/NOSTR.md` §5 and
+`docs/NOSTR.md` §5 and
 `docs/FLOWS.md` decision 59 say where each kind enters it.
 
 ## 0. Rules for the implementing agent
@@ -79,7 +79,7 @@ The agent's working rules: moved to `docs/history/BACKUP-FLOW-LOG.md`.
   else; a vault has one copy per place the plan keeps it at, as many as
   the person adds, and more than one only where the plan says so.
 - **Places, by kind.** A key that cannot be made again from seed words
-  (APK, GPG, Secure Boot) is planned at **two places or more**: the
+  (GPG, Secure Boot) is planned at **two places or more**: the
   count cannot go below two, and a plan with fewer is not offered. A
   **Bitcoin wallet** may have as many or as few places as the person
   likes, one included; when every secret of the wallet would sit at one
@@ -98,7 +98,7 @@ The agent's working rules: moved to `docs/history/BACKUP-FLOW-LOG.md`.
   the hold "This is a second stick". Faraday cannot prove two sticks are
   different; that is the extent of the check.
 - **What waits.** Signing waits for the writes for every key that cannot
-  be made again from seed words: the APK signing key, GPG keys, the
+  be made again from seed words: GPG keys, the
   Secure Boot keys. A Nostr key is derived from the seed by BIP-85:
   nothing waits. A Bitcoin key keeps NEW-WALLET §14.3's rule. A key in a
   vault unlocked from a stick signs at once, so existing keys, the
@@ -135,7 +135,7 @@ places, each keeping a stick that holds one of the key's vaults. The
 default is one new vault, "Vault 1", at Place 1 and Place 2, so two
 copies of it. The person may add places, give a place an existing
 vault, or give it a vault of its own; a key planned in two vaults is
-made into both. For APK, GPG and Secure Boot keys a place can be
+made into both. For GPG and Secure Boot keys a place can be
 removed only while more than two remain: the place count's control
 stops at two, and removing a place's stick leaves the place to be given
 another. A Nostr key's plan may have any number of places, none
@@ -148,7 +148,6 @@ GPG's **Paperkey backup** stays on the key's page, outside the plan.
 
 | Kind | Known by (public) | The flow starts at | Step 4 makes | Its page | Signing waits |
 |---|---|---|---|---|---|
-| APK signing key | the certificate's SHA-256 | Tools' **APK signing key**, Vault contents' **Make an APK key** | Make's form: name, package | the key's page | Sign an APK, and Files' Sign with APK key |
 | GPG key | the primary key's fingerprint | Tools' **GPG key**, Vault contents' **Make a key** | name and email, expiry | the key's page | Sign a file, Renew |
 | Secure Boot keys | the owner GUID | Tools' **Secure Boot keys**, **Make keys** | PK, KEK, db | the Secure Boot screen | Enrolment files, Sign with db, Files' Sign in Secure Boot |
 | Nostr key | the npub | the Value card's **Save into a vault** | the Entry (NOSTR §5), with the key loaded | the saved entry's page | nothing |
@@ -159,7 +158,7 @@ vault first"): step 1 is where the vault is decided. A key, or a public
 value of it, is never on a stick before step 6.
 
 **What does not wait**: everything that is not a new signature by the
-key: the APK certificate, a GPG key's public key and revocation
+key: a GPG key's public key and revocation
 certificate (made For the stick with the key, decision 24), Secure
 Boot's **Check a signature**. Enrolment files carry signatures by PK and
 KEK, so they wait.
@@ -182,7 +181,7 @@ A step card of rows, a place's options as buttons under its row
   information.
 
 **Continue** is live whatever the count the kind allows (§1): two or
-more places for APK, GPG and Secure Boot, one or more for a wallet, any
+more places for GPG and Secure Boot, one or more for a wallet, any
 for Nostr. A plan with no stick goes straight to step 4. A wallet's
 plan shows its check lines and, where they apply, §10.3's two lines.
 
@@ -364,7 +363,7 @@ inserted before step 2.
   dropped; the stick leaves step 6.
 - **After its write**: the copy stays on the map as what it is until
   **I destroyed this copy** (NEW-WALLET §14.4 item 1, §9.4).
-- **The minimums hold**: an APK, GPG or Secure Boot plan keeps two
+- **The minimums hold**: a GPG or Secure Boot plan keeps two
   places; the control to remove a place is not drawn at two. A wallet
   may go to one place, with §10.3's warning; a Nostr key to none.
 
@@ -406,11 +405,11 @@ inserted before step 2.
 
 ## 6. Worked examples
 
-**A. The APK key, one vault at two places** (the default).
+**A. A GPG key, one vault at two places** (the default).
 Where: Vault 1 new, its stick at Place 1 and Place 2 → Insert the stick
 for Vault 1 (Place 1): empty, bound, tap → pull → Place 2: empty, reads
 as Place 1's did, so **Hold: this is the stick for Vault 1 (Place 2)** →
-pull → Create Vault 1, its passphrase → name, package, **Make the key**
+pull → Create Vault 1, its passphrase → name and email, **Make the key**
 → Lock and write → Insert the stick for Vault 1 (Place 1), writing, pull
 → Place 2: the first stick refused; the other, hold "This is a second
 stick", writing, pull → Done → Unlock Vault 1 → the key's page; it
@@ -808,9 +807,7 @@ place than the seed is recommended.", `plan_add_passphrase` "Add a
 passphrase", and `item_templates_starter` "Print {} from Faraday
 Starter: Blank templates, {} words, {}" for the Templates item.
 
-**Unlock {vault}** and Create a vault's strings are reused. APK batch
-1's `apk_back_up_first`, `apk_backup_line`, `apk_backup_line_once`,
-`apk_same_stick`, `apk_back_to_first`, `apk_signs_from_now` go (`docs/history/BACKUP-FLOW-LOG.md`, batch B1).
+**Unlock {vault}** and Create a vault's strings are reused.
 
 ## 13. Tests
 
@@ -818,7 +815,7 @@ User-facing behaviour, through `Action`s and the test kit's sticks, in
 a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
 `tests/all/backup_checklist.rs` and `tests/all/backup_first.rs`.
 
-- **The order.** An APK, GPG and Secure Boot Make starts on **Where it
+- **The order.** A GPG and Secure Boot Make starts on **Where it
   will be kept**; Make the key is not offered before its sticks are
   read and its vaults open; with a vault open, step 2 locks first.
 - **Step 2.** An empty stick is bound to the plan's new vault with no
@@ -844,7 +841,7 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
   Vaults, on Make with the key made, and the kept state read back after
   the first stick of step 6, each reopen on the right card; the last on
   the next stick not written.
-- **What waits.** A key made in the flow: Sign an APK, GPG's Sign a file
+- **What waits.** A key made in the flow: GPG's Sign a file
   and Renew, Secure Boot's Enrolment files and Sign with db read **Back
   up first** until every place is written, then work after the unlock;
   the same keys unlocked from a stick work at once; a Nostr entry saved
@@ -864,7 +861,7 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
   and is done by its press. A power-off after Place 1's write, then an
   unlock from Place 1's stick: the key signs at once and no flow is
   offered.
-- **Places.** An APK, GPG or Secure Boot plan cannot go below two
+- **Places.** A GPG or Secure Boot plan cannot go below two
   places; a Nostr plan of no place saves into the open vault and writes
   no stick; a wallet plan of one place is accepted, with the warning
   "Every secret of this wallet is at Place 1" under its check lines in
@@ -886,7 +883,7 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
   one stick to step 6. Removing a place before its
   write drops a new vault holding only this flow's keys; removing one
   after its write keeps it on the map until **I destroyed this copy**.
-  An APK, GPG or Secure Boot plan cannot drop below two places.
+  A GPG or Secure Boot plan cannot drop below two places.
 - **Events.** A stick pulled while writing counts nothing; with no flow
   in the kept state (a power-off) no flow is offered.
 
@@ -894,7 +891,7 @@ a new `faraday-core/tests/all/backup_flow.rs`; the wallet's in
 
 The owner's answers (2026-10-14).
 
-1. **Places by kind**: two or more for APK, GPG and Secure Boot keys,
+1. **Places by kind**: two or more for GPG and Secure Boot keys,
    with no single-copy hold; one or more for a wallet, with §10.3's
    warning; any number, none included, for Nostr.
 2. **A power-off between writes**: no mark in the vault and no refresh.

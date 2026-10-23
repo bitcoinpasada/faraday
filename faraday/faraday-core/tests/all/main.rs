@@ -3,7 +3,6 @@
 mod about_link;
 mod airgap;
 mod amounts;
-mod apk;
 mod appearance;
 mod backup_again;
 mod backup_board;

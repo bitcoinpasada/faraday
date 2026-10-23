@@ -721,8 +721,6 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::SeedPart => EN.kind_name_seed_part,
         FileKind::Text => EN.kind_name_text,
         FileKind::Gpg => EN.kind_name_gpg,
-        FileKind::Apk => EN.apk_kind_apk,
-        FileKind::Certificate => EN.apk_kind_certificate,
         FileKind::Other => EN.kind_name_file,
     }
 }

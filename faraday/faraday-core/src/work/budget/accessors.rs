@@ -271,26 +271,6 @@ fn reads(app: &Faraday) -> Vec<Read> {
             }),
         ),
         (
-            "apk_info",
-            Box::new(|v| {
-                if let Some(i) = v.inbox.iter().find(|i| i.name.ends_with(".apk")) {
-                    let _ = v.apk_info(&i.name);
-                }
-            }),
-        ),
-        (
-            "apk_listed",
-            Box::new(|v| {
-                let _ = v.apk_listed("app.faraday.test");
-            }),
-        ),
-        (
-            "apk_files_row",
-            Box::new(|v| {
-                let _ = v.apk_files_row(0);
-            }),
-        ),
-        (
             "flow_files_copy_label",
             Box::new(move |v| {
                 let _ = v.flow_files_copy_label(&salt);

@@ -686,113 +686,6 @@ strings! {
     starter_remove_entry_sub: "In this computer's boot list",
     /// That row while the removal runs.
     starter_removing_entry: "Removing",
-    // ----- apk (faraday-core/src/apk.rs) -----
-    /// Category in `CATEGORIES`: the APK signing keys a vault holds.
-    apk_signing_keys: "APK signing keys",
-    /// Row in Sign an APK: a file that is not an APK, or one read two ways.
-    apk_not_an_apk: "Not an APK",
-    /// Row in Sign an APK: an APK that carries a signature already.
-    apk_already_signed: "Already signed",
-    /// Row in Sign an APK: stored data off the boundary `zipalign` puts it on.
-    apk_not_aligned: "Not aligned",
-    /// Row in Sign an APK: a minimum Android below 7.0.
-    apk_old_android_row: "Supports Android before 7.0",
-    /// Row in Files and Sign an APK: the APK is another app's. `{}`: its package.
-    apk_other_package: "Another app: {}",
-    /// Row in Sign an APK: the signed file would pass FAT32's largest.
-    apk_over_4_gib: "Over 4 GiB on FAT32",
-    /// Row in Sign an APK: the name it would be written under is too long.
-    apk_name_too_long: "Name too long",
-    /// Version in the review of an APK that states no `versionName`.
-    apk_no_name: "No name",
-    /// Toast in `apk_make_work`, `apk_sign`: the system has not answered.
-    apk_no_randomness: "No randomness from the system yet. Try again",
-    /// Toast in `apk_check_form`: the certificate's name is empty.
-    apk_name_the_certificate: "Name the certificate",
-    /// Toast in `apk_check_form`: the package is not Android's form.
-    apk_package_invalid: "Not a package name",
-    /// Toast in `vault_form_apk_save`.
-    apk_this_computer: "This computer's clock is not known",
-    /// Error in `apk_code`.
-    apk_no_key_is_selected: "No APK key is selected",
-    /// Line under the certificate's code. `{}`: the fingerprint.
-    apk_cert_fingerprint_line: "SHA-256 {}",
-    /// Line under the certificate's code.
-    apk_public_checks: "Public: checks the APKs it signed",
-    /// Row and title of the certificate.
-    apk_certificate: "Certificate",
-    /// Toast in `apk_sign`: the file is not the one reviewed.
-    apk_changed_since_review: "The file changed since it was reviewed",
-    /// Files: what an APK is called.
-    apk_kind_apk: "APK",
-    /// Files: what a PEM certificate is called.
-    apk_kind_certificate: "APK signing certificate",
-    /// Make an APK key: the first field.
-    apk_name_on_certificate: "Name on the certificate",
-    /// Make an APK key: the second field; the key page's row.
-    apk_package: "Package",
-    /// Make an APK key: the form's heading and the add action.
-    apk_make_a_key: "Make an APK key",
-    /// Make an APK key: the add row under the kinds.
-    apk_key_short: "APK key",
-    /// Make an APK key: the button.
-    apk_make_the_key: "Make the key",
-    /// Make an APK key: under the name field.
-    apk_public_hint: "Public: printed by anyone who checks the APK",
-    /// Row: the certificate's name.
-    apk_name: "Name",
-    /// Row: the certificate's SHA-256, the key's fingerprint.
-    apk_certificate_sha_256: "Certificate SHA-256",
-    /// Row: the key's kind.
-    apk_key: "Key",
-    /// Row: the key's kind, as a value.
-    apk_rsa_3072: "RSA 3072",
-    /// Row: the day the key was made.
-    apk_made: "Made",
-    /// Button on the key's page, and the page's heading.
-    apk_sign_an_apk: "Sign an APK",
-    /// Sign an APK with none copied in. `{}`: the medium with its article.
-    apk_copy_in_first: "Copy the APK in on {} visit first.",
-    /// Sign an APK from Files with several keys for the package.
-    apk_which_key: "Which key?",
-    /// Button on an APK's row.
-    apk_sign: "Sign",
-    /// The review's heading.
-    apk_review_title: "Sign this APK?",
-    /// Review row: the name as copied in.
-    apk_file: "File",
-    /// Review row.
-    apk_size: "Size",
-    /// Review row: the file's SHA-256.
-    apk_sha_256: "SHA-256",
-    /// Review row: the typed SHA-256 of an independent second build.
-    apk_second_build: "Second build",
-    /// Review: nothing typed yet.
-    apk_enter_second: "Enter the second build's SHA-256",
-    /// Review: fewer than 32 digits typed.
-    apk_hex_too_short: "At least 32 hex digits",
-    /// Review: what was typed is not the start of the file's SHA-256.
-    apk_does_not_match: "Does not match this file",
-    /// Review: what was typed is the start of it.
-    apk_matches: "Matches",
-    /// Review row.
-    apk_version: "Version",
-    /// Review row.
-    apk_android: "Android",
-    /// Review: the minimum Android. `{}`: its release.
-    apk_and_later: "{} and later",
-    /// Review: a release this build has no name for. `{}`: the API level.
-    apk_api_level: "API {}",
-    /// Review row: the key that signs.
-    apk_key_row: "Key",
-    /// Review row: the signed file's name.
-    apk_will_write: "Will write",
-    /// The review's hold.
-    apk_hold_to_sign: "Hold to sign",
-    /// Button: back.
-    apk_back: "Back",
-    /// Files: the button on an APK's row.
-    apk_sign_with_key: "Sign with APK key",
     // ----- backup (faraday-core/src/wallet_backup.rs) -----
     /// Text in `copy_scan_line`. `{}`: `k`.
     backup_your_copy_scans_but: "Your copy scans but word {} differs",
@@ -1223,10 +1116,6 @@ strings! {
     catalog_make_a_vault: "Make a vault first",
     /// Text in `tile_need`.
     catalog_unlock_a_vault: "Unlock a vault first",
-    /// Tools tile: APK signing key.
-    catalog_apk_signing_key: "APK signing key",
-    /// Tools tile line: APK signing key.
-    catalog_make_a_key: "Make a key, sign Android apps",
     // ----- chart_edit (faraday-core/src/chart_edit.rs) -----
     /// Toast in `chart_notes_change`.
     chart_edit_that_does: "That does not fit in this vault's slot size",
@@ -2104,7 +1993,7 @@ strings! {
     flow_cancel_message: "Cancel signing this message?",
     /// Title of the Cancel sheet over Create a vault.
     flow_cancel_vault: "Cancel making this vault?",
-    /// Title of the Cancel sheet over an APK or GPG key's flow.
+    /// Title of the Cancel sheet over a GPG key's flow.
     flow_cancel_key: "Cancel making this key?",
     /// Title of the Cancel sheet over the Secure Boot keys' flow.
     flow_cancel_keys: "Cancel making these keys?",
@@ -8234,8 +8123,6 @@ strings! {
     vm_bochs: "Bochs",
     /// The backup flow's name when no key is named.
     backup_flow_heading: "Backup",
-    /// The APK signing key, as the flow names what it makes.
-    backup_flow_kind_apk: "APK signing key",
     /// A GPG key, as the flow names what it makes.
     backup_flow_kind_gpg: "GPG key",
     /// Secure Boot keys, as the flow names what it makes.

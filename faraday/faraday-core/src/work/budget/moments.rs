@@ -50,7 +50,7 @@ const STARTUP: Table = &[
     (
         Work::FileHash,
         2,
-        "the test stick's vault and APK, each hashed once as it comes in (Item::sha)",
+        "the test stick's vault and EFI image, each hashed once as it comes in (Item::sha)",
     ),
     (
         Work::PsbtParse,

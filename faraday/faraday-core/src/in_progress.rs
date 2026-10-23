@@ -42,7 +42,7 @@ pub enum Going {
     Message,
     /// Create a vault, opened on its own.
     Vault,
-    /// A backup flow, by its place in [`Faraday::backup_flows`]: an APK,
+    /// A backup flow, by its place in [`Faraday::backup_flows`]: a
     /// GPG or Secure Boot key's, or a wallet's no other flow holds.
     Flow(usize),
 }
@@ -384,7 +384,7 @@ impl Faraday {
             Going::Vault => EN.flow_cancel_vault,
             Going::Flow(i) => match self.flows.get(i).map(|f| f.kind) {
                 Some(Kind::SecureBoot) => EN.flow_cancel_keys,
-                Some(Kind::Apk | Kind::Gpg) => EN.flow_cancel_key,
+                Some(Kind::Gpg) => EN.flow_cancel_key,
                 _ => EN.flow_cancel_backup,
             },
         }

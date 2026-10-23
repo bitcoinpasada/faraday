@@ -8,7 +8,7 @@
 //!   ([`psbt`], [`message`]), derivation and key texts ([`texts`],
 //!   [`identity`]), [`bip85`], [`lightning`], [`silent`], [`frost`],
 //!   [`vanity`], paper forms ([`operations`], and [`codex32`], the work
-//!   set of a codex32 set being made), [`gpg`], [`apk`],
+//!   set of a codex32 set being made), [`gpg`],
 //!   [`secure_boot`], [`totp`], the [`carry`] section of a FROST spend, and
 //!   seed words made into a `Mnemonic` ([`words`]). Each gives back a
 //!   public result. The flow around each (state, sheets, toasts, the
@@ -25,7 +25,6 @@
 //!
 //! This crate does not depend on faraday-core.
 
-pub mod apk;
 pub mod bip85;
 pub mod carry;
 pub mod codex32;

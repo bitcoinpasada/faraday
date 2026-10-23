@@ -129,7 +129,7 @@ fn shown(app: &mut Faraday, text: &str) -> bool {
 }
 
 // ---------------------------------------------------------------------
-// GPG, Secure Boot and APK keys: the flow opens, Make does nothing.
+// GPG and Secure Boot keys: the flow opens, Make does nothing.
 // ---------------------------------------------------------------------
 
 /// Starts `kind`'s flow from its Tools tile, then stands on Make over the
@@ -140,7 +140,7 @@ fn make_from_tools(app: &mut Faraday, kind_: Kind, fields: &[&str]) -> (bool, bo
     let rec = match kind_ {
         Kind::Gpg => kind::GPG,
         Kind::SecureBoot => kind::SECURE_BOOT,
-        _ => kind::APK_KEY,
+        _ => unreachable!(),
     };
     crate::common::start(app, kind_);
     let opened = app.screen == Screen::BackupFlow;
@@ -170,17 +170,13 @@ fn in_the_demo_the_gpg_key_screen_opens_and_make_adds_no_key() {
 }
 
 #[test]
-fn in_the_demo_secure_boot_and_apk_keys_are_not_made() {
-    for (k, fields) in [
-        (Kind::SecureBoot, &["Owner"][..]),
-        (Kind::Apk, &["Faraday Release", "com.example.app"][..]),
-    ] {
-        let mut app = app_on(true);
-        let (opened, make, keys, files) = make_from_tools(&mut app, k, fields);
-        assert!(opened, "{k:?} opens");
-        assert!(!make, "{k:?}: Make is dimmed");
-        assert_eq!((keys, files), (0, 0), "{k:?}: nothing made");
-    }
+fn in_the_demo_secure_boot_keys_are_not_made() {
+    let k = Kind::SecureBoot;
+    let mut app = app_on(true);
+    let (opened, make, keys, files) = make_from_tools(&mut app, k, &["Owner"]);
+    assert!(opened, "{k:?} opens");
+    assert!(!make, "{k:?}: Make is dimmed");
+    assert_eq!((keys, files), (0, 0), "{k:?}: nothing made");
 }
 
 #[test]

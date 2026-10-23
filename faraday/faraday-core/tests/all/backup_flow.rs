@@ -1,4 +1,4 @@
-//! The shared backup flow for the APK key, GPG keys and Secure Boot keys
+//! The shared backup flow for GPG keys and Secure Boot keys
 //! (`docs/BACKUP-FLOW.md` §13): where a key will be kept, each stick
 //! brought in with nothing secret open, the vaults unlocked or made inside
 //! the flow, the key made into every vault, one lock, and each stick
@@ -94,7 +94,7 @@ fn write_all(shell: &mut Shell, app: &mut Faraday, order: &[(&str, bool)]) {
 
 #[test]
 fn every_make_starts_on_where_it_will_be_kept() {
-    for kind in [Kind::Apk, Kind::Gpg, Kind::SecureBoot] {
+    for kind in [Kind::Gpg, Kind::SecureBoot] {
         let mut app = started(kind);
         assert!(offered(&mut app, Action::Flow(F::Continue)));
         assert!(!offered(&mut app, Action::Flow(F::Make)), "{kind:?}");
@@ -633,32 +633,6 @@ fn signing_waits_until_every_place_is_written_then_works_after_the_unlock() {
 }
 
 #[test]
-fn an_apk_key_waits_the_same_and_its_files_row_reads_back_up_first() {
-    let mut shell = Shell::new();
-    let mut app = to_make(&mut shell, Kind::Apk);
-    make_key(
-        &mut shell,
-        &mut app,
-        &["Faraday Test", "app.faradayoffline.fixture"],
-    );
-    let f = app.flow().unwrap();
-    assert!(f.made, "{:?}", app.toast_text());
-    let id = f.subject.clone().unwrap().id;
-    let bytes: Vec<u8> = (0..32)
-        .map(|i| u8::from_str_radix(&id[i * 2..i * 2 + 2], 16).unwrap())
-        .collect();
-    assert_eq!(app.backup_waits(Kind::Apk, &bytes), Some((0, 2)));
-    app.press(Action::Nav(Screen::VaultContents));
-    app.press(Action::Vault(V::Category(6)));
-    app.press(Action::Vault(V::Item(0)));
-    expect(&mut app, "Back up first");
-    assert!(!has(&mut app, "Sign an APK"));
-    app.press(Action::Vault(V::ApkSignOpen));
-    assert!(!app.vaults().apk.signing);
-    shell.flow(&mut app, F::MadeContinue);
-}
-
-#[test]
 fn secure_boot_keys_wait_too() {
     let mut shell = Shell::new();
     let mut app = to_make(&mut shell, Kind::SecureBoot);
@@ -711,7 +685,7 @@ fn a_vault_kept_at_four_places_asks_for_four_sticks_the_later_ones_by_another_ho
 
 #[test]
 fn a_key_that_cannot_be_made_again_is_planned_at_two_places_or_more() {
-    for kind in [Kind::Apk, Kind::Gpg, Kind::SecureBoot] {
+    for kind in [Kind::Gpg, Kind::SecureBoot] {
         let mut app = started(kind);
         let before = app.flow().unwrap().plan.clone();
         assert_eq!(before.stick_places().len(), 2);
@@ -1088,7 +1062,7 @@ fn the_stick_the_machine_started_from_is_offered_as_already_read() {
 
 #[test]
 fn the_tools_tile_starts_the_flow_with_no_vault_and_reads_continue_once_one_waits() {
-    for kind in [Kind::Apk, Kind::Gpg, Kind::SecureBoot] {
+    for kind in [Kind::Gpg, Kind::SecureBoot] {
         let mut app = process(Vec::new(), Vec::new(), Vec::new());
         let go = faraday_core::catalog::TILES[usize::from(tile_of(kind))].go;
         // No "Make a vault first": the flow decides the vaults.
@@ -1721,24 +1695,12 @@ fn the_kept_state_of_a_gpg_or_secure_boot_flow_holds_nothing_secret() {
     let mut shell = Shell::new();
     let app = locked_of(&mut shell, Kind::SecureBoot, &["Owner"], None);
     nothing_secret_kept(&app, &[PHRASE]);
-    let mut shell = Shell::new();
-    let app = locked_of(
-        &mut shell,
-        Kind::Apk,
-        &["Faraday Test", "app.faradayoffline.fixture"],
-        None,
-    );
-    nothing_secret_kept(&app, &[PHRASE]);
 }
 
 #[test]
 fn the_public_files_are_written_to_the_stick_of_the_place_the_plan_names() {
     for (kind, fields) in [
         (Kind::Gpg, GPG_FIELDS.to_vec()),
-        (
-            Kind::Apk,
-            vec!["Faraday Test", "app.faradayoffline.fixture"],
-        ),
         (Kind::SecureBoot, vec!["Owner"]),
     ] {
         for at in [0usize, 1] {

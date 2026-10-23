@@ -94,7 +94,6 @@ impl VaultArea {
             Focus::Dice => self.state.dice.as_mut().map(|d| &mut d.1),
             Focus::Prompt => self.state.prompt.as_mut().map(|p| &mut p.text),
             Focus::Name => self.state.create.as_mut().map(|c| &mut c.name),
-            Focus::Second => Some(&mut self.state.apk.second),
         }
     }
 
@@ -469,8 +468,6 @@ pub enum Focus {
     Prompt,
     /// Create's name for the vault.
     Name,
-    /// Sign an APK's field for the second build's SHA-256.
-    Second,
 }
 
 /// One vault file the Inbox or Outbox holds.
@@ -985,9 +982,6 @@ pub struct Vaults {
     pub revoke_reason: u8,
     /// What is typed into passphrase fields is shown in the clear.
     pub typed_shown: bool,
-    /// APK signing keys: the form, the result, Sign an APK, and the keys
-    /// that wait for their copies.
-    pub apk: crate::apk::ApkState,
     /// The owner name Secure Boot keys are being made under.
     pub sb_owner: String,
     /// Enrolment adds the owner's keys alone, not Microsoft's.
@@ -1612,18 +1606,14 @@ pub const CUSTOM_PASSES: [u32; 7] = [2, 3, 4, 5, 6, 8, 10];
 
 /// The kinds a vault's contents are listed by, with the record types each
 /// shows.
-pub const CATEGORIES: [(&str, &[u8]); 7] = [
+pub const CATEGORIES: [(&str, &[u8]); 6] = [
     (EN.vaults_bitcoin_keys, &[kind::KEY, kind::PASSPHRASE]),
     (EN.vaults_wallets, &[kind::WALLET, kind::WALLET_SHARE]),
     (EN.vaults_entries, &[kind::ENTRY]),
     (EN.vaults_notes, &[kind::NOTE, kind::SHEET]),
     (EN.vaults_gpg_keys, &[kind::GPG]),
     (EN.vaults_secure_boot, &[kind::SECURE_BOOT]),
-    (EN.apk_signing_keys, &[kind::APK_KEY]),
 ];
-
-/// The place of the APK signing keys in `CATEGORIES`.
-pub const APK_CATEGORY: usize = 6;
 
 /// Bits of a passphrase from dice counted strong: six words of the EFF
 /// long list (`docs/VAULT.md` §3.1).
@@ -1765,23 +1755,6 @@ pub enum VaultAction {
     Unlock,
     /// Show an open vault's contents.
     Show(usize),
-    /// The selected APK signing key's certificate to the Outbox.
-    ApkExport,
-    /// Open Sign an APK on the selected key.
-    ApkSignOpen,
-    /// Look at Inbox APK n before signing it with the selected key.
-    ApkPick(usize),
-    /// Held to sign the APK looked at.
-    ApkHoldSign,
-    /// Type the second build's SHA-256.
-    ApkSecond,
-    /// Back from the review to the list of APKs, or from the list to the
-    /// key's page.
-    ApkBack,
-    /// Sign Inbox APK n with a key of an open vault, from Files.
-    ApkFromFiles(usize),
-    /// Choose the key, by vault and place, to sign the APK Files offered.
-    ApkKeyPick(usize, usize),
     /// A kind in the contents.
     Category(usize),
     /// An item of the kind.
@@ -1937,7 +1910,6 @@ pub fn is_hold(a: Action) -> bool {
                 | VaultAction::SbHoldSign
                 | VaultAction::GpgHoldSign
                 | VaultAction::GpgHoldRevoke
-                | VaultAction::ApkHoldSign
         ) | Action::Flow(crate::backup_flow::steps::FlowAction::Hold)
     )
 }

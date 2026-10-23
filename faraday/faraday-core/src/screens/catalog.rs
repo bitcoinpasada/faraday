@@ -62,7 +62,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let tiles: Vec<(usize, &crate::catalog::Tile)> = TILES
             .iter()
             .enumerate()
-            .filter(|(_, t)| t.group == group && app.tile_shown(t) && matches(t, app.tools.find()))
+            .filter(|(_, t)| t.group == group && matches(t, app.tools.find()))
             .collect();
         if tiles.is_empty() {
             continue;

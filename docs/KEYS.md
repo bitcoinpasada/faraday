@@ -24,7 +24,7 @@ Moved to `docs/history/KEYS-LOG.md`.
   - a codex32 work set, the set being made by hand (`WorkSet`,
     `faraday/faraday-keys/src/codex32.rs`): the characters entered, the
     checksum worksheets and strings made from them, and the seed;
-  - GPG, APK and Secure Boot private keys;
+  - GPG and Secure Boot private keys;
   - TOTP secrets;
   - the whole open vault: every decrypted record, passwords and notes
     included (owner, 2026-10-21, Q1 of §9: every decrypted vault byte is
@@ -51,11 +51,11 @@ Moved to `docs/history/KEYS-LOG.md`.
   - a vault passphrase at Open;
   - an Inbox secret file when it is loaded.
 - **The crates that compute and keep nothing** stay as they are:
-  faraday-bip, -psbt, -crypto, -backup, -vault, -pgp, -sb and -apk. Only
+  faraday-bip, -psbt, -crypto, -backup, -vault, -pgp and -sb. Only
   faraday-keys calls their secret-taking functions.
 
 The crate is faraday/faraday-keys (new). It sits beside faraday-vault,
-faraday-pgp, faraday-sb and faraday-apk, which it uses, and holds no flow
+faraday-pgp and faraday-sb, which it uses, and holds no flow
 and no wording.
 
 ## 3. The API, in outline
@@ -187,7 +187,7 @@ faraday-core sees an open vault's public fields and nothing else.
   type and number, and `vault::is_secret` reads it; everything it does
   not list is public. Secret: a KEY's payload and passphrase, a
   PASSPHRASE's passphrase, a NOTE's text, an ENTRY's password, TOTP
-  secret and notes, an APK_KEY's private key, a ROUND's state, a GPG
+  secret and notes, a ROUND's state, a GPG
   record's two seeds and its revocation certificate, a SECURE_BOOT
   record's three private keys. The revocation certificate is secret
   because whoever has it can revoke the key (F32; owner, 2026-10-21):
@@ -210,7 +210,7 @@ faraday-core sees an open vault's public fields and nothing else.
   `load_key_with_passphrase`, `same_words`, `stores_passphrase_of`,
   `passphrase_record_is`, `holds_session_words`, `word_count` and
   `words_id` (worked out once per change, inside the store),
-  `round_section`, `apk_sign`, `sb_enrolment`, `sb_sign_image`, the GPG
+  `round_section`, `sb_enrolment`, `sb_sign_image`, the GPG
   certificate, kept revocation, revocation files and signature, and the
   free functions `key_record_id`, `key_identity`, `key_account`,
   `gpg_facts` and `gpg_revocation_kept_at`. faraday-core keeps the caches of those it already kept
@@ -259,12 +259,12 @@ now opaque: its secret is in a private field, it is neither `Clone` nor
   whose new shares' words are private; `Keys::add_dealt` loads them as
   keys, labelled by the caller. `make_group` and `Dealer` are the
   crate's own.
-- **Keys made from fresh entropy.** `gpg::create`, `apk::create` and
+- **Keys made from fresh entropy.** `gpg::create` and
   `secure_boot::create` make the key and the record every vault of the
   plan takes, as a `vault::MadeKey`: its public fields through `view()`,
   a copy into each vault made inside the crate (`IntoRecord for
   &MadeKey`). They return the public parts beside it: the GPG facts and
-  certificate, the APK certificate, the owner GUID and the enrolment
+  certificate, the owner GUID and the enrolment
   files. `gpg::Key`, `secure_boot::Keys` and `Pair` are the crate's own,
   with every function that takes them.
 - **The carry section.** `carry::Section` wraps a FROST spend's
@@ -310,7 +310,7 @@ now opaque: its secret is in a private field, it is neither `Clone` nor
   - (b) seed words made into a `Mnemonic`, a SeedQR decoded, a SLIP-39
     split, a vault record's words read;
   - (c) the primitive crates' secret-taking functions and types: a GPG
-    key, Secure Boot and APK keys made or used, a vault opened, sealed,
+    key, Secure Boot keys made or used, a vault opened, sealed,
     created or its slot key derived, a carry section's nonces, a PSBT
     signed, BIP-352's receiver, a FROST deal or secret share, an aezeed
     decoded, by path or in a `use` list;

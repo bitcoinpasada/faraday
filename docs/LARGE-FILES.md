@@ -8,18 +8,16 @@ The problem it solves: a stick visit reads at most 18 MiB of a file
 (`faraday-files` `MAX_READ`, `faraday-core` `READ_MAX`). The figure was
 set because a vault with four 4 MiB slots is the largest thing Faraday
 writes; it was never a judgement about what a person needs to sign. A
-release artifact, an APK or a disk image to sign with GPG can be larger,
+release artifact or a disk image to sign with GPG can be larger,
 and today it is listed and cannot be ticked. Lifting the cap means
 holding large files in memory that a vault unlock also needs, so a large
 file asks first, and it can come in as only the few hashes signing
 needs.
 
-This applies to every file read on a stick or SD card visit. APK
-signing (`docs/APK-SIGNING.md`) was to be the first user; F59 has
-switched it off in the app (its code stays, and this spec's APK parts
-apply when the switch is on), and F34 dropped the Companion whose APK
-it signed. The live need is GPG over a large file: a release artifact
-or a disk image.
+This applies to every file read on a stick or SD card visit. The need
+is GPG over a large file: a release artifact or a disk image. APK
+signing, once planned as the first user, is removed (F99); its parts of
+this spec are in `docs/history/LARGE-FILES-LOG.md`.
 
 ## 0. Rules for the implementing agent
 
@@ -42,18 +40,14 @@ The rest: moved to `docs/history/LARGE-FILES-LOG.md`.
   open the vaults this session knows, or could meet (§4). Every copy
   Faraday makes of a file counts, and so does what is made from it.
 - A signing-only import streams the file once and keeps its name, size
-  and hashes, and for an APK what the APK signature needs (§5). Any size
-  works. Everything kept comes from that one pass.
-- A signed APK from a signing-only import is written on a later visit,
-  by copying the unsigned file from that stick with the signing block
-  inserted, every chunk checked against the first read (§7).
+  and hashes (§5). Any size works. Everything kept comes from that one
+  pass.
 
 ## 2. Sizes
 
 - **No cap.** `MAX_READ` and `READ_MAX` go. A file is read up to FAT32's
   4 GiB less one byte; FAT16 files are smaller still.
-- **The threshold is 64 MiB.** It is 3.5 times the old cap, holds an
-  APK (14 MiB as a debug build) with room to grow, and is
+- **The threshold is 64 MiB.** It is 3.5 times the old cap, is
   about 6% of a Pi 3's 1 GB. Up to it, a file comes in ticked as
   `docs/FLOWS.md` decision 29 says, inside §4's rule for the visit's
   total.
@@ -73,11 +67,7 @@ with the file's name and size, with two choices:
   after importing**, **{vault} needs** (§4). Inert, with the reason in
   `WARN`, where §4 refuses it; the free-after row in `WARN` where §4
   warns.
-- **Import only what signing needs**, with the row **Signs**: "GPG" for
-  any file, "APK and GPG" for a file whose end and central directory
-  read as an APK. The sheet reads those two to tell (bounded, §9); they
-  decide this row and guide the read, and nothing kept comes from them
-  (§5).
+- **Import only what signing needs**, with the row **Signs**: "GPG".
 
 **Cancel** leaves it unticked. The choice is shown on the ticked row
 ("Whole" or "Signing only") and pressing the row opens the sheet again.
@@ -103,7 +93,7 @@ lock button stops the transfer first, as Stop does, then locks.
 ## 4. Import the whole file
 
 The file is held in memory and becomes a File like any other: GPG's
-**Sign a file**, **Sign with APK key**, **Show as QR** where it fits the
+**Sign a file**, **Show as QR** where it fits the
 envelope's 256 KiB, written to another stick.
 
 ### 4.1 The rule
@@ -131,8 +121,7 @@ it holds that an unlock cannot use:
 
 - every Inbox and Outbox item's bytes, twice: the app's copy and the
   one in `/run/faraday` (§4.2);
-- each signing-only entry's and each pending signed APK's kept bytes,
-  twice (§5, §7);
+- each signing-only entry's kept bytes, twice (§5);
 - every read and every product in progress, at its full size from the
   moment it starts, before any part arrives.
 
@@ -150,8 +139,6 @@ to 4 GiB, the larger counts.
 **The cost, *C*,** of an action is twice the bytes it adds:
 
 - a whole import of *S* bytes: 2*S*;
-- **Sign with APK key** on a whole import: twice the signed APK's size,
-  since it goes For the stick beside the unsigned file;
 - a signing-only import: twice the bytes it keeps (§5);
 - GPG's **Sign a file**: none. The file is hashed where it is held;
   `faraday-pgp` signs from a hash state over the data (§6) and copies
@@ -162,8 +149,7 @@ The rule:
 - **Refused** when *F* − *L* − *C* < *N*. The row reads "Not enough
   memory to open {vault}" ("… to open a vault" where *N* came from a
   memory that fits). On the import sheet, signing only is still
-  offered. A refused Sign with APK key says the same on its review, and
-  the hold is inert.
+  offered.
 - **Refused** also when the filesystem that holds `/run/faraday` has
   less room free than the bytes the action adds there (`statvfs`): "Not
   enough room to keep it across a lock".
@@ -211,19 +197,17 @@ rewrite of the whole file at every toast or setting. L1 changes both:
 - Each box saves on its own: a failure in one leaves that box's last
   saved state and the others are still saved. A failed save says
   "Cannot keep {name} across a lock".
-- Signing-only entries are kept in `/run/faraday/signing/` and pending
-  signed APKs in `/run/faraday/pending/`, each in its own fixed format
-  (§5, §7). Neither directory's files are read as Inbox or Outbox
-  files, and no Inbox or Outbox file is read as either.
+- Signing-only entries are kept in `/run/faraday/signing/`, in their
+  own fixed format (§5). Its files are not read as Inbox or Outbox
+  files, and no Inbox or Outbox file is read as one.
 
 The same applies to the desktop's `Boxes::Memory`, which holds the
 second copy in the shell.
 
 ## 5. Import only what signing needs
 
-The sheet's reads of the end and central directory (§3) decide its
-**Signs** row and nothing else. The import then reads the file once, in
-parts, front to back, and the app hashes every part as it arrives.
+The import reads the file once, in parts, front to back, and the app
+hashes every part as it arrives.
 Everything it keeps comes from that one pass:
 
 - the name, the size, the stick it came from (its label and volume
@@ -234,29 +218,13 @@ Everything it keeps comes from that one pass:
   hashes run, so Sign a file still asks which. The file's SHA-256 shown
   anywhere is a copy of the SHA-256 state, finished: the hash a person
   compares and the hash GPG signs are one computation;
-- for a file that reads as an APK (`docs/APK-SIGNING.md` §5): the 1 MiB
-  chunk digests of its entries' section, its central directory and end
-  record as bytes (bounded, §9), the manifest's package, versions and
-  `minSdkVersion` inflated from the manifest entry as it passes, and the
-  refusal if one applies. Each local header is checked for alignment as
-  its bytes pass.
 
-**For an APK,** the reader needs the central directory before the
-stream reaches it, to know where the manifest and each local header
-are, so the copy the sheet read guides it. When the stream reaches the
-central directory and end record, those bytes must equal the sheet's
-copy, byte for byte. Where they differ the import ends, "{name} changed
-while it was read", and nothing is kept. The chunk digests and the kept
-central directory and end record are the stream's bytes.
-
-The digests of a 4 GiB file take 128 KiB. Nothing else of the file
-stays in memory: each part is wiped once hashed. The kept bytes, at most
-a 16 MiB central directory, its end record and the digests, enter the
-ledger (§4.1) twice.
+Nothing else of the file stays in memory: each part is wiped once
+hashed. The kept bytes enter the ledger (§4.1) twice.
 
 **In Files** the item is a signing-only entry: its name, its size,
-"Signing only", the stick it came from. Its actions are **Sign a file**
-(GPG), **Sign with APK key** for an APK, and **Delete**. It cannot be
+"Signing only", the stick it came from. Its action is **Sign a file**
+(GPG), and **Delete**. It cannot be
 shown as codes or saved as a picture, written to a stick, put in a
 vault, opened as any kind, or read for codes. One name in Files is one
 item: a whole file and a signing-only entry of the same name replace
@@ -281,87 +249,10 @@ the panic key lose them.
   file uses the same call, the app hashing the file where it is held, so
   no copy of it is made (L1). The detached signature goes For the stick
   as any signature does: `{file}.asc`, with **Show as QR** and **PNG**.
-- **APK.** Sign an APK shows the same review (`docs/APK-SIGNING.md`
-  §4.4) from the kept fields, and builds the APK Signing Block from the
-  kept chunk digests. The block, the central directory and the end
-  record are kept as a **pending signed APK** For the stick, named as
-  the signed APK will be, with the size it will have. Its bytes are
-  written on a visit (§7). The block is not secret: it holds signatures
-  and the certificate.
 
 ## 7. Writing a signed APK on a later visit
 
-**The row.** On the visit's For the stick column the pending APK reads
-"{output name} · signed APK · {size}" and, under it, "From {source
-name}". It is ticked when the stick shown holds a file with the source's
-name, compared as FAT compares names (ignoring case), and size.
-Otherwise it is inert, with "Needs {source name} on this stick" in
-`WARN`. Any stick holding an identical copy works, not only the one it
-was first read from; a different file of that name and size is refused
-at its first chunk that differs, before any unchecked byte is written.
-
-**Before writing.**
-
-- The output stays under FAT32's 4 GiB, or the row reads "Over 4 GiB on
-  FAT32" and is inert (checked when it is signed, too).
-- The stick's free space holds the output rounded up to whole clusters,
-  plus the clusters a hidden temporary file of that name left by an
-  earlier attempt frees. Otherwise "Needs {n} MiB free".
-- The top folder has room for the directory slots of both names, the
-  temporary one and the output (on FAT16 the top folder is fixed).
-  Otherwise "The stick's top folder is full".
-
-**Writing,** with the progress line "Writing {name} · 120 of 210 MiB"
-and **Stop**:
-
-1. **WriteBegin** with the output name: the disk process makes the
-   hidden temporary file, `.faraday-{output name}.part`, as every write
-   makes one, removing one of that name left by an earlier attempt.
-2. The source read in parts. Each part is checked before it is written:
-   the entries' chunks against the kept chunk digests, the central
-   directory and end record against the kept bytes, the whole against
-   the kept SHA-256. Then the temporary file gets the entries, the
-   signing block, the central directory, and the end record with its
-   offset raised. Only bytes already checked are written.
-3. The temporary file read back in parts (ReadBack), its SHA-256
-   compared with the one the app worked out for the output while
-   copying.
-4. **Rename** to the output name, asking first where a file of that
-   name is there (`docs/FLOWS.md` decision 58).
-
-**Refused, nothing written.** A part that differs from the first read:
-"{source name} changed since it was read. Nothing written." The
-temporary file is removed (Abandon) and the pending APK stays. Stop, a
-timeout, a read-back that differs, or a failed write do the same.
-
-**A stick pulled.** FAT has no atomic rename, and Faraday's keeps the
-order it has (`faraday-fat` `rename`): the temporary file's entries are
-erased before the output's are written, so that two names never share
-one chain. What a pull leaves:
-
-- during steps 1 to 3: the hidden temporary file, never a file under
-  the output name. The next attempt replaces it;
-- over a file of that name, after the old file is removed and before
-  the rename: the old file gone and the new one whole under its hidden
-  name;
-- in the instant of the rename itself: neither name, the written
-  clusters unclaimed until a computer checks the stick (`fsck.vfat`,
-  `chkdsk`).
-
-A file under the output name is always the whole, checked output. That
-is the promise; FAT allows no stronger one.
-
-**After.** The pending APK stays For the stick, tagged on this stick as
-any file written, so it can be written beside another copy. Delete
-removes it.
-
-**Across a lock and power-off.** A lock keeps the pending APK in
-`/run/faraday/pending/` (§4.2): its block, central directory, end
-record, chunk digests, sizes and names, none of them secret, in its own
-format (a magic `FPAP`, a version byte, each field with its length). It
-is never an Outbox file and is never written to a stick as one.
-Power-off and the panic key lose it, as they lose the Outbox; signing
-again needs the key's vault unlocked.
+Removed with APK signing (F99): `docs/history/LARGE-FILES-LOG.md`.
 
 ## 8. The disk process
 
@@ -382,14 +273,11 @@ hostile-peer checks in both directions and its wiping.
 - **ReadPart** (stick, name, size, offset, length up to 4 MiB) answers
   exactly min(length, size − offset) bytes. It is refused where the
   file's size in the directory is not `size`. The app asks for the parts
-  it wants in the order it wants them: an APK's last 64 KiB, then its
-  central directory, then the file from the start. A whole import is
-  the same, into one buffer.
+  it wants in the order it wants them. A whole import is the same, into one buffer.
 - The disk process keeps, for the one file being read, where in its
   cluster chain the last part ended, and a bitmap of the clusters
   passed, one bit per cluster of the volume. A part that follows on
-  walks forward only; a part before it (the APK's tail, then its start)
-  walks from the start once more. A chain that comes back to a cluster
+  walks forward only; a part before it walks from the start once more. A chain that comes back to a cluster
   already passed is refused, as is one that ends before the size or
   leaves the volume (`chain_start`'s rules). This is dropped when
   another file is read, the stick goes, or the pipes are opened again.
@@ -436,22 +324,10 @@ ReadBack, WritePart and WriteEnd 30 seconds; WriteBegin, Rename and
 Abandon 120 seconds, since each may free a chain of up to 4 GiB; `Write`
 keeps its 120. A request that times out ends the transfer as Stop does.
 
-The copy-with-insert of §7 is driven by the app, part by part, through
-ReadPart and WritePart, rather than run inside the disk process. So
-the app writes only bytes it has just checked, the hash is the app's
-own and never the disk process's, and the disk process stays a FAT
-driver that knows nothing of APKs. Each byte crosses the pipe twice,
-in memory, against a stick's 10 to 30 MB/s.
-
 ## 9. Untrusted input
 
 Bounds that hold whatever the file's size (`docs/history/PLAN.md` §4.4):
 
-- the end record searched in the last 65,557 bytes;
-- a central directory over 16 MiB is "Not an APK" (that is more than
-  100,000 entries);
-- `AndroidManifest.xml` at most 1 MiB compressed and 1 MiB inflated;
-- the digests at 32 bytes per MiB of file;
 - a picture over the threshold is not decoded for codes (§8).
 
 **Names.** A file's name comes from the stick. Every file on a visit,
@@ -460,15 +336,11 @@ whatever its size, is listed and can be ticked only where its name:
 - holds no control or format character (Unicode categories Cc and Cf,
   bidirectional controls included);
 - is at most 230 bytes of UTF-8, so `.faraday-{name}.part`,
-  `{name}.asc` and an APK's `-signed` stay inside FAT's 255 characters.
+  `{name}.asc` stay inside FAT's 255 characters.
 
 Any other file is listed with its size and each such character shown as
 `?`, inert, with "Rename it on another computer" in `WARN`. The disk
 process refuses such a name in WriteBegin.
-
-The fuzz targets of `docs/APK-SIGNING.md` §5 feed the reader its parts
-in every order the app asks for them, a central directory streamed
-different from the one read first among them.
 
 ## 10. The Pi and Faraday Desktop
 
@@ -498,13 +370,11 @@ app's are.
 
 - In `faraday-core/tests/large_files.rs`:
   - a file over 64 MiB is listed unticked with its size, and ticking it
-    offers both choices, with "APK and GPG" for an APK;
+    offers both choices;
   - a whole import that would leave less than *N* is refused, naming the
     vault on the stick, and signing only is still offered;
   - files under the threshold whose total crosses the line come in
     ticked up to it;
-  - after a whole import, Sign with APK key on it is refused where its
-    signed copy would cross the line;
   - Unlock refused for memory names the large file held, and its
     Delete lets the unlock go on;
   - a whole import, then a lock: the next process keeps it and every
@@ -512,18 +382,10 @@ app's are.
   - Stop during a read keeps nothing of the file;
   - a part answered short, or a file whose size changed, ends the read
     with "{name} changed while it was read";
-  - a signing-only APK whose central directory reads differently in the
-    stream than on the sheet keeps nothing;
-  - a signing-only APK signs, and the next visit writes the signed APK;
-  - a source changed between the visits (one byte in the middle) is
-    refused and no file appears under the output name;
-  - a stick without the source shows "Needs {source name} on this
-    stick";
+  - a signing-only file signs with GPG;
   - a file whose name holds a bidirectional control is inert with
     "Rename it on another computer".
 - Judged by other tools (skipped with a note where missing):
-  - the visit-2 copy is byte for byte what `apksigner sign` (§8 of
-    `docs/APK-SIGNING.md`'s flags) makes of the same unsigned file;
   - a GPG detached signature over a signing-only file, and one over a
     whole file, pass `gpg --verify` against the file.
 - `faraday-files/tests/`: ReadPart, WritePart, WriteEnd, ReadBack,
@@ -532,15 +394,11 @@ app's are.
   a chain that loops is refused; a write left open is abandoned when
   the pipes are opened again; a vault over one part written back over
   its own file.
-- **The large fixture** is made at test time and never committed:
-  `tools/vectors/apk/make.sh large 200` stores 200 MiB of fixed bytes
-  (a ChaCha20 stream from a fixed key) as an asset in the small fixture
-  APK, aligned. Every judged check above runs on it.
+- **The large fixture** is made at test time and never committed: 200
+  MiB of fixed bytes (a ChaCha20 stream from a fixed key) in a file.
+  Every judged check above runs on it.
 
 ## 12. Batches
-
-`docs/APK-SIGNING.md` batch 1 comes first, on today's reading: it signs
-an APK up to the current 18 MiB.
 
 - **L1, any size.** The protocol of §8 (List and ListFiles, ReadPart
   with its chain position, the write requests, ReadQr's bound, the
@@ -551,13 +409,10 @@ an APK up to the current 18 MiB.
   Unlock's Delete; §4.2's box saving; `faraday-pgp` signing from a hash
   state; progress, Stop and the idle lock's wait; writes in parts, so an
   Outbox file of any size is written. Its tests.
-- **L2, signing only.** §5 to §7: the single streamed pass, the
-  signing-only entry and its box, GPG over it, the pending signed APK,
-  its box and its write; §9's bounds in the fuzz targets; the 200 MiB
-  fixture. Its tests.
+- **L2, signing only.** §5 and §6: the single streamed pass, the
+  signing-only entry and its box, GPG over it; the 200 MiB fixture. Its
+  tests.
 
-APK batch 2 (the release) can land after APK batch 1 and does not wait
-for L1 or L2, so long as the release APK stays under 18 MiB until L1 is
-built. Until L1, `README.md`, `docs/history/PLAN.md` and `docs/FLOWS.md` give
+Until L1, `README.md`, `docs/history/PLAN.md` and `docs/FLOWS.md` give
 today's 18 MiB and mark this spec's behaviour as not built; L1's
 completion report changes them.

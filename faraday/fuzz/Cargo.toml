@@ -16,7 +16,6 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 faraday-fat = { path = "../faraday-fat" }
-faraday-apk = { path = "../faraday-apk" }
 faraday-intake = { path = "../faraday-intake" }
 # The token that counts nothing, for the readers the targets call
 # (docs/COMPUTE.md §3): a fuzz target keeps no drawing guarantee.
@@ -28,13 +27,6 @@ debug = true
 [[bin]]
 name = "fat"
 path = "fuzz_targets/fat.rs"
-test = false
-doc = false
-bench = false
-
-[[bin]]
-name = "apk"
-path = "fuzz_targets/apk.rs"
 test = false
 doc = false
 bench = false

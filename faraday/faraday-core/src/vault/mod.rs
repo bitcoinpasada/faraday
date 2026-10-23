@@ -29,12 +29,10 @@ use faraday_vault::{self as fv, Contents, Cost, Header, Record};
 use std::collections::BTreeSet;
 use zeroize::Zeroizing;
 
-use crate::backup_flow::Kind;
 use crate::backup_flow::steps::Built;
 use crate::wallet::fp_text;
-use crate::{Action, Faraday, FileKind, Item, Screen, apk, gpg};
+use crate::{Action, Faraday, FileKind, Item, Screen, gpg};
 use crate::{Code, Sheet};
-use faraday_apk::{Apk, Info, Refusal, Slice, key, pem, sign};
 use faraday_bip::keys::Fingerprint;
 use faraday_keys::vault::{GpgFacts as Facts, gpg_facts, gpg_field as f};
 use faraday_pgp::{Armor, Reason, armor};
@@ -709,18 +707,13 @@ impl Faraday {
                 self.gpg_page_reset();
                 if i < self.vaults.open.len() {
                     self.vaults.state.current = i;
-                    self.vaults.state.apk.leave();
                     self.vaults.state.form = None;
                     self.vaults.state.saving = false;
                     self.vaults.state.item_open = false;
                     self.vaults.set_item_offset(0.0);
                 }
             }
-            V::Category(k) if !self.category_listed(k) => {}
-            V::AddKind(k) if !self.category_listed(k) => {}
-            V::ApkSignOpen | V::ApkFromFiles(_) if !self.category_listed(APK_CATEGORY) => {}
             V::Category(k) => {
-                self.vaults.state.apk.leave();
                 self.gpg_page_reset();
                 self.vaults.state.category = k.min(CATEGORIES.len() - 1);
                 self.vaults.set_item_offset(0.0);
@@ -730,7 +723,6 @@ impl Faraday {
                 self.vaults.state.item_open = false;
             }
             V::Item(k) => {
-                self.vaults.state.apk.leave();
                 self.gpg_page_reset();
                 self.vaults.state.item[self.vaults.category] = k;
                 self.vaults.set_item_offset(0.0);
@@ -749,7 +741,6 @@ impl Faraday {
                 self.vaults.state.saving = false;
                 self.vaults.state.sb_images = false;
                 self.vaults.state.sb_sign = None;
-                self.vaults.state.apk.leave();
                 self.vaults.state.focus = None;
             }
             V::Reveal(_) | V::ShowSeedQr => {}
@@ -815,7 +806,6 @@ impl Faraday {
                 }
                 self.vaults.state.sb_images = false;
                 self.vaults.state.sb_sign = None;
-                self.vaults.state.apk.leave();
                 if kinds.contains(&kind::KEY) || kinds.contains(&kind::WALLET) {
                     self.vaults.state.saving = !self.vaults.saving;
                     self.vaults.state.form = None;
@@ -1003,57 +993,7 @@ impl Faraday {
                 }
             }
             V::SbCheck(k) => self.sb_check(k),
-            V::ApkExport => self.apk_export(),
-            V::ApkSignOpen => {
-                if let Some((_, r)) = self.apk_selected()
-                    && let Some(fp) = crate::apk::fingerprint_of(r)
-                    && self
-                        .backup_waits(crate::backup_flow::Kind::Apk, &fp)
-                        .is_none()
-                {
-                    self.vaults.state.apk.signing = true;
-                    self.vaults.state.apk.review = None;
-                    self.vaults.state.apk.which = None;
-                }
-            }
-            V::ApkPick(k) => {
-                if let Some((_, r)) = self.apk_selected()
-                    && let Some(fp) = crate::apk::fingerprint_of(r)
-                    && self
-                        .backup_waits(crate::backup_flow::Kind::Apk, &fp)
-                        .is_none()
-                    && let Some(name) = self.inbox.get(k).map(|i| i.name.clone())
-                {
-                    self.apk_open_review(&name, fp);
-                }
-            }
-            V::ApkHoldSign => self.apk_sign(),
-            V::ApkSecond => self.vaults.state.focus = Some(Focus::Second),
-            V::ApkBack => {
-                if self.vaults.apk.review.is_some() {
-                    self.vaults.state.apk.review = None;
-                    self.vaults.state.apk.second.clear();
-                    self.vaults.state.focus = None;
-                } else {
-                    self.vaults.state.apk.leave();
-                }
-            }
-            V::ApkFromFiles(k) => self.apk_from_files(k),
-            V::ApkKeyPick(v, at) => self.apk_key_picked(v, at),
         }
-    }
-
-    /// Whether category `k` is offered: the APK signing keys only with APK
-    /// signing on or an open vault that holds one (F59).
-    pub(crate) fn category_listed(&self, k: usize) -> bool {
-        k != APK_CATEGORY
-            || self.apk_signing
-            || self.vaults.open.iter().any(|v| {
-                self.vaults
-                    .records(v.id)
-                    .iter()
-                    .any(|(_, r)| CATEGORIES[APK_CATEGORY].1.contains(&r.kind()))
-            })
     }
 
     fn vault_import_entries(&mut self, files: &[usize]) {
@@ -2535,7 +2475,7 @@ impl Faraday {
         }
         if key == K::Enter || key == K::Tab {
             match focus {
-                Focus::Dice | Focus::Prompt | Focus::Second => {}
+                Focus::Dice | Focus::Prompt => {}
                 Focus::Passphrase => {
                     if key == K::Enter && import {
                         self.import_act(crate::boot_import::ImportAction::Submit);
@@ -2845,114 +2785,9 @@ impl Faraday {
     }
 }
 
-/// Glue of the vault's Android signing keys (`crate::apk`).
+/// Glue of the vault files this session wrote.
 impl Faraday {
-    /// Costs a hash of a whole file (through `sha_of`). What APK `item`
-    /// reads as, remembered while it stays as it is.
-    fn apk_read(&self, c: &Compute, item: &crate::Item) -> Result<Info, Refusal> {
-        // Read once per file, by the SHA-256 taken when it came in.
-        let sha = item.sha.unwrap_or_else(|| apk::sha_of(c, &item.bytes));
-        let mut cache = self.vaults.apk.listed.borrow_mut();
-        if let Some(e) = cache.iter().find(|e| e.sha == sha) {
-            return e.result.clone();
-        }
-        let result = Apk::read(&mut Slice(&item.bytes)).map(|a| a.info);
-        if cache.len() >= apk::APK_READS_KEPT {
-            cache.remove(0);
-        }
-        cache.push(apk::Read {
-            sha,
-            result: result.clone(),
-        });
-        result
-    }
-
-    /// Costs a hash of a whole file (through `apk_read`). What the Inbox
-    /// APK `name` states of itself, when it reads.
-    pub fn apk_info(&self, c: &Compute, name: &str) -> Option<Info> {
-        let item = self.inbox.iter().find(|i| i.name == name)?;
-        self.apk_read(c, item).ok()
-    }
-
-    /// Costs a hash of a whole file (through `apk_read`). The APKs in
-    /// Files, newest first, each with why it cannot be signed with a key
-    /// for `package` (`docs/APK-SIGNING.md` §4.4).
-    pub fn apk_listed(&self, c: &Compute, package: &str) -> Vec<apk::Listed> {
-        let mut out = Vec::new();
-        for (k, item) in self.inbox.iter().enumerate().rev() {
-            if item.kind != crate::FileKind::Apk {
-                continue;
-            }
-            let (info, why) = match self.apk_read(c, item) {
-                Ok(info) => {
-                    let why = if info.package != package {
-                        Some(apk::Why::Other(info.package.clone()))
-                    } else if apk::output_name(&item.name).len() > apk::NAME_MAX {
-                        Some(apk::Why::NameTooLong)
-                    } else if item.bytes.len() as u64 + 2 * sign::PAGE + 8192 > apk::FAT32_MAX {
-                        Some(apk::Why::TooBig)
-                    } else {
-                        None
-                    };
-                    (Some(info), why)
-                }
-                Err(Refusal::AlreadySigned) => (None, Some(apk::Why::AlreadySigned)),
-                Err(Refusal::NotAligned) => (None, Some(apk::Why::NotAligned)),
-                Err(Refusal::OldSdk) => (None, Some(apk::Why::OldSdk)),
-                Err(_) => (None, Some(apk::Why::NotApk)),
-            };
-            out.push(apk::Listed {
-                inbox: k,
-                name: item.name.clone(),
-                size: item.bytes.len(),
-                info,
-                why,
-            });
-        }
-        out
-    }
-
-    /// The selected type-12 record, with its vault and place.
-    pub(crate) fn apk_selected(&self) -> Option<(usize, RecordView<'_>)> {
-        let at = self.vault_selected_index()?;
-        let r = self
-            .vaults
-            .records(self.vaults.open.get(self.vaults.current)?.id)
-            .get(at)?;
-        (r.kind() == kind::APK_KEY).then_some((at, r))
-    }
-
-    /// Every APK signing key in the open vaults whose package is
-    /// `package`: vault, record place, name and fingerprint.
-    pub fn apk_keys_for(&self, package: &str) -> Vec<(usize, usize, String, [u8; 32])> {
-        let mut out = Vec::new();
-        for (v, open) in self.vaults.open.iter().enumerate() {
-            for (at, r) in self.vaults.records(open.id).iter() {
-                if r.kind() != kind::APK_KEY || r.public_text(field::APK_PACKAGE) != Some(package) {
-                    continue;
-                }
-                if let Some(s) = apk::shown(r, self.tz_min()) {
-                    out.push((v, at, s.name, apk::fingerprint_of(r).unwrap_or_default()));
-                }
-            }
-        }
-        out
-    }
-
-    /// The type-12 record whose certificate has this SHA-256, with its
-    /// vault and place.
-    pub(crate) fn apk_find(&self, fp: &[u8; 32]) -> Option<(usize, usize)> {
-        for (v, open) in self.vaults.open.iter().enumerate() {
-            for (at, r) in self.vaults.records(open.id).iter() {
-                if r.kind() == kind::APK_KEY && apk::fingerprint_of(r).as_ref() == Some(fp) {
-                    return Some((v, at));
-                }
-            }
-        }
-        None
-    }
-
-    /// Costs a hash of a whole file (through `sha_of`). A vault in Files
+    /// Costs a hash of a whole file (a SHA-256 pass). A vault in Files
     /// that this session unlocked or wrote: its salt is an open vault's, or
     /// its bytes are what the last write of this session put on a stick. A
     /// copy of any other vault never goes over a vault of the same size on
@@ -2967,291 +2802,11 @@ impl Faraday {
         // Only a write of this session's own visit counts: the flow's
         // sealings do not, so that a later ordinary visit never writes the
         // flow's bytes over a newer copy on another stick.
-        let hash = apk::sha_of(c, bytes);
+        let hash = faraday_crypto::sha256_whole(c, bytes);
         self.visit
             .receipt()
             .as_ref()
             .is_some_and(|r| !r.by_flow && r.holds_hash(&hash))
-    }
-
-    /// Costs a hash of a whole file (through `apk_read`). What an APK's row
-    /// in Files offers (`docs/APK-SIGNING.md` §4.1): to sign, when an open
-    /// vault holds a key for its package; a note of why not otherwise; and
-    /// Unlock or Make a vault, where none is open.
-    pub fn apk_files_row(&self, c: &Compute, k: usize) -> apk::Row {
-        if !self.apk_signing {
-            return apk::Row::None;
-        }
-        let Some(item) = self.inbox.get(k) else {
-            return apk::Row::None;
-        };
-        let info = match self.apk_read(c, item) {
-            Ok(i) => i,
-            Err(Refusal::AlreadySigned) => return apk::Row::Note(apk::Why::AlreadySigned.text()),
-            Err(Refusal::NotAligned) => return apk::Row::Note(apk::Why::NotAligned.text()),
-            Err(Refusal::OldSdk) => return apk::Row::Note(apk::Why::OldSdk.text()),
-            Err(_) => return apk::Row::Note(apk::Why::NotApk.text()),
-        };
-        if self.vaults.open.is_empty() {
-            return apk::Row::Sign;
-        }
-        if self.apk_keys_for(&info.package).is_empty() {
-            return apk::Row::Note(apk::Why::Other(info.package).text());
-        }
-        if apk::output_name(&item.name).len() > apk::NAME_MAX {
-            return apk::Row::Note(apk::Why::NameTooLong.text());
-        }
-        let keys = self.apk_keys_for(&info.package);
-        if keys
-            .iter()
-            .all(|k| self.backup_waits(Kind::Apk, &k.3).is_some())
-        {
-            return apk::Row::Back;
-        }
-        apk::Row::Sign
-    }
-
-    /// Selects a key by its place for the contents to show.
-    fn apk_select(&mut self, v: usize, at: usize) {
-        let Some(open) = self.vaults.open.get(v) else {
-            return;
-        };
-        let n = self
-            .vaults
-            .records(open.id)
-            .iter()
-            .take(at)
-            .filter(|(_, r)| r.kind() == kind::APK_KEY)
-            .count();
-        self.vaults.state.current = v;
-        self.vaults.state.category = 6;
-        self.vaults.state.category_chosen = true;
-        self.vaults.state.item[6] = n;
-        self.vaults.state.item_open = true;
-        self.vaults.state.form = None;
-        self.vaults.state.saving = false;
-        self.vaults.state.prompt = None;
-        self.vaults.state.signing = false;
-        self.vaults.state.sb_images = false;
-        self.vaults.set_item_offset(0.0);
-        self.screen = crate::Screen::VaultContents;
-    }
-
-    /// Files' Sign with APK key: with one key of an open vault for the
-    /// APK's package, its review; with several, which key.
-    pub(crate) fn apk_from_files(&mut self, k: usize) {
-        let c = self.compute();
-        let Some(item) = self.inbox.get(k) else {
-            return;
-        };
-        let name = item.name.clone();
-        let Ok(info) = self.apk_read(&c, item) else {
-            return;
-        };
-        let keys = self.apk_keys_for(&info.package);
-        let Some(&(v, at, _, fp)) = keys.first() else {
-            return;
-        };
-        if keys.len() == 1 && self.backup_waits(Kind::Apk, &fp).is_some() {
-            // The key waits for its backup: the flow opens on its step.
-            return self.backup_continue(Kind::Apk, &fp);
-        }
-        self.apk_select(v, at);
-        self.vaults.state.apk.leave();
-        self.vaults.state.apk.signing = true;
-        if keys.len() == 1 {
-            self.apk_open_review(&name, fp);
-        } else {
-            self.vaults.state.apk.which = Some(name);
-        }
-    }
-
-    /// "Which key?" was answered.
-    pub(crate) fn apk_key_picked(&mut self, v: usize, at: usize) {
-        let Some(name) = self.vaults.apk.which.clone() else {
-            return;
-        };
-        let Some(fp) = self
-            .vaults
-            .open
-            .get(v)
-            .and_then(|o| self.vaults.records(o.id).get(at))
-            .and_then(apk::fingerprint_of)
-        else {
-            return;
-        };
-        if self.backup_waits(Kind::Apk, &fp).is_some() {
-            return self.backup_continue(Kind::Apk, &fp);
-        }
-        self.apk_select(v, at);
-        self.vaults.state.apk.leave();
-        self.vaults.state.apk.signing = true;
-        self.apk_open_review(&name, fp);
-    }
-
-    /// Makes the key the flow's form described, once: the record every
-    /// vault of the plan takes, and the certificate For the stick.
-    pub(crate) fn apk_build(&mut self, name: &str, package: &str) -> Result<Built, String> {
-        let (name, package) = Self::apk_check_form(name, package).map_err(str::to_string)?;
-        let now = self
-            .clock_now()
-            .ok_or_else(|| EN.apk_this_computer.to_string())?;
-        let seed = self
-            .fresh(b"apk key")
-            .map(zeroize::Zeroizing::new)
-            .ok_or_else(|| EN.apk_no_randomness.to_string())?;
-        let made = faraday_keys::apk::create(&seed, &name, &package, now)
-            .map_err(|e| e.reason().to_string())?;
-        let fp = key::fingerprint(&made.cert);
-        let stem = apk::file_stem(&name, &fp);
-        Ok(Built {
-            record: made.key,
-            subject: fp.to_vec(),
-            name,
-            outbox: vec![(
-                format!("{stem}-certificate.pem"),
-                pem::encode(&made.cert).into_bytes(),
-            )],
-        })
-    }
-
-    /// The Make form's checks: the certificate's name and the package, in
-    /// the words they are refused in.
-    pub(crate) fn apk_check_form(
-        name: &str,
-        package: &str,
-    ) -> Result<(String, String), &'static str> {
-        let name = key::check_name(name).map_err(|_| EN.apk_name_the_certificate)?;
-        let package = package.trim();
-        if !key::valid_package(package) {
-            return Err(EN.apk_package_invalid);
-        }
-        Ok((name, package.to_string()))
-    }
-
-    /// The selected key's certificate to the Outbox.
-    pub(crate) fn apk_export(&mut self) {
-        let Some((_, r)) = self.apk_selected() else {
-            return;
-        };
-        let (Some(cert), Some(fp)) = (r.public(field::APK_CERT), apk::fingerprint_of(r)) else {
-            return;
-        };
-        let Some(s) = apk::shown(r, self.tz_min()) else {
-            return;
-        };
-        let name = format!("{}-certificate.pem", apk::file_stem(&s.name, &fp));
-        self.put_outbox(&name, pem::encode(cert).into_bytes());
-        self.toast_out(&name);
-    }
-
-    /// Costs what `text` costs. The QR view of the selected key's
-    /// certificate, with the name and label of its picture.
-    pub(crate) fn apk_code(&self, c: &Compute) -> Result<crate::QrView, String> {
-        let (_, r) = self
-            .apk_selected()
-            .ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
-        let cert = r
-            .public(field::APK_CERT)
-            .ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
-        let fp = apk::fingerprint_of(r).unwrap_or_default();
-        let s =
-            apk::shown(r, self.tz_min()).ok_or_else(|| EN.apk_no_key_is_selected.to_string())?;
-        let stem = apk::file_stem(&s.name, &fp);
-        let lines = vec![
-            s.name.clone(),
-            fill(EN.apk_cert_fingerprint_line, &[&s.fingerprint]),
-            EN.apk_public_checks.to_string(),
-        ];
-        Ok(
-            crate::QrView::text(c, EN.apk_certificate, &pem::encode(cert))?
-                .public(&format!("{stem}.png"), lines),
-        )
-    }
-
-    /// Opens the review of Inbox APK `name` for the key `fp`.
-    pub(crate) fn apk_open_review(&mut self, name: &str, fp: [u8; 32]) {
-        let c = self.compute();
-        let Some(item) = self.inbox.iter().find(|i| i.name == name) else {
-            return;
-        };
-        let sha = apk::sha_of(&c, &item.bytes);
-        self.vaults.state.apk.review = Some(apk::Review {
-            name: name.to_string(),
-            key: fp,
-            sha,
-        });
-        self.vaults.state.apk.second.clear();
-        self.vaults.state.apk.which = None;
-        self.vaults.state.focus = Some(crate::vault::Focus::Second);
-    }
-
-    /// The second build typed so far against the file under review.
-    pub fn apk_second(&self) -> apk::Second {
-        match &self.vaults.apk.review {
-            Some(r) => apk::compare_second(&self.vaults.apk.second.text, &r.sha),
-            None => apk::Second::Empty,
-        }
-    }
-
-    /// Signs the APK under review: the hold completed. Everything is
-    /// checked again here, and nothing is written when anything fails.
-    pub(crate) fn apk_sign(&mut self) {
-        let c = self.compute();
-        let Some(review) = self.vaults.apk.review.clone() else {
-            return;
-        };
-        if !matches!(self.apk_second(), apk::Second::Matches(_)) {
-            return;
-        }
-        if self.backup_waits(Kind::Apk, &review.key).is_some() {
-            return;
-        }
-        let Some((v, at)) = self.apk_find(&review.key) else {
-            return;
-        };
-        let id = self.vaults.open[v].id;
-        let Some(package) = self
-            .vaults
-            .records(id)
-            .get(at)
-            .and_then(|r| r.public_text(field::APK_PACKAGE))
-            .map(str::to_string)
-        else {
-            return;
-        };
-        let Some(seed) = self.fresh(b"apk signing").map(zeroize::Zeroizing::new) else {
-            return self.toast(EN.apk_no_randomness);
-        };
-        let Some(item) = self.inbox.iter().find(|i| i.name == review.name) else {
-            return;
-        };
-        // The bytes signed are the bytes reviewed.
-        if apk::sha_of(&c, &item.bytes) != review.sha {
-            self.toast(EN.apk_changed_since_review);
-            self.vaults.state.apk.review = None;
-            return;
-        }
-        let mut src = Slice(&item.bytes);
-        let apk = match Apk::read(&mut src) {
-            Ok(a) if a.info.package == package => a,
-            _ => return,
-        };
-        let out_name = apk::output_name(&item.name);
-        if out_name.len() > apk::NAME_MAX {
-            return;
-        }
-        let signed = match self.vaults.store().apk_sign(id, at, &seed, &mut src, &apk) {
-            Some(Ok(bytes)) => bytes,
-            Some(Err(e)) => return self.toast(e.reason()),
-            None => return,
-        };
-        self.put_outbox(&out_name, signed);
-        self.vaults.state.apk.review = None;
-        self.vaults.state.apk.second.clear();
-        self.vaults.state.focus = None;
-        self.vaults.state.apk.signing = true;
-        self.toast_out(&out_name);
     }
 }
 

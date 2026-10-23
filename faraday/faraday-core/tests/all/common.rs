@@ -615,10 +615,6 @@ pub fn tile_of(kind: Kind) -> u8 {
 
 /// Starts the flow as Tools' tile does.
 pub fn start(app: &mut Faraday, kind: Kind) {
-    // The APK signing key's tile is there with APK signing on (F59).
-    if kind == Kind::Apk {
-        app.apk_signing = true;
-    }
     app.press(Action::Catalog(tile_of(kind)));
 }
 

@@ -41,11 +41,6 @@ fn sizes(app: &Faraday) -> Vec<(String, usize, usize)> {
             app.vaults.accounts.borrow().len(),
             crate::vault::ACCOUNTS_KEPT,
         ),
-        (
-            "APKs read (apk)".into(),
-            app.vaults.apk.kept(),
-            crate::apk::APK_READS_KEPT,
-        ),
     ]);
     for w in &app.session.wallets {
         let (addresses, scripts) = w.kept();

@@ -126,7 +126,7 @@ parsed or derived once, with what it describes (§2 rules 2 and 4):
   every frame; any change to the records goes through `DerefMut`, which
   drops what was read;
 - each Inbox and Outbox file keeps the wallet it describes, read when it
-  came in, and a vault's or an APK's hash (`Item::wallet`, `Item::sha`):
+  came in, and a vault's hash (`Item::wallet`, `Item::sha`):
   an Item's bytes never change;
 - each plan's map, by place and with its check (`plan::Mapped`), is kept
   by the shape and answers it maps (`Kept::plan_mapped`), and the
@@ -472,7 +472,7 @@ All counts, no wall time, in `faraday-core/src/work/budget/`:
 
   | Moment | Work |
   |---|---|
-  | start to Home with the test stick's 82 files (the self-test apart) | `PsbtParse` 21, one per PSBT; `DescriptorParse` 41, the classifier trying each other text file as a description; `FileHash` 2, the vault and the APK |
+  | start to Home with the test stick's 82 files (the self-test apart) | `PsbtParse` 21, one per PSBT; `DescriptorParse` 41, the classifier trying each other text file as a description; `FileHash` 2, the vault and the EFI image |
   | Unlock to the Load sheet | `Kdf` 5 (Argon2id 1; PBKDF2 for the vault's seed and the three seed files Files shows under the sheet); `MasterKey` 4; `WordsParse` 5; `FileHash` 2; `DescriptorParse` 13 (12 records once, the kept wallet text once); `Blur` 1; `FullCanvas` 5 |
   | Load ticked | `WordsParse` 2, `Kdf` 1, `MasterKey` 1, `FileHash` 1 (the seed loaded); `Address` 1 and `WalletMatch` 12 (Wallets' cards, kept); `FullCanvas` 5; no description parsed |
   | a PSBT opened to its review | `PsbtParse` 1, `PsbtInspect` 1, `WalletMatch` 1, `FullCanvas` 5 |

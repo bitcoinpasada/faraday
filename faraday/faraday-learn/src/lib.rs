@@ -32,7 +32,7 @@ pub use sketch::{Sketch, is_marker};
 /// (`docs/learn/faraday/boot/*.md`) are `faraday-guides`' own table, not
 /// this one, except `replace-faraday`, which the stick's Upgrade screen
 /// shows directly ([`known`]).
-const OWN: [(&str, &str); 11] = [
+const OWN: [(&str, &str); 10] = [
     // Upgrading a stick from another stick (`docs/history/PLAN.md` §5.5).
     (
         "upgrade-a-stick",
@@ -51,11 +51,6 @@ const OWN: [(&str, &str); 11] = [
     ),
     // The demo's public seeds and the test networks (F20).
     ("demo", include_str!("../../../docs/learn/faraday/demo.md")),
-    // The APK signing key (`docs/APK-SIGNING.md` §10).
-    (
-        "apk-key",
-        include_str!("../../../docs/learn/faraday/apk-key.md"),
-    ),
     // GPG keys, their revocation certificate and paperkey (F32).
     ("gpg", include_str!("../../../docs/learn/faraday/gpg.md")),
     // What a backup plan's three checks mean (`docs/BACKUP-FLOW.md`).
@@ -358,9 +353,4 @@ pub fn keys_kept_page() -> &'static LearnPage {
 /// "Vaults".
 pub fn vaults_page() -> &'static LearnPage {
     known("vaults")
-}
-
-/// "The APK signing key".
-pub fn apk_key_page() -> &'static LearnPage {
-    known("apk-key")
 }

@@ -1,10 +1,12 @@
 # The APK signing key
 
-**Kind:** Reference
-**Status:** Built; switched off in the app (F59: `Faraday::apk_signing` is off by default). Files over 18 MiB wait for `docs/LARGE-FILES.md` (F26, not built).
+**Kind:** History
+**Status:** Kept as written
 
-Everything here is built and tested with the switch on, and comes back
-when it is turned on.
+Moved out of the documents on 2026-10-23 (F99): APK signing is removed.
+The code, the vault's type 12 record and the Learn page it describes are
+gone; a slot holding a type 12 record is refused like any unknown type
+(`docs/VAULT.md` §7). Read what follows as the design as it stood.
 
 The Faraday Companion was dropped (F34, 2026-10-15). **Sign an APK**
 stays, for the APK of any app: the name and the package start empty,

@@ -13,8 +13,7 @@ pub struct StickInfo {
     /// Whether it is the medium the machine booted from.
     pub boot: bool,
     /// Its FAT volume serial number, when the shell can read one: what
-    /// tells two sticks of the same label apart (`docs/APK-SIGNING.md`
-    /// §3).
+    /// tells two sticks of the same label apart (`docs/VAULT.md` §6).
     pub serial: Option<u32>,
     /// The files at its top level, with their sizes.
     pub files: Vec<(String, u64)>,

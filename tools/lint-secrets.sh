@@ -132,11 +132,10 @@ report "heap text in secret-handling source (rule 3)" \
 #       vault record's words read (records::words_of): faraday_keys::words
 #       does these;
 #   4c. the primitive crates' secret-taking functions and types: a GPG
-#       key (faraday_pgp::Key), Secure Boot and APK keys made or used
-#       (faraday_sb make, enrolment, Keys, Pair, pe::sign; faraday_apk
-#       key::make, sign::), a vault opened, sealed, created or its slot
-#       key derived (faraday_vault open, open_with, create, derive, seal,
-#       Opened), a carry section's nonces (CarrySection, CarryEntry,
+#       key (faraday_pgp::Key), Secure Boot keys made or used
+#       (faraday_sb make, enrolment, Keys, Pair, pe::sign), a vault
+#       opened, sealed, created or its slot key derived (faraday_vault
+#       open, open_with, create, derive, seal, Opened), a carry section's nonces (CarrySection, CarryEntry,
 #       Carry::parse), a PSBT signed (faraday_psbt::sign), BIP-352's
 #       receiver, a FROST deal or secret share, an aezeed decoded;
 #   4d. a held secret taken out of its guard (Held::release, release(),
@@ -148,7 +147,7 @@ report "heap text in secret-handling source (rule 3)" \
 #       Keys::codex32_shares do these, and lend their results only as a
 #       paper form.
 # Exempt, as they are not shipped or are the boundary's own: faraday-keys;
-# the primitive crates faraday-pgp, -sb, -apk and -vault; tests/,
+# the primitive crates faraday-pgp, -sb and -vault; tests/,
 # examples/ and fuzz/; the snapshot shell and faraday/tools/ (test
 # renders and test data); faraday-core's testkit.rs (the `testkit`
 # feature, which tools/lint-keys-tests.sh keeps out of every shipped
@@ -164,7 +163,7 @@ boundary_files() {
     find faraday -name '*.rs' \
         -not -path 'faraday/faraday-keys/*' \
         -not -path 'faraday/faraday-pgp/*' -not -path 'faraday/faraday-sb/*' \
-        -not -path 'faraday/faraday-apk/*' -not -path 'faraday/faraday-vault/*' \
+        -not -path 'faraday/faraday-vault/*' \
         -not -path '*/tests/*' -not -path '*/examples/*' -not -path 'faraday/fuzz/*' \
         -not -path 'faraday/shells/snapshot/*' -not -path 'faraday/tools/*' \
         -not -path 'faraday/faraday-core/src/testkit.rs' | sort
@@ -189,7 +188,7 @@ report "a key or seed outside faraday-keys (rule 4a)" \
 report "seed words made outside faraday_keys::words (rule 4b)" \
     "$(in_code 'Mnemonic::(parse|from_indices|from_entropy|from_phrase)|seedqr::from_(entropy|digits)|slip39::split|records::words_of' "${WORDS_FILES[@]}")"
 report "a primitive's secret-taking function outside faraday-keys (rule 4c)" \
-    "$(in_code 'faraday_pgp::Key\b|faraday_sb::(make|enrolment|Keys|Pair|x509::Pair|pe::sign)\b|faraday_apk::(key::make|sign::)|faraday_vault::(open|open_with|create|derive|seal|Opened)\b|CarrySection|CarryEntry|Carry::parse|faraday_psbt::sign\(|faraday_bip::silent::Receiver|frost::(deal|SecShare)|aezeed::(decode|node_key)|use faraday_(pgp|sb|apk|vault)::\{[^}]*\b(Key|make|enrolment|Keys|Pair|open|open_with|create|derive|seal|Opened)\b' "${BOUNDARY[@]}")"
+    "$(in_code 'faraday_pgp::Key\b|faraday_sb::(make|enrolment|Keys|Pair|x509::Pair|pe::sign)\b|faraday_vault::(open|open_with|create|derive|seal|Opened)\b|CarrySection|CarryEntry|Carry::parse|faraday_psbt::sign\(|faraday_bip::silent::Receiver|frost::(deal|SecShare)|aezeed::(decode|node_key)|use faraday_(pgp|sb|vault)::\{[^}]*\b(Key|make|enrolment|Keys|Pair|open|open_with|create|derive|seal|Opened)\b' "${BOUNDARY[@]}")"
 report "a codex32 set made, split or recovered outside faraday-keys (rule 4e)" \
     "$(in_code 'fresh_set|FreshSet|ChecksumWorksheet|TranslationWorksheet|Codex32::(from_seed|split|recover|derive_share)\b' "${BOUNDARY[@]}")"
 report "a held secret taken out of its guard outside the named sites (rule 4d)" \

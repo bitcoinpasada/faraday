@@ -29,7 +29,7 @@ fn each_passphrase_opens_its_slot_of_the_vectors() {
     let three = committed(vectors::THREE.0);
     for (p, label) in vectors::THREE.1.iter().zip(vectors::LABELS) {
         let (_, got) = faraday_vault::open(&c, &three, p.as_bytes()).expect("opens");
-        assert_eq!(got.records.len(), 13);
+        assert_eq!(got.records.len(), 12);
         assert_eq!(got.records[0].text(field::LABEL), Some(label));
     }
     let one = committed(vectors::ONE.0);

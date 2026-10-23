@@ -48,7 +48,7 @@ impl Faraday {
             Action::KLock => self.keygen.state().is_some_and(|k| {
                 !k.typed() && self.session.keys.next_handout(k.handout_words()).is_none()
             }),
-            // Make the key, for a GPG key, Secure Boot keys or an APK key.
+            // Make the key, for a GPG key, or Secure Boot keys.
             Action::Flow(F::Make) => self
                 .flows
                 .on()

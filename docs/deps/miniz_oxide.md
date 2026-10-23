@@ -17,12 +17,6 @@ limit on a transfer is kept against a compression bomb.
 `default-features = false, features = ["with-alloc"]`, the version `png`
 resolves to.
 
-**A second edge.** `faraday/faraday-apk` inflates an APK's
-`AndroidManifest.xml` (`docs/APK-SIGNING.md` §5), up to 1 MiB, through
-the crate's `core` interface so that it knows the stream ended and how
-many bytes it used: the same `miniz_oxide` 0.8 with the same features, so
-no crate enters the graph.
-
 **Reopen when** `png` leaves the graph or moves to another major version
 of `miniz_oxide`; then weigh the inflater on its own.
 

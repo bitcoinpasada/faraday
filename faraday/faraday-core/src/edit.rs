@@ -242,7 +242,6 @@ impl Faraday {
                 F::Dice => V::Dice(self.vaults.dice.as_ref().map_or(0, |d| d.0)),
                 F::Prompt => V::FocusPrompt,
                 F::Name => V::CName,
-                F::Second => V::ApkSecond,
             })),
             Screen::Entry if self.entry.state().on_passphrase => Some(Action::EntryPassphrase),
             Screen::Wallets => Some(Action::Rename),
@@ -287,7 +286,6 @@ impl Faraday {
                     F::Dice => &v.dice.as_ref()?.1.text,
                     F::Prompt => &v.prompt.as_ref()?.text.text,
                     F::Name => &v.create.as_ref()?.name.text,
-                    F::Second => &v.apk.second.text,
                 }
             }
             Action::EntryPassphrase => &self.entry.state().passphrase,

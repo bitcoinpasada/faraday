@@ -8,8 +8,8 @@
 //! are `backup_flow/steps.rs`; the cards are `backup_flow/screen.rs`.
 //!
 //! The plan is a plain [`Plan`]: places, each keeping the sticks of some
-//! vaults, and the vaults. A key's own plan fills it for the APK key, GPG
-//! keys and Secure Boot keys; a Bitcoin wallet's plan fills it from its
+//! vaults, and the vaults. A key's own plan fills it for GPG keys and
+//! Secure Boot keys; a Bitcoin wallet's plan fills it from its
 //! map (batch B1b). Only places that keep a stick take part in the stick
 //! steps.
 
@@ -35,8 +35,6 @@ pub const MIN_PLACES: usize = 2;
 /// in their own batches.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Kind {
-    /// An APK signing key.
-    Apk,
     /// A GPG key.
     Gpg,
     /// A set of Secure Boot keys.
@@ -50,7 +48,6 @@ impl Kind {
     /// Its code in the kept state.
     pub(crate) fn code(self) -> &'static str {
         match self {
-            Kind::Apk => "apk",
             Kind::Gpg => "gpg",
             Kind::SecureBoot => "sb",
             Kind::Wallet => "w",
@@ -59,7 +56,6 @@ impl Kind {
 
     pub(crate) fn from_code(s: &str) -> Option<Kind> {
         Some(match s {
-            "apk" => Kind::Apk,
             "gpg" => Kind::Gpg,
             "sb" => Kind::SecureBoot,
             "w" => Kind::Wallet,
@@ -70,7 +66,6 @@ impl Kind {
     /// The vault category its keys are listed in (`vault::CATEGORIES`).
     pub fn category(self) -> usize {
         match self {
-            Kind::Apk => 6,
             Kind::Gpg => 4,
             Kind::SecureBoot => 5,
             // A wallet's keys are listed under Keys.
@@ -82,7 +77,6 @@ impl Kind {
     /// them.
     pub fn of_category(c: usize) -> Option<Kind> {
         match c {
-            6 => Some(Kind::Apk),
             4 => Some(Kind::Gpg),
             5 => Some(Kind::SecureBoot),
             _ => None,
@@ -92,7 +86,6 @@ impl Kind {
     /// The record type its keys are kept as.
     pub fn record_kind(self) -> u8 {
         match self {
-            Kind::Apk => rkind::APK_KEY,
             Kind::Gpg => rkind::GPG,
             Kind::SecureBoot => rkind::SECURE_BOOT,
             Kind::Wallet => rkind::KEY,
@@ -116,7 +109,6 @@ impl Kind {
     /// Its name, for the flow's heading and Home's lead.
     pub fn name(self) -> &'static str {
         match self {
-            Kind::Apk => crate::strings::EN.backup_flow_kind_apk,
             Kind::Gpg => crate::strings::EN.backup_flow_kind_gpg,
             Kind::SecureBoot => crate::strings::EN.backup_flow_kind_sb,
             Kind::Wallet => crate::strings::EN.backup_flow_kind_wallet,
@@ -652,8 +644,8 @@ pub fn target_stick(sticks: &[crate::plan::Spot], t: Target) -> Option<crate::pl
 /// the name it is shown under.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Subject {
-    /// The public value, hex: the APK certificate's SHA-256, the GPG
-    /// primary key's fingerprint, the Secure Boot owner GUID.
+    /// The public value, hex: the GPG primary
+    /// key's fingerprint, the Secure Boot owner GUID.
     pub id: String,
     /// The name the key is called.
     pub name: String,
@@ -1453,7 +1445,19 @@ fn clean(s: &str) -> String {
 }
 
 fn hex(h: &[u8; 32]) -> String {
-    faraday_apk::hex(h)
+    hex_text(h)
+}
+
+/// A 32-byte value from 64 hex digits.
+pub(crate) fn hex_array(s: &str) -> Option<[u8; 32]> {
+    if s.len() != 64 {
+        return None;
+    }
+    let mut out = [0u8; 32];
+    for (i, b) in out.iter_mut().enumerate() {
+        *b = u8::from_str_radix(s.get(i * 2..i * 2 + 2)?, 16).ok()?;
+    }
+    Some(out)
 }
 
 /// The kept state's version: a flow written by another version is not
@@ -1670,7 +1674,6 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
 /// stick that the plan does not name, a step past the key with nothing
 /// sealed) is dropped whole.
 pub fn decode(c: &Compute, bytes: &[u8]) -> (Vec<BackupFlow>, usize) {
-    use crate::apk::hex_array;
     let text = String::from_utf8_lossy(bytes);
     let mut lines = text.lines();
     if lines.next().map(|l| l.split('\t').collect::<Vec<_>>()) != Some(vec!["version", VERSION]) {
@@ -2252,7 +2255,6 @@ pub(crate) fn hex_text(b: &[u8]) -> String {
 /// The public value a record of `kind` is known by, as hex.
 pub(crate) fn subject_of(kind: Kind, r: RecordView<'_>) -> Option<String> {
     Some(match kind {
-        Kind::Apk => hex_text(&crate::apk::fingerprint_of(r)?),
         Kind::Gpg => hex_text(&faraday_keys::vault::gpg_facts(r)?.fingerprint),
         Kind::SecureBoot => hex_text(r.public(crate::secure_boot::OWNER_FIELD)?),
         // A wallet is known by its descriptor's checksum, not by a record.

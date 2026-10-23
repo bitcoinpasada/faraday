@@ -125,7 +125,7 @@ fuzz-list:
 fuzz TARGET seconds=fuzz_seconds:
     cd fuzz && cargo +nightly fuzz run {{TARGET}} -- -max_total_time={{seconds}}
 
-# The same, for Faraday's own targets in faraday/fuzz/ (fat, apk,
+# The same, for Faraday's own targets in faraday/fuzz/ (fat,
 # read_wallet; faraday/fuzz/README.md). Its own workspace, like fuzz/.
 [group('test')]
 fuzz-faraday-list:

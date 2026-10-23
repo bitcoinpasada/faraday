@@ -258,7 +258,7 @@ rule's reach is written down):
 | 11 | Key rows, Compare, wallet cards, a key's vault page | Fingerprint | Public | No | No | Eight characters, read by eye |
 | 12 | A GPG key's vault page | Fingerprint, subkey, user IDs | Public | No | No | The certificate's code carries them |
 | 13 | Secure Boot keys' vault page | Owner GUID, certificate names, certificates | Public | Files, where they fit | No | Firmware enrols them from a stick |
-| 14 | APK signing key | Certificate; its SHA-256 | Public | Specified (`docs/APK-SIGNING.md` §4.2, §4.3) | As specified; the SHA-256 none | The SHA-256 is compared by eye on Compare |
+| 14 | (retired) | Was the APK signing key's certificate (F99) | — | — | — | — |
 | 15 | Nostr key, a saved Nostr entry | npub; ncryptsec | Public; sealed | Specified (`docs/NOSTR.md`, F27) | As specified | — |
 | 16 | Spend, after signing | Transaction id | Public | No | No | The online wallet needs the signed transaction, which has its code |
 | 17 | Vault contents, an entry | Username, URL | Kept in the vault, shown in clear | No | No | Typed where they are used |
@@ -267,7 +267,7 @@ rule's reach is written down):
 | 20 | BIP-85 | Child words, hex, WIF, xprv, Base64 and Base85 passwords | Secret | Not on the screen; **Out unprotected…** writes `bip85-{fp}-{app}-{index}.txt` past the secret sheet, and Files shows it as a secret text code (the path line, then the value) | No; no SeedQR of child words (owner, 2026-10-14) | A child seed is a seed and a child password is a password |
 | 21 | Nostr key | nsec | Secret | Specified: never (F27) | No | Its ncryptsec carries the code |
 | 22 | Lightning node key; Silent payments | Private key, aezeed; scan key | Secret | Files only, past the secret sheet | No | Imported from a file or typed by the software that uses them |
-| 23 | GPG, Secure Boot, APK signing key | Paperkey; private keys | Secret | No | No | Paper, or never leave the vault |
+| 23 | GPG, Secure Boot key | Paperkey; private keys | Secret | No | No | Paper, or never leave the vault |
 
 **Placement**, in each screen's own idiom:
 

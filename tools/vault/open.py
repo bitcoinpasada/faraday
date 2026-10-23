@@ -10,7 +10,7 @@ Usage:
 
     python3 tools/vault/open.py vault.ofv
     python3 tools/vault/open.py vault.ofv --passphrase PASSPHRASE
-    python3 tools/vault/open.py vault.ofv --field 12.1 --out signing-key.pk8
+    python3 tools/vault/open.py vault.ofv --field 7.1 --out primary-seed.bin
 
 With no `--passphrase` it is read from the terminal without echo, or from
 one line of standard input where that is not a terminal. Type it at the
@@ -20,9 +20,9 @@ of the slot it opens are printed on standard output; nothing is written.
 
 `--field TYPE.FIELD --out FILE` prints nothing of the slot and writes one
 field's bytes, as they are, to a new file created with mode 0600 (an
-existing file is refused). It is how an APK signing key (type 12, field 1,
-PKCS #8 DER; field 2 is its certificate) reaches `apksigner` without
-Faraday (`docs/APK-SIGNING.md` §3). Where the slot holds several records of
+existing file is refused). It is how a secret field (a GPG key's
+primary seed, type 7 field 1, for instance) reaches another tool without
+Faraday (`docs/VAULT.md` §10). Where the slot holds several records of
 that type, `--index N` takes the N-th in the order they are printed,
 counting from 1; without it the command refuses and says how many there are.
 
@@ -85,14 +85,13 @@ RECORDS = {
     9: ("Pending signing round", {1: "scheme", 2: "transaction", 3: "fingerprint", 4: "state", 5: "used"}),
     10: ("Signed amounts", {1: "transaction", 2: "amount"}),
     11: ("Backup plan", {1: "wallet", 2: "answers", 3: "place", 4: "holds", 5: "note"}),
-    12: ("APK signing key", {1: "private key", 2: "certificate", 3: "package"}),
     13: ("Wallet share", {1: "share", 2: "wallet name", 3: "share number", 4: "of", 5: "wallet"}),
     14: ("Passphrase", {1: "key fingerprint", 2: "passphrase"}),
 }
 
 
 # The fields that are UTF-8 text; every other field is printed in hex.
-TEXT_FIELDS = {(1, 1), (2, 2), (2, 4), (3, 1), (3, 2), (4, 1)} | {(6, n) for n in range(1, 7)} | {(7, 5)} | {(11, n) for n in range(1, 6)} | {(12, 3)} | {(13, 1), (13, 2), (13, 5)} | {(14, 2)}
+TEXT_FIELDS = {(1, 1), (2, 2), (2, 4), (3, 1), (3, 2), (4, 1)} | {(6, n) for n in range(1, 7)} | {(7, 5)} | {(11, n) for n in range(1, 6)} | {(13, 1), (13, 2), (13, 5)} | {(14, 2)}
 
 
 def hkdf_sha256(ikm: bytes, info: bytes) -> bytes:
@@ -180,7 +179,7 @@ def write_field(recs: list, spec: str, index: int | None, out: str) -> None:
         kind_s, number_s = spec.split(".")
         kind, number = int(kind_s), int(number_s)
     except ValueError:
-        raise SystemExit("--field wants TYPE.FIELD, as 12.1")
+        raise SystemExit("--field wants TYPE.FIELD, as 7.1")
     same = [fields for k, fields in recs if k == kind]
     if not same:
         raise SystemExit(f"the slot holds no record of type {kind}")
@@ -207,7 +206,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("vault")
     parser.add_argument("--passphrase")
-    parser.add_argument("--field", help="TYPE.FIELD to write, as 12.1")
+    parser.add_argument("--field", help="TYPE.FIELD to write, as 7.1")
     parser.add_argument("--index", type=int, help="which record of that type, from 1")
     parser.add_argument("--out", help="the new file --field writes")
     args = parser.parse_args()

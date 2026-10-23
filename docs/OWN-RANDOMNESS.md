@@ -26,7 +26,7 @@ configuration, and a plan for the boot measurement (QEMU, then one real PC in pa
 - **The session** (`faraday/faraday-core/src/fresh.rs`). The first
   answer is the seed (`Seed`); the next ones wait in a pool of up to six.
   `fresh(what)` takes one pooled answer and returns SHA-256("faraday
-  fresh" ‖ what ‖ bytes): vault creation, GPG, APK and Secure Boot keys,
+  fresh" ‖ what ‖ bytes): vault creation, GPG and Secure Boot keys,
   Seed XOR, codex32, KeePass, SLIP-39's split. `Seed::draw` is SHA-256
   (what ‖ seed ‖ count): a vault's seal nonces, a new keyboard's code.
   `sign_seed` draws a MuSig2 or FROST round's nonces from the seed with a

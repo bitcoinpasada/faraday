@@ -1,8 +1,8 @@
 # Fuzzing: Faraday's own targets
 
-Three `cargo fuzz` targets for the parsers that live in Faraday's own
+Two `cargo fuzz` targets for the parsers that live in Faraday's own
 crates, each reading something the device did not write: a stick's
-filesystem, an APK, another wallet's file. The parsers in the shared
+filesystem, another wallet's file. The parsers in the shared
 crates (camera frames, PSBTs, descriptors, keys, JSON) are fuzzed from
 `fuzz/` (`fuzz/README.md`).
 
@@ -26,7 +26,7 @@ From the repository root:
 ```
 just fuzz-faraday-list                  the targets
 just fuzz-faraday fat                   one target, 60 seconds
-just fuzz-faraday apk 300               one target, 300 seconds
+just fuzz-faraday read_wallet 300       one target, 300 seconds
 ```
 
 `just fuzz-faraday` is `cargo +nightly fuzz run TARGET -- -max_total_time=N`
@@ -42,7 +42,6 @@ Everything it builds lands in `faraday/fuzz/target`.
 | Target | What it feeds |
 |---|---|
 | `fat` | `faraday_fat::Volume::open` with the input as a partition image: the boot sector, the FATs and the root directory. Every file listed is read, then a file is created, renamed and deleted, so the write paths walk the same structures. |
-| `apk` | `faraday_apk`'s readers over the input: the manifest name check, PEM, the binary manifest, then the ZIP reader and the signing digest. The first byte picks a read on which a source flips a byte, as a stick can change a file between two reads. |
 | `read_wallet` | `faraday_intake::wallet::read_wallet` with the input as text: a single-key file, a Caravan config or an Electrum wallet file. The JSON reader under it is fuzzed on its own in `fuzz/` (`json`). |
 
 Inputs that once crashed a target belong in its corpus, so they keep being

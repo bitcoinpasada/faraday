@@ -39,16 +39,16 @@ Read this table, then only the decision you need.
 | [F22](decisions/F22.md) | An armored GPG public key or signature is public | 2026-10-14 | Amended by F32 | signing |
 | [F23](decisions/F23.md) | The PC stick's kernel is 6.18 longterm, ahead of upstream's | 2026-10-14 | Active | stick |
 | [F24](decisions/F24.md) | The stick's reminders come before the first secret, not at start | 2026-10-14 | Active | stick |
-| [F25](decisions/F25.md) | The Companion's APK signing key is made, kept and used in Faraday | 2026-10-14 | Amended by F31, F34, F59 | signing |
+| [F25](history/decisions/F25.md) | The Companion's APK signing key is made, kept and used in Faraday | 2026-10-14 | Replaced by F99 | signing |
 | [F26](decisions/F26.md) | Files of any size on a stick visit, imported whole or only for signing | 2026-10-14 | Amended by F30 | stick |
 | [F27](decisions/F27.md) | Nostr keys from the seed, by BIP-85 application 128002' | 2026-10-14 | Amended by F34 | keys |
 | [F28](decisions/F28.md) | QR codes for public values wherever another device reads them, and for the TOTP secret | 2026-10-14 | Amended by F33 | QR |
 | [F29](decisions/F29.md) | A copy by hand is checked by its form: typed words, or a scan of a SeedQR | 2026-10-14 | Active | backup |
 | [F30](decisions/F30.md) | No released Faraday Desktop; the demo makes no secrets | 2026-10-14 | Amended by F61, F81, F83 | release |
-| [F31](decisions/F31.md) | Decide where a key will be kept, then make it: one backup flow for every secret Faraday makes | 2026-10-14 | Amended by F58 | backup |
+| [F31](decisions/F31.md) | Decide where a key will be kept, then make it: one backup flow for every secret Faraday makes | 2026-10-14 | Amended by F58, F99 | backup |
 | [F32](decisions/F32.md) | GPG follows GnuPG's behaviour | 2026-10-14 | Amended by F63 | signing |
 | [F33](decisions/F33.md) | Secure Boot back on is the step; no BitLocker recovery key in the Starter or the Companion | 2026-10-14 | Amended by F34, F48, F49 | Starter |
-| [F34](decisions/F34.md) | Faraday Companion is dropped | 2026-10-15 | Active | platforms |
+| [F34](decisions/F34.md) | Faraday Companion is dropped | 2026-10-15 | Amended by F99 | platforms |
 | [F35](decisions/F35.md) | A wallet's backup plan is asked place by place | 2026-10-15 | Active | backup |
 | [F36](decisions/F36.md) | Numbered stick pills on every device | 2026-10-15 | Active | stick |
 | [F37](decisions/F37.md) | The backup plan is a board of places | 2026-10-15 | Active | backup |
@@ -73,7 +73,7 @@ Read this table, then only the decision you need.
 | [F56](decisions/F56.md) | Seeds alone spend; a place says how near it brings a spend | 2026-10-20 | Active | backup |
 | [F57](decisions/F57.md) | A new vault's slots go by the vault's name | 2026-10-20 | Active | vault |
 | [F58](decisions/F58.md) | No idle lock while a new wallet's keys are kept nowhere; 30 and 60 minutes | 2026-10-20 | Active | backup |
-| [F59](decisions/F59.md) | APK signing is switched off in the app; its code stays | 2026-10-20 | Active | signing |
+| [F59](history/decisions/F59.md) | APK signing is switched off in the app; its code stays | 2026-10-20 | Replaced by F99 | signing |
 | [F60](decisions/F60.md) | The boot sheet is a picker; a file row offers a vault only while one is open | 2026-10-20 | Amended by F62 | stick |
 | [F61](decisions/F61.md) | Faraday Desktop is published again, testnet only for real seeds | 2026-10-20 | Amended by F81, F83 | release |
 | [F62](decisions/F62.md) | Unlocking a vault asks what to load | 2026-10-20 | Active | vault |
@@ -113,3 +113,4 @@ Read this table, then only the decision you need.
 | [F96](decisions/F96.md) | Faraday Desktop's dice rollers | 2026-10-22 | Active | keys |
 | [F97](decisions/F97.md) | .oskb files are no longer read; the vault's record layouts are its own | 2026-10-23 | Active | backup |
 | [F98](decisions/F98.md) | A new wallet's account is asked after its quorum, not on Kind | 2026-10-23 | Active | wallets |
+| [F99](decisions/F99.md) | APK signing is removed | 2026-10-23 | Active | keys |

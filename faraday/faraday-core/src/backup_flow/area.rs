@@ -275,14 +275,6 @@ impl BackupFlowArea {
         }
     }
 
-    /// The flow that made the key `subject`, by its place, made or not.
-    pub(crate) fn place_of(&self, kind: Kind, subject: &[u8]) -> Option<usize> {
-        let id = hex_text(subject);
-        self.all
-            .iter()
-            .position(|f| f.kind == kind && f.subject.as_ref().is_some_and(|s| s.id == id))
-    }
-
     /// The flow Home leads with and the Power sheet lists: made, and not
     /// every place written.
     pub(crate) fn pending(&self) -> Option<(usize, &BackupFlow)> {

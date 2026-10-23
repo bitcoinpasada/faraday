@@ -230,10 +230,6 @@ fn records_of_every_type_read_back() {
                 .with(1, &[6; 32])
                 .with(2, &[0; 8])
                 .with(2, &[1; 8]),
-            Record::new(kind::APK_KEY)
-                .with(field::APK_KEY, &[7; 20])
-                .with(field::APK_CERT, &[8; 10])
-                .with(field::APK_PACKAGE, b"app.example.signer"),
         ],
     };
     let plain = c.encode(SMALL).unwrap();
@@ -270,20 +266,21 @@ fn records_of_every_type_read_back() {
         Contents::decode(&unknown).err(),
         Some(Fault::UnknownType(42))
     );
+    // Type 12, once an APK signing key, is retired: a slot holding one is
+    // refused as an unknown type, whole.
+    let mut retired = plain.clone();
+    retired[1] = 12;
     assert_eq!(
-        back.records[10].text(field::APK_PACKAGE),
-        Some("app.example.signer")
+        Contents::decode(&retired).err(),
+        Some(Fault::UnknownType(12))
     );
-    let no_package = Contents {
-        records: vec![
-            Record::new(kind::APK_KEY)
-                .with(field::APK_KEY, &[1])
-                .with(field::APK_CERT, &[2]),
-        ],
-    };
     assert_eq!(
-        no_package.encode(SMALL).err(),
-        Some(Error::Contents(Fault::Missing(kind::APK_KEY, 3)))
+        Contents {
+            records: vec![Record::new(12).with(1, &[1])],
+        }
+        .encode(SMALL)
+        .err(),
+        Some(Error::Contents(Fault::UnknownType(12)))
     );
     let no_title = Contents {
         records: vec![Record::new(kind::ENTRY).with(field::USERNAME, b"me")],

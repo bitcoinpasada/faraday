@@ -319,8 +319,6 @@ pub enum Code {
     /// whose SHA-256 begins with these eight bytes: it follows the file,
     /// not its place in the Inbox.
     GpgSignature([u8; 8]),
-    /// The selected APK signing key's certificate, as PEM.
-    ApkCertificate,
 }
 
 /// How a QR view is written: UR, BBQr or numbered parts.

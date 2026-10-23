@@ -74,7 +74,7 @@ it picked: the passphrase is typed once more, which shows the person has
 it. Unlocking needs the stick out: with one in, the Pull sheet asks first
 ("Pull the stick to unlock"). Once unlocked, the flow is back on the step
 it was on, with the vault's button live. The places: Tools' **GPG key**,
-**Secure Boot keys**, **APK signing key** (F59) and **KeePass export**
+**Secure Boot keys** and **KeePass export**
 ("Make a vault first" / "Unlock a vault first" on the tile, pressable;
 back to that category of the vault unlocked, or to Tools when the way
 back is taken); BIP-85, the Lightning node key and the Silent payments
@@ -133,7 +133,7 @@ a passphrase, Add a key) shows a **No passphrase** pill at its start,
 with the caret after it while focused; a vault's passphrase field has
 none.
 
-**The time first** (decision 58). GPG, Secure Boot and the APK key ask
+**The time first** (decision 58). GPG and Secure Boot ask
 for the time first where TOTP codes does (`docs/TOTP.md` §1.3).
 
 ## Sidebar
@@ -155,7 +155,6 @@ mainnet.
 **One Files screen holds what came from the stick and what goes to it**
 (decision 1). Every file copied in carries the action that uses it: a
 PSBT **Sign in Wallets**, `BOOTX64.EFI` **Sign in Secure Boot**, an
-unsigned APK **Sign with APK key** (only with APK signing on, F59), an
 entries file **Import into a vault**, a vault file **Unlock**, a received
 file **Show as QR**. Both halves are emptied at power-off. Each half
 scrolls on its own, with its own scrollbar, under the pointer (decision
@@ -195,7 +194,7 @@ menu.
 1. **Files, both columns.** The visible button is the row's main
    action: Sign, Unlock or Contents, Load the wallet, Load this key,
    Import into the vault, Decode, Check the signature, Add to
-   signatures, the shares' restore, the APK row's button, Make PDF for a
+   signatures, the shares' restore, Make PDF for a
    sheet From the stick, Add to vault where it is the only action. The
    ⋮ holds, in this order and only where the row has them: **Add to
    vault** (where it is not the visible one), **Show as QR**, **Make
@@ -544,8 +543,8 @@ visit** directly.
   §3 there: **Import the whole file** (with Size, Free after importing
   and what the vault needs; refused where it would leave too little to
   open one) or **Import only what signing needs** (a signing-only entry
-  in Files: Sign a file, Sign with APK key, Delete, nothing else). A
-  long read shows its progress and **Stop**. A pending signed APK (§7
+  in Files: Sign a file, Delete, nothing else). A
+  long read shows its progress and **Stop**. A pending signed file (§7
   there) is a row For the stick, ticked when this stick holds its
   source, else "Needs {source name} on this stick"; it is written with
   progress and **Stop**, and "{source name} changed since it was read.
@@ -651,7 +650,7 @@ chosen machine gives.
 **Vault contents**: the kinds it holds (only those a slot holds
 something of), then a row per add action, the Add icon in the accent
 colour (decision 58): Save a key, Save a wallet, Add an entry, Add a
-note, Make a key, Make keys, Make an APK key (with APK signing on, F59);
+note, Make a key, Make keys;
 an empty vault shows them as buttons under "Nothing in it yet", then
 **Write it to a stick** → items → details. Unlocked, it opens on Wallets
 where it holds one (decision 42): a wallet's item shows the plan's three
@@ -690,8 +689,6 @@ item's page stacks the same nodes in that order, with no lines.
 - Secure Boot keys → **Open Secure Boot**.
 - A recovery sheet → its descriptor, with **Show as QR** and **PNG** on
   a row under it (F28; not built, `docs/QR.md` §7).
-- An APK signing key (shown even with APK signing off, F59) → its page: name, certificate SHA-256, **Certificate**
-  with **Show as QR** and **PNG** on its row, **Sign an APK**.
 
 **Change passphrases, cost or space** → **Make a new vault from this one**
 → Create vault, filled in from this vault, with this slot's contents
@@ -755,7 +752,7 @@ vault.ofv · for the stick" (paper "1 of 2 checked" while one is not), or
 ## Backup flow
 
 **Decide where a key will be kept, then make it** (decision 59;
-`docs/BACKUP-FLOW.md`, F31). One flow makes and backs up an APK key, a
+`docs/BACKUP-FLOW.md`, F31). One flow makes and backs up a
 GPG key, Secure Boot keys and a Bitcoin wallet's keys (a Nostr key's
 part is not built, `docs/NOSTR.md`): where it will be kept (the plan) →
 each stick the plan names brought in with nothing secret open, checked,
@@ -763,13 +760,13 @@ its vaults read, its place confirmed → existing vaults unlocked, new ones
 made → the key made into every vault the plan keeps it in → one lock →
 each stick written by place → done, unlock. The plan decides what each
 stick holds; only places with a stick are asked for. Two places or more
-for APK, GPG and Secure Boot keys, whose signing waits until every place
+for GPG and Secure Boot keys, whose signing waits until every place
 is written; one or more for a wallet, with a warning when every secret
 sits at one place; any for Nostr; no upper bound anywhere. The blank
 template is printed from Faraday Starter. The stick visit page is never
 shown, and after Back up's checklist nothing waits For the stick.
 
-Tools' **APK signing key**, **GPG key** and **Secure Boot keys**, Vault
+Tools' **GPG key** and **Secure Boot keys**, Vault
 contents' Make actions, a Nostr key's **Save into a vault**, Make a new
 wallet and Restore → step cards (pages on a small panel, "Step 2 of
 7"; the steps a plan does not need are not drawn):
@@ -777,7 +774,7 @@ wallet and Restore → step cards (pages on a small panel, "Step 2 of
 1. **Where it will be kept**: a row per place (**Add a place**), what
    each keeps (a stick with Vault 1, Vault 2, a new vault; for a
    wallet, the plan's vault part), a row per vault (new or existing),
-   the check lines; at least two places for APK, GPG and Secure Boot;
+   the check lines; at least two places for GPG and Secure Boot;
    for a wallet the one-place warning and, on a single key with no
    passphrase, the passphrase line with **Add a passphrase**;
 2. **Bring in the sticks** (with anything secret open: **Lock and bring
@@ -1352,52 +1349,7 @@ partition on another computer.
 
 ## APK signing key
 
-(`docs/APK-SIGNING.md`, F25.) Switched off in the app (F59): with
-`Faraday::apk_signing` off, the default, there is no APK signing key
-tile in Tools, no APK signing keys category in a vault that holds none,
-and no Sign with APK key on an APK in Files; a vault that holds an APK
-key still shows it and it works as below. With the switch on (the
-tests turn it on), the flow is this. Needs an open vault for the key. With
-none open, Tools' **APK signing key** tile leads into Create a vault or
-Unlock and back, as GPG's does (decision 10).
-
-**Make an APK key** (the backup flow, decision 59: two places or more,
-by default Vault 1 at Place 1 and Place 2, their sticks brought in,
-their vaults unlocked or made; then step cards: name on the
-certificate, empty at first, empty refused; package, empty at first,
-"Not a package name" unless
-Android's form)
-→ the time first where it is not known → made → result: name, package,
-certificate SHA-256, "RSA 3072", the certificate For the stick as the
-key is made, with **Show as QR** and **PNG** on its row, and a row per
-vault it is in → lock → the sticks written by place → **Unlock
-{vault}** → the key's page in Vault contents (name, package,
-certificate SHA-256, key, made, and the **Backup** row until every
-place is written).
-
-**Sign an APK** → while the key was made in the flow and not every
-place of its plan is written (F31): **Back up first** →
-the flow on its step → Done → **Unlock {vault}** → the key's page.
-
-Otherwise:
-choose an APK copied in (none: "Copy the APK in on a stick visit
-first"; on the Pi "on an SD card visit"), each row with its size, and
-on one that cannot be signed why, inert: "Not an APK", "Already
-signed", "Not aligned", "Supports Android before 7.0", "Over 4 GiB on
-FAT32", "Name too long", "Another app: {package}" (its package is not
-the key's) → "Sign this APK?" (Hold: file, size, SHA-256, **Second
-build**, package, version, Android, key, will write). **Second build**
-is typed: the SHA-256 an independent second build printed, at least
-its first 32 hex digits, case and spaces ignored; "Matches", or "Does
-not match this file" in `WARN`; the hold is inert until it matches
-(and, with `docs/LARGE-FILES.md`, while there is not enough memory to
-open the vault, "Not enough memory to open {vault}") → hold → each signature checked
-against the certificate ("The signature did not check. Nothing
-written." otherwise) → the signed APK For the stick, named as the file
-copied in without `-unsigned`, or with `-signed` → "Insert a stick to
-write it". From Files, an APK's **Sign with APK key** picks the open
-vault's key whose package is the APK's: "Which key?" when several are,
-and "Another app: {package}", inert, when none is.
+Removed (F99): `docs/history/APK-SIGNING.md`.
 
 ## Nostr key
 
@@ -1523,7 +1475,7 @@ the small Home's tiles; `Action::Resume`.
    is opened from: Make a new wallet, Restore a wallet, Back up a
    wallet, Spend, Sign a message and a wallet's backup flow left on its
    own ("Backup of {wallet}") under **Wallets**; Create a vault under
-   **Vaults**; the GPG, APK and Secure Boot flows under **Tools**. New
+   **Vaults**; the GPG and Secure Boot flows under **Tools**. New
    key (with Add a key) has none: it keeps nothing when its screen is
    left (survey below). The row reads the flow's name and, at its right
    end in the muted tone, its open step ("Make a new wallet · Places");
@@ -1567,7 +1519,7 @@ Every screen whose state is kept when it is left, read from the code:
 | Spend: the Spend tab, a transaction's steps | Wallets | `spend`, `family` | a transaction read, or something in on What do you have? | signed and put out | **Start over**; another wallet's spend | the spend is wiped; the tab's own state is kept |
 | Sign a message | Wallets | `message` | a card done | the signature made | **Sign a message** pressed again | wiped |
 | Create a vault, on its own | Vaults | `vaults.create` | a card of Customise done (the size is done for the person) | the vault made | **Create a vault** pressed again; a flow's detour dropped on Back | wiped |
-| APK, GPG, Secure Boot keys | Tools | `backup_flows` | past Where it will be kept | Done | the kind's tile resumes one not made; nothing lets one go | kept |
+| GPG, Secure Boot keys | Tools | `backup_flows` | past Where it will be kept | Done | the kind's tile resumes one not made; nothing lets one go | kept |
 | A wallet's backup flow, on its own | Wallets | `backup_flows` | past The plan, or the keys made | Done | Back up's plan | kept |
 | New key, Add a key | — | `keygen` | | | dropped when its screen is left | |
 | BIP-85, Silent payments, Lightning, Explore, the calculators, Vanity, the word list, Upgrade | — | dropped when left | | | | |
@@ -1717,7 +1669,7 @@ The code: `faraday-core/src/in_progress.rs` (`flow_cancel`,
 The titles: "Cancel making this wallet?", "Cancel restoring this
 wallet?", "Cancel this backup?", "Cancel this spend?", "Cancel signing
 this message?", "Cancel making this vault?", "Cancel making this key?"
-(APK, GPG), "Cancel making these keys?" (Secure Boot). The setup of a
+(GPG), "Cancel making these keys?" (Secure Boot). The setup of a
 wallet's vaults and a Back up's own flow go with Make a new wallet,
 Restore or Back up while their key is not made; one whose key is made
 stays, its writes waiting under a row of its own: no Cancel lets go

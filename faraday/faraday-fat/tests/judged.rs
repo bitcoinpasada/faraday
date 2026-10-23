@@ -356,7 +356,7 @@ fn the_boot_partitions_label_is_read_from_its_first_sector() {
 }
 
 /// The volume serial number that tells two sticks apart
-/// (`docs/APK-SIGNING.md` §3) is the one `mkfs.fat -i` wrote, on FAT16
+/// (`docs/VAULT.md` §6) is the one `mkfs.fat -i` wrote, on FAT16
 /// and FAT32, and a volume copied sector for sector has the same.
 #[test]
 fn the_volume_serial_is_read_from_the_boot_sector() {

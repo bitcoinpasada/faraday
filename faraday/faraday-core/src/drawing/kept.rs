@@ -574,26 +574,6 @@ impl View<'_> {
         self.kept(|c| self.app.currency(c, f))
     }
 
-    /// What APK `name` in Files reads as ([`crate::Faraday::apk_info`]),
-    /// kept by the hash taken when it came in. Costs a read of the APK
-    /// the first time.
-    pub fn apk_info(&self, name: &str) -> Option<faraday_apk::Info> {
-        self.kept(|c| self.app.apk_info(c, name))
-    }
-
-    /// The APKs in Files of package `package`
-    /// ([`crate::Faraday::apk_listed`]), each read as it is kept. Costs a
-    /// read of each APK the first time.
-    pub fn apk_listed(&self, package: &str) -> Vec<crate::apk::Listed> {
-        self.kept(|c| self.app.apk_listed(c, package))
-    }
-
-    /// The row Files shows for APK `k` ([`crate::Faraday::apk_files_row`]),
-    /// from the APK as it is kept. Costs a read of the APK the first time.
-    pub fn apk_files_row(&self, k: usize) -> crate::apk::Row {
-        self.kept(|c| self.app.apk_files_row(c, k))
-    }
-
     /// The label of the flow's copy of vault `salt`'s files
     /// ([`crate::Faraday::flow_files_copy_label`]), from the hashes kept
     /// on the flow. Costs a hash of a file not hashed yet.

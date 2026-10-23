@@ -114,15 +114,6 @@ pub enum Profile {
         /// Years from `now`.
         years: u32,
     },
-    /// An APK signing key's: an end certificate with the subject key
-    /// identifier alone, valid until 9999-12-31 23:59:59 UTC, RFC 5280
-    /// §4.1.2.5's value for a certificate with no expiry.
-    NoExpiry,
-}
-
-/// The "no expiry" time of RFC 5280 §4.1.2.5, as a GeneralizedTime.
-fn no_expiry() -> Vec<u8> {
-    tlv(tag::GENERALIZED_TIME, b"99991231235959Z")
 }
 
 /// A new key of `key_bits` bits, drawn from `rng`, with a self-signed
@@ -169,11 +160,9 @@ pub fn generate(
             ]),
             &ski_ext,
         ]),
-        Profile::NoExpiry => seq(&[&ski_ext]),
     };
     let until = match profile {
         Profile::Ca { years } => time(now + u64::from(years) * 31_557_600),
-        Profile::NoExpiry => no_expiry(),
     };
     let tbs = seq(&[
         &explicit(0, &der::int(2)),

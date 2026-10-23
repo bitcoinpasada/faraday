@@ -5,12 +5,7 @@
 and db signatures and Authenticode signatures with RSA PKCS #1 v1.5 over
 SHA-256, so the platform key, key exchange key and db key are RSA-2048
 and every certificate, `.auth` update and signed image Faraday writes
-carries one RSA signature. And RSA-3072 for the Android app signing key
-(`faraday/faraday-apk`, `docs/APK-SIGNING.md` §2.1): `x509::generate`
-takes the key's size, so the same code makes both, and Android's APK
-Signature Scheme v2 and v3 take RSA with PKCS #1 v1.5 and SHA-256, which
-is what the key signs with and what `apksigner` writes byte for byte.
-Faraday-only.
+carries one RSA signature. Faraday-only.
 
 **Why this crate.** It is the RustCrypto implementation, `no_std` with
 `alloc`, constant time over `crypto-bigint`, and its keys zeroize. Version
@@ -32,8 +27,6 @@ certificates, CMS and Authenticode structures around them are
 `faraday-sb`'s own DER (`der.rs`), checked by `openssl` and `sbverify`.
 
 **Reopen when** 0.10.0 is released (drop the pin), or when Secure Boot
-moves to keys firmware verifies some other way, or when the APK key's
-algorithm changes (a key that cannot change without v3 rotation, so not
-lightly).
+moves to keys firmware verifies some other way.
 
 **Review.** Trusted by publisher (github:RustCrypto/RSA) under F71 (`docs/decisions/F71.md`), until 2027-10-01: `supply-chain/audits.toml`. Not read line by line here.

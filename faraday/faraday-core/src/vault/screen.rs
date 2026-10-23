@@ -2229,10 +2229,6 @@ fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
                 .unwrap_or_default();
             (fill(EN.plan_passphrase_label, &[&fp]), String::new(), true)
         }
-        kind::APK_KEY => match crate::apk::shown(r, app.tz_min()) {
-            Some(s) => (s.name, s.package, false),
-            None => (EN.vault_record.to_string(), String::new(), false),
-        },
         _ => (EN.vault_record.to_string(), String::new(), false),
     }
 }
@@ -2496,7 +2492,7 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if ky > top {
             ky += 8.0;
         }
-        add_rows(app, ui, x, ky, kinds_w, 38.0);
+        add_rows(ui, x, ky, kinds_w, 38.0);
     }
 
     let ix = x + kinds_w + 16.0;
@@ -2647,7 +2643,6 @@ fn add_label(k: usize) -> Option<&'static str> {
         3 => Some(EN.vault_add_a_note),
         4 => Some(EN.vault_make_a_key),
         5 => Some(EN.vault_make_keys),
-        6 => Some(EN.apk_make_a_key),
         _ => None,
     }
 }
@@ -2687,7 +2682,6 @@ fn shows_empty(app: &View, v: &vault::OpenVault) -> bool {
 /// An empty vault's next steps: every way to add, then writing it out.
 fn empty_buttons(app: &View) -> Vec<(String, Style, Action)> {
     let mut out: Vec<(String, Style, Action)> = (0..CATEGORIES.len())
-        .filter(|&k| app.category_listed(k))
         .filter_map(|k| add_full(k).map(|a| (a.to_string(), Style::Secondary, va(V::AddKind(k)))))
         .collect();
     out.push((
@@ -2708,7 +2702,6 @@ fn add_full(k: usize) -> Option<&'static str> {
         3 => Some(EN.vault_add_a_note),
         4 => Some(EN.vault_make_a_gpg_key),
         5 => Some(EN.vault_make_secure_boot),
-        6 => Some(EN.apk_make_a_key),
         _ => None,
     }
 }
@@ -2722,16 +2715,15 @@ fn add_short(k: usize) -> Option<&'static str> {
         3 => Some(EN.vault_note),
         4 => Some(EN.vault_gpg_key),
         5 => Some(EN.vault_secure_boot),
-        6 => Some(EN.apk_key_short),
         _ => None,
     }
 }
 
 /// A row for each kind to add at (x, y), w wide and `row` tall, the Add
 /// icon in the accent colour before its label. Returns their height.
-fn add_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, row: f32) -> f32 {
+fn add_rows(ui: &mut Ui, x: f32, y: f32, w: f32, row: f32) -> f32 {
     let mut cy = y;
-    for k in (0..CATEGORIES.len()).filter(|&k| app.category_listed(k)) {
+    for k in 0..CATEGORIES.len() {
         let Some(add) = add_short(k) else {
             continue;
         };
@@ -2755,13 +2747,7 @@ fn add_rows(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, row: f32) -> f32 {
 /// rather than the vault's list: on a small panel, a page of its own.
 pub(crate) fn contents_detail(app: &Faraday) -> bool {
     let v = &app.vaults;
-    v.item_open
-        || v.form.is_some()
-        || v.prompt.is_some()
-        || v.saving
-        || v.signing
-        || v.sb_images
-        || v.apk.signing
+    v.item_open || v.form.is_some() || v.prompt.is_some() || v.saving || v.signing || v.sb_images
 }
 
 /// [`contents`] on a small panel: the vault, its kinds and the items of
@@ -2892,7 +2878,7 @@ fn contents_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += wrap_buttons(ui, x, y, w, 34.0, &kind_items) + 4.0;
     }
     if !empty {
-        y += add_rows(app, ui, x, y, w, 36.0) + 4.0;
+        y += add_rows(ui, x, y, w, 36.0) + 4.0;
     }
     ui.rule(x, y, w, LINE);
     y += 14.0;
@@ -3061,8 +3047,6 @@ fn detail(
             (kind::NOTE, Some(_)) => EN.vault_edit_the_note,
             (kind::GPG, _) => EN.vault_make_a_key,
             (kind::SECURE_BOOT, _) => EN.vault_make_secure_boot,
-            (kind::APK_KEY, _) => EN.apk_make_a_key,
-
             (_, None) => EN.vault_add_an_entry,
             _ => EN.vault_edit_the_entry,
         };
@@ -3106,7 +3090,6 @@ fn detail(
         let save = match form.kind {
             kind::GPG if revoking => EN.vault_make_the_revocation,
             kind::GPG => EN.vault_make_the_key,
-            kind::APK_KEY => EN.apk_make_the_key,
             kind::SECURE_BOOT => EN.vault_make_the_keys,
             _ => EN.vault_save,
         };
@@ -3201,9 +3184,6 @@ fn detail(
     }
     if app.vaults.sb_images {
         return images_panel(app, ui, dx, dy, dw);
-    }
-    if app.vaults.apk.signing {
-        return apk_sign_panel(app, ui, items, sel, dx, dy, dw);
     }
     if app.vaults.signing {
         ui.text(dx, dy, 18.0, W::S, TEXT, EN.vault_sign_a_file);
@@ -3734,41 +3714,6 @@ fn detail(
                 actions.push((EN.vault_enrolment_files, va(V::SbEnrol)));
             }
             actions.push((EN.vault_sign_or_check, va(V::SbImages)));
-        }
-        kind::APK_KEY => {
-            let fp = crate::apk::fingerprint_of(r);
-            let waiting = fp.and_then(|fp| app.backup_waits(crate::backup_flow::Kind::Apk, &fp));
-            // The page leads with the backup while the key waits for it.
-            dy += backup_row(app, ui, crate::backup_flow::Kind::Apk, r, dx, dy, dw);
-            if let Some(s) = crate::apk::shown(r, app.tz_min()) {
-                field_row(ui, &mut dy, EN.apk_name, &s.name, false);
-                field_row(ui, &mut dy, EN.apk_package, &s.package, false);
-                field_row(
-                    ui,
-                    &mut dy,
-                    EN.apk_certificate_sha_256,
-                    &s.fingerprint,
-                    true,
-                );
-                field_row(ui, &mut dy, EN.apk_key, EN.apk_rsa_3072, false);
-                field_row(ui, &mut dy, EN.apk_made, &s.made, false);
-            }
-            breaks.push(actions.len());
-            actions.push((EN.apk_certificate, va(V::ApkExport)));
-            if ui.compact {
-                breaks.push(actions.len());
-            }
-            actions.push((EN.vault_show_as_qr, Action::ShowCode(Code::ApkCertificate)));
-            actions.push(("PNG", Action::CodePng(Code::ApkCertificate)));
-            breaks.push(actions.len());
-            if waiting.is_none() {
-                actions.push((EN.apk_sign_an_apk, va(V::ApkSignOpen)));
-            } else {
-                actions.push((
-                    EN.backup_flow_first,
-                    back_up_first(crate::backup_flow::Kind::Apk),
-                ));
-            }
         }
         _ => {}
     }
@@ -4535,251 +4480,4 @@ pub(crate) fn vault_key(
         .of(kind::KEY)
         .find(|(_, r)| record_is_key(c, app, *r, key))
         .map(|(_, r)| r.has(field::KEY_PASSPHRASE))
-}
-
-// ---------------------------------------------------------------------
-// APK signing keys (`docs/APK-SIGNING.md` §4)
-// ---------------------------------------------------------------------
-
-/// Under the Make an APK key form's fields: what the name is, and, where
-/// several vaults are open, which one the key goes to, none chosen in
-/// advance. Returns its height.
-/// A label above a value, wrapped, at (dx, dy). Returns the height.
-fn apk_row(ui: &mut Ui, dx: f32, dy: f32, dw: f32, label: &str, value: &str, mono: bool) -> f32 {
-    ui.text(dx, dy, 12.0, W::R, MUTED, label);
-    let h = ui.wrap(
-        dx,
-        dy + 20.0,
-        dw,
-        14.0,
-        if mono { W::M } else { W::R },
-        TEXT,
-        value,
-    );
-    20.0 + h + 14.0
-}
-
-/// Sign an APK: which APK, then the review; or which key, where Files
-/// offered an APK several keys fit.
-fn apk_sign_panel(
-    app: &View,
-    ui: &mut Ui,
-    items: &[RecordView<'_>],
-    sel: usize,
-    dx: f32,
-    mut dy: f32,
-    dw: f32,
-) -> f32 {
-    let Some(&r) = items.get(sel) else {
-        return dy;
-    };
-    if let Some(review) = &app.vaults.apk.review {
-        return apk_review(app, ui, review, dx, dy, dw);
-    }
-    let package = r.public_text(field::APK_PACKAGE).unwrap_or("").to_string();
-    if let Some(name) = &app.vaults.apk.which {
-        ui.text(dx, dy, 18.0, W::S, TEXT, EN.apk_which_key);
-        dy += 40.0;
-        if let Some(info) = app.apk_info(name) {
-            for (v, at, key_name, fp) in app.apk_keys_for(&info.package) {
-                let label = format!("{key_name} · {}", &faraday_apk::hex(&fp)[..8]);
-                let w = ui.button(
-                    dx,
-                    dy,
-                    None,
-                    40.0,
-                    &label,
-                    Style::Secondary,
-                    va(V::ApkKeyPick(v, at)),
-                );
-                let _ = w;
-                dy += 48.0;
-            }
-        }
-        return dy;
-    }
-    ui.text(dx, dy, 18.0, W::S, TEXT, EN.apk_sign_an_apk);
-    dy += 40.0;
-    let listed = app.apk_listed(&package);
-    if listed.is_empty() {
-        let line = fill(EN.apk_copy_in_first, &[app.medium.a()]);
-        dy += ui.wrap(dx, dy, dw, 13.0, W::R, DIM, &line) + 16.0;
-    }
-    for l in &listed {
-        let room = if ui.compact { dw } else { dw - 110.0 };
-        let line = format!("{} · {}", l.name, crate::screens::size_text(l.size));
-        let line = ui.fit(14.0, W::M, &line, room);
-        ui.text_mid(dx, dy, 40.0, 14.0, W::M, TEXT, &line);
-        if ui.compact {
-            dy += 36.0;
-        }
-        match &l.why {
-            Some(why) => {
-                let text = why.text();
-                let text = ui.fit(12.0, W::S, &text, dw);
-                if ui.compact {
-                    ui.text(dx, dy, 12.0, W::S, WARN, &text);
-                    dy += 24.0;
-                } else {
-                    let tw = ui.measure(12.0, W::S, &text);
-                    ui.text_mid(dx + dw - tw, dy, 40.0, 12.0, W::S, WARN, &text);
-                }
-            }
-            None => {
-                ui.button(
-                    dx + dw - 90.0,
-                    dy + 2.0,
-                    Some(90.0),
-                    36.0,
-                    EN.apk_sign,
-                    Style::Secondary,
-                    va(V::ApkPick(l.inbox)),
-                );
-            }
-        }
-        ui.rule(dx, dy + 44.0, dw, INNER);
-        dy += 48.0;
-    }
-    ui.button(
-        dx,
-        dy + 8.0,
-        None,
-        36.0,
-        EN.apk_back,
-        Style::Ghost,
-        va(V::ApkBack),
-    );
-    dy + 56.0
-}
-
-/// "Sign this APK?": what the file is, the second build typed, and the
-/// hold, which does nothing until the second build matches.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn apk_review(
-    app: &View,
-    ui: &mut Ui,
-    review: &crate::apk::Review,
-    dx: f32,
-    mut dy: f32,
-    dw: f32,
-) -> f32 {
-    use crate::apk::Second;
-    ui.text(dx, dy, 18.0, W::S, TEXT, EN.apk_review_title);
-    dy += 40.0;
-    let Some(item) = app.inbox.iter().find(|i| i.name == review.name) else {
-        return dy;
-    };
-    let info = app.apk_info(&review.name);
-    dy += apk_row(ui, dx, dy, dw, EN.apk_file, &item.name, false);
-    dy += apk_row(
-        ui,
-        dx,
-        dy,
-        dw,
-        EN.apk_size,
-        &crate::screens::size_text(item.bytes.len()),
-        false,
-    );
-    dy += apk_row(
-        ui,
-        dx,
-        dy,
-        dw,
-        EN.apk_sha_256,
-        &faraday_apk::key::grouped(&review.sha),
-        true,
-    );
-    ui.text(dx, dy, 12.0, W::R, MUTED, EN.apk_second_build);
-    dy += 20.0;
-    let focused = app.vaults.focus == Some(Focus::Second);
-    text_box(
-        ui,
-        dx,
-        dy,
-        dw,
-        &app.vaults.apk.second,
-        false,
-        focused,
-        va(V::ApkSecond),
-    );
-    dy += 48.0;
-    let second = app.apk_second();
-    let (line, color) = match second {
-        Second::Empty => (EN.apk_enter_second.to_string(), MUTED),
-        Second::TooShort => (EN.apk_hex_too_short.to_string(), WARN),
-        Second::Differs => (EN.apk_does_not_match.to_string(), WARN),
-        Second::Matches(n) => (
-            format!(
-                "{} · {}",
-                EN.apk_matches,
-                faraday_apk::key::grouped_prefix(&review.sha, n)
-            ),
-            OK,
-        ),
-    };
-    dy += ui.wrap(dx, dy, dw, 13.0, W::S, color, &line) + 14.0;
-    if let Some(info) = &info {
-        dy += apk_row(ui, dx, dy, dw, EN.apk_package, &info.package, false);
-        dy += apk_row(
-            ui,
-            dx,
-            dy,
-            dw,
-            EN.apk_version,
-            &crate::apk::version_text(info),
-            false,
-        );
-        let android = fill(
-            EN.apk_and_later,
-            &[&crate::apk::android_release(info.min_sdk)],
-        );
-        dy += apk_row(ui, dx, dy, dw, EN.apk_android, &android, false);
-    }
-    if let Some((v, at)) = app.apk_find(&review.key)
-        && let Some(rec) = app.vaults.records(app.vaults.open[v].id).get(at)
-        && let Some(s) = crate::apk::shown(rec, app.tz_min())
-    {
-        let key = format!("{} · {}", s.name, &s.hex[..16]);
-        dy += apk_row(ui, dx, dy, dw, EN.apk_key_row, &key, true);
-    }
-    dy += apk_row(
-        ui,
-        dx,
-        dy,
-        dw,
-        EN.apk_will_write,
-        &crate::apk::output_name(&item.name),
-        false,
-    );
-    let hw = if matches!(second, Second::Matches(_)) {
-        hold_button(
-            app,
-            ui,
-            dx,
-            dy,
-            EN.apk_hold_to_sign,
-            va(V::ApkHoldSign),
-            ACCENT,
-        )
-    } else {
-        ui.button(
-            dx,
-            dy,
-            None,
-            36.0,
-            EN.apk_hold_to_sign,
-            Style::Disabled,
-            va(V::ApkSecond),
-        )
-    };
-    ui.button(
-        dx + hw + 10.0,
-        dy,
-        None,
-        36.0,
-        EN.apk_back,
-        Style::Ghost,
-        va(V::ApkBack),
-    );
-    dy + 56.0
 }

@@ -1694,10 +1694,6 @@ impl Faraday {
             (n, label, b, false)
         };
         let fields = match kind_ {
-            Kind::Apk => vec![
-                mk(1, crate::strings::EN.apk_name_on_certificate, ""),
-                mk(2, crate::strings::EN.apk_package, ""),
-            ],
             Kind::Gpg => {
                 self.vaults.set_gpg_years(crate::gpg::DEFAULT_YEARS);
                 vec![
@@ -1721,7 +1717,7 @@ impl Faraday {
             let f = &self.flows[i];
             (f.kind, f.made)
         };
-        // In the demo no GPG, Secure Boot or APK key is made, however
+        // In the demo no GPG or Secure Boot key is made, however
         // Make is reached (`docs/DEMO.md` §4).
         if made || kind_.is_wallet() || !self.makes_secrets() {
             return;
@@ -1739,11 +1735,6 @@ impl Faraday {
         let texts: Vec<String> = form.fields.iter().map(|f| f.2.text.to_string()).collect();
         // The time first, as every key that keeps it asks.
         match kind_ {
-            Kind::Apk => {
-                if let Err(e) = Self::apk_check_form(&texts[0], &texts[1]) {
-                    return self.toast(e);
-                }
-            }
             Kind::Gpg => {
                 if texts[0].trim().is_empty() && texts[1].trim().is_empty() {
                     return self.toast(FEN.gpg_a_key_needs_a_name);
@@ -1791,7 +1782,6 @@ impl Faraday {
             return;
         }
         let built = match kind_ {
-            Kind::Apk => self.apk_build(&texts[0], &texts[1]),
             Kind::Gpg => self.gpg_build(&texts[0], &texts[1]),
             Kind::SecureBoot => self.sb_build(&texts[0]),
             Kind::Wallet => return,
@@ -2684,7 +2674,6 @@ impl Faraday {
             .records(self.vaults.open.get(self.vaults.current)?.id)
             .get(at)?;
         let kind_ = match r.kind() {
-            kind::APK_KEY => Kind::Apk,
             kind::GPG => Kind::Gpg,
             kind::SECURE_BOOT => Kind::SecureBoot,
             _ => return None,
@@ -2988,14 +2977,6 @@ impl Faraday {
     pub(crate) fn flow_gate_restore(&mut self, bytes: &[u8]) {
         let c = self.compute();
         self.flows.gate_restore(&c, bytes);
-    }
-
-    /// Opens the flow that made the key `subject` on its step: what a
-    /// waiting action, **Continue the backup**, does.
-    pub(crate) fn backup_continue(&mut self, kind: Kind, subject: &[u8]) {
-        if let Some(i) = self.flows.place_of(kind, subject) {
-            self.flow_show(i);
-        }
     }
 }
 

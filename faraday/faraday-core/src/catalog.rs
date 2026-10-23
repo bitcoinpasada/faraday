@@ -6,7 +6,7 @@
 use crate::create::NewKind;
 use crate::forms::Form;
 use crate::strings::EN;
-use crate::vault::{APK_CATEGORY, VaultAction};
+use crate::vault::VaultAction;
 use crate::wallet::FileKind;
 use crate::{Action, Faraday, Screen};
 
@@ -312,13 +312,6 @@ pub const TILES: &[Tile] = &[
     },
     Tile {
         group: EN.catalog_vaults_group,
-        name: EN.catalog_apk_signing_key,
-        line: EN.catalog_make_a_key,
-        tags: &["Android", "APK v2 · v3"],
-        go: Go::VaultCategory(6),
-    },
-    Tile {
-        group: EN.catalog_vaults_group,
         name: EN.catalog_keepass_export,
         line: EN.catalog_a_vault_entry,
         tags: &["KDBX 4"],
@@ -427,12 +420,6 @@ pub fn matches(tile: &Tile, find: &str) -> bool {
 }
 
 impl Faraday {
-    /// Whether Tools shows a tile: the APK signing key tile only with
-    /// APK signing on (F59).
-    pub fn tile_shown(&self, tile: &Tile) -> bool {
-        self.apk_signing || tile.go != Go::VaultCategory(APK_CATEGORY)
-    }
-
     /// What a tile needs first, when it cannot open now.
     pub fn tile_need(&self, go: Go) -> Option<&'static str> {
         let keys = !self.session.keys.is_empty();
@@ -494,7 +481,7 @@ impl Faraday {
 
     /// Opens tile `i`'s flow.
     pub(crate) fn catalog_go(&mut self, i: usize) {
-        let Some(tile) = TILES.get(i).filter(|t| self.tile_shown(t)) else {
+        let Some(tile) = TILES.get(i) else {
             return;
         };
         if !self.tile_opens(tile.go) {

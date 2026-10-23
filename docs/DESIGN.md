@@ -40,7 +40,7 @@ the theme (§3), the content kinds (§4) and the screens (§5).
    or ticking it; where a step asks for one, Continue confirms it (the
    words quiz checks a word and Continue answers). Signing a transaction
    is a button, **Sign with** (§4.4). A hold (§4.13) confirms signing
-   with a GPG, Secure Boot or APK key from a vault, deleting from a
+   with a GPG or Secure Boot key from a vault, deleting from a
    vault, marking a key revoked, the stick a backup writes to, and wiping
    a stick; **Hold to show** reveals a held secret (§4.10). A question
    before an act is a sheet: Lock's, and a flow's Cancel where ending it
@@ -185,7 +185,7 @@ never to type a seed that holds real bitcoin (`never_real_seed`).
 | Kind | Rendering | Behaviour |
 |---|---|---|
 | Short form | The first eight characters in two groups of four, an ellipsis and the last four, "bc1q 8f3x … k2pz" (`faraday_ui::short`); a string of sixteen characters or fewer is shown whole, in groups of four. | Inside a line that names a string rather than shows it to be read: the Spend review's outputs ("to bc1q 8f3x … k2pz"), its txid and its inputs, the first address on Restore's card and on the Silent payments screen. It opens nothing. |
-| Whole string | Whole, mono, in groups of four (`faraday_ui::grouped`), wrapped where it does not fit, never cut. | Where the string is what a person reads or checks: a wallet card's first receive address, a vanity find, a decoded output, a signed message's address, an image's or an APK certificate's SHA-256. The Key explorer's addresses are whole and wrapped too (F76). |
+| Whole string | Whole, mono, in groups of four (`faraday_ui::grouped`), wrapped where it does not fit, never cut. | Where the string is what a person reads or checks: a wallet card's first receive address, a vanity find, a decoded output, a signed message's address, an image's SHA-256. The Key explorer's addresses are whole and wrapped too (F76). |
 | Descriptor | A summary row, not the descriptor's text: "Descriptor" above; below, mono and wrapped, the wallet's shape ("2 of 3 · native SegWit multisig"), its keys' fingerprints, and " · #" and the checksum where the wallet did not come from a record; chevron (`descriptor_row`). | On Create, Restore, the key-making flow and a wallet's sheet on the chart. The row opens the wallet's QR sheet, which carries the descriptor's whole text under the code. |
 
 Faraday has no screen that shows one string alone (F68): a string is
@@ -264,7 +264,7 @@ that page is about.
 | Kind | Rendering | Behaviour |
 |---|---|---|
 | Button | `Ui::button` in a `Style`: `Primary`, the one action a step leads with, in the accent; `Secondary`, edged; `Ghost`, quiet beside others; `Disabled`, shown but not available now. A row of them shares the width where every label fits its share and stands one under another, full width, where not (`faraday_ui::sheet::buttons`). | A press acts. |
-| Hold | An outlined button that fills while held (`hold_button`): "Hold to sign" with a GPG, Secure Boot or APK signing key from a vault, "Hold to delete from vault", "Hold to mark the key revoked". | Acts once held to the end; released before, nothing happens. |
+| Hold | An outlined button that fills while held (`hold_button`): "Hold to sign" with a GPG or Secure Boot signing key from a vault, "Hold to delete from vault", "Hold to mark the key revoked". | Acts once held to the end; released before, nothing happens. |
 | Floating action | A pill in the accent over the page, its icon and its word, at the bottom-right (`Ui::fab`). | Home's **Scan**. |
 | Cancel a flow | **Cancel**, a quiet outlined button at the right end of a flow's title row, beside **Steps only · Guided** (`flow::column`); on the small panel in the bar's tools (`compact::tools`). On every flow that can have a sidebar row but a backup flow whose key is made, which ends only by finishing (`docs/FLOWS.md`, Flows in progress, Cancel; F51). | Ends the flow and shows the screen it was opened from. When ending it loses something the person would notice, a sheet first: its question as the title ("Cancel making this wallet?"), one line naming what is lost, **Keep going** (secondary) and **Cancel the flow** (primary); a press beside the sheet keeps going. With nothing done past the first card, no sheet. |
 

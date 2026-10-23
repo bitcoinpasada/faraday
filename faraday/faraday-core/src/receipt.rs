@@ -12,7 +12,7 @@ pub struct Receipt {
     /// The stick's label.
     pub label: String,
     /// The stick's identity: its FAT volume serial in hex, else the place
-    /// the shell found it (`docs/VAULT.md` §6, `docs/APK-SIGNING.md` §3).
+    /// the shell found it (`docs/VAULT.md` §6).
     pub stick: String,
     /// When the write was answered, Unix seconds, when the clock is known.
     pub time: Option<u64>,

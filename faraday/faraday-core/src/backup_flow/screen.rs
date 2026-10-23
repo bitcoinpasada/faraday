@@ -1108,9 +1108,6 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
                 V::GpgYears,
             ) + 16.0;
         }
-        if f.kind == crate::backup_flow::Kind::Apk {
-            cy += ui.wrap(x, cy, w, 12.0, W::R, DIM, FEN.apk_public_hint) + 12.0;
-        }
     }
     cy += btn(
         ui,
@@ -1162,27 +1159,6 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
         48.0
     };
     match f.kind {
-        Kind::Apk => {
-            if let Some(s) = crate::apk::shown(r, app.tz_min()) {
-                cy += row(ui, x, cy, w, FEN.apk_name, &s.name, false);
-                cy += row(ui, x, cy, w, FEN.apk_package, &s.package, false);
-                cy += row(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    FEN.apk_certificate_sha_256,
-                    &s.fingerprint,
-                    true,
-                );
-                cy += row(ui, x, cy, w, FEN.apk_key, FEN.apk_rsa_3072, false);
-                let file = crate::apk::fingerprint_of(r)
-                    .map(|fp| format!("{}-certificate.pem", crate::apk::file_stem(&s.name, &fp)))
-                    .unwrap_or_default();
-                cy += row(ui, x, cy, w, FEN.apk_certificate, &file, false);
-                cy += buttons(ui, cy, crate::Code::ApkCertificate);
-            }
-        }
         Kind::Gpg => {
             if let Some(g) = crate::gpg::shown(r, app.tz_min()) {
                 for uid in &g.user_ids {

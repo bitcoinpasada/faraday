@@ -234,7 +234,6 @@ fn new_open_vault(app: &mut Faraday) {
 #[test]
 fn a_vault_with_one_key_lists_keys_every_add_and_no_other_kind() {
     let mut app = device(Vec::new());
-    app.apk_signing = true;
     add_key(&mut app, 0);
     new_open_vault(&mut app);
     app.press(Action::Nav(Screen::VaultContents));

@@ -83,7 +83,7 @@ finds them.
 | `PsbtParse`, `PsbtInspect`, `Sign` | `faraday_psbt::Psbt::parse_bytes`, `parse_base64`; `inspect`; `sign::sign`, `message::sign` |
 | `QrEncode` | `faraday_codec::qr::encode`, `encode_bounded`; `seedqr::encode_seedqr`, `encode_compact` |
 | `QrDecode` | `faraday_codec::decode::decode_luma` |
-| `FileHash` | new `faraday_crypto::hash::sha256_whole(c, bytes)`; Faraday's whole-file hashes move to it (`apk.rs`, `transfer.rs`, `lib.rs`, `gpg.rs`, `Item::sha`) |
+| `FileHash` | new `faraday_crypto::hash::sha256_whole(c, bytes)`; Faraday's whole-file hashes move to it (`transfer.rs`, `lib.rs`, `gpg.rs`, `Item::sha`) |
 | Faraday's own | `plan::map`, `plan::check` (`PlanMap`); picture/pdf makers (`Picture`); `Wallet::script_at` (`WalletMatch`); `faraday_files::qr_in_png` (`PngDecode`); `Key` and `Wallet` kept accessors (`KeyDerive`, `Address`) |
 
 Not gated: `Canvas::frost`, `snapshot`, `snapshot_into`, `restore`,

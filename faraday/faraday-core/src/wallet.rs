@@ -1138,12 +1138,6 @@ pub enum FileKind {
     /// An ASCII-armored GPG public key or signature: public (F22). A
     /// revocation certificate is not (F32).
     Gpg,
-    /// An APK: a ZIP whose central directory names `AndroidManifest.xml`
-    /// (`docs/APK-SIGNING.md` §4.4). Public.
-    Apk,
-    /// One PEM `CERTIFICATE` block, nothing else: an APK signing key's
-    /// certificate. Public.
-    Certificate,
     /// Nothing this build reads.
     Other,
 }
@@ -1244,12 +1238,6 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
     }
     if crate::secure_boot::is_image(name) && bytes.starts_with(b"MZ") {
         return FileKind::EfiImage.into();
-    }
-    if faraday_apk::zip::names_manifest(bytes) {
-        return FileKind::Apk.into();
-    }
-    if faraday_apk::pem::read(bytes).is_some() {
-        return FileKind::Certificate.into();
     }
     if faraday_psbt::threshold::Carry::looks_like_carry(bytes) {
         return FileKind::Carry.into();

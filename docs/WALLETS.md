@@ -607,7 +607,7 @@ first"). The groups and their tiles:
 | Wallets | Single-key wallet · Multisig · Taproot multisig · MuSig2 · FROST threshold · Miniscript and inheritance · Restore an existing wallet · Back up a wallet |
 | Transactions | Sign a transaction · Nonce check · Decode a transaction · Check an address |
 | Messages | Sign a message · Check a signed message |
-| Vaults and other keys | Vaults · TOTP codes · Diceware passphrase · GPG key · Secure Boot keys · APK signing key (only with APK signing on, F59) · KeePass export |
+| Vaults and other keys | Vaults · TOTP codes · Diceware passphrase · GPG key · Secure Boot keys · KeePass export |
 | Calculators | Hashes · Encodings · Descriptor checksum · Convert an xpub · Units · Miniscript compiler |
 | Word lists | BIP-39 words · EFF large list · EFF short list 1 · EFF short list 2 |
 | QR | Scan a QR code |

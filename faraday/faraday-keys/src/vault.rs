@@ -91,7 +91,6 @@ pub mod sb_field {
 /// - PASSPHRASE: the passphrase;
 /// - NOTE: the text;
 /// - ENTRY: the password, the TOTP secret and the notes;
-/// - APK_KEY: the private key;
 /// - ROUND: the round's state (secret nonces);
 /// - GPG: the primary key's and the subkey's seeds, and the revocation
 ///   certificate kept with them;
@@ -99,9 +98,8 @@ pub mod sb_field {
 ///
 /// Public, in full: the slot label, wallets, sheets, amounts, plans and
 /// wallet shares; a key's label and flags; a passphrase's key
-/// fingerprint; an entry's title, username and URL; an APK key's
-/// certificate and package; a round's scheme, transaction hash, key
-/// fingerprint and used flag; a GPG key's dates, user IDs, certificate
+/// fingerprint; an entry's title, username and URL; a round's scheme,
+/// transaction hash, key fingerprint and used flag; a GPG key's dates, user IDs, certificate
 /// and revoked date; a Secure Boot record's owner and certificates.
 pub const SECRET_FIELDS: &[(u8, u8)] = &[
     (kind::KEY, field::KEY),
@@ -111,7 +109,6 @@ pub const SECRET_FIELDS: &[(u8, u8)] = &[
     (kind::ENTRY, field::PASSWORD),
     (kind::ENTRY, field::NOTES),
     (kind::ENTRY, field::TOTP),
-    (kind::APK_KEY, field::APK_KEY),
     (kind::ROUND, field::ROUND_STATE),
     (kind::GPG, gpg_field::PRIMARY),
     (kind::GPG, gpg_field::SUBKEY),
@@ -271,7 +268,7 @@ impl IntoRecord for Held<Record> {
     }
 }
 
-/// A key made here from fresh entropy (a GPG, APK or Secure Boot key), as
+/// A key made here from fresh entropy (a GPG or Secure Boot key), as
 /// the record every vault of a plan takes. Its secrets never leave: it is
 /// neither `Clone` nor `Debug`, shows its public fields through
 /// [`MadeKey::view`], and each vault takes a copy made inside this crate
@@ -1205,32 +1202,7 @@ impl OpenVaults {
         Some(Held::of(crate::gpg::paperkey(&key)))
     }
 
-    // ---- APK and Secure Boot keys ----
-
-    /// Costs RSA signatures over the whole file. APK `src` (read as `apk`)
-    /// signed by APK key record `i` of open vault `id`, the signing
-    /// blinded from `seed` (fresh bytes of the system's). `None` for a
-    /// record that is no APK key.
-    pub fn apk_sign(
-        &self,
-        id: VaultId,
-        i: usize,
-        seed: &[u8; 32],
-        src: &mut dyn faraday_apk::Source,
-        apk: &faraday_apk::Apk,
-    ) -> Option<Result<Vec<u8>, faraday_apk::Error>> {
-        let r = self.slot(id)?.records.records.get(i)?;
-        if r.kind != kind::APK_KEY {
-            return None;
-        }
-        Some(crate::apk::sign(
-            seed,
-            src,
-            apk,
-            r.field(field::APK_KEY)?,
-            r.field(field::APK_CERT)?,
-        ))
-    }
+    // ---- Secure Boot keys ----
 
     /// Costs RSA signatures. The enrolment files, by name, for Secure Boot
     /// record `i` of open vault `id` under `policy`, the signing blinded

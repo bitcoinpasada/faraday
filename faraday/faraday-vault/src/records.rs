@@ -47,9 +47,9 @@ pub mod kind {
     pub const AMOUNTS: u8 = 10;
     /// A wallet's backup plan.
     pub const PLAN: u8 = 11;
-    /// An APK signing key: the private key, its certificate and the
-    /// package it signs for (`docs/APK-SIGNING.md` §3).
-    pub const APK_KEY: u8 = 12;
+    // Type 12 was an APK signing key. It is retired: no build knows it,
+    // and a slot holding one is refused like any unknown type
+    // (`docs/VAULT.md` §7).
     /// A share of a multisig wallet's description, some keys left off
     /// (`docs/BACKUP-FLOW.md` §15.6).
     pub const WALLET_SHARE: u8 = 13;
@@ -124,13 +124,6 @@ pub mod field {
     /// date it was last checked here, a mark (lost, exposed), a key's
     /// holder, a vault's name. Never a secret.
     pub const PLAN_NOTE: u8 = 5;
-
-    /// APK signing key: the private key, PKCS #8 DER.
-    pub const APK_KEY: u8 = 1;
-    /// APK signing key: its self-signed certificate, DER.
-    pub const APK_CERT: u8 = 2;
-    /// APK signing key: the Android package it signs for.
-    pub const APK_PACKAGE: u8 = 3;
 
     /// Wallet share: the share, as its `.txt` file holds it.
     pub const SHARE: u8 = 1;
@@ -299,12 +292,6 @@ const PLAN_RULES: &[Rule] = &[
     rule(6, false, true, Shape::Text(128)),
 ];
 
-const APK_KEY_RULES: &[Rule] = &[
-    rule(1, true, false, Shape::Bytes),
-    rule(2, true, false, Shape::Bytes),
-    rule(3, true, false, Shape::Text(255)),
-];
-
 const WALLET_SHARE_RULES: &[Rule] = &[
     rule(1, true, false, TEXT),
     rule(2, false, false, TEXT),
@@ -332,7 +319,6 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
         kind::ROUND => ROUND_RULES,
         kind::AMOUNTS => AMOUNTS_RULES,
         kind::PLAN => PLAN_RULES,
-        kind::APK_KEY => APK_KEY_RULES,
         kind::WALLET_SHARE => WALLET_SHARE_RULES,
         kind::PASSPHRASE => PASSPHRASE_RULES,
         _ => return None,

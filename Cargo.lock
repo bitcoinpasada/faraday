@@ -714,17 +714,6 @@ name = "faraday-alloc-count"
 version = "0.1.6"
 
 [[package]]
-name = "faraday-apk"
-version = "0.1.6"
-dependencies = [
- "faraday-crypto",
- "faraday-sb",
- "miniz_oxide 0.8.9",
- "sha2",
- "zeroize",
-]
-
-[[package]]
 name = "faraday-argon2-bench"
 version = "0.1.6"
 dependencies = [
@@ -789,7 +778,6 @@ name = "faraday-core"
 version = "0.1.6"
 dependencies = [
  "faraday-alloc-count",
- "faraday-apk",
  "faraday-backup",
  "faraday-bip",
  "faraday-codec",
@@ -935,7 +923,6 @@ dependencies = [
 name = "faraday-keys"
 version = "0.1.6"
 dependencies = [
- "faraday-apk",
  "faraday-backup",
  "faraday-bip",
  "faraday-codec",
