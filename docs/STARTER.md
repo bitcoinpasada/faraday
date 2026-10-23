@@ -637,15 +637,10 @@ look on Linux and Windows at a narrow and a wide window):
    while offered; Install and Update appear in the bar as §3.5 says;
    Larger text (F85) at 700 dp takes the compact layout.
 
-**Questions for the owner** (each with what the spec assumes until
-answered):
-
-- Home holds only the cards about this computer (above), not a card per
-  destination as in the first sketch: the rail already shows them.
-  Assumed: no destination cards on Home.
-- Faraday Desktop's own windows keep DESIGN §3's two layouts and the
-  240-unit sidebar (F91 says so); Material 3 there would be a separate
-  decision. Assumed: the desktop app does not follow.
+**The owner's answers** (2026-10-23): Home holds only the cards about
+this computer, with no card per destination, since the rail shows the
+destinations; Faraday Desktop and the device keep their own navigation
+(F91), pending the owner's look at mock-ups of a medium-width rail.
 
 ### 3.2 Make a Faraday stick
 
