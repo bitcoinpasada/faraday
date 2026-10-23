@@ -206,7 +206,7 @@ fn the_settings_file_is_not_copied_into_the_inbox() {
     assert!(!app.visit.inn.contains(FILE));
     app.press(Action::VisitCopy);
     pump(&mut app, Some(b"faraday-settings 1\ntheme=nord\n"));
-    assert!(app.inbox.iter().all(|i| i.name != FILE));
+    assert!(app.inbox().iter().all(|i| i.name != FILE));
 }
 
 #[test]

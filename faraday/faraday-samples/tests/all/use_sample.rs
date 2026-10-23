@@ -363,7 +363,7 @@ fn the_envelope_takes_the_spend_of_the_wallet_loaded() {
     app.press(Action::Family(F::Next(page::WRITE)));
     let _ = app.frame();
     let k = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.kind == faraday_core::wallet::FileKind::Psbt)
         .expect("the spend is in the Inbox");
@@ -428,7 +428,7 @@ fn the_files_scanner_on_spend_takes_the_sample_wallet_s_unsigned_spend() {
     assert!(app.offers(Action::ScanSample));
     app.press(Action::ScanSample);
     assert!(
-        app.inbox
+        app.inbox()
             .iter()
             .any(|i| i.kind == faraday_core::wallet::FileKind::Psbt),
         "the spend is in Files"

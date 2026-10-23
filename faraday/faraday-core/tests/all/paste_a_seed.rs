@@ -228,7 +228,7 @@ fn seed_words_pasted_into_a_scanner_that_takes_no_seed_are_refused() {
         note(&app)
     );
     assert!(app.session.keys.is_empty(), "the words loaded a key");
-    assert!(app.inbox.is_empty(), "the words were filed");
+    assert!(app.inbox().is_empty(), "the words were filed");
     assert_eq!(app.sheet, Some(Sheet::Scan), "the scanner closed");
 }
 

@@ -11,7 +11,7 @@ use faraday_samples::SAMPLES;
 use faraday_shell_api::App;
 
 fn psbt_files(app: &Faraday) -> usize {
-    app.inbox
+    app.inbox()
         .iter()
         .filter(|i| i.name.ends_with(".psbt"))
         .count()

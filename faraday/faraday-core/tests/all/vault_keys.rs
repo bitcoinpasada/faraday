@@ -44,7 +44,7 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
 }
 
 fn find(app: &Faraday, name: &str) -> usize {
-    app.inbox.iter().position(|i| i.name == name).unwrap()
+    app.inbox().iter().position(|i| i.name == name).unwrap()
 }
 
 /// Types the test vault's passphrase on the Unlock screen and waits.

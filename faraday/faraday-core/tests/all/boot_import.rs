@@ -206,7 +206,7 @@ fn row(app: &Faraday, name: &str) -> usize {
 }
 
 fn inbox_names(app: &Faraday) -> Vec<String> {
-    let mut v: Vec<String> = app.inbox.iter().map(|i| i.name.clone()).collect();
+    let mut v: Vec<String> = app.inbox().iter().map(|i| i.name.clone()).collect();
     v.sort();
     v
 }
@@ -228,7 +228,7 @@ fn the_boot_stick_is_copied_into_memory_and_nothing_is_in_files_until_import() {
     let mut app = booted();
     assert_eq!(app.screen, Screen::Home);
     assert_eq!(app.sheet, Some(Sheet::Import));
-    assert!(app.inbox.is_empty(), "{:?}", inbox_names(&app));
+    assert!(app.inbox().is_empty(), "{:?}", inbox_names(&app));
     let c = app.import_count_now(&c).unwrap();
     assert_eq!((c.copied, c.not_read, c.vaults), (7, 0, 1));
     let _ = app.frame();
@@ -263,7 +263,7 @@ fn pulling_the_stick_before_choosing_keeps_the_sheet_and_brings_in_nothing() {
         app.import_field().is_none(),
         "a passphrase field before Import"
     );
-    assert!(app.inbox.is_empty() && app.session.keys.is_empty());
+    assert!(app.inbox().is_empty() && app.session.keys.is_empty());
     let _ = app.frame();
     assert!(app.offers(Action::Import(I::Go)));
     assert!(app.offers(Action::Import(I::Later)));
@@ -376,7 +376,7 @@ fn a_wrong_passphrase_stays_on_the_sheet_and_says_so() {
 fn import_with_the_stick_in_waits_for_the_pull_to_unlock() {
     let mut app = booted();
     app.press(Action::Import(I::Go));
-    assert!(app.inbox.iter().any(|i| i.name == "notes.txt"));
+    assert!(app.inbox().iter().any(|i| i.name == "notes.txt"));
     assert!(
         app.session.keys.is_empty(),
         "a key loaded with the stick in"
@@ -435,7 +435,7 @@ fn later_brings_in_nothing_and_home_leads_with_the_import() {
     app.press(Action::Import(I::Later));
     assert_eq!((app.screen, app.sheet), (Screen::Home, None));
     assert!(app.import.is_some());
-    assert!(app.inbox.is_empty() && app.session.keys.is_empty());
+    assert!(app.inbox().is_empty() && app.session.keys.is_empty());
     let texts = drawn(&mut app);
     assert!(texts.contains("Import from Boot stick"), "{texts}");
     assert!(app.offers(boot_import::OPEN));
@@ -450,13 +450,13 @@ fn later_with_the_stick_in_leaves_the_files_to_the_stick_visit() {
     let files = stick_files();
     let mut app = booted();
     app.press(Action::Import(I::Later));
-    assert!(app.inbox.is_empty());
+    assert!(app.inbox().is_empty());
     app.press(Action::Nav(Screen::Visit));
     assert!(app.visit.inn.contains("notes.txt"), "{:?}", app.visit.inn);
     app.press(Action::VisitCopy);
     pump(&mut app, &files);
-    assert!(app.inbox.iter().any(|i| i.name == "notes.txt"));
-    assert!(app.inbox.iter().any(|i| i.name == "vault.ofv"));
+    assert!(app.inbox().iter().any(|i| i.name == "notes.txt"));
+    assert!(app.inbox().iter().any(|i| i.name == "vault.ofv"));
 }
 
 #[test]
@@ -537,16 +537,16 @@ fn with_no_vault_import_brings_the_files_in_and_home_leads_with_the_psbt() {
         .collect();
     let mut app = booted_with(&files);
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert!(app.import.is_some() && app.inbox.is_empty());
+    assert!(app.import.is_some() && app.inbox().is_empty());
     app.press(Action::Import(I::Go));
     assert!(app.import.is_none());
     assert_eq!((app.screen, app.sheet), (Screen::Home, None));
     let psbt = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "savings-unsigned.psbt")
         .expect("the PSBT did not come in");
-    assert!(app.inbox.iter().any(|i| i.name == "notes.txt"));
+    assert!(app.inbox().iter().any(|i| i.name == "notes.txt"));
     assert!(app.session.wallets.iter().any(|w| w.name == "Zebra"));
     // Home leads with signing it.
     let _ = app.frame();
@@ -592,12 +592,12 @@ fn an_unticked_file_is_not_imported_and_its_key_does_not_load() {
         assert!(!file(&app.import_view().unwrap(), name).chosen);
     }
     app.press(Action::Import(I::Go));
-    assert!(!app.inbox.iter().any(|i| i.name == "notes.txt"));
-    assert!(!app.inbox.iter().any(|i| i.name == "summer-words.txt"));
-    assert!(app.inbox.iter().any(|i| i.name == "photo.jpg"));
+    assert!(!app.inbox().iter().any(|i| i.name == "notes.txt"));
+    assert!(!app.inbox().iter().any(|i| i.name == "summer-words.txt"));
+    assert!(app.inbox().iter().any(|i| i.name == "photo.jpg"));
     assert_eq!(key_fps(&app), [fp(1)]);
     assert!(
-        !app.inbox
+        !app.inbox()
             .iter()
             .any(|i| i.name == "summer-words.txt" && i.kind == FileKind::Words)
     );
@@ -609,7 +609,7 @@ fn an_unticked_vault_stays_out_of_files_and_nothing_asks_to_unlock_it() {
     let k = row(&app, "vault.ofv");
     app.press(Action::Import(I::File(k)));
     app.press(Action::Import(I::Go));
-    assert!(!app.inbox.iter().any(|i| i.name == "vault.ofv"));
+    assert!(!app.inbox().iter().any(|i| i.name == "vault.ofv"));
     assert!(app.import.is_none());
     assert_eq!(app.sheet, None);
     assert_eq!(app.session.wallets.len(), 1);
@@ -631,7 +631,7 @@ fn a_tap_beside_the_sheet_is_later() {
         phase: TouchPhase::Up,
     });
     assert_eq!(app.sheet, None);
-    assert!(app.import.is_some() && app.inbox.is_empty());
+    assert!(app.import.is_some() && app.inbox().is_empty());
 }
 
 #[test]
@@ -696,7 +696,7 @@ fn a_picture_on_a_visit_comes_in_ticked_and_has_its_codes_read_into_the_inbox() 
     }
     assert!(asked, "its codes were not asked for");
     let item = app
-        .inbox
+        .inbox()
         .iter()
         .find(|i| i.name.starts_with("wallet-qr"))
         .expect("what the picture holds is not in the Inbox");
@@ -827,7 +827,7 @@ fn a_codex32_seed_imported_with_the_stick_in_loads_when_it_is_pulled() {
     ];
     let mut app = booted_with(&files);
     app.press(Action::Import(I::Go));
-    assert!(app.inbox.iter().any(|i| i.name == "seed-codex32.txt"));
+    assert!(app.inbox().iter().any(|i| i.name == "seed-codex32.txt"));
     assert!(
         app.session.keys.is_empty(),
         "a key loaded with the stick in"
@@ -850,7 +850,7 @@ fn unselect_all_unticks_every_file_and_import_then_waits_for_a_choice() {
     assert!(!app.offers(Action::Import(I::Go)));
     app.press(Action::Import(I::Go));
     assert_eq!(app.sheet, Some(Sheet::Import));
-    assert!(app.import.is_some() && app.inbox.is_empty());
+    assert!(app.import.is_some() && app.inbox().is_empty());
     // Select all ticks them again.
     app.press(Action::Import(I::All));
     let view = app.import_view().unwrap();
@@ -946,7 +946,7 @@ fn every_kind_of_seed_file_imported_with_the_stick_in_loads_at_the_pull() {
         app.press(Action::Import(I::Go));
         for (name, _) in &files {
             assert!(
-                app.inbox
+                app.inbox()
                     .iter()
                     .any(|i| i.name.starts_with(&name[..name.len() - 4])),
                 "{kind}: {name} is not in Files"

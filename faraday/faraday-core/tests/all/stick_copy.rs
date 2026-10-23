@@ -154,7 +154,7 @@ fn copy_in(app: &mut Faraday, sticks: &[&Stick], names: &[&str]) {
 fn row(app: &Faraday, name: &str) -> Option<Action> {
     app.visit_inbox_rows()
         .into_iter()
-        .find(|&k| app.inbox[k].name == name)
+        .find(|&k| app.inbox()[k].name == name)
         .map(Action::VisitInbox)
 }
 
@@ -217,7 +217,7 @@ fn a_public_file_copied_from_one_stick_is_written_to_the_next_as_it_came() {
     }
     // The copy stays in the Inbox, for the next stick; the Outbox is
     // untouched.
-    assert!(app.inbox.iter().any(|i| i.name == share.0));
+    assert!(app.inbox().iter().any(|i| i.name == share.0));
     assert!(app.outbox.is_empty());
 }
 
@@ -230,12 +230,12 @@ fn a_picture_copied_in_keeps_its_bytes_and_its_codes_are_still_read() {
     attach(&mut app, &[&a]);
     copy_in(&mut app, &[&a], &[&png.0]);
     assert!(
-        app.inbox.iter().any(|i| i.kind == FileKind::Wallet),
+        app.inbox().iter().any(|i| i.kind == FileKind::Wallet),
         "the wallet in its code was not read: {:?}",
         app.visit.log
     );
     let picture = app
-        .inbox
+        .inbox()
         .iter()
         .find(|i| i.name == png.0)
         .expect("the picture itself is not in the Inbox");
@@ -317,7 +317,7 @@ fn text_is_offered_as_something_faraday_cannot_tell_about() {
     let a = Stick::new("a", std::slice::from_ref(&notes));
     attach(&mut app, &[&a]);
     copy_in(&mut app, &[&a], &[&notes.0]);
-    assert_eq!(app.inbox[0].kind, FileKind::Text);
+    assert_eq!(app.inbox()[0].kind, FileKind::Text);
     app.storage(StorageEvent::Sticks(Vec::new()));
     let b = Stick::new("b", &[]);
     attach(&mut app, &[&b]);
@@ -421,7 +421,7 @@ fn a_picture_keeps_what_its_codes_hold_across_a_lock_and_a_seedqr_does_not_outli
         kept,
     });
     assert!(
-        !next.inbox.iter().any(|i| i.name == seedqr.0),
+        !next.inbox().iter().any(|i| i.name == seedqr.0),
         "a SeedQR outlived the lock"
     );
     let b = Stick::new("b", &[]);
@@ -514,7 +514,7 @@ fn a_gpg_public_key_and_signature_copied_between_sticks_are_public() {
     let a = Stick::new("a", &files);
     attach(&mut app, &[&a]);
     copy_in(&mut app, &[&a], &[&files[0].0, &files[1].0]);
-    assert!(app.inbox.iter().all(|i| i.kind == FileKind::Gpg));
+    assert!(app.inbox().iter().all(|i| i.kind == FileKind::Gpg));
     app.storage(StorageEvent::Sticks(Vec::new()));
     let b = Stick::new("b", &[]);
     attach(&mut app, &[&b]);
@@ -562,7 +562,7 @@ fn a_gpg_public_key_and_signature_stay_in_the_inbox_across_a_lock() {
     });
     for (name, bytes) in &files {
         let item = next
-            .inbox
+            .inbox()
             .iter()
             .find(|i| i.name == *name)
             .unwrap_or_else(|| panic!("{name} did not outlive the lock"));
@@ -582,7 +582,7 @@ fn a_gpg_private_key_block_is_still_offered_as_something_that_may_be_a_secret() 
     let a = Stick::new("a", std::slice::from_ref(&file));
     attach(&mut app, &[&a]);
     copy_in(&mut app, &[&a], &[&file.0]);
-    assert_eq!(app.inbox[0].kind, FileKind::Text);
+    assert_eq!(app.inbox()[0].kind, FileKind::Text);
     app.storage(StorageEvent::Sticks(Vec::new()));
     let b = Stick::new("b", &[]);
     attach(&mut app, &[&b]);

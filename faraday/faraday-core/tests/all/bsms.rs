@@ -36,7 +36,7 @@ fn with_inbox(files: Vec<(&str, String)>) -> Faraday {
 fn the_bips_descriptor_record_loads_as_its_wallet() {
     let c = faraday_core::testkit::compute();
     let mut app = with_inbox(vec![("savings-bsms.txt", DESCRIPTOR.to_string())]);
-    assert_eq!(app.inbox[0].kind, FileKind::Wallet);
+    assert_eq!(app.inbox()[0].kind, FileKind::Wallet);
     app.press(Action::LoadWallet(0));
     assert_eq!(app.session.wallets.len(), 1);
     let w = &app.session.wallets[0];

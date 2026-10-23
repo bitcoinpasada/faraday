@@ -190,7 +190,7 @@ fn potential_compact(
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let Some(p) = app.potential.as_ref() else {
+    let Some(p) = app.inbox.potential() else {
         return;
     };
     let sw = 620.0;

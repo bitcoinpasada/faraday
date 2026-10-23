@@ -36,7 +36,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.app.vaults.ms_per_unit = Some(180);
     if t.app.screen != Screen::Home
         || t.app.sheet != Some(Sheet::Import)
-        || t.app.inbox.iter().any(|i| i.name == "vault.ofv")
+        || t.app.inbox().iter().any(|i| i.name == "vault.ofv")
     {
         return Err("the boot stick's files did not come up for the import".into());
     }

@@ -321,7 +321,7 @@ fn the_words_file_read_from_a_stick_loads_the_same_key() {
     });
     next.storage(StorageEvent::Sticks(Vec::new()));
     let k = next
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == name)
         .expect("not copied in");

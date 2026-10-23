@@ -192,7 +192,7 @@ fn scanned(text: &str) -> faraday_core::Item {
     app.event(Event::Scanned {
         bytes: text.trim().as_bytes().to_vec(),
     });
-    app.inbox
+    app.inbox()
         .last()
         .cloned()
         .unwrap_or_else(|| panic!("nothing reached the Inbox from {text}"))
@@ -380,7 +380,7 @@ fn create_offers_a_coldcard_export_for_a_cosigners_slot_and_takes_its_multisig_k
     app.press(faraday_core::Action::CNext(faraday_core::cstep::QUORUM));
     let _ = app.frame();
     let at = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "coldcardQ.json")
         .unwrap();

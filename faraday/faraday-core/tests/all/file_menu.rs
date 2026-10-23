@@ -339,16 +339,19 @@ fn details_shows_the_sha_256_of_the_bytes() {
 #[test]
 fn a_psbt_row_shows_sign_and_a_dots_menu_of_details_and_remove() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
-    app.inbox.push(Item {
-        name: "spend.psbt".into(),
-        bytes: b"psbt".to_vec(),
-        kind: FileKind::Psbt,
-        secret: false,
-        picture: None,
-        sha: None,
-        wallet: None,
-        psbt: None,
-    });
+    faraday_core::testkit::inbox_push(
+        &mut app,
+        Item {
+            name: "spend.psbt".into(),
+            bytes: b"psbt".to_vec(),
+            kind: FileKind::Psbt,
+            secret: false,
+            picture: None,
+            sha: None,
+            wallet: None,
+            psbt: None,
+        },
+    );
     app.press(Action::Nav(Screen::Files));
     let _ = app.frame();
     assert!(app.offers(Action::StartSpend(0)), "Sign");
@@ -356,7 +359,7 @@ fn a_psbt_row_shows_sign_and_a_dots_menu_of_details_and_remove() {
     assert_eq!(menu_of(&mut app, Row::In(0)), ["Details", "Remove"]);
     choose(&mut app, "Remove");
     assert_eq!(app.sheet, None, "a choice closes the menu");
-    assert!(app.inbox.is_empty(), "Remove, through the ⋮");
+    assert!(app.inbox().is_empty(), "Remove, through the ⋮");
 }
 
 #[test]

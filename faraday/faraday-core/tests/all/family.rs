@@ -81,7 +81,7 @@ fn settle(app: &mut Faraday) {
 }
 
 fn inbox_at(app: &Faraday, name: &str) -> usize {
-    app.inbox.iter().position(|i| i.name == name).unwrap()
+    app.inbox().iter().position(|i| i.name == name).unwrap()
 }
 
 fn wallet_at(app: &Faraday, name: &str) -> usize {
@@ -347,7 +347,7 @@ fn a_lock_comes_back_to_the_same_page_and_wallet_after_unlocking_again() {
     app.storage(StorageEvent::Restored {
         inbox: {
             let mut v: Vec<(String, Vec<u8>)> = app
-                .inbox
+                .inbox()
                 .iter()
                 .map(|i| (i.name.clone(), i.bytes.clone()))
                 .collect();
@@ -613,7 +613,7 @@ fn a_transaction_scanned_on_the_card_is_kept_for_bring() {
     assert_eq!(app.family.open, Some(Open::Page(page::BRING)));
     let _ = drawn(&mut app);
     let k = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.kind == FileKind::Psbt)
         .expect("the transaction is not in Files");

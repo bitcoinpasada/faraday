@@ -17,7 +17,7 @@ fn with_files(mut app: Faraday) -> Faraday {
         outbox: vec![("note.txt".to_string(), b"a note".to_vec())],
         kept: Vec::new(),
     });
-    assert_eq!(app.inbox.len(), 1);
+    assert_eq!(app.inbox().len(), 1);
     assert_eq!(app.outbox.len(), 1);
     app
 }
@@ -49,7 +49,7 @@ fn a_mode_change_empties_both_boxes_and_the_session() {
     app.press(Action::Mode(Mode::Testnet));
     assert!(app.restart_requested());
     assert_eq!(app.mode_after_restart(), Mode::Testnet);
-    assert!(app.inbox.is_empty(), "From the stick");
+    assert!(app.inbox().is_empty(), "From the stick");
     assert!(app.outbox.is_empty(), "For the stick");
     assert!(app.session.keys.is_empty());
     assert!(app.session.wallets.is_empty());

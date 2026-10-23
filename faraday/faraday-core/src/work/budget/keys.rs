@@ -75,7 +75,7 @@ fn type_text(app: &mut Faraday, text: &str) {
 
 /// `screen` with nothing open over it.
 fn on(app: &mut Faraday, screen: Screen) {
-    app.potential = None;
+    app.inbox.clear_potential();
     app.seed_read.clear();
     app.sheet = None;
     app.press(Action::Nav(screen));

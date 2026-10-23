@@ -528,7 +528,7 @@ fn a_drawn_standard_seedqr_of_the_seed_matches_and_adds_nothing() {
         app.scan().map(|s| s.purpose),
         Some(ScanPurpose::CheckCopy(fp))
     );
-    let inbox = app.inbox.len();
+    let inbox = app.inbox().len();
 
     let code = standard(ATTACK);
     assert_eq!(code, ATTACK_DIGITS.as_bytes(), "the published digits");
@@ -540,7 +540,7 @@ fn a_drawn_standard_seedqr_of_the_seed_matches_and_adds_nothing() {
     );
     assert!(commands(&mut app).contains(&Command::CameraOff));
     assert_eq!(app.session.keys.len(), 1, "a key was added");
-    assert_eq!(app.inbox.len(), inbox, "something went to Files");
+    assert_eq!(app.inbox().len(), inbox, "something went to Files");
     assert!(seeds_done(&app), "the seeds step is not done");
     let b = app.backup.as_ref().unwrap();
     assert_eq!(
@@ -591,11 +591,11 @@ fn a_copy_with_one_word_wrong_names_that_word_and_stays_open() {
 fn a_seedqr_of_another_seed_is_not_loaded_and_names_the_first_word() {
     let mut app = backing_up(FORUM, true, SEEDQR_ONLY);
     app.press(Action::BScan);
-    let inbox = app.inbox.len();
+    let inbox = app.inbox().len();
     scan(&mut app, standard(GOOD));
     assert_eq!(note(&app), "Your copy scans but word 1 differs");
     assert_eq!(app.session.keys.len(), 1, "the other seed was loaded");
-    assert_eq!(app.inbox.len(), inbox);
+    assert_eq!(app.inbox().len(), inbox);
     // Something that is no SeedQR says so.
     scan(
         &mut app,

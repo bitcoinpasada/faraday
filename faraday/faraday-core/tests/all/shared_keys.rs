@@ -26,7 +26,7 @@ fn with_inbox(files: Vec<(String, Vec<u8>)>) -> Faraday {
 }
 
 fn at(app: &Faraday, name: &str) -> usize {
-    app.inbox.iter().position(|i| i.name == name).unwrap()
+    app.inbox().iter().position(|i| i.name == name).unwrap()
 }
 
 fn both() -> Faraday {

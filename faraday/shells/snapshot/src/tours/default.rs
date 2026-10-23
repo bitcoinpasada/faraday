@@ -299,7 +299,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::VisitCopy);
     t.shot("visit-copied")?;
     // A picture of a wallet's QR code is read off the stick into Files.
-    let before = t.app.inbox.len();
+    let before = t.app.inbox().len();
     let png = t
         .stick()
         .files
@@ -311,7 +311,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::VisitIn(png));
     t.press(Action::VisitCopy);
     // What its code holds, and the picture itself, kept to copy on.
-    if t.app.inbox.len() != before + 2 {
+    if t.app.inbox().len() != before + 2 {
         return Err("the QR code in nested-wallet-qr.png did not reach Files".into());
     }
     t.shot("visit-png-read")?;
@@ -364,7 +364,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Nav(Screen::Wallets));
     let psbt = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "savings-unsigned.psbt")
         .ok_or("no psbt")?;
@@ -382,7 +382,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("spend-signed")?;
     let copy = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "savings-cosigner-5d388376.psbt")
         .ok_or("no copy")?;
@@ -433,7 +433,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // A single-key spend: no signers or signatures steps.
     let single = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "spending-unsigned.psbt")
         .ok_or("no single")?;
@@ -448,7 +448,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // A Taproot multisig spend, signed here and collected.
     let tap = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "taproot-multisig-unsigned.psbt")
         .ok_or("no tap")?;
@@ -460,7 +460,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.shot("tapmulti-signed")?;
     let tcopy = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "taproot-multisig-cosigner-5d388376.psbt")
         .ok_or("no tap copy")?;
@@ -483,7 +483,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.load_kit()?;
     let mu = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "musig-unsigned.psbt")
         .ok_or("no musig psbt")?;
@@ -494,7 +494,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     for name in ["musig-nonce-5d388376.psbt", "musig-nonce-cf2e083d.psbt"] {
         let i = t
             .app
-            .inbox
+            .inbox()
             .iter()
             .position(|it| it.name == name)
             .ok_or(format!("no {name}"))?;
@@ -506,7 +506,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     for name in ["musig-partial-5d388376.psbt", "musig-partial-cf2e083d.psbt"] {
         let i = t
             .app
-            .inbox
+            .inbox()
             .iter()
             .position(|it| it.name == name)
             .ok_or(format!("no {name}"))?;
@@ -540,7 +540,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.load_kit()?;
     let fu = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "threshold-unsigned.psbt")
         .ok_or("no threshold psbt")?;
@@ -640,7 +640,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     for name in ["savings-share-1-of-3.txt", "savings-share-2-of-3.txt"] {
         let i = t
             .app
-            .inbox
+            .inbox()
             .iter()
             .position(|it| it.name == name)
             .ok_or(format!("no {name}"))?;
@@ -754,7 +754,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.pump();
     let got = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .find(|i| i.name.starts_with("scanned-"))
         .ok_or("nothing scanned")?;
@@ -765,7 +765,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // The Inheritance wallet: the Path step.
     let inh = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "inheritance-unsigned.psbt");
     if let Some(i) = inh {
@@ -861,7 +861,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.load_kit()?;
     let m = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "spending-message.txt")
         .ok_or("no message")?;
@@ -922,7 +922,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // The key file arrives; it fills the waiting slot.
     let kf = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "xpub-3-cf2e083d-multisig.txt")
         .ok_or("no key file")?;
@@ -1002,7 +1002,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::VisitCopy);
     let original = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .find(|i| i.name == "vault.ofv")
         .map(|i| i.bytes.clone())
@@ -1082,7 +1082,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Vault(V::Category(0)));
     let backup = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "seed-2-5d388376.oskb")
         .ok_or("the backup was not copied in")?;
@@ -1193,7 +1193,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     // Two files ticked: the checkbox list, before Sign 2 files.
     let signable: Vec<String> = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .filter(|i| !i.name.ends_with(".asc"))
         .map(|i| i.name.clone())
@@ -1266,7 +1266,7 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Vault(V::SbImages));
     let efi = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "BOOTX64.EFI")
         .ok_or("the test image was not copied in")?;

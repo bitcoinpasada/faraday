@@ -177,7 +177,7 @@ fn sha_hex(bytes: &[u8]) -> String {
 /// looked at.
 fn review(app: &mut Faraday, name: &str) {
     app.press(Action::Vault(V::ApkSignOpen));
-    let k = app.inbox.iter().position(|i| i.name == name).unwrap();
+    let k = app.inbox().iter().position(|i| i.name == name).unwrap();
     app.press(Action::Vault(V::ApkPick(k)));
 }
 
@@ -529,7 +529,7 @@ fn the_hold_is_inert_until_the_second_build_matches() {
         Refusal::AlreadySigned
     );
     assert!(
-        app.inbox.iter().any(|i| i.name == "x-unsigned.apk"),
+        app.inbox().iter().any(|i| i.name == "x-unsigned.apk"),
         "the unsigned file stays"
     );
 }
@@ -578,7 +578,7 @@ fn files_offers_sign_with_apk_key_for_an_apk_a_key_fits_and_it_opens_the_review(
     app.press(Action::Nav(Screen::Files));
     assert!(has(&mut app, "Sign with APK key"));
     let k = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "x-unsigned.apk")
         .unwrap();
@@ -593,7 +593,7 @@ fn with_two_keys_for_the_package_files_asks_which_key() {
     let mut app = ready(FIXTURE, &[("x-unsigned.apk", apk)]);
     make(&mut app, "Second Test", FIXTURE);
     let k = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "x-unsigned.apk")
         .unwrap();
@@ -701,7 +701,7 @@ fn nothing_for_the_stick_ever_holds_the_private_key() {
         };
         let secrets = secrets_of(r.field(field::APK_KEY).unwrap());
         // Files, both halves, holds none of it.
-        for item in app.outbox.iter().chain(&app.inbox) {
+        for item in app.outbox.iter().chain(app.inbox()) {
             if item.kind == faraday_core::wallet::FileKind::Vault {
                 continue;
             }
@@ -763,12 +763,12 @@ fn the_file_changing_between_the_review_and_the_hold_signs_nothing() {
     review(&mut app, "x-unsigned.apk");
     type_second(&mut app, &sha_hex(&apk));
     let k = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "x-unsigned.apk")
         .unwrap();
-    let last = app.inbox[k].bytes.len() - 1;
-    app.inbox[k].bytes[last] ^= 1;
+    let last = app.inbox()[k].bytes.len() - 1;
+    testkit::inbox_item_mut(&mut app, k).bytes[last] ^= 1;
     let before = app.outbox.len();
     entropy(&mut app, 1);
     app.press(Action::Vault(V::ApkHoldSign));
@@ -809,8 +809,11 @@ fn files_reads_a_file_that_is_one_pem_certificate_as_public() {
         Vec::new(),
         Vec::new(),
     );
-    let kinds: Vec<(String, faraday_core::wallet::FileKind)> =
-        app.inbox.iter().map(|i| (i.name.clone(), i.kind)).collect();
+    let kinds: Vec<(String, faraday_core::wallet::FileKind)> = app
+        .inbox()
+        .iter()
+        .map(|i| (i.name.clone(), i.kind))
+        .collect();
     let kind_of = |n: &str| kinds.iter().find(|(k, _)| k == n).unwrap().1;
     assert_eq!(
         kind_of("c.pem"),
@@ -885,7 +888,7 @@ fn with_apk_signing_off_an_apk_in_files_has_no_sign_row_but_is_named_an_apk() {
         assert!(!has(&mut app, row), "{row}");
     }
     let k = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "x-unsigned.apk")
         .unwrap();

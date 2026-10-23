@@ -39,12 +39,12 @@ fn a_words_file_copied_in_offers_to_load_the_key_it_spells() {
         bytes: words().into_bytes(),
     });
     let item = app
-        .inbox
+        .inbox()
         .iter()
         .find(|i| i.name == FILE)
         .expect("not copied in");
     assert_eq!(item.kind, FileKind::Words);
-    let k = app.inbox.iter().position(|i| i.name == FILE).unwrap();
+    let k = app.inbox().iter().position(|i| i.name == FILE).unwrap();
     // Refused with the stick still attached.
     app.press(Action::LoadKey(k));
     assert!(app.session.keys.is_empty(), "loaded with a stick attached");
@@ -107,7 +107,7 @@ fn a_words_file_with_a_note_line_is_copied_and_loads_on_pulling_the_stick() {
         name: name.clone(),
         bytes,
     });
-    let item = app.inbox.iter().find(|i| i.name == name);
+    let item = app.inbox().iter().find(|i| i.name == name);
     assert_eq!(
         item.map(|i| i.kind),
         Some(FileKind::Words),
@@ -162,13 +162,13 @@ fn a_seedqr_picture_read_on_a_visit_loads_its_key_when_the_stick_is_pulled() {
         payloads: vec![seedqr_digits()],
     });
     let item = app
-        .inbox
+        .inbox()
         .iter()
         .find(|i| i.name == "key-1-seedqr-words.txt")
         .unwrap_or_else(|| {
             panic!(
                 "not in Files: {:?} {:?}",
-                app.inbox.iter().map(|i| &i.name).collect::<Vec<_>>(),
+                app.inbox().iter().map(|i| &i.name).collect::<Vec<_>>(),
                 app.visit.log
             )
         });

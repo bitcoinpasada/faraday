@@ -1232,7 +1232,7 @@ pub struct Faraday {
     /// APK signing is in the app: off by default (F59).
     pub apk_signing: bool,
     /// Files read from sticks.
-    pub inbox: inbox::InboxFiles,
+    inbox: inbox::InboxArea,
     /// Results waiting for a stick.
     pub outbox: Vec<Item>,
     /// The sticks present.
@@ -1327,16 +1327,6 @@ pub struct Faraday {
     /// The trail Back follows (F77), the mouse's forward button and the
     /// way back the last frame drew.
     trail: trail::Trail,
-    /// Wallets the Inbox describes left out of its next load, by
-    /// descriptor.
-    pub inbox_skip: BTreeSet<String>,
-    /// A seed from the Inbox being made a wallet, or a sealed backup
-    /// being opened.
-    pub potential: Option<inbox::Potential>,
-    /// When a passphrase was last typed on a sheet that shows the key it
-    /// makes (the potential wallet's, a seed read's), until the key is
-    /// worked out once typing has paused ([`motion::TYPED_PAUSE_MS`]).
-    typed_at: Option<u64>,
     /// A seed the camera read, waiting on [`Sheet::SeedRead`].
     seed_read: seeds::SeedsArea,
     /// What [`Sheet::Delete`] is choosing.
@@ -1498,7 +1488,7 @@ impl Faraday {
             session: Session::default(),
             decode: decode::DecodeArea::default(),
             apk_signing: false,
-            inbox: inbox::InboxFiles::default(),
+            inbox: inbox::InboxArea::default(),
             outbox: Vec::new(),
             sticks: Vec::new(),
             not_now: false,
@@ -1537,9 +1527,6 @@ impl Faraday {
             upgrade: upgrade::UpgradeArea::default(),
             typing: edit::TypingArea::new(),
             trail: trail::Trail::default(),
-            inbox_skip: BTreeSet::new(),
-            potential: None,
-            typed_at: None,
             seed_read: seeds::SeedsArea::default(),
             delete_ask: None,
             files_menu: Default::default(),
@@ -1938,10 +1925,12 @@ impl Faraday {
                 outbox,
                 kept,
             } => {
-                self.inbox = inbox
-                    .into_iter()
-                    .map(|(n, b)| Item::new(&c, &n, b))
-                    .collect();
+                self.inbox.replace(
+                    inbox
+                        .into_iter()
+                        .map(|(n, b)| Item::new(&c, &n, b))
+                        .collect(),
+                );
                 self.outbox = outbox
                     .into_iter()
                     .map(|(n, b)| Item::new(&c, &n, b))
@@ -1966,8 +1955,8 @@ impl Faraday {
             || !self.entry.state().passphrase.is_empty()
             || !self.vaults.passphrase.text.is_empty()
             || self
-                .potential
-                .as_ref()
+                .inbox
+                .potential()
                 .is_some_and(|p| !p.passphrase.is_empty())
             || self
                 .vaults
@@ -3055,7 +3044,7 @@ impl Faraday {
                 self.next_mode.clear();
                 self.secret_cancel();
                 self.wordlist.clear();
-                self.potential = None;
+                self.inbox.clear_potential();
                 // A transfer in parts survives closing the camera: the
                 // parts read so far wait for the next scan.
                 self.camera.keep_parts();
@@ -6833,13 +6822,13 @@ impl Faraday {
     /// typed into Add a key make ([`EntryState::probed`]). Returns whether
     /// there is something new to show.
     fn typed_tick(&mut self, now_ms: u64) -> bool {
-        let Some(at) = self.typed_at else {
+        let Some(at) = self.inbox.typed_at() else {
             return false;
         };
         if now_ms < at + motion::TYPED_PAUSE_MS {
             return false;
         }
-        self.typed_at = None;
+        self.inbox.set_typed_at(None);
         match self.sheet {
             Some(Sheet::Potential) => self.potential_refresh(),
             Some(Sheet::SeedRead) => self.seed_read_typed(),
@@ -6852,7 +6841,7 @@ impl Faraday {
     /// ([`motion::TYPED_PAUSE_MS`]): a key the typing makes is not worked
     /// out yet.
     pub(crate) fn typing_now(&self) -> bool {
-        self.typed_at.is_some()
+        self.inbox.typed_at().is_some()
     }
 
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -7702,7 +7691,7 @@ impl Faraday {
             Action::EntryKey(_) | Action::EntryKeyBack | Action::EntryCandidate(_)
         ) && self.entry_typing_here()
         {
-            self.typed_at = Some(self.now_ms);
+            self.inbox.set_typed_at(Some(self.now_ms));
         }
         self.note_secrets();
         self.note_here();
@@ -8118,7 +8107,7 @@ impl App for Faraday {
             // A character typed into the words or the passphrase: the key
             // they make is worked out once typing pauses.
             if matches!(event, Event::Key(_)) && self.entry_typing_here() {
-                self.typed_at = Some(self.now_ms);
+                self.inbox.set_typed_at(Some(self.now_ms));
             }
         }
         // Whether the event can complete a checklist item: pointer

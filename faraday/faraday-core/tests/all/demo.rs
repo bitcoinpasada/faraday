@@ -925,7 +925,7 @@ fn in_the_demo_public_seeds_sign_keep_entries_and_go_into_a_vault() {
         kept: Vec::new(),
     });
     let at = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "spend.psbt")
         .unwrap();

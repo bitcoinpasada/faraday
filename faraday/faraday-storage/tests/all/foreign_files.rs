@@ -68,7 +68,7 @@ fn pump(app: &mut Faraday, dir: &Path) -> Vec<String> {
 }
 
 fn inbox(app: &Faraday) -> Vec<&str> {
-    app.inbox.iter().map(|i| i.name.as_str()).collect()
+    app.inbox().iter().map(|i| i.name.as_str()).collect()
 }
 
 #[test]

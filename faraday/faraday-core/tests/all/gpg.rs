@@ -127,7 +127,7 @@ fn a_stick_visit_copies_in_files_of_no_kind_faraday_knows() {
         app.visit.log
     );
     for (name, bytes) in release_files() {
-        let item = app.inbox.iter().find(|i| i.name == name);
+        let item = app.inbox().iter().find(|i| i.name == name);
         assert_eq!(item.map(|i| &i.bytes[..]), Some(&bytes[..]), "{name}");
     }
 }
@@ -198,7 +198,7 @@ fn signing() -> Faraday {
 
 /// The listed position of Inbox file `name` on the signing page.
 fn listed(app: &Faraday, name: &str) -> usize {
-    app.inbox
+    app.inbox()
         .iter()
         .filter(|i| !i.name.ends_with(".asc"))
         .position(|i| i.name == name)
@@ -764,7 +764,7 @@ fn a_stick_visit_that_replaces_a_ticked_file_drops_its_tick() {
         name: changed.0.clone(),
         bytes: changed.1.clone(),
     });
-    let item = app.inbox.iter().find(|i| i.name == "SHA256SUMS").unwrap();
+    let item = app.inbox().iter().find(|i| i.name == "SHA256SUMS").unwrap();
     assert_eq!(
         item.bytes, changed.1,
         "the stick's file is the one in the Inbox"
@@ -827,18 +827,21 @@ fn a_signed_file_is_marked_and_an_asc_in_the_inbox_is_not_listed() {
         texts.iter().any(|t| t == "Signed"),
         "the signed row is marked: {texts:?}"
     );
-    app.inbox.push(Item {
-        name: format!("{name}.asc"),
-        bytes: b"-----BEGIN PGP SIGNATURE-----\n...".to_vec(),
-        kind: FileKind::Other,
-        secret: false,
-        picture: None,
-        sha: None,
-        wallet: None,
-        psbt: None,
-    });
+    testkit::inbox_push(
+        &mut app,
+        Item {
+            name: format!("{name}.asc"),
+            bytes: b"-----BEGIN PGP SIGNATURE-----\n...".to_vec(),
+            kind: FileKind::Other,
+            secret: false,
+            picture: None,
+            sha: None,
+            wallet: None,
+            psbt: None,
+        },
+    );
     assert!(
-        app.inbox
+        app.inbox()
             .iter()
             .filter(|i| !i.name.ends_with(".asc"))
             .all(|x| x.name != format!("{name}.asc")),
@@ -880,7 +883,7 @@ fn with_one_file_it_starts_ticked() {
     make_key(&mut app, "Release");
     // The vault's own file stays in the Inbox once opened; drop it so
     // SHA256SUMS is the one signable file.
-    app.inbox.retain(|i| i.kind != FileKind::Vault);
+    testkit::inbox_retain(&mut app, |i| i.kind != FileKind::Vault);
     app.press(Action::Vault(V::GpgSignPick));
     assert_eq!(
         app.vaults.sign_ticked,
@@ -902,16 +905,19 @@ fn a_signature_never_overwrites_the_certificate() {
     let mut app = signing();
     let cert = app.outbox[0].clone();
     let stem = cert.name.trim_end_matches(".asc").to_string();
-    app.inbox.push(Item {
-        name: stem.clone(),
-        bytes: b"the file named like the certificate".to_vec(),
-        kind: FileKind::Text,
-        secret: false,
-        picture: None,
-        sha: None,
-        wallet: None,
-        psbt: None,
-    });
+    testkit::inbox_push(
+        &mut app,
+        Item {
+            name: stem.clone(),
+            bytes: b"the file named like the certificate".to_vec(),
+            kind: FileKind::Text,
+            secret: false,
+            picture: None,
+            sha: None,
+            wallet: None,
+            psbt: None,
+        },
+    );
     app.press(Action::Vault(V::GpgSignPick));
     app.press(Action::Vault(V::GpgSignPick));
     let k = listed(&app, &stem);
@@ -979,7 +985,8 @@ fn the_signature_code_follows_the_file_not_its_place() {
     let c = faraday_core::testkit::compute();
     let mut app = signing();
     let code = app.signature_code(&c, "SHA256SUMS").unwrap();
-    app.inbox.insert(
+    testkit::inbox_insert(
+        &mut app,
         0,
         Item {
             name: "another".into(),
@@ -1009,7 +1016,7 @@ fn the_signature_code_follows_the_file_not_its_place() {
     );
     // And once the file is gone, the code is not another file's.
     app.press(Action::Cancel);
-    app.inbox.retain(|i| i.name != "SHA256SUMS");
+    testkit::inbox_retain(&mut app, |i| i.name != "SHA256SUMS");
     testkit::qr_close(&mut app);
     app.press(Action::ShowCode(code));
     assert!(
@@ -1374,7 +1381,7 @@ fn files_imported_from_the_boot_sheet_are_offered_for_signing() {
     assert!(view.files.iter().all(|f| f.chosen), "{view:?}");
     app.press(Action::Import(faraday_core::boot_import::ImportAction::Go));
     for (name, bytes) in &files {
-        let item = app.inbox.iter().find(|i| i.name == *name);
+        let item = app.inbox().iter().find(|i| i.name == *name);
         assert_eq!(item.map(|i| &i.bytes[..]), Some(&bytes[..]), "{name}");
     }
     app.storage(StorageEvent::Sticks(Vec::new()));

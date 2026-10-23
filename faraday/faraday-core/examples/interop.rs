@@ -56,7 +56,7 @@ fn sign(k: &Kit, seeds: &str, psbt: &Path, dir: &Path) -> Result<String, String>
         outbox: Vec::new(),
         kept: Vec::new(),
     });
-    let at = |app: &Faraday, name: &str| app.inbox.iter().position(|i| i.name == name);
+    let at = |app: &Faraday, name: &str| app.inbox().iter().position(|i| i.name == name);
     let w = at(&app, &wallet_file).ok_or("the wallet did not arrive")?;
     app.press(Action::LoadWallet(w));
     for seed in seeds.split(',').filter(|s| !s.is_empty()) {

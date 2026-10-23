@@ -886,7 +886,7 @@ impl Faraday {
             return false;
         }
         if self.sheet == Some(crate::Sheet::Potential) {
-            return self.potential.as_ref().is_some_and(|p| p.typing);
+            return self.inbox.potential().is_some_and(|p| p.typing);
         }
         if self.sheet == Some(crate::Sheet::Import) {
             return self.vaults.focus == Some(crate::vault::Focus::Passphrase);

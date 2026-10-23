@@ -22,7 +22,7 @@ pub(crate) fn restore_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("restore-quorum")?;
     let i = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|it| it.name == "savings-wallet.txt")
         .ok_or("no savings-wallet.txt in Files")?;

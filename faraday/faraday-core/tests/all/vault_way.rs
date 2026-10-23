@@ -422,7 +422,7 @@ fn an_oskb_in_files_offers_import_once_a_vault_is_open() {
         .unwrap();
     let mut app = device(vec![(name.clone(), bytes)]);
     app.press(Action::Nav(Screen::Files));
-    let k = app.inbox.iter().position(|i| i.name == name).unwrap();
+    let k = app.inbox().iter().position(|i| i.name == name).unwrap();
     assert!(!offered(
         &mut app,
         Action::Vault(V::CreateFrom(Screen::Files))

@@ -163,7 +163,7 @@ fn a_key_from_new_key_cannot_sign_until_its_wallets_checklist_is_complete_and_ca
     assert_eq!(app.spend_button(&c, w).0, "Finish the backup first");
     // Signing is refused, and Who signs says why.
     let at = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "spend.psbt")
         .unwrap();
@@ -217,7 +217,7 @@ fn a_restored_key_signs_at_once() {
         ],
         768,
     );
-    let at = |app: &Faraday, n: &str| app.inbox.iter().position(|i| i.name == n).unwrap();
+    let at = |app: &Faraday, n: &str| app.inbox().iter().position(|i| i.name == n).unwrap();
     app.press(Action::LoadWallet(at(&app, "spending-wallet.txt")));
     app.press(Action::Entry(None));
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[0].0));

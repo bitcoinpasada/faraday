@@ -165,7 +165,7 @@ fn an_empty_stick_is_bound_to_the_new_vault_with_no_question() {
     assert_eq!(b.label, "KEYSTICK");
     assert!(b.vaults.is_empty());
     // Nothing was copied in.
-    assert!(app.inbox.is_empty());
+    assert!(app.inbox().is_empty());
 }
 
 #[test]
@@ -207,7 +207,7 @@ fn a_stick_with_vaults_asks_which_and_copies_in_only_that_one() {
     shell.pull(&mut app, "S1");
     // Only the chosen file is in Files.
     let vaults: Vec<&str> = app
-        .inbox
+        .inbox()
         .iter()
         .filter(|i| i.name.ends_with(".ofv"))
         .map(|i| i.name.as_str())
@@ -581,7 +581,7 @@ fn a_power_off_between_writes_leaves_the_copy_and_the_key_signs_at_once_from_it(
     assert!(fresh.backup_pending().is_none());
     // The stick's vault is in Files, the key in it signs at once.
     let on_stick = shell.disk("S1").files[0].1.clone();
-    fresh.inbox.retain(|i| !i.name.ends_with(".ofv"));
+    faraday_core::testkit::inbox_retain(&mut fresh, |i| !i.name.ends_with(".ofv"));
     fresh.press(Action::Nav(Screen::Vaults));
     let _ = on_stick;
     fresh.press(Action::Vault(V::Open(0)));
@@ -1062,7 +1062,7 @@ fn a_copy_that_differs_from_one_already_read_lets_the_person_pick_which_to_unloc
     shell.flow(&mut app, F::UseCopy(false));
     assert!(offered(&mut app, Action::Flow(F::Tap)));
     shell.flow(&mut app, F::Tap);
-    let first = app.inbox.iter().find(|i| i.name == "main.ofv").unwrap();
+    let first = app.inbox().iter().find(|i| i.name == "main.ofv").unwrap();
     assert_eq!(first.bytes, main, "the first copy is in Files");
     assert!(app.flow().unwrap().slots[1].bound.is_some());
 }
@@ -1373,7 +1373,7 @@ fn the_copy_not_picked_is_written_over_only_after_a_hold() {
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S2");
     assert_eq!(step(&app), Step::Vaults);
-    let kept = app.inbox.iter().find(|i| i.name == "main.ofv").unwrap();
+    let kept = app.inbox().iter().find(|i| i.name == "main.ofv").unwrap();
     assert_eq!(kept.bytes, later, "the later copy is in Files");
     unlock(&mut app, PHRASE);
     assert_eq!(step(&app), Step::Make, "{:?}", app.vaults.unlock_error);
@@ -1941,7 +1941,11 @@ fn an_ordinary_visit_after_done_does_not_write_the_flows_vault_over_another_copy
     shell.plug(&mut app, "T");
     shell.writes.clear();
     app.press(Action::Nav(Screen::Visit));
-    let k = app.inbox.iter().position(|i| i.name == "main.ofv").unwrap();
+    let k = app
+        .inbox()
+        .iter()
+        .position(|i| i.name == "main.ofv")
+        .unwrap();
     app.press(Action::VisitInbox(k));
     shell.press(&mut app, Action::VisitWrite);
     if app.sheet.is_some() {

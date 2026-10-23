@@ -114,7 +114,7 @@ fn descriptor_picture_reads_back(id: &str) {
     let mut app = visiting();
     scan(&mut app, &format!("{stem}-descriptor.png"), &png);
     let item = app
-        .inbox
+        .inbox()
         .iter()
         .find(|i| i.kind == FileKind::Wallet)
         .unwrap_or_else(|| panic!("no wallet in {:?}", app.visit.log));
@@ -176,7 +176,7 @@ fn a_descriptor_past_one_code_goes_as_parts_that_assemble_to_it() {
         scan(&mut reader, &p.name, &p.png(&c));
     }
     let item = reader
-        .inbox
+        .inbox()
         .iter()
         .find(|i| i.kind == FileKind::Wallet)
         .unwrap_or_else(|| panic!("not assembled: {:?}", reader.visit.log));
@@ -208,7 +208,7 @@ fn shares_rebuild(id: &str) {
             scan(&mut app, &name(k), &file(&files, &name(k)));
         }
         let shares = app
-            .inbox
+            .inbox()
             .iter()
             .filter(|i| i.kind == FileKind::Share)
             .count();

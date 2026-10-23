@@ -1621,3 +1621,23 @@ pub fn create_set_slot(app: &mut crate::Faraday, slot: usize, source: crate::cre
 pub fn select_wallet(app: &mut crate::Faraday, i: usize) {
     app.wallets.set_wallet(i);
 }
+
+/// Puts `item` at the end of the Inbox.
+pub fn inbox_push(app: &mut crate::Faraday, item: crate::Item) {
+    app.inbox.push(item);
+}
+
+/// Puts `item` at place `at` in the Inbox.
+pub fn inbox_insert(app: &mut crate::Faraday, at: usize, item: crate::Item) {
+    app.inbox.insert(at, item);
+}
+
+/// Keeps the Inbox files `keep` says to.
+pub fn inbox_retain(app: &mut crate::Faraday, keep: impl FnMut(&crate::Item) -> bool) {
+    app.inbox.retain(keep);
+}
+
+/// Inbox file `at`, to change it.
+pub fn inbox_item_mut(app: &mut crate::Faraday, at: usize) -> &mut crate::Item {
+    app.inbox.item_mut(at)
+}

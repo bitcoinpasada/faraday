@@ -481,14 +481,11 @@ fn in_demo_the_sample_backup_opens_with_faraday_from_its_chip() {
     });
     app.press(Action::BackupOpen(0));
     assert_eq!(app.sheet, Some(Sheet::Potential));
-    assert!(app.potential.as_ref().unwrap().passphrase.is_empty());
+    assert!(app.potential().unwrap().passphrase.is_empty());
     let _ = app.frame();
     assert!(app.offers(Action::PassChip(PassField::Potential)));
     app.press(Action::PassChip(PassField::Potential));
-    assert_eq!(
-        app.potential.as_ref().unwrap().passphrase.as_str(),
-        "faraday"
-    );
+    assert_eq!(app.potential().unwrap().passphrase.as_str(), "faraday");
     let _ = app.frame();
     assert!(shows(&mut app, "faraday"));
     app.press(Action::PotentialMake);

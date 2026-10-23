@@ -156,7 +156,7 @@ fn importing_everything_and_pulling_the_stick_asks_for_the_vault_and_loads_the_s
     assert_eq!(app.session.keys.len(), 3, "the three seeds did not load");
     // The descriptor in Files, opened: every key of it signs here.
     let at = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "taproot-multisig-descriptor.txt")
         .unwrap();
@@ -205,7 +205,7 @@ fn the_sticks_spend_signs_and_finishes_on_the_spend_tab() {
             .all(|s| s.held_by.is_some())
     );
     let p = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "taproot-multisig-unsigned.psbt")
         .unwrap();

@@ -51,7 +51,7 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
 }
 
 fn find(app: &Faraday, name: &str) -> usize {
-    app.inbox.iter().position(|i| i.name == name).unwrap()
+    app.inbox().iter().position(|i| i.name == name).unwrap()
 }
 
 fn add_key(app: &mut Faraday, n: usize) {

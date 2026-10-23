@@ -490,10 +490,10 @@ fn what_the_inbox_gives_follows_the_files_and_the_session() {
     app.inbox.push(Item::new(&c, &n1, b1.clone()));
     step(&mut app, "a wallet file added", true);
     assert_eq!(kept_found(&app).wallets.len(), 1);
-    app.inbox[0].name = "renamed-wallet.txt".to_string();
+    app.inbox.item_mut(0).name = "renamed-wallet.txt".to_string();
     step(&mut app, "the file renamed", true);
     assert_eq!(kept_found(&app).wallets[0].name, "Renamed");
-    app.inbox[0] = Item::new(&c, &n2, b2.clone());
+    *app.inbox.item_mut(0) = Item::new(&c, &n2, b2.clone());
     step(&mut app, "the file replaced by another wallet's", true);
     app.inbox.push(Item::new(&c, &n1, b1.clone()));
     step(&mut app, "the first wallet's file added again", true);

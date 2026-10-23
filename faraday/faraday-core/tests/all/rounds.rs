@@ -16,7 +16,7 @@ fn kit_files(prefix: &str) -> Vec<(String, Vec<u8>)> {
 }
 
 fn at(app: &Faraday, name: &str) -> usize {
-    app.inbox.iter().position(|i| i.name == name).unwrap()
+    app.inbox().iter().position(|i| i.name == name).unwrap()
 }
 
 /// Test key 1 and the MuSig2 wallet loaded, the unsigned spend and the
@@ -107,7 +107,7 @@ fn a_session_whose_nonce_has_signed_is_over() {
     assert!(app.spend().unwrap().musig.is_some());
     // The other signers' nonces arrive, and round 2 signs.
     let copies: Vec<usize> = app
-        .inbox
+        .inbox()
         .iter()
         .enumerate()
         .filter(|(_, i)| i.name.starts_with("musig-nonce-"))

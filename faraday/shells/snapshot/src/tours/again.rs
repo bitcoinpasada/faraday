@@ -14,7 +14,7 @@ pub(crate) fn again_tour(t: &mut Tour) -> Result<(), String> {
     t.copy_wallets();
     let savings = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|it| it.name == "savings-wallet.txt")
         .ok_or("savings-wallet.txt is not in Files")?;
@@ -38,7 +38,7 @@ pub(crate) fn again_tour(t: &mut Tour) -> Result<(), String> {
         .ok_or("no test vault")?;
     let inbox: Vec<(String, Vec<u8>)> = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .map(|i| (i.name.clone(), i.bytes.clone()))
         .chain(std::iter::once(vault))

@@ -55,7 +55,7 @@ fn device(inbox: Vec<(String, Vec<u8>)>) -> Faraday {
 /// Loads the wallet in Inbox file `name`; returns its index.
 fn load(app: &mut Faraday, name: &str) -> usize {
     let i = app
-        .inbox
+        .inbox()
         .iter()
         .position(|it| it.name == name)
         .unwrap_or_else(|| panic!("{name} is not in Files"));

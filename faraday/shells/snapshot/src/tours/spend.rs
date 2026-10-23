@@ -67,7 +67,7 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("spend-bring")?;
     let at = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "savings-unsigned.psbt")
         .ok_or("the PSBT is not in Files")?;

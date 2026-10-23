@@ -28,7 +28,7 @@ pub(crate) fn inbox_tour(t: &mut Tour) -> Result<(), String> {
         item("seed-3-words.txt", K::Words, 160, None),
         item("recovery-codes.txt", K::Text, 210, None),
     ] {
-        t.app.inbox.push(i);
+        faraday_core::testkit::inbox_push(&mut t.app, i);
     }
     t.sticks(true);
     t.press(Action::Nav(Screen::Visit));

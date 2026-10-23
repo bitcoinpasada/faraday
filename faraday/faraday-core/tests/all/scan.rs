@@ -47,7 +47,7 @@ fn a_psbt_in_bbqr_parts_says_what_is_missing_and_arrives_whole() {
     for p in parts.iter().rev() {
         scan(&mut app, p);
     }
-    let item = app.inbox.last().expect("nothing reached the Inbox");
+    let item = app.inbox().last().expect("nothing reached the Inbox");
     assert_eq!(item.kind, FileKind::Psbt);
     assert_eq!(item.bytes, psbt);
 }
@@ -60,7 +60,7 @@ fn a_file_in_the_envelope_arrives_under_its_own_name() {
     for p in faraday_qr::bbqr::encode('J', &env, 100).unwrap() {
         scan(&mut app, &p);
     }
-    let item = app.inbox.last().expect("nothing reached the Inbox");
+    let item = app.inbox().last().expect("nothing reached the Inbox");
     assert_eq!(item.name, "spending-wallet.txt");
     assert_eq!(item.bytes, wallet.as_bytes());
 }
@@ -78,7 +78,7 @@ fn a_scanned_address_is_named_as_a_loaded_wallets_own() {
     scan(&mut app, &format!("bitcoin:{ours}?amount=0.001"));
     let said = note(&app);
     assert!(said.contains("receive address 3"), "{said}");
-    assert_eq!(app.inbox.len(), 1, "the address was filed");
+    assert_eq!(app.inbox().len(), 1, "the address was filed");
 }
 
 #[test]
@@ -99,7 +99,7 @@ fn a_scanned_address_with_one_character_wrong_is_refused_for_its_checksum() {
     scan(&mut app, &wrong);
     let said = note(&app);
     assert!(said.contains("fails its checksum"), "{said}");
-    assert_eq!(app.inbox.len(), 1, "the address was filed");
+    assert_eq!(app.inbox().len(), 1, "the address was filed");
 }
 
 #[test]
@@ -109,7 +109,7 @@ fn a_seeds_words_scanned_are_never_filed() {
         &mut app,
         "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
     );
-    assert!(app.inbox.is_empty());
+    assert!(app.inbox().is_empty());
 }
 
 #[test]
@@ -123,7 +123,7 @@ fn closing_the_camera_mid_transfer_keeps_the_parts_read() {
     for p in &parts[1..] {
         scan(&mut app, p);
     }
-    let item = app.inbox.last().expect("the transfer did not complete");
+    let item = app.inbox().last().expect("the transfer did not complete");
     assert_eq!(item.bytes, psbt);
 }
 
@@ -305,7 +305,7 @@ fn a_second_ur_animation_starts_again_instead_of_sticking() {
         }
     }
     let item = app
-        .inbox
+        .inbox()
         .last()
         .expect("the second animation did not arrive");
     assert_eq!(item.kind, FileKind::Psbt);
@@ -319,7 +319,7 @@ fn a_second_ur_animation_starts_again_instead_of_sticking() {
             break;
         }
     }
-    assert_eq!(app.inbox.last().unwrap().bytes, first);
+    assert_eq!(app.inbox().last().unwrap().bytes, first);
 }
 
 #[test]
@@ -380,7 +380,7 @@ fn paste_reads_the_clipboard_as_a_scan_reads_a_qr() {
     let mut app = scanning(Vec::new());
     app.clipboard = true;
     paste(&mut app, &kit("spending").descriptor);
-    let item = app.inbox.last().expect("the paste did not arrive");
+    let item = app.inbox().last().expect("the paste did not arrive");
     assert_eq!(item.bytes, kit("spending").descriptor.as_bytes());
 }
 
@@ -393,7 +393,7 @@ fn paste_takes_ur_parts_as_the_camera_does() {
     for p in &a[..count] {
         paste(&mut app, p);
     }
-    assert_eq!(app.inbox.last().expect("nothing arrived").bytes, psbt);
+    assert_eq!(app.inbox().last().expect("nothing arrived").bytes, psbt);
 }
 
 #[test]
@@ -418,7 +418,7 @@ fn a_secret_pasted_where_it_is_not_taken_is_refused() {
         app.clipboard = true;
         paste(&mut app, secret);
         assert!(note(&app).contains(said), "{secret}: {}", note(&app));
-        assert!(app.inbox.is_empty(), "{secret} was filed");
+        assert!(app.inbox().is_empty(), "{secret} was filed");
         assert!(app.session.keys.is_empty(), "{secret} loaded a key");
         assert!(app.scan().is_some(), "{secret} closed the scanner");
     }
@@ -560,7 +560,10 @@ fn each_camera_failure_is_named_and_the_scanner_stays() {
         // Its other ways in still work.
         app.clipboard = true;
         paste(&mut app, &kit("spending").descriptor);
-        assert!(!app.inbox.is_empty(), "a paste after {said} did not arrive");
+        assert!(
+            !app.inbox().is_empty(),
+            "a paste after {said} did not arrive"
+        );
     }
 }
 
@@ -644,7 +647,7 @@ fn ctrl_v_on_the_open_scanner_pastes_and_elsewhere_does_nothing() {
         kind: faraday_shell_api::FileKind::Text,
         text: "xprv9s21ZrQH143K3QTDL4LXw2F7HEK3wJUD2nW2nRk4stbPy6cq3jPPqjiChkVvvNKmPGJxWUtg6LnF5kejMRNNU3TGtRBeJgk33yuGBxrMPHi".into(),
     });
-    assert!(app.inbox.is_empty() && app.session.keys.is_empty());
+    assert!(app.inbox().is_empty() && app.session.keys.is_empty());
     // With the clipboard absent, nothing is asked.
     let mut app = scanning(Vec::new());
     app.event(Event::Key(faraday_shell_api::Key::Paste));

@@ -53,7 +53,7 @@ fn a_wallet_in_several_files_is_one_wallet() {
     let files = kit_files(|n| n.starts_with("savings-") && !n.contains("psbt"));
     let mut app = with_inbox(files);
     let wallet_files = app
-        .inbox
+        .inbox()
         .iter()
         .filter(|i| i.kind == FileKind::Wallet)
         .count();
@@ -102,7 +102,7 @@ fn loading_a_seed_from_the_inbox_loads_the_wallet_that_names_it() {
     files.push(("bacon-words.txt".to_string(), words("bacon")));
     let mut app = with_inbox(files);
     let k = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "bacon-words.txt")
         .unwrap();
@@ -142,11 +142,11 @@ fn a_passphrase_makes_the_potential_wallet_another_key() {
     app.press(Action::PotentialType);
     type_text(&mut app, "TREZOR");
     assert!(
-        app.potential.as_ref().unwrap().with.is_none(),
+        app.potential().unwrap().with.is_none(),
         "no key is shown while typing goes on"
     );
     testkit::pause(&mut app);
-    let with = app.potential.as_ref().unwrap().with.unwrap();
+    let with = app.potential().unwrap().with.unwrap();
     assert_ne!(with, fp, "a passphrase gives another fingerprint");
     app.press(Action::PotentialKind(1));
     app.press(Action::PotentialMake);
@@ -169,7 +169,7 @@ fn codex32_strings_count_once_they_add_up() {
         "share-a.txt".to_string(),
         b"MS12NAMEA320ZYXWVUTSRQPNMLKJHGFEDCAXRPP870HKKQRM\n".to_vec(),
     )]);
-    assert_eq!(one.inbox[0].kind, FileKind::SeedPart);
+    assert_eq!(one.inbox()[0].kind, FileKind::SeedPart);
     let found = one.inbox_found_now(&c);
     assert!(found.seeds.is_empty());
     assert_eq!(found.waiting.len(), 1, "one share of two waits");
@@ -215,7 +215,7 @@ fn a_sealed_backup_opens_with_its_passphrase() {
     assert!(!files.is_empty());
     let mut app = with_inbox(files);
     let k = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.kind == FileKind::Backup)
         .unwrap();
@@ -229,7 +229,7 @@ fn a_sealed_backup_opens_with_its_passphrase() {
     type_text(&mut app, "wrong");
     app.press(Action::PotentialMake);
     assert!(app.session.keys.is_empty());
-    assert!(app.potential.as_ref().unwrap().error.is_some());
+    assert!(app.potential().unwrap().error.is_some());
     type_text(&mut app, "backup");
     app.press(Action::PotentialMake);
     assert_eq!(app.session.keys.len(), 1, "the backup's seed did not load");

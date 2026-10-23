@@ -28,7 +28,7 @@ fn with_inbox(files: Vec<(String, Vec<u8>)>) -> Faraday {
 }
 
 fn at(app: &Faraday, name: &str) -> usize {
-    app.inbox.iter().position(|i| i.name == name).unwrap()
+    app.inbox().iter().position(|i| i.name == name).unwrap()
 }
 
 /// Spending, signed and finished here with test key 1.
@@ -182,7 +182,7 @@ fn a_raw_transaction_in_a_text_file_decodes() {
         "broadcast-me.txt".to_string(),
         hex.clone().into_bytes(),
     )]);
-    assert_eq!(alone.inbox[0].kind, FileKind::Transaction);
+    assert_eq!(alone.inbox()[0].kind, FileKind::Transaction);
     alone.press(Action::DecodeInbox(0));
     let d = &alone.decode().unwrap().decoded;
     assert_eq!(d.txid, txid);

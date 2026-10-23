@@ -266,7 +266,7 @@ impl Tour {
         // Everything comes in ticked: Unselect all, then these alone.
         self.press(Action::VisitInAll);
         for (i, n) in names.iter().enumerate() {
-            if n.ends_with("-wallet.txt") && !self.app.inbox.iter().any(|it| &it.name == n) {
+            if n.ends_with("-wallet.txt") && !self.app.inbox().iter().any(|it| &it.name == n) {
                 self.press(Action::VisitIn(i));
             }
         }
@@ -295,7 +295,7 @@ impl Tour {
             let name = format!("{id}-wallet.txt");
             let i = self
                 .app
-                .inbox
+                .inbox()
                 .iter()
                 .position(|it| it.name == name)
                 .ok_or(format!("{name} is not in Files"))?;

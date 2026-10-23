@@ -164,7 +164,7 @@ impl View<'_> {
     /// ([`crate::Faraday::potential_match`]), from the memo's
     /// [`View::inbox_found`].
     pub fn potential_match(&self) -> Option<String> {
-        let with = self.potential.as_ref()?.with?;
+        let with = self.inbox.potential()?.with?;
         self.inbox_found()
             .wallets
             .into_iter()

@@ -159,7 +159,7 @@ fn key_scanned(name: &str, png: &[u8]) -> String {
         payloads: faraday_files::qr_in_png(&c, png).expect("a PNG"),
     });
     let item = app
-        .inbox
+        .inbox()
         .iter()
         .find(|i| i.kind == FileKind::Key)
         .unwrap_or_else(|| panic!("no key read: {:?}", app.visit.log));
@@ -380,7 +380,7 @@ fn a_gpg_signature_reads_back_from_its_code_and_its_picture() {
     let mut app = with_gpg_key();
     app.press(Action::Vault(V::GpgSignPick));
     let k = app
-        .inbox
+        .inbox()
         .iter()
         .filter(|i| !i.name.ends_with(".asc"))
         .position(|i| i.name == "SHA256SUMS")

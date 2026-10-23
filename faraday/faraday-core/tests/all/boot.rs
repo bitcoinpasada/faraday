@@ -79,7 +79,7 @@ fn the_boot_sticks_vault_waits_on_the_sheet_and_pulling_the_stick_leaves_it_up()
     let (mut app, _) = booted();
     assert_eq!(app.screen, Screen::Home);
     assert_eq!(app.sheet, Some(Sheet::Import));
-    assert!(!app.inbox.iter().any(|i| i.name == "vault.ofv"));
+    assert!(!app.inbox().iter().any(|i| i.name == "vault.ofv"));
     app.storage(StorageEvent::Sticks(Vec::new()));
     assert_eq!(app.screen, Screen::Home, "pulling the stick left Home");
     assert_eq!(app.sheet, Some(Sheet::Import));

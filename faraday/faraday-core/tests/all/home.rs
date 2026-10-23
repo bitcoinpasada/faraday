@@ -212,7 +212,7 @@ fn a_seedqr_scanned_while_a_stick_is_held_loads_no_key() {
     stick(&mut app, true);
     read(&mut app, SEEDQR.as_bytes());
     assert!(app.session.keys.is_empty());
-    assert!(app.inbox.is_empty());
+    assert!(app.inbox().is_empty());
     app.press(Action::Cancel);
     assert!(app.clean());
 }
@@ -234,7 +234,7 @@ fn a_seedqr_scanned_from_home_loads_the_key_add_a_keys_scan_loads() {
     read(&mut app, SEEDQR.as_bytes());
     without_passphrase(&mut app);
     assert_eq!(app.sheet, None);
-    assert!(app.inbox.is_empty());
+    assert!(app.inbox().is_empty());
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(
         app.session.keys[0].fingerprint,
@@ -252,7 +252,7 @@ fn a_seeds_words_scanned_from_home_go_to_add_a_key() {
         b"abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about",
     );
     without_passphrase(&mut app);
-    assert!(app.inbox.is_empty());
+    assert!(app.inbox().is_empty());
     assert_eq!(app.session.keys.len(), 1);
 }
 
@@ -269,7 +269,7 @@ fn a_psbt_scanned_from_home_goes_into_files_and_home_stays() {
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::Home);
     assert!(app.session.keys.is_empty());
-    assert_eq!(app.inbox.last().map(|i| i.bytes.clone()), Some(psbt));
+    assert_eq!(app.inbox().last().map(|i| i.bytes.clone()), Some(psbt));
 }
 
 #[test]

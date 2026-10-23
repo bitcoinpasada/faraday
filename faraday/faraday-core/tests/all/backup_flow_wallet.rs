@@ -3769,7 +3769,7 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     unlock(&mut r, PHRASE);
     assert_eq!(r.vaults.open.len(), 1);
     r.press(Action::RestoreWallet);
-    let i = r.inbox.iter().position(|f| f.name == name).unwrap();
+    let i = r.inbox().iter().position(|f| f.name == name).unwrap();
     r.press(Action::RShare(i));
     r.press(Action::RRebuild);
     let rw = r
@@ -4389,7 +4389,7 @@ fn a_wallet_rebuilt_from_its_share_files_has_the_checksum_it_was_made_with() {
     keep_time(&mut r);
     r.press(Action::RestoreWallet);
     for (name, _) in &files {
-        let i = r.inbox.iter().position(|f| &f.name == name).unwrap();
+        let i = r.inbox().iter().position(|f| &f.name == name).unwrap();
         r.press(Action::RShare(i));
     }
     r.press(Action::RRebuild);

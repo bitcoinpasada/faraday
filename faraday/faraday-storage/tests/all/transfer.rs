@@ -133,7 +133,7 @@ fn device_reads(app: &Faraday) -> faraday_core::Item {
     device.press(Action::Scan);
     for m in &q.frames {
         device.event(Event::Scanned { bytes: read(m) });
-        if let Some(item) = device.inbox.last() {
+        if let Some(item) = device.inbox().last() {
             return item.clone();
         }
     }
@@ -331,7 +331,7 @@ fn receive_puts_nothing_in_the_inbox() {
     receive(&mut app, &mut boxes, &host, &sent[0]);
     app.press(Action::Cancel);
     assert_eq!(listed(&dir), ["received-1.psbt"]);
-    assert!(app.inbox.is_empty());
+    assert!(app.inbox().is_empty());
     let Boxes::Memory { inbox, .. } = &boxes else {
         unreachable!()
     };

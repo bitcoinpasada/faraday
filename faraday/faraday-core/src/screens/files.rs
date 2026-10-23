@@ -66,7 +66,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ty += 26.0;
         let many = wallets.len() > 1;
         for (i, fw) in wallets.iter().enumerate().take(ROWS) {
-            let chosen = !app.inbox_skip.contains(&fw.descriptor);
+            let chosen = !app.inbox.skip().contains(&fw.descriptor);
             let mut rx = x + 20.0;
             if many {
                 ui.checkbox(rx, ty + 8.0, chosen, true);
@@ -134,11 +134,11 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         let chosen = wallets
             .iter()
-            .filter(|w| !many || !app.inbox_skip.contains(&w.descriptor))
+            .filter(|w| !many || !app.inbox.skip().contains(&w.descriptor))
             .count();
         let with_seeds = wallets
             .iter()
-            .filter(|w| !many || !app.inbox_skip.contains(&w.descriptor))
+            .filter(|w| !many || !app.inbox.skip().contains(&w.descriptor))
             .any(|w| w.seeds_here > 0);
         let label = match (chosen, with_seeds) {
             (0, _) => EN.inbox_panel_nothing.to_string(),
@@ -1149,7 +1149,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ty += 24.0;
             let many = wallets.len() > 1;
             for (i, fw) in wallets.iter().enumerate().take(ROWS) {
-                let chosen = !app.inbox_skip.contains(&fw.descriptor);
+                let chosen = !app.inbox.skip().contains(&fw.descriptor);
                 let mut rx = ix;
                 let top = ty;
                 if many {
@@ -1199,11 +1199,11 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
             let chosen = wallets
                 .iter()
-                .filter(|w| !many || !app.inbox_skip.contains(&w.descriptor))
+                .filter(|w| !many || !app.inbox.skip().contains(&w.descriptor))
                 .count();
             let with_seeds = wallets
                 .iter()
-                .filter(|w| !many || !app.inbox_skip.contains(&w.descriptor))
+                .filter(|w| !many || !app.inbox.skip().contains(&w.descriptor))
                 .any(|w| w.seeds_here > 0);
             let label = match (chosen, with_seeds) {
                 (0, _) => EN.inbox_nothing_chosen.to_string(),

@@ -406,7 +406,7 @@ impl Faraday {
                 self.keygen.demo_passphrase(i, PASSPHRASE);
             }
             PassField::Potential => {
-                if let Some(p) = self.potential.as_mut() {
+                if let Some(p) = self.inbox.potential_mut() {
                     p.passphrase.set(PASSPHRASE);
                     p.typing = true;
                     p.error = None;

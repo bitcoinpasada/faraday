@@ -37,7 +37,7 @@ pub(crate) fn kept_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .ok_or("no test vault")?;
     let inbox: Vec<(String, Vec<u8>)> = t
         .app
-        .inbox
+        .inbox()
         .iter()
         .map(|i| (i.name.clone(), i.bytes.clone()))
         .chain(std::iter::once(vault))

@@ -491,7 +491,8 @@ impl Faraday {
         // (`Faraday::typed_tick`); none is shown until then.
         s.with = None;
         s.error = None;
-        self.typed_at = s.pass_ready().then_some(self.now_ms);
+        self.inbox
+            .set_typed_at(s.pass_ready().then_some(self.now_ms));
         true
     }
 
@@ -505,7 +506,8 @@ impl Faraday {
             s.focus = Some(i);
             s.with = None;
             s.error = None;
-            self.typed_at = s.pass_ready().then_some(self.now_ms);
+            self.inbox
+                .set_typed_at(s.pass_ready().then_some(self.now_ms));
         }
     }
 

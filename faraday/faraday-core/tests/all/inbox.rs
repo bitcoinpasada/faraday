@@ -53,14 +53,14 @@ fn unlocked(mut files: Vec<(String, Vec<u8>)>) -> Faraday {
 }
 
 fn at(app: &Faraday, name: &str) -> usize {
-    app.inbox.iter().position(|i| i.name == name).unwrap()
+    app.inbox().iter().position(|i| i.name == name).unwrap()
 }
 
 #[test]
 fn a_text_file_is_kept_and_offered_to_the_vault_as_a_note() {
     let mut app = unlocked(vec![("gmail-codes.txt".into(), CODES.into())]);
     let k = at(&app, "gmail-codes.txt");
-    assert_eq!(app.inbox[k].kind, FileKind::Text);
+    assert_eq!(app.inbox()[k].kind, FileKind::Text);
     app.press(Action::Nav(Screen::Files));
     // The open vault's panel stands above the Inbox: scroll down to it.
     // A key glides the page, so the frames between presses are ticked
@@ -349,7 +349,7 @@ fn every_text(width: u16, height: u16, dpi: u16) -> Vec<(String, String)> {
     }
     app.press(Action::EntryAdd);
     let w = app
-        .inbox
+        .inbox()
         .iter()
         .position(|i| i.name == "spending-wallet.txt")
         .unwrap();

@@ -216,7 +216,136 @@ impl InboxFiles {
     }
 }
 
+/// The Inbox's area: the files read from sticks, the wallets left out of
+/// the next load, the seed being made a wallet, and when a passphrase was
+/// last typed. Reads of the files go through [`std::ops::Deref`]; every
+/// change is one of the methods below.
+#[derive(Default)]
+pub(crate) struct InboxArea {
+    files: InboxFiles,
+    /// Wallets the Inbox describes left out of its next load, by
+    /// descriptor.
+    skip: BTreeSet<String>,
+    /// A seed from the Inbox being made a wallet, or a sealed backup
+    /// being opened.
+    potential: Option<Potential>,
+    /// When a passphrase was last typed on a sheet that shows the key it
+    /// makes (the potential wallet's, a seed read's), until the key is
+    /// worked out once typing has paused ([`crate::motion::TYPED_PAUSE_MS`]).
+    typed_at: Option<u64>,
+}
+
+impl std::ops::Deref for InboxArea {
+    type Target = InboxFiles;
+    fn deref(&self) -> &InboxFiles {
+        &self.files
+    }
+}
+
+impl InboxArea {
+    /// Puts `item` at the end of the files.
+    pub(crate) fn push(&mut self, item: Item) {
+        self.files.push(item);
+    }
+
+    /// Puts `item` at place `at`.
+    #[cfg(feature = "testkit")]
+    pub(crate) fn insert(&mut self, at: usize, item: Item) {
+        self.files.insert(at, item);
+    }
+
+    /// Takes file `at` out.
+    pub(crate) fn remove(&mut self, at: usize) -> Item {
+        self.files.remove(at)
+    }
+
+    /// Keeps the files `keep` says to.
+    pub(crate) fn retain(&mut self, keep: impl FnMut(&Item) -> bool) {
+        self.files.retain(keep);
+    }
+
+    /// Puts all of `items` at the end of the files.
+    pub(crate) fn extend(&mut self, items: impl IntoIterator<Item = Item>) {
+        self.files.extend(items);
+    }
+
+    /// The last file, to change it.
+    pub(crate) fn last_mut(&mut self) -> Option<&mut Item> {
+        self.files.last_mut()
+    }
+
+    /// File `at`, to change it.
+    pub(crate) fn item_mut(&mut self, at: usize) -> &mut Item {
+        &mut self.files[at]
+    }
+
+    /// Every file, to change them.
+    pub(crate) fn iter_mut(&mut self) -> std::slice::IterMut<'_, Item> {
+        self.files.iter_mut()
+    }
+
+    /// Takes every file out.
+    pub(crate) fn clear(&mut self) {
+        self.files.clear();
+    }
+
+    /// Replaces all the files.
+    pub(crate) fn replace(&mut self, files: InboxFiles) {
+        self.files = files;
+    }
+
+    /// The wallets left out of the next load, by descriptor.
+    pub(crate) fn skip(&self) -> &BTreeSet<String> {
+        &self.skip
+    }
+
+    /// The wallets left out of the next load, to change them.
+    pub(crate) fn skip_mut(&mut self) -> &mut BTreeSet<String> {
+        &mut self.skip
+    }
+
+    /// The seed being made a wallet, or the backup being opened.
+    pub(crate) fn potential(&self) -> Option<&Potential> {
+        self.potential.as_ref()
+    }
+
+    /// The potential wallet, to change it.
+    pub(crate) fn potential_mut(&mut self) -> Option<&mut Potential> {
+        self.potential.as_mut()
+    }
+
+    /// Starts making a wallet of a seed, or opening a backup.
+    pub(crate) fn set_potential(&mut self, p: Potential) {
+        self.potential = Some(p);
+    }
+
+    /// Forgets the potential wallet.
+    pub(crate) fn clear_potential(&mut self) {
+        self.potential = None;
+    }
+
+    /// When a passphrase was last typed on a sheet that shows its key.
+    pub(crate) fn typed_at(&self) -> Option<u64> {
+        self.typed_at
+    }
+
+    /// Notes when a passphrase was last typed, or that none waits.
+    pub(crate) fn set_typed_at(&mut self, at: Option<u64>) {
+        self.typed_at = at;
+    }
+}
+
 impl Faraday {
+    /// The files read from sticks.
+    pub fn inbox(&self) -> &InboxFiles {
+        &self.inbox.files
+    }
+
+    /// The seed being made a wallet, or the backup being opened.
+    pub fn potential(&self) -> Option<&Potential> {
+        self.inbox.potential()
+    }
+
     /// Puts a file that came in into Files and returns its place: the
     /// same file read again is the one already there, not a second copy.
     pub(crate) fn inbox_file_in(&mut self, item: Item) -> usize {
@@ -875,7 +1004,7 @@ impl Faraday {
     /// the wallets load either way. Returns (wallets, seeds) loaded.
     pub(crate) fn inbox_load(&mut self) -> (usize, usize) {
         let inbox = std::mem::take(&mut self.inbox);
-        let skip = self.inbox_skip.clone();
+        let skip = self.inbox.skip().clone();
         let loaded = self.load_found_in(&inbox, &skip, &|_| false);
         self.inbox = inbox;
         self.refresh_spend();
@@ -1029,16 +1158,16 @@ impl Faraday {
     /// out once typing pauses ([`Faraday::typed_tick`]), and none is
     /// shown until then.
     pub(crate) fn potential_typed(&mut self) {
-        let Some(p) = self.potential.as_mut() else {
+        let Some(p) = self.inbox.potential_mut() else {
             return;
         };
         if p.passphrase.is_empty() || p.backup.is_some() || p.xpub.is_some() {
-            self.typed_at = None;
+            self.inbox.set_typed_at(None);
             self.potential_refresh();
             return;
         }
         p.with = None;
-        self.typed_at = Some(self.now_ms);
+        self.inbox.set_typed_at(Some(self.now_ms));
     }
 
     /// Typing into the potential wallet's sheet. Returns whether the key
@@ -1049,14 +1178,14 @@ impl Faraday {
         }
         match key {
             KeyIn::Escape => {
-                self.potential = None;
+                self.inbox.clear_potential();
                 self.sheet = None;
             }
             KeyIn::Enter => self.potential_make(),
             // Nothing secret is typed with a stick attached.
             _ if !self.sticks.is_empty() => {}
             KeyIn::Char(c) if !c.is_control() => {
-                if let Some(p) = self.potential.as_mut()
+                if let Some(p) = self.inbox.potential_mut()
                     && p.typing
                 {
                     p.passphrase.push(c);
@@ -1065,7 +1194,7 @@ impl Faraday {
                 self.potential_typed();
             }
             KeyIn::Backspace => {
-                if let Some(p) = self.potential.as_mut()
+                if let Some(p) = self.inbox.potential_mut()
                     && p.typing
                 {
                     p.passphrase.pop();
@@ -1080,7 +1209,7 @@ impl Faraday {
 
     /// Opens the sheet for making seed `fp` a wallet.
     pub(crate) fn potential_open(&mut self, fp: Fingerprint) {
-        self.potential = Some(Potential {
+        self.inbox.set_potential(Potential {
             fingerprint: Some(fp),
             with: Some(fp),
             ..Potential::default()
@@ -1095,7 +1224,7 @@ impl Faraday {
         let Some(x) = self.inbox_found_now(&c).xpubs.into_iter().nth(i) else {
             return;
         };
-        self.potential = Some(Potential {
+        self.inbox.set_potential(Potential {
             fingerprint: x.fingerprint,
             kind: x.kind.unwrap_or_default(),
             xpub: Some((x.key, x.kind.is_some())),
@@ -1107,7 +1236,7 @@ impl Faraday {
     /// Makes the watch-only wallet an account xpub describes.
     fn xpub_make(&mut self) {
         let c = self.compute();
-        let Some((key, kind, fp)) = self.potential.as_ref().and_then(|p| {
+        let Some((key, kind, fp)) = self.inbox.potential().and_then(|p| {
             p.xpub
                 .as_ref()
                 .map(|(k, _)| (k.clone(), p.kind, p.fingerprint))
@@ -1133,13 +1262,13 @@ impl Faraday {
         ) {
             Ok(i) => {
                 self.wallets.set_wallet(i);
-                self.potential = None;
+                self.inbox.clear_potential();
                 self.sheet = None;
                 self.refresh_spend();
                 self.toast(&fill(EN.inbox_is_a_wallet, &[&name.to_string()]));
             }
             Err(e) => {
-                if let Some(p) = self.potential.as_mut() {
+                if let Some(p) = self.inbox.potential_mut() {
                     p.error = Some(e.text());
                 }
             }
@@ -1148,7 +1277,7 @@ impl Faraday {
 
     /// Opens the sheet for an .oskb backup's passphrase.
     pub(crate) fn backup_open(&mut self, k: usize) {
-        self.potential = Some(Potential {
+        self.inbox.set_potential(Potential {
             backup: Some(k),
             typing: true,
             ..Potential::default()
@@ -1159,7 +1288,7 @@ impl Faraday {
     /// Costs what `inbox_found_now` and `inbox_secret` cost. The seed being
     /// made a wallet, as the Inbox or the session holds it.
     fn potential_seed(&self, c: &Compute) -> Option<(FoundSeed, Option<Secret>)> {
-        let fp = self.potential.as_ref()?.fingerprint?;
+        let fp = self.inbox.potential()?.fingerprint?;
         let seed = self
             .inbox_found_now(c)
             .seeds
@@ -1176,7 +1305,7 @@ impl Faraday {
     /// Works out the fingerprint the typed passphrase gives.
     pub(crate) fn potential_refresh(&mut self) {
         let c = self.compute();
-        let Some(p) = self.potential.as_ref() else {
+        let Some(p) = self.inbox.potential() else {
             return;
         };
         if p.backup.is_some() || p.xpub.is_some() {
@@ -1196,7 +1325,7 @@ impl Faraday {
                 None => None,
             }
         };
-        if let Some(p) = self.potential.as_mut() {
+        if let Some(p) = self.inbox.potential_mut() {
             p.with = with;
         }
     }
@@ -1205,7 +1334,7 @@ impl Faraday {
     /// loaded, whose key the potential wallet's seed with its passphrase
     /// is.
     pub fn potential_match(&self, c: &Compute) -> Option<String> {
-        let with = self.potential.as_ref()?.with?;
+        let with = self.inbox.potential()?.with?;
         self.inbox_found_now(c)
             .wallets
             .into_iter()
@@ -1220,22 +1349,22 @@ impl Faraday {
     pub(crate) fn potential_make(&mut self) {
         let c = self.compute();
         // A watch-only wallet holds nothing secret: a stick may stay in.
-        if self.potential.as_ref().is_some_and(|p| p.xpub.is_some()) {
+        if self.inbox.potential().is_some_and(|p| p.xpub.is_some()) {
             self.xpub_make();
             return;
         }
         if !self.may_load_keys() {
             let error = fill(EN.inbox_remove_the_first, &[self.medium.noun()]);
-            if let Some(p) = self.potential.as_mut() {
+            if let Some(p) = self.inbox.potential_mut() {
                 p.error = Some(error);
             }
             return;
         }
-        if self.potential.as_ref().is_some_and(|p| p.backup.is_some()) {
+        if self.inbox.potential().is_some_and(|p| p.backup.is_some()) {
             self.backup_unseal();
             return;
         }
-        let Some(p) = self.potential.as_ref() else {
+        let Some(p) = self.inbox.potential() else {
             return;
         };
         let pass = p.passphrase.clone();
@@ -1277,12 +1406,12 @@ impl Faraday {
             // Loaded already with this passphrase: the wallet is what is
             // left to make.
             Err(Refusal::Duplicate(_)) => self
-                .potential
-                .as_ref()
+                .inbox
+                .potential()
                 .and_then(|p| p.with)
                 .unwrap_or(seed.fingerprint),
             Err(e) => {
-                if let Some(p) = self.potential.as_mut() {
+                if let Some(p) = self.inbox.potential_mut() {
                     p.error = Some(e.text());
                 }
                 return;
@@ -1297,7 +1426,7 @@ impl Faraday {
                 .any(|w| w.keys.contains(&fp))
         {
             self.inbox_load_named();
-            self.potential = None;
+            self.inbox.clear_potential();
             self.sheet = None;
             self.toast(&fill(
                 EN.inbox_loaded_with_wallet,
@@ -1312,7 +1441,7 @@ impl Faraday {
         let text = match self.session.keys.account_text(&c, key, kind, 0) {
             Ok(t) => t,
             Err(e) => {
-                if let Some(p) = self.potential.as_mut() {
+                if let Some(p) = self.inbox.potential_mut() {
                     p.error = Some(e);
                 }
                 return;
@@ -1329,13 +1458,13 @@ impl Faraday {
         ) {
             Ok(i) => {
                 self.wallets.set_wallet(i);
-                self.potential = None;
+                self.inbox.clear_potential();
                 self.sheet = None;
                 self.refresh_spend();
                 self.toast(&fill(EN.inbox_is_a_wallet, &[&name.to_string()]));
             }
             Err(e) => {
-                if let Some(p) = self.potential.as_mut() {
+                if let Some(p) = self.inbox.potential_mut() {
                     p.error = Some(e.text());
                 }
             }
@@ -1347,7 +1476,7 @@ impl Faraday {
     /// its wallet; its recovery sheet loads as a wallet.
     fn backup_unseal(&mut self) {
         let c = self.compute();
-        let Some(p) = self.potential.as_ref() else {
+        let Some(p) = self.inbox.potential() else {
             return;
         };
         let Some(k) = p.backup else {
@@ -1394,12 +1523,12 @@ impl Faraday {
             Ok(said) => {
                 self.inbox_load_named();
                 self.refresh_spend();
-                self.potential = None;
+                self.inbox.clear_potential();
                 self.sheet = None;
                 self.toast(&said);
             }
             Err(e) => {
-                if let Some(p) = self.potential.as_mut() {
+                if let Some(p) = self.inbox.potential_mut() {
                     p.error = Some(e);
                     p.passphrase.clear();
                 }
@@ -1449,8 +1578,8 @@ impl Faraday {
             Action::InboxChoose(i) => {
                 if let Some(w) = self.inbox_found_now(c).to_load().get(i) {
                     let d = w.descriptor.clone();
-                    if !self.inbox_skip.remove(&d) {
-                        self.inbox_skip.insert(d);
+                    if !self.inbox.skip_mut().remove(&d) {
+                        self.inbox.skip_mut().insert(d);
                     }
                 }
             }
@@ -1471,18 +1600,18 @@ impl Faraday {
             }
             Action::PotentialKind(k) => {
                 if let (Some(p), Some(&kind)) =
-                    (self.potential.as_mut(), inbox::KINDS.get(usize::from(k)))
+                    (self.inbox.potential_mut(), inbox::KINDS.get(usize::from(k)))
                 {
                     p.kind = kind;
                 }
             }
             Action::PotentialShow => {
-                if let Some(p) = self.potential.as_mut() {
+                if let Some(p) = self.inbox.potential_mut() {
                     p.shown = !p.shown;
                 }
             }
             Action::PotentialType => {
-                if let Some(p) = self.potential.as_mut() {
+                if let Some(p) = self.inbox.potential_mut() {
                     p.typing = self.sticks.is_empty();
                 }
             }
