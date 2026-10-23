@@ -116,6 +116,13 @@ Sources read for it, each as data and none vendored:
 18. **Codex32 on New key's Start card at its top level**, beside BIP-39
     words, with BIP-39 words ticked; the default to be looked at again
     when more wallets read codex32 (§6).
+19. **Shares on the backup board**: each string a chip, placed on paper
+    (string or a drawn Codex32QR), as stick files (`.txt`, Codex32QR
+    `.png`; allowed, with the files warning) or in a vault (a new share
+    record, no seed needed); places count distinct shares; strings from
+    several vaults add up to the key; the standard way, as BIP-39's,
+    paper only: one string per place, with Customize backup for vaults,
+    files and Codex32QR (§9.5).
 14. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
     keep real dice typed on the pad): five dice for codex32, one die for
     BIP-39 words and Generate with dice, their values this computer's
@@ -980,6 +987,13 @@ typed back or skipped; the strings are never written to a file or a
 stick (paper only, as the copies by hand are today). A plan made in
 Demo dims the codex32 toggle for k of 2 or more, as DEMO §5.3 says.
 
+### 9.3 The Templates item
+
+Where a plan copies a seed as codex32, the checklist's **Templates** item
+names that sheet too: "Print 2 from Faraday Starter: Blank templates,
+24 words, words; 3 from Blank templates, codex32, 127 characters"
+(BACKUP-FLOW §10.2's text, one clause per form).
+
 ### 9.4 A key that already has a codex32 set (owner, 2026-10-22)
 
 A key made by Make codex32 shares has its strings on paper before any
@@ -1034,12 +1048,71 @@ same seed, and the plan would not know about the first.
 This follows F31 (decide where a key is kept, then make it): the set
 exists before the plan, so the plan places it rather than making one.
 
-### 9.3 The Templates item
+### 9.5 Shares on the backup board (owner, 2026-10-22)
 
-Where a plan copies a seed as codex32, the checklist's **Templates** item
-names that sheet too: "Print 2 from Faraday Starter: Blank templates,
-24 words, words; 3 from Blank templates, codex32, 127 characters"
-(BACKUP-FLOW §10.2's text, one clause per form).
+How a codex32 key's strings are placed on the board (BACKUP-FLOW §17),
+whether the set exists already (§9.4) or the plan makes one (§9.2).
+
+**The list.** Under **Seeds**, a codex32 seed is a group: its head
+"9a6a2580 · codex32 w0za · 2 of 3", then one chip per string by index
+(**A**, **C**, **D**), each reading how many places keep it ("2
+places"), and **+ share**, which derives the next string of the same set
+(§8.2) and adds its chip. A string chip never runs out: dragging places
+a copy, as every list chip does.
+
+**Each zone, each form.** A string placed in a zone is one chip there,
+its index large ("w0za · **C**"), its forms as the chip's toggles
+(BACKUP-FLOW §17.3):
+
+| Zone | Forms of string j of seed i | `What` |
+|---|---|---|
+| Paper | the string written · its Codex32QR drawn by hand | `Codex32Share(i, j)` · `Codex32QrPaper(i, j)` |
+| Stick (files) | the string as `.txt` · its Codex32QR as `.png` (48 characters; §10.4 for longer) | `Codex32ShareFile(i, j)` · `Codex32QrFile(i, j)` |
+| Vault | a codex32 share record | `Codex32Share(i, j)` in the vault |
+
+All are tagged Secret. A vault takes a string without holding the seed:
+the vault gains a record type, **15 Codex32 share** (1 the string; 2 the
+key's fingerprint; at most one per index per vault), beside type 13's
+wallet share, with a vector; a vault without it reads as today. A vault
+that holds the seed and also a string of it is allowed and warned
+(below).
+
+**Plain files are allowed** (owner, §1.1 item 19). A string with k of 2
+or more reveals nothing alone, so a `.txt` or `.png` of one on a stick
+is less exposed than the seed-words file the board already allows; it
+carries the same warning mark as any file that is not encrypted, since
+k such files together are the seed.
+
+**What the board counts.** A place's line of fact counts distinct
+indices of each set across its zones: "1 of 2 shares of 9a6a2580 ·
+alone: nothing", "2 of 2: the seed". A string in a vault counts at a
+place with that vault's passphrase, as a vault's seed does
+(`plan::alone`). The checks (warnings, §17.5) gain:
+
+- "Share C of 9a6a2580 is kept nowhere";
+- "Home keeps 2 shares of w0za: the seed";
+- "Vault 1 holds 9a6a2580 and a share of it";
+- "Fewer than 2 places keep shares of w0za" where losing one place
+  leaves fewer than k strings anywhere;
+- the files warning, for a string in a stick's files.
+
+**Getting the seed back.** Strings from several vaults, unlocked one
+after another in a session, are gathered as the codex32 form gathers
+typed ones (§8.1, §8.5: same set, distinct indices); once k are in, the
+key loads, with its fingerprint shown. A vault's string and a typed or
+scanned paper string add up the same way. Spend from a backup, step by
+step, reads this.
+
+**The standard way** (owner, 2026-10-22: as BIP-39's, paper only, with
+Customize backup). A codex32 key's backup opens on BACKUP-FLOW §17.21's
+standard way, read-only until **Customize backup**: one string per
+place, on paper, with the wallet description as the standard way places
+it; three places for 2 of 3, so losing any one place leaves two strings
+elsewhere. No vault, no stick file and no Codex32QR are in it; each is
+added in Customize, as a vault and a SeedQR are for BIP-39 words, and
+everything in it changes there (places, which string goes where, forms,
+more strings by + share, another k and n where the plan makes the set,
+§9.2; a set made already keeps its k, §9.4).
 
 ## 10. Codex32QR
 
@@ -1314,6 +1387,8 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 | `docs/FLOWS.md` | New key and Add a key; Vaults (Create a vault) | §5.6: the roller on Faraday Desktop for dice words and Generate with dice |
 | `docs/DESIGN.md` | §5 Pad; §4.10 | the dice row and the one die, Rolls per click, "Rolled by this computer"; the masking exception of §6.4.6 |
 | `docs/VAULT.md` | §7, type 2 | the key's codex32 set field (§9.4); a vector with it |
+| `docs/VAULT.md` | §7, new type 15 | the codex32 share record (§9.5); a vector with it |
+| `docs/BACKUP-FLOW.md` | §17.1, §17.3, §17.5, §17.21 | the codex32 seed group and its string chips, the forms per zone, the checks, the preset (§9.5) |
 | `docs/BACKUP-FLOW.md` | §17.3, the checklist | a key with a codex32 set: the form fixed to the set, Check my copy per string, no Make them (§9.4) |
 | `docs/DESIGN.md` | §4.10 | the worksheet's look, §7.5: the booklet's colour roles as named fills and outlines per theme |
 | `docs/DESIGN.md` | §4 (new component) | the tab row: one tab per item, a check mark once shown, wrapping on `wide` and `mobile`, a Choice with Previous and Next on `small` (§6.5) |
