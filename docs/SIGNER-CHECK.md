@@ -2,13 +2,13 @@
 
 **Kind:** Spec
 **Status:** Planned, not built; to be built after the structure pass (`docs/STRUCTURE-PASS.md` §7)
-**Open:** all of it, batches S1 to S4 (§10.2), S5 on the owner's word; the owner's choices in §10.4 first
+**Open:** all of it, batches S1 to S5 (§10.2); the owner's choices in §10.4 are decided (2026-10-23)
 
 A Tools flow. The person picks the PSBT they sent to a signing device
 and the PSBT that came back, and Faraday states whether the device did
 only what it was asked: added signatures, or finalized an input from
 signatures that verify. Anything else is a finding. The decision is
-F?? (`docs/DECISIONS.md`); nonces chosen by a signer that holds no
+F84 (`docs/DECISIONS.md`); nonces chosen by a signer that holds no
 seed here are `docs/ANTI-EXFIL.md`, which this flow comes before.
 
 ## 1. The rule
@@ -37,7 +37,8 @@ The verdict fails closed.
    whether or not it verifies.
 5. A nonce that cannot be recomputed here, because the key's seed is
    not loaded, is not a finding; the screen states how many were
-   recomputed (§5). Requiring it is §10.4 question 2.
+   recomputed (§4, the "Nonces recomputed" fact). A clean verdict does
+   not require the seeds loaded (§10.4 item 2).
 
 ## 2. What is built today
 
@@ -80,6 +81,14 @@ no key, no wallet. It has no sidebar row and no Cancel: it keeps
 nothing a person would lose (`docs/FLOWS.md`, Flows in progress, item
 4). Its state, public, is kept until a lock or power-off, as Decode's
 is.
+
+**From Files.** A PSBT row's ⋮ in Files, From the stick and For the
+stick alike, carries **Check a signer** (`docs/FLOWS.md`, A ⋮ on every
+file, item 1: after **Show as QR**). It opens the flow with that file as
+Returned, its card closed on it with **Change**. Where exactly one other
+PSBT in Files shares its unsigned transaction and carries fewer
+signatures, that one is Sent and the check has run; otherwise the Sent
+card is open, the file's transaction first.
 
 **Steps.** A step flow (DESIGN §5), three cards:
 
@@ -475,8 +484,8 @@ only fall.
 | S1 | `compare`'s gaps (§2): pair-by-pair diff of unknown and proprietary pairs with key type and sizes at every level; signature bytes and final fields compared; the fields not compared added; BIP-373 pairs read as known. Its tests in `core/faraday-psbt/tests/all/verify.rs` | Opus |
 | S2 | `faraday_psbt::signer`: §1, §5, §6, the byte count of §6.7; the fixtures of §9.1 and the README rows; §9.2's core tests | Opus |
 | S3 | §7: `UnknownFields` in the inspection, its string, its test | Sonnet |
-| S4 | The flow: the decode area's folder, `Screen::SignerCheck`, the tile, the cards, the strings, the nonce lines, the Learn section, faraday-core's and the budget tests; then the docs of §10.3, and this file's plan moved to docs/history/SIGNER-CHECK-LOG.md (new) and its Kind to Reference | Opus for the flow, Sonnet for the docs |
-| S5 | Demo: a sample pair (§10.4, question 4) | Sonnet |
+| S4 | The flow: the decode area's folder, `Screen::SignerCheck`, the tile, Files' ⋮ entry (§3), the cards, the strings, the nonce lines, the Learn section, faraday-core's and the budget tests; then the docs of §10.3, and this file's plan moved to docs/history/SIGNER-CHECK-LOG.md (new) and its Kind to Reference | Opus for the flow, Sonnet for the docs |
+| S5 | Demo: a sample pair, one clean and one with a proprietary pair (§10.4 item 4) | Sonnet |
 
 ### 10.3 Edit list
 
@@ -490,31 +499,32 @@ only fall.
 | `faraday/faraday-core/src/decode.rs`, `faraday/faraday-core/src/screens/decode.rs` | S4: into the decode/ folder (§8.1) |
 | `faraday/faraday-core/src/lib.rs` | S4: `Screen::SignerCheck`, the code map |
 | `faraday/faraday-core/src/catalog.rs` | S4: the tile, `Go::SignerCheck` |
+| `faraday/faraday-core/src/file_menu.rs`, `faraday/faraday-core/src/screens/files.rs` | S4: **Check a signer** on a PSBT row's ⋮ (§3) |
 | `faraday/faraday-strings/src/en.rs` | S3, S4 |
 | `tools/lint-layout.counts` | S4: the decode line renamed |
 | `docs/learn/10-verifying.md` | S4: a section on checking a signer, which the ? opens |
-| `docs/FLOWS.md` | S4: a section "Check a signer" (the text is in the report that brought this spec) |
+| `docs/FLOWS.md` | S4: a section "Check a signer" (the text is in the report that brought this spec); A ⋮ on every file, item 1, gains **Check a signer** after **Show as QR** |
 | `docs/DESIGN.md` | S4: §5's table, a row for `SignerCheck`, and the count of `Screen`'s variants |
 | `docs/README.md` | S4: this file under Spec now, under Reference when built; a By-question row |
 | `docs/ANTI-EXFIL.md` | S4: the sentence on the checks that need no new protocol names this file |
 
 ### 10.4 Questions for the owner
 
-1. **Levels.** A field removed (M3), a signature removed (S7) and a
-   signature not checked (S2) are Caution; added or changed is Danger.
-   All fail the verdict. Keep, or make every finding Danger?
-2. **Nonces not recomputed.** With the seed not loaded, a nonce is
-   stated, not a finding (§1 item 5). Should the verdict require every
-   added signature under a key named with an origin to be recomputed
-   here, so that a clean verdict needs the seeds loaded?
-3. **MuSig2 nonces.** A nonce added is Info (§6.4). Keep, or Caution?
-4. **Demo.** A sample pair in Demo, one clean and one with a
-   proprietary pair (batch S5): yes or no?
-5. **A finished transaction as Returned.** Some devices return the
-   transaction, not a PSBT. Reading it into the Sent PSBT as finalized
-   inputs and checking it by §6.3 is not planned here: add it?
-6. **Files' ⋮.** A **Check a signer** entry on a PSBT row's ⋮, opening
-   the flow with that file as Returned: add it? Not planned here.
-7. **The decode area as a folder** (§8.1): the alternative is an area
-   of its own, which raises `Faraday`'s field count (F74, the owner's
-   call).
+Decided (owner, 2026-10-23), each as recommended:
+
+1. **Levels.** Decided: a field removed (M3), a signature removed (S7)
+   and a signature not checked (S2) stay Caution; added or changed is
+   Danger. All fail the verdict.
+2. **Nonces not recomputed.** Decided: a clean verdict does not require
+   every added signature's nonce recomputed here; the "Nonces
+   recomputed" fact states the count (§1 item 5, §4).
+3. **MuSig2 nonces.** Decided: a nonce added is Info (§6.4, §6.8).
+4. **Demo.** Decided: yes, a sample pair in Demo, one clean and one
+   with a proprietary pair; batch S5 is in the plan (§10.2).
+5. **A finished transaction as Returned.** Decided: not now. A
+   Returned file that is a transaction, not a PSBT, is refused on the
+   card (§3).
+6. **Files' ⋮.** Decided: yes, **Check a signer** on a PSBT row's ⋮,
+   opening the flow with that file as Returned (§3, batch S4, §10.3).
+7. **The decode area as a folder.** Decided: the flow is in the decode
+   area, made a folder (§8.1); no field is added to `Faraday`.

@@ -1022,7 +1022,7 @@ app's settings.
 **Size.** The Linux desktop app is 14.5 MB, 5.6 MB as `.xz`
 (measured 2026-10-23); the Windows one is of the same order. Each
 Starter grows by about 6 MB, from about 36 MB to about 42 MB; the owner
-decides whether that is acceptable before DS is built.
+accepted that growth on each system (2026-10-23).
 
 **Tests** (§11): staging puts the desktop app in each payload folder
 with its manifest line and puts no `faraday-desktop-` file in the

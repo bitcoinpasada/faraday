@@ -2334,13 +2334,14 @@ pressed. One place: no question. The power-on count Backups shows
 (`Record::checks`) keeps working as it does.
 
 **Where it is kept.** In the plan's notes in the vault, as today. With
-no vault open, a check matched in the checklist is kept for the power-on
-with the backup record (place by number, the thing by kind, the date; no
-names) and written into the plan's notes when the vault that keeps the
-plan is next opened in that power-on; power-off before then loses it.
-This is a change to FLOWS' rule "in the vault alone, never in the kept
-state" (Q3, §18.7). The chart's **Mark checked** with no vault open
-reads "Open a vault to keep this", as today.
+no vault open, a check matched in the checklist is held in RAM only,
+with the power-on's backup record (place by number, the thing by kind,
+the date; no names), until the next unlock of the vault that keeps the
+plan, which writes it into the plan's notes; power-off before then
+loses it. It is never in the kept state and never on disk outside the
+vault (Q3, §18.7; `docs/FLOWS.md`, the chart's rule). The chart's
+**Mark checked** with no vault open reads "Open a vault to keep this",
+as today.
 
 **The age, shown.** A date becomes an age by one function in
 `faraday-core`, `glance::age_text(date, today)`: "today", "yesterday",
@@ -2365,10 +2366,11 @@ months, rounded down), "{n} years ago" after. Where it shows:
   **Checked** or **Not checked**; with no date kept, as today.
 - **Home's lead tile** does not change (Q5, §18.7).
 
-**The interval.** Proposed: **12 months** for every copy, one constant
-in `faraday-core`. A copy is due when its age is 12 months or more.
-Owner to set (Q1); a per-plan interval, kept as a plan note
-`interval <days>`, is a later step if wanted (Q2).
+**The interval.** **12 months** for every copy, one constant in
+`faraday-core` (Q1, Q2): a copy is due when its age is 12 months or
+more. For a wallet with a relative wait, the interval for its copies is
+the shorter of 12 months and its margin (§18.5; Q9), so each move of the
+coins and each check of the copies fall due together.
 
 **With no trusted clock.** A check's date is a kept time, so it follows
 `docs/TOTP.md` §1.3: a date is written only from a checked clock
@@ -2387,7 +2389,8 @@ power-on, or the desktop app with its clock known).
 3. A date later than today (a clock set wrong before, or now) shows as
    the date, with no age, and is not due.
 4. A copy whose last check has an empty date is due once the clock is
-   checked: Faraday cannot say how old it is (Q4).
+   checked: Faraday cannot say how old it is (Q4). With the clock not
+   checked, rule 2 holds: nothing is marked due.
 
 `Faraday::today` changes to read the checked clock only; the three
 built presses then follow rule 1.
@@ -2414,6 +2417,13 @@ Miniscript compiler, Make a new wallet's Recovery kind once built):
   row: **Move each coin within** "about 328 days of arriving" (§18.5's
   margin). On the small panel, a **Spend paths** row opens the group as
   its own page, as At a glance does.
+- **Coins last moved** (Q8). The card of a wallet with a relative wait
+  offers **I moved every coin**, a dated vault note (`moved <date>`,
+  kept with the wallet's plan notes, written from a checked clock as a
+  check is, §18.3), and states "Coins last moved 300 days ago · the
+  wait ends at about 365", in `WARN` once the age reaches the margin.
+  With no vault open the button reads "Open a vault to keep this". The
+  date is the person's word: Faraday does not see the chain.
 - **The chart's wallet node sheet**: the same rows.
 - **The wallet sheet** (PDF; and the blank template's wallet sheet, the
   Starter's, `docs/STARTER.md` §3.8): a **Spend paths** block after the
@@ -2425,7 +2435,9 @@ Miniscript compiler, Make a new wallet's Recovery kind once built):
   eight empty rows, with "Move before = received on + {margin days}
   days" over it. The sheet file gains `path` and `wait` fields
   (`faraday-sheet 1` stays readable; a sheet without them prints as
-  today).
+  today). The Starter's blank wallet sheet carries the block empty (Q7):
+  three path rows with their keys and wait to fill, the line with its
+  numbers left blank, and the eight-row table.
 - **The split sheets** (shares of the description): one line, "This
   wallet has a recovery path: see its wallet sheet", where it has one.
 - **The spend review's Path step** keeps its text and adds the margin
@@ -2457,7 +2469,7 @@ keep, on the sheet. Learn says why (below).
   shown as "about {days} days".
 - 512-second units to days: `n × 512 / 86 400`, rounded down, shown
   without "about": the network counts them by median time past.
-- **The margin** (proposed; Q6): **Move each coin within** is 90 % of
+- **The margin** (Q6): **Move each coin within** is 90 % of
   the shortest relative wait, rounded down to whole days ("about 328
   days" for 52 560 blocks). The wallet sheet's table uses the same
   number.
@@ -2474,14 +2486,14 @@ keep, on the sheet. Learn says why (below).
 | `faraday/faraday-core/src/backups/mod.rs` | `copy_matched` takes the place; the pending dated checks on `Record`, written at unlock |
 | `faraday/faraday-core/src/screens/backup.rs` | **Which copy was this?**; **Set the time** beside a match with the clock not checked |
 | `faraday/faraday-core/src/glance/mod.rs`, `faraday/faraday-core/src/glance/sheet.rs` | `age_text`, each node's oldest date and due flag, the strip's fourth line, the wallet node's spend paths |
-| `faraday/faraday-core/src/screens/wallets.rs` | the card's **Spend paths** group; the small panel's row and page |
+| `faraday/faraday-core/src/screens/wallets.rs` | the card's **Spend paths** group, **I moved every coin** and its line; the small panel's row and page |
 | `faraday/faraday-core/src/wallet.rs` | the wallet's paths kept on `Wallet` when it is loaded (the policy is read once), with each path's wait and the margin |
 | `faraday/faraday-core/src/pdf.rs` | the wallet sheet's **Spend paths** block and table; the split sheets' line |
 | `faraday/faraday-strings/src/en.rs` | the strings above |
 | `docs/learn/14-spend-paths.md`, `docs/learn/16-inheritance.md` | the two Learn sections (and `faraday/faraday-learn/src/pages/en.rs` from them) |
-| `docs/FLOWS.md` | the chart's sheets and Backups bullets: the planned lines become the rule as built; the "never in the kept state" sentence amended per Q3 |
+| `docs/FLOWS.md` | the chart's sheets and Backups bullets: the planned lines become the rule as built, the sentence on a check held until the next unlock among them (its rule, "never in the kept state or on disk outside the vault", amended 2026-10-23) |
 | `docs/DESIGN.md` §4.16 | the node's age line and **To check** mark |
-| `docs/STARTER.md` §3.8 | the blank wallet sheet's **Spend paths** block, if Q7 says yes |
+| `docs/STARTER.md` §3.8 | the blank wallet sheet's empty **Spend paths** block (Q7) |
 
 **Tests** (user-facing; `faraday-core` unless named):
 
@@ -2500,9 +2512,9 @@ keep, on the sheet. Learn says why (below).
    its result dates it; no age and no due mark is shown; the strip reads
    "Set the time to see what is due".
 6. A date later than today shows as a date and is not due.
-7. No vault open: a matched check is kept for the power-on and written
-   to the plan's notes when the vault opens; after a power-off before
-   that, it is gone.
+7. No vault open: a matched check is held for the power-on, appears in
+   no kept state and no file, and is written to the plan's notes when
+   the vault opens; after a power-off before that, it is gone.
 8. The invariant on the memo: changing a note (Mark checked) changes the
    node's age line on the next frame (`docs/SPEED.md` §3.3's test form).
 9. A wallet `wsh(or_d(pk(A),and_v(v:pkh(B),older(52560))))`: the card's
@@ -2514,6 +2526,10 @@ keep, on the sheet. Learn says why (below).
     table's header; a sheet file without `path` fields prints as before.
 11. Budget: a frame drawn again with a chart on screen does no costly
     work (`faraday/faraday-core/src/work/budget/`): the dates and paths are kept.
+12. A recovery wallet with a 52 560-block wait: its copies are due at
+    328 days, not 12 months; **I moved every coin** pressed on a date
+    reads "Coins last moved … ago" and turns `WARN` 328 days later; with
+    no vault open the button reads "Open a vault to keep this".
 
 **Batches** (after the structure pass's phase 7 touches `backups` and
 `glance`, so as not to fight its moves):
@@ -2522,36 +2538,28 @@ keep, on the sheet. Learn says why (below).
 |---|---|---|---|
 | A1 | The dated checks: `today` on the checked clock, the checklist's notes with **Which copy was this?**, the pending notes, tests 2 to 7 | Sonnet | 1 day |
 | A2 | The ages: `age_text`, the nodes, sheets, strip, Backups, small panel; tests 1, 8, 11 | Sonnet | 1 day |
-| A3 | The paths: kept on `Wallet`, the card's group, the chart sheet, the wallet sheet and split sheets; test 9, 10 | Sonnet | 1 day |
+| A3 | The paths: kept on `Wallet`, the card's group, the chart sheet, the wallet sheet and split sheets, the Starter's blank sheet's empty block; **I moved every coin** and a recovery wallet's interval; tests 9, 10, 12 | Sonnet | 1.5 days |
 | A4 | Learn's two sections, FLOWS and DESIGN as built, this section's plan to `docs/history/BACKUP-FLOW-LOG.md` | Sonnet | 0.5 day |
 
-About 3.5 days. A1 before A2; A3 stands alone; A4 last.
+About 4 days. A1 before A2; A3 after A2 (the interval for a recovery wallet's copies); A4 last.
 
 ### 18.7 Questions for the owner
 
-1. **The interval.** 12 months for every copy (proposed)? Or shorter for
-   a vault's stick (flash kept unpowered loses charge over years) and a
-   passphrase (memory fades)?
-2. **One interval or per plan.** One constant (proposed), or a setting
-   per plan kept with its notes?
-3. **Kept state.** May a check matched with no vault open be kept for
-   the power-on (places by number, no names) and written at the next
-   unlock (proposed)? FLOWS says these dates live "in the vault alone,
-   never in the kept state".
-4. **Undated checks.** Is a copy whose last check has no date due once
-   the clock is checked (proposed), or not due until a dated check?
-5. **Home.** Should Home's lead tile say "Copies to check" when any
-   copy of a loaded wallet is due, or is the card and Backups enough
-   (proposed)?
-6. **The margin.** 90 % of the shortest wait (proposed), a fixed 30
-   days, or the full wait with no margin?
-7. **Blank templates.** Should the Starter's blank wallet sheet carry an
-   empty Spend paths block, or only a filled sheet (proposed)?
-8. **Coins last moved.** Should a recovery wallet's card offer **I moved
-   every coin** (a dated vault note, as Mark checked), so the card can
-   show "Coins last moved 300 days ago · the wait ends at about 365"?
-   Faraday would still not see the chain; the date is the person's word.
-   Not in the batches above until answered.
-9. **The two clocks together.** For a recovery wallet, should the check
-   interval be no longer than the margin, so each move of the coins and
-   each check of the copies fall due together?
+Decided (owner, 2026-10-23), each as recommended:
+
+1. **The interval.** Decided: 12 months for every copy (§18.3).
+2. **One interval or per plan.** Decided: one interval, a constant.
+3. **Kept state.** Decided: a check matched with no vault open is held
+   in RAM only until the next unlock of the vault that keeps the plan,
+   and written there; it is never in the kept state or on disk outside
+   the vault (§18.3). FLOWS' rule is worded so.
+4. **Undated checks.** Decided: a copy whose only check has no date is
+   due once the clock is checked (§18.3, rule 4).
+5. **Home.** Decided: no Home tile; the card and Backups are enough.
+6. **The margin.** Decided: 90 % of the shortest wait (§18.5).
+7. **Blank templates.** Decided: the Starter's blank wallet sheet
+   carries an empty Spend paths block (§18.4, batch A3).
+8. **Coins last moved.** Decided: yes, **I moved every coin**, a dated
+   vault note on a recovery wallet's card (§18.4, batch A3).
+9. **The two clocks together.** Decided: a recovery wallet's check
+   interval is the shorter of 12 months and its margin (§18.3).

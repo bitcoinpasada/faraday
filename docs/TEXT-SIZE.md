@@ -7,7 +7,7 @@
 Settings › Appearance gains **Text size**: Standard, Large, Larger. It
 makes text larger and lets the layout make room for it. It is kept as
 the theme is kept. The Starter has the same setting. The owner's
-choices are F85; §9 lists what is still the owner's to settle.
+choices are F85; §9 records the owner's answers (2026-10-23).
 
 ## 1. How type size works now
 
@@ -98,7 +98,8 @@ the factor to 1 for what it draws and puts it back.
 | Keyboards: keys, the candidate strip, the kana grid, the card pad, the dice pad | Unchanged (`fixed_text`). Their sizes are set by what must fit on the panel. |
 | QR codes and SeedQR, the scanner's picture | Unchanged: they are pictures. Their captions are text and grow. |
 | Firmware sketches (`W::F`, Terminus, `faraday_ui::sketch`) | Unchanged: they show another device's screen at its size. |
-| Icons (`ICON`, `ICON_SMALL`, glyphs, the wordmark) | Unchanged (§9, question 4). |
+| A row's icon (the leading icon of a list, menu or value row) | Grows with its label, by the same factor (§9 item 4); the row's height is §5's. |
+| Other icons (`ICON`, `ICON_SMALL` elsewhere, glyphs, the wordmark) | Unchanged. |
 | The structure chart's lines and the board's boxes | Lengths unchanged; their text as one-line slots or wrapping labels as above. |
 
 No length grows with the text except a height that text sets (§5).
@@ -190,11 +191,10 @@ A screen that today works out a list's total height for its scroll
   struct (`docs/STRUCTURE-PASS.md` §7.4), not on `Faraday`, so the
   ratchet on Faraday's fields does not rise.
 - **Faraday Desktop** keeps it as it keeps the theme: in memory, across
-  a lock, not across quitting (§9, question 6).
+  a lock, not across quitting, as now (§9 item 6).
 - **The Starter.** The Starter's own field, and its held app's: one
   choice, so Transfer and Learn inside the Starter follow the Starter's
-  pages. Where it is chosen and whether it is kept are §9's questions 5
-  and 7; the default here: a **Text size** row on the Starter's About
+  pages. Decided (§9 items 5 and 7): a **Text size** row on the Starter's About
   page (§3.7 of `docs/STARTER.md`), kept only once the Starter is
   installed, as `settings.txt` beside the installed Starter (Linux
   `~/.local/share/faraday-starter/settings.txt`, Windows
@@ -253,7 +253,7 @@ agents.
 | Batch | What | Size |
 |---|---|---|
 | T1 | `TextSize` and its tokens; `Ui` carries the factor (`Ui::new` takes it, `Ui::font` applies it), `fixed_text`, `text_fit`; Settings' row and `Action::TextSize`; the `text=` line; the one-column decision counts `t` and `s` (§4); tests 1–4, 7 | small |
-| T2 | Components grow: `row_height`, menu, value and stacked rows, sheet rows, `wrap_buttons`; keyboards, the dice pad and firmware sketches inside `fixed_text`; one-line slots on `text_fit`; the canvas's `cut` note; test 5's check as a helper | medium |
+| T2 | Components grow: `row_height`, menu, value and stacked rows and their icons, sheet rows, `wrap_buttons`; keyboards, the dice pad and firmware sketches inside `fixed_text`; one-line slots on `text_fit`; the canvas's `cut` note; test 5's check as a helper | medium |
 | T3 | The screens: each area's line advances written in place replaced by `ui.line`, its fixed heights by `row_height`, until the tours at Larger list nothing in `cut.txt`; by area, most self-contained first, as the structure pass orders them; tests 5–6 | large |
 | T4 | The Starter: its pages on the same components, its row, its storage, `--text` to the desktop app; tests 8–9 | medium |
 | T5 | `FARADAY_SNAP_TEXT`, `cut.txt`, the justfile; `faraday-snapshots` renders each size at Standard and Larger (`out/snapshots/faraday/WxH-larger/`); the docs of §10 | small |
@@ -269,7 +269,8 @@ Edit list:
 - `core/faraday-draw/src/canvas.rs`: the `cut` note on recorded text
   ink.
 - `faraday/faraday-ui/src/lib.rs`: `TextSize`; `Ui`'s factor, `font`,
-  `fixed_text`, `text_fit`, `row_height`; `button` and `chip` heights.
+  `fixed_text`, `text_fit`, `row_height`; `button` and `chip` heights;
+  a row's icon size.
 - `faraday/faraday-ui/src/parts.rs`, `faraday/faraday-ui/src/lists.rs`,
   `faraday/faraday-ui/src/sheet.rs`: rows and buttons grow.
 - `faraday/faraday-ui/src/keyboard.rs`, `faraday/faraday-ui/src/firmware.rs`:
@@ -294,32 +295,35 @@ Edit list:
 
 ## 9. Questions for the owner
 
-1. The factors: 1.2 and 1.4, the same on every layout? (A 268 dp panel
-   at 1.4 sets body text at 22 dp; Home's menu then scrolls.)
-2. Display scale stays beside Text size: Display scale makes
-   everything larger and keeps the layout, Text size makes text larger
-   and reflows. Keep both, or drop Display scale? Either way, T1 makes
-   it count in the one-column decision (the §1 finding).
-3. One-line slots that cannot grow (bar title, pills, chips, board
-   chips, chart nodes, the field over a keyboard) fit down rather than
-   grow. Acceptable, or should some grow their slot instead?
-4. Icons stay their size. Should a row's icon grow with its label?
-5. Where the Starter's Text size is chosen: on About (default), a row
-   on Home, or a small control in the title bar?
-6. Faraday Desktop keeps the theme and Text size only until it quits.
-   Should it keep its appearance across quitting (a file beside the
-   installed app)?
-7. The Starter keeps the choice only once installed, in one file that
-   Uninstall removes (default); or never (session only, §5.1 as it
-   stands); or also when run without installing.
-8. The names: Standard, Large, Larger?
+Decided (owner, 2026-10-23), each as recommended:
+
+1. **The factors.** Decided: ×1.2 and ×1.4 on every layout, the small
+   panel included (a 268 dp panel at Larger sets body text at 22 dp;
+   Home's menu scrolls, §4).
+2. **Display scale.** Decided: kept beside Text size. Display scale
+   makes everything larger and keeps the layout; Text size makes text
+   larger and reflows. Both count in the one-column decision (§4).
+3. **One-line slots.** Decided: a slot that cannot grow (bar title,
+   pills, chips, board chips, chart nodes, the field over a keyboard)
+   fits its text down, never below Standard (§3).
+4. **Icons.** Decided: a row's icon grows with its label (§3); other
+   icons keep their size.
+5. **Where the Starter's Text size is chosen.** Decided: on its About
+   page (§6).
+6. **Faraday Desktop.** Decided: it keeps the theme and Text size in
+   memory only, until it quits, as now (§6).
+7. **The Starter's storage.** Decided: kept only once the Starter is
+   installed, in one file that Uninstall removes; a Starter run without
+   installing keeps it for that run (§6).
+8. **The names.** Decided: Standard, Large, Larger (§2).
 
 ## 10. Docs that follow
 
 - `docs/DESIGN.md` §3, after the paragraph on the size classes: "Text
   size (Settings › Appearance: Standard, Large, Larger, F85) multiplies
   every text size by 1, 1.2 or 1.4. Keyboards, QR codes, firmware
-  sketches and icons keep their sizes; a one-line slot that cannot grow
+  sketches and icons keep their sizes, except a row's icon, which grows
+  with its label; a one-line slot that cannot grow
   fits its text down to Standard; a row or button grows to its text. The
   one-column layout's thresholds are multiplied by the text factor and
   the Display scale, so at Larger a window takes the one-column layout

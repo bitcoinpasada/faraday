@@ -1164,14 +1164,17 @@ guarantees for this file's rule:
   it, the chart and the checklist read it, and it loads back the same on
   another power-on. **Change the plan** (the wallet's sheet, the
   checklist's foot) then asks first, "Your changes on the chart are
-  replaced". In the vault alone, never in the kept state: the date each
+  replaced". In the vault alone, never in the kept state or on disk
+  outside the vault: the date each
   thing of a place was checked (a place's **Mark checked**; a passphrase
   checked), **Lost** and **Exposed** (a line, or **Mark lost**, **Mark
   exposed** on a place: struck through on the chart until taken off the
   plan), a key not held here's **Name its holder** and **Mark checked**
   (the date its holder confirmed it), a place's names and a vault's
   **Rename**; with no vault open these rows read "Open a vault to keep
-  this" and lead to one. A mark says what follows, in order: "Someone can
+  this" and lead to one. A check of a copy matched in the checklist with no
+  vault open is to be held in RAM only until the next unlock, then
+  written into the plan's notes (`docs/BACKUP-FLOW.md` §18.3, planned). A mark says what follows, in order: "Someone can
   now spend" (or "could … with a vault's passphrase") with **Move the
   money** (Make a new wallet, whose last card then offers **Move the
   money from {wallet}**, the spend from the old wallet with "Every coin

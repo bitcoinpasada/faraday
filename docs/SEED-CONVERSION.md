@@ -1,8 +1,8 @@
 # Convert a seed
 
 **Kind:** Spec
-**Status:** Specified from the owner's ask (2026-10-23), not built; the decision, F88, is proposed for the owner to confirm
-**Open:** all of it, batches S1 to S7 (§10), after the codex32 work (`docs/CODEX32.md` batches C1 and C4); Shamir39 waits for the owner (§11; §13 Q1)
+**Status:** Specified from the owner's ask (2026-10-23), not built; the decision, F88, is the owner's (2026-10-23)
+**Open:** all of it, batches S1 to S7 (§10), after the codex32 work (`docs/CODEX32.md` batches C1 and C4)
 
 A tool, **Tools › Convert a seed**, that writes a seed held here in
 another form. It replaces putting conversions in vault items or on the
@@ -31,7 +31,7 @@ standard it is and which software restores it.
    BIP-39 seed with its passphrase, written as a 64-byte seed or
    codex32), the result reads "Holds the passphrase's wallet: restore
    it with no passphrase". Where the target standard has a passphrase of
-   its own (SLIP-39), the result is made with it empty (Q4).
+   its own (SLIP-39), the result is made with it empty, always (Q4).
 4. **Not offered is said, not hidden.** The targets that would give a
    different wallet are listed dimmed with one line each (§5).
 5. **The source is a key here.** The tool converts a key loaded in the
@@ -77,7 +77,8 @@ standard it is and which software restores it.
 - **Leaving the store**: a paper form leaves through
   `Reveal::PaperForm` (`faraday/faraday-keys/src/session.rs`), which
   names Seed XOR, codex32 and SLIP-39. A master seed as hex and an xprv
-  are not in the list (Q3).
+  are not in the list today; they will leave through it too, each being
+  written by hand, and no `Reveal` variant is added (Q3).
 
 ## 3. Words
 
@@ -150,7 +151,8 @@ does not say them.
 can make it twice and compare: identifier = the first 15 bits of the
 master fingerprint; group threshold 1 of 1, member 1 of 1 (SLIP-39
 draws no randomness for a threshold of 1); iteration exponent and
-extendable flag fixed (Q2); SLIP-39 passphrase empty (Q4). The codex32
+extendable flag set and iteration exponent 1, as New key and Trezor
+make them (Q2); SLIP-39 passphrase empty (Q4). The codex32
 secret (k = 0, index `s`) is likewise fixed by its identifier,
 `identifier_for` the fingerprint (`docs/CODEX32.md` §6.4.5).
 
@@ -185,7 +187,7 @@ Each is a dimmed row under **To**, its line in place of a press.
 | BIP-39 entropy written as SLIP-39 or codex32 | "Another wallet: these bytes as SLIP-39 or codex32 open a different, empty wallet" | Both standards carry a master seed, not BIP-39 entropy (`core/faraday-bip/src/slip39.rs`'s header) |
 | BIP-39 words in another language's list | "Another wallet: the seed is made from the words' text" | PBKDF2 runs over the words themselves |
 | A 64-byte seed → SLIP-39 | "SLIP-39 backups of 64 bytes are read by no wallet" | Faraday's SLIP-39 holds 16 to 32 bytes, as Trezor's does |
-| Shamir39 | "Not offered" (Q1) | §11 |
+| Shamir39 | "Not offered" | §11 (Q1) |
 
 ## 6. The screen
 
@@ -286,7 +288,7 @@ records its sources).
 | SLIP-39 with passphrase → codex32 | SLIP-39's vectors (passphrase `TREZOR`) | python-shamir-mnemonic |
 | codex32, SLIP-39, seed → xprv | BIP-32's vectors; BIP-93's and SLIP-39's xprv columns | embit, Bitcoin Core's test framework |
 | A set → a new set; SLIP-39 add, replace, rotate | SLIP-39's vectors for EMS | python-shamir-mnemonic's `split_ems` and `recover_ems`; the codex32 reference's interpolation |
-| aezeed → seed, codex32, SLIP-39 | LND's `cipherseed_test.go` vectors (`tools/reference/aezeed/README.md`) | LND's `aezeed` package, run where Go is available (Q6) |
+| aezeed → seed, codex32, SLIP-39 | LND's `cipherseed_test.go` vectors (`tools/reference/aezeed/README.md`) | none: LND's published vectors only (Q6) |
 
 And, user-facing: each §5 target is dimmed with its line; a result
 whose read-back fingerprint differed is not shown (a corrupted decoder
@@ -304,7 +306,7 @@ keys loaded from a seed); S6 after C8 (codex32 in the backup).
 | Batch | What | Model | Estimate |
 |---|---|---|---|
 | S1 | `faraday-bip`: SLIP-39 `recover_ems`, `split_ems`, `derive_member`; fixtures from the references for every row of §9 | Opus | 1.5 days |
-| S2 | `faraday-keys`: the conversions as operations returning held results, the read-back fingerprint check, the reveal (Q3) | Sonnet | 1 day |
+| S2 | `faraday-keys`: the conversions as operations returning held results, the read-back fingerprint check, master seed hex and xprv through `Reveal::PaperForm` (Q3) | Sonnet | 1 day |
 | S3 | The screen (§6) with §4.1 and §4.3; Tools tile and the two ways in | Opus | 2 days |
 | S4 | §4.2 and §4.4, settings for splits and groups | Sonnet | 1.5 days |
 | S5 | §4.5 (aezeed) | Sonnet | 0.5 day |
@@ -318,7 +320,7 @@ About 8.5 days.
 | File | Change |
 |---|---|
 | `core/faraday-bip/src/slip39.rs` | §8's three functions |
-| `faraday/faraday-keys/src/operations.rs`, `faraday/faraday-keys/src/session.rs` | the conversions; `Reveal` per Q3 |
+| `faraday/faraday-keys/src/operations.rs`, `faraday/faraday-keys/src/session.rs` | the conversions; `Reveal::PaperForm` names master seed hex and xprv (Q3) |
 | `faraday/faraday-core/src/lib.rs` | `Screen::Convert`, its module in the code map |
 | a new area folder in faraday-core, convert (its mod.rs and screen.rs) | the tool's state and screen |
 | `faraday/faraday-core/src/screens/catalog.rs` | the tile |
@@ -331,8 +333,8 @@ About 8.5 days.
 Ian Coleman's Shamir39 splits BIP-39 words into shares that are
 themselves words of the BIP-39 list. It is not a SLIP or a BIP; its
 author marks it as not a standard, and few programs read it (his
-BIP-39 page's Shamir39 tab †). Recommended: not offered, and listed in
-§5 as "Not offered". The owner decides (Q1).
+BIP-39 page's Shamir39 tab †). Decided (owner, 2026-10-23): not
+offered, and listed in §5 as "Not offered" (Q1).
 
 ## 12. Where this spec is not sure
 
@@ -346,24 +348,25 @@ BIP-39 page's Shamir39 tab †). Recommended: not offered, and listed in
   and 256 only, and Faraday holds at most 256. §5 refuses 64 bytes
   either way.
 - The extendable flag and iteration exponent "by default": the owner's
-  ask says the flag clear; Faraday's New key and current Trezor
-  firmware set it, with exponent 1 (Q2).
+  ask said the flag clear; Faraday's New key and current Trezor
+  firmware set it, with exponent 1. Decided (owner, 2026-10-23): set,
+  exponent 1 (Q2).
 
 ## 13. Questions for the owner
 
-1. **Shamir39**: not offered (recommended)?
-2. **SLIP-39 1 of 1 parameters**: extendable flag set and iteration
-   exponent 1, as New key and Trezor make them (recommended), or the
-   flag clear and exponent 0 as the ask says? Either gives the same
-   words every time; they give different words from each other.
-3. **The reveal**: does a master seed as hex and an xprv leave through
-   `Reveal::PaperForm` (recommended: each is written by hand), or is a
-   twelfth `Reveal` variant added?
-4. **A SLIP-39 passphrase on the result**: never (recommended), or
-   offered, so that codex32 → SLIP-39 can add one?
-5. **codex32 of 20, 24 or 28 bytes → SLIP-39**: not offered
-   (recommended), though both standards allow it?
-6. **aezeed's second implementation**: LND's Go package needs a Go
-   toolchain for the cross-check; or LND's published vectors alone?
-7. **A new set in the tool**: only for a key with no backup plan, and
-   the chart's set actions otherwise (recommended)?
+Decided (owner, 2026-10-23), each as recommended:
+
+1. **Shamir39.** Decided: not offered (§5, §11).
+2. **SLIP-39 1 of 1 parameters.** Decided: the extendable flag set and
+   iteration exponent 1, as New key and Trezor make them (§4.4).
+3. **The reveal.** Decided: a master seed as hex and an xprv leave
+   through `Reveal::PaperForm`, each being written by hand; no `Reveal`
+   variant is added (§2, batch S2).
+4. **A SLIP-39 passphrase on the result.** Decided: never (§1 rule 3).
+5. **codex32 of 20, 24 or 28 bytes → SLIP-39.** Decided: not offered
+   (§4.4).
+6. **aezeed's second implementation.** Decided: checked against LND's
+   published vectors only; no Go toolchain in the cross-check (§9).
+7. **A new set in the tool.** Decided: only for a key with no backup
+   plan; with one, the tool's row opens the chart's set actions (§1
+   rule 7).

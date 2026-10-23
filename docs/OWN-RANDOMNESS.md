@@ -2,11 +2,11 @@
 
 **Kind:** Spec
 **Status:** Specified, not built (F86); the kernel check of §3 done from the repository
-**Open:** all of §2 (adding your own randomness, R1 to R4); the kernel's crediting on the stick (§3.3, the owner's choice) and the boot measurement (§3.4, needs hardware).
+**Open:** all of §2 (adding your own randomness, R1 to R3); the stick's kernel change, option A (§3.3, R4), and the boot measurement that confirms it brings no long wait (§3.4, needs hardware).
 
-Two things. (a) A person may add randomness of their own, dice rolls or
-camera noise on every shell and pointer movement and key timings on the
-desktop, which is hashed together with the system's bytes into the
+Two things. (a) A person may add randomness of their own, camera noise,
+dice rolls, coin flips or cards on every shell and pointer movement and
+key timings on the desktop, which is hashed together with the system's bytes into the
 session's seed and pool. It is mixed, never substituted: what comes out
 is at least as strong as the stronger of the two. (b) What the stick's
 and the Pi's kernels do for randomness at boot, read from the image's
@@ -53,7 +53,9 @@ generator alone.
 |---|---|---|---|
 | Dice | every shell | rolls on the dice pad, as New key takes them (`DiceRolls`) | SHA-256 of the rolls as ASCII digits, as `faraday-entropy`'s dice commitment |
 | Camera noise | every shell with a camera | frames, as New key takes them (`CameraNoise`, the same refusal of a frame with under 32 distinct values) | each frame's SHA-256, as it is taken |
-| Pointer and keys | the desktop app and the Starter's held app | while the page is open: each pointer move's x and y, each key's code, each with the core's time in ms and a running count | SHA-256 over the events, committed every 64 events and when the page is left |
+| Coins | every shell | flips, as New key takes them (`CoinFlips`) | `CoinFlips::commitment`, as New key's |
+| Cards | every shell | draws from a shuffled deck, as New key takes them (`CardDraws`, refusing a card already drawn from its deck) | `CardDraws::commitment`: SHA-256 of the draws' indices, as New key's |
+| Pointer and keys | the desktop app and the Starter's held app | while the page is open (§5 item 4): each pointer move's x and y, each key's code, each with the core's time in ms and a running count | SHA-256 over the events, committed every 64 events and when the page is left |
 
 Nothing is credited: no source claims a number of bits, and the status
 line counts what was taken, not how strong it is. A dice batch of 99
@@ -62,19 +64,27 @@ names it.
 
 Pointer and key events are taken only while the page is open, never in
 the background: a passphrase's key timings are never hashed into
-anything.
+anything. This is what is specified until the owner decides §5 item 4;
+the owner leans towards collecting from all on-screen input, mixed in
+automatically, and that answer changes this paragraph, the table's row,
+§2.2, test 6 and batch R3.
 
 ### 2.2 Where it is offered
 
 - **Settings › Randomness**: a row with the status line (§2.4); it opens
-  **Add randomness**, a page with Dice, Camera and, on the desktop,
-  Pointer and keys. Each source adds when its batch is done (dice: the
-  **Add** button under the pad; camera: each frame; pointer and keys:
-  as above). The page stays until Back.
+  **Add randomness**, a page with Camera, Dice, Coins, Cards and, on the
+  desktop, Pointer and keys. It opens on Camera, the default source
+  (owner, 2026-10-23), where the shell has a camera, and on Dice where it
+  has none; the others are a choice away. Each source adds when its
+  batch is done (dice, coins and cards: the **Add** button under the
+  pad; camera: each frame; pointer and keys: as above). The page stays
+  until Back.
 - **New key, This device**: its row's label carries the status (§2.4),
   and the source's step has a link to Add randomness.
 - Not on Home: Home is a working screen and its one randomness line,
   the missing seed, stays as it is.
+- Not at boot: the stick's and the Pi's shells do not offer it before
+  the passphrase; it is reached from Settings and New key only.
 
 ### 2.3 Mixing
 
@@ -95,7 +105,7 @@ bytes in a `Zeroizing`, and the counts for the status line.
   ("faraday fresh" ‖ what ‖ bytes ‖ `acc`); without, exactly what it
   returns today.
 - **New key's This device**: `DeviceRandom` takes SHA-256("faraday
-  device own" ‖ bytes ‖ `acc`) when `acc` exists (§5, question 2).
+  device own" ‖ bytes ‖ `acc`) when `acc` exists (§5 item 2).
 - **Never substituted.** `acc` alone makes nothing: no seed, no pool
   entry, no key. Before the system's first answer `acc` waits.
 - **Strength.** Every output is SHA-256 of an input holding both the
@@ -117,8 +127,9 @@ Settings' Randomness row, and New key's This device label:
 
 - "System: {source}" with the shell's `EntropySource`, or "System:
   operating system" when it names none;
-- then "· your own: {counts}", for example "· your own: 99 dice rolls,
-  6 camera frames, 412 pointer moves", or "· your own: none".
+- then "· your own: {counts}", for example "· your own: 6 camera
+  frames, 99 dice rolls, 412 pointer moves", or "· your own: none"; coin
+  flips and cards are counted as dice rolls are.
 
 New key's label reads "operating system · {source} · with your own"
 once `acc` exists. The strings go in `faraday/faraday-strings/src/en.rs`.
@@ -192,9 +203,14 @@ Read from `faraday/image/boards/pi3/buildroot.fragment`, its
 
 ### 3.3 The choice for the stick
 
+Decided (owner, 2026-10-23): A. The measurement of §3.4 still runs, to
+confirm that A brings no long wait at boot; a first answer later than
+two seconds after the kernel starts on any machine tried is raised with
+the owner.
+
 The comment in the fragment states a rule (do not credit the CPU or the
-firmware), and the kernel does not follow it. Two ways to make the
-image and its comments agree:
+firmware), and the kernel does not follow it. The two ways that were
+weighed to make the image and its comments agree:
 
 - **A. Make the rule true.** Add `random.trust_cpu=off
   random.trust_bootloader=off` to
@@ -209,10 +225,9 @@ image and its comments agree:
   one that says so. With §2, a person who does not trust the CPU can add
   their own randomness.
 
-The default proposed here is A, if §3.4 shows the first answer within
-two seconds of the kernel starting on every machine tried (the core's
-`SEED_GRACE_MS` is two seconds after the first display). If not, B.
-Either way the stick shell's comment at
+A is built. Two seconds is the bound because the core's
+`SEED_GRACE_MS` is two seconds after the first display. The stick
+shell's comment at
 `faraday/shells/stick/src/main.rs:602-613` changes: it says the board
 seeds the pool from bcm2835-rng, which is the Pi's and not the stick's.
 
@@ -269,37 +284,41 @@ cryptographic change is checked against another implementation, so its
 known answers are added to the Python cross-check (F79) and test 4's
 and a mixed case's bytes are compared with it.
 
-For §3: if A is chosen, `check-kernel-config.sh` fails a board whose
-`CONFIG_CMDLINE` lacks the two parameters.
+For §3: `check-kernel-config.sh` fails a board whose `CONFIG_CMDLINE`
+lacks the two parameters (A).
 
 ## 5. Questions for the owner
 
-1. The stick: A (do not credit RDRAND or the firmware's seed, wait for
-   jitter) or B (accept the kernel's default trust)? Proposed: A if the
-   measurement allows.
-2. Should New key's This device take your own randomness too (proposed:
-   yes, and its label says so), or stay the system's bytes alone as
-   today?
-3. Where Add randomness is offered: Settings and New key (proposed), or
-   also Home?
-4. Pointer and keys only while the page is open (proposed), or all
-   session long outside text fields?
-5. Should the stick's and the Pi's shells offer Add randomness at
-   boot, before the passphrase, or only from Settings as proposed?
-6. Coins and cards are in New key but not proposed here, to keep the
-   page short. Add them?
+Answered by the owner on 2026-10-23, except item 4:
+
+1. **The stick.** Decided: A, do not credit RDRAND or the firmware's
+   seed (§3.3). The boot measurement (§3.4) still runs, to confirm no
+   long wait.
+2. **New key's This device.** Decided: yes, it mixes in what the
+   person added, and its label says so (§2.3, §2.4).
+3. **Where Add randomness is offered.** Decided: Settings and New key
+   only (§2.2).
+4. **Pointer and keys.** Decided: only while the page is open, as
+   §2.1 specifies. Collecting timings passively from all on-screen input
+   is set aside (owner, 2026-10-23), not planned.
+5. **At boot.** Decided: not at boot for now; only from Settings and New
+   key (§2.2).
+6. **Coins and cards.** Decided: yes, added as sources (§2.1).
+
+Also decided (owner, 2026-10-23): camera noise is the default source;
+the page opens on it, and the others stay available (§2.2).
 
 ## 6. Batches
 
 | Batch | What | Size |
 |---|---|---|
 | R1 | `Own` in `fresh.rs`: adding, the seed's and the pool's mixing, the lock; tests 1–4; the cross-check | small |
-| R2 | The Add randomness page: dice and camera on every shell, through `faraday-entropy`'s accumulators; Settings' row and the status line; New key's label and link; tests 5 | medium |
-| R3 | Pointer and keys on the desktop; test 6 | small |
-| R4 | The kernel: the owner's A or B (§3.3), the comments at `faraday/image/boards/x86_64-uefi/linux.fragment:267-275`, `kernel.forbidden:8-9`, the Pi fragments' lines 81-82, the stick shell's comment; the dev instrumentation; then the measurement on hardware | small, then hardware |
+| R2 | The Add randomness page: camera (the default), dice, coins and cards on every shell, through `faraday-entropy`'s accumulators; Settings' row and the status line; New key's label and link; tests 5 | medium |
+| R3 | Pointer and keys on the desktop, once the owner decides §5 item 4; test 6 | small |
+| R4 | The kernel: A (§3.3), the comments at `faraday/image/boards/x86_64-uefi/linux.fragment:267-275`, `kernel.forbidden:8-9`, the Pi fragments' lines 81-82, the stick shell's comment; the dev instrumentation; then the measurement on hardware | small, then hardware |
 
-R4's comment fixes do not wait for the measurement: whichever way the
-owner chooses, the comments say what the kernel does.
+R4 does not wait for the measurement; the measurement confirms it, and
+the comments say what the kernel does.
 
 Edit list:
 
@@ -315,8 +334,8 @@ Edit list:
 - The Python cross-check (F79): the mix's known answers.
 - `faraday/image/boards/x86_64-uefi/linux.fragment`,
   `faraday/image/boards/x86_64-uefi/kernel.forbidden`,
-  `faraday/image/boards/x86_64-uefi/cmdline.txt` (if A),
-  `faraday/image/check-kernel-config.sh` (if A),
+  `faraday/image/boards/x86_64-uefi/cmdline.txt`,
+  `faraday/image/check-kernel-config.sh`,
   `faraday/image/boards/pi3/linux.fragment`,
   `faraday/image/boards/pi02w/linux.fragment`,
   `faraday/shells/stick/src/main.rs`.
@@ -327,11 +346,11 @@ Edit list:
   in the program": "Randomness. The core has no generator: the shell
   answers with 32 bytes from `/dev/random` on the stick and the Pi and
   the operating system's call on the desktop. A person may add dice
-  rolls, camera noise and, on the desktop, pointer and key timings
-  (Settings › Randomness); these are hashed with the system's bytes
+  rolls, coin flips, cards, camera noise and, on the desktop, pointer
+  and key timings (Settings › Randomness); these are hashed with the system's bytes
   into the session's seed and every fresh draw, never used alone, so
   what comes out is at least as strong as the stronger of the two. On
-  the stick the kernel {credits | does not credit} the CPU's RDRAND and
+  the stick the kernel does not credit the CPU's RDRAND or
   the firmware's seed (`docs/OWN-RANDOMNESS.md` §3); on the Pi it
   credits the SoC's generator, bcm2835-rng."
 - `core/faraday-shell-api/src/lib.rs`, the entropy channel's module
@@ -348,13 +367,14 @@ Edit list:
 - `docs/learn/04-randomness.md`, at the end of "Computer randomness":
   "Faraday also uses the computer's generator for keys it makes itself,
   such as a vault's, and for the one-time numbers a signature needs. You
-  can add dice rolls or camera noise to it in Settings › Randomness.
+  can add camera noise, dice rolls, coin flips or cards to it in
+  Settings › Randomness.
   What you add is mixed in, not used instead, so the result is as good
   as the better of the two."
 - `docs/learn/05-where-randomness.md`, a section after "Mixing":
-  "## Adding your own to the device's. Settings › Randomness takes dice
-  rolls and camera noise, and on a computer the pointer's movement and
-  your typing while the page is open. They are hashed together with the
+  "## Adding your own to the device's. Settings › Randomness takes
+  camera noise, dice rolls, coin flips and cards, and on a computer the
+  pointer's movement and your typing while the page is open. They are hashed together with the
   device's own randomness for everything the device makes by itself:
   vault keys, encryption keys and the one-time numbers of a signature.
   The device's randomness stays in the hash, so adding yours can only
@@ -362,8 +382,7 @@ Edit list:
   lock."
 - `docs/learn/05-where-randomness.md`, "This device", after "it is what
   this device uses to blind its own calculations": "If you added your
-  own randomness in Settings, this row uses it too, and says so." (if
-  question 2 is yes)
+  own randomness in Settings, this row uses it too, and says so."
 - `docs/README.md`, the Spec list: "`docs/OWN-RANDOMNESS.md`: Your own
   randomness, and the kernel's at boot. Specified, not built (F86)."
   and in By question: "Where does Faraday's randomness come from, and
