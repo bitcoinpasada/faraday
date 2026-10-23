@@ -44,7 +44,7 @@ Read this table, then only the decision you need.
 | [F27](decisions/F27.md) | Nostr keys from the seed, by BIP-85 application 128002' | 2026-10-14 | Amended by F34 | keys |
 | [F28](decisions/F28.md) | QR codes for public values wherever another device reads them, and for the TOTP secret | 2026-10-14 | Amended by F33 | QR |
 | [F29](decisions/F29.md) | A copy by hand is checked by its form: typed words, or a scan of a SeedQR | 2026-10-14 | Active | backup |
-| [F30](decisions/F30.md) | No released Faraday Desktop; the demo makes no secrets | 2026-10-14 | Amended by F61, F81 | release |
+| [F30](decisions/F30.md) | No released Faraday Desktop; the demo makes no secrets | 2026-10-14 | Amended by F61, F81, F83 | release |
 | [F31](decisions/F31.md) | Decide where a key will be kept, then make it: one backup flow for every secret Faraday makes | 2026-10-14 | Amended by F58 | backup |
 | [F32](decisions/F32.md) | GPG follows GnuPG's behaviour | 2026-10-14 | Amended by F63 | signing |
 | [F33](decisions/F33.md) | Secure Boot back on is the step; no BitLocker recovery key in the Starter or the Companion | 2026-10-14 | Amended by F34, F48, F49 | Starter |
@@ -75,7 +75,7 @@ Read this table, then only the decision you need.
 | [F58](decisions/F58.md) | No idle lock while a new wallet's keys are kept nowhere; 30 and 60 minutes | 2026-10-20 | Active | backup |
 | [F59](decisions/F59.md) | APK signing is switched off in the app; its code stays | 2026-10-20 | Active | signing |
 | [F60](decisions/F60.md) | The boot sheet is a picker; a file row offers a vault only while one is open | 2026-10-20 | Amended by F62 | stick |
-| [F61](decisions/F61.md) | Faraday Desktop is published again, testnet only for real seeds | 2026-10-20 | Amended by F81 | release |
+| [F61](decisions/F61.md) | Faraday Desktop is published again, testnet only for real seeds | 2026-10-20 | Amended by F81, F83 | release |
 | [F62](decisions/F62.md) | Unlocking a vault asks what to load | 2026-10-20 | Active | vault |
 | [F63](decisions/F63.md) | Sign a file signs from a sheet that shows the time | 2026-10-20 | Active | signing |
 | [F64](decisions/F64.md) | Other wallets' formats, the less common under More options | 2026-10-20 | Active | wallets |
@@ -97,3 +97,4 @@ Read this table, then only the decision you need.
 | [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Active | stick |
 | [F81](decisions/F81.md) | Modes: a pressable pill, Demo on testnet, samples at every step | 2026-10-22 | Active | design |
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Active | design |
+| [F83](decisions/F83.md) | Faraday Desktop is inside the Starter, and not published on its own | 2026-10-23 | Active | release |
