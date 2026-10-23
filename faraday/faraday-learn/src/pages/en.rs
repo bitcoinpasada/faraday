@@ -203,6 +203,8 @@ pub static EN: Learn = Learn {
                 paragraphs: &[
                     "Every computer has a random number generator, built from a hardware source plus the operating system. It is usually fine, and it is what this device uses to blind its own calculations.",
                     "Using it for a key asks you to trust this device completely. A generator that is faulty, or that was built to be predictable, produces keys that look perfectly normal and that its maker can recreate. You can check a die. You cannot check a chip.",
+                    "The row names what the device reads. The stick and the Pi read /dev/random, the Linux kernel's generator. On the Pi, the board's hardware generator feeds the kernel, which mixes it with its other sources; the device does not read the hardware generator directly, so a faulty chip is one source among several rather than the only one.",
+                    "Faraday Desktop on Linux calls getrandom(2): the same kernel generator as /dev/random, reached by a system call instead of a file. Both wait until the generator is ready, and never after. On Windows it calls ProcessPrng, and on a Mac getentropy(2).",
                     "That is the whole caution, and it is why the row carries one. In a browser the generator belongs to the browser and to the page, so the website demo offers the row but puts one of its public demo keys in place of the key it makes.",
                 ],
             },
