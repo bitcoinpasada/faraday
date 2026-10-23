@@ -188,7 +188,7 @@ pub(crate) fn boot_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     // BIP-85: a password from test key 1, into the open vault.
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::Bip85);
-    if t.app.bip85.is_none() {
+    if t.app.bip85().is_none() {
         return Err("BIP-85 did not open".into());
     }
     let first = bacon;

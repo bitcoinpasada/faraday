@@ -18,6 +18,7 @@ use zeroize::Zeroizing;
 
 use crate::wallet::fp_text;
 use crate::{Faraday, Screen, flow};
+use faraday_keys::Keys;
 
 /// Which BIP-85 application is being derived.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -135,16 +136,40 @@ impl Bip85State {
     }
 }
 
-impl Faraday {
-    /// Opens the flow.
-    pub(crate) fn bip85_open(&mut self) {
-        if self.session.keys.is_empty() {
-            self.toast(EN.bip85_load_a_key_first);
-            return;
+/// The BIP-85 flow's area: its state while it is open.
+#[derive(Default)]
+pub(crate) struct Bip85Area {
+    state: Option<Bip85State>,
+}
+
+impl Bip85Area {
+    /// The flow's state, while it is open.
+    pub(crate) fn state(&self) -> Option<&Bip85State> {
+        self.state.as_ref()
+    }
+
+    /// Forgets the flow's state.
+    pub(crate) fn clear(&mut self) {
+        self.state = None;
+    }
+
+    /// The column's scroll, while the flow is open.
+    pub(crate) fn scroll_mut(&mut self) -> Option<&mut flow::Scroll> {
+        self.state.as_mut().map(|b| &mut b.scroll)
+    }
+
+    /// Takes the column's scroll as the pass left it.
+    pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
+        if let Some(b) = self.state.as_mut() {
+            b.scroll = to;
         }
-        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint.0);
+    }
+
+    /// Opens the flow on `key` (the only key loaded, if there is one), to
+    /// return to `back`.
+    pub(crate) fn open(&mut self, key: Option<[u8; 4]>, back: Screen) {
         let (_, _, length) = lengths(Bip85App::Words);
-        self.bip85 = Some(Bip85State {
+        self.state = Some(Bip85State {
             open: Some(if key.is_some() {
                 pstep::APP
             } else {
@@ -157,21 +182,20 @@ impl Faraday {
             length,
             index: "0".to_string(),
             shown: false,
-            back: self.screen,
+            back,
         });
-        self.screen = Screen::Bip85;
     }
 
     /// Costs what `child_mnemonic`, `child_wif`, `child_xprv` and the rest
-    /// it calls cost. The value the flow derives, as text: the child words,
-    /// the WIF, the xprv, the hex or the password.
-    pub fn bip85_value(&self, c: &Compute) -> Option<faraday_keys::Held<Zeroizing<String>>> {
-        // The demo derives no BIP-85 output (`docs/DEMO.md` §4).
-        if !self.makes_secrets() {
-            return None;
-        }
-        let b = self.bip85.as_ref()?;
-        let place = self.session.keys.position_of(b.key?)?;
+    /// it calls cost. The value the flow derives from `keys`, as text: the
+    /// child words, the WIF, the xprv, the hex or the password.
+    pub(crate) fn value(
+        &self,
+        c: &Compute,
+        keys: &Keys,
+    ) -> Option<faraday_keys::Held<Zeroizing<String>>> {
+        let b = self.state.as_ref()?;
+        let place = keys.position_of(b.key?)?;
         let i = b.index()?;
         let app = match b.app {
             Bip85App::Words => faraday_keys::bip85::App::Words(b.length),
@@ -181,14 +205,12 @@ impl Faraday {
             Bip85App::Base64 => faraday_keys::bip85::App::Base64(b.length),
             Bip85App::Base85 => faraday_keys::bip85::App::Base85(b.length),
         };
-        self.session
-            .keys
-            .bip85_child(c, place, app, i, faraday_keys::Reveal::Bip85Child)
+        keys.bip85_child(c, place, app, i, faraday_keys::Reveal::Bip85Child)
     }
 
     /// What the value is called where it is kept.
-    fn bip85_title(&self) -> String {
-        let Some(b) = self.bip85.as_ref() else {
+    pub(crate) fn title(&self) -> String {
+        let Some(b) = self.state.as_ref() else {
             return String::new();
         };
         let fp = b
@@ -205,101 +227,10 @@ impl Faraday {
         )
     }
 
-    /// The value into the open vault: a password as an entry, child words
-    /// as a key, anything else as a note.
-    pub(crate) fn bip85_to_vault(&mut self) {
-        let c = self.compute();
-        if self.vaults.open.get(self.vaults.current).is_none() {
-            self.toast(EN.bip85_no_vault_is_open);
-            return;
-        }
-        let (Some(value), Some(b)) = (self.bip85_value(&c), self.bip85.as_ref()) else {
-            return;
-        };
-        let title = self.bip85_title();
-        let path = b.path();
-        let record = match b.app {
-            Bip85App::Base64 | Bip85App::Base85 => Record::new(kind::ENTRY)
-                .with(field::TITLE, title.as_bytes())
-                .with(field::PASSWORD, value.as_bytes())
-                .with(field::NOTES, path.as_bytes()),
-            Bip85App::Words => {
-                let Ok(m) = crate::wallet::parse_words(&c, Language::English, &value) else {
-                    return;
-                };
-                Record::new(kind::KEY)
-                    .with(field::KEY, &records::words_payload(&m))
-                    .with(field::KEY_LABEL, title.as_bytes())
-            }
-            _ => {
-                let note = Zeroizing::new(format!("{title}\n{path}\n{}", value.as_str()));
-                Record::new(kind::NOTE).with(field::NOTE, note.as_bytes())
-            }
-        };
-        self.vault_push(
-            record,
-            &fill(EN.bip85_is_in_the_vault, &[&title.to_string()]),
-        );
-    }
-
-    /// Child words load as a key of this session.
-    pub(crate) fn bip85_load(&mut self) {
-        let c = self.compute();
-        if !self.may_load_keys() {
-            self.toast(&fill(EN.bip85_remove_the_first, &[self.medium.noun()]));
-            return;
-        }
-        let Some(value) = self.bip85_value(&c) else {
-            return;
-        };
-        let title = self.bip85_title();
-        match self.session.keys.add_words(&c, &value, &title, None) {
-            Ok(fp) => self.toast(&fill(EN.bip85_key_added, &[&fp_text(fp).to_string()])),
-            Err(e) => self.toast(&e.text()),
-        }
-    }
-
-    /// The value out unprotected, through the secret sheet.
-    pub(crate) fn bip85_out(&mut self) {
-        let c = self.compute();
-        let (Some(value), Some(b)) = (self.bip85_value(&c), self.bip85.as_ref()) else {
-            return;
-        };
-        let fp = b
-            .key
-            .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)))
-            .unwrap_or_default();
-        let name = format!(
-            "bip85-{fp}-{}-{}.txt",
-            app_name(b.app).to_lowercase().replace([' ', '(', ')'], ""),
-            b.index().unwrap_or(0)
-        );
-        let text = Zeroizing::new(format!("{}\n{}\n", b.path(), value.as_str()));
-        let what = match b.app {
-            Bip85App::Words => EN.bip85_a_child_seed,
-            Bip85App::Wif | Bip85App::Xprv => EN.bip85_a_private_key,
-            Bip85App::Hex => EN.bip85_secret_bytes,
-            Bip85App::Base64 | Bip85App::Base85 => EN.bip85_a_password,
-        };
-        self.offer_secret(crate::secrets::SecretOut::new(
-            name,
-            Zeroizing::new(text.as_bytes().to_vec()),
-            what,
-            EN.bip85_secret_warning,
-        ));
-    }
-
-    /// One press inside the flow.
-    pub(crate) fn bip85_act(&mut self, action: crate::Action) {
+    /// A press that changes only this flow.
+    pub(crate) fn act(&mut self, action: crate::Action) {
         use crate::Action as A;
-        match action {
-            A::Bip85 => return self.bip85_open(),
-            A::PVault => return self.bip85_to_vault(),
-            A::PLoad => return self.bip85_load(),
-            A::POut => return self.bip85_out(),
-            _ => {}
-        }
-        let Some(b) = self.bip85.as_mut() else {
+        let Some(b) = self.state.as_mut() else {
             return;
         };
         let open = |b: &mut Bip85State, s: u8| {
@@ -355,21 +286,22 @@ impl Faraday {
         }
     }
 
-    /// Digits typed into the index. Returns whether the key was taken.
-    pub(crate) fn bip85_key(&mut self, key: faraday_shell_api::Key) -> bool {
+    /// Digits typed into the index, on `screen`. Returns whether the key
+    /// was taken.
+    pub(crate) fn key(&mut self, key: faraday_shell_api::Key, screen: &mut Screen) -> bool {
         use faraday_shell_api::Key as K;
-        if self.screen != Screen::Bip85 {
+        if *screen != Screen::Bip85 {
             return false;
         }
-        let Some(b) = self.bip85.as_mut() else {
+        let Some(b) = self.state.as_mut() else {
             return false;
         };
         match key {
             K::Escape => {
-                self.screen = b.back;
-                self.bip85 = None;
+                *screen = b.back;
+                self.state = None;
             }
-            K::Enter => self.bip85_act(crate::Action::PNext),
+            K::Enter => self.act(crate::Action::PNext),
             K::Char(c) if c.is_ascii_digit() && b.open == Some(pstep::INDEX) => {
                 if b.index == "0" {
                     b.index.clear();
@@ -386,5 +318,134 @@ impl Faraday {
             _ => return false,
         }
         true
+    }
+}
+
+impl Faraday {
+    /// The flow's state, while it is open.
+    pub fn bip85(&self) -> Option<&Bip85State> {
+        self.bip85.state()
+    }
+
+    /// Opens the flow.
+    pub(crate) fn bip85_open(&mut self) {
+        if self.session.keys.is_empty() {
+            self.toast(EN.bip85_load_a_key_first);
+            return;
+        }
+        let key = (self.session.keys.len() == 1).then(|| self.session.keys[0].fingerprint.0);
+        self.bip85.open(key, self.screen);
+        self.screen = Screen::Bip85;
+    }
+
+    /// Costs what `child_mnemonic`, `child_wif`, `child_xprv` and the rest
+    /// it calls cost. The value the flow derives, as text.
+    pub fn bip85_value(&self, c: &Compute) -> Option<faraday_keys::Held<Zeroizing<String>>> {
+        // The demo derives no BIP-85 output (`docs/DEMO.md` §4).
+        if !self.makes_secrets() {
+            return None;
+        }
+        self.bip85.value(c, &self.session.keys)
+    }
+
+    /// The value into the open vault: a password as an entry, child words
+    /// as a key, anything else as a note.
+    pub(crate) fn bip85_to_vault(&mut self) {
+        let c = self.compute();
+        if self.vaults.open.get(self.vaults.current).is_none() {
+            self.toast(EN.bip85_no_vault_is_open);
+            return;
+        }
+        let (Some(value), Some(b)) = (self.bip85_value(&c), self.bip85.state()) else {
+            return;
+        };
+        let title = self.bip85.title();
+        let path = b.path();
+        let record = match b.app {
+            Bip85App::Base64 | Bip85App::Base85 => Record::new(kind::ENTRY)
+                .with(field::TITLE, title.as_bytes())
+                .with(field::PASSWORD, value.as_bytes())
+                .with(field::NOTES, path.as_bytes()),
+            Bip85App::Words => {
+                let Ok(m) = crate::wallet::parse_words(&c, Language::English, &value) else {
+                    return;
+                };
+                Record::new(kind::KEY)
+                    .with(field::KEY, &records::words_payload(&m))
+                    .with(field::KEY_LABEL, title.as_bytes())
+            }
+            _ => {
+                let note = Zeroizing::new(format!("{title}\n{path}\n{}", value.as_str()));
+                Record::new(kind::NOTE).with(field::NOTE, note.as_bytes())
+            }
+        };
+        self.vault_push(
+            record,
+            &fill(EN.bip85_is_in_the_vault, &[&title.to_string()]),
+        );
+    }
+
+    /// Child words load as a key of this session.
+    pub(crate) fn bip85_load(&mut self) {
+        let c = self.compute();
+        if !self.may_load_keys() {
+            self.toast(&fill(EN.bip85_remove_the_first, &[self.medium.noun()]));
+            return;
+        }
+        let Some(value) = self.bip85_value(&c) else {
+            return;
+        };
+        let title = self.bip85.title();
+        match self.session.keys.add_words(&c, &value, &title, None) {
+            Ok(fp) => self.toast(&fill(EN.bip85_key_added, &[&fp_text(fp).to_string()])),
+            Err(e) => self.toast(&e.text()),
+        }
+    }
+
+    /// The value out unprotected, through the secret sheet.
+    pub(crate) fn bip85_out(&mut self) {
+        let c = self.compute();
+        let (Some(value), Some(b)) = (self.bip85_value(&c), self.bip85.state()) else {
+            return;
+        };
+        let fp = b
+            .key
+            .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)))
+            .unwrap_or_default();
+        let name = format!(
+            "bip85-{fp}-{}-{}.txt",
+            app_name(b.app).to_lowercase().replace([' ', '(', ')'], ""),
+            b.index().unwrap_or(0)
+        );
+        let text = Zeroizing::new(format!("{}\n{}\n", b.path(), value.as_str()));
+        let what = match b.app {
+            Bip85App::Words => EN.bip85_a_child_seed,
+            Bip85App::Wif | Bip85App::Xprv => EN.bip85_a_private_key,
+            Bip85App::Hex => EN.bip85_secret_bytes,
+            Bip85App::Base64 | Bip85App::Base85 => EN.bip85_a_password,
+        };
+        self.offer_secret(crate::secrets::SecretOut::new(
+            name,
+            Zeroizing::new(text.as_bytes().to_vec()),
+            what,
+            EN.bip85_secret_warning,
+        ));
+    }
+
+    /// One press inside the flow.
+    pub(crate) fn bip85_act(&mut self, action: crate::Action) {
+        use crate::Action as A;
+        match action {
+            A::Bip85 => self.bip85_open(),
+            A::PVault => self.bip85_to_vault(),
+            A::PLoad => self.bip85_load(),
+            A::POut => self.bip85_out(),
+            _ => self.bip85.act(action),
+        }
+    }
+
+    /// Digits typed into the index. Returns whether the key was taken.
+    pub(crate) fn bip85_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        self.bip85.key(key, &mut self.screen)
     }
 }

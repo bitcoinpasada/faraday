@@ -107,11 +107,11 @@ fn bip85_left_by_a_tap_forgets_the_child_seed_shown() {
     let mut app = with_key();
     let shown = bip85_shown(&mut app);
     tap(&mut app, Action::Nav(Screen::Settings));
-    assert!(app.bip85.is_none(), "BIP-85 keeps nothing when left");
+    assert!(app.bip85().is_none(), "BIP-85 keeps nothing when left");
     not_drawn(&mut app, &shown);
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     app.press(Action::Bip85);
-    assert!(!app.bip85.as_ref().unwrap().shown);
+    assert!(!app.bip85().unwrap().shown);
     not_drawn(&mut app, &shown);
 }
 
@@ -121,7 +121,7 @@ fn bip85_left_by_the_mouses_back_button_is_not_brought_back_by_forward() {
     let shown = bip85_shown(&mut app);
     app.event(Event::Back);
     assert_ne!(app.screen, Screen::Bip85);
-    assert!(app.bip85.is_none(), "Back leaves it as any leaving does");
+    assert!(app.bip85().is_none(), "Back leaves it as any leaving does");
     let left_to = app.screen;
     app.event(Event::Forward);
     assert_eq!(app.screen, left_to, "nothing kept to come back to");
@@ -259,8 +259,8 @@ fn a_tap_and_a_scripted_press_leave_bip85_the_same_way() {
     tap(&mut tapped, Action::Nav(Screen::Settings));
     pressed.press(Action::Nav(Screen::Settings));
     assert_eq!(tapped.screen, pressed.screen);
-    assert_eq!(tapped.bip85.is_none(), pressed.bip85.is_none());
-    assert!(tapped.bip85.is_none());
+    assert_eq!(tapped.bip85().is_none(), pressed.bip85().is_none());
+    assert!(tapped.bip85().is_none());
     assert_eq!(texts(&mut tapped), texts(&mut pressed));
 }
 

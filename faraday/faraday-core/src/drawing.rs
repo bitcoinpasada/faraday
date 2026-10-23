@@ -316,9 +316,7 @@ impl Faraday {
                     self.silent.set_scroll(to);
                 }
                 Scrolled::Bip85 => {
-                    if let Some(b) = self.bip85.as_mut() {
-                        b.scroll = to;
-                    }
+                    self.bip85.set_scroll(to);
                 }
                 Scrolled::KeyGen => {
                     if let Some(k) = self.keygen.as_mut() {

@@ -433,7 +433,7 @@ fn in_the_demo_derive_with_bip85_shows_no_value_for_any_application() {
             app.press(p);
         }
         assert!(app.bip85_value(&c).is_none(), "a value for app {a}");
-        assert!(app.bip85.as_ref().is_some_and(|b| !b.shown));
+        assert!(app.bip85().is_some_and(|b| !b.shown));
         assert_eq!(app.sheet, None, "no secret sheet");
         assert_eq!(
             records(&app, kind::ENTRY) + records(&app, kind::NOTE),

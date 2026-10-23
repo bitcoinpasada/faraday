@@ -20,7 +20,7 @@ const TITLES: [&str; pstep::COUNT] = [
 ];
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let Some(b) = app.bip85.as_ref() else {
+    let Some(b) = app.bip85.state() else {
         return;
     };
     let cards: Vec<flow::Card> = (0..pstep::COUNT as u8)
@@ -54,7 +54,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (next, again) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            match app_ref.bip85.as_ref() {
+            match app_ref.bip85.state() {
                 Some(b) => card(app_ref, b, ui, i as u8, x, y, w),
                 None => 0.0,
             }

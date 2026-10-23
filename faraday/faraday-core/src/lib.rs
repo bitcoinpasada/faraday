@@ -1375,7 +1375,7 @@ pub struct Faraday {
     /// The word-list sheet, while it is open.
     wordlist: wordlist::WordListArea,
     /// BIP-85 being derived.
-    pub bip85: Option<bip85::Bip85State>,
+    bip85: bip85::Bip85Area,
     /// Silent payments on show.
     silent: silent::SilentArea,
     /// Explore on show.
@@ -1685,7 +1685,7 @@ impl Faraday {
             entropy_source: None,
             learn: learn::LearnArea::default(),
             wordlist: wordlist::WordListArea::default(),
-            bip85: None,
+            bip85: bip85::Bip85Area::default(),
             silent: silent::SilentArea::default(),
             explore: None,
             lightning: lightning::LightningArea::default(),
@@ -2920,7 +2920,7 @@ impl Faraday {
         self.restore = None;
         self.keygen = None;
         self.wordlist.clear();
-        self.bip85 = None;
+        self.bip85.clear();
         self.secret_out = None;
         self.entry = EntryState::default();
         self.save_boxes_for_lock();
@@ -8899,7 +8899,7 @@ impl Faraday {
             self.keygen_drop();
         }
         if !bip85 {
-            self.bip85 = None;
+            self.bip85.clear();
         }
         if self.screen != Screen::Explore {
             self.explore = None;
