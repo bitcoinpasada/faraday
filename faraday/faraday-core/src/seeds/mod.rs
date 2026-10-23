@@ -336,7 +336,7 @@ impl Faraday {
     /// Spend tab's.
     pub fn seeds(&self) -> Option<&SeedsState> {
         match self.screen {
-            Screen::Restore => self.restore.as_ref()?.seeds.as_ref(),
+            Screen::Restore => self.restore.state()?.seeds.as_ref(),
             Screen::Family => Some(&self.family.seeds),
             _ => None,
         }
@@ -344,7 +344,7 @@ impl Faraday {
 
     pub(crate) fn seeds_mut(&mut self) -> Option<&mut SeedsState> {
         match self.screen {
-            Screen::Restore => self.restore.as_mut()?.seeds.as_mut(),
+            Screen::Restore => self.restore.state_mut()?.seeds.as_mut(),
             Screen::Family => Some(&mut self.family.seeds),
             _ => None,
         }
@@ -687,7 +687,7 @@ impl Faraday {
     /// its Check card, the Spend tab to its next page.
     fn seeds_make(&mut self) {
         let c = self.compute();
-        if self.screen == Screen::Restore && self.restore.as_ref().is_some_and(|r| r.described) {
+        if self.screen == Screen::Restore && self.restore.state().is_some_and(|r| r.described) {
             self.restore_described_make();
             return;
         }
@@ -719,7 +719,7 @@ impl Faraday {
         match self.screen {
             Screen::Restore => {
                 self.restore_wallet(name, &d, SOURCE, crate::wallet::Origin::TypedSeeds);
-                if let Some(r) = self.restore.as_mut()
+                if let Some(r) = self.restore.state_mut()
                     && r.wallet.is_some()
                 {
                     // Made from the seeds, not read from a description.

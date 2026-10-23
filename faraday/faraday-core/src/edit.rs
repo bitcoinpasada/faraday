@@ -556,7 +556,7 @@ impl Faraday {
             Screen::Create => self.create.state().is_some(),
             Screen::Backup => self.backup.is_some(),
             Screen::Spend => self.spend.is_some(),
-            Screen::Restore => self.restore.is_some(),
+            Screen::Restore => self.restore.state().is_some(),
             Screen::Message => self.message.state().is_some(),
             Screen::Vanity => self.vanity.state().is_some(),
             Screen::Bip85 => self.bip85.state().is_some(),

@@ -41,7 +41,7 @@ pub(crate) fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("restore-seeds-shape")?;
     t.press(Action::Seeds(S::Make));
     t.shot("restore-seeds-check")?;
-    if t.app.restore.as_ref().and_then(|r| r.wallet).is_none() {
+    if t.app.restore().and_then(|r| r.wallet).is_none() {
         return Err("the seeds made no wallet".into());
     }
     // The Spend tab: words, then another seed, then how many sign.

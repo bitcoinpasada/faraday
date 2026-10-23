@@ -94,8 +94,7 @@ fn add_another_key_opens_the_shape_at_two_keys() {
     app.press(Action::KeyWallet(fp, 2));
     assert_eq!(app.screen, Screen::Restore);
     let s = app
-        .restore
-        .as_ref()
+        .restore()
         .and_then(|r| r.seeds.as_ref())
         .expect("no seeds card");
     assert_eq!(s.keys, vec![fp]);

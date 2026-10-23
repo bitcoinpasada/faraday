@@ -349,7 +349,7 @@ impl Faraday {
                     }
                 }
                 Scrolled::Restore => {
-                    if let Some(r) = self.restore.as_mut() {
+                    if let Some(r) = self.restore.state_mut() {
                         r.scroll = to;
                     }
                 }

@@ -1170,7 +1170,7 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     // The vault is set up: back in Restore, on its seeds.
     assert_eq!(app.screen, Screen::Restore, "{:?}", app.vaults.unlock_error);
     assert_eq!(
-        app.restore.as_ref().unwrap().open,
+        app.restore().unwrap().open,
         Some(faraday_core::rstep::SEEDS)
     );
     app.press(Action::RSlotWords);
@@ -1178,7 +1178,7 @@ fn restore_takes_the_same_steps_and_a_restored_key_signs_at_once() {
     app.press(Action::EntryAdd);
     assert_eq!(app.screen, Screen::Restore);
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
-    let w = app.restore.as_ref().unwrap().wallet.expect("wallet made");
+    let w = app.restore().unwrap().wallet.expect("wallet made");
     // The seed typed is in no vault until the plan says so.
     assert_eq!(
         app.vaults
@@ -3220,18 +3220,18 @@ fn the_question_of_vaults_is_not_done_before_it_is_answered_and_continued() {
     assert_eq!(app.create().unwrap().open, Some(cstep::KEYS));
     // The same on Restore.
     app.press(Action::RestoreWallet);
-    assert!(!app.restore.as_ref().unwrap().done[faraday_core::rstep::WHERE as usize]);
+    assert!(!app.restore().unwrap().done[faraday_core::rstep::WHERE as usize]);
     app.press(Action::RNext(faraday_core::rstep::KIND));
     app.press(Action::RNext(faraday_core::rstep::DESCRIPTION));
     assert_eq!(
-        app.restore.as_ref().unwrap().open,
+        app.restore().unwrap().open,
         Some(faraday_core::rstep::WHERE)
     );
     app.press(Action::RNext(faraday_core::rstep::WHERE));
-    assert!(!app.restore.as_ref().unwrap().done[faraday_core::rstep::WHERE as usize]);
+    assert!(!app.restore().unwrap().done[faraday_core::rstep::WHERE as usize]);
     app.press(Action::RVaults(false));
     app.press(Action::RNext(faraday_core::rstep::WHERE));
-    assert!(app.restore.as_ref().unwrap().done[faraday_core::rstep::WHERE as usize]);
+    assert!(app.restore().unwrap().done[faraday_core::rstep::WHERE as usize]);
 }
 
 #[test]
@@ -3275,7 +3275,7 @@ fn restore_asks_the_same_question_and_opens_its_vaults_before_the_seeds() {
     app.press(Action::RVaults(true));
     app.press(Action::RNext(faraday_core::rstep::WHERE));
     assert_eq!(
-        app.restore.as_ref().unwrap().open,
+        app.restore().unwrap().open,
         Some(faraday_core::rstep::HOW_MANY)
     );
     app.press(Action::RVaultN(2));
@@ -3294,7 +3294,7 @@ fn restore_asks_the_same_question_and_opens_its_vaults_before_the_seeds() {
     type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::EntryAdd);
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
-    let w = app.restore.as_ref().unwrap().wallet.expect("wallet made");
+    let w = app.restore().unwrap().wallet.expect("wallet made");
     app.press(Action::Backup(w));
     faraday_core::testkit::backup_as(&mut app, faraday_core::plan::Preset::Paper);
     assert_eq!(app.backup.as_ref().unwrap().answers.vaults.len(), 2);
@@ -3461,12 +3461,12 @@ fn a_restore_setup_survives_the_lock_too() {
     app.press(Action::RNext(faraday_core::rstep::HOW_MANY));
     shell.flow(&mut app, F::LockBring);
     let mut app = restart(&mut shell, &mut app);
-    let r = app.restore.as_ref().expect("Restore is kept");
+    let r = app.restore().expect("Restore is kept");
     assert_eq!((r.vaults.answer, r.vaults.count), (Some(true), 1));
     app.press(Action::Nav(Screen::Restore));
     app.press(Action::RStep(faraday_core::rstep::SEEDS));
     assert_ne!(
-        app.restore.as_ref().unwrap().open,
+        app.restore().unwrap().open,
         Some(faraday_core::rstep::SEEDS),
         "the seeds stay closed until the setup is done"
     );
@@ -3773,10 +3773,9 @@ fn a_share_kept_in_a_vault_is_saved_sealed_and_rebuilds_with_another() {
     r.press(Action::RShare(i));
     r.press(Action::RRebuild);
     let rw = r
-        .restore
-        .as_ref()
+        .restore()
         .and_then(|x| x.wallet)
-        .unwrap_or_else(|| panic!("{:?}", r.restore.as_ref().and_then(|x| x.error.clone())));
+        .unwrap_or_else(|| panic!("{:?}", r.restore().and_then(|x| x.error.clone())));
     assert_eq!(
         r.session.wallets[rw].policy().to_descriptor_checksummed(),
         made,
@@ -4394,7 +4393,7 @@ fn a_wallet_rebuilt_from_its_share_files_has_the_checksum_it_was_made_with() {
         r.press(Action::RShare(i));
     }
     r.press(Action::RRebuild);
-    let rw = r.restore.as_ref().and_then(|x| x.wallet).expect("rebuilt");
+    let rw = r.restore().and_then(|x| x.wallet).expect("rebuilt");
     assert_eq!(
         r.session.wallets[rw].policy().to_descriptor_checksummed(),
         made
@@ -5839,7 +5838,7 @@ fn the_vault_question_says_vaults_on_sticks_are_brought_in_here() {
     assert!(has(&mut app, LINE), "Make a new wallet");
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     app.press(Action::RestoreWallet);
-    if app.restore.as_ref().unwrap().open != Some(faraday_core::rstep::WHERE) {
+    if app.restore().unwrap().open != Some(faraday_core::rstep::WHERE) {
         app.press(Action::RStep(faraday_core::rstep::WHERE));
     }
     assert!(has(&mut app, "Will you use vaults as part of this backup?"));

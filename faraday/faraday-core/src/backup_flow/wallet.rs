@@ -114,7 +114,7 @@ impl Faraday {
         use crate::create::NewKind as K;
         let (kind, m, n_keys) = match (
             self.create.state().filter(|c| c.owner == owner),
-            self.restore.as_ref().filter(|r| r.owner == owner),
+            self.restore.state().filter(|r| r.owner == owner),
         ) {
             (Some(c), _) => (c.kind, c.m, c.n),
             (_, Some(r)) => {
@@ -154,7 +154,7 @@ impl Faraday {
     fn wallet_vault_count(&self, owner: u64) -> Option<usize> {
         let ask = match (
             self.create.state().filter(|c| c.owner == owner),
-            self.restore.as_ref().filter(|r| r.owner == owner),
+            self.restore.state().filter(|r| r.owner == owner),
         ) {
             (Some(c), _) => c.vaults,
             (_, Some(r)) => r.vaults,
@@ -273,7 +273,7 @@ impl Faraday {
     /// The keys chosen for the wallet being made by Make a new wallet or
     /// Restore number `owner`, by slot.
     fn wallet_owner_slots(&self, owner: u64) -> Vec<crate::create::Source> {
-        match (self.create.state(), self.restore.as_ref()) {
+        match (self.create.state(), self.restore.state()) {
             (Some(c), _) if c.owner == owner => c.slots.clone(),
             (_, Some(r)) if r.owner == owner => r
                 .seeds
@@ -320,13 +320,13 @@ impl Faraday {
         self.vaults.back_to = None;
         self.vaults.create = None;
         self.vaults.focus = None;
-        if self.restore.as_ref().is_some_and(|r| r.owner == owner) {
+        if self.restore.state().is_some_and(|r| r.owner == owner) {
             // A wallet read from its description exists already: it
             // belongs to the setup now.
-            if let Some(w) = self.restore.as_ref().and_then(|r| r.wallet) {
+            if let Some(w) = self.restore.state().and_then(|r| r.wallet) {
                 self.wallet_flow_attach(w, owner);
             }
-            if let Some(r) = self.restore.as_mut() {
+            if let Some(r) = self.restore.state_mut() {
                 r.open = Some(crate::rstep::SEEDS);
                 r.done[crate::rstep::WHERE as usize] = true;
                 r.done[crate::rstep::HOW_MANY as usize] = true;
@@ -367,7 +367,7 @@ impl Faraday {
         let owner = w.owner;
         let to = if self.create.state().is_some_and(|c| c.owner == owner) {
             Screen::Create
-        } else if self.restore.as_ref().is_some_and(|r| r.owner == owner) {
+        } else if self.restore.state().is_some_and(|r| r.owner == owner) {
             Screen::Restore
         } else {
             return false;
@@ -2765,7 +2765,7 @@ impl Faraday {
                     n: c.n,
                 })
             } else {
-                self.restore.as_ref().filter(|r| r.owner == owner).map(|r| {
+                self.restore.state().filter(|r| r.owner == owner).map(|r| {
                     crate::backup_flow::Again {
                         restore: true,
                         kind: kind_at(r.kind()),
@@ -2819,7 +2819,7 @@ impl Faraday {
                     r.done[k as usize] = true;
                 }
                 r.open = None;
-                self.restore = Some(r);
+                self.restore.set(r);
             } else {
                 let mut c = crate::CreateState {
                     owner,

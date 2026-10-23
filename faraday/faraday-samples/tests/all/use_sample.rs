@@ -334,7 +334,7 @@ fn restore_by_file_loads_the_next_sample_wallet() {
     let _ = app.frame();
     assert!(app.offers(Action::ScanSample));
     app.press(Action::ScanSample);
-    assert!(app.restore.as_ref().is_some_and(|r| r.described));
+    assert!(app.restore().is_some_and(|r| r.described));
     assert_eq!(app.session.wallets.len(), 1, "Savings, the first sample");
 }
 

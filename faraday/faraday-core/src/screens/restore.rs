@@ -13,7 +13,7 @@ use faraday_ui::parts::wrap_buttons;
 
 /// The closed line of Restore's card of vaults: the answer.
 fn create_flow_summary_restore(app: &View, k: u8) -> String {
-    let Some(r) = app.restore.as_ref() else {
+    let Some(r) = app.restore.state() else {
         return String::new();
     };
     if k == crate::rstep::HOW_MANY {
@@ -38,7 +38,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::rstep;
     let col_x = x0 + 40.0;
     let col_w = (cw - 80.0).min(900.0);
-    let Some(r) = app.restore.as_ref() else {
+    let Some(r) = app.restore.state() else {
         return;
     };
     let wl = r.wallet.and_then(|i| app.session.wallets.get(i));
@@ -119,7 +119,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// Restore's slots: how many are filled (a seed here, a cosigner's
 /// xpub, or Not here), of how many.
 fn restore_filled(app: &View) -> (usize, usize) {
-    let Some(r) = app.restore.as_ref() else {
+    let Some(r) = app.restore.state() else {
         return (0, 0);
     };
     if r.described
@@ -157,7 +157,7 @@ fn description_files<'a>(app: &'a View<'_>) -> Vec<(usize, &'a str)> {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     use crate::rstep;
-    let r = app.restore.as_ref().expect("restore");
+    let r = app.restore.state().expect("restore");
     let mut cy = y;
     match n {
         rstep::KIND => {
@@ -291,7 +291,7 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
 /// or the wallet from its seeds alone: **I have the seed** for a single
 /// key, which most backups of one are, **I do not have it** for several.
 fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let r = app.restore.as_ref().expect("restore");
+    let r = app.restore.state().expect("restore");
     let mut cy = y;
     let files = description_files(app);
     let labels: Vec<String> = files
@@ -390,7 +390,7 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     use crate::seeds::{Focus, SeedsAction as S};
-    let r = app.restore.as_ref().expect("restore");
+    let r = app.restore.state().expect("restore");
     let Some(s) = r.seeds.as_ref() else {
         return 0.0;
     };

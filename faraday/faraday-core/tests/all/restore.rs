@@ -114,12 +114,12 @@ fn two_of_three_from_seeds() -> Faraday {
     app.press(Action::RSeeds);
     app.press(Action::RVaults(false));
     app.press(Action::RNext(WHERE));
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
+    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     app
 }
 
 fn made(app: &Faraday) -> usize {
-    let r = app.restore.as_ref().unwrap();
+    let r = app.restore().unwrap();
     assert_eq!(r.open, Some(CHECK), "the Check card is not next");
     r.wallet.expect("no wallet made")
 }
@@ -148,7 +148,7 @@ fn restore_opens_on_kind_with_no_transaction_card() {
     let mut app = shown();
     app.press(Action::RestoreWallet);
     assert_eq!(app.screen, Screen::Restore);
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(KIND));
+    assert_eq!(app.restore().unwrap().open, Some(KIND));
     let text = drawn(&mut app);
     for card in ["Kind", "Description", "Use vaults", "Keys", "Check"] {
         assert!(text.lines().any(|l| l == card), "no {card} card: {text}");
@@ -163,8 +163,8 @@ fn restore_opens_on_kind_with_no_transaction_card() {
     // A multisig has a Quorum card, 2 of 3 to start.
     app.press(Action::RKind(MULTI));
     app.press(Action::RNext(KIND));
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(QUORUM));
-    let s = app.restore.as_ref().unwrap().seeds.as_ref().unwrap();
+    assert_eq!(app.restore().unwrap().open, Some(QUORUM));
+    let s = app.restore().unwrap().seeds.as_ref().unwrap();
     assert_eq!((s.m, s.n), (2, 3));
     assert!(drawn(&mut app).contains("2 of 3"));
 }
@@ -177,7 +177,7 @@ fn a_single_key_goes_on_from_description_with_the_seed_alone() {
     let mut app = shown();
     app.press(Action::RestoreWallet);
     app.press(Action::RNext(KIND));
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(DESCRIPTION));
+    assert_eq!(app.restore().unwrap().open, Some(DESCRIPTION));
     let text = drawn(&mut app);
     assert!(text.lines().any(|l| l == "I have the seed"), "{text}");
     assert!(!text.contains("I do not have it"), "{text}");
@@ -185,7 +185,7 @@ fn a_single_key_goes_on_from_description_with_the_seed_alone() {
     app.press(Action::RSeeds);
     app.press(Action::RVaults(false));
     app.press(Action::RNext(WHERE));
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
+    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
 
     let mut app = shown();
     app.press(Action::RestoreWallet);
@@ -289,22 +289,19 @@ fn the_description_scanned_first_fills_the_quorum_and_refuses_what_is_not_its_ke
     app.event(Event::Scanned {
         bytes: testkit::savings().into_bytes(),
     });
-    let r = app.restore.as_ref().unwrap();
+    let r = app.restore().unwrap();
     assert_eq!(r.open, Some(WHERE), "the question of vaults is next");
     assert!(r.done[KIND as usize] && r.done[QUORUM as usize] && r.done[DESCRIPTION as usize]);
     let s = r.seeds.as_ref().unwrap();
     assert_eq!((s.m, s.n), (2, 3));
     app.press(Action::RVaults(false));
     app.press(Action::RNext(WHERE));
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
+    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     let keys = app.session.keys.len();
 
     // A seed of another wallet.
     type_seed(&mut app, ABANDON);
-    assert_eq!(
-        app.restore.as_ref().unwrap().error.as_deref(),
-        Some(NOT_A_KEY)
-    );
+    assert_eq!(app.restore().unwrap().error.as_deref(), Some(NOT_A_KEY));
     assert_eq!(app.session.keys.len(), keys, "the stranger was taken");
     assert!(drawn(&mut app).contains(NOT_A_KEY));
 
@@ -327,7 +324,7 @@ fn the_description_scanned_first_fills_the_quorum_and_refuses_what_is_not_its_ke
     // The same seed without a passphrase: its key of the wallet.
     app.press(Action::SeedRead(Choice::Plain));
     assert_eq!(app.sheet, None);
-    let r = app.restore.as_ref().unwrap();
+    let r = app.restore().unwrap();
     assert_eq!(r.error, None);
     let place = app
         .session
@@ -390,7 +387,7 @@ fn keys_reads_every_slot_filled_once_the_wallet_is_made_from_typed_seeds() {
         drawn(&mut app)
     );
     app.press(Action::RNext(CHECK));
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(DONE));
+    assert_eq!(app.restore().unwrap().open, Some(DONE));
     assert!(
         summary_is(&mut app, "Keys", "3 of 3 filled"),
         "{}",
@@ -410,16 +407,16 @@ fn a_description_read_first_asks_about_vaults_before_the_seeds() {
     app.event(Event::Scanned {
         bytes: testkit::savings().into_bytes(),
     });
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(WHERE));
+    assert_eq!(app.restore().unwrap().open, Some(WHERE));
     // The seeds wait for the answer.
     app.press(Action::RStep(SEEDS));
-    assert_ne!(app.restore.as_ref().unwrap().open, Some(SEEDS));
+    assert_ne!(app.restore().unwrap().open, Some(SEEDS));
     app.press(Action::RStep(WHERE));
     app.press(Action::RVaults(false));
     app.press(Action::RNext(WHERE));
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
+    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     type_seed(&mut app, &testkit::test_words("zebra"));
-    let w = app.restore.as_ref().unwrap().wallet.unwrap();
+    let w = app.restore().unwrap().wallet.unwrap();
     let held = app
         .session
         .slots(&app.session.wallets[w])
@@ -432,7 +429,7 @@ fn a_description_read_first_asks_about_vaults_before_the_seeds() {
     app.press(Action::Seeds(S::Make));
     made(&app);
     app.press(Action::RNext(CHECK));
-    let r = app.restore.as_ref().unwrap();
+    let r = app.restore().unwrap();
     assert_eq!(r.open, Some(DONE));
     assert!(r.done[WHERE as usize], "the question is answered");
     assert!(
@@ -474,9 +471,9 @@ fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
     shell.pull(&mut app, "S1");
     crate::common::create_vault(&mut shell, &mut app, 0, "first vault phrase");
     assert_eq!(app.screen, Screen::Restore, "back in Restore for the seeds");
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
+    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     type_seed(&mut app, &testkit::test_words("zebra"));
-    let w = app.restore.as_ref().unwrap().wallet.unwrap();
+    let w = app.restore().unwrap().wallet.unwrap();
     let held = app
         .session
         .slots(&app.session.wallets[w])
@@ -491,7 +488,7 @@ fn a_description_read_first_then_a_vault_resumes_the_backup_with_the_vault() {
     app.press(Action::RNext(CHECK));
     shell.pump(&mut app);
     let _ = app.frame();
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(DONE));
+    assert_eq!(app.restore().unwrap().open, Some(DONE));
     assert!(
         summary_is(&mut app, "Use vaults", "Yes"),
         "{}",
@@ -518,7 +515,7 @@ fn done_offers_a_spend_the_backup_another_wallet_and_wallets() {
     app.press(Action::Seeds(S::Make));
     let w = made(&app);
     app.press(Action::RNext(CHECK));
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(DONE));
+    assert_eq!(app.restore().unwrap().open, Some(DONE));
     let text = drawn(&mut app);
     for said in [
         "Spend from this wallet",
@@ -674,7 +671,7 @@ fn single_key_at_check(shell: &mut crate::common::Shell, count: usize) -> (Farad
         assert_eq!(app.screen, Screen::Restore, "back in Restore for the seeds");
         assert_eq!(app.vaults.open.len(), count);
     }
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(SEEDS));
+    assert_eq!(app.restore().unwrap().open, Some(SEEDS));
     type_seed(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
     app.press(Action::Seeds(S::Make));
     let w = made(&app);
@@ -689,7 +686,7 @@ fn it_matches_opens_done_with_no_vaults() {
     let (mut app, _) = single_key_at_check(&mut shell, 0);
     app.press(Action::RNext(CHECK));
     assert_eq!(app.screen, Screen::Restore);
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(DONE));
+    assert_eq!(app.restore().unwrap().open, Some(DONE));
 }
 
 #[test]
@@ -700,7 +697,7 @@ fn it_matches_opens_done_with_two_vaults() {
     shell.pump(&mut app);
     let _ = app.frame();
     assert_eq!(app.screen, Screen::Restore);
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(DONE));
+    assert_eq!(app.restore().unwrap().open, Some(DONE));
 }
 
 /// A wallet restored from the test vault kept under the file name

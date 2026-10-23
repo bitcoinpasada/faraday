@@ -377,7 +377,7 @@ pub(crate) fn create_count(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> O
 
 /// Restore's question of vaults.
 pub(crate) fn restore_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
-    let r = app.restore.as_ref()?;
+    let r = app.restore.state()?;
     Some(ask_card(
         ui,
         (x, y, w),
@@ -390,7 +390,7 @@ pub(crate) fn restore_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
 
 /// Restore's count of vaults.
 pub(crate) fn restore_count(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> Option<f32> {
-    let r = app.restore.as_ref()?;
+    let r = app.restore.state()?;
     Some(count_card(
         ui,
         (x, y, w),

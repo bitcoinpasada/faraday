@@ -448,7 +448,7 @@ fn the_row_goes_when_the_flow_is_finished() {
     assert_eq!(app.screen, Screen::Restore);
     app.press(Action::Seeds(faraday_core::seeds::SeedsAction::Make));
     app.press(Action::RNext(rstep::CHECK));
-    assert_eq!(app.restore.as_ref().unwrap().open, Some(rstep::DONE));
+    assert_eq!(app.restore().unwrap().open, Some(rstep::DONE));
     assert!(
         !offered(&mut app, Action::Resume(Going::Restore)),
         "restored: no row"

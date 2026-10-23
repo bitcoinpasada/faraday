@@ -6,12 +6,12 @@ file core/faraday-psbt/src/inspect.rs 2673
 file faraday/faraday-core/src/backup_flow/steps.rs 3143
 file faraday/faraday-core/src/backup_flow/wallet.rs 2868
 file faraday/faraday-core/src/board/mod.rs 2688
-file faraday/faraday-core/src/lib.rs 8874
+file faraday/faraday-core/src/lib.rs 8550
 file faraday/faraday-core/src/plan/mod.rs 4357
 file faraday/faraday-core/src/vault/mod.rs 4512
 file faraday/faraday-core/src/vault/screen.rs 4862
 file faraday/faraday-core/tests/all/backup_board.rs 2795
-file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5929
+file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5928
 
 # Functions over 100 lines (clippy's too_many_lines, each under an
 # `expect`), and functions with too many arguments (each under an

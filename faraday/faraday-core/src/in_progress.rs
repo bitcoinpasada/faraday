@@ -104,7 +104,7 @@ impl Faraday {
         }
         if self
             .restore
-            .as_ref()
+            .state()
             .is_some_and(|r| r.done.iter().any(|d| *d))
         {
             v.push(Going::Restore);
@@ -175,7 +175,7 @@ impl Faraday {
         if owner != 0 && self.create.state().is_some_and(|c| c.owner == owner) {
             return Some(Going::Create);
         }
-        if owner != 0 && self.restore.as_ref().is_some_and(|r| r.owner == owner) {
+        if owner != 0 && self.restore.state().is_some_and(|r| r.owner == owner) {
             return Some(Going::Restore);
         }
         if f.kind.is_wallet() && self.wallet_flow_of_backup() == Some(i) {
@@ -193,7 +193,7 @@ impl Faraday {
     pub(crate) fn flow_on_screen(&self) -> Option<Going> {
         match self.screen {
             Screen::Create if self.create.state().is_some() => Some(Going::Create),
-            Screen::Restore if self.restore.is_some() => Some(Going::Restore),
+            Screen::Restore if self.restore.state().is_some() => Some(Going::Restore),
             Screen::Backup => self.backup_going(),
             Screen::Spend | Screen::Family => Some(Going::Spend),
             Screen::Message if self.message.state().is_some() => Some(Going::Message),
@@ -264,7 +264,7 @@ impl Faraday {
                 }
             }
             Going::Restore => {
-                let Some(owner) = self.restore.as_ref().map(|r| r.owner) else {
+                let Some(owner) = self.restore.state().map(|r| r.owner) else {
                     return;
                 };
                 match left {
@@ -377,7 +377,7 @@ impl Faraday {
                     .then_some(EN.flow_lost_answers)
             }
             Going::Restore => {
-                let r = self.restore.as_ref()?;
+                let r = self.restore.state()?;
                 if self.wallet_flow_of_owner(r.owner).is_some() {
                     return Some(EN.flow_lost_setup);
                 }
@@ -583,7 +583,7 @@ impl Faraday {
                 (wallets, EN.sidebar_flow_create.to_string(), step)
             }
             Going::Restore => {
-                let r = self.restore.as_ref()?;
+                let r = self.restore.state()?;
                 let steps = r.steps();
                 let k = r
                     .open
@@ -773,7 +773,7 @@ fn flow_finished_on(r: &impl Reads, g: Going) -> bool {
         }
         Going::Restore => app
             .restore
-            .as_ref()
+            .state()
             .is_some_and(|x| x.done[crate::rstep::CHECK as usize]),
         Going::Backup => backup_finished_on(r),
         Going::Spend => app.spend.as_ref().is_some_and(|s| s.out_tx || s.out_signed),

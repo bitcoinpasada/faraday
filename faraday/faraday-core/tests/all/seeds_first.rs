@@ -78,7 +78,7 @@ fn restore_from_seeds(multi: bool) -> Faraday {
 }
 
 fn restored(app: &Faraday) -> String {
-    let r = app.restore.as_ref().unwrap();
+    let r = app.restore().unwrap();
     let w = r.wallet.expect("no wallet made");
     assert_eq!(r.open, Some(CHECK), "the Check card is not next");
     desc(&app.session.wallets[w].policy().to_descriptor())
@@ -128,7 +128,7 @@ fn one_seed_on_restore_makes_the_words_routes_wallet() {
     tab.press(Action::Family(F::Everything));
     let w = tab.family_wallet().expect("the words opened no wallet");
     let words = &tab.session.wallets[w];
-    let r = app.restore.as_ref().unwrap().wallet.unwrap();
+    let r = app.restore().unwrap().wallet.unwrap();
     assert_eq!(
         tab.session.address(&c, words, false, 0),
         app.session.address(&c, &app.session.wallets[r], false, 0)

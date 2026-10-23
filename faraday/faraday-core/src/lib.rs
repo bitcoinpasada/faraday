@@ -1307,7 +1307,7 @@ pub struct Faraday {
     /// Creating a wallet.
     create: create::CreateArea,
     /// Restoring a wallet.
-    pub restore: Option<RestoreState>,
+    restore: restore::RestoreArea,
     /// New key: the key being made, the keys made this session, the
     /// camera and the shell's randomness source.
     keygen: keygen::KeyGenArea,
@@ -1543,7 +1543,7 @@ impl Faraday {
             backup: None,
             message: state::MessageArea::default(),
             create: create::CreateArea::default(),
-            restore: None,
+            restore: restore::RestoreArea::default(),
             keygen: keygen::KeyGenArea::default(),
             learn: learn::LearnArea::default(),
             wordlist: wordlist::WordListArea::default(),
@@ -2756,7 +2756,7 @@ impl Faraday {
         self.backup = None;
         self.message.clear();
         self.create.clear();
-        self.restore = None;
+        self.restore.clear();
         self.keygen.forget();
         self.wordlist.clear();
         self.bip85.clear();
@@ -5274,330 +5274,6 @@ impl Faraday {
         }
     }
 
-    /// Restore's Kind: a row pressed. The quorum goes to 2 of 3 for a
-    /// multisig, one key for a single key; a description read has chosen
-    /// already.
-    fn restore_kind(&mut self, i: u8) {
-        let Some(&kind) = create::NewKind::ALL.get(usize::from(i)) else {
-            return;
-        };
-        let Some(r) = self.restore.as_mut().filter(|r| !r.described) else {
-            return;
-        };
-        let Some(s) = r.seeds.as_mut() else {
-            return;
-        };
-        let was = s.kind;
-        s.fix(kind);
-        if was.multi() != kind.multi() || was.all_sign() != kind.all_sign() {
-            s.set_n(if kind.multi() { 3 } else { 1 });
-        }
-        r.error = None;
-    }
-
-    /// Why Restore does not take the seed whose key is `fp`, if it does
-    /// not: with the description known, not one of its keys; from the
-    /// seeds alone, no slot left. Once the wallet is made and Keys is
-    /// closed, a key added is no seed of Restore's: nothing to refuse.
-    pub(crate) fn restore_refusal(&self, fp: faraday_bip::keys::Fingerprint) -> Option<String> {
-        let r = self.restore.as_ref().filter(|r| !r.keys_made())?;
-        if r.described {
-            let w = self.session.wallets.get(r.wallet?)?;
-            // A threshold wallet's slots are shares, matched as they load.
-            if w.policy().record().is_some() {
-                return None;
-            }
-            let ours = self
-                .session
-                .slots(w)
-                .iter()
-                .any(|s| s.fingerprint == Some(fp));
-            return (!ours).then(|| NOT_A_KEY.to_string());
-        }
-        let s = r.seeds.as_ref()?;
-        (!s.keys.contains(&fp.0) && s.first_empty().is_none())
-            .then(|| EN.restore_refusal_every.to_string())
-    }
-
-    /// A seed for Restore's open slot, loaded: matched to the
-    /// description's keys or put in the slot (`docs/history/NEW-WALLET.md`
-    /// §12.1).
-    pub(crate) fn restore_took(&mut self, fp: faraday_bip::keys::Fingerprint) {
-        if let Some(why) = self.restore_refusal(fp) {
-            if let Some(r) = self.restore.as_mut() {
-                r.error = Some(why);
-            }
-            return;
-        }
-        if self.restore.as_ref().is_some_and(RestoreState::keys_made) {
-            return;
-        }
-        // Matched: its slot reads "Key k of the wallet" and is here.
-        let place = self
-            .restore
-            .as_ref()
-            .and_then(|r| r.wallet.filter(|_| r.described))
-            .and_then(|i| self.session.wallets.get(i))
-            .and_then(|w| {
-                self.session
-                    .slots(w)
-                    .iter()
-                    .position(|s| s.fingerprint == Some(fp))
-            });
-        let Some(r) = self.restore.as_mut() else {
-            return;
-        };
-        if let Some(k) = place {
-            r.absent.retain(|&a| usize::from(a) != k);
-        } else if !r.described
-            && let Some(s) = r.seeds.as_mut()
-        {
-            s.take(fp.0);
-        }
-        r.error = None;
-    }
-
-    /// A description or a share read by the camera while Restore waits
-    /// for one: the wallet loads, or the share is taken. Returns whether
-    /// it was.
-    fn restore_arrived(&mut self, at: usize) -> bool {
-        let c = self.compute();
-        let Some((kind, name)) = self.inbox.get(at).map(|i| (i.kind, i.name.clone())) else {
-            return false;
-        };
-        let Some(r) = self.restore.as_mut().filter(|r| !r.described) else {
-            return false;
-        };
-        match kind {
-            FileKind::Wallet => {
-                self.act(Action::RUse(at));
-                true
-            }
-            FileKind::Share => {
-                if !r.shares.contains(&name) {
-                    r.shares.push(name);
-                }
-                r.open = Some(rstep::DESCRIPTION);
-                r.scroll.follow = true;
-                let whole =
-                    restore::merge(&self.restore_share_texts(&c)).is_ok_and(|m| m.whole.is_some());
-                if whole {
-                    self.act(Action::RRebuild);
-                }
-                true
-            }
-            _ => false,
-        }
-    }
-
-    /// Restore's Make the wallet with the description known: every slot
-    /// has its seed or is Not here.
-    pub(crate) fn restore_described_make(&mut self) {
-        let Some(r) = self.restore.as_ref() else {
-            return;
-        };
-        let Some(w) = r.wallet.and_then(|i| self.session.wallets.get(i)) else {
-            return;
-        };
-        let open = self
-            .session
-            .slots(w)
-            .iter()
-            .enumerate()
-            .filter(|(k, s)| s.held_by.is_none() && !r.absent.contains(&(*k as u8)))
-            .count();
-        let Some(r) = self.restore.as_mut() else {
-            return;
-        };
-        if open > 0 {
-            r.error = Some(fill(
-                EN.restore_described_make_still,
-                &[
-                    &open.to_string(),
-                    (if open == 1 {
-                        EN.restore_described_make_slot
-                    } else {
-                        EN.restore_described_make_slots
-                    }),
-                ],
-            ));
-            return;
-        }
-        r.next(rstep::SEEDS);
-        self.refresh_spend();
-    }
-
-    fn restore_from_vault(&mut self, v: usize, r: usize) {
-        let c = self.compute();
-        use faraday_vault::records::{field, kind};
-        let Some(open) = self.vaults.open.get(v) else {
-            return;
-        };
-        let Some(rec) = self.vaults.records(open.id).get(r) else {
-            return;
-        };
-        let (Some(text), name) = (
-            rec.public_text(field::WALLET).map(str::to_string),
-            rec.public_text(field::WALLET_NAME)
-                .unwrap_or(EN.restore_from_vault_wallet)
-                .to_string(),
-        ) else {
-            return;
-        };
-        let source = open.name.clone();
-        self.restore_wallet(&name, &text, &source, wallet::Origin::Vault);
-        let Some(w) = self
-            .restore
-            .as_ref()
-            .and_then(|s| s.wallet)
-            .and_then(|i| self.session.wallets.get(i))
-        else {
-            return;
-        };
-        // The vault's keys for this wallet's slots load with it.
-        let want: Vec<String> = self
-            .session
-            .slots(w)
-            .iter()
-            .filter_map(|s| s.fingerprint.map(fp_text))
-            .collect();
-        let open = &self.vaults.open[v];
-        let keep: BTreeSet<usize> = self
-            .vaults
-            .records(open.id)
-            .of(kind::KEY)
-            .filter(|(_, k)| {
-                vault::screen::key_fingerprint(&c, self, *k).is_some_and(|fp| want.contains(&fp))
-            })
-            .map(|(i, _)| i)
-            .chain([r])
-            .collect();
-        let all: BTreeSet<usize> = (0..self.vaults.records(open.id).len()).collect();
-        let saved = std::mem::replace(
-            &mut self.vaults.open[v].skip,
-            all.difference(&keep).copied().collect(),
-        );
-        let (keys, _) = self.vault_load(v, false);
-        self.vaults.open[v].skip = saved;
-        self.screen = Screen::Restore;
-        if keys > 0 {
-            self.toast(&fill(
-                EN.restore_from_vault_count,
-                &[
-                    &keys.to_string(),
-                    (if keys == 1 {
-                        EN.restore_from_vault_key
-                    } else {
-                        EN.restore_from_vault_keys
-                    }),
-                    &source.to_string(),
-                ],
-            ));
-        }
-    }
-
-    /// Costs what `read_kept` costs. The texts of the shares chosen on the
-    /// restore screen, and those kept in the open vaults, each vault
-    /// share's wallet read as a description no record keeps
-    /// ([`Kept::read_kept`]).
-    pub fn restore_share_texts(&self, c: &Compute) -> Vec<String> {
-        let Some(r) = self.restore.as_ref() else {
-            return Vec::new();
-        };
-        let mut texts: Vec<String> = self
-            .inbox
-            .iter()
-            .filter(|i| r.shares.contains(&i.name))
-            .map(|i| String::from_utf8_lossy(&i.bytes).into_owned())
-            .collect();
-        // The shares kept in every open vault (`docs/BACKUP-FLOW.md`
-        // §15.6), each where it agrees with the shares in hand.
-        use faraday_vault::records::{field, kind};
-        // One wallet's shares, told by field 5, never by name: the first
-        // that merges with what is in hand.
-        let mut wallet: Option<String> = None;
-        for o in &self.vaults.open {
-            for (_, rec) in self.vaults.records(o.id).of(kind::WALLET_SHARE) {
-                let Some(t) = rec.public_text(field::SHARE) else {
-                    continue;
-                };
-                let of = rec
-                    .public_text(field::SHARE_WALLET)
-                    .and_then(|d| self.kept.read_kept(c, d))
-                    .map(|p| p.checksum().to_string());
-                if wallet.is_some() && of != wallet {
-                    continue;
-                }
-                if texts.iter().any(|x| x.trim() == t.trim()) {
-                    continue;
-                }
-                let mut trial = texts.clone();
-                trial.push(t.to_string());
-                if restore::merge(&trial).is_ok() {
-                    texts = trial;
-                    wallet = of;
-                }
-            }
-        }
-        texts
-    }
-
-    /// Loads the wallet a description gives and fills Restore's Kind and
-    /// Quorum from it: the seeds are matched to its keys next. `origin`
-    /// is what `source` is, given by the caller, which already knows.
-    fn restore_wallet(&mut self, name: &str, text: &str, source: &str, origin: wallet::Origin) {
-        let c = self.compute();
-        match self.session.add_wallet(&c, name, text, source, origin) {
-            Ok(i) => {
-                self.wallet = i;
-                let w = &self.session.wallets[i];
-                let kind = create::NewKind::of(w.policy());
-                let (m, n) = Session::quorum(w);
-                // The flow that decided where the seeds go knows the wallet
-                // once it is made from them.
-                if let Some(owner) = self
-                    .restore
-                    .as_ref()
-                    .filter(|r| r.into_vaults())
-                    .map(|r| r.owner)
-                {
-                    self.wallet_flow_attach(i, owner);
-                }
-                if let Some(r) = self.restore.as_mut() {
-                    r.wallet = Some(i);
-                    r.described = true;
-                    r.absent.clear();
-                    r.error = None;
-                    if let Some(s) = r.seeds.as_mut() {
-                        s.fix(kind.unwrap_or(s.kind));
-                        // A description's keys are matched to the seeds
-                        // from none; a wallet made from the seeds keeps
-                        // them, its keys.
-                        if origin != wallet::Origin::TypedSeeds {
-                            s.keys.clear();
-                        }
-                        s.set_n(n);
-                        s.set_m(m);
-                    }
-                    for k in [rstep::KIND, rstep::QUORUM, rstep::DESCRIPTION] {
-                        r.done[k as usize] = true;
-                    }
-                    r.done[rstep::SEEDS as usize] = false;
-                    r.done[rstep::CHECK as usize] = false;
-                    // On to the next card not done: the question of vaults
-                    // when it is not answered yet, before the seeds
-                    // (`docs/history/NEW-WALLET.md` §12.3 item 4).
-                    r.next(rstep::DESCRIPTION);
-                }
-            }
-            Err(e) => {
-                if let Some(r) = self.restore.as_mut() {
-                    r.error = Some(e.text());
-                }
-            }
-        }
-    }
-
     fn make_pdf(&mut self, name: &str, bytes: &[u8]) {
         let c = self.compute();
         if !self.online {
@@ -6376,7 +6052,7 @@ impl Faraday {
     pub(crate) fn entry_leave(&self) -> Screen {
         match self.entry.state().back {
             Some(s @ (Screen::Family | Screen::Spend)) => s,
-            Some(Screen::Restore) if self.restore.as_ref().is_some_and(|r| r.seeds.is_some()) => {
+            Some(Screen::Restore) if self.restore.state().is_some_and(|r| r.seeds.is_some()) => {
                 Screen::Restore
             }
             _ => Screen::Wallets,
@@ -6501,7 +6177,7 @@ impl Faraday {
             )
             .ok();
             if let Some(why) = fp.and_then(|fp| self.restore_refusal(fp)) {
-                if let Some(r) = self.restore.as_mut() {
+                if let Some(r) = self.restore.state_mut() {
                     r.error = Some(why);
                 }
                 self.entry.reset();
@@ -6544,7 +6220,7 @@ impl Faraday {
             }
             // A SeedQR scanned on Restore: the refusal shows there.
             Err(e) if self.screen == Screen::Restore => {
-                if let Some(r) = self.restore.as_mut() {
+                if let Some(r) = self.restore.state_mut() {
                     r.error = Some(e.text());
                 }
                 self.entry.reset();

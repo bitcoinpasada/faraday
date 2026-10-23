@@ -117,10 +117,7 @@ fn restore_starts_with_the_kind_of_wallet() {
     let mut app = Faraday::new();
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
     app.press(Action::RestoreWallet);
-    assert_eq!(
-        app.restore.as_ref().unwrap().open,
-        Some(faraday_core::rstep::KIND)
-    );
+    assert_eq!(app.restore().unwrap().open, Some(faraday_core::rstep::KIND));
 }
 
 #[test]

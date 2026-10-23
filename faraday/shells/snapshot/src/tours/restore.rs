@@ -42,8 +42,7 @@ pub(crate) fn restore_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("restore-seeds-refused")?;
     let w = t
         .app
-        .restore
-        .as_ref()
+        .restore()
         .and_then(|r| r.wallet)
         .ok_or("the description made no wallet")?;
     let empty: Vec<u8> = t
