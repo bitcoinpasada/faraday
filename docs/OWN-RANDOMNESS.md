@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified, not built (F86); the kernel check of §3 done from the repository
-**Open:** all of §2 (adding your own randomness, R1 to R3); the stick's kernel change, option A (§3.3, R4), and the boot measurement that confirms it brings no long wait (§3.4, needs hardware).
+**Open:** all of §2 (adding your own randomness, R1 to R3); the stick's kernel change, option A (§3.3, R4), and the boot measurement that confirms it brings no long wait (§3.4: QEMU on the build machine, then one real PC in passing).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer movement and
@@ -10,7 +10,7 @@ key timings on the desktop, which is hashed together with the system's bytes int
 session's seed and pool. It is mixed, never substituted: what comes out
 is at least as strong as the stronger of the two. (b) What the stick's
 and the Pi's kernels do for randomness at boot, read from the image's
-configuration, and a plan for the one measurement that needs hardware.
+configuration, and a plan for the boot measurement (QEMU, then one real PC in passing).
 
 ## 1. What is built
 
@@ -233,31 +233,29 @@ seeds the pool from bcm2835-rng, which is the Pi's and not the stick's.
 
 ### 3.4 The measurement
 
-One hardware measurement: how long `/dev/random` takes to be ready
-after power-on, and when the app's first answer arrives.
+How long `/dev/random` takes to be ready after power-on with option A,
+and when the app's first answer arrives. Since Linux 5.18 the kernel
+generates jitter entropy itself when a reader waits, which on an x86
+PC takes about a second, and the Pi credits its hardware generator
+either way, so a long wait is not expected; the measurement confirms
+it (owner, 2026-10-23: no session on several PCs).
 
-1. **Read the generated configs** (read-only, the build machine): in
-   each board's Buildroot output, `grep -E
-   'HW_RANDOM|TCG_TPM|RANDOM_TRUST|CMDLINE' .config`, and for the Pi,
-   whether `RANDOM_TRUST_BOOTLOADER` is set.
-2. **Instrument the dev image only.** The stick shell, in the dev
-   variant, writes to its log the CLOCK_BOOTTIME at which it opened
-   `/dev/random` and at which the read returned. The kernel's own
-   "random: crng init done" line carries its time in `dmesg`, at
-   notice level, kept in the buffer in every variant.
-3. **Machines.** The x86 stick on at least three PCs of different ages
-   (one without RDRAND if one is at hand, otherwise QEMU's `qemu64` CPU,
-   which has none, through `faraday/tools/stick-qemu.py`); the Pi 3 with
-   its panel.
-4. **Runs.** Ten cold boots each (power off, not reboot): the image as
-   it is, and on x86 with A's two parameters (a dev cmdline line). On
-   the Pi, also read `/sys/module/rng_core/parameters/default_quality`,
-   `/sys/class/misc/hw_random/rng_current` and whether
-   `/proc/device-tree/chosen/rng-seed` exists.
-5. **Recorded.** Per machine and setting: the time of crng init, the
-   time of the app's first answer, the worst of ten. The results go in
-   this section; the dev instrumentation stays in the dev variant only.
+1. **QEMU, the worst case** (the build machine, automated): the stick
+   image with A's two parameters, booted through
+   `faraday/tools/stick-qemu.py` on QEMU's `qemu64` CPU, which has no
+   RDRAND. Recorded: the time of the kernel's "random: crng init done"
+   line and of the app's first answer, the worst of ten boots.
+2. **One real PC, in passing** (the owner): the next time an option-A
+   dev stick starts on a PC, the dev image's log shows the same two
+   times; the owner reads them off. The dev variant of the stick shell
+   writes the CLOCK_BOOTTIME at which it opened `/dev/random` and at
+   which the read returned; the kernel's line is in `dmesg` in every
+   variant.
+3. **The Pi** needs no measurement for A. Its generator is credited
+   from `bcm2835-rng` (§3.2) whatever the two parameters say.
 
+The results go in this section; the dev instrumentation stays in the
+dev variant only.
 ## 4. Tests
 
 In `faraday/faraday-core/tests/all/` (a new `own_randomness.rs`):
