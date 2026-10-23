@@ -129,7 +129,7 @@ parsed or derived once, with what it describes (§2 rules 2 and 4):
   came in, and a vault's or an APK's hash (`Item::wallet`, `Item::sha`):
   an Item's bytes never change;
 - each plan's map, by place and with its check (`plan::Mapped`), is kept
-  by the shape and answers it maps (`Faraday::plan_mapped`), and the
+  by the shape and answers it maps (`Kept::plan_mapped`), and the
   plan's helpers read the map they are given (`alone_on`, `reach_on`,
   `checklist_on` and the rest) instead of mapping again;
 - a wallet keeps its addresses, a key its account key texts, Explore

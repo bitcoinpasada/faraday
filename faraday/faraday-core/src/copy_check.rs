@@ -179,10 +179,10 @@ impl Faraday {
 
     /// Costs what `plan_mapped` costs. The forms of the copies of seed `i`
     /// the backup's map keeps, read from the plan's map
-    /// ([`Faraday::plan_mapped`]: once a frame while drawing).
+    /// ([`Kept::plan_mapped`]: once a frame while drawing).
     pub(crate) fn copy_forms(&self, c: &Compute, b: &BackupState, i: usize) -> CopyForms {
         let shape = self.plan_shape_now(b.wallet);
-        plan::copy_forms_on(&self.plan_mapped(c, &shape, &b.answers), i)
+        plan::copy_forms_on(&self.kept.plan_mapped(c, &shape, &b.answers), i)
     }
 
     /// Costs what `copy_forms` costs. What checking seed `i`'s copies asks

@@ -403,27 +403,6 @@ fn words_of(c: &Compute, text: &str) -> Option<Mnemonic> {
 pub(crate) use faraday_intake::{Part, part_of};
 
 impl Faraday {
-    /// The fingerprint of a seed with no passphrase, remembered by a hash
-    /// of the secret so a frame does not run PBKDF2 again.
-    fn fingerprint_memo(
-        &self,
-        tag: &[u8],
-        secret: &[u8],
-        f: impl FnOnce() -> Option<Fingerprint>,
-    ) -> Option<Fingerprint> {
-        let id = faraday_keys::identity::secret_id(tag, secret);
-        if let Some((_, fp)) = self.fp_memo.borrow().iter().find(|(k, _)| *k == id) {
-            return Some(*fp);
-        }
-        let fp = f()?;
-        let mut kept = self.fp_memo.borrow_mut();
-        if kept.len() >= crate::FP_MEMO_KEPT {
-            kept.remove(0);
-        }
-        kept.push((id, fp));
-        Some(fp)
-    }
-
     /// Costs what `secret_in` costs. The secret a seed source gives.
     pub(crate) fn inbox_secret(&self, c: &Compute, source: &SeedSource) -> Option<Secret> {
         self.secret_in(c, &self.inbox, source)
@@ -502,7 +481,7 @@ impl Faraday {
             SeedSource::Loaded => return None,
         };
         let material = Zeroizing::new(material);
-        self.fingerprint_memo(tag, &material, || {
+        self.kept.fingerprint_memo(tag, &material, || {
             self.secret_in(c, items, source)?.fingerprint(
                 c,
                 &self.source_passphrase(items, source),
@@ -781,9 +760,10 @@ impl Faraday {
                 Ok(m) => match m.whole {
                     Some(whole) => {
                         let name = self
+                            .kept
                             .config_name_kept(c, &whole)
                             .unwrap_or_else(|| EN.inbox_restored_wallet.to_string());
-                        if let Some(p) = self.read_kept(c, &whole) {
+                        if let Some(p) = self.kept.read_kept(c, &whole) {
                             let loaded = loaded_desc.contains(&crate::wallet::same_wallet(&p));
                             push_wallet(&mut found, name, p, None, true, loaded);
                         }
@@ -810,7 +790,7 @@ impl Faraday {
             let policy = if w.policy().silent().is_some() {
                 continue;
             } else if w.policy().record().is_some() {
-                match self.read_kept(c, &w.policy().to_descriptor()) {
+                match self.kept.read_kept(c, &w.policy().to_descriptor()) {
                     Some(p) => p,
                     None => continue,
                 }

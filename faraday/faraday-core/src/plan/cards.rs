@@ -22,7 +22,7 @@ pub(crate) struct PlanCtx {
     /// The plan.
     pub answers: plan::Answers,
     /// The plan mapped, with its check: once a frame through the drawing
-    /// memo ([`Faraday::plan_mapped`]).
+    /// memo ([`Kept::plan_mapped`]).
     pub mapped: std::rc::Rc<plan::Mapped>,
     /// The plan's check, kept with its map ([`View::plan_check`]).
     pub check: plan::Check,

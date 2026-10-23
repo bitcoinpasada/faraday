@@ -979,7 +979,7 @@ impl Faraday {
         // (`docs/BACKUP-FLOW.md` §17.16 item 3).
         let m = plan::stored_map(&shape, &a);
         // The plan's map and its check, once for every line below.
-        let mapped = self.plan_mapped(c, &shape, &a);
+        let mapped = self.kept.plan_mapped(c, &shape, &a);
         let kept = plan::kept_vaults(&m);
         let custom = a.custom;
         let places = plan::places_of(&m).max(1);

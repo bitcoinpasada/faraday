@@ -24,42 +24,13 @@ use faraday_keys::KEY_TEXTS_KEPT;
 
 /// Each kept list with its length and its bound.
 fn sizes(app: &Faraday) -> Vec<(String, usize, usize)> {
-    let mut out = vec![
-        (
-            "public QR codes (public_qr)".to_string(),
-            app.public_qrs.borrow().len(),
-            crate::PUBLIC_QRS_KEPT,
-        ),
-        (
-            "descriptions read (read_kept)".into(),
-            app.texts_read.borrow().len(),
-            crate::TEXTS_READ_KEPT,
-        ),
-        (
-            "configs' names (config_name_kept)".into(),
-            app.config_names.borrow().len(),
-            crate::CONFIG_NAMES_KEPT,
-        ),
-        (
-            "descriptions parsed (parsed_kept)".into(),
-            app.texts_parsed.borrow().len(),
-            crate::TEXTS_PARSED_KEPT,
-        ),
-        (
-            "plans mapped (plan_mapped)".into(),
-            app.plans_mapped.borrow().len(),
-            crate::PLANS_MAPPED_KEPT,
-        ),
-        (
-            "Seeds' addresses (seeds_address)".into(),
-            app.seeds_addresses.borrow().len(),
-            crate::SEEDS_ADDRESSES_KEPT,
-        ),
-        (
-            "seeds' fingerprints (fp_memo)".into(),
-            app.fp_memo.borrow().len(),
-            crate::FP_MEMO_KEPT,
-        ),
+    let mut out: Vec<(String, usize, usize)> = app
+        .kept
+        .sizes()
+        .into_iter()
+        .map(|(name, len, bound)| (name.to_string(), len, bound))
+        .collect();
+    out.extend([
         (
             "vault keys' fingerprints (vaults.fingerprints)".into(),
             app.vaults.fingerprints.borrow().len(),
@@ -75,7 +46,7 @@ fn sizes(app: &Faraday) -> Vec<(String, usize, usize)> {
             app.vaults.apk.kept(),
             crate::apk::APK_READS_KEPT,
         ),
-    ];
+    ]);
     for w in &app.session.wallets {
         let (addresses, scripts) = w.kept();
         out.push((
@@ -140,7 +111,9 @@ fn round(app: &mut Faraday, n: usize) {
             if let Some(b) = app.backup.as_mut() {
                 b.answers = Answers::preset(&shape, preset);
             }
-            let _ = app.plan_mapped(&c, &shape, &Answers::preset(&shape, preset));
+            let _ = app
+                .kept
+                .plan_mapped(&c, &shape, &Answers::preset(&shape, preset));
             let _ = app.frame();
         }
     }
@@ -167,10 +140,10 @@ fn round(app: &mut Faraday, n: usize) {
     }
     for i in 0..40 {
         let text = format!("{n} {i} not a wallet");
-        let _ = app.read_kept(&c, &text);
-        let _ = app.parsed_kept(&c, &text);
-        let _ = app.config_name_kept(&c, &text);
-        let _ = app.public_qr(&c, &text);
+        let _ = app.kept.read_kept(&c, &text);
+        let _ = app.kept.parsed_kept(&c, &text);
+        let _ = app.kept.config_name_kept(&c, &text);
+        let _ = app.kept.public_qr(&c, &text);
     }
     for a in 0..20 {
         let s = SeedsState {

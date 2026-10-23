@@ -476,7 +476,7 @@ impl Faraday {
     /// first time each is asked, lookups after: the descriptor the piece
     /// describes now, or what it still lacks. The keys' texts are kept on
     /// the keys and the description read is kept by its text
-    /// ([`Faraday::parsed_kept`]).
+    /// ([`Kept::parsed_kept`]).
     pub fn seeds_descriptor(&self, c: &Compute, s: &SeedsState) -> Result<String, String> {
         let net = self.session.network();
         let path = s.path(net);
@@ -529,7 +529,7 @@ impl Faraday {
             s.kind
         };
         let d = kind.descriptor(s.m.max(1), &keys);
-        self.parsed_kept(c, &d)?;
+        self.kept.parsed_kept(c, &d)?;
         Ok(d)
     }
 
@@ -541,27 +541,7 @@ impl Faraday {
     pub fn seeds_address(&self, c: &Compute, s: &SeedsState) -> Result<String, String> {
         let d = self.seeds_descriptor(c, s)?;
         let net = self.session.network();
-        if let Some((.., a)) = self
-            .seeds_addresses
-            .borrow()
-            .iter()
-            .find(|(x, n, _)| *x == d && *n == net)
-        {
-            return a.clone();
-        }
-        let a = crate::wallet::read_wallet(c, &d)
-            .map_err(|e| e.text())
-            .and_then(|p| {
-                p.address_at(c, net, false, 0)
-                    .map(|a| a.to_string())
-                    .map_err(|e| e.to_string())
-            });
-        let mut kept = self.seeds_addresses.borrow_mut();
-        if kept.len() >= crate::SEEDS_ADDRESSES_KEPT {
-            kept.clear();
-        }
-        kept.push((d, net, a.clone()));
-        a
+        self.kept.seeds_address(c, &d, net)
     }
 
     /// A slider pressed, dragged or stepped to `value`.

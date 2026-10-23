@@ -299,7 +299,7 @@ impl Faraday {
         let writes = items.contains(&bstep::STICKS);
         let shape = self.plan_shape_now(w);
         let list = self.backup_seed_list_now(w);
-        let mapped = self.plan_mapped(&c, &shape, &b.answers);
+        let mapped = self.kept.plan_mapped(&c, &shape, &b.answers);
         // A seed kept on any stick, a vault's or a file's, waits for it.
         let in_vault = |i: usize| mapped.seed_on_stick(i);
         let released: Vec<(Fingerprint, usize)> = self

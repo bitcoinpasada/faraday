@@ -1655,7 +1655,7 @@ pub fn map(_c: &Compute, shape: &Shape, a: &Answers) -> Vec<Spot> {
 
 /// The plan mapped once: its map, the map by place, and its check, for
 /// the helpers that read them (`docs/SPEED.md` §3.3). A frame gets one
-/// through the drawing memo ([`crate::Faraday::plan_mapped`]) and a
+/// through the drawing memo ([`Kept::plan_mapped`]) and a
 /// press makes its own from the state as it is; either way the plan is
 /// mapped once and each helper reads the map it is given, never mapping
 /// again. It describes the shape and answers it was made from and is not

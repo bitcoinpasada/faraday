@@ -72,7 +72,7 @@ pub(crate) trait Reads {
     /// The wallet description record `r` of open vault `id` holds
     /// ([`crate::vault::Vaults::described`]).
     fn described(&self, id: VaultId, r: usize) -> Option<&crate::vault::Described>;
-    /// A plan's map ([`Faraday::plan_mapped`]).
+    /// A plan's map ([`Kept::plan_mapped`]).
     fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> std::rc::Rc<plan::Mapped>;
     /// A plan's check on its map ([`plan::Mapped::check`]).
     fn plan_check(&self, shape: &plan::Shape, a: &plan::Answers) -> plan::Check;
@@ -151,10 +151,11 @@ impl Reads for Now<'_> {
         self.app.vaults.described(self.c, id, r)
     }
     fn plan_mapped(&self, shape: &plan::Shape, a: &plan::Answers) -> std::rc::Rc<plan::Mapped> {
-        self.app.plan_mapped(self.c, shape, a)
+        self.app.kept.plan_mapped(self.c, shape, a)
     }
     fn plan_check(&self, shape: &plan::Shape, a: &plan::Answers) -> plan::Check {
         self.app
+            .kept
             .plan_mapped(self.c, shape, a)
             .check(self.c, shape, a)
     }

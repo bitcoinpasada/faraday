@@ -763,7 +763,7 @@ impl Faraday {
     /// description record `r` holds, as its open vault keeps it read
     /// ([`Vaults::described_rec`]); a record that is no open vault's own (a
     /// copy) is read as a description no record keeps
-    /// ([`Faraday::read_kept`]), which costs a parse the first time.
+    /// ([`Kept::read_kept`]), which costs a parse the first time.
     pub(crate) fn record_described(
         &self,
         c: &Compute,
@@ -778,7 +778,7 @@ impl Faraday {
             kind::WALLET_SHARE => field::SHARE_WALLET,
             _ => return None,
         };
-        let policy = self.read_kept(c, r.public_text(f)?)?;
+        let policy = self.kept.read_kept(c, r.public_text(f)?)?;
         Some(std::borrow::Cow::Owned(Described::of(policy)))
     }
 }

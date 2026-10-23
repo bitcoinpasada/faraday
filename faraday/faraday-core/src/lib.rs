@@ -436,28 +436,6 @@ fn stick_keys(m: Medium) -> String {
     fill(EN.stick_keys_keys_load, &[m.noun()])
 }
 
-/// The most QR codes of public text kept ([`Faraday::public_qr`]); the
-/// next one empties the list.
-pub(crate) const PUBLIC_QRS_KEPT: usize = 8;
-/// The most wallet descriptions kept read by their text
-/// ([`Faraday::read_kept`]); the next one drops the oldest.
-pub(crate) const TEXTS_READ_KEPT: usize = 32;
-/// The most multisig configs' names kept ([`Faraday::config_name_kept`]);
-/// the next one drops the oldest.
-pub(crate) const CONFIG_NAMES_KEPT: usize = 16;
-/// The most descriptions kept parsed as Create builds them
-/// ([`Faraday::parsed_kept`]); the next one drops the oldest.
-pub(crate) const TEXTS_PARSED_KEPT: usize = 32;
-/// The most plans kept mapped ([`Faraday::plan_mapped`]): the backup's,
-/// a flow's, a chart's; the next one drops the oldest.
-pub(crate) const PLANS_MAPPED_KEPT: usize = 8;
-/// The most seeds' fingerprints kept by a hash of the secret
-/// ([`Faraday::fp_memo`]); the next one drops the oldest.
-pub(crate) const FP_MEMO_KEPT: usize = 64;
-/// The most first addresses of the Seeds tool's descriptions kept
-/// ([`Faraday::seeds_address`]); the next one empties the list.
-pub(crate) const SEEDS_ADDRESSES_KEPT: usize = 16;
-
 /// A file in the Inbox or the Outbox.
 #[derive(Clone)]
 pub struct Item {
@@ -684,42 +662,6 @@ pub enum Sheet {
     Samples,
 }
 
-/// A description's first receive address on a network, or why there is
-/// none ([`Faraday::seeds_address`]).
-type KeptAddress = (String, faraday_bip::keys::Network, Result<String, String>);
-
-impl Faraday {
-    /// Costs a QR encoding the first time. The QR code of `text`, public
-    /// text a screen shows (a guide's address): made the first time it is
-    /// asked, by whoever asks, a frame included, and kept on the state by
-    /// its text, a lookup after (`docs/SPEED.md` §2 rule 1: what is kept is
-    /// public).
-    pub(crate) fn public_qr(
-        &self,
-        c: &Compute,
-        text: &str,
-    ) -> Option<std::rc::Rc<faraday_codec::qr::QrMatrix>> {
-        if let Some((_, m)) = self.public_qrs.borrow().iter().find(|(t, _)| t == text) {
-            return m.clone();
-        }
-        let m = {
-            faraday_codec::qr::encode(
-                c,
-                faraday_codec::qr::Payload::Bytes(text.as_bytes()),
-                faraday_codec::qr::Ecc::Medium,
-            )
-            .ok()
-            .map(std::rc::Rc::new)
-        };
-        let mut kept = self.public_qrs.borrow_mut();
-        if kept.len() >= PUBLIC_QRS_KEPT {
-            kept.clear();
-        }
-        kept.push((text.to_string(), m.clone()));
-        m
-    }
-}
-
 /// Costs a QR encoding (through `encode_bounded` and `bbqr_frames`).
 /// Text as pictures keep it: one static code while it fits version 25
 /// at medium error correction (the bound `docs/WALLETS.md` §5 sets for
@@ -857,15 +799,6 @@ pub struct WalletKey {
     pub standard: Option<create::NewKind>,
     /// The seed's place among the session's keys.
     pub key: usize,
-}
-
-/// A signed message checked, by what its check is worked out from
-/// ([`Faraday::message_check`]).
-struct KeptMessage {
-    text: String,
-    network: faraday_bip::keys::Network,
-    wallets: Vec<String>,
-    check: Option<std::rc::Rc<wallet::MessageCheck>>,
 }
 
 /// The message cards, in order.
@@ -1271,32 +1204,9 @@ pub struct Faraday {
     /// What a frame works out once (`docs/SPEED.md` §3.3): on only while
     /// `render` runs.
     drawing: drawing::Drawing,
-    /// QR codes of public text a screen shows (a guide's address), each
-    /// made once, by its text ([`Faraday::public_qr`]).
-    public_qrs: std::cell::RefCell<Vec<(String, Option<std::rc::Rc<faraday_codec::qr::QrMatrix>>)>>,
-    /// Wallet descriptions read that no file or record keeps read, each
-    /// by its text ([`Faraday::read_kept`]): public, and never stale.
-    texts_read: std::cell::RefCell<Vec<(String, Option<faraday_bip::policy::WalletPolicy>)>>,
-    /// The `Name:` line of each multisig config put together from split
-    /// sheets ([`Faraday::config_name_kept`]), by its text: public, and
-    /// never stale.
-    config_names: std::cell::RefCell<Vec<(String, Option<String>)>>,
-    /// Descriptions the Seeds tool puts together, each parsed as Create
-    /// builds it ([`Faraday::parsed_kept`]), by its text: public, and
-    /// never stale.
-    texts_parsed:
-        std::cell::RefCell<Vec<(String, Result<faraday_bip::policy::WalletPolicy, String>)>>,
-    /// The signed message last checked ([`Faraday::message_check`]), by
-    /// its text, the network and the loaded wallets' checksums: public,
-    /// and never stale, since a change to any of them is another key.
-    message_checked: std::cell::RefCell<Option<KeptMessage>>,
-    /// Plans mapped, each by the shape and answers it is the map of
-    /// ([`Faraday::plan_mapped`]): public, and never stale, since a
-    /// change to either is another key.
-    plans_mapped: std::cell::RefCell<Vec<(plan::Shape, plan::Answers, std::rc::Rc<plan::Mapped>)>>,
-    /// First receive addresses of descriptions Seeds puts together, by the
-    /// description and network ([`Faraday::seeds_address`]): public.
-    seeds_addresses: std::cell::RefCell<Vec<KeptAddress>>,
+    /// What is worked out once and kept by what it is worked out from
+    /// (`drawing/kept.rs`).
+    kept: drawing::Kept,
     /// The last number given to a Make a new wallet or a Restore, which a
     /// wallet's backup flow is tied to while the wallet is being made.
     owner_seq: u64,
@@ -1534,9 +1444,6 @@ pub struct Faraday {
     forward: Vec<Screen>,
     /// The screen the last back or forward button landed on.
     landed: Option<Screen>,
-    /// Seeds' fingerprints with no passphrase, by a hash of the secret:
-    /// the Inbox's wallets and seeds are put together on every frame.
-    pub(crate) fp_memo: std::cell::RefCell<Vec<([u8; 32], faraday_bip::keys::Fingerprint)>>,
     /// Wallets the Inbox describes left out of its next load, by
     /// descriptor.
     pub inbox_skip: BTreeSet<String>,
@@ -1705,13 +1612,7 @@ impl Faraday {
             new_keys: 0,
             made_here: Vec::new(),
             drawing: drawing::Drawing::default(),
-            public_qrs: Default::default(),
-            seeds_addresses: Default::default(),
-            plans_mapped: Default::default(),
-            texts_read: Default::default(),
-            message_checked: Default::default(),
-            texts_parsed: Default::default(),
-            config_names: Default::default(),
+            kept: drawing::Kept::default(),
             owner_seq: 0,
             // A new GPG key's term starts at GnuPG's default, never at "never".
             vaults: {
@@ -1818,7 +1719,6 @@ impl Faraday {
             backing: false,
             forward: Vec::new(),
             landed: None,
-            fp_memo: Default::default(),
             inbox_skip: BTreeSet::new(),
             potential: None,
             typed_at: None,
@@ -4078,142 +3978,15 @@ impl Faraday {
             .collect()
     }
 
-    /// Costs a parse the first time. Wallet description `text` read
-    /// ([`wallet::read_wallet`]): the first time it is asked, by whoever
-    /// asks, a frame included, and kept on the state by its text, a lookup
-    /// after. For a description no Inbox file or vault record keeps read:
-    /// split sheets put together, a threshold wallet's descriptor.
-    pub(crate) fn read_kept(
-        &self,
-        c: &Compute,
-        text: &str,
-    ) -> Option<faraday_bip::policy::WalletPolicy> {
-        if let Some((_, p)) = self.texts_read.borrow().iter().find(|(t, _)| t == text) {
-            return p.clone();
-        }
-        let p = wallet::read_wallet(c, text).ok();
-        let mut kept = self.texts_read.borrow_mut();
-        if kept.len() >= TEXTS_READ_KEPT {
-            kept.remove(0);
-        }
-        kept.push((text.to_string(), p.clone()));
-        p
-    }
-
-    /// Costs a parse of the config the first time: the name multisig
-    /// config `text` carries on its `Name:` line
-    /// (`faraday_bip::multisig_config::parse_named`), kept on the state by
-    /// its text ([`Faraday::config_names`]), a lookup after.
-    pub(crate) fn config_name_kept(&self, c: &Compute, text: &str) -> Option<String> {
-        if let Some((_, n)) = self.config_names.borrow().iter().find(|(t, _)| t == text) {
-            return n.clone();
-        }
-        let n = {
-            faraday_bip::multisig_config::parse_named(c, text)
-                .ok()
-                .and_then(|(_, n)| n)
-        };
-        let mut kept = self.config_names.borrow_mut();
-        if kept.len() >= CONFIG_NAMES_KEPT {
-            kept.remove(0);
-        }
-        kept.push((text.to_string(), n.clone()));
-        n
-    }
-
-    /// Costs a parse of the description the first time: description
-    /// `text` parsed as Create builds a wallet ([`create::build`]'s
-    /// reader, `WalletPolicy::parse_any`), with the parser's refusal, kept
-    /// on the state by its text ([`Faraday::texts_parsed`]), a lookup
-    /// after.
-    pub(crate) fn parsed_kept(
-        &self,
-        c: &Compute,
-        text: &str,
-    ) -> Result<faraday_bip::policy::WalletPolicy, String> {
-        if let Some((_, p)) = self.texts_parsed.borrow().iter().find(|(t, _)| t == text) {
-            return p.clone();
-        }
-        let p =
-            { faraday_bip::policy::WalletPolicy::parse_any(c, text).map_err(|e| e.to_string()) };
-        let mut kept = self.texts_parsed.borrow_mut();
-        if kept.len() >= TEXTS_PARSED_KEPT {
-            let _ = kept.remove(0);
-        }
-        kept.push((text.to_string(), p.clone()));
-        p
-    }
-
-    /// Costs an address derivation per loaded wallet and address tried,
-    /// up to its first hundred on each chain, and a signature check, the
-    /// first time: signed message `text` checked
-    /// ([`wallet::Session::check_message`]), kept by its text, the network
-    /// and the loaded wallets ([`Faraday::message_checked`]), a lookup
-    /// after.
-    pub(crate) fn message_check(
-        &self,
-        c: &Compute,
-        text: &str,
-    ) -> Option<std::rc::Rc<wallet::MessageCheck>> {
-        let network = self.session.network();
-        let sums: Vec<String> = self
-            .session
-            .wallets
-            .iter()
-            .map(|w| w.checksum().to_string())
-            .collect();
-        if let Some(k) = self.message_checked.borrow().as_ref()
-            && k.text == text
-            && k.network == network
-            && k.wallets == sums
-        {
-            return k.check.clone();
-        }
-        let check = self.session.check_message(c, text).map(std::rc::Rc::new);
-        *self.message_checked.borrow_mut() = Some(KeptMessage {
-            text: text.to_string(),
-            network,
-            wallets: sums,
-            check: check.clone(),
-        });
-        check
-    }
-
-    /// Costs a map of the plan and its check the first time. The plan of
-    /// `shape` under answers `a`, mapped with its check, for every helper
-    /// that reads the plan's map (`docs/SPEED.md` §3.3): mapped the first
-    /// time these shape and answers are asked, by whoever asks, a frame
-    /// included, and kept on the state by them ([`Faraday::plans_mapped`]),
-    /// a lookup after. A frame and a press read the same map, and it is the
-    /// map of the state as it is: a change to the answers or the shape is
-    /// another key.
+    /// Costs a map of the plan and its check the first time.
+    /// [`crate::drawing::Kept::plan_mapped`] on the state's own kept lists.
     pub(crate) fn plan_mapped(
         &self,
         c: &Compute,
         shape: &plan::Shape,
         a: &plan::Answers,
     ) -> std::rc::Rc<plan::Mapped> {
-        if let Some((_, _, m)) = self
-            .plans_mapped
-            .borrow()
-            .iter()
-            .find(|(s, x, _)| s == shape && x == a)
-        {
-            return m.clone();
-        }
-        let m = std::rc::Rc::new({
-            let m = plan::Mapped::of(c, shape, a);
-            m.check(c, shape, a);
-            m
-        });
-        let mut kept = self.plans_mapped.borrow_mut();
-        // The plans a session shows at once: the backup's, a flow's, a
-        // chart's; an answer changed makes another, and the oldest goes.
-        if kept.len() >= PLANS_MAPPED_KEPT {
-            kept.remove(0);
-        }
-        kept.push((shape.clone(), a.clone(), m.clone()));
-        m
+        self.kept.plan_mapped(c, shape, a)
     }
 
     /// What wallet `w`'s plan is for: its quorum, its seeds and whether
@@ -4270,7 +4043,7 @@ impl Faraday {
         // description goes (`docs/BACKUP-FLOW.md` §17.1); the software and
         // The plan stay. Start from is gone (§19.21 item 1).
         let shape = self.plan_shape_now(b.wallet);
-        plan_cards_on(&self.plan_mapped(c, &shape, &b.answers))
+        plan_cards_on(&self.kept.plan_mapped(c, &shape, &b.answers))
     }
 
     /// Costs what `plan_mapped` costs. The backup's checklist, by
@@ -4283,10 +4056,14 @@ impl Faraday {
             return Vec::new();
         };
         let shape = self.plan_shape_now(b.wallet);
-        plan::checklist_on(&shape, &b.answers, &self.plan_mapped(c, &shape, &b.answers))
-            .into_iter()
-            .map(bstep::of)
-            .collect()
+        plan::checklist_on(
+            &shape,
+            &b.answers,
+            &self.kept.plan_mapped(c, &shape, &b.answers),
+        )
+        .into_iter()
+        .map(bstep::of)
+        .collect()
     }
 
     /// Opens checklist item `n`, or closes them all. A seed's copy shows
@@ -4727,7 +4504,8 @@ impl Faraday {
         };
         let shape = self.plan_shape_now(b.wallet);
         let list = self.backup_seed_list_now(b.wallet);
-        self.plan_mapped(c, &shape, &b.answers)
+        self.kept
+            .plan_mapped(c, &shape, &b.answers)
             .vault_passphrases(v)
             .into_iter()
             .filter_map(|i| list.get(i)?.1)
@@ -4773,7 +4551,8 @@ impl Faraday {
         let shape = self.plan_shape_now(b.wallet);
         let (m, n) = Session::quorum(w);
         let plan = wallet_backup::split_plan(n, m, b.answers.omit);
-        self.plan_mapped(c, &shape, &b.answers)
+        self.kept
+            .plan_mapped(c, &shape, &b.answers)
             .vault_shares(v)
             .into_iter()
             .filter_map(|j| Some((j, wallet_backup::split_share(w, plan.get(j)?)?, plan.len())))
@@ -6314,7 +6093,7 @@ impl Faraday {
     /// Costs what `read_kept` costs. The texts of the shares chosen on the
     /// restore screen, and those kept in the open vaults, each vault
     /// share's wallet read as a description no record keeps
-    /// ([`Faraday::read_kept`]).
+    /// ([`Kept::read_kept`]).
     pub fn restore_share_texts(&self, c: &Compute) -> Vec<String> {
         let Some(r) = self.restore.as_ref() else {
             return Vec::new();
@@ -6338,7 +6117,7 @@ impl Faraday {
                 };
                 let of = rec
                     .public_text(field::SHARE_WALLET)
-                    .and_then(|d| self.read_kept(c, d))
+                    .and_then(|d| self.kept.read_kept(c, d))
                     .map(|p| p.checksum().to_string());
                 if wallet.is_some() && of != wallet {
                     continue;

@@ -392,7 +392,8 @@ impl Faraday {
         let stem = file_stem(&wallet.name);
         let public = wi.map_or_else(Vec::new, |wi| self.backup_public_names_for_now(c, wi, a));
         // A place with what its sticks keep.
-        self.plan_mapped(c, &shape, a)
+        self.kept
+            .plan_mapped(c, &shape, a)
             .places
             .iter()
             .map(|spot| {

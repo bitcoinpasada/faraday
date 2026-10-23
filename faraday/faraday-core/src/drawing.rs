@@ -35,6 +35,7 @@ use crate::{Faraday, flow, plan, work};
 mod allowed;
 pub(crate) use allowed::Allowed;
 mod kept;
+pub(crate) use kept::Kept;
 mod memo;
 
 /// A wallet's seeds: a name each and the session key that holds it.
