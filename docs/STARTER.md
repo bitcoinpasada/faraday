@@ -1578,9 +1578,9 @@ maker's own documentation (owner, D6 as changed by F14: a page for
 one family alone would tell which maker the owner tried). A family
 tried on a computer is checked there before its group is published,
 and nothing published says which families were tried. The keys here
-are starting points from common knowledge, **every one to be checked
-against the maker's own documentation** before its page
-is written.
+were first written from common knowledge and are checked against the
+maker's own documentation below; a page is written only from a row
+with a source.
 
 | Family | Boot menu | Firmware settings | To check |
 |---|---|---|---|
@@ -1599,6 +1599,27 @@ is written.
 | Razer | F12 | F1 or Del | |
 | Huawei, Honor | F12 | F2 | |
 | Dynabook, Toshiba | F12 | F2 | |
+
+Checked against the makers' documents (the keys above agree with every
+source named; where a maker publishes more than one key, the table keeps
+the most common, which the code reads):
+
+| Family | Source | Note |
+|---|---|---|
+| Dell | https://www.dell.com/support/kbdoc/en-us/000126121 | F12 boot menu, F2 setup, tapped |
+| HP consumer, business | https://support.hp.com/bg-en/document/ish_3900499-3190557-16 | Esc opens the Startup Menu; F9 Boot Device Options, F10 Computer Setup; some models use F2 or F6 for setup; read through search excerpts, page not fetchable here |
+| Lenovo ThinkPad | https://docs.lenovocdrt.com/ref/bios/startup_menu/ | Enter at the startup prompt opens the menu; F1 setup, F12 boot device |
+| Lenovo IdeaPad, Yoga, Legion | https://support.lenovo.com/cz/en/solutions/ht500216 | F2 (Fn+F2) setup; F12 boot menu; Novo button; page not fetchable here, read through a search excerpt |
+| ASUS | https://www.asus.com/support/faq/1013017/ | Esc held while pressing power; F2 held for setup (https://www.asus.com/support/FAQ/1008829); older desktops Del; handhelds Volume Down |
+| Acer | https://community.acer.com/en/kb/articles/563-why-cant-i-get-the-f12-boot-menu-to-work-on-my-notebook-or-netbook | F12 menu off by default on some models, enabled in setup; F2 setup (https://us.answers.acer.com/app/answers/detail/a_id/2308/); read through search excerpts, pages not fetchable here |
+| MSI | https://www.msi.com/faq/faq-11370 | F11 boot menu, Del setup; read through a search excerpt, page not fetchable here |
+| Microsoft Surface | https://support.microsoft.com/en-us/help/4023511/surface-boot-surface-from-a-usb-device | Volume Down for USB boot, Volume Up for firmware settings |
+| Framework | https://knowledgebase.frame.work/how-do-i-enter-the-bios-on-the-framework-laptop-HydmWf5Ad | F12 boot device, F2 setup |
+| Samsung Galaxy Book | https://www.samsung.com/us/support/answer/ANS10002820/ | F10 boot menu; F2 setup (https://www.samsung.com/za/support/mobile-devices//how-to-enter-the-bios-settings/, not Galaxy Book by name) |
+| Gigabyte, Aorus | no maker source found | desktop board manuals give Del and F12; no laptop page found |
+| Razer | https://mysupport.razer.com/app/answers/detail/a_id/1541/~/ | F1 or Del setup; F12 boot menu (recovery-stick article a_id/2044); read through search excerpts, pages not fetchable here |
+| Huawei, Honor | https://consumer.huawei.com/en/support/content/en-us15827647/ | F2 setup, F12 boot menu; Honor: no maker source found |
+| Dynabook, Toshiba | https://support.dynabook.com/support/viewContentDetail?contentId=4009420 | F12 boot menu; F2 setup (contentId=4009426); pages are for Windows 7 and 8 era models |
 
 A maker without a page, or not read, gets the general Windows or Linux
 page, whose firmware route (§7.3) needs no key. Which makers were
