@@ -110,9 +110,9 @@ Sources read for it, each as data and none vendored:
     motion helping the reader follow, none distracting (§7.5).
 17. **A key that already has a codex32 set** (made here from dice, or
     loaded from strings): its backup places and checks that set and never
-    splits the seed again; the key record keeps the set (k, identifier,
-    length, indices, k − 1 strings besides S); a new set only on purpose,
-    behind a caution (§9.4).
+    splits the seed again; the key record keeps the set's plain facts
+    (k, identifier, length, indices), no strings (owner, 2026-10-23); a
+    new set only by Rotate the set (§9.4, §9.7).
 18. **Codex32 on New key's Start card at its top level**, beside BIP-39
     words, with BIP-39 words ticked; the default to be looked at again
     when more wallets read codex32 (§6).
@@ -142,6 +142,14 @@ Sources read for it, each as data and none vendored:
     Its key record keeps the codex32 set for the backup plan (§9.4), and
     the board names a backup-in-shares seed placed whole in a vault
     (§9.5, §9.6).
+25. **The set's actions** with the backup, on the set's chart node:
+    Add a share, Replace a lost share (k strings re-derive it exactly),
+    Rotate the set (the person marks lost and exposed strings; Faraday
+    says which held strings to destroy so fewer than k old ones can
+    exist, or that the seed must be treated as known; then a new set
+    from the seed with a new identifier). Splits always take fresh
+    randomness. The same actions suit SLIP-39 sets, specified
+    elsewhere (§9.7).
 14. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
     keep real dice typed on the pad): five dice for codex32, one die for
     BIP-39 words and Generate with dice, their values this computer's
@@ -1080,21 +1088,19 @@ places and checks **the set that exists**; it never splits the seed
 again, since a second split would make a second set that rebuilds the
 same seed, and the plan would not know about the first.
 
-- **What is kept.** The key record (VAULT §7, type 2) gains a field, the
-  key's codex32 set: k, the identifier, the length, the indices known
-  to exist, and k − 1 of the set's strings other than S (for k = 0,
-  nothing beyond k, identifier and length). With S, which the record
-  already holds as the seed, those strings fix the whole set, so any
-  string of it can be shown again (§6.6) or derived (§8.2) and any
-  string typed back can be checked as one of the set. They add no
-  secret the record does not already hold: anyone who reads the record
-  has S. A new field of the vault's record; the vault vectors gain a
-  record carrying it, and a vault without it reads as today. In the
-  session `faraday-keys` holds the set beside the key and it leaves only
-  through `Reveal::PaperForm`, as §9.1's strings do.
+- **What is kept.** The key record (VAULT §7, type 2) gains a field,
+  the key's codex32 set, holding its plain facts only (owner,
+  2026-10-23): k, the identifier, the length, and the indices known to
+  exist, each marked placed, lost, exposed or destroyed as the plan
+  notes them. No string is kept: the record holds the seed, and for
+  k = 0 the string is the seed written out, so it can be shown again; a
+  split set's strings cannot be made again from the seed alone (they
+  came partly from the person's dice), and are re-derived from k of
+  them (§9.7) or replaced by a new set (§9.7). A new field of the
+  vault's record; the vault vectors gain a record carrying it, and a
+  vault without it reads as today.
 - **Made here.** Make codex32 shares writes the set with the key at
-  Lock in (§6.7): k, identifier, length, every index made, and the
-  strings above.
+  Lock in (§6.7): k, identifier, length and every index made.
 - **Loaded from strings.** Typed or scanned shares give the set's k,
   identifier, length and the indices typed; the plan asks how many
   strings exist ("How many strings of w0za are there?", k to 31) and
@@ -1105,18 +1111,19 @@ same seed, and the plan would not know about the first.
   SeedQR are not offered (the key has no words); a vault holds the
   seed as for any wordless key. The checklist item **Codex32 strings of
   seed i** has no **Make them**: its foot is **Check my copy**, string
-  by string, each typed back (or scanned as Codex32QR) and checked as a
-  string of this set ("C · matches the set" / "Box 17 differs"), or
-  skipped behind the quiz's caution. Done when every string placed is
+  by string, each typed back (or scanned as Codex32QR) and checked: its
+  checksum, and its header against the set's facts (identifier,
+  threshold, an index of the set), which catches any copying error of up
+  to 8 characters ("C · checksum holds, a string of w0za" / "Box 17
+  differs" where the string was just made and is still in the session);
+  once k strings of the set are typed, also that they rebuild this seed.
+  Or skipped behind the quiz's caution. Done when every string placed is
   checked or skipped.
 - **More copies later.** **Add a share** (§8.2) extends the same set at
   an unused index, with the same identifier, and its chip is placed like
   the others.
-- **A new set on purpose.** §9.1's codex32 chip on such a key opens on
-  the existing set ("Place the strings of w0za"); **Make a new set**
-  is a second choice under it, behind a caution that names what it
-  does ("A second set of 9a6a2580. Either set rebuilds it; the first
-  stays valid.") and is never the default.
+- **A new set on purpose** is **Rotate the set** (§9.7), never a
+  second split beside the first.
 - **A key made of words** has no set: §9.1 and §9.2 split its 64-byte
   seed as written (127 characters, made with this device's randomness,
   "Not for checking by hand"); the plan's codex32 toggle for it carries
@@ -1209,6 +1216,59 @@ a codex32 key is the item every key has, with no codex32 rows, no
 strings, no SLIP-39 words and no check of its own. The strings are shown
 and checked where the backup is (§6.6, the checklist's Check my copy,
 §9.4); conversions to other forms are the conversion tool's (§10.5).
+
+### 9.7 The set's actions: add, replace, rotate (owner, 2026-10-23)
+
+A codex32 set's upkeep belongs with the backup, since it changes what
+the places keep, so the plan, its board and its checks stay true. The
+actions are on the set's node in the wallet's chart (`docs/history/NEW-WALLET.md`
+§6, the structure chart; DESIGN §4.16's node sheet), beside where its
+places are shown, and on the plan's codex32 chips. Changing a form
+between standards (codex32 to SLIP-39 and the like) is not here; that is
+the conversion tool (§10.5). The same three actions apply to a SLIP-39
+set, with SLIP-39's arithmetic; that is the conversion tool's spec or a
+later one, not this.
+
+- **Add a share**: one more string of the same set, at an unused index:
+  k strings of the set are typed or scanned (S counts as one, and the
+  key's seed is S where the key is loaded), the new one is derived on
+  its translation worksheet (§7.2) and placed on the board as a chip.
+  The set's facts gain the index.
+- **Replace a lost share**: the same, at the lost string's own index, so
+  the new paper is the very string that was lost. It needs k strings of
+  the set besides S, or k − 1 and the loaded key's seed. Where fewer
+  survive, the set cannot be repaired; **Rotate the set** is offered.
+- **Rotate the set**: a new set of the same seed, with new randomness,
+  that makes the old one worthless.
+  1. The person marks each old string lost, exposed or held (the plan's
+     `lost` and `exposed` notes, BACKUP-FLOW §17's chart notes). An
+     exposed string counts as existing somewhere, whatever happens to
+     its paper: a copy may have been taken.
+  2. Faraday counts the old strings that may exist out of the person's
+     reach (lost and exposed). Where that count is k or more, the seed
+     itself is to be treated as known: "3 strings of w0za may be in
+     other hands: rotating is not enough; move the coins to a new key",
+     and rotation is not offered as the remedy. Where it is under k, the
+     old set dies once every held string is destroyed, since fewer than
+     k can then exist anywhere: "Destroy A and D. Then at most C is
+     left, and one string of a 2 of 3 is worthless."
+  3. The person confirms each held string destroyed (a press per
+     string, as the plan's other checklist items are confirmed); only
+     then is the new set made, so two live sets never exist at once
+     by the flow's doing.
+  4. The new set: its k and n chosen again (the old ones ticked), its
+     identifier typed again (a new one, so old and new strings cannot be
+     mixed by mistake; the old identifier is refused), its initial
+     shares from the person's dice (§5.1) or, since the seed already
+     exists, from Faraday's randomness as §5.4 splits an existing seed.
+     S is the seed, unchanged: the wallet, its addresses and its coins
+     do not change.
+  5. The checklist opens on the new strings to place and check (§9.4);
+     the old chips show "Destroyed" and leave the board once the new set
+     is placed. The set's facts are replaced by the new set's.
+
+A rotation is shown as a worksheet like any split (§6.4): the new set
+is S and k − 1 random strings, interpolated, and every cell opens.
 
 ## 10. Codex32QR
 
@@ -1498,9 +1558,10 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 | `docs/DESIGN.md` | §4.10, §5 Pad, Secret, Result, Choice | the worksheet as a Secret panel; the booklet dice pad; String · Codex32QR; Strings made as built; the Scheme choices |
 | `docs/FLOWS.md` | New key and Add a key; Vaults (Create a vault) | §5.6: the roller on Faraday Desktop for dice words and Generate with dice |
 | `docs/DESIGN.md` | §5 Pad; §4.10 | the dice row and the one die, Rolls per click, "Rolled by this computer"; the masking exception of §6.4.6 |
-| `docs/VAULT.md` | §7, type 2 | the key's codex32 set field (§9.4); a vector with it |
+| `docs/VAULT.md` | §7, type 2 | the key's codex32 set field, plain facts only (§9.4); a vector with it |
 | `docs/VAULT.md` | §7, new type 15 | the codex32 share record (§9.5); a vector with it |
 | `docs/BACKUP-FLOW.md` | §17.1, §17.3, §17.5, §17.21 | the codex32 seed group and its string chips, the forms per zone, the checks, the preset (§9.5) |
+| `docs/BACKUP-FLOW.md` | chart, §17 | the set's node actions: Add a share, Replace a lost share, Rotate the set (§9.7) |
 | `docs/BACKUP-FLOW.md` | §17.3, the checklist | a key with a codex32 set: the form fixed to the set, Check my copy per string, no Make them (§9.4) |
 | `docs/FLOWS.md` | Make a new wallet | the Kind card's Single key, backup in shares; its Quorum as the scheme; its slot opening Make codex32 shares; no codex32 in other kinds' slots (§6.9) |
 | `docs/DESIGN.md` | §5 Choice, "What kind of wallet?" | the new kind's row and its second line; the rows' second lines (§6.9) |
