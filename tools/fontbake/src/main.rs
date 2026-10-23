@@ -95,6 +95,14 @@ const FACES: &[FaceSpec] = &[
 const SYMBOLS: &[char] = &[
     '•', '▾', '▸', '←', '→', '↑', '↓', '✓', '✗', '×', '…', '°', '₿', '≈', '’', '‘', '“', '”', '–',
     '—',
+    // The codex32 booklet's second alphabet (`SYMBOL_GLYPHS`), beyond
+    // Latin-1: Greek, aleph, euro, circled plus, daggers. The suits
+    // ♦ ♥ are not here: no text face has them, and the fallback face
+    // carries them already for the Cards keyboard. Both code points of
+    // Delta are carried, as the booklet's PDF and the Greek block give
+    // them.
+    'ℵ', 'α', 'β', 'Γ', 'Δ', '∆', 'ε', 'η', 'Θ', 'Λ', 'μ', 'Ξ', 'Π', 'ρ', 'Σ', 'Φ', 'Ψ', 'Ω', '€',
+    '⊕', '†', '‡',
 ];
 
 /// What the firmware face carries beyond ASCII: the arrows, pointers and

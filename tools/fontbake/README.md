@@ -33,7 +33,9 @@ not read: UI text is short and the monospace face has none.
   file each; no size list anywhere.
 - Text glyph set: ASCII printable U+0020–U+007E, Latin-1 Supplement
   U+00A0–U+00FF (minus the invisible soft hyphen U+00AD), and the UI
-  symbols `• ▾ ▸ ← → ↑ ↓ ✓ ✗ × … ° ₿`.
+  symbols `• ▾ ▸ ← → ↑ ↓ ✓ ✗ × … ° ₿`, and the codex32 booklet's second
+  alphabet (`SYMBOL_GLYPHS`): `ℵ α β Γ Δ ∆ ε η Θ Λ μ Ξ Π ρ Σ Φ Ψ Ω € ⊕ † ‡` (♦ ♥ are the fallback face's, from the Cards keyboard)
+  (Δ at both U+0394 and U+2206).
 - Firmware glyph set: ASCII printable U+0020–U+007E and the arrows and
   signs firmware screens print (`FIRMWARE_SYMBOLS`), for the firmware
   sketches only; a sketch draws its frames as lines, not box-drawing
