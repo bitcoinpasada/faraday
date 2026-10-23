@@ -60,6 +60,60 @@ pub struct Row {
     pub step: String,
 }
 
+/// The flows in progress, in the order they were begun, each with the
+/// screen of its own it was last on. What the sidebar's rows and the small
+/// Home's tiles list is worked out from the state; this keeps the order.
+#[derive(Debug, Default)]
+pub(crate) struct InProgress {
+    begun: Vec<(Going, Screen)>,
+}
+
+impl InProgress {
+    /// Where flow `g` stands in the order begun; `usize::MAX` for one not
+    /// noted yet (a flow kept across a lock, before the first press).
+    pub(crate) fn order_of(&self, g: &Going) -> usize {
+        self.begun
+            .iter()
+            .position(|(n, _)| n == g)
+            .unwrap_or(usize::MAX)
+    }
+
+    /// Notes the flows now begun, in `now`, from a press that left the
+    /// person on `screen`, on `on_screen`'s flow if any: a flow started
+    /// over is begun again, last.
+    pub(crate) fn note(&mut self, now: Vec<Going>, screen: Screen, on_screen: Option<Going>) {
+        self.begun.retain(|(g, _)| now.contains(g));
+        for g in now {
+            if !self.begun.iter().any(|(n, _)| *n == g) {
+                self.begun.push((g, screen));
+            }
+        }
+        if let Some(g) = on_screen
+            && let Some(e) = self.begun.iter_mut().find(|(n, _)| *n == g)
+        {
+            e.1 = screen;
+        }
+    }
+
+    /// The screen of its own flow `g` was last on.
+    pub(crate) fn left_on(&self, g: Going) -> Option<Screen> {
+        self.begun.iter().find(|(n, _)| *n == g).map(|(_, s)| *s)
+    }
+
+    /// Backup flow `i` is gone: its row goes and the flows after it are
+    /// numbered one lower.
+    pub(crate) fn flow_removed(&mut self, i: usize) {
+        self.begun.retain(|(g, _)| *g != Going::Flow(i));
+        for (g, _) in &mut self.begun {
+            if let Going::Flow(k) = g
+                && *k > i
+            {
+                *k -= 1;
+            }
+        }
+    }
+}
+
 impl Faraday {
     /// Costs what `flows_in_progress_uncached` costs. The flows in
     /// progress, walking a backup's checklist (kept for the frame while one
@@ -77,13 +131,7 @@ impl Faraday {
         let mut begun = self.flows_begun_now();
         // In the order noted; one not noted yet (a flow kept across a
         // lock, before the first press) after them.
-        let at = |g: &Going| {
-            self.flows_begun
-                .iter()
-                .position(|(n, _)| n == g)
-                .unwrap_or(usize::MAX)
-        };
-        begun.sort_by_key(at);
+        begun.sort_by_key(|g| self.in_progress.order_of(g));
         begun
             .into_iter()
             .filter(|&g| !self.flow_finished(c, g))
@@ -217,26 +265,13 @@ impl Faraday {
     /// last. Only lookups.
     pub(crate) fn flows_note(&mut self) {
         let now = self.flows_begun_now();
-        self.flows_begun.retain(|(g, _)| now.contains(g));
-        let screen = self.screen;
-        for g in now {
-            if !self.flows_begun.iter().any(|(n, _)| *n == g) {
-                self.flows_begun.push((g, screen));
-            }
-        }
-        if let Some(g) = self.flow_on_screen()
-            && let Some(e) = self.flows_begun.iter_mut().find(|(n, _)| *n == g)
-        {
-            e.1 = screen;
-        }
+        let on_screen = self.flow_on_screen();
+        self.in_progress.note(now, self.screen, on_screen);
     }
 
     /// The screen of its own flow `g` was last on.
     fn flow_left_on(&self, g: Going) -> Option<Screen> {
-        self.flows_begun
-            .iter()
-            .find(|(n, _)| *n == g)
-            .map(|(_, s)| *s)
+        self.in_progress.left_on(g)
     }
 
     /// Opens flow `g` on its open step, as it was left: what its row and
@@ -565,14 +600,7 @@ impl Faraday {
             Some(k) if k > i => self.flow_on = Some(k - 1),
             _ => {}
         }
-        self.flows_begun.retain(|(g, _)| *g != Going::Flow(i));
-        for (g, _) in &mut self.flows_begun {
-            if let Going::Flow(k) = g
-                && *k > i
-            {
-                *k -= 1;
-            }
-        }
+        self.in_progress.flow_removed(i);
     }
 
     /// Costs what `backup_step` costs. Flow `g`'s row: its tab, its name

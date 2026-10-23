@@ -1374,7 +1374,7 @@ pub struct Faraday {
     /// The flows begun, in the order they were begun, each with the screen
     /// of its own it was last on (`docs/FLOWS.md`, Flows in progress):
     /// only the order and the way back, worked out after each press.
-    pub(crate) flows_begun: Vec<(in_progress::Going, Screen)>,
+    in_progress: in_progress::InProgress,
 }
 
 impl Default for Faraday {
@@ -1496,7 +1496,7 @@ impl Faraday {
             sample_area: samples::SamplesArea::default(),
             backup_flows: Vec::new(),
             flow_on: None,
-            flows_begun: Vec::new(),
+            in_progress: in_progress::InProgress::default(),
         }
     }
 
