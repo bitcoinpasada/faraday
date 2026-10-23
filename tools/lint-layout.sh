@@ -25,6 +25,12 @@
 #    many `#[allow(clippy::too_many_arguments)]` (`allow
 #    too_many_arguments N`). Each count only falls, as in 2.
 #
+# 4. Faraday's shape (docs/STRUCTURE-PASS.md §7.4.5). The number of
+#    top-level fields of `pub struct Faraday` in lib.rs (`fields Faraday
+#    N`) only falls, and so does the list of files under faraday/ with an
+#    inherent `impl Faraday {` (`impl-faraday PATH`): a file not listed
+#    fails, and so does a listed file that has none.
+#
 # Raising a count is the owner's decision, recorded in DECISIONS (F74).
 # Prints each failure and exits non-zero if there is one. Run from the
 # repository root; `just lint` does.
@@ -110,6 +116,7 @@ for v in table:
 # ---- the counts file ----
 sizes = {}
 counts = {}
+impl_listed = set()
 for n, line in enumerate(open(COUNTS, encoding="utf-8"), 1):
     line = line.split("#", 1)[0].strip()
     if not line:
@@ -119,8 +126,13 @@ for n, line in enumerate(open(COUNTS, encoding="utf-8"), 1):
         sizes[f[1]] = int(f[2])
     elif f[0] in ("expect", "allow") and len(f) == 3:
         counts[f"{f[0]} {f[1]}"] = int(f[2])
+    elif f[0] == "fields" and len(f) == 3 and f[1] == "Faraday":
+        counts["fields Faraday"] = int(f[2])
+    elif f[0] == "impl-faraday" and len(f) == 2:
+        impl_listed.add(f[1])
     else:
-        fail(f"{COUNTS}:{n}: not `file PATH LINES` or `expect|allow LINT N`")
+        fail(f"{COUNTS}:{n}: not `file PATH LINES`, `expect|allow LINT N`, "
+             f"`fields Faraday N` or `impl-faraday PATH`")
 
 
 def ratchet(what, now, kept, where):
@@ -174,6 +186,37 @@ ratchet("the number of `expect(clippy::too_many_lines)`", expects,
         counts.get("expect too_many_lines", 0), "functions")
 ratchet("the number of `allow(clippy::too_many_arguments)`", allows,
         counts.get("allow too_many_arguments", 0), "functions")
+
+# ---- 4. Faraday's shape ----
+start = lib.find("pub struct Faraday {\n")
+if start < 0:
+    fail(f"{CORE}/lib.rs: no `pub struct Faraday {{` found")
+else:
+    body = lib[start:].split("\n")[1:]
+    fields = 0
+    for line in body:
+        if line == "}":
+            break
+        if re.match(r"^    (pub(\([a-z]+\))? )?[a-z_][a-z0-9_]*:", line):
+            fields += 1
+    ratchet("Faraday's top-level fields", fields, counts.get("fields Faraday", 0),
+            f"{CORE}/lib.rs")
+
+IMPL = re.compile(r"^impl(<[^>]*>)? (crate::)?Faraday \{", re.M)
+having = set()
+for path in files:
+    if not path.startswith("faraday/"):
+        continue
+    with open(path, encoding="utf-8", errors="replace") as fh:
+        if IMPL.search(fh.read()):
+            having.add(path)
+for path in sorted(having - impl_listed):
+    fail(f"{path}: a new `impl Faraday`: move it into the area's struct or its glue file")
+for path in sorted(impl_listed - having):
+    if path in files:
+        fail(f"{COUNTS}: {path} has no `impl Faraday` now: remove its line")
+    else:
+        fail(f"{COUNTS}: {path} is no tracked file: remove its line")
 
 for f in failures:
     print(f"lint-layout: {f}")

@@ -113,6 +113,9 @@ changes and nothing else has to be kept in step.
     only fall (`lint-tokens`), docs carry a kind and status header,
     name only paths that exist and keep plans out of a Reference
     (`lint-docs`).
+  - `Faraday`'s top-level field count and the list of files with
+    `impl Faraday` only fall (`lint-layout`, `tools/lint-layout.counts`);
+    a new `impl Faraday` goes into the area's struct or its glue file.
   - Areas reach each other only through what their functions are given;
     flows that span areas are explicit glue on `Faraday` (phase 7).
 - No hosted CI, no GitHub Actions, no metered external services.

@@ -18,3 +18,81 @@ file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5930
 # `allow`).
 expect too_many_lines 207
 allow too_many_arguments 72
+
+# Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.
+fields Faraday 190
+
+# Files under faraday/ with an inherent `impl Faraday {`: the list only
+# shrinks.
+impl-faraday faraday/faraday-core/src/apk.rs
+impl-faraday faraday/faraday-core/src/backup_flow/mod.rs
+impl-faraday faraday/faraday-core/src/backup_flow/steps.rs
+impl-faraday faraday/faraday-core/src/backup_flow/wallet.rs
+impl-faraday faraday/faraday-core/src/backups/mod.rs
+impl-faraday faraday/faraday-core/src/bip85/mod.rs
+impl-faraday faraday/faraday-core/src/board/mod.rs
+impl-faraday faraday/faraday-core/src/boot_import/mod.rs
+impl-faraday faraday/faraday-core/src/catalog.rs
+impl-faraday faraday/faraday-core/src/chart_edit.rs
+impl-faraday faraday/faraday-core/src/codes/mod.rs
+impl-faraday faraday/faraday-core/src/compact/mod.rs
+impl-faraday faraday/faraday-core/src/compute.rs
+impl-faraday faraday/faraday-core/src/copy_check.rs
+impl-faraday faraday/faraday-core/src/create.rs
+impl-faraday faraday/faraday-core/src/create_from.rs
+impl-faraday faraday/faraday-core/src/decode.rs
+impl-faraday faraday/faraday-core/src/demo.rs
+impl-faraday faraday/faraday-core/src/devices.rs
+impl-faraday faraday/faraday-core/src/drawing.rs
+impl-faraday faraday/faraday-core/src/edit.rs
+impl-faraday faraday/faraday-core/src/explore/addresses.rs
+impl-faraday faraday/faraday-core/src/explore/mod.rs
+impl-faraday faraday/faraday-core/src/fade.rs
+impl-faraday faraday/faraday-core/src/family/mod.rs
+impl-faraday faraday/faraday-core/src/file_menu.rs
+impl-faraday faraday/faraday-core/src/forms.rs
+impl-faraday faraday/faraday-core/src/fresh.rs
+impl-faraday faraday/faraday-core/src/glance/sheet.rs
+impl-faraday faraday/faraday-core/src/gpg.rs
+impl-faraday faraday/faraday-core/src/held.rs
+impl-faraday faraday/faraday-core/src/in_progress.rs
+impl-faraday faraday/faraday-core/src/inbox.rs
+impl-faraday faraday/faraday-core/src/inputs.rs
+impl-faraday faraday/faraday-core/src/keygen/mod.rs
+impl-faraday faraday/faraday-core/src/learn.rs
+impl-faraday faraday/faraday-core/src/lib.rs
+impl-faraday faraday/faraday-core/src/lightning/mod.rs
+impl-faraday faraday/faraday-core/src/memory.rs
+impl-faraday faraday/faraday-core/src/modes/mod.rs
+impl-faraday faraday/faraday-core/src/motion.rs
+impl-faraday faraday/faraday-core/src/paper.rs
+impl-faraday faraday/faraday-core/src/qr_view.rs
+impl-faraday faraday/faraday-core/src/restore.rs
+impl-faraday faraday/faraday-core/src/samples/mod.rs
+impl-faraday faraday/faraday-core/src/samples/put.rs
+impl-faraday faraday/faraday-core/src/scan_key.rs
+impl-faraday faraday/faraday-core/src/secrets.rs
+impl-faraday faraday/faraday-core/src/secure_boot/mod.rs
+impl-faraday faraday/faraday-core/src/secure_boot/state.rs
+impl-faraday faraday/faraday-core/src/seeds/mod.rs
+impl-faraday faraday/faraday-core/src/seeds/read.rs
+impl-faraday faraday/faraday-core/src/set_time.rs
+impl-faraday faraday/faraday-core/src/silent/mod.rs
+impl-faraday faraday/faraday-core/src/state.rs
+impl-faraday faraday/faraday-core/src/stick/pills.rs
+impl-faraday faraday/faraday-core/src/stick/settings.rs
+impl-faraday faraday/faraday-core/src/stick/wipe.rs
+impl-faraday faraday/faraday-core/src/tools/mod.rs
+impl-faraday faraday/faraday-core/src/trail.rs
+impl-faraday faraday/faraday-core/src/transfer/mod.rs
+impl-faraday faraday/faraday-core/src/upgrade/mod.rs
+impl-faraday faraday/faraday-core/src/vanity/mod.rs
+impl-faraday faraday/faraday-core/src/vault/load.rs
+impl-faraday faraday/faraday-core/src/vault/mod.rs
+impl-faraday faraday/faraday-core/src/vault/out.rs
+impl-faraday faraday/faraday-core/src/vault/strength.rs
+impl-faraday faraday/faraday-core/src/visit_taken.rs
+impl-faraday faraday/faraday-core/src/wallet.rs
+impl-faraday faraday/faraday-core/src/wallet_backup.rs
+impl-faraday faraday/faraday-core/src/word_entry.rs
+impl-faraday faraday/faraday-core/src/wordlist/mod.rs
