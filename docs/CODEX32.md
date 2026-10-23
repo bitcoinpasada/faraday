@@ -105,7 +105,10 @@ Sources read for it, each as data and none vendored:
 14. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
     keep real dice typed on the pad): five dice for codex32, one die for
     BIP-39 words and Generate with dice, their values this computer's
-    randomness and labelled so (§5.5, §5.6).
+    randomness and labelled so (§5.5, §5.6). The entry for real dice
+    stays beside the roller on the desktop, so the person chooses: their
+    own rolls, Faraday's, or both; codex32's entry for real rolls is laid
+    out as the de-biasing worksheet, five dice by two rolls (§5.5).
 
 What this spec found that the decision assumed otherwise: the booklet's
 site lists "Checksum Worksheets: Standard 128-bit, Standard 256-bit" and
@@ -265,7 +268,9 @@ rolls are entered (§6.4.2): each die's first value, its second, the
 comparison and the bit; then the five bits, the path through the tree,
 and the character dropping into its numbered box. The entries are taken
 in the booklet's order, die 1 to die 5 for the first roll and then for
-the second. How the sheet is masked is §6.4.6.
+the second, into an entry laid out as the worksheet's five dice and two
+rolls (§5.5, "Your dice"), on every shell. How the sheet is masked is
+§6.4.6.
 
 The booklet's sheet also has pads for dice of 7 to 20 faces. Faraday
 takes six-faced dice only (owner, §1.1 item 9).
@@ -315,9 +320,29 @@ website comes with them. Beside them, a choice of what one click rolls:
 Each click tumbles the dice, an animation modelled on the website's
 toss motion, and the values land on the sheet in turn, each character
 with a short pause so its conversion can be followed (§6.4.2); under
-Reduce motion (MOTION) there is no tumble and no pause. The pad stays
-under the dice for a person with real dice; a value from the pad is a
-real die's and is not labelled.
+Reduce motion (MOTION) there is no tumble and no pause.
+
+**Both ways, side by side (owner, 2026-10-22).** The roller never
+replaces the entry for real dice: on Faraday Desktop the dice step
+shows the stick's entry, **Your dice**, and beside it the roller,
+**Or let Faraday roll**, and the person uses either, or both, at any
+point. A value from the entry is a real die's and is not labelled.
+
+**Your dice, laid out as the worksheet** (every shell, the stick and the
+Pi included). The entry for real rolls has the shape of the booklet's
+Dice De-biasing Worksheet rather than a single line: five fields across,
+**Die 1** to **Die 5**, in two rows, **First roll** and **Second roll**,
+the character's ten values in the booklet's order (die 1 to die 5 for the
+first roll, then for the second). The field to fill is outlined; a
+value comes from the six-key dice pad, or on the desktop from the
+keyboard's 1 to 6. As a die's second value lands, its column reads
+"lower · 0" or "higher · 1"; an equal pair clears that die's two fields
+with "Die 3 · roll both again" and the struck-through pair moves to the
+sheet (§6.4.2). Once the five bits are in, the character drops into its
+box and the two rows clear for the next character. The roller's values
+land in the same fields, marked "rolled by this computer", so a person
+sees one layout whichever way the values came. Backspace takes back the
+last value of the character being entered.
 
 **Honesty.** A rolled value is this computer's randomness (from
 `Faraday::fresh`, as any of Faraday's randomness), not a die. The row
@@ -339,10 +364,14 @@ Outside codex32, and on Faraday Desktop only: New key's dice for BIP-39
 words (every dice way of `faraday/faraday-core/src/keygen/mod.rs`) and
 Create a vault's **Generate with dice** (the diceware passphrase) gain
 one die drawn the same way, with **Rolls per click**: 1 (the default)
-· 5 · 10 · To the end, or a number typed. Each value lands on the pad's
+· 5 · 10 · To the end, or a number typed. It stands beside the pad and
+its entries, which stay for real dice exactly as the stick shows them
+(DESIGN §4's dice pad: the entries in groups of five, the progress line);
+the person uses either, or both. Each rolled value lands on the pad's
 entries as a press would, with the same pause and the same Reduce motion
 rule, and the same honesty: "Rolled by this computer" over the die, and
-"simulated dice" on the result's entropy line. The flows themselves are
+"simulated dice" on the result's entropy line ("simulated dice and your
+dice" where both were used). The flows themselves are
 unchanged; FLOWS and DESIGN take this (§15.3).
 
 ## 6. Make codex32 shares: the main flow
