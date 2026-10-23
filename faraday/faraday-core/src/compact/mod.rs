@@ -916,7 +916,7 @@ impl Faraday {
             // The Key card's passphrase, and the Words card of a key typed
             // as Add a key's form docks it; the box of rolls has buttons
             // of its own on a small panel.
-            Screen::KeyGen => self.keygen.as_ref().is_some_and(|k| {
+            Screen::KeyGen => self.keygen.state().is_some_and(|k| {
                 !k.locked
                     && ((k.focus.is_some() && k.open == Some(crate::keygen::kstep::KEY))
                         || (k.open == Some(crate::keygen::kstep::TYPED)
@@ -999,7 +999,7 @@ impl Faraday {
                 self.sheet,
                 self.vaults.focus,
                 self.entry.state().on_passphrase,
-                self.keygen.as_ref().and_then(|k| k.focus),
+                self.keygen.state().and_then(|k| k.focus),
                 self.create.as_ref().and_then(|c| c.pass_focus),
                 self.seed_read.as_ref().and_then(|s| s.focus)
             )

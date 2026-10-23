@@ -34,7 +34,7 @@ const TITLES: [&str; kstep::COUNT] = [
 ];
 
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
-    let Some(k) = app.keygen.as_ref() else {
+    let Some(k) = app.keygen.state() else {
         return;
     };
     let steps = k.steps();
@@ -87,7 +87,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (next, again) = {
         let app_ref: &View = app;
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
-            match app_ref.keygen.as_ref() {
+            match app_ref.keygen.state() {
                 Some(k) => card_body(app_ref, k, ui, steps[i], x, y, w),
                 None => 0.0,
             }

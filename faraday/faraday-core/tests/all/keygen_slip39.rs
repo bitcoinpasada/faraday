@@ -31,7 +31,7 @@ fn dealt() -> Faraday {
     let mut app = ready();
     app.press(Action::KeyGenSlip39);
     assert_eq!(app.screen, Screen::KeyGen);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert!(k.slip39);
     assert_eq!((k.slip_m, k.slip_n, k.words), (2, 3, 20));
     app.press(Action::KWords(20));
@@ -41,7 +41,7 @@ fn dealt() -> Faraday {
         app.press(Action::KFlip(i % 3 != 1));
     }
     app.press(Action::KNext);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::CHECK), "{:?}", k.note);
     app
 }
@@ -50,7 +50,7 @@ fn dealt() -> Faraday {
 fn any_two_of_the_three_shares_restore_the_key() {
     let c = faraday_core::testkit::compute();
     let app = dealt();
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.shares.len(), 3);
     assert!(k.shares.iter().all(|s| s.word_count() == 20));
     let fp = k.fingerprint.unwrap();
@@ -75,18 +75,18 @@ fn the_key_loads_once_every_share_is_quizzed() {
     let mut app = dealt();
     app.press(Action::KNext); // check -> shares
     app.press(Action::KNext); // shares -> quiz
-    let fp = app.keygen.as_ref().unwrap().fingerprint.unwrap();
+    let fp = app.keygen().unwrap().fingerprint.unwrap();
     for _ in 0..200 {
-        let k = app.keygen.as_ref().unwrap();
+        let k = app.keygen().unwrap();
         if k.done[usize::from(kstep::QUIZ)] {
             break;
         }
         let slot = k.quiz.as_ref().unwrap().correct_slot() as u8;
         app.press(Action::KQuiz(slot));
     }
-    assert!(app.keygen.as_ref().unwrap().done[usize::from(kstep::QUIZ)]);
+    assert!(app.keygen().unwrap().done[usize::from(kstep::QUIZ)]);
     assert_eq!(
-        app.keygen.as_ref().unwrap().quiz_share,
+        app.keygen().unwrap().quiz_share,
         2,
         "all three shares were quizzed"
     );

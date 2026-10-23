@@ -28,7 +28,7 @@ impl Faraday {
         if self.makes_secrets() {
             return false;
         }
-        let slip39 = self.keygen.as_ref().is_some_and(|k| k.slip39);
+        let slip39 = self.keygen.state().is_some_and(|k| k.slip39);
         match action {
             // Seed XOR parts and codex32 shares are fresh randomness; a
             // single codex32 string is the seed's own spelling.
@@ -36,7 +36,7 @@ impl Faraday {
             Action::BCodex32(k, _) => k >= 2,
             // New key as SLIP-39 shares: its sources and the deal.
             Action::KWay(_) | Action::KMix(_) => slip39,
-            Action::KNext => self.keygen.as_ref().is_some_and(|k| {
+            Action::KNext => self.keygen.state().is_some_and(|k| {
                 k.slip39
                     && matches!(
                         k.open,
@@ -45,7 +45,7 @@ impl Faraday {
             }),
             // With every sample of the length chosen loaded none is left to stand in.
             // A key typed is loaded as Add a key loads it.
-            Action::KLock => self.keygen.as_ref().is_some_and(|k| {
+            Action::KLock => self.keygen.state().is_some_and(|k| {
                 !k.typed() && self.session.keys.next_handout(k.handout_words()).is_none()
             }),
             // Make the key, for a GPG key, Secure Boot keys or an APK key.
@@ -403,16 +403,7 @@ impl Faraday {
                 self.entry.state_mut().error = None;
             }
             PassField::KeyGen(i) => {
-                if let Some(k) = self.keygen.as_mut() {
-                    let t = if i == 0 {
-                        &mut k.passphrase
-                    } else {
-                        &mut k.passphrase2
-                    };
-                    t.set(PASSPHRASE);
-                    k.focus = Some(i);
-                    k.note = None;
-                }
+                self.keygen.demo_passphrase(i, PASSPHRASE);
             }
             PassField::Potential => {
                 if let Some(p) = self.potential.as_mut() {

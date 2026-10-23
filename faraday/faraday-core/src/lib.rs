@@ -1176,8 +1176,6 @@ pub struct Faraday {
     /// Files the boot import brought in with the stick still in, by name:
     /// the seeds they hold load once it is pulled (F60).
     pub(crate) import_load_after: BTreeSet<String>,
-    /// New keys made this session, which number their labels.
-    new_keys: u32,
     /// The keys made here whose backup is not yet done, by fingerprint
     /// (`docs/history/NEW-WALLET.md` §14.3): they sign nothing until it is. Never
     /// a secret; kept in a vault beside the seed and in the plan record.
@@ -1310,10 +1308,9 @@ pub struct Faraday {
     pub create: Option<CreateState>,
     /// Restoring a wallet.
     pub restore: Option<RestoreState>,
-    /// A new key being made.
-    pub keygen: Option<keygen::KeyGen>,
-    /// The shell's randomness source (`Faraday::entropy_source_named`).
-    pub entropy_source: Option<&'static str>,
+    /// New key: the key being made, the keys made this session, the
+    /// camera and the shell's randomness source.
+    keygen: keygen::KeyGenArea,
     /// The Learn sheet and the steps ticked on its pages.
     learn: learn::LearnArea,
     /// The word-list sheet, while it is open.
@@ -1330,8 +1327,6 @@ pub struct Faraday {
     tools: tools::ToolsArea,
     /// A secret waiting for the person to say where it goes.
     secrets: secrets::SecretsArea,
-    /// The camera is on for camera noise.
-    keygen_camera_on: bool,
     /// The camera sheet, the cameras the shell can open and the one
     /// chosen.
     camera: scan_key::Camera,
@@ -1492,7 +1487,6 @@ impl Faraday {
             inputs: inputs::InputsArea::default(),
             import_under_input: false,
             import_load_after: BTreeSet::new(),
-            new_keys: 0,
             made_here: Vec::new(),
             drawing: drawing::Drawing::default(),
             kept: drawing::Kept::default(),
@@ -1550,8 +1544,7 @@ impl Faraday {
             message: state::MessageArea::default(),
             create: None,
             restore: None,
-            keygen: None,
-            entropy_source: None,
+            keygen: keygen::KeyGenArea::default(),
             learn: learn::LearnArea::default(),
             wordlist: wordlist::WordListArea::default(),
             bip85: bip85::Bip85Area::default(),
@@ -1560,7 +1553,6 @@ impl Faraday {
             lightning: lightning::LightningArea::default(),
             tools: tools::ToolsArea::default(),
             secrets: secrets::SecretsArea::default(),
-            keygen_camera_on: false,
             camera: scan_key::Camera::default(),
             transfer: transfer::TransferArea::default(),
             upgrade: upgrade::UpgradeArea::default(),
@@ -1989,7 +1981,7 @@ impl Faraday {
     /// what the Inbox already holds, and the stick it goes to must stay
     /// open (`docs/history/PLAN.md` §5.4).
     fn secret_typed(&self) -> bool {
-        self.keygen.is_some()
+        self.keygen.state().is_some()
             || self.secrets.out().is_some_and(|o| !o.to_visit)
             || self.lightning.state().is_some()
             || !self.entry.state().typed.is_empty()
@@ -2045,7 +2037,7 @@ impl Faraday {
             .camera
             .scan()
             .is_some_and(|s| s.purpose == ScanPurpose::Transfer);
-        (self.sheet == Some(Sheet::Scan) && !transfer) || self.keygen_camera_on
+        (self.sheet == Some(Sheet::Scan) && !transfer) || self.keygen.camera_on()
     }
 
     /// A stick held back while the camera was on arrives once it is off.
@@ -2765,7 +2757,7 @@ impl Faraday {
         self.message.clear();
         self.create = None;
         self.restore = None;
-        self.keygen = None;
+        self.keygen.forget();
         self.wordlist.clear();
         self.bip85.clear();
         self.secrets.clear();
@@ -6839,7 +6831,7 @@ impl Faraday {
             || (self.screen == Screen::KeyGen
                 && self
                     .keygen
-                    .as_ref()
+                    .state()
                     .is_some_and(|k| k.open == Some(keygen::kstep::TYPED) && !k.locked))
     }
 
@@ -8626,7 +8618,7 @@ impl Faraday {
             self.vaults.unlock_error = None;
         }
         // Leaving the new-key screen drops what it held.
-        if self.screen != Screen::KeyGen && self.keygen.is_some() {
+        if self.screen != Screen::KeyGen && self.keygen.state().is_some() {
             self.keygen_drop();
         }
         if !bip85 {
@@ -9125,13 +9117,8 @@ impl App for Faraday {
             }
             Event::EntropySource(name) => return self.entropy_source_named(name),
             Event::Entropy(e) => return self.entropy_arrived(e),
-            Event::CameraFrame { luma, .. } if self.keygen_camera_on => {
-                if let Some(k) = self.keygen.as_mut() {
-                    if let Some(old) = k.frame.as_mut() {
-                        zeroize::Zeroize::zeroize(old);
-                    }
-                    k.frame = Some(luma);
-                }
+            Event::CameraFrame { luma, .. } if self.keygen.camera_on() => {
+                self.keygen.camera_frame(luma);
             }
             Event::CameraFrame {
                 width,

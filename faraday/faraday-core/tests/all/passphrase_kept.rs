@@ -104,7 +104,7 @@ fn locked_after_backup() -> (Boxes, Boxes) {
     type_text(&mut app, PASSPHRASE);
     app.press(Action::KLock);
     assert!(
-        app.keygen.as_ref().is_some_and(|k| k.locked),
+        app.keygen().is_some_and(|k| k.locked),
         "the key did not lock in"
     );
     app.press(Action::KNext);

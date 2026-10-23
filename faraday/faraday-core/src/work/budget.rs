@@ -210,7 +210,7 @@ fn key_made_here(app: &mut Faraday, slot: u8, seed: usize) {
     app.press(Action::KNext);
     app.press(Action::KLock);
     assert!(
-        app.keygen.as_ref().is_some_and(|k| k.locked),
+        app.keygen().is_some_and(|k| k.locked),
         "slot {slot}: the key did not lock in"
     );
     app.press(Action::KNext);

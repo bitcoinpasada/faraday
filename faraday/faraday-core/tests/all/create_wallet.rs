@@ -293,7 +293,7 @@ fn key_made_on_its_own(app: &mut Faraday) -> [u8; 4] {
     app.press(Action::KSkip);
     app.press(Action::KSkip);
     app.press(Action::KAdd);
-    assert!(app.keygen.is_none(), "New key is done");
+    assert!(app.keygen().is_none(), "New key is done");
     app.session.keys[0].fingerprint.0
 }
 

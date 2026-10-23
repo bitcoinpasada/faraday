@@ -85,7 +85,7 @@ fn made_here(app: &mut Faraday) -> (usize, Fingerprint) {
     app.press(Action::KNext);
     app.press(Action::KLock);
     assert!(
-        app.keygen.as_ref().is_some_and(|k| k.locked),
+        app.keygen().is_some_and(|k| k.locked),
         "the key did not lock in"
     );
     app.press(Action::KNext);

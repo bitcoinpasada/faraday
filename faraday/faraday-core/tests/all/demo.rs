@@ -376,10 +376,10 @@ fn slip39(app: &mut Faraday) -> (bool, usize) {
     app.press(Action::KeyGenSlip39);
     assert_eq!(app.screen, Screen::KeyGen, "SLIP-39 shares opens");
     app.press(Action::KWords(20));
-    if app.keygen.as_ref().unwrap().open == Some(kstep::LENGTH) {
+    if app.keygen().unwrap().open == Some(kstep::LENGTH) {
         app.press(Action::KNext);
     }
-    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::SOURCE));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::SOURCE));
     let ways = offered(app, Action::KWay(Way::Coins.index()));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
@@ -387,7 +387,7 @@ fn slip39(app: &mut Faraday) -> (bool, usize) {
         app.press(Action::KFlip(i % 3 != 1));
     }
     app.press(Action::KNext);
-    (ways, app.keygen.as_ref().map_or(0, |k| k.shares.len()))
+    (ways, app.keygen().map_or(0, |k| k.shares.len()))
 }
 
 #[test]
@@ -612,7 +612,7 @@ fn in_the_demo_a_scan_key_stays_in_faraday() {
 
 /// One entry for the source being entered.
 fn feed(app: &mut Faraday, i: usize) {
-    let Some(k) = app.keygen.as_ref() else {
+    let Some(k) = app.keygen() else {
         return;
     };
     match k.active() {
@@ -659,7 +659,7 @@ fn new_key(app: &mut Faraday, way: Way, words: u8) -> String {
     }
     app.press(Action::KNext);
     for i in 0..3000 {
-        let k = app.keygen.as_ref().unwrap();
+        let k = app.keygen().unwrap();
         if k.open == Some(kstep::KEY) {
             break;
         }
@@ -670,7 +670,7 @@ fn new_key(app: &mut Faraday, way: Way, words: u8) -> String {
             app.press(Action::KNext);
         }
     }
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::KEY), "{way:?} at {words}: {:?}", k.note);
     k.phrase().expect("words made").to_string()
 }
@@ -692,7 +692,7 @@ fn finish(app: &mut Faraday) {
     app.press(Action::KNext);
     app.press(Action::KNext);
     for _ in 0..30 {
-        let Some(q) = app.keygen.as_ref().and_then(|k| k.quiz.as_ref()) else {
+        let Some(q) = app.keygen().and_then(|k| k.quiz.as_ref()) else {
             break;
         };
         if q.state() == QuizState::Passed {
@@ -762,7 +762,7 @@ fn in_the_demo_with_every_sample_of_a_length_loaded_lock_in_is_dimmed_at_that_le
     app.press(Action::KLock);
     app.event(Event::Key(Key::Enter));
     assert_eq!(app.session.keys.len(), twelve.len(), "a key was added");
-    assert!(!app.keygen.as_ref().unwrap().locked);
+    assert!(!app.keygen().unwrap().locked);
     // The 24-word samples are still there to hand out.
     let mut app24 = app_on(true);
     for (w, n) in &twelve {

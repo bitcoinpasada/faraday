@@ -80,7 +80,7 @@ fn the_slip39_tile_opens_new_key_making_shares() {
     let mut app = shown();
     app.press(Action::Catalog(tile("SLIP-39 shares")));
     assert_eq!(app.screen, Screen::KeyGen);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert!(k.slip39);
     assert_eq!(
         k.open,
@@ -123,7 +123,7 @@ fn the_codex32_tile_opens_new_key_on_the_codex32_words_card() {
     app.press(Action::Nav(Screen::Catalog));
     app.press(Action::Catalog(tile("codex32")));
     assert_eq!(app.screen, Screen::KeyGen);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.start, Start::Codex32);
     assert_eq!(k.open, Some(kstep::TYPED), "Start closed, on the next card");
     assert_eq!(
@@ -139,7 +139,7 @@ fn the_add_a_key_tile_opens_new_key_on_start() {
     app.press(Action::Catalog(tile("Add a key")));
     assert_eq!(app.screen, Screen::KeyGen);
     assert_eq!(
-        app.keygen.as_ref().unwrap().open,
+        app.keygen().unwrap().open,
         Some(faraday_core::keygen::kstep::START)
     );
 }

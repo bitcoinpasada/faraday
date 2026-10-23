@@ -46,7 +46,7 @@ fn coins(words: u8) -> Faraday {
     app.press(Action::KWords(words));
     app.press(Action::KWay(Way::Coins.index()));
     app.press(Action::KNext);
-    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::ENTER));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::ENTER));
     app
 }
 
@@ -96,7 +96,7 @@ fn each_eleven_flips_show_the_word_they_spell_as_they_come_in() {
     for (n, &heads) in f.iter().enumerate() {
         app.press(Action::KFlip(heads));
         let want = groups(&f[..=n]);
-        let k = app.keygen.as_ref().unwrap();
+        let k = app.keygen().unwrap();
         assert_eq!(&k.live_words()[..], &want[..want.len().min(11)]);
         for &i in &want {
             assert!(!Language::English.word(i).is_empty());
@@ -134,7 +134,7 @@ fn the_last_word_shows_once_every_flip_is_in() {
         let (before_last, last_flip) = f.split_at(f.len() - 1);
         for &heads in before_last {
             app.press(Action::KFlip(heads));
-            let k = app.keygen.as_ref().unwrap();
+            let k = app.keygen().unwrap();
             assert!(k.live_words().len() < usize::from(words));
             assert_eq!(k.checksum_word(), None);
         }
@@ -144,7 +144,7 @@ fn the_last_word_shows_once_every_flip_is_in() {
         let before = groups(&f);
         assert_eq!(before.len(), usize::from(words) - 1);
         let last = last_word(&f);
-        assert_eq!(app.keygen.as_ref().unwrap().checksum_word(), Some(last));
+        assert_eq!(app.keygen().unwrap().checksum_word(), Some(last));
         let mut all = before.clone();
         all.push(last);
         assert_eq!(linked(&mut app), sorted(all.clone()));
@@ -152,7 +152,7 @@ fn the_last_word_shows_once_every_flip_is_in() {
         // Made, the words are those.
         app.press(Action::KNext);
         app.press(Action::KStep(kstep::ENTER));
-        let k = app.keygen.as_ref().unwrap();
+        let k = app.keygen().unwrap();
         assert_eq!(k.mnemonic.as_ref().unwrap().indices(), &all[..]);
         assert_eq!(linked(&mut app), sorted(all));
     }
@@ -172,15 +172,15 @@ fn a_die_read_as_a_coin_makes_the_key_the_same_flips_make() {
     for &f in &faces {
         by_coin.press(Action::KFlip(f >= 4));
     }
-    let a = by_die.keygen.as_ref().unwrap();
-    let b = by_coin.keygen.as_ref().unwrap();
+    let a = by_die.keygen().unwrap();
+    let b = by_coin.keygen().unwrap();
     assert!(a.coins.flips().eq(b.coins.flips()));
     assert_eq!(&a.live_words()[..], &b.live_words()[..]);
     for app in [&mut by_die, &mut by_coin] {
         app.press(Action::KNext);
     }
-    let a = by_die.keygen.as_ref().unwrap().phrase().unwrap();
-    let b = by_coin.keygen.as_ref().unwrap().phrase().unwrap();
+    let a = by_die.keygen().unwrap().phrase().unwrap();
+    let b = by_coin.keygen().unwrap().phrase().unwrap();
     assert_eq!(*a, *b);
 }
 
@@ -192,7 +192,7 @@ fn die_faces_typed_on_the_keyboard_count_as_flips_too() {
     for c in ['1', '3', '4', '6', '2', '5'] {
         app.event(Event::Key(Key::Char(c)));
     }
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     let got: Vec<bool> = k.coins.flips().collect();
     assert_eq!(got, [false, false, true, true, false, true]);
 }
@@ -208,7 +208,7 @@ fn dice_open_on_flip_mode_and_every_way_takes_each_entry_as_it_is_typed() {
     let faces = "1346251436251";
     for (n, c) in faces.char_indices() {
         dice.event(Event::Key(Key::Char(c)));
-        let k = dice.keygen.as_ref().unwrap();
+        let k = dice.keygen().unwrap();
         assert_eq!(k.coins.len(), n + 1, "taken as typed");
         assert_eq!(
             k.entered.as_str(),
@@ -217,15 +217,7 @@ fn dice_open_on_flip_mode_and_every_way_takes_each_entry_as_it_is_typed() {
         );
     }
     let f: Vec<bool> = faces.bytes().map(|b| b >= b'4').collect();
-    assert_eq!(
-        dice.keygen
-            .as_ref()
-            .unwrap()
-            .coins
-            .flips()
-            .collect::<Vec<_>>(),
-        f
-    );
+    assert_eq!(dice.keygen().unwrap().coins.flips().collect::<Vec<_>>(), f);
     assert_eq!(linked(&mut dice), groups(&f));
 
     // Coins: heads and tails.
@@ -235,15 +227,7 @@ fn dice_open_on_flip_mode_and_every_way_takes_each_entry_as_it_is_typed() {
         coin.event(Event::Key(Key::Char(c)));
     }
     let f: Vec<bool> = sides.chars().map(|c| c == 'H').collect();
-    assert_eq!(
-        coin.keygen
-            .as_ref()
-            .unwrap()
-            .coins
-            .flips()
-            .collect::<Vec<_>>(),
-        f
-    );
+    assert_eq!(coin.keygen().unwrap().coins.flips().collect::<Vec<_>>(), f);
     assert_eq!(linked(&mut coin), groups(&f));
 
     // Every dice procedure is typed too.
@@ -256,10 +240,10 @@ fn dice_open_on_flip_mode_and_every_way_takes_each_entry_as_it_is_typed() {
         for c in "1234".chars() {
             app.event(Event::Key(Key::Char(c)));
         }
-        assert_eq!(app.keygen.as_ref().unwrap().dice.rolls(), &[1, 2, 3, 4]);
+        assert_eq!(app.keygen().unwrap().dice.rolls(), &[1, 2, 3, 4]);
         // Backspace takes the last one back, from the box too.
         app.event(Event::Key(Key::Backspace));
-        let k = app.keygen.as_ref().unwrap();
+        let k = app.keygen().unwrap();
         assert_eq!(k.dice.rolls(), &[1, 2, 3]);
         assert_eq!(k.entered.as_str(), "123");
     }
@@ -294,15 +278,15 @@ fn rolls_typed_as_a_string_make_the_key_the_same_presses_make() {
     dice(&mut boxed, Way::DiceHashed);
     typed(&mut boxed, &rolls);
     assert_eq!(
-        pressed.keygen.as_ref().unwrap().dice.rolls(),
-        boxed.keygen.as_ref().unwrap().dice.rolls()
+        pressed.keygen().unwrap().dice.rolls(),
+        boxed.keygen().unwrap().dice.rolls()
     );
     for app in [&mut pressed, &mut boxed] {
         app.press(Action::KNext);
     }
     assert_eq!(
-        *pressed.keygen.as_ref().unwrap().phrase().unwrap(),
-        *boxed.keygen.as_ref().unwrap().phrase().unwrap()
+        *pressed.keygen().unwrap().phrase().unwrap(),
+        *boxed.keygen().unwrap().phrase().unwrap()
     );
 
     // Choosing words directly, where a 5 or 6 is rolled again in most
@@ -315,10 +299,7 @@ fn rolls_typed_as_a_string_make_the_key_the_same_presses_make() {
     let mut boxed = shown();
     dice(&mut boxed, Way::DiceWords);
     typed(&mut boxed, &rolls);
-    let (a, b) = (
-        pressed.keygen.as_ref().unwrap(),
-        boxed.keygen.as_ref().unwrap(),
-    );
+    let (a, b) = (pressed.keygen().unwrap(), boxed.keygen().unwrap());
     assert!(a.dice.len() < rolls.len());
     assert_eq!(a.dice.rolls(), b.dice.rolls());
     assert_eq!(&a.live_words()[..], &b.live_words()[..]);
@@ -339,7 +320,7 @@ fn words_chosen_directly_show_only_the_words_rolled() {
         };
         app.press(Action::KRoll(face));
     }
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     let named: Vec<u16> = k.dice.word_indices().collect();
     assert_eq!(named.len(), 11);
     assert_eq!(&k.live_words()[..], &named[..]);
@@ -356,7 +337,7 @@ fn hashed_dice_show_no_words_as_they_come_in() {
     for i in 0..50u8 {
         app.press(Action::KRoll(i % 6 + 1));
     }
-    assert!(app.keygen.as_ref().unwrap().live_words().is_empty());
+    assert!(app.keygen().unwrap().live_words().is_empty());
     assert!(linked(&mut app).is_empty());
 }
 
@@ -385,13 +366,13 @@ fn a_word_s_link_marks_it_in_the_list_and_back_returns_to_the_card() {
     }
     // Keys are the sheet's: a 1 typed here is not a flip.
     app.event(Event::Key(Key::Char('1')));
-    assert_eq!(app.keygen.as_ref().unwrap().coins.len(), 70);
+    assert_eq!(app.keygen().unwrap().coins.len(), 70);
     let _ = app.frame();
     assert!(app.offers(Action::WordList(WL::Close)));
     app.press(Action::WordList(WL::Close));
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::KeyGen);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::ENTER));
     assert!(k.coins.flips().eq(f.iter().copied()));
     // Escape closes it the same way.
@@ -399,7 +380,7 @@ fn a_word_s_link_marks_it_in_the_list_and_back_returns_to_the_card() {
     app.event(Event::Key(Key::Escape));
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::KeyGen);
-    assert_eq!(app.keygen.as_ref().unwrap().coins.len(), 70);
+    assert_eq!(app.keygen().unwrap().coins.len(), 70);
     // So does a press beside the sheet; a press on it does not.
     app.press(open);
     let _ = app.frame();
@@ -409,7 +390,7 @@ fn a_word_s_link_marks_it_in_the_list_and_back_returns_to_the_card() {
     tap(&mut app, 4, 600);
     assert_eq!(app.sheet, None);
     assert_eq!(app.screen, Screen::KeyGen);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::ENTER));
     assert_eq!(k.coins.len(), 70);
 }

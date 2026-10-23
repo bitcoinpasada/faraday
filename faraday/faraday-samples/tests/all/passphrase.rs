@@ -143,21 +143,21 @@ fn in_demo_a_typed_key_with_a_passphrase_loads_the_key_with_faraday() {
     type_in(&mut app, words_of("twelve").parts[0]);
     let _ = app.frame();
     app.press(Action::KNext);
-    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::KEY));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::KEY));
     let _ = app.frame();
     for f in 0..2 {
         assert!(app.offers(Action::PassChip(PassField::KeyGen(f))));
     }
     app.press(Action::PassChip(PassField::KeyGen(0)));
     app.press(Action::PassChip(PassField::KeyGen(1)));
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.passphrase.as_str(), "faraday");
     assert_eq!(k.passphrase2.as_str(), "faraday");
     app.press(Action::KLock);
     assert!(
         held(&app, words_of("twelve").with_passphrase.unwrap()),
         "{:?}",
-        app.keygen.as_ref().unwrap().note
+        app.keygen().unwrap().note
     );
 }
 

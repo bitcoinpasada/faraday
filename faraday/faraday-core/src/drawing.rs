@@ -319,9 +319,7 @@ impl Faraday {
                     self.bip85.set_scroll(to);
                 }
                 Scrolled::KeyGen => {
-                    if let Some(k) = self.keygen.as_mut() {
-                        k.scroll = to;
-                    }
+                    self.keygen.set_scroll(to);
                 }
                 Scrolled::Vanity => {
                     self.vanity.set_scroll(to);

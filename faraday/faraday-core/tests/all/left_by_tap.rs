@@ -87,7 +87,7 @@ fn new_key_left_by_a_tap_on_the_sidebar_forgets_the_words_typed() {
     let shown = revealed(&mut app, Action::KShow);
     tap(&mut app, Action::Nav(Screen::Settings));
     assert_eq!(app.screen, Screen::Settings);
-    assert!(app.keygen.is_none(), "New key keeps nothing when left");
+    assert!(app.keygen().is_none(), "New key keeps nothing when left");
     assert!(
         testkit::entry(&app).typed.as_str().is_empty(),
         "nor do its words stay typed"
@@ -96,7 +96,7 @@ fn new_key_left_by_a_tap_on_the_sidebar_forgets_the_words_typed() {
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     app.press(Action::KeyGen(None));
     assert_eq!(
-        app.keygen.as_ref().unwrap().open,
+        app.keygen().unwrap().open,
         Some(faraday_core::keygen::kstep::START)
     );
     not_drawn(&mut app, &shown);
@@ -269,7 +269,7 @@ fn new_key_left_by_a_tap_on_its_back_link_forgets_its_entries() {
     let mut app = testkit::started();
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
-    let words = app.keygen.as_ref().unwrap().words as u8;
+    let words = app.keygen().unwrap().words as u8;
     app.press(Action::KWords(words));
     app.press(Action::KNext);
     app.press(Action::KWords(12));
@@ -279,7 +279,7 @@ fn new_key_left_by_a_tap_on_its_back_link_forgets_its_entries() {
     // Its back link, to Add a key it was opened from.
     tap(&mut app, Action::Nav(Screen::Entry));
     assert_eq!(app.screen, Screen::Entry);
-    assert!(app.keygen.is_none(), "New key keeps nothing when left");
+    assert!(app.keygen().is_none(), "New key keeps nothing when left");
     app.press(Action::KeyGen(None));
-    assert_eq!(app.keygen.as_ref().unwrap().dice.len(), 0);
+    assert_eq!(app.keygen().unwrap().dice.len(), 0);
 }

@@ -183,7 +183,7 @@ impl Faraday {
                 .is_some_and(|c| c.passphrase),
             Screen::Wallets => self.renaming.is_some(),
             Screen::Message => self.message.state().is_some_and(|m| m.typing),
-            Screen::KeyGen => self.keygen.as_ref().is_some_and(|k| {
+            Screen::KeyGen => self.keygen.state().is_some_and(|k| {
                 !k.locked
                     && ((k.focus.is_some() && k.open == Some(keygen::kstep::KEY))
                         || (k.open == Some(keygen::kstep::ENTER) && k.typing && k.flip_or_roll())
@@ -248,7 +248,7 @@ impl Faraday {
             Screen::Wallets => Some(Action::Rename),
             Screen::Message => Some(Action::MType),
             Screen::KeyGen => {
-                let k = self.keygen.as_ref()?;
+                let k = self.keygen.state()?;
                 match k.open {
                     Some(keygen::kstep::KEY) => k.focus.map(Action::KPassField),
                     // A key typed: Add a key's form, which has no caret of
@@ -296,9 +296,9 @@ impl Faraday {
             crate::file_menu::FIELD => &self.files_menu.renaming.as_ref()?.stem,
             Action::BName(p) => self.backup.as_ref()?.names.get(usize::from(p))?,
             Action::MType => &self.message.state()?.text,
-            Action::KPassField(0) => &self.keygen.as_ref()?.passphrase,
-            Action::KPassField(_) => &self.keygen.as_ref()?.passphrase2,
-            Action::KTyping(_) => &self.keygen.as_ref()?.entered,
+            Action::KPassField(0) => &self.keygen.state()?.passphrase,
+            Action::KPassField(_) => &self.keygen.state()?.passphrase2,
+            Action::KTyping(_) => &self.keygen.state()?.entered,
             Action::CPassField(0) => &self.create.as_ref()?.pass,
             Action::CPassField(_) => &self.create.as_ref()?.pass2,
             _ => return None,
@@ -552,7 +552,7 @@ impl Faraday {
     /// state only while it is not ended. Only lookups.
     pub(crate) fn can_show(&self, s: Screen) -> bool {
         match s {
-            Screen::KeyGen => self.keygen.is_some(),
+            Screen::KeyGen => self.keygen.state().is_some(),
             Screen::Create => self.create.is_some(),
             Screen::Backup => self.backup.is_some(),
             Screen::Spend => self.spend.is_some(),

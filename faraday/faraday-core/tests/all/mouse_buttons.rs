@@ -52,7 +52,7 @@ fn new_key_left_by_back_keeps_nothing_for_forward_to_open() {
         Screen::Entry,
         "New key's back link is Add a key"
     );
-    assert!(app.keygen.is_none(), "New key keeps nothing when left");
+    assert!(app.keygen().is_none(), "New key keeps nothing when left");
     button(&mut app, Event::Forward);
     assert_eq!(app.screen, Screen::Entry);
 }

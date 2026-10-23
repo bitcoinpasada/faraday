@@ -31,7 +31,7 @@ fn pass_quiz(app: &mut Faraday) {
     use faraday_core::quiz::QuizState;
     app.press(Action::KNext);
     for _ in 0..30 {
-        let Some(q) = app.keygen.as_ref().and_then(|k| k.quiz.as_ref()) else {
+        let Some(q) = app.keygen().and_then(|k| k.quiz.as_ref()) else {
             return;
         };
         if q.state() == QuizState::Passed {
@@ -50,7 +50,7 @@ fn opened() -> Faraday {
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
     assert_eq!(app.screen, Screen::KeyGen);
-    let words = app.keygen.as_ref().unwrap().words as u8;
+    let words = app.keygen().unwrap().words as u8;
     app.press(Action::KWords(words));
     app.press(Action::KNext);
     app
@@ -117,7 +117,7 @@ fn ninety_nine_rolls_make_the_key_coldcard_and_seedsigner_make() {
     let expected = Mnemonic::from_entropy(Language::English, &entropy).unwrap();
     assert_eq!(added(&app), vec![fingerprint(&expected)]);
     assert_eq!(app.screen, Screen::Entry, "back where New key was opened");
-    assert!(app.keygen.is_none());
+    assert!(app.keygen().is_none());
 }
 
 #[test]
@@ -167,8 +167,8 @@ fn dice_rolled_in_flip_mode_makes_the_key_the_same_flips_make() {
     }
 
     {
-        let a = by_dice.keygen.as_ref().unwrap();
-        let b = by_coin.keygen.as_ref().unwrap();
+        let a = by_dice.keygen().unwrap();
+        let b = by_coin.keygen().unwrap();
         assert!(a.coins.flips().eq(b.coins.flips()));
         assert_eq!(&a.live_words()[..], &b.live_words()[..]);
     }
@@ -184,7 +184,7 @@ fn dice_rolled_in_flip_mode_makes_the_key_the_same_flips_make() {
 fn words_chosen_by_the_dice_are_chosen_from_the_start_and_one_option_replaces_another() {
     let mut app = opened_tall();
     app.press(Action::KWords(12));
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.way(), Some(Way::DiceWords));
     assert!(k.groups_open[0] && !k.groups_open[1] && !k.groups_open[2]);
     let _ = app.frame();
@@ -205,12 +205,12 @@ fn words_chosen_by_the_dice_are_chosen_from_the_start_and_one_option_replaces_an
     let _ = app.frame();
     assert!(app.offers(Action::KWay(Way::DiceSixAsZero.index())));
     app.press(Action::KWay(Way::DiceSixAsZero.index()));
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert!(!k.by_die);
     assert_eq!(k.procedure, DiceProcedure::SixAsZero);
 
     app.press(Action::KWay(Way::DiceFlips.index()));
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert!(k.by_die);
     assert_eq!(k.way(), Some(Way::DiceFlips));
 }
@@ -221,14 +221,14 @@ fn shares_offer_nothing_as_checkable_by_hand_and_no_words_chosen_by_rolls() {
     app.press(Action::KForm(true));
     app.press(Action::KWords(20));
     let _ = app.frame();
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     for w in [Way::DiceFlips, Way::Coins, Way::DiceHashed, Way::Hex] {
         assert_eq!(w.group(k.slip39), Group::Computed);
         assert!(app.offers(Action::KWay(w.index())), "{w:?} on offer");
     }
     assert!(!app.offers(Action::KWay(Way::DiceWords.index())));
     app.press(Action::KWay(Way::DiceWords.index()));
-    assert_ne!(app.keygen.as_ref().unwrap().way(), Some(Way::DiceWords));
+    assert_ne!(app.keygen().unwrap().way(), Some(Way::DiceWords));
 }
 
 #[test]
@@ -243,7 +243,7 @@ fn every_length_on_offer_can_be_chosen() {
             app.press(Action::KHex((i * 7 % 16) as u8));
         }
         app.press(Action::KNext);
-        let k = app.keygen.as_ref().unwrap();
+        let k = app.keygen().unwrap();
         assert_eq!(
             k.mnemonic.as_ref().map(|m| m.indices().len()),
             Some(usize::from(n))
@@ -261,7 +261,7 @@ fn too_few_rolls_make_no_words() {
         app.press(Action::KRoll(3));
     }
     app.press(Action::KNext);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert!(k.mnemonic.is_none());
     assert_eq!(k.note.as_deref(), Some("10 of 50"));
     app.press(Action::KAdd);
@@ -277,7 +277,7 @@ fn a_run_of_one_face_is_cautioned_and_does_not_stop_the_key() {
     for _ in 0..50 {
         app.press(Action::KRoll(6));
     }
-    assert!(!app.keygen.as_ref().unwrap().caution_lines().is_empty());
+    assert!(!app.keygen().unwrap().caution_lines().is_empty());
     app.press(Action::KNext);
     finish(&mut app);
     assert_eq!(app.session.keys.len(), 1);
@@ -300,7 +300,7 @@ fn rolls_that_name_words_stop_at_the_last_words_kept_bits_and_the_checksum_ends_
     app.press(Action::KNext);
     // A 5 is rolled again in a word's first five places: refused.
     app.press(Action::KRoll(5));
-    assert_eq!(app.keygen.as_ref().unwrap().dice.len(), 0);
+    assert_eq!(app.keygen().unwrap().dice.len(), 0);
     for c in BITBOX_12.bytes() {
         app.press(Action::KRoll(c - b'0'));
     }
@@ -308,11 +308,11 @@ fn rolls_that_name_words_stop_at_the_last_words_kept_bits_and_the_checksum_ends_
     // seven bits it keeps: the transcript's last two are not taken, and
     // the last word, checksum and all, is there at once.
     let expected = Mnemonic::from_entropy(Language::English, &BITBOX_12_ENTROPY).unwrap();
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.dice.len(), 70);
     assert_eq!(k.checksum_word(), Some(expected.indices()[11]));
     app.press(Action::KNext);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     let m = k.mnemonic.as_ref().expect("the words are made");
     assert_eq!(m.indices(), expected.indices());
     // The words before the last are the rolls' own.
@@ -335,7 +335,7 @@ fn three_one_four_two_two_five_is_miracle() {
     for f in [3, 1, 4, 2, 2, 5] {
         app.press(Action::KRoll(f));
     }
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(&k.live_words()[..], &[1131]);
     assert_eq!(Language::English.word(1131), "miracle");
 }
@@ -380,7 +380,7 @@ fn device_key(answer: [u8; 32]) -> Faraday {
     app.press(Action::KNext);
     // Nothing is made before the generator answers.
     app.press(Action::KNext);
-    assert!(app.keygen.as_ref().unwrap().mnemonic.is_none());
+    assert!(app.keygen().unwrap().mnemonic.is_none());
     app.event(Event::Entropy(EntropyBytes::new(answer)));
     app.press(Action::KNext);
     finish(&mut app);
@@ -411,7 +411,7 @@ fn the_demo_adds_the_next_sample_of_its_length_not_loaded() {
         app.event(Event::Entropy(EntropyBytes::new(answer)));
         app.press(Action::KNext);
         // The words made are the generator's.
-        let made = app.keygen.as_ref().and_then(|k| k.phrase()).unwrap();
+        let made = app.keygen().and_then(|k| k.phrase()).unwrap();
         assert_ne!(made.as_str(), words("bacon"));
         finish(&mut app);
         added(&app)
@@ -450,7 +450,7 @@ fn a_mix_of_dice_and_coins_is_the_hash_of_both_commitments() {
     let pos = |s: Source| mix.iter().position(|m| *m == s).unwrap() as u8;
     app.press(Action::KMix(pos(Source::Dice)));
     app.press(Action::KNext);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert!(k.note.is_some(), "one source is not a mix");
     app.press(Action::KMix(pos(Source::Coins)));
     app.press(Action::KNext);
@@ -472,7 +472,7 @@ fn a_mix_of_dice_and_coins_is_the_hash_of_both_commitments() {
     let coins = sha256::Hash::hash(letters.as_bytes()).to_byte_array();
     let both = sha256::Hash::hash(&[dice, coins].concat()).to_byte_array();
     let expected = Mnemonic::from_entropy(Language::English, &both[..16]).unwrap();
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.mnemonic.as_ref().unwrap().indices(), expected.indices());
 }
 
@@ -507,9 +507,9 @@ fn leaving_new_key_forgets_the_entries() {
     app.press(Action::KNext);
     app.press(Action::KRoll(4));
     app.press(Action::Nav(Screen::Entry));
-    assert!(app.keygen.is_none());
+    assert!(app.keygen().is_none());
     app.press(Action::KeyGen(None));
-    assert_eq!(app.keygen.as_ref().unwrap().dice.len(), 0);
+    assert_eq!(app.keygen().unwrap().dice.len(), 0);
 }
 
 #[test]
@@ -528,18 +528,18 @@ fn a_key_on_its_own_is_added_at_lock_in_and_done_waits_for_the_quiz_or_skipping_
     app.press(Action::KNext);
     app.press(Action::KNext);
     // On the quiz: a wrong pick does not pass it, and Done does nothing.
-    let q = app.keygen.as_ref().unwrap().quiz.as_ref().unwrap();
+    let q = app.keygen().unwrap().quiz.as_ref().unwrap();
     let wrong = (q.correct_slot() as u8 + 1) % 4;
     app.press(Action::KQuiz(wrong));
     app.press(Action::KAdd);
-    assert!(app.keygen.is_some(), "still on the quiz");
+    assert!(app.keygen().is_some(), "still on the quiz");
     // Skipping asks first.
     app.press(Action::KSkip);
     app.press(Action::KAdd);
-    assert!(app.keygen.is_some());
+    assert!(app.keygen().is_some());
     app.press(Action::KSkip);
     app.press(Action::KAdd);
-    assert!(app.keygen.is_none(), "Done leaves the flow");
+    assert!(app.keygen().is_none(), "Done leaves the flow");
     assert_eq!(app.screen, Screen::Entry);
     assert_eq!(app.session.keys.len(), 1, "the key is added once");
 }
@@ -550,7 +550,7 @@ fn fresh_new_key_opens_on_length_and_two_continues_reach_the_entries() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(None));
     app.press(Action::KeyGen(None));
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(
         k.open,
         Some(kstep::LENGTH),
@@ -560,14 +560,14 @@ fn fresh_new_key_opens_on_length_and_two_continues_reach_the_entries() {
     let way = k.way();
     assert!(way.is_some(), "Randomness has a default");
     app.press(Action::KWords(words));
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(
         k.open,
         Some(kstep::SOURCE),
         "Length's Continue takes the count shown and opens Randomness"
     );
     app.press(Action::KNext);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(
         k.open,
         Some(kstep::ENTER),
@@ -579,15 +579,15 @@ fn fresh_new_key_opens_on_length_and_two_continues_reach_the_entries() {
 fn change_opens_length_keeping_what_follows() {
     use faraday_core::keygen::kstep;
     let mut app = opened();
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     let way = k.way();
     for _ in 0..7 {
         app.press(Action::KRoll(3));
     }
-    let rolled = app.keygen.as_ref().unwrap().dice.len();
+    let rolled = app.keygen().unwrap().dice.len();
     assert!(rolled > 0, "the rolls were taken");
     app.press(Action::KStep(kstep::LENGTH));
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::LENGTH), "Change opens Length");
     assert_eq!(k.words, 12, "the length is kept");
     assert_eq!(k.way(), way, "the randomness is kept");
@@ -681,7 +681,7 @@ fn with_the_last_flip_in_the_entry_card_shows_the_checks_verdict() {
     flip_all(&mut app);
     let shown = texts(&mut app);
     assert!(shown.contains("Randomness check"));
-    let cautions = app.keygen.as_ref().unwrap().caution_lines();
+    let cautions = app.keygen().unwrap().caution_lines();
     if cautions.is_empty() {
         assert!(shown.contains("Fair: no cautions"));
     }
@@ -705,7 +705,7 @@ fn roll_again_on_a_caution_clears_the_entries_and_adds_no_key() {
     for _ in 0..50 {
         app.press(Action::KRoll(6));
     }
-    assert!(!app.keygen.as_ref().unwrap().caution_lines().is_empty());
+    assert!(!app.keygen().unwrap().caution_lines().is_empty());
     let _ = app.frame();
     assert!(
         app.offers(Action::KAgain),
@@ -713,7 +713,7 @@ fn roll_again_on_a_caution_clears_the_entries_and_adds_no_key() {
     );
     assert!(app.offers(Action::KNext), "a caution is not a refusal");
     app.press(Action::KAgain);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.dice.len(), 0);
     assert_eq!(k.open, Some(kstep::ENTER));
     assert!(app.session.keys.is_empty());
@@ -725,7 +725,7 @@ fn lock_in_with_a_passphrase_adds_the_key_of_the_words_with_that_passphrase() {
     let mut app = slot_flow(true);
     flip_all(&mut app);
     app.press(Action::KNext);
-    let phrase = app.keygen.as_ref().unwrap().phrase().unwrap();
+    let phrase = app.keygen().unwrap().phrase().unwrap();
     app.press(Action::KPassField(0));
     type_text(&mut app, "Ride the 7 bus");
     app.press(Action::KPassField(1));
@@ -793,7 +793,7 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
     app.session.set_demo(faraday_core::testkit::demo_samples());
     flip_all(&mut app);
     app.press(Action::KNext);
-    let n = app.keygen.as_ref().unwrap().handout_words();
+    let n = app.keygen().unwrap().handout_words();
     let (word, fp) = app.session.keys.next_handout(n).unwrap();
     assert!(texts(&mut app).contains(&format!(
         "Lock in adds sample {word} ×{n} ({}) in place of these words",
@@ -805,7 +805,7 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
         assert!(app.offers(chip), "each field offers faraday");
         app.press(chip);
     }
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.passphrase.as_str(), "faraday");
     assert_eq!(k.passphrase2.as_str(), "faraday");
     app.press(Action::KLock);
@@ -841,7 +841,7 @@ fn the_demo_locks_in_its_sample_with_no_passphrase_unless_one_is_chosen() {
     app.session.set_demo(faraday_core::testkit::demo_samples());
     flip_all(&mut app);
     app.press(Action::KNext);
-    let n = app.keygen.as_ref().unwrap().handout_words();
+    let n = app.keygen().unwrap().handout_words();
     let (word, fp) = app.session.keys.next_handout(n).unwrap();
     app.press(Action::KPassField(0));
     app.press(Action::KLock);
@@ -868,7 +868,7 @@ fn on_a_test_network_outside_demo_new_key_adds_the_key_made() {
     app.press(Action::KNext);
     app.event(Event::Entropy(EntropyBytes::new([0x5a; 32])));
     app.press(Action::KNext);
-    let made = app.keygen.as_ref().and_then(|k| k.phrase()).unwrap();
+    let made = app.keygen().and_then(|k| k.phrase()).unwrap();
     finish(&mut app);
     let made = Mnemonic::parse(&c, Language::English, &made).unwrap();
     assert_eq!(added(&app), vec![fingerprint(&made)]);
@@ -887,7 +887,7 @@ fn after_lock_in_pressing_a_count_on_length_changes_nothing() {
     let before = added(&app);
     app.press(Action::KStep(kstep::LENGTH));
     assert_eq!(
-        app.keygen.as_ref().unwrap().open,
+        app.keygen().unwrap().open,
         Some(kstep::LENGTH),
         "Length opens to be read"
     );
@@ -896,7 +896,7 @@ fn after_lock_in_pressing_a_count_on_length_changes_nothing() {
     app.press(Action::KWords(24));
     app.press(Action::KFlip(true));
     app.press(Action::KAgain);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.words, 12);
     assert_eq!(k.mnemonic.as_ref().map(|m| m.indices().len()), Some(12));
     assert!(k.locked);
@@ -951,7 +951,7 @@ fn new_key_on_its_own_asks_for_no_passphrase_and_adds_the_key_without_one() {
     let _ = app.frame();
     assert!(!app.offers(Action::KPassField(0)));
     assert!(!texts(&mut app).contains("Passphrase again"));
-    let phrase = app.keygen.as_ref().unwrap().phrase().unwrap();
+    let phrase = app.keygen().unwrap().phrase().unwrap();
     let m = Mnemonic::parse(&c, Language::English, &phrase).unwrap();
     app.press(Action::KLock);
     assert_eq!(added(&app), vec![fingerprint(&m)]);
@@ -972,7 +972,7 @@ fn fill_of(app: &mut Faraday, action: Action) -> [u8; 4] {
 fn a_fresh_new_key_draws_twelve_words_as_chosen() {
     let mut app = opened_tall();
     assert_eq!(
-        app.keygen.as_ref().unwrap().open,
+        app.keygen().unwrap().open,
         Some(faraday_core::keygen::kstep::LENGTH)
     );
     let _ = app.frame();
@@ -1043,7 +1043,7 @@ fn offers_every_start(app: &mut Faraday) {
 #[test]
 fn add_a_key_opens_on_start_offering_every_way_in_and_a_create_slot_offers_the_same() {
     let mut app = add_a_key();
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::START));
     assert_eq!(k.start, Start::Make, "Make a new key is ticked");
     offers_every_start(&mut app);
@@ -1060,7 +1060,7 @@ fn add_a_key_opens_on_start_offering_every_way_in_and_a_create_slot_offers_the_s
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::CNext(faraday_core::cstep::QUORUM));
     app.press(Action::KeyGen(Some(0)));
-    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::START));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::START));
     offers_every_start(&mut app);
 }
 
@@ -1079,9 +1079,9 @@ fn ways_offered(app: &mut Faraday) -> Vec<u8> {
 fn make_a_new_key_from_add_a_key_reaches_length_then_every_source_create_offers() {
     let mut app = add_a_key();
     app.press(Action::KNext);
-    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::LENGTH));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::LENGTH));
     app.press(Action::KWords(12));
-    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::SOURCE));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::SOURCE));
     let ours = ways_offered(&mut app);
     let mut slot = slot_flow(true);
     slot.press(Action::KStep(kstep::SOURCE));
@@ -1094,13 +1094,13 @@ fn make_a_new_key_from_add_a_key_reaches_length_then_every_source_create_offers(
 fn type_the_words(app: &mut Faraday, words: &str) {
     app.press(Action::KStart(Start::Words.index()));
     app.press(Action::KNext);
-    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::TYPED));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::TYPED));
     let _ = app.frame();
     typed(app, words);
     let _ = app.frame();
     assert!(app.offers(Action::KNext), "the Words card's Continue");
     app.press(Action::KNext);
-    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::KEY));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::KEY));
 }
 
 /// Types `pass` into both passphrase fields of the Key card.
@@ -1148,7 +1148,7 @@ fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_he
 
     // Continue leaves the flow: no Words or Quiz for words held already.
     app.press(Action::KNext);
-    assert!(app.keygen.is_none());
+    assert!(app.keygen().is_none());
 }
 
 #[test]
@@ -1158,7 +1158,7 @@ fn typed_words_whose_checksum_fails_do_not_open_key() {
     app.press(Action::KNext);
     typed(&mut app, &["abandon"; 12].join(" "));
     app.press(Action::KNext);
-    assert_eq!(app.keygen.as_ref().unwrap().open, Some(kstep::TYPED));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::TYPED));
     assert!(
         faraday_core::testkit::entry(&app).error.is_some(),
         "Add a key's own message stands"
@@ -1204,7 +1204,7 @@ fn a_scanned_seedqr_opens_key_with_its_words() {
         bytes: b"000000000000000000000000000000000000000000000003".to_vec(),
     });
     assert_eq!(app.sheet, None);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::KEY));
     let m = k.mnemonic.as_ref().expect("the words");
     let words: Vec<&str> = m
@@ -1225,7 +1225,7 @@ fn a_key_wanted_by_its_fingerprint_still_opens_add_a_key() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Entry(Some([0x5d, 0x38, 0x83, 0x76])));
     assert_eq!(app.screen, Screen::Entry);
-    assert!(app.keygen.is_none());
+    assert!(app.keygen().is_none());
 }
 
 #[test]

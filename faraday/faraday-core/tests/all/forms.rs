@@ -229,7 +229,7 @@ fn the_slip39_tile_opens_on_shares() {
     app.press(Action::Catalog(i as u8));
     let _ = app.frame();
     assert_eq!(app.screen, Screen::KeyGen);
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.start, faraday_core::keygen::Start::Shares);
     assert_eq!(k.open, Some(faraday_core::keygen::kstep::TYPED));
     assert_eq!(

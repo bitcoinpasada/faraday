@@ -1198,245 +1198,144 @@ impl KeyGen {
     }
 }
 
-impl crate::Faraday {
-    /// Opens the flow, for a Create slot or for the session.
-    pub(crate) fn keygen_open(&mut self, slot: Option<u8>) {
-        if !self.may_load_keys() {
-            self.toast(&fill(EN.keygen_remove_the_first, &[self.medium.noun()]));
-            return;
-        }
-        // A flow already open ends first, giving back what it kept.
-        self.keygen_drop();
-        let only_24 = slot.is_some() && self.create.as_ref().is_some_and(|c| c.kind.threshold());
-        let back = self.screen;
-        let mut k = KeyGen::new(slot, back, only_24);
-        k.entropy_source = self.entropy_source;
-        // A small panel is a touch screen with no keyboard of its own:
-        // the faces are pressed, not typed.
-        k.typing = !self.compact;
-        // Add a key's own state waits in the flow, which types into the
-        // app's; it comes back when the flow ends.
-        k.entry_kept = self.entry.take();
-        // Add a key's Make a new key chose already: Start is closed on it
-        // and Length is open, as before Start was (`docs/history/NEW-WALLET.md`
-        // §15.3).
-        if back == Screen::Entry {
-            k.done[usize::from(kstep::START)] = true;
-            k.started = Some(Start::Make);
-            k.open = Some(kstep::LENGTH);
-        }
-        self.keygen = Some(k);
-        self.screen = Screen::KeyGen;
+/// New key's area: the flow being made, the keys made this session, the
+/// camera and the shell's randomness source.
+#[derive(Default)]
+pub(crate) struct KeyGenArea {
+    state: Option<KeyGen>,
+    /// New keys made this session, which number their labels.
+    new_keys: u32,
+    /// The camera is on for camera noise.
+    camera_on: bool,
+    /// The shell's randomness source (`Faraday::entropy_source_named`).
+    entropy_source: Option<&'static str>,
+}
+
+impl KeyGenArea {
+    /// The flow being made, while it is open.
+    pub(crate) fn state(&self) -> Option<&KeyGen> {
+        self.state.as_ref()
     }
 
-    /// Opens the flow for the session with `start` chosen and Start
-    /// closed on it, as the Tools tiles for one form do (§15.3).
-    pub(crate) fn keygen_open_on(&mut self, start: Start) {
-        self.keygen_open(None);
-        if let Some(k) = self.keygen.as_mut() {
-            k.start = start;
-            k.others_open = start.other();
-        }
-        self.keygen_start_next();
+    /// Forgets the flow, with everything in it.
+    pub(crate) fn forget(&mut self) {
+        self.state = None;
     }
 
-    /// Start's Continue: the cards for the choice open. A choice other
-    /// than the one the later cards were opened for starts them over.
-    fn keygen_start_next(&mut self) {
-        let compact = self.compact;
-        let Some(k) = self.keygen.as_mut() else {
-            return;
-        };
-        if k.locked || !k.starts().contains(&k.start) {
-            return;
-        }
-        let start = k.start;
-        if k.started != Some(start) {
-            k.clear_entries();
-            k.started = None;
-            k.parts_in = 0;
-            k.passphrase.clear();
-            k.passphrase2.clear();
-            k.focus = None;
-            for s in [kstep::TYPED, kstep::KEY] {
-                k.done[usize::from(s)] = false;
-            }
-            if start.makes() {
-                k.set_slip39(start == Start::MakeShares);
-            }
-            // What was typed for another choice goes.
-            let mut e = crate::EntryState::default();
-            if let Some(f) = start.form() {
-                e.form = f;
-            }
-            // A small panel has no keyboard of its own: the words go on
-            // the word keyboard, as on Add a key.
-            if compact && e.form == Form::Words {
-                e.keys = Some(crate::forms::word_typer(e.language()));
-            }
-            self.entry.put(e);
-        }
-        let Some(k) = self.keygen.as_mut() else {
-            return;
-        };
-        let next = match start {
-            // The scan sheet; the card after it opens once a code is read.
-            Start::Scan => {
-                self.act(crate::Action::ScanSeed);
-                return;
-            }
-            Start::Make | Start::MakeShares => kstep::LENGTH,
-            _ => kstep::TYPED,
-        };
-        k.done[usize::from(kstep::START)] = true;
-        k.started = Some(start);
-        k.open = Some(next);
-        k.scroll.follow = true;
+    /// Whether the camera is on for camera noise.
+    pub(crate) fn camera_on(&self) -> bool {
+        self.camera_on
     }
 
-    /// A SeedQR read while the flow waits on Scan a SeedQR: the camera
-    /// closes and Key opens with its words. Returns whether it took them.
-    pub(crate) fn keygen_scanned(&mut self, words: &str) -> bool {
-        let c = self.compute();
-        if self.screen != Screen::KeyGen {
-            return false;
+    /// The column's scroll, while the flow is open.
+    pub(crate) fn scroll_mut(&mut self) -> Option<&mut flow::Scroll> {
+        self.state.as_mut().map(|k| &mut k.scroll)
+    }
+
+    /// Takes the column's scroll as the pass left it.
+    pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
+        if let Some(k) = self.state.as_mut() {
+            k.scroll = to;
         }
-        let Some(k) = self
-            .keygen
-            .as_mut()
-            .filter(|k| k.start == Start::Scan && !k.locked)
-        else {
+    }
+
+    /// Takes a camera frame as noise, forgetting the one before.
+    pub(crate) fn camera_frame(&mut self, luma: Vec<u8>) {
+        if let Some(k) = self.state.as_mut() {
+            if let Some(old) = k.frame.as_mut() {
+                zeroize::Zeroize::zeroize(old);
+            }
+            k.frame = Some(luma);
+        }
+    }
+
+    /// Demo's passphrase typed into field `i` of the Key card.
+    pub(crate) fn demo_passphrase(&mut self, i: u8, text: &str) {
+        if let Some(k) = self.state.as_mut() {
+            let t = if i == 0 {
+                &mut k.passphrase
+            } else {
+                &mut k.passphrase2
+            };
+            t.set(text);
+            k.focus = Some(i);
+            k.note = None;
+        }
+    }
+
+    /// The shell named its randomness source: kept, and copied into an
+    /// open flow, as a new one copies it when it opens.
+    pub(crate) fn entropy_source_named(&mut self, name: &'static str) {
+        self.entropy_source = Some(name);
+        if let Some(k) = self.state.as_mut() {
+            k.entropy_source = Some(name);
+        }
+    }
+
+    /// The shell is asked for fresh bytes when this device's generator
+    /// is the source being entered; they go to the key and nowhere else.
+    pub(crate) fn device(&mut self, out: &mut crate::out::Out) {
+        let Some(k) = self.state.as_mut() else {
+            return;
+        };
+        if k.open == Some(kstep::ENTER)
+            && k.active() == Some(Source::Device)
+            && !k.device.is_enough(k.strength())
+            && !k.device_asked
+        {
+            k.device_asked = true;
+            out.command(faraday_shell_api::Command::RequestEntropy);
+        }
+    }
+
+    /// Takes the shell's answer when the flow asked for it. Returns
+    /// whether it did.
+    pub(crate) fn entropy(&mut self, bytes: &mut [u8; 32]) -> bool {
+        let Some(k) = self.state.as_mut().filter(|k| k.device_asked) else {
             return false;
         };
-        let Ok(m) = crate::wallet::parse_words(&c, Language::English, words) else {
-            return false;
-        };
-        k.mnemonic = Some(m);
-        k.shown = false;
-        k.done[usize::from(kstep::START)] = true;
-        k.started = Some(Start::Scan);
-        k.open = Some(kstep::KEY);
-        k.scroll.follow = true;
-        self.camera.close();
-        self.sheet = None;
-        self.out
-            .commands
-            .push_back(faraday_shell_api::Command::CameraOff);
+        k.device.set(bytes);
+        k.device_asked = false;
+        zeroize::Zeroize::zeroize(bytes);
         true
     }
 
-    /// The Words card's Continue for a key typed: Key opens once the
-    /// words are whole and their checksum holds, or the parts are enough,
-    /// with Add a key's own messages when they are not (§15.2).
-    fn keygen_typed_next(&mut self) {
-        let Some(k) = self.keygen.as_ref() else {
-            return;
-        };
-        let Some(form) = k.start.form() else {
-            return;
-        };
-        let only_24 = k.only_24;
-        let mut words = None;
-        if form == Form::Words {
-            let m = match self.entry.mnemonic() {
-                Ok(m) => m,
-                Err(e) => {
-                    self.entry.state_mut().error = Some(e);
-                    return;
-                }
-            };
-            if only_24 && m.word_count() != 24 {
-                self.entry.state_mut().error = Some(EN.keygen_a_threshold.to_string());
-                return;
-            }
-            words = Some(m);
-        } else if !self.entry.state().parts.ready(form) {
-            return;
+    /// The camera is on while camera noise is being taken, and off
+    /// otherwise.
+    pub(crate) fn camera(&mut self, on_screen: bool, out: &mut crate::out::Out) {
+        let want = on_screen
+            && self.state.as_ref().is_some_and(|k| {
+                k.open == Some(kstep::ENTER) && k.active() == Some(Source::Camera)
+            });
+        if want != self.camera_on {
+            self.camera_on = want;
+            out.command(if want {
+                faraday_shell_api::Command::CameraOn
+            } else {
+                faraday_shell_api::Command::CameraOff
+            });
         }
-        let parts = self.entry.state().parts.lines(form).len();
-        self.entry.state_mut().error = None;
-        let Some(k) = self.keygen.as_mut() else {
-            return;
-        };
-        k.mnemonic = words;
-        k.parts_in = parts;
-        k.shown = false;
-        k.done[usize::from(kstep::TYPED)] = true;
-        k.open = Some(kstep::KEY);
-        k.scroll.follow = true;
+        if !want
+            && let Some(k) = self.state.as_mut()
+            && let Some(f) = k.frame.as_mut()
+        {
+            zeroize::Zeroize::zeroize(f);
+            k.frame = None;
+        }
     }
 
-    /// One press inside the flow.
+    /// A press that changes only the flow. `draw` is the fresh draw
+    /// dealing shares takes, asked for before the flow is borrowed.
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-    pub(crate) fn keygen_act(&mut self, action: crate::Action) {
-        let c = self.compute();
+    pub(crate) fn act(
+        &mut self,
+        action: crate::Action,
+        c: &Compute,
+        draw: Option<[u8; 32]>,
+        now_ms: u64,
+    ) {
         use crate::Action as A;
-        if let A::KeyGen(slot) = action {
-            self.keygen_open(slot);
-            return;
-        }
-        // In the demo SLIP-39's sources and its deal do nothing
-        // (`docs/DEMO.md` §4), however the press arrives.
-        if self.demo_refuses(action) {
-            return;
-        }
-        if action == A::KeyGenSlip39 {
-            self.keygen_open_on(Start::MakeShares);
-            return;
-        }
-        // Dealing shares takes a fresh draw of its own from the system's
-        // generator; asked for before the flow is borrowed.
-        let dealing = action == A::KNext
-            && self
-                .keygen
-                .as_ref()
-                .is_some_and(|k| k.slip39 && k.open == Some(kstep::ENTER));
-        let draw = if dealing {
-            self.fresh(b"slip39 split")
-        } else {
-            None
-        };
-        if action == A::KAdd {
-            self.keygen_add();
-            return;
-        }
-        let Some(k) = self.keygen.as_ref() else {
-            return;
-        };
-        // After lock-in nothing about the key changes: the cards before
-        // Key open to be read, and take no input (`docs/history/NEW-WALLET.md`
-        // §3.3).
-        let inputs_closed = k.locked
-            && match action {
-                A::KStep(_) | A::KShow | A::KQuiz(_) | A::KQuizRetry | A::KSkip => false,
-                A::KNext => matches!(
-                    k.open,
-                    Some(
-                        kstep::START | kstep::LENGTH | kstep::SOURCE | kstep::ENTER | kstep::TYPED
-                    ) | None
-                ),
-                _ => true,
-            };
-        if inputs_closed {
-            return;
-        }
-        if action == A::KNext && k.open == Some(kstep::START) {
-            self.keygen_start_next();
-            return;
-        }
-        if action == A::KNext && k.open == Some(kstep::TYPED) {
-            self.keygen_typed_next();
-            return;
-        }
-        if action == A::KLock || (action == A::KNext && k.open == Some(kstep::KEY)) {
-            if k.locked {
-                self.keygen_continue();
-            } else {
-                self.keygen_lock();
-            }
-            return;
-        }
-        let Some(k) = self.keygen.as_mut() else {
+        let Some(k) = self.state.as_mut() else {
             return;
         };
         let open = |k: &mut KeyGen, step: u8| {
@@ -1545,16 +1444,16 @@ impl crate::Faraday {
                     }
                     if k.finish_entry() {
                         if k.slip39 {
-                            if let Err(e) = draw.map_or(Ok(()), |r| k.deal(&c, r)) {
+                            if let Err(e) = draw.map_or(Ok(()), |r| k.deal(c, r)) {
                                 k.note = Some(e);
                                 return;
                             }
                             k.fingerprint = k.secret.as_ref().and_then(|s| {
-                                faraday_keys::identity::fingerprint_of_seed(&c, s).map(|f| f.0)
+                                faraday_keys::identity::fingerprint_of_seed(c, s).map(|f| f.0)
                             });
                         } else {
                             k.fingerprint = k.phrase().and_then(|w| {
-                                faraday_keys::identity::fingerprint_of_words(&c, &w, "")
+                                faraday_keys::identity::fingerprint_of_words(c, &w, "")
                                     .ok()
                                     .map(|f| f.0)
                             });
@@ -1577,7 +1476,7 @@ impl crate::Faraday {
                 Some(kstep::WORDS) if k.slip39 => {
                     // Each share is quizzed in turn, from the first.
                     if let Some(ind) = k.share_indices(0) {
-                        let seed = crate::quiz::Quiz::seed(self.now_ms, ind);
+                        let seed = crate::quiz::Quiz::seed(now_ms, ind);
                         k.quiz = Some(crate::quiz::Quiz::new(
                             ind,
                             crate::word_entry::EntryList::Slip39,
@@ -1593,7 +1492,7 @@ impl crate::Faraday {
                     // The quiz asks every word in a random order; the
                     // words are hidden while it runs.
                     if let Some(m) = k.mnemonic.as_ref() {
-                        let seed = crate::quiz::Quiz::seed(self.now_ms, m.indices());
+                        let seed = crate::quiz::Quiz::seed(now_ms, m.indices());
                         k.quiz = Some(crate::quiz::Quiz::new(
                             m.indices(),
                             crate::word_entry::EntryList::Bip39(Language::English),
@@ -1642,7 +1541,7 @@ impl crate::Faraday {
                     // The next share, or done.
                     match k.share_indices(at + 1).map(<[u16]>::to_vec) {
                         Some(next) => {
-                            let seed = crate::quiz::Quiz::seed(self.now_ms, &next);
+                            let seed = crate::quiz::Quiz::seed(now_ms, &next);
                             k.quiz = Some(crate::quiz::Quiz::new(&next, list, seed));
                             k.quiz_share = at + 1;
                         }
@@ -1692,6 +1591,253 @@ impl crate::Faraday {
             _ => {}
         }
     }
+}
+
+impl crate::Faraday {
+    /// The flow being made, while it is open.
+    pub fn keygen(&self) -> Option<&KeyGen> {
+        self.keygen.state()
+    }
+
+    /// Opens the flow, for a Create slot or for the session.
+    pub(crate) fn keygen_open(&mut self, slot: Option<u8>) {
+        if !self.may_load_keys() {
+            self.toast(&fill(EN.keygen_remove_the_first, &[self.medium.noun()]));
+            return;
+        }
+        // A flow already open ends first, giving back what it kept.
+        self.keygen_drop();
+        let only_24 = slot.is_some() && self.create.as_ref().is_some_and(|c| c.kind.threshold());
+        let back = self.screen;
+        let mut k = KeyGen::new(slot, back, only_24);
+        k.entropy_source = self.keygen.entropy_source;
+        // A small panel is a touch screen with no keyboard of its own:
+        // the faces are pressed, not typed.
+        k.typing = !self.compact;
+        // Add a key's own state waits in the flow, which types into the
+        // app's; it comes back when the flow ends.
+        k.entry_kept = self.entry.take();
+        // Add a key's Make a new key chose already: Start is closed on it
+        // and Length is open, as before Start was (`docs/history/NEW-WALLET.md`
+        // §15.3).
+        if back == Screen::Entry {
+            k.done[usize::from(kstep::START)] = true;
+            k.started = Some(Start::Make);
+            k.open = Some(kstep::LENGTH);
+        }
+        self.keygen.state = Some(k);
+        self.screen = Screen::KeyGen;
+    }
+
+    /// Opens the flow for the session with `start` chosen and Start
+    /// closed on it, as the Tools tiles for one form do (§15.3).
+    pub(crate) fn keygen_open_on(&mut self, start: Start) {
+        self.keygen_open(None);
+        if let Some(k) = self.keygen.state.as_mut() {
+            k.start = start;
+            k.others_open = start.other();
+        }
+        self.keygen_start_next();
+    }
+
+    /// Start's Continue: the cards for the choice open. A choice other
+    /// than the one the later cards were opened for starts them over.
+    fn keygen_start_next(&mut self) {
+        let compact = self.compact;
+        let Some(k) = self.keygen.state.as_mut() else {
+            return;
+        };
+        if k.locked || !k.starts().contains(&k.start) {
+            return;
+        }
+        let start = k.start;
+        if k.started != Some(start) {
+            k.clear_entries();
+            k.started = None;
+            k.parts_in = 0;
+            k.passphrase.clear();
+            k.passphrase2.clear();
+            k.focus = None;
+            for s in [kstep::TYPED, kstep::KEY] {
+                k.done[usize::from(s)] = false;
+            }
+            if start.makes() {
+                k.set_slip39(start == Start::MakeShares);
+            }
+            // What was typed for another choice goes.
+            let mut e = crate::EntryState::default();
+            if let Some(f) = start.form() {
+                e.form = f;
+            }
+            // A small panel has no keyboard of its own: the words go on
+            // the word keyboard, as on Add a key.
+            if compact && e.form == Form::Words {
+                e.keys = Some(crate::forms::word_typer(e.language()));
+            }
+            self.entry.put(e);
+        }
+        let Some(k) = self.keygen.state.as_mut() else {
+            return;
+        };
+        let next = match start {
+            // The scan sheet; the card after it opens once a code is read.
+            Start::Scan => {
+                self.act(crate::Action::ScanSeed);
+                return;
+            }
+            Start::Make | Start::MakeShares => kstep::LENGTH,
+            _ => kstep::TYPED,
+        };
+        k.done[usize::from(kstep::START)] = true;
+        k.started = Some(start);
+        k.open = Some(next);
+        k.scroll.follow = true;
+    }
+
+    /// A SeedQR read while the flow waits on Scan a SeedQR: the camera
+    /// closes and Key opens with its words. Returns whether it took them.
+    pub(crate) fn keygen_scanned(&mut self, words: &str) -> bool {
+        let c = self.compute();
+        if self.screen != Screen::KeyGen {
+            return false;
+        }
+        let Some(k) = self
+            .keygen
+            .state
+            .as_mut()
+            .filter(|k| k.start == Start::Scan && !k.locked)
+        else {
+            return false;
+        };
+        let Ok(m) = crate::wallet::parse_words(&c, Language::English, words) else {
+            return false;
+        };
+        k.mnemonic = Some(m);
+        k.shown = false;
+        k.done[usize::from(kstep::START)] = true;
+        k.started = Some(Start::Scan);
+        k.open = Some(kstep::KEY);
+        k.scroll.follow = true;
+        self.camera.close();
+        self.sheet = None;
+        self.out
+            .commands
+            .push_back(faraday_shell_api::Command::CameraOff);
+        true
+    }
+
+    /// The Words card's Continue for a key typed: Key opens once the
+    /// words are whole and their checksum holds, or the parts are enough,
+    /// with Add a key's own messages when they are not (§15.2).
+    fn keygen_typed_next(&mut self) {
+        let Some(k) = self.keygen.state.as_ref() else {
+            return;
+        };
+        let Some(form) = k.start.form() else {
+            return;
+        };
+        let only_24 = k.only_24;
+        let mut words = None;
+        if form == Form::Words {
+            let m = match self.entry.mnemonic() {
+                Ok(m) => m,
+                Err(e) => {
+                    self.entry.state_mut().error = Some(e);
+                    return;
+                }
+            };
+            if only_24 && m.word_count() != 24 {
+                self.entry.state_mut().error = Some(EN.keygen_a_threshold.to_string());
+                return;
+            }
+            words = Some(m);
+        } else if !self.entry.state().parts.ready(form) {
+            return;
+        }
+        let parts = self.entry.state().parts.lines(form).len();
+        self.entry.state_mut().error = None;
+        let Some(k) = self.keygen.state.as_mut() else {
+            return;
+        };
+        k.mnemonic = words;
+        k.parts_in = parts;
+        k.shown = false;
+        k.done[usize::from(kstep::TYPED)] = true;
+        k.open = Some(kstep::KEY);
+        k.scroll.follow = true;
+    }
+
+    /// One press inside the flow.
+    pub(crate) fn keygen_act(&mut self, action: crate::Action) {
+        let c = self.compute();
+        use crate::Action as A;
+        if let A::KeyGen(slot) = action {
+            self.keygen_open(slot);
+            return;
+        }
+        // In the demo SLIP-39's sources and its deal do nothing
+        // (`docs/DEMO.md` §4), however the press arrives.
+        if self.demo_refuses(action) {
+            return;
+        }
+        if action == A::KeyGenSlip39 {
+            self.keygen_open_on(Start::MakeShares);
+            return;
+        }
+        // Dealing shares takes a fresh draw of its own from the system's
+        // generator; asked for before the flow is borrowed.
+        let dealing = action == A::KNext
+            && self
+                .keygen
+                .state()
+                .is_some_and(|k| k.slip39 && k.open == Some(kstep::ENTER));
+        let draw = if dealing {
+            self.fresh(b"slip39 split")
+        } else {
+            None
+        };
+        if action == A::KAdd {
+            self.keygen_add();
+            return;
+        }
+        let Some(k) = self.keygen.state.as_ref() else {
+            return;
+        };
+        // After lock-in nothing about the key changes: the cards before
+        // Key open to be read, and take no input (`docs/history/NEW-WALLET.md`
+        // §3.3).
+        let inputs_closed = k.locked
+            && match action {
+                A::KStep(_) | A::KShow | A::KQuiz(_) | A::KQuizRetry | A::KSkip => false,
+                A::KNext => matches!(
+                    k.open,
+                    Some(
+                        kstep::START | kstep::LENGTH | kstep::SOURCE | kstep::ENTER | kstep::TYPED
+                    ) | None
+                ),
+                _ => true,
+            };
+        if inputs_closed {
+            return;
+        }
+        if action == A::KNext && k.open == Some(kstep::START) {
+            self.keygen_start_next();
+            return;
+        }
+        if action == A::KNext && k.open == Some(kstep::TYPED) {
+            self.keygen_typed_next();
+            return;
+        }
+        if action == A::KLock || (action == A::KNext && k.open == Some(kstep::KEY)) {
+            if k.locked {
+                self.keygen_continue();
+            } else {
+                self.keygen_lock();
+            }
+            return;
+        }
+        self.keygen.act(action, &c, draw, self.now_ms);
+    }
 
     /// The Quiz's last button. SLIP-39 shares: loads the key and leaves
     /// the flow. BIP-39 words, added at Lock in already: leaves the flow
@@ -1702,7 +1848,7 @@ impl crate::Faraday {
         if !self.selftest_passed() {
             return;
         }
-        let Some(k) = self.keygen.as_ref() else {
+        let Some(k) = self.keygen.state.as_ref() else {
             return;
         };
         // The words were checked by the quiz, or the person said twice to
@@ -1721,7 +1867,10 @@ impl crate::Faraday {
             return;
         }
         let slot = k.slot;
-        let label = fill(EN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
+        let label = fill(
+            EN.keygen_new_key_n,
+            &[&(self.keygen.new_keys + 1).to_string()],
+        );
         // The demo adds its next sample of this length in place of the key
         // just made, which goes unused (`Keys::next_handout`).
         let handed = self
@@ -1744,7 +1893,7 @@ impl crate::Faraday {
         };
         match added {
             Ok(fp) => {
-                self.new_keys += 1;
+                self.keygen.new_keys += 1;
                 if let Some(slot) = slot
                     && let Some(c) = self.create.as_mut()
                 {
@@ -1753,7 +1902,7 @@ impl crate::Faraday {
                         *s = crate::create::Source::Here(fp.0);
                     }
                 }
-                if let Some(k) = self.keygen.as_mut() {
+                if let Some(k) = self.keygen.state.as_mut() {
                     k.fingerprint = Some(fp.0);
                     k.handed = handed;
                 }
@@ -1761,7 +1910,7 @@ impl crate::Faraday {
                 self.keygen_done();
             }
             Err(e) => {
-                if let Some(k) = self.keygen.as_mut() {
+                if let Some(k) = self.keygen.state.as_mut() {
                     k.note = Some(e.text());
                 }
             }
@@ -1777,11 +1926,11 @@ impl crate::Faraday {
         if !self.selftest_passed() || self.demo_refuses(crate::Action::KLock) {
             return;
         }
-        if self.keygen.as_ref().is_some_and(KeyGen::typed) {
+        if self.keygen.state().is_some_and(KeyGen::typed) {
             self.keygen_lock_typed();
             return;
         }
-        let Some(k) = self.keygen.as_mut() else {
+        let Some(k) = self.keygen.state.as_mut() else {
             return;
         };
         if k.slip39 || k.locked || !k.done[usize::from(kstep::ENTER)] {
@@ -1810,7 +1959,10 @@ impl crate::Faraday {
             pass.push_str(k.passphrase.as_str());
         }
         let slot = k.slot;
-        let label = fill(EN.keygen_new_key_n, &[&(self.new_keys + 1).to_string()]);
+        let label = fill(
+            EN.keygen_new_key_n,
+            &[&(self.keygen.new_keys + 1).to_string()],
+        );
         let added = if let Some((word, n)) = handed {
             self.session.keys.add_words_with(
                 &c,
@@ -1827,7 +1979,7 @@ impl crate::Faraday {
         let fp = match added {
             Ok(fp) => fp,
             Err(e) => {
-                if let Some(k) = self.keygen.as_mut() {
+                if let Some(k) = self.keygen.state.as_mut() {
                     k.note = Some(e.text());
                 }
                 return;
@@ -1836,7 +1988,7 @@ impl crate::Faraday {
         // Made here: it signs once its backup is done (`docs/history/NEW-WALLET.md`
         // §14.3).
         self.mark_made_here(fp);
-        self.new_keys += 1;
+        self.keygen.new_keys += 1;
         // A Create slot's key at the account Create uses (NEW-WALLET §16.2).
         let (kind, account) = match slot {
             Some(_) => self
@@ -1851,7 +2003,7 @@ impl crate::Faraday {
             .keys
             .position(fp)
             .and_then(|key| self.session.keys.account_text(&c, key, kind, account).ok());
-        if let Some(k) = self.keygen.as_mut() {
+        if let Some(k) = self.keygen.state.as_mut() {
             k.locked = true;
             k.with_passphrase = !pass.is_empty();
             k.handed = handed;
@@ -1912,7 +2064,7 @@ impl crate::Faraday {
         if !self.may_load_keys() {
             return;
         }
-        let Some(k) = self.keygen.as_mut() else {
+        let Some(k) = self.keygen.state.as_mut() else {
             return;
         };
         if k.locked {
@@ -1953,7 +2105,7 @@ impl crate::Faraday {
         let fp = match added {
             Ok(fp) => fp,
             Err(e) => {
-                if let Some(k) = self.keygen.as_mut() {
+                if let Some(k) = self.keygen.state.as_mut() {
                     k.note = Some(e);
                 }
                 return;
@@ -1975,7 +2127,7 @@ impl crate::Faraday {
             .and_then(|key| self.session.keys.account_text(&c, key, kind, account).ok());
         // What was typed goes; the Key card keeps the words to show.
         self.entry.reset();
-        if let Some(k) = self.keygen.as_mut() {
+        if let Some(k) = self.keygen.state.as_mut() {
             k.locked = true;
             k.with_passphrase = !pass.is_empty();
             k.fingerprint = Some(fp.0);
@@ -1993,7 +2145,7 @@ impl crate::Faraday {
     /// The Key card's Continue, once locked in: back to Create for a
     /// slot, else on to Words (`docs/history/NEW-WALLET.md` §3.4).
     fn keygen_continue(&mut self) {
-        let Some(k) = self.keygen.as_mut() else {
+        let Some(k) = self.keygen.state.as_mut() else {
             return;
         };
         k.done[usize::from(kstep::KEY)] = true;
@@ -2053,7 +2205,7 @@ impl crate::Faraday {
     /// Ends the flow: Add a key's own state comes back in place of what
     /// the flow typed, which goes. Returns the flow, to be dropped.
     pub(crate) fn keygen_drop(&mut self) -> Option<KeyGen> {
-        let mut k = self.keygen.take()?;
+        let mut k = self.keygen.state.take()?;
         self.entry.put(std::mem::take(&mut k.entry_kept));
         Some(k)
     }
@@ -2061,30 +2213,13 @@ impl crate::Faraday {
     /// The shell is asked for fresh bytes when this device's generator
     /// is the source being entered; they go to the key and nowhere else.
     pub(crate) fn keygen_device(&mut self) {
-        let Some(k) = self.keygen.as_mut() else {
-            return;
-        };
-        if k.open == Some(kstep::ENTER)
-            && k.active() == Some(Source::Device)
-            && !k.device.is_enough(k.strength())
-            && !k.device_asked
-        {
-            k.device_asked = true;
-            self.out
-                .commands
-                .push_back(faraday_shell_api::Command::RequestEntropy);
-        }
+        self.keygen.device(&mut self.out);
     }
 
     /// The shell named what it reads its randomness from
-    /// (`Event::EntropySource`): kept on `Faraday::entropy_source`, which
-    /// is `None` until one is named, and copied into an open New key, as
-    /// a new one copies it when it opens (`KeyGen::entropy_source`).
+    /// (`Event::EntropySource`).
     pub(crate) fn entropy_source_named(&mut self, name: &'static str) {
-        self.entropy_source = Some(name);
-        if let Some(k) = self.keygen.as_mut() {
-            k.entropy_source = Some(name);
-        }
+        self.keygen.entropy_source_named(name);
     }
 
     /// The shell's answer to a `RequestEntropy`. Asked for by New key,
@@ -2101,37 +2236,14 @@ impl crate::Faraday {
     /// Takes the shell's answer when the flow asked for it. Returns
     /// whether it did.
     pub(crate) fn keygen_entropy(&mut self, bytes: &mut [u8; 32]) -> bool {
-        let Some(k) = self.keygen.as_mut().filter(|k| k.device_asked) else {
-            return false;
-        };
-        k.device.set(bytes);
-        k.device_asked = false;
-        zeroize::Zeroize::zeroize(bytes);
-        true
+        self.keygen.entropy(bytes)
     }
 
     /// The camera is on while camera noise is being taken, and off
     /// otherwise.
     pub(crate) fn keygen_camera(&mut self) {
-        let want = self.screen == Screen::KeyGen
-            && self.keygen.as_ref().is_some_and(|k| {
-                k.open == Some(kstep::ENTER) && k.active() == Some(Source::Camera)
-            });
-        if want != self.keygen_camera_on {
-            self.keygen_camera_on = want;
-            self.out.commands.push_back(if want {
-                faraday_shell_api::Command::CameraOn
-            } else {
-                faraday_shell_api::Command::CameraOff
-            });
-        }
-        if !want
-            && let Some(k) = self.keygen.as_mut()
-            && let Some(f) = k.frame.as_mut()
-        {
-            zeroize::Zeroize::zeroize(f);
-            k.frame = None;
-        }
+        self.keygen
+            .camera(self.screen == Screen::KeyGen, &mut self.out);
     }
 
     /// Keys typed while the flow is on screen. Returns whether it took
@@ -2141,7 +2253,7 @@ impl crate::Faraday {
         if self.screen != Screen::KeyGen {
             return false;
         }
-        let Some(k) = self.keygen.as_mut() else {
+        let Some(k) = self.keygen.state.as_mut() else {
             return false;
         };
         // A passphrase field on the Key card takes printable ASCII, as

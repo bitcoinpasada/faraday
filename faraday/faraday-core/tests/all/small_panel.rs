@@ -138,13 +138,13 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     // (`docs/history/NEW-WALLET.md` §15.3).
     tap(&mut app, Action::KNext);
     assert_eq!(
-        app.keygen.as_ref().and_then(|k| k.open),
+        app.keygen().and_then(|k| k.open),
         Some(faraday_core::keygen::kstep::LENGTH),
         "Start's Continue opens Length"
     );
     tap(&mut app, Action::KWords(12));
     assert_eq!(
-        app.keygen.as_ref().and_then(|k| k.open),
+        app.keygen().and_then(|k| k.open),
         Some(faraday_core::keygen::kstep::SOURCE),
         "Length's Continue opens Randomness"
     );

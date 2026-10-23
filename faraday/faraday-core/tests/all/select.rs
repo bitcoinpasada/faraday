@@ -241,14 +241,14 @@ fn key_card() -> Faraday {
 fn an_edit_inside_the_passphrase_makes_the_key_of_the_words_with_the_edited_passphrase() {
     let c = testkit::compute();
     let mut app = key_card();
-    let phrase = app.keygen.as_ref().unwrap().phrase().unwrap();
+    let phrase = app.keygen().unwrap().phrase().unwrap();
     app.press(Action::KPassField(0));
     type_text(&mut app, "Ride the 7 bus");
     let _ = app.frame();
     // The dots stand for the characters one to one: the tenth is the 7.
     drag(&mut app, Action::KPassField(0), 9, 10);
     type_text(&mut app, "8");
-    assert_eq!(app.keygen.as_ref().unwrap().passphrase, "Ride the 8 bus");
+    assert_eq!(app.keygen().unwrap().passphrase, "Ride the 8 bus");
     app.press(Action::KPassField(1));
     type_text(&mut app, "Ride the 8 bus");
     app.press(Action::KLock);
@@ -272,14 +272,14 @@ fn dice_box() -> Faraday {
     app.press(Action::KGroup(1));
     app.press(Action::KWay(Way::DiceHashed.index()));
     app.press(Action::KNext);
-    assert!(app.keygen.as_ref().unwrap().typing, "typed into the box");
+    assert!(app.keygen().unwrap().typing, "typed into the box");
     app
 }
 
 /// The words New key makes once the entries are in.
 fn words(app: &mut Faraday) -> String {
     app.press(Action::KNext);
-    app.keygen.as_ref().unwrap().phrase().unwrap().to_string()
+    app.keygen().unwrap().phrase().unwrap().to_string()
 }
 
 #[test]
@@ -289,7 +289,7 @@ fn deleting_rolls_four_to_six_leaves_the_others_in_order_and_the_key_is_the_roll
     let _ = app.frame();
     drag(&mut app, Action::KTyping(true), 3, 6);
     app.event(Event::Key(Key::Backspace));
-    let k = app.keygen.as_ref().unwrap();
+    let k = app.keygen().unwrap();
     assert_eq!(k.entered, "1231234", "the others, in order");
     assert_eq!(k.dice.len(), 7, "the rolls the key is made from");
     // The rest of the rolls, typed where the caret was left, then the
@@ -300,7 +300,7 @@ fn deleting_rolls_four_to_six_leaves_the_others_in_order_and_the_key_is_the_roll
         .collect();
     type_text(&mut app, &more);
     let shown = format!("123{more}1234");
-    assert_eq!(app.keygen.as_ref().unwrap().entered, shown.as_str());
+    assert_eq!(app.keygen().unwrap().entered, shown.as_str());
     let made = words(&mut app);
     let mut direct = dice_box();
     type_text(&mut direct, &shown);

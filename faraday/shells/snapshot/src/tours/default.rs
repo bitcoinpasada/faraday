@@ -17,7 +17,7 @@ use faraday_shell_api::{App, Event, Key};
 /// The New key quiz, every word answered rightly.
 pub(crate) fn pass_quiz(t: &mut Tour) {
     for _ in 0..30 {
-        let Some(q) = t.app.keygen.as_ref().and_then(|k| k.quiz.as_ref()) else {
+        let Some(q) = t.app.keygen().and_then(|k| k.quiz.as_ref()) else {
             return;
         };
         if q.state() == faraday_core::keygen::QuizState::Passed {
@@ -91,8 +91,7 @@ pub(crate) fn word_lists(t: &mut Tour) -> Result<(), String> {
     t.shot("keygen-coins-by-die")?;
     let first = t
         .app
-        .keygen
-        .as_ref()
+        .keygen()
         .and_then(|k| k.live_words().first().copied())
         .ok_or("sixty flips named no word")?;
     t.press(Action::WordList(WL::Open(0, Some(first))));

@@ -109,7 +109,7 @@ fn add_a_key_from_wallets_opens_new_key_on_start() {
     assert_eq!(app.screen, Screen::KeyGen);
     assert_eq!(app.sheet, None);
     assert_eq!(
-        app.keygen.as_ref().unwrap().open,
+        app.keygen().unwrap().open,
         Some(faraday_core::keygen::kstep::START)
     );
 }
