@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified, not built (F86); the kernel check of §3 done from the repository
-**Open:** all of §2 (adding your own randomness, R1 to R3); the stick's kernel change, option A (§3.3, R4), and the boot measurement that confirms it brings no long wait (§3.4: QEMU on the build machine, then one real PC in passing).
+**Open:** all of §2 (adding your own randomness, R1 to R3); the boot measurement that confirms option A brings no long wait (§3.4: QEMU on the build machine, not yet run; then one real PC in passing). Option A itself (§3.3, R4) is built.
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer movement and
@@ -225,7 +225,15 @@ weighed to make the image and its comments agree:
   one that says so. With §2, a person who does not trust the CPU can add
   their own randomness.
 
-A is built. Two seconds is the bound because the core's
+A is built (R4, 2026-10-23): `boards/x86_64-uefi/cmdline.txt` carries
+both parameters; `kernel.forbidden` no longer lists the two dead
+symbols; a new `boards/x86_64-uefi/kernel.cmdline` lists the two words
+and `check-kernel-config.sh` fails a config whose `CONFIG_CMDLINE`
+lacks either; the fragment's comment says what the kernel does; the
+stick shell's comment is corrected, and in the dev image (`--verbose`)
+the shell says the CLOCK_BOOTTIME at which it opened `/dev/random` and
+at which the read returned. The Pi fragments' comment now names
+`/dev/random`. Two seconds is the bound because the core's
 `SEED_GRACE_MS` is two seconds after the first display. The stick
 shell's comment at
 `faraday/shells/stick/src/main.rs:602-613` changes: it says the board
@@ -256,6 +264,12 @@ it (owner, 2026-10-23: no session on several PCs).
 
 The results go in this section; the dev instrumentation stays in the
 dev variant only.
+
+Results: none yet (2026-10-23). The dev image could not be built from a
+worktree: the remote run script gives a worktree's checkout on the build
+machine a new empty git repository, and `faraday/image/build-id.sh`
+(`git diff HEAD`) fails there with "bad revision 'HEAD'" before any
+compile. QEMU, `stick-qemu.py` and OVMF were not reached.
 ## 4. Tests
 
 In `faraday/faraday-core/tests/all/` (a new `own_randomness.rs`):
@@ -333,6 +347,7 @@ Edit list:
 - `faraday/image/boards/x86_64-uefi/linux.fragment`,
   `faraday/image/boards/x86_64-uefi/kernel.forbidden`,
   `faraday/image/boards/x86_64-uefi/cmdline.txt`,
+  `faraday/image/boards/x86_64-uefi/kernel.cmdline` (new),
   `faraday/image/check-kernel-config.sh`,
   `faraday/image/boards/pi3/linux.fragment`,
   `faraday/image/boards/pi02w/linux.fragment`,

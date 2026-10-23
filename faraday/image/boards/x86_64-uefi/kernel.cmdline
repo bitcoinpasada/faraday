@@ -1,0 +1,5 @@
+# Words CONFIG_CMDLINE must carry (check-kernel-config.sh). Linux 6.2
+# removed the Kconfig options for these two; the parameters are all there is.
+
+random.trust_cpu=off         a generator inside the CPU cannot be examined, so RDRAND is mixed in without being credited (docs/OWN-RANDOMNESS.md §3.3)
+random.trust_bootloader=off  the firmware's seed was chosen by the firmware; mixed in, not credited

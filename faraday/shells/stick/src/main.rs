@@ -603,19 +603,53 @@ fn sysfs_dir(fb: &Path) -> Option<PathBuf> {
 ///
 /// The device has no `getrandom` crate; `/dev/random` is the kernel
 /// CSPRNG, and since Linux 5.6 it blocks only until that CSPRNG is
-/// initialised and never afterwards. The board seeds it from the SoC's
-/// hardware RNG (`CONFIG_HW_RANDOM_BCM2835`), so the wait is over before
-/// the first frame. A read that fails or comes up short is answered with
+/// initialised and never afterwards. On the stick the kernel is told not
+/// to credit the CPU's RDRAND or the firmware's seed (`random.trust_cpu=off
+/// random.trust_bootloader=off`, `docs/OWN-RANDOMNESS.md` §3.3), so the
+/// first read waits until the kernel's own timer-jitter loop and the
+/// interrupts have filled the pool: about a second on a PC
+/// (`docs/OWN-RANDOMNESS.md` §3.4). The read is on the event loop, before
+/// the first frame. On a Pi the SoC's hardware generator
+/// (`CONFIG_HW_RANDOM_BCM2835`) is credited, so the wait is over before
+/// the shell starts. A read that fails or comes up short is answered with
 /// nothing at all, which the contract allows. Faraday's core then has no
 /// session seed: it seals no vault (a lock with a changed vault open asks
 /// before it loses the changes), gives a new keyboard no code, makes no
 /// key and opens no signing round, and Home says the system gave no
 /// randomness and Faraday has to restart.
-fn entropy() -> Option<Event> {
+///
+/// With `verbose` (the dev image's `--verbose`) it says, on stderr, the
+/// CLOCK_BOOTTIME at which it opened `/dev/random` and at which the read
+/// returned.
+fn entropy(verbose: bool) -> Option<Event> {
     let mut bytes = [0u8; 32];
+    let opened = boottime_ms();
     let mut file = File::open(ENTROPY_SOURCE).ok()?;
-    file.read_exact(&mut bytes).ok()?;
+    let read = file.read_exact(&mut bytes);
+    if verbose {
+        eprintln!(
+            "entropy: opened {ENTROPY_SOURCE} at boottime {} ms, read returned at boottime {} ms{}",
+            ms_text(opened),
+            ms_text(boottime_ms()),
+            if read.is_ok() { "" } else { " (failed)" },
+        );
+    }
+    read.ok()?;
     Some(Event::Entropy(EntropyBytes::new(bytes)))
+}
+
+/// CLOCK_BOOTTIME in milliseconds, from `/proc/uptime`, which the kernel
+/// reads from that clock; centisecond resolution. `None` if unreadable.
+fn boottime_ms() -> Option<u64> {
+    let text = std::fs::read_to_string("/proc/uptime").ok()?;
+    let seconds = text.split_whitespace().next()?;
+    let (whole, frac) = seconds.split_once('.')?;
+    let frac: String = frac.chars().chain("000".chars()).take(3).collect();
+    Some(whole.parse::<u64>().ok()? * 1000 + frac.parse::<u64>().ok()?)
+}
+
+fn ms_text(ms: Option<u64>) -> String {
+    ms.map_or_else(|| "?".to_string(), |ms| ms.to_string())
 }
 
 /// What `entropy` reads, named to the core as it is opened.
@@ -1131,7 +1165,7 @@ impl Shell {
                         self.scanner = None;
                     }
                     Command::RequestEntropy => {
-                        if let Some(e) = entropy() {
+                        if let Some(e) = entropy(self.verbose) {
                             pending.push_back(Event::EntropySource(ENTROPY_SOURCE));
                             pending.push_back(e);
                         } else {

@@ -16,6 +16,13 @@
 # stub reads only that word, and without it prints its own lines on the
 # screen before the kernel starts. The release image names no console, so
 # the higher level prints nothing anywhere; the dev variant removes it.
+#
+# random.trust_cpu=off random.trust_bootloader=off: neither the CPU's
+# RDRAND nor the firmware's seed is credited as entropy (they are still
+# mixed in). Linux 6.2 removed the Kconfig options for this; these two
+# parameters are all that is left, and check-kernel-config.sh checks
+# that CONFIG_CMDLINE carries both (docs/OWN-RANDOMNESS.md §3.3).
 faraday.dpi=160 init_on_free=1 init_on_alloc=1 usbcore.authorized_default=2
+random.trust_cpu=off random.trust_bootloader=off
 fbcon=logo-pos:center
 loglevel=5

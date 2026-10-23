@@ -265,14 +265,17 @@ CONFIG_IOMMU_DEFAULT_DMA_STRICT=y
 # CONFIG_THUNDERBOLT is not set
 
 # ---- entropy ----
-# The CPU's RDRAND and the firmware's seed are both mixed into the pool;
-# what these two options change is whether the kernel *credits* them, that
-# is, whether it will hand out randomness on their word alone before
+# Neither the CPU's RDRAND nor the firmware's seed is credited. Both are
+# still mixed into the pool; what is not done is to count them as entropy,
+# which would let the kernel hand out randomness on their word alone before
 # anything else has been measured. A generator inside the CPU cannot be
-# examined and a seed from the firmware was chosen by the firmware, so
-# neither is credited here. The kernel still mixes both in.
-# CONFIG_RANDOM_TRUST_CPU is not set
-# CONFIG_RANDOM_TRUST_BOOTLOADER is not set
+# examined and a seed from the firmware was chosen by the firmware.
+# Since Linux 6.2 there is no Kconfig option for this: it is the boot
+# parameters random.trust_cpu=off and random.trust_bootloader=off, which
+# boards/x86_64-uefi/cmdline.txt sets, and check-kernel-config.sh checks
+# that CONFIG_CMDLINE carries both. The CRNG is then ready when the
+# kernel's timer-jitter loop and the interrupts have filled the pool
+# (docs/OWN-RANDOMNESS.md §3).
 
 # ---- power ----
 # The machine is on or it is off. Runtime power management is off with

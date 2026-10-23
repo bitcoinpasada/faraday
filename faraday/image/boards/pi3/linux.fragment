@@ -79,7 +79,7 @@ CONFIG_WATCHDOG=y
 CONFIG_BCM2835_WDT=y
 
 # brcm,bcm2835-rng, the SoC's hardware generator, which feeds the pool
-# /dev/urandom draws the session key from.
+# /dev/random draws the session's seed from.
 CONFIG_HW_RANDOM=y
 CONFIG_HW_RANDOM_BCM2835=y
 

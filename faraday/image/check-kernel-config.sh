@@ -17,6 +17,11 @@
 #                     or m here fails
 #   kernel.required   options the device does not work without: an option
 #                     missing or unset here fails
+#   kernel.cmdline    words the kernel's built-in command line
+#                     (CONFIG_CMDLINE) must carry, for a board whose
+#                     command line is compiled in; the format is the same
+#                     (a word, then the reason). A word that is missing
+#                     fails, and so does a config with no CONFIG_CMDLINE.
 #
 # A line in either is a symbol without its CONFIG_ prefix, then the reason
 # it is in the list. The reasons are the point of the files; an entry
@@ -38,6 +43,7 @@ shift
 
 forbidden=()
 required=()
+cmdline_words=()
 
 read_list() {
     local file="$1" name="$2" sym reason line
@@ -50,17 +56,18 @@ read_list() {
             echo "$file: $sym has no reason" >&2
             exit 2
         fi
-        if [ "$name" = forbidden ]; then
-            forbidden+=("$sym|$reason|$file")
-        else
-            required+=("$sym|$reason|$file")
-        fi
+        case "$name" in
+            forbidden) forbidden+=("$sym|$reason|$file") ;;
+            cmdline) cmdline_words+=("$sym|$reason|$file") ;;
+            *) required+=("$sym|$reason|$file") ;;
+        esac
     done < "$file"
 }
 
 for part in "$@"; do
     read_list "$part/kernel.forbidden" forbidden
     read_list "$part/kernel.required" required
+    read_list "$part/kernel.cmdline" cmdline
 done
 
 fail=0
@@ -103,9 +110,26 @@ for entry in ${required[@]+"${required[@]}"}; do
     fi
 done
 
+if [ "${#cmdline_words[@]}" -gt 0 ]; then
+    built_in="$(sed -n 's/^CONFIG_CMDLINE="\(.*\)"$/\1/p' "$config")"
+    for entry in "${cmdline_words[@]}"; do
+        word="${entry%%|*}"
+        rest="${entry#*|}"
+        case " $built_in " in
+            *" $word "*) ;;
+            *)
+                echo "kernel config: CONFIG_CMDLINE lacks $word" >&2
+                echo "               must be on the command line: ${rest%%|*}" >&2
+                echo "               (${rest##*|})" >&2
+                fail=1
+                ;;
+        esac
+    done
+fi
+
 if [ "$fail" != 0 ]; then
     echo "kernel config: $config does not describe this device" >&2
     exit 1
 fi
 
-echo "    kernel config: ${#forbidden[@]} options out, ${#required[@]} in, $(grep -c '=y$' "$config") built in"
+echo "    kernel config: ${#forbidden[@]} options out, ${#required[@]} in, ${#cmdline_words[@]} command-line words, $(grep -c '=y$' "$config") built in"
