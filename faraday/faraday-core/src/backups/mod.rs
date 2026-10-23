@@ -947,7 +947,7 @@ impl Faraday {
                 .iter()
                 .any(|s| summary_holds(s).is_none() && locked(s).is_some())
         {
-            return (EN.backups_a_vault_is.to_string(), Tone::Dim);
+            return (EN.backups_vault_locked.to_string(), Tone::Dim);
         }
         let Some(f) = file else {
             // A locked vault seen nowhere this power-on may hold it.
@@ -955,7 +955,7 @@ impl Faraday {
                 .iter()
                 .any(|f| f.open.is_none() && self.vault_summary(f).is_none());
             return if unknown {
-                (EN.backups_a_vault_is.to_string(), Tone::Dim)
+                (EN.backups_vault_locked.to_string(), Tone::Dim)
             } else {
                 (EN.backups_not_saved_yet.to_string(), Tone::Warn)
             };
@@ -1028,13 +1028,13 @@ impl Faraday {
 fn on_stick(label: &str, time: Option<u64>, tz_min: i16) -> String {
     match time {
         Some(t) => fill(
-            EN.backups_on_2,
+            EN.backups_on_stick_timed,
             &[
                 label,
                 &crate::vault::time_of_day(crate::vault::local_secs(t, tz_min)).to_string(),
             ],
         ),
-        None => fill(EN.backups_on, &[label]),
+        None => fill(EN.backups_on_stick, &[label]),
     }
 }
 

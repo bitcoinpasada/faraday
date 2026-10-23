@@ -148,7 +148,7 @@ impl Faraday {
         let given = zeroize::Zeroizing::new(self.entry.typed.trim().to_string());
         let result: Result<(), String> = match form {
             Form::Slip39 => slip39::Share::parse(&text)
-                .map_err(|e| fill(EN.forms_not_a_slip_39, &[&format!("{e:?}")]))
+                .map_err(|e| fill(EN.forms_not_slip39_share, &[&format!("{e:?}")]))
                 .and_then(|s| {
                     if self
                         .entry
@@ -157,7 +157,7 @@ impl Faraday {
                         .iter()
                         .any(|t| t.indices() == s.indices())
                     {
-                        return Err(EN.forms_that_share_is.to_string());
+                        return Err(EN.forms_share_duplicate.to_string());
                     }
                     self.entry.parts.slip39.push(s);
                     Ok(())
@@ -168,7 +168,7 @@ impl Faraday {
                     if let Some(first) = self.entry.parts.codex32.first()
                         && first.identifier() != c.identifier()
                     {
-                        return Err(EN.forms_that_string_is.to_string());
+                        return Err(EN.forms_other_seed_string.to_string());
                     }
                     if self
                         .entry
@@ -177,7 +177,7 @@ impl Faraday {
                         .iter()
                         .any(|d| d.share_index() == c.share_index())
                     {
-                        return Err(EN.forms_that_share_is.to_string());
+                        return Err(EN.forms_share_duplicate.to_string());
                     }
                     self.entry.parts.codex32.push(c);
                     Ok(())
@@ -405,7 +405,7 @@ pub fn typed_mnemonic(lang: Language, typed: &str) -> Result<Mnemonic, String> {
     for (k, w) in typed.split_whitespace().enumerate() {
         idx.push(typed_index(lang, w).ok_or_else(|| {
             fill(
-                EN.forms_word_is_not_on,
+                EN.forms_word_not_in_list,
                 &[&(k + 1).to_string(), language_name(lang)],
             )
         })?);
@@ -561,7 +561,7 @@ pub(crate) fn word_key(w: WordsMut<'_>, key: faraday_shell_api::Key) -> WordKey 
                     }
                     None => {
                         *w.error = Some(fill(
-                            EN.forms_word_is_not_on,
+                            EN.forms_word_not_in_list,
                             &[&at.to_string(), language_name(lang)],
                         ));
                     }

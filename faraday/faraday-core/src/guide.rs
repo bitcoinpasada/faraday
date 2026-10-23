@@ -44,7 +44,7 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m:
                     (if needed == 1 {
                         EN.guide_of_these
                     } else {
-                        EN.guide_of_the
+                        EN.guide_keys_must_sign_plural
                     }),
                 ],
             ),
@@ -53,12 +53,12 @@ pub(crate) fn spend(n: u8, kind: Option<Kind>, needed: usize, s: &SpendState, m:
             if !s.spend.signed_here.is_empty() {
                 EN.guide_signed_each_signature.to_string()
             } else if kind == Some(Kind::Threshold) {
-                fill(EN.guide_signing_as_a, &[m.noun()])
+                fill(EN.guide_spend_share_nonce, &[m.noun()])
             } else if kind == Some(Kind::MuSig) {
-                EN.guide_round_two_this.to_string()
+                EN.guide_spend_round_two.to_string()
             } else if cosigned {
                 fill(
-                    EN.guide_this_adds_the,
+                    EN.guide_spend_adds_signatures,
                     &[
                         &needed.to_string(),
                         (if needed == 1 {
@@ -100,7 +100,7 @@ pub(crate) fn backup(
         bstep::BLANK => fill(EN.guide_print_the_blank, &[medium.for_the()]),
         n if bstep::is_copy(n) => {
             let lead = if seeds_here == 0 {
-                EN.guide_none_of_this.to_string()
+                EN.guide_backup_none_typed.to_string()
             } else {
                 match (forms.words, forms.seedqr) {
                     (true, true) => EN.guide_copy_both,
@@ -121,12 +121,12 @@ pub(crate) fn backup(
                 )
             };
             fill(
-                EN.guide_a_printer_is,
+                EN.guide_backup_paper,
                 &[&lead.to_string(), &further.to_string()],
             )
         }
         n if bstep::is_passphrase(n) => EN.guide_passphrase_on_paper.to_string(),
-        bstep::PUBLIC => fill(EN.guide_this_half_is, &[medium.for_the()]),
+        bstep::PUBLIC => fill(EN.guide_backup_xpub_half, &[medium.for_the()]),
         bstep::SHEETS if m > 1 => fill(
             EN.guide_instead_of_one,
             &[
@@ -148,7 +148,7 @@ pub(crate) fn message(n: u8) -> String {
     match n {
         mstep::ADDRESS => EN.guide_a_signed_message.to_string(),
         mstep::TEXT => EN.guide_type_the_message.to_string(),
-        mstep::FORMAT => EN.guide_bip_322_is_the.to_string(),
+        mstep::FORMAT => EN.guide_message_formats.to_string(),
         mstep::SIGN => EN.guide_signing_moves.to_string(),
         _ => String::new(),
     }
@@ -179,7 +179,7 @@ pub(crate) fn create(
         }
     }
     match n {
-        cstep::KIND => EN.guide_choose_how_the.to_string(),
+        cstep::KIND => EN.guide_create_kinds.to_string(),
         cstep::QUORUM => fill(
             EN.guide_of_every_spend,
             &[&m.to_string(), &keys.to_string(), &m.to_string()],
@@ -206,7 +206,7 @@ pub(crate) fn restore(n: u8) -> String {
         rstep::DESCRIPTION => EN.guide_the_descriptor.to_string(),
         rstep::SEEDS => EN.guide_one_slot_per.to_string(),
         rstep::CHECK => EN.guide_compare_these.to_string(),
-        _ => EN.guide_the_wallet_is.to_string(),
+        _ => EN.guide_restore_session.to_string(),
     }
 }
 
@@ -225,20 +225,20 @@ pub(crate) fn keygen(n: u8, k: &crate::keygen::KeyGen) -> String {
             Some(Source::Dice | Source::Coins) if by_die && slip39 => {
                 EN.guide_roll_one_die_at_a_time.to_string()
             }
-            Some(Source::Dice | Source::Coins) if by_die => EN.guide_roll_one_die_at_a.to_string(),
+            Some(Source::Dice | Source::Coins) if by_die => EN.guide_keygen_dice_flips.to_string(),
             Some(Source::Dice) if k.procedure().direct() => fill(
-                EN.guide_roll_one_die_at,
+                EN.guide_keygen_dice_words,
                 &[&k.last_bits().to_string(), &(k.words / 3).to_string()],
             ),
             Some(Source::Coins) if !slip39 => EN.guide_flip_a_coin_and_enter.to_string(),
             Some(Source::Dice) => EN.guide_roll_one_die.to_string(),
-            Some(Source::Coins) => EN.guide_flip_a_coin_and.to_string(),
+            Some(Source::Coins) => EN.guide_keygen_coins.to_string(),
             Some(Source::Cards) => EN.guide_shuffle_a_full.to_string(),
             Some(Source::Hex) => EN.guide_type_the_hex.to_string(),
             Some(Source::Camera) => EN.guide_point_the_camera.to_string(),
             _ => EN.guide_this_device_asks.to_string(),
         },
-        kstep::KEY if k.slot.is_some() => EN.guide_lock_in_adds_the.to_string(),
+        kstep::KEY if k.slot.is_some() => EN.guide_keygen_lock_step.to_string(),
         kstep::KEY => EN.guide_lock_in_adds.to_string(),
         kstep::CHECK => EN.guide_these_counts.to_string(),
         kstep::WORDS => EN.guide_write_the_words.to_string(),

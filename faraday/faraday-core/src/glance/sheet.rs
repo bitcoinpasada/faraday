@@ -302,7 +302,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
         Some((label, a)) => Some(row(label, "", Some(a))),
         None => matches!(press, Press::Loaded(_)).then(|| {
             row(
-                EN.glance_sheet_open_the,
+                EN.glance_sheet_open_vault,
                 "",
                 Some(Action::Nav(Screen::VaultContents)),
             )
@@ -316,7 +316,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
         } else {
             row(
                 label,
-                EN.glance_sheet_open_a,
+                EN.glance_sheet_open_vault_to_keep,
                 app.vault_way(back).map(|(_, a)| a),
             )
         }
@@ -349,7 +349,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             let mut rows = Vec::new();
             if let Press::Vault(v, r) = press {
                 rows.push(row(
-                    EN.glance_sheet_open_in,
+                    EN.glance_sheet_open_wallets,
                     "",
                     Some(Action::Vault(V::OpenWalletOf(v, r))),
                 ));
@@ -375,11 +375,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 let (label, sub, what) = if split {
                     (EN.glance_sheet_print, EN.glance_sheet_pdfs_text, 4)
                 } else {
-                    (EN.glance_sheet_print_the, "PDF", 3)
+                    (EN.glance_sheet_reprint_wallet_sheet, "PDF", 3)
                 };
                 rows.push(row(label, sub, doing(Step::Out(what))));
             }
-            rows.push(row(EN.glance_sheet_rename_the, "", doing(Step::Rename)));
+            rows.push(row(EN.glance_sheet_rename_wallet, "", doing(Step::Rename)));
             rows.push(row(EN.glance_sheet_change, "", change_plan()));
             let mut v = View::new(Icon::Wallet, g.name.clone());
             v.facts = vec![
@@ -392,7 +392,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
         Target::Key(k) => {
             let key = g.keys.get(usize::from(k))?;
             let mut facts = vec![(
-                EN.glance_sheet_where_2,
+                EN.glance_sheet_where_label,
                 key.state.clone(),
                 if key.here { OK } else { MUTED },
             )];
@@ -403,7 +403,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 facts.push((EN.glance_sheet_holder, h.clone(), TEXT));
             }
             if let Some(d) = &key.checked {
-                facts.push((EN.glance_sheet_last_checked_2, glance::checked_text(d), OK));
+                facts.push((
+                    EN.glance_sheet_last_checked_label,
+                    glance::checked_text(d),
+                    OK,
+                ));
             }
             let seed = key.seed;
             let of_seed = |w: What| {
@@ -428,7 +432,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     public.push(row(EN.glance_sheet_show_xpub, "", doing(Step::KeyQr(k))));
                     public.push(row(
                         EN.glance_sheet_xpub_file,
-                        EN.glance_sheet_for_the,
+                        EN.glance_sheet_stick_detail,
                         doing(Step::KeyFile(k)),
                     ));
                 }
@@ -455,12 +459,12 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     // the copy's flow makes and checks it.
                     make.push(row(
                         EN.glance_sheet_words,
-                        EN.glance_sheet_then_a,
+                        EN.glance_sheet_then_place,
                         open(Target::CopyTo(What::Words(s))),
                     ));
                     make.push(row(
                         EN.glance_sheet_seedqr,
-                        EN.glance_sheet_then_a,
+                        EN.glance_sheet_then_place,
                         open(Target::CopyTo(What::SeedQr(s))),
                     ));
                     if let Some(a) = item(Item::Copy(s)) {
@@ -498,7 +502,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     } else {
                         edit(Edit::Add(At::Files, What::SeedFile(s)))
                     };
-                    make.push(row(EN.glance_sheet_as_a_file, EN.glance_sheet_for_the, a));
+                    make.push(row(
+                        EN.glance_sheet_as_a_file,
+                        EN.glance_sheet_stick_detail,
+                        a,
+                    ));
                 }
                 if !make.is_empty() {
                     groups.push((EN.glance_sheet_make_another_backup.to_string(), make));
@@ -516,7 +524,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     }
                 }
                 if !check.is_empty() {
-                    groups.push((EN.glance_sheet_check_a.to_string(), check));
+                    groups.push((EN.glance_sheet_check_seed_copy.to_string(), check));
                 }
                 if key.passphrase
                     && key.held
@@ -526,13 +534,13 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         EN.glance_sheet_its_passphrase.to_string(),
                         vec![
                             row(
-                                EN.glance_sheet_check_it,
-                                EN.glance_sheet_by_the,
+                                EN.glance_sheet_check_row,
+                                EN.glance_sheet_by_derived_key,
                                 open(Target::PassCheck(k, NO_LINE, NO_LINE)),
                             ),
                             row(
                                 EN.glance_sheet_another_copy,
-                                EN.glance_sheet_then_a,
+                                EN.glance_sheet_then_place,
                                 open(Target::CopyTo(What::Passphrase(s))),
                             ),
                         ],
@@ -544,12 +552,15 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 let mut rows = Vec::new();
                 if !g.threshold {
                     rows.push(row(
-                        EN.glance_sheet_show_its,
+                        EN.glance_sheet_show_key_xpub,
                         "",
                         doing(Step::CosignerQr(k)),
                     ));
                 }
-                rows.push(keeping(EN.glance_sheet_name_its, open(Target::Holder(k))));
+                rows.push(keeping(
+                    EN.glance_sheet_name_holder,
+                    open(Target::Holder(k)),
+                ));
                 rows.push(keeping(
                     EN.glance_sheet_mark_checked,
                     chart_do(ChartAction::KeyChecked(press, k)),
@@ -623,7 +634,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         )
                     } else {
                         let way = app.vault_way(back).map(|(_, a)| a);
-                        row(EN.glance_sheet_rename, EN.glance_sheet_open_a, way)
+                        row(
+                            EN.glance_sheet_rename,
+                            EN.glance_sheet_open_vault_to_keep,
+                            way,
+                        )
                     });
                     if !node.whats.is_empty() {
                         rows.push(keeping(
@@ -636,7 +651,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     }
                     rows.push(row(
                         EN.glance_sheet_the_envelope,
-                        EN.glance_sheet_pdf_for,
+                        EN.glance_sheet_envelope_pdf,
                         doing(Step::Envelopes),
                     ));
                     rows.push(row(EN.glance_sheet_add_here, "", open(Target::AddAt(n))));
@@ -651,7 +666,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         ));
                     }
                     if places.len() > 1 {
-                        rows.push(row(EN.glance_sheet_remove_the, "", open(Target::Remove(n))));
+                        rows.push(row(
+                            EN.glance_sheet_remove_place,
+                            "",
+                            open(Target::Remove(n)),
+                        ));
                     }
                     Icon::House
                 }
@@ -659,11 +678,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     rows.extend(vault_way());
                     rows.push(keeping(EN.glance_sheet_rename, open(Target::VaultName(n))));
                     if let Some(a) = item(Item::Vault(v)) {
-                        rows.push(row(EN.glance_sheet_save_its, "", Some(a)));
+                        rows.push(row(EN.glance_sheet_save_seeds, "", Some(a)));
                     }
                     rows.push(row(
-                        EN.glance_sheet_copy_to,
-                        EN.glance_sheet_then_a,
+                        EN.glance_sheet_copy_to_stick,
+                        EN.glance_sheet_then_place,
                         open(Target::CopyTo(What::VaultStick(v))),
                     ));
                     Icon::Lock
@@ -677,17 +696,21 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     if node.whats.contains(&What::Wallet)
                         && let Some(a) = item(Item::PublicFiles)
                     {
-                        rows.push(row(EN.glance_sheet_write_the, "", Some(a)));
+                        rows.push(row(EN.glance_sheet_rewrite_public, "", Some(a)));
                     }
                     rows.push(row(
-                        EN.glance_sheet_remove_from,
-                        EN.glance_sheet_destroy_its,
+                        EN.glance_sheet_remove_from_plan,
+                        EN.glance_sheet_destroy_copies,
                         edit(Edit::Clear(At::Files)),
                     ));
                     Icon::File
                 }
                 At::Software => {
-                    rows.push(row(EN.glance_sheet_show_the, "", doing(Step::Qr)));
+                    rows.push(row(
+                        EN.glance_sheet_reshow_descriptor_qr,
+                        "",
+                        doing(Step::Qr),
+                    ));
                     if let Some(a) = item(Item::PublicFiles) {
                         rows.push(row(EN.glance_sheet_public, "", Some(a)));
                     }
@@ -697,7 +720,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             };
             let mut groups = Vec::new();
             if !lines.is_empty() {
-                groups.push((EN.glance_sheet_in_it.to_string(), lines));
+                groups.push((EN.glance_sheet_contents_group.to_string(), lines));
             }
             if !rows.is_empty() {
                 groups.push((String::new(), rows));
@@ -720,7 +743,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         more.push(row(
                             fill(EN.glance_sheet_key_seed, &[&key.number.to_string()]),
                             if key.passphrase {
-                                EN.glance_sheet_with_its
+                                EN.glance_sheet_with_passphrase
                             } else {
                                 ""
                             },
@@ -749,7 +772,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             let what = *node.whats.get(usize::from(j))?;
             let label = node.holds.get(usize::from(j))?.clone();
             let mark = node.marks.get(usize::from(j)).copied().flatten();
-            let mut facts = vec![(EN.glance_sheet_kept_at, node.name.clone(), TEXT)];
+            let mut facts = vec![(EN.glance_sheet_kept_at_label, node.name.clone(), TEXT)];
             if let Some((s, t)) = &node.state {
                 facts.push((EN.glance_sheet_seen_here, s.clone(), tone_color(*t)));
             }
@@ -806,7 +829,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         seedqr: matches!(what, What::SeedQr(_)),
                     };
                     for (label, a) in check_rows(forms, s, fp) {
-                        rows.push(row(label, EN.glance_sheet_check_this, a));
+                        rows.push(row(label, EN.glance_sheet_check_copy, a));
                     }
                     rows.push(row(
                         EN.glance_sheet_make_another,
@@ -834,8 +857,8 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     };
                     if let Some(a) = item(it) {
                         rows.push(row(
-                            EN.glance_sheet_write_it,
-                            EN.glance_sheet_for_the,
+                            EN.glance_sheet_rewrite,
+                            EN.glance_sheet_stick_detail,
                             Some(a),
                         ));
                     }
@@ -845,8 +868,8 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         && g.keys.get(k).is_some_and(|key| key.held)
                     {
                         rows.push(row(
-                            EN.glance_sheet_check_it,
-                            EN.glance_sheet_by_the,
+                            EN.glance_sheet_check_row,
+                            EN.glance_sheet_by_derived_key,
                             open(Target::PassCheck(k as u8, n, j)),
                         ));
                     }
@@ -857,7 +880,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     ));
                 }
                 What::Sheet => {
-                    rows.push(row(EN.glance_sheet_print_it, "PDF", doing(Step::Out(3))));
+                    rows.push(row(EN.glance_sheet_reprint, "PDF", doing(Step::Out(3))));
                     rows.push(row(EN.glance_sheet_as_a_qr, "PNG", doing(Step::Out(8))));
                     rows.push(row(
                         EN.glance_sheet_as_text,
@@ -883,8 +906,8 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 What::VaultStick(_) => {
                     rows.extend(vault_way());
                     rows.push(row(
-                        EN.glance_sheet_copy_the,
-                        EN.glance_sheet_then_a,
+                        EN.glance_sheet_copy_vault,
+                        EN.glance_sheet_then_place,
                         open(Target::CopyTo(what)),
                     ));
                     if app.vault_changed().is_some() {
@@ -910,7 +933,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 ));
                 rows.push(match mark {
                     Some(_) => row(
-                        EN.glance_sheet_remove_from,
+                        EN.glance_sheet_remove_from_plan,
                         "",
                         edit(Edit::Drop(node.at, what)),
                     ),
@@ -966,7 +989,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             ));
             let mut v = View::new(
                 Icon::House,
-                fill(EN.glance_sheet_move_to, &[&label.to_string()]),
+                fill(EN.glance_sheet_move_title, &[&label.to_string()]),
             );
             v.groups = vec![(String::new(), rows)];
             Some(v)
@@ -1052,7 +1075,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             }
             let mut v = View::new(
                 Icon::House,
-                fill(EN.glance_sheet_add_at, &[&node.name.to_string()]),
+                fill(EN.glance_sheet_add_title, &[&node.name.to_string()]),
             );
             v.groups = vec![(String::new(), rows)];
             Some(v)
@@ -1114,7 +1137,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             }
             if f.found.spend != plan::Found::No {
                 rows.push(row(
-                    EN.glance_sheet_move_the,
+                    EN.glance_sheet_move_money,
                     EN.glance_sheet_new_wallet,
                     chart_do(ChartAction::MoveMoney(press)),
                 ));
@@ -1130,7 +1153,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 v.lines.push((EN.glance_sheet_nothing_lost.to_string(), OK));
                 let what = here.iter().find(|(_, m)| *m == Mark::Lost).map(|(w, _)| *w);
                 if let Some(what) = what {
-                    rows.push(row(EN.glance_sheet_make_a, "", open(Target::CopyTo(what))));
+                    rows.push(row(
+                        EN.glance_sheet_make_replacement,
+                        "",
+                        open(Target::CopyTo(what)),
+                    ));
                 }
             }
             if v.lines.is_empty() && exposed {
@@ -1174,8 +1201,10 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     },
                     chart_do(ChartAction::Dest(j as u8, OFF)),
                 ));
-                v.groups
-                    .push((fill(EN.glance_sheet_goes_to, &[&label.to_string()]), rows));
+                v.groups.push((
+                    fill(EN.glance_sheet_goes_to_group, &[&label.to_string()]),
+                    rows,
+                ));
             }
             let all = (0..node.whats.len())
                 .all(|j| app.chart_work.dest.get(j).copied().flatten().is_some());
@@ -1238,7 +1267,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             v.field = Some(if typed == 0 {
                 (
                     EN.glance_sheet_passphrase,
-                    EN.glance_sheet_type_it.to_string(),
+                    EN.glance_sheet_type_passphrase.to_string(),
                     true,
                 )
             } else {
@@ -1249,11 +1278,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     fill(EN.glance_sheet_matches, &[&key.fingerprint.to_string()]),
                     OK,
                 )),
-                Some(false) => v.lines.push((EN.glance_sheet_does_not.to_string(), ERR)),
+                Some(false) => v.lines.push((EN.glance_sheet_mismatch.to_string(), ERR)),
                 None => {}
             }
             v.go = Some((
-                EN.glance_sheet_check_2.to_string(),
+                EN.glance_sheet_check_button.to_string(),
                 (typed > 0).then_some(Action::Chart(ChartAction::PassTry(press))),
             ));
             Some(v)
@@ -1278,12 +1307,14 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 (Some(_), false) => v.groups.push((
                     String::new(),
                     vec![row(
-                        EN.glance_sheet_show_it,
+                        EN.glance_sheet_show_row,
                         EN.glance_sheet_to_copy,
                         chart_do(ChartAction::Reveal),
                     )],
                 )),
-                (None, _) => v.lines.push((EN.glance_sheet_load_this.to_string(), MUTED)),
+                (None, _) => v
+                    .lines
+                    .push((EN.glance_sheet_load_with_passphrase.to_string(), MUTED)),
             }
             v.go = Some((
                 EN.glance_sheet_check.to_string(),

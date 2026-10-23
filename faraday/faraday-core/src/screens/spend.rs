@@ -69,7 +69,7 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
             (Verdict::Valid, Some(Some(mode))) => {
                 (fill(EN.nonce_check_valid_nonce, &[&mode.to_string()]), OK)
             }
-            (Verdict::Valid, Some(None)) => (EN.nonce_check_valid_not.to_string(), ERR),
+            (Verdict::Valid, Some(None)) => (EN.nonce_check_wrong_nonce.to_string(), ERR),
             (Verdict::Valid, None) => (EN.nonce_check_valid_signed.to_string(), MUTED),
         };
         if ui.compact {
@@ -101,7 +101,7 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
                     (if ok {
                         EN.nonce_check_none_wrong
                     } else {
-                        EN.nonce_check_one_is
+                        EN.nonce_check_one_wrong
                     }),
                 ],
             ),
@@ -118,7 +118,7 @@ const STEPS: [&str; 10] = [
     EN.app_transaction_id,
     EN.app_signers,
     EN.app_sign,
-    EN.app_signatures_for,
+    EN.app_step_signatures,
     EN.app_finish,
     EN.app_path,
     EN.app_nonces,
@@ -262,14 +262,17 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
             &[
                 &(missing - 1).to_string(),
                 (if missing == 2 {
-                    EN.spend_status_its
+                    EN.spend_status_its_one
                 } else {
                     EN.spend_status_their
                 }),
             ],
         )
     } else if !can_sign_here.is_empty() && missing > 1 {
-        fill(EN.spend_status_sign_here_and, &[&(missing - 1).to_string()])
+        fill(
+            EN.spend_status_sign_and_collect,
+            &[&(missing - 1).to_string()],
+        )
     } else if !can_sign_here.is_empty() {
         EN.spend_status_sign_here.to_string()
     } else {
@@ -279,7 +282,7 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
         if s.out_signed {
             EN.spend_status_open_files.to_string()
         } else {
-            EN.spend_status_keep_the.to_string()
+            EN.spend_status_keep_carry.to_string()
         }
     } else if s.spend.finished.is_some() {
         // Both went For the stick at Finish: the next step is writing.
@@ -292,7 +295,7 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
         EN.spend_status_finish.to_string()
     } else if !can_sign_here.is_empty() {
         fill(
-            EN.spend_status_sign_with,
+            EN.spend_status_sign_with_keys,
             &[&can_sign_here.join(", ").to_string()],
         )
     } else {
@@ -325,7 +328,10 @@ fn spend_bar(
         13.0,
         W::S,
         TEXT,
-        &fill(EN.spend_bar_of, &[&count.to_string(), &needed.to_string()]),
+        &fill(
+            EN.spend_bar_count,
+            &[&count.to_string(), &needed.to_string()],
+        ),
     );
     let line = ui.fit(12.0, W::R, &need_line, w);
     ui.text(
@@ -403,11 +409,11 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
                 EN.step_summary_not_signed.to_string()
             } else {
                 let fps: Vec<String> = s.spend.signed_here.iter().map(|f| fp_text(*f)).collect();
-                fill(EN.step_summary_signed_with, &[&fps.join(", ").to_string()])
+                fill(EN.step_summary_signed_keys, &[&fps.join(", ").to_string()])
             }
         }
         6 => fill(
-            EN.step_summary_of,
+            EN.step_summary_count,
             &[&s.signers.len().to_string(), &needed.to_string()],
         ),
         9 => match wallet.and_then(|w| app.session.wallets.get(w)) {
@@ -429,9 +435,9 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
             format!(
                 "{n} {}",
                 if n == 1 {
-                    EN.step_summary_way_to
+                    EN.step_summary_way_one
                 } else {
-                    EN.step_summary_ways_to
+                    EN.step_summary_ways_many
                 }
             )
         }
@@ -492,7 +498,7 @@ pub(crate) fn step_body(
                         W::R,
                         MUTED,
                         &fill(
-                            EN.step_from,
+                            EN.step_wallet_source,
                             &[&Session::shape(wl).to_string(), &wl.source.to_string()],
                         ),
                     );
@@ -543,7 +549,7 @@ pub(crate) fn step_body(
                 rows.push((
                     EN.step_sends.into(),
                     btc(o.amount.to_sat()),
-                    fill(EN.step_to, &[&short(&o.address).to_string()]),
+                    fill(EN.step_to_address, &[&short(&o.address).to_string()]),
                     None,
                 ));
             }
@@ -555,7 +561,7 @@ pub(crate) fn step_body(
                             EN.step_change.into(),
                             btc(o.amount.to_sat()),
                             fill(
-                                EN.step_to_2,
+                                EN.step_to_path,
                                 &[
                                     &(if change { 1 } else { 0 }).to_string(),
                                     &index.to_string(),
@@ -568,7 +574,7 @@ pub(crate) fn step_body(
                         rows.push((
                             EN.step_change.into(),
                             btc(o.amount.to_sat()),
-                            fill(EN.step_to, &[&short(&o.address).to_string()]),
+                            fill(EN.step_to_address, &[&short(&o.address).to_string()]),
                             Some((EN.step_unverified, WARN)),
                         ));
                     }
@@ -1031,7 +1037,7 @@ pub(crate) fn step_body(
                 (
                     String::new(),
                     Style::Disabled,
-                    Some(EN.step_no_share_of_this.to_string()),
+                    Some(EN.step_no_share_loaded.to_string()),
                 )
             } else if t.signers.is_empty() && s.others.len() != want {
                 (
@@ -1095,14 +1101,14 @@ pub(crate) fn step_body(
                     14.0,
                     W::S,
                     OK,
-                    &fill(EN.step_signed_with, &[&fps.join(", ").to_string()]),
+                    &fill(EN.step_signed_keys, &[&fps.join(", ").to_string()]),
                 );
                 cy += 44.0;
             } else if mine.is_empty() {
-                ui.text_mid(x, cy, 40.0, 13.0, W::R, MUTED, EN.step_no_key_in_this);
+                ui.text_mid(x, cy, 40.0, 13.0, W::R, MUTED, EN.step_no_signing_key);
                 cy += 44.0;
             } else {
-                let label = fill(EN.step_sign_with, &[&mine.join(", ").to_string()]);
+                let label = fill(EN.step_sign_with_keys, &[&mine.join(", ").to_string()]);
                 ui.text_mid(
                     x,
                     cy,
@@ -1212,7 +1218,7 @@ pub(crate) fn step_body(
                 }
                 for (k, name) in &copies {
                     // No wider than the column; a long name is cut.
-                    let label = fill(EN.step_add_from, &[&name.to_string()]);
+                    let label = fill(EN.step_add_source, &[&name.to_string()]);
                     let bw = (ui.measure(14.0, W::S, &label) + 32.0).min(w);
                     let label = ui.fit(14.0, W::S, &label, bw - 24.0);
                     ui.button(
@@ -1261,7 +1267,7 @@ pub(crate) fn step_body(
             ui.stroke(x, cy, w, 150.0, 10.0, INNER);
             ui.text(x + 14.0, cy + 14.0, 14.0, W::S, TEXT, EN.step_carry_file);
             let sub = fill(
-                EN.step_for_holds_its,
+                EN.step_carry_holds_nonce,
                 &[&(if next_ids.is_empty() {
                     EN.step_the_next_share.to_string()
                 } else {
@@ -1276,7 +1282,7 @@ pub(crate) fn step_body(
             let (label, style) = if s.out_signed {
                 (EN.step_kept, Style::Disabled)
             } else {
-                (EN.step_keep_it, Style::Secondary)
+                (EN.step_keep_button, Style::Secondary)
             };
             ui.button(
                 x + 14.0,
@@ -1419,7 +1425,11 @@ pub(crate) fn step_body(
                     w,
                     38.0,
                     &[
-                        (EN.step_decode_it, Style::Secondary, Action::DecodeFinished),
+                        (
+                            EN.step_decode_button,
+                            Style::Secondary,
+                            Action::DecodeFinished,
+                        ),
                         (
                             if s.show_hex {
                                 EN.step_hide_the_raw_hex
@@ -1487,7 +1497,7 @@ pub(crate) fn step_body(
                     .collect();
                 let labels: Vec<String> = copies
                     .iter()
-                    .map(|(_, name)| fill(EN.step_add_from, &[&name.to_string()]))
+                    .map(|(_, name)| fill(EN.step_add_source, &[&name.to_string()]))
                     .collect();
                 let items: Vec<(&str, Style, Action)> = labels
                     .iter()
@@ -1663,7 +1673,7 @@ fn spend_panel(
             W::M,
             2,
         ),
-        (EN.spend_panel_to, to, W::M, 2),
+        (EN.spend_panel_to_label, to, W::M, 2),
         (
             EN.spend_panel_fee,
             fill(
@@ -1709,7 +1719,7 @@ fn spend_panel(
         EN.spend_panel_signatures,
     );
     let label = fill(
-        EN.spend_panel_of,
+        EN.spend_panel_count,
         &[&count.to_string(), &needed.to_string()],
     );
     let lw = ui.measure(13.0, W::S, &label);

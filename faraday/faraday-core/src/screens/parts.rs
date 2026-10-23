@@ -90,7 +90,7 @@ pub(crate) fn spaced(hex: &str) -> String {
 }
 
 /// What the Wallets tab offers for a key in no wallet.
-pub(crate) const FROM_KEY: &str = EN.app_make_a_wallet_from;
+pub(crate) const FROM_KEY: &str = EN.app_wallet_from_key;
 
 /// The side panel beside a step-by-step column (Spend, Back up, Create a
 /// vault): 320 wide in a full-size window, down to 240 as the window
@@ -338,15 +338,15 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
     let mut cy = y;
     // So that a multisig's three rows do not read as one address per
     // key (`docs/history/NEW-WALLET.md` §2.4).
-    section_label(ui, x, cy, EN.first_addresses_the);
+    section_label(ui, x, cy, EN.first_addresses_heading);
     cy += 24.0;
     if app.receive_held(wl) {
         cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 8.0;
         return cy - y;
     }
     for (label, change, idx) in [
-        (EN.first_addresses_receive_0, false, 0),
-        (EN.first_addresses_receive, false, 1),
+        (EN.first_addresses_receive_0_0, false, 0),
+        (EN.first_addresses_receive_0_1, false, 1),
         (EN.first_addresses_change, true, 0),
     ] {
         ui.text(x, cy + 2.0, 12.0, W::R, MUTED, label);
@@ -619,7 +619,7 @@ pub(crate) fn code_field(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, text: &str
 /// The **Locked in** tag: a lock and the words, in `OK`. Returns its
 /// width.
 pub(crate) fn locked_tag(ui: &mut Ui, x: f32, y: f32) -> f32 {
-    let label = EN.locked_tag_locked_in;
+    let label = EN.locked_tag_text;
     let width = ui.measure(12.0, W::S, label) + 40.0;
     ui.fill(x, y, width, 26.0, 13.0, OK.with_alpha(30));
     ui.icon(x + 6.0, y + 3.0, 20.0, Icon::Lock, 10.0, OK);
@@ -685,19 +685,19 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::Wallet => EN.kind_name_wallet_descriptor,
         FileKind::SecretWallet => EN.kind_name_secret_wallet,
         FileKind::Transaction => EN.kind_name_finished,
-        FileKind::Sheet => EN.kind_name_sheet_for,
+        FileKind::Sheet => EN.kind_name_print_sheet,
         FileKind::Message => EN.kind_name_signed_message,
         FileKind::Key => EN.kind_name_account_xpub,
         FileKind::Words => EN.kind_name_seed_words,
-        FileKind::Share => EN.kind_name_share_of,
+        FileKind::Share => EN.kind_name_split_share,
         FileKind::Carry => EN.kind_name_threshold,
         FileKind::Vault => EN.kind_name_vault_locked,
-        FileKind::Entries => EN.kind_name_entries_for,
+        FileKind::Entries => EN.kind_name_vault_entries,
         FileKind::Backup => EN.kind_name_oskb,
         FileKind::Kdbx => EN.kind_name_keepass_database,
         FileKind::Pdf => EN.kind_name_pdf_to_print,
         FileKind::EfiImage => EN.kind_name_efi_image,
-        FileKind::SeedPart => EN.kind_name_part_of_a,
+        FileKind::SeedPart => EN.kind_name_seed_part,
         FileKind::Text => EN.kind_name_text,
         FileKind::Gpg => EN.kind_name_gpg,
         FileKind::Apk => EN.apk_kind_apk,
@@ -723,9 +723,9 @@ pub(super) fn pull_line(app: &View) -> String {
     let noun = app.medium.noun();
     match (n, vault) {
         (0, Some(v)) if !app.holds_secret() => {
-            fill(EN.pull_line_remove_the_to, &[noun, &v.to_string()])
+            fill(EN.pull_line_remove_to_unlock, &[noun, &v.to_string()])
         }
-        (0, _) => fill(EN.pull_line_remove_the, &[noun]),
+        (0, _) => fill(EN.pull_line_remove_when_done, &[noun]),
         (1, _) => fill(EN.pull_line_1_key_copied, &[noun]),
         (n, _) => fill(EN.pull_line_keys_copied, &[&n.to_string(), noun]),
     }
@@ -929,9 +929,9 @@ pub(crate) fn keyed_pills(
     let cands: Vec<u16> = w.candidates().collect();
     if cands.is_empty() {
         let line = if prefix.is_empty() {
-            EN.keyed_words_type_the
+            EN.keyed_words_type_next
         } else if w.awaiting_tone() {
-            EN.keyed_words_now_its
+            EN.keyed_words_tone_prompt
         } else {
             EN.keyed_words_no_word
         };
@@ -939,7 +939,7 @@ pub(crate) fn keyed_pills(
         y += 34.0;
     } else {
         if hint {
-            ui.text(x, y, 12.0, W::R, MUTED, EN.keyed_words_press_a);
+            ui.text(x, y, 12.0, W::R, MUTED, EN.keyed_words_press_hint);
             y += 22.0;
         }
         let mut bx = x;

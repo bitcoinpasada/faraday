@@ -85,9 +85,9 @@ impl NewKind {
             NewKind::NestedSegwit => EN.create_3_addresses,
             NewKind::Legacy => EN.create_1_addresses,
             NewKind::Multi => EN.create_several_keys,
-            NewKind::MultiNested => EN.create_multisig_with_3,
-            NewKind::MultiLegacy => EN.create_multisig_with,
-            NewKind::TapMulti => EN.create_multisig_on,
+            NewKind::MultiNested => EN.create_multisig_nested_line,
+            NewKind::MultiLegacy => EN.create_multisig_legacy_line,
+            NewKind::TapMulti => EN.create_multisig_taproot_line,
             NewKind::Threshold => EN.create_any_m_of_n_shares,
             NewKind::MuSig => EN.create_every_key_signs,
         }

@@ -277,7 +277,7 @@ impl Faraday {
                 if let Some((decoder, assembler)) = self.scan_parts.take() {
                     scan.decoder = decoder;
                     scan.assembler = assembler;
-                    scan.note = Some(EN.act_carrying_on_with.to_string());
+                    scan.note = Some(EN.act_carrying_on_parts.to_string());
                 }
                 self.scan = Some(scan);
                 self.sheet = Some(Sheet::Scan);

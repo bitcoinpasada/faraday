@@ -101,12 +101,12 @@ fn guide(s: u8, app: Bip85App) -> String {
     match s {
         pstep::KEY => EN.bip85_bip_85_turns.to_string(),
         pstep::APP => match app {
-            Bip85App::Words => EN.bip85_a_child_seed_is.to_string(),
-            Bip85App::Base64 | Bip85App::Base85 => EN.bip85_a_password_for.to_string(),
+            Bip85App::Words => EN.bip85_guide_child_seed.to_string(),
+            Bip85App::Base64 | Bip85App::Base85 => EN.bip85_guide_password.to_string(),
             _ => EN.bip85_the_value_is_made.to_string(),
         },
-        pstep::INDEX => EN.bip85_index_0_is_the.to_string(),
-        _ => EN.bip85_the_value_is.to_string(),
+        pstep::INDEX => EN.bip85_guide_index.to_string(),
+        _ => EN.bip85_guide_value.to_string(),
     }
 }
 
@@ -179,7 +179,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                     Style::Secondary,
                     Action::PLength(1),
                 );
-                let range = fill(EN.bip85_to, &[&lo.to_string(), &hi.to_string()]);
+                let range = fill(EN.bip85_index_range, &[&lo.to_string(), &hi.to_string()]);
                 if ui.compact {
                     cy += 46.0;
                     ui.text(x, cy, 12.0, W::R, DIM, &range);
@@ -218,7 +218,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             );
             cy += 56.0;
             if b.index().is_none() {
-                ui.text(x, cy, 13.0, W::R, ERR, EN.bip85_an_index_is_0);
+                ui.text(x, cy, 13.0, W::R, ERR, EN.bip85_index_limits);
                 cy += 24.0;
             }
             ui.text(x, cy, 12.0, W::R, DIM, EN.bip85_type_the_digits);

@@ -592,7 +592,7 @@ impl Faraday {
             let record = Record::new(kind::PASSPHRASE)
                 .with(field::PASSPHRASE_KEY, &fp.0)
                 .with(field::PASSPHRASE, pass.as_bytes());
-            let said = fill(EN.plan_passphrase_of, &[&fp_text(fp)]);
+            let said = fill(EN.plan_passphrase_label, &[&fp_text(fp)]);
             self.vault_push_in(cur, record, &said);
         }
         let Some((name, cs, desc)) = self.session.wallets.get(w).map(|wl| {

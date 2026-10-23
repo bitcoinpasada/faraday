@@ -326,7 +326,7 @@ impl Faraday {
         let secret = self.transfer.saving.pop_front().unwrap_or(false);
         let warn = secret || saved.is_err();
         let line = match saved {
-            Ok(path) if secret => fill(EN.transfer_saved_this, &[&path.to_string()]),
+            Ok(path) if secret => fill(EN.transfer_saved_secret, &[&path.to_string()]),
             Ok(path) => fill(EN.transfer_saved, &[&path.to_string()]),
             Err(reason) => fill(EN.transfer_not_saved, &[&reason.to_string()]),
         };

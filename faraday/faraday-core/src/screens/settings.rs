@@ -10,7 +10,7 @@ use faraday_ui::parts::{title, wrap_buttons};
 
 /// The panic key, beside Power off on Settings: the stick shell powers
 /// off at once when Super and S are held this long (`keyboard.rs`).
-const PANIC_KEY: &str = EN.app_super_s_held_2;
+const PANIC_KEY: &str = EN.app_panic_key_hint;
 
 /// Settings' Time section (`docs/TOTP.md` §2): Now, the time zone and
 /// Set the time. Returns its height.
@@ -57,7 +57,7 @@ fn time_section(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
         y + 150.0 + d,
         Some(160.0),
         38.0,
-        EN.time_section_set_the,
+        EN.time_section_set_button,
         Style::Secondary,
         Action::OpenSetTime,
     );
@@ -105,7 +105,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let leave = if app.online {
             EN.settings_quit
         } else {
-            EN.settings_power_off_2
+            EN.settings_power_off_button
         };
         items.push((leave, Style::Secondary, Action::PowerAsk));
         y += wrap_buttons(ui, x, y, w, 38.0, &items) + 4.0;
@@ -280,7 +280,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             if app.online {
                 fill(EN.settings_are_folders, &[app.medium.caps()])
             } else {
-                fill(EN.settings_are_read_by, &[app.medium.caps()])
+                fill(EN.settings_medium_reader_note, &[app.medium.caps()])
             },
         ];
         for l in &lines {
@@ -431,7 +431,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if app.online {
             EN.settings_quit
         } else {
-            EN.settings_power_off_2
+            EN.settings_power_off_button
         },
         Style::Secondary,
         Action::PowerAsk,
@@ -627,7 +627,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if app.online {
             fill(EN.settings_are_folders, &[app.medium.caps()])
         } else {
-            fill(EN.settings_are_read_by, &[app.medium.caps()])
+            fill(EN.settings_medium_reader_note, &[app.medium.caps()])
         },
     ];
     let mut ly = y + 50.0;

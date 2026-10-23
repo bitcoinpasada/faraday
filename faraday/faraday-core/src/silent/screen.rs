@@ -88,7 +88,7 @@ fn guide(k: u8) -> String {
         sstep::KEY => EN.silent_a_silent_payments_address.to_string(),
         sstep::ADDRESS => EN.silent_give_this_address.to_string(),
         sstep::SCAN => EN.silent_finding_payments.to_string(),
-        _ => EN.silent_a_payment_to.to_string(),
+        _ => EN.silent_guide_payment.to_string(),
     }
 }
 
@@ -254,8 +254,8 @@ fn checked_text(r: &crate::silent::check::Checked) -> (String, faraday_draw::Col
         }
         Checked::NotPaid => (EN.silent_pays_nothing.to_string(), MUTED),
         Checked::NoInputs => (EN.silent_spends_nothing.to_string(), MUTED),
-        Checked::Unsigned => (EN.silent_not_signed_an.to_string(), WARN),
-        Checked::KeyNotLoaded => (EN.silent_its_key_is_not.to_string(), WARN),
+        Checked::Unsigned => (EN.silent_input_key_missing.to_string(), WARN),
+        Checked::KeyNotLoaded => (EN.silent_key_not_loaded.to_string(), WARN),
     }
 }
 
@@ -280,7 +280,7 @@ fn check_card(app: &View, s: &SilentState, ui: &mut Ui, x: f32, y: f32, w: f32) 
                             Some(m) => fill(EN.silent_label_inline, &[&m.to_string()]),
                         };
                         let row = fill(
-                            EN.silent_output_to,
+                            EN.silent_output_row,
                             &[
                                 &p.vout.to_string(),
                                 &crate::ui::btc(p.amount.to_sat()).to_string(),

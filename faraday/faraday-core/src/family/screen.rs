@@ -149,7 +149,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
             w,
             Icon::Sign,
             &fill(
-                EN.family_signing_2,
+                EN.family_signing_wallet,
                 &[&s.spend.source.to_string(), &name.to_string()],
             ),
             Some((
@@ -187,7 +187,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         let (marker, tone) = if ready {
             (
                 fill(
-                    EN.family_can_spend_of,
+                    EN.family_can_spend_count,
                     &[&here.min(need).to_string(), &need.to_string()],
                 ),
                 OK,
@@ -213,9 +213,9 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         };
         ui.text_mid(x + 46.0, y + 30.0, 28.0, 12.0, W::S, tone, &marker);
         let label = if ready {
-            EN.family_spend_from_it
+            EN.family_spend_from_button
         } else {
-            EN.family_open_it
+            EN.family_open_button
         };
         let bw = ui.measure(14.0, W::S, label) + 36.0;
         ui.button(
@@ -278,7 +278,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         .collect();
     if !lonely.is_empty() {
         y += 8.0;
-        crate::screens::section_label(ui, x, y, EN.family_keys_with_no);
+        crate::screens::section_label(ui, x, y, EN.family_keys_without_wallet);
         y += 30.0;
         for k in &lonely {
             ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &fp_text(k.fingerprint));
@@ -303,7 +303,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
             y + 4.0,
             None,
             38.0,
-            EN.family_restore_its,
+            EN.family_restore_wallet,
             Style::Secondary,
             Action::RestoreWallet,
         ) + 8.0;
@@ -349,7 +349,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
             .and_then(|i| app.session.wallets.get(i))
             .map_or(EN.family_no_wallet_loaded.to_string(), |w| w.name.clone());
         let line = fill(
-            EN.family_signing_2,
+            EN.family_signing_wallet,
             &[&s.spend.source.to_string(), &name.to_string()],
         );
         let lh = measured(ui, |ui| {
@@ -386,7 +386,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         let (marker, tone) = if ready {
             (
                 fill(
-                    EN.family_can_spend_of,
+                    EN.family_can_spend_count,
                     &[&here.min(need).to_string(), &need.to_string()],
                 ),
                 OK,
@@ -451,9 +451,9 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         ui.text_mid(x + 42.0, y + 46.0, 18.0, 12.0, W::S, tone, &marker);
         missing(ui, y + 70.0);
         let label = if ready {
-            EN.family_spend_from_it
+            EN.family_spend_from_button
         } else {
-            EN.family_open_it
+            EN.family_open_button
         };
         ui.button(
             x + 14.0,
@@ -492,7 +492,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         .collect();
     if !lonely.is_empty() {
         y += 8.0;
-        section_label(ui, x, y, EN.family_keys_with_no);
+        section_label(ui, x, y, EN.family_keys_without_wallet);
         y += 30.0;
         for k in &lonely {
             ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &fp_text(k.fingerprint));
@@ -507,7 +507,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
             items.push((l, Style::Primary, fa(F::UseWallet(k))));
         }
         items.push((
-            EN.family_restore_its,
+            EN.family_restore_wallet,
             Style::Secondary,
             Action::RestoreWallet,
         ));
@@ -581,15 +581,15 @@ fn summary(app: &View, id: CardId) -> String {
         CardId::Page(page::MAP) => EN.family_six_stops,
         CardId::Page(page::SAFE) if app.online => EN.family_desktop_copy,
         CardId::Page(page::SAFE) => {
-            return fill(EN.family_running_from, &[app.medium.noun()]);
+            return fill(EN.family_running_from_medium, &[app.medium.noun()]);
         }
         CardId::Page(page::HOLDING | page::OPEN) => {
             return match app.family_wallet().map(|i| &app.session.wallets[i]) {
                 Some(w) => wallet_once(w),
                 None => match came_rows(app).len() {
                     0 => EN.family_nothing_in_yet.to_string(),
-                    1 => EN.family_1_thing_in.to_string(),
-                    n => fill(EN.family_things_in, &[&n.to_string()]),
+                    1 => EN.family_things_one.to_string(),
+                    n => fill(EN.family_things_count, &[&n.to_string()]),
                 },
             };
         }
@@ -651,7 +651,7 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
                 x,
                 cy,
                 w,
-                EN.family_i_have_the_psbt_2,
+                EN.family_have_psbt_button,
                 fa(F::Next(page::WRITE)),
             ) {
                 52.0
@@ -707,9 +707,9 @@ fn more(app: &View, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32, w
         None,
         32.0,
         if shown {
-            EN.family_less_about_this
+            EN.family_less_about
         } else {
-            EN.family_more_about_this
+            EN.family_more_about
         },
         Style::Ghost,
         fa(F::More(bit)),
@@ -779,7 +779,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         cy += vault(app, ui, x, cy, w);
         cy += 4.0;
-        ui.text(x, cy, 13.0, W::S, MUTED, EN.family_or_bring_in);
+        ui.text(x, cy, 13.0, W::S, MUTED, EN.family_bring_in_paper);
         cy += 28.0;
     }
     let ready = app.family_ready();
@@ -827,7 +827,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         if !items.is_empty() {
             cy += crate::screens::wrap_buttons(ui, x, cy, w, 36.0, &items);
         }
-        let label = fill(EN.family_copy_files_in, &[app.medium.a()]);
+        let label = fill(EN.family_copy_files_button, &[app.medium.a()]);
         cy += stick_row(app, ui, x, cy, w, &label);
     }
     ui.button(
@@ -850,7 +850,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let rows = came_rows(app);
     if !rows.is_empty() {
         cy += 6.0;
-        ui.text(x, cy, 13.0, W::S, MUTED, EN.family_what_came_in);
+        ui.text(x, cy, 13.0, W::S, MUTED, EN.family_came_in_heading);
         cy += 26.0;
         for row in &rows {
             let row = ui.fit(13.0, W::M, row, w);
@@ -875,7 +875,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 cy,
                 w,
                 38.0,
-                &[(EN.family_rebuild_the, Style::Primary, fa(F::Rebuild))],
+                &[(EN.family_rebuild_wallet, Style::Primary, fa(F::Rebuild))],
             );
         }
     }
@@ -884,7 +884,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let name = &app.session.wallets[wi].name;
         for fp in app.family_strays() {
             let line = fill(
-                EN.family_seed_is_not,
+                EN.family_seed_not_wallets,
                 &[&fp_text(fp).to_string(), &name.to_string()],
             );
             cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 8.0;
@@ -961,7 +961,7 @@ fn came_rows(app: &View) -> Vec<String> {
                 let t = fp_text(f);
                 let label = label.trim();
                 rows.push(if label.is_empty() || label.eq_ignore_ascii_case(&t) {
-                    fill(EN.family_seed_2, &[&t.to_string()])
+                    fill(EN.family_seed_row, &[&t.to_string()])
                 } else {
                     fill(EN.family_seed, &[&t.to_string(), label])
                 });
@@ -974,10 +974,10 @@ fn came_rows(app: &View) -> Vec<String> {
                     FileKind::Wallet => {
                         match app.session.wallets.iter().find(|wl| wl.source == *name) {
                             Some(wl) => fill(
-                                EN.family_wallet_description_3,
+                                EN.family_description_row_shape,
                                 &[&wl.name.to_string(), &Session::shape(wl).to_string()],
                             ),
-                            None => fill(EN.family_wallet_description_2, &[&name.to_string()]),
+                            None => fill(EN.family_description_row, &[&name.to_string()]),
                         }
                     }
                     FileKind::Share => {
@@ -1070,7 +1070,7 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let s = &app.family.seeds;
             let here = app.seeds_here(s).len();
             if s.n > here {
-                let line = fill(EN.family_without_the, &[&s.n.to_string()]);
+                let line = fill(EN.family_without_description, &[&s.n.to_string()]);
                 cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 12.0;
             }
             cy += crate::seeds::screen::shape(app, ui, s, false, x, cy, w);
@@ -1131,12 +1131,12 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let where_ = if f.in_outbox {
             fill(EN.family_sealed_here, &[app.medium.for_the()])
         } else {
-            fill(EN.family_copied_in_from, &[app.medium.a()])
+            fill(EN.family_copied_from_medium, &[app.medium.a()])
         };
         let where_ = format!("{where_} · {}", file_text(f.len));
         let mem = f.header.cost.memory_kib / 1024;
         let time = fill(
-            EN.family_unlocks_in,
+            EN.family_unlock_time,
             &[&app.vaults.time_text(mem, f.header.cost.passes).to_string()],
         );
         if compact {
@@ -1241,7 +1241,7 @@ fn stick_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f3
     let (style, note) = match (app.sticks.is_empty(), open) {
         (true, _) => (
             Style::Disabled,
-            fill(EN.family_plug_the_in, &[app.medium.noun()]),
+            fill(EN.family_plug_medium, &[app.medium.noun()]),
         ),
         (false, true) => (
             Style::Disabled,
@@ -1277,7 +1277,7 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     }
     if app.session.wallets.len() > 1 || chosen.is_none() {
-        ui.text(x, cy, 13.0, W::S, MUTED, EN.family_spend_from);
+        ui.text(x, cy, 13.0, W::S, MUTED, EN.family_spend_from_label);
         cy += 26.0;
         for (i, wl) in app.session.wallets.iter().enumerate() {
             let on = chosen == Some(i);
@@ -1342,7 +1342,7 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         if here == 1 {
             EN.family_its_key_is_here.to_string()
         } else {
-            EN.family_its_key_is_not.to_string()
+            EN.family_key_not_here.to_string()
         }
     } else {
         fill(
@@ -1383,7 +1383,7 @@ fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     if ui.compact {
         // Too long for one button on a small panel: the line, then Scan it.
-        let lh = ui.wrap(x, y, w, 14.0, W::S, TEXT, EN.family_i_have_the_psbt_from) + 8.0;
+        let lh = ui.wrap(x, y, w, 14.0, W::S, TEXT, EN.family_have_psbt_line) + 8.0;
         return lh
             + crate::screens::wrap_buttons(
                 ui,
@@ -1391,7 +1391,7 @@ fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 y + lh,
                 w,
                 40.0,
-                &with_sample(EN.family_scan_it),
+                &with_sample(EN.family_scan_button),
             )
             + 8.0;
     }
@@ -1488,18 +1488,22 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 40.0,
                 &[
                     (
-                        EN.family_yes_type_it,
+                        EN.family_yes_type_button,
                         Style::Primary,
                         fa(F::Passphrase(true)),
                     ),
-                    (EN.family_no, Style::Secondary, fa(F::Passphrase(false))),
+                    (
+                        EN.family_no_button,
+                        Style::Secondary,
+                        fa(F::Passphrase(false)),
+                    ),
                 ],
             );
             return cy - y;
         }
         let (kind, pass) = Faraday::guess_way(g, g.at);
         let line = fill(
-            EN.family_trying_of,
+            EN.family_trying_progress,
             &[
                 crate::family::kind_label(kind),
                 (if pass {
@@ -1528,7 +1532,7 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     ) + 6.0;
     if let Some(g) = guess {
         let open = if g.tried.is_empty() {
-            EN.family_open_this_in
+            EN.family_open_online_wallet
         } else {
             EN.family_open_this_one
         };
@@ -1585,10 +1589,10 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // The money moving to a new wallet (`docs/history/NEW-WALLET.md` §9.6): every
     // coin, to its first address.
     if card && let Some((name, address)) = app.family_wallet().and_then(|i| app.moving_to(i)) {
-        let head = fill(EN.family_every_coin_to, &[&name.to_string()]);
+        let head = fill(EN.family_every_coin_to_wallet, &[&name.to_string()]);
         cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &head) + 4.0;
         cy += ui.wrap(x, cy, w, 13.0, W::M, TEXT, &address) + 4.0;
-        cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, EN.family_amount_max_in) + 12.0;
+        cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, EN.family_amount_max_hint) + 12.0;
     }
     ui.button(
         x,
@@ -1621,9 +1625,9 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += faraday_draw::tokens::SAMPLE_BUTTON_ROW;
     }
     let label = if card {
-        fill(EN.family_on, &[app.medium.a()])
+        fill(EN.family_on_medium, &[app.medium.a()])
     } else {
-        fill(EN.family_copy_it_in_from, &[app.medium.a()])
+        fill(EN.family_copy_psbt_button, &[app.medium.a()])
     };
     cy += stick_row(app, ui, x, cy, w, &label);
     // From the wallet's card, only this wallet's.
@@ -1656,7 +1660,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ui.text_mid(x, cy, 38.0, 14.0, W::M, TEXT, name);
         }
         if current {
-            ui.text_right(x + w, cy, 38.0, 13.0, W::S, OK, EN.family_signing_this);
+            ui.text_right(x + w, cy, 38.0, 13.0, W::S, OK, EN.family_signing_this_one);
         } else {
             let label = EN.family_use_this_one;
             let bw = ui.measure(13.0, W::S, label) + 32.0;
@@ -1677,7 +1681,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         match s.wallet.and_then(|w| app.session.wallets.get(w)) {
             Some(wl) => {
                 let line = fill(
-                    EN.family_spends_from,
+                    EN.family_spends_from_wallet,
                     &[&wl.name.to_string(), &Session::shape(wl).to_string()],
                 );
                 cy += ui.wrap(x, cy, w, 13.0, W::S, OK, &line) + 12.0;
@@ -1691,7 +1695,7 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             x,
             cy,
             w,
-            EN.family_read_it,
+            EN.family_read_button,
             Action::Step(first_step(app)),
         ) {
             cy += 52.0;
@@ -1755,7 +1759,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     .filter(|_| slot.held_by.is_none() && app.vault_key_for(slot).is_some());
                 if waits {
                     let t = crate::glance::WAITING;
-                    let label = EN.family_finish_the_backup_2;
+                    let label = EN.family_finish_backup_button;
                     let bw = ui.measure(13.0, W::S, label) + 32.0;
                     let cw2 = ui.measure(12.0, W::R, t) + 34.0;
                     if compact {

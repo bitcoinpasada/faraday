@@ -281,7 +281,7 @@ impl Faraday {
         }
         let (need, _) = crate::wallet::Session::quorum(wallet);
         let gives = if need <= 1 {
-            EN.secrets_whoever_has_it.to_string()
+            EN.secrets_seed_warning.to_string()
         } else {
             let more = need - 1;
             fill(
@@ -328,7 +328,7 @@ impl Faraday {
     /// the Outbox.
     pub(crate) fn secret_to_vault(&mut self) {
         let Some(v) = self.vaults.open.get(self.vaults.current) else {
-            self.toast(EN.secrets_no_vault_is);
+            self.toast(EN.secrets_no_vault_open);
             return;
         };
         let vault = v.name.clone();
@@ -391,7 +391,7 @@ impl Faraday {
             Keep::Round(r) => {
                 self.put_outbox(&r.psbt_name, r.psbt);
                 self.toast(&fill(
-                    EN.secrets_the_nonce_is,
+                    EN.secrets_nonce_saved,
                     &[
                         &vault.to_string(),
                         &r.psbt_name.to_string(),
@@ -407,12 +407,12 @@ impl Faraday {
                     .map(|k| k.label.clone())
                     .unwrap_or_default();
                 self.toast(&fill(
-                    EN.secrets_is_in,
+                    EN.secrets_saved_to_vault,
                     &[&label.to_string(), &vault.to_string()],
                 ));
             }
             Keep::Note => self.toast(&fill(
-                EN.secrets_is_in,
+                EN.secrets_saved_to_vault,
                 &[&out.name.to_string(), &vault.to_string()],
             )),
             Keep::None => {}

@@ -177,7 +177,7 @@ Desktop, on every network) or the session is the demo
   a string in Faraday's strings file, as the others are.
 - **The Tools tile** (`catalog.rs`): **Nostr key**, in Keys and seeds
   after Child seeds and passwords, its line "Derived from a key here"
-  (the existing `catalog_derived_from`), its tags `BIP-85`, `NIP-19`,
+  (the existing `catalog_child_seeds_line`), its tags `BIP-85`, `NIP-19`,
   `NIP-49`. `Go::Nostr` needs a loaded key exactly as `Go::Bip85` does
   ("Load a key"). It opens the BIP-85 screen with Nostr chosen and the
   Application card done: with one key loaded, the Identity and account

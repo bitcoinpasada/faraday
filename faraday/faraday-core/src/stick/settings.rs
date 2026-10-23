@@ -200,7 +200,7 @@ impl Faraday {
             StorageEvent::WriteFailed { name, reason, .. } if is_file(&name) => {
                 self.visit.log.push((
                     fill(
-                        EN.stick_settings_not,
+                        EN.stick_settings_not_written,
                         &[&name.to_string(), &reason.to_string()],
                     ),
                     false,

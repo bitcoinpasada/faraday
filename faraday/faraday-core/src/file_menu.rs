@@ -207,7 +207,7 @@ impl Faraday {
                 let (name, size) = self.stick_file(k)?;
                 let kind = match crate::stick_kind(&name).filter(|_| size <= crate::READ_MAX) {
                     Some(kind) => format!("{kind} · {}", crate::screens::size_text(size as usize)),
-                    None => EN.visit_larger_than_18.to_string(),
+                    None => EN.visit_file_too_large.to_string(),
                 };
                 Some((name, size, kind))
             }
@@ -235,7 +235,7 @@ impl Faraday {
                     && self.vault_way(Screen::Files).is_none()
                 {
                     out.push((
-                        EN.add_to_vault_add_to.to_string(),
+                        EN.add_to_vault_button.to_string(),
                         Action::Vault(crate::vault::VaultAction::AddFile(k)),
                     ));
                 }
@@ -272,7 +272,7 @@ impl Faraday {
                     Action::File(FilePress::Rename(row)),
                 ));
                 out.push((
-                    fill(EN.file_menu_delete_from, &[self.medium.noun()]),
+                    fill(EN.file_menu_delete_from_medium, &[self.medium.noun()]),
                     Action::File(FilePress::StickDelete(k)),
                 ));
                 out.push(details);
@@ -448,7 +448,7 @@ impl Faraday {
                 .any(|(j, i)| j != k && i.name.eq_ignore_ascii_case(&to))
         {
             return Err(Some(fill(
-                EN.rename_taken_for,
+                EN.rename_taken_outbox,
                 &[self.medium.for_the(), &to],
             )));
         }
@@ -545,7 +545,7 @@ impl Faraday {
                 }
                 (fill(EN.rename_done, &[from, to]), true)
             }
-            Some(Unrenamed::Taken) => (fill(EN.rename_taken_on, &[to, noun]), false),
+            Some(Unrenamed::Taken) => (fill(EN.rename_taken_on_medium, &[to, noun]), false),
             Some(Unrenamed::SameVault) => (fill(EN.rename_same_vault, &[to, noun]), false),
             Some(Unrenamed::Failed(why)) => (fill(EN.rename_not_done, &[from, &why]), false),
         };

@@ -57,7 +57,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.entry_add_key,
             &[&fp_text(faraday_bip::keys::Fingerprint(fp)).to_string()],
         ),
-        (None, Some(name)) => fill(EN.entry_add_a_key_for, &[name]),
+        (None, Some(name)) => fill(EN.entry_add_key_title, &[name]),
         (None, None) if app.entry.form != crate::forms::Form::Words => {
             fill(EN.entry_add_a_key_n, &[app.entry.form.name()])
         }
@@ -329,7 +329,7 @@ pub(crate) fn keyed_status(
     taken: &[u16],
 ) -> (String, faraday_draw::Color) {
     let n = taken.len();
-    let count = || (fill(EN.keyed_status_words_2, &[&n.to_string()]), MUTED);
+    let count = || (fill(EN.keyed_status_word_count, &[&n.to_string()]), MUTED);
     if ![12, 15, 18, 21, 24].contains(&n) {
         return count();
     }
@@ -395,7 +395,15 @@ fn entry_status(
 fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> f32 {
     // An optional BIP-39 passphrase: the same words with another
     // passphrase are another key.
-    ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.entry_finish_bip_39);
+    ui.text_mid(
+        x,
+        y,
+        40.0,
+        13.0,
+        W::R,
+        MUTED,
+        EN.entry_finish_bip39_passphrase,
+    );
     let px = x + 150.0;
     let pw = 380.0f32.min(width - 150.0);
     let on = app.entry.on_passphrase;
@@ -443,7 +451,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         by,
         None,
         46.0,
-        EN.entry_finish_make_a,
+        EN.entry_finish_new_key,
         Style::Secondary,
         Action::KeyGen(None),
     );
@@ -454,7 +462,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         12.0,
         W::R,
         DIM,
-        EN.entry_finish_type_on,
+        EN.entry_finish_keys_hint,
     );
     by + 46.0
 }
@@ -560,7 +568,7 @@ pub(crate) fn entry_form(
         ui.caret(x + 12.0, y + 13.0, 18.0);
         match form {
             Form::Codex32 => crate::secret_text::SecretText::of("ms1…"),
-            _ => crate::secret_text::SecretText::of(EN.entry_form_words_of),
+            _ => crate::secret_text::SecretText::of(EN.entry_form_one_share_words),
         }
     } else {
         let mut t = crate::secret_text::SecretText::of(&app.entry.typed);
@@ -595,8 +603,8 @@ pub(crate) fn entry_form(
         y,
         &match lines.len() {
             0 => EN.entry_form_nothing.to_string(),
-            1 => EN.entry_form_1_in.to_string(),
-            n => fill(EN.entry_form_in, &[&n.to_string()]),
+            1 => EN.entry_form_count_one.to_string(),
+            n => fill(EN.entry_form_count_many, &[&n.to_string()]),
         },
     );
     y += 26.0;
@@ -641,7 +649,7 @@ pub(crate) fn entry_form(
         by,
         None,
         46.0,
-        EN.entry_form_add_this,
+        EN.entry_form_add_share,
         if app.entry.typed.trim().is_empty() {
             Style::Disabled
         } else {
@@ -661,7 +669,7 @@ pub(crate) fn entry_form(
     let aw = aw + sw + 8.0;
     let (label, action) = match flow {
         Some(next) => (EN.keygen_continue, next),
-        None => (EN.entry_form_make_the, Action::EntryRecover),
+        None => (EN.entry_form_make_key, Action::EntryRecover),
     };
     let mw = ui.button(
         x + aw + 8.0,

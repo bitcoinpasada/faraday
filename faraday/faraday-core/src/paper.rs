@@ -44,7 +44,7 @@ impl Faraday {
             return;
         }
         if !self.paper_key() {
-            return self.toast(EN.paper_this_key_has_no);
+            return self.toast(EN.paper_no_words_to_split);
         }
         let Some(draw) = self.fresh(b"seed xor") else {
             return self.toast(EN.paper_no_randomness);

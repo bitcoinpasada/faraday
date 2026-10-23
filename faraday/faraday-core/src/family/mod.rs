@@ -345,7 +345,7 @@ pub(crate) fn spend_button_on(r: &impl crate::glance::Reads, w: usize) -> (Strin
     if let Some(s) = app.spend.as_ref().filter(|s| s.wallet == Some(w)) {
         return (
             fill(
-                EN.family_carry_on_the,
+                EN.family_carry_on_spend,
                 &[
                     &s.signers.len().to_string(),
                     &app.spend_needed().to_string(),
@@ -356,7 +356,7 @@ pub(crate) fn spend_button_on(r: &impl crate::glance::Reads, w: usize) -> (Strin
     }
     let label = match r.psbt_for(w) {
         Some(_) => fill(EN.family_sign_the_psbt, &[app.medium.noun()]),
-        None => EN.family_spend_from_this.to_string(),
+        None => EN.family_spend_from_wallet.to_string(),
     };
     (label, Action::Family(FamilyAction::SpendFrom(w)))
 }
@@ -1038,10 +1038,10 @@ impl Faraday {
                 }
                 match crate::restore::merge(&sheets) {
                     Ok(m) if m.whole.is_some() && self.family_ready() => {
-                        fill(EN.family_part_read_the, &[&k.to_string()])
+                        fill(EN.family_part_read_rebuilt, &[&k.to_string()])
                     }
                     Ok(m) => fill(
-                        EN.family_part_read_of,
+                        EN.family_part_read_progress,
                         &[&k.to_string(), &m.have.len().to_string(), &m.n.to_string()],
                     ),
                     Err(e) => e,
@@ -1685,9 +1685,9 @@ impl Faraday {
 /// A single-key kind's name, as the words route shows it.
 pub fn kind_name(kind: NewKind) -> &'static str {
     match kind {
-        NewKind::NativeSegwit => EN.family_native_segwit_2,
+        NewKind::NativeSegwit => EN.family_native_segwit_kind,
         NewKind::Taproot => EN.family_taproot,
-        NewKind::NestedSegwit => EN.family_nested_segwit_2,
+        NewKind::NestedSegwit => EN.family_nested_segwit_kind,
         NewKind::Legacy => EN.family_legacy,
         _ => "",
     }

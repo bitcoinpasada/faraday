@@ -103,7 +103,7 @@ fn value_row(
 /// Step 1: the stick Faraday started from. Returns its height.
 fn source(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    let label = fill(EN.upgrade_insert_the, &[app.medium.noun()]);
+    let label = fill(EN.upgrade_insert_medium, &[app.medium.noun()]);
     y += heading(
         ui,
         x,
@@ -196,7 +196,7 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
         ix,
         y,
         iw,
-        EN.upgrade_on_it,
+        EN.upgrade_target_contents,
         &version(t.release.as_deref()),
         TEXT,
     );
@@ -214,7 +214,7 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
         Fit::Fits => None,
         Fit::Newer => Some((EN.upgrade_newer_than.to_string(), WARN)),
         Fit::Dev => Some((EN.upgrade_writes_a_dev.to_string(), WARN)),
-        Fit::Same => Some((EN.upgrade_already_this.to_string(), MUTED)),
+        Fit::Same => Some((EN.upgrade_same_version.to_string(), MUTED)),
         Fit::TooSmall(has, needs) => Some((
             fill(
                 EN.upgrade_boot_partition,
@@ -276,7 +276,7 @@ fn done(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32, 
     );
     let still_in = u.parts.iter().any(|p| &p.id == id);
     if still_in {
-        let line = fill(EN.upgrade_remove_the, &[app.medium.noun()]);
+        let line = fill(EN.upgrade_remove_medium, &[app.medium.noun()]);
         y += value_row(ui, ix, y, iw, &line, "", MUTED);
     }
     y += 12.0;

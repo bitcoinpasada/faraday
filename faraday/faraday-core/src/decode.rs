@@ -95,7 +95,7 @@ fn sequence_text(n: u32) -> String {
     let what = if n == 0xffff_ffff {
         EN.decode_final
     } else if n == 0xffff_fffe {
-        EN.decode_locktime_on
+        EN.decode_locktime_no_rbf
     } else if n & (1 << 31) == 0 && n & (1 << 22) != 0 {
         EN.decode_relative_time
     } else if n & (1 << 31) == 0 {
@@ -236,7 +236,7 @@ impl Faraday {
                     && let Some(tx) = s.spend.finished.as_ref()
                 {
                     let prevouts = decode::prevouts_of(&s.spend.psbt);
-                    let source = fill(EN.act_finished_from, &[&s.spend.source.to_string()]);
+                    let source = fill(EN.act_finished_from_source, &[&s.spend.source.to_string()]);
                     let decoded = decode::decode(c, tx, &prevouts, &self.session, &source);
                     self.decode = Some(DecodeState {
                         decoded,

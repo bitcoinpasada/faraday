@@ -121,7 +121,7 @@ fn receive(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y,
         None,
         44.0,
-        EN.transfer_scan_with,
+        EN.transfer_scan_camera,
         Style::Primary,
         Action::TransferReceive,
     );

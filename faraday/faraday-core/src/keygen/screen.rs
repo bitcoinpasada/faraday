@@ -207,7 +207,7 @@ fn entries_title(k: &KeyGen) -> String {
     if k.source == Some(Source::Mix) {
         let n = k.mix_list().len();
         fill(
-            EN.keygen_source_of,
+            EN.keygen_source_count,
             &[what, &((k.mix_at + 1).min(n)).to_string(), &n.to_string()],
         )
     } else {
@@ -225,7 +225,7 @@ fn asks(k: &KeyGen, s: Source) -> String {
             &[&CoinFlips::needed(st).to_string()],
         ),
         Source::Cards => fill(
-            EN.keygen_cards_from_a,
+            EN.keygen_cards_source,
             &[&CardDraws::needed(st).to_string()],
         ),
         Source::Hex => fill(EN.keygen_digits_made, &[&st.hex_digits().to_string()]),
@@ -234,7 +234,7 @@ fn asks(k: &KeyGen, s: Source) -> String {
             &[&CameraNoise::needed(st).to_string()],
         ),
         Source::Mix => EN.keygen_two_or_more.to_string(),
-        Source::Device => fill(EN.keygen_getrandom_2, &[EN.create_device_os]),
+        Source::Device => fill(EN.keygen_device_source, &[EN.create_device_os]),
         Source::SeedXor => String::new(),
     }
 }
@@ -258,7 +258,7 @@ fn summary(k: &KeyGen, s: u8) -> String {
         kstep::TYPED => match k.mnemonic.as_ref() {
             _ if !k.done[usize::from(kstep::TYPED)] => EN.keygen_not_yet.to_string(),
             Some(m) => fill(EN.keygen_words_n, &[&m.word_count().to_string()]),
-            None => fill(EN.entry_form_in, &[&k.parts_in.to_string()]),
+            None => fill(EN.entry_form_count_many, &[&k.parts_in.to_string()]),
         },
         kstep::LENGTH if k.slip39 => fill(
             EN.keygen_slip_39_of_shares,
@@ -272,7 +272,7 @@ fn summary(k: &KeyGen, s: u8) -> String {
         kstep::SOURCE => match k.source {
             Some(Source::Dice) => k.way().map(way_name).unwrap_or_default(),
             Some(Source::Coins) if k.by_die => {
-                fill(EN.keygen_read_from_a, &[source_name(Source::Coins)])
+                fill(EN.keygen_coins_from_die, &[source_name(Source::Coins)])
             }
             Some(Source::Mix) => k
                 .mix_list()
@@ -288,17 +288,20 @@ fn summary(k: &KeyGen, s: u8) -> String {
                 EN.keygen_complete.to_string()
             } else {
                 let (have, need) = k.progress();
-                fill(EN.keygen_of, &[&have.to_string(), &need.to_string()])
+                fill(
+                    EN.keygen_entry_count,
+                    &[&have.to_string(), &need.to_string()],
+                )
             }
         }
         kstep::KEY => match k.fingerprint.filter(|_| k.locked) {
-            None => EN.keygen_not_locked_in.to_string(),
+            None => EN.keygen_not_locked.to_string(),
             Some(fp) => {
                 let fp = fp_text(faraday_bip::keys::Fingerprint(fp));
                 match (k.asks_passphrase(), k.with_passphrase) {
-                    (false, _) => fill(EN.keygen_locked_in, &[&fp.to_string()]),
+                    (false, _) => fill(EN.keygen_locked_summary, &[&fp.to_string()]),
                     (true, true) => fill(EN.keygen_passphrase_set, &[&fp.to_string()]),
-                    (true, false) => fill(EN.keygen_passphrase_not, &[&fp.to_string()]),
+                    (true, false) => fill(EN.keygen_locked_no_passphrase, &[&fp.to_string()]),
                 }
             }
         },
@@ -323,7 +326,7 @@ fn summary(k: &KeyGen, s: u8) -> String {
         _ => match (k.fingerprint, k.done[usize::from(kstep::QUIZ)]) {
             (Some(fp), true) => fp_text(faraday_bip::keys::Fingerprint(fp)),
             _ => match k.quiz.as_ref().map(|q| q.progress()) {
-                Some((d, n)) => fill(EN.keygen_of, &[&d.to_string(), &n.to_string()]),
+                Some((d, n)) => fill(EN.keygen_entry_count, &[&d.to_string(), &n.to_string()]),
                 None => EN.keygen_not_yet.to_string(),
             },
         },
@@ -518,7 +521,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             cy,
             w,
             shows,
-            Some((EN.keygen_lock_in, Action::KLock)),
+            Some((EN.keygen_lock_button, Action::KLock)),
         );
         if !ui.compact {
             ui.text(x, cy, 12.0, W::R, DIM, EN.keygen_enter_locks);
@@ -599,7 +602,7 @@ const SLIP39_FACTS: [&str; 7] = [
     EN.keygen_the_split_s,
     EN.keygen_a_share_cannot,
     EN.keygen_shares_restore,
-    EN.keygen_a_share_is_20,
+    EN.keygen_slip39_share_length,
 ];
 
 fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
@@ -838,7 +841,7 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
     let title = match g {
         Group::ByHand => EN.keygen_your_own_entropy,
         Group::Computed => EN.keygen_your_entropy,
-        Group::Device => EN.keygen_made_by_this,
+        Group::Device => EN.keygen_device_group,
     };
     if ui.compact {
         let mut cy = y;
@@ -1003,7 +1006,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             W::S,
             TEXT,
             &fill(
-                EN.keygen_of_2,
+                EN.keygen_entry_count_unit,
                 &[&have.to_string(), &need.to_string(), unit],
             ),
         );
@@ -1151,7 +1154,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 );
             }
             let deck = fill(
-                EN.keygen_deck_drawn_from,
+                EN.keygen_deck_status,
                 &[&k.cards.deck().to_string(), &k.cards.in_deck().to_string()],
             );
             if ui.compact {
@@ -1197,8 +1200,8 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             );
             let state = match k.camera.last() {
                 Some(st) => fill(EN.keygen_luma_values, &[&st.distinct.to_string()]),
-                None if k.frame.is_some() => EN.keygen_camera_on.to_string(),
-                None => EN.keygen_waiting_for.to_string(),
+                None if k.frame.is_some() => EN.keygen_camera_active.to_string(),
+                None => EN.keygen_waiting_camera.to_string(),
             };
             ui.text_mid(x + bw + 16.0, cy, 48.0, 13.0, W::R, MUTED, &state);
             cy += 60.0;
@@ -1259,11 +1262,11 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return cy - y;
     }
     let hint = match active {
-        Some(Source::Dice) => EN.keygen_type_1_to_6,
-        Some(Source::Coins) if k.by_die => EN.keygen_type_1_to_6,
+        Some(Source::Dice) => EN.keygen_dice_keys_hint,
+        Some(Source::Coins) if k.by_die => EN.keygen_dice_keys_hint,
         Some(Source::Coins) => EN.keygen_type_h_or_t,
         Some(Source::Cards) => EN.keygen_type_the_rank,
-        Some(Source::Hex) => EN.keygen_type_09_and,
+        Some(Source::Hex) => EN.keygen_hex_keys_hint,
         Some(Source::Camera) => EN.keygen_space_takes,
         _ => EN.keygen_enter_continues,
     };
@@ -1316,7 +1319,7 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += 46.0;
     if k.active() == Some(Source::Coins) {
         let line = if k.by_die {
-            EN.keygen_each_roll_is
+            EN.keygen_dice_flip_rule
         } else {
             EN.keygen_heads_is_1_tails
         };
@@ -1347,7 +1350,7 @@ fn typed_box(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     ui.hit(x, y, w, 40.0, Action::KTyping(true));
     let what = match k.active() {
         Some(Source::Coins) if !k.by_die => EN.keygen_h_or_1_for_heads,
-        _ => EN.keygen_faces_1_to_6,
+        _ => EN.keygen_dice_faces_caption,
     };
     ui.text(x, y + 48.0, 12.0, W::R, DIM, what);
     let line = never_below(app, ui, x, y + 64.0, w);
@@ -1495,7 +1498,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += 24.0;
     ui.text(x, cy, 12.0, W::R, MUTED, crate::wordlist::PRESS_A_WORD);
     cy += 20.0;
-    cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, EN.keygen_rolls_1_to_5) + 12.0;
+    cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, EN.keygen_dice_word_rule) + 12.0;
     let per = faraday_entropy::DICE_WORD_ROLLS;
     let faces = faraday_entropy::DICE_WORD_FACES;
     let rolls = k.dice.rolls();
@@ -1567,7 +1570,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     W::R,
                     MUTED,
                     &fill(
-                        EN.keygen_word_of_the,
+                        EN.keygen_word_number,
                         &[&i.to_string(), &(i + 1).to_string()],
                     ),
                 );
@@ -2086,7 +2089,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else if q.state() == QuizState::Passed {
             (fill(EN.keygen_all_words_right, &[&n.to_string()]), OK)
         } else {
-            (EN.keygen_skipped_the.to_string(), WARN)
+            (EN.keygen_quiz_skipped.to_string(), WARN)
         };
         cy = stat(ui, x, cy, EN.keygen_quiz, &said, tone);
         if let Some(e) = &k.note {
@@ -2108,7 +2111,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     let progress = if k.slip39 {
         fill(
-            EN.keygen_share_of_of,
+            EN.keygen_quiz_progress,
             &[
                 &(k.quiz_share + 1).to_string(),
                 &k.shares.len().to_string(),
@@ -2177,7 +2180,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += 52.0;
     }
     if k.skip_ask {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, EN.keygen_without_the) + 10.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, EN.keygen_quiz_skip_warning) + 10.0;
         ui.button(
             x,
             cy,
@@ -2213,9 +2216,9 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         W::R,
         DIM,
         if k.slip39 {
-            EN.keygen_type_1_to_4_to
+            EN.keygen_quiz_keys_add
         } else {
-            EN.keygen_type_1_to_4
+            EN.keygen_quiz_keys_done
         },
     );
     cy + 24.0 - y

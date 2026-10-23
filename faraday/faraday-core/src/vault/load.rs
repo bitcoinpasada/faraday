@@ -462,7 +462,7 @@ impl Faraday {
             let loaded = fp.as_deref().is_some_and(held);
             let also_line = match also.as_slice() {
                 [] => None,
-                [one] => Some(fill(EN.load_sheet_also_in, &[one])),
+                [one] => Some(fill(EN.load_sheet_also_in_wallet, &[one])),
                 [one, two] => Some(fill(EN.load_sheet_also_in_two, &[one, two])),
                 more => Some(fill(EN.load_sheet_also_in_n, &[&more.len().to_string()])),
             };

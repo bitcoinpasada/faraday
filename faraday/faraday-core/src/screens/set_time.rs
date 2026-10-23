@@ -89,7 +89,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             None,
             46.0,
-            EN.set_time_keep_this,
+            EN.set_time_keep_button,
             Style::Secondary,
             Action::SetTimeKeep,
         ) + 10.0;
@@ -153,7 +153,11 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
         Action::SetTimeSet,
     )];
     if app.clock_now().is_some() {
-        items.push((EN.set_time_keep_this, Style::Secondary, Action::SetTimeKeep));
+        items.push((
+            EN.set_time_keep_button,
+            Style::Secondary,
+            Action::SetTimeKeep,
+        ));
     }
     items.push((EN.set_time_back, Style::Ghost, Action::SetTimeBack));
     wrap_buttons(ui, x, y, w, 44.0, &items);

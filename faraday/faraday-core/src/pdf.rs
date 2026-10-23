@@ -315,7 +315,7 @@ fn wallet_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
     y += 30.0;
     p.text(MARGIN, y, 11.0, Font::Sans, get(f, "shape").unwrap_or(""));
     y += 18.0;
-    p.text(MARGIN, y, 10.0, Font::Sans, EN.pdf_xpubs_only_this);
+    p.text(MARGIN, y, 10.0, Font::Sans, EN.pdf_xpubs_only_note);
     y += 28.0;
     let descriptor = get(f, "descriptor").unwrap_or("");
     let qr_side = 190.0;
@@ -347,7 +347,11 @@ fn wallet_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
         y += 13.0;
     }
     y += 30.0;
-    for label in [EN.pdf_written_on, EN.pdf_kept_at, EN.pdf_goes_with_seed] {
+    for label in [
+        EN.pdf_written_on_label,
+        EN.pdf_kept_at_label,
+        EN.pdf_goes_with_seed,
+    ] {
         p.text(MARGIN, y, 10.0, Font::Sans, label);
         p.line(
             MARGIN + 130.0,
@@ -467,7 +471,7 @@ fn share_sheet(c: &Compute, f: &[(String, String)]) -> Vec<u8> {
 fn blank_sheet(c: &Compute, f: &[(String, String)]) -> Result<Vec<u8>, String> {
     let words: usize = get(f, "words").and_then(|w| w.parse().ok()).unwrap_or(24);
     if words != 12 && words != 24 {
-        return Err(EN.pdf_the_template_is.into());
+        return Err(EN.pdf_template_word_count.into());
     }
     // What is copied onto the sheet: a file without a `copy:` line, or
     // with none of its words, reads as both.

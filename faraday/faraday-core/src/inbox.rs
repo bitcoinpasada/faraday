@@ -56,7 +56,7 @@ impl SeedSource {
             SeedSource::Words(k) | SeedSource::WordsWith(k, _) => {
                 app.inbox.get(*k).map_or(String::new(), |i| i.name.clone())
             }
-            SeedSource::Slip39(ks) => fill(EN.inbox_slip_39_shares_2, &[&ks.len().to_string()]),
+            SeedSource::Slip39(ks) => fill(EN.inbox_slip39_share_count, &[&ks.len().to_string()]),
             SeedSource::Codex32(ks) if ks.len() == 1 => "codex32".to_string(),
             SeedSource::Codex32(ks) => fill(EN.inbox_codex32_shares, &[&ks.len().to_string()]),
             SeedSource::Loaded => EN.inbox_loaded.to_string(),
@@ -790,7 +790,7 @@ impl Faraday {
                     }
                     None => found.waiting.push(Waiting {
                         line: fill(
-                            EN.inbox_split_sheets_of,
+                            EN.inbox_split_sheets_progress,
                             &[&m.have.len().to_string(), &m.n.to_string()],
                         ),
                         backup: None,
@@ -1319,7 +1319,10 @@ impl Faraday {
             self.inbox_load_named();
             self.potential = None;
             self.sheet = None;
-            self.toast(&fill(EN.inbox_loaded_with_its, &[&fp_text(fp).to_string()]));
+            self.toast(&fill(
+                EN.inbox_loaded_with_wallet,
+                &[&fp_text(fp).to_string()],
+            ));
             return;
         }
         // Else a single-key wallet of the kind chosen.

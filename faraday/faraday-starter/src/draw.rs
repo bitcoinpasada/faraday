@@ -649,7 +649,7 @@ fn on_it(d: &crate::api::Disk) -> String {
     };
     let files = d.volumes.iter().any(|v| v.files);
     let tail = match (files, n == 1) {
-        (true, true) => S.starter_on_files_it,
+        (true, true) => S.starter_volume_has_files,
         (true, false) => S.starter_on_files_them,
         (false, _) => S.starter_on_no_files,
     };
@@ -712,7 +712,7 @@ fn state_text(state: &State) -> String {
 
 fn secure_boot_text(on: Option<bool>) -> String {
     match on {
-        Some(true) => S.starter_secure_boot_on,
+        Some(true) => S.starter_secure_boot_enabled,
         Some(false) => S.starter_secure_boot_off,
         None => S.starter_secure_boot_unknown,
     }
@@ -1038,7 +1038,7 @@ fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0 + title(starter, ui, x, y0);
     let target = target_of(starter);
     if target == Target::Pi {
-        y += line(ui, x, y, w, S.starter_pi_for, MUTED);
+        y += line(ui, x, y, w, S.starter_pi_supported_boards, MUTED);
         y += line(ui, x, y, w, S.starter_pi_cameras, MUTED);
     }
     if starter.image(target).is_none() {
@@ -1220,7 +1220,7 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     };
     y += value_row(ui, x, y, w, S.starter_serial, serial, TEXT);
     if let Some(d) = disk {
-        y += value_row(ui, x, y, w, S.starter_on_it, &on_it(d), TEXT);
+        y += value_row(ui, x, y, w, S.starter_disk_contents_row, &on_it(d), TEXT);
     }
     let writes = match (mode, target) {
         (Mode::KeepData, _) => S.starter_mode_keep,
@@ -1302,9 +1302,12 @@ fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ui.fill(x, y, (w * t).max(10.0), 10.0, 5.0, ACCENT);
     }
     y += 24.0;
-    let of = fill(S.starter_of, &[&size_text(done), &size_text(total)]);
+    let of = fill(
+        S.starter_progress_bytes,
+        &[&size_text(done), &size_text(total)],
+    );
     let s = match stage {
-        WriteStage::Writing => fill(S.starter_written_of, &[&of]),
+        WriteStage::Writing => fill(S.starter_progress_writing, &[&of]),
         WriteStage::ReadingBack => fill(S.starter_reading_back, &[&of]),
     };
     y + line(ui, x, y, w, &s, TEXT)
@@ -1684,7 +1687,7 @@ fn bitlocker_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
     let mut y = y0;
     let on = b.protection == crate::api::Protection::On;
     let state = if on {
-        S.starter_bitlocker_on.to_string()
+        S.starter_bitlocker_enabled.to_string()
     } else {
         match b.starts_left {
             Some(0) => S.starter_bitlocker_suspended_until.to_string(),
@@ -1727,7 +1730,7 @@ fn bitlocker_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
             y,
             w,
             &fill(
-                S.starter_bitlocker_suspend_for,
+                S.starter_bitlocker_suspend_note,
                 &[&crate::api::SUSPEND_STARTS.to_string()],
             ),
             MUTED,
@@ -1881,7 +1884,14 @@ fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y += 12.0;
     }
     if let Some(Ok(place)) = &starter.install_result {
-        y += line(ui, x, y, w, &fill(S.starter_installed_in, &[place]), OK) + 8.0;
+        y += line(
+            ui,
+            x,
+            y,
+            w,
+            &fill(S.starter_install_done_path, &[place]),
+            OK,
+        ) + 8.0;
         return y + buttons(
             ui,
             x,

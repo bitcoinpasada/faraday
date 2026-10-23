@@ -53,7 +53,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::Message => EN.compact_sign_a_message,
         Screen::CheckMessage => EN.compact_check_a_message,
         Screen::Create => EN.compact_make_a_new,
-        Screen::Restore => EN.compact_restore_an,
+        Screen::Restore => EN.compact_restore_wallet,
         Screen::Settings => EN.compact_settings,
         Screen::SetTime => EN.compact_set_the_time,
         Screen::Codes => EN.compact_totp_codes,
@@ -378,7 +378,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (_, v) => (
             OK,
             fill(
-                EN.compact_open_3,
+                EN.compact_vaults_open,
                 &[
                     &v.to_string(),
                     (if v == 1 {
@@ -425,8 +425,8 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }
         let mut sx = M + 4.0;
         for (i, label) in [
-            EN.compact_bring_in,
-            EN.compact_open_2,
+            EN.compact_bring_in_button,
+            EN.compact_open_button,
             EN.compact_work,
             EN.compact_write_out,
         ]
@@ -997,7 +997,7 @@ impl Faraday {
     /// what is attached, by its label or by how many.
     pub fn home_files_line(&self) -> String {
         let sticks = match self.sticks.len() {
-            0 => fill(EN.compact_no, &[self.medium.noun()]),
+            0 => fill(EN.compact_no_medium, &[self.medium.noun()]),
             1 => self.sticks[0].label.clone(),
             k => format!("{k} {}", self.medium.nouns()),
         };

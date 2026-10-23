@@ -222,7 +222,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         }
         let mut sx = 24.0;
         for (i, label) in [
-            EN.sidebar_bring_in,
+            EN.sidebar_bring_in_button,
             EN.sidebar_open,
             EN.sidebar_work,
             EN.sidebar_write_out,
@@ -360,7 +360,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         let w = &app.session.wallets[i];
         let (m, n) = Session::quorum(w);
         let shape = if n > 1 {
-            fill(EN.sidebar_of, &[&m.to_string(), &n.to_string()])
+            fill(EN.sidebar_count, &[&m.to_string(), &n.to_string()])
         } else {
             EN.sidebar_single_key.to_string()
         };

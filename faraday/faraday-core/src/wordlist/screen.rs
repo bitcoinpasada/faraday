@@ -89,7 +89,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let num_w = ui.measure(14.0, W::M, "0000");
     let code_w = ui.measure(14.0, W::M, &st.list.code(0));
     let (nx, cx, wx) = (bx + 12.0, bx + 24.0 + num_w, bx + 48.0 + num_w + code_w);
-    ui.text(nx, cy, 12.0, W::S, MUTED, EN.wordlist_no);
+    ui.text(nx, cy, 12.0, W::S, MUTED, EN.wordlist_number_column);
     ui.text(cx, cy, 12.0, W::S, MUTED, st.list.code_heading());
     ui.text(wx, cy, 12.0, W::S, MUTED, EN.wordlist_word);
     cy += 22.0;

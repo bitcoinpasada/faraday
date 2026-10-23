@@ -328,7 +328,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Create filled from this wallet (`docs/history/NEW-WALLET.md` §16.2).
     if crate::create::NewKind::of(wlt.policy()).is_some_and(|k| !k.threshold()) {
         buttons.push((
-            EN.wallets_new_wallet_from,
+            EN.wallets_new_wallet_button,
             Style::Secondary,
             Action::NewWalletFrom(app.wallet),
         ));
@@ -341,7 +341,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ));
     }
     buttons.push((
-        EN.compact_remove_from,
+        EN.compact_remove_from_session,
         Style::Ghost,
         Action::RemoveWallet(app.wallet),
     ));
@@ -432,7 +432,7 @@ fn silent_card(
                 Action::QrWallet(app.wallet),
             ),
             (
-                EN.compact_remove_from,
+                EN.compact_remove_from_session,
                 Style::Ghost,
                 Action::RemoveWallet(app.wallet),
             ),
@@ -444,7 +444,7 @@ fn silent_card(
 /// What explains a page, after its controls and behind a tap, as a
 /// step's is. Returns its height.
 pub(crate) fn about(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
-    crate::flow::about(ui, x, y, w, EN.compact_about_this, crate::ABOUT_PAGE, text)
+    crate::flow::about(ui, x, y, w, EN.compact_about_page, crate::ABOUT_PAGE, text)
 }
 
 /// Reports how tall the page is, so it scrolls.
@@ -512,7 +512,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .entry
         .wallet
         .and_then(|w| app.session.wallets.get(w))
-        .map(|wl| fill(EN.compact_for, &[&wl.name.to_string()]));
+        .map(|wl| fill(EN.compact_entry_for_wallet, &[&wl.name.to_string()]));
     let wanted = app.entry.wanted.map(|fp| {
         fill(
             EN.compact_for_key,
@@ -854,9 +854,9 @@ pub(crate) fn entry_form(
         x,
         y,
         &match lines.len() {
-            0 => EN.compact_nothing_in.to_string(),
-            1 => EN.compact_1_in.to_string(),
-            n => fill(EN.compact_in, &[&n.to_string()]),
+            0 => EN.compact_nothing_in_yet.to_string(),
+            1 => EN.compact_count_one.to_string(),
+            n => fill(EN.compact_count_many, &[&n.to_string()]),
         },
     );
     for l in &lines {

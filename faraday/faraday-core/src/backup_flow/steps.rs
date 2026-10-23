@@ -1927,7 +1927,7 @@ impl Faraday {
         for &o in &opens {
             let vid = self.vaults.open[o].id;
             if !self.vaults.store().fits(vid, &[], &[built.record.size()]) {
-                return self.toast(FEN.vaults_that_does_not);
+                return self.toast(FEN.vaults_slot_too_small);
             }
         }
         for &o in &opens {
@@ -2020,7 +2020,7 @@ impl Faraday {
                 .store()
                 .fits(self.vaults.open[o].id, &[], &[size])
             {
-                return self.toast(FEN.vaults_that_does_not);
+                return self.toast(FEN.vaults_slot_too_small);
             }
         }
         for &v in &added {
@@ -2987,7 +2987,7 @@ impl Faraday {
                     &[&label, &BackupFlow::vault_name(*v), a, b],
                 )
             }
-            Problem::BoundTo(t) => fill(FEN.backup_flow_bound_to, &[&target(t)]),
+            Problem::BoundTo(t) => fill(FEN.backup_flow_bound_place, &[&target(t)]),
             Problem::NotRead(t) => {
                 // On a device, by the number of the stick it should be.
                 let n = f.and_then(|f| f.slots.iter().position(|s| s.target == *t));
@@ -3007,7 +3007,7 @@ impl Faraday {
                     Some(p) => BackupFlow::place_name(p),
                     None => target(t),
                 };
-                fill(FEN.backup_flow_has_files_of, &[m, &place])
+                fill(FEN.backup_flow_other_files, &[m, &place])
             }
             Problem::NotChecked => {
                 let label = f
@@ -3070,7 +3070,7 @@ impl BackupFlow {
                 &[medium, &self.target_vaults(t)],
             ),
             t if t.vault_stick() => fill(
-                FEN.backup_flow_stick_for,
+                FEN.backup_flow_vault_stick,
                 &[medium, &self.target_vaults(t), &self.target_place(t)],
             ),
             Target::Files => fill(FEN.backup_flow_files_stick, &[medium]),
@@ -3078,7 +3078,7 @@ impl BackupFlow {
             // A place's sticks of files, each named alike: the pill's
             // number tells them apart (§18).
             Target::PlaceFiles(p) | Target::Another(p, None, _) => {
-                fill(FEN.backup_flow_files_at, &[&BackupFlow::place_name(*p)])
+                fill(FEN.backup_flow_place_files, &[&BackupFlow::place_name(*p)])
             }
             _ => String::new(),
         }

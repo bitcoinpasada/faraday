@@ -153,7 +153,7 @@ impl Faraday {
         };
         let name = self.vaults.open[v].name.clone();
         self.toast(&fill(
-            EN.vaults_loaded_from,
+            EN.vaults_loaded_note,
             &[&fp_text(Fingerprint(fp)), &name],
         ));
         if let Some(c) = self.create.as_mut()
@@ -328,7 +328,7 @@ impl Faraday {
         }
         f.xpubs.get(slot)?.as_ref()?;
         Some(fill(
-            EN.create_needs_xpub_at,
+            EN.create_needs_xpub_account,
             &[&(slot + 1).to_string(), &c.account.to_string()],
         ))
     }

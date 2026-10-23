@@ -366,7 +366,7 @@ impl Faraday {
             CopyCheck::WrongWord(k) => {
                 let line = if off_list {
                     fill(
-                        EN.forms_word_is_not_on,
+                        EN.forms_word_not_in_list,
                         &[&k.to_string(), forms::language_name(key_language(self))],
                     )
                 } else {

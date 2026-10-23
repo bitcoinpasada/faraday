@@ -485,7 +485,7 @@ impl Faraday {
             .ok_or_else(|| EN.seeds_type_a_derivation.to_string())?;
         let mut keys = Vec::new();
         for fp in self.seeds_here(s) {
-            let key = self.session_key(fp).ok_or(EN.seeds_a_seed_is_no)?;
+            let key = self.session_key(fp).ok_or(EN.seeds_seed_unloaded)?;
             keys.push(self.session.keys.text_at(c, key, &path)?);
         }
         if keys.is_empty() {
@@ -514,7 +514,7 @@ impl Faraday {
                 None if c.trim().is_empty() => {
                     return Err(fill(EN.seeds_key_has_no_account, &[&at.to_string()]));
                 }
-                None => return Err(fill(EN.seeds_key_is_not_an, &[&at.to_string()])),
+                None => return Err(fill(EN.seeds_not_account_key, &[&at.to_string()])),
             }
         }
         if keys.len() != s.n.max(1) {
@@ -689,7 +689,7 @@ impl Faraday {
         };
         if n > 0 {
             self.toast(&fill(
-                EN.seeds_loaded_from,
+                EN.seeds_loaded_from_vault,
                 &[&want.to_string(), &self.vaults.open[v].name.to_string()],
             ));
         }

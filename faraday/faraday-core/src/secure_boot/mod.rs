@@ -203,8 +203,8 @@ impl Faraday {
             return;
         };
         let said = match faraday_sb::pe::check(&item.bytes, db_cert) {
-            Ok(Check::Valid) => EN.secureboot_signed_by_this,
-            Ok(Check::OtherSigner) => EN.secureboot_signed_by,
+            Ok(Check::Valid) => EN.secureboot_signed_by_vault,
+            Ok(Check::OtherSigner) => EN.secureboot_signed_by_other,
             Ok(Check::Altered) => EN.secureboot_changed,
             Ok(Check::Unsigned) => EN.secureboot_not_signed,
             Ok(Check::Unreadable) => EN.secureboot_its_signature,

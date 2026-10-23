@@ -292,7 +292,7 @@ impl Faraday {
                 if s.pass.as_str() != s.pass2.as_str() {
                     s.error = Some(EN.seed_read_the_two_passphrases.to_string());
                 } else if s.pass.is_empty() {
-                    s.error = Some(EN.seed_read_type_the.to_string());
+                    s.error = Some(EN.seed_read_type_passphrase.to_string());
                 } else {
                     self.seed_read_choose(true);
                 }
@@ -412,7 +412,7 @@ impl Faraday {
                 .session
                 .keys
                 .find(plain)
-                .map(|k| fill(EN.seed_read_passphrase_3, &[&k.label.to_string()]))
+                .map(|k| fill(EN.seed_read_key_passphrase, &[&k.label.to_string()]))
                 .unwrap_or_default();
             match source.add(&c, &mut self.session.keys, pass, &label) {
                 Ok(fp) => fp,
@@ -529,7 +529,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let skip = s.family == Some(ForFamily::Intake) && s.wallet.is_some();
     let cancel = if skip {
         (
-            EN.seed_read_not_this,
+            EN.seed_read_not_this_one,
             Style::Ghost,
             Action::SeedRead(Choice::Skip),
         )
@@ -539,12 +539,12 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let mut items: Vec<(&str, Style, Action)> = if s.adding {
         vec![
             (
-                EN.seed_read_use_with,
+                EN.seed_read_use_passphrase,
                 use_with,
                 Action::SeedRead(Choice::WithPass),
             ),
             (
-                EN.seed_read_without_a,
+                EN.seed_read_no_passphrase,
                 Style::Secondary,
                 Action::SeedRead(Choice::Plain),
             ),
@@ -573,7 +573,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let body = |ui: &mut Ui, x: f32, y: f32, iw: f32| -> f32 {
         let mut cy = y;
         if let Some(fp) = s.plain {
-            cy += key_line(ui, x, cy, iw, EN.seed_read_without_a, fp);
+            cy += key_line(ui, x, cy, iw, EN.seed_read_no_passphrase, fp);
         }
         if s.adding {
             cy += 6.0;
@@ -582,7 +582,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 x,
                 cy,
                 iw,
-                EN.seed_read_passphrase_2,
+                EN.seed_read_passphrase_label,
                 &s.pass,
                 (
                     s.focus == Some(0),
@@ -605,7 +605,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             );
             cy += crate::screens::never_real_seed(app, ui, x, cy, iw);
             if let Some(fp) = with {
-                cy += key_line(ui, x, cy, iw, EN.seed_read_with_this, fp);
+                cy += key_line(ui, x, cy, iw, EN.seed_read_with_passphrase, fp);
             } else if differ {
                 cy += ui.wrap(
                     x,

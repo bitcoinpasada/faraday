@@ -73,7 +73,7 @@ fn guide(s: u8) -> &'static str {
     match s {
         vstep::KEY => EN.vanity_the_key_whose,
         vstep::DIAL => EN.vanity_a_search_tries,
-        vstep::SCRIPT => EN.vanity_the_kind_of,
+        vstep::SCRIPT => EN.vanity_guide_kind,
         vstep::PREFIX => EN.vanity_type_the_characters,
         _ => EN.vanity_the_search_runs,
     }
@@ -90,7 +90,10 @@ fn summary(app: &View, v: &VanityState, s: u8) -> String {
         }
         vstep::RUN => match (&v.grind.find, v.running) {
             (Some(f), _) => f.address.as_str().to_string(),
-            (None, true) => fill(EN.vanity_tried_2, &[&thousands(v.grind.tested).to_string()]),
+            (None, true) => fill(
+                EN.vanity_tried_count,
+                &[&thousands(v.grind.tested).to_string()],
+            ),
             (None, false) => String::new(),
         },
         _ => String::new(),
@@ -194,7 +197,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                             W::R,
                             TEXT,
                             &fill(
-                                EN.vanity_account_of_this,
+                                EN.vanity_found_account,
                                 &[
                                     &f.account.to_string(),
                                     &thousands(v.grind.tested).to_string(),
@@ -209,8 +212,8 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                         } else {
                             "•".repeat(f.suffix.as_str().len())
                         };
-                        ui.text_mid(x, cy, 36.0, 13.0, W::R, TEXT, EN.vanity_added_to_the);
-                        let lw = ui.measure(13.0, W::R, EN.vanity_added_to_the);
+                        ui.text_mid(x, cy, 36.0, 13.0, W::R, TEXT, EN.vanity_added_to_passphrase);
+                        let lw = ui.measure(13.0, W::R, EN.vanity_added_to_passphrase);
                         ui.text_mid(x + lw + 10.0, cy, 36.0, 15.0, W::M, TEXT, &shown);
                         ui.button(
                             x + w - 90.0,
@@ -267,7 +270,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     14.0,
                     W::S,
                     ACCENT,
-                    &fill(EN.vanity_searching_for, &[v.grind.prefix.as_str()]),
+                    &fill(EN.vanity_searching_prefix, &[v.grind.prefix.as_str()]),
                 );
                 cy += 26.0;
                 ui.text(
@@ -306,7 +309,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     cy,
                     None,
                     40.0,
-                    &fill(EN.vanity_search_for, &[v.grind.prefix.as_str()]),
+                    &fill(EN.vanity_search_prefix, &[v.grind.prefix.as_str()]),
                     Style::Primary,
                     va(V::Start),
                 );

@@ -30,7 +30,10 @@ pub(crate) fn more_ways(
     for (v, r, fp) in app.vault_seeds() {
         let name = &app.vaults.open[v].name;
         labels.push((
-            fill(EN.seeds_load_from, &[&fp.to_string(), &name.to_string()]),
+            fill(
+                EN.seeds_load_from_vault,
+                &[&fp.to_string(), &name.to_string()],
+            ),
             Style::Secondary,
             sa(S::FromVault(v, r)),
         ));
@@ -62,7 +65,7 @@ pub(crate) fn more_ways(
 pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let n = s.n.max(1);
-    let big = fill(EN.seeds_of, &[&s.m.max(1).to_string(), &n.to_string()]);
+    let big = fill(EN.seeds_quorum, &[&s.m.max(1).to_string(), &n.to_string()]);
     ui.text(x, cy, 22.0, W::S, TEXT, &big);
     let bw = ui.measure(22.0, W::S, &big);
     let line = if n == 1 {

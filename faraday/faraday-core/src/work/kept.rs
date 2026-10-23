@@ -369,7 +369,7 @@ fn a_psbt_waiting_in_files_is_offered_on_its_wallets_card_once_the_wallet_loads(
     assert_eq!(app.psbt_for(&c, w), Some(0), "the PSBT is Savings'");
     assert_ne!(
         app.spend_button(&c, w).0,
-        crate::strings::EN.family_spend_from_this,
+        crate::strings::EN.family_spend_from_wallet,
         "Savings' card offers to sign the PSBT in Files"
     );
 }

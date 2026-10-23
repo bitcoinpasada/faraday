@@ -128,7 +128,7 @@ pub fn describe(id: &str) -> String {
         _ => (None, None),
     };
     match (kind, changes) {
-        (Some("test"), None) => fill(EN.upgrade_test_release_2, &[number, commit]),
+        (Some("test"), None) => fill(EN.upgrade_test_release_short, &[number, commit]),
         (Some("test"), Some(fp)) => fill(EN.upgrade_test_release, &[number, commit, fp]),
         (Some("dev"), None) => fill(EN.upgrade_dev, &[number, commit]),
         (Some("dev"), Some(fp)) => fill(EN.upgrade_dev_changes, &[number, commit, fp]),

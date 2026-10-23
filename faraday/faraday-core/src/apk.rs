@@ -115,7 +115,7 @@ impl Why {
             Why::NotApk => EN.apk_not_an_apk.to_string(),
             Why::AlreadySigned => EN.apk_already_signed.to_string(),
             Why::NotAligned => EN.apk_not_aligned.to_string(),
-            Why::OldSdk => EN.apk_before_7.to_string(),
+            Why::OldSdk => EN.apk_old_android_row.to_string(),
             Why::Other(p) => fill(EN.apk_other_package, &[p]),
             Why::TooBig => EN.apk_over_4_gib.to_string(),
             Why::NameTooLong => EN.apk_name_too_long.to_string(),
@@ -601,7 +601,7 @@ impl Faraday {
         let stem = file_stem(&s.name, &fp);
         let lines = vec![
             s.name.clone(),
-            fill(EN.apk_sha_256_of, &[&s.fingerprint]),
+            fill(EN.apk_cert_fingerprint_line, &[&s.fingerprint]),
             EN.apk_public_checks.to_string(),
         ];
         Ok(

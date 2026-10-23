@@ -365,7 +365,7 @@ pub fn source_tag(source: &str, origin: Origin, cap: bool) -> String {
     if origin == Origin::Statement {
         source.to_string()
     } else if cap {
-        fill(EN.wallet_from, &[source])
+        fill(EN.wallet_source_tag, &[source])
     } else {
         fill(EN.wallet_from_inline, &[source])
     }
@@ -828,7 +828,7 @@ impl Session {
             .iter()
             .any(|i| i.threshold.as_ref().is_some_and(|t| !t.ours.is_empty()));
         if selection.is_empty() && !shares_sign {
-            return Err(EN.wallet_no_key_in_this.to_string());
+            return Err(EN.wallet_no_signing_key.to_string());
         }
         let (result, left) = self
             .keys
@@ -1430,7 +1430,7 @@ impl Spend {
     ) -> Result<Vec<Fingerprint>, String> {
         let other = read_psbt(c, bytes).ok_or(EN.wallet_not_a_psbt)?;
         if other.unsigned_tx().compute_txid() != self.txid {
-            return Err(fill(EN.wallet_is_a_psbt_for, &[source]));
+            return Err(fill(EN.wallet_psbt_other_transaction, &[source]));
         }
         let before = self.signers(c, session);
         let mut merged = self.psbt.inner().clone();
@@ -1476,7 +1476,7 @@ impl Spend {
         let mut copy = self.psbt.clone();
         match faraday_psbt::finalize(&mut copy) {
             Ok(Some(_)) => None,
-            Ok(None) => Some(EN.wallet_the_script_is.to_string()),
+            Ok(None) => Some(EN.wallet_script_unsatisfied.to_string()),
             Err(e) => Some(e.to_string()),
         }
     }
@@ -1635,7 +1635,7 @@ pub fn paths(session: &Session, wallet: &Wallet, psbt: &Psbt) -> Vec<PathView> {
                     Lock::Intervals(n) => {
                         ok &= relative && in_time && value >= *n;
                         fill(
-                            EN.wallet_days_after_the,
+                            EN.wallet_days_after_arrival,
                             &[&(u64::from(*n) * 512 / 86_400).to_string()],
                         )
                     }
@@ -1917,7 +1917,7 @@ impl Faraday {
                         format!("{stem}-partly-signed.osk"),
                         bytes,
                         EN.act_the_secret_nonce,
-                        EN.act_whoever_has_it,
+                        EN.act_nonce_warning,
                     );
                     out.keep = secrets::Keep::Round(round);
                     Some(out)

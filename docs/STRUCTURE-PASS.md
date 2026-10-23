@@ -1,8 +1,8 @@
 # The structure pass
 
 **Kind:** Spec
-**Status:** Partly built: phases 0 to 5 (the hard fork F72, the docs layout, phase 3's dead code, phase 4's layout, the key boundary F70) and F74's lints are built.
-**Open:** phase 6 (faraday-intake's vector tests, §4; the strings' layout and names, §7; faraday-entropy split by source) and phase 7 (per-area structs, explicit glue, the `impl Faraday` ratchet, §7.2 and §7.3).
+**Status:** Partly built: phases 0 to 6 (the hard fork F72, the docs layout, phase 3's dead code, phase 4's layout, the key boundary F70, phase 6: tests, cargo vet F71, the entropy split, the strings) and F74's lints are built.
+**Open:** phase 7 (per-area structs, explicit glue, the `impl Faraday` ratchet, §7.2 and §7.3).
 **Decisions:** F70 (the key boundary), F71 (dependency policy), F72
 (the hard fork) and F74 (the structure enforced).
 
@@ -65,7 +65,7 @@ resolves; it skips `docs/history/` for path resolution. Each crate's
 tests are one binary, `tests/all/main.rs`, one module per former test
 file, with the shared helpers in `common`.
 
-Still to do (phase 6): faraday-intake gets vector tests.
+faraday-intake has its own vector tests (phase 6).
 
 What phases 1 and 2 did: moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
@@ -153,9 +153,14 @@ the build machine.
 
 Phase 3 (built: the unused functions deleted, the token backlog held by `tools/lint-tokens.counts`): moved to `docs/history/STRUCTURE-PASS-LOG.md`.
 
-Still to do (phase 6):
-- **Renaming the strings** (A11). It touches every screen, so it comes
-  after the split (phase 4), as planned.
+Built in phase 6:
+- **The strings** (A11), built in phase 6 (2026-10-23): `en.rs` is one
+  `strings!` list that makes both `Strings` and `EN`, each key's doc
+  above its value (13,376 lines became about 9,040); the 598 keys named
+  mechanically from their first words (a trailing number or function
+  word) are named by meaning; 22 strings no code used are gone; and
+  `lint-strings` fails on a string no code uses. The section comments
+  stay as the file's grouping.
 
 ### 7.1 Phase 4: faraday-core's layout
 

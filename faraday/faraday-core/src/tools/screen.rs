@@ -104,7 +104,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         Tool::Units => UNITS
             .iter()
             .enumerate()
-            .map(|(i, (n, _))| (fill(EN.tools_in, &[n]), usize::from(t.unit) == i))
+            .map(|(i, (n, _))| (fill(EN.tools_unit_option, &[n]), usize::from(t.unit) == i))
             .collect(),
         Tool::Miniscript => PolicyScript::ALL
             .iter()
@@ -221,13 +221,13 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
                         ),
                     ));
                 }
-                rows.push((EN.tools_with_it.into(), f.with_checksum.clone()));
+                rows.push((EN.tools_with_checksum_label.into(), f.with_checksum.clone()));
                 rows.push((
                     EN.tools_wallet.into(),
                     if f.wallet.is_some() {
                         EN.tools_one_this_device.into()
                     } else {
-                        EN.tools_not_one_this.into()
+                        EN.tools_not_loadable.into()
                     },
                 ));
             }

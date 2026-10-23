@@ -33,8 +33,8 @@ const REACH: &str = EN.stick_wipe_faraday;
 /// What only destroying the stick removes.
 const SECRET: &str = EN.stick_wipe_if_a_seed;
 /// That nothing outside the files partition is written, and why.
-const WITHIN: &str = EN.stick_wipe_only_this;
-const BOUNDARY: &str = EN.stick_wipe_why_the;
+const WITHIN: &str = EN.stick_wipe_within;
+const BOUNDARY: &str = EN.stick_wipe_boundary_why;
 
 /// Whether a file on a stick is a vault, by its name.
 fn is_vault_name(name: &str) -> bool {
@@ -136,7 +136,7 @@ fn size_text(b: u64) -> String {
 /// Minutes, at least one, as words.
 fn minutes_text(ms: u64) -> String {
     match ms.div_ceil(60_000).max(1) {
-        1 => EN.stick_wipe_about_a.to_string(),
+        1 => EN.stick_wipe_about_minute.to_string(),
         m if m < 90 => fill(EN.stick_wipe_about_minutes, &[&m.to_string()]),
         m => fill(
             EN.stick_wipe_about_hours,
@@ -289,7 +289,7 @@ impl Faraday {
         };
         if z.due {
             let line = fill(
-                EN.stick_wipe_stopped_at,
+                EN.stick_wipe_stopped_percent,
                 &[&((z.done_share() * 100.0) as u32).to_string()],
             );
             self.zero_end(line, false);
@@ -319,7 +319,10 @@ impl Faraday {
         }
         let share = (z.done_share() * 100.0) as u32;
         if z.stop {
-            self.zero_end(fill(EN.stick_wipe_stopped_at, &[&share.to_string()]), false);
+            self.zero_end(
+                fill(EN.stick_wipe_stopped_percent, &[&share.to_string()]),
+                false,
+            );
             return;
         }
         if done && z.pass < z.passes {
@@ -414,7 +417,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let n = d.chosen.len();
     let go = match d.what {
         What::Files => fill(
-            EN.stick_wipe_delete_with,
+            EN.stick_wipe_delete_zeros,
             &[
                 &n.to_string(),
                 (if n == 1 {
@@ -425,7 +428,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ],
         ),
         What::Free => EN.stick_wipe_zero_the_free.to_string(),
-        What::Whole => EN.stick_wipe_zero_the.to_string(),
+        What::Whole => EN.stick_wipe_zero_partition.to_string(),
     };
     let hold = app.delete_holds();
     let held_go = fill(
@@ -575,7 +578,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                             Action::DeletePasses(1),
                         ),
                         (
-                            EN.stick_wipe_two_passes_2,
+                            EN.stick_wipe_two_passes_label,
                             pass_style(2),
                             Action::DeletePasses(2),
                         ),
@@ -631,7 +634,7 @@ pub(crate) fn zeroing_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         return;
     };
     let title = if z.whole {
-        fill(EN.stick_wipe_zeroing_the, &[&z.label.to_string()])
+        fill(EN.stick_wipe_zeroing_title, &[&z.label.to_string()])
     } else {
         fill(EN.stick_wipe_zeroing, &[&z.label.to_string()])
     };
@@ -658,11 +661,11 @@ pub(crate) fn zeroing_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let pass = (z.passes > 1).then(|| {
         fill(
-            EN.stick_wipe_pass_of,
+            EN.stick_wipe_pass_count,
             &[&z.pass.to_string(), &z.passes.to_string()],
         )
     });
-    let keep = fill(EN.stick_wipe_keep_the, &[app.medium.noun()]);
+    let keep = fill(EN.stick_wipe_keep_medium, &[app.medium.noun()]);
     let (stop_label, stop_style) = if z.stop {
         (EN.stick_wipe_stopping, Style::Disabled)
     } else {

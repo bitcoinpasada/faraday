@@ -486,7 +486,7 @@ fn loaded_text(wallets: usize, keys: usize) -> String {
     let w = count(wallets, EN.samples_n_wallet, EN.samples_n_wallets);
     let k = count(keys, EN.samples_n_key, EN.samples_n_keys);
     match (w, k) {
-        (Some(w), Some(k)) => fill(EN.samples_and, &[&w, &k]),
+        (Some(w), Some(k)) => fill(EN.samples_loaded_pair, &[&w, &k]),
         (w, k) => w.or(k).unwrap_or_default(),
     }
 }

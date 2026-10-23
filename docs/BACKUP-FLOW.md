@@ -748,7 +748,7 @@ the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 | `backup_flow_new_vault` | A new vault |
 | `backup_flow_existing_vault` | An existing vault |
 | `backup_flow_vault_new` | {} · new |
-| `backup_flow_stick_for` | the {m} for {} ({}) (vault, place) |
+| `backup_flow_vault_stick` | the {m} for {} ({}) (vault, place) |
 | `backup_flow_files_stick` | the {m} of files |
 | `backup_flow_public_stick` | the {m} of public files |
 | `backup_flow_lock_bring` | Lock and bring in the {m}s |
@@ -763,13 +763,13 @@ the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 | `backup_flow_beside` | A new vault beside them |
 | `backup_flow_two_copies` | {} has two copies of {}: {} and {} |
 | `backup_flow_copies_differ` | {}'s copy of {} differs from {}'s |
-| `backup_flow_this_is` | This is {} |
-| `backup_flow_hold_this_is` | Hold: this is {} |
-| `backup_flow_bound_to` | This is {} |
+| `backup_flow_confirm_place` | This is {} |
+| `backup_flow_hold_confirm_place` | Hold: this is {} |
+| `backup_flow_bound_place` | This is {} |
 | `backup_flow_both` | One {m} for both |
 | `backup_flow_pull` | Pull the {m} |
 | `backup_flow_no_passphrase` | I do not have its passphrase |
-| `backup_flow_beside_it` | A new vault beside it |
+| `backup_flow_new_vault_beside` | A new vault beside it |
 | `backup_flow_use_another` | Use another {m} |
 | `backup_flow_in_vault` | In {} |
 | `backup_flow_lock_and_write` | Lock and write |
@@ -780,10 +780,10 @@ the medium (`app.medium`), as `write_out_*` take it; a stick's name is
 | `backup_flow_has_first` | This {m} has the first copy |
 | `backup_flow_hold_second` | Hold: this is a second {m} |
 | `backup_flow_hold_another` | Hold: this is another {m} |
-| `backup_flow_has_files_of` | This {m} has {}'s files |
+| `backup_flow_other_files` | This {m} has {}'s files |
 | `backup_flow_writing` | Writing {} |
 | `backup_flow_written` | Written and checked on {} |
-| `backup_flow_written_to` | Written to {} |
+| `backup_flow_written_place` | Written to {} |
 | `backup_flow_pulled` | Pulled before the copy was checked. Nothing counted |
 | `backup_flow_not_checked` | The copy did not check on {}. Nothing counted |
 | `backup_flow_first_gone` | {} no longer has the vault |

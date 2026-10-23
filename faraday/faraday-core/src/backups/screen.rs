@@ -201,7 +201,7 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entry])
     if n > 1 {
         let half = (w - 8.0) / 2.0;
         let page = fill(
-            EN.backups_wallet_of,
+            EN.backups_wallet_count,
             &[&(at + 1).to_string(), &n.to_string()],
         );
         ui.text(x, y, 12.0, W::R, DIM, &page);

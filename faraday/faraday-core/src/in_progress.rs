@@ -625,9 +625,11 @@ impl Faraday {
                 let s = f.live.open.and_then(Step::of).unwrap_or(f.step);
                 let step = crate::backup_flow::screen::card_title(self, f, s);
                 match (f.kind, f.wallet.as_ref()) {
-                    (Kind::Wallet, Some(w)) if !w.name.is_empty() => {
-                        (wallets, fill(EN.sidebar_flow_backup_of, &[&w.name]), step)
-                    }
+                    (Kind::Wallet, Some(w)) if !w.name.is_empty() => (
+                        wallets,
+                        fill(EN.sidebar_flow_backup_wallet, &[&w.name]),
+                        step,
+                    ),
                     (Kind::Wallet, _) => (wallets, f.kind.name().to_string(), step),
                     (k, _) => (Screen::Catalog, k.name().to_string(), step),
                 }

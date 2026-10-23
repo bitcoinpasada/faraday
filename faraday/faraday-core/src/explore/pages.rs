@@ -32,7 +32,7 @@ fn top(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, name: &str) -> f32 {
         return y;
     };
     let path = account.to_string().replace('\'', "h");
-    let line = fill(EN.explore_account_is, &[&path, script_name(script)]);
+    let line = fill(EN.explore_account_path, &[&path, script_name(script)]);
     ui.text(x, y, T::CAPTION, W::R, MUTED, EN.explore_account);
     y += T::PAD + T::GAP_SMALL;
     y + ui.wrap(x, y, width, T::LABEL, W::M, TEXT, &line) + T::PAD
@@ -119,7 +119,7 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
     ];
     y += button_rows(ui, x, y, width, &chains);
-    ui.text(x, y, T::CAPTION, W::R, MUTED, EN.explore_from);
+    ui.text(x, y, T::CAPTION, W::R, MUTED, EN.explore_from_index);
     y += T::PAD + T::GAP_SMALL;
     let fw = if ui.compact { width } else { width / 2.0 };
     y += field(ui, x, y, fw, &e.from.to_string(), false, false);

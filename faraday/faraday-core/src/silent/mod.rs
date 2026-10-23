@@ -260,14 +260,14 @@ impl Faraday {
     /// view of the address on show (as it is, or as a `bitcoin:` link) or
     /// of the record, with the name and label of its picture.
     pub(crate) fn silent_code(&self, c: &Compute, code: crate::Code) -> Result<QrView, String> {
-        let s = self.silent.as_ref().ok_or(EN.silent_silent_payments_is)?;
+        let s = self.silent.as_ref().ok_or(EN.silent_not_open)?;
         let fp = fp_text(faraday_bip::keys::Fingerprint(
             s.key.ok_or(EN.silent_choose_a_key)?,
         ));
         let mut lines = vec![fill(EN.silent_silent_payment, &[&fp.to_string()])];
         let (title, text, name) = match code {
             crate::Code::Silent(uri) => {
-                let a = self.silent_address(c).ok_or(EN.silent_no_address_for)?;
+                let a = self.silent_address(c).ok_or(EN.silent_no_address)?;
                 let mut name = format!("silent-{fp}");
                 if s.label > 0 {
                     lines.push(fill(EN.silent_label, &[&s.label.to_string()]));
@@ -285,7 +285,7 @@ impl Faraday {
                 (EN.silent_silent_payments_address, text, name)
             }
             _ => {
-                let text = self.silent_record(c).ok_or(EN.silent_no_record_for)?;
+                let text = self.silent_record(c).ok_or(EN.silent_no_record)?;
                 lines.push(EN.silent_public_watch.to_string());
                 (
                     EN.silent_silent_payments_record,
@@ -330,7 +330,7 @@ impl Faraday {
             }
             A::SScanVault => {
                 if self.vaults.open.get(self.vaults.current).is_none() {
-                    return self.toast(EN.silent_no_vault_is);
+                    return self.toast(EN.silent_no_vault_open);
                 }
                 let Some((key, fp)) = self.silent_scan_key(
                     &c,

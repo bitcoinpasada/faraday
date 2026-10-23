@@ -414,13 +414,13 @@ pub fn envelope(session: &Session, wallet: &Wallet, plan: Option<&[Vec<usize>]>)
                 .unwrap_or_else(|| "--------".into());
             let sheet = match plan {
                 Some(p) => fill(
-                    EN.backup_share_of,
+                    EN.backup_envelope_share_count,
                     &[&(i + 1).to_string(), &p.len().to_string()],
                 ),
                 None => EN.backup_the_backup_sheet.to_string(),
             };
             fill(
-                EN.backup_envelope_the,
+                EN.backup_envelope_line,
                 &[
                     &(i + 1).to_string(),
                     &(i + 1).to_string(),

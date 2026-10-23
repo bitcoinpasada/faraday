@@ -218,7 +218,7 @@ pub struct Glance {
 pub const RECEIVE_WARNING: &str = EN.glance_back_up_before;
 
 /// A key node's state while its key, made here, waits for its backup.
-pub const WAITING: &str = EN.glance_waiting_for;
+pub const WAITING: &str = EN.glance_waiting_backup;
 
 /// Where a chart is drawn, and so what its sheets' actions act on.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -706,7 +706,7 @@ fn backup_nodes(
         What::Passphrase(i) => fill(EN.glance_passphrase, &[&number(i).to_string()]),
         What::Sheet => EN.glance_wallet_sheet.to_string(),
         What::Share(j) => fill(
-            EN.glance_share_of,
+            EN.glance_share_count,
             &[&(j + 1).to_string(), &shape.keys.to_string()],
         ),
         What::VaultStick(v) => fill(EN.glance_stick, &[&vault_name(v).to_string()]),
@@ -832,7 +832,7 @@ fn backup_nodes(
                     Some(if at.is_empty() {
                         EN.glance_its_own_stick.to_string()
                     } else {
-                        fill(EN.glance_stick_at, &[&at.join(", ").to_string()])
+                        fill(EN.glance_stick_places, &[&at.join(", ").to_string()])
                     })
                 }
                 _ => None,
@@ -1169,7 +1169,7 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
             }
             Node {
                 title: fill(
-                    EN.glance_key_2,
+                    EN.glance_key_fingerprint,
                     &[&k.number.to_string(), &k.fingerprint.to_string()],
                 ),
                 tag: None,
@@ -1237,7 +1237,7 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
         }],
         Backup::None => vec![match g.press {
             Press::Loaded(w) => Node {
-                title: EN.glance_no_backup_plan_2.to_string(),
+                title: EN.glance_no_backup_plan_short.to_string(),
                 tag: None,
                 lines: Vec::new(),
                 button: Some((

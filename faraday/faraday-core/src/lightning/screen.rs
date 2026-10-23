@@ -141,7 +141,7 @@ fn body(
             12.0,
             W::R,
             DIM,
-            &fill(EN.lightning_of_24, &[&n.to_string()]),
+            &fill(EN.lightning_word_count, &[&n.to_string()]),
         );
         y += 52.0;
         y += crate::screens::never_real_seed(app, ui, x, y, width);
@@ -197,7 +197,7 @@ fn body(
             ry,
             None,
             40.0,
-            EN.lightning_read_it,
+            EN.lightning_read_button,
             Style::Primary,
             Action::LResolve,
         );

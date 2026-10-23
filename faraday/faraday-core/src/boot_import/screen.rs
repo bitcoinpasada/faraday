@@ -79,7 +79,7 @@ fn picker(
         cy,
         w,
         app.medium.icon(),
-        &fill(EN.boot_import_read_from, &[label]),
+        &fill(EN.boot_import_read_source, &[label]),
     );
     cy += ui.wrap(x, cy, w, 14.0, W::S, TEXT, &c.line()) + 16.0;
     // Unselect all while any is ticked; Select all once none is.
@@ -147,10 +147,10 @@ fn unlock(
         cy,
         w,
         Icon::Download.into(),
-        &fill(EN.boot_import_read_from, &[label]),
+        &fill(EN.boot_import_read_source, &[label]),
     );
     if !may {
-        let pull = fill(EN.boot_import_pull_the, &[app.medium.noun()]);
+        let pull = fill(EN.boot_import_pull_medium, &[app.medium.noun()]);
         cy += stick_banner(ui, x, cy, w, &pull);
     }
     ui.icon(x - 2.0, cy + 2.0, 22.0, Icon::Lock, 12.0, MUTED);

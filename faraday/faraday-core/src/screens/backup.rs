@@ -94,7 +94,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
                 .map(|i| shape.seeds[i].name.as_str())
                 .collect();
             let title = if names.is_empty() {
-                fill(EN.item_title_vault_2, &[&(v + 1).to_string()])
+                fill(EN.item_title_vault_number, &[&(v + 1).to_string()])
             } else {
                 fill(
                     EN.item_title_vault,
@@ -102,7 +102,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
                 )
             };
             let line = match reads.backup_vault_fits(v) {
-                Some(name) => fill(EN.item_title_in, &[&name.to_string()]),
+                Some(name) => fill(EN.item_title_in_vault, &[&name.to_string()]),
                 None => EN.item_title_not_saved.to_string(),
             };
             (title, line)
@@ -137,7 +137,7 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
                     if done {
                         app.medium.for_box()
                     } else {
-                        EN.item_title_a_pdf_to
+                        EN.item_title_print_pdf
                     }
                     .to_string()
                 }),
@@ -158,12 +158,15 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
                 if n == 0 {
                     EN.backup_flow_row_none.to_string()
                 } else {
-                    fill(EN.backup_flow_written_of, &[&n.to_string(), &m.to_string()])
+                    fill(
+                        EN.backup_flow_written_count,
+                        &[&n.to_string(), &m.to_string()],
+                    )
                 },
             )
         }
         Item::ShowDescriptor => (
-            EN.item_title_show_the.to_string(),
+            EN.item_title_show_descriptor.to_string(),
             if done {
                 EN.item_title_shown
             } else {
@@ -521,7 +524,7 @@ fn backup_done(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // stick (`docs/BACKUP-FLOW.md` §10.2).
     let items: Vec<(&str, Style, Action)> = vec![
         (
-            EN.backup_done_open_the,
+            EN.backup_done_open_wallet,
             Style::Primary,
             Action::OpenWallet(b.wallet),
         ),
@@ -688,7 +691,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     match n {
         bstep::BLANK => {
-            ui.text_mid(x, cy, 38.0, 13.0, W::R, MUTED, EN.backup_words_on_the);
+            ui.text_mid(x, cy, 38.0, 13.0, W::R, MUTED, EN.backup_seed_words);
             let (mut bx, bw) = if ui.compact {
                 (x + w - 112.0, 52.0)
             } else {
@@ -747,7 +750,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         n if bstep::is_copy(n) => {
             let keys = app.backup_keys(b.wallet);
             if keys.is_empty() {
-                ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_no_key_of_this);
+                ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_no_typed_key);
                 cy += 30.0;
                 // The small panel has no side panel: where each is kept
                 // is on this page.
@@ -825,7 +828,8 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 // SeedQR numbers the English list's words: another list's
                 // words have no SeedQR another signer would read right.
                 if forms.seedqr && lang != faraday_bip::bip39::Language::English {
-                    cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_seedqr_is_for) + 12.0;
+                    cy +=
+                        ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.backup_seedqr_english_only) + 12.0;
                 } else if forms.seedqr {
                     // The SeedQR as a ruled grid to copy.
                     let items: Vec<(&str, Style, Action)> = [
@@ -915,7 +919,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 app,
                 &file,
                 Some(Action::PublicRemove(b.wallet, 3)),
-                (EN.backup_make_it, Action::BOut(3)),
+                (EN.backup_make_button, Action::BOut(3)),
             );
             cy += file_row(
                 ui,
@@ -994,7 +998,7 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy,
                 w,
                 &[(
-                    EN.backup_back_to_the,
+                    EN.backup_back_to_wallet,
                     Style::Secondary,
                     Action::OpenWallet(b.wallet),
                 )],
@@ -1148,7 +1152,7 @@ fn word_check(
     }
     let at = (c.taken() + 1).min(c.count);
     let label = fill(
-        EN.copy_check_word_of,
+        EN.copy_check_word_count,
         &[&at.to_string(), &c.count.to_string()],
     );
     let error = c.error.as_deref();
@@ -1217,7 +1221,7 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let Some(key) = app.session.keys.info(b.key) else {
-        ui.wrap(x, y, w, 13.0, W::R, MUTED, EN.backup_no_key_of_this);
+        ui.wrap(x, y, w, 13.0, W::R, MUTED, EN.backup_no_typed_key);
         return 30.0;
     };
     let mut cy = y;
@@ -1244,7 +1248,7 @@ fn passphrase_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         (x + bw + 14.0, cy)
     };
     let info = fill(
-        EN.backup_passphrase_of,
+        EN.backup_passphrase_item,
         &[&key_line(key.fingerprint, &key.label).to_string()],
     );
     let info = ui.fit(13.0, W::R, &info, x + w - ix);
@@ -1318,7 +1322,7 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
         Item::Passphrase(_) => (EN.item_action_check_my.to_string(), Action::BCheck),
         Item::Vault(v) => match app.backup_vault_target(v) {
             Some(cur) if app.backup_vault_taken(v, cur) => (
-                EN.item_action_lock_it.to_string(),
+                EN.item_action_lock_new_vault.to_string(),
                 Action::BNewVault(v.min(255) as u8),
             ),
             Some(cur) => (
@@ -1336,9 +1340,9 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
                 Action::Vault(crate::vault::VaultAction::CreateFrom(Screen::Backup)),
             )),
         },
-        Item::SeedFiles => (EN.item_action_make_it.to_string(), Action::BFile),
+        Item::SeedFiles => (EN.item_action_make.to_string(), Action::BFile),
         Item::Sheets if split => (EN.item_action_make_them.to_string(), Action::BOut(4)),
-        Item::Sheets => (EN.item_action_make_it.to_string(), Action::BOut(3)),
+        Item::Sheets => (EN.item_action_make.to_string(), Action::BOut(3)),
         Item::PublicFiles => (EN.item_action_make_them.to_string(), Action::BFilesMake),
         Item::ShowDescriptor => (
             EN.item_action_show_as.to_string(),
@@ -1499,7 +1503,7 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
     }
     let head = match open {
         Some(o) => fill(EN.vault_item_into, &[&o.name.to_string()]),
-        None => EN.vault_item_into_the.to_string(),
+        None => EN.vault_item_into_vault.to_string(),
     };
     let head = ui.fit(13.0, W::S, &head, w);
     section_label(ui, x, cy, &head);
@@ -1511,7 +1515,7 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
             let key = app.session.keys.info(k)?;
             let name = fp_text(key.fingerprint);
             let label = if with {
-                fill(EN.vault_item_seed_with, &[&name.to_string()])
+                fill(EN.vault_item_seed_passphrase, &[&name.to_string()])
             } else {
                 fill(EN.vault_item_seed, &[&name.to_string()])
             };
@@ -1625,7 +1629,7 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     Action::BXor(3),
                 ),
                 (
-                    EN.paper_section_codex32_2.into(),
+                    EN.paper_section_codex32_2_of_3.into(),
                     Style::Secondary,
                     Action::BCodex32(2, 3),
                 ),
@@ -1933,7 +1937,7 @@ fn public_files(
         );
         rows.push((
             fill(EN.public_files_key, &[&fp.to_string()]),
-            EN.public_files_for_the,
+            EN.public_files_cosigners,
             format!("xpub-{fp}.txt"),
             Action::WalletKeyOut(i, slot),
             codes(

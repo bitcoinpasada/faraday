@@ -14,7 +14,7 @@ use faraday_ui::parts::{section_label, title, wrap_buttons};
 /// What the way back from Decode a transaction is called.
 pub(crate) fn decode_back(back: Screen) -> &'static str {
     match back {
-        Screen::Spend => EN.decode_back_sign_a,
+        Screen::Spend => EN.decode_back_sign_transaction,
         Screen::Family => EN.decode_back_spend,
         Screen::Files => EN.decode_back_files,
         Screen::WalletsStart => EN.decode_back_wallets,
@@ -63,7 +63,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 &format!("{:.1}", f as f64 / t.size.1.max(1) as f64),
             ],
         ),
-        None => EN.decode_not_stated_the.to_string(),
+        None => EN.decode_fee_not_stated.to_string(),
     };
     let facts: [(&str, String, bool); 6] = [
         (EN.decode_transaction, t.txid.clone(), true),
@@ -195,7 +195,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 ),
                 OK,
             ),
-            None => (EN.decode_pays_out_of.to_string(), WARN),
+            None => (EN.decode_pays_from_loaded.to_string(), WARN),
         };
         if compact {
             // The address whole, then its kind, then whose it is.

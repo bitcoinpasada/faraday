@@ -184,7 +184,7 @@ impl Faraday {
         self.vaults.clock_offset = Some(utc - raw);
         self.vaults.clock_checked = true;
         self.toast(&fill(
-            EN.set_time_time_set_to,
+            EN.set_time_done_toast,
             &[&format!("{h:02}"), &format!("{mi:02}")],
         ));
         self.set_time_return();

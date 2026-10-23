@@ -522,12 +522,15 @@ impl Faraday {
                                 self.wallet = i;
                                 self.screen = Screen::Wallets;
                                 self.refresh_spend();
-                                self.toast(&fill(EN.act_restored_from_its, &[&name.to_string()]));
+                                self.toast(&fill(
+                                    EN.act_restored_from_shares,
+                                    &[&name.to_string()],
+                                ));
                             }
                             Err(e) => self.toast(&e.text()),
                         }
                     }
-                    Ok(None) => self.toast(EN.act_not_every_key_is),
+                    Ok(None) => self.toast(EN.act_keys_missing),
                     Err(e) => self.toast(&e),
                 }
             }

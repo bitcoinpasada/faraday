@@ -912,7 +912,7 @@ impl Faraday {
                     .flow_open_index(i, v)
                     .map(|o| &self.vaults.open[o].name)
                 {
-                    Some(name) if !name.is_empty() => fill(EN.plan_vault_2, &[&n, name]),
+                    Some(name) if !name.is_empty() => fill(EN.plan_vault_names, &[&n, name]),
                     _ => fill(EN.plan_vault, &[&n]),
                 }
             }
@@ -2049,7 +2049,7 @@ impl Faraday {
             }
             return vec![
                 MenuRow::Head(software_name(&a)),
-                item(EN.board_scanned_in.to_string(), Zone::Scanned),
+                item(EN.board_scanned_zone.to_string(), Zone::Scanned),
             ];
         }
         let from = match c {
@@ -2125,7 +2125,7 @@ impl Faraday {
         let has_software = m.iter().any(|s| s.at == At::Software);
         let has_files = m.iter().any(|s| s.at == At::Files);
         if has_software || has_files {
-            let mut boxes = vec![(EN.board_scanned_in.to_string(), Zone::Scanned)];
+            let mut boxes = vec![(EN.board_scanned_zone.to_string(), Zone::Scanned)];
             if has_files {
                 boxes.push((fill(EN.board_menu_files, &[&stick(1)]), Zone::SoftStick));
             }

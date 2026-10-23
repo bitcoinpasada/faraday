@@ -44,7 +44,7 @@ impl WordList {
             WordList::Bip39 => EN.wordlist_bip_39_english,
             WordList::Eff(List::Large) => EN.wordlist_eff_large,
             WordList::Eff(List::Short1) => EN.wordlist_eff_short_1,
-            WordList::Eff(List::Short2) => EN.wordlist_eff_short,
+            WordList::Eff(List::Short2) => EN.wordlist_eff_short_2,
         }
     }
 

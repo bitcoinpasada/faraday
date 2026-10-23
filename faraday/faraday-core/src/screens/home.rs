@@ -61,7 +61,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
             Some(Going::Spend),
             (
                 Glyph::Icon(Icon::Sign),
-                EN.home_job_carry_on_the.to_string(),
+                EN.home_job_carry_on_spend.to_string(),
                 fill(
                     EN.home_job_signatures,
                     &[
@@ -131,14 +131,14 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
             (
                 Glyph::Icon(Icon::Lock),
                 fill(EN.home_job_unlock, &[&lv.title.to_string()]),
-                fill(EN.home_job_read_from, &[&imp.label.to_string()]),
+                fill(EN.home_job_read_source, &[&imp.label.to_string()]),
                 crate::boot_import::OPEN,
                 true,
             )
         } else {
             (
                 Glyph::Icon(Icon::Download),
-                fill(EN.home_job_import_from, &[&imp.label.to_string()]),
+                fill(EN.home_job_import_source, &[&imp.label.to_string()]),
                 String::new(),
                 crate::boot_import::OPEN,
                 true,
@@ -155,7 +155,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
             None,
             (
                 Glyph::Icon(Icon::Done),
-                fill(EN.home_job_written_to, &[&r.label.to_string()]),
+                fill(EN.home_job_written_target, &[&r.label.to_string()]),
                 names.join(", "),
                 Action::Nav(Screen::Files),
                 true,
@@ -188,7 +188,7 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
                 (
                     Glyph::Icon(Icon::Lock),
                     fill(EN.home_job_unlock, &[&name.to_string()]),
-                    fill(EN.home_job_pull_the_to, &[app.medium.noun()]),
+                    fill(EN.home_job_pull_to_unlock, &[app.medium.noun()]),
                     Action::Nav(Screen::Home),
                     false,
                 )
@@ -202,7 +202,10 @@ fn home_jobs(app: &View) -> Vec<(Option<Going>, Lead)> {
             None,
             (
                 Glyph::Icon(Icon::Export),
-                fill(EN.home_job_write_to, &[&name.to_string(), app.medium.a()]),
+                fill(
+                    EN.home_job_write_target,
+                    &[&name.to_string(), app.medium.a()],
+                ),
                 crate::vault::Currency::Changed.line(),
                 Action::Nav(Screen::Files),
                 true,
@@ -229,20 +232,20 @@ pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)
         ),
         (
             Glyph::Icon(Icon::Wallet),
-            EN.home_ways_restore_an,
-            EN.home_ways_from_its.to_string(),
+            EN.home_ways_restore_wallet,
+            EN.home_ways_restore_line.to_string(),
             Action::RestoreWallet,
         ),
         (
             Glyph::Icon(Icon::Sign),
-            EN.home_ways_spend_from,
+            EN.home_ways_spend_backup,
             EN.home_ways_a_stick_words.to_string(),
             Action::Nav(Screen::Family),
         ),
         if open == 0 && vault_files == 0 {
             (
                 Glyph::Icon(Icon::Lock),
-                EN.home_ways_create_a,
+                EN.home_ways_create_vault,
                 EN.home_ways_none_yet.to_string(),
                 Action::Vault(V::Create),
             )

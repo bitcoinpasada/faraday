@@ -57,7 +57,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     )
                 }
                 cstep::KIND => c.kind.name().to_string(),
-                cstep::QUORUM => fill(EN.create_of, &[&c.m.to_string(), &c.n.to_string()]),
+                cstep::QUORUM => fill(EN.create_threshold, &[&c.m.to_string(), &c.n.to_string()]),
                 cstep::KEYS if c.kind.threshold() => fill(
                     EN.create_of_chosen_computed,
                     &[
@@ -72,7 +72,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                         &[&filled.to_string(), &c.slots.len().to_string()],
                     ),
                     k => fill(
-                        EN.create_of_chosen_to,
+                        EN.create_slots_progress,
                         &[
                             &(filled - k).to_string(),
                             &c.slots.len().to_string(),
@@ -140,7 +140,7 @@ fn create_flow_summary(app: &View, k: u8) -> String {
         (cstep::STICKS, Some((_, f))) => {
             let (read, of) = f.setup_sticks_read();
             fill(
-                EN.backup_flow_read_of,
+                EN.backup_flow_read_count,
                 &[&read.to_string(), &of.to_string()],
             )
         }
@@ -151,7 +151,7 @@ fn create_flow_summary(app: &View, k: u8) -> String {
                 .filter(|&&v| app.flow_open_index(i, v).is_some())
                 .count();
             fill(
-                EN.backup_flow_unlocked_of,
+                EN.backup_flow_unlocked_count,
                 &[&open.to_string(), &used.len().to_string()],
             )
         }
@@ -353,7 +353,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 if let Source::Here(fp) = src
                     && c.pass_locked.contains(fp)
                 {
-                    let tw = ui.measure(12.0, W::S, EN.create_locked_in) + 40.0;
+                    let tw = ui.measure(12.0, W::S, EN.create_locked_line) + 40.0;
                     locked_tag(ui, x + w - tw, cy);
                 }
                 let (state, color) = match src {
@@ -433,7 +433,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             continue;
                         }
                         row.push((
-                            fill(EN.create_from, &[&name.to_string()]),
+                            fill(EN.create_slot_source, &[&name.to_string()]),
                             Style::Secondary,
                             Action::CSlotFile(slot as u8, *i),
                         ));
@@ -556,13 +556,13 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         if let Some(n) = &c.pass_note {
                             cy += ui.wrap(px, cy, pw, 13.0, W::R, ERR, n) + 6.0;
                         }
-                        let bw = ui.measure(14.0, W::S, EN.create_lock_in) + 36.0;
+                        let bw = ui.measure(14.0, W::S, EN.create_lock_button) + 36.0;
                         ui.button(
                             px + pw - bw,
                             cy,
                             Some(bw),
                             40.0,
-                            EN.create_lock_in,
+                            EN.create_lock_button,
                             Style::Primary,
                             Action::CPassLock,
                         );
@@ -582,7 +582,14 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         TEXT,
                         &fill(EN.create_share_n, &[&(k + 1).to_string()]),
                     );
-                    ui.text(x + 70.0, cy + 4.0, 13.0, W::R, MUTED, EN.create_computed_by);
+                    ui.text(
+                        x + 70.0,
+                        cy + 4.0,
+                        13.0,
+                        W::R,
+                        MUTED,
+                        EN.create_computed_by_deal,
+                    );
                     cy += 34.0;
                     ui.rule(x, cy, w, INNER);
                     cy += 10.0;
@@ -597,7 +604,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let (label, action) = match first_empty {
                 Some(slot) if !locked => (
                     fill(
-                        EN.create_new_key_for,
+                        EN.create_new_key_slot,
                         &[
                             (if c.kind.threshold() {
                                 EN.create_share
@@ -676,7 +683,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     cy,
                     Some(w),
                     40.0,
-                    EN.create_back_up_this,
+                    EN.create_back_up_button,
                     Style::Primary,
                     Action::CBackup,
                 );

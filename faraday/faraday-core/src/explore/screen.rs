@@ -75,12 +75,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .map(|(i, (name, _))| (name.to_string(), Style::Ghost, Action::XPreset(i as u8)))
         .chain([
             (
-                EN.explore_index_1_2.to_string(),
+                EN.explore_index_prev.to_string(),
                 Style::Ghost,
                 Action::XIndex(-1),
             ),
             (
-                EN.explore_index_1.to_string(),
+                EN.explore_index_next.to_string(),
                 Style::Ghost,
                 Action::XIndex(1),
             ),

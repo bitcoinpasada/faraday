@@ -135,7 +135,7 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
         Step::Sticks => {
             let bound = f.slots.iter().filter(|x| x.bound.is_some()).count();
             fill(
-                FEN.backup_flow_read_of,
+                FEN.backup_flow_read_count,
                 &[&bound.to_string(), &m.to_string()],
             )
         }
@@ -155,7 +155,7 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
                 })
                 .count();
             fill(
-                FEN.backup_flow_unlocked_of,
+                FEN.backup_flow_unlocked_count,
                 &[&open_n.to_string(), &f.plan.used_vaults().len().to_string()],
             )
         }
@@ -171,7 +171,7 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
             }
         }
         Step::Write => fill(
-            FEN.backup_flow_written_of,
+            FEN.backup_flow_written_count,
             &[&n.to_string(), &m.to_string()],
         ),
         Step::Done => {
@@ -755,12 +755,12 @@ fn bind_card(
         );
         let items = [
             (
-                fill(FEN.backup_flow_use_copy_of, &[&r.label]),
+                fill(FEN.backup_flow_use_copy, &[&r.label]),
                 Style::Primary,
                 fa(F::UseCopy(true)),
             ),
             (
-                fill(FEN.backup_flow_use_copy_of, &[&first]),
+                fill(FEN.backup_flow_use_copy, &[&first]),
                 Style::Secondary,
                 fa(F::UseCopy(false)),
             ),
@@ -821,7 +821,7 @@ fn bind_card(
             let label = if both {
                 fill(FEN.backup_flow_both, &[m])
             } else {
-                fill(FEN.backup_flow_this_is, &[&target])
+                fill(FEN.backup_flow_confirm_place, &[&target])
             };
             cy += btn(
                 ui,
@@ -836,7 +836,7 @@ fn bind_card(
             );
         }
         Confirm::Hold => {
-            let label = fill(FEN.backup_flow_hold_this_is, &[&target]);
+            let label = fill(FEN.backup_flow_hold_confirm_place, &[&target]);
             cy += hold_row(
                 app,
                 ui,
@@ -976,7 +976,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             if np {
                 let items = [
                     (
-                        FEN.backup_flow_beside_it.to_string(),
+                        FEN.backup_flow_new_vault_beside.to_string(),
                         Style::Secondary,
                         fa(F::BesideIt(v)),
                     ),

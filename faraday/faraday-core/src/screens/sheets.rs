@@ -72,7 +72,7 @@ fn potential_compact(
                 12.0,
                 W::R,
                 MUTED,
-                &fill(EN.potential_from, &[&from.join(" · ").to_string()]),
+                &fill(EN.potential_sources, &[&from.join(" · ").to_string()]),
             ) + 10.0;
         }
         if takes {
@@ -148,7 +148,7 @@ fn potential_compact(
             }
             match matched {
                 Some(name) => {
-                    let line = fill(EN.potential_a_key_of, &[name]);
+                    let line = fill(EN.potential_key_of_wallet, &[name]);
                     cy += ui.wrap(x, cy, iw, 13.0, W::S, OK, &line) + 10.0;
                 }
                 None => {
@@ -162,9 +162,9 @@ fn potential_compact(
             cy += ui.wrap(x, cy, iw, 13.0, W::R, ERR, e) + 8.0;
         }
         let go = match (backup.is_some(), matched) {
-            (true, _) => EN.potential_open_it.to_string(),
+            (true, _) => EN.potential_open_button.to_string(),
             (false, Some(name)) if xpub.is_none() => fill(EN.potential_load, &[name]),
-            _ => EN.potential_make_the.to_string(),
+            _ => EN.potential_make_wallet.to_string(),
         };
         cy += crate::compact::buttons(
             ui,
@@ -254,7 +254,7 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let line = ui.fit(
             13.0,
             W::R,
-            &fill(EN.potential_from, &[&from.join(" · ").to_string()]),
+            &fill(EN.potential_sources, &[&from.join(" · ").to_string()]),
             iw,
         );
         ui.text(ix, cy, 13.0, W::R, MUTED, &line);
@@ -375,7 +375,7 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     13.0,
                     W::S,
                     OK,
-                    &fill(EN.potential_a_key_of, &[&name.to_string()]),
+                    &fill(EN.potential_key_of_wallet, &[&name.to_string()]),
                 );
                 cy += 40.0;
             }
@@ -419,9 +419,9 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Action::Cancel,
     );
     let go = match (backup.is_some(), &matched) {
-        (true, _) => EN.potential_open_it.to_string(),
+        (true, _) => EN.potential_open_button.to_string(),
         (false, Some(name)) if xpub.is_none() => fill(EN.potential_load, &[&name.to_string()]),
-        _ => EN.potential_make_the.to_string(),
+        _ => EN.potential_make_wallet.to_string(),
     };
     ui.button(
         ix + bw + 12.0,
@@ -626,11 +626,11 @@ pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let what = app
         .pull
         .and_then(|a| app.pull_what(a))
-        .unwrap_or(EN.pull_go_on);
-    let title = fill(EN.pull_pull_the_to, &[app.medium.noun(), what]);
+        .unwrap_or(EN.pull_default_reason);
+    let title = fill(EN.pull_medium_to_reason, &[app.medium.noun(), what]);
     let line = match app.sticks.len() {
         0 | 1 => fill(
-            EN.pull_attached_2,
+            EN.pull_medium_attached,
             &[(app.sticks.first().map_or("", |s| s.label.as_str()))],
         ),
         k => fill(EN.pull_attached, &[&k.to_string(), app.medium.nouns()]),
@@ -802,7 +802,7 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // Asked for by Upgrade rather than by a stick arriving.
     let upgrade = app.upgrade_after_lock;
     let then = if upgrade {
-        EN.lock_a_fresh_start_and.to_string()
+        EN.lock_fresh_start_upgrade.to_string()
     } else {
         fill(EN.lock_a_fresh_start, &[app.medium.noun()])
     };
@@ -837,7 +837,7 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// lock comes first, and this says what it keeps and wipes.
 pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let then = fill(EN.write_out_lock_plug, &[app.medium.a()]);
-    let title = fill(EN.write_out_write_to, &[app.medium.a()]);
+    let title = fill(EN.write_out_target, &[app.medium.a()]);
     kept_sheet(
         ui,
         w,
@@ -915,7 +915,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let x = x + pad - 32.0;
     let sw = sw - 2.0 * (pad - 32.0);
     let title = match (sc.purpose, for_wallet) {
-        (_, Some((_, wl))) => fill(EN.scan_scan_a_key_for, &[&wl.name.to_string()]),
+        (_, Some((_, wl))) => fill(EN.scan_key_for_wallet, &[&wl.name.to_string()]),
         (crate::ScanPurpose::Intake, _) => EN.scan_scan_what_you.to_string(),
         (crate::ScanPurpose::Seed, _) => EN.scan_scan_a_seedqr.to_string(),
         (crate::ScanPurpose::CheckCopy(_), _) => EN.scan_scan_your_copy.to_string(),
@@ -1199,7 +1199,7 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     ui.text(x + 32.0, y + 26.0, 18.0, W::S, TEXT, &t);
     let sub = if q.frames.len() > 1 {
         fill(
-            EN.qr_frame_of,
+            EN.qr_frame_count,
             &[
                 &q.subtitle.to_string(),
                 &(q.frame + 1).to_string(),
@@ -1378,7 +1378,7 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
         let mut cy = y;
         let title = if animated {
             fill(
-                EN.qr_sheet_of,
+                EN.qr_sheet_frame_count,
                 &[
                     &q.title.to_string(),
                     &(q.frame + 1).to_string(),
@@ -1452,7 +1452,7 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(d) = app.inputs.first() else { return };
     if ui.compact {
         let what = match (d.keyboard, d.pointer) {
-            (true, true) => EN.new_input_a_new_keyboard_and,
+            (true, true) => EN.new_input_title,
             (true, false) => EN.new_input_a_new_keyboard,
             _ => EN.new_input_a_new_pointer,
         };
@@ -1467,7 +1467,7 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             if d.keyboard
                 && let Some(code) = d.code.as_deref()
             {
-                ui.text(x, cy, 13.0, W::S, MUTED, EN.new_input_type_this);
+                ui.text(x, cy, 13.0, W::S, MUTED, EN.new_input_type_code);
                 cy += 24.0;
                 let n = code.chars().count().max(1) as f32;
                 let bw = ((iw - (n - 1.0) * 6.0) / n).min(52.0);
@@ -1491,13 +1491,13 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 cy += 64.0;
             }
             let mut items = vec![(
-                EN.new_input_ignore_this,
+                EN.new_input_ignore_button,
                 Style::Secondary,
                 Action::InputIgnore(d.id),
             )];
             if !d.keyboard {
                 items.push((
-                    EN.new_input_use_this,
+                    EN.new_input_use_pointer,
                     Style::Primary,
                     Action::InputUse(d.id),
                 ));
@@ -1512,7 +1512,7 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let ix = x + 32.0;
     let iw = 560.0 - 64.0;
     let what = match (d.keyboard, d.pointer) {
-        (true, true) => EN.new_input_a_new_keyboard_and,
+        (true, true) => EN.new_input_title,
         (true, false) => EN.new_input_a_new_keyboard,
         _ => EN.new_input_a_new_pointer,
     };
@@ -1530,7 +1530,7 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if d.keyboard
         && let Some(code) = d.code.as_deref()
     {
-        ui.text(ix, by, 13.0, W::S, MUTED, EN.new_input_type_this);
+        ui.text(ix, by, 13.0, W::S, MUTED, EN.new_input_type_code);
         by += 28.0;
         let mut cx = ix;
         let typed: Vec<char> = d.typed.chars().collect();
@@ -1557,7 +1557,7 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         y + sh - 32.0 - 46.0,
         Some(if d.keyboard { iw } else { bw }),
         46.0,
-        EN.new_input_ignore_this,
+        EN.new_input_ignore_button,
         Style::Secondary,
         Action::InputIgnore(d.id),
     );
@@ -1567,7 +1567,7 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             y + sh - 32.0 - 46.0,
             Some(bw),
             46.0,
-            EN.new_input_use_this,
+            EN.new_input_use_pointer,
             Style::Primary,
             Action::InputUse(d.id),
         );
@@ -1727,7 +1727,7 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             cy += ui.wrap(x, cy, iw, 13.0, W::R, MUTED, EN.locked_locked_after) + 12.0;
             if let Some(off) = app.idle_off_at() {
                 let line = fill(
-                    EN.locked_powers_off_in,
+                    EN.locked_power_off_countdown,
                     &[&(clock_text(off.saturating_sub(app.idle_ms()))).to_string()],
                 );
                 cy += ui.wrap(x, cy, iw, 13.0, W::S, TEXT, &line) + 10.0;
@@ -1777,7 +1777,7 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             W::S,
             TEXT,
             &fill(
-                EN.locked_powers_off_in,
+                EN.locked_power_off_countdown,
                 &[&(clock_text(off.saturating_sub(app.idle_ms()))).to_string()],
             ),
         );
@@ -2027,13 +2027,13 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let head = if out.ack == crate::secrets::Ack::Unknown {
         EN.secret_out_this_may
     } else {
-        EN.secret_out_this_is
+        EN.secret_out_title
     };
     let put_label = fill(EN.secret_out_put_it_unprotected, &[app.medium.for_the()]);
     let (unprotected, out_label) = if out.to_visit {
         (
-            fill(EN.secret_out_unprotected_on, &[app.medium.noun()]),
-            EN.secret_out_tick_it,
+            fill(EN.secret_out_unprotected_medium, &[app.medium.noun()]),
+            EN.secret_out_tick_hint,
         )
     } else {
         (
@@ -2048,19 +2048,19 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Lock, WARN, head);
             for (label, value) in [
                 (EN.secret_out_file, out.name.as_str()),
-                (EN.secret_out_what_it, out.what.as_str()),
+                (EN.secret_out_what_label, out.what.as_str()),
                 (EN.secret_out_who_can, out.gives.as_str()),
             ] {
                 cy += crate::compact::kv(ui, x, cy, iw, label, value, TEXT);
             }
             cy += 4.0;
             if to_vault {
-                ui.text(x, cy, 13.0, W::S, OK, EN.secret_out_sealed_in);
+                ui.text(x, cy, 13.0, W::S, OK, EN.secret_out_sealed);
                 cy += 24.0;
             }
             match vault.filter(|_| to_vault) {
                 Some((name, true)) => {
-                    let line = ui.fit(13.0, W::S, &fill(EN.secret_out_in, &[name]), iw);
+                    let line = ui.fit(13.0, W::S, &fill(EN.secret_out_in_vault, &[name]), iw);
                     ui.text(x, cy, 13.0, W::S, OK, &line);
                     cy += 30.0;
                 }
@@ -2141,7 +2141,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     cy += 38.0;
     for (label, value, face) in [
         (EN.secret_out_file, out.name.as_str(), W::M),
-        (EN.secret_out_what_it, out.what.as_str(), W::R),
+        (EN.secret_out_what_label, out.what.as_str(), W::R),
         (EN.secret_out_who_can, out.gives.as_str(), W::R),
     ] {
         ui.text(bx, cy, 12.0, W::R, MUTED, label);
@@ -2151,7 +2151,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     cy += 6.0;
     // The vault, first, for what a vault keeps.
     if to_vault {
-        ui.text(bx, cy, 13.0, W::S, OK, EN.secret_out_sealed_in);
+        ui.text(bx, cy, 13.0, W::S, OK, EN.secret_out_sealed);
         cy += 26.0;
     }
     match vault.filter(|_| to_vault) {
@@ -2163,7 +2163,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 13.0,
                 W::S,
                 OK,
-                &fill(EN.secret_out_in, &[name]),
+                &fill(EN.secret_out_in_vault, &[name]),
             );
             cy += 54.0;
         }

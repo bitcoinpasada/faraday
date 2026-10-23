@@ -44,7 +44,7 @@ pub fn map(m: Medium) -> [(&'static str, &'static str, String); 6] {
         ),
         (
             EN.family_online,
-            EN.family_send_it,
+            EN.family_title_send,
             EN.family_take_the_signed.to_string(),
         ),
     ]
@@ -66,7 +66,7 @@ pub const DESCRIPTION_HINT: &str = EN.family_its_description;
 /// What each thing in the envelope looks like: its look, then what it is.
 pub fn looks(m: Medium) -> [(String, String); 8] {
     let looks: [(&str, &str); 7] = [
-        (EN.family_a_square_black, EN.family_a_qr_code_the),
+        (EN.family_a_square_black, EN.family_looks_qr_code),
         (EN.family_words_numbered, EN.family_the_seed_phrase),
         (EN.family_one_long_line, EN.family_a_descriptor),
         (EN.family_several_sheets, EN.family_one_description),
@@ -77,7 +77,7 @@ pub fn looks(m: Medium) -> [(String, String); 8] {
     let [a, b, c, d, e, f, g] = looks.map(|(look, what)| (look.to_string(), what.to_string()));
     let medium = (
         fill(EN.family_labelled_faraday, &[m.a_full_cap()]),
-        fill(EN.family_the_starts_the, &[m.noun()]),
+        fill(EN.family_looks_medium, &[m.noun()]),
     );
     [medium, a, b, c, d, e, f, g]
 }
@@ -87,12 +87,12 @@ pub fn title(app: &Faraday, id: CardId) -> String {
     let s = match id {
         CardId::Page(p) => match p {
             page::MAP => EN.family_how_to_spend,
-            page::SAFE => return fill(EN.family_start_from_the, &[app.medium.noun()]),
+            page::SAFE => return fill(EN.family_title_start, &[app.medium.noun()]),
             page::HOLDING => EN.family_what_do_you,
             page::OPEN => EN.family_open_the_wallet,
             page::CHECK if app.family.from_card => EN.family_load_the_wallet,
-            page::CHECK if app.family_guess().is_some() => EN.family_check_the_money_is,
-            page::WRITE if app.family.from_card => EN.family_write_the_payment_in,
+            page::CHECK if app.family_guess().is_some() => EN.family_title_check_money,
+            page::WRITE if app.family.from_card => EN.family_title_write_payment,
             page::CHECK => EN.family_check_the_money,
             page::WRITE => EN.family_write_the_payment,
             page::BRING => EN.family_bring_the_transaction,
@@ -101,13 +101,13 @@ pub fn title(app: &Faraday, id: CardId) -> String {
         CardId::Step(n) | CardId::Later(n) => match n {
             step::TRANSACTION => EN.family_read_the_transaction,
             step::TXID => EN.family_the_transaction,
-            step::PATH => EN.family_which_way_it,
+            step::PATH => EN.family_title_which_way,
             step::NONCES => EN.family_nonces,
             step::SIGNERS if app.family.route == Some(Route::Paper) => EN.family_add_the_seeds,
             step::SIGNERS => EN.family_who_signs,
-            step::SIGN => EN.family_sign_it,
+            step::SIGN => EN.family_title_sign,
             step::COLLECT => EN.family_the_other_signatures,
-            step::FINISH => EN.family_send_it,
+            step::FINISH => EN.family_title_send,
             _ => "",
         },
     };
@@ -119,10 +119,10 @@ pub fn lead(app: &View, id: CardId) -> String {
     let s: &str = match id {
         CardId::Page(page::MAP) => EN.family_six_stops_three,
         CardId::Page(page::SAFE) if app.online => {
-            return fill(EN.family_this_is_the, &[app.medium.noun()]);
+            return fill(EN.family_lead_desktop_copy, &[app.medium.noun()]);
         }
         CardId::Page(page::SAFE) => {
-            return fill(EN.family_this_computer_is, &[app.medium.noun()]);
+            return fill(EN.family_lead_running_offline, &[app.medium.noun()]);
         }
         CardId::Page(page::HOLDING | page::OPEN) => EN.family_scan_or_type,
         // From the wallet's card: what to press, no more.
@@ -150,10 +150,10 @@ pub fn lead(app: &View, id: CardId) -> String {
         }
         CardId::Later(_) => EN.family_this_opens_once,
         CardId::Step(step::TRANSACTION) => EN.family_read_the_summary,
-        CardId::Step(step::TXID) => EN.family_write_down_the,
-        CardId::Step(step::SIGNERS) if signers_missing(app) => EN.family_every_key_that,
+        CardId::Step(step::TXID) => EN.family_lead_write_down_id,
+        CardId::Step(step::SIGNERS) if signers_missing(app) => EN.family_lead_every_key,
         CardId::Step(step::SIGNERS) if app.family.route == Some(Route::Paper) => {
-            EN.family_one_seed_at
+            EN.family_lead_one_seed
         }
         CardId::Step(step::SIGN) => EN.family_signing_adds,
         CardId::Step(step::FINISH) => {
@@ -196,36 +196,36 @@ pub fn more(app: &View, id: CardId) -> Vec<String> {
             let mut paras = strings(&[
                 EN.family_anyone_who_reads,
                 EN.family_nothing_done,
-                EN.family_there_is_no,
+                EN.family_more_no_deadline,
             ]);
-            paras.push(fill(EN.family_if_any_of_this, &[m.noun()]));
+            paras.push(fill(EN.family_more_stop_if_unsure, &[m.noun()]));
             return paras;
         }
         CardId::Page(page::SAFE) => {
             return vec![
                 EN.family_shut_the_computer.to_string(),
                 fill(EN.family_plug_the_faraday, &[m.noun()]),
-                fill(EN.family_pick_the_from, &[m.full()]),
+                fill(EN.family_more_pick_boot_device, &[m.full()]),
                 fill(EN.family_if_the_is_missing, &[m.noun(), m.a()]),
             ];
         }
         CardId::Page(page::HOLDING | page::OPEN) => &[
             EN.family_a_vault_unlocks,
-            EN.family_words_go_in,
+            EN.family_more_words_order,
             EN.family_a_wallet_description,
             EN.family_split_sheets,
         ],
         CardId::Page(page::CHECK) => &[
             EN.family_in_sparrow_file,
-            EN.family_only_load_it,
+            EN.family_more_trusted_software,
             EN.family_faraday_can,
             EN.family_on_a_phone_you,
         ],
         CardId::Page(page::WRITE) => &[EN.family_paying_into, EN.family_faraday_locks],
-        CardId::Step(step::SIGN) => &[EN.family_if_the_envelope, EN.family_faraday_on_its],
+        CardId::Step(step::SIGN) => &[EN.family_if_the_envelope, EN.family_more_faraday_enough],
         CardId::Step(step::FINISH) => &[
             EN.family_any_of_these,
-            EN.family_then_check_the,
+            EN.family_more_check_id,
             EN.family_the_first_confirmation,
         ],
         CardId::Page(page::AWAY) => {

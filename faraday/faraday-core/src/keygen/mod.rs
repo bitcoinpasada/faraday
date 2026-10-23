@@ -772,7 +772,7 @@ impl KeyGen {
         let w = self.warnings();
         let mut out = Vec::new();
         if w.long_run {
-            out.push(EN.keygen_a_long_run_of);
+            out.push(EN.keygen_caution_long_run);
         }
         if w.skewed {
             out.push(EN.keygen_far_from_even);
@@ -907,7 +907,7 @@ impl KeyGen {
         }
         self.note = (!taken).then(|| {
             if self.procedure().direct() {
-                EN.keygen_a_5_or_a_6_is.to_string()
+                EN.keygen_reroll_rule.to_string()
             } else {
                 EN.keygen_a_die_has_six.to_string()
             }
@@ -1067,7 +1067,7 @@ impl KeyGen {
             }
             self.note = match faraday_entropy::card_index(r, s) {
                 Some(i) if self.cards.push(i) => None,
-                Some(_) => Some(EN.keygen_that_card_is.to_string()),
+                Some(_) => Some(EN.keygen_card_already_drawn.to_string()),
                 None => None,
             };
             self.rank = None;
@@ -1088,7 +1088,7 @@ impl KeyGen {
             return;
         }
         let Some(luma) = self.frame.as_ref() else {
-            self.note = Some(EN.keygen_no_picture_from.to_string());
+            self.note = Some(EN.keygen_no_camera_picture.to_string());
             return;
         };
         let (_, taken) = self.camera.push(luma);
@@ -1113,7 +1113,10 @@ impl KeyGen {
     pub fn finish_entry(&mut self) -> bool {
         if !self.ready() {
             let (have, need) = self.progress();
-            self.note = Some(fill(EN.keygen_of, &[&have.to_string(), &need.to_string()]));
+            self.note = Some(fill(
+                EN.keygen_entry_count,
+                &[&have.to_string(), &need.to_string()],
+            ));
             return false;
         }
         self.note = None;

@@ -778,7 +778,7 @@ impl Faraday {
             .get(w)
             .map_or(1, |wl| crate::wallet::Session::quorum(wl).0);
         let gives = if need <= 1 {
-            EN.secrets_whoever_has_it.to_string()
+            EN.secrets_seed_warning.to_string()
         } else {
             let more = need - 1;
             fill(
@@ -1643,7 +1643,7 @@ impl Faraday {
                 .store()
                 .fits(self.vaults.open[o].id, &w.out, &sizes)
             {
-                return self.toast(EN.vaults_that_does_not);
+                return self.toast(EN.vaults_slot_too_small);
             }
             work.push(w);
         }
@@ -1793,7 +1793,7 @@ impl Faraday {
     pub fn wallet_item_written(&self, names: &[String]) -> Option<String> {
         let first = names.first()?;
         let label = self.wallet_written_to(first)?;
-        Some(fill(EN.backup_flow_written_to, &[&label]))
+        Some(fill(EN.backup_flow_written_place, &[&label]))
     }
 }
 
@@ -2705,7 +2705,7 @@ impl Faraday {
             .map(|(n, _)| n)
             .collect();
         self.wallet_written_where(&|n| seed_file_of(&stem, &fps, n))
-            .map(|l| fill(EN.backup_flow_written_to, &[&l]))
+            .map(|l| fill(EN.backup_flow_written_place, &[&l]))
     }
 
     /// "Written to {stick}" for the wallet's shares, once the flow wrote
@@ -2715,7 +2715,7 @@ impl Faraday {
         let stem = file_stem(&self.session.wallets.get(b.wallet)?.name);
         let head = format!("{stem}-share-");
         self.wallet_written_where(&|n| n.starts_with(&head))
-            .map(|l| fill(EN.backup_flow_written_to, &[&l]))
+            .map(|l| fill(EN.backup_flow_written_place, &[&l]))
     }
 
     /// Where a file of the wallet whose name satisfies `is` was written by

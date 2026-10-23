@@ -492,7 +492,7 @@ fn layout(pills: &[Pill], ui: &Ui, z: &Size, avail: f32) -> Layout {
             .map(|p| match form {
                 Form::Long => {
                     let state = if p.inserted {
-                        EN.stick_pill_in
+                        EN.stick_pill_inserted
                     } else {
                         EN.stick_pill_out
                     };

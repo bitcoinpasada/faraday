@@ -247,7 +247,7 @@ impl Faraday {
         };
         let (Some(primary), Some(subkey)) = (self.fresh(b"gpg primary"), self.fresh(b"gpg subkey"))
         else {
-            return Err(EN.gpg_no_randomness_from.to_string());
+            return Err(EN.gpg_no_randomness.to_string());
         };
         let primary = Zeroizing::new(primary);
         let subkey = Zeroizing::new(subkey);
@@ -369,7 +369,7 @@ impl Faraday {
                     .into_iter()
                     .find(|f| f.hash[..8] == prefix)
                     .and_then(|f| self.inbox.get(f.index))
-                    .ok_or(EN.gpg_that_file_is_no)?;
+                    .ok_or(EN.gpg_file_gone)?;
                 (
                     fill(EN.gpg_gpg_signature, &[&item.name.to_string()]),
                     self.vaults
@@ -379,7 +379,7 @@ impl Faraday {
                     format!("{}.asc.png", item.name),
                     vec![
                         fill(EN.gpg_signs, &[&item.name.to_string()]),
-                        fill(EN.gpg_by, &[&who.to_string()]),
+                        fill(EN.gpg_signer_line, &[&who.to_string()]),
                         fp,
                     ],
                 )
@@ -397,7 +397,7 @@ impl Faraday {
             rev_name(key),
             Zeroizing::new(file.as_bytes().to_vec()),
             EN.gpg_gpg_revocation,
-            EN.gpg_whoever_has_it,
+            EN.gpg_revocation_warning,
         );
         // It is in the vault already.
         out.keep = crate::secrets::Keep::None;

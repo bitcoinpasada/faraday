@@ -418,7 +418,7 @@ pub(crate) fn create_flow_card(
         Step::Sticks => {
             let (read, of) = f.setup_sticks_read();
             fill(
-                FEN.backup_flow_read_of,
+                FEN.backup_flow_read_count,
                 &[&read.to_string(), &of.to_string()],
             )
         }
@@ -429,7 +429,7 @@ pub(crate) fn create_flow_card(
                 .filter(|&&v| app.flow_open_index(i, v).is_some())
                 .count();
             fill(
-                FEN.backup_flow_unlocked_of,
+                FEN.backup_flow_unlocked_count,
                 &[&open.to_string(), &used.len().to_string()],
             )
         }

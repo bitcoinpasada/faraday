@@ -435,7 +435,7 @@ fn paged(
             // §2.6).
             let card = &cards[i];
             let count = fill(
-                EN.flow_step_of,
+                EN.flow_step_count,
                 &[&(i + 1).to_string(), &cards.len().to_string()],
             );
             let count_w = ui.measure(12.0, W::R, &count);

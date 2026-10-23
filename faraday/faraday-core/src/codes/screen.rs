@@ -114,7 +114,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let now = app.clock_now().unwrap_or(0);
     let rows = codes_rows(app, now);
     if rows.is_empty() {
-        ui.text(x, y, 14.0, W::R, DIM, EN.codes_no_entries_with);
+        ui.text(x, y, 14.0, W::R, DIM, EN.codes_no_totp_entries);
         y += 36.0;
     } else {
         for r in &rows {
@@ -162,7 +162,7 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let now = app.clock_now().unwrap_or(0);
     let rows = codes_rows(app, now);
     if rows.is_empty() {
-        ui.text(x, y, 13.0, W::R, DIM, EN.codes_no_entries_with);
+        ui.text(x, y, 13.0, W::R, DIM, EN.codes_no_totp_entries);
         y += 32.0;
     } else {
         for r in &rows {

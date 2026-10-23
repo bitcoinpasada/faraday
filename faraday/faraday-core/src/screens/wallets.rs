@@ -58,12 +58,12 @@ pub(crate) fn missing_keys_line(
     let locked = files.iter().position(|f| f.open.is_none());
     let open_names: Vec<String> = app.vaults.open.iter().map(|v| v.name.clone()).collect();
     let line = match (locked, open_names.is_empty()) {
-        (Some(i), _) => fill(EN.missing_keys_line_is, &[&files[i].name.to_string()]),
+        (Some(i), _) => fill(EN.missing_keys_line_locked, &[&files[i].name.to_string()]),
         (None, false) => fill(
-            EN.missing_keys_line_not,
+            EN.missing_keys_line_not_open,
             &[&open_names.join(", ").to_string()],
         ),
-        (None, true) => fill(EN.missing_keys_line_a, &[app.medium.a()]),
+        (None, true) => fill(EN.missing_keys_line_elsewhere, &[app.medium.a()]),
     };
     if ui.compact {
         ui.icon(x - 4.0, y - 2.0, 20.0, Icon::Info, 11.0, MUTED);
@@ -327,7 +327,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ly,
             Some(listw),
             40.0,
-            EN.wallets_restore_an,
+            EN.wallets_restore_wallet,
             Style::Secondary,
             Action::RestoreWallet,
         );
@@ -342,7 +342,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .filter(|wl| wl.policy().silent().is_none() && !app.can_spend(app.wallet));
     let (add_label, add_action) = match short {
         Some(wl) => (
-            fill(EN.wallets_scan_a_key_for, &[&wl.name.to_string()]),
+            fill(EN.wallets_scan_key_title, &[&wl.name.to_string()]),
             Action::ScanKey(app.wallet),
         ),
         None => (EN.wallets_add_a_key.to_string(), Action::KeyGen(None)),
@@ -425,7 +425,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             // §16.2), beside Rename where it fits before the source's
             // pill, so the foot keeps its one row; else in the foot.
             let bx = ix + nw + 14.0 + rw + 6.0;
-            let bw = ui.measure(14.0, W::S, EN.wallets_new_wallet_from) + 32.0;
+            let bw = ui.measure(14.0, W::S, EN.wallets_new_wallet_button) + 32.0;
             let pill = ui.measure(
                 12.0,
                 W::R,
@@ -437,7 +437,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     cy,
                     None,
                     30.0,
-                    EN.wallets_new_wallet_from,
+                    EN.wallets_new_wallet_button,
                     Style::Ghost,
                     Action::NewWalletFrom(app.wallet),
                 );
@@ -482,7 +482,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     items.push((back_up, Style::Secondary, Action::Backup(app.wallet)));
     if new_from {
         items.push((
-            EN.wallets_new_wallet_from,
+            EN.wallets_new_wallet_button,
             Style::Secondary,
             Action::NewWalletFrom(app.wallet),
         ));
@@ -501,7 +501,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         iw,
         &items,
         (
-            EN.wallets_remove_from,
+            EN.wallets_remove_from_session,
             Style::Ghost,
             Action::RemoveWallet(app.wallet),
         ),
@@ -665,7 +665,7 @@ fn silent_wallet_card(
     let (state, fg, bg) = if held.is_some() {
         (EN.silent_wallet_card_here, OK, OK.with_alpha(30))
     } else {
-        (EN.silent_wallet_card_not, MUTED, INNER)
+        (EN.silent_wallet_card_not_here, MUTED, INNER)
     };
     let button = held.is_none().then(|| {
         let slot = crate::wallet::Slot::bare(r.fingerprint);
@@ -695,7 +695,14 @@ fn silent_wallet_card(
     }
     ui.rule(ix, cy + 46.0, iw, INNER);
     cy += 64.0;
-    ui.text(ix, cy, 13.0, W::S, MUTED, EN.silent_wallet_card_address_2);
+    ui.text(
+        ix,
+        cy,
+        13.0,
+        W::S,
+        MUTED,
+        EN.silent_wallet_card_address_label,
+    );
     cy += 24.0;
     cy += ui.wrap(ix, cy, iw, 14.0, W::M, TEXT, &r.address()) + 18.0;
     ui.text(ix, cy, 13.0, W::S, MUTED, EN.silent_wallet_card_labels);

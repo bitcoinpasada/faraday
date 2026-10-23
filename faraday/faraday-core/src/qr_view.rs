@@ -145,7 +145,7 @@ impl NoPicture {
     pub fn line(self) -> &'static str {
         match self {
             NoPicture::Silent => EN.scan_no_picture,
-            NoPicture::Unavailable => EN.event_no_camera_or,
+            NoPicture::Unavailable => EN.event_no_camera,
             NoPicture::Refused => EN.scan_camera_refused,
             NoPicture::InUse => EN.scan_camera_in_use,
             NoPicture::NotFound => EN.scan_no_camera_found,

@@ -187,8 +187,8 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   and none that exposes a checksum's intermediate rows.
 - **Add a key › Type a codex32 secret** (`faraday/faraday-core/src/forms.rs`):
   one string at a time; a second string with another identifier is
-  refused (`forms_that_string_is`), and one whose share index is already
-  in is refused (`forms_that_share_is`), identical or not.
+  refused (`forms_other_seed_string`), and one whose share index is already
+  in is refused (`forms_share_duplicate`), identical or not.
 - **Scanning**: in the codex32 form, Scan reads a string and adds it as
   typed (`ScanPurpose::KeyPart`, `faraday/faraday-core/src/lib.rs`); Home's
   Scan and the intake scanner send a string to that form

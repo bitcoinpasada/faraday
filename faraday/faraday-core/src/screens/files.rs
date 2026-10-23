@@ -90,7 +90,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     &(if fw.files.len() > 1 {
                         format!(
                             " {}",
-                            fill(EN.inbox_panel_files_say_it, &[&fw.files.len().to_string()])
+                            fill(EN.inbox_panel_files_agree, &[&fw.files.len().to_string()])
                         )
                     } else if fw.from_shares {
                         format!(" {}", EN.inbox_panel_from_split_sheets)
@@ -103,7 +103,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let line = ui.fit(12.0, W::R, &line, w - nw - 260.0);
             ui.text_mid(rx + 40.0 + nw, ty, 34.0, 12.0, W::R, MUTED, &line);
             if fw.seeds_here >= fw.needed {
-                let tag = EN.inbox_panel_ready_to;
+                let tag = EN.inbox_panel_ready_to_sign;
                 let tw = ui.measure(12.0, W::S, tag) + 20.0;
                 ui.fill(
                     x + w - 20.0 - tw,
@@ -143,8 +143,8 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let label = match (chosen, with_seeds) {
             (0, _) => EN.inbox_panel_nothing.to_string(),
             (1, true) => EN.inbox_panel_load_the_wallet.to_string(),
-            (1, false) => EN.inbox_panel_load_the.to_string(),
-            (n, true) => fill(EN.inbox_panel_load_wallets_with, &[&n.to_string()]),
+            (1, false) => EN.inbox_panel_load_wallet.to_string(),
+            (n, true) => fill(EN.inbox_panel_load_wallets_seeds, &[&n.to_string()]),
             (n, false) => fill(EN.inbox_panel_load_wallets, &[&n.to_string()]),
         };
         ui.button(
@@ -174,7 +174,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ty += 54.0;
     }
     if !potential.is_empty() {
-        ui.text(x + 20.0, ty, 13.0, W::S, MUTED, EN.inbox_panel_keys_with);
+        ui.text(x + 20.0, ty, 13.0, W::S, MUTED, EN.inbox_panel_loose_keys);
         ty += 26.0;
         for s in potential.iter().take(ROWS) {
             ui.icon(x + 20.0, ty + 9.0, 20.0, Icon::Keys, 11.0, MUTED);
@@ -190,7 +190,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
             let line = ui.fit(12.0, W::R, &from.join(" · "), w - 420.0);
             ui.text_mid(x + 140.0, ty, 38.0, 12.0, W::R, MUTED, &line);
-            let label = EN.inbox_panel_make_it_a;
+            let label = EN.inbox_panel_make_wallet;
             let bw = ui.measure(13.0, W::S, label) + 28.0;
             ui.button(
                 x + w - 20.0 - bw,
@@ -225,7 +225,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ty += 10.0;
     }
     if !found.xpubs.is_empty() {
-        ui.text(x + 20.0, ty, 13.0, W::S, MUTED, EN.inbox_panel_xpubs_with);
+        ui.text(x + 20.0, ty, 13.0, W::S, MUTED, EN.inbox_panel_loose_xpubs);
         ty += 26.0;
         for (i, xp) in found.xpubs.iter().enumerate().take(ROWS) {
             ui.icon(x + 20.0, ty + 9.0, 20.0, Icon::Wallet, 11.0, MUTED);
@@ -244,7 +244,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             );
             let line = ui.fit(12.0, W::R, &line, w - 460.0);
             ui.text_mid(x + 140.0, ty, 38.0, 12.0, W::R, MUTED, &line);
-            let label = EN.inbox_panel_make_it;
+            let label = EN.inbox_panel_make_watch_only;
             let bw = ui.measure(13.0, W::S, label) + 28.0;
             ui.button(
                 x + w - 20.0 - bw,
@@ -266,7 +266,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let line = ui.fit(13.0, W::R, &q.line, w - 200.0);
             ui.text_mid(x + 20.0, ty, 36.0, 13.0, W::R, MUTED, &line);
             if let Some(k) = q.backup {
-                let label = EN.inbox_panel_open_with;
+                let label = EN.inbox_panel_open_passphrase;
                 let bw = ui.measure(13.0, W::S, label) + 28.0;
                 ui.button(
                     x + w - 20.0 - bw,
@@ -295,7 +295,7 @@ fn add_to_vault(app: &View, ui: &mut Ui, x: f32, y: f32, k: usize, style: Style)
         return 0.0;
     }
     let action = Action::Vault(crate::vault::VaultAction::AddFile(k));
-    ui.button(x, y, None, 36.0, EN.add_to_vault_add_to, style, action) + 8.0
+    ui.button(x, y, None, 36.0, EN.add_to_vault_button, style, action) + 8.0
 }
 
 /// Restore the wallet, on a share of a split backup: the shares in the
@@ -324,7 +324,7 @@ fn restore_shares_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
         }
         Ok(m) => {
             let line = fill(
-                EN.restore_shares_button_of,
+                EN.restore_shares_button_progress,
                 &[&m.have.len().to_string(), &m.n.to_string()],
             );
             ui.text_mid(x, y, 36.0, 13.0, W::R, WARN, &line);
@@ -473,7 +473,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                         iy + 64.0,
                         None,
                         36.0,
-                        EN.files_import_into_the,
+                        EN.files_import_into_vault,
                         Style::Primary,
                         Action::Vault(action),
                     ) + 8.0;
@@ -787,7 +787,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     }
     let (label, action) = if app.sticks.is_empty() {
-        (fill(EN.files_waiting_for, &[app.medium.a()]), None)
+        (fill(EN.files_waiting_medium, &[app.medium.a()]), None)
     } else if app.holds_secret() {
         (
             fill(EN.files_attached_lock, &[app.medium.cap()]),
@@ -913,7 +913,14 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
     }
     if !together.is_empty() {
         let mut ty = y + 52.0;
-        ui.text(x + 20.0, ty, 13.0, W::S, MUTED, EN.vault_panel_wallets_with);
+        ui.text(
+            x + 20.0,
+            ty,
+            13.0,
+            W::S,
+            MUTED,
+            EN.vault_panel_seeded_wallets,
+        );
         ty += 26.0;
         let many = together.len() > 1;
         for wt in together.iter().take(ROWS) {
@@ -927,7 +934,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             let nw = ui.text_mid(rx + 26.0, ty, 36.0, 14.0, W::S, TEXT, &wt.name);
             let here = wt.keys.len();
             let line = fill(
-                EN.vault_panel_of_in_this,
+                EN.vault_panel_keys_here,
                 &[
                     &here.to_string(),
                     &wt.total.to_string(),
@@ -940,7 +947,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             );
             ui.text_mid(rx + 40.0 + nw, ty, 36.0, 12.0, W::R, MUTED, &line);
             if here >= wt.needed {
-                let tag = EN.vault_panel_ready_to;
+                let tag = EN.vault_panel_ready_to_sign;
                 let tw = ui.measure(12.0, W::S, tag) + 20.0;
                 ui.fill(
                     x + w - 20.0 - tw,
@@ -1071,7 +1078,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             &[&count(wl, EN.vault_panel_wallet, EN.vault_panel_wallets).to_string()],
         ),
         (s, wl) => fill(
-            EN.vault_panel_load_and,
+            EN.vault_panel_load_keys_wallets,
             &[
                 &count(s, EN.vault_panel_key, EN.vault_panel_keys).to_string(),
                 &count(wl, EN.vault_panel_wallet, EN.vault_panel_wallets).to_string(),
@@ -1164,7 +1171,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                         &(if fw.files.len() > 1 {
                             format!(
                                 " {}",
-                                fill(EN.inbox_panel_files_say_it, &[&fw.files.len().to_string()])
+                                fill(EN.inbox_panel_files_agree, &[&fw.files.len().to_string()])
                             )
                         } else if fw.from_shares {
                             format!(" {}", EN.inbox_panel_from_split_sheets)
@@ -1187,10 +1194,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 ty += 8.0;
             }
             if wallets.len() > ROWS {
-                let more = fill(
-                    EN.inbox_more_loaded_with,
-                    &[&(wallets.len() - ROWS).to_string()],
-                );
+                let more = fill(EN.inbox_more_loaded, &[&(wallets.len() - ROWS).to_string()]);
                 ty += ui.wrap(ix, ty, iw, 12.0, W::R, MUTED, &more) + 8.0;
             }
             let chosen = wallets
@@ -1203,9 +1207,9 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 .any(|w| w.seeds_here > 0);
             let label = match (chosen, with_seeds) {
                 (0, _) => EN.inbox_nothing_chosen.to_string(),
-                (1, true) => EN.inbox_load_the_wallet_with.to_string(),
+                (1, true) => EN.inbox_load_wallet_seeds.to_string(),
                 (1, false) => EN.inbox_load_the_wallet.to_string(),
-                (n, true) => fill(EN.inbox_load_wallets_with, &[&n.to_string()]),
+                (n, true) => fill(EN.inbox_load_wallets_seeds, &[&n.to_string()]),
                 (n, false) => fill(EN.inbox_load_wallets, &[&n.to_string()]),
             };
             let style = if chosen > 0 {
@@ -1228,7 +1232,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ty += 6.0;
         }
         if !potential.is_empty() {
-            ui.text(ix, ty, 13.0, W::S, MUTED, EN.inbox_keys_with_no);
+            ui.text(ix, ty, 13.0, W::S, MUTED, EN.inbox_loose_keys);
             ty += 24.0;
             for s in potential.iter().take(ROWS) {
                 ui.icon(ix, ty + 2.0, 20.0, Icon::Keys, 11.0, MUTED);
@@ -1270,7 +1274,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ty += 4.0;
         }
         if !found.xpubs.is_empty() {
-            ui.text(ix, ty, 13.0, W::S, MUTED, EN.inbox_xpubs_with_no);
+            ui.text(ix, ty, 13.0, W::S, MUTED, EN.inbox_loose_xpubs);
             ty += 24.0;
             for (i, xp) in found.xpubs.iter().enumerate().take(ROWS) {
                 ui.icon(ix, ty + 2.0, 20.0, Icon::Wallet, 11.0, MUTED);
@@ -1323,7 +1327,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                         ty,
                         iw,
                         32.0,
-                        &[(EN.inbox_open_with_its, style, Action::BackupOpen(k))],
+                        &[(EN.inbox_open_passphrase, style, Action::BackupOpen(k))],
                     );
                 }
             }
@@ -1371,7 +1375,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
         ui.text_mid(ix + 28.0, ty - 4.0, 28.0, 15.0, W::S, TEXT, &title);
         ty += 36.0;
         if !together.is_empty() {
-            ui.text(ix, ty, 13.0, W::S, MUTED, EN.vault_wallets_with);
+            ui.text(ix, ty, 13.0, W::S, MUTED, EN.vault_seeded_wallets);
             ty += 24.0;
             let many = together.len() > 1;
             for wt in together.iter().take(ROWS) {
@@ -1421,7 +1425,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
             }
             let chosen = together.iter().filter(|w| w.chosen || !many).count();
             let label = match chosen {
-                1 if !many => EN.vault_load_wallet_with.to_string(),
+                1 if !many => EN.vault_load_wallet_keys.to_string(),
                 0 => EN.vault_nothing_chosen.to_string(),
                 1 => EN.vault_load_1_wallet.to_string(),
                 n => fill(EN.vault_load_wallets, &[&n.to_string()]),
@@ -1429,7 +1433,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
             let each = if open.each_shown {
                 EN.vault_hide_each_seed.to_string()
             } else {
-                fill(EN.vault_each_seed_and, &[&rows.len().to_string()])
+                fill(EN.vault_each_seed_wallet, &[&rows.len().to_string()])
             };
             let mut items: Vec<(&str, Style, Action)> = vec![
                 (
@@ -1517,7 +1521,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
         let count =
             |n: usize, one: &str, many: &str| format!("{n} {}", if n == 1 { one } else { many });
         let label = match (seeds, wallets) {
-            (0, 0) if waiting.is_empty() => EN.vault_everything_is.to_string(),
+            (0, 0) if waiting.is_empty() => EN.vault_everything_loaded.to_string(),
             (0, 0) => EN.vault_nothing_chosen.to_string(),
             (s, 0) => fill(
                 EN.vault_load_n,
@@ -1528,7 +1532,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
                 &[&count(wl, EN.vault_wallet_inline, EN.vault_wallets).to_string()],
             ),
             (s, wl) => fill(
-                EN.vault_load_and,
+                EN.vault_load_keys_wallets,
                 &[
                     &count(s, EN.vault_key_inline, EN.vault_keys).to_string(),
                     &count(wl, EN.vault_wallet_inline, EN.vault_wallets).to_string(),
@@ -1592,7 +1596,7 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
     match item.kind {
         FileKind::Psbt if same_spend => {
             out.push((
-                EN.inbox_actions_add_to.into(),
+                EN.inbox_actions_add_signatures.into(),
                 Style::Primary,
                 Action::Collect(k),
             ));
@@ -1643,7 +1647,7 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
         }
         FileKind::Wallet | FileKind::SecretWallet => {
             out.push((
-                EN.inbox_actions_load_the.into(),
+                EN.inbox_actions_load_wallet.into(),
                 Style::Primary,
                 Action::LoadWallet(k),
             ));
@@ -1792,7 +1796,7 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut y = top;
     // The stick, or what waits for one.
     let (label, action) = if app.sticks.is_empty() {
-        (fill(EN.files_waiting_for, &[app.medium.a()]), None)
+        (fill(EN.files_waiting_medium, &[app.medium.a()]), None)
     } else if app.holds_secret() {
         (
             fill(EN.files_attached_lock, &[app.medium.cap()]),

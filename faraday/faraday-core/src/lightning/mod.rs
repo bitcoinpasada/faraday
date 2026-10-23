@@ -94,7 +94,7 @@ impl Faraday {
                     .iter()
                     .position(|w| Language::English.index_of(w).is_none())
                 {
-                    Err(fill(EN.lightning_word_is_not, &[&(k + 1).to_string()]))
+                    Err(fill(EN.lightning_word_not_in_list, &[&(k + 1).to_string()]))
                 } else {
                     for (slot, w) in idx.iter_mut().zip(&words) {
                         *slot = Language::English.index_of(w).unwrap_or(0);

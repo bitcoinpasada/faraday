@@ -340,19 +340,19 @@ impl Faraday {
                 &[&glance::thing_label(g.as_ref(), what).to_string()],
             ),
             Edit::Add(at, what) => fill(
-                EN.chart_edit_at,
+                EN.chart_edit_place_title,
                 &[
                     &glance::thing_label(g.as_ref(), what).to_string(),
                     &spot(at).to_string(),
                 ],
             ),
             Edit::Move(from, what, to) => fill(
-                EN.chart_edit_move_to,
+                EN.chart_edit_move_title,
                 &[&label(from, what).to_string(), &spot(to).to_string()],
             ),
-            Edit::Drop(at, what) => fill(EN.chart_edit_off_the, &[&label(at, what).to_string()]),
+            Edit::Drop(at, what) => fill(EN.chart_edit_off_plan, &[&label(at, what).to_string()]),
             Edit::RemovePlace(p) => fill(EN.chart_edit_remove, &[&place(p).to_string()]),
-            Edit::Clear(at) => fill(EN.chart_edit_off_the, &[&spot(at).to_string()]),
+            Edit::Clear(at) => fill(EN.chart_edit_off_plan, &[&spot(at).to_string()]),
         }
     }
 

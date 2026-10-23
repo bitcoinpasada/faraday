@@ -59,7 +59,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // line is at the top, where the scrolled list does not hide it.
     if app.selftest_passed() && !app.sticks.is_empty() {
         let line = fill(
-            EN.pull_pull_the_to,
+            EN.pull_medium_to_reason,
             &[app.medium.noun(), EN.pull_what_load_samples],
         );
         cy += ui.wrap(x, cy, w, LABEL, W::S, WARN, &line) + PAD;

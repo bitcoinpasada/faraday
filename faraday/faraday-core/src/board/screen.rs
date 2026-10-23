@@ -1238,7 +1238,7 @@ fn software(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) 
         ui,
         fr,
         sv.scanned.zone,
-        EN.board_scanned_in,
+        EN.board_scanned_zone,
         &sv.scanned.chips,
         lay.paper,
         PAPER,
@@ -1540,7 +1540,7 @@ pub(crate) fn sees_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     Action::Board(BoardPress::SeesUndo),
                 ),
                 (
-                    EN.board_keep_it,
+                    EN.board_keep_button,
                     Style::Primary,
                     Action::Board(BoardPress::SeesKeep),
                 ),
@@ -1575,7 +1575,7 @@ pub(crate) fn partials_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             cy += ui.wrap(x, cy, iw, tokens::LABEL, W::R, TEXT, rest) + tokens::GAP;
         }
         let keep = (
-            EN.board_keep_it,
+            EN.board_keep_button,
             Style::Primary,
             Action::Board(BoardPress::PartialsKeep),
         );

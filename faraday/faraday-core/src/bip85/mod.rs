@@ -285,7 +285,7 @@ impl Faraday {
             name,
             Zeroizing::new(text.as_bytes().to_vec()),
             what,
-            EN.bip85_whoever_has_it,
+            EN.bip85_secret_warning,
         ));
     }
 

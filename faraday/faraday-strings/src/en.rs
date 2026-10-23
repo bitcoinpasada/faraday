@@ -1,13379 +1,9006 @@
 //! Faraday's English wording: every string Faraday's screens, the stick's
 //! device check and the Starter show, in one file (F68).
 
-/// Every string Faraday shows, grouped by screen.
-pub struct Strings {
+/// The struct of every string and the English static, from one list:
+/// each key's doc, then its value, so the two are read together.
+macro_rules! strings {
+    ($( $(#[$meta:meta])* $name:ident: $value:expr, )*) => {
+        /// Every string Faraday shows, grouped by screen.
+        pub struct Strings {
+            $( $(#[$meta])* pub $name: &'static str, )*
+        }
+
+        /// The English wording.
+        pub static EN: Strings = Strings {
+            $( $name: $value, )*
+        };
+    };
+}
+
+strings! {
     /// Power-off sheet's first line on a PC stick that started with Secure Boot off or unread.
-    pub power_secure_boot_off: &'static str,
+    power_secure_boot_off: "Turn Secure Boot back on in the BIOS before starting Windows.",
     // ----- A vault's key and wallet, shown and saved (docs/BACKUP-FLOW.md §17.7), faraday-core -----
     /// A key record's SeedQR, shown only while held.
-    pub vault_show_seedqr: &'static str,
+    vault_show_seedqr: "Show SeedQR",
     /// A vault record's button and the popup's title: its files to the
     /// Outbox, for the stick.
-    pub vault_save_to_a_stick: &'static str,
+    vault_save_to_a_stick: "Save to a stick",
     /// The popup's line for a key record's files, before anything is made.
-    pub vault_anyone_who_finds: &'static str,
+    vault_anyone_who_finds: "Anyone who finds this stick has this seed",
     // ----- The stick's device check (docs/STARTER.md §3.1a), faraday-core -----
     /// Title of the sheet that names what is attached.
-    pub devices_title: &'static str,
+    devices_title: "Attached to this computer",
     /// What an IP-KVM or KVM can do, after its name and a colon.
-    pub devices_kvm: &'static str,
+    devices_kvm: "a KVM can show this screen and type on this computer from elsewhere",
     /// A wireless receiver attached (STARTER §3.1a): one line that holds
     /// nothing, on the Starter's Home and, on the stick, among the
     /// reminders before a secret.
-    pub devices_receiver_notice: &'static str,
+    devices_receiver_notice: "Wireless receiver attached. A wireless keyboard's typing can be picked up nearby: use a wired keyboard or the on-screen keyboard.",
     /// A Logitech Bolt receiver attached: its keyboards' typing is
     /// encrypted. In place of the receiver line.
-    pub devices_bolt_notice: &'static str,
+    devices_bolt_notice: "Logitech Bolt receiver attached. A Bolt keyboard's typing is encrypted.",
     /// What a virtual machine's host can do.
-    pub devices_virtual_machine: &'static str,
+    devices_virtual_machine: "a virtual machine's host sees and can change everything in it",
     /// The name a virtual machine goes by when its maker is not known.
-    pub devices_virtual_machine_unknown: &'static str,
+    devices_virtual_machine_unknown: "This computer",
     /// The line under a virtual machine: there is no way on.
-    pub devices_real_computer: &'static str,
+    devices_real_computer: "Faraday must start on a real computer.",
     /// The name of a screen whose EDID gives no name.
-    pub devices_this_screen: &'static str,
+    devices_this_screen: "This screen",
     /// What a TV can do.
-    pub devices_tv: &'static str,
+    devices_tv: "a TV can record what it shows",
     /// A USB device that gives no name: `{}` is its vendor:product ID.
-    pub devices_unnamed: &'static str,
+    devices_unnamed: "USB device {}",
     /// The button that reads what is attached again.
-    pub devices_check_again: &'static str,
+    devices_check_again: "Check again",
     /// The button that goes on with them attached.
-    pub devices_continue: &'static str,
+    devices_continue: "Continue anyway",
     /// The line Continue anyway asks with.
-    pub devices_continue_ask: &'static str,
+    devices_continue_ask: "What is listed stays possible while they are attached.",
     /// The button that answers it.
-    pub devices_continue_yes: &'static str,
+    devices_continue_yes: "Yes, continue",
     /// Toast: Check again found them still attached.
-    pub devices_still: &'static str,
+    devices_still: "Still attached",
     /// The sheet's Power off, for a virtual machine.
-    pub devices_power_off: &'static str,
+    devices_power_off: "Power off",
     /// The reminder before a secret, on the stick, when the screen's
     /// EDID did not settle whether it may be a TV.
-    pub devices_tv_line: &'static str,
+    devices_tv_line: "On a TV? Stop: a smart TV can record its screen.",
     /// Title of the sheet before a secret when it lists only reminders.
-    pub devices_before: &'static str,
+    devices_before: "Before a secret is shown",
     /// The button that goes on from the reminders.
-    pub devices_understood: &'static str,
+    devices_understood: "I understand",
     /// The button that goes back from them.
-    pub devices_cancel: &'static str,
+    devices_cancel: "Cancel",
     /// Home, while the system has given no randomness well after the
     /// start: nothing is sealed and no keyboard gets a code.
-    pub seed_missing: &'static str,
+    seed_missing: "No randomness from the system. Faraday has to restart",
     // ----- The Starter (docs/STARTER.md), faraday-starter -----
     /// Title of the Starter's Home, where the way back goes.
-    pub starter_home: &'static str,
+    starter_home: "Home",
     /// Label of Home's This computer card.
-    pub starter_computer: &'static str,
+    starter_computer: "This computer",
     /// The card's name when the maker and model could not be read.
-    pub starter_computer_unknown: &'static str,
+    starter_computer_unknown: "This computer",
     /// Label above Home's checklist.
-    pub starter_checklist: &'static str,
+    starter_checklist: "Checklist",
     /// Secure Boot state.
-    pub starter_secure_boot_on: &'static str,
+    starter_secure_boot_enabled: "Secure Boot: on",
     /// Secure Boot state.
-    pub starter_secure_boot_off: &'static str,
+    starter_secure_boot_off: "Secure Boot: off",
     /// Secure Boot state that could not be read.
-    pub starter_secure_boot_unknown: &'static str,
+    starter_secure_boot_unknown: "Secure Boot: not read",
     /// An ARM computer.
-    pub starter_cannot_start_arm: &'static str,
+    starter_cannot_start_arm: "This computer cannot start a Faraday stick",
     /// A computer started in legacy BIOS mode.
-    pub starter_cannot_start_bios: &'static str,
+    starter_cannot_start_bios: "Started in legacy BIOS mode: UEFI has to be on",
     /// A Mac with 32-bit EFI firmware (docs/MAC.md §1).
-    pub starter_cannot_start_mac_firmware: &'static str,
+    starter_cannot_start_mac_firmware: "This Mac's firmware cannot start Faraday",
     /// A Mac with Apple silicon, until its image exists (docs/MAC.md §4).
-    pub starter_cannot_start_mac_yet: &'static str,
+    starter_cannot_start_mac_yet: "This Mac cannot start Faraday yet",
     /// Card line: a Mac with the T2 chip.
-    pub starter_mac_t2: &'static str,
+    starter_mac_t2: "Apple T2 Security Chip",
     /// Checklist item, card button and page, on an Intel Mac.
-    pub starter_item_start_mac: &'static str,
+    starter_item_start_mac: "Start this Mac from the stick",
     /// Start this Mac's state: a Mac without the T2 chip.
-    pub starter_state_mac_option: &'static str,
+    starter_state_mac_option: "Option key at power-on",
     /// Start this Mac's state: a Mac with the T2 chip.
-    pub starter_state_mac_t2: &'static str,
+    starter_state_mac_t2: "Startup Security, then the Option key",
     /// Start this Mac's state: a Mac the table does not know.
-    pub starter_state_mac_unknown: &'static str,
+    starter_state_mac_unknown: "Option key at power-on · Startup Security on a T2 Mac",
     /// Over the T2 steps, for a Mac the table does not know.
-    pub starter_mac_t2_only: &'static str,
+    starter_mac_t2_only: "Only on a Mac with the T2 chip",
     /// Step.
-    pub starter_mac_lower: &'static str,
+    starter_mac_lower: "Lower Startup Security",
     /// Under it.
-    pub starter_mac_recovery: &'static str,
+    starter_mac_recovery: "macOS Recovery: hold Command-R at power-on",
     /// Under it.
-    pub starter_mac_utility_lower: &'static str,
+    starter_mac_utility_lower: "Utilities, Startup Security Utility: No Security, and Allow booting from external or removable media",
     /// Under Start from the stick, on a Mac.
-    pub starter_mac_option: &'static str,
+    starter_mac_option: "Shut down. Hold Option at power-on and choose EFI Boot",
     /// Under it.
-    pub starter_mac_firmware_password: &'static str,
+    starter_mac_firmware_password: "A firmware password, when one is set, is asked for first",
     /// Step.
-    pub starter_mac_afterwards: &'static str,
+    starter_mac_afterwards: "Afterwards: Startup Security back to Full",
     /// Under it.
-    pub starter_mac_utility_full: &'static str,
+    starter_mac_utility_full: "macOS Recovery, Startup Security Utility: Full Security, and Disallow booting from external or removable media",
     /// Guide title.
-    pub starter_learn_mac_intel: &'static str,
+    starter_learn_mac_intel: "Starting an Intel Mac from the stick",
     /// Make a Faraday stick's first choice, once the payload carries both stick images (docs/MAC.md §6).
-    pub starter_which_title: &'static str,
+    starter_which_title: "For which computer?",
     /// Row.
-    pub starter_which_pc: &'static str,
+    starter_which_pc: "A PC or an Intel Mac",
     /// Row.
-    pub starter_which_apple: &'static str,
+    starter_which_apple: "A Mac with M1 or M2",
     /// Checklist item and its page.
-    pub starter_item_make: &'static str,
+    starter_item_make: "Make a Faraday stick",
     /// Checklist item and its page.
-    pub starter_item_start: &'static str,
+    starter_item_start: "Start this computer from the stick",
     /// Checklist item.
-    pub starter_item_secure_boot: &'static str,
+    starter_item_secure_boot: "Turn Secure Boot back on",
     /// Make a Faraday stick's state.
-    pub starter_state_no_stick: &'static str,
+    starter_state_no_stick: "No Faraday stick attached",
     /// Make a Faraday stick's state: `{}` the version.
-    pub starter_state_stick: &'static str,
+    starter_state_stick: "Faraday stick attached · {}",
     /// Home row.
-    pub starter_row_pi: &'static str,
+    starter_row_pi: "Make a Pi card",
     /// Home row.
-    pub starter_row_transfer: &'static str,
+    starter_row_transfer: "Transfer",
     /// Home row and page.
-    pub starter_row_install: &'static str,
+    starter_row_install: "Install",
     /// Home row and page.
-    pub starter_row_installed: &'static str,
+    starter_row_installed: "Installed",
     /// Home row and page, when the running copy is newer.
-    pub starter_row_update: &'static str,
+    starter_row_update: "Update the installed Faraday",
     /// Home row and page.
-    pub starter_row_about: &'static str,
+    starter_row_about: "About",
     /// Home row.
-    pub starter_row_learn: &'static str,
+    starter_row_learn: "Learn",
     /// Title: which disk becomes the stick.
-    pub starter_disks_stick: &'static str,
+    starter_disks_stick: "Which stick?",
     /// Title: which card becomes the Pi card.
-    pub starter_disks_card: &'static str,
+    starter_disks_card: "Which card?",
     /// The Pi card page: which Pi and screen.
-    pub starter_pi_for: &'static str,
+    starter_pi_supported_boards: "For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8 inch screen",
     /// The Pi card page: which cameras.
-    pub starter_pi_cameras: &'static str,
+    starter_pi_cameras: "Cameras: a USB webcam, or Camera Module v1 or v2",
     /// A Starter with no stick image.
-    pub starter_no_stick_image: &'static str,
+    starter_no_stick_image: "Faraday Starter carries no stick image",
     /// A Starter with no Pi image.
-    pub starter_no_pi_image: &'static str,
+    starter_no_pi_image: "Faraday Starter carries no Pi image",
     /// A computer that cannot write a disk from here.
-    pub starter_no_writer: &'static str,
+    starter_no_writer: "This computer cannot write a stick from here",
     /// Which stick? with none attached.
-    pub starter_no_disks_stick: &'static str,
+    starter_no_disks_stick: "No USB stick attached · 256 MB or larger",
     /// Which card? with none attached.
-    pub starter_no_disks_card: &'static str,
+    starter_no_disks_card: "No SD card or USB stick attached · 256 MB or larger",
     /// A disk with no maker or model.
-    pub starter_disk_unnamed: &'static str,
+    starter_disk_unnamed: "Disk",
     /// What is on a disk: `{}` the version.
-    pub starter_on_faraday: &'static str,
+    starter_on_faraday: "Faraday stick · {}",
     /// A Faraday stick's version when it was not read: Windows lets
     /// only an administrator read the boot partition.
-    pub starter_version_not_read: &'static str,
+    starter_version_not_read: "version not read",
     /// What is on a disk.
-    pub starter_on_empty: &'static str,
+    starter_on_empty: "Empty",
     /// One volume with no name.
-    pub starter_on_volume: &'static str,
+    starter_on_volume: "1 volume",
     /// Volumes with no names: `{}` how many.
-    pub starter_on_volumes: &'static str,
+    starter_on_volumes: "{} volumes",
     /// After the volume's name.
-    pub starter_on_files_it: &'static str,
+    starter_volume_has_files: "files on it",
     /// After the volumes' names.
-    pub starter_on_files_them: &'static str,
+    starter_on_files_them: "files on them",
     /// After the volumes' names.
-    pub starter_on_no_files: &'static str,
+    starter_on_no_files: "no files",
     /// A disk the computer uses: `{}` the mount point.
-    pub starter_refused_mounted: &'static str,
+    starter_refused_mounted: "Used by this computer: mounted at {}",
     /// A disk the computer uses.
-    pub starter_refused_swap: &'static str,
+    starter_refused_swap: "Used by this computer: swap",
     /// A disk the computer uses.
-    pub starter_refused_system: &'static str,
+    starter_refused_system: "Holds this computer's system",
     /// A disk too small: `{}` the size needed.
-    pub starter_refused_small: &'static str,
+    starter_refused_small: "Smaller than the image: needs {}",
     /// A size: `{}` the number.
-    pub starter_size_gb: &'static str,
+    starter_size_gb: "{} GB",
     /// A size: `{}` the number.
-    pub starter_size_mb: &'static str,
+    starter_size_mb: "{} MB",
     /// Title: what to write.
-    pub starter_mode_title: &'static str,
+    starter_mode_title: "What to write?",
     /// Option.
-    pub starter_mode_whole_stick: &'static str,
+    starter_mode_whole_stick: "New Faraday stick",
     /// Option.
-    pub starter_mode_whole_card: &'static str,
+    starter_mode_whole_card: "New Faraday card",
     /// Its second line.
-    pub starter_mode_whole_sub: &'static str,
+    starter_mode_whole_sub: "Everything on it is lost",
     /// Option.
-    pub starter_mode_keep: &'static str,
+    starter_mode_keep: "Replace Faraday, keep data",
     /// Its second line.
-    pub starter_mode_keep_sub: &'static str,
+    starter_mode_keep_sub: "Only the boot partition is written",
     /// The fact under it (docs/STARTER.md §4.4).
-    pub starter_mode_keep_fact: &'static str,
+    starter_mode_keep_fact: "This computer can read and change the data partition while the stick is attached.",
     /// Keep data refused.
-    pub starter_mode_same: &'static str,
+    starter_mode_same: "Already this build",
     /// Keep data ticked on a stick whose version was not read: the
     /// elevated copy reading it.
-    pub starter_mode_reading: &'static str,
+    starter_mode_reading: "Reading the stick's version",
     /// The whole stick refused for a boot partition image.
-    pub starter_mode_boot_only: &'static str,
+    starter_mode_boot_only: "The image is a boot partition alone",
     /// Button.
-    pub starter_continue: &'static str,
+    starter_continue: "Continue",
     /// Title.
-    pub starter_confirm_title: &'static str,
+    starter_confirm_title: "Confirm",
     /// Confirm row.
-    pub starter_stick: &'static str,
+    starter_stick: "Stick",
     /// Confirm row.
-    pub starter_card: &'static str,
+    starter_card: "Card",
     /// Confirm row.
-    pub starter_size: &'static str,
+    starter_size: "Size",
     /// Confirm row.
-    pub starter_device: &'static str,
+    starter_device: "Device",
     /// Confirm row.
-    pub starter_serial: &'static str,
+    starter_serial: "Serial",
     /// A disk with no serial.
-    pub starter_serial_none: &'static str,
+    starter_serial_none: "None",
     /// Confirm row.
-    pub starter_on_it: &'static str,
+    starter_disk_contents_row: "On it",
     /// Confirm row.
-    pub starter_writes: &'static str,
+    starter_writes: "Writes",
     /// Confirm and About row.
-    pub starter_build: &'static str,
+    starter_build: "Build",
     /// An image with no build ID.
-    pub starter_build_unknown: &'static str,
+    starter_build_unknown: "Not known",
     /// Confirm row.
-    pub starter_img_sha: &'static str,
+    starter_img_sha: "SHA-256 of the image",
     /// Confirm and About row for a developer's image.
-    pub starter_image_sha: &'static str,
+    starter_image_sha: "SHA-256 of this image",
     /// About row for a developer's image.
-    pub starter_image_file: &'static str,
+    starter_image_file: "Image file",
     /// A developer's image (--image).
-    pub starter_dev_image: &'static str,
+    starter_dev_image: "Not Faraday Starter's own image",
     /// Keep data over a newer stick: `{}` its version.
-    pub starter_keep_newer: &'static str,
+    starter_keep_newer: "This stick holds a newer Faraday: {}",
     /// Keep data writing a dev build.
-    pub starter_keep_dev: &'static str,
+    starter_keep_dev: "Writes a dev build, with a serial console",
     /// Confirm refused.
-    pub starter_not_confirmed_stick: &'static str,
+    starter_not_confirmed_stick: "Not the stick confirmed: it was removed or changed",
     /// Confirm refused.
-    pub starter_not_confirmed_card: &'static str,
+    starter_not_confirmed_card: "Not the card confirmed: it was removed or changed",
     /// Button.
-    pub starter_erase_and_write: &'static str,
+    starter_erase_and_write: "Erase and write",
     /// Button.
-    pub starter_write: &'static str,
+    starter_write: "Write",
     /// Title.
-    pub starter_writing_title: &'static str,
+    starter_writing_title: "Writing",
     /// Progress: `{}` done, `{}` in all.
-    pub starter_of: &'static str,
+    starter_progress_bytes: "{} of {}",
     /// Progress while writing.
-    pub starter_written_of: &'static str,
+    starter_progress_writing: "Written {}",
     /// Progress while reading back.
-    pub starter_reading_back: &'static str,
+    starter_reading_back: "Reading back · {}",
     /// Result title.
-    pub starter_done_title: &'static str,
+    starter_done_title: "Written",
     /// Result title.
-    pub starter_failed_title: &'static str,
+    starter_failed_title: "Not written",
     /// Result line.
-    pub starter_pull_stick: &'static str,
+    starter_pull_stick: "The stick can be pulled out.",
     /// Result line.
-    pub starter_pull_card: &'static str,
+    starter_pull_card: "The card can be pulled out.",
     /// Button.
-    pub starter_done: &'static str,
+    starter_done: "Done",
     /// Button.
-    pub starter_try_again: &'static str,
+    starter_try_again: "Try again",
     /// A guide whose Learn page is not there: `{}` its title.
-    pub starter_guide_placeholder: &'static str,
+    starter_guide_placeholder: "Learn: {}",
     /// Guide title.
-    pub starter_learn_start_windows: &'static str,
+    starter_learn_start_windows: "Starting a Windows computer from the stick",
     /// Guide title.
-    pub starter_learn_start_linux: &'static str,
+    starter_learn_start_linux: "Starting a Linux computer from the stick",
     /// Guide title.
-    pub starter_learn_no_start: &'static str,
+    starter_learn_no_start: "When the stick does not start",
     /// Guide title.
-    pub starter_learn_keep_data: &'static str,
+    starter_learn_keep_data: "Replacing Faraday on a stick",
     /// Linux with a TPM-unlocked disk (docs/STARTER.md §6.4).
-    pub starter_tpm_line: &'static str,
+    starter_tpm_line: "A disk here is unlocked by the TPM: have its passphrase ready",
     /// Step and button.
-    pub starter_restart: &'static str,
+    starter_restart: "Restart into the BIOS",
     /// Card button and the sheet's head (docs/STARTER.md §3.1).
-    pub starter_restart_stick: &'static str,
+    starter_restart_stick: "Restart from the stick",
     /// The restart's confirmation.
-    pub starter_restart_save: &'static str,
+    starter_restart_save: "This restarts the computer now. Save your work first.",
     /// Card line, when the restart from the stick did not happen. `{}`
     /// the reason.
-    pub starter_stick_restart_failed: &'static str,
+    starter_stick_restart_failed: "Restart from the stick did not happen: {}",
     /// Installed, after an uninstall that left the firmware's boot entry.
     /// `{}` the reason.
-    pub starter_entry_kept: &'static str,
+    starter_entry_kept: "The BIOS's Faraday stick entry remains: {}",
     /// Button.
-    pub starter_restart_now: &'static str,
+    starter_restart_now: "Restart",
     /// Button.
-    pub starter_cancel: &'static str,
+    starter_cancel: "Cancel",
     /// Step.
-    pub starter_secure_boot_turn_off: &'static str,
+    starter_secure_boot_turn_off: "Turn Secure Boot off",
     /// Step, when it is.
-    pub starter_secure_boot_already_off: &'static str,
+    starter_secure_boot_already_off: "Secure Boot is already off",
     /// Under it.
-    pub starter_fast_boot: &'static str,
+    starter_fast_boot: "Turn Fast Boot off where it hides USB",
     /// Step.
-    pub starter_boot_from_stick: &'static str,
+    starter_boot_from_stick: "Start from the stick",
     /// Under it.
-    pub starter_boot_how: &'static str,
+    starter_boot_how: "The boot menu key",
     /// Under it, on Windows.
-    pub starter_boot_how_windows: &'static str,
+    starter_boot_how_windows: "The boot menu key, or Use a device in Advanced startup",
     /// Label (Done, and the Start page's boot-from-stick step): the
     /// expected boot menu entry's row.
-    pub starter_boot_menu_label: &'static str,
+    starter_boot_menu_label: "In the boot menu",
     /// Value for `starter_boot_menu_label`: `{}` the expected entry.
-    pub starter_boot_menu_value: &'static str,
+    starter_boot_menu_value: "something like {}",
     /// The boot menu entry's pattern for most makers (`decide::
     /// boot_menu_entry`): `{}` the stick's vendor and model.
-    pub starter_boot_menu_default: &'static str,
+    starter_boot_menu_default: "UEFI: {}, Partition 1",
     /// The boot menu entry's pattern for Lenovo's IdeaPad family and
     /// Framework: `{}` the stick's vendor and model.
-    pub starter_boot_menu_efi_usb_device: &'static str,
+    starter_boot_menu_efi_usb_device: "EFI USB Device ({})",
     /// The boot menu entry's pattern for HP: `{}` the stick's vendor and
     /// model.
-    pub starter_boot_menu_hp: &'static str,
+    starter_boot_menu_hp: "USB Hard Drive - {}",
     /// Step.
-    pub starter_afterwards: &'static str,
+    starter_afterwards: "Turn Secure Boot back on",
     /// Step, on Windows.
-    pub starter_afterwards_windows: &'static str,
+    starter_afterwards_windows: "Turn Secure Boot back on before starting Windows",
     /// Label above the guide's code.
-    pub starter_on_a_phone: &'static str,
+    starter_on_a_phone: "On a phone",
     /// Label above the Start page's three things to write down (§3.4, F47).
-    pub starter_notes_label: &'static str,
+    starter_notes_label: "Write down",
     /// Row: the maker's boot menu key.
-    pub starter_notes_boot_key: &'static str,
+    starter_notes_boot_key: "Boot menu key",
     /// Row: the maker's BIOS key.
-    pub starter_notes_bios_key: &'static str,
+    starter_notes_bios_key: "BIOS key",
     /// Row: where the Secure Boot setting is in the maker's BIOS.
-    pub starter_notes_setting: &'static str,
+    starter_notes_setting: "Secure Boot setting",
     /// Row on an Intel Mac with the T2 chip: the key for macOS Recovery.
-    pub starter_notes_mac_recovery: &'static str,
+    starter_notes_mac_recovery: "macOS Recovery key",
     /// Row on an Intel Mac with the T2 chip: where Startup Security is.
-    pub starter_notes_mac_setting: &'static str,
+    starter_notes_mac_setting: "Startup Security",
     /// The Mac's boot menu key.
-    pub starter_notes_mac_boot_value: &'static str,
+    starter_notes_mac_boot_value: "Option, held",
     /// The Mac's key for macOS Recovery.
-    pub starter_notes_mac_recovery_value: &'static str,
+    starter_notes_mac_recovery_value: "Command-R, held",
     /// Where Startup Security is on a Mac.
-    pub starter_notes_mac_setting_value: &'static str,
+    starter_notes_mac_setting_value: "macOS Recovery → Utilities → Startup Security Utility",
     /// A row's value for a maker without a page.
-    pub starter_notes_not_known: &'static str,
+    starter_notes_not_known: "Not known",
     /// A row only a T2 Mac has, on a Mac the table does not know: `{}`
     /// the row's label.
-    pub starter_notes_t2_only: &'static str,
+    starter_notes_t2_only: "{}, only on a Mac with the T2 chip",
     /// Button: the sheet as a PDF, opened in the system's viewer.
-    pub starter_notes_print: &'static str,
+    starter_notes_print: "Print",
     /// Tick box beside Print, on Windows with BitLocker on the system
     /// drive (§3.4, §6, F49): the sheet then carries the drive's recovery
     /// key. Unticked by default.
-    pub starter_notes_include_key: &'static str,
+    starter_notes_include_key: "Include the BitLocker recovery key",
     /// The sheet's row for the recovery key: `{}` the drive (`C:`).
-    pub starter_sheet_recovery_key: &'static str,
+    starter_sheet_recovery_key: "BitLocker recovery key, drive {}",
     /// The sheet's line to circle the BIOS key that worked (F47).
-    pub starter_sheet_bios_key_used: &'static str,
+    starter_sheet_bios_key_used: "BIOS key used (circle one)",
     /// The sheet's line to circle the boot menu key that worked (F47).
-    pub starter_sheet_boot_key_used: &'static str,
+    starter_sheet_boot_key_used: "Boot menu key used (circle one)",
     /// The last choice of a circle line, with a line to write on.
-    pub starter_sheet_other_key: &'static str,
+    starter_sheet_other_key: "Other: ________",
     /// The Escape key's name as the maker table writes it: first on the
     /// circle lines, before the function keys.
-    pub starter_sheet_key_esc: &'static str,
+    starter_sheet_key_esc: "Esc",
     /// The Start page's BitLocker row (§6, F49): `{}` the drive (`C:`).
-    pub starter_bitlocker_row: &'static str,
+    starter_bitlocker_row: "BitLocker, drive {}",
     /// Its value: protection on.
-    pub starter_bitlocker_on: &'static str,
+    starter_bitlocker_enabled: "On",
     /// Its value: suspended, with the times Windows starts before it turns
     /// back on: `{}` the number.
-    pub starter_bitlocker_suspended_times: &'static str,
+    starter_bitlocker_suspended_times: "Suspended · turns back on by itself after Windows starts {} times",
     /// The same, with one start left.
-    pub starter_bitlocker_suspended_once: &'static str,
+    starter_bitlocker_suspended_once: "Suspended · turns back on by itself after Windows starts once",
     /// Its value: suspended with no count (`DisableCount` 0).
-    pub starter_bitlocker_suspended_until: &'static str,
+    starter_bitlocker_suspended_until: "Suspended until resumed",
     /// Its value: suspended, the count not read (read without
     /// elevation).
-    pub starter_bitlocker_suspended: &'static str,
+    starter_bitlocker_suspended: "Suspended",
     /// Button: suspend BitLocker for the next starts of Windows.
-    pub starter_bitlocker_suspend: &'static str,
+    starter_bitlocker_suspend: "Temporarily suspend BitLocker",
     /// Under the button: `{}` the number of starts.
-    pub starter_bitlocker_suspend_for: &'static str,
+    starter_bitlocker_suspend_note: "For the next {} times Windows starts; then it turns back on by itself",
     /// Button: turn BitLocker back on now.
-    pub starter_bitlocker_resume: &'static str,
+    starter_bitlocker_resume: "Resume BitLocker",
     /// While the elevation prompt is open.
-    pub starter_waiting_permission: &'static str,
+    starter_waiting_permission: "Waiting for administrator permission",
     /// Under the Secure Boot step, and on the sheet, on Windows.
-    pub starter_not_found_windows: &'static str,
+    starter_not_found_windows: "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.",
     /// The same, on Linux.
-    pub starter_not_found: &'static str,
+    starter_not_found: "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. The computer starts as before.",
     /// On the sheet, under Turn Secure Boot off.
-    pub starter_sheet_off_how: &'static str,
+    starter_sheet_off_how: "In the BIOS: the Secure Boot setting to Disabled, then save and exit",
     /// On the sheet, under Start from the stick, on Windows.
-    pub starter_sheet_boot_how_windows: &'static str,
+    starter_sheet_boot_how_windows: "The boot menu key, on the restart after saving, before Windows starts",
     /// The same, on Linux.
-    pub starter_sheet_boot_how: &'static str,
+    starter_sheet_boot_how: "The boot menu key, on the restart after saving",
     /// On the sheet, under Turn Secure Boot back on.
-    pub starter_sheet_back_how: &'static str,
+    starter_sheet_back_how: "The BIOS key at power-on: the Secure Boot setting to Enabled, then save and exit",
     /// Button.
-    pub starter_install_now: &'static str,
+    starter_install_now: "Install",
     /// Button while installing.
-    pub starter_installing: &'static str,
+    starter_installing: "Installing",
     /// Install done: `{}` where.
-    pub starter_installed_in: &'static str,
+    starter_install_done_path: "Installed in {}",
     /// Row.
-    pub starter_installed_version: &'static str,
+    starter_installed_version: "Installed version",
     /// Row.
-    pub starter_this_version: &'static str,
+    starter_this_version: "This version",
     /// Installed row.
-    pub starter_installed_app: &'static str,
+    starter_installed_app: "Faraday Starter",
     /// Installed row.
-    pub starter_installed_menu: &'static str,
+    starter_installed_menu: "Menu entry",
     /// Installed row.
-    pub starter_installed_icon: &'static str,
+    starter_installed_icon: "Icon",
     /// Installed row.
-    pub starter_installed_entry: &'static str,
+    starter_installed_entry: "Installed apps entry",
     /// Installed with nothing installed.
-    pub starter_not_installed: &'static str,
+    starter_not_installed: "Not installed",
     /// Button.
-    pub starter_uninstall: &'static str,
+    starter_uninstall: "Uninstall",
     /// The uninstall's question.
-    pub starter_uninstall_ask: &'static str,
+    starter_uninstall_ask: "Uninstall Faraday Starter?",
     /// Under it.
-    pub starter_uninstall_keeps: &'static str,
+    starter_uninstall_keeps: "Removes the files listed. Received files and settings stay.",
     /// Reason.
-    pub starter_why_not_carried: &'static str,
+    starter_why_not_carried: "Faraday Starter does not carry what was confirmed. Nothing was written.",
     /// Reason. `{}` device, `{}` serial, `{}` size.
-    pub starter_why_changed: &'static str,
+    starter_why_changed: "{} is no longer the disk that was confirmed (serial {}, {}). Nothing was written.",
     /// Reason. The serial of a disk that reports none.
-    pub starter_why_no_serial: &'static str,
+    starter_why_no_serial: "none",
     /// Reason. A size in bytes.
-    pub starter_why_bytes: &'static str,
+    starter_why_bytes: "{} bytes",
     /// Reason. `{}` mount point.
-    pub starter_why_mounted: &'static str,
+    starter_why_mounted: "A partition on it is mounted at {}. Nothing was written.",
     /// Reason.
-    pub starter_why_swap: &'static str,
+    starter_why_swap: "A partition on it is in use as swap. Nothing was written.",
     /// Reason.
-    pub starter_why_system: &'static str,
+    starter_why_system: "It holds this computer's system. Nothing was written.",
     /// Reason.
-    pub starter_why_boot_only: &'static str,
+    starter_why_boot_only: "A boot partition alone is written only over a Faraday stick, keeping its data.",
     /// Reason. `{}` disk size, `{}` image size.
-    pub starter_why_too_small: &'static str,
+    starter_why_too_small: "The disk ({}) is smaller than the image ({}). Nothing was written.",
     /// Reason.
-    pub starter_why_payload_sum: &'static str,
+    starter_why_payload_sum: "The payload file does not match the manifest. Nothing was written.",
     /// Reason. `{}` file, `{}` sum.
-    pub starter_why_image_changed: &'static str,
+    starter_why_image_changed: "{} has changed since the app started: its SHA-256 is now {}. Nothing was written.",
     /// Reason.
-    pub starter_why_gone: &'static str,
+    starter_why_gone: "The disk is no longer attached. Nothing was written.",
     /// Reason. `{}` the system's words.
-    pub starter_why_bus: &'static str,
+    starter_why_bus: "udisks2 did not answer: {}",
     /// Reason. `{}` the system's words.
-    pub starter_why_unmounting: &'static str,
+    starter_why_unmounting: "Unmounting it failed: {}. Nothing was written.",
     /// Reason. `{}` the system's words.
-    pub starter_why_open_write: &'static str,
+    starter_why_open_write: "Opening it to write failed: {}. Nothing was written.",
     /// Reason. `{}` the system's words.
-    pub starter_why_open_read: &'static str,
+    starter_why_open_read: "Opening it to read back failed: {}",
     /// Reason. `{}` device, `{}` the system's words.
-    pub starter_why_device: &'static str,
+    starter_why_device: "{}: {}",
     /// Reason. `{}` device, `{}` the system's words.
-    pub starter_why_flush: &'static str,
+    starter_why_flush: "Flushing {} failed: {}",
     /// Reason. `{}` device, `{}` the fault.
-    pub starter_why_not_stick: &'static str,
+    starter_why_not_stick: "{} is not a Faraday stick: {}. Nothing was written.",
     /// Reason. `{}` the fault.
-    pub starter_why_not_stick_image: &'static str,
+    starter_why_not_stick_image: "The image is not a Faraday stick image: {}",
     /// Reason. `{}` sizes.
-    pub starter_why_boot_larger: &'static str,
+    starter_why_boot_larger: "The image's boot partition ({}) is larger than the stick's ({})",
     /// Reason.
-    pub starter_why_boot_label: &'static str,
+    starter_why_boot_label: "The image's boot partition is not a FAT32 filesystem labelled FARADAYBOOT",
     /// Reason.
-    pub starter_why_boot_short: &'static str,
+    starter_why_boot_short: "The boot partition image is shorter than one sector",
     /// Reason. `{}` device.
-    pub starter_why_table_changed: &'static str,
+    starter_why_table_changed: "The partition table on {} changed",
     /// Reason. `{}` the system's words.
-    pub starter_why_reading_table: &'static str,
+    starter_why_reading_table: "Reading the partition table failed: {}",
     /// Reason. `{}` device, `{}` byte.
-    pub starter_why_back_ends: &'static str,
+    starter_why_back_ends: "Reading back {}: the disk ends at byte {}",
     /// Reason. `{}` device, `{}` byte.
-    pub starter_why_back_differs: &'static str,
+    starter_why_back_differs: "Reading back {}: what was read differs from what was written at byte {}",
     /// Reason. `{}` device, `{}` the system's words.
-    pub starter_why_back_failed: &'static str,
+    starter_why_back_failed: "Reading back {} failed: {}",
     /// Reason. `{}` the system's words.
-    pub starter_why_source_read: &'static str,
+    starter_why_source_read: "Reading the source failed: {}",
     /// Reason. `{}` the system's words.
-    pub starter_why_write_failed: &'static str,
+    starter_why_write_failed: "Writing failed: {}",
     /// Reason.
-    pub starter_why_payload_changed: &'static str,
+    starter_why_payload_changed: "The payload file changed while it was read",
     /// Reason. `{}` the decoder's words.
-    pub starter_why_damaged: &'static str,
+    starter_why_damaged: "The .xz file is damaged: {}",
     /// Reason. `{}` bytes.
-    pub starter_why_longer: &'static str,
+    starter_why_longer: "The decompressed image is longer than {} bytes",
     /// Reason. `{}` bytes.
-    pub starter_why_shorter: &'static str,
+    starter_why_shorter: "The decompressed image is {} bytes, not {}",
     /// Reason. `{}` sum.
-    pub starter_why_wrong_sum: &'static str,
+    starter_why_wrong_sum: "The decompressed image's SHA-256 is {}, not the expected one",
     /// Reason.
-    pub starter_why_no_home: &'static str,
+    starter_why_no_home: "The home folder is not known",
     /// Reason. `{}` path, `{}` the system's words.
-    pub starter_why_file: &'static str,
+    starter_why_file: "{}: {}",
     /// Reason. `{}` path of a file that is another program's.
-    pub starter_why_in_the_way: &'static str,
+    starter_why_in_the_way: "{} is another program's, and is in the way",
     /// Reason. `{}` program, `{}` the system's words.
-    pub starter_why_start: &'static str,
+    starter_why_start: "Starting {} failed: {}",
     /// Reason. `{}` the system's words.
-    pub starter_why_restart: &'static str,
+    starter_why_restart: "Restarting into the BIOS failed: {}",
     /// Reason: the administrator permission was declined.
-    pub starter_why_declined: &'static str,
+    starter_why_declined: "Administrator permission was declined. Nothing was changed.",
     /// Reason. `{}` a program's name.
-    pub starter_why_missing: &'static str,
+    starter_why_missing: "{} is not installed",
     /// Reason. `{}` efibootmgr's words.
-    pub starter_why_boot_entry: &'static str,
+    starter_why_boot_entry: "efibootmgr failed: {}",
     /// Reason.
-    pub starter_why_no_stick: &'static str,
+    starter_why_no_stick: "No Faraday stick is attached",
     /// The elevated writer found this build already on the stick.
-    pub starter_why_same_build: &'static str,
+    starter_why_same_build: "The stick already holds this build. Nothing was written.",
     /// Reason: declined on an account that is not an administrator's.
-    pub starter_why_no_admin: &'static str,
+    starter_why_no_admin: "An administrator of this computer has to do this step.",
     /// Reason: BitLocker refused to suspend: `{}` its return value.
-    pub starter_why_managed: &'static str,
+    starter_why_managed: "BitLocker was not suspended ({}). This computer's BitLocker is managed: its administrator has to suspend it.",
     /// Reason: a BitLocker call failed: `{}` the call, `{}` its code.
-    pub starter_why_bitlocker: &'static str,
+    starter_why_bitlocker: "BitLocker refused {}: {}",
     /// Reason: the system drive is not encrypted.
-    pub starter_why_not_encrypted: &'static str,
+    starter_why_not_encrypted: "The drive is not encrypted.",
     /// Reason: BitLocker on the system drive could not be read.
-    pub starter_why_not_read: &'static str,
+    starter_why_not_read: "BitLocker on the system drive could not be read.",
     /// Reason: the system drive has no recovery key (no numerical
     /// password protector).
-    pub starter_why_no_recovery_key: &'static str,
+    starter_why_no_recovery_key: "The drive has no BitLocker recovery key.",
     /// Reason.
-    pub starter_why_unsupported: &'static str,
+    starter_why_unsupported: "Not on this computer",
     /// The app menu entry's name, in the desktop entry file install writes.
-    pub starter_menu_name: &'static str,
+    starter_menu_name: "Faraday Starter",
     /// The publisher in the Starter's installed-apps entry and the `.exe`'s properties.
-    pub starter_publisher: &'static str,
+    starter_publisher: "Faraday",
     /// Fault. `{}` the system's words.
-    pub starter_fault_reading: &'static str,
+    starter_fault_reading: "reading the partition table failed: {}",
     /// Fault.
-    pub starter_fault_no_header: &'static str,
+    starter_fault_no_header: "it has no GPT header",
     /// Fault.
-    pub starter_fault_not_gpt: &'static str,
+    starter_fault_not_gpt: "its partition table is not GPT",
     /// Fault.
-    pub starter_fault_header_damaged: &'static str,
+    starter_fault_header_damaged: "its GPT header is damaged",
     /// Fault.
-    pub starter_fault_header_checksum: &'static str,
+    starter_fault_header_checksum: "its GPT header's checksum is wrong",
     /// Fault.
-    pub starter_fault_entries_damaged: &'static str,
+    starter_fault_entries_damaged: "its GPT entries are damaged",
     /// Fault.
-    pub starter_fault_entries_past_end: &'static str,
+    starter_fault_entries_past_end: "its GPT entries lie past the end of the disk",
     /// Fault.
-    pub starter_fault_entries_checksum: &'static str,
+    starter_fault_entries_checksum: "its GPT entries' checksum is wrong",
     /// Fault.
-    pub starter_fault_disk_uuid: &'static str,
+    starter_fault_disk_uuid: "its disk UUID is not a Faraday stick's",
     /// Fault. `{}` count.
-    pub starter_fault_partitions: &'static str,
+    starter_fault_partitions: "it has {} partitions, not two",
     /// Fault.
-    pub starter_fault_boot_name: &'static str,
+    starter_fault_boot_name: "its first partition is not named FARADAYBOOT",
     /// Fault.
-    pub starter_fault_boot_type: &'static str,
+    starter_fault_boot_type: "its first partition is not a Faraday EFI system partition",
     /// Fault.
-    pub starter_fault_data_type: &'static str,
+    starter_fault_data_type: "its second partition is not a Faraday FARADAYDATA partition",
     /// Fault.
-    pub starter_fault_boot_damaged: &'static str,
+    starter_fault_boot_damaged: "its FARADAYBOOT partition is damaged",
     /// Fault. `{}` sizes.
-    pub starter_fault_boot_small: &'static str,
+    starter_fault_boot_small: "its FARADAYBOOT partition ({}) is smaller than the image ({})",
     /// Fault.
-    pub starter_fault_overlap: &'static str,
+    starter_fault_overlap: "its partitions overlap",
     /// Fault.
-    pub starter_fault_boot_past_end: &'static str,
+    starter_fault_boot_past_end: "its boot partition runs past its end",
     /// About row.
-    pub starter_version: &'static str,
+    starter_version: "Version",
     /// About row.
-    pub starter_release: &'static str,
+    starter_release: "Release",
     /// About row.
-    pub starter_commit: &'static str,
+    starter_commit: "Commit",
     /// About label.
-    pub starter_payload: &'static str,
+    starter_payload: "Carried in this app",
     /// About, with no payload.
-    pub starter_no_payload: &'static str,
+    starter_no_payload: "Faraday Starter carries no images",
     /// About row.
-    pub starter_sha_xz: &'static str,
+    starter_sha_xz: "SHA-256",
     /// About row: `{}` the file inside.
-    pub starter_sha_inner: &'static str,
+    starter_sha_inner: "SHA-256 of {}",
     /// About label.
-    pub starter_release_key: &'static str,
+    starter_release_key: "Release key",
     /// About label.
-    pub starter_check_title: &'static str,
+    starter_check_title: "Checking this file",
     /// About.
-    pub starter_check_text: &'static str,
+    starter_check_text: "Check this file against SHA256SUMS and its signature, SHA256SUMS.asc, from the release, with the release key above.",
     /// About: a command.
-    pub starter_check_cmd_import: &'static str,
+    starter_check_cmd_import: "gpg --fingerprint F1536BE07E234CFD",
     /// About: a command.
-    pub starter_check_cmd_verify: &'static str,
+    starter_check_cmd_verify: "gpg --verify SHA256SUMS.asc SHA256SUMS",
     /// About: a command.
-    pub starter_check_cmd_sums: &'static str,
+    starter_check_cmd_sums: "sha256sum -c --ignore-missing SHA256SUMS",
     /// About, on Windows.
-    pub starter_check_windows: &'static str,
+    starter_check_windows: "On Windows: Get-FileHash -Algorithm SHA256 for the sum, Gpg4win for the signature.",
     /// About label, on Windows.
-    pub starter_unsigned_title: &'static str,
+    starter_unsigned_title: "Not code-signed",
     /// About, on Windows.
-    pub starter_unsigned_text: &'static str,
+    starter_unsigned_text: "A code-signing certificate names a verified person or company, and Faraday is published under a pseudonym. Windows warns on first run; More info, then Run anyway, opens it. The sums and the signature are the check.",
     /// Home row and page title.
-    pub starter_row_templates: &'static str,
+    starter_row_templates: "Blank templates",
     /// Row and Choice title.
-    pub starter_tpl_words: &'static str,
+    starter_tpl_words: "Words",
     /// Row and Choice title.
-    pub starter_tpl_copy: &'static str,
+    starter_tpl_copy: "Copy",
     /// Row and Choice title.
-    pub starter_tpl_places: &'static str,
+    starter_tpl_places: "Places",
     /// Copy choice.
-    pub starter_tpl_seedqr: &'static str,
+    starter_tpl_seedqr: "SeedQR",
     /// Copy choice.
-    pub starter_tpl_both: &'static str,
+    starter_tpl_both: "Both",
     /// Primary button.
-    pub starter_tpl_print: &'static str,
+    starter_tpl_print: "Print",
     /// Secondary button.
-    pub starter_tpl_save: &'static str,
+    starter_tpl_save: "Save the PDF",
     /// After a save.
-    pub starter_tpl_open: &'static str,
+    starter_tpl_open: "Open it",
     /// Where the PDF was saved.
-    pub starter_tpl_saved: &'static str,
+    starter_tpl_saved: "Saved {}",
     /// Places stepper.
-    pub starter_tpl_fewer: &'static str,
+    starter_tpl_fewer: "Fewer",
     /// Places stepper.
-    pub starter_tpl_more: &'static str,
+    starter_tpl_more: "More",
     /// Another encryption product's driver found, by name (STARTER §6.4).
-    pub starter_other_found: &'static str,
+    starter_other_found: "An encrypted drive Faraday does not manage: {}",
     /// The person has that product's rescue disk or password.
-    pub starter_other_confirm: &'static str,
+    starter_other_confirm: "I have its rescue disk or password",
     /// A screen read as a TV (STARTER §3.1a), by name.
-    pub starter_concern_tv: &'static str,
+    starter_concern_tv: "{} is a TV. A TV can record what it shows: use another screen or computer.",
     /// A KVM switch or IP-KVM attached (STARTER §3.1a), by name.
-    pub starter_concern_kvm: &'static str,
+    starter_concern_kvm: "{} is a KVM switch. It can capture the screen and type: connect the screen and keyboard directly.",
     /// The Starter runs in a virtual machine (STARTER §3.1a), by its name.
-    pub starter_concern_vm: &'static str,
+    starter_concern_vm: "{} is a virtual machine. Faraday must start on the real computer, and this app cannot see the host's screens and devices.",
     /// The name of a screen whose EDID has none.
-    pub starter_concern_screen: &'static str,
+    starter_concern_screen: "The screen",
     /// The name of a USB device with no strings.
-    pub starter_concern_device: &'static str,
+    starter_concern_device: "A USB device",
     /// The name of a virtual machine whose firmware names none.
-    pub starter_concern_computer: &'static str,
+    starter_concern_computer: "This computer",
     /// Reads what is attached again (STARTER §3.1a).
-    pub starter_check_again: &'static str,
+    starter_check_again: "Check again",
     /// Lets one item of concern through for the session (STARTER §3.1a).
-    pub starter_continue_anyway: &'static str,
+    starter_continue_anyway: "Continue anyway",
     /// Continue anyway's sheet, by the item's name.
-    pub starter_let_through_ask: &'static str,
+    starter_let_through_ask: "Continue with {} attached?",
     /// Continue anyway's sheet: how long it lasts.
-    pub starter_let_through_until: &'static str,
+    starter_let_through_until: "Until this app is closed.",
     /// The link to the Learn page of that name (STARTER §3.1b).
-    pub starter_learn_secure_boot_bitlocker: &'static str,
+    starter_learn_secure_boot_bitlocker: "What Secure Boot and BitLocker are",
     /// The link to the Learn page on screens that record (STARTER §3.1a).
-    pub starter_learn_screens: &'static str,
+    starter_learn_screens: "Screens and devices that can record",
     /// The link on Restart from the stick's sheet (STARTER §3.1c).
-    pub starter_learn_boot_entry: &'static str,
+    starter_learn_boot_entry: "About the boot entry",
     /// Home's row removing the firmware's Faraday stick entry (STARTER §3.1c).
-    pub starter_remove_entry: &'static str,
+    starter_remove_entry: "Remove the Faraday boot entry",
     /// That row's second line.
-    pub starter_remove_entry_sub: &'static str,
+    starter_remove_entry_sub: "In this computer's boot list",
     /// That row while the removal runs.
-    pub starter_removing_entry: &'static str,
+    starter_removing_entry: "Removing",
     // ----- apk (faraday-core/src/apk.rs) -----
     /// Category in `CATEGORIES`: the APK signing keys a vault holds.
-    pub apk_signing_keys: &'static str,
+    apk_signing_keys: "APK signing keys",
     /// Row in Sign an APK: a file that is not an APK, or one read two ways.
-    pub apk_not_an_apk: &'static str,
+    apk_not_an_apk: "Not an APK",
     /// Row in Sign an APK: an APK that carries a signature already.
-    pub apk_already_signed: &'static str,
+    apk_already_signed: "Already signed",
     /// Row in Sign an APK: stored data off the boundary `zipalign` puts it on.
-    pub apk_not_aligned: &'static str,
+    apk_not_aligned: "Not aligned",
     /// Row in Sign an APK: a minimum Android below 7.0.
-    pub apk_before_7: &'static str,
+    apk_old_android_row: "Supports Android before 7.0",
     /// Row in Files and Sign an APK: the APK is another app's. `{}`: its package.
-    pub apk_other_package: &'static str,
+    apk_other_package: "Another app: {}",
     /// Row in Sign an APK: the signed file would pass FAT32's largest.
-    pub apk_over_4_gib: &'static str,
+    apk_over_4_gib: "Over 4 GiB on FAT32",
     /// Row in Sign an APK: the name it would be written under is too long.
-    pub apk_name_too_long: &'static str,
+    apk_name_too_long: "Name too long",
     /// Version in the review of an APK that states no `versionName`.
-    pub apk_no_name: &'static str,
+    apk_no_name: "No name",
     /// Toast in `apk_make_work`, `apk_sign`: the system has not answered.
-    pub apk_no_randomness: &'static str,
-    /// Toast in `apk_make_work`.
-    pub apk_the_key_is_in: &'static str,
-    /// Toast in `apk_make_work`: the vault's slot is full.
-    pub apk_that_does_not_fit: &'static str,
+    apk_no_randomness: "No randomness from the system yet. Try again",
     /// Toast in `apk_check_form`: the certificate's name is empty.
-    pub apk_name_the_certificate: &'static str,
+    apk_name_the_certificate: "Name the certificate",
     /// Toast in `apk_check_form`: the package is not Android's form.
-    pub apk_package_invalid: &'static str,
+    apk_package_invalid: "Not a package name",
     /// Toast in `vault_form_apk_save`.
-    pub apk_this_computer: &'static str,
+    apk_this_computer: "This computer's clock is not known",
     /// Error in `apk_code`.
-    pub apk_no_key_is_selected: &'static str,
+    apk_no_key_is_selected: "No APK key is selected",
     /// Line under the certificate's code. `{}`: the fingerprint.
-    pub apk_sha_256_of: &'static str,
+    apk_cert_fingerprint_line: "SHA-256 {}",
     /// Line under the certificate's code.
-    pub apk_public_checks: &'static str,
+    apk_public_checks: "Public: checks the APKs it signed",
     /// Row and title of the certificate.
-    pub apk_certificate: &'static str,
+    apk_certificate: "Certificate",
     /// Toast in `apk_sign`: the file is not the one reviewed.
-    pub apk_changed_since_review: &'static str,
+    apk_changed_since_review: "The file changed since it was reviewed",
     /// Files: what an APK is called.
-    pub apk_kind_apk: &'static str,
+    apk_kind_apk: "APK",
     /// Files: what a PEM certificate is called.
-    pub apk_kind_certificate: &'static str,
+    apk_kind_certificate: "APK signing certificate",
     /// Make an APK key: the first field.
-    pub apk_name_on_certificate: &'static str,
+    apk_name_on_certificate: "Name on the certificate",
     /// Make an APK key: the second field; the key page's row.
-    pub apk_package: &'static str,
+    apk_package: "Package",
     /// Make an APK key: the form's heading and the add action.
-    pub apk_make_a_key: &'static str,
+    apk_make_a_key: "Make an APK key",
     /// Make an APK key: the add row under the kinds.
-    pub apk_key_short: &'static str,
+    apk_key_short: "APK key",
     /// Make an APK key: the button.
-    pub apk_make_the_key: &'static str,
-    /// Make an APK key: while the key is made.
-    pub apk_making_the_key: &'static str,
+    apk_make_the_key: "Make the key",
     /// Make an APK key: under the name field.
-    pub apk_public_hint: &'static str,
-    /// Result of Make an APK key.
-    pub apk_key_made: &'static str,
+    apk_public_hint: "Public: printed by anyone who checks the APK",
     /// Row: the certificate's name.
-    pub apk_name: &'static str,
+    apk_name: "Name",
     /// Row: the certificate's SHA-256, the key's fingerprint.
-    pub apk_certificate_sha_256: &'static str,
+    apk_certificate_sha_256: "Certificate SHA-256",
     /// Row: the key's kind.
-    pub apk_key: &'static str,
+    apk_key: "Key",
     /// Row: the key's kind, as a value.
-    pub apk_rsa_3072: &'static str,
+    apk_rsa_3072: "RSA 3072",
     /// Row: the day the key was made.
-    pub apk_made: &'static str,
-    /// Button: leave the result.
-    pub apk_done: &'static str,
+    apk_made: "Made",
     /// Button on the key's page, and the page's heading.
-    pub apk_sign_an_apk: &'static str,
+    apk_sign_an_apk: "Sign an APK",
     /// Sign an APK with none copied in. `{}`: the medium with its article.
-    pub apk_copy_in_first: &'static str,
+    apk_copy_in_first: "Copy the APK in on {} visit first.",
     /// Sign an APK from Files with several keys for the package.
-    pub apk_which_key: &'static str,
+    apk_which_key: "Which key?",
     /// Button on an APK's row.
-    pub apk_sign: &'static str,
+    apk_sign: "Sign",
     /// The review's heading.
-    pub apk_sign_this: &'static str,
+    apk_review_title: "Sign this APK?",
     /// Review row: the name as copied in.
-    pub apk_file: &'static str,
+    apk_file: "File",
     /// Review row.
-    pub apk_size: &'static str,
+    apk_size: "Size",
     /// Review row: the file's SHA-256.
-    pub apk_sha_256: &'static str,
+    apk_sha_256: "SHA-256",
     /// Review row: the typed SHA-256 of an independent second build.
-    pub apk_second_build: &'static str,
+    apk_second_build: "Second build",
     /// Review: nothing typed yet.
-    pub apk_enter_second: &'static str,
+    apk_enter_second: "Enter the second build's SHA-256",
     /// Review: fewer than 32 digits typed.
-    pub apk_at_least_32: &'static str,
+    apk_hex_too_short: "At least 32 hex digits",
     /// Review: what was typed is not the start of the file's SHA-256.
-    pub apk_does_not_match: &'static str,
+    apk_does_not_match: "Does not match this file",
     /// Review: what was typed is the start of it.
-    pub apk_matches: &'static str,
+    apk_matches: "Matches",
     /// Review row.
-    pub apk_version: &'static str,
+    apk_version: "Version",
     /// Review row.
-    pub apk_android: &'static str,
+    apk_android: "Android",
     /// Review: the minimum Android. `{}`: its release.
-    pub apk_and_later: &'static str,
+    apk_and_later: "{} and later",
     /// Review: a release this build has no name for. `{}`: the API level.
-    pub apk_api_level: &'static str,
+    apk_api_level: "API {}",
     /// Review row: the key that signs.
-    pub apk_key_row: &'static str,
+    apk_key_row: "Key",
     /// Review row: the signed file's name.
-    pub apk_will_write: &'static str,
+    apk_will_write: "Will write",
     /// The review's hold.
-    pub apk_hold_to_sign: &'static str,
+    apk_hold_to_sign: "Hold to sign",
     /// Button: back.
-    pub apk_back: &'static str,
+    apk_back: "Back",
     /// Files: the button on an APK's row.
-    pub apk_sign_with_key: &'static str,
+    apk_sign_with_key: "Sign with APK key",
     // ----- backup (faraday-core/src/wallet_backup.rs) -----
     /// Text in `copy_scan_line`. `{}`: `k`.
-    pub backup_your_copy_scans_but: &'static str,
+    backup_your_copy_scans_but: "Your copy scans but word {} differs",
     /// Text in `copy_scan_line`.
-    pub backup_your_copy_scans: &'static str,
+    backup_your_copy_scans: "Your copy scans and matches the seed",
     /// Text in `envelope`. `{}`: `i + 1`, `p.len()`.
-    pub backup_share_of: &'static str,
+    backup_envelope_share_count: "share {} of {}",
     /// Text in `envelope`.
-    pub backup_the_backup_sheet: &'static str,
+    backup_the_backup_sheet: "the backup sheet",
     /// Text in `envelope`. `{}`: `i + 1`, `i + 1`, `fp`, `sheet`.
-    pub backup_envelope_the: &'static str,
+    backup_envelope_line: "Envelope {}: the seed of key {} {}, with {}",
     // ----- backups (faraday-core/src/backups/mod.rs) -----
     /// Text in `backups`.
-    pub backups_wallet: &'static str,
+    backups_wallet: "Wallet",
     /// Text in `backups`.
-    pub backups_plan: &'static str,
+    backups_plan: "Plan",
     /// Text in `backups`. `{}`: `s.name`.
-    pub backups_in_locked: &'static str,
+    backups_in_locked: "In {} · locked",
     /// Text in `record_lines`. `{}`: `p + 1`.
-    pub backups_place: &'static str,
+    backups_place: "Place {}",
     /// Text in `record_lines`.
-    pub backups_vault: &'static str,
+    backups_vault: "Vault",
     /// Text in `record_lines`. `{}`: `v + 1`.
-    pub backups_vault_n: &'static str,
+    backups_vault_n: "Vault {}",
     /// Text in `record_lines`. `{}`: `self.medium.cap()`.
-    pub backups_of_files: &'static str,
+    backups_of_files: "{} of files",
     /// Text in `record_lines`.
-    pub backups_watch_only: &'static str,
+    backups_watch_only: "Watch-only software",
     /// Text in `record_lines`.
-    pub backups_own_devices: &'static str,
+    backups_own_devices: "Own devices",
     /// Text in `record_lines`.
-    pub backups_checked: &'static str,
+    backups_checked: "Checked",
     /// Text in `record_lines`.
-    pub backups_not_checked: &'static str,
+    backups_not_checked: "Not checked",
     /// Text in `record_lines`.
-    pub backups_not_here: &'static str,
+    backups_not_here: "Not here",
     /// Text in `record_lines`. `{}`: `self.medium.for_box()`.
-    pub backups_unprotected: &'static str,
+    backups_unprotected: "{}, unprotected",
     /// Text in `record_lines`.
-    pub backups_shown: &'static str,
+    backups_shown: "Shown",
     /// Text in `record_lines`.
-    pub backups_not_shown: &'static str,
+    backups_not_shown: "Not shown",
     /// Text in `record_lines`.
-    pub backups_not_seen: &'static str,
+    backups_not_seen: "Not seen",
     /// Text in `record_lines`.
-    pub backups_nothing: &'static str,
+    backups_nothing: "Nothing",
     /// Text in `files_state`.
-    pub backups_not_made: &'static str,
+    backups_not_made: "Not made",
     /// Text in `vault_state`.
-    pub backups_a_vault_is: &'static str,
+    backups_vault_locked: "A vault is locked",
     /// Text in `vault_state`.
-    pub backups_not_saved_yet: &'static str,
+    backups_not_saved_yet: "Not saved yet",
     /// Text in `vault_state`.
-    pub backups_changed_since: &'static str,
+    backups_changed_since: "changed since written",
     /// Text in `vault_state`.
-    pub backups_unchanged: &'static str,
+    backups_unchanged: "unchanged",
     /// Text in `backup_line`.
-    pub backups_not_backed: &'static str,
+    backups_not_backed: "Not backed up",
     /// Text in `backup_line`. `{}`: `n`.
-    pub backups_paper_checked: &'static str,
+    backups_paper_checked: "paper ×{} checked",
     /// Text in `backup_line`. `{}`: `k`, `n`.
-    pub backups_paper_of_checked: &'static str,
+    backups_paper_of_checked: "paper {} of {} checked",
     /// Text in `backup_line`. `{}`: `lower_first(&l.state)`.
-    pub backups_files: &'static str,
+    backups_files: "files {}",
     /// Text in `backup_line`.
-    pub backups_planned: &'static str,
+    backups_planned: "planned",
     /// Text in `backup_line`. `{}`: `parts.join(" · ")`.
-    pub backups_backup: &'static str,
+    backups_backup: "Backup: {}",
     /// Text in `on_stick`. `{}`: `label`, `crate::vault::time_of_day(crate::vau…`.
-    pub backups_on_2: &'static str,
+    backups_on_stick_timed: "On {}, {}",
     /// Text in `on_stick`. `{}`: `label`.
-    pub backups_on: &'static str,
+    backups_on_stick: "On {}",
     // ----- backups (faraday-core/src/backups/screen.rs) -----
     /// Title in `draw`.
-    pub backups_backups: &'static str,
+    backups_backups: "Backups",
     /// Line in `compact`.
-    pub backups_no_wallet: &'static str,
+    backups_no_wallet: "No wallet",
     /// Line in `compact`.
-    pub backups_no_backup_plan: &'static str,
+    backups_no_backup_plan: "No backup plan",
     /// Button in `compact`.
-    pub backups_back_up: &'static str,
+    backups_back_up: "Back up",
     /// Text in `compact`. `{}`: `at + 1`, `n`.
-    pub backups_wallet_of: &'static str,
+    backups_wallet_count: "Wallet {} of {}",
     /// Button in `compact`.
-    pub backups_previous: &'static str,
+    backups_previous: "Previous",
     /// Button in `compact`.
-    pub backups_next: &'static str,
+    backups_next: "Next",
     // ----- bip85 (faraday-core/src/bip85/mod.rs) -----
     /// Toast in `bip85_open`.
-    pub bip85_load_a_key_first: &'static str,
+    bip85_load_a_key_first: "Load a key first",
     /// Text in `bip85_title`. `{}`: `app_name(b.app)`, `fp`, `b.index().unwrap_or(0)`.
-    pub bip85_bip_85_index: &'static str,
+    bip85_bip_85_index: "BIP-85 {} · {} · index {}",
     /// Toast in `bip85_to_vault`.
-    pub bip85_no_vault_is_open: &'static str,
+    bip85_no_vault_is_open: "No vault is open",
     /// Text in `bip85_to_vault`. `{}`: `title`.
-    pub bip85_is_in_the_vault: &'static str,
+    bip85_is_in_the_vault: "{} is in the vault",
     /// Toast in `bip85_load`. `{}`: `self.medium.noun()`.
-    pub bip85_remove_the_first: &'static str,
+    bip85_remove_the_first: "Remove the {} first",
     /// Toast in `bip85_load`. `{}`: `fp_text(fp)`.
-    pub bip85_key_added: &'static str,
+    bip85_key_added: "Key {} added",
     /// Text in `bip85_out`.
-    pub bip85_a_child_seed: &'static str,
+    bip85_a_child_seed: "A child seed's words",
     /// Text in `bip85_out`.
-    pub bip85_a_private_key: &'static str,
+    bip85_a_private_key: "A private key",
     /// Text in `bip85_out`.
-    pub bip85_secret_bytes: &'static str,
+    bip85_secret_bytes: "Secret bytes",
     /// Text in `bip85_out`.
-    pub bip85_a_password: &'static str,
+    bip85_a_password: "A password",
     /// Text in `bip85_out`.
-    pub bip85_whoever_has_it: &'static str,
+    bip85_secret_warning: "Whoever has it has what it protects or spends",
     // ----- bip85 (faraday-core/src/bip85/screen.rs) -----
     /// Text in `TITLES`.
-    pub bip85_key: &'static str,
+    bip85_key: "Key",
     /// Text in `TITLES`.
-    pub bip85_application: &'static str,
+    bip85_application: "Application",
     /// Text in `TITLES`.
-    pub bip85_index: &'static str,
+    bip85_index: "Index",
     /// Text in `TITLES`.
-    pub bip85_value: &'static str,
+    bip85_value: "Value",
     /// Text in `draw`.
-    pub bip85_wallets: &'static str,
+    bip85_wallets: "Wallets",
     /// Text in `draw`.
-    pub bip85_derive_with_bip: &'static str,
+    bip85_derive_with_bip: "Derive with BIP-85",
     /// Text in `length_label`. `{}`: `b.length`.
-    pub bip85_words: &'static str,
+    bip85_words: "{} words",
     /// Text in `length_label`. `{}`: `b.length`.
-    pub bip85_bytes: &'static str,
+    bip85_bytes: "{} bytes",
     /// Text in `length_label`. `{}`: `b.length`.
-    pub bip85_characters: &'static str,
+    bip85_characters: "{} characters",
     /// Text in `summary`.
-    pub bip85_not_chosen: &'static str,
+    bip85_not_chosen: "Not chosen",
     /// Text in `guide`.
-    pub bip85_bip_85_turns: &'static str,
+    bip85_bip_85_turns: "BIP-85 turns one key you already back up into many others: child seeds for other wallets, passwords, keys. Each comes back from the same key, application and index, so the key's backup is theirs too.",
     /// Text in `guide`.
-    pub bip85_a_child_seed_is: &'static str,
+    bip85_guide_child_seed: "A child seed is a key of its own, for another wallet or another device. It reveals nothing about this key.",
     /// Text in `guide`.
-    pub bip85_a_password_for: &'static str,
+    bip85_guide_password: "A password for a website or a program, as long as it allows. Keep it in a vault entry; the index makes the next one.",
     /// Text in `guide`.
-    pub bip85_the_value_is_made: &'static str,
+    bip85_the_value_is_made: "The value is made the way BIP-85 specifies, so any implementation gives the same one from the same key.",
     /// Text in `guide`.
-    pub bip85_index_0_is_the: &'static str,
+    bip85_guide_index: "Index 0 is the first of its kind; each number gives another. Write down the index with what you use it for: it is all that is needed to make the value again.",
     /// Text in `guide`.
-    pub bip85_the_value_is: &'static str,
+    bip85_guide_value: "The value is a secret. It goes into the open vault, sealed under its passphrase; out of the vault it goes only after the warning.",
     /// Text in `card`. `{}`: `lo`, `hi`.
-    pub bip85_to: &'static str,
+    bip85_index_range: "{} to {}",
     /// Line in `card`.
-    pub bip85_an_index_is_0: &'static str,
+    bip85_index_limits: "An index is 0 to 2147483647",
     /// Line in `card`.
-    pub bip85_type_the_digits: &'static str,
+    bip85_type_the_digits: "Type the digits · Enter continues",
     /// Button in `card`.
-    pub bip85_continue: &'static str,
+    bip85_continue: "Continue",
     /// Line in `card`.
-    pub bip85_path: &'static str,
+    bip85_path: "Path",
     /// Text in `card`.
-    pub bip85_hide: &'static str,
+    bip85_hide: "Hide",
     /// Text in `card`.
-    pub bip85_show: &'static str,
+    bip85_show: "Show",
     /// Text in `card`. `{}`: `v.name`.
-    pub bip85_save_into: &'static str,
+    bip85_save_into: "Save into {}",
     /// Text in `card`.
-    pub bip85_load_as_a_key: &'static str,
+    bip85_load_as_a_key: "Load as a key",
     /// Text in `card`.
-    pub bip85_out_unprotected: &'static str,
+    bip85_out_unprotected: "Out unprotected…",
     // ----- boot_import (faraday-core/src/boot_import/mod.rs) -----
     /// Text in `line`.
-    pub boot_import_vault_inline: &'static str,
+    boot_import_vault_inline: "vault",
     /// Text in `line`.
-    pub boot_import_vaults: &'static str,
+    boot_import_vaults: "vaults",
     /// Text in `line`.
-    pub boot_import_psbt: &'static str,
+    boot_import_psbt: "PSBT",
     /// Text in `line`.
-    pub boot_import_psbts: &'static str,
+    boot_import_psbts: "PSBTs",
     /// Text in `line`.
-    pub boot_import_other_file: &'static str,
+    boot_import_other_file: "other file",
     /// Text in `line`.
-    pub boot_import_other_files: &'static str,
+    boot_import_other_files: "other files",
     /// Text in `line`.
-    pub boot_import_no_files: &'static str,
+    boot_import_no_files: "No files read",
     /// Note in `import_codes`.
-    pub boot_import_not_a_psbt: &'static str,
+    boot_import_not_a_psbt: "Not a PSBT, a descriptor, an xpub or a signed message",
     /// Text in `import_codes`.
-    pub boot_import_no_qr_code: &'static str,
+    boot_import_no_qr_code: "No QR code found",
     /// Text in `import_codes`.
-    pub boot_import_its_codes: &'static str,
+    boot_import_its_codes: "Its codes are not complete",
     /// Text in `import_codes`. `{}`: `n`, `if n == 1 { EN.boot_import_code } els…`, `kinds.join(", ")`.
-    pub boot_import_qr: &'static str,
+    boot_import_qr: "{} QR {} · {}",
     /// Text in `import_codes`.
-    pub boot_import_code: &'static str,
+    boot_import_code: "code",
     /// Text in `import_codes`.
-    pub boot_import_codes: &'static str,
+    boot_import_codes: "codes",
     /// Text in `import_stick_gone`. `{}`: `noun`.
-    pub boot_import_the_was: &'static str,
+    boot_import_the_was: "the {} was removed before it was read",
     /// Text in `import_view`. `{}`: `size`.
-    pub boot_import_being_read: &'static str,
+    boot_import_being_read: "Being read · {}",
     /// Text in `import_view`. `{}`: `size`.
-    pub boot_import_not_a_kind: &'static str,
+    boot_import_not_a_kind: "Not a kind of file Faraday reads · {}",
     /// Text in `import_view`. `{}`: `why`.
-    pub boot_import_not_read: &'static str,
+    boot_import_not_read: "Not read: {}",
     /// Text in `import_view`. `{}`: `size`.
-    pub boot_import_vault_n: &'static str,
+    boot_import_vault_n: "Vault · {}",
     /// Text in `import_go`. `{}`: `count(wallets, EN.boot_import_wallet_inline,…`, `count(keys, EN.boot_import_key, EN.bo…`, `count(moved, EN.boot_import_file, EN.…`.
-    pub boot_import_imported: &'static str,
+    boot_import_imported: "Imported {} · {} · {}",
     /// Text in `import_go`.
-    pub boot_import_wallet_inline: &'static str,
+    boot_import_wallet_inline: "wallet",
     /// Text in `import_go`.
-    pub boot_import_wallets_inline: &'static str,
+    boot_import_wallets_inline: "wallets",
     /// Text in `import_go`.
-    pub boot_import_key: &'static str,
+    boot_import_key: "key",
     /// Text in `import_go`.
-    pub boot_import_keys: &'static str,
+    boot_import_keys: "keys",
     /// Text in `import_go`.
-    pub boot_import_file: &'static str,
+    boot_import_file: "file",
     /// Text in `import_go`.
-    pub boot_import_files_inline: &'static str,
+    boot_import_files_inline: "files",
     // ----- boot_import (faraday-core/src/boot_import/screen.rs) -----
     /// Text in `body`. `{}`: `label`.
-    pub boot_import_read_from: &'static str,
+    boot_import_read_source: "Read from {}",
     /// Text in `body`. `{}`: `app.medium.noun()`.
-    pub boot_import_pull_the: &'static str,
-    /// Text in `body`. `{}`: `slot`.
-    pub boot_import_open: &'static str,
+    boot_import_pull_medium: "Pull the {} to continue",
     /// Text in `body`. `{}`: `crate::vault::file_text(vault.len)`.
-    pub boot_import_locked: &'static str,
+    boot_import_locked: "Locked · {}",
     /// Text in `picker`.
-    pub boot_import_later: &'static str,
+    boot_import_later: "Later",
     /// Text in `unlock`.
-    pub boot_import_cancel: &'static str,
+    boot_import_cancel: "Cancel",
     /// Text in `body`.
-    pub boot_import_import: &'static str,
+    boot_import_import: "Import",
     /// Text in `body`.
-    pub boot_import_unlock: &'static str,
+    boot_import_unlock: "Unlock",
     /// Text in `unlocking`. `{}`: `time`.
-    pub boot_import_unlocking: &'static str,
+    boot_import_unlocking: "Unlocking · {}",
     // ----- catalog (faraday-core/src/catalog.rs) -----
     /// Text in `TILES`.
-    pub catalog_new_key: &'static str,
+    catalog_new_key: "New key",
     /// Text in `TILES`.
-    pub catalog_dice_coins: &'static str,
+    catalog_dice_coins: "Dice, coins, cards, hex, camera or a mix",
     /// Text in `TILES`.
-    pub catalog_add_a_key: &'static str,
+    catalog_add_a_key: "Add a key",
     /// Text in `TILES`.
-    pub catalog_type_its_words: &'static str,
+    catalog_type_its_words: "Type its words, any BIP-39 list, with a passphrase",
     /// Text in `TILES`.
-    pub catalog_scan_a_seedqr: &'static str,
+    catalog_scan_a_seedqr: "Scan a SeedQR",
     /// Text in `TILES`.
-    pub catalog_standard_or: &'static str,
+    catalog_scan_seedqr_line: "Standard or compact",
     /// Text in `TILES`.
-    pub catalog_slip_39_shares: &'static str,
+    catalog_slip_39_shares: "SLIP-39 shares",
     /// Text in `TILES`.
-    pub catalog_a_new_key_dealt: &'static str,
+    catalog_a_new_key_dealt: "A new key dealt as m of n shares",
     /// Text in `TILES`.
-    pub catalog_restore_from: &'static str,
+    catalog_restore_slip39: "Restore from SLIP-39",
     /// Text in `TILES`.
-    pub catalog_shares_typed: &'static str,
+    catalog_shares_typed: "Shares typed or scanned back into a key",
     /// Text in `TILES`.
-    pub catalog_a_secret_or: &'static str,
+    catalog_codex32_line: "A secret or its shares typed into a key",
     /// Text in `TILES`.
-    pub catalog_seed_xor: &'static str,
+    catalog_seed_xor: "Seed XOR",
     /// Text in `TILES`.
-    pub catalog_parts_combined: &'static str,
+    catalog_parts_combined: "Parts combined into a key",
     /// Text in `TILES`.
-    pub catalog_explore_a_key: &'static str,
+    catalog_explore_a_key: "Explore a key",
     /// Text in `TILES`.
-    pub catalog_its_xpubs_and: &'static str,
+    catalog_explore_key_line: "Its xpubs and addresses at any path",
     /// Text in `TILES`.
-    pub catalog_child_seeds: &'static str,
+    catalog_child_seeds: "Child seeds and passwords",
     /// Text in `TILES`.
-    pub catalog_derived_from: &'static str,
+    catalog_child_seeds_line: "Derived from a key here",
     /// Text in `TILES`.
-    pub catalog_vanity_address: &'static str,
+    catalog_vanity_address: "Vanity address",
     /// Text in `TILES`.
-    pub catalog_a_first_address: &'static str,
+    catalog_a_first_address: "A first address that begins your way",
     /// Text in `TILES`.
-    pub catalog_silent_payments: &'static str,
+    catalog_silent_payments: "Silent payments",
     /// Text in `TILES`.
-    pub catalog_one_address: &'static str,
+    catalog_one_address: "One address to give out",
     /// Text in `TILES`.
-    pub catalog_keys_and_seeds: &'static str,
+    catalog_keys_and_seeds: "Keys and seeds",
     /// Text in `TILES`.
-    pub catalog_lightning_node: &'static str,
+    catalog_lightning_node: "Lightning node key",
     /// Text in `TILES`.
-    pub catalog_from_a_key: &'static str,
+    catalog_from_a_key: "From a key here, or an LND aezeed",
     /// Text in `TILES`.
-    pub catalog_single_key: &'static str,
+    catalog_single_key: "Single-key wallet",
     /// Text in `TILES`.
-    pub catalog_native_segwit: &'static str,
+    catalog_native_segwit: "Native SegWit, Taproot, nested or legacy",
     /// Text in `TILES`.
-    pub catalog_multisig: &'static str,
+    catalog_multisig: "Multisig",
     /// Text in `TILES`.
-    pub catalog_k_of_n_keys: &'static str,
+    catalog_k_of_n_keys: "k of n keys, a quorum signs",
     /// Text in `TILES`.
-    pub catalog_taproot_multisig: &'static str,
+    catalog_taproot_multisig: "Taproot multisig",
     /// Text in `TILES`.
-    pub catalog_k_of_n_in_one: &'static str,
+    catalog_k_of_n_in_one: "k of n in one script leaf",
     /// Text in `TILES`.
-    pub catalog_all_keys_one: &'static str,
+    catalog_all_keys_one: "All keys, one signature on chain",
     /// Text in `TILES`.
-    pub catalog_frost_threshold: &'static str,
+    catalog_frost_threshold: "FROST threshold",
     /// Text in `TILES`.
-    pub catalog_any_m_of_n: &'static str,
+    catalog_any_m_of_n: "Any m of n shares, one signature on chain",
     /// Text in `TILES`.
-    pub catalog_miniscript_and: &'static str,
+    catalog_miniscript_inheritance: "Miniscript and inheritance",
     /// Text in `TILES`.
-    pub catalog_load_one_from: &'static str,
+    catalog_miniscript_line: "Load one from its descriptor",
     /// Text in `TILES`.
-    pub catalog_restore_an: &'static str,
+    catalog_restore_wallet: "Restore an existing wallet",
     /// Text in `TILES`.
-    pub catalog_descriptor_wallet: &'static str,
+    catalog_descriptor_wallet: "Descriptor, wallet file, BIP 129 record or split sheets",
     /// Text in `TILES`.
-    pub catalog_wallets: &'static str,
+    catalog_wallets: "Wallets",
     /// Text in `TILES`.
-    pub catalog_back_up_a_wallet: &'static str,
+    catalog_back_up_a_wallet: "Back up a wallet",
     /// Text in `TILES`.
-    pub catalog_seeds_by_hand: &'static str,
+    catalog_seeds_by_hand: "Seeds by hand, sheets, envelopes, codex32 shares",
     /// Text in `TILES`.
-    pub catalog_sign_a_transaction: &'static str,
+    catalog_sign_a_transaction: "Sign a transaction",
     /// Text in `TILES`.
-    pub catalog_a_psbt_from: &'static str,
+    catalog_sign_transaction_line: "A PSBT from Files or a QR code",
     /// Text in `TILES`.
-    pub catalog_nonce_check: &'static str,
+    catalog_nonce_check: "Nonce check",
     /// Text in `TILES`.
-    pub catalog_every_signature: &'static str,
+    catalog_every_signature: "Every signature recomputed and checked",
     /// Text in `TILES`.
-    pub catalog_decode_a_transaction: &'static str,
+    catalog_decode_a_transaction: "Decode a transaction",
     /// Text in `TILES`.
-    pub catalog_what_it_spends: &'static str,
+    catalog_what_it_spends: "What it spends and pays, field by field",
     /// Text in `TILES`.
-    pub catalog_transactions: &'static str,
+    catalog_transactions: "Transactions",
     /// Text in `TILES`.
-    pub catalog_check_an_address: &'static str,
+    catalog_check_an_address: "Check an address",
     /// Text in `TILES`.
-    pub catalog_scan_it_the: &'static str,
+    catalog_check_address_line: "Scan it; the loaded wallets are searched",
     /// Text in `TILES`.
-    pub catalog_sign_a_message: &'static str,
+    catalog_sign_a_message: "Sign a message",
     /// Text in `TILES`.
-    pub catalog_with_a_single: &'static str,
+    catalog_with_a_single: "With a single-key wallet's key here",
     /// Text in `TILES`.
-    pub catalog_messages: &'static str,
+    catalog_messages: "Messages",
     /// Text in `TILES`.
-    pub catalog_check_a_signed: &'static str,
+    catalog_check_a_signed: "Check a signed message",
     /// Text in `TILES`.
-    pub catalog_against_its: &'static str,
+    catalog_check_signed_line: "Against its address",
     /// Text in `TILES`.
-    pub catalog_vaults: &'static str,
+    catalog_vaults: "Vaults",
     /// Text in `TILES`.
-    pub catalog_keys_wallets: &'static str,
+    catalog_keys_wallets: "Keys, wallets, entries and notes under passphrases",
     /// Text in `TILES`.
-    pub catalog_totp_codes: &'static str,
+    catalog_totp_codes: "TOTP codes",
     /// Text in `TILES`.
-    pub catalog_codes_from: &'static str,
+    catalog_totp_codes_line: "Codes from the entries in open vaults",
     /// Text in `TILES`.
-    pub catalog_diceware_passphrase: &'static str,
+    catalog_diceware_passphrase: "Diceware passphrase",
     /// Text in `TILES`.
-    pub catalog_rolled_with: &'static str,
+    catalog_diceware_line: "Rolled with dice in Create a vault",
     /// Text in `TILES`.
-    pub catalog_gpg_key: &'static str,
+    catalog_gpg_key: "GPG key",
     /// Text in `TILES`.
-    pub catalog_make_sign_revoke: &'static str,
+    catalog_make_sign_revoke: "Make, sign, revoke, paperkey",
     /// Text in `TILES`.
-    pub catalog_secure_boot: &'static str,
+    catalog_secure_boot: "Secure Boot keys",
     /// Text in `TILES`.
-    pub catalog_pk_kek_and: &'static str,
+    catalog_secure_boot_line: "PK, KEK and db; sign an EFI image",
     /// Text in `TILES`.
-    pub catalog_keepass_export: &'static str,
+    catalog_keepass_export: "KeePass export",
     /// Text in `TILES`.
-    pub catalog_a_vault_entry: &'static str,
+    catalog_a_vault_entry: "A vault entry as a sealed database",
     /// Text in `TILES`.
-    pub catalog_vaults_and: &'static str,
+    catalog_vaults_group: "Vaults and other keys",
     /// Text in `TILES`.
-    pub catalog_open_an_oskb: &'static str,
+    catalog_open_an_oskb: "Open an .oskb backup",
     /// Text in `TILES`.
-    pub catalog_an_oskb_with: &'static str,
+    catalog_open_oskb_line: "An .oskb with its passphrase",
     /// Text in `TILES`.
-    pub catalog_hashes: &'static str,
+    catalog_hashes: "Hashes",
     /// Text in `TILES`.
-    pub catalog_sha_256_sha: &'static str,
+    catalog_sha_256_sha: "SHA-256, SHA-256d and HASH160",
     /// Text in `TILES`.
-    pub catalog_encodings: &'static str,
+    catalog_encodings: "Encodings",
     /// Text in `TILES`.
-    pub catalog_what_a_string: &'static str,
+    catalog_what_a_string: "What a string is encoded in, and its value",
     /// Text in `TILES`.
-    pub catalog_descriptor: &'static str,
+    catalog_descriptor: "Descriptor checksum",
     /// Text in `TILES`.
-    pub catalog_a_descriptor: &'static str,
+    catalog_a_descriptor: "A descriptor's checksum, and whether it holds",
     /// Text in `TILES`.
-    pub catalog_convert_an: &'static str,
+    catalog_convert_xpub: "Convert an xpub",
     /// Text in `TILES`.
-    pub catalog_every_spelling: &'static str,
+    catalog_every_spelling: "Every spelling of one extended key",
     /// Text in `TILES`.
-    pub catalog_units: &'static str,
+    catalog_units: "Units",
     /// Text in `TILES`.
-    pub catalog_one_amount: &'static str,
+    catalog_one_amount: "One amount in all four units",
     /// Text in `TILES`.
-    pub catalog_calculators: &'static str,
+    catalog_calculators: "Calculators",
     /// Text in `TILES`.
-    pub catalog_miniscript: &'static str,
+    catalog_miniscript: "Miniscript compiler",
     /// Text in `TILES`.
-    pub catalog_a_policy_compiled: &'static str,
+    catalog_a_policy_compiled: "A policy compiled into a descriptor",
     /// Text in `TILES`.
-    pub catalog_bip_39_words: &'static str,
+    catalog_bip_39_words: "BIP-39 words",
     /// Text in `TILES`.
-    pub catalog_2048_words: &'static str,
+    catalog_2048_words: "2048 words, each with its number and its 11 bits",
     /// Text in `TILES`.
-    pub catalog_eff_large_list: &'static str,
+    catalog_eff_large_list: "EFF large list",
     /// Text in `TILES`.
-    pub catalog_7776_words: &'static str,
+    catalog_7776_words: "7776 words, each with its number and its five dice",
     /// Text in `TILES`.
-    pub catalog_eff_short_list_1: &'static str,
+    catalog_eff_short_list_1: "EFF short list 1",
     /// Text in `TILES`.
-    pub catalog_1296_words_each: &'static str,
+    catalog_1296_words_each: "1296 words, each with its number and its four dice",
     /// Text in `TILES`.
-    pub catalog_word_lists: &'static str,
+    catalog_word_lists: "Word lists",
     /// Text in `TILES`.
-    pub catalog_eff_short_list: &'static str,
+    catalog_eff_short_list_2: "EFF short list 2",
     /// Text in `TILES`.
-    pub catalog_1296_words: &'static str,
+    catalog_1296_words: "1296 words with unique three-letter starts, each with its number and its four dice",
     /// Text in `TILES`.
-    pub catalog_qr: &'static str,
+    catalog_qr: "QR",
     /// Text in `TILES`.
-    pub catalog_scan_a_qr_code: &'static str,
+    catalog_scan_a_qr_code: "Scan a QR code",
     /// Text in `TILES`.
-    pub catalog_single_or_animated: &'static str,
+    catalog_single_or_animated: "Single or animated, into Files",
     /// Text in `tile_need`.
-    pub catalog_load_a_key: &'static str,
+    catalog_load_a_key: "Load a key first",
     /// Text in `tile_need`.
-    pub catalog_at_the_end: &'static str,
+    catalog_at_the_end: "At the end of signing",
     /// Text in `tile_need`.
-    pub catalog_load_a_wallet: &'static str,
+    catalog_load_a_wallet: "Load a wallet first",
     /// Text in `tile_need`.
-    pub catalog_needs_a_single: &'static str,
+    catalog_needs_a_single: "Needs a single-key wallet with its key here",
     /// Text in `tile_need`.
-    pub catalog_copy_a_signed: &'static str,
+    catalog_copy_a_signed: "Copy a signed message in first",
     /// Text in `tile_need`.
-    pub catalog_make_a_vault: &'static str,
+    catalog_make_a_vault: "Make a vault first",
     /// Text in `tile_need`.
-    pub catalog_unlock_a_vault: &'static str,
+    catalog_unlock_a_vault: "Unlock a vault first",
     /// Text in `tile_need`.
-    pub catalog_copy_an_oskb: &'static str,
+    catalog_copy_an_oskb: "Copy an .oskb in first",
     /// Tools tile: APK signing key.
-    pub catalog_apk_signing_key: &'static str,
+    catalog_apk_signing_key: "APK signing key",
     /// Tools tile line: APK signing key.
-    pub catalog_make_a_key: &'static str,
+    catalog_make_a_key: "Make a key, sign Android apps",
     // ----- chart_edit (faraday-core/src/chart_edit.rs) -----
     /// Toast in `chart_notes_change`.
-    pub chart_edit_that_does: &'static str,
+    chart_edit_that_does: "That does not fit in this vault's slot size",
     /// Text in `edit_title`.
-    pub chart_edit_a_new_place: &'static str,
+    chart_edit_a_new_place: "a new place",
     /// Text in `edit_title`. `{}`: `p + 1`.
-    pub chart_edit_place: &'static str,
+    chart_edit_place: "Place {}",
     /// Text in `edit_title`. `{}`: `v + 1`.
-    pub chart_edit_vault: &'static str,
+    chart_edit_vault: "Vault {}",
     /// Text in `edit_title`. `{}`: `self.medium.cap()`.
-    pub chart_edit_of_files: &'static str,
+    chart_edit_of_files: "{} of files",
     /// Text in `edit_title`.
-    pub chart_edit_watch_only: &'static str,
+    chart_edit_watch_only: "Watch-only software",
     /// Text in `edit_title`. `{}`: `glance::thing_label(g.as_ref(), what)`, `spot(at)`.
-    pub chart_edit_save_into: &'static str,
+    chart_edit_save_into: "Save {} into {}",
     /// Text in `edit_title`. `{}`: `glance::thing_label(g.as_ref(), what)`.
-    pub chart_edit_as_a_file: &'static str,
+    chart_edit_as_a_file: "{} as a file",
     /// Text in `edit_title`. `{}`: `glance::thing_label(g.as_ref(), what)`, `spot(at)`.
-    pub chart_edit_at: &'static str,
+    chart_edit_place_title: "{} at {}",
     /// Text in `edit_title`. `{}`: `label(from, what)`, `spot(to)`.
-    pub chart_edit_move_to: &'static str,
+    chart_edit_move_title: "Move {} to {}",
     /// Text in `edit_title`. `{}`: `place(p)`.
-    pub chart_edit_remove: &'static str,
+    chart_edit_remove: "Remove {}",
     /// Text in `edit_title`. `{}`: `spot(at)`.
-    pub chart_edit_off_the: &'static str,
+    chart_edit_off_plan: "{} off the plan",
     /// Toast in `chart_key_checked`.
-    pub chart_edit_checked: &'static str,
+    chart_edit_checked: "Checked today",
     /// Text in `envelopes_out`. `{}`: `v + 1`.
-    pub chart_edit_vault_stick: &'static str,
+    chart_edit_vault_stick: "Vault {} stick",
     // ----- codes (faraday-core/src/codes/mod.rs) -----
     /// Text in `codes_rows`.
-    pub codes_entry: &'static str,
+    codes_entry: "Entry",
     // ----- codes (faraday-core/src/codes/screen.rs) -----
     /// Text in `now_row`. `{}`: `crate::vault::tz_offset_text(app.tz_…`.
-    pub codes_now_utc: &'static str,
+    codes_now_utc: "Now · UTC{}",
     /// Text in `now_row`.
-    pub codes_not_known: &'static str,
+    codes_not_known: "Not known",
     /// Button in `now_row`.
-    pub codes_set_the_time: &'static str,
+    codes_set_the_time: "Set the time",
     /// Text in `code_row`.
-    pub codes_unreadable: &'static str,
+    codes_unreadable: "Unreadable",
     /// Title in `draw`.
-    pub codes_totp_codes: &'static str,
+    codes_totp_codes: "TOTP codes",
     /// Line in `compact`.
-    pub codes_no_entries_with: &'static str,
+    codes_no_totp_entries: "No entries with a TOTP secret",
     /// Button in `compact`.
-    pub codes_scan_a_setup: &'static str,
+    codes_scan_a_setup: "Scan a setup code",
     /// Button in `compact`.
-    pub codes_add_an_entry: &'static str,
+    codes_add_an_entry: "Add an entry",
     // ----- compact (faraday-core/src/compact/mod.rs) -----
     /// Text in `screen_name`.
-    pub compact_spend: &'static str,
+    compact_spend: "Spend",
     /// Text in `screen_name`.
-    pub compact_add_a_key: &'static str,
+    compact_add_a_key: "Add a key",
     /// Text in `screen_name`.
-    pub compact_back_up: &'static str,
+    compact_back_up: "Back up",
     /// Text in `screen_name`.
-    pub compact_sign_a_message: &'static str,
+    compact_sign_a_message: "Sign a message",
     /// Text in `screen_name`.
-    pub compact_check_a_message: &'static str,
+    compact_check_a_message: "Check a message",
     /// Text in `screen_name`.
-    pub compact_make_a_new: &'static str,
+    compact_make_a_new: "Make a new wallet",
     /// Text in `screen_name`.
-    pub compact_restore_an: &'static str,
+    compact_restore_wallet: "Restore an existing wallet",
     /// Text in `screen_name`.
-    pub compact_set_the_time: &'static str,
+    compact_set_the_time: "Set the time",
     /// Text in `screen_name`.
-    pub compact_totp_codes: &'static str,
+    compact_totp_codes: "TOTP codes",
     /// Text in `screen_name`.
-    pub compact_create_a_vault: &'static str,
+    compact_create_a_vault: "Create a vault",
     /// Text in `screen_name`.
-    pub compact_new_key: &'static str,
+    compact_new_key: "New key",
     /// Text in `screen_name`.
-    pub compact_bip_85: &'static str,
+    compact_bip_85: "BIP-85",
     /// Text in `screen_name`.
-    pub compact_silent_payments: &'static str,
+    compact_silent_payments: "Silent payments",
     /// Text in `screen_name`.
-    pub compact_explore_a_key: &'static str,
+    compact_explore_a_key: "Explore a key",
     /// Text in `screen_name`.
-    pub compact_lightning: &'static str,
+    compact_lightning: "Lightning",
     /// Text in `screen_name`.
-    pub compact_vanity_address: &'static str,
+    compact_vanity_address: "Vanity address",
     /// Text in `screen_name`.
-    pub compact_transaction: &'static str,
+    compact_transaction: "Transaction",
     /// Text in `page`.
-    pub compact_at_a_glance: &'static str,
+    compact_at_a_glance: "At a glance",
     /// Text in `page`.
-    pub compact_vault_contents: &'static str,
+    compact_vault_contents: "Vault contents",
     /// Text in `page`.
-    pub compact_home: &'static str,
+    compact_home: "Home",
     /// Text in `home`.
-    pub compact_nothing_loaded: &'static str,
+    compact_nothing_loaded: "Nothing loaded",
     /// Text in `home`.
-    pub compact_key_inline: &'static str,
+    compact_key_inline: "key",
     /// Text in `home`.
-    pub compact_keys: &'static str,
+    compact_keys: "keys",
     /// Text in `home`.
-    pub compact_wallet: &'static str,
+    compact_wallet: "wallet",
     /// Text in `home`.
-    pub compact_wallets_inline: &'static str,
+    compact_wallets_inline: "wallets",
     /// Text in `home`. `{}`: `v`, `if v == 1 { EN.compact_vault } else {…`.
-    pub compact_open_3: &'static str,
+    compact_vaults_open: "{} {} open",
     /// Text in `home`.
-    pub compact_vault: &'static str,
+    compact_vault: "vault",
     /// Text in `home`.
-    pub compact_vaults_inline: &'static str,
+    compact_vaults_inline: "vaults",
     /// Text in `home`.
-    pub compact_bring_in: &'static str,
+    compact_bring_in_button: "Bring in",
     /// Text in `home`.
-    pub compact_open_2: &'static str,
+    compact_open_button: "Open",
     /// Text in `home`.
-    pub compact_work: &'static str,
+    compact_work: "Work",
     /// Text in `home`.
-    pub compact_write_out: &'static str,
+    compact_write_out: "Write out",
     /// Button in `home`.
-    pub compact_lock: &'static str,
+    compact_lock: "Lock",
     /// Button in `home`.
-    pub compact_scan: &'static str,
+    compact_scan: "Scan",
     /// Text in `tiles`.
-    pub compact_wallets: &'static str,
+    compact_wallets: "Wallets",
     /// Text in `tiles`.
-    pub compact_vaults: &'static str,
+    compact_vaults: "Vaults",
     /// Text in `tiles`. `{}`: `n`.
-    pub compact_locked: &'static str,
+    compact_locked: "{} locked",
     /// Text in `tiles`. `{}`: `o`.
-    pub compact_open: &'static str,
+    compact_open: "{} open",
     /// Text in `tiles`.
-    pub compact_files: &'static str,
+    compact_files: "Files",
     /// Text in `tiles`.
-    pub compact_learn: &'static str,
+    compact_learn: "Learn",
     /// Text in `tiles`.
-    pub compact_backups: &'static str,
+    compact_backups: "Backups",
     /// Text in `tiles`. `{}`: `without`.
-    pub compact_not_backed: &'static str,
+    compact_not_backed: "{} not backed up",
     /// Text in `tiles`.
-    pub compact_tools: &'static str,
+    compact_tools: "Tools",
     /// Text in `tiles`.
-    pub compact_transfer: &'static str,
+    compact_transfer: "Transfer",
     /// Text in `tiles`.
-    pub compact_settings: &'static str,
+    compact_settings: "Settings",
     /// Text in `keyboard`.
-    pub compact_done: &'static str,
+    compact_done: "Done",
     /// Text in `files_count`.
-    pub compact_none: &'static str,
+    compact_none: "none",
     /// Text in `home_files_line`. `{}`: `self.medium.noun()`.
-    pub compact_no: &'static str,
+    compact_no_medium: "no {}",
     // ----- compact (faraday-core/src/compact/screen.rs) -----
     /// Line in `wallet_card`.
-    pub compact_no_wallet_loaded: &'static str,
+    compact_no_wallet_loaded: "No wallet loaded",
     /// Text in `wallet_card`. `{}`: `s.spend.source`.
-    pub compact_continue_signing: &'static str,
+    compact_continue_signing: "Continue signing {}",
     /// Text in `wallet_card`. `{}`: `app.inbox[i].name`.
-    pub compact_review: &'static str,
+    compact_review: "Review {}",
     /// Button in `wallet_card`.
-    pub compact_rename: &'static str,
+    compact_rename: "Rename",
     /// Text in `wallet_card`. `{}`: `here`, `m`.
-    pub compact_of_signatures: &'static str,
+    compact_of_signatures: "{} of {} signatures here",
     /// Chip in `wallet_card`.
-    pub compact_can_spend: &'static str,
+    compact_can_spend: "Can spend",
     /// Button in `wallet_card`.
-    pub compact_scan_a_key: &'static str,
+    compact_scan_a_key: "Scan a key",
     /// Text in `wallet_card`. `{}`: `nodes.len()`, `if nodes.len() == 1 { EN.compact_plac…`.
-    pub compact_backup: &'static str,
+    compact_backup: "{} backup {}",
     /// Text in `wallet_card`.
-    pub compact_place: &'static str,
+    compact_place: "place",
     /// Text in `wallet_card`.
-    pub compact_places: &'static str,
+    compact_places: "places",
     /// Text in `wallet_card`. `{}`: `vault`.
-    pub compact_plan_in_locked: &'static str,
+    compact_plan_in_locked: "plan in {}, locked",
     /// Text in `wallet_card`.
-    pub compact_no_backup_plan: &'static str,
+    compact_no_backup_plan: "no backup plan",
     /// Heading in `wallet_card`.
-    pub compact_first_receive: &'static str,
+    compact_first_receive: "First receive address · 0/0",
     /// Heading in `silent_card`.
-    pub compact_key: &'static str,
+    compact_key: "Key",
     /// Text in `silent_card`.
-    pub compact_here: &'static str,
+    compact_here: "Here",
     /// Text in `silent_card`.
-    pub compact_not_here: &'static str,
+    compact_not_here: "Not here",
     /// Text in `silent_card`.
-    pub compact_load_from_vault: &'static str,
+    compact_load_from_vault: "Load from vault",
     /// Text in `silent_card`.
-    pub compact_add_its_key: &'static str,
+    compact_add_its_key: "Add its key",
     /// Heading in `silent_card`.
-    pub compact_address: &'static str,
+    compact_address: "Address",
     /// Line in `silent_card`.
-    pub compact_labels_handed: &'static str,
+    compact_labels_handed: "Labels handed out",
     /// Text in `silent_card`.
-    pub compact_address_labels: &'static str,
+    compact_address_labels: "Address, labels and payments",
     /// Text in `silent_card`.
-    pub compact_show_wallet: &'static str,
+    compact_show_wallet: "Show wallet QR",
     /// Text in `silent_card`.
-    pub compact_remove_from: &'static str,
+    compact_remove_from_session: "Remove from session",
     /// Text in `about`.
-    pub compact_about_this: &'static str,
+    compact_about_page: "About this page",
     /// Text in `entry`. `{}`: `wl.name`.
-    pub compact_for: &'static str,
+    compact_entry_for_wallet: "For {}",
     /// Text in `entry`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.
-    pub compact_for_key: &'static str,
+    compact_for_key: "For key {}",
     /// Text in `entry`.
-    pub compact_other_languages: &'static str,
+    compact_other_languages: "Other languages",
     /// Text in `entry`. `{}`: `crate::forms::language_name(lang)`.
-    pub compact_other_lists: &'static str,
+    compact_other_lists: "{} · other lists",
     /// Text in `entry`.
-    pub compact_other_forms: &'static str,
+    compact_other_forms: "Other forms",
     /// Button in `entry`.
-    pub compact_scan_a_seedqr: &'static str,
+    compact_scan_a_seedqr: "Scan a SeedQR",
     /// Text in `entry`. `{}`: `taken.len() + 1`.
-    pub compact_word: &'static str,
-    /// Text in `entry`.
-    pub compact_type_the_next: &'static str,
-    /// Text in `entry`.
-    pub compact_now_its_tone: &'static str,
-    /// Text in `entry`.
-    pub compact_no_word_starts: &'static str,
+    compact_word: "Word {}",
     /// Heading in `entry`.
-    pub compact_words: &'static str,
+    compact_words: "Words",
     /// Label in `entry`.
-    pub compact_bip_39_passphrase: &'static str,
+    compact_bip_39_passphrase: "BIP-39 passphrase",
     /// Text in `entry`.
-    pub compact_add_key: &'static str,
+    compact_add_key: "Add key",
     /// Text in `entry`.
-    pub compact_make_a_new_key: &'static str,
+    compact_make_a_new_key: "Make a new key",
     /// Text in `entry`.
-    pub compact_clear: &'static str,
+    compact_clear: "Clear",
     /// Text in `entry_form`.
-    pub compact_words_of_one: &'static str,
+    compact_words_of_one: "Words of one share",
     /// Text in `entry_form`.
-    pub compact_nothing_in: &'static str,
+    compact_nothing_in_yet: "Nothing in yet",
     /// Text in `entry_form`.
-    pub compact_1_in: &'static str,
+    compact_count_one: "1 in",
     /// Text in `entry_form`. `{}`: `n`.
-    pub compact_in: &'static str,
+    compact_count_many: "{} in",
     /// Label in `entry_form`.
-    pub compact_passphrase: &'static str,
+    compact_passphrase: "Passphrase",
     /// Text in `entry_form`.
-    pub compact_add_this_one: &'static str,
+    compact_add_this_one: "Add this one",
     /// Text in `entry_form`.
-    pub compact_scan_a_qr_code: &'static str,
+    compact_scan_a_qr_code: "Scan a QR code",
     /// Text in `entry_form`.
-    pub compact_make_the_key: &'static str,
+    compact_make_the_key: "Make the key",
     // ----- create (faraday-core/src/create.rs) -----
     /// Text in `name`.
-    pub create_single_key_native: &'static str,
+    create_single_key_native: "Single key · native SegWit",
     /// Text in `name`.
-    pub create_single_key_taproot: &'static str,
+    create_single_key_taproot: "Single key · Taproot",
     /// Text in `name`.
-    pub create_single_key_nested: &'static str,
+    create_single_key_nested: "Single key · nested SegWit",
     /// Text in `name`.
-    pub create_single_key_legacy: &'static str,
+    create_single_key_legacy: "Single key · legacy",
     /// Text in `name`.
-    pub create_multisig_native: &'static str,
+    create_multisig_native: "Multisig · native SegWit",
     /// Text in `name`.
-    pub create_multisig_nested: &'static str,
+    create_multisig_nested: "Multisig · nested SegWit",
     /// Text in `name`.
-    pub create_multisig_legacy: &'static str,
+    create_multisig_legacy: "Multisig · legacy",
     /// Text in `name`.
-    pub create_multisig_taproot: &'static str,
+    create_multisig_taproot: "Multisig · Taproot",
     /// Text in `name`.
-    pub create_threshold_frost: &'static str,
+    create_threshold_frost: "Threshold · FROST",
     /// Text in `name`.
-    pub create_all_keys_musig2: &'static str,
+    create_all_keys_musig2: "All keys · MuSig2",
     /// Text in `line`.
-    pub create_bc1q_addresses: &'static str,
+    create_bc1q_addresses: "bc1q addresses; what most wallets make",
     /// Text in `line`.
-    pub create_bc1p_addresses: &'static str,
+    create_bc1p_addresses: "bc1p addresses; the smallest signatures",
     /// Text in `line`.
-    pub create_3_addresses: &'static str,
+    create_3_addresses: "3… addresses, for services that cannot pay bc1",
     /// Text in `line`.
-    pub create_1_addresses: &'static str,
+    create_1_addresses: "1… addresses, for old software only",
     /// Text in `line`.
-    pub create_several_keys: &'static str,
+    create_several_keys: "Several keys, a quorum signs; Sparrow, Coldcard, SeedSigner",
     /// Text in `line`.
-    pub create_multisig_with_3: &'static str,
+    create_multisig_nested_line: "Multisig with 3… addresses",
     /// Text in `line`.
-    pub create_multisig_with: &'static str,
+    create_multisig_legacy_line: "Multisig with 3… addresses, old style; avoid unless required",
     /// Text in `line`.
-    pub create_multisig_on: &'static str,
+    create_multisig_taproot_line: "Multisig on Taproot, one script leaf; Sparrow and Nunchuk",
     /// Text in `line`.
-    pub create_any_m_of_n_shares: &'static str,
+    create_any_m_of_n_shares: "Any m of n shares sign one Taproot key; single-key on chain",
     /// Text in `line`.
-    pub create_every_key_signs: &'static str,
+    create_every_key_signs: "Every key signs together, one Taproot key; single-key on chain",
     /// Error in `spec`.
-    pub create_a_share_has: &'static str,
+    create_a_share_has: "A share has no account xpub",
     /// Text in `path_spec`. `{}`: `path`.
-    pub create_not_a_derivation: &'static str,
+    create_not_a_derivation: "Not a derivation path: {}",
     // ----- decode (faraday-core/src/decode.rs) -----
     /// Text in `script_kind`.
-    pub decode_other_script: &'static str,
+    decode_other_script: "Other script",
     /// Text in `sequence_text`.
-    pub decode_final: &'static str,
+    decode_final: "final",
     /// Text in `sequence_text`.
-    pub decode_locktime_on: &'static str,
+    decode_locktime_no_rbf: "locktime on, no replace-by-fee",
     /// Text in `sequence_text`.
-    pub decode_relative_time: &'static str,
+    decode_relative_time: "relative time lock, replace-by-fee",
     /// Text in `sequence_text`.
-    pub decode_relative_block: &'static str,
+    decode_relative_block: "relative block lock, replace-by-fee",
     /// Text in `locktime_text`.
-    pub decode_0_none: &'static str,
+    decode_0_none: "0 · none",
     /// Text in `locktime_text`. `{}`: `n`.
-    pub decode_block_height: &'static str,
+    decode_block_height: "{} · block height",
     /// Text in `locktime_text`. `{}`: `n`.
-    pub decode_unix_time: &'static str,
+    decode_unix_time: "{} · Unix time",
     /// Text in `btc`. `{}`: `Amount::from_sat(sats).to_btc()`.
-    pub decode_btc: &'static str,
+    decode_btc: "{} BTC",
     // ----- explore (faraday-core/src/explore/mod.rs) -----
     /// Toast in `explore_open`.
-    pub explore_load_a_key: &'static str,
+    explore_load_a_key: "Load a key first",
     // ----- explore (faraday-core/src/explore/screen.rs) -----
     /// Text in `draw`.
-    pub explore_the_public: &'static str,
+    explore_the_public: "The public side of a loaded key at any path: the extended public key, the public key and the address there. Compare them with what another wallet shows for the same path. Nothing private is shown.",
     /// Line in `draw`.
-    pub explore_path: &'static str,
+    explore_path: "Path",
     /// Text in `draw`.
-    pub explore_index_1_2: &'static str,
+    explore_index_prev: "Index -1",
     /// Text in `draw`.
-    pub explore_index_1: &'static str,
+    explore_index_next: "Index +1",
     /// Text in `draw`.
-    pub explore_native_segwit: &'static str,
+    explore_native_segwit: "Native SegWit",
     /// Text in `draw`.
-    pub explore_taproot: &'static str,
+    explore_taproot: "Taproot",
     /// Text in `draw`.
-    pub explore_nested_segwit: &'static str,
+    explore_nested_segwit: "Nested SegWit",
     /// Text in `draw`.
-    pub explore_legacy: &'static str,
+    explore_legacy: "Legacy",
     /// Line in `draw`.
-    pub explore_script: &'static str,
+    explore_script: "Script",
     /// Text in `draw`.
-    pub explore_address: &'static str,
+    explore_address: "Address",
     /// Text in `draw`.
-    pub explore_public_key: &'static str,
+    explore_public_key: "Public key",
     /// Text in `draw`.
-    pub explore_extended_key: &'static str,
+    explore_extended_key: "Extended key",
     /// Line in `header`.
-    pub explore_wallets: &'static str,
+    explore_wallets: "Wallets",
     /// Title in `header`.
-    pub explore_explore: &'static str,
+    explore_explore: "Explore",
     // ----- family (faraday-core/src/family/mod.rs) -----
     /// Text in `WORDS_SOURCE`.
-    pub family_typed_words: &'static str,
+    family_typed_words: "Typed words",
     /// Text in `spend_button`.
-    pub family_finish_the_backup: &'static str,
+    family_finish_the_backup: "Finish the backup first",
     /// Text in `spend_button`. `{}`: `s.signers.len()`, `self.spend_needed()`.
-    pub family_carry_on_the: &'static str,
+    family_carry_on_spend: "Carry on the spend · Signatures {} of {}",
     /// Text in `spend_button`. `{}`: `self.medium.noun()`.
-    pub family_sign_the_psbt: &'static str,
+    family_sign_the_psbt: "Sign the PSBT from the {}",
     /// Text in `spend_button`.
-    pub family_spend_from_this: &'static str,
+    family_spend_from_wallet: "Spend from this wallet",
     /// Text in `family_act`.
-    pub family_finished_transaction: &'static str,
+    family_finished_transaction: "Finished transaction",
     /// Note in `family_intake_seed`.
-    pub family_not_a_seedqr: &'static str,
+    family_not_a_seedqr: "Not a SeedQR or a CompactSeedQR",
     /// Text in `family_intake_seed`. `{}`: `n + 1`.
-    pub family_key_already: &'static str,
+    family_key_already: "Key {} · already here",
     /// Text in `family_intake_file`.
-    pub family_wallet_description_read: &'static str,
+    family_wallet_description_read: "Wallet description read · a wallet is open already",
     /// Text in `family_intake_file`.
-    pub family_wallet_description: &'static str,
+    family_wallet_description: "Wallet description read",
     /// Text in `family_intake_file`. `{}`: `k`.
-    pub family_part_read_the: &'static str,
+    family_part_read_rebuilt: "Part {} read · the wallet is rebuilt",
     /// Text in `family_intake_file`. `{}`: `k`, `m.have.len()`, `m.n`.
-    pub family_part_read_of: &'static str,
+    family_part_read_progress: "Part {} read · {} of {} keys in hand",
     /// Text in `family_intake_file`.
-    pub family_a_public_key: &'static str,
+    family_a_public_key: "A public key: it shows the wallet but cannot sign",
     /// Text in `family_intake_file`.
-    pub family_a_transaction: &'static str,
+    family_a_transaction: "A transaction to sign · kept for later",
     /// Text in `family_intake_file`. `{}`: `name`.
-    pub family_is_in_files: &'static str,
+    family_is_in_files: "{} is in Files",
     /// Note in `family_intake_again`. `{}`: `fp_text(fp)`.
-    pub family_seed_read: &'static str,
+    family_seed_read: "Seed {} read",
     /// Text in `family_no_money`. `{}`: `label`.
-    pub family_no_money: &'static str,
+    family_no_money: "{} · no money",
     /// Text in `family_seed_with`.
-    pub family_passphrase_inline: &'static str,
+    family_passphrase_inline: "passphrase",
     /// Text in `family_seed_with`. `{}`: `l`.
-    pub family_passphrase_n: &'static str,
+    family_passphrase_n: "{} · passphrase",
     /// Text in `family_words_kind_now`. `{}`: `kind_name(*k)`.
-    pub family_words: &'static str,
+    family_words: "Words · {}",
     /// Text in `family_rebuild`.
-    pub family_restored_wallet: &'static str,
+    family_restored_wallet: "Restored wallet",
     /// Text in `family_rebuild`.
-    pub family_its_shares: &'static str,
+    family_its_shares: "its shares",
     /// Error in `family_rebuild`. `{}`: `m.have.len()`, `m.n`.
-    pub family_of_keys_in_hand: &'static str,
+    family_of_keys_in_hand: "{} of {} keys in hand",
     /// Text in `kind_name`.
-    pub family_native_segwit_2: &'static str,
+    family_native_segwit_kind: "native SegWit",
     /// Text in `kind_name`.
-    pub family_taproot: &'static str,
+    family_taproot: "Taproot",
     /// Text in `kind_name`.
-    pub family_nested_segwit_2: &'static str,
+    family_nested_segwit_kind: "nested SegWit",
     /// Text in `kind_name`.
-    pub family_legacy: &'static str,
+    family_legacy: "legacy",
     /// Text in `kind_label`.
-    pub family_native_segwit: &'static str,
+    family_native_segwit: "native SegWit multisig",
     /// Text in `kind_label`.
-    pub family_taproot_multisig: &'static str,
+    family_taproot_multisig: "Taproot multisig",
     /// Text in `kind_label`.
-    pub family_nested_segwit: &'static str,
+    family_nested_segwit: "nested SegWit multisig",
     /// Text in `kind_label`.
-    pub family_legacy_multisig: &'static str,
+    family_legacy_multisig: "legacy multisig",
     // ----- family (faraday-core/src/family/screen.rs) -----
     /// Text in `draw`. `{}`: `app.session.wallets[i].name`.
-    pub family_spend_from_n: &'static str,
+    family_spend_from_n: "Spend from {}",
     /// Text in `draw`.
-    pub family_wallets: &'static str,
+    family_wallets: "Wallets",
     /// Text in `draw`.
-    pub family_this_page_takes: &'static str,
+    family_this_page_takes: "This page takes someone spending for the first time through every step. With a wallet or a seed already loaded, Spend opens on a shorter page instead: what is loaded and what each wallet needs next.",
     /// Text in `loaded_compact`.
-    pub family_walk_through: &'static str,
+    family_walk_through: "Walk through from the start",
     /// Text in `loaded_compact`.
-    pub family_no_wallet_loaded: &'static str,
+    family_no_wallet_loaded: "no wallet loaded",
     /// Text in `loaded_compact`. `{}`: `s.spend.source`, `name`.
-    pub family_signing_2: &'static str,
+    family_signing_wallet: "Signing {} · {}",
     /// Button in `loaded_compact`.
-    pub family_continue_signing: &'static str,
+    family_continue_signing: "Continue signing",
     /// Section label in `loaded_compact`.
-    pub family_wallets_loaded: &'static str,
+    family_wallets_loaded: "Wallets loaded",
     /// Line in `loaded_compact`.
-    pub family_none_loaded: &'static str,
+    family_none_loaded: "None loaded",
     /// Text in `loaded_compact`. `{}`: `here.min(need)`, `need`.
-    pub family_can_spend_of: &'static str,
+    family_can_spend_count: "Can spend · {} of {}",
     /// Text in `loaded_compact`. `{}`: `here`, `if here == 1 { EN.family_key } else {…`, `need`.
-    pub family_here_needed: &'static str,
+    family_here_needed: "{} {} here · {} needed",
     /// Text in `loaded_compact`.
-    pub family_key: &'static str,
+    family_key: "key",
     /// Text in `loaded_compact`.
-    pub family_keys: &'static str,
+    family_keys: "keys",
     /// Text in `loaded_compact`.
-    pub family_no_key_here: &'static str,
+    family_no_key_here: "No key here",
     /// Line in `loaded_compact`.
-    pub family_an_open_vault: &'static str,
+    family_an_open_vault: "An open vault holds a missing key · Open it to load it",
     /// Text in `loaded_compact`.
-    pub family_spend_from_it: &'static str,
+    family_spend_from_button: "Spend from it",
     /// Text in `loaded_compact`.
-    pub family_open_it: &'static str,
+    family_open_button: "Open it",
     /// Section label in `loaded_compact`.
-    pub family_keys_with_no: &'static str,
+    family_keys_without_wallet: "Keys with no wallet loaded",
     /// Text in `loaded_compact`.
-    pub family_restore_its: &'static str,
+    family_restore_wallet: "Restore its wallet",
     /// Text in `loaded_compact`.
-    pub family_spend_as_a_single: &'static str,
+    family_spend_as_a_single: "Spend as a single-key wallet",
     /// Text in `loaded_compact`.
-    pub family_home: &'static str,
+    family_home: "Home",
     /// Text in `loaded_compact`.
-    pub family_spend: &'static str,
+    family_spend: "Spend",
     /// Text in `summary`.
-    pub family_six_stops: &'static str,
+    family_six_stops: "Six stops",
     /// Text in `summary`.
-    pub family_desktop_copy: &'static str,
+    family_desktop_copy: "Desktop copy",
     /// Text in `summary`. `{}`: `app.medium.noun()`.
-    pub family_running_from: &'static str,
+    family_running_from_medium: "Running from the {}",
     /// Text in `summary`.
-    pub family_nothing_in_yet: &'static str,
+    family_nothing_in_yet: "Nothing in yet",
     /// Text in `summary`.
-    pub family_1_thing_in: &'static str,
+    family_things_one: "1 thing in",
     /// Text in `summary`. `{}`: `n`.
-    pub family_things_in: &'static str,
+    family_things_count: "{} things in",
     /// Text in `summary`.
-    pub family_loaded_in_sparrow: &'static str,
+    family_loaded_in_sparrow: "Loaded in Sparrow",
     /// Text in `summary`.
-    pub family_money_shows: &'static str,
+    family_money_shows: "Money shows",
     /// Text in `summary`.
-    pub family_done_in_sparrow: &'static str,
+    family_done_in_sparrow: "Done in Sparrow",
     /// Text in `summary`. `{}`: `s.spend.source`.
-    pub family_signing: &'static str,
+    family_signing: "Signing {}",
     /// Text in `summary`.
-    pub family_not_here_yet: &'static str,
+    family_not_here_yet: "Not here yet",
     /// Text in `summary`. `{}`: `app.medium.for_the()`.
-    pub family_nothing_waits: &'static str,
+    family_nothing_waits: "Nothing waits {}",
     /// Text in `summary`. `{}`: `app.medium.for_the()`.
-    pub family_1_file: &'static str,
+    family_1_file: "1 file {}",
     /// Text in `summary`. `{}`: `n`, `app.medium.for_the()`.
-    pub family_files: &'static str,
+    family_files: "{} files {}",
     /// Text in `summary`.
-    pub family_after_the_transaction: &'static str,
+    family_after_the_transaction: "After the transaction",
     /// Button in `body`.
-    pub family_i_have_the_psbt_2: &'static str,
+    family_have_psbt_button: "I have the PSBT",
     /// Text in `body`.
-    pub family_show_the_finished: &'static str,
+    family_show_the_finished: "Show the finished transaction as QR",
     /// Text in `more`.
-    pub family_less_about_this: &'static str,
+    family_less_about: "Less about this",
     /// Text in `more`.
-    pub family_more_about_this: &'static str,
+    family_more_about: "More about this",
     /// Button in `map`.
-    pub family_start: &'static str,
+    family_start: "Start",
     /// Line in `holding`.
-    pub family_or_bring_in: &'static str,
+    family_bring_in_paper: "Or bring in what is on paper",
     /// Text in `holding`.
-    pub family_scan_the_qr: &'static str,
+    family_scan_the_qr: "Scan the QR codes you have",
     /// Text in `holding`.
-    pub family_type_the_words: &'static str,
+    family_type_the_words: "Type the words you have",
     /// Text in `holding`. `{}`: `i.name`.
-    pub family_open: &'static str,
+    family_open: "Open {}",
     /// Text in `holding`. `{}`: `app.medium.a()`.
-    pub family_copy_files_in: &'static str,
+    family_copy_files_button: "Copy files in from {}",
     /// Line in `holding`.
-    pub family_what_came_in: &'static str,
+    family_came_in_heading: "What came in",
     /// Text in `holding`.
-    pub family_rebuild_the: &'static str,
+    family_rebuild_wallet: "Rebuild the wallet",
     /// Text in `holding`. `{}`: `fp_text(fp)`, `name`.
-    pub family_seed_is_not: &'static str,
+    family_seed_not_wallets: "Seed {} is not one of {}'s keys",
     /// Text in `holding`.
-    pub family_add_its_passphrase: &'static str,
+    family_add_its_passphrase: "Add its passphrase",
     /// Text in `came_rows`. `{}`: `t`.
-    pub family_seed_2: &'static str,
+    family_seed_row: "Seed · {}",
     /// Text in `came_rows`. `{}`: `t`, `label`.
-    pub family_seed: &'static str,
+    family_seed: "Seed · {} · {}",
     /// Text in `came_rows`. `{}`: `wl.name`, `Session::shape(wl)`.
-    pub family_wallet_description_3: &'static str,
+    family_description_row_shape: "Wallet description · {} · {}",
     /// Text in `came_rows`. `{}`: `name`.
-    pub family_wallet_description_2: &'static str,
+    family_description_row: "Wallet description · {}",
     /// Text in `came_rows`. `{}`: `sheets`, `m.have.len()`, `m.n`.
-    pub family_part_of_keys: &'static str,
+    family_part_of_keys: "Part {} · {} of {} keys in hand",
     /// Error in `came_rows`. `{}`: `sheets`.
-    pub family_part: &'static str,
+    family_part: "Part {}",
     /// Text in `came_rows`. `{}`: `fp`.
-    pub family_key_xpub_n: &'static str,
+    family_key_xpub_n: "Key · {} · xpub",
     /// Text in `came_rows`.
-    pub family_key_xpub: &'static str,
+    family_key_xpub: "Key · xpub",
     /// Text in `came_rows`.
-    pub family_transaction: &'static str,
+    family_transaction: "Transaction · kept for later",
     /// Line in `question`.
-    pub family_anything_else: &'static str,
+    family_anything_else: "Anything else in the envelope?",
     /// Text in `question`.
-    pub family_type_more_words: &'static str,
+    family_type_more_words: "Type more words",
     /// Text in `question`.
-    pub family_that_s_everything: &'static str,
+    family_that_s_everything: "That's everything",
     /// Line in `question`.
-    pub family_these_seeds: &'static str,
+    family_these_seeds: "These seeds are one wallet with several keys.",
     /// Text in `question`.
-    pub family_scan_the_description: &'static str,
+    family_scan_the_description: "Scan the description",
     /// Text in `question`.
-    pub family_i_can_t_find: &'static str,
+    family_i_can_t_find: "I can't find one",
     /// Text in `question`. `{}`: `s.n`.
-    pub family_without_the: &'static str,
+    family_without_description: "Without the description Faraday needs all {} keys: their seeds or xpubs",
     /// Text in `vault`. `{}`: `app.medium.noun()`.
-    pub family_remove_the_then: &'static str,
+    family_remove_the_then: "Remove the {}, then type the passphrase",
     /// Text in `vault`. `{}`: `app.medium.for_the()`.
-    pub family_sealed_here: &'static str,
+    family_sealed_here: "Sealed here, {}",
     /// Text in `vault`. `{}`: `app.medium.a()`.
-    pub family_copied_in_from: &'static str,
+    family_copied_from_medium: "Copied in from {}",
     /// Text in `vault`. `{}`: `app.vaults.time_text(mem, f.header.co…`.
-    pub family_unlocks_in: &'static str,
+    family_unlock_time: "Unlocks in {}",
     /// Line in `vault`.
-    pub family_passphrase: &'static str,
+    family_passphrase: "Passphrase",
     /// Line in `vault`.
-    pub family_unlocking: &'static str,
+    family_unlocking: "Unlocking",
     /// Text in `vault`. `{}`: `mib_text(m)`.
-    pub family_this_computer: &'static str,
+    family_this_computer: "This computer: {} free",
     /// Button in `vault`.
-    pub family_unlock: &'static str,
+    family_unlock: "Unlock",
     /// Text in `stick_row`. `{}`: `app.medium.noun()`.
-    pub family_plug_the_in: &'static str,
+    family_plug_medium: "Plug the {} in",
     /// Text in `stick_row`. `{}`: `app.medium.a()`.
-    pub family_faraday_asks: &'static str,
+    family_faraday_asks: "Faraday asks to lock first when {} goes in",
     /// Line in `opened`.
-    pub family_spend_from: &'static str,
+    family_spend_from_label: "Spend from",
     /// Text in `opened`. `{}`: `Session::shape(wl)`, `here`, `slots.len()`.
-    pub family_of_keys_here: &'static str,
+    family_of_keys_here: "{} · {} of {} keys here",
     /// Text in `opened`.
-    pub family_its_key_is_here: &'static str,
+    family_its_key_is_here: "Its key is here: it can sign",
     /// Text in `opened`.
-    pub family_its_key_is_not: &'static str,
+    family_key_not_here: "Its key is not here yet",
     /// Text in `opened`. `{}`: `needed`, `n`, `here`.
-    pub family_of_keys_sign: &'static str,
+    family_of_keys_sign: "{} of {} keys sign · {} here",
     /// Line in `shortcut`.
-    pub family_i_have_the_psbt_from: &'static str,
+    family_have_psbt_line: "I have the PSBT from Sparrow ready",
     /// Text in `shortcut`.
-    pub family_scan_it: &'static str,
+    family_scan_button: "Scan it",
     /// Text in `SHORTCUT`.
-    pub family_i_have_the_psbt: &'static str,
+    family_i_have_the_psbt: "I have the PSBT from Sparrow ready: Scan it",
     /// Text in `loaded_in_sparrow`.
-    pub family_show_the_wallet_qr: &'static str,
+    family_show_the_wallet_qr: "Show the wallet QR",
     /// Line in `loaded_in_sparrow`.
-    pub family_receive_address: &'static str,
+    family_receive_address: "Receive address 0",
     /// Button in `loaded_in_sparrow`.
-    pub family_it_is_loaded: &'static str,
+    family_it_is_loaded: "It is loaded",
     /// Line in `check`.
-    pub family_none_of_these: &'static str,
+    family_none_of_these: "None of these show money.",
     /// Line in `check`.
-    pub family_the_words_may: &'static str,
+    family_the_words_may: "The words may belong to a wallet with several keys, or need a different passphrase.",
     /// Text in `check`.
-    pub family_scan_more: &'static str,
+    family_scan_more: "Scan more",
     /// Text in `check`.
-    pub family_type_a_passphrase: &'static str,
+    family_type_a_passphrase: "Type a passphrase",
     /// Line in `check`.
-    pub family_is_there_a_word: &'static str,
+    family_is_there_a_word: "Is there a word or sentence kept apart from the list?",
     /// Text in `check`.
-    pub family_yes_type_it: &'static str,
+    family_yes_type_button: "Yes, type it",
     /// Text in `check`.
-    pub family_no: &'static str,
+    family_no_button: "No",
     /// Text in `check`. `{}`: `crate::family::kind_label(kind)`, `if pass { EN.family_with_a_passphrase…`, `g.at + 1`, `Faraday::guess_total(g)`.
-    pub family_trying_of: &'static str,
+    family_trying_progress: "Trying: {}, {} · {} of {}",
     /// Text in `check`.
-    pub family_with_a_passphrase: &'static str,
+    family_with_a_passphrase: "with a passphrase",
     /// Text in `check`.
-    pub family_no_passphrase: &'static str,
+    family_no_passphrase: "no passphrase",
     /// Text in `check`.
-    pub family_show_the_wallet: &'static str,
+    family_show_the_wallet: "Show the wallet as a QR code",
     /// Text in `check`.
-    pub family_open_this_in: &'static str,
+    family_open_online_wallet: "Open this in the wallet on the online computer",
     /// Text in `check`.
-    pub family_open_this_one: &'static str,
+    family_open_this_one: "Open this one on the online computer too",
     /// Text in `check`.
-    pub family_receive: &'static str,
+    family_receive: "Receive",
     /// Text in `check`.
-    pub family_change: &'static str,
+    family_change: "Change",
     /// Text in `check`.
-    pub family_show_more_addresses: &'static str,
+    family_show_more_addresses: "Show more addresses",
     /// Text in `check`.
-    pub family_no_money_shows: &'static str,
+    family_no_money_shows: "No money shows",
     /// Text in `check`.
-    pub family_yes_my_money: &'static str,
+    family_yes_my_money: "Yes, my money shows",
     /// Text in `bring`. `{}`: `name`.
-    pub family_every_coin_to: &'static str,
+    family_every_coin_to_wallet: "Every coin to {}",
     /// Line in `bring`.
-    pub family_amount_max_in: &'static str,
+    family_amount_max_hint: "Amount: Max, in Sparrow's Send tab",
     /// Text in `bring`.
-    pub family_scan_the_psbt: &'static str,
+    family_scan_the_psbt: "Scan the PSBT",
     /// Text in `bring`.
-    pub family_scan: &'static str,
+    family_scan: "Scan",
     /// Text in `bring`. `{}`: `app.medium.a()`.
-    pub family_on: &'static str,
+    family_on_medium: "On {}",
     /// Text in `bring`. `{}`: `app.medium.a()`.
-    pub family_copy_it_in_from: &'static str,
+    family_copy_psbt_button: "Copy it in from {}",
     /// Line in `bring`.
-    pub family_in_files: &'static str,
+    family_in_files: "In Files",
     /// Line in `bring`.
-    pub family_signing_this: &'static str,
+    family_signing_this_one: "Signing this one",
     /// Text in `bring`.
-    pub family_use_this_one: &'static str,
+    family_use_this_one: "Use this one",
     /// Text in `bring`. `{}`: `wl.name`, `Session::shape(wl)`.
-    pub family_spends_from: &'static str,
+    family_spends_from_wallet: "Spends from {} · {}",
     /// Line in `bring`.
-    pub family_no_wallet_open: &'static str,
+    family_no_wallet_open: "No wallet open here matches this transaction. Change cannot be verified until its wallet is open: check that this is the transaction for this wallet.",
     /// Button in `bring`.
-    pub family_read_it: &'static str,
+    family_read_button: "Read it",
     /// Text in `signers`.
-    pub family_finish_the_backup_2: &'static str,
+    family_finish_backup_button: "Finish the backup",
     /// Text in `signers`.
-    pub family_load_from_vault: &'static str,
+    family_load_from_vault: "Load from vault",
     /// Text in `signers`.
-    pub family_signs_here: &'static str,
+    family_signs_here: "Signs here",
     /// Text in `signers`.
-    pub family_not_here: &'static str,
+    family_not_here: "Not here",
     /// Text in `signers`. `{}`: `f.name`.
-    pub family_unlock_n: &'static str,
+    family_unlock_n: "Unlock {}",
     /// Text in `signers`.
-    pub family_scan_a_key: &'static str,
+    family_scan_a_key: "Scan a key",
     /// Text in `signers`.
-    pub family_collect_a_signature: &'static str,
+    family_collect_a_signature: "Collect a signature",
     /// Text in `signers`. `{}`: `app.medium.noun()`.
-    pub family_remove_the_first: &'static str,
+    family_remove_the_first: "Remove the {} first",
     /// Button in `signers`.
-    pub family_continue: &'static str,
+    family_continue: "Continue",
     /// Button in `away`.
-    pub family_lock: &'static str,
+    family_lock: "Lock",
     /// Button in `away`.
-    pub family_power_off: &'static str,
+    family_power_off: "Power off",
     /// Text in `away`.
-    pub family_start_over: &'static str,
+    family_start_over: "Start over",
     // ----- family (faraday-core/src/family/text.rs) -----
     /// Text in `map`.
-    pub family_paper: &'static str,
+    family_paper: "Paper",
     /// Text in `map`.
-    pub family_what_you_have: &'static str,
+    family_what_you_have: "What you have",
     /// Text. `{}`: `m.noun()`.
-    pub family_the_faraday: &'static str,
+    family_the_faraday: "The Faraday {} and its passphrase, or words written down, and often a sheet describing the wallet.",
     /// Text in `map`.
-    pub family_open_the_wallet_here: &'static str,
+    family_open_the_wallet_here: "Open the wallet here",
     /// Text. `{}`: `m.noun()`.
-    pub family_start_a_computer: &'static str,
+    family_start_a_computer: "Start a computer from the Faraday {} and open the wallet.",
     /// Text in `map`.
-    pub family_check_the_balance: &'static str,
+    family_check_the_balance: "Check the balance",
     /// Text in `map`.
-    pub family_put_the_wallet: &'static str,
+    family_put_the_wallet: "Put the wallet's description into Sparrow on an online computer.",
     /// Text in `map`.
-    pub family_make_the_transaction: &'static str,
+    family_make_the_transaction: "Make the transaction in Sparrow. It gives you a PSBT.",
     /// Text in `map`.
-    pub family_offline: &'static str,
+    family_offline: "Offline",
     /// Text in `map`.
-    pub family_sign_it_here: &'static str,
+    family_sign_it_here: "Sign it here",
     /// Text in `map`.
-    pub family_bring_the_psbt: &'static str,
+    family_bring_the_psbt: "Bring the PSBT to Faraday, read what it does, and sign it.",
     /// Text in `map`.
-    pub family_online: &'static str,
+    family_online: "Online",
     /// Text in `map`.
-    pub family_take_the_signed: &'static str,
+    family_take_the_signed: "Take the signed transaction back to Sparrow and broadcast it.",
     /// Text in `WORDS_ARE_MONEY`.
-    pub family_the_words_are: &'static str,
+    family_the_words_are: "The words are the money. Never photograph them, and never type them into a phone, a website or a password manager. The same goes for the vault's passphrase.",
     /// Text in `UNSURE`.
-    pub family_not_sure_what: &'static str,
+    family_not_sure_what: "Not sure what you have?",
     /// Text in `ANYTHING_HINT`.
-    pub family_another_list: &'static str,
+    family_another_list: "Another list of words, another QR code, a line starting wsh( or tr(, or a word kept apart from the list.",
     /// Text in `DESCRIPTION_HINT`.
-    pub family_its_description: &'static str,
+    family_its_description: "Its description says how they fit together: a QR code labelled wallet, descriptor, setup or multisig; a long line starting wsh( or tr(; or sheets with lines like 73C5DA0A: xpub…",
     /// Text in `looks`.
-    pub family_a_square_black: &'static str,
+    family_a_square_black: "A square black-and-white pattern",
     /// Text in `looks`.
-    pub family_a_qr_code_the: &'static str,
+    family_looks_qr_code: "A QR code: the same information in a form a camera can read. Several numbered 1 of 5 and so on are one thing in parts: scan them one after another. Never scan a QR code that sits beside seed words into anything but Faraday.",
     /// Text in `looks`.
-    pub family_words_numbered: &'static str,
+    family_words_numbered: "Words numbered 1 to 12, 18 or 24",
     /// Text in `looks`.
-    pub family_the_seed_phrase: &'static str,
+    family_the_seed_phrase: "The seed phrase. Often headed recovery phrase, seed words or backup, or stamped into steel.",
     /// Text in `looks`.
-    pub family_one_long_line: &'static str,
+    family_one_long_line: "One long line starting wpkh(, wsh(, tr(, xpub, zpub or tpub",
     /// Text in `looks`.
-    pub family_a_descriptor: &'static str,
+    family_a_descriptor: "A descriptor or an xpub. It shows the addresses and the balance but cannot spend. Do not post it publicly: it shows the wallet's whole history.",
     /// Text in `looks`.
-    pub family_several_sheets: &'static str,
+    family_several_sheets: "Several sheets each holding a few lines, like 73C5DA0A: xpub…",
     /// Text in `looks`.
-    pub family_one_description: &'static str,
+    family_one_description: "One description split up on purpose, often under a heading such as this sheet carries 2 of 3 wallet descriptor parts. Enough of the sheets, in any order, add up to the whole. A line such as Policy: 2 of 3 says how many signatures the wallet needs.",
     /// Text in `looks`.
-    pub family_a_word_or_sentence: &'static str,
+    family_a_word_or_sentence: "A word or sentence kept apart from the list, called a passphrase or a 25th word",
     /// Text in `looks`.
-    pub family_if_one_exists: &'static str,
+    family_if_one_exists: "If one exists, the words alone open a wallet that is real but empty, and the money is in the wallet the words and the passphrase open. This is not the vault's passphrase: the vault's passphrase opens the vault file, and this one changes which wallet the words open.",
     /// Text in `looks`.
-    pub family_a_short_line: &'static str,
+    family_a_short_line: "A short line starting bc1, 3 or 1",
     /// Text in `looks`.
-    pub family_one_address: &'static str,
+    family_one_address: "One address, not a backup.",
     /// Text in `looks`.
-    pub family_a_small_device: &'static str,
+    family_a_small_device: "A small device with a screen and buttons",
     /// Text in `looks`.
-    pub family_a_hardware_wallet: &'static str,
+    family_a_hardware_wallet: "A hardware wallet. It is a way of using the words, not a replacement for them.",
     /// Text. `{}`: `m.a_full_cap()`.
-    pub family_labelled_faraday: &'static str,
+    family_labelled_faraday: "{} labelled Faraday, and a passphrase on a separate card",
     /// Text. `{}`: `m.noun()`.
-    pub family_the_starts_the: &'static str,
+    family_looks_medium: "The {} starts the computer and carries the vault, a locked file named like vault.ofv. The passphrase opens it. The vault holds the wallet and the keys that sign for it.",
     /// Text in `title`.
-    pub family_how_to_spend: &'static str,
+    family_how_to_spend: "How to spend bitcoin",
     /// Text in `title`. `{}`: `app.medium.noun()`.
-    pub family_start_from_the: &'static str,
+    family_title_start: "Start from the {}",
     /// Text in `title`.
-    pub family_what_do_you: &'static str,
+    family_what_do_you: "What do you have?",
     /// Text in `title`.
-    pub family_open_the_wallet: &'static str,
+    family_open_the_wallet: "Open the wallet",
     /// Text in `title`.
-    pub family_load_the_wallet: &'static str,
+    family_load_the_wallet: "Load the wallet in Sparrow",
     /// Text in `title`.
-    pub family_check_the_money_is: &'static str,
+    family_title_check_money: "Check the money is there, on the online computer",
     /// Text in `title`.
-    pub family_write_the_payment_in: &'static str,
+    family_title_write_payment: "Write the payment in Sparrow",
     /// Text in `title`.
-    pub family_check_the_money: &'static str,
+    family_check_the_money: "Check the money is really there",
     /// Text in `title`.
-    pub family_write_the_payment: &'static str,
+    family_write_the_payment: "Write the payment",
     /// Text in `title`.
-    pub family_bring_the_transaction: &'static str,
+    family_bring_the_transaction: "Bring the transaction here",
     /// Text in `title`.
-    pub family_put_everything: &'static str,
+    family_put_everything: "Put everything away",
     /// Text in `title`.
-    pub family_read_the_transaction: &'static str,
+    family_read_the_transaction: "Read the transaction",
     /// Text in `title`.
-    pub family_the_transaction: &'static str,
+    family_the_transaction: "The transaction id",
     /// Text in `title`.
-    pub family_which_way_it: &'static str,
+    family_title_which_way: "Which way it spends",
     /// Text in `title`.
-    pub family_nonces: &'static str,
+    family_nonces: "Nonces",
     /// Text in `title`.
-    pub family_add_the_seeds: &'static str,
+    family_add_the_seeds: "Add the seeds that can sign",
     /// Text in `title`.
-    pub family_who_signs: &'static str,
+    family_who_signs: "Who signs",
     /// Text in `title`.
-    pub family_sign_it: &'static str,
+    family_title_sign: "Sign it",
     /// Text in `title`.
-    pub family_the_other_signatures: &'static str,
+    family_the_other_signatures: "The other signatures",
     /// Text in `title`.
-    pub family_send_it: &'static str,
+    family_title_send: "Send it",
     /// Text in `lead`.
-    pub family_six_stops_three: &'static str,
+    family_six_stops_three: "Six stops, three on this computer and three on an online one. Nothing moves until the last.",
     /// Text in `lead`. `{}`: `app.medium.noun()`.
-    pub family_this_is_the: &'static str,
+    family_lead_desktop_copy: "This is the desktop copy of Faraday, which runs on an ordinary computer that has been online. It is for testing. For real money, start a computer from the Faraday {}.",
     /// Text in `lead`. `{}`: `app.medium.noun()`.
-    pub family_this_computer_is: &'static str,
+    family_lead_running_offline: "This computer is running Faraday from the {}. It has no network, and it forgets everything when it is switched off.",
     /// Text in `lead`.
-    pub family_scan_or_type: &'static str,
+    family_scan_or_type: "Scan or type everything in the envelope, one thing at a time, in any order. Faraday works out the wallet from it.",
     /// Text in `lead`.
-    pub family_in_sparrow_file_new: &'static str,
+    family_in_sparrow_file_new: "In Sparrow: File, New Wallet, then scan the wallet QR. Its first address is receive address 0 here.",
     /// Text in `lead`.
-    pub family_in_sparrow_s: &'static str,
+    family_in_sparrow_s: "In Sparrow's Send tab: the address, the amount and a fee. Then Create Transaction, Finalize Transaction for Signing and Show QR.",
     /// Text in `lead`.
-    pub family_words_alone: &'static str,
+    family_words_alone: "Words alone do not say which kind of wallet they made. Faraday made the most common kind from them. Open it in the wallet on the online computer, such as Sparrow, and look at its balance. If no money shows, Faraday makes the next kind.",
     /// Text in `lead`.
-    pub family_load_this_same: &'static str,
+    family_load_this_same: "Load this same wallet in Sparrow on your online computer to check the balance. The code below is the wallet's description: enough for Sparrow to find every address the wallet uses and add up what is on all of them. It cannot spend. Then check that the first address Sparrow shows is character for character the same as receive address 0 below. If it matches, two separate programs have read the same backup and agreed. If it does not match, stop: something was typed or scanned wrongly.",
     /// Text in `lead`.
-    pub family_this_part_happens: &'static str,
+    family_this_part_happens: "This part happens on the online computer. In Sparrow, open the wallet's Send tab, enter the address to pay and the amount, and choose a fee. Press Create Transaction, then Finalize Transaction for Signing, then Show QR: an animated code, which is what Faraday reads. Sparrow can also save it as a .psbt file.",
     /// Text in `lead`. `{}`: `app.medium.a()`, `app.medium.a()`, `app.medium.noun()`.
-    pub family_two_ways_scanning: &'static str,
+    family_two_ways_scanning: "Two ways. Scanning is the simpler: nothing has to lock. Press Scan and hold Sparrow's QR code up to this computer's camera; an animation is read as it loops. Or save the .psbt onto {} and copy it in. Faraday reads {} only while no vault or key is open, so with one open it locks first: it seals the vault, forgets the keys and starts again. Copy the PSBT in, remove the {}, and unlock with the same passphrase. This tab comes back on this page.",
     /// Text in `lead`. `{}`: `app.medium.noun()`, `app.medium.a()`, `app.medium.noun()`, `app.medium.noun()`.
-    pub family_lock_faraday: &'static str,
+    family_lock_faraday: "Lock Faraday. The vault is sealed again and the keys are forgotten. If a file you still need waits for the {}, plug {} in and the {} visit writes it. Then switch off, take the {} out, and put it back with the papers.",
     /// Text in `lead`.
-    pub family_this_opens_once: &'static str,
+    family_this_opens_once: "This opens once the transaction is here.",
     /// Text in `lead`.
-    pub family_read_the_summary: &'static str,
+    family_read_the_summary: "Read the summary before you sign, every time: what leaves, what comes back, and the fee. Change is the rest coming back to the same wallet, not money leaving. Signing is the one step that cannot be taken back. If this is not what you meant to do, a different amount, an address you do not recognise, or a warning of any kind, do not sign. Declining costs nothing.",
     /// Text in `lead`.
-    pub family_write_down_the: &'static str,
+    family_lead_write_down_id: "Write down the first and last few characters of this id. Sparrow shows the same id for the transaction it wrote; after sending, the id is how you follow it.",
     /// Text in `lead`.
-    pub family_every_key_that: &'static str,
+    family_lead_every_key: "Every key that signs is listed. A key not here yet comes from its own place: Scan a key reads its SeedQR, or its words typed instead, and a vault that holds it unlocks. Faraday works out which key it is. Each is checked against the wallet, so a key from another wallet is refused. A key held by someone else does not have to come here at all: they sign the same PSBT on their own device, and their signed copy is collected after this device signs.",
     /// Text in `lead`.
-    pub family_one_seed_at: &'static str,
+    family_lead_one_seed: "One seed at a time: put its words in, add it, and the count goes up. Order does not matter and the same seed twice does no harm. Each list is checked against the wallet's own keys, so one belonging to a different wallet is refused. A seed kept as a QR code beside the words does not have to be typed: scan it. If that backup has a separate passphrase, type it in the passphrase box before adding.",
     /// Text in `lead`.
-    pub family_signing_adds: &'static str,
+    family_signing_adds: "Signing adds the signature of every key loaded here. For a wallet that needs signatures from elsewhere, the next card lists who still has to sign and takes their signed copies; each is checked against its key and this transaction before it counts.",
     /// Text in `lead`. `{}`: `app.medium.a()`.
-    pub family_the_finished: &'static str,
+    family_the_finished: "The finished transaction is what the network accepts. Show the signed PSBT as a QR code; in Sparrow, on the same transaction, press Scan QR and hold it up to the webcam, then Broadcast Transaction. Or carry the finished transaction, which waits in Files, on {}. It is safe to hand to anyone: nobody can change where the money goes without breaking the signatures, and a broken transaction is rejected, not redirected.",
     /// Text in `more`.
-    pub family_anyone_who_reads: &'static str,
+    family_anyone_who_reads: "Anyone who reads the words can spend the money from anywhere in the world, and it cannot be reversed. Where a wallet needs several lists, anyone with enough of them can. Treat every list as if it were the only one. No legitimate bitcoin company will ever ask for them: not a support line, not someone helping you, not an AI.",
     /// Text in `more`.
-    pub family_nothing_done: &'static str,
+    family_nothing_done: "Nothing done here is irreversible until the last step, and that step does not happen in Faraday. Opening the vault, typing words, looking at addresses and reading a transaction move nothing and notify no one. You can stop and come back.",
     /// Text in `more`.
-    pub family_there_is_no: &'static str,
+    family_more_no_deadline: "There is no deadline; bitcoin does not expire. Rushing is how people get robbed, by scammers and by helpers acting in their own interest. Take your time, and find someone you trust.",
     /// Text in `more`. `{}`: `m.noun()`.
-    pub family_if_any_of_this: &'static str,
+    family_more_stop_if_unsure: "If any of this stops making sense, stop. Put the {} and the paper somewhere safe and get help from someone you would trust with the money itself. Waiting costs nothing.",
     /// Text in `more`.
-    pub family_shut_the_computer: &'static str,
+    family_shut_the_computer: "Shut the computer down completely, not sleep or restart. Unplug any network cable.",
     /// Text in `more`. `{}`: `m.noun()`.
-    pub family_plug_the_faraday: &'static str,
+    family_plug_the_faraday: "Plug the Faraday {} in, switch the computer on and press the boot menu key straight away, repeatedly. It is usually F12, F9, Esc or F2. The first screen often names the key for a second or two.",
     /// Text in `more`. `{}`: `m.full()`.
-    pub family_pick_the_from: &'static str,
+    family_more_pick_boot_device: "Pick the {} from the list that appears. If no list appears, the key was wrong or came too late: shut down and try another one.",
     /// Text in `more`. `{}`: `m.noun()`, `m.a()`.
-    pub family_if_the_is_missing: &'static str,
+    family_if_the_is_missing: "If the {} is missing, or someone else has opened the envelope, do not use it. Do not use {} you are unsure about: the words are the money, and taking longer costs nothing.",
     /// Text in `more`.
-    pub family_a_vault_unlocks: &'static str,
+    family_a_vault_unlocks: "A vault unlocks in the time shown on purpose: it makes guessing the passphrase slow. A wrong passphrase opens nothing and says so.",
     /// Text in `more`.
-    pub family_words_go_in: &'static str,
+    family_more_words_order: "Words go in in the order they are written. Faraday checks them against the list of 2048 words and the backup's own checksum, so a mistyped or missing word is caught.",
     /// Text in `more`.
-    pub family_a_wallet_description: &'static str,
+    family_a_wallet_description: "A wallet description opens the wallet read-only: enough to see every address and to check the balance. The words that sign come later, after the transaction is read.",
     /// Text in `more`.
-    pub family_split_sheets: &'static str,
+    family_split_sheets: "Split sheets go in one at a time, in any order; the wallet opens when enough of them are in.",
     /// Text in `more`.
-    pub family_in_sparrow_file: &'static str,
+    family_in_sparrow_file: "In Sparrow: File, New Wallet, give it a name, then choose the way in that scans a QR code or imports a descriptor, and hold this screen up to the webcam. Menu names change between versions; look for an import that takes a descriptor or a scan. If the code is animated, let it loop once.",
     /// Text in `more`.
-    pub family_only_load_it: &'static str,
+    family_more_trusted_software: "Only load it into wallet software you chose and trust.",
     /// Text in `more`.
-    pub family_faraday_can: &'static str,
+    family_faraday_can: "Faraday can work out every address the wallet owns, but not which were used. Money is often spread over several addresses, including change addresses from old payments, so the first few can be empty while the money is further down. Sparrow adds them all up.",
     /// Text in `more`.
-    pub family_on_a_phone_you: &'static str,
+    family_on_a_phone_you: "On a phone you can also look an address up on a block explorer such as mempool.space. That moves nothing; it does tell the website you looked.",
     /// Text in `more`.
-    pub family_paying_into: &'static str,
+    family_paying_into: "Paying into an exchange: the exchange gives a deposit address for bitcoin in your account. Copy it exactly, and compare the first and last few characters after pasting.",
     /// Text in `more`.
-    pub family_faraday_locks: &'static str,
+    family_faraday_locks: "Faraday locks after a few minutes without input. That is expected. Unlock again with the same passphrase and this tab opens where you left it.",
     /// Text in `more`.
-    pub family_if_the_envelope: &'static str,
+    family_if_the_envelope: "If the envelope held a hardware wallet that came with the papers and looks untouched, you can sign the same PSBT on it too and compare. Follow the device's own guide to restore from the same words. Compare what both screens say before approving anything: the amount, the fee and the address. They must match.",
     /// Text in `more`.
-    pub family_faraday_on_its: &'static str,
+    family_more_faraday_enough: "Faraday on its own is enough to do the whole job.",
     /// Text in `more`.
-    pub family_any_of_these: &'static str,
+    family_any_of_these: "Any of these sends it: Sparrow, which opens a transaction from a QR code, a file or pasted text and broadcasts it; a block explorer's broadcast page, such as mempool.space or blockstream.info; or someone you trust.",
     /// Text in `more`.
-    pub family_then_check_the: &'static str,
+    family_more_check_id: "Then check the id. Whatever sends it should report the id Faraday showed. If the id you see anywhere differs, what was sent is not what you signed here: stop and find out why.",
     /// Text in `more`.
-    pub family_the_first_confirmation: &'static str,
+    family_the_first_confirmation: "The first confirmation usually takes about ten minutes but can take hours if the fee was low. Exchanges usually want one to six confirmations before the money shows in the account.",
     /// Text in `more`. `{}`: `m.noun()`.
-    pub family_when_faraday: &'static str,
+    family_when_faraday: "When Faraday signs with a vault open, it records the amounts it signed inside that vault, so locking seals a changed copy of the vault to write back. Writing it back to the {} keeps that record; leaving it out changes nothing else.",
     // ----- flow (faraday-core/src/flow.rs) -----
     /// Text in `column_foot`.
-    pub flow_guided: &'static str,
+    flow_guided: "Guided",
     /// Text in `column_foot`.
-    pub flow_steps_only: &'static str,
+    flow_steps_only: "Steps only",
     /// Line in `paged`.
-    pub flow_change: &'static str,
+    flow_change: "Change",
     /// Text in `paged`. `{}`: `i + 1`, `cards.len()`.
-    pub flow_step_of: &'static str,
+    flow_step_count: "Step {} of {}",
     /// Text in `paged`.
-    pub flow_about_this_step: &'static str,
+    flow_about_this_step: "About this step",
     /// Text in `paged`.
-    pub flow_home: &'static str,
+    flow_home: "Home",
     /// Button in `column_foot` and `paged`: leaves the flow for good (F51).
-    pub flow_cancel: &'static str,
+    flow_cancel: "Cancel",
     /// Button on the Cancel sheet (`in_progress::cancel_sheet`).
-    pub flow_cancel_the_flow: &'static str,
+    flow_cancel_the_flow: "Cancel the flow",
     /// Button on the Cancel sheet (`in_progress::cancel_sheet`).
-    pub flow_keep_going: &'static str,
+    flow_keep_going: "Keep going",
     /// Title of the Cancel sheet over Make a new wallet.
-    pub flow_cancel_create: &'static str,
+    flow_cancel_create: "Cancel making this wallet?",
     /// Title of the Cancel sheet over Restore a wallet.
-    pub flow_cancel_restore: &'static str,
+    flow_cancel_restore: "Cancel restoring this wallet?",
     /// Title of the Cancel sheet over a wallet's backup.
-    pub flow_cancel_backup: &'static str,
+    flow_cancel_backup: "Cancel this backup?",
     /// Title of the Cancel sheet over a spend.
-    pub flow_cancel_spend: &'static str,
+    flow_cancel_spend: "Cancel this spend?",
     /// Title of the Cancel sheet over Sign a message.
-    pub flow_cancel_message: &'static str,
+    flow_cancel_message: "Cancel signing this message?",
     /// Title of the Cancel sheet over Create a vault.
-    pub flow_cancel_vault: &'static str,
+    flow_cancel_vault: "Cancel making this vault?",
     /// Title of the Cancel sheet over an APK or GPG key's flow.
-    pub flow_cancel_key: &'static str,
+    flow_cancel_key: "Cancel making this key?",
     /// Title of the Cancel sheet over the Secure Boot keys' flow.
-    pub flow_cancel_keys: &'static str,
+    flow_cancel_keys: "Cancel making these keys?",
     /// Line on the Cancel sheet: what it loses.
-    pub flow_lost_plan: &'static str,
+    flow_lost_plan: "The plan and its places are lost.",
     /// Line on the Cancel sheet: what it loses.
-    pub flow_lost_answers: &'static str,
+    flow_lost_answers: "Its answers are lost.",
     /// Line on the Cancel sheet: what it loses.
-    pub flow_lost_setup: &'static str,
+    flow_lost_setup: "Its answers and the setup of its vaults are lost.",
     /// Line on the Cancel sheet: what it loses.
-    pub flow_lost_spend: &'static str,
+    flow_lost_spend: "Its steps and any signatures made are lost.",
     // ----- forms (faraday-core/src/forms.rs) -----
     /// Text in `name`.
-    pub forms_bip_39_words: &'static str,
+    forms_bip_39_words: "BIP-39 words",
     /// Text in `name`.
-    pub forms_slip_39_shares: &'static str,
+    forms_slip_39_shares: "SLIP-39 shares",
     /// Text in `name`.
-    pub forms_codex32: &'static str,
+    forms_codex32: "codex32",
     /// Text in `name`.
-    pub forms_seed_xor_parts: &'static str,
+    forms_seed_xor_parts: "Seed XOR parts",
     /// Text in `lines`. `{}`: `s.group_index() + 1`, `s.group_count()`, `s.member_index() + 1`, `s.member_threshold()`, `s.identifier()`.
-    pub forms_group_of_member: &'static str,
+    forms_group_of_member: "Group {} of {}, member {} · {} of the group needed · id {}",
     /// Text in `lines`. `{}`: `id`.
-    pub forms_the_secret_id: &'static str,
+    forms_the_secret_id: "The secret · id {}",
     /// Text in `lines`. `{}`: `char::from(c.share_index())`, `id`, `c.threshold()`.
-    pub forms_share_id_needed: &'static str,
+    forms_share_id_needed: "Share {} · id {} · {} needed",
     /// Text in `lines`. `{}`: `i`, `words`.
-    pub forms_part_words: &'static str,
+    forms_part_words: "Part {} · {} words",
     /// Text in `form_add_part`. `{}`: `e`.
-    pub forms_not_a_slip_39: &'static str,
+    forms_not_slip39_share: "Not a SLIP-39 share: {}",
     /// Text in `form_add_part`. `{}`: `e`.
-    pub forms_not_a_codex32: &'static str,
+    forms_not_a_codex32: "Not a codex32 string: {}",
     /// Error in `form_add_part`.
-    pub forms_that_string_is: &'static str,
+    forms_other_seed_string: "That string is of another seed: its id differs",
     /// Error in `form_add_part`.
-    pub forms_that_share_is: &'static str,
+    forms_share_duplicate: "That share is in already",
     /// Text in `form_add_part`. `{}`: `e`.
-    pub forms_not_bip_39_words: &'static str,
+    forms_not_bip_39_words: "Not BIP-39 words: {}",
     /// Error in `form_add_part`.
-    pub forms_every_part_has: &'static str,
+    forms_every_part_has: "Every part has the same number of words",
     /// Text in `form_recover`.
-    pub forms_slip_39_key: &'static str,
+    forms_slip_39_key: "SLIP-39 key",
     /// Text in `form_recover`.
-    pub forms_codex32_key: &'static str,
+    forms_codex32_key: "codex32 key",
     /// Text in `form_recover`.
-    pub forms_seed_xor_key: &'static str,
+    forms_seed_xor_key: "Seed XOR key",
     /// Text in `form_recover`. `{}`: `e`.
-    pub forms_the_shares_do: &'static str,
+    forms_the_shares_do: "The shares do not make a key: {}",
     /// Text in `form_recover`. `{}`: `e`.
-    pub forms_the_strings_do: &'static str,
+    forms_the_strings_do: "The strings do not make a key: {}",
     /// Error in `form_recover`.
-    pub forms_seed_xor_needs: &'static str,
+    forms_seed_xor_needs: "Seed XOR needs two parts or more",
     /// Toast in `form_recover`. `{}`: `fp_text(fp)`.
-    pub forms_key_added: &'static str,
+    forms_key_added: "Key {} added",
     /// Text in `language_name`.
-    pub forms_english: &'static str,
+    forms_english: "English",
     /// Text in `language_name`.
-    pub forms_spanish: &'static str,
+    forms_spanish: "Spanish",
     /// Text in `language_name`.
-    pub forms_french: &'static str,
+    forms_french: "French",
     /// Text in `language_name`.
-    pub forms_italian: &'static str,
+    forms_italian: "Italian",
     /// Text in `language_name`.
-    pub forms_czech: &'static str,
+    forms_czech: "Czech",
     /// Text in `language_name`.
-    pub forms_portuguese: &'static str,
+    forms_portuguese: "Portuguese",
     /// Text in `language_name`.
-    pub forms_japanese: &'static str,
+    forms_japanese: "Japanese",
     /// Text in `language_name`.
-    pub forms_korean: &'static str,
+    forms_korean: "Korean",
     /// Text in `language_name`.
-    pub forms_chinese_simplified: &'static str,
+    forms_chinese_simplified: "Chinese (Simplified)",
     /// Text in `language_name`.
-    pub forms_chinese_traditional: &'static str,
+    forms_chinese_traditional: "Chinese (Traditional)",
     /// Text in `typed_mnemonic`. `{}`: `k + 1`, `language_name(lang)`.
-    pub forms_word_is_not_on: &'static str,
+    forms_word_not_in_list: "Word {} is not on the {} list",
     // ----- glance (faraday-core/src/glance/mod.rs) -----
     /// Text in `RECEIVE_WARNING`.
-    pub glance_back_up_before: &'static str,
+    glance_back_up_before: "Back up before you receive",
     /// Text in `WAITING`.
-    pub glance_waiting_for: &'static str,
+    glance_waiting_backup: "Waiting for its backup",
     /// Text in `build`.
-    pub glance_no_origin: &'static str,
+    glance_no_origin: "no origin",
     /// Text in `build`.
-    pub glance_can_sign_passphrase: &'static str,
+    glance_can_sign_passphrase: "Can sign · passphrase",
     /// Text in `build`.
-    pub glance_can_sign_here: &'static str,
+    glance_can_sign_here: "Can sign here",
     /// Text in `build`.
-    pub glance_in_this_vault_passphrase: &'static str,
+    glance_in_this_vault_passphrase: "In this vault · passphrase",
     /// Text in `build`.
-    pub glance_in_this_vault: &'static str,
+    glance_in_this_vault: "In this vault",
     /// Text in `build`.
-    pub glance_cosigner_xpub: &'static str,
+    glance_cosigner_xpub: "Cosigner · xpub only",
     /// Text in `build`.
-    pub glance_load_from_vault: &'static str,
+    glance_load_from_vault: "Load from vault",
     /// Text in `backup_nodes`. `{}`: `v + 1`.
-    pub glance_vault: &'static str,
+    glance_vault: "Vault {}",
     /// Text in `backup_nodes`. `{}`: `p + 1`.
-    pub glance_place: &'static str,
+    glance_place: "Place {}",
     /// Text in `backup_nodes`. `{}`: `j + 1`, `shape.keys`.
-    pub glance_share_of: &'static str,
+    glance_share_count: "Share {} of {}",
     /// Text in `backup_nodes`. `{}`: `vault_name(v)`.
-    pub glance_stick: &'static str,
+    glance_stick: "{} stick",
     /// Text in `backup_nodes`.
-    pub glance_description: &'static str,
+    glance_description: "Description",
     /// Text in `backup_nodes`. `{}`: `number(i)`.
-    pub glance_key_file: &'static str,
+    glance_key_file: "Key {} file",
     /// Text in `backup_nodes`. `{}`: `inside.join(", ")`.
-    pub glance_in_the_vault: &'static str,
+    glance_in_the_vault: "{} in the vault",
     /// Text in `backup_nodes`. `{}`: `vault_name(v)`.
-    pub glance_copy: &'static str,
+    glance_copy: "{} · copy",
     /// Text in `backup_nodes`. `{}`: `app.medium.cap()`.
-    pub glance_of_files: &'static str,
+    glance_of_files: "{} of files",
     /// Text in `backup_nodes`.
-    pub glance_watch_only_software: &'static str,
+    glance_watch_only_software: "Watch-only software",
     /// Text in `backup_nodes`.
-    pub glance_on_its_own_device: &'static str,
+    glance_on_its_own_device: "On its own device",
     /// Text in `backup_nodes`.
-    pub glance_its_own_stick: &'static str,
+    glance_its_own_stick: "Its own stick",
     /// Text in `backup_nodes`. `{}`: `at.join(", ")`.
-    pub glance_stick_at: &'static str,
+    glance_stick_places: "Stick at {}",
     /// Text in `backup_nodes`.
-    pub glance_not_here: &'static str,
+    glance_not_here: "Not here",
     /// Text in `checked_text`.
-    pub glance_checked: &'static str,
+    glance_checked: "Checked",
     /// Text in `checked_text`. `{}`: `d`.
-    pub glance_checked_n: &'static str,
+    glance_checked_n: "Checked {}",
     /// Text in `alone_color`.
-    pub glance_can_spend: &'static str,
+    glance_nothing: "Nothing",
     /// Text in `alone_color`.
-    pub glance_nothing: &'static str,
-    /// Text in `alone_color`.
-    pub glance_sealed: &'static str,
+    glance_sealed: "Sealed",
     /// Text. `{}`: `k.number`, `k.fingerprint`.
-    pub glance_key_2: &'static str,
+    glance_key_fingerprint: "Key {} · {}",
     /// Text. `{}`: `vault`.
-    pub glance_plan_in_locked: &'static str,
+    glance_plan_in_locked: "Plan in {}, locked",
     /// Text in `rows`.
-    pub glance_unlock: &'static str,
+    glance_unlock: "Unlock",
     /// Text in `rows`.
-    pub glance_no_backup_plan_2: &'static str,
+    glance_no_backup_plan_short: "No backup plan",
     /// Text in `rows`.
-    pub glance_back_up: &'static str,
+    glance_back_up: "Back up",
     /// Text in `rows`.
-    pub glance_no_backup_plan: &'static str,
+    glance_no_backup_plan: "No backup plan in this vault",
     /// Text in `draw_column_with`.
-    pub glance_backup: &'static str,
+    glance_backup: "Backup",
     /// Text in `draw_column_with`.
-    pub glance_keys: &'static str,
+    glance_keys: "Keys",
     /// Text in `draw_column_with`.
-    pub glance_wallet: &'static str,
+    glance_wallet: "Wallet",
     /// Text in `thing_label`. `{}`: `number(i)`.
-    pub glance_key_words: &'static str,
+    glance_key_words: "Key {} words",
     /// Text in `thing_label`. `{}`: `number(i)`.
-    pub glance_key_seedqr: &'static str,
+    glance_key_seedqr: "Key {} SeedQR",
     /// Text in `thing_label`. `{}`: `number(i)`.
-    pub glance_passphrase: &'static str,
+    glance_passphrase: "Passphrase {}",
     /// Text in `thing_label`.
-    pub glance_wallet_sheet: &'static str,
+    glance_wallet_sheet: "Wallet sheet",
     /// Text in `thing_label`. `{}`: `j + 1`.
-    pub glance_share: &'static str,
+    glance_share: "Share {}",
     /// Text in `thing_label`. `{}`: `v + 1`.
-    pub glance_vault_copy: &'static str,
+    glance_vault_copy: "Vault {} · copy",
     /// Text in `thing_label`. `{}`: `number(i)`.
-    pub glance_key_seed: &'static str,
+    glance_key_seed: "Key {} seed",
     /// Text in `thing_label`. `{}`: `number(i)`.
-    pub glance_key_seed_passphrase: &'static str,
+    glance_key_seed_passphrase: "Key {} seed + passphrase",
     /// Text in `thing_label`.
-    pub glance_the_description: &'static str,
+    glance_the_description: "The description",
     /// Text in `thing_label`. `{}`: `number(i)`.
-    pub glance_key: &'static str,
+    glance_key: "Key {}",
     // ----- glance_sheet (faraday-core/src/glance/sheet.rs) -----
     /// Row in `view`.
-    pub glance_sheet_open_the: &'static str,
+    glance_sheet_open_vault: "Open the vault",
     /// Row in `view`.
-    pub glance_sheet_open_in: &'static str,
+    glance_sheet_open_wallets: "Open in Wallets",
     /// Row in `view`.
-    pub glance_sheet_check_addresses: &'static str,
+    glance_sheet_check_addresses: "Check addresses",
     /// Row in `view`.
-    pub glance_sheet_the_first: &'static str,
+    glance_sheet_the_first: "The first three",
     /// Row in `view`.
-    pub glance_sheet_public_files: &'static str,
+    glance_sheet_public_files: "Public files",
     /// Row in `view`.
-    pub glance_sheet_for_the_software: &'static str,
+    glance_sheet_for_the_software: "For the software",
     /// Text in `view`.
-    pub glance_sheet_print_the: &'static str,
+    glance_sheet_reprint_wallet_sheet: "Print the wallet sheet again",
     /// Row in `view`.
-    pub glance_sheet_rename_the: &'static str,
+    glance_sheet_rename_wallet: "Rename the wallet",
     /// Text in `view`.
-    pub glance_sheet_shape: &'static str,
+    glance_sheet_shape: "Shape",
     /// Text in `view`.
-    pub glance_sheet_checksum: &'static str,
+    glance_sheet_checksum: "Checksum",
     /// Text in `view`.
-    pub glance_sheet_where_2: &'static str,
+    glance_sheet_where_label: "Where",
     /// Text in `view`.
-    pub glance_sheet_label: &'static str,
+    glance_sheet_label: "Label",
     /// Text in `view`.
-    pub glance_sheet_last_checked_2: &'static str,
+    glance_sheet_last_checked_label: "Last checked",
     /// Text in `view`.
-    pub glance_sheet_its_seed: &'static str,
+    glance_sheet_its_seed: "Its seed is at",
     /// Row in `view`.
-    pub glance_sheet_show_xpub: &'static str,
+    glance_sheet_show_xpub: "Show xpub QR",
     /// Row in `view`.
-    pub glance_sheet_xpub_file: &'static str,
+    glance_sheet_xpub_file: "Xpub file",
     /// Row in `view`.
-    pub glance_sheet_explore: &'static str,
+    glance_sheet_explore: "Explore this key",
     /// Row in `view`.
-    pub glance_sheet_where: &'static str,
+    glance_sheet_where: "Where it is",
     /// Row in `view`.
-    pub glance_sheet_words: &'static str,
+    glance_sheet_words: "Words, by hand",
     /// Row in `view`.
-    pub glance_sheet_seedqr: &'static str,
+    glance_sheet_seedqr: "SeedQR, by hand",
     /// Row in `view`.
-    pub glance_sheet_seed_xor: &'static str,
+    glance_sheet_seed_xor: "Seed XOR or codex32",
     /// Row in `view`.
-    pub glance_sheet_by_hand: &'static str,
+    glance_sheet_by_hand: "By hand",
     /// Text in `view`. `{}`: `n.name`.
-    pub glance_sheet_into: &'static str,
+    glance_sheet_into: "Into {}",
     /// Row in `view`.
-    pub glance_sheet_as_a_file: &'static str,
+    glance_sheet_as_a_file: "As a file",
     /// Text in `view`.
-    pub glance_sheet_make_another_backup: &'static str,
+    glance_sheet_make_another_backup: "Make another backup of this seed",
     /// Text in `view`.
-    pub glance_sheet_check_a: &'static str,
+    glance_sheet_check_seed_copy: "Check a copy of this seed",
     /// Text in `view`.
-    pub glance_sheet_its_passphrase: &'static str,
+    glance_sheet_its_passphrase: "Its passphrase",
     /// Row in `view`.
-    pub glance_sheet_show_its: &'static str,
+    glance_sheet_show_key_xpub: "Show its xpub",
     /// Text in `view`.
-    pub glance_sheet_name_its: &'static str,
+    glance_sheet_name_holder: "Name its holder",
     /// Text in `view`.
-    pub glance_sheet_stick: &'static str,
+    glance_sheet_stick: "Stick",
     /// Text in `view`.
-    pub glance_sheet_found: &'static str,
+    glance_sheet_found: "Found alone",
     /// Text in `view`.
-    pub glance_sheet_not_yet: &'static str,
+    glance_sheet_not_yet: "Not yet",
     /// Row in `view`.
-    pub glance_sheet_open_a: &'static str,
+    glance_sheet_open_vault_to_keep: "Open a vault to keep this",
     /// Text in `view`.
-    pub glance_sheet_mark_checked: &'static str,
+    glance_sheet_mark_checked: "Mark checked",
     /// Row in `view`.
-    pub glance_sheet_what_goes: &'static str,
+    glance_sheet_what_goes: "What goes in its envelope",
     /// Row in `view`.
-    pub glance_sheet_the_envelope: &'static str,
+    glance_sheet_the_envelope: "The envelope list",
     /// Row in `view`.
-    pub glance_sheet_pdf_for: &'static str,
+    glance_sheet_envelope_pdf: "PDF, for the stick",
     /// Row in `view`.
-    pub glance_sheet_add_here: &'static str,
+    glance_sheet_add_here: "Add here",
     /// Text in `view`.
-    pub glance_sheet_mark_lost: &'static str,
+    glance_sheet_mark_lost: "Mark lost",
     /// Text in `view`.
-    pub glance_sheet_mark_exposed: &'static str,
+    glance_sheet_mark_exposed: "Mark exposed",
     /// Row in `view`.
-    pub glance_sheet_remove_the: &'static str,
+    glance_sheet_remove_place: "Remove the place",
     /// Text in `view`.
-    pub glance_sheet_rename: &'static str,
+    glance_sheet_rename: "Rename",
     /// Row in `view`.
-    pub glance_sheet_save_its: &'static str,
+    glance_sheet_save_seeds: "Save its seeds into it",
     /// Row in `view`.
-    pub glance_sheet_copy_to: &'static str,
+    glance_sheet_copy_to_stick: "Copy to another stick",
     /// Row in `view`.
-    pub glance_sheet_write_the_seed: &'static str,
+    glance_sheet_write_the_seed: "Write the seed files again",
     /// Row in `view`.
-    pub glance_sheet_write_the: &'static str,
+    glance_sheet_rewrite_public: "Write the public files again",
     /// Row in `view`.
-    pub glance_sheet_destroy_its: &'static str,
+    glance_sheet_destroy_copies: "Destroy its copies by hand",
     /// Row in `view`.
-    pub glance_sheet_show_the: &'static str,
+    glance_sheet_reshow_descriptor_qr: "Show the descriptor QR again",
     /// Row in `view`.
-    pub glance_sheet_public: &'static str,
+    glance_sheet_public: "Public files for this software",
     /// Text in `view`.
-    pub glance_sheet_in_it: &'static str,
+    glance_sheet_contents_group: "In it",
     /// Text in `view`. `{}`: `key.number`.
-    pub glance_sheet_key_seed: &'static str,
+    glance_sheet_key_seed: "Key {} seed",
     /// Text in `view`.
-    pub glance_sheet_with_its: &'static str,
+    glance_sheet_with_passphrase: "With its passphrase",
     /// Row in `view`.
-    pub glance_sheet_the_description: &'static str,
+    glance_sheet_the_description: "The description",
     /// Text in `view`.
-    pub glance_sheet_save_more: &'static str,
+    glance_sheet_save_more: "Save more into it",
     /// Text in `view`.
-    pub glance_sheet_kept_at: &'static str,
+    glance_sheet_kept_at_label: "Kept at",
     /// Text in `view`.
-    pub glance_sheet_seen_here: &'static str,
+    glance_sheet_seen_here: "Seen here",
     /// Text in `view`.
-    pub glance_sheet_last_checked: &'static str,
+    glance_sheet_last_checked: "Last checked here",
     /// Text in `view`.
-    pub glance_sheet_marked: &'static str,
+    glance_sheet_marked: "Marked",
     /// Row in `view`.
-    pub glance_sheet_load_this_key: &'static str,
+    glance_sheet_load_this_key: "Load this key",
     /// Row in `view`.
-    pub glance_sheet_scan_my: &'static str,
+    glance_sheet_scan_my: "Scan my copy",
     /// Row in `view`.
-    pub glance_sheet_type_my: &'static str,
+    glance_sheet_type_my: "Type my copy",
     /// Row in `view`.
-    pub glance_sheet_check_this: &'static str,
+    glance_sheet_check_copy: "Check this copy",
     /// Row in `view`.
-    pub glance_sheet_make_another: &'static str,
+    glance_sheet_make_another: "Make another copy",
     /// Row in `view`.
-    pub glance_sheet_write_it: &'static str,
+    glance_sheet_rewrite: "Write it again",
     /// Row in `view`.
-    pub glance_sheet_for_the: &'static str,
+    glance_sheet_stick_detail: "For the stick",
     /// Row in `view`.
-    pub glance_sheet_check_it: &'static str,
+    glance_sheet_check_row: "Check it",
     /// Row in `view`.
-    pub glance_sheet_by_the: &'static str,
+    glance_sheet_by_derived_key: "By the key it makes",
     /// Row in `view`.
-    pub glance_sheet_print_it: &'static str,
+    glance_sheet_reprint: "Print it again",
     /// Row in `view`.
-    pub glance_sheet_as_a_qr: &'static str,
+    glance_sheet_as_a_qr: "As a QR picture",
     /// Row in `view`.
-    pub glance_sheet_as_text: &'static str,
+    glance_sheet_as_text: "As text",
     /// Row in `view`.
-    pub glance_sheet_another_copy: &'static str,
+    glance_sheet_another_copy: "Another copy",
     /// Row in `view`.
-    pub glance_sheet_elsewhere: &'static str,
+    glance_sheet_elsewhere: "Elsewhere",
     /// Row in `view`.
-    pub glance_sheet_print: &'static str,
+    glance_sheet_print: "Print the shares again",
     /// Row in `view`.
-    pub glance_sheet_pdfs_text: &'static str,
+    glance_sheet_pdfs_text: "PDFs, text and pictures",
     /// Row in `view`.
-    pub glance_sheet_keys_left: &'static str,
+    glance_sheet_keys_left: "Keys left off each share",
     /// Row in `view`.
-    pub glance_sheet_copy_the: &'static str,
+    glance_sheet_copy_vault: "Copy the vault to another stick",
     /// Row in `view`.
-    pub glance_sheet_then_a: &'static str,
+    glance_sheet_then_place: "Then a place",
     /// Row in `view`.
-    pub glance_sheet_write: &'static str,
+    glance_sheet_write: "Write it out again",
     /// Row in `view`.
-    pub glance_sheet_changed: &'static str,
+    glance_sheet_changed: "Changed since written",
     /// Row in `view`.
-    pub glance_sheet_show_wallet: &'static str,
+    glance_sheet_show_wallet: "Show wallet QR",
     /// Row in `view`.
-    pub glance_sheet_the_descriptor: &'static str,
+    glance_sheet_the_descriptor: "The descriptor",
     /// Row in `view`.
-    pub glance_sheet_move: &'static str,
+    glance_sheet_move: "Move",
     /// Row in `view`.
-    pub glance_sheet_to_another: &'static str,
+    glance_sheet_to_another: "To another place",
     /// Row in `view`.
-    pub glance_sheet_remove_from: &'static str,
+    glance_sheet_remove_from_plan: "Remove from the plan",
     /// Row in `view`.
-    pub glance_sheet_i_destroyed: &'static str,
+    glance_sheet_i_destroyed: "I destroyed this copy",
     /// Text in `view`.
-    pub glance_sheet_lost: &'static str,
+    glance_sheet_lost: "Lost",
     /// Text in `view`.
-    pub glance_sheet_exposed: &'static str,
+    glance_sheet_exposed: "Exposed",
     /// A line's mark on its sheet: a SeedQR dropped for the words.
-    pub glance_sheet_drawn_in_part: &'static str,
+    glance_sheet_drawn_in_part: "Drawn in part",
     /// Text in `view`. `{}`: `label`.
-    pub glance_sheet_move_to: &'static str,
+    glance_sheet_move_title: "Move {} to",
     /// Row in `view`.
-    pub glance_sheet_a_new: &'static str,
+    glance_sheet_a_new: "A new place",
     /// Text in `view`. `{}`: `glance::thing_label(Some(&g), what)`.
-    pub glance_sheet_another: &'static str,
+    glance_sheet_another: "Another copy of {}",
     /// Text in `view`. `{}`: `key.number`.
-    pub glance_sheet_key_words: &'static str,
+    glance_sheet_key_words: "Key {} words",
     /// Text in `view`. `{}`: `key.number`.
-    pub glance_sheet_key_seedqr: &'static str,
+    glance_sheet_key_seedqr: "Key {} SeedQR",
     /// Text in `view`. `{}`: `j + 1`.
-    pub glance_sheet_share: &'static str,
+    glance_sheet_share: "Share {}",
     /// Row in `view`.
-    pub glance_sheet_wallet: &'static str,
+    glance_sheet_wallet: "Wallet sheet",
     /// Text in `view`. `{}`: `x.name`.
-    pub glance_sheet_stick_n: &'static str,
+    glance_sheet_stick_n: "{} stick",
     /// Row in `view`.
-    pub glance_sheet_a_copy: &'static str,
+    glance_sheet_a_copy: "A copy of the vault",
     /// Text in `view`. `{}`: `node.name`.
-    pub glance_sheet_add_at: &'static str,
+    glance_sheet_add_title: "Add at {}",
     /// Text in `view`.
-    pub glance_sheet_destroy: &'static str,
+    glance_sheet_destroy: "Destroy what goes off the plan by hand",
     /// Text in `view`.
-    pub glance_sheet_confirm: &'static str,
+    glance_sheet_confirm: "Confirm",
     /// Text in `view`.
-    pub glance_sheet_someone_can: &'static str,
+    glance_sheet_someone_can: "Someone can now spend",
     /// Text in `view`.
-    pub glance_sheet_someone_could: &'static str,
+    glance_sheet_someone_could: "Someone could spend with a vault's passphrase",
     /// Row in `view`.
-    pub glance_sheet_move_the: &'static str,
+    glance_sheet_move_money: "Move the money",
     /// Row in `view`.
-    pub glance_sheet_new_wallet: &'static str,
+    glance_sheet_new_wallet: "New wallet",
     /// Text in `view`.
-    pub glance_sheet_the_wallet: &'static str,
+    glance_sheet_the_wallet: "The wallet can no longer be rebuilt from what is left",
     /// Row in `view`.
-    pub glance_sheet_back_up: &'static str,
+    glance_sheet_back_up: "Back up again now",
     /// Text in `view`.
-    pub glance_sheet_someone: &'static str,
+    glance_sheet_someone: "Someone can see the balance",
     /// Text in `view`.
-    pub glance_sheet_nothing_lost: &'static str,
+    glance_sheet_nothing_lost: "Nothing lost that is not elsewhere",
     /// Row in `view`.
-    pub glance_sheet_make_a: &'static str,
+    glance_sheet_make_replacement: "Make a replacement copy",
     /// Text in `view`.
-    pub glance_sheet_nothing: &'static str,
+    glance_sheet_nothing: "Nothing it holds spends or shows the balance",
     /// Row in `view`.
-    pub glance_sheet_nowhere: &'static str,
+    glance_sheet_nowhere: "Nowhere",
     /// Text in `view`.
-    pub glance_sheet_chosen: &'static str,
+    glance_sheet_chosen: "Chosen",
     /// Text in `view`.
-    pub glance_sheet_destroyed: &'static str,
+    glance_sheet_destroyed: "Destroyed",
     /// Text in `view`. `{}`: `label`.
-    pub glance_sheet_goes_to: &'static str,
+    glance_sheet_goes_to_group: "{} goes to",
     /// Text in `view`. `{}`: `node.name`.
-    pub glance_sheet_remove: &'static str,
+    glance_sheet_remove: "Remove {}",
     /// Text in `view`. `{}`: `key.number`, `key.fingerprint`.
-    pub glance_sheet_key: &'static str,
+    glance_sheet_key: "Key {} · {}",
     /// Text in `view`.
-    pub glance_sheet_holder: &'static str,
+    glance_sheet_holder: "Holder",
     /// Text in `view`.
-    pub glance_sheet_name: &'static str,
+    glance_sheet_name: "Name",
     /// Text in `view`.
-    pub glance_sheet_keep: &'static str,
+    glance_sheet_keep: "Keep",
     /// Text in `view`.
-    pub glance_sheet_type_it: &'static str,
+    glance_sheet_type_passphrase: "Type it",
     /// Text in `view`.
-    pub glance_sheet_passphrase: &'static str,
+    glance_sheet_passphrase: "Passphrase",
     /// Text in `view`. `{}`: `key.fingerprint`.
-    pub glance_sheet_matches: &'static str,
+    glance_sheet_matches: "Matches: it makes key {}",
     /// Text in `view`.
-    pub glance_sheet_does_not: &'static str,
+    glance_sheet_mismatch: "Does not match",
     /// Text in `view`.
-    pub glance_sheet_check_2: &'static str,
+    glance_sheet_check_button: "Check",
     /// Text in `view`. `{}`: `key.number`.
-    pub glance_sheet_passphrase_n: &'static str,
+    glance_sheet_passphrase_n: "Passphrase {}",
     /// Row in `view`.
-    pub glance_sheet_show_it: &'static str,
+    glance_sheet_show_row: "Show it",
     /// Row in `view`.
-    pub glance_sheet_to_copy: &'static str,
+    glance_sheet_to_copy: "To copy by hand",
     /// Text in `view`.
-    pub glance_sheet_load_this: &'static str,
+    glance_sheet_load_with_passphrase: "Load this key with its passphrase",
     /// Text in `view`.
-    pub glance_sheet_check: &'static str,
+    glance_sheet_check: "Check my copy",
     /// Text in `view`.
-    pub glance_sheet_change: &'static str,
+    glance_sheet_change: "Change the plan",
     /// Text in `draw`.
-    pub glance_sheet_back: &'static str,
+    glance_sheet_back: "Back",
     /// Text in `draw`.
-    pub glance_sheet_close: &'static str,
+    glance_sheet_close: "Close",
     // ----- gpg (faraday-core/src/gpg.rs) -----
     /// Error in `clock`.
-    pub gpg_this_computer_s: &'static str,
+    gpg_this_computer_s: "This computer's clock is not known",
     /// Error in `gpg_make`.
-    pub gpg_a_key_needs_a_name: &'static str,
+    gpg_a_key_needs_a_name: "A key needs a name or an email",
     /// Error in `gpg_make`.
-    pub gpg_no_randomness_from: &'static str,
-    /// Toast in `gpg_make`.
-    pub gpg_the_key_is_in_the: &'static str,
+    gpg_no_randomness: "No randomness from the system yet. Try again",
     /// Text in `gpg_code`. `{}`: `faraday_pgp::fingerprint_text(&key.fi…`.
-    pub gpg_fingerprint: &'static str,
+    gpg_fingerprint: "Fingerprint {}",
     /// Error in `gpg_code`.
-    pub gpg_no_gpg_key_is_selected: &'static str,
+    gpg_no_gpg_key_is_selected: "No GPG key is selected",
     /// Text in `gpg_code`.
-    pub gpg_gpg_public_key: &'static str,
+    gpg_gpg_public_key: "GPG public key",
     /// Text in `gpg_code`.
-    pub gpg_public_checks_signatures: &'static str,
+    gpg_public_checks_signatures: "Public: checks signatures, signs nothing",
     /// Text in `gpg_code`.
-    pub gpg_gpg_revocation: &'static str,
-    /// Text in `gpg_code`. `{}`: `who`.
-    pub gpg_revokes: &'static str,
+    gpg_gpg_revocation: "GPG revocation certificate",
     /// Text in `gpg_code`.
-    pub gpg_whoever_has_it: &'static str,
+    gpg_revocation_warning: "Whoever has it can revoke the key",
     /// Error in `gpg_code`.
-    pub gpg_that_file_is_no: &'static str,
+    gpg_file_gone: "That file is no longer in Files",
     /// Text in `gpg_code`. `{}`: `item.name`.
-    pub gpg_gpg_signature: &'static str,
+    gpg_gpg_signature: "GPG signature · {}",
     /// Text in `gpg_code`. `{}`: `item.name`.
-    pub gpg_signs: &'static str,
+    gpg_signs: "Signs {}",
     /// Text in `gpg_code`. `{}`: `who`.
-    pub gpg_by: &'static str,
+    gpg_signer_line: "By {}",
     /// Error in `gpg_code`.
-    pub gpg_not_a_gpg_file: &'static str,
+    gpg_not_a_gpg_file: "Not a GPG file",
     /// Toast in `gpg_renew`. `{}`: `name`, `self.medium.for_the()`.
-    pub gpg_renewed_waits: &'static str,
+    gpg_renewed_waits: "Renewed · {} waits {}",
     /// Text in `gpg_sign_ticked`. `{}`: `self.medium.for_the()`.
-    pub gpg_1_signature_waits: &'static str,
+    gpg_1_signature_waits: "1 signature waits {}",
     /// Text in `gpg_sign_ticked`. `{}`: `n`, `self.medium.for_the()`.
-    pub gpg_signatures_wait: &'static str,
+    gpg_signatures_wait: "{} signatures wait {}",
     /// Text in `shown`.
-    pub gpg_never: &'static str,
+    gpg_never: "Never",
     /// A span of one second, as GnuPG says how far in the future a key was made.
-    pub gpg_second: &'static str,
+    gpg_second: "{} second",
     /// A span of seconds, as GnuPG says it.
-    pub gpg_seconds: &'static str,
+    gpg_seconds: "{} seconds",
     /// A span of one day.
-    pub gpg_day: &'static str,
+    gpg_day: "{} day",
     /// A span of days.
-    pub gpg_days: &'static str,
+    gpg_days: "{} days",
     /// Error in `usable`. `{}`: the date the key expired.
-    pub gpg_expired: &'static str,
+    gpg_expired: "Unusable secret key: it expired on {}",
     /// Error in `usable`. `{}`: the date.
-    pub gpg_revoked: &'static str,
+    gpg_revoked: "Unusable secret key: it was revoked on {}",
     /// Error in `usable`, GnuPG's words. `{}`: the key's ID, the span.
-    pub gpg_future: &'static str,
+    gpg_future: "Key {} was created {} in the future (time warp or clock problem)",
     /// Error in `gpg_sign_ticked`, `gpg_export`. `{}`: the file's name.
-    pub gpg_exists: &'static str,
+    gpg_exists: "File exists: {}",
     /// Error in `gpg_sign_ticked`. `{}`: the file's name.
-    pub gpg_changed: &'static str,
+    gpg_changed: "{} changed since it was ticked. It was not signed",
     /// Error in `gpg_renew`.
-    pub gpg_choose_the_term: &'static str,
+    gpg_choose_the_term: "Choose the new term first",
     /// Error in `gpg_renew`, after GnuPG's.
-    pub gpg_time_conflict: &'static str,
+    gpg_time_conflict: "Time conflict: the clock is before the key's last signature",
     /// Error in `gpg_export_revocation`.
-    pub gpg_no_revocation_kept: &'static str,
+    gpg_no_revocation_kept: "No revocation certificate is kept with this key yet. Set the time and open the key again",
     /// Toast in `gpg_mark_revoked`.
-    pub gpg_marked_revoked: &'static str,
+    gpg_marked_revoked: "The key is marked revoked",
     /// Button in `years_row`.
-    pub vault_3_years: &'static str,
+    vault_3_years: "3 years",
     /// Button and heading on a GPG key's page.
-    pub vault_make_a_revocation: &'static str,
+    vault_make_a_revocation: "Make a revocation",
     /// Button on a GPG key's page.
-    pub vault_export_revocation: &'static str,
+    vault_export_revocation: "Export the kept revocation",
     /// Label of the reason buttons.
-    pub vault_reason: &'static str,
+    vault_reason: "Reason",
     /// GnuPG's menu entry 0.
-    pub vault_reason_0: &'static str,
+    vault_reason_0: "No reason specified",
     /// GnuPG's menu entry 1.
-    pub vault_reason_1: &'static str,
+    vault_reason_1: "Key has been compromised",
     /// GnuPG's menu entry 2.
-    pub vault_reason_2: &'static str,
+    vault_reason_2: "Key is superseded",
     /// GnuPG's menu entry 3.
-    pub vault_reason_3: &'static str,
+    vault_reason_3: "Key is no longer used",
     /// Button of the revocation form.
-    pub vault_make_the_revocation: &'static str,
+    vault_make_the_revocation: "Make the revocation",
     /// Label of the revocation form's field.
-    pub vaults_description: &'static str,
+    vaults_description: "Description (optional)",
     /// Label on a GPG key's page.
-    pub vault_status: &'static str,
+    vault_status: "Status",
     /// Row on a GPG key's page. `{}`: the date.
-    pub vault_revoked_on: &'static str,
+    vault_revoked_date: "Revoked on {}",
     /// Row on a GPG key's page. `{}`: the date.
-    pub vault_kept_with_the_key: &'static str,
+    vault_kept_with_the_key: "Kept with the key · made {}",
     /// Row on a GPG key's page.
-    pub vault_none_kept: &'static str,
+    vault_none_kept: "None kept yet",
     /// Line on a GPG key's page.
-    pub vault_term_never: &'static str,
+    vault_term_never: "Term now: does not expire",
     /// Line on a GPG key's page. `{}`: the date.
-    pub vault_term_until: &'static str,
+    vault_term_until: "Term now: expires {}",
     /// Hold button on a GPG key's page.
-    pub vault_hold_to_mark_revoked: &'static str,
+    vault_hold_to_mark_revoked: "Hold to mark the key revoked",
     /// Line on the signing page. `{}`: the IDs, the date.
-    pub vault_signing_key_ids: &'static str,
+    vault_signing_key_ids: "Signing subkey ID {} · main key ID {} · created {}",
     /// Hold button on Sign with {key}.
-    pub vault_hold_to_sign_1_file: &'static str,
+    vault_hold_to_sign_1_file: "Hold to sign 1 file",
     /// Hold button on Sign with {key}. `{}`: the count.
-    pub vault_hold_to_sign_files: &'static str,
+    vault_hold_to_sign_files: "Hold to sign {} files",
     /// Title of the sheet Sign opens on the signing page (F63). `{}`:
     /// the key's user ID.
-    pub vault_sign_with: &'static str,
+    vault_sign_sheet_title: "Sign with {}",
     /// Row on Sign with {key}: the time the signatures will carry.
-    pub vault_signature_time: &'static str,
+    vault_signature_time: "Signature time",
     // ----- guide (faraday-core/src/guide.rs) -----
     /// Text in `spend`.
-    pub guide_this_is_the_wallet: &'static str,
+    guide_this_is_the_wallet: "This is the wallet the transaction spends from. Faraday found it by rebuilding the wallet's address from the key paths the transaction carries, so the match is exact. If the name is not the wallet you meant to spend from, stop here.",
     /// Text in `spend`.
-    pub guide_no_wallet_loaded: &'static str,
+    guide_no_wallet_loaded: "No wallet loaded here matches this transaction. You can still sign it from the key paths it carries, but Faraday cannot tell change from a payment to someone else. Load the wallet first if you have its description.",
     /// Text in `spend`.
-    pub guide_open_the_same: &'static str,
+    guide_open_the_same: "Open the same wallet in the software that made this transaction and compare these addresses with the ones it shows. If they match, both programs are looking at the same wallet, and the change address is one you control.",
     /// Text in `spend`.
-    pub guide_read_each_line: &'static str,
+    guide_read_each_line: "Read each line against what you meant to do. Sends is the amount leaving and where it goes. Change is the rest coming back; Verified means Faraday rebuilt that address from the wallet's own keys. The fee goes to the miner. If anything here is not what you expected, stop: nothing has been signed yet.",
     /// Text in `spend`.
-    pub guide_musig2_signs: &'static str,
+    guide_musig2_signs: "MuSig2 signs in two rounds and every key takes part. In the first, each signer adds a nonce: a one-time number its signature will use. The easiest order is for this device to sign last: add the copies on which the others put their nonce, then sign. Or go first, share this device's nonce and carry the PSBT to them; keep this session open until their signatures come back, because locking forgets the nonce.",
     /// Text in `spend`.
-    pub guide_this_wallet_can: &'static str,
+    guide_this_wallet_can: "This wallet can be spent more than one way. Each path names the keys it needs and how long it waits: a recovery path opens only after the coins have sat unspent that many blocks. Faraday reads which paths this transaction can take from its own sequence numbers; whether the coins are old enough on the chain is something only the network can say.",
     /// Text in `spend`.
-    pub guide_this_is_the_transaction: &'static str,
+    guide_this_is_the_transaction: "This is the transaction's id, fixed before anyone signs. Signatures do not change it, so you can write it down now and look for it after the transaction is broadcast.",
     /// Text in `spend`. `{}`: `needed`, `if needed == 2 { EN.guide_one_other.t…`.
-    pub guide_any_of_these: &'static str,
+    guide_any_of_these: "Any {} of these shares sign together, and on the chain the result is one ordinary Taproot signature. Shares sign one after another, each at its own place. The first share to sign chooses who follows: pick {} here. After that the transaction names them, and no other share can join.",
     /// Text in `spend`.
-    pub guide_one_other: &'static str,
+    guide_one_other: "one other",
     /// Text in `spend`. `{}`: `needed - 1`.
-    pub guide_others: &'static str,
+    guide_others: "{} others",
     /// Text in `spend`.
-    pub guide_this_wallet_has: &'static str,
+    guide_this_wallet_has: "This wallet has more than one way to spend. Each key below can sign; which keys are enough depends on the path this transaction takes, and some paths wait for a timelock. The last step says whether the script is satisfied.",
     /// Text in `spend`. `{}`: `needed`, `if needed == 1 { EN.guide_of_these } …`.
-    pub guide_keys_must_sign: &'static str,
+    guide_keys_must_sign: "{} {} keys must sign. Keys marked Signs here are loaded on this device. The others are on other devices or with other people; each of them signs the same PSBT and hands it back.",
     /// Text in `spend`.
-    pub guide_of_these: &'static str,
+    guide_of_these: "of these",
     /// Text in `spend`.
-    pub guide_of_the: &'static str,
+    guide_keys_must_sign_plural: "of the",
     /// Text in `spend`.
-    pub guide_signed_each_signature: &'static str,
+    guide_signed_each_signature: "Signed. Each signature was checked against its key before it was kept.",
     /// Text in `spend`. `{}`: `m.noun()`.
-    pub guide_signing_as_a: &'static str,
+    guide_spend_share_nonce: "Signing as a share draws a fresh secret nonce for each share that signs, adds this share's part, and puts the next share's nonce in a carry file. The carry file is a secret until that share has signed: keep the {} with you and sign the same day. The last share to sign checks every part before it combines them.",
     /// Text in `spend`.
-    pub guide_round_two_this: &'static str,
+    guide_spend_round_two: "Round two: this device adds its partial signature over everyone's nonces. The others do the same on their copies; when theirs come back, Faraday combines all of them into one signature.",
     /// Text in `spend`. `{}`: `needed`, `if needed == 1 { EN.guide_signature }…`.
-    pub guide_this_adds_the: &'static str,
+    guide_spend_adds_signatures: "This adds the signature of every key loaded here. On its own it moves nothing: the transaction needs {} {} before it can be broadcast.",
     /// Text in `spend`.
-    pub guide_signature: &'static str,
+    guide_signature: "signature",
     /// Text in `spend`.
-    pub guide_signatures: &'static str,
+    guide_signatures: "signatures",
     /// Text in `spend`. `{}`: `m.a()`.
-    pub guide_signing_uses: &'static str,
+    guide_signing_uses: "Signing uses the key loaded on this device. Faraday checks the signature before keeping it, and nothing leaves the device until {} visit writes it.",
     /// Text in `spend`. `{}`: `m.a()`, `m.a()`.
-    pub guide_get_the_other: &'static str,
+    guide_get_the_other: "Get the other signatures. Carry the PSBT, which waits in Files, on {}, or let each cosigner sign the copy they already have. When a signed copy comes back, copy it in on {} visit and add it here. Each signature is checked against its key, and a copy of any other transaction is refused.",
     /// Text in `spend`.
-    pub guide_there_are_two: &'static str,
+    guide_there_are_two: "There are two results. The signed PSBT goes back to the wallet that made the transaction, which can broadcast it. The finished transaction can be broadcast as it is, from any node you trust. Either one is enough.",
     /// Text in `spend`. `{}`: `m.a()`.
-    pub guide_keep_the_carry: &'static str,
+    guide_keep_the_carry: "Keep the carry file in the vault, or write it to {}. At the next share's place, copy it into Faraday with that share loaded, open it from Files and sign. The share that signs last gets the finished transaction.",
     /// Text in `spend`.
-    pub guide_the_transaction: &'static str,
+    guide_the_transaction: "The transaction is finished when enough keys have signed. Until then it cannot be broadcast.",
     /// Text in `backup`. `{}`: `medium.for_the()`.
-    pub guide_print_the_blank: &'static str,
+    guide_print_the_blank: "Print the blank template first, anywhere: it holds no secret, only numbered lines for the words and the squares every SeedQR of this length shares. It waits {}: carry it to the desktop app, and print one copy per seed. You write on it by hand in the next step.",
     /// Text in `backup`.
-    pub guide_none_of_this: &'static str,
+    guide_backup_none_typed: "None of this wallet's seeds were typed into this session, so there is nothing to copy here. Each seed is backed up on the device that holds it.",
     /// Text in `backup`.
-    pub guide_copy_words: &'static str,
+    guide_copy_words: "Copy each seed onto its own template by hand, the words in order. Then type your copy's words back; the first word that differs is named.",
     /// Text in `backup`, a passphrase on paper.
-    pub guide_passphrase_on_paper: &'static str,
+    guide_passphrase_on_paper: "Write the passphrase on paper by hand, exactly as it is, capitals and spaces included. Then type your copy back; it is compared whole.",
     /// Text in `backup`, a copy of the SeedQR.
-    pub guide_copy_seedqr: &'static str,
+    guide_copy_seedqr: "Copy each seed onto its own template by hand, the SeedQR square by square. The grey squares are already on the template. Click a row to keep your place, or move it with the arrow keys. Then scan your copy with the camera; a mistake is named by its word. With no camera, type the seed's words back.",
     /// Text in `backup`, a copy of both.
-    pub guide_copy_both: &'static str,
+    guide_copy_both: "Copy each seed onto its own template by hand: the words, and the SeedQR square by square. The grey squares are already on the template. Click a row to keep your place, or move it with the arrow keys. Then type your copy's words back and scan the grid with the camera; a mistake is named by its word. With no camera, type the words back.",
     /// Text in `backup`. `{}`: `lead`, `further`.
-    pub guide_a_printer_is: &'static str,
+    guide_backup_paper: "{}{} A printer is a computer with memory and often a network, so a seed never goes to one. There is no line for a passphrase: written beside the words it stops being a second factor.",
     /// Text in `backup`, after a space. `{}`: `medium.for_the()`, `medium.noun()`.
-    pub guide_paper_comes_first: &'static str,
+    guide_paper_comes_first: "Paper comes first. Under the copy, Save into the open vault keeps a further copy sealed under the vault's passphrase. Save as a file makes the words or the SeedQR picture a file {}, unprotected, only after you tick that anyone who copies the {} can spend with it: the least safe of the three. A file never holds the passphrase; the vault keeps it only when saved with its passphrase.",
     /// Text in `backup`. `{}`: `medium.for_the()`.
-    pub guide_this_half_is: &'static str,
+    guide_backup_xpub_half: "This half is xpubs only. It can spend nothing, but it is the only thing that puts the keys back together into this wallet, so keep copies. Show the descriptor as a QR to load the wallet into watch-only software, or keep the QR as a picture with the wallet's name, keys and checksum under it, to print or to scan later. The files and the backup sheet wait {} from the moment the checklist is made; the sheet goes as a PDF to print. Sparrow imports the .json under Specter Desktop, and the multisig config under Coldcard Multisig.",
     /// Text in `backup`. `{}`: `keys`, `m.saturating_sub(1)`, `m`, `m`, `medium.for_the()`.
-    pub guide_instead_of_one: &'static str,
+    guide_instead_of_one: "Instead of one sheet with every key, give each of the {} signers a share that leaves some keys off. With {} left off each, any {} shares together hold every key, so any {} signers can rebuild the wallet, and one share alone cannot watch it. This is not secret sharing: the keys are public, and the shares only decide who can see the balance. Each share waits {} as a sheet to print, a text file and a picture of its QR; Restore takes the text file or a scan of the picture.",
     /// Text in `backup`.
-    pub guide_one_envelope: &'static str,
+    guide_one_envelope: "One envelope per place, holding what the plan puts there. Store the envelopes apart. A copy kept in a vault is one more copy, not a replacement for paper.",
     /// Text in `message`.
-    pub guide_a_signed_message: &'static str,
+    guide_a_signed_message: "A signed message proves that whoever holds the key behind one address agreed to some text. Pick the wallet and the address: usually the one someone asked you to prove you control. Only single-key wallets whose key is loaded here can sign.",
     /// Text in `message`.
-    pub guide_type_the_message: &'static str,
+    guide_type_the_message: "Type the message exactly as the other side gave it. A single changed character, a space or a line break, makes a different message and the signature will not check.",
     /// Text in `message`.
-    pub guide_bip_322_is_the: &'static str,
+    guide_message_formats: "BIP-322 is the newer format and the only one for Taproot addresses. BIP-137 is what older wallets and exchanges ask for, and the only one for legacy and nested SegWit addresses. Use whichever the other side asked for.",
     /// Text in `message`.
-    pub guide_signing_moves: &'static str,
+    guide_signing_moves: "Signing moves no money and spends nothing. The result is three lines: the address, the signature and the message. Carry it out as a file or show it as a QR code.",
     /// Text in `create`. `{}`: `m`, `keys`.
-    pub guide_any_of_shares: &'static str,
+    guide_any_of_shares: "Any {} of {} shares sign. On the chain the wallet is one Taproot key, and a spend looks like any single-key spend. Keep the shares in different places, or the threshold protects nothing. This build deals up to five.",
     /// Text in `create`. `{}`: `m`, `keys - m`.
-    pub guide_choose_loaded: &'static str,
+    guide_choose_loaded: "Choose {} loaded keys of 24 words as the first shares. Their words become shares as they are, so a person who already keeps one of these seeds keeps only that. The deal computes the other {} from them.",
     /// Text in `create`.
-    pub guide_choose_how_the: &'static str,
+    guide_create_kinds: "Choose how the wallet locks its coins. One key is simplest: lose the seed and the money is gone, so its backup matters more. A multisig needs several keys to sign, so one lost or stolen key is not the end of it. If another program will use this wallet, pick a kind it supports.",
     /// Text in `create`. `{}`: `m`, `keys`, `m`.
-    pub guide_of_every_spend: &'static str,
+    guide_of_every_spend: "{} of {}: every spend needs {} signatures. Keep the keys apart, on different devices or with different people, or the quorum protects nothing.",
     /// Text in `create`. `{}`: `medium.a()`.
-    pub guide_fill_each_slot: &'static str,
+    guide_fill_each_slot: "Fill each slot. A key loaded here signs on this device. New key makes a fresh seed here; write its words down in the backup step before any money goes in. A cosigner's slot takes the account xpub their device exports, copied in on {} visit; it never brings a secret. If a cosigner's xpub is not here yet, mark the slot for later and carry on; this wallet waits under Nothing yet on the Wallets page. Each key held here can give its xpub as a file or a QR code, so the cosigners can make the same wallet on their side.",
     /// Text in `create`.
-    pub guide_choose_the_key: &'static str,
+    guide_choose_the_key: "Choose the key: one loaded here, or a new one made here from fresh randomness. A new key exists only in this session until its words are written down in the backup step.",
     /// Text in `create`.
-    pub guide_load_the_wallet: &'static str,
+    guide_load_the_wallet: "Load the wallet into the software you will receive with, by the QR code or the descriptor file, and compare these addresses. They must match before you send anything to it.",
     /// Text in `create`.
-    pub guide_the_plan_says: &'static str,
+    guide_the_plan_says: "The backup opens on the standard way: each seed's words on paper with the wallet description, one place for each key. Go through it before any money goes in.",
     /// Text in `restore`.
-    pub guide_the_kind_of_wallet: &'static str,
+    guide_the_kind_of_wallet: "The kind of wallet the backup is. A wallet description, scanned or in Files, says the kind, the quorum and every key, and the seeds are then matched to its keys.",
     /// Text in `restore`.
-    pub guide_how_many_keys: &'static str,
+    guide_how_many_keys: "How many keys the wallet has and how many sign, as written on the backup, often as 2 of 3.",
     /// Text in `restore`.
-    pub guide_the_descriptor: &'static str,
+    guide_the_descriptor: "The descriptor, wallet file, BIP 129 record or split sheets. Without one, the wallet is made from the seeds and the cosigners' xpubs at the kind's standard path.",
     /// Text in `restore`.
-    pub guide_one_slot_per: &'static str,
+    guide_one_slot_per: "One slot per key: its seed with its passphrase, if it has one, or a cosigner's xpub. With the description known, a seed that is not one of its keys is refused, so a wrong word or passphrase is caught here.",
     /// Text in `restore`.
-    pub guide_compare_these: &'static str,
+    guide_compare_these: "Compare these addresses with the backup sheet or the wallet software that holds the history. If they match, the wallet is back as it was.",
     /// Text in `restore`.
-    pub guide_the_wallet_is: &'static str,
+    guide_restore_session: "The wallet is in this session until you lock.",
     /// Text in `keygen`.
-    pub guide_a_slip_39_key: &'static str,
+    guide_a_slip_39_key: "A SLIP-39 key is a master secret of 128 or 256 bits, never written whole: it is dealt as shares of 20 or 33 words, and any of them up to the number needed restore it. It has no BIP-39 words.",
     /// Text in `keygen`.
-    pub guide_write_each_share: &'static str,
+    guide_write_each_share: "Write each share down on its own paper, in order, and keep the papers apart: in different places or with different people. Any of them up to the number needed are the key; fewer are nothing.",
     /// Text in `keygen`.
-    pub guide_answer_from_your_papers: &'static str,
+    guide_answer_from_your_papers: "Answer from your papers, not from memory: each share is asked in turn, every word once in a random order. A wrong answer means that share's paper needs correcting.",
     /// Text in `keygen`.
-    pub guide_12_words_carry: &'static str,
+    guide_12_words_carry: "12 words carry 128 bits and 24 words 256. Either is beyond guessing; most wallets and signers read every length here.",
     /// Text in `keygen`.
-    pub guide_randomness_you_make: &'static str,
+    guide_randomness_you_make: "Randomness you make yourself, with dice, coins or cards, does not depend on this device's software: you can make the same secret again elsewhere from the same rolls. The shares are worked out from it by the device. This device's generator is the operating system's; nothing on the screen can show whether it was faulty or rigged, so a key made from it trusts this device. A mix combines several sources, so the key is as good as the best of them.",
     /// Text in `keygen`.
-    pub guide_randomness_you: &'static str,
+    guide_randomness_you: "Randomness you make yourself, with dice, coins or cards, does not depend on this device's software. In the first group every word is your entries' own bits: each one shows as it comes in, and you can find it in the list by hand. In the second the device hashes your entries into the words, which you can check only by making the same key again elsewhere. This device's generator is the operating system's; nothing on the screen can show whether it was faulty or rigged, so a key made from it trusts this device. A mix combines several sources, so the key is as good as the best of them.",
     /// Text in `keygen`.
-    pub guide_roll_one_die_at_a_time: &'static str,
+    guide_roll_one_die_at_a_time: "Roll one die at a time and enter the face that came up. Each roll is one flip, 1 to 3 tails and 4 to 6 heads, so the secret is the one a coin would make from the same flips.",
     /// Text in `keygen`.
-    pub guide_roll_one_die_at_a: &'static str,
+    guide_keygen_dice_flips: "Roll one die at a time and enter the face that came up. Each roll is one flip, 1 to 3 tails (0) and 4 to 6 heads (1), so the key is the one a coin would make from the same flips. Every 11 flips are a word's number in the list, counted from 0, and the word shows as its 11th flip comes in.",
     /// Text in `keygen`. `{}`: `k.last_bits()`, `k.words / 3`.
-    pub guide_roll_one_die_at: &'static str,
+    guide_keygen_dice_words: "Roll one die at a time and enter the face that came up. A word takes six rolls. In its first five, 1 is 00, 2 is 01, 3 is 10 and 4 is 11; a 5 or a 6 there stands for nothing and is rolled again. The sixth roll is one bit: 1 to 3 is 0, 4 to 6 is 1. The 11 bits, in order, are the word's number in the list counted from 0: 3 1 4 2 2 5 is 10 00 11 01 01 1, which is 1131, the list's word 1132, \"miracle\". The last word is rolled the same way; the key keeps its first {} bits, and its other {} are the checksum, which the device works out from all the others and writes in their place.",
     /// Text in `keygen`.
-    pub guide_flip_a_coin_and_enter: &'static str,
+    guide_flip_a_coin_and_enter: "Flip a coin and enter what came up, once per flip. Catching the coin in the air is fine; choosing the side is not. Heads is 1 and tails 0; every 11 flips are a word's number in the list, counted from 0, and the word shows as its 11th flip comes in.",
     /// Text in `keygen`.
-    pub guide_roll_one_die: &'static str,
+    guide_roll_one_die: "Roll one die at a time and press the face that came up. Use a real die on a flat surface, not the same throw twice, and do not pick numbers in your head.",
     /// Text in `keygen`.
-    pub guide_flip_a_coin_and: &'static str,
+    guide_keygen_coins: "Flip a coin and press what came up, once per flip. Catching the coin in the air is fine; choosing the side is not.",
     /// Text in `keygen`.
-    pub guide_shuffle_a_full: &'static str,
+    guide_shuffle_a_full: "Shuffle a full deck well, then turn cards over one at a time and enter each: its rank, then its suit. A card cannot come up twice from one deck; past 52, shuffle the deck again and keep going.",
     /// Text in `keygen`.
-    pub guide_type_the_hex: &'static str,
+    guide_type_the_hex: "Type the hex digits you made elsewhere. They become the key as they are, so they must already be random.",
     /// Text in `keygen`.
-    pub guide_point_the_camera: &'static str,
+    guide_point_the_camera: "Point the camera at something that moves or is lit unevenly and take each picture. The pictures are hashed and never kept.",
     /// Text in `keygen`.
-    pub guide_this_device_asks: &'static str,
+    guide_this_device_asks: "This device asks the operating system's generator for 32 fresh bytes when this card opens. The key is those bytes, hashed. Nothing on the screen can show whether they were random.",
     /// Text in `keygen`.
-    pub guide_lock_in_adds_the: &'static str,
+    guide_keygen_lock_step: "Lock in adds the key these words make, with the passphrase if one is typed, and puts it in its slot. A passphrase makes another key from the same words: both the words and the passphrase are then needed to spend, and Back up asks where each is kept. Leave the fields empty for none.",
     /// Text in `keygen`.
-    pub guide_lock_in_adds: &'static str,
+    guide_lock_in_adds: "Lock in adds the key these words make. Its fingerprint and its key show at once, so you can see the words you entered are the key that was added. Words and Quiz follow, to write the words down and check the copy.",
     /// Text in `keygen`.
-    pub guide_these_counts: &'static str,
+    guide_these_counts: "These counts catch the mistakes hands make: a die that favours one face, the same result typed over and over, or a sequence counted out instead of rolled. A caution is not a refusal; if one appears and you are not sure why, roll again.",
     /// Text in `keygen`.
-    pub guide_write_the_words: &'static str,
+    guide_write_the_words: "Write the words down in order, on paper, before any money goes to this key, and keep them where only you can reach them. The words are the key: anyone who has them can spend, and without them a lost device loses the money.",
     /// Text in `keygen`.
-    pub guide_answer_from_your: &'static str,
+    guide_answer_from_your: "Answer from your paper, not from memory: the quiz checks the copy you will rely on. Each word is asked once, in a random order. A wrong answer means a word on the paper needs correcting; look at the words again, fix the copy, and carry on.",
     // ----- held (faraday-core/src/held.rs) -----
     /// Toast in `backup_settle`. `{}`: `names.join(", ")`.
-    pub held_signs_from_now: &'static str,
+    held_signs_from_now: "{} signs from now on",
     /// Text in `backup_extras`. `{}`: `name`, `seed`.
-    pub held_holds_seed: &'static str,
+    held_holds_seed: "{} holds seed {}",
     // ----- inbox (faraday-core/src/inbox.rs) -----
     /// Text in `name`. `{}`: `ks.len()`.
-    pub inbox_slip_39_shares_2: &'static str,
+    inbox_slip39_share_count: "{} SLIP-39 shares",
     /// Text in `name`. `{}`: `ks.len()`.
-    pub inbox_codex32_shares: &'static str,
+    inbox_codex32_shares: "{} codex32 shares",
     /// Text in `name`.
-    pub inbox_loaded: &'static str,
+    inbox_loaded: "Loaded",
     /// Text in `found_in`.
-    pub inbox_slip_39_seed: &'static str,
+    inbox_slip_39_seed: "SLIP-39 seed",
     /// Text in `found_in`. `{}`: `ks.len()`, `need`.
-    pub inbox_slip_39_shares: &'static str,
+    inbox_slip_39_shares: "SLIP-39 shares · {} of {} in Files",
     /// Text in `found_in`.
-    pub inbox_codex32_seed: &'static str,
+    inbox_codex32_seed: "codex32 seed",
     /// Text in `found_in`. `{}`: `ks.len()`, `need`.
-    pub inbox_codex32_shares_inline: &'static str,
+    inbox_codex32_shares_inline: "codex32 shares · {} of {} in Files",
     /// Text in `found_in`. `{}`: `item.name`.
-    pub inbox_oskb_backup: &'static str,
+    inbox_oskb_backup: "{} · .oskb backup, sealed",
     /// Text in `found_in`.
-    pub inbox_restored_wallet: &'static str,
+    inbox_restored_wallet: "Restored wallet",
     /// Text in `found_in`. `{}`: `m.have.len()`, `m.n`.
-    pub inbox_split_sheets_of: &'static str,
+    inbox_split_sheets_progress: "Split sheets · {} of {} keys in hand",
     /// Text in `found_in`. `{}`: `e`.
-    pub inbox_split_sheets: &'static str,
+    inbox_split_sheets: "Split sheets · {}",
     /// Text in `inbox_load_named`.
-    pub inbox_its_shares: &'static str,
+    inbox_its_shares: "its shares",
     /// Text in `xpub_make`. `{}`: `fp.map(fp_text).unwrap_or_else(|| EN.…`, `crate::family::kind_name(kind)`.
-    pub inbox_watch_only: &'static str,
+    inbox_watch_only: "{} · {} · watch-only",
     /// Text in `xpub_make`.
-    pub inbox_xpub: &'static str,
+    inbox_xpub: "Xpub",
     /// Text in `xpub_make`.
-    pub inbox_an_xpub_in_files: &'static str,
+    inbox_an_xpub_in_files: "an xpub in Files",
     /// Error in `potential_make`. `{}`: `self.medium.noun()`.
-    pub inbox_remove_the_first: &'static str,
+    inbox_remove_the_first: "Remove the {} first",
     /// Text in `potential_make`. `{}`: `seed.label`.
-    pub inbox_with_passphrase: &'static str,
+    inbox_with_passphrase: "{} with passphrase",
     /// Text in `potential_make`.
-    pub inbox_this_seed_was: &'static str,
+    inbox_this_seed_was: "This seed was loaded without its words; a passphrase cannot be added",
     /// Toast in `potential_make`. `{}`: `fp_text(fp)`.
-    pub inbox_loaded_with_its: &'static str,
+    inbox_loaded_with_wallet: "{} loaded with its wallet",
     /// Text in `potential_make`.
-    pub inbox_a_seed_in_files: &'static str,
+    inbox_a_seed_in_files: "a seed in Files",
     /// Toast in `potential_make`. `{}`: `name`.
-    pub inbox_is_a_wallet: &'static str,
+    inbox_is_a_wallet: "{} is a wallet",
     /// Text in `backup_unseal`. `{}`: `name`.
-    pub inbox_loaded_n: &'static str,
+    inbox_loaded_n: "{} loaded",
     /// Error in `backup_unseal`.
-    pub inbox_this_backup_holds: &'static str,
+    inbox_this_backup_holds: "This backup holds a note: import it into a vault",
     /// Error in `backup_unseal`.
-    pub inbox_not_this_backup: &'static str,
+    inbox_not_this_backup: "Not this backup's passphrase",
     // ----- inputs (faraday-core/src/inputs.rs) -----
     /// Toast in `input_believe`. `{}`: `d.name`.
-    pub inputs_is_in_use: &'static str,
+    inputs_is_in_use: "{} is in use",
     /// Toast in `input_typed`. `{}`: `name`.
-    pub inputs_wrong_code: &'static str,
+    inputs_wrong_code: "{} typed the wrong code. Unplug it to try again.",
     /// Toast in `input_typed` and `input_new`.
-    pub inputs_new_keyboards_ignored: &'static str,
+    inputs_new_keyboards_ignored: "New keyboards are ignored until Faraday starts again.",
     // ----- keygen (faraday-core/src/keygen/mod.rs) -----
     /// Text in `source_name`.
-    pub keygen_seed_xor: &'static str,
+    keygen_seed_xor: "Seed XOR",
     /// Text in `procedure_name`.
-    pub keygen_words_chosen: &'static str,
+    keygen_words_chosen: "Words chosen by the dice",
     /// Error in `deal`.
-    pub keygen_no_secret_yet: &'static str,
+    keygen_no_secret_yet: "No secret yet",
     /// Text in `deal`. `{}`: `e`.
-    pub keygen_the_shares_could: &'static str,
+    keygen_the_shares_could: "The shares could not be made: {}",
     /// Text in `caution_lines`.
-    pub keygen_a_long_run_of: &'static str,
+    keygen_caution_long_run: "A long run of one result",
     /// Text in `caution_lines`.
-    pub keygen_far_from_even: &'static str,
+    keygen_far_from_even: "Far from even: one result came up much more than the others",
     /// Text in `caution_lines`.
-    pub keygen_a_long_run_counting: &'static str,
+    keygen_a_long_run_counting: "A long run counting up or down",
     /// Text in `roll`.
-    pub keygen_a_5_or_a_6_is: &'static str,
+    keygen_reroll_rule: "A 5 or a 6 is rolled again in a word's first five rolls",
     /// Note in `die_flip`.
-    pub keygen_a_die_has_six: &'static str,
+    keygen_a_die_has_six: "A die has six faces",
     /// Note in `type_char`.
-    pub keygen_no_more_are: &'static str,
+    keygen_no_more_are: "No more are needed",
     /// Text in `card`.
-    pub keygen_that_card_is: &'static str,
+    keygen_card_already_drawn: "That card is already out of this deck",
     /// Note in `take_frame`.
-    pub keygen_no_picture_from: &'static str,
+    keygen_no_camera_picture: "No picture from the camera yet",
     /// Note in `take_frame`.
-    pub keygen_too_little_variation: &'static str,
+    keygen_too_little_variation: "Too little variation in that picture",
     /// Note in `finish_entry`. `{}`: `have`, `need`.
-    pub keygen_of: &'static str,
+    keygen_entry_count: "{} of {}",
     /// Toast in `keygen_open`. `{}`: `self.medium.noun()`.
-    pub keygen_remove_the_first: &'static str,
+    keygen_remove_the_first: "Remove the {} first",
     /// Text in `keygen_act`.
-    pub keygen_choose_two_sources: &'static str,
+    keygen_choose_two_sources: "Choose two sources or more",
     /// Text in `keygen_act`.
-    pub keygen_choose_a_source: &'static str,
+    keygen_choose_a_source: "Choose a source",
     /// Note in `keygen_act`.
-    pub keygen_no_randomness: &'static str,
+    keygen_no_randomness: "No randomness from the system yet. Try again",
     /// Note in `keygen_lock`.
-    pub keygen_the_two_passphrases: &'static str,
+    keygen_the_two_passphrases: "The two passphrases differ",
     /// Text in `keygen_lock`. `{}`: `self.new_keys + 1`.
-    pub keygen_new_key_n: &'static str,
+    keygen_new_key_n: "New key {}",
     /// Text in `keygen_done`. `{}`: `crate::wallet::fp_text(faraday_bip::keys:…`, `if k.slip39 { FEN.keygen_shares_inline } els…`.
-    pub keygen_key_added_back: &'static str,
+    keygen_key_added_back: "Key {} added; back up its {} before you rely on it",
     /// Text in `keygen_done`.
-    pub keygen_shares_inline: &'static str,
+    keygen_shares_inline: "shares",
     /// Text in `keygen_done`.
-    pub keygen_words_inline: &'static str,
+    keygen_words_inline: "words",
     // ----- keygen (faraday-core/src/keygen/screen.rs) -----
     /// Text in `TITLES`.
-    pub keygen_check: &'static str,
+    keygen_check: "Check",
     /// Text in `TITLES`.
-    pub keygen_words: &'static str,
+    keygen_words: "Words",
     /// Text in `draw`.
-    pub keygen_make_a_new_wallet: &'static str,
+    keygen_make_a_new_wallet: "Make a new wallet",
     /// Text in `draw`.
-    pub keygen_add_a_key: &'static str,
+    keygen_add_a_key: "Add a key",
     /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
-    pub keygen_start: &'static str,
+    keygen_start: "Start",
     /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
-    pub keygen_make_a_new_key: &'static str,
+    keygen_make_a_new_key: "Make a new key",
     /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
-    pub keygen_type_the_words: &'static str,
+    keygen_type_the_words: "Type the words",
     /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
-    pub keygen_scan_a_seedqr: &'static str,
+    keygen_scan_a_seedqr: "Scan a SeedQR",
     /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
-    pub keygen_make_slip_39_shares: &'static str,
+    keygen_make_slip_39_shares: "Make SLIP-39 shares",
     /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
-    pub keygen_type_slip_39_shares: &'static str,
+    keygen_type_slip_39_shares: "Type SLIP-39 shares",
     /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
-    pub keygen_type_a_codex32: &'static str,
+    keygen_type_a_codex32: "Type a codex32 secret",
     /// New key's Start card (`docs/history/NEW-WALLET.md` §15.1).
-    pub keygen_type_seed_xor: &'static str,
+    keygen_type_seed_xor: "Type Seed XOR parts",
     /// Text in `draw`.
-    pub keygen_tools: &'static str,
+    keygen_tools: "Tools",
     /// Text in `draw`.
-    pub keygen_back: &'static str,
+    keygen_back: "Back",
     /// Text in `draw`.
-    pub keygen_new_key: &'static str,
+    keygen_new_key: "New key",
     /// Text in `entries_title`.
-    pub keygen_flips: &'static str,
+    keygen_flips: "Flips",
     /// Text in `entries_title`.
-    pub keygen_cards: &'static str,
+    keygen_cards: "Cards",
     /// Text in `entries_title`.
-    pub keygen_pictures: &'static str,
+    keygen_pictures: "Pictures",
     /// Text in `entries_title`.
-    pub keygen_generator: &'static str,
+    keygen_generator: "Generator",
     /// Text in `entries_title`.
-    pub keygen_entries: &'static str,
+    keygen_entries: "Entries",
     /// Text in `entries_title`. `{}`: `what`, `(k.mix_at + 1).min(n)`, `n`.
-    pub keygen_source_of: &'static str,
+    keygen_source_count: "{} · source {} of {}",
     /// Text in `asks`. `{}`: `k.dice_needed()`.
-    pub keygen_rolls_of_a_six: &'static str,
+    keygen_rolls_of_a_six: "{} rolls of a six-sided die",
     /// Text in `asks`. `{}`: `CoinFlips::needed(st)`.
-    pub keygen_flips_or_rolls: &'static str,
+    keygen_flips_or_rolls: "{} flips, or rolls of a die read as flips",
     /// Text in `asks`. `{}`: `CardDraws::needed(st)`.
-    pub keygen_cards_from_a: &'static str,
+    keygen_cards_source: "{} cards from a shuffled deck",
     /// Text in `asks`. `{}`: `st.hex_digits()`.
-    pub keygen_digits_made: &'static str,
+    keygen_digits_made: "{} digits made elsewhere",
     /// Text in `asks`. `{}`: `CameraNoise::needed(st)`.
-    pub keygen_pictures_n: &'static str,
+    keygen_pictures_n: "{} pictures",
     /// Text in `asks`.
-    pub keygen_two_or_more: &'static str,
+    keygen_two_or_more: "Two or more of these, combined",
     /// Text in `asks`. `{}`: `EN.create_device_os`.
-    pub keygen_getrandom_2: &'static str,
+    keygen_device_source: "{} · getrandom(2)",
     /// Text in `summary`. `{}`: `k.slip_m`, `k.slip_n`, `k.words`.
-    pub keygen_slip_39_of_shares: &'static str,
+    keygen_slip_39_of_shares: "SLIP-39 · {} of {} shares · {} words each",
     /// Text in `summary`. `{}`: `source_name(Source::Coins)`.
-    pub keygen_read_from_a: &'static str,
+    keygen_coins_from_die: "{} · read from a die",
     /// Text in `summary`.
-    pub keygen_not_chosen: &'static str,
+    keygen_not_chosen: "Not chosen",
     /// Text in `summary`.
-    pub keygen_complete: &'static str,
+    keygen_complete: "Complete",
     /// Text in `summary`.
-    pub keygen_not_locked_in: &'static str,
+    keygen_not_locked: "Not locked in",
     /// Text in `summary`. `{}`: `fp`.
-    pub keygen_locked_in: &'static str,
+    keygen_locked_summary: "{} · locked in",
     /// Text in `summary`. `{}`: `fp`.
-    pub keygen_passphrase_set: &'static str,
+    keygen_passphrase_set: "{} · passphrase set · locked in",
     /// Text in `summary`. `{}`: `fp`.
-    pub keygen_passphrase_not: &'static str,
+    keygen_locked_no_passphrase: "{} · passphrase not set · locked in",
     /// Text in `summary`. `{}`: `k.mixed.len()`.
-    pub keygen_sources_combined: &'static str,
+    keygen_sources_combined: "{} sources combined",
     /// Text in `summary`.
-    pub keygen_no_cautions: &'static str,
+    keygen_no_cautions: "No cautions",
     /// Text in `summary`.
-    pub keygen_1_caution: &'static str,
+    keygen_1_caution: "1 caution",
     /// Text in `summary`. `{}`: `n`.
-    pub keygen_cautions: &'static str,
+    keygen_cautions: "{} cautions",
     /// Text in `summary`. `{}`: `n`.
-    pub keygen_shares_n: &'static str,
+    keygen_shares_n: "{} shares",
     /// Text in `summary`.
-    pub keygen_not_yet: &'static str,
+    keygen_not_yet: "Not yet",
     /// Label in `read_only`.
-    pub keygen_length: &'static str,
+    keygen_length: "Length",
     /// Label in `read_only`.
-    pub keygen_randomness: &'static str,
+    keygen_randomness: "Randomness",
     /// Line in `verdict`.
-    pub keygen_fair_no_cautions: &'static str,
+    keygen_fair_no_cautions: "Fair: no cautions",
     /// Label in `key_card`.
-    pub keygen_passphrase_again: &'static str,
+    keygen_passphrase_again: "Passphrase again",
     /// Text in `key_card`.
-    pub keygen_lock_in: &'static str,
+    keygen_lock_button: "Lock in",
     /// Line in `key_card`. `{}`: the sample's name (`sample_words`), its
     /// fingerprint.
-    pub keygen_lock_in_adds: &'static str,
+    keygen_lock_in_adds: "Lock in adds sample {} ({}) in place of these words",
     /// Line in `handed_line`. `{}`: the sample's name (`sample_words`), its
     /// fingerprint.
-    pub keygen_added_sample: &'static str,
+    keygen_added_sample: "Added sample {} ({}) in place of the key made",
     /// Text in `key_card` and `handed_line`. `{}`: the word, how many times
     /// it is repeated.
-    pub sample_words: &'static str,
+    sample_words: "{} ×{}",
     /// Line in `key_card`.
-    pub keygen_enter_locks: &'static str,
+    keygen_enter_locks: "Enter locks in",
     /// Label in `key_card`.
-    pub keygen_passphrase: &'static str,
+    keygen_passphrase: "Passphrase",
     /// Text in `key_card`.
-    pub keygen_set: &'static str,
+    keygen_set: "Set",
     /// Text in `key_card`.
-    pub keygen_not_set: &'static str,
+    keygen_not_set: "Not set",
     /// Label in `key_card`.
-    pub keygen_first_address: &'static str,
+    keygen_first_address: "First address",
     /// Label in `key_card`.
-    pub keygen_key: &'static str,
+    keygen_key: "Key",
     /// Text in `SLIP39_FACTS`.
-    pub keygen_fewer_shares: &'static str,
+    keygen_fewer_shares: "Fewer shares than the threshold say nothing about the seed: with them, every seed stays as likely as every other. No entropy is lost to a holder of too few shares.",
     /// Text in `SLIP39_FACTS`.
-    pub keygen_each_share_states: &'static str,
+    keygen_each_share_states: "Each share states in the clear its backup's identifier, the shares needed, how many were dealt and its own number: one share tells its holder how many others to look for.",
     /// Text in `SLIP39_FACTS`.
-    pub keygen_the_threshold: &'static str,
+    keygen_the_threshold: "The threshold of shares rebuilds the whole seed on one device, and that device holds all of it while it signs.",
     /// Text in `SLIP39_FACTS`.
-    pub keygen_the_split_s: &'static str,
+    keygen_the_split_s: "The split's own randomness comes from the device that deals it, here this device's system generator. A dealer with weak randomness gives the seed away in its shares.",
     /// Text in `SLIP39_FACTS`.
-    pub keygen_a_share_cannot: &'static str,
+    keygen_a_share_cannot: "A share cannot be checked on its own against the seed; a wrong or mixed-up share shows only when the threshold is put together, by a 4-byte digest.",
     /// Text in `SLIP39_FACTS`.
-    pub keygen_shares_restore: &'static str,
+    keygen_shares_restore: "Shares restore only in software that reads SLIP-39, such as Trezor's; a wallet that reads only BIP-39 words cannot.",
     /// Text in `SLIP39_FACTS`.
-    pub keygen_a_share_is_20: &'static str,
+    keygen_slip39_share_length: "A share is 20 words for a 128-bit seed, the strength of 12 BIP-39 words, or 33 words for 256 bits.",
     /// Text in `length`.
-    pub keygen_bip_39_words: &'static str,
+    keygen_bip_39_words: "BIP-39 words",
     /// Text in `length`.
-    pub keygen_slip_39_shares: &'static str,
+    keygen_slip_39_shares: "SLIP-39 shares",
     /// Text in `length`.
-    pub keygen_shares_needed: &'static str,
+    keygen_shares_needed: "Shares needed",
     /// Text in `length`.
-    pub keygen_shares_dealt: &'static str,
+    keygen_shares_dealt: "Shares dealt",
     /// Text in `length`. `{}`: `k.slip_m`, `k.slip_n`.
-    pub keygen_any_of_the_shares: &'static str,
+    keygen_any_of_the_shares: "Any {} of the {} shares restore the key",
     /// Line in `length`.
-    pub keygen_what_shares: &'static str,
+    keygen_what_shares: "What shares reveal",
     /// Text in `length_counts`. `{}`: `n`.
-    pub keygen_words_n: &'static str,
+    keygen_words_n: "{} words",
     /// Line in `length_counts`.
-    pub keygen_a_threshold: &'static str,
+    keygen_a_threshold: "A threshold wallet's keys are 24 words",
     /// Text in `way_name`. `{}`: `source_name(Source::Dice)`.
-    pub keygen_flip_mode: &'static str,
+    keygen_flip_mode: "{} · Flip mode",
     /// Text in `way_line`. `{}`: `CoinFlips::needed(st)`.
-    pub keygen_rolls_read_as: &'static str,
+    keygen_rolls_read_as: "{} rolls, read as flips",
     /// Text in `group_head`.
-    pub keygen_your_own_entropy: &'static str,
+    keygen_your_own_entropy: "Your own entropy, words verifiable by hand",
     /// Text in `group_head`.
-    pub keygen_your_entropy: &'static str,
+    keygen_your_entropy: "Your entropy, computer generates words",
     /// Text in `group_head`.
-    pub keygen_made_by_this: &'static str,
+    keygen_device_group: "Made by this device",
     /// Chip in `group_head`.
-    pub keygen_recommended: &'static str,
+    keygen_recommended: "Recommended",
     /// Text in `entries`.
-    pub keygen_rolls_inline: &'static str,
+    keygen_rolls_inline: "rolls",
     /// Text in `entries`.
-    pub keygen_flips_inline: &'static str,
+    keygen_flips_inline: "flips",
     /// Text in `entries`.
-    pub keygen_cards_inline: &'static str,
+    keygen_cards_inline: "cards",
     /// Text in `entries`.
-    pub keygen_digits_inline: &'static str,
+    keygen_digits_inline: "digits",
     /// Text in `entries`.
-    pub keygen_pictures_inline: &'static str,
+    keygen_pictures_inline: "pictures",
     /// Text in `entries`. `{}`: `have`, `need`, `unit`.
-    pub keygen_of_2: &'static str,
+    keygen_entry_count_unit: "{} of {} {}",
     /// Text in `entries`. `{}`: `last`.
-    pub keygen_last: &'static str,
+    keygen_last: "Last: {}",
     /// Text in `entries`. `{}`: `k.cards.deck()`, `k.cards.in_deck()`.
-    pub keygen_deck_drawn_from: &'static str,
+    keygen_deck_status: "Deck {} · {} drawn from it",
     /// Text in `entries`. `{}`: `st.distinct`.
-    pub keygen_luma_values: &'static str,
+    keygen_luma_values: "{} luma values in the last picture",
     /// Text in `entries`.
-    pub keygen_camera_on: &'static str,
+    keygen_camera_active: "Camera on",
     /// Text in `entries`.
-    pub keygen_waiting_for: &'static str,
+    keygen_waiting_camera: "Waiting for the camera",
     /// Line in `entries`.
-    pub keygen_no_need_to_write: &'static str,
+    keygen_no_need_to_write: "No need to write the words down yet: Back up shows them again.",
     /// Section label in `entries`.
-    pub keygen_randomness_check: &'static str,
+    keygen_randomness_check: "Randomness check",
     /// Text in `entries`.
-    pub keygen_next_source: &'static str,
+    keygen_next_source: "Next source",
     /// Text in `entries`.
-    pub keygen_make_the_words: &'static str,
+    keygen_make_the_words: "Make the words",
     /// Text in `entries`.
-    pub keygen_undo: &'static str,
+    keygen_undo: "Undo",
     /// Text in `entries`.
-    pub keygen_clear: &'static str,
+    keygen_clear: "Clear",
     /// Text in `entries`.
-    pub keygen_type_1_to_6: &'static str,
+    keygen_dice_keys_hint: "Type 1 to 6 · Backspace takes one back · Enter continues",
     /// Text in `entries`.
-    pub keygen_type_h_or_t: &'static str,
+    keygen_type_h_or_t: "Type H or T · Backspace takes one back · Enter continues",
     /// Text in `entries`.
-    pub keygen_type_the_rank: &'static str,
+    keygen_type_the_rank: "Type the rank (A 2–9 T J Q K), then the suit (S H D C)",
     /// Text in `entries`.
-    pub keygen_type_09_and: &'static str,
+    keygen_hex_keys_hint: "Type 0–9 and a–f · Backspace takes one back · Enter continues",
     /// Text in `entries`.
-    pub keygen_space_takes: &'static str,
+    keygen_space_takes: "Space takes a picture · Enter continues",
     /// Text in `entries`.
-    pub keygen_enter_continues: &'static str,
+    keygen_enter_continues: "Enter continues",
     /// Text in `entry_style`.
-    pub keygen_coin: &'static str,
+    keygen_coin: "Coin",
     /// Text in `entry_style`.
-    pub keygen_die: &'static str,
+    keygen_die: "Die",
     /// Text in `entry_style`.
-    pub keygen_typed: &'static str,
+    keygen_typed: "Typed",
     /// Text in `entry_style`.
-    pub keygen_buttons: &'static str,
+    keygen_buttons: "Buttons",
     /// Text in `entry_style`.
-    pub keygen_each_roll_is: &'static str,
+    keygen_dice_flip_rule: "Each roll is one flip: 1, 2, 3 are 0 (tails); 4, 5, 6 are 1 (heads). The key is the one these flips make",
     /// Text in `entry_style`.
-    pub keygen_heads_is_1_tails: &'static str,
+    keygen_heads_is_1_tails: "Heads is 1, tails is 0",
     /// Text in `typed_box`.
-    pub keygen_h_or_1_for_heads: &'static str,
+    keygen_h_or_1_for_heads: "H or 1 for heads, T or 0 for tails",
     /// Text in `typed_box`.
-    pub keygen_faces_1_to_6: &'static str,
+    keygen_dice_faces_caption: "Faces 1 to 6, as rolled",
     /// Text in `reveal`. `{}`: `part`.
-    pub keygen_of_11_bits: &'static str,
+    keygen_of_11_bits: "{} of 11 bits",
     /// Row in `reveal`.
-    pub keygen_from_the_checksum: &'static str,
+    keygen_from_the_checksum: "From the checksum, once the rest is in",
     /// Text in `reveal`. `{}`: `checksum`, `last + 1`.
-    pub keygen_the_last_bits: &'static str,
+    keygen_the_last_bits: "The last {} bits of word {} are the checksum",
     /// Section label in `rolled_words`.
-    pub keygen_words_so_far: &'static str,
+    keygen_words_so_far: "Words so far",
     /// Line in `rolled_words`.
-    pub keygen_rolls_1_to_5: &'static str,
+    keygen_dice_word_rule: "Rolls 1 to 5 of a word: 1 = 00, 2 = 01, 3 = 10, 4 = 11 · Roll 6: 1 to 3 = 0, 4 to 6 = 1 · The 11 bits are the word's number in the list, from 0",
     /// Line in `rolled_words`.
-    pub keygen_checksum: &'static str,
+    keygen_checksum: "checksum",
     /// Text in `rolled_words`. `{}`: `i`, `i + 1`.
-    pub keygen_word: &'static str,
+    keygen_word: "= {} · word {}",
     /// Text in `rolled_words`. `{}`: `i`, `i + 1`.
-    pub keygen_word_of_the: &'static str,
+    keygen_word_number: "= {} · word {} of the list",
     /// Note in `rolled_words`. `{}`: `got.len()`, `per`.
-    pub keygen_of_rolls: &'static str,
+    keygen_of_rolls: "{} of {} rolls",
     /// Row in `rolled_words`.
-    pub keygen_the_checksum: &'static str,
+    keygen_the_checksum: "The checksum, from all the other bits, once every roll is in",
     /// Text in `device_rows`.
-    pub keygen_result: &'static str,
+    keygen_result: "Result",
     /// Text in `check`.
-    pub keygen_continue: &'static str,
+    keygen_continue: "Continue",
     /// Text in `again_label`.
-    pub keygen_start_again: &'static str,
+    keygen_start_again: "Start again",
     /// Label in `check_rows`.
-    pub keygen_rolls: &'static str,
+    keygen_rolls: "Rolls",
     /// Label in `check_rows`.
-    pub keygen_faces: &'static str,
+    keygen_faces: "Faces",
     /// Label in `check_rows`.
-    pub keygen_suits: &'static str,
+    keygen_suits: "Suits",
     /// Label in `check_rows`.
-    pub keygen_digits: &'static str,
+    keygen_digits: "Digits",
     /// Text in `check_rows`. `{}`: `hex`.
-    pub keygen_sha_256: &'static str,
+    keygen_sha_256: "SHA-256 {}…",
     /// Label in `share_words`.
-    pub keygen_share: &'static str,
+    keygen_share: "Share",
     /// Text in `share_words`. `{}`: `k.share_at + 1`, `k.shares.len()`, `k.slip_m`.
-    pub keygen_of_needed: &'static str,
+    keygen_of_needed: "{} of {} · {} needed",
     /// Button in `share_words`.
-    pub keygen_previous_share: &'static str,
+    keygen_previous_share: "Previous share",
     /// Button in `share_words`.
-    pub keygen_next_share: &'static str,
+    keygen_next_share: "Next share",
     /// Button in `share_words`.
-    pub keygen_i_wrote_them_all: &'static str,
+    keygen_i_wrote_them_all: "I wrote them all down",
     /// Line in `words`.
-    pub keygen_not_made_yet: &'static str,
+    keygen_not_made_yet: "Not made yet",
     /// Label in `words`.
-    pub keygen_source: &'static str,
+    keygen_source: "Source",
     /// Text in `words`.
-    pub keygen_hide_words: &'static str,
+    keygen_hide_words: "Hide words",
     /// Text in `words`.
-    pub keygen_show_words: &'static str,
+    keygen_show_words: "Show words",
     /// Text in `words`.
-    pub keygen_i_wrote_them: &'static str,
+    keygen_i_wrote_them: "I wrote them down",
     /// Line in `quiz`.
-    pub keygen_show_the_words_first: &'static str,
+    keygen_show_the_words_first: "Show the words first",
     /// Label in `quiz`.
-    pub keygen_fingerprint: &'static str,
+    keygen_fingerprint: "Fingerprint",
     /// Text in `quiz`. `{}`: `k.shares.len()`.
-    pub keygen_all_shares_right: &'static str,
+    keygen_all_shares_right: "All {} shares right",
     /// Text in `quiz`. `{}`: `n`.
-    pub keygen_all_words_right: &'static str,
+    keygen_all_words_right: "All {} words right",
     /// Text in `quiz`.
-    pub keygen_skipped_the: &'static str,
+    keygen_quiz_skipped: "Skipped: the copy is not checked",
     /// Label in `quiz`.
-    pub keygen_quiz: &'static str,
+    keygen_quiz: "Quiz",
     /// Text in `quiz`.
-    pub keygen_done: &'static str,
+    keygen_done: "Done",
     /// Text in `quiz`.
-    pub keygen_use_this_key: &'static str,
+    keygen_use_this_key: "Use this key",
     /// Text in `quiz`.
-    pub keygen_add_key: &'static str,
+    keygen_add_key: "Add key",
     /// Text in `quiz`. `{}`: `k.quiz_share + 1`, `k.shares.len()`, `done`, `n`.
-    pub keygen_share_of_of: &'static str,
+    keygen_quiz_progress: "Share {} of {} · {} of {} right",
     /// Text in `quiz`. `{}`: `done`, `n`.
-    pub keygen_of_right: &'static str,
+    keygen_of_right: "{} of {} right",
     /// Text in `quiz`. `{}`: `q.position() + 1`.
-    pub keygen_which_is_word: &'static str,
+    keygen_which_is_word: "Which is word {}?",
     /// Line in `quiz`.
-    pub keygen_not_that_one: &'static str,
+    keygen_not_that_one: "Not that one. Check your copy against the words",
     /// Button in `quiz`.
-    pub keygen_ask_it_again: &'static str,
+    keygen_ask_it_again: "Ask it again",
     /// Button in `quiz`.
-    pub keygen_show_the_words: &'static str,
+    keygen_show_the_words: "Show the words",
     /// Line in `quiz`.
-    pub keygen_without_the: &'static str,
+    keygen_quiz_skip_warning: "Without the quiz, a word copied wrongly is found only when the backup is needed",
     /// Text in `quiz`.
-    pub keygen_skip_and_add: &'static str,
+    keygen_skip_and_add: "Skip and add the key",
     /// Button in `quiz`.
-    pub keygen_skip_the_quiz: &'static str,
+    keygen_skip_the_quiz: "Skip the quiz",
     /// Text in `quiz`.
-    pub keygen_type_1_to_4_to: &'static str,
+    keygen_quiz_keys_add: "Type 1 to 4 to pick · Enter adds the key once it passes",
     /// Text in `quiz`.
-    pub keygen_type_1_to_4: &'static str,
+    keygen_quiz_keys_done: "Type 1 to 4 to pick · Enter is Done once it passes",
     // ----- name (faraday-core/src/lib.rs) -----
     /// Text in `name`.
-    pub name_faraday_starter_app: &'static str,
+    name_faraday_starter_app: "Faraday Starter",
     /// The Starter's name in `--version` before F16, still recognised.
-    pub name_faraday_starter_app_old: &'static str,
+    name_faraday_starter_app_old: "Faraday hub app",
     /// The Starter's name in `--version` as "Faraday Hub" (the code's
     /// working name before the F16 rename), still recognised.
-    pub name_faraday_starter_app_old2: &'static str,
+    name_faraday_starter_app_old2: "Faraday Hub",
     /// Text in `name`.
-    pub name_faraday_desktop: &'static str,
+    name_faraday_desktop: "Faraday Desktop",
     /// The desktop app's name in `--version` before F16, still recognised.
-    pub name_faraday_desktop_old: &'static str,
+    name_faraday_desktop_old: "Faraday desktop app",
     // ----- version_label (faraday-core/src/lib.rs) -----
     /// Text in `version_label`. `{}`: `VERSION`.
-    pub version_label_local: &'static str,
+    version_label_local: "{} (local build)",
     // ----- stick_kind (faraday-core/src/lib.rs) -----
     /// Text in `stick_kind`.
-    pub stick_kind_psbt: &'static str,
+    stick_kind_psbt: "PSBT",
     /// Text in `stick_kind`.
-    pub stick_kind_text: &'static str,
+    stick_kind_text: "Text",
     /// Text in `stick_kind`.
-    pub stick_kind_transaction: &'static str,
+    stick_kind_transaction: "Transaction",
     /// Text in `stick_kind`.
-    pub stick_kind_sheet_for: &'static str,
+    stick_kind_print_sheet: "Sheet for printing",
     /// Text in `stick_kind`.
-    pub stick_kind_vault: &'static str,
+    stick_kind_vault: "Vault",
     /// Text in `stick_kind`.
-    pub stick_kind_efi_image: &'static str,
+    stick_kind_efi_image: "EFI image",
     /// Text in `stick_kind`.
-    pub stick_kind_threshold: &'static str,
+    stick_kind_threshold: "Threshold spend, part-signed",
     /// Text in `stick_kind`.
-    pub stick_kind_oskb: &'static str,
+    stick_kind_oskb: ".oskb backup",
     /// Text in `stick_kind`.
-    pub stick_kind_qr_codes: &'static str,
+    stick_kind_qr_codes: "QR codes in a PNG",
     /// Text in `stick_kind`.
-    pub stick_kind_file: &'static str,
+    stick_kind_file: "File",
     // ----- stick_keys (faraday-core/src/lib.rs) -----
     /// Text in `stick_keys`. `{}`: `m.noun()`.
-    pub stick_keys_keys_load: &'static str,
+    stick_keys_keys_load: "Keys load only with no {} attached",
     // ----- of (faraday-core/src/lib.rs) -----
     /// Text in `of`.
-    pub of_ur_crypto_psbt_one: &'static str,
+    of_ur_crypto_psbt_one: "ur:crypto-psbt · one code",
     /// Text in `of`. `{}`: `frames.len()`.
-    pub of_ur_crypto_psbt_frames: &'static str,
+    of_ur_crypto_psbt_frames: "ur:crypto-psbt · {} frames, shown in turn",
     /// Text in `of`.
-    pub of_text_one_code: &'static str,
+    of_text_one_code: "Text · one code",
     /// Text in `of`.
-    pub of_ur_crypto_account: &'static str,
+    of_ur_crypto_account: "ur:crypto-account · one code",
     /// Text in `of`.
-    pub of_key_one_code: &'static str,
+    of_key_one_code: "Key · one code",
     /// Text in `of`.
-    pub of_file_ur_bytes: &'static str,
+    of_file_ur_bytes: "File · ur:bytes",
     // ----- parts_frames (faraday-core/src/lib.rs) -----
     /// Text in `parts_frames`.
-    pub parts_frames_text_one: &'static str,
+    parts_frames_text_one: "Text · one code",
     /// Text in `parts_frames`. `{}`: `frames.len()`.
-    pub parts_frames_numbered: &'static str,
+    parts_frames_numbered: "Numbered parts · {} frames, shown in turn",
     // ----- bbqr_frames (faraday-core/src/lib.rs) -----
     /// Error in `bbqr_frames`.
-    pub bbqr_frames_too_large: &'static str,
+    bbqr_frames_too_large: "Too large for BBQr",
     /// Text in `bbqr_frames`. `{}`: `t`.
-    pub bbqr_frames_bbqr_one: &'static str,
+    bbqr_frames_bbqr_one: "BBQr {} · one code",
     /// Text in `bbqr_frames`. `{}`: `t`, `frames.len()`.
-    pub bbqr_frames_bbqr_frames: &'static str,
+    bbqr_frames_bbqr_frames: "BBQr {} · {} frames, shown in turn",
     // ----- key_label (faraday-core/src/lib.rs) -----
     /// Text in `key_label`. `{}`: `fp`, `kind`, `p`.
-    pub key_label_key_2: &'static str,
+    key_label_key_kind_path: "Key {} · {} · {}",
     /// Text in `key_label`. `{}`: `fp`, `kind`.
-    pub key_label_key: &'static str,
+    key_label_key: "Key {} · {}",
     // ----- ur_bytes_frames (faraday-core/src/lib.rs) -----
     /// Text in `ur_bytes_frames`. `{}`: `what`.
-    pub ur_bytes_frames_one: &'static str,
+    ur_bytes_frames_one: "{} · one code",
     /// Text in `ur_bytes_frames`. `{}`: `what`, `frames.len()`.
-    pub ur_bytes_frames_frames: &'static str,
+    ur_bytes_frames_frames: "{} · {} frames, shown in turn",
     // ----- part_note (faraday-core/src/lib.rs) -----
     /// Text in `part_note`. `{}`: `what`, `have`, `total`, `list.join(", ")`, `more`.
-    pub part_note_of_missing: &'static str,
+    part_note_of_missing: "{}: {} of {} · missing {}{}",
     // ----- secret_text (faraday-core/src/lib.rs) -----
     /// Text in `secret_text`.
-    pub secret_text_those_are: &'static str,
+    secret_text_those_are: "Those are a seed's words. Seeds go in through Add a key, not Files",
     /// Text in `secret_text`.
-    pub secret_text_that_is: &'static str,
+    secret_text_private_key: "That is a private key. Faraday takes keys as words or a SeedQR, in Add a key",
     // ----- what_instead_of_a_seed (faraday-core/src/lib.rs) -----
     /// Text in `what_instead_of_a_seed`.
-    pub what_instead_of_a_seed_that_is_a: &'static str,
+    what_instead_of_a_seed_transaction: "That is a transaction, not a seed. Scan it from Files",
     /// Text in `what_instead_of_a_seed`.
-    pub what_instead_of_a_seed_that_is: &'static str,
+    what_instead_of_a_seed_files_code: "That is a code for Files, not a seed",
     /// Text in `what_instead_of_a_seed`.
-    pub what_instead_of_a_seed_that: &'static str,
+    what_instead_of_a_seed_public: "That is a public wallet or key, not a seed: it cannot sign",
     // ----- app (faraday-core/src/lib.rs) -----
     /// Text in `NOT_A_KEY`.
-    pub app_not_a_key_of_this: &'static str,
+    app_not_wallet_key: "Not a key of this wallet: check the words or the passphrase",
     // ----- heading (faraday-core/src/lib.rs) -----
     /// Text in `heading`. `{}`: `self.label`, `vault::time_of_day(vault::local_sec…`.
-    pub heading_written_to_at: &'static str,
+    heading_written_to_time: "Written to {} at {}",
     /// Text in `heading`. `{}`: `self.label`.
-    pub heading_written_to: &'static str,
+    heading_written_to_label: "Written to {}",
     // ----- storage_event (faraday-core/src/lib.rs) -----
     /// Text in `storage_event`. `{}`: `name`, `self.medium.noun()`.
-    pub storage_event_copied_a: &'static str,
+    storage_event_copied_words: "Copied {}: a key's words, loaded when the {} is removed",
     /// Text in `storage_event`. `{}`: `name`.
-    pub storage_event_wrote_read: &'static str,
+    storage_event_wrote_read: "Wrote {}, read back and matched",
     /// Text in `storage_event`. `{}`: `name`, `wrote_as`.
-    pub storage_event_wrote: &'static str,
+    storage_event_wrote: "Wrote {} as {}, read back and matched",
     /// Text in `storage_event`.
-    pub storage_event_it_stays: &'static str,
+    storage_event_it_stays: "It stays in Files",
     /// Text in `storage_event`. `{}`: `self.medium.for_the()`.
-    pub storage_event_it_still: &'static str,
+    storage_event_it_still: "It still waits {}",
     /// Text in `storage_event`. `{}`: `name`, `reason`, `stays`.
-    pub storage_event_not_written: &'static str,
+    storage_event_not_written: "{} not written: {}. {}",
     /// Toast in `storage_event`. `{}`: `path`.
-    pub storage_event_saved: &'static str,
+    storage_event_saved: "Saved {}",
     /// Text in `storage_event`.
-    pub storage_event_too_fine: &'static str,
+    storage_event_too_fine: "Too fine for this camera: show it as an animated code with smaller parts, bring it closer, or carry it as a file",
     /// Toast in `storage_event`. `{}`: `reason`.
-    pub storage_event_not_printed: &'static str,
+    storage_event_not_printed: "Not printed: {}",
     // ----- sticks_changed (faraday-core/src/lib.rs) -----
     /// Text in `sticks_changed`. `{}`: `self.medium.cap()`.
-    pub sticks_changed_removed_2: &'static str,
+    sticks_changed_removed_only: "{} removed",
     /// Text in `sticks_changed`. `{}`: `self.medium.cap()`, `loaded`, `if loaded == 1 { EN.sticks_changed_ke…`.
-    pub sticks_changed_removed: &'static str,
+    sticks_changed_removed: "{} removed · {} {} loaded",
     /// Text in `sticks_changed`.
-    pub sticks_changed_key: &'static str,
+    sticks_changed_key: "key",
     /// Text in `sticks_changed`.
-    pub sticks_changed_keys: &'static str,
+    sticks_changed_keys: "keys",
     // ----- toast_out (faraday-core/src/lib.rs) -----
     /// Text in `toast_out`. `{}`: `what`, `self.medium.for_the()`.
-    pub toast_out_waits: &'static str,
+    toast_out_waits: "{} waits {}",
     // ----- pull_what (faraday-core/src/lib.rs) -----
     /// Text in `pull_what`.
-    pub pull_what_load_the: &'static str,
+    pull_what_load_wallet: "load the wallet",
     /// Text in `pull_what`.
-    pub pull_what_open_the: &'static str,
+    pull_what_open_backup: "open the backup",
     /// Text in `pull_what`.
-    pub pull_what_unlock: &'static str,
+    pull_what_unlock: "unlock",
     /// Text in `pull_what`.
-    pub pull_what_make_a_key: &'static str,
+    pull_what_make_a_key: "make a key",
     /// Text in `pull_what`.
-    pub pull_what_add_a_key: &'static str,
+    pull_what_add_a_key: "add a key",
     /// Text in `pull_what`.
-    pub pull_what_scan: &'static str,
+    pull_what_scan: "scan",
     /// Text in `pull_what`.
-    pub pull_what_load_samples: &'static str,
+    pull_what_load_samples: "load the samples",
     /// The Lock sheet's last section when the lock is a mode change.
-    pub lock_mode_keeps_nothing: &'static str,
+    lock_mode_keeps_nothing: "A mode change keeps nothing but the mode: Files, For the stick, keys and wallets are emptied.",
     // ----- visit_then (faraday-core/src/lib.rs) -----
     /// Text in `visit_then`. `{}`: `self.back_name(s)`.
-    pub visit_then_then: &'static str,
+    visit_then_then: "Then: {}",
     /// Text in `visit_then`.
-    pub visit_then_then_unlock: &'static str,
+    visit_then_then_unlock: "Then: Unlock",
     /// Text in `visit_then`.
-    pub visit_then_then_home: &'static str,
+    visit_then_then_home: "Then: Home",
     // ----- start_spend (faraday-core/src/lib.rs) -----
     /// Toast in `start_spend`.
-    pub start_spend_the_carry: &'static str,
+    start_spend_the_carry: "The carry file holds no PSBT",
     /// Toast in `start_spend`.
-    pub start_spend_not_a_psbt: &'static str,
+    start_spend_not_a_psbt: "Not a PSBT",
     // ----- session_stage (faraday-core/src/lib.rs) -----
     /// Text in `session_stage`.
-    pub session_stage_bring: &'static str,
+    session_stage_bring: "Bring in",
     /// Text in `session_stage`.
-    pub session_stage_write: &'static str,
+    session_stage_write: "Write out",
     /// Text in `session_stage`.
-    pub session_stage_work: &'static str,
+    session_stage_work: "Work",
     /// Text in `session_stage`.
-    pub session_stage_open: &'static str,
+    session_stage_open: "Open",
     // ----- act (faraday-core/src/lib.rs) -----
     /// Text in `act`. `{}`: `w`, `if w == 1 { EN.act_wallet } else { EN…`, `k`, `if k == 1 { EN.act_seed } else { EN.a…`.
-    pub act_and_loaded: &'static str,
+    act_and_loaded: "{} {} and {} {} loaded",
     /// Text in `act`.
-    pub act_wallet: &'static str,
+    act_wallet: "wallet",
     /// Text in `act`.
-    pub act_wallets: &'static str,
+    act_wallets: "wallets",
     /// Text in `act`.
-    pub act_seed: &'static str,
+    act_seed: "seed",
     /// Text in `act`.
-    pub act_seeds: &'static str,
+    act_seeds: "seeds",
     /// Toast in `act`. `{}`: `self.medium.noun()`.
-    pub act_remove_the_first: &'static str,
+    act_remove_the_first: "Remove the {} first",
     /// Text in `act`. `{}`: `s.spend.source`.
-    pub act_finished_from: &'static str,
+    act_finished_from_source: "Finished from {}",
     /// Text in `act`.
-    pub act_transaction: &'static str,
+    act_transaction: "Transaction",
     /// Text in `act`. `{}`: `self.medium.a()`.
-    pub act_plug_in_the_visit: &'static str,
+    act_plug_in_the_visit: "Plug in {}: the visit writes what waits for it",
     /// Toast in `act`.
-    pub act_bip_129_covers: &'static str,
+    act_bip_129_covers: "BIP 129 covers wsh and sh(wsh) multisig keys",
     /// Note in `act`.
-    pub act_carrying_on_with: &'static str,
+    act_carrying_on_parts: "Carrying on with the parts read before",
     /// Error in `act`. `{}`: `m.have.len()`, `m.n`.
-    pub act_of_keys_in_hand: &'static str,
+    act_of_keys_in_hand: "{} of {} keys in hand",
     /// Text in `act`.
-    pub act_restored_wallet: &'static str,
+    act_restored_wallet: "Restored wallet",
     /// Text in `act`.
-    pub act_its_shares: &'static str,
+    act_its_shares: "its shares",
     /// Toast in `act`. `{}`: `name`.
-    pub act_restored_from_its: &'static str,
+    act_restored_from_shares: "{} restored from its shares",
     /// Toast in `act`.
-    pub act_not_every_key_is: &'static str,
+    act_keys_missing: "Not every key is in hand yet",
     /// Text in `act`.
-    pub act_signed_psbt: &'static str,
+    act_signed_psbt: "Signed PSBT",
     /// Text in `act`.
-    pub act_psbt_for_the_next: &'static str,
+    act_psbt_for_the_next: "PSBT for the next signer",
     /// Text in `act`.
-    pub act_the_secret_nonce: &'static str,
+    act_the_secret_nonce: "The secret nonce the next share signs this transaction with",
     /// Text in `act`.
-    pub act_whoever_has_it: &'static str,
+    act_nonce_warning: "Whoever has it and a share's signature can work out that share",
     // ----- backup_kept (faraday-core/src/lib.rs) -----
     /// Text in `backup_kept`.
-    pub backup_kept_not_checked: &'static str,
+    backup_kept_not_checked: "Not checked: no vault unlocked",
     /// Text in `backup_kept`. `{}`: `self.vaults.open[v].name`.
-    pub backup_kept_wallet_in: &'static str,
+    backup_kept_wallet_vault: "Wallet in {}",
     /// Text in `backup_kept`.
-    pub backup_kept_wallet: &'static str,
+    backup_kept_wallet: "Wallet not in a vault",
     /// Text in `backup_kept`. `{}`: `self.vaults.open[v].name`, `if with { " with its passphrase" } el…`.
-    pub backup_kept_in: &'static str,
+    backup_kept_vault: "In {}{}",
     /// Text in `backup_kept`, after a space.
-    pub backup_with_its_passphrase: &'static str,
+    backup_with_its_passphrase: "with its passphrase",
     /// Text in `backup_kept`.
-    pub backup_kept_not_in: &'static str,
+    backup_kept_no_vault: "Not in a vault",
     /// Text in `backup_kept`.
-    pub backup_kept_paper_copy: &'static str,
+    backup_kept_paper_copy: "Paper copy checked",
     /// Text in `backup_kept`.
-    pub backup_kept_paper_not: &'static str,
+    backup_kept_paper_unchecked: "Paper: not checked",
     /// Text in `backup_kept`. `{}`: `self.medium.for_the()`.
-    pub backup_kept_file_unprotected: &'static str,
+    backup_kept_file_unprotected: "File {}, unprotected",
     /// Text in `backup_kept`.
-    pub backup_kept_not_here: &'static str,
+    backup_kept_not_here: "Not here: backed up on its own device",
     /// Text in `backup_kept`. `{}`: `id + 1`.
-    pub backup_kept_share: &'static str,
+    backup_kept_share: "Share {}",
     // ----- backup_seed_list_of (faraday-core/src/lib.rs) -----
     /// Text in `backup_seed_list_of`. `{}`: `id + 1`.
-    pub backup_seed_list_of_share: &'static str,
+    backup_seed_list_of_share: "Share {}",
     // ----- place_name (faraday-core/src/lib.rs) -----
     /// Text in `place_name`. `{}`: `p + 1`.
-    pub place_name_place: &'static str,
+    place_name_place: "Place {}",
     // ----- plan_store (faraday-core/src/lib.rs) -----
     /// Text in `plan_store`. `{}`: `p + 1`.
-    pub plan_store_place: &'static str,
+    plan_store_place: "Place {}",
     /// Text in `plan_store`. `{}`: `self.medium.cap()`.
-    pub plan_store_of_files: &'static str,
+    plan_store_of_files: "{} of files",
     /// Text in `plan_store`.
-    pub plan_store_watch_only: &'static str,
+    plan_store_watch_only: "Watch-only software",
     /// Text in `plan_store`.
-    pub plan_store_on_its_own: &'static str,
+    plan_store_on_its_own: "On its own device",
     /// Text in `plan_store`. `{}`: `name`.
-    pub plan_store_the_plan: &'static str,
+    plan_store_the_plan: "The plan is in {}",
     // ----- public_pictures (faraday-core/src/lib.rs) -----
     /// Text in `public_pictures`. `{}`: `j + 1`, `k`.
-    pub public_pictures_part: &'static str,
+    public_pictures_part: "Part {} of {}",
     /// Text in `public_pictures`.
-    pub public_pictures_key: &'static str,
+    public_pictures_key: "Key",
     /// Text in `public_pictures`.
-    pub public_pictures_keys: &'static str,
+    public_pictures_keys: "Keys",
     /// Text in `public_pictures`. `{}`: `sum`.
-    pub public_pictures_descriptor: &'static str,
+    public_pictures_descriptor: "Descriptor checksum {}",
     /// Text in `public_pictures`.
-    pub public_pictures_public_watch: &'static str,
+    public_pictures_public_watch: "Public: watch only, spends nothing",
     /// Text in `public_pictures`. `{}`: `i + 1`, `plan.len()`, `m`.
-    pub public_pictures_share: &'static str,
+    public_pictures_share: "Share {} of {} · any {} rebuild the wallet",
     /// Text in `public_pictures`. `{}`: `held.join(" · ")`.
-    pub public_pictures_holds: &'static str,
+    public_pictures_holds: "Holds {}",
     /// Text in `public_pictures`. `{}`: `off.join(" · ")`.
-    pub public_pictures_leaves: &'static str,
+    public_pictures_leaves: "Leaves off {}",
     /// Text in `public_pictures`.
-    pub public_pictures_not: &'static str,
+    public_pictures_not_wallet: "Not a wallet on its own",
     /// Text in `public_pictures`.
-    pub public_pictures_public: &'static str,
+    public_pictures_public: "Public: spends nothing",
     // ----- public_out (faraday-core/src/lib.rs) -----
     /// Toast in `public_out`. `{}`: `k`.
-    pub public_out_files: &'static str,
+    public_out_files: "{} files",
     // ----- backup_files_make (faraday-core/src/lib.rs) -----
     /// Toast in `backup_files_make`. `{}`: `k`.
-    pub backup_files_make_files: &'static str,
+    backup_files_make_files: "{} files",
     // ----- public_made (faraday-core/src/lib.rs) -----
     /// Toast in `public_made`. `{}`: `e`.
-    pub public_made_no_pdf: &'static str,
+    public_made_no_pdf: "No PDF: {}",
     // ----- wallet_key (faraday-core/src/lib.rs) -----
     /// Error in `wallet_key`.
-    pub wallet_key_that_wallet: &'static str,
+    wallet_key_that_wallet: "That wallet is no longer loaded",
     /// Error in `wallet_key`.
-    pub wallet_key_this_wallet_s: &'static str,
+    wallet_key_this_wallet_s: "This wallet's keys are not account keys",
     /// Error in `wallet_key`.
-    pub wallet_key_this_wallet: &'static str,
+    wallet_key_this_wallet: "This wallet has no such key",
     /// Error in `wallet_key`.
-    pub wallet_key_that_key_names: &'static str,
+    wallet_key_that_key_names: "That key names no master",
     /// Error in `wallet_key`.
-    pub wallet_key_that_key: &'static str,
+    wallet_key_that_key: "That key is not held here",
     // ----- wallet_key_record (faraday-core/src/lib.rs) -----
     /// Error in `wallet_key_record`.
-    pub wallet_key_record_bip: &'static str,
+    wallet_key_record_bip: "BIP 129 covers wsh and sh(wsh) multisig keys",
     // ----- create_key_text (faraday-core/src/lib.rs) -----
     /// Error in `create_key_text`.
-    pub create_key_text_nothing: &'static str,
+    create_key_text_nothing: "nothing being created",
     /// Error in `create_key_text`.
-    pub create_key_text_that: &'static str,
+    create_key_text_not_held: "That key is not held here",
     /// Error in `create_key_text`.
-    pub create_key_text_a_chosen: &'static str,
+    create_key_text_a_chosen: "a chosen key is no longer loaded",
     // ----- create_keys (faraday-core/src/lib.rs) -----
     /// Error in `create_keys`.
-    pub create_keys_nothing: &'static str,
+    create_keys_nothing: "nothing being created",
     /// Error in `create_keys`. `{}`: `i + 1`.
-    pub create_keys_key_has: &'static str,
+    create_keys_key_has: "Key {} has no key yet",
     /// Text in `create_keys`. `{}`: `i + 1`, `self.medium.a()`, `i + 1`.
-    pub create_keys_key_waits: &'static str,
+    create_keys_key_waits: "Key {} waits for its cosigner's xpub file. Copy it in on {} visit, then choose it for Key {} under Keys",
     /// Error in `create_keys`.
-    pub create_keys_a_chosen: &'static str,
+    create_keys_a_chosen: "a chosen key is no longer loaded",
     /// Error in `create_keys`.
-    pub create_keys_the_same: &'static str,
+    create_keys_the_same: "The same key is in two slots",
     // ----- create_shares (faraday-core/src/lib.rs) -----
     /// Error in `create_shares`.
-    pub create_shares_nothing: &'static str,
+    create_shares_nothing: "nothing being created",
     /// Error in `create_shares`. `{}`: `i + 1`.
-    pub create_shares_share_has: &'static str,
+    create_shares_share_has: "Share {} has no key yet",
     /// Error in `create_shares`.
-    pub create_shares_a_chosen: &'static str,
+    create_shares_a_chosen: "a chosen key is no longer loaded",
     /// Error in `create_shares`. `{}`: `i + 1`.
-    pub create_shares_share: &'static str,
+    create_shares_share: "Share {} needs a 24-word key",
     /// Error in `create_shares`.
-    pub create_shares_the_same: &'static str,
+    create_shares_the_same: "The same key is in two slots",
     // ----- create_deal (faraday-core/src/lib.rs) -----
     /// Error in `create_deal`.
-    pub create_deal_a_chosen: &'static str,
+    create_deal_a_chosen: "a chosen key is not a share",
     /// Text in `create_deal`. `{}`: `self.session.wallets.len() + 1`.
-    pub create_deal_new_wallet: &'static str,
+    create_deal_new_wallet: "New wallet {}",
     /// Text in `create_deal`.
-    pub create_deal_dealt_here: &'static str,
+    create_deal_dealt_here: "Dealt here",
     /// Text in `create_deal`. `{}`: `id + 1`, `name`.
-    pub create_deal_share_of: &'static str,
+    create_deal_share_name: "Share {} of {}",
     // ----- restore_refusal (faraday-core/src/lib.rs) -----
     /// Text in `restore_refusal`.
-    pub restore_refusal_every: &'static str,
+    restore_refusal_every: "Every slot is filled",
     // ----- restore_described_make (faraday-core/src/lib.rs) -----
     /// Text in `restore_described_make`. `{}`: `open`, `if open == 1 { EN.restore_described_m…`.
-    pub restore_described_make_still: &'static str,
+    restore_described_make_still: "{} {} still empty",
     /// Text in `restore_described_make`.
-    pub restore_described_make_slot: &'static str,
+    restore_described_make_slot: "slot",
     /// Text in `restore_described_make`.
-    pub restore_described_make_slots: &'static str,
+    restore_described_make_slots: "slots",
     // ----- restore_from_vault (faraday-core/src/lib.rs) -----
     /// Text in `restore_from_vault`.
-    pub restore_from_vault_wallet: &'static str,
+    restore_from_vault_wallet: "Wallet",
     /// Text in `restore_from_vault`. `{}`: `keys`, `if keys == 1 { EN.restore_from_vault_…`, `source`.
-    pub restore_from_vault_from: &'static str,
+    restore_from_vault_count: "{} {} from {}",
     /// Text in `restore_from_vault`.
-    pub restore_from_vault_key: &'static str,
+    restore_from_vault_key: "key",
     /// Text in `restore_from_vault`.
-    pub restore_from_vault_keys: &'static str,
+    restore_from_vault_keys: "keys",
     // ----- create_pass_lock (faraday-core/src/lib.rs) -----
     /// Note in `create_pass_lock`.
-    pub create_pass_lock_the: &'static str,
+    create_pass_lock_mismatch: "The two passphrases differ",
     /// Text in `create_pass_lock`. `{}`: `key.label`.
-    pub create_pass_lock_passphrase: &'static str,
+    create_pass_lock_passphrase: "{} · passphrase",
     // ----- create_make (faraday-core/src/lib.rs) -----
     /// Text in `create_make`. `{}`: `self.session.wallets.len() + 1`.
-    pub create_make_new_wallet: &'static str,
+    create_make_new_wallet: "New wallet {}",
     /// Text in `create_make`.
-    pub create_make_made_here: &'static str,
+    create_make_made_here: "Made here",
     // ----- make_pdf (faraday-core/src/lib.rs) -----
     /// Text in `make_pdf`. `{}`: `stem(name)`.
-    pub make_pdf_pdf: &'static str,
+    make_pdf_pdf: "{}.pdf",
     /// Toast in `make_pdf`. `{}`: `e`.
-    pub make_pdf_not_printed: &'static str,
+    make_pdf_not_printed: "Not printed: {}",
     // ----- scanned (faraday-core/src/lib.rs) -----
     /// Text in `scanned`.
-    pub scanned_not_a_seedqr: &'static str,
+    scanned_not_a_seedqr: "Not a SeedQR or a CompactSeedQR",
     /// Text in `scanned`.
-    pub scanned_not_a_psbt: &'static str,
+    scanned_not_a_psbt: "Not a PSBT, a descriptor, an xpub or a signed message",
     /// Toast in `scanned`. `{}`: `name`.
-    pub scanned_is_a_cosigner: &'static str,
+    scanned_is_a_cosigner: "{} is a cosigner's key",
     /// Toast in `scanned`. `{}`: `name`, `slot + 1`.
-    pub scanned_is_key: &'static str,
+    scanned_is_key: "{} is Key {}",
     /// Toast in `scanned`. `{}`: `name`.
-    pub scanned_is_in_files: &'static str,
+    scanned_is_in_files: "{} is in Files",
     // ----- copy_scanned (faraday-core/src/lib.rs) -----
     /// Note in `copy_scanned`.
-    pub copy_scanned_not_a: &'static str,
+    copy_scanned_not_seedqr: "Not a SeedQR",
     // ----- read_code (faraday-core/src/lib.rs) -----
     /// Text in `read_code`.
-    pub read_code_that_is_a: &'static str,
+    read_code_is_seedqr: "That is a SeedQR. Seeds go in through Add a key, not Files",
     /// Text in `read_code`.
-    pub read_code_that_may: &'static str,
+    read_code_that_may: "That may be a CompactSeedQR. Seeds go in through Add a key, not Files",
     /// Text in `read_code`. `{}`: `ur_type`.
-    pub read_code_ur_is_not: &'static str,
+    read_code_ur_unknown: "ur:{} is not a kind this build reads",
     // ----- ur_feed (faraday-core/src/lib.rs) -----
     /// Note in `ur_feed`: a part of another UR message started it again.
-    pub ur_feed_new_qr: &'static str,
+    ur_feed_new_qr: "A new QR started; reading it from the start",
     /// Note in `ur_feed`: a part no decoder reads.
-    pub ur_feed_not_a_part: &'static str,
+    ur_feed_not_a_part: "That QR is not a readable UR part",
     // ----- paste (faraday-core/src/scan_key.rs) -----
     /// Note in `pasted`: the clipboard held a seed's words.
-    pub pasted_words: &'static str,
+    pasted_words: "Those are a seed's words. No seed is taken here",
     /// Note in `pasted`: the clipboard held a SeedQR's digits.
-    pub pasted_seedqr: &'static str,
+    pasted_seedqr: "That is a SeedQR. No seed is taken here",
     /// Note in `pasted`: the clipboard held a private key.
-    pub pasted_private_key: &'static str,
+    pasted_private_key: "That is a private key. A private key is never pasted",
     /// Note in `pasted`: the clipboard held a codex32 string or a SLIP-39
     /// share.
-    pub pasted_share: &'static str,
+    pasted_share: "That is a share of a key. No seed is taken here",
     /// Line in `scan_sheet` for two seconds after Paste found no text.
-    pub pasted_nothing: &'static str,
+    pasted_nothing: "Nothing to paste",
     // ----- address_note (faraday-core/src/lib.rs) -----
     /// Text in `address_note`.
-    pub address_note_that_address_fails: &'static str,
+    address_note_that_address_fails: "That address fails its checksum: a character in it is wrong",
     /// Text in `address_note`. `{}`: `wallet::network_name(net)`.
-    pub address_note_that_address_is_not: &'static str,
+    address_note_wrong_network: "That address is not on {}",
     /// Text in `address_note`.
-    pub address_note_change: &'static str,
+    address_note_change: "change",
     /// Text in `address_note`.
-    pub address_note_receive: &'static str,
+    address_note_receive: "receive",
     /// Text in `address_note`. `{}`: `w.name`, `chain`, `index`.
-    pub address_note_that_address_is: &'static str,
+    address_note_found: "That address is {}'s {} address {}",
     /// Text in `address_note`.
-    pub address_note_that_is: &'static str,
+    address_note_no_wallet: "That is an address. Load a wallet to check whether it is yours",
     /// Text in `address_note`.
-    pub address_note_that_address: &'static str,
+    address_note_that_address: "That address is not among the first 100 of any loaded wallet",
     // ----- open_qr (faraday-core/src/lib.rs) -----
     /// Toast in `open_qr`. `{}`: `e`.
-    pub open_qr_cannot_make: &'static str,
+    open_qr_cannot_make: "Cannot make a code: {}",
     // ----- code_png (faraday-core/src/lib.rs) -----
     /// Toast in `code_png`. `{}`: `e`.
-    pub code_png_cannot_make: &'static str,
+    code_png_cannot_make: "Cannot make a code: {}",
     /// Toast in `code_png`. `{}`: `v.title`.
-    pub code_png_is_more_than: &'static str,
+    code_png_is_more_than: "{} is more than one code",
     // ----- code_view (faraday-core/src/lib.rs) -----
     /// Text in `code_view`. `{}`: `w.name`.
-    pub code_view_threshold: &'static str,
+    code_view_threshold: "{} · threshold record",
     /// Text in `code_view`. `{}`: `sum`.
-    pub code_view_descriptor: &'static str,
+    code_view_descriptor: "Descriptor checksum {}",
     /// Text in `code_view`. `{}`: `w.name`.
-    pub code_view_wallet_descriptor: &'static str,
+    code_view_wallet_descriptor: "{} · wallet descriptor",
     /// Error in `code_view`.
-    pub code_view_this_wallet_has: &'static str,
+    code_view_this_wallet_has: "This wallet has no such file",
     /// Text in `code_view`. `{}`: `w.name`.
-    pub code_view_multisig: &'static str,
+    code_view_multisig: "{} · multisig config",
     /// Text in `code_view`. `{}`: `w.name`.
-    pub code_view_bsms_descriptor: &'static str,
+    code_view_bsms_descriptor: "{} · BSMS descriptor record",
     /// Text in `code_view`.
-    pub code_view_public_watch: &'static str,
+    code_view_public_watch: "Public: watch only, spends nothing",
     /// Error in `code_view`.
-    pub code_view_bip_129_covers: &'static str,
+    code_view_bip_129_covers: "BIP 129 covers wsh and sh(wsh) multisig keys",
     /// Text in `code_view`. `{}`: `k.fp`, `k.kind`.
-    pub code_view_xpub_2: &'static str,
+    code_view_xpub_kind: "Xpub {} · {}",
     /// Error in `code_view`.
-    pub code_view_that_wallet: &'static str,
+    code_view_that_wallet: "That wallet is no longer loaded",
     /// Error in `code_view`.
-    pub code_view_this_wallet_s: &'static str,
+    code_view_this_wallet_s: "This wallet's keys are not account keys",
     /// Error in `code_view`.
-    pub code_view_this_wallet: &'static str,
+    code_view_this_wallet: "This wallet has no such key",
     /// Text in `code_view`.
-    pub code_view_no_origin: &'static str,
+    code_view_no_origin: "no origin",
     /// Text in `code_view`. `{}`: `fp`, `Session::shape(w)`.
-    pub code_view_key: &'static str,
+    code_view_key: "Key {} · {}",
     /// Text in `code_view`. `{}`: `fp`.
-    pub code_view_xpub: &'static str,
+    code_view_xpub: "Xpub {}",
     /// Text in `code_view`.
-    pub code_view_bip_129_key: &'static str,
+    code_view_bip_129_key: "BIP 129 key record, signed by the key",
     /// Text in `code_view`.
-    pub code_view_public_spends: &'static str,
+    code_view_public_spends: "Public: spends nothing",
     /// Text in `code_view`. `{}`: `k.fp`.
-    pub code_view_key_bsms: &'static str,
+    code_view_key_bsms: "Key {} · BSMS record",
     /// Error in `code_view`.
-    pub code_view_no_message: &'static str,
+    code_view_no_message: "No message is signed",
     /// Error in `code_view`.
-    pub code_view_the_message: &'static str,
+    code_view_the_message: "The message is not signed yet",
     /// Text in `code_view`. `{}`: `sig.address`.
-    pub code_view_signed_by: &'static str,
+    code_view_signed_by_address: "Signed by {}",
     /// Text in `code_view`.
-    pub code_view_public_proves: &'static str,
+    code_view_public_proves: "Public: proves who signed, spends nothing",
     /// Text in `code_view`.
-    pub code_view_signed_message: &'static str,
+    code_view_signed_message: "Signed message",
     // ----- wallet_label (faraday-core/src/lib.rs) -----
     /// Text in `wallet_label`.
-    pub wallet_label_key: &'static str,
+    wallet_label_key: "Key",
     /// Text in `wallet_label`.
-    pub wallet_label_keys: &'static str,
+    wallet_label_keys: "Keys",
     // ----- entry_add (faraday-core/src/lib.rs) -----
     /// Toast in `entry_add`. `{}`: `fp_text(fp)`.
-    pub entry_add_key_added: &'static str,
+    entry_add_key_added: "Key {} added",
     // ----- load_key (faraday-core/src/lib.rs) -----
     /// Toast in `load_key`. `{}`: `fp_text(fp)`.
-    pub load_key_key_added: &'static str,
+    load_key_key_added: "Key {} added",
     // ----- qr_read (faraday-core/src/lib.rs) -----
     /// Text in `qr_read`. `{}`: `name`.
-    pub qr_read_copied_no_qr: &'static str,
+    qr_read_copied_no_qr: "Copied {}: no QR code read",
     /// Text in `qr_read`. `{}`: `name`, `got`, `self.medium.noun()`.
-    pub qr_read_a_seedqr_copied: &'static str,
+    qr_read_a_seedqr_copied: "{}: a SeedQR, copied in as {}; its key loads when the {} is removed",
     /// Toast in `qr_read`. `{}`: `got`.
-    pub qr_read_is_in_files: &'static str,
+    qr_read_is_in_files: "{} is in Files",
     /// Text in `qr_read`. `{}`: `name`, `got`.
-    pub qr_read_read_into_files: &'static str,
+    qr_read_read_into_files: "{} read into Files as {}",
     /// Text in `qr_read`.
-    pub qr_read_read: &'static str,
+    qr_read_read: "read",
     // ----- visit_inbox (faraday-core/src/lib.rs) -----
     /// Text in `visit_inbox`.
-    pub visit_inbox_a_png_with: &'static str,
+    visit_inbox_png_no_qr: "A PNG with no QR code read",
     /// Text in `visit_inbox`. `{}`: `screens::kind_name(k).to_lowercase()`.
-    pub visit_inbox_a_png_of: &'static str,
+    visit_inbox_png_kind: "A PNG of {}",
     /// Text in `visit_inbox`.
-    pub visit_inbox_a_file: &'static str,
+    visit_inbox_a_file: "A file Faraday does not read",
     /// Text in `visit_inbox`.
-    pub visit_inbox_whoever_has_it_holds: &'static str,
+    visit_inbox_whoever_has_it_holds: "Whoever has it holds the key: spends its coins, or signs as it",
     /// Text in `visit_inbox`.
-    pub visit_inbox_whoever_has_enough: &'static str,
+    visit_inbox_whoever_has_enough: "Whoever has enough parts holds the key",
     /// Text in `visit_inbox`.
-    pub visit_inbox_whoever_has_it: &'static str,
+    visit_inbox_vault_warning: "Whoever has it reads every password and code in it",
     /// Text in `visit_inbox`.
-    pub visit_inbox_whoever_has: &'static str,
+    visit_inbox_whoever_has: "Whoever has it and a share's signature can work out that share",
     /// Text in `visit_inbox`.
-    pub visit_inbox_whoever: &'static str,
+    visit_inbox_whoever: "Whoever has it reads it",
     // ----- sign_here (faraday-core/src/lib.rs) -----
     /// Text in `sign_here`. `{}`: `waiting.join(", ")`.
-    pub sign_here_waits_for: &'static str,
+    sign_here_backup_first: "{} waits for its backup: finish the backup first",
     /// Error in `sign_here`.
-    pub sign_here_no_randomness: &'static str,
+    sign_here_no_randomness: "No randomness from the system yet. Try again",
     /// Text in `sign_here`.
-    pub sign_here_this_transaction: &'static str,
+    sign_here_this_transaction: "This transaction was signed here before with other amounts for its inputs. It is refused.",
     /// Text in `sign_here`. `{}`: `want`, `if want == 1 { EN.sign_here_share } e…`.
-    pub sign_here_choose_other: &'static str,
+    sign_here_choose_other: "Choose {} other {} under Signers",
     /// Text in `sign_here`.
-    pub sign_here_share: &'static str,
+    sign_here_share: "share",
     /// Text in `sign_here`.
-    pub sign_here_shares: &'static str,
+    sign_here_shares: "shares",
     /// Toast in `sign_here`.
-    pub sign_here_this_device: &'static str,
+    sign_here_this_device: "This device's nonce is on the PSBT: carry it to the other signers",
     // ----- collect (faraday-core/src/lib.rs) -----
     /// Error in `collect`. `{}`: `name`.
-    pub collect_has_nothing: &'static str,
+    collect_has_nothing: "{} has nothing this copy lacks",
     /// Error in `collect`.
-    pub collect_no_randomness: &'static str,
+    collect_no_randomness: "No randomness from the system yet. Try again",
     // ----- primary (faraday-core/src/lib.rs) -----
     /// Error in `primary`. `{}`: `pos + 1`.
-    pub primary_finish_step: &'static str,
+    primary_finish_step: "Finish step {} first",
     // ----- event (faraday-core/src/lib.rs) -----
     /// Line in `scan_sheet` after `CameraUnavailable`.
-    pub event_no_camera_or: &'static str,
+    event_no_camera: "No camera, or the camera was refused",
     // ----- lightning (faraday-core/src/lightning/mod.rs) -----
     /// Error in `lightning_resolve`.
-    pub lightning_this_key: &'static str,
+    lightning_this_key: "This key has no BIP-39 seed",
     /// Error in `lightning_resolve`. `{}`: `words.len()`.
-    pub lightning_an_aezeed: &'static str,
+    lightning_an_aezeed: "An aezeed is 24 words; {} are typed",
     /// Error in `lightning_resolve`. `{}`: `k + 1`.
-    pub lightning_word_is_not: &'static str,
+    lightning_word_not_in_list: "Word {} is not on the list",
     /// Text in `lightning_resolve`. `{}`: `e`.
-    pub lightning_not_an_aezeed: &'static str,
+    lightning_not_an_aezeed: "Not an aezeed for this passphrase: {}",
     /// Toast in `lightning_act`.
-    pub lightning_no_vault: &'static str,
+    lightning_no_vault: "No vault is open",
     /// Text in `lightning_act`. `{}`: `id`, `private.as_str()`.
-    pub lightning_lightning: &'static str,
+    lightning_lightning: "Lightning node key\nnode id {}\nprivate key {}",
     /// Toast in `lightning_act`.
-    pub lightning_the_node: &'static str,
+    lightning_the_node: "The node key is in the vault",
     /// Text in `lightning_act`.
-    pub lightning_a_lightning: &'static str,
+    lightning_a_lightning: "A Lightning node's private key",
     /// Text in `lightning_act`.
-    pub lightning_whoever_has: &'static str,
+    lightning_whoever_has: "Whoever has it is the node: its channels and their money",
     // ----- lightning (faraday-core/src/lightning/screen.rs) -----
     /// Text in `draw`.
-    pub lightning_a_lightning_node: &'static str,
+    lightning_a_lightning_node: "A Lightning node's key, made the way its software makes it: ldk-node from a BIP-39 key, LND from its own 24-word cipher seed. Its public key is the node id, safe to share; its private key is the node, and goes into a vault.",
     /// Line in `header`.
-    pub lightning_wallets: &'static str,
+    lightning_wallets: "Wallets",
     /// Title in `header`.
-    pub lightning_lightning_node: &'static str,
+    lightning_lightning_node: "Lightning node key",
     /// Text in `body`. `{}`: `crate::wallet::key_line(fp, &k.label)`.
-    pub lightning_ldk_node: &'static str,
+    lightning_ldk_node: "ldk-node · {}",
     /// Text in `body`.
-    pub lightning_lnd_type: &'static str,
+    lightning_lnd_type: "LND · type an aezeed",
     /// Text in `body`.
-    pub lightning_the_24_words: &'static str,
+    lightning_the_24_words: "The 24 words",
     /// Text in `body`. `{}`: `n`.
-    pub lightning_of_24: &'static str,
+    lightning_word_count: "{} of 24",
     /// Line in `body`.
-    pub lightning_passphrase: &'static str,
+    lightning_passphrase: "Passphrase",
     /// Text in `body`.
-    pub lightning_aezeed_lnd: &'static str,
+    lightning_aezeed_lnd: "aezeed (LND's default)",
     /// Button in `body`.
-    pub lightning_read_it: &'static str,
+    lightning_read_button: "Read it",
     /// Line in `body`.
-    pub lightning_node_id: &'static str,
+    lightning_node_id: "Node id",
     /// Line in `body`.
-    pub lightning_made: &'static str,
+    lightning_made: "Made",
     /// Line in `body`.
-    pub lightning_private_key: &'static str,
+    lightning_private_key: "Private key",
     /// Text in `body`.
-    pub lightning_hide: &'static str,
+    lightning_hide: "Hide",
     /// Text in `body`.
-    pub lightning_show: &'static str,
+    lightning_show: "Show",
     /// Text in `body`. `{}`: `v.name`.
-    pub lightning_save_into: &'static str,
+    lightning_save_into: "Save into {}",
     /// Text in `body`.
-    pub lightning_out_unprotected: &'static str,
+    lightning_out_unprotected: "Out unprotected…",
     // ----- medium (faraday-core/src/medium.rs) -----
     /// Text in `noun`.
-    pub medium_stick_inline: &'static str,
+    medium_stick_inline: "stick",
     /// Text in `nouns`.
-    pub medium_sticks_inline: &'static str,
+    medium_sticks_inline: "sticks",
     /// Text in `a`.
-    pub medium_a_stick_inline: &'static str,
+    medium_a_stick_inline: "a stick",
     /// Text in `a`.
-    pub medium_an_sd_card_inline: &'static str,
+    medium_an_sd_card_inline: "an SD card",
     /// Text in `cap`.
-    pub medium_stick: &'static str,
+    medium_stick: "Stick",
     /// Text in `caps`.
-    pub medium_sticks: &'static str,
+    medium_sticks: "Sticks",
     /// Text in `caps`.
-    pub medium_sd_cards: &'static str,
+    medium_sd_cards: "SD cards",
     /// Text in `a_cap`.
-    pub medium_a_stick: &'static str,
+    medium_a_stick: "A stick",
     /// Text in `full`.
-    pub medium_usb_stick: &'static str,
+    medium_usb_stick: "USB stick",
     /// Text in `full`.
-    pub medium_sd_card: &'static str,
+    medium_sd_card: "SD card",
     /// Text in `a_full_cap`.
-    pub medium_a_usb_stick: &'static str,
+    medium_a_usb_stick: "A USB stick",
     /// Text in `a_full_cap`.
-    pub medium_an_sd_card: &'static str,
+    medium_an_sd_card: "An SD card",
     /// Text in `from_box`.
-    pub medium_from_the_stick: &'static str,
+    medium_from_the_stick: "From the stick",
     /// Text in `from_box`.
-    pub medium_from_the_sd_card: &'static str,
+    medium_from_the_sd_card: "From the SD card",
     /// Text in `for_box`.
-    pub medium_for_the_stick: &'static str,
+    medium_for_the_stick: "For the stick",
     /// Text in `for_box`.
-    pub medium_for_the_sd_card: &'static str,
+    medium_for_the_sd_card: "For the SD card",
     /// Text in `on_box`.
-    pub medium_on_box_stick: &'static str,
+    medium_on_box_stick: "On the stick",
     /// Text in `on_box`.
-    pub medium_on_box_sd_card: &'static str,
+    medium_on_box_sd_card: "On the SD card",
     /// Text in `on_this_box`.
-    pub medium_on_this_stick: &'static str,
+    medium_on_this_stick: "On this stick",
     /// Text in `on_this_box`.
-    pub medium_on_this_sd_card: &'static str,
+    medium_on_this_sd_card: "On this SD card",
     /// Text in `from_the`.
-    pub medium_from_the_stick_inline: &'static str,
+    medium_from_the_stick_inline: "from the stick",
     /// Text in `from_the`.
-    pub medium_from_the_sd: &'static str,
+    medium_from_the_sd: "from the SD card",
     /// Text in `on_the`.
-    pub medium_on_the_stick: &'static str,
+    medium_on_the_stick: "on the stick",
     /// Text in `on_the`.
-    pub medium_on_the_sd_card: &'static str,
+    medium_on_the_sd_card: "on the SD card",
     /// Text in `for_the`.
-    pub medium_for_the_stick_inline: &'static str,
+    medium_for_the_stick_inline: "for the stick",
     /// Text in `for_the`.
-    pub medium_for_the_sd_card_inline: &'static str,
+    medium_for_the_sd_card_inline: "for the SD card",
     /// Text in `visit`.
-    pub medium_stick_visit: &'static str,
+    medium_stick_visit: "Stick visit",
     /// Text in `visit`.
-    pub medium_sd_card_visit: &'static str,
+    medium_sd_card_visit: "SD card visit",
     /// Text in `upgrade`.
-    pub medium_upgrade_a_faraday_stick: &'static str,
+    medium_upgrade_a_faraday_stick: "Upgrade a Faraday stick",
     /// Text in `upgrade`.
-    pub medium_upgrade_a_faraday: &'static str,
+    medium_upgrade_a_faraday: "Upgrade a Faraday SD card",
     /// Text in `boot`.
-    pub medium_boot_stick: &'static str,
+    medium_boot_stick: "Boot stick",
     /// Text in `boot`.
-    pub medium_boot_sd_card: &'static str,
+    medium_boot_sd_card: "Boot SD card",
     // ----- paper (faraday-core/src/paper.rs) -----
     /// Toast in `paper_xor`.
-    pub paper_this_key_has_no: &'static str,
+    paper_no_words_to_split: "This key has no words to split",
     /// Toast in `paper_codex32`.
-    pub paper_this_key_has: &'static str,
+    paper_this_key_has: "This key has no words to make a seed from",
     /// Toast in `paper_codex32`.
-    pub paper_no_randomness: &'static str,
+    paper_no_randomness: "No randomness from the system yet. Try again",
     /// Toast in `paper_codex32`. `{}`: `e`.
-    pub paper_codex32: &'static str,
+    paper_codex32: "codex32: {}",
     // ----- pdf (faraday-core/src/pdf.rs) -----
     /// Error in `fields`.
-    pub pdf_not_a_faraday_sheet: &'static str,
+    pdf_not_a_faraday_sheet: "not a Faraday sheet",
     /// Text in `sheet`. `{}`: `other`.
-    pub pdf_a_sheet_of_kind: &'static str,
+    pdf_a_sheet_of_kind: "a sheet of kind {} is not one this build prints",
     /// Text in `wallet_sheet`. `{}`: `name`.
-    pub pdf_wallet_backup: &'static str,
+    pdf_wallet_backup: "{} · wallet backup",
     /// Line in `wallet_sheet`.
-    pub pdf_xpubs_only_this: &'static str,
+    pdf_xpubs_only_note: "Xpubs only. This sheet spends nothing; with the seeds it rebuilds the wallet.",
     /// Line in `wallet_sheet`.
-    pub pdf_descriptor: &'static str,
+    pdf_descriptor: "Descriptor",
     /// Line in `wallet_sheet`.
-    pub pdf_xpubs: &'static str,
+    pdf_xpubs: "Xpubs",
     /// Line in `wallet_sheet`.
-    pub pdf_first_addresses: &'static str,
+    pdf_first_addresses: "First addresses",
     /// Text in `wallet_sheet`.
-    pub pdf_written_on: &'static str,
+    pdf_written_on_label: "Written on",
     /// Text in `wallet_sheet`.
-    pub pdf_kept_at: &'static str,
+    pdf_kept_at_label: "Kept at",
     /// Text in `wallet_sheet`.
-    pub pdf_goes_with_seed: &'static str,
+    pdf_goes_with_seed: "Goes with seed of key",
     /// Line in `wallet_sheet`.
-    pub pdf_made_by_faraday_check: &'static str,
+    pdf_made_by_faraday_check: "Made by Faraday. Check the first address against your wallet software before relying on this sheet.",
     /// Text in `envelopes_sheet`. `{}`: `name`.
-    pub pdf_envelopes: &'static str,
+    pdf_envelopes: "{} · envelopes",
     /// Text in `share_sheet`.
-    pub pdf_wallet: &'static str,
+    pdf_wallet: "Wallet",
     /// Text in `share_sheet`. `{}`: `name`, `part`.
-    pub pdf_split_backup_sheet: &'static str,
+    pdf_split_backup_sheet: "{} · split backup, sheet {}",
     /// Text in `share_sheet`. `{}`: `quorum`.
-    pub pdf_part_of_the_wallet: &'static str,
+    pdf_part_of_the_wallet: "Part of the wallet's descriptor: xpubs only, it spends nothing. Sheets enough to hold every xpub ({} wallet) rebuild it.",
     /// Line in `share_sheet`.
-    pub pdf_made_by_faraday: &'static str,
+    pdf_made_by_faraday: "Made by Faraday. Scan the code into Faraday, or type the lines, one sheet at a time.",
     /// Error in `blank_sheet`.
-    pub pdf_the_template_is: &'static str,
+    pdf_template_word_count: "the template is for 12 or 24 words",
     /// Text in `blank_sheet`. `{}`: `words`.
-    pub pdf_seed_sheet_words: &'static str,
+    pdf_seed_sheet_words: "Seed sheet · {} words",
     /// Line in `blank_sheet`.
-    pub pdf_written_by_hand: &'static str,
+    pdf_written_by_hand: "Written by hand. Never photographed, scanned or printed once filled in.",
     /// Text in `blank_sheet`. `{}`: `get(f, "network").unwrap_or("mainnet")`.
-    pub pdf_network: &'static str,
+    pdf_network: "Network: {}",
     /// Text in `blank_sheet`.
-    pub pdf_fingerprint: &'static str,
+    pdf_fingerprint: "Fingerprint",
     /// Text in `blank_sheet`.
-    pub pdf_first_address: &'static str,
+    pdf_first_address: "First address",
     /// Line in `blank_sheet`.
-    pub pdf_there_is_no_line: &'static str,
+    pdf_there_is_no_line: "There is no line for a passphrase. Written beside the words, it would stop being a second factor.",
     /// The blank template's footer, on every page.
-    pub pdf_print_actual_size: &'static str,
+    pdf_print_actual_size: "Print at 100% (actual size).",
     /// Line in `blank_sheet`.
-    pub pdf_places: &'static str,
+    pdf_places: "Places",
     /// Line in `blank_sheet`.
-    pub pdf_place: &'static str,
+    pdf_place: "Place",
     /// Line in `blank_sheet`.
-    pub pdf_holds: &'static str,
+    pdf_holds: "holds",
     // ----- plan (faraday-core/src/plan/mod.rs) -----
     /// Text in `vault_name`. `{}`: `v + 1`, `names.join(", ")`.
-    pub plan_vault_2: &'static str,
+    plan_vault_names: "Vault {} · {}",
     /// Text in `label`. `{}`: `seed(i)`.
-    pub plan_seed_words: &'static str,
+    plan_seed_words: "Seed {}: words",
     /// Text in `label`. `{}`: `seed(i)`.
-    pub plan_seed_seedqr: &'static str,
+    plan_seed_seedqr: "Seed {}: SeedQR",
     /// Text in `label`. `{}`: `seed(i)`.
-    pub plan_passphrase_of: &'static str,
+    plan_passphrase_label: "Passphrase of {}",
     /// Text in `label`.
-    pub plan_wallet_sheet: &'static str,
+    plan_wallet_sheet: "Wallet sheet",
     /// Text in `label`. `{}`: `j + 1`, `shape.keys`.
-    pub plan_share_of: &'static str,
+    plan_share_count: "Share {} of {}",
     /// Text in `label`. `{}`: `medium.cap()`, `v + 1`.
-    pub plan_with_vault: &'static str,
+    plan_with_vault: "{} with Vault {}",
     /// Text in `label`. `{}`: `seed(i)`.
-    pub plan_seed: &'static str,
+    plan_seed: "Seed {}",
     /// Text in `label`. `{}`: `seed(i)`.
-    pub plan_seed_with_its: &'static str,
+    plan_seed_with_passphrase: "Seed {} with its passphrase",
     /// Text in `label`.
-    pub plan_wallet_description: &'static str,
+    plan_wallet_description: "Wallet description",
     /// Text in `label`. `{}`: `seed(i)`.
-    pub plan_seed_file: &'static str,
+    plan_seed_file: "Seed {}: file",
     /// Text in `label`. `{}`: `seed(i)`.
-    pub plan_seedqr_file: &'static str,
+    plan_seedqr_file: "Seed {}: SeedQR file",
     /// Text in `label`. `{}`: `seed(i)`.
-    pub plan_passphrase_file: &'static str,
+    plan_passphrase_file: "Passphrase of {}: file",
     /// Text in `label`. `{}`: the form, `form_name`.
-    pub plan_wallet_file: &'static str,
+    plan_wallet_file: "Wallet description · {}",
     /// Text in `label`. `{}`: the share, how many, the form.
-    pub plan_share_file: &'static str,
+    plan_share_file: "Share {} of {} · {}",
     /// Text in `label`.
-    pub plan_software_file: &'static str,
+    plan_software_file: "Watch-only software file",
     /// A public file's form, in `form_name`.
-    pub plan_form_text_file: &'static str,
+    plan_form_text_file: "Text file",
     /// A public file's form, in `form_name`.
-    pub plan_form_qr_picture: &'static str,
+    plan_form_qr_picture: "QR picture",
     /// A node's thing on the chart. `{}`: the key's number.
-    pub glance_key_seedqr_file: &'static str,
+    glance_key_seedqr_file: "Key {} SeedQR file",
     /// A node's thing on the chart. `{}`: the key's number.
-    pub glance_passphrase_file: &'static str,
+    glance_passphrase_file: "Passphrase {} file",
     /// Text in `text`.
-    pub plan_yes_with_the_vault: &'static str,
+    plan_yes_with_the_vault: "Yes, with the vault's passphrase",
     /// Text in `text`.
-    pub plan_yes: &'static str,
+    plan_yes: "Yes",
     /// Text in `text`.
-    pub plan_only_with_the: &'static str,
+    plan_only_with_passphrase: "Only with the vault's passphrase",
     /// Text in `text`.
-    pub plan_no: &'static str,
+    plan_no: "No",
     /// Text in `CHECK_LINES`.
-    pub plan_any_one_place: &'static str,
+    plan_any_one_place: "Any one place lost: the rest rebuild the wallet",
     /// Text in `CHECK_LINES`.
-    pub plan_one_place_found_can: &'static str,
+    plan_one_place_found_can: "One place found: can spend",
     /// Text in `CHECK_LINES`.
-    pub plan_one_place_found: &'static str,
+    plan_one_place_found: "One place found: sees the balance",
     /// Text in `text`.
-    pub plan_can_spend: &'static str,
+    plan_can_spend: "Can spend",
     /// Text in `text`.
-    pub plan_sees_the_balance_can: &'static str,
+    plan_sees_the_balance_can: "Sees the balance · can spend with the vault's passphrase",
     /// Text in `text`.
-    pub plan_can_spend_with: &'static str,
+    plan_can_spend_passphrase: "Can spend with the vault's passphrase",
     /// Text in `text`.
-    pub plan_sees_the_balance_2: &'static str,
+    plan_sees_balance: "Sees the balance",
     /// Text in `text`.
-    pub plan_sees_the_balance: &'static str,
+    plan_sees_the_balance: "Sees the balance with the vault's passphrase",
     /// Text in `text`.
-    pub plan_nothing: &'static str,
+    plan_nothing: "Cannot see balance",
     /// Text in `lost_why`.
-    pub plan_at_no_place: &'static str,
+    plan_at_no_place: "at no place",
     /// Text in `lost_why`. `{}`: `v + 1`, `noun`, `stick_text(*v)`.
-    pub plan_vault_whose_is: &'static str,
+    plan_lost_vault_medium: "Vault {}, whose {} is {}",
     /// Text in `lost_why`. `{}`: `w`.
-    pub plan_in: &'static str,
+    plan_lost_in: "in {}",
     /// Text in `lost_why`. `{}`: `w`.
-    pub plan_on: &'static str,
+    plan_lost_on: "on {}",
     /// Text in `lost_why`. `{}`: `w`.
-    pub plan_at: &'static str,
+    plan_lost_at: "at {}",
     /// Text in `lost_why`. `{}`: `name_at(gone, name, noun)`.
-    pub plan_with: &'static str,
+    plan_lost_with: "with {}",
     /// Text in `lost_why`. `{}`: `seed`, `line`.
-    pub plan_seed_is_kept_only: &'static str,
+    plan_seed_is_kept_only: "Seed {} is kept only {}",
     /// Text in `lost_why`. `{}`: `seed`, `name_at(gone, name, noun)`.
-    pub plan_the_passphrase_of: &'static str,
+    plan_lost_passphrase_only: "The passphrase of {} is kept only with {}",
     /// Text in `lost_why`. `{}`: `name_at(gone, name, noun)`.
-    pub plan_without_the_rest: &'static str,
+    plan_without_the_rest: "Without {}, the rest do not rebuild the wallet",
     /// Text in `name_at`. `{}`: `v + 1`.
-    pub plan_vault: &'static str,
+    plan_vault: "Vault {}",
     /// Text in `name_at`. `{}`: `noun`.
-    pub plan_the_of_files: &'static str,
+    plan_the_of_files: "the {} of files",
     /// Text in `name_at`.
-    pub plan_the_software: &'static str,
+    plan_the_software: "the software",
     /// Text in `name_at`.
-    pub plan_the_devices: &'static str,
+    plan_the_devices: "the devices",
     /// Text in `kept_nowhere`. `{}`: `seed.name`.
-    pub plan_seed_is_kept_nowhere: &'static str,
+    plan_seed_is_kept_nowhere: "Seed {} is kept nowhere",
     /// Text in `kept_nowhere`. `{}`: `seed.name`.
-    pub plan_the_passphrase: &'static str,
+    plan_the_passphrase: "The passphrase of {} is kept nowhere",
     /// A thing's tag on the map, as `Tag::Secret` shows.
-    pub plan_tag_secret: &'static str,
+    plan_tag_secret: "secret",
     /// A thing's tag on the map, as `Tag::Sealed` shows.
-    pub plan_tag_sealed: &'static str,
+    plan_tag_sealed: "sealed",
     /// A thing's tag on the map, as `Tag::Public` shows.
-    pub plan_tag_public: &'static str,
+    plan_tag_public: "public",
     /// A thing's mark on the chart.
-    pub plan_mark_lost: &'static str,
+    plan_mark_lost: "lost",
     /// A thing's mark on the chart.
-    pub plan_mark_exposed: &'static str,
+    plan_mark_exposed: "exposed",
     /// A thing's mark on the chart: a SeedQR dropped for the words.
-    pub plan_mark_drawn_in_part: &'static str,
+    plan_mark_drawn_in_part: "drawn in part",
     // ----- restore (faraday-core/src/restore.rs) -----
     /// Error in `merge`.
-    pub restore_not_a_multisig: &'static str,
+    restore_not_a_multisig: "not a multisig config",
     /// Error in `merge`.
-    pub restore_these_shares: &'static str,
+    restore_these_shares: "these shares are of different wallets",
     /// Error in `merge`.
-    pub restore_no_shares: &'static str,
+    restore_no_shares: "no shares",
     // ----- scan_key (faraday-core/src/scan_key.rs) -----
     /// Text in `not_a_wallet_key`. `{}`: `fp_text(fp)`, `name`.
-    pub scan_key_is_not_one: &'static str,
+    scan_key_is_not_one: "{} is not one of {}'s keys",
     /// Text in `wallet_key_lines`. `{}`: `n + 1`, `fp_text(fp)`.
-    pub scan_key_key: &'static str,
+    scan_key_key: "Key {} · {}",
     /// Note in `wallet_key_scanned`.
-    pub scan_key_not_a_seedqr: &'static str,
+    scan_key_not_a_seedqr: "Not a SeedQR or a CompactSeedQR",
     /// Note in `wallet_key_scanned`. `{}`: `n + 1`.
-    pub scan_key_key_already: &'static str,
+    scan_key_key_already: "Key {} · already here",
     /// Toast in `wallet_key_said`. `{}`: `n + 1`, `short`.
-    pub scan_key_key_added_more: &'static str,
+    scan_key_key_added_more: "Key {} added · {} more",
     /// Toast in `wallet_key_said`. `{}`: `n + 1`.
-    pub scan_key_key_added: &'static str,
+    scan_key_key_added: "Key {} added · Can spend",
     // ----- held_frame (faraday-core/src/screens/mod.rs) -----
     /// Text in `held_frame`.
-    pub held_frame_home: &'static str,
+    held_frame_home: "Home",
     // ----- notices (faraday-core/src/screens/mod.rs) -----
     /// Text in `notices`. `{}`: `app.medium.noun()`.
-    pub notices_remove_the: &'static str,
+    notices_remove_medium: "Remove the {} to keep working",
     // ----- sidebar (faraday-core/src/screens/sidebar.rs) -----
     /// Text in `sidebar`.
-    pub sidebar_home: &'static str,
+    sidebar_home: "Home",
     /// Text in `sidebar`.
-    pub sidebar_vaults: &'static str,
+    sidebar_vaults: "Vaults",
     /// Text in `sidebar`.
-    pub sidebar_tools: &'static str,
+    sidebar_tools: "Tools",
     /// Text in `sidebar`.
-    pub sidebar_transfer: &'static str,
+    sidebar_transfer: "Transfer",
     /// Text in `sidebar`.
-    pub sidebar_settings: &'static str,
+    sidebar_settings: "Settings",
     /// Text in `sidebar`. `{}`: `v`.
-    pub sidebar_open_n: &'static str,
+    sidebar_open_n: "{} open",
     /// Row in `sidebar`.
-    pub sidebar_learn: &'static str,
+    sidebar_learn: "Learn",
     /// Text in `sidebar`.
-    pub sidebar_bring_in: &'static str,
+    sidebar_bring_in_button: "Bring in",
     /// Text in `sidebar`.
-    pub sidebar_open: &'static str,
+    sidebar_open: "Open",
     /// Text in `sidebar`.
-    pub sidebar_work: &'static str,
+    sidebar_work: "Work",
     /// Text in `sidebar`.
-    pub sidebar_write_out: &'static str,
+    sidebar_write_out: "Write out",
     /// Text in `sidebar`.
-    pub sidebar_passphrase: &'static str,
+    sidebar_passphrase: "passphrase",
     /// Text in `sidebar`. `{}`: `total - shown`.
-    pub sidebar_more: &'static str,
+    sidebar_more: "+ {} more",
     /// Text in `sidebar`.
-    pub sidebar_keys: &'static str,
+    sidebar_keys: "Keys",
     /// Text in `sidebar`. `{}`: `m`, `n`.
-    pub sidebar_of: &'static str,
+    sidebar_count: "{} of {}",
     /// Text in `sidebar`.
-    pub sidebar_single_key: &'static str,
+    sidebar_single_key: "single key",
     /// Text in `sidebar`.
-    pub sidebar_wallets: &'static str,
+    sidebar_wallets: "Wallets",
     /// Line in `sidebar`.
-    pub sidebar_files: &'static str,
+    sidebar_files: "Files",
     /// Text in `sidebar`.
-    pub sidebar_import_waiting: &'static str,
+    sidebar_import_waiting: "import waiting",
     /// Text in `sidebar`.
-    pub sidebar_none: &'static str,
+    sidebar_none: "none",
     /// Text in `sidebar`. `{}`: `k`.
-    pub sidebar_attached: &'static str,
+    sidebar_attached: "{} attached",
     /// Button in `sidebar`.
-    pub sidebar_lock: &'static str,
+    sidebar_lock: "Lock",
     /// A flow in progress's name, in `sidebar` and the small Home
     /// (`in_progress`).
-    pub sidebar_flow_create: &'static str,
+    sidebar_flow_create: "Make a new wallet",
     /// A flow in progress's name (`in_progress`).
-    pub sidebar_flow_restore: &'static str,
+    sidebar_flow_restore: "Restore a wallet",
     /// A flow in progress's name (`in_progress`).
-    pub sidebar_flow_backup: &'static str,
+    sidebar_flow_backup: "Back up a wallet",
     /// A flow in progress's name (`in_progress`).
-    pub sidebar_flow_spend: &'static str,
+    sidebar_flow_spend: "Spend",
     /// A flow in progress's name (`in_progress`).
-    pub sidebar_flow_message: &'static str,
+    sidebar_flow_message: "Sign a message",
     /// A flow in progress's name (`in_progress`).
-    pub sidebar_flow_vault: &'static str,
+    sidebar_flow_vault: "Create a vault",
     /// A wallet's backup flow in progress (`in_progress`). `{}`: the
     /// wallet's name.
-    pub sidebar_flow_backup_of: &'static str,
+    sidebar_flow_backup_wallet: "Backup of {}",
     // ----- home_lead (faraday-core/src/screens/home.rs) -----
     /// Text in `home_lead`.
-    pub home_lead_make_a_new: &'static str,
+    home_lead_make_a_new: "Make a new wallet",
     /// Text in `home_lead`.
-    pub home_lead_single_key: &'static str,
+    home_lead_single_key: "Single key or multisig",
     // ----- home_job (faraday-core/src/screens/home.rs) -----
     /// Text in `home_job`.
-    pub home_job_carry_on_the: &'static str,
+    home_job_carry_on_spend: "Carry on the spend",
     /// Text in `home_job`. `{}`: `w.name`, `s.signers.len()`, `app.spend_needed()`.
-    pub home_job_signatures: &'static str,
+    home_job_signatures: "{} · Signatures {} of {}",
     /// Text in `home_job`. `{}`: `s.spend.source`.
-    pub home_job_continue_signing: &'static str,
+    home_job_continue_signing: "Continue signing {}",
     /// Text in `home_job`. `{}`: `s.signers.len()`, `app.spend_needed()`.
-    pub home_job_of_signatures: &'static str,
+    home_job_of_signatures: "{} of {} signatures",
     /// Text in `home_job`. `{}`: `app.inbox[i].name`.
-    pub home_job_sign: &'static str,
+    home_job_sign: "Sign {}",
     /// Text in `home_job`.
-    pub home_job_from_files: &'static str,
-    /// Text in `home_job`. `{}`: `app.medium.noun()`.
-    pub home_job_remove_the: &'static str,
+    home_job_from_files: "From Files",
     /// Text in `home_job`. `{}`: `imp.label`.
-    pub home_job_read_from: &'static str,
+    home_job_read_source: "Read from {}",
     /// Text in `home_job`. `{}`: `imp.label`.
-    pub home_job_import_from: &'static str,
+    home_job_import_source: "Import from {}",
     /// Text in `home_job`. `{}`: `r.label`.
-    pub home_job_written_to: &'static str,
+    home_job_written_target: "Written to {}",
     /// Text in `home_job`. `{}`: `f.name`.
-    pub home_job_in_files: &'static str,
+    home_job_in_files: "{} · in Files",
     /// Text in `home_job`. `{}`: `name`.
-    pub home_job_unlock: &'static str,
+    home_job_unlock: "Unlock {}",
     /// Text in `home_job`. `{}`: `app.medium.noun()`.
-    pub home_job_pull_the_to: &'static str,
+    home_job_pull_to_unlock: "Pull the {} to unlock",
     /// Text in `home_job`. `{}`: `name`, `app.medium.a()`.
-    pub home_job_write_to: &'static str,
+    home_job_write_target: "Write {} to {}",
     // ----- home_ways (faraday-core/src/screens/home.rs) -----
     /// Text in `home_ways`.
-    pub home_ways_make_a_new: &'static str,
+    home_ways_make_a_new: "Make a new wallet",
     /// Text in `home_ways`.
-    pub home_ways_single_key: &'static str,
+    home_ways_single_key: "Single key or multisig",
     /// Text in `home_ways`.
-    pub home_ways_restore_an: &'static str,
+    home_ways_restore_wallet: "Restore an existing wallet",
     /// Text in `home_ways`.
-    pub home_ways_from_its: &'static str,
+    home_ways_restore_line: "From its backups",
     /// Text in `home_ways`.
-    pub home_ways_spend_from: &'static str,
+    home_ways_spend_backup: "Spend from a backup, step by step",
     /// Text in `home_ways`.
-    pub home_ways_a_stick_words: &'static str,
+    home_ways_a_stick_words: "A stick, words, or paper",
     /// Text in `home_ways`.
-    pub home_ways_create_a: &'static str,
+    home_ways_create_vault: "Create a vault",
     /// Text in `home_ways`.
-    pub home_ways_none_yet: &'static str,
+    home_ways_none_yet: "None yet",
     /// Text in `home_ways`.
-    pub home_ways_vaults: &'static str,
+    home_ways_vaults: "Vaults",
     /// Text in `home_ways`. `{}`: `vault_files`.
-    pub home_ways_locked: &'static str,
+    home_ways_locked: "{} locked",
     /// Text in `home_ways`. `{}`: `open`.
-    pub home_ways_open: &'static str,
+    home_ways_open: "{} open",
     /// Text in `home_ways`.
-    pub home_ways_a_stick_attached: &'static str,
+    home_ways_a_stick_attached: "A stick attached",
     /// Text in `home_ways`.
-    pub home_ways_backups: &'static str,
+    home_ways_backups: "Backups",
     /// Text in `home_ways`. `{}`: `known.len()`.
-    pub home_ways_with_a_plan: &'static str,
+    home_ways_with_a_plan: "{} with a plan",
     /// Text in `home_ways`. `{}`: `without`.
-    pub home_ways_not_backed: &'static str,
+    home_ways_not_backed: "{} not backed up",
     // ----- home (faraday-core/src/screens/home.rs) -----
     /// Title in `home`.
-    pub home_home: &'static str,
+    home_home: "Home",
     /// Section label in `home`.
-    pub home_start: &'static str,
+    home_start: "Start",
     /// Button in `home`.
-    pub home_scan: &'static str,
+    home_scan: "Scan",
     // ----- start (faraday-core/src/screens/wallets_start.rs) -----
     /// Title in `start`.
-    pub start_wallets: &'static str,
+    start_wallets: "Wallets",
     /// Text in `start`. `{}`: `app.medium.a()`.
-    pub start_no_wallet_is: &'static str,
+    start_no_wallet_loaded: "No wallet is loaded. Create one with new keys or keys you load here, or restore one from its backups: {}, a vault or paper.",
     /// Text in `start`.
-    pub start_start_from_what: &'static str,
+    start_start_from_what: "Start from what you have in front of you. Every way in ends at the same place: the wallet, with each of its keys marked as here, elsewhere or missing, and the one thing still to do.",
     /// Section label in `start`.
-    pub start_your_wallets: &'static str,
+    start_your_wallets: "Your wallets",
     /// Section label in `start`.
-    pub start_keys_without: &'static str,
+    start_keys_without: "Keys without a wallet",
     /// Text in `start`.
-    pub start_make_a_new_wallet: &'static str,
+    start_make_a_new_wallet: "Make a new wallet",
     /// Text in `start`.
-    pub start_single_key_or: &'static str,
+    start_create_line: "Single key or multisig",
     /// Text in `start`.
-    pub start_restore_an_existing: &'static str,
+    start_restore_an_existing: "Restore an existing wallet",
     /// Text in `start`.
-    pub start_from_its_backups: &'static str,
+    start_from_its_backups: "From its backups",
     /// Text in `start`.
-    pub start_spend_from_a: &'static str,
+    start_spend_backup: "Spend from a backup, step by step",
     /// Text in `start`.
-    pub start_a_stick_words: &'static str,
+    start_a_stick_words: "A stick, words, or paper",
     /// Text in `start`.
-    pub start_add_a_key: &'static str,
+    start_add_a_key: "Add a key",
     /// Text in `start`.
-    pub start_keys_first_wallets: &'static str,
+    start_keys_first_wallets: "Keys first, wallets later",
     /// Text in `start`. `{}`: `files[i].name`.
-    pub start_is_in_files_locked: &'static str,
+    start_is_in_files_locked: "{} is in Files, locked",
     /// Button in `start`.
-    pub start_unlock: &'static str,
+    start_unlock: "Unlock",
     // ----- nonce_check (faraday-core/src/screens/spend.rs) -----
     /// Text in `nonce_check`. `{}`: `check.rows.len()`, `if check.rows.len() == 1 { EN.nonce_c…`, `here`.
-    pub nonce_check_nonce_check_valid: &'static str,
+    nonce_check_nonce_check_valid: "Nonce check · {} {} valid · {} recomputed here",
     /// Text in `nonce_check`.
-    pub nonce_check_signature: &'static str,
+    nonce_check_signature: "signature",
     /// Text in `nonce_check`.
-    pub nonce_check_signatures: &'static str,
+    nonce_check_signatures: "signatures",
     /// Text in `nonce_check`.
-    pub nonce_check_nonce_check: &'static str,
+    nonce_check_nonce_check: "Nonce check · a signature is wrong",
     /// Text in `nonce_check`. `{}`: `reuse.name()`, `inputs.join(", ")`.
-    pub nonce_check_one_nonce: &'static str,
+    nonce_check_one_nonce: "{}: one nonce on inputs {} · this gives the key away",
     /// Text in `nonce_check`. `{}`: `r.input`.
-    pub nonce_check_input: &'static str,
+    nonce_check_input: "Input {}",
     /// Text in `nonce_check`.
-    pub nonce_check_invalid: &'static str,
+    nonce_check_invalid: "Invalid: not this key's over this transaction",
     /// Text in `nonce_check`. `{}`: `why`.
-    pub nonce_check_not_checked: &'static str,
+    nonce_check_not_checked: "Not checked · {}",
     /// Text in `nonce_check`. `{}`: `mode`.
-    pub nonce_check_valid_nonce: &'static str,
+    nonce_check_valid_nonce: "Valid · nonce recomputed, {}",
     /// Text in `nonce_check`.
-    pub nonce_check_valid_not: &'static str,
+    nonce_check_wrong_nonce: "Valid · not the nonce this key makes: do not broadcast",
     /// Text in `nonce_check`.
-    pub nonce_check_valid_signed: &'static str,
+    nonce_check_valid_signed: "Valid · signed elsewhere, its nonce needs that device's key",
     /// Text in `nonce_check`. `{}`: `rest.len()`, `if ok { EN.nonce_check_none_wrong } e…`.
-    pub nonce_check_more: &'static str,
+    nonce_check_more: "{} more {}",
     /// Text in `nonce_check`.
-    pub nonce_check_none_wrong: &'static str,
+    nonce_check_none_wrong: "· none wrong",
     /// Text in `nonce_check`.
-    pub nonce_check_one_is: &'static str,
+    nonce_check_one_wrong: "· one is wrong",
     /// Headline of `nonce_check` when some signatures could not be checked. `{}`: how many were not checked, how many there are, `nonce_check_signature(s)`.
-    pub nonce_unchecked_head: &'static str,
+    nonce_unchecked_head: "Nonce check · {} of {} {} not checked",
     // ----- inbox_panel (faraday-core/src/screens/files.rs) -----
     /// Line in `inbox_panel`.
-    pub inbox_panel_wallets: &'static str,
+    inbox_panel_wallets: "Wallets",
     /// Text in `inbox_panel`. `{}`: `fw.shape`, `fw.seeds_here`, `n`, `if n == 1 { EN.inbox_panel_key } else…`, `if fw.files.len() > 1 { format!(" · {…`.
-    pub inbox_panel_of_here: &'static str,
+    inbox_panel_of_here: "{} · {} of {} {} here{}",
     /// Text in `inbox_panel`, after a space. `{}`: `fw.files.len()`.
-    pub inbox_panel_files_say_it: &'static str,
+    inbox_panel_files_agree: "· {} files say it",
     /// Text in `inbox_panel`, after a space.
-    pub inbox_panel_from_split_sheets: &'static str,
+    inbox_panel_from_split_sheets: "· from split sheets",
     /// Text in `inbox_panel`.
-    pub inbox_panel_key: &'static str,
+    inbox_panel_key: "key",
     /// Text in `inbox_panel`.
-    pub inbox_panel_keys: &'static str,
+    inbox_panel_keys: "keys",
     /// Text in `inbox_panel`.
-    pub inbox_panel_ready_to: &'static str,
+    inbox_panel_ready_to_sign: "Ready to sign once loaded",
     /// Text in `inbox_panel`. `{}`: `wallets.len() - ROWS`.
-    pub inbox_panel_more_loaded: &'static str,
+    inbox_panel_more_loaded: "+ {} more, loaded with these",
     /// Text in `inbox_panel`.
-    pub inbox_panel_nothing: &'static str,
+    inbox_panel_nothing: "Nothing chosen",
     /// Text in `inbox_panel`.
-    pub inbox_panel_load_the_wallet: &'static str,
+    inbox_panel_load_the_wallet: "Load the wallet with its seeds",
     /// Text in `inbox_panel`.
-    pub inbox_panel_load_the: &'static str,
+    inbox_panel_load_wallet: "Load the wallet",
     /// Text in `inbox_panel`. `{}`: `n`.
-    pub inbox_panel_load_wallets_with: &'static str,
+    inbox_panel_load_wallets_seeds: "Load {} wallets with their seeds",
     /// Text in `inbox_panel`. `{}`: `n`.
-    pub inbox_panel_load_wallets: &'static str,
+    inbox_panel_load_wallets: "Load {} wallets",
     /// Text in `inbox_panel`. `{}`: `app.medium.noun()`.
-    pub inbox_panel_keys_load: &'static str,
+    inbox_panel_keys_load: "Keys load once the {} is out",
     /// Line in `inbox_panel`.
-    pub inbox_panel_keys_with: &'static str,
+    inbox_panel_loose_keys: "Keys with no wallet",
     /// Text in `inbox_panel`.
-    pub inbox_panel_make_it_a: &'static str,
+    inbox_panel_make_wallet: "Make it a wallet",
     /// Text in `inbox_panel`. `{}`: `potential.len() - ROWS`.
-    pub inbox_panel_more: &'static str,
+    inbox_panel_more: "+ {} more",
     /// Line in `inbox_panel`.
-    pub inbox_panel_xpubs_with: &'static str,
+    inbox_panel_loose_xpubs: "Xpubs with no wallet",
     /// Text in `inbox_panel`.
-    pub inbox_panel_no_origin: &'static str,
+    inbox_panel_no_origin: "no origin",
     /// Text in `inbox_panel`.
-    pub inbox_panel_make_it: &'static str,
+    inbox_panel_make_watch_only: "Make it a watch-only wallet",
     /// Line in `inbox_panel`.
-    pub inbox_panel_not_complete: &'static str,
+    inbox_panel_not_complete: "Not complete or sealed",
     /// Text in `inbox_panel`.
-    pub inbox_panel_open_with: &'static str,
+    inbox_panel_open_passphrase: "Open with its passphrase",
     // ----- potential (faraday-core/src/screens/sheets.rs) -----
     /// Text in `potential_sheet`. `{}`: `item.name`.
-    pub potential_open: &'static str,
+    potential_open: "Open {}",
     /// Text in `potential_sheet`. `{}`: `fp_text(fp)`.
-    pub potential_a_watch_only_wallet: &'static str,
+    potential_a_watch_only_wallet: "A watch-only wallet from {}",
     /// Text in `potential_sheet`.
-    pub potential_a_watch_only: &'static str,
+    potential_a_watch_only: "A watch-only wallet from an xpub",
     /// Text in `potential_sheet`. `{}`: `fp_text(fp)`.
-    pub potential_a_wallet: &'static str,
+    potential_a_wallet: "A wallet from {}",
     /// Text in `potential_sheet`. `{}`: `from.join(" · ")`.
-    pub potential_from: &'static str,
+    potential_sources: "From {}",
     /// Text in `potential_sheet`.
-    pub potential_the_backup: &'static str,
+    potential_the_backup: "The backup's passphrase",
     /// Text in `potential_sheet`.
-    pub potential_slip_39_passphrase: &'static str,
+    potential_slip_39_passphrase: "SLIP-39 passphrase · none if left empty",
     /// Text in `potential_sheet`.
-    pub potential_bip_39_passphrase: &'static str,
+    potential_bip_39_passphrase: "BIP-39 passphrase · none if left empty",
     /// Text in `potential_sheet`. `{}`: `crate::family::kind_name(p.kind)`.
-    pub potential_as_its_path: &'static str,
+    potential_as_its_path: "{} · as its path says",
     /// Line in `potential_sheet`.
-    pub potential_fingerprint: &'static str,
+    potential_fingerprint: "Fingerprint",
     /// Text in `potential_sheet`. `{}`: `name`.
-    pub potential_a_key_of: &'static str,
+    potential_key_of_wallet: "A key of {}: it loads with that wallet",
     /// Line in `potential_sheet`.
-    pub potential_single_key: &'static str,
+    potential_single_key: "Single-key wallet",
     /// Button in `potential_sheet`.
-    pub potential_cancel: &'static str,
+    potential_cancel: "Cancel",
     /// Text in `potential_sheet`.
-    pub potential_open_it: &'static str,
+    potential_open_button: "Open it",
     /// Text in `potential_sheet`. `{}`: `name`.
-    pub potential_load: &'static str,
+    potential_load: "Load {}",
     /// Text in `potential_sheet`.
-    pub potential_make_the: &'static str,
+    potential_make_wallet: "Make the wallet",
     // ----- catalog (faraday-core/src/screens/catalog.rs) -----
     /// Title in `catalog_screen`.
-    pub catalog_tools: &'static str,
+    catalog_tools: "Tools",
     /// Text in `catalog_screen`.
-    pub catalog_find_a_tool: &'static str,
+    catalog_find_a_tool: "Find a tool: a name, a BIP number",
     /// Line in `catalog_screen`.
-    pub catalog_no_tool_matches: &'static str,
+    catalog_no_tool_matches: "No tool matches",
     // ----- decode_back (faraday-core/src/screens/decode.rs) -----
     /// Text in `decode_back`.
-    pub decode_back_sign_a: &'static str,
+    decode_back_sign_transaction: "Sign a transaction",
     /// Text in `decode_back`.
-    pub decode_back_spend: &'static str,
+    decode_back_spend: "Spend",
     /// Text in `decode_back`.
-    pub decode_back_files: &'static str,
+    decode_back_files: "Files",
     /// Text in `decode_back`.
-    pub decode_back_wallets: &'static str,
+    decode_back_wallets: "Wallets",
     /// Text in `decode_back`.
-    pub decode_back_tools: &'static str,
+    decode_back_tools: "Tools",
     /// Text in `decode_back`.
-    pub decode_back_back: &'static str,
+    decode_back_back: "Back",
     // ----- decode (faraday-core/src/screens/decode.rs) -----
     /// Title in `decode_screen`.
-    pub decode_decode_a_transaction: &'static str,
+    decode_decode_a_transaction: "Decode a transaction",
     /// Text in `decode_screen`. `{}`: `f`, `f as f64 / t.size.1.max(1) as f64`.
-    pub decode_sat_sat_vb: &'static str,
+    decode_sat_sat_vb: "{} sat · {} sat/vB",
     /// Text in `decode_screen`.
-    pub decode_not_stated_the: &'static str,
+    decode_fee_not_stated: "Not stated: the amounts going in are not here",
     /// Text in `decode_screen`.
-    pub decode_transaction: &'static str,
+    decode_transaction: "Transaction id",
     /// Text in `decode_screen`.
-    pub decode_witness_id: &'static str,
+    decode_witness_id: "Witness id",
     /// Text in `decode_screen`.
-    pub decode_version: &'static str,
+    decode_version: "Version",
     /// Text in `decode_screen`.
-    pub decode_locktime: &'static str,
+    decode_locktime: "Locktime",
     /// Text in `decode_screen`.
-    pub decode_size: &'static str,
+    decode_size: "Size",
     /// Text in `decode_screen`. `{}`: `t.size.0`, `t.size.1`, `t.size.2`.
-    pub decode_bytes_vb_wu: &'static str,
+    decode_bytes_vb_wu: "{} bytes · {} vB · {} WU",
     /// Text in `decode_screen`.
-    pub decode_fee: &'static str,
+    decode_fee: "Fee",
     /// Text in `decode_screen`. `{}`: `t.inputs.len()`.
-    pub decode_inputs: &'static str,
+    decode_inputs: "Inputs · {}",
     /// Text in `decode_screen`.
-    pub decode_no_witness: &'static str,
+    decode_no_witness: "No witness",
     /// Text in `decode_screen`. `{}`: `input.witness.len()`, `if input.witness.len() == 1 { EN.deco…`, `sizes.join(", ")`.
-    pub decode_witness_bytes: &'static str,
+    decode_witness_bytes: "Witness · {} {} · {} bytes",
     /// Text in `decode_screen`.
-    pub decode_item: &'static str,
+    decode_item: "item",
     /// Text in `decode_screen`.
-    pub decode_items: &'static str,
+    decode_items: "items",
     /// Text in `decode_screen`. `{}`: `input.sequence`, `wit`, `if input.script_sig > 0 { format!(" ·…`.
-    pub decode_sequence: &'static str,
+    decode_sequence: "Sequence {} · {}{}",
     /// Text in `decode_screen`, after a space. `{}`: `input.script_sig`.
-    pub decode_script_sig_bytes: &'static str,
+    decode_script_sig_bytes: "· scriptSig {} bytes",
     /// Text in `decode_screen`. `{}`: `t.outputs.len()`.
-    pub decode_outputs: &'static str,
+    decode_outputs: "Outputs · {}",
     /// Text in `decode_screen`. `{}`: `name`, `n`.
-    pub decode_change_back: &'static str,
+    decode_change_back: "Change · back to {} · 1/{}",
     /// Text in `decode_screen`. `{}`: `name`, `n`.
-    pub decode_back_to_receive: &'static str,
+    decode_back_to_receive: "Back to {} · receive 0/{}",
     /// Text in `decode_screen`.
-    pub decode_pays_out_of: &'static str,
+    decode_pays_from_loaded: "Pays out of the loaded wallets",
     /// Text in `decode_screen`.
-    pub decode_hide_the_hex: &'static str,
+    decode_hide_the_hex: "Hide the hex",
     /// Text in `decode_screen`.
-    pub decode_show_the_hex: &'static str,
+    decode_show_the_hex: "Show the hex",
     /// Text in `decode_screen`.
-    pub decode_show_as_qr: &'static str,
+    decode_show_as_qr: "Show as QR",
     // ----- missing_keys_line (faraday-core/src/screens/wallets.rs) -----
     /// Text in `missing_keys_line`. `{}`: `files[i].name`.
-    pub missing_keys_line_is: &'static str,
+    missing_keys_line_locked: "{} is locked · it may hold them",
     /// Text in `missing_keys_line`. `{}`: `open_names.join(", ")`.
-    pub missing_keys_line_not: &'static str,
+    missing_keys_line_not_open: "Not in {} · perhaps another vault, a paper backup or a SeedQR",
     /// Text in `missing_keys_line`. `{}`: `app.medium.a()`.
-    pub missing_keys_line_a: &'static str,
+    missing_keys_line_elsewhere: "A vault on {}, a paper backup or a SeedQR may hold them",
     /// Button in `missing_keys_line`.
-    pub missing_keys_line_unlock: &'static str,
+    missing_keys_line_unlock: "Unlock",
     // ----- wallet_rows (faraday-core/src/screens/wallets_start.rs) -----
     /// Line in `wallet_rows`.
-    pub wallet_rows_none_loaded: &'static str,
+    wallet_rows_none_loaded: "None loaded",
     /// Text in `wallet_rows`. `{}`: `here`, `m`.
-    pub wallet_rows_can_spend: &'static str,
+    wallet_rows_can_spend: "Can spend · {} of {}",
     /// Text in `wallet_rows`. `{}`: `here`, `m`.
-    pub wallet_rows_of_here: &'static str,
+    wallet_rows_of_here: "{} of {} here",
     /// Text in `wallet_rows`.
-    pub wallet_rows_watch_only: &'static str,
+    wallet_rows_watch_only: "Watch only",
     /// Text in `wallet_rows`. `{}`: `total - shown`.
-    pub wallet_rows_more: &'static str,
+    wallet_rows_more: "+ {} more",
     // ----- app (faraday-core/src/screens/) -----
     /// Text in `FROM_KEY`.
-    pub app_make_a_wallet_from: &'static str,
+    app_wallet_from_key: "Make a wallet from this key",
     /// Text in `STEPS`.
-    pub app_wallet: &'static str,
+    app_wallet: "Wallet",
     /// Text in `STEPS`.
-    pub app_transaction: &'static str,
+    app_transaction: "Transaction",
     /// Text in `STEPS`.
-    pub app_transaction_id: &'static str,
+    app_transaction_id: "Transaction id",
     /// Text in `STEPS`.
-    pub app_signers: &'static str,
+    app_signers: "Signers",
     /// Text in `STEPS`.
-    pub app_sign: &'static str,
+    app_sign: "Sign",
     /// Text in `STEPS`.
-    pub app_signatures_for: &'static str,
+    app_step_signatures: "Signatures for this transaction",
     /// Text in `STEPS`.
-    pub app_finish: &'static str,
+    app_finish: "Finish",
     /// Text in `STEPS`.
-    pub app_path: &'static str,
+    app_path: "Path",
     /// Text in `STEPS`.
-    pub app_nonces: &'static str,
+    app_nonces: "Nonces",
     /// Text in `SOFTWARE_ROWS`.
-    pub app_sparrow: &'static str,
+    app_sparrow: "Sparrow",
     /// Text in `SOFTWARE_ROWS`.
-    pub app_coldcard_keystone: &'static str,
+    app_coldcard_keystone: "Coldcard, Keystone, Passport",
     /// Text in `SOFTWARE_ROWS`.
-    pub app_nunchuk: &'static str,
+    app_nunchuk: "Nunchuk",
     /// Text in `SOFTWARE_ROWS`.
-    pub app_bitcoin_core: &'static str,
+    app_bitcoin_core: "Bitcoin Core",
     /// Text in `SOFTWARE_ROWS`.
-    pub app_not_sure: &'static str,
+    app_not_sure: "Not sure",
     /// Text in `MSTEPS`.
-    pub app_address: &'static str,
+    app_address: "Address",
     /// Text in `MSTEPS`.
-    pub app_message: &'static str,
+    app_message: "Message",
     /// Text in `MSTEPS`.
-    pub app_format: &'static str,
+    app_format: "Format",
     /// Text in `MSTEPS`.
-    pub app_signature: &'static str,
+    app_signature: "Signature",
     /// Text in `CSTEPS`.
-    pub app_back_up: &'static str,
+    app_back_up: "Back up",
     /// Text in `RSTEPS`.
-    pub app_kind: &'static str,
+    app_kind: "Kind",
     /// Text in `RSTEPS`.
-    pub app_quorum: &'static str,
+    app_quorum: "Quorum",
     /// Text in `RSTEPS`.
-    pub app_description: &'static str,
+    app_description: "Description",
     /// Text in `RSTEPS`.
-    pub app_keys: &'static str,
+    app_keys: "Keys",
     /// Text in `RSTEPS`.
-    pub app_check: &'static str,
+    app_check: "Check",
     /// Text in `RSTEPS`.
-    pub app_done: &'static str,
+    app_done: "Done",
     /// Text in `PANIC_KEY`.
-    pub app_super_s_held_2: &'static str,
+    app_panic_key_hint: "Super + S held 2 s: power off at once",
     /// Text in `TIME_FOR`.
-    pub app_for_totp_codes: &'static str,
+    app_for_totp_codes: "For TOTP codes, GPG and Secure Boot signatures, and backup check dates",
     // ----- loose_card (faraday-core/src/screens/wallets.rs) -----
     /// Text in `loose_card`. `{}`: `fp_text(*only)`.
-    pub loose_card_key_is_loaded: &'static str,
+    loose_card_key_is_loaded: "Key {} is loaded. No wallet uses it.",
     /// Text in `loose_card`. `{}`: `loose.len()`.
-    pub loose_card_keys_are: &'static str,
+    loose_card_keys_are: "{} keys are loaded. No wallet uses them.",
     /// Text in `loose_card`.
-    pub loose_card_add_another: &'static str,
+    loose_card_add_another: "Add another key",
     /// Text in `loose_card`.
-    pub loose_card_restore: &'static str,
+    loose_card_restore: "Restore an existing wallet",
     // ----- wallets (faraday-core/src/screens/wallets.rs) -----
     /// Text in `wallets`.
-    pub wallets_signing: &'static str,
+    wallets_signing: "Signing",
     /// Text in `wallets`.
-    pub wallets_continue: &'static str,
+    wallets_continue: "Continue",
     /// Text in `wallets`.
-    pub wallets_in_files: &'static str,
+    wallets_in_files: "in Files",
     /// Text in `wallets`.
-    pub wallets_review: &'static str,
+    wallets_review: "Review",
     /// Section label in `wallets`.
-    pub wallets_wallets: &'static str,
+    wallets_wallets: "Wallets",
     /// Text in `wallets`. `{}`: `shape`.
-    pub wallets_watch_only: &'static str,
+    wallets_watch_only: "{} · watch only",
     /// Text in `wallets`. `{}`: `shape`, `here`, `m`.
-    pub wallets_of_here: &'static str,
+    wallets_of_here: "{} · {} of {} here",
     /// Section label in `wallets`.
-    pub wallets_keys_without: &'static str,
+    wallets_keys_without: "Keys without a wallet",
     /// Button in `wallets`.
-    pub wallets_restore_an: &'static str,
+    wallets_restore_wallet: "Restore an existing wallet",
     /// Text in `wallets`. `{}`: `wl.name`.
-    pub wallets_scan_a_key_for: &'static str,
+    wallets_scan_key_title: "Scan a key for {}",
     /// Text in `wallets`.
-    pub wallets_add_a_key: &'static str,
+    wallets_add_a_key: "Add a key",
     /// Text in `wallets`.
-    pub wallets_no_wallet_loaded: &'static str,
+    wallets_no_wallet_loaded: "No wallet loaded",
     /// Line in `wallets`.
-    pub wallets_enter_keeps: &'static str,
+    wallets_enter_keeps: "Enter keeps it · Esc leaves it",
     /// Button in `wallets`.
-    pub wallets_rename: &'static str,
+    wallets_rename: "Rename",
     /// Text in `wallets`.
-    pub wallets_show_wallet: &'static str,
+    wallets_show_wallet: "Show wallet QR",
     /// Text in `wallets`.
-    pub wallets_back_up: &'static str,
+    wallets_back_up: "Back up",
     /// Text in `wallets`.
-    pub wallets_sign_a_message: &'static str,
+    wallets_sign_a_message: "Sign a message",
     /// Text in `wallets`.
-    pub wallets_remove_from: &'static str,
+    wallets_remove_from_session: "Remove from session",
     /// Text in `wallets`. `{}`: `here`, `m`.
-    pub wallets_of_signatures: &'static str,
+    wallets_of_signatures: "{} of {} signatures possible here",
     /// Text in `wallets`.
-    pub wallets_can_spend: &'static str,
+    wallets_can_spend: "Can spend",
     /// Text in `wallets`.
-    pub wallets_scan_a_key: &'static str,
+    wallets_scan_a_key: "Scan a key",
     /// Line in `wallets`.
-    pub wallets_at_a_glance: &'static str,
+    wallets_at_a_glance: "At a glance",
     /// Line in `wallets`.
-    pub wallets_first_receive: &'static str,
+    wallets_first_receive: "First receive address · 0/0",
     // ----- silent_wallet_card (faraday-core/src/screens/wallets.rs) -----
     /// Line in `silent_wallet_card`.
-    pub silent_wallet_card_key: &'static str,
+    silent_wallet_card_key: "Key",
     /// Text in `silent_wallet_card`.
-    pub silent_wallet_card_here: &'static str,
+    silent_wallet_card_here: "Here",
     /// Text in `silent_wallet_card`.
-    pub silent_wallet_card_not: &'static str,
+    silent_wallet_card_not_here: "Not here",
     /// Text in `silent_wallet_card`.
-    pub silent_wallet_card_load: &'static str,
+    silent_wallet_card_load: "Load from vault",
     /// Text in `silent_wallet_card`.
-    pub silent_wallet_card_add: &'static str,
+    silent_wallet_card_add: "Add its key",
     /// Line in `silent_wallet_card`.
-    pub silent_wallet_card_address_2: &'static str,
+    silent_wallet_card_address_label: "Address",
     /// Line in `silent_wallet_card`.
-    pub silent_wallet_card_labels: &'static str,
+    silent_wallet_card_labels: "Labels handed out",
     /// Text in `silent_wallet_card`.
-    pub silent_wallet_card_address: &'static str,
+    silent_wallet_card_address: "Address, labels and payments",
     /// Text in `silent_wallet_card`.
-    pub silent_wallet_card_show: &'static str,
+    silent_wallet_card_show: "Show wallet QR",
     /// Text in `silent_wallet_card`.
-    pub silent_wallet_card_remove: &'static str,
+    silent_wallet_card_remove: "Remove from session",
     // ----- spend (faraday-core/src/screens/spend.rs) -----
     /// Line in `spend`.
-    pub spend_no_transaction: &'static str,
+    spend_no_transaction: "No transaction loaded",
     /// Button in `spend`.
-    pub spend_open_files: &'static str,
+    spend_open_files: "Open Files",
     /// Text in `spend`.
-    pub spend_wallets: &'static str,
+    spend_wallets: "Wallets",
     /// Text in `spend`.
-    pub spend_sign_a_transaction: &'static str,
+    spend_sign_a_transaction: "Sign a transaction",
     // ----- spend_status (faraday-core/src/screens/spend.rs) -----
     /// Text in `spend_status`. `{}`: `id + 1`.
-    pub spend_status_share: &'static str,
+    spend_status_share: "share {}",
     /// Text in `spend_status`.
-    pub spend_status_carry: &'static str,
+    spend_status_carry: "Carry file kept · the next share signs with it",
     /// Text in `spend_status`.
-    pub spend_status_the_next: &'static str,
+    spend_status_the_next: "The next share signs with the carry file",
     /// Text in `spend_status`. `{}`: `app.medium.for_the()`.
-    pub spend_status_both_wait: &'static str,
+    spend_status_both_wait: "Both wait {}",
     /// Text in `spend_status`.
-    pub spend_status_complete: &'static str,
+    spend_status_complete: "Complete",
     /// Text in `spend_status`. `{}`: `missing - 1`, `if missing == 2 { EN.spend_status_its…`.
-    pub spend_status_sign_here_more: &'static str,
+    spend_status_sign_here_more: "Sign here · {} more at {} own place",
     /// Text in `spend_status`.
-    pub spend_status_its: &'static str,
+    spend_status_its_one: "its",
     /// Text in `spend_status`.
-    pub spend_status_their: &'static str,
+    spend_status_their: "their",
     /// Text in `spend_status`. `{}`: `missing - 1`.
-    pub spend_status_sign_here_and: &'static str,
+    spend_status_sign_and_collect: "Sign here and collect {} more",
     /// Text in `spend_status`.
-    pub spend_status_sign_here: &'static str,
+    spend_status_sign_here: "Sign here",
     /// Text in `spend_status`.
-    pub spend_status_keep_the: &'static str,
+    spend_status_keep_carry: "Keep the carry file",
     /// Text in `spend_status`. `{}`: `app.medium.a()`.
-    pub spend_status_insert: &'static str,
+    spend_status_insert: "Insert {} to write it",
     /// Text in `spend_status`.
-    pub spend_status_open_files: &'static str,
+    spend_status_open_files: "Open Files",
     /// Text in `spend_status`.
-    pub spend_status_finish: &'static str,
+    spend_status_finish: "Finish",
     /// Text in `spend_status`. `{}`: `can_sign_here.join(", ")`.
-    pub spend_status_sign_with: &'static str,
+    spend_status_sign_with_keys: "Sign with {}",
     // ----- spend_bar (faraday-core/src/screens/spend.rs) -----
     /// Text in `spend_bar`. `{}`: `count`, `needed`.
-    pub spend_bar_of: &'static str,
+    spend_bar_count: "{} of {}",
     // ----- step_summary (faraday-core/src/screens/spend.rs) -----
     /// Text in `step_summary`.
-    pub step_summary_no_loaded: &'static str,
+    step_summary_no_loaded: "No loaded wallet matches",
     /// Text in `step_summary`.
-    pub step_summary_addresses: &'static str,
+    step_summary_addresses: "Addresses · Compare",
     /// Text in `step_summary`. `{}`: `btc(i.amount_to_others.to_sat())`, `i.fee_rate_sat_vb .map(|r| format!("{…`.
-    pub step_summary_sends: &'static str,
+    step_summary_sends: "Sends {} BTC · fee {} sat/vB",
     /// Text in `step_summary`. `{}`: `here`, `needed`.
-    pub step_summary_here_needed: &'static str,
+    step_summary_here_needed: "{} here · {} needed",
     /// Text in `step_summary`.
-    pub step_summary_not_signed: &'static str,
+    step_summary_not_signed: "Not signed here yet",
     /// Text in `step_summary`. `{}`: `fps.join(", ")`.
-    pub step_summary_signed_with: &'static str,
+    step_summary_signed_keys: "Signed with {}",
     /// Text in `step_summary`. `{}`: `s.signers.len()`, `needed`.
-    pub step_summary_of: &'static str,
+    step_summary_count: "{} of {}",
     /// Text in `step_summary`. `{}`: `have`, `rows.len()`.
-    pub step_summary_of_nonces: &'static str,
+    step_summary_of_nonces: "{} of {} nonces",
     /// Text in `step_summary`.
-    pub step_summary_way_to: &'static str,
+    step_summary_way_one: "way to spend",
     /// Text in `step_summary`.
-    pub step_summary_ways_to: &'static str,
+    step_summary_ways_many: "ways to spend",
     /// Text in `step_summary`.
-    pub step_summary_signed: &'static str,
+    step_summary_signed: "Signed PSBT and finished transaction",
     /// Text in `step_summary`.
-    pub step_summary_not_finished: &'static str,
+    step_summary_not_finished: "Not finished yet",
     /// Text in `step_summary`.
-    pub step_summary_not_reached: &'static str,
+    step_summary_not_reached: "Not reached yet",
     // ----- step (faraday-core/src/screens/spend.rs) -----
     /// Text in `step_body`. `{}`: `Session::shape(wl)`, `wl.source`.
-    pub step_from: &'static str,
+    step_wallet_source: "{} · from {}",
     /// Line in `step_body`.
-    pub step_no_loaded_wallet: &'static str,
+    step_no_loaded_wallet: "No loaded wallet matches this transaction. Change cannot be verified until its wallet is loaded.",
     /// Text in `step_body`.
-    pub step_receive_0_0: &'static str,
+    step_receive_0_0: "Receive 0/0",
     /// Text in `step_body`.
-    pub step_receive_0_1: &'static str,
+    step_receive_0_1: "Receive 0/1",
     /// Text in `step_body`.
-    pub step_change_1_0: &'static str,
+    step_change_1_0: "Change 1/0",
     /// Line in `step_body`.
-    pub step_no_wallet_to_show: &'static str,
+    step_no_wallet_to_show: "No wallet to show addresses from",
     /// Text in `step_body`.
-    pub step_sends: &'static str,
+    step_sends: "Sends",
     /// Text in `step_body`. `{}`: `if change { 1 } else { 0 }`, `index`.
-    pub step_to_2: &'static str,
+    step_to_path: "to {}/{}",
     /// Text in `step_body`.
-    pub step_change: &'static str,
+    step_change: "Change",
     /// Text in `step_body`. `{}`: `short(&o.address)`.
-    pub step_to: &'static str,
+    step_to_address: "to {}",
     /// Text in `step_body`.
-    pub step_unverified: &'static str,
+    step_unverified: "Unverified",
     /// Text in `step_body`.
-    pub step_fee: &'static str,
+    step_fee: "Fee",
     /// Text in `step_body`. `{}`: `thousands(i.fee.to_sat())`, `i.fee_rate_sat_vb .map(|r| format!("{…`.
-    pub step_sat_sat_vb: &'static str,
+    step_sat_sat_vb: "{} sat · {} sat/vB",
     /// Text in `step_body`.
-    pub step_spends: &'static str,
+    step_spends: "Spends",
     /// Text in `step_body`.
-    pub step_amount_unchecked: &'static str,
+    step_amount_unchecked: "Amount unchecked",
     /// Text in `step_body`.
-    pub step_unchanged_by_signing: &'static str,
+    step_unchanged_by_signing: "Unchanged by signing",
     /// Text in `step_body`.
-    pub step_changes_when_signed: &'static str,
+    step_changes_when_signed: "Changes when signed",
     /// Text in `step_body`.
-    pub step_txid: &'static str,
+    step_txid: "Txid",
     /// Text in `step_body`.
-    pub step_not_known_until: &'static str,
+    step_not_known_until: "Not known until signed",
     /// Chip in `step_body`.
-    pub step_no_warnings: &'static str,
+    step_no_warnings: "No warnings",
     /// Line in `step_body`.
-    pub step_input: &'static str,
+    step_input: "Input",
     /// Line in `step_body`.
-    pub step_output: &'static str,
+    step_output: "Output",
     /// Text in `step_body`.
-    pub step_hide_the_table: &'static str,
+    step_hide_the_table: "Hide the table",
     /// Text in `step_body`.
-    pub step_show_the_table: &'static str,
+    step_show_the_table: "Show the table",
     /// Text in `step_body`. `{}`: `k + 1`.
-    pub step_share_n: &'static str,
+    step_share_n: "Share {}",
     /// Text in `step_body`.
-    pub step_signed: &'static str,
+    step_signed: "Signed",
     /// Text in `step_body`.
-    pub step_signs_at_its_own: &'static str,
+    step_signs_at_its_own: "Signs at its own place",
     /// Text in `step_body`.
-    pub step_not_signing: &'static str,
+    step_not_signing: "Not signing",
     /// Text in `step_body`.
-    pub step_signs_next: &'static str,
+    step_signs_next: "Signs next",
     /// Text in `step_body`.
-    pub step_choose: &'static str,
+    step_choose: "Choose",
     /// Text in `step_body`. `{}`: `needed`, `t.ours.len()`, `s.others.len()`.
-    pub step_needs_here_chosen: &'static str,
+    step_needs_here_chosen: "Needs {} · {} here · {} chosen",
     /// Text in `step_body`. `{}`: `needed`, `t.signed.len()`.
-    pub step_needs_signed: &'static str,
+    step_needs_signed: "Needs {} · {} signed",
     /// Text in `step_body`.
-    pub step_load_from_vault: &'static str,
+    step_load_from_vault: "Load from vault",
     /// Text in `step_body`.
-    pub step_signs_here: &'static str,
+    step_signs_here: "Signs here",
     /// Text in `step_body`.
-    pub step_not_here: &'static str,
+    step_not_here: "Not here",
     /// Text in `step_body`. `{}`: `f.name`.
-    pub step_unlock: &'static str,
+    step_unlock: "Unlock {}",
     /// Text in `step_body`.
-    pub step_scan_a_key: &'static str,
+    step_scan_a_key: "Scan a key",
     /// Text in `step_body`.
-    pub step_collect_a_signature: &'static str,
+    step_collect_a_signature: "Collect a signature",
     /// Text in `step_body`. `{}`: `app.medium.noun()`.
-    pub step_remove_the_first: &'static str,
+    step_remove_the_first: "Remove the {} first",
     /// Text in `step_body`.
-    pub step_no_share_of_this: &'static str,
+    step_no_share_loaded: "No share of this wallet is loaded here",
     /// Text in `step_body`. `{}`: `want`, `if want == 1 { EN.step_share_inline } else…`.
-    pub step_choose_other_under: &'static str,
+    step_choose_other_under: "Choose {} other {} under Signers",
     /// Text in `step_body`.
-    pub step_share_inline: &'static str,
+    step_share_inline: "share",
     /// Text in `step_body`.
-    pub step_shares: &'static str,
+    step_shares: "shares",
     /// Text in `step_body`. `{}`: `names.join(", ")`.
-    pub step_sign_as: &'static str,
+    step_sign_as: "Sign as {}",
     /// Text in `step_body`. `{}`: `fps.join(", ")`.
-    pub step_signed_with: &'static str,
+    step_signed_keys: "Signed with {}",
     /// Line in `step_body`.
-    pub step_no_key_in_this: &'static str,
+    step_no_signing_key: "No key in this session signs this transaction",
     /// Text in `step_body`. `{}`: `mine.join(", ")`.
-    pub step_sign_with: &'static str,
+    step_sign_with_keys: "Sign with {}",
     /// Text in `step_body`.
-    pub step_input_inline: &'static str,
+    step_input_inline: "input",
     /// Text in `step_body`.
-    pub step_inputs: &'static str,
+    step_inputs: "inputs",
     /// Text in `step_body`. `{}`: `src`.
-    pub step_from_inline: &'static str,
+    step_from_inline: "from {}",
     /// Text in `step_body`.
-    pub step_signed_here: &'static str,
+    step_signed_here: "Signed here",
     /// Text in `step_body`.
-    pub step_verified: &'static str,
+    step_verified: "Verified",
     /// Text in `step_body`.
-    pub step_not_needed: &'static str,
+    step_not_needed: "Not needed",
     /// Line in `step_body`.
-    pub step_no_cosigner_s: &'static str,
+    step_no_cosigner_s: "No cosigner's copy in Files",
     /// Text in `step_body`.
-    pub step_scan_a_copy: &'static str,
+    step_scan_a_copy: "Scan a copy",
     /// Text in `step_body`. `{}`: `id + 1`.
-    pub step_share_n_inline: &'static str,
+    step_share_n_inline: "share {}",
     /// Line in `step_body`.
-    pub step_carry_file: &'static str,
+    step_carry_file: "Carry file",
     /// Text in `step_body`. `{}`: `if next_ids.is_empty() { EN.step_the_…`.
-    pub step_for_holds_its: &'static str,
+    step_carry_holds_nonce: "For {} · holds its secret nonce until it signs",
     /// Text in `step_body`.
-    pub step_the_next_share: &'static str,
+    step_the_next_share: "the next share",
     /// Text in `step_body`.
-    pub step_kept: &'static str,
+    step_kept: "Kept",
     /// Text in `step_body`.
-    pub step_keep_it: &'static str,
+    step_keep_button: "Keep it",
     /// Text in `step_body`. `{}`: `missing`, `if s.signers.is_empty() { "" } else {…`, `if missing == 1 { EN.step_signature }…`.
-    pub step_needs: &'static str,
+    step_needs: "Needs {}{} {}",
     /// Text in `step_body`, after a space.
-    pub step_more: &'static str,
+    step_more: "more",
     /// Text in `step_body`.
-    pub step_signature: &'static str,
+    step_signature: "signature",
     /// Text in `step_body`.
-    pub step_signatures: &'static str,
+    step_signatures: "signatures",
     /// Text in `step_body`.
-    pub step_signed_psbt: &'static str,
+    step_signed_psbt: "Signed PSBT",
     /// Text in `step_body`.
-    pub step_for_the_wallet: &'static str,
+    step_for_the_wallet: "For the wallet that wrote it · not finalised",
     /// Text in `step_body`.
-    pub step_finished_transaction: &'static str,
+    step_finished_transaction: "Finished transaction",
     /// Text in `step_body`.
-    pub step_ready_to_broadcast: &'static str,
+    step_ready_to_broadcast: "Ready to broadcast",
     /// Text in `step_body`.
-    pub step_remove: &'static str,
+    step_remove: "Remove",
     /// Text in `step_body`.
-    pub step_make_again: &'static str,
+    step_make_again: "Make again",
     /// Text in `step_body`. `{}`: `short(&tx.compute_txid().to_string())`, `tx.vsize()`.
-    pub step_vb: &'static str,
+    step_vb: "{} · {} vB",
     /// Text in `step_body`.
-    pub step_decode_it: &'static str,
+    step_decode_button: "Decode it",
     /// Text in `step_body`.
-    pub step_hide_the_raw_hex: &'static str,
+    step_hide_the_raw_hex: "Hide the raw hex",
     /// Text in `step_body`.
-    pub step_show_the_raw_hex: &'static str,
+    step_show_the_raw_hex: "Show the raw hex",
     /// Line in `step_body`.
-    pub step_this_device: &'static str,
+    step_this_device: "This device",
     /// Text in `step_body`.
-    pub step_nonce_here: &'static str,
+    step_nonce_here: "Nonce here",
     /// Text in `step_body`.
-    pub step_waiting: &'static str,
+    step_waiting: "Waiting",
     /// Text in `step_body`. `{}`: `name`.
-    pub step_add_from: &'static str,
+    step_add_source: "Add from {}",
     /// Text in `step_body`.
-    pub step_show_as_qr: &'static str,
+    step_show_as_qr: "Show as QR",
     /// Button in `step_body`.
-    pub step_go_first_share: &'static str,
+    step_go_first_share: "Go first: share this device's nonce",
     /// Text in `step_body`. `{}`: `k + 1`.
-    pub step_path: &'static str,
+    step_path: "Path {}",
     /// Text in `step_body`. `{}`: `slot`, `fp`.
-    pub step_key: &'static str,
+    step_key: "key {} {}",
     /// Line in `step_body`.
-    pub step_no_wait: &'static str,
+    step_no_wait: "No wait",
     /// Text in `step_body`. `{}`: `l`.
-    pub step_waits: &'static str,
+    step_waits: "Waits {}",
     /// Text in `step_body`.
-    pub step_this_transaction_s: &'static str,
+    step_this_transaction_s: "This transaction's sequence allows this path",
     /// Text in `step_body`.
-    pub step_this_transaction: &'static str,
+    step_this_transaction: "This transaction's sequence does not allow this path",
     /// Text in `step_body`.
-    pub step_continue: &'static str,
+    step_continue: "Continue",
     // ----- spend_panel (faraday-core/src/screens/spend.rs) -----
     /// Line in `spend_panel`.
-    pub spend_panel_this_transaction: &'static str,
+    spend_panel_this_transaction: "This transaction",
     /// Text in `spend_panel`.
-    pub spend_panel_verified: &'static str,
+    spend_panel_verified: "Verified",
     /// Text in `spend_panel`.
-    pub spend_panel_unverified: &'static str,
+    spend_panel_unverified: "Unverified",
     /// Text in `spend_panel`.
-    pub spend_panel_none: &'static str,
+    spend_panel_none: "None",
     /// Text in `spend_panel`.
-    pub spend_panel_wallet: &'static str,
+    spend_panel_wallet: "Wallet",
     /// Text in `spend_panel`.
-    pub spend_panel_not_loaded: &'static str,
+    spend_panel_not_loaded: "Not loaded",
     /// Text in `spend_panel`.
-    pub spend_panel_sends: &'static str,
+    spend_panel_sends: "Sends",
     /// Text in `spend_panel`. `{}`: `btc(i.amount_to_others.to_sat())`.
-    pub spend_panel_btc: &'static str,
+    spend_panel_btc: "{} BTC",
     /// Text in `spend_panel`.
-    pub spend_panel_to: &'static str,
+    spend_panel_to_label: "To",
     /// Text in `spend_panel`.
-    pub spend_panel_fee: &'static str,
+    spend_panel_fee: "Fee",
     /// Text in `spend_panel`. `{}`: `thousands(i.fee.to_sat())`, `i.fee_rate_sat_vb .map(|r| format!("{…`.
-    pub spend_panel_sat_sat: &'static str,
+    spend_panel_sat_sat: "{} sat · {} sat/vB",
     /// Text in `spend_panel`.
-    pub spend_panel_change: &'static str,
+    spend_panel_change: "Change",
     /// Text in `spend_panel`.
-    pub spend_panel_txid: &'static str,
+    spend_panel_txid: "Txid",
     /// Line in `spend_panel`.
-    pub spend_panel_signatures: &'static str,
+    spend_panel_signatures: "Signatures",
     /// Text in `spend_panel`. `{}`: `count`, `needed`.
-    pub spend_panel_of: &'static str,
+    spend_panel_count: "{} of {}",
     // ----- question_title (faraday-core/src/screens/backup.rs) -----
     /// Text in `question_title`.
-    pub question_title_software: &'static str,
+    question_title_software: "Software",
     // ----- ticked (faraday-core/src/screens/parts.rs) -----
     /// Text in `ticked`.
-    pub ticked_none: &'static str,
+    ticked_none: "None",
     // ----- item_title (faraday-core/src/screens/backup.rs) -----
     /// Text in `item_title`. `{}`: `k`, `if k == 1 { EN.item_title_template_inline …`.
-    pub item_title_print_blank: &'static str,
+    item_title_print_blank: "Print {} blank {}",
     /// Text in `item_title`.
-    pub item_title_template_inline: &'static str,
+    item_title_template_inline: "template",
     /// Text in `item_title`.
-    pub item_title_templates: &'static str,
+    item_title_templates: "templates",
     /// Text in `item_title`. `{}`: `b.words`.
-    pub item_title_template_n: &'static str,
+    item_title_template_n: "Template for {} words",
     /// Text in `item_title`. `{}`: `shape.seeds.get(i).map_or("", |s| s.n…`.
-    pub item_title_copy_seed: &'static str,
+    item_title_copy_seed: "Copy seed {} by hand",
     /// Text in `item_title`. `{}`: the seed's name.
-    pub item_title_passphrase: &'static str,
+    item_title_passphrase: "Write the passphrase of seed {} on paper",
     /// Text in `item_title`.
-    pub item_title_checked: &'static str,
+    item_title_checked: "Checked",
     /// Text in `item_title`.
-    pub item_title_not_checked: &'static str,
+    item_title_not_checked: "Not checked",
     /// Text in `item_title`. `{}`: `v + 1`.
-    pub item_title_vault_2: &'static str,
+    item_title_vault_number: "Vault {}",
     /// Text in `item_title`. `{}`: `v + 1`, `names.join(", ")`.
-    pub item_title_vault: &'static str,
+    item_title_vault: "Vault {} · {}",
     /// Text in `item_title`. `{}`: `name`.
-    pub item_title_in: &'static str,
+    item_title_in_vault: "In {}",
     /// Text in `item_title`.
-    pub item_title_not_saved: &'static str,
+    item_title_not_saved: "Not saved",
     /// Text in `item_title`.
-    pub item_title_the_seeds: &'static str,
+    item_title_the_seeds: "The seeds as files",
     /// Text in `item_title`.
-    pub item_title_not_made: &'static str,
+    item_title_not_made: "Not made",
     /// Text in `item_title`.
-    pub item_title_the_shares: &'static str,
+    item_title_the_shares: "The shares",
     /// Text in `item_title`. `{}`: `keys_n`, `keys_n - a.omit.min(shape.m.saturatin…`.
-    pub item_title_shares_keys: &'static str,
+    item_title_shares_keys: "{} shares, {} keys each",
     /// Text in `item_title`.
-    pub item_title_the_wallet: &'static str,
+    item_title_the_wallet: "The wallet sheet",
     /// Text in `item_title`.
-    pub item_title_a_pdf_to: &'static str,
+    item_title_print_pdf: "A PDF to print",
     /// Text in `item_title`.
-    pub item_title_the_public: &'static str,
+    item_title_the_public: "The public files",
     /// Text in `item_title`.
-    pub item_title_show_the: &'static str,
+    item_title_show_descriptor: "Show the descriptor to the software",
     /// Text in `item_title`.
-    pub item_title_shown: &'static str,
+    item_title_shown: "Shown",
     /// Text in `item_title`.
-    pub item_title_not_shown: &'static str,
+    item_title_not_shown: "Not shown",
     /// Text in `item_title`.
-    pub item_title_one_envelope: &'static str,
+    item_title_one_envelope: "One envelope per place",
     /// Text in `item_title`.
-    pub item_title_envelope: &'static str,
+    item_title_envelope: "envelope",
     /// Text in `item_title`.
-    pub item_title_envelopes: &'static str,
+    item_title_envelopes: "envelopes",
     // ----- question_summary (faraday-core/src/screens/backup.rs) -----
     /// Text in `question_summary`. `{}`: `c.lost.text()`.
-    pub question_summary_any: &'static str,
+    question_summary_any: "Any one place lost: {}",
     // ----- backup (faraday-core/src/screens/backup.rs) -----
     /// Text in `backup_screen`. `{}`: `t`.
-    pub backup_after: &'static str,
+    backup_after: "After: {}",
     /// Text in `backup_screen`.
-    pub backup_back_up_a_wallet: &'static str,
+    backup_back_up_a_wallet: "Back up a wallet",
     /// Text in `backup_screen`. `{}`: `wallet.name`.
-    pub backup_back_up: &'static str,
+    backup_back_up: "Back up {}",
     /// Text in `backup_screen`.
-    pub backup_vault_contents: &'static str,
+    backup_vault_contents: "Vault contents",
     /// Text in `backup_screen`.
-    pub backup_wallets: &'static str,
+    backup_wallets: "Wallets",
     /// Text in `backup_screen`.
-    pub backup_then_wallets: &'static str,
-    /// Text in `backup_screen`. `{}`: `v + 1`, `app_ref.medium.noun()`.
-    pub backup_vault_s_needs: &'static str,
+    backup_then_wallets: "Then: Wallets",
     /// Text in `backup_screen`.
-    pub backup_make_the_checklist: &'static str,
-    /// Text in `backup_screen`.
-    pub backup_change_the_plan: &'static str,
+    backup_change_the_plan: "Change the plan",
     /// Line in `backup_body`.
-    pub backup_words_on_the: &'static str,
+    backup_seed_words: "Words on the seed",
     /// Line in `backup_body`.
-    pub backup_no_key_of_this: &'static str,
+    backup_no_typed_key: "No key of this wallet was loaded from words in this session",
     /// Text in `backup_body`.
-    pub backup_hide_the_seed: &'static str,
+    backup_hide_the_seed: "Hide the seed",
     /// Text in `backup_body`.
-    pub backup_show_the_seed: &'static str,
+    backup_show_the_seed: "Show the seed",
     /// Text in `backup_body`, a passphrase item.
-    pub backup_hide_the_passphrase: &'static str,
+    backup_hide_the_passphrase: "Hide the passphrase",
     /// Text in `backup_body`, a passphrase item.
-    pub backup_show_the_passphrase: &'static str,
+    backup_show_the_passphrase: "Show the passphrase",
     /// Text in `backup_body`, a passphrase item. `{}`: the key's line.
-    pub backup_passphrase_of: &'static str,
+    backup_passphrase_item: "Passphrase of {}",
     /// Line in `backup_body`: the key keeps no passphrase to show.
-    pub backup_no_passphrase_kept: &'static str,
+    backup_no_passphrase_kept: "This key was loaded without its passphrase",
     /// Text in `backup_body`. `{}`: `key_line(key.master.fingerprint(), &k…`, `list.len()`.
-    pub backup_words: &'static str,
+    backup_words: "{} · {} words",
     /// Line in `backup_body`.
-    pub backup_seedqr_is_for: &'static str,
+    backup_seedqr_english_only: "SeedQR is for English words only: copy these words by hand",
     /// Text in `backup_body`.
-    pub backup_standard_seedqr: &'static str,
+    backup_standard_seedqr: "Standard SeedQR",
     /// Text in `backup_body`.
-    pub backup_compact_seedqr: &'static str,
+    backup_compact_seedqr: "Compact SeedQR",
     /// Text in `backup_body`.
-    pub backup_shown: &'static str,
+    backup_shown: "Shown",
     /// Text in `backup_body`.
-    pub backup_not_shown: &'static str,
+    backup_not_shown: "Not shown",
     /// Text in `backup_body`.
-    pub backup_make_it: &'static str,
+    backup_make_button: "Make it",
     /// Row in `backup_body`.
-    pub backup_backup_sheet: &'static str,
+    backup_backup_sheet: "Backup sheet",
     /// Row in `backup_body`.
-    pub backup_a_pdf_to_print: &'static str,
+    backup_a_pdf_to_print: "A PDF to print",
     /// Text in `backup_body`.
-    pub backup_make_them: &'static str,
+    backup_make_them: "Make them",
     /// Row in `backup_body`.
-    pub backup_the_shares: &'static str,
+    backup_the_shares: "The shares",
     /// Row in `backup_body`.
-    pub backup_sheets_to_print: &'static str,
+    backup_sheets_to_print: "Sheets to print, text files and pictures",
     /// Text in `backup_body`.
-    pub backup_nothing: &'static str,
+    backup_nothing: "Nothing",
     /// Text in `backup_body`.
-    pub backup_back_to_the: &'static str,
+    backup_back_to_wallet: "Back to the wallet",
     /// Text in `backup_body`.
-    pub backup_done: &'static str,
+    backup_done: "Done",
     // ----- plan (faraday-core/src/screens/backup.rs) -----
     /// Line in `plan_body`.
-    pub plan_a_key_made_here: &'static str,
+    plan_a_key_made_here: "A key made here signs only once this backup is done.",
     /// Text in `plan_body`.
-    pub plan_what_is_a_share: &'static str,
+    plan_what_is_a_share: "What is a share?",
     /// Section label in `plan_body`.
-    pub plan_form: &'static str,
+    plan_form: "Form",
     /// Text in `plan_body`.
-    pub plan_qr_picture: &'static str,
+    plan_qr_picture: "QR picture",
     /// Text in `plan_body`.
-    pub plan_text: &'static str,
+    plan_text: "Text",
     /// Text in `plan_body`. `{}`: `v + 1`, `app.medium.noun()`.
-    pub plan_vault_s_needs: &'static str,
+    plan_vault_s_needs: "Vault {}'s {} needs a place",
     /// Button in `plan_body`.
-    pub plan_make_the_checklist: &'static str,
+    plan_make_the_checklist: "Make the checklist",
     /// Button in `plan_body`.
-    pub plan_continue: &'static str,
+    plan_continue: "Continue",
     // ----- place_names (faraday-core/src/screens/backup.rs) -----
     // ----- map_rows (faraday-core/src/screens/backup.rs) -----
     /// Text in `map_rows`. `{}`: `app.medium.cap()`.
-    pub map_rows_of_files: &'static str,
+    map_rows_of_files: "{} of files",
     /// Text in `map_rows`.
-    pub map_rows_watch_only: &'static str,
+    map_rows_watch_only: "Watch-only software",
     /// Text in `map_rows`.
-    pub map_rows_on_its_own: &'static str,
+    map_rows_on_its_own: "On its own device",
     /// Line in `map_rows`.
-    pub map_rows_nothing: &'static str,
+    map_rows_nothing: "Nothing",
     // ----- backup_done (faraday-core/src/screens/backup.rs) -----
     /// Line in `backup_done`.
-    pub backup_done_backup: &'static str,
+    backup_done_backup: "Backup done",
     /// Text in `backup_done`.
-    pub backup_done_open_the: &'static str,
+    backup_done_open_wallet: "Open the wallet",
     /// Text in `backup_done`.
-    pub backup_done_change: &'static str,
+    backup_done_change: "Change the plan",
     // ----- signers_count (faraday-core/src/screens/spend.rs) -----
     /// Text in `signers_count`. `{}`: `here`, `needed`.
-    pub signers_count_of_signatures_here: &'static str,
+    signers_count_of_signatures_here: "{} of {} signatures here",
     /// Text in `signers_count`. `{}`: `here`, `needed`, `needed - here`.
-    pub signers_count_of_signatures: &'static str,
+    signers_count_of_signatures: "{} of {} signatures here · {} more needed",
     /// Text in `signers_count`.
-    pub signers_count_can_spend: &'static str,
+    signers_count_can_spend: "Can spend",
     /// Line in `signers_count`.
-    pub signers_count_continue: &'static str,
+    signers_count_continue: "Continue",
     // ----- shares_card (faraday-core/src/screens/backup.rs) -----
     /// Text in `shares_card`.
-    pub shares_card_keys_left: &'static str,
+    shares_card_keys_left: "Keys left off each share",
     /// Text in `shares_card`. `{}`: `k + 1`.
-    pub shares_card_share: &'static str,
+    shares_card_share: "Share {}",
     /// Text in `shares_card`. `{}`: `m`.
-    pub shares_card_any_shares: &'static str,
+    shares_card_any_shares: "Any {} shares rebuild the wallet",
     /// Text in `shares_card`. `{}`: `m`.
-    pub shares_card_some_shares: &'static str,
+    shares_card_some_shares: "Some {} shares do not rebuild the wallet",
     /// Text in `shares_card`. `{}`: `a.smallest_rebuild`.
-    pub shares_card_the_fewest: &'static str,
+    shares_card_the_fewest: "The fewest shares that rebuild it: {}",
     /// Text in `shares_card`. `{}`: `a.copies_per_key`.
-    pub shares_card_each_key: &'static str,
+    shares_card_each_key: "Each key is on {} shares",
     /// Text in `shares_card`.
-    pub shares_card_no_single: &'static str,
+    shares_card_no_single: "No single share holds every key",
     /// Text in `shares_card`.
-    pub shares_card_each_share: &'static str,
+    shares_card_each_share: "Each share holds every key",
     // ----- copy_check (faraday-core/src/screens/backup.rs) -----
     /// Label of the typed words in `copy_check`.
-    pub copy_check_your_copys_words: &'static str,
+    copy_check_your_copys_words: "Your copy's words",
     /// Text in `copy_check`. `{}`: the word being typed, the seed's word count.
-    pub copy_check_word_of: &'static str,
+    copy_check_word_count: "Word {} of {}",
     /// Text in `copy_check`.
-    pub copy_check_your_copy: &'static str,
+    copy_check_your_copy: "Your copy matches the seed",
     /// Text in `copy_check`. `{}`: `k`.
-    pub copy_check_word_differs: &'static str,
+    copy_check_word_differs: "Word {} differs from the seed",
     /// Button in `copy_check`.
-    pub copy_check_clear: &'static str,
+    copy_check_clear: "Clear",
     /// Label of the typed passphrase in `copy_check`.
-    pub copy_check_your_copys_passphrase: &'static str,
+    copy_check_your_copys_passphrase: "Your copy's passphrase",
     /// Text in `copy_check`.
-    pub copy_check_passphrase_matches: &'static str,
+    copy_check_passphrase_matches: "Your copy matches the passphrase",
     /// Text in `copy_check`.
-    pub copy_check_passphrase_differs: &'static str,
+    copy_check_passphrase_differs: "Your copy differs from the passphrase",
     /// Button on a SeedQR copy's item: the copy dropped for the words.
-    pub copy_check_keep_the_words: &'static str,
+    copy_check_keep_the_words: "Keep the words only",
     /// Text on a SeedQR copy's item. `{}`: the count.
-    pub copy_check_scans_without: &'static str,
+    copy_check_scans_without: "{} scans without a match",
     /// Text on a copy's item. `{}`: the seed's fingerprint.
-    pub copy_check_drawn_in_part: &'static str,
+    copy_check_drawn_in_part: "Seed {}'s SeedQR, drawn in part, stays on the map until destroyed",
     // ----- item_action (faraday-core/src/screens/backup.rs) -----
     /// Text in `item_action`.
-    pub item_action_continue: &'static str,
+    item_action_continue: "Continue",
     /// Text in `item_action`.
-    pub item_action_check_my: &'static str,
+    item_action_check_my: "Check my copy",
     /// Text in `item_action`: a passphrase typed back, compared.
-    pub item_action_compare: &'static str,
+    item_action_compare: "Compare",
     /// Text in `item_action`.
-    pub item_action_lock_it: &'static str,
+    item_action_lock_new_vault: "Lock it and make a new vault",
     /// Text in `item_action`. `{}`: `open.name`.
-    pub item_action_save_into: &'static str,
+    item_action_save_into: "Save into {}",
     /// Text in `item_action`.
-    pub item_action_make_it: &'static str,
+    item_action_make: "Make it",
     /// Text in `item_action`.
-    pub item_action_make_them: &'static str,
+    item_action_make_them: "Make them",
     /// Text in `item_action`.
-    pub item_action_show_as: &'static str,
+    item_action_show_as: "Show as QR",
     // ----- vault_item (faraday-core/src/screens/backup.rs) -----
     /// Text in `vault_item`. `{}`: `o.name`.
-    pub vault_item_holds_another: &'static str,
+    vault_item_holds_another: "{} holds another vault's seed",
     /// Text in `vault_item`. `{}`: `o.name`.
-    pub vault_item_into: &'static str,
+    vault_item_into: "Into {}",
     /// Text in `vault_item`.
-    pub vault_item_into_the: &'static str,
+    vault_item_into_vault: "Into the vault",
     /// Text in `vault_item`. `{}`: `name`.
-    pub vault_item_seed_with: &'static str,
+    vault_item_seed_passphrase: "Seed {} with its passphrase",
     /// Text in `vault_item`. `{}`: `name`.
-    pub vault_item_seed: &'static str,
+    vault_item_seed: "Seed {}",
     /// Text in `vault_item`.
-    pub vault_item_wallet_description: &'static str,
+    vault_item_wallet_description: "Wallet description",
     // ----- seed_files (faraday-core/src/screens/backup.rs) -----
     /// Text in `seed_files`.
-    pub seed_files_not_made: &'static str,
+    seed_files_not_made: "Not made",
     // ----- paper_section (faraday-core/src/screens/backup.rs) -----
     /// Section label in `paper_section`.
-    pub paper_section_other: &'static str,
+    paper_section_other: "Other paper forms",
     /// Text in `paper_section`.
-    pub paper_section_seed_xor: &'static str,
+    paper_section_seed_xor: "Seed XOR, 2 parts",
     /// Text in `paper_section`.
-    pub paper_section_seed: &'static str,
+    paper_section_seed: "Seed XOR, 3 parts",
     /// Text in `paper_section`.
-    pub paper_section_codex32_2: &'static str,
+    paper_section_codex32_2_of_3: "codex32, 2 of 3",
     /// Text in `paper_section`.
-    pub paper_section_codex32: &'static str,
+    paper_section_codex32: "codex32, 3 of 5",
     /// Text in `paper_section`. `{}`: `parts.len()`.
-    pub paper_section_parts: &'static str,
+    paper_section_parts: "{} parts · every one is needed",
     /// Text in `paper_section`. `{}`: `strings.len()`, `k`.
-    pub paper_section_shares: &'static str,
+    paper_section_shares: "{} shares · any {} make the seed",
     /// Button in `paper_section`.
-    pub paper_section_put_them: &'static str,
+    paper_section_put_them: "Put them away",
     // ----- seed_grid (faraday-core/src/screens/backup.rs) -----
     /// Text in `seed_grid`. `{}`: `pin`.
-    pub seed_grid_row: &'static str,
+    seed_grid_row: "row {}",
     // ----- backup_panel (faraday-core/src/screens/backup.rs) -----
     /// Line in `backup_panel`.
-    pub backup_panel_map: &'static str,
+    backup_panel_map: "Map",
     // ----- kept_rows (faraday-core/src/screens/backup.rs) -----
     /// Line in `kept_rows`.
-    pub kept_rows_keys: &'static str,
+    kept_rows_keys: "Keys",
     // ----- message (faraday-core/src/screens/message.rs) -----
     /// Text in `message_screen`.
-    pub message_none_chosen: &'static str,
+    message_none_chosen: "None chosen",
     /// Text in `message_screen`.
-    pub message_not_written: &'static str,
+    message_not_written: "Not written yet",
     /// Text in `message_screen`.
-    pub message_signed: &'static str,
+    message_signed: "Signed",
     /// Text in `message_screen`.
-    pub message_not_signed: &'static str,
+    message_not_signed: "Not signed yet",
     /// Text in `message_screen`.
-    pub message_wallets: &'static str,
+    message_wallets: "Wallets",
     /// Text in `message_screen`.
-    pub message_sign_a_message: &'static str,
+    message_sign_a_message: "Sign a message",
     /// Text in `message_body`. `{}`: `m.index`.
-    pub message_receive_address: &'static str,
+    message_receive_address: "Receive address 0/{}",
     /// Text in `message_body`.
-    pub message_type_the_message: &'static str,
+    message_type_the_message: "Type the message",
     /// Text in `message_body`.
-    pub message_press_type: &'static str,
+    message_press_type: "Press Type to write the message",
     /// Text in `message_body`.
-    pub message_stop_typing: &'static str,
+    message_stop_typing: "Stop typing",
     /// Text in `message_body`.
-    pub message_type: &'static str,
+    message_type: "Type",
     /// Text in `message_body`. `{}`: `m.text.chars().count()`.
-    pub message_characters: &'static str,
+    message_characters: "{} characters",
     /// Button in `message_body`.
-    pub message_continue: &'static str,
+    message_continue: "Continue",
     /// Button in `message_body`.
-    pub message_sign_the_message: &'static str,
+    message_sign_the_message: "Sign the message",
     /// Line in `message_body`.
-    pub message_signature: &'static str,
+    message_signature: "Signature",
     /// Text in `message_body`.
-    pub message_make_the_file: &'static str,
+    message_make_the_file: "Make the file",
     /// Text in `message_body`. `{}`: `app.medium.for_the()`.
-    pub message_png: &'static str,
+    message_png: "PNG {}",
     /// Row in `message_body`.
-    pub message_signed_message: &'static str,
+    message_signed_message: "Signed message",
     /// Text in `message_body`.
-    pub message_show_as_qr: &'static str,
+    message_show_as_qr: "Show as QR",
     // ----- check (faraday-core/src/screens/check_message.rs) -----
     /// Line in `check_screen`.
-    pub check_wallets: &'static str,
+    check_wallets: "Wallets",
     /// Title in `check_screen`.
-    pub check_check_a_signed: &'static str,
+    check_check_a_signed: "Check a signed message",
     /// Text in `check_screen`.
-    pub check_a_valid_signature: &'static str,
+    check_a_valid_signature: "A valid signature proves that whoever holds this address's key signed exactly this text. It says nothing about who is showing it to you, or when it was signed.",
     /// Line in `check_screen`.
-    pub check_no_signed_message: &'static str,
+    check_no_signed_message: "No signed message chosen",
     /// Text in `check_screen`. `{}`: `app.session.network().name()`.
-    pub check_not_a_signed: &'static str,
+    check_not_a_signed: "Not a signed message for a {} address",
     /// Text in `check_screen`. `{}`: `if *f == faraday_psbt::message::Format::B…`.
-    pub check_the_signature_is: &'static str,
+    check_signature_valid: "The signature is valid ({})",
     /// Error in `check_screen`. `{}`: `e`.
-    pub check_the_signature: &'static str,
+    check_the_signature: "The signature does not verify: {}",
     /// Text in `check_screen`.
-    pub check_file: &'static str,
+    check_file: "File",
     /// Text in `check_screen`.
-    pub check_address: &'static str,
+    check_address: "Address",
     /// Text in `check_screen`.
-    pub check_wallet: &'static str,
+    check_wallet: "Wallet",
     /// Text in `check_screen`.
-    pub check_change: &'static str,
+    check_change: "change",
     /// Text in `check_screen`.
-    pub check_receive: &'static str,
+    check_receive: "receive",
     /// Text in `check_screen`.
-    pub check_not_an_address: &'static str,
+    check_not_an_address: "Not an address of a loaded wallet",
     /// Line in `check_screen`.
-    pub check_message: &'static str,
+    check_message: "Message",
     // ----- create (faraday-core/src/screens/create.rs) -----
     /// Text in `create_screen`. `{}`: `c.m`, `c.n`.
-    pub create_of: &'static str,
+    create_threshold: "{} of {}",
     /// Text in `create_screen`. `{}`: `filled`, `c.slots.len()`, `c.n - c.m`.
-    pub create_of_chosen_computed: &'static str,
+    create_of_chosen_computed: "{} of {} chosen · {} computed",
     /// Text in `create_screen`. `{}`: `filled`, `c.slots.len()`.
-    pub create_of_chosen: &'static str,
+    create_of_chosen: "{} of {} chosen",
     /// Text in `create_screen`. `{}`: `filled - k`, `c.slots.len()`, `k`.
-    pub create_of_chosen_to: &'static str,
+    create_slots_progress: "{} of {} chosen · {} to come",
     /// Text in `create_screen`. `{}`: `w.name`.
-    pub create_first_addresses: &'static str,
+    create_first_addresses: "{} · first addresses",
     /// Text in `create_screen`.
-    pub create_not_made_yet: &'static str,
+    create_not_made_yet: "Not made yet",
     /// Create's Back up card's line while it is closed: where Back up
     /// opens (`docs/BACKUP-FLOW.md` §17.21 item 2).
-    pub create_opens_on_standard: &'static str,
+    create_opens_on_standard: "Opens on the standard way",
     /// Text in `create_screen`.
-    pub create_home: &'static str,
+    create_home: "Home",
     /// Text in `create_screen`.
-    pub create_wallets: &'static str,
+    create_wallets: "Wallets",
     /// Text in `create_screen`.
-    pub create_make_a_new_wallet: &'static str,
+    create_make_a_new_wallet: "Make a new wallet",
     /// Text in `create_body`.
-    pub create_start_over: &'static str,
+    create_start_over: "Start over",
     /// Text in `create_body`.
-    pub create_signatures_needed: &'static str,
+    create_signatures_needed: "Signatures needed",
     /// Text in `create_body`.
-    pub create_keys: &'static str,
+    create_keys: "Keys",
     /// Text in `create_body`. `{}`: `c.n`.
-    pub create_all_keys_sign: &'static str,
+    create_all_keys_sign: "All {} keys sign together, as one signature on chain. Losing any one key loses the money: there is no spare.",
     /// Text in `create_body`. `{}`: `c.m`, `c.n`, `c.n - c.m`, `if c.n - c.m == 1 { EN.create_key_inline }…`, `c.m`.
-    pub create_any_of_the_keys: &'static str,
+    create_any_of_the_keys: "Any {} of the {} keys can spend. Losing {} {} still leaves the money spendable; {} keys together can take it.",
     /// Text in `create_body`.
-    pub create_key_inline: &'static str,
+    create_key_inline: "key",
     /// Text in `create_body`.
-    pub create_keys_inline: &'static str,
+    create_keys_inline: "keys",
     /// Line in `create_body`.
-    pub create_locked_in: &'static str,
+    create_locked_line: "Locked in",
     /// Text in `create_body`.
-    pub create_not_chosen: &'static str,
+    create_not_chosen: "Not chosen",
     /// Text in `create_body`. `{}`: `fpt`, `name`.
-    pub create_loaded_here: &'static str,
+    create_loaded_here: "{} · {} · loaded here",
     /// Text in `create_body`. `{}`: `&t[1..9.min(t.len())]`.
-    pub create_a_cosigner_s: &'static str,
+    create_a_cosigner_s: "{} · a cosigner's xpub",
     /// Text in `create_body`.
-    pub create_a_cosigner_adds: &'static str,
+    create_a_cosigner_adds: "A cosigner adds it later · waiting for its xpub file",
     /// Text in `create_body`.
-    pub create_new_key: &'static str,
+    create_new_key: "New key",
     /// Text in `create_body`. `{}`: `name`.
-    pub create_from: &'static str,
+    create_slot_source: "From {}",
     /// Text in `create_body`.
-    pub create_scan_its_xpub: &'static str,
+    create_scan_its_xpub: "Scan its xpub",
     /// Text in `create_body`.
-    pub create_someone_else: &'static str,
+    create_someone_else: "Someone else adds it later",
     // NEW-WALLET §16 (F45): keys from a vault in Create; a new wallet
     // from one held.
     /// Text in `create_body`: a slot left for a cosigner's xpub at
     /// another account. `{}`: the slot's number, the account.
-    pub create_needs_xpub_at: &'static str,
+    create_needs_xpub_account: "Needs Key {}'s xpub at account {}",
     /// Text in `create_body`: the Kind card's account stepper.
-    pub create_account: &'static str,
+    create_account: "Account",
     /// Kind's closed line and the proposed name of a wallet made from
     /// another. `{}`: the kind's or the wallet's name, the account.
-    pub create_at_account: &'static str,
+    create_at_account: "{} · account {}",
     /// Label in `create_body`: Check's row of the made wallet's
     /// derivation paths (`docs/history/NEW-WALLET.md` §17).
-    pub create_path: &'static str,
+    create_path: "Path",
     /// Button in `create_body`: Check's Path row, back to Kind's Account.
-    pub create_path_change: &'static str,
+    create_path_change: "Change",
     /// Text in Check's Path row: a key that came with no origin.
-    pub create_path_not_given: &'static str,
+    create_path_not_given: "no path given",
     /// Button on a wallet's card.
-    pub wallets_new_wallet_from: &'static str,
+    wallets_new_wallet_button: "New wallet from this one",
     /// Text in `create_body`.
-    pub create_clear: &'static str,
+    create_clear: "Clear",
     /// Text in `create_body`.
-    pub create_show_xpub_qr: &'static str,
+    create_show_xpub_qr: "Show xpub QR",
     /// Text in `create_body`. `{}`: `app.medium.for_the()`.
-    pub create_xpub_png: &'static str,
+    create_xpub_png: "Xpub PNG {}",
     /// Text in `create_body`. `{}`: `app.medium.for_the()`.
-    pub create_xpub_file: &'static str,
+    create_xpub_file: "Xpub file {}",
     /// Text in `create_body`.
-    pub create_add_a_passphrase: &'static str,
+    create_add_a_passphrase: "Add a passphrase",
     /// Label in `create_body`.
-    pub create_passphrase: &'static str,
+    create_passphrase: "Passphrase",
     /// Label in `create_body`.
-    pub create_passphrase_again: &'static str,
+    create_passphrase_again: "Passphrase again",
     /// Button in `create_body`.
-    pub create_lock_in: &'static str,
+    create_lock_button: "Lock in",
     /// Text in `create_body`. `{}`: `k + 1`.
-    pub create_share_n: &'static str,
+    create_share_n: "Share {}",
     /// Line in `create_body`.
-    pub create_computed_by: &'static str,
+    create_computed_by_deal: "Computed by the deal",
     /// Text in `create_body`. `{}`: `if c.kind.threshold() { EN.create_sha…`, `slot + 1`.
-    pub create_new_key_for: &'static str,
+    create_new_key_slot: "New key for {} {}",
     /// Text in `create_body`.
-    pub create_share: &'static str,
+    create_share: "Share",
     /// Text in `create_body`.
-    pub create_key: &'static str,
+    create_key: "Key",
     /// Text in `create_body`.
-    pub create_continue: &'static str,
+    create_continue: "Continue",
     /// Text in `create_body`. `{}`: `app.session.wallets[old].name`.
-    pub create_move_the_money: &'static str,
+    create_move_the_money: "Move the money from {}",
     /// Create's Back up step's one button: Back up on the wallet just made
     /// (`docs/BACKUP-FLOW.md` §17.21 item 2).
-    pub create_back_up_this: &'static str,
+    create_back_up_button: "Back up this wallet",
     /// Line in `create_body`.
-    pub create_make_the_wallet: &'static str,
+    create_make_the_wallet: "Make the wallet first",
     // ----- kind_rows (faraday-core/src/screens/parts.rs) -----
     /// Button in `kind_rows`.
-    pub kind_rows_more_kinds: &'static str,
+    kind_rows_more_kinds: "More kinds",
     // ----- first_addresses (faraday-core/src/screens/parts.rs) -----
     /// Section label in `first_addresses`.
-    pub first_addresses_the: &'static str,
+    first_addresses_heading: "The wallet's first addresses",
     /// Text in `first_addresses`.
-    pub first_addresses_receive_0: &'static str,
+    first_addresses_receive_0_0: "Receive 0/0",
     /// Text in `first_addresses`.
-    pub first_addresses_receive: &'static str,
+    first_addresses_receive_0_1: "Receive 0/1",
     /// Text in `first_addresses`.
-    pub first_addresses_change: &'static str,
+    first_addresses_change: "Change 1/0",
     // ----- made_place (faraday-core/src/screens/parts.rs) -----
     /// Text in `made_place`. `{}`: `r.label`.
-    pub made_place_written: &'static str,
+    made_place_written: "Written to {}",
     // ----- made_line (faraday-core/src/screens/spend.rs) -----
     /// Button in `made_line`.
-    pub made_line_remove: &'static str,
+    made_line_remove: "Remove",
     // ----- made_state (faraday-core/src/screens/parts.rs) -----
     /// Text in `made_state`.
-    pub made_state_remove: &'static str,
+    made_state_remove: "Remove",
     /// Text in `made_state`.
-    pub made_state_make_again: &'static str,
+    made_state_make_again: "Make again",
     // ----- locked_tag (faraday-core/src/screens/parts.rs) -----
     /// Text in `locked_tag`.
-    pub locked_tag_locked_in: &'static str,
+    locked_tag_text: "Locked in",
     // ----- descriptor_row (faraday-core/src/screens/parts.rs) -----
     /// Line in `descriptor_row`.
-    pub descriptor_row_descriptor: &'static str,
+    descriptor_row_descriptor: "Descriptor",
     // ----- public_files (faraday-core/src/screens/backup.rs) -----
     /// Text in `public_files`.
-    pub public_files_show_as: &'static str,
+    public_files_show_as: "Show as QR",
     /// Text in `public_files`.
-    pub public_files_descriptor: &'static str,
+    public_files_descriptor: "Descriptor",
     /// Text in `public_files`.
-    pub public_files_any_wallet: &'static str,
+    public_files_any_wallet: "Any wallet software",
     /// Text in `public_files`.
-    pub public_files_wallet: &'static str,
+    public_files_wallet: "Wallet file",
     /// Text in `public_files`.
-    pub public_files_sparrow: &'static str,
+    public_files_sparrow: "Sparrow, Specter",
     /// Text in `public_files`.
-    pub public_files_multisig: &'static str,
+    public_files_multisig: "Multisig config",
     /// Text in `public_files`.
-    pub public_files_coldcard: &'static str,
+    public_files_coldcard: "Coldcard, Keystone, Passport",
     /// Text in `public_files`.
-    pub public_files_backup: &'static str,
+    public_files_backup: "Backup sheet",
     /// Text in `public_files`.
-    pub public_files_a_pdf: &'static str,
+    public_files_a_pdf: "A PDF to print",
     /// Text in `public_files`.
-    pub public_files_bsms_descriptor: &'static str,
+    public_files_bsms_descriptor: "BSMS descriptor record",
     /// Text in `public_files`.
-    pub public_files_bip_129: &'static str,
+    public_files_bip_129: "BIP 129: Coldcard, Sparrow, Nunchuk",
     /// Text in `public_files`.
-    pub public_files_bitcoin: &'static str,
+    public_files_bitcoin: "Core 29 or later",
     /// Text in `public_files`. `{}`: `fp`.
-    pub public_files_key: &'static str,
+    public_files_key: "Key {}",
     /// Text in `public_files`.
-    pub public_files_for_the: &'static str,
+    public_files_cosigners: "For the cosigners",
     /// Text in `public_files`. `{}`: `fp`.
-    pub public_files_key_bsms: &'static str,
+    public_files_key_bsms: "Key {}, BSMS",
     /// Text in `public_files`.
-    pub public_files_signed: &'static str,
+    public_files_signed: "Signed xpub record, BIP 129",
     /// Text in `public_files`: the Caravan config's row.
-    pub public_files_caravan: &'static str,
+    public_files_caravan: "Caravan config",
     /// Text in `public_files`: who reads the Caravan config.
-    pub public_files_caravan_unchained: &'static str,
+    public_files_caravan_unchained: "Caravan, Unchained",
     /// Text in `public_files`: the Wasabi file's row.
-    pub public_files_wasabi: &'static str,
+    public_files_wasabi: "Wasabi file",
     /// Text in `public_files`: who reads the Wasabi file.
-    pub public_files_wasabi_wallet: &'static str,
+    public_files_wasabi_wallet: "Wasabi Wallet",
     /// Text in `public_files`: the row of Bitcoin Core's import file
     /// for Core before 29.
-    pub public_files_core_before_29: &'static str,
+    public_files_core_before_29: "Core before 29",
     /// Text in `public_files`: who reads either of Bitcoin Core's import
     /// files.
-    pub public_files_bitcoin_core: &'static str,
+    public_files_bitcoin_core: "Bitcoin Core, watch-only",
     /// Text in `public_files`: the Electrum wallet file's row.
-    pub public_files_electrum: &'static str,
+    public_files_electrum: "Electrum wallet file",
     /// Text in `public_files`: who reads the Electrum wallet file.
-    pub public_files_electrum_watch_only: &'static str,
+    public_files_electrum_watch_only: "Electrum, watch-only",
     // ----- public_rows_for (faraday-core/src/screens/backup.rs) -----
     /// Text in `public_rows_for`.
-    pub public_rows_for_make: &'static str,
+    public_rows_for_make: "Make the file",
     /// Text in `public_rows_for`: the ghost button the files few people
     /// need are under (F64).
-    pub public_rows_for_more_options: &'static str,
+    public_rows_for_more_options: "More options",
     // ----- restore (faraday-core/src/screens/restore.rs) -----
     /// Text in `restore_screen`. `{}`: `s.m`, `s.n`.
-    pub restore_of: &'static str,
+    restore_threshold: "{} of {}",
     /// Text in `restore_screen`.
-    pub restore_none: &'static str,
+    restore_none: "None",
     /// Text in `restore_screen`. `{}`: `here`, `all`.
-    pub restore_of_filled: &'static str,
+    restore_of_filled: "{} of {} filled",
     /// Text in `restore_screen`.
-    pub restore_home: &'static str,
+    restore_home: "Home",
     /// Text in `restore_screen`.
-    pub restore_restore_an: &'static str,
+    restore_title: "Restore an existing wallet",
     /// Text in `restore_body`.
-    pub restore_i_have_the: &'static str,
+    restore_have_description: "I have the wallet description",
     /// Text in `restore_body`.
-    pub restore_scan_it: &'static str,
+    restore_scan_button: "Scan it",
     /// Text in `restore_body`.
-    pub restore_from_files: &'static str,
+    restore_from_files: "From Files",
     /// Text in `restore_body`.
-    pub restore_continue: &'static str,
+    restore_continue: "Continue",
     /// Text in `restore_body`.
-    pub restore_it_matches: &'static str,
+    restore_it_matches: "It matches",
     /// Line in `restore_body`.
-    pub restore_make_the_wallet: &'static str,
+    restore_make_the_wallet: "Make the wallet first",
     /// Text in `restore_body`.
-    pub restore_back_up_this: &'static str,
+    restore_back_up_button: "Back up this wallet",
     /// Text in `restore_body`.
-    pub restore_wallets: &'static str,
+    restore_wallets: "Wallets",
     /// Text in `restore_body`: New wallet from this one, on Done.
-    pub restore_another_wallet: &'static str,
+    restore_another_wallet: "Another wallet from these seeds",
     // ----- restore_description (faraday-core/src/screens/restore.rs) -----
     /// Text in `restore_description`. `{}`: `n`.
-    pub restore_description_from: &'static str,
+    restore_description_source: "From {}",
     /// Text in `restore_description`.
-    pub restore_description_i_have: &'static str,
+    restore_description_i_have: "I have the seed",
     /// Text in `restore_description`.
-    pub restore_description_scan: &'static str,
+    restore_description_scan: "Scan descriptor",
     /// Text in `restore_description`.
-    pub restore_description_i: &'static str,
+    restore_description_i: "I do not have it",
     /// Line in `restore_description`.
-    pub restore_description_shares: &'static str,
+    restore_description_shares: "Shares of a split backup",
     /// Text in `restore_description`. `{}`: `m.have.len()`, `m.n`, `m.have.join(" ")`.
-    pub restore_description_of: &'static str,
+    restore_description_progress: "{} of {} keys in hand · {}",
     /// Button in `restore_description`.
-    pub restore_description_rebuild: &'static str,
+    restore_description_rebuild: "Rebuild the wallet",
     // ----- restore_seeds (faraday-core/src/screens/restore.rs) -----
     /// Text in `restore_seeds`. `{}`: `k + 1`.
-    pub restore_seeds_key_of: &'static str,
+    restore_seeds_key_number: "Key {} of the wallet",
     /// Button in `restore_seeds`.
-    pub restore_seeds_change: &'static str,
+    restore_seeds_change: "Change",
     /// Button in `restore_seeds`.
-    pub restore_seeds_not_here: &'static str,
+    restore_seeds_not_here: "Not here",
     /// Text in `restore_seeds`.
-    pub restore_seeds_here: &'static str,
+    restore_seeds_here: "Here",
     /// Text in `restore_seeds`. `{}`: `label`.
-    pub restore_seeds_here_n: &'static str,
+    restore_seeds_here_n: "Here · {}",
     /// Row in `restore_seeds`.
-    pub restore_seeds_empty: &'static str,
+    restore_seeds_empty: "Empty",
     /// Text in `restore_seeds`.
-    pub restore_seeds_its_xpub: &'static str,
+    restore_seeds_its_xpub: "Its xpub",
     /// Text in `restore_seeds`.
-    pub restore_seeds_make: &'static str,
+    restore_seeds_make: "Make the wallet",
     // ----- restore_open_slot (faraday-core/src/screens/restore.rs) -----
     /// Text in `restore_open_slot`.
-    pub restore_open_slot_type: &'static str,
+    restore_open_slot_type: "Type the words",
     /// Text in `restore_open_slot`.
-    pub restore_open_slot_scan: &'static str,
+    restore_open_slot_scan: "Scan a SeedQR",
     // ----- restore_sources (faraday-core/src/screens/restore.rs) -----
     /// Text in `restore_sources_compact`.
-    pub restore_sources_copy_files: &'static str,
+    restore_sources_copy_files: "Copy files in",
     /// Text in `restore_sources_compact`.
-    pub restore_sources_not: &'static str,
+    restore_sources_key_loaded: "Not while a key is loaded",
     /// Text in `restore_sources_compact`. `{}`: `app.medium.noun()`.
-    pub restore_sources_insert: &'static str,
+    restore_sources_insert: "Insert the {}",
     /// Line in `restore_sources_compact`.
-    pub restore_sources_vault: &'static str,
+    restore_sources_vault: "Vault",
     /// Text in `restore_sources_compact`. `{}`: `f.name`.
-    pub restore_sources_unlock: &'static str,
+    restore_sources_unlock: "Unlock {}",
     /// Text in `restore_sources_compact`.
-    pub restore_sources_wallet: &'static str,
+    restore_sources_wallet: "Wallet",
     /// Text in `restore_sources_compact`. `{}`: `app.medium.noun()`.
-    pub restore_sources_copy: &'static str,
+    restore_sources_copy: "Copy the vault in from its {}",
     // ----- kind_line (faraday-core/src/screens/parts.rs) -----
     /// Text in `kind_line`. `{}`: `bytes as f32 / 1e6`.
-    pub kind_line_mb: &'static str,
+    kind_line_mb: "{} MB",
     /// Text in `kind_line`. `{}`: `bytes as f32 / 1e3`.
-    pub kind_line_kb: &'static str,
+    kind_line_kb: "{} KB",
     // ----- kind_name (faraday-core/src/screens/parts.rs) -----
     /// Text in `kind_name`.
-    pub kind_name_wallet_descriptor: &'static str,
+    kind_name_wallet_descriptor: "Wallet descriptor",
     /// Text in `kind_name`.
-    pub kind_name_finished: &'static str,
+    kind_name_finished: "Finished transaction",
     /// Text in `kind_name`.
-    pub kind_name_sheet_for: &'static str,
+    kind_name_print_sheet: "Sheet for printing",
     /// Text in `kind_name`.
-    pub kind_name_signed_message: &'static str,
+    kind_name_signed_message: "Signed message",
     /// Text in `kind_name`.
-    pub kind_name_account_xpub: &'static str,
+    kind_name_account_xpub: "Account xpub",
     /// Text in `kind_name`.
-    pub kind_name_seed_words: &'static str,
+    kind_name_seed_words: "Seed words",
     /// Text in `kind_name`.
-    pub kind_name_share_of: &'static str,
+    kind_name_split_share: "Share of a split backup",
     /// Text in `kind_name`.
-    pub kind_name_threshold: &'static str,
+    kind_name_threshold: "Threshold spend, part-signed",
     /// Text in `kind_name`.
-    pub kind_name_vault_locked: &'static str,
+    kind_name_vault_locked: "Vault, locked",
     /// Text in `kind_name`.
-    pub kind_name_entries_for: &'static str,
+    kind_name_vault_entries: "Entries for a vault",
     /// Text in `kind_name`.
-    pub kind_name_oskb: &'static str,
+    kind_name_oskb: ".oskb backup, encrypted",
     /// Text in `kind_name`.
-    pub kind_name_keepass_database: &'static str,
+    kind_name_keepass_database: "KeePass database, encrypted",
     /// Text in `kind_name`.
-    pub kind_name_pdf_to_print: &'static str,
+    kind_name_pdf_to_print: "PDF to print",
     /// Text in `kind_name`.
-    pub kind_name_efi_image: &'static str,
+    kind_name_efi_image: "EFI image",
     /// Text in `kind_name`.
-    pub kind_name_part_of_a: &'static str,
+    kind_name_seed_part: "Part of a seed: SLIP-39 or codex32",
     /// Text in `kind_name`.
-    pub kind_name_text: &'static str,
+    kind_name_text: "Text",
     /// Text in `kind_name`.
-    pub kind_name_gpg: &'static str,
+    kind_name_gpg: "GPG",
     /// Text in `kind_name`: another wallet's file that holds a private
     /// key or a seed beside its public keys.
-    pub kind_name_secret_wallet: &'static str,
+    kind_name_secret_wallet: "Wallet file with a private key",
     /// Text in `kind_name`.
-    pub kind_name_file: &'static str,
+    kind_name_file: "File",
     // ----- add_to_vault (faraday-core/src/screens/files.rs) -----
     /// Text in `add_to_vault`.
-    pub add_to_vault_add_to: &'static str,
+    add_to_vault_button: "Add to vault",
     // ----- restore_shares_button (faraday-core/src/screens/files.rs) -----
     /// Text in `restore_shares_button`. `{}`: `texts.len()`.
-    pub restore_shares_button_restore: &'static str,
+    restore_shares_button_restore: "Restore the wallet · {} shares",
     /// Text in `restore_shares_button`. `{}`: `m.have.len()`, `m.n`.
-    pub restore_shares_button_of: &'static str,
+    restore_shares_button_progress: "{} of {} keys in hand",
     // ----- files (faraday-core/src/screens/files.rs) -----
     /// Title in `files`.
-    pub files_files: &'static str,
+    files_files: "Files",
     /// Button in `files`.
-    pub files_add_to_signatures: &'static str,
+    files_add_to_signatures: "Add to signatures",
     /// Text in `files`.
-    pub files_import_into_the: &'static str,
+    files_import_into_vault: "Import into the vault",
     /// Text in `files`.
-    pub files_contents: &'static str,
+    files_contents: "Contents",
     /// Text in `files`.
-    pub files_unlock: &'static str,
+    files_unlock: "Unlock",
     /// Button in `files`.
-    pub files_sign: &'static str,
+    files_sign: "Sign",
     /// Button in `files`.
-    pub files_load_the_wallet: &'static str,
+    files_load_the_wallet: "Load the wallet",
     /// Button in `files`.
-    pub files_decode: &'static str,
+    files_decode: "Decode",
     /// Button in `files`.
-    pub files_load_this_key: &'static str,
+    files_load_this_key: "Load this key",
     /// Button in `files`.
-    pub files_check_the_signature: &'static str,
+    files_check_the_signature: "Check the signature",
     /// Text in `files_compact`. `{}`: `app.medium.a()`.
-    pub files_waiting_for: &'static str,
+    files_waiting_medium: "Waiting for {}",
     /// Text in `files_compact`. `{}`: `app.medium.cap()`.
-    pub files_attached_lock: &'static str,
+    files_attached_lock: "{} attached · lock to use it",
     /// Text in `files_compact`. `{}`: `app.sticks[app.visit.stick.min(app.st…`.
-    pub files_visit: &'static str,
+    files_visit: "Visit {}",
     /// Button in `files_compact`.
-    pub files_scan_a_qr_code: &'static str,
+    files_scan_a_qr_code: "Scan a QR code",
     /// Line in `files_compact`.
-    pub files_in_memory_emptied: &'static str,
+    files_in_memory_emptied: "In memory · emptied at power-off",
     /// Text in `files_compact`.
-    pub files_locked: &'static str,
+    files_locked: "locked",
     /// Text in `files_compact`.
-    pub files_open: &'static str,
+    files_open: "open",
     /// Text in `files_compact`. `{}`: `app.medium.a()`.
-    pub files_empty_files_are: &'static str,
+    files_empty_files_are: "Empty · files are copied in on {} visit",
     /// Text in `files_compact`.
-    pub files_public: &'static str,
+    files_public: "Public",
     /// Text in `files_compact`.
-    pub files_anyone_may_read: &'static str,
+    files_anyone_may_read: "Anyone may read these",
     /// Text in `files_compact`.
-    pub files_written_sealed: &'static str,
+    files_written_sealed: "Written sealed",
     /// Text in `files_compact`. `{}`: `app.medium.a()`.
-    pub files_sealed_under: &'static str,
+    files_sealed_under: "Sealed under their passphrases before they reach {}",
     /// Text in `files_compact`.
-    pub files_unprotected_secrets: &'static str,
+    files_unprotected_secrets: "Unprotected secrets",
     /// Text in `files_compact`. `{}`: `app.medium.noun()`.
-    pub files_anyone_who_has: &'static str,
+    files_anyone_who_has: "Anyone who has the {} can use these",
     /// Text in `files_compact`. `{}`: `v.changes`, `if v.changes == 1 { EN.files_change }…`.
-    pub files_vault_open_unsaved: &'static str,
+    files_vault_open_unsaved: "Vault, open · {} unsaved {} · sealed and locked at Lock",
     /// Text in `files_compact`.
-    pub files_change: &'static str,
+    files_change: "change",
     /// Text in `files_compact`.
-    pub files_changes: &'static str,
+    files_changes: "changes",
     /// Text in `files_compact`.
-    pub files_vault_open_sealed: &'static str,
+    files_vault_open_sealed: "Vault, open · sealed and locked at Lock",
     /// Text in `files_compact`.
-    pub files_unprotected: &'static str,
+    files_unprotected: "Unprotected",
     /// Text in `files_compact`.
-    pub files_written_after: &'static str,
+    files_written_after: "Written after Lock",
     /// Text in `files_compact`.
-    pub files_ready: &'static str,
+    files_ready: "Ready",
     /// Text in `files_compact`.
-    pub files_make_pdf: &'static str,
+    files_make_pdf: "Make PDF",
     /// Text in `files_compact`.
-    pub files_show_as_qr: &'static str,
+    files_show_as_qr: "Show as QR",
     /// Text in `files_compact`.
-    pub files_remove: &'static str,
+    files_remove: "Remove",
     /// Line in `files_compact`.
-    pub files_empty: &'static str,
+    files_empty: "Empty",
     /// Text in `files_compact`. `{}`: `app.medium.for_the()`.
-    pub files_power_off_asks: &'static str,
+    files_power_off_asks: "Power off asks first while files wait {}",
     /// Text in `files_compact`. `{}`: `app.medium.from_box()`, `app.medium.nouns()`, `app.medium.for_box()`.
-    pub files_holds_what_was: &'static str,
+    files_holds_what_was: "{} holds what was copied in from {}; {} holds what waits to be written to one, and what the last visit wrote. Both live in memory and are emptied at power-off. Public files are listed apart from vaults, which carry secrets sealed under a passphrase; a secret goes out unprotected only when you say so after a warning, and is listed apart.",
     // ----- receipt_rows (faraday-core/src/screens/files.rs) -----
     /// Text in `receipt_rows`.
-    pub receipt_rows_verified: &'static str,
+    receipt_rows_verified: "verified",
     // ----- vault_panel (faraday-core/src/screens/files.rs) -----
     /// Text in `vault_panel`. `{}`: `open.name`, `open.label()`.
-    pub vault_panel_open: &'static str,
+    vault_panel_open: "{} · {} · open",
     /// Text in `vault_panel`.
-    pub vault_panel_select: &'static str,
+    vault_panel_select: "Select all",
     /// Line in `vault_panel`.
-    pub vault_panel_wallets_with: &'static str,
+    vault_panel_seeded_wallets: "Wallets with their seeds",
     /// Text in `vault_panel`. `{}`: `here`, `wt.total`, `if wt.total == 1 { EN.vault_panel_key…`.
-    pub vault_panel_of_in_this: &'static str,
+    vault_panel_keys_here: "{} of {} {} in this vault",
     /// Text in `vault_panel`.
-    pub vault_panel_ready_to: &'static str,
+    vault_panel_ready_to_sign: "Ready to sign once loaded",
     /// Text in `vault_panel`. `{}`: `more`.
-    pub vault_panel_more_listed: &'static str,
+    vault_panel_more_listed: "+ {} more · listed under Each seed and wallet",
     /// Text in `vault_panel`.
-    pub vault_panel_load_wallet: &'static str,
+    vault_panel_load_wallet: "Load wallet with keys",
     /// Text in `vault_panel`.
-    pub vault_panel_load: &'static str,
+    vault_panel_load: "Load 1 wallet with keys",
     /// Text in `vault_panel`. `{}`: `n`.
-    pub vault_panel_load_wallets: &'static str,
+    vault_panel_load_wallets: "Load {} wallets with keys",
     /// Text in `vault_panel`.
-    pub vault_panel_hide_each: &'static str,
+    vault_panel_hide_each: "Hide each seed and wallet",
     /// Text in `vault_panel`. `{}`: `rows.len()`.
-    pub vault_panel_each_seed: &'static str,
+    vault_panel_each_seed: "Each seed and wallet · {}",
     /// Text in `vault_panel`.
-    pub vault_panel_loaded: &'static str,
+    vault_panel_loaded: "Loaded",
     /// Text in `vault_panel`.
-    pub vault_panel_everything: &'static str,
+    vault_panel_everything: "Everything is loaded",
     /// Text in `vault_panel`.
-    pub vault_panel_nothing: &'static str,
+    vault_panel_nothing: "Nothing chosen",
     /// Text in `vault_panel`. `{}`: `count(wl, EN.vault_panel_wallet, EN.v…`.
-    pub vault_panel_load_n: &'static str,
+    vault_panel_load_n: "Load {}",
     /// Text in `vault_panel`. `{}`: `count(s, EN.vault_panel_key, EN.vault…`, `count(wl, EN.vault_panel_wallet, EN.v…`.
-    pub vault_panel_load_and: &'static str,
+    vault_panel_load_keys_wallets: "Load {} and {}",
     /// Text in `vault_panel`.
-    pub vault_panel_key: &'static str,
+    vault_panel_key: "key",
     /// Text in `vault_panel`.
-    pub vault_panel_keys: &'static str,
+    vault_panel_keys: "keys",
     /// Text in `vault_panel`.
-    pub vault_panel_wallet: &'static str,
+    vault_panel_wallet: "wallet",
     /// Text in `vault_panel`.
-    pub vault_panel_wallets: &'static str,
+    vault_panel_wallets: "wallets",
     /// Button in `vault_panel`.
-    pub vault_panel_go_to_wallets: &'static str,
+    vault_panel_go_to_wallets: "Go to Wallets",
     // ----- inbox (faraday-core/src/screens/files.rs) -----
     /// Line in `inbox_panel_compact`.
-    pub inbox_wallets: &'static str,
+    inbox_wallets: "Wallets",
     /// Text in `inbox_panel_compact`. `{}`: `fw.shape`, `fw.seeds_here`, `n`, `if n == 1 { EN.inbox_key } else { EN.…`, `if fw.files.len() > 1 { format!(" · {…`.
-    pub inbox_of_here: &'static str,
+    inbox_of_here: "{} · {} of {} {} here{}",
     /// Text in `inbox_panel_compact`.
-    pub inbox_key: &'static str,
+    inbox_key: "key",
     /// Text in `inbox_panel_compact`.
-    pub inbox_keys: &'static str,
+    inbox_keys: "keys",
     /// Line in `inbox_panel_compact`.
-    pub inbox_ready_to_sign: &'static str,
+    inbox_ready_to_sign: "Ready to sign once loaded",
     /// Text in `inbox_panel_compact`. `{}`: `wallets.len() - ROWS`.
-    pub inbox_more_loaded_with: &'static str,
+    inbox_more_loaded: "+ {} more, loaded with these",
     /// Text in `inbox_panel_compact`.
-    pub inbox_nothing_chosen: &'static str,
+    inbox_nothing_chosen: "Nothing chosen",
     /// Text in `inbox_panel_compact`.
-    pub inbox_load_the_wallet_with: &'static str,
+    inbox_load_wallet_seeds: "Load the wallet with its seeds",
     /// Text in `inbox_panel_compact`.
-    pub inbox_load_the_wallet: &'static str,
+    inbox_load_the_wallet: "Load the wallet",
     /// Text in `inbox_panel_compact`. `{}`: `n`.
-    pub inbox_load_wallets_with: &'static str,
+    inbox_load_wallets_seeds: "Load {} wallets with their seeds",
     /// Text in `inbox_panel_compact`. `{}`: `n`.
-    pub inbox_load_wallets: &'static str,
+    inbox_load_wallets: "Load {} wallets",
     /// Text in `inbox_panel_compact`. `{}`: `app.medium.noun()`.
-    pub inbox_keys_load_once: &'static str,
+    inbox_keys_load_once: "Keys load once the {} is out",
     /// Line in `inbox_panel_compact`.
-    pub inbox_keys_with_no: &'static str,
+    inbox_loose_keys: "Keys with no wallet",
     /// Text in `inbox_panel_compact`.
-    pub inbox_make_it_a_wallet: &'static str,
+    inbox_make_it_a_wallet: "Make it a wallet",
     /// Text in `inbox_panel_compact`. `{}`: `potential.len() - ROWS`.
-    pub inbox_more: &'static str,
+    inbox_more: "+ {} more",
     /// Line in `inbox_panel_compact`.
-    pub inbox_xpubs_with_no: &'static str,
+    inbox_loose_xpubs: "Xpubs with no wallet",
     /// Text in `inbox_panel_compact`.
-    pub inbox_no_origin: &'static str,
+    inbox_no_origin: "no origin",
     /// Text in `inbox_panel_compact`.
-    pub inbox_make_it_a_watch: &'static str,
+    inbox_make_it_a_watch: "Make it a watch-only wallet",
     /// Line in `inbox_panel_compact`.
-    pub inbox_not_complete: &'static str,
+    inbox_not_complete: "Not complete or sealed",
     /// Text in `inbox_panel_compact`.
-    pub inbox_open_with_its: &'static str,
+    inbox_open_passphrase: "Open with its passphrase",
     // ----- vault (faraday-core/src/screens/files.rs) -----
     /// Text in `vault_panel_compact`. `{}`: `open.name`, `open.label()`.
-    pub vault_open: &'static str,
+    vault_open: "{} · {} · open",
     /// Line in `vault_panel_compact`.
-    pub vault_wallets_with: &'static str,
+    vault_seeded_wallets: "Wallets with their seeds",
     /// Text in `vault_panel_compact`. `{}`: `here`, `wt.total`, `if wt.total == 1 { EN.vault_key_inline } els…`.
-    pub vault_of_in_this_vault: &'static str,
+    vault_of_in_this_vault: "{} of {} {} in this vault",
     /// Line in `vault_panel_compact`.
-    pub vault_ready_to_sign: &'static str,
+    vault_ready_to_sign: "Ready to sign once loaded",
     /// Text in `vault_panel_compact`. `{}`: `more`.
-    pub vault_more_listed_under: &'static str,
+    vault_more_listed_under: "+ {} more · listed under Each seed and wallet",
     /// Text in `vault_panel_compact`.
-    pub vault_load_wallet_with: &'static str,
+    vault_load_wallet_keys: "Load wallet with keys",
     /// Text in `vault_panel_compact`.
-    pub vault_load_1_wallet: &'static str,
+    vault_load_1_wallet: "Load 1 wallet with keys",
     /// Text in `vault_panel_compact`. `{}`: `n`.
-    pub vault_load_wallets: &'static str,
+    vault_load_wallets: "Load {} wallets with keys",
     /// Text in `vault_panel_compact`.
-    pub vault_hide_each_seed: &'static str,
+    vault_hide_each_seed: "Hide each seed and wallet",
     /// Text in `vault_panel_compact`. `{}`: `rows.len()`.
-    pub vault_each_seed_and: &'static str,
+    vault_each_seed_wallet: "Each seed and wallet · {}",
     /// Line in `vault_panel_compact`.
-    pub vault_select_all: &'static str,
+    vault_select_all: "Select all",
     /// Text in `vault_panel_compact`.
-    pub vault_loaded: &'static str,
+    vault_loaded: "Loaded",
     /// Text in `vault_panel_compact`.
-    pub vault_everything_is: &'static str,
+    vault_everything_loaded: "Everything is loaded",
     /// Text in `vault_panel_compact`.
-    pub vault_nothing_chosen: &'static str,
+    vault_nothing_chosen: "Nothing chosen",
     /// Text in `vault_panel_compact`. `{}`: `count(wl, EN.vault_wallet_inline, EN.vault_w…`.
-    pub vault_load_n: &'static str,
+    vault_load_n: "Load {}",
     /// Text in `vault_panel_compact`. `{}`: `count(s, EN.vault_key_inline, EN.vault_keys)`, `count(wl, EN.vault_wallet_inline, EN.vault_w…`.
-    pub vault_load_and: &'static str,
+    vault_load_keys_wallets: "Load {} and {}",
     /// Text in `vault_panel_compact`.
-    pub vault_key_inline: &'static str,
+    vault_key_inline: "key",
     /// Text in `vault_panel_compact`.
-    pub vault_keys: &'static str,
+    vault_keys: "keys",
     /// Text in `vault_panel_compact`.
-    pub vault_wallet_inline: &'static str,
+    vault_wallet_inline: "wallet",
     /// Text in `vault_panel_compact`.
-    pub vault_wallets: &'static str,
+    vault_wallets: "wallets",
     /// Text in `vault_panel_compact`.
-    pub vault_go_to_wallets: &'static str,
+    vault_go_to_wallets: "Go to Wallets",
     // ----- inbox_actions (faraday-core/src/screens/files.rs) -----
     /// Text in `inbox_actions`.
-    pub inbox_actions_add_to_vault: &'static str,
+    inbox_actions_add_to_vault: "Add to vault",
     /// Text in `inbox_actions`.
-    pub inbox_actions_add_to: &'static str,
+    inbox_actions_add_signatures: "Add to signatures",
     /// Text in `inbox_actions`.
-    pub inbox_actions_import: &'static str,
+    inbox_actions_import: "Import into the vault",
     /// Text in `inbox_actions`.
-    pub inbox_actions_contents: &'static str,
+    inbox_actions_contents: "Contents",
     /// Text in `inbox_actions`.
-    pub inbox_actions_unlock: &'static str,
+    inbox_actions_unlock: "Unlock",
     /// Text in `inbox_actions`.
-    pub inbox_actions_sign: &'static str,
+    inbox_actions_sign: "Sign",
     /// Text in `inbox_actions`.
-    pub inbox_actions_load_the: &'static str,
+    inbox_actions_load_wallet: "Load the wallet",
     /// Text in `inbox_actions`.
-    pub inbox_actions_decode: &'static str,
+    inbox_actions_decode: "Decode",
     /// Text in `inbox_actions`. `{}`: `texts.len()`.
-    pub inbox_actions_restore: &'static str,
+    inbox_actions_restore: "Restore the wallet · {} shares",
     /// Note in `inbox_actions`. `{}`: `m.have.len()`, `m.n`.
-    pub inbox_actions_of_keys: &'static str,
+    inbox_actions_of_keys: "{} of {} keys in hand",
     /// Text in `inbox_actions`.
-    pub inbox_actions_load: &'static str,
+    inbox_actions_load: "Load this key",
     /// Text in `inbox_actions`.
-    pub inbox_actions_check: &'static str,
+    inbox_actions_check: "Check the signature",
     /// Text in `inbox_actions`.
-    pub inbox_actions_make: &'static str,
-    /// Text in `inbox_actions`.
-    pub inbox_actions_remove: &'static str,
+    inbox_actions_make: "Make PDF",
     // ----- visit (faraday-core/src/screens/visit.rs) -----
     /// Text in `visit_compact`.
-    pub visit_unselect_all: &'static str,
+    visit_unselect_all: "Unselect all",
     /// Line in `visit_compact`.
-    pub visit_select_all: &'static str,
+    visit_select_all: "Select all",
     /// Text in `visit`. `{}`: `app.medium.noun()`, `app.medium.noun()`, `app.medium.noun()`.
-    pub visit_write_what_waits: &'static str,
+    visit_write_what_waits: "Write what waits for the {} and copy in what you need from it. Each file written is read back and compared before it counts. Remove the {} when you are done: keys load only with no {} attached.",
     /// Text in `visit`. `{}`: `app.medium.noun()`.
-    pub visit_no_attached: &'static str,
+    visit_no_attached: "No {} attached",
     /// Text in `visit`.
-    pub visit_in_faraday: &'static str,
+    visit_in_faraday: "In Faraday",
     /// Text in `visit`.
-    pub visit_public: &'static str,
+    visit_public: "Public",
     /// Text in `visit`.
-    pub visit_sealed: &'static str,
+    visit_sealed: "Sealed",
     /// Text in `visit`.
-    pub visit_unprotected_secret: &'static str,
+    visit_unprotected_secret: "Unprotected secret",
     /// Text in `visit`. `{}`: `app.medium.for_the()`.
-    pub visit_nothing_waits: &'static str,
+    visit_nothing_waits: "Nothing waits {}",
     /// Text in `visit`. `{}`: `nout`, `if nout == 1 { EN.visit_file } else {…`.
-    pub visit_write: &'static str,
+    visit_write: "Write {} {}",
     /// Text in `visit`.
-    pub visit_larger_than_18: &'static str,
+    visit_file_too_large: "Larger than 18 MB: not read",
     /// Text in `visit`.
-    pub visit_settings: &'static str,
+    visit_settings: "Settings",
     /// Text in `visit`: a file asked for and not yet read. `{}`: its size.
-    pub visit_being_read: &'static str,
+    visit_being_read: "Being read · {}",
     /// A toast on the frame drawn before a press's pictures and PDFs are
     /// made (`docs/SPEED.md` §9).
-    pub working_files: &'static str,
+    working_files: "Making the files",
     /// A toast on the frame drawn before an aezeed is stretched for its
     /// node key.
-    pub working_node_key: &'static str,
+    working_node_key: "Working out the node key",
     /// Text in `visit`. `{}`: `app.medium.noun()`.
-    pub visit_no_files_on_this: &'static str,
+    visit_no_files: "No files on this {}",
     /// Button in `visit`.
-    pub visit_delete_files: &'static str,
+    visit_delete_files: "Delete files",
     /// Text in `visit`.
-    pub visit_import_and_load: &'static str,
+    visit_import_and_load: "Import and load",
     /// Text in `visit`. `{}`: `nin`, `if nin == 1 { EN.visit_file } else { …`.
-    pub visit_import: &'static str,
+    visit_import: "Import {} {}",
     /// Text in `visit`.
-    pub visit_file: &'static str,
+    visit_file: "file",
     /// Text in `visit`.
-    pub visit_files: &'static str,
+    visit_files: "files",
     /// Text in `visit`.
-    pub visit_open_files: &'static str,
+    visit_open_files: "Open Files",
     // ----- visit_inbox_line (faraday-core/src/screens/visit.rs) -----
     /// Text in `visit_inbox_line`. `{}`: `kind_line(FileKind::Other, item.bytes…`.
-    pub visit_inbox_line_png_no: &'static str,
+    visit_inbox_line_png_no_qr: "PNG, no QR code read · {}",
     /// Text in `visit_inbox_line`. `{}`: `kind_line(k, item.bytes.len())`.
-    pub visit_inbox_line_png: &'static str,
+    visit_inbox_line_png: "PNG · {}",
     // ----- visit_inbox_tag (faraday-core/src/screens/visit.rs) -----
     /// Text in `visit_inbox_tag`.
-    pub visit_inbox_tag_sealed: &'static str,
+    visit_inbox_tag_sealed: "Sealed",
     /// Text in `visit_inbox_tag`.
-    pub visit_inbox_tag_public: &'static str,
+    visit_inbox_tag_public: "Public",
     /// Text in `visit_inbox_tag`.
-    pub visit_inbox_tag_may: &'static str,
+    visit_inbox_tag_may: "May be a secret",
     /// Text in `visit_inbox_tag`.
-    pub visit_inbox_tag_secret: &'static str,
+    visit_inbox_tag_secret: "Secret",
     // ----- visit_select_all (faraday-core/src/screens/visit.rs) -----
     /// Text in `visit_select_all`.
-    pub visit_select_all_select: &'static str,
+    visit_select_all_select: "Select all",
     // ----- visit_unselect_all (faraday-core/src/screens/visit.rs) -----
     /// Text in `visit_unselect_all`.
-    pub visit_unselect_all_unselect: &'static str,
+    visit_unselect_all_unselect: "Unselect all",
     // ----- visit_list_bar (faraday-core/src/screens/visit.rs) -----
     /// Text in `visit_list_bar`. `{}`: `(below / ROW).ceil() as usize`.
-    pub visit_list_bar_more: &'static str,
+    visit_list_bar_more: "{} more · scroll to see them",
     // ----- pull_line (faraday-core/src/screens/parts.rs) -----
     /// Text in `pull_line`. `{}`: `noun`, `v`.
-    pub pull_line_remove_the_to: &'static str,
+    pull_line_remove_to_unlock: "Remove the {} to unlock {}",
     /// Text in `pull_line`. `{}`: `noun`.
-    pub pull_line_remove_the: &'static str,
+    pull_line_remove_when_done: "Remove the {} when you are done",
     /// Text in `pull_line`. `{}`: `noun`.
-    pub pull_line_1_key_copied: &'static str,
+    pull_line_1_key_copied: "1 key copied in · remove the {} to load it",
     /// Text in `pull_line`. `{}`: `n`, `noun`.
-    pub pull_line_keys_copied: &'static str,
+    pull_line_keys_copied: "{} keys copied in · remove the {} to load them",
     // ----- entry (faraday-core/src/screens/entry.rs) -----
     /// Text in `entry`.
-    pub entry_spend: &'static str,
+    entry_spend: "Spend",
     /// Text in `entry`.
-    pub entry_wallets: &'static str,
+    entry_wallets: "Wallets",
     /// Text in `entry`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.
-    pub entry_add_key: &'static str,
+    entry_add_key: "Add key {}",
     /// Text in `entry`. `{}`: `name`.
-    pub entry_add_a_key_for: &'static str,
+    entry_add_key_title: "Add a key for {}",
     /// Text in `entry`. `{}`: `app.entry.form.name()`.
-    pub entry_add_a_key_n: &'static str,
+    entry_add_a_key_n: "Add a key · {}",
     /// Text in `entry`.
-    pub entry_add_a_key: &'static str,
+    entry_add_a_key: "Add a key",
     /// Text in `entry`.
-    pub entry_other_languages: &'static str,
+    entry_other_languages: "Other languages",
     /// Text in `entry`.
-    pub entry_other_forms: &'static str,
+    entry_other_forms: "Other forms",
     /// Button in `entry`.
-    pub entry_scan_a_seedqr: &'static str,
+    entry_scan_a_seedqr: "Scan a SeedQR",
     /// Text in `entry`.
-    pub entry_type_the_words: &'static str,
+    entry_type_the_words: "Type the words in order. Each word is checked against the BIP-39 list as you type, and Tab finishes a word once only one fits. The last word carries a checksum, so a mistyped word is caught when the count is complete. The words stay in memory for this session only.",
     /// Text in `entry`.
-    pub entry_no_word_starts: &'static str,
+    entry_no_word_starts: "No word starts with that",
     /// Text in `entry`, after the candidates and three spaces.
-    pub entry_tab_completes: &'static str,
+    entry_tab_completes: "· Tab completes a single match",
     // ----- word_count_row (faraday-core/src/screens/entry.rs) -----
     /// Line in `word_count_row`.
-    pub word_count_row_words: &'static str,
+    word_count_row_words: "Words",
     // ----- keyed_words (faraday-core/src/screens/entry.rs) -----
     /// Text in `keyed_words`.
-    pub keyed_words_type_each_word_s: &'static str,
+    keyed_words_type_each_word_s: "Type each word's pinyin and then its tone, 1 to 5, on the keys below or the computer's keyboard, and press the character among those it offers. Keys that lead to no word are off. The last word carries a checksum, checked when the count is complete.",
     /// Text in `keyed_words`.
-    pub keyed_words_type_each_word: &'static str,
+    keyed_words_type_each_word: "Type each word's 注音 and then its tone on the keys below, and press the character among those it offers. Keys that lead to no word are off. The last word carries a checksum, checked when the count is complete.",
     /// Text in `keyed_words`.
-    pub keyed_words_type_each: &'static str,
+    keyed_words_type_each: "Type each word on the keys below and press it among the words it can be. Keys that lead to no word are off. The last word carries a checksum, checked when the count is complete.",
     /// Text in `keyed_words`.
-    pub keyed_words_type_the: &'static str,
+    keyed_words_type_next: "Type the next word",
     /// Text in `keyed_words`.
-    pub keyed_words_now_its: &'static str,
+    keyed_words_tone_prompt: "Now its tone",
     /// Text in `keyed_words`.
-    pub keyed_words_no_word: &'static str,
+    keyed_words_no_word: "No word starts with that",
     /// Line in `keyed_words`.
-    pub keyed_words_press_a: &'static str,
+    keyed_words_press_hint: "Press a word to take it",
     // ----- word_keys (faraday-core/src/screens/parts.rs) -----
     /// Button in `word_keys`.
-    pub word_keys_shift: &'static str,
+    word_keys_shift: "Shift",
     // ----- keyed_status (faraday-core/src/screens/entry.rs) -----
     /// Text in `keyed_status`. `{}`: `n`.
-    pub keyed_status_words_2: &'static str,
+    keyed_status_word_count: "{} words",
     /// Text in `keyed_status`. `{}`: `n`, `fp_text(fp)`.
-    pub keyed_status_words: &'static str,
+    keyed_status_words: "{} words · checksum correct · {}",
     // ----- entry_status (faraday-core/src/screens/entry.rs) -----
     /// Text in `entry_status`. `{}`: `n`, `fp_text(fp)`.
-    pub entry_status_words_checksum: &'static str,
+    entry_status_words_checksum: "{} words · checksum correct · {}",
     /// Text in `entry_status`. `{}`: `n`.
-    pub entry_status_words: &'static str,
+    entry_status_words: "{} words",
     // ----- entry_finish (faraday-core/src/screens/entry.rs) -----
     /// Line in `entry_finish`.
-    pub entry_finish_bip_39: &'static str,
+    entry_finish_bip39_passphrase: "BIP-39 passphrase",
     /// Button in `entry_finish`.
-    pub entry_finish_add_key: &'static str,
+    entry_finish_add_key: "Add key",
     /// Button in `entry_finish`.
-    pub entry_finish_clear: &'static str,
+    entry_finish_clear: "Clear",
     /// Button in `entry_finish`.
-    pub entry_finish_make_a: &'static str,
+    entry_finish_new_key: "Make a new key",
     /// Line in `entry_finish`.
-    pub entry_finish_type_on: &'static str,
+    entry_finish_keys_hint: "Type on the keyboard · Enter adds · Esc goes back",
     // ----- entry_stick (faraday-core/src/screens/entry.rs) -----
     /// Text in `entry_stick`. `{}`: `app.medium.a()`.
-    pub entry_stick_from_plug: &'static str,
+    entry_stick_from_plug: "From {} · plug it in",
     /// Button in `entry_stick`.
-    pub entry_stick_copy_files: &'static str,
+    entry_stick_copy_files: "Copy files in",
     // ----- entry_form (faraday-core/src/screens/entry.rs) -----
     /// Text in `entry_form`.
-    pub entry_form_type_one_share: &'static str,
+    entry_form_type_one_share: "Type one share at a time, its 20 or 33 words, and press Enter. Shares of every group the backup needs go in, in any order; then the passphrase, if the backup has one, and Make the key. A SLIP-39 key has no BIP-39 words.",
     /// Text in `entry_form`.
-    pub entry_form_type_one_codex32: &'static str,
+    entry_form_type_one_codex32: "Type one codex32 string at a time, ms1 and all, and press Enter. The secret string is the key at once; shares need as many as the digit after ms1 says.",
     /// Text in `entry_form`.
-    pub entry_form_type_one: &'static str,
+    entry_form_type_one: "Type one part at a time, its BIP-39 words, and press Enter. Every part is needed, and they combine into the words of the key.",
     /// Text in `entry_form`.
-    pub entry_form_words_of: &'static str,
+    entry_form_one_share_words: "Words of one share",
     /// Text in `entry_form`.
-    pub entry_form_nothing: &'static str,
+    entry_form_nothing: "Nothing in yet",
     /// Text in `entry_form`.
-    pub entry_form_1_in: &'static str,
+    entry_form_count_one: "1 in",
     /// Text in `entry_form`. `{}`: `n`.
-    pub entry_form_in: &'static str,
+    entry_form_count_many: "{} in",
     /// Line in `entry_form`.
-    pub entry_form_passphrase: &'static str,
+    entry_form_passphrase: "Passphrase",
     /// Button in `entry_form`.
-    pub entry_form_add_this: &'static str,
+    entry_form_add_share: "Add this one",
     /// Button in `entry_form`.
-    pub entry_form_scan_a_qr: &'static str,
+    entry_form_scan_a_qr: "Scan a QR code",
     /// Button in `entry_form`.
-    pub entry_form_make_the: &'static str,
+    entry_form_make_key: "Make the key",
     /// Line in `entry_form`.
-    pub entry_form_enter_adds: &'static str,
+    entry_form_enter_adds: "Enter adds what is typed · Enter on an empty line makes the key",
     // ----- tz_row (faraday-core/src/screens/parts.rs) -----
     /// Line in `tz_row`.
-    pub tz_row_time_zone: &'static str,
+    tz_row_time_zone: "Time zone",
     // ----- time_section (faraday-core/src/screens/settings.rs) -----
     /// Line in `time_section`.
-    pub time_section_time: &'static str,
+    time_section_time: "Time",
     /// Line in `time_section`.
-    pub time_section_now: &'static str,
+    time_section_now: "Now",
     /// Button in `time_section`.
-    pub time_section_set_the: &'static str,
+    time_section_set_button: "Set the time",
     // ----- set_time (faraday-core/src/screens/set_time.rs) -----
     /// Title in `set_time_screen`.
-    pub set_time_set_the_time: &'static str,
+    set_time_set_the_time: "Set the time",
     /// Text in `set_time_compact`.
-    pub set_time_now: &'static str,
+    set_time_now: "Now",
     /// Section label in `set_time_compact`.
-    pub set_time_date: &'static str,
+    set_time_date: "Date",
     /// Section label in `set_time_compact`.
-    pub set_time_time: &'static str,
+    set_time_time: "Time",
     /// Text in `set_time_compact`.
-    pub set_time_set: &'static str,
+    set_time_set: "Set",
     /// Text in `set_time_compact`.
-    pub set_time_keep_this: &'static str,
+    set_time_keep_button: "Keep this time",
     /// Text in `set_time_compact`.
-    pub set_time_back: &'static str,
+    set_time_back: "Back",
     // ----- settings (faraday-core/src/screens/settings.rs) -----
     /// Text in `settings_compact`.
-    pub settings_time: &'static str,
+    settings_time: "Time",
     /// Line in `settings_compact`.
-    pub settings_now: &'static str,
+    settings_now: "Now",
     /// Button in `settings_compact`.
-    pub settings_set_the_time: &'static str,
+    settings_set_the_time: "Set the time",
     /// Title in `settings`.
-    pub settings_settings: &'static str,
+    settings_settings: "Settings",
     /// Line in `settings`.
-    pub settings_session: &'static str,
+    settings_session: "Session",
     /// Text in `settings`. `{}`: `n`, `if n == 1 { EN.settings_key } else { …`.
-    pub settings_loaded_lost: &'static str,
+    settings_loaded_lost: "{} {} loaded · lost on lock or power-off",
     /// Text in `settings`.
-    pub settings_key: &'static str,
+    settings_key: "key",
     /// Text in `settings`.
-    pub settings_keys: &'static str,
+    settings_keys: "keys",
     /// Button in `settings`.
-    pub settings_lock: &'static str,
+    settings_lock: "Lock",
     /// Button in `settings`.
-    pub settings_remove_every: &'static str,
+    settings_remove_every: "Remove every key",
     /// Button in `settings`.
-    pub settings_power_off_2: &'static str,
+    settings_power_off_button: "Power off",
     /// Button in `settings` in the desktop app, where there is no power to turn off.
-    pub settings_quit: &'static str,
+    settings_quit: "Quit",
     /// Text in `settings`.
-    pub settings_lock_after: &'static str,
+    settings_lock_after: "Lock after",
     /// Text in `settings`.
-    pub settings_power_off: &'static str,
+    settings_power_off: "Power off after",
     /// Text in `settings`.
-    pub settings_never: &'static str,
+    settings_never: "Never",
     /// Text in `settings`. `{}`: `m`.
-    pub settings_min: &'static str,
+    settings_min: "{} min",
     /// Text in `settings`. `{}`: `names.join(", ")`.
-    pub settings_ignored_until: &'static str,
+    settings_ignored_until: "Ignored until unplugged: {}",
     /// Row in `settings`, and the mode sheet's title row there.
-    pub settings_mode: &'static str,
+    settings_mode: "Mode",
     /// Line in `settings`.
-    pub settings_appearance: &'static str,
+    settings_appearance: "Appearance",
     /// Line in `settings`.
-    pub settings_motion: &'static str,
+    settings_motion: "Motion",
     /// Text in `settings`.
-    pub settings_full: &'static str,
+    settings_full: "Full",
     /// Text in `settings`.
-    pub settings_reduced: &'static str,
+    settings_reduced: "Reduced",
     /// Line in `settings`.
-    pub settings_display_scale: &'static str,
+    settings_display_scale: "Display scale",
     /// Text in `settings`.
-    pub settings_auto: &'static str,
+    settings_auto: "Auto",
     /// Line in `settings`.
-    pub settings_signed_amounts: &'static str,
+    settings_signed_amounts: "Signed amounts",
     /// Text in `settings`. `{}`: `n`, `if n == 1 { EN.settings_transaction }…`.
-    pub settings_remembered: &'static str,
+    settings_remembered: "{} {} remembered",
     /// Text in `settings`.
-    pub settings_transaction: &'static str,
+    settings_transaction: "transaction",
     /// Text in `settings`.
-    pub settings_transactions: &'static str,
+    settings_transactions: "transactions",
     /// Text in `settings`.
-    pub settings_sealed_into: &'static str,
+    settings_sealed_into: "Sealed into an open vault",
     /// Text in `settings`.
-    pub settings_kept_until: &'static str,
+    settings_kept_until: "Kept until power-off only",
     /// Line in `settings`.
-    pub settings_about: &'static str,
+    settings_about: "About",
     /// Text in `settings`. `{}`: `crate::version_label()`.
-    pub settings_faraday: &'static str,
+    settings_faraday: "Faraday {}",
     /// Text in `settings`.
-    pub settings_keys_are_typed: &'static str,
+    settings_keys_are_typed: "Keys are typed, scanned as SeedQR or loaded from a vault, and kept for the session only",
     /// Text in `settings`. `{}`: `app.medium.noun()`, `app.medium.a()`.
-    pub settings_vaults_files: &'static str,
+    settings_vaults_files: "Vaults · files move by {} · QR by camera and from PNG files on {}",
     /// Text in `settings`. `{}`: `app.medium.caps()`.
-    pub settings_are_folders: &'static str,
+    settings_are_folders: "{} are folders in ~/faraday-sticks",
     /// Text in `settings`. `{}`: `app.medium.caps()`.
-    pub settings_are_read_by: &'static str,
+    settings_medium_reader_note: "{} are read by an unprivileged disk process; the kernel mounts none",
     /// Text in `settings`.
-    pub settings_not_run: &'static str,
+    settings_not_run: "not run",
     // ----- institute_note (faraday-core/src/screens/settings.rs) -----
     /// Text in `institute_note`. `{}`: `SITE`.
-    pub institute_note_visit: &'static str,
+    institute_note_visit: "Visit {} to learn about Bitcoin’s history, economics, and technology. Not affiliated.",
     // ----- pull (faraday-core/src/screens/sheets.rs) -----
     /// Text in `pull_sheet`.
-    pub pull_go_on: &'static str,
+    pull_default_reason: "go on",
     /// Text in `pull_sheet`. `{}`: `app.medium.noun()`, `what`.
-    pub pull_pull_the_to: &'static str,
+    pull_medium_to_reason: "Pull the {} to {}",
     /// Text in `pull_sheet`. `{}`: `app.sticks.first().map_or("", |s| s.l…`.
-    pub pull_attached_2: &'static str,
+    pull_medium_attached: "{} · attached",
     /// Text in `pull_sheet`. `{}`: `k`, `app.medium.nouns()`.
-    pub pull_attached: &'static str,
+    pull_attached: "{} {} attached",
     /// Button in `pull_sheet`.
-    pub pull_cancel: &'static str,
+    pull_cancel: "Cancel",
     // ----- kept_sections (faraday-core/src/screens/sheets.rs) -----
     /// Text in `kept_sections`.
-    pub kept_sections_kept: &'static str,
+    kept_sections_kept: "Kept",
     /// Text in `kept_sections`.
-    pub kept_sections_wiped: &'static str,
+    kept_sections_wiped: "Wiped from memory",
     /// Text in `kept_sections`.
-    pub kept_sections_then: &'static str,
+    kept_sections_then: "Then",
     // ----- lock (faraday-core/src/screens/sheets.rs) -----
     /// Text in `lock_sheet`.
-    pub lock_a_fresh_start_and: &'static str,
+    lock_fresh_start_upgrade: "A fresh start, and the upgrade",
     /// Text in `lock_sheet`. `{}`: `app.medium.noun()`.
-    pub lock_a_fresh_start: &'static str,
+    lock_a_fresh_start: "A fresh start, and the {} visit",
     /// Text in `lock_sheet`.
-    pub lock_lock_and_upgrade: &'static str,
+    lock_lock_and_upgrade: "Lock and upgrade",
     /// Text in `lock_sheet`.
-    pub lock_the_upgrade_runs: &'static str,
+    lock_the_upgrade_runs: "The upgrade runs in a fresh session",
     /// Text in `lock_sheet`. `{}`: `app.medium.a_cap()`.
-    pub lock_is_attached: &'static str,
+    lock_is_attached: "{} is attached",
     /// Text in `lock_sheet`. `{}`: `app.medium.noun()`.
-    pub lock_lock_and_use: &'static str,
+    lock_lock_and_use: "Lock and use {}",
     /// Text in `lock_sheet`. `{}`: `label`.
-    pub lock_nothing_has_been: &'static str,
+    lock_nothing_has_been: "{} · nothing has been read from it",
     /// Text in `lock_sheet`.
-    pub lock_not_now: &'static str,
+    lock_not_now: "Not now",
     // ----- write_out (faraday-core/src/screens/sheets.rs) -----
     /// Text in `write_out_sheet`. `{}`: `app.medium.a()`.
-    pub write_out_lock_plug: &'static str,
+    write_out_lock_plug: "Lock, plug in {}, and the visit writes them",
     /// Text in `write_out_sheet`. `{}`: `app.medium.a()`.
-    pub write_out_write_to: &'static str,
+    write_out_target: "Write to {}",
     /// Text in `write_out_sheet`.
-    pub write_out_not_now: &'static str,
+    write_out_not_now: "Not now",
     /// Text in `write_out_sheet`.
-    pub write_out_lock: &'static str,
+    write_out_lock: "Lock",
     // ----- scan (faraday-core/src/screens/sheets.rs) -----
     /// Text in `scan_sheet`. `{}`: `wl.name`.
-    pub scan_scan_a_key_for: &'static str,
+    scan_key_for_wallet: "Scan a key for {}",
     /// Text in `scan_sheet`.
-    pub scan_scan_what_you: &'static str,
+    scan_scan_what_you: "Scan what you have",
     /// Text in `scan_sheet`.
-    pub scan_scan_a_seedqr: &'static str,
+    scan_scan_a_seedqr: "Scan a SeedQR",
     /// Text in `scan_sheet`.
-    pub scan_scan_your_copy: &'static str,
+    scan_scan_your_copy: "Scan your copy",
     /// Text in `scan_sheet`.
-    pub scan_receive_into_downloads: &'static str,
+    scan_receive_into_downloads: "Receive into Downloads",
     /// Text in `scan_sheet`.
-    pub scan_scan_a_qr_code: &'static str,
+    scan_scan_a_qr_code: "Scan a QR code",
     /// Text in `scan_sheet`.
-    pub scan_hold_the_code: &'static str,
+    scan_hold_the_code: "Hold the QR in front of the camera",
     /// Line in `scan_sheet`.
-    pub scan_starting_the_camera: &'static str,
+    scan_starting_the_camera: "Starting the camera",
     /// Text in `scan_sheet`.
-    pub scan_type_the_words: &'static str,
+    scan_type_the_words: "Type the words instead",
     /// Text in `scan_sheet`.
-    pub scan_done: &'static str,
+    scan_done: "Done",
     /// Text in `scan_sheet`.
-    pub scan_cancel: &'static str,
+    scan_cancel: "Cancel",
     /// Button in `scan_sheet`: the clipboard's text, read as a QR.
-    pub scan_paste: &'static str,
+    scan_paste: "Paste",
     /// Line in `scan_sheet`: no frame came in the time allowed.
-    pub scan_no_picture: &'static str,
+    scan_no_picture: "The camera sends no picture",
     /// Line in `scan_sheet`: `CameraFailure::Refused`.
-    pub scan_camera_refused: &'static str,
+    scan_camera_refused: "The camera was refused",
     /// Line in `scan_sheet`: `CameraFailure::InUse`.
-    pub scan_camera_in_use: &'static str,
+    scan_camera_in_use: "The camera is in use by another app",
     /// Line in `scan_sheet`: `CameraFailure::NotFound`.
-    pub scan_no_camera_found: &'static str,
+    scan_no_camera_found: "No camera found",
     /// Note in `storage_event`: a QR seen large enough has not read.
-    pub scan_hold_it_square_on: &'static str,
+    scan_hold_square_hint: "Hold it square-on, in focus, with its white margin in the frame",
     // ----- qr (faraday-core/src/screens/sheets.rs) -----
     /// Text in `qr_sheet`. `{}`: `q.subtitle`, `q.frame + 1`, `q.frames.len()`.
-    pub qr_frame_of: &'static str,
+    qr_frame_count: "{} · frame {} of {}",
     /// Text in `qr_sheet`.
-    pub qr_secret_whoever_scans: &'static str,
+    qr_secret_whoever_scans: "Secret · whoever scans this can use it",
     /// Text in `qr_sheet`.
-    pub qr_public_safe_to_scan: &'static str,
+    qr_public_safe_to_scan: "Public · safe to scan",
     /// Text in `qr_sheet`.
-    pub qr_ur: &'static str,
+    qr_ur: "UR",
     /// Text in `qr_sheet`.
-    pub qr_bbqr: &'static str,
+    qr_bbqr: "BBQr",
     /// Text in `qr_sheet`.
-    pub qr_parts: &'static str,
+    qr_parts: "Parts",
     /// Text in `qr_sheet`. `{}`: `app.medium.for_the()`.
-    pub qr_png: &'static str,
+    qr_png: "PNG {}",
     /// Text in `qr_sheet`.
-    pub qr_small: &'static str,
+    qr_small: "Small",
     /// Text in `qr_sheet`.
-    pub qr_medium: &'static str,
+    qr_medium: "Medium",
     /// Text in `qr_sheet`.
-    pub qr_large: &'static str,
+    qr_large: "Large",
     /// Button in `qr_sheet`.
-    pub qr_done: &'static str,
+    qr_done: "Done",
     // ----- qr_sheet (faraday-core/src/screens/sheets.rs) -----
     /// Text in `qr_sheet_compact`.
-    pub qr_sheet_ur: &'static str,
+    qr_sheet_ur: "UR",
     /// Text in `qr_sheet_compact`.
-    pub qr_sheet_bbqr: &'static str,
+    qr_sheet_bbqr: "BBQr",
     /// Text in `qr_sheet_compact`.
-    pub qr_sheet_parts: &'static str,
+    qr_sheet_parts: "Parts",
     /// Text in `qr_sheet_compact`.
-    pub qr_sheet_small: &'static str,
+    qr_sheet_small: "Small",
     /// Text in `qr_sheet_compact`.
-    pub qr_sheet_medium: &'static str,
+    qr_sheet_medium: "Medium",
     /// Text in `qr_sheet_compact`.
-    pub qr_sheet_large: &'static str,
+    qr_sheet_large: "Large",
     /// Text in `qr_sheet_compact`. `{}`: `q.title`, `q.frame + 1`, `q.frames.len()`.
-    pub qr_sheet_of: &'static str,
+    qr_sheet_frame_count: "{} · {} of {}",
     /// Text in `qr_sheet_compact`.
-    pub qr_sheet_secret_whoever: &'static str,
+    qr_sheet_secret_whoever: "Secret · whoever scans this can use it",
     /// Text in `qr_sheet_compact`.
-    pub qr_sheet_public_safe: &'static str,
+    qr_sheet_public_safe: "Public · safe to scan",
     /// Text in `qr_sheet_compact`.
-    pub qr_sheet_done: &'static str,
+    qr_sheet_done: "Done",
     // ----- new_input (faraday-core/src/screens/sheets.rs) -----
     /// Text in `new_input_sheet`.
-    pub new_input_a_new_keyboard_and: &'static str,
+    new_input_title: "A new keyboard and pointer",
     /// Text in `new_input_sheet`.
-    pub new_input_a_new_keyboard: &'static str,
+    new_input_a_new_keyboard: "A new keyboard",
     /// Text in `new_input_sheet`.
-    pub new_input_a_new_pointer: &'static str,
+    new_input_a_new_pointer: "A new pointer",
     /// Line in `new_input_sheet`.
-    pub new_input_the_name: &'static str,
+    new_input_the_name: "The name is what the device says about itself",
     /// Line in `new_input_sheet`.
-    pub new_input_type_this: &'static str,
+    new_input_type_code: "Type this code on it",
     /// Line in `new_input_sheet`, in place of the code while the system
     /// has given no randomness.
-    pub new_input_no_code: &'static str,
+    new_input_no_code: "This keyboard cannot be let in until Faraday restarts",
     /// Button in `new_input_sheet`.
-    pub new_input_ignore_this: &'static str,
+    new_input_ignore_button: "Ignore this device",
     /// Button in `new_input_sheet`.
-    pub new_input_use_this: &'static str,
+    new_input_use_pointer: "Use this pointer",
     // ----- idle_warn (faraday-core/src/screens/sheets.rs) -----
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_wiped: &'static str,
+    idle_warn_wiped: "Wiped",
     /// Text in `idle_warn_sheet`. `{}`: `keys`, `if keys == 1 { EN.idle_warn_key } els…`, `wallets`, `if wallets == 1 { EN.idle_warn_wallet…`, `app.vaults.open.len()`, `if app.vaults.open.len() == 1 { EN.id…`.
-    pub idle_warn_open: &'static str,
+    idle_warn_open: "{} {} · {} {} · {} open {}",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_key: &'static str,
+    idle_warn_key: "key",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_keys: &'static str,
+    idle_warn_keys: "keys",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_wallet: &'static str,
+    idle_warn_wallet: "wallet",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_wallets: &'static str,
+    idle_warn_wallets: "wallets",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_vault: &'static str,
+    idle_warn_vault: "vault",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_vaults: &'static str,
+    idle_warn_vaults: "vaults",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_sealed: &'static str,
+    idle_warn_sealed: "Sealed",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_kept: &'static str,
+    idle_warn_kept: "Kept",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_no_power: &'static str,
+    idle_warn_no_power: "No power-off",
     /// Text in `idle_warn_sheet`. `{}`: `m`, `app.medium.for_the()`.
-    pub idle_warn_power_off: &'static str,
+    idle_warn_power_off: "Power off at {} minutes without input, unless files wait {}",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_then: &'static str,
+    idle_warn_then: "Then",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_minute: &'static str,
+    idle_warn_minute: "minute",
     /// Text in `idle_warn_sheet`.
-    pub idle_warn_minutes: &'static str,
+    idle_warn_minutes: "minutes",
     /// Text in `idle_warn_sheet`. `{}`: `minutes(app.idle_warn_min)`, `minutes(u64::from(app.idle_lock_min))`.
-    pub idle_warn_no_input: &'static str,
+    idle_warn_no_input: "No input for {} · locks at {} without input · any key or touch keeps it",
     /// Line in `idle_warn_sheet`.
-    pub idle_warn_locking_soon: &'static str,
+    idle_warn_locking_soon: "Locking soon",
     /// Button in `idle_warn_sheet`.
-    pub idle_warn_keep_working: &'static str,
+    idle_warn_keep_working: "Keep working",
     // ----- locked (faraday-core/src/screens/sheets.rs) -----
     /// Line in `locked_sheet`.
-    pub locked_locked: &'static str,
+    locked_locked: "Locked",
     /// Line in `locked_sheet`.
-    pub locked_locked_after: &'static str,
+    locked_locked_after: "Locked after a time without input. Every key and vault was wiped.",
     /// Text in `locked_sheet`. `{}`: `clock_text(off.saturating_sub(app.idl…`.
-    pub locked_powers_off_in: &'static str,
+    locked_power_off_countdown: "Powers off in {} without input",
     /// Text in `locked_sheet`. `{}`: `app.outbox.len()`, `app.medium.for_the()`.
-    pub locked_no_power_off: &'static str,
+    locked_no_power_off: "{} {} · no power-off until written",
     /// Button in `locked_sheet`.
-    pub locked_continue: &'static str,
+    locked_continue: "Continue",
     // ----- power (faraday-core/src/screens/sheets.rs) -----
     /// Text in `power_sheet`.
-    pub power_the_computer: &'static str,
+    power_the_computer: "The computer powers off",
     /// Text in `power_sheet`.
-    pub power_cancel: &'static str,
+    power_cancel: "Cancel",
     /// Text in `power_sheet`.
-    pub power_power_off: &'static str,
+    power_power_off: "Power off",
     /// Title and button of `power_sheet` in the desktop app.
-    pub power_quit: &'static str,
+    power_quit: "Quit",
     /// Text in `power_sheet` in the desktop app.
-    pub power_app_closes: &'static str,
+    power_app_closes: "Faraday closes",
     /// Title of `power_sheet` where it offers Restart.
-    pub power_title: &'static str,
+    power_title: "Power",
     /// Button in `power_sheet`.
-    pub power_restart: &'static str,
+    power_restart: "Restart",
     /// Text in `power_sheet` where it offers Restart.
-    pub power_the_computer_restarts: &'static str,
+    power_the_computer_restarts: "The computer powers off, or restarts",
     /// Label of the row in `power_sheet` that gives this computer's BIOS key.
-    pub power_bios_key: &'static str,
+    power_bios_key: "Usual BIOS key",
     /// Dell's BIOS key (`docs/learn/faraday/boot/maker-dell.md`).
-    pub bios_key_dell: &'static str,
+    bios_key_dell: "F2",
     /// HP's BIOS key.
-    pub bios_key_hp: &'static str,
+    bios_key_hp: "Esc, then F10",
     /// Lenovo ThinkPad's BIOS key.
-    pub bios_key_lenovo_thinkpad: &'static str,
+    bios_key_lenovo_thinkpad: "F1",
     /// Lenovo IdeaPad, Yoga and Legion's BIOS key.
-    pub bios_key_lenovo_ideapad: &'static str,
+    bios_key_lenovo_ideapad: "F2 (or Fn+F2)",
     /// ASUS's BIOS key.
-    pub bios_key_asus: &'static str,
+    bios_key_asus: "F2, held",
     /// Acer's BIOS key.
-    pub bios_key_acer: &'static str,
+    bios_key_acer: "F2",
     /// MSI's BIOS key.
-    pub bios_key_msi: &'static str,
+    bios_key_msi: "Delete",
     /// Framework's BIOS key.
-    pub bios_key_framework: &'static str,
+    bios_key_framework: "F2",
     /// Surface's BIOS key.
-    pub bios_key_surface: &'static str,
+    bios_key_surface: "Volume Up, held",
     /// Dell's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
-    pub boot_key_dell: &'static str,
+    boot_key_dell: "F12",
     /// HP's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
-    pub boot_key_hp: &'static str,
+    boot_key_hp: "Esc, then F9",
     /// Lenovo ThinkPad's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
-    pub boot_key_lenovo_thinkpad: &'static str,
+    boot_key_lenovo_thinkpad: "F12",
     /// Lenovo IdeaPad, Yoga and Legion's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
-    pub boot_key_lenovo_ideapad: &'static str,
+    boot_key_lenovo_ideapad: "F12 (or Fn+F12)",
     /// ASUS's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
-    pub boot_key_asus: &'static str,
+    boot_key_asus: "Esc, held",
     /// Acer's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
-    pub boot_key_acer: &'static str,
+    boot_key_acer: "F12",
     /// MSI's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
-    pub boot_key_msi: &'static str,
+    boot_key_msi: "F11",
     /// Framework's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
-    pub boot_key_framework: &'static str,
+    boot_key_framework: "F12",
     /// Surface's boot menu key (`docs/learn/faraday/boot/maker-*.md`).
-    pub boot_key_surface: &'static str,
+    boot_key_surface: "Volume Down, held",
     /// Where the Secure Boot setting is in Dell's BIOS.
-    pub secure_boot_dell: &'static str,
+    secure_boot_dell: "Boot Configuration → Secure Boot",
     /// Where the Secure Boot setting is in HP's BIOS.
-    pub secure_boot_hp: &'static str,
+    secure_boot_hp: "Boot Options → Secure Boot; business: Security → Secure Boot Configuration",
     /// Where the Secure Boot setting is in Lenovo ThinkPad's BIOS.
-    pub secure_boot_lenovo_thinkpad: &'static str,
+    secure_boot_lenovo_thinkpad: "Security → Secure Boot",
     /// Where the Secure Boot setting is in Lenovo IdeaPad, Yoga and Legion's BIOS.
-    pub secure_boot_lenovo_ideapad: &'static str,
+    secure_boot_lenovo_ideapad: "Security → Secure Boot",
     /// Where the Secure Boot setting is in ASUS's BIOS.
-    pub secure_boot_asus: &'static str,
+    secure_boot_asus: "Advanced Mode → Security → Secure Boot → Secure Boot Control; desktops: Boot → Secure Boot → OS Type",
     /// Where the Secure Boot setting is in Acer's BIOS.
-    pub secure_boot_acer: &'static str,
+    secure_boot_acer: "Boot → Secure Boot",
     /// Where the Secure Boot setting is in MSI's BIOS.
-    pub secure_boot_msi: &'static str,
+    secure_boot_msi: "Security → Secure Boot → Secure Boot Support",
     /// Where the Secure Boot setting is in Framework's BIOS.
-    pub secure_boot_framework: &'static str,
+    secure_boot_framework: "Administer Secure Boot → Enforce Secure Boot",
     /// Where the Secure Boot setting is in Surface's BIOS.
-    pub secure_boot_surface: &'static str,
+    secure_boot_surface: "Security → Secure Boot",
     // ----- learn (faraday-core/src/screens/sheets.rs) -----
     /// Button in `learn_sheet`.
-    pub learn_done: &'static str,
+    learn_done: "Done",
     /// Text in `learn_sheet`.
-    pub learn_spending_step: &'static str,
+    learn_spending_step: "Spending, step by step",
     // ----- secret_out (faraday-core/src/screens/sheets.rs) -----
     /// Text in `secret_out_sheet`.
-    pub secret_out_this_may: &'static str,
+    secret_out_this_may: "This may be a secret",
     /// Text in `secret_out_sheet`.
-    pub secret_out_this_is: &'static str,
+    secret_out_title: "This is a secret",
     /// Text in `secret_out_sheet`. `{}`: `app.medium.for_the()`.
-    pub secret_out_put_it_unprotected: &'static str,
+    secret_out_put_it_unprotected: "Put it {} unprotected",
     /// Text in `secret_out_sheet`. `{}`: `app.medium.noun()`.
-    pub secret_out_unprotected_on: &'static str,
+    secret_out_unprotected_medium: "Unprotected, on the {}",
     /// Text in `secret_out_sheet`.
-    pub secret_out_tick_it: &'static str,
+    secret_out_tick_hint: "Tick it to write",
     /// Text in `secret_out_sheet`. `{}`: `app.medium.for_the()`.
-    pub secret_out_unprotected: &'static str,
+    secret_out_unprotected: "Unprotected, {}",
     /// Text in `secret_out_sheet`.
-    pub secret_out_file: &'static str,
+    secret_out_file: "File",
     /// Text in `secret_out_sheet`.
-    pub secret_out_what_it: &'static str,
+    secret_out_what_label: "What it is",
     /// Text in `secret_out_sheet`.
-    pub secret_out_who_can: &'static str,
+    secret_out_who_can: "Who can use it",
     /// Line in `secret_out_sheet`.
-    pub secret_out_sealed_in: &'static str,
+    secret_out_sealed: "Sealed in a vault",
     /// Text in `secret_out_sheet`. `{}`: `name`.
-    pub secret_out_in: &'static str,
+    secret_out_in_vault: "In {}",
     /// Text in `secret_out_sheet`. `{}`: `name`.
-    pub secret_out_save_into: &'static str,
+    secret_out_save_into: "Save into {}",
     /// Button in `secret_out_sheet`.
-    pub secret_out_cancel: &'static str,
+    secret_out_cancel: "Cancel",
     // ----- secrets (faraday-core/src/secrets.rs) -----
     /// Text in `text`. `{}`: `noun`.
-    pub secrets_anyone_who: &'static str,
+    secrets_anyone_who: "Anyone who copies the {} or sees the code can read it",
     /// Text in `text`. `{}`: `noun`.
-    pub secrets_i_understand: &'static str,
+    secrets_i_understand: "I understand: anyone who copies the {} or sees this file can spend these coins",
     /// Text in `text`. `{}`: `noun`.
-    pub secrets_faraday_cannot: &'static str,
+    secrets_faraday_cannot: "Faraday cannot tell whether this is a secret: anyone who copies the {} can read it",
     /// Text in `offer_seed`.
-    pub secrets_words: &'static str,
+    secrets_words: "Words",
     /// Text in `offer_seed`. `{}`: `fps`.
-    pub secrets_seed: &'static str,
+    secrets_seed: "Seed {}",
     /// Text in `offer_seed`. `{}`: `m.word_count()`.
-    pub secrets_words_secret: &'static str,
+    secrets_words_secret: "{} words · secret: spends",
     /// Text in `offer_seed`.
-    pub secrets_compact_seedqr: &'static str,
+    secrets_compact_seedqr: "Compact SeedQR PNG",
     /// Text in `offer_seed`.
-    pub secrets_seedqr_png: &'static str,
+    secrets_seedqr_png: "SeedQR PNG",
     /// Text in `offer_seed`.
-    pub secrets_whoever_has_it: &'static str,
+    secrets_seed_warning: "Whoever has it spends this wallet's coins",
     /// Text in `offer_seed`. `{}`: `fps`, `more`, `if more == 1 { EN.secrets_key } else …`.
-    pub secrets_whoever_has: &'static str,
+    secrets_whoever_has: "Whoever has it signs as key {}; with {} more {}, spends",
     /// Text in `offer_seed`.
-    pub secrets_key: &'static str,
+    secrets_key: "key",
     /// Text in `offer_seed`.
-    pub secrets_keys: &'static str,
+    secrets_keys: "keys",
     /// Text in `offer_seed`.
-    pub secrets_a_wallet_s: &'static str,
+    secrets_a_wallet_s: "A wallet's seed",
     /// Toast in `secret_to_vault`.
-    pub secrets_no_vault_is: &'static str,
+    secrets_no_vault_open: "No vault is open",
     /// Text in `secret_to_vault`. `{}`: `vault`, `r.psbt_name`, `self.medium.for_the()`.
-    pub secrets_the_nonce_is: &'static str,
+    secrets_nonce_saved: "The nonce is in {}; {} waits {}",
     /// Toast in `secret_to_vault`. `{}`: `out.name`, `vault`.
-    pub secrets_is_in: &'static str,
+    secrets_saved_to_vault: "{} is in {}",
     /// Text in `secret_unprotected`. `{}`: `name`, `self.medium.for_the()`.
-    pub secrets_waits_unprotected: &'static str,
+    secrets_waits_unprotected: "{} waits {}, unprotected",
     // ----- secureboot (faraday-core/src/secure_boot/mod.rs) -----
     /// Toast in `sb_make`.
-    pub secureboot_no_randomness: &'static str,
-    /// Toast in `sb_make`.
-    pub secureboot_pk_kek_and: &'static str,
+    secureboot_no_randomness: "No randomness from the system yet. Try again",
     /// Toast in `sb_enrol`.
-    pub secureboot_this_computer: &'static str,
+    secureboot_this_computer: "This computer's clock is not known",
     /// Toast in `sb_enrol`. `{}`: `n`.
-    pub secureboot_enrolment: &'static str,
+    secureboot_enrolment: "{} enrolment files",
     /// Toast in `sb_sign`. `{}`: `name`.
-    pub secureboot_signed: &'static str,
+    secureboot_signed: "{}, signed,",
     /// Text in `sb_check`.
-    pub secureboot_signed_by_this: &'static str,
+    secureboot_signed_by_vault: "Signed by this vault's db key",
     /// Text in `sb_check`.
-    pub secureboot_signed_by: &'static str,
+    secureboot_signed_by_other: "Signed by another key",
     /// Text in `sb_check`.
-    pub secureboot_changed: &'static str,
+    secureboot_changed: "Changed since it was signed",
     /// Text in `sb_check`.
-    pub secureboot_not_signed: &'static str,
+    secureboot_not_signed: "Not signed",
     /// Text in `sb_check`.
-    pub secureboot_its_signature: &'static str,
+    secureboot_its_signature: "Its signature could not be read",
     // ----- seed_read (faraday-core/src/seeds/read.rs) -----
     /// Error in `seed_read_act`.
-    pub seed_read_type_the: &'static str,
+    seed_read_type_passphrase: "Type the passphrase",
     /// Text in `seed_read_wallet`. `{}`: `n + 1`.
-    pub seed_read_key_already: &'static str,
+    seed_read_key_already: "Key {} · already here",
     /// Text in `seed_read_take`. `{}`: `k.label`.
-    pub seed_read_passphrase_3: &'static str,
+    seed_read_key_passphrase: "{} · passphrase",
     /// Text in `sheet`.
-    pub seed_read_not_this: &'static str,
+    seed_read_not_this_one: "Not this one",
     /// Text in `sheet`.
-    pub seed_read_cancel: &'static str,
+    seed_read_cancel: "Cancel",
     /// Text in `sheet`.
-    pub seed_read_use_with: &'static str,
+    seed_read_use_passphrase: "Use with this passphrase",
     /// Text in `sheet`.
-    pub seed_read_use_without: &'static str,
+    seed_read_use_without: "Use without a passphrase",
     /// Text in `sheet`.
-    pub seed_read_add_a_passphrase: &'static str,
+    seed_read_add_a_passphrase: "Add a passphrase",
     /// Label in `sheet`.
-    pub seed_read_without_a: &'static str,
+    seed_read_no_passphrase: "Without a passphrase",
     /// Label in `sheet`.
-    pub seed_read_passphrase_2: &'static str,
+    seed_read_passphrase_label: "Passphrase",
     /// Label in `sheet`.
-    pub seed_read_passphrase: &'static str,
+    seed_read_passphrase: "Passphrase again",
     /// Label in `sheet`.
-    pub seed_read_with_this: &'static str,
+    seed_read_with_passphrase: "With this passphrase",
     /// Line in `sheet`.
-    pub seed_read_the_two_passphrases: &'static str,
+    seed_read_the_two_passphrases: "The two passphrases differ",
     /// Text in `sheet`.
-    pub seed_read_seedqr_read: &'static str,
+    seed_read_seedqr_read: "SeedQR read",
     // ----- seeds (faraday-core/src/seeds/mod.rs) -----
     /// Error in `seeds_take_file`.
-    pub seeds_no_account_key: &'static str,
+    seeds_no_account_key: "No account key in that file",
     /// Error in `seeds_descriptor`.
-    pub seeds_type_a_derivation: &'static str,
+    seeds_type_a_derivation: "Type a derivation path, like m/48'/0'/0'/2'",
     /// Error in `seeds_descriptor`.
-    pub seeds_a_seed_is_no: &'static str,
+    seeds_seed_unloaded: "A seed is no longer loaded",
     /// Error in `seeds_descriptor`.
-    pub seeds_no_seed_yet: &'static str,
+    seeds_no_seed_yet: "No seed yet",
     /// Text in `seeds_descriptor`. `{}`: `at`, `crate::wallet::network_name(kn)`, `crate::wallet::network_name(net)`.
-    pub seeds_key_is_a_key: &'static str,
+    seeds_key_is_a_key: "Key {} is a {} key; this session is on {}",
     /// Error in `seeds_descriptor`. `{}`: `at`.
-    pub seeds_key_has_no_account: &'static str,
+    seeds_key_has_no_account: "Key {} has no account key yet",
     /// Error in `seeds_descriptor`. `{}`: `at`.
-    pub seeds_key_is_not_an: &'static str,
+    seeds_not_account_key: "Key {} is not an account key",
     /// Error in `seeds_descriptor`. `{}`: `keys.len()`, `s.n`.
-    pub seeds_of_keys_in_hand: &'static str,
+    seeds_of_keys_in_hand: "{} of {} keys in hand",
     /// Toast in `seeds_from_vault`. `{}`: `want`, `self.vaults.open[v].name`.
-    pub seeds_loaded_from: &'static str,
+    seeds_loaded_from_vault: "{} loaded from {}",
     /// Text in `seeds_make`.
-    pub seeds_typed_seed: &'static str,
+    seeds_typed_seed: "Typed seed",
     /// Text in `seeds_make`.
-    pub seeds_typed_seeds: &'static str,
+    seeds_typed_seeds: "Typed seeds",
     // ----- seeds (faraday-core/src/seeds/screen.rs) -----
     /// Text in `more_ways`. `{}`: `fp`, `name`.
-    pub seeds_load_from: &'static str,
+    seeds_load_from_vault: "Load {} from {}",
     /// Text in `quorum`. `{}`: `s.m.max(1)`, `n`.
-    pub seeds_of: &'static str,
+    seeds_quorum: "{} of {}",
     /// Text in `quorum`.
-    pub seeds_one_key_signs: &'static str,
+    seeds_one_key_signs: "one key signs",
     /// Text in `quorum`. `{}`: `s.m`, `if s.m == 1 { EN.seeds_signature } el…`, `n`.
-    pub seeds_of_keys: &'static str,
+    seeds_of_keys: "{} {} of {} keys",
     /// Text in `quorum`.
-    pub seeds_signature: &'static str,
+    seeds_signature: "signature",
     /// Text in `quorum`.
-    pub seeds_signatures_inline: &'static str,
+    seeds_signatures_inline: "signatures",
     /// Text in `quorum`.
-    pub seeds_signatures: &'static str,
+    seeds_signatures: "Signatures",
     /// Text in `quorum`.
-    pub seeds_keys: &'static str,
+    seeds_keys: "Keys",
     /// Button in `cosigner`.
-    pub seeds_change: &'static str,
+    seeds_change: "Change",
     /// Label in `cosigner`.
-    pub seeds_type_or_paste: &'static str,
+    seeds_type_or_paste: "Type or paste an xpub",
     /// Line in `cosigner`.
-    pub seeds_not_an_account: &'static str,
+    seeds_not_an_account: "Not an account key",
     /// Text in `cosigner`. `{}`: `n`.
-    pub seeds_use: &'static str,
+    seeds_use: "Use {}",
     /// Text in `cosigner`.
-    pub seeds_scan: &'static str,
+    seeds_scan: "Scan",
     /// Line in `shape`.
-    pub seeds_cosigners_account: &'static str,
+    seeds_cosigners_account: "Cosigners' account keys (xpub)",
     /// Line in `shape`.
-    pub seeds_kind: &'static str,
+    seeds_kind: "Kind",
     /// Line in `shape`.
-    pub seeds_derivation_path: &'static str,
+    seeds_derivation_path: "Derivation path",
     /// Line in `shape`.
-    pub seeds_standard: &'static str,
+    seeds_standard: "Standard",
     /// Text in `shape`.
-    pub seeds_account: &'static str,
+    seeds_account: "Account",
     /// Line in `shape`.
-    pub seeds_custom_path: &'static str,
+    seeds_custom_path: "Custom path",
     /// Line in `shape`.
-    pub seeds_first_receive: &'static str,
+    seeds_first_receive: "First receive address · 0/0",
     /// Text in `shape`.
-    pub seeds_back_to_the_seeds: &'static str,
+    seeds_back_to_the_seeds: "Back to the seeds",
     /// Text in `shape`.
-    pub seeds_make_the_wallet: &'static str,
+    seeds_make_the_wallet: "Make the wallet",
     // ----- set_time (faraday-core/src/set_time.rs) -----
     /// Text in `now_local_text`.
-    pub set_time_not_known: &'static str,
+    set_time_not_known: "Not known",
     /// Toast in `set_time_set`. `{}`: `h`, `mi`.
-    pub set_time_time_set_to: &'static str,
+    set_time_done_toast: "Time set to {}:{}",
     // ----- silent (faraday-core/src/silent/mod.rs) -----
     /// Toast in `silent_open`.
-    pub silent_load_a_key_first: &'static str,
+    silent_load_a_key_first: "Load a key first",
     /// Error in `silent_code`.
-    pub silent_silent_payments_is: &'static str,
+    silent_not_open: "Silent payments is not open",
     /// Error in `silent_code`.
-    pub silent_choose_a_key: &'static str,
+    silent_choose_a_key: "Choose a key first",
     /// Text in `silent_code`. `{}`: `fp`.
-    pub silent_silent_payment: &'static str,
+    silent_silent_payment: "Silent payment address · {}",
     /// Error in `silent_code`.
-    pub silent_no_address_for: &'static str,
+    silent_no_address: "No address for this key",
     /// Text in `silent_code`. `{}`: `s.label`.
-    pub silent_label: &'static str,
+    silent_label: "Label {}",
     /// Text in `silent_code`.
-    pub silent_public_receives: &'static str,
+    silent_public_receives: "Public: receives payments, spends nothing",
     /// Text in `silent_code`.
-    pub silent_silent_payments_address: &'static str,
+    silent_silent_payments_address: "Silent payments address",
     /// Error in `silent_code`.
-    pub silent_no_record_for: &'static str,
+    silent_no_record: "No record for this key",
     /// Text in `silent_code`.
-    pub silent_public_watch: &'static str,
+    silent_public_watch: "Public: watch only, spends nothing",
     /// Text in `silent_code`.
-    pub silent_silent_payments_record: &'static str,
+    silent_silent_payments_record: "Silent payments record",
     /// Toast in `silent_act`.
-    pub silent_no_vault_is: &'static str,
+    silent_no_vault_open: "No vault is open",
     /// Text in `silent_act`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.
-    pub silent_silent_payments_scan: &'static str,
+    silent_silent_payments_scan: "Silent payments scan key · {}",
     /// Text in `silent_act`. `{}`: `title`.
-    pub silent_is_in_the_vault: &'static str,
+    silent_is_in_the_vault: "{} is in the vault",
     /// Text in `silent_act`.
-    pub silent_a_silent_payments: &'static str,
+    silent_a_silent_payments: "A silent payments scan key",
     /// Text in `silent_act`.
-    pub silent_whoever_has: &'static str,
+    silent_whoever_has: "Whoever has it sees every payment to this address; it cannot spend them",
     /// Toast in `silent_add_wallet`.
-    pub silent_load_the_key: &'static str,
+    silent_load_the_key: "Load the key first",
     /// Text in `silent_add_wallet`. `{}`: `fp_text(faraday_bip::keys::Fingerprint(fp))`.
-    pub silent_silent_payments_n: &'static str,
+    silent_silent_payments_n: "Silent payments {}",
     /// Text in `silent_add_wallet`.
-    pub silent_silent_payments: &'static str,
+    silent_silent_payments: "Silent payments",
     /// Toast in `silent_add_wallet`.
-    pub silent_added_to_your: &'static str,
+    silent_added_to_your: "Added to your wallets",
     /// Toast in `silent_check`.
-    pub silent_not_a_transaction: &'static str,
+    silent_not_a_transaction: "Not a transaction",
     // ----- silent (faraday-core/src/silent/screen.rs) -----
     /// Text in `TITLES`.
-    pub silent_key: &'static str,
+    silent_key: "Key",
     /// Text in `TITLES`.
-    pub silent_address: &'static str,
+    silent_address: "Address",
     /// Text in `TITLES`.
-    pub silent_scan_key: &'static str,
+    silent_scan_key: "Scan key",
     /// Text in `TITLES`.
-    pub silent_check_a_payment: &'static str,
+    silent_check_a_payment: "Check a payment",
     /// Text in `draw`.
-    pub silent_wallets: &'static str,
+    silent_wallets: "Wallets",
     /// Text in `summary`.
-    pub silent_not_chosen: &'static str,
+    silent_not_chosen: "Not chosen",
     /// Text in `summary`.
-    pub silent_a_secret_shows: &'static str,
+    silent_a_secret_shows: "A secret: shows every payment",
     /// Text in `summary`.
-    pub silent_needs_a_previous: &'static str,
+    silent_needs_a_previous: "Needs a previous transaction",
     /// Text in `summary`.
-    pub silent_a_transaction: &'static str,
+    silent_a_transaction: "A transaction from Files",
     /// Text in `guide`.
-    pub silent_a_silent_payments_address: &'static str,
+    silent_a_silent_payments_address: "A silent payments address is one address you can give out many times: each payment to it lands at an address nobody else can link to it or to the others.",
     /// Text in `guide`.
-    pub silent_give_this_address: &'static str,
+    silent_give_this_address: "Give this address to whoever pays you. A label makes another address of the same wallet, so you can tell who paid; the payer cannot tell the two apart. The record lists the labels handed out, for the wallet software that watches for payments.",
     /// Text in `guide`.
-    pub silent_finding_payments: &'static str,
+    silent_finding_payments: "Finding payments needs the scan key: it shows every payment to this address, though it cannot spend them. It goes into the vault, or to a scanning wallet you run yourself.",
     /// Text in `guide`.
-    pub silent_a_payment_to: &'static str,
+    silent_guide_payment: "A payment to a silent payments address goes to an address only this key can find. Copy the transaction into Files, signed, with the transactions it spends from; this works out whether any of its outputs pay this wallet, and to which label.",
     /// Line in `card`.
-    pub silent_its_key_is_not_loaded: &'static str,
+    silent_its_key_is_not_loaded: "Its key is not loaded: labels, the scan key and a check need it",
     /// Text in `card`.
-    pub silent_add_its_key: &'static str,
+    silent_add_its_key: "Add its key",
     /// Text in `card`.
-    pub silent_no_label: &'static str,
+    silent_no_label: "No label",
     /// Text in `card`.
-    pub silent_show_as_qr: &'static str,
+    silent_show_as_qr: "Show as QR",
     /// Text in `card`.
-    pub silent_as_a_bitcoin: &'static str,
+    silent_as_a_bitcoin: "As a bitcoin: link",
     /// Text in `card`. `{}`: `app.medium.for_the()`.
-    pub silent_record: &'static str,
+    silent_record: "Record {}",
     /// Text in `card`.
-    pub silent_record_as_qr: &'static str,
+    silent_record_as_qr: "Record as QR",
     /// Text in `card`.
-    pub silent_record_as_png: &'static str,
+    silent_record_as_png: "Record as PNG",
     /// Text in `card`.
-    pub silent_add_as_a_wallet: &'static str,
+    silent_add_as_a_wallet: "Add as a wallet",
     /// Button in `card`.
-    pub silent_continue: &'static str,
+    silent_continue: "Continue",
     /// Chip in `card`.
-    pub silent_secret_shows: &'static str,
+    silent_secret_shows: "Secret · shows every payment, cannot spend",
     /// Text in `card`. `{}`: `v.name`.
-    pub silent_save_into: &'static str,
+    silent_save_into: "Save into {}",
     /// Text in `card`.
-    pub silent_out_unprotected: &'static str,
+    silent_out_unprotected: "Out unprotected…",
     /// Text in `checked_text`. `{}`: `n`, `if n == 1 { EN.silent_output } else {…`.
-    pub silent_pays_this_wallet: &'static str,
+    silent_pays_this_wallet: "Pays this wallet: {} {}",
     /// Text in `checked_text`.
-    pub silent_output: &'static str,
+    silent_output: "output",
     /// Text in `checked_text`.
-    pub silent_outputs: &'static str,
+    silent_outputs: "outputs",
     /// Text in `checked_text`.
-    pub silent_pays_nothing: &'static str,
+    silent_pays_nothing: "Pays nothing to this wallet",
     /// Text in `checked_text`.
-    pub silent_spends_nothing: &'static str,
+    silent_spends_nothing: "Spends nothing a silent payment is made from",
     /// Text in `checked_text`.
-    pub silent_not_signed_an: &'static str,
+    silent_input_key_missing: "Not signed: an input's key is not in it yet",
     /// Text in `checked_text`.
-    pub silent_its_key_is_not: &'static str,
+    silent_key_not_loaded: "Its key is not loaded",
     /// Text in `check_card`.
-    pub silent_the_address: &'static str,
+    silent_the_address: "the address",
     /// Text in `check_card`.
-    pub silent_change: &'static str,
+    silent_change: "change",
     /// Text in `check_card`. `{}`: `m`.
-    pub silent_label_inline: &'static str,
+    silent_label_inline: "label {}",
     /// Text in `check_card`. `{}`: `p.vout`, `crate::ui::btc(p.amount.to_sat())`, `to`.
-    pub silent_output_to: &'static str,
+    silent_output_row: "Output {} · {} · to {}",
     /// Text in `check_card`. `{}`: `txid`.
-    pub silent_needs_the_transaction: &'static str,
+    silent_needs_the_transaction: "Needs the transaction it spends from, {}: copy it into Files and check again",
     /// Text in `check_card`. `{}`: `it.name`.
-    pub silent_check: &'static str,
+    silent_check: "Check {}",
     /// Line in `check_card`.
-    pub silent_no_transaction: &'static str,
+    silent_no_transaction: "No transaction in Files",
     // ----- stick_settings (faraday-core/src/stick/settings.rs) -----
     /// Text in `settings_event`. `{}`: `wrote_as`.
-    pub stick_settings_wrote: &'static str,
+    stick_settings_wrote: "Wrote {}, read back and matched",
     /// Text in `settings_event`. `{}`: `name`, `reason`.
-    pub stick_settings_not: &'static str,
+    stick_settings_not_written: "{} not written: {}",
     // ----- stick_wipe (faraday-core/src/stick/wipe.rs) -----
     /// Text in `LIMIT`.
-    pub stick_wipe_no_zeroing: &'static str,
+    stick_wipe_no_zeroing: "No zeroing is a certain erase. A USB stick or SD card can keep old copies of a file's blocks where no write reaches: its controller moves data around inside the chip. Zeros stop recovery tools; a lab that reads the chip itself may still find them. Only destroying the stick is certain.",
     /// Text in `REACH`.
-    pub stick_wipe_faraday: &'static str,
+    stick_wipe_faraday: "Faraday only ever writes into this partition, so zeroing it reaches everything Faraday ever wrote to the stick.",
     /// Text in `SECRET`.
-    pub stick_wipe_if_a_seed: &'static str,
+    stick_wipe_if_a_seed: "If a seed or other secret was ever saved to this stick unencrypted, the only sure way to remove it is to destroy the stick.",
     /// Text in `WITHIN`.
-    pub stick_wipe_only_this: &'static str,
+    stick_wipe_within: "Only this stick's files partition is written. Its other partitions, its partition table and any space outside a partition are not touched.",
     /// Text in `BOUNDARY`.
-    pub stick_wipe_why_the: &'static str,
+    stick_wipe_boundary_why: "Why: the process that reads sticks takes in whatever a stick brings, so it is given the files partition and nothing else. It can never write a boot partition or a partition table, where a bad stick could leave code for the next computer to boot.",
     /// Text in `size_text`. `{}`: `b as f64 / f64::from(1u32 << 30)`.
-    pub stick_wipe_gb: &'static str,
+    stick_wipe_gb: "{} GB",
     /// Text in `size_text`. `{}`: `b >> 20`.
-    pub stick_wipe_mb: &'static str,
+    stick_wipe_mb: "{} MB",
     /// Text in `size_text`. `{}`: `(b >> 10).max(1)`.
-    pub stick_wipe_kb: &'static str,
+    stick_wipe_kb: "{} KB",
     /// Text in `minutes_text`.
-    pub stick_wipe_about_a: &'static str,
+    stick_wipe_about_minute: "about a minute",
     /// Text in `minutes_text`. `{}`: `m`.
-    pub stick_wipe_about_minutes: &'static str,
+    stick_wipe_about_minutes: "about {} minutes",
     /// Text in `minutes_text`. `{}`: `m as f64 / 60.0`.
-    pub stick_wipe_about_hours: &'static str,
+    stick_wipe_about_hours: "about {} hours",
     /// Text in `wiped`. `{}`: `name`.
-    pub stick_wipe_deleted: &'static str,
+    stick_wipe_deleted: "{} deleted, zeros over it first",
     /// Text in `wiped`. `{}`: `name`, `why`.
-    pub stick_wipe_not_deleted: &'static str,
+    stick_wipe_not_deleted: "{} not deleted: {}",
     /// Text in `zero_step`. `{}`: `share`.
-    pub stick_wipe_stopped_at: &'static str,
+    stick_wipe_stopped_percent: "Stopped at {}%",
     /// Text in `zero_step`. `{}`: `z.label`.
-    pub stick_wipe_free_space: &'static str,
+    stick_wipe_free_space: "Free space on {} zeroed",
     /// Text in `zero_step`. `{}`: `z.label`.
-    pub stick_wipe_s_partition_zeroed: &'static str,
+    stick_wipe_s_partition_zeroed: "{}'s partition zeroed",
     /// Text in `zero_step`. `{}`: `z.label`, `n`.
-    pub stick_wipe_s_partition: &'static str,
+    stick_wipe_s_partition: "{}'s partition zeroed, {} passes",
     /// Text in `zero_failed`. `{}`: `share`, `why`.
-    pub stick_wipe_stopped: &'static str,
+    stick_wipe_stopped: "Stopped at {}%: {}",
     /// Text in `zero_sticks_changed`. `{}`: `self.medium.noun()`.
-    pub stick_wipe_the_was: &'static str,
+    stick_wipe_the_was: "the {} was pulled",
     /// Text in `delete_sheet`. `{}`: `d.label`.
-    pub stick_wipe_delete_files: &'static str,
+    stick_wipe_delete_files: "Delete files from {}",
     /// Text in `delete_sheet`. `{}`: `n`, `if n == 1 { EN.stick_wipe_file } else…`.
-    pub stick_wipe_delete_with: &'static str,
+    stick_wipe_delete_zeros: "Delete {} {} with zeros",
     /// Text in `delete_sheet`.
-    pub stick_wipe_file: &'static str,
+    stick_wipe_file: "file",
     /// Text in `delete_sheet`.
-    pub stick_wipe_files: &'static str,
+    stick_wipe_files: "files",
     /// Text in `delete_sheet`.
-    pub stick_wipe_zero_the_free: &'static str,
+    stick_wipe_zero_the_free: "Zero the free space",
     /// Text in `delete_sheet`.
-    pub stick_wipe_zero_the: &'static str,
+    stick_wipe_zero_partition: "Zero the whole partition",
     /// Text in `delete_sheet`.
-    pub stick_wipe_nothing: &'static str,
+    stick_wipe_nothing: "Nothing to write: a folder standing for a stick",
     /// Text in `delete_sheet`. `{}`: `size_text(shown)`, `minutes_text(ms)`.
-    pub stick_wipe_to_write: &'static str,
+    stick_wipe_to_write: "{} to write · {} on a typical stick",
     /// Text in `delete_sheet`.
-    pub stick_wipe_reading: &'static str,
+    stick_wipe_reading: "Reading the stick's space",
     /// Line in `delete_sheet`.
-    pub stick_wipe_danger_zone: &'static str,
+    stick_wipe_danger_zone: "Danger zone: what is deleted here cannot be undone",
     /// Text in `delete_sheet`.
-    pub stick_wipe_chosen_files: &'static str,
+    stick_wipe_chosen_files: "Chosen files",
     /// Text in `delete_sheet`.
-    pub stick_wipe_zeros_over: &'static str,
+    stick_wipe_zeros_over: "Zeros over each, then it is removed with its name",
     /// Text in `delete_sheet`.
-    pub stick_wipe_the_free: &'static str,
+    stick_wipe_the_free: "The free space",
     /// Text in `delete_sheet`.
-    pub stick_wipe_the_files: &'static str,
+    stick_wipe_the_files: "The files stay; what earlier deletes left is zeroed",
     /// Text in `delete_sheet`.
-    pub stick_wipe_the_whole: &'static str,
+    stick_wipe_the_whole: "The whole partition",
     /// Text in `delete_sheet`.
-    pub stick_wipe_every_file: &'static str,
+    stick_wipe_every_file: "Every file is deleted, then all of it is zeroed",
     /// Text in `delete_sheet`. `{}`: `app.medium.noun()`.
-    pub stick_wipe_no_files: &'static str,
+    stick_wipe_no_files: "No files on this {}",
     /// Text in `delete_sheet`.
-    pub stick_wipe_one_pass: &'static str,
+    stick_wipe_one_pass: "One pass",
     /// Text in `delete_sheet`.
-    pub stick_wipe_two_passes_2: &'static str,
+    stick_wipe_two_passes_label: "Two passes",
     /// Line in `delete_sheet`.
-    pub stick_wipe_two_passes: &'static str,
+    stick_wipe_two_passes: "Two passes write it all twice, which makes a stick replace more of its old blocks.",
     /// Text in `delete_sheet`.
-    pub stick_wipe_cancel: &'static str,
+    stick_wipe_cancel: "Cancel",
     /// Text in `zeroing_sheet`. `{}`: `z.label`.
-    pub stick_wipe_zeroing_the: &'static str,
+    stick_wipe_zeroing_title: "Zeroing the whole partition on {}",
     /// Text in `zeroing_sheet`. `{}`: `z.label`.
-    pub stick_wipe_zeroing: &'static str,
+    stick_wipe_zeroing: "Zeroing the free space on {}",
     /// Text in `zeroing_sheet`. `{}`: `(share * 100.0) as u32`, `minutes_text(ms)`.
-    pub stick_wipe_left: &'static str,
+    stick_wipe_left: "{}% · {} left",
     /// Text in `zeroing_sheet`. `{}`: `z.pass`, `z.passes`.
-    pub stick_wipe_pass_of: &'static str,
+    stick_wipe_pass_count: "Pass {} of {}",
     /// Text in `zeroing_sheet`. `{}`: `app.medium.noun()`.
-    pub stick_wipe_keep_the: &'static str,
+    stick_wipe_keep_medium: "Keep the {} in until it is done",
     /// Text in `zeroing_sheet`.
-    pub stick_wipe_stopping: &'static str,
+    stick_wipe_stopping: "Stopping",
     /// Text in `zeroing_sheet`.
-    pub stick_wipe_stop: &'static str,
+    stick_wipe_stop: "Stop",
     // ----- tools (faraday-core/src/tools/screen.rs) -----
     /// Text in `GUIDE`.
-    pub tools_calculators_each: &'static str,
+    tools_calculators_each: "Calculators: each takes what you type, works one thing out and keeps nothing. None of them touches a key; an extended private key is refused.",
     /// Line in `header`.
-    pub tools_wallets: &'static str,
+    tools_wallets: "Wallets",
     /// Title in `header`.
-    pub tools_tools: &'static str,
+    tools_tools: "Tools",
     /// Text in `body`.
-    pub tools_read_as_automatic: &'static str,
+    tools_read_as_automatic: "Read as: automatic",
     /// Text in `body`.
-    pub tools_text: &'static str,
+    tools_text: "Text",
     /// Text in `body`.
-    pub tools_hex: &'static str,
+    tools_hex: "Hex",
     /// Text in `body`. `{}`: `n`.
-    pub tools_in: &'static str,
+    tools_unit_option: "In {}",
     /// Text in `body`.
-    pub tools_text_or_hex: &'static str,
+    tools_text_or_hex: "Text or hex",
     /// Text in `body`.
-    pub tools_base58_bech32: &'static str,
+    tools_base58_bech32: "Base58, bech32 or hex",
     /// Text in `body`.
-    pub tools_a_descriptor: &'static str,
+    tools_a_descriptor: "A descriptor",
     /// Text in `body`.
-    pub tools_an_xpub_ypub: &'static str,
+    tools_an_xpub_ypub: "An xpub, ypub, zpub, tpub…",
     /// Text in `body`.
-    pub tools_an_amount: &'static str,
+    tools_an_amount: "An amount",
     /// Text in `body`.
-    pub tools_a_policy_e_g: &'static str,
+    tools_a_policy_e_g: "A policy, e.g. or(pk(9a6a2580),and(pk(…),older(1000)))",
     /// Button in `body`.
-    pub tools_clear: &'static str,
+    tools_clear: "Clear",
     /// Text in `body`.
-    pub tools_encoding: &'static str,
+    tools_encoding: "Encoding",
     /// Text in `body`.
-    pub tools_prefix: &'static str,
+    tools_prefix: "Prefix",
     /// Text in `body`.
-    pub tools_version: &'static str,
+    tools_version: "Version",
     /// Text in `body`.
-    pub tools_bytes: &'static str,
+    tools_bytes: "Bytes",
     /// Note in `body`.
-    pub tools_not_base58_bech32: &'static str,
+    tools_not_base58_bech32: "Not Base58, bech32, bech32m or hex",
     /// Text in `body`.
-    pub tools_checksum: &'static str,
+    tools_checksum: "Checksum",
     /// Text in `body`.
-    pub tools_given: &'static str,
+    tools_given: "Given",
     /// Text in `body`.
-    pub tools_holds: &'static str,
+    tools_holds: "holds",
     /// Text in `body`.
-    pub tools_does_not_hold: &'static str,
+    tools_does_not_hold: "does not hold",
     /// Text in `body`.
-    pub tools_with_it: &'static str,
+    tools_with_checksum_label: "With it",
     /// Text in `body`.
-    pub tools_not_one_this: &'static str,
+    tools_not_loadable: "not one this device loads",
     /// Note in `body`.
-    pub tools_not_a_descriptor: &'static str,
+    tools_not_a_descriptor: "Not a descriptor",
     /// Text in `body`.
-    pub tools_legacy: &'static str,
+    tools_legacy: "Legacy",
     /// Text in `body`.
-    pub tools_nested_segwit: &'static str,
+    tools_nested_segwit: "Nested SegWit",
     /// Text in `body`.
-    pub tools_native_segwit: &'static str,
+    tools_native_segwit: "Native SegWit",
     /// Text in `body`.
-    pub tools_taproot: &'static str,
+    tools_taproot: "Taproot",
     /// Text in `body`.
-    pub tools_depth: &'static str,
+    tools_depth: "Depth",
     /// Text in `body`.
-    pub tools_fingerprint: &'static str,
+    tools_fingerprint: "Fingerprint",
     /// Text in `body`.
-    pub tools_child: &'static str,
+    tools_child: "Child",
     /// Text in `body`.
-    pub tools_that_is_an_extended: &'static str,
+    tools_that_is_an_extended: "That is an extended private key: this tool takes public keys only",
     /// Note in `body`.
-    pub tools_not_an_extended: &'static str,
+    tools_not_an_extended: "Not an extended key",
     /// Text in `body`.
-    pub tools_descriptor: &'static str,
+    tools_descriptor: "Descriptor",
     /// Text in `body`.
-    pub tools_spend_paths: &'static str,
+    tools_spend_paths: "Spend paths",
     /// Text in `body`.
-    pub tools_wallet: &'static str,
+    tools_wallet: "Wallet",
     /// Text in `body`.
-    pub tools_one_this_device: &'static str,
+    tools_one_this_device: "one this device loads",
     /// Text in `body`.
-    pub tools_keys_need_origins: &'static str,
+    tools_keys_need_origins: "keys need origins and both chains to load",
     // ----- transfer (faraday-core/src/transfer/mod.rs) -----
     /// Text in `transfer_send`. `{}`: `self.medium.a()`.
-    pub transfer_larger_than: &'static str,
+    transfer_larger_than: "Larger than 256 KiB: carry it on {}",
     /// Text in `transfer_send`. `{}`: `base_name(&path)`.
-    pub transfer_is_empty: &'static str,
+    transfer_is_empty: "{} is empty",
     /// Note in `transfer_scanned`. `{}`: `name`.
-    pub transfer_saving: &'static str,
+    transfer_saving: "Saving {}",
     /// Text in `transfer_saved`. `{}`: `path`.
-    pub transfer_saved_this: &'static str,
+    transfer_saved_secret: "Saved {}: this file holds a secret",
     /// Text in `transfer_saved`. `{}`: `path`.
-    pub transfer_saved: &'static str,
+    transfer_saved: "Saved {}",
     /// Error in `transfer_saved`. `{}`: `reason`.
-    pub transfer_not_saved: &'static str,
+    transfer_not_saved: "Not saved: {}",
     // ----- transfer (faraday-core/src/transfer/screen.rs) -----
     /// Text in `size_text`. `{}`: `bytes as f32 / 1e6`.
-    pub transfer_mb: &'static str,
+    transfer_mb: "{} MB",
     /// Text in `size_text`. `{}`: `bytes as f32 / 1e3`.
-    pub transfer_kb: &'static str,
+    transfer_kb: "{} KB",
     /// Title in `draw`.
-    pub transfer_transfer: &'static str,
+    transfer_transfer: "Transfer",
     /// Section label in `send`.
-    pub transfer_send: &'static str,
+    transfer_send: "Send",
     /// Text in `send`. `{}`: `name`.
-    pub transfer_reading: &'static str,
+    transfer_reading: "Reading {}",
     /// Line in `send`.
-    pub transfer_no_files: &'static str,
+    transfer_no_files: "No files",
     /// Text in `send`.
-    pub transfer_over_256_kib: &'static str,
+    transfer_over_256_kib: "Over 256 KiB",
     /// Section label in `receive`.
-    pub transfer_receive: &'static str,
+    transfer_receive: "Receive",
     /// Button in `receive`.
-    pub transfer_scan_with: &'static str,
+    transfer_scan_camera: "Scan with the camera",
     /// Button in `receive`.
-    pub transfer_open_folder: &'static str,
+    transfer_open_folder: "Open folder",
     // ----- ui (faraday-core/src/ui.rs) -----
     /// Under a firmware sketch (`docs/STARTER.md` §7.8, faraday-ui's
     /// `sketch`): it is Faraday's drawing, not the screen itself.
-    pub ui_sketch_mock_up: &'static str,
+    ui_sketch_mock_up: "Mock-up: the real screen may look different.",
     /// Text in `name`.
-    pub ui_dark: &'static str,
+    ui_dark: "Dark",
     /// Text in `name`.
-    pub ui_light: &'static str,
+    ui_light: "Light",
     /// Text in `name`.
-    pub ui_cobalt: &'static str,
+    ui_cobalt: "Cobalt",
     /// Text in `name`.
-    pub ui_nord: &'static str,
+    ui_nord: "Nord",
     /// Text in `name`.
-    pub ui_catppuccin: &'static str,
+    ui_catppuccin: "Catppuccin",
     /// Text in `name`.
-    pub ui_tokyo_night: &'static str,
+    ui_tokyo_night: "Tokyo Night",
     /// Text in `name`.
-    pub ui_gruvbox: &'static str,
+    ui_gruvbox: "Gruvbox",
     /// Text in `name`.
-    pub ui_rose_pine: &'static str,
+    ui_rose_pine: "Rosé Pine",
     /// Text in `name`.
-    pub ui_bitcoin_orange: &'static str,
+    ui_bitcoin_orange: "Bitcoin Orange",
     /// Text in `name`.
-    pub ui_bitcoin_orange_light: &'static str,
+    ui_bitcoin_orange_light: "Bitcoin Orange Light",
     /// Text in `name`.
-    pub ui_lamplight: &'static str,
+    ui_lamplight: "Lamplight",
     // ----- upgrade (faraday-core/src/upgrade/mod.rs) -----
     /// Text in `version`.
-    pub upgrade_0_1_0_or_earlier: &'static str,
+    upgrade_0_1_0_or_earlier: "0.1.0 or earlier",
     /// Text in `describe`. `{}`: `number`, `commit`.
-    pub upgrade_test_release_2: &'static str,
+    upgrade_test_release_short: "{} test release ({})",
     /// Text in `describe`. `{}`: `number`, `commit`, `fp`.
-    pub upgrade_test_release: &'static str,
+    upgrade_test_release: "{} test release ({}, changes {})",
     /// Text in `describe`. `{}`: `number`, `commit`.
-    pub upgrade_dev: &'static str,
+    upgrade_dev: "{} dev ({})",
     /// Text in `describe`. `{}`: `number`, `commit`, `fp`.
-    pub upgrade_dev_changes: &'static str,
+    upgrade_dev_changes: "{} dev ({}, changes {})",
     // ----- upgrade (faraday-core/src/upgrade/screen.rs) -----
     /// Text in `source`. `{}`: `app.medium.noun()`.
-    pub upgrade_insert_the: &'static str,
+    upgrade_insert_medium: "Insert the {} Faraday started from",
     /// Label in `source`.
-    pub upgrade_read: &'static str,
+    upgrade_read: "Read",
     /// Label in `source`.
-    pub upgrade_reading: &'static str,
+    upgrade_reading: "Reading",
     /// Text in `target`. `{}`: `app.medium.noun()`.
-    pub upgrade_remove_it_insert: &'static str,
+    upgrade_remove_it_insert: "Remove it. Insert the {} to upgrade",
     /// Text in `target`.
-    pub upgrade_file: &'static str,
+    upgrade_file: "file",
     /// Text in `target`.
-    pub upgrade_files: &'static str,
+    upgrade_files: "files",
     /// Label in `target`.
-    pub upgrade_its_data_partition: &'static str,
+    upgrade_its_data_partition: "Its data partition",
     /// Label in `target`.
-    pub upgrade_on_it: &'static str,
+    upgrade_target_contents: "On it",
     /// Label in `target`.
-    pub upgrade_to_be_written: &'static str,
+    upgrade_to_be_written: "To be written",
     /// Text in `target`.
-    pub upgrade_newer_than: &'static str,
+    upgrade_newer_than: "Newer than this Faraday",
     /// Text in `target`.
-    pub upgrade_writes_a_dev: &'static str,
+    upgrade_writes_a_dev: "Writes a dev build, with a serial console",
     /// Text in `target`.
-    pub upgrade_already_this: &'static str,
+    upgrade_same_version: "Already this version",
     /// Text in `target`. `{}`: `has`, `needs`.
-    pub upgrade_boot_partition: &'static str,
+    upgrade_boot_partition: "Boot partition {} MB · needs {} MB",
     /// Text in `target`.
-    pub upgrade_removed_during: &'static str,
+    upgrade_removed_during: "Removed during the write: it does not start until upgraded again · its data partition was not written",
     /// Text in `target`. `{}`: `why`.
-    pub upgrade_not_written: &'static str,
+    upgrade_not_written: "Not written: {}",
     /// Text in `target`.
-    pub upgrade_writing: &'static str,
+    upgrade_writing: "Writing",
     /// Text in `target`.
-    pub upgrade_upgrade: &'static str,
+    upgrade_upgrade: "Upgrade",
     /// Label in `done`.
-    pub upgrade_written_read: &'static str,
+    upgrade_written_read: "Written, read back and matched",
     /// Text in `done`. `{}`: `app.medium.noun()`.
-    pub upgrade_remove_the: &'static str,
+    upgrade_remove_medium: "Remove the {}",
     /// Text in `done`. `{}`: `app.medium.noun()`.
-    pub upgrade_upgrade_another: &'static str,
+    upgrade_upgrade_another: "Upgrade another {}",
     /// Text in `done`.
-    pub upgrade_done: &'static str,
+    upgrade_done: "Done",
     // ----- upgrade (faraday-boot/src/lib.rs) -----
     /// Text in `read_source`. `{}`: how many boot partitions hold it.
-    pub upgrade_several_hold: &'static str,
+    upgrade_several_hold: "{} sticks in carry this version · Remove all but the one Faraday started from",
     /// Text in `read_source`. `{}`: its MB, this Faraday's MB.
-    pub upgrade_source_size: &'static str,
+    upgrade_source_size: "The stick carrying this version has a {} MB boot partition; this Faraday's is {} MB",
     // ----- vanity (faraday-core/src/vanity/mod.rs) -----
     /// Text in `script_name`.
-    pub vanity_legacy: &'static str,
+    vanity_legacy: "Legacy",
     /// Text in `script_name`.
-    pub vanity_nested_segwit: &'static str,
+    vanity_nested_segwit: "Nested SegWit",
     /// Text in `script_name`.
-    pub vanity_native_segwit: &'static str,
+    vanity_native_segwit: "Native SegWit",
     /// Text in `script_name`.
-    pub vanity_taproot: &'static str,
+    vanity_taproot: "Taproot",
     /// Text in `script_name`. `{}`: `name`.
-    pub vanity_m_or_n: &'static str,
+    vanity_m_or_n: "{} · m… or n…",
     /// Text in `dial_name`.
-    pub vanity_account_number: &'static str,
+    vanity_account_number: "Account number",
     /// Text in `dial_name`.
-    pub vanity_the_same_words: &'static str,
+    vanity_the_same_words: "The same words and passphrase, a different account: fast. The wallet is the key's own, at the account found.",
     /// Text in `dial_name`.
-    pub vanity_passphrase: &'static str,
+    vanity_passphrase: "Passphrase",
     /// Text in `dial_name`.
-    pub vanity_a_few_characters: &'static str,
+    vanity_a_few_characters: "A few characters added to the key's BIP-39 passphrase: slow, one PBKDF2 a try. The words with that passphrase are another wallet, which needs the passphrase kept with them.",
     /// Toast in `vanity_open`.
-    pub vanity_load_a_key_first: &'static str,
+    vanity_load_a_key_first: "Load a key first",
     /// Error in `vanity_act`.
-    pub vanity_type_at_least: &'static str,
+    vanity_type_at_least: "Type at least one character after the fixed part",
     /// Text in `vanity_act`.
-    pub vanity_this_key_was: &'static str,
+    vanity_this_key_was: "This key was not loaded from BIP-39 words: only its account turns",
     /// Error in `vanity_tick`.
-    pub vanity_every_counter: &'static str,
+    vanity_every_counter: "Every counter was tried: no address begins that way",
     /// Text in `vanity_use`. `{}`: `label`.
-    pub vanity_vanity_passphrase: &'static str,
+    vanity_vanity_passphrase: "{} · vanity passphrase",
     /// Text in `vanity_use`.
-    pub vanity_vanity_search: &'static str,
+    vanity_vanity_search: "Vanity search",
     /// Toast in `vanity_use`. `{}`: `name`.
-    pub vanity_is_open: &'static str,
+    vanity_is_open: "{} is open",
     /// Error in `vanity_key_in`. `{}`: `c`.
-    pub vanity_cannot_stand: &'static str,
+    vanity_cannot_stand: "{} cannot stand there in this kind of address",
     // ----- vanity (faraday-core/src/vanity/screen.rs) -----
     /// Text in `TITLES`.
-    pub vanity_key: &'static str,
+    vanity_key: "Key",
     /// Text in `TITLES`.
-    pub vanity_what_turns: &'static str,
+    vanity_what_turns: "What turns",
     /// Text in `TITLES`.
-    pub vanity_kind_of_address: &'static str,
+    vanity_kind_of_address: "Kind of address",
     /// Text in `TITLES`.
-    pub vanity_characters: &'static str,
+    vanity_characters: "Characters",
     /// Text in `TITLES`.
-    pub vanity_search: &'static str,
+    vanity_search: "Search",
     /// Text in `draw`.
-    pub vanity_wallets: &'static str,
+    vanity_wallets: "Wallets",
     /// Text in `draw`.
-    pub vanity_vanity_address: &'static str,
+    vanity_vanity_address: "Vanity address",
     /// Text in `guide`.
-    pub vanity_the_key_whose: &'static str,
+    vanity_the_key_whose: "The key whose address is searched. Nothing about the key changes.",
     /// Text in `guide`.
-    pub vanity_a_search_tries: &'static str,
+    vanity_a_search_tries: "A search tries one account number, or one passphrase, after another until the first receive address begins with the characters chosen. The same key and the same number give the same address on any device.",
     /// Text in `guide`.
-    pub vanity_the_kind_of: &'static str,
+    vanity_guide_kind: "The kind of address decides the characters it starts with.",
     /// Text in `guide`.
-    pub vanity_type_the_characters: &'static str,
+    vanity_type_the_characters: "Type the characters the address should begin with, after the part every address of this kind shares. Each character more takes 32 times as long to find for a bech32 address, and 58 times for a legacy one.",
     /// Text in `guide`.
-    pub vanity_the_search_runs: &'static str,
+    vanity_the_search_runs: "The search runs while this screen is open and stops at the first match. The time is an expectation, not a promise: a find can come much sooner or later.",
     /// Text in `summary`.
-    pub vanity_not_chosen: &'static str,
+    vanity_not_chosen: "Not chosen",
     /// Text in `summary`. `{}`: `thousands(v.grind.tested)`.
-    pub vanity_tried_2: &'static str,
+    vanity_tried_count: "{} tried",
     /// Text in `card`. `{}`: `thousands(expected)`.
-    pub vanity_about_tries: &'static str,
+    vanity_about_tries: "About {} tries",
     /// Button in `card`.
-    pub vanity_continue: &'static str,
+    vanity_continue: "Continue",
     /// Line in `card`.
-    pub vanity_found: &'static str,
+    vanity_found: "Found",
     /// Text in `card`. `{}`: `f.account`, `thousands(v.grind.tested)`.
-    pub vanity_account_of_this: &'static str,
+    vanity_found_account: "Account {} of this key, after {} tries",
     /// Line in `card`.
-    pub vanity_added_to_the: &'static str,
+    vanity_added_to_passphrase: "Added to the passphrase:",
     /// Text in `card`.
-    pub vanity_hide: &'static str,
+    vanity_hide: "Hide",
     /// Text in `card`.
-    pub vanity_show: &'static str,
+    vanity_show: "Show",
     /// Line in `card`.
-    pub vanity_these_characters: &'static str,
+    vanity_these_characters: "These characters are part of the passphrase: write them down with it. The words with any other passphrase open another wallet.",
     /// Button in `card`.
-    pub vanity_open_this_wallet: &'static str,
+    vanity_open_this_wallet: "Open this wallet",
     /// Button in `card`.
-    pub vanity_search_again: &'static str,
+    vanity_search_again: "Search again",
     /// Text in `card`. `{}`: `thousands(r as u64)`.
-    pub vanity_a_second: &'static str,
+    vanity_a_second: "{} a second",
     /// Text in `card`, after a space. `{}`: `seconds_text(s)`.
-    pub vanity_about_expected: &'static str,
+    vanity_about_expected: "· about {} expected",
     /// Text in `card`.
-    pub vanity_measuring: &'static str,
+    vanity_measuring: "Measuring",
     /// Text in `card`. `{}`: `v.grind.prefix.as_str()`.
-    pub vanity_searching_for: &'static str,
+    vanity_searching_prefix: "Searching for {}",
     /// Text in `card`. `{}`: `thousands(v.grind.tested)`, `rate`, `left`.
-    pub vanity_tried: &'static str,
+    vanity_tried: "{} tried · {}{}",
     /// Button in `card`.
-    pub vanity_stop: &'static str,
+    vanity_stop: "Stop",
     /// Text in `card`. `{}`: `v.grind.prefix.as_str()`.
-    pub vanity_search_for: &'static str,
+    vanity_search_prefix: "Search for {}",
     /// Text in `seconds_text`. `{}`: `s / 60`.
-    pub vanity_min: &'static str,
+    vanity_min: "{} min",
     /// Text in `seconds_text`. `{}`: `s / 86_400`.
-    pub vanity_days: &'static str,
+    vanity_days: "{} days",
     // ----- vault (faraday-core/src/vault/screen.rs) -----
     /// Text in `gpg_file_size`. `{}`: `bytes as f32 / 1e6`.
-    pub vault_mb: &'static str,
+    vault_mb: "{} MB",
     /// Text in `gpg_file_size`. `{}`: `bytes as f32 / 1e3`.
-    pub vault_kb: &'static str,
+    vault_kb: "{} KB",
     /// Text in `stick_field`. `{}`: `medium.noun()`.
-    pub vault_remove_the_first: &'static str,
+    vault_remove_the_first: "Remove the {} first",
     /// Text in `secret`.
-    pub vault_release_to_hide: &'static str,
+    vault_release_to_hide: "Release to hide",
     /// Text in `secret`.
-    pub vault_hold_to_show: &'static str,
+    vault_hold_to_show: "Hold to show",
     /// Button in `hold_delete`.
-    pub vault_hold_to_delete: &'static str,
+    vault_hold_to_delete: "Hold to delete from vault",
     /// Text in `unlock`. `{}`: `app.vaults.time_text(mem, f.header.co…`.
-    pub vault_here_2: &'static str,
+    vault_unlock_time_here: "{} here",
     /// Text in `list_line`.
-    pub vault_unlock_to_see: &'static str,
+    vault_unlock_to_see: "Unlock to see what it holds",
     /// Text in `ONCE_MORE`.
-    pub vault_type_the_passphrase: &'static str,
+    vault_type_the_passphrase: "Type the passphrase once more to open it",
     /// Text in `unlock_back`.
-    pub vault_import: &'static str,
+    vault_import: "Import",
     /// Line in `list_compact`.
-    pub vault_no_vault_in_files: &'static str,
+    vault_no_vault_in_files: "No vault in Files",
     /// Text in `list_compact`. `{}`: `app.medium.noun()`.
-    pub vault_remove_the_to: &'static str,
+    vault_remove_to_unlock: "Remove the {} to unlock",
     /// Text in `list_compact`.
-    pub vault_new_vault: &'static str,
+    vault_new_vault: "New vault",
     /// Text in `list_compact`.
-    pub vault_locked_not_written: &'static str,
+    vault_locked_not_written: "Locked · not written yet",
     /// Text in `list_compact`.
-    pub vault_locked_vault: &'static str,
+    vault_locked_vault: "Locked vault",
     /// Text in `list_compact`.
-    pub vault_locked: &'static str,
+    vault_locked: "Locked",
     /// Text in `list_compact`.
-    pub vault_view_contents: &'static str,
+    vault_view_contents: "View contents",
     /// Text in `list_compact`. `{}`: `app.medium.a()`, `app.medium.for_the()`.
-    pub vault_a_vault_holds: &'static str,
+    vault_a_vault_holds: "A vault holds keys, wallets, entries and notes under one to four passphrases, each opening its own contents. A locked vault shows only what its file states: its size and unlock cost. A vault is copied in on {} visit, and is sealed {} again when the session locks with changes in it.",
     /// Text in `unlock_compact`. `{}`: `app.medium.noun()`.
-    pub vault_remove_the_then_type: &'static str,
+    vault_remove_the_then_type: "Remove the {}, then type the passphrase",
     /// Line in `unlock_compact`.
-    pub vault_no_locked_vault: &'static str,
+    vault_no_locked_vault: "No locked vault in Files",
     /// Text in `unlock_compact`. `{}`: `t`.
-    pub vault_unlocking: &'static str,
+    vault_unlocking: "Unlocking · {}",
     /// Button in `unlock_compact`.
-    pub vault_unlock: &'static str,
+    vault_unlock: "Unlock",
     /// Text in `unlock_compact`. `{}`: `mib_text(m)`.
-    pub vault_this_computer_free: &'static str,
+    vault_this_computer_free: "This computer: {} free",
     /// Text in `unlock_compact`.
-    pub vault_this_computer_memory: &'static str,
+    vault_this_computer_memory: "This computer: memory not reported",
     /// Text in `unlock_compact`.
-    pub vault_choose_the_vault: &'static str,
+    vault_choose_the_vault: "Choose the vault and type a passphrase. Each passphrase opens its own contents, and a vault does not say how many it has. The time is the Argon2id cost the vault was made with, measured on this computer.",
     /// Text in `VSTEPS`.
-    pub vault_where_will_you: &'static str,
+    vault_where_will_you: "Where will you open it?",
     /// Text in `create`. `{}`: `app.back_name(s)`.
-    pub vault_then: &'static str,
+    vault_then: "Then: {}",
     /// Text in `create`.
-    pub vault_home: &'static str,
+    vault_home: "Home",
     /// Text in `create`.
-    pub vault_create_a_vault: &'static str,
+    vault_create_a_vault: "Create a vault",
     /// Text in `create_guide`.
-    pub vault_a_vault_opens_only: &'static str,
+    vault_a_vault_opens_only: "A vault opens only on a machine with the memory its cost asks for. Choose every kind of machine it will ever be opened on; the cost suggested next fits the one with the least memory.",
     /// Text in `create_guide`.
-    pub vault_each_guess_at: &'static str,
+    vault_guide_guess_cost: "Each guess at a passphrase costs this much memory and time. Argon2id works through the memory 1 KiB at a time, once each pass, so a guess is memory in KiB times passes block steps, and the cost adds the base-2 logarithm of that to the passphrase's own bits: 64 MiB with 3 passes is 196,608 steps, ≈17.6 bits, and doubling the memory or the passes adds ≈1. These are estimates, marked ≈: they count work, not how much harder memory is than time for an attacker. A dice passphrase's own bits are exact. Memory is a hard limit: a machine without it cannot open the vault at any speed. The passphrase matters more: one more dice word adds 12.9 bits, and this whole range of cost adds ≈6. The cost cannot be changed later.",
     /// Text in `create_guide`.
-    pub vault_every_passphrase: &'static str,
+    vault_every_passphrase: "Every passphrase gets the same space, fixed for the life of the vault. 256 KiB holds keys, wallets, notes and about a hundred entries.",
     /// Text in `create_guide`.
-    pub vault_a_vault_opens: &'static str,
+    vault_a_vault_opens: "A vault opens only on a machine with the memory its cost asks for, and the cost cannot be changed later. 512 MiB opens on PCs; 64 MiB opens on a Raspberry Pi as well. Customise chooses the machines, the cost and the space per passphrase one by one.",
     /// Text in `create_guide`.
-    pub vault_each_passphrase: &'static str,
+    vault_each_passphrase: "Each passphrase opens its own contents, and the file does not say how many there are. They are set now: adding or changing one later means making a new vault and moving the contents across. The passphrase matters more than the cost: six words from the EFF long list are 77.5 bits, out of reach at any cost here, while a short or reused passphrase is not protected at any cost.",
     /// Text in `create_summaries`.
-    pub vault_none_chosen: &'static str,
+    vault_none_chosen: "None chosen",
     /// Text. `{}`: `name`, `mib_text(mem)`, `passes`.
-    pub vault_passes_3: &'static str,
+    vault_cost_row: "{} · {} · {} passes",
     /// Text. `{}`: `size_text(c.slot)`, `file_text(file_len(c.slot))`.
-    pub vault_file_n: &'static str,
+    vault_file_n: "{} · file {}",
     /// Text. `{}`: `vault::vault_stem(&c.name.text)`, `n`, `if n == 1 { FEN.vault_passphrase_inline } …`, `if ok { FEN.vault_match } else { FEN.…`.
-    pub vault_ofv: &'static str,
+    vault_ofv: "{}.ofv · {} {} · {}",
     /// Text in `create_summaries`.
-    pub vault_passphrase_inline: &'static str,
+    vault_passphrase_inline: "passphrase",
     /// Text in `create_summaries`.
-    pub vault_passphrases: &'static str,
+    vault_passphrases: "passphrases",
     /// Text in `create_summaries`.
-    pub vault_match: &'static str,
+    vault_match: "match",
     /// Text in `create_summaries`.
-    pub vault_not_finished: &'static str,
+    vault_not_finished: "not finished",
     /// Text in `create_body`. `{}`: `mib_text(app.vaults.here_limit())`, `mib_text(free)`.
-    pub vault_free: &'static str,
+    vault_free: "{} ({} free)",
     /// Text in `create_body`.
-    pub vault_memory_not_reported: &'static str,
+    vault_memory_not_reported: "Memory not reported",
     /// Line in `create_body`.
-    pub vault_this_computer: &'static str,
+    vault_this_computer: "This computer",
     /// Text in `create_body`.
-    pub vault_choose_memory: &'static str,
+    vault_choose_memory: "Choose memory and passes",
     /// Text in `create_body`.
-    pub vault_suggested: &'static str,
+    vault_suggested: "Suggested",
     /// Text in `create_body`.
-    pub vault_fits: &'static str,
+    vault_fits: "Fits",
     /// Text in `create_body`. `{}`: `weakest`.
-    pub vault_too_large_for: &'static str,
+    vault_too_large: "Too large for {}",
     /// Text in `create_body`. `{}`: `mib_text(m)`, `p`, `vault::cost_bits(m, p)`.
-    pub vault_passes_bits: &'static str,
+    vault_passes_bits: "{} · {} passes · ≈{} bits",
     /// Line in `create_body`.
-    pub vault_memory: &'static str,
+    vault_memory: "Memory",
     /// Line in `create_body`.
-    pub vault_passes_2: &'static str,
+    vault_passes_label: "Passes",
     /// Text in `create_body`. `{}`: `mib_text(mem)`.
-    pub vault_unlock_memory_n: &'static str,
+    vault_unlock_memory_n: "Unlock memory {}",
     /// Text in `create_body`. `{}`: `weakest`, `mib_text(limit)`.
-    pub vault_up_to: &'static str,
+    vault_memory_limit: "{}: up to {}",
     /// Text in `create_body`. `{}`: `vault::cost_bits(mem, passes)`.
-    pub vault_adds_bits_to: &'static str,
+    vault_cost_bits: "Adds ≈{} bits to every passphrase",
     /// Text in `create_body`. `{}`: `mib_text(mem)`, `passes`.
-    pub vault_passes: &'static str,
+    vault_passes: "{} · {} passes",
     /// Text in `create_body`. `{}`: `app.vaults.time_text(mem, passes)`.
-    pub vault_unlocks_in_here: &'static str,
+    vault_unlocks_in_here: "Unlocks in {} here",
     /// Text in `create_body`.
-    pub vault_unlock_time_not: &'static str,
+    vault_unlock_time_unmeasured: "Unlock time not measured yet",
     /// Text in `create_body`. `{}`: `cost`, `app.vaults.time_text(mem, passes)`.
-    pub vault_here: &'static str,
+    vault_here: "{} · {} here",
     /// Text in `create_body`. `{}`: `mib_text(f)`.
-    pub vault_this_computer_has: &'static str,
+    vault_this_computer_has: "This computer has {} free",
     /// Button in `create_body`.
-    pub vault_customise: &'static str,
+    vault_customise: "Customise",
     /// Text in `create_body`. `{}`: `file_text(file_len(*s))`.
-    pub vault_file_n_inline: &'static str,
+    vault_file_n_inline: "file {}",
     /// Button in `create_body`.
-    pub vault_continue: &'static str,
+    vault_continue: "Continue",
     /// Line in `create_body`.
-    pub vault_name: &'static str,
+    vault_name: "Name",
     /// Text in `create_body`. `{}`: `app.medium.noun()`.
-    pub vault_what_it_holds: &'static str,
+    vault_what_it_holds: "What it holds, for anyone who sees the {} · leave empty for vault.ofv",
     /// Text in `create_body`. `{}`: `vault::vault_stem(&c.name.text)`.
-    pub vault_file_ofv: &'static str,
+    vault_file_ofv: "File {}.ofv",
     /// Text in `create_body`. `{}`: `app.medium.noun()`.
-    pub vault_remove_the_then: &'static str,
+    vault_remove_the_then: "Remove the {}, then type the passphrases",
     /// Text in `create_body`.
-    pub vault_hide_passphrases: &'static str,
+    vault_hide_passphrases: "Hide passphrases",
     /// Text in `create_body`.
-    pub vault_show_passphrases: &'static str,
+    vault_show_passphrases: "Show passphrases",
     /// Text in `create_body`. `{}`: `i + 1`.
-    pub vault_passphrase_n: &'static str,
+    vault_passphrase_n: "Passphrase {}",
     /// Button in `create_body`.
-    pub vault_remove: &'static str,
+    vault_remove: "Remove",
     /// Button in `create_body`.
-    pub vault_generate_with: &'static str,
+    vault_generate_dice: "Generate with dice",
     /// Line in `create_body`.
-    pub vault_or_type_your: &'static str,
+    vault_or_type_your: "or type your own below",
     /// Text in `create_body`.
-    pub vault_matches: &'static str,
+    vault_matches: "Matches",
     /// Text in `create_body`.
-    pub vault_does_not_match: &'static str,
+    vault_does_not_match: "Does not match yet",
     /// Line in `create_body`, in the demo, once the dice made a
     /// passphrase (`docs/DEMO.md` §5.2).
-    pub vault_demo_uses_public: &'static str,
+    vault_demo_uses_public: "Demo puts faraday in place of these words",
     /// Text in `create_body`.
-    pub vault_type_it_then: &'static str,
+    vault_type_it_then: "Type it, then type it again",
     /// Text in `create_body`. `{}`: `own`, `cost`, `own + cost`.
-    pub vault_bits_from_dice: &'static str,
+    vault_bits_from_dice: "{} bits from dice + ≈{} from the unlock cost ≈ {} bits",
     /// Text in `create_body`. `{}`: `cost`.
-    pub vault_typed_its_own: &'static str,
+    vault_typed_its_own: "Typed: its own bits are not measured · the unlock cost adds ≈{}",
     /// Button in `create_body`.
-    pub vault_add_another_passphrase: &'static str,
+    vault_add_another_passphrase: "Add another passphrase",
     /// Text in `dice_panel`. `{}`: `list.dice_per_word()`.
-    pub vault_roll_dice_for: &'static str,
+    vault_dice_per_word: "Roll {} dice for each word and type the numbers",
     /// Line in `dice_panel`.
-    pub vault_no_word_yet: &'static str,
+    vault_no_word_yet: "No word yet",
     /// Text in `dice_panel`. `{}`: `words.len()`, `if words.len() == 1 { FEN.vault_word …`, `own`, `own + vault::cost_bits(mem, passes)`, `if left > 0 { format!(" · {left} of {…`.
-    pub vault_bits_with_the: &'static str,
+    vault_dice_strength: "{} {} · {} bits · ≈{} with the unlock cost{}",
     /// Text in `dice_panel`, after a space. `{}`: `left`, `per`.
-    pub vault_dice_for_the_next_word: &'static str,
+    vault_dice_for_the_next_word: "· {} of {} dice for the next word",
     /// Text in `dice_panel`.
-    pub vault_word: &'static str,
+    vault_word: "word",
     /// Text in `dice_panel`.
-    pub vault_words_inline: &'static str,
+    vault_words_inline: "words",
     /// Button in `dice_panel`.
-    pub vault_use_these_words: &'static str,
+    vault_use_these_words: "Use these words",
     /// Line in `create_panel`.
-    pub vault_your_choices: &'static str,
+    vault_your_choices: "Your choices",
     /// Text in `create_panel`.
-    pub vault_opens_on: &'static str,
+    vault_opens_on_label: "Opens on",
     /// Text in `create_panel`.
-    pub vault_unlock_cost: &'static str,
+    vault_unlock_cost: "Unlock cost",
     /// Text in `create_panel`.
-    pub vault_space_per_passphrase: &'static str,
+    vault_space_per_passphrase: "Space per passphrase",
     /// Text in `create_panel`.
-    pub vault_name_and_passphrases: &'static str,
+    vault_name_and_passphrases: "Name and passphrases",
     /// Text in `create_panel`.
-    pub vault_not_chosen_yet: &'static str,
+    vault_not_chosen_yet: "Not chosen yet",
     /// Text in `create_summary`.
-    pub vault_custom: &'static str,
+    vault_custom: "Custom",
     /// Text in `create_summary`. `{}`: `mib_text(mem)`.
-    pub vault_this_computer_n: &'static str,
+    vault_this_computer_n: "This computer cannot allocate {}. A vault it could not open is never written.",
     /// Text in `create_summary`. `{}`: `name`, `mib_text(mem)`, `weakest`, `mib_text(limit)`.
-    pub vault_needs_gives_a: &'static str,
+    vault_memory_mismatch: "{} needs {}. {} gives a vault {} at most.",
     /// Text in `create_summary`. `{}`: `app.vaults.time_text(mem, passes)`.
-    pub vault_unlocking_takes: &'static str,
+    vault_unlocking_takes: "Unlocking takes {} here.",
     /// Text in `create_summary`.
-    pub vault_raspberry_pi: &'static str,
+    vault_raspberry_pi: "Raspberry Pi unlock times are not measured yet.",
     /// Line in `create_summary`.
-    pub vault_will_create: &'static str,
+    vault_will_create: "Will create",
     /// Text in `create_summary`.
-    pub vault_no_passphrase: &'static str,
+    vault_no_passphrase: "No passphrase yet",
     /// Text in `create_summary`.
-    pub vault_not_measured: &'static str,
+    vault_not_measured: "Not measured",
     /// Text in `create_summary`.
-    pub vault_file: &'static str,
+    vault_file: "File",
     /// Text in `create_summary`.
-    pub vault_size: &'static str,
+    vault_size: "Size",
     /// Text in `create_summary`.
-    pub vault_unlock_memory: &'static str,
+    vault_unlock_memory: "Unlock memory",
     /// Text in `create_summary`.
-    pub vault_unlock_here: &'static str,
+    vault_unlock_here: "Unlock here",
     /// Text in `create_summary`.
-    pub vault_unlock_cost_adds: &'static str,
+    vault_unlock_cost_adds: "Unlock cost adds",
     /// Text in `create_summary`. `{}`: `cost`.
-    pub vault_bits: &'static str,
+    vault_bits: "≈{} bits",
     /// Text in `create_summary`.
-    pub vault_weakest_passphrase: &'static str,
+    vault_weakest_passphrase: "Weakest passphrase",
     /// Text in `create_summary`.
-    pub vault_strength: &'static str,
+    vault_strength: "Strength",
     /// Text in `create_summary`.
-    pub vault_goes_to: &'static str,
+    vault_goes_to_label: "Goes to",
     /// Text in `create_button`. `{}`: `app.vaults.time_text(mem, passes)`.
-    pub vault_creating: &'static str,
+    vault_creating: "Creating · {}",
     /// Button in `create_button`.
-    pub vault_create_vault: &'static str,
+    vault_create_vault: "Create vault",
     /// Text in `item_heading`.
-    pub vault_key: &'static str,
+    vault_key: "Key",
     /// Text in `item_heading`. `{}`: `m.word_count()`.
-    pub vault_words_n: &'static str,
+    vault_words_n: "{} words",
     /// Text in `item_heading`.
-    pub vault_master_seed: &'static str,
+    vault_master_seed: "Master seed",
     /// Text in `item_heading`.
-    pub vault_not_loaded_at_unlock_inline: &'static str,
+    vault_not_loaded_at_unlock_inline: "not loaded at unlock",
     /// Text in `item_heading`.
-    pub vault_totp: &'static str,
+    vault_totp: "TOTP",
     /// Text in `item_heading`. `{}`: `t.chars().count()`.
-    pub vault_note_characters: &'static str,
+    vault_note_characters: "Note · {} characters",
     /// Text in `item_heading`.
-    pub vault_recovery_sheet: &'static str,
+    vault_recovery_sheet: "Recovery sheet",
     /// Text in `item_heading`. `{}`: `name`.
-    pub vault_recovery_sheet_n: &'static str,
+    vault_recovery_sheet_n: "Recovery sheet · {}",
     /// Text in `item_heading`.
-    pub vault_ed25519_does: &'static str,
+    vault_ed25519_does: "Ed25519 · does not expire",
     /// Text in `item_heading`. `{}`: `g.expires`.
-    pub vault_ed25519_expires: &'static str,
+    vault_ed25519_expires: "Ed25519 · expires {}",
     /// Text in `item_heading`.
-    pub vault_owner_keys: &'static str,
+    vault_owner_keys: "Owner keys",
     /// Text in `item_heading`: the Secure Boot keys a record holds.
-    pub vault_pk_kek_db: &'static str,
+    vault_pk_kek_db: "PK, KEK, db",
     /// Text in `item_heading`.
-    pub vault_record: &'static str,
+    vault_record: "Record",
     /// Text in `contents`.
-    pub vault_vaults: &'static str,
+    vault_vaults: "Vaults",
     /// Title in `contents`.
-    pub vault_vault_contents: &'static str,
+    vault_vault_contents: "Vault contents",
     /// Text in `NOTHING_YET`.
-    pub vault_nothing_in_it: &'static str,
+    vault_empty_line: "Nothing in it yet",
     /// Text in `add_label`.
-    pub vault_make_keys: &'static str,
+    vault_make_keys: "Make keys",
     /// Text in `empty_buttons`. `{}`: `app.medium.a()`.
-    pub vault_write_it_to: &'static str,
+    vault_write_to_medium: "Write it to {}",
     /// Text in `add_full`.
-    pub vault_save_a_bitcoin: &'static str,
+    vault_save_a_bitcoin: "Save a bitcoin key",
     /// Text in `add_full`.
-    pub vault_make_a_gpg_key: &'static str,
+    vault_make_a_gpg_key: "Make a GPG key",
     /// Text in `add_short`.
-    pub vault_bitcoin_key: &'static str,
+    vault_bitcoin_key: "Bitcoin key",
     /// Text in `add_short`.
-    pub vault_wallet: &'static str,
+    vault_wallet: "Wallet",
     /// Text in `add_short`.
-    pub vault_entry: &'static str,
+    vault_entry: "Entry",
     /// Text in `add_short`.
-    pub vault_gpg_key: &'static str,
+    vault_gpg_key: "GPG key",
     /// Text in `add_short`.
-    pub vault_secure_boot: &'static str,
+    vault_secure_boot: "Secure Boot",
     /// Line in `contents_compact`.
-    pub vault_no_vault_is_open: &'static str,
+    vault_no_vault_is_open: "No vault is open",
     /// Text in `contents_compact`. `{}`: `v.changes`, `if v.changes == 1 { FEN.vault_change …`.
-    pub vault_open_unsaved: &'static str,
+    vault_open_unsaved: "Open · {} unsaved {}",
     /// Text in `contents_compact`.
-    pub vault_change: &'static str,
+    vault_change: "change",
     /// Text in `contents_compact`.
-    pub vault_changes: &'static str,
+    vault_changes: "changes",
     /// Button in `contents_compact`.
-    pub vault_rename: &'static str,
+    vault_rename: "Rename",
     /// Text in `contents_compact`.
-    pub vault_scan_a_code: &'static str,
+    vault_scan_a_code: "Scan a code",
     /// Text in `contents_compact`. `{}`: `entries_files`.
-    pub vault_import_from_files: &'static str,
+    vault_import_from_files: "Import from Files ({})",
     /// Text in `contents_compact`. `{}`: `i.name`.
-    pub vault_import_n: &'static str,
+    vault_import_n: "Import {}",
     /// Text in `contents_compact`.
-    pub vault_totp_codes: &'static str,
+    vault_totp_codes: "TOTP codes",
     /// Line in `contents_compact`.
-    pub vault_none_in_this: &'static str,
+    vault_none_here: "None in this vault",
     /// Text in `contents_compact`. `{}`: `app.medium.noun()`.
-    pub vault_secret_values: &'static str,
+    vault_secret_values: "Secret values show only while held. Changes stay in this session until it locks; locking seals them, and the next {} visit writes the vault back over its own file.",
     /// Text in `detail`.
-    pub vault_rename_the_vault: &'static str,
+    vault_rename_the_vault: "Rename the vault",
     /// Text in `detail`.
-    pub vault_add_a_note: &'static str,
+    vault_add_a_note: "Add a note",
     /// Text in `detail`.
-    pub vault_edit_the_note: &'static str,
+    vault_edit_the_note: "Edit the note",
     /// Text in `detail`.
-    pub vault_make_a_key: &'static str,
+    vault_make_a_key: "Make a key",
     /// Text in `detail`.
-    pub vault_make_secure_boot: &'static str,
+    vault_make_secure_boot: "Make Secure Boot keys",
     /// Text in `detail`.
-    pub vault_add_an_entry: &'static str,
+    vault_add_an_entry: "Add an entry",
     /// Text in `detail`.
-    pub vault_edit_the_entry: &'static str,
+    vault_edit_the_entry: "Edit the entry",
     /// Line in `detail`.
-    pub vault_expires: &'static str,
-    /// Line in `detail`.
-    pub vault_making_pk_kek: &'static str,
+    vault_expires: "Expires",
     /// Text in `detail`.
-    pub vault_make_the_key: &'static str,
+    vault_make_the_key: "Make the key",
     /// Text in `detail`.
-    pub vault_make_the_keys: &'static str,
+    vault_make_the_keys: "Make the keys",
     /// Text in `detail`. `{}`: `app.inbox.get(k).map_or(FEN.vault_the…`.
-    pub vault_open_3: &'static str,
+    vault_open_item: "Open {}",
     /// Text in `detail`.
-    pub vault_the_backup: &'static str,
+    vault_the_backup: "the backup",
     /// Text in `detail`.
-    pub vault_load_with_a_bip: &'static str,
+    vault_load_with_a_bip: "Load with a BIP-39 passphrase",
     /// Line in `detail`.
-    pub vault_passphrase: &'static str,
+    vault_passphrase: "Passphrase",
     /// Line in `detail`.
-    pub vault_opening: &'static str,
+    vault_opening: "Opening",
     /// Line in `detail`.
-    pub vault_sealing: &'static str,
+    vault_sealing: "Sealing",
     /// Text in `detail`.
-    pub vault_open_2: &'static str,
+    vault_open_button: "Open",
     /// Text in `detail`.
-    pub vault_seal_and_export: &'static str,
+    vault_seal_and_export: "Seal and export",
     /// Text in `detail`.
-    pub vault_load: &'static str,
+    vault_load: "Load",
     /// Button in `detail`.
-    pub vault_cancel: &'static str,
+    vault_cancel: "Cancel",
     /// Text in `detail`. `{}`: `app.medium.from_the()`.
-    pub vault_no_file: &'static str,
+    vault_no_file: "No file {}",
     /// Chip in `detail`.
-    pub vault_signed: &'static str,
-    /// Text in `detail`.
-    pub vault_sign_1_file: &'static str,
-    /// Text in `detail`. `{}`: `n`.
-    pub vault_sign_files: &'static str,
+    vault_signed: "Signed",
     /// Button in `detail`.
-    pub vault_back_to_the_key: &'static str,
+    vault_back_to_the_key: "Back to the key",
     /// Label in `detail`.
-    pub vault_words: &'static str,
+    vault_words: "Words",
     /// Label in `detail`.
-    pub vault_bip_39_passphrase: &'static str,
+    vault_bip_39_passphrase: "BIP-39 passphrase",
     /// Text in `detail`.
-    pub vault_stored: &'static str,
+    vault_stored: "Stored",
     /// Text in `detail`.
-    pub vault_not_stored: &'static str,
+    vault_not_stored: "Not stored",
     /// Label in `detail`, and the action that turns it on (F62).
-    pub vault_load_at_unlock: &'static str,
+    vault_load_at_unlock: "Load at unlock",
     /// Text in `detail`: a key that loads with a wallet of its vault.
     /// `{}`: the wallet's name.
-    pub vault_loads_with: &'static str,
+    vault_loads_with_wallet: "Loads with {}",
     /// Text in `detail`.
-    pub vault_yes: &'static str,
+    vault_yes: "Yes",
     /// Text in `detail`.
-    pub vault_no: &'static str,
+    vault_no: "No",
     /// Label in `detail`.
-    pub vault_in_this_session: &'static str,
+    vault_in_this_session: "In this session",
     /// Text in `detail`.
-    pub vault_not_loaded: &'static str,
+    vault_not_loaded: "Not loaded",
     /// Text in `detail`.
-    pub vault_load_into_session: &'static str,
+    vault_load_into_session: "Load into session",
     /// Text in `detail`.
-    pub vault_load_with_a_passphrase: &'static str,
+    vault_load_with_a_passphrase: "Load with a passphrase",
     /// Text in `detail`: the action that turns Load at unlock off.
-    pub vault_dont_load_at_unlock: &'static str,
+    vault_dont_load_at_unlock: "Don't load at unlock",
     /// Title of the Load sheet an unlock shows (F62). `{}`: the vault.
-    pub load_sheet_title: &'static str,
+    load_sheet_title: "Load from {}",
     /// The Load sheet's count: one wallet.
-    pub load_sheet_wallet: &'static str,
+    load_sheet_wallet: "wallet",
     /// The Load sheet's count: wallets.
-    pub load_sheet_wallets: &'static str,
+    load_sheet_wallets: "wallets",
     /// The Load sheet's count: one key.
-    pub load_sheet_key: &'static str,
+    load_sheet_key: "key",
     /// The Load sheet's count: keys.
-    pub load_sheet_keys: &'static str,
+    load_sheet_keys: "keys",
     /// A wallet card's line when the vault holds none of its seeds.
-    pub load_sheet_watch_only: &'static str,
+    load_sheet_watch_only: "Watch-only here",
     /// A wallet card's line. `{}`: seeds not in the vault, then the
     /// wallet's seeds.
-    pub load_sheet_kept_elsewhere: &'static str,
+    load_sheet_kept_elsewhere: "{} of {} seeds kept elsewhere",
     /// A seed in one other wallet of the vault too. `{}`: that wallet.
-    pub load_sheet_also_in: &'static str,
+    load_sheet_also_in_wallet: "also in {}",
     /// A seed in two other wallets of the vault. `{}`: each wallet.
-    pub load_sheet_also_in_two: &'static str,
+    load_sheet_also_in_two: "also in {} and {}",
     /// A seed in three or more other wallets. `{}`: how many.
-    pub load_sheet_also_in_n: &'static str,
+    load_sheet_also_in_n: "also in {} other wallets",
     /// What the session holds already, on the Load sheet.
-    pub load_sheet_loaded: &'static str,
+    load_sheet_loaded: "Loaded",
     /// Title of the Load sheet's card of keys in no wallet.
-    pub load_sheet_keys_card: &'static str,
+    load_sheet_keys_card: "Keys",
     /// The Load sheet's button that loads nothing.
-    pub load_sheet_not_now: &'static str,
+    load_sheet_not_now: "Not now",
     /// The Load sheet's button that loads what is ticked.
-    pub load_sheet_load_ticked: &'static str,
+    load_sheet_load_ticked: "Load ticked",
     /// Title of the sheet of seeds an open vault keeps with no
     /// passphrase, from a wallet short of a key (F62).
-    pub pass_seeds_title: &'static str,
+    pass_seeds_title: "Seeds with no passphrase stored",
     /// Label of that sheet's passphrase field.
-    pub pass_seeds_passphrase: &'static str,
+    pass_seeds_passphrase: "BIP-39 passphrase",
     /// The typed passphrase made another key. `{}`: its fingerprint, then
     /// the wallet's name.
-    pub pass_seeds_not_a_key: &'static str,
+    pass_seeds_not_a_key: "This passphrase gives {}, not a key of {}",
     /// That sheet's way back from a seed's field to the list.
-    pub pass_seeds_other_seed: &'static str,
+    pass_seeds_other_seed: "Another seed",
     /// That sheet's button that loads the seed with the passphrase.
-    pub pass_seeds_load: &'static str,
+    pass_seeds_load: "Load",
     /// That sheet's button that closes it.
-    pub pass_seeds_cancel: &'static str,
+    pass_seeds_cancel: "Cancel",
     /// Text in `detail`.
-    pub vault_open_in_wallets: &'static str,
+    vault_open_in_wallets: "Open in Wallets",
     /// Label in `detail`.
-    pub vault_username: &'static str,
+    vault_username: "Username",
     /// Label in `detail`.
-    pub vault_password: &'static str,
+    vault_password: "Password",
     /// Label in `detail`.
-    pub vault_url: &'static str,
+    vault_url: "URL",
     /// Line in `detail`.
-    pub vault_code: &'static str,
+    vault_code: "Code",
     /// Button in `detail`.
-    pub vault_set_the_time: &'static str,
+    vault_set_the_time: "Set the time",
     /// Text in `detail`.
-    pub vault_unreadable: &'static str,
+    vault_unreadable: "Unreadable",
     /// Label in `detail`.
-    pub vault_totp_secret: &'static str,
+    vault_totp_secret: "TOTP secret",
     /// Label in `detail`.
-    pub vault_notes: &'static str,
+    vault_notes: "Notes",
     /// Text in `detail`.
-    pub vault_export_for_keepass: &'static str,
+    vault_export_for_keepass: "Export for KeePass",
     /// Label in `detail`.
-    pub vault_text: &'static str,
+    vault_text: "Text",
     /// Text in `detail`.
-    pub vault_edit: &'static str,
+    vault_edit: "Edit",
     /// Label in `detail`.
-    pub vault_descriptor: &'static str,
+    vault_descriptor: "Descriptor",
     /// Label in `detail`.
-    pub vault_note: &'static str,
+    vault_note: "Note",
     /// Label in `detail`.
-    pub vault_fingerprint: &'static str,
+    vault_fingerprint: "Fingerprint",
     /// Label in `detail`.
-    pub vault_signing_subkey: &'static str,
+    vault_signing_subkey: "Signing subkey",
     /// Label in `detail`.
-    pub vault_user_id: &'static str,
+    vault_user_id: "User ID",
     /// Text in `detail`. `{}`: `g.created`.
-    pub vault_from_does_not: &'static str,
+    vault_gpg_no_expiry: "From {} · does not expire",
     /// Text in `detail`. `{}`: `g.created`, `g.expires`.
-    pub vault_to: &'static str,
+    vault_gpg_validity: "{} to {}",
     /// Label in `detail`.
-    pub vault_valid: &'static str,
+    vault_valid: "Valid",
     /// Label in `detail`.
-    pub vault_paperkey: &'static str,
+    vault_paperkey: "Paperkey",
     /// Line in `detail`.
-    pub vault_renew_for: &'static str,
+    vault_renew_label: "Renew for",
     /// Button in `detail`.
-    pub vault_renew: &'static str,
+    vault_renew: "Renew",
     /// Text in `detail`.
-    pub vault_export_public: &'static str,
+    vault_export_public: "Export public key",
     /// Text in `detail`.
-    pub vault_revocation_certificate: &'static str,
+    vault_revocation_certificate: "Revocation certificate",
     /// Text in `detail`.
-    pub vault_show_as_qr: &'static str,
+    vault_show_as_qr: "Show as QR",
     /// Text in `detail`.
-    pub vault_sign_a_file: &'static str,
+    vault_sign_a_file: "Sign a file",
     /// Label in `detail`.
-    pub vault_owner_guid: &'static str,
+    vault_owner_guid: "Owner GUID",
     /// Line in `detail`.
-    pub vault_enrolment_adds: &'static str,
+    vault_enrolment_adds: "Enrolment adds",
     /// Text in `detail`.
-    pub vault_windows_compatible: &'static str,
+    vault_windows_compatible: "Windows-compatible",
     /// Text in `detail`.
-    pub vault_own_keys_only: &'static str,
+    vault_own_keys_only: "Own keys only",
     /// Text in `detail`.
-    pub vault_your_pk_kek_and: &'static str,
+    vault_own_keys_only_warning: "Your PK, KEK and db only. Windows will not start, nor any card or controller whose firmware Microsoft signed",
     /// Text in `detail`.
-    pub vault_yours_with_microsoft: &'static str,
+    vault_yours_with_microsoft: "Yours, with Microsoft's KEK CAs and Windows CAs. Not Microsoft's third-party CA: a card or controller whose firmware it signed may not start",
     /// Text in `detail`.
-    pub vault_enrolment_files: &'static str,
+    vault_enrolment_files: "Enrolment files",
     /// Text in `save_panel`.
-    pub vault_save_a_key: &'static str,
+    vault_save_a_key: "Save a key",
     /// Text in `save_panel`.
-    pub vault_save_a_wallet: &'static str,
+    vault_save_a_wallet: "Save a wallet",
     /// Text in `save_panel`. `{}`: `key.label`.
-    pub vault_bip_39_passphrase_n: &'static str,
+    vault_bip_39_passphrase_n: "{} · BIP-39 passphrase",
     /// Button in `save_panel`.
-    pub vault_save_with_its: &'static str,
+    vault_save_passphrase_button: "Save with its passphrase",
     /// Line in `save_panel`.
-    pub vault_every_key_in: &'static str,
+    vault_every_key_saved: "Every key in this session is in the vault",
     /// Button in `save_panel`.
-    pub vault_save: &'static str,
+    vault_save: "Save",
     /// Line in `save_panel`.
-    pub vault_every_wallet: &'static str,
+    vault_every_wallet: "Every wallet in this session is in the vault",
     /// Text in `lock_ask`.
-    pub vault_sealed: &'static str,
+    vault_sealed: "Sealed",
     /// Text in `lock_ask`, in place of Sealed while the system has given
     /// no randomness.
-    pub vault_not_sealed: &'static str,
+    vault_not_sealed: "Not sealed",
     /// Button in `lock_ask`, in place of Lock while the system has given
     /// no randomness: the changes are lost.
-    pub vault_lock_without_sealing: &'static str,
+    vault_lock_without_sealing: "Lock without sealing",
     /// Text in `lock_ask`.
-    pub vault_keys_not_saved: &'static str,
+    vault_keys_not_saved: "Keys not saved",
     /// Text in `lock_ask`.
-    pub vault_wallets_not_saved: &'static str,
+    vault_wallets_not_saved: "Wallets not saved",
     /// Line in `lock_ask`.
-    pub vault_everything_not: &'static str,
+    vault_lock_wipe_warning: "Everything not in a vault is wiped with the session",
     /// Button in `lock_ask`.
-    pub vault_back_to_the_vault: &'static str,
+    vault_back_to_the_vault: "Back to the vault",
     /// Button in `lock_ask`.
-    pub vault_lock: &'static str,
+    vault_lock: "Lock",
     /// Text in `years_row`.
-    pub vault_1_year: &'static str,
+    vault_1_year: "1 year",
     /// Text in `years_row`.
-    pub vault_2_years: &'static str,
+    vault_2_years: "2 years",
     /// Text in `years_row`.
-    pub vault_5_years: &'static str,
+    vault_5_years: "5 years",
     /// Text in `years_row`.
-    pub vault_never: &'static str,
+    vault_never: "Never",
     /// Text in `images_panel`. `{}`: `item.name`.
-    pub vault_sign_n: &'static str,
+    vault_sign_n: "Sign {}",
     /// Line in `images_panel`.
-    pub vault_compare_it_with: &'static str,
+    vault_compare_build_record: "Compare it with the build record whose fingerprint you checked yourself",
     /// Button in `images_panel`.
-    pub vault_hold_to_sign: &'static str,
+    vault_hold_to_sign: "Hold to sign",
     /// Button in `images_panel`.
-    pub vault_back: &'static str,
+    vault_back: "Back",
     /// Line in `images_panel`.
-    pub vault_sign_or_check: &'static str,
+    vault_sign_or_check: "Sign or check an image",
     /// Text in `images_panel`. `{}`: `app.medium.from_the()`.
-    pub vault_no_efi_image: &'static str,
+    vault_no_efi_image: "No EFI image {}",
     /// Button in `images_panel`, and on the GPG signing page.
-    pub vault_sign: &'static str,
+    vault_sign: "Sign",
     /// Button in `images_panel`.
-    pub vault_check: &'static str,
+    vault_check: "Check",
     /// Button in `images_panel`.
-    pub vault_back_to_the_keys: &'static str,
+    vault_back_to_the_keys: "Back to the keys",
     // ----- vaults (faraday-core/src/vault/mod.rs) -----
     /// Text in `PRESETS`.
-    pub vaults_light: &'static str,
+    vaults_light: "Light",
     /// Text in `PRESETS`.
-    pub vaults_standard: &'static str,
+    vaults_standard: "Standard",
     /// Text in `PRESETS`.
-    pub vaults_medium: &'static str,
+    vaults_medium: "Medium",
     /// Text in `PRESETS`.
-    pub vaults_strong: &'static str,
+    vaults_strong: "Strong",
     /// Text in `PRESETS`.
-    pub vaults_maximum: &'static str,
+    vaults_maximum: "Maximum",
     /// Text in `SIZES`.
-    pub vaults_pcs_only: &'static str,
+    vaults_pcs_only: "PCs only",
     /// Text in `SIZES`.
-    pub vaults_pcs_and_a_raspberry: &'static str,
+    vaults_pcs_and_a_raspberry: "PCs and a Raspberry Pi",
     /// Text in `MACHINES`.
-    pub vaults_other_pcs: &'static str,
+    vaults_other_pcs: "Other PCs",
     /// Text in `MACHINES`.
-    pub vaults_other_pcs_inline: &'static str,
+    vaults_other_pcs_inline: "other PCs",
     /// A machine a vault may be opened on.
-    pub vaults_raspberry_pi_5: &'static str,
+    vaults_raspberry_pi_5: "Raspberry Pi 5",
     /// Its short name.
-    pub vaults_pi_5: &'static str,
+    vaults_pi_5: "Pi 5",
     /// A machine a vault may be opened on.
-    pub vaults_raspberry_pi_4: &'static str,
+    vaults_raspberry_pi_4: "Raspberry Pi 4",
     /// Its short name.
-    pub vaults_pi_4: &'static str,
+    vaults_pi_4: "Pi 4",
     /// A machine a vault may be opened on.
-    pub vaults_raspberry_pi_3: &'static str,
+    vaults_raspberry_pi_3: "Raspberry Pi 3",
     /// Its short name.
-    pub vaults_pi_3: &'static str,
+    vaults_pi_3: "Pi 3",
     /// A machine a vault may be opened on, and its short name.
-    pub vaults_pi_zero_2_w: &'static str,
+    vaults_pi_zero_2_w: "Pi Zero 2 W",
     /// Text in `CATEGORIES`.
-    pub vaults_bitcoin_keys: &'static str,
+    vaults_bitcoin_keys: "Bitcoin keys",
     /// Text in `CATEGORIES`.
-    pub vaults_wallets: &'static str,
+    vaults_wallets: "Wallets",
     /// Text in `CATEGORIES`.
-    pub vaults_entries: &'static str,
+    vaults_entries: "Entries",
     /// Text in `CATEGORIES`.
-    pub vaults_gpg_keys: &'static str,
+    vaults_gpg_keys: "GPG keys",
     /// Text in `CATEGORIES`.
-    pub vaults_secure_boot: &'static str,
+    vaults_secure_boot: "Secure Boot",
     /// Text in `dice_aim`. `{}`: `n`, `STRONG_BITS`.
-    pub vaults_aim_for_words: &'static str,
+    vaults_aim_for_words: "Aim for {} words or more on this list: the count turns green at {} bits, which this vault counts as strong. The lists and how to roll for them: eff.org/dice",
     /// Text in `mib_text`. `{}`: `f64::from(mib) / 1024.0`.
-    pub vaults_gib: &'static str,
+    vaults_gib: "{} GiB",
     /// Text in `size_text`. `{}`: `slot / 1_048_576`.
-    pub vaults_mib: &'static str,
+    vaults_mib: "{} MiB",
     /// Text in `size_text`. `{}`: `slot / 1024`.
-    pub vaults_kib: &'static str,
+    vaults_kib: "{} KiB",
     /// Text in `file_text`. `{}`: `len as f64 / 1e6`.
-    pub vaults_mb: &'static str,
+    vaults_mb: "{} MB",
     /// Text in `file_text`. `{}`: `len.div_ceil(1000)`.
-    pub vaults_kb: &'static str,
+    vaults_kb: "{} KB",
     /// Text in `cost_text`.
-    pub vaults_pass: &'static str,
+    vaults_pass: "pass",
     /// Text in `cost_text`.
-    pub vaults_passes: &'static str,
+    vaults_passes: "passes",
     /// Text in `time_text`. `{}`: `s.round() as u64`.
-    pub vaults_about_s: &'static str,
+    vaults_about_s: "about {} s",
     /// Text in `time_text`.
-    pub vaults_not_measured: &'static str,
+    vaults_not_measured: "not measured yet",
     /// Text in `weakest`.
-    pub vaults_this_computer_2: &'static str,
+    vaults_this_computer_name: "This computer",
     /// Text in `kept_wiped`.
-    pub vaults_file: &'static str,
+    vaults_file: "file",
     /// Text in `kept_wiped`.
-    pub vaults_files: &'static str,
+    vaults_files: "files",
     /// Text in `kept_wiped`. `{}`: `v`.
-    pub vaults_in_copy_checked: &'static str,
+    vaults_in_copy_checked: "in {} · copy checked",
     /// Text in `kept_wiped`.
-    pub vaults_copy_checked: &'static str,
+    vaults_copy_checked: "copy checked",
     /// Text in `kept_wiped`. `{}`: `fp`.
-    pub vaults_seed_n: &'static str,
+    vaults_seed_n: "Seed {}",
     /// Text in `kept_wiped`. `{}`: `v`.
-    pub vaults_in: &'static str,
+    vaults_kept_in_vault: "in {}",
     /// Text in `kept_wiped`.
-    pub vaults_in_files: &'static str,
+    vaults_in_files: "in Files",
     /// Text in `kept_wiped`.
-    pub vaults_nowhere_else: &'static str,
+    vaults_nowhere_else: "nowhere else",
     /// Text in `vault_way`.
-    pub vaults_make_a_vault: &'static str,
+    vaults_make_a_vault: "Make a vault",
     /// Text in `vault_way`. `{}`: `files[k].name`.
-    pub vaults_unlock: &'static str,
+    vaults_unlock: "Unlock {}",
     /// Text in `vault_way`.
-    pub vaults_unlock_a_vault_2: &'static str,
+    vaults_unlock_way: "Unlock a vault",
     /// Text in `back_name`.
-    pub vaults_make_a_new_wallet: &'static str,
+    vaults_make_a_new_wallet: "Make a new wallet",
     /// Text in `back_name`.
-    pub vaults_restore_an_existing: &'static str,
+    vaults_restore_an_existing: "Restore an existing wallet",
     /// Text in `back_name`.
-    pub vaults_spend: &'static str,
+    vaults_spend: "Spend",
     /// Text in `back_name`.
-    pub vaults_back_up_a_wallet: &'static str,
+    vaults_back_up_a_wallet: "Back up a wallet",
     /// Text in `back_name`.
-    pub vaults_child_seeds: &'static str,
+    vaults_child_seeds: "Child seeds and passwords",
     /// Text in `back_name`.
-    pub vaults_lightning_node: &'static str,
+    vaults_lightning_node: "Lightning node key",
     /// Text in `back_name`.
-    pub vaults_import: &'static str,
+    vaults_import: "Import",
     /// Text in `back_link_name`.
-    pub vaults_tools: &'static str,
+    vaults_tools: "Tools",
     /// Text in `vault_act`. `{}`: `keys`, `if keys == 1 { EN.vaults_seed_inline } else …`, `wallets`, `if wallets == 1 { EN.vaults_wallet_inline …`.
-    pub vaults_and_loaded: &'static str,
+    vaults_and_loaded: "{} {} and {} {} loaded",
     /// Text in `vault_act`.
-    pub vaults_wallet_inline: &'static str,
+    vaults_wallet_inline: "wallet",
     /// Text in `vault_act`.
-    pub vaults_wallets_inline: &'static str,
+    vaults_wallets_inline: "wallets",
     /// Toast in `vault_import_entries`.
-    pub vaults_those_entries: &'static str,
+    vaults_those_entries: "Those entries do not fit in this vault's slot size",
     /// Text in `vault_scanned_entry`. `{}`: `n`, `if n == 1 { EN.vaults_entry_inline } else …`.
-    pub vaults_added: &'static str,
+    vaults_added: "{} {} added",
     /// Text in `vault_scanned_entry`.
-    pub vaults_entry_inline: &'static str,
+    vaults_entry_inline: "entry",
     /// Text in `vault_scanned_entry`.
-    pub vaults_entries_inline: &'static str,
+    vaults_entries_inline: "entries",
     /// Error in `vault_scanned_entry`.
-    pub vaults_not_a_totp_setup: &'static str,
+    vaults_not_a_totp_setup: "Not a TOTP setup code",
     /// Error in `vault_prompt_go`.
-    pub vaults_type_the_backup: &'static str,
+    vaults_type_the_backup: "Type the backup's passphrase",
     /// Error in `vault_prompt_go`.
-    pub vaults_a_passphrase: &'static str,
+    vaults_a_passphrase: "A passphrase of 8 characters or more",
     /// Text in `vault_open_backup`.
-    pub vaults_that_passphrase: &'static str,
+    vaults_that_passphrase: "That passphrase does not open this backup",
     /// Text in `vault_open_backup`. `{}`: `mib`.
-    pub vaults_needs_mib_which: &'static str,
+    vaults_needs_mib_which: "Needs {} MiB, which this computer cannot spare",
     /// Text in `vault_open_backup`.
-    pub vaults_not_a_backup: &'static str,
+    vaults_not_a_backup: "Not a backup this build reads",
     /// Text in `vault_unlock_check`. `{}`: `self.medium.noun()`.
-    pub vaults_remove_the_to: &'static str,
+    vaults_remove_to_unlock: "Remove the {} to unlock",
     /// Text in `vault_unlock_check`.
-    pub vaults_type_the_passphrase: &'static str,
+    vaults_type_the_passphrase: "Type the passphrase",
     /// Text in `vault_unlock_check`. `{}`: `mib_text(need)`, `mib_text(free)`.
-    pub vaults_needs_this_computer: &'static str,
+    vaults_needs_this_computer: "Needs {}. This computer has {} free.",
     /// Toast in `vault_unlock`. `{}`: `self.vaults.open[v].name`.
-    pub vaults_unlocked: &'static str,
+    vaults_unlocked: "{} unlocked",
     /// Toast in `unlock_landed`. `{}`: `what`, `from`.
-    pub vaults_loaded_from: &'static str,
+    vaults_loaded_note: "{} loaded from {}",
     /// Text in `vault_rows`.
-    pub vaults_seed: &'static str,
+    vaults_seed: "Seed",
     /// Text in `vault_load_wallet`. `{}`: `keys`, `if keys == 1 { EN.vaults_seed_inline } else …`.
-    pub vaults_loaded: &'static str,
+    vaults_loaded: "{} {} loaded",
     /// Text in `vault_load_wallet`.
-    pub vaults_seed_inline: &'static str,
+    vaults_seed_inline: "seed",
     /// Text in `vault_load_wallet`.
-    pub vaults_seeds: &'static str,
+    vaults_seeds: "seeds",
     /// Text in `vault_kdbx`.
-    pub vaults_entry: &'static str,
+    vaults_entry: "Entry",
     /// Toast in `vault_kdbx`. `{}`: `name`, `self.medium.for_the()`.
-    pub vaults_waits_sealed: &'static str,
+    vaults_waits_sealed: "{} waits {}, sealed",
     /// Error in `vault_kdbx`.
-    pub vaults_that_entry_is: &'static str,
+    vaults_entry_too_large_kdbx: "That entry is too large for a KeePass export",
     /// Toast in `vault_delete`.
-    pub vaults_deleted_from: &'static str,
+    vaults_deleted_toast: "Deleted from the vault",
     /// Toast in `vault_load_selected`. `{}`: `crate::wallet::fp_text(fp)`.
-    pub vaults_key_is_loaded: &'static str,
+    vaults_key_is_loaded: "Key {} is loaded",
     /// Text in `vault_load_selected`.
-    pub vaults_vault: &'static str,
+    vaults_vault: "Vault",
     /// Text in `vault_form`.
-    pub vaults_title: &'static str,
+    vaults_title: "Title",
     /// Text in `vault_form`.
-    pub vaults_username: &'static str,
+    vaults_username: "Username",
     /// Text in `vault_form`.
-    pub vaults_password: &'static str,
+    vaults_password: "Password",
     /// Text in `vault_form`.
-    pub vaults_url: &'static str,
+    vaults_url: "URL",
     /// Text in `vault_form`.
-    pub vaults_notes: &'static str,
+    vaults_notes: "Notes",
     /// Text in `vault_form`.
-    pub vaults_totp_secret: &'static str,
+    vaults_totp_secret: "TOTP secret",
     /// Text in `vault_form`.
-    pub vaults_text: &'static str,
+    vaults_text: "Text",
     /// Text in `vault_form`.
-    pub vaults_name: &'static str,
+    vaults_name: "Name",
     /// Text in `vault_form`.
-    pub vaults_email: &'static str,
+    vaults_email: "Email",
     /// Text in `vault_form`.
-    pub vaults_owner_name: &'static str,
+    vaults_owner_name: "Owner name",
     /// Toast in `vault_form_save`.
-    pub vaults_this_computer: &'static str,
-    /// Toast in `vault_form_save`.
-    pub vaults_made_the_certificate: &'static str,
+    vaults_made_the_certificate: "Made · the certificate. The revocation certificate is kept with the key",
     /// Text in `vault_form_save`.
-    pub vaults_the_note_is: &'static str,
+    vaults_note_empty: "The note is empty",
     /// Text in `vault_form_save`.
-    pub vaults_an_entry_needs: &'static str,
+    vaults_an_entry_needs: "An entry needs a title",
     /// Toast in `vault_form_save`.
-    pub vaults_not_a_totp_key: &'static str,
+    vaults_not_a_totp_key: "Not a TOTP key",
     /// Toast in `vault_add_file`.
-    pub vaults_unlock_a_vault: &'static str,
+    vaults_unlock_a_vault: "Unlock a vault first",
     /// Text in `vault_add_file`. `{}`: `it.name`.
-    pub vaults_is_in_the_vault_as_a_note: &'static str,
+    vaults_is_in_the_vault_as_a_note: "{} is in the vault as a note",
     /// Text in `vault_add_file`. `{}`: `it.name`.
-    pub vaults_is_in_the_vault_as_a: &'static str,
+    vaults_file_added_as_key: "{} is in the vault as a key",
     /// Text in `vault_add_file`. `{}`: `it.name`.
-    pub vaults_is_in_the_vault_as: &'static str,
+    vaults_is_in_the_vault_as: "{} is in the vault as a wallet",
     /// Toast in `key_record`.
-    pub vaults_this_key_has: &'static str,
+    vaults_this_key_has: "This key has no words to keep",
     /// Text in `vault_save_wallet`. `{}`: `name`.
-    pub vaults_is_in_the_vault: &'static str,
+    vaults_is_in_the_vault: "{} is in the vault",
     /// Toast in `vault_push_in`.
-    pub vaults_that_does_not: &'static str,
+    vaults_slot_too_small: "That does not fit in this vault's slot size",
     /// Text in `vault_create_check`. `{}`: `medium.noun()`.
-    pub vaults_remove_the_first: &'static str,
+    vaults_remove_the_first: "Remove the {} first",
     /// Text in `vault_create_check`. `{}`: `n + 1`.
-    pub vaults_finish_step: &'static str,
+    vaults_finish_step: "Finish step {} first",
     /// Text in `vault_create_check`.
-    pub vaults_every_passphrase: &'static str,
+    vaults_every_passphrase: "Every passphrase needs a value",
     /// Text in `vault_create_check`.
-    pub vaults_each_passphrase: &'static str,
+    vaults_each_passphrase: "Each passphrase must be typed the same twice",
     /// Text in `vault_create_check`.
-    pub vaults_two_passphrases: &'static str,
+    vaults_two_passphrases: "Two passphrases are the same. Each must differ",
     /// Text in `vault_create_check`.
-    pub vaults_choose_a_cost: &'static str,
+    vaults_choose_a_cost: "Choose a cost this computer can allocate",
     /// Error in `vault_create`.
-    pub vaults_no_randomness: &'static str,
+    vaults_no_randomness: "No randomness from the system yet. Try again",
     /// Toast in `vault_create`.
-    pub vaults_vault_created: &'static str,
+    vaults_vault_created: "Vault created",
     /// Text in `line`.
-    pub vaults_never_written: &'static str,
+    vaults_never_written: "Never written",
     /// Text in `line`. `{}`: `label`.
-    pub vaults_on_current: &'static str,
+    vaults_on_current: "On {} · current",
     /// Text in `line`.
-    pub vaults_changed_since: &'static str,
+    vaults_changed_since: "Changed since written",
     /// A vault's state in what a lock wipes, while the system has given
     /// no randomness.
-    pub vaults_changes_not_sealed: &'static str,
+    vaults_changes_not_sealed: "Changes not sealed",
     /// The pill under Lock while Make a new wallet's keys are kept
     /// nowhere yet (`docs/history/NEW-WALLET.md` §18).
-    pub lock_held_pill: &'static str,
+    lock_held_pill: "Auto-lock off until backup complete",
     /// The lock and power sheets' wiped line then: the flow ends.
-    pub lock_held_ends: &'static str,
+    lock_held_ends: "Make a new wallet · ends",
     /// The lock sheet's row then: its label.
-    pub lock_held_label: &'static str,
+    lock_held_label: "Ends",
     /// The value: the flow it ends.
-    pub lock_held_create: &'static str,
+    lock_held_create: "Make a new wallet",
     /// Text in `line`.
-    pub vaults_unchanged: &'static str,
+    vaults_unchanged: "Unchanged",
     /// Text in `line`. `{}`: `self.wallets.len()`.
-    pub vaults_wallets_n: &'static str,
+    vaults_wallets_n: "{} wallets",
     /// Text in `line`. `{}`: `self.keys[0]`.
-    pub vaults_key: &'static str,
+    vaults_key: "key {}",
     /// Text in `line`. `{}`: `self.keys.join(", ")`.
-    pub vaults_keys_inline: &'static str,
+    vaults_keys_inline: "keys {}",
     /// Text in `line`. `{}`: `n`.
-    pub vaults_keys: &'static str,
+    vaults_keys: "{} keys",
     /// Text in `line`.
-    pub vaults_1_entry: &'static str,
+    vaults_1_entry: "1 entry",
     /// Text in `line`. `{}`: `n`.
-    pub vaults_entries_n: &'static str,
+    vaults_entries_n: "{} entries",
     /// Text in `line`. `{}`: `time_of_day(local_secs(t, tz_min))`.
-    pub vaults_seen: &'static str,
+    vaults_seen: "seen {}",
     /// Text in `line`.
-    pub vaults_nothing_in_it: &'static str,
+    vaults_empty_line: "Nothing in it",
     /// Text in `redact_place_name`. `{}`: `p + 1`, `rest`.
-    pub vaults_place: &'static str,
+    vaults_place: "Place {}:{}",
     /// Text in `vault_summaries_refresh`.
-    pub vaults_wallet: &'static str,
+    vaults_wallet: "Wallet",
     // ----- visit_taken (faraday-core/src/visit_taken.rs) -----
     /// Text in `line`. `{}`: `self.name`, `keep_as`.
-    pub visit_taken_keep_both_n: &'static str,
+    visit_taken_keep_both_n: "{} · Keep both: {}",
     /// Text in `line`. `{}`: `self.name`.
-    pub visit_taken_the_same: &'static str,
+    visit_taken_the_same: "{} · the same vault, updated here",
     /// Text in `line`. `{}`: `self.name`, `keep_as`.
-    pub visit_taken_another: &'static str,
+    visit_taken_another: "{} · another vault · kept, this one as {}",
     /// Text in `taken_sheet`. `{}`: `app.medium.on_the()`.
-    pub visit_taken_already: &'static str,
+    visit_taken_already: "Already {}",
     /// Text in `taken_sheet`.
-    pub visit_taken_replace: &'static str,
+    visit_taken_replace: "Replace",
     /// Text in `taken_sheet`.
-    pub visit_taken_keep_both: &'static str,
+    visit_taken_keep_both: "Keep both",
     /// Text in `taken_sheet`.
-    pub visit_taken_cancel: &'static str,
+    visit_taken_cancel: "Cancel",
     // ----- modes (faraday-core/src/modes/mod.rs) -----
     /// Text in `Mode::name`.
-    pub mode_demo: &'static str,
+    mode_demo: "Demo",
     /// The pill in Demo: the mode and its network.
-    pub mode_demo_pill: &'static str,
+    mode_demo_pill: "Demo · Testnet",
     /// Title of the mode sheet.
-    pub mode_sheet_title: &'static str,
+    mode_sheet_title: "Mode",
     /// Button in the mode sheet.
-    pub mode_not_now: &'static str,
+    mode_not_now: "Not now",
     /// The line under every field where a seed or a secret is typed, on an
     /// online shell.
-    pub never_real_seed: &'static str,
+    never_real_seed: "Never type a seed that holds real bitcoin here.",
     /// The chip inside an empty field where a key is typed, in Demo.
-    pub use_a_sample: &'static str,
+    use_a_sample: "Use a sample",
     /// The same where the field is narrower than the chip, and the
     /// scanner's tile that reads a sample.
-    pub scan_sample: &'static str,
+    scan_sample: "Sample",
     /// The chip in Check my copy's empty grid, in Demo: it types the
     /// sample's words.
-    pub fill_words: &'static str,
+    fill_words: "Fill words",
     /// The scanner's tile, and the step's button, that hands over the
     /// sample transaction.
-    pub scan_sample_psbt: &'static str,
+    scan_sample_psbt: "Load sample PSBT",
     /// The scanner's tile that hands over a sample wallet.
-    pub scan_sample_wallet: &'static str,
+    scan_sample_wallet: "Load sample wallet",
     /// The scanner's tile that hands over a sample seed.
-    pub scan_sample_seed: &'static str,
+    scan_sample_seed: "Load sample seed",
     /// The scanner's tile that hands over a sample share or part.
-    pub scan_sample_share: &'static str,
+    scan_sample_share: "Load sample share",
     /// The scanner's tile that hands over a sample key.
-    pub scan_sample_key: &'static str,
+    scan_sample_key: "Load sample key",
     /// The scanner's tile that hands over a sample SeedQR.
-    pub scan_sample_seedqr: &'static str,
+    scan_sample_seedqr: "Load sample SeedQR",
     /// The scanner's tile that hands over a sample code.
-    pub scan_sample_code: &'static str,
+    scan_sample_code: "Load sample code",
     /// The scanner's tile that hands over a sample address.
-    pub scan_sample_address: &'static str,
+    scan_sample_address: "Load sample address",
     // ----- samples (faraday-core/src/samples/) -----
     /// The Load samples pill, on the wide layout.
-    pub samples_pill: &'static str,
+    samples_pill: "Load samples",
     /// The Load samples pill, on the compact bar and Home.
-    pub samples_pill_short: &'static str,
+    samples_pill_short: "Samples",
     /// Title of the Load samples sheet.
-    pub samples_title: &'static str,
+    samples_title: "Load samples",
     /// Heading of the sample wallets in Load samples.
-    pub samples_wallets: &'static str,
+    samples_wallets: "Wallets",
     /// Heading of the sample keys in Load samples.
-    pub samples_keys: &'static str,
+    samples_keys: "Keys",
     /// Link in Load samples while none is ticked.
-    pub samples_select_all: &'static str,
+    samples_select_all: "Select all",
     /// Link in Load samples while any is ticked.
-    pub samples_unselect_all: &'static str,
+    samples_unselect_all: "Unselect all",
     /// Button in Load samples.
-    pub samples_not_now: &'static str,
+    samples_not_now: "Not now",
     /// Button in Load samples.
-    pub samples_load: &'static str,
+    samples_load: "Load ticked",
     /// Line in Load samples, followed by the passphrase in a code box.
-    pub samples_password: &'static str,
+    samples_password: "In Demo, the sample passphrase is",
     /// Toast after Load ticked. `{}`: what loaded, made of `samples_n_*`.
-    pub samples_loaded: &'static str,
+    samples_loaded: "Loaded {}",
     /// Text in `loaded_text`. `{}`: how many.
-    pub samples_n_wallet: &'static str,
+    samples_n_wallet: "{} wallet",
     /// Text in `loaded_text`. `{}`: how many.
-    pub samples_n_wallets: &'static str,
+    samples_n_wallets: "{} wallets",
     /// Text in `loaded_text`. `{}`: how many.
-    pub samples_n_key: &'static str,
+    samples_n_key: "{} key",
     /// Text in `loaded_text`. `{}`: how many.
-    pub samples_n_keys: &'static str,
+    samples_n_keys: "{} keys",
     /// Text in `loaded_text`. `{}`: the wallets, the keys.
-    pub samples_and: &'static str,
+    samples_loaded_pair: "{} and {}",
     /// Where a sample wallet says it came from.
-    pub samples_source: &'static str,
+    samples_source: "Sample",
     /// Key row in Load samples.
-    pub sample_abandon: &'static str,
+    sample_abandon: "abandon … about",
     /// Key row in Load samples.
-    pub sample_japanese: &'static str,
+    sample_japanese: "Japanese words",
     /// Key row in Load samples.
-    pub sample_slip39_one: &'static str,
+    sample_slip39_one: "SLIP-39, one share",
     /// Key row in Load samples.
-    pub sample_slip39_two_of_three: &'static str,
+    sample_slip39_two_of_three: "SLIP-39, 2 of 3",
     /// Key row in Load samples.
-    pub sample_slip39_groups: &'static str,
+    sample_slip39_groups: "SLIP-39, groups",
     /// Key row in Load samples.
-    pub sample_codex32_secret: &'static str,
+    sample_codex32_secret: "codex32 secret",
     /// Key row in Load samples.
-    pub sample_codex32_shares: &'static str,
+    sample_codex32_shares: "codex32, 2 shares",
     /// Key row in Load samples.
-    pub sample_xor: &'static str,
+    sample_xor: "Seed XOR, 2 parts",
     /// Key row in Load samples.
-    pub sample_backup: &'static str,
+    sample_backup: "Encrypted backup",
     /// Name of the LND cipher seed sample.
-    pub sample_aezeed: &'static str,
+    sample_aezeed: "LND cipher seed",
     /// File name of the sample vault, which Use a sample puts in the Inbox.
-    pub sample_vault_file: &'static str,
+    sample_vault_file: "sample.ofv",
     /// File name of the sample signed message, which Use a sample puts in
     /// the Inbox.
-    pub sample_message_file: &'static str,
+    sample_message_file: "sample-message.txt",
     /// Wallet row in Load samples.
-    pub sample_savings: &'static str,
+    sample_savings: "Savings",
     /// Wallet row in Load samples.
-    pub sample_spending: &'static str,
+    sample_spending: "Spending",
     /// Wallet row in Load samples.
-    pub sample_taproot: &'static str,
+    sample_taproot: "Taproot",
     /// Wallet row in Load samples.
-    pub sample_nested: &'static str,
+    sample_nested: "Nested SegWit",
     /// Wallet row in Load samples.
-    pub sample_legacy: &'static str,
+    sample_legacy: "Legacy",
     /// Wallet row in Load samples.
-    pub sample_nested_multisig: &'static str,
+    sample_nested_multisig: "Nested multisig",
     /// Wallet row in Load samples.
-    pub sample_legacy_multisig: &'static str,
+    sample_legacy_multisig: "Legacy multisig",
     /// Wallet row in Load samples.
-    pub sample_taproot_multisig: &'static str,
+    sample_taproot_multisig: "Taproot multisig",
     /// Wallet row in Load samples.
-    pub sample_inheritance: &'static str,
+    sample_inheritance: "Inheritance",
     /// Wallet row in Load samples.
-    pub sample_tree: &'static str,
+    sample_tree: "Taproot tree",
     /// Wallet row in Load samples.
-    pub sample_musig: &'static str,
+    sample_musig: "MuSig2",
     /// Wallet row in Load samples.
-    pub sample_frost: &'static str,
+    sample_frost: "FROST 2 of 3",
     /// Wallet row in Load samples.
-    pub sample_three_of_five: &'static str,
+    sample_three_of_five: "3 of 5",
     /// What a Load samples row is: its kind and its script, or its form and its size. `{}`: the two parts.
-    pub sample_type: &'static str,
+    sample_type: "{} · {}",
     /// Kind of a sample wallet with one key.
-    pub sample_kind_single: &'static str,
+    sample_kind_single: "single-sig",
     /// Kind of a sample multisig wallet. `{}`: signatures required, keys.
-    pub sample_kind_multisig: &'static str,
+    sample_kind_multisig: "{}-of-{} multisig",
     /// Kind of a sample MuSig2 wallet. `{}`: keys.
-    pub sample_kind_musig: &'static str,
+    sample_kind_musig: "{}-key MuSig2",
     /// Kind of a sample FROST wallet. `{}`: shares that sign, shares.
-    pub sample_kind_frost: &'static str,
+    sample_kind_frost: "{}-of-{} FROST",
     /// Kind of a sample wallet with a key and a second that spends after a delay.
-    pub sample_kind_timelock: &'static str,
+    sample_kind_timelock: "timelock recovery",
     /// Script of a sample Taproot wallet with a tree of scripts.
-    pub sample_script_tree: &'static str,
+    sample_script_tree: "Taproot, script tree",
     /// Form of a sample key made of BIP-39 words.
-    pub sample_form_bip39: &'static str,
+    sample_form_bip39: "BIP-39",
     /// Form of a sample key made of SLIP-39 shares.
-    pub sample_form_slip39: &'static str,
+    sample_form_slip39: "SLIP-39",
     /// Form of a sample key made of codex32 strings.
-    pub sample_form_codex32: &'static str,
+    sample_form_codex32: "codex32",
     /// Form of a sample key made of Seed XOR parts.
-    pub sample_form_xor: &'static str,
+    sample_form_xor: "Seed XOR",
     /// Form of a sample key that is a master seed.
-    pub sample_form_seed: &'static str,
+    sample_form_seed: "Master seed",
     /// Whole type of the sample encrypted backup.
-    pub sample_form_backup: &'static str,
+    sample_form_backup: "Encrypted backup (.oskb)",
     /// Form of the sample LND cipher seed.
-    pub sample_form_aezeed: &'static str,
+    sample_form_aezeed: "LND cipher seed",
     /// Size of a sample key of BIP-39 words. `{}`: how many.
-    pub sample_size_words: &'static str,
+    sample_size_words: "{} words",
     /// Size of a sample key of Japanese BIP-39 words. `{}`: how many.
-    pub sample_size_words_japanese: &'static str,
+    sample_size_words_japanese: "{} words, Japanese",
     /// Size of a sample key of one share.
-    pub sample_size_share: &'static str,
+    sample_size_share: "1 share",
     /// Size of a sample key of shares. `{}`: how many.
-    pub sample_size_shares: &'static str,
+    sample_size_shares: "{} shares",
     /// Size of a sample SLIP-39 set. `{}`: shares that recover the key, shares dealt.
-    pub sample_size_threshold: &'static str,
+    sample_size_threshold: "{} of {} shares",
     /// Size of a sample SLIP-39 set in groups. `{}`: shares.
-    pub sample_size_groups: &'static str,
+    sample_size_groups: "groups, {} shares",
     /// Size of the sample codex32 secret.
-    pub sample_size_secret: &'static str,
+    sample_size_secret: "secret",
     /// Size of a sample Seed XOR set. `{}`: parts.
-    pub sample_size_parts: &'static str,
+    sample_size_parts: "{} parts",
     /// Size of a sample master seed. `{}`: bytes.
-    pub sample_size_bytes: &'static str,
+    sample_size_bytes: "{} bytes",
     // ----- wallet (faraday-core/src/wallet.rs) -----
     /// Text in `network_name`.
-    pub wallet_mainnet: &'static str,
+    wallet_mainnet: "Mainnet",
     /// Text in `network_name`.
-    pub wallet_testnet: &'static str,
+    wallet_testnet: "Testnet",
     /// Text in `network_name`.
-    pub wallet_signet: &'static str,
+    wallet_signet: "Signet",
     /// Text in `network_name`.
-    pub wallet_regtest: &'static str,
+    wallet_regtest: "Regtest",
     /// Text in `text`. `{}`: `e`.
-    pub wallet_not_a_valid: &'static str,
+    wallet_not_a_valid: "Not a valid seed: {}",
     /// Text in `text`. `{}`: `fp`.
-    pub wallet_is_already_loaded: &'static str,
+    wallet_is_already_loaded: "{} is already loaded",
     /// Text in `text`. `{}`: `got`, `wanted`.
-    pub wallet_these_words_give: &'static str,
+    wallet_these_words_give: "These words give {}, not {}",
     /// Text in `text`. `{}`: `got`, `wallet`.
-    pub wallet_these_words: &'static str,
+    wallet_these_words: "These words give {}, not a key of {}",
     /// Text in `text`. `{}`: `e`.
-    pub wallet_not_a_wallet: &'static str,
+    wallet_not_a_wallet: "Not a wallet: {}",
     /// Text in `text`. `{}`: `network_name(*offered)`, `network_name(*loaded)`.
-    pub wallet_is_not_the_network: &'static str,
+    wallet_is_not_the_network: "{} is not {}, the network of the loaded wallets",
     /// Text in `text`. `{}`: `fp`.
-    pub wallet_is_not_a_key: &'static str,
+    wallet_is_not_a_key: "{} is not a sample: Demo takes only samples",
     /// Text in `text`. `{}`: `network_name(*n)`.
-    pub wallet_runs_on_only: &'static str,
+    wallet_runs_on_only: "This app runs on {} only",
     /// Text in `source_tag`. `{}`: `source`.
-    pub wallet_from: &'static str,
+    wallet_source_tag: "From {}",
     /// Text in `source_tag`. `{}`: `source`.
-    pub wallet_from_inline: &'static str,
+    wallet_from_inline: "from {}",
     /// Text in `add_seed`.
-    pub wallet_a_master_seed: &'static str,
+    wallet_a_master_seed: "a master seed is 16 to 64 bytes",
     /// Text in `shape`.
-    pub wallet_legacy: &'static str,
+    wallet_legacy: "legacy",
     /// Text in `shape`.
-    pub wallet_nested_segwit: &'static str,
+    wallet_nested_segwit: "nested SegWit",
     /// Text in `shape`.
-    pub wallet_native_segwit: &'static str,
+    wallet_native_segwit: "native SegWit",
     /// Text in `shape`.
-    pub wallet_taproot: &'static str,
+    wallet_taproot: "Taproot",
     /// Text in `shape`. `{}`: `script(t)`.
-    pub wallet_single_key: &'static str,
+    wallet_single_key: "Single key · {}",
     /// Text in `shape`. `{}`: `m`, `n`.
-    pub wallet_of_legacy_multisig: &'static str,
+    wallet_of_legacy_multisig: "{} of {} · legacy multisig",
     /// Text in `shape`. `{}`: `m`, `n`.
-    pub wallet_of_nested_segwit: &'static str,
+    wallet_of_nested_segwit: "{} of {} · nested SegWit multisig",
     /// Text in `shape`. `{}`: `m`, `n`.
-    pub wallet_of_native_segwit: &'static str,
+    wallet_of_native_segwit: "{} of {} · native SegWit multisig",
     /// Text in `shape`. `{}`: `m`, `n`.
-    pub wallet_of_taproot_multisig: &'static str,
+    wallet_of_taproot_multisig: "{} of {} · Taproot multisig",
     /// Text in `shape`. `{}`: `wallet.policy.keys().len()`.
-    pub wallet_keys_miniscript: &'static str,
+    wallet_keys_miniscript: "{} keys · miniscript with conditions",
     /// Text in `shape`. `{}`: `wallet.policy.keys().len()`.
-    pub wallet_keys_taproot: &'static str,
+    wallet_keys_taproot: "{} keys · Taproot key and leaves",
     /// Text in `shape`. `{}`: `n`, `n`.
-    pub wallet_of_musig2: &'static str,
+    wallet_of_musig2: "{} of {} · MuSig2",
     /// Text in `shape`. `{}`: `m`, `n`.
-    pub wallet_of_frost: &'static str,
+    wallet_of_frost: "{} of {} · FROST",
     /// Text in `shape`.
-    pub wallet_1_key_silent: &'static str,
+    wallet_1_key_silent: "1 key · silent payments",
     /// Text in `shape`.
-    pub wallet_wallet: &'static str,
+    wallet_wallet: "Wallet",
     /// Text in `address`. `{}`: `e`.
-    pub wallet_no_address: &'static str,
+    wallet_no_address: "no address: {}",
     /// Error in `sign_with`.
-    pub wallet_no_key_in_this: &'static str,
+    wallet_no_signing_key: "No key in this session signs this transaction",
     /// Text in `read_wallet`.
-    pub wallet_a_json_file: &'static str,
+    wallet_a_json_file: "a .json file with no descriptor",
     /// Text in `read_wallet`. `{}`: `e`.
-    pub wallet_bsms: &'static str,
+    wallet_bsms: "BSMS: {}",
     /// Text in `coldcard_export`. `{}`: `why`.
-    pub wallet_coldcard_export: &'static str,
+    wallet_coldcard_export: "Coldcard export: {}",
     /// Text in `coldcard_export`.
-    pub wallet_no_xfp: &'static str,
+    wallet_no_xfp: "no xfp",
     /// Error in `coldcard_export`. `{}`: `field`, `first`.
-    pub wallet_its_first_address: &'static str,
+    wallet_its_first_address: "its first {} address is not {}",
     /// Error in `coldcard_export`.
-    pub wallet_no_single_sig: &'static str,
+    wallet_no_single_sig: "no single-sig account",
     /// Error in `wallet::mismatch_text`. `{}`: the key, shortened; the
     /// script type its version names; the script type around it.
-    pub wallet_slip132_mismatch: &'static str,
+    wallet_slip132_mismatch: "{} is a {} key; this wallet is {}",
     /// Text in `wallet::script_name`.
-    pub wallet_slip132_native_multisig: &'static str,
+    wallet_slip132_native_multisig: "native SegWit multisig",
     /// Text in `wallet::script_name`.
-    pub wallet_slip132_nested_multisig: &'static str,
+    wallet_slip132_nested_multisig: "nested SegWit multisig",
     /// Text in `wallet::script_name`.
-    pub wallet_slip132_legacy_multisig: &'static str,
+    wallet_slip132_legacy_multisig: "legacy multisig",
     /// Text in `wallet::script_name`.
-    pub wallet_slip132_silent_payments: &'static str,
+    wallet_slip132_silent_payments: "silent payments",
     /// Text in `wallet::script_name`: a descriptor of no type a
     /// SLIP-132 version names.
-    pub wallet_slip132_other: &'static str,
+    wallet_slip132_other: "another script type",
     /// Error in `single_key::read`. `{}`: why.
-    pub wallet_single_key_file: &'static str,
+    wallet_single_key_file: "Single-key file: {}",
     /// Text in `single_key::read`.
-    pub wallet_single_key_fingerprint: &'static str,
+    wallet_single_key_fingerprint: "MasterFingerprint is not 8 hex digits",
     /// Text in `single_key::read`.
-    pub wallet_single_key_xpub: &'static str,
+    wallet_single_key_xpub: "ExtPubKey is not an extended public key",
     /// Text in `single_key::read`.
-    pub wallet_single_key_path: &'static str,
+    wallet_single_key_path: "AccountKeyPath is not a derivation path",
     /// Text in `read_wallet`, of a single-key file.
-    pub wallet_single_key_no_type: &'static str,
+    wallet_single_key_no_type: "its key is not a single-key wallet's",
     /// Error in `caravan::descriptor`. `{}`: why.
-    pub wallet_caravan: &'static str,
+    wallet_caravan: "Caravan config: {}",
     /// Text in `caravan::descriptor`.
-    pub wallet_caravan_address_type: &'static str,
+    wallet_caravan_address_type: "addressType is not P2WSH, P2SH-P2WSH or P2SH",
     /// Text in `caravan::descriptor`.
-    pub wallet_caravan_network: &'static str,
+    wallet_caravan_network: "network is not mainnet, testnet, signet or regtest",
     /// Text in `caravan::descriptor`.
-    pub wallet_caravan_starting_index: &'static str,
+    wallet_caravan_starting_index: "startingAddressIndex is not 0",
     /// Text in `caravan::descriptor`.
-    pub wallet_caravan_keys: &'static str,
+    wallet_caravan_keys: "a key in extendedPublicKeys is not an extended public key",
     /// Text in `caravan::descriptor`.
-    pub wallet_caravan_quorum: &'static str,
+    wallet_caravan_quorum: "the quorum does not match the keys listed",
     /// Text in `caravan::descriptor`.
-    pub wallet_caravan_xfp: &'static str,
+    wallet_caravan_xfp: "an xfp is not 8 hex digits",
     /// Text in `caravan::descriptor`. `{}`: the key, shortened.
-    pub wallet_caravan_no_origin: &'static str,
+    wallet_caravan_no_origin: "{} has no bip32Path or xfp; every key of a multisig wallet needs both",
     /// Text in `caravan::descriptor`. `{}`: the key, shortened; the
     /// network it is on; the network the file names.
-    pub wallet_caravan_key_network: &'static str,
+    wallet_caravan_key_network: "{} is a {} key; the file says {}",
     /// Error in `electrum::descriptor`. `{}`: why.
-    pub wallet_electrum: &'static str,
+    wallet_electrum: "Electrum file: {}",
     /// Error in `read_wallet`: an Electrum file encrypted, whole or its
     /// keystores.
-    pub wallet_electrum_encrypted: &'static str,
+    wallet_electrum_encrypted: "This Electrum file is encrypted",
     /// Text in `electrum::descriptor`.
-    pub wallet_electrum_fingerprint: &'static str,
+    wallet_electrum_fingerprint: "a root_fingerprint or ckcc_xfp is not a fingerprint",
     /// Text in `electrum::descriptor`. `{}`: the keystore's `type`.
-    pub wallet_electrum_keystore_type: &'static str,
+    wallet_electrum_keystore_type: "keystore type {} is not read",
     /// Text in `electrum::descriptor`.
-    pub wallet_electrum_no_key: &'static str,
+    wallet_electrum_no_key: "a keystore has no xpub",
     /// Text in `electrum::descriptor`.
-    pub wallet_electrum_derivation: &'static str,
+    wallet_electrum_derivation: "a derivation is not a derivation path",
     /// Text in `electrum::descriptor`. `{}`: the script type a key's
     /// version names.
-    pub wallet_electrum_key_type: &'static str,
+    wallet_electrum_key_type: "a key is a {} key, which this wallet_type does not hold",
     /// Text in `electrum::descriptor`. `{}`: the file's `wallet_type`.
-    pub wallet_electrum_wallet_type: &'static str,
+    wallet_electrum_wallet_type: "wallet_type {} is not read",
     /// Text in `electrum::descriptor`.
-    pub wallet_electrum_quorum: &'static str,
+    wallet_electrum_quorum: "wallet_type does not match the keystores",
     /// Text in `electrum::descriptor`. `{}`: the key, shortened.
-    pub wallet_electrum_no_origin: &'static str,
+    wallet_electrum_no_origin: "{} has no root_fingerprint and derivation; every key of a multisig wallet needs both",
     /// Text in `electrum::descriptor`.
-    pub wallet_electrum_mixed: &'static str,
+    wallet_electrum_mixed: "its keys name more than one script type",
     /// Error in `read_wallet`. `{}`: `json::MAX_DEPTH`.
-    pub wallet_json_too_deep: &'static str,
+    wallet_json_too_deep: "JSON nested more than {} levels deep",
     /// Error in `read_wallet`.
-    pub wallet_json_too_large: &'static str,
+    wallet_json_too_large: "JSON longer than 1 MiB",
     /// Text in `collect_line`. `{}`: `missing`, `if collected == 0 { "" } else { " mor…`, `if missing == 1 { EN.wallet_signature…`.
-    pub wallet_collect: &'static str,
+    wallet_collect: "Collect {}{} {}",
     /// Text in `collect_line`, after a space.
-    pub wallet_more: &'static str,
+    wallet_more: "more",
     /// Text in `collect_line`.
-    pub wallet_signature: &'static str,
+    wallet_signature: "signature",
     /// Text in `collect_line`.
-    pub wallet_signatures: &'static str,
+    wallet_signatures: "signatures",
     /// Error in `collect`.
-    pub wallet_not_a_psbt: &'static str,
+    wallet_not_a_psbt: "Not a PSBT",
     /// Error in `collect`. `{}`: `source`.
-    pub wallet_is_a_psbt_for: &'static str,
+    wallet_psbt_other_transaction: "{} is a PSBT for another transaction",
     /// Text in `collect`. `{}`: `e`.
-    pub wallet_cannot_combine: &'static str,
+    wallet_cannot_combine: "Cannot combine: {}",
     /// Error in `collect`. `{}`: `source`.
-    pub wallet_a_signature: &'static str,
+    wallet_a_signature: "A signature in {} does not verify",
     /// Error in `finish`.
-    pub wallet_not_enough_signatures: &'static str,
+    wallet_not_enough_signatures: "Not enough signatures yet",
     /// Text in `finish_reason`.
-    pub wallet_the_script_is: &'static str,
+    wallet_script_unsatisfied: "The script is not satisfied yet: another signature, or a timelock not yet reached",
     /// Error in `sign_message`.
-    pub wallet_no_such_wallet: &'static str,
+    wallet_no_such_wallet: "no such wallet",
     /// Error in `sign_message`.
-    pub wallet_messages_are: &'static str,
+    wallet_messages_are: "Messages are signed with single-key wallets",
     /// Error in `sign_message`.
-    pub wallet_the_wallet_has: &'static str,
+    wallet_the_wallet_has: "the wallet has no key",
     /// Error in `sign_message`.
-    pub wallet_the_wallet_s_xpub: &'static str,
+    wallet_the_wallet_s_xpub: "the wallet's xpub has no origin",
     /// Error in `sign_message`.
-    pub wallet_the_wallet_s_key: &'static str,
+    wallet_the_wallet_s_key: "the wallet's key is not loaded here",
     /// Error in `sign_message`.
-    pub wallet_the_wallet_s: &'static str,
+    wallet_the_wallet_s: "the wallet's xpub has no path",
     /// Text in `paths`. `{}`: `n`, `n / 144`.
-    pub wallet_blocks_after: &'static str,
+    wallet_blocks_after: "{} blocks after the coins arrived (about {} days)",
     /// Text in `paths`. `{}`: `u64::from(*n) * 512 / 86_400`.
-    pub wallet_days_after_the: &'static str,
+    wallet_days_after_arrival: "{} days after the coins arrived",
     /// Text in `paths`. `{}`: `h`.
-    pub wallet_after_block: &'static str,
+    wallet_after_block: "after block {}",
     /// Text in `paths`. `{}`: `t`.
-    pub wallet_after_time: &'static str,
+    wallet_after_time: "after time {}",
     /// Text in `paths`.
-    pub wallet_a_secret_preimage: &'static str,
+    wallet_a_secret_preimage: "a secret preimage",
     // ----- wordlist (faraday-core/src/wordlist/mod.rs) -----
     /// Text in `PRESS_A_WORD`.
-    pub wordlist_press_a_word: &'static str,
+    wordlist_press_a_word: "Press a word to see it in the list",
     /// Text in `name`.
-    pub wordlist_bip_39_english: &'static str,
+    wordlist_bip_39_english: "BIP-39 English",
     /// Text in `name`.
-    pub wordlist_eff_large: &'static str,
+    wordlist_eff_large: "EFF large",
     /// Text in `name`.
-    pub wordlist_eff_short_1: &'static str,
+    wordlist_eff_short_1: "EFF short 1",
     /// Text in `name`.
-    pub wordlist_eff_short: &'static str,
+    wordlist_eff_short_2: "EFF short 2",
     /// Text in `code_heading`.
-    pub wordlist_bits: &'static str,
+    wordlist_bits: "Bits",
     /// Text in `code_heading`.
-    pub wordlist_dice: &'static str,
+    wordlist_dice: "Dice",
     // ----- wordlist (faraday-core/src/wordlist/screen.rs) -----
     /// Button in `draw`.
-    pub wordlist_back: &'static str,
+    wordlist_back: "Back",
     /// Text in `draw`. `{}`: `words.len()`, `m + 1`, `words.len()`.
-    pub wordlist_words_word: &'static str,
+    wordlist_words_word: "{} words · word {} of {} marked",
     /// Text in `draw`. `{}`: `words.len()`.
-    pub wordlist_words: &'static str,
+    wordlist_words: "{} words",
     /// Text in `draw`.
-    pub wordlist_type_to_find: &'static str,
+    wordlist_type_to_find: "Type to find a word",
     /// Text in `draw`. `{}`: `st.find`.
-    pub wordlist_find: &'static str,
+    wordlist_find: "Find: {}",
     /// Line in `draw`.
-    pub wordlist_no: &'static str,
+    wordlist_number_column: "No.",
     /// Line in `draw`.
-    pub wordlist_word: &'static str,
+    wordlist_word: "Word",
     // ----- The shells: window titles and the labels they give (faraday/shells) -----
     /// The desktop app's window title.
-    pub desktop_title: &'static str,
+    desktop_title: "Faraday",
     /// The desktop app's window title at a panel size: `{}` the diagonal in
     /// inches.
-    pub desktop_title_panel: &'static str,
+    desktop_title_panel: "Faraday · {} in panel",
     /// The pill of the boot stick, Stick 1, across the top of the window.
-    pub stick_pill_boot: &'static str,
+    stick_pill_boot: "Boot stick",
     /// A pill's state: the stick is in.
-    pub stick_pill_in: &'static str,
+    stick_pill_inserted: "in",
     /// A pill's state: the stick is out.
-    pub stick_pill_out: &'static str,
+    stick_pill_out: "out",
     /// A pill's label and its state: `{}` the label, then the state.
-    pub stick_pill_state: &'static str,
+    stick_pill_state: "{} · {}",
     /// The Starter's window title.
-    pub starter_window_title: &'static str,
+    starter_window_title: "Faraday Starter",
     /// A Windows disk as Disk Management names it: `{}` its number.
-    pub starter_disk_number: &'static str,
+    starter_disk_number: "Disk {}",
     /// The label of the firmware boot entry the Starter makes on Linux; it
     /// also finds the entry again.
-    pub starter_boot_entry_label: &'static str,
+    starter_boot_entry_label: "Faraday stick",
     /// A USB stick mounted with no volume label: `{}` its device name.
-    pub stick_usb_stick: &'static str,
+    stick_usb_stick: "USB stick ({})",
     // ----- Virtual machines by name, as the stick's device check and the Starter show them -----
     /// A hypervisor's name.
-    pub vm_qemu: &'static str,
+    vm_qemu: "QEMU",
     /// A hypervisor's name.
-    pub vm_kvm: &'static str,
+    vm_kvm: "KVM",
     /// A hypervisor's name.
-    pub vm_vmware: &'static str,
+    vm_vmware: "VMware",
     /// A hypervisor's name.
-    pub vm_virtualbox: &'static str,
+    vm_virtualbox: "VirtualBox",
     /// A hypervisor's name.
-    pub vm_hyper_v: &'static str,
+    vm_hyper_v: "Hyper-V",
     /// A hypervisor's name.
-    pub vm_xen: &'static str,
+    vm_xen: "Xen",
     /// A hypervisor's name.
-    pub vm_parallels: &'static str,
+    vm_parallels: "Parallels",
     /// A hypervisor's name.
-    pub vm_bochs: &'static str,
+    vm_bochs: "Bochs",
     /// The backup flow's name when no key is named.
-    pub backup_flow_heading: &'static str,
+    backup_flow_heading: "Backup",
     /// The APK signing key, as the flow names what it makes.
-    pub backup_flow_kind_apk: &'static str,
+    backup_flow_kind_apk: "APK signing key",
     /// A GPG key, as the flow names what it makes.
-    pub backup_flow_kind_gpg: &'static str,
+    backup_flow_kind_gpg: "GPG key",
     /// Secure Boot keys, as the flow names what it makes.
-    pub backup_flow_kind_sb: &'static str,
+    backup_flow_kind_sb: "Secure Boot keys",
     /// The way out of the flow, which keeps its state.
-    pub backup_flow_leave: &'static str,
+    backup_flow_leave: "Home",
     /// A vault of the plan, by number.
-    pub backup_flow_vault_n: &'static str,
+    backup_flow_vault_n: "Vault {}",
     /// A place of the plan, by number.
-    pub backup_flow_place_n: &'static str,
+    backup_flow_place_n: "Place {}",
     /// Step 1's card.
-    pub backup_flow_card_where: &'static str,
+    backup_flow_card_where: "Where it will be kept",
     /// Step 2's card; the plural of the medium.
-    pub backup_flow_card_sticks: &'static str,
+    backup_flow_card_sticks: "Bring in the {}",
     /// Step 3's card.
-    pub backup_flow_card_vaults: &'static str,
+    backup_flow_card_vaults: "Vaults",
     /// Step 4's card.
-    pub backup_flow_card_make: &'static str,
+    backup_flow_card_make: "Make the key",
     /// Step 5's card.
-    pub backup_flow_card_lock: &'static str,
+    backup_flow_card_lock: "Lock",
     /// Step 6's card; the plural of the medium.
-    pub backup_flow_card_write: &'static str,
+    backup_flow_card_write: "Write the {}",
     /// Step 7's card.
-    pub backup_flow_card_done: &'static str,
+    backup_flow_card_done: "Done",
     /// Button on Where: another place.
-    pub backup_flow_add_place: &'static str,
+    backup_flow_add_place: "Add a place",
     /// A place's line: what it keeps, the medium first.
-    pub backup_flow_place_keeps: &'static str,
+    backup_flow_place_keeps: "A {} with",
     /// A new vault, as a place's choice and a vault's state.
-    pub backup_flow_new_vault: &'static str,
+    backup_flow_new_vault: "A new vault",
     /// An existing vault, as a vault's state.
-    pub backup_flow_existing_vault: &'static str,
+    backup_flow_existing_vault: "An existing vault",
     /// The stick for a vault at a place: the medium, vaults, place.
-    pub backup_flow_stick_for: &'static str,
+    backup_flow_vault_stick: "the {} for {} ({})",
     /// The stick of files.
-    pub backup_flow_files_stick: &'static str,
+    backup_flow_files_stick: "the {} of files",
     /// The stick of public files.
-    pub backup_flow_public_stick: &'static str,
+    backup_flow_public_stick: "the {} of public files",
     /// A place's stick of files (§17.2): the place.
-    pub backup_flow_files_at: &'static str,
+    backup_flow_place_files: "Files ({})",
     /// A place's card's sheet: the row, the place.
-    pub backup_flow_pick_title: &'static str,
+    backup_flow_pick_title: "{} · {}",
     /// The plan's last card, the map approved.
-    pub backup_flow_the_plan: &'static str,
+    backup_flow_the_plan: "The plan",
     /// The plan held by a vault that holds nothing: the vault.
-    pub backup_flow_vault_holds_nothing: &'static str,
+    backup_flow_vault_holds_nothing: "Vault {} holds nothing",
     /// A wallet share kept in a vault: the wallet, the share, of.
-    pub backup_flow_vault_share: &'static str,
+    backup_flow_vault_share: "{} · Share {} of {}",
     /// An edit after the lock refused: the vault held this before the
     /// flow. The vault.
-    pub backup_flow_held_before: &'static str,
+    backup_flow_held_before: "Vault {} held this before; take it out from the vault's contents",
     /// An edit after the lock refused: another wallet in the vault uses
     /// this key. The vault.
-    pub backup_flow_other_wallet_key: &'static str,
+    backup_flow_other_wallet_key: "Another wallet in Vault {} uses this key; take it out from the vault's contents",
     /// An edit after the lock refused: it changes files or paper.
-    pub backup_flow_files_after_lock: &'static str,
+    backup_flow_files_after_lock: "Files and paper stay as made after the lock; finish the writes, then Back up again to change them",
     /// The checklist or Lock and write of a backup past its lock and not
     /// done: refused.
-    pub backup_flow_past_lock: &'static str,
+    backup_flow_past_lock: "This backup is past its lock; finish the writes, then Back up again",
     /// Foot of step 2 when a secret is open.
-    pub backup_flow_lock_bring: &'static str,
+    backup_flow_lock_bring: "Lock and bring in the {}",
     /// Asks for a stick.
-    pub backup_flow_insert: &'static str,
+    backup_flow_insert: "Insert {}",
     /// A stick in the machine already, with when it was read.
-    pub backup_flow_use_read: &'static str,
+    backup_flow_use_read: "Use {}, read at {}",
     /// Two sticks are in.
-    pub backup_flow_one_at_a_time: &'static str,
+    backup_flow_one_at_a_time: "One {} at a time",
     /// A stick that is not FAT32.
-    pub backup_flow_not_fat: &'static str,
+    backup_flow_not_fat: "Not a FAT32 {}. Format it as FAT32, or use another {}",
     /// An FARADAYBOOT partition.
-    pub backup_flow_boot_part: &'static str,
+    backup_flow_boot_part: "This is a boot partition. Use another {}",
     /// A stick that is read-only.
-    pub backup_flow_read_only: &'static str,
+    backup_flow_read_only: "Cannot be written. Use another {}",
     /// A stick with too little room.
-    pub backup_flow_no_room: &'static str,
+    backup_flow_no_room: "Not enough room: {} needed, {} free",
     /// The plan gives an existing vault and the stick holds none.
-    pub backup_flow_no_vault: &'static str,
+    backup_flow_no_vault: "No vault for {} on this stick",
     /// Choice of the vault on a stick.
-    pub backup_flow_which_vault: &'static str,
+    backup_flow_which_vault: "Which vault is {}?",
     /// A new vault written beside the vaults a stick holds.
-    pub backup_flow_beside: &'static str,
+    backup_flow_beside: "A new vault beside them",
     /// Two files of one vault on one stick.
-    pub backup_flow_two_copies: &'static str,
+    backup_flow_two_copies: "{} has two copies of {}: {} and {}",
     /// The same vault, other bytes.
-    pub backup_flow_copies_differ: &'static str,
+    backup_flow_copies_differ: "{}'s copy of {} differs from {}'s",
     /// Which copy of a vault to unlock.
-    pub backup_flow_use_copy_of: &'static str,
+    backup_flow_use_copy: "Use {}'s copy",
     /// Tap that confirms a stick's place.
-    pub backup_flow_this_is: &'static str,
+    backup_flow_confirm_place: "This is {}",
     /// Hold that confirms a stick's place.
-    pub backup_flow_hold_this_is: &'static str,
+    backup_flow_hold_confirm_place: "Hold: this is {}",
     /// A stick that reads as one bound to another place.
-    pub backup_flow_bound_to: &'static str,
+    backup_flow_bound_place: "This is {}",
     /// Tap for a stick that keeps two vaults.
-    pub backup_flow_both: &'static str,
+    backup_flow_both: "One {} for both",
     /// Asks for the stick to be pulled.
-    pub backup_flow_pull: &'static str,
+    backup_flow_pull: "Pull the {}",
     /// Under an existing vault's Unlock.
-    pub backup_flow_no_passphrase: &'static str,
+    backup_flow_no_passphrase: "I do not have its passphrase",
     /// After no passphrase: a new vault beside that file.
-    pub backup_flow_beside_it: &'static str,
+    backup_flow_new_vault_beside: "A new vault beside it",
     /// Leaves the stick for another.
-    pub backup_flow_use_another: &'static str,
+    backup_flow_use_another: "Use another {}",
     /// On a device, a row naming one of the flow's sticks: its pill's
     /// name, then what it is for ("Stick 2 · Vault 1 (Place 1)").
-    pub backup_flow_slot_row: &'static str,
+    backup_flow_slot_row: "{} · {}",
     /// On a device, asks for a stick by its pill's name ("Insert Stick 3:
     /// Vault 2 (Place 2)").
-    pub backup_flow_insert_n: &'static str,
+    backup_flow_insert_n: "Insert {}: {}",
     /// On a device, a stick unlike the one read for this pill at step 2
     /// ("Not Stick 3, read for Vault 2 (Place 2)").
-    pub backup_flow_not_read_n: &'static str,
+    backup_flow_not_read_n: "Not {}, read for {}",
     /// On a device, above the hold: a stick not yet settled that reads as
     /// another of the flow's sticks ("This reads as Stick 2").
-    pub backup_flow_reads_as: &'static str,
+    backup_flow_reads_as: "This reads as {} {}",
     /// On a device, what the stick of files is for, after its number.
-    pub backup_flow_for_files: &'static str,
+    backup_flow_for_files: "Files",
     /// On a device, what the stick of public files is for, after its
     /// number.
-    pub backup_flow_for_public: &'static str,
+    backup_flow_for_public: "Public files",
     /// A backup stick's pill: the medium's word and its number, from 2
     /// ("Stick 2", "Card 2"; `docs/BACKUP-FLOW.md` §16).
-    pub backup_flow_pill: &'static str,
+    backup_flow_pill: "{} {}",
     /// The boot pill on the Pi, Card 1.
-    pub backup_flow_pill_boot_card: &'static str,
+    backup_flow_pill_boot_card: "Boot card",
     /// A device's pill word on a USB stick.
-    pub backup_flow_pill_stick: &'static str,
+    backup_flow_pill_stick: "Stick",
     /// A device's pill word on an SD card.
-    pub backup_flow_pill_card: &'static str,
+    backup_flow_pill_card: "Card",
     /// Under a stick's row once it is first taken for its place: the
     /// pill's word and number.
-    pub backup_flow_mark_as: &'static str,
+    backup_flow_mark_as: "Mark it as {} {}",
     /// A stick refused that reads as another of the flow's sticks: the
     /// pill's word and number.
-    pub backup_flow_this_is_n: &'static str,
+    backup_flow_this_is_n: "This is {} {}",
     /// A stick refused that reads as none of the flow's sticks.
-    pub backup_flow_not_ours: &'static str,
+    backup_flow_not_ours: "Not one of this backup's {}",
     /// A row of the result: the vault the key is in.
-    pub backup_flow_in_vault: &'static str,
+    backup_flow_in_vault: "In {}",
     /// Foot of step 5.
-    pub backup_flow_lock_and_write: &'static str,
+    backup_flow_lock_and_write: "Lock and write",
     /// A stick unlike the one read at step 2.
-    pub backup_flow_not_read: &'static str,
+    backup_flow_not_read: "Not the {} read for {}",
     /// A second copy refused on the stick holding the first.
-    pub backup_flow_has_first: &'static str,
+    backup_flow_has_first: "This {} has the first copy",
     /// Hold for a vault's second copy.
-    pub backup_flow_hold_second: &'static str,
+    backup_flow_hold_second: "Hold: this is a second {}",
     /// Hold for a vault's third and later copy.
-    pub backup_flow_hold_another: &'static str,
+    backup_flow_hold_another: "Hold: this is another {}",
     /// A stick that holds files written for another.
-    pub backup_flow_has_files_of: &'static str,
+    backup_flow_other_files: "This {} has {}'s files",
     /// A write under way.
-    pub backup_flow_writing: &'static str,
+    backup_flow_writing: "Writing {}",
     /// A stick written, read back and matched.
-    pub backup_flow_written: &'static str,
+    backup_flow_written: "Written and checked on {}",
     /// A stick pulled while writing.
-    pub backup_flow_pulled: &'static str,
+    backup_flow_pulled: "Pulled before the copy was checked. Nothing counted",
     /// A write that did not read back.
-    pub backup_flow_not_checked: &'static str,
+    backup_flow_not_checked: "The copy did not check on {}. Nothing counted",
     /// A file written to a stick did not read back, twice
     /// (`docs/BACKUP-FLOW.md` §17.12 item 10): the file, the stick.
-    pub backup_flow_no_read_back: &'static str,
+    backup_flow_no_read_back: "{} did not read back from {}; try another stick",
     /// A stick's written copy was deleted or the stick wiped.
-    pub backup_flow_first_gone_toast: &'static str,
+    backup_flow_first_gone_toast: "A written copy was deleted",
     /// Done's result.
-    pub backup_flow_done: &'static str,
+    backup_flow_done: "Written",
     /// The key page's row.
-    pub backup_flow_row: &'static str,
+    backup_flow_row: "Backup",
     /// The Backup row before any write.
-    pub backup_flow_row_none: &'static str,
+    backup_flow_row_none: "Not written",
     /// The Backup row part way.
-    pub backup_flow_row_some: &'static str,
+    backup_flow_row_some: "Written to {} of {} places",
     /// The Backup row when done.
-    pub backup_flow_row_all: &'static str,
+    backup_flow_row_all: "Written to every place",
     /// Opens the flow on its step.
-    pub backup_flow_continue: &'static str,
+    backup_flow_continue: "Continue the backup",
     /// Goes on from a card.
-    pub backup_flow_continue_make: &'static str,
+    backup_flow_continue_make: "Continue",
     /// A waiting action, until every place is written.
-    pub backup_flow_first: &'static str,
+    backup_flow_first: "Back up first",
     /// Home's lead.
-    pub backup_flow_home_lead: &'static str,
+    backup_flow_home_lead: "Continue the backup of {}",
     /// The Power sheet's line.
-    pub backup_flow_power: &'static str,
+    backup_flow_power: "Backup of {}: written to {} of {} places",
     /// Tag of a file the flow will write, on the stick visit.
-    pub backup_flow_in_the_backup: &'static str,
+    backup_flow_in_the_backup: "In the backup",
     /// The fewest places a key is planned at.
-    pub backup_flow_at_least: &'static str,
+    backup_flow_at_least: "At least {} places",
     /// Under every card.
-    pub backup_flow_change_plan: &'static str,
+    backup_flow_change_plan: "Change the plan",
     /// Step 4 of the round for a vault added after the key.
-    pub backup_flow_copy_across: &'static str,
+    backup_flow_copy_across: "The new vault takes the key from one that holds it",
     /// Button of that round.
-    pub backup_flow_copy_key: &'static str,
+    backup_flow_copy_key: "Copy the key",
     /// Makes a vault of the plan.
-    pub backup_flow_create_vault: &'static str,
+    backup_flow_create_vault: "Create {}",
     /// Takes a written place off the plan.
-    pub backup_flow_destroyed: &'static str,
+    backup_flow_destroyed: "I destroyed this copy",
     /// Memory this computer has free.
-    pub backup_flow_free: &'static str,
+    backup_flow_free: "{} free",
     /// Lock card: what is kept.
-    pub backup_flow_kept: &'static str,
+    backup_flow_kept: "Kept",
     /// Lock card: what is wiped.
-    pub backup_flow_wiped: &'static str,
+    backup_flow_wiped: "Wiped from memory",
     /// Summary of a done Lock card.
-    pub backup_flow_locked: &'static str,
+    backup_flow_locked: "Locked",
     /// Summary of the Lock card before the lock.
-    pub backup_flow_not_locked: &'static str,
+    backup_flow_not_locked: "Not locked",
     /// Result of making the key.
-    pub backup_flow_made: &'static str,
+    backup_flow_made: "{} made",
     /// Button that makes the key.
-    pub backup_flow_make_the_key: &'static str,
+    backup_flow_make_the_key: "Make the key",
     /// While the key is made.
-    pub backup_flow_making: &'static str,
+    backup_flow_making: "Making the key",
     /// Result row.
-    pub backup_flow_name: &'static str,
+    backup_flow_name: "Name",
     /// Summary of Make before the key.
-    pub backup_flow_not_made: &'static str,
+    backup_flow_not_made: "Not made",
     /// Summary of Where.
-    pub backup_flow_places_vaults: &'static str,
+    backup_flow_places_vaults: "Places {} · Vaults {}",
     /// Banner while a stick is in at step 3 or 4.
-    pub backup_flow_pull_to_unlock: &'static str,
+    backup_flow_pull_to_unlock: "Pull the {} to unlock",
     /// While a stick is read.
-    pub backup_flow_reading: &'static str,
+    backup_flow_reading: "Reading {}",
     /// Summary of step 2.
-    pub backup_flow_read_of: &'static str,
+    backup_flow_read_count: "{} of {} read",
     /// Takes a place off the plan.
-    pub backup_flow_remove: &'static str,
+    backup_flow_remove: "Remove",
     /// A vault on a stick, seen open this session.
-    pub backup_flow_seen: &'static str,
+    backup_flow_seen: "{} · seen {}",
     /// A vault of the plan, open.
-    pub backup_flow_unlocked: &'static str,
+    backup_flow_unlocked: "Unlocked",
     /// Summary of step 3.
-    pub backup_flow_unlocked_of: &'static str,
+    backup_flow_unlocked_count: "{} of {} unlocked",
     /// Toast: the key is made into open vaults.
-    pub backup_flow_unlock_first: &'static str,
+    backup_flow_unlock_first: "Unlock every vault first",
     /// Toast: the vault set up for a plan vault holds a key only another is to hold.
-    pub backup_flow_set_up_holds_other: &'static str,
+    backup_flow_set_up_holds_other: "{} was set up for this vault and holds a key the plan puts in another. Change the plan",
     /// Toast: the setup's question or count while one of its vaults is open.
-    pub create_vaults_locked: &'static str,
+    create_vaults_locked: "A vault of the setup is open. Lock to change this answer",
     /// While a vault unlocks.
-    pub backup_flow_unlocking: &'static str,
+    backup_flow_unlocking: "Unlocking",
     /// Unlocks a vault of the plan.
-    pub backup_flow_unlock_vault: &'static str,
+    backup_flow_unlock_vault: "Unlock {}",
     /// Summary of step 6.
-    pub backup_flow_written_of: &'static str,
+    backup_flow_written_count: "{} of {} written",
     /// Summary of a done step 3: how many vaults.
-    pub backup_flow_vaults_n: &'static str,
+    backup_flow_vaults_n: "{} vaults",
     /// A vault of the plan, new: its name first.
-    pub backup_flow_vault_new: &'static str,
+    backup_flow_vault_new: "{} · new",
     /// A vault of the plan that exists already: its name first.
-    pub backup_flow_vault_existing: &'static str,
+    backup_flow_vault_existing: "{} · an existing vault",
     /// Toast: a flow in the kept state was corrupt or of another version.
-    pub backup_flow_dropped: &'static str,
+    backup_flow_dropped: "A kept backup did not read and was dropped",
     /// A stick whose room cannot be asked for: it cannot be read.
-    pub backup_flow_unreadable: &'static str,
+    backup_flow_unreadable: "This {} cannot be read. Use another {}",
     /// Toast: a lock was refused because a waiting backup could not be kept.
-    pub toast_lock_not_kept: &'static str,
+    toast_lock_not_kept: "A backup waits and could not be kept. Sealed, not restarted",
     /// Button on Where: the place also keeps this vault's stick.
-    pub backup_flow_also: &'static str,
+    backup_flow_also: "Also {}",
     /// Button on Where: this place's stick carries the key's public files.
-    pub backup_flow_public_here: &'static str,
+    backup_flow_public_here: "Public files here",
     /// Toast: a key is not made with a stick in.
-    pub backup_flow_pull_to_unlock_toast: &'static str,
+    backup_flow_pull_to_unlock_toast: "Pull the stick first",
     /// Fact line under the plan's checks: every secret of the wallet is at one place. The place's name.
-    pub plan_all_at_one_place: &'static str,
+    plan_all_at_one_place: "Every secret of this wallet is at {}. Separate places are strongly recommended.",
     /// Fact line under the plan's checks, for a single key with no passphrase.
-    pub plan_passphrase_apart: &'static str,
+    plan_passphrase_apart: "A passphrase kept at another place than the seed is recommended.",
     /// Button beside that line.
-    pub plan_add_passphrase: &'static str,
+    plan_add_passphrase: "Add a passphrase",
     /// Templates item of the checklist: print them from Faraday Starter. The count, the words, the copy form.
-    pub item_templates_starter: &'static str,
+    item_templates_starter: "Print {} from Faraday Starter: Blank templates, {} words, {}",
     /// Templates item: the copy is the words alone.
-    pub item_templates_words: &'static str,
+    item_templates_words: "Words",
     /// Templates item: the copy is the SeedQR alone.
-    pub item_templates_seedqr: &'static str,
+    item_templates_seedqr: "SeedQR",
     /// Templates item: the copy is the words and the SeedQR.
-    pub item_templates_both: &'static str,
+    item_templates_both: "Both",
     /// Foot of the Templates item, a press.
-    pub item_action_done: &'static str,
+    item_action_done: "Done",
     /// Checklist item: write to the sticks, by place. The medium, plural.
-    pub backup_flow_item_sticks: &'static str,
+    backup_flow_item_sticks: "Write to {}",
     /// Heading of a Bitcoin wallet's flow.
-    pub backup_flow_kind_wallet: &'static str,
+    backup_flow_kind_wallet: "Bitcoin wallet",
     /// A key of a wallet to be made, before it has a fingerprint.
-    pub backup_flow_key_n: &'static str,
+    backup_flow_key_n: "Key {}",
     /// Toast: a key kept only on paper is not here to be copied into a vault.
-    pub backup_flow_key_on_paper: &'static str,
+    backup_flow_key_on_paper: "Its key is kept only on paper. Type its words in first",
     /// Checklist item whose files were written: where.
-    pub backup_flow_written_to: &'static str,
+    backup_flow_written_place: "Written to {}",
     /// Make card of a wallet's flow.
-    pub backup_flow_card_make_wallet: &'static str,
+    backup_flow_card_make_wallet: "Make the keys",
     /// Make a new wallet's and Restore's card before the keys: whether
     /// vaults are part of the backup.
-    pub backup_flow_card_use_vaults: &'static str,
+    backup_flow_card_use_vaults: "Use vaults",
     /// The question on that card.
-    pub backup_flow_use_vaults_question: &'static str,
+    backup_flow_use_vaults_question: "Will you use vaults as part of this backup?",
     /// The muted line under that question (`docs/BACKUP-FLOW.md` §17.21
     /// item 5).
-    pub backup_flow_vaults_on_sticks: &'static str,
+    backup_flow_vaults_on_sticks: "Vaults already on sticks are brought in here, not later.",
     /// The card that asks how many vaults.
-    pub backup_flow_card_vault_count: &'static str,
+    backup_flow_card_vault_count: "Number of vaults",
     /// The line over the count of vaults.
-    pub backup_flow_how_many_question: &'static str,
+    backup_flow_how_many_question: "How many vaults will be part of this backup?",
     /// The count's label.
-    pub backup_flow_vault_count_label: &'static str,
+    backup_flow_vault_count_label: "Vaults",
     /// A stick named by its vault before the keys exist: "the stick for
     /// Vault 1".
-    pub backup_flow_stick_for_vault: &'static str,
+    backup_flow_stick_for_vault: "the {} for {}",
     /// The flow's first card for a wallet whose keys exist: the plan.
-    pub backup_flow_card_plan: &'static str,
+    backup_flow_card_plan: "The plan",
     /// Opens the flow on the card to change what it decided.
-    pub backup_flow_change: &'static str,
+    backup_flow_change: "Change",
     /// Button of a wallet's Make card.
-    pub backup_flow_make_the_keys: &'static str,
+    backup_flow_make_the_keys: "Make the keys",
     /// Make card of a round for an added vault: the seeds kept only on paper.
-    pub backup_flow_on_paper_only: &'static str,
+    backup_flow_on_paper_only: "{} is kept only on paper",
     /// Button: type the seed back from its copy.
-    pub backup_flow_add_from_copy: &'static str,
+    backup_flow_add_from_copy: "Add the key from its copy",
     /// Toast: a change would take a written stick off the plan.
-    pub backup_flow_written_stays: &'static str,
+    backup_flow_written_stays: "A stick already written stays on the plan",
     /// Toast: the round has no copy of the wallet description to put in.
-    pub backup_flow_no_description: &'static str,
+    backup_flow_no_description: "No copy of the wallet description is here to put in",
     /// Toast: a change would leave a key held back kept on no stick.
-    pub backup_flow_held_stays: &'static str,
+    backup_flow_held_stays: "A key not yet written stays kept on a stick",
     /// The backup board's card (`docs/BACKUP-FLOW.md` §17): its title.
-    pub board_title: &'static str,
+    board_title: "Places",
     /// The board's card closed: how many places. `{}`: the count.
-    pub board_places: &'static str,
+    board_places: "{} places",
     /// A list chip's count, or the card closed with one place.
-    pub board_one_place: &'static str,
+    board_one_place: "1 place",
     /// A place's box that makes a stick of what is dropped on it.
-    pub board_add_stick: &'static str,
+    board_add_stick: "+ stick",
     /// A stick zone's label. `{}`: its number at the place, from 1.
-    pub board_stick: &'static str,
+    board_stick: "Stick {}",
     /// A stick zone's label where the medium is an SD card (the Pi).
     /// `{}`: its number at the place, from 1.
-    pub board_sd_card: &'static str,
+    board_sd_card: "SD card {}",
     /// The files box's header inside a stick box: the files kept on the
     /// stick outside any vault (`docs/BACKUP-FLOW.md` §17.17).
-    pub board_files_not_sealed: &'static str,
+    board_files_not_sealed: "Files · not sealed",
     /// A place card's paper zone.
-    pub board_paper: &'static str,
+    board_paper: "Paper",
     /// The software place's zone: the description shown for it to scan.
-    pub board_scanned_in: &'static str,
+    board_scanned_zone: "Scanned in",
     /// The list's entry and the software place's title when no software
     /// is chosen.
-    pub board_watch_only: &'static str,
+    board_watch_only: "Watch-only software",
     /// The list's group of seeds.
-    pub board_seeds: &'static str,
+    board_seeds: "Seeds",
     /// The list's group of passphrases.
-    pub board_passphrases: &'static str,
+    board_passphrases: "Passphrases",
     /// The list's group of the description and its shares.
-    pub board_wallet_description: &'static str,
+    board_wallet_description: "Wallet description",
     /// The whole description's chip.
-    pub board_whole: &'static str,
+    board_whole: "Whole",
     /// A share's chip. `{}`: its number.
-    pub board_share: &'static str,
+    board_share: "Share {}",
     /// The list's group of vaults.
-    pub board_vaults: &'static str,
+    board_vaults: "Vaults",
     /// The list's button that adds a vault, always a new one, made in the
     /// checklist (`docs/BACKUP-FLOW.md` §17.21 item 4).
-    pub board_add_vault: &'static str,
+    board_add_vault: "+ new vault",
     /// A cosigner's seed in the list: its key is not here.
-    pub board_not_here: &'static str,
-    /// The stepper over the shares.
-    pub board_keys_left_off: &'static str,
+    board_not_here: "Not here",
     /// A form: a seed's words on paper.
-    pub board_words: &'static str,
+    board_words: "Words",
     /// A form: a seed's SeedQR on paper.
-    pub board_seedqr: &'static str,
+    board_seedqr: "SeedQR",
     /// A form: a seed's words as a text file.
-    pub board_words_file: &'static str,
+    board_words_file: "Words file",
     /// A form: a seed's SeedQR as a picture.
-    pub board_seedqr_file: &'static str,
+    board_seedqr_file: "SeedQR file",
     /// A form: a passphrase as a text file.
-    pub board_passphrase_file: &'static str,
+    board_passphrase_file: "Passphrase file",
     /// A form: the description or a share as text.
-    pub board_text_file: &'static str,
+    board_text_file: "Text file",
     /// A form: the description or a share as a QR picture.
-    pub board_qr_picture: &'static str,
+    board_qr_picture: "QR picture",
     /// A form: the software's own file. `{}`: the software.
-    pub board_software_file: &'static str,
+    board_software_file: "{} file",
     /// A check: a place keeps a passphrase beside its seed's words. The
     /// place, the seed.
-    pub board_pass_with_words: &'static str,
+    board_pass_with_words: "{} keeps {}'s words with its passphrase",
     /// A check: one place alone spends the wallet. The place.
-    pub board_alone_spends: &'static str,
+    board_alone_spends: "{} alone can spend the wallet",
     /// Under a vault's chip, before it is taken off: what it holds. The
     /// vault, what it holds.
-    pub board_vault_holds: &'static str,
+    board_vault_holds: "{} holds {}",
     /// Takes a vault that holds something off the plan.
-    pub board_take_off: &'static str,
+    board_take_off: "Take off",
     /// The narrow column's button that opens the board's list as a sheet
     /// (`docs/BACKUP-FLOW.md` §17.12 item 3).
-    pub board_add: &'static str,
+    board_add: "Add",
     /// The board's row after the last place that adds a place
     /// (`docs/BACKUP-FLOW.md` §17.15).
-    pub board_add_place: &'static str,
+    board_add_place: "+ place",
     /// A vault box's header band. `{}`: the vault, "Vault 1".
-    pub board_sealed: &'static str,
+    board_sealed: "{} · sealed",
     /// A vault box's header band while the vault is not made yet: it is
     /// made in the checklist (`docs/BACKUP-FLOW.md` §17.21 item 6). `{}`:
     /// the vault.
-    pub board_sealed_made: &'static str,
+    board_sealed_made: "{} · sealed · made in the checklist",
     /// The same, where that does not fit the band. `{}`: the vault.
-    pub board_sealed_new: &'static str,
+    board_sealed_new: "{} · new",
     /// The ⋮ menu of a chip in the list, and its title: where it can be
     /// placed (`docs/BACKUP-FLOW.md` §17.20).
-    pub board_menu_add: &'static str,
+    board_menu_add: "Add to…",
     /// A placed chip's ⋮ menu: the item moved to another box.
-    pub board_menu_move: &'static str,
+    board_menu_move: "Move to…",
     /// A placed chip's ⋮ menu: the item also kept in another box.
-    pub board_menu_copy: &'static str,
+    board_menu_copy: "Copy to…",
     /// A box in the ⋮ menu: a stick's files. `{}`: the stick, "Stick 1".
-    pub board_menu_files: &'static str,
+    board_menu_files: "{} · files",
     /// A box in the ⋮ menu: a vault on a stick. `{}`: the stick, the vault.
-    pub board_menu_vault: &'static str,
+    board_menu_vault: "{} · {}",
     /// A box in the ⋮ menu: a new stick at the place, as **+ stick** makes.
-    pub board_menu_new_stick: &'static str,
+    board_menu_new_stick: "New stick",
     /// The ⋮ menu's way out on the small panel, where it is a sheet.
-    pub board_menu_cancel: &'static str,
+    board_menu_cancel: "Cancel",
     /// The board's right-hand column, and the narrow column's button in
     /// place of Add, while the board is read-only: opens it for changes
     /// (`docs/BACKUP-FLOW.md` §17.6).
-    pub board_customize: &'static str,
+    board_customize: "Customize backup",
     /// The read-only board's button that adds the software place, with the
     /// description Scanned in (`docs/BACKUP-FLOW.md` §17.21 item 3).
-    pub board_add_watch_only: &'static str,
+    board_add_watch_only: "Add watch-only software",
     /// The same button while the software place is on the board: takes it
     /// off.
-    pub board_take_off_watch: &'static str,
+    board_take_off_watch: "Take off watch-only software",
     /// A place's spend tag (`docs/BACKUP-FLOW.md` §17.22): its seeds alone sign.
-    pub board_spend_alone: &'static str,
+    board_spend_alone: "Can spend alone",
     /// Its seeds sign alone, with the vault's passphrase.
-    pub board_spend_alone_vault: &'static str,
+    board_spend_alone_vault: "Can spend alone with the vault's passphrase",
     /// One more place's seeds and this place's sign.
-    pub board_spend_more_one: &'static str,
+    board_spend_more_one: "Spends with 1 more place",
     /// `{}`: how many more places' seeds sign with this place's.
-    pub board_spend_more: &'static str,
+    board_spend_more: "Spends with {} more places",
     /// As `board_spend_more_one`, with the vault's passphrase.
-    pub board_spend_vault_more_one: &'static str,
+    board_spend_vault_more_one: "Spends with the vault's passphrase and 1 more place",
     /// As `board_spend_more`, with the vault's passphrase. `{}`: places.
-    pub board_spend_vault_more: &'static str,
+    board_spend_vault_more: "Spends with the vault's passphrase and {} more places",
     /// The sheet over a drop that brings a place nearer a spend (§19.22). `{}`: the place.
-    pub board_spend_title_alone: &'static str,
+    board_spend_title_alone: "Anyone with access to {} can spend",
     /// As `board_spend_title_alone`, with the vault's passphrase. `{}`: the place.
-    pub board_spend_title_alone_vault: &'static str,
+    board_spend_title_alone_vault: "Anyone with access to {} and the vault's passphrase can spend",
     /// `{}`: the place; one more place spends.
-    pub board_spend_title_one: &'static str,
+    board_spend_title_one: "Anyone with access to {} needs only 1 more place to spend",
     /// `{}`: the place, then how many more places.
-    pub board_spend_title_more: &'static str,
+    board_spend_title_more: "Anyone with access to {} needs only {} more places to spend",
     /// As `board_spend_title_one`, with the vault's passphrase.
-    pub board_spend_title_vault_one: &'static str,
+    board_spend_title_vault_one: "Anyone with access to {} and the vault's passphrase needs only 1 more place to spend",
     /// As `board_spend_title_more`, with the vault's passphrase.
-    pub board_spend_title_vault_more: &'static str,
+    board_spend_title_vault_more: "Anyone with access to {} and the vault's passphrase needs only {} more places to spend",
     /// The sheet's line. `{}`: the place, its seeds, the seeds a spend needs.
-    pub board_spend_line: &'static str,
+    board_spend_line: "{} keeps {} of the {} seeds a spend needs.",
     /// As `board_spend_line`, counting the seeds in its vaults.
-    pub board_spend_line_vault: &'static str,
+    board_spend_line_vault: "{} keeps {} of the {} seeds a spend needs, counting its vaults.",
     /// The sheet over a drop that lets a place see the balance
     /// (`docs/BACKUP-FLOW.md` §17.5). `{}`: the place.
-    pub board_sees_title: &'static str,
+    board_sees_title: "{} can see the wallet's balance",
     /// Its line: the place keeps the whole description.
-    pub board_sees_whole: &'static str,
+    board_sees_whole: "The whole description is kept there.",
     /// Its line: what at the place together makes the description. `{}`:
     /// "Share 1 and seed 9a6a2580".
-    pub board_sees_together: &'static str,
+    board_sees_together: "{} together make the whole description.",
     /// Its line: one share alone makes the description. `{}`: "Share 1".
-    pub board_sees_alone: &'static str,
+    board_sees_alone: "{} makes the whole description.",
     /// One share in its line. `{}`: its number.
-    pub board_sees_share: &'static str,
+    board_sees_share: "Share {}",
     /// Shares in its line. `{}`: "1, 2", the last.
-    pub board_sees_shares: &'static str,
+    board_sees_shares: "Shares {} and {}",
     /// One seed in its line. `{}`: its fingerprint.
-    pub board_sees_seed: &'static str,
+    board_sees_seed: "seed {}",
     /// Seeds in its line. `{}`: the fingerprints but the last, the last.
-    pub board_sees_seeds: &'static str,
+    board_sees_seeds: "seeds {} and {}",
     /// The shares and the seeds in its line. `{}`: the shares, the seeds.
-    pub board_sees_both: &'static str,
+    board_sees_both: "{} and {}",
     /// Keeps the drop.
-    pub board_keep_it: &'static str,
+    board_keep_button: "Keep it",
     /// Undoes the drop.
-    pub board_take_it_off: &'static str,
+    board_take_it_off: "Take it off",
     /// Under the list's Wallet description: hands a share to every place
     /// (`docs/BACKUP-FLOW.md` §17.19 item 1).
-    pub board_partials_add: &'static str,
+    board_partials_add: "Add partial descriptions to this backup",
     /// The same button while they are on: takes every share off.
-    pub board_partials_remove: &'static str,
+    board_partials_remove: "Remove partial descriptions",
     /// The sheet after adding them: its title.
-    pub board_partials_each: &'static str,
+    board_partials_each: "Each place now holds a part of the description.",
     /// Its line where the whole description is still kept. `{}`: the
     /// places, "Place 1, Place 2 and Place 3".
-    pub board_partials_whole: &'static str,
+    board_partials_whole: "The whole description is still kept at {}, so the balance can be seen there. Take it off any place where the balance should stay hidden.",
     /// Takes the whole description off every place.
-    pub board_take_it_off_every: &'static str,
+    board_take_it_off_every: "Take it off every place",
     /// A warning: nothing of the description is kept.
-    pub board_desc_nothing: &'static str,
+    board_desc_nothing: "The description cannot be put back together: add the whole description",
     /// A warning: what is kept does not put it back together. `{}`: what
     /// is kept ("Share 1 twice and Share 2"), what would complete it
     /// ("Share 3").
-    pub board_desc_missing: &'static str,
+    board_desc_missing: "The description cannot be put back together: the places hold {}; add {} or the whole description",
     /// The same, every share kept somewhere. `{}`: what is kept.
-    pub board_desc_kept_add: &'static str,
+    board_desc_kept_add: "The description cannot be put back together: the places hold {}; add the whole description",
     /// A share kept twice, in those warnings. `{}`: its number.
-    pub board_share_twice: &'static str,
+    board_share_twice: "Share {} twice",
     /// A share kept more often. `{}`: its number, how often.
-    pub board_share_times: &'static str,
+    board_share_times: "Share {} {} times",
     /// A warning: a place sees the balance from its share and seeds.
     /// `{}`: the place, what there makes the description.
-    pub board_sees_warn: &'static str,
+    board_sees_warn: "{} can see the balance. {}",
     /// A warning: a place keeps no seed. `{}`: the place.
-    pub board_no_seed: &'static str,
+    board_no_seed: "{} holds no seed",
     /// The backup's last card, in Guided only (`docs/BACKUP-FLOW.md`
     /// §17.19 item 7).
-    pub backup_extra_copies: &'static str,
+    backup_extra_copies: "More copies can be made once the wallet is made: a vault copied to another stick, words copied by hand. They are not part of the plan.",
     /// The Learn link under it.
-    pub backup_extra_copies_link: &'static str,
+    backup_extra_copies_link: "Extra copies",
     /// "Any one place lost" with a single place (§19.19).
-    pub plan_no_single_place: &'static str,
+    plan_no_single_place: "No: a single place",
     /// Why "Any one place lost" reads No when the description goes. `{}`:
     /// the place.
-    pub plan_without_no_description: &'static str,
+    plan_without_no_description: "Without {}, the rest cannot put the description back together",
     // ----- A ⋮ on every file; Rename; Details (docs/FLOWS.md decision 61), faraday-core -----
     /// A file's ⋮ menu: the popup to rename it.
-    pub file_menu_rename: &'static str,
+    file_menu_rename: "Rename",
     /// A file's ⋮ menu: the sheet of its name, kind, size and SHA-256.
-    pub file_menu_details: &'static str,
+    file_menu_details: "Details",
     /// A file on the stick visited: its ⋮ menu's way to the Delete files
     /// sheet with it alone chosen. `{}`: "stick", "SD card".
-    pub file_menu_delete_from: &'static str,
+    file_menu_delete_from_medium: "Delete from the {}",
     /// The ⋮ menu's way out on the small panel, where it is a sheet.
-    pub file_menu_cancel: &'static str,
+    file_menu_cancel: "Cancel",
     /// The Rename popup's title. `{}`: the file's name.
-    pub rename_title: &'static str,
+    rename_title: "Rename {}",
     /// The Rename popup's button.
-    pub rename_button: &'static str,
+    rename_button: "Rename",
     /// The Rename popup's way out.
-    pub rename_cancel: &'static str,
+    rename_cancel: "Cancel",
     /// Rename refused: nothing typed.
-    pub rename_empty: &'static str,
+    rename_empty: "Type a name",
     /// Rename refused: the name starts with a dot.
-    pub rename_dot: &'static str,
+    rename_dot: "A name cannot start with a dot",
     /// Rename refused: a character a stick's names cannot hold.
-    pub rename_character: &'static str,
+    rename_character: "A name cannot hold / \\ : * ? \" < > | or a control character",
     /// Rename refused: the name with its extension is over 255 characters.
-    pub rename_long: &'static str,
+    rename_long: "A name is at most 255 characters with its extension",
     /// Rename refused: another file For the stick has the name, ignoring
     /// case. `{}`: "for the stick", the name.
-    pub rename_taken_for: &'static str,
+    rename_taken_outbox: "Another file {} is named {}",
     /// The visit's line once a file on the stick is renamed. `{}`: the
     /// old name, the new.
-    pub rename_done: &'static str,
+    rename_done: "{} renamed {}",
     /// The visit's line: refused, the name is on the stick already. `{}`:
     /// the name, "stick".
-    pub rename_taken_on: &'static str,
+    rename_taken_on_medium: "{} is already on this {}",
     /// The visit's line: refused, the file of that name is the same vault.
     /// `{}`: the name, "stick".
-    pub rename_same_vault: &'static str,
+    rename_same_vault: "{} on this {} is this same vault",
     /// The visit's line: the stick refused the rename. `{}`: the name, why.
-    pub rename_not_done: &'static str,
+    rename_not_done: "{} not renamed: {}",
     /// The Details sheet's labels.
-    pub details_name: &'static str,
+    details_name: "Name",
     /// The Details sheet's label for the row's kind line.
-    pub details_kind: &'static str,
+    details_kind: "Kind",
     /// The Details sheet's label for the size.
-    pub details_size: &'static str,
+    details_size: "Size",
     /// The size in bytes. `{}`: the number.
-    pub details_bytes: &'static str,
+    details_bytes: "{} bytes",
     /// The Details sheet's label for the hash.
-    pub details_sha: &'static str,
+    details_sha: "SHA-256",
     /// The hash while the stick is read for it.
-    pub details_reading: &'static str,
+    details_reading: "Reading…",
     /// The hash not read. `{}`: why.
-    pub details_not_read: &'static str,
+    details_not_read: "Not read: {}",
     /// The Details sheet's one button.
-    pub details_close: &'static str,
+    details_close: "Close",
     /// The Delete files sheet's button when a vault is chosen: a hold
     /// (`docs/FLOWS.md` decision 4). `{}`: the count, "file" or "files".
-    pub stick_wipe_hold_delete: &'static str,
+    stick_wipe_hold_delete: "Hold to delete {} {} with zeros",
     // ----- New key's sources, checks and dice lists, the self-test, BIP-85's applications, Tools' calculators, Explore's path -----
     /// Row that declines a passphrase.
-    pub passphrase_none: &'static str,
+    passphrase_none: "No passphrase",
     /// Chip in an empty passphrase field in Demo that fills it.
-    pub passphrase_chip: &'static str,
+    passphrase_chip: "faraday",
     /// Button that discards the entries.
-    pub create_sanity_again: &'static str,
+    create_sanity_again: "Roll again",
     /// Source: a six-sided die.
-    pub create_source_dice: &'static str,
+    create_source_dice: "Dice",
     /// Source: coin flips.
-    pub create_source_coins: &'static str,
+    create_source_coins: "Coin flips",
     /// Source: typed hex.
-    pub create_source_hex: &'static str,
+    create_source_hex: "Hex entropy",
     /// Source: a shuffled deck.
-    pub create_source_cards: &'static str,
+    create_source_cards: "Playing cards",
     /// Source: camera noise.
-    pub create_source_camera: &'static str,
+    create_source_camera: "Camera noise",
     /// Source: several sources mixed.
-    pub create_source_mix: &'static str,
+    create_source_mix: "Mixed sources",
     /// Source: the device's own generator.
-    pub create_source_device: &'static str,
+    create_source_device: "This device",
     /// Label: the chi-square statistic of the rolls.
-    pub create_chi_square: &'static str,
+    create_chi_square: "Chi-square",
     /// Label: the longest run of one outcome.
-    pub create_longest_run: &'static str,
+    create_longest_run: "Longest run",
     /// The run's value on a dice check: `{}` runs of the face named by
     /// `create_face_1` to `create_face_6`, as `8 sixes`.
-    pub create_run_face: &'static str,
-    /// Plural name of dice face 1, for that value.
-    pub create_face_1: &'static str,
-    /// Plural name of dice face 2.
-    pub create_face_2: &'static str,
-    /// Plural name of dice face 3.
-    pub create_face_3: &'static str,
-    /// Plural name of dice face 4.
-    pub create_face_4: &'static str,
-    /// Plural name of dice face 5.
-    pub create_face_5: &'static str,
-    /// Plural name of dice face 6.
-    pub create_face_6: &'static str,
-    /// Verdict beside a statistic: `normal for {} rolls`.
-    pub create_stat_normal: &'static str,
-    /// Verdict beside a statistic that is out of the usual range.
-    pub create_stat_high: &'static str,
-    /// Label: heads.
-    pub create_heads: &'static str,
-    /// Label: tails.
-    pub create_tails: &'static str,
-    /// That Choice: the rolls hashed as ASCII digits.
-    pub dice_procedure_hashed: &'static str,
-    /// That Choice: every 6 written as a 0, then hashed.
-    pub dice_procedure_six_as_zero: &'static str,
-    /// The second line of a procedure's row: `{} rolls`.
-    pub dice_procedure_rolls: &'static str,
-    /// Label: how many cards were drawn.
-    pub create_cards_row: &'static str,
-    /// The shutter under it.
-    pub create_camera_shutter: &'static str,
-    /// Label: how many frames were taken.
-    pub create_frames_row: &'static str,
-    /// Label: how many of the 256 luma values the last frame used.
-    pub create_distinct_row: &'static str,
-    /// The coloured line on that step.
-    pub create_device_result: &'static str,
-    /// Label: what produced the bytes.
-    pub create_device_row: &'static str,
-    /// The generator on a device with no secure element.
-    pub create_device_os: &'static str,
-    /// The caution this source carries on the source list.
-    pub create_trusts_device: &'static str,
-    /// Label on the device-randomness result: what the bytes rest on.
-    pub create_trust_row: &'static str,
-    /// That row's value, in the caution tone.
-    pub create_trust_device: &'static str,
-    /// "Draw again" on the sanity step, for cards.
-    pub create_sanity_again_draw: &'static str,
-    /// "Take again" on the sanity step, for the camera.
-    pub create_sanity_again_take: &'static str,
-    /// Application 39': a child key of words.
-    pub bip85_app_words: &'static str,
-    /// Application 2': an HD-seed WIF.
-    pub bip85_app_wif: &'static str,
-    /// Application 32': an extended private key.
-    pub bip85_app_xprv: &'static str,
-    /// Application 128169': raw bytes.
-    pub bip85_app_hex: &'static str,
-    /// Application 707764': a password in base64.
-    pub bip85_app_base64: &'static str,
-    /// Application 707785': a password in base85.
-    pub bip85_app_base85: &'static str,
-    /// Row: the hash functions.
-    pub tools_hashes: &'static str,
-    /// Row: base58, bech32, hex, binary.
-    pub tools_encodings: &'static str,
-    /// Row: the descriptor checksum.
-    pub tools_descriptor_checksum: &'static str,
-    /// Row: xpub to SLIP-132 and back.
-    pub tools_convert_key: &'static str,
-    /// Row: the unit converter.
-    pub tools_units: &'static str,
-    /// Tools row: the miniscript policy compiler.
-    pub tools_miniscript: &'static str,
-    /// Title of the Choice that picks the list.
-    pub dice_list_title: &'static str,
-    /// Row: the 7776-word list.
-    pub dice_list_large: &'static str,
-    /// What that row costs to roll.
-    pub dice_list_large_detail: &'static str,
-    /// Row: the first 1296-word list.
-    pub dice_list_short1: &'static str,
-    /// What that row costs to roll.
-    pub dice_list_short1_detail: &'static str,
-    /// Row: the second 1296-word list.
-    pub dice_list_short2: &'static str,
-    /// What that row costs to roll, and what its words are chosen for.
-    pub dice_list_short2_detail: &'static str,
-    /// A path with two slashes in a row.
-    pub explore_path_empty: &'static str,
-    /// A path that ends with a slash.
-    pub explore_path_unfinished: &'static str,
-    /// A level that is not a number.
-    pub explore_path_not_a_number: &'static str,
-    /// An index of two to the thirty-first or more.
-    pub explore_path_too_large: &'static str,
-    /// More than ten levels.
-    pub explore_path_too_deep: &'static str,
-    /// Button and title: the account's addresses, a page at a time.
-    pub explore_addresses: &'static str,
-    /// Button and title: look for an address among the account's.
-    pub explore_find: &'static str,
-    /// Label: the account the addresses are of.
-    pub explore_account: &'static str,
-    /// The account: `{}` its path without `m/`, `{}` its script.
-    pub explore_account_is: &'static str,
-    /// Button: the receive chain.
-    pub explore_receive: &'static str,
-    /// Button: the change chain.
-    pub explore_change: &'static str,
-    /// An address's name: `{}` its index on the receive chain.
-    pub explore_receive_n: &'static str,
-    /// An address's name: `{}` its index on the change chain.
-    pub explore_change_n: &'static str,
-    /// Label: the list's first index, typed.
-    pub explore_from: &'static str,
-    /// Button: the page before; `{}` how many addresses a page holds.
-    pub explore_previous_n: &'static str,
-    /// Button: the page after; `{}` how many addresses a page holds.
-    pub explore_next_n: &'static str,
-    /// Label: how many indices of each chain the search looks at.
-    pub explore_look_through: &'static str,
-    /// Button: a search's depth; `{}` the indices of each chain.
-    pub explore_first_n: &'static str,
-    /// Button: start the search.
-    pub explore_search: &'static str,
-    /// Button: stop the search where it is.
-    pub explore_stop: &'static str,
-    /// A search under way: `{}` the indices looked at, `{}` how many it looks at, on each chain.
-    pub explore_searched: &'static str,
-    /// A search that found nothing: `{}` the indices looked at on each chain.
-    pub explore_not_in_the_first: &'static str,
-    /// A search's matches: `{}` how many.
-    pub explore_found_n: &'static str,
-    /// Matches past the ones listed: `{}` how many.
-    pub explore_more_n: &'static str,
-    /// A paste with a character no address has, or too long for one.
-    pub explore_not_an_address: &'static str,
-    /// Label: the self-test result.
-    pub settings_selftest: &'static str,
-    /// The self-test passed: `{}` is the check count.
-    pub settings_selftest_passed: &'static str,
-    /// The self-test failed: `{}` is the check.
-    pub settings_selftest_failed: &'static str,
-    /// Action that runs the self-test again.
-    pub settings_selftest_run: &'static str,
-    /// Failure title.
-    pub selftest_failed_title: &'static str,
-    /// Row label: the check that did not reproduce.
-    pub selftest_check_row: &'static str,
-    /// The only button.
-    pub selftest_exit: &'static str,
-}
-
-/// The English wording.
-pub static EN: Strings = Strings {
-    power_secure_boot_off: "Turn Secure Boot back on in the BIOS before starting Windows.",
-    vault_show_seedqr: "Show SeedQR",
-    vault_save_to_a_stick: "Save to a stick",
-    vault_anyone_who_finds: "Anyone who finds this stick has this seed",
-    devices_title: "Attached to this computer",
-    devices_kvm: "a KVM can show this screen and type on this computer from elsewhere",
-    devices_receiver_notice: "Wireless receiver attached. A wireless keyboard's typing can be picked up nearby: use a wired keyboard or the on-screen keyboard.",
-    devices_bolt_notice: "Logitech Bolt receiver attached. A Bolt keyboard's typing is encrypted.",
-    devices_virtual_machine: "a virtual machine's host sees and can change everything in it",
-    devices_virtual_machine_unknown: "This computer",
-    devices_real_computer: "Faraday must start on a real computer.",
-    devices_this_screen: "This screen",
-    devices_tv: "a TV can record what it shows",
-    devices_unnamed: "USB device {}",
-    devices_check_again: "Check again",
-    devices_continue: "Continue anyway",
-    devices_continue_ask: "What is listed stays possible while they are attached.",
-    devices_continue_yes: "Yes, continue",
-    devices_still: "Still attached",
-    devices_power_off: "Power off",
-    devices_tv_line: "On a TV? Stop: a smart TV can record its screen.",
-    devices_before: "Before a secret is shown",
-    devices_understood: "I understand",
-    devices_cancel: "Cancel",
-    seed_missing: "No randomness from the system. Faraday has to restart",
-    // The Starter (docs/STARTER.md).
-    starter_home: "Home",
-    starter_computer: "This computer",
-    starter_computer_unknown: "This computer",
-    starter_checklist: "Checklist",
-    starter_secure_boot_on: "Secure Boot: on",
-    starter_secure_boot_off: "Secure Boot: off",
-    starter_secure_boot_unknown: "Secure Boot: not read",
-    starter_cannot_start_arm: "This computer cannot start a Faraday stick",
-    starter_cannot_start_bios: "Started in legacy BIOS mode: UEFI has to be on",
-    starter_cannot_start_mac_firmware: "This Mac's firmware cannot start Faraday",
-    starter_cannot_start_mac_yet: "This Mac cannot start Faraday yet",
-    starter_mac_t2: "Apple T2 Security Chip",
-    starter_item_start_mac: "Start this Mac from the stick",
-    starter_state_mac_option: "Option key at power-on",
-    starter_state_mac_t2: "Startup Security, then the Option key",
-    starter_state_mac_unknown: "Option key at power-on · Startup Security on a T2 Mac",
-    starter_mac_t2_only: "Only on a Mac with the T2 chip",
-    starter_mac_lower: "Lower Startup Security",
-    starter_mac_recovery: "macOS Recovery: hold Command-R at power-on",
-    starter_mac_utility_lower: "Utilities, Startup Security Utility: No Security, and Allow booting from external or removable media",
-    starter_mac_option: "Shut down. Hold Option at power-on and choose EFI Boot",
-    starter_mac_firmware_password: "A firmware password, when one is set, is asked for first",
-    starter_mac_afterwards: "Afterwards: Startup Security back to Full",
-    starter_mac_utility_full: "macOS Recovery, Startup Security Utility: Full Security, and Disallow booting from external or removable media",
-    starter_learn_mac_intel: "Starting an Intel Mac from the stick",
-    starter_which_title: "For which computer?",
-    starter_which_pc: "A PC or an Intel Mac",
-    starter_which_apple: "A Mac with M1 or M2",
-    starter_item_make: "Make a Faraday stick",
-    starter_item_start: "Start this computer from the stick",
-    starter_item_secure_boot: "Turn Secure Boot back on",
-    starter_state_no_stick: "No Faraday stick attached",
-    starter_state_stick: "Faraday stick attached · {}",
-    starter_row_pi: "Make a Pi card",
-    starter_row_transfer: "Transfer",
-    starter_row_install: "Install",
-    starter_row_installed: "Installed",
-    starter_row_update: "Update the installed Faraday",
-    starter_row_about: "About",
-    starter_row_learn: "Learn",
-    starter_disks_stick: "Which stick?",
-    starter_disks_card: "Which card?",
-    starter_pi_for: "For a Raspberry Pi 3B, 3B+ or Zero 2 W with the Waveshare 2.8 inch screen",
-    starter_pi_cameras: "Cameras: a USB webcam, or Camera Module v1 or v2",
-    starter_no_stick_image: "Faraday Starter carries no stick image",
-    starter_no_pi_image: "Faraday Starter carries no Pi image",
-    starter_no_writer: "This computer cannot write a stick from here",
-    starter_no_disks_stick: "No USB stick attached · 256 MB or larger",
-    starter_no_disks_card: "No SD card or USB stick attached · 256 MB or larger",
-    starter_disk_unnamed: "Disk",
-    starter_on_faraday: "Faraday stick · {}",
-    starter_version_not_read: "version not read",
-    starter_on_empty: "Empty",
-    starter_on_volume: "1 volume",
-    starter_on_volumes: "{} volumes",
-    starter_on_files_it: "files on it",
-    starter_on_files_them: "files on them",
-    starter_on_no_files: "no files",
-    starter_refused_mounted: "Used by this computer: mounted at {}",
-    starter_refused_swap: "Used by this computer: swap",
-    starter_refused_system: "Holds this computer's system",
-    starter_refused_small: "Smaller than the image: needs {}",
-    starter_size_gb: "{} GB",
-    starter_size_mb: "{} MB",
-    starter_mode_title: "What to write?",
-    starter_mode_whole_stick: "New Faraday stick",
-    starter_mode_whole_card: "New Faraday card",
-    starter_mode_whole_sub: "Everything on it is lost",
-    starter_mode_keep: "Replace Faraday, keep data",
-    starter_mode_keep_sub: "Only the boot partition is written",
-    starter_mode_keep_fact: "This computer can read and change the data partition while the stick is attached.",
-    starter_mode_same: "Already this build",
-    starter_mode_reading: "Reading the stick's version",
-    starter_mode_boot_only: "The image is a boot partition alone",
-    starter_continue: "Continue",
-    starter_confirm_title: "Confirm",
-    starter_stick: "Stick",
-    starter_card: "Card",
-    starter_size: "Size",
-    starter_device: "Device",
-    starter_serial: "Serial",
-    starter_serial_none: "None",
-    starter_on_it: "On it",
-    starter_writes: "Writes",
-    starter_build: "Build",
-    starter_build_unknown: "Not known",
-    starter_img_sha: "SHA-256 of the image",
-    starter_image_sha: "SHA-256 of this image",
-    starter_image_file: "Image file",
-    starter_dev_image: "Not Faraday Starter's own image",
-    starter_keep_newer: "This stick holds a newer Faraday: {}",
-    starter_keep_dev: "Writes a dev build, with a serial console",
-    starter_not_confirmed_stick: "Not the stick confirmed: it was removed or changed",
-    starter_not_confirmed_card: "Not the card confirmed: it was removed or changed",
-    starter_erase_and_write: "Erase and write",
-    starter_write: "Write",
-    starter_writing_title: "Writing",
-    starter_of: "{} of {}",
-    starter_written_of: "Written {}",
-    starter_reading_back: "Reading back · {}",
-    starter_done_title: "Written",
-    starter_failed_title: "Not written",
-    starter_pull_stick: "The stick can be pulled out.",
-    starter_pull_card: "The card can be pulled out.",
-    starter_done: "Done",
-    starter_try_again: "Try again",
-    starter_guide_placeholder: "Learn: {}",
-    starter_learn_start_windows: "Starting a Windows computer from the stick",
-    starter_learn_start_linux: "Starting a Linux computer from the stick",
-    starter_learn_no_start: "When the stick does not start",
-    starter_learn_keep_data: "Replacing Faraday on a stick",
-    starter_tpm_line: "A disk here is unlocked by the TPM: have its passphrase ready",
-    starter_restart: "Restart into the BIOS",
-    starter_restart_stick: "Restart from the stick",
-    starter_restart_save: "This restarts the computer now. Save your work first.",
-    starter_stick_restart_failed: "Restart from the stick did not happen: {}",
-    starter_entry_kept: "The BIOS's Faraday stick entry remains: {}",
-    starter_restart_now: "Restart",
-    starter_cancel: "Cancel",
-    starter_secure_boot_turn_off: "Turn Secure Boot off",
-    starter_secure_boot_already_off: "Secure Boot is already off",
-    starter_fast_boot: "Turn Fast Boot off where it hides USB",
-    starter_boot_from_stick: "Start from the stick",
-    starter_boot_how: "The boot menu key",
-    starter_boot_how_windows: "The boot menu key, or Use a device in Advanced startup",
-    starter_boot_menu_label: "In the boot menu",
-    starter_boot_menu_value: "something like {}",
-    starter_boot_menu_default: "UEFI: {}, Partition 1",
-    starter_boot_menu_efi_usb_device: "EFI USB Device ({})",
-    starter_boot_menu_hp: "USB Hard Drive - {}",
-    starter_afterwards: "Turn Secure Boot back on",
-    starter_afterwards_windows: "Turn Secure Boot back on before starting Windows",
-    starter_on_a_phone: "On a phone",
-    starter_notes_label: "Write down",
-    starter_notes_boot_key: "Boot menu key",
-    starter_notes_bios_key: "BIOS key",
-    starter_notes_setting: "Secure Boot setting",
-    starter_notes_mac_recovery: "macOS Recovery key",
-    starter_notes_mac_setting: "Startup Security",
-    starter_notes_mac_boot_value: "Option, held",
-    starter_notes_mac_recovery_value: "Command-R, held",
-    starter_notes_mac_setting_value: "macOS Recovery → Utilities → Startup Security Utility",
-    starter_notes_not_known: "Not known",
-    starter_notes_t2_only: "{}, only on a Mac with the T2 chip",
-    starter_notes_print: "Print",
-    starter_notes_include_key: "Include the BitLocker recovery key",
-    starter_sheet_recovery_key: "BitLocker recovery key, drive {}",
-    starter_sheet_bios_key_used: "BIOS key used (circle one)",
-    starter_sheet_boot_key_used: "Boot menu key used (circle one)",
-    starter_sheet_other_key: "Other: ________",
-    starter_sheet_key_esc: "Esc",
-    starter_bitlocker_row: "BitLocker, drive {}",
-    starter_bitlocker_on: "On",
-    starter_bitlocker_suspended_times: "Suspended · turns back on by itself after Windows starts {} times",
-    starter_bitlocker_suspended_once: "Suspended · turns back on by itself after Windows starts once",
-    starter_bitlocker_suspended_until: "Suspended until resumed",
-    starter_bitlocker_suspended: "Suspended",
-    starter_bitlocker_suspend: "Temporarily suspend BitLocker",
-    starter_bitlocker_suspend_for: "For the next {} times Windows starts; then it turns back on by itself",
-    starter_bitlocker_resume: "Resume BitLocker",
-    starter_waiting_permission: "Waiting for administrator permission",
-    starter_not_found_windows: "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.",
-    starter_not_found: "If the Secure Boot setting cannot be found: exit the BIOS without saving changes. The computer starts as before.",
-    starter_sheet_off_how: "In the BIOS: the Secure Boot setting to Disabled, then save and exit",
-    starter_sheet_boot_how_windows: "The boot menu key, on the restart after saving, before Windows starts",
-    starter_sheet_boot_how: "The boot menu key, on the restart after saving",
-    starter_sheet_back_how: "The BIOS key at power-on: the Secure Boot setting to Enabled, then save and exit",
-    starter_install_now: "Install",
-    starter_installing: "Installing",
-    starter_installed_in: "Installed in {}",
-    starter_installed_version: "Installed version",
-    starter_this_version: "This version",
-    starter_installed_app: "Faraday Starter",
-    starter_installed_menu: "Menu entry",
-    starter_installed_icon: "Icon",
-    starter_installed_entry: "Installed apps entry",
-    starter_not_installed: "Not installed",
-    starter_uninstall: "Uninstall",
-    starter_uninstall_ask: "Uninstall Faraday Starter?",
-    starter_uninstall_keeps: "Removes the files listed. Received files and settings stay.",
-    starter_why_not_carried: "Faraday Starter does not carry what was confirmed. Nothing was written.",
-    starter_why_changed: "{} is no longer the disk that was confirmed (serial {}, {}). Nothing was written.",
-    starter_why_no_serial: "none",
-    starter_why_bytes: "{} bytes",
-    starter_why_mounted: "A partition on it is mounted at {}. Nothing was written.",
-    starter_why_swap: "A partition on it is in use as swap. Nothing was written.",
-    starter_why_system: "It holds this computer's system. Nothing was written.",
-    starter_why_boot_only: "A boot partition alone is written only over a Faraday stick, keeping its data.",
-    starter_why_too_small: "The disk ({}) is smaller than the image ({}). Nothing was written.",
-    starter_why_payload_sum: "The payload file does not match the manifest. Nothing was written.",
-    starter_why_image_changed: "{} has changed since the app started: its SHA-256 is now {}. Nothing was written.",
-    starter_why_gone: "The disk is no longer attached. Nothing was written.",
-    starter_why_bus: "udisks2 did not answer: {}",
-    starter_why_unmounting: "Unmounting it failed: {}. Nothing was written.",
-    starter_why_open_write: "Opening it to write failed: {}. Nothing was written.",
-    starter_why_open_read: "Opening it to read back failed: {}",
-    starter_why_device: "{}: {}",
-    starter_why_flush: "Flushing {} failed: {}",
-    starter_why_not_stick: "{} is not a Faraday stick: {}. Nothing was written.",
-    starter_why_not_stick_image: "The image is not a Faraday stick image: {}",
-    starter_why_boot_larger: "The image's boot partition ({}) is larger than the stick's ({})",
-    starter_why_boot_label: "The image's boot partition is not a FAT32 filesystem labelled FARADAYBOOT",
-    starter_why_boot_short: "The boot partition image is shorter than one sector",
-    starter_why_table_changed: "The partition table on {} changed",
-    starter_why_reading_table: "Reading the partition table failed: {}",
-    starter_why_back_ends: "Reading back {}: the disk ends at byte {}",
-    starter_why_back_differs: "Reading back {}: what was read differs from what was written at byte {}",
-    starter_why_back_failed: "Reading back {} failed: {}",
-    starter_why_source_read: "Reading the source failed: {}",
-    starter_why_write_failed: "Writing failed: {}",
-    starter_why_payload_changed: "The payload file changed while it was read",
-    starter_why_damaged: "The .xz file is damaged: {}",
-    starter_why_longer: "The decompressed image is longer than {} bytes",
-    starter_why_shorter: "The decompressed image is {} bytes, not {}",
-    starter_why_wrong_sum: "The decompressed image's SHA-256 is {}, not the expected one",
-    starter_why_no_home: "The home folder is not known",
-    starter_why_file: "{}: {}",
-    starter_why_in_the_way: "{} is another program's, and is in the way",
-    starter_why_start: "Starting {} failed: {}",
-    starter_why_restart: "Restarting into the BIOS failed: {}",
-    starter_why_declined: "Administrator permission was declined. Nothing was changed.",
-    starter_why_no_admin: "An administrator of this computer has to do this step.",
-    starter_why_managed: "BitLocker was not suspended ({}). This computer's BitLocker is managed: its administrator has to suspend it.",
-    starter_why_bitlocker: "BitLocker refused {}: {}",
-    starter_why_not_encrypted: "The drive is not encrypted.",
-    starter_why_not_read: "BitLocker on the system drive could not be read.",
-    starter_why_no_recovery_key: "The drive has no BitLocker recovery key.",
-    starter_why_unsupported: "Not on this computer",
-    starter_why_missing: "{} is not installed",
-    starter_why_boot_entry: "efibootmgr failed: {}",
-    starter_why_no_stick: "No Faraday stick is attached",
-    starter_why_same_build: "The stick already holds this build. Nothing was written.",
-    starter_menu_name: "Faraday Starter",
-    starter_publisher: "Faraday",
-    starter_fault_reading: "reading the partition table failed: {}",
-    starter_fault_no_header: "it has no GPT header",
-    starter_fault_not_gpt: "its partition table is not GPT",
-    starter_fault_header_damaged: "its GPT header is damaged",
-    starter_fault_header_checksum: "its GPT header's checksum is wrong",
-    starter_fault_entries_damaged: "its GPT entries are damaged",
-    starter_fault_entries_past_end: "its GPT entries lie past the end of the disk",
-    starter_fault_entries_checksum: "its GPT entries' checksum is wrong",
-    starter_fault_disk_uuid: "its disk UUID is not a Faraday stick's",
-    starter_fault_partitions: "it has {} partitions, not two",
-    starter_fault_boot_name: "its first partition is not named FARADAYBOOT",
-    starter_fault_boot_type: "its first partition is not a Faraday EFI system partition",
-    starter_fault_data_type: "its second partition is not a Faraday FARADAYDATA partition",
-    starter_fault_boot_damaged: "its FARADAYBOOT partition is damaged",
-    starter_fault_boot_small: "its FARADAYBOOT partition ({}) is smaller than the image ({})",
-    starter_fault_overlap: "its partitions overlap",
-    starter_fault_boot_past_end: "its boot partition runs past its end",
-    starter_version: "Version",
-    starter_release: "Release",
-    starter_commit: "Commit",
-    starter_payload: "Carried in this app",
-    starter_no_payload: "Faraday Starter carries no images",
-    starter_sha_xz: "SHA-256",
-    starter_sha_inner: "SHA-256 of {}",
-    starter_release_key: "Release key",
-    starter_check_title: "Checking this file",
-    starter_check_text: "Check this file against SHA256SUMS and its signature, SHA256SUMS.asc, from the release, with the release key above.",
-    starter_check_cmd_import: "gpg --fingerprint F1536BE07E234CFD",
-    starter_check_cmd_verify: "gpg --verify SHA256SUMS.asc SHA256SUMS",
-    starter_check_cmd_sums: "sha256sum -c --ignore-missing SHA256SUMS",
-    starter_check_windows: "On Windows: Get-FileHash -Algorithm SHA256 for the sum, Gpg4win for the signature.",
-    starter_unsigned_title: "Not code-signed",
-    starter_unsigned_text: "A code-signing certificate names a verified person or company, and Faraday is published under a pseudonym. Windows warns on first run; More info, then Run anyway, opens it. The sums and the signature are the check.",
-    starter_row_templates: "Blank templates",
-    starter_tpl_words: "Words",
-    starter_tpl_copy: "Copy",
-    starter_tpl_places: "Places",
-    starter_tpl_seedqr: "SeedQR",
-    starter_tpl_both: "Both",
-    starter_tpl_print: "Print",
-    starter_tpl_save: "Save the PDF",
-    starter_tpl_open: "Open it",
-    starter_tpl_saved: "Saved {}",
-    starter_tpl_fewer: "Fewer",
-    starter_tpl_more: "More",
-    starter_other_found: "An encrypted drive Faraday does not manage: {}",
-    starter_other_confirm: "I have its rescue disk or password",
-    starter_concern_tv: "{} is a TV. A TV can record what it shows: use another screen or computer.",
-    starter_concern_kvm: "{} is a KVM switch. It can capture the screen and type: connect the screen and keyboard directly.",
-    starter_concern_vm: "{} is a virtual machine. Faraday must start on the real computer, and this app cannot see the host's screens and devices.",
-    starter_concern_screen: "The screen",
-    starter_concern_device: "A USB device",
-    starter_concern_computer: "This computer",
-    starter_check_again: "Check again",
-    starter_continue_anyway: "Continue anyway",
-    starter_let_through_ask: "Continue with {} attached?",
-    starter_let_through_until: "Until this app is closed.",
-    starter_learn_secure_boot_bitlocker: "What Secure Boot and BitLocker are",
-    starter_learn_screens: "Screens and devices that can record",
-    starter_learn_boot_entry: "About the boot entry",
-    starter_remove_entry: "Remove the Faraday boot entry",
-    starter_remove_entry_sub: "In this computer's boot list",
-    starter_removing_entry: "Removing",
-    apk_signing_keys: "APK signing keys",
-    apk_not_an_apk: "Not an APK",
-    apk_already_signed: "Already signed",
-    apk_not_aligned: "Not aligned",
-    apk_before_7: "Supports Android before 7.0",
-    apk_other_package: "Another app: {}",
-    apk_over_4_gib: "Over 4 GiB on FAT32",
-    apk_name_too_long: "Name too long",
-    apk_no_name: "No name",
-    apk_no_randomness: "No randomness from the system yet. Try again",
-    apk_the_key_is_in: "The APK key is in the vault",
-    apk_that_does_not_fit: "That does not fit in the vault",
-    apk_name_the_certificate: "Name the certificate",
-    apk_package_invalid: "Not a package name",
-    apk_this_computer: "This computer's clock is not known",
-    apk_no_key_is_selected: "No APK key is selected",
-    apk_sha_256_of: "SHA-256 {}",
-    apk_public_checks: "Public: checks the APKs it signed",
-    apk_certificate: "Certificate",
-    apk_changed_since_review: "The file changed since it was reviewed",
-    apk_kind_apk: "APK",
-    apk_kind_certificate: "APK signing certificate",
-    apk_name_on_certificate: "Name on the certificate",
-    apk_package: "Package",
-    apk_make_a_key: "Make an APK key",
-    apk_key_short: "APK key",
-    apk_make_the_key: "Make the key",
-    apk_making_the_key: "Making the key",
-    apk_public_hint: "Public: printed by anyone who checks the APK",
-    apk_key_made: "APK key made",
-    apk_name: "Name",
-    apk_certificate_sha_256: "Certificate SHA-256",
-    apk_key: "Key",
-    apk_rsa_3072: "RSA 3072",
-    apk_made: "Made",
-    apk_done: "Done",
-    apk_sign_an_apk: "Sign an APK",
-    apk_copy_in_first: "Copy the APK in on {} visit first.",
-    apk_which_key: "Which key?",
-    apk_sign: "Sign",
-    apk_sign_this: "Sign this APK?",
-    apk_file: "File",
-    apk_size: "Size",
-    apk_sha_256: "SHA-256",
-    apk_second_build: "Second build",
-    apk_enter_second: "Enter the second build's SHA-256",
-    apk_at_least_32: "At least 32 hex digits",
-    apk_does_not_match: "Does not match this file",
-    apk_matches: "Matches",
-    apk_version: "Version",
-    apk_android: "Android",
-    apk_and_later: "{} and later",
-    apk_api_level: "API {}",
-    apk_key_row: "Key",
-    apk_will_write: "Will write",
-    apk_hold_to_sign: "Hold to sign",
-    apk_back: "Back",
-    apk_sign_with_key: "Sign with APK key",
-    backup_your_copy_scans_but: "Your copy scans but word {} differs",
-    backup_your_copy_scans: "Your copy scans and matches the seed",
-    backup_share_of: "share {} of {}",
-    backup_the_backup_sheet: "the backup sheet",
-    backup_envelope_the: "Envelope {}: the seed of key {} {}, with {}",
-    backups_wallet: "Wallet",
-    backups_plan: "Plan",
-    backups_in_locked: "In {} · locked",
-    backups_place: "Place {}",
-    backups_vault: "Vault",
-    backups_vault_n: "Vault {}",
-    backups_of_files: "{} of files",
-    backups_watch_only: "Watch-only software",
-    backups_own_devices: "Own devices",
-    backups_checked: "Checked",
-    backups_not_checked: "Not checked",
-    backups_not_here: "Not here",
-    backups_unprotected: "{}, unprotected",
-    backups_shown: "Shown",
-    backups_not_shown: "Not shown",
-    backups_not_seen: "Not seen",
-    backups_nothing: "Nothing",
-    backups_not_made: "Not made",
-    backups_a_vault_is: "A vault is locked",
-    backups_not_saved_yet: "Not saved yet",
-    backups_changed_since: "changed since written",
-    backups_unchanged: "unchanged",
-    backups_not_backed: "Not backed up",
-    backups_paper_checked: "paper ×{} checked",
-    backups_paper_of_checked: "paper {} of {} checked",
-    backups_files: "files {}",
-    backups_planned: "planned",
-    backups_backup: "Backup: {}",
-    backups_on_2: "On {}, {}",
-    backups_on: "On {}",
-    backups_backups: "Backups",
-    backups_no_wallet: "No wallet",
-    backups_no_backup_plan: "No backup plan",
-    backups_back_up: "Back up",
-    backups_wallet_of: "Wallet {} of {}",
-    backups_previous: "Previous",
-    backups_next: "Next",
-    bip85_load_a_key_first: "Load a key first",
-    bip85_bip_85_index: "BIP-85 {} · {} · index {}",
-    bip85_no_vault_is_open: "No vault is open",
-    bip85_is_in_the_vault: "{} is in the vault",
-    bip85_remove_the_first: "Remove the {} first",
-    bip85_key_added: "Key {} added",
-    bip85_a_child_seed: "A child seed's words",
-    bip85_a_private_key: "A private key",
-    bip85_secret_bytes: "Secret bytes",
-    bip85_a_password: "A password",
-    bip85_whoever_has_it: "Whoever has it has what it protects or spends",
-    bip85_key: "Key",
-    bip85_application: "Application",
-    bip85_index: "Index",
-    bip85_value: "Value",
-    bip85_wallets: "Wallets",
-    bip85_derive_with_bip: "Derive with BIP-85",
-    bip85_words: "{} words",
-    bip85_bytes: "{} bytes",
-    bip85_characters: "{} characters",
-    bip85_not_chosen: "Not chosen",
-    bip85_bip_85_turns: "BIP-85 turns one key you already back up into many others: child seeds for other wallets, passwords, keys. Each comes back from the same key, application and index, so the key's backup is theirs too.",
-    bip85_a_child_seed_is: "A child seed is a key of its own, for another wallet or another device. It reveals nothing about this key.",
-    bip85_a_password_for: "A password for a website or a program, as long as it allows. Keep it in a vault entry; the index makes the next one.",
-    bip85_the_value_is_made: "The value is made the way BIP-85 specifies, so any implementation gives the same one from the same key.",
-    bip85_index_0_is_the: "Index 0 is the first of its kind; each number gives another. Write down the index with what you use it for: it is all that is needed to make the value again.",
-    bip85_the_value_is: "The value is a secret. It goes into the open vault, sealed under its passphrase; out of the vault it goes only after the warning.",
-    bip85_to: "{} to {}",
-    bip85_an_index_is_0: "An index is 0 to 2147483647",
-    bip85_type_the_digits: "Type the digits · Enter continues",
-    bip85_continue: "Continue",
-    bip85_path: "Path",
-    bip85_hide: "Hide",
-    bip85_show: "Show",
-    bip85_save_into: "Save into {}",
-    bip85_load_as_a_key: "Load as a key",
-    bip85_out_unprotected: "Out unprotected…",
-    boot_import_vault_inline: "vault",
-    boot_import_vaults: "vaults",
-    boot_import_psbt: "PSBT",
-    boot_import_psbts: "PSBTs",
-    boot_import_other_file: "other file",
-    boot_import_other_files: "other files",
-    boot_import_no_files: "No files read",
-    boot_import_not_a_psbt: "Not a PSBT, a descriptor, an xpub or a signed message",
-    boot_import_no_qr_code: "No QR code found",
-    boot_import_its_codes: "Its codes are not complete",
-    boot_import_qr: "{} QR {} · {}",
-    boot_import_code: "code",
-    boot_import_codes: "codes",
-    boot_import_the_was: "the {} was removed before it was read",
-    boot_import_being_read: "Being read · {}",
-    boot_import_not_a_kind: "Not a kind of file Faraday reads · {}",
-    boot_import_not_read: "Not read: {}",
-    boot_import_vault_n: "Vault · {}",
-    boot_import_imported: "Imported {} · {} · {}",
-    boot_import_wallet_inline: "wallet",
-    boot_import_wallets_inline: "wallets",
-    boot_import_key: "key",
-    boot_import_keys: "keys",
-    boot_import_file: "file",
-    boot_import_files_inline: "files",
-    boot_import_read_from: "Read from {}",
-    boot_import_pull_the: "Pull the {} to continue",
-    boot_import_open: "Open · {}",
-    boot_import_locked: "Locked · {}",
-    boot_import_later: "Later",
-    boot_import_cancel: "Cancel",
-    boot_import_import: "Import",
-    boot_import_unlock: "Unlock",
-    boot_import_unlocking: "Unlocking · {}",
-    catalog_new_key: "New key",
-    catalog_dice_coins: "Dice, coins, cards, hex, camera or a mix",
-    catalog_add_a_key: "Add a key",
-    catalog_type_its_words: "Type its words, any BIP-39 list, with a passphrase",
-    catalog_scan_a_seedqr: "Scan a SeedQR",
-    catalog_standard_or: "Standard or compact",
-    catalog_slip_39_shares: "SLIP-39 shares",
-    catalog_a_new_key_dealt: "A new key dealt as m of n shares",
-    catalog_restore_from: "Restore from SLIP-39",
-    catalog_shares_typed: "Shares typed or scanned back into a key",
-    catalog_a_secret_or: "A secret or its shares typed into a key",
-    catalog_seed_xor: "Seed XOR",
-    catalog_parts_combined: "Parts combined into a key",
-    catalog_explore_a_key: "Explore a key",
-    catalog_its_xpubs_and: "Its xpubs and addresses at any path",
-    catalog_child_seeds: "Child seeds and passwords",
-    catalog_derived_from: "Derived from a key here",
-    catalog_vanity_address: "Vanity address",
-    catalog_a_first_address: "A first address that begins your way",
-    catalog_silent_payments: "Silent payments",
-    catalog_one_address: "One address to give out",
-    catalog_keys_and_seeds: "Keys and seeds",
-    catalog_lightning_node: "Lightning node key",
-    catalog_from_a_key: "From a key here, or an LND aezeed",
-    catalog_single_key: "Single-key wallet",
-    catalog_native_segwit: "Native SegWit, Taproot, nested or legacy",
-    catalog_multisig: "Multisig",
-    catalog_k_of_n_keys: "k of n keys, a quorum signs",
-    catalog_taproot_multisig: "Taproot multisig",
-    catalog_k_of_n_in_one: "k of n in one script leaf",
-    catalog_all_keys_one: "All keys, one signature on chain",
-    catalog_frost_threshold: "FROST threshold",
-    catalog_any_m_of_n: "Any m of n shares, one signature on chain",
-    catalog_miniscript_and: "Miniscript and inheritance",
-    catalog_load_one_from: "Load one from its descriptor",
-    catalog_restore_an: "Restore an existing wallet",
-    catalog_descriptor_wallet: "Descriptor, wallet file, BIP 129 record or split sheets",
-    catalog_wallets: "Wallets",
-    catalog_back_up_a_wallet: "Back up a wallet",
-    catalog_seeds_by_hand: "Seeds by hand, sheets, envelopes, codex32 shares",
-    catalog_sign_a_transaction: "Sign a transaction",
-    catalog_a_psbt_from: "A PSBT from Files or a QR code",
-    catalog_nonce_check: "Nonce check",
-    catalog_every_signature: "Every signature recomputed and checked",
-    catalog_decode_a_transaction: "Decode a transaction",
-    catalog_what_it_spends: "What it spends and pays, field by field",
-    catalog_transactions: "Transactions",
-    catalog_check_an_address: "Check an address",
-    catalog_scan_it_the: "Scan it; the loaded wallets are searched",
-    catalog_sign_a_message: "Sign a message",
-    catalog_with_a_single: "With a single-key wallet's key here",
-    catalog_messages: "Messages",
-    catalog_check_a_signed: "Check a signed message",
-    catalog_against_its: "Against its address",
-    catalog_vaults: "Vaults",
-    catalog_keys_wallets: "Keys, wallets, entries and notes under passphrases",
-    catalog_totp_codes: "TOTP codes",
-    catalog_codes_from: "Codes from the entries in open vaults",
-    catalog_diceware_passphrase: "Diceware passphrase",
-    catalog_rolled_with: "Rolled with dice in Create a vault",
-    catalog_gpg_key: "GPG key",
-    catalog_make_sign_revoke: "Make, sign, revoke, paperkey",
-    catalog_secure_boot: "Secure Boot keys",
-    catalog_pk_kek_and: "PK, KEK and db; sign an EFI image",
-    catalog_keepass_export: "KeePass export",
-    catalog_a_vault_entry: "A vault entry as a sealed database",
-    catalog_vaults_and: "Vaults and other keys",
-    catalog_open_an_oskb: "Open an .oskb backup",
-    catalog_an_oskb_with: "An .oskb with its passphrase",
-    catalog_hashes: "Hashes",
-    catalog_sha_256_sha: "SHA-256, SHA-256d and HASH160",
-    catalog_encodings: "Encodings",
-    catalog_what_a_string: "What a string is encoded in, and its value",
-    catalog_descriptor: "Descriptor checksum",
-    catalog_a_descriptor: "A descriptor's checksum, and whether it holds",
-    catalog_convert_an: "Convert an xpub",
-    catalog_every_spelling: "Every spelling of one extended key",
-    catalog_units: "Units",
-    catalog_one_amount: "One amount in all four units",
-    catalog_calculators: "Calculators",
-    catalog_miniscript: "Miniscript compiler",
-    catalog_a_policy_compiled: "A policy compiled into a descriptor",
-    catalog_bip_39_words: "BIP-39 words",
-    catalog_2048_words: "2048 words, each with its number and its 11 bits",
-    catalog_eff_large_list: "EFF large list",
-    catalog_7776_words: "7776 words, each with its number and its five dice",
-    catalog_eff_short_list_1: "EFF short list 1",
-    catalog_1296_words_each: "1296 words, each with its number and its four dice",
-    catalog_word_lists: "Word lists",
-    catalog_eff_short_list: "EFF short list 2",
-    catalog_1296_words: "1296 words with unique three-letter starts, each with its number and its four dice",
-    catalog_qr: "QR",
-    catalog_scan_a_qr_code: "Scan a QR code",
-    catalog_single_or_animated: "Single or animated, into Files",
-    catalog_load_a_key: "Load a key first",
-    catalog_at_the_end: "At the end of signing",
-    catalog_load_a_wallet: "Load a wallet first",
-    catalog_needs_a_single: "Needs a single-key wallet with its key here",
-    catalog_copy_a_signed: "Copy a signed message in first",
-    catalog_make_a_vault: "Make a vault first",
-    catalog_unlock_a_vault: "Unlock a vault first",
-    catalog_copy_an_oskb: "Copy an .oskb in first",
-    catalog_apk_signing_key: "APK signing key",
-    catalog_make_a_key: "Make a key, sign Android apps",
-    chart_edit_that_does: "That does not fit in this vault's slot size",
-    chart_edit_a_new_place: "a new place",
-    chart_edit_place: "Place {}",
-    chart_edit_vault: "Vault {}",
-    chart_edit_of_files: "{} of files",
-    chart_edit_watch_only: "Watch-only software",
-    chart_edit_save_into: "Save {} into {}",
-    chart_edit_as_a_file: "{} as a file",
-    chart_edit_at: "{} at {}",
-    chart_edit_move_to: "Move {} to {}",
-    chart_edit_remove: "Remove {}",
-    chart_edit_off_the: "{} off the plan",
-    chart_edit_checked: "Checked today",
-    chart_edit_vault_stick: "Vault {} stick",
-    codes_entry: "Entry",
-    codes_now_utc: "Now · UTC{}",
-    codes_not_known: "Not known",
-    codes_set_the_time: "Set the time",
-    codes_unreadable: "Unreadable",
-    codes_totp_codes: "TOTP codes",
-    codes_no_entries_with: "No entries with a TOTP secret",
-    codes_scan_a_setup: "Scan a setup code",
-    codes_add_an_entry: "Add an entry",
-    compact_spend: "Spend",
-    compact_add_a_key: "Add a key",
-    compact_back_up: "Back up",
-    compact_sign_a_message: "Sign a message",
-    compact_check_a_message: "Check a message",
-    compact_make_a_new: "Make a new wallet",
-    compact_restore_an: "Restore an existing wallet",
-    compact_set_the_time: "Set the time",
-    compact_totp_codes: "TOTP codes",
-    compact_create_a_vault: "Create a vault",
-    compact_new_key: "New key",
-    compact_bip_85: "BIP-85",
-    compact_silent_payments: "Silent payments",
-    compact_explore_a_key: "Explore a key",
-    compact_lightning: "Lightning",
-    compact_vanity_address: "Vanity address",
-    compact_transaction: "Transaction",
-    compact_at_a_glance: "At a glance",
-    compact_vault_contents: "Vault contents",
-    compact_home: "Home",
-    compact_nothing_loaded: "Nothing loaded",
-    compact_key_inline: "key",
-    compact_keys: "keys",
-    compact_wallet: "wallet",
-    compact_wallets_inline: "wallets",
-    compact_open_3: "{} {} open",
-    compact_vault: "vault",
-    compact_vaults_inline: "vaults",
-    compact_bring_in: "Bring in",
-    compact_open_2: "Open",
-    compact_work: "Work",
-    compact_write_out: "Write out",
-    compact_lock: "Lock",
-    compact_scan: "Scan",
-    compact_wallets: "Wallets",
-    compact_vaults: "Vaults",
-    compact_locked: "{} locked",
-    compact_open: "{} open",
-    compact_files: "Files",
-    compact_learn: "Learn",
-    compact_backups: "Backups",
-    compact_not_backed: "{} not backed up",
-    compact_tools: "Tools",
-    compact_transfer: "Transfer",
-    compact_settings: "Settings",
-    compact_done: "Done",
-    compact_none: "none",
-    compact_no: "no {}",
-    compact_no_wallet_loaded: "No wallet loaded",
-    compact_continue_signing: "Continue signing {}",
-    compact_review: "Review {}",
-    compact_rename: "Rename",
-    compact_of_signatures: "{} of {} signatures here",
-    compact_can_spend: "Can spend",
-    compact_scan_a_key: "Scan a key",
-    compact_backup: "{} backup {}",
-    compact_place: "place",
-    compact_places: "places",
-    compact_plan_in_locked: "plan in {}, locked",
-    compact_no_backup_plan: "no backup plan",
-    compact_first_receive: "First receive address · 0/0",
-    compact_key: "Key",
-    compact_here: "Here",
-    compact_not_here: "Not here",
-    compact_load_from_vault: "Load from vault",
-    compact_add_its_key: "Add its key",
-    compact_address: "Address",
-    compact_labels_handed: "Labels handed out",
-    compact_address_labels: "Address, labels and payments",
-    compact_show_wallet: "Show wallet QR",
-    compact_remove_from: "Remove from session",
-    compact_about_this: "About this page",
-    compact_for: "For {}",
-    compact_for_key: "For key {}",
-    compact_other_languages: "Other languages",
-    compact_other_lists: "{} · other lists",
-    compact_other_forms: "Other forms",
-    compact_scan_a_seedqr: "Scan a SeedQR",
-    compact_word: "Word {}",
-    compact_type_the_next: "Type the next word",
-    compact_now_its_tone: "Now its tone",
-    compact_no_word_starts: "No word starts with that",
-    compact_words: "Words",
-    compact_bip_39_passphrase: "BIP-39 passphrase",
-    compact_add_key: "Add key",
-    compact_make_a_new_key: "Make a new key",
-    compact_clear: "Clear",
-    compact_words_of_one: "Words of one share",
-    compact_nothing_in: "Nothing in yet",
-    compact_1_in: "1 in",
-    compact_in: "{} in",
-    compact_passphrase: "Passphrase",
-    compact_add_this_one: "Add this one",
-    compact_scan_a_qr_code: "Scan a QR code",
-    compact_make_the_key: "Make the key",
-    create_single_key_native: "Single key · native SegWit",
-    create_single_key_taproot: "Single key · Taproot",
-    create_single_key_nested: "Single key · nested SegWit",
-    create_single_key_legacy: "Single key · legacy",
-    create_multisig_native: "Multisig · native SegWit",
-    create_multisig_nested: "Multisig · nested SegWit",
-    create_multisig_legacy: "Multisig · legacy",
-    create_multisig_taproot: "Multisig · Taproot",
-    create_threshold_frost: "Threshold · FROST",
-    create_all_keys_musig2: "All keys · MuSig2",
-    create_bc1q_addresses: "bc1q addresses; what most wallets make",
-    create_bc1p_addresses: "bc1p addresses; the smallest signatures",
-    create_3_addresses: "3… addresses, for services that cannot pay bc1",
-    create_1_addresses: "1… addresses, for old software only",
-    create_several_keys: "Several keys, a quorum signs; Sparrow, Coldcard, SeedSigner",
-    create_multisig_with_3: "Multisig with 3… addresses",
-    create_multisig_with: "Multisig with 3… addresses, old style; avoid unless required",
-    create_multisig_on: "Multisig on Taproot, one script leaf; Sparrow and Nunchuk",
-    create_any_m_of_n_shares: "Any m of n shares sign one Taproot key; single-key on chain",
-    create_every_key_signs: "Every key signs together, one Taproot key; single-key on chain",
-    create_a_share_has: "A share has no account xpub",
-    create_not_a_derivation: "Not a derivation path: {}",
-    decode_other_script: "Other script",
-    decode_final: "final",
-    decode_locktime_on: "locktime on, no replace-by-fee",
-    decode_relative_time: "relative time lock, replace-by-fee",
-    decode_relative_block: "relative block lock, replace-by-fee",
-    decode_0_none: "0 · none",
-    decode_block_height: "{} · block height",
-    decode_unix_time: "{} · Unix time",
-    decode_btc: "{} BTC",
-    explore_load_a_key: "Load a key first",
-    explore_the_public: "The public side of a loaded key at any path: the extended public key, the public key and the address there. Compare them with what another wallet shows for the same path. Nothing private is shown.",
-    explore_path: "Path",
-    explore_index_1_2: "Index -1",
-    explore_index_1: "Index +1",
-    explore_native_segwit: "Native SegWit",
-    explore_taproot: "Taproot",
-    explore_nested_segwit: "Nested SegWit",
-    explore_legacy: "Legacy",
-    explore_script: "Script",
-    explore_address: "Address",
-    explore_public_key: "Public key",
-    explore_extended_key: "Extended key",
-    explore_wallets: "Wallets",
-    explore_explore: "Explore",
-    family_typed_words: "Typed words",
-    family_finish_the_backup: "Finish the backup first",
-    family_carry_on_the: "Carry on the spend · Signatures {} of {}",
-    family_sign_the_psbt: "Sign the PSBT from the {}",
-    family_spend_from_this: "Spend from this wallet",
-    family_finished_transaction: "Finished transaction",
-    family_not_a_seedqr: "Not a SeedQR or a CompactSeedQR",
-    family_key_already: "Key {} · already here",
-    family_wallet_description_read: "Wallet description read · a wallet is open already",
-    family_wallet_description: "Wallet description read",
-    family_part_read_the: "Part {} read · the wallet is rebuilt",
-    family_part_read_of: "Part {} read · {} of {} keys in hand",
-    family_a_public_key: "A public key: it shows the wallet but cannot sign",
-    family_a_transaction: "A transaction to sign · kept for later",
-    family_is_in_files: "{} is in Files",
-    family_seed_read: "Seed {} read",
-    family_no_money: "{} · no money",
-    family_passphrase_inline: "passphrase",
-    family_passphrase_n: "{} · passphrase",
-    family_words: "Words · {}",
-    family_restored_wallet: "Restored wallet",
-    family_its_shares: "its shares",
-    family_of_keys_in_hand: "{} of {} keys in hand",
-    family_native_segwit_2: "native SegWit",
-    family_taproot: "Taproot",
-    family_nested_segwit_2: "nested SegWit",
-    family_legacy: "legacy",
-    family_native_segwit: "native SegWit multisig",
-    family_taproot_multisig: "Taproot multisig",
-    family_nested_segwit: "nested SegWit multisig",
-    family_legacy_multisig: "legacy multisig",
-    family_spend_from_n: "Spend from {}",
-    family_wallets: "Wallets",
-    family_this_page_takes: "This page takes someone spending for the first time through every step. With a wallet or a seed already loaded, Spend opens on a shorter page instead: what is loaded and what each wallet needs next.",
-    family_walk_through: "Walk through from the start",
-    family_no_wallet_loaded: "no wallet loaded",
-    family_signing_2: "Signing {} · {}",
-    family_continue_signing: "Continue signing",
-    family_wallets_loaded: "Wallets loaded",
-    family_none_loaded: "None loaded",
-    family_can_spend_of: "Can spend · {} of {}",
-    family_here_needed: "{} {} here · {} needed",
-    family_key: "key",
-    family_keys: "keys",
-    family_no_key_here: "No key here",
-    family_an_open_vault: "An open vault holds a missing key · Open it to load it",
-    family_spend_from_it: "Spend from it",
-    family_open_it: "Open it",
-    family_keys_with_no: "Keys with no wallet loaded",
-    family_restore_its: "Restore its wallet",
-    family_spend_as_a_single: "Spend as a single-key wallet",
-    family_home: "Home",
-    family_spend: "Spend",
-    family_six_stops: "Six stops",
-    family_desktop_copy: "Desktop copy",
-    family_running_from: "Running from the {}",
-    family_nothing_in_yet: "Nothing in yet",
-    family_1_thing_in: "1 thing in",
-    family_things_in: "{} things in",
-    family_loaded_in_sparrow: "Loaded in Sparrow",
-    family_money_shows: "Money shows",
-    family_done_in_sparrow: "Done in Sparrow",
-    family_signing: "Signing {}",
-    family_not_here_yet: "Not here yet",
-    family_nothing_waits: "Nothing waits {}",
-    family_1_file: "1 file {}",
-    family_files: "{} files {}",
-    family_after_the_transaction: "After the transaction",
-    family_i_have_the_psbt_2: "I have the PSBT",
-    family_show_the_finished: "Show the finished transaction as QR",
-    family_less_about_this: "Less about this",
-    family_more_about_this: "More about this",
-    family_start: "Start",
-    family_or_bring_in: "Or bring in what is on paper",
-    family_scan_the_qr: "Scan the QR codes you have",
-    family_type_the_words: "Type the words you have",
-    family_open: "Open {}",
-    family_copy_files_in: "Copy files in from {}",
-    family_what_came_in: "What came in",
-    family_rebuild_the: "Rebuild the wallet",
-    family_seed_is_not: "Seed {} is not one of {}'s keys",
-    family_add_its_passphrase: "Add its passphrase",
-    family_seed_2: "Seed · {}",
-    family_seed: "Seed · {} · {}",
-    family_wallet_description_3: "Wallet description · {} · {}",
-    family_wallet_description_2: "Wallet description · {}",
-    family_part_of_keys: "Part {} · {} of {} keys in hand",
-    family_part: "Part {}",
-    family_key_xpub_n: "Key · {} · xpub",
-    family_key_xpub: "Key · xpub",
-    family_transaction: "Transaction · kept for later",
-    family_anything_else: "Anything else in the envelope?",
-    family_type_more_words: "Type more words",
-    family_that_s_everything: "That's everything",
-    family_these_seeds: "These seeds are one wallet with several keys.",
-    family_scan_the_description: "Scan the description",
-    family_i_can_t_find: "I can't find one",
-    family_without_the: "Without the description Faraday needs all {} keys: their seeds or xpubs",
-    family_remove_the_then: "Remove the {}, then type the passphrase",
-    family_sealed_here: "Sealed here, {}",
-    family_copied_in_from: "Copied in from {}",
-    family_unlocks_in: "Unlocks in {}",
-    family_passphrase: "Passphrase",
-    family_unlocking: "Unlocking",
-    family_this_computer: "This computer: {} free",
-    family_unlock: "Unlock",
-    family_plug_the_in: "Plug the {} in",
-    family_faraday_asks: "Faraday asks to lock first when {} goes in",
-    family_spend_from: "Spend from",
-    family_of_keys_here: "{} · {} of {} keys here",
-    family_its_key_is_here: "Its key is here: it can sign",
-    family_its_key_is_not: "Its key is not here yet",
-    family_of_keys_sign: "{} of {} keys sign · {} here",
-    family_i_have_the_psbt_from: "I have the PSBT from Sparrow ready",
-    family_scan_it: "Scan it",
-    family_i_have_the_psbt: "I have the PSBT from Sparrow ready: Scan it",
-    family_show_the_wallet_qr: "Show the wallet QR",
-    family_receive_address: "Receive address 0",
-    family_it_is_loaded: "It is loaded",
-    family_none_of_these: "None of these show money.",
-    family_the_words_may: "The words may belong to a wallet with several keys, or need a different passphrase.",
-    family_scan_more: "Scan more",
-    family_type_a_passphrase: "Type a passphrase",
-    family_is_there_a_word: "Is there a word or sentence kept apart from the list?",
-    family_yes_type_it: "Yes, type it",
-    family_no: "No",
-    family_trying_of: "Trying: {}, {} · {} of {}",
-    family_with_a_passphrase: "with a passphrase",
-    family_no_passphrase: "no passphrase",
-    family_show_the_wallet: "Show the wallet as a QR code",
-    family_open_this_in: "Open this in the wallet on the online computer",
-    family_open_this_one: "Open this one on the online computer too",
-    family_receive: "Receive",
-    family_change: "Change",
-    family_show_more_addresses: "Show more addresses",
-    family_no_money_shows: "No money shows",
-    family_yes_my_money: "Yes, my money shows",
-    family_every_coin_to: "Every coin to {}",
-    family_amount_max_in: "Amount: Max, in Sparrow's Send tab",
-    family_scan_the_psbt: "Scan the PSBT",
-    family_scan: "Scan",
-    family_on: "On {}",
-    family_copy_it_in_from: "Copy it in from {}",
-    family_in_files: "In Files",
-    family_signing_this: "Signing this one",
-    family_use_this_one: "Use this one",
-    family_spends_from: "Spends from {} · {}",
-    family_no_wallet_open: "No wallet open here matches this transaction. Change cannot be verified until its wallet is open: check that this is the transaction for this wallet.",
-    family_read_it: "Read it",
-    family_finish_the_backup_2: "Finish the backup",
-    family_load_from_vault: "Load from vault",
-    family_signs_here: "Signs here",
-    family_not_here: "Not here",
-    family_unlock_n: "Unlock {}",
-    family_scan_a_key: "Scan a key",
-    family_collect_a_signature: "Collect a signature",
-    family_remove_the_first: "Remove the {} first",
-    family_continue: "Continue",
-    family_lock: "Lock",
-    family_power_off: "Power off",
-    family_start_over: "Start over",
-    family_paper: "Paper",
-    family_what_you_have: "What you have",
-    family_the_faraday: "The Faraday {} and its passphrase, or words written down, and often a sheet describing the wallet.",
-    family_open_the_wallet_here: "Open the wallet here",
-    family_start_a_computer: "Start a computer from the Faraday {} and open the wallet.",
-    family_check_the_balance: "Check the balance",
-    family_put_the_wallet: "Put the wallet's description into Sparrow on an online computer.",
-    family_make_the_transaction: "Make the transaction in Sparrow. It gives you a PSBT.",
-    family_offline: "Offline",
-    family_sign_it_here: "Sign it here",
-    family_bring_the_psbt: "Bring the PSBT to Faraday, read what it does, and sign it.",
-    family_online: "Online",
-    family_take_the_signed: "Take the signed transaction back to Sparrow and broadcast it.",
-    family_the_words_are: "The words are the money. Never photograph them, and never type them into a phone, a website or a password manager. The same goes for the vault's passphrase.",
-    family_not_sure_what: "Not sure what you have?",
-    family_another_list: "Another list of words, another QR code, a line starting wsh( or tr(, or a word kept apart from the list.",
-    family_its_description: "Its description says how they fit together: a QR code labelled wallet, descriptor, setup or multisig; a long line starting wsh( or tr(; or sheets with lines like 73C5DA0A: xpub…",
-    family_a_square_black: "A square black-and-white pattern",
-    family_a_qr_code_the: "A QR code: the same information in a form a camera can read. Several numbered 1 of 5 and so on are one thing in parts: scan them one after another. Never scan a QR code that sits beside seed words into anything but Faraday.",
-    family_words_numbered: "Words numbered 1 to 12, 18 or 24",
-    family_the_seed_phrase: "The seed phrase. Often headed recovery phrase, seed words or backup, or stamped into steel.",
-    family_one_long_line: "One long line starting wpkh(, wsh(, tr(, xpub, zpub or tpub",
-    family_a_descriptor: "A descriptor or an xpub. It shows the addresses and the balance but cannot spend. Do not post it publicly: it shows the wallet's whole history.",
-    family_several_sheets: "Several sheets each holding a few lines, like 73C5DA0A: xpub…",
-    family_one_description: "One description split up on purpose, often under a heading such as this sheet carries 2 of 3 wallet descriptor parts. Enough of the sheets, in any order, add up to the whole. A line such as Policy: 2 of 3 says how many signatures the wallet needs.",
-    family_a_word_or_sentence: "A word or sentence kept apart from the list, called a passphrase or a 25th word",
-    family_if_one_exists: "If one exists, the words alone open a wallet that is real but empty, and the money is in the wallet the words and the passphrase open. This is not the vault's passphrase: the vault's passphrase opens the vault file, and this one changes which wallet the words open.",
-    family_a_short_line: "A short line starting bc1, 3 or 1",
-    family_one_address: "One address, not a backup.",
-    family_a_small_device: "A small device with a screen and buttons",
-    family_a_hardware_wallet: "A hardware wallet. It is a way of using the words, not a replacement for them.",
-    family_labelled_faraday: "{} labelled Faraday, and a passphrase on a separate card",
-    family_the_starts_the: "The {} starts the computer and carries the vault, a locked file named like vault.ofv. The passphrase opens it. The vault holds the wallet and the keys that sign for it.",
-    family_how_to_spend: "How to spend bitcoin",
-    family_start_from_the: "Start from the {}",
-    family_what_do_you: "What do you have?",
-    family_open_the_wallet: "Open the wallet",
-    family_load_the_wallet: "Load the wallet in Sparrow",
-    family_check_the_money_is: "Check the money is there, on the online computer",
-    family_write_the_payment_in: "Write the payment in Sparrow",
-    family_check_the_money: "Check the money is really there",
-    family_write_the_payment: "Write the payment",
-    family_bring_the_transaction: "Bring the transaction here",
-    family_put_everything: "Put everything away",
-    family_read_the_transaction: "Read the transaction",
-    family_the_transaction: "The transaction id",
-    family_which_way_it: "Which way it spends",
-    family_nonces: "Nonces",
-    family_add_the_seeds: "Add the seeds that can sign",
-    family_who_signs: "Who signs",
-    family_sign_it: "Sign it",
-    family_the_other_signatures: "The other signatures",
-    family_send_it: "Send it",
-    family_six_stops_three: "Six stops, three on this computer and three on an online one. Nothing moves until the last.",
-    family_this_is_the: "This is the desktop copy of Faraday, which runs on an ordinary computer that has been online. It is for testing. For real money, start a computer from the Faraday {}.",
-    family_this_computer_is: "This computer is running Faraday from the {}. It has no network, and it forgets everything when it is switched off.",
-    family_scan_or_type: "Scan or type everything in the envelope, one thing at a time, in any order. Faraday works out the wallet from it.",
-    family_in_sparrow_file_new: "In Sparrow: File, New Wallet, then scan the wallet QR. Its first address is receive address 0 here.",
-    family_in_sparrow_s: "In Sparrow's Send tab: the address, the amount and a fee. Then Create Transaction, Finalize Transaction for Signing and Show QR.",
-    family_words_alone: "Words alone do not say which kind of wallet they made. Faraday made the most common kind from them. Open it in the wallet on the online computer, such as Sparrow, and look at its balance. If no money shows, Faraday makes the next kind.",
-    family_load_this_same: "Load this same wallet in Sparrow on your online computer to check the balance. The code below is the wallet's description: enough for Sparrow to find every address the wallet uses and add up what is on all of them. It cannot spend. Then check that the first address Sparrow shows is character for character the same as receive address 0 below. If it matches, two separate programs have read the same backup and agreed. If it does not match, stop: something was typed or scanned wrongly.",
-    family_this_part_happens: "This part happens on the online computer. In Sparrow, open the wallet's Send tab, enter the address to pay and the amount, and choose a fee. Press Create Transaction, then Finalize Transaction for Signing, then Show QR: an animated code, which is what Faraday reads. Sparrow can also save it as a .psbt file.",
-    family_two_ways_scanning: "Two ways. Scanning is the simpler: nothing has to lock. Press Scan and hold Sparrow's QR code up to this computer's camera; an animation is read as it loops. Or save the .psbt onto {} and copy it in. Faraday reads {} only while no vault or key is open, so with one open it locks first: it seals the vault, forgets the keys and starts again. Copy the PSBT in, remove the {}, and unlock with the same passphrase. This tab comes back on this page.",
-    family_lock_faraday: "Lock Faraday. The vault is sealed again and the keys are forgotten. If a file you still need waits for the {}, plug {} in and the {} visit writes it. Then switch off, take the {} out, and put it back with the papers.",
-    family_this_opens_once: "This opens once the transaction is here.",
-    family_read_the_summary: "Read the summary before you sign, every time: what leaves, what comes back, and the fee. Change is the rest coming back to the same wallet, not money leaving. Signing is the one step that cannot be taken back. If this is not what you meant to do, a different amount, an address you do not recognise, or a warning of any kind, do not sign. Declining costs nothing.",
-    family_write_down_the: "Write down the first and last few characters of this id. Sparrow shows the same id for the transaction it wrote; after sending, the id is how you follow it.",
-    family_every_key_that: "Every key that signs is listed. A key not here yet comes from its own place: Scan a key reads its SeedQR, or its words typed instead, and a vault that holds it unlocks. Faraday works out which key it is. Each is checked against the wallet, so a key from another wallet is refused. A key held by someone else does not have to come here at all: they sign the same PSBT on their own device, and their signed copy is collected after this device signs.",
-    family_one_seed_at: "One seed at a time: put its words in, add it, and the count goes up. Order does not matter and the same seed twice does no harm. Each list is checked against the wallet's own keys, so one belonging to a different wallet is refused. A seed kept as a QR code beside the words does not have to be typed: scan it. If that backup has a separate passphrase, type it in the passphrase box before adding.",
-    family_signing_adds: "Signing adds the signature of every key loaded here. For a wallet that needs signatures from elsewhere, the next card lists who still has to sign and takes their signed copies; each is checked against its key and this transaction before it counts.",
-    family_the_finished: "The finished transaction is what the network accepts. Show the signed PSBT as a QR code; in Sparrow, on the same transaction, press Scan QR and hold it up to the webcam, then Broadcast Transaction. Or carry the finished transaction, which waits in Files, on {}. It is safe to hand to anyone: nobody can change where the money goes without breaking the signatures, and a broken transaction is rejected, not redirected.",
-    family_anyone_who_reads: "Anyone who reads the words can spend the money from anywhere in the world, and it cannot be reversed. Where a wallet needs several lists, anyone with enough of them can. Treat every list as if it were the only one. No legitimate bitcoin company will ever ask for them: not a support line, not someone helping you, not an AI.",
-    family_nothing_done: "Nothing done here is irreversible until the last step, and that step does not happen in Faraday. Opening the vault, typing words, looking at addresses and reading a transaction move nothing and notify no one. You can stop and come back.",
-    family_there_is_no: "There is no deadline; bitcoin does not expire. Rushing is how people get robbed, by scammers and by helpers acting in their own interest. Take your time, and find someone you trust.",
-    family_if_any_of_this: "If any of this stops making sense, stop. Put the {} and the paper somewhere safe and get help from someone you would trust with the money itself. Waiting costs nothing.",
-    family_shut_the_computer: "Shut the computer down completely, not sleep or restart. Unplug any network cable.",
-    family_plug_the_faraday: "Plug the Faraday {} in, switch the computer on and press the boot menu key straight away, repeatedly. It is usually F12, F9, Esc or F2. The first screen often names the key for a second or two.",
-    family_pick_the_from: "Pick the {} from the list that appears. If no list appears, the key was wrong or came too late: shut down and try another one.",
-    family_if_the_is_missing: "If the {} is missing, or someone else has opened the envelope, do not use it. Do not use {} you are unsure about: the words are the money, and taking longer costs nothing.",
-    family_a_vault_unlocks: "A vault unlocks in the time shown on purpose: it makes guessing the passphrase slow. A wrong passphrase opens nothing and says so.",
-    family_words_go_in: "Words go in in the order they are written. Faraday checks them against the list of 2048 words and the backup's own checksum, so a mistyped or missing word is caught.",
-    family_a_wallet_description: "A wallet description opens the wallet read-only: enough to see every address and to check the balance. The words that sign come later, after the transaction is read.",
-    family_split_sheets: "Split sheets go in one at a time, in any order; the wallet opens when enough of them are in.",
-    family_in_sparrow_file: "In Sparrow: File, New Wallet, give it a name, then choose the way in that scans a QR code or imports a descriptor, and hold this screen up to the webcam. Menu names change between versions; look for an import that takes a descriptor or a scan. If the code is animated, let it loop once.",
-    family_only_load_it: "Only load it into wallet software you chose and trust.",
-    family_faraday_can: "Faraday can work out every address the wallet owns, but not which were used. Money is often spread over several addresses, including change addresses from old payments, so the first few can be empty while the money is further down. Sparrow adds them all up.",
-    family_on_a_phone_you: "On a phone you can also look an address up on a block explorer such as mempool.space. That moves nothing; it does tell the website you looked.",
-    family_paying_into: "Paying into an exchange: the exchange gives a deposit address for bitcoin in your account. Copy it exactly, and compare the first and last few characters after pasting.",
-    family_faraday_locks: "Faraday locks after a few minutes without input. That is expected. Unlock again with the same passphrase and this tab opens where you left it.",
-    family_if_the_envelope: "If the envelope held a hardware wallet that came with the papers and looks untouched, you can sign the same PSBT on it too and compare. Follow the device's own guide to restore from the same words. Compare what both screens say before approving anything: the amount, the fee and the address. They must match.",
-    family_faraday_on_its: "Faraday on its own is enough to do the whole job.",
-    family_any_of_these: "Any of these sends it: Sparrow, which opens a transaction from a QR code, a file or pasted text and broadcasts it; a block explorer's broadcast page, such as mempool.space or blockstream.info; or someone you trust.",
-    family_then_check_the: "Then check the id. Whatever sends it should report the id Faraday showed. If the id you see anywhere differs, what was sent is not what you signed here: stop and find out why.",
-    family_the_first_confirmation: "The first confirmation usually takes about ten minutes but can take hours if the fee was low. Exchanges usually want one to six confirmations before the money shows in the account.",
-    family_when_faraday: "When Faraday signs with a vault open, it records the amounts it signed inside that vault, so locking seals a changed copy of the vault to write back. Writing it back to the {} keeps that record; leaving it out changes nothing else.",
-    flow_guided: "Guided",
-    flow_steps_only: "Steps only",
-    flow_change: "Change",
-    flow_step_of: "Step {} of {}",
-    flow_about_this_step: "About this step",
-    flow_home: "Home",
-    flow_cancel: "Cancel",
-    flow_cancel_the_flow: "Cancel the flow",
-    flow_keep_going: "Keep going",
-    flow_cancel_create: "Cancel making this wallet?",
-    flow_cancel_restore: "Cancel restoring this wallet?",
-    flow_cancel_backup: "Cancel this backup?",
-    flow_cancel_spend: "Cancel this spend?",
-    flow_cancel_message: "Cancel signing this message?",
-    flow_cancel_vault: "Cancel making this vault?",
-    flow_cancel_key: "Cancel making this key?",
-    flow_cancel_keys: "Cancel making these keys?",
-    flow_lost_plan: "The plan and its places are lost.",
-    flow_lost_answers: "Its answers are lost.",
-    flow_lost_setup: "Its answers and the setup of its vaults are lost.",
-    flow_lost_spend: "Its steps and any signatures made are lost.",
-    forms_bip_39_words: "BIP-39 words",
-    forms_slip_39_shares: "SLIP-39 shares",
-    forms_codex32: "codex32",
-    forms_seed_xor_parts: "Seed XOR parts",
-    forms_group_of_member: "Group {} of {}, member {} · {} of the group needed · id {}",
-    forms_the_secret_id: "The secret · id {}",
-    forms_share_id_needed: "Share {} · id {} · {} needed",
-    forms_part_words: "Part {} · {} words",
-    forms_not_a_slip_39: "Not a SLIP-39 share: {}",
-    forms_not_a_codex32: "Not a codex32 string: {}",
-    forms_that_string_is: "That string is of another seed: its id differs",
-    forms_that_share_is: "That share is in already",
-    forms_not_bip_39_words: "Not BIP-39 words: {}",
-    forms_every_part_has: "Every part has the same number of words",
-    forms_slip_39_key: "SLIP-39 key",
-    forms_codex32_key: "codex32 key",
-    forms_seed_xor_key: "Seed XOR key",
-    forms_the_shares_do: "The shares do not make a key: {}",
-    forms_the_strings_do: "The strings do not make a key: {}",
-    forms_seed_xor_needs: "Seed XOR needs two parts or more",
-    forms_key_added: "Key {} added",
-    forms_english: "English",
-    forms_spanish: "Spanish",
-    forms_french: "French",
-    forms_italian: "Italian",
-    forms_czech: "Czech",
-    forms_portuguese: "Portuguese",
-    forms_japanese: "Japanese",
-    forms_korean: "Korean",
-    forms_chinese_simplified: "Chinese (Simplified)",
-    forms_chinese_traditional: "Chinese (Traditional)",
-    forms_word_is_not_on: "Word {} is not on the {} list",
-    glance_back_up_before: "Back up before you receive",
-    glance_waiting_for: "Waiting for its backup",
-    glance_no_origin: "no origin",
-    glance_can_sign_passphrase: "Can sign · passphrase",
-    glance_can_sign_here: "Can sign here",
-    glance_in_this_vault_passphrase: "In this vault · passphrase",
-    glance_in_this_vault: "In this vault",
-    glance_cosigner_xpub: "Cosigner · xpub only",
-    glance_load_from_vault: "Load from vault",
-    glance_vault: "Vault {}",
-    glance_place: "Place {}",
-    glance_share_of: "Share {} of {}",
-    glance_stick: "{} stick",
-    glance_description: "Description",
-    glance_key_file: "Key {} file",
-    glance_in_the_vault: "{} in the vault",
-    glance_copy: "{} · copy",
-    glance_of_files: "{} of files",
-    glance_watch_only_software: "Watch-only software",
-    glance_on_its_own_device: "On its own device",
-    glance_its_own_stick: "Its own stick",
-    glance_stick_at: "Stick at {}",
-    glance_not_here: "Not here",
-    glance_checked: "Checked",
-    glance_checked_n: "Checked {}",
-    glance_can_spend: "Can spend",
-    glance_nothing: "Nothing",
-    glance_sealed: "Sealed",
-    glance_key_2: "Key {} · {}",
-    glance_plan_in_locked: "Plan in {}, locked",
-    glance_unlock: "Unlock",
-    glance_no_backup_plan_2: "No backup plan",
-    glance_back_up: "Back up",
-    glance_no_backup_plan: "No backup plan in this vault",
-    glance_backup: "Backup",
-    glance_keys: "Keys",
-    glance_wallet: "Wallet",
-    glance_key_words: "Key {} words",
-    glance_key_seedqr: "Key {} SeedQR",
-    glance_passphrase: "Passphrase {}",
-    glance_wallet_sheet: "Wallet sheet",
-    glance_share: "Share {}",
-    glance_vault_copy: "Vault {} · copy",
-    glance_key_seed: "Key {} seed",
-    glance_key_seed_passphrase: "Key {} seed + passphrase",
-    glance_the_description: "The description",
-    glance_key: "Key {}",
-    glance_sheet_open_the: "Open the vault",
-    glance_sheet_open_in: "Open in Wallets",
-    glance_sheet_check_addresses: "Check addresses",
-    glance_sheet_the_first: "The first three",
-    glance_sheet_public_files: "Public files",
-    glance_sheet_for_the_software: "For the software",
-    glance_sheet_print_the: "Print the wallet sheet again",
-    glance_sheet_rename_the: "Rename the wallet",
-    glance_sheet_shape: "Shape",
-    glance_sheet_checksum: "Checksum",
-    glance_sheet_where_2: "Where",
-    glance_sheet_label: "Label",
-    glance_sheet_last_checked_2: "Last checked",
-    glance_sheet_its_seed: "Its seed is at",
-    glance_sheet_show_xpub: "Show xpub QR",
-    glance_sheet_xpub_file: "Xpub file",
-    glance_sheet_explore: "Explore this key",
-    glance_sheet_where: "Where it is",
-    glance_sheet_words: "Words, by hand",
-    glance_sheet_seedqr: "SeedQR, by hand",
-    glance_sheet_seed_xor: "Seed XOR or codex32",
-    glance_sheet_by_hand: "By hand",
-    glance_sheet_into: "Into {}",
-    glance_sheet_as_a_file: "As a file",
-    glance_sheet_make_another_backup: "Make another backup of this seed",
-    glance_sheet_check_a: "Check a copy of this seed",
-    glance_sheet_its_passphrase: "Its passphrase",
-    glance_sheet_show_its: "Show its xpub",
-    glance_sheet_name_its: "Name its holder",
-    glance_sheet_stick: "Stick",
-    glance_sheet_found: "Found alone",
-    glance_sheet_not_yet: "Not yet",
-    glance_sheet_open_a: "Open a vault to keep this",
-    glance_sheet_mark_checked: "Mark checked",
-    glance_sheet_what_goes: "What goes in its envelope",
-    glance_sheet_the_envelope: "The envelope list",
-    glance_sheet_pdf_for: "PDF, for the stick",
-    glance_sheet_add_here: "Add here",
-    glance_sheet_mark_lost: "Mark lost",
-    glance_sheet_mark_exposed: "Mark exposed",
-    glance_sheet_remove_the: "Remove the place",
-    glance_sheet_rename: "Rename",
-    glance_sheet_save_its: "Save its seeds into it",
-    glance_sheet_copy_to: "Copy to another stick",
-    glance_sheet_write_the_seed: "Write the seed files again",
-    glance_sheet_write_the: "Write the public files again",
-    glance_sheet_destroy_its: "Destroy its copies by hand",
-    glance_sheet_show_the: "Show the descriptor QR again",
-    glance_sheet_public: "Public files for this software",
-    glance_sheet_in_it: "In it",
-    glance_sheet_key_seed: "Key {} seed",
-    glance_sheet_with_its: "With its passphrase",
-    glance_sheet_the_description: "The description",
-    glance_sheet_save_more: "Save more into it",
-    glance_sheet_kept_at: "Kept at",
-    glance_sheet_seen_here: "Seen here",
-    glance_sheet_last_checked: "Last checked here",
-    glance_sheet_marked: "Marked",
-    glance_sheet_load_this_key: "Load this key",
-    glance_sheet_scan_my: "Scan my copy",
-    glance_sheet_type_my: "Type my copy",
-    glance_sheet_check_this: "Check this copy",
-    glance_sheet_make_another: "Make another copy",
-    glance_sheet_write_it: "Write it again",
-    glance_sheet_for_the: "For the stick",
-    glance_sheet_check_it: "Check it",
-    glance_sheet_by_the: "By the key it makes",
-    glance_sheet_print_it: "Print it again",
-    glance_sheet_as_a_qr: "As a QR picture",
-    glance_sheet_as_text: "As text",
-    glance_sheet_another_copy: "Another copy",
-    glance_sheet_elsewhere: "Elsewhere",
-    glance_sheet_print: "Print the shares again",
-    glance_sheet_pdfs_text: "PDFs, text and pictures",
-    glance_sheet_keys_left: "Keys left off each share",
-    glance_sheet_copy_the: "Copy the vault to another stick",
-    glance_sheet_then_a: "Then a place",
-    glance_sheet_write: "Write it out again",
-    glance_sheet_changed: "Changed since written",
-    glance_sheet_show_wallet: "Show wallet QR",
-    glance_sheet_the_descriptor: "The descriptor",
-    glance_sheet_move: "Move",
-    glance_sheet_to_another: "To another place",
-    glance_sheet_remove_from: "Remove from the plan",
-    glance_sheet_i_destroyed: "I destroyed this copy",
-    glance_sheet_lost: "Lost",
-    glance_sheet_exposed: "Exposed",
-    glance_sheet_drawn_in_part: "Drawn in part",
-    glance_sheet_move_to: "Move {} to",
-    glance_sheet_a_new: "A new place",
-    glance_sheet_another: "Another copy of {}",
-    glance_sheet_key_words: "Key {} words",
-    glance_sheet_key_seedqr: "Key {} SeedQR",
-    glance_sheet_share: "Share {}",
-    glance_sheet_wallet: "Wallet sheet",
-    glance_sheet_stick_n: "{} stick",
-    glance_sheet_a_copy: "A copy of the vault",
-    glance_sheet_add_at: "Add at {}",
-    glance_sheet_destroy: "Destroy what goes off the plan by hand",
-    glance_sheet_confirm: "Confirm",
-    glance_sheet_someone_can: "Someone can now spend",
-    glance_sheet_someone_could: "Someone could spend with a vault's passphrase",
-    glance_sheet_move_the: "Move the money",
-    glance_sheet_new_wallet: "New wallet",
-    glance_sheet_the_wallet: "The wallet can no longer be rebuilt from what is left",
-    glance_sheet_back_up: "Back up again now",
-    glance_sheet_someone: "Someone can see the balance",
-    glance_sheet_nothing_lost: "Nothing lost that is not elsewhere",
-    glance_sheet_make_a: "Make a replacement copy",
-    glance_sheet_nothing: "Nothing it holds spends or shows the balance",
-    glance_sheet_nowhere: "Nowhere",
-    glance_sheet_chosen: "Chosen",
-    glance_sheet_destroyed: "Destroyed",
-    glance_sheet_goes_to: "{} goes to",
-    glance_sheet_remove: "Remove {}",
-    glance_sheet_key: "Key {} · {}",
-    glance_sheet_holder: "Holder",
-    glance_sheet_name: "Name",
-    glance_sheet_keep: "Keep",
-    glance_sheet_type_it: "Type it",
-    glance_sheet_passphrase: "Passphrase",
-    glance_sheet_matches: "Matches: it makes key {}",
-    glance_sheet_does_not: "Does not match",
-    glance_sheet_check_2: "Check",
-    glance_sheet_passphrase_n: "Passphrase {}",
-    glance_sheet_show_it: "Show it",
-    glance_sheet_to_copy: "To copy by hand",
-    glance_sheet_load_this: "Load this key with its passphrase",
-    glance_sheet_check: "Check my copy",
-    glance_sheet_change: "Change the plan",
-    glance_sheet_back: "Back",
-    glance_sheet_close: "Close",
-    gpg_this_computer_s: "This computer's clock is not known",
-    gpg_a_key_needs_a_name: "A key needs a name or an email",
-    gpg_no_randomness_from: "No randomness from the system yet. Try again",
-    gpg_the_key_is_in_the: "The key is in the vault",
-    gpg_fingerprint: "Fingerprint {}",
-    gpg_no_gpg_key_is_selected: "No GPG key is selected",
-    gpg_gpg_public_key: "GPG public key",
-    gpg_public_checks_signatures: "Public: checks signatures, signs nothing",
-    gpg_gpg_revocation: "GPG revocation certificate",
-    gpg_revokes: "Revokes {}",
-    gpg_whoever_has_it: "Whoever has it can revoke the key",
-    gpg_that_file_is_no: "That file is no longer in Files",
-    gpg_gpg_signature: "GPG signature · {}",
-    gpg_signs: "Signs {}",
-    gpg_by: "By {}",
-    gpg_not_a_gpg_file: "Not a GPG file",
-    gpg_renewed_waits: "Renewed · {} waits {}",
-    gpg_1_signature_waits: "1 signature waits {}",
-    gpg_signatures_wait: "{} signatures wait {}",
-    gpg_never: "Never",
-    gpg_second: "{} second",
-    gpg_seconds: "{} seconds",
-    gpg_day: "{} day",
-    gpg_days: "{} days",
-    gpg_expired: "Unusable secret key: it expired on {}",
-    gpg_revoked: "Unusable secret key: it was revoked on {}",
-    gpg_future: "Key {} was created {} in the future (time warp or clock problem)",
-    gpg_exists: "File exists: {}",
-    gpg_changed: "{} changed since it was ticked. It was not signed",
-    gpg_choose_the_term: "Choose the new term first",
-    gpg_time_conflict: "Time conflict: the clock is before the key's last signature",
-    gpg_no_revocation_kept: "No revocation certificate is kept with this key yet. Set the time and open the key again",
-    gpg_marked_revoked: "The key is marked revoked",
-    vault_3_years: "3 years",
-    vault_make_a_revocation: "Make a revocation",
-    vault_export_revocation: "Export the kept revocation",
-    vault_reason: "Reason",
-    vault_reason_0: "No reason specified",
-    vault_reason_1: "Key has been compromised",
-    vault_reason_2: "Key is superseded",
-    vault_reason_3: "Key is no longer used",
-    vault_make_the_revocation: "Make the revocation",
-    vaults_description: "Description (optional)",
-    vault_status: "Status",
-    vault_revoked_on: "Revoked on {}",
-    vault_kept_with_the_key: "Kept with the key · made {}",
-    vault_none_kept: "None kept yet",
-    vault_term_never: "Term now: does not expire",
-    vault_term_until: "Term now: expires {}",
-    vault_hold_to_mark_revoked: "Hold to mark the key revoked",
-    vault_signing_key_ids: "Signing subkey ID {} · main key ID {} · created {}",
-    vault_hold_to_sign_1_file: "Hold to sign 1 file",
-    vault_hold_to_sign_files: "Hold to sign {} files",
-    vault_sign_with: "Sign with {}",
-    vault_signature_time: "Signature time",
-    guide_this_is_the_wallet: "This is the wallet the transaction spends from. Faraday found it by rebuilding the wallet's address from the key paths the transaction carries, so the match is exact. If the name is not the wallet you meant to spend from, stop here.",
-    guide_no_wallet_loaded: "No wallet loaded here matches this transaction. You can still sign it from the key paths it carries, but Faraday cannot tell change from a payment to someone else. Load the wallet first if you have its description.",
-    guide_open_the_same: "Open the same wallet in the software that made this transaction and compare these addresses with the ones it shows. If they match, both programs are looking at the same wallet, and the change address is one you control.",
-    guide_read_each_line: "Read each line against what you meant to do. Sends is the amount leaving and where it goes. Change is the rest coming back; Verified means Faraday rebuilt that address from the wallet's own keys. The fee goes to the miner. If anything here is not what you expected, stop: nothing has been signed yet.",
-    guide_musig2_signs: "MuSig2 signs in two rounds and every key takes part. In the first, each signer adds a nonce: a one-time number its signature will use. The easiest order is for this device to sign last: add the copies on which the others put their nonce, then sign. Or go first, share this device's nonce and carry the PSBT to them; keep this session open until their signatures come back, because locking forgets the nonce.",
-    guide_this_wallet_can: "This wallet can be spent more than one way. Each path names the keys it needs and how long it waits: a recovery path opens only after the coins have sat unspent that many blocks. Faraday reads which paths this transaction can take from its own sequence numbers; whether the coins are old enough on the chain is something only the network can say.",
-    guide_this_is_the_transaction: "This is the transaction's id, fixed before anyone signs. Signatures do not change it, so you can write it down now and look for it after the transaction is broadcast.",
-    guide_any_of_these: "Any {} of these shares sign together, and on the chain the result is one ordinary Taproot signature. Shares sign one after another, each at its own place. The first share to sign chooses who follows: pick {} here. After that the transaction names them, and no other share can join.",
-    guide_one_other: "one other",
-    guide_others: "{} others",
-    guide_this_wallet_has: "This wallet has more than one way to spend. Each key below can sign; which keys are enough depends on the path this transaction takes, and some paths wait for a timelock. The last step says whether the script is satisfied.",
-    guide_keys_must_sign: "{} {} keys must sign. Keys marked Signs here are loaded on this device. The others are on other devices or with other people; each of them signs the same PSBT and hands it back.",
-    guide_of_these: "of these",
-    guide_of_the: "of the",
-    guide_signed_each_signature: "Signed. Each signature was checked against its key before it was kept.",
-    guide_signing_as_a: "Signing as a share draws a fresh secret nonce for each share that signs, adds this share's part, and puts the next share's nonce in a carry file. The carry file is a secret until that share has signed: keep the {} with you and sign the same day. The last share to sign checks every part before it combines them.",
-    guide_round_two_this: "Round two: this device adds its partial signature over everyone's nonces. The others do the same on their copies; when theirs come back, Faraday combines all of them into one signature.",
-    guide_this_adds_the: "This adds the signature of every key loaded here. On its own it moves nothing: the transaction needs {} {} before it can be broadcast.",
-    guide_signature: "signature",
-    guide_signatures: "signatures",
-    guide_signing_uses: "Signing uses the key loaded on this device. Faraday checks the signature before keeping it, and nothing leaves the device until {} visit writes it.",
-    guide_get_the_other: "Get the other signatures. Carry the PSBT, which waits in Files, on {}, or let each cosigner sign the copy they already have. When a signed copy comes back, copy it in on {} visit and add it here. Each signature is checked against its key, and a copy of any other transaction is refused.",
-    guide_there_are_two: "There are two results. The signed PSBT goes back to the wallet that made the transaction, which can broadcast it. The finished transaction can be broadcast as it is, from any node you trust. Either one is enough.",
-    guide_keep_the_carry: "Keep the carry file in the vault, or write it to {}. At the next share's place, copy it into Faraday with that share loaded, open it from Files and sign. The share that signs last gets the finished transaction.",
-    guide_the_transaction: "The transaction is finished when enough keys have signed. Until then it cannot be broadcast.",
-    guide_print_the_blank: "Print the blank template first, anywhere: it holds no secret, only numbered lines for the words and the squares every SeedQR of this length shares. It waits {}: carry it to the desktop app, and print one copy per seed. You write on it by hand in the next step.",
-    guide_none_of_this: "None of this wallet's seeds were typed into this session, so there is nothing to copy here. Each seed is backed up on the device that holds it.",
-    guide_copy_words: "Copy each seed onto its own template by hand, the words in order. Then type your copy's words back; the first word that differs is named.",
-    guide_passphrase_on_paper: "Write the passphrase on paper by hand, exactly as it is, capitals and spaces included. Then type your copy back; it is compared whole.",
-    guide_copy_seedqr: "Copy each seed onto its own template by hand, the SeedQR square by square. The grey squares are already on the template. Click a row to keep your place, or move it with the arrow keys. Then scan your copy with the camera; a mistake is named by its word. With no camera, type the seed's words back.",
-    guide_copy_both: "Copy each seed onto its own template by hand: the words, and the SeedQR square by square. The grey squares are already on the template. Click a row to keep your place, or move it with the arrow keys. Then type your copy's words back and scan the grid with the camera; a mistake is named by its word. With no camera, type the words back.",
-    guide_a_printer_is: "{}{} A printer is a computer with memory and often a network, so a seed never goes to one. There is no line for a passphrase: written beside the words it stops being a second factor.",
-    guide_paper_comes_first: "Paper comes first. Under the copy, Save into the open vault keeps a further copy sealed under the vault's passphrase. Save as a file makes the words or the SeedQR picture a file {}, unprotected, only after you tick that anyone who copies the {} can spend with it: the least safe of the three. A file never holds the passphrase; the vault keeps it only when saved with its passphrase.",
-    guide_this_half_is: "This half is xpubs only. It can spend nothing, but it is the only thing that puts the keys back together into this wallet, so keep copies. Show the descriptor as a QR to load the wallet into watch-only software, or keep the QR as a picture with the wallet's name, keys and checksum under it, to print or to scan later. The files and the backup sheet wait {} from the moment the checklist is made; the sheet goes as a PDF to print. Sparrow imports the .json under Specter Desktop, and the multisig config under Coldcard Multisig.",
-    guide_instead_of_one: "Instead of one sheet with every key, give each of the {} signers a share that leaves some keys off. With {} left off each, any {} shares together hold every key, so any {} signers can rebuild the wallet, and one share alone cannot watch it. This is not secret sharing: the keys are public, and the shares only decide who can see the balance. Each share waits {} as a sheet to print, a text file and a picture of its QR; Restore takes the text file or a scan of the picture.",
-    guide_one_envelope: "One envelope per place, holding what the plan puts there. Store the envelopes apart. A copy kept in a vault is one more copy, not a replacement for paper.",
-    guide_a_signed_message: "A signed message proves that whoever holds the key behind one address agreed to some text. Pick the wallet and the address: usually the one someone asked you to prove you control. Only single-key wallets whose key is loaded here can sign.",
-    guide_type_the_message: "Type the message exactly as the other side gave it. A single changed character, a space or a line break, makes a different message and the signature will not check.",
-    guide_bip_322_is_the: "BIP-322 is the newer format and the only one for Taproot addresses. BIP-137 is what older wallets and exchanges ask for, and the only one for legacy and nested SegWit addresses. Use whichever the other side asked for.",
-    guide_signing_moves: "Signing moves no money and spends nothing. The result is three lines: the address, the signature and the message. Carry it out as a file or show it as a QR code.",
-    guide_any_of_shares: "Any {} of {} shares sign. On the chain the wallet is one Taproot key, and a spend looks like any single-key spend. Keep the shares in different places, or the threshold protects nothing. This build deals up to five.",
-    guide_choose_loaded: "Choose {} loaded keys of 24 words as the first shares. Their words become shares as they are, so a person who already keeps one of these seeds keeps only that. The deal computes the other {} from them.",
-    guide_choose_how_the: "Choose how the wallet locks its coins. One key is simplest: lose the seed and the money is gone, so its backup matters more. A multisig needs several keys to sign, so one lost or stolen key is not the end of it. If another program will use this wallet, pick a kind it supports.",
-    guide_of_every_spend: "{} of {}: every spend needs {} signatures. Keep the keys apart, on different devices or with different people, or the quorum protects nothing.",
-    guide_fill_each_slot: "Fill each slot. A key loaded here signs on this device. New key makes a fresh seed here; write its words down in the backup step before any money goes in. A cosigner's slot takes the account xpub their device exports, copied in on {} visit; it never brings a secret. If a cosigner's xpub is not here yet, mark the slot for later and carry on; this wallet waits under Nothing yet on the Wallets page. Each key held here can give its xpub as a file or a QR code, so the cosigners can make the same wallet on their side.",
-    guide_choose_the_key: "Choose the key: one loaded here, or a new one made here from fresh randomness. A new key exists only in this session until its words are written down in the backup step.",
-    guide_load_the_wallet: "Load the wallet into the software you will receive with, by the QR code or the descriptor file, and compare these addresses. They must match before you send anything to it.",
-    guide_the_plan_says: "The backup opens on the standard way: each seed's words on paper with the wallet description, one place for each key. Go through it before any money goes in.",
-    guide_the_kind_of_wallet: "The kind of wallet the backup is. A wallet description, scanned or in Files, says the kind, the quorum and every key, and the seeds are then matched to its keys.",
-    guide_how_many_keys: "How many keys the wallet has and how many sign, as written on the backup, often as 2 of 3.",
-    guide_the_descriptor: "The descriptor, wallet file, BIP 129 record or split sheets. Without one, the wallet is made from the seeds and the cosigners' xpubs at the kind's standard path.",
-    guide_one_slot_per: "One slot per key: its seed with its passphrase, if it has one, or a cosigner's xpub. With the description known, a seed that is not one of its keys is refused, so a wrong word or passphrase is caught here.",
-    guide_compare_these: "Compare these addresses with the backup sheet or the wallet software that holds the history. If they match, the wallet is back as it was.",
-    guide_the_wallet_is: "The wallet is in this session until you lock.",
-    guide_a_slip_39_key: "A SLIP-39 key is a master secret of 128 or 256 bits, never written whole: it is dealt as shares of 20 or 33 words, and any of them up to the number needed restore it. It has no BIP-39 words.",
-    guide_write_each_share: "Write each share down on its own paper, in order, and keep the papers apart: in different places or with different people. Any of them up to the number needed are the key; fewer are nothing.",
-    guide_answer_from_your_papers: "Answer from your papers, not from memory: each share is asked in turn, every word once in a random order. A wrong answer means that share's paper needs correcting.",
-    guide_12_words_carry: "12 words carry 128 bits and 24 words 256. Either is beyond guessing; most wallets and signers read every length here.",
-    guide_randomness_you_make: "Randomness you make yourself, with dice, coins or cards, does not depend on this device's software: you can make the same secret again elsewhere from the same rolls. The shares are worked out from it by the device. This device's generator is the operating system's; nothing on the screen can show whether it was faulty or rigged, so a key made from it trusts this device. A mix combines several sources, so the key is as good as the best of them.",
-    guide_randomness_you: "Randomness you make yourself, with dice, coins or cards, does not depend on this device's software. In the first group every word is your entries' own bits: each one shows as it comes in, and you can find it in the list by hand. In the second the device hashes your entries into the words, which you can check only by making the same key again elsewhere. This device's generator is the operating system's; nothing on the screen can show whether it was faulty or rigged, so a key made from it trusts this device. A mix combines several sources, so the key is as good as the best of them.",
-    guide_roll_one_die_at_a_time: "Roll one die at a time and enter the face that came up. Each roll is one flip, 1 to 3 tails and 4 to 6 heads, so the secret is the one a coin would make from the same flips.",
-    guide_roll_one_die_at_a: "Roll one die at a time and enter the face that came up. Each roll is one flip, 1 to 3 tails (0) and 4 to 6 heads (1), so the key is the one a coin would make from the same flips. Every 11 flips are a word's number in the list, counted from 0, and the word shows as its 11th flip comes in.",
-    guide_roll_one_die_at: "Roll one die at a time and enter the face that came up. A word takes six rolls. In its first five, 1 is 00, 2 is 01, 3 is 10 and 4 is 11; a 5 or a 6 there stands for nothing and is rolled again. The sixth roll is one bit: 1 to 3 is 0, 4 to 6 is 1. The 11 bits, in order, are the word's number in the list counted from 0: 3 1 4 2 2 5 is 10 00 11 01 01 1, which is 1131, the list's word 1132, \"miracle\". The last word is rolled the same way; the key keeps its first {} bits, and its other {} are the checksum, which the device works out from all the others and writes in their place.",
-    guide_flip_a_coin_and_enter: "Flip a coin and enter what came up, once per flip. Catching the coin in the air is fine; choosing the side is not. Heads is 1 and tails 0; every 11 flips are a word's number in the list, counted from 0, and the word shows as its 11th flip comes in.",
-    guide_roll_one_die: "Roll one die at a time and press the face that came up. Use a real die on a flat surface, not the same throw twice, and do not pick numbers in your head.",
-    guide_flip_a_coin_and: "Flip a coin and press what came up, once per flip. Catching the coin in the air is fine; choosing the side is not.",
-    guide_shuffle_a_full: "Shuffle a full deck well, then turn cards over one at a time and enter each: its rank, then its suit. A card cannot come up twice from one deck; past 52, shuffle the deck again and keep going.",
-    guide_type_the_hex: "Type the hex digits you made elsewhere. They become the key as they are, so they must already be random.",
-    guide_point_the_camera: "Point the camera at something that moves or is lit unevenly and take each picture. The pictures are hashed and never kept.",
-    guide_this_device_asks: "This device asks the operating system's generator for 32 fresh bytes when this card opens. The key is those bytes, hashed. Nothing on the screen can show whether they were random.",
-    guide_lock_in_adds_the: "Lock in adds the key these words make, with the passphrase if one is typed, and puts it in its slot. A passphrase makes another key from the same words: both the words and the passphrase are then needed to spend, and Back up asks where each is kept. Leave the fields empty for none.",
-    guide_lock_in_adds: "Lock in adds the key these words make. Its fingerprint and its key show at once, so you can see the words you entered are the key that was added. Words and Quiz follow, to write the words down and check the copy.",
-    guide_these_counts: "These counts catch the mistakes hands make: a die that favours one face, the same result typed over and over, or a sequence counted out instead of rolled. A caution is not a refusal; if one appears and you are not sure why, roll again.",
-    guide_write_the_words: "Write the words down in order, on paper, before any money goes to this key, and keep them where only you can reach them. The words are the key: anyone who has them can spend, and without them a lost device loses the money.",
-    guide_answer_from_your: "Answer from your paper, not from memory: the quiz checks the copy you will rely on. Each word is asked once, in a random order. A wrong answer means a word on the paper needs correcting; look at the words again, fix the copy, and carry on.",
-    held_signs_from_now: "{} signs from now on",
-    held_holds_seed: "{} holds seed {}",
-    inbox_slip_39_shares_2: "{} SLIP-39 shares",
-    inbox_codex32_shares: "{} codex32 shares",
-    inbox_loaded: "Loaded",
-    inbox_slip_39_seed: "SLIP-39 seed",
-    inbox_slip_39_shares: "SLIP-39 shares · {} of {} in Files",
-    inbox_codex32_seed: "codex32 seed",
-    inbox_codex32_shares_inline: "codex32 shares · {} of {} in Files",
-    inbox_oskb_backup: "{} · .oskb backup, sealed",
-    inbox_restored_wallet: "Restored wallet",
-    inbox_split_sheets_of: "Split sheets · {} of {} keys in hand",
-    inbox_split_sheets: "Split sheets · {}",
-    inbox_its_shares: "its shares",
-    inbox_watch_only: "{} · {} · watch-only",
-    inbox_xpub: "Xpub",
-    inbox_an_xpub_in_files: "an xpub in Files",
-    inbox_remove_the_first: "Remove the {} first",
-    inbox_with_passphrase: "{} with passphrase",
-    inbox_this_seed_was: "This seed was loaded without its words; a passphrase cannot be added",
-    inbox_loaded_with_its: "{} loaded with its wallet",
-    inbox_a_seed_in_files: "a seed in Files",
-    inbox_is_a_wallet: "{} is a wallet",
-    inbox_loaded_n: "{} loaded",
-    inbox_this_backup_holds: "This backup holds a note: import it into a vault",
-    inbox_not_this_backup: "Not this backup's passphrase",
-    inputs_is_in_use: "{} is in use",
-    inputs_wrong_code: "{} typed the wrong code. Unplug it to try again.",
-    inputs_new_keyboards_ignored: "New keyboards are ignored until Faraday starts again.",
-    keygen_seed_xor: "Seed XOR",
-    keygen_words_chosen: "Words chosen by the dice",
-    keygen_no_secret_yet: "No secret yet",
-    keygen_the_shares_could: "The shares could not be made: {}",
-    keygen_a_long_run_of: "A long run of one result",
-    keygen_far_from_even: "Far from even: one result came up much more than the others",
-    keygen_a_long_run_counting: "A long run counting up or down",
-    keygen_a_5_or_a_6_is: "A 5 or a 6 is rolled again in a word's first five rolls",
-    keygen_a_die_has_six: "A die has six faces",
-    keygen_no_more_are: "No more are needed",
-    keygen_that_card_is: "That card is already out of this deck",
-    keygen_no_picture_from: "No picture from the camera yet",
-    keygen_too_little_variation: "Too little variation in that picture",
-    keygen_of: "{} of {}",
-    keygen_remove_the_first: "Remove the {} first",
-    keygen_choose_two_sources: "Choose two sources or more",
-    keygen_choose_a_source: "Choose a source",
-    keygen_no_randomness: "No randomness from the system yet. Try again",
-    keygen_the_two_passphrases: "The two passphrases differ",
-    keygen_new_key_n: "New key {}",
-    keygen_key_added_back: "Key {} added; back up its {} before you rely on it",
-    keygen_shares_inline: "shares",
-    keygen_words_inline: "words",
-    keygen_check: "Check",
-    keygen_words: "Words",
-    keygen_make_a_new_wallet: "Make a new wallet",
-    keygen_add_a_key: "Add a key",
-    keygen_start: "Start",
-    keygen_make_a_new_key: "Make a new key",
-    keygen_type_the_words: "Type the words",
-    keygen_scan_a_seedqr: "Scan a SeedQR",
-    keygen_make_slip_39_shares: "Make SLIP-39 shares",
-    keygen_type_slip_39_shares: "Type SLIP-39 shares",
-    keygen_type_a_codex32: "Type a codex32 secret",
-    keygen_type_seed_xor: "Type Seed XOR parts",
-    keygen_tools: "Tools",
-    keygen_back: "Back",
-    keygen_new_key: "New key",
-    keygen_flips: "Flips",
-    keygen_cards: "Cards",
-    keygen_pictures: "Pictures",
-    keygen_generator: "Generator",
-    keygen_entries: "Entries",
-    keygen_source_of: "{} · source {} of {}",
-    keygen_rolls_of_a_six: "{} rolls of a six-sided die",
-    keygen_flips_or_rolls: "{} flips, or rolls of a die read as flips",
-    keygen_cards_from_a: "{} cards from a shuffled deck",
-    keygen_digits_made: "{} digits made elsewhere",
-    keygen_pictures_n: "{} pictures",
-    keygen_two_or_more: "Two or more of these, combined",
-    keygen_getrandom_2: "{} · getrandom(2)",
-    keygen_slip_39_of_shares: "SLIP-39 · {} of {} shares · {} words each",
-    keygen_read_from_a: "{} · read from a die",
-    keygen_not_chosen: "Not chosen",
-    keygen_complete: "Complete",
-    keygen_not_locked_in: "Not locked in",
-    keygen_locked_in: "{} · locked in",
-    keygen_passphrase_set: "{} · passphrase set · locked in",
-    keygen_passphrase_not: "{} · passphrase not set · locked in",
-    keygen_sources_combined: "{} sources combined",
-    keygen_no_cautions: "No cautions",
-    keygen_1_caution: "1 caution",
-    keygen_cautions: "{} cautions",
-    keygen_shares_n: "{} shares",
-    keygen_not_yet: "Not yet",
-    keygen_length: "Length",
-    keygen_randomness: "Randomness",
-    keygen_fair_no_cautions: "Fair: no cautions",
-    keygen_passphrase_again: "Passphrase again",
-    keygen_lock_in: "Lock in",
-    keygen_lock_in_adds: "Lock in adds sample {} ({}) in place of these words",
-    keygen_added_sample: "Added sample {} ({}) in place of the key made",
-    sample_words: "{} ×{}",
-    keygen_enter_locks: "Enter locks in",
-    keygen_passphrase: "Passphrase",
-    keygen_set: "Set",
-    keygen_not_set: "Not set",
-    keygen_first_address: "First address",
-    keygen_key: "Key",
-    keygen_fewer_shares: "Fewer shares than the threshold say nothing about the seed: with them, every seed stays as likely as every other. No entropy is lost to a holder of too few shares.",
-    keygen_each_share_states: "Each share states in the clear its backup's identifier, the shares needed, how many were dealt and its own number: one share tells its holder how many others to look for.",
-    keygen_the_threshold: "The threshold of shares rebuilds the whole seed on one device, and that device holds all of it while it signs.",
-    keygen_the_split_s: "The split's own randomness comes from the device that deals it, here this device's system generator. A dealer with weak randomness gives the seed away in its shares.",
-    keygen_a_share_cannot: "A share cannot be checked on its own against the seed; a wrong or mixed-up share shows only when the threshold is put together, by a 4-byte digest.",
-    keygen_shares_restore: "Shares restore only in software that reads SLIP-39, such as Trezor's; a wallet that reads only BIP-39 words cannot.",
-    keygen_a_share_is_20: "A share is 20 words for a 128-bit seed, the strength of 12 BIP-39 words, or 33 words for 256 bits.",
-    keygen_bip_39_words: "BIP-39 words",
-    keygen_slip_39_shares: "SLIP-39 shares",
-    keygen_shares_needed: "Shares needed",
-    keygen_shares_dealt: "Shares dealt",
-    keygen_any_of_the_shares: "Any {} of the {} shares restore the key",
-    keygen_what_shares: "What shares reveal",
-    keygen_words_n: "{} words",
-    keygen_a_threshold: "A threshold wallet's keys are 24 words",
-    keygen_flip_mode: "{} · Flip mode",
-    keygen_rolls_read_as: "{} rolls, read as flips",
-    keygen_your_own_entropy: "Your own entropy, words verifiable by hand",
-    keygen_your_entropy: "Your entropy, computer generates words",
-    keygen_made_by_this: "Made by this device",
-    keygen_recommended: "Recommended",
-    keygen_rolls_inline: "rolls",
-    keygen_flips_inline: "flips",
-    keygen_cards_inline: "cards",
-    keygen_digits_inline: "digits",
-    keygen_pictures_inline: "pictures",
-    keygen_of_2: "{} of {} {}",
-    keygen_last: "Last: {}",
-    keygen_deck_drawn_from: "Deck {} · {} drawn from it",
-    keygen_luma_values: "{} luma values in the last picture",
-    keygen_camera_on: "Camera on",
-    keygen_waiting_for: "Waiting for the camera",
-    keygen_no_need_to_write: "No need to write the words down yet: Back up shows them again.",
-    keygen_randomness_check: "Randomness check",
-    keygen_next_source: "Next source",
-    keygen_make_the_words: "Make the words",
-    keygen_undo: "Undo",
-    keygen_clear: "Clear",
-    keygen_type_1_to_6: "Type 1 to 6 · Backspace takes one back · Enter continues",
-    keygen_type_h_or_t: "Type H or T · Backspace takes one back · Enter continues",
-    keygen_type_the_rank: "Type the rank (A 2–9 T J Q K), then the suit (S H D C)",
-    keygen_type_09_and: "Type 0–9 and a–f · Backspace takes one back · Enter continues",
-    keygen_space_takes: "Space takes a picture · Enter continues",
-    keygen_enter_continues: "Enter continues",
-    keygen_coin: "Coin",
-    keygen_die: "Die",
-    keygen_typed: "Typed",
-    keygen_buttons: "Buttons",
-    keygen_each_roll_is: "Each roll is one flip: 1, 2, 3 are 0 (tails); 4, 5, 6 are 1 (heads). The key is the one these flips make",
-    keygen_heads_is_1_tails: "Heads is 1, tails is 0",
-    keygen_h_or_1_for_heads: "H or 1 for heads, T or 0 for tails",
-    keygen_faces_1_to_6: "Faces 1 to 6, as rolled",
-    keygen_of_11_bits: "{} of 11 bits",
-    keygen_from_the_checksum: "From the checksum, once the rest is in",
-    keygen_the_last_bits: "The last {} bits of word {} are the checksum",
-    keygen_words_so_far: "Words so far",
-    keygen_rolls_1_to_5: "Rolls 1 to 5 of a word: 1 = 00, 2 = 01, 3 = 10, 4 = 11 · Roll 6: 1 to 3 = 0, 4 to 6 = 1 · The 11 bits are the word's number in the list, from 0",
-    keygen_checksum: "checksum",
-    keygen_word: "= {} · word {}",
-    keygen_word_of_the: "= {} · word {} of the list",
-    keygen_of_rolls: "{} of {} rolls",
-    keygen_the_checksum: "The checksum, from all the other bits, once every roll is in",
-    keygen_result: "Result",
-    keygen_continue: "Continue",
-    keygen_start_again: "Start again",
-    keygen_rolls: "Rolls",
-    keygen_faces: "Faces",
-    keygen_suits: "Suits",
-    keygen_digits: "Digits",
-    keygen_sha_256: "SHA-256 {}…",
-    keygen_share: "Share",
-    keygen_of_needed: "{} of {} · {} needed",
-    keygen_previous_share: "Previous share",
-    keygen_next_share: "Next share",
-    keygen_i_wrote_them_all: "I wrote them all down",
-    keygen_not_made_yet: "Not made yet",
-    keygen_source: "Source",
-    keygen_hide_words: "Hide words",
-    keygen_show_words: "Show words",
-    keygen_i_wrote_them: "I wrote them down",
-    keygen_show_the_words_first: "Show the words first",
-    keygen_fingerprint: "Fingerprint",
-    keygen_all_shares_right: "All {} shares right",
-    keygen_all_words_right: "All {} words right",
-    keygen_skipped_the: "Skipped: the copy is not checked",
-    keygen_quiz: "Quiz",
-    keygen_done: "Done",
-    keygen_use_this_key: "Use this key",
-    keygen_add_key: "Add key",
-    keygen_share_of_of: "Share {} of {} · {} of {} right",
-    keygen_of_right: "{} of {} right",
-    keygen_which_is_word: "Which is word {}?",
-    keygen_not_that_one: "Not that one. Check your copy against the words",
-    keygen_ask_it_again: "Ask it again",
-    keygen_show_the_words: "Show the words",
-    keygen_without_the: "Without the quiz, a word copied wrongly is found only when the backup is needed",
-    keygen_skip_and_add: "Skip and add the key",
-    keygen_skip_the_quiz: "Skip the quiz",
-    keygen_type_1_to_4_to: "Type 1 to 4 to pick · Enter adds the key once it passes",
-    keygen_type_1_to_4: "Type 1 to 4 to pick · Enter is Done once it passes",
-    name_faraday_starter_app: "Faraday Starter",
-    name_faraday_starter_app_old: "Faraday hub app",
-    name_faraday_starter_app_old2: "Faraday Hub",
-    name_faraday_desktop: "Faraday Desktop",
-    name_faraday_desktop_old: "Faraday desktop app",
-    version_label_local: "{} (local build)",
-    stick_kind_psbt: "PSBT",
-    stick_kind_text: "Text",
-    stick_kind_transaction: "Transaction",
-    stick_kind_sheet_for: "Sheet for printing",
-    stick_kind_vault: "Vault",
-    stick_kind_efi_image: "EFI image",
-    stick_kind_threshold: "Threshold spend, part-signed",
-    stick_kind_oskb: ".oskb backup",
-    stick_kind_qr_codes: "QR codes in a PNG",
-    stick_kind_file: "File",
-    stick_keys_keys_load: "Keys load only with no {} attached",
-    of_ur_crypto_psbt_one: "ur:crypto-psbt · one code",
-    of_ur_crypto_psbt_frames: "ur:crypto-psbt · {} frames, shown in turn",
-    of_text_one_code: "Text · one code",
-    of_ur_crypto_account: "ur:crypto-account · one code",
-    of_key_one_code: "Key · one code",
-    of_file_ur_bytes: "File · ur:bytes",
-    parts_frames_text_one: "Text · one code",
-    parts_frames_numbered: "Numbered parts · {} frames, shown in turn",
-    bbqr_frames_too_large: "Too large for BBQr",
-    bbqr_frames_bbqr_one: "BBQr {} · one code",
-    bbqr_frames_bbqr_frames: "BBQr {} · {} frames, shown in turn",
-    key_label_key_2: "Key {} · {} · {}",
-    key_label_key: "Key {} · {}",
-    ur_bytes_frames_one: "{} · one code",
-    ur_bytes_frames_frames: "{} · {} frames, shown in turn",
-    part_note_of_missing: "{}: {} of {} · missing {}{}",
-    secret_text_those_are: "Those are a seed's words. Seeds go in through Add a key, not Files",
-    secret_text_that_is: "That is a private key. Faraday takes keys as words or a SeedQR, in Add a key",
-    what_instead_of_a_seed_that_is_a: "That is a transaction, not a seed. Scan it from Files",
-    what_instead_of_a_seed_that_is: "That is a code for Files, not a seed",
-    what_instead_of_a_seed_that: "That is a public wallet or key, not a seed: it cannot sign",
-    app_not_a_key_of_this: "Not a key of this wallet: check the words or the passphrase",
-    heading_written_to_at: "Written to {} at {}",
-    heading_written_to: "Written to {}",
-    storage_event_copied_a: "Copied {}: a key's words, loaded when the {} is removed",
-    storage_event_wrote_read: "Wrote {}, read back and matched",
-    storage_event_wrote: "Wrote {} as {}, read back and matched",
-    storage_event_it_stays: "It stays in Files",
-    storage_event_it_still: "It still waits {}",
-    storage_event_not_written: "{} not written: {}. {}",
-    storage_event_saved: "Saved {}",
-    storage_event_too_fine: "Too fine for this camera: show it as an animated code with smaller parts, bring it closer, or carry it as a file",
-    storage_event_not_printed: "Not printed: {}",
-    sticks_changed_removed_2: "{} removed",
-    sticks_changed_removed: "{} removed · {} {} loaded",
-    sticks_changed_key: "key",
-    sticks_changed_keys: "keys",
-    toast_out_waits: "{} waits {}",
-    pull_what_load_the: "load the wallet",
-    pull_what_open_the: "open the backup",
-    pull_what_unlock: "unlock",
-    pull_what_make_a_key: "make a key",
-    pull_what_add_a_key: "add a key",
-    pull_what_scan: "scan",
-    pull_what_load_samples: "load the samples",
-    lock_mode_keeps_nothing: "A mode change keeps nothing but the mode: Files, For the stick, keys and wallets are emptied.",
-    visit_then_then: "Then: {}",
-    visit_then_then_unlock: "Then: Unlock",
-    visit_then_then_home: "Then: Home",
-    start_spend_the_carry: "The carry file holds no PSBT",
-    start_spend_not_a_psbt: "Not a PSBT",
-    session_stage_bring: "Bring in",
-    session_stage_write: "Write out",
-    session_stage_work: "Work",
-    session_stage_open: "Open",
-    act_and_loaded: "{} {} and {} {} loaded",
-    act_wallet: "wallet",
-    act_wallets: "wallets",
-    act_seed: "seed",
-    act_seeds: "seeds",
-    act_remove_the_first: "Remove the {} first",
-    act_finished_from: "Finished from {}",
-    act_transaction: "Transaction",
-    act_plug_in_the_visit: "Plug in {}: the visit writes what waits for it",
-    act_bip_129_covers: "BIP 129 covers wsh and sh(wsh) multisig keys",
-    act_carrying_on_with: "Carrying on with the parts read before",
-    act_of_keys_in_hand: "{} of {} keys in hand",
-    act_restored_wallet: "Restored wallet",
-    act_its_shares: "its shares",
-    act_restored_from_its: "{} restored from its shares",
-    act_not_every_key_is: "Not every key is in hand yet",
-    act_signed_psbt: "Signed PSBT",
-    act_psbt_for_the_next: "PSBT for the next signer",
-    act_the_secret_nonce: "The secret nonce the next share signs this transaction with",
-    act_whoever_has_it: "Whoever has it and a share's signature can work out that share",
-    backup_kept_not_checked: "Not checked: no vault unlocked",
-    backup_kept_wallet_in: "Wallet in {}",
-    backup_kept_wallet: "Wallet not in a vault",
-    backup_kept_in: "In {}{}",
-    backup_with_its_passphrase: "with its passphrase",
-    backup_kept_not_in: "Not in a vault",
-    backup_kept_paper_copy: "Paper copy checked",
-    backup_kept_paper_not: "Paper: not checked",
-    backup_kept_file_unprotected: "File {}, unprotected",
-    backup_kept_not_here: "Not here: backed up on its own device",
-    backup_kept_share: "Share {}",
-    backup_seed_list_of_share: "Share {}",
-    place_name_place: "Place {}",
-    plan_store_place: "Place {}",
-    plan_store_of_files: "{} of files",
-    plan_store_watch_only: "Watch-only software",
-    plan_store_on_its_own: "On its own device",
-    plan_store_the_plan: "The plan is in {}",
-    public_pictures_part: "Part {} of {}",
-    public_pictures_key: "Key",
-    public_pictures_keys: "Keys",
-    public_pictures_descriptor: "Descriptor checksum {}",
-    public_pictures_public_watch: "Public: watch only, spends nothing",
-    public_pictures_share: "Share {} of {} · any {} rebuild the wallet",
-    public_pictures_holds: "Holds {}",
-    public_pictures_leaves: "Leaves off {}",
-    public_pictures_not: "Not a wallet on its own",
-    public_pictures_public: "Public: spends nothing",
-    public_out_files: "{} files",
-    backup_files_make_files: "{} files",
-    public_made_no_pdf: "No PDF: {}",
-    wallet_key_that_wallet: "That wallet is no longer loaded",
-    wallet_key_this_wallet_s: "This wallet's keys are not account keys",
-    wallet_key_this_wallet: "This wallet has no such key",
-    wallet_key_that_key_names: "That key names no master",
-    wallet_key_that_key: "That key is not held here",
-    wallet_key_record_bip: "BIP 129 covers wsh and sh(wsh) multisig keys",
-    create_key_text_nothing: "nothing being created",
-    create_key_text_that: "That key is not held here",
-    create_key_text_a_chosen: "a chosen key is no longer loaded",
-    create_keys_nothing: "nothing being created",
-    create_keys_key_has: "Key {} has no key yet",
-    create_keys_key_waits: "Key {} waits for its cosigner's xpub file. Copy it in on {} visit, then choose it for Key {} under Keys",
-    create_keys_a_chosen: "a chosen key is no longer loaded",
-    create_keys_the_same: "The same key is in two slots",
-    create_shares_nothing: "nothing being created",
-    create_shares_share_has: "Share {} has no key yet",
-    create_shares_a_chosen: "a chosen key is no longer loaded",
-    create_shares_share: "Share {} needs a 24-word key",
-    create_shares_the_same: "The same key is in two slots",
-    create_deal_a_chosen: "a chosen key is not a share",
-    create_deal_new_wallet: "New wallet {}",
-    create_deal_dealt_here: "Dealt here",
-    create_deal_share_of: "Share {} of {}",
-    restore_refusal_every: "Every slot is filled",
-    restore_described_make_still: "{} {} still empty",
-    restore_described_make_slot: "slot",
-    restore_described_make_slots: "slots",
-    restore_from_vault_wallet: "Wallet",
-    restore_from_vault_from: "{} {} from {}",
-    restore_from_vault_key: "key",
-    restore_from_vault_keys: "keys",
-    create_pass_lock_the: "The two passphrases differ",
-    create_pass_lock_passphrase: "{} · passphrase",
-    create_make_new_wallet: "New wallet {}",
-    create_make_made_here: "Made here",
-    make_pdf_pdf: "{}.pdf",
-    make_pdf_not_printed: "Not printed: {}",
-    scanned_not_a_seedqr: "Not a SeedQR or a CompactSeedQR",
-    scanned_not_a_psbt: "Not a PSBT, a descriptor, an xpub or a signed message",
-    scanned_is_a_cosigner: "{} is a cosigner's key",
-    scanned_is_key: "{} is Key {}",
-    scanned_is_in_files: "{} is in Files",
-    copy_scanned_not_a: "Not a SeedQR",
-    read_code_that_is_a: "That is a SeedQR. Seeds go in through Add a key, not Files",
-    read_code_that_may: "That may be a CompactSeedQR. Seeds go in through Add a key, not Files",
-    read_code_ur_is_not: "ur:{} is not a kind this build reads",
-    ur_feed_new_qr: "A new QR started; reading it from the start",
-    ur_feed_not_a_part: "That QR is not a readable UR part",
-    pasted_words: "Those are a seed's words. No seed is taken here",
-    pasted_seedqr: "That is a SeedQR. No seed is taken here",
-    pasted_private_key: "That is a private key. A private key is never pasted",
-    pasted_share: "That is a share of a key. No seed is taken here",
-    pasted_nothing: "Nothing to paste",
-    address_note_that_address_fails: "That address fails its checksum: a character in it is wrong",
-    address_note_that_address_is_not: "That address is not on {}",
-    address_note_change: "change",
-    address_note_receive: "receive",
-    address_note_that_address_is: "That address is {}'s {} address {}",
-    address_note_that_is: "That is an address. Load a wallet to check whether it is yours",
-    address_note_that_address: "That address is not among the first 100 of any loaded wallet",
-    open_qr_cannot_make: "Cannot make a code: {}",
-    code_png_cannot_make: "Cannot make a code: {}",
-    code_png_is_more_than: "{} is more than one code",
-    code_view_threshold: "{} · threshold record",
-    code_view_descriptor: "Descriptor checksum {}",
-    code_view_wallet_descriptor: "{} · wallet descriptor",
-    code_view_this_wallet_has: "This wallet has no such file",
-    code_view_multisig: "{} · multisig config",
-    code_view_bsms_descriptor: "{} · BSMS descriptor record",
-    code_view_public_watch: "Public: watch only, spends nothing",
-    code_view_bip_129_covers: "BIP 129 covers wsh and sh(wsh) multisig keys",
-    code_view_xpub_2: "Xpub {} · {}",
-    code_view_that_wallet: "That wallet is no longer loaded",
-    code_view_this_wallet_s: "This wallet's keys are not account keys",
-    code_view_this_wallet: "This wallet has no such key",
-    code_view_no_origin: "no origin",
-    code_view_key: "Key {} · {}",
-    code_view_xpub: "Xpub {}",
-    code_view_bip_129_key: "BIP 129 key record, signed by the key",
-    code_view_public_spends: "Public: spends nothing",
-    code_view_key_bsms: "Key {} · BSMS record",
-    code_view_no_message: "No message is signed",
-    code_view_the_message: "The message is not signed yet",
-    code_view_signed_by: "Signed by {}",
-    code_view_public_proves: "Public: proves who signed, spends nothing",
-    code_view_signed_message: "Signed message",
-    wallet_label_key: "Key",
-    wallet_label_keys: "Keys",
-    entry_add_key_added: "Key {} added",
-    load_key_key_added: "Key {} added",
-    qr_read_copied_no_qr: "Copied {}: no QR code read",
-    qr_read_a_seedqr_copied: "{}: a SeedQR, copied in as {}; its key loads when the {} is removed",
-    qr_read_is_in_files: "{} is in Files",
-    qr_read_read_into_files: "{} read into Files as {}",
-    qr_read_read: "read",
-    visit_inbox_a_png_with: "A PNG with no QR code read",
-    visit_inbox_a_png_of: "A PNG of {}",
-    visit_inbox_a_file: "A file Faraday does not read",
-    visit_inbox_whoever_has_it_holds: "Whoever has it holds the key: spends its coins, or signs as it",
-    visit_inbox_whoever_has_enough: "Whoever has enough parts holds the key",
-    visit_inbox_whoever_has_it: "Whoever has it reads every password and code in it",
-    visit_inbox_whoever_has: "Whoever has it and a share's signature can work out that share",
-    visit_inbox_whoever: "Whoever has it reads it",
-    sign_here_waits_for: "{} waits for its backup: finish the backup first",
-    sign_here_no_randomness: "No randomness from the system yet. Try again",
-    sign_here_this_transaction: "This transaction was signed here before with other amounts for its inputs. It is refused.",
-    sign_here_choose_other: "Choose {} other {} under Signers",
-    sign_here_share: "share",
-    sign_here_shares: "shares",
-    sign_here_this_device: "This device's nonce is on the PSBT: carry it to the other signers",
-    collect_has_nothing: "{} has nothing this copy lacks",
-    collect_no_randomness: "No randomness from the system yet. Try again",
-    primary_finish_step: "Finish step {} first",
-    event_no_camera_or: "No camera, or the camera was refused",
-    lightning_this_key: "This key has no BIP-39 seed",
-    lightning_an_aezeed: "An aezeed is 24 words; {} are typed",
-    lightning_word_is_not: "Word {} is not on the list",
-    lightning_not_an_aezeed: "Not an aezeed for this passphrase: {}",
-    lightning_no_vault: "No vault is open",
-    lightning_lightning: "Lightning node key\nnode id {}\nprivate key {}",
-    lightning_the_node: "The node key is in the vault",
-    lightning_a_lightning: "A Lightning node's private key",
-    lightning_whoever_has: "Whoever has it is the node: its channels and their money",
-    lightning_a_lightning_node: "A Lightning node's key, made the way its software makes it: ldk-node from a BIP-39 key, LND from its own 24-word cipher seed. Its public key is the node id, safe to share; its private key is the node, and goes into a vault.",
-    lightning_wallets: "Wallets",
-    lightning_lightning_node: "Lightning node key",
-    lightning_ldk_node: "ldk-node · {}",
-    lightning_lnd_type: "LND · type an aezeed",
-    lightning_the_24_words: "The 24 words",
-    lightning_of_24: "{} of 24",
-    lightning_passphrase: "Passphrase",
-    lightning_aezeed_lnd: "aezeed (LND's default)",
-    lightning_read_it: "Read it",
-    lightning_node_id: "Node id",
-    lightning_made: "Made",
-    lightning_private_key: "Private key",
-    lightning_hide: "Hide",
-    lightning_show: "Show",
-    lightning_save_into: "Save into {}",
-    lightning_out_unprotected: "Out unprotected…",
-    medium_stick_inline: "stick",
-    medium_sticks_inline: "sticks",
-    medium_a_stick_inline: "a stick",
-    medium_an_sd_card_inline: "an SD card",
-    medium_stick: "Stick",
-    medium_sticks: "Sticks",
-    medium_sd_cards: "SD cards",
-    medium_a_stick: "A stick",
-    medium_usb_stick: "USB stick",
-    medium_sd_card: "SD card",
-    medium_a_usb_stick: "A USB stick",
-    medium_an_sd_card: "An SD card",
-    medium_from_the_stick: "From the stick",
-    medium_from_the_sd_card: "From the SD card",
-    medium_for_the_stick: "For the stick",
-    medium_for_the_sd_card: "For the SD card",
-    medium_on_box_stick: "On the stick",
-    medium_on_box_sd_card: "On the SD card",
-    medium_on_this_stick: "On this stick",
-    medium_on_this_sd_card: "On this SD card",
-    medium_from_the_stick_inline: "from the stick",
-    medium_from_the_sd: "from the SD card",
-    medium_on_the_stick: "on the stick",
-    medium_on_the_sd_card: "on the SD card",
-    medium_for_the_stick_inline: "for the stick",
-    medium_for_the_sd_card_inline: "for the SD card",
-    medium_stick_visit: "Stick visit",
-    medium_sd_card_visit: "SD card visit",
-    medium_upgrade_a_faraday_stick: "Upgrade a Faraday stick",
-    medium_upgrade_a_faraday: "Upgrade a Faraday SD card",
-    medium_boot_stick: "Boot stick",
-    medium_boot_sd_card: "Boot SD card",
-    paper_this_key_has_no: "This key has no words to split",
-    paper_this_key_has: "This key has no words to make a seed from",
-    paper_no_randomness: "No randomness from the system yet. Try again",
-    paper_codex32: "codex32: {}",
-    pdf_not_a_faraday_sheet: "not a Faraday sheet",
-    pdf_a_sheet_of_kind: "a sheet of kind {} is not one this build prints",
-    pdf_wallet_backup: "{} · wallet backup",
-    pdf_xpubs_only_this: "Xpubs only. This sheet spends nothing; with the seeds it rebuilds the wallet.",
-    pdf_descriptor: "Descriptor",
-    pdf_xpubs: "Xpubs",
-    pdf_first_addresses: "First addresses",
-    pdf_written_on: "Written on",
-    pdf_kept_at: "Kept at",
-    pdf_goes_with_seed: "Goes with seed of key",
-    pdf_made_by_faraday_check: "Made by Faraday. Check the first address against your wallet software before relying on this sheet.",
-    pdf_envelopes: "{} · envelopes",
-    pdf_wallet: "Wallet",
-    pdf_split_backup_sheet: "{} · split backup, sheet {}",
-    pdf_part_of_the_wallet: "Part of the wallet's descriptor: xpubs only, it spends nothing. Sheets enough to hold every xpub ({} wallet) rebuild it.",
-    pdf_made_by_faraday: "Made by Faraday. Scan the code into Faraday, or type the lines, one sheet at a time.",
-    pdf_the_template_is: "the template is for 12 or 24 words",
-    pdf_seed_sheet_words: "Seed sheet · {} words",
-    pdf_written_by_hand: "Written by hand. Never photographed, scanned or printed once filled in.",
-    pdf_network: "Network: {}",
-    pdf_fingerprint: "Fingerprint",
-    pdf_first_address: "First address",
-    pdf_there_is_no_line: "There is no line for a passphrase. Written beside the words, it would stop being a second factor.",
-    pdf_print_actual_size: "Print at 100% (actual size).",
-    pdf_places: "Places",
-    pdf_place: "Place",
-    pdf_holds: "holds",
-    plan_vault_2: "Vault {} · {}",
-    plan_seed_words: "Seed {}: words",
-    plan_seed_seedqr: "Seed {}: SeedQR",
-    plan_passphrase_of: "Passphrase of {}",
-    plan_wallet_sheet: "Wallet sheet",
-    plan_share_of: "Share {} of {}",
-    plan_with_vault: "{} with Vault {}",
-    plan_seed: "Seed {}",
-    plan_seed_with_its: "Seed {} with its passphrase",
-    plan_wallet_description: "Wallet description",
-    plan_seed_file: "Seed {}: file",
-    plan_seedqr_file: "Seed {}: SeedQR file",
-    plan_passphrase_file: "Passphrase of {}: file",
-    plan_wallet_file: "Wallet description · {}",
-    plan_share_file: "Share {} of {} · {}",
-    plan_software_file: "Watch-only software file",
-    plan_form_text_file: "Text file",
-    plan_form_qr_picture: "QR picture",
-    glance_key_seedqr_file: "Key {} SeedQR file",
-    glance_passphrase_file: "Passphrase {} file",
-    plan_yes_with_the_vault: "Yes, with the vault's passphrase",
-    plan_yes: "Yes",
-    plan_only_with_the: "Only with the vault's passphrase",
-    plan_no: "No",
-    plan_any_one_place: "Any one place lost: the rest rebuild the wallet",
-    plan_one_place_found_can: "One place found: can spend",
-    plan_one_place_found: "One place found: sees the balance",
-    plan_can_spend: "Can spend",
-    plan_sees_the_balance_can: "Sees the balance · can spend with the vault's passphrase",
-    plan_can_spend_with: "Can spend with the vault's passphrase",
-    plan_sees_the_balance_2: "Sees the balance",
-    plan_sees_the_balance: "Sees the balance with the vault's passphrase",
-    plan_nothing: "Cannot see balance",
-    plan_at_no_place: "at no place",
-    plan_vault_whose_is: "Vault {}, whose {} is {}",
-    plan_in: "in {}",
-    plan_on: "on {}",
-    plan_at: "at {}",
-    plan_with: "with {}",
-    plan_seed_is_kept_only: "Seed {} is kept only {}",
-    plan_the_passphrase_of: "The passphrase of {} is kept only with {}",
-    plan_without_the_rest: "Without {}, the rest do not rebuild the wallet",
-    plan_vault: "Vault {}",
-    plan_the_of_files: "the {} of files",
-    plan_the_software: "the software",
-    plan_the_devices: "the devices",
-    plan_seed_is_kept_nowhere: "Seed {} is kept nowhere",
-    plan_the_passphrase: "The passphrase of {} is kept nowhere",
-    plan_tag_secret: "secret",
-    plan_tag_sealed: "sealed",
-    plan_tag_public: "public",
-    plan_mark_lost: "lost",
-    plan_mark_exposed: "exposed",
-    plan_mark_drawn_in_part: "drawn in part",
-    restore_not_a_multisig: "not a multisig config",
-    restore_these_shares: "these shares are of different wallets",
-    restore_no_shares: "no shares",
-    scan_key_is_not_one: "{} is not one of {}'s keys",
-    scan_key_key: "Key {} · {}",
-    scan_key_not_a_seedqr: "Not a SeedQR or a CompactSeedQR",
-    scan_key_key_already: "Key {} · already here",
-    scan_key_key_added_more: "Key {} added · {} more",
-    scan_key_key_added: "Key {} added · Can spend",
-    held_frame_home: "Home",
-    notices_remove_the: "Remove the {} to keep working",
-    sidebar_home: "Home",
-    sidebar_vaults: "Vaults",
-    sidebar_tools: "Tools",
-    sidebar_transfer: "Transfer",
-    sidebar_settings: "Settings",
-    sidebar_open_n: "{} open",
-    sidebar_learn: "Learn",
-    sidebar_bring_in: "Bring in",
-    sidebar_open: "Open",
-    sidebar_work: "Work",
-    sidebar_write_out: "Write out",
-    sidebar_passphrase: "passphrase",
-    sidebar_more: "+ {} more",
-    sidebar_keys: "Keys",
-    sidebar_of: "{} of {}",
-    sidebar_single_key: "single key",
-    sidebar_wallets: "Wallets",
-    sidebar_files: "Files",
-    sidebar_import_waiting: "import waiting",
-    sidebar_none: "none",
-    sidebar_attached: "{} attached",
-    sidebar_lock: "Lock",
-    sidebar_flow_create: "Make a new wallet",
-    sidebar_flow_restore: "Restore a wallet",
-    sidebar_flow_backup: "Back up a wallet",
-    sidebar_flow_spend: "Spend",
-    sidebar_flow_message: "Sign a message",
-    sidebar_flow_vault: "Create a vault",
-    sidebar_flow_backup_of: "Backup of {}",
-    home_lead_make_a_new: "Make a new wallet",
-    home_lead_single_key: "Single key or multisig",
-    home_job_carry_on_the: "Carry on the spend",
-    home_job_signatures: "{} · Signatures {} of {}",
-    home_job_continue_signing: "Continue signing {}",
-    home_job_of_signatures: "{} of {} signatures",
-    home_job_sign: "Sign {}",
-    home_job_from_files: "From Files",
-    home_job_remove_the: "Remove the {} to start the import",
-    home_job_read_from: "Read from {}",
-    home_job_import_from: "Import from {}",
-    home_job_written_to: "Written to {}",
-    home_job_in_files: "{} · in Files",
-    home_job_unlock: "Unlock {}",
-    home_job_pull_the_to: "Pull the {} to unlock",
-    home_job_write_to: "Write {} to {}",
-    home_ways_make_a_new: "Make a new wallet",
-    home_ways_single_key: "Single key or multisig",
-    home_ways_restore_an: "Restore an existing wallet",
-    home_ways_from_its: "From its backups",
-    home_ways_spend_from: "Spend from a backup, step by step",
-    home_ways_a_stick_words: "A stick, words, or paper",
-    home_ways_create_a: "Create a vault",
-    home_ways_none_yet: "None yet",
-    home_ways_vaults: "Vaults",
-    home_ways_locked: "{} locked",
-    home_ways_open: "{} open",
-    home_ways_a_stick_attached: "A stick attached",
-    home_ways_backups: "Backups",
-    home_ways_with_a_plan: "{} with a plan",
-    home_ways_not_backed: "{} not backed up",
-    home_home: "Home",
-    home_start: "Start",
-    home_scan: "Scan",
-    start_wallets: "Wallets",
-    start_no_wallet_is: "No wallet is loaded. Create one with new keys or keys you load here, or restore one from its backups: {}, a vault or paper.",
-    start_start_from_what: "Start from what you have in front of you. Every way in ends at the same place: the wallet, with each of its keys marked as here, elsewhere or missing, and the one thing still to do.",
-    start_your_wallets: "Your wallets",
-    start_keys_without: "Keys without a wallet",
-    start_make_a_new_wallet: "Make a new wallet",
-    start_single_key_or: "Single key or multisig",
-    start_restore_an_existing: "Restore an existing wallet",
-    start_from_its_backups: "From its backups",
-    start_spend_from_a: "Spend from a backup, step by step",
-    start_a_stick_words: "A stick, words, or paper",
-    start_add_a_key: "Add a key",
-    start_keys_first_wallets: "Keys first, wallets later",
-    start_is_in_files_locked: "{} is in Files, locked",
-    start_unlock: "Unlock",
-    nonce_check_nonce_check_valid: "Nonce check · {} {} valid · {} recomputed here",
-    nonce_check_signature: "signature",
-    nonce_check_signatures: "signatures",
-    nonce_check_nonce_check: "Nonce check · a signature is wrong",
-    nonce_check_one_nonce: "{}: one nonce on inputs {} · this gives the key away",
-    nonce_check_input: "Input {}",
-    nonce_check_invalid: "Invalid: not this key's over this transaction",
-    nonce_check_not_checked: "Not checked · {}",
-    nonce_check_valid_nonce: "Valid · nonce recomputed, {}",
-    nonce_check_valid_not: "Valid · not the nonce this key makes: do not broadcast",
-    nonce_check_valid_signed: "Valid · signed elsewhere, its nonce needs that device's key",
-    nonce_check_more: "{} more {}",
-    nonce_check_none_wrong: "· none wrong",
-    nonce_check_one_is: "· one is wrong",
-    nonce_unchecked_head: "Nonce check · {} of {} {} not checked",
-    inbox_panel_wallets: "Wallets",
-    inbox_panel_of_here: "{} · {} of {} {} here{}",
-    inbox_panel_files_say_it: "· {} files say it",
-    inbox_panel_from_split_sheets: "· from split sheets",
-    inbox_panel_key: "key",
-    inbox_panel_keys: "keys",
-    inbox_panel_ready_to: "Ready to sign once loaded",
-    inbox_panel_more_loaded: "+ {} more, loaded with these",
-    inbox_panel_nothing: "Nothing chosen",
-    inbox_panel_load_the_wallet: "Load the wallet with its seeds",
-    inbox_panel_load_the: "Load the wallet",
-    inbox_panel_load_wallets_with: "Load {} wallets with their seeds",
-    inbox_panel_load_wallets: "Load {} wallets",
-    inbox_panel_keys_load: "Keys load once the {} is out",
-    inbox_panel_keys_with: "Keys with no wallet",
-    inbox_panel_make_it_a: "Make it a wallet",
-    inbox_panel_more: "+ {} more",
-    inbox_panel_xpubs_with: "Xpubs with no wallet",
-    inbox_panel_no_origin: "no origin",
-    inbox_panel_make_it: "Make it a watch-only wallet",
-    inbox_panel_not_complete: "Not complete or sealed",
-    inbox_panel_open_with: "Open with its passphrase",
-    potential_open: "Open {}",
-    potential_a_watch_only_wallet: "A watch-only wallet from {}",
-    potential_a_watch_only: "A watch-only wallet from an xpub",
-    potential_a_wallet: "A wallet from {}",
-    potential_from: "From {}",
-    potential_the_backup: "The backup's passphrase",
-    potential_slip_39_passphrase: "SLIP-39 passphrase · none if left empty",
-    potential_bip_39_passphrase: "BIP-39 passphrase · none if left empty",
-    potential_as_its_path: "{} · as its path says",
-    potential_fingerprint: "Fingerprint",
-    potential_a_key_of: "A key of {}: it loads with that wallet",
-    potential_single_key: "Single-key wallet",
-    potential_cancel: "Cancel",
-    potential_open_it: "Open it",
-    potential_load: "Load {}",
-    potential_make_the: "Make the wallet",
-    catalog_tools: "Tools",
-    catalog_find_a_tool: "Find a tool: a name, a BIP number",
-    catalog_no_tool_matches: "No tool matches",
-    decode_back_sign_a: "Sign a transaction",
-    decode_back_spend: "Spend",
-    decode_back_files: "Files",
-    decode_back_wallets: "Wallets",
-    decode_back_tools: "Tools",
-    decode_back_back: "Back",
-    decode_decode_a_transaction: "Decode a transaction",
-    decode_sat_sat_vb: "{} sat · {} sat/vB",
-    decode_not_stated_the: "Not stated: the amounts going in are not here",
-    decode_transaction: "Transaction id",
-    decode_witness_id: "Witness id",
-    decode_version: "Version",
-    decode_locktime: "Locktime",
-    decode_size: "Size",
-    decode_bytes_vb_wu: "{} bytes · {} vB · {} WU",
-    decode_fee: "Fee",
-    decode_inputs: "Inputs · {}",
-    decode_no_witness: "No witness",
-    decode_witness_bytes: "Witness · {} {} · {} bytes",
-    decode_item: "item",
-    decode_items: "items",
-    decode_sequence: "Sequence {} · {}{}",
-    decode_script_sig_bytes: "· scriptSig {} bytes",
-    decode_outputs: "Outputs · {}",
-    decode_change_back: "Change · back to {} · 1/{}",
-    decode_back_to_receive: "Back to {} · receive 0/{}",
-    decode_pays_out_of: "Pays out of the loaded wallets",
-    decode_hide_the_hex: "Hide the hex",
-    decode_show_the_hex: "Show the hex",
-    decode_show_as_qr: "Show as QR",
-    missing_keys_line_is: "{} is locked · it may hold them",
-    missing_keys_line_not: "Not in {} · perhaps another vault, a paper backup or a SeedQR",
-    missing_keys_line_a: "A vault on {}, a paper backup or a SeedQR may hold them",
-    missing_keys_line_unlock: "Unlock",
-    wallet_rows_none_loaded: "None loaded",
-    wallet_rows_can_spend: "Can spend · {} of {}",
-    wallet_rows_of_here: "{} of {} here",
-    wallet_rows_watch_only: "Watch only",
-    wallet_rows_more: "+ {} more",
-    app_make_a_wallet_from: "Make a wallet from this key",
-    app_wallet: "Wallet",
-    app_transaction: "Transaction",
-    app_transaction_id: "Transaction id",
-    app_signers: "Signers",
-    app_sign: "Sign",
-    app_signatures_for: "Signatures for this transaction",
-    app_finish: "Finish",
-    app_path: "Path",
-    app_nonces: "Nonces",
-    app_sparrow: "Sparrow",
-    app_coldcard_keystone: "Coldcard, Keystone, Passport",
-    app_nunchuk: "Nunchuk",
-    app_bitcoin_core: "Bitcoin Core",
-    app_not_sure: "Not sure",
-    app_address: "Address",
-    app_message: "Message",
-    app_format: "Format",
-    app_signature: "Signature",
-    app_back_up: "Back up",
-    app_kind: "Kind",
-    app_quorum: "Quorum",
-    app_description: "Description",
-    app_keys: "Keys",
-    app_check: "Check",
-    app_done: "Done",
-    app_super_s_held_2: "Super + S held 2 s: power off at once",
-    app_for_totp_codes: "For TOTP codes, GPG and Secure Boot signatures, and backup check dates",
-    loose_card_key_is_loaded: "Key {} is loaded. No wallet uses it.",
-    loose_card_keys_are: "{} keys are loaded. No wallet uses them.",
-    loose_card_add_another: "Add another key",
-    loose_card_restore: "Restore an existing wallet",
-    wallets_signing: "Signing",
-    wallets_continue: "Continue",
-    wallets_in_files: "in Files",
-    wallets_review: "Review",
-    wallets_wallets: "Wallets",
-    wallets_watch_only: "{} · watch only",
-    wallets_of_here: "{} · {} of {} here",
-    wallets_keys_without: "Keys without a wallet",
-    wallets_restore_an: "Restore an existing wallet",
-    wallets_scan_a_key_for: "Scan a key for {}",
-    wallets_add_a_key: "Add a key",
-    wallets_no_wallet_loaded: "No wallet loaded",
-    wallets_enter_keeps: "Enter keeps it · Esc leaves it",
-    wallets_rename: "Rename",
-    wallets_show_wallet: "Show wallet QR",
-    wallets_back_up: "Back up",
-    wallets_sign_a_message: "Sign a message",
-    wallets_remove_from: "Remove from session",
-    wallets_of_signatures: "{} of {} signatures possible here",
-    wallets_can_spend: "Can spend",
-    wallets_scan_a_key: "Scan a key",
-    wallets_at_a_glance: "At a glance",
-    wallets_first_receive: "First receive address · 0/0",
-    silent_wallet_card_key: "Key",
-    silent_wallet_card_here: "Here",
-    silent_wallet_card_not: "Not here",
-    silent_wallet_card_load: "Load from vault",
-    silent_wallet_card_add: "Add its key",
-    silent_wallet_card_address_2: "Address",
-    silent_wallet_card_labels: "Labels handed out",
-    silent_wallet_card_address: "Address, labels and payments",
-    silent_wallet_card_show: "Show wallet QR",
-    silent_wallet_card_remove: "Remove from session",
-    spend_no_transaction: "No transaction loaded",
-    spend_open_files: "Open Files",
-    spend_wallets: "Wallets",
-    spend_sign_a_transaction: "Sign a transaction",
-    spend_status_share: "share {}",
-    spend_status_carry: "Carry file kept · the next share signs with it",
-    spend_status_the_next: "The next share signs with the carry file",
-    spend_status_both_wait: "Both wait {}",
-    spend_status_complete: "Complete",
-    spend_status_sign_here_more: "Sign here · {} more at {} own place",
-    spend_status_its: "its",
-    spend_status_their: "their",
-    spend_status_sign_here_and: "Sign here and collect {} more",
-    spend_status_sign_here: "Sign here",
-    spend_status_keep_the: "Keep the carry file",
-    spend_status_insert: "Insert {} to write it",
-    spend_status_open_files: "Open Files",
-    spend_status_finish: "Finish",
-    spend_status_sign_with: "Sign with {}",
-    spend_bar_of: "{} of {}",
-    step_summary_no_loaded: "No loaded wallet matches",
-    step_summary_addresses: "Addresses · Compare",
-    step_summary_sends: "Sends {} BTC · fee {} sat/vB",
-    step_summary_here_needed: "{} here · {} needed",
-    step_summary_not_signed: "Not signed here yet",
-    step_summary_signed_with: "Signed with {}",
-    step_summary_of: "{} of {}",
-    step_summary_of_nonces: "{} of {} nonces",
-    step_summary_way_to: "way to spend",
-    step_summary_ways_to: "ways to spend",
-    step_summary_signed: "Signed PSBT and finished transaction",
-    step_summary_not_finished: "Not finished yet",
-    step_summary_not_reached: "Not reached yet",
-    step_from: "{} · from {}",
-    step_no_loaded_wallet: "No loaded wallet matches this transaction. Change cannot be verified until its wallet is loaded.",
-    step_receive_0_0: "Receive 0/0",
-    step_receive_0_1: "Receive 0/1",
-    step_change_1_0: "Change 1/0",
-    step_no_wallet_to_show: "No wallet to show addresses from",
-    step_sends: "Sends",
-    step_to_2: "to {}/{}",
-    step_change: "Change",
-    step_to: "to {}",
-    step_unverified: "Unverified",
-    step_fee: "Fee",
-    step_sat_sat_vb: "{} sat · {} sat/vB",
-    step_spends: "Spends",
-    step_amount_unchecked: "Amount unchecked",
-    step_unchanged_by_signing: "Unchanged by signing",
-    step_changes_when_signed: "Changes when signed",
-    step_txid: "Txid",
-    step_not_known_until: "Not known until signed",
-    step_no_warnings: "No warnings",
-    step_input: "Input",
-    step_output: "Output",
-    step_hide_the_table: "Hide the table",
-    step_show_the_table: "Show the table",
-    step_share_n: "Share {}",
-    step_signed: "Signed",
-    step_signs_at_its_own: "Signs at its own place",
-    step_not_signing: "Not signing",
-    step_signs_next: "Signs next",
-    step_choose: "Choose",
-    step_needs_here_chosen: "Needs {} · {} here · {} chosen",
-    step_needs_signed: "Needs {} · {} signed",
-    step_load_from_vault: "Load from vault",
-    step_signs_here: "Signs here",
-    step_not_here: "Not here",
-    step_unlock: "Unlock {}",
-    step_scan_a_key: "Scan a key",
-    step_collect_a_signature: "Collect a signature",
-    step_remove_the_first: "Remove the {} first",
-    step_no_share_of_this: "No share of this wallet is loaded here",
-    step_choose_other_under: "Choose {} other {} under Signers",
-    step_share_inline: "share",
-    step_shares: "shares",
-    step_sign_as: "Sign as {}",
-    step_signed_with: "Signed with {}",
-    step_no_key_in_this: "No key in this session signs this transaction",
-    step_sign_with: "Sign with {}",
-    step_input_inline: "input",
-    step_inputs: "inputs",
-    step_from_inline: "from {}",
-    step_signed_here: "Signed here",
-    step_verified: "Verified",
-    step_not_needed: "Not needed",
-    step_no_cosigner_s: "No cosigner's copy in Files",
-    step_scan_a_copy: "Scan a copy",
-    step_share_n_inline: "share {}",
-    step_carry_file: "Carry file",
-    step_for_holds_its: "For {} · holds its secret nonce until it signs",
-    step_the_next_share: "the next share",
-    step_kept: "Kept",
-    step_keep_it: "Keep it",
-    step_needs: "Needs {}{} {}",
-    step_more: "more",
-    step_signature: "signature",
-    step_signatures: "signatures",
-    step_signed_psbt: "Signed PSBT",
-    step_for_the_wallet: "For the wallet that wrote it · not finalised",
-    step_finished_transaction: "Finished transaction",
-    step_ready_to_broadcast: "Ready to broadcast",
-    step_remove: "Remove",
-    step_make_again: "Make again",
-    step_vb: "{} · {} vB",
-    step_decode_it: "Decode it",
-    step_hide_the_raw_hex: "Hide the raw hex",
-    step_show_the_raw_hex: "Show the raw hex",
-    step_this_device: "This device",
-    step_nonce_here: "Nonce here",
-    step_waiting: "Waiting",
-    step_add_from: "Add from {}",
-    step_show_as_qr: "Show as QR",
-    step_go_first_share: "Go first: share this device's nonce",
-    step_path: "Path {}",
-    step_key: "key {} {}",
-    step_no_wait: "No wait",
-    step_waits: "Waits {}",
-    step_this_transaction_s: "This transaction's sequence allows this path",
-    step_this_transaction: "This transaction's sequence does not allow this path",
-    step_continue: "Continue",
-    spend_panel_this_transaction: "This transaction",
-    spend_panel_verified: "Verified",
-    spend_panel_unverified: "Unverified",
-    spend_panel_none: "None",
-    spend_panel_wallet: "Wallet",
-    spend_panel_not_loaded: "Not loaded",
-    spend_panel_sends: "Sends",
-    spend_panel_btc: "{} BTC",
-    spend_panel_to: "To",
-    spend_panel_fee: "Fee",
-    spend_panel_sat_sat: "{} sat · {} sat/vB",
-    spend_panel_change: "Change",
-    spend_panel_txid: "Txid",
-    spend_panel_signatures: "Signatures",
-    spend_panel_of: "{} of {}",
-    question_title_software: "Software",
-    ticked_none: "None",
-    item_title_print_blank: "Print {} blank {}",
-    item_title_template_inline: "template",
-    item_title_templates: "templates",
-    item_title_template_n: "Template for {} words",
-    item_title_copy_seed: "Copy seed {} by hand",
-    item_title_passphrase: "Write the passphrase of seed {} on paper",
-    item_title_checked: "Checked",
-    item_title_not_checked: "Not checked",
-    item_title_vault_2: "Vault {}",
-    item_title_vault: "Vault {} · {}",
-    item_title_in: "In {}",
-    item_title_not_saved: "Not saved",
-    item_title_the_seeds: "The seeds as files",
-    item_title_not_made: "Not made",
-    item_title_the_shares: "The shares",
-    item_title_shares_keys: "{} shares, {} keys each",
-    item_title_the_wallet: "The wallet sheet",
-    item_title_a_pdf_to: "A PDF to print",
-    item_title_the_public: "The public files",
-    item_title_show_the: "Show the descriptor to the software",
-    item_title_shown: "Shown",
-    item_title_not_shown: "Not shown",
-    item_title_one_envelope: "One envelope per place",
-    item_title_envelope: "envelope",
-    item_title_envelopes: "envelopes",
-    question_summary_any: "Any one place lost: {}",
-    backup_after: "After: {}",
-    backup_back_up_a_wallet: "Back up a wallet",
-    backup_back_up: "Back up {}",
-    backup_vault_contents: "Vault contents",
-    backup_wallets: "Wallets",
-    backup_then_wallets: "Then: Wallets",
-    backup_vault_s_needs: "Vault {}'s {} needs a place",
-    backup_make_the_checklist: "Make the checklist",
-    backup_change_the_plan: "Change the plan",
-    backup_words_on_the: "Words on the seed",
-    backup_no_key_of_this: "No key of this wallet was loaded from words in this session",
-    backup_hide_the_seed: "Hide the seed",
-    backup_show_the_seed: "Show the seed",
-    backup_hide_the_passphrase: "Hide the passphrase",
-    backup_show_the_passphrase: "Show the passphrase",
-    backup_passphrase_of: "Passphrase of {}",
-    backup_no_passphrase_kept: "This key was loaded without its passphrase",
-    backup_words: "{} · {} words",
-    backup_seedqr_is_for: "SeedQR is for English words only: copy these words by hand",
-    backup_standard_seedqr: "Standard SeedQR",
-    backup_compact_seedqr: "Compact SeedQR",
-    backup_shown: "Shown",
-    backup_not_shown: "Not shown",
-    backup_make_it: "Make it",
-    backup_backup_sheet: "Backup sheet",
-    backup_a_pdf_to_print: "A PDF to print",
-    backup_make_them: "Make them",
-    backup_the_shares: "The shares",
-    backup_sheets_to_print: "Sheets to print, text files and pictures",
-    backup_nothing: "Nothing",
-    backup_back_to_the: "Back to the wallet",
-    backup_done: "Done",
-    plan_a_key_made_here: "A key made here signs only once this backup is done.",
-    plan_what_is_a_share: "What is a share?",
-    plan_form: "Form",
-    plan_qr_picture: "QR picture",
-    plan_text: "Text",
-    plan_vault_s_needs: "Vault {}'s {} needs a place",
-    plan_make_the_checklist: "Make the checklist",
-    plan_continue: "Continue",
-    map_rows_of_files: "{} of files",
-    map_rows_watch_only: "Watch-only software",
-    map_rows_on_its_own: "On its own device",
-    map_rows_nothing: "Nothing",
-    backup_done_backup: "Backup done",
-    backup_done_open_the: "Open the wallet",
-    backup_done_change: "Change the plan",
-    signers_count_of_signatures_here: "{} of {} signatures here",
-    signers_count_of_signatures: "{} of {} signatures here · {} more needed",
-    signers_count_can_spend: "Can spend",
-    signers_count_continue: "Continue",
-    shares_card_keys_left: "Keys left off each share",
-    shares_card_share: "Share {}",
-    shares_card_any_shares: "Any {} shares rebuild the wallet",
-    shares_card_some_shares: "Some {} shares do not rebuild the wallet",
-    shares_card_the_fewest: "The fewest shares that rebuild it: {}",
-    shares_card_each_key: "Each key is on {} shares",
-    shares_card_no_single: "No single share holds every key",
-    shares_card_each_share: "Each share holds every key",
-    copy_check_your_copys_words: "Your copy's words",
-    copy_check_word_of: "Word {} of {}",
-    copy_check_your_copy: "Your copy matches the seed",
-    copy_check_word_differs: "Word {} differs from the seed",
-    copy_check_clear: "Clear",
-    copy_check_your_copys_passphrase: "Your copy's passphrase",
-    copy_check_passphrase_matches: "Your copy matches the passphrase",
-    copy_check_passphrase_differs: "Your copy differs from the passphrase",
-    copy_check_keep_the_words: "Keep the words only",
-    copy_check_scans_without: "{} scans without a match",
-    copy_check_drawn_in_part: "Seed {}'s SeedQR, drawn in part, stays on the map until destroyed",
-    item_action_continue: "Continue",
-    item_action_check_my: "Check my copy",
-    item_action_compare: "Compare",
-    item_action_lock_it: "Lock it and make a new vault",
-    item_action_save_into: "Save into {}",
-    item_action_make_it: "Make it",
-    item_action_make_them: "Make them",
-    item_action_show_as: "Show as QR",
-    vault_item_holds_another: "{} holds another vault's seed",
-    vault_item_into: "Into {}",
-    vault_item_into_the: "Into the vault",
-    vault_item_seed_with: "Seed {} with its passphrase",
-    vault_item_seed: "Seed {}",
-    vault_item_wallet_description: "Wallet description",
-    seed_files_not_made: "Not made",
-    paper_section_other: "Other paper forms",
-    paper_section_seed_xor: "Seed XOR, 2 parts",
-    paper_section_seed: "Seed XOR, 3 parts",
-    paper_section_codex32_2: "codex32, 2 of 3",
-    paper_section_codex32: "codex32, 3 of 5",
-    paper_section_parts: "{} parts · every one is needed",
-    paper_section_shares: "{} shares · any {} make the seed",
-    paper_section_put_them: "Put them away",
-    seed_grid_row: "row {}",
-    backup_panel_map: "Map",
-    kept_rows_keys: "Keys",
-    message_none_chosen: "None chosen",
-    message_not_written: "Not written yet",
-    message_signed: "Signed",
-    message_not_signed: "Not signed yet",
-    message_wallets: "Wallets",
-    message_sign_a_message: "Sign a message",
-    message_receive_address: "Receive address 0/{}",
-    message_type_the_message: "Type the message",
-    message_press_type: "Press Type to write the message",
-    message_stop_typing: "Stop typing",
-    message_type: "Type",
-    message_characters: "{} characters",
-    message_continue: "Continue",
-    message_sign_the_message: "Sign the message",
-    message_signature: "Signature",
-    message_make_the_file: "Make the file",
-    message_png: "PNG {}",
-    message_signed_message: "Signed message",
-    message_show_as_qr: "Show as QR",
-    check_wallets: "Wallets",
-    check_check_a_signed: "Check a signed message",
-    check_a_valid_signature: "A valid signature proves that whoever holds this address's key signed exactly this text. It says nothing about who is showing it to you, or when it was signed.",
-    check_no_signed_message: "No signed message chosen",
-    check_not_a_signed: "Not a signed message for a {} address",
-    check_the_signature_is: "The signature is valid ({})",
-    check_the_signature: "The signature does not verify: {}",
-    check_file: "File",
-    check_address: "Address",
-    check_wallet: "Wallet",
-    check_change: "change",
-    check_receive: "receive",
-    check_not_an_address: "Not an address of a loaded wallet",
-    check_message: "Message",
-    create_of: "{} of {}",
-    create_of_chosen_computed: "{} of {} chosen · {} computed",
-    create_of_chosen: "{} of {} chosen",
-    create_of_chosen_to: "{} of {} chosen · {} to come",
-    create_first_addresses: "{} · first addresses",
-    create_not_made_yet: "Not made yet",
-    create_opens_on_standard: "Opens on the standard way",
-    create_home: "Home",
-    create_wallets: "Wallets",
-    create_make_a_new_wallet: "Make a new wallet",
-    create_start_over: "Start over",
-    create_signatures_needed: "Signatures needed",
-    create_keys: "Keys",
-    create_all_keys_sign: "All {} keys sign together, as one signature on chain. Losing any one key loses the money: there is no spare.",
-    create_any_of_the_keys: "Any {} of the {} keys can spend. Losing {} {} still leaves the money spendable; {} keys together can take it.",
-    create_key_inline: "key",
-    create_keys_inline: "keys",
-    create_locked_in: "Locked in",
-    create_not_chosen: "Not chosen",
-    create_loaded_here: "{} · {} · loaded here",
-    create_a_cosigner_s: "{} · a cosigner's xpub",
-    create_a_cosigner_adds: "A cosigner adds it later · waiting for its xpub file",
-    create_new_key: "New key",
-    create_from: "From {}",
-    create_scan_its_xpub: "Scan its xpub",
-    create_someone_else: "Someone else adds it later",
-    create_needs_xpub_at: "Needs Key {}'s xpub at account {}",
-    create_account: "Account",
-    create_at_account: "{} · account {}",
-    create_path: "Path",
-    create_path_change: "Change",
-    create_path_not_given: "no path given",
-    wallets_new_wallet_from: "New wallet from this one",
-    create_clear: "Clear",
-    create_show_xpub_qr: "Show xpub QR",
-    create_xpub_png: "Xpub PNG {}",
-    create_xpub_file: "Xpub file {}",
-    create_add_a_passphrase: "Add a passphrase",
-    create_passphrase: "Passphrase",
-    create_passphrase_again: "Passphrase again",
-    create_lock_in: "Lock in",
-    create_share_n: "Share {}",
-    create_computed_by: "Computed by the deal",
-    create_new_key_for: "New key for {} {}",
-    create_share: "Share",
-    create_key: "Key",
-    create_continue: "Continue",
-    create_move_the_money: "Move the money from {}",
-    create_back_up_this: "Back up this wallet",
-    create_make_the_wallet: "Make the wallet first",
-    kind_rows_more_kinds: "More kinds",
-    first_addresses_the: "The wallet's first addresses",
-    first_addresses_receive_0: "Receive 0/0",
-    first_addresses_receive: "Receive 0/1",
-    first_addresses_change: "Change 1/0",
-    made_place_written: "Written to {}",
-    made_line_remove: "Remove",
-    made_state_remove: "Remove",
-    made_state_make_again: "Make again",
-    locked_tag_locked_in: "Locked in",
-    descriptor_row_descriptor: "Descriptor",
-    public_files_show_as: "Show as QR",
-    public_files_descriptor: "Descriptor",
-    public_files_any_wallet: "Any wallet software",
-    public_files_wallet: "Wallet file",
-    public_files_sparrow: "Sparrow, Specter",
-    public_files_multisig: "Multisig config",
-    public_files_coldcard: "Coldcard, Keystone, Passport",
-    public_files_backup: "Backup sheet",
-    public_files_a_pdf: "A PDF to print",
-    public_files_bsms_descriptor: "BSMS descriptor record",
-    public_files_bip_129: "BIP 129: Coldcard, Sparrow, Nunchuk",
-    public_files_bitcoin: "Core 29 or later",
-    public_files_key: "Key {}",
-    public_files_for_the: "For the cosigners",
-    public_files_key_bsms: "Key {}, BSMS",
-    public_files_signed: "Signed xpub record, BIP 129",
-    public_files_caravan: "Caravan config",
-    public_files_caravan_unchained: "Caravan, Unchained",
-    public_files_wasabi: "Wasabi file",
-    public_files_wasabi_wallet: "Wasabi Wallet",
-    public_files_core_before_29: "Core before 29",
-    public_files_bitcoin_core: "Bitcoin Core, watch-only",
-    public_files_electrum: "Electrum wallet file",
-    public_files_electrum_watch_only: "Electrum, watch-only",
-    public_rows_for_make: "Make the file",
-    public_rows_for_more_options: "More options",
-    restore_of: "{} of {}",
-    restore_none: "None",
-    restore_of_filled: "{} of {} filled",
-    restore_home: "Home",
-    restore_restore_an: "Restore an existing wallet",
-    restore_i_have_the: "I have the wallet description",
-    restore_scan_it: "Scan it",
-    restore_from_files: "From Files",
-    restore_continue: "Continue",
-    restore_it_matches: "It matches",
-    restore_make_the_wallet: "Make the wallet first",
-    restore_back_up_this: "Back up this wallet",
-    restore_wallets: "Wallets",
-    restore_another_wallet: "Another wallet from these seeds",
-    restore_description_from: "From {}",
-    restore_description_i_have: "I have the seed",
-    restore_description_scan: "Scan descriptor",
-    restore_description_i: "I do not have it",
-    restore_description_shares: "Shares of a split backup",
-    restore_description_of: "{} of {} keys in hand · {}",
-    restore_description_rebuild: "Rebuild the wallet",
-    restore_seeds_key_of: "Key {} of the wallet",
-    restore_seeds_change: "Change",
-    restore_seeds_not_here: "Not here",
-    restore_seeds_here: "Here",
-    restore_seeds_here_n: "Here · {}",
-    restore_seeds_empty: "Empty",
-    restore_seeds_its_xpub: "Its xpub",
-    restore_seeds_make: "Make the wallet",
-    restore_open_slot_type: "Type the words",
-    restore_open_slot_scan: "Scan a SeedQR",
-    restore_sources_copy_files: "Copy files in",
-    restore_sources_not: "Not while a key is loaded",
-    restore_sources_insert: "Insert the {}",
-    restore_sources_vault: "Vault",
-    restore_sources_unlock: "Unlock {}",
-    restore_sources_wallet: "Wallet",
-    restore_sources_copy: "Copy the vault in from its {}",
-    kind_line_mb: "{} MB",
-    kind_line_kb: "{} KB",
-    kind_name_wallet_descriptor: "Wallet descriptor",
-    kind_name_finished: "Finished transaction",
-    kind_name_sheet_for: "Sheet for printing",
-    kind_name_signed_message: "Signed message",
-    kind_name_account_xpub: "Account xpub",
-    kind_name_seed_words: "Seed words",
-    kind_name_share_of: "Share of a split backup",
-    kind_name_threshold: "Threshold spend, part-signed",
-    kind_name_vault_locked: "Vault, locked",
-    kind_name_entries_for: "Entries for a vault",
-    kind_name_oskb: ".oskb backup, encrypted",
-    kind_name_keepass_database: "KeePass database, encrypted",
-    kind_name_pdf_to_print: "PDF to print",
-    kind_name_efi_image: "EFI image",
-    kind_name_part_of_a: "Part of a seed: SLIP-39 or codex32",
-    kind_name_text: "Text",
-    kind_name_gpg: "GPG",
-    kind_name_secret_wallet: "Wallet file with a private key",
-    kind_name_file: "File",
-    add_to_vault_add_to: "Add to vault",
-    restore_shares_button_restore: "Restore the wallet · {} shares",
-    restore_shares_button_of: "{} of {} keys in hand",
-    files_files: "Files",
-    files_add_to_signatures: "Add to signatures",
-    files_import_into_the: "Import into the vault",
-    files_contents: "Contents",
-    files_unlock: "Unlock",
-    files_sign: "Sign",
-    files_load_the_wallet: "Load the wallet",
-    files_decode: "Decode",
-    files_load_this_key: "Load this key",
-    files_check_the_signature: "Check the signature",
-    files_waiting_for: "Waiting for {}",
-    files_attached_lock: "{} attached · lock to use it",
-    files_visit: "Visit {}",
-    files_scan_a_qr_code: "Scan a QR code",
-    files_in_memory_emptied: "In memory · emptied at power-off",
-    files_locked: "locked",
-    files_open: "open",
-    files_empty_files_are: "Empty · files are copied in on {} visit",
-    files_public: "Public",
-    files_anyone_may_read: "Anyone may read these",
-    files_written_sealed: "Written sealed",
-    files_sealed_under: "Sealed under their passphrases before they reach {}",
-    files_unprotected_secrets: "Unprotected secrets",
-    files_anyone_who_has: "Anyone who has the {} can use these",
-    files_vault_open_unsaved: "Vault, open · {} unsaved {} · sealed and locked at Lock",
-    files_change: "change",
-    files_changes: "changes",
-    files_vault_open_sealed: "Vault, open · sealed and locked at Lock",
-    files_unprotected: "Unprotected",
-    files_written_after: "Written after Lock",
-    files_ready: "Ready",
-    files_make_pdf: "Make PDF",
-    files_show_as_qr: "Show as QR",
-    files_remove: "Remove",
-    files_empty: "Empty",
-    files_power_off_asks: "Power off asks first while files wait {}",
-    files_holds_what_was: "{} holds what was copied in from {}; {} holds what waits to be written to one, and what the last visit wrote. Both live in memory and are emptied at power-off. Public files are listed apart from vaults, which carry secrets sealed under a passphrase; a secret goes out unprotected only when you say so after a warning, and is listed apart.",
-    receipt_rows_verified: "verified",
-    vault_panel_open: "{} · {} · open",
-    vault_panel_select: "Select all",
-    vault_panel_wallets_with: "Wallets with their seeds",
-    vault_panel_of_in_this: "{} of {} {} in this vault",
-    vault_panel_ready_to: "Ready to sign once loaded",
-    vault_panel_more_listed: "+ {} more · listed under Each seed and wallet",
-    vault_panel_load_wallet: "Load wallet with keys",
-    vault_panel_load: "Load 1 wallet with keys",
-    vault_panel_load_wallets: "Load {} wallets with keys",
-    vault_panel_hide_each: "Hide each seed and wallet",
-    vault_panel_each_seed: "Each seed and wallet · {}",
-    vault_panel_loaded: "Loaded",
-    vault_panel_everything: "Everything is loaded",
-    vault_panel_nothing: "Nothing chosen",
-    vault_panel_load_n: "Load {}",
-    vault_panel_load_and: "Load {} and {}",
-    vault_panel_key: "key",
-    vault_panel_keys: "keys",
-    vault_panel_wallet: "wallet",
-    vault_panel_wallets: "wallets",
-    vault_panel_go_to_wallets: "Go to Wallets",
-    inbox_wallets: "Wallets",
-    inbox_of_here: "{} · {} of {} {} here{}",
-    inbox_key: "key",
-    inbox_keys: "keys",
-    inbox_ready_to_sign: "Ready to sign once loaded",
-    inbox_more_loaded_with: "+ {} more, loaded with these",
-    inbox_nothing_chosen: "Nothing chosen",
-    inbox_load_the_wallet_with: "Load the wallet with its seeds",
-    inbox_load_the_wallet: "Load the wallet",
-    inbox_load_wallets_with: "Load {} wallets with their seeds",
-    inbox_load_wallets: "Load {} wallets",
-    inbox_keys_load_once: "Keys load once the {} is out",
-    inbox_keys_with_no: "Keys with no wallet",
-    inbox_make_it_a_wallet: "Make it a wallet",
-    inbox_more: "+ {} more",
-    inbox_xpubs_with_no: "Xpubs with no wallet",
-    inbox_no_origin: "no origin",
-    inbox_make_it_a_watch: "Make it a watch-only wallet",
-    inbox_not_complete: "Not complete or sealed",
-    inbox_open_with_its: "Open with its passphrase",
-    vault_open: "{} · {} · open",
-    vault_wallets_with: "Wallets with their seeds",
-    vault_of_in_this_vault: "{} of {} {} in this vault",
-    vault_ready_to_sign: "Ready to sign once loaded",
-    vault_more_listed_under: "+ {} more · listed under Each seed and wallet",
-    vault_load_wallet_with: "Load wallet with keys",
-    vault_load_1_wallet: "Load 1 wallet with keys",
-    vault_load_wallets: "Load {} wallets with keys",
-    vault_hide_each_seed: "Hide each seed and wallet",
-    vault_each_seed_and: "Each seed and wallet · {}",
-    vault_select_all: "Select all",
-    vault_loaded: "Loaded",
-    vault_everything_is: "Everything is loaded",
-    vault_nothing_chosen: "Nothing chosen",
-    vault_load_n: "Load {}",
-    vault_load_and: "Load {} and {}",
-    vault_key_inline: "key",
-    vault_keys: "keys",
-    vault_wallet_inline: "wallet",
-    vault_wallets: "wallets",
-    vault_go_to_wallets: "Go to Wallets",
-    inbox_actions_add_to_vault: "Add to vault",
-    inbox_actions_add_to: "Add to signatures",
-    inbox_actions_import: "Import into the vault",
-    inbox_actions_contents: "Contents",
-    inbox_actions_unlock: "Unlock",
-    inbox_actions_sign: "Sign",
-    inbox_actions_load_the: "Load the wallet",
-    inbox_actions_decode: "Decode",
-    inbox_actions_restore: "Restore the wallet · {} shares",
-    inbox_actions_of_keys: "{} of {} keys in hand",
-    inbox_actions_load: "Load this key",
-    inbox_actions_check: "Check the signature",
-    inbox_actions_make: "Make PDF",
-    inbox_actions_remove: "Remove",
-    visit_unselect_all: "Unselect all",
-    visit_select_all: "Select all",
-    visit_write_what_waits: "Write what waits for the {} and copy in what you need from it. Each file written is read back and compared before it counts. Remove the {} when you are done: keys load only with no {} attached.",
-    visit_no_attached: "No {} attached",
-    visit_in_faraday: "In Faraday",
-    visit_public: "Public",
-    visit_sealed: "Sealed",
-    visit_unprotected_secret: "Unprotected secret",
-    visit_nothing_waits: "Nothing waits {}",
-    visit_write: "Write {} {}",
-    visit_larger_than_18: "Larger than 18 MB: not read",
-    visit_settings: "Settings",
-    visit_being_read: "Being read · {}",
-    working_files: "Making the files",
-    working_node_key: "Working out the node key",
-    visit_no_files_on_this: "No files on this {}",
-    visit_delete_files: "Delete files",
-    visit_import_and_load: "Import and load",
-    visit_import: "Import {} {}",
-    visit_file: "file",
-    visit_files: "files",
-    visit_open_files: "Open Files",
-    visit_inbox_line_png_no: "PNG, no QR code read · {}",
-    visit_inbox_line_png: "PNG · {}",
-    visit_inbox_tag_sealed: "Sealed",
-    visit_inbox_tag_public: "Public",
-    visit_inbox_tag_may: "May be a secret",
-    visit_inbox_tag_secret: "Secret",
-    visit_select_all_select: "Select all",
-    visit_unselect_all_unselect: "Unselect all",
-    visit_list_bar_more: "{} more · scroll to see them",
-    pull_line_remove_the_to: "Remove the {} to unlock {}",
-    pull_line_remove_the: "Remove the {} when you are done",
-    pull_line_1_key_copied: "1 key copied in · remove the {} to load it",
-    pull_line_keys_copied: "{} keys copied in · remove the {} to load them",
-    entry_spend: "Spend",
-    entry_wallets: "Wallets",
-    entry_add_key: "Add key {}",
-    entry_add_a_key_for: "Add a key for {}",
-    entry_add_a_key_n: "Add a key · {}",
-    entry_add_a_key: "Add a key",
-    entry_other_languages: "Other languages",
-    entry_other_forms: "Other forms",
-    entry_scan_a_seedqr: "Scan a SeedQR",
-    entry_type_the_words: "Type the words in order. Each word is checked against the BIP-39 list as you type, and Tab finishes a word once only one fits. The last word carries a checksum, so a mistyped word is caught when the count is complete. The words stay in memory for this session only.",
-    entry_no_word_starts: "No word starts with that",
-    entry_tab_completes: "· Tab completes a single match",
-    word_count_row_words: "Words",
-    keyed_words_type_each_word_s: "Type each word's pinyin and then its tone, 1 to 5, on the keys below or the computer's keyboard, and press the character among those it offers. Keys that lead to no word are off. The last word carries a checksum, checked when the count is complete.",
-    keyed_words_type_each_word: "Type each word's 注音 and then its tone on the keys below, and press the character among those it offers. Keys that lead to no word are off. The last word carries a checksum, checked when the count is complete.",
-    keyed_words_type_each: "Type each word on the keys below and press it among the words it can be. Keys that lead to no word are off. The last word carries a checksum, checked when the count is complete.",
-    keyed_words_type_the: "Type the next word",
-    keyed_words_now_its: "Now its tone",
-    keyed_words_no_word: "No word starts with that",
-    keyed_words_press_a: "Press a word to take it",
-    word_keys_shift: "Shift",
-    keyed_status_words_2: "{} words",
-    keyed_status_words: "{} words · checksum correct · {}",
-    entry_status_words_checksum: "{} words · checksum correct · {}",
-    entry_status_words: "{} words",
-    entry_finish_bip_39: "BIP-39 passphrase",
-    entry_finish_add_key: "Add key",
-    entry_finish_clear: "Clear",
-    entry_finish_make_a: "Make a new key",
-    entry_finish_type_on: "Type on the keyboard · Enter adds · Esc goes back",
-    entry_stick_from_plug: "From {} · plug it in",
-    entry_stick_copy_files: "Copy files in",
-    entry_form_type_one_share: "Type one share at a time, its 20 or 33 words, and press Enter. Shares of every group the backup needs go in, in any order; then the passphrase, if the backup has one, and Make the key. A SLIP-39 key has no BIP-39 words.",
-    entry_form_type_one_codex32: "Type one codex32 string at a time, ms1 and all, and press Enter. The secret string is the key at once; shares need as many as the digit after ms1 says.",
-    entry_form_type_one: "Type one part at a time, its BIP-39 words, and press Enter. Every part is needed, and they combine into the words of the key.",
-    entry_form_words_of: "Words of one share",
-    entry_form_nothing: "Nothing in yet",
-    entry_form_1_in: "1 in",
-    entry_form_in: "{} in",
-    entry_form_passphrase: "Passphrase",
-    entry_form_add_this: "Add this one",
-    entry_form_scan_a_qr: "Scan a QR code",
-    entry_form_make_the: "Make the key",
-    entry_form_enter_adds: "Enter adds what is typed · Enter on an empty line makes the key",
-    tz_row_time_zone: "Time zone",
-    time_section_time: "Time",
-    time_section_now: "Now",
-    time_section_set_the: "Set the time",
-    set_time_set_the_time: "Set the time",
-    set_time_now: "Now",
-    set_time_date: "Date",
-    set_time_time: "Time",
-    set_time_set: "Set",
-    set_time_keep_this: "Keep this time",
-    set_time_back: "Back",
-    settings_time: "Time",
-    settings_now: "Now",
-    settings_set_the_time: "Set the time",
-    settings_settings: "Settings",
-    settings_session: "Session",
-    settings_loaded_lost: "{} {} loaded · lost on lock or power-off",
-    settings_key: "key",
-    settings_keys: "keys",
-    settings_lock: "Lock",
-    settings_remove_every: "Remove every key",
-    settings_power_off_2: "Power off",
-    settings_quit: "Quit",
-    settings_lock_after: "Lock after",
-    settings_power_off: "Power off after",
-    settings_never: "Never",
-    settings_min: "{} min",
-    settings_ignored_until: "Ignored until unplugged: {}",
-    settings_mode: "Mode",
-    settings_appearance: "Appearance",
-    settings_motion: "Motion",
-    settings_full: "Full",
-    settings_reduced: "Reduced",
-    settings_display_scale: "Display scale",
-    settings_auto: "Auto",
-    settings_signed_amounts: "Signed amounts",
-    settings_remembered: "{} {} remembered",
-    settings_transaction: "transaction",
-    settings_transactions: "transactions",
-    settings_sealed_into: "Sealed into an open vault",
-    settings_kept_until: "Kept until power-off only",
-    settings_about: "About",
-    settings_faraday: "Faraday {}",
-    settings_keys_are_typed: "Keys are typed, scanned as SeedQR or loaded from a vault, and kept for the session only",
-    settings_vaults_files: "Vaults · files move by {} · QR by camera and from PNG files on {}",
-    settings_are_folders: "{} are folders in ~/faraday-sticks",
-    settings_are_read_by: "{} are read by an unprivileged disk process; the kernel mounts none",
-    settings_not_run: "not run",
-    institute_note_visit: "Visit {} to learn about Bitcoin’s history, economics, and technology. Not affiliated.",
-    pull_go_on: "go on",
-    pull_pull_the_to: "Pull the {} to {}",
-    pull_attached_2: "{} · attached",
-    pull_attached: "{} {} attached",
-    pull_cancel: "Cancel",
-    kept_sections_kept: "Kept",
-    kept_sections_wiped: "Wiped from memory",
-    kept_sections_then: "Then",
-    lock_a_fresh_start_and: "A fresh start, and the upgrade",
-    lock_a_fresh_start: "A fresh start, and the {} visit",
-    lock_lock_and_upgrade: "Lock and upgrade",
-    lock_the_upgrade_runs: "The upgrade runs in a fresh session",
-    lock_is_attached: "{} is attached",
-    lock_lock_and_use: "Lock and use {}",
-    lock_nothing_has_been: "{} · nothing has been read from it",
-    lock_not_now: "Not now",
-    write_out_lock_plug: "Lock, plug in {}, and the visit writes them",
-    write_out_write_to: "Write to {}",
-    write_out_not_now: "Not now",
-    write_out_lock: "Lock",
-    scan_scan_a_key_for: "Scan a key for {}",
-    scan_scan_what_you: "Scan what you have",
-    scan_scan_a_seedqr: "Scan a SeedQR",
-    scan_scan_your_copy: "Scan your copy",
-    scan_receive_into_downloads: "Receive into Downloads",
-    scan_scan_a_qr_code: "Scan a QR code",
-    scan_hold_the_code: "Hold the QR in front of the camera",
-    scan_starting_the_camera: "Starting the camera",
-    scan_type_the_words: "Type the words instead",
-    scan_done: "Done",
-    scan_cancel: "Cancel",
-    scan_paste: "Paste",
-    scan_no_picture: "The camera sends no picture",
-    scan_camera_refused: "The camera was refused",
-    scan_camera_in_use: "The camera is in use by another app",
-    scan_no_camera_found: "No camera found",
-    scan_hold_it_square_on: "Hold it square-on, in focus, with its white margin in the frame",
-    qr_frame_of: "{} · frame {} of {}",
-    qr_secret_whoever_scans: "Secret · whoever scans this can use it",
-    qr_public_safe_to_scan: "Public · safe to scan",
-    qr_ur: "UR",
-    qr_bbqr: "BBQr",
-    qr_parts: "Parts",
-    qr_png: "PNG {}",
-    qr_small: "Small",
-    qr_medium: "Medium",
-    qr_large: "Large",
-    qr_done: "Done",
-    qr_sheet_ur: "UR",
-    qr_sheet_bbqr: "BBQr",
-    qr_sheet_parts: "Parts",
-    qr_sheet_small: "Small",
-    qr_sheet_medium: "Medium",
-    qr_sheet_large: "Large",
-    qr_sheet_of: "{} · {} of {}",
-    qr_sheet_secret_whoever: "Secret · whoever scans this can use it",
-    qr_sheet_public_safe: "Public · safe to scan",
-    qr_sheet_done: "Done",
-    new_input_a_new_keyboard_and: "A new keyboard and pointer",
-    new_input_a_new_keyboard: "A new keyboard",
-    new_input_a_new_pointer: "A new pointer",
-    new_input_the_name: "The name is what the device says about itself",
-    new_input_type_this: "Type this code on it",
-    new_input_no_code: "This keyboard cannot be let in until Faraday restarts",
-    new_input_ignore_this: "Ignore this device",
-    new_input_use_this: "Use this pointer",
-    idle_warn_wiped: "Wiped",
-    idle_warn_open: "{} {} · {} {} · {} open {}",
-    idle_warn_key: "key",
-    idle_warn_keys: "keys",
-    idle_warn_wallet: "wallet",
-    idle_warn_wallets: "wallets",
-    idle_warn_vault: "vault",
-    idle_warn_vaults: "vaults",
-    idle_warn_sealed: "Sealed",
-    idle_warn_kept: "Kept",
-    idle_warn_no_power: "No power-off",
-    idle_warn_power_off: "Power off at {} minutes without input, unless files wait {}",
-    idle_warn_then: "Then",
-    idle_warn_minute: "minute",
-    idle_warn_minutes: "minutes",
-    idle_warn_no_input: "No input for {} · locks at {} without input · any key or touch keeps it",
-    idle_warn_locking_soon: "Locking soon",
-    idle_warn_keep_working: "Keep working",
-    locked_locked: "Locked",
-    locked_locked_after: "Locked after a time without input. Every key and vault was wiped.",
-    locked_powers_off_in: "Powers off in {} without input",
-    locked_no_power_off: "{} {} · no power-off until written",
-    locked_continue: "Continue",
-    power_the_computer: "The computer powers off",
-    power_cancel: "Cancel",
-    power_power_off: "Power off",
-    power_quit: "Quit",
-    power_app_closes: "Faraday closes",
-    power_title: "Power",
-    power_restart: "Restart",
-    power_the_computer_restarts: "The computer powers off, or restarts",
-    power_bios_key: "Usual BIOS key",
-    bios_key_dell: "F2",
-    bios_key_hp: "Esc, then F10",
-    bios_key_lenovo_thinkpad: "F1",
-    bios_key_lenovo_ideapad: "F2 (or Fn+F2)",
-    bios_key_asus: "F2, held",
-    bios_key_acer: "F2",
-    bios_key_msi: "Delete",
-    bios_key_framework: "F2",
-    bios_key_surface: "Volume Up, held",
-    boot_key_dell: "F12",
-    boot_key_hp: "Esc, then F9",
-    boot_key_lenovo_thinkpad: "F12",
-    boot_key_lenovo_ideapad: "F12 (or Fn+F12)",
-    boot_key_asus: "Esc, held",
-    boot_key_acer: "F12",
-    boot_key_msi: "F11",
-    boot_key_framework: "F12",
-    boot_key_surface: "Volume Down, held",
-    secure_boot_dell: "Boot Configuration → Secure Boot",
-    secure_boot_hp: "Boot Options → Secure Boot; business: Security → Secure Boot Configuration",
-    secure_boot_lenovo_thinkpad: "Security → Secure Boot",
-    secure_boot_lenovo_ideapad: "Security → Secure Boot",
-    secure_boot_asus: "Advanced Mode → Security → Secure Boot → Secure Boot Control; desktops: Boot → Secure Boot → OS Type",
-    secure_boot_acer: "Boot → Secure Boot",
-    secure_boot_msi: "Security → Secure Boot → Secure Boot Support",
-    secure_boot_framework: "Administer Secure Boot → Enforce Secure Boot",
-    secure_boot_surface: "Security → Secure Boot",
-    learn_done: "Done",
-    learn_spending_step: "Spending, step by step",
-    secret_out_this_may: "This may be a secret",
-    secret_out_this_is: "This is a secret",
-    secret_out_put_it_unprotected: "Put it {} unprotected",
-    secret_out_unprotected_on: "Unprotected, on the {}",
-    secret_out_tick_it: "Tick it to write",
-    secret_out_unprotected: "Unprotected, {}",
-    secret_out_file: "File",
-    secret_out_what_it: "What it is",
-    secret_out_who_can: "Who can use it",
-    secret_out_sealed_in: "Sealed in a vault",
-    secret_out_in: "In {}",
-    secret_out_save_into: "Save into {}",
-    secret_out_cancel: "Cancel",
-    secrets_anyone_who: "Anyone who copies the {} or sees the code can read it",
-    secrets_i_understand: "I understand: anyone who copies the {} or sees this file can spend these coins",
-    secrets_faraday_cannot: "Faraday cannot tell whether this is a secret: anyone who copies the {} can read it",
-    secrets_words: "Words",
-    secrets_seed: "Seed {}",
-    secrets_words_secret: "{} words · secret: spends",
-    secrets_compact_seedqr: "Compact SeedQR PNG",
-    secrets_seedqr_png: "SeedQR PNG",
-    secrets_whoever_has_it: "Whoever has it spends this wallet's coins",
-    secrets_whoever_has: "Whoever has it signs as key {}; with {} more {}, spends",
-    secrets_key: "key",
-    secrets_keys: "keys",
-    secrets_a_wallet_s: "A wallet's seed",
-    secrets_no_vault_is: "No vault is open",
-    secrets_the_nonce_is: "The nonce is in {}; {} waits {}",
-    secrets_is_in: "{} is in {}",
-    secrets_waits_unprotected: "{} waits {}, unprotected",
-    secureboot_no_randomness: "No randomness from the system yet. Try again",
-    secureboot_pk_kek_and: "PK, KEK and db are in the vault",
-    secureboot_this_computer: "This computer's clock is not known",
-    secureboot_enrolment: "{} enrolment files",
-    secureboot_signed: "{}, signed,",
-    secureboot_signed_by_this: "Signed by this vault's db key",
-    secureboot_signed_by: "Signed by another key",
-    secureboot_changed: "Changed since it was signed",
-    secureboot_not_signed: "Not signed",
-    secureboot_its_signature: "Its signature could not be read",
-    seed_read_type_the: "Type the passphrase",
-    seed_read_key_already: "Key {} · already here",
-    seed_read_passphrase_3: "{} · passphrase",
-    seed_read_not_this: "Not this one",
-    seed_read_cancel: "Cancel",
-    seed_read_use_with: "Use with this passphrase",
-    seed_read_use_without: "Use without a passphrase",
-    seed_read_add_a_passphrase: "Add a passphrase",
-    seed_read_without_a: "Without a passphrase",
-    seed_read_passphrase_2: "Passphrase",
-    seed_read_passphrase: "Passphrase again",
-    seed_read_with_this: "With this passphrase",
-    seed_read_the_two_passphrases: "The two passphrases differ",
-    seed_read_seedqr_read: "SeedQR read",
-    seeds_no_account_key: "No account key in that file",
-    seeds_type_a_derivation: "Type a derivation path, like m/48'/0'/0'/2'",
-    seeds_a_seed_is_no: "A seed is no longer loaded",
-    seeds_no_seed_yet: "No seed yet",
-    seeds_key_is_a_key: "Key {} is a {} key; this session is on {}",
-    seeds_key_has_no_account: "Key {} has no account key yet",
-    seeds_key_is_not_an: "Key {} is not an account key",
-    seeds_of_keys_in_hand: "{} of {} keys in hand",
-    seeds_loaded_from: "{} loaded from {}",
-    seeds_typed_seed: "Typed seed",
-    seeds_typed_seeds: "Typed seeds",
-    seeds_load_from: "Load {} from {}",
-    seeds_of: "{} of {}",
-    seeds_one_key_signs: "one key signs",
-    seeds_of_keys: "{} {} of {} keys",
-    seeds_signature: "signature",
-    seeds_signatures_inline: "signatures",
-    seeds_signatures: "Signatures",
-    seeds_keys: "Keys",
-    seeds_change: "Change",
-    seeds_type_or_paste: "Type or paste an xpub",
-    seeds_not_an_account: "Not an account key",
-    seeds_use: "Use {}",
-    seeds_scan: "Scan",
-    seeds_cosigners_account: "Cosigners' account keys (xpub)",
-    seeds_kind: "Kind",
-    seeds_derivation_path: "Derivation path",
-    seeds_standard: "Standard",
-    seeds_account: "Account",
-    seeds_custom_path: "Custom path",
-    seeds_first_receive: "First receive address · 0/0",
-    seeds_back_to_the_seeds: "Back to the seeds",
-    seeds_make_the_wallet: "Make the wallet",
-    set_time_not_known: "Not known",
-    set_time_time_set_to: "Time set to {}:{}",
-    silent_load_a_key_first: "Load a key first",
-    silent_silent_payments_is: "Silent payments is not open",
-    silent_choose_a_key: "Choose a key first",
-    silent_silent_payment: "Silent payment address · {}",
-    silent_no_address_for: "No address for this key",
-    silent_label: "Label {}",
-    silent_public_receives: "Public: receives payments, spends nothing",
-    silent_silent_payments_address: "Silent payments address",
-    silent_no_record_for: "No record for this key",
-    silent_public_watch: "Public: watch only, spends nothing",
-    silent_silent_payments_record: "Silent payments record",
-    silent_no_vault_is: "No vault is open",
-    silent_silent_payments_scan: "Silent payments scan key · {}",
-    silent_is_in_the_vault: "{} is in the vault",
-    silent_a_silent_payments: "A silent payments scan key",
-    silent_whoever_has: "Whoever has it sees every payment to this address; it cannot spend them",
-    silent_load_the_key: "Load the key first",
-    silent_silent_payments_n: "Silent payments {}",
-    silent_silent_payments: "Silent payments",
-    silent_added_to_your: "Added to your wallets",
-    silent_not_a_transaction: "Not a transaction",
-    silent_key: "Key",
-    silent_address: "Address",
-    silent_scan_key: "Scan key",
-    silent_check_a_payment: "Check a payment",
-    silent_wallets: "Wallets",
-    silent_not_chosen: "Not chosen",
-    silent_a_secret_shows: "A secret: shows every payment",
-    silent_needs_a_previous: "Needs a previous transaction",
-    silent_a_transaction: "A transaction from Files",
-    silent_a_silent_payments_address: "A silent payments address is one address you can give out many times: each payment to it lands at an address nobody else can link to it or to the others.",
-    silent_give_this_address: "Give this address to whoever pays you. A label makes another address of the same wallet, so you can tell who paid; the payer cannot tell the two apart. The record lists the labels handed out, for the wallet software that watches for payments.",
-    silent_finding_payments: "Finding payments needs the scan key: it shows every payment to this address, though it cannot spend them. It goes into the vault, or to a scanning wallet you run yourself.",
-    silent_a_payment_to: "A payment to a silent payments address goes to an address only this key can find. Copy the transaction into Files, signed, with the transactions it spends from; this works out whether any of its outputs pay this wallet, and to which label.",
-    silent_its_key_is_not_loaded: "Its key is not loaded: labels, the scan key and a check need it",
-    silent_add_its_key: "Add its key",
-    silent_no_label: "No label",
-    silent_show_as_qr: "Show as QR",
-    silent_as_a_bitcoin: "As a bitcoin: link",
-    silent_record: "Record {}",
-    silent_record_as_qr: "Record as QR",
-    silent_record_as_png: "Record as PNG",
-    silent_add_as_a_wallet: "Add as a wallet",
-    silent_continue: "Continue",
-    silent_secret_shows: "Secret · shows every payment, cannot spend",
-    silent_save_into: "Save into {}",
-    silent_out_unprotected: "Out unprotected…",
-    silent_pays_this_wallet: "Pays this wallet: {} {}",
-    silent_output: "output",
-    silent_outputs: "outputs",
-    silent_pays_nothing: "Pays nothing to this wallet",
-    silent_spends_nothing: "Spends nothing a silent payment is made from",
-    silent_not_signed_an: "Not signed: an input's key is not in it yet",
-    silent_its_key_is_not: "Its key is not loaded",
-    silent_the_address: "the address",
-    silent_change: "change",
-    silent_label_inline: "label {}",
-    silent_output_to: "Output {} · {} · to {}",
-    silent_needs_the_transaction: "Needs the transaction it spends from, {}: copy it into Files and check again",
-    silent_check: "Check {}",
-    silent_no_transaction: "No transaction in Files",
-    stick_settings_wrote: "Wrote {}, read back and matched",
-    stick_settings_not: "{} not written: {}",
-    stick_wipe_no_zeroing: "No zeroing is a certain erase. A USB stick or SD card can keep old copies of a file's blocks where no write reaches: its controller moves data around inside the chip. Zeros stop recovery tools; a lab that reads the chip itself may still find them. Only destroying the stick is certain.",
-    stick_wipe_faraday: "Faraday only ever writes into this partition, so zeroing it reaches everything Faraday ever wrote to the stick.",
-    stick_wipe_if_a_seed: "If a seed or other secret was ever saved to this stick unencrypted, the only sure way to remove it is to destroy the stick.",
-    stick_wipe_only_this: "Only this stick's files partition is written. Its other partitions, its partition table and any space outside a partition are not touched.",
-    stick_wipe_why_the: "Why: the process that reads sticks takes in whatever a stick brings, so it is given the files partition and nothing else. It can never write a boot partition or a partition table, where a bad stick could leave code for the next computer to boot.",
-    stick_wipe_gb: "{} GB",
-    stick_wipe_mb: "{} MB",
-    stick_wipe_kb: "{} KB",
-    stick_wipe_about_a: "about a minute",
-    stick_wipe_about_minutes: "about {} minutes",
-    stick_wipe_about_hours: "about {} hours",
-    stick_wipe_deleted: "{} deleted, zeros over it first",
-    stick_wipe_not_deleted: "{} not deleted: {}",
-    stick_wipe_stopped_at: "Stopped at {}%",
-    stick_wipe_free_space: "Free space on {} zeroed",
-    stick_wipe_s_partition_zeroed: "{}'s partition zeroed",
-    stick_wipe_s_partition: "{}'s partition zeroed, {} passes",
-    stick_wipe_stopped: "Stopped at {}%: {}",
-    stick_wipe_the_was: "the {} was pulled",
-    stick_wipe_delete_files: "Delete files from {}",
-    stick_wipe_delete_with: "Delete {} {} with zeros",
-    stick_wipe_file: "file",
-    stick_wipe_files: "files",
-    stick_wipe_zero_the_free: "Zero the free space",
-    stick_wipe_zero_the: "Zero the whole partition",
-    stick_wipe_nothing: "Nothing to write: a folder standing for a stick",
-    stick_wipe_to_write: "{} to write · {} on a typical stick",
-    stick_wipe_reading: "Reading the stick's space",
-    stick_wipe_danger_zone: "Danger zone: what is deleted here cannot be undone",
-    stick_wipe_chosen_files: "Chosen files",
-    stick_wipe_zeros_over: "Zeros over each, then it is removed with its name",
-    stick_wipe_the_free: "The free space",
-    stick_wipe_the_files: "The files stay; what earlier deletes left is zeroed",
-    stick_wipe_the_whole: "The whole partition",
-    stick_wipe_every_file: "Every file is deleted, then all of it is zeroed",
-    stick_wipe_no_files: "No files on this {}",
-    stick_wipe_one_pass: "One pass",
-    stick_wipe_two_passes_2: "Two passes",
-    stick_wipe_two_passes: "Two passes write it all twice, which makes a stick replace more of its old blocks.",
-    stick_wipe_cancel: "Cancel",
-    stick_wipe_zeroing_the: "Zeroing the whole partition on {}",
-    stick_wipe_zeroing: "Zeroing the free space on {}",
-    stick_wipe_left: "{}% · {} left",
-    stick_wipe_pass_of: "Pass {} of {}",
-    stick_wipe_keep_the: "Keep the {} in until it is done",
-    stick_wipe_stopping: "Stopping",
-    stick_wipe_stop: "Stop",
-    tools_calculators_each: "Calculators: each takes what you type, works one thing out and keeps nothing. None of them touches a key; an extended private key is refused.",
-    tools_wallets: "Wallets",
-    tools_tools: "Tools",
-    tools_read_as_automatic: "Read as: automatic",
-    tools_text: "Text",
-    tools_hex: "Hex",
-    tools_in: "In {}",
-    tools_text_or_hex: "Text or hex",
-    tools_base58_bech32: "Base58, bech32 or hex",
-    tools_a_descriptor: "A descriptor",
-    tools_an_xpub_ypub: "An xpub, ypub, zpub, tpub…",
-    tools_an_amount: "An amount",
-    tools_a_policy_e_g: "A policy, e.g. or(pk(9a6a2580),and(pk(…),older(1000)))",
-    tools_clear: "Clear",
-    tools_encoding: "Encoding",
-    tools_prefix: "Prefix",
-    tools_version: "Version",
-    tools_bytes: "Bytes",
-    tools_not_base58_bech32: "Not Base58, bech32, bech32m or hex",
-    tools_checksum: "Checksum",
-    tools_given: "Given",
-    tools_holds: "holds",
-    tools_does_not_hold: "does not hold",
-    tools_with_it: "With it",
-    tools_not_one_this: "not one this device loads",
-    tools_not_a_descriptor: "Not a descriptor",
-    tools_legacy: "Legacy",
-    tools_nested_segwit: "Nested SegWit",
-    tools_native_segwit: "Native SegWit",
-    tools_taproot: "Taproot",
-    tools_depth: "Depth",
-    tools_fingerprint: "Fingerprint",
-    tools_child: "Child",
-    tools_that_is_an_extended: "That is an extended private key: this tool takes public keys only",
-    tools_not_an_extended: "Not an extended key",
-    tools_descriptor: "Descriptor",
-    tools_spend_paths: "Spend paths",
-    tools_wallet: "Wallet",
-    tools_one_this_device: "one this device loads",
-    tools_keys_need_origins: "keys need origins and both chains to load",
-    transfer_larger_than: "Larger than 256 KiB: carry it on {}",
-    transfer_is_empty: "{} is empty",
-    transfer_saving: "Saving {}",
-    transfer_saved_this: "Saved {}: this file holds a secret",
-    transfer_saved: "Saved {}",
-    transfer_not_saved: "Not saved: {}",
-    transfer_mb: "{} MB",
-    transfer_kb: "{} KB",
-    transfer_transfer: "Transfer",
-    transfer_send: "Send",
-    transfer_reading: "Reading {}",
-    transfer_no_files: "No files",
-    transfer_over_256_kib: "Over 256 KiB",
-    transfer_receive: "Receive",
-    transfer_scan_with: "Scan with the camera",
-    transfer_open_folder: "Open folder",
-    ui_sketch_mock_up: "Mock-up: the real screen may look different.",
-    ui_dark: "Dark",
-    ui_light: "Light",
-    ui_cobalt: "Cobalt",
-    ui_nord: "Nord",
-    ui_catppuccin: "Catppuccin",
-    ui_tokyo_night: "Tokyo Night",
-    ui_gruvbox: "Gruvbox",
-    ui_rose_pine: "Rosé Pine",
-    ui_bitcoin_orange: "Bitcoin Orange",
-    ui_bitcoin_orange_light: "Bitcoin Orange Light",
-    ui_lamplight: "Lamplight",
-    upgrade_0_1_0_or_earlier: "0.1.0 or earlier",
-    upgrade_test_release_2: "{} test release ({})",
-    upgrade_test_release: "{} test release ({}, changes {})",
-    upgrade_dev: "{} dev ({})",
-    upgrade_dev_changes: "{} dev ({}, changes {})",
-    upgrade_insert_the: "Insert the {} Faraday started from",
-    upgrade_read: "Read",
-    upgrade_reading: "Reading",
-    upgrade_remove_it_insert: "Remove it. Insert the {} to upgrade",
-    upgrade_file: "file",
-    upgrade_files: "files",
-    upgrade_its_data_partition: "Its data partition",
-    upgrade_on_it: "On it",
-    upgrade_to_be_written: "To be written",
-    upgrade_newer_than: "Newer than this Faraday",
-    upgrade_writes_a_dev: "Writes a dev build, with a serial console",
-    upgrade_already_this: "Already this version",
-    upgrade_boot_partition: "Boot partition {} MB · needs {} MB",
-    upgrade_removed_during: "Removed during the write: it does not start until upgraded again · its data partition was not written",
-    upgrade_not_written: "Not written: {}",
-    upgrade_writing: "Writing",
-    upgrade_upgrade: "Upgrade",
-    upgrade_written_read: "Written, read back and matched",
-    upgrade_remove_the: "Remove the {}",
-    upgrade_upgrade_another: "Upgrade another {}",
-    upgrade_done: "Done",
-    upgrade_several_hold: "{} sticks in carry this version · Remove all but the one Faraday started from",
-    upgrade_source_size: "The stick carrying this version has a {} MB boot partition; this Faraday's is {} MB",
-    vanity_legacy: "Legacy",
-    vanity_nested_segwit: "Nested SegWit",
-    vanity_native_segwit: "Native SegWit",
-    vanity_taproot: "Taproot",
-    vanity_m_or_n: "{} · m… or n…",
-    vanity_account_number: "Account number",
-    vanity_the_same_words: "The same words and passphrase, a different account: fast. The wallet is the key's own, at the account found.",
-    vanity_passphrase: "Passphrase",
-    vanity_a_few_characters: "A few characters added to the key's BIP-39 passphrase: slow, one PBKDF2 a try. The words with that passphrase are another wallet, which needs the passphrase kept with them.",
-    vanity_load_a_key_first: "Load a key first",
-    vanity_type_at_least: "Type at least one character after the fixed part",
-    vanity_this_key_was: "This key was not loaded from BIP-39 words: only its account turns",
-    vanity_every_counter: "Every counter was tried: no address begins that way",
-    vanity_vanity_passphrase: "{} · vanity passphrase",
-    vanity_vanity_search: "Vanity search",
-    vanity_is_open: "{} is open",
-    vanity_cannot_stand: "{} cannot stand there in this kind of address",
-    vanity_key: "Key",
-    vanity_what_turns: "What turns",
-    vanity_kind_of_address: "Kind of address",
-    vanity_characters: "Characters",
-    vanity_search: "Search",
-    vanity_wallets: "Wallets",
-    vanity_vanity_address: "Vanity address",
-    vanity_the_key_whose: "The key whose address is searched. Nothing about the key changes.",
-    vanity_a_search_tries: "A search tries one account number, or one passphrase, after another until the first receive address begins with the characters chosen. The same key and the same number give the same address on any device.",
-    vanity_the_kind_of: "The kind of address decides the characters it starts with.",
-    vanity_type_the_characters: "Type the characters the address should begin with, after the part every address of this kind shares. Each character more takes 32 times as long to find for a bech32 address, and 58 times for a legacy one.",
-    vanity_the_search_runs: "The search runs while this screen is open and stops at the first match. The time is an expectation, not a promise: a find can come much sooner or later.",
-    vanity_not_chosen: "Not chosen",
-    vanity_tried_2: "{} tried",
-    vanity_about_tries: "About {} tries",
-    vanity_continue: "Continue",
-    vanity_found: "Found",
-    vanity_account_of_this: "Account {} of this key, after {} tries",
-    vanity_added_to_the: "Added to the passphrase:",
-    vanity_hide: "Hide",
-    vanity_show: "Show",
-    vanity_these_characters: "These characters are part of the passphrase: write them down with it. The words with any other passphrase open another wallet.",
-    vanity_open_this_wallet: "Open this wallet",
-    vanity_search_again: "Search again",
-    vanity_a_second: "{} a second",
-    vanity_about_expected: "· about {} expected",
-    vanity_measuring: "Measuring",
-    vanity_searching_for: "Searching for {}",
-    vanity_tried: "{} tried · {}{}",
-    vanity_stop: "Stop",
-    vanity_search_for: "Search for {}",
-    vanity_min: "{} min",
-    vanity_days: "{} days",
-    vault_mb: "{} MB",
-    vault_kb: "{} KB",
-    vault_remove_the_first: "Remove the {} first",
-    vault_release_to_hide: "Release to hide",
-    vault_hold_to_show: "Hold to show",
-    vault_hold_to_delete: "Hold to delete from vault",
-    vault_here_2: "{} here",
-    vault_unlock_to_see: "Unlock to see what it holds",
-    vault_type_the_passphrase: "Type the passphrase once more to open it",
-    vault_import: "Import",
-    vault_no_vault_in_files: "No vault in Files",
-    vault_remove_the_to: "Remove the {} to unlock",
-    vault_new_vault: "New vault",
-    vault_locked_not_written: "Locked · not written yet",
-    vault_locked_vault: "Locked vault",
-    vault_locked: "Locked",
-    vault_view_contents: "View contents",
-    vault_a_vault_holds: "A vault holds keys, wallets, entries and notes under one to four passphrases, each opening its own contents. A locked vault shows only what its file states: its size and unlock cost. A vault is copied in on {} visit, and is sealed {} again when the session locks with changes in it.",
-    vault_remove_the_then_type: "Remove the {}, then type the passphrase",
-    vault_no_locked_vault: "No locked vault in Files",
-    vault_unlocking: "Unlocking · {}",
-    vault_unlock: "Unlock",
-    vault_this_computer_free: "This computer: {} free",
-    vault_this_computer_memory: "This computer: memory not reported",
-    vault_choose_the_vault: "Choose the vault and type a passphrase. Each passphrase opens its own contents, and a vault does not say how many it has. The time is the Argon2id cost the vault was made with, measured on this computer.",
-    vault_where_will_you: "Where will you open it?",
-    vault_then: "Then: {}",
-    vault_home: "Home",
-    vault_create_a_vault: "Create a vault",
-    vault_a_vault_opens_only: "A vault opens only on a machine with the memory its cost asks for. Choose every kind of machine it will ever be opened on; the cost suggested next fits the one with the least memory.",
-    vault_each_guess_at: "Each guess at a passphrase costs this much memory and time. Argon2id works through the memory 1 KiB at a time, once each pass, so a guess is memory in KiB times passes block steps, and the cost adds the base-2 logarithm of that to the passphrase's own bits: 64 MiB with 3 passes is 196,608 steps, ≈17.6 bits, and doubling the memory or the passes adds ≈1. These are estimates, marked ≈: they count work, not how much harder memory is than time for an attacker. A dice passphrase's own bits are exact. Memory is a hard limit: a machine without it cannot open the vault at any speed. The passphrase matters more: one more dice word adds 12.9 bits, and this whole range of cost adds ≈6. The cost cannot be changed later.",
-    vault_every_passphrase: "Every passphrase gets the same space, fixed for the life of the vault. 256 KiB holds keys, wallets, notes and about a hundred entries.",
-    vault_a_vault_opens: "A vault opens only on a machine with the memory its cost asks for, and the cost cannot be changed later. 512 MiB opens on PCs; 64 MiB opens on a Raspberry Pi as well. Customise chooses the machines, the cost and the space per passphrase one by one.",
-    vault_each_passphrase: "Each passphrase opens its own contents, and the file does not say how many there are. They are set now: adding or changing one later means making a new vault and moving the contents across. The passphrase matters more than the cost: six words from the EFF long list are 77.5 bits, out of reach at any cost here, while a short or reused passphrase is not protected at any cost.",
-    vault_none_chosen: "None chosen",
-    vault_passes_3: "{} · {} · {} passes",
-    vault_file_n: "{} · file {}",
-    vault_ofv: "{}.ofv · {} {} · {}",
-    vault_passphrase_inline: "passphrase",
-    vault_passphrases: "passphrases",
-    vault_match: "match",
-    vault_not_finished: "not finished",
-    vault_free: "{} ({} free)",
-    vault_memory_not_reported: "Memory not reported",
-    vault_this_computer: "This computer",
-    vault_choose_memory: "Choose memory and passes",
-    vault_suggested: "Suggested",
-    vault_fits: "Fits",
-    vault_too_large_for: "Too large for {}",
-    vault_passes_bits: "{} · {} passes · ≈{} bits",
-    vault_memory: "Memory",
-    vault_passes_2: "Passes",
-    vault_unlock_memory_n: "Unlock memory {}",
-    vault_up_to: "{}: up to {}",
-    vault_adds_bits_to: "Adds ≈{} bits to every passphrase",
-    vault_passes: "{} · {} passes",
-    vault_unlocks_in_here: "Unlocks in {} here",
-    vault_unlock_time_not: "Unlock time not measured yet",
-    vault_here: "{} · {} here",
-    vault_this_computer_has: "This computer has {} free",
-    vault_customise: "Customise",
-    vault_file_n_inline: "file {}",
-    vault_continue: "Continue",
-    vault_name: "Name",
-    vault_what_it_holds: "What it holds, for anyone who sees the {} · leave empty for vault.ofv",
-    vault_file_ofv: "File {}.ofv",
-    vault_remove_the_then: "Remove the {}, then type the passphrases",
-    vault_hide_passphrases: "Hide passphrases",
-    vault_show_passphrases: "Show passphrases",
-    vault_passphrase_n: "Passphrase {}",
-    vault_remove: "Remove",
-    vault_generate_with: "Generate with dice",
-    vault_or_type_your: "or type your own below",
-    vault_matches: "Matches",
-    vault_does_not_match: "Does not match yet",
-    vault_demo_uses_public: "Demo puts faraday in place of these words",
-    vault_type_it_then: "Type it, then type it again",
-    vault_bits_from_dice: "{} bits from dice + ≈{} from the unlock cost ≈ {} bits",
-    vault_typed_its_own: "Typed: its own bits are not measured · the unlock cost adds ≈{}",
-    vault_add_another_passphrase: "Add another passphrase",
-    vault_roll_dice_for: "Roll {} dice for each word and type the numbers",
-    vault_no_word_yet: "No word yet",
-    vault_bits_with_the: "{} {} · {} bits · ≈{} with the unlock cost{}",
-    vault_dice_for_the_next_word: "· {} of {} dice for the next word",
-    vault_word: "word",
-    vault_words_inline: "words",
-    vault_use_these_words: "Use these words",
-    vault_your_choices: "Your choices",
-    vault_opens_on: "Opens on",
-    vault_unlock_cost: "Unlock cost",
-    vault_space_per_passphrase: "Space per passphrase",
-    vault_name_and_passphrases: "Name and passphrases",
-    vault_not_chosen_yet: "Not chosen yet",
-    vault_custom: "Custom",
-    vault_this_computer_n: "This computer cannot allocate {}. A vault it could not open is never written.",
-    vault_needs_gives_a: "{} needs {}. {} gives a vault {} at most.",
-    vault_unlocking_takes: "Unlocking takes {} here.",
-    vault_raspberry_pi: "Raspberry Pi unlock times are not measured yet.",
-    vault_will_create: "Will create",
-    vault_no_passphrase: "No passphrase yet",
-    vault_not_measured: "Not measured",
-    vault_file: "File",
-    vault_size: "Size",
-    vault_unlock_memory: "Unlock memory",
-    vault_unlock_here: "Unlock here",
-    vault_unlock_cost_adds: "Unlock cost adds",
-    vault_bits: "≈{} bits",
-    vault_weakest_passphrase: "Weakest passphrase",
-    vault_strength: "Strength",
-    vault_goes_to: "Goes to",
-    vault_creating: "Creating · {}",
-    vault_create_vault: "Create vault",
-    vault_key: "Key",
-    vault_words_n: "{} words",
-    vault_master_seed: "Master seed",
-    vault_not_loaded_at_unlock_inline: "not loaded at unlock",
-    vault_totp: "TOTP",
-    vault_note_characters: "Note · {} characters",
-    vault_recovery_sheet: "Recovery sheet",
-    vault_recovery_sheet_n: "Recovery sheet · {}",
-    vault_ed25519_does: "Ed25519 · does not expire",
-    vault_ed25519_expires: "Ed25519 · expires {}",
-    vault_owner_keys: "Owner keys",
-    vault_pk_kek_db: "PK, KEK, db",
-    vault_record: "Record",
-    vault_vaults: "Vaults",
-    vault_vault_contents: "Vault contents",
-    vault_nothing_in_it: "Nothing in it yet",
-    vault_make_keys: "Make keys",
-    vault_write_it_to: "Write it to {}",
-    vault_save_a_bitcoin: "Save a bitcoin key",
-    vault_make_a_gpg_key: "Make a GPG key",
-    vault_bitcoin_key: "Bitcoin key",
-    vault_wallet: "Wallet",
-    vault_entry: "Entry",
-    vault_gpg_key: "GPG key",
-    vault_secure_boot: "Secure Boot",
-    vault_no_vault_is_open: "No vault is open",
-    vault_open_unsaved: "Open · {} unsaved {}",
-    vault_change: "change",
-    vault_changes: "changes",
-    vault_rename: "Rename",
-    vault_scan_a_code: "Scan a code",
-    vault_import_from_files: "Import from Files ({})",
-    vault_import_n: "Import {}",
-    vault_totp_codes: "TOTP codes",
-    vault_none_in_this: "None in this vault",
-    vault_secret_values: "Secret values show only while held. Changes stay in this session until it locks; locking seals them, and the next {} visit writes the vault back over its own file.",
-    vault_rename_the_vault: "Rename the vault",
-    vault_add_a_note: "Add a note",
-    vault_edit_the_note: "Edit the note",
-    vault_make_a_key: "Make a key",
-    vault_make_secure_boot: "Make Secure Boot keys",
-    vault_add_an_entry: "Add an entry",
-    vault_edit_the_entry: "Edit the entry",
-    vault_expires: "Expires",
-    vault_making_pk_kek: "Making PK, KEK and db",
-    vault_make_the_key: "Make the key",
-    vault_make_the_keys: "Make the keys",
-    vault_open_3: "Open {}",
-    vault_the_backup: "the backup",
-    vault_load_with_a_bip: "Load with a BIP-39 passphrase",
-    vault_passphrase: "Passphrase",
-    vault_opening: "Opening",
-    vault_sealing: "Sealing",
-    vault_open_2: "Open",
-    vault_seal_and_export: "Seal and export",
-    vault_load: "Load",
-    vault_cancel: "Cancel",
-    vault_no_file: "No file {}",
-    vault_signed: "Signed",
-    vault_sign_1_file: "Sign 1 file",
-    vault_sign_files: "Sign {} files",
-    vault_back_to_the_key: "Back to the key",
-    vault_words: "Words",
-    vault_bip_39_passphrase: "BIP-39 passphrase",
-    vault_stored: "Stored",
-    vault_not_stored: "Not stored",
-    vault_load_at_unlock: "Load at unlock",
-    vault_loads_with: "Loads with {}",
-    vault_yes: "Yes",
-    vault_no: "No",
-    vault_in_this_session: "In this session",
-    vault_not_loaded: "Not loaded",
-    vault_load_into_session: "Load into session",
-    vault_load_with_a_passphrase: "Load with a passphrase",
-    vault_dont_load_at_unlock: "Don't load at unlock",
-    load_sheet_title: "Load from {}",
-    load_sheet_wallet: "wallet",
-    load_sheet_wallets: "wallets",
-    load_sheet_key: "key",
-    load_sheet_keys: "keys",
-    load_sheet_watch_only: "Watch-only here",
-    load_sheet_kept_elsewhere: "{} of {} seeds kept elsewhere",
-    load_sheet_also_in: "also in {}",
-    load_sheet_also_in_two: "also in {} and {}",
-    load_sheet_also_in_n: "also in {} other wallets",
-    load_sheet_loaded: "Loaded",
-    load_sheet_keys_card: "Keys",
-    load_sheet_not_now: "Not now",
-    load_sheet_load_ticked: "Load ticked",
-    pass_seeds_title: "Seeds with no passphrase stored",
-    pass_seeds_passphrase: "BIP-39 passphrase",
-    pass_seeds_not_a_key: "This passphrase gives {}, not a key of {}",
-    pass_seeds_other_seed: "Another seed",
-    pass_seeds_load: "Load",
-    pass_seeds_cancel: "Cancel",
-    vault_open_in_wallets: "Open in Wallets",
-    vault_username: "Username",
-    vault_password: "Password",
-    vault_url: "URL",
-    vault_code: "Code",
-    vault_set_the_time: "Set the time",
-    vault_unreadable: "Unreadable",
-    vault_totp_secret: "TOTP secret",
-    vault_notes: "Notes",
-    vault_export_for_keepass: "Export for KeePass",
-    vault_text: "Text",
-    vault_edit: "Edit",
-    vault_descriptor: "Descriptor",
-    vault_note: "Note",
-    vault_fingerprint: "Fingerprint",
-    vault_signing_subkey: "Signing subkey",
-    vault_user_id: "User ID",
-    vault_from_does_not: "From {} · does not expire",
-    vault_to: "{} to {}",
-    vault_valid: "Valid",
-    vault_paperkey: "Paperkey",
-    vault_renew_for: "Renew for",
-    vault_renew: "Renew",
-    vault_export_public: "Export public key",
-    vault_revocation_certificate: "Revocation certificate",
-    vault_show_as_qr: "Show as QR",
-    vault_sign_a_file: "Sign a file",
-    vault_owner_guid: "Owner GUID",
-    vault_enrolment_adds: "Enrolment adds",
-    vault_windows_compatible: "Windows-compatible",
-    vault_own_keys_only: "Own keys only",
-    vault_your_pk_kek_and: "Your PK, KEK and db only. Windows will not start, nor any card or controller whose firmware Microsoft signed",
-    vault_yours_with_microsoft: "Yours, with Microsoft's KEK CAs and Windows CAs. Not Microsoft's third-party CA: a card or controller whose firmware it signed may not start",
-    vault_enrolment_files: "Enrolment files",
-    vault_save_a_key: "Save a key",
-    vault_save_a_wallet: "Save a wallet",
-    vault_bip_39_passphrase_n: "{} · BIP-39 passphrase",
-    vault_save_with_its: "Save with its passphrase",
-    vault_every_key_in: "Every key in this session is in the vault",
-    vault_save: "Save",
-    vault_every_wallet: "Every wallet in this session is in the vault",
-    vault_sealed: "Sealed",
-    vault_not_sealed: "Not sealed",
-    vault_lock_without_sealing: "Lock without sealing",
-    vault_keys_not_saved: "Keys not saved",
-    vault_wallets_not_saved: "Wallets not saved",
-    vault_everything_not: "Everything not in a vault is wiped with the session",
-    vault_back_to_the_vault: "Back to the vault",
-    vault_lock: "Lock",
-    vault_1_year: "1 year",
-    vault_2_years: "2 years",
-    vault_5_years: "5 years",
-    vault_never: "Never",
-    vault_sign_n: "Sign {}",
-    vault_compare_it_with: "Compare it with the build record whose fingerprint you checked yourself",
-    vault_hold_to_sign: "Hold to sign",
-    vault_back: "Back",
-    vault_sign_or_check: "Sign or check an image",
-    vault_no_efi_image: "No EFI image {}",
-    vault_sign: "Sign",
-    vault_check: "Check",
-    vault_back_to_the_keys: "Back to the keys",
-    vaults_light: "Light",
-    vaults_standard: "Standard",
-    vaults_medium: "Medium",
-    vaults_strong: "Strong",
-    vaults_maximum: "Maximum",
-    vaults_pcs_only: "PCs only",
-    vaults_pcs_and_a_raspberry: "PCs and a Raspberry Pi",
-    vaults_other_pcs: "Other PCs",
-    vaults_other_pcs_inline: "other PCs",
-    vaults_raspberry_pi_5: "Raspberry Pi 5",
-    vaults_pi_5: "Pi 5",
-    vaults_raspberry_pi_4: "Raspberry Pi 4",
-    vaults_pi_4: "Pi 4",
-    vaults_raspberry_pi_3: "Raspberry Pi 3",
-    vaults_pi_3: "Pi 3",
-    vaults_pi_zero_2_w: "Pi Zero 2 W",
-    vaults_bitcoin_keys: "Bitcoin keys",
-    vaults_wallets: "Wallets",
-    vaults_entries: "Entries",
-    vaults_gpg_keys: "GPG keys",
-    vaults_secure_boot: "Secure Boot",
-    vaults_aim_for_words: "Aim for {} words or more on this list: the count turns green at {} bits, which this vault counts as strong. The lists and how to roll for them: eff.org/dice",
-    vaults_gib: "{} GiB",
-    vaults_mib: "{} MiB",
-    vaults_kib: "{} KiB",
-    vaults_mb: "{} MB",
-    vaults_kb: "{} KB",
-    vaults_pass: "pass",
-    vaults_passes: "passes",
-    vaults_about_s: "about {} s",
-    vaults_not_measured: "not measured yet",
-    vaults_this_computer_2: "This computer",
-    vaults_file: "file",
-    vaults_files: "files",
-    vaults_in_copy_checked: "in {} · copy checked",
-    vaults_copy_checked: "copy checked",
-    vaults_seed_n: "Seed {}",
-    vaults_in: "in {}",
-    vaults_in_files: "in Files",
-    vaults_nowhere_else: "nowhere else",
-    vaults_make_a_vault: "Make a vault",
-    vaults_unlock: "Unlock {}",
-    vaults_unlock_a_vault_2: "Unlock a vault",
-    vaults_make_a_new_wallet: "Make a new wallet",
-    vaults_restore_an_existing: "Restore an existing wallet",
-    vaults_spend: "Spend",
-    vaults_back_up_a_wallet: "Back up a wallet",
-    vaults_child_seeds: "Child seeds and passwords",
-    vaults_lightning_node: "Lightning node key",
-    vaults_import: "Import",
-    vaults_tools: "Tools",
-    vaults_and_loaded: "{} {} and {} {} loaded",
-    vaults_wallet_inline: "wallet",
-    vaults_wallets_inline: "wallets",
-    vaults_those_entries: "Those entries do not fit in this vault's slot size",
-    vaults_added: "{} {} added",
-    vaults_entry_inline: "entry",
-    vaults_entries_inline: "entries",
-    vaults_not_a_totp_setup: "Not a TOTP setup code",
-    vaults_type_the_backup: "Type the backup's passphrase",
-    vaults_a_passphrase: "A passphrase of 8 characters or more",
-    vaults_that_passphrase: "That passphrase does not open this backup",
-    vaults_needs_mib_which: "Needs {} MiB, which this computer cannot spare",
-    vaults_not_a_backup: "Not a backup this build reads",
-    vaults_remove_the_to: "Remove the {} to unlock",
-    vaults_type_the_passphrase: "Type the passphrase",
-    vaults_needs_this_computer: "Needs {}. This computer has {} free.",
-    vaults_unlocked: "{} unlocked",
-    vaults_loaded_from: "{} loaded from {}",
-    vaults_seed: "Seed",
-    vaults_loaded: "{} {} loaded",
-    vaults_seed_inline: "seed",
-    vaults_seeds: "seeds",
-    vaults_entry: "Entry",
-    vaults_waits_sealed: "{} waits {}, sealed",
-    vaults_that_entry_is: "That entry is too large for a KeePass export",
-    vaults_deleted_from: "Deleted from the vault",
-    vaults_key_is_loaded: "Key {} is loaded",
-    vaults_vault: "Vault",
-    vaults_title: "Title",
-    vaults_username: "Username",
-    vaults_password: "Password",
-    vaults_url: "URL",
-    vaults_notes: "Notes",
-    vaults_totp_secret: "TOTP secret",
-    vaults_text: "Text",
-    vaults_name: "Name",
-    vaults_email: "Email",
-    vaults_owner_name: "Owner name",
-    vaults_this_computer: "This computer's clock is not known",
-    vaults_made_the_certificate: "Made · the certificate. The revocation certificate is kept with the key",
-    vaults_the_note_is: "The note is empty",
-    vaults_an_entry_needs: "An entry needs a title",
-    vaults_not_a_totp_key: "Not a TOTP key",
-    vaults_unlock_a_vault: "Unlock a vault first",
-    vaults_is_in_the_vault_as_a_note: "{} is in the vault as a note",
-    vaults_is_in_the_vault_as_a: "{} is in the vault as a key",
-    vaults_is_in_the_vault_as: "{} is in the vault as a wallet",
-    vaults_this_key_has: "This key has no words to keep",
-    vaults_is_in_the_vault: "{} is in the vault",
-    vaults_that_does_not: "That does not fit in this vault's slot size",
-    vaults_remove_the_first: "Remove the {} first",
-    vaults_finish_step: "Finish step {} first",
-    vaults_every_passphrase: "Every passphrase needs a value",
-    vaults_each_passphrase: "Each passphrase must be typed the same twice",
-    vaults_two_passphrases: "Two passphrases are the same. Each must differ",
-    vaults_choose_a_cost: "Choose a cost this computer can allocate",
-    vaults_no_randomness: "No randomness from the system yet. Try again",
-    vaults_vault_created: "Vault created",
-    vaults_never_written: "Never written",
-    vaults_on_current: "On {} · current",
-    vaults_changed_since: "Changed since written",
-    vaults_changes_not_sealed: "Changes not sealed",
-    lock_held_pill: "Auto-lock off until backup complete",
-    lock_held_ends: "Make a new wallet · ends",
-    lock_held_label: "Ends",
-    lock_held_create: "Make a new wallet",
-    vaults_unchanged: "Unchanged",
-    vaults_wallets_n: "{} wallets",
-    vaults_key: "key {}",
-    vaults_keys_inline: "keys {}",
-    vaults_keys: "{} keys",
-    vaults_1_entry: "1 entry",
-    vaults_entries_n: "{} entries",
-    vaults_seen: "seen {}",
-    vaults_nothing_in_it: "Nothing in it",
-    vaults_place: "Place {}:{}",
-    vaults_wallet: "Wallet",
-    visit_taken_keep_both_n: "{} · Keep both: {}",
-    visit_taken_the_same: "{} · the same vault, updated here",
-    visit_taken_another: "{} · another vault · kept, this one as {}",
-    visit_taken_already: "Already {}",
-    visit_taken_replace: "Replace",
-    visit_taken_keep_both: "Keep both",
-    visit_taken_cancel: "Cancel",
-    mode_demo: "Demo",
-    mode_demo_pill: "Demo · Testnet",
-    mode_sheet_title: "Mode",
-    mode_not_now: "Not now",
-    never_real_seed: "Never type a seed that holds real bitcoin here.",
-    use_a_sample: "Use a sample",
-    fill_words: "Fill words",
-    scan_sample: "Sample",
-    scan_sample_psbt: "Load sample PSBT",
-    scan_sample_wallet: "Load sample wallet",
-    scan_sample_seed: "Load sample seed",
-    scan_sample_share: "Load sample share",
-    scan_sample_key: "Load sample key",
-    scan_sample_seedqr: "Load sample SeedQR",
-    scan_sample_code: "Load sample code",
-    scan_sample_address: "Load sample address",
-    samples_pill: "Load samples",
-    samples_pill_short: "Samples",
-    samples_title: "Load samples",
-    samples_wallets: "Wallets",
-    samples_keys: "Keys",
-    samples_select_all: "Select all",
-    samples_unselect_all: "Unselect all",
-    samples_not_now: "Not now",
-    samples_load: "Load ticked",
-    samples_password: "In Demo, the sample passphrase is",
-    samples_loaded: "Loaded {}",
-    samples_n_wallet: "{} wallet",
-    samples_n_wallets: "{} wallets",
-    samples_n_key: "{} key",
-    samples_n_keys: "{} keys",
-    samples_and: "{} and {}",
-    samples_source: "Sample",
-    sample_abandon: "abandon … about",
-    sample_japanese: "Japanese words",
-    sample_slip39_one: "SLIP-39, one share",
-    sample_slip39_two_of_three: "SLIP-39, 2 of 3",
-    sample_slip39_groups: "SLIP-39, groups",
-    sample_codex32_secret: "codex32 secret",
-    sample_codex32_shares: "codex32, 2 shares",
-    sample_xor: "Seed XOR, 2 parts",
-    sample_backup: "Encrypted backup",
-    sample_aezeed: "LND cipher seed",
-    sample_vault_file: "sample.ofv",
-    sample_message_file: "sample-message.txt",
-    sample_savings: "Savings",
-    sample_spending: "Spending",
-    sample_taproot: "Taproot",
-    sample_nested: "Nested SegWit",
-    sample_legacy: "Legacy",
-    sample_nested_multisig: "Nested multisig",
-    sample_legacy_multisig: "Legacy multisig",
-    sample_taproot_multisig: "Taproot multisig",
-    sample_inheritance: "Inheritance",
-    sample_tree: "Taproot tree",
-    sample_musig: "MuSig2",
-    sample_frost: "FROST 2 of 3",
-    sample_three_of_five: "3 of 5",
-    sample_type: "{} · {}",
-    sample_kind_single: "single-sig",
-    sample_kind_multisig: "{}-of-{} multisig",
-    sample_kind_musig: "{}-key MuSig2",
-    sample_kind_frost: "{}-of-{} FROST",
-    sample_kind_timelock: "timelock recovery",
-    sample_script_tree: "Taproot, script tree",
-    sample_form_bip39: "BIP-39",
-    sample_form_slip39: "SLIP-39",
-    sample_form_codex32: "codex32",
-    sample_form_xor: "Seed XOR",
-    sample_form_seed: "Master seed",
-    sample_form_backup: "Encrypted backup (.oskb)",
-    sample_form_aezeed: "LND cipher seed",
-    sample_size_words: "{} words",
-    sample_size_words_japanese: "{} words, Japanese",
-    sample_size_share: "1 share",
-    sample_size_shares: "{} shares",
-    sample_size_threshold: "{} of {} shares",
-    sample_size_groups: "groups, {} shares",
-    sample_size_secret: "secret",
-    sample_size_parts: "{} parts",
-    sample_size_bytes: "{} bytes",
-    wallet_mainnet: "Mainnet",
-    wallet_testnet: "Testnet",
-    wallet_signet: "Signet",
-    wallet_regtest: "Regtest",
-    wallet_not_a_valid: "Not a valid seed: {}",
-    wallet_is_already_loaded: "{} is already loaded",
-    wallet_these_words_give: "These words give {}, not {}",
-    wallet_these_words: "These words give {}, not a key of {}",
-    wallet_not_a_wallet: "Not a wallet: {}",
-    wallet_is_not_the_network: "{} is not {}, the network of the loaded wallets",
-    wallet_is_not_a_key: "{} is not a sample: Demo takes only samples",
-    wallet_runs_on_only: "This app runs on {} only",
-    wallet_from: "From {}",
-    wallet_from_inline: "from {}",
-    wallet_a_master_seed: "a master seed is 16 to 64 bytes",
-    wallet_legacy: "legacy",
-    wallet_nested_segwit: "nested SegWit",
-    wallet_native_segwit: "native SegWit",
-    wallet_taproot: "Taproot",
-    wallet_single_key: "Single key · {}",
-    wallet_of_legacy_multisig: "{} of {} · legacy multisig",
-    wallet_of_nested_segwit: "{} of {} · nested SegWit multisig",
-    wallet_of_native_segwit: "{} of {} · native SegWit multisig",
-    wallet_of_taproot_multisig: "{} of {} · Taproot multisig",
-    wallet_keys_miniscript: "{} keys · miniscript with conditions",
-    wallet_keys_taproot: "{} keys · Taproot key and leaves",
-    wallet_of_musig2: "{} of {} · MuSig2",
-    wallet_of_frost: "{} of {} · FROST",
-    wallet_1_key_silent: "1 key · silent payments",
-    wallet_wallet: "Wallet",
-    wallet_no_address: "no address: {}",
-    wallet_no_key_in_this: "No key in this session signs this transaction",
-    wallet_a_json_file: "a .json file with no descriptor",
-    wallet_bsms: "BSMS: {}",
-    wallet_coldcard_export: "Coldcard export: {}",
-    wallet_no_xfp: "no xfp",
-    wallet_its_first_address: "its first {} address is not {}",
-    wallet_no_single_sig: "no single-sig account",
-    wallet_slip132_mismatch: "{} is a {} key; this wallet is {}",
-    wallet_slip132_native_multisig: "native SegWit multisig",
-    wallet_slip132_nested_multisig: "nested SegWit multisig",
-    wallet_slip132_legacy_multisig: "legacy multisig",
-    wallet_slip132_silent_payments: "silent payments",
-    wallet_slip132_other: "another script type",
-    wallet_single_key_file: "Single-key file: {}",
-    wallet_single_key_fingerprint: "MasterFingerprint is not 8 hex digits",
-    wallet_single_key_xpub: "ExtPubKey is not an extended public key",
-    wallet_single_key_path: "AccountKeyPath is not a derivation path",
-    wallet_single_key_no_type: "its key is not a single-key wallet's",
-    wallet_caravan: "Caravan config: {}",
-    wallet_caravan_address_type: "addressType is not P2WSH, P2SH-P2WSH or P2SH",
-    wallet_caravan_network: "network is not mainnet, testnet, signet or regtest",
-    wallet_caravan_starting_index: "startingAddressIndex is not 0",
-    wallet_caravan_keys: "a key in extendedPublicKeys is not an extended public key",
-    wallet_caravan_quorum: "the quorum does not match the keys listed",
-    wallet_caravan_xfp: "an xfp is not 8 hex digits",
-    wallet_caravan_no_origin: "{} has no bip32Path or xfp; every key of a multisig wallet needs both",
-    wallet_caravan_key_network: "{} is a {} key; the file says {}",
-    wallet_electrum: "Electrum file: {}",
-    wallet_electrum_encrypted: "This Electrum file is encrypted",
-    wallet_electrum_fingerprint: "a root_fingerprint or ckcc_xfp is not a fingerprint",
-    wallet_electrum_keystore_type: "keystore type {} is not read",
-    wallet_electrum_no_key: "a keystore has no xpub",
-    wallet_electrum_derivation: "a derivation is not a derivation path",
-    wallet_electrum_key_type: "a key is a {} key, which this wallet_type does not hold",
-    wallet_electrum_wallet_type: "wallet_type {} is not read",
-    wallet_electrum_quorum: "wallet_type does not match the keystores",
-    wallet_electrum_no_origin: "{} has no root_fingerprint and derivation; every key of a multisig wallet needs both",
-    wallet_electrum_mixed: "its keys name more than one script type",
-    wallet_json_too_deep: "JSON nested more than {} levels deep",
-    wallet_json_too_large: "JSON longer than 1 MiB",
-    wallet_collect: "Collect {}{} {}",
-    wallet_more: "more",
-    wallet_signature: "signature",
-    wallet_signatures: "signatures",
-    wallet_not_a_psbt: "Not a PSBT",
-    wallet_is_a_psbt_for: "{} is a PSBT for another transaction",
-    wallet_cannot_combine: "Cannot combine: {}",
-    wallet_a_signature: "A signature in {} does not verify",
-    wallet_not_enough_signatures: "Not enough signatures yet",
-    wallet_the_script_is: "The script is not satisfied yet: another signature, or a timelock not yet reached",
-    wallet_no_such_wallet: "no such wallet",
-    wallet_messages_are: "Messages are signed with single-key wallets",
-    wallet_the_wallet_has: "the wallet has no key",
-    wallet_the_wallet_s_xpub: "the wallet's xpub has no origin",
-    wallet_the_wallet_s_key: "the wallet's key is not loaded here",
-    wallet_the_wallet_s: "the wallet's xpub has no path",
-    wallet_blocks_after: "{} blocks after the coins arrived (about {} days)",
-    wallet_days_after_the: "{} days after the coins arrived",
-    wallet_after_block: "after block {}",
-    wallet_after_time: "after time {}",
-    wallet_a_secret_preimage: "a secret preimage",
-    wordlist_press_a_word: "Press a word to see it in the list",
-    wordlist_bip_39_english: "BIP-39 English",
-    wordlist_eff_large: "EFF large",
-    wordlist_eff_short_1: "EFF short 1",
-    wordlist_eff_short: "EFF short 2",
-    wordlist_bits: "Bits",
-    wordlist_dice: "Dice",
-    wordlist_back: "Back",
-    wordlist_words_word: "{} words · word {} of {} marked",
-    wordlist_words: "{} words",
-    wordlist_type_to_find: "Type to find a word",
-    wordlist_find: "Find: {}",
-    wordlist_no: "No.",
-    wordlist_word: "Word",
-    desktop_title: "Faraday",
-    desktop_title_panel: "Faraday · {} in panel",
-    stick_pill_boot: "Boot stick",
-    stick_pill_in: "in",
-    stick_pill_out: "out",
-    stick_pill_state: "{} · {}",
-    starter_window_title: "Faraday Starter",
-    starter_disk_number: "Disk {}",
-    starter_boot_entry_label: "Faraday stick",
-    stick_usb_stick: "USB stick ({})",
-    vm_qemu: "QEMU",
-    vm_kvm: "KVM",
-    vm_vmware: "VMware",
-    vm_virtualbox: "VirtualBox",
-    vm_hyper_v: "Hyper-V",
-    vm_xen: "Xen",
-    vm_parallels: "Parallels",
-    vm_bochs: "Bochs",
-    backup_flow_heading: "Backup",
-    backup_flow_kind_apk: "APK signing key",
-    backup_flow_kind_gpg: "GPG key",
-    backup_flow_kind_sb: "Secure Boot keys",
-    backup_flow_leave: "Home",
-    backup_flow_vault_n: "Vault {}",
-    backup_flow_place_n: "Place {}",
-    backup_flow_card_where: "Where it will be kept",
-    backup_flow_card_sticks: "Bring in the {}",
-    backup_flow_card_vaults: "Vaults",
-    backup_flow_card_make: "Make the key",
-    backup_flow_card_lock: "Lock",
-    backup_flow_card_write: "Write the {}",
-    backup_flow_card_done: "Done",
-    backup_flow_add_place: "Add a place",
-    backup_flow_place_keeps: "A {} with",
-    backup_flow_new_vault: "A new vault",
-    backup_flow_existing_vault: "An existing vault",
-    backup_flow_stick_for: "the {} for {} ({})",
-    backup_flow_files_stick: "the {} of files",
-    backup_flow_public_stick: "the {} of public files",
-    backup_flow_files_at: "Files ({})",
-    backup_flow_pick_title: "{} · {}",
-    backup_flow_the_plan: "The plan",
-    backup_flow_vault_holds_nothing: "Vault {} holds nothing",
-    backup_flow_vault_share: "{} · Share {} of {}",
-    backup_flow_held_before: "Vault {} held this before; take it out from the vault's contents",
-    backup_flow_other_wallet_key: "Another wallet in Vault {} uses this key; take it out from the vault's contents",
-    backup_flow_files_after_lock: "Files and paper stay as made after the lock; finish the writes, then Back up again to change them",
-    backup_flow_past_lock: "This backup is past its lock; finish the writes, then Back up again",
-    backup_flow_lock_bring: "Lock and bring in the {}",
-    backup_flow_insert: "Insert {}",
-    backup_flow_use_read: "Use {}, read at {}",
-    backup_flow_one_at_a_time: "One {} at a time",
-    backup_flow_not_fat: "Not a FAT32 {}. Format it as FAT32, or use another {}",
-    backup_flow_boot_part: "This is a boot partition. Use another {}",
-    backup_flow_read_only: "Cannot be written. Use another {}",
-    backup_flow_no_room: "Not enough room: {} needed, {} free",
-    backup_flow_no_vault: "No vault for {} on this stick",
-    backup_flow_which_vault: "Which vault is {}?",
-    backup_flow_beside: "A new vault beside them",
-    backup_flow_two_copies: "{} has two copies of {}: {} and {}",
-    backup_flow_copies_differ: "{}'s copy of {} differs from {}'s",
-    backup_flow_use_copy_of: "Use {}'s copy",
-    backup_flow_this_is: "This is {}",
-    backup_flow_hold_this_is: "Hold: this is {}",
-    backup_flow_bound_to: "This is {}",
-    backup_flow_both: "One {} for both",
-    backup_flow_pull: "Pull the {}",
-    backup_flow_no_passphrase: "I do not have its passphrase",
-    backup_flow_beside_it: "A new vault beside it",
-    backup_flow_use_another: "Use another {}",
-    backup_flow_slot_row: "{} · {}",
-    backup_flow_insert_n: "Insert {}: {}",
-    backup_flow_not_read_n: "Not {}, read for {}",
-    backup_flow_reads_as: "This reads as {} {}",
-    backup_flow_for_files: "Files",
-    backup_flow_for_public: "Public files",
-    backup_flow_pill: "{} {}",
-    backup_flow_pill_boot_card: "Boot card",
-    backup_flow_pill_stick: "Stick",
-    backup_flow_pill_card: "Card",
-    backup_flow_mark_as: "Mark it as {} {}",
-    backup_flow_this_is_n: "This is {} {}",
-    backup_flow_not_ours: "Not one of this backup's {}",
-    backup_flow_in_vault: "In {}",
-    backup_flow_lock_and_write: "Lock and write",
-    backup_flow_not_read: "Not the {} read for {}",
-    backup_flow_has_first: "This {} has the first copy",
-    backup_flow_hold_second: "Hold: this is a second {}",
-    backup_flow_hold_another: "Hold: this is another {}",
-    backup_flow_has_files_of: "This {} has {}'s files",
-    backup_flow_writing: "Writing {}",
-    backup_flow_written: "Written and checked on {}",
-    backup_flow_pulled: "Pulled before the copy was checked. Nothing counted",
-    backup_flow_not_checked: "The copy did not check on {}. Nothing counted",
-    backup_flow_no_read_back: "{} did not read back from {}; try another stick",
-    backup_flow_first_gone_toast: "A written copy was deleted",
-    backup_flow_done: "Written",
-    backup_flow_row: "Backup",
-    backup_flow_row_none: "Not written",
-    backup_flow_row_some: "Written to {} of {} places",
-    backup_flow_row_all: "Written to every place",
-    backup_flow_continue: "Continue the backup",
-    backup_flow_continue_make: "Continue",
-    backup_flow_first: "Back up first",
-    backup_flow_home_lead: "Continue the backup of {}",
-    backup_flow_power: "Backup of {}: written to {} of {} places",
-    backup_flow_in_the_backup: "In the backup",
-    backup_flow_at_least: "At least {} places",
-    backup_flow_change_plan: "Change the plan",
-    backup_flow_copy_across: "The new vault takes the key from one that holds it",
-    backup_flow_copy_key: "Copy the key",
-    backup_flow_create_vault: "Create {}",
-    backup_flow_destroyed: "I destroyed this copy",
-    backup_flow_free: "{} free",
-    backup_flow_kept: "Kept",
-    backup_flow_wiped: "Wiped from memory",
-    backup_flow_locked: "Locked",
-    backup_flow_not_locked: "Not locked",
-    backup_flow_made: "{} made",
-    backup_flow_make_the_key: "Make the key",
-    backup_flow_making: "Making the key",
-    backup_flow_name: "Name",
-    backup_flow_not_made: "Not made",
-    backup_flow_places_vaults: "Places {} · Vaults {}",
-    backup_flow_pull_to_unlock: "Pull the {} to unlock",
-    backup_flow_reading: "Reading {}",
-    backup_flow_read_of: "{} of {} read",
-    backup_flow_remove: "Remove",
-    backup_flow_seen: "{} · seen {}",
-    backup_flow_unlocked: "Unlocked",
-    backup_flow_unlocked_of: "{} of {} unlocked",
-    backup_flow_unlock_first: "Unlock every vault first",
-    backup_flow_set_up_holds_other: "{} was set up for this vault and holds a key the plan puts in another. Change the plan",
-    create_vaults_locked: "A vault of the setup is open. Lock to change this answer",
-    backup_flow_unlocking: "Unlocking",
-    backup_flow_unlock_vault: "Unlock {}",
-    backup_flow_written_of: "{} of {} written",
-    backup_flow_vaults_n: "{} vaults",
-    backup_flow_vault_new: "{} · new",
-    backup_flow_vault_existing: "{} · an existing vault",
-    backup_flow_dropped: "A kept backup did not read and was dropped",
-    backup_flow_unreadable: "This {} cannot be read. Use another {}",
-    toast_lock_not_kept: "A backup waits and could not be kept. Sealed, not restarted",
-    backup_flow_also: "Also {}",
-    backup_flow_public_here: "Public files here",
-    backup_flow_pull_to_unlock_toast: "Pull the stick first",
-    plan_all_at_one_place: "Every secret of this wallet is at {}. Separate places are strongly recommended.",
-    plan_passphrase_apart: "A passphrase kept at another place than the seed is recommended.",
-    plan_add_passphrase: "Add a passphrase",
-    item_templates_starter: "Print {} from Faraday Starter: Blank templates, {} words, {}",
-    item_templates_words: "Words",
-    item_templates_seedqr: "SeedQR",
-    item_templates_both: "Both",
-    item_action_done: "Done",
-    backup_flow_item_sticks: "Write to {}",
-    backup_flow_kind_wallet: "Bitcoin wallet",
-    backup_flow_key_n: "Key {}",
-    backup_flow_key_on_paper: "Its key is kept only on paper. Type its words in first",
-    backup_flow_written_to: "Written to {}",
-    backup_flow_card_make_wallet: "Make the keys",
-    backup_flow_card_use_vaults: "Use vaults",
-    backup_flow_use_vaults_question: "Will you use vaults as part of this backup?",
-    backup_flow_vaults_on_sticks: "Vaults already on sticks are brought in here, not later.",
-    backup_flow_card_vault_count: "Number of vaults",
-    backup_flow_how_many_question: "How many vaults will be part of this backup?",
-    backup_flow_vault_count_label: "Vaults",
-    backup_flow_stick_for_vault: "the {} for {}",
-    backup_flow_card_plan: "The plan",
-    backup_flow_change: "Change",
-    backup_flow_make_the_keys: "Make the keys",
-    backup_flow_on_paper_only: "{} is kept only on paper",
-    backup_flow_add_from_copy: "Add the key from its copy",
-    backup_flow_written_stays: "A stick already written stays on the plan",
-    backup_flow_no_description: "No copy of the wallet description is here to put in",
-    backup_flow_held_stays: "A key not yet written stays kept on a stick",
-    board_title: "Places",
-    board_places: "{} places",
-    board_one_place: "1 place",
-    board_add_stick: "+ stick",
-    board_stick: "Stick {}",
-    board_sd_card: "SD card {}",
-    board_files_not_sealed: "Files · not sealed",
-    board_paper: "Paper",
-    board_scanned_in: "Scanned in",
-    board_watch_only: "Watch-only software",
-    board_seeds: "Seeds",
-    board_passphrases: "Passphrases",
-    board_wallet_description: "Wallet description",
-    board_whole: "Whole",
-    board_share: "Share {}",
-    board_vaults: "Vaults",
-    board_add_vault: "+ new vault",
-    board_not_here: "Not here",
-    board_keys_left_off: "Keys left off each share",
-    board_words: "Words",
-    board_seedqr: "SeedQR",
-    board_words_file: "Words file",
-    board_seedqr_file: "SeedQR file",
-    board_passphrase_file: "Passphrase file",
-    board_text_file: "Text file",
-    board_qr_picture: "QR picture",
-    board_software_file: "{} file",
-    board_pass_with_words: "{} keeps {}'s words with its passphrase",
-    board_alone_spends: "{} alone can spend the wallet",
-    board_vault_holds: "{} holds {}",
-    board_take_off: "Take off",
-    board_add: "Add",
-    board_add_place: "+ place",
-    board_sealed: "{} · sealed",
-    board_sealed_made: "{} · sealed · made in the checklist",
-    board_sealed_new: "{} · new",
-    board_menu_add: "Add to…",
-    board_menu_move: "Move to…",
-    board_menu_copy: "Copy to…",
-    board_menu_files: "{} · files",
-    board_menu_vault: "{} · {}",
-    board_menu_new_stick: "New stick",
-    board_menu_cancel: "Cancel",
-    board_customize: "Customize backup",
-    board_add_watch_only: "Add watch-only software",
-    board_take_off_watch: "Take off watch-only software",
-    board_spend_alone: "Can spend alone",
-    board_spend_alone_vault: "Can spend alone with the vault's passphrase",
-    board_spend_more_one: "Spends with 1 more place",
-    board_spend_more: "Spends with {} more places",
-    board_spend_vault_more_one: "Spends with the vault's passphrase and 1 more place",
-    board_spend_vault_more: "Spends with the vault's passphrase and {} more places",
-    board_spend_title_alone: "Anyone with access to {} can spend",
-    board_spend_title_alone_vault: "Anyone with access to {} and the vault's passphrase can spend",
-    board_spend_title_one: "Anyone with access to {} needs only 1 more place to spend",
-    board_spend_title_more: "Anyone with access to {} needs only {} more places to spend",
-    board_spend_title_vault_one: "Anyone with access to {} and the vault's passphrase needs only 1 more place to spend",
-    board_spend_title_vault_more: "Anyone with access to {} and the vault's passphrase needs only {} more places to spend",
-    board_spend_line: "{} keeps {} of the {} seeds a spend needs.",
-    board_spend_line_vault: "{} keeps {} of the {} seeds a spend needs, counting its vaults.",
-    board_sees_title: "{} can see the wallet's balance",
-    board_sees_whole: "The whole description is kept there.",
-    board_sees_together: "{} together make the whole description.",
-    board_sees_alone: "{} makes the whole description.",
-    board_sees_share: "Share {}",
-    board_sees_shares: "Shares {} and {}",
-    board_sees_seed: "seed {}",
-    board_sees_seeds: "seeds {} and {}",
-    board_sees_both: "{} and {}",
-    board_keep_it: "Keep it",
-    board_take_it_off: "Take it off",
-    board_partials_add: "Add partial descriptions to this backup",
-    board_partials_remove: "Remove partial descriptions",
-    board_partials_each: "Each place now holds a part of the description.",
-    board_partials_whole: "The whole description is still kept at {}, so the balance can be seen there. Take it off any place where the balance should stay hidden.",
-    board_take_it_off_every: "Take it off every place",
-    board_desc_nothing: "The description cannot be put back together: add the whole description",
-    board_desc_missing: "The description cannot be put back together: the places hold {}; add {} or the whole description",
-    board_desc_kept_add: "The description cannot be put back together: the places hold {}; add the whole description",
-    board_share_twice: "Share {} twice",
-    board_share_times: "Share {} {} times",
-    board_sees_warn: "{} can see the balance. {}",
-    board_no_seed: "{} holds no seed",
-    backup_extra_copies: "More copies can be made once the wallet is made: a vault copied to another stick, words copied by hand. They are not part of the plan.",
-    backup_extra_copies_link: "Extra copies",
-    plan_no_single_place: "No: a single place",
-    plan_without_no_description: "Without {}, the rest cannot put the description back together",
-    file_menu_rename: "Rename",
-    file_menu_details: "Details",
-    file_menu_delete_from: "Delete from the {}",
-    file_menu_cancel: "Cancel",
-    rename_title: "Rename {}",
-    rename_button: "Rename",
-    rename_cancel: "Cancel",
-    rename_empty: "Type a name",
-    rename_dot: "A name cannot start with a dot",
-    rename_character: "A name cannot hold / \\ : * ? \" < > | or a control character",
-    rename_long: "A name is at most 255 characters with its extension",
-    rename_taken_for: "Another file {} is named {}",
-    rename_done: "{} renamed {}",
-    rename_taken_on: "{} is already on this {}",
-    rename_same_vault: "{} on this {} is this same vault",
-    rename_not_done: "{} not renamed: {}",
-    details_name: "Name",
-    details_kind: "Kind",
-    details_size: "Size",
-    details_bytes: "{} bytes",
-    details_sha: "SHA-256",
-    details_reading: "Reading…",
-    details_not_read: "Not read: {}",
-    details_close: "Close",
-    stick_wipe_hold_delete: "Hold to delete {} {} with zeros",
-    passphrase_none: "No passphrase",
-    passphrase_chip: "faraday",
-    create_sanity_again: "Roll again",
-    create_source_dice: "Dice",
-    create_source_coins: "Coin flips",
-    create_source_hex: "Hex entropy",
-    create_source_cards: "Playing cards",
-    create_source_camera: "Camera noise",
-    create_source_mix: "Mixed sources",
-    create_source_device: "This device",
-    create_chi_square: "Chi-square",
-    create_longest_run: "Longest run",
     create_run_face: "{} {}",
+    /// Plural name of dice face 1, for that value.
     create_face_1: "ones",
+    /// Plural name of dice face 2.
     create_face_2: "twos",
+    /// Plural name of dice face 3.
     create_face_3: "threes",
+    /// Plural name of dice face 4.
     create_face_4: "fours",
+    /// Plural name of dice face 5.
     create_face_5: "fives",
+    /// Plural name of dice face 6.
     create_face_6: "sixes",
+    /// Verdict beside a statistic: `normal for {} rolls`.
     create_stat_normal: "normal for {} rolls",
+    /// Verdict beside a statistic that is out of the usual range.
     create_stat_high: "high for {} rolls",
+    /// Label: heads.
     create_heads: "Heads",
+    /// Label: tails.
     create_tails: "Tails",
+    /// That Choice: the rolls hashed as ASCII digits.
     dice_procedure_hashed: "Hashed (Coldcard, SeedSigner)",
+    /// That Choice: every 6 written as a 0, then hashed.
     dice_procedure_six_as_zero: "Six as zero, hashed (Keystone)",
+    /// The second line of a procedure's row: `{} rolls`.
     dice_procedure_rolls: "{} rolls",
+    /// Label: how many cards were drawn.
     create_cards_row: "Cards",
+    /// The shutter under it.
     create_camera_shutter: "Take a picture",
+    /// Label: how many frames were taken.
     create_frames_row: "Frames",
+    /// Label: how many of the 256 luma values the last frame used.
     create_distinct_row: "Luma values",
+    /// The coloured line on that step.
     create_device_result: "Not checkable",
+    /// Label: what produced the bytes.
     create_device_row: "Source",
+    /// The generator on a device with no secure element.
     create_device_os: "operating system",
+    /// The caution this source carries on the source list.
     create_trusts_device: "trusts this device",
+    /// Label on the device-randomness result: what the bytes rest on.
     create_trust_row: "Trust",
+    /// That row's value, in the caution tone.
     create_trust_device: "this device's software",
+    /// "Draw again" on the sanity step, for cards.
     create_sanity_again_draw: "Draw again",
+    /// "Take again" on the sanity step, for the camera.
     create_sanity_again_take: "Take again",
+    /// Application 39': a child key of words.
     bip85_app_words: "Words",
+    /// Application 2': an HD-seed WIF.
     bip85_app_wif: "WIF",
+    /// Application 32': an extended private key.
     bip85_app_xprv: "Extended private key",
+    /// Application 128169': raw bytes.
     bip85_app_hex: "Hex",
+    /// Application 707764': a password in base64.
     bip85_app_base64: "Password (base64)",
+    /// Application 707785': a password in base85.
     bip85_app_base85: "Password (base85)",
+    /// Row: the hash functions.
     tools_hashes: "Hashes",
+    /// Row: base58, bech32, hex, binary.
     tools_encodings: "Encodings",
+    /// Row: the descriptor checksum.
     tools_descriptor_checksum: "Descriptor checksum",
+    /// Row: xpub to SLIP-132 and back.
     tools_convert_key: "Convert key",
+    /// Row: the unit converter.
     tools_units: "Units",
+    /// Tools row: the miniscript policy compiler.
     tools_miniscript: "Miniscript",
+    /// Title of the Choice that picks the list.
     dice_list_title: "Which list?",
+    /// Row: the 7776-word list.
     dice_list_large: "Long list",
+    /// What that row costs to roll.
     dice_list_large_detail: "7776 words · five dice",
+    /// Row: the first 1296-word list.
     dice_list_short1: "Short list",
+    /// What that row costs to roll.
     dice_list_short1_detail: "1296 words · four dice",
+    /// Row: the second 1296-word list.
     dice_list_short2: "Short list 2",
+    /// What that row costs to roll, and what its words are chosen for.
     dice_list_short2_detail: "1296 words · 3 edits apart",
+    /// A path with two slashes in a row.
     explore_path_empty: "Two slashes in a row.",
+    /// A path that ends with a slash.
     explore_path_unfinished: "Type an index after the slash.",
+    /// A level that is not a number.
     explore_path_not_a_number: "A level is a number, with h for hardened.",
+    /// An index of two to the thirty-first or more.
     explore_path_too_large: "The largest index is 2147483647.",
+    /// More than ten levels.
     explore_path_too_deep: "At most ten levels.",
+    /// Button and title: the account's addresses, a page at a time.
     explore_addresses: "Addresses",
+    /// Button and title: look for an address among the account's.
     explore_find: "Find an address",
+    /// Label: the account the addresses are of.
     explore_account: "Account",
-    explore_account_is: "m/{} · {}",
+    /// The account: `{}` its path without `m/`, `{}` its script.
+    explore_account_path: "m/{} · {}",
+    /// Button: the receive chain.
     explore_receive: "Receive",
+    /// Button: the change chain.
     explore_change: "Change",
+    /// An address's name: `{}` its index on the receive chain.
     explore_receive_n: "Receive {}",
+    /// An address's name: `{}` its index on the change chain.
     explore_change_n: "Change {}",
-    explore_from: "From index",
+    /// Label: the list's first index, typed.
+    explore_from_index: "From index",
+    /// Button: the page before; `{}` how many addresses a page holds.
     explore_previous_n: "Previous {}",
+    /// Button: the page after; `{}` how many addresses a page holds.
     explore_next_n: "Next {}",
+    /// Label: how many indices of each chain the search looks at.
     explore_look_through: "Look through",
+    /// Button: a search's depth; `{}` the indices of each chain.
     explore_first_n: "First {}",
+    /// Button: start the search.
     explore_search: "Search",
+    /// Button: stop the search where it is.
     explore_stop: "Stop",
+    /// A search under way: `{}` the indices looked at, `{}` how many it looks at, on each chain.
     explore_searched: "Searched {} of {} on each chain",
+    /// A search that found nothing: `{}` the indices looked at on each chain.
     explore_not_in_the_first: "Not in the first {} receive and change addresses",
+    /// A search's matches: `{}` how many.
     explore_found_n: "{} found",
+    /// Matches past the ones listed: `{}` how many.
     explore_more_n: "{} more not listed",
+    /// A paste with a character no address has, or too long for one.
     explore_not_an_address: "Not an address",
+    /// Label: the self-test result.
     settings_selftest: "Self-test",
+    /// The self-test passed: `{}` is the check count.
     settings_selftest_passed: "passed · {} checks",
+    /// The self-test failed: `{}` is the check.
     settings_selftest_failed: "failed · {}",
+    /// Action that runs the self-test again.
     settings_selftest_run: "Run again",
+    /// Failure title.
     selftest_failed_title: "Self-test failed",
+    /// Row label: the check that did not reproduce.
     selftest_check_row: "Check",
+    /// The only button.
     selftest_exit: "Exit",
-};
+}

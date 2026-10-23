@@ -123,7 +123,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 fill(EN.visit_being_read, &[&size_text(*size as usize)])
             }
             Some(k) => format!("{k} · {}", size_text(*size as usize)),
-            None if big => EN.visit_larger_than_18.to_string(),
+            None if big => EN.visit_file_too_large.to_string(),
             // Read at boot, not copied in.
             None => EN.visit_settings.to_string(),
         };
@@ -154,7 +154,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 6.0;
     }
     if stick.files.is_empty() {
-        let none = fill(EN.visit_no_files_on_this, &[app.medium.noun()]);
+        let none = fill(EN.visit_no_files, &[app.medium.noun()]);
         ui.text(x, y, 13.0, W::R, DIM, &none);
         y += 28.0;
     }
@@ -716,7 +716,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 fill(EN.visit_being_read, &[&size_text(*size as usize)])
             }
             Some(k) => format!("{k} · {}", size_text(*size as usize)),
-            None if big => EN.visit_larger_than_18.to_string(),
+            None if big => EN.visit_file_too_large.to_string(),
             // Read at boot, not copied in.
             None => EN.visit_settings.to_string(),
         };
@@ -758,7 +758,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     let ry = list_top + track_h;
     if stick.files.is_empty() {
-        let none = fill(EN.visit_no_files_on_this, &[app.medium.noun()]);
+        let none = fill(EN.visit_no_files, &[app.medium.noun()]);
         ui.text(ix + 22.0, ry, 13.0, W::R, DIM, &none);
     }
     // Delete files: the one way into deleting from the stick.
@@ -884,7 +884,10 @@ fn visit_write_count(app: &View) -> usize {
 /// what its codes hold.
 fn visit_inbox_line(item: &crate::Item) -> String {
     match item.picture {
-        Some(FileKind::Other) => fill(EN.visit_inbox_line_png_no, &[&size_text(item.bytes.len())]),
+        Some(FileKind::Other) => fill(
+            EN.visit_inbox_line_png_no_qr,
+            &[&size_text(item.bytes.len())],
+        ),
         Some(k) => fill(
             EN.visit_inbox_line_png,
             &[&kind_line(k, item.bytes.len()).to_string()],

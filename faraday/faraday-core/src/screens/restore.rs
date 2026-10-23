@@ -54,7 +54,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     None => r.kind().name().to_string(),
                 },
                 rstep::QUORUM => s
-                    .map(|s| fill(EN.restore_of, &[&s.m.to_string(), &s.n.to_string()]))
+                    .map(|s| fill(EN.restore_threshold, &[&s.m.to_string(), &s.n.to_string()]))
                     .unwrap_or_default(),
                 rstep::DESCRIPTION => match wl {
                     Some(w) if r.described => w.name.clone(),
@@ -97,7 +97,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         } else {
             (EN.restore_wallets, Action::Nav(Screen::WalletsStart))
         })),
-        heading: EN.restore_restore_an,
+        heading: EN.restore_title,
         guided: app.guided,
         switch: true,
         note: None,
@@ -164,14 +164,14 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             // The shortcut: a description fills Kind, Quorum and the
             // cosigners' keys, and the flow goes to Seeds.
             if !r.described {
-                let label = EN.restore_i_have_the;
+                let label = EN.restore_have_description;
                 if ui.compact {
                     cy += ui.wrap(x, cy, w, 13.0, W::S, TEXT, label) + 8.0;
                 } else {
                     ui.text_mid(x, cy, 40.0, 13.0, W::S, TEXT, label);
                 }
                 let mut items: Vec<(&str, Style, Action)> =
-                    vec![(EN.restore_scan_it, Style::Secondary, Action::Scan)];
+                    vec![(EN.restore_scan_button, Style::Secondary, Action::Scan)];
                 if !description_files(app).is_empty() {
                     items.push((EN.restore_from_files, Style::Secondary, Action::RFromFiles));
                 }
@@ -259,7 +259,11 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 let (spend, spend_action) = app.spend_button(i);
                 let mut items = vec![
                     (spend.as_str(), Style::Secondary, spend_action),
-                    (EN.restore_back_up_this, Style::Secondary, Action::Backup(i)),
+                    (
+                        EN.restore_back_up_button,
+                        Style::Secondary,
+                        Action::Backup(i),
+                    ),
                 ];
                 let from = app
                     .session
@@ -292,7 +296,7 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let files = description_files(app);
     let labels: Vec<String> = files
         .iter()
-        .map(|(_, n)| fill(EN.restore_description_from, &[n]))
+        .map(|(_, n)| fill(EN.restore_description_source, &[n]))
         .collect();
     let mut items: Vec<(&str, Style, Action)> = Vec::new();
     if !r.kind().multi() {
@@ -334,7 +338,7 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             match crate::restore::merge(&texts) {
                 Ok(m) => {
                     let line = fill(
-                        EN.restore_description_of,
+                        EN.restore_description_progress,
                         &[
                             &m.have.len().to_string(),
                             &m.n.to_string(),
@@ -413,7 +417,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     cy,
                     k,
                     &fp,
-                    &fill(EN.restore_seeds_key_of, &[&(k + 1).to_string()]),
+                    &fill(EN.restore_seeds_key_number, &[&(k + 1).to_string()]),
                     OK,
                 );
                 cy += 42.0;
@@ -606,7 +610,7 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             W::R,
             DIM,
             &if app.holds_secret() {
-                EN.restore_sources_not.to_string()
+                EN.restore_sources_key_loaded.to_string()
             } else {
                 fill(EN.restore_sources_insert, &[app.medium.noun()])
             },
@@ -696,7 +700,7 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
     );
     if !stick {
         let why = if app.holds_secret() {
-            EN.restore_sources_not.to_string()
+            EN.restore_sources_key_loaded.to_string()
         } else {
             fill(EN.restore_sources_insert, &[app.medium.noun()])
         };

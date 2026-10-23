@@ -42,13 +42,13 @@ impl Receipt {
     pub fn heading(&self, tz_min: i16) -> String {
         match self.time {
             Some(t) => fill(
-                EN.heading_written_to_at,
+                EN.heading_written_to_time,
                 &[
                     &self.label.to_string(),
                     &vault::time_of_day(vault::local_secs(t, tz_min)).to_string(),
                 ],
             ),
-            None => fill(EN.heading_written_to, &[&self.label.to_string()]),
+            None => fill(EN.heading_written_to_label, &[&self.label.to_string()]),
         }
     }
 

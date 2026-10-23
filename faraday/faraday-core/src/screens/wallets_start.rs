@@ -30,7 +30,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         && app.spend.is_none();
     if app.guided && !compact {
         let text = if empty {
-            fill(EN.start_no_wallet_is, &[app.medium.a()])
+            fill(EN.start_no_wallet_loaded, &[app.medium.a()])
         } else {
             EN.start_start_from_what.to_string()
         };
@@ -79,7 +79,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 y,
                 width,
                 Some(Icon::Sign),
-                EN.start_spend_from_a,
+                EN.start_spend_backup,
                 EN.start_a_stick_words,
                 MUTED,
                 Some(Action::Nav(Screen::Family)),
@@ -104,7 +104,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 40.0,
                 &[
                     (
-                        EN.start_spend_from_a,
+                        EN.start_spend_backup,
                         Style::Secondary,
                         Action::Nav(Screen::Family),
                     ),
@@ -129,7 +129,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             width,
             Some(Icon::Flag),
             EN.start_make_a_new_wallet,
-            EN.start_single_key_or,
+            EN.start_create_line,
             MUTED,
             Some(Action::CreateWallet),
         );
@@ -150,7 +150,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             width,
             Some(Icon::Sign),
-            EN.start_spend_from_a,
+            EN.start_spend_backup,
             EN.start_a_stick_words,
             MUTED,
             Some(Action::Nav(Screen::Family)),
@@ -194,7 +194,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             (
                 Icon::Flag,
                 EN.start_make_a_new_wallet,
-                EN.start_single_key_or,
+                EN.start_create_line,
                 Action::CreateWallet,
             ),
             (
@@ -205,7 +205,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
             (
                 Icon::Sign,
-                EN.start_spend_from_a,
+                EN.start_spend_backup,
                 EN.start_a_stick_words,
                 Action::Nav(Screen::Family),
             ),

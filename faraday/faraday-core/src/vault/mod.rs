@@ -1187,7 +1187,7 @@ impl Vaults {
     /// `here_limit`), any other half of its memory. With none chosen,
     /// this computer.
     pub fn weakest(&self) -> (String, u32) {
-        let here = (EN.vaults_this_computer_2.to_string(), self.here_limit());
+        let here = (EN.vaults_this_computer_name.to_string(), self.here_limit());
         let Some(c) = self.create.as_ref() else {
             return here;
         };
@@ -1371,7 +1371,7 @@ impl Faraday {
             let copy = self.seed_copy_checked(c, k.fingerprint.0);
             let (state, nowhere) = match (vault, copy) {
                 (Some(v), true) => (fill(EN.vaults_in_copy_checked, &[&v.to_string()]), false),
-                (Some(v), false) => (fill(EN.vaults_in, &[&v.to_string()]), false),
+                (Some(v), false) => (fill(EN.vaults_kept_in_vault, &[&v.to_string()]), false),
                 (None, true) => (EN.vaults_copy_checked.to_string(), false),
                 (None, false) => (EN.vaults_nowhere_else.to_string(), true),
             };
@@ -1392,7 +1392,7 @@ impl Faraday {
                 .chain(self.outbox.iter())
                 .any(|i| i.name == w.source);
             let (state, nowhere) = match in_vault_wallet(&w.policy().to_descriptor()) {
-                Some(v) => (fill(EN.vaults_in, &[&v.to_string()]), false),
+                Some(v) => (fill(EN.vaults_kept_in_vault, &[&v.to_string()]), false),
                 None if in_files => (EN.vaults_in_files.to_string(), false),
                 None => (EN.vaults_nowhere_else.to_string(), true),
             };
@@ -1464,7 +1464,7 @@ impl Faraday {
                 VaultAction::OpenFrom(k, back),
             ),
             _ => (
-                EN.vaults_unlock_a_vault_2.to_string(),
+                EN.vaults_unlock_way.to_string(),
                 VaultAction::ListFrom(back),
             ),
         };
@@ -1634,7 +1634,7 @@ impl Faraday {
                     let (k, _) = self.vault_load_set(v, &BTreeSet::from([i]));
                     if k > 0 {
                         self.toast(&fill(
-                            EN.vaults_loaded_from,
+                            EN.vaults_loaded_note,
                             &[
                                 &crate::wallet::fp_text(fp).to_string(),
                                 &self.vaults.open[v].name.to_string(),
@@ -2548,7 +2548,7 @@ impl Faraday {
             return;
         };
         let error = if !self.may_load_keys() {
-            Some(fill(EN.vaults_remove_the_to, &[self.medium.noun()]))
+            Some(fill(EN.vaults_remove_to_unlock, &[self.medium.noun()]))
         } else if self.vaults.passphrase.text.is_empty() {
             Some(EN.vaults_type_the_passphrase.to_string())
         } else {
@@ -2764,7 +2764,7 @@ impl Faraday {
             1 => self.session.wallets[first].name.clone(),
             n => fill(EN.vaults_wallets_n, &[&n.to_string()]),
         };
-        self.toast(&fill(EN.vaults_loaded_from, &[&what.to_string(), from]));
+        self.toast(&fill(EN.vaults_loaded_note, &[&what.to_string(), from]));
     }
 
     /// Costs what `described` and `key_fingerprint` cost. The keys and
@@ -3109,7 +3109,7 @@ impl Faraday {
             }
             None => {
                 if let Some(p) = self.vaults.prompt.as_mut() {
-                    p.error = Some(EN.vaults_that_entry_is.to_string());
+                    p.error = Some(EN.vaults_entry_too_large_kdbx.to_string());
                 }
             }
         }
@@ -3137,7 +3137,7 @@ impl Faraday {
         if let Some(id) = self.vaults.current_id() {
             self.vaults.edit(id, |s| s.remove(id, at));
             self.vaults.changed(id);
-            self.toast(EN.vaults_deleted_from);
+            self.toast(EN.vaults_deleted_toast);
         }
     }
 
@@ -3319,7 +3319,7 @@ impl Faraday {
         }
         if form.fields[0].2.text.trim().is_empty() {
             let what = if form.kind == kind::NOTE {
-                EN.vaults_the_note_is
+                EN.vaults_note_empty
             } else {
                 EN.vaults_an_entry_needs
             };
@@ -3376,7 +3376,7 @@ impl Faraday {
             .edit(id, |s| s.set_fields(id, form.record, form.kind, &typed));
         let Ok(_place) = placed else {
             self.vaults.form = Some(form);
-            self.toast(EN.vaults_that_does_not);
+            self.toast(EN.vaults_slot_too_small);
             return;
         };
         if was.is_none() {
@@ -3423,7 +3423,7 @@ impl Faraday {
                     Record::new(kind::KEY)
                         .with(field::KEY, &records::words_payload(&m))
                         .with(field::KEY_LABEL, stem.as_bytes()),
-                    fill(EN.vaults_is_in_the_vault_as_a, &[&it.name.to_string()]),
+                    fill(EN.vaults_file_added_as_key, &[&it.name.to_string()]),
                     0,
                 )
             }
@@ -3521,7 +3521,7 @@ impl Faraday {
             return false;
         };
         if !self.vaults.store().fits(id, &[], &[record.size()]) {
-            self.toast(EN.vaults_that_does_not);
+            self.toast(EN.vaults_slot_too_small);
             return false;
         }
         self.vaults.edit(id, |s| s.insert(id, record));
@@ -4123,7 +4123,7 @@ impl VaultSummary {
             ));
         }
         if parts.is_empty() {
-            return EN.vaults_nothing_in_it.to_string();
+            return EN.vaults_empty_line.to_string();
         }
         parts.join(" · ")
     }

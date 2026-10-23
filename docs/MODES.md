@@ -440,7 +440,7 @@ of them, and the card's one line says so (`vault_demo_uses_public`).
 **Refusals of a weak passphrase.** There are none to loosen: Faraday
 refuses an empty passphrase and a repeat that differs
 (`Vaults::phrase_ok`, `keygen_the_two_passphrases`,
-`seed_read_the_two_passphrases`, `create_pass_lock_the`), and measures
+`seed_read_the_two_passphrases`, `create_pass_lock_mismatch`), and measures
 strength only for words the dice made (`Vaults::phrase_bits`; a typed
 passphrase's is not measured). The dice count (how many rolls make a
 word, how many words) is unchanged. In Demo `phrase_bits` gives `None`

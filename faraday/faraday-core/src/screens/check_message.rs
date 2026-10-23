@@ -65,7 +65,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (line, color) = match &c.verdict {
         Ok(f) => (
             fill(
-                EN.check_the_signature_is,
+                EN.check_signature_valid,
                 &[(if *f == faraday_psbt::message::Format::Bip322 {
                     "BIP-322"
                 } else {
