@@ -29,6 +29,8 @@ need. Each document's header says what kind it is:
 | Which other wallets' files and codes does Faraday read and write? | `docs/INTEROP.md`, `docs/WALLETS.md` |
 | How does the Starter write a stick and start a computer from it? | `docs/STARTER.md` |
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
+| How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
+| Can a person add their own randomness, and when is the stick's kernel ready? | `docs/OWN-RANDOMNESS.md` |
 | What about Macs? | `docs/MAC.md` |
 | What are TOTP codes and the clock? | `docs/TOTP.md` |
 | How are APKs signed? | `docs/APK-SIGNING.md` |
@@ -78,11 +80,13 @@ need. Each document's header says what kind it is:
 - `docs/MOTION.md`: Scrolling, motion and appearance. Built; not yet checked by the owner on hardware.
 - `docs/MULTIVENDOR.md`: Two implementations of every cryptographic step. Option A decided (F79), not built.
 - `docs/NOSTR.md`: The Nostr key. Not built, not scheduled (F27, amended by F34).
+- `docs/OWN-RANDOMNESS.md`: Your own randomness, and the kernel's at boot. Specified (F86), not built.
 - `docs/QR.md`: QR transfer and scanning. Built, except §7.
 - `docs/SIGNER-CHECK.md`: Check a signer. Planned, not built.
 - `docs/SPEED.md`: Speed in long flows. Built but for the glyph cache (§3.8).
 - `docs/STARTER.md`: The Starter. Partly built.
 - `docs/STRUCTURE-PASS.md`: The structure pass. Partly built.
+- `docs/TEXT-SIZE.md`: Text size. Specified (F85), not built.
 
 **Record**
 

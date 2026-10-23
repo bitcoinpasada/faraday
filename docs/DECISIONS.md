@@ -99,3 +99,5 @@ Read this table, then only the decision you need.
 | [F82](decisions/F82.md) | A first start opens Steps only; Guided is a choice | 2026-10-22 | Active | design |
 | [F83](decisions/F83.md) | Faraday Desktop is inside the Starter, and not published on its own | 2026-10-23 | Active | release |
 | [F84](decisions/F84.md) | Check a signer fails closed; unknown fields are findings there and Info in a review | 2026-10-23 | Active | crypto |
+| [F85](decisions/F85.md) | Text size: Standard, Large, Larger, and the layout steps down for it | 2026-10-23 | Active | design |
+| [F86](decisions/F86.md) | Your own randomness is mixed into the session's; the stick's kernel credits what it says it does | 2026-10-23 | Active | security |
