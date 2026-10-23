@@ -279,8 +279,8 @@ Measured on main at d4aa1175. Paths in this section are under
   `impl Faraday` misses (so 71 by that count).
 - faraday-core's own tests (`faraday/faraday-core/tests/all/`) reach the
   fields that move into areas about 1,550 times, about 90 of them
-  writes, two thirds of all of them the vault (506) and the old backup
-  screen's `backup` (227).
+  writes, two thirds of all of them the vault (506) and the wallet backup
+  checklist's `backup` (227).
 - About 115 `Faraday` methods are called from outside the crate's
   source (the shells, faraday-storage, faraday-samples, the tests).
 
@@ -492,7 +492,7 @@ The rest stay as they are:
 The tables count, for each area, the functions that move onto its
 struct and those that stay as glue. Each area also takes the functions
 in `lib.rs` that touch only its fields: about 100 of `lib.rs`'s 226,
-the largest groups being the old backup screen's 16, the vault's 13,
+the largest groups being the wallet backup checklist's 16, the vault's 13,
 Create's 11, the Inbox's 11 and the visit's 8. The counts include
 those. Glue is named where it is short. Each test count is
 `app.<field>` uses in `tests/all`, which become accessors.
@@ -555,9 +555,9 @@ lose theirs):
 | Family | 23 | `family/mod.rs` | 32: the Spend tab loads the wallet, reads the Inbox, scans | 40 |
 | Backups | 10 | `backups/mod.rs` | 9: each wallet's backup line reads the vault and the backup | 0 |
 | In progress | 9 | `in_progress.rs` | 18: the flows begun are every flow's | through the flow tests |
-| Old backup screen | 24 | `wallet_backup.rs` (`paper.rs` and `copy_check.rs` lose theirs) | 9, `backup_act` the largest | 227 |
+| Wallet backup checklist | 24 | `wallet_backup.rs` (`paper.rs` and `copy_check.rs` lose theirs) | 9, `backup_act` the largest | 227 |
 | Vault | about 95 | `vault/mod.rs` (`vault/load.rs`, `vault/out.rs`, `vault/strength.rs`, `codes/mod.rs`, `apk.rs` and `gpg.rs` lose theirs) | about 55: loading into the session, the Inbox's vault files, the Outbox, a stick's settings | 506 (61 writes) |
-| Backup flow | about 120 | `backup_flow/steps.rs` (`backup_flow/mod.rs`, `backup_flow/wallet.rs`, `board/mod.rs` and `held.rs` lose theirs) | about 115: it reaches the vault (39 functions), the old backup state (36), Create, Restore, the Inbox and the sticks | 47, and `backup_flow_wallet.rs` and `backup_board.rs` through methods |
+| Backup flow | about 120 | `backup_flow/steps.rs` (`backup_flow/mod.rs`, `backup_flow/wallet.rs`, `board/mod.rs` and `held.rs` lose theirs) | about 115: it reaches the vault (39 functions), the wallet backup checklist's state (36), Create, Restore, the Inbox and the sticks | 47, and `backup_flow_wallet.rs` and `backup_board.rs` through methods |
 
 The forwarders this keeps:
 - the vault's twelve (`vault_files`, `vault_rows_now`, `clock_now` …);
@@ -590,7 +590,7 @@ accessor rather than a field reached through `self`.
 5. **The sticks and the visit.** These are boot import, stick, visit
    and samples.
 6. **The flows last.** These are Family, backups, memory, in progress,
-   the old backup screen, the vault and the backup flow. The backup
+   the wallet backup checklist, the vault and the backup flow. The backup
    flow reaches every area before it.
 
 | Step | Area | Fields after | `impl Faraday` files after |
@@ -609,7 +609,7 @@ accessor rather than a field reached through `self`.
 | 34–35 | Glance, Inbox | 122 | 52 |
 | 36–39 | boot import, stick, visit, samples | 107 | 49 |
 | 40–43 | Family, backups, memory, in progress | 104 | 49 |
-| 44 | the old backup screen | 104 | 47 |
+| 44 | the wallet backup checklist | 104 | 47 |
 | 45 | vault | 103 | 41 |
 | 46 | backup flow | 99 | 37 |
 | 47 | `Pointer` | 90 | 37 |
