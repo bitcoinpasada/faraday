@@ -297,6 +297,9 @@ pub enum StarterAction {
     SuspendBitLocker,
     /// Resume BitLocker (§6, F49).
     ResumeBitLocker,
+    /// The Start page's Restart to choose a device (Windows, Secure Boot
+    /// off, a stick attached): asks first.
+    RestartStick,
 }
 
 /// Which blank-template choice a row opens.
@@ -373,6 +376,7 @@ impl StarterAction {
             StarterAction::IncludeKey => (51, 0),
             StarterAction::SuspendBitLocker => (52, 0),
             StarterAction::ResumeBitLocker => (53, 0),
+            StarterAction::RestartStick => (54, 0),
         };
         (kind << 16) | arg
     }
@@ -438,6 +442,7 @@ impl StarterAction {
             51 => StarterAction::IncludeKey,
             52 => StarterAction::SuspendBitLocker,
             53 => StarterAction::ResumeBitLocker,
+            54 => StarterAction::RestartStick,
             _ => return None,
         })
     }
@@ -1386,6 +1391,16 @@ impl Starter {
                     m.confirmed = None;
                     m.refused = None;
                 }
+                // Keep data is not offered here: Write the whole stick is
+                // the only choice and starts ticked.
+                if matches!(
+                    self.mode_refusal(Mode::KeepData),
+                    Some(ModeRefusal::NotFaraday | ModeRefusal::NotYet)
+                ) && self.mode_refusal(Mode::Whole).is_none()
+                    && let Some(m) = self.making.as_mut()
+                {
+                    m.mode = Some(Mode::Whole);
+                }
                 self.version_failed = None;
                 self.go(Page::Mode);
             }
@@ -1435,6 +1450,16 @@ impl Starter {
                 {
                     self.restart_failed = None;
                     self.sheet = Some(Sheet::Restart(RestartTo::Firmware));
+                }
+            }
+            StarterAction::RestartStick => {
+                if self.page == Page::Start
+                    && self.facts().use_a_device()
+                    && self.facts().stick().is_some()
+                    && !self.facts().protected_open()
+                    && self.restart_holds().is_empty()
+                {
+                    self.sheet = Some(Sheet::Restart(RestartTo::Stick));
                 }
             }
             StarterAction::RestartNow if !self.restart_holds().is_empty() => self.sheet = None,

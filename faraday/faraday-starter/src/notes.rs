@@ -29,6 +29,8 @@ pub struct Row {
     pub label: String,
     /// Its value, or `None` when not known.
     pub value: Option<&'static str>,
+    /// The keys to try when `value` is not known (a key row only).
+    pub try_keys: Vec<&'static str>,
 }
 
 /// One step of the sheet: what to do, and its lines of how.
@@ -145,30 +147,41 @@ impl Notes {
             return None;
         }
         let maker = faraday_learn::maker(&c.maker, &c.family, &c.model);
-        let row = |label: &str, value: Option<&'static str>| Row {
+        let row = |label: &str, value: Option<&'static str>, circle: Option<&Circle>| Row {
             label: label.to_string(),
             value,
+            try_keys: circle
+                .filter(|_| value.is_none())
+                .map(|c| c.keys.clone())
+                .unwrap_or_default(),
         };
         let windows = c.os == Os::Windows;
         let boot: Vec<&'static str> = faraday_learn::MAKERS.iter().map(|m| m.boot_key).collect();
         let bios: Vec<&'static str> = faraday_learn::MAKERS.iter().map(|m| m.bios_key).collect();
+        let boot_circle = Circle {
+            label: S.starter_sheet_boot_key_used,
+            keys: circle_keys(maker.map(|m| m.boot_key), &boot),
+        };
+        let bios_circle = Circle {
+            label: S.starter_sheet_bios_key_used,
+            keys: circle_keys(maker.map(|m| m.bios_key), &bios),
+        };
         Some(Notes {
             title: S.starter_item_start,
             rows: vec![
-                row(S.starter_notes_boot_key, maker.map(|m| m.boot_key)),
-                row(S.starter_notes_bios_key, maker.map(|m| m.bios_key)),
-                row(S.starter_notes_setting, maker.map(|m| m.secure_boot)),
+                row(
+                    S.starter_notes_boot_key,
+                    maker.map(|m| m.boot_key),
+                    Some(&boot_circle),
+                ),
+                row(
+                    S.starter_notes_bios_key,
+                    maker.map(|m| m.bios_key),
+                    Some(&bios_circle),
+                ),
+                row(S.starter_notes_setting, maker.map(|m| m.secure_boot), None),
             ],
-            circles: vec![
-                Circle {
-                    label: S.starter_sheet_boot_key_used,
-                    keys: circle_keys(maker.map(|m| m.boot_key), &boot),
-                },
-                Circle {
-                    label: S.starter_sheet_bios_key_used,
-                    keys: circle_keys(maker.map(|m| m.bios_key), &bios),
-                },
-            ],
+            circles: vec![boot_circle, bios_circle],
             steps: vec![
                 Step {
                     head: S.starter_secure_boot_turn_off,
@@ -215,16 +228,19 @@ impl Notes {
         let mut rows = vec![Row {
             label: S.starter_notes_boot_key.to_string(),
             value: Some(S.starter_notes_mac_boot_value),
+            try_keys: Vec::new(),
         }];
         let mut steps = Vec::new();
         if t2_steps {
             rows.push(Row {
                 label: marked(S.starter_notes_mac_recovery),
                 value: Some(S.starter_notes_mac_recovery_value),
+                try_keys: Vec::new(),
             });
             rows.push(Row {
                 label: marked(S.starter_notes_mac_setting),
                 value: Some(S.starter_notes_mac_setting_value),
+                try_keys: Vec::new(),
             });
             steps.push(Step {
                 head: S.starter_mac_lower,

@@ -270,9 +270,9 @@ fn no_disk_is_chosen_until_one_is_tapped() {
     let n = number(&starter, "sdb");
     tap(&mut starter, n);
     assert_eq!(starter.page, Page::Mode);
-    // What to write has nothing ticked: Continue does nothing yet.
+    // Its only choice, to write the whole stick, starts ticked.
     starter.press(StarterAction::Continue);
-    assert_eq!(starter.page, Page::Mode);
+    assert_eq!(starter.page, Page::Confirm);
 }
 
 #[test]
@@ -345,6 +345,16 @@ fn a_disk_that_is_not_the_confirmed_one_is_refused() {
 }
 
 #[test]
+fn choose_again_leaves_a_confirm_whose_disk_changed() {
+    let mut starter = starter_with(vec![disk("sdb", "Stick", 16 * GB)]);
+    to_confirm(&mut starter, "sdb", Mode::Whole);
+    starter.starter_event(StarterEvent::Disks(Vec::new()));
+    assert!(shows(&mut starter, "Choose again"));
+    starter.press(StarterAction::Again);
+    assert_eq!(starter.page, Page::Disks);
+}
+
+#[test]
 fn keep_data_is_offered_only_on_a_faraday_stick() {
     let mut starter = starter_with(vec![disk("sdb", "Plain", 16 * GB)]);
     starter.press(StarterAction::Make(Target::Stick));
@@ -352,9 +362,16 @@ fn keep_data_is_offered_only_on_a_faraday_stick() {
     starter.press(n);
     assert!(shows(&mut starter, "New Faraday stick"));
     assert!(!shows(&mut starter, "Replace Faraday, keep data"));
+    // Keep data cannot be ticked; the whole stick stays the choice.
     starter.press(StarterAction::Mode(Mode::KeepData));
     starter.press(StarterAction::Continue);
-    assert_eq!(starter.page, Page::Mode);
+    assert_eq!(starter.page, Page::Confirm);
+    starter.press(StarterAction::Write);
+    let c = commands(&mut starter);
+    assert!(
+        matches!(c.as_slice(), [StarterCommand::Write(o)] if o.mode == Mode::Whole),
+        "{c:?}"
+    );
 
     let mut starter = starter_with(vec![faraday_stick(
         "sdb",
@@ -466,13 +483,16 @@ fn writing_shows_progress_then_done_or_the_writers_reason() {
         &mut starter,
         "differs from what was written at byte 12"
     ));
-    assert!(!shows(&mut starter, "can be pulled out"));
+    assert!(!shows(&mut starter, "pull it out"));
 
     let mut starter = starter_with(vec![disk("sdb", "Stick", 16 * GB)]);
     to_confirm(&mut starter, "sdb", Mode::Whole);
     starter.press(StarterAction::Write);
     starter.starter_event(StarterEvent::Written(Ok(())));
-    assert!(shows(&mut starter, "The stick can be pulled out."));
+    assert!(shows(
+        &mut starter,
+        "Keep the stick in to start this computer from it."
+    ));
     starter.press(StarterAction::Start);
     assert_eq!(starter.page, Page::Start);
 }

@@ -1274,6 +1274,19 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         Style::Disabled
     };
     y += 4.0;
+    if !matches {
+        // The disk is gone or changed: the only way on is to choose again.
+        return y + buttons(
+            ui,
+            x,
+            y,
+            w,
+            &[
+                (S.starter_choose_again, Style::Primary, StarterAction::Again),
+                (label, style, StarterAction::Write),
+            ],
+        );
+    }
     y + buttons(ui, x, y, w, &[(label, style, StarterAction::Write)])
 }
 
@@ -1509,6 +1522,24 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         S.starter_boot_how
     };
     y += line(ui, ix, y, iw, how, MUTED) + 6.0;
+    if facts.use_a_device() && facts.stick().is_some() {
+        let style = if open || !held.is_empty() {
+            Style::Disabled
+        } else {
+            Style::Secondary
+        };
+        y += buttons(
+            ui,
+            ix,
+            y,
+            iw,
+            &[(
+                S.starter_restart_choose_device,
+                style,
+                StarterAction::RestartStick,
+            )],
+        ) + 12.0;
+    }
     if let Some(stick) = facts.stick()
         && let Some(entry) = crate::decide::boot_menu_entry(&stick.vendor, &stick.model, c)
     {
@@ -1529,8 +1560,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     } else {
         S.starter_afterwards
     };
-    y += step_head(ui, x, y, w, n, s, false);
-    y += line(ui, ix, y, iw, &secure_boot_text(c.secure_boot), MUTED) + 6.0;
+    y += step_head(ui, x, y, w, n, s, false) + 6.0;
     // The same page on a phone.
     y += 16.0;
     y += label(ui, x, y, S.starter_on_a_phone);
@@ -1600,10 +1630,11 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y += label(ui, x, y, S.starter_notes_label);
     for row in &notes.rows {
         let (value, tone) = match row.value {
-            Some(v) => (v, TEXT),
-            None => (S.starter_notes_not_known, DIM),
+            Some(v) => (v.to_string(), TEXT),
+            None if row.try_keys.is_empty() => (S.starter_notes_not_known.to_string(), DIM),
+            None => (fill(S.starter_notes_try, &[&row.try_keys.join(" · ")]), DIM),
         };
-        y += note_row(ui, x, y, w, &row.label, value, tone);
+        y += note_row(ui, x, y, w, &row.label, &value, tone);
     }
     y += 10.0;
     if let Some(why) = &starter.notes_open_failed {
@@ -1809,6 +1840,11 @@ fn restart_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32, to: RestartTo) 
         let mut y = y0;
         y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, head) + 10.0;
         y += line(ui, x, y, iw, S.starter_restart_save, WARN) + 4.0;
+        y += line(ui, x, y, iw, S.starter_restart_keep_stick, MUTED);
+        if to == RestartTo::Stick && os == Os::Windows {
+            y += line(ui, x, y, iw, S.starter_restart_windows_menu, MUTED);
+        }
+        y += 4.0;
         if to == RestartTo::Stick && os == Os::Linux {
             y += link(ui, x, y, iw, LearnId::BootEntry);
         }

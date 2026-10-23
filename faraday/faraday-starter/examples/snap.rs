@@ -33,6 +33,11 @@ fn compute() -> faraday_crypto::work::Compute {
 
 const GB: u64 = 1_000_000_000;
 
+/// The stick image's size: 193 MiB and 20 KiB (docs/STARTER.md §4.2).
+const STICK_IMAGE: u64 = 202_395_648;
+/// The Pi card image's size: 196 MiB.
+const CARD_IMAGE: u64 = 205_520_896;
+
 fn payload() -> Payload {
     let file = |name: &str, inner: &str, size: u64, build: &str, a: &str, b: &str| PayloadFile {
         name: name.into(),
@@ -49,7 +54,7 @@ fn payload() -> Payload {
             file(
                 "faraday-stick-0.2.0-x86_64-uefi.img.xz",
                 "faraday-stick-0.2.0-x86_64-uefi.img",
-                3_900_000_000,
+                STICK_IMAGE,
                 "0.2.0",
                 "3f9a0c1d",
                 "8be41a07",
@@ -57,7 +62,7 @@ fn payload() -> Payload {
             file(
                 "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz",
                 "faraday-pi-0.2.0-pi3-waveshare-28dpi.img",
-                2_100_000_000,
+                CARD_IMAGE,
                 "0.2.0",
                 "11d0e2a9",
                 "c07b5e33",
@@ -136,7 +141,7 @@ fn many() -> Vec<Disk> {
             &[("PHOTOS", true), ("", false)],
         ),
         backup,
-        disk("sdd", "Generic", "Flash Disk", 2 * GB, &[]),
+        disk("sdd", "Generic", "Flash Disk", 128_000_000, &[]),
         stick("sde", "6.6.84-faraday-0.1.0+ef24784b48d8.test"),
         disk("sdf", "SanDisk", "Cruzer Blade", 16 * GB, &[]),
     ]
@@ -439,6 +444,12 @@ fn run(s: &Snap) -> Result<(), String> {
     s.shot(&mut h, "home-windows-stick-secure-boot-off")?;
     h.press(StarterAction::Next);
     s.shot(&mut h, "home-windows-restart-stick-sheet")?;
+    // The Start page's own button, with a stick attached.
+    h.press(StarterAction::Cancel);
+    h.press(StarterAction::Start);
+    s.shot_end(&mut h, "start-windows-stick-secure-boot-off-end")?;
+    h.press(StarterAction::RestartStick);
+    s.shot(&mut h, "start-windows-restart-stick-sheet")?;
     let mut h = s.starter();
     h.starter_event(StarterEvent::Computer(laptop(Os::Windows, true)));
     h.starter_event(StarterEvent::Disks(vec![stick(
@@ -572,7 +583,7 @@ fn run(s: &Snap) -> Result<(), String> {
     h.starter_event(StarterEvent::DevImage(DevImage {
         path: "out/stick/faraday-x86_64-uefi-dev.img".into(),
         sha256: "9c1e44d0".repeat(8),
-        size: 3_900_000_000,
+        size: STICK_IMAGE,
         boot_only: false,
         build_id: Some("0.2.0+4d0680b1a2b3.dev".into()),
     }));
@@ -585,14 +596,14 @@ fn run(s: &Snap) -> Result<(), String> {
     h.press(StarterAction::Write);
     h.starter_event(StarterEvent::WriteProgress {
         stage: WriteStage::Writing,
-        done: 1_400_000_000,
-        total: 3_900_000_000,
+        done: 70_000_000,
+        total: STICK_IMAGE,
     });
     s.shot(&mut h, "stick-4-writing")?;
     h.starter_event(StarterEvent::WriteProgress {
         stage: WriteStage::ReadingBack,
-        done: 3_100_000_000,
-        total: 3_900_000_000,
+        done: 160_000_000,
+        total: STICK_IMAGE,
     });
     s.shot(&mut h, "stick-4-reading-back")?;
     h.starter_event(StarterEvent::Written(Ok(())));

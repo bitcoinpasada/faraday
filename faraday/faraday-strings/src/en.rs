@@ -267,6 +267,8 @@ strings! {
     starter_not_confirmed_stick: "Not the stick confirmed: it was removed or changed",
     /// Confirm refused.
     starter_not_confirmed_card: "Not the card confirmed: it was removed or changed",
+    /// Button on Confirm when the disk is no longer the one confirmed.
+    starter_choose_again: "Choose again",
     /// Button.
     starter_erase_and_write: "Erase and write",
     /// Button.
@@ -284,7 +286,7 @@ strings! {
     /// Result title.
     starter_failed_title: "Not written",
     /// Result line.
-    starter_pull_stick: "The stick can be pulled out.",
+    starter_pull_stick: "Keep the stick in to start this computer from it. To start another computer, pull it out.",
     /// Result line.
     starter_pull_card: "The card can be pulled out.",
     /// Button.
@@ -307,6 +309,13 @@ strings! {
     starter_restart: "Restart into the BIOS",
     /// Card button and the sheet's head (docs/STARTER.md §3.1).
     starter_restart_stick: "Restart from the stick",
+    /// Button under the Start page's Start from the stick step, on
+    /// Windows with Secure Boot off.
+    starter_restart_choose_device: "Restart to choose a device",
+    /// The restart sheets: the stick stays in for the start that follows.
+    starter_restart_keep_stick: "Keep the stick in.",
+    /// Restart from the stick's sheet on Windows: what Windows shows.
+    starter_restart_windows_menu: "Windows shows Choose an option: Use a device, then the stick.",
     /// The restart's confirmation.
     starter_restart_save: "This restarts the computer now. Save your work first.",
     /// Card line, when the restart from the stick did not happen. `{}`
@@ -351,6 +360,9 @@ strings! {
     starter_afterwards_windows: "Turn Secure Boot back on before starting Windows",
     /// Label above the guide's code.
     starter_on_a_phone: "On a phone",
+    /// A key the maker table does not give, with the keys to try: `{}`
+    /// the keys.
+    starter_notes_try: "Not known: try {}",
     /// Label above the Start page's three things to write down (§3.4, F47).
     starter_notes_label: "Write down",
     /// Row: the maker's boot menu key.

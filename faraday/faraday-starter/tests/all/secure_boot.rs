@@ -142,6 +142,11 @@ fn use_a_device_is_offered_only_while_windows_reports_secure_boot_off() {
     ));
     s.press(StarterAction::Start);
     assert!(text(&mut s).contains("Use a device"));
+    // The Start page's own button opens the same sheet.
+    assert!(text(&mut s).contains("Restart to choose a device"));
+    s.press(StarterAction::Cancel);
+    s.press(StarterAction::RestartStick);
+    assert_eq!(s.sheet, Some(Sheet::Restart(RestartTo::Stick)));
 
     // On, or not read: the BIOS only, and Use a device is not mentioned.
     for secure_boot in [Some(true), None] {
@@ -154,6 +159,9 @@ fn use_a_device_is_offered_only_while_windows_reports_secure_boot_off() {
         s.press(StarterAction::Cancel);
         s.press(StarterAction::Start);
         assert!(!text(&mut s).contains("Use a device"), "{secure_boot:?}");
+        assert!(!text(&mut s).contains("Restart to choose a device"));
+        s.press(StarterAction::RestartStick);
+        assert_eq!(s.sheet, None);
     }
 
     // Reported on after being off: the offer goes.
@@ -169,6 +177,16 @@ fn turn_secure_boot_back_on_is_listed_while_it_is_off_and_ends_the_start_page() 
     // It opens the Start page at its last step.
     s.press(StarterAction::Item(Item::SecureBootOn));
     assert_eq!(s.page, Page::Start);
+    // The page is longer than the screen with a stick attached: its end.
+    let _ = s.frame();
+    for _ in 0..20 {
+        s.event(Event::Wheel {
+            x: 10,
+            y: 10,
+            dy: 2000,
+        });
+        let _ = s.frame();
+    }
     assert!(text(&mut s).contains("Turn Secure Boot back on before starting Windows"));
 
     let mut s = starter(Some(true));

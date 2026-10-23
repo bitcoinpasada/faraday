@@ -396,9 +396,8 @@ Secure Boot back on listed; a first-time visitor sees Make a Faraday
 stick. Nothing in
 the checklist writes to the computer except what its items do.
 
-**The checklist** is drawn inside the This computer card, under its
-facts and above its button, so the card reads as one thing: this
-computer, what is done, what is next.
+**The checklist** is drawn below the This computer card, which holds
+the computer's facts and the screen's one primary button.
 
 **The other cards**, under the This computer card in the grid
 (§3.1d), each a DESIGN §4.11 card with its heading and a row for each
@@ -471,8 +470,9 @@ restart buttons stay closed while such a screen is attached, with
 **Check again**. Its
 line names the screen ("Samsung QN65 is a TV. A TV can record what it
 shows: use another screen or computer."). A screen read as a TV that
-is not one can be let through once per session with **This is not a
-TV**, which asks once. The Learn page "Screens that record" says why.
+is not one can be let through once per session with **Continue
+anyway**, which asks once and names the item. The Learn page "Screens
+and devices that can record" says why.
 
 On the stick, Faraday has no graphics driver (DRM is forbidden; the
 picture is the firmware's framebuffer). Its kernel is 6.18 longterm
@@ -670,7 +670,9 @@ destinations; Faraday Desktop and the device keep their own navigation
    cannot be chosen. **No disk is ever chosen for the person**, even
    when there is one (owner, 2026-10-12): the one attached USB disk is
    as often a backup drive as a stick.
-2. **What to write?**
+2. **What to write?** When *Replace Faraday, keep data* is not offered
+   (the disk is not a Faraday stick), *New Faraday stick* is the only
+   choice and starts ticked.
    - *New Faraday stick*: the whole stick; everything on it is lost.
    - *Replace Faraday, keep data*: only on a Faraday stick. The boot
      partition is written; the data partition, with its vaults and
@@ -683,14 +685,16 @@ destinations; Faraday Desktop and the device keep their own navigation
      stick whose version was not read asks for administrator permission
      once to read it (§4.1, D22), and Continue waits for the answer;
      *New Faraday stick* needs no version and asks nothing.
-3. **Confirm** (Record) the stick (maker, model, size, device, serial),
+3. **Confirm** (Record; when the disk is no longer the one confirmed it
+   says so, the action button is disabled and **Choose again** returns
+   to the disk list) the stick (maker, model, size, device, serial),
    what is on it (its Faraday version, when it is a Faraday stick),
    what is written (the build ID and the `.img` SHA-256), the warning
    from step 2 if there is one, and the action button: *Erase and
    write* or *Write*. Then the system's own prompt where there is one
    (§2).
 4. **Writing** (Progress): written of total, then *Reading back*.
-5. **Done** (Result): "The stick can be pulled out."; a row **In the
+5. **Done** (Result): "Keep the stick in to start this computer from it. To start another computer, pull it out." (a Pi card: "The card can be pulled out."); a row **In the
    boot menu**, "something like" the entry this computer's boot menu
    will list the stick as, from the stick's own vendor and model and
    this computer's maker (Dell, ASUS, MSI, Acer and any other: `UEFI:
@@ -734,8 +738,10 @@ value each, then
 
 The values come from the maker table (§7.6), each agreeing with the
 maker's guide (a `faraday-guides` test). A computer whose maker has no
-page reads **Not known** on each row; the sheet leaves a line to
-write on. On an Intel Mac the rows are the Mac's equivalents (the Mac
+page reads **Not known** on each row; on the boot menu key and BIOS
+key rows the page lists the keys to try ("Not known: try Esc · F2 …",
+every key of the maker table), and the sheet leaves a line to write on
+and the same keys to circle. On an Intel Mac the rows are the Mac's equivalents (the Mac
 steps below): **Boot menu key** "Option, held"; on a T2 Mac
 **macOS Recovery key** "Command-R, held" and **Startup Security**
 "macOS Recovery → Utilities → Startup Security Utility"; a Mac the
@@ -811,7 +817,8 @@ The steps:
 3. **Start from the stick:** the maker's boot menu key, on the restart
    that saves Secure Boot off, before Windows starts; or, on Windows,
    **Restart to choose a device** (Windows' *Use a device*, §7.3),
-   offered only while Windows reports Secure Boot off (F33).
+   offered only while Windows reports Secure Boot off
+   (F33) and a Faraday stick is attached.
 On an Intel Mac the steps are the Mac's, from the `mac-intel` guide
 (MAC §3.1, §3.2), and none of them is a button: on a T2 Mac, lower
 Startup Security in macOS Recovery; then shut down and hold Option at
@@ -1423,7 +1430,7 @@ every app, so the pages change with the code that reads them).
   first, as Faraday Starter offers, avoids it. The Windows guide says
   where Windows keeps the key.", and the paragraph before it says "on
   most computers" Windows asks for nothing. Its title stays.
-- **"Screens that record"**: under Remote desktop, screen sharing, a
+- **"Screens and devices that can record"**: under Remote desktop, screen sharing, a
   wireless display, the sentence on the Starter checking for them
   before it shows the recovery key goes; the Starter shows no secret.
 
@@ -1492,7 +1499,7 @@ guide for this computer, not its text. Pages:
   Windows' advanced startup, whose *Use a device* starts the stick on
   many computers without the boot menu key. It is shown only when Windows reports Secure Boot off at that moment (`UEFISecureBootEnabled` 0 under `HKLM\SYSTEM\CurrentControlSet\Control\SecureBoot\State`, read without elevation, as This computer reads it, §7.1), and hidden when it reads on or cannot be read (owner, 2026-10-14, F33).
 
-Each button asks once ("This restarts the computer now. Save your work first.").
+Each button asks once ("This restarts the computer now. Save your work first."), and the sheet says to keep the stick in; Restart from the stick on Windows adds what Windows shows (Choose an option: Use a device, then the stick).
 
 ### 7.4 On a phone
 
