@@ -236,7 +236,7 @@ impl Faraday {
     /// partition) is queued for the shell: it draws what is on screen
     /// before serving it.
     pub fn long_storage_queued(&self) -> bool {
-        self.storage_out.iter().any(|c| {
+        self.out.storage_out.iter().any(|c| {
             matches!(
                 c,
                 StorageCommand::BootRead | StorageCommand::BootWrite { .. }
@@ -271,7 +271,7 @@ impl Faraday {
     /// publishing the marker.
     pub(crate) fn upgrade_leave(&mut self) {
         if self.upgrade.take().is_some() {
-            self.storage_out.push_back(StorageCommand::BootForget);
+            self.out.storage_out.push_back(StorageCommand::BootForget);
         }
     }
 
@@ -289,7 +289,7 @@ impl Faraday {
         }
         u.reading = true;
         u.refused = None;
-        self.storage_out.push_back(StorageCommand::BootRead);
+        self.out.storage_out.push_back(StorageCommand::BootRead);
     }
 
     /// What the shell said about the copier; `None` when it was taken.
@@ -345,8 +345,8 @@ impl Faraday {
             }
             other => return Some(other),
         }
-        self.dirty = true;
-        self.commands.push_back(Command::Draw);
+        self.out.dirty = true;
+        self.out.commands.push_back(Command::Draw);
         None
     }
 
@@ -367,7 +367,8 @@ impl Faraday {
         let id = target.id.clone();
         u.failed = None;
         u.writing = Some(id.clone());
-        self.storage_out
+        self.out
+            .storage_out
             .push_back(StorageCommand::BootWrite { target: id });
     }
 

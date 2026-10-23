@@ -272,8 +272,10 @@ impl Faraday {
             v.running = false;
             v.error = Some(EN.vanity_every_counter.into());
         }
-        self.dirty = true;
-        self.commands.push_back(faraday_shell_api::Command::Draw);
+        self.out.dirty = true;
+        self.out
+            .commands
+            .push_back(faraday_shell_api::Command::Draw);
         true
     }
 

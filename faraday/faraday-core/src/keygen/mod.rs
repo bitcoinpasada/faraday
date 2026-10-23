@@ -1319,7 +1319,8 @@ impl crate::Faraday {
         k.scroll.follow = true;
         self.scan = None;
         self.sheet = None;
-        self.commands
+        self.out
+            .commands
             .push_back(faraday_shell_api::Command::CameraOff);
         true
     }
@@ -2069,7 +2070,8 @@ impl crate::Faraday {
             && !k.device_asked
         {
             k.device_asked = true;
-            self.commands
+            self.out
+                .commands
                 .push_back(faraday_shell_api::Command::RequestEntropy);
         }
     }
@@ -2117,7 +2119,7 @@ impl crate::Faraday {
             });
         if want != self.keygen_camera_on {
             self.keygen_camera_on = want;
-            self.commands.push_back(if want {
+            self.out.commands.push_back(if want {
                 faraday_shell_api::Command::CameraOn
             } else {
                 faraday_shell_api::Command::CameraOff

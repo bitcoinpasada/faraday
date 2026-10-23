@@ -207,7 +207,7 @@ impl Faraday {
             .collect();
         for (name, bytes, replace) in sends {
             let renamed = self.files_menu.renamed.contains(&name);
-            self.storage_out.push_back(StorageCommand::Write {
+            self.out.storage_out.push_back(StorageCommand::Write {
                 stick: id.clone(),
                 name,
                 bytes,

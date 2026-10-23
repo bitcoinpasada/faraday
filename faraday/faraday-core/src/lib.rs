@@ -27,8 +27,9 @@
 //!   re-exports them all, so a caller names `faraday_core::Action`.
 //! - State and actions: `work` (costly work counted), `compute` (where
 //!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
-//!   the selection), `motion` (scrolling), `fade` (a change fading
-//!   in), `menu` (the ⋮ menus),
+//!   the selection), `motion` (scrolling), `out` (what the core
+//!   hands the shell: commands, storage commands, the toast), `fade` (a
+//!   change fading in), `menu` (the ⋮ menus),
 //!   `file_menu`, `in_progress`, `compact` (the small panel), `medium`
 //!   (what the removable medium is called), `memory` (what is kept across
 //!   a lock), `copy_check` (a copy by hand checked), `set_time`, `stick`
@@ -129,6 +130,7 @@ pub mod medium;
 pub mod memory;
 mod menu;
 mod motion;
+mod out;
 pub mod set_time;
 pub mod stick;
 mod trail;
@@ -1193,9 +1195,7 @@ pub struct Faraday {
     compact: bool,
     hits: Vec<(Rect, Action)>,
     pressed: Option<(Action, Rect)>,
-    commands: VecDeque<Command>,
-    storage_out: VecDeque<StorageCommand>,
-    dirty: bool,
+    out: out::Out,
     /// The second of the clock last drawn on a screen that shows it live
     /// (Now, a TOTP code and its seconds left), so a tick that moves it
     /// on draws again.
@@ -1337,7 +1337,6 @@ pub struct Faraday {
     /// Fresh answers waiting for the next key (`fresh.rs`).
     pool: Vec<zeroize::Zeroizing<[u8; 32]>>,
     now_ms: u64,
-    toast: Option<(String, u64)>,
 
     /// The screen shown.
     pub screen: Screen,
@@ -1583,8 +1582,6 @@ pub struct Faraday {
     scroll_at: Option<u64>,
     /// Where the pointer is, with no button down, in pixels.
     hover: Option<(i32, i32)>,
-    /// The tick the toast on show first came up at.
-    toast_at: Option<u64>,
     /// The step column's open card, and one opening or closing.
     disclosed: Option<Disclosed>,
     /// The frosted page under the open sheet, and the screen, sheet and
@@ -1678,9 +1675,7 @@ impl Faraday {
             compact: false,
             hits: Vec::new(),
             pressed: None,
-            commands: VecDeque::new(),
-            storage_out: VecDeque::new(),
-            dirty: true,
+            out: out::Out::new(),
             clock_drawn: None,
             restart: false,
             restart_computer: false,
@@ -1737,7 +1732,6 @@ impl Faraday {
             sign_draws: 0,
             pool: Vec::new(),
             now_ms: 0,
-            toast: None,
             screen: Screen::Home,
             sheet: None,
             sheet_scroll: (0.0, None),
@@ -1843,7 +1837,6 @@ impl Faraday {
             later_drawn: false,
             scroll_at: None,
             hover: None,
-            toast_at: None,
             disclosed: None,
             frost: None,
             fade: fade::Fade::default(),
@@ -1899,7 +1892,7 @@ impl Faraday {
 
     /// Whether a storage request is waiting for the shell (a lookup).
     pub fn storage_pending(&self) -> bool {
-        !self.storage_out.is_empty()
+        !self.out.storage_out.is_empty()
     }
 
     /// The screen's name, and the sheet's when one is up, for a shell's
@@ -1913,7 +1906,7 @@ impl Faraday {
 
     /// The next storage request, or `None`.
     pub fn poll_storage(&mut self) -> Option<StorageCommand> {
-        self.storage_out.pop_front()
+        self.out.storage_out.pop_front()
     }
 
     /// Delivers what the shell knows about storage.
@@ -1944,8 +1937,8 @@ impl Faraday {
         {
             Some(e) => e,
             None => {
-                self.dirty = true;
-                self.commands.push_back(Command::Draw);
+                self.out.dirty = true;
+                self.out.commands.push_back(Command::Draw);
                 return;
             }
         };
@@ -2243,8 +2236,8 @@ impl Faraday {
                 self.restore_kept(&kept);
             }
         }
-        self.dirty = true;
-        self.commands.push_back(Command::Draw);
+        self.out.dirty = true;
+        self.out.commands.push_back(Command::Draw);
     }
 
     /// Whether anything secret is being typed: seed words, a BIP-39 or
@@ -2320,8 +2313,8 @@ impl Faraday {
         self.stick_held = false;
         if !self.sticks.is_empty() {
             self.stick_arrived();
-            self.dirty = true;
-            self.commands.push_back(Command::Draw);
+            self.out.dirty = true;
+            self.out.commands.push_back(Command::Draw);
         }
     }
 
@@ -2443,7 +2436,7 @@ impl Faraday {
             && !self.flow_screen()
         {
             if self.outbox.is_empty() {
-                self.commands.push_back(Command::Exit);
+                self.out.commands.push_back(Command::Exit);
             } else if self.sheet.is_none() {
                 // Powering off would lose what waits: the lock screen
                 // stays, saying what it is.
@@ -2622,7 +2615,7 @@ impl Faraday {
                 && let Some(boot) = self.sticks.iter().find(|s| s.boot)
             {
                 match boot.files.iter().find(|(n, _)| stick::settings::is_file(n)) {
-                    Some((n, _)) => self.storage_out.push_back(StorageCommand::Read {
+                    Some((n, _)) => self.out.storage_out.push_back(StorageCommand::Read {
                         stick: boot.id.clone(),
                         name: n.clone(),
                     }),
@@ -2639,7 +2632,7 @@ impl Faraday {
                 .collect()
         };
         let kept = self.kept();
-        self.storage_out.push_back(StorageCommand::SaveBoxes {
+        self.out.storage_out.push_back(StorageCommand::SaveBoxes {
             inbox: pack(&self.inbox),
             outbox: pack(&self.outbox),
             kept,
@@ -2654,18 +2647,17 @@ impl Faraday {
     }
 
     fn toast(&mut self, text: &str) {
-        self.toast = Some((text.to_string(), self.now_ms + 3000));
-        self.toast_at = None;
+        self.out.toast(text, self.now_ms);
     }
 
     /// How much of the toast shows, 0 to 1, and how far below its place
     /// it is, in units: it rises in, and fades as its time runs out.
     pub(crate) fn toast_shown(&self) -> (f32, f32) {
-        let Some((_, until)) = &self.toast else {
+        let Some((_, until)) = &self.out.toast else {
             return (0.0, 0.0);
         };
         let rise = motion::ease_out(motion::progress(
-            self.toast_at,
+            self.out.toast_at,
             self.now_ms,
             motion::TOAST_MS,
         ));
@@ -2774,12 +2766,12 @@ impl Faraday {
         if self.selftest_failed() {
             self.sheet = None;
         }
-        self.dirty = true;
+        self.out.dirty = true;
     }
 
     /// The toast shown, if one is current.
     pub fn toast_text(&self) -> Option<&str> {
-        self.toast.as_ref().map(|(t, _)| t.as_str())
+        self.out.toast.as_ref().map(|(t, _)| t.as_str())
     }
 
     /// A public or sealed file to the Outbox. A secret never comes this
@@ -2984,7 +2976,7 @@ impl Faraday {
     /// the Lock sheet says what a lock without sealing loses.
     fn lock(&mut self) {
         if self.seal_waits() {
-            self.commands.push_back(Command::RequestEntropy);
+            self.out.commands.push_back(Command::RequestEntropy);
             self.sheet = Some(Sheet::LockAsk);
             return;
         }
@@ -3038,7 +3030,7 @@ impl Faraday {
         self.entry = EntryState::default();
         self.save_boxes_for_lock();
         self.restart = true;
-        self.commands.push_back(Command::Exit);
+        self.out.commands.push_back(Command::Exit);
     }
 
     fn start_spend(&mut self, index: usize) {
@@ -3287,19 +3279,19 @@ impl Faraday {
                     && !self.offers_restart()
                     && !self.lock_held(c)
                 {
-                    self.commands.push_back(Command::Exit);
+                    self.out.commands.push_back(Command::Exit);
                 } else {
                     self.sheet = Some(Sheet::Power);
                 }
             }
             Action::PowerOff => {
                 self.sheet = None;
-                self.commands.push_back(Command::Exit);
+                self.out.commands.push_back(Command::Exit);
             }
             Action::Restart => {
                 self.sheet = None;
                 self.restart_computer = self.offers_restart();
-                self.commands.push_back(Command::Exit);
+                self.out.commands.push_back(Command::Exit);
             }
             Action::IdleLock(m) => {
                 self.idle_lock_min = m;
@@ -3364,7 +3356,7 @@ impl Faraday {
                     ));
                 }
                 if let Some(scan) = self.scan.take() {
-                    self.commands.push_back(Command::CameraOff);
+                    self.out.commands.push_back(Command::CameraOff);
                     // A copy's scan closed by the person: one scan without
                     // a match (a match closes the camera itself).
                     if let ScanPurpose::CheckCopy(fp) = scan.purpose {
@@ -3393,7 +3385,7 @@ impl Faraday {
         // A build whose vectors do not reproduce does nothing but exit.
         if self.selftest_failed() {
             if action == Action::PowerOff {
-                self.commands.push_back(Command::Exit);
+                self.out.commands.push_back(Command::Exit);
             }
             return;
         }
@@ -3576,7 +3568,9 @@ impl Faraday {
             | Action::ZeroStop) => self.wipe_act(a),
             Action::OpenInstitute => {
                 if self.online {
-                    self.storage_out.push_back(StorageCommand::OpenInstitute);
+                    self.out
+                        .storage_out
+                        .push_back(StorageCommand::OpenInstitute);
                 }
             }
             a @ (Action::UpgradeOpen
@@ -6425,7 +6419,7 @@ impl Faraday {
             return;
         }
         match pdf::sheet(&c, &String::from_utf8_lossy(bytes)) {
-            Ok(pdf) => self.storage_out.push_back(StorageCommand::Print {
+            Ok(pdf) => self.out.storage_out.push_back(StorageCommand::Print {
                 name: fill(EN.make_pdf_pdf, &[&stem(name).to_string()]),
                 bytes: pdf,
             }),
@@ -6466,7 +6460,7 @@ impl Faraday {
                 Ok(()) => {
                     self.scan = None;
                     self.sheet = None;
-                    self.commands.push_back(Command::CameraOff);
+                    self.out.commands.push_back(Command::CameraOff);
                 }
                 Err(why) => {
                     if let Some(scan) = self.scan.as_mut() {
@@ -6488,7 +6482,7 @@ impl Faraday {
                 None => {
                     self.scan = None;
                     self.sheet = None;
-                    self.commands.push_back(Command::CameraOff);
+                    self.out.commands.push_back(Command::CameraOff);
                 }
                 Some(why) => {
                     zeroize::Zeroize::zeroize(&mut self.entry.typed);
@@ -6622,7 +6616,7 @@ impl Faraday {
         }
         self.scan = None;
         self.sheet = None;
-        self.commands.push_back(Command::CameraOff);
+        self.out.commands.push_back(Command::CameraOff);
         // A cosigner's account key scanned while a wallet is made from
         // seeds fills the box waiting for one.
         if is_key && self.seeds_take_file(at) {
@@ -6696,7 +6690,7 @@ impl Faraday {
             // The seed is no longer here: nothing to compare with.
             self.scan = None;
             self.sheet = None;
-            self.commands.push_back(Command::CameraOff);
+            self.out.commands.push_back(Command::CameraOff);
             return;
         };
         drop(copy);
@@ -6710,7 +6704,7 @@ impl Faraday {
         if matched {
             self.scan = None;
             self.sheet = None;
-            self.commands.push_back(Command::CameraOff);
+            self.out.commands.push_back(Command::CameraOff);
         } else if let Some(scan) = self.scan.as_mut() {
             scan.note = Some(wallet_backup::copy_scan_line(&found));
         }
@@ -7691,7 +7685,8 @@ impl Faraday {
                 // A picture's QR codes are read, not its bytes.
                 let stick = id.clone();
                 self.visit.reading.insert(name.clone());
-                self.storage_out
+                self.out
+                    .storage_out
                     .push_back(if name.to_ascii_lowercase().ends_with(".png") {
                         StorageCommand::ReadQr { stick, name }
                     } else {
@@ -8505,8 +8500,8 @@ impl Faraday {
                     self.drag = None;
                     self.swallow = false;
                     self.bar_drag(y);
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                     return;
                 }
                 // A finger on a scrolled region may be the start of a
@@ -8539,14 +8534,14 @@ impl Faraday {
             TouchPhase::Move => {
                 if self.bar_held.is_some() {
                     self.bar_drag(y);
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                     return;
                 }
                 // A board chip past the slop follows the finger.
                 if self.board_move(x, y) {
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                     return;
                 }
                 let held_bar = match self.pressed {
@@ -8569,8 +8564,8 @@ impl Faraday {
                     {
                         self.pressed = Some((a, h));
                         self.act(a);
-                        self.dirty = true;
-                        self.commands.push_back(Command::Draw);
+                        self.out.dirty = true;
+                        self.out.commands.push_back(Command::Draw);
                     }
                     return;
                 }
@@ -8587,16 +8582,16 @@ impl Faraday {
                         self.drag = Some((y, true));
                         let from = if start { self.down_at.1 } else { last };
                         self.pan((from - y) as f32 / self.f.max(0.1));
-                        self.dirty = true;
-                        self.commands.push_back(Command::Draw);
+                        self.out.dirty = true;
+                        self.out.commands.push_back(Command::Draw);
                         return;
                     }
                 }
                 // The scrollbar follows the finger anywhere once held.
                 if let Some(c) = held_bar {
                     self.visit_drag(c, y);
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                 } else if let Some((_, r)) = self.pressed
                     && !r.contains(x, y)
                 {
@@ -8610,8 +8605,8 @@ impl Faraday {
                 // A board chip dragged is dropped where it is lifted.
                 if self.board_up(x, y) {
                     self.drag = None;
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                     return;
                 }
                 let dragged = self.drag.take().is_some_and(|(_, d)| d);
@@ -8846,8 +8841,8 @@ impl Faraday {
             } else {
                 self.motion.glide_to(want - now);
             }
-            self.dirty = true;
-            self.commands.push_back(Command::Draw);
+            self.out.dirty = true;
+            self.out.commands.push_back(Command::Draw);
         }
         self.extent = (!scrolled.is_empty()).then(|| (self.region_key(), scrolled));
         self.caret_drawn = caret;
@@ -8859,8 +8854,8 @@ impl Faraday {
         // The frame moved things under a still pointer: the next frame
         // shows what it is over now.
         if self.find_hovered() {
-            self.dirty = true;
-            self.commands.push_back(Command::Draw);
+            self.out.dirty = true;
+            self.out.commands.push_back(Command::Draw);
         }
     }
 
@@ -8953,14 +8948,14 @@ impl Faraday {
         let whole = self.whole_offset();
         let offset = self.scroll_slot().map_or(0.0, |o| whole(*o));
         self.bar_seen = ((self.region_key(), self.slot()), offset, 0);
-        if self.toast.is_some() {
-            self.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
+        if self.out.toast.is_some() {
+            self.out.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
         }
         // The next frame is the screen at rest, not part of the way from
         // the one before.
         self.fade.end();
         self.last_drawn = None;
-        self.dirty = true;
+        self.out.dirty = true;
     }
 
     /// Acts as if `action` had been pressed: for drivers that script the
@@ -8985,8 +8980,8 @@ impl Faraday {
         self.later_now();
         self.backup_settle();
         self.after_input();
-        self.dirty = true;
-        self.commands.push_back(Command::Draw);
+        self.out.dirty = true;
+        self.out.commands.push_back(Command::Draw);
     }
 
     /// A person's press: done now, or, when its work stretches a key or
@@ -9005,8 +9000,8 @@ impl Faraday {
             if let Some(text) = working_text(action) {
                 self.working(text);
             }
-            self.dirty = true;
-            self.commands.push_back(Command::Draw);
+            self.out.dirty = true;
+            self.out.commands.push_back(Command::Draw);
             return;
         }
         let before = work::snapshot();
@@ -9028,7 +9023,7 @@ impl Faraday {
     /// shows in full on the frame drawn before the work.
     fn working(&mut self, text: &str) {
         self.toast(text);
-        self.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
+        self.out.toast_at = Some(self.now_ms.saturating_sub(motion::TOAST_MS));
     }
 
     /// Whether `key` is left for the tick after a frame: Enter where it
@@ -9057,7 +9052,7 @@ impl Faraday {
         let Some(later) = self.later.take() else {
             return;
         };
-        let toast = self.toast.as_ref().map(|(t, _)| t.clone());
+        let toast = self.out.toast.as_ref().map(|(t, _)| t.clone());
         if let Later::Press(_) | Later::Key(_) = later {
             self.note_here();
         }
@@ -9073,15 +9068,15 @@ impl Faraday {
         // The working toast goes once the work is done, unless the work
         // said something of its own.
         if toast.is_some()
-            && self.toast.as_ref().map(|(t, _)| t.clone()) == toast
+            && self.out.toast.as_ref().map(|(t, _)| t.clone()) == toast
             && [EN.working_files, EN.working_node_key]
                 .iter()
                 .any(|w| toast.as_deref() == Some(*w))
         {
-            self.toast = None;
+            self.out.toast = None;
         }
-        self.dirty = true;
-        self.commands.push_back(Command::Draw);
+        self.out.dirty = true;
+        self.out.commands.push_back(Command::Draw);
     }
 
     /// What every press does once it has acted, however it came (a tap,
@@ -9442,8 +9437,8 @@ impl App for Faraday {
                     self.later = Some(Later::Key(k));
                     self.later_drawn = false;
                     self.working(EN.working_node_key);
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                     return;
                 } else {
                     self.later_now();
@@ -9547,15 +9542,16 @@ impl App for Faraday {
                 {
                     self.guided_moving = None;
                 }
-                if self.toast.is_some() && self.toast_at.is_none() {
-                    self.toast_at = Some(now_ms);
+                if self.out.toast.is_some() && self.out.toast_at.is_none() {
+                    self.out.toast_at = Some(now_ms);
                 }
                 let fading = fading
                     || self.caret_drawn.is_some_and(|on| on != self.caret_on())
                     || self.disclosed.is_some_and(|d| d.moving)
                     || self.guided_moving.is_some()
-                    || self.toast.as_ref().is_some_and(|(_, until)| {
-                        self.toast_at
+                    || self.out.toast.as_ref().is_some_and(|(_, until)| {
+                        self.out
+                            .toast_at
                             .is_some_and(|at| now_ms < at + motion::TOAST_MS + 16)
                             || now_ms + motion::TOAST_MS + 16 > *until
                     });
@@ -9569,24 +9565,24 @@ impl App for Faraday {
                     self.motion.release(self.f);
                 }
                 if self.motion_tick(now_ms) || fading {
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                 }
                 // A fade under way asks for its next step; unless
                 // something else asks for a frame too, the step blends
                 // the two kept frames (`Faraday::fade_step`).
                 if self.fade.from.is_some() {
                     self.fade.due = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.commands.push_back(Command::Draw);
                 }
                 if self.idle_tick(now_ms) {
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                     return;
                 }
                 if self.vault_tick(now_ms) {
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                 }
                 // Each runs whatever the others return.
                 if self.later_tick()
@@ -9594,8 +9590,8 @@ impl App for Faraday {
                     | self.typed_tick(now_ms)
                     | self.explore_tick(now_ms)
                 {
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                 }
                 // A live clock or a TOTP code on screen moves on by the
                 // second, with nothing else moving.
@@ -9603,14 +9599,14 @@ impl App for Faraday {
                     let now = self.clock_now();
                     if now != self.clock_drawn {
                         self.clock_drawn = now;
-                        self.dirty = true;
-                        self.commands.push_back(Command::Draw);
+                        self.out.dirty = true;
+                        self.out.commands.push_back(Command::Draw);
                     }
                 }
                 self.vanity_tick(now_ms);
                 if self.scan_tick(now_ms) {
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                 }
                 self.zero_tick();
                 if let Some(q) = self.qr.as_mut()
@@ -9619,13 +9615,13 @@ impl App for Faraday {
                 {
                     q.frame = (q.frame + 1) % q.frames.len();
                     q.next_ms = now_ms + self.qr_frame_ms;
-                    self.dirty = true;
-                    self.commands.push_back(Command::Draw);
+                    self.out.dirty = true;
+                    self.out.commands.push_back(Command::Draw);
                 }
-                if let Some((_, until)) = &self.toast
+                if let Some((_, until)) = &self.out.toast
                     && now_ms > *until
                 {
-                    self.toast = None;
+                    self.out.toast = None;
                 } else {
                     return;
                 }
@@ -9683,18 +9679,18 @@ impl App for Faraday {
             self.backup_settle();
             self.after_input();
         }
-        self.dirty = true;
-        self.commands.push_back(Command::Draw);
+        self.out.dirty = true;
+        self.out.commands.push_back(Command::Draw);
     }
 
     fn poll_command(&mut self) -> Option<Command> {
         self.note_secrets();
-        self.commands.pop_front()
+        self.out.commands.pop_front()
     }
 
     fn frame(&mut self) -> Frame<'_> {
-        if self.dirty {
-            self.dirty = false;
+        if self.out.dirty {
+            self.out.dirty = false;
             self.before_frame();
             self.render();
         } else if self.fade.due {
@@ -9748,7 +9744,7 @@ impl Faraday {
         if let Some(c) = self.canvas.as_mut() {
             c.record_ink(false);
         }
-        self.dirty = true;
+        self.out.dirty = true;
         texts
     }
 

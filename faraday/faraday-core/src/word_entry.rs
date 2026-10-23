@@ -739,7 +739,7 @@ impl Faraday {
             Action::EntryWallet(w) => {
                 if self.may_load_keys() && w < self.session.wallets.len() {
                     if self.scan.take().is_some() {
-                        self.commands.push_back(Command::CameraOff);
+                        self.out.commands.push_back(Command::CameraOff);
                     }
                     self.sheet = None;
                     self.act(Action::Entry(None));

@@ -195,7 +195,7 @@ impl Faraday {
             }
             _ => {}
         }
-        self.dirty = true;
+        self.out.dirty = true;
         true
     }
 }

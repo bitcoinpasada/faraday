@@ -179,7 +179,7 @@ impl Faraday {
             _ => {}
         }
         self.flow_settle();
-        self.dirty = true;
+        self.out.dirty = true;
     }
 
     fn flow_goto(&mut self, i: usize, step: Step) {
@@ -468,7 +468,7 @@ impl Faraday {
             F::UnlockDone(v) => self.flow_unlock_done(i, v),
             F::BackUpFirst(_) | F::Resume | F::Show(_) | F::WalletLock => {}
         }
-        self.dirty = true;
+        self.out.dirty = true;
     }
 
     fn flow_add_place(&mut self, i: usize) {
@@ -958,11 +958,11 @@ impl Faraday {
             r.pending.clear();
         } else {
             r.space_pending = true;
-            self.storage_out.push_back(StorageCommand::StickSpace {
+            self.out.storage_out.push_back(StorageCommand::StickSpace {
                 stick: st.id.clone(),
             });
             for name in ofv {
-                self.storage_out.push_back(StorageCommand::Read {
+                self.out.storage_out.push_back(StorageCommand::Read {
                     stick: st.id.clone(),
                     name,
                 });
@@ -1977,7 +1977,7 @@ impl Faraday {
         if kind_ == Kind::Gpg {
             self.toast_out(FEN.vaults_made_the_certificate);
         }
-        self.dirty = true;
+        self.out.dirty = true;
     }
 
     /// The extra round: the key is copied from a vault that holds it into
@@ -2435,7 +2435,7 @@ impl Faraday {
             // A vault goes over the copy of its salt and nothing else, or
             // beside what the stick holds; any other file beside under a
             // free name (`faraday-files`).
-            self.storage_out.push_back(StorageCommand::Write {
+            self.out.storage_out.push_back(StorageCommand::Write {
                 stick: r.id.clone(),
                 name,
                 bytes,
@@ -2500,7 +2500,7 @@ impl Faraday {
                 if let Some(w) = self.backup_flows[i].live.writing.as_mut() {
                     w.qr.push((wrote_as.clone(), meant, sha));
                 }
-                self.storage_out.push_back(StorageCommand::ReadQr {
+                self.out.storage_out.push_back(StorageCommand::ReadQr {
                     stick,
                     name: wrote_as,
                 });
@@ -2609,7 +2609,7 @@ impl Faraday {
                 w.aliases.push((sent.to_string(), meant.to_string()));
             }
         }
-        self.storage_out.push_back(StorageCommand::Write {
+        self.out.storage_out.push_back(StorageCommand::Write {
             stick,
             name: sent.to_string(),
             bytes,

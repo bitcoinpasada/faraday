@@ -380,8 +380,10 @@ impl Faraday {
             self.osk_set_lift(lift);
         }
         if a.redraw {
-            self.dirty = true;
-            self.commands.push_back(faraday_shell_api::Command::Draw);
+            self.out.dirty = true;
+            self.out
+                .commands
+                .push_back(faraday_shell_api::Command::Draw);
         }
     }
 }

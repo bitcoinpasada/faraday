@@ -152,7 +152,7 @@ impl Faraday {
         let Some(stick) = self.sticks.get(self.visit.stick) else {
             return;
         };
-        self.storage_out.push_back(StorageCommand::StickSpace {
+        self.out.storage_out.push_back(StorageCommand::StickSpace {
             stick: stick.id.clone(),
         });
         self.delete_ask = Some(DeleteAsk {
@@ -215,7 +215,7 @@ impl Faraday {
         match d.what {
             What::Files => {
                 for name in d.chosen {
-                    self.storage_out.push_back(StorageCommand::Wipe {
+                    self.out.storage_out.push_back(StorageCommand::Wipe {
                         stick: d.stick.clone(),
                         name,
                     });
@@ -224,7 +224,7 @@ impl Faraday {
             }
             What::Free | What::Whole => {
                 let whole = d.what == What::Whole;
-                self.storage_out.push_back(if whole {
+                self.out.storage_out.push_back(if whole {
                     StorageCommand::MakeEmpty {
                         stick: d.stick.clone(),
                     }
@@ -351,12 +351,14 @@ impl Faraday {
             return;
         };
         z.due = false;
-        self.storage_out.push_back(StorageCommand::ZeroFree {
+        self.out.storage_out.push_back(StorageCommand::ZeroFree {
             stick: z.stick.clone(),
             from: z.next,
         });
-        self.dirty = true;
-        self.commands.push_back(faraday_shell_api::Command::Draw);
+        self.out.dirty = true;
+        self.out
+            .commands
+            .push_back(faraday_shell_api::Command::Draw);
     }
 
     /// Zeroing failed, or the stick's space could not be read.
@@ -398,8 +400,10 @@ impl Faraday {
             self.sheet = None;
         }
         self.visit.log.push((line, ok));
-        self.dirty = true;
-        self.commands.push_back(faraday_shell_api::Command::Draw);
+        self.out.dirty = true;
+        self.out
+            .commands
+            .push_back(faraday_shell_api::Command::Draw);
     }
 }
 

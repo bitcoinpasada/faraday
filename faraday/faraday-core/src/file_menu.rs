@@ -332,7 +332,7 @@ impl Faraday {
                     Row::Stick(_) => {
                         let id = self.sticks.get(self.visit.stick).map(|s| s.id.clone());
                         if let Some(id) = &id {
-                            self.storage_out.push_back(StorageCommand::Hash {
+                            self.out.storage_out.push_back(StorageCommand::Hash {
                                 stick: id.clone(),
                                 name: name.clone(),
                             });
@@ -493,7 +493,7 @@ impl Faraday {
             }
             Row::Stick(_) => {
                 if let Some(s) = self.sticks.get(self.visit.stick) {
-                    self.storage_out.push_back(StorageCommand::Rename {
+                    self.out.storage_out.push_back(StorageCommand::Rename {
                         stick: s.id.clone(),
                         from: r.from,
                         to,

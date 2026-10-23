@@ -57,7 +57,7 @@ impl Faraday {
     /// 32 bytes of their own for `what`, or `None` while the system has
     /// not answered yet; either way another answer is asked for.
     pub(crate) fn fresh(&mut self, what: &[u8]) -> Option<[u8; 32]> {
-        self.commands.push_back(Command::RequestEntropy);
+        self.out.commands.push_back(Command::RequestEntropy);
         let bytes = self.pool.pop()?;
         let mut e = sha256::Hash::engine();
         e.input(b"faraday fresh");
@@ -73,7 +73,7 @@ impl Faraday {
     /// round is never opened on bytes the system did not give.
     pub(crate) fn sign_seed(&mut self) -> Option<[u8; 32]> {
         let Some(seed) = self.seed.as_ref() else {
-            self.commands.push_back(Command::RequestEntropy);
+            self.out.commands.push_back(Command::RequestEntropy);
             return None;
         };
         self.sign_draws += 1;
@@ -112,7 +112,7 @@ impl Faraday {
             return;
         }
         for _ in 0..=POOL {
-            self.commands.push_back(Command::RequestEntropy);
+            self.out.commands.push_back(Command::RequestEntropy);
         }
     }
 }

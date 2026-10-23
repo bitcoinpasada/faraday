@@ -261,7 +261,7 @@ impl Faraday {
                 continue;
             }
             let (stick, name) = (boot.id.clone(), name.clone());
-            self.storage_out.push_back(if is_png(&name) {
+            self.out.storage_out.push_back(if is_png(&name) {
                 StorageCommand::ReadQr { stick, name }
             } else {
                 StorageCommand::Read { stick, name }

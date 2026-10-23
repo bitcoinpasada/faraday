@@ -129,12 +129,12 @@ impl Faraday {
         if let Some(d) = self.last_display {
             // Only what this display adds is dropped: the first request
             // for entropy may still be waiting.
-            let before = self.commands.len();
+            let before = self.out.commands.len();
             self.display(d);
             let mut i = before;
-            while i < self.commands.len() {
-                if self.commands[i] == faraday_shell_api::Command::RequestEntropy {
-                    self.commands.remove(i);
+            while i < self.out.commands.len() {
+                if self.out.commands[i] == faraday_shell_api::Command::RequestEntropy {
+                    self.out.commands.remove(i);
                 } else {
                     i += 1;
                 }

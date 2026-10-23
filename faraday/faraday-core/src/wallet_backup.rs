@@ -810,7 +810,7 @@ impl Faraday {
                     scan.purpose = ScanPurpose::CheckCopy(fp);
                     self.scan = Some(scan);
                     self.sheet = Some(Sheet::Scan);
-                    self.commands.push_back(Command::CameraOn);
+                    self.out.commands.push_back(Command::CameraOn);
                 }
             }
             Action::BCheckClear => self.copy_check_clear(),

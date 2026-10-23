@@ -189,7 +189,8 @@ impl Faraday {
     pub(crate) fn seed_read_open(&mut self, words: &str) {
         let c = self.compute();
         self.scan = None;
-        self.commands
+        self.out
+            .commands
             .push_back(faraday_shell_api::Command::CameraOff);
         let Some(plain) = key_of(&c, words, "") else {
             self.sheet = None;
@@ -210,7 +211,8 @@ impl Faraday {
     pub(crate) fn seed_read_for_wallet(&mut self, words: &str, w: usize, reason: String) {
         let c = self.compute();
         self.scan = None;
-        self.commands
+        self.out
+            .commands
             .push_back(faraday_shell_api::Command::CameraOff);
         self.seed_read = Some(SeedRead {
             source: Source::Words(SecretText::of(words)),

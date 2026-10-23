@@ -137,7 +137,7 @@ impl Faraday {
             canvas.swap_pixels(&mut self.fade.after);
             canvas.blend_between(before, &self.fade.after, t);
             self.fade.due = true;
-            self.commands.push_back(Command::Draw);
+            self.out.commands.push_back(Command::Draw);
         }
     }
 
@@ -175,14 +175,14 @@ impl Faraday {
         } else {
             canvas.blend_between(before, &self.fade.after, t);
             self.fade.due = true;
-            self.commands.push_back(Command::Draw);
+            self.out.commands.push_back(Command::Draw);
         }
     }
 
     /// Whether the next frame the shell asks for is a fade's step, a
     /// blend of the two kept frames, rather than a frame drawn in full.
     pub fn next_frame_blends(&self) -> bool {
-        !self.dirty && self.fade.due
+        !self.out.dirty && self.fade.due
     }
 
     /// What fades have done since this was last called, and the counts

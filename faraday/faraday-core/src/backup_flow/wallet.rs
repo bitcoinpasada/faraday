@@ -333,7 +333,7 @@ impl Faraday {
                 r.scroll.follow = true;
             }
             self.screen = Screen::Restore;
-            self.dirty = true;
+            self.out.dirty = true;
             return;
         }
         let creating = self
@@ -351,7 +351,7 @@ impl Faraday {
         } else {
             self.screen = Screen::Wallets;
         }
-        self.dirty = true;
+        self.out.dirty = true;
     }
 
     /// Back on a card of a wallet's flow whose wallet is being made: the
@@ -380,7 +380,7 @@ impl Faraday {
         self.vaults.create = None;
         self.vaults.focus = None;
         self.screen = to;
-        self.dirty = true;
+        self.out.dirty = true;
         true
     }
 

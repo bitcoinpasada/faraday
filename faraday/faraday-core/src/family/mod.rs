@@ -600,7 +600,7 @@ impl Faraday {
                 if self.may_load_keys() {
                     // From the intake scanner's Type the words instead.
                     if self.scan.take().is_some() {
-                        self.commands.push_back(Command::CameraOff);
+                        self.out.commands.push_back(Command::CameraOff);
                     }
                     if self.sheet == Some(Sheet::Scan) {
                         self.sheet = None;
@@ -924,7 +924,7 @@ impl Faraday {
         scan.note = note;
         self.scan = Some(scan);
         self.sheet = Some(Sheet::Scan);
-        self.commands.push_back(Command::CameraOn);
+        self.out.commands.push_back(Command::CameraOn);
         if !self.family_ready() {
             self.family.open = Some(Open::Page(page::HOLDING));
         }
@@ -1003,7 +1003,7 @@ impl Faraday {
         }
         self.scan = None;
         self.sheet = None;
-        self.commands.push_back(Command::CameraOff);
+        self.out.commands.push_back(Command::CameraOff);
         self.act(Action::Entry(None));
         if let Some(i) = crate::forms::Form::ALL.iter().position(|f| *f == form) {
             self.act(Action::EntryForm(i as u8));

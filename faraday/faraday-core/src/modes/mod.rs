@@ -103,7 +103,8 @@ impl Faraday {
         if self.mode_changing() {
             self.inbox.clear();
             self.outbox.clear();
-            self.storage_out
+            self.out
+                .storage_out
                 .push_back(crate::StorageCommand::SaveBoxes {
                     inbox: Vec::new(),
                     outbox: Vec::new(),

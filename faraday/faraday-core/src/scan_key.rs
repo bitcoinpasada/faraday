@@ -214,7 +214,7 @@ impl Faraday {
             return;
         }
         if self.scan.take().is_some() {
-            self.commands.push_back(Command::CameraOff);
+            self.out.commands.push_back(Command::CameraOff);
             if self.sheet == Some(Sheet::Scan) {
                 self.sheet = None;
             }
@@ -251,7 +251,7 @@ impl Faraday {
                     scan.purpose = ScanPurpose::KeyPart;
                     self.scan = Some(scan);
                     self.sheet = Some(Sheet::Scan);
-                    self.commands.push_back(Command::CameraOn);
+                    self.out.commands.push_back(Command::CameraOn);
                 }
             }
             Action::ScanSeed => {
@@ -260,7 +260,7 @@ impl Faraday {
                     scan.purpose = ScanPurpose::Seed;
                     self.scan = Some(scan);
                     self.sheet = Some(Sheet::Scan);
-                    self.commands.push_back(Command::CameraOn);
+                    self.out.commands.push_back(Command::CameraOn);
                 }
             }
             Action::ScanKey(w) => {
@@ -269,7 +269,7 @@ impl Faraday {
                     scan.purpose = ScanPurpose::WalletKey(w);
                     self.scan = Some(scan);
                     self.sheet = Some(Sheet::Scan);
-                    self.commands.push_back(Command::CameraOn);
+                    self.out.commands.push_back(Command::CameraOn);
                 }
             }
             Action::Scan => {
@@ -281,7 +281,7 @@ impl Faraday {
                 }
                 self.scan = Some(scan);
                 self.sheet = Some(Sheet::Scan);
-                self.commands.push_back(Command::CameraOn);
+                self.out.commands.push_back(Command::CameraOn);
             }
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
@@ -371,7 +371,7 @@ impl Faraday {
     /// where it has a clipboard.
     pub(crate) fn scan_paste(&mut self) {
         if self.clipboard && self.scan_pastes() {
-            self.commands.push_back(Command::RequestClipboard {
+            self.out.commands.push_back(Command::RequestClipboard {
                 kind: faraday_shell_api::FileKind::Text,
             });
         }

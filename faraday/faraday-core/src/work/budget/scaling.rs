@@ -91,7 +91,7 @@ fn works(app: &mut Faraday) -> Vec<(&'static str, Counts, Counts, u64, u64)> {
             let frame = frame_work(app);
             let lines = lines_drawn(app);
             let before = app.inbox.rebuilds();
-            app.dirty = true;
+            app.out.dirty = true;
             let _ = faraday_shell_api::App::frame(app);
             let rebuilt = app.inbox.rebuilds() - before;
             (name, frame, hover_work(app), lines, rebuilt)
@@ -106,7 +106,7 @@ fn lines_drawn(app: &mut Faraday) -> u64 {
     app.settle();
     let _ = app.frame();
     let before = count(app);
-    app.dirty = true;
+    app.out.dirty = true;
     let _ = app.frame();
     count(app) - before
 }

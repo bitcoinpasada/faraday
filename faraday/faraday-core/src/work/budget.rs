@@ -315,11 +315,11 @@ fn frame_costs(app: &mut Faraday) -> (Counts, u64, u64) {
     let lines = |app: &Faraday| app.canvas.as_ref().map_or(0, |c| c.lines_drawn());
     app.settle();
     let _ = app.frame();
-    app.dirty = true;
+    app.out.dirty = true;
     let _ = app.frame();
     let before = snapshot();
     let (allocs, drawn) = (faraday_alloc_count::allocations(), lines(app));
-    app.dirty = true;
+    app.out.dirty = true;
     let _ = app.frame();
     (
         since(&before),

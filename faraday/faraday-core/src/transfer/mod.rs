@@ -192,7 +192,8 @@ impl Faraday {
             return;
         }
         self.transfer.reading = Some(path.clone());
-        self.storage_out
+        self.out
+            .storage_out
             .push_back(StorageCommand::ReadHost { path });
     }
 
@@ -269,7 +270,7 @@ impl Faraday {
         scan.purpose = ScanPurpose::Transfer;
         self.scan = Some(scan);
         self.sheet = Some(Sheet::Scan);
-        self.commands.push_back(Command::CameraOn);
+        self.out.commands.push_back(Command::CameraOn);
     }
 
     /// One code read on Receive. A whole file goes to the shell to save
@@ -317,7 +318,8 @@ impl Faraday {
             scan.note = Some(fill(EN.transfer_saving, &[&name.to_string()]));
         }
         self.transfer.saving.push_back(secret);
-        self.storage_out
+        self.out
+            .storage_out
             .push_back(StorageCommand::SaveDownload { name, bytes: data });
     }
 
@@ -341,7 +343,9 @@ impl Faraday {
     /// Opens the Downloads folder in this computer's file manager.
     pub(crate) fn transfer_open_folder(&mut self) {
         if self.online && self.transfer.opens {
-            self.storage_out.push_back(StorageCommand::OpenDownloads);
+            self.out
+                .storage_out
+                .push_back(StorageCommand::OpenDownloads);
         }
     }
 }

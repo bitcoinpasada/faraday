@@ -242,8 +242,10 @@ impl Faraday {
             ..LearnState::default()
         };
         self.sheet = Some(crate::Sheet::Learn);
-        self.dirty = true;
-        self.commands.push_back(faraday_shell_api::Command::Draw);
+        self.out.dirty = true;
+        self.out
+            .commands
+            .push_back(faraday_shell_api::Command::Draw);
     }
 
     /// Shows the sheet's page `i`.

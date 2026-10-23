@@ -402,7 +402,8 @@ impl Faraday {
             XAction::Search => self.explore_search(),
             XAction::Paste => {
                 if clipboard {
-                    self.commands
+                    self.out
+                        .commands
                         .push_back(faraday_shell_api::Command::RequestClipboard {
                             kind: faraday_shell_api::FileKind::Text,
                         });

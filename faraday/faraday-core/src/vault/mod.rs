@@ -1536,8 +1536,7 @@ impl Faraday {
     /// is sealed then, and the shell is asked again.
     pub(crate) fn vault_draw(&mut self, what: &[u8]) -> Option<[u8; 32]> {
         let Some(seed) = self.seed.as_ref() else {
-            self.commands
-                .push_back(faraday_shell_api::Command::RequestEntropy);
+            self.out.command(faraday_shell_api::Command::RequestEntropy);
             return None;
         };
         self.vaults.draws += 1;
@@ -2058,8 +2057,7 @@ impl Faraday {
                 scan.purpose = crate::ScanPurpose::VaultEntry;
                 self.scan = Some(scan);
                 self.sheet = Some(crate::Sheet::Scan);
-                self.commands
-                    .push_back(faraday_shell_api::Command::CameraOn);
+                self.out.command(faraday_shell_api::Command::CameraOn);
             }
             V::Dice(_) if !self.may_load_keys() => {}
             V::Dice(i) => {
@@ -3577,8 +3575,7 @@ impl Faraday {
         // Everything random in a vault comes from fresh system entropy of
         // its own; a vault is never made before it has arrived.
         if self.pool.is_empty() {
-            self.commands
-                .push_back(faraday_shell_api::Command::RequestEntropy);
+            self.out.command(faraday_shell_api::Command::RequestEntropy);
             if let Some(c) = self.vaults.create.as_mut() {
                 c.error = Some(EN.vaults_no_randomness.to_string());
             }
@@ -3769,8 +3766,7 @@ impl Faraday {
             return true;
         }
         if !self.seeded() && self.vaults.open[i].changes > 0 {
-            self.commands
-                .push_back(faraday_shell_api::Command::RequestEntropy);
+            self.out.command(faraday_shell_api::Command::RequestEntropy);
             self.toast(EN.seed_missing);
             return false;
         }

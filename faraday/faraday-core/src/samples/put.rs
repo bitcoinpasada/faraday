@@ -628,7 +628,7 @@ impl Faraday {
             if intake && self.scan.is_some() {
                 self.scan = None;
                 self.sheet = None;
-                self.commands.push_back(crate::Command::CameraOff);
+                self.out.commands.push_back(crate::Command::CameraOff);
             }
         }
     }
