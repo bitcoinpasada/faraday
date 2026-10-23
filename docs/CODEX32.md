@@ -1,7 +1,7 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open), not built; its four decisions are proposed in §14, not yet recorded
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open), not built; its five decisions are proposed in §14, not yet recorded
 **Open:** all of it, batches C1 to C10 (§15.2); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
@@ -131,17 +131,17 @@ Sources read for it, each as data and none vendored:
     wallet's Kind card between Single key and Multisig: single-sig on
     chain, its Quorum the share scheme, its one slot made by Make codex32
     shares; codex32 only, not SLIP-39 (§6.9).
-22. **SLIP-39 words for moving a key**: a hold-to-show row on the
-    vault's item for any key whose seed is 16 or 32 bytes, 1 of 1 and
-    always the same words, with Check a copy and Done; never in making a
-    wallet, never on the backup board, never stored; no SLIP-39 split of
-    a codex32 key (§10.5).
-24. **A codex32 key in a vault**: saved as any key is; its item shows the
-    unsplit string, the set's shares, SLIP-39 words where they exist and
-    Check a copy; a share-only item shows its string alone; the board
-    names a backup-in-shares seed placed whole in a vault (§9.5, §9.6).
+22. **SLIP-39 words and other conversions** leave this spec (owner,
+    2026-10-23): seed conversions (codex32 to SLIP-39 and the others) are
+    a dedicated conversion tool of their own, planned, not scheduled
+    (§10.5). Nothing about them is in a vault or on the backup board.
 23. **Typed characters**: the line "Characters from dice or a
     worksheet, not chosen" above the entry (§5.2).
+24. **A codex32 key in a vault** is saved and shown as any key is: the
+    vault gives nothing it holds special treatment (owner, 2026-10-23).
+    Its key record keeps the codex32 set for the backup plan (§9.4), and
+    the board names a backup-in-shares seed placed whole in a vault
+    (§9.5, §9.6).
 14. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
     keep real dice typed on the pad): five dice for codex32, one die for
     BIP-39 words and Generate with dice, their values this computer's
@@ -1194,34 +1194,21 @@ everything in it changes there (places, which string goes where, forms,
 more strings by + share, another k and n where the plan makes the set,
 §9.2; a set made already keeps its k, §9.4).
 
-### 9.6 A codex32 key's item in a vault (owner, 2026-10-23)
+### 9.6 A codex32 key in a vault (owner, 2026-10-23)
 
-How a codex32 key gets into a vault is how any key does: the plan's
-vault item (**Save into Vault 1**, BACKUP-FLOW §17.3) where the plan
-places the seed there, or **Save to vault** for anything loaded in a
-session. The key record holds the seed (VAULT §7, type 2, the seed
-payload) and the key's codex32 set (§9.4); a string alone goes in as a
-share record (§9.5) and is not a key.
+A codex32 key gets into a vault as any key does: the plan's vault item
+(**Save into Vault 1**, BACKUP-FLOW §17.3) where the plan places the
+seed there, or **Save to vault** for anything loaded in a session. Its
+key record holds the seed (VAULT §7, type 2, the seed payload) and the
+key's codex32 set (§9.4), which the backup plan reads to place and check
+the set's strings; a string alone goes in as a share record (§9.5) and
+is gathered at unlock towards the key.
 
-The vault's item for a key holding the seed shows, top to bottom, each
-secret behind hold-to-show as a word key's words are (DESIGN §4.10):
-
-- **Fingerprint** (not a secret);
-- **Codex32**: the unsplit string (k = 0 form, identifier from the
-  fingerprint), always the same;
-- **Shares of w0za**: where the record keeps a set (§9.4), one row per
-  string by index (**A**, **C**, **D**), each shown as §6.6 shows a
-  string, with **Codex32QR** at 48 characters; **Add a share** (§8.2);
-- **SLIP-39 words** (16- and 32-byte seeds, §10.5);
-- **Check a copy**, for any of the forms above: a copy typed or scanned
-  is checked against this key ("C · matches the set", "Box 17
-  differs");
-- the rows every key item has today: Load at unlock, Load into session,
-  Save to a stick.
-
-An item holding only a share shows that string (hold-to-show), its
-index, set and fingerprint, and **Check a copy**; no SLIP-39 row, no
-other string: a share is not the key.
+The vault gives nothing it holds special treatment (owner): its item for
+a codex32 key is the item every key has, with no codex32 rows, no
+strings, no SLIP-39 words and no check of its own. The strings are shown
+and checked where the backup is (§6.6, the checklist's Check my copy,
+§9.4); conversions to other forms are the conversion tool's (§10.5).
 
 ## 10. Codex32QR
 
@@ -1278,74 +1265,18 @@ section takes it when it is published. Further input from the author
 (the duplicate rule, the error-correction screens, a compact form) is
 taken the same way: as a change to this section, with its vectors.
 
-### 10.5 SLIP-39 words for moving a key (owner, 2026-10-23)
+### 10.5 Conversions (owner, 2026-10-23)
 
-A codex32 seed is a BIP-32 master seed, and so is a SLIP-39 master
-secret: SLIP-39's words decode to the seed with no one-way step between
-(BIP-39's words do not: PBKDF2 makes its seed, so no BIP-39 words exist
-for a given codex32 seed, and Faraday writes none). So a key whose seed
-is 16 or 32 bytes can be written as SLIP-39 words and read back exactly,
-standard on both sides, for moving the key to a wallet that reads
-SLIP-39 (Trezor's among them).
-
-**One purpose, one place.** The words are for moving a key to another
-wallet. They are not a backup form: a 1-of-1 is the whole seed, and a
-codex32 key's backup exists so that no one place holds it. So they
-appear nowhere in making a wallet, nowhere on the backup board, and are
-never stored: no vault record, no file. They are shown, on the vault's
-item for the key (a key has no page of its own, F68; its item is where
-its secret forms are shown, as a word key's words and SeedQR are), as a
-row **SLIP-39 words**, behind hold-to-show as the words are.
-
-**Which keys** (by seed size, not by where the key came from):
-
-| Key | The row |
-|---|---|
-| codex32, 48 or 74 characters (16 or 32 bytes) | offered |
-| loaded from SLIP-39 shares | offered: its seed as one 1-of-1 |
-| loaded from a 16- or 32-byte seed in hex | offered |
-| made of BIP-39 words (a 64-byte seed) | not offered: SLIP-39 has no 64-byte form, and the words are already the key's portable form |
-| codex32 of a BIP-39 key's seed (127 characters) | not offered (64 bytes) |
-
-A key loaded with no seed bytes kept (before §1.1 item 10 is built)
-offers none.
-
-**The screen** is DESIGN §5's Secret: title "SLIP-39 · 1 of 1", the 20
-or 33 words numbered in the BIP-39 words' layout, the fingerprint beside
-them, and two facts: "The whole seed: anyone with these words has the
-key" and "Always the same words". Actions: **Check a copy** (the words
-typed back, the first that differs named; the quiz's caution on Skip)
-and **Done**. Nothing is copied to the clipboard (DESIGN mask policy).
-No **Show another** (the words are always the same) and no **Add to
-vault** (the vault already holds the seed they come from).
-
-**Always the same words: 1 of 1, fixed.** The conversion fixes every
-choice SLIP-39 leaves open, all within the standard: one group, one
-share, threshold 1; the extendable flag clear, which every SLIP-39
-reader takes, including those from before the flag was added; the
-iteration exponent Trezor's tools use by default; an empty SLIP-39
-passphrase, so the words decode to exactly the seed; and the 15-bit
-identifier taken from the master fingerprint (its top 15 bits), as
-codex32's own `identifier_for` takes 20. The same seed gives the same
-words on every conversion and every Faraday.
-
-**Back again** needs nothing new: Add a key's Type SLIP-39 shares already
-loads a 1-of-1, Faraday's or any other's (a random identifier too); the
-key keeps its seed's bytes (§1.1 item 10), so it can be written as
-codex32 again (§9.1), unsplit and with the identifier from the
-fingerprint, which is also always the same string. The round trip
-codex32 → SLIP-39 → codex32 gives back the string it started from.
-
-**No SLIP-39 split of a codex32 key.** A person who wants SLIP-39
-shares makes the key as SLIP-39 shares from the start (New key's Other
-forms).
-
-**Tests:** against SLIP-39's published vectors and
-`python-shamir-mnemonic` (another implementation): Faraday's words for a
-seed decode there to the same seed, and that implementation's 1-of-1
-words load here; the same seed converted twice gives the same words;
-codex32 → SLIP-39 → codex32 returns the starting string (the 128-bit
-BIP 93 vectors); a word key and a 64-byte seed offer no row.
+Writing a seed in another standard's form (a codex32 seed as SLIP-39
+words, and the like) is not part of this spec: it is a dedicated
+conversion tool, planned, not scheduled, with its own spec. What was
+worked out here for it: a codex32 seed of 16 or 32 bytes is a SLIP-39
+master secret too, so it can be written as SLIP-39 words and read back
+exactly; a 1 of 1 with every free choice fixed (identifier from the
+fingerprint, extendable flag clear, the default iteration exponent, an
+empty SLIP-39 passphrase) gives the same words every time; BIP-39 words
+cannot be made for a codex32 seed (PBKDF2 is one-way). Reading SLIP-39
+and codex32 back needs nothing new here: Add a key reads both.
 
 ## 11. Blank templates (the Starter)
 
@@ -1520,10 +1451,6 @@ time, F83 onward as of this writing), each its own file and a row in
 - **D5. Single key, backup in shares.** §6.9: the wallet kind on
   Make a new wallet's Kind card, codex32 only; codex32 made for
   single-key wallets only, a loaded codex32 key accepted anywhere.
-- **D6. SLIP-39 words for moving a key.** §10.5: the fixed 1-of-1
-  conversion (identifier from the fingerprint) on the vault's key item
-  for 16- and 32-byte seeds; not a backup form; no SLIP-39 split of a
-  codex32 key.
 
 ## 15. Plan
 
@@ -1577,8 +1504,6 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 | `docs/BACKUP-FLOW.md` | §17.3, the checklist | a key with a codex32 set: the form fixed to the set, Check my copy per string, no Make them (§9.4) |
 | `docs/FLOWS.md` | Make a new wallet | the Kind card's Single key, backup in shares; its Quorum as the scheme; its slot opening Make codex32 shares; no codex32 in other kinds' slots (§6.9) |
 | `docs/DESIGN.md` | §5 Choice, "What kind of wallet?" | the new kind's row and its second line; the rows' second lines (§6.9) |
-| `docs/INTEROP.md` | SLIP-39 | a key of a 16- or 32-byte seed written as SLIP-39 words, 1 of 1, and read back (§10.5) |
-| `docs/VAULT.md`, FLOWS (Vaults) | a key's item | the codex32, shares, SLIP-39 words and Check a copy rows (§9.6, §10.5) |
 | `docs/DESIGN.md` | §4.10 | the worksheet's look, §7.5: the booklet's colour roles as named fills and outlines per theme |
 | `docs/DESIGN.md` | §4 (new component) | the tab row: one tab per item, a check mark once shown, wrapping on `wide` and `mobile`, a Choice with Previous and Next on `small` (§6.5) |
 | `docs/DEMO.md` | §5.2 | the roller in the demo: Generate with dice and New key unchanged in outcome |
