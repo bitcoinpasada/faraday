@@ -108,6 +108,11 @@ Sources read for it, each as data and none vendored:
 16. **The sheets' look**: the booklet's layout and colour roles, so they
     feel familiar; more beautiful where possible; every colour, line and
     motion helping the reader follow, none distracting (§7.5).
+17. **A key that already has a codex32 set** (made here from dice, or
+    loaded from strings): its backup places and checks that set and never
+    splits the seed again; the key record keeps the set (k, identifier,
+    length, indices, k − 1 strings besides S); a new set only on purpose,
+    behind a caution (§9.4).
 14. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
     keep real dice typed on the pad): five dice for codex32, one die for
     BIP-39 words and Generate with dice, their values this computer's
@@ -960,6 +965,60 @@ typed back or skipped; the strings are never written to a file or a
 stick (paper only, as the copies by hand are today). A plan made in
 Demo dims the codex32 toggle for k of 2 or more, as DEMO §5.3 says.
 
+### 9.4 A key that already has a codex32 set (owner, 2026-10-22)
+
+A key made by Make codex32 shares has its strings on paper before any
+backup is planned: they came from the person's dice. A key loaded from
+k codex32 strings has a set on paper too. For such a key the backup
+places and checks **the set that exists**; it never splits the seed
+again, since a second split would make a second set that rebuilds the
+same seed, and the plan would not know about the first.
+
+- **What is kept.** The key record (VAULT §7, type 2) gains a field, the
+  key's codex32 set: k, the identifier, the length, the indices known
+  to exist, and k − 1 of the set's strings other than S (for k = 0,
+  nothing beyond k, identifier and length). With S, which the record
+  already holds as the seed, those strings fix the whole set, so any
+  string of it can be shown again (§6.6) or derived (§8.2) and any
+  string typed back can be checked as one of the set. They add no
+  secret the record does not already hold: anyone who reads the record
+  has S. A new field of the vault's record; the vault vectors gain a
+  record carrying it, and a vault without it reads as today. In the
+  session `faraday-keys` holds the set beside the key and it leaves only
+  through `Reveal::PaperForm`, as §9.1's strings do.
+- **Made here.** Make codex32 shares writes the set with the key at
+  Lock in (§6.7): k, identifier, length, every index made, and the
+  strings above.
+- **Loaded from strings.** Typed or scanned shares give the set's k,
+  identifier, length and the indices typed; the plan asks how many
+  strings exist ("How many strings of w0za are there?", k to 31) and
+  which indices, where the person knows them, else "C, D and 1 more".
+- **The backup plan (§9.2).** For such a key the codex32 form starts on
+  and fixed to the set: n chips, one per string, labelled by index
+  ("9a6a2580 · codex32 w0za · C"); k and n are not asked. Words and
+  SeedQR are not offered (the key has no words); a vault holds the
+  seed as for any wordless key. The checklist item **Codex32 strings of
+  seed i** has no **Make them**: its foot is **Check my copy**, string
+  by string, each typed back (or scanned as Codex32QR) and checked as a
+  string of this set ("C · matches the set" / "Box 17 differs"), or
+  skipped behind the quiz's caution. Done when every string placed is
+  checked or skipped.
+- **More copies later.** **Add a share** (§8.2) extends the same set at
+  an unused index, with the same identifier, and its chip is placed like
+  the others.
+- **A new set on purpose.** §9.1's codex32 chip on such a key opens on
+  the existing set ("Place the strings of w0za"); **Make a new set**
+  is a second choice under it, behind a caution that names what it
+  does ("A second set of 9a6a2580. Either set rebuilds it; the first
+  stays valid.") and is never the default.
+- **A key made of words** has no set: §9.1 and §9.2 split its 64-byte
+  seed as written (127 characters, made with this device's randomness,
+  "Not for checking by hand"); the plan's codex32 toggle for it carries
+  the line "127 characters; Words is shorter for this key".
+
+This follows F31 (decide where a key is kept, then make it): the set
+exists before the plan, so the plan places it rather than making one.
+
 ### 9.3 The Templates item
 
 Where a plan copies a seed as codex32, the checklist's **Templates** item
@@ -1239,6 +1298,8 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 | `docs/DESIGN.md` | §4.10, §5 Pad, Secret, Result, Choice | the worksheet as a Secret panel; the booklet dice pad; String · Codex32QR; Strings made as built; the Scheme choices |
 | `docs/FLOWS.md` | New key and Add a key; Vaults (Create a vault) | §5.6: the roller on Faraday Desktop for dice words and Generate with dice |
 | `docs/DESIGN.md` | §5 Pad; §4.10 | the dice row and the one die, Rolls per click, "Rolled by this computer"; the masking exception of §6.4.6 |
+| `docs/VAULT.md` | §7, type 2 | the key's codex32 set field (§9.4); a vector with it |
+| `docs/BACKUP-FLOW.md` | §17.3, the checklist | a key with a codex32 set: the form fixed to the set, Check my copy per string, no Make them (§9.4) |
 | `docs/DESIGN.md` | §4.10 | the worksheet's look, §7.5: the booklet's colour roles as named fills and outlines per theme |
 | `docs/DESIGN.md` | §4 (new component) | the tab row: one tab per item, a check mark once shown, wrapping on `wide` and `mobile`, a Choice with Previous and Next on `small` (§6.5) |
 | `docs/DEMO.md` | §5.2 | the roller in the demo: Generate with dice and New key unchanged in outcome |
