@@ -5,6 +5,13 @@ repository. They are versioned here so that when one changes, this file
 changes and nothing else has to be kept in step.
 
 - The design system is `docs/DESIGN.md`.
+- Faraday and the Starter follow Material 3 (F92, F91): a new or changed
+  screen, component or token follows Material 3's guidance (its
+  components, type scale, 4 dp spacing, 48 dp touch targets, state
+  layers, colour roles, shape, elevation, motion, and the layout rules of
+  `docs/LAYOUT.md`), checked against Material's own pages and drawn with
+  Faraday's own look (`faraday-ui`). Where Faraday differs, a decision
+  says so; a difference without one is a defect to fix.
 - Faraday's decisions are numbered F1 onward, one file each
   (`docs/decisions/F<n>.md`), indexed in `docs/DECISIONS.md`: read the
   index, then only the decision you need. A new decision is a new file

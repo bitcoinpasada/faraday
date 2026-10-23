@@ -3,6 +3,11 @@
 **Kind:** Reference
 **Status:** Built
 
+Faraday and the Starter follow Material 3 (F92, F91) in their
+components, type, spacing, touch targets, states, colour roles, shape,
+elevation, motion and layout, with Faraday's own look; where this
+document differs from Material 3, a decision says so.
+
 Every dimension in it is a name in
 `core/faraday-draw/src/tokens.rs`, and `tools/lint-tokens.sh` keeps it that
 way.
