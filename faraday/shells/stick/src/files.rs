@@ -525,6 +525,7 @@ mod tests {
             Files::at(card, usb).place().as_deref(),
             Some("FARADAYDATA, KINGSTON")
         );
+        fs::remove_dir_all(&root).unwrap();
     }
 
     /// Where a signed transaction is saved, which is where a person then
@@ -561,5 +562,6 @@ mod tests {
             "with the device's own medium gone, the save goes to the one \
              stick that is there"
         );
+        fs::remove_dir_all(&root).unwrap();
     }
 }
