@@ -274,7 +274,7 @@ impl Faraday {
     pub(crate) fn pass_chip(&self, field: PassField, focused: bool) -> Option<(Action, bool)> {
         self.demo_passphrase().then_some((
             Action::PassChip(field),
-            !(focused && self.sample_sheet.pass_pressed),
+            !(focused && self.sample_area.pass_pressed()),
         ))
     }
 
@@ -352,7 +352,7 @@ impl Faraday {
     pub(crate) fn pass_typed(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key as K;
         if matches!(key, K::Char(_) | K::Backspace) {
-            self.sample_sheet.pass_pressed = true;
+            self.sample_area.set_pass_pressed(true);
         }
         false
     }
@@ -362,7 +362,7 @@ impl Faraday {
     /// chip shows and the keyboard does not cover it. A lookup.
     pub(crate) fn pass_chip_waiting(&self) -> bool {
         use crate::vault::Focus as F;
-        if !self.demo_passphrase() || self.sample_sheet.pass_pressed {
+        if !self.demo_passphrase() || self.sample_area.pass_pressed() {
             return false;
         }
         let v = &self.vaults;

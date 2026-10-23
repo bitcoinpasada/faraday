@@ -1376,7 +1376,7 @@ pub struct Faraday {
     /// The samples Demo offers, set by the desktop; none elsewhere.
     pub samples: Option<&'static samples::Samples>,
     /// The Load samples sheet's rows (`samples::SheetState`).
-    sample_sheet: samples::SheetState,
+    sample_area: samples::SamplesArea,
     /// The backup flows, at most one on screen (`docs/BACKUP-FLOW.md` §7).
     pub backup_flows: Vec<backup_flow::BackupFlow>,
     /// The flow on screen.
@@ -1506,7 +1506,7 @@ impl Faraday {
             devices: devices::DeviceCheck::default(),
             next_mode: modes::ModesArea::default(),
             samples: None,
-            sample_sheet: samples::SheetState::default(),
+            sample_area: samples::SamplesArea::default(),
             backup_flows: Vec::new(),
             flow_on: None,
             flows_begun: Vec::new(),
@@ -2351,7 +2351,9 @@ impl Faraday {
             Action::PotentialOpen(_) => EN.pull_what_load_wallet,
             // The ticks stay on the Load samples state while the sheet
             // waits; the load runs when the stick is out.
-            Action::SamplesLoad if self.sample_sheet.any_ticked() => EN.pull_what_load_samples,
+            Action::SamplesLoad if self.sample_area.sheet().any_ticked() => {
+                EN.pull_what_load_samples
+            }
             Action::BackupOpen(_) => EN.pull_what_open_backup,
             // Unlocking for another flow: the Pull sheet asks first, and
             // Unlock opens once the stick is out.
@@ -2905,7 +2907,8 @@ impl Faraday {
     fn act(&mut self, action: Action) {
         // A choice in a file's ⋮ menu closes the menu first.
         self.file_menu_chosen(action);
-        self.sample_sheet.pass_pressed = crate::demo::presses_pass_field(action);
+        self.sample_area
+            .set_pass_pressed(crate::demo::presses_pass_field(action));
         self.act_inner(action);
         // A wallet's flow follows the plan and the keys the press left.
         self.wallet_flow_sync();

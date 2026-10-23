@@ -49,7 +49,7 @@ fn heading(ui: &mut Ui, x: f32, y: f32, text: &str) -> f32 {
 /// The title, the line, Select all, the two lists and the buttons. Returns
 /// its height.
 fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let (Some(set), state) = (app.samples, &app.sample_sheet) else {
+    let (Some(set), state) = (app.samples, app.sample_area.sheet()) else {
         return 0.0;
     };
     let mut cy = y;

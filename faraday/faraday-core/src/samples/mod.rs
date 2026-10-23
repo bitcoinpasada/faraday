@@ -491,6 +491,29 @@ fn loaded_text(wallets: usize, keys: usize) -> String {
     }
 }
 
+/// The samples area: the Load samples sheet's rows.
+#[derive(Default)]
+pub(crate) struct SamplesArea {
+    sheet: SheetState,
+}
+
+impl SamplesArea {
+    /// The Load samples sheet's rows.
+    pub(crate) fn sheet(&self) -> &SheetState {
+        &self.sheet
+    }
+
+    /// Whether the passphrase field's chip has been pressed past.
+    pub(crate) fn pass_pressed(&self) -> bool {
+        self.sheet.pass_pressed
+    }
+
+    /// Notes whether the passphrase field's chip has been pressed past.
+    pub(crate) fn set_pass_pressed(&mut self, on: bool) {
+        self.sheet.pass_pressed = on;
+    }
+}
+
 impl Faraday {
     /// Whether the Load samples pill and sheet are on: Demo, with the
     /// samples set by the shell (the desktop). The stick, the Pi and every
@@ -549,19 +572,19 @@ impl Faraday {
         match action {
             Action::Samples => {
                 let c = self.compute();
-                self.sample_sheet = self.samples_rows(&c, set);
+                self.sample_area.sheet = self.samples_rows(&c, set);
                 self.sheet = Some(Sheet::Samples);
             }
             Action::SampleTick(pick) => {
-                if let Some(r) = self.sample_sheet.row_mut(pick)
+                if let Some(r) = self.sample_area.sheet.row_mut(pick)
                     && !r.loaded
                 {
                     r.ticked = !r.ticked;
                 }
             }
             Action::SamplesAll => {
-                let on = !self.sample_sheet.any_ticked();
-                let s = &mut self.sample_sheet;
+                let on = !self.sample_area.sheet.any_ticked();
+                let s = &mut self.sample_area.sheet;
                 for r in s.wallets.iter_mut().chain(&mut s.keys) {
                     r.ticked = on && !r.loaded;
                 }
@@ -583,11 +606,11 @@ impl Faraday {
     /// shown as an error. The sheet closes and one toast counts what
     /// loaded.
     fn samples_load(&mut self, set: &'static Samples) {
-        if !self.sample_sheet.any_ticked() || !self.may_load_keys() {
+        if !self.sample_area.sheet.any_ticked() || !self.may_load_keys() {
             return;
         }
         let c = self.compute();
-        let sheet = std::mem::take(&mut self.sample_sheet);
+        let sheet = std::mem::take(&mut self.sample_area.sheet);
         let (mut wallets, mut keys) = (0, 0);
         for r in sheet.wallets.iter().filter(|r| r.ticked && !r.loaded) {
             let w = &set.wallets[r.sample];
