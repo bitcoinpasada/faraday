@@ -131,6 +131,13 @@ Sources read for it, each as data and none vendored:
     wallet's Kind card between Single key and Multisig: single-sig on
     chain, its Quorum the share scheme, its one slot made by Make codex32
     shares; codex32 only, not SLIP-39 (§6.9).
+22. **SLIP-39 words for a codex32 key**: 1 of 1, always the same words
+    (identifier from the fingerprint, fixed parameters, empty SLIP-39
+    passphrase), for 16- and 32-byte seeds; a backup form on the board
+    and an export row, with Check a copy and Done; a SLIP-39 split only
+    on purpose, as a second set (§10.5).
+23. **Typed characters**: the line "Characters from dice or a
+    worksheet, not chosen" above the entry (§5.2).
 14. **Desktop dice rollers** (Faraday Desktop only; the stick and the Pi
     keep real dice typed on the pad): five dice for codex32, one die for
     BIP-39 words and Generate with dice, their values this computer's
@@ -313,7 +320,11 @@ SHA-256, so a later change to the booklet is seen as a change there.
 
 The person types the characters on the codex32 keyboard (DESIGN §4.3),
 for a person who made them on paper by any method. Each character goes
-into its box as it is typed, masked as the dice characters are. Nothing
+into its box as it is typed, masked as the dice characters are. One line of fact
+stands above the entry: "Characters from dice or a worksheet, not
+chosen" (owner, 2026-10-23): characters a person makes up are not
+random, and a share built from them can give the seed away to someone
+holding fewer than k strings. Nothing
 checks them for randomness; Faraday shows none of its randomness
 statistics here, since a character typed carries no roll to count.
 
@@ -1231,6 +1242,79 @@ section takes it when it is published. Further input from the author
 (the duplicate rule, the error-correction screens, a compact form) is
 taken the same way: as a change to this section, with its vectors.
 
+### 10.5 SLIP-39 words for a codex32 key (owner, 2026-10-23)
+
+A codex32 seed is a BIP-32 master seed, and so is a SLIP-39 master
+secret: SLIP-39's words decode to the seed with no one-way step between
+(BIP-39's words do not: PBKDF2 makes its seed, so no BIP-39 words exist
+for a given codex32 seed, and Faraday writes none). So a codex32 key of
+16 or 32 bytes can be written as SLIP-39 words and read back exactly,
+standard on both sides, and restored by SLIP-39 software (Trezor's
+among them). 64-byte seeds have no SLIP-39 form; the row is not offered
+for them.
+
+**What it is for**, and so what the screen offers:
+
+1. **Another backup form of the seed**, words that more wallets read.
+   This is a backup copy, so it lives where copies live: the backup
+   board's seed chip for a codex32 key gains the form **SLIP-39 words**
+   on Paper (`Slip39Words(i)`, Secret), toggled as Words and SeedQR are
+   (BACKUP-FLOW §17.3), and the checklist's item for it is **Check my
+   copy**: the words typed back and compared word by word.
+2. **Moving the key to another wallet**: the words shown once, to be
+   typed into a SLIP-39 device.
+
+Not offered: **Show another**, since the words are always the same
+(below), and **Add to vault**, since a vault holding the seed can show
+the words again at any time and a second record of the same secret adds
+nothing.
+
+**Always the same words: 1 of 1, fixed.** The conversion fixes every
+choice SLIP-39 leaves open, all within the standard: one group, one
+share, threshold 1; the extendable flag clear, which every SLIP-39
+reader takes, including those from before the flag was added;
+the iteration exponent Trezor's tools use by default; an empty SLIP-39
+passphrase, so the words decode to exactly the codex32 seed; and the
+15-bit identifier taken from the master fingerprint (its top 15 bits),
+as codex32's own `identifier_for` takes 20. The same seed gives the same
+20 words (33 at 32 bytes) on every conversion and every Faraday, so a
+copy checked today is checked against what any later conversion shows.
+A person who keeps a fresh conversion beside an old copy sees them
+match; a mismatch means a wrong copy, nothing else.
+
+**Where**: a codex32 key's export rows (the key explorer's Export menu,
+beside the seed hex and the master private key it already shows behind
+the eye) as **SLIP-39 words**, and the board's form above. The screen
+is DESIGN §5's Secret: title "SLIP-39 · 1 of 1", the 20 or 33 words
+numbered in the BIP-39 words' layout, the fingerprint beside them, and
+the facts "Decodes to · 9a6a2580's seed", "Always the same words".
+Actions: **Check a copy** (the words typed back, the first that differs
+named; the quiz's caution on Skip) and **Done**. Nothing is copied to
+the clipboard (DESIGN mask policy).
+
+**Back again.** Add a key's Type SLIP-39 shares already loads a 1-of-1,
+Faraday's or any other's (a random identifier too); a key so loaded
+keeps its seed's bytes (§1.1 item 10), so it can be written as codex32
+again (§9.1), unsplit and with the identifier from the fingerprint,
+which is also always the same string. The round trip codex32 → SLIP-39
+→ codex32 gives back the string it started from.
+
+**A SLIP-39 split** of the same seed (k of n, 20 words each) is the
+second-set case of §9.4: offered only on purpose, under the conversion
+row as **Split into SLIP-39 shares**, behind the same caution ("A
+second set of 9a6a2580. Either set rebuilds it; the first stays
+valid."). Its shares need fresh randomness, so they differ each time;
+it uses Faraday's existing SLIP-39 split and randomness ("Random shares ·
+This device"), and on the board it is its own set of chips, counted on
+its own: a codex32 string and a SLIP-39 share never add up.
+
+**Tests:** the conversion against SLIP-39's published vectors and
+`python-shamir-mnemonic` (another implementation): Faraday's words for a
+seed decode there to the same seed, and that implementation's 1-of-1
+words for it load here; the same seed converted twice gives the same
+words; codex32 → SLIP-39 → codex32 returns the starting string (the
+128-bit BIP 93 vectors); a 64-byte seed offers no row.
+
 ## 11. Blank templates (the Starter)
 
 STARTER §3.8's Menu gains a first row, **Form**: **BIP-39 words**
@@ -1404,6 +1488,9 @@ time, F83 onward as of this writing), each its own file and a row in
 - **D5. Single key, backup in shares.** §6.9: the wallet kind on
   Make a new wallet's Kind card, codex32 only; codex32 made for
   single-key wallets only, a loaded codex32 key accepted anywhere.
+- **D6. SLIP-39 words for a codex32 key.** §10.5: the fixed 1-of-1
+  conversion (identifier from the fingerprint), its board form and
+  export row; a SLIP-39 split of it only as a second set.
 
 ## 15. Plan
 
@@ -1457,6 +1544,7 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 | `docs/BACKUP-FLOW.md` | §17.3, the checklist | a key with a codex32 set: the form fixed to the set, Check my copy per string, no Make them (§9.4) |
 | `docs/FLOWS.md` | Make a new wallet | the Kind card's Single key, backup in shares; its Quorum as the scheme; its slot opening Make codex32 shares; no codex32 in other kinds' slots (§6.9) |
 | `docs/DESIGN.md` | §5 Choice, "What kind of wallet?" | the new kind's row and its second line; the rows' second lines (§6.9) |
+| `docs/INTEROP.md` | SLIP-39 | a codex32 key written as SLIP-39 words, 1 of 1, and read back (§10.5) |
 | `docs/DESIGN.md` | §4.10 | the worksheet's look, §7.5: the booklet's colour roles as named fills and outlines per theme |
 | `docs/DESIGN.md` | §4 (new component) | the tab row: one tab per item, a check mark once shown, wrapping on `wide` and `mobile`, a Choice with Previous and Next on `small` (§6.5) |
 | `docs/DEMO.md` | §5.2 | the roller in the demo: Generate with dice and New key unchanged in outcome |
