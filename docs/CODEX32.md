@@ -1577,7 +1577,7 @@ C5 before C6, C8, C9 and C11; C12 stands alone; C10 last.
 | `docs/MODES.md` | §7 | the samples for §6 and §8 |
 | `docs/AUDIT.md`, `core/faraday-bip/README.md` | the faraday-bip row | worksheets and correction, their vectors |
 | `docs/MULTIVENDOR.md` | §4 | codex32 sets and correction, python-codex32 |
-| `docs/learn/23-other-backups.md` | Codex32 | making shares here and by hand, the booklet, lengths, checking on another device, corrections |
+| `docs/learn/23-other-backups.md` | Codex32 | making shares here and by hand, the booklet, lengths, checking on another device, corrections; a link to the codex32 user flow guide, https://github.com/FractalEncrypt/FractalEncrypt_seedsigner/blob/codex/codex32-error-correction/docs/codex32_qr/Codex32_User_Flow_Guide.md, as the guide to read beside it (owner, 2026-10-23) |
 | `docs/learn/19-glossary.md` | Codex32 | identifier, share index, translation symbol |
 | `docs/README.md` | Spec list | the status as built |
 
