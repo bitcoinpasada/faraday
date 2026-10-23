@@ -3,17 +3,21 @@
 //! carry verifies, a finalized witness is read back and verifies, one
 //! byte changed is invalid, two signatures under one nonce are found, a
 //! signature this device made is recognised as the rule that made it,
-//! two PSBTs are compared on their contents, and an inscription
-//! envelope is stated.
+//! two PSBTs are compared on their contents, an inscription
+//! envelope is stated, and a signature made under a sighash its input
+//! did not ask for is flagged.
 
 use std::str::FromStr;
 
 use crate::common::builder::{Build, funding_tx, single_sig, sorted_multisig_change};
 use crate::common::{ABANDON, LEGAL, ZOO, master};
 use bitcoin::bip32::DerivationPath;
-use bitcoin::secp256k1::{PublicKey, Scalar, Secp256k1, SecretKey};
-use bitcoin::sighash::{EcdsaSighashType, SighashCache};
-use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness, ecdsa};
+use bitcoin::hashes::Hash;
+use bitcoin::key::TapTweak;
+use bitcoin::psbt::PsbtSighashType;
+use bitcoin::secp256k1::{Keypair, Message, PublicKey, Scalar, Secp256k1, SecretKey};
+use bitcoin::sighash::{EcdsaSighashType, Prevouts, SighashCache, TapSighashType};
+use bitcoin::{Amount, OutPoint, ScriptBuf, Sequence, TxIn, TxOut, Witness, ecdsa, taproot};
 use faraday_bip::keys::{Network, ScriptType};
 use faraday_bip::policy::WalletPolicy;
 use faraday_crypto::work::Compute;
@@ -21,7 +25,9 @@ use faraday_psbt::verify::{
     Field, NonceMode, Unchecked, Verdict, compare, deterministic, inscriptions, repeated_nonces,
     verify_signatures,
 };
-use faraday_psbt::{Aux, Context, KeyRef, Nonce, Psbt, WarningKind, finalize, inspect, sign};
+use faraday_psbt::{
+    Aux, Context, KeyRef, Level, Nonce, Psbt, WarningKind, finalize, inspect, sign,
+};
 
 const NET: Network = Network::Regtest;
 
@@ -592,5 +598,149 @@ fn a_signature_with_no_previous_output_is_not_checked() {
             .any(|w| matches!(w.kind, WarningKind::SignatureUnchecked { .. })),
         "{:?}",
         insp.warnings
+    );
+}
+
+/// A single-signature spend over the test key whose input asks for
+/// `asked` (no field when `None`), carrying a signature made with
+/// rust-bitcoin and secp256k1 under `signed`: an ECDSA one for native
+/// SegWit, a BIP-340 key-path one for taproot. The signature is good
+/// under the sighash it states.
+fn answered_with(
+    script_type: ScriptType,
+    asked: Option<PsbtSighashType>,
+    signed: PsbtSighashType,
+) -> Psbt {
+    let c = Compute::unchecked();
+    let secp = Secp256k1::new();
+    let abandon = master(ABANDON, NET);
+    let mut b = Build::new(script_type, NET);
+    b.recipients.push((foreign(), 70_000));
+    b.change = Some(29_000);
+    let mut psbt = single_sig(&abandon, &b);
+    psbt.inner_mut().inputs[0].sighash_type = asked;
+    let tx = psbt.unsigned_tx().clone();
+    let prev = psbt.inner().inputs[0]
+        .witness_utxo
+        .clone()
+        .expect("the output it spends");
+    let mut cache = SighashCache::new(&tx);
+    if script_type == ScriptType::Taproot {
+        let path = DerivationPath::from_str("m/86h/1h/0h/0/0").expect("the key's own path");
+        let derived = abandon.derive(&c, &path);
+        let keypair = Keypair::from_secret_key(&secp, derived.secret_key())
+            .tap_tweak(&secp, None)
+            .to_keypair();
+        let ty = signed.taproot_hash_ty().expect("a taproot sighash");
+        let hash = cache
+            .taproot_key_spend_signature_hash(0, &Prevouts::All(&[prev]), ty)
+            .expect("the sighash");
+        let msg = Message::from_digest(hash.to_byte_array());
+        psbt.inner_mut().inputs[0].tap_key_sig = Some(taproot::Signature {
+            signature: secp.sign_schnorr_no_aux_rand(&msg, &keypair),
+            sighash_type: ty,
+        });
+    } else {
+        let path = DerivationPath::from_str("m/84h/1h/0h/0/0").expect("the key's own path");
+        let derived = abandon.derive(&c, &path);
+        let ty = signed.ecdsa_hash_ty().expect("an ECDSA sighash");
+        let hash = cache
+            .p2wpkh_signature_hash(0, &prev.script_pubkey, prev.value, ty)
+            .expect("the sighash");
+        let msg = Message::from_digest(hash.to_byte_array());
+        psbt.inner_mut().inputs[0].partial_sigs.insert(
+            bitcoin::PublicKey::new(derived.to_xpub(&c).public_key),
+            ecdsa::Signature {
+                signature: secp.sign_ecdsa(&msg, derived.secret_key()),
+                sighash_type: ty,
+            },
+        );
+    }
+    assert_eq!(
+        verdicts(&psbt),
+        vec![Verdict::Valid],
+        "the signature is good"
+    );
+    psbt
+}
+
+/// The levels at which the review flags input 0's signature for its
+/// sighash.
+fn mismatch_levels(psbt: &Psbt) -> Vec<Level> {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).expect("accounts")];
+    inspect(&c, psbt, &ctx(&keys, &[]))
+        .warnings
+        .into_iter()
+        .filter(|w| matches!(w.kind, WarningKind::SighashMismatch { input: 0, .. }))
+        .map(|w| w.level)
+        .collect()
+}
+
+/// A signer asked for nothing (or for ALL) that answers with a good
+/// SIGHASH_NONE|ANYONECANPAY signature has signed no output: anyone can
+/// redirect the funds, and the review blocks it. One under SINGLE where
+/// ALL was asked is a danger. One under the sighash asked for passes.
+#[test]
+fn a_signature_under_a_sighash_not_asked_for_is_flagged_ecdsa() {
+    let t = ScriptType::NativeSegwit;
+    let ty = |t: EcdsaSighashType| PsbtSighashType::from(t);
+    let none_acp = ty(EcdsaSighashType::NonePlusAnyoneCanPay);
+    assert_eq!(
+        mismatch_levels(&answered_with(t, None, none_acp)),
+        vec![Level::Blocked]
+    );
+    assert_eq!(
+        mismatch_levels(&answered_with(t, Some(ty(EcdsaSighashType::All)), none_acp)),
+        vec![Level::Blocked]
+    );
+    assert_eq!(
+        mismatch_levels(&answered_with(
+            t,
+            Some(ty(EcdsaSighashType::All)),
+            ty(EcdsaSighashType::Single)
+        )),
+        vec![Level::Danger]
+    );
+    assert!(mismatch_levels(&answered_with(t, None, ty(EcdsaSighashType::All))).is_empty());
+    assert!(
+        mismatch_levels(&answered_with(
+            t,
+            Some(ty(EcdsaSighashType::Single)),
+            ty(EcdsaSighashType::Single)
+        ))
+        .is_empty()
+    );
+}
+
+/// The same for a taproot key-path signature; DEFAULT and ALL commit to
+/// the same, so either answers an input that asks for nothing or ALL.
+#[test]
+fn a_signature_under_a_sighash_not_asked_for_is_flagged_taproot() {
+    let t = ScriptType::Taproot;
+    let ty = |t: TapSighashType| PsbtSighashType::from(t);
+    let none_acp = ty(TapSighashType::NonePlusAnyoneCanPay);
+    assert_eq!(
+        mismatch_levels(&answered_with(t, None, none_acp)),
+        vec![Level::Blocked]
+    );
+    assert_eq!(
+        mismatch_levels(&answered_with(
+            t,
+            None,
+            ty(TapSighashType::AllPlusAnyoneCanPay)
+        )),
+        vec![Level::Danger]
+    );
+    assert!(mismatch_levels(&answered_with(t, None, ty(TapSighashType::Default))).is_empty());
+    assert!(mismatch_levels(&answered_with(t, None, ty(TapSighashType::All))).is_empty());
+    assert!(
+        mismatch_levels(&answered_with(
+            t,
+            Some(ty(TapSighashType::All)),
+            ty(TapSighashType::Default)
+        ))
+        .is_empty()
     );
 }
