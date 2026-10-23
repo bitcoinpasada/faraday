@@ -93,9 +93,10 @@ changes and nothing else has to be kept in step.
   by `just lint`; a ratchet count in a counts file only falls, and
   raising one is the owner's decision, recorded in DECISIONS.
   - An area's code is in its folder in faraday-core: its state and
-    logic in `mod.rs`, its screen in `screen.rs`. Screens that belong to
-    no area are `screens/<name>.rs`. `lib.rs`'s code map names every
-    module and every screen's file (`lint-layout`).
+    logic in `mod.rs` (or its types in `area.rs` beside it, where
+    `mod.rs` is at its line count), its screen in `screen.rs`. Screens
+    that belong to no area are `screens/<name>.rs`. `lib.rs`'s code map
+    names every module and every screen's file (`lint-layout`).
   - No new monolith: files over 2,500 lines and functions over 100
     lines are counted and only fall (`lint-layout`,
     `tools/lint-layout.counts`); a new long function is split, not
@@ -116,8 +117,13 @@ changes and nothing else has to be kept in step.
   - `Faraday`'s top-level field count and the list of files with
     `impl Faraday` only fall (`lint-layout`, `tools/lint-layout.counts`);
     a new `impl Faraday` goes into the area's struct or its glue file.
-  - Areas reach each other only through what their functions are given;
-    flows that span areas are explicit glue on `Faraday` (phase 7).
+  - An area's state is a struct with private fields, held in one field
+    of `Faraday` (`docs/STRUCTURE-PASS.md` §7.3). Other areas read it
+    through accessors returning `&T` and change it through its named
+    methods; a new `*_mut` accessor or `DerefMut` on an area is avoided
+    (the few that exist are listed there, to be narrowed). Flows that span
+    areas are explicit glue: short `impl Faraday` functions in the area's
+    own files.
 - No hosted CI, no GitHub Actions, no metered external services.
 - `local/user-notes.txt` is the owner's own notes; agents ignore it.
 - The remote machine that builds the images is "the build machine" in
