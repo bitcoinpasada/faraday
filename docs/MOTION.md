@@ -263,6 +263,13 @@ extent; a motion left from another screen or sheet is stopped.
   - a step card opens with its height growing over 180 ms (ease-out
     cubic), and the jump that brings the open card into view
     (`Scroll::follow`) is a glide;
+  - a change of theme cross-fades the whole frame the same way, over
+    350 ms (`motion::THEME_FADE_MS`), eased out (`motion::ease_out`),
+    since every pixel changes colour: it is a change like any other to
+    `Faraday::fade_begin` (the theme is part of what a frame drew), so
+    it is at once with reduce motion and on a machine whose fades are
+    gated off, runs to its end, and a second theme pressed mid-fade
+    starts from the frame on screen;
   - a change of screen or sheet, or of the Learn sheet's tab,
     cross-fades from the frame before it over 200 ms, linear
     (`motion::FADE_MS`; 2026-10-12, phase 4.6; an eased 150 ms was over
@@ -335,6 +342,8 @@ extent; a motion left from another screen or sheet is stopped.
 
 ### 3.6 Light mode
 
+- Changing the theme cross-fades from the old palette to the new
+  (§3.5).
 - `Faraday::theme` (`Theme::Dark`, `Theme::Light`), chosen on Settings
   under **Appearance**. Kept across a lock with the other settings
   (`theme=` in the kept `settings`, `memory.rs`), until power-off.

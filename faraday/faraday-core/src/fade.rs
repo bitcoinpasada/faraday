@@ -10,7 +10,7 @@ use faraday_shell_api::Command;
 use crate::ui::Theme;
 use crate::{Faraday, ScreenKey, Sheet, motion};
 
-/// A change of screen or sheet fading in, with the frosted page under an
+/// A change of screen, sheet or theme fading in, with the frosted page under an
 /// open sheet and the screen the last frame drew. Its fields are private.
 #[derive(Default)]
 pub(crate) struct Fade {
@@ -48,12 +48,34 @@ pub(crate) struct Fade {
     /// The frosted page under the open sheet, and the screen, sheet and
     /// theme it was made for.
     frost: Option<((ScreenKey, Theme), Vec<u8>)>,
-    /// The screen and sheet the last frame drew, and the Learn sheet's
-    /// page, so that a change is known at the next.
-    last_drawn: Option<(ScreenKey, usize)>,
+    /// The screen and sheet the last frame drew, the Learn sheet's page
+    /// and the theme, so that a change is known at the next.
+    last_drawn: Option<(ScreenKey, usize, Theme)>,
+    /// Whether the fade under way is a change of theme, which takes
+    /// longer and is eased; set when a fade starts.
+    theme_fade: bool,
 }
 
 impl Fade {
+    /// How far through the fade under way the blend is, 0 to 1, and
+    /// whether the fade is over: a change of theme is eased over
+    /// `motion::THEME_FADE_MS`, a change of screen linear over
+    /// `motion::FADE_MS`.
+    fn blend(&self, at: Option<u64>, now_ms: u64) -> (f32, bool) {
+        let ms = if self.theme_fade {
+            motion::THEME_FADE_MS
+        } else {
+            motion::FADE_MS
+        };
+        let t = motion::progress(at, now_ms, ms);
+        let shown = if self.theme_fade {
+            motion::ease_out(t)
+        } else {
+            t
+        };
+        (shown, t >= 1.0)
+    }
+
     /// The fade under way ends where it is: the next frame is the
     /// screen at rest.
     pub(crate) fn end(&mut self) {
@@ -175,7 +197,8 @@ impl Faraday {
         } else {
             0
         };
-        let drawn_key = ((self.screen, self.sheet), page);
+        let theme = self.settings.theme();
+        let drawn_key = ((self.screen, self.sheet), page, theme);
         // Drawn in full: what asked for this frame is drawn as it is now,
         // and the gap across it is not a fade's step.
         self.fade.due = false;
@@ -184,6 +207,7 @@ impl Faraday {
             return;
         }
         let fades = self.fade.last_drawn.is_some() && self.fades();
+        self.fade.theme_fade = self.fade.last_drawn.is_some_and(|(_, _, t)| t != theme);
         if self.fade.last_drawn.is_some() {
             let n = &mut self.fade.counts;
             match (fades, self.settings.reduce_motion()) {
@@ -214,10 +238,8 @@ impl Faraday {
         let Some((before, at)) = &self.fade.from else {
             return;
         };
-        let t = at.map_or(0.0, |at| {
-            motion::progress(Some(at), self.now_ms, motion::FADE_MS)
-        });
-        if t >= 1.0 {
+        let (t, over) = at.map_or((0.0, false), |at| self.fade.blend(Some(at), self.now_ms));
+        if over {
             self.fade.from = None;
             self.fade.after = Vec::new();
         } else {
@@ -250,10 +272,8 @@ impl Faraday {
         }
         self.fade.step_at = Some(self.now_ms);
         self.fade.counts.steps += 1;
-        let t = at.map_or(0.0, |at| {
-            motion::progress(Some(at), self.now_ms, motion::FADE_MS)
-        });
-        if t >= 1.0 {
+        let (t, over) = at.map_or((0.0, false), |at| self.fade.blend(Some(at), self.now_ms));
+        if over {
             // The new frame at rest, as it was drawn.
             canvas.swap_pixels(&mut self.fade.after);
             self.fade.from = None;

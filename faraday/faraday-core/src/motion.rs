@@ -49,6 +49,10 @@ pub const SHELL_NOTCH_PX: f32 = 48.0;
 /// as a flash, where a straight one reads as a fade. Desktops sit
 /// between 200 and 250 ms.
 pub const FADE_MS: u64 = 200;
+/// How long a change of theme takes to cross-fade, eased: every pixel
+/// changes colour, so it is slower than a change of screen (the owner
+/// sets it by eye).
+pub const THEME_FADE_MS: u64 = 350;
 /// The widest the median gap between frames may be for a fade still to
 /// read as one: 30 Hz, six steps in a fade, or better. Frames further
 /// apart are steps of brightness, and the change is drawn at once
