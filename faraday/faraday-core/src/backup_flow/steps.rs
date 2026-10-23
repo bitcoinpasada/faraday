@@ -1923,7 +1923,7 @@ impl Faraday {
         if self.flows[i].step != Step::Lock {
             return;
         }
-        self.lock_for_flow = true;
+        self.idle.set_lock_for_flow(true);
         self.lock();
     }
 

@@ -4281,7 +4281,7 @@ pub(crate) fn lock_ask(app: &View, ui: &mut Ui, w: f32, h: f32) {
         // §18).
         (
             EN.lock_held_label,
-            if app.lock_held() && !app.lock_for_flow {
+            if app.lock_held() && !app.idle.lock_for_flow() {
                 EN.lock_held_create.to_string()
             } else {
                 String::new()

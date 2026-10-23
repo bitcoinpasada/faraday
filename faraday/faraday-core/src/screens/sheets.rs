@@ -1666,7 +1666,7 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let body = fill(
         EN.idle_warn_no_input,
         &[
-            &minutes(app.idle_warn_min).to_string(),
+            &minutes(app.idle.warn_min()).to_string(),
             &minutes(u64::from(app.idle_lock_min())).to_string(),
         ],
     );

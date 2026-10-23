@@ -29,7 +29,7 @@
 //!   event code gets its token), `flow`, `inputs`, `edit` (the caret and
 //!   the selection), `motion` (scrolling), `out` (what the core
 //!   hands the shell: commands, storage commands, the toast), `pointer` (the
-//!   hits, the press, the drag, the hover), `fade` (a
+//!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `fade` (a
 //!   change fading in), `menu` (the ⋮ menus),
 //!   `file_menu`, `in_progress`, `compact` (the small panel), `medium`
 //!   (what the removable medium is called), `memory` (what is kept across
@@ -125,6 +125,7 @@ mod edit;
 mod fade;
 pub mod file_menu;
 pub mod flow;
+mod idle;
 pub mod in_progress;
 pub mod inputs;
 pub mod medium;
@@ -1143,25 +1144,8 @@ pub struct Faraday {
     settings: stick::settings::Settings,
     /// Setting the time by hand (`docs/TOTP.md` §3).
     set_time: set_time::SetTimeArea,
-    /// When the last input came, on this process's clock; set at the
-    /// first tick.
-    last_input: Option<u64>,
-    /// Idle time the previous process had when it locked for idleness,
-    /// counted toward power-off here.
-    idle_carry: u64,
-    /// This process locks for idleness, after this many ms without input.
-    idle_locking: Option<u64>,
-    /// The lock asked for last is a step of a backup flow (bringing in
-    /// the setup's sticks, Lock and write), not the person's own Lock:
-    /// it keeps Make a new wallet (`docs/history/NEW-WALLET.md` §18). Set by
-    /// every way a lock is asked for.
-    pub(crate) lock_for_flow: bool,
-    /// The idle countdown's whole seconds last drawn, so a tick redraws
-    /// only when the number on screen changes.
-    idle_shown: Option<u64>,
-    /// Whole minutes without input when the idle warning opened: what
-    /// its text says, fixed while it is up.
-    pub(crate) idle_warn_min: u64,
+    /// The idle lock's timers and what its warning shows.
+    idle: idle::Idle,
     /// A secret has been held or typed in this process. Only a fresh
     /// process is clean (`docs/history/PLAN.md` §5.1).
     tainted: bool,
@@ -1371,12 +1355,7 @@ impl Faraday {
             last_display: None,
             settings: stick::settings::Settings::default(),
             set_time: set_time::SetTimeArea::default(),
-            last_input: None,
-            idle_carry: 0,
-            idle_locking: None,
-            lock_for_flow: false,
-            idle_shown: None,
-            idle_warn_min: 0,
+            idle: idle::Idle::new(),
             tainted: false,
             inputs: inputs::InputsArea::default(),
             drawing: drawing::Drawing::default(),
@@ -1905,21 +1884,19 @@ impl Faraday {
 
     /// Input arrived: the idle timers start again.
     fn input_now(&mut self) {
-        self.last_input = Some(self.now_ms);
-        self.idle_carry = 0;
+        self.idle.input(self.now_ms);
     }
 
     /// The idle time this process locked after, when it locked for
     /// idleness.
     pub(crate) fn idle_locked_after(&self) -> Option<u64> {
-        self.idle_locking
+        self.idle.locking()
     }
 
     /// This process follows a lock for idleness after `ms` without input:
     /// the time counts toward power-off, and the lock screen shows.
     pub(crate) fn idle_locked(&mut self, ms: u64) {
-        self.idle_carry = ms;
-        self.last_input = None;
+        self.idle.followed_lock(ms);
         self.sheet = Some(Sheet::Locked);
     }
 
@@ -1934,9 +1911,7 @@ impl Faraday {
 
     /// Time without input so far, counted across an idle lock.
     pub(crate) fn idle_ms(&self) -> u64 {
-        self.last_input
-            .map_or(0, |since| self.now_ms.saturating_sub(since))
-            + self.idle_carry
+        self.idle.ms(self.now_ms)
     }
 
     /// When the idle warning comes up and when the lock follows, ms
@@ -1963,8 +1938,7 @@ impl Faraday {
     /// changed.
     fn idle_tick(&mut self, now_ms: u64) -> bool {
         let c = self.compute();
-        let since = *self.last_input.get_or_insert(now_ms);
-        let idle = now_ms.saturating_sub(since) + self.idle_carry;
+        let idle = self.idle.ms_starting(now_ms);
         let min = 60_000u64;
         // The warning, with its countdown, before the lock.
         // Make a new wallet before its keys are kept anywhere: no idle
@@ -1974,17 +1948,17 @@ impl Faraday {
             && idle >= warn
             && idle < lock
             && self.lockable()
-            && self.idle_locking.is_none()
+            && self.idle.locking().is_none()
             && !held
         {
             let changed = self.sheet != Some(Sheet::IdleWarn);
             if changed && self.sheet.is_none() {
                 self.sheet = Some(Sheet::IdleWarn);
-                self.idle_warn_min = idle / min;
+                self.idle.set_warn_min(idle / min);
             }
             let left = (lock - idle).div_ceil(1000);
-            if self.sheet == Some(Sheet::IdleWarn) && self.idle_shown != Some(left) {
-                self.idle_shown = Some(left);
+            if self.sheet == Some(Sheet::IdleWarn) && self.idle.shown() != Some(left) {
+                self.idle.set_shown(Some(left));
                 return true;
             }
             return false;
@@ -1994,8 +1968,8 @@ impl Faraday {
             && let Some(off) = self.idle_off_at()
         {
             let left = off.saturating_sub(idle).div_ceil(1000);
-            if self.idle_shown != Some(left) {
-                self.idle_shown = Some(left);
+            if self.idle.shown() != Some(left) {
+                self.idle.set_shown(Some(left));
                 if idle < off {
                     return true;
                 }
@@ -2004,10 +1978,10 @@ impl Faraday {
         if self.idle_lock_min() > 0
             && idle >= u64::from(self.idle_lock_min()) * min
             && self.lockable()
-            && self.idle_locking.is_none()
+            && self.idle.locking().is_none()
             && !held
         {
-            self.idle_locking = Some(idle);
+            self.idle.set_locking(Some(idle));
             // No one is there to ask: the lock goes ahead, and an open
             // vault's changes with no seed to seal them are lost, as the
             // warning before it said.
@@ -2549,7 +2523,7 @@ impl Faraday {
     /// (`docs/history/NEW-WALLET.md` §18); else locks.
     pub(crate) fn lock_ask(&mut self, for_flow: bool) {
         let c = self.compute();
-        self.lock_for_flow = for_flow;
+        self.idle.set_lock_for_flow(for_flow);
         let (keys, wallets) = self.unsaved_now(&c);
         let sealed = self.vaults.open.iter().any(|v| v.changes > 0);
         if self.lock_ends_create(&c)
@@ -2566,7 +2540,7 @@ impl Faraday {
     /// wallet: its keys are kept nowhere yet and the lock is the person's
     /// own, not a flow's step.
     pub(crate) fn lock_ends_create(&self, c: &Compute) -> bool {
-        self.lock_held(c) && !self.lock_for_flow
+        self.lock_held(c) && !self.idle.lock_for_flow()
     }
 
     /// Lock, unless it would lose an open vault's changes: then nothing
