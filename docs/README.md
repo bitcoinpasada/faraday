@@ -24,7 +24,7 @@ need. Each document's header says what kind it is:
 | How does a person use Faraday, step by step, with the screens? | `docs/GUIDE.md` |
 | What does a screen look like, and what is it made of? | `docs/DESIGN.md`; the Starter's screens, `docs/STARTER.md` §3 |
 | What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/FAMILY.md` |
-| How will codex32 shares be made, checked by hand and repaired? | `docs/CODEX32.md` |
+| How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
 | How will a lost GPG key be restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
 | How is a vault stored? | `docs/VAULT.md` |
 | What is in the KeePass (KDBX 4) file Faraday writes? | `docs/KDBX.md` |
@@ -59,6 +59,7 @@ need. Each document's header says what kind it is:
 
 - `docs/AUDIT-SUBMISSIONS.md`: Audits: the request, the submission and the record. Built (F19).
 - `docs/AUDIT.md`: What is cryptography, and where it lives. Built (the key boundary, F70).
+- `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built (F93 to F96, F107); no Codex32QR picture for 74 and 127 characters.
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
 - `docs/DEMO.md`: The demo, and Faraday Desktop for developers. Built (F30, F61).
 - `docs/DESIGN.md`: Design system. Built.
@@ -76,7 +77,6 @@ need. Each document's header says what kind it is:
 
 - `docs/ANTI-EXFIL.md`: Anti-exfil. Planned, not scheduled.
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
-- `docs/CODEX32.md`: Codex32: making, checking and repairing shares. Built but for the items under Open.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey. Not built; its decision is a draft.
 - `docs/GUIDE.md`: Faraday user guide. Sections 1 to 7 written; some pictures of §6 and §7 to redraw.
