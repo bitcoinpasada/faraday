@@ -545,6 +545,11 @@ fn verify_bip322(address: &Address, message: &str, bytes: &[u8]) -> Result<Check
             if ScriptBuf::new_p2wpkh(&public.wpubkey_hash()) != spk {
                 return Err(Error::Invalid);
             }
+            // libsecp256k1's DER parser reads a negative integer as zero
+            // and parses the signature; BIP-66 refuses its encoding.
+            if !strict_der(signature) {
+                return Err(Error::Malformed);
+            }
             let signature =
                 bitcoin::ecdsa::Signature::from_slice(signature).map_err(|_| Error::Malformed)?;
             if signature.sighash_type != EcdsaSighashType::All {
@@ -585,6 +590,35 @@ fn verify_bip322(address: &Address, message: &str, bytes: &[u8]) -> Result<Check
         format: Format::Bip322,
         script,
     })
+}
+
+/// Whether `sig`, an ECDSA signature with its sighash byte, is encoded
+/// as BIP-66 requires (Bitcoin Core's `IsValidSignatureEncoding`): DER,
+/// both integers present, positive and minimally encoded, nothing after
+/// them but the sighash byte. A witness whose signature fails it is not
+/// a signature a script reads, so it is malformed, not invalid.
+fn strict_der(sig: &[u8]) -> bool {
+    let len = sig.len();
+    if !(9..=73).contains(&len) || sig[0] != 0x30 || sig[1] as usize != len - 3 {
+        return false;
+    }
+    let len_r = sig[3] as usize;
+    if 5 + len_r >= len {
+        return false;
+    }
+    let len_s = sig[5 + len_r] as usize;
+    if len_r + len_s + 7 != len {
+        return false;
+    }
+    // The integer whose length byte is at `at - 1` and whose first byte
+    // is at `at`.
+    let integer = |at: usize, n: usize| {
+        sig[at - 2] == 0x02
+            && n != 0
+            && sig[at] & 0x80 == 0
+            && !(n > 1 && sig[at] == 0 && sig[at + 1] & 0x80 == 0)
+    };
+    integer(4, len_r) && integer(len_r + 6, len_s)
 }
 
 /// The witness stack as exactly `N` elements.

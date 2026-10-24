@@ -552,9 +552,24 @@ class Msg(Area):
         else:
             self.verify(address, message, "smp" + sig)
 
+    def found(self):
+        """Seed 17af375c…'s disagreement, every run: a P2WPKH witness whose
+        `s` is written as a negative integer is not BIP-66 DER, so it is
+        malformed (libsecp256k1's parser reads it as zero); the same
+        numbers written as DER are well formed and invalid."""
+        address = "bcrt1qup7h6dnv9nxpu2tzkr3cekdzqa0lkt5sfsa3pq"
+        for sig, want in [
+            ("AkcwRAIgTgR9Hb+lhM3ejBtyKxwGvimMnWBuSR5GbFjdacdJMjkCINvePNT/c/qRKUGZnJP1qPNFrbz+"
+             "ZayRuNK46Fzltgl6ASEDNR2yiaxyEmvCy3aI/aT8NE1xJBMH6I/41yd1GUs3s80=", "Malformed"),
+            ("AkgwRQIgTgR9Hb+lhM3ejBtyKxwGvimMnWBuSR5GbFjdacdJMjkCIQDb3jzU/3P6kSlBmZyT9ajzRa28/"
+             "mWskbjSuOhc5bYJegEhAzUdsomschJrwst2iP2k/DRNcSQTB+iP+NcndRlLN7PN", "Invalid"),
+        ]:
+            self.verify(address, "Hello World", sig, ("ok", {"refused": want}))
+
     def run(self):
         self.known = 0
         self.published()
+        self.found()
         for _ in range(self.cases(600)):
             self.corpus_case()
 

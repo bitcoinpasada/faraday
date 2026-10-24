@@ -370,3 +370,27 @@ fn a_signature_belongs_to_one_address() {
         "a signature verified for an address it was not made for"
     );
 }
+
+/// A BIP-322 witness whose signature is not BIP-66 DER (its `s` written
+/// as a negative integer, from the cross-check's seed 17af375c…) is
+/// malformed, as Bitcoin Core's script check reads it; the same numbers
+/// written as DER are a well-formed signature that does not hold.
+#[test]
+fn a_witness_signature_that_is_not_der_is_malformed() {
+    let address = address_of(
+        "bcrt1qup7h6dnv9nxpu2tzkr3cekdzqa0lkt5sfsa3pq",
+        Network::Regtest,
+    );
+    let negative_s = "AkcwRAIgTgR9Hb+lhM3ejBtyKxwGvimMnWBuSR5GbFjdacdJMjkCINvePNT/c/qRKUGZnJP1qPNFrbz+\
+                      ZayRuNK46Fzltgl6ASEDNR2yiaxyEmvCy3aI/aT8NE1xJBMH6I/41yd1GUs3s80=";
+    assert_eq!(
+        message::verify(&address, "Hello World", negative_s),
+        Err(Error::Malformed)
+    );
+    let as_der = "AkgwRQIgTgR9Hb+lhM3ejBtyKxwGvimMnWBuSR5GbFjdacdJMjkCIQDb3jzU/3P6kSlBmZyT9ajzRa28/\
+                  mWskbjSuOhc5bYJegEhAzUdsomschJrwst2iP2k/DRNcSQTB+iP+NcndRlLN7PN";
+    assert_eq!(
+        message::verify(&address, "Hello World", as_der),
+        Err(Error::Invalid)
+    );
+}

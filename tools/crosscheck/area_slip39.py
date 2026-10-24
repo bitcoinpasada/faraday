@@ -4,7 +4,9 @@ All 45 of the reference's own vectors, then random backups: the same
 random bytes are handed to both splits, so the shares must match word
 for word; then recovery from random qualifying subsets, from subsets
 that do not qualify, and from a set with one word changed; and the
-passphrase encryption on its own.
+passphrase encryption on its own. SLIP-39's limits (16 groups, all
+needed, 16 members each) are split every run; the random tape is sized
+to what a split draws, which reaches 8 KiB there.
 
 One difference is known and kept out of the random corpus: Faraday
 refuses a group threshold of 1 over several groups, which the reference
@@ -35,6 +37,16 @@ class Tape:
         out = self.data[self.at:self.at + n]
         self.at += n
         return out
+
+
+def tape_length(secret_len, gt, groups):
+    """The random bytes a split draws (SLIP-39's _split_secret): for a
+    threshold t above 1, t - 2 random shares and the digest share's random
+    part, at each level. The tape is cut to this plus a little, so a split
+    that draws more or fewer shows as a different `random_used`."""
+    def drawn(t):
+        return 0 if t == 1 else (t - 2) * secret_len + secret_len - 4
+    return drawn(gt) + sum(drawn(t) for t, _ in groups) + 64
 
 
 def ref_split(secret, passphrase, identifier, extendable, e, gt, groups, random):
@@ -93,6 +105,16 @@ class Slip39(Area):
             raise Mismatch(self.name, "slip39.split", args, rust, ("ok", ref),
                            "the known difference (1-of-n groups) no longer holds; update the area")
 
+    def limits(self):
+        """SLIP-39's limits, every run: 16 groups, all 16 needed, each 16
+        of 16 members, over a 32-byte secret, and one past each refused."""
+        secret = self.randbytes(32)
+        full = [(16, 16)] * 16
+        for gt, groups in [(16, full), (16, full + [(2, 2)]), (17, full),
+                           (2, [(2, 17), (2, 2)]), (2, [(17, 16), (2, 2)])]:
+            self.split(secret, "", 27924, True, 0, gt, groups,
+                       self.randbytes(tape_length(32, gt, groups)))
+
     def random_groups(self):
         rng = self.rng
         count = rng.choice([1, 1, 2, 3, rng.randint(1, 16)])
@@ -111,7 +133,7 @@ class Slip39(Area):
         identifier, extendable, e = rng.randrange(1 << 15), rng.random() < 0.5, rng.choice([0, 0, 1])
         gt, groups = self.random_groups()
         ans = self.split(secret, passphrase, identifier, extendable, e, gt, groups,
-                         self.randbytes(2048))
+                         self.randbytes(tape_length(len(secret), gt, groups)))
         shares = ans[1]["mnemonics"]
         by_group, at = [], 0
         for t, n in groups:
@@ -136,5 +158,6 @@ class Slip39(Area):
     def run(self):
         self.published()
         self.known_differences()
+        self.limits()
         for _ in range(self.cases(1500)):
             self.corpus_case()

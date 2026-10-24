@@ -324,6 +324,149 @@ fn shares_of_two_backups_do_not_combine() {
     );
 }
 
+/// The groups of the cross-check's seed 17af375c…: sixteen groups, all
+/// sixteen needed, two of them of sixteen members.
+const SIXTEEN_GROUPS: [(u8, u8); 16] = [
+    (11, 12),
+    (14, 16),
+    (2, 2),
+    (2, 3),
+    (2, 2),
+    (5, 5),
+    (2, 2),
+    (2, 3),
+    (3, 3),
+    (2, 3),
+    (2, 3),
+    (3, 3),
+    (5, 5),
+    (2, 2),
+    (3, 5),
+    (9, 16),
+];
+
+/// Splits SLIP-39's largest master secret under the cross-check's case
+/// (identifier 27924, extendable, exponent 0, no passphrase) with
+/// `Stream(7)`. The shares, one per line, their SHA-256 and the random
+/// bytes drawn; or the refusal.
+fn split_at_the_limits(
+    group_threshold: u8,
+    groups: &[(u8, u8)],
+) -> Result<(Vec<Share>, String, usize), slip39::Error> {
+    let c = Compute::unchecked();
+    let secret = unhex("b75d4d788d991ba911003a0379cf58d753171db734d8bca9b99c8a3eb2386bcc");
+    let groups: Vec<GroupSpec> = groups
+        .iter()
+        .map(|&(threshold, count)| GroupSpec { threshold, count })
+        .collect();
+    let mut stream = Stream(7);
+    let mut used = 0;
+    let mut out: Vec<Share> = (0..300).map(|_| Share::default()).collect();
+    let n = slip39::split(
+        &c,
+        &secret,
+        b"",
+        27924,
+        true,
+        0,
+        group_threshold,
+        &groups,
+        &mut |buf| {
+            used += buf.len();
+            stream.fill(buf)
+        },
+        &mut out,
+    )?;
+    out.truncate(n);
+    let lines = out
+        .iter()
+        .map(|s| {
+            s.indices()
+                .iter()
+                .map(|&i| slip39::word(i))
+                .collect::<Vec<_>>()
+                .join(" ")
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    let digest = hex(&sha256(lines.as_bytes()));
+    // Every group's threshold of members, from the first `group_threshold`
+    // groups, gives the secret back.
+    let mut chosen = Vec::new();
+    let mut at = 0;
+    for (gi, g) in groups.iter().enumerate() {
+        if gi < group_threshold as usize {
+            chosen.extend(out[at..at + g.threshold as usize].iter().cloned());
+        }
+        at += g.count as usize;
+    }
+    let got = recover(&c, &chosen, b"").unwrap();
+    assert_eq!(got.expose().as_bytes(), &secret[..]);
+    Ok((out, digest, used))
+}
+
+/// SLIP-39's limits are 16 groups, all 16 needed, and 16 members a group.
+/// At and below them the shares are python-shamir-mnemonic's, word for
+/// word, from the same random bytes (`tools/reference/slip39`, the lines'
+/// SHA-256); one past any of them is refused, as the reference refuses it.
+#[test]
+fn a_split_at_slip39s_limits_matches_the_reference() {
+    // The group threshold, the groups, how many shares, the random bytes
+    // drawn and the SHA-256 of the reference's shares.
+    type Case<'a> = (u8, &'a [(u8, u8)], usize, usize, &'a str);
+    let cases: [Case; 4] = [
+        (
+            16,
+            &SIXTEEN_GROUPS,
+            85,
+            2108,
+            "f831ee4fbe5b7df0277ea98e0e8c783eeb5fd2964bf5e281467d2b2399430eb8",
+        ),
+        (
+            15,
+            &SIXTEEN_GROUPS[..15],
+            69,
+            1824,
+            "7a8af73b4eb318db469bd85c1dca2d0aa9ce4307cc5d36786927ae1ff99521d1",
+        ),
+        (
+            15,
+            &SIXTEEN_GROUPS,
+            85,
+            2076,
+            "720037fa15dc02610b69172f33a9b32ed1bcc146acc220a762d74f5628cdcfb4",
+        ),
+        (
+            2,
+            &[(16, 16), (15, 16)],
+            32,
+            948,
+            "f90a6ad7753c90557ec31990081aa5ec2414493c5d745384a409731faec2efab",
+        ),
+    ];
+    for (gt, groups, count, drawn, want) in cases {
+        let (shares, digest, used) = split_at_the_limits(gt, groups).unwrap();
+        assert_eq!(shares.len(), count, "{gt} of {} groups", groups.len());
+        assert_eq!(used, drawn, "{gt} of {} groups", groups.len());
+        assert_eq!(digest, want, "{gt} of {} groups", groups.len());
+    }
+
+    let mut seventeen = SIXTEEN_GROUPS.to_vec();
+    seventeen.push((2, 2));
+    for (gt, groups) in [
+        (16, seventeen),
+        (17, SIXTEEN_GROUPS.to_vec()),
+        (2, vec![(2, 17), (2, 2)]),
+        (2, vec![(17, 16), (2, 2)]),
+    ] {
+        assert_eq!(
+            split_at_the_limits(gt, &groups).err(),
+            Some(slip39::Error::InvalidParameters),
+            "{gt} of {groups:?}"
+        );
+    }
+}
+
 /// RS1024 as SLIP-39 states it, written here from the specification so
 /// that a share can carry any iteration exponent the field holds.
 fn rs1024_checksum(extendable: bool, data: &[u16]) -> [u16; 3] {
