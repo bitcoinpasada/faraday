@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Sections 1 to 7 written, checked against the app's screens and strings
-**Open:** a test by a reader new to Faraday; §3's pictures of New key redrawn once more after its follow-up batch, still open
+**Open:** a test by a reader new to Faraday; the codex32 rows (§3.3's Codex32 choices, §4.1's Single key, backup in shares, §4.3's codex32 strings chip) checked again after codex32's coming batches
 
 Each step is one thing to do, in the order it is done. A path in bold is
 what the screen shows: **Wallets → Add a key** is the Wallets row in the
@@ -443,8 +443,15 @@ to step 3.4. **Change** on Start opens it:
 A choice moves on to the next card by itself; **BIP-39 words**, pressed
 again, goes back to Length.
 
-**Steps only** and **Guided**, at the top right, switch a short
-walk-through on each card off and on.
+**Steps only** and **Guided**, a pair of buttons at the top right,
+switch a short walk-through on each card off and on; the one on is
+ticked.
+
+The link at the top left is named after the card before the one open
+(**Start**, with Length open): it opens that card again, with its choice
+kept. On Start it goes back to **Wallets**. **Escape** does the same.
+Once the key is locked in (step 3.7) the link no longer opens a card
+before **Key**.
 
 ### 3.4 Length
 
@@ -476,7 +483,7 @@ their own entry card. A mix ticks its sources under its row and keeps
 | Dice | This device |
 |---|---|
 | ![Rolls, 24 of 70 in](guide/3-6-rolls.png) | ![Generator](guide/3-6-generator.png) |
-| Type the rolls into the box, or press **Buttons** to press each face. Each word appears as its six rolls come in. | The **Generator** card shows **Source**, **Trust** (this device's software) and **Result** (Not checkable). Press **Make the words**, then go to step 3.7. |
+| **Typed** is chosen: type the rolls into the box. **Buttons** shows a button for each face instead. Each word appears as its six rolls come in. | The **Generator** card shows **Source**, **Trust** (this device's software) and **Result** (Not checkable). Press **Make the words**, then go to step 3.7. Until the operating system's randomness is in, the button reads **Waiting for randomness**. |
 
 For this guide, type the 70 rolls above. The 70th roll ends the entry;
 the word list shows **torch** as word 12 (its checksum filled in).
@@ -487,6 +494,13 @@ taken, and the card says so:
 ![A 5 refused in a word's first five rolls](guide/3-6-rolls-five.png)
 
 Roll again and type the new roll.
+
+On Faraday Desktop a die beside the box, **Rolled by this computer**,
+rolls in place of a real die: **Roll**, with **Rolls per click** (1, 5,
+10 or To the end). Each face it rolls is marked as this computer's, and
+the closed Rolls card reads **Entropy · simulated dice** (or **Entropy ·
+simulated dice and your dice**) in place of **Complete**. Use it only to
+try the steps out.
 
 With the last roll in, the card ends with **Randomness check**:
 
@@ -762,7 +776,8 @@ Press **Make a vault**.
 1. **Name**: leave it empty for `vault.ofv`, or type what the vault
    holds; the name is visible to anyone who sees the stick.
 2. **Passphrase 1**: type it in the first field, then again in the
-   second, or press **Generate with dice**. Write it down: the vault
+   second, or press **Generate with dice**. The eye button at the end
+   of a field shows what is typed in it. Write it down: the vault
    cannot be opened without it.
 3. Press **Create vault**.
 
@@ -910,8 +925,9 @@ QR**.
 ![The wallet QR](guide/5-4-wallet-qr.png)
 
 The sheet is **New wallet 1 · wallet descriptor**, **Public · safe to
-scan**, with the descriptor written under the code. **UR** and
-**BBQr** are the two QR formats; use the one the other wallet reads.
+scan**, with the descriptor written under the code. **UR**, **BBQr**
+and **Parts** (numbered codes of plain text) are the formats, the one
+chosen ticked; use the one the other wallet reads.
 **PNG for the stick** puts the code on a stick as a picture.
 
 1. In Sparrow: File, New Wallet, then scan the wallet QR.
@@ -976,7 +992,7 @@ Faraday works out which key it is; no choice is made first.
 | After | Screen | Meaning |
 |---|---|---|
 | Key 2's SeedQR | ![Key 2 added · 1 more](guide/5-6-one-more.png) **Key 2 added · 1 more** | the camera stays on for the next key |
-| Key 1's SeedQR, from Place 1's paper | ![Key 1 added · Can spend](guide/5-6-can-spend.png) **Key 1 added · Can spend** | enough keys to sign; the camera closes. Key 3 reads **Cosigner · xpub only**. |
+| Key 1's SeedQR, from Place 1's paper | ![Key 1 added · Can spend](guide/5-6-can-spend.png) **Key 1 added · Can spend**, in a bar at the foot of the page that goes by itself | enough keys to sign; the camera closes. Key 3 reads **Cosigner · xpub only**. |
 | a key loaded already | **Key … · already here** | scan another |
 | a seed of no key of this wallet | "… is not one of New wallet 1's keys", on the passphrase sheet | a passphrase that gives one of the missing keys loads it; otherwise **Cancel** |
 | anything else | **Not a SeedQR or a CompactSeedQR** | scan the seed's SeedQR |
@@ -1146,7 +1162,7 @@ words instead** for a key with no SeedQR).
 | Scan a key | The second key in |
 |---|---|
 | ![Scan a key for the wallet](guide/6-6-scan-key.png) | ![Two keys sign here](guide/6-6-signers-two.png) |
-| **Scan a key for new-wallet-1-descriptor** lists the keys still away (**Key 2 · 5d388376**, **Key 3 · cf2e083d**). | **Key 2 added · Can spend**; the row of `5d388376` reads **Signs here**, and the card **2 of 2 signatures here** and **Can spend**. |
+| **Scan a key for new-wallet-1-descriptor** lists the keys still away (**Key 2 · 5d388376**, **Key 3 · cf2e083d**). | **Key 2 added · Can spend**, in a bar at the foot of the page; the row of `5d388376` reads **Signs here**, and the card **2 of 2 signatures here** and **Can spend**. |
 
 Then **Continue** and **Sign with 3dca6805, 5d388376**: one press signs
 with both keys, and **The other signatures** reads **2 of 2**.
