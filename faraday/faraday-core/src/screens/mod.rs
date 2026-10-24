@@ -535,7 +535,10 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
         ui.oy = y0 + top;
         ui.pin = None;
         ui.pinning = !kb;
+        ui.bar_tools_x = crate::compact::draws_own_bar(app.screen)
+            .then(|| crate::compact::flow_bar_tools_x(app, ui, w));
         dispatch(app, ui, 0.0, w, page_h - top);
+        ui.bar_tools_x = None;
         ui.pinning = false;
         ui.oy = y0;
         ui.c.pop_clip();

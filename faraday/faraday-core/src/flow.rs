@@ -610,7 +610,7 @@ fn paged(
     ui.back(back.1);
     // The ?, the keyboard and Cancel go over its right end
     // (`compact::flow_bar_tools`).
-    let room = w - BAR_H - M;
+    let room = ui.bar_tools_x.unwrap_or(w - M) - BAR_H;
     let label = ui.fit(11.0, W::R, back.0, room);
     ui.text(BAR_H, 5.0, 11.0, W::R, Role::OnSurfaceVariant, &label);
     let heading = ui.fit(16.0, W::S, col.heading, room);

@@ -375,6 +375,10 @@ pub struct Ui<'a, A> {
     pub pinning: bool,
     /// The forward action a page pinned this frame.
     pub pin: Option<(String, Style, A)>,
+    /// On a small panel, where a step flow's bar tools begin (the ?, the
+    /// eye, Cancel and the rest at its right end), set by the frame
+    /// before the page is drawn so the bar's title ends before it.
+    pub bar_tools_x: Option<f32>,
     /// A small panel's sheet keeps its buttons at its foot: they are
     /// handed to it rather than drawn in its body.
     pub sheet_pinning: bool,
@@ -505,6 +509,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             about_open: None,
             pinning: false,
             pin: None,
+            bar_tools_x: None,
             sheet_pinning: false,
             sheet_pin: None,
             disclosure: None,

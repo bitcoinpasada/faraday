@@ -397,6 +397,44 @@ fn rolled_z(width: u16, height: u16, dpi: u16) -> Faraday {
     app
 }
 
+/// The page's title in the top bar and the first trailing icon right of
+/// it, as boxes in pixels.
+fn bar_title_and_first_tool(app: &mut Faraday, bar_px: i32) -> ((i32, i32, i32, i32), i32) {
+    use faraday_draw::canvas::InkKind;
+    let ink = app.drawn_ink();
+    let in_bar = |i: &faraday_draw::canvas::Ink| i.rect.y + i.rect.h <= bar_px;
+    let title = ink
+        .iter()
+        .filter(|i| in_bar(i))
+        .find_map(|i| match &i.kind {
+            InkKind::Text { text, .. } if text.starts_with("Add") => {
+                Some((i.rect.x, i.rect.y, i.rect.w, i.rect.h))
+            }
+            _ => None,
+        })
+        .expect("the title in the bar");
+    let first = ink
+        .iter()
+        .filter(|i| in_bar(i) && matches!(i.kind, InkKind::Icon(_)))
+        .map(|i| i.rect.x)
+        .filter(|x| *x > title.0)
+        .min()
+        .expect("a trailing action");
+    (title, first)
+}
+
+#[test]
+fn on_a_small_panel_the_title_ends_before_the_actions_at_the_bar_s_right_end() {
+    let mut app = rolled_z(480, 640, 160);
+    assert!(app.offers(Action::Codex32(C32::Eye)), "the eye is offered");
+    let (title, first) = bar_title_and_first_tool(&mut app, 640 / 10);
+    assert!(
+        title.0 + title.2 <= first,
+        "the title ends at {} and the first action begins at {first}",
+        title.0 + title.2
+    );
+}
+
 fn masked(app: &Faraday) -> bool {
     app.keygen().unwrap().codex32.as_ref().unwrap().masked()
 }

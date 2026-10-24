@@ -115,6 +115,18 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &
     BAR_H
 }
 
+/// Where the tools of a step flow's bar begin, measured once and kept on
+/// the `Ui` (`bar_tools_x`) for the flow's title to end before; the same
+/// measure `flow_bar_tools` draws from. Cheap: widths of the tools' labels.
+pub(crate) fn flow_bar_tools_x(app: &View, ui: &mut Ui, w: f32) -> f32 {
+    let right = tools(app, ui, -w);
+    if right < w - M {
+        right - faraday_draw::tokens::GAP
+    } else {
+        right
+    }
+}
+
 /// A step flow's bar, which the flow draws: the ? and the keyboard at its
 /// right end, over whatever of its name runs that far.
 pub(crate) fn flow_bar_tools(app: &View, ui: &mut Ui, w: f32) {
