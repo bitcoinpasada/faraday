@@ -721,9 +721,12 @@ fn restore_wallet(t: &mut Tour) -> Result<(), String> {
     t.shot("guide-restore-kind")?;
     t.press(Action::RFromFiles);
     t.shot("guide-restore-described")?;
+    // No moves on to Keys by itself (F103).
     t.press(Action::RVaults(false));
     t.shot("guide-restore-vaults")?;
-    t.press(Action::RNext(rstep::WHERE));
+    if t.app.restore().and_then(|r| r.open) != Some(rstep::SEEDS) {
+        return Err("No did not move on to Keys".into());
+    }
     t.shot("guide-restore-keys")?;
     t.press(Action::RSlotWords);
     t.shot("guide-restore-type")?;
