@@ -17,7 +17,7 @@ use faraday_learn::Page as LearnPage;
 /// Starter's screens open a page by it, and the website publishes each
 /// guide at `https://faradayoffline.app/start/<id>` (`docs/STARTER.md`
 /// §7.4).
-const OWN: [(&str, &str); 17] = [
+const OWN: [(&str, &str); 18] = [
     (
         "windows",
         include_str!("../../../docs/learn/faraday/boot/windows.md"),
@@ -33,6 +33,12 @@ const OWN: [(&str, &str); 17] = [
     (
         "screens-that-record",
         include_str!("../../../docs/learn/faraday/boot/screens-that-record.md"),
+    ),
+    // The management processors under the operating system (Intel's
+    // Management Engine and AMT, AMD's PSP).
+    (
+        "what-else-runs",
+        include_str!("../../../docs/learn/faraday/boot/what-else-runs.md"),
     ),
     // The Faraday stick boot entry on Linux (`docs/STARTER.md` §3.1c).
     (

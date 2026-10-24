@@ -45,6 +45,14 @@ fn every_guide_the_starter_links_to_is_there() {
 }
 
 #[test]
+fn the_page_on_what_else_runs_is_there() {
+    assert_eq!(
+        guide("what-else-runs").title,
+        "What else runs on this computer"
+    );
+}
+
+#[test]
 fn the_boot_entry_page_is_there() {
     assert_eq!(guide("boot-entry").title, "The Faraday boot entry on Linux");
 }

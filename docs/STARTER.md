@@ -1479,6 +1479,9 @@ guide for this computer, not its text. Pages:
 - *When the stick does not start*: not in the boot menu (Fast Boot,
   USB boot off, a USB-C port that does not boot, CSM), a black screen,
   a firmware password set by an employer.
+- *What else runs on this computer*: Intel's Management Engine and AMT,
+  and AMD's PSP, which run below Faraday's kernel; listed in the
+  Starter's Learn row, linked from no screen.
 
 ### 7.3 Buttons that remove steps
 

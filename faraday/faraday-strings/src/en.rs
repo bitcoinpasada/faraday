@@ -726,6 +726,8 @@ strings! {
     starter_learn_secure_boot_bitlocker: "What Secure Boot and BitLocker are",
     /// The link to the Learn page on screens that record (STARTER §3.1a).
     starter_learn_screens: "Screens and devices that can record",
+    /// The Learn page on the management processors under the OS.
+    starter_learn_what_else_runs: "What else runs on this computer",
     /// The link on Restart from the stick's sheet (STARTER §3.1c).
     starter_learn_boot_entry: "About the boot entry",
     /// Home's row removing the firmware's Faraday stick entry (STARTER §3.1c).

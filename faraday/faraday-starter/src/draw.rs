@@ -1458,6 +1458,7 @@ fn learn_title(id: LearnId) -> &'static str {
         LearnId::Maker(_) => id.page().map_or("", |p| p.title),
         LearnId::SecureBootBitLocker => S.starter_learn_secure_boot_bitlocker,
         LearnId::ScreensThatRecord => S.starter_learn_screens,
+        LearnId::WhatElseRuns => S.starter_learn_what_else_runs,
         LearnId::BootEntry => S.starter_learn_boot_entry,
         LearnId::MacIntel => S.starter_learn_mac_intel,
     }

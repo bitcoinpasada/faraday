@@ -147,6 +147,9 @@ pub enum LearnId {
     SecureBootBitLocker,
     /// Screens and devices that can record (§3.1a).
     ScreensThatRecord,
+    /// What else runs on this computer: the management processors
+    /// under the operating system.
+    WhatElseRuns,
     /// About the boot entry (§3.1c).
     BootEntry,
     /// Starting an Intel Mac from the stick (`docs/MAC.md` §3.1–§3.2).
@@ -165,6 +168,7 @@ impl LearnId {
             LearnId::Maker(id) => id,
             LearnId::SecureBootBitLocker => "secure-boot-bitlocker",
             LearnId::ScreensThatRecord => "screens-that-record",
+            LearnId::WhatElseRuns => "what-else-runs",
             LearnId::BootEntry => "boot-entry",
             LearnId::MacIntel => "mac-intel",
         }
@@ -200,7 +204,7 @@ impl LearnId {
         }
     }
 
-    const ALL: [LearnId; 8] = [
+    const ALL: [LearnId; 9] = [
         LearnId::StartWindows,
         LearnId::StartLinux,
         LearnId::NoStart,
@@ -209,6 +213,7 @@ impl LearnId {
         LearnId::ScreensThatRecord,
         LearnId::BootEntry,
         LearnId::MacIntel,
+        LearnId::WhatElseRuns,
     ];
 }
 

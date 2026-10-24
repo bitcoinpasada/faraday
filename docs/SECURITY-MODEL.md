@@ -291,4 +291,13 @@ file goes wrong are absent by construction, not patched after the fact.
 - A malicious Faraday binary. The defence is reproducible builds, checked
   by people other than the author (below).
 - Compromised firmware, hardware implants, and cold-boot attacks on RAM.
+- The management processors under the operating system: Intel's
+  Management Engine (CSME) with its remote management, AMT, and AMD's
+  Platform Security Processor (PSP). They run below Faraday's kernel, so
+  its missing network stack and drivers do not bind them. AMT's remote
+  screen and keyboard (KVM redirection), where AMT is set up, works
+  whatever operating system runs, Faraday included, and Faraday has no
+  Management Engine (MEI) driver with which to detect it. The Learn page
+  `docs/learn/faraday/boot/what-else-runs.md` says which computers have
+  AMT and what to do.
 - A weak passphrase.
