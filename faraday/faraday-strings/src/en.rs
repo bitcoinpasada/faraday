@@ -9612,6 +9612,8 @@ strings! {
     c32_vault_row_line: "codex32 {} · threshold {}",
     /// Keys loaded at unlock from strings gathered across open vaults. `{}`: the fingerprints.
     c32_gathered: "Loaded {} from codex32 shares",
+    /// A vault's line on the backup checklist: the shares of a set it is to keep. `{}`: how many, the threshold, the seed.
+    c32_shares_of: "{} of {} shares of {}",
     /// A place's line: shares of a set it keeps, too few. `{}`: how many, the threshold, the seed.
     c32_place_nothing: "{} of {} shares of {} · alone: nothing",
     /// A place's line: enough shares of a set, the seed. `{}`: how many, the threshold, the seed.

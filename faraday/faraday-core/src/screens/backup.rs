@@ -1542,6 +1542,15 @@ fn sticks_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
+/// One row of a vault's checklist item: a dot, marked once the vault
+/// holds what the row names, and the label. Returns its height.
+fn vault_row(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, has: bool) -> f32 {
+    ui.dot(x + 4.0, y + 9.0, 3.5, if has { OK } else { DIM });
+    let label = ui.fit(13.0, W::R, label, w - 18.0);
+    ui.text_mid(x + 18.0, y, 18.0, 13.0, W::R, TEXT, &label);
+    24.0
+}
+
 /// A vault's checklist item: what Save into the open vault saves, a row
 /// each, marked once the vault holds it; with the open vault holding
 /// another vault's seed, that. Its one button is the foot's. Returns its
@@ -1596,10 +1605,22 @@ fn vault_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, v: usize) -> f32 
         rows.push((EN.vault_item_wallet_description.to_string(), has));
     }
     for (label, has) in rows {
-        ui.dot(x + 4.0, cy + 9.0, 3.5, if has { OK } else { DIM });
-        let label = ui.fit(13.0, W::R, &label, w - 18.0);
-        ui.text_mid(x + 18.0, cy, 18.0, 13.0, W::R, TEXT, &label);
-        cy += 24.0;
+        cy += vault_row(ui, x, cy, w, &label, has);
+    }
+    // The codex32 strings the plan keeps here, a row per set, marked once
+    // the open vault holds each of its strings.
+    let shape = app.plan_shape(b.wallet);
+    let mapped = app.plan_mapped(&shape, &b.answers);
+    let list = app.backup_seed_list(b.wallet);
+    for (seed, js, line) in crate::board::codex32::vault_lines(&shape, &b.answers, &mapped, v) {
+        let key = list.get(seed).and_then(|s| s.1);
+        let has = open.is_some_and(|_| {
+            key.is_some_and(|k| {
+                js.iter()
+                    .all(|&j| app.vault_holds_string(cur, k, crate::plan::codex32::CHARSET[j]))
+            })
+        });
+        cy += vault_row(ui, x, cy, w, &line, has);
     }
     // The wallet's record loads at unlock unless turned off here (F62).
     if b.answers.wallet_in_vault(v) {

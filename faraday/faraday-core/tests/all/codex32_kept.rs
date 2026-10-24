@@ -268,6 +268,32 @@ fn a_string_the_plan_keeps_in_a_vault_is_saved_as_a_share_record() {
     assert_eq!(share_records(&app, 0).len(), 1);
 }
 
+/// The checklist's vault item names the codex32 strings the plan keeps in
+/// that vault, as the board's place lines count them, and none where the
+/// plan keeps none there.
+#[test]
+fn the_vault_item_lists_the_strings_it_will_hold() {
+    let line = "1 of 2 shares of fab6868a".to_string();
+    let n = bstep::of(plan::Item::Vault(0));
+    for with_string in [false, true] {
+        let mut app = device(vec![("home.ofv".into(), vault_of(PHRASE, Vec::new(), 7))]);
+        unlock_on_vaults(&mut app, "home.ofv", PHRASE);
+        key_from_strings(&mut app);
+        wallet_and_backup(&mut app);
+        // The vault keeps the seed, and string D when asked.
+        vault_at(&mut app, 0, 0, &[0]);
+        if with_string {
+            into_vault(&mut app, 0, Thing::String(0, ix('d')));
+        }
+        codex32_item(&mut app);
+        type_each_back(&mut app);
+        open_item(&mut app, n);
+        assert_eq!(app.backup().unwrap().open, Some(n));
+        let shown = texts(&mut app);
+        assert_eq!(shown.contains(&line), with_string, "{shown:?}");
+    }
+}
+
 /// The plan asks how many strings of a key's set there are (§9.4): its
 /// stepper raises the count, and the plan and the key's facts both keep
 /// the strings past those known.

@@ -322,6 +322,41 @@ pub(crate) fn place_lines(
     out
 }
 
+/// Vault `v`'s lines on the backup checklist's vault item (`docs/BACKUP-FLOW.md`
+/// §17.23): for each seed kept as strings whose strings the plan puts in
+/// the vault, the seed by its place among the wallet's, the share indices
+/// kept, and the line "1 of 2 shares of 9A6A2580" ([`place_lines`] counts the
+/// same way, by the strings of the set a place keeps). A vault keeps shares
+/// only: a set's secret goes in as a key record.
+pub(crate) fn vault_lines(
+    shape: &Shape,
+    a: &Answers,
+    m: &plan::Mapped,
+    v: usize,
+) -> Vec<(usize, Vec<usize>, String)> {
+    let strings = m.vault_strings(a, v);
+    let mut out = Vec::new();
+    for f in &a.codex32 {
+        let Some(seed) = shape.seeds.get(f.seed) else {
+            continue;
+        };
+        let js: Vec<usize> = strings
+            .iter()
+            .filter(|&&(i, _)| i == f.seed)
+            .map(|&(_, j)| j)
+            .collect();
+        if js.is_empty() {
+            continue;
+        }
+        let line = fill(
+            EN.c32_shares_of,
+            &[&js.len().to_string(), &f.need().to_string(), &seed.name],
+        );
+        out.push((f.seed, js, line));
+    }
+    out
+}
+
 /// Place `p`'s lines of fact (`docs/DESIGN.md` §4.17): what it sees of the
 /// balance alone, how near it brings a spend, and the codex32 shares it
 /// keeps ([`place_lines`]).

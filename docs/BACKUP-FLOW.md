@@ -2316,6 +2316,11 @@ are typed, "These strings rebuild this key" or "These strings rebuild
 another key: look at each again". Done when every string on paper is
 checked or skipped. The strings go to no file and no stick from here.
 
+**The vault's item** lists, after its seeds, a row for each set whose
+strings the plan keeps in that vault, worded as the board's place lines
+count them ("1 of 2 shares of 9a6a2580"), marked once the open vault holds
+each of them (`board::codex32::vault_lines`, from the plan's kept map).
+
 **The set's actions** (`docs/CODEX32.md` §9.7), under the item's list for
 a split set that exists, and from the chart's sheet on a string (its rows
 open the item): **Add a share** and **Replace C** (k strings of the set
