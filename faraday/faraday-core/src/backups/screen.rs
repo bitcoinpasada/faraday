@@ -13,7 +13,7 @@ use crate::{Action, Faraday};
 use faraday_crypto::work::Compute;
 
 /// A line's state colour.
-fn tone(t: Tone) -> faraday_draw::Color {
+fn tone(t: Tone) -> crate::ui::Paint {
     match t {
         Tone::Ok => OK,
         Tone::Warn => WARN,
@@ -23,7 +23,7 @@ fn tone(t: Tone) -> faraday_draw::Color {
 }
 
 /// A tag's colour, as the backup's map draws it.
-fn tag_tone(t: crate::plan::Tag) -> faraday_draw::Color {
+fn tag_tone(t: crate::plan::Tag) -> crate::ui::Paint {
     match t {
         crate::plan::Tag::Secret => WARN,
         crate::plan::Tag::Sealed => ACCENT,

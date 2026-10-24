@@ -20,9 +20,10 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Paint;
 use faraday_crypto::work::Compute;
+use faraday_draw::tokens;
 use faraday_draw::widgets::Icon;
-use faraday_draw::{Color, tokens};
 
 use crate::chart_edit::OFF;
 use crate::glance::{self, Backup, BackupNode, Glance, Press};
@@ -155,11 +156,11 @@ pub(crate) struct Row {
 pub(crate) struct View {
     pub icon: Icon,
     pub title: String,
-    pub facts: Vec<(&'static str, String, Color)>,
-    pub lines: Vec<(String, Color)>,
+    pub facts: Vec<(&'static str, String, Paint)>,
+    pub lines: Vec<(String, Paint)>,
     /// Lines that are a secret shown (a passphrase), wiped on drop,
     /// drawn after `lines`.
-    pub secret_lines: Vec<(zeroize::Zeroizing<String>, Color)>,
+    pub secret_lines: Vec<(zeroize::Zeroizing<String>, Paint)>,
     pub groups: Vec<(String, Vec<Row>)>,
     /// A field: its label, what it shows, and whether that is a hint.
     pub field: Option<(&'static str, String, bool)>,
@@ -213,7 +214,7 @@ pub(crate) fn node_at_now(c: &Compute, app: &Faraday, press: Press, n: u8) -> Op
 
 /// How a check line reads before and after a change, and its tone: a
 /// line made worse in `WARN`.
-fn check_facts(before: plan::Check, after: plan::Check) -> Vec<(&'static str, String, Color)> {
+fn check_facts(before: plan::Check, after: plan::Check) -> Vec<(&'static str, String, Paint)> {
     let lines = [
         (
             before.lost.text(),
@@ -1357,7 +1358,7 @@ fn fits_with(node: &BackupNode, what: What) -> bool {
     }
 }
 
-fn tone_color(t: crate::wallet_backup::Tone) -> Color {
+fn tone_color(t: crate::wallet_backup::Tone) -> Paint {
     use crate::wallet_backup::Tone;
     match t {
         Tone::Ok => OK,

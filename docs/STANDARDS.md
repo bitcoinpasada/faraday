@@ -306,3 +306,9 @@ Ranked by how much a mistake would cost.
 - Domain-separation tags in `core/faraday-psbt/src/musig.rs` and
   `core/faraday-psbt/src/sign.rs` still carry the name of the project
   Faraday was forked from, against F73.
+
+## 9. Display
+
+| What | Standard (status) | Completeness | Verified by | Faraday's own call |
+|---|---|---|---|---|
+| Colour schemes (`faraday/faraday-ui/src/pal/schemes.rs`, `docs/THEMES.md`) | Material 3's colour system: HCT, tonal palettes, dynamic colour, the 2021 colour spec (Google, published) | Ten seeds × two modes × three contrast levels, sixty schemes; the 2021 role set, with OK and Warning as custom colours; no custom seed | material-color-utilities 0.4.0, vendored (`tools/reference/material-color-utilities`), regenerating the tables byte for byte (`tools/lint-themes.sh`); Material's contrast constraints on every scheme (`faraday/faraday-ui/src/theme.rs`) | The seeds and styles, the status colours left unharmonised near a primary, focus and pressed layers at 0.10 by Material's guidance (F113). Neutral |

@@ -1479,7 +1479,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
 type Buttons = Vec<(String, Style, Action)>;
 
 /// A line and its colour.
-type Note = Option<(String, faraday_draw::Color)>;
+type Note = Option<(String, crate::ui::Paint)>;
 
 /// What an Inbox file offers on its card: the way it is used; the rest
 /// is behind its ⋮ (decision 61). A split sheet that does not add up yet says how
@@ -1629,11 +1629,11 @@ fn file_card(
     x: f32,
     y: f32,
     w: f32,
-    (icon, ink, edge): (Icon, faraday_draw::Color, faraday_draw::Color),
+    (icon, ink, edge): (Icon, crate::ui::Paint, crate::ui::Paint),
     name: &str,
     line: &str,
     row: crate::file_menu::Row,
-    note: Option<&(String, faraday_draw::Color)>,
+    note: Option<&(String, crate::ui::Paint)>,
     buttons: &[(String, Style, Action)],
 ) -> f32 {
     let draw = |ui: &mut Ui| -> f32 {

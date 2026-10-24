@@ -6,7 +6,7 @@
 //! step card grows open and comes to rest where it would have jumped
 //! to.
 
-use faraday_core::ui::Theme;
+use faraday_core::ui::Preset;
 use faraday_core::{Action, Faraday, Screen, StorageEvent, testkit};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -72,7 +72,7 @@ fn with_reduce_motion_a_new_screen_is_there_at_once() {
 }
 
 /// The screen at rest in `theme`, in its own run.
-fn at_rest_in(theme: Theme) -> Vec<u8> {
+fn at_rest_in(theme: Preset) -> Vec<u8> {
     let mut app = shown();
     app.press(Action::Theme(theme));
     let _ = frames(&mut app, 1_016, 1_400);
@@ -83,13 +83,13 @@ fn at_rest_in(theme: Theme) -> Vec<u8> {
 fn a_new_theme_fades_in_over_the_old_and_ends_in_the_new() {
     let mut app = shown();
     let old = app.frame().rgba.to_vec();
-    app.press(Action::Theme(Theme::Light));
+    app.press(Action::Theme(Preset::Dark));
     let first = frames(&mut app, 1_016, 1_016);
     assert!(first == old, "the fade starts from the old palette");
     let mid = frames(&mut app, 1_032, 1_150);
     let rest = frames(&mut app, 1_166, 2_000);
     assert!(mid != old && mid != rest, "part of the way, a while");
-    assert!(rest == at_rest_in(Theme::Light), "and ends in the new");
+    assert!(rest == at_rest_in(Preset::Dark), "and ends in the new");
 }
 
 #[test]
@@ -97,7 +97,7 @@ fn with_reduce_motion_a_new_theme_is_there_at_once() {
     let mut app = shown();
     app.press(Action::ReduceMotion(true));
     let _ = frames(&mut app, 1_016, 1_400);
-    app.press(Action::Theme(Theme::Light));
+    app.press(Action::Theme(Preset::Dark));
     let first = frames(&mut app, 1_416, 1_416);
     assert!(first == frames(&mut app, 1_432, 2_400), "at rest at once");
 }
@@ -105,11 +105,11 @@ fn with_reduce_motion_a_new_theme_is_there_at_once() {
 #[test]
 fn a_second_theme_pressed_mid_fade_ends_in_the_second() {
     let mut app = shown();
-    app.press(Action::Theme(Theme::Light));
+    app.press(Action::Theme(Preset::Dark));
     let _ = frames(&mut app, 1_016, 1_150);
-    app.press(Action::Theme(Theme::Dark));
+    app.press(Action::Theme(Preset::Nord));
     let rest = frames(&mut app, 1_166, 2_400);
-    assert!(rest == at_rest_in(Theme::Dark));
+    assert!(rest == at_rest_in(Preset::Nord));
 }
 
 #[test]

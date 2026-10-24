@@ -14,11 +14,11 @@ use crate::screens::{
     buttons_and_next, camera_row, card_pad, coin_pad, descriptor_row, dice_pad, locked_tag,
     never_below, never_real_seed, next_button, pass_field, section_label, stepper,
 };
+use crate::ui::Paint;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, flow, guide};
-use faraday_draw::Color;
 use faraday_draw::widgets::Icon;
 
 pub(super) const TITLES: [&str; kstep::COUNT] = [
@@ -1712,7 +1712,7 @@ fn device_rows(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + 6.0
 }
 
-fn stat(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str, tone: Color) -> f32 {
+fn stat(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str, tone: Paint) -> f32 {
     ui.text(x, y, 13.0, W::R, MUTED, label);
     if ui.compact && ui.measure(13.0, W::M, value) > 130.0 {
         ui.text(x, y + 20.0, 13.0, W::M, tone, value);

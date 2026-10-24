@@ -222,14 +222,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
                  total: usize,
                  cap: usize,
                  rows: &mut dyn Iterator<
-        Item = (
-            String,
-            String,
-            bool,
-            Action,
-            Option<faraday_draw::Color>,
-            bool,
-        ),
+        Item = (String, String, bool, Action, Option<crate::ui::Paint>, bool),
     >,
                  more: Action| {
         if total == 0 {

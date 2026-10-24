@@ -5,7 +5,7 @@
 //! changed since.
 
 use faraday_core::stick::settings::FILE;
-use faraday_core::ui::Theme;
+use faraday_core::ui::Preset;
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -98,14 +98,14 @@ fn same_settings(a: &Faraday, b: &Faraday) -> bool {
 fn the_boot_sticks_settings_apply_before_the_passphrase() {
     let file = b"faraday-settings 1\nscale=125\ntheme=gruvbox\nmotion=reduced\nidle-lock=10\nidle-off=20\nqr-ms=200\n";
     let mut app = booted(Some(file));
-    assert_eq!(app.theme(), Theme::Gruvbox);
+    assert_eq!(app.theme(), Preset::Gruvbox);
     assert_eq!(app.scale_pct(), 125);
     assert!(app.reduce_motion());
     assert_eq!((app.idle_lock_min(), app.idle_off_min()), (10, 20));
     assert_eq!(app.qr_frame_ms(), 200);
     // Pulling the stick asks for nothing the settings did not already set.
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert_eq!(app.theme(), Theme::Gruvbox);
+    assert_eq!(app.theme(), Preset::Gruvbox);
 }
 
 #[test]
@@ -131,7 +131,7 @@ fn a_file_too_large_or_of_another_format_is_ignored_whole() {
 #[test]
 fn a_changed_setting_is_written_to_the_boot_stick_and_reads_back_the_same() {
     let mut app = booted(None);
-    app.press(Action::Theme(Theme::RosePine));
+    app.press(Action::Theme(Preset::RosePine));
     app.press(Action::Scale(150));
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitWrite);
@@ -149,7 +149,7 @@ fn a_changed_setting_is_written_to_the_boot_stick_and_reads_back_the_same() {
 
 #[test]
 fn every_theme_round_trips_through_the_settings_file() {
-    for theme in Theme::ALL {
+    for theme in Preset::ALL {
         let mut app = booted(None);
         app.press(Action::Theme(theme));
         app.press(Action::Nav(Screen::Visit));
@@ -185,7 +185,7 @@ fn another_stick_gets_the_settings_only_when_ticked() {
     let mut app = defaults();
     app.storage(StorageEvent::Sticks(vec![stick("other", false, None)]));
     pump(&mut app, None);
-    app.press(Action::Theme(Theme::Light));
+    app.press(Action::Theme(Preset::Light));
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitWrite);
     assert!(pump(&mut app, None).iter().all(|(_, n, _)| n != FILE));
@@ -212,7 +212,7 @@ fn the_settings_file_is_not_copied_into_the_inbox() {
 #[test]
 fn after_a_lock_the_boot_stick_is_not_read_again() {
     let mut app = booted(Some(b"faraday-settings 1\ntheme=nord\n"));
-    app.press(Action::Theme(Theme::Catppuccin));
+    app.press(Action::Theme(Preset::Catppuccin));
     // What the process keeps for the next one, as a shell carries it.
     let mut kept = Vec::new();
     while let Some(c) = app.poll_storage() {
@@ -230,7 +230,7 @@ fn after_a_lock_the_boot_stick_is_not_read_again() {
     let file = b"faraday-settings 1\ntheme=light\n";
     next.storage(StorageEvent::Sticks(vec![stick("boot", true, Some(file))]));
     pump(&mut next, Some(file));
-    assert_eq!(next.theme(), Theme::Catppuccin);
+    assert_eq!(next.theme(), Preset::Catppuccin);
     // And the settings changed since boot are still offered to the stick.
     next.press(Action::Nav(Screen::Visit));
     next.press(Action::VisitWrite);

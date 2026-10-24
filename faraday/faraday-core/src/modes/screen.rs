@@ -9,10 +9,10 @@ use crate::Action;
 use crate::compact::{buttons, scroll_sheet, sheet_head};
 use crate::drawing::View;
 use crate::strings::EN;
+use crate::ui::Paint;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::network_name;
-use faraday_draw::Color;
 use faraday_draw::tokens::{
     CAPTION, GAP, LABEL, MODE_PILL_HEIGHT, MODE_PILL_PAD, MODE_ROW, MODE_SHEET_WIDTH, PAD, TITLE,
 };
@@ -61,7 +61,7 @@ pub(crate) fn pill_width(app: &View, ui: &Ui) -> f32 {
 }
 
 /// One pill at (`px`, `py`), `pw` wide, in `tone`, pressed for `action`.
-fn chip(ui: &mut Ui, (px, py, pw): (f32, f32, f32), label: &str, tone: Color, action: Action) {
+fn chip(ui: &mut Ui, (px, py, pw): (f32, f32, f32), label: &str, tone: Paint, action: Action) {
     let h = MODE_PILL_HEIGHT;
     ui.fill(px, py, pw, h, h / 2.0, tone.with_alpha(30));
     ui.stroke(px, py, pw, h, h / 2.0, tone.with_alpha(110));

@@ -27,15 +27,15 @@ use crate::pal::{INVERSE, MUTED, ON_INVERSE, OUTLINE, SURFACE};
 use crate::{Ui, W};
 
 /// A plain tooltip's container: Material's inverse surface.
-pub const TIP_PLAIN_FILL: faraday_draw::Color = INVERSE;
+pub const TIP_PLAIN_FILL: crate::pal::Paint = INVERSE;
 /// A plain tooltip's text: Material's inverse on-surface.
-pub const TIP_PLAIN_INK: faraday_draw::Color = ON_INVERSE;
+pub const TIP_PLAIN_INK: crate::pal::Paint = ON_INVERSE;
 /// A rich tooltip's container: Material's surface container.
-pub const TIP_RICH_FILL: faraday_draw::Color = SURFACE;
+pub const TIP_RICH_FILL: crate::pal::Paint = SURFACE;
 /// A rich tooltip's supporting text: Material's on-surface variant.
-pub const TIP_RICH_INK: faraday_draw::Color = MUTED;
+pub const TIP_RICH_INK: crate::pal::Paint = MUTED;
 /// A rich tooltip's edge where a theme draws no shadow (high contrast).
-pub const TIP_RICH_EDGE: faraday_draw::Color = OUTLINE;
+pub const TIP_RICH_EDGE: crate::pal::Paint = OUTLINE;
 
 /// Which of Material's two tooltips.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

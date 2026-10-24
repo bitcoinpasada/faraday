@@ -13,8 +13,8 @@ use crate::Action;
 use crate::codex32::dice_screen::paint;
 use crate::codex32::{DieColour, DieRow};
 use crate::strings::{EN, fill};
+use crate::ui::Paint;
 use crate::ui::{Style, Ui, W, pal::*};
-use faraday_draw::Color;
 use faraday_draw::tokens::{
     ROLLER_BOUNCE, ROLLER_CHIP, ROLLER_DIE, ROLLER_DIE_RADIUS, ROLLER_FIVE_GAP, ROLLER_GAP,
     ROLLER_LABEL, ROLLER_PAIR_COL, ROLLER_PAIR_DIE, ROLLER_PAIR_LABEL_W, ROLLER_PIP,
@@ -92,7 +92,7 @@ fn die(ui: &mut Ui, d: &Die, masked: bool) {
 }
 
 /// `s` centred on (`cx`, `cy`).
-fn number(ui: &mut Ui, (cx, cy): (f32, f32), s: &str, ink: Color) {
+fn number(ui: &mut Ui, (cx, cy): (f32, f32), s: &str, ink: Paint) {
     let w = ui.measure(ROLLER_LABEL + 1.0, W::S, s);
     let h = ui.line(ROLLER_LABEL + 1.0, W::S);
     ui.text(cx - w / 2.0, cy - h / 2.0, ROLLER_LABEL + 1.0, W::S, ink, s);

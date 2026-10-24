@@ -28,7 +28,7 @@ fn the_steps_of_a_fade_draw_no_screen_again() {
         ("the Learn sheet", Action::Learn),
         ("the Learn sheet's next tab", Action::LearnPage(1)),
         ("Learn closed", Action::Cancel),
-        ("a new theme", Action::Theme(crate::ui::Theme::Light)),
+        ("a new theme", Action::Theme(crate::ui::Preset::Dark)),
     ] {
         for _ in 0..30 {
             now += 16;

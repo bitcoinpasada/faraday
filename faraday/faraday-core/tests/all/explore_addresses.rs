@@ -450,10 +450,14 @@ fn a_found_address_records_where_the_match_lies() {
 }
 
 /// The columns, from the left, of the pixels in `frame` drawn in the
-/// accent (blue, whichever theme: the text and the rest of the row are
-/// grey) that `baseline` does not have, as (first, last), or none.
+/// accent (the default scheme's primary) that `baseline` does not have,
+/// as (first, last), or none.
 fn accent_columns(frame: &[u8], baseline: &[u8], width: usize) -> Option<(usize, usize)> {
-    let near = |p: &[u8]| p[2] > p[0].saturating_add(60);
+    let accent = faraday_core::ui::Theme::default().color(faraday_core::ui::pal::ACCENT);
+    let near = |p: &[u8]| {
+        let d = |a: u8, b: u8| u32::from(a.abs_diff(b));
+        d(p[0], accent.r) + d(p[1], accent.g) + d(p[2], accent.b) <= 24
+    };
     let mut cols = frame
         .chunks_exact(4)
         .zip(baseline.chunks_exact(4))

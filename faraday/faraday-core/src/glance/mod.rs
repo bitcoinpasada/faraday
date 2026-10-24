@@ -19,8 +19,9 @@ pub mod sheet;
 
 use crate::strings::EN;
 use crate::strings::fill;
+use crate::ui::Paint;
 use faraday_crypto::work::Compute;
-use faraday_draw::{Color, tokens};
+use faraday_draw::tokens;
 
 use crate::drawing::View;
 use crate::plan::{self, At, Tag, What};
@@ -1006,14 +1007,14 @@ struct Text {
     text: String,
     size: f32,
     weight: W,
-    color: Color,
+    color: Paint,
     press: Option<Action>,
     /// Struck through: a thing marked lost or exposed (§9.6).
     struck: bool,
 }
 
 impl Text {
-    fn new(text: impl Into<String>, size: f32, weight: W, color: Color) -> Text {
+    fn new(text: impl Into<String>, size: f32, weight: W, color: Paint) -> Text {
         Text {
             text: text.into(),
             size,
@@ -1042,7 +1043,7 @@ impl Text {
 /// a button at its foot, and what a press on it does.
 struct Node {
     title: String,
-    tag: Option<(&'static str, Color)>,
+    tag: Option<(&'static str, Paint)>,
     lines: Vec<Text>,
     button: Option<(String, Style, Action)>,
     action: Option<Action>,
@@ -1161,7 +1162,7 @@ pub(crate) fn checked_text(d: &str) -> String {
     }
 }
 
-fn tag_color(t: Tag) -> Color {
+fn tag_color(t: Tag) -> Paint {
     match t {
         Tag::Secret => WARN,
         Tag::Sealed => ACCENT,
@@ -1169,7 +1170,7 @@ fn tag_color(t: Tag) -> Color {
     }
 }
 
-fn tone_color(t: Tone) -> Color {
+fn tone_color(t: Tone) -> Paint {
     match t {
         Tone::Ok => OK,
         Tone::Warn => WARN,
@@ -1180,7 +1181,7 @@ fn tone_color(t: Tone) -> Color {
 
 /// How what a spot gives alone reads: spending in the clear is a warning,
 /// a vault's seal the accent, nothing at all is good.
-pub(crate) fn alone_color(k: plan::AloneKind) -> Color {
+pub(crate) fn alone_color(k: plan::AloneKind) -> Paint {
     match k {
         plan::AloneKind::CanSpend => WARN,
         plan::AloneKind::Nothing => OK,
@@ -1637,7 +1638,7 @@ pub(crate) fn draw_with(
     // The lines' sources: the wallet to each key, each key held here to
     // every node that holds its seed, each in its colour and dashes.
     let mut sources: Vec<Source> = vec![((0, 0), (0..g.keys.len()).map(|k| (1, k)).collect())];
-    let mut looks: Vec<(Color, [f32; 4], f32)> =
+    let mut looks: Vec<(Paint, [f32; 4], f32)> =
         vec![(BORDER, tokens::CHART_DASHES[0], tokens::CHART_STROKE)];
     if let Backup::Plan { nodes, .. } = &g.backup {
         for (held, (k, _)) in g
@@ -1696,7 +1697,7 @@ pub(crate) fn draw_with(
 }
 
 /// An orthogonal run from `a` to `b`, in `dash`, `stroke` wide.
-fn segment(ui: &mut Ui, a: (f32, f32), b: (f32, f32), color: Color, dash: [f32; 4], stroke: f32) {
+fn segment(ui: &mut Ui, a: (f32, f32), b: (f32, f32), color: Paint, dash: [f32; 4], stroke: f32) {
     let across = (a.1 - b.1).abs() < f32::EPSILON;
     let (start, end) = if across {
         (a.0.min(b.0), a.0.max(b.0))

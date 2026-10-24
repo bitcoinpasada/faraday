@@ -1268,16 +1268,19 @@ pub const SHAPE_CHECKBOX: f32 = 2.0;
 /// A state layer's opacity while the pointer is over a control: the
 /// control's content colour laid over it, so it reads on any fill.
 pub const STATE_HOVER: f32 = 0.08;
-/// A state layer's opacity while the keyboard is on a control.
-pub const STATE_FOCUS: f32 = 0.12;
+/// A state layer's opacity while the keyboard is on a control
+/// (Material 3's states guidance, `docs/THEMES.md` §8).
+pub const STATE_FOCUS: f32 = 0.10;
 /// A state layer's opacity while a control is pressed.
-pub const STATE_PRESS: f32 = 0.16;
-/// The fill of a filled button that is not available now: the text's
-/// colour at this opacity, so it keeps its shape.
-pub const STATE_OFF_FILL: f32 = 0.12;
-/// [`STATE_OFF_FILL`] in a high contrast theme, where the dimmed label
-/// on it must still stand 7:1.
-pub const STATE_OFF_FILL_HIGH_CONTRAST: f32 = 0.06;
+pub const STATE_PRESS: f32 = 0.10;
+/// A state layer's opacity while a thing is dragged.
+pub const STATE_DRAG: f32 = 0.16;
+/// The content of a control that is not available now: on-surface at
+/// this opacity. It keeps its kind and shape (F108).
+pub const DISABLED_CONTENT: f32 = 0.38;
+/// The container of a control that is not available now, and an
+/// outlined one's edge: on-surface at this opacity.
+pub const DISABLED_CONTAINER: f32 = 0.12;
 /// In a high contrast theme, a theme colour filled at under this
 /// opacity (of 255) is a tint under what it holds, and is drawn as its
 /// edge instead; at this or more it is a mark, drawn at full strength.

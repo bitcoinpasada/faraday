@@ -105,7 +105,7 @@ Read this table, then only the decision you need.
 | [F88](decisions/F88.md) | Seed conversions are one tool, and only to forms that restore the same wallet | 2026-10-23 | Active | security |
 | [F89](decisions/F89.md) | Silent payment signing counts a stated key only where the input's script commits to it | 2026-10-23 | Active | crypto |
 | [F90](decisions/F90.md) | Where Faraday refuses input its standard allows | 2026-10-23 | Active | crypto |
-| [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Amended by F108 | design |
+| [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Amended by F108 and F113 | design |
 | [F92](decisions/F92.md) | Faraday is laid out to Material 3 at every window size, from the Pi to a full monitor | 2026-10-23 | Amended by F100 | design |
 | [F93](decisions/F93.md) | Codex32 made by hand, any split | 2026-10-22 | Active | keys |
 | [F94](decisions/F94.md) | Codex32 error correction, opt-in | 2026-10-22 | Active | crypto |
@@ -122,8 +122,9 @@ Read this table, then only the decision you need.
 | [F105](decisions/F105.md) | The boot guides give written directions, not mock-ups of firmware screens | 2026-10-23 | Active | Starter |
 | [F106](decisions/F106.md) | Faraday reads PSBTs, mnemonics and vaults as their standards say, and writes back what it read | 2026-10-23 | Active | formats |
 | [F107](decisions/F107.md) | Single key, backup in shares | 2026-10-22 | Active | wallets |
-| [F108](decisions/F108.md) | Faraday's tokens, colour roles and components follow Material 3, shape included | 2026-10-23 | Active | design |
+| [F108](decisions/F108.md) | Faraday's tokens, colour roles and components follow Material 3, shape included | 2026-10-23 | Amended by F113 | design |
 | [F109](decisions/F109.md) | Out of the app until their standards mature: FROST, and MuSig2 signing across places | 2026-10-23 | Active | wallets |
 | [F110](decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Active | design |
 | [F111](decisions/F111.md) | The Material 3 components and patterns Faraday leaves out | 2026-10-24 | Active | design |
 | [F112](decisions/F112.md) | One explanation on a working screen: the tooltip on "codex32" in Make a new wallet's Kind card | 2026-10-24 | Active | design |
+| [F113](decisions/F113.md) | Colour follows Material 3's colour system: ten seeded themes, Light and Dark, three contrast levels | 2026-10-24 | Active | design |

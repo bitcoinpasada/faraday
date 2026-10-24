@@ -28,15 +28,19 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/fuzz-common.sh` | release | the two scripts above | the pinned nightly, each target's libFuzzer options, the corpus store |
 | `tools/check-macos.sh` | lint | `just lint` | clippy over the Starter's macOS code for both Mac targets, without a Mac |
 | `tools/lint-crosscheck.sh` | lint | `just lint` | the crypto has not changed since the last passing cross-check (below) |
+| `tools/lint-themes.sh` | lint | `just lint` | the colour tables are what the vendored material-color-utilities makes (below) |
 | `tools/costs-lint/` | lint | `just lint` (`cargo run -p costs-lint`) | who takes, mints and keeps the compute token (below) |
 | `tools/learn/sync.py` | lint, generator | `just lint` (`check`), `just learn-export`, `just learn-import` | keeps `docs/learn/*.md` and the Learn pages' `en.rs` identical |
 | `tools/fontbake/` | generator | `just fonts` | turns `tools/fonts/` into glyph outlines for `faraday-draw` |
 | `tools/fonts/` | data | `tools/fontbake` | vendored font files and their licences |
 | `tools/wordlists/` | generator | `just wordlists` (needs network) | `gen.py` and `gen-slip39.py` write the BIP-39 and SLIP-39 wordlist modules in `faraday-bip` |
 | `tools/diceware/gen.py` | generator | `just diceware` | writes the EFF diceware modules in `faraday-bip` from `tools/vectors/eff/` |
+| `tools/themes/gen.mjs` | generator | `just themes`, `tools/lint-themes.sh` | writes the colour tables, `faraday/faraday-ui/src/pal/schemes.rs`, from the themes' seeds with the vendored material-color-utilities (`docs/THEMES.md` §10); Node 22 or later, offline |
+| `tools/themes/resolve.mjs` | generator | `tools/themes/gen.mjs` | Node resolve hook: adds `.js` to the reference's relative imports that lack it |
+| `tools/themes/reference.sha256` | data | `tools/lint-themes.sh` | SHA-256 of every vendored material-color-utilities file |
 | `tools/vectors/` | data | tests in `core/` and `faraday/` (see Vectors) | published and cross-implementation test vectors, one folder per spec |
 | `tools/vectors/psbt/extract.py` | generator | by hand | extracts the BIP-174 vectors from the BIP text into `bip174.txt` |
-| `tools/reference/` | data | comments and tests that cite it (`aezeed`, `vanity`, `dice`, `kdbx4`), `tools/scripts/threshold-reference.py` (`bip445`), `tools/crosscheck/` (`bbqr`, `bip327`, `bip352`, `bip380`, `bip445`, `bip39`, `bip85`, `codex32`, `core`, `qrcodegen`, `slip39`, `ur`; the statements in `aezeed`, `dice`, `entropy`, `specter` and `vanity`) | vendored or quoted reference code and notes, each with a README |
+| `tools/reference/` | data | comments and tests that cite it (`aezeed`, `vanity`, `dice`, `kdbx4`), `tools/scripts/threshold-reference.py` (`bip445`), `tools/crosscheck/` (`bbqr`, `bip327`, `bip352`, `bip380`, `bip445`, `bip39`, `bip85`, `codex32`, `core`, `qrcodegen`, `slip39`, `ur`; the statements in `aezeed`, `dice`, `entropy`, `specter` and `vanity`), `tools/themes/gen.mjs` (`material-color-utilities`) | vendored or quoted reference code and notes, each with a README |
 | `tools/crosscheck/` | test | `just crosscheck` (`run.sh`) | the crypto cross-check (F79): Faraday's Rust against the vendored Python references over the published vectors and a seeded random corpus; writes `stamp` ([README](crosscheck/README.md)) |
 | `tools/scripts/threshold-reference.py` | test | `just threshold-reference` | replays the threshold fixture session against BIP 445's reference |
 | `tools/scripts/{musig,tapmulti,threshold}-regtest.sh` | generator | by hand; `core/faraday-psbt/examples/` and `just psbt-fixtures` write the rest | Bitcoin Core regtest round trips behind the MuSig2, taproot-multisig and threshold PSBT fixtures |
@@ -107,6 +111,7 @@ feeds.
 - `cargo run -p costs-lint`: a function taking `&Compute` has "Costs " first in its doc; `Compute::new` is minted only where listed; no `Compute` is stored except in `View`; drawing reaches the token only through `View`'s accessors (`docs/COMPUTE.md` §8).
 - `lint-unchecked.sh`: the `unchecked` feature of `faraday-crypto` is off in the dependency graph of every shipped binary (`docs/COMPUTE.md` §3).
 - `lint-crosscheck.sh`: the hash of the crypto sources, the cross-check, its references and vectors, and the crypto crates' `Cargo.lock` entries matches `tools/crosscheck/stamp`, which a passing `just crosscheck` writes; otherwise "crypto changed since the last cross-check: run `just crosscheck`" (F79).
+- `lint-themes.sh`: the vendored material-color-utilities matches `tools/themes/reference.sha256`, with no file beside them but its README, and `tools/themes/gen.mjs` run on it writes `faraday/faraday-ui/src/pal/schemes.rs` byte for byte; otherwise "run `just themes`". Needs Node 22 or later (`docs/THEMES.md` §11.3).
 - `check-macos.sh`: clippy for `aarch64-apple-darwin` and `x86_64-apple-darwin` over the Starter's shell.
 - `python3 tools/learn/sync.py check`: fails while `docs/learn/` and `en.rs` differ.
 

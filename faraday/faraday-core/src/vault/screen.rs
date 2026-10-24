@@ -319,7 +319,7 @@ pub(crate) fn hold_button(
     y: f32,
     label: &str,
     action: Action,
-    color: faraday_draw::Color,
+    color: crate::ui::Paint,
 ) -> f32 {
     hold_button_in(app, ui, x, y, f32::MAX, label, action, color)
 }
@@ -334,7 +334,7 @@ pub(crate) fn hold_button_in(
     room: f32,
     label: &str,
     action: Action,
-    color: faraday_draw::Color,
+    color: crate::ui::Paint,
 ) -> f32 {
     let w = (ui.measure(13.0, W::S, label) + 32.0).min(room);
     let label = ui.fit(13.0, W::S, label, w - 32.0);
@@ -1776,7 +1776,7 @@ fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     } else {
         PRESETS[k].0
     };
-    let mut warnings: Vec<(String, faraday_draw::Color)> = Vec::new();
+    let mut warnings: Vec<(String, crate::ui::Paint)> = Vec::new();
     let slot = app
         .vaults
         .create

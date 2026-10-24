@@ -87,7 +87,7 @@ fn value_row(
     w: f32,
     key: &str,
     value: &str,
-    tone: faraday_draw::Color,
+    tone: crate::ui::Paint,
 ) -> f32 {
     if ui.compact {
         return crate::compact::kv(ui, x, y, w, key, value, tone);

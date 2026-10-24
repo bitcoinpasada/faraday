@@ -28,7 +28,7 @@ pub(crate) fn row(
     icon: Option<Icon>,
     label: &str,
     sub: &str,
-    sub_tone: faraday_draw::Color,
+    sub_tone: crate::ui::Paint,
     action: Option<Action>,
 ) -> f32 {
     let enabled = action.is_some();
@@ -735,7 +735,7 @@ pub(crate) fn keyed_head(
     w: &crate::word_entry::WordEntry,
     lang: faraday_bip::bip39::Language,
     label: &str,
-    status: Option<(&str, faraday_draw::Color)>,
+    status: Option<(&str, crate::ui::Paint)>,
     (caret, shift, chip): (bool, bool, Option<(&'static str, &'static str)>),
 ) -> f32 {
     let mut y = y;

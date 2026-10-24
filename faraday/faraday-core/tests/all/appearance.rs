@@ -3,7 +3,7 @@
 //! once, under its group, in order of its name; the choice is kept across
 //! a lock with the other settings.
 
-use faraday_core::ui::{Theme, ThemeGroup};
+use faraday_core::ui::{Preset, ThemeGroup};
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -80,24 +80,24 @@ fn light_draws_the_page_light_and_dark_turns_it_back() {
     let mut app = shown();
     let mut clock = 1_000;
     assert!(page_light(&mut app, &mut clock) > 192, "light at first");
-    scroll_to(&mut app, &[Action::Theme(Theme::Dark)]);
-    app.press(Action::Theme(Theme::Dark));
+    scroll_to(&mut app, &[Action::Theme(Preset::Dark)]);
+    app.press(Action::Theme(Preset::Dark));
     assert!(page_light(&mut app, &mut clock) < 64, "dark");
-    app.press(Action::Theme(Theme::Light));
+    app.press(Action::Theme(Preset::Light));
     assert!(page_light(&mut app, &mut clock) > 192, "light again");
 }
 
 /// A first start is in Cobalt, on every shell.
 #[test]
 fn a_first_start_is_in_cobalt() {
-    assert_eq!(shown().theme(), Theme::Cobalt);
+    assert_eq!(shown().theme(), Preset::Cobalt);
 }
 
 #[test]
 fn the_choice_is_kept_across_a_lock() {
     let mut app = shown();
-    app.press(Action::Theme(Theme::Light));
-    assert_eq!(restarted(&mut app).theme(), Theme::Light);
+    app.press(Action::Theme(Preset::Light));
+    assert_eq!(restarted(&mut app).theme(), Preset::Light);
 }
 
 #[test]
@@ -124,7 +124,7 @@ fn page(app: &mut Faraday, clock: &mut u64) -> [[u8; 3]; 2] {
 #[test]
 fn every_theme_is_offered_under_its_group_in_order_of_its_name() {
     let mut app = shown();
-    let tiles: Vec<Action> = Theme::ALL.into_iter().map(Action::Theme).collect();
+    let tiles: Vec<Action> = Preset::ALL.into_iter().map(Action::Theme).collect();
     scroll_to(&mut app, &tiles);
     let texts = app.drawn_text_boxes();
     // Each group's label, in turn down the card: the first text drawn
@@ -141,15 +141,15 @@ fn every_theme_is_offered_under_its_group_in_order_of_its_name() {
         .collect();
     assert!(label_y.is_sorted(), "groups out of order: {label_y:?}");
     // Each theme a tile of its own.
-    let mut places: Vec<(u16, u16)> = Theme::ALL
+    let mut places: Vec<(u16, u16)> = Preset::ALL
         .into_iter()
         .map(|t| app.where_offered(Action::Theme(t)).expect("offered"))
         .collect();
     places.sort_unstable();
     places.dedup();
-    assert_eq!(places.len(), Theme::ALL.len(), "two themes share a tile");
+    assert_eq!(places.len(), Preset::ALL.len(), "two themes share a tile");
     for (g, group) in ThemeGroup::ALL.into_iter().enumerate() {
-        let mut mine: Vec<(Theme, (u16, u16))> = Theme::ALL
+        let mut mine: Vec<(Preset, (u16, u16))> = Preset::ALL
             .into_iter()
             .filter(|t| t.group() == group)
             .map(|t| (t, app.where_offered(Action::Theme(t)).expect("offered")))
@@ -172,11 +172,11 @@ fn every_theme_is_offered_under_its_group_in_order_of_its_name() {
 #[test]
 fn every_theme_draws_its_own_page_and_is_kept_across_a_restart() {
     let mut app = shown();
-    let tiles: Vec<Action> = Theme::ALL.into_iter().map(Action::Theme).collect();
+    let tiles: Vec<Action> = Preset::ALL.into_iter().map(Action::Theme).collect();
     scroll_to(&mut app, &tiles);
     let mut clock = 1_000;
     let mut seen = Vec::new();
-    for theme in Theme::ALL {
+    for theme in Preset::ALL {
         let _ = app.frame();
         assert!(
             app.offers(Action::Theme(theme)),
@@ -186,8 +186,13 @@ fn every_theme_draws_its_own_page_and_is_kept_across_a_restart() {
         app.press(Action::Theme(theme));
         assert_eq!(app.theme(), theme);
         let colour = page(&mut app, &mut clock);
+        // Light and Cobalt open in the same scheme (`docs/THEMES.md` §13).
+        let same = Preset::ALL
+            .into_iter()
+            .take_while(|t| *t != theme)
+            .any(|t| t.theme() == theme.theme());
         assert!(
-            !seen.contains(&colour),
+            same || !seen.contains(&colour),
             "{} draws a page already seen",
             theme.name()
         );
@@ -203,7 +208,7 @@ fn every_theme_draws_its_own_page_and_is_kept_across_a_restart() {
 
 #[test]
 fn a_named_theme_is_kept_across_a_lock() {
-    for theme in [Theme::Gruvbox, Theme::RosePine] {
+    for theme in [Preset::Gruvbox, Preset::RosePine] {
         let mut app = shown();
         app.press(Action::Theme(theme));
         assert_eq!(restarted(&mut app).theme(), theme);

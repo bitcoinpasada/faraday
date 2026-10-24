@@ -1659,7 +1659,7 @@ type ReviewRow = (
     String,
     String,
     String,
-    Option<(&'static str, faraday_draw::Color)>,
+    Option<(&'static str, crate::ui::Paint)>,
 );
 
 #[allow(clippy::too_many_arguments)]

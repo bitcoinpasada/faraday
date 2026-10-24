@@ -114,7 +114,7 @@ fn card_button(
 }
 
 /// A line of a card: wrapped, then a gap. Returns its height.
-fn card_line(ui: &mut Ui, (x, y, w): (f32, f32, f32), s: &str, tone: Color) -> f32 {
+fn card_line(ui: &mut Ui, (x, y, w): (f32, f32, f32), s: &str, tone: Paint) -> f32 {
     ui.wrap(x, y, w, 13.0, W::R, tone, s) + 4.0
 }
 
@@ -243,7 +243,7 @@ fn entry_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 
 /// What the card says about this computer: its name, and a line for each
 /// fact, with its tone.
-fn computer_facts(starter: &Starter) -> (String, Vec<(String, Color)>) {
+fn computer_facts(starter: &Starter) -> (String, Vec<(String, Paint)>) {
     let c = &starter.computer;
     let mac = starter.facts().mac();
     let row = mac.and(macs::mac(&c.model));
@@ -259,7 +259,7 @@ fn computer_facts(starter: &Starter) -> (String, Vec<(String, Color)>) {
     };
     // A Mac shows no Secure Boot line: before the T2 chip its firmware
     // has no such setting, and Startup Security is not read.
-    let mut lines: Vec<(String, Color)> = match mac {
+    let mut lines: Vec<(String, Paint)> = match mac {
         Some(_) => {
             let mut l = Vec::new();
             if row.is_some() {
@@ -288,7 +288,7 @@ fn computer_facts(starter: &Starter) -> (String, Vec<(String, Color)>) {
 
 /// Why the card offers what it does (§3.1): the restart that did not
 /// happen, and the encryption product found.
-fn restart_lines(starter: &Starter) -> Vec<(String, Color)> {
+fn restart_lines(starter: &Starter) -> Vec<(String, Paint)> {
     let c = &starter.computer;
     let mut lines = Vec::new();
     let card = starter.card();

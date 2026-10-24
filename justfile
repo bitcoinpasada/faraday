@@ -54,6 +54,9 @@ lint:
     cargo run -q -p costs-lint
     tools/lint-unchecked.sh
     tools/lint-crosscheck.sh
+    # The colour tables are what the vendored material-color-utilities
+    # makes (docs/THEMES.md §11.3).
+    tools/lint-themes.sh
     tools/lint-keys-tests.sh
     tools/check-macos.sh
     python3 tools/learn/sync.py check
@@ -89,6 +92,13 @@ wordlists:
 diceware:
     python3 tools/diceware/gen.py
     cargo fmt --all
+
+# Regenerate the colour tables, faraday/faraday-ui/src/pal/schemes.rs,
+# from the themes' seeds with the vendored material-color-utilities
+# (docs/THEMES.md §10.2). Offline; needs Node 22 or later.
+[group('dev')]
+themes:
+    node tools/themes/gen.mjs
 
 # Re-extract the glyph outlines from tools/fonts/ into core/faraday-draw (offline).
 [group('dev')]

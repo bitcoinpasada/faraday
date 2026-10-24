@@ -402,7 +402,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
 
 // ---- helpers ----
 
-fn line(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str, color: faraday_draw::Color) -> f32 {
+fn line(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str, color: crate::ui::Paint) -> f32 {
     ui.wrap(x, y, w, 14.0, W::R, color, text) + 10.0
 }
 

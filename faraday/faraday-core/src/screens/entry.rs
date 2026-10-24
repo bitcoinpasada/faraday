@@ -338,7 +338,7 @@ pub(crate) fn keyed_status(
     app: &View,
     lang: faraday_bip::bip39::Language,
     taken: &[u16],
-) -> (String, faraday_draw::Color) {
+) -> (String, crate::ui::Paint) {
     let n = taken.len();
     let count = || (fill(EN.keyed_status_word_count, &[&n.to_string()]), MUTED);
     if ![12, 15, 18, 21, 24].contains(&n) {

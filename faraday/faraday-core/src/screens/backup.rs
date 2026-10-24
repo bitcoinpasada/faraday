@@ -1846,7 +1846,7 @@ fn backup_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
 }
 
 /// The colour of a line of [`crate::wallet_backup::Kept`].
-fn tone(t: crate::wallet_backup::Tone) -> faraday_draw::Color {
+fn tone(t: crate::wallet_backup::Tone) -> crate::ui::Paint {
     use crate::wallet_backup::Tone;
     match t {
         Tone::Ok => OK,

@@ -72,7 +72,7 @@ pub fn line<A: Copy + PartialEq>(
     y: f32,
     width: f32,
     icon: Icon,
-    tone: faraday_draw::Color,
+    tone: crate::ui::Paint,
     text: &str,
 ) -> f32 {
     ui.icon(x, y, CORRECT_ICON, icon, CORRECT_ICON_SIZE, tone);

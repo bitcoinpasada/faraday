@@ -3,7 +3,7 @@
 //! segmented button and the progress indicator.
 
 use crate::pal::*;
-use crate::{Theme, Ui, W};
+use crate::{Ui, W};
 use faraday_draw::tokens::{
     FOCUS_OFFSET, FOCUS_RING, GAP, ICON_GAP, ICON_GLYPH_BUTTON, PROGRESS_H, PROGRESS_SPAN,
     SEGMENT_PAD, STATE_FOCUS, STATE_HOVER, STATE_PRESS, TOUCH, alpha_of, shape_full,
@@ -165,7 +165,7 @@ impl Style {
     }
 
     /// The colour of its label.
-    pub const fn label(self) -> Color {
+    pub const fn label(self) -> Paint {
         match self {
             Style::Primary => ON_ACCENT,
             Style::Tonal | Style::Selected => ON_SELECTED,
@@ -176,37 +176,23 @@ impl Style {
     }
 }
 
-impl Theme {
-    /// The opacity of a filled button's fill while it is not available
-    /// now: fainter in a high contrast theme, so its dimmed label still
-    /// stands 7:1.
-    pub fn off_fill(self) -> f32 {
-        use faraday_draw::tokens::{STATE_OFF_FILL, STATE_OFF_FILL_HIGH_CONTRAST};
-        if self.is_high_contrast() {
-            STATE_OFF_FILL_HIGH_CONTRAST
-        } else {
-            STATE_OFF_FILL
-        }
-    }
-}
-
 impl<A: Copy + PartialEq> Ui<'_, A> {
-    /// In a high contrast theme, the edge to draw in place of a fill of
-    /// `c` when `c` is one of the theme's colours made see-through as a
-    /// tint: a tint under text or an icon would lower its contrast below
-    /// the theme's 7:1, so what it marks is edged in its colour at full
-    /// strength instead. `None` elsewhere.
-    pub(crate) fn tint_edge(&self, c: Color) -> Option<Color> {
+    /// At High contrast, the edge to draw in place of a fill of `c`
+    /// when `c` is one of the scheme's roles made see-through as a tint:
+    /// a tint under text or an icon would lower its contrast below 7:1,
+    /// so what it marks is edged in its colour at full strength instead
+    /// (`docs/THEMES.md` §9). `None` elsewhere.
+    pub(crate) fn tint_edge(&self, c: Paint) -> Option<Color> {
         use faraday_draw::tokens::HIGH_CONTRAST_TINT_MAX;
-        (self.theme.is_high_contrast() && c.a < HIGH_CONTRAST_TINT_MAX && self.theme.has_role(c))
+        (self.theme.is_high_contrast() && c.alpha() < HIGH_CONTRAST_TINT_MAX && c.is_role())
             .then(|| self.col(c.with_alpha(255)))
     }
 
-    /// `c` at full strength in a high contrast theme where it is one of
-    /// the theme's colours made see-through: an edge, a rule or a mark
-    /// keeps its 3:1 there. `c` as it is elsewhere.
-    pub(crate) fn solid(&self, c: Color) -> Color {
-        if self.theme.is_high_contrast() && c.a < 255 && self.theme.has_role(c) {
+    /// `c` at full strength at High contrast where it is one of the
+    /// scheme's roles made see-through: an edge, a rule or a mark keeps
+    /// its 3:1 there. `c` as it is elsewhere.
+    pub(crate) fn solid(&self, c: Paint) -> Paint {
+        if self.theme.is_high_contrast() && c.alpha() < 255 && c.is_role() {
             c.with_alpha(255)
         } else {
             c
@@ -216,7 +202,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// A filled rectangle with rounded corners in `color` as it is asked
     /// for in every theme, see-through included: a state layer, a
     /// control not available now, something fading in or out.
-    pub fn wash(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, color: Color) {
+    pub fn wash(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, color: impl Into<Paint>) {
         let color = self.col(color);
         let rect = self.rect(x, y, w, h);
         if r <= 0.0 {
@@ -268,7 +254,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// `r`: its content colour laid over it, faint while the pointer is
     /// over it, stronger while the keyboard is on it, strongest while it
     /// is pressed.
-    pub fn state_layer(&mut self, at: (f32, f32, f32, f32, f32), content: Color, action: A) {
+    pub fn state_layer(&mut self, at: (f32, f32, f32, f32, f32), content: Paint, action: A) {
         let (x, y, w, h, r) = at;
         let opacity = if self.is_pressed(action) {
             STATE_PRESS
@@ -292,7 +278,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         }
         let out = FOCUS_OFFSET + FOCUS_RING;
         let rect = self.rect(x - out, y - out, w + 2.0 * out, h + 2.0 * out);
-        let color = self.theme.color(ACCENT_TEXT);
+        let color = self.col(ACCENT_TEXT);
         self.c
             .stroke_rounded_rect(rect, (r + out) * self.f, FOCUS_RING * self.f, color);
     }

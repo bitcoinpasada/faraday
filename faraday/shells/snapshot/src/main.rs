@@ -132,7 +132,7 @@ fn run(
     // `FARADAY_SNAP_THEME=<id>` takes the tour in that theme ("light",
     // "dark" …) instead of the first start's.
     if let Ok(id) = std::env::var("FARADAY_SNAP_THEME")
-        && let Some(theme) = faraday_core::ui::Theme::from_id(&id)
+        && let Some(theme) = faraday_core::ui::Preset::from_id(&id)
     {
         app.press(Action::Theme(theme));
     }

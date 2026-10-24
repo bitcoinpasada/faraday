@@ -43,11 +43,11 @@ pub(crate) fn m3_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("m3-6-cancel-dialog")?;
     for (theme, name) in [
         (
-            faraday_core::ui::Theme::HighContrastDark,
+            faraday_core::ui::Preset::HighContrastDark,
             "m3-7-hc-dark-dialog",
         ),
         (
-            faraday_core::ui::Theme::HighContrastLight,
+            faraday_core::ui::Preset::HighContrastLight,
             "m3-8-hc-light-dialog",
         ),
     ] {
@@ -56,7 +56,7 @@ pub(crate) fn m3_tour(t: &mut Tour) -> Result<(), String> {
     }
     t.press(Action::Cancel);
     t.shot("m3-9-hc-light-flow")?;
-    t.press(Action::Theme(faraday_core::ui::Theme::Cobalt));
+    t.press(Action::Theme(faraday_core::ui::Preset::Cobalt));
     t.press(Action::Nav(Screen::Settings));
     t.press(Action::OpenSetTime);
     t.shot("m3-10-set-time-off")?;

@@ -1,8 +1,8 @@
 # Themes on Material 3's colour system
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-24), not built; its decision is drafted in `docs/decisions/F-DRAFT-m3-colour.md`
-**Open:** all of it: the roles, the generator and the tables (C1), every screen and component on the roles (C2), Settings' three controls, the stored-theme migration and the Starter (C3), renders and docs (C4); after C4, the website, the user guide's pictures and the snapshot tours are redrawn (follow-on); a custom seed colour picker, not scheduled.
+**Status:** Specified (owner, 2026-10-24); the roles, the generator and the tables built (C1); its decision is F113 (`docs/decisions/F113.md`)
+**Open:** every screen and component on the roles (C2), Settings' three controls, the stored-theme migration and the Starter (C3), renders and docs (C4); after C4, the website, the user guide's pictures and the snapshot tours are redrawn (follow-on); a custom seed colour picker, not scheduled.
 
 Every theme is made again from the ground up on Material 3's colour
 system, as if Faraday had used it from the start (owner, 2026-10-24). A
@@ -326,7 +326,7 @@ the npm package `@material/material-color-utilities` 0.4.0.
   `tools/reference/material-color-utilities/…`, with a README giving the
   source, the commit, the tarball's digest and every file's SHA-256, as
   the cross-check's references do (`tools/reference/codex32/README.md`).
-- **One shim, written here**: nine of the published files import a
+- **One shim, written here**: ten of the published files import a
   sibling without its `.js` extension (written for bundlers); Node's
   resolver refuses that. A resolve hook of a few lines, written here and
   named as Faraday's in the README, adds the extension to a relative
@@ -526,8 +526,8 @@ Docs that change, and in which batch:
   the high contrast paragraphs rewritten from this spec; its pointer line
   to this spec removed.
 - `docs/decisions/F91.md` and `docs/decisions/F108.md` (C1, at landing):
-  marked amended by the new decision; the draft
-  (`docs/decisions/F-DRAFT-m3-colour.md`) numbered and indexed in
+  marked amended by the new decision; the decision
+  numbered F113 (`docs/decisions/F113.md`) and indexed in
   `docs/DECISIONS.md`.
 - `docs/STANDARDS.md` (C1): a row for the colour method (Material 3's
   colour system; ten seeds × two modes × three contrasts, no custom seed;
@@ -569,3 +569,4 @@ The questions this spec put to the owner, and what was decided:
 6. **State layers**: focus 0.10 and pressed 0.10, per Material 3's
    current guidance. Material Web's tokens (`v0_192`) give 0.12, and
    Faraday follows the guidance (§8).
+7. **Status colours**: OK and Warning as §5 gives them ("the colors are fine").

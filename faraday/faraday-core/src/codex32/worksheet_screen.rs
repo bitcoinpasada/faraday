@@ -19,7 +19,7 @@
 //! drawn. Every value is read from the worksheet the work set keeps;
 //! nothing here computes but the cells' places.
 
-use faraday_draw::Color;
+use crate::ui::Paint;
 use faraday_draw::geom::WindowClass;
 use faraday_draw::tokens as t;
 use faraday_keys::{Reveal, WorkSet};
@@ -253,7 +253,7 @@ struct Drawn {
     x: f32,
     y: f32,
     /// What it reads, and its colour.
-    text: Option<(String, Color)>,
+    text: Option<(String, Paint)>,
     /// Bolded: the string's own characters.
     bold: bool,
     /// In the checksum's columns of an `=` row.
@@ -296,7 +296,7 @@ struct Lay<'a> {
 
 impl Lay<'_> {
     /// A character as drawn: a capital, or a dot under the mask.
-    fn shown(&self, v: Option<u8>) -> Option<(String, Color)> {
+    fn shown(&self, v: Option<u8>) -> Option<(String, Paint)> {
         v.map(|v| {
             let t = if self.s.hide {
                 MASK.to_string()
@@ -587,7 +587,7 @@ fn thin(ui: &mut Ui, shown: &[&Drawn], (ox, oy): (f32, f32), s: f32) {
 }
 
 /// A rule `th` thick round the square at (x, y), centred on its edge.
-fn frame(ui: &mut Ui, x: f32, y: f32, s: f32, th: f32, c: Color) {
+fn frame(ui: &mut Ui, x: f32, y: f32, s: f32, th: f32, c: Paint) {
     let h = th / 2.0;
     ui.fill(x - h, y - h, s + th, th, 0.0, c);
     ui.fill(x - h, y + s - h, s + th, th, 0.0, c);

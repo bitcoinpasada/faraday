@@ -9,6 +9,7 @@
 //! second. Drawing reads the flow's state; nothing here works anything
 //! out but where a shape goes.
 
+use crate::ui::Paint;
 use faraday_draw::Color;
 use faraday_draw::tokens as t;
 use faraday_draw::widgets::Icon;
@@ -27,10 +28,10 @@ use crate::ui::{Style, Ui, W};
 
 /// A die's body and the ink of its numbers and pips: the same in every
 /// theme, as dice are things on the table, not the screen's colours.
-pub(crate) fn paint(c: DieColour) -> (Color, Color) {
+pub(crate) fn paint(c: DieColour) -> (Paint, Paint) {
     let light = Color::rgb(0xff, 0xff, 0xff);
     let dark = Color::rgb(0x14, 0x14, 0x14);
-    match c {
+    let (body, ink) = match c {
         DieColour::Red => (Color::rgb(0xc6, 0x28, 0x28), light),
         DieColour::Orange => (Color::rgb(0xef, 0x6c, 0x00), dark),
         DieColour::Yellow => (Color::rgb(0xfb, 0xc0, 0x2d), dark),
@@ -39,7 +40,8 @@ pub(crate) fn paint(c: DieColour) -> (Color, Color) {
         DieColour::Purple => (Color::rgb(0x6a, 0x1b, 0x9a), light),
         DieColour::White => (Color::rgb(0xf7, 0xf7, 0xf7), dark),
         DieColour::Black => (Color::rgb(0x21, 0x21, 0x21), light),
-    }
+    };
+    (Paint::Fixed(body), Paint::Fixed(ink))
 }
 
 /// A colour's name.
@@ -443,7 +445,7 @@ fn known_bits(m: &Codex32Make, shown: bool) -> [Option<u8>; BOOKLET_DICE] {
 
 /// A closed shape through `pts` (design units), filled with `fill` if
 /// given and outlined in `edge`.
-fn shape(ui: &mut Ui, pts: &[(f32, f32)], fill_c: Option<Color>, edge: Color) {
+fn shape(ui: &mut Ui, pts: &[(f32, f32)], fill_c: Option<Paint>, edge: Paint) {
     let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
     let px: Vec<(f32, f32)> = pts
         .iter()
@@ -461,7 +463,7 @@ fn shape(ui: &mut Ui, pts: &[(f32, f32)], fill_c: Option<Color>, edge: Color) {
 }
 
 /// A ring centred at (`cx`, `cy`), `r` across its middle, `width` thick.
-fn ring(ui: &mut Ui, (cx, cy): (f32, f32), r: f32, width: f32, c: Color) {
+fn ring(ui: &mut Ui, (cx, cy): (f32, f32), r: f32, width: f32, c: Paint) {
     let rect = ui.rect(cx - r, cy - r, 2.0 * r, 2.0 * r);
     let c = ui.col(c);
     let f = ui.f;
@@ -554,7 +556,7 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// `s` centred on (`cx`, `cy`) in the caption size.
-fn centred(ui: &mut Ui, (cx, cy): (f32, f32), s: &str, ink: Color) {
+fn centred(ui: &mut Ui, (cx, cy): (f32, f32), s: &str, ink: Paint) {
     let w = ui.measure(t::CAPTION, W::S, s);
     let h = ui.line(t::CAPTION, W::S);
     ui.text(cx - w / 2.0, cy - h / 2.0, t::CAPTION, W::S, ink, s);

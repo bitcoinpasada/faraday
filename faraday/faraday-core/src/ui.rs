@@ -6,8 +6,8 @@ use crate::Action;
 
 pub use faraday_ui::pal;
 pub use faraday_ui::{
-    BAR_GRAB, BarGeometry, Disclosure, Glyph, NameSuffix, Scrolled, Slot, Style, Theme, ThemeGroup,
-    W, btc, grouped, short, thousands,
+    BAR_GRAB, BarGeometry, Contrast, Disclosure, Glyph, Mode, NameSuffix, Paint, Preset, Role,
+    Scrolled, Slot, Style, Theme, ThemeGroup, ThemeName, W, btc, grouped, short, thousands,
 };
 
 use pal::*;
@@ -92,7 +92,7 @@ impl CoreUi for Ui<'_> {
         }
         let r = if held { 15.0 } else { 13.0 };
         let bg = if held {
-            self.col(ACCENT).mix(self.col(TEXT), 0.12)
+            Paint::from(self.col(ACCENT).mix(self.col(TEXT), 0.12))
         } else {
             ACCENT
         };

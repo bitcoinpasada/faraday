@@ -4,7 +4,6 @@
 
 use crate::pal::*;
 use crate::{Ui, W};
-use faraday_draw::Color;
 use faraday_draw::tokens::{
     CAPTION, GAP, GAP_SMALL, LABEL, LIST_INDENT, LIST_RESERVE, RADIUS_SMALL, ROW,
 };
@@ -105,10 +104,11 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         &mut self,
         (x, y, w): (f32, f32, f32),
         size: f32,
-        color: Color,
+        color: impl Into<Paint>,
         lead: &str,
         code: &str,
     ) -> f32 {
+        let color: Paint = color.into();
         let lead_w = self.measure(size, W::R, lead);
         let box_w = self.measure(size, W::M, code) + 2.0 * GAP;
         let h = self.code_height(size);

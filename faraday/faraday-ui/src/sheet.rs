@@ -117,7 +117,7 @@ fn framed<A: Copy + PartialEq>(
 pub fn dialog<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     (w, h, want): (f32, f32, f32),
-    head: (crate::Glyph, faraday_draw::Color, &str),
+    head: (crate::Glyph, crate::pal::Paint, &str),
     body: &mut Body<'_, A>,
     actions: &[(&str, Style, A)],
 ) {
@@ -177,9 +177,10 @@ pub fn sheet_head<A: Copy + PartialEq>(
     y: f32,
     w: f32,
     icon: impl Into<crate::Glyph>,
-    tone: faraday_draw::Color,
+    tone: impl Into<Paint>,
     title: &str,
 ) -> f32 {
+    let tone: Paint = tone.into();
     let glyph = faraday_draw::tokens::ICON_GLYPH_SMALL;
     ui.icon(x - 4.0, y - 3.0, 28.0, icon, glyph, tone);
     let th = ui.wrap(x + 28.0, y, w - 28.0, 17.0, W::S, TEXT, title);
@@ -194,8 +195,9 @@ pub fn kv<A: Copy + PartialEq>(
     w: f32,
     key: &str,
     value: &str,
-    tone: faraday_draw::Color,
+    tone: impl Into<Paint>,
 ) -> f32 {
+    let tone: Paint = tone.into();
     ui.text(x, y, 12.0, W::R, MUTED, key);
     let vh = ui.wrap(x, y + 18.0, w, 14.0, W::R, tone, value);
     ui.rule(x, y + 24.0 + vh, w, INNER);
@@ -256,9 +258,9 @@ pub fn kv_sheet<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     w: f32,
     h: f32,
-    head: (Icon, faraday_draw::Color, &str),
+    head: (Icon, crate::pal::Paint, &str),
     sub: &str,
-    rows: &[(&str, String, faraday_draw::Color)],
+    rows: &[(&str, String, crate::pal::Paint)],
     actions: &[(&str, Style, A)],
 ) {
     sheet(ui, w, h, &mut |ui, x, y, iw| {

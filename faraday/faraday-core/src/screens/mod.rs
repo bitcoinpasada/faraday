@@ -495,7 +495,7 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         // out.
         use faraday_draw::tokens::{SHAPE_XS, TOAST_H, TOAST_PAD};
         let (shown, rise) = app.toast_shown();
-        let a = |c: faraday_draw::Color| c.with_alpha((f32::from(c.a) * shown) as u8);
+        let a = |c: crate::ui::Paint| c.with_alpha((f32::from(c.alpha()) * shown) as u8);
         let ty = h - 64.0 + rise;
         let tw = ui.measure(14.0, W::R, &t) + 2.0 * TOAST_PAD;
         let tx = x + (cw - tw) / 2.0;

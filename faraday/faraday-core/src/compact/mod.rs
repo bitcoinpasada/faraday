@@ -839,7 +839,7 @@ fn tiles(app: &View) -> Vec<Tile> {
 /// the wide Home (`crate::screens::home_lead_beside_tiles`), as one prompt row; a lead
 /// that would open or start over a flow whose tile is above it gives way
 /// to the next, or to none (`docs/FLOWS.md`, Flows in progress).
-fn prompts(app: &View) -> Vec<(Glyph, String, Option<Action>, faraday_draw::Color)> {
+fn prompts(app: &View) -> Vec<(Glyph, String, Option<Action>, crate::ui::Paint)> {
     crate::screens::home_lead_beside_tiles(app)
         .map(|(icon, label, _sub, action, enabled)| {
             let tone = if enabled { ACCENT } else { WARN };

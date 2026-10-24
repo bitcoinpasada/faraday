@@ -499,7 +499,7 @@ fn devices_buttons(app: &View) -> Vec<(&'static str, Style, Action)> {
 
 /// The tone a reminder is drawn in: the Bolt's line says its typing is
 /// encrypted, which is no warning.
-fn reminder_tone(line: &str) -> faraday_draw::Color {
+fn reminder_tone(line: &str) -> crate::ui::Paint {
     if line == crate::strings::EN.devices_bolt_notice {
         MUTED
     } else {
@@ -513,7 +513,7 @@ fn reminder_tone(line: &str) -> faraday_draw::Color {
 pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let s = &crate::strings::EN;
     let d = &app.devices;
-    let mut lines: Vec<(String, faraday_draw::Color)> =
+    let mut lines: Vec<(String, crate::ui::Paint)> =
         d.held.iter().map(|c| (c.line(), TEXT)).collect();
     lines.extend(
         app.device_reminders()
@@ -696,14 +696,14 @@ fn kept_sections(app: &View, power_off: bool, save: bool, then: String) -> Vec<S
 /// and a button beside it.
 type Section = (
     &'static str,
-    Vec<(String, faraday_draw::Color, Option<Action>)>,
+    Vec<(String, crate::ui::Paint, Option<Action>)>,
 );
 
 /// A kept sheet's line, its tone, a labelled row, and a code to show
 /// with its text.
 type SheetLine<'a> = (
     &'a str,
-    faraday_draw::Color,
+    crate::ui::Paint,
     Option<(&'a str, &'a str)>,
     Option<(&'a str, &'a faraday_codec::qr::QrMatrix)>,
 );
@@ -714,7 +714,7 @@ fn kept_sheet(
     app: &View,
     ui: &mut Ui,
     (w, h): (f32, f32),
-    head: (Glyph, faraday_draw::Color, &str),
+    head: (Glyph, crate::ui::Paint, &str),
     (line, line_tone, row, code): SheetLine<'_>,
     sections: &[Section],
     actions: &[(&str, Style, Action)],
@@ -1028,7 +1028,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     rect.y as f32 + (py - top) * scale,
                 )
             };
-            let color = if seen.read { OK } else { WARN };
+            let color = ui.col(if seen.read { OK } else { WARN });
             let lw = (3.0 * ui.f).max(2.0);
             for i in 0..4 {
                 let (a, b) = (map(seen.corners[i]), map(seen.corners[(i + 1) % 4]));
@@ -1690,7 +1690,7 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ],
     );
     if ui.compact {
-        let rows: Vec<(&str, String, faraday_draw::Color)> =
+        let rows: Vec<(&str, String, crate::ui::Paint)> =
             rows.into_iter().map(|(k, v)| (k, v, TEXT)).collect();
         crate::compact::kv_sheet(
             ui,

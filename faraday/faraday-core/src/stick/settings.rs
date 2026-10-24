@@ -47,7 +47,7 @@ pub(crate) struct Settings {
     /// The person's display scale, in percent of the automatic one.
     scale_pct: u16,
     /// The palette the screens are drawn in.
-    theme: crate::ui::Theme,
+    theme: crate::ui::Preset,
     /// Reduce motion: nothing slides, glides, coasts or stretches.
     reduce_motion: bool,
     /// Minutes without input before the session locks; 0 for never
@@ -74,7 +74,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             scale_pct: 100,
-            theme: crate::ui::Theme::default(),
+            theme: crate::ui::Preset::default(),
             reduce_motion: false,
             idle_lock_min: crate::IDLE_LOCK_MIN,
             qr_frame_ms: crate::QR_SPEEDS[0],
@@ -97,7 +97,7 @@ impl Settings {
     }
 
     /// The palette.
-    pub(crate) fn theme(&self) -> crate::ui::Theme {
+    pub(crate) fn theme(&self) -> crate::ui::Preset {
         self.theme
     }
 
@@ -148,7 +148,7 @@ impl Settings {
     }
 
     /// Sets the palette.
-    pub(crate) fn set_theme(&mut self, theme: crate::ui::Theme) {
+    pub(crate) fn set_theme(&mut self, theme: crate::ui::Preset) {
         self.theme = theme;
     }
 
@@ -217,7 +217,7 @@ impl Settings {
                 }
             }
             "theme" => {
-                if let Some(t) = crate::ui::Theme::from_id(value) {
+                if let Some(t) = crate::ui::Preset::from_id(value) {
                     self.theme = t;
                 }
             }
@@ -426,7 +426,7 @@ impl Faraday {
     }
 
     /// The palette the screens are drawn in.
-    pub fn theme(&self) -> crate::ui::Theme {
+    pub fn theme(&self) -> crate::ui::Preset {
         self.settings.theme()
     }
 

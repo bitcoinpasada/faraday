@@ -226,7 +226,7 @@ pub fn step_circle<A: Copy + PartialEq>(
     let pressed = action.is_some_and(|a| ui.is_pressed(a));
     let fg = if ticked {
         ui.dot(x + r, y + r, r, STEP_DONE);
-        faraday_draw::Color::WHITE
+        Paint::from(faraday_draw::Color::WHITE)
     } else {
         if pressed {
             ui.dot(x + r, y + r, r, INNER);

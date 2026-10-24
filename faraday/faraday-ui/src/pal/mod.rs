@@ -1,75 +1,148 @@
-//! Faraday's colours: the page, text and tones as the Dark theme draws
-//! them, and each other theme's table of what it draws them as
-//! (`light`, `dark`, `high_contrast`).
+//! Faraday's colours (`docs/THEMES.md`): Material 3's colour roles, each
+//! scheme's values generated from its theme's seed ([`schemes`]), and
+//! the paints a drawing call takes. A paint is a role at an opacity,
+//! looked up in the scheme the frame is drawn in, or a colour drawn as
+//! it is in every theme (a QR code, a camera's overlay, a stick's pill).
+//!
+//! The names below are Faraday's colours from before the roles, each a
+//! paint standing for its main role (`docs/THEMES.md` §6), so every
+//! screen draws on the generated schemes; each use moves to its role by
+//! name, and the names go once none is left.
 
 use faraday_draw::Color;
 
-/// The page.
-pub const BG: Color = Color::rgb(0x11, 0x16, 0x1c);
-/// The sidebar.
-pub const SIDEBAR: Color = Color::rgb(0x0d, 0x12, 0x18);
-/// A card.
-pub const SURFACE: Color = Color::rgb(0x19, 0x21, 0x2a);
+mod schemes;
+
+pub use schemes::{ROLE_COUNT, Role, ThemeName};
+
+/// One scheme's colours, in [`Role`]'s order.
+pub type Scheme = [Color; ROLE_COUNT];
+
+/// Every scheme, as [`Theme::scheme`](crate::Theme::scheme) finds them:
+/// the generated table's hex words made colours once, when compiled.
+pub(crate) static SCHEMES: [Scheme; schemes::SCHEMES.len()] = {
+    let mut out = [[Color::BLACK; ROLE_COUNT]; schemes::SCHEMES.len()];
+    let mut s = 0;
+    while s < out.len() {
+        let mut r = 0;
+        while r < ROLE_COUNT {
+            let w = schemes::SCHEMES[s][r];
+            out[s][r] = Color::rgb((w >> 16) as u8, (w >> 8) as u8, w as u8);
+            r += 1;
+        }
+        s += 1;
+    }
+    out
+};
+
+/// What a drawing call fills, strokes or writes in.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Paint {
+    /// A role of the scheme the frame is drawn in, at an opacity (of
+    /// 255).
+    Role(Role, u8),
+    /// A colour drawn as it is in every theme.
+    Fixed(Color),
+}
+
+impl Paint {
+    /// `role` at full strength.
+    pub const fn role(role: Role) -> Paint {
+        Paint::Role(role, 255)
+    }
+
+    /// The same paint at opacity `a` (of 255).
+    pub const fn with_alpha(self, a: u8) -> Paint {
+        match self {
+            Paint::Role(r, _) => Paint::Role(r, a),
+            Paint::Fixed(c) => Paint::Fixed(c.with_alpha(a)),
+        }
+    }
+
+    /// Its opacity, of 255.
+    pub const fn alpha(self) -> u8 {
+        match self {
+            Paint::Role(_, a) => a,
+            Paint::Fixed(c) => c.a,
+        }
+    }
+
+    /// Whether it is one of the scheme's roles, rather than a colour
+    /// drawn as it is in every theme.
+    pub const fn is_role(self) -> bool {
+        matches!(self, Paint::Role(..))
+    }
+
+    /// The colour it is in `scheme`: a lookup.
+    pub fn in_scheme(self, scheme: &Scheme) -> Color {
+        match self {
+            Paint::Role(r, a) => scheme[r as usize].with_alpha(a),
+            Paint::Fixed(c) => c,
+        }
+    }
+}
+
+impl From<Color> for Paint {
+    fn from(c: Color) -> Paint {
+        Paint::Fixed(c)
+    }
+}
+
+impl From<Role> for Paint {
+    fn from(r: Role) -> Paint {
+        Paint::role(r)
+    }
+}
+
+/// Fields, word cells and boxes inset on the page.
+pub const BG: Paint = Paint::role(Role::SurfaceContainerHighest);
+/// The expanded rail, a shade apart from the page.
+pub const SIDEBAR: Paint = Paint::role(Role::SurfaceContainerLow);
+/// The page and a sheet; a card.
+pub const SURFACE: Paint = Paint::role(Role::Surface);
 /// A card's edge and the sidebar's.
-pub const LINE: Color = Color::rgb(0x1f, 0x29, 0x33);
+pub const LINE: Paint = Paint::role(Role::OutlineVariant);
 /// A rule inside a card, and an idle badge.
-pub const INNER: Color = Color::rgb(0x22, 0x2c, 0x37);
-/// A secondary button's edge.
-pub const BORDER: Color = Color::rgb(0x30, 0x3d, 0x49);
+pub const INNER: Paint = Paint::role(Role::OutlineVariant);
+/// A card's, a rule's and a sheet's edge.
+pub const BORDER: Paint = Paint::role(Role::OutlineVariant);
 /// Text.
-pub const TEXT: Color = Color::rgb(0xe0, 0xe9, 0xef);
+pub const TEXT: Paint = Paint::role(Role::OnSurface);
 /// Labels.
-pub const MUTED: Color = Color::rgb(0x9a, 0xac, 0xb9);
-/// What is not there yet.
-pub const DIM: Color = Color::rgb(0x6f, 0x82, 0x91);
-/// The accent.
-pub const ACCENT: Color = Color::rgb(0x83, 0xd8, 0xef);
-/// Text on the accent. One step from `SIDEBAR`, so the light theme
-/// can tell them apart.
-pub const ON_ACCENT: Color = Color::rgb(0x0d, 0x12, 0x19);
+pub const MUTED: Paint = Paint::role(Role::OnSurfaceVariant);
+/// What is not there yet; a control not available now.
+pub const DIM: Paint = Paint::role(Role::OnSurfaceVariant);
+/// The accent: filled controls.
+pub const ACCENT: Paint = Paint::role(Role::Primary);
+/// Text on the accent.
+pub const ON_ACCENT: Paint = Paint::role(Role::OnPrimary);
 /// Done, verified, can sign.
-pub const OK: Color = Color::rgb(0x8b, 0xd4, 0xb2);
+pub const OK: Paint = Paint::role(Role::Ok);
 /// Waiting, unsaved, needs attention.
-pub const WARN: Color = Color::rgb(0xf0, 0xc0, 0x77);
+pub const WARN: Paint = Paint::role(Role::Warning);
 /// Refused.
-pub const ERR: Color = Color::rgb(0xef, 0x9b, 0x9b);
-
-// Material 3's colour roles that Faraday's own names did not cover
-// (`docs/DESIGN.md` §3, F108): each theme gives its own value, so the
-// structure is Material's and the colours stay the theme's.
+pub const ERR: Paint = Paint::role(Role::Error);
 /// A control's edge: an outlined button, a segmented button, a field,
-/// the field chip, a ⋮. 3:1 or more on the page and the card in every
-/// theme, where a card's edge, `BORDER`, is fainter (Material's
-/// outline and outline-variant).
-pub const OUTLINE: Color = Color::rgb(0x63, 0x6f, 0x79);
-/// A chosen option and a tonal button's fill: the card tinted with the
-/// accent (Material's secondary-container).
-pub const SELECTED: Color = Color::rgb(0x35, 0x51, 0x5d);
-/// Text and icons on `SELECTED`: 4.5:1 or more (7:1 high contrast).
-pub const ON_SELECTED: Color = Color::rgb(0xe0, 0xe9, 0xf0);
-/// The toast's fill: the text's colour, so it stands out from the page
-/// (Material's inverse-surface).
-pub const INVERSE: Color = Color::rgb(0xe0, 0xe9, 0xf1);
-/// The toast's text: the card's colour (Material's inverse-on-surface).
-pub const ON_INVERSE: Color = Color::rgb(0x19, 0x21, 0x2b);
+/// the field chip, a ⋮.
+pub const OUTLINE: Paint = Paint::role(Role::Outline);
+/// A chosen option and a tonal button's fill.
+pub const SELECTED: Paint = Paint::role(Role::SecondaryContainer);
+/// Text and icons on `SELECTED`.
+pub const ON_SELECTED: Paint = Paint::role(Role::OnSecondaryContainer);
+/// The toast's fill.
+pub const INVERSE: Paint = Paint::role(Role::InverseSurface);
+/// The toast's text.
+pub const ON_INVERSE: Paint = Paint::role(Role::InverseOnSurface);
 /// The accent where it is read rather than filled: text, icons and the
-/// focus ring. The accent itself in every theme but one whose accent
-/// reads at less than 4.5:1 on the page, Bitcoin Orange Light, where it
-/// is the orange darkened to 4.5:1. `Ui` draws text and icons asked for
-/// in `ACCENT` in this.
-pub const ACCENT_TEXT: Color = Color::rgb(0x83, 0xd8, 0xf0);
+/// focus ring.
+pub const ACCENT_TEXT: Paint = Paint::role(Role::Primary);
 /// What a sheet's page is dimmed with over its frost, at
-/// `tokens::SCRIM_ALPHA` (Material's scrim, neutral 0). Not in the
-/// themes' tables: every theme draws it as it is.
-pub const SCRIM: Color = Color::rgb(0x00, 0x00, 0x00);
-
-/// How many colours each theme's table gives.
-pub const ROLES: usize = 39;
+/// `tokens::SCRIM_ALPHA`.
+pub const SCRIM: Paint = Paint::role(Role::Scrim);
 
 /// Over a camera's picture (`docs/QR.md` §8 item 4), whatever the
-/// theme: none of these is in the themes' tables, since the picture
-/// is the same in every theme. The corner brackets while looking,
-/// and the words on the state line's band.
+/// theme: the picture is the same in every theme. The corner brackets
+/// while looking, and the words on the state line's band.
 pub const VIEWFINDER: Color = Color::rgb(0xff, 0xff, 0xff);
 /// The corner brackets while a QR that read is in view.
 pub const VIEWFINDER_READ: Color = Color::rgb(0x4c, 0xd9, 0x7b);
@@ -77,56 +150,52 @@ pub const VIEWFINDER_READ: Color = Color::rgb(0x4c, 0xd9, 0x7b);
 /// `tokens::VIEWFINDER_BAND_ALPHA`.
 pub const VIEWFINDER_BAND: Color = Color::rgb(0x05, 0x08, 0x0b);
 
-// The backup board's boxes (`docs/BACKUP-FLOW.md` §17.15): one hue
-// per kind of box, pale fills and strong edges, each theme its own.
-/// A place on the backup board: its fill, a pale green (`docs/DESIGN.md` §4.17).
-pub const PLACE_FILL: Color = Color::rgb(0x1e, 0x2e, 0x30);
+// The backup board's boxes (`docs/BACKUP-FLOW.md` §17.15): places
+// neutral, sticks the highest surface, vaults the primary family, files
+// the secondary family, paper the tertiary family (`docs/THEMES.md` §6).
+/// A place on the backup board: its fill.
+pub const PLACE_FILL: Paint = Paint::role(Role::SurfaceContainerLow);
 /// A place's header band.
-pub const PLACE_BAND: Color = Color::rgb(0x24, 0x3f, 0x38);
-/// A place's edge and its thick left stripe: 3:1 or more against the page.
-pub const PLACE_EDGE: Color = Color::rgb(0x5e, 0x9a, 0x73);
-/// A place's name, glyph and ×: 4.5:1 or more on its band and its fill.
-pub const PLACE_TEXT: Color = Color::rgb(0x86, 0xb3, 0x96);
-/// A stick box on the board, and **+ stick**: a cool slate grey.
-pub const STICK_FILL: Color = Color::rgb(0x2b, 0x34, 0x3e);
-/// A stick box's edge: 3:1 or more against the place round it.
-pub const STICK_EDGE: Color = Color::rgb(0x7d, 0x8b, 0x98);
-/// "Stick n", its glyph and ×: 4.5:1 or more on the stick's fill.
-pub const STICK_TEXT: Color = Color::rgb(0x96, 0xa1, 0xac);
-/// A vault box on the board: a pale tint of the accent.
-pub const VAULT_FILL: Color = Color::rgb(0x2a, 0x3e, 0x4a);
-/// A vault box's edge and its solid header band, and the lock mark: the accent, moved where it must be to stand 3:1 against the stick round it. One step from `ACCENT` in this table, so the themes can tell them apart.
-pub const VAULT_EDGE: Color = Color::rgb(0x83, 0xd8, 0xee);
-/// "Vault n · sealed" and its × on the vault's band: 4.5:1 or more on it. One step from `ON_ACCENT`, so the themes can tell them apart.
-pub const VAULT_ON: Color = Color::rgb(0x0d, 0x12, 0x1a);
-/// Paper (and Scanned in) on the board: a warm cream.
-pub const PAPER_FILL: Color = Color::rgb(0x34, 0x37, 0x35);
-/// Paper's edge, a brown: 3:1 or more against the place round it.
-pub const PAPER_EDGE: Color = Color::rgb(0xb8, 0x98, 0x50);
-/// "Paper", its glyph: 4.5:1 or more on paper's fill.
-pub const PAPER_TEXT: Color = Color::rgb(0xc8, 0xa8, 0x60);
+pub const PLACE_BAND: Paint = Paint::role(Role::SurfaceContainerHigh);
+/// A place's edge and its thick left stripe.
+pub const PLACE_EDGE: Paint = Paint::role(Role::Outline);
+/// A place's name, glyph and ×.
+pub const PLACE_TEXT: Paint = Paint::role(Role::OnSurface);
+/// A stick box on the board, and **+ stick**.
+pub const STICK_FILL: Paint = Paint::role(Role::SurfaceContainerHighest);
+/// A stick box's edge.
+pub const STICK_EDGE: Paint = Paint::role(Role::Outline);
+/// "Stick n", its glyph and ×.
+pub const STICK_TEXT: Paint = Paint::role(Role::OnSurfaceVariant);
+/// A vault box on the board.
+pub const VAULT_FILL: Paint = Paint::role(Role::PrimaryContainer);
+/// A vault box's edge and its solid header band, and the lock mark.
+pub const VAULT_EDGE: Paint = Paint::role(Role::Primary);
+/// "Vault n · sealed" and its × on the vault's band.
+pub const VAULT_ON: Paint = Paint::role(Role::OnPrimary);
+/// Paper (and Scanned in) on the board.
+pub const PAPER_FILL: Paint = Paint::role(Role::TertiaryContainer);
+/// Paper's edge.
+pub const PAPER_EDGE: Paint = Paint::role(Role::Tertiary);
+/// "Paper", its glyph.
+pub const PAPER_TEXT: Paint = Paint::role(Role::OnTertiaryContainer);
 /// The files box inside a stick box on the board (`docs/BACKUP-FLOW.md`
-/// §17.17): the files kept on the stick outside any vault, a pale blue.
-pub const FILES_FILL: Color = Color::rgb(0x2e, 0x40, 0x55);
-/// The files box's edge: 3:1 or more against the stick round it.
-pub const FILES_EDGE: Color = Color::rgb(0x53, 0x8c, 0xcd);
-/// "Files · not sealed", its glyph: 4.5:1 or more on the files fill.
-pub const FILES_TEXT: Color = Color::rgb(0x8d, 0xb0, 0xd9);
-/// A chip's edge on the board: a neutral a step stronger than `BORDER`.
-pub const CHIP_EDGE: Color = Color::rgb(0x69, 0x71, 0x79);
+/// §17.17): the files kept on the stick outside any vault.
+pub const FILES_FILL: Paint = Paint::role(Role::SecondaryContainer);
+/// The files box's edge.
+pub const FILES_EDGE: Paint = Paint::role(Role::Secondary);
+/// "Files · not sealed", its glyph.
+pub const FILES_TEXT: Paint = Paint::role(Role::OnSecondaryContainer);
+/// A chip's edge on the board.
+pub const CHIP_EDGE: Paint = Paint::role(Role::Outline);
 
-// The codex32 worksheets (`docs/CODEX32.md` §7.5): the booklet's colour
-// roles, each theme its own, characters 4.5:1 or more on each (7:1 in
-// the high-contrast themes).
-/// The checksum squares, worked from the bottom up: the booklet's pink
-/// on a light page, a muted rose on a dark one.
-pub const CODEX32_CHECKSUM_FILL: Color = Color::rgb(0x41, 0x2e, 0x3b);
-/// The rows read from a table (sums and lookups): a raised surface,
-/// the booklet's light grey.
-pub const CODEX32_LOOKUP_FILL: Color = Color::rgb(0x27, 0x2f, 0x38);
+// The codex32 worksheets (`docs/CODEX32.md` §7.5).
+/// The checksum squares, worked from the bottom up.
+pub const CODEX32_CHECKSUM_FILL: Paint = Paint::role(Role::TertiaryContainer);
+/// The rows read from a table (sums and lookups).
+pub const CODEX32_LOOKUP_FILL: Paint = Paint::role(Role::SurfaceContainerHighest);
 
-/// The boot stick's pill and render: Bitcoin's orange, as the Bitcoin
-/// Orange theme's accent, on a dark page.
+/// The boot stick's pill and render: Bitcoin's orange, on a dark page.
 pub const STICK_BOOT: Color = Color::rgb(0xf7, 0x93, 0x1a);
 /// The backup sticks' pills and renders on a dark page, Stick 1, 2,
 /// 3 and on in turn, then again from the first: red, yellow, green,
@@ -155,7 +224,7 @@ pub const STICKS_LIGHT: [Color; 7] = [
 
 /// The colour of a stick's pill: `n` 0 the boot stick, `n` the
 /// backup Stick `n` otherwise, on a light page or a dark one. These
-/// are not in the themes' tables: each theme draws them as they are.
+/// are not in the schemes: they are chosen by Mode alone.
 pub fn stick_tone(n: usize, light: bool) -> Color {
     match (n, light) {
         (0, false) => STICK_BOOT,
@@ -166,14 +235,5 @@ pub fn stick_tone(n: usize, light: bool) -> Color {
 }
 
 /// The structure chart's line colours (`docs/DESIGN.md` §4.16), one
-/// per key held here, in turn: the theme's own colours, so each theme
-/// draws them as it draws the rest.
-pub const KEY_LINES: [Color; 5] = [ACCENT, OK, WARN, ERR, MUTED];
-
-mod dark;
-mod high_contrast;
-mod light;
-
-pub use dark::*;
-pub use high_contrast::*;
-pub use light::*;
+/// per key held here, in turn.
+pub const KEY_LINES: [Paint; 5] = [ACCENT, OK, WARN, ERR, MUTED];

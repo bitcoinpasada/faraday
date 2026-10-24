@@ -584,7 +584,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
         for &k in &row.items {
             let (p, w) = (&pills[k], l.widths[k]);
             // The tones are counted from the boot stick's, the first.
-            let tone = stick_tone(p.n.saturating_sub(1), light);
+            let tone = Paint::from(stick_tone(p.n.saturating_sub(1), light));
             let action = Action::StickPill(p.n as u8);
             let pressed = presses && ui.is_pressed(action);
             let (fg, edge, body) = if p.inserted {

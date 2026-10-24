@@ -233,7 +233,7 @@ fn card(app: &View, s: &SilentState, ui: &mut Ui, k: u8, x: f32, y: f32, w: f32)
 }
 
 /// What a check came to, as a line and its tone.
-fn checked_text(r: &crate::silent::check::Checked) -> (String, faraday_draw::Color) {
+fn checked_text(r: &crate::silent::check::Checked) -> (String, crate::ui::Paint) {
     use crate::silent::check::Checked;
     match r {
         Checked::Paid(paid) => {

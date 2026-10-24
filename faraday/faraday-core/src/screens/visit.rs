@@ -229,7 +229,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                on: bool,
                name: &str,
                line: &str,
-               tag: (&str, faraday_draw::Color),
+               tag: (&str, crate::ui::Paint),
                action: Option<Action>| {
         // No action: the stick holds the file already, drawn greyed.
         let held = action.is_none();
@@ -499,7 +499,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     on: bool,
                     name: &str,
                     line: &str,
-                    tag: (&str, faraday_draw::Color),
+                    tag: (&str, crate::ui::Paint),
                     action: Option<Action>| {
         // A row scrolled out of the list's sight is passed over.
         if !ui.shows(ry, ROW) {
@@ -884,7 +884,7 @@ fn visit_inbox_line(item: &crate::Item) -> String {
 
 /// An Inbox file's tag on a visit's write list: public and sealed files
 /// are written as they are; the rest only past the secret sheet.
-fn visit_inbox_tag(item: &crate::Item) -> (&'static str, faraday_draw::Color) {
+fn visit_inbox_tag(item: &crate::Item) -> (&'static str, crate::ui::Paint) {
     match item.copy_ack() {
         None if item.exposure() == crate::secrets::Exposure::Sealed => {
             (EN.visit_inbox_tag_sealed, OK)

@@ -2,7 +2,7 @@
 //! §3.5): it shows so, shows nothing once the pointer leaves, and presses
 //! nothing.
 
-use faraday_core::ui::Theme;
+use faraday_core::ui::Preset;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -35,7 +35,7 @@ fn a_button_under_the_pointer_shows_it_and_stops_when_the_pointer_leaves() {
     let mut app = settings();
     let theme = app.theme();
     let before = pixels(&mut app);
-    let (x, y) = app.where_offered(Action::Theme(Theme::Light)).unwrap();
+    let (x, y) = app.where_offered(Action::Theme(Preset::Light)).unwrap();
     app.event(Event::Hover { x, y });
     let over = pixels(&mut app);
     assert!(

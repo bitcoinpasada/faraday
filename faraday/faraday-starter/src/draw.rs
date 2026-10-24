@@ -6,10 +6,10 @@
 
 use faraday_core::Action;
 use faraday_core::upgrade::{Fit, describe, version};
-use faraday_draw::Color;
 use faraday_draw::widgets::Icon;
 use faraday_strings::fill;
 use faraday_strings::{EN, Strings};
+use faraday_ui::Paint;
 use faraday_ui::pal::*;
 use faraday_ui::parts::qr_code;
 use faraday_ui::{Glyph, NameSuffix, Style, W};
@@ -273,14 +273,14 @@ fn label(ui: &mut Ui, x: f32, y: f32, s: &str) -> f32 {
 }
 
 /// A line of fact, wrapped. Returns its height with the gap under it.
-fn line(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Color) -> f32 {
+fn line(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Paint) -> f32 {
     ui.wrap(x, y, w, 13.0, W::R, tone, s) + 10.0
 }
 
 /// A label and its value: on one row with the value at the right on a
 /// wide display, the value under the label on a small panel. Returns
 /// its height.
-fn value_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Color) -> f32 {
+fn value_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Paint) -> f32 {
     if ui.compact {
         ui.text(x, y, 12.0, W::R, MUTED, key);
         let vh = ui.wrap(x, y + 18.0, w, 14.0, W::R, tone, value);
@@ -378,7 +378,7 @@ fn nav_row(
 
 /// A warning: a tinted box with the line in it. Returns its height with
 /// the gap under it.
-fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Color) -> f32 {
+fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Paint) -> f32 {
     let th = ui.wrap(x + 14.0, y + 10.0, w - 28.0, 13.0, W::S, tone, s);
     // Drawn again over its box, which needs the text's height first.
     let bh = th + 20.0;
@@ -1534,7 +1534,7 @@ fn bitlocker_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
 
 /// A value row whose value is never cut: under its label, wrapped, when
 /// it does not fit beside it (a long menu path). Returns its height.
-fn note_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Color) -> f32 {
+fn note_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Paint) -> f32 {
     let kw = ui.measure(13.0, W::R, key) + 24.0;
     if ui.compact || ui.measure(14.0, W::R, value) <= w - kw {
         return value_row(ui, x, y, w, key, value, tone);

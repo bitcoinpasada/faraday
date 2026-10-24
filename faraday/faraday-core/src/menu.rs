@@ -85,7 +85,7 @@ pub(crate) fn tab<T: PartialEq + Copy>(dots: &[T], at: Option<T>, back: bool) ->
 }
 
 /// The ⋮'s three dots, centred at (cx, cy) in `color`.
-pub(crate) fn dots(ui: &mut Ui, cx: f32, cy: f32, color: faraday_draw::Color) {
+pub(crate) fn dots(ui: &mut Ui, cx: f32, cy: f32, color: crate::ui::Paint) {
     let d = tokens::BOARD_MENU_DOT;
     let step = (tokens::BOARD_MARK - d) / 2.0;
     for k in [-1.0, 0.0, 1.0] {
@@ -115,7 +115,7 @@ pub(crate) fn outline(
     r: (f32, f32, f32, f32),
     radius: f32,
     width: f32,
-    color: faraday_draw::Color,
+    color: crate::ui::Paint,
 ) {
     let rect = ui.rect(r.0, r.1, r.2, r.3);
     let c = ui.col(color);

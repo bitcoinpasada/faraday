@@ -14,10 +14,13 @@ pub mod nav;
 pub mod parts;
 pub mod region;
 pub mod sheet;
+mod theme;
 pub mod tooltip;
 
 pub use controls::{Reach, Style, focus_step, reach_at};
+pub use pal::{Paint, Role, ThemeName};
 pub use region::{Scrolled, Slot};
+pub use theme::{Contrast, Mode, Preset, Theme, ThemeGroup};
 
 use faraday_draw::fonts::Family;
 use faraday_draw::text::{self, TextAlign};
@@ -68,7 +71,7 @@ impl BarGeometry {
     }
 }
 
-/// The prototype's palette.
+/// Faraday's colours: the roles, the generated schemes and the paints.
 pub mod pal;
 
 use pal::*;
@@ -232,219 +235,6 @@ fn path_outlines(src: &str) -> Vec<Vec<(f32, f32)>> {
         }
     }
     out
-}
-
-/// Which palette the screens are drawn in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Theme {
-    /// Light text on a dark page: the prototype's palette.
-    Dark,
-    /// Dark text on a light page.
-    Light,
-    /// A cool blue-white page with a deep cobalt accent. The theme a first
-    /// start is in, on every shell (owner, 2026-10-11).
-    #[default]
-    Cobalt,
-    /// Arctic Ice Studio's Nord: grey-blue, with its frost accent.
-    Nord,
-    /// Catppuccin Mocha: deep violet-grey, with its mauve accent.
-    Catppuccin,
-    /// Tokyo Night: ink blue, with its blue accent.
-    TokyoNight,
-    /// Gruvbox dark: warm brown-grey, with its yellow accent.
-    Gruvbox,
-    /// Rosé Pine Dawn: dark text on warm paper, with its pine accent.
-    RosePine,
-    /// Light text on a dark page, with Bitcoin's orange (#F7931A) as
-    /// the accent, taken at full strength.
-    BitcoinOrange,
-    /// Dark text on a light page, with Bitcoin's orange (#F7931A) as
-    /// the accent, taken at full strength.
-    BitcoinOrangeLight,
-    /// Dark espresso text on warm cream paper, with a terracotta accent:
-    /// light, warm and calm.
-    Lamplight,
-    /// Pure white text on a pure black page, one strong yellow accent:
-    /// every text pair 7:1 or more, every edge 3:1 or more.
-    HighContrastDark,
-    /// Pure black text on a pure white page, one strong deep blue accent:
-    /// every text pair 7:1 or more, every edge 3:1 or more.
-    HighContrastLight,
-    /// Mars: a warm near-black page, butterscotch text and the planet's
-    /// rust red-orange as the accent.
-    Mars,
-}
-
-impl Theme {
-    /// Every theme. Settings offers them by [`Theme::group`], each group
-    /// in order of its names ([`ThemeGroup::themes`]).
-    pub const ALL: [Theme; 14] = [
-        Theme::Dark,
-        Theme::Light,
-        Theme::Cobalt,
-        Theme::Nord,
-        Theme::Catppuccin,
-        Theme::TokyoNight,
-        Theme::Gruvbox,
-        Theme::RosePine,
-        Theme::BitcoinOrange,
-        Theme::BitcoinOrangeLight,
-        Theme::Lamplight,
-        Theme::HighContrastDark,
-        Theme::HighContrastLight,
-        Theme::Mars,
-    ];
-
-    /// What Settings calls it.
-    pub fn name(self) -> &'static str {
-        match self {
-            Theme::Dark => EN.ui_dark,
-            Theme::Light => EN.ui_light,
-            Theme::Cobalt => EN.ui_cobalt,
-            Theme::Nord => EN.ui_nord,
-            Theme::Catppuccin => EN.ui_catppuccin,
-            Theme::TokyoNight => EN.ui_tokyo_night,
-            Theme::Gruvbox => EN.ui_gruvbox,
-            Theme::RosePine => EN.ui_rose_pine,
-            Theme::BitcoinOrange => EN.ui_bitcoin_orange,
-            Theme::BitcoinOrangeLight => EN.ui_bitcoin_orange_light,
-            Theme::Lamplight => EN.ui_lamplight,
-            Theme::HighContrastDark => EN.ui_high_contrast_dark,
-            Theme::HighContrastLight => EN.ui_high_contrast_light,
-            Theme::Mars => EN.ui_mars,
-        }
-    }
-
-    /// The word the kept settings write it as (`memory.rs`).
-    pub fn id(self) -> &'static str {
-        match self {
-            Theme::Dark => "dark",
-            Theme::Light => "light",
-            Theme::Cobalt => "cobalt",
-            Theme::Nord => "nord",
-            Theme::Catppuccin => "catppuccin",
-            Theme::TokyoNight => "tokyo-night",
-            Theme::Gruvbox => "gruvbox",
-            Theme::RosePine => "rose-pine",
-            Theme::BitcoinOrange => "bitcoin-orange",
-            Theme::BitcoinOrangeLight => "bitcoin-orange-light",
-            Theme::Lamplight => "lamplight",
-            Theme::HighContrastDark => "high-contrast-dark",
-            Theme::HighContrastLight => "high-contrast-light",
-            Theme::Mars => "mars",
-        }
-    }
-
-    /// The theme a kept `id` names.
-    pub fn from_id(id: &str) -> Option<Theme> {
-        Theme::ALL.into_iter().find(|t| t.id() == id)
-    }
-
-    /// Dark text on a light page: shadows are lighter.
-    pub fn is_light(self) -> bool {
-        matches!(
-            self,
-            Theme::Light
-                | Theme::Cobalt
-                | Theme::RosePine
-                | Theme::BitcoinOrangeLight
-                | Theme::Lamplight
-                | Theme::HighContrastLight
-        )
-    }
-
-    /// Text 7:1 or more on the page and the card, edges 3:1 or more.
-    pub fn is_high_contrast(self) -> bool {
-        matches!(self, Theme::HighContrastDark | Theme::HighContrastLight)
-    }
-
-    /// Whether `c`, at any opacity, is one of the colours this theme's
-    /// table gives ([`pal`]), rather than one drawn as it is in every
-    /// theme (a camera's overlay, a QR code).
-    pub fn has_role(self, c: Color) -> bool {
-        self.table()
-            .is_some_and(|t| t.iter().any(|(d, _)| (d.r, d.g, d.b) == (c.r, c.g, c.b)))
-    }
-
-    /// The group Settings offers it under.
-    pub fn group(self) -> ThemeGroup {
-        if self.is_high_contrast() {
-            ThemeGroup::HighContrast
-        } else if self.is_light() {
-            ThemeGroup::Light
-        } else {
-            ThemeGroup::Dark
-        }
-    }
-
-    fn table(self) -> Option<&'static [(Color, Color); pal::ROLES]> {
-        match self {
-            Theme::Dark => None,
-            Theme::Light => Some(&pal::LIGHT),
-            Theme::Cobalt => Some(&pal::COBALT),
-            Theme::Nord => Some(&pal::NORD),
-            Theme::Catppuccin => Some(&pal::CATPPUCCIN),
-            Theme::TokyoNight => Some(&pal::TOKYO_NIGHT),
-            Theme::Gruvbox => Some(&pal::GRUVBOX),
-            Theme::RosePine => Some(&pal::ROSE_PINE),
-            Theme::BitcoinOrange => Some(&pal::BITCOIN_ORANGE),
-            Theme::BitcoinOrangeLight => Some(&pal::BITCOIN_ORANGE_LIGHT),
-            Theme::Lamplight => Some(&pal::LAMPLIGHT),
-            Theme::HighContrastDark => Some(&pal::HIGH_CONTRAST_DARK),
-            Theme::HighContrastLight => Some(&pal::HIGH_CONTRAST_LIGHT),
-            Theme::Mars => Some(&pal::MARS),
-        }
-    }
-
-    /// `c`, one of [`pal`]'s colours at any opacity, as this theme draws
-    /// it. Any other colour, a QR code's black and white or a camera's
-    /// picture, is drawn as it is.
-    pub fn color(self, c: Color) -> Color {
-        let Some(table) = self.table() else {
-            return c;
-        };
-        table
-            .iter()
-            .find(|(dark, _)| (dark.r, dark.g, dark.b) == (c.r, c.g, c.b))
-            .map_or(c, |(_, to)| to.with_alpha(c.a))
-    }
-}
-
-/// The groups Settings offers the themes in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ThemeGroup {
-    /// Dark text on a light page.
-    Light,
-    /// Light text on a dark page.
-    Dark,
-    /// Text 7:1 or more, light or dark.
-    HighContrast,
-}
-
-impl ThemeGroup {
-    /// Every group, in the order Settings offers them.
-    pub const ALL: [ThemeGroup; 3] = [
-        ThemeGroup::Light,
-        ThemeGroup::Dark,
-        ThemeGroup::HighContrast,
-    ];
-
-    /// The label Settings puts over the group.
-    pub fn name(self) -> &'static str {
-        match self {
-            ThemeGroup::Light => EN.ui_themes_light,
-            ThemeGroup::Dark => EN.ui_themes_dark,
-            ThemeGroup::HighContrast => EN.ui_themes_high_contrast,
-        }
-    }
-
-    /// The themes in this group ([`Theme::group`]), in order of their
-    /// names.
-    pub fn themes(self) -> impl Iterator<Item = Theme> {
-        let mut all = Theme::ALL;
-        all.sort_unstable_by_key(|t| t.name());
-        all.into_iter().filter(move |t| t.group() == self)
-    }
 }
 
 /// A face: text, emphasis, or data.
@@ -746,12 +536,14 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// `c` in this frame's theme.
-    pub fn col(&self, c: Color) -> Color {
+    pub fn col(&self, c: impl Into<Paint>) -> Color {
+        let c: Paint = c.into();
         self.theme.color(c)
     }
 
     /// Fills the whole frame with `c`.
-    pub fn clear(&mut self, c: Color) {
+    pub fn clear(&mut self, c: impl Into<Paint>) {
+        let c: Paint = c.into();
         let c = self.col(c);
         self.c.clear(c);
     }
@@ -906,7 +698,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 // Reduced eight units to a pixel and blurred a little: as
                 // soft as more blur at a fraction of the work.
                 let scale = (8.0 * self.f).round().max(4.0) as u32;
-                let dim = SCRIM.with_alpha(faraday_draw::tokens::SCRIM_ALPHA);
+                let dim = self.col(SCRIM.with_alpha(faraday_draw::tokens::SCRIM_ALPHA));
                 self.c.frost(scale, 2, dim);
                 // Kept dimmed: each frame after is one copy.
                 self.frost = Some(self.c.snapshot());
@@ -1007,12 +799,13 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         h: f32,
         size: f32,
         w: W,
-        color: Color,
+        color: impl Into<Paint>,
         text: &str,
         room: f32,
         focused: bool,
         action: A,
     ) -> f32 {
+        let color: Paint = color.into();
         // The byte offset of each character's start, and of the end: the
         // text itself is never copied.
         let at: Vec<usize> = text
@@ -1095,7 +888,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
 
     /// A filled circle; in a high contrast theme a tint is its ring
     /// ([`Ui::fill`]).
-    pub fn dot(&mut self, cx: f32, cy: f32, r: f32, color: Color) {
+    pub fn dot(&mut self, cx: f32, cy: f32, r: f32, color: impl Into<Paint>) {
+        let color: Paint = color.into();
         if let Some(edge) = self.tint_edge(color) {
             let rect = self.rect(cx - r, cy - r, 2.0 * r, 2.0 * r);
             let width = self.f.max(1.0);
@@ -1117,7 +911,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// its edge: no see-through layer lowers the contrast of what is on
     /// it. A state layer, a control not available now or something
     /// fading is a [`Ui::wash`].
-    pub fn fill(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, color: Color) {
+    pub fn fill(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, color: impl Into<Paint>) {
+        let color: Paint = color.into();
         if let Some(edge) = self.tint_edge(color) {
             let rect = self.rect(x, y, w, h);
             let width = self.f.max(1.0);
@@ -1130,7 +925,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
 
     /// An outlined rectangle with rounded corners; in a high contrast
     /// theme a see-through theme colour is drawn at full strength.
-    pub fn stroke(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, color: Color) {
+    pub fn stroke(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, color: impl Into<Paint>) {
+        let color: Paint = color.into();
         let color = self.col(self.solid(color));
         let rect = self.rect(x, y, w, h);
         let width = self.f.max(1.0);
@@ -1140,8 +936,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// A card: a surface with a one-unit edge. The page is the surface
     /// too (`docs/DECISIONS.md` F39), so a card's resting edge, `LINE`,
     /// is drawn in the stronger `BORDER`: the edge is what sets it apart.
-    pub fn card(&mut self, x: f32, y: f32, w: f32, h: f32, edge: Color) {
+    pub fn card(&mut self, x: f32, y: f32, w: f32, h: f32, edge: impl Into<Paint>) {
         use faraday_draw::tokens::SHAPE_M;
+        let edge: Paint = edge.into();
         let edge = if edge == LINE { BORDER } else { edge };
         self.fill(x, y, w, h, SHAPE_M, SURFACE);
         self.stroke(x, y, w, h, SHAPE_M, edge);
@@ -1159,7 +956,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         y: f32,
         w: f32,
         h: f32,
-        theme: Theme,
+        theme: Preset,
         current: bool,
         action: A,
     ) {
@@ -1179,7 +976,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             self.stroke(x - 2.0, y - 2.0, w + 4.0, h + 4.0, 12.0, ring);
         }
         let now = self.theme;
-        self.theme = theme;
+        self.theme = theme.theme();
         self.fill(x, y, w, h, IN, BG);
         self.stroke(x, y, w, h, IN, LINE);
         self.fill(
@@ -1218,7 +1015,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         }
         // The theme a first start is in: a Default mark at the right of
         // its name's last line, where it fits beside the name.
-        if theme == Theme::default() {
+        if theme == Preset::default() {
             let mark = self.measure(SIZE, W::R, EN.ui_default_theme);
             if last + faraday_draw::tokens::GAP + mark <= room {
                 let at = x + w - IN - mark;
@@ -1234,7 +1031,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     pub fn theme_tile_min(&self) -> f32 {
         use faraday_draw::tokens::{THEME_TILE_INSET, THEME_TILE_MIN, THEME_TILE_TEXT};
         let width = |s: &str| self.measure(THEME_TILE_TEXT, W::S, s);
-        Theme::ALL
+        Preset::ALL
             .into_iter()
             .map(|t| {
                 let name = t.name();
@@ -1252,7 +1049,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// lines, and a line taller for each line beyond.
     pub fn theme_tile_h(&self, w: f32) -> f32 {
         use faraday_draw::tokens::{THEME_TILE_HEIGHT, THEME_TILE_INSET, THEME_TILE_LINE};
-        let lines = Theme::ALL
+        let lines = Preset::ALL
             .into_iter()
             .map(|t| self.theme_name_lines(t, w - 2.0 * THEME_TILE_INSET).1)
             .max()
@@ -1266,7 +1063,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// tiles line up.
     pub fn theme_grid(&self, inner: f32) -> usize {
         use faraday_draw::tokens::THEME_TILE_GAP as GAP;
-        let n = Theme::ALL.len();
+        let n = Preset::ALL.len();
         (((inner + GAP) / (self.theme_tile_min() + GAP)).floor() as usize).clamp(1, n)
     }
 
@@ -1281,8 +1078,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         y: f32,
         w: f32,
         per_row: usize,
-        current: Theme,
-        action: impl Fn(Theme) -> A,
+        current: Preset,
+        action: impl Fn(Preset) -> A,
     ) -> f32 {
         use faraday_draw::tokens::{
             CAPTION, THEME_GROUP_GAP, THEME_GROUP_HEAD, THEME_TILE_GAP, THEME_TILE_ROW_GAP,
@@ -1331,7 +1128,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// A theme's name in lines no wider than `max`, broken at spaces: up
     /// to four lines, as byte ranges of the name, and how many there
     /// are. Words past a fourth line join the fourth.
-    fn theme_name_lines(&self, theme: Theme, max: f32) -> ([(usize, usize); 4], usize) {
+    fn theme_name_lines(&self, theme: Preset, max: f32) -> ([(usize, usize); 4], usize) {
         use faraday_draw::tokens::THEME_TILE_TEXT;
         let name = theme.name();
         let mut lines = [(0, 0); 4];
@@ -1413,7 +1210,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
 
     /// Faraday's name, the wordmark of `assets/wordmark.txt`, its capitals
     /// `cap` units tall with their top-left at (x, y). Returns its width.
-    pub fn wordmark(&mut self, x: f32, y: f32, cap: f32, color: Color) -> f32 {
+    pub fn wordmark(&mut self, x: f32, y: f32, cap: f32, color: impl Into<Paint>) -> f32 {
+        let color: Paint = color.into();
         self.wordmark_named(x, y, cap, color, NameSuffix::None)
     }
 
@@ -1426,9 +1224,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         x: f32,
         y: f32,
         cap: f32,
-        color: Color,
+        color: impl Into<Paint>,
         suffix: NameSuffix,
     ) -> f32 {
+        let color: Paint = color.into();
         let mark = wordmark_outlines();
         let s = cap / WORDMARK_CAP;
         let k = s * self.f;
@@ -1473,7 +1272,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// A horizontal rule.
-    pub fn rule(&mut self, x: f32, y: f32, w: f32, color: Color) {
+    pub fn rule(&mut self, x: f32, y: f32, w: f32, color: impl Into<Paint>) {
+        let color: Paint = color.into();
         let color = self.col(self.solid(color));
         let r = self.rect(x, y, w, 1.0);
         let rect = Rect::new(r.x, r.y, r.w, 1.max(self.px(1.0)));
@@ -1481,7 +1281,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// A vertical rule: one unit wide, at least a pixel.
-    pub fn vrule(&mut self, x: f32, y: f32, h: f32, color: Color) {
+    pub fn vrule(&mut self, x: f32, y: f32, h: f32, color: impl Into<Paint>) {
+        let color: Paint = color.into();
         let color = self.col(self.solid(color));
         let r = self.rect(x, y, 1.0, h);
         let rect = Rect::new(r.x, r.y, 1.max(self.px(1.0)), r.h);
@@ -1519,18 +1320,24 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         face.line_height() as f32 / self.f
     }
 
-    /// `c` as text and icons are drawn in this frame's theme: the accent
-    /// as it is read (`ACCENT_TEXT`), every other colour as [`Ui::col`].
-    pub fn ink(&self, c: Color) -> Color {
-        if (c.r, c.g, c.b) == (ACCENT.r, ACCENT.g, ACCENT.b) {
-            self.theme.color(ACCENT_TEXT).with_alpha(c.a)
-        } else {
-            self.col(c)
-        }
+    /// `c` as text and icons are drawn in this frame's theme: as
+    /// [`Ui::col`], since the scheme's primary reads as text on every
+    /// surface (`docs/THEMES.md` §6).
+    pub fn ink(&self, c: impl Into<Paint>) -> Color {
+        self.col(c)
     }
 
     /// `s` with its top-left at (x, y). Returns its width.
-    pub fn text(&mut self, x: f32, y: f32, size: f32, w: W, color: Color, s: &str) -> f32 {
+    pub fn text(
+        &mut self,
+        x: f32,
+        y: f32,
+        size: f32,
+        w: W,
+        color: impl Into<Paint>,
+        s: &str,
+    ) -> f32 {
+        let color: Paint = color.into();
         let color = self.ink(color);
         let font = self.font(size, w);
         let px = self
@@ -1548,9 +1355,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         h: f32,
         size: f32,
         w: W,
-        color: Color,
+        color: impl Into<Paint>,
         s: &str,
     ) -> f32 {
+        let color: Paint = color.into();
         let lh = self.line(size, w);
         self.text(x, y + (h - lh) / 2.0, size, w, color, s)
     }
@@ -1564,9 +1372,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         h: f32,
         size: f32,
         w: W,
-        color: Color,
+        color: impl Into<Paint>,
         s: &str,
     ) {
+        let color: Paint = color.into();
         let width = self.measure(size, w, s);
         self.text_mid(right - width, y, h, size, w, color, s);
     }
@@ -1628,9 +1437,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         width: f32,
         size: f32,
         w: W,
-        color: Color,
+        color: impl Into<Paint>,
         s: &str,
     ) -> f32 {
+        let color: Paint = color.into();
         let color = self.ink(color);
         let font = self.font(size, w);
         let rect = Rect::new(
@@ -1653,7 +1463,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         (x, y, width): (f32, f32, f32),
         size: f32,
         w: W,
-        colors: (Color, Color),
+        colors: (Paint, Paint),
         s: &str,
         mark: std::ops::Range<usize>,
     ) -> f32 {
@@ -1700,8 +1510,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         boxw: f32,
         icon: impl Into<Glyph>,
         size: f32,
-        color: Color,
+        color: impl Into<Paint>,
     ) {
+        let color: Paint = color.into();
         let color = self.ink(color);
         match icon.into() {
             Glyph::Icon(icon) => {
@@ -1715,7 +1526,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// The USB stick glyph centred on (cx, cy), `size` units across: a
     /// body with rounded corners and its connector at the right end, two
     /// holes in the connector. Drawn as outlines, at the icon face's size.
-    fn stick_glyph(&mut self, cx: f32, cy: f32, size: f32, color: Color) {
+    fn stick_glyph(&mut self, cx: f32, cy: f32, size: f32, color: impl Into<Paint>) {
+        let color = self.col(color);
         let f = self.f;
         let (ox, oy) = (self.ox, self.oy);
         // In units of the glyph's size, from its centre.
@@ -1888,7 +1700,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         };
         let tw = self.measure(size, weight, label);
         let width = w.unwrap_or(tw + 32.0 + tick);
-        let faint = TEXT.with_alpha(alpha_of(self.theme.off_fill()));
+        let faint = TEXT.with_alpha(alpha_of(faraday_draw::tokens::DISABLED_CONTAINER));
         match style {
             Style::Primary => {
                 self.primaries += 1;
@@ -1986,7 +1798,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// A rounded label with a dot. Returns its width.
-    pub fn chip(&mut self, x: f32, y: f32, label: &str, fg: Color, bg: Color) -> f32 {
+    pub fn chip(
+        &mut self,
+        x: f32,
+        y: f32,
+        label: &str,
+        fg: impl Into<Paint>,
+        bg: impl Into<Paint>,
+    ) -> f32 {
+        let bg: Paint = bg.into();
+        let fg: Paint = fg.into();
         let h = 26.0;
         let width = self.chip_width(label);
         self.fill(x, y, width, h, 13.0, bg);
@@ -2019,7 +1840,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// [`Ui::pill`] with its label in `color`.
-    pub fn pill_in(&mut self, x: f32, y: f32, h: f32, label: &str, color: Color) -> f32 {
+    pub fn pill_in(&mut self, x: f32, y: f32, h: f32, label: &str, color: impl Into<Paint>) -> f32 {
+        let color: Paint = color.into();
         let width = self.measure(12.0, W::R, label) + 24.0;
         self.fill(x, y, width, h, h / 2.0, SURFACE);
         self.stroke(x, y, width, h, h / 2.0, BORDER);
@@ -2174,89 +1996,6 @@ mod tests {
         (x.max(y) + 0.05) / (x.min(y) + 0.05)
     }
 
-    #[test]
-    fn text_and_tones_are_legible_on_the_page_and_the_card_in_every_theme() {
-        let mut short = Vec::new();
-        for theme in Theme::ALL {
-            let high = theme.is_high_contrast();
-            // The accent as it is drawn as text and icons: in Bitcoin
-            // Orange Light the orange darkened (owner, 2026-10-23), the
-            // orange itself staying the fill.
-            for (name, fg, standard) in [
-                ("text", pal::TEXT, 4.5),
-                ("accent", pal::ACCENT_TEXT, 4.5),
-                ("positive", pal::OK, 4.5),
-                ("warning", pal::WARN, 4.5),
-                ("dimmed", pal::DIM, 3.0),
-                ("control edge", pal::OUTLINE, 3.0),
-            ] {
-                // An edge stands 3:1 in every theme, high contrast too.
-                let need = match (name, high) {
-                    ("control edge", _) => standard,
-                    (_, true) => 7.0,
-                    _ => standard,
-                };
-                for (on_name, on) in [("page", pal::BG), ("card", pal::SURFACE)] {
-                    let got = contrast(theme.color(fg), theme.color(on));
-                    if got < need {
-                        short.push(format!(
-                            "{} {name} on the {on_name} is {got:.2}:1, needs {need}",
-                            theme.id()
-                        ));
-                    }
-                }
-            }
-        }
-        assert!(short.is_empty(), "{short:#?}");
-    }
-
-    /// A codex32 worksheet's characters read on its checksum squares and
-    /// its table rows in every theme (`docs/CODEX32.md` §7.5), and the
-    /// rows stand apart from the card they are on.
-    #[test]
-    fn a_codex32_worksheets_characters_are_legible_on_every_fill_in_every_theme() {
-        let mut short = Vec::new();
-        for theme in Theme::ALL {
-            let need = if theme.is_high_contrast() { 7.0 } else { 4.5 };
-            for (name, fill) in [
-                ("checksum square", pal::CODEX32_CHECKSUM_FILL),
-                ("table row", pal::CODEX32_LOOKUP_FILL),
-            ] {
-                let got = contrast(theme.color(pal::TEXT), theme.color(fill));
-                if got < need {
-                    short.push(format!("{} text on a {name} is {got:.2}:1", theme.id()));
-                }
-                if theme.color(fill) == theme.color(pal::SURFACE) {
-                    short.push(format!("{} {name} is the card's own colour", theme.id()));
-                }
-            }
-        }
-        assert!(short.is_empty(), "{short:#?}");
-    }
-
-    /// What is drawn on the chosen option, a tonal button and the toast
-    /// reads on them in every theme.
-    #[test]
-    fn text_reads_on_the_chosen_option_and_on_the_toast_in_every_theme() {
-        let mut short = Vec::new();
-        for theme in Theme::ALL {
-            let need = if theme.is_high_contrast() { 7.0 } else { 4.5 };
-            for (name, fg, on) in [
-                ("chosen", pal::ON_SELECTED, pal::SELECTED),
-                ("toast", pal::ON_INVERSE, pal::INVERSE),
-            ] {
-                let got = contrast(theme.color(fg), theme.color(on));
-                if got < need {
-                    short.push(format!("{} {name} text is {got:.2}:1", theme.id()));
-                }
-            }
-            if theme.color(pal::SELECTED) == theme.color(pal::SURFACE) {
-                short.push(format!("{} chosen is the card's colour", theme.id()));
-            }
-        }
-        assert!(short.is_empty(), "{short:#?}");
-    }
-
     /// A chip tinted in a tone and a translucent edge, as `theme` draws
     /// them on its page: (inside the chip, on its edge, the page, on the
     /// translucent edge).
@@ -2267,8 +2006,8 @@ mod tests {
         {
             let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
             ui.theme = theme;
-            page = ui.col(pal::BG);
-            ui.clear(pal::BG);
+            page = ui.col(pal::SURFACE);
+            ui.clear(pal::SURFACE);
             ui.fill(100.0, 100.0, 120.0, 40.0, 0.0, pal::OK.with_alpha(30));
             ui.stroke(100.0, 200.0, 120.0, 40.0, 0.0, pal::ACCENT.with_alpha(110));
         }
@@ -2280,113 +2019,21 @@ mod tests {
         [at(160, 120), at(160, 100), page, at(160, 200)]
     }
 
-    /// In a high contrast theme nothing see-through lowers the contrast
-    /// of what is on it: a tint is drawn as its edge, the page left
-    /// under what it holds, and a translucent edge at full strength.
-    /// Elsewhere a tint is a tint.
+    /// At High contrast nothing see-through lowers the contrast of what
+    /// is on it: a tint is drawn as its edge, the page left under what it
+    /// holds, and a translucent edge at full strength. Elsewhere a tint
+    /// is a tint.
     #[test]
-    fn high_contrast_themes_draw_a_tint_as_its_edge_and_edges_at_full_strength() {
-        for theme in [Theme::HighContrastDark, Theme::HighContrastLight] {
+    fn high_contrast_draws_a_tint_as_its_edge_and_edges_at_full_strength() {
+        for theme in Theme::all().filter(|t| t.is_high_contrast()) {
             let [inside, edge, page, line] = tinted(theme);
             let rgb = |c: Color| (c.r, c.g, c.b);
-            assert_eq!(rgb(inside), rgb(page), "{}", theme.id());
-            assert!(contrast(edge, page) >= 3.0, "{} tint's edge", theme.id());
-            assert!(contrast(line, page) >= 3.0, "{} edge", theme.id());
+            assert_eq!(rgb(inside), rgb(page), "{theme:?}");
+            assert!(contrast(edge, page) >= 3.0, "{theme:?} tint's edge");
+            assert!(contrast(line, page) >= 3.0, "{theme:?} edge");
         }
-        let [inside, _, page, _] = tinted(Theme::Cobalt);
+        let [inside, _, page, _] = tinted(Theme::default());
         assert_ne!((inside.r, inside.g, inside.b), (page.r, page.g, page.b));
-    }
-
-    /// The text written in the accent is drawn in the accent as it is
-    /// read: darker than the fill in Bitcoin Orange Light.
-    #[test]
-    fn accent_text_in_bitcoin_orange_light_is_drawn_darker_than_its_fills() {
-        let mut canvas = canvas(160);
-        let mut hits = Vec::new();
-        let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
-        ui.theme = Theme::BitcoinOrangeLight;
-        let fill = ui.col(pal::ACCENT);
-        let text = ui.ink(pal::ACCENT);
-        assert!(contrast(text, ui.col(pal::SURFACE)) >= 4.5);
-        assert!(luminance(text) < luminance(fill));
-    }
-
-    /// See-through layers over a control (hover, the keyboard's place,
-    /// a press, a control not available now) and the scrim over the page
-    /// keep what is on them legible: in the high contrast themes text
-    /// 7:1 and edges 3:1 (their selected colour is chosen so a press on a
-    /// tonal button keeps it, and a filled button not available now is
-    /// fainter there), in the others text 3:1 at the strongest.
-    #[test]
-    fn state_layers_and_the_scrim_keep_text_and_edges_legible_in_every_theme() {
-        use faraday_draw::tokens::{SCRIM_ALPHA, STATE_FOCUS, STATE_HOVER, STATE_PRESS};
-        let mut short = Vec::new();
-        for theme in Theme::ALL {
-            let c = |k: Color| theme.color(k);
-            let high = theme.is_high_contrast();
-            let (text, edge) = if high { (7.0, 3.0) } else { (3.0, 1.0) };
-            for op in [STATE_HOVER, STATE_FOCUS, STATE_PRESS] {
-                // (what, the control's fill, its layer, what is on it, needs)
-                for (name, fill, layer, fg, need) in [
-                    ("filled", pal::ACCENT, pal::ON_ACCENT, pal::ON_ACCENT, text),
-                    ("outlined", pal::SURFACE, pal::TEXT, pal::TEXT, text),
-                    ("row label", pal::SURFACE, pal::TEXT, pal::MUTED, text),
-                    (
-                        "text button",
-                        pal::SURFACE,
-                        pal::ACCENT,
-                        pal::ACCENT_TEXT,
-                        text,
-                    ),
-                    (
-                        "tonal",
-                        pal::SELECTED,
-                        pal::ON_SELECTED,
-                        pal::ON_SELECTED,
-                        text,
-                    ),
-                    ("edge", pal::SURFACE, pal::TEXT, pal::OUTLINE, edge),
-                ] {
-                    let under = c(fill).mix(c(layer), op);
-                    let got = contrast(c(fg), under);
-                    if got < need {
-                        short.push(format!("{} {name} at {op}: {got:.2}:1", theme.id()));
-                    }
-                }
-            }
-            // A control not available now: WCAG asks no contrast of it,
-            // the high contrast themes keep 7:1 all the same.
-            let off = c(pal::SURFACE).mix(c(pal::TEXT), theme.off_fill());
-            let got = contrast(c(pal::DIM), off);
-            if high && got < 7.0 {
-                short.push(format!("{} not available: {got:.2}:1", theme.id()));
-            }
-            // A page's text under a sheet's scrim.
-            let scrim = f32::from(SCRIM_ALPHA) / 255.0;
-            let page = c(pal::SURFACE).mix(pal::SCRIM, scrim);
-            let ink = c(pal::TEXT).mix(pal::SCRIM, scrim);
-            if high && contrast(ink, page) < 7.0 {
-                short.push(format!("{} text under the scrim", theme.id()));
-            }
-        }
-        assert!(short.is_empty(), "{short:#?}");
-    }
-
-    #[test]
-    fn the_high_contrast_themes_draw_edges_at_3_to_1() {
-        for theme in Theme::ALL.into_iter().filter(|t| t.is_high_contrast()) {
-            for (name, edge) in [
-                ("card edge", pal::LINE),
-                ("rule", pal::INNER),
-                ("button edge", pal::BORDER),
-                ("place edge", pal::PLACE_EDGE),
-                ("chip edge", pal::CHIP_EDGE),
-                ("focus ring", pal::ACCENT),
-            ] {
-                let got = contrast(theme.color(edge), theme.color(pal::BG));
-                assert!(got >= 3.0, "{} {name} is {got:.2}:1", theme.id());
-            }
-        }
     }
 
     /// A canvas of 640 × 480 pixels at `dpi`.
@@ -2407,8 +2054,8 @@ mod tests {
 
     #[test]
     fn a_kept_theme_id_names_its_theme() {
-        for theme in Theme::ALL {
-            assert_eq!(Theme::from_id(theme.id()), Some(theme));
+        for preset in Preset::ALL {
+            assert_eq!(Preset::from_id(preset.id()), Some(preset));
         }
     }
 
