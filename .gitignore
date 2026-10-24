@@ -33,7 +33,9 @@
 /faraday/fuzz/artifacts/*/*
 !/faraday/fuzz/artifacts/*/*.*
 /faraday/fuzz/coverage/
-/faraday__pycache__/
+# Python bytecode, written wherever a tool or the cross-check runs Python.
+__pycache__/
+*.pyc
 
 # faraday/build/ is the same: the Linux apps' container recipe.
 !/faraday/build/
