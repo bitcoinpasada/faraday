@@ -1200,6 +1200,10 @@ impl Faraday {
         if matches!(p, Press::PaperOpen | Press::PaperK(_) | Press::PaperN(_)) {
             return self.backup.paper_c32(p);
         }
+        if matches!(p, Press::PaperKey(_) | Press::PaperNext | Press::PaperSkip) {
+            self.backup.paper_type(p);
+            return;
+        }
         let Some(b) = self.backup.state() else {
             return;
         };
@@ -1218,6 +1222,7 @@ impl Faraday {
             }
             Press::Key(k) => {
                 self.backup.c32_key(k);
+                self.c32_keep_held(key);
             }
             Press::Qr => self.c32_qr(c),
             Press::Next => self.c32_next(c, i, key),
@@ -1241,7 +1246,12 @@ impl Faraday {
                 }
             }
             Press::Set(s) => self.c32_set(c, s, i, key),
-            Press::PaperOpen | Press::PaperK(_) | Press::PaperN(_) => {}
+            Press::PaperOpen
+            | Press::PaperK(_)
+            | Press::PaperN(_)
+            | Press::PaperKey(_)
+            | Press::PaperNext
+            | Press::PaperSkip => {}
         }
     }
 
@@ -1349,6 +1359,8 @@ impl Faraday {
         );
         self.backup
             .change_answers(&shape, &|a, _| *a = answers.clone());
+        let texts: Vec<&str> = list.iter().map(|(_, s)| s.as_str()).collect();
+        self.session.keys.keep_codex32(key, &texts);
         if let Some(st) = self.backup.c32_mut() {
             st.keep(list);
             if let Some(&j) = paper.first() {
@@ -1386,6 +1398,9 @@ impl Faraday {
     /// far rebuild this seed, once enough are; then the next string on
     /// paper not yet checked, or the list once every one is.
     fn c32_next(&mut self, c: &Compute, i: usize, key: usize) {
+        // The strings typed on a keyboard, or by the item's keys, kept
+        // with the key before the item moves on.
+        self.c32_keep_held(key);
         let Some(b) = self.backup.state() else {
             return;
         };
@@ -1631,6 +1646,7 @@ impl Faraday {
             facts.strings.push((ch, State::Made));
             self.session.keys.set_codex32(key, Some(facts));
         }
+        self.session.keys.keep_codex32(key, &[s.as_str()]);
         if let Some(st) = self.backup.c32_mut() {
             st.keep(vec![(j, s)]);
             st.set = crate::codex32_backup::SetStep::None;
@@ -1684,6 +1700,19 @@ impl Faraday {
         }
     }
 
+    /// The strings of the codex32 item's set typed back, or typed in,
+    /// that hold: kept with key `key` for this session, so that a file of
+    /// one or a vault's share record can be written from it
+    /// (`docs/CODEX32.md` §9.5). A parse of each.
+    fn c32_keep_held(&mut self, key: usize) {
+        let Some(st) = self.backup.state().and_then(|b| b.c32.as_ref()) else {
+            return;
+        };
+        let texts: Vec<zeroize::Zeroizing<String>> = st.held.clone();
+        let refs: Vec<&str> = texts.iter().map(|s| s.as_str()).collect();
+        self.session.keys.keep_codex32(key, &refs);
+    }
+
     /// Each seed of wallet `w`'s codex32 set, where its key is here and
     /// has one (`docs/CODEX32.md` §9.4): what the plan places. A lookup.
     pub(crate) fn c32_sets(&self, w: usize) -> Vec<Option<faraday_vault::codex32::SetFacts>> {
@@ -1691,5 +1720,291 @@ impl Faraday {
             .into_iter()
             .map(|(_, k)| self.session.keys.info(k?)?.codex32.clone())
             .collect()
+    }
+}
+
+// ---------------------------------------------------------------------
+// Codex32 strings kept beyond paper (`docs/CODEX32.md` §9.5): a stick's
+// files, a vault's share records, the strings gathered at unlock.
+// ---------------------------------------------------------------------
+
+impl Faraday {
+    /// Costs a QR encoding and a picture for a Codex32QR. The bytes of
+    /// codex32 string `j` of session key `k`'s set in form `what`, for its
+    /// file on a stick (`docs/CODEX32.md` §9.5): the string, one line; or
+    /// its Codex32QR (upper case, byte mode, version 3, level L, §10.2) as
+    /// a labelled picture. `None` where this session does not hold the
+    /// string.
+    pub(crate) fn codex32_stick_bytes(
+        &self,
+        c: &Compute,
+        k: usize,
+        what: plan::What,
+        j: usize,
+    ) -> Option<zeroize::Zeroizing<Vec<u8>>> {
+        use faraday_codec::qr::{Ecc, Payload, encode_bounded};
+        use faraday_keys::{Part, Reveal};
+        let index = plan::codex32::CHARSET[j];
+        let s = self
+            .session
+            .keys
+            .codex32_string(k, index, Reveal::BackupStick(Part::Codex32))?;
+        match what {
+            plan::What::Codex32ShareFile(..) => {
+                let mut v = zeroize::Zeroizing::new(Vec::with_capacity(s.len() + 1));
+                v.extend_from_slice(s.as_bytes());
+                v.push(b'\n');
+                Some(v)
+            }
+            plan::What::Codex32QrFile(..) if s.len() == 48 => {
+                let mut upper = zeroize::Zeroizing::new(s.as_bytes().to_vec());
+                upper.make_ascii_uppercase();
+                let mx = encode_bounded(c, Payload::Bytes(&upper), Ecc::Low, 3).ok()?;
+                let id = s.get(4..8).unwrap_or("");
+                let share = char::from(index).to_ascii_uppercase().to_string();
+                let title = fill(EN.c32_picture_title, &[&share, id]);
+                let lines = [EN.c32_picture_line.to_string()];
+                Some(zeroize::Zeroizing::new(crate::picture::labelled_png(
+                    c, &mx, &title, &lines,
+                )))
+            }
+            _ => None,
+        }
+    }
+
+    /// Costs what `plan_mapped` costs. The first codex32 string the plan
+    /// keeps as a file on a stick that this session does not hold
+    /// (`docs/CODEX32.md` §9.5): its share index and its set's identifier.
+    /// **Lock and write** passes only once there is none. Computes from
+    /// the state as it is.
+    pub fn backup_stick_string_missing(&self, c: &Compute) -> Option<(char, String)> {
+        let b = self.backup.state()?;
+        let shape = self.plan_shape_now(b.wallet);
+        let list = self.backup_seed_list_now(b.wallet);
+        self.plan_mapped(c, &shape, &b.answers)
+            .stick_strings(&b.answers)
+            .into_iter()
+            .find_map(|(i, j)| {
+                let k = list.get(i)?.1?;
+                let index = plan::codex32::CHARSET[j];
+                if self.session.keys.holds_codex32(k, index) {
+                    return None;
+                }
+                let id = b.answers.c32(i)?.id_text().unwrap_or_default();
+                Some((char::from(index).to_ascii_uppercase(), id))
+            })
+    }
+
+    /// Costs a map of the plan, and a copy of each record staged. The
+    /// type 15 records (`docs/CODEX32.md` §9.5) the flow's round adds to
+    /// open vault `o`, its plan's vault `v`: each codex32 string the plan
+    /// `(shape, answers)` keeps there that the vault and `add` lack, from
+    /// an open vault's record of it or the string this session holds.
+    /// `Err`: the line naming a string that is not here, to be typed in
+    /// its checklist item first.
+    pub(crate) fn c32_round_records(
+        &self,
+        c: &Compute,
+        (shape, answers): (&plan::Shape, &plan::Answers),
+        v: usize,
+        o: usize,
+        add: &[faraday_keys::vault::Staged],
+    ) -> Result<Vec<faraday_keys::vault::Staged>, String> {
+        use faraday_keys::vault::{RecordView, Staged};
+        use faraday_vault::records::{field, kind};
+        let mut out: Vec<Staged> = Vec::new();
+        for (s, j) in plan::Mapped::of(c, shape, answers).vault_strings(answers, v) {
+            let Some(f) = shape
+                .seeds
+                .get(s)
+                .and_then(|x| read_hex4(&x.name.to_lowercase()))
+            else {
+                continue;
+            };
+            let index = plan::codex32::CHARSET[j];
+            let here = |r: RecordView<'_>| {
+                r.kind() == kind::CODEX32_SHARE
+                    && r.public(field::CODEX32_KEY) == Some(&f[..])
+                    && faraday_keys::vault::codex32_share_header(r)
+                        .is_some_and(|(_, _, x)| x == index)
+            };
+            if self
+                .vaults
+                .records(self.vaults.open[o].id)
+                .iter()
+                .any(|(_, r)| here(r))
+                || add.iter().chain(&out).any(|a| here(a.view()))
+            {
+                continue;
+            }
+            let found = self
+                .vaults
+                .open
+                .iter()
+                .find_map(|open| {
+                    let (k, _) = self
+                        .vaults
+                        .records(open.id)
+                        .iter()
+                        .find(|(_, r)| here(*r))?;
+                    self.vaults.store().stage(open.id, k, None)
+                })
+                .or_else(|| {
+                    let k = self.session.keys.position_of(f)?;
+                    self.session
+                        .keys
+                        .codex32_share_record(
+                            k,
+                            index,
+                            faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Codex32),
+                        )
+                        .map(Staged::Held)
+                });
+            match found {
+                Some(r) => out.push(r),
+                None => {
+                    let id = answers
+                        .c32(s)
+                        .and_then(plan::codex32::C32::id_text)
+                        .unwrap_or_default();
+                    let share = char::from(index).to_ascii_uppercase().to_string();
+                    return Err(fill(EN.c32_vault_missing, &[&share, &id]));
+                }
+            }
+        }
+        Ok(out)
+    }
+
+    /// Costs a QR encoding and a picture for a Codex32QR. Codex32 string
+    /// `what` of a seed of `list` (each seed's name and session key), made
+    /// for its file on a stick under `names` at **Lock and write**, a
+    /// secret let out unprotected (`docs/CODEX32.md` §9.5). Returns what a
+    /// picture must read back as.
+    pub(crate) fn c32_stick_file(
+        &mut self,
+        c: &Compute,
+        list: &[(String, Option<usize>)],
+        what: plan::What,
+        names: &[String],
+    ) -> Vec<(String, crate::backup_flow::ReadBack)> {
+        let Some((i, j)) = plan::codex32::string_of(what) else {
+            return Vec::new();
+        };
+        let (Some(k), Some(name)) = (list.get(i).and_then(|(_, k)| *k), names.first()) else {
+            return Vec::new();
+        };
+        let Some(bytes) = self.codex32_stick_bytes(c, k, what, j) else {
+            return Vec::new();
+        };
+        let mut expect = Vec::new();
+        if matches!(what, plan::What::Codex32QrFile(..)) {
+            let fp = crate::wallet::fp_text(self.session.keys[k].fingerprint);
+            expect.push((
+                name.clone(),
+                crate::backup_flow::ReadBack::Codex32(fp, plan::codex32::CHARSET[j]),
+            ));
+        }
+        self.outbox.retain(|it| it.name != *name);
+        let item = crate::Item::new(c, name, bytes.to_vec());
+        self.outbox_secret(crate::secrets::OutReason::StickBackup, item);
+        expect
+    }
+
+    /// Costs what `plan_mapped` costs. The codex32 strings the plan keeps
+    /// in vault `v`, each as a share record (`docs/CODEX32.md` §9.5): the
+    /// session key of its seed, its share index (a bech32 character,
+    /// lower case) and the seed by its place among the wallet's.
+    pub(crate) fn backup_vault_strings(&self, c: &Compute, v: usize) -> Vec<(usize, u8, usize)> {
+        let Some(b) = self
+            .backup
+            .state()
+            .filter(|b| !b.answers.codex32.is_empty())
+        else {
+            return Vec::new();
+        };
+        let shape = self.plan_shape_now(b.wallet);
+        let list = self.backup_seed_list_now(b.wallet);
+        self.kept
+            .plan_mapped(c, &shape, &b.answers)
+            .vault_strings(&b.answers, v)
+            .into_iter()
+            .filter_map(|(i, j)| Some((list.get(i)?.1?, plan::codex32::CHARSET[j], i)))
+            .collect()
+    }
+
+    /// Whether open vault `o` keeps the codex32 share record at index
+    /// `index` of session key `k`'s set. A lookup.
+    pub(crate) fn vault_holds_string(&self, o: usize, k: usize, index: u8) -> bool {
+        let Some(fp) = self.session.keys.info(k).map(|i| i.fingerprint.0) else {
+            return false;
+        };
+        self.vaults
+            .open
+            .get(o)
+            .is_some_and(|open| self.vaults.store().holds_codex32(open.id, fp, index))
+    }
+
+    /// Costs what `vault_summaries_refresh` and `vault_gather_codex32`
+    /// cost. A vault just unlocked: what the app remembers of the vaults
+    /// refreshed, and their codex32 shares gathered.
+    pub(crate) fn vault_unlocked_refresh(&mut self) {
+        self.vault_summaries_refresh();
+        self.vault_gather_codex32();
+    }
+
+    /// Costs what `gather_codex32` costs. The codex32 share records of
+    /// every open vault gathered towards their keys (`docs/CODEX32.md`
+    /// §9.5): a key held keeps its strings, and a key `k` strings of one
+    /// set make across the open vaults loads, its fingerprint said. Only
+    /// where keys may load.
+    pub(crate) fn vault_gather_codex32(&mut self) {
+        let c = self.compute();
+        if !self.may_load_keys() {
+            return;
+        }
+        let loaded = self
+            .vaults
+            .store()
+            .gather_codex32(&c, &mut self.session.keys);
+        if loaded.is_empty() {
+            return;
+        }
+        let fps: Vec<String> = loaded.into_iter().map(crate::wallet::fp_text).collect();
+        self.refresh_spend();
+        self.toast(&fill(EN.c32_gathered, &[&fps.join(", ")]));
+    }
+
+    /// Costs what `parse_words` costs for a SeedQR. Whether a secret
+    /// picture written as `meant` read back right (`docs/BACKUP-FLOW.md`
+    /// §17.12 item 10): its `bytes` the Outbox's byte for byte, and its one
+    /// code, while the key with fingerprint `fp` is loaded, the digits of
+    /// its words (a SeedQR) or its codex32 string at share index `index`
+    /// (a Codex32QR, `docs/CODEX32.md` §9.5).
+    pub(crate) fn secret_picture_reads(
+        &self,
+        c: &Compute,
+        meant: &str,
+        (bytes, codes): (&[u8], &[Vec<u8>]),
+        fp: &str,
+        index: Option<u8>,
+    ) -> bool {
+        let made = self
+            .outbox
+            .iter()
+            .find(|it| it.name == meant)
+            .is_some_and(|it| it.bytes == bytes);
+        let key = (0..self.session.keys.len())
+            .find(|&k| crate::wallet::fp_text(self.session.keys[k].fingerprint) == fp);
+        let reads = match (key, codes) {
+            (_, []) => false,
+            (Some(k), [one]) => match index {
+                None => self.seedqr_reads_as(c, k, one),
+                Some(j) => self.session.keys.codex32_reads_as(k, j, one),
+            }
+            .unwrap_or(true),
+            (Some(_), _) => false,
+            (None, _) => true,
+        };
+        made && reads
     }
 }

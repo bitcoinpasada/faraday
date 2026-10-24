@@ -1728,7 +1728,20 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     w,
                     (*k, strings.as_slice()),
                 );
+                // One string at a time, each typed back (§9.1).
+                cy += crate::codex32_backup::screen::paper_one(
+                    ui,
+                    x,
+                    cy,
+                    w,
+                    strings.as_slice(),
+                    &b.paper_typed,
+                );
             }
+            let lines: &[zeroize::Zeroizing<String>] = match form {
+                PaperForm::Codex32 { .. } => &[],
+                PaperForm::Xor(_) => lines,
+            };
             for (i, l) in lines.iter().enumerate() {
                 ui.text(x, cy, 12.0, W::R, MUTED, &format!("{}", i + 1));
                 cy += ui

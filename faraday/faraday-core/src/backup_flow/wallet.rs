@@ -10,6 +10,7 @@
 //! only a wallet needs.
 
 use crate::backup_flow::{BackupFlow, Kind, Step, Subject, Target};
+pub(crate) use crate::backup_flow::{seed_stick_file_of, seed_stick_name, seedqr_picture};
 use crate::plan;
 use crate::strings::{EN, fill};
 use crate::vault::VaultAction as V;
@@ -552,6 +553,9 @@ impl Faraday {
                     .unwrap_or_default()
             }
             P::SoftwareFile => software_files(&stem, &Self::backup_public_for(wl, a)),
+            P::Codex32ShareFile(..) | P::Codex32QrFile(..) => {
+                crate::codex32_backup::stick_names(shape, a, what)
+            }
             _ => Vec::new(),
         }
     }
@@ -641,6 +645,9 @@ impl Faraday {
                         let made = self.public_made(w, x);
                         self.put_made(made, &names);
                     }
+                }
+                P::Codex32ShareFile(..) | P::Codex32QrFile(..) => {
+                    expect.extend(self.c32_stick_file(&c, &list, what, &names));
                 }
                 _ => {}
             }
@@ -854,6 +861,11 @@ impl Faraday {
         // (`docs/BACKUP-FLOW.md` §17.12 item 6).
         if let Some(i) = self.backup_stick_seed_unwarned(&c) {
             return self.offer_stick_seed(i);
+        }
+        // A codex32 string's file is written from the string this session
+        // holds: one it does not hold is typed in its item first.
+        if let Some((share, id)) = self.backup_stick_string_missing(&c) {
+            return self.toast(&fill(EN.c32_vault_missing, &[&share.to_string(), &id]));
         }
         let used = answers.vaults_made(&shape);
         // Every vault of the plan is open, and holds what the plan puts
@@ -1599,6 +1611,11 @@ impl Faraday {
                     Some(r) => w.add.push(r),
                     None => return self.toast(EN.backup_flow_unlock_first),
                 }
+            }
+            // Each codex32 string the plan keeps in the vault (`docs/CODEX32.md` §9.5).
+            match self.c32_round_records(&c, (&wf.shape, &wf.answers), v, o, &w.add) {
+                Ok(more) => w.add.extend(more),
+                Err(line) => return self.toast(&line),
             }
             // The plan record goes with them, so the next backup finds it:
             // this wallet's, and nothing else of the holder's.
@@ -2388,46 +2405,6 @@ pub(crate) fn seedqr_png(
     Some(seedqr_picture(c, &mx, m.word_count(), fp))
 }
 
-/// Costs a picture. The SeedQR `mx`, of a seed of `words` words, as a
-/// labelled picture titled with its fingerprint `fp`.
-pub(crate) fn seedqr_picture(
-    c: &Compute,
-    mx: &faraday_codec::qr::QrMatrix,
-    words: usize,
-    fp: &str,
-) -> zeroize::Zeroizing<Vec<u8>> {
-    let title = fill(EN.secrets_seed, &[fp]);
-    let lines = [fill(EN.secrets_words_secret, &[&words.to_string()])];
-    zeroize::Zeroizing::new(crate::picture::labelled_png(c, mx, &title, &lines))
-}
-
-/// The name seed form `what` of the seed with fingerprint `fp` is written
-/// as on a stick (`docs/BACKUP-FLOW.md` §17.12 item 6): `seed-{fp}.txt`,
-/// `seedqr-{fp}.png`, `passphrase-{fp}.txt`, the fingerprint in lower case.
-pub(crate) fn seed_stick_name(what: plan::What, fp: &str) -> Option<String> {
-    let fp = fp.to_lowercase();
-    match what {
-        plan::What::SeedFile(_) => Some(format!("seed-{fp}.txt")),
-        plan::What::SeedQrFile(_) => Some(format!("seedqr-{fp}.png")),
-        plan::What::PassphraseFile(_) => Some(format!("passphrase-{fp}.txt")),
-        _ => None,
-    }
-}
-
-/// Whether `name` is a file on a stick of one of the seeds `fps`, in any
-/// form ([`seed_stick_name`]).
-pub(crate) fn seed_stick_file_of(fps: &[String], name: &str) -> bool {
-    fps.iter().any(|fp| {
-        [
-            plan::What::SeedFile(0),
-            plan::What::SeedQrFile(0),
-            plan::What::PassphraseFile(0),
-        ]
-        .into_iter()
-        .any(|w| seed_stick_name(w, fp).as_deref() == Some(name))
-    })
-}
-
 /// Costs a hash of a whole file (through `sha256_of`). Splits `text`
 /// into its codes' parts: each of the pictures `names` (as
 /// [`crate::picture_names`] names them for `text`) with the SHA-256 of
@@ -2614,13 +2591,17 @@ impl BackupFlow {
             .into_iter()
             .flat_map(|at| plan::holds_at(&boxes, at))
             .any(|what| {
-                let seed = match what {
+                match what {
                     plan::What::SeedFile(i)
                     | plan::What::SeedQrFile(i)
-                    | plan::What::PassphraseFile(i) => w.shape.seeds.get(i).filter(|x| x.here),
-                    _ => None,
-                };
-                seed.is_some_and(|x| seed_stick_name(what, &x.name).as_deref() == Some(name))
+                    | plan::What::PassphraseFile(i) => {
+                        w.shape.seeds.get(i).filter(|x| x.here).is_some_and(|x| {
+                            seed_stick_name(what, &x.name).as_deref() == Some(name)
+                        })
+                    }
+                    // A codex32 string's file (`docs/CODEX32.md` §9.5).
+                    _ => crate::codex32_backup::stick_name_is(&w.shape, what, name),
+                }
             })
     }
 

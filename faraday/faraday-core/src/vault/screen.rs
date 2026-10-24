@@ -2016,13 +2016,10 @@ fn item_heading(app: &View, r: RecordView<'_>) -> (String, String, bool) {
                 false,
             )
         }
+        kind::CODEX32_SHARE => crate::codex32_backup::screen::vault_row(r),
         // A key's passphrase kept without its words: named by the key.
         kind::PASSPHRASE => {
-            let fp = r
-                .public(field::PASSPHRASE_KEY)
-                .and_then(|b| <[u8; 4]>::try_from(b).ok())
-                .map(|b| fp_text(faraday_bip::keys::Fingerprint(b)))
-                .unwrap_or_default();
+            let fp = crate::codex32_backup::screen::record_fp(r, field::PASSPHRASE_KEY);
             (fill(EN.plan_passphrase_label, &[&fp]), String::new(), true)
         }
         _ => (EN.vault_record.to_string(), String::new(), false),

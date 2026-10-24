@@ -2,7 +2,8 @@
 //! `docs/BACKUP-FLOW.md` §17.23): a key with a set opening on one string
 //! per place; a key of words turned to codex32 strings on the board;
 //! the checklist's item making them and a string typed back; the set's
-//! actions; the copies by hand's one codex32 choice.
+//! actions; the copies by hand's one codex32 choice, its strings shown
+//! one at a time and typed back.
 
 use crate::tour::{Tour, type_text};
 use faraday_core::Action;
@@ -123,5 +124,51 @@ pub(crate) fn codex32_backup_tour(t: &mut Tour) -> Result<(), String> {
         t.press(Action::BStep(n));
     }
     c32(t, Press::Make);
-    t.shot("c32b-9-string-made")
+    t.shot("c32b-9-string-made")?;
+    paper_strings(t)
+}
+
+/// The copies by hand's codex32 strings, one at a time (`docs/CODEX32.md`
+/// §9.1), for a third key's wallet: the first shown, then typed back.
+fn paper_strings(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::{bstep, plan};
+    t.press(Action::Entry(None));
+    type_text(
+        t,
+        &faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[1].0),
+    );
+    t.press(Action::EntryAdd);
+    wallet_of(t, 2)?;
+    t.press(Action::BChecklist);
+    t.press(Action::BNext(bstep::BLANK));
+    let copy = bstep::of(plan::Item::Copy(0));
+    if t.app.backup().and_then(|b| b.open) != Some(copy) {
+        t.press(Action::BStep(copy));
+    }
+    t.press(Action::BReveal);
+    t.press(Action::BCodex32(2, 3));
+    t.shot("c32b-10-paper-one")?;
+    let first = match t.app.backup().and_then(|b| b.paper.as_ref()) {
+        Some(faraday_core::paper::PaperForm::Codex32 { strings, .. }) => {
+            strings.first().map(|s| s.to_string()).ok_or("a string")?
+        }
+        _ => return Err("no codex32 strings".into()),
+    };
+    for ch in first[3..].chars() {
+        c32(
+            t,
+            Press::PaperKey(faraday_core::codex32::OskPress::Char(ch)),
+        );
+    }
+    // Scrolled to the string typed back and its keyboard.
+    let (w, h) = t.size();
+    for dy in [h, h, h / 4] {
+        let _ = t.app.frame();
+        t.app.event(Event::Scroll {
+            x: w / 2,
+            y: h / 2,
+            dy: i16::try_from(dy).unwrap_or(i16::MAX),
+        });
+    }
+    t.shot("c32b-11-paper-typed")
 }

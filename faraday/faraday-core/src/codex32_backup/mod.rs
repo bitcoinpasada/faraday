@@ -55,6 +55,99 @@ pub enum Press {
     PaperK(u8),
     /// That choice's strings, one more or one fewer.
     PaperN(i8),
+    /// A key of the codex32 keyboard on the copies by hand's string open.
+    PaperKey(OskPress),
+    /// **Continue** on the copies by hand's string open: the next one.
+    PaperNext,
+    /// **Skip** on the copies by hand's string open: a first press asks.
+    PaperSkip,
+}
+
+/// The copies by hand's codex32 strings, one at a time (`docs/CODEX32.md`
+/// §9.1): the string open, typed back on the codex32 keyboard or skipped
+/// behind the quiz's caution, then the next; past the last, each has been
+/// written down.
+#[derive(Default)]
+pub struct PaperTyping {
+    /// The string open, from 0; the strings' count once every one is
+    /// typed back or skipped.
+    pub at: usize,
+    /// Typed back, after `ms1`.
+    pub typed: Zeroizing<String>,
+    /// What the string typed back was found to be, once whole.
+    pub found: Option<Found>,
+    /// Skip pressed once: the caution is shown.
+    pub skip_ask: bool,
+}
+
+impl PaperTyping {
+    /// A key of the codex32 keyboard on string `want`: the character goes
+    /// in, or the last comes out; at its last box the string typed is
+    /// compared with `want`, box by box.
+    pub fn key(&mut self, want: &str, press: OskPress) {
+        let room = want.len().saturating_sub(3);
+        match press {
+            OskPress::Char(ch) => {
+                let ch = ch.to_ascii_lowercase();
+                if self.typed.len() >= room
+                    || !ch.is_ascii()
+                    || !crate::plan::codex32::CHARSET.contains(&(ch as u8))
+                {
+                    return;
+                }
+                self.typed.push(ch);
+                self.skip_ask = false;
+            }
+            OskPress::Back => {
+                self.typed.pop();
+                self.found = None;
+                return;
+            }
+            _ => return,
+        }
+        if self.typed.len() < room {
+            return;
+        }
+        let typed = want
+            .bytes()
+            .skip(3)
+            .zip(self.typed.bytes())
+            .position(|(a, b)| a != b);
+        self.found = Some(match typed {
+            Some(p) => Found::Differs(fill(EN.codex32_box_differs, &[&(p + 4).to_string()])),
+            None => Found::Holds(fill(EN.c32_paper_same, &[&(self.at + 1).to_string()])),
+        });
+    }
+
+    /// **Continue**: the string typed back the same moves on to the next
+    /// of `n`; otherwise it is said to type it back first.
+    pub fn next(&mut self, n: usize) {
+        if matches!(self.found, Some(Found::Holds(_))) {
+            self.open(self.at + 1, n);
+        }
+    }
+
+    /// **Skip**: the first press shows the caution, the second moves on.
+    pub fn skip(&mut self, n: usize) {
+        if self.skip_ask {
+            self.open(self.at + 1, n);
+        } else {
+            self.skip_ask = true;
+        }
+    }
+
+    fn open(&mut self, at: usize, n: usize) {
+        self.at = at.min(n);
+        self.typed.clear();
+        self.found = None;
+        self.skip_ask = false;
+    }
+
+    /// Whether string `at` waits for its keys: open, and not yet typed
+    /// back the same.
+    pub fn typing(&self, n: usize) -> bool {
+        self.at < n && !matches!(self.found, Some(Found::Holds(_)))
+    }
 }
 
 /// The copies by hand's codex32 choice (§9.1) after `p`, from `now`
@@ -433,4 +526,74 @@ pub fn next_index(form: &C32) -> Option<usize> {
 pub fn index_typed(c: char) -> Option<usize> {
     crate::plan::codex32::index_of(u8::try_from(c).ok()?)
         .filter(|&j| j != crate::plan::codex32::SECRET)
+}
+
+/// The name codex32 string `j` of the seed with fingerprint `fp` is
+/// written as on a stick (`docs/CODEX32.md` §9.5): `codex32-{fp}-{index}.txt`
+/// for the string, `codex32qr-{fp}-{index}.png` for its Codex32QR, the
+/// fingerprint and the index in lower case.
+pub fn stick_name(what: crate::plan::What, fp: &str, j: usize) -> Option<String> {
+    let fp = fp.to_lowercase();
+    let index = crate::plan::codex32::index_char(j);
+    match what {
+        crate::plan::What::Codex32ShareFile(..) => Some(format!("codex32-{fp}-{index}.txt")),
+        crate::plan::What::Codex32QrFile(..) => Some(format!("codex32qr-{fp}-{index}.png")),
+        _ => None,
+    }
+}
+
+/// The names codex32 string `what` (a file or a Codex32QR picture) is
+/// written as on a stick under the plan `(shape, a)`: a string of a split
+/// set, its Codex32QR at 48 characters only (`docs/CODEX32.md` §9.5, §10.4).
+pub fn stick_names(
+    shape: &crate::plan::Shape,
+    a: &crate::plan::Answers,
+    what: crate::plan::What,
+) -> Vec<String> {
+    let Some((i, j)) = crate::plan::codex32::string_of(what) else {
+        return Vec::new();
+    };
+    let Some(f) = a.c32(i).filter(|f| f.k >= 2) else {
+        return Vec::new();
+    };
+    let qr = matches!(what, crate::plan::What::Codex32QrFile(..));
+    match shape.seeds.get(i).filter(|x| x.here) {
+        Some(x) if !qr || f.length == 48 => stick_name(what, &x.name, j).into_iter().collect(),
+        _ => Vec::new(),
+    }
+}
+
+/// Whether `name` is codex32 string `what`'s file on a stick, for a seed
+/// of `shape` here.
+pub fn stick_name_is(shape: &crate::plan::Shape, what: crate::plan::What, name: &str) -> bool {
+    let Some((i, j)) = crate::plan::codex32::string_of(what) else {
+        return false;
+    };
+    shape
+        .seeds
+        .get(i)
+        .filter(|x| x.here)
+        .is_some_and(|x| stick_name(what, &x.name, j).as_deref() == Some(name))
+}
+
+/// A press on the copies by hand's codex32 string open (§9.1), on the
+/// backup `b`: a key typed back, Continue or Skip. Whether it was taken.
+pub(crate) fn paper_type(b: &mut crate::wallet_backup::BackupState, p: Press) -> bool {
+    let crate::wallet_backup::BackupState {
+        paper, paper_typed, ..
+    } = b;
+    let Some(crate::paper::PaperForm::Codex32 { strings, .. }) = paper.as_ref() else {
+        return false;
+    };
+    let n = strings.len();
+    match p {
+        Press::PaperKey(k) => match strings.get(paper_typed.at) {
+            Some(want) => paper_typed.key(want, k),
+            None => return false,
+        },
+        Press::PaperNext => paper_typed.next(n),
+        Press::PaperSkip => paper_typed.skip(n),
+        _ => return false,
+    }
+    true
 }

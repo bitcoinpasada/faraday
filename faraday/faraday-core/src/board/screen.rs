@@ -866,8 +866,9 @@ fn place_head(
     for (&(text, tone), &want) in facts.iter().zip(&tag_ws) {
         let tw = (want - tokens::GAP).min(right - tx);
         // A tag that cannot show its first letters is left off, and so is
-        // every one after it.
-        if tw <= 2.0 * pad {
+        // every one after it: one with less room for its text than the
+        // tag is tall would show no more than "…".
+        if tw <= 2.0 * pad + tokens::BOARD_TAG {
             break;
         }
         let th = tokens::BOARD_TAG;

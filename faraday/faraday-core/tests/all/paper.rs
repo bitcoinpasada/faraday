@@ -90,3 +90,70 @@ fn two_of_three_codex32_shares_typed_back_are_the_same_key() {
     assert_eq!((*k, strings.len()), (2, 3));
     assert_eq!(added_from(2, &[&strings[0], &strings[2]]), want);
 }
+
+/// The copies by hand's codex32 strings show one at a time
+/// (`docs/CODEX32.md` §9.1): each typed back on the codex32 keyboard, a
+/// box typed wrong named, Skip only after its caution, then the next;
+/// past the last, every string has been written down.
+#[test]
+fn codex32_strings_show_one_at_a_time_each_typed_back() {
+    use faraday_core::codex32_backup::{Found, Press};
+    let mut app = backing_up();
+    // The checklist's copy of the key, its words shown.
+    app.press(Action::BChecklist);
+    // The blank templates, printed from Faraday Starter, come first.
+    if app.backup().unwrap().open == Some(faraday_core::bstep::BLANK) {
+        app.press(Action::BNext(faraday_core::bstep::BLANK));
+    }
+    let copy = faraday_core::bstep::of(faraday_core::plan::Item::Copy(0));
+    if app.backup().unwrap().open != Some(copy) {
+        app.press(Action::BStep(copy));
+    }
+    app.press(Action::BReveal);
+    app.press(Action::BCodex32(2, 3));
+    let strings: Vec<String> = match &app.backup().unwrap().paper {
+        Some(PaperForm::Codex32 { strings, .. }) => strings.iter().map(|s| s.to_string()).collect(),
+        _ => panic!("no shares"),
+    };
+    let at = |app: &Faraday| app.backup().unwrap().paper_typed.at;
+    let found = |app: &Faraday| app.backup().unwrap().paper_typed.found.clone();
+    let _ = app.frame();
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "String 1 of 3"), "{texts:?}");
+    let shown = |s: &str| faraday_ui::grouped(s);
+    let drawn = texts.join(" ");
+    assert!(
+        !drawn.contains(&shown(&strings[1])[..20]),
+        "one string at a time"
+    );
+    // Box 17 typed wrong is named.
+    let mut wrong = strings[0].clone();
+    let other = if &wrong[16..17] == "q" { "p" } else { "q" };
+    wrong.replace_range(16..17, other);
+    typed(&mut app, &wrong[3..]);
+    assert_eq!(found(&app), Some(Found::Differs("Box 17 differs".into())));
+    app.press(Action::BC32(Press::PaperNext));
+    assert_eq!(at(&app), 0, "not on before it is typed back");
+    for _ in 3..wrong.len() {
+        app.event(Event::Key(Key::Backspace));
+    }
+    typed(&mut app, &strings[0][3..]);
+    assert_eq!(found(&app), Some(Found::Holds("String 1 matches".into())));
+    app.press(Action::BC32(Press::PaperNext));
+    assert_eq!(at(&app), 1);
+    // Skip asks first.
+    app.press(Action::BC32(Press::PaperSkip));
+    assert_eq!(at(&app), 1);
+    assert!(app.backup().unwrap().paper_typed.skip_ask);
+    app.press(Action::BC32(Press::PaperSkip));
+    assert_eq!(at(&app), 2);
+    typed(&mut app, &strings[2][3..]);
+    app.press(Action::BC32(Press::PaperNext));
+    assert_eq!(at(&app), 3);
+    let _ = app.frame();
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "Every string written down")
+    );
+}

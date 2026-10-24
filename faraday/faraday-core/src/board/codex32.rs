@@ -246,3 +246,95 @@ pub(crate) fn forms_shown(a: &Answers, z: Zone, t: Thing) -> Vec<What> {
         .filter(|w| qr || !matches!(w, What::Codex32QrPaper(..) | What::Codex32QrFile(..)))
         .collect()
 }
+
+/// Place `p`'s lines of fact counting codex32 shares (`docs/CODEX32.md`
+/// §9.5): for each seed kept as strings, the distinct indices of its set
+/// across the place's zones (its paper, its sticks' files), "1 of 2 shares
+/// of 9A6A2580 · alone: nothing" while too few, "2 of 2 shares of
+/// 9A6A2580: the seed" once enough; a string in a vault whose stick the
+/// place keeps counts with that vault's passphrase, as a vault's seed does
+/// (`plan::alone`).
+pub(crate) fn place_lines(
+    shape: &Shape,
+    a: &Answers,
+    m: &plan::Mapped,
+    p: usize,
+) -> Vec<(String, plan::AloneKind)> {
+    if a.codex32.is_empty() {
+        return Vec::new();
+    }
+    let vaults: Vec<usize> = m
+        .map
+        .iter()
+        .filter(|s| matches!(s.at, At::Stick(q, _) if q == p))
+        .flat_map(|s| s.holds.iter())
+        .filter_map(|(w, _)| match *w {
+            What::VaultStick(v) => Some(v),
+            _ => None,
+        })
+        .collect();
+    let mut out = Vec::new();
+    for f in &a.codex32 {
+        let Some(seed) = shape.seeds.get(f.seed) else {
+            continue;
+        };
+        let clear = strings_at(&m.map, f.seed, &|at| match at {
+            At::Place(q) | At::Stick(q, _) => q == p,
+            _ => false,
+        });
+        let mut with = clear.clone();
+        with.extend(strings_at(
+            &m.map,
+            f.seed,
+            &|at| matches!(at, At::Vault(v) if vaults.contains(&v)),
+        ));
+        with.sort_unstable();
+        with.dedup();
+        if with.is_empty() {
+            continue;
+        }
+        let need = f.need();
+        let whole = |js: &[usize]| js.len() >= need || js.contains(&plan::codex32::SECRET);
+        let (n, k) = (clear.len().to_string(), need.to_string());
+        out.push(if whole(&clear) {
+            (
+                fill(EN.c32_place_seed, &[&n, &k, &seed.name]),
+                plan::AloneKind::SeesBalance,
+            )
+        } else if whole(&with) {
+            (
+                fill(
+                    EN.c32_place_vault,
+                    &[&with.len().to_string(), &k, &seed.name],
+                ),
+                plan::AloneKind::NeedsVault,
+            )
+        } else {
+            (
+                fill(
+                    EN.c32_place_nothing,
+                    &[&with.len().to_string(), &k, &seed.name],
+                ),
+                plan::AloneKind::Nothing,
+            )
+        });
+    }
+    out
+}
+
+/// Place `p`'s lines of fact (`docs/DESIGN.md` §4.17): what it sees of the
+/// balance alone, how near it brings a spend, and the codex32 shares it
+/// keeps ([`place_lines`]).
+pub(crate) fn facts(
+    shape: &Shape,
+    a: &Answers,
+    m: &plan::Mapped,
+    p: usize,
+    alone: plan::Alone,
+) -> Vec<(String, plan::AloneKind)> {
+    let (t, k) = alone.balance_tag();
+    let mut v = vec![(t.to_string(), k)];
+    v.extend(plan::reach_on(shape, m, p).map(plan::Reach::tag));
+    v.extend(place_lines(shape, a, m, p));
+    v
+}

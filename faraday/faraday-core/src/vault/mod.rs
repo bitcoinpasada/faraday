@@ -1284,7 +1284,7 @@ impl Faraday {
                     EN.vaults_unlocked,
                     &[&self.vaults.open[v].name.to_string()],
                 ));
-                self.vault_summaries_refresh();
+                self.vault_unlocked_refresh();
                 if for_import {
                     // Its Load sheet (F62); after it, the next vault the
                     // import brought is offered, or, with none left, the

@@ -1331,6 +1331,121 @@ impl OpenVaults {
         loaded
     }
 
+    /// Costs a parse of each codex32 share record's string and, for each
+    /// set enough of them make, an interpolation, an HMAC-SHA512 and what
+    /// `add_seed` costs. The strings the share records of every open vault
+    /// keep (`docs/VAULT.md` §7 type 15), gathered towards their keys
+    /// (`docs/CODEX32.md` §9.5, Getting the seed back), as the codex32 form
+    /// gathers typed ones: one set, distinct indices. A key the session
+    /// holds keeps the strings of its set ([`Keys::keep_codex32`]). A key
+    /// it does not hold loads once `k` strings of one set are in across
+    /// the open vaults and the seed they make has the fingerprint the
+    /// records name; its set's facts are the strings found. Returns the
+    /// fingerprints of the keys loaded.
+    pub fn gather_codex32(&self, c: &Compute, keys: &mut Keys) -> Vec<Fingerprint> {
+        use faraday_bip::codex32::Codex32;
+        use fv::codex32::{SetFacts, State};
+        // Each set, by the fingerprint the records name and its
+        // identifier: its strings, one per index.
+        type Set = ([u8; 4], Vec<(Codex32, Zeroizing<String>)>);
+        let mut sets: Vec<Set> = Vec::new();
+        for slot in &self.slots {
+            for r in slot
+                .records
+                .records
+                .iter()
+                .filter(|r| r.kind == kind::CODEX32_SHARE)
+            {
+                let (Some(text), Some(fp)) = (
+                    r.text(field::CODEX32_STRING),
+                    r.field(field::CODEX32_KEY)
+                        .and_then(|b| <[u8; 4]>::try_from(b).ok()),
+                ) else {
+                    continue;
+                };
+                let Ok(share) = Codex32::parse(text) else {
+                    continue;
+                };
+                let at = match sets.iter().position(|(f, list)| {
+                    *f == fp
+                        && list
+                            .first()
+                            .is_some_and(|(x, _)| x.identifier() == share.identifier())
+                }) {
+                    Some(at) => at,
+                    None => {
+                        sets.push((fp, Vec::new()));
+                        sets.len() - 1
+                    }
+                };
+                let list = &mut sets[at].1;
+                if !list
+                    .iter()
+                    .any(|(x, _)| x.share_index() == share.share_index())
+                {
+                    list.push((share, Zeroizing::new(text.to_string())));
+                }
+            }
+        }
+        let mut loaded = Vec::new();
+        for (fp, list) in sets {
+            let texts: Vec<&str> = list.iter().map(|(_, t)| t.as_str()).collect();
+            if let Some(k) = keys.position_of(fp) {
+                keys.keep_codex32(k, &texts);
+                continue;
+            }
+            let Some((first, _)) = list.first() else {
+                continue;
+            };
+            let need = usize::from(first.threshold());
+            if need < 2 || list.len() < need {
+                continue;
+            }
+            let parts: Vec<Codex32> = list
+                .iter()
+                .take(need)
+                .filter_map(|(_, t)| Codex32::parse(t).ok())
+                .collect();
+            let Ok(seed) = crate::operations::codex32_seed(&parts) else {
+                continue;
+            };
+            if crate::identity::fingerprint_of_seed(c, &seed) != Some(Fingerprint(fp)) {
+                continue;
+            }
+            let Ok(got) = keys.add_seed(c, &seed, "") else {
+                continue;
+            };
+            let at = keys.len() - 1;
+            let facts = SetFacts {
+                threshold: first.threshold(),
+                identifier: first.identifier(),
+                length: u8::try_from(texts.first().map_or(0, |t| t.len())).unwrap_or(0),
+                unknown: 0,
+                strings: list
+                    .iter()
+                    .map(|(x, _)| (x.share_index(), State::Placed))
+                    .collect(),
+            };
+            keys.set_codex32(at, Some(facts));
+            keys.keep_codex32(at, &texts);
+            loaded.push(got);
+        }
+        loaded
+    }
+
+    /// Whether open vault `id` keeps a codex32 share record of the key
+    /// with fingerprint `fp` at share index `index` (a bech32 character,
+    /// lower case). A lookup.
+    pub fn holds_codex32(&self, id: VaultId, fp: [u8; 4], index: u8) -> bool {
+        self.slot(id).is_some_and(|s| {
+            s.records.records.iter().any(|r| {
+                r.kind == kind::CODEX32_SHARE
+                    && r.field(field::CODEX32_KEY) == Some(&fp[..])
+                    && codex32_header(r).is_some_and(|(_, _, j)| j == index)
+            })
+        })
+    }
+
     /// Costs a fingerprint for each passphrase record. The passphrase an
     /// open vault keeps alone (a type 14 record,
     /// `docs/BACKUP-FLOW.md` §17.12 item 4) for the key the words `m`
@@ -1594,6 +1709,23 @@ fn phrase_of(m: &Mnemonic) -> Zeroizing<String> {
         out.push_str(lang.word(i));
     }
     out
+}
+
+/// A codex32 share record's header, the set's plain facts it states: its
+/// threshold, its identifier and its share index (lower case), read from
+/// the string's first nine characters (`ms1`, then one each, four, one).
+/// No more of the string. `None` for no such record. A lookup.
+pub fn codex32_share_header(r: RecordView<'_>) -> Option<(u8, [u8; 4], u8)> {
+    (r.kind() == kind::CODEX32_SHARE).then(|| codex32_header(r.raw()))?
+}
+
+fn codex32_header(r: &Record) -> Option<(u8, [u8; 4], u8)> {
+    let b = r.field(field::CODEX32_STRING)?;
+    let head = b.get(..9)?;
+    let k = head[3].checked_sub(b'0').filter(|k| *k <= 9)?;
+    let mut id = [0u8; 4];
+    id.copy_from_slice(&head[4..8]);
+    Some((k, id, head[8]))
 }
 
 /// The codex32 set a key record keeps, its plain facts

@@ -1274,12 +1274,7 @@ impl Faraday {
                     name,
                     sticks,
                     paper: zone(Zone::Paper(p), At::Place(p), Some(p), true),
-                    facts: {
-                        let (t, k) = alone.balance_tag();
-                        let mut v = vec![(t.to_string(), k)];
-                        v.extend(plan::reach_on(&shape, &mapped, p).map(plan::Reach::tag));
-                        v
-                    },
+                    facts: codex32::facts(&shape, &a, &mapped, p, alone),
                 }
             })
             .collect();

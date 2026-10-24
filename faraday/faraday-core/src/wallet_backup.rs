@@ -546,6 +546,9 @@ pub struct BackupState {
     /// The copies by hand's codex32 choice while open: `k` and `n`
     /// (`docs/CODEX32.md` §9.1).
     pub paper_c32: Option<(u8, u8)>,
+    /// The copies by hand's codex32 strings shown one at a time, each
+    /// typed back or skipped (`docs/CODEX32.md` §9.1).
+    pub paper_typed: crate::codex32_backup::PaperTyping,
 }
 
 /// The wallet backup checklist (`Screen::Backup`): the backup under way,
@@ -642,7 +645,10 @@ impl WalletBackupArea {
                 b.reveal = b.check.is_some() || !b.reveal;
                 b.check = None;
             }
-            Action::BPaperHide => b.paper = None,
+            Action::BPaperHide => {
+                b.paper = None;
+                b.paper_typed = crate::codex32_backup::PaperTyping::default();
+            }
             Action::BCompact(c) => {
                 b.compact = c;
                 b.pin = 0;
@@ -700,6 +706,17 @@ impl WalletBackupArea {
         let Some(b) = self.state.as_mut() else {
             return false;
         };
+        // The copies by hand's codex32 string open, typed back.
+        if let Some(paper::PaperForm::Codex32 { strings, .. }) = b.paper.as_ref()
+            && b.paper_typed.typing(strings.len())
+        {
+            let press = match key {
+                KeyIn::Char(c) => crate::codex32_backup::Press::PaperKey(OskPress::Char(c)),
+                KeyIn::Backspace => crate::codex32_backup::Press::PaperKey(OskPress::Back),
+                _ => return false,
+            };
+            return crate::codex32_backup::paper_type(b, press);
+        }
         // A codex32 string typed back, or in, on the keyboard.
         if b.open.is_some_and(bstep::is_codex32)
             && b.c32.as_ref().is_some_and(|c| {
@@ -798,6 +815,13 @@ impl WalletBackupArea {
                 *st = crate::codex32_backup::Strings::new(i);
             }
         }
+    }
+
+    /// A press on the copies by hand's codex32 string open (§9.1).
+    pub(crate) fn paper_type(&mut self, p: crate::codex32_backup::Press) -> bool {
+        self.state
+            .as_mut()
+            .is_some_and(|b| crate::codex32_backup::paper_type(b, p))
     }
 
     /// The copies by hand's codex32 choice changed by `p` (§9.1).
@@ -1144,6 +1168,7 @@ impl WalletBackupArea {
         if let Some(b) = self.state.as_mut() {
             b.paper = Some(form);
             b.paper_c32 = None;
+            b.paper_typed = crate::codex32_backup::PaperTyping::default();
         }
     }
 
@@ -2158,7 +2183,8 @@ impl Faraday {
         let b = self.backup.state()?;
         self.session.wallets.get(b.wallet)?;
         let (own_seeds, _) = self.backup_vault_seeds(v);
-        let shares = !self.backup_vault_shares(c, v).is_empty();
+        let shares = !self.backup_vault_shares(c, v).is_empty()
+            || !self.backup_vault_strings(c, v).is_empty();
         let passphrases = !self.backup_vault_passphrases(c, v).is_empty();
         (!own_seeds.is_empty() || b.answers.wallet_in_vault(v) || shares || passphrases)
             .then_some(())
@@ -2240,6 +2266,10 @@ impl Faraday {
                 .backup_vault_passphrases(c, v)
                 .iter()
                 .all(|&k| self.vault_holds_passphrase(o, k))
+            && self
+                .backup_vault_strings(c, v)
+                .iter()
+                .all(|&(k, index, _)| self.vault_holds_string(o, k, index))
     }
 
     /// Costs what `backup_vault_shares`, `backup_vault_passphrases` and
@@ -2253,7 +2283,8 @@ impl Faraday {
         let w = self.session.wallets.get(b.wallet)?;
         let wallet_too = b.answers.wallet_in_vault(v);
         let (own_seeds, _) = self.backup_vault_seeds(v);
-        let shares = !self.backup_vault_shares(c, v).is_empty();
+        let shares = !self.backup_vault_shares(c, v).is_empty()
+            || !self.backup_vault_strings(c, v).is_empty();
         let passphrases = !self.backup_vault_passphrases(c, v).is_empty();
         if own_seeds.is_empty() && !wallet_too && !shares && !passphrases {
             return None;

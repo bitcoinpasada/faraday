@@ -935,7 +935,20 @@ fn backup_nodes(
                 At::Away => (None, None),
                 at => {
                     let found = plan::alone_on(shape, a, &mapped, at);
-                    (Some(found.text().to_string()), Some(found.kind()))
+                    // A place that alone gives nothing but keeps codex32
+                    // shares says how many (`docs/CODEX32.md` §9.5).
+                    let shares = match at {
+                        At::Place(p) if found.kind() == plan::AloneKind::Nothing => {
+                            crate::board::codex32::place_lines(shape, a, &mapped, p)
+                                .into_iter()
+                                .next()
+                        }
+                        _ => None,
+                    };
+                    match shares {
+                        Some((t, k)) => (Some(t), Some(k)),
+                        None => (Some(found.text().to_string()), Some(found.kind())),
+                    }
                 }
             };
             let (marks, checked): (Vec<_>, Vec<_>) =

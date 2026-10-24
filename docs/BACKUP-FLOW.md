@@ -2338,10 +2338,16 @@ envelopes and Write to sticks stay a deliberate press, and an item opened
 when already done stays open. The narrow column's Add sheet closes with
 **Close**.
 
-Not built yet: writing a string's files at a stick's write and a share
-record at a vault's save (the format is built), the strings gathered from
-several vaults at unlock towards the key, and the line per place counting
-shares ("1 of 2 shares of 9a6a2580 · alone: nothing").
+**Kept beyond paper** (`docs/CODEX32.md` §2): a string on a stick is
+written at **Lock and write** as `codex32-{fp}-{index}.txt` and, at 48
+characters, `codex32qr-{fp}-{index}.png`, read back like a SeedQR; a
+string in a vault is a share record written by the vault item's save and
+the flow's round. Both need the string in this session (made here, or
+typed back in the item); one not here is named and stops them. At
+unlock the share records of the open vaults are gathered, and `k`
+strings of one set load its key. A place's line counts its shares: "1
+of 2 shares of 9a6a2580 · alone: nothing", "2 of 2 shares of 9a6a2580:
+the seed".
 
 ## 18. Backups age (planned, not built; F87)
 

@@ -9599,4 +9599,31 @@ strings! {
     c32_templates_starter: "Print {} from Faraday Starter: Blank templates, codex32, {} characters",
     /// Templates item's line with only codex32 sheets. `{}`: the length.
     c32_templates_sub: "Codex32, {} characters",
+    // ----- Codex32 strings written, gathered and counted (docs/CODEX32.md §9.1, §9.5), faraday-core -----
+    /// A vault saved a codex32 share record. `{}`: the index, the key's fingerprint.
+    c32_vault_saved: "Share {} of {} saved",
+    /// A string the plan keeps in a vault or a file that this session does not hold. `{}`: the index, the identifier.
+    c32_vault_missing: "Share {} of {} is not here: type it in its Codex32 strings item first",
+    /// A vault's share record, its row. `{}`: the index, the key's fingerprint.
+    c32_vault_row: "Share {} of {}",
+    /// The share record's line. `{}`: the identifier, the threshold.
+    c32_vault_row_line: "codex32 {} · threshold {}",
+    /// Keys loaded at unlock from strings gathered across open vaults. `{}`: the fingerprints.
+    c32_gathered: "Loaded {} from codex32 shares",
+    /// A place's line: shares of a set it keeps, too few. `{}`: how many, the threshold, the seed.
+    c32_place_nothing: "{} of {} shares of {} · alone: nothing",
+    /// A place's line: enough shares of a set, the seed. `{}`: how many, the threshold, the seed.
+    c32_place_seed: "{} of {} shares of {}: the seed",
+    /// A place's line: enough shares with a vault's passphrase. `{}`: how many, the threshold, the seed.
+    c32_place_vault: "{} of {} shares of {}: the seed, with a vault's passphrase",
+    /// A codex32 string's picture file's title. `{}`: the index, the identifier.
+    c32_picture_title: "Codex32 share {} of {}",
+    /// The picture's line under its title.
+    c32_picture_line: "Secret: a share of a seed",
+    /// The copies by hand's codex32 string typed back the same. `{}`: its number.
+    c32_paper_same: "String {} matches",
+    /// The copies by hand's codex32 string open. `{}`: its number, how many.
+    c32_paper_string_of: "String {} of {}",
+    /// Every copies by hand's codex32 string typed back or skipped.
+    c32_paper_all_done: "Every string written down",
 }

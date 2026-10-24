@@ -583,3 +583,118 @@ pub(crate) fn paper_facts(
     }
     cy + t::GAP - y
 }
+
+/// The copies by hand's codex32 strings, one at a time (`docs/CODEX32.md`
+/// §9.1): "String 1 of 3", the string in groups of four to write down,
+/// typed back on the codex32 keyboard ("Box 17 differs"), Skip behind the
+/// quiz's caution and Continue; past the last, the line that each was
+/// written down. Returns the height used.
+pub(crate) fn paper_one(
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    strings: &[zeroize::Zeroizing<String>],
+    t: &super::PaperTyping,
+) -> f32 {
+    let mut cy = y;
+    let Some(s) = strings.get(t.at) else {
+        return ui.wrap(x, cy, w, t::LABEL, W::R, OK, EN.c32_paper_all_done) + t::GAP;
+    };
+    let head = fill(
+        EN.c32_paper_string_of,
+        &[&(t.at + 1).to_string(), &strings.len().to_string()],
+    );
+    cy += ui.wrap(x, cy, w, t::BODY, W::S, TEXT, &head) + t::GAP;
+    let g = faraday_ui::grouped(s);
+    let mut size = t::TITLE;
+    while size > t::CAPTION && ui.wrap_lines(size, W::M, &g, w) > 3 {
+        size -= 1.0;
+    }
+    cy += ui.wrap(x, cy, w, size, W::M, TEXT, &g) + t::GAP;
+    let mut whole = String::from("ms1");
+    whole.push_str(&t.typed);
+    let wrong = matches!(t.found, Some(Found::Differs(_)));
+    ui.fill(x, cy, w, t::FIELD, t::RADIUS_SMALL, SURFACE);
+    ui.stroke(
+        x,
+        cy,
+        w,
+        t::FIELD,
+        t::RADIUS_SMALL,
+        if wrong { ERR } else { BORDER },
+    );
+    let fit = ui.fit(
+        t::LABEL,
+        W::M,
+        &faraday_ui::grouped(&whole),
+        w - 2.0 * t::GAP,
+    );
+    ui.text_mid(x + t::GAP, cy, t::FIELD, t::LABEL, W::M, TEXT, &fit);
+    cy += t::FIELD + t::GAP;
+    cy += match &t.found {
+        Some(Found::Holds(l)) => ui.wrap(x, cy, w, t::LABEL, W::R, OK, l) + t::GAP,
+        Some(Found::Differs(l)) => ui.wrap(x, cy, w, t::LABEL, W::R, ERR, l) + t::GAP,
+        None => 0.0,
+    };
+    if t.typing(strings.len()) {
+        let kind = KeyboardKind::Codex32;
+        faraday_ui::keyboard::keyboard(ui, x, w, cy, kind, OskKeys::default(), ui.compact, |p| {
+            a(Press::PaperKey(p))
+        });
+        cy += faraday_ui::keyboard::height(kind) + t::GAP;
+    }
+    if t.skip_ask {
+        cy += ui.wrap(x, cy, w, t::LABEL, W::R, WARN, EN.codex32_skip_caution) + t::GAP;
+    }
+    // In the copy item, whose own foot is pinned: both in place.
+    cy += faraday_ui::parts::wrap_buttons(
+        ui,
+        x,
+        cy,
+        w,
+        t::TEXT_FIELD,
+        &[
+            (EN.codex32_skip, Style::Ghost, a(Press::PaperSkip)),
+            (
+                EN.item_action_continue,
+                Style::Secondary,
+                a(Press::PaperNext),
+            ),
+        ],
+    );
+    cy - y
+}
+
+/// A vault's codex32 share record (`docs/CODEX32.md` §9.5) as its list
+/// names it: by its index and the key its set makes, "Share A of
+/// fab6868a", and "codex32 name · threshold 2"; read from the record's
+/// public fields and the string's header. The title, the line, and that
+/// the title is data.
+pub(crate) fn vault_row(r: faraday_keys::vault::RecordView<'_>) -> (String, String, bool) {
+    use faraday_vault::records::field;
+    let fp = record_fp(r, field::CODEX32_KEY);
+    match faraday_keys::vault::codex32_share_header(r) {
+        Some((k, id, index)) => (
+            fill(
+                EN.c32_vault_row,
+                &[&char::from(index).to_ascii_uppercase().to_string(), &fp],
+            ),
+            fill(
+                EN.c32_vault_row_line,
+                &[&String::from_utf8_lossy(&id), &k.to_string()],
+            ),
+            true,
+        ),
+        None => (EN.vault_record.to_string(), String::new(), false),
+    }
+}
+
+/// The key fingerprint a vault record's public field `f` names, as text;
+/// empty where it names none.
+pub(crate) fn record_fp(r: faraday_keys::vault::RecordView<'_>, f: u8) -> String {
+    r.public(f)
+        .and_then(|b| <[u8; 4]>::try_from(b).ok())
+        .map(|b| crate::wallet::fp_text(faraday_bip::keys::Fingerprint(b)))
+        .unwrap_or_default()
+}

@@ -920,6 +920,12 @@ pub enum ReadBack {
     /// and the picture must be the Outbox's byte for byte. Nothing of the
     /// seed is kept for it.
     Seed(String),
+    /// The Codex32QR of the codex32 string at this share index (a bech32
+    /// character, lower case) of the set of the key with this fingerprint
+    /// (as text): its codes must hold the string while the key is loaded
+    /// and holds it, and the picture must be the Outbox's byte for byte.
+    /// Nothing of the string is kept for it.
+    Codex32(String, u8),
 }
 
 /// The non-secret state of Make a new wallet or Restore, kept while its
@@ -1533,6 +1539,14 @@ pub fn encode(flows: &[BackupFlow]) -> Vec<u8> {
                     ReadBack::Seed(fp) => {
                         out.push_str(&format!("wqs\t{}\t{}\n", clean(name), clean(fp)));
                     }
+                    ReadBack::Codex32(fp, index) => {
+                        out.push_str(&format!(
+                            "wqc\t{}\t{}\t{}\n",
+                            clean(name),
+                            clean(fp),
+                            char::from(*index)
+                        ));
+                    }
                 }
             }
             for (salt, held) in &w.before {
@@ -1804,6 +1818,15 @@ fn read_line(fl: &mut BackupFlow, f: &[&str], hex_array: fn(&str) -> Option<[u8;
             let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
             w.readback
                 .push((name.to_string(), ReadBack::Seed(fp.to_string())));
+            true
+        }
+        ["wqc", name, fp, index] => {
+            let [index] = index.as_bytes() else {
+                return false;
+            };
+            let w = fl.wallet.get_or_insert_with(WalletFlow::blank);
+            w.readback
+                .push((name.to_string(), ReadBack::Codex32(fp.to_string(), *index)));
             true
         }
         ["wpieces", on] => {
@@ -2259,5 +2282,48 @@ pub(crate) fn subject_of(kind: Kind, r: RecordView<'_>) -> Option<String> {
         Kind::SecureBoot => hex_text(r.public(crate::secure_boot::OWNER_FIELD)?),
         // A wallet is known by its descriptor's checksum, not by a record.
         Kind::Wallet => return None,
+    })
+}
+
+/// Costs a picture. The SeedQR `mx`, of a seed of `words` words, as a
+/// labelled picture titled with its fingerprint `fp`.
+pub(crate) fn seedqr_picture(
+    c: &Compute,
+    mx: &faraday_codec::qr::QrMatrix,
+    words: usize,
+    fp: &str,
+) -> zeroize::Zeroizing<Vec<u8>> {
+    let title = crate::strings::fill(crate::strings::EN.secrets_seed, &[fp]);
+    let lines = [crate::strings::fill(
+        crate::strings::EN.secrets_words_secret,
+        &[&words.to_string()],
+    )];
+    zeroize::Zeroizing::new(crate::picture::labelled_png(c, mx, &title, &lines))
+}
+
+/// The name seed form `what` of the seed with fingerprint `fp` is written
+/// as on a stick (`docs/BACKUP-FLOW.md` §17.12 item 6): `seed-{fp}.txt`,
+/// `seedqr-{fp}.png`, `passphrase-{fp}.txt`, the fingerprint in lower case.
+pub(crate) fn seed_stick_name(what: crate::plan::What, fp: &str) -> Option<String> {
+    let fp = fp.to_lowercase();
+    match what {
+        crate::plan::What::SeedFile(_) => Some(format!("seed-{fp}.txt")),
+        crate::plan::What::SeedQrFile(_) => Some(format!("seedqr-{fp}.png")),
+        crate::plan::What::PassphraseFile(_) => Some(format!("passphrase-{fp}.txt")),
+        _ => None,
+    }
+}
+
+/// Whether `name` is a file on a stick of one of the seeds `fps`, in any
+/// form ([`seed_stick_name`]).
+pub(crate) fn seed_stick_file_of(fps: &[String], name: &str) -> bool {
+    fps.iter().any(|fp| {
+        [
+            crate::plan::What::SeedFile(0),
+            crate::plan::What::SeedQrFile(0),
+            crate::plan::What::PassphraseFile(0),
+        ]
+        .into_iter()
+        .any(|w| seed_stick_name(w, fp).as_deref() == Some(name))
     })
 }

@@ -586,6 +586,38 @@ impl Faraday {
             let said = fill(EN.plan_passphrase_label, &[&fp_text(fp)]);
             self.vault_push_in(cur, record, &said);
         }
+        // Each codex32 string the plan keeps in the vault, as a share
+        // record (`docs/CODEX32.md` §9.5): once per key and index. A
+        // string this session does not hold is named, to be typed in its
+        // item first.
+        for (k, index, _) in self.backup_vault_strings(&c, v) {
+            if self.vault_holds_string(cur, k, index) {
+                continue;
+            }
+            let fp = self.session.keys.info(k).map(|i| i.fingerprint);
+            let id = self
+                .session
+                .keys
+                .info(k)
+                .and_then(|i| i.codex32.as_ref())
+                .map(|f| String::from_utf8_lossy(&f.identifier).into_owned())
+                .unwrap_or_default();
+            let share = char::from(index).to_ascii_uppercase().to_string();
+            match self.session.keys.codex32_share_record(
+                k,
+                index,
+                faraday_keys::Reveal::VaultEntry(faraday_keys::Part::Codex32),
+            ) {
+                Some(record) => {
+                    let said = fill(
+                        EN.c32_vault_saved,
+                        &[&share, &fp.map(fp_text).unwrap_or_default()],
+                    );
+                    self.vault_push_in(cur, record, &said);
+                }
+                None => self.toast(&fill(EN.c32_vault_missing, &[&share, &id])),
+            }
+        }
         let Some((name, cs, desc)) = self.session.wallets.get(w).map(|wl| {
             (
                 wl.name.clone(),

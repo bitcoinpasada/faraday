@@ -24,6 +24,10 @@ Moved to `docs/history/KEYS-LOG.md`.
   - a codex32 work set, the set being made by hand (`WorkSet`,
     `faraday/faraday-keys/src/codex32.rs`): the characters entered, the
     checksum worksheets and strings made from them, and the seed;
+  - the codex32 strings of a key's set this session has seen, kept with
+    the key (`Keys::keep_codex32`), leaving only as a stick's file
+    (`BackupStick(Part::Codex32)`) or a vault's share record
+    (`VaultEntry(Part::Codex32)`);
   - GPG and Secure Boot private keys;
   - TOTP secrets;
   - the whole open vault: every decrypted record, passwords and notes

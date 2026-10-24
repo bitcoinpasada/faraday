@@ -1665,7 +1665,10 @@ pub const CUSTOM_PASSES: [u32; 7] = [2, 3, 4, 5, 6, 8, 10];
 /// The kinds a vault's contents are listed by, with the record types each
 /// shows.
 pub const CATEGORIES: [(&str, &[u8]); 6] = [
-    (EN.vaults_bitcoin_keys, &[kind::KEY, kind::PASSPHRASE]),
+    (
+        EN.vaults_bitcoin_keys,
+        &[kind::KEY, kind::PASSPHRASE, kind::CODEX32_SHARE],
+    ),
     (EN.vaults_wallets, &[kind::WALLET, kind::WALLET_SHARE]),
     (EN.vaults_entries, &[kind::ENTRY]),
     (EN.vaults_notes, &[kind::NOTE, kind::SHEET]),

@@ -140,6 +140,9 @@ pub enum Part {
     ScanKey,
     /// A Lightning node's private key.
     NodeKey,
+    /// A codex32 string of the key's set, a share (`docs/CODEX32.md`
+    /// §9.5): a file of it on a stick, or a share record in a vault.
+    Codex32,
 }
 
 impl Reveal {
@@ -248,6 +251,17 @@ struct Key {
     public: std::cell::RefCell<Vec<(Spec, Result<String, String>)>>,
     /// Its words' [`WordsId`], once worked out: wiped with the key.
     words_id: std::cell::OnceCell<Option<WordsId>>,
+    /// The strings of its codex32 set this session has seen: made here,
+    /// typed back, or read from a vault's share records
+    /// ([`Keys::keep_codex32`]). Shares only, never the secret; each of
+    /// the set [`KeyInfo::codex32`] names, one per index. Wiped with the
+    /// key.
+    ///
+    /// Invariant: every string kept is of the set the key's facts name
+    /// (threshold, identifier, length) at an index not destroyed; a
+    /// change of the facts ([`Keys::set_codex32`]) drops those that no
+    /// longer are.
+    codex32: Vec<Zeroizing<String>>,
 }
 
 /// A key's secrets as the operations of this crate use them, lent.
@@ -938,10 +952,109 @@ impl Keys {
         match self.entries.get_mut(i) {
             Some(e) if sound => {
                 e.info.codex32 = set;
+                let facts = e.info.codex32.as_ref();
+                e.key
+                    .codex32
+                    .retain(|s| facts.is_some_and(|f| of_set(f, s)));
                 true
             }
             _ => false,
         }
+    }
+
+    /// Keeps each of `strings` that is a share of key `i`'s codex32 set
+    /// (`docs/CODEX32.md` §9.5): its threshold, identifier and length the
+    /// set's, at an index not destroyed, its checksum holding; one at an
+    /// index already kept replaces it. The secret is never kept: it is
+    /// the seed. Returns how many were kept. A parse of each string.
+    pub fn keep_codex32(&mut self, i: usize, strings: &[&str]) -> usize {
+        let Some(e) = self.entries.get_mut(i) else {
+            return 0;
+        };
+        let Some(facts) = e.info.codex32.as_ref() else {
+            return 0;
+        };
+        let mut kept = 0;
+        for s in strings {
+            let lower = Zeroizing::new(s.to_ascii_lowercase());
+            if !of_set(facts, &lower) {
+                continue;
+            }
+            e.key
+                .codex32
+                .retain(|x| x.as_bytes().get(8) != lower.as_bytes().get(8));
+            e.key.codex32.push(lower);
+            kept += 1;
+        }
+        kept
+    }
+
+    /// Whether this session holds the string at share index `index` (a
+    /// bech32 character, lower case) of key `i`'s codex32 set. A lookup.
+    pub fn holds_codex32(&self, i: usize, index: u8) -> bool {
+        self.entries.get(i).is_some_and(|e| {
+            e.key
+                .codex32
+                .iter()
+                .any(|s| s.as_bytes().get(8) == Some(&index))
+        })
+    }
+
+    /// The string at share index `index` of key `i`'s codex32 set, lent
+    /// for a file of it on a stick (`Reveal::BackupStick(Part::Codex32)`).
+    /// `None` for another reason, or a string this session does not hold.
+    pub fn codex32_string(&self, i: usize, index: u8, why: Reveal) -> Option<Revealed<'_>> {
+        if why != Reveal::BackupStick(Part::Codex32) {
+            return None;
+        }
+        self.entries
+            .get(i)?
+            .key
+            .codex32
+            .iter()
+            .find(|s| s.as_bytes().get(8) == Some(&index))
+            .map(|s| Revealed::lent(s.as_str()))
+    }
+
+    /// Whether `payload`, what a Codex32QR's codes hold, is the string at
+    /// share index `index` of key `i`'s codex32 set, in either case. `None`
+    /// where this session does not hold that string. A comparison.
+    pub fn codex32_reads_as(&self, i: usize, index: u8, payload: &[u8]) -> Option<bool> {
+        let s = self
+            .entries
+            .get(i)?
+            .key
+            .codex32
+            .iter()
+            .find(|s| s.as_bytes().get(8) == Some(&index))?;
+        Some(s.as_bytes().eq_ignore_ascii_case(payload))
+    }
+
+    /// Key `i`'s codex32 share record (`docs/VAULT.md` §7 type 15) of the
+    /// string at share index `index`: the string and the key's
+    /// fingerprint, for a vault (`Reveal::VaultEntry(Part::Codex32)`).
+    /// `None` for another reason, or a string this session does not hold.
+    pub fn codex32_share_record(
+        &self,
+        i: usize,
+        index: u8,
+        why: Reveal,
+    ) -> Option<Held<faraday_vault::Record>> {
+        use faraday_vault::records::{field, kind};
+        if why != Reveal::VaultEntry(Part::Codex32) {
+            return None;
+        }
+        let e = self.entries.get(i)?;
+        let s = e
+            .key
+            .codex32
+            .iter()
+            .find(|s| s.as_bytes().get(8) == Some(&index))?;
+        Some(Held(
+            faraday_vault::Record::new(kind::CODEX32_SHARE)
+                .with(field::CODEX32_STRING, s.as_bytes())
+                .with(field::CODEX32_KEY, &e.info.fingerprint.0),
+        ))
     }
 
     /// Costs a parse of the words. A vault key record of key `i`'s words
@@ -1183,6 +1296,7 @@ impl Entry {
                 seed,
                 public: std::cell::RefCell::new(Vec::new()),
                 words_id: std::cell::OnceCell::new(),
+                codex32: Vec::new(),
             },
             info,
         }
@@ -1246,4 +1360,21 @@ impl std::ops::Index<usize> for Keys {
     fn index(&self, i: usize) -> &KeyInfo {
         &self.entries[i].info
     }
+}
+
+/// Whether `s`, lower case, is a share of the set `facts` names: its
+/// checksum holding, its threshold, identifier and length the set's, not
+/// the secret, at an index not destroyed. A parse.
+fn of_set(facts: &faraday_vault::codex32::SetFacts, s: &str) -> bool {
+    use faraday_vault::codex32::State;
+    let Ok(c) = faraday_bip::codex32::Codex32::parse(s) else {
+        return false;
+    };
+    let index = c.share_index();
+    c.threshold() == facts.threshold
+        && facts.threshold >= 2
+        && !c.is_secret()
+        && c.identifier() == facts.identifier
+        && usize::from(facts.length) == s.len()
+        && facts.state(index) != Some(State::Destroyed)
 }

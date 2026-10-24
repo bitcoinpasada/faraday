@@ -425,3 +425,42 @@ pub fn places_of_string(m: &Mapped, i: usize, j: usize) -> Vec<usize> {
         })
         .collect()
 }
+
+impl Mapped {
+    /// The codex32 strings the map keeps in vault `v`, each as a share
+    /// record (`docs/VAULT.md` §7 type 15): seed and index, of a set split
+    /// with a threshold of 2 or more (the secret is the seed, kept as a
+    /// key record).
+    pub fn vault_strings(&self, a: &Answers, v: usize) -> Vec<(usize, usize)> {
+        let mut out: Vec<(usize, usize)> = holds_in(&self.map, At::Vault(v))
+            .into_iter()
+            .filter_map(|w| match w {
+                What::Codex32Share(i, j) => Some((i, j)),
+                _ => None,
+            })
+            .filter(|&(i, j)| j != SECRET && a.c32(i).is_some_and(|f| f.k >= 2))
+            .collect();
+        out.sort_unstable();
+        out.dedup();
+        out
+    }
+
+    /// The codex32 strings the map keeps as files on a stick at a place:
+    /// each seed and index, of a set split with a threshold of 2 or more.
+    pub fn stick_strings(&self, a: &Answers) -> Vec<(usize, usize)> {
+        let mut out: Vec<(usize, usize)> = self
+            .map
+            .iter()
+            .filter(|s| matches!(s.at, At::Stick(..)))
+            .flat_map(|s| s.holds.iter())
+            .filter_map(|(w, _)| match *w {
+                What::Codex32ShareFile(i, j) | What::Codex32QrFile(i, j) => Some((i, j)),
+                _ => None,
+            })
+            .filter(|&(i, j)| j != SECRET && a.c32(i).is_some_and(|f| f.k >= 2))
+            .collect();
+        out.sort_unstable();
+        out.dedup();
+        out
+    }
+}
