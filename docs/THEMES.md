@@ -1,8 +1,8 @@
 # Themes on Material 3's colour system
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-24); the roles, the generator and the tables built (C1); its decision is F113 (`docs/decisions/F113.md`)
-**Open:** every screen and component on the roles (C2), Settings' three controls, the stored-theme migration and the Starter (C3), renders and docs (C4); after C4, the website, the user guide's pictures and the snapshot tours are redrawn (follow-on); a custom seed colour picker, not scheduled.
+**Status:** Specified (owner, 2026-10-24); the roles, the generator and the tables built (C1); every screen and component of Faraday and the Starter drawn on the roles by name, the 39 old names removed, DESIGN §3 rewritten from this spec (C2); its decision is F113 (`docs/decisions/F113.md`)
+**Open:** Settings' three controls, the stored-theme migration and the Starter's Appearance sheet (C3), renders and docs (C4); after C4, the website, the user guide's pictures and the snapshot tours are redrawn (follow-on); a custom seed colour picker, not scheduled.
 
 Every theme is made again from the ground up on Material 3's colour
 system, as if Faraday had used it from the start (owner, 2026-10-24). A
@@ -459,6 +459,14 @@ What screens rely on, tested on the shipped tables:
   once (C1 drew their characters in on-surface on tertiary-container);
   the frame shows what the screen actually pairs. Once Settings offers
   all sixty schemes (C3) the test takes each of them.
+- The Starter likewise
+  (`faraday/faraday-starter/tests/all/colours_read.rs`): its pages and
+  sheets (Home with a concern and the boot entry, Make, Tools, the disk
+  list, What to write, Confirm with a development image, the writer's
+  refusal, Start with BitLocker on and its restart sheet, Install, About,
+  Blank templates), two of them with a finger held on a button or a row,
+  drawn wide and narrow in all sixty schemes, every opaque line of text
+  4.5:1 or more against the pixels round it (7:1 at High).
 
 These replace the hand-tuned tests at `faraday/faraday-ui/src/lib.rs`
 (`text_and_tones_are_legible_on_the_page_and_the_card_in_every_theme`
@@ -555,8 +563,8 @@ in `docs/history/` and makes this document a Reference.
 | C3 | Settings › Appearance (§12); the settings file's three lines and the migration (§13) with its tests; the strings in `faraday/faraday-strings/src/en.rs` (ten names, Mode, Contrast and their values; the retired names and the group labels removed); the Starter (§14). | Opus | one session |
 | C4 | The theme tour (`faraday/shells/snapshot/src/tours/themes.rs`): each theme Light and Dark at Standard, and Cobalt at Medium and High, not all sixty; renders checked by the owner; the docs of §16. | Sonnet | one session |
 
-C2 lands only after C1, C3 after C2's `faraday-ui` part. DESIGN §3
-stays as built until C2 lands.
+C2 landed after C1 (`faraday-ui`, then `faraday-core`, then the Starter);
+C3 follows. DESIGN §3 is rewritten from this spec.
 
 ## 16. Edit list
 

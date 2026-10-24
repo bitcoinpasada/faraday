@@ -9,8 +9,7 @@ use faraday_core::upgrade::{Fit, describe, version};
 use faraday_draw::widgets::Icon;
 use faraday_strings::fill;
 use faraday_strings::{EN, Strings};
-use faraday_ui::Paint;
-use faraday_ui::pal::*;
+use faraday_ui::Role;
 use faraday_ui::parts::qr_code;
 use faraday_ui::{Glyph, NameSuffix, Style, W};
 
@@ -34,7 +33,8 @@ mod home;
 mod nav;
 
 use faraday_draw::tokens::{
-    CONTENT_MAX, GAP, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H, PROGRESS_H, RAIL_W,
+    CONTENT_MAX, DISABLED_CONTAINER, DISABLED_CONTENT, GAP, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H,
+    PROGRESS_H, RAIL_W, STATE_PRESS,
 };
 
 /// A small panel's sheet's side margin.
@@ -61,7 +61,7 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         held_chrome(starter, ui);
         return starter.max;
     }
-    ui.clear(BG);
+    ui.clear(Role::Surface);
     let dest = starter.page.destination();
     let compact = starter.compact();
     let rail_w = if dest.is_some() && !compact {
@@ -268,39 +268,60 @@ fn destination_name(page: Page) -> String {
 
 /// A section's label. Returns its height.
 fn label(ui: &mut Ui, x: f32, y: f32, s: &str) -> f32 {
-    ui.text(x, y, 13.0, W::S, MUTED, s);
+    ui.text(x, y, 13.0, W::S, Role::OnSurfaceVariant, s);
     24.0
 }
 
 /// A line of fact, wrapped. Returns its height with the gap under it.
-fn line(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Paint) -> f32 {
+fn line(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Role) -> f32 {
     ui.wrap(x, y, w, 13.0, W::R, tone, s) + 10.0
 }
 
 /// A label and its value: on one row with the value at the right on a
 /// wide display, the value under the label on a small panel. Returns
 /// its height.
-fn value_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Paint) -> f32 {
+fn value_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Role) -> f32 {
     if ui.compact {
-        ui.text(x, y, 12.0, W::R, MUTED, key);
+        ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, key);
         let vh = ui.wrap(x, y + 18.0, w, 14.0, W::R, tone, value);
-        ui.rule(x, y + 24.0 + vh, w, BORDER);
+        ui.rule(x, y + 24.0 + vh, w, Role::OutlineVariant);
         return vh + 32.0;
     }
     let kw = ui.measure(13.0, W::R, key) + 24.0;
-    ui.text_mid(x, y, 36.0, 13.0, W::R, MUTED, key);
+    ui.text_mid(x, y, 36.0, 13.0, W::R, Role::OnSurfaceVariant, key);
     let v = ui.fit(14.0, W::R, value, w - kw);
     ui.text_right(x + w, y, 36.0, 14.0, W::R, tone, &v);
-    ui.rule(x, y + 36.0, w, BORDER);
+    ui.rule(x, y + 36.0, w, Role::OutlineVariant);
     38.0
+}
+
+/// [`value_row`] with the value in on-surface. Returns its height.
+fn fact_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str) -> f32 {
+    value_row(ui, x, y, w, key, value, Role::OnSurface)
+}
+
+/// A radio mark centred on (x + 12, cy): a ring, filled when chosen, its
+/// edge on-surface-variant, or outline-variant where it is not available.
+fn radio_mark(ui: &mut Ui, x: f32, cy: f32, on: bool, enabled: bool) {
+    if on {
+        ui.dot(x + 12.0, cy, 9.0, Role::Primary);
+        ui.dot(x + 12.0, cy, 4.0, Role::OnPrimary);
+    } else {
+        let edge = if enabled {
+            Role::OnSurfaceVariant
+        } else {
+            Role::OutlineVariant
+        };
+        ui.stroke(x + 3.0, cy - 9.0, 18.0, 18.0, 9.0, edge);
+    }
 }
 
 /// A label over a long value in the mono face, in groups of four,
 /// wrapped (a SHA-256, a fingerprint, a path). Returns its height.
 fn mono_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str) -> f32 {
-    ui.text(x, y + 8.0, 12.0, W::R, MUTED, key);
-    let vh = ui.wrap(x, y + 28.0, w, 13.0, W::M, TEXT, value);
-    ui.rule(x, y + 36.0 + vh, w, BORDER);
+    ui.text(x, y + 8.0, 12.0, W::R, Role::OnSurfaceVariant, key);
+    let vh = ui.wrap(x, y + 28.0, w, 13.0, W::M, Role::OnSurface, value);
+    ui.rule(x, y + 36.0 + vh, w, Role::OutlineVariant);
     vh + 40.0
 }
 
@@ -323,13 +344,21 @@ fn nav_row(
     let h = if compact { 54.0 } else { 58.0 };
     let enabled = action.is_some();
     let pressed = action.is_some_and(|a| ui.is_pressed(a.host()));
-    ui.fill(x, y, w, h, 10.0, if pressed { INNER } else { SURFACE });
-    ui.stroke(x, y, w, h, 10.0, LINE);
+    ui.card(x, y, w, h, Role::OutlineVariant);
+    if pressed {
+        ui.wash(x, y, w, h, 10.0, Role::OnSurface.at(STATE_PRESS));
+    }
     let ib = if compact { 28.0 } else { 32.0 };
     let (ibg, ifg) = if enabled {
-        (ACCENT.with_alpha(26), ACCENT)
+        (
+            Role::SecondaryContainer.paint(),
+            Role::OnSecondaryContainer.paint(),
+        )
     } else {
-        (INNER, DIM)
+        (
+            Role::OnSurface.at(DISABLED_CONTAINER),
+            Role::OnSurface.at(DISABLED_CONTENT),
+        )
     };
     ui.fill(x + 10.0, y + (h - ib) / 2.0, ib, ib, 8.0, ibg);
     ui.icon(x + 10.0, y + (h - ib) / 2.0, ib, icon, 14.0, ifg);
@@ -342,13 +371,21 @@ fn nav_row(
     let chevron = if enabled { 22.0 } else { 0.0 };
     let room = w - (tx - x) - 12.0 - tail_w - chevron;
     let head = ui.fit(14.0, W::S, head, room);
-    let fg = if enabled { TEXT } else { DIM };
+    let fg = if enabled {
+        Role::OnSurface.paint()
+    } else {
+        Role::OnSurface.at(DISABLED_CONTENT)
+    };
     if sub.is_empty() {
         ui.text_mid(tx, y, h, 14.0, W::S, fg, &head);
     } else {
         ui.text(tx, y + 9.0, 14.0, W::S, fg, &head);
         let sub = ui.fit(12.0, W::R, sub, w - (tx - x) - 12.0 - chevron);
-        let tone = if enabled { MUTED } else { WARN };
+        let tone = if enabled {
+            Role::OnSurfaceVariant
+        } else {
+            Role::Warning
+        };
         ui.text(tx, y + 30.0, 12.0, W::R, tone, &sub);
     }
     if !tail.is_empty() {
@@ -358,7 +395,11 @@ fn nav_row(
             if sub.is_empty() { h } else { 30.0 },
             12.0,
             W::R,
-            if enabled { MUTED } else { DIM },
+            if enabled {
+                Role::OnSurfaceVariant.paint()
+            } else {
+                Role::OnSurface.at(DISABLED_CONTENT)
+            },
             tail,
         );
     }
@@ -369,22 +410,40 @@ fn nav_row(
             20.0,
             Icon::ChevronRight,
             9.0,
-            DIM,
+            Role::OnSurfaceVariant,
         );
         ui.hit(x, y, w, h, a.host());
     }
     h + 8.0
 }
 
-/// A warning: a tinted box with the line in it. Returns its height with
-/// the gap under it.
-fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str, tone: Paint) -> f32 {
-    let th = ui.wrap(x + 14.0, y + 10.0, w - 28.0, 13.0, W::S, tone, s);
-    // Drawn again over its box, which needs the text's height first.
+/// A warning: a band in warning-container with the line in it, in
+/// on-warning-container. Returns its height with the gap under it.
+fn warning(ui: &mut Ui, x: f32, y: f32, w: f32, s: &str) -> f32 {
+    // Measured first, where nothing shows: the band needs the text's height.
+    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
+    let th = ui.wrap(
+        x + 14.0,
+        y + 10.0,
+        w - 28.0,
+        13.0,
+        W::S,
+        Role::OnWarningContainer,
+        s,
+    );
+    ui.c.pop_clip();
     let bh = th + 20.0;
-    ui.fill(x, y, w, bh, 10.0, tone.with_alpha(26));
-    ui.stroke(x, y, w, bh, 10.0, tone.with_alpha(110));
-    ui.wrap(x + 14.0, y + 10.0, w - 28.0, 13.0, W::S, tone, s);
+    ui.fill(x, y, w, bh, 10.0, Role::WarningContainer);
+    ui.stroke(x, y, w, bh, 10.0, Role::Warning.with_alpha(110));
+    ui.wrap(
+        x + 14.0,
+        y + 10.0,
+        w - 28.0,
+        13.0,
+        W::S,
+        Role::OnWarningContainer,
+        s,
+    );
     bh + 12.0
 }
 
@@ -400,9 +459,9 @@ pub(crate) fn link(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
     let label = ui.fit(13.0, W::S, label, w);
     let tw = ui.measure(13.0, W::S, &label);
     let tone = if ui.is_pressed(action) || ui.is_hovered(action) {
-        TEXT
+        Role::OnSurface
     } else {
-        ACCENT
+        Role::Primary
     };
     ui.text_mid(x, y, 28.0, 13.0, W::S, tone, &label);
     ui.hit(x - 4.0, y, tw + 8.0, 28.0, action);
@@ -436,8 +495,8 @@ pub(crate) fn concern_text(c: &Concern) -> String {
 /// under it; nothing without a receiver.
 fn receiver_line(starter: &Starter, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     match starter.receiver_line() {
-        Some(l) if l == S.devices_bolt_notice => line(ui, x, y, w, l, MUTED),
-        Some(l) => warning(ui, x, y, w, l, WARN),
+        Some(l) if l == S.devices_bolt_notice => line(ui, x, y, w, l, Role::OnSurfaceVariant),
+        Some(l) => warning(ui, x, y, w, l),
         None => 0.0,
     }
 }
@@ -459,7 +518,7 @@ fn concern_block(
     }
     let mut y = y0;
     for c in items {
-        y += warning(ui, x, y, w, &concern_text(c), WARN);
+        y += warning(ui, x, y, w, &concern_text(c));
         if c.kind != Kind::VirtualMachine {
             let n = StarterAction::ContinueAnyway(starter.concern_number(&c.id));
             y += buttons(
@@ -529,7 +588,15 @@ fn buttons(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, Style, StarterAc
 /// height.
 fn step_head(ui: &mut Ui, x: f32, y: f32, w: f32, n: usize, text: &str, done: bool) -> f32 {
     ui.badge(x, y, &n.to_string(), done, !done);
-    let th = ui.wrap(x + 38.0, y + 3.0, w - 38.0, 15.0, W::S, TEXT, text);
+    let th = ui.wrap(
+        x + 38.0,
+        y + 3.0,
+        w - 38.0,
+        15.0,
+        W::S,
+        Role::OnSurface,
+        text,
+    );
     th.max(26.0) + 10.0
 }
 
@@ -804,18 +871,25 @@ fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     let target = target_of(starter);
     if target == Target::Pi {
-        y += line(ui, x, y, w, S.starter_pi_supported_boards, MUTED);
-        y += line(ui, x, y, w, S.starter_pi_cameras, MUTED);
+        y += line(
+            ui,
+            x,
+            y,
+            w,
+            S.starter_pi_supported_boards,
+            Role::OnSurfaceVariant,
+        );
+        y += line(ui, x, y, w, S.starter_pi_cameras, Role::OnSurfaceVariant);
     }
     if starter.image(target).is_none() {
         let s = match target {
             Target::Stick => S.starter_no_stick_image,
             Target::Pi => S.starter_no_pi_image,
         };
-        return y + line(ui, x, y, w, s, ERR);
+        return y + line(ui, x, y, w, s, Role::Error);
     }
     if starter.no_writer {
-        y += line(ui, x, y, w, S.starter_no_writer, WARN);
+        y += line(ui, x, y, w, S.starter_no_writer, Role::Warning);
     }
     let offers = starter.offers();
     if offers.is_empty() {
@@ -823,7 +897,7 @@ fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             Target::Stick => S.starter_no_disks_stick,
             Target::Pi => S.starter_no_disks_card,
         };
-        return y + line(ui, x, y + 8.0, w, s, DIM);
+        return y + line(ui, x, y + 8.0, w, s, Role::OnSurfaceVariant);
     }
     y += 4.0;
     for o in &offers {
@@ -864,7 +938,7 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let target = target_of(starter);
     if let Some(d) = starter.chosen_disk() {
         let s = format!("{} · {}", disk_name(d), size_text(d.size));
-        y += line(ui, x, y, w, &s, MUTED);
+        y += line(ui, x, y, w, &s, Role::OnSurfaceVariant);
     }
     y += 4.0;
     let chosen = starter.making.as_ref().and_then(|m| m.mode);
@@ -876,7 +950,7 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         (Mode::Whole, whole, S.starter_mode_whole_sub),
         (Mode::KeepData, S.starter_mode_keep, S.starter_mode_keep_sub),
     ];
-    ui.rule(x, y, w, BORDER);
+    ui.rule(x, y, w, Role::OutlineVariant);
     for (m, head, sub) in options {
         let refused = starter.mode_refusal(m);
         // Keep data is shown only on a Faraday stick (§3.2).
@@ -889,40 +963,36 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         let on = chosen == Some(m);
         let enabled = refused.is_none();
         let rh = 60.0;
-        if enabled && (ui.is_pressed(action) || ui.is_hovered(action)) {
-            ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, INNER);
+        if enabled {
+            ui.state_layer(
+                (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0),
+                Role::OnSurface.paint(),
+                action,
+            );
         }
         // The check: a ring, filled when chosen.
         let cy = y + rh / 2.0;
-        if on {
-            ui.dot(x + 12.0, cy, 9.0, ACCENT);
-            ui.dot(x + 12.0, cy, 4.0, ON_ACCENT);
-        } else {
-            ui.stroke(
-                x + 3.0,
-                cy - 9.0,
-                18.0,
-                18.0,
-                9.0,
-                if enabled { MUTED } else { BORDER },
-            );
-        }
+        radio_mark(ui, x, cy, on, enabled);
         let tx = x + 36.0;
         ui.text(
             tx,
             y + 10.0,
             15.0,
             W::S,
-            if enabled { TEXT } else { DIM },
+            if enabled {
+                Role::OnSurface.paint()
+            } else {
+                Role::OnSurface.at(DISABLED_CONTENT)
+            },
             head,
         );
         let (sub, tone) = match refused {
-            Some(ModeRefusal::Same) => (S.starter_mode_same, WARN),
-            Some(ModeRefusal::BootOnly) => (S.starter_mode_boot_only, WARN),
+            Some(ModeRefusal::Same) => (S.starter_mode_same, Role::Warning),
+            Some(ModeRefusal::BootOnly) => (S.starter_mode_boot_only, Role::Warning),
             None if m == Mode::KeepData && starter.version_reading.is_some() => {
-                (S.starter_mode_reading, MUTED)
+                (S.starter_mode_reading, Role::OnSurfaceVariant)
             }
-            _ => (sub, MUTED),
+            _ => (sub, Role::OnSurfaceVariant),
         };
         let sub = ui.fit(12.0, W::R, sub, w - 40.0);
         ui.text(tx, y + 34.0, 12.0, W::R, tone, &sub);
@@ -932,14 +1002,22 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y += rh;
         // The one fact the Learn page explains (§4.4).
         if m == Mode::KeepData {
-            y += ui.wrap(tx, y, w - 36.0, 12.0, W::R, MUTED, S.starter_mode_keep_fact) + 6.0;
+            y += ui.wrap(
+                tx,
+                y,
+                w - 36.0,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                S.starter_mode_keep_fact,
+            ) + 6.0;
             y += guide_line(ui, tx, y, w - 36.0, LearnId::KeepData);
         }
-        ui.rule(x, y, w, BORDER);
+        ui.rule(x, y, w, Role::OutlineVariant);
     }
     if let Some(why) = &starter.version_failed {
         y += 12.0;
-        y += line(ui, x, y, w, &reason_text(why), ERR);
+        y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
     y += 20.0;
     let style = if chosen.is_some() && !starter.keep_unread() {
@@ -975,30 +1053,30 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         Target::Pi => S.starter_card,
     };
     if let Some(d) = disk {
-        y += value_row(ui, x, y, w, noun, &disk_name(d), TEXT);
+        y += fact_row(ui, x, y, w, noun, &disk_name(d));
     }
-    y += value_row(ui, x, y, w, S.starter_size, &size_text(*size), TEXT);
-    y += value_row(ui, x, y, w, S.starter_device, device, TEXT);
+    y += fact_row(ui, x, y, w, S.starter_size, &size_text(*size));
+    y += fact_row(ui, x, y, w, S.starter_device, device);
     let serial = if serial.is_empty() {
         S.starter_serial_none
     } else {
         serial.as_str()
     };
-    y += value_row(ui, x, y, w, S.starter_serial, serial, TEXT);
+    y += fact_row(ui, x, y, w, S.starter_serial, serial);
     if let Some(d) = disk {
-        y += value_row(ui, x, y, w, S.starter_disk_contents_row, &on_it(d), TEXT);
+        y += fact_row(ui, x, y, w, S.starter_disk_contents_row, &on_it(d));
     }
     let writes = match (mode, target) {
         (Mode::KeepData, _) => S.starter_mode_keep,
         (Mode::Whole, Target::Stick) => S.starter_mode_whole_stick,
         (Mode::Whole, Target::Pi) => S.starter_mode_whole_card,
     };
-    y += value_row(ui, x, y, w, S.starter_writes, writes, TEXT);
+    y += fact_row(ui, x, y, w, S.starter_writes, writes);
     let build = image
         .build
         .as_deref()
         .map_or_else(|| S.starter_build_unknown.to_string(), describe);
-    y += value_row(ui, x, y, w, S.starter_build, &build, TEXT);
+    y += fact_row(ui, x, y, w, S.starter_build, &build);
     let sha_key = if image.dev {
         S.starter_image_sha
     } else {
@@ -1007,7 +1085,7 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y += mono_row(ui, x, y, w, sha_key, &grouped(&image.sha256));
     y += 12.0;
     if image.dev {
-        y += warning(ui, x, y, w, S.starter_dev_image, WARN);
+        y += warning(ui, x, y, w, S.starter_dev_image);
     }
     if mode == Mode::KeepData
         && let Some(stick) = disk.and_then(|d| d.faraday.as_ref())
@@ -1015,20 +1093,20 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         match crate::decide::keep_data(stick, image.build.as_deref()) {
             Fit::Newer => {
                 let s = fill(S.starter_keep_newer, &[&version(stick.release.as_deref())]);
-                y += warning(ui, x, y, w, &s, WARN);
+                y += warning(ui, x, y, w, &s);
             }
-            Fit::Dev => y += warning(ui, x, y, w, S.starter_keep_dev, WARN),
+            Fit::Dev => y += warning(ui, x, y, w, S.starter_keep_dev),
             _ => {}
         }
     }
     let matches = starter.confirmed_matches();
     if !matches {
-        y += line(ui, x, y, w, &not_confirmed(target), ERR);
+        y += line(ui, x, y, w, &not_confirmed(target), Role::Error);
     } else if let Some(why) = &m.refused {
-        y += line(ui, x, y, w, why, ERR);
+        y += line(ui, x, y, w, why, Role::Error);
     }
     if starter.no_writer {
-        y += line(ui, x, y, w, S.starter_no_writer, WARN);
+        y += line(ui, x, y, w, S.starter_no_writer, Role::Warning);
     }
     let label = match mode {
         Mode::Whole => S.starter_erase_and_write,
@@ -1067,7 +1145,7 @@ fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         .and_then(|c| starter.disks.iter().find(|d| d.id == c.0))
     {
         let s = format!("{} · {}", disk_name(d), size_text(d.size));
-        y += line(ui, x, y, w, &s, MUTED);
+        y += line(ui, x, y, w, &s, Role::OnSurfaceVariant);
     }
     let (stage, done, total) = m.progress.unwrap_or((WriteStage::Writing, 0, 0));
     y += GAP;
@@ -1084,7 +1162,7 @@ fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         WriteStage::Writing => fill(S.starter_progress_writing, &[&of]),
         WriteStage::ReadingBack => fill(S.starter_reading_back, &[&of]),
     };
-    y + line(ui, x, y, w, &s, TEXT)
+    y + line(ui, x, y, w, &s, Role::OnSurface)
 }
 
 fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
@@ -1094,9 +1172,9 @@ fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     };
     let ok = matches!(m.result, Some(Ok(())));
     let (icon, tone) = if ok {
-        (Icon::Success, OK)
+        (Icon::Success, Role::Ok)
     } else {
-        (Icon::Error, ERR)
+        (Icon::Error, Role::Error)
     };
     ui.icon(x - 4.0, y, 40.0, icon, 26.0, tone);
     let name = page_name(starter);
@@ -1108,7 +1186,7 @@ fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                 Target::Stick => S.starter_pull_stick,
                 Target::Pi => S.starter_pull_card,
             };
-            y += line(ui, x, y, w, s, TEXT) + 8.0;
+            y += line(ui, x, y, w, s, Role::OnSurface) + 8.0;
             if m.target == Target::Stick
                 && let Some(disk) = starter.chosen_disk()
                 && let Some(entry) =
@@ -1121,7 +1199,7 @@ fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                     w,
                     S.starter_boot_menu_label,
                     &fill(S.starter_boot_menu_value, &[&entry]),
-                    TEXT,
+                    Role::OnSurface,
                 ) + 8.0;
             }
             let items: &[(&str, Style, StarterAction)] = match m.target {
@@ -1134,7 +1212,7 @@ fn done(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             y += buttons(ui, x, y, w, items);
         }
         Some(Err(why)) => {
-            y += line(ui, x, y, w, &reason_text(why), ERR) + 8.0;
+            y += line(ui, x, y, w, &reason_text(why), Role::Error) + 8.0;
             y += buttons(
                 ui,
                 x,
@@ -1177,7 +1255,7 @@ fn guide_line(ui: &mut Ui, x: f32, y: f32, w: f32, id: LearnId) -> f32 {
             y,
             w,
             &fill(S.starter_guide_placeholder, &[title]),
-            DIM,
+            Role::OnSurfaceVariant,
         ),
     }
 }
@@ -1206,16 +1284,16 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let facts = starter.facts();
     let windows = c.os == Os::Windows;
     if c.tpm_unlock {
-        y += warning(ui, x, y, w, S.starter_tpm_line, WARN);
+        y += warning(ui, x, y, w, S.starter_tpm_line);
     }
     if let Some(mac) = facts.mac() {
         return mac_start(starter, ui, x, y, w, mac);
     }
     if c.arm {
-        return y + line(ui, x, y, w, S.starter_cannot_start_arm, WARN);
+        return y + line(ui, x, y, w, S.starter_cannot_start_arm, Role::Warning);
     }
     if !c.uefi {
-        y += warning(ui, x, y, w, S.starter_cannot_start_bios, WARN);
+        y += warning(ui, x, y, w, S.starter_cannot_start_bios);
     }
     let held = starter.restart_holds();
     y += concern_block(starter, ui, x, y, w, &held);
@@ -1229,7 +1307,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut n = 0;
     let open = facts.protected_open();
     if open && let Some(name) = &starter.other {
-        y += warning(ui, x, y, w, &fill(S.starter_other_found, &[name]), WARN);
+        y += warning(ui, x, y, w, &fill(S.starter_other_found, &[name]));
         y += buttons(
             ui,
             x,
@@ -1248,7 +1326,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     n += 1;
     y += step_head(ui, x, y, w, n, S.starter_restart, false);
     if let Some(why) = &starter.restart_failed {
-        y += line(ui, ix, y, iw, &reason_text(why), ERR);
+        y += line(ui, ix, y, iw, &reason_text(why), Role::Error);
     }
     let style = if open || !held.is_empty() {
         Style::Disabled
@@ -1271,8 +1349,15 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         S.starter_secure_boot_turn_off
     };
     y += step_head(ui, x, y, w, n, head, sb_off);
-    y += line(ui, ix, y, iw, S.starter_fast_boot, MUTED);
-    y += line(ui, ix, y, iw, notes::not_found(c.os), MUTED) + 6.0;
+    y += line(ui, ix, y, iw, S.starter_fast_boot, Role::OnSurfaceVariant);
+    y += line(
+        ui,
+        ix,
+        y,
+        iw,
+        notes::not_found(c.os),
+        Role::OnSurfaceVariant,
+    ) + 6.0;
     // 3. Start from the stick.
     n += 1;
     y += step_head(ui, x, y, w, n, S.starter_boot_from_stick, false);
@@ -1283,7 +1368,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     } else {
         S.starter_boot_how
     };
-    y += line(ui, ix, y, iw, how, MUTED) + 6.0;
+    y += line(ui, ix, y, iw, how, Role::OnSurfaceVariant) + 6.0;
     if facts.use_a_device() && facts.stick().is_some() {
         let style = if open || !held.is_empty() {
             Style::Disabled
@@ -1312,7 +1397,7 @@ fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             iw,
             S.starter_boot_menu_label,
             &fill(S.starter_boot_menu_value, &[&entry]),
-            TEXT,
+            Role::OnSurface,
         ) + 8.0;
     }
     // 4. Afterwards: the last step, shown always (F33).
@@ -1340,9 +1425,18 @@ fn mac_start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, mac: macs:
     let t2 = match mac {
         macs::Start::Intel { t2 } => t2,
         macs::Start::Firmware32 => {
-            return y + line(ui, x, y, w, S.starter_cannot_start_mac_firmware, WARN);
+            return y + line(
+                ui,
+                x,
+                y,
+                w,
+                S.starter_cannot_start_mac_firmware,
+                Role::Warning,
+            );
         }
-        macs::Start::NotYet => return y + line(ui, x, y, w, S.starter_cannot_start_mac_yet, WARN),
+        macs::Start::NotYet => {
+            return y + line(ui, x, y, w, S.starter_cannot_start_mac_yet, Role::Warning);
+        }
     };
     let held = starter.restart_holds();
     y += concern_block(starter, ui, x, y, w, &held);
@@ -1359,22 +1453,50 @@ fn mac_start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32, mac: macs:
         n += 1;
         y += step_head(ui, x, y, w, n, S.starter_mac_lower, false);
         if t2.is_none() {
-            y += line(ui, ix, y, iw, S.starter_mac_t2_only, WARN);
+            y += line(ui, ix, y, iw, S.starter_mac_t2_only, Role::Warning);
         }
-        y += line(ui, ix, y, iw, S.starter_mac_recovery, MUTED);
-        y += line(ui, ix, y, iw, S.starter_mac_utility_lower, MUTED) + 6.0;
+        y += line(
+            ui,
+            ix,
+            y,
+            iw,
+            S.starter_mac_recovery,
+            Role::OnSurfaceVariant,
+        );
+        y += line(
+            ui,
+            ix,
+            y,
+            iw,
+            S.starter_mac_utility_lower,
+            Role::OnSurfaceVariant,
+        ) + 6.0;
     }
     n += 1;
     y += step_head(ui, x, y, w, n, S.starter_boot_from_stick, false);
-    y += line(ui, ix, y, iw, S.starter_mac_option, MUTED);
-    y += line(ui, ix, y, iw, S.starter_mac_firmware_password, MUTED) + 6.0;
+    y += line(ui, ix, y, iw, S.starter_mac_option, Role::OnSurfaceVariant);
+    y += line(
+        ui,
+        ix,
+        y,
+        iw,
+        S.starter_mac_firmware_password,
+        Role::OnSurfaceVariant,
+    ) + 6.0;
     if t2_steps {
         n += 1;
         y += step_head(ui, x, y, w, n, S.starter_mac_afterwards, false);
         if t2.is_none() {
-            y += line(ui, ix, y, iw, S.starter_mac_t2_only, WARN);
+            y += line(ui, ix, y, iw, S.starter_mac_t2_only, Role::Warning);
         }
-        y += line(ui, ix, y, iw, S.starter_mac_utility_full, MUTED) + 6.0;
+        y += line(
+            ui,
+            ix,
+            y,
+            iw,
+            S.starter_mac_utility_full,
+            Role::OnSurfaceVariant,
+        ) + 6.0;
     }
     y += 16.0;
     y += label(ui, x, y, S.starter_on_a_phone);
@@ -1392,15 +1514,21 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y += label(ui, x, y, S.starter_notes_label);
     for row in &notes.rows {
         let (value, tone) = match row.value {
-            Some(v) => (v.to_string(), TEXT),
-            None if row.try_keys.is_empty() => (S.starter_notes_not_known.to_string(), DIM),
-            None => (fill(S.starter_notes_try, &[&row.try_keys.join(" · ")]), DIM),
+            Some(v) => (v.to_string(), Role::OnSurface),
+            None if row.try_keys.is_empty() => (
+                S.starter_notes_not_known.to_string(),
+                Role::OnSurfaceVariant,
+            ),
+            None => (
+                fill(S.starter_notes_try, &[&row.try_keys.join(" · ")]),
+                Role::OnSurfaceVariant,
+            ),
         };
         y += note_row(ui, x, y, w, &row.label, &value, tone);
     }
     y += 10.0;
     if let Some(why) = &starter.notes_open_failed {
-        y += line(ui, x, y, w, &reason_text(why), ERR);
+        y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
     let print = if starter.key_reading {
         Style::Disabled
@@ -1443,9 +1571,11 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         (x + bw + 20.0, y)
     };
     let a = StarterAction::IncludeKey.host();
-    if ui.is_pressed(a) || ui.is_hovered(a) {
-        ui.fill(tx - 6.0, ty, tick_w + 12.0, 44.0, 8.0, INNER);
-    }
+    ui.state_layer(
+        (tx - 6.0, ty, tick_w + 12.0, 44.0, 8.0),
+        Role::OnSurface.paint(),
+        a,
+    );
     ui.checkbox(tx, ty + 13.0, starter.include_key, true);
     ui.text_mid(
         tx + 30.0,
@@ -1453,14 +1583,21 @@ fn notes_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         44.0,
         14.0,
         W::R,
-        TEXT,
+        Role::OnSurface,
         S.starter_notes_include_key,
     );
     ui.hit(tx - 6.0, ty, tick_w + 12.0, 44.0, a);
     y = ty + 44.0;
     if starter.key_reading {
         y += 8.0;
-        y += line(ui, x, y, w, S.starter_waiting_permission, MUTED);
+        y += line(
+            ui,
+            x,
+            y,
+            w,
+            S.starter_waiting_permission,
+            Role::OnSurfaceVariant,
+        );
     }
     y + 24.0 - y0
 }
@@ -1496,11 +1633,11 @@ fn bitlocker_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
         w,
         &fill(S.starter_bitlocker_row, &[&b.drive]),
         &state,
-        TEXT,
+        Role::OnSurface,
     );
     y += 10.0;
     if let Some(why) = &starter.bitlocker_failed {
-        y += line(ui, x, y, w, &reason_text(why), ERR);
+        y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
     let busy = starter.bitlocker_step.is_some();
     let style = if busy {
@@ -1515,7 +1652,14 @@ fn bitlocker_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
     };
     y += buttons(ui, x, y, w, &[(label, style, action)]) + 8.0;
     if busy {
-        y += line(ui, x, y, w, S.starter_waiting_permission, MUTED);
+        y += line(
+            ui,
+            x,
+            y,
+            w,
+            S.starter_waiting_permission,
+            Role::OnSurfaceVariant,
+        );
     } else if on {
         y += line(
             ui,
@@ -1526,7 +1670,7 @@ fn bitlocker_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
                 S.starter_bitlocker_suspend_note,
                 &[&crate::api::SUSPEND_STARTS.to_string()],
             ),
-            MUTED,
+            Role::OnSurfaceVariant,
         );
     }
     y + 16.0 - y0
@@ -1534,14 +1678,14 @@ fn bitlocker_block(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
 
 /// A value row whose value is never cut: under its label, wrapped, when
 /// it does not fit beside it (a long menu path). Returns its height.
-fn note_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Paint) -> f32 {
+fn note_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: Role) -> f32 {
     let kw = ui.measure(13.0, W::R, key) + 24.0;
     if ui.compact || ui.measure(14.0, W::R, value) <= w - kw {
         return value_row(ui, x, y, w, key, value, tone);
     }
-    ui.text(x, y + 8.0, 13.0, W::R, MUTED, key);
+    ui.text(x, y + 8.0, 13.0, W::R, Role::OnSurfaceVariant, key);
     let vh = ui.wrap(x, y + 30.0, w, 14.0, W::R, tone, value);
-    ui.rule(x, y + 38.0 + vh, w, BORDER);
+    ui.rule(x, y + 38.0 + vh, w, Role::OutlineVariant);
     vh + 40.0
 }
 
@@ -1563,7 +1707,15 @@ fn phone_code(
         return 0.0;
     };
     qr_code(ui, m, x, y, side);
-    let th = ui.wrap(x, y + side + 10.0, w, 12.0, W::M, MUTED, address);
+    let th = ui.wrap(
+        x,
+        y + side + 10.0,
+        w,
+        12.0,
+        W::M,
+        Role::OnSurfaceVariant,
+        address,
+    );
     side + 10.0 + th + 8.0
 }
 
@@ -1586,8 +1738,8 @@ fn sheet(ui: &mut Ui, w: f32, h: f32, body: &mut dyn FnMut(&mut Ui, f32, f32, f3
     let sx = (w - sw) / 2.0;
     let sy = ((h - sh) / 2.0).max(8.0);
     ui.shadow(sx, sy, sw, sh, 14.0, faraday_draw::tokens::ELEVATION_SHEET);
-    ui.fill(sx, sy, sw, sh, 14.0, SURFACE);
-    ui.stroke(sx, sy, sw, sh, 14.0, LINE);
+    ui.fill(sx, sy, sw, sh, 14.0, Role::SurfaceContainerLow);
+    ui.stroke(sx, sy, sw, sh, 14.0, Role::OutlineVariant);
     body(ui, sx + pad, sy + pad, sw - 2.0 * pad);
 }
 
@@ -1600,11 +1752,25 @@ fn restart_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32, to: RestartTo) 
     };
     sheet(ui, w, h, &mut |ui, x, y0, iw| {
         let mut y = y0;
-        y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, head) + 10.0;
-        y += line(ui, x, y, iw, S.starter_restart_save, WARN) + 4.0;
-        y += line(ui, x, y, iw, S.starter_restart_keep_stick, MUTED);
+        y += ui.wrap(x, y, iw, 17.0, W::S, Role::OnSurface, head) + 10.0;
+        y += line(ui, x, y, iw, S.starter_restart_save, Role::Warning) + 4.0;
+        y += line(
+            ui,
+            x,
+            y,
+            iw,
+            S.starter_restart_keep_stick,
+            Role::OnSurfaceVariant,
+        );
         if to == RestartTo::Stick && os == Os::Windows {
-            y += line(ui, x, y, iw, S.starter_restart_windows_menu, MUTED);
+            y += line(
+                ui,
+                x,
+                y,
+                iw,
+                S.starter_restart_windows_menu,
+                Role::OnSurfaceVariant,
+            );
         }
         y += 4.0;
         if to == RestartTo::Stick && os == Os::Linux {
@@ -1648,9 +1814,16 @@ fn let_through_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
     let line_text = concern_text(c);
     sheet(ui, w, h, &mut |ui, x, y0, iw| {
         let mut y = y0;
-        y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, &ask) + 10.0;
-        y += line(ui, x, y, iw, &line_text, WARN);
-        y += line(ui, x, y, iw, S.starter_let_through_until, MUTED) + 4.0;
+        y += ui.wrap(x, y, iw, 17.0, W::S, Role::OnSurface, &ask) + 10.0;
+        y += line(ui, x, y, iw, &line_text, Role::Warning);
+        y += line(
+            ui,
+            x,
+            y,
+            iw,
+            S.starter_let_through_until,
+            Role::OnSurfaceVariant,
+        ) + 4.0;
         y + buttons(
             ui,
             x,
@@ -1677,8 +1850,8 @@ fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     if starter.update_offered()
         && let Some(i) = &starter.installed
     {
-        y += value_row(ui, x, y, w, S.starter_installed_version, &i.version, TEXT);
-        y += value_row(ui, x, y, w, S.starter_this_version, crate::VERSION, TEXT);
+        y += fact_row(ui, x, y, w, S.starter_installed_version, &i.version);
+        y += fact_row(ui, x, y, w, S.starter_this_version, crate::VERSION);
         y += 12.0;
     }
     if let Some(Ok(place)) = &starter.install_result {
@@ -1688,7 +1861,7 @@ fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             y,
             w,
             &fill(S.starter_install_done_path, &[place]),
-            OK,
+            Role::Ok,
         ) + 8.0;
         return y + buttons(
             ui,
@@ -1699,7 +1872,7 @@ fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         );
     }
     if let Some(Err(why)) = &starter.install_result {
-        y += line(ui, x, y, w, &reason_text(why), ERR);
+        y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
     let (label, style) = if starter.installing {
         (S.starter_installing, Style::Disabled)
@@ -1729,19 +1902,19 @@ fn installed(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             y,
             w,
             &fill(S.starter_entry_kept, &[&reason_text(why)]),
-            WARN,
+            Role::Warning,
         );
     }
     let Some(i) = &starter.installed else {
-        return y + line(ui, x, y, w, S.starter_not_installed, DIM);
+        return y + line(ui, x, y, w, S.starter_not_installed, Role::OnSurfaceVariant);
     };
-    y += value_row(ui, x, y, w, S.starter_installed_version, &i.version, TEXT);
+    y += fact_row(ui, x, y, w, S.starter_installed_version, &i.version);
     for (item, place) in &i.items {
         y += mono_row(ui, x, y, w, item_name(*item), place);
     }
     y += 16.0;
     if let Some(why) = &starter.uninstall_failed {
-        y += line(ui, x, y, w, &reason_text(why), ERR);
+        y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
     y + buttons(
         ui,
@@ -1760,8 +1933,23 @@ fn installed(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 fn uninstall_sheet(_starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
     sheet(ui, w, h, &mut |ui, x, y0, iw| {
         let mut y = y0;
-        y += ui.wrap(x, y, iw, 17.0, W::S, TEXT, S.starter_uninstall_ask) + 10.0;
-        y += line(ui, x, y, iw, S.starter_uninstall_keeps, MUTED);
+        y += ui.wrap(
+            x,
+            y,
+            iw,
+            17.0,
+            W::S,
+            Role::OnSurface,
+            S.starter_uninstall_ask,
+        ) + 10.0;
+        y += line(
+            ui,
+            x,
+            y,
+            iw,
+            S.starter_uninstall_keeps,
+            Role::OnSurfaceVariant,
+        );
         y += 6.0;
         y + buttons(
             ui,
@@ -1785,48 +1973,57 @@ const FINGERPRINT: &str = "D1AF A712 ABEF 9010 9A1B  587F F153 6BE0 7E23 4CFD";
 
 fn about(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    y += value_row(ui, x, y, w, S.starter_version, crate::VERSION, TEXT);
+    y += fact_row(ui, x, y, w, S.starter_version, crate::VERSION);
     match &starter.payload {
         Some(p) => {
-            y += value_row(ui, x, y, w, S.starter_release, &p.version, TEXT);
+            y += fact_row(ui, x, y, w, S.starter_release, &p.version);
             y += mono_row(ui, x, y, w, S.starter_commit, &p.commit);
             y += 16.0;
             y += label(ui, x, y, S.starter_payload);
             for f in &p.files {
                 y += 4.0;
-                y += ui.wrap(x, y, w, 14.0, W::S, TEXT, &f.name) + 4.0;
-                y += value_row(ui, x, y, w, S.starter_build, &describe(&f.build_id), TEXT);
+                y += ui.wrap(x, y, w, 14.0, W::S, Role::OnSurface, &f.name) + 4.0;
+                y += fact_row(ui, x, y, w, S.starter_build, &describe(&f.build_id));
                 y += mono_row(ui, x, y, w, S.starter_sha_xz, &grouped(&f.sha256));
                 let inner = fill(S.starter_sha_inner, &[&f.inner]);
                 y += mono_row(ui, x, y, w, &inner, &grouped(&f.inner_sha256));
                 y += 8.0;
             }
         }
-        None => y += line(ui, x, y + 8.0, w, S.starter_no_payload, DIM) + 8.0,
+        None => {
+            y += line(
+                ui,
+                x,
+                y + 8.0,
+                w,
+                S.starter_no_payload,
+                Role::OnSurfaceVariant,
+            ) + 8.0
+        }
     }
     if let Some(d) = &starter.dev {
         y += 8.0;
-        y += warning(ui, x, y, w, S.starter_dev_image, WARN);
+        y += warning(ui, x, y, w, S.starter_dev_image);
         y += mono_row(ui, x, y, w, S.starter_image_file, &d.path);
         y += mono_row(ui, x, y, w, S.starter_image_sha, &grouped(&d.sha256));
     }
     y += 16.0;
     y += label(ui, x, y, S.starter_release_key);
-    y += ui.wrap(x, y, w, 13.0, W::M, TEXT, FINGERPRINT) + 18.0;
+    y += ui.wrap(x, y, w, 13.0, W::M, Role::OnSurface, FINGERPRINT) + 18.0;
     y += label(ui, x, y, S.starter_check_title);
-    y += line(ui, x, y, w, S.starter_check_text, TEXT);
+    y += line(ui, x, y, w, S.starter_check_text, Role::OnSurface);
     for cmd in [
         S.starter_check_cmd_import,
         S.starter_check_cmd_verify,
         S.starter_check_cmd_sums,
     ] {
-        y += ui.wrap(x, y, w, 12.0, W::M, MUTED, cmd) + 6.0;
+        y += ui.wrap(x, y, w, 12.0, W::M, Role::OnSurfaceVariant, cmd) + 6.0;
     }
     if starter.computer.os == Os::Windows {
         y += 12.0;
-        y += line(ui, x, y, w, S.starter_check_windows, TEXT);
+        y += line(ui, x, y, w, S.starter_check_windows, Role::OnSurface);
         y += label(ui, x, y + 8.0, S.starter_unsigned_title) + 8.0;
-        y += line(ui, x, y, w, S.starter_unsigned_text, TEXT);
+        y += line(ui, x, y, w, S.starter_unsigned_text, Role::OnSurface);
     }
     y
 }
@@ -1967,7 +2164,7 @@ fn templates(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y += 14.0;
     match &t.saved {
         Some(Ok(path)) => {
-            y += line(ui, x, y, w, &fill(S.starter_tpl_saved, &[path]), OK);
+            y += line(ui, x, y, w, &fill(S.starter_tpl_saved, &[path]), Role::Ok);
             y += buttons(
                 ui,
                 x,
@@ -1980,11 +2177,11 @@ fn templates(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                 )],
             );
         }
-        Some(Err(why)) => y += line(ui, x, y, w, &reason_text(why), ERR),
+        Some(Err(why)) => y += line(ui, x, y, w, &reason_text(why), Role::Error),
         None => {}
     }
     if let Some(why) = &t.open_failed {
-        y += line(ui, x, y, w, &reason_text(why), ERR);
+        y += line(ui, x, y, w, &reason_text(why), Role::Error);
     }
     y
 }
@@ -2001,19 +2198,16 @@ fn tick_row(
 ) -> f32 {
     let a = action.host();
     let rh = 52.0;
-    if ui.is_pressed(a) || ui.is_hovered(a) {
-        ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, INNER);
-    }
+    ui.state_layer(
+        (x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0),
+        Role::OnSurface.paint(),
+        a,
+    );
     let cy = y + rh / 2.0;
-    if on {
-        ui.dot(x + 12.0, cy, 9.0, ACCENT);
-        ui.dot(x + 12.0, cy, 4.0, ON_ACCENT);
-    } else {
-        ui.stroke(x + 3.0, cy - 9.0, 18.0, 18.0, 9.0, MUTED);
-    }
-    ui.text_mid(x + 36.0, y, rh, 15.0, W::S, TEXT, head);
+    radio_mark(ui, x, cy, on, true);
+    ui.text_mid(x + 36.0, y, rh, 15.0, W::S, Role::OnSurface, head);
     ui.hit(x - 6.0, y, w + 12.0, rh, a);
-    ui.rule(x, y + rh, w, BORDER);
+    ui.rule(x, y + rh, w, Role::OutlineVariant);
     rh
 }
 
@@ -2031,7 +2225,7 @@ fn choice_done(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 fn template_words(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    ui.rule(x, y, w, BORDER);
+    ui.rule(x, y, w, Role::OutlineVariant);
     for n in [12usize, 24] {
         y += tick_row(
             ui,
@@ -2048,7 +2242,7 @@ fn template_words(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f3
 
 fn template_copy(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    ui.rule(x, y, w, BORDER);
+    ui.rule(x, y, w, Role::OutlineVariant);
     if starter.template.form == Form::Codex32 {
         // The Codex32QR grid is for 48 characters only.
         for c in CodexCopy::ALL {
@@ -2083,7 +2277,7 @@ fn template_copy(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
 
 fn template_form(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    ui.rule(x, y, w, BORDER);
+    ui.rule(x, y, w, Role::OutlineVariant);
     for f in [Form::Words, Form::Codex32] {
         y += tick_row(
             ui,
@@ -2100,7 +2294,7 @@ fn template_form(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
 
 fn template_length(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    ui.rule(x, y, w, BORDER);
+    ui.rule(x, y, w, Role::OutlineVariant);
     for n in CODEX_LENGTHS {
         y += tick_row(
             ui,
@@ -2117,7 +2311,7 @@ fn template_length(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
 
 fn template_worksheets(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    ui.rule(x, y, w, BORDER);
+    ui.rule(x, y, w, Role::OutlineVariant);
     for on in [false, true] {
         // None are published at 127 characters.
         if on && starter.template.chars == 127 {
@@ -2138,14 +2332,13 @@ fn template_worksheets(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) 
 
 fn template_places(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    y += value_row(
+    y += fact_row(
         ui,
         x,
         y,
         w,
         S.starter_tpl_places,
         &starter.template.places.to_string(),
-        TEXT,
     );
     y += 12.0;
     y += buttons(
@@ -2167,4 +2360,41 @@ fn template_places(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
         ],
     );
     choice_done(ui, x, y + 14.0, w)
+}
+
+/// What a test or a snapshot sets and reads of the frame's drawing.
+impl Starter {
+    /// Draws the pages in `theme` from the next frame on: the snapshots
+    /// and the colour tests choose it; the Appearance sheet will
+    /// (`docs/THEMES.md` §14).
+    pub fn set_theme(&mut self, theme: faraday_ui::Theme) {
+        self.theme = theme;
+        self.frost = None;
+        self.dirty = true;
+        self.commands.push_back(crate::Command::Draw);
+    }
+
+    /// Everything the current frame draws that leaves ink (text, icons,
+    /// progress), with the box of each in pixels, for a test of the
+    /// colours it is drawn in.
+    pub fn drawn_ink(&mut self) -> Vec<faraday_draw::canvas::Ink> {
+        // Under a sheet, the page is drawn once to make its frosted copy,
+        // then the frame is drawn from the copy as it is on screen; only
+        // that second draw is recorded.
+        self.frost = None;
+        self.render();
+        if let Some(c) = self.canvas.as_mut() {
+            c.record_ink(true);
+        }
+        self.render();
+        let ink = self
+            .canvas
+            .as_ref()
+            .map_or_else(Vec::new, |c| c.ink().to_vec());
+        if let Some(c) = self.canvas.as_mut() {
+            c.record_ink(false);
+        }
+        self.dirty = true;
+        ink
+    }
 }

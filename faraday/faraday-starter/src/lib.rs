@@ -630,6 +630,9 @@ pub struct Starter {
     class: Class,
     /// The text size factor (F85): 1.0 until the setting exists.
     text_factor: f32,
+    /// The scheme the pages are drawn in: Cobalt, Light, Standard until
+    /// the Appearance sheet exists (`docs/THEMES.md` §14).
+    theme: faraday_ui::Theme,
     /// The top app bar's ⋮ menu is open.
     menu: bool,
     /// Where a task page's way back lands: the destination it was
@@ -790,6 +793,7 @@ impl Starter {
             h: 0.0,
             class: Class::Expanded,
             text_factor: 1.0,
+            theme: faraday_ui::Theme::default(),
             menu: false,
             origin: None,
             seen_at: [0.0; 3],
@@ -2280,6 +2284,7 @@ impl Starter {
         self.offset = self.offset.clamp(0.0, self.max.max(0.0));
         let max = {
             let mut ui = faraday_ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed);
+            ui.theme = self.theme;
             ui.hovered = self.hovered;
             ui.compact = self.compact();
             ui.primaries = 0;

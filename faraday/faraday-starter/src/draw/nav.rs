@@ -128,7 +128,13 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
         } else {
             CAPTION
         };
-        ui.wordmark_named(nx, (APP_BAR_H - cap) / 2.0, cap, TEXT, NameSuffix::Starter);
+        ui.wordmark_named(
+            nx,
+            (APP_BAR_H - cap) / 2.0,
+            cap,
+            Role::OnSurface,
+            NameSuffix::Starter,
+        );
     }
     if dest.is_some() {
         right = fnav::more(ui, right, StarterAction::Menu.host());
@@ -155,13 +161,13 @@ pub(super) fn menu(starter: &Starter, ui: &mut Ui, w: f32) {
     let (px, py) = (w - GAP_SMALL - MENU_W, APP_BAR_H - GAP_SMALL);
     ui.hit_around(px, py, MENU_W, ph, StarterAction::CloseMenu.host());
     ui.shadow(px, py, MENU_W, ph, SHAPE_S, ELEVATION_RAISED);
-    ui.fill(px, py, MENU_W, ph, SHAPE_S, SURFACE);
-    ui.stroke(px, py, MENU_W, ph, SHAPE_S, OUTLINE);
+    ui.fill(px, py, MENU_W, ph, SHAPE_S, Role::SurfaceContainer);
+    ui.stroke(px, py, MENU_W, ph, SHAPE_S, Role::OutlineVariant);
     for (i, (label, action)) in rows.into_iter().enumerate() {
         let ry = py + GAP / 2.0 + i as f32 * TOUCH;
         let a = action.host();
-        ui.state_layer((px, ry, MENU_W, TOUCH, SHAPE_S), TEXT, a);
-        ui.text_mid(px + PAD, ry, TOUCH, LABEL, W::R, TEXT, label);
+        ui.state_layer((px, ry, MENU_W, TOUCH, SHAPE_S), Role::OnSurface.paint(), a);
+        ui.text_mid(px + PAD, ry, TOUCH, LABEL, W::R, Role::OnSurface, label);
         ui.hit_quiet(px, ry, MENU_W, TOUCH, a);
     }
 }

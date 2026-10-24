@@ -46,8 +46,15 @@ fn card_height(ui: &mut Ui, w: f32, body: &mut Body) -> f32 {
 
 /// A card `h` tall at (x, y), `w` wide, with its heading and `body`.
 fn draw_card(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), heading: &str, body: &mut Body) {
-    ui.card(x, y, w, h, LINE);
-    ui.text(x + PAD, y + PAD, 12.0, W::S, MUTED, heading);
+    ui.card(x, y, w, h, Role::OutlineVariant);
+    ui.text(
+        x + PAD,
+        y + PAD,
+        12.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        heading,
+    );
     body(ui, x + PAD, y + PAD + HEAD_H, w - 2.0 * PAD);
 }
 
@@ -114,7 +121,7 @@ fn card_button(
 }
 
 /// A line of a card: wrapped, then a gap. Returns its height.
-fn card_line(ui: &mut Ui, (x, y, w): (f32, f32, f32), s: &str, tone: Paint) -> f32 {
+fn card_line(ui: &mut Ui, (x, y, w): (f32, f32, f32), s: &str, tone: Role) -> f32 {
     ui.wrap(x, y, w, 13.0, W::R, tone, s) + 4.0
 }
 
@@ -170,10 +177,15 @@ fn desktop_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 
         .map(|p| p.version.clone())
         .or_else(|| starter.installed.as_ref().map(|i| i.version.clone()));
     if let Some(v) = version {
-        y += card_line(ui, (x, y, w), &fill(S.starter_card_version, &[&v]), MUTED);
+        y += card_line(
+            ui,
+            (x, y, w),
+            &fill(S.starter_card_version, &[&v]),
+            Role::OnSurfaceVariant,
+        );
     }
     if let Some(why) = starter.desktop_failed.as_ref() {
-        y += card_line(ui, (x, y, w), &reason_text(why), WARN);
+        y += card_line(ui, (x, y, w), &reason_text(why), Role::Warning);
     }
     y += GAP;
     y += card_button(
@@ -195,7 +207,7 @@ fn update_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         .as_ref()
         .map_or("", |i| i.version.as_str());
     let line = fill(S.starter_card_update_line, &[installed, crate::VERSION]);
-    y += card_line(ui, (x, y, w), &line, MUTED);
+    y += card_line(ui, (x, y, w), &line, Role::OnSurfaceVariant);
     y += GAP;
     y += card_button(
         starter,
@@ -214,13 +226,17 @@ fn entry_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
     let failed = starter.entry_remove_failed.as_ref().map(reason_text);
     let (line, tone, style) = if starter.entry_removing {
-        (S.starter_removing_entry.to_string(), MUTED, Style::Disabled)
+        (
+            S.starter_removing_entry.to_string(),
+            Role::OnSurfaceVariant,
+            Style::Disabled,
+        )
     } else if let Some(why) = failed {
-        (why, WARN, Style::Secondary)
+        (why, Role::Warning, Style::Secondary)
     } else {
         (
             S.starter_remove_entry_sub.to_string(),
-            MUTED,
+            Role::OnSurfaceVariant,
             Style::Secondary,
         )
     };
@@ -243,7 +259,7 @@ fn entry_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 
 /// What the card says about this computer: its name, and a line for each
 /// fact, with its tone.
-fn computer_facts(starter: &Starter) -> (String, Vec<(String, Paint)>) {
+fn computer_facts(starter: &Starter) -> (String, Vec<(String, Role)>) {
     let c = &starter.computer;
     let mac = starter.facts().mac();
     let row = mac.and(macs::mac(&c.model));
@@ -259,27 +275,32 @@ fn computer_facts(starter: &Starter) -> (String, Vec<(String, Paint)>) {
     };
     // A Mac shows no Secure Boot line: before the T2 chip its firmware
     // has no such setting, and Startup Security is not read.
-    let mut lines: Vec<(String, Paint)> = match mac {
+    let mut lines: Vec<(String, Role)> = match mac {
         Some(_) => {
             let mut l = Vec::new();
             if row.is_some() {
-                l.push((c.model.trim().to_string(), MUTED));
+                l.push((c.model.trim().to_string(), Role::OnSurfaceVariant));
             }
             if row.is_some_and(|m| m.t2) {
-                l.push((S.starter_mac_t2.to_string(), TEXT));
+                l.push((S.starter_mac_t2.to_string(), Role::OnSurface));
             }
             l
         }
-        None => vec![(secure_boot_text(c.secure_boot), TEXT)],
+        None => vec![(secure_boot_text(c.secure_boot), Role::OnSurface)],
     };
     match mac {
-        Some(macs::Start::NotYet) => lines.push((S.starter_cannot_start_mac_yet.to_string(), WARN)),
+        Some(macs::Start::NotYet) => {
+            lines.push((S.starter_cannot_start_mac_yet.to_string(), Role::Warning))
+        }
         Some(macs::Start::Firmware32) => {
-            lines.push((S.starter_cannot_start_mac_firmware.to_string(), WARN));
+            lines.push((
+                S.starter_cannot_start_mac_firmware.to_string(),
+                Role::Warning,
+            ));
         }
         Some(macs::Start::Intel { .. }) => {}
-        None if c.arm => lines.push((S.starter_cannot_start_arm.to_string(), WARN)),
-        None if !c.uefi => lines.push((S.starter_cannot_start_bios.to_string(), WARN)),
+        None if c.arm => lines.push((S.starter_cannot_start_arm.to_string(), Role::Warning)),
+        None if !c.uefi => lines.push((S.starter_cannot_start_bios.to_string(), Role::Warning)),
         None => {}
     }
     lines.extend(restart_lines(starter));
@@ -288,7 +309,7 @@ fn computer_facts(starter: &Starter) -> (String, Vec<(String, Paint)>) {
 
 /// Why the card offers what it does (§3.1): the restart that did not
 /// happen, and the encryption product found.
-fn restart_lines(starter: &Starter) -> Vec<(String, Paint)> {
+fn restart_lines(starter: &Starter) -> Vec<(String, Role)> {
     let c = &starter.computer;
     let mut lines = Vec::new();
     let card = starter.card();
@@ -299,17 +320,17 @@ fn restart_lines(starter: &Starter) -> Vec<(String, Paint)> {
         {
             lines.push((
                 fill(S.starter_stick_restart_failed, &[&reason_text(why)]),
-                WARN,
+                Role::Warning,
             ));
         }
         if let Some(why) = &starter.restart_failed {
-            lines.push((reason_text(why), ERR));
+            lines.push((reason_text(why), Role::Error));
         }
     }
     if card == Card::Rescue
         && let Some(name) = &starter.other
     {
-        lines.push((fill(S.starter_other_found, &[name]), WARN));
+        lines.push((fill(S.starter_other_found, &[name]), Role::Warning));
     }
     lines
 }
@@ -333,7 +354,10 @@ fn computer_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
     let (name, lines) = computer_facts(starter);
     let mut y = y0;
     // A Mac's name can be long (one identifier, several years): it wraps.
-    y += ui.wrap(x, y, w, 16.0, W::S, TEXT, &name).max(20.0) + 6.0;
+    y += ui
+        .wrap(x, y, w, 16.0, W::S, Role::OnSurface, &name)
+        .max(20.0)
+        + 6.0;
     for (l, tone) in &lines {
         y += card_line(ui, (x, y, w), l, *tone);
     }
@@ -357,18 +381,29 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let next = facts.next_step();
     let mut y = y0;
     y += label(ui, x, y, S.starter_checklist);
-    ui.rule(x, y, w, BORDER);
+    ui.rule(x, y, w, Role::OutlineVariant);
     for (n, row) in facts.checklist().iter().enumerate() {
         let action = StarterAction::Item(row.item);
         let is_next = next == Some(row.item);
         let pressed = ui.is_pressed(action.host());
-        if is_next || pressed {
-            let tint = if pressed {
-                INNER
-            } else {
-                ACCENT.with_alpha(22)
-            };
-            ui.fill(x - 6.0, y + 2.0, w + 12.0, ROW_H - 4.0, 8.0, tint);
+        if pressed {
+            ui.wash(
+                x - 6.0,
+                y + 2.0,
+                w + 12.0,
+                ROW_H - 4.0,
+                8.0,
+                Role::OnSurface.at(STATE_PRESS),
+            );
+        } else if is_next {
+            ui.fill(
+                x - 6.0,
+                y + 2.0,
+                w + 12.0,
+                ROW_H - 4.0,
+                8.0,
+                Role::Primary.with_alpha(22),
+            );
         }
         ui.badge(
             x + 4.0,
@@ -378,25 +413,29 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             is_next,
         );
         let tx = x + 44.0;
-        let fg = if row.done { MUTED } else { TEXT };
+        let fg = if row.done {
+            Role::OnSurfaceVariant
+        } else {
+            Role::OnSurface
+        };
         let head = ui.fit(14.0, W::S, item_label(starter, row.item), w - 80.0);
         ui.text(tx, y + 8.0, 14.0, W::S, fg, &head);
         let state = ui.fit(12.0, W::R, &state_text(&row.state), w - 80.0);
-        ui.text(tx, y + 30.0, 12.0, W::R, MUTED, &state);
+        ui.text(tx, y + 30.0, 12.0, W::R, Role::OnSurfaceVariant, &state);
         ui.icon(
             x + w - 24.0,
             y + (ROW_H - 20.0) / 2.0,
             20.0,
             Icon::ChevronRight,
             9.0,
-            DIM,
+            Role::OnSurfaceVariant,
         );
         ui.hit(x - 6.0, y, w + 12.0, ROW_H, action.host());
         y += ROW_H;
         if row.item == Item::SecureBootOn {
             y += link(ui, tx, y, w - 44.0, LearnId::SecureBootBitLocker);
         }
-        ui.rule(x, y, w, BORDER);
+        ui.rule(x, y, w, Role::OutlineVariant);
     }
     y - y0
 }
@@ -435,7 +474,7 @@ fn stick_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     );
     let attached = row.is_some_and(|r| r.done);
     let mut y = y0;
-    y += card_line(ui, (x, y, w), &line, MUTED);
+    y += card_line(ui, (x, y, w), &line, Role::OnSurfaceVariant);
     y += GAP;
     let style = if attached {
         Style::Secondary
@@ -462,7 +501,7 @@ fn pi_body(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         _ => S.starter_card_pi_none.to_string(),
     };
     let mut y = y0;
-    y += card_line(ui, (x, y, w), &line, MUTED);
+    y += card_line(ui, (x, y, w), &line, Role::OnSurfaceVariant);
     y += GAP;
     let style = if has {
         Style::Secondary
@@ -530,7 +569,7 @@ fn tool_body(
 ) -> f32 {
     let (x, y0, w) = at;
     let mut y = y0;
-    y += card_line(ui, (x, y, w), line, MUTED);
+    y += card_line(ui, (x, y, w), line, Role::OnSurfaceVariant);
     y += GAP;
     y += card_button(starter, ui, (x, y, w), label, style, action);
     y - y0

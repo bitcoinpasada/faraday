@@ -34,7 +34,7 @@ pub const TIP_PLAIN_INK: Paint = Paint::role(Role::InverseOnSurface);
 pub const TIP_RICH_FILL: Paint = Paint::role(Role::SurfaceContainer);
 /// A rich tooltip's supporting text: Material's on-surface variant.
 pub const TIP_RICH_INK: Paint = Paint::role(Role::OnSurfaceVariant);
-/// A rich tooltip's edge where a theme draws no shadow (high contrast).
+/// A rich tooltip's edge where High contrast draws no shadow.
 pub const TIP_RICH_EDGE: Paint = Paint::role(Role::Outline);
 
 /// Which of Material's two tooltips.

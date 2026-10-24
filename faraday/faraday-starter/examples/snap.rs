@@ -2,7 +2,7 @@
 //! (`just faraday-starter-snap WxH`).
 //!
 //! ```text
-//! cargo run -p faraday-starter --example snap -- WxH[@DPI] OUT_DIR
+//! cargo run -p faraday-starter --example snap -- WxH[@DPI] OUT_DIR [THEME]
 //! ```
 //!
 //! The shell's reports are made up here: a laptop, sticks and disks, a
@@ -159,6 +159,7 @@ struct Snap<'a> {
     out: &'a Path,
     size: (u16, u16),
     dpi: u16,
+    theme: faraday_ui::Theme,
 }
 
 impl Snap<'_> {
@@ -179,6 +180,7 @@ impl Snap<'_> {
         starter.starter_event(StarterEvent::Computer(laptop(Os::Linux, true)));
         starter.starter_event(StarterEvent::Payload(Some(payload())));
         starter.starter_event(StarterEvent::Disks(Vec::new()));
+        starter.set_theme(self.theme);
         starter
     }
 
@@ -946,8 +948,8 @@ fn step_shots(s: &Snap) -> Result<(), String> {
 
 fn main() -> ExitCode {
     let args: Vec<String> = std::env::args().collect();
-    if args.len() != 3 {
-        eprintln!("usage: snap WxH[@DPI] OUT_DIR");
+    if args.len() != 3 && args.len() != 4 {
+        eprintln!("usage: snap WxH[@DPI] OUT_DIR [THEME]");
         return ExitCode::from(2);
     }
     let (size, dpi) = match args[1].split_once('@') {
@@ -966,7 +968,24 @@ fn main() -> ExitCode {
         eprintln!("{}: {e}", out.display());
         return ExitCode::FAILURE;
     }
-    match run(&Snap { out, size, dpi }) {
+    // THEME is a stored theme id (`high-contrast-light`, `nord`, ...); the
+    // default is Cobalt, Light.
+    let theme = match args.get(3) {
+        Some(id) => match faraday_ui::Preset::from_id(id) {
+            Some(preset) => preset.theme(),
+            None => {
+                eprintln!("{id}: not a theme id");
+                return ExitCode::from(2);
+            }
+        },
+        None => faraday_ui::Theme::default(),
+    };
+    match run(&Snap {
+        out,
+        size,
+        dpi,
+        theme,
+    }) {
         Ok(()) => ExitCode::SUCCESS,
         Err(e) => {
             eprintln!("{e}");

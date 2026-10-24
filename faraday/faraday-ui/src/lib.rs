@@ -644,7 +644,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         };
         let w = (BAR_W * f).round().max(3.0) as i32;
         let rect = Rect::new(view.right() - inset - w, y, w, h);
-        // Faint, but at full strength in a high contrast theme: there it
+        // Faint, but at full strength at High contrast: there it
         // is the one sign the page goes on.
         let most = if self.theme.is_high_contrast() {
             255
@@ -659,7 +659,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// The region's content fades into the page at an edge it continues
     /// past: under the top once scrolled, above the bottom while there is
     /// more. Each fade comes in over the first 24 units scrolled.
-    /// A high contrast theme draws none: a fade lowers the contrast of
+    /// At High contrast a scheme draws none: a fade lowers the contrast of
     /// what is under it, and the scrollbar says the page goes on.
     fn edge_fades(&mut self, view: Rect, max: f32, offset: f32) {
         if max <= 0.0 || view.h <= 0 || self.theme.is_high_contrast() {
@@ -717,7 +717,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
 
     /// A soft shadow under something that floats at (x, y), w by h with
     /// corners of `r`, at Material 3's elevation `level` (1 to 5): drawn
-    /// before it, black in every theme. The high-contrast themes draw
+    /// before it, black in every theme. High contrast draws
     /// none: a shadow there would lower the contrast of the text and
     /// edges beside it, and what floats has its outline.
     pub fn shadow(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, level: u8) {
@@ -885,7 +885,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         band.y - spare < clip.bottom() && band.bottom() + spare > clip.y
     }
 
-    /// A filled circle; in a high contrast theme a tint is its ring
+    /// A filled circle; at High contrast a tint is its ring
     /// ([`Ui::fill`]).
     pub fn dot(&mut self, cx: f32, cy: f32, r: f32, color: impl Into<Paint>) {
         let color: Paint = color.into();
@@ -904,7 +904,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         );
     }
 
-    /// A filled rectangle with rounded corners. In a high contrast theme
+    /// A filled rectangle with rounded corners. At High contrast
     /// a see-through theme colour is drawn at full strength, or, as a
     /// tint (under [`faraday_draw::tokens::HIGH_CONTRAST_TINT_MAX`]), as
     /// its edge: no see-through layer lowers the contrast of what is on
@@ -922,8 +922,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.wash(x, y, w, h, r, color);
     }
 
-    /// An outlined rectangle with rounded corners; in a high contrast
-    /// theme a see-through theme colour is drawn at full strength.
+    /// An outlined rectangle with rounded corners; at High contrast
+    /// a see-through colour is drawn at full strength.
     pub fn stroke(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, color: impl Into<Paint>) {
         let color: Paint = color.into();
         let color = self.col(self.solid(color));
@@ -1717,7 +1717,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             }
             Style::Tonal | Style::Selected => {
                 self.fill(x, y, width, h, r, Role::SecondaryContainer);
-                // The high contrast themes edge every control at 3:1.
+                // High contrast edges every control at 3:1.
                 if self.theme.is_high_contrast() {
                     self.stroke(x, y, width, h, r, Role::Outline);
                 }

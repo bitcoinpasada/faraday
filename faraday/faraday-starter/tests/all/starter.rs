@@ -11,7 +11,7 @@ use faraday_starter::{LearnId, Page, RestartTo, Sheet, Starter, StarterAction};
 
 const GB: u64 = 1_000_000_000;
 
-fn display(width: u16, height: u16, dpi: u16) -> Event {
+pub(super) fn display(width: u16, height: u16, dpi: u16) -> Event {
     Event::Display(DisplayInfo {
         width,
         height,
@@ -26,7 +26,7 @@ fn display(width: u16, height: u16, dpi: u16) -> Event {
     })
 }
 
-fn payload(stick_build: &str) -> Payload {
+pub(super) fn payload(stick_build: &str) -> Payload {
     let file = |name: &str, inner: &str, size: u64, build: &str, n: char| PayloadFile {
         name: name.into(),
         sha256: n.to_string().repeat(64),
@@ -64,7 +64,7 @@ fn payload(stick_build: &str) -> Payload {
     }
 }
 
-fn disk(id: &str, model: &str, size: u64) -> Disk {
+pub(super) fn disk(id: &str, model: &str, size: u64) -> Disk {
     Disk {
         id: id.into(),
         device: format!("/dev/{id}"),
@@ -82,7 +82,7 @@ fn disk(id: &str, model: &str, size: u64) -> Disk {
     }
 }
 
-fn faraday_stick(id: &str, model: &str, size: u64, release: Option<&str>) -> Disk {
+pub(super) fn faraday_stick(id: &str, model: &str, size: u64, release: Option<&str>) -> Disk {
     Disk {
         faraday: Some(FaradayStick {
             release: release.map(str::to_string),
@@ -110,7 +110,7 @@ fn padded_faraday_stick(id: &str, vendor: &str, model: &str, size: u64) -> Disk 
     }
 }
 
-fn linux(secure_boot: bool) -> Computer {
+pub(super) fn linux(secure_boot: bool) -> Computer {
     Computer {
         os: Os::Linux,
         maker: "Example Computers".into(),
@@ -123,7 +123,7 @@ fn linux(secure_boot: bool) -> Computer {
     }
 }
 
-fn windows(secure_boot: bool) -> Computer {
+pub(super) fn windows(secure_boot: bool) -> Computer {
     Computer {
         os: Os::Windows,
         ..linux(secure_boot)

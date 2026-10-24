@@ -454,36 +454,70 @@ mod tests {
     /// checked on the frame by faraday-core's `fills_read`.
     #[test]
     fn the_boards_boxes_and_the_worksheets_read_in_every_scheme() {
-        use crate::pal::*;
         let mut short = Vec::new();
         for theme in Theme::all() {
             let text = if theme.is_high_contrast() { 7.0 } else { 4.5 };
-            let c = |p: Paint| theme.color(p);
+            let c = |r: Role| theme.role(r);
             // (what, on what, needs)
             let pairs = [
-                ("place name on its fill", PLACE_TEXT, PLACE_FILL, text),
-                ("place name on its band", PLACE_TEXT, PLACE_BAND, text),
-                ("stick name", STICK_TEXT, STICK_FILL, text),
-                ("paper", PAPER_TEXT, PAPER_FILL, text),
-                ("files", FILES_TEXT, FILES_FILL, text),
-                ("vault band", VAULT_ON, VAULT_EDGE, text),
                 (
-                    "checksum square",
-                    CODEX32_ON_CHECKSUM,
-                    CODEX32_CHECKSUM_FILL,
+                    "place name on its fill",
+                    OnSurface,
+                    SurfaceContainerLow,
                     text,
                 ),
-                ("table row", TEXT, CODEX32_LOOKUP_FILL, text),
-                ("a badge's number", MUTED, INNER, text),
-                ("a pressed box's text", TEXT, BG_PRESSED, text),
-                ("place edge", PLACE_EDGE, SURFACE, 3.0),
-                ("stick edge", STICK_EDGE, PLACE_FILL, 3.0),
-                ("vault edge", VAULT_EDGE, STICK_FILL, 3.0),
-                ("vault edge on its body", VAULT_EDGE, VAULT_FILL, 3.0),
-                ("paper edge on its fill", PAPER_EDGE, PAPER_FILL, 3.0),
-                ("files edge", FILES_EDGE, STICK_FILL, 3.0),
-                ("paper edge", PAPER_EDGE, PLACE_FILL, 3.0),
-                ("chip edge", CHIP_EDGE, SURFACE, 3.0),
+                (
+                    "place name on its band",
+                    OnSurface,
+                    SurfaceContainerHigh,
+                    text,
+                ),
+                (
+                    "stick name",
+                    OnSurfaceVariant,
+                    SurfaceContainerHighest,
+                    text,
+                ),
+                ("paper", Tertiary, SurfaceContainerLowest, text),
+                ("files", OnSecondaryContainer, SecondaryContainer, text),
+                ("vault band", OnPrimary, Primary, text),
+                (
+                    "checksum square",
+                    OnChecksumContainer,
+                    ChecksumContainer,
+                    text,
+                ),
+                ("table row", OnSurface, SurfaceContainerHighest, text),
+                (
+                    "a badge's number",
+                    OnSurfaceVariant,
+                    SurfaceContainerHighest,
+                    text,
+                ),
+                (
+                    "a pressed box's text",
+                    OnSurface,
+                    SurfaceContainerHigh,
+                    text,
+                ),
+                ("place edge", Outline, Surface, 3.0),
+                ("stick edge", Outline, SurfaceContainerLow, 3.0),
+                ("vault edge", Primary, SurfaceContainerHighest, 3.0),
+                (
+                    "vault edge on its body",
+                    Primary,
+                    SurfaceContainerLowest,
+                    3.0,
+                ),
+                (
+                    "paper edge on its fill",
+                    Tertiary,
+                    SurfaceContainerLowest,
+                    3.0,
+                ),
+                ("files edge", Secondary, SurfaceContainerHighest, 3.0),
+                ("paper edge", Tertiary, SurfaceContainerLow, 3.0),
+                ("chip edge", Outline, Surface, 3.0),
             ];
             for (what, fg, bg, need) in pairs {
                 let got = ratio(c(fg), c(bg));
