@@ -1189,12 +1189,9 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += 52.0 + crate::screens::never_under(app, ui, x, cy, w);
     if app.vaults.working == Some(crate::vault::Work::Unlock) {
         ui.text_mid(x, cy, 42.0, 14.0, W::S, ACCENT, EN.family_unlocking);
+        crate::screens::working_bar(ui, x, cy, w, 42.0);
     } else {
-        let style = if app.may_load_keys() {
-            Style::Primary
-        } else {
-            Style::Disabled
-        };
+        let style = Style::Primary.when(app.may_load_keys());
         let free = match app.vaults.memory_free_mib {
             Some(m) => fill(EN.family_this_computer, &[&mib_text(m).to_string()]),
             None => String::new(),
@@ -1825,7 +1822,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .collect();
         let mut items: Vec<(&str, Style, Action)> = Vec::new();
         if let Some((wi, _)) = wallet {
-            let scan = if may { Style::Primary } else { Style::Disabled };
+            let scan = Style::Primary.when(may);
             items.push((EN.family_scan_a_key, scan, Action::ScanKey(wi)));
         }
         items.extend(unlocks.iter().map(|(l, a)| (l.as_str(), style, *a)));

@@ -167,6 +167,7 @@ fn run(
         Some("plan") => return tours::plan::plan_tour(c, &mut t),
         Some("board") => return tours::board::board_tour(c, &mut t),
         Some("menu") => return tours::menu::menu_tour(&mut t),
+        Some("m3") => return tours::m3::m3_tour(&mut t),
         Some("inbox") => return tours::inbox::inbox_tour(&mut t),
         Some("transfer") => return tours::transfer::transfer_tour(&mut t),
         Some("upgrade") => return tours::upgrade::upgrade_tour(&mut t),
@@ -287,6 +288,7 @@ fn main() -> ExitCode {
             "plan",
             "board",
             "menu",
+            "m3",
             "inbox",
             "transfer",
             "upgrade",
@@ -324,7 +326,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, codex32correct, createfrom, inprogress, cancel, std, parts, guide, roller, dice5, codex32, codex32form, createshares, codex32backup or tour"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, codex32correct, createfrom, inprogress, cancel, std, parts, guide, roller, dice5, codex32, codex32form, createshares, codex32backup or tour"
         );
         return ExitCode::from(2);
     }

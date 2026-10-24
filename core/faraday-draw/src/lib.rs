@@ -11,6 +11,7 @@ extern crate alloc;
 
 pub mod canvas;
 mod color;
+pub mod easing;
 pub mod fonts;
 pub mod geom;
 pub mod layout;

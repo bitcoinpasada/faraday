@@ -125,19 +125,13 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     }
                 })
                 .collect();
-            let items: Vec<(&str, Style, Action)> = labels
+            let items: Vec<(&str, Action)> = labels
                 .iter()
                 .zip(choices.iter())
-                .map(|(l, &m)| {
-                    let style = if now == m {
-                        Style::Primary
-                    } else {
-                        Style::Secondary
-                    };
-                    (l.as_str(), style, action(m))
-                })
+                .map(|(l, &m)| (l.as_str(), action(m)))
                 .collect();
-            y += wrap_buttons(ui, x, y, w, 36.0, &items) + 2.0;
+            let on = choices.iter().position(|&m| now == m);
+            y += ui.choices((x, y, w, 36.0), 13.0, &items, on) + 10.0;
         }
         if !app.ignored_inputs().is_empty() {
             let names: Vec<&str> = app
@@ -172,19 +166,12 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.theme_groups(x, y0, w, 2, app.theme(), Action::Theme)
     });
     y += section(ui, x, y, w, EN.settings_motion, &|ui, x, y0, w| {
-        let items: Vec<(&str, Style, Action)> =
-            [(EN.settings_full, false), (EN.settings_reduced, true)]
-                .into_iter()
-                .map(|(label, reduced)| {
-                    let style = if app.reduce_motion() == reduced {
-                        Style::Primary
-                    } else {
-                        Style::Secondary
-                    };
-                    (label, style, Action::ReduceMotion(reduced))
-                })
-                .collect();
-        wrap_buttons(ui, x, y0, w, 38.0, &items) - 8.0
+        let items = [
+            (EN.settings_full, Action::ReduceMotion(false)),
+            (EN.settings_reduced, Action::ReduceMotion(true)),
+        ];
+        let on = Some(usize::from(app.reduce_motion()));
+        ui.choices((x, y0, w, 38.0), 14.0, &items, on)
     });
     y += section(ui, x, y, w, EN.settings_display_scale, &|ui, x, y0, w| {
         let labels: Vec<(String, u16)> = [75u16, 90, 100, 110, 125, 150, 200]
@@ -200,18 +187,12 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 )
             })
             .collect();
-        let items: Vec<(&str, Style, Action)> = labels
+        let items: Vec<(&str, Action)> = labels
             .iter()
-            .map(|(l, pct)| {
-                let style = if app.scale_pct() == *pct {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
-                (l.as_str(), style, Action::Scale(*pct))
-            })
+            .map(|(l, pct)| (l.as_str(), Action::Scale(*pct)))
             .collect();
-        wrap_buttons(ui, x, y0, w, 36.0, &items) - 8.0
+        let on = labels.iter().position(|(_, pct)| app.scale_pct() == *pct);
+        ui.choices((x, y0, w, 36.0), 13.0, &items, on)
     });
     y += section(ui, x, y, w, EN.settings_signed_amounts, &|ui, x, y0, w| {
         let mut y = y0;
@@ -229,21 +210,12 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         ui.text(x, y, 13.0, W::R, MUTED, &line);
         y += 24.0;
-        let items: Vec<(&str, Style, Action)> = [
-            (EN.settings_sealed_into, true),
-            (EN.settings_kept_until, false),
-        ]
-        .into_iter()
-        .map(|(label, on)| {
-            let style = if app.seal_amounts() == on {
-                Style::Primary
-            } else {
-                Style::Secondary
-            };
-            (label, style, Action::SealAmounts(on))
-        })
-        .collect();
-        y += wrap_buttons(ui, x, y, w, 38.0, &items) - 8.0;
+        let items = [
+            (EN.settings_sealed_into, Action::SealAmounts(true)),
+            (EN.settings_kept_until, Action::SealAmounts(false)),
+        ];
+        let on = Some(usize::from(!app.seal_amounts()));
+        y += ui.choices((x, y, w, 38.0), 14.0, &items, on);
         y - y0
     });
     if !app.online {
@@ -435,20 +407,24 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut ry = y + 126.0;
     for &(label, now, choices, action) in &rows {
         ui.text_mid(x + 22.0, ry, 38.0, 13.0, W::R, MUTED, label);
-        let mut sx = x + 150.0;
-        for &m in choices {
-            let text = if m == 0 {
-                EN.settings_never.to_string()
-            } else {
-                fill(EN.settings_min, &[&m.to_string()])
-            };
-            let style = if now == m {
-                Style::Primary
-            } else {
-                Style::Secondary
-            };
-            sx += ui.button(sx, ry, Some(76.0), 38.0, &text, style, action(m)) + 8.0;
-        }
+        let texts: Vec<String> = choices
+            .iter()
+            .map(|&m| {
+                if m == 0 {
+                    EN.settings_never.to_string()
+                } else {
+                    fill(EN.settings_min, &[&m.to_string()])
+                }
+            })
+            .collect();
+        let items: Vec<(&str, Action)> = texts
+            .iter()
+            .zip(choices)
+            .map(|(t, &m)| (t.as_str(), action(m)))
+            .collect();
+        let on = choices.iter().position(|&m| now == m);
+        let room = x + width - 22.0 - (x + 150.0);
+        ui.choices((x + 150.0, ry, room, 38.0), 14.0, &items, on);
         ry += 46.0;
     }
     if !app.ignored_inputs().is_empty() {
@@ -482,23 +458,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += card_h + 20.0;
     ui.card(x, y, width, 112.0, LINE);
     ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_motion);
-    let mut sx = x + 22.0;
-    for (label, reduced) in [(EN.settings_full, false), (EN.settings_reduced, true)] {
-        let style = if app.reduce_motion() == reduced {
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
-        sx += ui.button(
-            sx,
-            y + 54.0,
-            Some(96.0),
-            38.0,
-            label,
-            style,
-            Action::ReduceMotion(reduced),
-        ) + 8.0;
-    }
+    let items = [
+        (EN.settings_full, Action::ReduceMotion(false)),
+        (EN.settings_reduced, Action::ReduceMotion(true)),
+    ];
+    let on = Some(usize::from(app.reduce_motion()));
+    ui.choices((x + 22.0, y + 54.0, inner, 38.0), 14.0, &items, on);
     y += 132.0;
     ui.card(x, y, width, 112.0, LINE);
     ui.text(
@@ -509,28 +474,24 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         TEXT,
         EN.settings_display_scale,
     );
-    let mut sx = x + 22.0;
-    for pct in [75u16, 90, 100, 110, 125, 150, 200] {
-        let label = if pct == 100 {
-            EN.settings_auto.to_string()
-        } else {
-            format!("{pct} %")
-        };
-        let style = if app.scale_pct() == pct {
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
-        sx += ui.button(
-            sx,
-            y + 54.0,
-            Some(76.0),
-            38.0,
-            &label,
-            style,
-            Action::Scale(pct),
-        ) + 8.0;
-    }
+    let scales = [75u16, 90, 100, 110, 125, 150, 200];
+    let labels: Vec<String> = scales
+        .iter()
+        .map(|&pct| {
+            if pct == 100 {
+                EN.settings_auto.to_string()
+            } else {
+                format!("{pct} %")
+            }
+        })
+        .collect();
+    let items: Vec<(&str, Action)> = labels
+        .iter()
+        .zip(scales)
+        .map(|(l, pct)| (l.as_str(), Action::Scale(pct)))
+        .collect();
+    let on = scales.iter().position(|&pct| app.scale_pct() == pct);
+    ui.choices((x + 22.0, y + 54.0, inner, 38.0), 14.0, &items, on);
     y += 132.0;
     ui.card(x, y, width, 112.0, LINE);
     ui.text(
@@ -561,26 +522,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ],
         ),
     );
-    let mut sx = x + 22.0;
-    for (label, on) in [
-        (EN.settings_sealed_into, true),
-        (EN.settings_kept_until, false),
-    ] {
-        let style = if app.seal_amounts() == on {
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
-        sx += ui.button(
-            sx,
-            y + 54.0,
-            None,
-            38.0,
-            label,
-            style,
-            Action::SealAmounts(on),
-        ) + 8.0;
-    }
+    let items = [
+        (EN.settings_sealed_into, Action::SealAmounts(true)),
+        (EN.settings_kept_until, Action::SealAmounts(false)),
+    ];
+    let on = Some(usize::from(!app.seal_amounts()));
+    ui.choices((x + 22.0, y + 54.0, inner, 38.0), 14.0, &items, on);
     y += 132.0;
     // Upgrading another stick from this one (`docs/history/PLAN.md` §5.5): never in the
     // online app, which has no boot partition to copy.

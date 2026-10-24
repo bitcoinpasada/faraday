@@ -48,9 +48,6 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     ) -> f32 {
         for (i, (label, on, enabled, action)) in rows.iter().enumerate() {
             let ry = y + i as f32 * rh;
-            if *enabled && (self.is_pressed(*action) || self.is_hovered(*action)) {
-                self.fill(x, ry + 2.0, w, rh - 4.0, 8.0, INNER);
-            }
             self.checkbox(x + 10.0, ry + (rh - 18.0) / 2.0, *on, *enabled);
             let shown = self.fit(LABEL, W::R, label, w - LIST_RESERVE);
             let fg = if *enabled { TEXT } else { DIM };

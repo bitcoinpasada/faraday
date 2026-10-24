@@ -6,7 +6,7 @@ use super::*;
 use faraday_draw::Color;
 
 /// Nord (nordtheme.com): Polar Night, Snow Storm and Frost.
-pub const NORD: [(Color, Color); 33] = [
+pub const NORD: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0x2e, 0x34, 0x40)),
     (SIDEBAR, Color::rgb(0x27, 0x2c, 0x36)),
     (SURFACE, Color::rgb(0x3b, 0x42, 0x52)),
@@ -40,10 +40,16 @@ pub const NORD: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0xcd, 0xdd, 0xee)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0x5c, 0x48, 0x5b)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0x47, 0x4e, 0x5d)),
+    (OUTLINE, Color::rgb(0x87, 0x90, 0xa1)),
+    (SELECTED, Color::rgb(0x4f, 0x63, 0x73)),
+    (ON_SELECTED, Color::rgb(0xec, 0xef, 0xf4)),
+    (INVERSE, Color::rgb(0xec, 0xef, 0xf4)),
+    (ON_INVERSE, Color::rgb(0x3b, 0x42, 0x52)),
+    (ACCENT_TEXT, Color::rgb(0x88, 0xc0, 0xd0)),
 ];
 
 /// Catppuccin Mocha (catppuccin.com): base, mantle, surfaces, mauve.
-pub const CATPPUCCIN: [(Color, Color); 33] = [
+pub const CATPPUCCIN: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0x1e, 0x1e, 0x2e)),
     (SIDEBAR, Color::rgb(0x18, 0x18, 0x25)),
     (SURFACE, Color::rgb(0x31, 0x32, 0x44)),
@@ -77,10 +83,16 @@ pub const CATPPUCCIN: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0xb6, 0xcd, 0xe7)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0x54, 0x3b, 0x50)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0x3c, 0x3d, 0x50)),
+    (OUTLINE, Color::rgb(0x79, 0x7d, 0x95)),
+    (SELECTED, Color::rgb(0x59, 0x50, 0x73)),
+    (ON_SELECTED, Color::rgb(0xcd, 0xd6, 0xf4)),
+    (INVERSE, Color::rgb(0xcd, 0xd6, 0xf4)),
+    (ON_INVERSE, Color::rgb(0x31, 0x32, 0x44)),
+    (ACCENT_TEXT, Color::rgb(0xcb, 0xa6, 0xf7)),
 ];
 
 /// Tokyo Night (enkia's theme): night background, storm cards, blue.
-pub const TOKYO_NIGHT: [(Color, Color); 33] = [
+pub const TOKYO_NIGHT: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0x1a, 0x1b, 0x26)),
     (SIDEBAR, Color::rgb(0x16, 0x16, 0x1e)),
     (SURFACE, Color::rgb(0x24, 0x28, 0x3b)),
@@ -114,10 +126,16 @@ pub const TOKYO_NIGHT: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0xa4, 0xc1, 0xe1)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0x4a, 0x33, 0x49)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0x2f, 0x33, 0x48)),
+    (OUTLINE, Color::rgb(0x6b, 0x73, 0x96)),
+    (SELECTED, Color::rgb(0x3a, 0x48, 0x6c)),
+    (ON_SELECTED, Color::rgb(0xc0, 0xca, 0xf5)),
+    (INVERSE, Color::rgb(0xc0, 0xca, 0xf5)),
+    (ON_INVERSE, Color::rgb(0x24, 0x28, 0x3b)),
+    (ACCENT_TEXT, Color::rgb(0x7a, 0xa2, 0xf7)),
 ];
 
 /// Gruvbox dark (morhetz): bg0 to bg2, fg, yellow, and its bright accents.
-pub const GRUVBOX: [(Color, Color); 33] = [
+pub const GRUVBOX: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0x28, 0x28, 0x28)),
     (SIDEBAR, Color::rgb(0x1d, 0x20, 0x21)),
     (SURFACE, Color::rgb(0x32, 0x30, 0x2f)),
@@ -151,12 +169,18 @@ pub const GRUVBOX: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0xa6, 0xc2, 0xe1)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0x55, 0x3a, 0x3f)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0x3f, 0x3c, 0x38)),
+    (OUTLINE, Color::rgb(0x85, 0x7b, 0x6a)),
+    (SELECTED, Color::rgb(0x66, 0x55, 0x2f)),
+    (ON_SELECTED, Color::rgb(0xeb, 0xdb, 0xb2)),
+    (INVERSE, Color::rgb(0xeb, 0xdb, 0xb2)),
+    (ON_INVERSE, Color::rgb(0x32, 0x30, 0x2f)),
+    (ACCENT_TEXT, Color::rgb(0xfa, 0xbd, 0x2f)),
 ];
 
 /// Bitcoin Orange: a warm near-black page, Bitcoin's orange
 /// (#F7931A) as the accent at full strength. Light text on a dark
 /// page needs no darkening to read against it.
-pub const BITCOIN_ORANGE: [(Color, Color); 33] = [
+pub const BITCOIN_ORANGE: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0x1c, 0x14, 0x10)),
     (SIDEBAR, Color::rgb(0x14, 0x0e, 0x0a)),
     (SURFACE, Color::rgb(0x27, 0x1d, 0x17)),
@@ -190,12 +214,18 @@ pub const BITCOIN_ORANGE: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0x89, 0xae, 0xd8)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0x4c, 0x2a, 0x2c)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0x35, 0x2b, 0x25)),
+    (OUTLINE, Color::rgb(0x79, 0x6a, 0x5b)),
+    (SELECTED, Color::rgb(0x5d, 0x3c, 0x18)),
+    (ON_SELECTED, Color::rgb(0xf2, 0xe9, 0xdf)),
+    (INVERSE, Color::rgb(0xf2, 0xe9, 0xdf)),
+    (ON_INVERSE, Color::rgb(0x27, 0x1d, 0x17)),
+    (ACCENT_TEXT, Color::rgb(0xf7, 0x93, 0x1a)),
 ];
 
 /// Mars: warm near-black page, butterscotch text, a dusty tan for
 /// labels, and the planet's rust red-orange (#D9603B, 5.2:1 on the
 /// page) as the accent, redder than Bitcoin Orange's.
-pub const MARS: [(Color, Color); 33] = [
+pub const MARS: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0x12, 0x0d, 0x0b)),
     (SIDEBAR, Color::rgb(0x0d, 0x09, 0x08)),
     (SURFACE, Color::rgb(0x1e, 0x17, 0x14)),
@@ -229,4 +259,10 @@ pub const MARS: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0x89, 0xae, 0xd8)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0x45, 0x26, 0x2a)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0x2d, 0x25, 0x22)),
+    (OUTLINE, Color::rgb(0x72, 0x65, 0x5d)),
+    (SELECTED, Color::rgb(0x4f, 0x2a, 0x1e)),
+    (ON_SELECTED, Color::rgb(0xf2, 0xe3, 0xd5)),
+    (INVERSE, Color::rgb(0xf2, 0xe3, 0xd5)),
+    (ON_INVERSE, Color::rgb(0x1e, 0x17, 0x14)),
+    (ACCENT_TEXT, Color::rgb(0xd9, 0x60, 0x3b)),
 ];

@@ -259,12 +259,18 @@ extent; a motion left from another screen or sheet is stopped.
 - **Motion** (all time-based, all under a reduce-motion setting later):
   - a sheet and its scrim appear at once (cross-fades removed
     2026-10-07, `docs/history/MOTION-LOG.md` §5 item 3.9);
-  - a toast rises and fades in over 160 ms;
-  - a step card opens with its height growing over 180 ms (ease-out
-    cubic), and the jump that brings the open card into view
+  - a toast rises in over 200 ms on Material's standard decelerate
+    curve and fades on its standard accelerate (`motion::TOAST_MS`,
+    `Out::toast_shown`), shown 4 s (`tokens::TOAST_SHOW_MS`);
+  - a step card opens with its height growing over 300 ms, Material's
+    medium 2, on its emphasized decelerate curve (`motion::ease_open`,
+    F108), and the jump that brings the open card into view
     (`Scroll::follow`) is a glide;
+  - a switch's fill slides in 150 ms on Material's standard curve
+    (`motion::SWITCH_MS`, `motion::ease_move`);
   - a change of theme cross-fades the whole frame the same way, over
-    350 ms (`motion::THEME_FADE_MS`), eased out (`motion::ease_out`),
+    350 ms (`motion::THEME_FADE_MS`), on Material's standard curve
+    (`motion::ease_move`),
     since every pixel changes colour: it is a change like any other to
     `Faraday::fade_begin` (the theme is part of what a frame drew), so
     it is at once with reduce motion and on a machine whose fades are

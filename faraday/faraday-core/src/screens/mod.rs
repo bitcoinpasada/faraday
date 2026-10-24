@@ -50,7 +50,7 @@ pub(crate) use parts::{
     buttons_and_next, code_field, descriptor_row, first_addresses, grid_never, guide_text,
     guide_text_learn, keyed_pills, kind_line, kind_name, locked_tag, never_below, never_real_seed,
     never_real_seed_if, never_under, next_button, pass_field, pin_button, side_panel_w,
-    sign_readiness, size_text, stepper, ticked, word_keys,
+    sign_readiness, size_text, stepper, ticked, word_keys, working_bar, working_line,
 };
 pub(crate) use restore::RSTEPS;
 use sheets::{
@@ -177,7 +177,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     let (w, h) = (full_w, full_h);
     if let Some(sheet) = app.sheet {
         // Everything under a sheet is out of reach.
-        ui.hits.clear();
+        ui.clear_hits();
         ui.in_sheet = true;
         ui.offset = app.sheet_offset;
         // A chip's ⋮ menu is a popup on `wide`: the board stays in view
@@ -446,7 +446,7 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
             // this same frame.
             app.pin_h.set(want);
             ui.clear(SURFACE);
-            ui.hits.clear();
+            ui.clear_hits();
             return draw_compact(app, ui, area, h, kb, y0);
         }
         if let Some((label, style, action)) = pin {
@@ -486,18 +486,27 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         ui.text_mid(bx + 20.0, h - 64.0, 44.0, 14.0, W::S, WARN, msg);
     }
     if let Some(t) = app.toast_text().map(str::to_string) {
-        // It rises in, and fades as its time runs out.
+        // Material's snackbar: in the inverse colours, so it reads as a
+        // message over the page. It rises in, and fades as its time runs
+        // out.
+        use faraday_draw::tokens::{SHAPE_XS, TOAST_H, TOAST_PAD};
         let (shown, rise) = app.toast_shown();
         let a = |c: faraday_draw::Color| c.with_alpha((f32::from(c.a) * shown) as u8);
         let ty = h - 64.0 + rise;
-        let tw = ui.measure(14.0, W::R, &t) + 40.0;
+        let tw = ui.measure(14.0, W::R, &t) + 2.0 * TOAST_PAD;
         let tx = x + (cw - tw) / 2.0;
         if shown >= 1.0 {
-            ui.shadow(tx, ty, tw, 44.0, 10.0, faraday_draw::tokens::ELEVATION_FAB);
+            ui.shadow(
+                tx,
+                ty,
+                tw,
+                TOAST_H,
+                SHAPE_XS,
+                faraday_draw::tokens::ELEVATION_FAB,
+            );
         }
-        ui.fill(tx, ty, tw, 44.0, 10.0, a(INNER));
-        ui.stroke(tx, ty, tw, 44.0, 10.0, a(BORDER));
-        ui.text_mid(tx + 20.0, ty, 44.0, 14.0, W::R, a(TEXT), &t);
+        ui.wash(tx, ty, tw, TOAST_H, SHAPE_XS, a(INVERSE));
+        ui.text_mid(tx + TOAST_PAD, ty, TOAST_H, 14.0, W::R, a(ON_INVERSE), &t);
     }
 }
 

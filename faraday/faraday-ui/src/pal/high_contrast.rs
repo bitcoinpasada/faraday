@@ -10,7 +10,7 @@ use faraday_draw::Color;
 /// the buttons' edge white. The tones differ in lightness as well as
 /// hue (green lightest, orange, red), and dimmed text is a step
 /// below labels.
-pub const HIGH_CONTRAST_DARK: [(Color, Color); 33] = [
+pub const HIGH_CONTRAST_DARK: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0x00, 0x00, 0x00)),
     (SIDEBAR, Color::rgb(0x00, 0x00, 0x00)),
     (SURFACE, Color::rgb(0x0f, 0x0f, 0x0f)),
@@ -44,12 +44,18 @@ pub const HIGH_CONTRAST_DARK: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0xa8, 0xd0, 0xff)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0x43, 0x23, 0x2b)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0x2c, 0x2c, 0x2c)),
+    (OUTLINE, Color::rgb(0xff, 0xff, 0xff)),
+    (SELECTED, Color::rgb(0x3a, 0x3a, 0x0c)),
+    (ON_SELECTED, Color::rgb(0xff, 0xff, 0xff)),
+    (INVERSE, Color::rgb(0xff, 0xff, 0xff)),
+    (ON_INVERSE, Color::rgb(0x0f, 0x0f, 0x0f)),
+    (ACCENT_TEXT, Color::rgb(0xff, 0xff, 0x00)),
 ];
 
 /// High contrast light: white page, black text, a deep blue accent.
 /// Text is 7:1 or more on the page and the card; edges, rules and the
 /// focus ring 3:1 or more; the buttons' edge black.
-pub const HIGH_CONTRAST_LIGHT: [(Color, Color); 33] = [
+pub const HIGH_CONTRAST_LIGHT: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0xff, 0xff, 0xff)),
     (SIDEBAR, Color::rgb(0xf0, 0xf0, 0xf0)),
     (SURFACE, Color::rgb(0xff, 0xff, 0xff)),
@@ -83,4 +89,10 @@ pub const HIGH_CONTRAST_LIGHT: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0x0a, 0x3d, 0x7a)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0xff, 0xdf, 0xe5)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0xe0, 0xe0, 0xe0)),
+    (OUTLINE, Color::rgb(0x00, 0x00, 0x00)),
+    (SELECTED, Color::rgb(0xb2, 0xb2, 0xf0)),
+    (ON_SELECTED, Color::rgb(0x00, 0x00, 0x00)),
+    (INVERSE, Color::rgb(0x00, 0x00, 0x00)),
+    (ON_INVERSE, Color::rgb(0xff, 0xff, 0xff)),
+    (ACCENT_TEXT, Color::rgb(0x00, 0x00, 0xcc)),
 ];

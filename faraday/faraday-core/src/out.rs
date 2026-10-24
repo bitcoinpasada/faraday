@@ -31,10 +31,29 @@ impl Out {
         }
     }
 
-    /// Shows `text` as the toast from `now_ms`, for three seconds.
+    /// Shows `text` as the toast from `now_ms`, for
+    /// [`TOAST_SHOW_MS`](faraday_draw::tokens::TOAST_SHOW_MS).
     pub(crate) fn toast(&mut self, text: &str, now_ms: u64) {
-        self.toast = Some((text.to_string(), now_ms + 3000));
+        let until = now_ms + faraday_draw::tokens::TOAST_SHOW_MS;
+        self.toast = Some((text.to_string(), until));
         self.toast_at = None;
+    }
+
+    /// How much of the toast shows at `now_ms`, 0 to 1, and how far below
+    /// its place it is, in units: it rises in on Material's decelerating
+    /// curve and fades on its accelerating one as its time runs out;
+    /// with reduce motion (`still`) it does not rise.
+    pub(crate) fn toast_shown(&self, now_ms: u64, still: bool) -> (f32, f32) {
+        use faraday_draw::tokens::{EASE_STANDARD_ACCELERATE, EASE_STANDARD_DECELERATE};
+        let Some((_, until)) = &self.toast else {
+            return (0.0, 0.0);
+        };
+        let came = crate::motion::progress(self.toast_at, now_ms, crate::motion::TOAST_MS);
+        let rise = crate::motion::ease(EASE_STANDARD_DECELERATE, came);
+        let left = until.saturating_sub(now_ms) as f32 / crate::motion::TOAST_MS as f32;
+        let fade = 1.0 - crate::motion::ease(EASE_STANDARD_ACCELERATE, 1.0 - left.min(1.0));
+        let lift = if still { 0.0 } else { 10.0 * (1.0 - rise) };
+        (rise.min(fade), lift)
     }
 
     /// Queues `command` for the shell.

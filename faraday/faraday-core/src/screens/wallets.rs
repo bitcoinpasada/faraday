@@ -555,11 +555,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Some(bw),
             36.0,
             label,
-            if app.may_load_keys() {
-                Style::Primary
-            } else {
-                Style::Disabled
-            },
+            Style::Primary.when(app.may_load_keys()),
             Action::ScanKey(app.wallets.wallet()),
         );
     }

@@ -88,11 +88,12 @@ pub fn wrap_buttons_height<A: Copy + PartialEq>(
 /// The height `draw` takes, drawing nothing and keeping no hits: what a
 /// card is measured with before its surface goes down.
 pub fn measured<A: Copy + PartialEq>(ui: &mut Ui<A>, draw: impl FnOnce(&mut Ui<A>) -> f32) -> f32 {
-    let mark = ui.hits.len();
+    let mark = (ui.hits.len(), ui.reach.len());
     ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let h = draw(ui);
     ui.c.pop_clip();
-    ui.hits.truncate(mark);
+    ui.hits.truncate(mark.0);
+    ui.reach.truncate(mark.1);
     h
 }
 
@@ -125,9 +126,18 @@ pub fn sheet_box<A: Copy + PartialEq>(
     if let Some(a) = ui.outside {
         ui.hit_around(x, y, sw, sh, a);
     }
-    ui.shadow(x, y, sw, sh, 16.0, faraday_draw::tokens::ELEVATION_SHEET);
-    ui.fill(x, y, sw, sh, 16.0, SURFACE);
-    ui.stroke(x, y, sw, sh, 16.0, BORDER);
+    // Material's dialog: extra-large corners.
+    use faraday_draw::tokens::SHAPE_XL;
+    ui.shadow(
+        x,
+        y,
+        sw,
+        sh,
+        SHAPE_XL,
+        faraday_draw::tokens::ELEVATION_DIALOG,
+    );
+    ui.fill(x, y, sw, sh, SHAPE_XL, SURFACE);
+    ui.stroke(x, y, sw, sh, SHAPE_XL, BORDER);
     (x, y)
 }
 

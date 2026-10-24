@@ -168,11 +168,7 @@ fn potential_compact(
                 (EN.potential_cancel, Style::Secondary, Action::Cancel),
                 (
                     &go,
-                    if app.may_load_keys() || xpub.is_some() {
-                        Style::Primary
-                    } else {
-                        Style::Disabled
-                    },
+                    Style::Primary.when(app.may_load_keys() || xpub.is_some()),
                     Action::PotentialMake,
                 ),
             ],
@@ -412,11 +408,7 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         Some(bw),
         46.0,
         &go,
-        if app.may_load_keys() || xpub.is_some() {
-            Style::Primary
-        } else {
-            Style::Disabled
-        },
+        Style::Primary.when(app.may_load_keys() || xpub.is_some()),
         Action::PotentialMake,
     );
 }
@@ -456,12 +448,7 @@ pub(crate) fn learn_tabs(
             // then wrapped over it, since `Ui::button` itself only ever
             // draws one line.
             ui.button(bx, by, Some(w), bh, "", *style, *action);
-            let fg = match style {
-                Style::Primary => ON_ACCENT,
-                Style::Secondary => TEXT,
-                Style::Ghost => MUTED,
-                Style::Disabled => DIM,
-            };
+            let fg = style.label();
             let top = by + (bh - lines as f32 * line_h) / 2.0;
             ui.wrap(bx + 12.0, top, w - 24.0, 13.0, W::S, fg, label);
             by += bh + 6.0;
@@ -997,7 +984,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 let on = chosen.map_or(i == 0, |c| c == id);
                 (
                     ui.fit(12.0, W::S, name, sw - 96.0),
-                    if on { Style::Primary } else { Style::Secondary },
+                    Style::chosen(on),
                     Action::ScanCamera(i as u8),
                 )
             })
@@ -1013,7 +1000,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 let on = chosen.map_or(i == 0, |c| c == id);
                 (
                     ui.fit(12.0, W::S, name, 180.0),
-                    if on { Style::Primary } else { Style::Secondary },
+                    Style::chosen(on),
                     Action::ScanCamera(i as u8),
                 )
             })
@@ -1242,44 +1229,28 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         q.source,
         crate::QrSource::Text(_) | crate::QrSource::Key(..)
     );
-    for (i, (label, f)) in [EN.qr_ur, EN.qr_bbqr, EN.qr_parts]
-        .iter()
+    // Each a segmented button (Material's), the chosen one ticked.
+    let formats: Vec<(&str, Action)> = [EN.qr_ur, EN.qr_bbqr, EN.qr_parts]
+        .into_iter()
         .zip(crate::QrFormat::ALL)
         .enumerate()
-    {
-        if f == crate::QrFormat::Parts && !text {
-            continue;
-        }
-        bx += ui.button(
-            bx,
-            row,
-            Some(64.0),
-            36.0,
-            label,
-            if q.format == f {
-                Style::Primary
-            } else {
-                Style::Secondary
-            },
-            Action::QrFormat(i as u8),
-        ) + 6.0;
-    }
+        .filter(|(_, (_, f))| *f != crate::QrFormat::Parts || text)
+        .map(|(i, (label, _))| (label, Action::QrFormat(i as u8)))
+        .collect();
+    let chosen = crate::QrFormat::ALL.iter().position(|f| *f == q.format);
+    bx += ui.segmented((bx, row, 36.0), 13.0, &formats, chosen, None) + 14.0;
     if q.frames.len() > 1 {
-        bx += 14.0;
-        for (label, ms) in ["2/s", "3/s", "5/s"].iter().zip(crate::QR_SPEEDS) {
-            let on = app.qr_frame_ms() == ms;
-            bx += ui.button(
-                bx,
-                row,
-                Some(52.0),
-                36.0,
-                label,
-                if on { Style::Primary } else { Style::Secondary },
-                Action::QrSpeed(ms),
-            ) + 6.0;
-        }
+        let speeds: Vec<(&str, Action)> = ["2/s", "3/s", "5/s"]
+            .into_iter()
+            .zip(crate::QR_SPEEDS)
+            .map(|(label, ms)| (label, Action::QrSpeed(ms)))
+            .collect();
+        let on = crate::QR_SPEEDS
+            .iter()
+            .position(|ms| app.qr_frame_ms() == *ms);
+        ui.segmented((bx, row, 36.0), 13.0, &speeds, on, None);
     }
-    let mut bx = x + 32.0;
+    let bx = x + 32.0;
     if q.offers_png() {
         // One code of public content: kept as a picture with its label.
         ui.button(
@@ -1292,23 +1263,14 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             Action::QrPng,
         );
     } else if q.frames.len() > 1 || q.part != crate::QR_PARTS[1] {
-        for (label, n) in [EN.qr_small, EN.qr_medium, EN.qr_large]
-            .iter()
+        let sizes: Vec<(&str, Action)> = [EN.qr_small, EN.qr_medium, EN.qr_large]
+            .into_iter()
             .zip(crate::QR_PARTS)
-        {
-            let on = q.part == n;
-            bx += ui.button(
-                bx,
-                y + sh - 32.0 - 44.0,
-                Some(76.0),
-                44.0,
-                label,
-                if on { Style::Primary } else { Style::Secondary },
-                Action::QrPartSize(n),
-            ) + 6.0;
-        }
+            .map(|(label, n)| (label, Action::QrPartSize(n)))
+            .collect();
+        let on = crate::QR_PARTS.iter().position(|n| q.part == *n);
+        ui.segmented((bx, y + sh - 32.0 - 44.0, 44.0), 14.0, &sizes, on, None);
     }
-    let _ = bx;
     ui.button(
         x + sw - 32.0 - 100.0,
         y + sh - 32.0 - 44.0,

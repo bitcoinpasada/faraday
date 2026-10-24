@@ -24,16 +24,36 @@ pub fn sheet<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, h: f32, body: &mut Bod
 /// panel; a long sheet on the desktop too.
 pub fn scroll_sheet<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
-    (sx, sw): (f32, f32),
+    place: (f32, f32),
     h: f32,
     margin: f32,
     pad: f32,
     body: &mut Body<'_, A>,
 ) {
+    framed(ui, place, (h, margin, pad), false, body);
+}
+
+/// [`scroll_sheet`], its buttons at its end as wide as their labels
+/// when `end`, else sharing its width ([`buttons`]).
+fn framed<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (sx, sw): (f32, f32),
+    (h, margin, pad): (f32, f32, f32),
+    end: bool,
+    body: &mut Body<'_, A>,
+) {
+    use faraday_draw::tokens::SHAPE_XL;
     let (ix, iw) = (sx + pad, sw - 2.0 * pad);
+    let foot_of = |ui: &mut Ui<A>, y: f32, items: &[(&str, Style, A)]| {
+        if end {
+            end_buttons(ui, ix, y, iw, items)
+        } else {
+            buttons(ui, ix, y, iw, items)
+        }
+    };
     // The sheet's buttons ([`buttons`]) are kept at its foot, and what is
     // above them scrolls when the sheet is taller than the panel.
-    let mark = ui.hits.len();
+    let mark = (ui.hits.len(), ui.reach.len());
     ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     ui.sheet_pin = None;
     ui.sheet_pinning = true;
@@ -45,18 +65,27 @@ pub fn scroll_sheet<A: Copy + PartialEq>(
         .map(|(l, s, a)| (l.as_str(), *s, *a))
         .collect();
     ui.sheet_pinning = false;
-    let bh = buttons(ui, ix, 0.0, iw, &items);
+    let bh = foot_of(ui, 0.0, &items);
     ui.c.pop_clip();
-    ui.hits.truncate(mark);
+    ui.hits.truncate(mark.0);
+    ui.reach.truncate(mark.1);
     let foot = if items.is_empty() { 0.0 } else { bh + pad };
     let sh = (ch + 2.0 * pad + foot).min(h - 2.0 * margin);
     let sy = ((h - sh) / 2.0).max(margin);
     if let Some(a) = ui.outside {
         ui.hit_around(sx, sy, sw, sh, a);
     }
-    ui.shadow(sx, sy, sw, sh, 14.0, faraday_draw::tokens::ELEVATION_SHEET);
-    ui.fill(sx, sy, sw, sh, 14.0, SURFACE);
-    ui.stroke(sx, sy, sw, sh, 14.0, BORDER);
+    // Material's dialog and sheet: extra-large corners.
+    ui.shadow(
+        sx,
+        sy,
+        sw,
+        sh,
+        SHAPE_XL,
+        faraday_draw::tokens::ELEVATION_SHEET,
+    );
+    ui.fill(sx, sy, sw, sh, SHAPE_XL, SURFACE);
+    ui.stroke(sx, sy, sw, sh, SHAPE_XL, BORDER);
     // Taller than the panel: what is above the buttons scrolls.
     let view = sh - foot;
     let max = (ch + 2.0 * pad - view).max(0.0);
@@ -73,8 +102,71 @@ pub fn scroll_sheet<A: Copy + PartialEq>(
         if max > 0.0 {
             ui.fill(sx + 1.0, sy + view, sw - 2.0, 1.0, 0.0, LINE);
         }
-        buttons(ui, ix, sy + view, iw, &items);
+        foot_of(ui, sy + view, &items);
     }
+}
+
+/// A dialog (Material's basic dialog, `docs/DESIGN.md` §4.11): its head,
+/// what `body` draws under it, and `actions`, in one box centred in a
+/// frame `w` by `h`; as tall as what it holds, and what is above its
+/// actions scrolls when that is taller than the frame. On a small panel
+/// (`Ui::compact`) it is the panel's width less a margin and its actions
+/// share its width; elsewhere it is [`DIALOG_MIN`] to [`DIALOG_MAX`]
+/// wide, `want` where that is between them, with [`DIALOG_PAD`] inside
+/// and its actions at its end as wide as their labels.
+pub fn dialog<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (w, h, want): (f32, f32, f32),
+    head: (crate::Glyph, faraday_draw::Color, &str),
+    body: &mut Body<'_, A>,
+    actions: &[(&str, Style, A)],
+) {
+    use faraday_draw::tokens::{DIALOG_MAX, DIALOG_MIN, DIALOG_PAD, GAP, PAD};
+    let (place, frame, end) = if ui.compact {
+        ((GAP, w - 2.0 * GAP), (h, GAP, PAD), false)
+    } else {
+        let dw = want.clamp(DIALOG_MIN, DIALOG_MAX).min(w - 2.0 * PAD);
+        (((w - dw) / 2.0, dw), (h, PAD, DIALOG_PAD), true)
+    };
+    framed(ui, place, frame, end, &mut |ui, x, y, iw| {
+        let mut cy = y;
+        cy += sheet_head(ui, x, cy, iw, head.0, head.1, head.2);
+        cy += body(ui, x, cy, iw);
+        cy += buttons(ui, x, cy, iw, actions);
+        cy - y
+    });
+}
+
+/// A dialog's actions at its end, each as wide as its label, the last
+/// at the right edge of `w` from x: Material's dialog. One under another
+/// at the width where they do not fit side by side. Returns their
+/// height.
+fn end_buttons<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    x: f32,
+    y: f32,
+    w: f32,
+    items: &[(&str, Style, A)],
+) -> f32 {
+    use faraday_draw::tokens::DIALOG_ACTION_GAP as G;
+    if items.is_empty() {
+        return 0.0;
+    }
+    let h = 46.0;
+    let widths: Vec<f32> = items
+        .iter()
+        .map(|(l, ..)| ui.measure(15.0, W::S, l) + 32.0)
+        .collect();
+    let total = widths.iter().sum::<f32>() + G * (items.len() - 1) as f32;
+    if total > w {
+        return buttons(ui, x, y, w, items);
+    }
+    let mut bx = x + w - total;
+    for (&(label, style, action), bw) in items.iter().zip(widths) {
+        ui.button(bx, y, Some(bw), h, label, style, action);
+        bx += bw + G;
+    }
+    h
 }
 
 /// A sheet's title: its icon, and the words wrapped beside it. Returns
@@ -88,7 +180,8 @@ pub fn sheet_head<A: Copy + PartialEq>(
     tone: faraday_draw::Color,
     title: &str,
 ) -> f32 {
-    ui.icon(x - 4.0, y - 3.0, 28.0, icon, 15.0, tone);
+    let glyph = faraday_draw::tokens::ICON_GLYPH_SMALL;
+    ui.icon(x - 4.0, y - 3.0, 28.0, icon, glyph, tone);
     let th = ui.wrap(x + 28.0, y, w - 28.0, 17.0, W::S, TEXT, title);
     th.max(22.0) + 10.0
 }

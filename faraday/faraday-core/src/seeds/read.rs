@@ -527,11 +527,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let with = s.with_key();
     let differ = !s.pass.is_empty() && !s.pass2.is_empty() && s.pass.as_str() != s.pass2.as_str();
-    let use_with = if s.pass_ready() {
-        Style::Primary
-    } else {
-        Style::Disabled
-    };
+    let use_with = Style::Primary.when(s.pass_ready());
     let skip = s.family == Some(ForFamily::Intake) && s.wallet.is_some();
     let cancel = if skip {
         (

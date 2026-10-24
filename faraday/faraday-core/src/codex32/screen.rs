@@ -1828,7 +1828,7 @@ fn cell_page(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), head: &str, 
     use crate::compact::{BAR_H, M};
     // The page covers the flow: nothing under it is within reach, and its
     // pinned Continue goes.
-    ui.hits.clear();
+    ui.clear_hits();
     ui.pin = None;
     ui.fill(x0, 0.0, cw, h, 0.0, SURFACE);
     crate::compact::bar(

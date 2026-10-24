@@ -1,10 +1,15 @@
 //! Where the pointer or finger is and what it has hold of: the controls
-//! the last frame offered, the one pressed, the drag, the held scrollbar
-//! and the hover.
+//! the last frame offered and where each takes a press, the one
+//! pressed, the drag, the held scrollbar, the hover, and the control the
+//! keyboard is on.
 
 use faraday_draw::Rect;
+use faraday_shell_api::Key as KeyIn;
 
 use crate::Action;
+
+/// Where a control the last frame drew takes a press (`faraday_ui::Reach`).
+pub(crate) type Reach = faraday_ui::Reach<Action>;
 
 /// The pointer's state (`docs/STRUCTURE-PASS.md` §7.4.4, step 47). One
 /// field on `Faraday`; the fields are read and written through these
@@ -33,6 +38,13 @@ pub(crate) struct Pointer {
     hover: Option<(i32, i32)>,
     /// What can be pressed under it.
     hovered: Option<Action>,
+    /// Where each control the last frame drew takes a press, as large as
+    /// the touch floor, in drawing order: the order Tab moves through.
+    reach: Vec<Reach>,
+    /// The control the keyboard is on (`docs/DESIGN.md` §4.15): Tab and
+    /// Shift+Tab move it, Enter or Space presses it, a press of the
+    /// pointer or a finger takes it off.
+    focus: Option<Action>,
 }
 
 impl Pointer {
@@ -48,6 +60,8 @@ impl Pointer {
             scroll_at: None,
             hover: None,
             hovered: None,
+            reach: Vec::new(),
+            focus: None,
         }
     }
 
@@ -61,18 +75,46 @@ impl Pointer {
         std::mem::take(&mut self.hits)
     }
 
-    /// Puts back the hits a frame drew.
-    pub(crate) fn set_hits(&mut self, hits: Vec<(Rect, Action)>) {
+    /// Puts back the hits a frame drew, with where each takes a press;
+    /// a target whose control is no longer among the hits as it was
+    /// drawn (cut back by a clip, taken off by a sheet) is let go.
+    pub(crate) fn set_hits(&mut self, hits: Vec<(Rect, Action)>, mut reach: Vec<Reach>) {
+        reach.retain(|t| hits.contains(&(t.drawn, t.action)));
         self.hits = hits;
+        self.reach = reach;
     }
 
-    /// The topmost control offered at (x, y), with where it was drawn.
+    /// The topmost control offered at (x, y), with where it was drawn;
+    /// beside every control, the target (x, y) falls in.
     pub(crate) fn hit_at(&self, x: i32, y: i32) -> Option<(Action, Rect)> {
         self.hits
             .iter()
             .rev()
             .find(|(r, _)| r.contains(x, y))
             .map(|(r, a)| (*a, *r))
+            .or_else(|| faraday_ui::reach_at(&self.reach, x, y))
+    }
+
+    /// The control the keyboard is on, while the last frame offered it.
+    pub(crate) fn focused(&self) -> Option<Action> {
+        self.focus.filter(|a| self.offers(*a))
+    }
+
+    /// What a key left over by every screen does to the keyboard's place
+    /// (`docs/DESIGN.md` §4.15): Tab and Shift+Tab move it through the
+    /// controls in the order the last frame drew them; Enter or Space
+    /// returns the control it is on, to be pressed.
+    pub(crate) fn focus_key(&mut self, key: KeyIn) -> Option<Action> {
+        match key {
+            KeyIn::Tab | KeyIn::BackTab => {
+                let order: Vec<Action> = self.reach.iter().map(|t| t.action).collect();
+                let at = self.focused();
+                self.focus = faraday_ui::focus_step(&order, at, key == KeyIn::BackTab);
+                None
+            }
+            KeyIn::Enter | KeyIn::Char(' ') => self.focused(),
+            _ => None,
+        }
     }
 
     /// Where the topmost offer of `action` was drawn.
@@ -93,7 +135,12 @@ impl Pointer {
         self.pressed
     }
 
+    /// A press is down, or let go: a press takes the keyboard's place
+    /// off its control.
     pub(crate) fn set_pressed(&mut self, pressed: Option<(Action, Rect)>) {
+        if pressed.is_some() {
+            self.focus = None;
+        }
         self.pressed = pressed;
     }
 

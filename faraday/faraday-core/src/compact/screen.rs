@@ -237,11 +237,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Some(iw - 20.0),
             40.0,
             EN.compact_scan_a_key,
-            if app.may_load_keys() {
-                Style::Primary
-            } else {
-                Style::Disabled
-            },
+            Style::Primary.when(app.may_load_keys()),
             Action::ScanKey(app.wallets.wallet()),
         );
     }
@@ -401,7 +397,7 @@ fn silent_card(
                 Action::Entry(Some(r.fingerprint.0)),
             )
         };
-        let style = if may { style } else { Style::Disabled };
+        let style = style.when(may);
         ui.button(x, cy, Some(iw), 36.0, label, style, action);
         cy += 44.0;
     }
@@ -985,11 +981,7 @@ fn entry_form_foot(
                     Some(_) => EN.keygen_continue,
                     None => EN.compact_make_the_key,
                 },
-                if ready {
-                    Style::Primary
-                } else {
-                    Style::Disabled
-                },
+                Style::Primary.when(ready),
                 flow.unwrap_or(Action::EntryRecover),
             ),
         ],

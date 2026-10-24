@@ -159,8 +159,9 @@ pub fn keyboard<A: Copy + PartialEq>(
                 OskPress::Symbols,
             ),
         };
-        let style = if cap.enabled { style } else { Style::Disabled };
-        ui.button(kx, ky, Some(kw), kh, &label, style, act(press));
+        let style = style.when(cap.enabled);
+        let shape = (kx, ky, Some(kw), kh, faraday_draw::tokens::RADIUS_SMALL);
+        ui.button_in(shape, &label, style, act(press));
         match cap.input {
             KeyInput::Backspace => ui.icon(
                 kx + kw / 2.0 - 9.0,

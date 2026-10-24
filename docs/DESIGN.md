@@ -6,7 +6,8 @@
 Faraday and the Starter follow Material 3 (F92, F91) in their
 components, type, spacing, touch targets, states, colour roles, shape,
 elevation, motion and layout, with Faraday's own look; where this
-document differs from Material 3, a decision says so.
+document differs from Material 3, a decision says so. F108 records how
+the tokens, colour roles and components follow it, shape included.
 
 Every dimension in it is a name in
 `core/faraday-draw/src/tokens.rs`, and `tools/lint-tokens.sh` keeps it that
@@ -70,6 +71,12 @@ the theme (§3), the content kinds (§4) and the screens (§5).
     are ticked boxes; a fact is a label and its value. Spare space is
     never filled with decoration or with a second rendering of the same
     value.
+12. **Every control is easy to hit and to reach.** A press is taken on
+    at least 48 × 48 dp on every layout, larger than the control where
+    it is drawn smaller, and never over a neighbour; every control shows
+    when the pointer is over it, when it is pressed and when the
+    keyboard is on it, and the keyboard reaches every one (§4.13,
+    §4.15).
 
 ## 3. Sizes
 
@@ -102,7 +109,37 @@ Sizes are design units (dp). The tokens are names in
 `core/faraday-draw/src/tokens.rs`: the type ramp (title 20, body 16,
 label 14, caption 12), the grid and gaps, the radii, the touch floor,
 the field heights, the board's and the chart's dimensions, the scanner's
-and the QR code's. The size classes there, `small`, `mobile` and `wide`,
+and the QR code's.
+
+Material 3's tokens are named there too (F108):
+
+- **Shape**, Material's corner scale: `SHAPE_NONE` 0, `SHAPE_XS` 4,
+  `SHAPE_S` 8, `SHAPE_M` 12, `SHAPE_L` 16, `SHAPE_XL` 28 and
+  `shape_full`, round ends. Buttons, segmented buttons and tags are
+  full, cards medium (`RADIUS`), chips and keys small (`RADIUS_SMALL`),
+  menus, fields (`FIELD_RADIUS`) and the toast extra-small, the floating
+  action large, dialogs and sheets extra-large; a checkbox's corners are
+  `SHAPE_CHECKBOX`.
+- **Touch targets**: `TOUCH`, 48, on every layout (principle 12).
+- **States**: `STATE_HOVER` 8 %, `STATE_FOCUS` 12 % and `STATE_PRESS`
+  16 %, the opacity of a control's content colour laid over it; the
+  focus ring, `FOCUS_RING` 3 thick and `FOCUS_OFFSET` 2 outside.
+- **Icons**: `ICON_GLYPH` 24 where an icon stands alone,
+  `ICON_GLYPH_SMALL` 20 in a dense place, `ICON_GLYPH_BUTTON` 18 in a
+  button or a chip.
+- **Text**: nothing is drawn under `TEXT_MIN`, 11, Material's
+  label-small; `Ui` draws a smaller size asked for at it.
+- **Motion**: Material's durations, `MOTION_SHORT1` to
+  `MOTION_EXTRA_LONG4` (50 to 1000 ms), and its easings,
+  `EASE_STANDARD`, `EASE_STANDARD_DECELERATE`,
+  `EASE_STANDARD_ACCELERATE`, `EASE_EMPHASIZED_DECELERATE` and
+  `EASE_EMPHASIZED_ACCELERATE`; `docs/MOTION.md` says which motion
+  takes which.
+- **The toast**: `TOAST_H` 48, shown `TOAST_SHOW_MS`, 4 s.
+- **Dialogs**: `DIALOG_MIN` 280 to `DIALOG_MAX` 560 wide, `DIALOG_PAD`
+  24 inside; the scrim over a sheet's frost, `SCRIM_ALPHA`, 32 %.
+- **Progress**: `PROGRESS_H` 4.
+ The size classes there, `small`, `mobile` and `wide`,
 size the keyboards and the QR side; Faraday's screens use `small` on the
 small panel and `wide` otherwise, and `mobile` only scales the PNG a QR
 code is saved as.
@@ -113,8 +150,32 @@ Theme: `faraday_ui::pal` names every colour a screen uses — `SURFACE`
 the board's and the sticks' own — and each `Theme` draws them in its own
 values: Dark, Light, Cobalt (the theme a first start is in), Nord,
 Catppuccin, Tokyo Night, Gruvbox, Rosé Pine, Bitcoin Orange, Bitcoin
-Orange Light and Lamplight, chosen in Settings. A QR code's black and
-white and a camera's picture are drawn as they are in every theme.
+Orange Light, Lamplight, Mars, High contrast dark and High contrast
+light, chosen in Settings. A QR code's black and white and a camera's
+picture are drawn as they are in every theme.
+
+Material 3's colour roles that those names did not cover are in every
+theme's table, each theme its own value (F108): `OUTLINE`, a control's
+edge (an outlined button, a segmented button, a field, the field chip,
+a ⋮), 3:1 or more on the page and the card, where `BORDER`, a card's,
+a rule's and a sheet's edge, stays fainter; `SELECTED` and
+`ON_SELECTED`, a chosen option and a tonal button; `INVERSE` and
+`ON_INVERSE`, the toast; `ACCENT_TEXT`, the accent where it is read
+rather than filled (text, icons, the focus ring), which `Ui` draws text
+and icons asked for in `ACCENT` in: the accent itself in every theme but
+Bitcoin Orange Light, where it is the orange darkened to 4.5:1 on the
+page; and `SCRIM`, drawn as it is. Every text pair stands 4.5:1 or more
+(7:1 in the high contrast themes), and every control edge 3:1 or more.
+
+In the high contrast themes nothing see-through lowers the contrast of
+what is on it: they draw no shadow (`Ui::shadow`) and no fade at a
+scrolled edge, and the scrollbar at full strength; a theme colour asked
+for see-through is drawn at full strength as an edge, a rule or a mark,
+and as a tint under what it holds (under `HIGH_CONTRAST_TINT_MAX`) as
+its edge alone, the page left under the text (`Ui::fill`, `Ui::stroke`).
+State layers, a control not available now and what fades in or out stay
+see-through (`Ui::wash`); the state layers and the scrim are chosen so
+text on them keeps 7:1 and edges 3:1.
 
 Faces: Noto Sans and Noto Sans SemiBold for text, Noto Sans Mono for
 data, Noto Sans CJK for the characters the wordlists and their keyboards
@@ -179,10 +240,11 @@ floating action button under the pointer and a dragged chip
 | Kind | Rendering | Behaviour |
 |---|---|---|
 | Option row | One rounded box 48 units tall per option: its name at the left and its line at the right, the line under the name on the small panel; the chosen one tinted and edged in the accent (`kind_rows`). Two everyday options first, the rest behind **More kinds**, a ghost button. | A press chooses it; on a card that asks only this, it moves on to the next card, and a press on the one chosen does too (F103). Used for: Create's and Restore's Kind, Create a vault's size. |
-| Option buttons | A row of buttons that wraps at the width (`faraday_ui::parts::button_rows`, `wrap_buttons`), the chosen one `Style::Primary` and the others secondary or ghost. | A press chooses it, and on a step card that asks only this, moves on as an option row does (F103). Used for: Add a key's list and form, Explore's script, the QR sheet's format, speed and size, Make codex32 shares' Scheme and Entropy, its entry's strip of worksheets and its String · Codex32QR, Sign a message's format, BIP-85's application. |
+| Segmented button | One choice among two to five, side by side in one outlined container, round at its ends, the chosen segment in `SELECTED` with a tick (`Ui::segmented`); where the options do not fit the width, option buttons instead (`Ui::choices`). The chosen one is never drawn as the screen's filled button. | A press chooses it. Used for: Settings' Lock after, Power off after, Motion, Display scale and Signed amounts; the QR sheet's format, speed and size; a flow's **Steps only · Guided**, its fill sliding between them. |
+| Option buttons | A row of buttons that wraps at the width (`faraday_ui::parts::button_rows`, `wrap_buttons`), the chosen one `Style::Selected` (`Style::chosen`) and the others secondary. | A press chooses it, and on a step card that asks only this, moves on as an option row does (F103). Used for: Add a key's list and form, Explore's script, the scanner's cameras, Tools' modes, Make codex32 shares' Scheme and Entropy, its entry's strip of worksheets and its String · Codex32QR, Sign a message's format, BIP-85's application. |
 | Tab row | Option buttons `CODEX32_TAB` high, one per item in its order, the shown one primary and a ✓ before each once shown, wrapping at the width; on a compact window the shown item's name over **Previous** and **Next** (`docs/CODEX32.md` §6.5). | A press shows that item. Used for: Make codex32 shares' Worksheets. |
 | Multi choice | A list of full-width rows (`Ui::multi_list`), one option per row, a checkbox at its start; any number ticked; Continue under it. The question is the card's or the page's title. A row that may not be ticked is dimmed and inert. Several lists may share a page, each under its own label. | Tap ticks or unticks the row. Nothing has to be ticked. A row may carry a value under its label, muted (`Ui::multi_list_valued`; the Load samples sheet's type of each sample). Used for: the backup plan's Software card (the software and the form), on Back up and in the wallet flow, and the Load samples sheet. |
-| Checkbox | A tick box (`Ui::checkbox`); one ticked and not enabled shows its tick dimmed. | A press ticks or unticks it; a dimmed tick is done and a press does not undo it. |
+| Checkbox | A tick box (`Ui::checkbox`), `SHAPE_CHECKBOX` corners, a 2-unit edge while unticked; one ticked and not enabled shows its tick dimmed. | A press ticks or unticks it; a dimmed tick is done and a press does not undo it. |
 | Stepper | A label and a count with − and + beside it, at the row's right end on the small panel (`stepper`). | Each press moves the count by one within its bounds. |
 | Slider | A track with a stop for each whole number and a round thumb carrying the value, the two ends' numbers under it (`CoreUi::slider`). | A press on a stop sets it; a drag presses each stop it crosses; the arrow keys step the slider last pressed. |
 
@@ -190,7 +252,7 @@ floating action button under the pointer and a dragged chip
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Text field | A rounded box with what is typed in it and the caret where typing goes (`Ui::typed`, `Ui::caret`); what is selected is drawn behind the text (`Ui::selection`). A passphrase field shows dots, and **No passphrase** while it is empty (`pass_field`, `CoreUi::no_passphrase`); a field that may hold a secret has an eye at its right end (`secret_box`). | A press places the caret and a drag selects. The eye shows the text in the clear until it is pressed again. A field that takes no typing while a stick is attached says so in place of its content. |
+| Text field | A box with `FIELD_RADIUS` corners and an `OUTLINE` edge (the accent while typing goes to it), what is typed in it and the caret where typing goes (`Ui::typed`, `Ui::caret`); what is selected is drawn behind the text (`Ui::selection`). A passphrase field shows dots, and **No passphrase** while it is empty (`pass_field`, `CoreUi::no_passphrase`); a field that may hold a secret has an eye at its right end (`secret_box`). | A press places the caret and a drag selects. The eye shows the text in the clear until it is pressed again. A field that takes no typing while a stick is attached says so in place of its content. |
 | Keyboard | The on-screen keyboard docked at the foot of the panel or of the page beside the sidebar (`faraday_ui::keyboard::keyboard`): the path keyboard on Explore, the address keyboard on Explore's Find, the passphrase keyboard everywhere else (`KeyboardKind`). | On the small panel it rises by itself under a field that takes typing; on the wide layout only from the keyboard button. Its keys type into the field typing goes to, as a physical keyboard does (§4.15). |
 | Word keyboard | Word entry's own keys, in the page under the word grid (`word_keys`): the BIP-39 letters for a Latin list, and for the others the kana, jamo, pinyin or 注音 keyboard (`KeyboardKind::Kana`, `Jamo`, `Pinyin`, `Zhuyin`). A key that leads to no word on the list is dimmed. | Types the list being entered; the word is taken from the candidates. |
 | Kana keyboard | The 五十音 as a grid: ten columns of the consonant groups あかさたなはまやらわ, five rows of the vowels あいうえお, every key one unit wide. The cells the grid leaves empty carry ゛, ゜ and 小; the backspace takes the bottom-right cell, ん the one above it. | Types the Japanese list. ゛and ゜ add the voicing marks the list is written with; 小 turns the last kana into its small form and back. か and ゛ read as が. |
@@ -198,7 +260,7 @@ floating action button under the pointer and a dragged chip
 | Pinyin keyboard | The BIP-39 letter rows, and a fourth row of the five tone keys 1 2 3 4 5 with the backspace ending it. | Types the Simplified Chinese list, looked up by a Mandarin reading: the syllable on the letters (`v` for `ü`), then its tone. A letter is live while some candidate's syllable continues with it; a tone key is live in the tones that syllable has. The candidates fill only once the tone is typed. |
 | 注音 keyboard | The 大千 layout, four rows on the QWERTY positions, the tone marks ˊ ˇ ˋ ˙ in the first row and ˉ ending the second, the backspace ending the last row. | Types the Traditional Chinese list. Every tone is a mark key, ˉ for the first; the mark completes the reading and the candidates fill only then. |
 | Word grid | One numbered cell per word of the count, the count's buttons (12 · 15 · 18 · 21 · 24) above it, the word being typed in its cell (`typed_cells`, `keyed_cells`); a status line under it states the words and the checksum. | Each word is checked against the list as it is typed; Tab finishes a word on a Latin list once only one fits. |
-| Candidates | The words the keys typed can still become, a pill each in the mono face, wrapping at the width (`keyed_pills`, `Ui::word_pill`). | A press on a pill takes the word. |
+| Candidates | The words the keys typed can still become, a suggestion chip each (`SHAPE_S` corners, an `OUTLINE` edge) in the mono face, wrapping at the width (`keyed_pills`, `Ui::word_pill`). | A press on a pill takes the word. |
 | Dice, coin, card keys | A row of buttons in New key's randomness step: 1 to 6 for a die, Heads and Tails for a coin, and the ranks and suits for cards, with the count so far, "{} of {}", and the words a run has made (keygen). A face a procedure does not take next is `Style::Disabled`. | Each press is one entry. |
 | Dice roller | Faraday Desktop only (F96, `docs/CODEX32.md` §5.6): beside the dice pad's entries, "Rolled by this computer" over one die (`ROLLER_DIE`, pips drawn, outlined in the accent while it tumbles), **Roll** (**Stop** while a click rolls) beside it, then **Rolls per click**: 1 · 5 · 10 · To the end chips, the chosen one `Style::Primary`, and a number field. Drawn by `fresh/roller/screen.rs`, its sizes and timings `ROLLER_*` tokens. The codex32 dice step's roller (`docs/CODEX32.md` §5.5, `fresh/roller/five_screen.rs`) is the same with five dice (`ROLLER_FIVE_DIE`) labelled Die 1 to Die 5 and **One click rolls**: One pass · One character · One share · To the end. | **Roll** lands the click's values on the entries as presses; the tumble and the pause between values are skipped under Reduce motion (MOTION). Values are marked as this computer's: the result's entropy line says "simulated dice". |
 | Code box | A value whose exact characters must be plain, in the mono face on a tinted, rounded box padded by tokens, with no quotes (`Ui::code_box`; `Ui::code_line` puts one after a line of text, below it where it does not fit). Used for: the Demo passphrase. | Not a field: it takes no press. |
@@ -278,11 +340,11 @@ whole where it is read.
 | Kind | Rendering | Behaviour |
 |---|---|---|
 | Fact | A label over its value, the value wrapped (`faraday_ui::sheet::kv`), or a label and value on one row in a card's table. | One fact per row. |
-| Card | A surface set apart by its edge alone, `BORDER` (`Ui::card`, F39): a wallet's card, a step's summary, Home's tiles. | — |
+| Card | A surface set apart by its edge alone, `BORDER`, with `SHAPE_M` corners (`Ui::card`, F39): a wallet's card, a step's summary, Home's tiles. | — |
 | Result | A line with its icon in its tone: done in `OK` ("Signed with 73c5da0a"), refused in `ERR`, waiting in `WARN`. | — |
 | Warning | A line with the warning glyph in `WARN` (a backup's checks, a spend's cautions); "No warnings" where there are none. | — |
-| Dimmed | A control not available now, drawn `Style::Disabled`; where a step the person can take would make it available, a short line under it says which (Tools' rows: "Load a key first", "Make a vault first"). | A press does nothing. |
-| Toast | One line in a rounded box centred at the foot of the page, rising in and fading after three seconds (`notices`): "{what} waits for the stick". The same place holds "Remove the stick to keep working" in `WARN` while a stick stands in the way. | Says what a press did where the screen does not change to show it. |
+| Dimmed | A control not available now, in its own kind, faint (`Style::off`, `Style::when`): a filled or tonal button keeps its fill in `TEXT` at 12 %, an outlined one its edge; its label in `DIM`. Where a step the person can take would make it available, a short line under it says which (Tools' rows: "Load a key first", "Make a vault first"). | A press does nothing. |
+| Toast | Material's snackbar: one line in `ON_INVERSE` on `INVERSE`, `TOAST_H` tall with `SHAPE_XS` corners, centred at the foot of the page, rising in and fading after `TOAST_SHOW_MS`, 4 s (`notices`): "{what} waits for the stick". The same place holds "Remove the stick to keep working" in `WARN` while a stick stands in the way. | Says what a press did where the screen does not change to show it. |
 
 ### 4.12 Text
 
@@ -302,16 +364,17 @@ that page is about.
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Button | `Ui::button` in a `Style`: `Primary`, the one action a step leads with, in the accent; `Secondary`, edged; `Ghost`, quiet beside others; `Disabled`, shown but not available now. A row of them shares the width where every label fits its share and stands one under another, full width, where not (`faraday_ui::sheet::buttons`). | A press acts. |
+| Button | `Ui::button` in a `Style`, Material's buttons, round at their ends: `Primary`, filled in the accent, the one action a step leads with; `Tonal`, filled in `SELECTED`, a second action that matters; `Secondary`, outlined in `OUTLINE`; `Ghost`, a text button, its label in the accent; `Selected`, a chosen option, ticked (§4.2). Each kind not available now keeps its shape (§4.11). Hover, press and the keyboard on it lay the label's colour over it at the state layers' opacities, and the keyboard's place is ringed (`Ui::state_layer`, `Ui::focus_ring`). A press is taken on at least `TOUCH` square, the target centred on the button and sharing any gap with a neighbour's (`faraday_ui::Reach`). A row of them shares the width where every label fits its share and stands one under another, full width, where not (`faraday_ui::sheet::buttons`). The on-screen keyboard's keys are buttons with `RADIUS_SMALL` corners (`Ui::button_in`). | A press acts. |
 | Hold | An outlined button that fills while held (`hold_button`): "Hold to sign" with a GPG or Secure Boot signing key from a vault, "Hold to delete from vault", "Hold to mark the key revoked". | Acts once held to the end; released before, nothing happens. |
-| Floating action | A pill in the accent over the page, its icon and its word, at the bottom-right (`Ui::fab`). | Home's **Scan**. |
-| Cancel a flow | **Cancel**, a quiet outlined button at the right end of a flow's title row, beside **Steps only · Guided** (`flow::column`); on the small panel in the bar's tools (`compact::tools`). On every flow that can have a sidebar row but a backup flow whose key is made, which ends only by finishing (`docs/FLOWS.md`, Flows in progress, Cancel; F51). | Ends the flow and shows the screen it was opened from. When ending it loses something the person would notice, a sheet first: its question as the title ("Cancel making this wallet?"), one line naming what is lost, **Keep going** (secondary) and **Cancel the flow** (primary); a press beside the sheet keeps going. With nothing done past the first card, no sheet. |
+| Floating action | Filled in the accent over the page with `SHAPE_L` corners, its `ICON_GLYPH` icon and its word, at the bottom-right (`Ui::fab`). | Home's **Scan**. |
+| Dialog | Material's basic dialog (`faraday_ui::sheet::dialog`): its head, what it holds, and its actions, over the page's frost and scrim, `SHAPE_XL` corners; on the wide layout `DIALOG_MIN` to `DIALOG_MAX` wide with `DIALOG_PAD` inside and its actions at its end as wide as their labels, on the small panel the panel's width less a margin with its actions sharing the width. What is above the actions scrolls when it is taller than the window. The sheets of `faraday_ui::parts::sheet_box` and `faraday_ui::sheet::sheet` take the same corners. | A press beside it is its way out, where it has one. |
+| Cancel a flow | **Cancel**, an outlined button at the right end of a flow's title row, beside **Steps only · Guided**, a segmented button (`flow::column`); on the small panel in the bar's tools (`compact::tools`). On every flow that can have a sidebar row but a backup flow whose key is made, which ends only by finishing (`docs/FLOWS.md`, Flows in progress, Cancel; F51). | Ends the flow and shows the screen it was opened from. When ending it loses something the person would notice, a sheet first: its question as the title ("Cancel making this wallet?"), one line naming what is lost, **Keep going** (secondary) and **Cancel the flow** (primary); a press beside the sheet keeps going. With nothing done past the first card, no sheet. |
 
 ### 4.14 Progress and state
 
 | Kind | Rendering |
 |---|---|
-| Progress | A count "2 of 5": the Spend tab's signatures, New key's entries, a scan's parts with its bar (`BAR_HEIGHT`). A TOTP code's row has a bar under it for the time left in its period, the seconds at its end. |
+| Progress | A count "2 of 5": the Spend tab's signatures, New key's entries, a scan's parts with its bar (`BAR_HEIGHT`). A TOTP code's row has a bar under it for the time left in its period, the seconds at its end. Long work with no count shows Material's indeterminate linear indicator, `PROGRESS_H` tall, a bar crossing its track, still under reduce motion (`Ui::progress`); work that holds the frame until it is done (a vault's unlock, creation and sealing, an unlock from the boot import and Family) shows it still, along the foot of the line that says what the work is (`working_bar`). |
 | Default | A step card (in Faraday a flat section of its flow: no fill and no box, divided from the next by a rule in `LINE`, its number, title and value on its row, `docs/DECISIONS.md` F39) whose value has a default is closed at entry, showing its value and a **Change** text button at the card's right in place of the chevron that opens it. The flow opens on the first card with no default; opening a closed card does not reset the cards after it. A card that asks one thing closes on the choice and opens the next (F103); Back opens the card before the open one, its choices as they were, Forward the card Back left, and the first card's Back leaves the flow (F104). On a small panel the same: the paged flow starts on the first open card, and that page carries at its head one row per earlier card closed on its default, "{title} · {value}" with **Change**, which opens it. Tapping the page's title (the card's name alone, "Kind", with "Step 1 of 8" beside it in the muted caption type) closes the card and shows the list of steps, from which any card opens; no step indicator is drawn. Create a wallet and New key are the exception: each opens on its first card — Kind, Length — whatever opened it, even with a default already ticked; a card still closed on its default shows its value and **Change** the same way once Continue has passed it (`docs/history/NEW-WALLET.md` §2.1). |
 | Empty state | A line and the buttons that start the flow: Wallets with no wallet loaded, "No wallet is loaded" and its ways in (Make a new wallet, Restore an existing wallet, Spend from a backup, Add a key); TOTP codes with no entry, "No entries with a TOTP secret" and Scan a setup code. |
 | Locked | The sheet after the idle lock (`locked_sheet`): "Locked", that every key and vault was wiped, what waits for the stick, and Continue. The idle warning before it counts down (`idle_warn_sheet`). |
@@ -326,7 +389,7 @@ shell — takes keys as a desktop app does. Nothing on a screen says so.
 |---|---|
 | Typing | Characters, Backspace, Delete and Enter go to the field typing goes to, and to the on-screen keyboard's field where it is up; Left, Right, Home and End move the caret (`edit`). |
 | Enter | Takes what is typed where the field has one action: a word on word entry, a share or a part, a name, a passphrase. |
-| Tab | Finishes a word on a Latin list once only one fits; moves between a passphrase and its repeat. On the backup board, Tab and Shift+Tab move among the chips' ⋮s, ringed in the accent at `FOCUS_STROKE` (§4.17). |
+| Tab | Finishes a word on a Latin list once only one fits; moves between a passphrase and its repeat. On the backup board, Tab and Shift+Tab move among the chips' ⋮s, ringed in the accent at `FOCUS_STROKE` (§4.17). Everywhere else, Tab and Shift+Tab move the keyboard's place through the controls in the order the frame drew them, round at the ends; the control it is on is ringed (`Ui::focus_ring`), and Enter or Space presses it. A press of the pointer or a finger takes it off. |
 | Escape | Closes the open sheet or ⋮ menu (a sheet's Cancel), leaves a field, and goes back from Add a key and Set the time. |
 | Up, Down | In a ⋮ menu, move between its rows; elsewhere scroll the region under the pointer, or the page's, by one wheel notch. On a slider the arrows step it (§4.2). |
 | Ctrl+V | The scanner's Paste, and nothing anywhere else. |

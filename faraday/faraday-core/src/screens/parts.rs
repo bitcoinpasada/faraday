@@ -10,6 +10,21 @@ use faraday_draw::tokens;
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, wrap_buttons};
 
+/// Long work with no count under way (`docs/DESIGN.md` §4.14): an
+/// indeterminate progress indicator `w` wide along the foot of a row `h`
+/// tall at (x, y), under the line that says what the work is. Still:
+/// the work holds the frame until it is done.
+pub(crate) fn working_bar(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) {
+    ui.progress((x, y + h - tokens::PROGRESS_H, w), None, None);
+}
+
+/// [`working_bar`] under `line`, the work under way, in the accent in a
+/// row `h` tall at (x, y), `w` wide.
+pub(crate) fn working_line(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), line: &str) {
+    ui.text_mid(x, y, h, 15.0, W::S, ACCENT, line);
+    working_bar(ui, x, y, w, h);
+}
+
 /// A screen's walk-through in Guided mode, under its title. Returns the
 /// height it took: nothing in Steps only.
 pub(crate) fn guide_text(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
@@ -612,8 +627,9 @@ pub(crate) fn pass_field(
         ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, label);
         (x + 150.0, y, 380.0f32.min(w - 150.0))
     };
-    ui.fill(px, py, pw, 40.0, 8.0, BG);
-    ui.stroke(px, py, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
+    let r = tokens::FIELD_RADIUS;
+    ui.fill(px, py, pw, 40.0, r, BG);
+    ui.stroke(px, py, pw, 40.0, r, if on { ACCENT } else { OUTLINE });
     dots_field(ui, px, py, pw, text, (on, chip), action);
     py - y + 48.0
 }
@@ -663,7 +679,7 @@ pub(crate) fn dots_field(
 /// the field's text inset, unmasked (`docs/MODES.md` §6.2). No eye.
 pub(crate) fn code_field(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, text: &str) {
     ui.fill(x, y, w, h, tokens::FIELD_RADIUS, BG);
-    ui.stroke(x, y, w, h, tokens::FIELD_RADIUS, BORDER);
+    ui.stroke(x, y, w, h, tokens::FIELD_RADIUS, OUTLINE);
     let size = tokens::PASS_CODE_TEXT;
     let top = y + (h - ui.code_height(size)) / 2.0;
     ui.code_box(x + tokens::PASS_CODE_INSET, top, size, text);

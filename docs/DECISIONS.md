@@ -105,7 +105,7 @@ Read this table, then only the decision you need.
 | [F88](decisions/F88.md) | Seed conversions are one tool, and only to forms that restore the same wallet | 2026-10-23 | Active | security |
 | [F89](decisions/F89.md) | Silent payment signing counts a stated key only where the input's script commits to it | 2026-10-23 | Active | crypto |
 | [F90](decisions/F90.md) | Where Faraday refuses input its standard allows | 2026-10-23 | Active | crypto |
-| [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Active | design |
+| [F91](decisions/F91.md) | The Starter is laid out to Material 3's layout and navigation rules | 2026-10-23 | Amended by F108 | design |
 | [F92](decisions/F92.md) | Faraday is laid out to Material 3 at every window size, from the Pi to a full monitor | 2026-10-23 | Amended by F100 | design |
 | [F93](decisions/F93.md) | Codex32 made by hand, any split | 2026-10-22 | Active | keys |
 | [F94](decisions/F94.md) | Codex32 error correction, opt-in | 2026-10-22 | Active | crypto |
@@ -122,3 +122,4 @@ Read this table, then only the decision you need.
 | [F105](decisions/F105.md) | The boot guides give written directions, not mock-ups of firmware screens | 2026-10-23 | Active | Starter |
 | [F106](decisions/F106.md) | Faraday reads PSBTs, mnemonics and vaults as their standards say, and writes back what it read | 2026-10-23 | Active | formats |
 | [F107](decisions/F107.md) | Single key, backup in shares | 2026-10-22 | Active | wallets |
+| [F108](decisions/F108.md) | Faraday's tokens, colour roles and components follow Material 3, shape included | 2026-10-23 | Active | design |

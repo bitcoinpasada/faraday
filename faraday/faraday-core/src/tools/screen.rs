@@ -129,13 +129,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         let row: Vec<(String, Style, Action)> = modes
             .into_iter()
             .enumerate()
-            .map(|(i, (n, on))| {
-                (
-                    n,
-                    if on { Style::Primary } else { Style::Ghost },
-                    Action::TMode(i as u8),
-                )
-            })
+            .map(|(i, (n, on))| (n, Style::chosen(on), Action::TMode(i as u8)))
             .collect();
         y += button_rows(ui, x, y, width, &row);
     }

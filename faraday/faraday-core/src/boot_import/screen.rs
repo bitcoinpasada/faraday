@@ -103,11 +103,7 @@ fn picker(
         w,
         &[
             (EN.boot_import_later, Style::Secondary, ia(I::Later)),
-            (
-                EN.boot_import_import,
-                if any { Style::Primary } else { Style::Disabled },
-                ia(I::Go),
-            ),
+            (EN.boot_import_import, Style::Primary.when(any), ia(I::Go)),
         ],
     );
     cy - y
@@ -131,7 +127,7 @@ fn unlock(
     if app.vaults.working != Some(Work::Unlock) {
         foot.push((
             EN.boot_import_unlock,
-            if may { Style::Primary } else { Style::Disabled },
+            Style::Primary.when(may),
             ia(I::Submit),
         ));
     }
@@ -193,7 +189,9 @@ fn passphrase(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f
     }
     cy += 50.0 + crate::screens::never_under(app, ui, x, cy, w);
     if app.vaults.working == Some(Work::Unlock) {
-        cy += ui.wrap(x, cy, w, 14.0, W::S, ACCENT, &unlocking(app, file)) + 10.0;
+        let lh = ui.wrap(x, cy, w, 14.0, W::S, ACCENT, &unlocking(app, file)) + 10.0;
+        crate::screens::working_bar(ui, x, cy, w, lh);
+        cy += lh;
     }
     if let Some(e) = &app.vaults.unlock_error {
         cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 10.0;

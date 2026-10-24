@@ -433,7 +433,7 @@ fn plan_body(
         // On a small panel, where the way on is pinned at the foot, the
         // line takes its place there, greyed.
         if ui.pinning {
-            ui.pin = Some((line, Style::Disabled, Action::BChecklist));
+            ui.pin = Some((line, Style::PrimaryOff, Action::BChecklist));
             return cy - y;
         }
         cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 12.0;

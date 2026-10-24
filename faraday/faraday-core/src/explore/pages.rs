@@ -105,7 +105,7 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let (x, width, start, y) = frame(app, ui, x0, cw);
     let mut y = top(app, ui, x, y, width, EN.explore_addresses);
-    let pick = |on: bool| if on { Style::Primary } else { Style::Secondary };
+    let pick = Style::chosen;
     let chains = [
         (
             EN.explore_receive.to_string(),
@@ -127,11 +127,7 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let steps = [
         (
             fill(EN.explore_previous_n, &[&page]),
-            if e.from == 0 {
-                Style::Disabled
-            } else {
-                Style::Ghost
-            },
+            Style::Ghost.when(e.from != 0),
             xa(XAction::Step(-1)),
         ),
         (
@@ -195,7 +191,7 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let go = if running {
         (EN.explore_stop.to_string(), Style::Secondary)
     } else if e.query.is_empty() {
-        (EN.explore_search.to_string(), Style::Disabled)
+        (EN.explore_search.to_string(), Style::PrimaryOff)
     } else {
         (EN.explore_search.to_string(), Style::Primary)
     };

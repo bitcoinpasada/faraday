@@ -630,15 +630,8 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     .time_text(f.header.cost.memory_kib / 1024, f.header.cost.passes)
             })
             .unwrap_or_default();
-        ui.text_mid(
-            x,
-            y,
-            46.0,
-            15.0,
-            W::S,
-            ACCENT,
-            &fill(EN.vault_unlocking, &[&t.to_string()]),
-        );
+        let line = fill(EN.vault_unlocking, &[&t.to_string()]);
+        crate::screens::working_line(ui, (x, y, w, 46.0), &line);
     } else {
         let style = if app.may_load_keys() {
             Style::Primary
@@ -990,15 +983,8 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     .time_text(f.header.cost.memory_kib / 1024, f.header.cost.passes)
             })
             .unwrap_or_default();
-        ui.text_mid(
-            x,
-            y,
-            44.0,
-            15.0,
-            W::S,
-            ACCENT,
-            &fill(EN.vault_unlocking, &[&t.to_string()]),
-        );
+        let line = fill(EN.vault_unlocking, &[&t.to_string()]);
+        crate::screens::working_line(ui, (x, y, w, 44.0), &line);
         y += 52.0;
     } else {
         let style = if app.may_load_keys() {
@@ -1881,18 +1867,9 @@ fn create_summary(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 fn create_button(app: &View, ui: &mut Ui, x: f32, by: f32, w: f32) -> f32 {
     let (_, mem, passes) = app.vaults.form_cost().unwrap_or((0, 64, 3));
     if app.vaults.working == Some(vault::Work::Create) {
-        ui.text_mid(
-            x,
-            by,
-            46.0,
-            15.0,
-            W::S,
-            ACCENT,
-            &fill(
-                EN.vault_creating,
-                &[&app.vaults.time_text(mem, passes).to_string()],
-            ),
-        );
+        let t = app.vaults.time_text(mem, passes).to_string();
+        let line = fill(EN.vault_creating, &[&t]);
+        crate::screens::working_line(ui, (x, by, w, 46.0), &line);
     } else if !crate::screens::pin_button(
         ui,
         x,
@@ -2962,7 +2939,7 @@ fn detail(
         );
         dy += 56.0 + never_under(app, ui, dx, dy, dw);
         if app.vaults.working == Some(vault::Work::Kdbx) {
-            ui.text_mid(dx, dy, 40.0, 15.0, W::S, ACCENT, EN.vault_sealing);
+            crate::screens::working_line(ui, (dx, dy, dw, 40.0), EN.vault_sealing);
         } else {
             let label = match p.purpose {
                 vault::Purpose::Kdbx => EN.vault_seal_and_export,

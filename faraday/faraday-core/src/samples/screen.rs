@@ -86,11 +86,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let (keys, kinds) = list(&state.keys, |i| set.keys[i].label(), Pick::Key);
     cy += ui.multi_list_valued(x, cy, w, &keys, &kinds) + PAD;
     // Pressable while a stick is in: the press opens the Pull sheet.
-    let load = if any && app.selftest_passed() {
-        Style::Primary
-    } else {
-        Style::Disabled
-    };
+    let load = Style::Primary.when(any && app.selftest_passed());
     cy += buttons(
         ui,
         x,

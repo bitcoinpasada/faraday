@@ -105,7 +105,7 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
 /// The open sheet over the frosted page: frosted now from what the frame
 /// drew, or put back from the copy kept.
 fn sheet_over(starter: &Starter, ui: &mut Ui, w: f32, h: f32, sheet: Sheet) {
-    ui.hits.clear();
+    ui.clear_hits();
     ui.in_sheet = true;
     ui.backdrop();
     match sheet {

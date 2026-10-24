@@ -199,11 +199,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
             (
                 EN.visit_import_and_load,
-                if enabled {
-                    Style::Primary
-                } else {
-                    Style::Disabled
-                },
+                Style::Primary.when(enabled),
                 Action::VisitCopyAndLoad,
             ),
         ],
@@ -343,11 +339,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Some(w),
         42.0,
         &label,
-        if nout > 0 {
-            Style::Primary
-        } else {
-            Style::Disabled
-        },
+        Style::Primary.when(nout > 0),
         Action::VisitWrite,
     );
     y += 54.0;
@@ -639,11 +631,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Some(bw),
         42.0,
         &label,
-        if nout > 0 {
-            Style::Primary
-        } else {
-            Style::Disabled
-        },
+        Style::Primary.when(nout > 0),
         Action::VisitWrite,
     );
 
@@ -784,11 +772,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Some(load_bw),
         42.0,
         load_label,
-        if enabled {
-            Style::Primary
-        } else {
-            Style::Disabled
-        },
+        Style::Primary.when(enabled),
         Action::VisitCopyAndLoad,
     );
     let label = fill(

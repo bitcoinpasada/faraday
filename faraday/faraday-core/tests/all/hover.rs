@@ -72,3 +72,27 @@ fn moving_over_nothing_pressable_draws_no_frame() {
         "no frame is asked for"
     );
 }
+
+/// Tab puts the keyboard on a control, which is ringed, Tab again
+/// moves it on, and Enter presses the one it is on (`docs/DESIGN.md` §4.15).
+#[test]
+fn tab_rings_a_control_and_enter_presses_it() {
+    use faraday_shell_api::Key;
+    let mut app = settings();
+    app.press(Action::Nav(Screen::Home));
+    // Past the fade from Settings.
+    let _ = pixels(&mut app);
+    for now_ms in [1_000, 2_000] {
+        app.event(Event::Tick { now_ms });
+        let _ = pixels(&mut app);
+    }
+    let before = pixels(&mut app);
+    app.event(Event::Key(Key::Tab));
+    let ringed = pixels(&mut app);
+    assert_ne!(before, ringed, "the control the keyboard is on is ringed");
+    // The first is Home, the screen on: the next one Enter opens.
+    app.event(Event::Key(Key::Tab));
+    let _ = pixels(&mut app);
+    app.event(Event::Key(Key::Enter));
+    assert_ne!(app.screen, Screen::Home, "Enter pressed it");
+}

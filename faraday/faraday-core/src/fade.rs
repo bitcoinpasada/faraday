@@ -69,7 +69,7 @@ impl Fade {
         };
         let t = motion::progress(at, now_ms, ms);
         let shown = if self.theme_fade {
-            motion::ease_out(t)
+            motion::ease_move(t)
         } else {
             t
         };

@@ -742,11 +742,7 @@ pub(crate) fn rename_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             cy += ui.wrap(x, cy, iw, 13.0, W::R, ERR, why) + tokens::GAP_SMALL;
         }
         cy += tokens::GAP_SMALL;
-        let go = if checked.is_ok() {
-            Style::Primary
-        } else {
-            Style::Disabled
-        };
+        let go = Style::Primary.when(checked.is_ok());
         cy += buttons(
             ui,
             x,

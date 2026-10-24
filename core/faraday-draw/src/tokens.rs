@@ -71,10 +71,11 @@ pub const GAP_SMALL: f32 = 4.0;
 pub const MARK_BOLD: f32 = 0.5;
 /// Screen padding: the margin between the content and the screen edge.
 pub const PAD: f32 = 16.0;
-/// Corner radius of cards, rows, tiles and buttons.
-pub const RADIUS: f32 = 12.0;
-/// Corner radius of the small rectangles: chips, candidate cells, keys.
-pub const RADIUS_SMALL: f32 = 6.0;
+/// Corner radius of cards, rows and tiles: Material's medium.
+pub const RADIUS: f32 = SHAPE_M;
+/// Corner radius of the small rectangles: chips, candidate cells, keys:
+/// Material's small.
+pub const RADIUS_SMALL: f32 = SHAPE_S;
 
 // ---------------------------------------------------------------------
 // Chrome
@@ -468,7 +469,7 @@ pub const BOARD_VAULT_HOT: u8 = 40;
 /// Stroke width in dp of the accent edge on what the keyboard is on: a
 /// ⋮ it has moved to, and the row of a ⋮ menu the arrows are on
 /// (`docs/DESIGN.md` §4.15, §4.17).
-pub const FOCUS_STROKE: f32 = 2.0;
+pub const FOCUS_STROKE: f32 = FOCUS_RING;
 
 /// Hold-button duration in milliseconds (`docs/DESIGN.md` §4.13).
 pub const HOLD_MS: u64 = 1500;
@@ -521,8 +522,9 @@ pub const ENTRY_ROW: f32 = 46.0;
 /// height.
 pub const ENTRY_FIELD_HEIGHT: f32 = 44.0;
 
-/// Corner radius of an entry field and its word cells.
-pub const FIELD_RADIUS: f32 = 8.0;
+/// Corner radius of an entry field and its word cells: Material's
+/// extra-small.
+pub const FIELD_RADIUS: f32 = SHAPE_XS;
 
 /// The word being typed on a small panel: how far its row stands above the
 /// line of its label's text, so a chip in it centres on the text.
@@ -1014,3 +1016,147 @@ pub const CODEX32_SHEET_ICON: f32 = 28.0;
 pub const CODEX32_TAB_ICON: f32 = 20.0;
 /// A tab's active indicator, Material's 3 dp.
 pub const CODEX32_INDICATOR: f32 = 3.0;
+
+// ---------------------------------------------------------------------
+// Material 3: shape, state layers, focus, targets, icons, motion
+// (`docs/DESIGN.md` §3, `docs/decisions/F108.md`)
+// ---------------------------------------------------------------------
+
+/// Material's corner scale: none.
+pub const SHAPE_NONE: f32 = 0.0;
+/// Material's corner scale: extra-small, a menu, a field, the toast.
+pub const SHAPE_XS: f32 = 4.0;
+/// Material's corner scale: small, a chip.
+pub const SHAPE_S: f32 = 8.0;
+/// Material's corner scale: medium, a card.
+pub const SHAPE_M: f32 = 12.0;
+/// Material's corner scale: large, the floating action.
+pub const SHAPE_L: f32 = 16.0;
+/// Material's corner scale: extra-large, a dialog and a sheet.
+pub const SHAPE_XL: f32 = 28.0;
+/// Material's corner scale: full, a button, a segmented button, a tag:
+/// round ends on a shape `h` tall.
+pub fn shape_full(h: f32) -> f32 {
+    h / 2.0
+}
+/// A checkbox's corners: Material's checkbox, which is under the scale.
+pub const SHAPE_CHECKBOX: f32 = 2.0;
+
+/// A state layer's opacity while the pointer is over a control: the
+/// control's content colour laid over it, so it reads on any fill.
+pub const STATE_HOVER: f32 = 0.08;
+/// A state layer's opacity while the keyboard is on a control.
+pub const STATE_FOCUS: f32 = 0.12;
+/// A state layer's opacity while a control is pressed.
+pub const STATE_PRESS: f32 = 0.16;
+/// The fill of a filled button that is not available now: the text's
+/// colour at this opacity, so it keeps its shape.
+pub const STATE_OFF_FILL: f32 = 0.12;
+/// [`STATE_OFF_FILL`] in a high contrast theme, where the dimmed label
+/// on it must still stand 7:1.
+pub const STATE_OFF_FILL_HIGH_CONTRAST: f32 = 0.06;
+/// In a high contrast theme, a theme colour filled at under this
+/// opacity (of 255) is a tint under what it holds, and is drawn as its
+/// edge instead; at this or more it is a mark, drawn at full strength.
+pub const HIGH_CONTRAST_TINT_MAX: u8 = 96;
+
+/// An opacity, 0 to 1, as the 0–255 a colour carries.
+pub fn alpha_of(opacity: f32) -> u8 {
+    (opacity.clamp(0.0, 1.0) * 255.0 + 0.5) as u8
+}
+
+/// The focus ring's stroke: round what the keyboard is on.
+pub const FOCUS_RING: f32 = 3.0;
+/// How far outside its control the focus ring stands.
+pub const FOCUS_OFFSET: f32 = 2.0;
+
+/// An icon's glyph where it stands alone: a list row, an icon button, a
+/// field, a dialog's head, the floating action.
+pub const ICON_GLYPH: f32 = 24.0;
+/// An icon's glyph in a dense place: a small panel's row.
+pub const ICON_GLYPH_SMALL: f32 = 20.0;
+/// An icon's glyph in a button, a chip and a chosen segment.
+pub const ICON_GLYPH_BUTTON: f32 = 18.0;
+/// The gap between a button's icon and its label.
+pub const ICON_GAP: f32 = GAP;
+
+/// The smallest text drawn: Material's label-small. A size asked for
+/// under it is drawn at it.
+pub const TEXT_MIN: f32 = 11.0;
+
+/// A segmented button's room each side of a segment's label.
+pub const SEGMENT_PAD: f32 = 12.0;
+
+/// A dialog's padding inside its edge.
+pub const DIALOG_PAD: f32 = 24.0;
+/// A dialog's narrowest, on a display that has the room.
+pub const DIALOG_MIN: f32 = 280.0;
+/// A dialog's widest.
+pub const DIALOG_MAX: f32 = 560.0;
+/// The gap between a dialog's actions at its end.
+pub const DIALOG_ACTION_GAP: f32 = GAP;
+
+/// The toast's height, one line (Material's snackbar).
+pub const TOAST_H: f32 = 48.0;
+/// The toast's room each side of its line.
+pub const TOAST_PAD: f32 = 16.0;
+/// How long the toast stays on screen, ms.
+pub const TOAST_SHOW_MS: u64 = 4000;
+
+/// The scrim over a sheet's frosted page: Material's 32 %.
+pub const SCRIM_ALPHA: u8 = 82;
+
+/// A progress indicator's track and bar.
+pub const PROGRESS_H: f32 = 4.0;
+/// One pass of the indeterminate indicator's bar along its track, ms.
+pub const PROGRESS_CYCLE_MS: u64 = 2000;
+/// The indeterminate indicator's bar, as a share of its track.
+pub const PROGRESS_SPAN: f32 = 0.3;
+
+/// Material's durations, ms: short 1 to 4.
+pub const MOTION_SHORT1: u64 = 50;
+/// Short 2.
+pub const MOTION_SHORT2: u64 = 100;
+/// Short 3: a switch's slide.
+pub const MOTION_SHORT3: u64 = 150;
+/// Short 4: a fade between screens, the toast coming in.
+pub const MOTION_SHORT4: u64 = 200;
+/// Medium 1.
+pub const MOTION_MEDIUM1: u64 = 250;
+/// Medium 2: a step card opening, which moves much of the page.
+pub const MOTION_MEDIUM2: u64 = 300;
+/// Medium 3: a change of theme, which changes every pixel.
+pub const MOTION_MEDIUM3: u64 = 350;
+/// Medium 4.
+pub const MOTION_MEDIUM4: u64 = 400;
+/// Long 1.
+pub const MOTION_LONG1: u64 = 450;
+/// Long 2.
+pub const MOTION_LONG2: u64 = 500;
+/// Long 3.
+pub const MOTION_LONG3: u64 = 550;
+/// Long 4.
+pub const MOTION_LONG4: u64 = 600;
+/// Extra-long 1.
+pub const MOTION_EXTRA_LONG1: u64 = 700;
+/// Extra-long 2.
+pub const MOTION_EXTRA_LONG2: u64 = 800;
+/// Extra-long 3.
+pub const MOTION_EXTRA_LONG3: u64 = 900;
+/// Extra-long 4.
+pub const MOTION_EXTRA_LONG4: u64 = 1000;
+
+/// An easing curve: a cubic Bézier's two control points, x1, y1, x2,
+/// y2, from (0, 0) to (1, 1), as CSS writes one.
+pub type Easing = [f32; 4];
+/// Material's standard easing: what moves on screen and stays there.
+pub const EASE_STANDARD: Easing = [0.2, 0.0, 0.0, 1.0];
+/// Standard decelerate: what comes onto the screen.
+pub const EASE_STANDARD_DECELERATE: Easing = [0.0, 0.0, 0.0, 1.0];
+/// Standard accelerate: what leaves the screen.
+pub const EASE_STANDARD_ACCELERATE: Easing = [0.3, 0.0, 1.0, 1.0];
+/// Emphasized decelerate: a large part of the page coming in, a step
+/// card opening.
+pub const EASE_EMPHASIZED_DECELERATE: Easing = [0.05, 0.7, 0.1, 1.0];
+/// Emphasized accelerate: a large part of the page leaving.
+pub const EASE_EMPHASIZED_ACCELERATE: Easing = [0.3, 0.0, 0.8, 0.15];

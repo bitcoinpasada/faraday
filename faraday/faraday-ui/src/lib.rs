@@ -7,11 +7,14 @@
 //! Noto Sans and Noto Sans Mono. [`Ui`] is generic over the app's own
 //! action type: what a press on a region does is the caller's to name.
 
+mod controls;
 pub mod keyboard;
 mod lists;
 pub mod nav;
 pub mod parts;
 pub mod sheet;
+
+pub use controls::{Reach, Style, focus_step, reach_at};
 
 use faraday_draw::fonts::Family;
 use faraday_draw::text::{self, TextAlign};
@@ -352,6 +355,14 @@ impl Theme {
         matches!(self, Theme::HighContrastDark | Theme::HighContrastLight)
     }
 
+    /// Whether `c`, at any opacity, is one of the colours this theme's
+    /// table gives ([`pal`]), rather than one drawn as it is in every
+    /// theme (a camera's overlay, a QR code).
+    pub fn has_role(self, c: Color) -> bool {
+        self.table()
+            .is_some_and(|t| t.iter().any(|(d, _)| (d.r, d.g, d.b) == (c.r, c.g, c.b)))
+    }
+
     /// The group Settings offers it under.
     pub fn group(self) -> ThemeGroup {
         if self.is_high_contrast() {
@@ -363,7 +374,7 @@ impl Theme {
         }
     }
 
-    fn table(self) -> Option<&'static [(Color, Color); 33]> {
+    fn table(self) -> Option<&'static [(Color, Color); pal::ROLES]> {
         match self {
             Theme::Dark => None,
             Theme::Light => Some(&pal::LIGHT),
@@ -442,19 +453,6 @@ pub enum W {
     S,
     /// Noto Sans Mono.
     M,
-}
-
-/// How a button looks.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Style {
-    /// The one action a screen leads with.
-    Primary,
-    /// Any other action.
-    Secondary,
-    /// A quiet action beside others.
-    Ghost,
-    /// Shown but not available now.
-    Disabled,
 }
 
 /// Where the caret and the selection are in the field typing goes to
@@ -633,6 +631,12 @@ pub struct Ui<'a, A> {
     hit_clip: Option<Rect>,
     /// The hit being taken draws its own hover look.
     quiet_hover: bool,
+    /// The hit being taken draws its own focus ring too
+    /// ([`Ui::hit_drawn`]).
+    own_ring: bool,
+    /// The hit being taken is the press beside a sheet: no target and
+    /// no place in the keyboard's order.
+    around: bool,
     /// What a press beside the open sheet does: the sheet's own way out.
     pub outside: Option<A>,
     /// The text caret shows this frame: it blinks.
@@ -647,6 +651,14 @@ pub struct Ui<'a, A> {
     /// screen asked for: what the app refuses while it is in this state
     /// (the demo's actions that would make a secret, `docs/DEMO.md` §7).
     pub dimmed: Vec<A>,
+    /// Where each press drawn this frame takes a press, as large as the
+    /// touch floor where its control is drawn smaller, in the order
+    /// drawn: also the order Tab moves the keyboard through
+    /// ([`Reach`]).
+    pub reach: Vec<Reach<A>>,
+    /// The control the keyboard is on: ringed, and Enter or Space
+    /// presses it.
+    pub focused: Option<A>,
 }
 
 /// A step card opening and the one closing, part of the way.
@@ -741,11 +753,15 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             chip_at: None,
             hit_clip: None,
             quiet_hover: false,
+            own_ring: false,
+            around: false,
             outside: None,
             caret_on: true,
             caret_drawn: false,
             caret_foot: None,
             dimmed: Vec::new(),
+            reach: Vec::new(),
+            focused: None,
         }
     }
 
@@ -848,15 +864,24 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         };
         let w = (BAR_W * f).round().max(3.0) as i32;
         let rect = Rect::new(view.right() - inset - w, y, w, h);
-        let color = self.col(MUTED.with_alpha((u16::from(alpha) * 150 / 255) as u8));
+        // Faint, but at full strength in a high contrast theme: there it
+        // is the one sign the page goes on.
+        let most = if self.theme.is_high_contrast() {
+            255
+        } else {
+            150
+        };
+        let color = self.col(MUTED.with_alpha((u16::from(alpha) * most / 255) as u8));
         self.c.fill_rounded_rect(rect, w as f32 / 2.0, color);
     }
 
     /// The region's content fades into the page at an edge it continues
     /// past: under the top once scrolled, above the bottom while there is
     /// more. Each fade comes in over the first 24 units scrolled.
+    /// A high contrast theme draws none: a fade lowers the contrast of
+    /// what is under it, and the scrollbar says the page goes on.
     fn edge_fades(&mut self, view: Rect, max: f32, offset: f32) {
-        if max <= 0.0 || view.h <= 0 {
+        if max <= 0.0 || view.h <= 0 || self.theme.is_high_contrast() {
             return;
         }
         // Deeper on a small panel, where it is the sign there is more.
@@ -883,7 +908,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// What a sheet stands on: the page, frosted (blurred once, the
-    /// first frame, and kept) and dimmed.
+    /// first frame, and kept) and dimmed by Material's scrim.
     pub fn backdrop(&mut self) {
         match self.frost.as_deref() {
             Some(page) => self.c.restore(page),
@@ -891,7 +916,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 // Reduced eight units to a pixel and blurred a little: as
                 // soft as more blur at a fraction of the work.
                 let scale = (8.0 * self.f).round().max(4.0) as u32;
-                let dim = self.col(BG.with_alpha(150));
+                let dim = SCRIM.with_alpha(faraday_draw::tokens::SCRIM_ALPHA);
                 self.c.frost(scale, 2, dim);
                 // Kept dimmed: each frame after is one copy.
                 self.frost = Some(self.c.snapshot());
@@ -942,6 +967,13 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         for (r, _) in self.hits.iter_mut() {
             if r.intersect(&view) == *r {
                 *r = Rect::new(r.x, r.y - self.stretch, r.w, r.h).intersect(&view);
+            }
+        }
+        for t in self.reach.iter_mut() {
+            if t.drawn.intersect(&view) == t.drawn {
+                let (d, g) = (t.drawn, t.target);
+                t.drawn = Rect::new(d.x, d.y - self.stretch, d.w, d.h).intersect(&view);
+                t.target = Rect::new(g.x, g.y - self.stretch, g.w, g.h).intersect(&view);
             }
         }
     }
@@ -1071,9 +1103,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         band.y - spare < clip.bottom() && band.bottom() + spare > clip.y
     }
 
-    /// A filled circle.
+    /// A filled circle; in a high contrast theme a tint is its ring
+    /// ([`Ui::fill`]).
     pub fn dot(&mut self, cx: f32, cy: f32, r: f32, color: Color) {
-        let color = self.col(color);
+        if let Some(edge) = self.tint_edge(color) {
+            let rect = self.rect(cx - r, cy - r, 2.0 * r, 2.0 * r);
+            let width = self.f.max(1.0);
+            self.c.stroke_rounded_rect(rect, r * self.f, width, edge);
+            return;
+        }
+        let color = self.col(self.solid(color));
         self.c.fill_circle(
             (cx + self.ox) * self.f,
             (cy + self.oy) * self.f,
@@ -1082,20 +1121,27 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         );
     }
 
-    /// A filled rectangle with rounded corners.
+    /// A filled rectangle with rounded corners. In a high contrast theme
+    /// a see-through theme colour is drawn at full strength, or, as a
+    /// tint (under [`faraday_draw::tokens::HIGH_CONTRAST_TINT_MAX`]), as
+    /// its edge: no see-through layer lowers the contrast of what is on
+    /// it. A state layer, a control not available now or something
+    /// fading is a [`Ui::wash`].
     pub fn fill(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, color: Color) {
-        let color = self.col(color);
-        let rect = self.rect(x, y, w, h);
-        if r <= 0.0 {
-            self.c.fill_rect(rect, color);
-        } else {
-            self.c.fill_rounded_rect(rect, r * self.f, color);
+        if let Some(edge) = self.tint_edge(color) {
+            let rect = self.rect(x, y, w, h);
+            let width = self.f.max(1.0);
+            self.c.stroke_rounded_rect(rect, r * self.f, width, edge);
+            return;
         }
+        let color = self.solid(color);
+        self.wash(x, y, w, h, r, color);
     }
 
-    /// An outlined rectangle with rounded corners.
+    /// An outlined rectangle with rounded corners; in a high contrast
+    /// theme a see-through theme colour is drawn at full strength.
     pub fn stroke(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, color: Color) {
-        let color = self.col(color);
+        let color = self.col(self.solid(color));
         let rect = self.rect(x, y, w, h);
         let width = self.f.max(1.0);
         self.c.stroke_rounded_rect(rect, r * self.f, width, color);
@@ -1105,9 +1151,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// too (`docs/DECISIONS.md` F39), so a card's resting edge, `LINE`,
     /// is drawn in the stronger `BORDER`: the edge is what sets it apart.
     pub fn card(&mut self, x: f32, y: f32, w: f32, h: f32, edge: Color) {
+        use faraday_draw::tokens::SHAPE_M;
         let edge = if edge == LINE { BORDER } else { edge };
-        self.fill(x, y, w, h, 12.0, SURFACE);
-        self.stroke(x, y, w, h, 12.0, edge);
+        self.fill(x, y, w, h, SHAPE_M, SURFACE);
+        self.stroke(x, y, w, h, SHAPE_M, edge);
     }
 
     /// A theme as a tile drawn in its own colours: its page, a card with
@@ -1437,7 +1484,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
 
     /// A horizontal rule.
     pub fn rule(&mut self, x: f32, y: f32, w: f32, color: Color) {
-        let color = self.col(color);
+        let color = self.col(self.solid(color));
         let r = self.rect(x, y, w, 1.0);
         let rect = Rect::new(r.x, r.y, r.w, 1.max(self.px(1.0)));
         self.c.fill_rect(rect, color);
@@ -1445,13 +1492,18 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
 
     /// A vertical rule: one unit wide, at least a pixel.
     pub fn vrule(&mut self, x: f32, y: f32, h: f32, color: Color) {
-        let color = self.col(color);
+        let color = self.col(self.solid(color));
         let r = self.rect(x, y, 1.0, h);
         let rect = Rect::new(r.x, r.y, 1.max(self.px(1.0)), r.h);
         self.c.fill_rect(rect, color);
     }
 
     fn font(&self, size: f32, w: W) -> Font {
+        // Nothing is drawn under Material's smallest size.
+        let size = match w {
+            W::M => size.max(faraday_draw::tokens::TEXT_MIN / 0.94),
+            _ => size.max(faraday_draw::tokens::TEXT_MIN),
+        };
         let family = match w {
             W::R => Family::Regular,
             W::S => Family::SemiBold,
@@ -1477,9 +1529,19 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         face.line_height() as f32 / self.f
     }
 
+    /// `c` as text and icons are drawn in this frame's theme: the accent
+    /// as it is read (`ACCENT_TEXT`), every other colour as [`Ui::col`].
+    pub fn ink(&self, c: Color) -> Color {
+        if (c.r, c.g, c.b) == (ACCENT.r, ACCENT.g, ACCENT.b) {
+            self.theme.color(ACCENT_TEXT).with_alpha(c.a)
+        } else {
+            self.col(c)
+        }
+    }
+
     /// `s` with its top-left at (x, y). Returns its width.
     pub fn text(&mut self, x: f32, y: f32, size: f32, w: W, color: Color, s: &str) -> f32 {
-        let color = self.col(color);
+        let color = self.ink(color);
         let font = self.font(size, w);
         let px = self
             .c
@@ -1579,7 +1641,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         color: Color,
         s: &str,
     ) -> f32 {
-        let color = self.col(color);
+        let color = self.ink(color);
         let font = self.font(size, w);
         let rect = Rect::new(
             self.px(x + self.ox),
@@ -1605,7 +1667,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         s: &str,
         mark: std::ops::Range<usize>,
     ) -> f32 {
-        let (color, mark_color) = (self.col(colors.0), self.col(colors.1));
+        let (color, mark_color) = (self.ink(colors.0), self.ink(colors.1));
         let font = self.font(size, w);
         let face = font.sized(self.c.scale());
         let lines = text::wrap(&face, s, self.px(width));
@@ -1650,7 +1712,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         size: f32,
         color: Color,
     ) {
-        let color = self.col(color);
+        let color = self.ink(color);
         match icon.into() {
             Glyph::Icon(icon) => {
                 let rect = self.rect(x, y, boxw, boxw);
@@ -1697,9 +1759,12 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// Makes a region pressable: the part of it inside the clip, so what
     /// is scrolled out of sight cannot be pressed.
     ///
-    /// Under the pointer it shows so: a faint wash over what was drawn
-    /// there, unless it is pressed, draws its own hover look (a button),
-    /// or covers so much of the screen that a wash would light the page.
+    /// It shows its state as Material's state layer over what was drawn
+    /// there (hovered, the keyboard on it, with the focus ring; pressed,
+    /// a region that is not a control shows what it holds as drawn),
+    /// unless it draws its own (a button) or covers so much of the
+    /// screen that a layer would light the page. It takes a press at
+    /// least [`faraday_draw::tokens::TOUCH`] square ([`Reach`]).
     pub fn hit(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
         // A dimmed action takes no press, wherever it is drawn.
         if self.dimmed.contains(&action) {
@@ -1709,23 +1774,41 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let rect = self.rect(x, y, w, h).intersect(&clip);
         if rect.w > 0 && rect.h > 0 {
             let screen = i64::from(self.c.width()) * i64::from(self.c.height());
-            if self.hovered == Some(action)
-                && self.pressed != Some(action)
-                && !self.quiet_hover
-                && i64::from(rect.w) * i64::from(rect.h) * 4 < screen
-            {
-                let wash = self.col(TEXT.with_alpha(14));
-                self.c.fill_rounded_rect(rect, 8.0 * self.f, wash);
+            let small = i64::from(rect.w) * i64::from(rect.h) * 4 < screen;
+            use faraday_draw::tokens::SHAPE_S;
+            if small && !self.quiet_hover {
+                // Pressed, a region shows what it holds as drawn: a held
+                // secret's code stays readable under the finger.
+                if !self.is_pressed(action) {
+                    self.state_layer((x, y, w, h, SHAPE_S), TEXT, action);
+                }
+            }
+            // A region with its own hover look is still ringed while the
+            // keyboard is on it, unless it rings itself.
+            if small && !self.own_ring {
+                self.focus_ring((x, y, w, h, SHAPE_S), action);
             }
             self.hits.push((rect, action));
+            if !self.around {
+                self.reach_for(rect, clip, action);
+            }
         }
     }
 
-    /// [`Ui::hit`] for a region that draws its own hover look: no wash.
+    /// [`Ui::hit`] for a region that draws its own hover look: no state
+    /// layer; the focus ring is still drawn round it.
     pub fn hit_quiet(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
         self.quiet_hover = true;
         self.hit(x, y, w, h, action);
         self.quiet_hover = false;
+    }
+
+    /// [`Ui::hit`] for a control that draws its own state layer and focus
+    /// ring in its own shape (a button, a segment, the floating action).
+    pub fn hit_drawn(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
+        self.own_ring = true;
+        self.hit_quiet(x, y, w, h, action);
+        self.own_ring = false;
     }
 
     /// Presses everywhere outside the box at (x, y), w by h, take
@@ -1733,10 +1816,12 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     pub fn hit_around(&mut self, x: f32, y: f32, w: f32, h: f32, action: A) {
         const FAR: f32 = 10_000.0;
         self.quiet_hover = true;
+        self.around = true;
         self.hit(x - FAR, y - FAR, w + 2.0 * FAR, FAR, action);
         self.hit(x - FAR, y + h, w + 2.0 * FAR, FAR, action);
         self.hit(x - FAR, y, FAR, h, action);
         self.hit(x + w, y, FAR, h, action);
+        self.around = false;
         self.quiet_hover = false;
     }
 
@@ -1763,7 +1848,11 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.pressed == Some(action)
     }
 
-    /// A button. Returns its width.
+    /// A button (`docs/DESIGN.md` §4.13): Material's filled, tonal,
+    /// outlined or text button by `style`, round at its ends, its state
+    /// layer in its label's colour and the focus ring round it; a kind
+    /// not available now keeps its shape, faint, and takes no press. A
+    /// chosen option carries a tick before its label. Returns its width.
     #[allow(clippy::too_many_arguments)]
     pub fn button(
         &mut self,
@@ -1775,6 +1864,20 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         style: Style,
         action: A,
     ) -> f32 {
+        let r = faraday_draw::tokens::shape_full(h);
+        self.button_in((x, y, w, h, r), label, style, action)
+    }
+
+    /// [`Ui::button`] with corners of `r` rather than round ends: a key
+    /// of the on-screen keyboard.
+    pub fn button_in(
+        &mut self,
+        (x, y, w, h, r): (f32, f32, Option<f32>, f32, f32),
+        label: &str,
+        style: Style,
+        action: A,
+    ) -> f32 {
+        use faraday_draw::tokens::{ICON_GAP, ICON_GLYPH_BUTTON, alpha_of};
         let size = if h >= 44.0 {
             15.0
         } else if h >= 38.0 {
@@ -1783,58 +1886,51 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             13.0
         };
         let weight = W::S;
-        let width = w.unwrap_or_else(|| self.measure(size, weight, label) + 32.0);
         let style = if self.dimmed.contains(&action) {
-            Style::Disabled
+            style.off()
         } else {
             style
         };
-        let pressed = self.is_pressed(action) && style != Style::Disabled;
-        let hovered = self.is_hovered(action) && style != Style::Disabled;
-        match style {
-            Style::Primary => {
-                // Mixed in the theme's own colours.
-                let bg = if pressed {
-                    self.col(ACCENT).mix(self.col(BG), 0.25)
-                } else if hovered {
-                    self.col(ACCENT).mix(self.col(TEXT), 0.12)
-                } else {
-                    ACCENT
-                };
-                self.fill(x, y, width, h, 10.0, bg);
-            }
-            Style::Secondary => {
-                if pressed {
-                    self.fill(x, y, width, h, 10.0, INNER);
-                } else if hovered {
-                    self.fill(x, y, width, h, 10.0, INNER.with_alpha(150));
-                }
-                let edge = if hovered { DIM } else { BORDER };
-                self.stroke(x, y, width, h, 10.0, edge);
-            }
-            Style::Ghost => {
-                if pressed {
-                    self.fill(x, y, width, h, 10.0, INNER);
-                } else if hovered {
-                    self.fill(x, y, width, h, 10.0, INNER.with_alpha(150));
-                }
-            }
-            Style::Disabled => {
-                self.stroke(x, y, width, h, 10.0, INNER);
-            }
-        }
-        let fg = match style {
-            Style::Primary => ON_ACCENT,
-            Style::Secondary => TEXT,
-            Style::Ghost => MUTED,
-            Style::Disabled => DIM,
+        let tick = if style == Style::Selected {
+            ICON_GLYPH_BUTTON + ICON_GAP
+        } else {
+            0.0
         };
         let tw = self.measure(size, weight, label);
-        self.text_mid(x + (width - tw) / 2.0, y, h, size, weight, fg, label);
-        if style != Style::Disabled {
-            self.quiet_hover = true;
-            self.hit(x, y, width, h, action);
-            self.quiet_hover = false;
+        let width = w.unwrap_or(tw + 32.0 + tick);
+        let faint = TEXT.with_alpha(alpha_of(self.theme.off_fill()));
+        match style {
+            Style::Primary => self.fill(x, y, width, h, r, ACCENT),
+            Style::Tonal | Style::Selected => {
+                self.fill(x, y, width, h, r, SELECTED);
+                // The high contrast themes edge every control at 3:1.
+                if self.theme.is_high_contrast() {
+                    self.stroke(x, y, width, h, r, OUTLINE);
+                }
+            }
+            Style::Secondary => self.stroke(x, y, width, h, r, OUTLINE),
+            Style::Disabled => {
+                // Faint in every theme: it is not available now.
+                let (rect, edge) = (self.rect(x, y, width, h), self.col(faint));
+                let line = self.f.max(1.0);
+                self.c.stroke_rounded_rect(rect, r * self.f, line, edge);
+            }
+            Style::PrimaryOff | Style::TonalOff => self.wash(x, y, width, h, r, faint),
+            Style::Ghost | Style::GhostOff => {}
+        }
+        let fg = style.label();
+        if !style.is_off() {
+            self.state_layer((x, y, width, h, r), fg, action);
+            self.focus_ring((x, y, width, h, r), action);
+        }
+        let lx = x + (width - tw - tick) / 2.0;
+        if tick > 0.0 {
+            let iy = y + (h - ICON_GLYPH_BUTTON) / 2.0;
+            self.icon(lx, iy, ICON_GLYPH_BUTTON, Icon::Done, ICON_GLYPH_BUTTON, fg);
+        }
+        self.text_mid(lx + tick, y, h, size, weight, fg, label);
+        if !style.is_off() {
+            self.hit_drawn(x, y, width, h, action);
         }
         width
     }
@@ -1846,26 +1942,15 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// Returns the chip's width; the caller passes `label`, the shorter
     /// one where the field is narrower than the chip.
     pub fn field_action(&mut self, x: f32, y: f32, w: f32, h: f32, label: &str, action: A) -> f32 {
+        use faraday_draw::tokens::SHAPE_S;
         use faraday_draw::tokens::{
             FIELD_ACTION_HEIGHT as CH, FIELD_ACTION_INSET as IN, FIELD_ACTION_TEXT as TX, TOUCH,
         };
         let width = (self.measure(TX, W::S, label) + 2.0 * IN).min(w - 2.0 * IN);
         let (cx, cy) = (x + IN, y + (h - CH) / 2.0);
-        let pressed = self.is_pressed(action);
-        let hovered = self.is_hovered(action);
-        if pressed {
-            self.fill(cx, cy, width, CH, CH / 2.0, INNER);
-        } else if hovered {
-            self.fill(cx, cy, width, CH, CH / 2.0, INNER.with_alpha(150));
-        }
-        self.stroke(
-            cx,
-            cy,
-            width,
-            CH,
-            CH / 2.0,
-            if hovered { DIM } else { BORDER },
-        );
+        self.state_layer((cx, cy, width, CH, SHAPE_S), TEXT, action);
+        self.stroke(cx, cy, width, CH, SHAPE_S, OUTLINE);
+        self.focus_ring((cx, cy, width, CH, SHAPE_S), action);
         let tw = self.measure(TX, W::S, label);
         self.text_mid(cx + (width - tw) / 2.0, cy, CH, TX, W::S, TEXT, label);
         let hit_h = if self.compact {
@@ -1873,9 +1958,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         } else {
             h.max(CH)
         };
-        self.quiet_hover = true;
-        self.hit(cx, y + (h - hit_h) / 2.0, width, hit_h, action);
-        self.quiet_hover = false;
+        self.hit_drawn(cx, y + (h - hit_h) / 2.0, width, hit_h, action);
         width
     }
 
@@ -1889,34 +1972,23 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         } else {
             (48.0, 15.0, 14.0)
         };
-        let width = self.measure(size, W::S, label) + 2.0 * pad + 34.0;
+        use faraday_draw::tokens::{ICON_GAP, ICON_GLYPH, SHAPE_L};
+        let lead = ICON_GLYPH + ICON_GAP;
+        let width = self.measure(size, W::S, label) + 2.0 * pad + lead;
         let (x, y) = (right - width, bottom - h);
-        let bg = if self.is_pressed(action) {
-            self.col(ACCENT).mix(self.col(BG), 0.25)
-        } else if self.is_hovered(action) {
-            self.col(ACCENT).mix(self.col(TEXT), 0.12)
-        } else {
-            ACCENT
-        };
         let level = if self.is_hovered(action) {
             faraday_draw::tokens::ELEVATION_RAISED
         } else {
             faraday_draw::tokens::ELEVATION_FAB
         };
-        self.shadow(x, y, width, h, h / 2.0, level);
-        self.fill(x, y, width, h, h / 2.0, bg);
-        self.icon(
-            x + pad,
-            y + (h - 26.0) / 2.0,
-            26.0,
-            icon,
-            size - 2.0,
-            ON_ACCENT,
-        );
-        self.text_mid(x + pad + 30.0, y, h, size, W::S, ON_ACCENT, label);
-        self.quiet_hover = true;
-        self.hit(x, y, width, h, action);
-        self.quiet_hover = false;
+        self.shadow(x, y, width, h, SHAPE_L, level);
+        self.fill(x, y, width, h, SHAPE_L, ACCENT);
+        self.state_layer((x, y, width, h, SHAPE_L), ON_ACCENT, action);
+        self.focus_ring((x, y, width, h, SHAPE_L), action);
+        let iy = y + (h - ICON_GLYPH) / 2.0;
+        self.icon(x + pad, iy, ICON_GLYPH, icon, ICON_GLYPH, ON_ACCENT);
+        self.text_mid(x + pad + lead, y, h, size, W::S, ON_ACCENT, label);
+        self.hit_drawn(x, y, width, h, action);
         width
     }
 
@@ -1934,11 +2006,12 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// shown as they are made. Returns its width.
     pub fn word_pill(&mut self, x: f32, y: f32, word: &str, action: A) -> f32 {
         let h = 26.0;
+        use faraday_draw::tokens::SHAPE_S;
         let width = self.measure(14.0, W::M, word) + 24.0;
-        self.fill(x, y, width, h, h / 2.0, INNER);
-        self.stroke(x, y, width, h, h / 2.0, BORDER);
+        self.fill(x, y, width, h, SHAPE_S, INNER);
+        self.stroke(x, y, width, h, SHAPE_S, OUTLINE);
         self.text_mid(x + 12.0, y, h, 14.0, W::M, TEXT, word);
-        self.hit(x, y, width, h, action);
+        self.hit_shaped((x, y, width, h, SHAPE_S), action);
         width
     }
 
@@ -1991,12 +2064,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// A checkbox. One ticked and not enabled shows its tick dimmed: it is
     /// done, and a press does not undo it.
     pub fn checkbox(&mut self, x: f32, y: f32, on: bool, enabled: bool) {
+        use faraday_draw::tokens::{ICON_GLYPH_BUTTON as SIDE, SHAPE_CHECKBOX as R};
         if on {
-            self.fill(x, y, 18.0, 18.0, 4.0, if enabled { ACCENT } else { INNER });
+            self.fill(x, y, SIDE, SIDE, R, if enabled { ACCENT } else { INNER });
             let tick = if enabled { ON_ACCENT } else { DIM };
-            self.icon(x, y, 18.0, Icon::Done, 11.0, tick);
+            self.icon(x, y, SIDE, Icon::Done, 11.0, tick);
         } else {
-            self.stroke(x, y, 18.0, 18.0, 4.0, if enabled { MUTED } else { INNER });
+            let edge = self.col(if enabled { MUTED } else { INNER });
+            let rect = self.rect(x, y, SIDE, SIDE);
+            self.c
+                .stroke_rounded_rect(rect, R * self.f, 2.0 * self.f, edge);
         }
     }
 }
@@ -2104,19 +2181,23 @@ mod tests {
         let mut short = Vec::new();
         for theme in Theme::ALL {
             let high = theme.is_high_contrast();
+            // The accent as it is drawn as text and icons: in Bitcoin
+            // Orange Light the orange darkened (owner, 2026-10-23), the
+            // orange itself staying the fill.
             for (name, fg, standard) in [
                 ("text", pal::TEXT, 4.5),
-                ("accent", pal::ACCENT, 4.5),
+                ("accent", pal::ACCENT_TEXT, 4.5),
                 ("positive", pal::OK, 4.5),
                 ("warning", pal::WARN, 4.5),
                 ("dimmed", pal::DIM, 3.0),
+                ("control edge", pal::OUTLINE, 3.0),
             ] {
-                // Bitcoin Orange Light takes the orange itself as its
-                // accent, at 2.1:1 (owner, 2026-10-11).
-                if theme == Theme::BitcoinOrangeLight && name == "accent" {
-                    continue;
-                }
-                let need = if high { 7.0 } else { standard };
+                // An edge stands 3:1 in every theme, high contrast too.
+                let need = match (name, high) {
+                    ("control edge", _) => standard,
+                    (_, true) => 7.0,
+                    _ => standard,
+                };
                 for (on_name, on) in [("page", pal::BG), ("card", pal::SURFACE)] {
                     let got = contrast(theme.color(fg), theme.color(on));
                     if got < need {
@@ -2155,6 +2236,144 @@ mod tests {
         assert!(short.is_empty(), "{short:#?}");
     }
 
+    /// What is drawn on the chosen option, a tonal button and the toast
+    /// reads on them in every theme.
+    #[test]
+    fn text_reads_on_the_chosen_option_and_on_the_toast_in_every_theme() {
+        let mut short = Vec::new();
+        for theme in Theme::ALL {
+            let need = if theme.is_high_contrast() { 7.0 } else { 4.5 };
+            for (name, fg, on) in [
+                ("chosen", pal::ON_SELECTED, pal::SELECTED),
+                ("toast", pal::ON_INVERSE, pal::INVERSE),
+            ] {
+                let got = contrast(theme.color(fg), theme.color(on));
+                if got < need {
+                    short.push(format!("{} {name} text is {got:.2}:1", theme.id()));
+                }
+            }
+            if theme.color(pal::SELECTED) == theme.color(pal::SURFACE) {
+                short.push(format!("{} chosen is the card's colour", theme.id()));
+            }
+        }
+        assert!(short.is_empty(), "{short:#?}");
+    }
+
+    /// A chip tinted in a tone and a translucent edge, as `theme` draws
+    /// them on its page: (inside the chip, on its edge, the page, on the
+    /// translucent edge).
+    fn tinted(theme: Theme) -> [Color; 4] {
+        let mut canvas = canvas(160);
+        let mut hits = Vec::new();
+        let page;
+        {
+            let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+            ui.theme = theme;
+            page = ui.col(pal::BG);
+            ui.clear(pal::BG);
+            ui.fill(100.0, 100.0, 120.0, 40.0, 0.0, pal::OK.with_alpha(30));
+            ui.stroke(100.0, 200.0, 120.0, 40.0, 0.0, pal::ACCENT.with_alpha(110));
+        }
+        let f = canvas.frame();
+        let at = |x: usize, y: usize| {
+            let i = (y * usize::from(f.width) + x) * 4;
+            Color::rgb(f.rgba[i], f.rgba[i + 1], f.rgba[i + 2])
+        };
+        [at(160, 120), at(160, 100), page, at(160, 200)]
+    }
+
+    /// In a high contrast theme nothing see-through lowers the contrast
+    /// of what is on it: a tint is drawn as its edge, the page left
+    /// under what it holds, and a translucent edge at full strength.
+    /// Elsewhere a tint is a tint.
+    #[test]
+    fn high_contrast_themes_draw_a_tint_as_its_edge_and_edges_at_full_strength() {
+        for theme in [Theme::HighContrastDark, Theme::HighContrastLight] {
+            let [inside, edge, page, line] = tinted(theme);
+            let rgb = |c: Color| (c.r, c.g, c.b);
+            assert_eq!(rgb(inside), rgb(page), "{}", theme.id());
+            assert!(contrast(edge, page) >= 3.0, "{} tint's edge", theme.id());
+            assert!(contrast(line, page) >= 3.0, "{} edge", theme.id());
+        }
+        let [inside, _, page, _] = tinted(Theme::Cobalt);
+        assert_ne!((inside.r, inside.g, inside.b), (page.r, page.g, page.b));
+    }
+
+    /// The text written in the accent is drawn in the accent as it is
+    /// read: darker than the fill in Bitcoin Orange Light.
+    #[test]
+    fn accent_text_in_bitcoin_orange_light_is_drawn_darker_than_its_fills() {
+        let mut canvas = canvas(160);
+        let mut hits = Vec::new();
+        let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+        ui.theme = Theme::BitcoinOrangeLight;
+        let fill = ui.col(pal::ACCENT);
+        let text = ui.ink(pal::ACCENT);
+        assert!(contrast(text, ui.col(pal::SURFACE)) >= 4.5);
+        assert!(luminance(text) < luminance(fill));
+    }
+
+    /// See-through layers over a control (hover, the keyboard's place,
+    /// a press, a control not available now) and the scrim over the page
+    /// keep what is on them legible: in the high contrast themes text
+    /// 7:1 and edges 3:1 (their selected colour is chosen so a press on a
+    /// tonal button keeps it, and a filled button not available now is
+    /// fainter there), in the others text 3:1 at the strongest.
+    #[test]
+    fn state_layers_and_the_scrim_keep_text_and_edges_legible_in_every_theme() {
+        use faraday_draw::tokens::{SCRIM_ALPHA, STATE_FOCUS, STATE_HOVER, STATE_PRESS};
+        let mut short = Vec::new();
+        for theme in Theme::ALL {
+            let c = |k: Color| theme.color(k);
+            let high = theme.is_high_contrast();
+            let (text, edge) = if high { (7.0, 3.0) } else { (3.0, 1.0) };
+            for op in [STATE_HOVER, STATE_FOCUS, STATE_PRESS] {
+                // (what, the control's fill, its layer, what is on it, needs)
+                for (name, fill, layer, fg, need) in [
+                    ("filled", pal::ACCENT, pal::ON_ACCENT, pal::ON_ACCENT, text),
+                    ("outlined", pal::SURFACE, pal::TEXT, pal::TEXT, text),
+                    ("row label", pal::SURFACE, pal::TEXT, pal::MUTED, text),
+                    (
+                        "text button",
+                        pal::SURFACE,
+                        pal::ACCENT,
+                        pal::ACCENT_TEXT,
+                        text,
+                    ),
+                    (
+                        "tonal",
+                        pal::SELECTED,
+                        pal::ON_SELECTED,
+                        pal::ON_SELECTED,
+                        text,
+                    ),
+                    ("edge", pal::SURFACE, pal::TEXT, pal::OUTLINE, edge),
+                ] {
+                    let under = c(fill).mix(c(layer), op);
+                    let got = contrast(c(fg), under);
+                    if got < need {
+                        short.push(format!("{} {name} at {op}: {got:.2}:1", theme.id()));
+                    }
+                }
+            }
+            // A control not available now: WCAG asks no contrast of it,
+            // the high contrast themes keep 7:1 all the same.
+            let off = c(pal::SURFACE).mix(c(pal::TEXT), theme.off_fill());
+            let got = contrast(c(pal::DIM), off);
+            if high && got < 7.0 {
+                short.push(format!("{} not available: {got:.2}:1", theme.id()));
+            }
+            // A page's text under a sheet's scrim.
+            let scrim = f32::from(SCRIM_ALPHA) / 255.0;
+            let page = c(pal::SURFACE).mix(pal::SCRIM, scrim);
+            let ink = c(pal::TEXT).mix(pal::SCRIM, scrim);
+            if high && contrast(ink, page) < 7.0 {
+                short.push(format!("{} text under the scrim", theme.id()));
+            }
+        }
+        assert!(short.is_empty(), "{short:#?}");
+    }
+
     #[test]
     fn the_high_contrast_themes_draw_edges_at_3_to_1() {
         for theme in Theme::ALL.into_iter().filter(|t| t.is_high_contrast()) {
@@ -2170,6 +2389,22 @@ mod tests {
                 assert!(got >= 3.0, "{} {name} is {got:.2}:1", theme.id());
             }
         }
+    }
+
+    /// A canvas of 640 × 480 pixels at `dpi`.
+    fn canvas(dpi: u16) -> Canvas {
+        Canvas::new(&DisplayInfo {
+            width: 640,
+            height: 480,
+            dpi,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        })
     }
 
     #[test]

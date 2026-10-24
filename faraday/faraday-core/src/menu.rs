@@ -98,16 +98,14 @@ pub(crate) fn dots(ui: &mut Ui, cx: f32, cy: f32, color: faraday_draw::Color) {
 /// (`focused`). Returns its width.
 pub(crate) fn button(ui: &mut Ui, x: f32, y: f32, h: f32, action: Action, focused: bool) -> f32 {
     let w = h;
-    let r = tokens::GAP_SMALL + 2.0;
-    if ui.is_pressed(action) || ui.is_hovered(action) {
-        ui.fill(x, y, w, h, r, INNER);
-    }
-    ui.stroke(x, y, w, h, r, BORDER);
+    let r = tokens::SHAPE_S;
+    ui.state_layer((x, y, w, h, r), TEXT, action);
+    ui.stroke(x, y, w, h, r, OUTLINE);
     dots(ui, x + w / 2.0, y + h / 2.0, MUTED);
     if focused {
-        outline(ui, (x, y, w, h), r, tokens::FOCUS_STROKE, ACCENT);
+        outline(ui, (x, y, w, h), r, tokens::FOCUS_STROKE, ACCENT_TEXT);
     }
-    ui.hit(x, y, w, h, action);
+    ui.hit_quiet(x, y, w, h, action);
     w
 }
 
@@ -127,11 +125,12 @@ pub(crate) fn outline(
 /// What `draw` would take in height, drawn out of sight with no press
 /// kept.
 pub(crate) fn measure(ui: &mut Ui, draw: &mut dyn FnMut(&mut Ui) -> f32) -> f32 {
-    let mark = ui.hits.len();
+    let mark = (ui.hits.len(), ui.reach.len());
     ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
     let h = draw(ui);
     ui.c.pop_clip();
-    ui.hits.truncate(mark);
+    ui.hits.truncate(mark.0);
+    ui.reach.truncate(mark.1);
     h
 }
 
@@ -166,16 +165,14 @@ fn rows(ui: &mut Ui, v: &View, x: f32, y: f32, w: f32) -> f32 {
             Line::Item(label, a) => {
                 let a = *a;
                 let on = v.keys && v.at == k;
-                if on || ui.is_pressed(a) || ui.is_hovered(a) {
-                    ui.fill(x, cy, w, rh, tokens::GAP_SMALL, INNER);
-                }
                 if on {
+                    ui.fill(x, cy, w, rh, tokens::SHAPE_XS, INNER);
                     outline(
                         ui,
                         (x, cy, w, rh),
-                        tokens::GAP_SMALL,
+                        tokens::SHAPE_XS,
                         tokens::FOCUS_STROKE,
-                        ACCENT,
+                        ACCENT_TEXT,
                     );
                 }
                 let ix = x + tokens::GAP_SMALL + if under { tokens::BOARD_PAD } else { 0.0 };
@@ -250,9 +247,10 @@ pub(crate) fn draw(ui: &mut Ui, w: f32, h: f32, v: &View) {
     if let Some(a) = ui.outside {
         ui.hit_around(x, y, pw, ph, a);
     }
-    ui.shadow(x, y, pw, ph, tokens::GAP, tokens::ELEVATION_MENU);
-    ui.fill(x, y, pw, ph, tokens::GAP, SURFACE);
-    ui.stroke(x, y, pw, ph, tokens::GAP, BORDER);
+    // Material's menu: extra-small corners.
+    ui.shadow(x, y, pw, ph, tokens::SHAPE_XS, tokens::ELEVATION_MENU);
+    ui.fill(x, y, pw, ph, tokens::SHAPE_XS, SURFACE);
+    ui.stroke(x, y, pw, ph, tokens::SHAPE_XS, BORDER);
     let max = (content - ph).max(0.0);
     let off = ui.offset.clamp(0.0, max);
     let clip = ui.rect(x, y, pw, ph);

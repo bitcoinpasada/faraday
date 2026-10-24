@@ -153,11 +153,7 @@ fn inbox_panel(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             None,
             40.0,
             &label,
-            if chosen > 0 {
-                Style::Primary
-            } else {
-                Style::Disabled
-            },
+            Style::Primary.when(chosen > 0),
             Action::InboxLoad,
         );
         if !may {
@@ -938,11 +934,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             None,
             40.0,
             &label,
-            if chosen > 0 {
-                Style::Primary
-            } else {
-                Style::Disabled
-            },
+            Style::Primary.when(chosen > 0),
             Action::Vault(V::LoadWithKeys(v)),
         );
         let each = if open.each_shown {
@@ -1040,11 +1032,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
         None,
         40.0,
         &label,
-        if seeds + wallets > 0 {
-            Style::Primary
-        } else {
-            Style::Disabled
-        },
+        Style::Primary.when(seeds + wallets > 0),
         Action::Vault(V::LoadChosen(v)),
     );
     // Once something has loaded, the way on: Files stays put.
@@ -1161,11 +1149,7 @@ fn inbox_panel_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 (n, true) => fill(EN.inbox_load_wallets_seeds, &[&n.to_string()]),
                 (n, false) => fill(EN.inbox_load_wallets, &[&n.to_string()]),
             };
-            let style = if chosen > 0 {
-                Style::Primary
-            } else {
-                Style::Disabled
-            };
+            let style = Style::Primary.when(chosen > 0);
             ty += wrap_buttons(ui, ix, ty, iw, 40.0, &[(&label, style, Action::InboxLoad)]);
             if !may {
                 ty += ui.wrap(
@@ -1372,11 +1356,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
             let mut items: Vec<(&str, Style, Action)> = vec![
                 (
                     &label,
-                    if chosen > 0 {
-                        Style::Primary
-                    } else {
-                        Style::Disabled
-                    },
+                    Style::Primary.when(chosen > 0),
                     Action::Vault(V::LoadWithKeys(v)),
                 ),
                 (&each, Style::Ghost, Action::Vault(V::EachShown(v))),
@@ -1475,11 +1455,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
         };
         let mut items: Vec<(&str, Style, Action)> = vec![(
             &label,
-            if seeds + wallets > 0 {
-                Style::Primary
-            } else {
-                Style::Disabled
-            },
+            Style::Primary.when(seeds + wallets > 0),
             Action::Vault(V::LoadChosen(v)),
         )];
         if go {

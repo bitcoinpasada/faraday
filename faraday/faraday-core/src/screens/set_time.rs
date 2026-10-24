@@ -76,11 +76,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Some(120.0),
         46.0,
         EN.set_time_set,
-        if ready {
-            Style::Primary
-        } else {
-            Style::Disabled
-        },
+        Style::Primary.when(ready),
         Action::SetTimeSet,
     ) + 10.0;
     if app.clock_now().is_some() {
@@ -145,11 +141,7 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     let ready = app.set_time_ready();
     let mut items: Vec<(&str, Style, Action)> = vec![(
         EN.set_time_set,
-        if ready {
-            Style::Primary
-        } else {
-            Style::Disabled
-        },
+        Style::Primary.when(ready),
         Action::SetTimeSet,
     )];
     if app.clock_now().is_some() {

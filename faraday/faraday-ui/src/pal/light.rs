@@ -6,7 +6,7 @@ use faraday_draw::Color;
 
 /// Each of [`super`]'s colours and what it is in the Light theme
 /// (`docs/MOTION.md` §3.6).
-pub const LIGHT: [(Color, Color); 33] = [
+pub const LIGHT: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0xf4, 0xf6, 0xf8)),
     (SIDEBAR, Color::rgb(0xe9, 0xed, 0xf1)),
     (SURFACE, Color::rgb(0xff, 0xff, 0xff)),
@@ -40,12 +40,18 @@ pub const LIGHT: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0xff, 0xe8, 0xec)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0xef, 0xef, 0xf0)),
+    (OUTLINE, Color::rgb(0x85, 0x8d, 0x95)),
+    (SELECTED, Color::rgb(0xd8, 0xea, 0xef)),
+    (ON_SELECTED, Color::rgb(0x15, 0x1c, 0x23)),
+    (INVERSE, Color::rgb(0x15, 0x1c, 0x23)),
+    (ON_INVERSE, Color::rgb(0xff, 0xff, 0xff)),
+    (ACCENT_TEXT, Color::rgb(0x0b, 0x79, 0x9c)),
 ];
 
 /// Cobalt: a cool blue-white page (its sidebar the owner's #E8EEFA)
 /// with a deep cobalt blue (#0062A3, 6.0:1 on the page) as the
 /// accent.
-pub const COBALT: [(Color, Color); 33] = [
+pub const COBALT: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0xf1, 0xf4, 0xfb)),
     (SIDEBAR, Color::rgb(0xe8, 0xee, 0xfa)),
     (SURFACE, Color::rgb(0xff, 0xff, 0xff)),
@@ -79,11 +85,17 @@ pub const COBALT: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0xff, 0xe8, 0xec)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0xee, 0xef, 0xf0)),
+    (OUTLINE, Color::rgb(0x80, 0x8b, 0x9c)),
+    (SELECTED, Color::rgb(0xd6, 0xe6, 0xf0)),
+    (ON_SELECTED, Color::rgb(0x13, 0x1b, 0x27)),
+    (INVERSE, Color::rgb(0x13, 0x1b, 0x27)),
+    (ON_INVERSE, Color::rgb(0xff, 0xff, 0xff)),
+    (ACCENT_TEXT, Color::rgb(0x00, 0x62, 0xa3)),
 ];
 
 /// Rosé Pine Dawn (rosepinetheme.com): base, surface, overlay, pine. Its
 /// gold, love and a green beside them are darkened to read on its paper.
-pub const ROSE_PINE: [(Color, Color); 33] = [
+pub const ROSE_PINE: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0xfa, 0xf4, 0xed)),
     (SIDEBAR, Color::rgb(0xf2, 0xe9, 0xe1)),
     (SURFACE, Color::rgb(0xff, 0xfa, 0xf3)),
@@ -117,12 +129,18 @@ pub const ROSE_PINE: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0xff, 0xe4, 0xe3)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0xf3, 0xee, 0xea)),
+    (OUTLINE, Color::rgb(0x8d, 0x88, 0x9f)),
+    (SELECTED, Color::rgb(0xdd, 0xe3, 0xe1)),
+    (ON_SELECTED, Color::rgb(0x57, 0x52, 0x79)),
+    (INVERSE, Color::rgb(0x57, 0x52, 0x79)),
+    (ON_INVERSE, Color::rgb(0xff, 0xfa, 0xf3)),
+    (ACCENT_TEXT, Color::rgb(0x28, 0x69, 0x83)),
 ];
 
 /// Bitcoin Orange Light: a warm paper page, Bitcoin's orange
 /// (#F7931A) as the accent at full strength (owner, 2026-10-11),
 /// with dark text on it: white on that orange is 2.1:1.
-pub const BITCOIN_ORANGE_LIGHT: [(Color, Color); 33] = [
+pub const BITCOIN_ORANGE_LIGHT: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0xfd, 0xf1, 0xe7)),
     (SIDEBAR, Color::rgb(0xf5, 0xe6, 0xd7)),
     (SURFACE, Color::rgb(0xff, 0xfc, 0xf8)),
@@ -156,13 +174,19 @@ pub const BITCOIN_ORANGE_LIGHT: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0xff, 0xe6, 0xe7)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0xf0, 0xec, 0xe8)),
+    (OUTLINE, Color::rgb(0x9b, 0x87, 0x6f)),
+    (SELECTED, Color::rgb(0xef, 0xe3, 0xd3)),
+    (ON_SELECTED, Color::rgb(0x2a, 0x1c, 0x0f)),
+    (INVERSE, Color::rgb(0x2a, 0x1c, 0x0f)),
+    (ON_INVERSE, Color::rgb(0xff, 0xfc, 0xf8)),
+    (ACCENT_TEXT, Color::rgb(0x9e, 0x5e, 0x11)),
 ];
 
 /// Lamplight: warm cream paper and espresso text, a terracotta
 /// accent darkened to read at 4.5:1 against the page for text and
 /// the focus ring (#A34E26 is 5.2:1), and a muted sage, amber and
 /// brick that read at 4.5:1 there too.
-pub const LAMPLIGHT: [(Color, Color); 33] = [
+pub const LAMPLIGHT: [(Color, Color); ROLES] = [
     (BG, Color::rgb(0xfb, 0xf3, 0xe6)),
     (SIDEBAR, Color::rgb(0xf3, 0xe6, 0xd2)),
     (SURFACE, Color::rgb(0xff, 0xfa, 0xf2)),
@@ -196,4 +220,10 @@ pub const LAMPLIGHT: [(Color, Color); 33] = [
     (FILES_TEXT, Color::rgb(0x31, 0x68, 0xa8)),
     (CODEX32_CHECKSUM_FILL, Color::rgb(0xff, 0xe4, 0xe2)),
     (CODEX32_LOOKUP_FILL, Color::rgb(0xf1, 0xeb, 0xe3)),
+    (OUTLINE, Color::rgb(0x9a, 0x87, 0x70)),
+    (SELECTED, Color::rgb(0xf0, 0xde, 0xd1)),
+    (ON_SELECTED, Color::rgb(0x3a, 0x2a, 0x1f)),
+    (INVERSE, Color::rgb(0x3a, 0x2a, 0x1f)),
+    (ON_INVERSE, Color::rgb(0xff, 0xfa, 0xf2)),
+    (ACCENT_TEXT, Color::rgb(0xa3, 0x4e, 0x26)),
 ];

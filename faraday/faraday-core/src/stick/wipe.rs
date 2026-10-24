@@ -483,11 +483,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }),
         ],
     );
-    let go_style = if d.what == What::Files && n == 0 {
-        Style::Disabled
-    } else {
-        Style::Primary
-    };
+    let go_style = Style::Primary.when(d.what != What::Files || n != 0);
     let amount = |whole: bool| -> String {
         match d.space {
             Some((_, 0)) => EN.stick_wipe_nothing.to_string(),

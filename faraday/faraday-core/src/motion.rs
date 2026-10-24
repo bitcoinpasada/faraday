@@ -11,6 +11,8 @@
 //! app; `f` is pixels per design unit. Which offset each screen and
 //! sheet scrolls is here too (`Faraday::screen_slot`).
 
+use faraday_draw::tokens::{self, Easing};
+
 use crate::{Faraday, RegionKey, Screen, ScreenKey, Sheet, ui};
 
 /// How long a glide takes to cover most of its way: each millisecond it
@@ -47,12 +49,12 @@ pub const SHELL_NOTCH_PX: f32 = 48.0;
 /// How long a change of screen or sheet takes to cross-fade in: linear,
 /// since an eased fade of this length is over in a few frames and reads
 /// as a flash, where a straight one reads as a fade. Desktops sit
-/// between 200 and 250 ms.
-pub const FADE_MS: u64 = 200;
+/// between 200 and 250 ms; Material's short 4.
+pub const FADE_MS: u64 = tokens::MOTION_SHORT4;
 /// How long a change of theme takes to cross-fade, eased: every pixel
 /// changes colour, so it is slower than a change of screen (the owner
-/// sets it by eye).
-pub const THEME_FADE_MS: u64 = 350;
+/// sets it by eye); Material's medium 3.
+pub const THEME_FADE_MS: u64 = tokens::MOTION_MEDIUM3;
 /// The widest the median gap between frames may be for a fade still to
 /// read as one: 30 Hz, six steps in a fade, or better. Frames further
 /// apart are steps of brightness, and the change is drawn at once
@@ -143,21 +145,36 @@ impl Region<'_> {
 /// How long two-finger scrolling may pause before it is taken to have
 /// ended, for a shell that does not say when the fingers lift.
 pub const SCROLL_QUIET_MS: u64 = 300;
-/// How long a switch's pill takes to slide to the other side.
-pub const SWITCH_MS: u64 = 160;
-/// How long a step card takes to open or close.
-pub const DISCLOSE_MS: u64 = 180;
-/// How long a toast takes to rise in, and to fade out at its end.
-pub const TOAST_MS: u64 = 160;
+/// How long a switch's pill takes to slide to the other side:
+/// Material's short 3.
+pub const SWITCH_MS: u64 = tokens::MOTION_SHORT3;
+/// How long a step card takes to open or close: Material's medium 2,
+/// since it moves much of the page.
+pub const DISCLOSE_MS: u64 = tokens::MOTION_MEDIUM2;
+/// How long a toast takes to rise in, and to fade out at its end:
+/// Material's short 4.
+pub const TOAST_MS: u64 = tokens::MOTION_SHORT4;
 /// How long typing a passphrase may pause before the key it makes is
 /// worked out and shown (a PBKDF2 each time), so that typing does that
 /// work once rather than at every character (`docs/SPEED.md` §3.5).
 pub const TYPED_PAUSE_MS: u64 = 400;
 
-/// Ease-out cubic: fast at first, settling at the end, `t` from 0 to 1.
-pub fn ease_out(t: f32) -> f32 {
-    let u = 1.0 - t.clamp(0.0, 1.0);
-    1.0 - u * u * u
+/// How far along `curve` an animation `t` of the way through its time
+/// is, 0 to 1 ([`faraday_draw::easing::ease`]).
+pub fn ease(curve: Easing, t: f32) -> f32 {
+    faraday_draw::easing::ease(curve, t)
+}
+
+/// A step card opening: Material's emphasized decelerate, `t` from 0 to
+/// 1.
+pub fn ease_open(t: f32) -> f32 {
+    ease(tokens::EASE_EMPHASIZED_DECELERATE, t)
+}
+
+/// Something moving on screen and staying there (a switch's pill, a
+/// change of theme): Material's standard easing, `t` from 0 to 1.
+pub fn ease_move(t: f32) -> f32 {
+    ease(tokens::EASE_STANDARD, t)
 }
 
 /// How far through an animation of `ms` started at `at` the time `now`

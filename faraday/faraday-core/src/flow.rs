@@ -16,7 +16,7 @@ use faraday_draw::widgets::Icon;
 use crate::Action;
 use crate::ui::Disclosure;
 use crate::ui::pal::*;
-use crate::ui::{Ui, W};
+use crate::ui::{Style, Ui, W};
 use faraday_draw::tokens;
 
 /// How far in from a step's left edge its body is drawn, under its title.
@@ -148,56 +148,32 @@ pub fn column_foot(
     // laid out from the right.
     let mut bx = x + w;
     if col.cancel {
-        let bw = ui.measure(12.0, W::S, EN.flow_cancel) + 24.0;
+        let bw = ui.measure(13.0, W::S, EN.flow_cancel) + 32.0;
         bx -= bw;
         let a = Action::CancelFlow;
-        if ui.is_pressed(a) {
-            ui.fill(bx, y + 2.0, bw, 30.0, 8.0, INNER);
-        }
-        ui.stroke(bx, y + 2.0, bw, 30.0, 8.0, BORDER);
-        ui.text_mid(bx + 12.0, y + 2.0, 30.0, 12.0, W::S, MUTED, EN.flow_cancel);
-        ui.hit(bx, y + 2.0, bw, 30.0, a);
+        ui.button(
+            bx,
+            y + 2.0,
+            Some(bw),
+            30.0,
+            EN.flow_cancel,
+            Style::Secondary,
+            a,
+        );
         bx -= 12.0;
     }
-    let switch: &[(&str, bool, bool)] = if col.switch {
-        &[
-            (EN.flow_guided, col.guided, true),
-            (EN.flow_steps_only, !col.guided, false),
-        ]
-    } else {
-        &[]
-    };
-    // Where each option is, then the pill, sliding between them, then
-    // the labels over it.
-    let mut places = Vec::new();
-    for &(label, on, guided) in switch {
-        let bw = ui.measure(12.0, W::S, label) + 24.0;
-        bx -= bw;
-        places.push((bx, bw, label, on, guided));
-        bx -= 4.0;
-    }
-    if let [(gx, gw, ..), (sx, sw, ..)] = places[..] {
-        let t = ui.guided_shown;
-        ui.fill(
-            sx + (gx - sx) * t,
-            y + 2.0,
-            sw + (gw - sw) * t,
-            30.0,
-            8.0,
-            INNER,
-        );
-    }
-    for (bx, bw, label, on, guided) in places {
-        ui.text_mid(
-            bx + 12.0,
-            y + 2.0,
-            30.0,
-            12.0,
-            W::S,
-            if on { TEXT } else { MUTED },
-            label,
-        );
-        ui.hit(bx, y + 2.0, bw, 30.0, Action::Guided(guided));
+    // Steps only or Guided: a segmented button (Material's), its fill
+    // sliding between them as the switch moves.
+    if col.switch {
+        let options = [
+            (EN.flow_steps_only, Action::Guided(false)),
+            (EN.flow_guided, Action::Guided(true)),
+        ];
+        let labels = [EN.flow_steps_only, EN.flow_guided];
+        let sw = ui.segment_width(12.0, &labels) * 2.0;
+        let chosen = Some(usize::from(col.guided));
+        let slide = Some(ui.guided_shown);
+        ui.segmented((bx - sw, y + 2.0, 30.0), 12.0, &options, chosen, slide);
     }
     y += 52.0;
     if let Some(note) = col.note {

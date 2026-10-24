@@ -34,6 +34,38 @@ pub const WARN: Color = Color::rgb(0xf0, 0xc0, 0x77);
 /// Refused.
 pub const ERR: Color = Color::rgb(0xef, 0x9b, 0x9b);
 
+// Material 3's colour roles that Faraday's own names did not cover
+// (`docs/DESIGN.md` §3, F108): each theme gives its own value, so the
+// structure is Material's and the colours stay the theme's.
+/// A control's edge: an outlined button, a segmented button, a field,
+/// the field chip, a ⋮. 3:1 or more on the page and the card in every
+/// theme, where a card's edge, `BORDER`, is fainter (Material's
+/// outline and outline-variant).
+pub const OUTLINE: Color = Color::rgb(0x63, 0x6f, 0x79);
+/// A chosen option and a tonal button's fill: the card tinted with the
+/// accent (Material's secondary-container).
+pub const SELECTED: Color = Color::rgb(0x35, 0x51, 0x5d);
+/// Text and icons on `SELECTED`: 4.5:1 or more (7:1 high contrast).
+pub const ON_SELECTED: Color = Color::rgb(0xe0, 0xe9, 0xf0);
+/// The toast's fill: the text's colour, so it stands out from the page
+/// (Material's inverse-surface).
+pub const INVERSE: Color = Color::rgb(0xe0, 0xe9, 0xf1);
+/// The toast's text: the card's colour (Material's inverse-on-surface).
+pub const ON_INVERSE: Color = Color::rgb(0x19, 0x21, 0x2b);
+/// The accent where it is read rather than filled: text, icons and the
+/// focus ring. The accent itself in every theme but one whose accent
+/// reads at less than 4.5:1 on the page, Bitcoin Orange Light, where it
+/// is the orange darkened to 4.5:1. `Ui` draws text and icons asked for
+/// in `ACCENT` in this.
+pub const ACCENT_TEXT: Color = Color::rgb(0x83, 0xd8, 0xf0);
+/// What a sheet's page is dimmed with over its frost, at
+/// `tokens::SCRIM_ALPHA` (Material's scrim, neutral 0). Not in the
+/// themes' tables: every theme draws it as it is.
+pub const SCRIM: Color = Color::rgb(0x00, 0x00, 0x00);
+
+/// How many colours each theme's table gives.
+pub const ROLES: usize = 39;
+
 /// Over a camera's picture (`docs/QR.md` §8 item 4), whatever the
 /// theme: none of these is in the themes' tables, since the picture
 /// is the same in every theme. The corner brackets while looking,

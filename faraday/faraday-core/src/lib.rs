@@ -2140,21 +2140,7 @@ impl Faraday {
     /// How much of the toast shows, 0 to 1, and how far below its place
     /// it is, in units: it rises in, and fades as its time runs out.
     pub(crate) fn toast_shown(&self) -> (f32, f32) {
-        let Some((_, until)) = &self.out.toast else {
-            return (0.0, 0.0);
-        };
-        let rise = motion::ease_out(motion::progress(
-            self.out.toast_at,
-            self.now_ms,
-            motion::TOAST_MS,
-        ));
-        let left = until.saturating_sub(self.now_ms) as f32 / motion::TOAST_MS as f32;
-        let lift = if self.reduce_motion() {
-            0.0
-        } else {
-            10.0 * (1.0 - rise)
-        };
-        (rise.min(left.min(1.0)), lift)
+        self.out.toast_shown(self.now_ms, self.reduce_motion())
     }
 
     /// Whether loading a key is allowed now: only once the self-test has
@@ -6192,7 +6178,13 @@ impl Faraday {
             }
             KeyIn::Down => self.glide(motion::WHEEL_NOTCH),
             KeyIn::Up => self.glide(-motion::WHEEL_NOTCH),
-            _ => {}
+            // What no screen took moves the keyboard's place, or presses
+            // the control it is on.
+            _ => self
+                .pointer
+                .focus_key(key)
+                .into_iter()
+                .for_each(|a| self.press_in(a)),
         }
     }
 
@@ -6596,6 +6588,9 @@ impl Faraday {
         };
         // A change of screen or sheet fades in from the frame before it.
         self.fade_begin(&canvas);
+        // The keyboard's place, while the last frame offered it: read
+        // before its hits are taken for this one.
+        let focused = self.pointer.focused();
         let mut hits = self.pointer.take_hits();
         hits.clear();
         // Offsets in whole pixels, whoever set them last, so a scrolled
@@ -6633,8 +6628,7 @@ impl Faraday {
         // Drawn twice when a step card has just opened: the first time
         // finds out, the second draws it growing from closed.
         let mut follow_to = None;
-        let mut scrolled = Vec::new();
-        let mut caret = None;
+        let (mut scrolled, mut caret, mut reach) = (Vec::new(), None, Vec::new());
         // A field newly focused brings the keyboard up; on a small panel
         // the page scrolls so the field stays in view above it. Worked
         // out before drawing, which reads the keyboard as it now is.
@@ -6653,7 +6647,7 @@ impl Faraday {
                 .map(|d| ui::Disclosure {
                     open: d.open,
                     closing: d.closing,
-                    shown: motion::ease_out(motion::progress(
+                    shown: motion::ease_open(motion::progress(
                         d.at,
                         self.now_ms,
                         motion::DISCLOSE_MS,
@@ -6669,6 +6663,7 @@ impl Faraday {
                 ui.edit = self.edit_now();
                 ui.theme = self.theme();
                 ui.hovered = self.pointer.hovered();
+                ui.focused = focused;
                 ui.dimmed = self.demo_dimmed();
                 ui.stretch = stretch;
                 ui.bar = (bar > 0).then_some((bar, offset));
@@ -6691,6 +6686,7 @@ impl Faraday {
                 self.typing.set_fields(std::mem::take(&mut ui.fields));
                 self.trail.set_link(self.screen, ui.back_link, ui.back_hit);
                 scrolled = std::mem::take(&mut ui.scrolled);
+                reach = std::mem::take(&mut ui.reach);
                 follow_to = follow_to.or(ui.follow_to);
                 self.fade.keep_frost(frost_key, ui.frost.take());
                 ui.column
@@ -6714,7 +6710,7 @@ impl Faraday {
         self.typing.set_caret_drawn(caret);
         self.vaults.set_drawn();
         self.later_drawn = true;
-        self.pointer.set_hits(hits);
+        self.pointer.set_hits(hits, reach);
         self.fade_end(&mut canvas);
         self.canvas = Some(canvas);
         // The frame moved things under a still pointer: the next frame
@@ -6738,7 +6734,7 @@ impl Faraday {
         let to = if self.guided() { 1.0 } else { 0.0 };
         match self.guided_moving {
             Some((from, at)) => {
-                let t = motion::ease_out(motion::progress(at, self.now_ms, motion::SWITCH_MS));
+                let t = motion::ease_move(motion::progress(at, self.now_ms, motion::SWITCH_MS));
                 from + (to - from) * t
             }
             None => to,
