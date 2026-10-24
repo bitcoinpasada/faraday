@@ -15,7 +15,7 @@ use crate::board::{
 };
 use crate::drawing::View;
 use crate::menu::{measure, outline};
-use crate::strings::EN;
+use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui, W};
 
@@ -1382,6 +1382,8 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
         *cy += gap;
     };
     entries(ui, fr, EN.board_seeds, &v.seeds, &mut cy);
+    // A seed's codex32 strings, under the seeds where it has them.
+    cy += codex32_groups(ui, fr, v, (x, cy, w), true);
     entries(ui, fr, EN.board_passphrases, &v.passes, &mut cy);
     cy += group(ui, EN.board_wallet_description, x, cy);
     if let Some(whole) = v.description.first() {
@@ -1442,6 +1444,85 @@ fn list(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) -> f
     if let Some(e) = &v.software_entry {
         cy += gap;
         cy += entry(ui, fr, e, x, cy, w, None) + gap;
+    }
+    // A seed without strings: turned to codex32 strings, at the foot.
+    cy += codex32_groups(ui, fr, v, (x, cy, w), false);
+    cy - y
+}
+
+/// Each seed's codex32 group under the seeds (`docs/CODEX32.md` §9.5):
+/// its head, a chip per string, and while the plan makes the set its
+/// threshold and strings, **+ share**, and **Codex32** or **Take off
+/// codex32**. Returns the height used.
+fn codex32_groups(
+    ui: &mut Ui,
+    fr: &mut Frame,
+    v: &BoardView,
+    (x, y, w): (f32, f32, f32),
+    on: bool,
+) -> f32 {
+    use crate::board::codex32::C32Board;
+    let gap = tokens::BOARD_CHIP_GAP;
+    let mut cy = y;
+    for g in v.c32.iter().filter(|g| g.on == on) {
+        let press = |p: C32Board| Action::Board(BoardPress::C32(g.seed, p));
+        if !g.on {
+            let label = fill(EN.c32_board_toggle, &[&g.head]);
+            cy += faraday_ui::parts::wrap_buttons(
+                ui,
+                x,
+                cy,
+                w,
+                tokens::BOARD_CHIP,
+                &[(label.as_str(), Style::Secondary, press(C32Board::On))],
+            ) + gap;
+            continue;
+        }
+        cy += group(ui, &g.head, x, cy);
+        for e in &g.strings {
+            cy += entry(ui, fr, e, x, cy, w, None) + gap;
+        }
+        if let Some(line) = &g.line {
+            cy += ui.wrap(x, cy, w, tokens::CAPTION, W::R, MUTED, line) + gap;
+        }
+        if let Some((k, n)) = g.kn {
+            crate::screens::stepper(
+                ui,
+                x,
+                cy,
+                w,
+                EN.codex32_threshold,
+                usize::from(k),
+                press(C32Board::K(-1)),
+                press(C32Board::K(1)),
+                true,
+            );
+            cy += tokens::STEPPER_ROW;
+            crate::screens::stepper(
+                ui,
+                x,
+                cy,
+                w,
+                EN.codex32_strings,
+                usize::from(n),
+                press(C32Board::N(-1)),
+                press(C32Board::N(1)),
+                true,
+            );
+            cy += tokens::STEPPER_ROW;
+            cy += faraday_ui::parts::wrap_buttons(
+                ui,
+                x,
+                cy,
+                w,
+                tokens::BOARD_CHIP,
+                &[
+                    (EN.c32_board_plus, Style::Secondary, press(C32Board::N(1))),
+                    (EN.c32_board_off, Style::Ghost, press(C32Board::Off)),
+                ],
+            ) + gap;
+        }
+        cy += gap;
     }
     cy - y
 }

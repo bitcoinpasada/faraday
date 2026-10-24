@@ -55,7 +55,9 @@
 //!   `docs/KEYS.md`), and `tools/lint-secrets.sh` rule 4 holds it.
 //! - Wallets and PSBTs: `plan`, `decode`, `family`, `explore`, `catalog`.
 //! - Backups and the backup flow: `backup_flow`, `backups`, `board`,
-//!   `held` (the backup before spending), `restore`, `wallet_backup`.
+//!   `held` (the backup before spending), `restore`, `wallet_backup`,
+//!   `bstep` (the checklist's items, numbered), `codex32_backup` (its
+//!   codex32 item and the set's actions, with its `screen.rs`).
 //! - Vaults: `codes` (TOTP codes); `vault` is listed with the flows above.
 //! - Sticks, boot and files: `upgrade`, `transfer` (the desktop as the
 //!   device's QR link), `names` (the Starter's install names),
@@ -895,75 +897,8 @@ pub mod rstep {
 }
 
 /// The backup cards, in order.
-pub mod bstep {
-    use crate::plan::Item;
-
-    /// Print the blank templates.
-    pub const BLANK: u8 = 0;
-    /// The public files for the software chosen.
-    pub const PUBLIC: u8 = 2;
-    /// The wallet sheet or the shares.
-    pub const SHEETS: u8 = 3;
-    /// One envelope per place.
-    pub const ENVELOPE: u8 = 4;
-    /// The seeds as files.
-    pub const FILES: u8 = 6;
-    /// The descriptor shown to the watch-only software.
-    pub const SHOW: u8 = 8;
-    /// Write to sticks: one lock, then each stick by place.
-    pub const STICKS: u8 = 10;
-    /// Copy seed i by hand and check it: `COPY + i`, the seed by its
-    /// place among the wallet's, below [`PASSPHRASE`].
-    pub const COPY: u8 = 16;
-    /// Seed i's passphrase on paper, checked: `PASSPHRASE + i`, below
-    /// [`VAULT`].
-    pub const PASSPHRASE: u8 = 72;
-    /// Vault v made and filled: `VAULT + v`, the first vault `VAULT`.
-    pub const VAULT: u8 = 128;
-
-    /// Whether `n` is a seed's copy by hand.
-    pub fn is_copy(n: u8) -> bool {
-        (COPY..PASSPHRASE).contains(&n)
-    }
-
-    /// Whether `n` is a seed's passphrase on paper.
-    pub fn is_passphrase(n: u8) -> bool {
-        (PASSPHRASE..VAULT).contains(&n)
-    }
-
-    /// An item's number.
-    pub fn of(item: Item) -> u8 {
-        match item {
-            Item::Templates => BLANK,
-            Item::Copy(i) => COPY + i.min(usize::from(PASSPHRASE - COPY - 1)) as u8,
-            Item::Passphrase(i) => PASSPHRASE + i.min(usize::from(VAULT - PASSPHRASE - 1)) as u8,
-            Item::Vault(v) => VAULT.saturating_add(v.min(127) as u8),
-            Item::SeedFiles => FILES,
-            Item::Sheets => SHEETS,
-            Item::PublicFiles => PUBLIC,
-            Item::ShowDescriptor => SHOW,
-            Item::Envelopes => ENVELOPE,
-            Item::Sticks => STICKS,
-        }
-    }
-
-    /// The item a number stands for.
-    pub fn item(n: u8) -> Option<Item> {
-        Some(match n {
-            BLANK => Item::Templates,
-            FILES => Item::SeedFiles,
-            SHEETS => Item::Sheets,
-            PUBLIC => Item::PublicFiles,
-            SHOW => Item::ShowDescriptor,
-            ENVELOPE => Item::Envelopes,
-            STICKS => Item::Sticks,
-            n if n >= VAULT => Item::Vault(usize::from(n - VAULT)),
-            n if n >= PASSPHRASE => Item::Passphrase(usize::from(n - PASSPHRASE)),
-            n if n >= COPY => Item::Copy(usize::from(n - COPY)),
-            _ => return None,
-        })
-    }
-}
+pub mod bstep;
+pub mod codex32_backup;
 
 /// The backup's two parts.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -3331,7 +3266,8 @@ impl Faraday {
             | Action::BFile
             | Action::BWords(..)
             | Action::BOmit(..)
-            | Action::BOut(..)) => self.backup_act(a, &c),
+            | Action::BOut(..)
+            | Action::BC32(..)) => self.backup_act(a, &c),
             Action::Board(p) => self.board_act(p),
             Action::Catalog(i) => self.catalog_go(usize::from(i)),
             a @ (Action::DecodeFinished
@@ -3447,7 +3383,9 @@ impl Faraday {
             .keys
             .all()
             .enumerate()
-            .filter(|(_, k)| k.has_words() && fps.contains(&k.fingerprint))
+            // A key with words, or one whose seed is a codex32 set it
+            // knows (`docs/CODEX32.md` §9.4): its backup places that set.
+            .filter(|(_, k)| (k.has_words() || k.codex32.is_some()) && fps.contains(&k.fingerprint))
             .map(|(i, _)| i)
             .collect()
     }
@@ -7197,6 +7135,10 @@ fn slow(a: Action) -> bool {
         a,
         Action::BChecklist
             | Action::BCodex32(..)
+            | Action::BC32(
+                crate::codex32_backup::Press::Make
+                    | crate::codex32_backup::Press::Set(crate::codex32_backup::SetPress::MakeNew)
+            )
             | Action::BNewVault(_)
             | Action::CNext(_)
             | Action::CPassLock

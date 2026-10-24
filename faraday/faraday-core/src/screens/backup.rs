@@ -55,7 +55,15 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
     let done = reads.backup_item_done(item);
     match item {
         Item::Templates => {
-            let k = crate::plan::templates_on(&shape, &reads.plan_mapped(&shape, a)).max(1);
+            let mapped = reads.plan_mapped(&shape, a);
+            let words_n = crate::plan::templates_on(&shape, &mapped);
+            let c32 = crate::plan::codex32::templates_of(a, &mapped);
+            let k = (words_n + c32.iter().map(|&(_, n)| n).sum::<usize>()).max(1);
+            // Only codex32 sheets: the line names their length (§9.3).
+            let line = match c32.first() {
+                Some(&(len, _)) if words_n == 0 => fill(EN.c32_templates_sub, &[&len.to_string()]),
+                _ => fill(EN.item_title_template_n, &[&b.words.to_string()]),
+            };
             (
                 fill(
                     EN.item_title_print_blank,
@@ -68,9 +76,21 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
                         }),
                     ],
                 ),
-                fill(EN.item_title_template_n, &[&b.words.to_string()]),
+                line,
             )
         }
+        Item::Codex32(i) => (
+            fill(
+                EN.c32_item_title,
+                &[(shape.seeds.get(i).map_or("", |s| s.name.as_str()))],
+            ),
+            if done {
+                EN.item_title_checked
+            } else {
+                EN.item_title_not_checked
+            }
+            .to_string(),
+        ),
         Item::Copy(i) | Item::Passphrase(i) => (
             fill(
                 if matches!(item, Item::Copy(_)) {
@@ -727,16 +747,27 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 (false, true) => EN.item_templates_seedqr,
                 _ => EN.item_templates_words,
             };
-            let line = fill(
-                EN.item_templates_starter,
-                &[
-                    &crate::plan::templates_on(&shape, &app.plan_mapped(&shape, &b.answers))
-                        .max(1)
-                        .to_string(),
-                    &b.words.to_string(),
-                    copy,
-                ],
-            );
+            // One clause per form: the words' sheets, then each codex32
+            // length's (`docs/CODEX32.md` §9.3).
+            let mapped = app.plan_mapped(&shape, &b.answers);
+            let words_n = crate::plan::templates_on(&shape, &mapped);
+            let c32 = crate::plan::codex32::templates_of(&b.answers, &mapped);
+            let mut clauses: Vec<String> = Vec::new();
+            if words_n > 0 || c32.is_empty() {
+                clauses.push(fill(
+                    EN.item_templates_starter,
+                    &[&words_n.max(1).to_string(), &b.words.to_string(), copy],
+                ));
+            }
+            for (len, n) in c32 {
+                let template = if clauses.is_empty() {
+                    EN.c32_templates_starter
+                } else {
+                    EN.c32_templates_clause
+                };
+                clauses.push(fill(template, &[&n.to_string(), &len.to_string()]));
+            }
+            let line = clauses.join("; ");
             cy += ui.wrap(x, cy, w, 14.0, W::R, TEXT, &line) + 16.0;
             if item_next(app, ui, x, cy, w, n) {
                 cy += 48.0;
@@ -866,6 +897,14 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += kept_rows(app, ui, x, cy, w);
             }
             cy += copy_foot(app, ui, x, cy, w, n);
+        }
+        n if bstep::is_codex32(n) => {
+            let i = usize::from(n - bstep::CODEX32);
+            let (h, foot) = crate::codex32_backup::screen::item(app, ui, x, cy, w, i);
+            cy += h;
+            if foot && item_next(app, ui, x, cy, w, n) {
+                cy += T::TOUCH;
+            }
         }
         n if bstep::is_passphrase(n) => {
             cy += passphrase_item(app, ui, x, cy, w);
@@ -1317,6 +1356,29 @@ fn item_action(app: &View, n: u8) -> (String, Action) {
             };
             (EN.item_action_check_my.to_string(), action)
         }
+        // A set the plan makes: Make them; one that exists, or once made:
+        // Check my copy, on the first string not checked
+        // (`docs/CODEX32.md` §9.2, §9.4).
+        Item::Codex32(i) => match b.answers.c32(i) {
+            Some(f) if !f.fixed() => (
+                EN.item_action_make_them.to_string(),
+                Action::BC32(crate::codex32_backup::Press::Make),
+            ),
+            _ => {
+                let shape = app.plan_shape(b.wallet);
+                let mapped = app.plan_mapped(&shape, &b.answers);
+                let first = crate::plan::codex32::paper_strings(&b.answers, &mapped, i)
+                    .into_iter()
+                    .find(|&j| !b.c32_checked.contains(&(i, j)))
+                    .unwrap_or(0);
+                (
+                    EN.item_action_check_my.to_string(),
+                    Action::BC32(crate::codex32_backup::Press::Open(
+                        u8::try_from(first).unwrap_or(0),
+                    )),
+                )
+            }
+        },
         // Check my copy opens the field; with it open, Compare.
         Item::Passphrase(_) if b.check.is_some() => {
             (EN.item_action_compare.to_string(), Action::BCheck)
@@ -1617,6 +1679,10 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     section_label(ui, x, cy, EN.paper_section_other);
     cy += 28.0;
     match &b.paper {
+        // The one codex32 choice opened: k and n (`docs/CODEX32.md` §9.1).
+        None if b.paper_c32.is_some() => {
+            cy += crate::codex32_backup::screen::paper_choice(ui, x, cy, w, b.paper_c32);
+        }
         None => {
             let row: Vec<(String, Style, Action)> = vec![
                 (
@@ -1630,14 +1696,9 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     Action::BXor(3),
                 ),
                 (
-                    EN.paper_section_codex32_2_of_3.into(),
+                    EN.c32_paper_codex32.into(),
                     Style::Secondary,
-                    Action::BCodex32(2, 3),
-                ),
-                (
-                    EN.paper_section_codex32.into(),
-                    Style::Secondary,
-                    Action::BCodex32(3, 5),
+                    Action::BC32(crate::codex32_backup::Press::PaperOpen),
                 ),
             ];
             cy += button_rows(ui, x, cy, w, &row);
@@ -1658,6 +1719,16 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             };
             ui.text(x, cy, 13.0, W::S, WARN, &line);
             cy += 26.0;
+            if let PaperForm::Codex32 { k, strings } = form {
+                cy += crate::codex32_backup::screen::paper_facts(
+                    app,
+                    ui,
+                    x,
+                    cy,
+                    w,
+                    (*k, strings.as_slice()),
+                );
+            }
             for (i, l) in lines.iter().enumerate() {
                 ui.text(x, cy, 12.0, W::R, MUTED, &format!("{}", i + 1));
                 cy += ui

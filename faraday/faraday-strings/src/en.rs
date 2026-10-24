@@ -4990,10 +4990,6 @@ strings! {
     paper_section_seed_xor: "Seed XOR, 2 parts",
     /// Text in `paper_section`.
     paper_section_seed: "Seed XOR, 3 parts",
-    /// Text in `paper_section`.
-    paper_section_codex32_2_of_3: "codex32, 2 of 3",
-    /// Text in `paper_section`.
-    paper_section_codex32: "codex32, 3 of 5",
     /// Text in `paper_section`. `{}`: `parts.len()`.
     paper_section_parts: "{} parts · every one is needed",
     /// Text in `paper_section`. `{}`: `strings.len()`, `k`.
@@ -9275,4 +9271,167 @@ strings! {
     create_guide_shares_quorum: "Any {} of the {} codex32 shares rebuild the key, and fewer show nothing of it. Keep each share in a place of its own, so no one place holds the key.",
     /// Guided: the backup in shares' Keys.
     create_guide_shares_keys: "Make codex32 shares makes the key from your dice with this scheme, every worksheet shown as on paper. Lock in fills the slot and makes the wallet.",
+    // ----- Codex32 in backups (docs/CODEX32.md §9), faraday-core -----
+    /// A codex32 string on paper, as the plan names it. `{}`: the seed, the share index.
+    c32_plan_string: "Seed {}: codex32 {}",
+    /// A codex32 string's Codex32QR drawn on paper. `{}`: the seed, the share index.
+    c32_plan_qr: "Seed {}: Codex32QR {}",
+    /// A codex32 string as a text file. `{}`: the seed, the share index.
+    c32_plan_file: "Seed {}: codex32 {} file",
+    /// A codex32 string's Codex32QR as a picture. `{}`: the seed, the share index.
+    c32_plan_qr_file: "Seed {}: Codex32QR {} picture",
+    /// A codex32 string, as the chart names it. `{}`: the key's number, the share index.
+    c32_glance_string: "Key {} codex32 {}",
+    /// The chart's sheet on a codex32 string: its checklist item.
+    c32_glance_check: "Check my copy",
+    /// That row's second line.
+    c32_glance_strings: "Codex32 strings",
+    /// The chart's sheet on a codex32 string: the set's actions.
+    c32_glance_set: "Add, replace or rotate the set",
+    /// Guided: the checklist's codex32 strings item.
+    c32_guide_strings_item: "Write each codex32 string at the place the plan gives it, then type it back so a wrong box is caught now. These strings go on paper only, never to a file or a stick.",
+    /// A codex32 string typed back that holds. `{}`: its share index, the set's identifier.
+    c32_holds: "{} · checksum holds, a string of {}",
+    /// A codex32 string typed back whose checksum fails.
+    c32_checksum_fails: "Checksum fails",
+    /// A codex32 string typed back whose header is not the set's. `{}`: the box, the identifier.
+    c32_not_of_set: "Box {} is not this set's: not a string of {}",
+    /// Rotate the set, where enough old strings may be in other hands. `{}`: how many, the identifier.
+    c32_rotate_not_enough: "{} strings of {} may be in other hands: rotating is not enough; move the coins to a new key",
+    /// Rotate the set, every old string held. `{}`: the strings.
+    c32_rotate_destroy_all: "Destroy {}. Then no string of the old set is left.",
+    /// Rotate the set, some lost or exposed. `{}`: the held strings, the others, the threshold, the strings.
+    c32_rotate_destroy: "Destroy {}. Then at most {} is left, and fewer than {} strings of a set of {} are worthless.",
+    /// A share to add, where the set has every index.
+    c32_set_full: "This set has every index",
+    /// More strings to type for a share. `{}`: how many.
+    c32_set_type_more: "Type {} strings of the set first",
+    /// The strings typed do not rebuild this key.
+    c32_set_not_this_seed: "These strings do not rebuild this key",
+    /// The new set's identifier, not four characters.
+    c32_set_identifier: "Type four characters for the new identifier",
+    /// The new set's identifier, the old one's.
+    c32_set_identifier_old: "That is the old set's identifier: type a new one",
+    /// The checklist's codex32 item. `{}`: the seed.
+    c32_item_title: "Codex32 strings of seed {}",
+    /// A set of the secret alone.
+    c32_secret_alone: "The secret alone",
+    /// A split. `{}`: the threshold, the strings.
+    c32_k_of_n: "{} of {}",
+    /// A form's facts. `{}`: the split, the length.
+    c32_facts: "{} · {} characters",
+    /// A form's facts with its identifier. `{}`: the identifier, the rest.
+    c32_facts_id: "Identifier {} · {}",
+    /// A key of words split as codex32: what the strings hold.
+    c32_holds_the_seed: "Holds · the seed, not the words. Not for checking by hand.",
+    /// A string and where it is kept. `{}`: the index, the places.
+    c32_string_at: "{} · {}",
+    /// A string typed back the same, or skipped.
+    c32_checked: "Checked",
+    /// A string not yet typed back.
+    c32_not_checked: "Not checked",
+    /// Strings of the set whose index is not known. `{}`: how many.
+    c32_more_unknown: "And {} more, their index not known",
+    /// The strings typed back rebuild this key.
+    c32_rebuilds: "These strings rebuild this key",
+    /// The strings typed back rebuild another key.
+    c32_rebuilds_not: "These strings rebuild another key: look at each again",
+    /// The set's actions' heading.
+    c32_the_set: "The set",
+    /// Add a share.
+    c32_add_a_share: "Add a share",
+    /// Rotate the set.
+    c32_rotate: "Rotate the set",
+    /// Replace a lost share. `{}`: its index.
+    c32_replace: "Replace {}",
+    /// A string open. `{}`: its index, its places.
+    c32_share_at: "Share {} · {}",
+    /// A string of a set made before, typed from its paper.
+    c32_type_from_paper: "Type it from the paper",
+    /// A string not made yet.
+    c32_not_made: "Not made yet",
+    /// Back to the item's strings.
+    c32_all_strings: "All strings",
+    /// Replace a lost share, its title. `{}`: the index, the identifier.
+    c32_replacing: "Replace {} of {}",
+    /// Add a share, its title. `{}`: the index, the identifier.
+    c32_adding: "Add {} to {}",
+    /// Strings typed in so far. `{}`: how many, how many needed, the identifier.
+    c32_typed_in: "{} of {} strings of {} typed",
+    /// Make the share. `{}`: its index.
+    c32_make_share: "Make share {}",
+    /// Rotate the set, its title. `{}`: the identifier.
+    c32_rotate_title: "Rotate {}",
+    /// Rotate the set: each old string marked.
+    c32_rotate_mark: "Mark each string held, lost or exposed",
+    /// A string held.
+    c32_held: "Held",
+    /// A string lost.
+    c32_lost: "Lost",
+    /// A string exposed.
+    c32_exposed: "Exposed",
+    /// A held string confirmed destroyed. `{}`: its index.
+    c32_destroyed: "{} destroyed",
+    /// The new set, its title. `{}`: the old identifier.
+    c32_new_set_of: "A new set in place of {}",
+    /// The new set's identifier.
+    c32_new_identifier: "New identifier",
+    /// Make the new set.
+    c32_make_new_set: "Make the new set",
+    /// Leave a set action.
+    c32_leave: "Leave",
+    /// A codex32 seed's group head on the board. `{}`: the seed, the split.
+    c32_board_head: "{} · codex32 · {}",
+    /// The same with its identifier. `{}`: the seed, the identifier, the split.
+    c32_board_head_id: "{} · codex32 {} · {}",
+    /// A string's chip. `{}`: the seed, the index.
+    c32_board_chip: "{} · {}",
+    /// Taking a seed's codex32 strings off the board.
+    c32_board_off: "Take off codex32",
+    /// One string more.
+    c32_board_plus: "+ share",
+    /// A key of words split as codex32.
+    c32_words_shorter: "127 characters; Words is shorter for this key",
+    /// Check: a string kept nowhere. `{}`: the index, the seed.
+    c32_warn_nowhere: "Share {} of {} is kept nowhere",
+    /// Check: a place that keeps enough strings. `{}`: the place, how many, the set.
+    c32_warn_place_seed: "{} keeps {} shares of {}: the seed",
+    /// Check: a place whose loss leaves too few strings. `{}`: the place, the threshold, the set.
+    c32_warn_lose_place: "Losing {} leaves fewer than {} shares of {}",
+    /// Check: a vault with a seed and a string of it. `{}`: the vault, the seed.
+    c32_warn_vault_both: "Vault {} holds {} and a share of it",
+    /// Check: a set's seed whole in a vault. `{}`: the vault, the seed.
+    c32_warn_vault_whole: "Vault {} holds {} whole: one place with its passphrase is enough",
+    /// Check: a string as a file in the clear. `{}`: the set.
+    c32_warn_file: "A share of {} is a file that is not encrypted; enough such files are the seed",
+    /// The board's codex32 toggle on a seed. `{}`: the seed.
+    c32_board_toggle: "{} as codex32 strings",
+    /// The copies by hand's one codex32 choice.
+    c32_paper_codex32: "codex32",
+    /// The copies by hand's codex32 threshold row.
+    c32_paper_k: "How many to rebuild it?",
+    /// The threshold's first choice: the secret alone.
+    c32_paper_none: "None",
+    /// Make the strings.
+    c32_paper_make: "Make the strings",
+    /// Strings made's rows. `{}`: the value.
+    c32_made_split: "Split · {}",
+    /// `{}`: the length.
+    c32_made_length: "Length · {}",
+    /// `{}`: the identifier.
+    c32_made_identifier: "Identifier · {}",
+    /// `{}`: the fingerprint.
+    c32_made_fingerprint: "Fingerprint · {}",
+    /// Where the shares' randomness came from.
+    c32_made_random: "Random shares · This device",
+    /// A key of words' strings.
+    c32_made_holds: "Holds · the seed, not the words",
+    /// 127 characters.
+    c32_made_not_by_hand: "Not for checking by hand",
+    /// Templates item: the codex32 sheets, after the words'. `{}`: how many, the length.
+    c32_templates_clause: "{} from Blank templates, codex32, {} characters",
+    /// Templates item: the codex32 sheets alone. `{}`: how many, the length.
+    c32_templates_starter: "Print {} from Faraday Starter: Blank templates, codex32, {} characters",
+    /// Templates item's line with only codex32 sheets. `{}`: the length.
+    c32_templates_sub: "Codex32, {} characters",
 }

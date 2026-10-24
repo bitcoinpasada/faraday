@@ -84,6 +84,9 @@ fn in_outbox(app: &Faraday, name: &str) -> bool {
 /// Presses `action`, which the screen on show must offer somewhere down
 /// its column.
 fn press_offered(app: &mut Faraday, action: Action) {
+    if crate::common::moved_on(app, action) {
+        return;
+    }
     // Make the checklist is on The plan card (`docs/BACKUP-FLOW.md`
     // §15.1): a person opens it first.
     if action == Action::BChecklist && app.backup().is_some_and(|b| b.q != Some(qstep::PLAN)) {
@@ -264,7 +267,8 @@ fn a_restored_single_key_wallet_saves_itself_into_a_vault_from_its_backup() {
     let _ = app.frame();
     assert!(!app.offers(Action::BVaultSave(0)));
     assert!(!app.offers(Action::Vault(V::SaveWallet(w))));
-    assert!(app.offers(Action::BNext(bstep::VAULT)));
+    // Done, the item moves on by itself (`docs/BACKUP-FLOW.md` §17.23).
+    assert_ne!(app.backup().unwrap().open, Some(bstep::VAULT));
 }
 
 #[test]

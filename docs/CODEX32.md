@@ -1,8 +1,8 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), the wallet kind of §6.9 (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller component (C11, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is being recorded with the wallet kind's build
-**Open:** of C5, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); batches C8 to C10 (§15.2): backups (Back up's codex32 way for the wallet kind of §6.9 among them, §9.5), templates, Demo and Learn; the five-dice roller's place in the entry's pad (§5.5; its component is built); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), the wallet kind of §6.9 (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), backups (C8, §9, as §2 says), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller component (C11, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is recorded as F107
+**Open:** of C5, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); of C8, a string's files written at a stick's write, a share record written at a vault's save, strings gathered from several vaults at unlock, the set's facts kept for a key loaded from strings, the copies by hand's strings one per screen typed back (§9.1) and the line per place counting shares (§9.5); batches C9 and C10 (§15.2): templates, Demo and Learn; the five-dice roller's place in the entry's pad (§5.5; its component is built); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -357,17 +357,38 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
 - **A backup's Other paper forms** (`paper_section`,
   `faraday/faraday-core/src/screens/backup.rs`; `paper_codex32`,
   `faraday/faraday-core/src/wallet_backup.rs`; `Keys::codex32_shares`,
-  `faraday/faraday-keys/src/operations.rs`): two chips, "codex32, 2 of 3"
-  and "codex32, 3 of 5", for a key with words only; the 64-byte BIP-39
-  seed as 127-character shares, from the system's randomness spread by
-  `faraday-keys`, behind `Reveal::PaperForm`. The strings are drawn as a
-  numbered list in the section. DESIGN §5 describes a Secret panel per
-  string and a "Strings made" Result; neither is built (no string for
-  them is in `faraday/faraday-strings/src/en.rs`).
-- **The backup plan** (`faraday/faraday-core/src/plan/mod.rs`) has no
-  codex32 form: a seed's paper forms are `What::Words` and
-  `What::SeedQr`, and the checklist has no codex32 item, although
-  `docs/DEMO.md` §4 and §5.3 name one.
+  `faraday/faraday-keys/src/operations.rs`; C8, §9.1): one chip,
+  **codex32**, opening a choice of k (None · 2 to 9, 2 first) and n (k to
+  31, 3 first) and **Make the strings**; for a key with words, the 64-byte
+  BIP-39 seed as 127-character shares, from the system's randomness spread
+  by `faraday-keys`, behind `Reveal::PaperForm`. The strings are drawn as
+  a numbered list under the Result's rows (Split, Length, Identifier,
+  Fingerprint, "Random shares · This device", and at 127 characters
+  "Holds · the seed, not the words" and "Not for checking by hand"); one
+  Secret panel per string typed back is not built here.
+- **Backups** (C8, §9; `docs/BACKUP-FLOW.md` §17.23): the plan's codex32
+  form (`faraday/faraday-core/src/plan/codex32.rs`: a seed's form, its
+  strings as `What::Codex32Share`, `Codex32QrPaper`, `Codex32ShareFile` and
+  `Codex32QrFile`, every check counting k distinct strings as the seed,
+  The standard way for a key with a set, the Templates clause); the
+  board's seed group and string chips
+  (`faraday/faraday-core/src/board/codex32.rs`); the checklist's item
+  **Codex32 strings of seed i**, Make them or Check my copy string by
+  string, and the set's actions Add a share, Replace a lost share and
+  Rotate the set (`faraday/faraday-core/src/codex32_backup/`), their
+  arithmetic in `faraday-keys` (`Keys::codex32_rebuilds`, `codex32_derive`,
+  `codex32_new_set`); the key's set kept as its plain facts
+  (`KeyInfo::codex32`, written by `Keys::add_codex32` at Lock in and by
+  Make them, kept in its vault record and read back,
+  `faraday/faraday-vault/src/codex32.rs`, `docs/VAULT.md` §7 type 2 field 5
+  and type 15). A seed key goes into a vault as any key does (§9.6).
+  Replace a lost share needs k strings: the key's seed does not stand in
+  for the secret, whose padding bits it lacks, so a share made from it
+  would be of another set. Tested in
+  `faraday/faraday-core/tests/all/codex32_backup.rs`,
+  `faraday/faraday-keys/tests/codex32.rs` (its `set` module) and
+  `faraday/faraday-vault/tests/codex32.rs`, with the vector
+  `tools/vectors/vault/vault-codex32.ofv`.
 - **A key loaded from a master seed** (codex32, SLIP-39) keeps its seed
   bytes with its master key (`Keys::add_seed`,
   `faraday/faraday-keys/src/session.rs`; C4), so `Keys::codex32_shares`

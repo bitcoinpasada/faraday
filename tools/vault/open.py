@@ -75,7 +75,7 @@ SLOT_INFO = b"Faraday vault v1 slot"
 
 RECORDS = {
     1: ("Slot label", {1: "label"}),
-    2: ("Bitcoin key", {1: "key", 2: "label", 3: "flags", 4: "BIP-39 passphrase"}),
+    2: ("Bitcoin key", {1: "key", 2: "label", 3: "flags", 4: "BIP-39 passphrase", 5: "codex32 set"}),
     3: ("Wallet", {1: "policy", 2: "name", 3: "flags"}),
     4: ("Note", {1: "text"}),
     5: ("Recovery sheet", {1: "sheet"}),
@@ -87,11 +87,14 @@ RECORDS = {
     11: ("Backup plan", {1: "wallet", 2: "answers", 3: "place", 4: "holds", 5: "note"}),
     13: ("Wallet share", {1: "share", 2: "wallet name", 3: "share number", 4: "of", 5: "wallet"}),
     14: ("Passphrase", {1: "key fingerprint", 2: "passphrase"}),
+    15: ("Codex32 share", {1: "string", 2: "key fingerprint"}),
 }
+
+CODEX32_STATES = ("made", "placed", "lost", "exposed", "destroyed")
 
 
 # The fields that are UTF-8 text; every other field is printed in hex.
-TEXT_FIELDS = {(1, 1), (2, 2), (2, 4), (3, 1), (3, 2), (4, 1)} | {(6, n) for n in range(1, 7)} | {(7, 5)} | {(11, n) for n in range(1, 6)} | {(13, 1), (13, 2), (13, 5)} | {(14, 2)}
+TEXT_FIELDS = {(1, 1), (2, 2), (2, 4), (3, 1), (3, 2), (4, 1)} | {(6, n) for n in range(1, 7)} | {(7, 5)} | {(11, n) for n in range(1, 6)} | {(13, 1), (13, 2), (13, 5)} | {(14, 2), (15, 1)}
 
 
 def hkdf_sha256(ikm: bytes, info: bytes) -> bytes:
@@ -168,6 +171,11 @@ def show(kind: int, number: int, value: bytes) -> str:
             parts.append(value[p + 2 : p + 2 + n].decode())
             p += 2 + n
         return f"descriptor {parts[0]} · name {parts[1]} · note {parts[2]}"
+    if kind == 2 and number == 5:
+        k, ident, length, unknown = value[0], value[1:5].decode(), value[5], value[6]
+        known = ", ".join(f"{chr(value[i])} {CODEX32_STATES[value[i + 1]]}" for i in range(7, len(value), 2))
+        more = f", {unknown} not known" if unknown else ""
+        return f"k {k} · identifier {ident} · {length} characters · {known or 'none known'}{more}"
     if (kind, number) in TEXT_FIELDS:
         return value.decode()
     return value.hex()

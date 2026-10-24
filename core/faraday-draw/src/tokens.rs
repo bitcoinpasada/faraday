@@ -970,3 +970,13 @@ pub const ELEVATION_DIALOG: u8 = 3;
 /// Elevation level of a floating action button under the pointer, and
 /// of a dragged item.
 pub const ELEVATION_RAISED: u8 = 4;
+// ---------------------------------------------------------------------
+// Codex32 in backups (`docs/CODEX32.md` §9)
+// ---------------------------------------------------------------------
+
+/// A filter chip's height on the checklist's codex32 item (Material 3's
+/// filter chip, 32 dp), drawn in a `TOUCH` target.
+pub const C32_CHIP: f32 = 32.0;
+
+/// The check mark on a chosen filter chip (Material 3's 18 dp).
+pub const C32_CHECK: f32 = 18.0;

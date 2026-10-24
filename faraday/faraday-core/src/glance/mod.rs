@@ -792,6 +792,10 @@ fn backup_nodes(
             ],
         ),
         What::SoftwareFile => EN.plan_software_file.to_string(),
+        What::Codex32Share(i, j)
+        | What::Codex32QrPaper(i, j)
+        | What::Codex32ShareFile(i, j)
+        | What::Codex32QrFile(i, j) => c32_label(number(i), j),
     };
     // The small panel names the keys a vault's stick opens.
     let keys_label = |what: What| match what {
@@ -1974,5 +1978,17 @@ pub(crate) fn thing_label(g: Option<&Glance>, what: What) -> String {
         What::WalletFile(f) => fill(EN.plan_wallet_file, &[plan::form_name(f)]),
         What::ShareFile(j, _) => fill(EN.glance_share, &[&(j + 1).to_string()]),
         What::SoftwareFile => EN.plan_software_file.to_string(),
+        What::Codex32Share(i, j)
+        | What::Codex32QrPaper(i, j)
+        | What::Codex32ShareFile(i, j)
+        | What::Codex32QrFile(i, j) => c32_label(number(i), j),
     }
+}
+
+/// A codex32 string as the chart names it: "Key 1 codex32 C".
+fn c32_label(key: usize, j: usize) -> String {
+    let index = plan::codex32::index_char(j)
+        .to_ascii_uppercase()
+        .to_string();
+    fill(EN.c32_glance_string, &[&key.to_string(), &index])
 }

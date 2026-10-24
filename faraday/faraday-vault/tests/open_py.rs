@@ -170,3 +170,27 @@ fn a_type_the_slot_does_not_hold_and_a_wrong_passphrase_write_nothing() {
     assert!(!out.status.success());
     assert!(!file.exists());
 }
+
+#[test]
+fn open_py_reads_a_codex32_keys_set_and_a_codex32_share() {
+    let Some(out) = open_py(vectors::CODEX32.0, vectors::CODEX32.1[0], &[]) else {
+        return;
+    };
+    let text = String::from_utf8_lossy(&out.stdout);
+    assert!(
+        out.status.success(),
+        "{}",
+        String::from_utf8_lossy(&out.stderr)
+    );
+    assert!(
+        text.contains(
+            "codex32 set: k 2 · identifier name · 48 characters · a placed, c placed, d made"
+        ),
+        "{text}"
+    );
+    assert!(
+        text.contains(&format!("string: {}", vectors::VECTOR_2.1)),
+        "{text}"
+    );
+    assert!(text.contains("key fingerprint: fab6868a"), "{text}");
+}

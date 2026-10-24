@@ -58,6 +58,9 @@ pub mod kind {
     /// A key's BIP-39 passphrase kept without the key's words, in a vault
     /// that does not hold them (`docs/BACKUP-FLOW.md` §17.12 item 4).
     pub const PASSPHRASE: u8 = 14;
+    /// One codex32 string of a set, kept without the seed it rebuilds
+    /// (`docs/CODEX32.md` §9.5).
+    pub const CODEX32_SHARE: u8 = 15;
 }
 
 /// The fields of each record type, by number.
@@ -75,6 +78,9 @@ pub mod field {
     /// Bitcoin key: its BIP-39 passphrase, only when the person chose to
     /// store it.
     pub const KEY_PASSPHRASE: u8 = 4;
+    /// Bitcoin key: the codex32 set its seed is split into, its plain
+    /// facts and no string ([`crate::codex32::set_payload`]).
+    pub const KEY_CODEX32: u8 = 5;
 
     /// Wallet: BIP-388 text or a descriptor.
     pub const WALLET: u8 = 1;
@@ -149,6 +155,11 @@ pub mod field {
     pub const PASSPHRASE_KEY: u8 = 1;
     /// Passphrase: the passphrase.
     pub const PASSPHRASE: u8 = 2;
+
+    /// Codex32 share: the string, lower case.
+    pub const CODEX32_STRING: u8 = 1;
+    /// Codex32 share: the fingerprint of the key its set makes (4 bytes).
+    pub const CODEX32_KEY: u8 = 2;
 }
 
 /// Bit 0 of a key's or a wallet's flags: the Load sheet an unlock
@@ -290,6 +301,7 @@ const KEY_RULES: &[Rule] = &[
     rule(2, false, false, TEXT),
     rule(3, false, false, Shape::Exact(1)),
     rule(4, false, false, TEXT),
+    rule(5, false, false, Shape::Bytes),
 ];
 const WALLET_RULES: &[Rule] = &[
     rule(1, true, false, TEXT),
@@ -362,6 +374,11 @@ const PASSPHRASE_RULES: &[Rule] = &[
     rule(2, true, false, TEXT),
 ];
 
+const CODEX32_SHARE_RULES: &[Rule] = &[
+    rule(1, true, false, Shape::Text(127)),
+    rule(2, true, false, Shape::Exact(4)),
+];
+
 /// The fields of each record type (§7).
 fn rules(kind: u8) -> Option<&'static [Rule]> {
     Some(match kind {
@@ -378,6 +395,7 @@ fn rules(kind: u8) -> Option<&'static [Rule]> {
         kind::PLAN => PLAN_RULES,
         kind::WALLET_SHARE => WALLET_SHARE_RULES,
         kind::PASSPHRASE => PASSPHRASE_RULES,
+        kind::CODEX32_SHARE => CODEX32_SHARE_RULES,
         _ => return None,
     })
 }
@@ -491,6 +509,18 @@ impl Record {
             if crate::layouts::payload_of(k, payload).is_none() {
                 return Err(Fault::Value(self.kind, field::KEY));
             }
+        }
+        if self.kind == kind::KEY
+            && let Some(set) = self.field(field::KEY_CODEX32)
+            && crate::codex32::set_of(set).is_none()
+        {
+            return Err(Fault::Value(self.kind, field::KEY_CODEX32));
+        }
+        if self.kind == kind::CODEX32_SHARE
+            && let Some(string) = self.field(field::CODEX32_STRING)
+            && !crate::codex32::is_share(string)
+        {
+            return Err(Fault::Value(self.kind, field::CODEX32_STRING));
         }
         if self.kind == kind::SHEET
             && let Some(payload) = self.field(field::SHEET)

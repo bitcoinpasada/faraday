@@ -61,8 +61,10 @@ impl Faraday {
         let Some(open) = self.vaults.open.get(o) else {
             return false;
         };
+        let seed = self.session.keys.seed_record_id(k);
         self.vaults.records(open.id).of(kind::KEY).any(|(_, r)| {
-            same_words(c, self, r, k)
+            (same_words(c, self, r, k)
+                || seed.is_some_and(|id| faraday_keys::vault::key_record_id(r) == Some(id)))
                 && (!with_pass
                     || self
                         .vaults
@@ -278,6 +280,7 @@ impl Faraday {
     /// more, here and in every open vault.
     pub(crate) fn backup_settle(&mut self) {
         let c = self.compute();
+        self.backup_move_on(&c);
         let Some(b) = self.backup.state() else {
             return;
         };

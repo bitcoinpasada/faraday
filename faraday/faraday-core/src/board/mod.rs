@@ -15,7 +15,11 @@
 //! a wallet flow's own plan card (§19.12 item 1): whose it is follows the
 //! screen ([`BoardOf`]).
 
+pub mod codex32;
+mod lines;
 pub(crate) mod screen;
+
+use lines::{count_text, description_line, form_label, sees_line, software_name};
 
 use std::rc::Rc;
 
@@ -41,6 +45,9 @@ pub enum Thing {
     Vault(usize),
     /// The watch-only software: a place of its own.
     Software,
+    /// Codex32 string `j` (its share index's bech32 value) of seed `i`
+    /// (`docs/CODEX32.md` §9.5).
+    String(usize, usize),
 }
 
 /// Where on the board a chip can be dropped.
@@ -157,6 +164,8 @@ pub enum BoardPress {
     MenuTo(Zone),
     /// The menu closed with nothing chosen: Escape, or a press outside it.
     MenuClose,
+    /// Seed `i`'s codex32 group in the list (`docs/CODEX32.md` §9.2).
+    C32(usize, codex32::C32Board),
 }
 
 /// What a chip's ⋮ menu does with the box chosen (`docs/BACKUP-FLOW.md`
@@ -308,6 +317,13 @@ fn forms_in(k: Kind, t: Thing) -> Vec<What> {
         (Kind::Paper, Thing::Pass(i)) => vec![What::Passphrase(i)],
         (Kind::Paper, Thing::Whole) => vec![What::Sheet],
         (Kind::Paper, Thing::Share(j)) => vec![What::Share(j)],
+        (Kind::Paper, Thing::String(i, j)) => {
+            vec![What::Codex32Share(i, j), What::Codex32QrPaper(i, j)]
+        }
+        (Kind::Files, Thing::String(i, j)) => {
+            vec![What::Codex32ShareFile(i, j), What::Codex32QrFile(i, j)]
+        }
+        (Kind::Vault, Thing::String(i, j)) => vec![What::Codex32Share(i, j)],
         (Kind::Files, Thing::Seed(i)) => vec![What::SeedFile(i), What::SeedQrFile(i)],
         (Kind::Files, Thing::Pass(i)) => vec![What::PassphraseFile(i)],
         (Kind::Files, Thing::Whole) => vec![
@@ -353,6 +369,10 @@ pub(crate) fn things_of(w: What) -> Vec<Thing> {
         }
         What::Share(j) | What::ShareFile(j, _) => vec![Thing::Share(j)],
         What::VaultStick(v) => vec![Thing::Vault(v)],
+        What::Codex32Share(i, j)
+        | What::Codex32QrPaper(i, j)
+        | What::Codex32ShareFile(i, j)
+        | What::Codex32QrFile(i, j) => vec![Thing::String(i, j)],
     }
 }
 
@@ -421,7 +441,7 @@ pub fn target(z: Zone, t: Thing) -> Zone {
 pub fn takes(shape: &Shape, z: Zone, t: Thing, locked: bool) -> bool {
     let here = |i: usize| shape.seeds.get(i).is_some_and(|s| s.here);
     let thing_ok = match t {
-        Thing::Seed(i) => here(i),
+        Thing::Seed(i) | Thing::String(i, _) => here(i),
         Thing::Pass(i) => shape.seeds.get(i).is_some_and(|s| s.here && s.passphrase),
         Thing::Share(j) => shape.splits && j < shape.keys,
         Thing::Whole | Thing::Vault(_) | Thing::Software => true,
@@ -719,6 +739,8 @@ pub(crate) struct BoardView {
     pub room: bool,
     /// The vaults.
     pub vaults: Vec<Entry>,
+    /// Each seed's codex32 group (`docs/CODEX32.md` §9.5).
+    pub c32: Vec<codex32::C32Group>,
     /// The software's entry, while the board has no software place.
     pub software_entry: Option<Entry>,
     /// Each check that stands, a line under the board.
@@ -761,33 +783,6 @@ fn things_at(m: &[Spot], p: usize) -> Vec<Thing> {
         }
     }
     out
-}
-
-/// "2 places", "1 place", or nothing.
-fn count_text(n: usize) -> String {
-    match n {
-        0 => String::new(),
-        1 => EN.board_one_place.to_string(),
-        n => fill(EN.board_places, &[&n.to_string()]),
-    }
-}
-
-/// A form's name on a chip, or `None` where the zone has no other form
-/// to tell it from.
-fn form_label(w: What, software: &str) -> Option<String> {
-    Some(match w {
-        What::Words(_) => EN.board_words.to_string(),
-        What::SeedQr(_) => EN.board_seedqr.to_string(),
-        What::SeedFile(_) => EN.board_words_file.to_string(),
-        What::SeedQrFile(_) => EN.board_seedqr_file.to_string(),
-        What::PassphraseFile(_) => EN.board_passphrase_file.to_string(),
-        What::WalletFile(f) | What::ShareFile(_, f) if f == form::TEXT => {
-            EN.board_text_file.to_string()
-        }
-        What::WalletFile(_) | What::ShareFile(..) => EN.board_qr_picture.to_string(),
-        What::SoftwareFile => fill(EN.board_software_file, &[software]),
-        _ => return None,
-    })
 }
 
 impl Faraday {
@@ -953,6 +948,16 @@ impl Faraday {
             Thing::Share(j) => fill(EN.board_share, &[&(j + 1).to_string()]),
             Thing::Vault(v) => self.board_vault_title(v),
             Thing::Software => EN.board_watch_only.to_string(),
+            Thing::String(i, j) => fill(
+                EN.c32_board_chip,
+                &[
+                    &shape
+                        .seeds
+                        .get(i)
+                        .map_or_else(String::new, |s| s.name.clone()),
+                    &codex32::string_name(j),
+                ],
+            ),
         }
     }
 
@@ -1054,8 +1059,8 @@ impl Faraday {
             warn(line, &mut warnings);
         }
         // A single key's one place is no warning (§19.19).
-        if let Some(p) =
-            plan::all_at_one_place_on(&shape, &mapped).filter(|_| plan::max_places(&shape) > 1)
+        if let Some(p) = plan::all_at_one_place_on(&shape, &mapped)
+            .filter(|_| plan::codex32::max_places_of(&shape, &a) > 1)
         {
             warn(
                 fill(EN.plan_all_at_one_place, &[&place_name(p)]),
@@ -1095,9 +1100,16 @@ impl Faraday {
                     &mut warnings,
                 );
             }
-            if !shape.here().is_empty() && !here.iter().any(|t| matches!(t, Thing::Seed(_))) {
+            if !shape.here().is_empty()
+                && !here
+                    .iter()
+                    .any(|t| matches!(t, Thing::Seed(_) | Thing::String(..)))
+            {
                 warn(fill(EN.board_no_seed, &[&place_name(p)]), &mut warnings);
             }
+        }
+        for line in codex32::warnings(&shape, &a, &m, &place_name) {
+            warn(line, &mut warnings);
         }
         if let Some(v) = a.stickless(&shape) {
             warn(
@@ -1127,7 +1139,7 @@ impl Faraday {
         // A placed chip of `t` in zone `z`, with the forms of it `held`
         // keeps there.
         let chip = |z: Zone, t: Thing, held: &[What], p: Option<usize>| -> ChipView {
-            let all = forms_of(z, t);
+            let all = codex32::forms_shown(&a, z, t);
             let k = kind(z);
             let on = k.map_or_else(Vec::new, |k| held_forms(held, k, t));
             let labels: Vec<Option<String>> =
@@ -1378,7 +1390,8 @@ impl Faraday {
             description,
             splits: shape.splits && !locked,
             partials: a.partials_on(),
-            room: places < plan::max_places(&shape),
+            room: places < plan::codex32::max_places_of(&shape, &a),
+            c32: codex32::groups(&shape, &a, &entry, custom && !locked),
             vaults,
             software_entry: (!has_software && !locked).then(|| entry(Thing::Software)),
             warnings,
@@ -1553,6 +1566,21 @@ impl Faraday {
         self.backup.change_answers(&shape, f);
     }
 
+    /// The length seed `i`'s codex32 strings take (`docs/CODEX32.md`
+    /// §9.1): 127 characters for a key of words (its 64-byte seed), else
+    /// its master seed's; `None` where the key is not here, or on a
+    /// wallet flow's own plan. A lookup.
+    fn c32_length_of(&self, i: usize) -> Option<u8> {
+        // A wallet flow's own plan makes no set: its keys are made after
+        // it (`docs/BACKUP-FLOW.md` §4).
+        let BoardOf::Backup = self.board_of()? else {
+            return None;
+        };
+        let w = self.backup.state()?.wallet;
+        let k = self.backup_seed_list_now(w).get(i)?.1?;
+        plan::codex32::length_for(self.session.keys.seed_len(k)?)
+    }
+
     /// Whether `c` can be picked up: not a cosigner's seed, not what an
     /// existing vault held before.
     pub(crate) fn board_movable(&self, c: Chip) -> bool {
@@ -1575,7 +1603,7 @@ impl Faraday {
             return false;
         }
         match c.thing() {
-            Thing::Seed(i) => shape.seeds.get(i).is_some_and(|s| s.here),
+            Thing::Seed(i) | Thing::String(i, _) => shape.seeds.get(i).is_some_and(|s| s.here),
             _ => true,
         }
     }
@@ -1834,7 +1862,9 @@ impl Faraday {
                 // At most one place per key (`docs/BACKUP-FLOW.md` §17.19);
                 // a plan saved with more keeps them.
                 self.board_change(&|a, shape| {
-                    if a.places < crate::qstep::MAX_PLACES.min(plan::max_places(shape)) {
+                    if a.places
+                        < crate::qstep::MAX_PLACES.min(plan::codex32::max_places_of(shape, a))
+                    {
                         a.add_place(shape);
                     }
                 });
@@ -1862,6 +1892,16 @@ impl Faraday {
                 if names && self.board_plan().is_some_and(|(_, a)| a.places < places) {
                     self.backup.place_removed(p);
                 }
+            }
+            BoardPress::C32(i, p) => {
+                // The length a seed's strings take: a key of words its
+                // 64-byte seed, a key loaded from a master seed its own.
+                let length = self.c32_length_of(i);
+                let demo = !self.makes_secrets();
+                if locked || (demo && p == codex32::C32Board::On) {
+                    return;
+                }
+                self.board_change(&|a, shape| codex32::change(a, shape, i, p, length));
             }
             BoardPress::AddVault => {
                 set(self, None);
@@ -2529,134 +2569,4 @@ impl Faraday {
         }
         true
     }
-}
-
-/// The line on the sheet over a drop that let a place see the balance
-/// (`docs/BACKUP-FLOW.md` §17.5): what kept there, `held`, makes the
-/// description. The whole description; else its shares there, with the
-/// seeds there whose keys those shares left off.
-fn sees_line(shape: &Shape, a: &Answers, held: &[What]) -> String {
-    let whole = held.iter().any(|w| {
-        matches!(
-            w,
-            What::Sheet | What::Wallet | What::WalletFile(_) | What::SoftwareFile
-        )
-    });
-    if whole {
-        return EN.board_sees_whole.to_string();
-    }
-    let mut shares: Vec<usize> = held
-        .iter()
-        .filter_map(|w| match w {
-            What::Share(j) | What::ShareFile(j, _) => Some(*j),
-            _ => None,
-        })
-        .collect();
-    shares.sort_unstable();
-    shares.dedup();
-    let split = crate::wallet_backup::split_plan(shape.keys, shape.m, a.omit);
-    let carried = |k: usize| {
-        shares
-            .iter()
-            .any(|&j| split.get(j).is_some_and(|row| row.contains(&k)))
-    };
-    let mut seeds: Vec<usize> = held
-        .iter()
-        .filter_map(|w| match w {
-            What::Words(i)
-            | What::SeedQr(i)
-            | What::Seed(i)
-            | What::SeedPassphrase(i)
-            | What::SeedFile(i)
-            | What::SeedQrFile(i) => Some(*i),
-            _ => None,
-        })
-        .filter(|&i| !carried(i))
-        .collect();
-    seeds.sort_unstable();
-    seeds.dedup();
-    let listed = |one: &str, many: &str, names: Vec<String>| -> Option<String> {
-        match names.as_slice() {
-            [] => None,
-            [n] => Some(fill(one, &[n])),
-            [rest @ .., last] => Some(fill(many, &[&rest.join(", "), last])),
-        }
-    };
-    let share_part = listed(
-        EN.board_sees_share,
-        EN.board_sees_shares,
-        shares.iter().map(|j| (j + 1).to_string()).collect(),
-    );
-    let seed_part = listed(
-        EN.board_sees_seed,
-        EN.board_sees_seeds,
-        seeds
-            .iter()
-            .map(|&i| {
-                shape
-                    .seeds
-                    .get(i)
-                    .map_or_else(String::new, |s| s.name.clone())
-            })
-            .collect(),
-    );
-    let count = shares.len() + seeds.len();
-    let what = match (share_part, seed_part) {
-        (Some(a), Some(b)) => fill(EN.board_sees_both, &[&a, &b]),
-        (Some(a), None) | (None, Some(a)) => a,
-        (None, None) => return EN.board_sees_whole.to_string(),
-    };
-    if count == 1 {
-        fill(EN.board_sees_alone, &[&what])
-    } else {
-        fill(EN.board_sees_together, &[&what])
-    }
-}
-
-/// The line under the board when nothing kept puts the description back
-/// together (`docs/BACKUP-FLOW.md` §17.19 item 5): what is kept, and what
-/// would complete it.
-fn description_line(shape: &Shape, m: &plan::Mapped) -> String {
-    let kept = plan::shares_kept_on(shape, m);
-    if kept.is_empty() {
-        return EN.board_desc_nothing.to_string();
-    }
-    let held: Vec<String> = kept
-        .iter()
-        .map(|&(j, n)| match n {
-            1 => fill(EN.board_sees_share, &[&(j + 1).to_string()]),
-            2 => fill(EN.board_share_twice, &[&(j + 1).to_string()]),
-            n => fill(
-                EN.board_share_times,
-                &[&(j + 1).to_string(), &n.to_string()],
-            ),
-        })
-        .collect();
-    let joined = |v: &[String]| match v {
-        [] => String::new(),
-        [one] => one.clone(),
-        [rest @ .., last] => fill(EN.board_sees_both, &[&rest.join(", "), last]),
-    };
-    let missing: Vec<String> = (0..shape.keys)
-        .filter(|j| !kept.iter().any(|(k, _)| k == j))
-        .map(|j| (j + 1).to_string())
-        .collect();
-    let add = match missing.as_slice() {
-        [] => return fill(EN.board_desc_kept_add, &[&joined(&held)]),
-        [one] => fill(EN.board_sees_share, &[one]),
-        [rest @ .., last] => fill(EN.board_sees_shares, &[&rest.join(", "), last]),
-    };
-    fill(EN.board_desc_missing, &[&joined(&held), &add])
-}
-
-/// The software the plan names: the first chosen, or "Watch-only
-/// software" when it is none or "Not sure". The software place's title,
-/// and the name of its own file's form.
-fn software_name(a: &Answers) -> String {
-    a.software
-        .iter()
-        .position(|&on| on)
-        .filter(|&k| k != plan::software::NOT_SURE)
-        .and_then(|k| crate::screens::SOFTWARE_ROWS.get(k))
-        .map_or_else(|| EN.board_watch_only.to_string(), |s| (*s).to_string())
 }

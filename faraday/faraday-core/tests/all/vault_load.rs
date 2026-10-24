@@ -468,7 +468,10 @@ fn a_wallet_backed_up_into_a_vault_loads_at_unlock_unless_turned_off() {
         app.storage(StorageEvent::Cameras(Vec::new()));
         app.press(Action::BCheck);
         testkit::type_words(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
-        app.press(Action::BStep(bstep::VAULT));
+        // Matched, the copy's item moved on by itself.
+        if !crate::common::moved_on(&app, Action::BStep(bstep::VAULT)) {
+            app.press(Action::BStep(bstep::VAULT));
+        }
         // The vault item's Load at unlock, somewhere down its column.
         let mut offered = false;
         for _ in 0..20 {

@@ -275,7 +275,8 @@ fn a_words_only_plan_with_a_camera_opens_the_typed_check_not_the_camera() {
     assert!(shown(&mut app, "Word 1 of 24"));
     testkit::type_words(&mut app, ATTACK);
     assert!(seeds_done(&app), "the typed seed did not complete the item");
-    assert!(shown(&mut app, "Your copy matches the seed"));
+    // Done, the item moves on by itself (`docs/BACKUP-FLOW.md` §17.23).
+    assert_ne!(app.backup().unwrap().open, Some(faraday_core::bstep::COPY));
 }
 
 #[test]
@@ -783,6 +784,7 @@ fn typed_back(words: &str, times: usize, clear: bool) -> Faraday {
     let mut app = backing_up(words, false, WORDS_ONLY);
     assert!(offered(&mut app, Action::BCheck));
     for _ in 0..times {
+        copy_open(&mut app);
         app.press(Action::BCheck);
         if clear {
             testkit::type_words(&mut app, "attack pizza");
@@ -791,7 +793,19 @@ fn typed_back(words: &str, times: usize, clear: bool) -> Faraday {
         testkit::type_words(&mut app, words);
         let _ = app.frame();
     }
+    // Once or thirty times, the checklist ends past the copy's item.
+    if app.backup().and_then(|b| b.open) == Some(faraday_core::bstep::COPY) {
+        app.press(Action::BNext(faraday_core::bstep::COPY));
+    }
     app
+}
+
+/// The copy's item opened again: a match moves the checklist on by
+/// itself (`docs/BACKUP-FLOW.md` §17.23).
+fn copy_open(app: &mut Faraday) {
+    if app.backup().and_then(|b| b.open) != Some(faraday_core::bstep::COPY) {
+        app.press(Action::BStep(faraday_core::bstep::COPY));
+    }
 }
 
 #[test]
@@ -801,11 +815,20 @@ fn a_copy_checked_thirty_times_leaves_the_checklist_as_one_check_does() {
         let one = checklist(&mut once);
         assert!(one.3, "the typed copy did not check");
         let mut again = typed_back(ATTACK, 30, clear);
-        assert_eq!(checklist(&mut again), one, "Clear between: {clear}");
+        // The same items, the same one open, the same done: the page's
+        // layout follows how the checklist moved on (§17.23), not the
+        // check.
+        let thirty = checklist(&mut again);
+        assert_eq!(
+            (thirty.1, thirty.2, thirty.3),
+            (one.1.clone(), one.2, one.3),
+            "Clear between: {clear}"
+        );
         // A copy more, one word short of the last: the check reads the
         // same in both.
         let upto: Vec<&str> = ATTACK.split_whitespace().take(23).collect();
         for app in [&mut once, &mut again] {
+            copy_open(app);
             app.press(Action::BCheck);
             testkit::type_words(app, &upto.join(" "));
         }
@@ -815,7 +838,16 @@ fn a_copy_checked_thirty_times_leaves_the_checklist_as_one_check_does() {
             "the check does not read one word short: {:?}",
             short.0
         );
-        assert_eq!(checklist(&mut again), short, "Clear between: {clear}");
+        let short_again = checklist(&mut again);
+        assert!(
+            short_again.0.iter().any(|(t, _)| t == "Word 24 of 24"),
+            "Clear between: {clear}"
+        );
+        assert_eq!(
+            (short_again.1, short_again.2, short_again.3),
+            (short.1, short.2, short.3),
+            "Clear between: {clear}"
+        );
     }
 }
 

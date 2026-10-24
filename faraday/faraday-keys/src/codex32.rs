@@ -21,10 +21,11 @@
 //! them all together, and nothing else changes them.
 
 use faraday_bip::codex32::{
-    ChecksumWorksheet, Error, FreshSet, Scheme, TranslationWorksheet, fresh_set,
+    ChecksumWorksheet, Codex32, Error, FreshSet, Scheme, TranslationWorksheet, fresh_set,
 };
 use faraday_crypto::Secret;
 use faraday_crypto::work::Compute;
+use faraday_vault::codex32::{SetFacts, State};
 use zeroize::Zeroizing;
 
 use faraday_bip::keys::Fingerprint;
@@ -272,6 +273,132 @@ impl Keys {
         label: &str,
     ) -> Result<faraday_bip::keys::Fingerprint, Refusal> {
         let seed = work.seed().ok_or_else(|| Refusal::Words(String::new()))?;
-        self.add_seed(c, &seed, label)
+        let fp = self.add_seed(c, &seed, label)?;
+        // The set made is the key's, its plain facts kept with it
+        // (`docs/CODEX32.md` §9.4): every string made, none placed yet.
+        let scheme = work.scheme();
+        let strings = scheme
+            .initial_indices()
+            .iter()
+            .chain(scheme.derived_indices())
+            .map(|&i| (i, State::Made))
+            .collect();
+        self.set_codex32(
+            self.len() - 1,
+            Some(SetFacts {
+                threshold: scheme.threshold(),
+                identifier: scheme.identifier(),
+                length: u8::try_from(scheme.length().chars()).unwrap_or(0),
+                unknown: 0,
+                strings,
+            }),
+        );
+        Ok(fp)
+    }
+
+    /// Costs a parse of the words and a PBKDF2 for a key with words. The
+    /// seed key `i`'s codex32 strings carry: the 64-byte BIP-39 seed of a
+    /// key with words (its passphrase applied), or the master seed a key
+    /// was loaded from.
+    fn codex32_seed_of(&self, c: &Compute, i: usize) -> Option<Zeroizing<Vec<u8>>> {
+        let s = self.secrets(i)?;
+        match (s.words, s.seed) {
+            (Some(words), _) => {
+                let m = faraday_bip::bip39::Mnemonic::parse(c, s.language, words).ok()?;
+                let seed = crate::identity::seed_of(c, &m, s.passphrase.unwrap_or(""))?;
+                Some(Zeroizing::new(seed.expose().to_vec()))
+            }
+            (None, Some(bytes)) => Some(Zeroizing::new(bytes.to_vec())),
+            (None, None) => None,
+        }
+    }
+
+    /// Costs an interpolation of the strings given (BIP 93's recovery), an
+    /// HMAC-SHA512 and an elliptic-curve multiplication. Whether `strings`
+    /// rebuild key `i` (`docs/CODEX32.md` §9.4, Check my copy): with the
+    /// secret among them, or `k` shares of one set, the seed they carry
+    /// makes key `i`'s fingerprint. `None` while they cannot rebuild a
+    /// seed (fewer than `k`, or not of one set).
+    pub fn codex32_rebuilds(&self, c: &Compute, i: usize, strings: &[Codex32]) -> Option<bool> {
+        let fp = self.info(i)?.fingerprint;
+        let k = usize::from(strings.first()?.threshold()).max(1);
+        let parts: &[Codex32] = match strings.iter().position(Codex32::is_secret) {
+            Some(s) => &strings[s..=s],
+            None => strings.get(..k)?,
+        };
+        let seed = crate::operations::codex32_seed(parts).ok()?;
+        Some(crate::identity::fingerprint_of_seed(c, &seed) == Some(fp))
+    }
+
+    /// Costs an interpolation of `k` strings (BIP 93's derivation) and a
+    /// check that they rebuild key `i`. The string at share index `index`
+    /// of the set `strings` belong to (`docs/CODEX32.md` §9.7, Add a share
+    /// and Replace a lost share), from `k` of its strings, the secret
+    /// counting as one, which must rebuild key `i`. The new string is a
+    /// paper form. Refused where the strings are fewer than `k`, are not
+    /// of one set, or are not of key `i`'s seed.
+    ///
+    /// The key's seed never stands in for the secret: the secret's
+    /// padding bits are not in the seed (BIP 93 ignores them when reading
+    /// it), so a secret made from the seed may differ from the set's own
+    /// and would derive a string of another set, one that mixed with the
+    /// old strings rebuilds nothing.
+    pub fn codex32_derive(
+        &self,
+        c: &Compute,
+        i: usize,
+        strings: &[Codex32],
+        index: u8,
+        why: Reveal,
+    ) -> Result<Held<Zeroizing<String>>, crate::Paper> {
+        use crate::Paper;
+        if why != Reveal::PaperForm {
+            return Err(Paper::Failed);
+        }
+        let k = usize::from(strings.first().ok_or(Paper::Failed)?.threshold());
+        if k < 2 || self.codex32_rebuilds(c, i, strings) != Some(true) {
+            return Err(Paper::Failed);
+        }
+        let refused = |e: Error| Paper::Refused(e.to_string());
+        let have = strings
+            .iter()
+            .take(k)
+            .map(|x| Codex32::parse(x.encode().as_str()).map_err(refused))
+            .collect::<Result<Vec<Codex32>, Paper>>()?;
+        let made = Codex32::derive_share(&have, index).map_err(refused)?;
+        Ok(Held::of(Zeroizing::new(made.encode().as_str().to_string())))
+    }
+
+    /// Costs a parse of the words and a PBKDF2 for a key with words, and a
+    /// split. Key `i`'s seed as a new codex32 set with identifier
+    /// `identifier` (`docs/CODEX32.md` §9.7, Rotate the set): `n` strings,
+    /// any `k` enough, the other shares spread from the fresh `draw`. The
+    /// strings are paper forms, in index order.
+    pub fn codex32_new_set(
+        &self,
+        c: &Compute,
+        i: usize,
+        (k, n): (u8, u8),
+        identifier: [u8; 4],
+        draw: &[u8; 32],
+        why: Reveal,
+    ) -> Result<Held<Vec<Zeroizing<String>>>, crate::Paper> {
+        use crate::Paper;
+        if why != Reveal::PaperForm || k < 2 {
+            return Err(Paper::Failed);
+        }
+        let seed = self.codex32_seed_of(c, i).ok_or(Paper::NoWords)?;
+        let refused = |e: Error| Paper::Refused(e.to_string());
+        let need = usize::from(k - 1) * faraday_bip::codex32::symbols_for(seed.len());
+        let fresh = crate::operations::spread(draw, b"codex32 rotation", need);
+        let shares = Codex32::from_seed(k, identifier, &seed)
+            .and_then(|secret| secret.split(k, n, &fresh))
+            .map_err(refused)?;
+        Ok(Held::of(
+            shares
+                .iter()
+                .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
+                .collect(),
+        ))
     }
 }

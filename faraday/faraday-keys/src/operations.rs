@@ -40,7 +40,7 @@ pub enum Paper {
 }
 
 /// `len` bytes spread from one fresh draw, for `what`.
-fn spread(draw: &[u8; 32], what: &[u8], len: usize) -> Zeroizing<Vec<u8>> {
+pub(crate) fn spread(draw: &[u8; 32], what: &[u8], len: usize) -> Zeroizing<Vec<u8>> {
     let mut out = Zeroizing::new(Vec::with_capacity(len + 32));
     let mut i = 0u32;
     while out.len() < len {

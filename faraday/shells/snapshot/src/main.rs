@@ -201,6 +201,7 @@ fn run(
         Some("codex32") => return tours::codex32::codex32_tour(&mut t),
         Some("codex32form") => return tours::codex32_form::codex32_form_tour(&mut t),
         Some("createshares") => return tours::create_shares::create_shares_tour(&mut t),
+        Some("codex32backup") => return tours::codex32_backup::codex32_backup_tour(&mut t),
         _ => {}
     }
     tours::default::default_tour(c, &mut t, medium)
@@ -318,11 +319,12 @@ fn main() -> ExitCode {
             "codex32",
             "codex32form",
             "createshares",
+            "codex32backup",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, codex32correct, createfrom, inprogress, cancel, std, parts, guide, roller, dice5, codex32, codex32form, createshares or tour"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, codex32correct, createfrom, inprogress, cancel, std, parts, guide, roller, dice5, codex32, codex32form, createshares, codex32backup or tour"
         );
         return ExitCode::from(2);
     }

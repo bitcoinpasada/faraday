@@ -135,9 +135,13 @@ fn typing_the_right_passphrase_back_completes_the_item() {
         app.backup().unwrap().check.is_none(),
         "the field stays open"
     );
-    assert!(says(&mut app, "Your copy matches the passphrase"));
-    let _ = app.frame();
-    assert!(app.offers(Action::BNext(bstep::PASSPHRASE)), "no Continue");
+    // The item, done, moves on by itself (`docs/BACKUP-FLOW.md` §17.23):
+    // no Continue to press.
+    assert_ne!(
+        app.backup().unwrap().open,
+        Some(bstep::PASSPHRASE),
+        "a done item moves on"
+    );
 }
 
 #[test]

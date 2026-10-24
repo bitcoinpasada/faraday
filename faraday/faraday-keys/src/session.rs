@@ -69,6 +69,11 @@ pub struct KeyInfo {
     /// 32 bytes read as the share's scalar. Every 24-word key has one; it
     /// signs as a share only for a loaded threshold record that lists it.
     pub share: Option<PublicKey>,
+    /// The codex32 set the key's seed is split into, as its plain facts
+    /// (`docs/CODEX32.md` §9.4): set when Make codex32 shares loads it,
+    /// when it is loaded from strings, or read from its vault record.
+    /// No string. `None` for a key with no set known.
+    pub codex32: Option<faraday_vault::codex32::SetFacts>,
 }
 
 impl KeyInfo {
@@ -335,6 +340,18 @@ impl Keys {
     /// (`add_seed`), so a paper form can be made without words. A lookup.
     pub fn holds_seed_bytes(&self, i: usize) -> bool {
         self.entries.get(i).is_some_and(|e| e.key.seed.is_some())
+    }
+
+    /// How many bytes the seed key `i`'s codex32 strings carry are: 64 for
+    /// a key with words (its BIP-39 seed), else the master seed's length
+    /// (`docs/CODEX32.md` §9.1). A length, not the seed. A lookup.
+    pub fn seed_len(&self, i: usize) -> Option<usize> {
+        let e = self.entries.get(i)?;
+        match (&e.key.words, &e.key.seed) {
+            (Some(_), _) => Some(64),
+            (None, Some(s)) => Some(s.len()),
+            (None, None) => None,
+        }
     }
 
     /// What key `i` says about itself; a lookup, kept when it was added.
@@ -851,8 +868,10 @@ impl Keys {
     }
 
     /// Costs a parse of the words. Key `i`'s vault key record: its words,
-    /// its label, `flags` when given and its BIP-39 passphrase when
-    /// `with_passphrase`. `None` for a key with no words.
+    /// or the master seed of a key loaded from one, its label, `flags`
+    /// when given, its BIP-39 passphrase when `with_passphrase`, and its
+    /// codex32 set's plain facts when it has a set (`docs/CODEX32.md`
+    /// §9.4, no string). `None` for a key with neither words nor a seed.
     pub fn key_record(
         &self,
         c: &Compute,
@@ -863,9 +882,15 @@ impl Keys {
     ) -> Option<Held<faraday_vault::Record>> {
         use faraday_vault::records::{self, field, kind};
         let e = self.entries.get(i)?;
-        let m = Mnemonic::parse(c, e.info.language, e.key.words.as_ref()?).ok()?;
+        let payload = match (e.key.words.as_ref(), e.key.seed.as_ref()) {
+            (Some(words), _) => {
+                records::words_payload(&Mnemonic::parse(c, e.info.language, words).ok()?)
+            }
+            (None, Some(seed)) => faraday_vault::layouts::seed_payload(seed)?,
+            (None, None) => return None,
+        };
         let mut record = faraday_vault::Record::new(kind::KEY)
-            .with(field::KEY, &records::words_payload(&m))
+            .with(field::KEY, &payload)
             .with(field::KEY_LABEL, e.info.label.as_bytes());
         if let Some(f) = flags {
             record.push(field::KEY_FLAGS, &[f]);
@@ -874,7 +899,43 @@ impl Keys {
         if with_passphrase && let Some(p) = e.key.passphrase.as_ref() {
             record.push(field::KEY_PASSPHRASE, p.as_bytes());
         }
+        if let Some(set) = e
+            .info
+            .codex32
+            .as_ref()
+            .and_then(faraday_vault::codex32::set_payload)
+        {
+            record.push(field::KEY_CODEX32, &set);
+        }
         Some(Held(record))
+    }
+
+    /// Costs a hash. The id ([`crate::vault::key_record_id`]) a vault key
+    /// record of key `i`'s master seed has, for a key loaded from one (a
+    /// codex32 or SLIP-39 key): what tells a vault holds it
+    /// (`docs/CODEX32.md` §9.6). `None` for a key with words.
+    pub fn seed_record_id(&self, i: usize) -> Option<[u8; 32]> {
+        use faraday_vault::records::{field, kind};
+        let e = self.entries.get(i).filter(|e| e.key.words.is_none())?;
+        let payload = faraday_vault::layouts::seed_payload(e.key.seed.as_ref()?)?;
+        let r = faraday_vault::Record::new(kind::KEY).with(field::KEY, &payload);
+        crate::vault::key_record_id(crate::vault::RecordView::of(&r))
+    }
+
+    /// Sets what is known of key `i`'s codex32 set, or that none is
+    /// known. A lookup; refused (false) for no such key or facts the
+    /// vault's layout cannot hold.
+    pub fn set_codex32(&mut self, i: usize, set: Option<faraday_vault::codex32::SetFacts>) -> bool {
+        let sound = set
+            .as_ref()
+            .is_none_or(faraday_vault::codex32::SetFacts::is_sound);
+        match self.entries.get_mut(i) {
+            Some(e) if sound => {
+                e.info.codex32 = set;
+                true
+            }
+            _ => false,
+        }
     }
 
     /// Costs a parse of the words. A vault key record of key `i`'s words
@@ -1106,6 +1167,7 @@ impl Entry {
             word_count,
             has_passphrase: passphrase.is_some(),
             share,
+            codex32: None,
         };
         Entry {
             key: Key {

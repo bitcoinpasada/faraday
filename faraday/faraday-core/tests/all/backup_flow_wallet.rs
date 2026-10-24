@@ -3251,7 +3251,7 @@ fn a_plan_vault_with_none_set_up_offers_to_make_one_while_another_is_open() {
     assert!(!app.backup_item_done_now(&c, Item::Vault(1)));
     app.press(Action::BVaultSave(0));
     assert!(app.backup_item_done_now(&c, Item::Vault(0)));
-    app.press(Action::BStep(bstep::VAULT + 1));
+    crate::common::open_item(&mut app, bstep::VAULT + 1);
     let make = Action::Vault(V::CreateFrom(Screen::Backup));
     let mut found = false;
     for _ in 0..20 {

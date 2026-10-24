@@ -118,7 +118,7 @@ else:
 | Spot (map) | What the flow does with it |
 |---|---|
 | `At::Place(p)` holding `VaultStick(v)` | a stick, "the stick for Vault v (Place p)": brought in at step 2, written at step 6 |
-| `At::Place(p)` holding words, SeedQR, a passphrase, the sheet, shares | the checklist's paper items (Templates, printed from Faraday Starter; Copy with F29's check; Passphrase, typed back, NEW-WALLET §14.7 item 5; Sheets) |
+| `At::Place(p)` holding words, SeedQR, a passphrase, the sheet, shares, codex32 strings | the checklist's paper items (Templates, printed from Faraday Starter; Copy with F29's check; Codex32 strings, §17.23; Passphrase, typed back, NEW-WALLET §14.7 item 5; Sheets) |
 | `At::Vault(v)` | a vault: existing or new (step 1), unlocked or made (step 3), its seeds made into it (step 4) |
 | `At::Files` | "the stick of files" (seed files, public files): written at step 6 |
 | `At::Software` | the descriptor shown, or its files on a stick: written at step 6 |
@@ -643,7 +643,9 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
   2026-10-14; `docs/STARTER.md` §3.8), on the online computer, before
   the copies by hand. The checklist's **Templates** item no longer makes
   a file: its body reads "Print {n} from Faraday Starter: Blank
-  templates, {words} words, {copy}" and its foot is **Done**, a press,
+  templates, {words} words, {copy}", with one clause more per codex32
+  length the plan copies by hand ("3 from Blank templates, codex32, 127
+  characters", `docs/CODEX32.md` §9.3, §17.23), and its foot is **Done**, a press,
   as Envelopes' is. Both presses are kept with the wallet's backup
   record, as are the descriptor shown as a code and a passphrase typed
   back, so Write to sticks' lock and the unlock after it leave them
@@ -1307,6 +1309,8 @@ grouped, each a chip (DESIGN §4.17):
 - **Vaults**: one chip per vault of the plan, and **+ vault**, which
   adds one (the vault rows of §10.2: a vault the plan makes).
 - **Watch-only software**, while the board has no software place.
+- Under Seeds, **a seed kept as codex32 strings** is a group of its own,
+  one chip per string by its share index, with **+ share** (§17.23).
 
 A chip in the list never runs out: dragging it places a copy. Each list
 chip shows how many places keep it ("2 places"), and nothing when none
@@ -1353,6 +1357,8 @@ checklist read forms as they read everything else.
 | Stick (files) | `SeedFile(i)` (words, `.txt`), `SeedQrFile(i)` (`.png`) | `PassphraseFile(i)` (`.txt`) | `WalletFile(form)`, `ShareFile(j, form)`: `form::TEXT` (`.txt`), `form::QR` (`.png`); and `SoftwareFile`, the chosen software's own file |
 | Vault | `Seed(i)` | `SeedPassphrase(i)`, with its seed | `Wallet`, or `Share(j)` |
 | Scanned in (software) | | | `Wallet` at `At::Software`, as today |
+
+A codex32 string's forms per zone are §17.23's.
 
 - New `What`s: `SeedQrFile(i)` and `PassphraseFile(i)` (tag Secret),
   `SoftwareFile` (Public). `WalletFile` and `ShareFile(j)` gain the form
@@ -1413,6 +1419,8 @@ placement. It is decided from the plan as it is after the drop; drawing
 reads what the drop worked out. A seed kept beside a share gives its
 own key, the one the share left off, when the plan works out whether a
 place rebuilds the description.
+
+A seed kept as codex32 strings adds its own checks (§17.23).
 
 **Make the checklist** is offered with any warning standing, except
 a seed kept nowhere, which holds The plan card as today (§15.1): with
@@ -2137,6 +2145,8 @@ the board in Customize backup.
     a new plan's checklist has the words' item and no SeedQR, for a
     single key and a 2-of-3; Customize backup and the SeedQR toggled on
     adds it.
+13. **A key with a codex32 set** opens on its own standard way:
+    one string per place, on paper, with the description (§17.23).
 
 **As built** (2026-10-20; the block as written is in `docs/history/BACKUP-FLOW-LOG.md`):
 
@@ -2240,6 +2250,98 @@ dropped reads "Spends with 1 more place" and asks; a second seed put in
 the place's vault reads "Spends with the vault's passphrase and 1 more
 place"; a first seed at a place asks nothing; a single key asks
 nothing.
+
+### 17.23 Codex32 strings (`docs/CODEX32.md` §9; built 2026-10-23)
+
+A seed can be kept as codex32 strings (BIP 93): a set that exists
+(the key was made by Make codex32 shares or loaded from strings, its set's
+plain facts kept with the key and in its vault record, `docs/VAULT.md` §7
+type 2 field 5) or a set the plan makes from the seed. The plan keeps
+each seed's form (`plan::codex32::C32`, a `codex32` line in the plan's
+text: seed, k, length, indices, identifier) and each string is a thing
+of the map, named by its share index.
+
+**The list.** Under Seeds, each seed here is a group: its head
+"9a6a2580 · codex32 w0za · 2 of 3", one chip per string ("A", "C", "D"),
+each reading how many places keep it. A set the plan makes shows its
+**Threshold** and **Strings** steppers, **+ share** (one string more) and
+**Take off codex32**; a seed with no strings shows "9a6a2580 as codex32
+strings" in Customize backup, which turns them on at 2 of 3, its length
+the seed's (127 characters for a key of words, with "127 characters;
+Words is shorter for this key"). A set that exists is fixed: its k and
+indices are the set's. Not in a wallet flow's own plan, whose keys are
+made after it.
+
+**Each zone, each form.**
+
+| Zone | Forms of string j of seed i | `What` |
+|---|---|---|
+| Paper | the string written · its Codex32QR drawn | `Codex32Share(i, j)` · `Codex32QrPaper(i, j)` |
+| Stick (files) | `.txt` · Codex32QR `.png` | `Codex32ShareFile(i, j)` · `Codex32QrFile(i, j)` |
+| Vault | a codex32 share record (`docs/VAULT.md` §7 type 15) | `Codex32Share(i, j)` |
+
+Plan codes `x{i}.{j}`, `xq{i}.{j}`, `xt{i}.{j}`, `xp{i}.{j}`, the index as
+its bech32 value. All are tagged Secret (Sealed in a vault).
+
+**What the checks count.** A place, a vault read with its passphrase, or
+everything left after a place is lost has a seed once it keeps k distinct
+strings of it (or the secret): every check of §17.5 reads strings so. The
+board's lines add "Share C of 9a6a2580 is kept nowhere", "Home keeps 2
+shares of w0za: the seed", "Losing Home leaves fewer than 2 shares of
+w0za", "Vault 1 holds 9a6a2580 and a share of it", "Vault 1 holds
+9a6a2580 whole: one place with its passphrase is enough" (a set that
+exists, its seed in a vault) and, for a string in a stick's files, "A
+share of w0za is a file that is not encrypted; enough such files are the
+seed". A place keeping only strings is a place with a seed.
+
+**The standard way** for a key with a set: The standard way's placement
+with the seed's words replaced by its strings, one per place, on paper,
+the description at each place as the standard way puts it, so three
+places for 2 of 3 (`plan::codex32::standard`, from Back up and Create's
+Back up alike). A plan saved before the key had a set reads with it
+(`plan::codex32::sync`), its strings not placed yet.
+
+**The checklist's item, Codex32 strings of seed i** (after the seed's
+copy item). Its body lists each string on paper and its places,
+**Checked** or **Not checked**. A set the plan makes: its foot is **Make
+them**, a split from this device's randomness with the key's identifier
+(`Keys::codex32_shares`); the set's facts go with the key, each string
+placed. Each string then shows in groups of four (String · Codex32QR at
+48 characters) and is typed back on the codex32 keyboard ("Box 17
+differs") or skipped behind the quiz's caution. A set that exists: **Check
+my copy** opens each string to type from its paper; it holds when its
+checksum does and its header is the set's ("A · checksum holds, a string
+of name", or "Box 4 is not this set's: not a string of name"), and once k
+are typed, "These strings rebuild this key" or "These strings rebuild
+another key: look at each again". Done when every string on paper is
+checked or skipped. The strings go to no file and no stick from here.
+
+**The set's actions** (`docs/CODEX32.md` §9.7), under the item's list for
+a split set that exists, and from the chart's sheet on a string (its rows
+open the item): **Add a share** and **Replace C** (k strings of the set
+typed in, the secret counting as one; the share at the next unused index,
+or the lost one's own, opened to write and type back; the set's facts
+gain it); **Rotate the set** (each string marked Held, Lost or Exposed;
+with k or more out of reach "2 strings of name may be in other hands:
+rotating is not enough; move the coins to a new key", else "Destroy A,
+D. …", a press per held string destroyed, then the new set's threshold
+and strings and a new identifier typed, the old one refused, made from
+this device's randomness; the new strings take the old ones' places and
+are to be checked again).
+
+**Fewer presses** (owner, 2026-10-23):
+an item that becomes done moves on to the next by itself, as its
+**Continue** did: a copy matched, a passphrase compared, a vault saved
+into, files or sheets made, the descriptor shown, codex32 strings checked
+(after the last string's own Continue). The blank templates, the
+envelopes and Write to sticks stay a deliberate press, and an item opened
+when already done stays open. The narrow column's Add sheet closes with
+**Close**.
+
+Not built yet: writing a string's files at a stick's write and a share
+record at a vault's save (the format is built), the strings gathered from
+several vaults at unlock towards the key, and the line per place counting
+shares ("1 of 2 shares of 9a6a2580 · alone: nothing").
 
 ## 18. Backups age (planned, not built; F87)
 

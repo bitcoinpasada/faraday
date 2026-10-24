@@ -1,6 +1,8 @@
 //! Writes the vault vectors (`docs/VAULT.md` §10) into a directory: a
 //! 64 KiB vault with one passphrase and one with three, every slot
-//! holding one record of every type.
+//! holding one record of every type those two were made with; and one
+//! with a codex32 key and a codex32 share (`docs/CODEX32.md` §9.4,
+//! §9.5), the two records codex32 added.
 //!
 //! ```text
 //! cargo run -p faraday-vault --example vectors -- tools/vectors/vault
@@ -39,6 +41,56 @@ pub const THREE: (&str, &[&str]) = (
     "vault-three.ofv",
     &["first passphrase", "second passphrase", "third passphrase"],
 );
+
+/// The codex32 vault's file and passphrase.
+pub const CODEX32: (&str, &[&str]) = ("vault-codex32.ofv", &["codex32 passphrase"]);
+
+/// BIP 93's vector 2: its seed, a share of it, and the fingerprint of
+/// the key the seed makes.
+pub const VECTOR_2: (&str, &str, [u8; 4]) = (
+    "d1808e096b35b209ca12132b264662a5",
+    "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
+    [0xfa, 0xb6, 0x86, 0x8a],
+);
+
+/// The codex32 slot: a key record holding vector 2's seed with its set's
+/// plain facts (2 of 3, `name`, 48 characters; A and C placed, D made),
+/// and a codex32 share record holding share C.
+pub fn codex32_contents() -> Contents {
+    use faraday_vault::codex32::{SetFacts, State, set_payload};
+    let seed: Vec<u8> = (0..16)
+        .map(|i| u8::from_str_radix(&VECTOR_2.0[2 * i..2 * i + 2], 16).expect("hex"))
+        .collect();
+    let facts = SetFacts {
+        threshold: 2,
+        identifier: *b"name",
+        length: 48,
+        unknown: 0,
+        strings: vec![
+            (b'a', State::Placed),
+            (b'c', State::Placed),
+            (b'd', State::Made),
+        ],
+    };
+    Contents {
+        records: vec![
+            Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Shares"),
+            Record::new(kind::KEY)
+                .with(
+                    field::KEY,
+                    &faraday_vault::layouts::seed_payload(&seed).expect("16 bytes"),
+                )
+                .with(field::KEY_LABEL, b"Codex32 key")
+                .with(
+                    field::KEY_CODEX32,
+                    &set_payload(&facts).expect("a sound set"),
+                ),
+            Record::new(kind::CODEX32_SHARE)
+                .with(field::CODEX32_STRING, VECTOR_2.1.as_bytes())
+                .with(field::CODEX32_KEY, &VECTOR_2.2),
+        ],
+    }
+}
 
 /// One record of every type, labelled `label`.
 pub fn contents(label: &str) -> Contents {
@@ -114,11 +166,27 @@ pub fn vault(passphrases: &[&str], labels: &[&str], seed: u8) -> Vec<u8> {
     faraday_vault::create(&c, SLOT_SIZES[0], COST, &p, &all, &[seed; 32]).expect("the vectors")
 }
 
-/// Both vectors, as (file name, bytes).
+/// The codex32 vault's bytes.
+pub fn codex32_vault() -> Vec<u8> {
+    let c = compute();
+    let p: Vec<&[u8]> = CODEX32.1.iter().map(|s| s.as_bytes()).collect();
+    faraday_vault::create(
+        &c,
+        SLOT_SIZES[0],
+        COST,
+        &p,
+        &[codex32_contents()],
+        &[15; 32],
+    )
+    .expect("the vector")
+}
+
+/// Every vector, as (file name, bytes).
 pub fn vectors() -> Vec<(&'static str, Vec<u8>)> {
     vec![
         (ONE.0, vault(ONE.1, &["Main"], 1)),
         (THREE.0, vault(THREE.1, &LABELS, 3)),
+        (CODEX32.0, codex32_vault()),
     ]
 }
 

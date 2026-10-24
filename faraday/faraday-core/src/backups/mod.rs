@@ -1184,3 +1184,512 @@ impl Faraday {
         }
     }
 }
+
+// ---------------------------------------------------------------------
+// The checklist's codex32 item (`docs/CODEX32.md` §9.2, §9.4, §9.7): the
+// glue between its state (`crate::codex32_backup`), the plan and the keys.
+// ---------------------------------------------------------------------
+
+impl Faraday {
+    /// Costs what the press costs: a split of the seed (Make them, a new
+    /// set), a QR encoding (a string's Codex32QR), an interpolation of the
+    /// strings typed (the rebuild check, a share derived). A press on the
+    /// checklist's codex32 item.
+    pub(crate) fn backup_c32(&mut self, p: crate::codex32_backup::Press, c: &Compute) {
+        use crate::codex32_backup::Press;
+        if matches!(p, Press::PaperOpen | Press::PaperK(_) | Press::PaperN(_)) {
+            return self.backup.paper_c32(p);
+        }
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let Some(i) = b.c32.as_ref().map(|s| s.seed) else {
+            return;
+        };
+        let Some(key) = self.backup_seed_list_now(b.wallet).get(i).and_then(|x| x.1) else {
+            return;
+        };
+        match p {
+            Press::Make => self.c32_make(c, i, key),
+            Press::Open(j) => {
+                if let Some(st) = self.backup.c32_mut() {
+                    st.open(usize::from(j));
+                }
+            }
+            Press::Key(k) => {
+                self.backup.c32_key(k);
+            }
+            Press::Qr => self.c32_qr(c),
+            Press::Next => self.c32_next(c, i, key),
+            Press::Skip => {
+                let Some(st) = self.backup.c32_mut() else {
+                    return;
+                };
+                let Some(j) = st.at else {
+                    return;
+                };
+                if st.skip_ask {
+                    self.backup.c32_checked(i, j);
+                    self.c32_next(c, i, key);
+                } else {
+                    st.skip_ask = true;
+                }
+            }
+            Press::List => {
+                if let Some(st) = self.backup.c32_mut() {
+                    st.list();
+                }
+            }
+            Press::Set(s) => self.c32_set(c, s, i, key),
+            Press::PaperOpen | Press::PaperK(_) | Press::PaperN(_) => {}
+        }
+    }
+
+    /// Costs a split of the seed. **Make them**: the set the plan makes
+    /// for seed `i` (session key `key`), from this device's randomness;
+    /// its identifier is the key's (`identifier_for` its fingerprint), its
+    /// form fixed from now on, and its facts kept with the key
+    /// (`docs/CODEX32.md` §9.4). Opens the first string on paper.
+    fn c32_make(&mut self, c: &Compute, i: usize, key: usize) {
+        use crate::plan::codex32::index_of;
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let Some(form) = b.answers.c32(i).cloned().filter(|f| !f.fixed()) else {
+            return;
+        };
+        // A split is a fresh secret: none in the demo (`docs/DEMO.md` §5.3).
+        if form.k >= 2 && !self.makes_secrets() {
+            return;
+        }
+        let Some(fp) = self.session.keys.info(key).map(|k| k.fingerprint.0) else {
+            return;
+        };
+        let Some(draw) = self.fresh(b"codex32 plan") else {
+            return self.toast(EN.paper_no_randomness);
+        };
+        let n = u8::try_from(form.indices.len()).unwrap_or(0);
+        let made = match self.session.keys.codex32_shares(
+            c,
+            key,
+            form.k,
+            n,
+            &draw,
+            faraday_keys::Reveal::PaperForm,
+        ) {
+            Ok(strings) => strings,
+            Err(faraday_keys::Paper::Refused(e)) => {
+                return self.toast(&fill(EN.paper_codex32, &[&e]));
+            }
+            Err(_) => return,
+        };
+        let list: Vec<(usize, zeroize::Zeroizing<String>)> = made
+            .iter()
+            .filter_map(|s| Some((index_of(*s.as_bytes().get(8)?)?, s.clone())))
+            .collect();
+        let id = faraday_bip::codex32::identifier_for(fp);
+        let length = list
+            .first()
+            .and_then(|(_, s)| u8::try_from(s.len()).ok())
+            .unwrap_or(form.length);
+        self.c32_fix(c, i, key, (form.k, id, length), list);
+    }
+
+    /// Costs a map of the plan. Seed `i`'s set, now made: its form fixed
+    /// to `k`, `id` and `length` at the indices of `list`, the strings
+    /// kept with the item and its facts with key `key`, each placed where
+    /// the plan has it on paper (`docs/CODEX32.md` §9.4). Opens the first
+    /// string on paper.
+    fn c32_fix(
+        &mut self,
+        c: &Compute,
+        i: usize,
+        key: usize,
+        (k, id, length): (u8, [u8; 4], u8),
+        list: Vec<(usize, zeroize::Zeroizing<String>)>,
+    ) {
+        use faraday_vault::codex32::{SetFacts, State};
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let shape = self.plan_shape_now(b.wallet);
+        let mut answers = b.answers.clone();
+        let fixed = plan::codex32::C32 {
+            seed: i,
+            k,
+            length,
+            indices: list.iter().map(|(j, _)| *j).collect(),
+            identifier: Some(id),
+            unknown: 0,
+        };
+        answers.set_c32(&shape, i, Some(fixed.clone()));
+        let mapped = plan::Mapped::of(c, &shape, &answers);
+        let paper = plan::codex32::paper_strings(&answers, &mapped, i);
+        let strings = fixed
+            .indices
+            .iter()
+            .map(|&j| {
+                let state = if paper.contains(&j) {
+                    State::Placed
+                } else {
+                    State::Made
+                };
+                (plan::codex32::CHARSET[j], state)
+            })
+            .collect();
+        self.session.keys.set_codex32(
+            key,
+            Some(SetFacts {
+                threshold: k,
+                identifier: id,
+                length,
+                unknown: 0,
+                strings,
+            }),
+        );
+        self.backup
+            .change_answers(&shape, &|a, _| *a = answers.clone());
+        if let Some(st) = self.backup.c32_mut() {
+            st.keep(list);
+            if let Some(&j) = paper.first() {
+                st.open(j);
+            }
+        }
+    }
+
+    /// Costs a QR encoding. **String** · **Codex32QR**: the open string
+    /// made here, at 48 characters, as its Codex32QR (upper case, byte
+    /// mode, version 3, level L, `docs/CODEX32.md` §10.2), or back to the
+    /// string.
+    fn c32_qr(&mut self, c: &Compute) {
+        use faraday_codec::qr::{Ecc, Payload, encode_bounded};
+        let Some(st) = self.backup.c32_mut() else {
+            return;
+        };
+        if st.qr.take().is_some() {
+            return;
+        }
+        let Some(s) = st.at.and_then(|j| st.made(j)) else {
+            return;
+        };
+        if s.len() != 48 {
+            return;
+        }
+        let mut upper = zeroize::Zeroizing::new(s.as_bytes().to_vec());
+        upper.make_ascii_uppercase();
+        st.qr = encode_bounded(c, Payload::Bytes(&upper), Ecc::Low, 3).ok();
+    }
+
+    /// Costs an interpolation of the strings typed, once enough are.
+    /// **Continue** on a string: it must be typed back the same, or
+    /// skipped; then, for a set that exists, whether the strings typed so
+    /// far rebuild this seed, once enough are; then the next string on
+    /// paper not yet checked, or the list once every one is.
+    fn c32_next(&mut self, c: &Compute, i: usize, key: usize) {
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let Some(form) = b.answers.c32(i).cloned() else {
+            return;
+        };
+        let checked = b.c32_checked.clone();
+        let shape = self.plan_shape_now(b.wallet);
+        let mapped = self.kept.plan_mapped(c, &shape, &b.answers);
+        let paper = plan::codex32::paper_strings(&b.answers, &mapped, i);
+        let Some(st) = b.c32.as_ref() else {
+            return;
+        };
+        let Some(j) = st.at else {
+            return;
+        };
+        if !checked.contains(&(i, j)) {
+            if let Some(st) = self.backup.c32_mut() {
+                st.note = Some(EN.codex32_type_it_back.to_string());
+            }
+            return;
+        }
+        let rebuilds = (st.rebuilds.is_none() && st.held.len() >= form.need()).then(|| {
+            let parts: Vec<faraday_bip::codex32::Codex32> = st
+                .held
+                .iter()
+                .filter_map(|s| faraday_bip::codex32::Codex32::parse(s).ok())
+                .collect();
+            self.session.keys.codex32_rebuilds(c, key, &parts)
+        });
+        let next = paper.iter().copied().find(|x| !checked.contains(&(i, *x)));
+        if let Some(st) = self.backup.c32_mut() {
+            if let Some(r) = rebuilds.flatten() {
+                st.rebuilds = Some(r);
+            }
+            match next {
+                Some(x) => st.open(x),
+                None => st.list(),
+            }
+        }
+    }
+}
+
+impl Faraday {
+    /// Costs what the press costs: an interpolation of `k` strings (a
+    /// share derived) or a split of the seed (a new set). The set's
+    /// actions on seed `i`'s codex32 item (`docs/CODEX32.md` §9.7), key
+    /// `key` its session key.
+    fn c32_set(&mut self, c: &Compute, p: crate::codex32_backup::SetPress, i: usize, key: usize) {
+        use crate::codex32_backup::{SetPress, SetStep, next_index, rotation};
+        use crate::plan::codex32::C32;
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let Some(form) = b.answers.c32(i).cloned().filter(C32::fixed) else {
+            return;
+        };
+        let Some(st) = self.backup.c32_mut() else {
+            return;
+        };
+        match p {
+            SetPress::Leave => {
+                st.set = SetStep::None;
+                st.held.clear();
+                st.typed.clear();
+                st.found = None;
+                st.note = None;
+            }
+            SetPress::Add | SetPress::Replace(_) => {
+                let index = match p {
+                    SetPress::Replace(j) => Some(j),
+                    _ => next_index(&form).and_then(|j| u8::try_from(j).ok()),
+                };
+                if index.is_none() {
+                    st.note = Some(EN.c32_set_full.to_string());
+                    return;
+                }
+                st.list();
+                st.held.clear();
+                st.note = None;
+                st.set = SetStep::Typing { index };
+            }
+            SetPress::Rotate => {
+                st.list();
+                st.note = None;
+                st.set = SetStep::Marking(form.indices.iter().map(|&j| (j, 0)).collect());
+            }
+            SetPress::Mark(j, m) => {
+                if let SetStep::Marking(marks) = &mut st.set
+                    && let Some(x) = marks.iter_mut().find(|(x, _)| *x == usize::from(j))
+                {
+                    x.1 = m.min(2);
+                }
+            }
+            SetPress::Counted => {
+                let SetStep::Marking(marks) = &st.set else {
+                    return;
+                };
+                match rotation(&form, marks) {
+                    Err(line) => st.note = Some(line),
+                    Ok((held, line)) => {
+                        let out = marks.len() - held.len();
+                        st.note = Some(line);
+                        st.set = if held.is_empty() {
+                            SetStep::Scheme(form.k, u8::try_from(form.n()).unwrap_or(form.k))
+                        } else {
+                            SetStep::Destroying {
+                                held: held.into_iter().map(|j| (j, false)).collect(),
+                                out,
+                            }
+                        };
+                    }
+                }
+            }
+            SetPress::Destroyed(j) => st.destroyed(&form, usize::from(j)),
+            SetPress::K(d) => st.step_scheme(true, d),
+            SetPress::N(d) => st.step_scheme(false, d),
+            SetPress::MakeNew => {
+                let set = std::mem::take(&mut st.set);
+                let held = st.held.clone();
+                let typed = st.typed.clone();
+                if let Err(line) = self.c32_make_new(c, (i, key), &form, &set, &held, &typed)
+                    && let Some(st) = self.backup.c32_mut()
+                {
+                    st.set = set;
+                    st.note = line;
+                }
+            }
+        }
+    }
+
+    /// Costs an interpolation of `k` strings, or a split of the seed.
+    /// **Make share E** (a share added or replaced from the strings typed
+    /// in, `held`) or **Make the new set** (a rotation, its identifier
+    /// `typed`), for seed `i` with session key `key` and its form `form`
+    /// (`docs/CODEX32.md` §9.7). `Err`: what to say, the step kept.
+    fn c32_make_new(
+        &mut self,
+        c: &Compute,
+        (i, key): (usize, usize),
+        form: &crate::plan::codex32::C32,
+        set: &crate::codex32_backup::SetStep,
+        held: &[zeroize::Zeroizing<String>],
+        typed: &str,
+    ) -> Result<(), Option<String>> {
+        use crate::codex32_backup::SetStep;
+        use crate::plan::codex32::index_of;
+        match set {
+            SetStep::Typing { index } => {
+                let j = index.map(usize::from).ok_or(None)?;
+                let parts: Vec<faraday_bip::codex32::Codex32> = held
+                    .iter()
+                    .filter_map(|s| faraday_bip::codex32::Codex32::parse(s).ok())
+                    .collect();
+                if parts.len() < form.need() {
+                    return Err(Some(fill(
+                        EN.c32_set_type_more,
+                        &[&form.need().to_string()],
+                    )));
+                }
+                let made = self
+                    .session
+                    .keys
+                    .codex32_derive(
+                        c,
+                        key,
+                        &parts,
+                        plan::codex32::CHARSET[j],
+                        faraday_keys::Reveal::PaperForm,
+                    )
+                    .map_err(|_| Some(EN.c32_set_not_this_seed.to_string()))?;
+                let s = made.clone();
+                self.c32_added(i, key, j, s);
+                Ok(())
+            }
+            SetStep::Scheme(k, n) => {
+                let id = <[u8; 4]>::try_from(typed.as_bytes())
+                    .map_err(|_| Some(EN.c32_set_identifier.to_string()))?;
+                if Some(id) == form.identifier {
+                    return Err(Some(EN.c32_set_identifier_old.to_string()));
+                }
+                // A new set is a fresh secret: none in the demo.
+                if !self.makes_secrets() {
+                    return Err(None);
+                }
+                let Some(draw) = self.fresh(b"codex32 rotation") else {
+                    return Err(Some(EN.paper_no_randomness.to_string()));
+                };
+                let made = self
+                    .session
+                    .keys
+                    .codex32_new_set(c, key, (*k, *n), id, &draw, faraday_keys::Reveal::PaperForm)
+                    .map_err(|e| match e {
+                        faraday_keys::Paper::Refused(e) => Some(fill(EN.paper_codex32, &[&e])),
+                        _ => None,
+                    })?;
+                let list: Vec<(usize, zeroize::Zeroizing<String>)> = made
+                    .iter()
+                    .filter_map(|s| Some((index_of(*s.as_bytes().get(8)?)?, s.clone())))
+                    .collect();
+                let others: Vec<(usize, usize)> = self
+                    .backup
+                    .state()
+                    .map(|b| {
+                        b.c32_checked
+                            .iter()
+                            .copied()
+                            .filter(|&(x, _)| x != i)
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                self.backup.c32_reset(i, others);
+                self.c32_fix(c, i, key, (*k, id, form.length), list);
+                Ok(())
+            }
+            _ => Err(None),
+        }
+    }
+
+    /// String `s` at index `j`, derived for seed
+    /// `i`'s set: kept with the item, the set's form and facts gaining
+    /// the index (a lost one replaced keeps its own), the string opened to
+    /// write and type back (`docs/CODEX32.md` §9.7).
+    fn c32_added(&mut self, i: usize, key: usize, j: usize, s: zeroize::Zeroizing<String>) {
+        use faraday_vault::codex32::State;
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let Some(mut form) = b.answers.c32(i).cloned() else {
+            return;
+        };
+        let shape = self.plan_shape_now(b.wallet);
+        let mut answers = b.answers.clone();
+        if !form.indices.contains(&j) {
+            form.indices.push(j);
+        }
+        answers.set_c32(&shape, i, Some(form));
+        self.backup
+            .change_answers(&shape, &|a, _| *a = answers.clone());
+        if let Some(mut facts) = self.session.keys.info(key).and_then(|k| k.codex32.clone()) {
+            let ch = plan::codex32::CHARSET[j];
+            facts.strings.retain(|&(x, _)| x != ch);
+            facts.strings.push((ch, State::Made));
+            self.session.keys.set_codex32(key, Some(facts));
+        }
+        if let Some(st) = self.backup.c32_mut() {
+            st.keep(vec![(j, s)]);
+            st.set = crate::codex32_backup::SetStep::None;
+            st.held.clear();
+            st.open(j);
+        }
+        self.backup.c32_unchecked(i, j);
+    }
+}
+
+impl Faraday {
+    /// Costs what `backup_item_done_now` costs. An item that has just
+    /// become done moves on to the next, as its Continue did
+    /// (`docs/BACKUP-FLOW.md` §17.23): a copy matched, a passphrase compared,
+    /// a vault saved into, files or sheets made, the descriptor shown,
+    /// codex32 strings checked. The blank templates, the envelopes and the
+    /// sticks stay a deliberate press. An item opened already done stays
+    /// open. Called after every input.
+    pub(crate) fn backup_move_on(&mut self, c: &Compute) {
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        if b.stage != crate::BStage::Checklist {
+            return;
+        }
+        let Some(n) = b.open else {
+            return self.backup.set_seen(None);
+        };
+        let Some(item) = crate::bstep::item(n) else {
+            return;
+        };
+        let moves = !matches!(
+            item,
+            plan::Item::Templates | plan::Item::Envelopes | plan::Item::Sticks
+        );
+        let done = self.backup_item_done_now(c, item);
+        let was = b.seen.filter(|&(m, _)| m == n).map(|(_, d)| d);
+        // A codex32 string still open waits for its Continue.
+        let typing = b.c32.as_ref().is_some_and(|st| st.at.is_some());
+        // A codex32 string open counts as not done yet, so its Continue
+        // is what moves the item on.
+        let done = done && !typing;
+        self.backup.set_seen(Some((n, done)));
+        if moves && done && was == Some(false) {
+            self.backup_act(Action::BNext(n), c);
+            let open = self.backup.state().and_then(|b| b.open);
+            let now = open
+                .and_then(crate::bstep::item)
+                .is_some_and(|it| self.backup_item_done_now(c, it));
+            self.backup.set_seen(open.map(|m| (m, now)));
+        }
+    }
+
+    /// Each seed of wallet `w`'s codex32 set, where its key is here and
+    /// has one (`docs/CODEX32.md` §9.4): what the plan places. A lookup.
+    pub(crate) fn c32_sets(&self, w: usize) -> Vec<Option<faraday_vault::codex32::SetFacts>> {
+        self.backup_seed_list_now(w)
+            .into_iter()
+            .map(|(_, k)| self.session.keys.info(k?)?.codex32.clone())
+            .collect()
+    }
+}

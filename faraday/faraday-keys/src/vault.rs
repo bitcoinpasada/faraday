@@ -94,10 +94,12 @@ pub mod sb_field {
 /// - ROUND: the round's state (secret nonces);
 /// - GPG: the primary key's and the subkey's seeds, and the revocation
 ///   certificate kept with them;
-/// - SECURE_BOOT: the PK's, KEK's and db's private keys.
+/// - SECURE_BOOT: the PK's, KEK's and db's private keys;
+/// - CODEX32_SHARE: the string.
 ///
 /// Public, in full: the slot label, wallets, sheets, amounts, plans and
-/// wallet shares; a key's label and flags; a passphrase's key
+/// wallet shares; a key's label, flags and codex32 set's facts; a
+/// codex32 share's key fingerprint; a passphrase's key
 /// fingerprint; an entry's title, username and URL; a round's scheme,
 /// transaction hash, key fingerprint and used flag; a GPG key's dates, user IDs, certificate
 /// and revoked date; a Secure Boot record's owner and certificates.
@@ -116,6 +118,7 @@ pub const SECRET_FIELDS: &[(u8, u8)] = &[
     (kind::SECURE_BOOT, sb_field::PK_KEY),
     (kind::SECURE_BOOT, sb_field::KEK_KEY),
     (kind::SECURE_BOOT, sb_field::DB_KEY),
+    (kind::CODEX32_SHARE, field::CODEX32_STRING),
 ];
 
 /// Whether field `field` of a record of type `kind` is secret
@@ -1256,34 +1259,38 @@ impl OpenVaults {
         let Some(slot) = self.slot(id) else {
             return Vec::new();
         };
-        let mut words: Vec<(Zeroizing<String>, String)> = Vec::new();
-        let mut seeds: Vec<(Zeroizing<Vec<u8>>, String)> = Vec::new();
+        type Set = Option<fv::codex32::SetFacts>;
+        let mut words: Vec<(Zeroizing<String>, String, Set)> = Vec::new();
+        let mut seeds: Vec<(Zeroizing<Vec<u8>>, String, Set)> = Vec::new();
         let mut passphrases: Vec<Zeroizing<String>> = Vec::new();
         for (i, r) in slot.records.of(kind::KEY) {
             if !set.contains(&i) {
                 continue;
             }
             let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
+            let set = codex32_set_of(r);
             if let Some(m) = record_words(c, r) {
                 // Stored with the key, or kept alone in an open vault.
                 let pass = match r.text(field::KEY_PASSPHRASE) {
                     Some(p) => Zeroizing::new(p.to_string()),
                     None => self.passphrase_kept_for(c, keys, &m).unwrap_or_default(),
                 };
-                words.push((phrase_of(&m), label));
+                words.push((phrase_of(&m), label, set));
                 passphrases.push(pass);
             } else if let Some(seed) = seed_of(r) {
-                seeds.push((seed, label));
+                seeds.push((seed, label, set));
             }
         }
         let mut loaded = Vec::new();
-        for ((w, label), p) in words.iter().zip(&passphrases) {
+        for ((w, label, set), p) in words.iter().zip(&passphrases) {
             if let Ok(fp) = keys.add_words_with(c, w, p, label, None) {
+                keys.set_codex32(keys.len() - 1, set.clone());
                 loaded.push(fp);
             }
         }
-        for (seed, label) in &seeds {
+        for (seed, label, set) in &seeds {
             if let Ok(fp) = keys.add_seed(c, seed, label) {
+                keys.set_codex32(keys.len() - 1, set.clone());
                 loaded.push(fp);
             }
         }
@@ -1306,7 +1313,7 @@ impl OpenVaults {
             return None;
         }
         let label = r.text(field::KEY_LABEL).unwrap_or("").to_string();
-        match record_words(c, r) {
+        let loaded = match record_words(c, r) {
             Some(m) => {
                 // Stored with the key, or kept alone in an open vault
                 // (`docs/BACKUP-FLOW.md` §17.12 item 4).
@@ -1317,7 +1324,11 @@ impl OpenVaults {
                 Some(keys.add_mnemonic(c, &m, &p, &label, None))
             }
             None => seed_of(r).map(|seed| keys.add_seed(c, &seed, &label)),
+        };
+        if matches!(loaded, Some(Ok(_))) {
+            keys.set_codex32(keys.len() - 1, codex32_set_of(r));
         }
+        loaded
     }
 
     /// Costs a fingerprint for each passphrase record. The passphrase an
@@ -1583,6 +1594,12 @@ fn phrase_of(m: &Mnemonic) -> Zeroizing<String> {
         out.push_str(lang.word(i));
     }
     out
+}
+
+/// The codex32 set a key record keeps, its plain facts
+/// (`docs/CODEX32.md` §9.4); `None` where it keeps none.
+fn codex32_set_of(r: &Record) -> Option<fv::codex32::SetFacts> {
+    fv::codex32::set_of(r.field(field::KEY_CODEX32)?)
 }
 
 /// The master seed a key record holds, when it holds a seed rather than

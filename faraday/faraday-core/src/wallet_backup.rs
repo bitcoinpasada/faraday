@@ -35,6 +35,7 @@ use crate::{
 use faraday_bip::bip39::Language;
 use faraday_keys::Paper;
 use faraday_shell_api::Key as KeyIn;
+use faraday_ui::keyboard::OskPress;
 use zeroize::Zeroize;
 
 /// The public files of wallet `w` that are under Public files' More
@@ -533,6 +534,18 @@ pub struct BackupState {
     /// not to load at unlock: the vault item's **Load at unlock** turned
     /// off (F62). Every other starts on.
     pub no_load: Vec<usize>,
+    /// The codex32 item's state, for the seed it was last open on
+    /// (`docs/CODEX32.md` §9.2, §9.4).
+    pub c32: Option<crate::codex32_backup::Strings>,
+    /// The codex32 strings typed back the same, or skipped, in this
+    /// backup: each seed and index.
+    pub c32_checked: Vec<(usize, usize)>,
+    /// The open item, and whether it was done when last looked at: an
+    /// item that becomes done moves on to the next.
+    pub seen: Option<(u8, bool)>,
+    /// The copies by hand's codex32 choice while open: `k` and `n`
+    /// (`docs/CODEX32.md` §9.1).
+    pub paper_c32: Option<(u8, u8)>,
 }
 
 /// The wallet backup checklist (`Screen::Backup`): the backup under way,
@@ -687,6 +700,19 @@ impl WalletBackupArea {
         let Some(b) = self.state.as_mut() else {
             return false;
         };
+        // A codex32 string typed back, or in, on the keyboard.
+        if b.open.is_some_and(bstep::is_codex32)
+            && b.c32.as_ref().is_some_and(|c| {
+                c.at.is_some() || !matches!(c.set, crate::codex32_backup::SetStep::None)
+            })
+        {
+            let press = match key {
+                KeyIn::Char(c) => OskPress::Char(c),
+                KeyIn::Backspace => OskPress::Back,
+                _ => return false,
+            };
+            return self.c32_key(press);
+        }
         match key {
             KeyIn::Down if b.open.is_some_and(bstep::is_copy) => b.pin += 1,
             KeyIn::Up if b.open.is_some_and(bstep::is_copy) => {
@@ -710,6 +736,82 @@ impl WalletBackupArea {
             _ => return false,
         }
         true
+    }
+
+    /// A key of the codex32 keyboard on the open string: typed in, and a
+    /// string that holds counted as checked (`docs/CODEX32.md` §9.4).
+    /// Whether it was taken.
+    pub(crate) fn c32_key(&mut self, press: OskPress) -> bool {
+        let Some(b) = self.state.as_mut() else {
+            return false;
+        };
+        let Some(st) = b.c32.as_mut() else {
+            return false;
+        };
+        let Some(form) = b.answers.c32(st.seed) else {
+            return false;
+        };
+        let seed = st.seed;
+        let Some(j) = st.at else {
+            // A string typed in for a set action (`docs/CODEX32.md` §9.7).
+            if let Some(whole) = st.type_in(form, press) {
+                st.held.push(zeroize::Zeroizing::new(whole));
+            }
+            return true;
+        };
+        if let Some(whole) = st.key(form, press) {
+            st.held.push(zeroize::Zeroizing::new(whole));
+            if !b.c32_checked.contains(&(seed, j)) {
+                b.c32_checked.push((seed, j));
+            }
+        }
+        true
+    }
+
+    /// The codex32 item's state, to change.
+    pub(crate) fn c32_mut(&mut self) -> Option<&mut crate::codex32_backup::Strings> {
+        self.state.as_mut()?.c32.as_mut()
+    }
+
+    /// Codex32 string `j` of seed `i` checked, or skipped past.
+    pub(crate) fn c32_checked(&mut self, i: usize, j: usize) {
+        if let Some(b) = self.state.as_mut()
+            && !b.c32_checked.contains(&(i, j))
+        {
+            b.c32_checked.push((i, j));
+        }
+    }
+
+    /// Codex32 string `j` of seed `i` to be checked again: made anew.
+    pub(crate) fn c32_unchecked(&mut self, i: usize, j: usize) {
+        if let Some(b) = self.state.as_mut() {
+            b.c32_checked.retain(|&x| x != (i, j));
+        }
+    }
+
+    /// Seed `i`'s set replaced: none of its strings checked, nothing kept
+    /// of the old ones (`docs/CODEX32.md` §9.7, Rotate the set).
+    pub(crate) fn c32_reset(&mut self, i: usize, checked: Vec<(usize, usize)>) {
+        if let Some(b) = self.state.as_mut() {
+            b.c32_checked = checked;
+            if let Some(st) = b.c32.as_mut().filter(|st| st.seed == i) {
+                *st = crate::codex32_backup::Strings::new(i);
+            }
+        }
+    }
+
+    /// The copies by hand's codex32 choice changed by `p` (§9.1).
+    pub(crate) fn paper_c32(&mut self, p: crate::codex32_backup::Press) {
+        if let Some(b) = self.state.as_mut() {
+            b.paper_c32 = crate::codex32_backup::paper_choice(b.paper_c32, p);
+        }
+    }
+
+    /// The open item as last seen, and whether it was done then.
+    pub(crate) fn set_seen(&mut self, seen: Option<(u8, bool)>) {
+        if let Some(b) = self.state.as_mut() {
+            b.seen = seen;
+        }
     }
 
     /// Place `p` removed from the plan: its name goes, and the places
@@ -833,6 +935,16 @@ impl WalletBackupArea {
             }
             b.open = n;
             b.public_more = more;
+            // The codex32 item opens on its seed's strings, its list.
+            if let Some(i) = n.and_then(bstep::item).and_then(|it| match it {
+                plan::Item::Codex32(i) => Some(i),
+                _ => None,
+            }) {
+                match b.c32.as_mut() {
+                    Some(st) if st.seed == i => st.list(),
+                    _ => b.c32 = Some(crate::codex32_backup::Strings::new(i)),
+                }
+            }
             b.scroll.follow = true;
             b.check = None;
             if let Some(k) = key
@@ -1031,6 +1143,7 @@ impl WalletBackupArea {
     pub(crate) fn set_paper(&mut self, form: paper::PaperForm) {
         if let Some(b) = self.state.as_mut() {
             b.paper = Some(form);
+            b.paper_c32 = None;
         }
     }
 
@@ -1132,9 +1245,14 @@ impl Faraday {
                     // standard way, read-only until Customize backup
                     // (`docs/BACKUP-FLOW.md` §17.6).
                     let (answers, names, q) = match self.plan_load(c, i, &shape) {
-                        Some((a, names)) => (a, names, None),
+                        Some((mut a, names)) => {
+                            plan::codex32::sync(&mut a, &shape, &self.c32_sets(i));
+                            (a, names, None)
+                        }
+                        // A key with a codex32 set places that set: one
+                        // string per place (`docs/CODEX32.md` §9.5).
                         None => (
-                            plan::Answers::preset(&shape, plan::Preset::Standard),
+                            plan::codex32::standard(c, &shape, &self.c32_sets(i)),
                             Vec::new(),
                             Some(qstep::BOARD),
                         ),
@@ -1297,6 +1415,7 @@ impl Faraday {
             }
             Action::BXor(n) => self.paper_xor(n),
             Action::BCodex32(k, n) => self.paper_codex32(k, n),
+            Action::BC32(p) => self.backup_c32(p, c),
             Action::BCheck => self.copy_check_open(),
             Action::BScan => {
                 let fp = self
@@ -1847,7 +1966,7 @@ impl Faraday {
         let key = n
             .and_then(bstep::item)
             .and_then(|it| match it {
-                plan::Item::Copy(i) | plan::Item::Passphrase(i) => Some(i),
+                plan::Item::Copy(i) | plan::Item::Passphrase(i) | plan::Item::Codex32(i) => Some(i),
                 // A vault's item shows its first seed.
                 plan::Item::Vault(v) => {
                     let b = self.backup.state()?;
@@ -1928,6 +2047,14 @@ impl Faraday {
         match item {
             // Printed from Faraday Starter: no file is made here.
             plan::Item::Templates => b.printed,
+            // Every string placed on paper made or checked, typed back
+            // or skipped (`docs/CODEX32.md` §9.2).
+            plan::Item::Codex32(i) => {
+                let shape = self.plan_shape_now(b.wallet);
+                let mapped = self.kept.plan_mapped(c, &shape, &b.answers);
+                let paper = plan::codex32::paper_strings(&b.answers, &mapped, i);
+                !paper.is_empty() && paper.iter().all(|&j| b.c32_checked.contains(&(i, j)))
+            }
             plan::Item::Copy(i) => here
                 .iter()
                 .find(|(j, _)| *j == i)

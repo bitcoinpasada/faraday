@@ -147,6 +147,7 @@ pub(crate) fn backup(
             }
         }
         n if bstep::is_passphrase(n) => EN.guide_passphrase_on_paper.to_string(),
+        n if bstep::is_codex32(n) => EN.c32_guide_strings_item.to_string(),
         bstep::PUBLIC => fill(EN.guide_backup_xpub_half, &[medium.for_the()]),
         bstep::SHEETS if split => fill(EN.guide_instead_of_one, &[medium.for_the()]),
         bstep::SHEETS => fill(EN.guide_backup_sheet, &[medium.for_the()]),
@@ -165,6 +166,7 @@ pub(crate) fn backup_topic(n: u8, split: bool) -> Option<Topic> {
     match n {
         bstep::BLANK | bstep::FILES | bstep::ENVELOPE => Some(Topic::Backups),
         n if bstep::is_copy(n) => Some(Topic::Backups),
+        n if bstep::is_codex32(n) => Some(Topic::OtherBackups),
         n if bstep::is_passphrase(n) => Some(Topic::Passphrases),
         bstep::PUBLIC | bstep::SHOW => Some(Topic::Xpubs),
         bstep::SHEETS if split => Some(Topic::Shares),

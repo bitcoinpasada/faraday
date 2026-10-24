@@ -879,6 +879,17 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         open(Target::CopyTo(what)),
                     ));
                 }
+                // A codex32 string: its checklist item checks it, and
+                // holds the set's actions (`docs/CODEX32.md` §9.7).
+                What::Codex32Share(s, _)
+                | What::Codex32QrPaper(s, _)
+                | What::Codex32ShareFile(s, _)
+                | What::Codex32QrFile(s, _) => {
+                    if let Some(a) = item(Item::Codex32(s)) {
+                        rows.push(row(EN.c32_glance_check, EN.c32_glance_strings, Some(a)));
+                        rows.push(row(EN.c32_glance_set, "", Some(a)));
+                    }
+                }
                 What::Sheet => {
                     rows.push(row(EN.glance_sheet_reprint, "PDF", doing(Step::Out(3))));
                     rows.push(row(EN.glance_sheet_as_a_qr, "PNG", doing(Step::Out(8))));

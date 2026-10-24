@@ -362,3 +362,218 @@ fn a_characters_worksheet_column_is_counted_as_codex32_work() {
         "the last character's columns, the checksum and the set"
     );
 }
+
+/// A key with a codex32 set (`docs/CODEX32.md` §9.4 to §9.7), against
+/// BIP 93's vector 2 (`tools/vectors/bip93/vectors.json`): the key Make
+/// codex32 shares loads knows its set's plain facts; its vault record
+/// keeps them and no string, and they come back when it loads; strings
+/// typed back are told to rebuild the key or not; a lost share is made
+/// again exactly; a new set of the same seed rebuilds the same key.
+mod set {
+    use std::collections::BTreeSet;
+
+    use faraday_bip::codex32::{Codex32, Length, Scheme};
+    use faraday_bip::keys::Network;
+    use faraday_crypto::work::Compute;
+    use faraday_keys::vault::{self, OpenVaults, RecordView};
+    use faraday_keys::{Keys, Reveal, WorkSet, identity};
+    use faraday_vault::codex32::{State, set_of};
+    use faraday_vault::records::{field, kind};
+    use faraday_vault::{Contents, Cost, Record};
+
+    /// Vector 2: shares A and C, D derived, its secret, and its seed.
+    const A: &str = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
+    const C: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
+    const D: &str = "ms12namedll4f8jlh4e5vdvuldlfxu2jhdnlsm97xvenrxeg";
+    const S: &str = "ms12names6xqguzttxkeqnjsjzv4jv3nz5k3kwgsphuh6evw";
+    const SEED: &str = "d1808e096b35b209ca12132b264662a5";
+    /// Vector 3's first share: another set, another seed.
+    const OTHER: &str = "ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t";
+
+    use super::compute;
+
+    const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+
+    fn parse(s: &str) -> Codex32 {
+        Codex32::parse(s).expect("a vector string")
+    }
+
+    /// Vector 2's set made as a person makes it: A and C typed in, a
+    /// character at a time, n = 3; loaded as the key.
+    fn made_here(c: &Compute) -> Keys {
+        let scheme = Scheme::new(2, 3, *b"name", Length::Chars48).unwrap();
+        let mut work = WorkSet::new(c, scheme).unwrap();
+        for (share, s) in [A, C].iter().enumerate() {
+            for ch in &s.as_bytes()[9..9 + 26] {
+                let v = CHARSET.iter().position(|x| x == ch).unwrap() as u8;
+                work.push(c, share, v).unwrap();
+            }
+        }
+        let mut keys = Keys::on(Network::Mainnet);
+        keys.add_codex32(c, &work, "Shares").expect("the key");
+        keys
+    }
+
+    #[test]
+    fn a_key_made_from_codex32_shares_knows_its_set() {
+        let c = compute();
+        let keys = made_here(&c);
+        let set = keys[0].codex32.clone().expect("the set");
+        assert_eq!(set.threshold, 2);
+        assert_eq!(&set.identifier, b"name");
+        assert_eq!(set.length, 48);
+        assert_eq!(set.indices(), b"acd");
+        assert!(set.strings.iter().all(|&(_, s)| s == State::Made));
+        let seed: Vec<u8> = (0..16)
+            .map(|i| u8::from_str_radix(&SEED[2 * i..2 * i + 2], 16).unwrap())
+            .collect();
+        assert_eq!(
+            keys[0].fingerprint,
+            identity::fingerprint_of_seed(&c, &seed).unwrap()
+        );
+        assert_eq!(keys[0].fingerprint.0, [0xfa, 0xb6, 0x86, 0x8a]);
+    }
+
+    #[test]
+    fn its_vault_record_keeps_the_seed_and_the_sets_facts_and_they_load_back() {
+        let c = compute();
+        let keys = made_here(&c);
+        let record = keys
+            .key_record(
+                &c,
+                0,
+                None,
+                false,
+                Reveal::VaultEntry(faraday_keys::Part::Words),
+            )
+            .expect("a seed key has a record");
+        let cost = Cost {
+            memory_kib: faraday_vault::CREATE_MIN_MEMORY_KIB,
+            passes: faraday_vault::CREATE_MIN_PASSES,
+            lanes: 1,
+        };
+        let file = vault::create(
+            &c,
+            faraday_vault::SLOT_SIZES[0],
+            cost,
+            &[b"pass"],
+            &[Contents::default()],
+            &[7u8; 32],
+        )
+        .unwrap();
+        let mut store = OpenVaults::default();
+        let (id, _) = store.unlock(&c, file, b"pass").expect("opens");
+        let at = store.insert(id, record).unwrap();
+        let r: RecordView<'_> = store.records(id).get(at).unwrap();
+        // The set is public, and holds no string.
+        let facts = set_of(r.public(field::KEY_CODEX32).expect("public")).unwrap();
+        assert_eq!(facts, keys[0].codex32.clone().unwrap());
+        assert!(r.public(field::KEY).is_none(), "the seed is secret");
+        let mut again = Keys::on(Network::Mainnet);
+        let loaded = store.load_from_vault(&c, &mut again, id, &BTreeSet::from([at]));
+        assert_eq!(loaded, vec![keys[0].fingerprint]);
+        assert_eq!(again[0].codex32, keys[0].codex32);
+        assert!(again.holds_seed_bytes(0));
+    }
+
+    #[test]
+    fn a_codex32_share_records_string_is_secret() {
+        assert!(vault::is_secret(kind::CODEX32_SHARE, field::CODEX32_STRING));
+        assert!(!vault::is_secret(kind::CODEX32_SHARE, field::CODEX32_KEY));
+        assert!(!vault::is_secret(kind::KEY, field::KEY_CODEX32));
+        let r = Record::new(kind::CODEX32_SHARE)
+            .with(field::CODEX32_STRING, C.as_bytes())
+            .with(field::CODEX32_KEY, &[0xfa, 0xb6, 0x86, 0x8a]);
+        let view = RecordView::of(&r);
+        assert!(view.public(field::CODEX32_STRING).is_none());
+        assert_eq!(view.len(field::CODEX32_STRING), Some(48));
+    }
+
+    #[test]
+    fn strings_typed_back_rebuild_their_key_and_no_other() {
+        let c = compute();
+        let keys = made_here(&c);
+        assert_eq!(
+            keys.codex32_rebuilds(&c, 0, &[parse(A), parse(C)]),
+            Some(true)
+        );
+        assert_eq!(
+            keys.codex32_rebuilds(&c, 0, &[parse(D), parse(A)]),
+            Some(true)
+        );
+        assert_eq!(keys.codex32_rebuilds(&c, 0, &[parse(S)]), Some(true));
+        // One share of two is not enough to say.
+        assert_eq!(keys.codex32_rebuilds(&c, 0, &[parse(A)]), None);
+        // Vector 3's strings make another seed.
+        let other = [
+            parse(OTHER),
+            parse("ms13cashcacdefghjklmnpqrstuvwxyz023949xq35my48dr"),
+            parse("ms13cashd0wsedstcdcts64cd7wvy4m90lm28w4ffupqs7rm"),
+        ];
+        assert_eq!(keys.codex32_rebuilds(&c, 0, &other), Some(false));
+    }
+
+    #[test]
+    fn a_lost_share_is_made_again_exactly() {
+        let c = compute();
+        let keys = made_here(&c);
+        let d = keys
+            .codex32_derive(&c, 0, &[parse(A), parse(C)], b'd', Reveal::PaperForm)
+            .expect("from two strings");
+        assert_eq!(d.as_str(), D);
+        // One string and the key's seed are not enough: the secret's padding
+        // bits are not in the seed, so the share made would be of another set.
+        assert!(
+            keys.codex32_derive(&c, 0, &[parse(A)], b'd', Reveal::PaperForm)
+                .is_err()
+        );
+        // The secret, typed, counts as one.
+        let d = keys
+            .codex32_derive(&c, 0, &[parse(S), parse(A)], b'd', Reveal::PaperForm)
+            .expect("from the secret and one string");
+        assert_eq!(d.as_str(), D);
+        let c_again = keys
+            .codex32_derive(&c, 0, &[parse(A), parse(D)], b'c', Reveal::PaperForm)
+            .expect("C replaced");
+        assert_eq!(c_again.as_str(), C);
+        // Not a paper form, or strings of another key: nothing.
+        assert!(
+            keys.codex32_derive(&c, 0, &[parse(A), parse(C)], b'e', Reveal::Words)
+                .is_err()
+        );
+        let other = [
+            parse(OTHER),
+            parse("ms13cashcacdefghjklmnpqrstuvwxyz023949xq35my48dr"),
+            parse("ms13cashd0wsedstcdcts64cd7wvy4m90lm28w4ffupqs7rm"),
+        ];
+        assert!(
+            keys.codex32_derive(&c, 0, &other, b'e', Reveal::PaperForm)
+                .is_err()
+        );
+    }
+
+    #[test]
+    fn a_new_set_of_the_same_seed_rebuilds_the_same_key() {
+        let c = compute();
+        let keys = made_here(&c);
+        let made = keys
+            .codex32_new_set(&c, 0, (3, 5), *b"w0za", &[9; 32], Reveal::PaperForm)
+            .expect("a new set");
+        assert_eq!(made.len(), 5);
+        let strings: Vec<Codex32> = made.iter().map(|s| parse(s)).collect();
+        assert!(
+            strings
+                .iter()
+                .all(|s| &s.identifier() == b"w0za" && s.threshold() == 3)
+        );
+        for pick in [[0, 1, 2], [2, 3, 4], [0, 2, 4]] {
+            let three: Vec<Codex32> = pick.iter().map(|&i| parse(&made[i])).collect();
+            assert_eq!(keys.codex32_rebuilds(&c, 0, &three), Some(true), "{pick:?}");
+        }
+        // Fresh randomness makes another set.
+        let again = keys
+            .codex32_new_set(&c, 0, (3, 5), *b"w0za", &[10; 32], Reveal::PaperForm)
+            .unwrap();
+        assert_ne!(again[1].as_str(), made[1].as_str());
+    }
+}

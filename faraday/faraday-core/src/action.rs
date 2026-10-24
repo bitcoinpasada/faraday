@@ -791,4 +791,7 @@ pub enum Action {
     /// A press on the codex32 form's own rows: a string at an index
     /// already in, Check a string (`docs/CODEX32.md` §8.3, §8.5).
     Codex32Form(crate::forms::C32Press),
+    /// A press on the backup checklist's codex32 item
+    /// (`docs/CODEX32.md` §9.2, §9.4, §9.7).
+    BC32(crate::codex32_backup::Press),
 }

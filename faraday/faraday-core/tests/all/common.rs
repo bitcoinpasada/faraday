@@ -1268,3 +1268,28 @@ pub fn contents(app: &Faraday, o: usize) -> &faraday_vault::Contents {
 pub fn unlock_error(app: &Faraday) -> &Option<String> {
     &app.vaults().unlock_error
 }
+
+/// Whether `action` has nothing left to do since a checklist item that
+/// became done moved on by itself (`docs/BACKUP-FLOW.md` §17.23): the
+/// done item's Continue, or opening the item already open.
+pub fn moved_on(app: &Faraday, action: Action) -> bool {
+    // An item the checklist moved on to is open already: opening it is
+    // done.
+    if let Action::BStep(n) = action {
+        return app.backup().is_some_and(|b| b.open == Some(n));
+    }
+    let Action::BNext(n) = action else {
+        return false;
+    };
+    let c = testkit::compute();
+    app.backup().is_some_and(|b| b.open != Some(n))
+        && faraday_core::bstep::item(n).is_some_and(|it| app.backup_item_done_now(&c, it))
+}
+
+/// Checklist item `n` opened, unless the checklist, moving on by itself
+/// (`docs/BACKUP-FLOW.md` §17.23), has it open already.
+pub fn open_item(app: &mut Faraday, n: u8) {
+    if app.backup().and_then(|b| b.open) != Some(n) {
+        app.press(Action::BStep(n));
+    }
+}

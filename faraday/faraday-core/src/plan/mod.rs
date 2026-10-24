@@ -11,6 +11,10 @@
 //! the vault alone and are put on screen by the caller.
 
 pub(crate) mod cards;
+pub mod codex32;
+mod text;
+
+pub use text::{at_code, at_read, held_in, tag_of, what_code, what_read};
 
 use faraday_crypto::work::Compute;
 
@@ -198,6 +202,9 @@ pub struct Answers {
     /// seed): each a secret at its place for "One place found", never a
     /// copy that rebuilds, until I destroyed this copy takes it off.
     pub part: Vec<(usize, usize)>,
+    /// Each seed kept as codex32 strings: its form (`docs/CODEX32.md`
+    /// §9.2, §9.4).
+    pub codex32: Vec<codex32::C32>,
 }
 
 impl Default for Answers {
@@ -218,6 +225,7 @@ impl Default for Answers {
             bare: Vec::new(),
             custom: false,
             part: Vec::new(),
+            codex32: Vec::new(),
         }
     }
 }
@@ -250,6 +258,7 @@ impl Answers {
             bare: Vec::new(),
             custom: false,
             part: Vec::new(),
+            codex32: Vec::new(),
         };
         a.pass = shape
             .seeds
@@ -1023,60 +1032,6 @@ impl Answers {
         }
     }
 
-    /// The answers as the vault keeps them: a line each, `name value`.
-    pub fn to_text(&self) -> String {
-        let bits = |v: &[bool]| {
-            v.iter()
-                .map(|&b| if b { '1' } else { '0' })
-                .collect::<String>()
-        };
-        let mut out = format!(
-            "seeds {}\nplaces {}\nsplit {}\nwallet {}\nsoftware {}\nform {}\nomit {}\n",
-            bits(&self.seeds),
-            self.places,
-            u8::from(self.split),
-            bits(&self.wallet),
-            bits(&self.software),
-            bits(&self.form),
-            self.omit
-        );
-        for (v, row) in self.vaults.iter().enumerate() {
-            out.push_str(&format!("vault {v} {}\n", bits(row)));
-        }
-        for (v, row) in self.sticks.iter().enumerate() {
-            out.push_str(&format!("sticks {v} {}\n", bits(row)));
-        }
-        for (i, row) in self.pass.iter().enumerate() {
-            if !row.is_empty() {
-                out.push_str(&format!("pass {i} {}\n", bits(row)));
-            }
-        }
-        if !self.bare.is_empty() {
-            let list: Vec<String> = self.bare.iter().map(|p| p.to_string()).collect();
-            out.push_str(&format!("bare {}\n", list.join(",")));
-        }
-        // The map edited on the chart, a `spot` line per spot: where, and
-        // what it holds. Never a name, a date or a mark.
-        for spot in self.map.iter().flatten() {
-            out.push_str("spot ");
-            out.push_str(&at_code(spot.at));
-            for (w, _) in &spot.holds {
-                out.push(' ');
-                out.push_str(&what_code(*w));
-            }
-            out.push('\n');
-        }
-        // Whether the board was opened for changes (§19.6).
-        if self.custom {
-            out.push_str("custom 1\n");
-        }
-        // A SeedQR drawn in part, at its place (§14.7 item 3).
-        for (p, i) in &self.part {
-            out.push_str(&format!("part {p} {i}\n"));
-        }
-        out
-    }
-
     /// Makes `m` the plan: the map edited on the chart (§9.7). The
     /// places are the map's; the lists by place follow their count. A
     /// vault's stick or a file `m` gives a place itself goes on a stick
@@ -1101,356 +1056,6 @@ impl Answers {
             row.push(vault);
         }
         self.map = Some(m);
-    }
-}
-
-/// A spot as a plan's `spot` line writes it: `place0`, `stick0.1` (stick
-/// 1 at place 0), `vault1`, `files`, `software`, `away`.
-pub fn at_code(at: At) -> String {
-    match at {
-        At::Place(p) => format!("place{p}"),
-        At::Stick(p, s) => format!("stick{p}.{s}"),
-        At::Vault(v) => format!("vault{v}"),
-        At::Files => "files".to_string(),
-        At::Software => "software".to_string(),
-        At::Away => "away".to_string(),
-    }
-}
-
-/// [`at_code`] read back.
-pub fn at_read(s: &str) -> Option<At> {
-    Some(match s {
-        "files" => At::Files,
-        "software" => At::Software,
-        "away" => At::Away,
-        _ => {
-            if let Some(rest) = s.strip_prefix("stick") {
-                let (p, k) = rest.split_once('.')?;
-                return Some(At::Stick(p.parse().ok()?, k.parse().ok()?));
-            }
-            match s.strip_prefix("place") {
-                Some(p) => At::Place(p.parse().ok()?),
-                None => At::Vault(s.strip_prefix("vault")?.parse().ok()?),
-            }
-        }
-    })
-}
-
-/// A thing as a plan's `spot` line writes it: `w0` seed 0's words, `q0`
-/// its SeedQR, `p0` its passphrase, `sheet`, `share1`, `stick0` vault 0's
-/// stick, `seed0`, `seedp0` with its passphrase, `wallet`, `file0` its
-/// words file, `qrfile0` its SeedQR picture, `passfile0` its passphrase
-/// file, `wallettxt` and `walletqr` the description's text and picture,
-/// `sharetxt1` and `shareqr1` share 1's, `softwarefile` the software's.
-pub fn what_code(w: What) -> String {
-    let form = |f: usize| if f == form::TEXT { "txt" } else { "qr" };
-    match w {
-        What::Words(i) => format!("w{i}"),
-        What::SeedQr(i) => format!("q{i}"),
-        What::Passphrase(i) => format!("p{i}"),
-        What::Sheet => "sheet".to_string(),
-        What::Share(j) => format!("share{j}"),
-        What::VaultStick(v) => format!("stick{v}"),
-        What::Seed(i) => format!("seed{i}"),
-        What::SeedPassphrase(i) => format!("seedp{i}"),
-        What::PassphraseSealed(i) => format!("vpass{i}"),
-        What::Wallet => "wallet".to_string(),
-        What::SeedFile(i) => format!("file{i}"),
-        What::SeedQrFile(i) => format!("qrfile{i}"),
-        What::PassphraseFile(i) => format!("passfile{i}"),
-        What::WalletFile(f) => format!("wallet{}", form(f)),
-        What::ShareFile(j, f) => format!("share{}{j}", form(f)),
-        What::SoftwareFile => "softwarefile".to_string(),
-    }
-}
-
-/// [`what_code`] read back. A plan saved before the forms
-/// (`docs/BACKUP-FLOW.md` §17.3) wrote `walletfile` and `sharefile1`,
-/// which [`Answers::from_text`] reads as every form its `form` answers
-/// had on; read alone (a note on the chart), each is its QR picture, the
-/// form those answers start with.
-pub fn what_read(s: &str) -> Option<What> {
-    let n = |p: &str| -> Option<usize> { s.strip_prefix(p)?.parse().ok() };
-    Some(match s {
-        "sheet" => What::Sheet,
-        "wallet" => What::Wallet,
-        "wallettxt" => What::WalletFile(form::TEXT),
-        "walletqr" | "walletfile" => What::WalletFile(form::QR),
-        "softwarefile" => What::SoftwareFile,
-        _ if s.starts_with("sharefile") => What::ShareFile(n("sharefile")?, form::QR),
-        _ if s.starts_with("sharetxt") => What::ShareFile(n("sharetxt")?, form::TEXT),
-        _ if s.starts_with("shareqr") => What::ShareFile(n("shareqr")?, form::QR),
-        _ if s.starts_with("seedp") => What::SeedPassphrase(n("seedp")?),
-        _ if s.starts_with("vpass") => What::PassphraseSealed(n("vpass")?),
-        _ if s.starts_with("seed") => What::Seed(n("seed")?),
-        _ if s.starts_with("share") => What::Share(n("share")?),
-        _ if s.starts_with("stick") => What::VaultStick(n("stick")?),
-        _ if s.starts_with("qrfile") => What::SeedQrFile(n("qrfile")?),
-        _ if s.starts_with("passfile") => What::PassphraseFile(n("passfile")?),
-        _ if s.starts_with("file") => What::SeedFile(n("file")?),
-        _ if s.starts_with('w') => What::Words(n("w")?),
-        _ if s.starts_with('q') => What::SeedQr(n("q")?),
-        _ if s.starts_with('p') => What::Passphrase(n("p")?),
-        _ => return None,
-    })
-}
-
-/// How a thing kept at a spot may be read: anything in a vault, and a
-/// vault's stick, sealed; the description, a sheet, a share and the
-/// software's file public; the rest secret.
-pub fn tag_of(at: At, what: What) -> Tag {
-    match (at, what) {
-        (At::Vault(_), _) | (_, What::VaultStick(_)) => Tag::Sealed,
-        (
-            _,
-            What::Sheet
-            | What::Share(_)
-            | What::Wallet
-            | What::WalletFile(_)
-            | What::ShareFile(..)
-            | What::SoftwareFile,
-        ) => Tag::Public,
-        _ => Tag::Secret,
-    }
-}
-
-/// The fingerprints a plan's text lists as made here with their backup
-/// pending, one `held` line each.
-pub fn held_in(text: &str) -> Vec<String> {
-    text.lines()
-        .filter_map(|l| l.strip_prefix("held "))
-        .map(|f| f.trim().to_string())
-        .collect()
-}
-
-impl Answers {
-    /// Reads [`Answers::to_text`] back for `shape`: None when it is not
-    /// for a wallet of this shape. A plan saved before vaults were one per
-    /// seed, with one `sticks` line and no `vault` line, reads as one
-    /// vault holding every seed here, its stick at the places ticked.
-    #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-    pub fn from_text(shape: &Shape, text: &str) -> Option<Answers> {
-        fn bits<const N: usize>(s: &str) -> Option<[bool; N]> {
-            let v = flags(s)?;
-            v.try_into().ok()
-        }
-        fn flags(s: &str) -> Option<Vec<bool>> {
-            s.chars()
-                .map(|c| match c {
-                    '1' => Some(true),
-                    '0' => Some(false),
-                    _ => None,
-                })
-                .collect()
-        }
-        let mut a = Answers::defaults(shape);
-        a.bare = Vec::new();
-        let mut seen = 0;
-        let mut one_stick: Option<Vec<bool>> = None;
-        let mut sticks: Vec<(usize, Vec<bool>)> = Vec::new();
-        let mut vaults: Vec<(usize, Vec<bool>)> = Vec::new();
-        // Each `spot` line's place and things, read once every answer is:
-        // a thing written before the forms takes the `form` answers'.
-        let mut lines: Vec<(At, Vec<&str>)> = Vec::new();
-        let numbered = |value: &str| -> Option<(usize, Vec<bool>)> {
-            let (v, row) = value.split_once(' ')?;
-            Some((v.parse().ok()?, flags(row)?))
-        };
-        for line in text.lines() {
-            let (name, value) = line.split_once(' ')?;
-            match name {
-                "seeds" => a.seeds = bits(value)?,
-                "places" => a.places = value.parse().ok()?,
-                "split" => a.split = value == "1",
-                "sticks" if value.contains(' ') => sticks.push(numbered(value)?),
-                "sticks" => one_stick = Some(flags(value)?),
-                "vault" => vaults.push(numbered(value)?),
-                "wallet" => a.wallet = bits(value)?,
-                "software" => a.software = bits(value)?,
-                "form" => a.form = bits(value)?,
-                "omit" => a.omit = value.parse().ok()?,
-                "bare" => {
-                    a.bare = value
-                        .split(',')
-                        .map(|p| p.parse().ok())
-                        .collect::<Option<Vec<usize>>>()?;
-                }
-                "pass" => {
-                    let (i, row) = value.split_once(' ')?;
-                    let i: usize = i.parse().ok()?;
-                    *a.pass.get_mut(i)? = flags(row)?;
-                }
-                // A key made here whose backup is pending: read by the
-                // caller (`docs/history/NEW-WALLET.md` §14.3), not an answer.
-                "held" => continue,
-                // The access layers' count and routes, written only by test
-                // builds before the layers were withdrawn (F38, F46): read
-                // past, never refused.
-                "layers" | "route" => continue,
-                // The preset a plan saved before F53 started from: read,
-                // never refused, and no longer written. A plan from Paper
-                // only, Paper and vault, or Paper, vault and watch-only
-                // software reopens as it was, customisable
-                // (`docs/BACKUP-FLOW.md` §17.21 item 7).
-                "preset" => {
-                    if value != "0" {
-                        a.custom = true;
-                    }
-                    continue;
-                }
-                "custom" => {
-                    a.custom = value == "1";
-                    continue;
-                }
-                // A SeedQR drawn in part (§14.7 item 3).
-                "part" => {
-                    let (p, i) = value.split_once(' ')?;
-                    let pi = (p.parse().ok()?, i.parse().ok()?);
-                    if !a.part.contains(&pi) {
-                        a.part.push(pi);
-                    }
-                    continue;
-                }
-                // The map edited on the chart (§9.7).
-                "spot" => {
-                    let mut parts = value.split(' ');
-                    let at = at_read(parts.next()?)?;
-                    lines.push((at, parts.filter(|p| !p.is_empty()).collect()));
-                    continue;
-                }
-                _ => return None,
-            }
-            seen += 1;
-        }
-        // A plan kept for more vaults than this shape has rows for (the
-        // vaults set up before the keys) reads with all of them.
-        let seen_rows = |l: &[(usize, Vec<bool>)]| l.iter().map(|(v, _)| v + 1).max().unwrap_or(0);
-        if seen_rows(&vaults).max(seen_rows(&sticks)) > 1024 {
-            return None;
-        }
-        if seen_rows(&vaults) > a.vaults.len() {
-            a.vaults
-                .resize_with(seen_rows(&vaults), || vec![false; shape.seeds.len()]);
-        }
-        let rows = shape.vault_rows().max(seen_rows(&sticks));
-        a.sticks = vec![vec![false; a.places]; rows];
-        match one_stick {
-            // Saved with one vault: it holds every seed here.
-            Some(row) if vaults.is_empty() && sticks.is_empty() => {
-                for (v, r) in a.vaults.iter_mut().enumerate() {
-                    r.iter_mut()
-                        .enumerate()
-                        .for_each(|(i, s)| *s = v == 0 && shape.seeds[i].here);
-                }
-                a.sticks[0] = row;
-            }
-            Some(_) => return None,
-            None => {
-                for (v, row) in sticks {
-                    *a.sticks.get_mut(v)? = row;
-                }
-                for (v, row) in vaults {
-                    *a.vaults.get_mut(v)? = row;
-                }
-            }
-        }
-        let mut edited: Vec<Spot> = Vec::new();
-        for (at, parts) in lines {
-            let mut holds: Vec<(What, Tag)> = Vec::new();
-            for part in parts {
-                // A vault's password on paper, placed only by those same
-                // test builds: read past.
-                if part.starts_with("vpw") {
-                    continue;
-                }
-                // The description's or a share's files saved before the
-                // forms: every form the `form` answers had on
-                // (`docs/BACKUP-FLOW.md` §17.3).
-                let whats: Vec<What> = match part {
-                    "walletfile" => a.file_forms().into_iter().map(What::WalletFile).collect(),
-                    _ if part.starts_with("sharefile") => {
-                        let j: usize = part.strip_prefix("sharefile")?.parse().ok()?;
-                        a.file_forms()
-                            .into_iter()
-                            .map(|f| What::ShareFile(j, f))
-                            .collect()
-                    }
-                    _ => vec![what_read(part)?],
-                };
-                for w in whats {
-                    if !holds.iter().any(|(x, _)| *x == w) {
-                        holds.push((w, tag_of(at, w)));
-                    }
-                }
-            }
-            edited.push(Spot { at, holds });
-        }
-        if !edited.is_empty() {
-            // Its places numbered in order, each stick at one of them with
-            // at most one vault on it and nothing but stick forms, and
-            // nothing in it a seed, a share or a key the wallet does not
-            // have.
-            let places: Vec<usize> = edited
-                .iter()
-                .filter_map(|s| match s.at {
-                    At::Place(p) => Some(p),
-                    _ => None,
-                })
-                .collect();
-            let fits_shape = |w: What| match w {
-                What::Words(i)
-                | What::SeedQr(i)
-                | What::Passphrase(i)
-                | What::Seed(i)
-                | What::SeedPassphrase(i)
-                | What::PassphraseSealed(i)
-                | What::SeedFile(i)
-                | What::SeedQrFile(i)
-                | What::PassphraseFile(i) => i < shape.seeds.len(),
-                What::Share(j) => j < shape.keys.max(1),
-                What::ShareFile(j, f) => j < shape.keys.max(1) && f <= form::TEXT,
-                What::WalletFile(f) => f <= form::TEXT,
-                What::VaultStick(v) => v < 1024,
-                _ => true,
-            };
-            let sticks_ok = edited.iter().all(|s| match s.at {
-                At::Stick(p, k) => {
-                    p < places.len()
-                        && k < 1024
-                        && s.holds.iter().all(|(w, _)| on_stick(*w))
-                        && s.holds
-                            .iter()
-                            .filter(|(w, _)| matches!(w, What::VaultStick(_)))
-                            .count()
-                            <= 1
-                }
-                _ => true,
-            });
-            let ok = places.iter().enumerate().all(|(n, &p)| n == p)
-                && sticks_ok
-                && edited
-                    .iter()
-                    .all(|s| !matches!(s.at, At::Vault(v) if v >= 1024))
-                && edited
-                    .iter()
-                    .all(|s| s.holds.iter().all(|(w, _)| fits_shape(*w)));
-            if !ok {
-                return None;
-            }
-            a.set_map(edited);
-        }
-        let fits = seen >= 8
-            && a.places >= 1
-            && a.sticks.iter().all(|r| r.len() == a.places)
-            && a.vaults.iter().all(|r| {
-                r.len() == shape.seeds.len()
-                    && r.iter().zip(&shape.seeds).all(|(&t, s)| !t || s.here)
-            })
-            && a.pass
-                .iter()
-                .zip(&shape.seeds)
-                .all(|(r, s)| r.is_empty() || (s.here && s.passphrase && r.len() == a.places + 1));
-        fits.then_some(a)
     }
 }
 
@@ -1556,6 +1161,16 @@ pub enum What {
     ShareFile(usize, usize),
     /// The chosen watch-only software's own file, on a stick.
     SoftwareFile,
+    /// String `j` (its share index's bech32 value) of seed `i`'s codex32
+    /// set, written on paper, or in a vault its share record
+    /// (`docs/CODEX32.md` §9.5).
+    Codex32Share(usize, usize),
+    /// That string's Codex32QR, drawn by hand on paper.
+    Codex32QrPaper(usize, usize),
+    /// That string as a `.txt` file, on a stick at a place.
+    Codex32ShareFile(usize, usize),
+    /// That string's Codex32QR as a `.png` picture, on a stick at a place.
+    Codex32QrFile(usize, usize),
 }
 
 /// How what is kept may be read.
@@ -1631,6 +1246,21 @@ impl What {
                 &[&(j + 1).to_string(), &shape.keys.to_string(), form_name(f)],
             ),
             What::SoftwareFile => EN.plan_software_file.to_string(),
+            What::Codex32Share(i, j)
+            | What::Codex32QrPaper(i, j)
+            | What::Codex32ShareFile(i, j)
+            | What::Codex32QrFile(i, j) => fill(
+                match self {
+                    What::Codex32QrPaper(..) => EN.c32_plan_qr,
+                    What::Codex32ShareFile(..) => EN.c32_plan_file,
+                    What::Codex32QrFile(..) => EN.c32_plan_qr_file,
+                    _ => EN.c32_plan_string,
+                },
+                &[
+                    &seed(i),
+                    &codex32::index_char(j).to_ascii_uppercase().to_string(),
+                ],
+            ),
         }
     }
 }
@@ -1666,6 +1296,8 @@ pub struct Mapped {
     pub map: Vec<Spot>,
     /// The map as places keep it ([`place_map`]).
     pub places: Vec<Spot>,
+    /// The plan's codex32 thresholds ([`Answers::c32_needs`]).
+    pub needs: codex32::Needs,
     check: std::cell::OnceCell<Check>,
 }
 
@@ -1677,6 +1309,7 @@ impl Mapped {
         Mapped {
             map,
             places,
+            needs: a.c32_needs(),
             check: std::cell::OnceCell::new(),
         }
     }
@@ -2036,15 +1669,21 @@ struct Have {
     pass: Vec<bool>,
     wallet: bool,
     shares: Vec<bool>,
+    /// The codex32 seeds and how many strings rebuild each, and the
+    /// strings seen: a seed is had once enough are (§9.5).
+    needs: codex32::Needs,
+    strings: Vec<(usize, usize)>,
 }
 
 impl Have {
-    fn none(shape: &Shape) -> Have {
+    fn none(shape: &Shape, needs: &[(usize, usize)]) -> Have {
         Have {
             seeds: vec![false; shape.seeds.len()],
             pass: vec![false; shape.seeds.len()],
             wallet: false,
             shares: vec![false; shape.keys],
+            needs: needs.to_vec(),
+            strings: Vec::new(),
         }
     }
 
@@ -2073,6 +1712,17 @@ impl Have {
                 }
             }
             What::VaultStick(_) => {}
+            What::Codex32Share(i, j)
+            | What::Codex32QrPaper(i, j)
+            | What::Codex32ShareFile(i, j)
+            | What::Codex32QrFile(i, j) => {
+                self.strings.push((i, j));
+                for i in codex32::rebuilt(&self.needs, &self.strings) {
+                    if let Some(s) = self.seeds.get_mut(i) {
+                        *s = true;
+                    }
+                }
+            }
         }
     }
 
@@ -2356,7 +2006,7 @@ pub fn reach_on(shape: &Shape, mapped: &Mapped, p: usize) -> Option<Reach> {
     let signs = |(s, ps): (u64, u64)| (s & (ps | !need)).count_ones() as usize;
     let read = |q: usize, vaults: bool| -> (u64, u64) {
         let at = At::Place(q);
-        let mut have = Have::none(shape);
+        let mut have = Have::none(shape, &mapped.needs);
         holds_in(boxes, at).into_iter().for_each(|w| have.add(w));
         if vaults {
             have = opened_in(boxes, &have, &reads_in(boxes, at));
@@ -2473,7 +2123,7 @@ fn opened_in(boxes: &[Spot], have: &Have, vaults: &[usize]) -> Have {
 }
 
 fn alone_in(shape: &Shape, a: &Answers, boxes: &[Spot], at: At) -> Alone {
-    let mut have = Have::none(shape);
+    let mut have = Have::none(shape, &a.c32_needs());
     if !matches!(at, At::Vault(_)) {
         holds_in(boxes, at).into_iter().for_each(|w| have.add(w));
     }
@@ -2526,7 +2176,8 @@ fn check_of(shape: &Shape, a: &Answers, boxes: &[Spot]) -> Check {
         balance,
         // A single key has one place at most: its every secret there is
         // no warning (§19.19).
-        one_place: one_place_in(shape, &found_in).filter(|_| max_places(shape) > 1),
+        one_place: one_place_in(shape, &found_in, &a.c32_needs())
+            .filter(|_| codex32::max_places_of(shape, a) > 1),
         single: places.len() == 1,
         passphrase_apart: shape.seeds.len() == 1
             && shape.seeds[0].here
@@ -2548,11 +2199,11 @@ pub fn all_at_one_place(c: &Compute, shape: &Shape, a: &Answers) -> Option<usize
 
 /// [`all_at_one_place`] on the map `m`.
 pub fn all_at_one_place_on(shape: &Shape, m: &Mapped) -> Option<usize> {
-    one_place_in(shape, &m.places)
+    one_place_in(shape, &m.places, &m.needs)
 }
 
 /// [`all_at_one_place`] on the map `boxes`.
-fn one_place_in(shape: &Shape, boxes: &[Spot]) -> Option<usize> {
+fn one_place_in(shape: &Shape, boxes: &[Spot], needs: &[(usize, usize)]) -> Option<usize> {
     if shape.watch_only() {
         return None;
     }
@@ -2572,11 +2223,22 @@ fn one_place_in(shape: &Shape, boxes: &[Spot]) -> Option<usize> {
             _ => false,
         })
     };
+    // Enough codex32 strings of a seed at `p`, on paper or in a vault
+    // whose stick is there, are the seed.
+    let strings_at = |i: usize, p: usize| {
+        codex32::strings_at(boxes, i, &|at| {
+            at == At::Place(p) || matches!(at, At::Vault(v) if sticks_of(boxes, v).contains(&p))
+        })
+    };
     let seed_at = |i: usize, p: usize| {
         boxes
             .iter()
             .any(|s| s.at == At::Place(p) && holds(s, &|w| seed_form(w) == Some(i)))
             || in_vault_at(p, &|w| w == What::Seed(i) || w == What::SeedPassphrase(i))
+            || needs.iter().any(|&(x, k)| {
+                let js = strings_at(i, p);
+                x == i && (js.len() >= k || js.contains(&codex32::SECRET))
+            })
     };
     let pass_at = |i: usize, p: usize| {
         boxes.iter().any(|s| {
@@ -2606,7 +2268,7 @@ fn one_place_in(shape: &Shape, boxes: &[Spot]) -> Option<usize> {
 /// What is left with spot `gone` lost (none: with nothing lost), of
 /// `places` on the map `boxes`.
 fn lost_one(shape: &Shape, a: &Answers, boxes: &[Spot], places: &[At], gone: Option<At>) -> Lost {
-    let mut have = Have::none(shape);
+    let mut have = Have::none(shape, &a.c32_needs());
     let mut readable: Vec<usize> = Vec::new();
     for &at in places.iter().filter(|&&at| Some(at) != gone) {
         if !matches!(at, At::Vault(_)) {
@@ -2641,8 +2303,20 @@ fn seed_form(w: What) -> Option<usize> {
 /// Where seed `i` is kept on the map `boxes` (by place): each place with
 /// its words, SeedQR or a file of it on a stick there, the stick of files,
 /// each vault that holds it.
-fn seed_spots(boxes: &[Spot], i: usize) -> Vec<At> {
+fn seed_spots(boxes: &[Spot], i: usize, needs: &[(usize, usize)]) -> Vec<At> {
     let has = |s: &Spot, f: &dyn Fn(What) -> bool| s.holds.iter().any(|(w, _)| f(*w));
+    // A codex32 seed is kept where its strings are, once enough are kept
+    // anywhere to rebuild it (§9.5).
+    if let Some(&(_, k)) = needs.iter().find(|&&(x, _)| x == i) {
+        let all = codex32::strings_at(boxes, i, &|_| true);
+        if all.len() >= k || all.contains(&codex32::SECRET) {
+            return boxes
+                .iter()
+                .filter(|s| has(s, &|w| codex32::string_of(w).is_some_and(|(x, _)| x == i)))
+                .map(|s| s.at)
+                .collect();
+        }
+    }
     let mut out: Vec<At> = boxes
         .iter()
         .filter(|s| matches!(s.at, At::Place(_)) && has(s, &|w| seed_form(w) == Some(i)))
@@ -2745,7 +2419,7 @@ pub fn lost_why_on(
     };
     for i in shape.here() {
         let seed = &shape.seeds[i].name;
-        let kept = seed_spots(boxes, i);
+        let kept = seed_spots(boxes, i, &m.needs);
         if kept.is_empty() {
             return Some(fill(EN.plan_seed_is_kept_nowhere, &[&seed.to_string()]));
         }
@@ -2774,7 +2448,7 @@ pub fn lost_why_on(
     }
     // The seeds are there without it, the description is not (§19.19
     // item 5): the line names the description.
-    let mut have = Have::none(shape);
+    let mut have = Have::none(shape, &a.c32_needs());
     let mut readable: Vec<usize> = Vec::new();
     for &at in places.iter().filter(|&&at| at != gone) {
         if !matches!(at, At::Vault(_)) {
@@ -2826,7 +2500,7 @@ pub fn kept_nowhere_on(shape: &Shape, m: &Mapped, seeds: &[usize]) -> Option<Str
         let Some(seed) = shape.seeds.get(i).filter(|s| s.here) else {
             continue;
         };
-        if seed_spots(boxes, i).is_empty() {
+        if seed_spots(boxes, i, &m.needs).is_empty() {
             return Some(fill(
                 EN.plan_seed_is_kept_nowhere,
                 &[&seed.name.to_string()],
@@ -2871,6 +2545,8 @@ pub fn is_file(w: What) -> bool {
             | What::WalletFile(_)
             | What::ShareFile(..)
             | What::SoftwareFile
+            | What::Codex32ShareFile(..)
+            | What::Codex32QrFile(..)
     )
 }
 
@@ -2881,6 +2557,10 @@ pub enum Item {
     Templates,
     /// Copy seed `i` by hand and check it.
     Copy(usize),
+    /// Seed `i`'s codex32 strings on paper: made and each typed back, or,
+    /// for a set that exists, each copy checked (`docs/CODEX32.md` §9.2,
+    /// §9.4).
+    Codex32(usize),
     /// Write seed `i`'s passphrase on paper and check it
     /// (`docs/history/NEW-WALLET.md` §14.7 item 5).
     Passphrase(usize),
@@ -2928,11 +2608,19 @@ pub fn checklist_on(shape: &Shape, a: &Answers, m: &Mapped) -> Vec<Item> {
         if at_places(&|w| w == What::Words(i) || w == What::SeedQr(i)) {
             paper.push(Item::Copy(i));
         }
+        if at_places(
+            &|w| matches!(w, What::Codex32Share(x, _) | What::Codex32QrPaper(x, _) if x == i),
+        ) {
+            paper.push(Item::Codex32(i));
+        }
         if at_places(&|w| w == What::Passphrase(i)) {
             paper.push(Item::Passphrase(i));
         }
     }
-    if paper.iter().any(|i| matches!(i, Item::Copy(_))) {
+    if paper
+        .iter()
+        .any(|i| matches!(i, Item::Copy(_) | Item::Codex32(_)))
+    {
         out.push(Item::Templates);
     }
     out.extend(paper);
@@ -4021,7 +3709,7 @@ pub fn follows_on(
         .filter(|w| matches!(w, What::Seed(_) | What::SeedPassphrase(_)))
         .collect();
     if !sealed.is_empty() {
-        let mut have = Have::none(shape);
+        let mut have = Have::none(shape, &a.c32_needs());
         holds_in(&with, finder)
             .into_iter()
             .chain(sealed)
@@ -4256,7 +3944,7 @@ pub fn description_kept(c: &Compute, shape: &Shape, a: &Answers) -> bool {
 
 /// [`description_kept`] on the map `m`.
 pub fn description_kept_on(shape: &Shape, a: &Answers, m: &Mapped) -> bool {
-    let mut have = Have::none(shape);
+    let mut have = Have::none(shape, &m.needs);
     for s in &m.places {
         s.holds.iter().for_each(|(w, _)| have.add(*w));
     }

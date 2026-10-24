@@ -2047,7 +2047,7 @@ impl Faraday {
     ) -> Option<(faraday_keys::Held<Record>, String)> {
         let c = self.compute();
         let key = self.session.keys.info(k)?;
-        if !key.has_words() {
+        if !key.has_words() && !self.session.keys.holds_seed_bytes(k) {
             self.toast(EN.vaults_this_key_has);
             return None;
         }

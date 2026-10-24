@@ -265,7 +265,10 @@ fn after_a_lock_and_an_unlock_from_the_vault_the_held_key_is_still_held() {
     let (_, fp) = made_here(&mut app);
     checklist(&mut app, Preset::PaperVault);
     check_the_copy(&mut app, fp);
-    app.press(Action::BStep(bstep::VAULT));
+    // The copy checked, the checklist has moved on to the vault's item.
+    if app.backup().unwrap().open != Some(bstep::VAULT) {
+        app.press(Action::BStep(bstep::VAULT));
+    }
     assert_eq!(app.backup().unwrap().open, Some(bstep::VAULT));
     unlock(&mut app);
     app.press(Action::Nav(Screen::Backup));
@@ -506,10 +509,10 @@ fn a_vault_item_offers_its_one_action_at_a_time_and_holds_the_items_after_it() {
     app.press(Action::BVaultSave(0));
     assert!(app.backup_item_done_now(&c, Item::Vault(0)));
     assert!(app.key_held(&c, fp), "the rest of the checklist waits");
+    // Saved into, the item is done and moves on by itself
+    // (`docs/BACKUP-FLOW.md` §17.23).
     let _ = app.frame();
-    assert!(app.offers(Action::BNext(bstep::VAULT)), "Continue");
     assert!(!app.offers(Action::BVaultSave(0)));
-    app.press(Action::BNext(bstep::VAULT));
     assert_ne!(app.backup().unwrap().open, Some(bstep::VAULT));
 }
 

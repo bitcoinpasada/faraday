@@ -213,7 +213,7 @@ fn a_vault_opened_mid_checklist_holding_the_wallet_ticks_the_vault_2_card_on_the
     app.press(Action::Nav(Screen::Backup));
     let boxes = next_frame(&mut app);
     assert!(ticked(&boxes, &title, number), "{boxes:?}");
-    assert!(boxes.iter().any(|(t, _)| *t == into), "{boxes:?}");
-    assert!(app.offers(Action::BNext(bstep::VAULT + 1)), "Continue");
     assert!(app.backup_item_done_now(&c, Item::Vault(1)));
+    // Done, the item has moved on by itself (`docs/BACKUP-FLOW.md` §17.23).
+    assert_ne!(app.backup().unwrap().open, Some(bstep::VAULT + 1));
 }

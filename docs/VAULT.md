@@ -5,7 +5,7 @@
 
 The format is built in `faraday/faraday-vault`, with the vectors in
 `tools/vectors/vault/` and the reference reader `tools/vault/open.py`,
-which opens both vectors and takes one field out of a record with
+which opens the vectors and takes one field out of a record with
 `--field TYPE.FIELD --out FILE`.
 
 A vault is one file holding four equal slots. Each passphrase opens one
@@ -332,7 +332,7 @@ exactly where its last field does, refuses the slot.
 | Type | Record | Fields |
 |---|---|---|
 | 1 | Slot label | 1 label (≤ 64 bytes). At most one per slot. |
-| 2 | Bitcoin key | 1 key: a words payload (34 bytes) or a seed payload (65 bytes), below; 2 label; 3 flags (`u8`: bit 0 not loaded at unlock, so the Load sheet an unlock shows starts it unticked, `docs/DECISIONS.md` F62; absent, or bit 0 clear, it starts ticked; bit 1 made in Faraday with its backup not done, so it signs nothing until it is, `docs/history/NEW-WALLET.md` §14.3); 4 BIP-39 passphrase, present only when the person chose to store it |
+| 2 | Bitcoin key | 1 key: a words payload (34 bytes) or a seed payload (65 bytes), below; 2 label; 3 flags (`u8`: bit 0 not loaded at unlock, so the Load sheet an unlock shows starts it unticked, `docs/DECISIONS.md` F62; absent, or bit 0 clear, it starts ticked; bit 1 made in Faraday with its backup not done, so it signs nothing until it is, `docs/history/NEW-WALLET.md` §14.3); 4 BIP-39 passphrase, present only when the person chose to store it; 5 the key's codex32 set, a codex32 set payload (below): the set's plain facts and never a string (`docs/CODEX32.md` §9.4), present only for a key whose seed is split into a set Faraday knows of; a slot without it reads as before, and a build before it refuses a slot whose key record holds it |
 | 3 | Wallet | 1 BIP-388 text, or the descriptor for a wallet whose key has no origin; 2 name; 3 flags (`u8`: bit 0 not loaded at unlock, as a key's; absent, it loads; F62, and a build before F62 refuses a slot whose wallet holds it) |
 | 4 | Note | 1 the note, its UTF-8 bytes |
 | 5 | Recovery sheet | 1 the sheet, as a sheet payload, below |
@@ -345,6 +345,7 @@ exactly where its last field does, refuses the slot.
 | 12 | (retired) | Was an APK signing key. No build knows it: a slot holding a type 12 record is refused, like any unknown type. The number is not used again. |
 | 13 | Wallet share | 1 the share: a part of a multisig wallet's description with some keys left off, as the share's `.txt` file holds it (`docs/BACKUP-FLOW.md` §15.6); 2 the wallet's name; 3 which share, `u8`, from 1; 4 how many shares, `u8`; 5 the wallet, as a type 11 record's field 1 holds it, by which a share is told from another wallet's of the same name. Repeatable per slot, one record per share and wallet. Written by the backup checklist's vault item when the plan keeps a share in that vault; a build before 2026-10-15 refuses a slot that holds one |
 | 14 | Passphrase | 1 the fingerprint of the key it is the BIP-39 passphrase of, the key's words with this passphrase (4 bytes); 2 the passphrase. Both required; at most one record per key and slot, and a slot holding two for one key is refused, naming the key. Written by the backup checklist's vault item when the plan keeps a seed's passphrase in a vault that does not hold the seed (`docs/BACKUP-FLOW.md` §17.12 item 4, `What::PassphraseSealed`); a vault that holds the seed keeps the passphrase in the key record's field 4 instead. Loading a key record with no field 4 from any open vault uses the passphrase a type 14 record in an open vault keeps for it, found by the fingerprint its words make with it. A build before F37 refuses a slot that holds one |
+| 15 | Codex32 share | 1 the string, a codex32 string (BIP 93) in lower case, of a set whose threshold is 2 or more and never its secret (the secret is the seed, kept as a key record); 2 the fingerprint of the key its set makes (4 bytes). Both required; at most one record per share index and key in a slot. What the backup plan places as a string in a vault (`docs/CODEX32.md` §9.5, `What::Codex32Share` in a vault); no flow writes one yet (`docs/CODEX32.md` §2); its string is secret (`faraday-keys`' `SECRET_FIELDS`). A build before it refuses a slot that holds one |
 
 An open slot's view shows each type 3 wallet with the type 11 plan this
 slot keeps for it, as a chart read from the backup up: the places,
@@ -356,12 +357,12 @@ sheet (§9); its actions load the wallet, and its seeds this slot keeps,
 first. Opening one writes nothing into the slot.
 
 In each type the first field is required and every other field is
-optional; type 7's field 2, type 9's fields 2, 3 and 4, type 10's field 2 and type 14's field 2 are also required. A type 7 record without field 3, the signing subkey's seed, is kept and shown by its user IDs and signs, exports and renews nothing: the format keeps the field optional so that no slot is refused over it, and Faraday's own keys always write it. A build before F32 refuses a slot holding a type 7 record with field 8 or 9. Fields marked repeatable
+optional; type 7's field 2, type 9's fields 2, 3 and 4, type 10's field 2, type 14's field 2 and type 15's field 2 are also required. A type 7 record without field 3, the signing subkey's seed, is kept and shown by its user IDs and signs, exports and renews nothing: the format keeps the field optional so that no slot is refused over it, and Faraday's own keys always write it. A build before F32 refuses a slot holding a type 7 record with field 8 or 9. Fields marked repeatable
 may appear more than once; no other field may. A key's field 1 must be a
 words payload or a seed payload, and a recovery sheet's field 1 a sheet
 payload, exactly as laid out below.
 
-**Payload layouts.** Four byte strings are the vault's own, written and
+**Payload layouts.** Five byte strings are the vault's own, the first four written and
 read by `faraday/faraday-vault/src/layouts.rs`:
 
 | Payload | Bytes |
@@ -370,6 +371,7 @@ read by `faraday/faraday-vault/src/layouts.rs`:
 | Seed (a key record's field 1, 65 bytes) | the seed's length (`u8`, 16 to 64), then the seed zero-padded on the right to 64 bytes. Every pad byte must be zero. |
 | Note (a note record's field 1) | the note's UTF-8 bytes. |
 | Recovery sheet (a sheet record's field 1) | three fields in this order, the wallet's descriptor, its name and the sheet's note, each a little-endian `u16` length followed by that many bytes of UTF-8. Nothing may follow the third; the whole is at most 16 KiB, and a longer one is refused when read as when written. |
+| Codex32 set (a key record's field 5, 7 bytes and 2 per string) | the threshold k (`u8`: 0, the secret alone, or 2 to 9); the identifier, four bech32 characters in lower case; each string's length in characters (`u8`: 48, 54, 61, 67, 74 or 127); how many strings exist whose share index is not known (`u8`); then for each string whose index is known, the index (a bech32 character in lower case) and its state (`u8`: 0 made, 1 placed, 2 lost, 3 exposed, 4 destroyed). At most 31 strings in all, each index once; at k = 0 the one string `s` and nothing else. No string is kept: the record holds the seed, and a split set's strings cannot be made again from it alone (`docs/CODEX32.md` §9.4). Written and read by `faraday/faraday-vault/src/codex32.rs`. |
 
 A key record's field 1 of 34 bytes is read as words and any other length
 as a seed.
@@ -439,7 +441,7 @@ slot and writes that one field's bytes, of the record of that type
 primary seed, type 7 field 1, for instance) reaches another tool without
 Faraday. The vectors in `tools/vectors/vault/` are opened by both
 implementations in the tests: a 64 KiB vault with one passphrase, and a
-64 KiB vault with three, each slot holding one record of every type but the retired 12.
+64 KiB vault with three, each slot holding one record of every type but the retired 12 and the codex32 ones; and a 64 KiB vault, `vault-codex32.ofv`, whose one slot holds BIP 93 vector 2's key with its codex32 set (type 2, field 5) and a codex32 share record (type 15).
 
 ## 11. What the app remembers of a locked vault
 

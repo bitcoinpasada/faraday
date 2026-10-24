@@ -86,6 +86,9 @@ fn one_key(app: &mut Faraday) -> usize {
 }
 
 fn press_offered(app: &mut Faraday, action: Action) {
+    if crate::common::moved_on(app, action) {
+        return;
+    }
     for _ in 0..20 {
         app.settle();
         let _ = app.frame();

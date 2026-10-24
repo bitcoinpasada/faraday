@@ -83,6 +83,9 @@ fn one_key(app: &mut Faraday) -> usize {
 /// Presses `action`, which the screen on show must offer somewhere down
 /// its column.
 fn press_offered(app: &mut Faraday, action: Action) {
+    if crate::common::moved_on(app, action) {
+        return;
+    }
     // Make the checklist is on The plan card (`docs/BACKUP-FLOW.md`
     // §15.1): a person opens it first.
     if action == Action::BChecklist && app.backup().is_some_and(|b| b.q != Some(qstep::PLAN)) {
