@@ -144,6 +144,10 @@ size the keyboards and the QR side; Faraday's screens use `small` on the
 small panel and `wide` otherwise, and `mobile` only scales the PNG a QR
 code is saved as.
 
+Planned: `docs/THEMES.md` replaces the themes, colour roles and states
+below with Material 3's colour system; until its C2 lands, this section
+describes what is built.
+
 Theme: `faraday_ui::pal` names every colour a screen uses — `SURFACE`
 (the page and a sheet, F39), `SIDEBAR`, `LINE`, `INNER`, `BORDER`,
 `TEXT`, `MUTED`, `DIM`, `ACCENT`, `ON_ACCENT`, `OK`, `WARN`, `ERR`, and
