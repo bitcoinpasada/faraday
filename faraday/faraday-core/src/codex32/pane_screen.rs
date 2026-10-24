@@ -86,7 +86,7 @@ pub(crate) fn draw(
             let mut cy = top + t::GAP_SMALL;
             cy += more_row(ui, (ix, cy, iw), false);
             if roller && m.way() == Way::Dice {
-                super::walk_screen::controls(m, ui, (ix, cy, iw));
+                super::walk_screen::strip_controls(m, ui, (ix, cy, iw));
             } else {
                 faraday_ui::parts::wrap_buttons(
                     ui,
@@ -102,11 +102,11 @@ pub(crate) fn draw(
 }
 
 /// The strip's height: its head row, and the step-through's line and
-/// buttons (or Use a sample). Arithmetic on the text's lines.
-pub(crate) fn strip_h(ui: &Ui, m: &Codex32Make, w: f32, roller: bool) -> f32 {
-    let iw = w - t::PAD - t::PAD;
+/// buttons (or Use a sample). Arithmetic on the font; the width is
+/// not read (the line is cut to one row).
+pub(crate) fn strip_h(ui: &Ui, m: &Codex32Make, _w: f32, roller: bool) -> f32 {
     let body = if roller && m.way() == Way::Dice {
-        super::walk_screen::controls_h(ui, m, iw)
+        super::walk_screen::strip_controls_h(ui)
     } else {
         t::TOUCH + t::PAD
     };

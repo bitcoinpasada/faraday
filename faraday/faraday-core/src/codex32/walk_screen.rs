@@ -266,28 +266,10 @@ fn lines(m: &Codex32Make) -> (String, String) {
     }
 }
 
-/// The height [`controls`] takes in `w`. Arithmetic on the lines.
-pub(super) fn controls_h(ui: &Ui, m: &Codex32Make, w: f32) -> f32 {
-    let (count, working) = lines(m);
-    let mut h =
-        ui.wrap_lines(t::LABEL, W::S, &count, w) as f32 * ui.line(t::LABEL, W::S) + t::GAP_SMALL;
-    if !working.is_empty() {
-        h += ui.wrap_lines(t::BODY, W::R, &working, w) as f32 * ui.line(t::BODY, W::R);
-    }
-    h + t::GAP + t::TOUCH
-}
-
-/// Where the walk stands, the step's working, and Previous, Next and
-/// Play (or Pause). Returns the height.
-pub(super) fn controls(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    let mut cy = y;
+/// The three buttons' labels, styles and presses: Previous, Next and
+/// Play (Pause while it runs).
+fn buttons(m: &Codex32Make) -> [(&'static str, Style, C32); 3] {
     let walk = m.walk();
-    let (count, working) = lines(m);
-    cy += ui.wrap(x, cy, w, t::LABEL, W::S, Role::OnSurfaceVariant, &count) + t::GAP_SMALL;
-    if !working.is_empty() {
-        cy += ui.wrap(x, cy, w, t::BODY, W::R, Role::OnSurface, &working);
-    }
-    cy += t::GAP;
     let style = |on: bool, s: Style| if on { s } else { Style::Disabled };
     let next = m.walk_can_next();
     let play = if walk.playing() {
@@ -299,26 +281,85 @@ pub(super) fn controls(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32))
             WalkAct::Play,
         )
     };
-    cy += faraday_ui::parts::wrap_buttons(
-        ui,
-        x,
-        cy,
-        w,
-        t::TOUCH,
-        &[
-            (
-                EN.codex32_previous,
-                style(m.walk_can_back(), Style::Secondary),
-                a(C32::Walk(WalkAct::Previous)),
-            ),
-            (
-                EN.codex32_next,
-                style(next, Style::Primary),
-                a(C32::Walk(WalkAct::Next)),
-            ),
-            (play.0, play.1, a(C32::Walk(play.2))),
-        ],
-    );
+    [
+        (
+            EN.codex32_previous,
+            style(m.walk_can_back(), Style::Secondary),
+            C32::Walk(WalkAct::Previous),
+        ),
+        (
+            EN.codex32_next,
+            style(next, Style::Primary),
+            C32::Walk(WalkAct::Next),
+        ),
+        (play.0, play.1, C32::Walk(play.2)),
+    ]
+}
+
+/// Previous, Next and Play in one row at (`x`, `y`) in `w`, each at a
+/// place that depends on no step's text: Play and Pause share the
+/// wider's width, and the row starts at `x` or ends at the right edge
+/// (`right`). Measures only the labels, which never change. Returns the
+/// height.
+fn button_row(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32), right: bool) -> f32 {
+    let size = t::LABEL;
+    let items = buttons(m);
+    let play_w = ui
+        .measure(size, W::S, EN.codex32_walk_play)
+        .max(ui.measure(size, W::S, EN.codex32_walk_pause));
+    let text = [
+        ui.measure(size, W::S, EN.codex32_previous),
+        ui.measure(size, W::S, EN.codex32_next),
+        play_w,
+    ];
+    let gap = t::GAP_SMALL;
+    // A narrow row takes the padding in, not the buttons' places.
+    let pad = ((w - 2.0 * gap - text.iter().sum::<f32>()) / 3.0).clamp(t::GAP, t::SPACER);
+    let total = text.iter().sum::<f32>() + 3.0 * pad + 2.0 * gap;
+    let mut bx = if right { x + w - total } else { x };
+    for (k, (label, style, act)) in items.into_iter().enumerate() {
+        let bw = text[k] + pad;
+        let label = ui.fit(size, W::S, label, bw - t::GAP);
+        ui.button(bx, y, Some(bw), t::TOUCH, &label, style, a(act));
+        bx += bw + gap;
+    }
+    t::TOUCH
+}
+
+/// The height [`strip_controls`] takes: the step's line on one row and
+/// the buttons under it. Arithmetic on the font.
+pub(super) fn strip_controls_h(ui: &Ui) -> f32 {
+    ui.line(t::LABEL, W::S) + t::GAP_SMALL + t::TOUCH
+}
+
+/// The step-through in the pinned strip at (`x`, `y`) in `w`: the step's
+/// line on one row, cut where it is longer (More opens the whole card),
+/// and Previous, Next and Play at the strip's right end. Returns the
+/// height.
+pub(super) fn strip_controls(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let (count, working) = lines(m);
+    let line = if working.is_empty() {
+        count
+    } else {
+        format!("{count}. {working}")
+    };
+    let line = ui.fit(t::LABEL, W::S, &line, w);
+    ui.text(x, y, t::LABEL, W::S, Role::OnSurfaceVariant, &line);
+    let cy = y + strip_controls_h(ui) - t::TOUCH;
+    button_row(m, ui, (x, cy, w), true);
+    strip_controls_h(ui)
+}
+
+/// Previous, Next and Play (or Pause) at their place, then where the
+/// walk stands and the step's working under them. Returns the height.
+pub(super) fn controls(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let mut cy = y;
+    let (count, working) = lines(m);
+    cy += button_row(m, ui, (x, cy, w), false) + t::GAP_SMALL;
+    cy += ui.wrap(x, cy, w, t::LABEL, W::S, Role::OnSurfaceVariant, &count) + t::GAP_SMALL;
+    if !working.is_empty() {
+        cy += ui.wrap(x, cy, w, t::BODY, W::R, Role::OnSurface, &working);
+    }
     cy - y
 }
 

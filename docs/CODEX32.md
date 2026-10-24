@@ -843,6 +843,15 @@ first character, an equal pair, Previous after Next, Play against
 stepping) and `tests/all/codex32_roller.rs` (the steps on Faraday
 Desktop and none on the stick, the arrow keys, Play to the end).
 
+**The buttons stay put (owner, 2026-10-24; `docs/LAYOUT.md` §16.5).**
+In the card Previous, Next and Play stand above the step's count and
+its working, and in the strip at its right end under the step's line, so
+that whatever a step says, the buttons keep their places and the press
+that follows lands where the last one did. Play and Pause share the
+wider's width; nothing is measured per frame but the fixed labels. Tested
+in `tests/all/codex32_roller.rs` (Next's rectangle the same at every step
+of a character and across characters, in the pane and in the strip).
+
 **Both ways, side by side (owner, 2026-10-22).** The roller never
 replaces the entry for real dice: on Faraday Desktop the dice step
 shows the stick's entry, **Your dice**, and beside it the roller,
@@ -860,7 +869,8 @@ card stands at the right, `MARGIN_WIDE` from the window's edge and
 top-right strip of the network pill and the eye, never level with them;
 taller than the window, it scrolls within itself (its own region,
 `Slot::DemoPane`). Narrower, a strip pinned at the window's foot holds
-the step's line, Previous, Next and Play, and **More** opens the whole
+the step's line on one row, cut where it is longer, with Previous, Next
+and Play under it at the strip's right end, and **More** opens the whole
 card over the page from the foot (**Less** closes it); it never scrolls
 away, and the entry leaves room under its last row so the page scrolls
 clear of it. The card holds, in order, Demo's **Use a sample** (in

@@ -322,3 +322,28 @@ fn the_demo_only_card_holds_its_place_while_the_page_scrolls() {
     c32(&mut narrow, C32::Pane);
     assert!(!make(&narrow).pane_open());
 }
+
+#[test]
+fn next_stays_where_it_is_at_every_step_and_character() {
+    let next = Action::Codex32(C32::Walk(WalkAct::Next));
+    // The pane at the right of a wide window, the strip at a narrow one's
+    // foot.
+    for (w, h, dpi) in [(1280, 800, 160), (480, 640, 286)] {
+        let mut app = sized(w, h, dpi);
+        let at = app.hit_box(next).expect("Next is drawn");
+        // Past a character's last step, into the next character's, and
+        // a step back.
+        for i in 0..45 {
+            c32(&mut app, C32::Walk(WalkAct::Next));
+            if i % 7 == 6 {
+                c32(&mut app, C32::Walk(WalkAct::Previous));
+            }
+            let _ = app.frame();
+            assert_eq!(
+                app.hit_box(next),
+                Some(at),
+                "Next moved at press {i} on {w}x{h}"
+            );
+        }
+    }
+}
