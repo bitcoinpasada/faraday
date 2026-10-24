@@ -84,6 +84,32 @@ impl KeyGenArea {
         }
     }
 
+    /// Brings the page `need` units further down so the worksheet's view
+    /// clears the input panel (`Codex32Make::follow_page_by`).
+    /// Arithmetic.
+    pub(crate) fn page_clear(&mut self, need: f32, max: f32, reduce: bool) {
+        if let Some(k) = self.state.as_mut()
+            && let Some(m) = k.codex32.as_mut()
+        {
+            k.scroll.y = m.follow_page_by(need, (k.scroll.y, max), reduce);
+        }
+    }
+
+    /// Nothing is left to bring clear of the input panel.
+    pub(crate) fn page_due_clear(&mut self) {
+        if let Some(m) = self.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+            m.page_due_clear();
+        }
+    }
+
+    /// Whether the page is still to be brought clear of the input panel.
+    pub(crate) fn page_due(&self) -> bool {
+        self.state
+            .as_ref()
+            .and_then(|k| k.codex32.as_ref())
+            .is_some_and(|m| m.page_due())
+    }
+
     /// The person moved the page: a following move of it stops.
     pub(crate) fn page_hold(&mut self) {
         if let Some(m) = self.state.as_mut().and_then(|k| k.codex32.as_mut()) {

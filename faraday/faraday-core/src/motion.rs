@@ -799,8 +799,12 @@ impl Faraday {
             let view = (e.view.w as f32 / f, e.view.h as f32 / f);
             // The view follows the work in the part of it that stands above
             // the input panel at the foot (`docs/LAYOUT.md` §16.3).
+            // The page goes down first, clear of the panel, and the view
+            // follows from where it will stand.
+            let down = self.worksheet_page_clear().unwrap_or(0.0);
             let room = self.window().height - self.codex32_panel_foot_now();
-            let seen = (room - e.view.y as f32 / f).clamp(faraday_draw::tokens::TOUCH, view.1);
+            let seen =
+                (room - (e.view.y as f32 / f - down)).clamp(faraday_draw::tokens::TOUCH, view.1);
             self.keygen
                 .sheet_follow(cls, (view.0, seen), (e.max_x, e.max), reduce);
             return;
@@ -817,6 +821,50 @@ impl Faraday {
             let room = p.view.h as f32 / f - self.codex32_panel_foot_now();
             self.keygen.page_follow(cls, (top, room, p.max), reduce);
         }
+    }
+
+    /// Where the worksheet's view is panned in a page, the page goes down
+    /// by the least move that brings the view's foot above the input
+    /// panel at the window's foot, in the same timed move
+    /// (`docs/LAYOUT.md` §16.4). Returns how far down the page goes, or
+    /// none when the view has not been drawn yet. Arithmetic.
+    pub(crate) fn worksheet_page_clear(&mut self) -> Option<f32> {
+        let key = self.region_key();
+        let f = self.unit_px();
+        let reduce = self.reduce_motion();
+        let (view, page) = (
+            self.scroll.region_now(key, ui::Slot::Worksheet),
+            self.scroll.region_now(key, ui::Slot::Page),
+        );
+        let (Some(e), Some(p)) = (view, page) else {
+            // A page drawn without the view in it has nothing to clear.
+            if page.is_some() {
+                self.keygen.page_due_clear();
+            }
+            return None;
+        };
+        let limit = self.window().height - self.codex32_panel_foot_now();
+        // Never so far that the view's own top leaves the window.
+        let spare = (e.view.y as f32 / f - faraday_draw::tokens::MARGIN_WIDE).max(0.0);
+        let need = ((e.view.y + e.view.h) as f32 / f - limit).clamp(0.0, spare);
+        self.keygen.page_clear(need, p.max, reduce);
+        Some(need)
+    }
+
+    /// The page, once the Enter card has opened and been drawn, is
+    /// brought clear of the input panel and the view follows the work
+    /// (`docs/LAYOUT.md` §16.4). True when it was done.
+    pub(crate) fn worksheet_due(&mut self) -> bool {
+        if self
+            .scroll
+            .region_now(self.region_key(), ui::Slot::Page)
+            .is_none()
+        {
+            return false;
+        }
+        self.worksheet_follow();
+        self.keygen.page_due_clear();
+        true
     }
 
     /// What a scrolled codex32 region moves: the checksum worksheet's

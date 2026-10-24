@@ -1802,6 +1802,9 @@ impl crate::Faraday {
             // The dice chosen are kept for the session's next flow.
             self.keygen.dice = m.dice_choice();
             k.scroll.follow |= m.open() != before;
+            if m.open() != before && m.open() == Some(Card::Enter) {
+                m.page_due_set();
+            }
             // On a small panel the entry stays scrolled to its foot at every
             // press, so the worksheet tabs, the panel and the pad are all in view
             // (`docs/CODEX32.md` §6.4.7).
@@ -1954,7 +1957,8 @@ impl crate::Faraday {
             (m.walk().active(), m.pan().moving() || m.page_moving())
         });
         let one = k.roller.active();
-        if !walk && !pan && !one {
+        let due = self.keygen.page_due();
+        if !walk && !pan && !one && !due {
             return false;
         }
         let reduce = self.reduce_motion();
@@ -1978,6 +1982,9 @@ impl crate::Faraday {
                 self.worksheet_follow();
                 redraw = true;
             }
+        }
+        if due && self.worksheet_due() {
+            redraw = true;
         }
         let f = self.f;
         if let Some(k) = self.keygen.state.as_mut()

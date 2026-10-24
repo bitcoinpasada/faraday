@@ -1012,3 +1012,143 @@ fn at_1920_the_strings_boxes_run_twenty_four_a_row() {
         "the second row starts under the first"
     );
 }
+
+/// A finger put down at (`x`, `y`) pixels and dragged by `dy` pixels, then
+/// lifted, and a few frames drawn.
+fn drag_from(app: &mut Faraday, (x, y): (u16, u16), dy: i32) {
+    use faraday_shell_api::TouchPhase;
+    let touch = |k: i32, phase| Event::Touch {
+        x,
+        y: (i32::from(y) + dy * k / 3).clamp(0, 4000) as u16,
+        phase,
+    };
+    app.event(touch(0, TouchPhase::Down));
+    app.event(touch(1, TouchPhase::Move));
+    app.event(touch(2, TouchPhase::Move));
+    app.event(touch(3, TouchPhase::Move));
+    app.event(touch(3, TouchPhase::Up));
+    frames(app, 3);
+}
+
+/// The middle of the topmost of the string's boxes in view: somewhere on
+/// the worksheet's view to put a finger.
+fn top_of_the_sheet(app: &Faraday) -> (u16, u16) {
+    (1..=48)
+        .filter_map(|b| {
+            app.hit_box(Action::Codex32(C32::Cell(
+                faraday_core::codex32::Cell::Given { sheet: 0, b },
+            )))
+        })
+        .min_by_key(|b| b.1)
+        .map(|(x, y, w, h)| (x + w / 2, y + h / 2))
+        .expect("a box in view")
+}
+
+/// The character of Share A at `from` entered and the frames after it
+/// drawn one at a time: where `place` stood after the key and after each
+/// frame.
+fn enter_then_watch(app: &mut Faraday, from: usize, place: impl Fn(&Faraday) -> f32) -> Vec<f32> {
+    type_a(app, from..from + 1);
+    let mut ys = vec![place(app)];
+    let mut t = app.now_ms();
+    for _ in 0..40 {
+        t += 16;
+        app.event(Event::Tick { now_ms: t });
+        let _ = app.frame();
+        ys.push(place(app));
+    }
+    ys
+}
+
+#[test]
+fn an_entry_brings_a_dragged_view_back_to_the_cell_over_several_frames() {
+    // 1280x800: the view pans. Twenty-two characters in, the view is at
+    // the front; the person drags the sheet away, and the next character
+    // sends the view back to the front over several frames.
+    let mut app = typed_a(1280, 800, 22);
+    let front = pan(&app);
+    assert!(front.y > 0.0);
+    let at = top_of_the_sheet(&app);
+    drag_from(&mut app, at, 300);
+    let away = pan(&app);
+    assert!(away.y < front.y, "dragged up the sheet: {away:?} {front:?}");
+    let ys = enter_then_watch(&mut app, 22, |a| pan(a).y);
+    assert_eq!(ys[0], away.y, "nothing jumps at the key: {ys:?}");
+    let to = *ys.last().unwrap();
+    assert!(to > away.y + 20.0, "back toward the front: {ys:?}");
+    let between = ys.iter().filter(|&&y| y > away.y && y < to).count();
+    assert!(between >= 5, "several frames on the way: {ys:?}");
+
+    // Under Reduce motion the view is back at once.
+    let mut reduced = typed_a(1280, 800, 22);
+    reduced.press(Action::ReduceMotion(true));
+    let at = top_of_the_sheet(&reduced);
+    drag_from(&mut reduced, at, 300);
+    assert!(pan(&reduced).y < front.y);
+    type_a(&mut reduced, 22..23);
+    assert!(pan(&reduced).y > away.y + 20.0, "at once");
+    assert!(!pan(&reduced).moving());
+}
+
+#[test]
+fn an_entry_brings_a_scrolled_page_back_to_a_whole_sheets_cell() {
+    // 1920x1080: the sheet is whole and the page follows it. Scrolled away
+    // by a drag, the next character brings the page back over several
+    // frames, at once under Reduce motion.
+    let mut app = typed_a(1920, 1080, 22);
+    let front = page_y(&app);
+    assert!(front > 0.0);
+    drag_from(&mut app, (900, 300), 700);
+    let away = page_y(&app);
+    assert!(away < front, "the page was dragged away: {away} {front}");
+    let ys = enter_then_watch(&mut app, 22, page_y);
+    let to = *ys.last().unwrap();
+    assert!(to > away + 20.0, "the page came back: front {front} {ys:?}");
+    assert_eq!(ys[0], away, "nothing jumps at the key: {ys:?}");
+    let between = ys.iter().filter(|&&y| y > away && y < to).count();
+    assert!(between >= 3, "several frames on the way: {ys:?}");
+
+    let mut reduced = typed_a(1920, 1080, 22);
+    reduced.press(Action::ReduceMotion(true));
+    drag_from(&mut reduced, (900, 300), 700);
+    assert!(page_y(&reduced) < front);
+    type_a(&mut reduced, 22..23);
+    assert!(page_y(&reduced) > away + 20.0, "at once");
+}
+
+/// The top edge of the pinned input panel: the topmost of the codex32
+/// keyboard's keys in view.
+fn panel_top(app: &Faraday) -> u16 {
+    "qwertyuiopasdfghjklzxcvbnm023456789"
+        .chars()
+        .filter_map(|c| app.hit_box(Action::Codex32(C32::Key(OskPress::Char(c)))))
+        .map(|b| b.1)
+        .min()
+        .expect("the keyboard is on screen")
+}
+
+#[test]
+fn at_1280_by_800_the_page_brings_the_worksheet_above_the_pinned_panel() {
+    // Opening the Enter card, and then each entry, leave the worksheet's
+    // front cell above the panel at the window's foot.
+    for n in [0usize, 1, 22] {
+        let app = typed_a(1280, 800, n);
+        let top = panel_top(&app);
+        // Opened, the sheet's first cell; then the last box written.
+        let front = if n == 0 {
+            HRP
+        } else {
+            Action::Codex32(C32::Cell(faraday_core::codex32::Cell::Given {
+                sheet: 0,
+                b: (9 + n) as u8,
+            }))
+        };
+        let at = app
+            .hit_box(front)
+            .unwrap_or_else(|| panic!("{n}: the last cell is in view"));
+        assert!(
+            at.1 + at.3 <= top,
+            "{n}: cell {at:?} above the panel at {top}"
+        );
+    }
+}

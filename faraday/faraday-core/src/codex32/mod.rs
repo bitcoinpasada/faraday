@@ -561,6 +561,10 @@ pub struct Codex32Make {
     /// drawn whole (`docs/LAYOUT.md` §16.4): its `y` is the page's
     /// offset while it moves.
     page: SheetPan,
+    /// Whether the page is still to be brought clear of the input panel
+    /// at the foot: set as the Enter card opens, done once the view it
+    /// stands under has been drawn (`docs/LAYOUT.md` §16.4).
+    page_due: bool,
     /// The step-through of the "Demo only" card (§5.5).
     walk: Walk,
     /// How far the "Demo only" card is scrolled within itself, units.
@@ -624,6 +628,7 @@ impl Codex32Make {
             pan: SheetPan::default(),
             fit: SheetFit::default(),
             page: SheetPan::default(),
+            page_due: false,
             walk: Walk::default(),
             pane_y: 0.0,
             pane_open: false,
@@ -1054,6 +1059,44 @@ impl Codex32Make {
             .target_for(spot, (f32::MAX, room), (0.0, max), 2.0 * cell);
         self.page.go_to((0.0, to.1), reduce);
         Some(self.page.y)
+    }
+
+    /// Marks the page as still to be brought clear of the input panel.
+    pub(crate) fn page_due_set(&mut self) {
+        self.page_due = true;
+    }
+
+    /// Nothing is left to bring clear of the input panel.
+    pub(crate) fn page_due_clear(&mut self) {
+        self.page_due = false;
+    }
+
+    /// Whether the page is still to be brought clear of the input panel.
+    pub(crate) fn page_due(&self) -> bool {
+        self.page_due
+    }
+
+    /// The worksheet's view is in a page that stands `need` units too high
+    /// for it to clear the input panel at the foot: the page makes that
+    /// move over the same timed move (at once under `reduce`), from
+    /// `offset`, never past `max`. Returns where the page is to stand
+    /// now. Arithmetic.
+    pub(crate) fn follow_page_by(
+        &mut self,
+        need: f32,
+        (offset, max): (f32, f32),
+        reduce: bool,
+    ) -> f32 {
+        self.page_due = false;
+        if !self.page.moving() {
+            self.page = SheetPan::default();
+            self.page.y = offset;
+        }
+        let to = (self.page.y + need).max(self.page.going_to().1).min(max);
+        if need > 0.0 {
+            self.page.go_to((0.0, to), reduce);
+        }
+        self.page.y
     }
 
     /// One frame of the page following a whole worksheet, at `now_ms`,
