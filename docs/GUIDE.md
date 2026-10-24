@@ -287,8 +287,9 @@ opens the **Mode** sheet, where **Testnet**, **Signet** and **Regtest**
 take any seed.
 
 In Demo, **Make a new key · Codex32** (step 3.3) runs whole: your rolls
-or characters fill the sheets as anywhere, and **Use a sample** on the
-entry fills it with BIP 93's sample set instead. Once the entry is
+or characters fill the sheets as anywhere, and **Use a sample**, in
+the **Demo only** card beside the entry, fills it with BIP 93's sample
+set instead. Once the entry is
 finished, the sample takes the place of the strings entered, and every
 card after it says so. **Lock in** loads the sample's key: strings from
 your own rolls never leave the entry.
@@ -296,7 +297,7 @@ your own rolls never leave the entry.
 | The entry | After it |
 |---|---|
 | ![Make codex32 shares in Demo, Use a sample](guide/1-11-demo-codex32-entry.png) | ![Demo puts sample NAME in place of these strings](guide/1-11-demo-codex32-sample.png) |
-| **Share A · character 1 of 26**, with **Use a sample** above the boxes. | **Demo puts sample NAME in place of these strings**, over the sample's worksheets. |
+| **Share A · character 1 of 26**, each box numbered, the dice's **First roll** and **Second roll** under them, and **Use a sample** in the **Demo only** card at the right. | **Demo puts sample NAME in place of these strings**, over the sample's worksheets. |
 
 Sections 2 and 3 apply to Faraday Desktop too, with the differences
 noted there.
@@ -341,7 +342,9 @@ The rows are **Home**, **Vaults**, **Files**, **Wallets**, **Tools**,
 **Learn**, **Stick visit** (while a stick is attached) and **Settings**;
 the page on show is on a pill. A flow under way, such as **Make a new
 wallet**, is a row under its page with the card open beside it: pressing
-it goes back to the flow.
+it goes back to the flow. A number on **Files** counts the files
+waiting in its Inbox; a dot on **Stick visit** means the stick attached
+has not been visited yet.
 
 In a narrower window the same pages are a rail of icons at the left,
 with **Learn** and **Settings** under a line and **Lock** and the power
@@ -656,14 +659,14 @@ plan does not track it.
 ### 4.1 Make the wallet
 
 Press **Wallets** in the sidebar, then **Make a new wallet**. The page
-is **Make a new wallet**, one card per step. It opens with **Kind**
-closed on **Single key · native SegWit** and **Use vaults** open; a
-choice moves on to the next card by itself.
+is **Make a new wallet**, one card per step. It opens on **Kind**,
+with **Single key, backup in shares (codex32)** ticked; a choice moves
+on to the next card by itself.
 
 | Kind | Use vaults |
 |---|---|
 | ![Kind](guide/4-1-kind.png) | ![Use vaults](guide/4-1-use-vaults.png) |
-| **Change** on Kind opens it: **Single key · native SegWit** (One key, its words on paper) is ticked; **Single key, backup in shares** makes its one key as codex32 shares instead of words (step 4.11), and **Multisig · native SegWit** is section 5; **More kinds** lists the rest. Pressing the kind ticked closes the card on it. | **Will you use vaults as part of this backup?** Press **No**: the card closes on **No** and **Keys** opens. The vault in this section is a new one, made in the checklist; **Yes** is for a vault already on a stick, which is brought in here. |
+| **Single key, backup in shares (codex32)** (One key, its backup in 3 shares, any 2 rebuild it) makes its one key as codex32 shares instead of words (step 4.11); the ⓘ after its name says what codex32 is. **Multisig · native SegWit** is section 5; **More kinds** lists the rest. This section keeps the key's words: press **Single key · native SegWit** (One key, its words on paper). | Kind closes on **Single key · native SegWit**. **Will you use vaults as part of this backup?** Press **No**: the card closes on **No** and **Keys** opens. The vault in this section is a new one, made in the checklist; **Yes** is for a vault already on a stick, which is brought in here. |
 
 | Keys | Check |
 |---|---|
@@ -790,7 +793,7 @@ written in step 4.10 and printed from the stick on another computer.
 | Copy seed 3dca6805 by hand | Show the seed |
 |---|---|
 | ![The copy item](guide/4-7-copy.png) | ![The seed shown](guide/4-7-copy-shown.png) |
-| Press **Show the seed**. | The 12 words, each with its number in the word list, and the SeedQR's grid. On the template, write the words in order, then fill the SeedQR square by square; the grey squares are printed already. **Compact SeedQR** shows the smaller grid. Press **Hide the seed**. |
+| Press **Show the seed**. | The 12 words, each with its number in the word list, and the SeedQR's grid. On the template, write the words in order, then fill the SeedQR square by square; the grey squares are printed already. **Blocks** lights the 5 × 5 block under the pointer and shows it large beside the grid, counted in fives from the top left as the template's heavy lines are; **Previous**, **Next** and the arrow keys move a block at a time, and **Rows** lights a row instead. **Compact SeedQR** shows the smaller grid. Press **Hide the seed**. |
 
 **Keep the words only** takes the SeedQR off the plan; the item then
 asks for the words alone.
@@ -900,8 +903,8 @@ does not need this step.
 The test data: BIP 93's published vector 2, identifier `name`. Its
 characters make key `fab6868a`. Never keep funds on it.
 
-**Wallets → Make a new wallet**, then **Change** on Kind and **Single
-key, backup in shares**:
+**Wallets → Make a new wallet**. Kind opens with **Single key, backup
+in shares (codex32)** ticked; press it:
 
 | Quorum | Keys |
 |---|---|
@@ -914,8 +917,10 @@ The page is **New key**, open on **Identifier**: **Start** reads **Make
 a new key · Codex32** and **Scheme** **48 characters · 2 of 3**, from
 Quorum. Type four characters that name the set (**Suggest** fills four),
 then **Continue**. **Entropy** offers **Roll dice**, **Type the
-characters** (made on paper) and **Type shares made by hand**. Each
-roll or character drops into its box and the worksheets fill as on
+characters** (made on paper) and **Type shares made by hand**; dice
+can have 4, 6 (the default), 8, 10, 12 or 20 faces, five of one size,
+each die's first and second roll giving one bit, as on the booklet's
+de-biasing worksheet. Each roll or character drops into its box and the worksheets fill as on
 paper; **Worksheets** then shows each sheet whole, and **Strings** each
 string to write down and type back. Learn's page **Backups in other
 forms** walks through these cards.
@@ -1032,7 +1037,7 @@ forms**.
 | The worksheet | Make the rest |
 |---|---|
 | ![Show the worksheet](guide/5-1-worksheet.png) | ![Make the rest, Scheme](guide/5-1-make-the-rest.png) |
-| **Show the worksheet** shows every row of the string's checksum worksheet, to compare row by row with the paper; **Final row only** goes back. | **Make the rest**, then the second string: New key opens on **Scheme**, **From A, C**, with **Strings** to choose. **Worksheets**, **Strings** and **Strings made** follow, as in step 4.11. **Add a share** opens the same way on **Index**, offering the next unused one. |
+| **Show the worksheet** shows every row of the string's checksum worksheet as the booklet draws it, each box of the string numbered in its corner, to compare row by row with the paper; drag it, or use the wheel or the arrow keys, to see the rest. **Final row only** goes back. | **Make the rest**, then the second string: New key opens on **Scheme**, **From A, C**, with **Strings** to choose. **Worksheets**, **Strings** and **Strings made** follow, as in step 4.11. **Add a share** opens the same way on **Index**, offering the next unused one. |
 
 With **Suggest corrections** ticked, a string whose checksum fails
 gets a correction to compare with the paper; Learn's page covers it.
@@ -1069,7 +1074,7 @@ Press **Home**, then **Make a new wallet**.
 | Kind | Quorum |
 |---|---|
 | ![Kind, multisig](guide/5-2-kind.png) | ![Quorum](guide/5-2-quorum.png) |
-| Press **Change** on Kind, then **Multisig · native SegWit** (3 keys, any 2 sign): **Quorum** opens. | **Signatures needed** 2 and **Keys** 3 (**-** and **+** change them). The line under them says what the quorum means: **Any 2 of the 3 keys can spend. Losing 1 key still leaves the money spendable; 2 keys together can take it.** **Account** 0. Press **Continue**. |
+| Kind opens with **Single key, backup in shares (codex32)** ticked. Press **Multisig · native SegWit** (3 keys, any 2 sign): **Quorum** opens; **Change** on Kind shows it ticked. | **Signatures needed** 2 and **Keys** 3 (**-** and **+** change them). The line under them says what the quorum means: **Any 2 of the 3 keys can spend. Losing 1 key still leaves the money spendable; 2 keys together can take it.** **Account** 0. Press **Continue**. |
 
 On **Use vaults**, press **No**: **Keys** opens.
 

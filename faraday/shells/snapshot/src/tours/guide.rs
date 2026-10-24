@@ -107,7 +107,8 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
 
 /// §1.11: Faraday Desktop's Home as it opens, in Demo on testnet, with
 /// no stick in; then Make codex32 shares in Demo, its entry with Use a
-/// sample, and the sample in place of the strings once it is pressed.
+/// sample in the Demo only card (no roller: Demo loads no key of its
+/// own), and the sample in place of the strings once it is pressed.
 fn desktop_home(t: &mut Tour) -> Result<(), String> {
     let size = t.size();
     t.app = Faraday::new();
@@ -182,6 +183,7 @@ fn shares_backup(_c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::{bstep, plan};
     fresh_session(t);
     t.press(Action::CreateWallet);
+    // Kind opens with this kind ticked; pressed, it moves on (F103).
     t.press(Action::CKind(kind_at(NewKind::Shares)?));
     t.shot("guide-shares-quorum")?;
     t.press(Action::CNext(cstep::QUORUM));
