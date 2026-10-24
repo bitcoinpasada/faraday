@@ -13,7 +13,7 @@ use faraday_draw::tokens::{
 
 /// Where the pips of each face stand, in steps of the pip offset from the
 /// die's centre.
-fn pips(face: u8) -> &'static [(f32, f32)] {
+pub(super) fn pips(face: u8) -> &'static [(f32, f32)] {
     const TL: (f32, f32) = (-1.0, -1.0);
     const TR: (f32, f32) = (1.0, -1.0);
     const ML: (f32, f32) = (-1.0, 0.0);

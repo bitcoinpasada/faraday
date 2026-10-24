@@ -845,3 +845,16 @@ pub const CODEX32_BAND_SIDE: usize = 2;
 pub const CODEX32_TAB: f32 = 32.0;
 /// The most rows of a worksheet the entry shows round its front column.
 pub const CODEX32_BAND_ROWS: usize = 16;
+
+// ----- The five-dice roller (docs/CODEX32.md §5.5) -----
+
+/// The five-dice roller: the side of each of its five dice.
+pub const ROLLER_FIVE_DIE: f32 = 44.0;
+
+/// The five-dice roller: the gap between two dice.
+pub const ROLLER_FIVE_GAP: f32 = 8.0;
+
+/// The five-dice roller: the most faces that land in one tick under
+/// Reduce motion, so that a click rolled to the end is never one long
+/// frame.
+pub const ROLLER_FIVE_BATCH: usize = 400;

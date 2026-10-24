@@ -8968,6 +8968,25 @@ strings! {
     roller_bits_simulated: "{} bits from simulated dice + ≈{} from the unlock cost ≈ {} bits",
     /// A passphrase's strength, made by the roller and real dice. `{}`: its own bits, the unlock cost's, the sum.
     roller_bits_both: "{} bits from simulated dice and your dice + ≈{} from the unlock cost ≈ {} bits",
+    // ----- The five-dice roller (docs/CODEX32.md §5.5), faraday-core/src/fresh/roller/ -----
+    /// Heading of the codex32 dice step's roller, beside the entry for real dice.
+    roller_or_let_faraday_roll: "Or let Faraday roll",
+    /// Under each of the roller's five dice. `{}`: its number, 1 to 5.
+    roller_die: "Die {}",
+    /// Label of the roller's choice of how much one click rolls.
+    roller_per_click_codex32: "One click rolls",
+    /// Choice: the five dice once.
+    roller_reach_pass: "One pass",
+    /// Choice: both passes, one character.
+    roller_reach_character: "One character",
+    /// Choice: every character of the share being entered.
+    roller_reach_share: "One share",
+    /// Mark on a value the roller made, on the dice sheet and in its cell.
+    roller_rolled_mark: "rolled by this computer",
+    /// Result's entropy row after the roller made every value.
+    roller_entropy_simulated: "Entropy · simulated dice",
+    /// Result's entropy row after the roller and real dice made the values.
+    roller_entropy_both: "Entropy · simulated dice and your dice",
     // ----- Make codex32 shares (docs/CODEX32.md §6, §7), faraday-core/src/codex32/ -----
     /// New key's Start card: the label over the ways to add a key held.
     keygen_add_a_key_you_have: "Add a key you have",

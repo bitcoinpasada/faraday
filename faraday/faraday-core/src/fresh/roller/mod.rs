@@ -21,7 +21,12 @@ use faraday_draw::tokens::{
 };
 use zeroize::Zeroizing;
 
+pub mod five;
+pub mod five_screen;
 pub(crate) mod screen;
+
+#[cfg(test)]
+mod five_tests;
 
 /// How many values one click of Roll makes.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -97,10 +102,43 @@ pub struct Roller {
     spin: u32,
     /// Positions in the host's entries that this computer rolled, rising.
     marks: Vec<usize>,
-    /// The answer being used up, one value to a byte.
-    pool: Zeroizing<[u8; 32]>,
-    /// How many bytes of `pool` are not used yet.
-    pool_n: usize,
+    /// The answers being used up.
+    pool: Pool,
+}
+
+/// An answer being used up, one value to a byte.
+#[derive(Default)]
+struct Pool {
+    bytes: Zeroizing<[u8; 32]>,
+    /// How many bytes of `bytes` are not used yet.
+    n: usize,
+}
+
+impl Pool {
+    /// Erases what is left.
+    fn clear(&mut self) {
+        self.bytes.fill(0);
+        self.n = 0;
+    }
+
+    /// The next value, 1 to 6, from `draw`'s answers; every byte of 252
+    /// or more is skipped so that no face is likelier. `None` while
+    /// `draw` has no answer.
+    fn next(&mut self, draw: &mut dyn FnMut() -> Option<[u8; 32]>) -> Option<u8> {
+        loop {
+            if self.n == 0 {
+                let mut bytes = Zeroizing::new(draw()?);
+                self.bytes.copy_from_slice(&bytes[..]);
+                self.n = self.bytes.len();
+                bytes.fill(0);
+            }
+            self.n -= 1;
+            let b = std::mem::take(&mut self.bytes[self.n]);
+            if b < 252 {
+                return Some(b % 6 + 1);
+            }
+        }
+    }
 }
 
 impl Roller {
@@ -201,8 +239,7 @@ impl Roller {
         self.stop();
         self.marks.clear();
         self.face = 0;
-        self.pool.fill(0);
-        self.pool_n = 0;
+        self.pool.clear();
     }
 
     /// The host's entries are now `len` long: positions past it are not
@@ -230,23 +267,9 @@ impl Roller {
         }
     }
 
-    /// The next value, 1 to 6, from `draw`'s answers; every byte of 252
-    /// or more is skipped so that no face is likelier. `None` while
-    /// `draw` has no answer.
+    /// The next value, 1 to 6 (see [`Pool::next`]).
     fn next(&mut self, draw: &mut dyn FnMut() -> Option<[u8; 32]>) -> Option<u8> {
-        loop {
-            if self.pool_n == 0 {
-                let mut bytes = Zeroizing::new(draw()?);
-                self.pool.copy_from_slice(&bytes[..]);
-                self.pool_n = self.pool.len();
-                bytes.fill(0);
-            }
-            self.pool_n -= 1;
-            let b = std::mem::take(&mut self.pool[self.pool_n]);
-            if b < 252 {
-                return Some(b % 6 + 1);
-            }
-        }
+        self.pool.next(draw)
     }
 
     /// One tick. `len` is how many entries the host has, `room` how many

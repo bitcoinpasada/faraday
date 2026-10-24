@@ -1,8 +1,8 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), §8.4's screens behind the interface a form holds (C7) and Faraday Desktop's one-die roller (C12, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
-**Open:** of C5, the wallet kind of §6.9, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); batches C6, C8 to C11 (§15.2): hand-made shares, add a share, check a string, scanning and the correction screens in the form, backups, templates, the five-dice roller, Demo and Learn; D5 (§14); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), §8.4's screens behind the interface a form holds (C7) Faraday Desktop's one-die roller (C12, §2) and the five-dice roller component (C11, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
+**Open:** of C5, the wallet kind of §6.9, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); batches C6, C8 to C11 (§15.2): hand-made shares, add a share, check a string, scanning and the correction screens in the form, backups, templates, the five-dice roller's place in the entry's pad (§5.5; its component is built), Demo and Learn; D5 (§14); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -174,6 +174,19 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
 
 ## 2. What is built today
 
+- **The five-dice roller** (C11), `faraday/faraday-core/src/fresh/roller/five.rs`
+  and `five_screen.rs`: `FiveRoller` rolls the booklet's dice sheet for a
+  click, five dice and four reaches (One pass, One character, One share,
+  To the end), as faces 1 to 6 in the pad's order, an equal pair's die
+  rolled again, so that the faces entered as the pad's keys give
+  exactly what the same faces typed give. It marks each face it made by
+  character and place (`is_rolled`, `char_rolled`, `sim`), tumbles for
+  `ROLLER_TUMBLE_MS` and pauses after each character, and under Reduce
+  motion lands all at once. The dice are drawn as vectors, as the one die
+  is; the website's WebP pictures are not used, as no image decoder
+  is to be added. Tested in `five_tests.rs` against the codex32 flow's own
+  entry; snapshot tour `dice5`. Its place in the entry's pad (§5.5) is
+  not yet in the pad.
 - **The codec**, `core/faraday-bip/src/codex32/mod.rs`: `Codex32::parse`
   (every rule of BIP 93; one case, mixed case refused), `from_seed`,
   `split(threshold, shares, fresh)` (an existing secret and k − 1

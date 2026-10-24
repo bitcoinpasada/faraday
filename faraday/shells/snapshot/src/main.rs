@@ -175,6 +175,7 @@ fn run(
         Some("fromvault") => return tours::from_vault::from_vault_tour(c, &mut t),
         Some("first") => return tours::first::first_tour(c, &mut t),
         Some("roller") => return tours::roller::roller_tour(&mut t),
+        Some("dice5") => return tours::dice_five::dice_five_tour(&mut t),
         Some("restore") => return tours::restore::restore_tour(&mut t),
         Some("osk") => return tours::devices::osk_tour(&mut t),
         Some("flow") => return tours::flow::flow_tour(&mut t),
@@ -310,13 +311,14 @@ fn main() -> ExitCode {
             "parts",
             "guide",
             "roller",
+            "dice5",
             "tour",
             "codex32",
         ]
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, codex32correct, createfrom, inprogress, cancel, std, parts, guide, roller, codex32 or tour"
+            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, codex32correct, createfrom, inprogress, cancel, std, parts, guide, roller, dice5, codex32 or tour"
         );
         return ExitCode::from(2);
     }

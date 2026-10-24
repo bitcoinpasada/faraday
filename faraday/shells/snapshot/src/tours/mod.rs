@@ -15,6 +15,7 @@ pub(crate) mod create_from;
 pub(crate) mod default;
 pub(crate) mod desktop;
 pub(crate) mod devices;
+pub(crate) mod dice_five;
 pub(crate) mod first;
 pub(crate) mod flow;
 pub(crate) mod from_vault;
