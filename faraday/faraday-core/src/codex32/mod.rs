@@ -26,6 +26,7 @@
 //! give, worked again with `dice` at every replay.
 
 pub(crate) mod screen;
+pub(crate) mod worksheet_screen;
 
 /// Making codex32 shares, and the wallet kind of §6.9, are offered. False
 /// hides them until the backup plan carries codex32 strings: New key's
@@ -347,6 +348,40 @@ struct Back {
     skip_ask: bool,
 }
 
+/// How far a checksum worksheet is panned inside its view
+/// (`docs/CODEX32.md` §7.5): units from the sheet's left edge and from
+/// its top. Drawing clamps it to the sheet it draws; a drag, the wheel,
+/// the arrow keys and the entry's front move it.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub struct SheetPan {
+    /// Units from the sheet's left edge.
+    pub x: f32,
+    /// Units from the sheet's top.
+    pub y: f32,
+}
+
+impl SheetPan {
+    /// Moves the least that brings the square `spot` (left, top, side,
+    /// in the sheet's units) into a view `view` (wide, tall) with `margin`
+    /// round it where there is room, never past `max` (across, down).
+    pub fn bring(&mut self, spot: (f32, f32, f32), view: (f32, f32), max: (f32, f32), margin: f32) {
+        fn axis(at: f32, lo: f32, side: f32, view: f32, max: f32, margin: f32) -> f32 {
+            let m = margin.min(((view - side) / 2.0).max(0.0));
+            let at = if lo - m < at {
+                lo - m
+            } else if lo + side + m > at + view {
+                lo + side + m - view
+            } else {
+                at
+            };
+            at.clamp(0.0, max.max(0.0))
+        }
+        let (x, y, side) = spot;
+        self.x = axis(self.x, x, side, view.0, max.0, margin);
+        self.y = axis(self.y, y, side, view.1, max.1, margin);
+    }
+}
+
 /// The flow, open inside New key while its Start card's choice is
 /// Codex32 (`docs/CODEX32.md` §6). See the module documentation.
 pub struct Codex32Make {
@@ -422,6 +457,9 @@ pub struct Codex32Make {
     /// the set entered (none where the shell gave no sample); `None`
     /// outside Demo.
     demo: Option<Vec<faraday_bip::codex32::Codex32>>,
+    /// How far the checksum worksheet shown is panned: the entry's, or
+    /// the review's tab's, which starts at its top left.
+    pan: SheetPan,
 }
 
 impl Codex32Make {
@@ -474,6 +512,7 @@ impl Codex32Make {
             hand: false,
             sample: false,
             demo: None,
+            pan: SheetPan::default(),
         }
     }
 
@@ -761,6 +800,43 @@ impl Codex32Make {
         self.view
     }
 
+    /// How far the checksum worksheet shown is panned.
+    pub fn pan(&self) -> SheetPan {
+        self.pan
+    }
+
+    /// The worksheet's pan, which the scroll machinery moves
+    /// (`Faraday::scroll_slot`, `ui::Slot::Worksheet`).
+    pub(crate) fn pan_mut(&mut self) -> &mut SheetPan {
+        &mut self.pan
+    }
+
+    /// Brings the entry's front cell into a checksum worksheet view of
+    /// `view` units that pans as far as `max`, moving the pan the least
+    /// (`docs/CODEX32.md` §6.4.7). A lookup: the cell's place on the
+    /// sheet is arithmetic on its box.
+    pub(crate) fn follow_front(
+        &mut self,
+        cls: faraday_draw::geom::WindowClass,
+        view: (f32, f32),
+        max: (f32, f32),
+    ) {
+        let Some((share, n)) = self.front() else {
+            return;
+        };
+        let Some(sh) = self
+            .work
+            .as_ref()
+            .and_then(|w| w.worksheet(share, Reveal::PaperForm))
+        else {
+            return;
+        };
+        let g = worksheet_screen::Geom::of(cls);
+        if let Some(spot) = worksheet_screen::paper!(sh, |p| g.box_spot(p, 10 + n)) {
+            self.pan.bring(spot, view, max, 2.0 * g.cell);
+        }
+    }
+
     /// The small panel's context (see [`C32::Panel`]).
     pub fn panel(&self) -> u8 {
         self.panel
@@ -973,6 +1049,7 @@ impl Codex32Make {
         if let Some(s) = self.seen.get_mut(i) {
             *s = true;
             self.tab = i as u8;
+            self.pan = SheetPan::default();
         }
     }
 

@@ -1,0 +1,46 @@
+//! The scrolled regions a frame draws: which offset each moves
+//! ([`Slot`]) and where each was drawn and how far it goes
+//! ([`Scrolled`]), for the app to move the one under the pointer.
+
+use faraday_draw::Rect;
+
+/// Which offset a scrolled region moves. A screen can scroll more than
+/// one region at once, each by its own offset; the wheel, a trackpad and
+/// a finger move the one under the pointer.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Slot {
+    /// The screen's region, or the open sheet's when it scrolls.
+    #[default]
+    Page,
+    /// Stick visit's Outbox list (`VisitState::out_offset`).
+    VisitOut,
+    /// The wallet card's body on a desktop (`Faraday::card_offset`).
+    Card,
+    /// Vault contents' item on a desktop (`VaultArea::item_offset`, `faraday-core`).
+    VaultItem,
+    /// Files' For the stick list on a desktop, beside From the stick
+    /// (`Faraday::files_out_offset`).
+    FilesOut,
+    /// The backup board's list in the right-hand column on a desktop
+    /// (`Faraday::board_list_offset`).
+    BoardList,
+    /// A codex32 checksum worksheet, which pans both ways
+    /// (`SheetPan`, `faraday-core`).
+    Worksheet,
+}
+
+/// A scrolled region as drawn: where it is and how far it goes.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Scrolled {
+    /// The offset it moves.
+    pub slot: Slot,
+    /// Where it is seen on the panel, in pixels.
+    pub view: Rect,
+    /// How far its content scrolls, in design units.
+    pub max: f32,
+    /// It draws its own scrollbar.
+    pub own_bar: bool,
+    /// How far its content pans sideways, in design units: 0 for a
+    /// region that only scrolls up and down.
+    pub max_x: f32,
+}

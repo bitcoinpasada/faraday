@@ -1813,6 +1813,7 @@ impl crate::Faraday {
         {
             self.keygen_codex32_by_hand();
         }
+        self.worksheet_follow();
     }
 
     /// The Entropy card's Continue on **Type shares made by hand**
@@ -1931,6 +1932,9 @@ impl crate::Faraday {
             if let Some(k) = self.keygen.state.as_mut() {
                 k.codex32 = m;
             }
+            // Faces that landed may have completed a character: the
+            // worksheet keeps its front in view.
+            self.worksheet_follow();
         }
         if one {
             redraw |= self.keygen_roller_tick(now_ms, reduce);

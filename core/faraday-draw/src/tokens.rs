@@ -1017,8 +1017,57 @@ pub const CODEX32_PATH_STROKE: f32 = 2.0;
 pub const CODEX32_BAND_SIDE: usize = 2;
 /// A worksheet tab's height (`docs/CODEX32.md` §6.5).
 pub const CODEX32_TAB: f32 = 48.0;
-/// The most rows of a worksheet the entry shows round its front column.
-pub const CODEX32_BAND_ROWS: usize = 16;
+/// A cell of the checksum worksheet, drawn as the booklet draws it:
+/// squares side by side on shared rules (`docs/CODEX32.md` §7.1, §7.5),
+/// by the window's class.
+pub const fn codex32_cell(class: WindowClass) -> f32 {
+    match class {
+        WindowClass::Compact => 20.0,
+        WindowClass::Medium => 24.0,
+        _ => 28.0,
+    }
+}
+
+/// A character's size in a checksum worksheet cell, by the window's
+/// class.
+pub const fn codex32_cell_char(class: WindowClass) -> f32 {
+    match class {
+        WindowClass::Compact => 12.0,
+        WindowClass::Medium => 14.0,
+        _ => 16.0,
+    }
+}
+
+/// The tallest the checksum worksheet's view is before the sheet
+/// scrolls inside it, by the window's class.
+pub const fn codex32_sheet_view(class: WindowClass) -> f32 {
+    match class {
+        WindowClass::Compact => 200.0,
+        WindowClass::Medium => 320.0,
+        _ => 400.0,
+    }
+}
+
+/// The checksum worksheet's gap between two groups of four columns, and
+/// between two pairs of rows: the booklet's double rule.
+pub const CODEX32_SHEET_GAP: f32 = 4.0;
+/// The checksum worksheet's bold rule round a given cell (the header, a
+/// character brought down): centred on the cell's thin rule.
+pub const CODEX32_SHEET_BOLD: f32 = 2.0;
+/// A box number in a bolded cell's top right corner, and a row letter in
+/// an `=` row's leading cells' bottom left corner, as small as the
+/// booklet sets them.
+pub const CODEX32_CELL_NOTE: f32 = 7.0;
+/// How far a box number's line rises above its cell's top, so its
+/// digits sit in the corner clear of the cell's character.
+pub const CODEX32_CELL_NOTE_RISE: f32 = 2.0;
+/// How far a box number or row letter sits in from its cell's edge.
+pub const CODEX32_CELL_NOTE_INSET: f32 = 2.0;
+/// The room between a row's `+` or `=` and its first cell.
+pub const CODEX32_MARK_GAP: f32 = 4.0;
+/// The number above each of a string's boxes: smaller than the boxes'
+/// characters, so every box carries one without crowding them.
+pub const CODEX32_STRING_NUMBER: f32 = 9.0;
 
 // ----- The five-dice roller (docs/CODEX32.md §5.5) -----
 

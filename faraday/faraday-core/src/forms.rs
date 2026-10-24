@@ -249,6 +249,8 @@ pub struct Codex32Form {
     /// **Show the worksheet** is open: every row of it, not only the
     /// final row.
     pub sheet_open: bool,
+    /// How far that worksheet is panned in its view.
+    pub pan: crate::codex32::SheetPan,
     /// Make the rest or Add a share was pressed: once `k` strings are in
     /// the make flow opens on them, in place of loading the key.
     pub making: Option<crate::codex32::Given>,
@@ -267,6 +269,7 @@ impl Codex32Form {
         self.checked = None;
         self.sheet = None;
         self.sheet_open = false;
+        self.pan = crate::codex32::SheetPan::default();
     }
 }
 

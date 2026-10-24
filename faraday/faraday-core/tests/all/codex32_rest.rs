@@ -272,6 +272,15 @@ fn check_a_string_shows_its_final_row_and_its_worksheet() {
         .expect("its worksheet");
     let rows = sheet.worksheet(faraday_keys::Reveal::PaperForm).unwrap();
     assert!(rows.holds());
+    // Its final row, `=` and the booklet's capitals.
+    let want: Vec<String> = std::iter::once("=".to_string())
+        .chain("SECRETSHARE32".chars().map(String::from))
+        .collect();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.windows(want.len()).any(|w| w == want.as_slice()),
+        "{texts:?}"
+    );
     assert!(crate::common::offered(
         &mut app,
         Action::Codex32Form(C32Press::Sheet)

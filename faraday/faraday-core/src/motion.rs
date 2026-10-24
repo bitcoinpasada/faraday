@@ -461,6 +461,9 @@ pub(crate) struct Scroll {
     /// The height a scrolled page last drew to, design units: how far its
     /// scroll may go.
     content_h: std::cell::Cell<f32>,
+    /// Where the finger or the pointer dragging a region that pans
+    /// sideways last was across, in pixels.
+    drag_x: i32,
 }
 
 impl Default for Scroll {
@@ -474,6 +477,7 @@ impl Default for Scroll {
             bar_seen: (home, 0.0, 0),
             sheet_scroll: (0.0, None),
             content_h: std::cell::Cell::new(0.0),
+            drag_x: 0,
         }
     }
 }
@@ -622,6 +626,8 @@ impl Scroll {
             ui::Slot::VaultItem if screen == Screen::VaultContents && reach => ui::Slot::VaultItem,
             ui::Slot::FilesOut if screen == Screen::Files && reach => ui::Slot::FilesOut,
             ui::Slot::BoardList if reach && board_shown() => ui::Slot::BoardList,
+            // A worksheet pans on a small panel too: it is wider than one.
+            ui::Slot::Worksheet if sheet_none => ui::Slot::Worksheet,
             _ => ui::Slot::Page,
         }
     }
@@ -629,9 +635,28 @@ impl Scroll {
 
 /// Which offset each screen and sheet scrolls.
 impl Faraday {
-    /// A key while the word-list sheet is open ([`wordlist::WordListArea::key`]),
-    /// and the glide it asks for: true when the sheet took it.
-    pub(crate) fn wordlist_key(&mut self, key: faraday_shell_api::Key) -> bool {
+    /// A key a scrolled region takes: an arrow on the codex32 worksheet
+    /// the pointer went to, which pans it; or any key while the word-list
+    /// sheet is open ([`wordlist::WordListArea::key`]), and the glide it
+    /// asks for. True when one took it.
+    pub(crate) fn scroll_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use faraday_shell_api::Key;
+        if self.slot() == ui::Slot::Worksheet && self.sheet.is_none() {
+            match key {
+                Key::Left => self.pan_across(-WHEEL_NOTCH),
+                Key::Right => self.pan_across(WHEEL_NOTCH),
+                Key::Up => self.glide(-WHEEL_NOTCH),
+                Key::Down => self.glide(WHEEL_NOTCH),
+                _ => return self.wordlist_key(key),
+            }
+            return true;
+        }
+        self.wordlist_key(key)
+    }
+
+    /// A key while the word-list sheet is open, and the glide it asks for:
+    /// true when the sheet took it.
+    fn wordlist_key(&mut self, key: faraday_shell_api::Key) -> bool {
         match self.wordlist.key(key, &mut self.sheet, &mut self.out) {
             crate::wordlist::Keyed::NotMine => false,
             crate::wordlist::Keyed::Taken => true,
@@ -640,6 +665,127 @@ impl Faraday {
                 true
             }
         }
+    }
+
+    /// Pixels per design unit, never so few that a division by it runs
+    /// away.
+    fn unit_px(&self) -> f32 {
+        self.f.max(0.1)
+    }
+
+    /// The codex32 checksum worksheet's pan on the screen shown: Make
+    /// codex32 shares' on New key, Check a string's on Add a key's
+    /// codex32 form (`docs/CODEX32.md` §7.5).
+    pub(crate) fn worksheet_pan_mut(&mut self) -> Option<&mut crate::codex32::SheetPan> {
+        match self.screen {
+            Screen::KeyGen => self.keygen.sheet_pan_mut(),
+            Screen::Entry => Some(&mut self.entry.state_mut().codex32.pan),
+            _ => None,
+        }
+    }
+
+    /// Whether the region that scrolls now is a worksheet whose content
+    /// pans sideways: how far, when it does.
+    fn across_max(&self) -> Option<f32> {
+        self.region_now()
+            .filter(|e| e.slot == ui::Slot::Worksheet && e.max_x > 0.0)
+            .map(|e| e.max_x)
+    }
+
+    /// Whether the region that scrolls now is a worksheet at its end in
+    /// the direction a move of `dy` units goes, so the move is the page's.
+    fn worksheet_at_end(&mut self, dy: f32) -> bool {
+        if self.slot() != ui::Slot::Worksheet {
+            return false;
+        }
+        let max = self.region_now().map_or(0.0, |e| e.max);
+        let at = self.worksheet_pan_mut().map_or(0.0, |p| p.y);
+        if dy > 0.0 { at >= max } else { at <= 0.0 }
+    }
+
+    /// Whether a finger or the pointer held down that has moved (dx, dy)
+    /// pixels from where it went down starts a drag. On a region that
+    /// scrolls only up and down, past the slop and more up or down than
+    /// across; on a worksheet that pans both ways, past the slop either
+    /// way, and a drag mostly up or down past the sheet's end in that
+    /// direction moves the page instead.
+    pub(crate) fn drag_starts(&mut self, dx: i32, dy: i32, slop: f32) -> bool {
+        let past = if self.across_max().is_some() {
+            (dx.abs().max(dy.abs()) as f32) > slop
+        } else {
+            (dy as f32).abs() > slop && dy.abs() > dx.abs()
+        };
+        if past && dy.abs() > dx.abs() && self.worksheet_at_end(-dy as f32) {
+            self.scroll.went_to(ui::Slot::Page);
+        }
+        past
+    }
+
+    /// A drag moved to (x, y) pixels, from `last` down the panel (where it
+    /// went down, at its `start`): the region follows it, up and down and,
+    /// on a worksheet, across.
+    pub(crate) fn pan_drag(&mut self, (x, y): (i32, i32), last: i32, start: bool) {
+        let (from_x, from_y) = if start {
+            self.pointer.down_at()
+        } else {
+            (self.scroll.drag_x, last)
+        };
+        self.scroll.drag_x = x;
+        let f = self.unit_px();
+        self.pan((from_y - y) as f32 / f);
+        if self.across_max().is_some() {
+            self.pan_across((from_x - x) as f32 / f);
+        }
+    }
+
+    /// A trackpad's gesture starts at (x, y) pixels moving `dy`: the
+    /// region under it moves, or the page where that region is a
+    /// worksheet already at its end that way.
+    pub(crate) fn point_scroll(&mut self, x: i32, y: i32, dy: f32) {
+        self.point_region(x, y);
+        if self.worksheet_at_end(dy) {
+            self.scroll.went_to(ui::Slot::Page);
+        }
+    }
+
+    /// The worksheet that scrolls now pans `dx` units across, at once, to
+    /// a whole pixel, within its ends.
+    pub(crate) fn pan_across(&mut self, dx: f32) {
+        let Some(max) = self.across_max() else {
+            return;
+        };
+        let f = self.unit_px();
+        if let Some(p) = self.worksheet_pan_mut() {
+            p.x = (((p.x + dx) * f).round() / f).clamp(0.0, max);
+        }
+    }
+
+    /// The wheel asked for `dy` units: with Shift held, a worksheet that
+    /// pans sideways pans across; at a worksheet's end the page moves on
+    /// (the wheel goes on to the region round it); else the region glides.
+    pub(crate) fn wheel(&mut self, dy: f32) {
+        if self.across_max().is_some() && self.typing.shift() {
+            self.pan_across(dy);
+            return;
+        }
+        if self.worksheet_at_end(dy) {
+            self.scroll.went_to(ui::Slot::Page);
+        }
+        self.glide(dy);
+    }
+
+    /// Make codex32 shares' front cell is brought into its worksheet's
+    /// view, as the last frame drew it (`docs/CODEX32.md` §6.4.7). A
+    /// lookup.
+    pub(crate) fn worksheet_follow(&mut self) {
+        let key = self.region_key();
+        let Some(e) = self.scroll.region_now(key, ui::Slot::Worksheet) else {
+            return;
+        };
+        let f = self.unit_px();
+        let view = (e.view.w as f32 / f, e.view.h as f32 / f);
+        let cls = self.window().class();
+        self.keygen.sheet_follow(cls, view, (e.max_x, e.max));
     }
 
     /// The open sheet's offset, or the screen's region's. A sheet starts

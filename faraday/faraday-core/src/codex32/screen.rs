@@ -20,6 +20,7 @@ use faraday_keys::{Reveal, WorkSet};
 use faraday_ui::keyboard::Keys as OskKeys;
 use faraday_ui::parts::wrap_buttons;
 
+use super::worksheet_screen as sheet;
 use super::{C32, CARDS, Card, Cell, Codex32Make, Given, SPLITS, Split, Tab, WAYS, Way, char_of};
 use crate::drawing::View;
 use crate::keygen::{KeyGen, kstep};
@@ -187,7 +188,7 @@ fn strings_title(m: &Codex32Make) -> String {
 }
 
 /// "Share A", or "Secret" with no threshold or for the secret: input `s`.
-fn share_name(work: &WorkSet, s: usize) -> String {
+pub(super) fn share_name(work: &WorkSet, s: usize) -> String {
     let i = work.inputs().get(s).copied().unwrap_or(b'a');
     if work.scheme().threshold() == 0 || i == b's' {
         return EN.codex32_the_secret.to_string();
@@ -662,7 +663,7 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
                     let h = dice_rows(m, ui, x, cy, w, true);
                     h + rolled_line(m, ui, x, cy + h, w)
                 }
-                1 => checksum_band(work, share, front, ui, at.to(x, cy, w)),
+                1 => sheet::entry_sheet(m, work, share, front, ui, (x, cy, w, cls, at.hide)),
                 _ => string_boxes(work, share, front, ui, at.to(x, cy, w)),
             };
             cy += pad(m, ui, at.to(x, cy, w));
@@ -771,7 +772,7 @@ fn panels(
     };
     let sy = if side { y } else { y + dh };
     let sh = match m.view() {
-        0 => checksum_band(work, share, front, ui, at.to(sx, sy, sw)),
+        0 => sheet::entry_sheet(m, work, share, front, ui, (sx, sy, sw, cls, at.hide)),
         v => translation(
             work,
             usize::from(v) - 1,
@@ -938,7 +939,7 @@ fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Op
     }
 }
 
-/// The share's string in numbered boxes, groups of four, `ms1` first,
+/// The share's string in boxes, each numbered, groups of four, `ms1` first,
 /// wrapping to the width: the header outlined, the checksum pink, the
 /// front box in the accent (§6.4.1).
 fn string_boxes(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui, at: At) -> f32 {
@@ -954,15 +955,13 @@ fn string_boxes(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui,
     let mut b = 1;
     while b <= chars {
         let to = (b + per - 1).min(chars);
-        for n in (b..=to).step_by(4) {
-            ui.text(
-                box_x(x, b, n, cls),
-                cy,
-                t::CODEX32_NUMBER,
-                W::R,
-                MUTED,
-                &n.to_string(),
-            );
+        // Every box carries its number, centred over it, smaller than
+        // the characters so the row of numbers stays quiet.
+        for n in b..=to {
+            let label = n.to_string();
+            let nw = ui.measure(t::CODEX32_STRING_NUMBER, W::R, &label);
+            let nx = box_x(x, b, n, cls) + (s - nw) / 2.0;
+            ui.text(nx, cy, t::CODEX32_STRING_NUMBER, W::R, MUTED, &label);
         }
         let ry = cy + t::CODEX32_NUMBER_ROW;
         for n in b..=to {
@@ -1007,106 +1006,6 @@ struct Row {
     j: usize,
 }
 
-/// Where a checksum worksheet drawn is kept: an input of the work set, by
-/// its place, or the one string Check a string holds (§8.3).
-#[derive(Clone, Copy)]
-enum Src<'a> {
-    /// An input of the work set.
-    Work(&'a WorkSet, usize),
-    /// The string Check a string holds.
-    Check(&'a faraday_keys::StringCheck),
-}
-
-/// Every row of share `share`'s checksum worksheet, in the booklet's
-/// order: the string, the residue of `ms`, each step's sum and lookup,
-/// the final row and what it must read.
-fn checksum_rows(src: Src<'_>) -> Vec<Row> {
-    let sh = match src {
-        Src::Work(work, share) => work.worksheet(share, Reveal::PaperForm),
-        Src::Check(check) => check.worksheet(Reveal::PaperForm),
-    };
-    let Some(sh) = sh else {
-        return Vec::new();
-    };
-    let len = sh.checksum_len();
-    let mut rows = vec![
-        Row {
-            name: EN.codex32_row_string.to_string(),
-            start: 4,
-            cells: (4..=sh.chars()).map(|b| sh.symbol(b)).collect(),
-            look: Look::Given,
-            cell: |s, _, i| Cell::Given {
-                sheet: s,
-                b: (i + 4) as u8,
-            },
-            j: 0,
-        },
-        Row {
-            name: EN.codex32_row_ms.to_string(),
-            start: 4,
-            cells: sh.hrp_row().iter().map(|&v| Some(v)).collect(),
-            look: Look::Fixed,
-            cell: |s, _, i| Cell::Hrp {
-                sheet: s,
-                i: i as u8,
-            },
-            j: 0,
-        },
-    ];
-    for j in 0..sh.steps() {
-        rows.push(Row {
-            name: fill(EN.codex32_row_sum, &[&(j + 1).to_string()]),
-            start: sh.sum_box(j),
-            cells: (0..len).map(|i| sh.sum_cell(j, i)).collect(),
-            look: Look::Table,
-            cell: |s, j, i| Cell::Sum {
-                sheet: s,
-                j: j as u8,
-                i: i as u8,
-            },
-            j,
-        });
-        rows.push(Row {
-            name: fill(EN.codex32_row_lookup, &[&(j + 1).to_string()]),
-            start: sh.lookup_box(j),
-            cells: (0..len).map(|i| sh.lookup_cell(j, i)).collect(),
-            look: Look::Table,
-            cell: |s, j, i| Cell::Lookup {
-                sheet: s,
-                j: j as u8,
-                i: i as u8,
-            },
-            j,
-        });
-    }
-    let fin = sh.steps();
-    rows.push(Row {
-        name: EN.codex32_row_final.to_string(),
-        start: sh.sum_box(fin),
-        cells: (0..len).map(|i| sh.final_cell(i)).collect(),
-        look: Look::Given,
-        cell: |s, j, i| Cell::Sum {
-            sheet: s,
-            j: j as u8,
-            i: i as u8,
-        },
-        j: fin,
-    });
-    rows.push(Row {
-        name: EN.codex32_row_must_read.to_string(),
-        start: sh.sum_box(fin),
-        cells: sh.target().iter().map(|&v| Some(v)).collect(),
-        look: Look::Fixed,
-        cell: |s, j, i| Cell::Sum {
-            sheet: s,
-            j: j as u8,
-            i: i as u8,
-        },
-        j: fin,
-    });
-    rows
-}
-
 /// The rows of a worksheet from box `from` to `to`, their names in the
 /// left column, the box numbers over the first. `front` outlines that
 /// box of the first row. Returns the height.
@@ -1133,7 +1032,7 @@ fn grid(
     }
     let mut cy = y + t::CODEX32_NUMBER_ROW;
     for (r, row) in rows.iter().enumerate() {
-        if (r + 1 == rows.len() && row.look == Look::Given) || row.name == EN.codex32_row_final {
+        if r + 1 == rows.len() && row.look == Look::Given {
             ui.rule(
                 gx,
                 cy - t::CODEX32_ROW_GAP / 2.0,
@@ -1180,112 +1079,6 @@ fn window(chars: usize, front: Option<usize>, cls: WindowClass, w: f32) -> (usiz
     let at = front.unwrap_or(chars);
     let from = at.saturating_sub(n / 2).clamp(4, chars + 1 - n);
     (from, from + n - 1)
-}
-
-/// The checksum worksheet of share `share` during the entry: the rows
-/// that hold the front column, at most [`t::CODEX32_BAND_ROWS`], the
-/// string's row first, in the window round it (§6.4.3, §6.4.7).
-fn checksum_band(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui, at: At) -> f32 {
-    let (x, y, w, cls) = (at.x, at.y, at.w, at.cls);
-    let Some(chars) = work.worksheet(share, Reveal::PaperForm).map(|s| s.chars()) else {
-        return 0.0;
-    };
-    let mut rows = checksum_rows(Src::Work(work, share));
-    let col = front.unwrap_or(chars);
-    let mut band: Vec<Row> = Vec::new();
-    for (r, row) in rows.drain(..).enumerate() {
-        let holds = (row.start..row.start + row.cells.len()).contains(&col);
-        if r == 0 || (holds && band.len() < t::CODEX32_BAND_ROWS) {
-            band.push(row);
-        }
-    }
-    let head = fill(EN.codex32_checksum_of, &[&share_name(work, share)]);
-    let hh = ui.wrap(x, y, w, t::LABEL, W::S, TEXT, &head) + t::GAP_SMALL;
-    let win = window(chars, Some(col), cls, w);
-    hh + grid(&band, share as u8, win, front, ui, at.to(x, y + hh, w)) + t::GAP
-}
-
-/// The whole checksum worksheet of share `share`, for the review (§6.5),
-/// in the window `from`; its marking: "from your rolls" or "as typed".
-fn checksum_whole(m: &Codex32Make, work: &WorkSet, share: usize, ui: &mut Ui, at: At) -> f32 {
-    let (x, y, w) = (at.x, at.y, at.w);
-    let Some(chars) = work.worksheet(share, Reveal::PaperForm).map(|s| s.chars()) else {
-        return 0.0;
-    };
-    let rows = checksum_rows(Src::Work(work, share));
-    let typed = m.made_of(share, 0).is_some_and(super::Made::typed);
-    let head = fill(
-        EN.codex32_checksum_of_marked,
-        &[
-            &share_name(work, share),
-            if m.sample() {
-                EN.c32r_the_sample
-            } else if typed || m.given_kind().is_some() {
-                EN.codex32_as_typed
-            } else {
-                EN.codex32_from_your_rolls
-            },
-        ],
-    );
-    let hh = ui.wrap(x, y, w, t::LABEL, W::S, TEXT, &head) + t::GAP_SMALL;
-    hh + in_parts(&rows, share as u8, (4, chars), ui, at.to(x, y + hh, w))
-}
-
-/// Rows of a worksheet of `chars` characters, in parts one under another
-/// where the sheet is wider than `at.w`. Returns the height.
-fn in_parts(rows: &[Row], sheet: u8, (first, chars): (usize, usize), ui: &mut Ui, at: At) -> f32 {
-    let (x, y, w, cls) = (at.x, at.y, at.w, at.cls);
-    let mut cy = y;
-    let (mut from, mut parts) = (first, 0);
-    while from <= chars && parts < 4 {
-        let n = boxes_in(w - t::CODEX32_LABEL_W, from, cls);
-        let to = (from + n - 1).min(chars);
-        cy += grid(rows, sheet, (from, to), None, ui, at.to(x, cy, w)) + t::GAP;
-        from = to + 1;
-        parts += 1;
-    }
-    cy - y
-}
-
-/// Check a string's worksheet (§8.3), drawn on the codex32 form: its
-/// final row and what that row must read, or with `whole` every row of
-/// the verification sheet, the first cell that differs from
-/// `SECRETSHARE32` marked as the row reads it. Its boxes open nothing.
-/// Returns the height.
-pub(crate) fn check_sheet(
-    app: &View,
-    check: &faraday_keys::StringCheck,
-    whole: bool,
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
-) -> f32 {
-    let Some(sh) = check.worksheet(Reveal::PaperForm) else {
-        return 0.0;
-    };
-    let chars = sh.chars();
-    let differs = sh.first_difference().map(|i| sh.sum_box(sh.steps()) + i);
-    let mut rows = checksum_rows(Src::Check(check));
-    if !whole {
-        // The final row and what it must read.
-        let keep = rows.len().saturating_sub(2);
-        rows.drain(..keep);
-    }
-    let at = At {
-        x,
-        y,
-        w,
-        cls: app.window().class(),
-        hide: false,
-        roller: false,
-        press: false,
-    };
-    let first = if whole { 4 } else { sh.sum_box(sh.steps()) };
-    let mut h = in_parts(&rows, 0, (first, chars), ui, at);
-    if let Some(b) = differs {
-        let line = fill(EN.c32r_final_differs, &[&b.to_string()]);
-        h += ui.wrap(x, y + h, w, t::LABEL, W::R, ERR, &line) + t::GAP;
-    }
-    h
 }
 
 // ---------------------------------------------------------------------
@@ -1719,7 +1512,7 @@ fn sheets(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     cy += self::tabs(ui, x, cy, w, &items);
     cy += match tab_list.get(usize::from(on)).map(|t| t.1) {
         Some(Tab::Dice(s)) => dice_review(m, work, s, ui, x, cy, w),
-        Some(Tab::Checksum(s)) => checksum_whole(m, work, s, ui, at.to(x, cy, w)),
+        Some(Tab::Checksum(s)) => sheet::review_sheet(m, work, s, ui, (x, cy, w, at.cls, at.hide)),
         Some(Tab::Translation(n)) => translation(work, n, None, ui, at.to(x, cy, w)),
         None => 0.0,
     };

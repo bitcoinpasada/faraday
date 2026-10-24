@@ -172,6 +172,22 @@ Sources read for it, each as data and none vendored:
     own rolls, Faraday's, or both; codex32's entry for real rolls is laid
     out as the de-biasing worksheet, five dice by two rolls (§5.5).
 
+Added 2026-10-24 (owner):
+
+26. **The checksum worksheet on screen is the booklet's**, formatting and
+    layout exactly, against the booklet's generation sheet and its
+    verification examples: the same staircase, the boxes in groups of
+    four with their small numbers, `MS1` at the head, the `+` and `=`
+    row marks, the given and checksum boxes bolded, the pink checksum
+    region, the small row letters (a, b, c, …) and the final
+    `SECRETSHARE32` row. §7.5's readability rules stay where they do
+    not change the layout (§7.1, §7.5).
+27. **Where the worksheet does not fit it scrolls both ways**, and a
+    click and hold (mouse) or a touch and hold drags it, on every shell
+    with a pointer or touch; the keyboard scrolls it too (§7.5).
+28. **Every box of the string is numbered**, small and quiet over each
+    box, the groups of four kept (§6.4.1).
+
 What this spec found that the decision assumed otherwise: the booklet's
 site lists "Checksum Worksheets: Standard 128-bit, Standard 256-bit" and
 "Translation Worksheets: 128-bit k = 2, k = 3; TODO higher k; 256 bits".
@@ -946,9 +962,9 @@ to the mask policy for this flow:
 
 | Class | Over the pad | One press away |
 |---|---|---|
-| `wide` (the pane right of the sidebar) | two panels side by side: the dice sheet (tracks, tree, path) and the checksum worksheet, scrolled so the entry's front column is in view, the share's string with numbered boxes above both | a share's translation rows, from a strip of the worksheets under the title; the cell sheet (§7.4) |
-| `mobile` | stacked: the share's string in two rows of numbered boxes; the dice sheet as five track rows ("Die 3 · 4 then 2 · lower · 0") with the tree drawn in a strip of 32 leaves and the path over it; the checksum worksheet as a band of the rows around the front, scrolling sideways with it | the full checksum worksheet, scrollable both ways; translation rows; the cell sheet |
-| `small` (the Pi panel and 240 × 320) | the pad and one context panel at a time: the dice sheet while a character is rolled, as track rows and the path as a line "0 1 1 0 · ·"; after the fifth bit, the character's box for a moment, then back to the tracks | a tile row over the pad, **Dice · Checksum · String**, swaps the context panel; the checksum panel shows the rows that include the front column, two columns either side; the cell sheet is the whole panel as a page |
+| `wide` (the pane right of the sidebar) | two panels side by side: the dice sheet (tracks, tree, path) and the checksum worksheet in its view (§7.5), panned so the entry's front cell is in view, the share's string with every box numbered above both | a share's translation rows, from a strip of the worksheets under the title; the cell sheet (§7.4) |
+| `mobile` | stacked: the share's string in rows of numbered boxes; the dice sheet as five track rows ("Die 3 · 4 then 2 · lower · 0") with the tree drawn in a strip of 32 leaves and the path over it; the whole checksum worksheet in its view, panning both ways and following the front | translation rows; the cell sheet |
+| `small` (the Pi panel and 240 × 320) | the pad and one context panel at a time: the dice sheet while a character is rolled, as track rows and the path as a line "0 1 1 0 · ·"; after the fifth bit, the character's box for a moment, then back to the tracks | a tile row over the pad, **Dice · Checksum · String**, swaps the context panel; the checksum panel is the whole worksheet in its view, panning both ways and following the front; the cell sheet is the whole panel as a page |
 
 The worksheet's boxes are drawn at token sizes (§13.4). On `small` and
 `mobile` a box is under the touch floor, so a press on the checksum
@@ -1115,8 +1131,10 @@ Other forms.
 During entry the worksheets are the Pad screen's context (§6.4); for
 review, each is a Secret screen whose panel is the worksheet's grid.
 Both are DESIGN §5 screens; no new screen is added. Masking is §6.4.6.
-Each box is drawn at a token's size (§13.4) with its number above it,
-in groups of four.
+Each box is drawn at a token's size (§13.4). A string's boxes stand in
+groups of four, each with its number above it, small and in the muted
+colour (owner, 2026-10-24); the checksum worksheet is drawn as the
+booklet draws it (§7.1).
 
 ### 7.1 Checksum worksheet
 
@@ -1129,6 +1147,38 @@ characters and 29 at 74. Each step shows the two leading symbols of the
 sum row and the checksum-table row they select, as the booklet's table
 on its pages 15 and 16 gives it, so a person with the table checks the
 lookup and a person with the addition wheel checks the sum.
+
+**As the booklet lays it out** (owner, 2026-10-24; its generation sheet
+and its verification examples; `codex32/worksheet_screen.rs`). Columns
+are the string's boxes, in groups of four with a gap between groups;
+rows go in pairs with the same gap between pairs. Square cells share
+their rules, as on paper. From the top:
+
+1. **The first row**: boxes 1 to 16 (18 at 127 characters), `M S 1`
+   and the first 13 characters, each bolded, its box number small in
+   its top right corner.
+2. **`+`** and the residue of `ms` (`3 3XW8 7RR3 YLJG` at 48 and 74
+   characters), from box 4.
+3. **Each step**: an **`=`** row, the sum, two boxes on from the last
+   (the first from box 4), its leading cells (one or two, the cells
+   that select the next row) lettered `a`, `b`, `c`, … `z`, `aa`, `ab`,
+   … small in their bottom left corners, and at its end the next
+   characters of the string brought down, bolded and numbered; then a
+   **`+`** row, the checksum table's row the leading cells select. The
+   `=` rows' cells in the checksum's columns (boxes 36 to 48 at 48
+   characters) are pink, bolded ones included; `+` rows are never
+   pink.
+4. **`=`** and the final row, under the last `+` row, which reads
+   `SECRETSHARE32`.
+
+Characters are the booklet's capitals in the mono face. Until a
+final-row cell is worked out it shows what it must read, in the muted
+colour, as the verification sheet prints `SECRETSHARE32` in grey; worked
+out, it is in the text colour, or, where it differs, in the error
+colour with a bold error-coloured rule round it. Check a string's first
+look (§8.3) is the final row alone, `=` and its 13 cells. The cell
+being filled has the accent outline (§7.5); every cell with a value
+opens its working (§7.4).
 
 - **Making a checksum** (generation): the final row is fixed at
   `SECRETSHARE32`, and the checksum boxes (the booklet's pink boxes) are
@@ -1212,28 +1262,44 @@ paper recognises it at a glance:
 
 | Booklet | Role | Faraday |
 |---|---|---|
-| Plain squares on thin black rules, in the booklet's staircase, rows offset as the ladder works down | the grid | the same staircase and offsets; rules in the theme's inner-edge colour |
+| Plain squares on thin black rules, in the booklet's staircase, rows offset as the ladder works down | the grid | the same staircase and offsets, square cells sharing their rules, groups of four columns and pairs of rows set apart by a gap; rules in the theme's inner-edge colour |
 | Bold-outlined squares | the given data (the person's characters, the header) | a heavier outline in the text colour |
-| Pink fill (`/pink`, RGB 1, 0.9, 0.9) on the checksum squares, bolded | the checksum, worked from the bottom up | a pink-family fill named for the role (`CODEX32_CHECKSUM_FILL`), with a light and a dark value per theme so it reads as the booklet's pink on light themes and as a muted rose on dark ones |
-| Light grey fill (0.95, 0.85) | rows read from a table, the sum and lookup rows | a raised-surface fill (`CODEX32_LOOKUP_FILL`) |
-| The final row, `SECRETSHARE32` | the check | its own row under a rule, set in the text colour, the fixed letters in bold |
+| Pink fill (`/pink`, RGB 1, 0.9, 0.9) on the `=` rows' cells in the checksum's columns, its bolded squares among them | the checksum, worked from the bottom up | a pink-family fill named for the role (`CODEX32_CHECKSUM_FILL`), with a light and a dark value per theme so it reads as the booklet's pink on light themes and as a muted rose on dark ones |
+| Light grey fill (0.95, 0.85), in the colour edition | rows read from a table | on the translation worksheet, a raised-surface fill (`CODEX32_LOOKUP_FILL`); none on the checksum worksheet, whose `+` and `=` rows are plain as on the owner's sheet (owner, 2026-10-24) |
+| The final row, `SECRETSHARE32`, after `=` | the check | the same row after `=`; its letters muted until worked out (§7.1) |
+| Small box numbers in the bolded squares' corners; small letters in the `=` rows' leading squares | finding a box, naming a cell | the same, in the muted colour at `CODEX32_CELL_NOTE`; a character stands left of its box's number |
 | The dice worksheet's five tracks and pads, the 32-leaf tree | the dice | drawn as the booklet draws them: tracks left to right, the tree's leaves in its order |
 | The second alphabet (`code2`) for translation symbols | the multipliers | the same glyphs |
 
 Names, numbers and the order of the boxes are the booklet's (§3), and so
-is the box numbering above each group of four.
+are the box numbers in the bolded squares. A string's own boxes (§6.4.1)
+carry a number each, over the box.
 
 **More beautiful, without changing what is where.** Even spacing and
 alignment on the token grid; characters set in the mono face at a size
-where each box holds its character with room around it; rounded box
-corners at the radius the rest of Faraday uses; the staircase given air
-between rows so the diagonal reads as one line of work; no ornament
-that carries no meaning.
+where each box holds its character with room around it; no ornament
+that carries no meaning. The checksum worksheet keeps the booklet's
+square cells on shared rules (owner, 2026-10-24); a string's own boxes
+keep the rounded corners the rest of Faraday uses.
+
+**In a view that pans both ways** (owner, 2026-10-24). The checksum
+worksheet is drawn in a view as wide as its column and at most
+`codex32_sheet_view` tall; where the sheet is larger it pans, across
+and down, through the scroll machinery every region uses (MOTION §3.3;
+a region of its own, `Slot::Worksheet`, whose content also pans
+sideways). A click and hold of the mouse, or a touch and hold, drags
+it either way (past the touch slop, so a press on a cell still opens
+its working); the wheel and a trackpad scroll it down, Shift with the
+wheel across; the arrow keys pan it once the pointer is over it. At
+its foot or top a drag up or down, the wheel or a trackpad go on to
+the page. During the entry the view moves the least that keeps the
+front cell in view (§6.4.7); the review's tabs open at the sheet's top
+left. Only the cells in the view are drawn. A trackpad's sideways
+gesture does not pan it: the shells send the core no sideways scroll.
 
 **Readability: every visual element points at the work.**
-- **The cell being filled** has an accent outline, and the row it
-  belongs to a faint accent tint, so the eye knows where the next value
-  goes. Only one cell at a time is outlined.
+- **The cell being filled** has an accent outline, so the eye knows
+  where the next value goes. Only one cell at a time is outlined.
 - **A value that just landed** fades in over the motion time
   (MOTION; at once under Reduce motion), so a change is noticed without
   anything moving across the sheet.
@@ -1828,8 +1894,12 @@ the booklet are in Learn (§15.3).
 ### 13.4 Tokens
 
 The worksheet's box side, gap, group gap and number size per class are
-names in `core/faraday-draw/src/tokens.rs` (WORKSHEET_BOX and the like,
-and the dice sheet's track pad, tree node and leaf);
+names in `core/faraday-draw/src/tokens.rs` (`codex32_box` and the like
+for a string's boxes and the translation worksheet; `codex32_cell`,
+`codex32_cell_char`, `codex32_sheet_view`, `CODEX32_SHEET_GAP`,
+`CODEX32_SHEET_BOLD`, `CODEX32_CELL_NOTE` and `CODEX32_MARK_GAP` for
+the checksum worksheet; `CODEX32_STRING_NUMBER` for the numbers over a
+string's boxes; and the dice sheet's track pad, tree node and leaf);
 the PDF's in `pdf.rs`'s own constants as the SeedQR grid's are.
 
 ### 13.5 Tests of the cryptography

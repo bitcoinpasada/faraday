@@ -120,6 +120,7 @@ pub(crate) fn codex32_tour(t: &mut Tour) -> Result<(), String> {
         c(t, C32::Tab(tab));
         t.shot(&format!("codex32-sheets-{tab}"))?;
     }
+    checksum_end(t)?;
     c(t, C32::Next);
     t.shot("codex32-string")?;
     let mut typed: Vec<char> = SHARES[0][3..].chars().collect();
@@ -217,4 +218,42 @@ fn typed_in(t: &mut Tour) -> Result<(), String> {
     c(t, C32::Skip);
     c(t, C32::Skip);
     t.shot("codex32-add-made")
+}
+
+/// Share A's checksum worksheet dragged to its foot and right: the pink
+/// checksum cells and the final row (`docs/CODEX32.md` §7.5).
+fn checksum_end(t: &mut Tour) -> Result<(), String> {
+    c(t, C32::Tab(2));
+    pan_to_end(t);
+    crate::tour::scroll(t, 360);
+    t.shot("codex32-sheets-checksum-end")
+}
+
+/// The checksum worksheet shown dragged up and to the left, a finger's
+/// drag at a time from near its top left corner, until its foot and its
+/// right edge are in view.
+fn pan_to_end(t: &mut Tour) {
+    use faraday_shell_api::{Event, TouchPhase};
+    let _ = t.app.frame();
+    let cell = Action::Codex32(C32::Cell(Cell::Hrp { sheet: 0, i: 0 }));
+    let Some((x, y, w, h)) = t.app.hit_box(cell) else {
+        return;
+    };
+    let (x, y) = (x + w / 2, y + h / 2);
+    for _ in 0..12 {
+        let (dx, dy) = (x.min(300), y.min(200));
+        for (px, py, phase) in [
+            (x, y, TouchPhase::Down),
+            (x - dx / 2, y - dy / 2, TouchPhase::Move),
+            (x - dx, y - dy, TouchPhase::Move),
+            (x - dx, y - dy, TouchPhase::Up),
+        ] {
+            t.app.event(Event::Touch {
+                x: px,
+                y: py,
+                phase,
+            });
+        }
+        let _ = t.app.frame();
+    }
 }

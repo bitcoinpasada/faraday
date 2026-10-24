@@ -9322,10 +9322,6 @@ strings! {
     codex32_row_sum: "Sum {}",
     /// A worksheet row: a lookup from the checksum table. `{}`: its number.
     codex32_row_lookup: "Table {}",
-    /// A worksheet row: the final row.
-    codex32_row_final: "Final",
-    /// A worksheet row: what the final row must read.
-    codex32_row_must_read: "Must read",
     /// A translation worksheet row: an input times its symbol. `{}`: the input.
     codex32_row_times: "{} × symbol",
     /// A translation worksheet's head. `{}`: what it makes.

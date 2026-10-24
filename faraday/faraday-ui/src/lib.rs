@@ -12,10 +12,12 @@ pub mod keyboard;
 mod lists;
 pub mod nav;
 pub mod parts;
+pub mod region;
 pub mod sheet;
 pub mod tooltip;
 
 pub use controls::{Reach, Style, focus_step, reach_at};
+pub use region::{Scrolled, Slot};
 
 use faraday_draw::fonts::Family;
 use faraday_draw::text::{self, TextAlign};
@@ -682,41 +684,6 @@ pub struct Disclosure {
     pub shown: f32,
 }
 
-/// Which offset a scrolled region moves. A screen can scroll more than
-/// one region at once, each by its own offset; the wheel, a trackpad and
-/// a finger move the one under the pointer.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Slot {
-    /// The screen's region, or the open sheet's when it scrolls.
-    #[default]
-    Page,
-    /// Stick visit's Outbox list (`VisitState::out_offset`).
-    VisitOut,
-    /// The wallet card's body on a desktop (`Faraday::card_offset`).
-    Card,
-    /// Vault contents' item on a desktop (`VaultArea::item_offset`, `faraday-core`).
-    VaultItem,
-    /// Files' For the stick list on a desktop, beside From the stick
-    /// (`Faraday::files_out_offset`).
-    FilesOut,
-    /// The backup board's list in the right-hand column on a desktop
-    /// (`Faraday::board_list_offset`).
-    BoardList,
-}
-
-/// A scrolled region as drawn: where it is and how far it goes.
-#[derive(Debug, Clone, Copy, PartialEq)]
-pub struct Scrolled {
-    /// The offset it moves.
-    pub slot: Slot,
-    /// Where it is seen on the panel, in pixels.
-    pub view: Rect,
-    /// How far its content scrolls, in design units.
-    pub max: f32,
-    /// It draws its own scrollbar.
-    pub own_bar: bool,
-}
-
 impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// A context over `c`.
     pub fn new(
@@ -817,6 +784,15 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.report(slot, view, max, offset, false);
     }
 
+    /// [`Ui::report_scroll_beside`] for a region whose content also pans
+    /// sideways: `max` is how far it goes across and down, in units.
+    pub fn report_scroll_both(&mut self, slot: Slot, view: Rect, max: (f32, f32), offset: f32) {
+        self.report(slot, view, max.1, offset, false);
+        if let Some(s) = self.scrolled.iter_mut().find(|s| s.slot == slot) {
+            s.max_x = max.0.max(0.0);
+        }
+    }
+
     fn report(&mut self, slot: Slot, view: Rect, max: f32, offset: f32, own_bar: bool) {
         let max = max.max(0.0);
         let region = Scrolled {
@@ -824,6 +800,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             view,
             max,
             own_bar,
+            max_x: 0.0,
         };
         match self.scrolled.iter_mut().find(|s| s.slot == slot) {
             Some(s) => *s = region,

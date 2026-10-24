@@ -900,7 +900,8 @@ pub(crate) fn codex32_found(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32)
     // The final row of its worksheet, or the whole sheet (§8.3).
     if let Some(sheet) = &e.codex32.sheet {
         let open = e.codex32.sheet_open;
-        h += crate::codex32::screen::check_sheet(app, sheet, open, ui, (x, y + h, width));
+        let pan = (open, e.codex32.pan);
+        h += crate::codex32::worksheet_screen::check_sheet(app, sheet, pan, ui, (x, y + h, width));
         let label = if open {
             EN.c32r_final_row_only
         } else {

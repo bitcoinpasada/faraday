@@ -209,8 +209,9 @@ this pass came from, is on the board.
   backup checklist's `board_mut`, `check_mut` and `scroll_y_mut`, the
   vault's `item_offset_mut`, `create_scroll_y_mut` and `text_box`, and
   the backup flow's `board_mut`, `scroll_y_mut` and
-  `board_list_offset_mut`, Message's `scroll_y_mut` and boot import's
-  `state_mut`. These are to be narrowed into named methods
+  `board_list_offset_mut`, Message's `scroll_y_mut`, New key's
+  `sheet_pan_mut` (the codex32 worksheet's pan, as the other offsets)
+  and boot import's `state_mut`. These are to be narrowed into named methods
   (planned, not scheduled).
 
 ### 7.4 Phase 7's plan

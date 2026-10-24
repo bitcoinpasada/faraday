@@ -498,6 +498,7 @@ impl EntryArea {
             }
             forms::C32Press::Sheet => {
                 e.codex32.sheet_open = !e.codex32.sheet_open && e.codex32.sheet.is_some();
+                e.codex32.pan = crate::codex32::SheetPan::default();
             }
             forms::C32Press::CheckIt | forms::C32Press::Rest | forms::C32Press::AddShare => {}
         }

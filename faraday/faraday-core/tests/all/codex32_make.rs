@@ -633,3 +633,110 @@ fn the_eye_stands_clear_of_every_row_of_the_flow() {
         );
     }
 }
+
+/// Share A of vector 2, its first `n` data characters typed, on a
+/// window `width` × `height` at 160 dpi (tall enough that the pad
+/// and the sheet are both on it), a frame drawn after each as the shells
+/// draw one after every event.
+fn typed_a(width: u16, height: u16, n: usize) -> Faraday {
+    let (all, _) = vector2();
+    let mut app = on(width, height, 160);
+    opened(&mut app);
+    to_entry(&mut app, Way::Typed);
+    let _ = app.frame();
+    for &ch in &all[0].as_bytes()[9..9 + n] {
+        key(&mut app, char::from(ch));
+        let _ = app.frame();
+    }
+    app
+}
+
+fn pan(app: &Faraday) -> faraday_core::codex32::SheetPan {
+    app.keygen().unwrap().codex32.as_ref().unwrap().pan()
+}
+
+#[test]
+fn every_box_of_the_string_carries_its_number() {
+    // The small panel's String tile: the share's boxes alone.
+    let mut app = rolled_z(480, 640, 286);
+    c32(&mut app, C32::Panel(2));
+    let texts = app.drawn_texts();
+    for n in 1..=48 {
+        assert!(
+            texts.iter().any(|t| *t == n.to_string()),
+            "box {n} is numbered: {texts:?}"
+        );
+    }
+}
+
+#[test]
+fn the_checksum_worksheet_pans_by_a_drag_the_wheel_and_the_arrow_keys() {
+    use faraday_core::codex32::Cell;
+    use faraday_shell_api::{Key, TouchPhase};
+    let mut app = typed_a(1280, 1600, 1);
+    assert_eq!(pan(&app), Default::default(), "it opens at its top left");
+    // A cell of the residue's row, near the sheet's top left corner.
+    let cell = Action::Codex32(C32::Cell(Cell::Hrp { sheet: 0, i: 0 }));
+    let (x, y, w, h) = app.hit_box(cell).expect("the residue's first cell");
+    let (x, y) = (x + w / 2, y + h / 2);
+    // Held and dragged up and to the left: the sheet follows both ways,
+    // and the cell held is not pressed.
+    let touch = |app: &mut Faraday, x: u16, y: u16, phase| {
+        app.event(Event::Touch { x, y, phase });
+    };
+    touch(&mut app, x, y, TouchPhase::Down);
+    touch(&mut app, x - 60, y - 60, TouchPhase::Move);
+    touch(&mut app, x - 120, y - 120, TouchPhase::Move);
+    touch(&mut app, x - 120, y - 120, TouchPhase::Up);
+    let _ = app.frame();
+    let dragged = pan(&app);
+    assert!(dragged.x > 0.0 && dragged.y > 0.0, "{dragged:?}");
+    assert!(
+        app.keygen()
+            .unwrap()
+            .codex32
+            .as_ref()
+            .unwrap()
+            .cell()
+            .is_none(),
+        "a drag opens no cell's working"
+    );
+    // A trackpad scrolls it down; the wheel with Shift held, across.
+    app.event(Event::Scroll { x, y, dy: 40 });
+    let _ = app.frame();
+    assert!(pan(&app).y > dragged.y, "scrolled down");
+    let before = pan(&app);
+    app.event(Event::Shift { held: true });
+    app.event(Event::Wheel { x, y, dy: 48 });
+    app.event(Event::Shift { held: false });
+    let _ = app.frame();
+    assert!(pan(&app).x > before.x, "Shift and the wheel pan across");
+    assert_eq!(pan(&app).y, before.y);
+    // The arrow keys, once the pointer is over it.
+    let before = pan(&app);
+    app.event(Event::Key(Key::Right));
+    let _ = app.frame();
+    assert!(pan(&app).x > before.x, "Right pans across");
+    app.event(Event::Key(Key::Left));
+    app.event(Event::Key(Key::Left));
+    let _ = app.frame();
+    assert!(pan(&app).x < before.x, "Left pans back");
+}
+
+#[test]
+fn the_worksheet_keeps_the_character_being_entered_in_view() {
+    use faraday_core::codex32::Cell;
+    // Twenty characters in: box 29 is brought down at the end of the
+    // seventh `=` row, below the view's first height.
+    let app = typed_a(1280, 1600, 20);
+    let row = Action::Codex32(C32::Cell(Cell::Sum {
+        sheet: 0,
+        j: 6,
+        i: 12,
+    }));
+    assert!(pan(&app).y > 0.0, "the sheet scrolled down to the front");
+    assert!(
+        app.hit_box(row).is_some(),
+        "the front's row is in view, its cells pressable"
+    );
+}

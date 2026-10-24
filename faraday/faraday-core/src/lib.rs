@@ -45,7 +45,7 @@
 //!   printed sheets), `picture` (a QR code to keep), `demo` (what Demo
 //!   refuses), `devices` (what else captures the screen or the keys) and
 //!   `edid` (what a screen says it is).
-//! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs`), `seeds`
+//! - Flows around a key, seed, words or passphrase: `keygen`, `codex32` (with `codex32/screen.rs` and its checksum worksheet, `codex32/worksheet_screen.rs`), `seeds`
 //!   (with `seeds/read.rs`), `wallet`, `inbox`, `create`, `create_from`,
 //!   `bip85`, `forms`, `fresh`, `gpg`, `secure_boot`, `lightning`,
 //!   `silent`, `vanity`, `grind`, `paper`, `quiz`, `secrets`,
@@ -5968,7 +5968,7 @@ impl Faraday {
             self.scan_paste();
             return;
         }
-        if self.wordlist_key(key) {
+        if self.scroll_key(key) {
             return;
         }
         if self.board_key(key) {
@@ -6148,6 +6148,7 @@ impl Faraday {
             ui::Slot::VaultItem => Some(self.vaults.item_offset_mut()),
             ui::Slot::FilesOut => Some(self.visit.files_out_offset_mut()),
             ui::Slot::BoardList => Some(self.flows.board_list_offset_mut()),
+            ui::Slot::Worksheet => self.worksheet_pan_mut().map(|p| &mut p.y),
             ui::Slot::Page => self.page_slot(),
         }
     }
@@ -6188,11 +6189,13 @@ impl Faraday {
     }
 
     /// The wheel, a trackpad or a finger starts at (x, y): the region
-    /// under it is the one they move, the page's when none is.
+    /// under it is the one they move (the innermost, where one region
+    /// stands inside another), the page's when none is.
     fn point_region(&mut self, x: i32, y: i32) {
         let slot = self
             .regions()
-            .find(|e| e.view.contains(x, y))
+            .filter(|e| e.view.contains(x, y))
+            .min_by_key(|e| i64::from(e.view.w) * i64::from(e.view.h))
             .map_or(ui::Slot::Page, |e| e.slot);
         self.scroll.went_to(slot);
     }
@@ -6376,18 +6379,13 @@ impl Faraday {
                 {
                     let slop = motion::SLOP * self.f;
                     let (dx, dy) = (x - self.pointer.down_at().0, y - self.pointer.down_at().1);
-                    let start = !dragging && (dy as f32).abs() > slop && dy.abs() > dx.abs();
+                    let start = !dragging && self.drag_starts(dx, dy, slop);
                     if dragging || start {
                         // Past the slop the press is a drag: nothing
                         // under the finger is pressed, the page follows.
                         self.pointer.set_pressed(None);
                         self.pointer.set_drag(Some((y, true)));
-                        let from = if start {
-                            self.pointer.down_at().1
-                        } else {
-                            last
-                        };
-                        self.pan((from - y) as f32 / self.f.max(0.1));
+                        self.pan_drag((x, y), last, start);
                         self.out.dirty = true;
                         self.out.commands.push_back(Command::Draw);
                         return;
@@ -6653,6 +6651,8 @@ impl Faraday {
             }
         }
         if let Some(want) = follow_to {
+            // A follow moves the page, whatever region the pointer was on.
+            self.scroll.went_to(ui::Slot::Page);
             let now = self.scroll_slot().map_or(want, |o| *o);
             if self.reduce_motion() {
                 self.with_region(|m, r| m.jump(r, want - now));
@@ -7268,7 +7268,7 @@ impl App for Faraday {
                 }
                 // A gesture goes on moving the region it started over.
                 if self.pointer.scroll_at().is_none() {
-                    self.point_region(i32::from(x), i32::from(y));
+                    self.point_scroll(i32::from(x), i32::from(y), f32::from(dy));
                 }
                 // Pixels the content moves up, as the shell API states
                 // them, in this layout's units.
@@ -7284,7 +7284,7 @@ impl App for Faraday {
                 // The shells send 48 pixels a notch; the notch's distance
                 // is this layout's, in units, so it covers the same amount
                 // of page on every screen.
-                self.glide(f32::from(dy) / motion::SHELL_NOTCH_PX * motion::WHEEL_NOTCH);
+                self.wheel(f32::from(dy) / motion::SHELL_NOTCH_PX * motion::WHEEL_NOTCH);
             }
             Event::ScrollEnd { .. } => {
                 self.pointer.set_scroll_at(None);

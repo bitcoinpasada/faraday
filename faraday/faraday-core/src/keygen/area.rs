@@ -38,6 +38,25 @@ impl KeyGenArea {
         self.state.as_mut().map(|k| &mut k.scroll)
     }
 
+    /// Make codex32 shares' checksum worksheet's pan, while the flow is
+    /// open (`ui::Slot::Worksheet`).
+    pub(crate) fn sheet_pan_mut(&mut self) -> Option<&mut crate::codex32::SheetPan> {
+        Some(self.state.as_mut()?.codex32.as_mut()?.pan_mut())
+    }
+
+    /// Brings Make codex32 shares' front cell into the worksheet's view
+    /// (`Codex32Make::follow_front`). A lookup.
+    pub(crate) fn sheet_follow(
+        &mut self,
+        cls: faraday_draw::geom::WindowClass,
+        view: (f32, f32),
+        max: (f32, f32),
+    ) {
+        if let Some(m) = self.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+            m.follow_front(cls, view, max);
+        }
+    }
+
     /// Takes the column's scroll as the pass left it.
     pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
         if let Some(k) = self.state.as_mut() {
