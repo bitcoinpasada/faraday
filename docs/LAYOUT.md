@@ -1,8 +1,8 @@
 # Layout at every window size
 
 **Kind:** Spec
-**Status:** Partly built: size classes and density (L1, F101), navigation (L2); the rest specified, not built (F92)
-**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Home's grid (L3), list and detail panes (L4), components that keep their size (L5), the supporting pane (L6), tours and tests (L7); planned.
+**Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3); the rest specified, not built (F92)
+**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), list and detail panes (L4), components that keep their size (L5), the supporting pane (L6), tours and tests (L7); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.

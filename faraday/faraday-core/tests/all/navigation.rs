@@ -278,3 +278,20 @@ fn a_stick_being_written_hides_the_navigation() {
         "the bar, after"
     );
 }
+
+/// The y of Home's Make a new wallet tile and of Restore a wallet's.
+fn home_tile_rows(width: u16, height: u16, dpi: u16) -> (u16, u16) {
+    let mut app = on(width, height, dpi);
+    app.press(Action::Nav(Screen::Home));
+    let a = at(&mut app, Action::CreateWallet).expect("Make a new wallet is not on Home");
+    let b = at(&mut app, Action::RestoreWallet).expect("Restore a wallet is not on Home");
+    (a.1, b.1)
+}
+
+#[test]
+fn homes_tiles_take_as_many_columns_as_the_window_has_room_for() {
+    for (w, h) in [(1280, 800), (1920, 1080)] {
+        let (a, b) = home_tile_rows(w, h, 96);
+        assert_eq!(a, b, "{w}x{h}: the tiles are not side by side");
+    }
+}

@@ -6,6 +6,9 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Ui, W};
 use crate::{Action, Screen};
+use faraday_draw::tokens::{
+    HOME_TILE_ICON, HOME_TILE_INSET, HOME_TILE_TEXT_X, LEAD_MAX, TILE_H, TILE_MIN,
+};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, title};
 
@@ -287,6 +290,60 @@ pub(crate) fn home_ways(app: &View) -> Vec<(Glyph, &'static str, String, Action)
     t
 }
 
+/// Home's tile grid in a row `width` wide with `gap` between tiles:
+/// how many columns fit at `min` or `TILE_MIN`, whichever is wider (at
+/// least one), and the width each
+/// tile takes, which is the row's share, never under `TILE_MIN` unless
+/// the row itself is narrower. A lookup.
+pub(crate) fn tile_grid(width: f32, gap: f32, min: f32) -> (usize, f32) {
+    let min = min.max(TILE_MIN);
+    let cols = (((width + gap) / (min + gap)).floor() as usize).max(1);
+    (cols, (width - gap * (cols - 1) as f32) / cols as f32)
+}
+
+/// The tile grid with its top left at `at`, `width` wide.
+fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
+    // The tiles in a grid: as many columns as `TILE_MIN` leaves room
+    // for, a row with fewer tiles than columns leaving the rest empty.
+    // A tile is wide enough for its longest line, so no name is cut.
+    let ways = home_ways(app);
+    let need = ways
+        .iter()
+        .map(|(_, label, sub, _)| {
+            ui.measure(15.0, W::S, label)
+                .max(ui.measure(13.0, W::R, sub))
+        })
+        .fold(0.0, f32::max)
+        + HOME_TILE_TEXT_X
+        + 2.0 * HOME_TILE_INSET;
+    let (cols, tilew) = tile_grid(width, gap, need);
+    let tile_h = TILE_H;
+    for (i, (icon, label, sub, action)) in ways.iter().enumerate() {
+        let tx = x + (i % cols) as f32 * (tilew + gap);
+        let ty = y + (i / cols) as f32 * (tile_h + gap);
+        let pressed = ui.is_pressed(*action);
+        ui.fill(
+            tx,
+            ty,
+            tilew,
+            tile_h,
+            12.0,
+            if pressed { INNER } else { SURFACE },
+        );
+        ui.stroke(tx, ty, tilew, tile_h, 12.0, BORDER);
+        let (ix, ib) = (HOME_TILE_INSET, HOME_TILE_ICON);
+        let iy = (tile_h - ib) / 2.0;
+        ui.fill(tx + ix, ty + iy, ib, ib, 10.0, ACCENT.with_alpha(26));
+        ui.icon(tx + ix, ty + iy, ib, *icon, 17.0, ACCENT);
+        let room = tilew - HOME_TILE_TEXT_X - ix - ix;
+        let label = ui.fit(15.0, W::S, label, room);
+        ui.text(tx + HOME_TILE_TEXT_X, ty + 20.0, 15.0, W::S, TEXT, &label);
+        let sub = ui.fit(13.0, W::R, sub, room);
+        ui.text(tx + HOME_TILE_TEXT_X, ty + 46.0, 13.0, W::R, MUTED, &sub);
+        ui.hit(tx, ty, tilew, tile_h, *action);
+    }
+}
+
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + 56.0;
     let width = cw - 112.0;
@@ -308,11 +365,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // rules 1 to 6). With none, the four ways in are all of Start.
     if let Some((icon, label, sub, action, enabled)) = home_job(app) {
         let lead_h = 96.0;
+        let lead_w = width.min(LEAD_MAX);
         let pressed = enabled && ui.is_pressed(action);
         ui.fill(
             x,
             y,
-            width,
+            lead_w,
             lead_h,
             14.0,
             if pressed { INNER } else { SURFACE },
@@ -320,7 +378,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.stroke(
             x,
             y,
-            width,
+            lead_w,
             lead_h,
             14.0,
             if enabled {
@@ -336,10 +394,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         };
         ui.fill(x + 20.0, y + 24.0, 48.0, 48.0, 12.0, ibg);
         ui.icon(x + 20.0, y + 24.0, 48.0, icon, 20.0, ifg);
-        let label = ui.fit(19.0, W::S, &label, width - 184.0);
+        let label = ui.fit(19.0, W::S, &label, lead_w - 184.0);
         ui.text(x + 86.0, y + 22.0, 19.0, W::S, TEXT, &label);
         if !sub.is_empty() {
-            let sub = ui.fit(14.0, W::R, &sub, width - 184.0);
+            let sub = ui.fit(14.0, W::R, &sub, lead_w - 184.0);
             ui.text(
                 x + 86.0,
                 y + 54.0,
@@ -350,42 +408,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             );
         }
         if enabled {
-            ui.hit(x, y, width, lead_h, action);
+            ui.hit(x, y, lead_w, lead_h, action);
         }
         y += lead_h + gap;
     }
 
-    // The tiles, half width each, two to a row.
-    let tilew = (width - gap) / 2.0;
-    let tile_h = 84.0;
-    for (i, (icon, label, sub, action)) in home_ways(app).iter().enumerate() {
-        let tx = x + (i % 2) as f32 * (tilew + gap);
-        let ty = y + (i / 2) as f32 * (tile_h + gap);
-        let pressed = ui.is_pressed(*action);
-        ui.fill(
-            tx,
-            ty,
-            tilew,
-            tile_h,
-            12.0,
-            if pressed { INNER } else { SURFACE },
-        );
-        ui.stroke(tx, ty, tilew, tile_h, 12.0, BORDER);
-        ui.fill(
-            tx + 18.0,
-            ty + 22.0,
-            40.0,
-            40.0,
-            10.0,
-            ACCENT.with_alpha(26),
-        );
-        ui.icon(tx + 18.0, ty + 22.0, 40.0, *icon, 17.0, ACCENT);
-        let label = ui.fit(15.0, W::S, label, tilew - 96.0);
-        ui.text(tx + 74.0, ty + 20.0, 15.0, W::S, TEXT, &label);
-        let sub = ui.fit(13.0, W::R, sub, tilew - 96.0);
-        ui.text(tx + 74.0, ty + 46.0, 13.0, W::R, MUTED, &sub);
-        ui.hit(tx, ty, tilew, tile_h, *action);
-    }
+    tiles(app, ui, (x, y), width, gap);
 
     // Scan floats at the foot, on the right.
     ui.fab(x + width, h - 32.0, Icon::Scan, EN.home_scan, Action::Scan);

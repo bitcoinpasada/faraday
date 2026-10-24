@@ -7,6 +7,9 @@ pub(crate) mod screen;
 
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_draw::tokens::{
+    GRID_TILE_INSET, GRID_TILE_TEXT_X, LEAD_MAX, TILE_H_COMPACT, TILE_H_GRID,
+};
 use faraday_draw::widgets::Icon;
 
 use crate::drawing::View;
@@ -541,6 +544,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
 
     // The one thing waiting, when there is one.
+    let lead_w = if app.nav() == crate::nav::Nav::Menu {
+        inner
+    } else {
+        inner.min(LEAD_MAX)
+    };
     for (icon, label, action, tone) in prompts(app) {
         let pressed = action.is_some_and(|a| ui.is_pressed(a));
         let edge = if tone == WARN {
@@ -551,38 +559,45 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ui.fill(
             M,
             y,
-            inner,
+            lead_w,
             44.0,
             10.0,
             if pressed { INNER } else { tone.with_alpha(26) },
         );
-        ui.stroke(M, y, inner, 44.0, 10.0, edge);
+        ui.stroke(M, y, lead_w, 44.0, 10.0, edge);
         ui.icon(M + 8.0, y + 8.0, 28.0, icon, 14.0, tone);
-        let label = ui.fit(14.0, W::S, &label, inner - 60.0);
+        let label = ui.fit(14.0, W::S, &label, lead_w - 60.0);
         ui.text_mid(M + 44.0, y, 44.0, 14.0, W::S, TEXT, &label);
         if let Some(a) = action {
             ui.icon(
-                M + inner - 26.0,
+                M + lead_w - 26.0,
                 y + 12.0,
                 20.0,
                 Icon::ChevronRight,
                 9.0,
                 DIM,
             );
-            ui.hit(M, y, inner, 44.0, a);
+            ui.hit(M, y, lead_w, 44.0, a);
         }
         y += 44.0 + 8.0;
     }
     y += 2.0;
 
     // The menu: the sidebar's places, two to a row.
+    // On the panel's menu two to a row; elsewhere a grid of as many
+    // columns as `TILE_MIN` leaves room for (`docs/LAYOUT.md` §4).
     let gap = 8.0;
-    let tw = (inner - gap) / 2.0;
-    let th = 76.0;
+    let (cols, tw) = if app.nav() == crate::nav::Nav::Menu {
+        (2, (inner - gap) / 2.0)
+    } else {
+        crate::screens::tile_grid(inner, gap, 0.0)
+    };
+    let grid = app.nav() != crate::nav::Nav::Menu;
+    let th = if grid { TILE_H_GRID } else { TILE_H_COMPACT };
     let tiles = tiles(app);
     for (i, (icon, label, sub, action, enabled)) in tiles.iter().enumerate() {
-        let tx = M + (i % 2) as f32 * (tw + gap);
-        let ty = y + (i / 2) as f32 * (th + gap);
+        let tx = M + (i % cols) as f32 * (tw + gap);
+        let ty = y + (i / cols) as f32 * (th + gap);
         let pressed = ui.is_pressed(*action);
         ui.fill(tx, ty, tw, th, 12.0, if pressed { INNER } else { SURFACE });
         ui.stroke(tx, ty, tw, th, 12.0, BORDER);
@@ -593,32 +608,42 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         };
         ui.fill(tx + 12.0, ty + 12.0, 30.0, 30.0, 8.0, ibg);
         ui.icon(tx + 12.0, ty + 12.0, 30.0, *icon, 14.0, ifg);
-        let label = ui.fit(14.0, W::S, label, tw - 24.0);
-        ui.text(
-            tx + 12.0,
-            ty + 48.0,
-            14.0,
-            W::S,
-            if *enabled { TEXT } else { DIM },
-            &label,
-        );
-        if !sub.is_empty() {
-            let sub = ui.fit(11.0, W::R, sub, tw - 54.0);
-            ui.text_right(
-                tx + tw - 10.0,
-                ty + 12.0,
-                30.0,
-                11.0,
-                W::R,
-                if *enabled { MUTED } else { WARN },
-                &sub,
-            );
+        let fg = if *enabled { TEXT } else { DIM };
+        if grid {
+            // The icon beside the name, one line under it
+            // (`docs/LAYOUT.md` §4).
+            let room = tw - GRID_TILE_TEXT_X - GRID_TILE_INSET;
+            let label = ui.fit(14.0, W::S, label, room);
+            let tx = tx + GRID_TILE_TEXT_X;
+            if sub.is_empty() {
+                ui.text_mid(tx, ty, th, 14.0, W::S, fg, &label);
+            } else {
+                ui.text(tx, ty + 10.0, 14.0, W::S, fg, &label);
+                let sub = ui.fit(12.0, W::R, sub, room);
+                let c = if *enabled { MUTED } else { WARN };
+                ui.text(tx, ty + 30.0, 12.0, W::R, c, &sub);
+            }
+        } else {
+            let label = ui.fit(14.0, W::S, label, tw - 24.0);
+            ui.text(tx + 12.0, ty + 48.0, 14.0, W::S, fg, &label);
+            if !sub.is_empty() {
+                let sub = ui.fit(11.0, W::R, sub, tw - 54.0);
+                ui.text_right(
+                    tx + tw - 10.0,
+                    ty + 12.0,
+                    30.0,
+                    11.0,
+                    W::R,
+                    if *enabled { MUTED } else { WARN },
+                    &sub,
+                );
+            }
         }
         if *enabled {
             ui.hit(tx, ty, tw, th, *action);
         }
     }
-    y += tiles.len().div_ceil(2) as f32 * (th + gap) + 4.0;
+    y += tiles.len().div_ceil(cols) as f32 * (th + gap) + 4.0;
 
     // Lock and power, here on the small panel; the rail and the top app
     // bar carry them on wider windows.

@@ -727,6 +727,34 @@ pub const MARGIN_WIDE: f32 = 24.0;
 /// The widest a one-column page grows beside the navigation.
 pub const COLUMN_MAX: f32 = 720.0;
 
+/// The narrowest a Home tile is; the grid takes as many columns as fit
+/// (`docs/LAYOUT.md` §4).
+pub const TILE_MIN: f32 = 200.0;
+
+/// The widest Home's lead tile is (`docs/LAYOUT.md` §4).
+pub const LEAD_MAX: f32 = 560.0;
+
+/// A Home tile's height on the wide Home.
+pub const TILE_H: f32 = 84.0;
+
+/// A Home tile's height in the compact Home's grid (icon beside name).
+pub const TILE_H_GRID: f32 = 60.0;
+
+/// The wide Home tile's icon box.
+pub const HOME_TILE_ICON: f32 = 40.0;
+/// The wide Home tile's icon inset from the tile's left edge.
+pub const HOME_TILE_INSET: f32 = 18.0;
+/// The left edge of the wide Home tile's text.
+pub const HOME_TILE_TEXT_X: f32 = 74.0;
+
+/// A grid tile's inset on the compact Home.
+pub const GRID_TILE_INSET: f32 = 12.0;
+/// The left edge of a grid tile's text on the compact Home.
+pub const GRID_TILE_TEXT_X: f32 = 54.0;
+
+/// A Home tile's height on the small panel's menu.
+pub const TILE_H_COMPACT: f32 = 76.0;
+
 /// A status chip's height (Home's status strip, a flow's chip).
 pub const STATUS_CHIP_H: f32 = 32.0;
 
