@@ -40,7 +40,11 @@ pub(crate) use entry::{
     codex32_check_button, codex32_found, codex32_head, codex32_mark, codex32_tick, entry_form,
     entry_scan, entry_stick, entry_typed, entry_words, keyed_status, word_count_row,
 };
-use faraday_draw::tokens::{COLUMN_MAX, NAV_BAR_H, RAIL_W};
+use faraday_draw::tokens::{
+    COLUMN_MAX, MARGIN_WIDE, NAV_BAR_H, PAGE_AREA_UNTIL_W, RAIL_W, READING_PAGE_W,
+    READING_RANDOM_W, READING_SETTINGS_W, READING_TIME_W, SPACER, SUPPORT_PANE, SUPPORT_PANE_TOP,
+    TOP_ROW_QUESTION, TOUCH,
+};
 use faraday_draw::widgets::Icon;
 pub use faraday_ui::parts::qr_code;
 pub(crate) use faraday_ui::parts::{button_rows, section_label, sheet_box, title, wrap_buttons};
@@ -68,10 +72,87 @@ pub(crate) use wallets::{backup_line, loose_card, missing_keys_line, slot_marks}
 
 const SIDEBAR_W: f32 = 240.0;
 
-/// The widest the sidebar and a screen together grow, in design units. A
-/// wide display shows the screen at this width, centred beside the
-/// sidebar, instead of stretching cards across it.
-const MAX_W: f32 = 1600.0;
+/// How a page takes the room beside the navigation on a wide window
+/// (`docs/LAYOUT.md` §14, §15).
+enum Area {
+    /// Reading content only: an area this wide, centred in the room.
+    Reading(f32),
+    /// Wide content: the whole room, from the navigation to the
+    /// window's edge.
+    Work,
+    /// No wide layout built yet (L4, W6, W7): the area the old frame
+    /// gave it, centred, until its batch changes this line.
+    Until,
+}
+
+/// How `screen` takes the room.
+fn area_of(screen: Screen) -> Area {
+    match screen {
+        Screen::Settings => Area::Reading(READING_SETTINGS_W),
+        Screen::SetTime => Area::Reading(READING_TIME_W),
+        Screen::Randomness => Area::Reading(READING_RANDOM_W),
+        Screen::Spend
+        | Screen::Message
+        | Screen::CheckMessage
+        | Screen::Create
+        | Screen::Restore
+        | Screen::CreateVault
+        | Screen::Unlock
+        | Screen::Entry
+        | Screen::Bip85
+        | Screen::Silent
+        | Screen::Lightning
+        | Screen::Vanity
+        | Screen::Decode
+        | Screen::Family => Area::Reading(READING_PAGE_W),
+        // New key, which holds Make codex32 shares and its supporting
+        // pane. Home keeps its old area until W6 lays out its tiles.
+        Screen::KeyGen => Area::Work,
+        _ => Area::Until,
+    }
+}
+
+/// The page area is the window less the navigation at every size, with
+/// no cap on the frame (`docs/LAYOUT.md` §15): what stands at the right
+/// stands against the window's edge. Within a room wider than the page
+/// needs (an extra-large window), a reading page is laid out in its own
+/// area, centred; a page with wide content starts at the navigation and
+/// runs to the edge; a page with no wide layout yet keeps the area the
+/// old frame gave it. Returns how far the page is moved right and its
+/// width. Arithmetic.
+fn page_area(screen: Screen, room: f32) -> (f32, f32) {
+    if room <= PAGE_AREA_UNTIL_W {
+        return (0.0, room);
+    }
+    match area_of(screen) {
+        Area::Reading(w) => ((room - w) / 2.0, w),
+        Area::Work => (0.0, room),
+        Area::Until => ((room - PAGE_AREA_UNTIL_W) / 2.0, PAGE_AREA_UNTIL_W),
+    }
+}
+
+/// Where a supporting pane stands (`docs/LAYOUT.md` §6, §15): the one
+/// place for every pane. For the page area at `x0`, `cw` wide, in a
+/// window `h` tall: the pane's left edge, its top, its width and the
+/// height it shows. Its right edge is `MARGIN_WIDE` from the area's, which
+/// is the window's right edge, and its top is below the top-right strip.
+/// Arithmetic.
+pub(crate) fn support_pane_place((x0, cw, h): (f32, f32, f32)) -> (f32, f32, f32, f32) {
+    let w = SUPPORT_PANE;
+    let top = SUPPORT_PANE_TOP;
+    (
+        x0 + cw - MARGIN_WIDE - w,
+        top,
+        w,
+        (h - top - MARGIN_WIDE).max(TOUCH),
+    )
+}
+
+/// The room a supporting pane takes from the page at its right: the pane,
+/// the spacer before it and the margin after it.
+pub(crate) fn support_pane_room() -> f32 {
+    SUPPORT_PANE + SPACER + MARGIN_WIDE
+}
 
 /// Draws the whole frame.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
@@ -126,35 +207,49 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.clear(Role::Surface);
         sidebar(app, ui, win_h);
         let room = full_w - SIDEBAR_W;
-        let cw = room.min(MAX_W - SIDEBAR_W);
+        let (ox, cw) = page_area(app.screen, room);
         let h = full_h;
-        ui.ox = (room - cw) / 2.0;
+        ui.ox = ox;
         let x = SIDEBAR_W;
         // The stick pills' strip lies over the room above the page's
         // first line; a taller strip moves the page down by the rest.
         let strip = crate::stick::pills::strip_h(app, ui, full_w);
         let drop = crate::stick::pills::page_drop(strip);
         ui.oy = drop - lift;
-        ui.top_row_left = top_row_left(app, ui, x, cw);
+        ui.top_row_left = top_row_left(app, ui, full_w) - ox;
         dispatch(app, ui, x, cw, if kb > 0.0 { win_h } else { h } - drop);
         ui.oy = 0.0;
+        // The top-right row and the eye stand against the window's right
+        // edge, whatever area the page is laid out in (§15).
+        ui.ox = 0.0;
         ui.top_row_left = f32::INFINITY;
         // The stick pills' strip, over whatever scrolls under it; the
         // pills themselves are drawn last, over any sheet.
         if strip > 0.0 {
-            ui.fill(x - ui.ox, 0.0, room, strip, 0.0, Role::Surface);
+            ui.fill(x, 0.0, room, strip, 0.0, Role::Surface);
         }
-        let kx = header_network_pill(app, ui, x + cw - faraday_draw::tokens::TOP_ROW_QUESTION);
+        // Home's Scan floats at the window's right edge and foot
+        // (`docs/LAYOUT.md` §15), whatever area its tiles are laid out in.
+        if app.screen == Screen::Home {
+            ui.fab(
+                full_w - MARGIN_WIDE,
+                full_h - MARGIN_WIDE,
+                Icon::Scan,
+                EN.home_scan,
+                Action::Scan,
+            );
+        }
+        let kx = header_network_pill(app, ui, full_w - TOP_ROW_QUESTION);
         // Under a sheet the keyboard button is drawn over it, below.
         if app.sheet.is_none() {
             crate::compact::wide_keyboard_button(app, ui, kx);
             // The codex32 sheets' eye, in the right margin under the ?.
-            crate::compact::wide_eye_button(app, ui, x + cw);
+            crate::compact::wide_eye_button(app, ui, full_w);
         }
         // The ? at the top right opens what explains this screen.
         if !app.learn_pages().is_empty() {
             // In the right margin, clear of every screen's own title row.
-            let (qx, qy) = (x + cw - faraday_draw::tokens::TOP_ROW_QUESTION, 12.0);
+            let (qx, qy) = (full_w - TOP_ROW_QUESTION, 12.0);
             let pressed = ui.is_pressed(Action::Learn);
             crate::ui::fill_pressed(ui, (qx, qy, 28.0, 28.0, 14.0), Role::Surface, pressed);
             ui.stroke(qx, qy, 28.0, 28.0, 14.0, Role::OutlineVariant);
@@ -251,12 +346,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // A sheet with a field of its own: the wide layout's keyboard button
     // stays within reach, over it, where the page has it.
     if !app.is_compact() && app.sheet.is_some() && app.osk_wanted() {
-        let (x, cw) = wide_page(app, full_w);
         ui.ox = 0.0;
         let right = if app.held {
-            x + cw - faraday_draw::tokens::TOP_ROW_QUESTION - faraday_draw::tokens::GAP
+            full_w - TOP_ROW_QUESTION - faraday_draw::tokens::GAP
         } else {
-            network_pill_left(app, ui, x + cw - faraday_draw::tokens::TOP_ROW_QUESTION)
+            network_pill_left(app, ui, full_w - TOP_ROW_QUESTION)
         };
         crate::compact::wide_keyboard_button(app, ui, right);
     }
@@ -312,8 +406,8 @@ fn drop_edge(app: &View, ui: &mut Ui, (full_w, full_h): (f32, f32), kb: bool) {
 /// keyboard, the window's height, drawn up to keep the field in view.
 fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32)) {
     let (page_h, lift) = page;
-    let cw = full_w.min(MAX_W - SIDEBAR_W);
-    ui.ox = (full_w - cw) / 2.0;
+    let (ox, cw) = page_area(app.screen, full_w);
+    ui.ox = ox;
     if app.screen != Screen::Home {
         ui.oy = -lift;
         dispatch(app, ui, 0.0, cw, page_h);
@@ -330,7 +424,7 @@ fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32
 /// The screen itself, in the column at `x`, `cw` wide.
 fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     match app.screen {
-        Screen::Home => home::draw(app, ui, x, cw, h),
+        Screen::Home => home::draw(app, ui, x, cw),
         Screen::WalletsStart => wallets_start::draw(app, ui, x, cw, h),
         Screen::Backup => backup::draw(app, ui, x, cw, h),
         Screen::Message => message::draw(app, ui, x, cw, h),
@@ -555,10 +649,10 @@ fn header_network_pill(app: &View, ui: &mut Ui, qx: f32) -> f32 {
 }
 
 /// Where the wide layout's top-right row (the mode pill and the ?)
-/// begins, on the page `x` to `x + cw`: a flow's column that scrolls
+/// begins, in a window `full_w` wide: a flow's column that scrolls
 /// under it ends left of it.
-pub(crate) fn top_row_left(app: &View, ui: &Ui, x: f32, cw: f32) -> f32 {
-    network_pill_left(app, ui, x + cw - faraday_draw::tokens::TOP_ROW_QUESTION)
+pub(crate) fn top_row_left(app: &View, ui: &Ui, full_w: f32) -> f32 {
+    network_pill_left(app, ui, full_w - TOP_ROW_QUESTION)
 }
 
 /// Where the top-right row's next item ends, left of the ? (at `qx`)
@@ -569,20 +663,6 @@ fn network_pill_left(app: &View, ui: &Ui, qx: f32) -> f32 {
         return qx - gap;
     }
     qx - gap - crate::modes::screen::pill_width(app, ui) - gap
-}
-
-/// The wide layout's page area: its left edge and width, the screen
-/// centred beside the sidebar on a wide display (or, held, centred in
-/// the window), as the frame draws it.
-fn wide_page(app: &View, full_w: f32) -> (f32, f32) {
-    if app.held {
-        let cw = full_w.min(MAX_W - SIDEBAR_W);
-        ((full_w - cw) / 2.0, cw)
-    } else {
-        let room = full_w - SIDEBAR_W;
-        let cw = room.min(MAX_W - SIDEBAR_W);
-        (SIDEBAR_W + (room - cw) / 2.0, cw)
-    }
 }
 
 /// The start-up self-test failed: which check, and Exit. A build whose

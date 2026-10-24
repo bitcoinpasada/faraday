@@ -35,7 +35,7 @@ pub(crate) fn pane_at(app: &View, m: &Codex32Make, cw: f32) -> Option<PaneAt> {
     if m.open() != Some(Card::Enter) || !demo_box_offered(m, app.roller_offered()) {
         return None;
     }
-    let side = t::SUPPORT_PANE + t::SPACER + t::MARGIN_WIDE;
+    let side = crate::screens::support_pane_room();
     if !app.is_compact() && cw - side - t::MARGIN_WIDE >= t::CODEX32_MAIN_MIN {
         Some(PaneAt::Side(t::SUPPORT_PANE))
     } else {
@@ -47,7 +47,7 @@ pub(crate) fn pane_at(app: &View, m: &Codex32Make, cw: f32) -> Option<PaneAt> {
 /// strip.
 pub(crate) fn side_room(pane: Option<PaneAt>) -> f32 {
     match pane {
-        Some(PaneAt::Side(w)) => w + t::SPACER + t::MARGIN_WIDE,
+        Some(PaneAt::Side(_)) => crate::screens::support_pane_room(),
         _ => 0.0,
     }
 }
@@ -63,11 +63,10 @@ pub(crate) fn draw(
 ) {
     let roller = app.roller_offered();
     match pane {
-        PaneAt::Side(pw) => {
-            let x = x0 + cw - t::MARGIN_WIDE - pw;
-            let top = t::SUPPORT_PANE_TOP;
-            let view = (h - top - t::MARGIN_WIDE).max(t::TOUCH);
-            scrolled(ui, m, (x, top, pw, view), (roller, true));
+        PaneAt::Side(_) => {
+            // The one place any supporting pane stands (`docs/LAYOUT.md` §6).
+            let (x, top, w, view) = crate::screens::support_pane_place((x0, cw, h));
+            scrolled(ui, m, (x, top, w, view), (roller, true));
         }
         PaneAt::Strip if m.pane_open() => {
             let (x, w) = (x0, cw);

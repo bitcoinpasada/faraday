@@ -800,6 +800,22 @@ pub const MARGIN_WIDE: f32 = 24.0;
 /// The widest a one-column page grows beside the navigation.
 pub const COLUMN_MAX: f32 = 720.0;
 
+/// The width of the area a reading page is laid out in, centred in the
+/// room beside the navigation once that room is wider than the area
+/// (`docs/LAYOUT.md` §14): a 900 dp column and its side insets.
+pub const READING_PAGE_W: f32 = 1000.0;
+/// Settings' reading area: its 760 dp column between two 56 dp insets.
+pub const READING_SETTINGS_W: f32 = 760.0 + 2.0 * 56.0;
+/// Set the time's reading area: its 520 dp column between two 56 dp insets.
+pub const READING_TIME_W: f32 = 520.0 + 2.0 * 56.0;
+/// Add randomness' reading area: its `COLUMN_MAX` column between two
+/// 48 dp insets.
+pub const READING_RANDOM_W: f32 = COLUMN_MAX + 4.0 * MARGIN_WIDE;
+/// The area a page that has no wide layout yet keeps on a wide window:
+/// the room the 1600 dp frame gave it, centred beside the navigation,
+/// until its batch gives it the work width (`docs/LAYOUT.md` §17, §19).
+pub const PAGE_AREA_UNTIL_W: f32 = 1360.0;
+
 /// The space between two panes (`docs/LAYOUT.md` §5): Material's spacer.
 pub const SPACER: f32 = 24.0;
 
@@ -1276,13 +1292,15 @@ pub const CODEX32_ENTER_SCROLL: f32 = 140.0;
 /// Material's icon button: its container, round, drawn in a `TOUCH`
 /// target with an `ICON_GLYPH` icon (the codex32 sheets' eye).
 pub const ICON_BUTTON: f32 = 40.0;
-/// The wide layout's ?: its left edge in from the page's right, where
-/// the top-right row of the mode pill and the ? begins.
-pub const TOP_ROW_QUESTION: f32 = 38.0;
-/// The wide page's eye: its container's right edge in from the page's,
-/// under the ? at the top right, in the margin clear of the flow's
-/// column (`docs/CODEX32.md` §6.4.6).
-pub const EYE_WIDE_INSET: f32 = 4.0;
+/// The wide layout's ?: its left edge in from the window's right, where
+/// the top-right row of the mode pill and the ? begins; the ? is 28 dp
+/// across and stands `MARGIN_WIDE` from the window's edge
+/// (`docs/LAYOUT.md` §15).
+pub const TOP_ROW_QUESTION: f32 = MARGIN_WIDE + 28.0;
+/// The wide page's eye: its container's right edge in from the window's,
+/// under the ? at the top right, level with it at `MARGIN_WIDE`
+/// (`docs/LAYOUT.md` §15, `docs/CODEX32.md` §6.4.6).
+pub const EYE_WIDE_INSET: f32 = MARGIN_WIDE;
 /// The check glyph in a seen worksheet tab.
 pub const CODEX32_TAB_GLYPH: f32 = 12.0;
 /// The icon's room at the head of the cell sheet.

@@ -363,7 +363,7 @@ fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
     }
 }
 
-pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32) {
     let x = x0 + 56.0;
     let width = cw - 112.0;
     let mut y = 44.0;
@@ -441,7 +441,4 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
 
     tiles(app, ui, (x, y), width, gap);
-
-    // Scan floats at the foot, on the right.
-    ui.fab(x + width, h - 32.0, Icon::Scan, EN.home_scan, Action::Scan);
 }

@@ -347,3 +347,29 @@ fn next_stays_where_it_is_at_every_step_and_character() {
         }
     }
 }
+
+#[test]
+fn the_demo_only_card_stands_24_dp_from_the_windows_right_edge_on_a_big_window() {
+    let next = Action::Codex32(C32::Walk(WalkAct::Next));
+    for (w, h) in [(1920u16, 1080u16), (2560, 1440)] {
+        let mut app = sized(w, h, 160);
+        let at = app.hit_box(next).expect("Next in the pane");
+        assert!(
+            i32::from(at.0 + at.2) <= i32::from(w) - 24,
+            "{w}: Next {at:?} reaches into the margin"
+        );
+        let card = app
+            .drawn_text_boxes()
+            .into_iter()
+            .find(|(t, _)| t == "Demo only")
+            .map(|b| b.1)
+            .expect("the card's heading");
+        // The card is 400 dp wide; its heading starts inside its left edge.
+        let left = i32::from(w) - 24 - 400;
+        assert!(
+            (left..left + 48).contains(&card.0),
+            "{w}: heading at {}",
+            card.0
+        );
+    }
+}

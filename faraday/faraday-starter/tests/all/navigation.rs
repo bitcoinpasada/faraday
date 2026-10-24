@@ -8,7 +8,7 @@ use faraday_starter::api::{
     Bus, Computer, Disk, FaradayStick, InstallItem, Installed, Os, Payload, PayloadFile,
     StarterEvent,
 };
-use faraday_starter::decide::Item;
+use faraday_starter::decide::{Item, Target};
 use faraday_starter::{Class, Page, Starter, StarterAction};
 
 const GB: u64 = 1_000_000_000;
@@ -312,4 +312,33 @@ fn transfer_is_a_task_page_under_the_top_app_bar_and_back_returns_to_tools() {
     tap(&mut s, StarterAction::Back);
     assert!(!s.showing_held());
     assert_eq!(s.page, Page::Tools);
+}
+
+/// On a window wider than the page needs, the page's cards stand in a
+/// column centred in the room beside the rail, and the top bar's ⋮ stands
+/// at the window's right edge (`docs/LAYOUT.md` §15, `docs/STARTER.md`
+/// §3.1d).
+#[test]
+fn a_wide_window_centres_the_page_and_puts_the_bar_at_its_edge() {
+    for (w, h) in [(1280u16, 800u16), (1920, 1080), (2560, 1440)] {
+        let mut s = starter(w, h);
+        tap(&mut s, StarterAction::MakePage);
+        let (menu, _) = at(&mut s, StarterAction::Menu).expect("the menu");
+        assert!(
+            f32::from(w) - f32::from(menu) <= 48.0,
+            "{w}: the ⋮ at {menu}"
+        );
+        let (rail, column) = (80.0, 1040.0);
+        let area = f32::from(w) - rail;
+        let left = rail + ((area - column) / 2.0).max(0.0);
+        for target in [Target::Stick, Target::Pi] {
+            let (x, _) = at(&mut s, StarterAction::Make(target)).expect("a Make button");
+            let x = f32::from(x);
+            assert!(
+                x >= left && x <= left + column,
+                "{w}: {target:?} at {x} outside the column {left}..{}",
+                left + column
+            );
+        }
+    }
 }
