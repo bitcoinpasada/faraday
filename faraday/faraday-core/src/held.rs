@@ -736,7 +736,7 @@ pub(crate) fn receive_held_on(r: &impl Reads, wl: &wallet::Wallet) -> bool {
 
 /// An address of `wl` as every screen shows it, in groups, and whether
 /// it is held back: then the text is "Back up before you receive" and is
-/// drawn in `WARN`. This is the one way a receive address reaches the
+/// drawn in `warning`. This is the one way a receive address reaches the
 /// screen or a code. Read through `r` ([`Reads`]).
 pub(crate) fn receive_line_on(
     r: &impl Reads,

@@ -596,7 +596,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
             } else if p.asked {
                 (tone, tone, tone.with_alpha(if pressed { 70 } else { 18 }))
             } else {
-                (DIM, BORDER, if pressed { BG_PRESSED } else { BG })
+                (
+                    Role::OnSurfaceVariant.paint(),
+                    Role::OutlineVariant.paint(),
+                    if pressed {
+                        Role::SurfaceContainerHigh.paint()
+                    } else {
+                        Role::SurfaceContainerHighest.paint()
+                    },
+                )
             };
             ui.fill(x, y, w, z.h, z.h / 2.0, body);
             ui.stroke(x, y, w, z.h, z.h / 2.0, edge);

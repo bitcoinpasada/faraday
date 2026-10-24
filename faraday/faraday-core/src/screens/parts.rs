@@ -21,7 +21,7 @@ pub(crate) fn working_bar(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) {
 /// [`working_bar`] under `line`, the work under way, in the accent in a
 /// row `h` tall at (x, y), `w` wide.
 pub(crate) fn working_line(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), line: &str) {
-    ui.text_mid(x, y, h, 15.0, W::S, ACCENT, line);
+    ui.text_mid(x, y, h, 15.0, W::S, Role::Primary, line);
     working_bar(ui, x, y, w, h);
 }
 
@@ -31,8 +31,8 @@ pub(crate) fn guide_text(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: 
     if !app.guided() {
         return 0.0;
     }
-    let h = ui.wrap(x + 14.0, y, w - 14.0, 14.0, W::R, TEXT, text);
-    ui.fill(x, y, 3.0, h, 1.5, ACCENT.with_alpha(140));
+    let h = ui.wrap(x + 14.0, y, w - 14.0, 14.0, W::R, Role::OnSurface, text);
+    ui.fill(x, y, 3.0, h, 1.5, Role::Primary.with_alpha(140));
     h + 18.0
 }
 
@@ -282,11 +282,19 @@ pub(crate) fn stepper(
     } else {
         x + label_end.max(180.0)
     };
-    ui.text_mid(x, y, 40.0, size, W::R, MUTED, label);
+    ui.text_mid(x, y, 40.0, size, W::R, Role::OnSurfaceVariant, label);
     ui.button(bx, y, Some(40.0), 40.0, "-", style, minus);
     let v = value.to_string();
     let vw = ui.measure(18.0, W::S, &v);
-    ui.text_mid(bx + 62.0 - vw / 2.0, y, 40.0, 18.0, W::S, TEXT, &v);
+    ui.text_mid(
+        bx + 62.0 - vw / 2.0,
+        y,
+        40.0,
+        18.0,
+        W::S,
+        Role::OnSurface,
+        &v,
+    );
     ui.button(bx + 84.0, y, Some(40.0), 40.0, "+", style, plus);
 }
 
@@ -384,7 +392,11 @@ pub(crate) fn kind_list(
             w,
             h,
             8.0,
-            if on { ACCENT.with_alpha(26) } else { BG },
+            if on {
+                Role::Primary.with_alpha(26)
+            } else {
+                Role::SurfaceContainerHighest.paint()
+            },
         );
         ui.stroke(
             x,
@@ -392,26 +404,38 @@ pub(crate) fn kind_list(
             w,
             h,
             8.0,
-            if on { ACCENT.with_alpha(110) } else { BORDER },
+            if on {
+                Role::Primary.with_alpha(110)
+            } else {
+                Role::OutlineVariant.paint()
+            },
         );
         // Where "codex32" and the name's end are, on the backup in shares.
         let mut tip = None;
         if ui.compact {
             for (n, text) in names.iter().enumerate() {
                 let ty = cy + top + n as f32 * name_h;
-                let end = left + ui.text(left, ty, size, W::S, TEXT, text);
+                let end = left + ui.text(left, ty, size, W::S, Role::OnSurface, text);
                 if k.shares() {
                     tip = tip.or(word_at(ui, (left, end, ty + name_h / 2.0), size, text));
                 }
             }
             for (n, text) in lines.iter().enumerate() {
                 let ty = line_at + n as f32 * line_h;
-                ui.text(left, ty, 12.0, W::R, MUTED, text);
+                ui.text(left, ty, 12.0, W::R, Role::OnSurfaceVariant, text);
             }
         } else {
-            let end = left + ui.text_mid(left, cy, h, size, W::S, TEXT, k.name());
+            let end = left + ui.text_mid(left, cy, h, size, W::S, Role::OnSurface, k.name());
             let line = ui.fit(12.0, W::R, line, w - 260.0);
-            ui.text_right(x + w - 14.0, cy, h, 12.0, W::R, MUTED, &line);
+            ui.text_right(
+                x + w - 14.0,
+                cy,
+                h,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                &line,
+            );
             if k.shares() {
                 tip = word_at(ui, (left, end, cy + h / 2.0), size, k.name());
             }
@@ -471,7 +495,14 @@ fn shares_tip(ui: &mut Ui, (word, word_w, end, mid): (f32, f32, f32, f32), (y, h
         (bx, by, ICON_BUTTON, ICON_BUTTON, shape_full(ICON_BUTTON)),
         a,
     );
-    ui.icon(bx, by, ICON_BUTTON, Icon::Info, ICON_SMALL, MUTED);
+    ui.icon(
+        bx,
+        by,
+        ICON_BUTTON,
+        Icon::Info,
+        ICON_SMALL,
+        Role::OnSurfaceVariant,
+    );
     // The button first: the tooltip stands over it.
     let tip = EN.create_shares_tip;
     ui.tip_anchor((bx, by, ICON_BUTTON, ICON_BUTTON), a, tip, TipKind::Rich);
@@ -524,7 +555,15 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
     section_label(ui, x, cy, EN.first_addresses_heading);
     cy += 24.0;
     if app.receive_held(wl) {
-        cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, crate::glance::RECEIVE_WARNING) + 8.0;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            13.0,
+            W::S,
+            Role::Warning,
+            crate::glance::RECEIVE_WARNING,
+        ) + 8.0;
         return cy - y;
     }
     for (label, change, idx) in [
@@ -532,7 +571,7 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
         (EN.first_addresses_receive_0_1, false, 1),
         (EN.first_addresses_change, true, 0),
     ] {
-        ui.text(x, cy + 2.0, 12.0, W::R, MUTED, label);
+        ui.text(x, cy + 2.0, 12.0, W::R, Role::OnSurfaceVariant, label);
         let a = app.receive_line(wl, change, idx).0;
         let ax = if ui.compact {
             cy += 20.0;
@@ -540,7 +579,10 @@ pub(crate) fn first_addresses(app: &View, ui: &mut Ui, i: usize, x: f32, y: f32,
         } else {
             96.0
         };
-        cy += ui.wrap(x + ax, cy, w - ax, 13.0, W::M, TEXT, &a).max(20.0) + 10.0;
+        cy += ui
+            .wrap(x + ax, cy, w - ax, 13.0, W::M, Role::OnSurface, &a)
+            .max(20.0)
+            + 10.0;
     }
     cy - y
 }
@@ -616,27 +658,27 @@ pub(super) fn file_row(
         // the name keeps the room beside the button.
         let room = w - bw - 10.0;
         let name = ui.fit(14.0, W::S, name, room);
-        ui.text(x, y + 6.0, 14.0, W::S, TEXT, &name);
+        ui.text(x, y + 6.0, 14.0, W::S, Role::OnSurface, &name);
         let (line, tone) = match done {
-            Some(t) => (t, OK),
-            None => (detail, MUTED),
+            Some(t) => (t, Role::Ok),
+            None => (detail, Role::OnSurfaceVariant),
         };
         let line = ui.fit(12.0, W::R, line, room);
         ui.text(x, y + 28.0, 12.0, W::R, tone, &line);
     } else {
         if let Some(t) = done {
-            ui.text_right(x + w - bw - 10.0, y, rh, 13.0, W::S, OK, t);
+            ui.text_right(x + w - bw - 10.0, y, rh, 13.0, W::S, Role::Ok, t);
         }
         let name_w = 200.0_f32.min(w - right - 10.0);
         let n = ui.fit(14.0, W::S, name, name_w);
-        ui.text_mid(x, y, 36.0, 14.0, W::S, TEXT, &n);
+        ui.text_mid(x, y, 36.0, 14.0, W::S, Role::OnSurface, &n);
         let room = w - right - 220.0 - 10.0;
         if room > 60.0 {
             let d = ui.fit(12.0, W::R, detail, room);
-            ui.text_mid(x + 220.0, y, 36.0, 12.0, W::R, MUTED, &d);
+            ui.text_mid(x + 220.0, y, 36.0, 12.0, W::R, Role::OnSurfaceVariant, &d);
         }
     }
-    ui.rule(x, y + rh + 4.0, w, BORDER);
+    ui.rule(x, y + rh + 4.0, w, Role::OutlineVariant);
     rh + 8.0
 }
 
@@ -656,12 +698,12 @@ fn file_row_extra(
     if ui.compact {
         let room = w - if done_w > 0.0 { done_w + 10.0 } else { 0.0 };
         let n = ui.fit(14.0, W::S, name, room);
-        ui.text(x, y + 6.0, 14.0, W::S, TEXT, &n);
+        ui.text(x, y + 6.0, 14.0, W::S, Role::OnSurface, &n);
         if let Some(t) = done {
-            ui.text_right(x + w, y, 28.0, 13.0, W::S, OK, t);
+            ui.text_right(x + w, y, 28.0, 13.0, W::S, Role::Ok, t);
         }
         let d = ui.fit(12.0, W::R, detail, w);
-        ui.text(x, y + 28.0, 12.0, W::R, MUTED, &d);
+        ui.text(x, y + 28.0, 12.0, W::R, Role::OnSurfaceVariant, &d);
         let mut items: Vec<(&str, Style, Action)> = extra
             .iter()
             .map(|&(l, a)| (l, Style::Secondary, a))
@@ -685,7 +727,7 @@ fn file_row_extra(
         } else {
             50.0 + wrap_buttons(ui, x, y + 50.0, w, 34.0, &items) - 8.0
         };
-        ui.rule(x, y + rh + 4.0, w, BORDER);
+        ui.rule(x, y + rh + 4.0, w, Role::OutlineVariant);
         return rh + 8.0;
     }
     let rh = 36.0;
@@ -696,7 +738,7 @@ fn file_row_extra(
     ui.button(right, by, Some(bw), 34.0, button.0, button.1, button.2);
     right -= 6.0;
     if let Some(t) = done {
-        ui.text_right(right - 4.0, y, rh, 13.0, W::S, OK, t);
+        ui.text_right(right - 4.0, y, rh, 13.0, W::S, Role::Ok, t);
         right -= done_w + 16.0;
     }
     for &(label, action) in extra.iter().rev() {
@@ -707,13 +749,13 @@ fn file_row_extra(
     }
     let name_w = 200.0_f32.min(right - x - 10.0);
     let n = ui.fit(14.0, W::S, name, name_w);
-    ui.text_mid(x, y, rh, 14.0, W::S, TEXT, &n);
+    ui.text_mid(x, y, rh, 14.0, W::S, Role::OnSurface, &n);
     let room = right - (x + 220.0) - 10.0;
     if room > 60.0 {
         let d = ui.fit(12.0, W::R, detail, room);
-        ui.text_mid(x + 220.0, y, rh, 12.0, W::R, MUTED, &d);
+        ui.text_mid(x + 220.0, y, rh, 12.0, W::R, Role::OnSurfaceVariant, &d);
     }
-    ui.rule(x, y + rh + 4.0, w, BORDER);
+    ui.rule(x, y + rh + 4.0, w, Role::OutlineVariant);
     rh + 8.0
 }
 
@@ -737,15 +779,22 @@ pub(crate) fn pass_field(
     action: Action,
 ) -> f32 {
     let (px, py, pw) = if ui.compact {
-        ui.text(x, y, 13.0, W::R, MUTED, label);
+        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, label);
         (x, y + 22.0, w)
     } else {
-        ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, label);
+        ui.text_mid(x, y, 40.0, 13.0, W::R, Role::OnSurfaceVariant, label);
         (x + 150.0, y, 380.0f32.min(w - 150.0))
     };
     let r = tokens::FIELD_RADIUS;
-    ui.fill(px, py, pw, 40.0, r, BG);
-    ui.stroke(px, py, pw, 40.0, r, if on { ACCENT } else { OUTLINE });
+    ui.fill(px, py, pw, 40.0, r, Role::SurfaceContainerHighest);
+    ui.stroke(
+        px,
+        py,
+        pw,
+        40.0,
+        r,
+        if on { Role::Primary } else { Role::Outline },
+    );
     dots_field(ui, px, py, pw, text, (on, chip), action);
     py - y + 48.0
 }
@@ -782,7 +831,7 @@ pub(crate) fn dots_field(
             40.0,
             14.0,
             W::M,
-            TEXT,
+            Role::OnSurface,
             &dots,
             w - 24.0,
             on,
@@ -794,21 +843,35 @@ pub(crate) fn dots_field(
 /// A passphrase field in Demo that holds `faraday`: it in its code box at
 /// the field's text inset, unmasked (`docs/MODES.md` §6.2). No eye.
 pub(crate) fn code_field(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32, text: &str) {
-    ui.fill(x, y, w, h, tokens::FIELD_RADIUS, BG);
-    ui.stroke(x, y, w, h, tokens::FIELD_RADIUS, OUTLINE);
+    ui.fill(
+        x,
+        y,
+        w,
+        h,
+        tokens::FIELD_RADIUS,
+        Role::SurfaceContainerHighest,
+    );
+    ui.stroke(x, y, w, h, tokens::FIELD_RADIUS, Role::Outline);
     let size = tokens::PASS_CODE_TEXT;
     let top = y + (h - ui.code_height(size)) / 2.0;
     ui.code_box(x + tokens::PASS_CODE_INSET, top, size, text);
 }
 
-/// The **Locked in** tag: a lock and the words, in `OK`. Returns its
+/// The **Locked in** tag: a lock and the words, in `ok`. Returns its
 /// width.
 pub(crate) fn locked_tag(ui: &mut Ui, x: f32, y: f32) -> f32 {
     let label = EN.locked_tag_text;
     let width = ui.measure(12.0, W::S, label) + 40.0;
-    ui.fill(x, y, width, 26.0, 13.0, OK.with_alpha(30));
-    ui.icon(x + 6.0, y + 3.0, 20.0, Icon::Lock, 10.0, OK);
-    ui.text_mid(x + 28.0, y, 26.0, 12.0, W::S, OK, label);
+    ui.fill(x, y, width, 26.0, 13.0, Role::OkContainer);
+    ui.icon(
+        x + 6.0,
+        y + 3.0,
+        20.0,
+        Icon::Lock,
+        10.0,
+        Role::OnOkContainer,
+    );
+    ui.text_mid(x + 28.0, y, 26.0, 12.0, W::S, Role::OnOkContainer, label);
     width
 }
 
@@ -830,9 +893,16 @@ pub(crate) fn descriptor_row(
     if wl.policy().record().is_none() {
         value.push_str(&format!(" · #{}", wl.checksum()));
     }
-    ui.text(x, y, 12.0, W::R, MUTED, EN.descriptor_row_descriptor);
+    ui.text(
+        x,
+        y,
+        12.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.descriptor_row_descriptor,
+    );
     let vh = ui
-        .wrap(x, y + 20.0, w - 28.0, 13.0, W::M, TEXT, &value)
+        .wrap(x, y + 20.0, w - 28.0, 13.0, W::M, Role::OnSurface, &value)
         .max(18.0);
     let h = 20.0 + vh + 8.0;
     ui.icon(
@@ -841,10 +911,10 @@ pub(crate) fn descriptor_row(
         20.0,
         Icon::ChevronRight,
         9.0,
-        DIM,
+        Role::OnSurfaceVariant,
     );
     ui.hit(x, y - 4.0, w, h, action);
-    ui.rule(x, y + h, w, BORDER);
+    ui.rule(x, y + h, w, Role::OutlineVariant);
     h + 12.0
 }
 
@@ -936,7 +1006,7 @@ pub(crate) fn grid_never(ui: &mut Ui, x: f32, bottom: f32, w: f32) -> f32 {
             w,
             13.0,
             W::R,
-            WARN,
+            Role::Warning,
             EN.never_real_seed,
         )
 }
@@ -971,24 +1041,32 @@ pub(crate) fn typed_cells(
         let cy = y + (k / cols) as f32 * 46.0;
         let current = k == words.len() - usize::from(typing_word && !words.is_empty()) && k < shown;
         let edge = if current {
-            ACCENT.with_alpha(110)
+            Role::Primary.with_alpha(110)
         } else {
-            BORDER
+            Role::OutlineVariant.paint()
         };
-        ui.fill(cx, cy, cellw, 38.0, 8.0, BG);
+        ui.fill(cx, cy, cellw, 38.0, 8.0, Role::SurfaceContainerHighest);
         ui.stroke(cx, cy, cellw, 38.0, 8.0, edge);
-        ui.text_mid(cx + 10.0, cy, 38.0, 11.0, W::R, DIM, &(k + 1).to_string());
+        ui.text_mid(
+            cx + 10.0,
+            cy,
+            38.0,
+            11.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &(k + 1).to_string(),
+        );
         if let Some(wd) = words.get(k) {
             let last_partial = typing_word && k + 1 == words.len();
             if masked && !last_partial {
-                ui.text_mid(cx + 36.0, cy, 38.0, 14.0, W::M, TEXT, "••••••");
+                ui.text_mid(cx + 36.0, cy, 38.0, 14.0, W::M, Role::OnSurface, "••••••");
                 continue;
             }
             let found = crate::forms::typed_index(lang, wd);
             let c = if found.is_some() || last_partial {
-                TEXT
+                Role::OnSurface
             } else {
-                ERR
+                Role::Error
             };
             // A finished word in the list's own spelling.
             let shown = match found {
@@ -1026,7 +1104,11 @@ pub(crate) fn typed_cells(
             y,
             13.0,
             W::M,
-            if cands.is_empty() { ERR } else { MUTED },
+            if cands.is_empty() {
+                Role::Error
+            } else {
+                Role::OnSurfaceVariant
+            },
             &line,
         );
     }
@@ -1056,7 +1138,7 @@ pub(crate) fn keyed_cells(
         let cx = x + (k % cols) as f32 * (cellw + 8.0);
         let cy = y + (k / cols) as f32 * 42.0;
         let current = k == taken.len();
-        ui.fill(cx, cy, cellw, 36.0, 8.0, BG);
+        ui.fill(cx, cy, cellw, 36.0, 8.0, Role::SurfaceContainerHighest);
         ui.stroke(
             cx,
             cy,
@@ -1064,16 +1146,24 @@ pub(crate) fn keyed_cells(
             36.0,
             8.0,
             if current {
-                ACCENT.with_alpha(110)
+                Role::Primary.with_alpha(110)
             } else {
-                BORDER
+                Role::OutlineVariant.paint()
             },
         );
-        ui.text_mid(cx + 8.0, cy, 36.0, 11.0, W::R, DIM, &(k + 1).to_string());
+        ui.text_mid(
+            cx + 8.0,
+            cy,
+            36.0,
+            11.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &(k + 1).to_string(),
+        );
         let word = match taken.get(k) {
-            Some(_) if masked => Some(("••••••".to_string(), TEXT)),
-            Some(&i) => Some((lang.word_display(i).to_string(), TEXT)),
-            None if current && !prefix.is_empty() => Some((prefix.to_string(), ACCENT)),
+            Some(_) if masked => Some(("••••••".to_string(), Role::OnSurface)),
+            Some(&i) => Some((lang.word_display(i).to_string(), Role::OnSurface)),
+            None if current && !prefix.is_empty() => Some((prefix.to_string(), Role::Primary)),
             None => None,
         };
         let tw = match word {
@@ -1118,11 +1208,18 @@ pub(crate) fn keyed_pills(
         } else {
             EN.keyed_words_no_word
         };
-        ui.text_mid(x, y, 30.0, 13.0, W::R, MUTED, line);
+        ui.text_mid(x, y, 30.0, 13.0, W::R, Role::OnSurfaceVariant, line);
         y += 34.0;
     } else {
         if hint {
-            ui.text(x, y, 12.0, W::R, MUTED, EN.keyed_words_press_hint);
+            ui.text(
+                x,
+                y,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                EN.keyed_words_press_hint,
+            );
             y += 22.0;
         }
         let mut bx = x;
@@ -1199,7 +1296,7 @@ pub(crate) fn word_keys(
                     18.0,
                     Icon::Delete,
                     12.0,
-                    TEXT,
+                    Role::OnSurface,
                 );
             }
             KeyInput::Shift => {
@@ -1238,8 +1335,8 @@ pub(super) fn section(
     let (ix, iw) = (x + 14.0, w - 28.0);
     let inner = crate::compact::screen::measured(ui, |ui| draw(ui, ix, y + 44.0, iw));
     let h = 44.0 + inner + 12.0;
-    ui.card(x, y, w, h, LINE);
-    ui.text(ix, y + 16.0, 15.0, W::S, TEXT, title);
+    ui.card(x, y, w, h, Role::OutlineVariant);
+    ui.text(ix, y + 16.0, 15.0, W::S, Role::OnSurface, title);
     draw(ui, ix, y + 44.0, iw);
     h + 14.0
 }
@@ -1250,10 +1347,25 @@ pub(super) fn section(
 /// line, as the shares card's does. Returns the row's height.
 pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
     let (ly, bx, h) = if ui.compact {
-        ui.text(x, y, 13.0, W::R, MUTED, EN.tz_row_time_zone);
+        ui.text(
+            x,
+            y,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.tz_row_time_zone,
+        );
         (y + 24.0, x, 64.0)
     } else {
-        ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.tz_row_time_zone);
+        ui.text_mid(
+            x,
+            y,
+            40.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.tz_row_time_zone,
+        );
         (y, x + 180.0, 40.0)
     };
     ui.button(
@@ -1273,7 +1385,7 @@ pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
         40.0,
         14.0,
         W::S,
-        TEXT,
+        Role::OnSurface,
         &v,
     );
     ui.button(
@@ -1390,10 +1502,18 @@ pub(crate) fn card_pad(
     );
     if ui.compact {
         cy += 52.0;
-        ui.text(x, cy, 12.0, W::R, MUTED, &deck);
+        ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, &deck);
         cy += 28.0;
     } else {
-        ui.text_mid(x + 4.0 * 72.0 + 8.0, cy, 44.0, 12.0, W::R, MUTED, &deck);
+        ui.text_mid(
+            x + 4.0 * 72.0 + 8.0,
+            cy,
+            44.0,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &deck,
+        );
         cy += 56.0;
     }
     cy - y
@@ -1423,11 +1543,27 @@ pub(crate) fn camera_row(
     };
     let beside = x + bw + PAD;
     if beside + ui.measure(OWN_LINE_TEXT, W::R, &state) <= x + w {
-        ui.text_mid(beside, y, TOUCH, OWN_LINE_TEXT, W::R, MUTED, &state);
+        ui.text_mid(
+            beside,
+            y,
+            TOUCH,
+            OWN_LINE_TEXT,
+            W::R,
+            Role::OnSurfaceVariant,
+            &state,
+        );
         return TOUCH + GRID + GRID / 2.0;
     }
     let below = y + TOUCH + GRID;
-    let h = ui.wrap(x, below, w, OWN_LINE_TEXT, W::R, MUTED, &state);
+    let h = ui.wrap(
+        x,
+        below,
+        w,
+        OWN_LINE_TEXT,
+        W::R,
+        Role::OnSurfaceVariant,
+        &state,
+    );
     below + h + GRID + GRID / 2.0 - y
 }
 
@@ -1578,7 +1714,7 @@ pub(crate) fn copy_grid(ui: &mut Ui, x: f32, y: f32, w: f32, g: &CopyGrid<'_>) -
             cy,
             tokens::CAPTION,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             line,
         );
         cy += tokens::PAD + tokens::GAP_SMALL;
@@ -1588,7 +1724,7 @@ pub(crate) fn copy_grid(ui: &mut Ui, x: f32, y: f32, w: f32, g: &CopyGrid<'_>) -
     } else {
         fill(EN.copy_grid_block, &[&copy_block_name(pin, n, g.lettered)])
     };
-    cy += ui.wrap(x, cy, w, tokens::BODY, W::S, ACCENT, &name) + tokens::GAP_SMALL;
+    cy += ui.wrap(x, cy, w, tokens::BODY, W::S, Role::Primary, &name) + tokens::GAP_SMALL;
     cy += wrap_buttons(
         ui,
         x,
@@ -1659,8 +1795,24 @@ fn copy_whole(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin:
         let span_here = span.min(side - o);
         let cw = ui.measure(tokens::CAPTION, W::M, &col);
         let col_x = gx + o + (span_here - cw) / 2.0;
-        ui.text_mid(col_x, y, lab, tokens::CAPTION, W::M, MUTED, &col);
-        ui.text_mid(x, gy + o, span_here, tokens::CAPTION, W::M, MUTED, &row);
+        ui.text_mid(
+            col_x,
+            y,
+            lab,
+            tokens::CAPTION,
+            W::M,
+            Role::OnSurfaceVariant,
+            &col,
+        );
+        ui.text_mid(
+            x,
+            gy + o,
+            span_here,
+            tokens::CAPTION,
+            W::M,
+            Role::OnSurfaceVariant,
+            &row,
+        );
     }
     for i in 0..=if g.rows { n - 1 } else { per * per - 1 } {
         let (mx, my, mw, mh) = if g.rows {
@@ -1671,8 +1823,8 @@ fn copy_whole(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin:
             (gx + at(c0), gy + at(r0), at(bw), at(bh))
         };
         if i == pin {
-            ui.fill(mx, my, mw, mh, 0.0, ACCENT.with_alpha(70));
-            ui.stroke(mx, my, mw, mh, 0.0, ACCENT);
+            ui.fill(mx, my, mw, mh, 0.0, Role::Primary.with_alpha(70));
+            ui.stroke(mx, my, mw, mh, 0.0, Role::Primary);
         }
         ui.hit(mx, my, mw, mh, (g.pick)(i));
     }
@@ -1714,7 +1866,7 @@ fn copy_zoomed(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin
         }
     }
     let (bw, bh) = (bw as f32 * cell, bh as f32 * cell);
-    ui.stroke(gx + cell, gy + cell, bw, bh, 0.0, ACCENT);
+    ui.stroke(gx + cell, gy + cell, bw, bh, 0.0, Role::Primary);
     let name = copy_block_name(pin, n, g.lettered);
     let (row, col) = if g.lettered {
         let (r, c) = name.split_at(1);
@@ -1724,7 +1876,7 @@ fn copy_zoomed(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin
     };
     let cw = ui.measure(tokens::CAPTION, W::M, &col);
     let col_x = gx + cell + (bw - cw) / 2.0;
-    ui.text_mid(col_x, y, lab, tokens::CAPTION, W::M, ACCENT, &col);
-    ui.text_mid(x, gy + cell, bh, tokens::CAPTION, W::M, ACCENT, &row);
+    ui.text_mid(col_x, y, lab, tokens::CAPTION, W::M, Role::Primary, &col);
+    ui.text_mid(x, gy + cell, bh, tokens::CAPTION, W::M, Role::Primary, &row);
     lab + side
 }

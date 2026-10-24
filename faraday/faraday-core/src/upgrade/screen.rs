@@ -60,11 +60,11 @@ fn heading(
     (now, past): (bool, bool),
 ) -> f32 {
     let (fill, ink) = if past {
-        (OK.with_alpha(40), OK)
+        (Role::OkContainer, Role::OnOkContainer)
     } else if now {
-        (ACCENT, BG)
+        (Role::Primary, Role::OnPrimary)
     } else {
-        (INNER, DIM)
+        (Role::SurfaceContainerHighest, Role::OnSurfaceVariant)
     };
     ui.fill(x, y, 26.0, 26.0, 13.0, fill);
     if past {
@@ -74,7 +74,11 @@ fn heading(
         let tw = ui.measure(13.0, W::S, &s);
         ui.text_mid(x + 13.0 - tw / 2.0, y, 26.0, 13.0, W::S, ink, &s);
     }
-    let tone = if now { TEXT } else { MUTED };
+    let tone = if now {
+        Role::OnSurface
+    } else {
+        Role::OnSurfaceVariant
+    };
     let th = ui.wrap(x + 38.0, y + 3.0, w - 38.0, 16.0, W::S, tone, label);
     th.max(26.0) + 12.0
 }
@@ -93,10 +97,10 @@ fn value_row(
         return crate::compact::kv(ui, x, y, w, key, value, tone);
     }
     let kw = ui.measure(13.0, W::R, key) + 24.0;
-    ui.text_mid(x, y, 36.0, 13.0, W::R, MUTED, key);
+    ui.text_mid(x, y, 36.0, 13.0, W::R, Role::OnSurfaceVariant, key);
     let v = ui.fit(14.0, W::R, value, w - kw);
     ui.text_right(x + w, y, 36.0, 14.0, W::R, tone, &v);
-    ui.rule(x, y + 36.0, w, BORDER);
+    ui.rule(x, y + 36.0, w, Role::OutlineVariant);
     38.0
 }
 
@@ -123,12 +127,20 @@ fn source(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
             iw,
             EN.upgrade_read,
             &version(Some(release)),
-            TEXT,
+            Role::OnSurface.paint(),
         );
     } else if u.reading {
-        y += value_row(ui, ix, y, iw, EN.upgrade_reading, "", MUTED);
+        y += value_row(
+            ui,
+            ix,
+            y,
+            iw,
+            EN.upgrade_reading,
+            "",
+            Role::OnSurfaceVariant.paint(),
+        );
     } else if let Some(why) = &u.refused {
-        y += ui.wrap(ix, y, iw, 13.0, W::S, ERR, why) + 8.0;
+        y += ui.wrap(ix, y, iw, 13.0, W::S, Role::Error, why) + 8.0;
     }
     y - y0
 }
@@ -157,20 +169,39 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
     let shown = u.target();
     // More than one in: which one.
     if targets.len() > 1 {
-        ui.rule(ix, y, iw, BORDER);
+        ui.rule(ix, y, iw, Role::OutlineVariant);
         for (i, p) in targets.iter().enumerate() {
             let action = Action::UpgradePick(i as u8);
             let on = shown.is_some_and(|s| s.id == p.id);
             if on || ui.is_pressed(action) {
-                ui.fill(ix - 8.0, y, iw + 16.0, ROW, 8.0, INNER);
+                ui.wash(
+                    ix - 8.0,
+                    y,
+                    iw + 16.0,
+                    ROW,
+                    8.0,
+                    Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+                );
             }
             let name = format!("{} {}", app.medium.cap(), disk(p));
-            ui.text_mid(ix, y, ROW, 13.0, W::S, if on { TEXT } else { MUTED }, &name);
+            ui.text_mid(
+                ix,
+                y,
+                ROW,
+                13.0,
+                W::S,
+                if on {
+                    Role::OnSurface
+                } else {
+                    Role::OnSurfaceVariant
+                },
+                &name,
+            );
             let v = version(p.release.as_deref());
-            ui.text_right(ix + iw, y, ROW, 12.0, W::R, MUTED, &v);
+            ui.text_right(ix + iw, y, ROW, 12.0, W::R, Role::OnSurfaceVariant, &v);
             ui.hit(ix - 8.0, y, iw + 16.0, ROW, action);
             y += ROW;
-            ui.rule(ix, y, iw, BORDER);
+            ui.rule(ix, y, iw, Role::OutlineVariant);
         }
         y += 12.0;
     }
@@ -178,7 +209,15 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
         return y - y0;
     };
     let release = u.source.as_ref().map(|s| s.1.as_str());
-    y += value_row(ui, ix, y, iw, app.medium.cap(), disk(t), TEXT);
+    y += value_row(
+        ui,
+        ix,
+        y,
+        iw,
+        app.medium.cap(),
+        disk(t),
+        Role::OnSurface.paint(),
+    );
     if let Some(data) = app.upgrade_data_of(t) {
         let n = data.files.len();
         let files = format!(
@@ -189,7 +228,15 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
                 EN.upgrade_files
             }
         );
-        y += value_row(ui, ix, y, iw, EN.upgrade_its_data_partition, &files, TEXT);
+        y += value_row(
+            ui,
+            ix,
+            y,
+            iw,
+            EN.upgrade_its_data_partition,
+            &files,
+            Role::OnSurface.paint(),
+        );
     }
     y += value_row(
         ui,
@@ -198,7 +245,7 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
         iw,
         EN.upgrade_target_contents,
         &version(t.release.as_deref()),
-        TEXT,
+        Role::OnSurface.paint(),
     );
     y += value_row(
         ui,
@@ -207,20 +254,20 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
         iw,
         EN.upgrade_to_be_written,
         &version(release),
-        TEXT,
+        Role::OnSurface.paint(),
     );
     let fit = u.fit(t);
     let note = match &fit {
         Fit::Fits => None,
-        Fit::Newer => Some((EN.upgrade_newer_than.to_string(), WARN)),
-        Fit::Dev => Some((EN.upgrade_writes_a_dev.to_string(), WARN)),
-        Fit::Same => Some((EN.upgrade_same_version.to_string(), MUTED)),
+        Fit::Newer => Some((EN.upgrade_newer_than.to_string(), Role::Warning)),
+        Fit::Dev => Some((EN.upgrade_writes_a_dev.to_string(), Role::Warning)),
+        Fit::Same => Some((EN.upgrade_same_version.to_string(), Role::OnSurfaceVariant)),
         Fit::TooSmall(has, needs) => Some((
             fill(
                 EN.upgrade_boot_partition,
                 &[&has.to_string(), &needs.to_string()],
             ),
-            ERR,
+            Role::Error,
         )),
     };
     y += 8.0;
@@ -233,7 +280,7 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
         } else {
             fill(EN.upgrade_not_written, &[&why.to_string()])
         };
-        y += ui.wrap(ix, y, iw, 13.0, W::S, ERR, &line) + 8.0;
+        y += ui.wrap(ix, y, iw, 13.0, W::S, Role::Error, &line) + 8.0;
     }
     y += 4.0;
     if u.writing.is_some() {
@@ -276,12 +323,12 @@ fn done(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32, 
         iw,
         EN.upgrade_written_read,
         &version(Some(release)),
-        OK,
+        Role::Ok.paint(),
     );
     let still_in = u.parts.iter().any(|p| &p.id == id);
     if still_in {
         let line = fill(EN.upgrade_remove_medium, &[app.medium.noun()]);
-        y += value_row(ui, ix, y, iw, &line, "", MUTED);
+        y += value_row(ui, ix, y, iw, &line, "", Role::OnSurfaceVariant.paint());
     }
     y += 12.0;
     let again = fill(EN.upgrade_upgrade_another, &[app.medium.noun()]);

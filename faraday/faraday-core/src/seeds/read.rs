@@ -568,8 +568,8 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     items.push(cancel);
     // A key's line: what it is made with, and its fingerprint.
     let key_line = |ui: &mut Ui, x: f32, y: f32, iw: f32, label: &str, fp: Fingerprint| -> f32 {
-        ui.text_mid(x, y, 30.0, 13.0, W::R, MUTED, label);
-        ui.text_right(x + iw, y, 30.0, 14.0, W::M, TEXT, &fp_text(fp));
+        ui.text_mid(x, y, 30.0, 13.0, W::R, Role::OnSurfaceVariant, label);
+        ui.text_right(x + iw, y, 30.0, 14.0, W::M, Role::OnSurface, &fp_text(fp));
         34.0
     };
     let body = |ui: &mut Ui, x: f32, y: f32, iw: f32| -> f32 {
@@ -615,15 +615,15 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     iw,
                     13.0,
                     W::R,
-                    WARN,
+                    Role::Warning,
                     EN.seed_read_the_two_passphrases,
                 ) + 10.0;
             }
         }
         if let Some(e) = &s.error {
-            cy += ui.wrap(x, cy + 4.0, iw, 13.0, W::S, ERR, e) + 14.0;
+            cy += ui.wrap(x, cy + 4.0, iw, 13.0, W::S, Role::Error, e) + 14.0;
         } else if let Some(r) = &s.reason {
-            cy += ui.wrap(x, cy + 4.0, iw, 13.0, W::S, WARN, r) + 14.0;
+            cy += ui.wrap(x, cy + 4.0, iw, 13.0, W::S, Role::Warning, r) + 14.0;
         }
         cy - y
     };
@@ -631,7 +631,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Keys, ACCENT, title);
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Keys, Role::Primary, title);
             cy += body(ui, x, cy, iw) + 8.0;
             cy += crate::compact::buttons(ui, x, cy, iw, &items);
             cy - y
@@ -648,8 +648,8 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let sh = 30.0 + 30.0 + 22.0 + body_h + 12.0 + buttons_h + 24.0;
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let x = x + ix;
-    ui.icon(x, y + 30.0, 30.0, Icon::Keys, 18.0, ACCENT);
-    ui.text_mid(x + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, title);
+    ui.icon(x, y + 30.0, 30.0, Icon::Keys, 18.0, Role::Primary);
+    ui.text_mid(x + 42.0, y + 30.0, 30.0, 20.0, W::S, Role::OnSurface, title);
     let mut cy = y + 82.0;
     cy += body(ui, x, cy, iw) + 12.0;
     wrap_buttons(ui, x, cy, iw, 44.0, &items);

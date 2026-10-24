@@ -81,13 +81,27 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
 /// The bar: a way back on the left, the page's name, and the ? when the
 /// page has something in Learn. Returns its height.
 pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &str) -> f32 {
-    ui.fill(0.0, 0.0, w, BAR_H, 0.0, SIDEBAR);
-    ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, LINE);
+    ui.fill(0.0, 0.0, w, BAR_H, 0.0, Role::SurfaceContainerLow);
+    ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, Role::OutlineVariant);
     let (label, action) = app.named_back(back);
     if ui.is_pressed(action) {
-        ui.fill(4.0, 4.0, BAR_H - 8.0, BAR_H - 8.0, 8.0, INNER);
+        ui.wash(
+            4.0,
+            4.0,
+            BAR_H - 8.0,
+            BAR_H - 8.0,
+            8.0,
+            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+        );
     }
-    ui.icon(4.0, 4.0, BAR_H - 8.0, Icon::ChevronLeft, 13.0, TEXT);
+    ui.icon(
+        4.0,
+        4.0,
+        BAR_H - 8.0,
+        Icon::ChevronLeft,
+        13.0,
+        Role::OnSurface,
+    );
     ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, action);
     ui.back(action);
     let right = tools(app, ui, w);
@@ -95,9 +109,9 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &
     let x = BAR_H;
     let room = right - x;
     let label = ui.fit(11.0, W::R, label, room);
-    ui.text(x, 5.0, 11.0, W::R, MUTED, &label);
+    ui.text(x, 5.0, 11.0, W::R, Role::OnSurfaceVariant, &label);
     let name = ui.fit(16.0, W::S, name, room);
-    ui.text(x, 19.0, 16.0, W::S, TEXT, &name);
+    ui.text(x, 19.0, 16.0, W::S, Role::OnSurface, &name);
     BAR_H
 }
 
@@ -106,9 +120,51 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &
 pub(crate) fn flow_bar_tools(app: &View, ui: &mut Ui, w: f32) {
     let right = tools(app, ui, -w);
     if right < w - M {
-        ui.fill(right, 0.0, w - right, BAR_H - 1.0, 0.0, SIDEBAR);
+        ui.fill(
+            right,
+            0.0,
+            w - right,
+            BAR_H - 1.0,
+            0.0,
+            Role::SurfaceContainerLow,
+        );
         tools(app, ui, w);
     }
+}
+
+/// The bar's keyboard toggle, where the page types, and to bring it back
+/// once put away from a field. Draws it when `draw`; returns `right` moved
+/// left past it.
+fn osk_toggle(app: &View, ui: &mut Ui, draw: bool, right: f32) -> f32 {
+    if !(app.osk_offered() || app.osk_shown() || app.osk_auto()) {
+        return right;
+    }
+    let shown = app.osk_shown();
+    let action = Action::Osk(if shown {
+        OskPress::Hide
+    } else {
+        OskPress::Show
+    });
+    let kx = right - 34.0;
+    let ky = (BAR_H - 34.0) / 2.0;
+    if draw {
+        if shown || ui.is_pressed(action) {
+            let fill = if shown {
+                Role::Primary.with_alpha(40)
+            } else {
+                Role::SurfaceContainerHighest.paint()
+            };
+            ui.fill(kx, ky, 34.0, 34.0, 8.0, fill);
+        }
+        let ink = if shown {
+            Role::Primary
+        } else {
+            Role::OnSurfaceVariant
+        };
+        ui.icon(kx, ky, 34.0, Icon::Keyboard, 14.0, ink);
+        ui.hit(kx - 4.0, 0.0, 42.0, BAR_H, action);
+    }
+    kx - 6.0
 }
 
 /// The ? when the page has something in Learn, and the keyboard where
@@ -141,38 +197,7 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
     }
     // The keyboard, where the page types, and to bring it back once put
     // away from a field.
-    if app.osk_offered() || app.osk_shown() || app.osk_auto() {
-        let shown = app.osk_shown();
-        let action = Action::Osk(if shown {
-            OskPress::Hide
-        } else {
-            OskPress::Show
-        });
-        let kx = right - 34.0;
-        let ky = (BAR_H - 34.0) / 2.0;
-        right = kx - 6.0;
-        if draw {
-            if shown || ui.is_pressed(action) {
-                ui.fill(
-                    kx,
-                    ky,
-                    34.0,
-                    34.0,
-                    8.0,
-                    if shown { ACCENT.with_alpha(40) } else { INNER },
-                );
-            }
-            ui.icon(
-                kx,
-                ky,
-                34.0,
-                Icon::Keyboard,
-                14.0,
-                if shown { ACCENT } else { MUTED },
-            );
-            ui.hit(kx - 4.0, 0.0, 42.0, BAR_H, action);
-        }
-    }
+    right = osk_toggle(app, ui, draw, right);
     // The eye, while Make codex32 shares has sheets to mask
     // (`docs/CODEX32.md` §6.4.6).
     if let Some(masked) = eye_state(app) {
@@ -200,9 +225,24 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
         let cx = right - cw;
         if draw {
             if ui.is_pressed(a) {
-                ui.fill(cx, 8.0, cw, BAR_H - 16.0, 8.0, INNER);
+                ui.wash(
+                    cx,
+                    8.0,
+                    cw,
+                    BAR_H - 16.0,
+                    8.0,
+                    Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+                );
             }
-            ui.text_mid(cx + 10.0, 0.0, BAR_H, 13.0, W::S, MUTED, EN.flow_cancel);
+            ui.text_mid(
+                cx + 10.0,
+                0.0,
+                BAR_H,
+                13.0,
+                W::S,
+                Role::OnSurfaceVariant,
+                EN.flow_cancel,
+            );
             ui.hit(cx, 0.0, cw, BAR_H, a);
         }
         right = cx - 2.0;
@@ -234,7 +274,11 @@ fn eye_icon(ui: &mut Ui, x: f32, y: f32, masked: bool) {
             ICON_BUTTON,
             ICON_BUTTON,
             r,
-            if masked { INNER } else { ACCENT.with_alpha(40) },
+            if masked {
+                Role::SurfaceContainerHighest.paint()
+            } else {
+                Role::Primary.with_alpha(40)
+            },
         );
     }
     ui.icon(
@@ -243,7 +287,11 @@ fn eye_icon(ui: &mut Ui, x: f32, y: f32, masked: bool) {
         ICON_BUTTON,
         if masked { Icon::Eye } else { Icon::EyeOff },
         ICON_GLYPH,
-        if masked { MUTED } else { ACCENT },
+        if masked {
+            Role::OnSurfaceVariant
+        } else {
+            Role::Primary
+        },
     );
 }
 
@@ -285,21 +333,36 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
     let (s, y) = (28.0, 12.0);
     let x = right - s;
     let tint = if shown {
-        ACCENT.with_alpha(40)
+        Role::Primary.with_alpha(40)
     } else if ui.is_pressed(action) || ui.is_hovered(action) {
-        INNER
+        Role::SurfaceContainerHighest.paint()
     } else {
-        SURFACE
+        Role::Surface.paint()
     };
     ui.fill(x, y, s, s, s / 2.0, tint);
-    ui.stroke(x, y, s, s, s / 2.0, if shown { ACCENT } else { BORDER });
+    ui.stroke(
+        x,
+        y,
+        s,
+        s,
+        s / 2.0,
+        if shown {
+            Role::Primary
+        } else {
+            Role::OutlineVariant
+        },
+    );
     ui.icon(
         x,
         y,
         s,
         Icon::Keyboard,
         13.0,
-        if shown { ACCENT } else { MUTED },
+        if shown {
+            Role::Primary
+        } else {
+            Role::OnSurfaceVariant
+        },
     );
     ui.hit(x - 6.0, y - 6.0, s + 12.0, s + 12.0, action);
 }
@@ -307,17 +370,18 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
 /// The ? that opens what explains the page.
 fn help(ui: &mut Ui, x: f32, y: f32) {
     let pressed = ui.is_pressed(Action::Learn);
-    ui.fill(
-        x,
+    crate::ui::fill_pressed(ui, (x, y, 30.0, 30.0, 15.0), Role::Surface, pressed);
+    ui.stroke(x, y, 30.0, 30.0, 15.0, Role::OutlineVariant);
+    let tw = ui.measure(14.0, W::S, "?");
+    ui.text_mid(
+        x + 15.0 - tw / 2.0,
         y,
         30.0,
-        30.0,
-        15.0,
-        if pressed { INNER } else { SURFACE },
+        14.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        "?",
     );
-    ui.stroke(x, y, 30.0, 30.0, 15.0, BORDER);
-    let tw = ui.measure(14.0, W::S, "?");
-    ui.text_mid(x + 15.0 - tw / 2.0, y, 30.0, 14.0, W::S, MUTED, "?");
     ui.hit(x - 6.0, y - 6.0, 42.0, 42.0, Action::Learn);
 }
 
@@ -434,7 +498,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
 
     // The system gave no randomness: nothing seals until a restart.
     if app.seed_missing() {
-        y += ui.wrap(M, y, inner, 13.0, W::S, ERR, EN.seed_missing) + 10.0;
+        y += ui.wrap(M, y, inner, 13.0, W::S, Role::Error, EN.seed_missing) + 10.0;
     }
 
     // What this session holds.
@@ -442,9 +506,12 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let wallets = app.session.wallets.len();
     let vaults = app.vaults.open.len();
     let (dot, line) = match (keys + wallets, vaults) {
-        (0, 0) => (DIM, EN.compact_nothing_loaded.to_string()),
+        (0, 0) => (
+            Role::OnSurfaceVariant,
+            EN.compact_nothing_loaded.to_string(),
+        ),
         (_, 0) => (
-            OK,
+            Role::Ok,
             format!(
                 "{keys} {} · {wallets} {}",
                 if keys == 1 {
@@ -460,7 +527,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ),
         ),
         (_, v) => (
-            OK,
+            Role::Ok,
             fill(
                 EN.compact_vaults_open,
                 &[
@@ -482,20 +549,26 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let action = Action::Nav(session);
     let pressed = ui.is_pressed(action);
-    ui.fill(
-        M,
-        y,
-        inner,
-        52.0,
-        10.0,
-        if pressed { INNER } else { SURFACE },
+    crate::ui::fill_pressed(
+        ui,
+        (M, y, inner, 52.0, 10.0),
+        Role::SurfaceContainerLow,
+        pressed,
     );
-    ui.stroke(M, y, inner, 52.0, 10.0, BORDER);
+    ui.stroke(M, y, inner, 52.0, 10.0, Role::OutlineVariant);
     ui.dot(M + 16.0, y + 18.0, 4.0, dot);
     let line = ui.fit(14.0, W::S, &line, inner - 40.0);
-    ui.text_mid(M + 28.0, y + 6.0, 24.0, 14.0, W::S, TEXT, &line);
+    ui.text_mid(M + 28.0, y + 6.0, 24.0, 14.0, W::S, Role::OnSurface, &line);
     let sub = ui.fit(12.0, W::R, &sub, inner - 40.0);
-    ui.text_mid(M + 28.0, y + 26.0, 20.0, 12.0, W::R, MUTED, &sub);
+    ui.text_mid(
+        M + 28.0,
+        y + 26.0,
+        20.0,
+        12.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        &sub,
+    );
     ui.hit(M, y, inner, 52.0, action);
     y += 52.0 + 10.0;
 
@@ -505,7 +578,14 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let stage = app.session_stage();
         let open_files = Action::Nav(Screen::Files);
         if ui.is_pressed(open_files) {
-            ui.fill(M, y, inner, 22.0, 6.0, INNER);
+            ui.wash(
+                M,
+                y,
+                inner,
+                22.0,
+                6.0,
+                Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+            );
         }
         let mut sx = M + 4.0;
         for (i, label) in [
@@ -518,9 +598,13 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         .enumerate()
         {
             if i > 0 {
-                sx += ui.text_mid(sx, y, 22.0, 11.0, W::R, DIM, " · ");
+                sx += ui.text_mid(sx, y, 22.0, 11.0, W::R, Role::OnSurfaceVariant, " · ");
             }
-            let fg = if label == stage { ACCENT } else { DIM };
+            let fg = if label == stage {
+                Role::Primary
+            } else {
+                Role::OnSurfaceVariant
+            };
             sx += ui.text_mid(sx, y, 22.0, 11.0, W::S, fg, label);
         }
         ui.hit(M, y, inner, 22.0, open_files);
@@ -544,7 +628,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             Some(icon),
             &r.name,
             &r.step,
-            MUTED,
+            Role::OnSurfaceVariant.paint(),
             Some(Action::Resume(r.going)),
         );
     }
@@ -557,10 +641,10 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     for (icon, label, action, tone) in prompts(app) {
         let pressed = action.is_some_and(|a| ui.is_pressed(a));
-        let edge = if tone == WARN {
-            WARN.with_alpha(110)
+        let edge = if tone == Role::Warning.paint() {
+            Role::Warning.with_alpha(110)
         } else {
-            ACCENT.with_alpha(110)
+            Role::Primary.with_alpha(110)
         };
         ui.fill(
             M,
@@ -568,12 +652,16 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             lead_w,
             44.0,
             10.0,
-            if pressed { INNER } else { tone.with_alpha(26) },
+            if pressed {
+                Role::SurfaceContainerHighest.paint()
+            } else {
+                tone.with_alpha(26)
+            },
         );
         ui.stroke(M, y, lead_w, 44.0, 10.0, edge);
         ui.icon(M + 8.0, y + 8.0, 28.0, icon, 14.0, tone);
         let label = ui.fit(14.0, W::S, &label, lead_w - 60.0);
-        ui.text_mid(M + 44.0, y, 44.0, 14.0, W::S, TEXT, &label);
+        ui.text_mid(M + 44.0, y, 44.0, 14.0, W::S, Role::OnSurface, &label);
         if let Some(a) = action {
             ui.icon(
                 M + lead_w - 26.0,
@@ -581,7 +669,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 20.0,
                 Icon::ChevronRight,
                 9.0,
-                DIM,
+                Role::OnSurfaceVariant,
             );
             ui.hit(M, y, lead_w, 44.0, a);
         }
@@ -605,16 +693,31 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let tx = M + (i % cols) as f32 * (tw + gap);
         let ty = y + (i / cols) as f32 * (th + gap);
         let pressed = ui.is_pressed(*action);
-        ui.fill(tx, ty, tw, th, 12.0, if pressed { INNER } else { SURFACE });
-        ui.stroke(tx, ty, tw, th, 12.0, BORDER);
+        crate::ui::fill_pressed(
+            ui,
+            (tx, ty, tw, th, 12.0),
+            Role::SurfaceContainerLow,
+            pressed,
+        );
+        ui.stroke(tx, ty, tw, th, 12.0, Role::OutlineVariant);
         let (ibg, ifg) = if *enabled {
-            (ACCENT.with_alpha(26), ACCENT)
+            (
+                Role::SecondaryContainer.paint(),
+                Role::OnSecondaryContainer.paint(),
+            )
         } else {
-            (INNER, DIM)
+            (
+                Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTAINER),
+                crate::ui::off(),
+            )
         };
         ui.fill(tx + 12.0, ty + 12.0, 30.0, 30.0, 8.0, ibg);
         ui.icon(tx + 12.0, ty + 12.0, 30.0, *icon, 14.0, ifg);
-        let fg = if *enabled { TEXT } else { DIM };
+        let fg = if *enabled {
+            Role::OnSurface.paint()
+        } else {
+            crate::ui::off()
+        };
         if grid {
             // The icon beside the name, one line under it
             // (`docs/LAYOUT.md` §4).
@@ -626,7 +729,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
             } else {
                 ui.text(tx, ty + 10.0, 14.0, W::S, fg, &label);
                 let sub = ui.fit(12.0, W::R, sub, room);
-                let c = if *enabled { MUTED } else { WARN };
+                let c = if *enabled {
+                    Role::OnSurfaceVariant
+                } else {
+                    Role::Warning
+                };
                 ui.text(tx, ty + 30.0, 12.0, W::R, c, &sub);
             }
         } else {
@@ -640,7 +747,11 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     30.0,
                     11.0,
                     W::R,
-                    if *enabled { MUTED } else { WARN },
+                    if *enabled {
+                        Role::OnSurfaceVariant
+                    } else {
+                        Role::Warning
+                    },
                     &sub,
                 );
             }
@@ -689,10 +800,17 @@ fn lock_row(app: &View, ui: &mut Ui, y: f32, inner: f32, gap: f32) -> f32 {
     }
     let px = M + inner - pw;
     if ui.is_pressed(Action::PowerAsk) {
-        ui.fill(px, y, pw, 44.0, 10.0, INNER);
+        ui.wash(
+            px,
+            y,
+            pw,
+            44.0,
+            10.0,
+            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+        );
     }
-    ui.stroke(px, y, pw, 44.0, 10.0, BORDER);
-    ui.icon(px, y, pw, Icon::Power, 15.0, MUTED);
+    ui.stroke(px, y, pw, 44.0, 10.0, Role::OutlineVariant);
+    ui.icon(px, y, pw, Icon::Power, 15.0, Role::OnSurfaceVariant);
     ui.hit(px, y, pw, 44.0, Action::PowerAsk);
     44.0 + 16.0
 }
@@ -714,7 +832,7 @@ fn home_head(app: &View, ui: &mut Ui, w: f32, y: f32) {
     let room = w - M - pw - faraday_draw::tokens::GAP;
     let fits = |ui: &mut Ui, suffix| {
         nx + crate::compact::screen::measured(ui, |ui| {
-            ui.wordmark_named(nx, ny, 11.0, TEXT, suffix)
+            ui.wordmark_named(nx, ny, 11.0, Role::OnSurface, suffix)
         }) <= room
     };
     if pill && !fits(ui, suffix) {
@@ -723,7 +841,7 @@ fn home_head(app: &View, ui: &mut Ui, w: f32, y: f32) {
     // With Load samples beside it the pair leaves no room for the name:
     // the mark stands alone.
     if fits(ui, suffix) {
-        ui.wordmark_named(nx, ny, 11.0, TEXT, suffix);
+        ui.wordmark_named(nx, ny, 11.0, Role::OnSurface, suffix);
     }
     if pill {
         crate::modes::screen::pill(app, ui, w - M - pw, y - 2.0);
@@ -842,7 +960,11 @@ fn tiles(app: &View) -> Vec<Tile> {
 fn prompts(app: &View) -> Vec<(Glyph, String, Option<Action>, crate::ui::Paint)> {
     crate::screens::home_lead_beside_tiles(app)
         .map(|(icon, label, _sub, action, enabled)| {
-            let tone = if enabled { ACCENT } else { WARN };
+            let tone = if enabled {
+                Role::Primary.paint()
+            } else {
+                Role::Warning.paint()
+            };
             (icon, label, enabled.then_some(action), tone)
         })
         .into_iter()

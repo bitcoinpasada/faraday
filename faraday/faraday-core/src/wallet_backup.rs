@@ -372,13 +372,13 @@ pub use faraday_keys::{CopyCheck, compare_words};
 /// wanting, out in the clear, or not known.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Tone {
-    /// Kept: the theme's OK.
+    /// Kept: the ok role.
     Ok,
-    /// Not kept yet: WARN.
+    /// Not kept yet: warning.
     Warn,
-    /// A copy in the clear: ERR.
+    /// A copy in the clear: error.
     Err,
-    /// Not known here: DIM.
+    /// Not known here: on-surface-variant.
     Dim,
 }
 

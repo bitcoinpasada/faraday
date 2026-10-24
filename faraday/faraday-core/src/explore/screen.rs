@@ -45,7 +45,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .collect();
     y += button_rows(ui, x, y, width, &keys) + 4.0;
     // The path.
-    ui.text_mid(x, y, 44.0, 13.0, W::R, MUTED, EN.explore_path);
+    ui.text_mid(
+        x,
+        y,
+        44.0,
+        13.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.explore_path,
+    );
     let (px, pw) = if compact {
         y += 34.0;
         (x, width)
@@ -53,21 +61,25 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (x + 120.0, width - 120.0)
     };
     let err = app.explore_path().err();
-    ui.fill(px, y, pw, 44.0, 8.0, BG);
+    ui.fill(px, y, pw, 44.0, 8.0, Role::SurfaceContainerHighest);
     ui.stroke(
         px,
         y,
         pw,
         44.0,
         8.0,
-        if err.is_some() { ERR } else { ACCENT },
+        if err.is_some() {
+            Role::Error
+        } else {
+            Role::Primary
+        },
     );
     let path = format!("m/{}{}", e.path, ui.caret_char());
     let path = ui.fit(15.0, W::M, &path, pw - 24.0);
-    ui.text_mid(px + 12.0, y, 44.0, 15.0, W::M, TEXT, &path);
+    ui.text_mid(px + 12.0, y, 44.0, 15.0, W::M, Role::OnSurface, &path);
     y += 52.0;
     if let Some(m) = err {
-        y += ui.wrap(px, y, pw, 13.0, W::R, ERR, m) + 8.0;
+        y += ui.wrap(px, y, pw, 13.0, W::R, Role::Error, m) + 8.0;
     }
     let presets: Vec<(String, Style, Action)> = PRESETS
         .iter()
@@ -106,7 +118,15 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             )
         })
         .collect();
-    ui.text_mid(x, y, 32.0, 13.0, W::R, MUTED, EN.explore_script);
+    ui.text_mid(
+        x,
+        y,
+        32.0,
+        13.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.explore_script,
+    );
     if compact {
         y += 32.0;
     }
@@ -117,11 +137,14 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (EN.explore_public_key, r.public_key.as_str()),
         (EN.explore_extended_key, r.xpub.as_str()),
     ] {
-        ui.text(x, y, 13.0, W::R, MUTED, label);
+        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, label);
         if compact {
             y += 20.0;
         }
-        y += ui.wrap(px, y, pw, 14.0, W::M, TEXT, value).max(20.0) + 12.0;
+        y += ui
+            .wrap(px, y, pw, 14.0, W::M, Role::OnSurface, value)
+            .max(20.0)
+            + 12.0;
     }
     // The account the path is in: its addresses, and a search of them.
     if app.explore_account().is_some_and(|of| of.4) {
@@ -206,9 +229,9 @@ pub(super) fn head(ui: &mut Ui, x: f32, mut y: f32, back: (&str, Action), name: 
         16.0,
         faraday_draw::widgets::Icon::ChevronLeft,
         10.0,
-        MUTED,
+        Role::OnSurfaceVariant,
     );
-    ui.text(x + 14.0, y, 12.0, W::R, MUTED, back.0);
+    ui.text(x + 14.0, y, 12.0, W::R, Role::OnSurfaceVariant, back.0);
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back.1);
     ui.back(back.1);
     y += 22.0;

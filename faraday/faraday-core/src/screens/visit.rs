@@ -28,14 +28,20 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             15.0,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             &fill(EN.visit_no_attached, &[app.medium.noun()]),
         );
         return;
     };
     // Where pulling the stick goes.
     let then = ui.fit(12.0, W::R, &app.visit_then(), w - 34.0);
-    ui.chip(x, y, &then, ACCENT, ACCENT.with_alpha(30));
+    ui.chip(
+        x,
+        y,
+        &then,
+        Role::OnSecondaryContainer,
+        Role::SecondaryContainer,
+    );
     y += 36.0;
     // One button per stick, the chosen one filled.
     if app.stick.len() > 1 {
@@ -54,7 +60,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .collect();
         y += wrap_buttons(ui, x, y, w, 34.0, &items) + 4.0;
     } else {
-        ui.text(x, y, 13.0, W::S, MUTED, &stick.label);
+        ui.text(x, y, 13.0, W::S, Role::OnSurfaceVariant, &stick.label);
         y += 26.0;
     }
     // What is left to do: pull the stick, and where the copied files went.
@@ -70,20 +76,20 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     y += 50.0;
     for (line, ok) in app.visit.log.iter().rev().take(2) {
-        let c = if *ok { OK } else { ERR };
+        let c = if *ok { Role::Ok } else { Role::Error };
         y += ui.wrap(x, y, w, 13.0, W::R, c, line) + 6.0;
     }
     y += 8.0;
 
     // Import into the Inbox.
-    ui.icon(x, y, 20.0, Icon::Download, 13.0, ACCENT);
+    ui.icon(x, y, 20.0, Icon::Download, 13.0, Role::Primary);
     ui.text_mid(
         x + 28.0,
         y - 4.0,
         28.0,
         15.0,
         W::S,
-        TEXT,
+        Role::OnSurface,
         app.medium.on_box(),
     );
     y += 34.0;
@@ -91,7 +97,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !app.visit.inn.is_empty() {
         let t = EN.visit_unselect_all;
         let tw = ui.measure(13.0, W::S, t);
-        ui.text(x, y + 2.0, 13.0, W::S, ACCENT, t);
+        ui.text(x, y + 2.0, 13.0, W::S, Role::Primary, t);
         ui.hit(x - 6.0, y - 6.0, tw + 12.0, 34.0, Action::VisitInAll);
         y += 34.0;
     }
@@ -101,7 +107,11 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let kind = crate::stick_kind(name).filter(|_| !big);
         let on = app.visit.inn.contains(name);
         ui.checkbox(x + 2.0, y + 10.0, on, kind.is_some());
-        let fg = if kind.is_some() { TEXT } else { DIM };
+        let fg = if kind.is_some() {
+            Role::OnSurface.paint()
+        } else {
+            crate::ui::off()
+        };
         // Its ⋮ at the right end (decision 61 item 4).
         let menu = Faraday::stick_row_menu(name);
         let dw = if menu { 32.0 + 8.0 } else { 0.0 };
@@ -115,7 +125,15 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let n = ui.fit(14.0, W::M, name, w - 32.0 - tw - dw);
         ui.text(x + 32.0, y + 4.0, 14.0, W::M, fg, &n);
         if held {
-            ui.text_right(x + w - dw, y + 2.0, 20.0, 12.0, W::S, MUTED, tag);
+            ui.text_right(
+                x + w - dw,
+                y + 2.0,
+                20.0,
+                12.0,
+                W::S,
+                Role::OnSurfaceVariant,
+                tag,
+            );
         }
         let sub = match kind {
             // Asked for: a picture's codes take a moment.
@@ -133,7 +151,11 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y + 26.0,
             12.0,
             W::R,
-            if kind.is_some() { MUTED } else { DIM },
+            if kind.is_some() {
+                Role::OnSurfaceVariant.paint()
+            } else {
+                crate::ui::off()
+            },
             &sub,
         );
         if kind.is_some() {
@@ -150,12 +172,12 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             );
         }
         y += 50.0;
-        ui.rule(x, y, w, BORDER);
+        ui.rule(x, y, w, Role::OutlineVariant);
         y += 6.0;
     }
     if stick.files.is_empty() {
         let none = fill(EN.visit_no_files, &[app.medium.noun()]);
-        ui.text(x, y, 13.0, W::R, DIM, &none);
+        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, &none);
         y += 28.0;
     }
     // Delete files: the one way into deleting from the stick.
@@ -206,14 +228,14 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ) + 12.0;
 
     // Write to the stick: the Outbox, and copies from the Inbox.
-    ui.icon(x, y, 20.0, Icon::Export, 13.0, ACCENT);
+    ui.icon(x, y, 20.0, Icon::Export, 13.0, Role::Primary);
     ui.text_mid(
         x + 28.0,
         y - 4.0,
         28.0,
         15.0,
         W::S,
-        TEXT,
+        Role::OnSurface,
         EN.visit_in_faraday,
     );
     y += 34.0;
@@ -221,7 +243,14 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let settings_on = app.visit_settings_on();
     let all = visit_all_out(app);
     ui.checkbox(x + 2.0, y + 4.0, all, true);
-    ui.text(x + 32.0, y + 2.0, 13.0, W::S, MUTED, EN.visit_select_all);
+    ui.text(
+        x + 32.0,
+        y + 2.0,
+        13.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        EN.visit_select_all,
+    );
     ui.hit(x - 4.0, y - 6.0, w + 8.0, 34.0, Action::VisitOutAll);
     y += 34.0;
     let row = |ui: &mut Ui,
@@ -241,7 +270,11 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y + 4.0,
             14.0,
             W::M,
-            if held { DIM } else { TEXT },
+            if held {
+                crate::ui::off()
+            } else {
+                Role::OnSurface.paint()
+            },
             &n,
         );
         ui.text_right(x + w, y + 2.0, 20.0, 12.0, W::S, tag.1, tag.0);
@@ -251,13 +284,17 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y + 26.0,
             12.0,
             W::R,
-            if held { DIM } else { MUTED },
+            if held {
+                crate::ui::off()
+            } else {
+                Role::OnSurfaceVariant.paint()
+            },
             &l,
         );
         if let Some(action) = action {
             ui.hit(x - 4.0, y, w + 8.0, 48.0, action);
         }
-        ui.rule(x, y + 50.0, w, BORDER);
+        ui.rule(x, y + 50.0, w, Role::OutlineVariant);
         56.0
     };
     y += row(
@@ -266,17 +303,20 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         settings_on,
         crate::stick::settings::FILE,
         EN.visit_settings,
-        (EN.visit_public, MUTED),
+        (EN.visit_public, Role::OnSurfaceVariant.paint()),
         Some(Action::VisitSettings),
     );
     for (k, item) in app.outbox.iter().enumerate() {
         let on = app.visit.out.contains(&item.name);
         let held = app.in_the_backup(&item.name);
         let tag = match item.exposure() {
-            _ if held => (crate::strings::EN.backup_flow_in_the_backup, MUTED),
-            crate::secrets::Exposure::Public => (EN.visit_public, MUTED),
-            crate::secrets::Exposure::Sealed => (EN.visit_sealed, OK),
-            crate::secrets::Exposure::Secret => (EN.visit_unprotected_secret, ERR),
+            _ if held => (
+                crate::strings::EN.backup_flow_in_the_backup,
+                Role::OnSurfaceVariant.paint(),
+            ),
+            crate::secrets::Exposure::Public => (EN.visit_public, Role::OnSurfaceVariant.paint()),
+            crate::secrets::Exposure::Sealed => (EN.visit_sealed, Role::Ok.paint()),
+            crate::secrets::Exposure::Secret => (EN.visit_unprotected_secret, Role::Error.paint()),
         };
         y += row(
             ui,
@@ -294,14 +334,22 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             13.0,
             W::R,
-            DIM,
+            Role::OnSurfaceVariant,
             &fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
         );
         y += 28.0;
     }
     let shown = app.visit_inbox_shown();
     if !shown.is_empty() {
-        ui.text_mid(x, y, 30.0, 13.0, W::S, MUTED, app.medium.from_box());
+        ui.text_mid(
+            x,
+            y,
+            30.0,
+            13.0,
+            W::S,
+            Role::OnSurfaceVariant,
+            app.medium.from_box(),
+        );
         y += 32.0;
         for &(k, held) in &shown {
             let item = &app.inbox[k];
@@ -312,7 +360,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 &item.name,
                 &visit_inbox_line(item),
                 if held {
-                    (app.medium.on_this_box(), DIM)
+                    (app.medium.on_this_box(), Role::OnSurfaceVariant.paint())
                 } else {
                     visit_inbox_tag(item)
                 },
@@ -372,8 +420,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         x + tw + 14.0,
         y + 4.0,
         &app.visit_then(),
-        ACCENT,
-        ACCENT.with_alpha(30),
+        Role::OnSecondaryContainer,
+        Role::SecondaryContainer,
     );
     // One chip per stick; the chosen one is outlined.
     let mut chx = x + width;
@@ -389,9 +437,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             32.0,
             16.0,
             if current {
-                ACCENT.with_alpha(30)
+                Role::Primary.with_alpha(30)
             } else {
-                SURFACE
+                Role::Surface.paint()
             },
         );
         ui.stroke(
@@ -401,12 +449,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             32.0,
             16.0,
             if current {
-                ACCENT.with_alpha(110)
+                Role::Primary.with_alpha(110)
             } else {
-                LINE
+                Role::OutlineVariant.paint()
             },
         );
-        ui.text_mid(chx + 14.0, y, 32.0, 13.0, W::S, TEXT, &label);
+        ui.text_mid(chx + 14.0, y, 32.0, 13.0, W::S, Role::OnSurface, &label);
         ui.hit(chx, y, wdt, 32.0, Action::VisitStick(k));
         chx -= 8.0;
     }
@@ -429,7 +477,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             y,
             15.0,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             &fill(EN.visit_no_attached, &[app.medium.noun()]),
         );
         return;
@@ -443,15 +491,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let max_rows = ((colh - 140.0 - 40.0) / ROW).max(1.0) as usize;
     let track_h = max_rows as f32 * ROW;
     // Write to the stick: the Outbox, and copies from the Inbox.
-    ui.card(x, y, colw, colh, LINE);
-    ui.icon(x + 20.0, y + 20.0, 22.0, Icon::Export, 14.0, ACCENT);
+    ui.card(x, y, colw, colh, Role::OutlineVariant);
+    ui.icon(x + 20.0, y + 20.0, 22.0, Icon::Export, 14.0, Role::Primary);
     ui.text_mid(
         x + 50.0,
         y + 20.0,
         22.0,
         16.0,
         W::S,
-        TEXT,
+        Role::OnSurface,
         EN.visit_in_faraday,
     );
     let settings_on = app.visit_settings_on();
@@ -478,21 +526,28 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ry + 6.0,
         14.0,
         W::M,
-        TEXT,
+        Role::OnSurface,
         crate::stick::settings::FILE,
     );
-    ui.text(x + 54.0, ry + 28.0, 12.0, W::R, MUTED, EN.visit_settings);
+    ui.text(
+        x + 54.0,
+        ry + 28.0,
+        12.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.visit_settings,
+    );
     ui.text_right(
         x + colw - 20.0,
         ry + 6.0,
         20.0,
         12.0,
         W::S,
-        MUTED,
+        Role::OnSurfaceVariant,
         EN.visit_public,
     );
     ui.hit(x + 12.0, ry, colw - 24.0, 50.0, Action::VisitSettings);
-    ui.rule(x + 20.0, ry + 52.0, colw - 40.0, BORDER);
+    ui.rule(x + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
     ry += ROW;
     let file_row = |ui: &mut Ui,
                     ry: f32,
@@ -515,7 +570,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ry + 6.0,
             14.0,
             W::M,
-            if held { DIM } else { TEXT },
+            if held {
+                crate::ui::off()
+            } else {
+                Role::OnSurface.paint()
+            },
             &name,
         );
         let line = ui.fit(12.0, W::R, line, colw - 90.0);
@@ -524,23 +583,30 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ry + 28.0,
             12.0,
             W::R,
-            if held { DIM } else { MUTED },
+            if held {
+                crate::ui::off()
+            } else {
+                Role::OnSurfaceVariant.paint()
+            },
             &line,
         );
         ui.text_right(x + colw - 20.0, ry + 6.0, 20.0, 12.0, W::S, tag.1, tag.0);
         if let Some(action) = action {
             ui.hit(x + 12.0, ry, colw - 24.0, 50.0, action);
         }
-        ui.rule(x + 20.0, ry + 52.0, colw - 40.0, BORDER);
+        ui.rule(x + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
     };
     for (k, item) in app.outbox.iter().enumerate() {
         let on = app.visit.out.contains(&item.name);
         let held = app.in_the_backup(&item.name);
         let tag = match item.exposure() {
-            _ if held => (crate::strings::EN.backup_flow_in_the_backup, MUTED),
-            crate::secrets::Exposure::Public => (EN.visit_public, MUTED),
-            crate::secrets::Exposure::Sealed => (EN.visit_sealed, OK),
-            crate::secrets::Exposure::Secret => (EN.visit_unprotected_secret, ERR),
+            _ if held => (
+                crate::strings::EN.backup_flow_in_the_backup,
+                Role::OnSurfaceVariant.paint(),
+            ),
+            crate::secrets::Exposure::Public => (EN.visit_public, Role::OnSurfaceVariant.paint()),
+            crate::secrets::Exposure::Sealed => (EN.visit_sealed, Role::Ok.paint()),
+            crate::secrets::Exposure::Secret => (EN.visit_unprotected_secret, Role::Error.paint()),
         };
         file_row(
             ui,
@@ -560,7 +626,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             HEAD,
             13.0,
             W::R,
-            DIM,
+            Role::OnSurfaceVariant,
             &fill(EN.visit_nothing_waits, &[app.medium.for_the()]),
         );
         ry += HEAD;
@@ -572,7 +638,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             HEAD - 4.0,
             13.0,
             W::S,
-            MUTED,
+            Role::OnSurfaceVariant,
             app.medium.from_box(),
         );
         ry += HEAD;
@@ -586,7 +652,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 &item.name,
                 &visit_inbox_line(item),
                 if held {
-                    (app.medium.on_this_box(), DIM)
+                    (app.medium.on_this_box(), Role::OnSurfaceVariant.paint())
                 } else {
                     visit_inbox_tag(item)
                 },
@@ -637,15 +703,22 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // Import into the Inbox.
     let ix = x + colw + 20.0;
-    ui.card(ix, y, colw, colh, LINE);
-    ui.icon(ix + 20.0, y + 20.0, 22.0, Icon::Download, 14.0, ACCENT);
+    ui.card(ix, y, colw, colh, Role::OutlineVariant);
+    ui.icon(
+        ix + 20.0,
+        y + 20.0,
+        22.0,
+        Icon::Download,
+        14.0,
+        Role::Primary,
+    );
     ui.text_mid(
         ix + 50.0,
         y + 20.0,
         22.0,
         16.0,
         W::S,
-        TEXT,
+        Role::OnSurface,
         app.medium.on_box(),
     );
     let total = stick.files.len();
@@ -668,7 +741,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let kind = crate::stick_kind(name).filter(|_| !big);
         let on = app.visit.inn.contains(name);
         ui.checkbox(ix + 22.0, ry + 15.0, on, kind.is_some());
-        let fg = if kind.is_some() { TEXT } else { DIM };
+        let fg = if kind.is_some() {
+            Role::OnSurface
+        } else {
+            Role::OnSurfaceVariant
+        };
         // Its ⋮ at the right end: every file but the settings file
         // (decision 61 item 4).
         let menu = Faraday::stick_row_menu(name);
@@ -696,7 +773,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 20.0,
                 12.0,
                 W::S,
-                MUTED,
+                Role::OnSurfaceVariant,
                 tag,
             );
         }
@@ -716,7 +793,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ry + 28.0,
             12.0,
             W::R,
-            if kind.is_some() { MUTED } else { DIM },
+            Role::OnSurfaceVariant,
             &sub,
         );
         if kind.is_some() {
@@ -732,7 +809,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 crate::file_menu::Row::Stick(k),
             );
         }
-        ui.rule(ix + 20.0, ry + 52.0, colw - 40.0, BORDER);
+        ui.rule(ix + 20.0, ry + 52.0, colw - 40.0, Role::OutlineVariant);
     }
     ui.c.pop_clip();
     ui.report_scroll_own_bar(clip, max_shift);
@@ -749,7 +826,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let ry = list_top + track_h;
     if stick.files.is_empty() {
         let none = fill(EN.visit_no_files, &[app.medium.noun()]);
-        ui.text(ix + 22.0, ry, 13.0, W::R, DIM, &none);
+        ui.text(ix + 22.0, ry, 13.0, W::R, Role::OnSurfaceVariant, &none);
     }
     // Delete files: the one way into deleting from the stick.
     let zy = y + colh - 62.0 - 44.0;
@@ -803,10 +880,25 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 
     // What is left to do: pull the stick, and where the copied files went.
     let ay = h - 32.0 - 44.0 - 44.0;
-    ui.fill(x, ay, width, 44.0, 10.0, WARN.with_alpha(22));
-    ui.stroke(x, ay, width, 44.0, 10.0, WARN.with_alpha(90));
-    ui.icon(x + 16.0, ay + 12.0, 20.0, app.medium.icon(), 13.0, WARN);
-    ui.text_mid(x + 44.0, ay, 44.0, 14.0, W::S, WARN, &pull_line(app));
+    ui.fill(x, ay, width, 44.0, 10.0, Role::WarningContainer);
+    ui.stroke(x, ay, width, 44.0, 10.0, Role::Warning.with_alpha(90));
+    ui.icon(
+        x + 16.0,
+        ay + 12.0,
+        20.0,
+        app.medium.icon(),
+        13.0,
+        Role::OnWarningContainer,
+    );
+    ui.text_mid(
+        x + 44.0,
+        ay,
+        44.0,
+        14.0,
+        W::S,
+        Role::OnWarningContainer,
+        &pull_line(app),
+    );
     let open_label = EN.visit_open_files;
     let obw = ui.measure(14.0, W::S, open_label) + 32.0;
     ui.button(
@@ -823,7 +915,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let fy = h - 32.0 - 44.0;
     let mut lx = x;
     for (line, ok) in app.visit.log.iter().rev().take(2) {
-        let c = if *ok { OK } else { ERR };
+        let c = if *ok { Role::Ok } else { Role::Error };
         let t = ui.fit(13.0, W::R, line, width / 2.0 - 20.0);
         let used = ui.text_mid(lx, fy, 44.0, 13.0, W::R, c, &t);
         lx += used + 24.0;
@@ -887,11 +979,11 @@ fn visit_inbox_line(item: &crate::Item) -> String {
 fn visit_inbox_tag(item: &crate::Item) -> (&'static str, crate::ui::Paint) {
     match item.copy_ack() {
         None if item.exposure() == crate::secrets::Exposure::Sealed => {
-            (EN.visit_inbox_tag_sealed, OK)
+            (EN.visit_inbox_tag_sealed, Role::Ok.paint())
         }
-        None => (EN.visit_inbox_tag_public, MUTED),
-        Some(crate::secrets::Ack::Unknown) => (EN.visit_inbox_tag_may, WARN),
-        Some(_) => (EN.visit_inbox_tag_secret, ERR),
+        None => (EN.visit_inbox_tag_public, Role::OnSurfaceVariant.paint()),
+        Some(crate::secrets::Ack::Unknown) => (EN.visit_inbox_tag_may, Role::Warning.paint()),
+        Some(_) => (EN.visit_inbox_tag_secret, Role::Error.paint()),
     }
 }
 
@@ -902,7 +994,15 @@ fn visit_select_all(ui: &mut Ui, right: f32, y: f32, all: bool, action: Action) 
     let lw = ui.measure(13.0, W::S, label);
     let sx = right - 24.0 - lw - 28.0;
     ui.checkbox(sx, y + 22.0, all, true);
-    ui.text_mid(sx + 28.0, y + 16.0, 30.0, 13.0, W::S, MUTED, label);
+    ui.text_mid(
+        sx + 28.0,
+        y + 16.0,
+        30.0,
+        13.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        label,
+    );
     ui.hit(sx - 8.0, y + 12.0, lw + 44.0, 38.0, action);
 }
 
@@ -912,7 +1012,7 @@ fn visit_unselect_all(ui: &mut Ui, right: f32, y: f32) {
     let label = EN.visit_unselect_all_unselect;
     let lw = ui.measure(13.0, W::S, label);
     let sx = right - 24.0 - lw;
-    ui.text_mid(sx, y + 16.0, 30.0, 13.0, W::S, ACCENT, label);
+    ui.text_mid(sx, y + 16.0, 30.0, 13.0, W::S, Role::Primary, label);
     ui.hit(sx - 8.0, y + 12.0, lw + 16.0, 38.0, Action::VisitInAll);
 }
 
@@ -939,9 +1039,20 @@ fn visit_list_bar(
         let thumb = (track_h * track_h / all_h).max(32.0);
         let tx = right - 14.0;
         let ty = top + (track_h - thumb) * shift / max_shift;
-        ui.fill(tx, top, 6.0, track_h, 3.0, INNER);
+        ui.fill(tx, top, 6.0, track_h, 3.0, Role::SurfaceContainerHighest);
         let held = ui.is_pressed(Action::VisitBar(column));
-        ui.fill(tx, ty, 6.0, thumb, 3.0, if held { ACCENT } else { BORDER });
+        ui.fill(
+            tx,
+            ty,
+            6.0,
+            thumb,
+            3.0,
+            if held {
+                Role::Primary
+            } else {
+                Role::OutlineVariant
+            },
+        );
         ui.hit(tx - 8.0, top, 22.0, track_h, Action::VisitBar(column));
         let r = ui.rect(tx, top, 6.0, track_h);
         bar.set(Some((r.y, r.h, ui.px(thumb), max_shift)));
@@ -955,7 +1066,7 @@ fn visit_list_bar(
             top + track_h,
             12.0,
             W::R,
-            DIM,
+            Role::OnSurfaceVariant,
             &fill(
                 EN.visit_list_bar_more,
                 &[&((below / ROW).ceil() as usize).to_string()],

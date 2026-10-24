@@ -9,7 +9,7 @@ file faraday/faraday-core/src/board/mod.rs 2567
 file faraday/faraday-core/src/lib.rs 7540
 file faraday/faraday-core/src/plan/mod.rs 4045
 file faraday/faraday-core/src/vault/mod.rs 3908
-file faraday/faraday-core/src/vault/screen.rs 4144
+file faraday/faraday-core/src/vault/screen.rs 3775
 file faraday/faraday-core/tests/all/backup_board.rs 2782
 file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5814
 

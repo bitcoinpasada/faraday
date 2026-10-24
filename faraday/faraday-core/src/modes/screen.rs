@@ -80,7 +80,7 @@ pub(crate) fn pill(app: &View, ui: &mut Ui, px: f32, py: f32) -> f32 {
             ui,
             (px, py, sw - GAP),
             samples_label(ui),
-            ACCENT,
+            Role::Primary.paint(),
             Action::Samples,
         );
     }
@@ -89,7 +89,7 @@ pub(crate) fn pill(app: &View, ui: &mut Ui, px: f32, py: f32) -> f32 {
         ui,
         (px + sw, py, mw),
         pill_label(app),
-        WARN,
+        Role::Warning.paint(),
         Action::ModeSheet,
     );
     sw + mw
@@ -98,14 +98,22 @@ pub(crate) fn pill(app: &View, ui: &mut Ui, px: f32, py: f32) -> f32 {
 /// Settings' Mode row: "Mode" and the mode's name, a chevron; it opens
 /// the sheet. Returns its height.
 pub(crate) fn settings_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    ui.text_mid(x, y, MODE_ROW, LABEL, W::S, TEXT, EN.settings_mode);
+    ui.text_mid(
+        x,
+        y,
+        MODE_ROW,
+        LABEL,
+        W::S,
+        Role::OnSurface,
+        EN.settings_mode,
+    );
     ui.icon(
         x + w - MODE_ROW / 2.0 - GAP,
         y,
         MODE_ROW,
         Icon::ChevronRight,
         LABEL,
-        MUTED,
+        Role::OnSurfaceVariant,
     );
     let name = app.mode().name();
     let nw = ui.measure(LABEL, W::R, name);
@@ -115,7 +123,7 @@ pub(crate) fn settings_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         MODE_ROW,
         LABEL,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         name,
     );
     ui.hit(x, y, w, MODE_ROW, Action::ModeSheet);
@@ -149,11 +157,11 @@ pub(crate) fn place(ui: &Ui, w: f32) -> ((f32, f32), f32, f32) {
 /// Load samples.
 pub(crate) fn head(ui: &mut Ui, (x, y, w): (f32, f32, f32), icon: Icon, title: &str) -> f32 {
     if ui.compact {
-        sheet_head(ui, x, y, w, icon, ACCENT, title)
+        sheet_head(ui, x, y, w, icon, Role::Primary, title)
     } else {
-        ui.icon(x, y, 30.0, icon, 18.0, ACCENT);
+        ui.icon(x, y, 30.0, icon, 18.0, Role::Primary);
         let t = ui.fit(TITLE, W::S, title, w - 42.0);
-        ui.text_mid(x + 42.0, y, 30.0, TITLE, W::S, TEXT, &t);
+        ui.text_mid(x + 42.0, y, 30.0, TITLE, W::S, Role::OnSurface, &t);
         46.0
     }
 }
@@ -169,11 +177,18 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let live = m == now || !fixed;
         let action = Action::Mode(m);
         if live && (ui.is_pressed(action) || ui.is_hovered(action)) {
-            ui.fill(x, ry + 2.0, w, MODE_ROW - 4.0, 8.0, INNER);
+            ui.wash(
+                x,
+                ry + 2.0,
+                w,
+                MODE_ROW - 4.0,
+                8.0,
+                Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+            );
         }
         mode_row(ui, x, ry, w, m, m == now, live);
         if i + 1 < modes.len() {
-            ui.rule(x, ry + MODE_ROW, w, BORDER);
+            ui.rule(x, ry + MODE_ROW, w, Role::OutlineVariant);
         }
         if live {
             ui.hit(x, ry, w, MODE_ROW, action);
@@ -194,15 +209,23 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// the one in use. A mode that cannot be chosen is dimmed, its label alone.
 fn mode_row(ui: &mut Ui, x: f32, ry: f32, w: f32, m: Mode, on: bool, live: bool) {
     let mark = MODE_ROW;
-    let fg = if live { TEXT } else { DIM };
+    let fg = if live {
+        Role::OnSurface.paint()
+    } else {
+        crate::ui::off()
+    };
     ui.text_mid(x + GAP, ry, MODE_ROW, LABEL, W::R, fg, m.name());
     if on {
-        ui.icon(x + w - mark, ry, mark, Icon::Done, LABEL, ACCENT);
+        ui.icon(x + w - mark, ry, mark, Icon::Done, LABEL, Role::Primary);
     }
     if m == Mode::Demo {
         let value = network_name(m.network());
         let vw = ui.measure(LABEL, W::R, value);
-        let vc = if live { MUTED } else { DIM };
+        let vc = if live {
+            Role::OnSurfaceVariant.paint()
+        } else {
+            crate::ui::off()
+        };
         ui.text_mid(
             x + w - mark - GAP - vw,
             ry,

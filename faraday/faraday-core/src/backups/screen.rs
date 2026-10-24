@@ -15,19 +15,19 @@ use faraday_crypto::work::Compute;
 /// A line's state colour.
 fn tone(t: Tone) -> crate::ui::Paint {
     match t {
-        Tone::Ok => OK,
-        Tone::Warn => WARN,
-        Tone::Err => ERR,
-        Tone::Dim => DIM,
+        Tone::Ok => Role::Ok.paint(),
+        Tone::Warn => Role::Warning.paint(),
+        Tone::Err => Role::Error.paint(),
+        Tone::Dim => Role::OnSurfaceVariant.paint(),
     }
 }
 
 /// A tag's colour, as the backup's map draws it.
 fn tag_tone(t: crate::plan::Tag) -> crate::ui::Paint {
     match t {
-        crate::plan::Tag::Secret => WARN,
-        crate::plan::Tag::Sealed => ACCENT,
-        crate::plan::Tag::Public => MUTED,
+        crate::plan::Tag::Secret => Role::Warning.paint(),
+        crate::plan::Tag::Sealed => Role::Primary.paint(),
+        crate::plan::Tag::Public => Role::OnSurfaceVariant.paint(),
     }
 }
 
@@ -71,17 +71,24 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     title(ui, x, y, EN.backups_backups);
     y += HEAD;
     if entries.is_empty() {
-        ui.text(x, y, 15.0, W::R, MUTED, EN.backups_no_wallet);
+        ui.text(
+            x,
+            y,
+            15.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.backups_no_wallet,
+        );
         y += 30.0;
     }
     for (k, e) in entries.iter().enumerate() {
         let ch = card_h(e);
         let edge = if k == app.backups_area.at() && app.backups_area.at() > 0 {
-            ACCENT.with_alpha(100)
+            Role::Primary.with_alpha(100)
         } else {
-            LINE
+            Role::OutlineVariant.paint()
         };
-        ui.fill(x, y, w, ch, 12.0, SURFACE);
+        ui.fill(x, y, w, ch, 12.0, Role::SurfaceContainerLow);
         ui.stroke(x, y, w, ch, 12.0, edge);
         let ix = x + 20.0;
         let iw = w - 40.0;
@@ -100,13 +107,21 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             );
         }
         let name = ui.fit(16.0, W::S, &e.name, iw - bw - 16.0);
-        ui.text(ix, y + 16.0, 16.0, W::S, TEXT, &name);
+        ui.text(ix, y + 16.0, 16.0, W::S, Role::OnSurface, &name);
         let shape = ui.fit(12.0, W::R, &e.shape, iw - bw - 16.0);
-        ui.text(ix, y + 40.0, 12.0, W::R, MUTED, &shape);
+        ui.text(ix, y + 40.0, 12.0, W::R, Role::OnSurfaceVariant, &shape);
         let mut ry = y + CARD_HEAD;
         match e.lines.as_ref() {
             None => {
-                ui.text_mid(ix, ry, ROW, 13.0, W::S, WARN, EN.backups_no_backup_plan);
+                ui.text_mid(
+                    ix,
+                    ry,
+                    ROW,
+                    13.0,
+                    W::S,
+                    Role::Warning,
+                    EN.backups_no_backup_plan,
+                );
             }
             Some(lines) => {
                 for l in lines {
@@ -135,7 +150,7 @@ fn back_up_label(app: &View, i: usize) -> &'static str {
 /// One place on the wide list: where, what it holds, its tag, and what
 /// was seen of it.
 fn wide_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) {
-    ui.fill(x, y + ROW - 1.0, w, 1.0, 0.0, LINE);
+    ui.fill(x, y + ROW - 1.0, w, 1.0, 0.0, Role::OutlineVariant);
     let place_w = 170.0;
     let tag_w = 64.0;
     let state = l.state.as_str();
@@ -143,10 +158,18 @@ fn wide_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) {
     let state = ui.fit(12.0, W::S, state, sw);
     ui.text_right(x + w, y, ROW, 12.0, W::S, tone(l.tone), &state);
     let place = ui.fit(13.0, W::S, &l.place, place_w - 12.0);
-    ui.text_mid(x, y, ROW, 13.0, W::S, TEXT, &place);
+    ui.text_mid(x, y, ROW, 13.0, W::S, Role::OnSurface, &place);
     let holds_w = w - place_w - tag_w - sw - 24.0;
     let holds = ui.fit(12.0, W::R, &l.holds, holds_w);
-    ui.text_mid(x + place_w, y, ROW, 12.0, W::R, MUTED, &holds);
+    ui.text_mid(
+        x + place_w,
+        y,
+        ROW,
+        12.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        &holds,
+    );
     if let Some(t) = l.tag {
         ui.text_mid(
             x + place_w + holds_w + 12.0,
@@ -168,15 +191,22 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entry])
     let mut y = top;
     let n = entries.len();
     let Some(e) = entries.get(app.backups_area.at().min(n.saturating_sub(1))) else {
-        ui.text(x, y, 14.0, W::R, MUTED, EN.backups_no_wallet);
+        ui.text(
+            x,
+            y,
+            14.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.backups_no_wallet,
+        );
         return;
     };
     let at = app.backups_area.at().min(n - 1);
-    y += ui.wrap(x, y, w, 16.0, W::S, TEXT, &e.name) + 4.0;
-    y += ui.wrap(x, y, w, 12.0, W::R, MUTED, &e.shape) + 14.0;
+    y += ui.wrap(x, y, w, 16.0, W::S, Role::OnSurface, &e.name) + 4.0;
+    y += ui.wrap(x, y, w, 12.0, W::R, Role::OnSurfaceVariant, &e.shape) + 14.0;
     match e.lines.as_ref() {
         None => {
-            ui.text(x, y, 13.0, W::S, WARN, EN.backups_no_backup_plan);
+            ui.text(x, y, 13.0, W::S, Role::Warning, EN.backups_no_backup_plan);
             y += 28.0;
         }
         Some(lines) => {
@@ -204,7 +234,7 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entry])
             EN.backups_wallet_count,
             &[&(at + 1).to_string(), &n.to_string()],
         );
-        ui.text(x, y, 12.0, W::R, DIM, &page);
+        ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, &page);
         y += 24.0;
         let (prev, next) = (at.checked_sub(1), (at + 1 < n).then_some(at + 1));
         ui.button(
@@ -246,12 +276,12 @@ fn compact_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) -> f32 {
     let mut cy = y;
     if pw + sw + 12.0 <= w {
         ui.text_right(x + w, cy, 20.0, 12.0, W::S, tone(l.tone), &l.state);
-        ui.text_mid(x, cy, 20.0, 13.0, W::S, TEXT, &l.place);
+        ui.text_mid(x, cy, 20.0, 13.0, W::S, Role::OnSurface, &l.place);
         cy += 22.0;
     } else {
         // Too long for one line: the state on its own, under the place.
         let place = ui.fit(13.0, W::S, &l.place, w);
-        ui.text_mid(x, cy, 20.0, 13.0, W::S, TEXT, &place);
+        ui.text_mid(x, cy, 20.0, 13.0, W::S, Role::OnSurface, &place);
         cy += 22.0;
         cy += ui.wrap(x, cy, w, 12.0, W::S, tone(l.tone), &l.state) + 2.0;
     }
@@ -260,9 +290,9 @@ fn compact_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) -> f32 {
             Some(t) => format!("{} · {}", l.holds, t.name()),
             None => l.holds.clone(),
         };
-        cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, &holds);
+        cy += ui.wrap(x, cy, w, 12.0, W::R, Role::OnSurfaceVariant, &holds);
     }
     cy += 10.0;
-    ui.fill(x, cy - 5.0, w, 1.0, 0.0, LINE);
+    ui.fill(x, cy - 5.0, w, 1.0, 0.0, Role::OutlineVariant);
     cy - y
 }

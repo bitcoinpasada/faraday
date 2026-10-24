@@ -28,21 +28,28 @@ fn time_section(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
             width - 44.0,
             13.0,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             TIME_FOR,
         )
     });
     let d = what + 8.0;
     let h = 208.0 + d;
-    ui.card(x, y, width, h, LINE);
-    ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.time_section_time);
+    ui.card(x, y, width, h, Role::OutlineVariant);
+    ui.text(
+        x + 22.0,
+        y + 20.0,
+        15.0,
+        W::S,
+        Role::OnSurface,
+        EN.time_section_time,
+    );
     ui.wrap(
         x + 22.0,
         y + 44.0,
         width - 44.0,
         13.0,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         TIME_FOR,
     );
     ui.text_mid(
@@ -51,11 +58,19 @@ fn time_section(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
         32.0,
         13.0,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         EN.time_section_now,
     );
     let now = app.now_local_text();
-    ui.text_right(x + width - 22.0, y + 50.0 + d, 32.0, 15.0, W::S, TEXT, &now);
+    ui.text_right(
+        x + width - 22.0,
+        y + 50.0 + d,
+        32.0,
+        15.0,
+        W::S,
+        Role::OnSurface,
+        &now,
+    );
     tz_row(ui, x + 22.0, y + 94.0 + d, width - 44.0, app.tz_min());
     ui.button(
         x + 22.0,
@@ -80,19 +95,35 @@ fn randomness_card(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
     let status = app.own_status();
     let (ix, iw) = (x + INSET, width - 2.0 * INSET);
     let line = crate::compact::screen::measured(ui, |ui| {
-        ui.wrap(ix, y + BODY, iw, OWN_LINE_TEXT, W::R, MUTED, &status)
+        ui.wrap(
+            ix,
+            y + BODY,
+            iw,
+            OWN_LINE_TEXT,
+            W::R,
+            Role::OnSurfaceVariant,
+            &status,
+        )
     });
     let h = BODY + line + PAD + OWN_BUTTON + INSET;
-    ui.card(x, y, width, h, LINE);
+    ui.card(x, y, width, h, Role::OutlineVariant);
     ui.text(
         ix,
         y + SETTINGS_CARD_TITLE_Y,
         SETTINGS_CARD_TITLE,
         W::S,
-        TEXT,
+        Role::OnSurface,
         EN.own_randomness,
     );
-    ui.wrap(ix, y + BODY, iw, OWN_LINE_TEXT, W::R, MUTED, &status);
+    ui.wrap(
+        ix,
+        y + BODY,
+        iw,
+        OWN_LINE_TEXT,
+        W::R,
+        Role::OnSurfaceVariant,
+        &status,
+    );
     ui.button(
         ix,
         y + BODY + line + PAD,
@@ -149,7 +180,14 @@ fn preview_body(
             &format!("{:.0}", window.height),
         ],
     );
-    ui.text(x, y + h, SETTINGS_VALUE_TEXT, W::R, MUTED, &size);
+    ui.text(
+        x,
+        y + h,
+        SETTINGS_VALUE_TEXT,
+        W::R,
+        Role::OnSurfaceVariant,
+        &size,
+    );
     h += SETTINGS_VALUE_LINE;
     h
 }
@@ -178,7 +216,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 }),
             ],
         );
-        y += ui.wrap(x, y, w, 13.0, W::R, MUTED, &line) + 10.0;
+        y += ui.wrap(x, y, w, 13.0, W::R, Role::OnSurfaceVariant, &line) + 10.0;
         let mut items: Vec<(&str, Style, Action)> = Vec::new();
         if app.holds_secret() {
             items.push((EN.settings_lock, Style::Secondary, Action::LockAsk));
@@ -196,10 +234,10 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         items.push((leave, Style::Secondary, Action::PowerAsk));
         y += wrap_buttons(ui, x, y, w, 38.0, &items) + 4.0;
         if !app.online {
-            y += ui.wrap(x, y, w, 13.0, W::R, MUTED, PANIC_KEY) + 10.0;
+            y += ui.wrap(x, y, w, 13.0, W::R, Role::OnSurfaceVariant, PANIC_KEY) + 10.0;
         }
         for (label, now, choices, action) in idle_rows(app) {
-            ui.text(x, y, 13.0, W::R, MUTED, label);
+            ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, label);
             y += 22.0;
             let labels: Vec<String> = choices
                 .iter()
@@ -226,16 +264,16 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 .map(|(_, n)| n.as_str())
                 .collect();
             let line = fill(EN.settings_ignored_until, &[&names.join(", ").to_string()]);
-            y += ui.wrap(x, y, w, 13.0, W::R, WARN, &line) + 6.0;
+            y += ui.wrap(x, y, w, 13.0, W::R, Role::Warning, &line) + 6.0;
         }
         y - y0
     });
     y += section(ui, x, y, w, EN.settings_time, &|ui, x, y0, w| {
         let mut y = y0;
-        y += ui.wrap(x, y, w, 13.0, W::R, MUTED, TIME_FOR) + 12.0;
-        ui.text(x, y, 13.0, W::R, MUTED, EN.settings_now);
+        y += ui.wrap(x, y, w, 13.0, W::R, Role::OnSurfaceVariant, TIME_FOR) + 12.0;
+        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, EN.settings_now);
         y += 20.0;
-        y += ui.wrap(x, y, w, 15.0, W::S, TEXT, &app.now_local_text()) + 10.0;
+        y += ui.wrap(x, y, w, 15.0, W::S, Role::OnSurface, &app.now_local_text()) + 10.0;
         y += tz_row(ui, x, y, w, app.tz_min()) + 10.0;
         y += ui.button(
             x,
@@ -253,7 +291,15 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += section(ui, x, y, w, EN.own_randomness, &|ui, x, y0, w| {
         use faraday_draw::tokens::{GAP, OWN_BUTTON, OWN_LINE_TEXT};
         let mut y = y0;
-        y += ui.wrap(x, y, w, OWN_LINE_TEXT, W::R, MUTED, &status) + GAP;
+        y += ui.wrap(
+            x,
+            y,
+            w,
+            OWN_LINE_TEXT,
+            W::R,
+            Role::OnSurfaceVariant,
+            &status,
+        ) + GAP;
         ui.button(
             x,
             y,
@@ -319,7 +365,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 }),
             ],
         );
-        ui.text(x, y, 13.0, W::R, MUTED, &line);
+        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, &line);
         y += 24.0;
         let items = [
             (EN.settings_sealed_into, Action::SealAmounts(true)),
@@ -357,19 +403,26 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             },
         ];
         for l in &lines {
-            y += ui.wrap(x, y, w, 13.0, W::R, MUTED, l) + 8.0;
+            y += ui.wrap(x, y, w, 13.0, W::R, Role::OnSurfaceVariant, l) + 8.0;
         }
         let s = &EN;
         let (result, tone) = match app.selftest() {
             Some(Ok(n)) => (
                 s.settings_selftest_passed.replacen("{}", &n.to_string(), 1),
-                OK,
+                Role::Ok,
             ),
-            Some(Err(c)) => (s.settings_selftest_failed.replacen("{}", c, 1), ERR),
-            None => (EN.settings_not_run.to_string(), MUTED),
+            Some(Err(c)) => (s.settings_selftest_failed.replacen("{}", c, 1), Role::Error),
+            None => (EN.settings_not_run.to_string(), Role::OnSurfaceVariant),
         };
         y += 4.0;
-        ui.text(x, y, 13.0, W::R, MUTED, s.settings_selftest);
+        ui.text(
+            x,
+            y,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            s.settings_selftest,
+        );
         y += 20.0;
         y += ui.wrap(x, y, w, 13.0, W::S, tone, &result) + 8.0;
         y += wrap_buttons(
@@ -398,7 +451,7 @@ fn institute_note(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     const SITE: &str = "nakamotoinstitute.org";
     let note = fill(EN.institute_note_visit, &[SITE]);
     if !app.online {
-        return ui.wrap(x, y, w, 13.0, W::R, MUTED, &note);
+        return ui.wrap(x, y, w, 13.0, W::R, Role::OnSurfaceVariant, &note);
     }
     // Word by word, breaking at a space as `Ui::wrap` does, the site's
     // name in the accent, underlined and pressable.
@@ -413,9 +466,9 @@ fn institute_note(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         if word == SITE {
             let tone = if ui.is_pressed(Action::OpenInstitute) {
-                TEXT
+                Role::OnSurface
             } else {
-                ACCENT
+                Role::Primary
             };
             ui.text(cx, cy, 13.0, W::R, tone, word);
             ui.fill(cx, cy + line_h - 3.0, ww, 1.0, 0.0, tone);
@@ -427,7 +480,7 @@ fn institute_note(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Action::OpenInstitute,
             );
         } else {
-            ui.text(cx, cy, 13.0, W::R, MUTED, word);
+            ui.text(cx, cy, 13.0, W::R, Role::OnSurfaceVariant, word);
         }
         cx += ww + space;
     }
@@ -454,15 +507,22 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // One 46-unit row less where there is no power-off timer.
     let rows = idle_rows(app);
     let fewer = 46.0 * (2 - rows.len()) as f32;
-    ui.card(x, y, width, 224.0 - fewer + ignored_h, LINE);
-    ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_session);
+    ui.card(x, y, width, 224.0 - fewer + ignored_h, Role::OutlineVariant);
+    ui.text(
+        x + 22.0,
+        y + 20.0,
+        15.0,
+        W::S,
+        Role::OnSurface,
+        EN.settings_session,
+    );
     let n = app.session.keys.len();
     ui.text(
         x + 22.0,
         y + 46.0,
         13.0,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         &fill(
             EN.settings_loaded_lost,
             &[
@@ -512,12 +572,28 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !app.online {
         let room = x + width - 22.0 - bx;
         let line = ui.fit(13.0, W::R, PANIC_KEY, room);
-        ui.text_mid(bx, y + 74.0, 38.0, 13.0, W::R, MUTED, &line);
+        ui.text_mid(
+            bx,
+            y + 74.0,
+            38.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &line,
+        );
     }
     // The idle timers: lock, then power off with nothing left to lose.
     let mut ry = y + 126.0;
     for &(label, now, choices, action) in &rows {
-        ui.text_mid(x + 22.0, ry, 38.0, 13.0, W::R, MUTED, label);
+        ui.text_mid(
+            x + 22.0,
+            ry,
+            38.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            label,
+        );
         let texts: Vec<String> = choices
             .iter()
             .map(|&m| {
@@ -546,7 +622,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             .collect();
         let line = fill(EN.settings_ignored_until, &[&names.join(", ").to_string()]);
         let line = ui.fit(13.0, W::R, &line, width - 44.0);
-        ui.text_mid(x + 22.0, ry, 26.0, 13.0, W::R, WARN, &line);
+        ui.text_mid(x + 22.0, ry, 26.0, 13.0, W::R, Role::Warning, &line);
     }
     y += 244.0 - fewer + ignored_h;
     y += time_section(app, ui, x, y, width) + 20.0;
@@ -556,8 +632,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let inner = width - 44.0;
     let per_row = ui.theme_grid(inner);
     let card_h = 54.0 + ui.theme_groups_h(inner, per_row) + 22.0;
-    ui.card(x, y, width, card_h, LINE);
-    ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_appearance);
+    ui.card(x, y, width, card_h, Role::OutlineVariant);
+    ui.text(
+        x + 22.0,
+        y + 20.0,
+        15.0,
+        W::S,
+        Role::OnSurface,
+        EN.settings_appearance,
+    );
     ui.theme_groups(
         x + 22.0,
         y + 54.0,
@@ -567,8 +650,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Action::Theme,
     );
     y += card_h + 20.0;
-    ui.card(x, y, width, 112.0, LINE);
-    ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_motion);
+    ui.card(x, y, width, 112.0, Role::OutlineVariant);
+    ui.text(
+        x + 22.0,
+        y + 20.0,
+        15.0,
+        W::S,
+        Role::OnSurface,
+        EN.settings_motion,
+    );
     let items = [
         (EN.settings_full, Action::ReduceMotion(false)),
         (EN.settings_reduced, Action::ReduceMotion(true)),
@@ -576,13 +666,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let on = Some(usize::from(app.reduce_motion()));
     ui.choices((x + 22.0, y + 54.0, inner, 38.0), 14.0, &items, on);
     y += 132.0;
-    ui.card(x, y, width, 112.0, LINE);
+    ui.card(x, y, width, 112.0, Role::OutlineVariant);
     ui.text(
         x + 22.0,
         y + 20.0,
         15.0,
         W::S,
-        TEXT,
+        Role::OnSurface,
         EN.settings_display_scale,
     );
     let scales = [75u16, 90, 100, 110, 125, 150, 200];
@@ -611,25 +701,25 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let body =
             faraday_ui::parts::measured(ui, |ui| preview_body(app, ui, bx, by, inner, chosen));
         let card_h = SETTINGS_CARD_HEAD + body + SETTINGS_CARD_INSET;
-        ui.card(x, y, width, card_h, LINE);
+        ui.card(x, y, width, card_h, Role::OutlineVariant);
         ui.text(
             bx,
             y + SETTINGS_CARD_TITLE_Y,
             SETTINGS_CARD_TITLE,
             W::S,
-            TEXT,
+            Role::OnSurface,
             EN.settings_preview_size,
         );
         preview_body(app, ui, bx, by, inner, chosen);
         y += card_h + SETTINGS_CARD_GAP;
     }
-    ui.card(x, y, width, 112.0, LINE);
+    ui.card(x, y, width, 112.0, Role::OutlineVariant);
     ui.text(
         x + 22.0,
         y + 20.0,
         15.0,
         W::S,
-        TEXT,
+        Role::OnSurface,
         EN.settings_signed_amounts,
     );
     let n = app.memory.signed().len();
@@ -639,7 +729,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         24.0,
         13.0,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         &fill(
             EN.settings_remembered,
             &[
@@ -663,8 +753,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Upgrading another stick from this one (`docs/history/PLAN.md` §5.5): never in the
     // online app, which has no boot partition to copy.
     if !app.online {
-        ui.card(x, y, width, 112.0, LINE);
-        ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, app.medium.caps());
+        ui.card(x, y, width, 112.0, Role::OutlineVariant);
+        ui.text(
+            x + 22.0,
+            y + 20.0,
+            15.0,
+            W::S,
+            Role::OnSurface,
+            app.medium.caps(),
+        );
         ui.button(
             x + 22.0,
             y + 54.0,
@@ -681,8 +778,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let note_h = institute_note(app, ui, x + 22.0, 0.0, width - 44.0);
     ui.c.pop_clip();
     let about_h = 210.0 + note_h + 14.0;
-    ui.card(x, y, width, about_h, LINE);
-    ui.text(x + 22.0, y + 20.0, 15.0, W::S, TEXT, EN.settings_about);
+    ui.card(x, y, width, about_h, Role::OutlineVariant);
+    ui.text(
+        x + 22.0,
+        y + 20.0,
+        15.0,
+        W::S,
+        Role::OnSurface,
+        EN.settings_about,
+    );
     let lines = [
         fill(EN.settings_faraday, &[&crate::version_label().to_string()]),
         EN.settings_keys_are_typed.to_string(),
@@ -698,7 +802,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     ];
     let mut ly = y + 50.0;
     for l in &lines {
-        ui.text(x + 22.0, ly, 13.0, W::R, MUTED, l);
+        ui.text(x + 22.0, ly, 13.0, W::R, Role::OnSurfaceVariant, l);
         ly += 26.0;
     }
     // The start-up self-test: what it found, and a run again.
@@ -706,13 +810,21 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (result, tone) = match app.selftest() {
         Some(Ok(n)) => (
             s.settings_selftest_passed.replacen("{}", &n.to_string(), 1),
-            OK,
+            Role::Ok,
         ),
-        Some(Err(c)) => (s.settings_selftest_failed.replacen("{}", c, 1), ERR),
-        None => (EN.settings_not_run.to_string(), MUTED),
+        Some(Err(c)) => (s.settings_selftest_failed.replacen("{}", c, 1), Role::Error),
+        None => (EN.settings_not_run.to_string(), Role::OnSurfaceVariant),
     };
     ly += 4.0;
-    ui.text_mid(x + 22.0, ly, 34.0, 13.0, W::R, MUTED, s.settings_selftest);
+    ui.text_mid(
+        x + 22.0,
+        ly,
+        34.0,
+        13.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        s.settings_selftest,
+    );
     ui.text_mid(x + 140.0, ly, 34.0, 13.0, W::S, tone, &result);
     let rw = ui.measure(13.0, W::S, s.settings_selftest_run) + 32.0;
     ui.button(
@@ -760,7 +872,7 @@ fn idle_rows(app: &View) -> Vec<IdleRow> {
 fn mode_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let pad = 22.0;
     let h = faraday_draw::tokens::MODE_ROW + 2.0 * pad;
-    ui.card(x, y, w, h, LINE);
+    ui.card(x, y, w, h, Role::OutlineVariant);
     crate::modes::screen::settings_row(app, ui, x + pad, y + pad, w - 2.0 * pad);
     h
 }

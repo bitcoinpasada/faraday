@@ -152,7 +152,7 @@ fn menu_w() -> f32 {
 /// A chip's ⋮ part at (x, y), `h` tall (`docs/BACKUP-FLOW.md` §17.20):
 /// a thin rule, then the three dots in `color`; a press opens the chip's
 /// menu, and never drags or selects it. Edged in the accent while the
-/// keyboard is on it (on a vault's band, in `VAULT_ON`). `hits`: it
+/// keyboard is on it (on a vault's band, in `on-primary`). `hits`: it
 /// takes presses.
 #[allow(clippy::too_many_arguments)]
 fn dots(
@@ -168,7 +168,14 @@ fn dots(
     let mw = menu_w();
     let a = Action::Board(BoardPress::Menu(c));
     if hits && (ui.is_pressed(a) || ui.is_hovered(a)) {
-        ui.fill(x + 1.0, y + 1.0, mw - 2.0, h - 2.0, (h - 2.0) / 2.0, INNER);
+        ui.wash(
+            x + 1.0,
+            y + 1.0,
+            mw - 2.0,
+            h - 2.0,
+            (h - 2.0) / 2.0,
+            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+        );
     }
     let inset = tokens::GAP_SMALL;
     ui.fill(
@@ -188,7 +195,11 @@ fn dots(
             tokens::FOCUS_STROKE,
             // On a vault's band, whose fill is the accent's kin, the
             // band's own text colour.
-            if color == VAULT_ON { VAULT_ON } else { ACCENT },
+            if color == Role::OnPrimary.paint() {
+                Role::OnPrimary.paint()
+            } else {
+                Role::Primary.paint()
+            },
         );
     }
     if hits {
@@ -285,8 +296,30 @@ fn toggles(ui: &mut Ui, cv: &ChipView, x: f32, y: f32, line_h: f32, hits: bool) 
         let tw = toggle_w(ui, label);
         let action = Action::Board(BoardPress::Form(z, t, u8::try_from(k).unwrap_or(u8::MAX)));
         let hot = hits && (ui.is_pressed(action) || ui.is_hovered(action));
-        ui.fill(tx, ty, tw, th, th / 2.0, if hot { INNER } else { SURFACE });
-        ui.stroke(tx, ty, tw, th, th / 2.0, if *on { ACCENT } else { LINE });
+        ui.fill(
+            tx,
+            ty,
+            tw,
+            th,
+            th / 2.0,
+            if hot {
+                Role::SurfaceContainerHighest
+            } else {
+                Role::Surface
+            },
+        );
+        ui.stroke(
+            tx,
+            ty,
+            tw,
+            th,
+            th / 2.0,
+            if *on {
+                Role::Primary
+            } else {
+                Role::OutlineVariant
+            },
+        );
         let mut lx = tx + tokens::BOARD_PAD;
         if *on {
             ui.icon(
@@ -295,7 +328,7 @@ fn toggles(ui: &mut Ui, cv: &ChipView, x: f32, y: f32, line_h: f32, hits: bool) 
                 tokens::BOARD_MARK,
                 Icon::Check,
                 tokens::BOARD_MARK,
-                ACCENT,
+                Role::Primary,
             );
         }
         lx += tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
@@ -305,7 +338,11 @@ fn toggles(ui: &mut Ui, cv: &ChipView, x: f32, y: f32, line_h: f32, hits: bool) 
             th,
             tokens::CAPTION,
             W::R,
-            if *on { TEXT } else { MUTED },
+            if *on {
+                Role::OnSurface
+            } else {
+                Role::OnSurfaceVariant
+            },
             label,
         );
         if hits {
@@ -330,16 +367,27 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     // shadow, so it stands on every box's fill: paper, a stick box, a
     // vault box, the list (§19.15).
     if cv.fixed {
-        ui.stroke(x, y, w, h, r, CHIP_EDGE);
+        ui.stroke(x, y, w, h, r, Role::Outline);
     } else {
         ui.shadow(x, y, w, h, r, tokens::ELEVATION_SHEET);
-        ui.fill(x, y, w, h, r, if hot { INNER } else { SURFACE });
-        ui.stroke(x, y, w, h, r, CHIP_EDGE);
+        ui.fill(
+            x,
+            y,
+            w,
+            h,
+            r,
+            if hot {
+                Role::SurfaceContainerHighest
+            } else {
+                Role::Surface
+            },
+        );
+        ui.stroke(x, y, w, h, r, Role::Outline);
     }
     let fg = if cv.fixed || cv.faint || lifted {
-        DIM
+        Role::OnSurfaceVariant
     } else {
-        TEXT
+        Role::OnSurface
     };
     let mut cx = x + tokens::BOARD_PAD;
     let line_h = tokens::BOARD_CHIP;
@@ -350,7 +398,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
             tokens::BOARD_MARK,
             g,
             tokens::BOARD_MARK,
-            if cv.fixed || cv.faint { DIM } else { MUTED },
+            Role::OnSurfaceVariant,
         );
         cx += tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     }
@@ -364,7 +412,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
             ui,
             right - tokens::BOARD_MARK / 2.0,
             y + line_h / 2.0,
-            MUTED,
+            Role::OnSurfaceVariant.paint(),
         );
         if hits && let Chip::Placed(z, t) = cv.chip {
             let side = tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD;
@@ -385,12 +433,17 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
             tokens::BOARD_MARK,
             Icon::Warning,
             tokens::BOARD_MARK,
-            WARN,
+            Role::Warning,
         );
         right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     }
     if cv.link {
-        link(ui, right - tokens::BOARD_MARK, y + line_h / 2.0, ACCENT);
+        link(
+            ui,
+            right - tokens::BOARD_MARK,
+            y + line_h / 2.0,
+            Role::Primary.paint(),
+        );
         right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     }
     if sealed(cv) {
@@ -400,7 +453,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
             tokens::BOARD_MARK,
             Icon::Lock,
             tokens::BOARD_MARK,
-            VAULT_EDGE,
+            Role::Primary,
         );
         right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     }
@@ -438,20 +491,28 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
                 y + line_h - tokens::BOARD_CHIP_GAP,
                 tokens::CAPTION,
                 W::R,
-                MUTED,
+                Role::OnSurfaceVariant,
                 &shown,
             );
         } else {
             // Laid out to fit beside the name (`chip_size`): drawn whole.
             let mx = cx + nw + tokens::BOARD_CHIP_GAP;
-            ui.text_mid(mx, y, line_h, tokens::CAPTION, W::R, MUTED, &marks);
+            ui.text_mid(
+                mx,
+                y,
+                line_h,
+                tokens::CAPTION,
+                W::R,
+                Role::OnSurfaceVariant,
+                &marks,
+            );
         }
     }
     if cv.warn && !held {
-        ui.stroke(x, y, w, h, r, WARN);
+        ui.stroke(x, y, w, h, r, Role::Warning);
     }
     if held && !lifted {
-        edge(ui, (x, y, w, h), r, ACCENT);
+        edge(ui, (x, y, w, h), r, Role::Primary.paint());
     }
     if hits && !cv.fixed {
         // The chip's body; its × over it at the right. With toggles, the
@@ -474,7 +535,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     // The ⋮, its own press target over the chip's right end, after the
     // chip's own press (§19.20 item 1).
     if cv.menu {
-        let color = if lifted || cv.faint { DIM } else { MUTED };
+        let color = Role::OnSurfaceVariant.paint();
         dots(
             ui,
             fr,
@@ -584,10 +645,18 @@ fn paper_h(ui: &Ui, chips: &[ChipView], w: f32) -> f32 {
 type Tones = (crate::ui::Paint, crate::ui::Paint, crate::ui::Paint);
 
 /// Paper and Scanned in, in the paper colours.
-const PAPER: Tones = (PAPER_FILL, PAPER_EDGE, PAPER_TEXT);
+const PAPER: Tones = (
+    Role::SurfaceContainerLowest.paint(),
+    Role::Tertiary.paint(),
+    Role::Tertiary.paint(),
+);
 
 /// A stick's files box, in the files colours (§19.17).
-const FILES: Tones = (FILES_FILL, FILES_EDGE, FILES_TEXT);
+const FILES: Tones = (
+    Role::SecondaryContainer.paint(),
+    Role::Secondary.paint(),
+    Role::OnSecondaryContainer.paint(),
+);
 
 /// Paper, or Scanned in at the software place, or a stick's files box
 /// (`docs/DESIGN.md` §4.17): a box `r` in its colours, its glyph and
@@ -630,7 +699,7 @@ fn paper(
     // pointer in `hot` (the box itself, or for a files box the stick box
     // round it outside its vault, §19.17 item 2).
     if fr.edged(z, hot) {
-        edge(ui, r, tokens::GAP, ACCENT);
+        edge(ui, r, tokens::GAP, Role::Primary.paint());
     }
 }
 
@@ -641,17 +710,30 @@ fn stick_box(ui: &mut Ui, glyph: Glyph, label: &str, r: Box4) -> f32 {
     let sp = tokens::BOARD_STICK_PAD;
     let hh = tokens::BOARD_STICK_HEAD;
     let mark = tokens::BOARD_MARK;
-    ui.fill(x, y, w, h, tokens::GAP, STICK_FILL);
-    outline(ui, r, tokens::GAP, tokens::BOARD_STICK_EDGE, STICK_EDGE);
+    ui.fill(x, y, w, h, tokens::GAP, Role::SurfaceContainerHighest);
+    outline(
+        ui,
+        r,
+        tokens::GAP,
+        tokens::BOARD_STICK_EDGE,
+        Role::Outline.paint(),
+    );
     let gx = x + sp + tokens::GAP_SMALL;
-    ui.icon(gx, y + (hh - mark) / 2.0, mark, glyph, mark, STICK_TEXT);
+    ui.icon(
+        gx,
+        y + (hh - mark) / 2.0,
+        mark,
+        glyph,
+        mark,
+        Role::OnSurfaceVariant,
+    );
     ui.text_mid(
         gx + mark + tokens::BOARD_CHIP_GAP,
         y,
         hh,
         tokens::CAPTION,
         W::S,
-        STICK_TEXT,
+        Role::OnSurfaceVariant,
         label,
     );
     hh
@@ -668,11 +750,17 @@ fn add_stick(ui: &mut Ui, fr: &Frame, p: usize, r: Box4) {
     let takes_held = fr.held.is_some_and(|c| {
         takes(&fr.shape, z, c.thing(), fr.locked) && !matches!(c, Chip::List(Thing::Software))
     });
-    ui.fill(x, y, w, h, tokens::GAP, STICK_FILL);
+    ui.fill(x, y, w, h, tokens::GAP, Role::SurfaceContainerHighest);
     if takes_held {
-        outline(ui, r, tokens::GAP, tokens::BOARD_BOX_EDGE, STICK_EDGE);
+        outline(
+            ui,
+            r,
+            tokens::GAP,
+            tokens::BOARD_BOX_EDGE,
+            Role::Outline.paint(),
+        );
     } else {
-        dashed(ui, r, tokens::GAP, STICK_EDGE);
+        dashed(ui, r, tokens::GAP, Role::Outline.paint());
     }
     let lw = ui.measure(tokens::CAPTION, W::S, EN.board_add_stick);
     ui.text_mid(
@@ -681,13 +769,13 @@ fn add_stick(ui: &mut Ui, fr: &Frame, p: usize, r: Box4) {
         h,
         tokens::CAPTION,
         W::S,
-        STICK_TEXT,
+        Role::OnSurfaceVariant,
         EN.board_add_stick,
     );
     ui.hit_quiet(x, y, w, h, a);
     let on = takes_held && fr.drag.is_none_or(|d| inside(d, r));
     if on {
-        edge(ui, r, tokens::GAP, ACCENT);
+        edge(ui, r, tokens::GAP, Role::Primary.paint());
     }
 }
 
@@ -814,14 +902,14 @@ fn place_head(
     let pad = tokens::BOARD_PAD;
     let hh = tokens::BOARD_HEAD;
     let mark = tokens::BOARD_MARK;
-    band(ui, x, y, w, hh, PLACE_BAND);
+    band(ui, x, y, w, hh, Role::SurfaceContainerHigh.paint());
     ui.icon(
         x + pad,
         y + (hh - mark) / 2.0,
         mark,
         Icon::House,
         mark,
-        PLACE_TEXT,
+        Role::OnSurface,
     );
     let nx = x + pad + mark + tokens::BOARD_CHIP_GAP;
     let right = x + w - pad - mark - pad;
@@ -841,18 +929,18 @@ fn place_head(
                 hh,
                 tokens::LABEL,
                 W::S,
-                PLACE_TEXT,
+                Role::OnSurface,
                 name,
                 room,
                 true,
                 a,
             );
-            ui.rule(nx, y + hh - tokens::GAP_SMALL, room, ACCENT);
+            ui.rule(nx, y + hh - tokens::GAP_SMALL, room, Role::Primary);
             nw
         }
         _ => {
             let shown = ui.fit(tokens::LABEL, W::S, name, room);
-            ui.text_mid(nx, y, hh, tokens::LABEL, W::S, PLACE_TEXT, &shown)
+            ui.text_mid(nx, y, hh, tokens::LABEL, W::S, Role::OnSurface, &shown)
         }
     };
     if let Some((a, _)) = name_press {
@@ -869,7 +957,7 @@ fn place_head(
         }
         let th = tokens::BOARD_TAG;
         let ty = y + (hh - th) / 2.0;
-        ui.fill(tx, ty, tw, th, th / 2.0, SURFACE);
+        ui.fill(tx, ty, tw, th, th / 2.0, Role::Surface);
         ui.stroke(tx, ty, tw, th, th / 2.0, tone);
         // Laid out to fit (`tag_ws`): the half unit is the rounding of a
         // box placed at a fraction of a pixel.
@@ -878,7 +966,12 @@ fn place_head(
         tx += want;
     }
     if let Some(a) = off {
-        cross(ui, x + w - pad - mark / 2.0, y + hh / 2.0, PLACE_TEXT);
+        cross(
+            ui,
+            x + w - pad - mark / 2.0,
+            y + hh / 2.0,
+            Role::OnSurface.paint(),
+        );
         let side = mark + 2.0 * pad;
         ui.hit(x + w - side, y, side, hh, a);
     }
@@ -890,14 +983,14 @@ fn place_head(
 fn place_box(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) -> (f32, f32) {
     let e = tokens::BOARD_BOX_EDGE;
     let stripe = tokens::BOARD_PLACE_STRIPE;
-    ui.fill(x, y, w, h, tokens::RADIUS, PLACE_EDGE);
+    ui.fill(x, y, w, h, tokens::RADIUS, Role::Outline);
     ui.fill(
         x + stripe,
         y + e,
         w - stripe - e,
         h - 2.0 * e,
         tokens::GAP,
-        PLACE_FILL,
+        Role::SurfaceContainerLow,
     );
     (x + stripe, w - stripe - e)
 }
@@ -940,7 +1033,7 @@ fn place(ui: &mut Ui, fr: &mut Frame, v: &BoardView, cv: &CardView, x: f32, y: f
         && !matches!(c, Chip::Placed(Zone::Files(p, _), _) if p == cv.p)
         && fr.drag.is_none_or(|d| inside(d, (x, y, w, h)))
     {
-        edge(ui, (x, y, w, h), tokens::RADIUS, ACCENT);
+        edge(ui, (x, y, w, h), tokens::RADIUS, Role::Primary.paint());
     }
     let p8 = u8::try_from(cv.p).unwrap_or(u8::MAX);
     let removable = v.custom && v.places.len() > 1 && (!v.locked || cv.p + 1 == v.places.len());
@@ -998,7 +1091,7 @@ fn vault_head(
     let mark = tokens::BOARD_MARK;
     let action = Action::Board(BoardPress::Chip(vc.chip));
     let held = fr.held == Some(vc.chip);
-    band(ui, x, y, w, hh, VAULT_EDGE);
+    band(ui, x, y, w, hh, Role::Primary.paint());
     if ui.is_pressed(action) || ui.is_hovered(action) {
         band(
             ui,
@@ -1006,7 +1099,7 @@ fn vault_head(
             y,
             w,
             hh,
-            VAULT_ON.with_alpha(tokens::BOARD_VAULT_HOT),
+            Role::OnPrimary.with_alpha(tokens::BOARD_VAULT_HOT),
         );
     }
     ui.icon(
@@ -1015,7 +1108,7 @@ fn vault_head(
         mark,
         Icon::Lock,
         mark,
-        VAULT_ON,
+        Role::OnPrimary,
     );
     let mw = if vc.menu { menu_w() } else { 0.0 };
     let mut right = x + w - mw - pad;
@@ -1023,7 +1116,12 @@ fn vault_head(
     if vc.off
         && let Chip::Placed(z, t) = vc.chip
     {
-        cross(ui, right - mark / 2.0, y + hh / 2.0, VAULT_ON);
+        cross(
+            ui,
+            right - mark / 2.0,
+            y + hh / 2.0,
+            Role::OnPrimary.paint(),
+        );
         off_w = mark + 2.0 * pad;
         ui.hit(
             x + w - mw - off_w,
@@ -1041,12 +1139,12 @@ fn vault_head(
             mark,
             Icon::Warning,
             mark,
-            VAULT_ON,
+            Role::OnPrimary,
         );
         right -= mark + tokens::BOARD_CHIP_GAP;
     }
     if vc.link {
-        link(ui, right - mark, y + hh / 2.0, VAULT_ON);
+        link(ui, right - mark, y + hh / 2.0, Role::OnPrimary.paint());
         right -= mark + tokens::BOARD_CHIP_GAP;
     }
     let nx = x + pad + mark + tokens::BOARD_CHIP_GAP;
@@ -1057,14 +1155,14 @@ fn vault_head(
         label
     };
     let name = ui.fit(tokens::LABEL, W::S, label, room);
-    ui.text_mid(nx, y, hh, tokens::LABEL, W::S, VAULT_ON, &name);
+    ui.text_mid(nx, y, hh, tokens::LABEL, W::S, Role::OnPrimary, &name);
     if held && fr.drag.is_none() {
         let i = tokens::BOARD_EDGE;
         edge(
             ui,
             (x + i, y + i, w - 2.0 * i, hh - 2.0 * i),
             tokens::GAP_SMALL,
-            VAULT_ON,
+            Role::OnPrimary.paint(),
         );
     }
     ui.hit_quiet(x, y, w - mw - off_w, hh, action);
@@ -1072,7 +1170,16 @@ fn vault_head(
         fr.held_at = Some(((x, y, w, hh), vc.clone()));
     }
     if vc.menu {
-        dots(ui, fr, vc.chip, x + w - mw, y, hh, VAULT_ON, true);
+        dots(
+            ui,
+            fr,
+            vc.chip,
+            x + w - mw,
+            y,
+            hh,
+            Role::OnPrimary.paint(),
+            true,
+        );
     }
 }
 
@@ -1126,7 +1233,7 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
             ui,
             x + w - sp - mark / 2.0 - tokens::GAP_SMALL,
             y + hh / 2.0,
-            STICK_TEXT,
+            Role::OnSurfaceVariant.paint(),
         );
         let side = mark + 2.0 * tokens::BOARD_PAD;
         ui.hit(x + w - side, y, side, hh, Action::Board(st.remove));
@@ -1149,7 +1256,14 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
     );
     if let Some((vc, vz)) = &st.vault {
         let (vx, vy, vw, _) = vr;
-        ui.fill(vx, vy, vw, vault_h, tokens::GAP, VAULT_FILL);
+        ui.fill(
+            vx,
+            vy,
+            vw,
+            vault_h,
+            tokens::GAP,
+            Role::SurfaceContainerLowest,
+        );
         ui.hit_quiet(
             vx,
             vy,
@@ -1163,9 +1277,15 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
         for (c, at) in vz.chips.iter().zip(places) {
             chip(ui, fr, c, at.0, at.1, at.2, true);
         }
-        outline(ui, vr, tokens::GAP, tokens::BOARD_VAULT_STROKE, VAULT_EDGE);
+        outline(
+            ui,
+            vr,
+            tokens::GAP,
+            tokens::BOARD_VAULT_STROKE,
+            Role::Primary.paint(),
+        );
         if fr.edged(vz.zone, vr) {
-            edge(ui, vr, tokens::GAP, ACCENT);
+            edge(ui, vr, tokens::GAP, Role::Primary.paint());
         }
     }
 }
@@ -1242,9 +1362,21 @@ fn add_place(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let a = Action::Board(BoardPress::AddPlace);
     let h = tokens::BOARD_HEAD;
     if ui.is_pressed(a) || ui.is_hovered(a) {
-        ui.fill(x, y, w, h, tokens::GAP, INNER);
+        ui.wash(
+            x,
+            y,
+            w,
+            h,
+            tokens::GAP,
+            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+        );
     }
-    dashed(ui, (x, y, w, h), tokens::GAP, MUTED);
+    dashed(
+        ui,
+        (x, y, w, h),
+        tokens::GAP,
+        Role::OnSurfaceVariant.paint(),
+    );
     let lw = ui.measure(tokens::CAPTION, W::S, EN.board_add_place);
     ui.text_mid(
         x + (w - lw) / 2.0,
@@ -1252,7 +1384,7 @@ fn add_place(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         h,
         tokens::CAPTION,
         W::S,
-        MUTED,
+        Role::OnSurfaceVariant,
         EN.board_add_place,
     );
     ui.hit_quiet(x, y, w, h, a);
@@ -1299,7 +1431,7 @@ fn entry(
     let fit = chip_size(ui, &cv, avail);
     let ch = fit.h;
     chip(ui, fr, &cv, x, y, fit, !e.dim);
-    let count_color = if e.dim { DIM } else { MUTED };
+    let count_color = Role::OnSurfaceVariant;
     let mut under = 0.0;
     if !e.count.is_empty() && beside {
         ui.text_right(
@@ -1323,13 +1455,19 @@ fn entry(
         under = tokens::BOARD_CHIP_GAP + ui.line(tokens::CAPTION, W::R);
     }
     if let Some(a) = off {
-        cross(ui, x + w - off_w / 2.0, y + tokens::BOARD_CHIP / 2.0, MUTED);
+        cross(
+            ui,
+            x + w - off_w / 2.0,
+            y + tokens::BOARD_CHIP / 2.0,
+            Role::OnSurfaceVariant.paint(),
+        );
         ui.hit(x + w - off_w, y, off_w, ch, a);
     }
     let mut cy = y + ch + under;
     if let Some(line) = &e.holds {
         cy += tokens::BOARD_CHIP_GAP;
-        cy += ui.wrap(x, cy, w, tokens::CAPTION, W::R, WARN, line) + tokens::BOARD_CHIP_GAP;
+        cy +=
+            ui.wrap(x, cy, w, tokens::CAPTION, W::R, Role::Warning, line) + tokens::BOARD_CHIP_GAP;
         if let Thing::Vault(v) = e.chip.thing() {
             cy += faraday_ui::parts::wrap_buttons(
                 ui,
@@ -1356,7 +1494,7 @@ fn group(ui: &mut Ui, label: &str, x: f32, y: f32) -> f32 {
         tokens::BOARD_ZONE_LABEL,
         tokens::CAPTION,
         W::S,
-        MUTED,
+        Role::OnSurfaceVariant,
         label,
     );
     tokens::BOARD_ZONE_LABEL
@@ -1480,7 +1618,15 @@ fn codex32_groups(
             cy += entry(ui, fr, e, x, cy, w, None) + gap;
         }
         if let Some(line) = &g.line {
-            cy += ui.wrap(x, cy, w, tokens::CAPTION, W::R, MUTED, line) + gap;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                tokens::CAPTION,
+                W::R,
+                Role::OnSurfaceVariant,
+                line,
+            ) + gap;
         }
         if let Some((k, n)) = g.kn {
             crate::screens::stepper(
@@ -1561,7 +1707,7 @@ pub(crate) fn list_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let pad = tokens::GRID * 2.0;
     crate::compact::scroll_sheet(ui, place, h, tokens::GAP, pad, &mut |ui, x, y, iw| {
         let mut cy = y;
-        cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Add, TEXT, EN.board_add);
+        cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Add, Role::OnSurface, EN.board_add);
         cy += list(ui, &mut fr, &v, x, cy, iw);
         cy += crate::compact::buttons(
             ui,
@@ -1593,12 +1739,12 @@ pub(crate) fn sees_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     crate::compact::scroll_sheet(ui, place, h, tokens::GAP, pad, &mut |ui, x, y, iw| {
         let mut cy = y;
         let (icon, tone) = if sees.spend {
-            (Icon::Warning, WARN)
+            (Icon::Warning, Role::Warning)
         } else {
-            (Icon::Eye, TEXT)
+            (Icon::Eye, Role::OnSurface)
         };
         cy += crate::compact::sheet_head(ui, x, cy, iw, icon, tone, &sees.title);
-        cy += ui.wrap(x, cy, iw, tokens::LABEL, W::R, TEXT, &sees.line) + tokens::GAP;
+        cy += ui.wrap(x, cy, iw, tokens::LABEL, W::R, Role::OnSurface, &sees.line) + tokens::GAP;
         cy += crate::compact::buttons(
             ui,
             x,
@@ -1638,12 +1784,20 @@ pub(crate) fn partials_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let pad = tokens::GRID * 2.0;
     crate::compact::scroll_sheet(ui, place, h, tokens::GAP, pad, &mut |ui, x, y, iw| {
         let mut cy = y;
-        cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::File, TEXT, EN.board_partials_each);
+        cy += crate::compact::sheet_head(
+            ui,
+            x,
+            cy,
+            iw,
+            Icon::File,
+            Role::OnSurface,
+            EN.board_partials_each,
+        );
         let rest = line
             .strip_prefix(EN.board_partials_each)
             .map_or(line.as_str(), str::trim);
         if !rest.is_empty() {
-            cy += ui.wrap(x, cy, iw, tokens::LABEL, W::R, TEXT, rest) + tokens::GAP;
+            cy += ui.wrap(x, cy, iw, tokens::LABEL, W::R, Role::OnSurface, rest) + tokens::GAP;
         }
         let keep = (
             EN.board_keep_button,
@@ -1750,7 +1904,7 @@ pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             side,
             Icon::Warning,
             side,
-            WARN,
+            Role::Warning,
         );
         bottom += ui.wrap(
             x + side + tokens::GAP,
@@ -1758,7 +1912,7 @@ pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             w - side - tokens::GAP,
             tokens::LABEL,
             W::R,
-            WARN,
+            Role::Warning,
             line,
         );
     }
@@ -1827,8 +1981,8 @@ pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     let Some(mut fr) = frame(app, ui, &v) else {
         return;
     };
-    ui.fill(px, 0.0, pw, h, 0.0, SURFACE);
-    ui.fill(px, 0.0, 1.0, h, 0.0, LINE);
+    ui.fill(px, 0.0, pw, h, 0.0, Role::Surface);
+    ui.fill(px, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
     let pad = tokens::BOARD_PAD;
     let (x, w) = (px + tokens::GRID * 2.0, pw - tokens::GRID * 4.0);
     // Clear of the network pill and the ? at the window's top right.
@@ -1883,7 +2037,7 @@ pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
             ui,
             (px + pad, top, pw - 2.0 * pad, view - pad),
             tokens::GAP,
-            ACCENT,
+            Role::Primary.paint(),
         );
     }
     ui.report_scroll_beside(
@@ -1908,7 +2062,12 @@ pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
         );
         let mut ghost = Frame { held: None, ..fr };
         chip(ui, &mut ghost, &cv, gx, gy, fit, false);
-        edge(ui, (gx, gy, fit.w, fit.h), tokens::BOARD_CHIP / 2.0, ACCENT);
+        edge(
+            ui,
+            (gx, gy, fit.w, fit.h),
+            tokens::BOARD_CHIP / 2.0,
+            Role::Primary.paint(),
+        );
     }
 }
 

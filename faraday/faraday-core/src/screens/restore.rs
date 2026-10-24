@@ -168,9 +168,9 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             if !r.described {
                 let label = EN.restore_have_description;
                 if ui.compact {
-                    cy += ui.wrap(x, cy, w, 13.0, W::S, TEXT, label) + 8.0;
+                    cy += ui.wrap(x, cy, w, 13.0, W::S, Role::OnSurface, label) + 8.0;
                 } else {
-                    ui.text_mid(x, cy, 40.0, 13.0, W::S, TEXT, label);
+                    ui.text_mid(x, cy, 40.0, 13.0, W::S, Role::OnSurface, label);
                 }
                 let mut items: Vec<(&str, Style, Action)> =
                     vec![(EN.restore_scan_button, Style::Secondary, Action::Scan)];
@@ -184,7 +184,7 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     cy += wrap_buttons(ui, x + lw, cy, w - lw, 40.0, &items);
                 }
                 cy += 8.0;
-                ui.rule(x, cy, w, BORDER);
+                ui.rule(x, cy, w, Role::OutlineVariant);
                 cy += 14.0;
             }
             cy += kind_rows(
@@ -248,7 +248,14 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     Some((EN.restore_it_matches, Action::RNext(n))),
                 );
             } else {
-                ui.text(x, cy, 13.0, W::R, DIM, EN.restore_make_the_wallet);
+                ui.text(
+                    x,
+                    cy,
+                    13.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    EN.restore_make_the_wallet,
+                );
                 cy += 30.0;
             }
         }
@@ -323,13 +330,20 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .map(|(k, i)| (k, i.name.as_str()))
         .collect();
     if !shares.is_empty() {
-        ui.text(x, cy, 12.0, W::R, MUTED, EN.restore_description_shares);
+        ui.text(
+            x,
+            cy,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.restore_description_shares,
+        );
         cy += 22.0;
         for (k, name) in &shares {
             let on = r.shares.iter().any(|s| s == name);
             ui.checkbox(x, cy + 8.0, on, true);
             let name = ui.fit(13.0, W::M, name, w - 30.0);
-            ui.text_mid(x + 30.0, cy, 34.0, 13.0, W::M, TEXT, &name);
+            ui.text_mid(x + 30.0, cy, 34.0, 13.0, W::M, Role::OnSurface, &name);
             ui.hit(x, cy, w, 34.0, Action::RShare(*k));
             cy += 38.0;
         }
@@ -351,7 +365,11 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                         w,
                         13.0,
                         W::M,
-                        if m.whole.is_some() { OK } else { WARN },
+                        if m.whole.is_some() {
+                            Role::Ok
+                        } else {
+                            Role::Warning
+                        },
                         &line,
                     ) + 10.0;
                     let style = if m.whole.is_some() {
@@ -371,13 +389,13 @@ fn restore_description(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     cy += 48.0;
                 }
                 Err(e) => {
-                    cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, &e) + 10.0;
+                    cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, &e) + 10.0;
                 }
             }
         }
     }
     if let Some(e) = &r.error {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 6.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 6.0;
     }
     cy - y
 }
@@ -399,8 +417,16 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut open_drawn = false;
     // One row: the slot's number, its fingerprint, what fills it.
     let row = |ui: &mut Ui, cy: f32, k: usize, fp: &str, line: &str, color| {
-        ui.text_mid(x, cy, 40.0, 12.0, W::R, DIM, &(k + 1).to_string());
-        ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, TEXT, fp);
+        ui.text_mid(
+            x,
+            cy,
+            40.0,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &(k + 1).to_string(),
+        );
+        ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, Role::OnSurface, fp);
         let line = ui.fit(13.0, W::R, line, w - 124.0);
         ui.text_mid(x + 124.0, cy, 40.0, 13.0, W::R, color, &line);
     };
@@ -418,11 +444,18 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     k,
                     &fp,
                     &fill(EN.restore_seeds_key_number, &[&(k + 1).to_string()]),
-                    OK,
+                    Role::Ok,
                 );
                 cy += 42.0;
             } else if absent {
-                row(ui, cy, k, &fp, EN.restore_seeds_not_here, DIM);
+                row(
+                    ui,
+                    cy,
+                    k,
+                    &fp,
+                    EN.restore_seeds_not_here,
+                    Role::OnSurfaceVariant,
+                );
                 let cw = ui.measure(13.0, W::S, EN.restore_seeds_change) + 32.0;
                 ui.button(
                     x + w - cw,
@@ -439,10 +472,24 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 open_drawn = true;
                 let extra = multi.then_some((EN.restore_seeds_not_here, Action::RAbsent(k as u8)));
                 cy += restore_open_slot(app, ui, r, &here, extra, x, cy, w);
-                row(ui, cy, k, &fp, EN.restore_seeds_empty, DIM);
+                row(
+                    ui,
+                    cy,
+                    k,
+                    &fp,
+                    EN.restore_seeds_empty,
+                    Role::OnSurfaceVariant,
+                );
                 cy += 42.0;
             } else {
-                row(ui, cy, k, &fp, EN.restore_seeds_empty, DIM);
+                row(
+                    ui,
+                    cy,
+                    k,
+                    &fp,
+                    EN.restore_seeds_empty,
+                    Role::OnSurfaceVariant,
+                );
                 if multi {
                     let nw = ui.measure(13.0, W::S, EN.restore_seeds_not_here) + 32.0;
                     ui.button(
@@ -457,7 +504,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 }
                 cy += 42.0;
             }
-            ui.rule(x, cy, w, BORDER);
+            ui.rule(x, cy, w, Role::OutlineVariant);
             cy += 8.0;
         }
     } else {
@@ -470,9 +517,9 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             } else {
                 fill(EN.restore_seeds_here_n, &[label])
             };
-            row(ui, cy, k, &fp_text(f), &line, OK);
+            row(ui, cy, k, &fp_text(f), &line, Role::Ok);
             cy += 42.0;
-            ui.rule(x, cy, w, BORDER);
+            ui.rule(x, cy, w, Role::OutlineVariant);
             cy += 8.0;
         }
         for (k, text) in s.cosigners.iter().enumerate() {
@@ -487,10 +534,24 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     Action::Seeds(S::Open(Focus::Cosigner(k as u8))),
                 ));
                 cy += restore_open_slot(app, ui, r, &here, extra, x, cy, w);
-                row(ui, cy, slot, "", EN.restore_seeds_empty, DIM);
+                row(
+                    ui,
+                    cy,
+                    slot,
+                    "",
+                    EN.restore_seeds_empty,
+                    Role::OnSurfaceVariant,
+                );
                 cy += 42.0;
             } else {
-                row(ui, cy, slot, "", EN.restore_seeds_empty, DIM);
+                row(
+                    ui,
+                    cy,
+                    slot,
+                    "",
+                    EN.restore_seeds_empty,
+                    Role::OnSurfaceVariant,
+                );
                 if multi {
                     let label = EN.restore_seeds_its_xpub;
                     let nw = ui.measure(13.0, W::S, label) + 32.0;
@@ -506,14 +567,14 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 }
                 cy += 42.0;
             }
-            ui.rule(x, cy, w, BORDER);
+            ui.rule(x, cy, w, Role::OutlineVariant);
             cy += 8.0;
         }
     }
     // The open slot says why its seed was refused; with none open, here.
     let error = if open_drawn { None } else { r.error.as_ref() };
     if let Some(e) = error.or(s.error.as_ref()) {
-        cy += ui.wrap(x, cy, w, 13.0, W::S, ERR, e) + 8.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Error, e) + 8.0;
     }
     let (filled, all) = restore_filled(app);
     let ready = filled >= all && (r.described || app.seeds_descriptor(s).is_ok());
@@ -550,7 +611,7 @@ fn restore_open_slot(
 ) -> f32 {
     let mut cy = y;
     if let Some(e) = &r.error {
-        cy += ui.wrap(x, cy, w, 13.0, W::S, ERR, e) + 10.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Error, e) + 10.0;
     }
     let mut labels: Vec<(String, Style, Action)> = vec![
         (
@@ -579,6 +640,7 @@ fn restore_open_slot(
 /// Where a wallet's description comes back from besides the camera and
 /// Files: the files of a stick, or a vault.
 fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let muted = Role::OnSurfaceVariant;
     use crate::vault::VaultAction as V;
     use faraday_vault::records::{field, kind};
     if ui.compact {
@@ -587,7 +649,7 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // A stick.
     let stick = !app.stick.is_empty() && !app.holds_secret();
-    ui.text_mid(x, cy, 40.0, 13.0, W::S, MUTED, app.medium.cap());
+    ui.text_mid(x, cy, 40.0, 13.0, W::S, muted, app.medium.cap());
     let bw = ui.button(
         x + 90.0,
         cy,
@@ -608,7 +670,7 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             40.0,
             13.0,
             W::R,
-            DIM,
+            muted,
             &if app.holds_secret() {
                 EN.restore_sources_key_loaded.to_string()
             } else {
@@ -618,7 +680,7 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     cy += 48.0;
     // A vault: locked in Files, or open.
-    ui.text_mid(x, cy, 40.0, 13.0, W::S, MUTED, EN.restore_sources_vault);
+    ui.text_mid(x, cy, 40.0, 13.0, W::S, muted, EN.restore_sources_vault);
     let files = app.vault_files();
     let mut bx = x + 90.0;
     let mut any = false;
@@ -662,12 +724,12 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             40.0,
             13.0,
             W::R,
-            DIM,
+            muted,
             &fill(EN.restore_sources_copy, &[app.medium.noun()]),
         );
     }
     cy += 48.0;
-    ui.rule(x, cy - 6.0, w, BORDER);
+    ui.rule(x, cy - 6.0, w, Role::OutlineVariant);
     cy += 10.0;
     cy - y
 }
@@ -680,7 +742,7 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
     let mut cy = y;
     // A stick.
     let stick = !app.stick.is_empty() && !app.holds_secret();
-    ui.text(x, cy, 13.0, W::S, MUTED, app.medium.cap());
+    ui.text(x, cy, 13.0, W::S, Role::OnSurfaceVariant, app.medium.cap());
     cy += 22.0;
     cy += wrap_buttons(
         ui,
@@ -704,11 +766,18 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         } else {
             fill(EN.restore_sources_insert, &[app.medium.noun()])
         };
-        cy += ui.wrap(x, cy, w, 13.0, W::R, DIM, &why) + 8.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::OnSurfaceVariant, &why) + 8.0;
     }
     cy += 8.0;
     // A vault: locked in Files, or open.
-    ui.text(x, cy, 13.0, W::S, MUTED, EN.restore_sources_vault);
+    ui.text(
+        x,
+        cy,
+        13.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        EN.restore_sources_vault,
+    );
     cy += 22.0;
     let files = app.vault_files();
     let mut labels: Vec<(String, Action)> = files
@@ -737,7 +806,7 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
             w,
             13.0,
             W::R,
-            DIM,
+            Role::OnSurfaceVariant,
             &fill(EN.restore_sources_copy, &[app.medium.noun()]),
         ) + 8.0;
     } else {
@@ -748,7 +817,7 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
     }
     cy += 8.0;
-    ui.rule(x, cy - 6.0, w, BORDER);
+    ui.rule(x, cy - 6.0, w, Role::OutlineVariant);
     cy += 10.0;
     cy - y
 }

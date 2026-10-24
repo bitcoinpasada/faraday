@@ -453,7 +453,7 @@ fn a_found_address_records_where_the_match_lies() {
 /// accent (the default scheme's primary) that `baseline` does not have,
 /// as (first, last), or none.
 fn accent_columns(frame: &[u8], baseline: &[u8], width: usize) -> Option<(usize, usize)> {
-    let accent = faraday_core::ui::Theme::default().color(faraday_core::ui::pal::ACCENT);
+    let accent = faraday_core::ui::Theme::default().color(faraday_core::ui::pal::Role::Primary);
     let near = |p: &[u8]| {
         let d = |a: u8, b: u8| u32::from(a.abs_diff(b));
         d(p[0], accent.r) + d(p[1], accent.g) + d(p[2], accent.b) <= 24

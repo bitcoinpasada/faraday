@@ -322,24 +322,43 @@ fn tiles(app: &View, ui: &mut Ui, (x, y): (f32, f32), width: f32, gap: f32) {
         let tx = x + (i % cols) as f32 * (tilew + gap);
         let ty = y + (i / cols) as f32 * (tile_h + gap);
         let pressed = ui.is_pressed(*action);
-        ui.fill(
-            tx,
-            ty,
-            tilew,
-            tile_h,
-            12.0,
-            if pressed { INNER } else { SURFACE },
+        crate::ui::fill_pressed(
+            ui,
+            (tx, ty, tilew, tile_h, 12.0),
+            Role::SurfaceContainerLow,
+            pressed,
         );
-        ui.stroke(tx, ty, tilew, tile_h, 12.0, BORDER);
+        ui.stroke(tx, ty, tilew, tile_h, 12.0, Role::OutlineVariant);
         let (ix, ib) = (HOME_TILE_INSET, HOME_TILE_ICON);
         let iy = (tile_h - ib) / 2.0;
-        ui.fill(tx + ix, ty + iy, ib, ib, 10.0, ACCENT.with_alpha(26));
-        ui.icon(tx + ix, ty + iy, ib, *icon, 17.0, ACCENT);
+        ui.fill(tx + ix, ty + iy, ib, ib, 10.0, Role::SecondaryContainer);
+        ui.icon(
+            tx + ix,
+            ty + iy,
+            ib,
+            *icon,
+            17.0,
+            Role::OnSecondaryContainer,
+        );
         let room = tilew - HOME_TILE_TEXT_X - ix - ix;
         let label = ui.fit(15.0, W::S, label, room);
-        ui.text(tx + HOME_TILE_TEXT_X, ty + 20.0, 15.0, W::S, TEXT, &label);
+        ui.text(
+            tx + HOME_TILE_TEXT_X,
+            ty + 20.0,
+            15.0,
+            W::S,
+            Role::OnSurface,
+            &label,
+        );
         let sub = ui.fit(13.0, W::R, sub, room);
-        ui.text(tx + HOME_TILE_TEXT_X, ty + 46.0, 13.0, W::R, MUTED, &sub);
+        ui.text(
+            tx + HOME_TILE_TEXT_X,
+            ty + 46.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &sub,
+        );
         ui.hit(tx, ty, tilew, tile_h, *action);
     }
 }
@@ -352,9 +371,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 64.0;
     // The system gave no randomness: nothing seals until a restart.
     if app.seed_missing() {
-        ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Error, 14.0, ERR);
+        ui.icon(x - 4.0, y - 6.0, 28.0, Icon::Error, 14.0, Role::Error);
         let line = ui.fit(14.0, W::S, EN.seed_missing, width - 28.0);
-        ui.text(x + 26.0, y, 14.0, W::S, ERR, &line);
+        ui.text(x + 26.0, y, 14.0, W::S, Role::Error, &line);
         y += 36.0;
     }
     section_label(ui, x, y, EN.home_start);
@@ -367,13 +386,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let lead_h = 96.0;
         let lead_w = width.min(LEAD_MAX);
         let pressed = enabled && ui.is_pressed(action);
-        ui.fill(
-            x,
-            y,
-            lead_w,
-            lead_h,
-            14.0,
-            if pressed { INNER } else { SURFACE },
+        crate::ui::fill_pressed(
+            ui,
+            (x, y, lead_w, lead_h, 14.0),
+            Role::SurfaceContainerLow,
+            pressed,
         );
         ui.stroke(
             x,
@@ -382,20 +399,26 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             lead_h,
             14.0,
             if enabled {
-                BORDER
+                Role::OutlineVariant.paint()
             } else {
-                WARN.with_alpha(110)
+                Role::Warning.with_alpha(110)
             },
         );
         let (ibg, ifg) = if enabled {
-            (ACCENT.with_alpha(26), ACCENT)
+            (
+                Role::SecondaryContainer.paint(),
+                Role::OnSecondaryContainer.paint(),
+            )
         } else {
-            (INNER, DIM)
+            (
+                Role::SurfaceContainerHighest.paint(),
+                Role::OnSurfaceVariant.paint(),
+            )
         };
         ui.fill(x + 20.0, y + 24.0, 48.0, 48.0, 12.0, ibg);
         ui.icon(x + 20.0, y + 24.0, 48.0, icon, 20.0, ifg);
         let label = ui.fit(19.0, W::S, &label, lead_w - 184.0);
-        ui.text(x + 86.0, y + 22.0, 19.0, W::S, TEXT, &label);
+        ui.text(x + 86.0, y + 22.0, 19.0, W::S, Role::OnSurface, &label);
         if !sub.is_empty() {
             let sub = ui.fit(14.0, W::R, &sub, lead_w - 184.0);
             ui.text(
@@ -403,7 +426,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 y + 54.0,
                 14.0,
                 W::R,
-                if enabled { MUTED } else { WARN },
+                if enabled {
+                    Role::OnSurfaceVariant
+                } else {
+                    Role::Warning
+                },
                 &sub,
             );
         }

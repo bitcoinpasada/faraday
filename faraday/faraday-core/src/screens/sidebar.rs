@@ -46,7 +46,7 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     let action = Action::Resume(r.going);
     let (x, w) = (46.0, SIDEBAR_W - 58.0);
     if lit || ui.is_pressed(action) {
-        ui.fill(x, y, w, FLOW_ROW, 6.0, ACCENT.with_alpha(30));
+        ui.fill(x, y, w, FLOW_ROW, 6.0, Role::Primary.with_alpha(30));
     }
     let (tx, right) = (54.0, SIDEBAR_W - 24.0);
     let room = right - tx;
@@ -56,16 +56,28 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     let step = ui.fit(11.0, W::R, &r.step, room - nw - 8.0);
     let sw = ui.measure(11.0, W::R, &step);
     let name = ui.fit(12.0, W::S, &r.name, room - sw - 8.0);
-    let fg = if lit { TEXT } else { MUTED };
+    let fg = if lit {
+        Role::OnSurface
+    } else {
+        Role::OnSurfaceVariant
+    };
     ui.text_mid(tx, y, FLOW_ROW, 12.0, W::S, fg, &name);
-    ui.text_right(right, y, FLOW_ROW, 11.0, W::R, MUTED, &step);
+    ui.text_right(
+        right,
+        y,
+        FLOW_ROW,
+        11.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        &step,
+    );
     ui.hit(x, y, w, FLOW_ROW, action);
 }
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
-    ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, SIDEBAR);
-    ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, LINE);
+    ui.fill(0.0, 0.0, SIDEBAR_W, h, 0.0, Role::SurfaceContainerLow);
+    ui.fill(SIDEBAR_W - 1.0, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
     ui.mark(22.0, 20.0, 28.0, 32.0);
     // The name centred on the mark, its capitals 10 tall; with its word
     // 9 tall, which keeps it inside the sidebar (at 10 it reaches the edge).
@@ -75,7 +87,13 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     } else {
         9.0
     };
-    ui.wordmark_named(58.0, 31.0 + (10.0 - cap) / 2.0, cap, TEXT, suffix);
+    ui.wordmark_named(
+        58.0,
+        31.0 + (10.0 - cap) / 2.0,
+        cap,
+        Role::OnSurface,
+        suffix,
+    );
 
     // The places that are always offered, in order; Learn (not a place,
     // a sheet) is drawn between Tools and whatever comes after it.
@@ -175,7 +193,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     let gap = if groups > 0 { 8.0 } else { 0.0 };
     let block = groups as f32 * HEAD + (cap_s + cap_w) as f32 * ROW + gap;
     let mut fy = foot - block;
-    ui.rule(12.0, fy, SIDEBAR_W - 24.0, LINE);
+    ui.rule(12.0, fy, SIDEBAR_W - 24.0, Role::OutlineVariant);
     fy += 16.0;
     // The session strip, in the dot line's old place and height: the
     // four stages of the lock cycle, the one now current in the accent,
@@ -191,7 +209,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
                 SIDEBAR_W - 32.0,
                 28.0,
                 6.0,
-                ACCENT.with_alpha(30),
+                Role::Primary.with_alpha(30),
             );
         }
         let mut sx = 24.0;
@@ -205,9 +223,13 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         .enumerate()
         {
             if i > 0 {
-                sx += ui.text_mid(sx, fy, 20.0, 11.0, W::R, DIM, " · ");
+                sx += ui.text_mid(sx, fy, 20.0, 11.0, W::R, Role::OnSurfaceVariant, " · ");
             }
-            let fg = if label == stage { ACCENT } else { DIM };
+            let fg = if label == stage {
+                Role::Primary
+            } else {
+                Role::OnSurfaceVariant
+            };
             sx += ui.text_mid(sx, fy, 20.0, 11.0, W::S, fg, label);
         }
         ui.hit(16.0, fy - 4.0, SIDEBAR_W - 32.0, 28.0, open_files);
@@ -228,14 +250,14 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         if total == 0 {
             return;
         }
-        ui.text_mid(28.0, *fy, HEAD, 12.0, W::S, MUTED, title);
+        ui.text_mid(28.0, *fy, HEAD, 12.0, W::S, Role::OnSurfaceVariant, title);
         ui.text_right(
             SIDEBAR_W - 24.0,
             *fy,
             HEAD,
             12.0,
             W::S,
-            MUTED,
+            Role::OnSurfaceVariant,
             &total.to_string(),
         );
         *fy += HEAD;
@@ -246,7 +268,14 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         };
         for (head, tail, mono, action, mark, pass) in rows.take(shown) {
             if ui.is_pressed(action) {
-                ui.fill(16.0, *fy, SIDEBAR_W - 32.0, ROW, 6.0, ACCENT.with_alpha(30));
+                ui.fill(
+                    16.0,
+                    *fy,
+                    SIDEBAR_W - 32.0,
+                    ROW,
+                    6.0,
+                    Role::Primary.with_alpha(30),
+                );
             }
             // A wallet's dot: green when the seeds here sign for it alone,
             // grey when some of them are here.
@@ -255,20 +284,28 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             }
             let face = if mono { W::M } else { W::S };
             let head = ui.fit(12.0, face, &head, rows_w * 0.55);
-            let hw = ui.text_mid(28.0, *fy, ROW, 12.0, face, TEXT, &head);
+            let hw = ui.text_mid(28.0, *fy, ROW, 12.0, face, Role::OnSurface, &head);
             // A key loaded with a passphrase says so at the row's end:
             // the same words without it are another key.
             let tag_w = if pass {
                 let t = EN.sidebar_passphrase;
-                ui.text_right(SIDEBAR_W - 24.0, *fy, ROW, 11.0, W::R, DIM, t);
+                ui.text_right(
+                    SIDEBAR_W - 24.0,
+                    *fy,
+                    ROW,
+                    11.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    t,
+                );
                 ui.measure(11.0, W::R, t) + 8.0
             } else {
                 0.0
             };
             if !tail.is_empty() {
                 let tone = match mark {
-                    Some(c) if c == OK => OK,
-                    _ => MUTED,
+                    Some(c) if c == Role::Ok.paint() => Role::Ok,
+                    _ => Role::OnSurfaceVariant,
                 };
                 let tail = ui.fit(12.0, W::R, &tail, rows_w - hw - 8.0 - tag_w);
                 ui.text_mid(36.0 + hw, *fy, ROW, 12.0, W::R, tone, &tail);
@@ -279,9 +316,16 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         if total > cap && cap > 0 {
             let line = fill(EN.sidebar_more, &[&(total - shown).to_string()]);
             if ui.is_pressed(more) {
-                ui.fill(16.0, *fy, SIDEBAR_W - 32.0, ROW, 6.0, ACCENT.with_alpha(30));
+                ui.fill(
+                    16.0,
+                    *fy,
+                    SIDEBAR_W - 32.0,
+                    ROW,
+                    6.0,
+                    Role::Primary.with_alpha(30),
+                );
             }
-            ui.text_mid(28.0, *fy, ROW, 12.0, W::S, ACCENT, &line);
+            ui.text_mid(28.0, *fy, ROW, 12.0, W::S, Role::Primary, &line);
             ui.hit(16.0, *fy, SIDEBAR_W - 32.0, ROW, more);
             *fy += ROW;
         }
@@ -332,8 +376,8 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             EN.sidebar_single_key.to_string()
         };
         let mark = match ready {
-            2 => Some(OK),
-            1 => Some(DIM),
+            2 => Some(Role::Ok.paint()),
+            1 => Some(Role::OnSurfaceVariant.paint()),
             _ => None,
         };
         (
@@ -363,12 +407,35 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             SIDEBAR_W - 32.0,
             28.0,
             6.0,
-            ACCENT.with_alpha(30),
+            Role::Primary.with_alpha(30),
         );
     }
-    ui.icon(22.0, fy, 20.0, Glyph::Icon(Icon::File), 12.0, MUTED);
-    ui.text_mid(46.0, fy, 20.0, 12.0, W::R, MUTED, EN.sidebar_files);
-    ui.text_right(SIDEBAR_W - 24.0, fy, 20.0, 12.0, W::R, TEXT, &files);
+    ui.icon(
+        22.0,
+        fy,
+        20.0,
+        Glyph::Icon(Icon::File),
+        12.0,
+        Role::OnSurfaceVariant,
+    );
+    ui.text_mid(
+        46.0,
+        fy,
+        20.0,
+        12.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.sidebar_files,
+    );
+    ui.text_right(
+        SIDEBAR_W - 24.0,
+        fy,
+        20.0,
+        12.0,
+        W::R,
+        Role::OnSurface,
+        &files,
+    );
     ui.hit(
         16.0,
         fy - 4.0,
@@ -393,11 +460,26 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             SIDEBAR_W - 32.0,
             28.0,
             6.0,
-            ACCENT.with_alpha(30),
+            Role::Primary.with_alpha(30),
         );
     }
-    ui.icon(22.0, fy, 20.0, app.medium.icon(), 12.0, MUTED);
-    ui.text_mid(46.0, fy, 20.0, 12.0, W::R, MUTED, app.medium.caps());
+    ui.icon(
+        22.0,
+        fy,
+        20.0,
+        app.medium.icon(),
+        12.0,
+        Role::OnSurfaceVariant,
+    );
+    ui.text_mid(
+        46.0,
+        fy,
+        20.0,
+        12.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        app.medium.caps(),
+    );
     let sticks = ui.fit(12.0, W::R, &sticks, 110.0);
     ui.text_right(
         SIDEBAR_W - 24.0,
@@ -405,7 +487,11 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         20.0,
         12.0,
         W::R,
-        if waiting { ACCENT } else { TEXT },
+        if waiting {
+            Role::Primary
+        } else {
+            Role::OnSurface
+        },
         &sticks,
     );
     if waiting {
@@ -431,10 +517,24 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     }
     let px = SIDEBAR_W - 16.0 - 36.0;
     if ui.is_pressed(Action::PowerAsk) {
-        ui.fill(px, fy, 36.0, 36.0, 8.0, INNER);
+        ui.wash(
+            px,
+            fy,
+            36.0,
+            36.0,
+            8.0,
+            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+        );
     }
-    ui.stroke(px, fy, 36.0, 36.0, 8.0, BORDER);
-    ui.icon(px, fy, 36.0, Glyph::Icon(Icon::Power), 14.0, MUTED);
+    ui.stroke(px, fy, 36.0, 36.0, 8.0, Role::OutlineVariant);
+    ui.icon(
+        px,
+        fy,
+        36.0,
+        Glyph::Icon(Icon::Power),
+        14.0,
+        Role::OnSurfaceVariant,
+    );
     ui.hit(px, fy, 36.0, 36.0, Action::PowerAsk);
     if held {
         lock_held_pill(ui, 16.0, fy + 44.0, SIDEBAR_W - 32.0);
@@ -451,8 +551,8 @@ pub(crate) fn lock_held_pill(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let text = ui.fit(size, W::R, EN.lock_held_pill, w - 2.0 * pad);
     let pw = (ui.measure(size, W::R, &text) + 2.0 * pad).min(w);
     let r = LOCK_PILL_H / 2.0;
-    ui.fill(x, y, pw, LOCK_PILL_H, r, SURFACE);
-    ui.stroke(x, y, pw, LOCK_PILL_H, r, ACCENT);
-    ui.text_mid(x + pad, y, LOCK_PILL_H, size, W::R, ACCENT, &text);
+    ui.fill(x, y, pw, LOCK_PILL_H, r, Role::SurfaceContainerLow);
+    ui.stroke(x, y, pw, LOCK_PILL_H, r, Role::Primary);
+    ui.text_mid(x + pad, y, LOCK_PILL_H, size, W::R, Role::Primary, &text);
     LOCK_PILL_H
 }

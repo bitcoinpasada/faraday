@@ -44,18 +44,28 @@ pub(crate) fn row(
     let lines = ui.wrap_lines(14.0, W::S, label, room);
     let line_h = ui.line(14.0, W::S);
     let h = 56.0 + (lines - 1) as f32 * line_h;
-    ui.fill(x, y, w, h, 10.0, if pressed { INNER } else { SURFACE });
-    ui.stroke(x, y, w, h, 10.0, BORDER);
+    crate::ui::fill_pressed(ui, (x, y, w, h, 10.0), Role::SurfaceContainerLow, pressed);
+    ui.stroke(x, y, w, h, 10.0, Role::OutlineVariant.paint());
     if let Some(i) = icon {
         let (bg, fg) = if enabled {
-            (ACCENT.with_alpha(26), ACCENT)
+            (
+                Role::SecondaryContainer.paint(),
+                Role::OnSecondaryContainer.paint(),
+            )
         } else {
-            (INNER, DIM)
+            (
+                Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTAINER),
+                crate::ui::off(),
+            )
         };
         ui.fill(x + 10.0, y + 12.0, 32.0, 32.0, 8.0, bg);
         ui.icon(x + 10.0, y + 12.0, 32.0, i, 14.0, fg);
     }
-    let label_color = if enabled { TEXT } else { DIM };
+    let label_color = if enabled {
+        Role::OnSurface.paint()
+    } else {
+        crate::ui::off()
+    };
     let sub_y = if lines > 1 {
         ui.wrap(tx, y + 9.0, room, 14.0, W::S, label_color, label);
         y + 9.0 + lines as f32 * line_h
@@ -69,7 +79,14 @@ pub(crate) fn row(
         ui.text(tx, sub_y, 12.0, W::R, sub_tone, &sub);
     }
     if let Some(a) = action {
-        ui.icon(x + w - 24.0, y + 18.0, 20.0, Icon::ChevronRight, 9.0, DIM);
+        ui.icon(
+            x + w - 24.0,
+            y + 18.0,
+            20.0,
+            Icon::ChevronRight,
+            9.0,
+            Role::OnSurfaceVariant,
+        );
         ui.hit(x, y, w, h, a);
     }
     h + 8.0
@@ -87,7 +104,7 @@ pub(crate) fn stack(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, Style, 
 
 /// A section's heading. Returns its height.
 pub(crate) fn heading(ui: &mut Ui, x: f32, y: f32, s: &str) -> f32 {
-    ui.text(x, y, 13.0, W::S, MUTED, s);
+    ui.text(x, y, 13.0, W::S, Role::OnSurfaceVariant, s);
     24.0
 }
 
@@ -101,7 +118,14 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let mut cy = top + 12.0;
     let Some(wlt) = app.session.wallets.get(app.wallets.wallet()) else {
         if app.session.loose_keys().is_empty() {
-            ui.text(x, cy, 14.0, W::R, MUTED, EN.compact_no_wallet_loaded);
+            ui.text(
+                x,
+                cy,
+                14.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                EN.compact_no_wallet_loaded,
+            );
         } else {
             cy += crate::screens::loose_card(app, ui, x, cy, iw);
             finish(app, ui, x0, cw, h, cy - top + 8.0);
@@ -135,22 +159,22 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     if let Some((line, action)) = lead {
         let bg = if ui.is_pressed(action) {
-            ACCENT.with_alpha(40)
+            Role::Primary.with_alpha(40)
         } else {
-            ACCENT.with_alpha(18)
+            Role::Primary.with_alpha(18)
         };
         ui.fill(x, cy, iw, 44.0, 10.0, bg);
-        ui.stroke(x, cy, iw, 44.0, 10.0, ACCENT.with_alpha(76));
-        ui.icon(x + 10.0, cy + 12.0, 20.0, Icon::File, 12.0, ACCENT);
+        ui.stroke(x, cy, iw, 44.0, 10.0, Role::Primary.with_alpha(76));
+        ui.icon(x + 10.0, cy + 12.0, 20.0, Icon::File, 12.0, Role::Primary);
         let line = ui.fit(13.0, W::S, &line, iw - 64.0);
-        ui.text_mid(x + 36.0, cy, 44.0, 13.0, W::S, TEXT, &line);
+        ui.text_mid(x + 36.0, cy, 44.0, 13.0, W::S, Role::OnSurface, &line);
         ui.icon(
             x + iw - 24.0,
             cy + 12.0,
             20.0,
             Icon::ChevronRight,
             9.0,
-            ACCENT,
+            Role::Primary,
         );
         ui.hit(x, cy, iw, 44.0, action);
         cy += 56.0;
@@ -159,15 +183,15 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Its name, which can be changed.
     match app.wallets.renaming() {
         Some(name) => {
-            ui.fill(x, cy, iw, 44.0, 8.0, BG);
-            ui.stroke(x, cy, iw, 44.0, 8.0, ACCENT.with_alpha(110));
+            ui.fill(x, cy, iw, 44.0, 8.0, Role::SurfaceContainerHighest);
+            ui.stroke(x, cy, iw, 44.0, 8.0, Role::Primary.with_alpha(110));
             ui.typed(
                 x + 10.0,
                 cy,
                 44.0,
                 16.0,
                 W::S,
-                TEXT,
+                Role::OnSurface,
                 name,
                 iw - 24.0,
                 true,
@@ -178,7 +202,15 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         }
         None => {
             let rw = ui.measure(13.0, W::S, EN.compact_rename) + 24.0;
-            let name_h = ui.wrap(x, cy + 4.0, iw - rw - 8.0, 18.0, W::S, TEXT, &wlt.name);
+            let name_h = ui.wrap(
+                x,
+                cy + 4.0,
+                iw - rw - 8.0,
+                18.0,
+                W::S,
+                Role::OnSurface,
+                &wlt.name,
+            );
             ui.button(
                 x + iw - rw,
                 cy,
@@ -196,7 +228,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Session::shape(wlt),
         crate::wallet::source_tag(&wlt.source, wlt.origin, false)
     );
-    cy += ui.wrap(x, cy, iw, 12.0, W::R, MUTED, &line) + 8.0;
+    cy += ui.wrap(x, cy, iw, 12.0, W::R, Role::OnSurfaceVariant, &line) + 8.0;
     // Where its backup is (§5.2): a press opens Backups on it.
     cy += crate::screens::backup_line(app, ui, x, cy, iw, app.wallets.wallet());
 
@@ -213,22 +245,30 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // (`docs/history/SCAN-TO-SIGN.md` §2.2).
     let can = app.can_spend(app.wallets.wallet());
     let box_h = if can { 76.0 } else { 90.0 };
-    ui.fill(x, cy, iw, box_h, 10.0, BG);
-    ui.stroke(x, cy, iw, box_h, 10.0, BORDER);
+    ui.fill(x, cy, iw, box_h, 10.0, Role::SurfaceContainerHighest);
+    ui.stroke(x, cy, iw, box_h, 10.0, Role::OutlineVariant);
     let pw = ui.pips(x + 14.0, cy + 16.0, m, here);
     let sigs = fill(
         EN.compact_of_signatures,
         &[&here.to_string(), &m.to_string()],
     );
     let sigs = ui.fit(14.0, W::S, &sigs, iw - pw - 40.0);
-    ui.text_mid(x + 26.0 + pw, cy + 4.0, 32.0, 14.0, W::S, TEXT, &sigs);
+    ui.text_mid(
+        x + 26.0 + pw,
+        cy + 4.0,
+        32.0,
+        14.0,
+        W::S,
+        Role::OnSurface,
+        &sigs,
+    );
     if can {
         ui.chip(
             x + 14.0,
             cy + 38.0,
             EN.compact_can_spend,
-            OK,
-            OK.with_alpha(30),
+            Role::OnOkContainer,
+            Role::OkContainer,
         );
     } else {
         ui.button(
@@ -291,7 +331,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             None,
             EN.compact_at_a_glance,
             &sub,
-            MUTED,
+            Role::OnSurfaceVariant.paint(),
             Some(Action::Glance(true)),
         );
     }
@@ -303,7 +343,15 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     cy += 10.0;
     cy += heading(ui, x, cy, EN.compact_first_receive);
     let (addr, held) = app.receive_line(wlt, false, 0);
-    cy += ui.wrap(x, cy, iw, 14.0, W::M, if held { WARN } else { TEXT }, &addr) + 18.0;
+    cy += ui.wrap(
+        x,
+        cy,
+        iw,
+        14.0,
+        W::M,
+        if held { Role::Warning } else { Role::OnSurface },
+        &addr,
+    ) + 18.0;
 
     // What else can be done with it.
     let mut buttons = vec![
@@ -366,18 +414,30 @@ fn silent_card(
     let mut cy = y;
     cy += heading(ui, x, cy, EN.compact_key);
     let held = app.session.keys.key_label(r.fingerprint);
-    ui.text_mid(x, cy, 30.0, 14.0, W::M, TEXT, &fp_text(r.fingerprint));
+    ui.text_mid(
+        x,
+        cy,
+        30.0,
+        14.0,
+        W::M,
+        Role::OnSurface,
+        &fp_text(r.fingerprint),
+    );
     let (state, fg, bg) = if held.is_some() {
-        (EN.compact_here, OK, OK.with_alpha(30))
+        (EN.compact_here, Role::OnOkContainer, Role::OkContainer)
     } else {
-        (EN.compact_not_here, MUTED, INNER)
+        (
+            EN.compact_not_here,
+            Role::OnSurfaceVariant,
+            Role::SurfaceContainerHighest,
+        )
     };
     let chipw = ui.measure(12.0, W::R, state) + 34.0;
     ui.chip(x + iw - chipw, cy + 3.0, state, fg, bg);
     cy += 30.0;
     if let Some(label) = held {
         if !label.trim().eq_ignore_ascii_case(&fp_text(r.fingerprint)) {
-            ui.text(x, cy, 12.0, W::R, MUTED, label);
+            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, label);
             cy += 20.0;
         }
     } else {
@@ -404,15 +464,22 @@ fn silent_card(
     }
     cy += 10.0;
     cy += heading(ui, x, cy, EN.compact_address);
-    cy += ui.wrap(x, cy, iw, 14.0, W::M, TEXT, &r.address()) + 14.0;
-    ui.text(x, cy, 13.0, W::S, MUTED, EN.compact_labels_handed);
+    cy += ui.wrap(x, cy, iw, 14.0, W::M, Role::OnSurface, &r.address()) + 14.0;
+    ui.text(
+        x,
+        cy,
+        13.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        EN.compact_labels_handed,
+    );
     ui.text_right(
         x + iw,
         cy - 6.0,
         28.0,
         13.0,
         W::M,
-        TEXT,
+        Role::OnSurface,
         &r.labels.to_string(),
     );
     cy += 32.0;
@@ -488,10 +555,21 @@ fn pass_field(
     (on, chip): (bool, Option<(Action, bool)>),
     action: Action,
 ) -> f32 {
-    ui.text(x, y, 12.0, W::R, MUTED, label);
+    ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, label);
     let fy = y + 18.0;
-    ui.fill(x, fy, w, 42.0, 8.0, BG);
-    ui.stroke(x, fy, w, 42.0, 8.0, if on { ACCENT } else { BORDER });
+    ui.fill(x, fy, w, 42.0, 8.0, Role::SurfaceContainerHighest);
+    ui.stroke(
+        x,
+        fy,
+        w,
+        42.0,
+        8.0,
+        if on {
+            Role::Primary
+        } else {
+            Role::OutlineVariant
+        },
+    );
     // The chip, drawn after, is pressed before the field.
     ui.hit(x, fy, w, T::TEXT_FIELD_TALL, action);
     if secret.is_empty() {
@@ -510,7 +588,7 @@ fn pass_field(
             42.0,
             14.0,
             W::M,
-            TEXT,
+            Role::OnSurface,
             &dots,
             w - 30.0,
             on,
@@ -542,7 +620,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     });
     if let Some(line) = wanted.or(for_wallet) {
         let line = ui.fit(13.0, W::S, &line, iw);
-        ui.text(x, y, 13.0, W::S, ACCENT, &line);
+        ui.text(x, y, 13.0, W::S, Role::Primary, &line);
         y += 22.0;
     }
     // The form's chips step aside while a codex32 correction or clash
@@ -687,7 +765,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
     };
     let taken: Vec<u16> = w.committed_indices().collect();
     let (status, tone) = match &app.entry.state().error {
-        Some(e) => (e.clone(), ERR),
+        Some(e) => (e.clone(), Role::Error.paint()),
         None => crate::screens::keyed_status(app, lang, &taken),
     };
     y = keyed_head(
@@ -741,14 +819,14 @@ pub(crate) fn keyed_head(
     let mut y = y;
     let prefix: String = w.prefix().iter().collect();
     // The word being typed.
-    ui.text(x, y, 12.0, W::R, MUTED, label);
+    ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, label);
     let off = (ui.measure(12.0, W::R, label) + 12.0).max(64.0);
     let shown = if prefix.is_empty() && !caret {
         "…".to_string()
     } else {
         prefix.clone()
     };
-    let pw = ui.text(x + off, y - 4.0, 18.0, W::M, ACCENT, &shown);
+    let pw = ui.text(x + off, y - 4.0, 18.0, W::M, Role::Primary, &shown);
     if let Some(labels) = chip {
         let lift = faraday_draw::tokens::KEYED_HEAD_LIFT;
         crate::samples::put::head_chip(ui, (x + off, y - lift, iw - off), labels);
@@ -784,7 +862,7 @@ pub(crate) fn keyed_taken(
     for k in 0..count {
         let cx = x + (k % cols) as f32 * (cellw + 6.0);
         let cy = y + (k / cols) as f32 * 32.0;
-        ui.fill(cx, cy, cellw, 28.0, 6.0, BG);
+        ui.fill(cx, cy, cellw, 28.0, 6.0, Role::SurfaceContainerHighest);
         ui.stroke(
             cx,
             cy,
@@ -792,12 +870,20 @@ pub(crate) fn keyed_taken(
             28.0,
             6.0,
             if k == taken.len() {
-                ACCENT.with_alpha(110)
+                Role::Primary.with_alpha(110)
             } else {
-                BORDER
+                Role::OutlineVariant.paint()
             },
         );
-        ui.text_mid(cx + 6.0, cy, 28.0, 10.0, W::R, DIM, &(k + 1).to_string());
+        ui.text_mid(
+            cx + 6.0,
+            cy,
+            28.0,
+            10.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &(k + 1).to_string(),
+        );
         if let Some(&i) = taken.get(k) {
             let word = if masked {
                 "••••••"
@@ -805,7 +891,7 @@ pub(crate) fn keyed_taken(
                 lang.word_display(i)
             };
             let t = ui.fit(12.0, W::M, word, cellw - 26.0);
-            ui.text_mid(cx + 22.0, cy, 28.0, 12.0, W::M, TEXT, &t);
+            ui.text_mid(cx + 22.0, cy, 28.0, 12.0, W::M, Role::OnSurface, &t);
         }
     }
     let rows_h = count.div_ceil(cols) as f32 * 32.0;
@@ -847,7 +933,7 @@ pub(crate) fn entry_form(
         }
     }
     if let Some(e) = &app.entry.state().error {
-        y += ui.wrap(x, y, iw, 13.0, W::R, ERR, e) + 8.0;
+        y += ui.wrap(x, y, iw, 13.0, W::R, Role::Error, e) + 8.0;
     }
     y += crate::screens::codex32_found(app, ui, x, y, iw);
     let lines = app.entry.state().parts.lines(form);
@@ -862,9 +948,9 @@ pub(crate) fn entry_form(
         },
     );
     for (n, l) in lines.iter().enumerate() {
-        ui.icon(x - 2.0, y - 2.0, 18.0, Icon::Done, 10.0, OK);
+        ui.icon(x - 2.0, y - 2.0, 18.0, Icon::Done, 10.0, Role::Ok);
         let indent = faraday_draw::tokens::PART_INDENT_COMPACT;
-        y += ui.wrap(x + indent, y, iw - indent, 12.0, W::R, TEXT, l) + 6.0;
+        y += ui.wrap(x + indent, y, iw - indent, 12.0, W::R, Role::OnSurface, l) + 6.0;
         y += crate::screens::codex32_mark(app, ui, x + indent, y, iw - indent, n);
     }
     y += 6.0;
@@ -906,11 +992,26 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
         iw - 20.0,
         13.0,
         W::M,
-        if empty { DIM } else { TEXT },
+        if empty {
+            Role::OnSurfaceVariant
+        } else {
+            Role::OnSurface
+        },
         &typed,
     );
     let bh = th.max(20.0) + 20.0;
-    ui.stroke(x, y, iw, bh, 8.0, if on { ACCENT } else { BORDER });
+    ui.stroke(
+        x,
+        y,
+        iw,
+        bh,
+        8.0,
+        if on {
+            Role::Primary
+        } else {
+            Role::OutlineVariant
+        },
+    );
     if !on {
         ui.hit(x, y, iw, bh, Action::EntryPassphrase);
     }

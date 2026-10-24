@@ -41,7 +41,7 @@ pub fn tick_row<A: Copy + PartialEq>(
         CORRECT_TICK_ROW,
         CORRECT_LINE_TEXT,
         W::R,
-        TEXT,
+        Role::OnSurface,
         EN.codex32_correct_suggest,
     );
     ui.hit(x, y, width, CORRECT_TICK_ROW, to(Press::Tick));
@@ -58,8 +58,8 @@ pub fn fingerprint_line<A: Copy + PartialEq>(
     mark: Mark,
 ) -> f32 {
     let (icon, tone) = match mark {
-        Mark::Corrected => (Icon::Info, MUTED),
-        Mark::Repaired => (Icon::Warning, WARN),
+        Mark::Corrected => (Icon::Info, Role::OnSurfaceVariant.paint()),
+        Mark::Repaired => (Icon::Warning, Role::Warning.paint()),
     };
     line(ui, x, y, width, icon, tone, mark.fingerprint_line())
 }
@@ -104,7 +104,7 @@ pub fn panel<A: Copy + PartialEq>(
         to(Press::CheckBoxes),
     );
     if let Some(text) = c.refusal_line() {
-        let h = line(ui, x, y, width, Icon::Error, ERR, &text) + CORRECT_GAP;
+        let h = line(ui, x, y, width, Icon::Error, Role::Error.paint(), &text) + CORRECT_GAP;
         return h + buttons(ui, x, y + h, width, &[(check.0, Style::Secondary, check.2)]);
     }
     match c.step() {
@@ -139,7 +139,7 @@ fn caution<A: Copy + PartialEq>(
     (label, on): (&str, A),
     check: (&str, Style, A),
 ) -> f32 {
-    let h = line(ui, x, y, width, Icon::Warning, WARN, text) + CORRECT_GAP;
+    let h = line(ui, x, y, width, Icon::Warning, Role::Warning.paint(), text) + CORRECT_GAP;
     h + buttons(ui, x, y + h, width, &[(label, Style::Primary, on), check])
 }
 
@@ -165,7 +165,7 @@ fn proposal<A: Copy + PartialEq>(
             y + h,
             width,
             Icon::Warning,
-            WARN,
+            Role::Warning.paint(),
             EN.codex32_correct_assumes,
         );
         h += CORRECT_GAP;
@@ -226,7 +226,7 @@ fn retype<A: Copy + PartialEq>(
         width,
         CORRECT_LINE_TEXT,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         &fill(
             EN.codex32_correct_typed_of,
             &[&typed.to_string(), &total.to_string()],
@@ -240,7 +240,7 @@ fn retype<A: Copy + PartialEq>(
             y + h,
             width,
             Icon::Error,
-            ERR,
+            Role::Error.paint(),
             EN.codex32_correct_differs,
         );
     }
@@ -251,7 +251,7 @@ fn retype<A: Copy + PartialEq>(
 /// A section label (DESIGN §4.12), wrapped where the panel is narrow,
 /// and the gap under it.
 fn heading<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, title: &str) -> f32 {
-    ui.wrap(x, y, width, LABEL, W::S, MUTED, title) + CORRECT_GAP
+    ui.wrap(x, y, width, LABEL, W::S, Role::OnSurfaceVariant, title) + CORRECT_GAP
 }
 
 /// The page of pairs on show, "Box 17 · q → p", and under them the page
@@ -282,7 +282,7 @@ fn pairs<A: Copy + PartialEq>(
             CORRECT_PAIR_ROW,
             CORRECT_PAIR_TEXT,
             W::M,
-            TEXT,
+            Role::OnSurface,
             &pair,
         );
         h += CORRECT_PAIR_ROW;
@@ -298,7 +298,7 @@ fn pairs<A: Copy + PartialEq>(
             CORRECT_PAIR_ROW,
             CORRECT_LINE_TEXT,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             &fill(
                 EN.codex32_correct_page,
                 &[&(page + 1).to_string(), &pages.to_string()],
@@ -343,6 +343,7 @@ fn pairs<A: Copy + PartialEq>(
 /// number under it. On a narrow panel, only the groups with a box to
 /// type again.
 fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Correction) -> f32 {
+    let (ink, muted) = (Role::OnSurface, Role::OnSurfaceVariant);
     let group = CORRECT_GROUP;
     let per_row = ((width + CORRECT_GROUP_GAP) / (group + CORRECT_GROUP_GAP))
         .floor()
@@ -373,27 +374,42 @@ fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Co
             + col as f32 * (group + CORRECT_GROUP_GAP)
             + k as f32 * (CORRECT_BOX + CORRECT_BOX_GAP);
         let by = y + row as f32 * row_h;
+        let side = CORRECT_BOX;
+        ui.fill(
+            bx,
+            by,
+            side,
+            side,
+            CORRECT_BOX_RADIUS,
+            Role::SurfaceContainerHighest,
+        );
         let ch = match shown {
-            BoxShown::Locked(ch) => {
-                ui.fill(bx, by, CORRECT_BOX, CORRECT_BOX, CORRECT_BOX_RADIUS, INNER);
-                Some((ch, MUTED))
-            }
+            BoxShown::Locked(ch) => Some((ch, muted)),
             BoxShown::Open { next } => {
-                ui.fill(bx, by, CORRECT_BOX, CORRECT_BOX, CORRECT_BOX_RADIUS, BG);
                 ui.stroke(
                     bx,
                     by,
                     CORRECT_BOX,
                     CORRECT_BOX,
                     CORRECT_BOX_RADIUS,
-                    if next { ACCENT } else { BORDER },
+                    if next {
+                        Role::Primary
+                    } else {
+                        Role::OutlineVariant
+                    },
                 );
                 None
             }
             BoxShown::Typed(ch) => {
-                ui.fill(bx, by, CORRECT_BOX, CORRECT_BOX, CORRECT_BOX_RADIUS, BG);
-                ui.stroke(bx, by, CORRECT_BOX, CORRECT_BOX, CORRECT_BOX_RADIUS, ACCENT);
-                Some((ch, TEXT))
+                ui.stroke(
+                    bx,
+                    by,
+                    CORRECT_BOX,
+                    CORRECT_BOX,
+                    CORRECT_BOX_RADIUS,
+                    Role::Primary,
+                );
+                Some((ch, ink))
             }
         };
         if let Some((ch, tone)) = ch {
@@ -420,7 +436,7 @@ fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Co
                 CORRECT_NUMBER_ROW,
                 CORRECT_NUMBER_TEXT,
                 W::R,
-                MUTED,
+                muted,
                 &num,
             );
         }
@@ -458,9 +474,23 @@ pub fn string_boxes<A: Copy + PartialEq>(
             + k as f32 * (CORRECT_BOX + CORRECT_BOX_GAP);
         let by = y + row as f32 * row_h;
         let differs = marked.contains(&(i + 1));
-        ui.fill(bx, by, CORRECT_BOX, CORRECT_BOX, CORRECT_BOX_RADIUS, INNER);
+        ui.fill(
+            bx,
+            by,
+            CORRECT_BOX,
+            CORRECT_BOX,
+            CORRECT_BOX_RADIUS,
+            Role::SurfaceContainerHighest,
+        );
         if differs {
-            ui.stroke(bx, by, CORRECT_BOX, CORRECT_BOX, CORRECT_BOX_RADIUS, ERR);
+            ui.stroke(
+                bx,
+                by,
+                CORRECT_BOX,
+                CORRECT_BOX,
+                CORRECT_BOX_RADIUS,
+                Role::Error,
+            );
         }
         let mut buf = [0u8; 4];
         let s = char::from(ch).encode_utf8(&mut buf);
@@ -471,7 +501,11 @@ pub fn string_boxes<A: Copy + PartialEq>(
             CORRECT_BOX,
             CORRECT_BOX_TEXT,
             W::M,
-            if differs { ERR } else { TEXT },
+            if differs {
+                Role::Error
+            } else {
+                Role::OnSurface
+            },
             s,
         );
         zeroize::Zeroize::zeroize(&mut buf);
@@ -484,7 +518,7 @@ pub fn string_boxes<A: Copy + PartialEq>(
                 CORRECT_NUMBER_ROW,
                 CORRECT_NUMBER_TEXT,
                 W::R,
-                ERR,
+                Role::Error,
                 &num,
             );
         }
@@ -519,7 +553,7 @@ pub fn preview(c: &Correction, mark: Option<Mark>, width: u16, height: u16, dpi:
     let (w, h) = (f32::from(width) / f, f32::from(height) / f);
     {
         let mut ui = Ui::new(&mut canvas, f, &mut hits, None);
-        ui.fill(0.0, 0.0, w, h, 0.0, BG);
+        ui.fill(0.0, 0.0, w, h, 0.0, Role::Surface);
         let width = w - 2.0 * PAD;
         let mut y = PAD;
         y += tick_row(&mut ui, PAD, y, width, c, |p| p) + CORRECT_GAP;

@@ -336,7 +336,7 @@ impl Lay<'_> {
             } else {
                 upper(v)
             };
-            (t, TEXT)
+            (t, Role::OnSurface.paint())
         })
     }
 
@@ -344,7 +344,10 @@ impl Lay<'_> {
     fn given(&mut self, b: usize, r: usize, pink: bool) {
         let sh = self.s.sh;
         let text = if b <= 3 {
-            Some((char::from(PREFIX[b - 1]).to_string(), TEXT))
+            Some((
+                char::from(PREFIX[b - 1]).to_string(),
+                Role::OnSurface.paint(),
+            ))
         } else {
             self.shown(sh.symbol(b))
         };
@@ -458,9 +461,9 @@ impl Lay<'_> {
             let d = self.plain(start + i, r, v, cell);
             d.differs = v.is_some_and(|v| v != want);
             d.text = match v {
-                Some(v) if d.differs => Some((upper(v), ERR)),
+                Some(v) if d.differs => Some((upper(v), Role::Error.paint())),
                 Some(_) => d.text.take(),
-                None => Some((upper(want), MUTED)),
+                None => Some((upper(want), Role::OnSurfaceVariant.paint())),
             };
         }
     }
@@ -498,6 +501,7 @@ pub(crate) fn draw(
     (x, y, w): (f32, f32, f32),
     cls: WindowClass,
 ) -> f32 {
+    let ink = Role::OnSurface;
     let g = Geom::of(cls);
     let (cw, ch) = if s.only_final {
         // The final row alone, from the column left of its first cell,
@@ -532,7 +536,7 @@ pub(crate) fn draw(
                 g.cell,
                 size,
                 W::M,
-                TEXT,
+                ink,
                 m,
             );
         }
@@ -548,7 +552,7 @@ pub(crate) fn draw(
                 g.cell,
                 g.cell,
                 0.0,
-                CODEX32_CHECKSUM_FILL,
+                Role::ChecksumContainer,
             );
         }
     }
@@ -565,31 +569,7 @@ pub(crate) fn draw(
             );
         }
     }
-    for d in shown.iter().filter(|d| d.bold || d.differs) {
-        let c = if d.differs { ERR } else { TEXT };
-        frame(ui, d.x + ox, d.y + oy, g.cell, t::CODEX32_SHEET_BOLD, c);
-    }
-    for d in &shown {
-        if let Some(&(_, main)) = d.id.and_then(|id| s.marks.iter().find(|(c, _)| *c == id)) {
-            let s = t::CODEX32_FRONT_STROKE;
-            let th = if main { s + s } else { s };
-            frame(ui, d.x + ox, d.y + oy, g.cell, th, ACCENT);
-        }
-    }
-    if let Some((fx, fy, side, _)) = s
-        .front
-        .filter(|_| !s.only_final && s.marks.is_empty())
-        .and_then(|b| g.box_spot(s.sh, b))
-    {
-        frame(
-            ui,
-            fx + ox,
-            fy + oy,
-            side,
-            2.0 * t::CODEX32_FRONT_STROKE,
-            ACCENT,
-        );
-    }
+    frames(ui, &s, &g, &shown, (ox, oy));
     // What is panned out of the view takes no press.
     let mut k = mark;
     while k < ui.hits.len() {
@@ -606,6 +586,40 @@ pub(crate) fn draw(
     vh
 }
 
+/// The sheet's heavy frames over its cells: the bold ones, the ones that
+/// differ, the marked cells and the front box.
+fn frames(ui: &mut Ui, s: &Sheet<'_>, g: &Geom, shown: &[&Drawn], (ox, oy): (f32, f32)) {
+    for d in shown.iter().filter(|d| d.bold || d.differs) {
+        let c = if d.differs {
+            Role::Error.paint()
+        } else {
+            Role::OnSurface.paint()
+        };
+        frame(ui, d.x + ox, d.y + oy, g.cell, t::CODEX32_SHEET_BOLD, c);
+    }
+    for d in shown {
+        if let Some(&(_, main)) = d.id.and_then(|id| s.marks.iter().find(|(c, _)| *c == id)) {
+            let s = t::CODEX32_FRONT_STROKE;
+            let th = if main { s + s } else { s };
+            frame(ui, d.x + ox, d.y + oy, g.cell, th, Role::Primary.paint());
+        }
+    }
+    if let Some((fx, fy, side, _)) = s
+        .front
+        .filter(|_| !s.only_final && s.marks.is_empty())
+        .and_then(|b| g.box_spot(s.sh, b))
+    {
+        frame(
+            ui,
+            fx + ox,
+            fy + oy,
+            side,
+            2.0 * t::CODEX32_FRONT_STROKE,
+            Role::Primary.paint(),
+        );
+    }
+}
+
 /// The cells' thin rules, on the lines neighbours share: a vertical
 /// rule left of each cell, and for each run of cells side by side the
 /// rules over and under it and the one closing it.
@@ -614,16 +628,16 @@ fn thin(ui: &mut Ui, shown: &[&Drawn], (ox, oy): (f32, f32), s: f32) {
     let mut start = None;
     for (k, d) in shown.iter().enumerate() {
         let (x, y) = (d.x + ox, d.y + oy);
-        ui.vrule(x, y, s + px, BORDER);
+        ui.vrule(x, y, s + px, Role::OutlineVariant);
         let from = *start.get_or_insert(x);
         let end = x + s;
         let joins = shown
             .get(k + 1)
             .is_some_and(|n| (n.y + oy - y).abs() < px && (n.x + ox - end).abs() < px);
         if !joins {
-            ui.vrule(end, y, s + px, BORDER);
-            ui.rule(from, y, end - from + px, BORDER);
-            ui.rule(from, y + s, end - from + px, BORDER);
+            ui.vrule(end, y, s + px, Role::OutlineVariant);
+            ui.rule(from, y, end - from + px, Role::OutlineVariant);
+            ui.rule(from, y + s, end - from + px, Role::OutlineVariant);
             start = None;
         }
     }
@@ -647,7 +661,11 @@ fn one(ui: &mut Ui, d: &Drawn, (ox, oy): (f32, f32), s: f32, size: f32) {
     let inset = t::CODEX32_CELL_NOTE_INSET;
     let mut room = s;
     // On a checksum square, everything in it is in the fill's on-role.
-    let note_c = if d.pink { CODEX32_ON_CHECKSUM } else { MUTED };
+    let note_c = if d.pink {
+        Role::OnChecksumContainer
+    } else {
+        Role::OnSurfaceVariant
+    };
     if let Some(n) = d.number {
         let n = n.to_string();
         let nw = ui.measure(note, W::R, &n);
@@ -664,7 +682,11 @@ fn one(ui: &mut Ui, d: &Drawn, (ox, oy): (f32, f32), s: f32, size: f32) {
     if let Some((text, c)) = &d.text {
         let tw = ui.measure(size, W::M, text);
         let left = ((room - tw) / 2.0).max(inset).min((s - tw) / 2.0);
-        let c = if d.pink { CODEX32_ON_CHECKSUM } else { *c };
+        let c = if d.pink {
+            Role::OnChecksumContainer.paint()
+        } else {
+            *c
+        };
         ui.text_mid(x + left, y, s, size, W::M, c, text);
     }
     if let Some(l) = &d.letter {
@@ -687,7 +709,7 @@ pub(crate) fn entry_sheet(
         return 0.0;
     };
     let head = fill(EN.codex32_checksum_of, &[&share_name(work, share)]);
-    let hh = ui.wrap(x, y, w, t::LABEL, W::S, TEXT, &head) + t::GAP_SMALL;
+    let hh = ui.wrap(x, y, w, t::LABEL, W::S, Role::OnSurface, &head) + t::GAP_SMALL;
     let marks = m.walk_cells(share);
     let s = |sh| Sheet {
         sh,
@@ -728,7 +750,7 @@ pub(crate) fn review_sheet(
             },
         ],
     );
-    let hh = ui.wrap(x, y, w, t::LABEL, W::S, TEXT, &head) + t::GAP_SMALL;
+    let hh = ui.wrap(x, y, w, t::LABEL, W::S, Role::OnSurface, &head) + t::GAP_SMALL;
     let s = |sh| Sheet {
         sh,
         id: share as u8,
@@ -770,7 +792,7 @@ pub(crate) fn check_sheet(
     if let Some(i) = sh.first_difference() {
         let b = sh.sum_box(sh.steps()) + i;
         let line = fill(EN.c32r_final_differs, &[&b.to_string()]);
-        h += ui.wrap(x, y + h, w, t::LABEL, W::R, ERR, &line) + t::GAP;
+        h += ui.wrap(x, y + h, w, t::LABEL, W::R, Role::Error, &line) + t::GAP;
     }
     h
 }

@@ -74,7 +74,7 @@ pub(crate) fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32
                 32.0,
                 13.0,
                 W::S,
-                TEXT,
+                Role::OnSurface,
                 &fill(FEN.backup_flow_pick_title, &[&label, state]),
             );
             let bw = ui.measure(13.0, W::S, other) + 32.0;
@@ -99,13 +99,13 @@ pub(crate) fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32
             continue;
         }
         if let Some(line) = cards::stickless_line(app, &ctx) {
-            cy += ui.wrap(x + 12.0, cy, w - 12.0, 13.0, W::S, WARN, &line) + 12.0;
+            cy += ui.wrap(x + 12.0, cy, w - 12.0, 13.0, W::S, Role::Warning, &line) + 12.0;
         }
         if let Some(line) = cards::held_line(app, &ctx, None) {
             if ui.pinning {
                 ui.pin = Some((line, Style::Disabled, fa(F::Continue)));
             } else {
-                cy += ui.wrap(x + 12.0, cy, w - 12.0, 13.0, W::S, WARN, &line) + 12.0;
+                cy += ui.wrap(x + 12.0, cy, w - 12.0, 13.0, W::S, Role::Warning, &line) + 12.0;
             }
             continue;
         }
@@ -138,15 +138,22 @@ fn card_head(
 ) -> f32 {
     let h = 44.0;
     if ui.is_pressed(toggle) || ui.is_hovered(toggle) {
-        ui.fill(x, y, w, h, 8.0, INNER);
+        ui.wash(
+            x,
+            y,
+            w,
+            h,
+            8.0,
+            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+        );
     }
-    ui.stroke(x, y, w, h, 8.0, BORDER);
+    ui.stroke(x, y, w, h, 8.0, Role::OutlineVariant);
     let tw = ui.measure(14.0, W::S, title).min(w * 0.5);
     let t = ui.fit(14.0, W::S, title, w * 0.5);
-    ui.text_mid(x + 12.0, y, h, 14.0, W::S, TEXT, &t);
+    ui.text_mid(x + 12.0, y, h, 14.0, W::S, Role::OnSurface, &t);
     if !open {
         let s = ui.fit(12.0, W::R, summary, w - tw - 36.0);
-        ui.text_right(x + w - 12.0, y, h, 12.0, W::R, MUTED, &s);
+        ui.text_right(x + w - 12.0, y, h, 12.0, W::R, Role::OnSurfaceVariant, &s);
     }
     ui.hit(x, y, w, h, toggle);
     h + 8.0
@@ -158,7 +165,7 @@ pub(crate) fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32,
     let mut cy = y;
     if f.made {
         let name = f.subject.as_ref().map_or(String::new(), |s| s.name.clone());
-        cy += ui.wrap(x, cy, w, 15.0, W::S, OK, &name) + 12.0;
+        cy += ui.wrap(x, cy, w, 15.0, W::S, Role::Ok, &name) + 12.0;
         for &v in &f.made_in {
             cy += ui.wrap(
                 x,
@@ -166,12 +173,20 @@ pub(crate) fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32,
                 w,
                 14.0,
                 W::R,
-                TEXT,
+                Role::OnSurface,
                 &fill(FEN.backup_flow_in_vault, &[&BackupFlow::vault_name(v)]),
             ) + 10.0;
         }
         if f.adding {
-            cy += ui.wrap(x, cy, w, 14.0, W::R, MUTED, FEN.backup_flow_copy_across) + 10.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                14.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                FEN.backup_flow_copy_across,
+            ) + 10.0;
             // A seed kept only on paper is typed back from its copy.
             let missing = app.wallet_round_missing(app.flow_index_of(f));
             if !missing.is_empty() {
@@ -181,7 +196,7 @@ pub(crate) fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32,
                     w,
                     14.0,
                     W::S,
-                    WARN,
+                    Role::Warning,
                     &fill(FEN.backup_flow_on_paper_only, &[&missing.join(", ")]),
                 ) + 10.0;
                 ui.button(
@@ -248,7 +263,7 @@ fn ask_card(
         w,
         14.0,
         W::R,
-        TEXT,
+        Role::OnSurface,
         FEN.backup_flow_use_vaults_question,
     ) + 6.0;
     // A vault on a stick is read before the keys only: after them the
@@ -260,7 +275,7 @@ fn ask_card(
         w,
         13.0,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         FEN.backup_flow_vaults_on_sticks,
     ) + 14.0;
     let style = |on: bool| {
@@ -326,7 +341,7 @@ fn count_card(
         w,
         14.0,
         W::R,
-        TEXT,
+        Role::OnSurface,
         FEN.backup_flow_how_many_question,
     ) + 14.0;
     let n = count.min(usize::from(u16::MAX)) as u16;
@@ -436,7 +451,7 @@ pub(crate) fn create_flow_card(
             )
         }
     };
-    cy += ui.wrap(x, cy, w, 14.0, W::R, TEXT, &line) + 14.0;
+    cy += ui.wrap(x, cy, w, 14.0, W::R, Role::OnSurface, &line) + 14.0;
     let label = FEN.backup_flow_change;
     let bw = ui.measure(14.0, W::S, label) + 36.0;
     ui.button(

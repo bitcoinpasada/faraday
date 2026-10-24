@@ -188,7 +188,7 @@ pub(crate) fn pass_box(
             w,
             h,
             faraday_draw::tokens::FIELD_RADIUS,
-            crate::ui::pal::ACCENT,
+            crate::ui::pal::Role::Primary,
         );
     }
     app.pass_chip_draw(ui, (x, y, w, h), (b.text.is_empty(), focused, false), field);
@@ -320,7 +320,7 @@ impl Faraday {
                     w,
                     h,
                     faraday_draw::tokens::FIELD_RADIUS,
-                    crate::ui::pal::ACCENT,
+                    crate::ui::pal::Role::Primary,
                 );
             }
             self.pass_chip_draw(ui, (x, y, w, h), (b.text.is_empty(), focused, false), field);

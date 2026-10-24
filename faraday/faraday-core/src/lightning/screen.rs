@@ -61,10 +61,10 @@ fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32, guide: &str) 
         16.0,
         faraday_draw::widgets::Icon::ChevronLeft,
         10.0,
-        MUTED,
+        Role::OnSurfaceVariant,
     );
     let (label, _) = app.named_back((EN.lightning_wallets, Action::Nav(l.back)));
-    ui.text(x + 14.0, y, 12.0, W::R, MUTED, label);
+    ui.text(x + 14.0, y, 12.0, W::R, Role::OnSurfaceVariant, label);
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, Action::Nav(l.back));
     ui.back(Action::Nav(l.back));
     y += 22.0;
@@ -119,14 +119,18 @@ fn body(
     ));
     y += button_rows(ui, x, y, width, &row) + 6.0;
     if l.source == Some(NodeSource::Aezeed) {
-        ui.fill(x, y, width, 44.0, 8.0, BG);
+        ui.fill(x, y, width, 44.0, 8.0, Role::SurfaceContainerHighest);
         ui.stroke(
             x,
             y,
             width,
             44.0,
             8.0,
-            if l.on_passphrase { BORDER } else { ACCENT },
+            if l.on_passphrase {
+                Role::OutlineVariant
+            } else {
+                Role::Primary
+            },
         );
         let n = l.typed.split_whitespace().count();
         let shown = if l.typed.is_empty() {
@@ -140,7 +144,7 @@ fn body(
         if app.lightning_sample_shown() {
             crate::samples::put::chip(ui, (x, y, width, T::TEXT_FIELD_SHEET), Action::UseSample);
         } else {
-            ui.text_mid(x + 12.0, y, 44.0, 14.0, W::M, TEXT, &shown);
+            ui.text_mid(x + 12.0, y, 44.0, 14.0, W::M, Role::OnSurface, &shown);
         }
         ui.text_right(
             x + width - 12.0,
@@ -148,12 +152,20 @@ fn body(
             44.0,
             12.0,
             W::R,
-            DIM,
+            Role::OnSurfaceVariant,
             &fill(EN.lightning_word_count, &[&n.to_string()]),
         );
         y += 52.0;
         y += crate::screens::never_real_seed(app, ui, x, y, width);
-        ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.lightning_passphrase);
+        ui.text_mid(
+            x,
+            y,
+            40.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.lightning_passphrase,
+        );
         // On a small panel the field goes under its name, Read it under
         // the field.
         let (px, pw) = if below > 0.0 {
@@ -162,14 +174,18 @@ fn body(
         } else {
             (vx, 300.0f32.min(vw))
         };
-        ui.fill(px, y, pw, 40.0, 8.0, BG);
+        ui.fill(px, y, pw, 40.0, 8.0, Role::SurfaceContainerHighest);
         ui.stroke(
             px,
             y,
             pw,
             40.0,
             8.0,
-            if l.on_passphrase { ACCENT } else { BORDER },
+            if l.on_passphrase {
+                Role::Primary
+            } else {
+                Role::OutlineVariant
+            },
         );
         if app.pass_is_public(&l.passphrase) {
             crate::screens::code_field(ui, px, y, pw, T::TEXT_FIELD, &l.passphrase);
@@ -186,7 +202,7 @@ fn body(
                 format!("{}{}", "•".repeat(l.passphrase.len()), caret)
             };
             let p = ui.fit(13.0, W::M, &p, pw - 24.0);
-            ui.text_mid(px + 12.0, y, 40.0, 13.0, W::M, TEXT, &p);
+            ui.text_mid(px + 12.0, y, 40.0, 13.0, W::M, Role::OnSurface, &p);
         }
         ui.hit(px, y, pw, 40.0, Action::LPassphrase);
         app.pass_chip_draw(
@@ -212,22 +228,46 @@ fn body(
         y = ry + 52.0;
     }
     if let Some(e) = &l.error {
-        y += ui.wrap(x, y, width, 13.0, W::R, ERR, e) + 10.0;
+        y += ui.wrap(x, y, width, 13.0, W::R, Role::Error, e) + 10.0;
     }
     let Some(n) = &l.node else {
         return y;
     };
     let id: String = n.public().iter().map(|b| format!("{b:02x}")).collect();
-    ui.text(x, y, 13.0, W::R, MUTED, EN.lightning_node_id);
+    ui.text(
+        x,
+        y,
+        13.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.lightning_node_id,
+    );
     y += below;
-    y += ui.wrap(vx, y, vw, 14.0, W::M, TEXT, &id).max(20.0) + 10.0;
+    y += ui
+        .wrap(vx, y, vw, 14.0, W::M, Role::OnSurface, &id)
+        .max(20.0)
+        + 10.0;
     if let Some((yy, m, d)) = n.birthday() {
-        ui.text(x, y, 13.0, W::R, MUTED, EN.lightning_made);
+        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, EN.lightning_made);
         y += below;
-        ui.text(vx, y, 14.0, W::M, TEXT, &format!("{yy}-{m:02}-{d:02}"));
+        ui.text(
+            vx,
+            y,
+            14.0,
+            W::M,
+            Role::OnSurface,
+            &format!("{yy}-{m:02}-{d:02}"),
+        );
         y += 30.0;
     }
-    ui.text(x, y, 13.0, W::R, MUTED, EN.lightning_private_key);
+    ui.text(
+        x,
+        y,
+        13.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.lightning_private_key,
+    );
     y += below;
     let private: zeroize::Zeroizing<String> = if l.shown {
         n.private_hex(faraday_keys::Reveal::LightningKey)
@@ -235,7 +275,10 @@ fn body(
     } else {
         zeroize::Zeroizing::new("••••••••••••".to_string())
     };
-    y += ui.wrap(vx, y, vw, 14.0, W::M, TEXT, &private).max(20.0) + 12.0;
+    y += ui
+        .wrap(vx, y, vw, 14.0, W::M, Role::OnSurface, &private)
+        .max(20.0)
+        + 12.0;
     let mut row = vec![(
         if l.shown {
             EN.lightning_hide

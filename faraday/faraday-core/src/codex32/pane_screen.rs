@@ -130,14 +130,22 @@ fn cover(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
         }
         k += 1;
     }
-    ui.fill(x, y, w, h, t::SHAPE_NONE, SURFACE);
-    ui.rule(x, y, w, BORDER);
+    ui.fill(x, y, w, h, t::SHAPE_NONE, Role::Surface);
+    ui.rule(x, y, w, Role::OutlineVariant);
 }
 
 /// "Demo only" with More (to open the whole card) or Less (back to the
 /// strip) at the right. Returns the height.
 fn more_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), open: bool) -> f32 {
-    ui.text_mid(x, y, t::TOUCH, t::BODY, W::S, TEXT, EN.codex32_demo_only);
+    ui.text_mid(
+        x,
+        y,
+        t::TOUCH,
+        t::BODY,
+        W::S,
+        Role::OnSurface,
+        EN.codex32_demo_only,
+    );
     let label = if open {
         EN.codex32_pane_less
     } else {
@@ -183,7 +191,7 @@ fn scrolled(
     }
     ui.c.pop_clip();
     if card {
-        ui.stroke(x, y, w, ch.min(view), t::SHAPE_M, BORDER);
+        ui.stroke(x, y, w, ch.min(view), t::SHAPE_M, Role::OutlineVariant);
     }
     ui.report_scroll_beside(Slot::DemoPane, clip, (ch - view).max(0.0), off);
 }

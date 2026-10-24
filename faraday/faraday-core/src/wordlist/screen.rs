@@ -74,7 +74,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ),
         None => fill(EN.wordlist_words, &[&words.len().to_string()]),
     };
-    ui.text(bx, cy, 13.0, W::R, MUTED, &about);
+    ui.text(bx, cy, 13.0, W::R, Role::OnSurfaceVariant, &about);
     // No keyboard on a small panel: nothing to say about typing.
     if !compact || !st.find.is_empty() {
         let find = if st.find.is_empty() {
@@ -82,18 +82,40 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
         } else {
             fill(EN.wordlist_find, &[&st.find.to_string()])
         };
-        ui.text_right(bx + bw, cy - 6.0, 28.0, 13.0, W::M, DIM, &find);
+        ui.text_right(
+            bx + bw,
+            cy - 6.0,
+            28.0,
+            13.0,
+            W::M,
+            Role::OnSurfaceVariant,
+            &find,
+        );
     }
     cy += 28.0;
     // The columns: number, code, word.
     let num_w = ui.measure(14.0, W::M, "0000");
     let code_w = ui.measure(14.0, W::M, &st.list.code(0));
     let (nx, cx, wx) = (bx + 12.0, bx + 24.0 + num_w, bx + 48.0 + num_w + code_w);
-    ui.text(nx, cy, 12.0, W::S, MUTED, EN.wordlist_number_column);
-    ui.text(cx, cy, 12.0, W::S, MUTED, st.list.code_heading());
-    ui.text(wx, cy, 12.0, W::S, MUTED, EN.wordlist_word);
+    ui.text(
+        nx,
+        cy,
+        12.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        EN.wordlist_number_column,
+    );
+    ui.text(
+        cx,
+        cy,
+        12.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        st.list.code_heading(),
+    );
+    ui.text(wx, cy, 12.0, W::S, Role::OnSurfaceVariant, EN.wordlist_word);
     cy += 22.0;
-    ui.rule(bx, cy - 4.0, bw, BORDER);
+    ui.rule(bx, cy - 4.0, bw, Role::OutlineVariant);
     let top = cy;
     let view = (y + sh - 20.0 - top).max(ROW);
     let content = words.len() as f32 * ROW + 12.0;
@@ -114,12 +136,16 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let ry = top + 4.0 + i as f32 * ROW - scroll;
         let marked = st.mark == Some(i);
         if marked {
-            ui.fill(bx, ry, bw, ROW - 2.0, 6.0, ACCENT.with_alpha(40));
-            ui.stroke(bx, ry, bw, ROW - 2.0, 6.0, ACCENT);
+            ui.fill(bx, ry, bw, ROW - 2.0, 6.0, Role::Primary.with_alpha(40));
+            ui.stroke(bx, ry, bw, ROW - 2.0, 6.0, Role::Primary);
         }
         let number = (i + 1).to_string();
         let nw = ui.measure(14.0, W::M, &number);
-        let tone = if marked { TEXT } else { MUTED };
+        let tone = if marked {
+            Role::OnSurface
+        } else {
+            Role::OnSurfaceVariant
+        };
         ui.text_mid(nx + num_w - nw, ry, ROW - 2.0, 14.0, W::M, tone, &number);
         ui.text_mid(cx, ry, ROW - 2.0, 14.0, W::M, tone, &st.list.code(i));
         ui.text_mid(
@@ -128,7 +154,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ROW - 2.0,
             14.0,
             W::M,
-            if marked { ACCENT } else { TEXT },
+            if marked {
+                Role::Primary
+            } else {
+                Role::OnSurface
+            },
             word,
         );
         // A press marks the word; only the part of the row in view takes

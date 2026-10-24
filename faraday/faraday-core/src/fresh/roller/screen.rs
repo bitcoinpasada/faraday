@@ -37,14 +37,25 @@ pub(super) fn pips(face: u8) -> &'static [(f32, f32)] {
 /// outlines it in the accent.
 fn die(ui: &mut Ui, x: f32, y: f32, face: u8, lift: f32, sway: f32, tumbling: bool) {
     let (x, y) = (x + sway, y - lift);
-    ui.fill(x, y, ROLLER_DIE, ROLLER_DIE, ROLLER_DIE_RADIUS, INNER);
+    ui.fill(
+        x,
+        y,
+        ROLLER_DIE,
+        ROLLER_DIE,
+        ROLLER_DIE_RADIUS,
+        Role::SurfaceContainerHighest,
+    );
     ui.stroke(
         x,
         y,
         ROLLER_DIE,
         ROLLER_DIE,
         ROLLER_DIE_RADIUS,
-        if tumbling { ACCENT } else { BORDER },
+        if tumbling {
+            Role::Primary
+        } else {
+            Role::OutlineVariant
+        },
     );
     let (cx, cy) = (x + ROLLER_DIE / 2.0, y + ROLLER_DIE / 2.0);
     for &(dx, dy) in pips(face) {
@@ -52,7 +63,7 @@ fn die(ui: &mut Ui, x: f32, y: f32, face: u8, lift: f32, sway: f32, tumbling: bo
             cx + dx * ROLLER_PIP_OFFSET,
             cy + dy * ROLLER_PIP_OFFSET,
             ROLLER_PIP,
-            TEXT,
+            Role::OnSurface,
         );
     }
 }
@@ -76,9 +87,10 @@ pub fn draw(
     host: Hosting,
     act: impl Fn(Act) -> Action,
 ) -> f32 {
+    let (ink, muted) = (Role::OnSurface, Role::OnSurfaceVariant);
     let Hosting { room, typing } = host;
     let mut cy = y;
-    ui.text(x, cy, ROLLER_LABEL, W::R, MUTED, EN.roller_by_this_computer);
+    ui.text(x, cy, ROLLER_LABEL, W::R, muted, EN.roller_by_this_computer);
     cy += ui.line(ROLLER_LABEL, W::R) + ROLLER_GAP;
     // The die stands on the line the room for its bounce leaves.
     let p = r.progress();
@@ -103,7 +115,7 @@ pub fn draw(
         action,
     );
     cy += ROLLER_DIE + ROLLER_GAP;
-    ui.text(x, cy, ROLLER_LABEL, W::R, MUTED, EN.roller_per_click);
+    ui.text(x, cy, ROLLER_LABEL, W::R, muted, EN.roller_per_click);
     cy += ui.line(ROLLER_LABEL, W::R) + ROLLER_GAP / 2.0;
     let choices = [
         (PerClick::One, EN.roller_one),
@@ -136,19 +148,30 @@ pub fn draw(
     // The number typed.
     (bx, cy) = step(bx, cy, ROLLER_COUNT_FIELD);
     let on = r.per() == PerClick::Typed;
-    ui.fill(bx, cy, ROLLER_COUNT_FIELD, ROLLER_CHIP, ROLLER_GAP, BG);
+    ui.fill(
+        bx,
+        cy,
+        ROLLER_COUNT_FIELD,
+        ROLLER_CHIP,
+        ROLLER_GAP,
+        Role::SurfaceContainerHighest,
+    );
     ui.stroke(
         bx,
         cy,
         ROLLER_COUNT_FIELD,
         ROLLER_CHIP,
         ROLLER_GAP,
-        if on || typing { ACCENT } else { BORDER },
+        if on || typing {
+            Role::Primary
+        } else {
+            Role::OutlineVariant
+        },
     );
     let (shown, color) = if r.typed().is_empty() {
-        (EN.roller_number, DIM)
+        (EN.roller_number, muted)
     } else {
-        (r.typed(), TEXT)
+        (r.typed(), ink)
     };
     let tx = bx + ROLLER_GAP;
     let tw = ui.text_mid(tx, cy, ROLLER_CHIP, ROLLER_LABEL + 1.0, W::R, color, shown);

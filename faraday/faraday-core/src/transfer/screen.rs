@@ -63,26 +63,40 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     y += 24.0;
     if !t.dir.is_empty() {
         let dir = ui.fit(12.0, W::M, &t.dir, w);
-        ui.text(x, y, 12.0, W::M, MUTED, &dir);
+        ui.text(x, y, 12.0, W::M, Role::OnSurfaceVariant, &dir);
         y += 22.0;
     }
     if let Some(path) = t.reading.as_deref() {
         let name = path.rsplit('/').next().unwrap_or(path);
         let line = ui.fit(13.0, W::R, &fill(EN.transfer_reading, &[name]), w);
-        ui.text(x, y, 13.0, W::R, MUTED, &line);
+        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, &line);
         y += 24.0;
     } else if let Some(why) = t.refused.as_deref() {
-        y += ui.wrap(x, y, w, 13.0, W::S, ERR, why) + 10.0;
+        y += ui.wrap(x, y, w, 13.0, W::S, Role::Error, why) + 10.0;
     }
     if t.files.is_empty() {
-        ui.text(x, y + 4.0, 13.0, W::R, DIM, EN.transfer_no_files);
+        ui.text(
+            x,
+            y + 4.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.transfer_no_files,
+        );
         return y + 28.0 - y0;
     }
-    ui.rule(x, y, w, BORDER);
+    ui.rule(x, y, w, Role::OutlineVariant);
     for (i, (name, size)) in t.files.iter().enumerate() {
         let action = Action::TransferSend(i);
         if ui.is_pressed(action) {
-            ui.fill(x - 8.0, y, w + 16.0, ROW, 8.0, INNER);
+            ui.wash(
+                x - 8.0,
+                y,
+                w + 16.0,
+                ROW,
+                8.0,
+                Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+            );
         }
         let over = *size > crate::transfer::MAX_SEND;
         let tail = if over {
@@ -97,14 +111,30 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             ROW,
             12.0,
             W::R,
-            if over { WARN } else { MUTED },
+            if over {
+                Role::Warning
+            } else {
+                Role::OnSurfaceVariant
+            },
             &tail,
         );
         let label = ui.fit(13.0, W::S, name, w - tw - 16.0);
-        ui.text_mid(x, y, ROW, 13.0, W::S, if over { DIM } else { TEXT }, &label);
+        ui.text_mid(
+            x,
+            y,
+            ROW,
+            13.0,
+            W::S,
+            if over {
+                crate::ui::off()
+            } else {
+                Role::OnSurface.paint()
+            },
+            &label,
+        );
         ui.hit(x - 8.0, y, w + 16.0, ROW, action);
         y += ROW;
-        ui.rule(x, y, w, BORDER);
+        ui.rule(x, y, w, Role::OutlineVariant);
     }
     y + 8.0 - y0
 }
@@ -138,7 +168,11 @@ fn receive(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     }
     y += 60.0;
     for (line, warn) in t.saved.iter().rev() {
-        let tone = if *warn { WARN } else { TEXT };
+        let tone = if *warn {
+            Role::Warning
+        } else {
+            Role::OnSurface
+        };
         y += ui.wrap(x, y, w, 12.0, W::R, tone, line) + 8.0;
     }
     y - y0

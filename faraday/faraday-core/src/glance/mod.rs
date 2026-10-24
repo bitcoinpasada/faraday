@@ -216,7 +216,7 @@ pub struct Glance {
 }
 
 /// What every address of a wallet with a key made here and waiting for
-/// its backup carries, in `WARN` (`docs/history/NEW-WALLET.md` §14.3).
+/// its backup carries, in `warning` (`docs/history/NEW-WALLET.md` §14.3).
 pub const RECEIVE_WARNING: &str = EN.glance_back_up_before;
 
 /// A key node's state while its key, made here, waits for its backup.
@@ -1098,15 +1098,13 @@ impl Node {
     fn draw(&self, ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) {
         let pad = tokens::CHART_NODE_PAD;
         let pressed = self.action.is_some_and(|a| ui.is_pressed(a));
-        ui.fill(
-            x,
-            y,
-            w,
-            h,
-            tokens::RADIUS,
-            if pressed { BG_PRESSED } else { BG },
+        crate::ui::fill_pressed(
+            ui,
+            (x, y, w, h, tokens::RADIUS),
+            Role::SurfaceContainerHighest,
+            pressed,
         );
-        ui.stroke(x, y, w, h, tokens::RADIUS, BORDER);
+        ui.stroke(x, y, w, h, tokens::RADIUS, Role::OutlineVariant);
         let inner = w - 2.0 * pad;
         let mut cy = y + pad;
         let under = self.tag_under(ui, w);
@@ -1126,7 +1124,7 @@ impl Node {
             ui.hit(x, y, w, h, a);
         }
         let title = ui.fit(tokens::LABEL, W::S, &self.title, inner - tag_w);
-        ui.text(x + pad, cy, tokens::LABEL, W::S, TEXT, &title);
+        ui.text(x + pad, cy, tokens::LABEL, W::S, Role::OnSurface, &title);
         cy += ui.line(tokens::LABEL, W::S);
         if let Some((t, c)) = self.tag.filter(|_| under) {
             ui.text(x + pad, cy, tokens::CAPTION, W::R, c, t);
@@ -1171,18 +1169,18 @@ pub(crate) fn checked_text(d: &str) -> String {
 
 fn tag_color(t: Tag) -> Paint {
     match t {
-        Tag::Secret => WARN,
-        Tag::Sealed => ACCENT,
-        Tag::Public => MUTED,
+        Tag::Secret => Role::Warning.paint(),
+        Tag::Sealed => Role::Primary.paint(),
+        Tag::Public => Role::OnSurfaceVariant.paint(),
     }
 }
 
 fn tone_color(t: Tone) -> Paint {
     match t {
-        Tone::Ok => OK,
-        Tone::Warn => WARN,
-        Tone::Err => ERR,
-        Tone::Dim => DIM,
+        Tone::Ok => Role::Ok.paint(),
+        Tone::Warn => Role::Warning.paint(),
+        Tone::Err => Role::Error.paint(),
+        Tone::Dim => Role::OnSurfaceVariant.paint(),
     }
 }
 
@@ -1190,10 +1188,10 @@ fn tone_color(t: Tone) -> Paint {
 /// a vault's seal the accent, nothing at all is good.
 pub(crate) fn alone_color(k: plan::AloneKind) -> Paint {
     match k {
-        plan::AloneKind::CanSpend => WARN,
-        plan::AloneKind::Nothing => OK,
-        plan::AloneKind::Sealed | plan::AloneKind::NeedsVault => ACCENT,
-        plan::AloneKind::SeesBalance => MUTED,
+        plan::AloneKind::CanSpend => Role::Warning.paint(),
+        plan::AloneKind::Nothing => Role::Ok.paint(),
+        plan::AloneKind::Sealed | plan::AloneKind::NeedsVault => Role::Primary.paint(),
+        plan::AloneKind::SeesBalance => Role::OnSurfaceVariant.paint(),
     }
 }
 
@@ -1209,14 +1207,14 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
         format!("{} · #{}", g.shape, g.checksum),
         tokens::CAPTION,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant.paint(),
     )];
     if g.held {
         wallet_lines.push(Text::new(
             RECEIVE_WARNING.to_string(),
             tokens::CAPTION,
             W::S,
-            WARN,
+            Role::Warning.paint(),
         ));
     }
     let wallet = vec![Node {
@@ -1233,28 +1231,47 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
         .map(|(i, k)| {
             let mut lines = Vec::new();
             if let Some(l) = &k.label {
-                lines.push(Text::new(l.clone(), tokens::CAPTION, W::R, MUTED));
+                lines.push(Text::new(
+                    l.clone(),
+                    tokens::CAPTION,
+                    W::R,
+                    Role::OnSurfaceVariant.paint(),
+                ));
             }
             if let Some(h) = &k.holder {
-                lines.push(Text::new(h.clone(), tokens::CAPTION, W::R, TEXT));
+                lines.push(Text::new(
+                    h.clone(),
+                    tokens::CAPTION,
+                    W::R,
+                    Role::OnSurface.paint(),
+                ));
             }
             if let Some(d) = &k.checked {
-                lines.push(Text::new(checked_text(d), tokens::CAPTION, W::R, OK));
+                lines.push(Text::new(
+                    checked_text(d),
+                    tokens::CAPTION,
+                    W::R,
+                    Role::Ok.paint(),
+                ));
             }
             lines.push(Text::new(
                 k.state.clone(),
                 tokens::CAPTION,
                 W::S,
                 if k.state == WAITING {
-                    WARN
+                    Role::Warning.paint()
                 } else if k.here {
-                    OK
+                    Role::Ok.paint()
                 } else {
-                    MUTED
+                    Role::OnSurfaceVariant.paint()
                 },
             ));
             if let Some(way) = k.way_in {
-                let tone = if k.action.is_some() { ACCENT } else { DIM };
+                let tone = if k.action.is_some() {
+                    Role::Primary.paint()
+                } else {
+                    Role::OnSurfaceVariant.paint()
+                };
                 lines.push(Text::new(way, tokens::CAPTION, W::S, tone).pressed(k.action));
             }
             Node {
@@ -1275,7 +1292,12 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
             .enumerate()
             .map(|(i, n)| {
                 let mut lines: Vec<Text> = if compact {
-                    vec![Text::new(n.keys_held.clone(), tokens::CAPTION, W::R, TEXT)]
+                    vec![Text::new(
+                        n.keys_held.clone(),
+                        tokens::CAPTION,
+                        W::R,
+                        Role::OnSurface.paint(),
+                    )]
                 } else {
                     n.holds
                         .iter()
@@ -1289,19 +1311,28 @@ fn rows(g: &Glance, compact: bool) -> [Vec<Node>; 3] {
                                     format!("{h} · {}", m.label()),
                                     tokens::CAPTION,
                                     W::R,
-                                    ERR,
+                                    Role::Error.paint(),
                                 )
                                 .struck()
                                 .pressed(line),
-                                None => {
-                                    Text::new(h.clone(), tokens::CAPTION, W::R, TEXT).pressed(line)
-                                }
+                                None => Text::new(
+                                    h.clone(),
+                                    tokens::CAPTION,
+                                    W::R,
+                                    Role::OnSurface.paint(),
+                                )
+                                .pressed(line),
                             }
                         })
                         .collect()
                 };
                 if let Some(s) = &n.stick {
-                    lines.push(Text::new(s.clone(), tokens::CAPTION, W::R, MUTED));
+                    lines.push(Text::new(
+                        s.clone(),
+                        tokens::CAPTION,
+                        W::R,
+                        Role::OnSurfaceVariant.paint(),
+                    ));
                 }
                 if let Some((s, t)) = &n.state {
                     lines.push(Text::new(s.clone(), tokens::CAPTION, W::R, tone_color(*t)));
@@ -1645,8 +1676,11 @@ pub(crate) fn draw_with(
     // The lines' sources: the wallet to each key, each key held here to
     // every node that holds its seed, each in its colour and dashes.
     let mut sources: Vec<Source> = vec![((0, 0), (0..g.keys.len()).map(|k| (1, k)).collect())];
-    let mut looks: Vec<(Paint, [f32; 4], f32)> =
-        vec![(BORDER, tokens::CHART_DASHES[0], tokens::CHART_STROKE)];
+    let mut looks: Vec<(Paint, [f32; 4], f32)> = vec![(
+        Role::OutlineVariant.paint(),
+        tokens::CHART_DASHES[0],
+        tokens::CHART_STROKE,
+    )];
     if let Backup::Plan { nodes, .. } = &g.backup {
         for (held, (k, _)) in g
             .keys
@@ -1665,7 +1699,7 @@ pub(crate) fn draw_with(
             // Where it is: this key's lines bold, every other dimmed.
             let (color, stroke) = match g.focus {
                 Some(f) if f == k => (KEY_LINES[held % KEY_LINES.len()], tokens::CHART_STROKE_BOLD),
-                Some(_) => (BORDER, tokens::CHART_STROKE),
+                Some(_) => (Role::OutlineVariant.paint(), tokens::CHART_STROKE),
                 None => (KEY_LINES[held % KEY_LINES.len()], tokens::CHART_STROKE),
             };
             looks.push((
@@ -1676,7 +1710,7 @@ pub(crate) fn draw_with(
         }
     }
     if g.focus.is_some() {
-        looks[0].0 = BORDER;
+        looks[0].0 = Role::OutlineVariant.paint();
     }
     let wallet_w = rows[0].iter().map(|n| n.natural(ui)).fold(0.0, f32::max);
     let counts = [rows[0].len(), rows[1].len(), rows[2].len()];
@@ -1770,7 +1804,7 @@ pub(crate) fn check_lines(
 }
 
 /// The two lines of fact under the three (`docs/BACKUP-FLOW.md` §10.3): a
-/// wallet whose secrets are all at one place says so, in `WARN`; a single
+/// wallet whose secrets are all at one place says so, in `warning`; a single
 /// key with no passphrase says one kept at another place than the seed is
 /// recommended, with **Add a passphrase**. Neither blocks anything.
 /// Returns their height, with the gap above them.
@@ -1786,7 +1820,7 @@ fn check_facts(
     if let Some(p) = c.one_place {
         cy += tokens::GAP;
         let line = fill(EN.plan_all_at_one_place, &[&place(p)]);
-        cy += ui.wrap(x, cy, w, tokens::LABEL, W::R, WARN, &line);
+        cy += ui.wrap(x, cy, w, tokens::LABEL, W::R, Role::Warning, &line);
     }
     if c.passphrase_apart {
         cy += tokens::GAP;
@@ -1796,7 +1830,7 @@ fn check_facts(
             w,
             tokens::LABEL,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             EN.plan_passphrase_apart,
         );
         cy += tokens::GAP;
@@ -1820,18 +1854,18 @@ fn check_facts(
 fn check_boxes(ui: &mut Ui, x: f32, y: f32, w: f32, c: plan::Check, beside: bool) -> f32 {
     use crate::plan::{CHECK_LINES, Found, Lost};
     let lost = match c.lost {
-        Lost::Yes => OK,
-        Lost::WithVault => ACCENT,
-        Lost::No => ERR,
+        Lost::Yes => Role::Ok,
+        Lost::WithVault => Role::Primary,
+        Lost::No => Role::Error,
     };
     let found = |f: Found| match f {
-        Found::Yes => WARN,
-        Found::OnlyWithVault => ACCENT,
-        Found::No => OK,
+        Found::Yes => Role::Warning,
+        Found::OnlyWithVault => Role::Primary,
+        Found::No => Role::Ok,
     };
     // A single place: No by the nature of it, said so, muted (§19.19).
     let (lost_text, lost) = if c.single && c.lost == Lost::No {
-        (EN.plan_no_single_place, MUTED)
+        (EN.plan_no_single_place, Role::OnSurfaceVariant)
     } else {
         (c.lost.text(), lost)
     };
@@ -1854,7 +1888,7 @@ fn check_boxes(ui: &mut Ui, x: f32, y: f32, w: f32, c: plan::Check, beside: bool
             box_w - 2.0 * pad,
             tokens::CAPTION,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             label,
         );
         h += tokens::GAP_SMALL;
@@ -1864,7 +1898,7 @@ fn check_boxes(ui: &mut Ui, x: f32, y: f32, w: f32, c: plan::Check, beside: bool
             box_w - 2.0 * pad,
             tokens::TITLE,
             W::S,
-            MUTED,
+            Role::OnSurfaceVariant,
             value,
         );
         ui.c.pop_clip();
@@ -1886,7 +1920,15 @@ fn check_boxes(ui: &mut Ui, x: f32, y: f32, w: f32, c: plan::Check, beside: bool
         ui.stroke(bx, by, box_w, bh, tokens::RADIUS_SMALL, tone.with_alpha(90));
         let tx = bx + pad;
         let tw = box_w - 2.0 * pad;
-        let lh = ui.wrap(tx, by + pad, tw, tokens::CAPTION, W::R, MUTED, label);
+        let lh = ui.wrap(
+            tx,
+            by + pad,
+            tw,
+            tokens::CAPTION,
+            W::R,
+            Role::OnSurfaceVariant,
+            label,
+        );
         ui.wrap(
             tx,
             by + pad + lh + tokens::GAP_SMALL,

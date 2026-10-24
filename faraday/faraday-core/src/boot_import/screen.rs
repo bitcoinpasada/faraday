@@ -51,11 +51,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// The sheet's title, with its icon. Returns its height.
 fn head(ui: &mut Ui, x: f32, y: f32, w: f32, icon: Glyph, title: &str) -> f32 {
     if ui.compact {
-        return sheet_head(ui, x, y, w, icon, ACCENT, title);
+        return sheet_head(ui, x, y, w, icon, Role::Primary, title);
     }
-    ui.icon(x, y, 30.0, icon, 18.0, ACCENT);
+    ui.icon(x, y, 30.0, icon, 18.0, Role::Primary);
     let t = ui.fit(20.0, W::S, title, w - 42.0);
-    ui.text_mid(x + 42.0, y, 30.0, 20.0, W::S, TEXT, &t);
+    ui.text_mid(x + 42.0, y, 30.0, 20.0, W::S, Role::OnSurface, &t);
     46.0
 }
 
@@ -81,7 +81,7 @@ fn picker(
         app.medium.icon(),
         &fill(EN.boot_import_read_source, &[label]),
     );
-    cy += ui.wrap(x, cy, w, 14.0, W::S, TEXT, &c.line()) + 16.0;
+    cy += ui.wrap(x, cy, w, 14.0, W::S, Role::OnSurface, &c.line()) + 16.0;
     // Unselect all while any is ticked; Select all once none is.
     let any = v.files.iter().any(|f| f.chosen);
     if v.files.iter().any(|f| f.enabled) {
@@ -91,7 +91,7 @@ fn picker(
             EN.visit_select_all
         };
         let tw = ui.measure(13.0, W::S, t);
-        ui.text_mid(x, cy - 6.0, 30.0, 13.0, W::S, ACCENT, t);
+        ui.text_mid(x, cy - 6.0, 30.0, 13.0, W::S, Role::Primary, t);
         ui.hit(x - 6.0, cy - 6.0, tw + 12.0, 30.0, ia(I::All));
         cy += 30.0;
     }
@@ -149,15 +149,29 @@ fn unlock(
         let pull = fill(EN.boot_import_pull_medium, &[app.medium.noun()]);
         cy += stick_banner(ui, x, cy, w, &pull);
     }
-    ui.icon(x - 2.0, cy + 2.0, 22.0, Icon::Lock, 12.0, MUTED);
+    ui.icon(
+        x - 2.0,
+        cy + 2.0,
+        22.0,
+        Icon::Lock,
+        12.0,
+        Role::OnSurfaceVariant,
+    );
     let name = ui.fit(14.0, W::M, &vault.title, w - 28.0);
-    ui.text(x + 28.0, cy + 2.0, 14.0, W::M, TEXT, &name);
+    ui.text(x + 28.0, cy + 2.0, 14.0, W::M, Role::OnSurface, &name);
     let line = fill(
         EN.boot_import_locked,
         &[&crate::vault::file_text(vault.len).to_string()],
     );
     let line = ui.fit(12.0, W::R, &line, w - 28.0);
-    ui.text(x + 28.0, cy + 24.0, 12.0, W::R, MUTED, &line);
+    ui.text(
+        x + 28.0,
+        cy + 24.0,
+        12.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        &line,
+    );
     cy += 52.0;
     cy += passphrase(app, ui, x, cy, w, vault.file);
     cy += buttons(ui, x, cy, w, &foot);
@@ -189,12 +203,12 @@ fn passphrase(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f
     }
     cy += 50.0 + crate::screens::never_under(app, ui, x, cy, w);
     if app.vaults.working == Some(Work::Unlock) {
-        let lh = ui.wrap(x, cy, w, 14.0, W::S, ACCENT, &unlocking(app, file)) + 10.0;
+        let lh = ui.wrap(x, cy, w, 14.0, W::S, Role::Primary, &unlocking(app, file)) + 10.0;
         crate::screens::working_bar(ui, x, cy, w, lh);
         cy += lh;
     }
     if let Some(e) = &app.vaults.unlock_error {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 10.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 10.0;
     }
     cy + 4.0 - y
 }
@@ -205,11 +219,11 @@ fn passphrase(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: usize) -> f
 fn typing(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, title: &str, file: usize) -> f32 {
     let mut cy = y;
     let (line, tone) = if app.vaults.working == Some(Work::Unlock) {
-        (unlocking(app, file), ACCENT)
+        (unlocking(app, file), Role::Primary)
     } else if let Some(e) = &app.vaults.unlock_error {
-        (e.clone(), ERR)
+        (e.clone(), Role::Error)
     } else {
-        (title.to_string(), MUTED)
+        (title.to_string(), Role::OnSurfaceVariant)
     };
     cy += ui.wrap(x, cy, w, 12.0, W::S, tone, &line) + 6.0;
     crate::demo::pass_box(
@@ -253,7 +267,11 @@ fn files(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
         ui.checkbox(x, cy + 4.0, f.chosen, f.enabled);
         let tx = x + 28.0;
         let tw = w - 28.0;
-        let fg = if f.enabled { TEXT } else { DIM };
+        let fg = if f.enabled {
+            Role::OnSurface.paint()
+        } else {
+            crate::ui::off()
+        };
         let name = ui.fit(14.0, W::M, &f.name, tw);
         ui.text(tx, cy + 2.0, 14.0, W::M, fg, &name);
         cy += 24.0;
@@ -263,7 +281,11 @@ fn files(ui: &mut Ui, x: f32, y: f32, w: f32, v: &ImportView) -> f32 {
             tw,
             12.0,
             W::R,
-            if f.enabled { MUTED } else { DIM },
+            if f.enabled {
+                Role::OnSurfaceVariant.paint()
+            } else {
+                crate::ui::off()
+            },
             &f.line,
         ) + 2.0;
         if f.enabled {

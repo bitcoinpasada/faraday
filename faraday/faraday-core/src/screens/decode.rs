@@ -44,16 +44,23 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let top = if compact { 14.0 } else { 28.0 } - app.list_offset;
     let mut y = top;
     if !compact {
-        ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, MUTED);
+        ui.icon(
+            x - 4.0,
+            y,
+            16.0,
+            Icon::ChevronLeft,
+            10.0,
+            Role::OnSurfaceVariant,
+        );
         let (label, _) = app.named_back((decode_back(d.back), Action::Nav(d.back)));
-        let lw = ui.text(x + 14.0, y, 12.0, W::R, MUTED, label);
+        let lw = ui.text(x + 14.0, y, 12.0, W::R, Role::OnSurfaceVariant, label);
         ui.hit(x - 4.0, y - 4.0, lw + 30.0, 24.0, Action::Nav(d.back));
         ui.back(Action::Nav(d.back));
         y += 22.0;
         title(ui, x, y, EN.decode_decode_a_transaction);
         y += 44.0;
     }
-    y += ui.wrap(x, y, w, 13.0, W::R, MUTED, &t.source) + 14.0;
+    y += ui.wrap(x, y, w, 13.0, W::R, Role::OnSurfaceVariant, &t.source) + 14.0;
 
     let fee = match t.fee {
         Some(f) => fill(
@@ -87,17 +94,17 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     for (k, v, mono) in facts.iter() {
         let face = if *mono { W::M } else { W::R };
         if compact {
-            ui.text(x, y, 12.0, W::R, MUTED, k);
+            ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, k);
             let v = if *mono { grouped(v) } else { v.clone() };
-            let vh = ui.wrap(x, y + 18.0, w, 13.0, face, TEXT, &v);
-            ui.rule(x, y + vh + 26.0, w, BORDER);
+            let vh = ui.wrap(x, y + 18.0, w, 13.0, face, Role::OnSurface, &v);
+            ui.rule(x, y + vh + 26.0, w, Role::OutlineVariant);
             y += vh + 34.0;
             continue;
         }
-        ui.text_mid(x, y, 34.0, 13.0, W::R, MUTED, k);
+        ui.text_mid(x, y, 34.0, 13.0, W::R, Role::OnSurfaceVariant, k);
         let v = ui.fit(13.0, face, v, w - 170.0);
-        ui.text_mid(x + 160.0, y, 34.0, 13.0, face, TEXT, &v);
-        ui.rule(x, y + 34.0, w, BORDER);
+        ui.text_mid(x + 160.0, y, 34.0, 13.0, face, Role::OnSurface, &v);
+        ui.rule(x, y + 34.0, w, Role::OutlineVariant);
         y += 36.0;
     }
     y += 18.0;
@@ -110,17 +117,33 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     y += 28.0;
     for (i, input) in t.inputs.iter().enumerate() {
-        ui.text_mid(x, y, 26.0, 12.0, W::R, DIM, &i.to_string());
+        ui.text_mid(
+            x,
+            y,
+            26.0,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &i.to_string(),
+        );
         if let Some(a) = input.amount {
-            ui.text_right(x + w, y, 26.0, 13.0, W::S, TEXT, &btc(a));
+            ui.text_right(x + w, y, 26.0, 13.0, W::S, Role::OnSurface, &btc(a));
         }
         if compact {
             // The outpoint whole, under its number and amount.
             y += 26.0;
-            y += ui.wrap(x + 26.0, y, w - 26.0, 12.0, W::M, TEXT, &input.outpoint) + 4.0;
+            y += ui.wrap(
+                x + 26.0,
+                y,
+                w - 26.0,
+                12.0,
+                W::M,
+                Role::OnSurface,
+                &input.outpoint,
+            ) + 4.0;
         } else {
             let op = ui.fit(13.0, W::M, &input.outpoint, w - 220.0);
-            ui.text_mid(x + 26.0, y, 26.0, 13.0, W::M, TEXT, &op);
+            ui.text_mid(x + 26.0, y, 26.0, 13.0, W::M, Role::OnSurface, &op);
             y += 26.0;
         }
         let wit = if input.witness.is_empty() {
@@ -161,14 +184,22 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ],
         );
         if compact {
-            let lh = ui.wrap(x + 26.0, y + 2.0, w - 26.0, 12.0, W::R, MUTED, &line);
-            ui.rule(x, y + lh + 8.0, w, BORDER);
+            let lh = ui.wrap(
+                x + 26.0,
+                y + 2.0,
+                w - 26.0,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                &line,
+            );
+            ui.rule(x, y + lh + 8.0, w, Role::OutlineVariant);
             y += lh + 12.0;
             continue;
         }
         let line = ui.fit(12.0, W::R, &line, w - 26.0);
-        ui.text_mid(x + 26.0, y, 22.0, 12.0, W::R, MUTED, &line);
-        ui.rule(x, y + 26.0, w, BORDER);
+        ui.text_mid(x + 26.0, y, 22.0, 12.0, W::R, Role::OnSurfaceVariant, &line);
+        ui.rule(x, y + 26.0, w, Role::OutlineVariant);
         y += 30.0;
     }
     y += 18.0;
@@ -181,21 +212,37 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     y += 28.0;
     for (i, out) in t.outputs.iter().enumerate() {
-        ui.text_mid(x, y, 26.0, 12.0, W::R, DIM, &i.to_string());
-        ui.text_right(x + w, y, 26.0, 13.0, W::S, TEXT, &btc(out.amount));
+        ui.text_mid(
+            x,
+            y,
+            26.0,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &i.to_string(),
+        );
+        ui.text_right(
+            x + w,
+            y,
+            26.0,
+            13.0,
+            W::S,
+            Role::OnSurface,
+            &btc(out.amount),
+        );
         let (whose, tone) = match &out.ours {
             Some((name, true, n)) => (
                 fill(EN.decode_change_back, &[&name.to_string(), &n.to_string()]),
-                OK,
+                Role::Ok,
             ),
             Some((name, false, n)) => (
                 fill(
                     EN.decode_back_to_receive,
                     &[&name.to_string(), &n.to_string()],
                 ),
-                OK,
+                Role::Ok,
             ),
-            None => (EN.decode_pays_from_loaded.to_string(), WARN),
+            None => (EN.decode_pays_from_loaded.to_string(), Role::Warning),
         };
         if compact {
             // The address whole, then its kind, then whose it is.
@@ -206,23 +253,39 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 w - 26.0,
                 12.0,
                 W::M,
-                TEXT,
+                Role::OnSurface,
                 &grouped(&out.address),
             );
             y += ah + 4.0;
-            ui.text_mid(x + 26.0, y, 22.0, 12.0, W::R, MUTED, out.kind);
+            ui.text_mid(
+                x + 26.0,
+                y,
+                22.0,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                out.kind,
+            );
             y += 22.0;
             let wh = ui.wrap(x + 26.0, y + 2.0, w - 26.0, 12.0, W::S, tone, &whose);
-            ui.rule(x, y + wh + 8.0, w, BORDER);
+            ui.rule(x, y + wh + 8.0, w, Role::OutlineVariant);
             y += wh + 12.0;
             continue;
         }
         let addr = ui.fit(13.0, W::M, &grouped(&out.address), w - 220.0);
-        ui.text_mid(x + 26.0, y, 26.0, 13.0, W::M, TEXT, &addr);
+        ui.text_mid(x + 26.0, y, 26.0, 13.0, W::M, Role::OnSurface, &addr);
         y += 26.0;
-        let kw = ui.text_mid(x + 26.0, y, 22.0, 12.0, W::R, MUTED, out.kind);
+        let kw = ui.text_mid(
+            x + 26.0,
+            y,
+            22.0,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            out.kind,
+        );
         ui.text_mid(x + 40.0 + kw, y, 22.0, 12.0, W::S, tone, &whose);
-        ui.rule(x, y + 26.0, w, BORDER);
+        ui.rule(x, y + 26.0, w, Role::OutlineVariant);
         y += 30.0;
     }
     y += 18.0;
@@ -253,10 +316,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             w - 24.0,
             12.0,
             W::M,
-            TEXT,
+            Role::OnSurface,
             &spaced(&t.hex),
         );
-        ui.stroke(x, y, w, th + 20.0, 8.0, BORDER);
+        ui.stroke(x, y, w, th + 20.0, 8.0, Role::OutlineVariant);
         y += th + 32.0;
     }
     ui.c.pop_clip();

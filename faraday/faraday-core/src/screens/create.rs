@@ -237,7 +237,7 @@ fn create_vault_rows(
             continue;
         }
         let name = ui.fit(12.0, W::S, &group.name, w);
-        ui.text(x, cy, 12.0, W::S, MUTED, &name);
+        ui.text(x, cy, 12.0, W::S, Role::OnSurfaceVariant, &name);
         cy += 20.0;
         cy += button_rows(ui, x, cy, w, &row);
     }
@@ -327,7 +327,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     ],
                 )
             };
-            cy += ui.wrap(x, cy, w, 13.0, W::R, TEXT, &sentence) + 14.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::R, Role::OnSurface, &sentence) + 14.0;
             // The account, below the quorum (F98).
             if c.kind.account_card() == Some(n) {
                 cy += account_row(ui, x, cy, w, c);
@@ -364,7 +364,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let vaults = app.create_vaults();
             for (slot, src) in c.slots.iter().enumerate() {
                 let label = format!("{} {}", EN.create_key, slot + 1);
-                ui.text(x, cy + 4.0, 13.0, W::S, TEXT, &label);
+                ui.text(x, cy + 4.0, 13.0, W::S, Role::OnSurface, &label);
                 // A key locked in with a passphrase here says so
                 // (`docs/history/NEW-WALLET.md` §3.6).
                 if let Source::Here(fp) = src
@@ -374,7 +374,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     locked_tag(ui, x + w - tw, cy);
                 }
                 let (state, color) = match src {
-                    Source::Empty => (EN.create_not_chosen.to_string(), DIM),
+                    Source::Empty => (EN.create_not_chosen.to_string(), Role::OnSurfaceVariant),
                     Source::Here(fp) => {
                         let fpt = fp_text(faraday_bip::keys::Fingerprint(*fp));
                         let name = app
@@ -382,16 +382,19 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             .keys
                             .key_label(faraday_bip::keys::Fingerprint(*fp))
                             .unwrap_or("");
-                        (fill(EN.create_loaded_here, &[&fpt.to_string(), name]), OK)
+                        (
+                            fill(EN.create_loaded_here, &[&fpt.to_string(), name]),
+                            Role::Ok,
+                        )
                     }
                     Source::Cosigner(t) => (
                         fill(EN.create_a_cosigner_s, &[&t[1..9.min(t.len())]]),
-                        MUTED,
+                        Role::OnSurfaceVariant,
                     ),
                     Source::Later => (
                         app.create_slot_needs(slot)
                             .unwrap_or_else(|| EN.create_a_cosigner_adds.to_string()),
-                        WARN,
+                        Role::Warning,
                     ),
                 };
                 let indent = if ui.compact {
@@ -579,7 +582,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         );
                         cy += never_real_seed(app, ui, px, cy, pw);
                         if let Some(n) = &c.pass_note {
-                            cy += ui.wrap(px, cy, pw, 13.0, W::R, ERR, n) + 6.0;
+                            cy += ui.wrap(px, cy, pw, 13.0, W::R, Role::Error, n) + 6.0;
                         }
                         let bw = ui.measure(14.0, W::S, EN.create_lock_button) + 36.0;
                         ui.button(
@@ -594,11 +597,11 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         cy += 52.0;
                     }
                 }
-                ui.rule(x, cy, w, BORDER);
+                ui.rule(x, cy, w, Role::OutlineVariant);
                 cy += 10.0;
             }
             if let Some(e) = &c.error {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 6.0;
+                cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 6.0;
             }
             // The foot shows once every slot is filled: Make the wallet,
             // which makes it; the slot's own New key leads until then.
@@ -658,7 +661,14 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     Some((EN.create_it_matches, Action::CNext(n))),
                 );
             } else {
-                ui.text(x, cy, 13.0, W::R, DIM, EN.create_make_the_wallet);
+                ui.text(
+                    x,
+                    cy,
+                    13.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    EN.create_make_the_wallet,
+                );
                 cy += 30.0;
             }
         }
@@ -697,7 +707,14 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     cy += 48.0;
                 }
             } else {
-                ui.text(x, cy, 13.0, W::R, DIM, EN.create_make_the_wallet);
+                ui.text(
+                    x,
+                    cy,
+                    13.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    EN.create_make_the_wallet,
+                );
                 cy += 30.0;
             }
         }
@@ -745,7 +762,15 @@ fn shares_quorum(ui: &mut Ui, x: f32, y: f32, w: f32, c: &crate::CreateState) ->
         EN.create_shares_any,
         &[&c.share_k.to_string(), &c.share_n.to_string()],
     );
-    cy += ui.wrap(x, cy, w, tokens::CAPTION + 1.0, W::R, TEXT, &line) + tokens::PAD;
+    cy += ui.wrap(
+        x,
+        cy,
+        w,
+        tokens::CAPTION + 1.0,
+        W::R,
+        Role::OnSurface,
+        &line,
+    ) + tokens::PAD;
     if c.kind.account_card() == Some(crate::cstep::QUORUM) {
         cy += account_row(ui, x, cy, w, c);
     }
@@ -819,8 +844,10 @@ fn change_row(
 ) -> f32 {
     let bw = change.map_or(0.0, |(l, _)| ui.measure(13.0, W::S, l) + 32.0);
     let vw = if change.is_some() { w - bw - 10.0 } else { w };
-    ui.text(x, y, 12.0, W::R, MUTED, label);
-    let vh = ui.wrap(x, y + 20.0, vw, 13.0, W::M, TEXT, value).max(18.0);
+    ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, label);
+    let vh = ui
+        .wrap(x, y + 20.0, vw, 13.0, W::M, Role::OnSurface, value)
+        .max(18.0);
     let h = 20.0 + vh + 8.0;
     if let Some((l, action)) = change {
         ui.button(
@@ -833,6 +860,6 @@ fn change_row(
             action,
         );
     }
-    ui.rule(x, y + h, w, BORDER);
+    ui.rule(x, y + h, w, Role::OutlineVariant);
     h + 12.0
 }

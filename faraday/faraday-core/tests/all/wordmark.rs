@@ -1,7 +1,7 @@
 //! The name in a header: FARADAY alone, or with the word of the app it
 //! heads after it (`docs/DECISIONS.md` F16).
 
-use faraday_core::ui::pal::{DIM, TEXT};
+use faraday_core::ui::pal::Role;
 use faraday_core::ui::{NameSuffix, Ui};
 use faraday_draw::canvas::Canvas;
 use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
@@ -25,7 +25,7 @@ fn drawn(suffix: NameSuffix) -> (f32, usize) {
     let width = {
         let mut ui = Ui::new(&mut canvas, 1.0, &mut hits, None);
         ui.clear(faraday_draw::Color::rgb(255, 255, 255));
-        ui.wordmark_named(10.0, 20.0, 40.0, TEXT, suffix)
+        ui.wordmark_named(10.0, 20.0, 40.0, Role::OnSurface, suffix)
     };
     let frame = canvas.frame();
     let alone = {
@@ -44,7 +44,7 @@ fn drawn(suffix: NameSuffix) -> (f32, usize) {
         let mut h2 = Vec::new();
         let mut ui = Ui::new(&mut c2, 1.0, &mut h2, None);
         ui.clear(faraday_draw::Color::rgb(255, 255, 255));
-        let w = ui.wordmark_named(10.0, 20.0, 40.0, TEXT, NameSuffix::None);
+        let w = ui.wordmark_named(10.0, 20.0, 40.0, Role::OnSurface, NameSuffix::None);
         (w, 10 + w as usize)
     };
     let from = alone.1 + 2;
@@ -57,7 +57,6 @@ fn drawn(suffix: NameSuffix) -> (f32, usize) {
             }
         }
     }
-    let _ = DIM;
     (width, inked)
 }
 

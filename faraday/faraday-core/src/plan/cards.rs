@@ -199,7 +199,15 @@ pub(crate) fn body(app: &View, ui: &mut Ui, ctx: &PlanCtx, q: u8, x: f32, y: f32
     let held = ctx.wallet.is_some_and(|wl| !app.wallet_held(wl).is_empty());
     if q == qstep::BOARD {
         if held {
-            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.plan_a_key_made_here) + 12.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                13.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                EN.plan_a_key_made_here,
+            ) + 12.0;
         }
         // The board (`docs/BACKUP-FLOW.md` §17), then Continue.
         cy += crate::board::screen::board(app, ui, x, cy, w);
@@ -277,17 +285,24 @@ pub(crate) fn map_rows(
             cy += 10.0;
         }
         let name = ui.fit(13.0, W::S, &name, iw);
-        ui.text(ix, cy, 13.0, W::S, TEXT, &name);
+        ui.text(ix, cy, 13.0, W::S, Role::OnSurface, &name);
         cy += 22.0;
         if spot.holds.is_empty() {
-            ui.text(ix, cy, 12.0, W::R, DIM, EN.map_rows_nothing);
+            ui.text(
+                ix,
+                cy,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                EN.map_rows_nothing,
+            );
             cy += 20.0;
         }
         for (what, tag) in &spot.holds {
             let tone = match tag {
-                Tag::Secret => WARN,
-                Tag::Sealed => ACCENT,
-                Tag::Public => MUTED,
+                Tag::Secret => Role::Warning,
+                Tag::Sealed => Role::Primary,
+                Tag::Public => Role::OnSurfaceVariant,
             };
             let tw = ui.measure(11.0, W::R, tag.label());
             ui.text_right(ix + iw, cy, 18.0, 11.0, W::R, tone, tag.label());
@@ -295,7 +310,16 @@ pub(crate) fn map_rows(
             if ctx.checklist {
                 let state = held_item(spot.at, *what, &items).map(|it| app.backup_item_done(it));
                 if let Some(done) = state {
-                    ui.dot(ix + 4.0, cy + 9.0, 3.5, if done { OK } else { DIM });
+                    ui.dot(
+                        ix + 4.0,
+                        cy + 9.0,
+                        3.5,
+                        if done {
+                            Role::Ok
+                        } else {
+                            Role::OnSurfaceVariant
+                        },
+                    );
                 }
                 lx += 14.0;
             }
@@ -305,12 +329,12 @@ pub(crate) fn map_rows(
                 &what.label(shape, app.medium),
                 ix + iw - lx - tw - 8.0,
             );
-            ui.text_mid(lx, cy, 18.0, 12.0, W::R, TEXT, &label);
+            ui.text_mid(lx, cy, 18.0, 12.0, W::R, Role::OnSurface, &label);
             cy += 20.0;
         }
         if boxed {
             cy += 6.0;
-            ui.stroke(x, top, w, cy - top, 8.0, LINE);
+            ui.stroke(x, top, w, cy - top, 8.0, Role::OutlineVariant);
         }
         cy += 8.0;
     }
@@ -324,14 +348,14 @@ pub(crate) fn map_rows(
         }
         let tag = plan::Tag::Sealed.name();
         let tw = ui.measure(11.0, W::R, tag);
-        ui.text_right(ix + iw, cy, 18.0, 11.0, W::R, ACCENT, tag);
+        ui.text_right(ix + iw, cy, 18.0, 11.0, W::R, Role::Primary, tag);
         cy += ui
-            .wrap(ix, cy, iw - tw - 8.0, 12.0, W::R, TEXT, line)
+            .wrap(ix, cy, iw - tw - 8.0, 12.0, W::R, Role::OnSurface, line)
             .max(18.0)
             + 2.0;
         if boxed {
             cy += 6.0;
-            ui.stroke(x, top, w, cy - top, 8.0, LINE);
+            ui.stroke(x, top, w, cy - top, 8.0, Role::OutlineVariant);
         }
         cy += 8.0;
     }
@@ -356,7 +380,7 @@ pub(crate) fn check_rows(app: &View, ui: &mut Ui, ctx: &PlanCtx, x: f32, y: f32,
         &name,
         app.medium.noun(),
     ) {
-        h += ui.wrap(x, y + h, w, 12.0, W::R, ERR, &why) + 8.0;
+        h += ui.wrap(x, y + h, w, 12.0, W::R, Role::Error, &why) + 8.0;
     }
     h
 }

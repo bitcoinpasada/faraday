@@ -203,7 +203,13 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
         ui.mark(MARGIN_COMPACT, (APP_BAR_H - mh) / 2.0, mw, mh);
         let suffix = crate::screens::name_suffix(app);
         let nx = MARGIN_COMPACT + mw + GRID;
-        ui.wordmark_named(nx, (APP_BAR_H - CAPTION) / 2.0, CAPTION, TEXT, suffix);
+        ui.wordmark_named(
+            nx,
+            (APP_BAR_H - CAPTION) / 2.0,
+            CAPTION,
+            Role::OnSurface,
+            suffix,
+        );
     } else {
         let (back, name) = crate::compact::page_head(app);
         let back = app.named_back(back);

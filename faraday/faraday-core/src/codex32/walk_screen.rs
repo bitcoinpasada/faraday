@@ -216,14 +216,21 @@ fn chips(ui: &mut Ui, (x, y, w): (f32, f32, f32), items: &[(&str, bool, WalkAct)
 pub(super) fn draw(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
     let head = t::ROLLER_LABEL + 1.0;
-    ui.text(x, cy, head, W::S, TEXT, EN.roller_or_let_faraday_roll);
+    ui.text(
+        x,
+        cy,
+        head,
+        W::S,
+        Role::OnSurface,
+        EN.roller_or_let_faraday_roll,
+    );
     cy += ui.line(head, W::S) + t::ROLLER_GAP / 2.0;
     ui.text(
         x,
         cy,
         t::ROLLER_LABEL,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         EN.roller_by_this_computer,
     );
     cy += ui.line(t::ROLLER_LABEL, W::R) + t::ROLLER_GAP;
@@ -276,9 +283,9 @@ pub(super) fn controls(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32))
     let mut cy = y;
     let walk = m.walk();
     let (count, working) = lines(m);
-    cy += ui.wrap(x, cy, w, t::LABEL, W::S, MUTED, &count) + t::GAP_SMALL;
+    cy += ui.wrap(x, cy, w, t::LABEL, W::S, Role::OnSurfaceVariant, &count) + t::GAP_SMALL;
     if !working.is_empty() {
-        cy += ui.wrap(x, cy, w, t::BODY, W::R, TEXT, &working);
+        cy += ui.wrap(x, cy, w, t::BODY, W::R, Role::OnSurface, &working);
     }
     cy += t::GAP;
     let style = |on: bool, s: Style| if on { s } else { Style::Disabled };
@@ -324,7 +331,7 @@ fn options(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         cy,
         t::ROLLER_LABEL,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         EN.codex32_walk_play_runs,
     );
     cy += ui.line(t::ROLLER_LABEL, W::R) + t::ROLLER_GAP / 2.0;
@@ -333,7 +340,14 @@ fn options(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
         .map(|&r| (reach_name(r), walk.reach() == r, WalkAct::Reach(r)))
         .collect();
     cy += chips(ui, (x, cy, w), &reaches) + t::ROLLER_GAP;
-    ui.text(x, cy, t::ROLLER_LABEL, W::R, MUTED, EN.codex32_walk_speed);
+    ui.text(
+        x,
+        cy,
+        t::ROLLER_LABEL,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.codex32_walk_speed,
+    );
     cy += ui.line(t::ROLLER_LABEL, W::R) + t::ROLLER_GAP / 2.0;
     let speeds: Vec<(&str, bool, WalkAct)> = SPEEDS
         .iter()

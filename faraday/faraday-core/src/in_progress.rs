@@ -746,14 +746,14 @@ pub(crate) fn cancel_sheet(app: &View, ui: &mut crate::ui::Ui, g: Going, w: f32,
     scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
         let mut cy = y;
         if ui.compact {
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, WARN, title);
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, Role::Warning, title);
         } else {
-            ui.icon(x, cy, 30.0, Icon::Warning, 18.0, WARN);
+            ui.icon(x, cy, 30.0, Icon::Warning, 18.0, Role::Warning);
             let t = ui.fit(20.0, W::S, title, iw - 42.0);
-            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, TEXT, &t);
+            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, Role::OnSurface, &t);
             cy += 46.0;
         }
-        cy += ui.wrap(x, cy, iw, 14.0, W::R, TEXT, line) + 18.0;
+        cy += ui.wrap(x, cy, iw, 14.0, W::R, Role::OnSurface, line) + 18.0;
         cy += buttons(
             ui,
             x,

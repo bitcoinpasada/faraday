@@ -131,13 +131,20 @@ pub fn column_foot(
     // the mode and the ?: it ends left of it.
     let (x, w) = (col.x, col.w);
     if let Some((label, action)) = col.back {
-        ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, MUTED);
-        let lw = ui.text(x + 14.0, y, 12.0, W::R, MUTED, label);
+        ui.icon(
+            x - 4.0,
+            y,
+            16.0,
+            Icon::ChevronLeft,
+            10.0,
+            Role::OnSurfaceVariant,
+        );
+        let lw = ui.text(x + 14.0, y, 12.0, W::R, Role::OnSurfaceVariant, label);
         ui.hit(x - 4.0, y - 4.0, lw + 30.0, 24.0, action);
         ui.back(action);
         y += 22.0;
     }
-    let hw = ui.text(x, y, 26.0, W::S, TEXT, col.heading);
+    let hw = ui.text(x, y, 26.0, W::S, Role::OnSurface, col.heading);
     // Cancel at the right end, then Steps only or Guided beside it;
     // laid out from the right.
     let mut bx = x + w;
@@ -181,7 +188,13 @@ pub fn column_foot(
             chip_line = tokens::CHIP_LINE;
             (x, y + 40.0)
         };
-        let cw = ui.chip(cx, cy, chip, ACCENT, ACCENT.with_alpha(30));
+        let cw = ui.chip(
+            cx,
+            cy,
+            chip,
+            Role::OnSecondaryContainer,
+            Role::SecondaryContainer,
+        );
         if let Some(a) = col.chip_tap {
             ui.hit(cx, cy, cw, 26.0, a);
             ui.chip_at = Some((cx, cy + 26.0, cw));
@@ -189,8 +202,16 @@ pub fn column_foot(
     }
     y += 52.0 + chip_line;
     if let Some(note) = col.note {
-        let nh = ui.wrap(x + 14.0, y, w - 14.0, 13.0, W::R, MUTED, note);
-        ui.fill(x, y, 3.0, nh, 1.5, ACCENT.with_alpha(140));
+        let nh = ui.wrap(
+            x + 14.0,
+            y,
+            w - 14.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            note,
+        );
+        ui.fill(x, y, 3.0, nh, 1.5, Role::Primary.with_alpha(140));
         y += nh + 20.0;
     }
 
@@ -221,10 +242,17 @@ pub fn column_foot(
                     inner_w - 14.0,
                     14.0,
                     W::R,
-                    TEXT,
+                    Role::OnSurface,
                     text,
                 );
-                ui.fill(inner_x, y + 56.0, 3.0, gh, 1.5, ACCENT.with_alpha(140));
+                ui.fill(
+                    inner_x,
+                    y + 56.0,
+                    3.0,
+                    gh,
+                    1.5,
+                    Role::Primary.with_alpha(140),
+                );
                 used += gh;
                 if let Some(t) = learn {
                     used += learn_link(ui, inner_x, y + tokens::GUIDE_CARD_HEAD + used, inner_w, t);
@@ -259,7 +287,7 @@ pub fn column_foot(
         }
         // A step is a flat section on the page, a rule above it
         // (`docs/DECISIONS.md` F39): no fill and no box.
-        ui.rule(x, card_top, w, LINE);
+        ui.rule(x, card_top, w, Role::OutlineVariant);
         if card.open && card_h < full_h {
             let rect = ui.rect(x, card_top, w, card_h);
             ui.reveal(rect);
@@ -275,7 +303,15 @@ pub fn column_foot(
             card.done,
             card.open,
         );
-        ui.text_mid(x + 58.0, card_top, 56.0, 15.0, W::S, TEXT, &card.title);
+        ui.text_mid(
+            x + 58.0,
+            card_top,
+            56.0,
+            15.0,
+            W::S,
+            Role::OnSurface,
+            &card.title,
+        );
         // A closed card with a default shows a Change text button at the
         // right, in place of the chevron, over the value it is set to.
         let change = !card.open && card.default;
@@ -295,7 +331,7 @@ pub fn column_foot(
             } else {
                 x + w - 46.0
             };
-            ui.text_right(edge, card_top, 56.0, 13.0, face, MUTED, &s);
+            ui.text_right(edge, card_top, 56.0, 13.0, face, Role::OnSurfaceVariant, &s);
         }
         if change {
             ui.text_right(
@@ -304,7 +340,7 @@ pub fn column_foot(
                 56.0,
                 13.0,
                 W::S,
-                ACCENT,
+                Role::Primary,
                 EN.flow_change,
             );
         } else {
@@ -318,7 +354,7 @@ pub fn column_foot(
                     Icon::ChevronRight
                 },
                 10.0,
-                DIM,
+                Role::OnSurfaceVariant,
             );
         }
         ui.hit(x, card_top, w, 56.0, card.toggle);
@@ -326,7 +362,7 @@ pub fn column_foot(
     }
     // The rule under the last step closes the list of them.
     if !cards.is_empty() {
-        ui.rule(x, y, w, LINE);
+        ui.rule(x, y, w, Role::OutlineVariant);
     }
     let mut foot_top = None;
     if let Some(foot) = foot {
@@ -396,7 +432,13 @@ fn paged(
     let inner = w - 2.0 * M;
     if let Some(chip) = col.chip {
         let chip = ui.fit(12.0, W::R, chip, inner - 34.0);
-        let cw = ui.chip(M, y, &chip, ACCENT, ACCENT.with_alpha(30));
+        let cw = ui.chip(
+            M,
+            y,
+            &chip,
+            Role::OnSecondaryContainer,
+            Role::SecondaryContainer,
+        );
         if let Some(a) = col.chip_tap {
             ui.hit(M, y, cw, 26.0, a);
             ui.chip_at = Some((M, y + 26.0, cw));
@@ -414,14 +456,22 @@ fn paged(
                 let line = format!("{} · {}", c.title, c.summary);
                 let face = if c.mono { W::M } else { W::R };
                 let line = ui.fit(13.0, face, &line, inner - cw - 16.0);
-                ui.text_mid(M, y, 34.0, 13.0, face, MUTED, &line);
-                ui.text_right(M + inner, y, 34.0, 13.0, W::S, ACCENT, EN.flow_change);
+                ui.text_mid(M, y, 34.0, 13.0, face, Role::OnSurfaceVariant, &line);
+                ui.text_right(
+                    M + inner,
+                    y,
+                    34.0,
+                    13.0,
+                    W::S,
+                    Role::Primary,
+                    EN.flow_change,
+                );
                 ui.hit(M, y, inner, 34.0, c.toggle);
                 y += 36.0;
                 defaults = true;
             }
             if defaults {
-                ui.rule(M, y, inner, LINE);
+                ui.rule(M, y, inner, Role::OutlineVariant);
                 y += 12.0;
             }
             // The title says where the page is; tapping it closes the
@@ -437,8 +487,8 @@ fn paged(
             let count_w = ui.measure(12.0, W::R, &count);
             let title_w = inner - count_w - 10.0;
             let lh = ui.line(18.0, W::S);
-            let th = ui.wrap(M, y, title_w, 18.0, W::S, TEXT, &card.title);
-            ui.text_right(M + inner, y, lh, 12.0, W::R, MUTED, &count);
+            let th = ui.wrap(M, y, title_w, 18.0, W::S, Role::OnSurface, &card.title);
+            ui.text_right(M + inner, y, lh, 12.0, W::R, Role::OnSurfaceVariant, &count);
             ui.hit(M, y, inner, th, card.toggle);
             y += th + 10.0;
             y += body(ui, i, M, y, inner);
@@ -453,44 +503,74 @@ fn paged(
                     y += about(ui, M, y, inner, label, i as u8, (text, card.learn));
                 } else {
                     y += 8.0;
-                    let gh = ui.wrap(M + 12.0, y, inner - 12.0, 13.0, W::R, MUTED, text);
-                    ui.fill(M, y, 3.0, gh, 1.5, ACCENT.with_alpha(140));
+                    let gh = ui.wrap(
+                        M + 12.0,
+                        y,
+                        inner - 12.0,
+                        13.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        text,
+                    );
+                    ui.fill(M, y, 3.0, gh, 1.5, Role::Primary.with_alpha(140));
                     y += gh + 8.0;
                 }
             }
         }
         None => {
             if let Some(note) = col.note {
-                let nh = ui.wrap(M + 12.0, y, inner - 12.0, 13.0, W::R, MUTED, note);
-                ui.fill(M, y, 3.0, nh, 1.5, ACCENT.with_alpha(140));
+                let nh = ui.wrap(
+                    M + 12.0,
+                    y,
+                    inner - 12.0,
+                    13.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    note,
+                );
+                ui.fill(M, y, 3.0, nh, 1.5, Role::Primary.with_alpha(140));
                 y += nh + 14.0;
             }
             for (i, card) in cards.iter().enumerate() {
                 // Each step a row on the page, a rule above it (F39).
                 if ui.is_pressed(card.toggle) {
-                    ui.fill(M, y, inner, 52.0, 10.0, INNER);
+                    ui.wash(
+                        M,
+                        y,
+                        inner,
+                        52.0,
+                        10.0,
+                        Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+                    );
                 }
-                ui.rule(M, y, inner, LINE);
+                ui.rule(M, y, inner, Role::OutlineVariant);
                 ui.badge(M + 10.0, y + 13.0, &(i + 1).to_string(), card.done, false);
                 let tw = inner - 70.0;
                 let title = ui.fit(14.0, W::S, &card.title, tw);
-                ui.text(M + 46.0, y + 8.0, 14.0, W::S, TEXT, &title);
+                ui.text(M + 46.0, y + 8.0, 14.0, W::S, Role::OnSurface, &title);
                 let face = if card.mono { W::M } else { W::R };
                 let summary = ui.fit(12.0, face, &card.summary, tw);
-                ui.text(M + 46.0, y + 29.0, 12.0, face, MUTED, &summary);
+                ui.text(
+                    M + 46.0,
+                    y + 29.0,
+                    12.0,
+                    face,
+                    Role::OnSurfaceVariant,
+                    &summary,
+                );
                 ui.icon(
                     M + inner - 24.0,
                     y + 16.0,
                     20.0,
                     Icon::ChevronRight,
                     9.0,
-                    DIM,
+                    Role::OnSurfaceVariant,
                 );
                 ui.hit(M, y, inner, 52.0, card.toggle);
                 y += 52.0;
             }
             if !cards.is_empty() {
-                ui.rule(M, y, inner, LINE);
+                ui.rule(M, y, inner, Role::OutlineVariant);
                 y += 8.0;
             }
             if let Some(foot) = foot {
@@ -506,21 +586,35 @@ fn paged(
     let back = col
         .back
         .unwrap_or((EN.flow_home, Action::Nav(crate::Screen::Home)));
-    ui.fill(0.0, 0.0, w, BAR_H, 0.0, SIDEBAR);
-    ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, LINE);
+    ui.fill(0.0, 0.0, w, BAR_H, 0.0, Role::SurfaceContainerLow);
+    ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, Role::OutlineVariant);
     if ui.is_pressed(back.1) {
-        ui.fill(4.0, 4.0, BAR_H - 8.0, BAR_H - 8.0, 8.0, INNER);
+        ui.wash(
+            4.0,
+            4.0,
+            BAR_H - 8.0,
+            BAR_H - 8.0,
+            8.0,
+            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+        );
     }
-    ui.icon(4.0, 4.0, BAR_H - 8.0, Icon::ChevronLeft, 13.0, TEXT);
+    ui.icon(
+        4.0,
+        4.0,
+        BAR_H - 8.0,
+        Icon::ChevronLeft,
+        13.0,
+        Role::OnSurface,
+    );
     ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, back.1);
     ui.back(back.1);
     // The ?, the keyboard and Cancel go over its right end
     // (`compact::flow_bar_tools`).
     let room = w - BAR_H - M;
     let label = ui.fit(11.0, W::R, back.0, room);
-    ui.text(BAR_H, 5.0, 11.0, W::R, MUTED, &label);
+    ui.text(BAR_H, 5.0, 11.0, W::R, Role::OnSurfaceVariant, &label);
     let heading = ui.fit(16.0, W::S, col.heading, room);
-    ui.text(BAR_H, 19.0, 16.0, W::S, TEXT, &heading);
+    ui.text(BAR_H, 19.0, 16.0, W::S, Role::OnSurface, &heading);
 
     let max = (content_h - (col.h - BAR_H)).max(0.0);
     ui.report_scroll(clip, max);
@@ -547,13 +641,28 @@ pub(crate) fn about(
     let open = ui.about_open == Some(k);
     let action = Action::About(k);
     let mut cy = y + 8.0;
-    ui.rule(x, cy, w, LINE);
+    ui.rule(x, cy, w, Role::OutlineVariant);
     cy += 6.0;
     if ui.is_pressed(action) {
-        ui.fill(x, cy, w, 36.0, 8.0, INNER);
+        ui.wash(
+            x,
+            cy,
+            w,
+            36.0,
+            8.0,
+            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+        );
     }
-    ui.icon(x, cy + 8.0, 20.0, Icon::Info, 11.0, MUTED);
-    ui.text_mid(x + 26.0, cy, 36.0, 13.0, W::S, MUTED, label);
+    ui.icon(x, cy + 8.0, 20.0, Icon::Info, 11.0, Role::OnSurfaceVariant);
+    ui.text_mid(
+        x + 26.0,
+        cy,
+        36.0,
+        13.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        label,
+    );
     ui.icon(
         x + w - 22.0,
         cy + 8.0,
@@ -564,13 +673,21 @@ pub(crate) fn about(
             Icon::ChevronRight
         },
         9.0,
-        DIM,
+        Role::OnSurfaceVariant,
     );
     ui.hit(x, cy, w, 36.0, action);
     cy += 42.0;
     if open {
-        let gh = ui.wrap(x + 12.0, cy, w - 12.0, 13.0, W::R, MUTED, text);
-        ui.fill(x, cy, 3.0, gh, 1.5, ACCENT.with_alpha(140));
+        let gh = ui.wrap(
+            x + 12.0,
+            cy,
+            w - 12.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            text,
+        );
+        ui.fill(x, cy, 3.0, gh, 1.5, Role::Primary.with_alpha(140));
         cy += gh;
         if let Some(t) = learn {
             cy += learn_link(ui, x, cy, w, t);

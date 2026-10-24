@@ -204,7 +204,7 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 Icon::ChevronRight
             },
             10.0,
-            DIM,
+            Role::OnSurfaceVariant,
         );
         cy += faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP_SMALL;
         if open {
@@ -214,7 +214,7 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
     }
     if let Some(n) = &k.note {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 6.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, n) + 6.0;
     }
     cy + 8.0 - y
 }
@@ -418,19 +418,20 @@ fn card_body(app: &View, k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
 /// A card before Key once the key is locked in: what was chosen and
 /// entered, to read, with nothing to press (`docs/history/NEW-WALLET.md` §3.3).
 fn read_only(k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
+    let ink = Role::OnSurface;
     let mut cy = y;
     match s {
         kstep::START => {
-            cy = stat(ui, x, cy, EN.keygen_start, &summary(k, s), TEXT);
+            cy = stat(ui, x, cy, EN.keygen_start, &summary(k, s), ink.paint());
         }
         kstep::TYPED => {
-            cy = stat(ui, x, cy, &title_of(k, s), &summary(k, s), TEXT);
+            cy = stat(ui, x, cy, &title_of(k, s), &summary(k, s), ink.paint());
         }
         kstep::LENGTH => {
-            cy = stat(ui, x, cy, EN.keygen_length, &summary(k, s), TEXT);
+            cy = stat(ui, x, cy, EN.keygen_length, &summary(k, s), ink.paint());
         }
         kstep::SOURCE => {
-            cy = stat(ui, x, cy, EN.keygen_randomness, &summary(k, s), TEXT);
+            cy = stat(ui, x, cy, EN.keygen_randomness, &summary(k, s), ink.paint());
         }
         _ => {
             if k.has_check() {
@@ -445,16 +446,16 @@ fn read_only(k: &KeyGen, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// The randomness check's verdict: "Fair: no cautions", or each caution
-/// in `WARN`. Returns where the next row starts.
+/// in `warning`. Returns where the next row starts.
 fn verdict(k: &KeyGen, ui: &mut Ui, x: f32, y: f32) -> f32 {
     let mut cy = y;
     let cautions = k.caution_lines();
     if cautions.is_empty() {
-        ui.text(x, cy, 13.0, W::S, OK, EN.keygen_fair_no_cautions);
+        ui.text(x, cy, 13.0, W::S, Role::Ok, EN.keygen_fair_no_cautions);
         cy += 22.0;
     }
     for c in cautions {
-        ui.text(x, cy, 13.0, W::R, WARN, c);
+        ui.text(x, cy, 13.0, W::R, Role::Warning, c);
         cy += 22.0;
     }
     cy
@@ -463,8 +464,10 @@ fn verdict(k: &KeyGen, ui: &mut Ui, x: f32, y: f32) -> f32 {
 /// A label over a long value, wrapped in the mono face: a key or an
 /// address. Returns the height used.
 fn long_row(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str) -> f32 {
-    ui.text(x, y, 12.0, W::R, MUTED, label);
-    let h = ui.wrap(x, y + 20.0, w, 13.0, W::M, TEXT, value).max(18.0);
+    ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, label);
+    let h = ui
+        .wrap(x, y + 20.0, w, 13.0, W::M, Role::OnSurface, value)
+        .max(18.0);
     20.0 + h + 10.0
 }
 
@@ -484,15 +487,23 @@ fn word_grid(
     for (i, &idx) in words.iter().enumerate() {
         let cx = x + (i % cols) as f32 * (cellw + 10.0);
         let wy = y + (i / cols) as f32 * 46.0;
-        ui.fill(cx, wy, cellw, 38.0, 8.0, BG);
-        ui.stroke(cx, wy, cellw, 38.0, 8.0, BORDER);
-        ui.text_mid(cx + 10.0, wy, 38.0, 11.0, W::R, DIM, &(i + 1).to_string());
+        ui.fill(cx, wy, cellw, 38.0, 8.0, Role::SurfaceContainerHighest);
+        ui.stroke(cx, wy, cellw, 38.0, 8.0, Role::OutlineVariant);
+        ui.text_mid(
+            cx + 10.0,
+            wy,
+            38.0,
+            11.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &(i + 1).to_string(),
+        );
         let word = if shown {
             lang.word_display(idx)
         } else {
             "••••••"
         };
-        ui.text_mid(cx + 36.0, wy, 38.0, 14.0, W::M, TEXT, word);
+        ui.text_mid(cx + 36.0, wy, 38.0, 14.0, W::M, Role::OnSurface, word);
     }
     words.len().div_ceil(cols) as f32 * 46.0 + 8.0
 }
@@ -507,7 +518,14 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
     // parts typed, until it is locked in (§15.2).
     let parts = k.typed() && k.mnemonic.is_none() && k.done[usize::from(kstep::TYPED)];
     if k.mnemonic.is_none() && !parts {
-        ui.text(x, cy, 13.0, W::R, MUTED, EN.keygen_not_made_yet);
+        ui.text(
+            x,
+            cy,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.keygen_not_made_yet,
+        );
         return 26.0;
     }
     if k.locked {
@@ -518,8 +536,8 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
         cy += word_grid(ui, m, k.shown, x, cy, w);
     } else if !k.locked {
         for l in app.entry.state().parts.lines(app.entry.state().form) {
-            ui.icon(x, cy - 2.0, 18.0, Icon::Done, 10.0, OK);
-            cy += ui.wrap(x + 24.0, cy, w - 24.0, 13.0, W::R, TEXT, &l) + 10.0;
+            ui.icon(x, cy - 2.0, 18.0, Icon::Done, 10.0, Role::Ok);
+            cy += ui.wrap(x + 24.0, cy, w - 24.0, 13.0, W::R, Role::OnSurface, &l) + 10.0;
         }
         cy += 4.0;
     }
@@ -574,10 +592,10 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
         {
             let name = fill(EN.sample_words, &[word, &k.handout_words().to_string()]);
             let line = fill(EN.keygen_lock_in_adds, &[&name, &fp_text(fp)]);
-            cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 6.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Warning, &line) + 6.0;
         }
         if let Some(n) = &k.note {
-            cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 6.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, n) + 6.0;
         }
         cy += 4.0;
         cy += buttons_and_next(
@@ -589,7 +607,14 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             Some((EN.keygen_lock_button, Action::KLock)),
         );
         if !ui.compact {
-            ui.text(x, cy, 12.0, W::R, DIM, EN.keygen_enter_locks);
+            ui.text(
+                x,
+                cy,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                EN.keygen_enter_locks,
+            );
             cy += 24.0;
         }
         return cy - y;
@@ -614,7 +639,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             cy,
             EN.keygen_fingerprint,
             &fp_text(faraday_bip::keys::Fingerprint(fp)),
-            TEXT,
+            Role::OnSurface.paint(),
         );
         // A key of strings that went in by a correction says so beside
         // its fingerprint (`docs/CODEX32.md` §8.4).
@@ -636,7 +661,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
                 cy += descriptor_row(ui, x, cy, w, wl, Action::QrWallet(i));
                 let (a, held) = app.receive_line(wl, false, 0);
                 if held {
-                    cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &a) + 8.0;
+                    cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Warning, &a) + 8.0;
                 } else {
                     cy += long_row(ui, x, cy, w, EN.keygen_first_address, &a);
                 }
@@ -651,7 +676,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
         }
     }
     if let Some(n) = &k.note {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 6.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, n) + 6.0;
     }
     // Lock in moved on by itself: this view is for reading (F103).
     cy += buttons_and_next(ui, x, cy, w, shows, None);
@@ -720,17 +745,32 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             w,
             13.0,
             W::S,
-            TEXT,
+            Role::OnSurface,
             &fill(
                 EN.keygen_any_of_the_shares,
                 &[&k.slip_m.to_string(), &k.slip_n.to_string()],
             ),
         ) + 12.0;
-        ui.text(x, cy, 13.0, W::S, MUTED, EN.keygen_what_shares);
+        ui.text(
+            x,
+            cy,
+            13.0,
+            W::S,
+            Role::OnSurfaceVariant,
+            EN.keygen_what_shares,
+        );
         cy += 24.0;
         for f in SLIP39_FACTS {
-            ui.fill(x + 2.0, cy + 7.0, 4.0, 4.0, 2.0, MUTED);
-            cy += ui.wrap(x + 16.0, cy, w.min(760.0) - 16.0, 13.0, W::R, TEXT, f) + 8.0;
+            ui.fill(x + 2.0, cy + 7.0, 4.0, 4.0, 2.0, Role::OnSurfaceVariant);
+            cy += ui.wrap(
+                x + 16.0,
+                cy,
+                w.min(760.0) - 16.0,
+                13.0,
+                W::R,
+                Role::OnSurface,
+                f,
+            ) + 8.0;
         }
         cy += 4.0;
         if next_button(
@@ -796,18 +836,42 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
         line,
         action: a,
     } = r;
-    ui.fill(x, y, w, 52.0, 10.0, if on { BG_PRESSED } else { BG });
+    ui.fill(
+        x,
+        y,
+        w,
+        52.0,
+        10.0,
+        if on {
+            Role::SurfaceContainerHigh
+        } else {
+            Role::SurfaceContainerHighest
+        },
+    );
     ui.stroke(
         x,
         y,
         w,
         52.0,
         10.0,
-        if on { ACCENT.with_alpha(110) } else { LINE },
+        if on {
+            Role::Primary.with_alpha(110)
+        } else {
+            Role::OutlineVariant.paint()
+        },
     );
-    ui.dot(x + 22.0, y + 26.0, 7.0, if on { ACCENT } else { BORDER });
+    ui.dot(
+        x + 22.0,
+        y + 26.0,
+        7.0,
+        if on {
+            Role::Primary
+        } else {
+            Role::OutlineVariant
+        },
+    );
     if !on {
-        ui.dot(x + 22.0, y + 26.0, 5.0, BG);
+        ui.dot(x + 22.0, y + 26.0, 5.0, Role::SurfaceContainerHighest);
     }
     // A row the frame dims (the demo's SLIP-39 sources) reads dimmed and
     // takes no press.
@@ -821,7 +885,11 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
             52.0,
             14.0,
             W::S,
-            if dim { DIM } else { TEXT },
+            if dim {
+                crate::ui::off()
+            } else {
+                Role::OnSurface.paint()
+            },
             &name,
         );
         ui.hit(x, y, w, 52.0, a);
@@ -832,7 +900,11 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
         y + 8.0,
         14.0,
         W::S,
-        if dim { DIM } else { TEXT },
+        if dim {
+            crate::ui::off()
+        } else {
+            Role::OnSurface.paint()
+        },
         &name,
     );
     let line = ui.fit(12.0, W::R, line, w - 54.0);
@@ -841,7 +913,11 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
         y + 29.0,
         12.0,
         W::R,
-        if dim { DIM } else { MUTED },
+        if dim {
+            crate::ui::off()
+        } else {
+            Role::OnSurfaceVariant.paint()
+        },
         &line,
     );
     ui.hit(x, y, w, 52.0, a);
@@ -888,6 +964,7 @@ fn way_line(k: &KeyGen, w: Way) -> String {
 /// A group's heading. Each group opens and closes (this device's closed
 /// at the start); a closed one names the option chosen in it.
 fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 {
+    let muted = Role::OnSurfaceVariant;
     let title = match g {
         Group::ByHand => EN.keygen_your_own_entropy,
         Group::Computed => EN.keygen_your_entropy,
@@ -895,7 +972,7 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
     };
     if ui.compact {
         let mut cy = y;
-        cy += ui.wrap(x, cy, w - 34.0, 14.0, W::S, MUTED, title);
+        cy += ui.wrap(x, cy, w - 34.0, 14.0, W::S, muted, title);
         let i = group_index(g);
         let open = k.groups_open[usize::from(i)];
         let chosen = k.way().filter(|w| w.group(k.slip39) == g);
@@ -903,11 +980,17 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
             cy += 4.0;
             let mut bx = x;
             if g == Group::ByHand {
-                bx += ui.chip(x, cy, EN.keygen_recommended, OK, OK.with_alpha(30)) + 8.0;
+                bx += ui.chip(
+                    x,
+                    cy,
+                    EN.keygen_recommended,
+                    Role::OnOkContainer,
+                    Role::OkContainer,
+                ) + 8.0;
             }
             if let Some(way) = chosen.filter(|_| !open) {
                 let name = ui.fit(13.0, W::S, &way_name(way), x + w - bx);
-                ui.text(bx, cy + 2.0, 13.0, W::S, ACCENT, &name);
+                ui.text(bx, cy + 2.0, 13.0, W::S, Role::Primary, &name);
             }
             cy += 24.0;
         }
@@ -921,7 +1004,7 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
                 Icon::ChevronRight
             },
             10.0,
-            DIM,
+            muted,
         );
         ui.hit(x, y - 8.0, w, cy - y + 8.0, Action::KGroup(i));
         return cy - y + 8.0;
@@ -934,8 +1017,8 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
             x + lw + 12.0,
             y - 4.0,
             EN.keygen_recommended,
-            OK,
-            OK.with_alpha(30),
+            Role::OnOkContainer,
+            Role::OkContainer,
         );
     }
     let open = k.groups_open[usize::from(i)];
@@ -949,7 +1032,7 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
             Icon::ChevronRight
         },
         10.0,
-        DIM,
+        muted,
     );
     if !open && let Some(way) = k.way().filter(|w| w.group(k.slip39) == g) {
         ui.text_right(
@@ -958,7 +1041,7 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
             30.0,
             13.0,
             W::S,
-            ACCENT,
+            Role::Primary,
             &way_name(way),
         );
     }
@@ -1023,10 +1106,21 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     let on = k.mix[j];
                     let live = !ui.dimmed.contains(&Action::KMix(j as u8));
                     ui.checkbox(x + 44.0, cy + 7.0, on, live);
-                    let tone = if live { TEXT } else { DIM };
+                    let tone = if live {
+                        Role::OnSurface.paint()
+                    } else {
+                        crate::ui::off()
+                    };
                     ui.text(x + 74.0, cy + 6.0, 14.0, W::R, tone, source_name(m));
                     let nw = ui.measure(14.0, W::R, source_name(m));
-                    ui.text(x + 86.0 + nw, cy + 7.0, 12.0, W::R, MUTED, &asks(k, m));
+                    ui.text(
+                        x + 86.0 + nw,
+                        cy + 7.0,
+                        12.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        &asks(k, m),
+                    );
                     ui.hit(
                         x + 40.0,
                         cy - faraday_draw::tokens::GAP,
@@ -1041,7 +1135,7 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
     }
     if let Some(n) = &k.note {
-        ui.text(x, cy + 10.0, 13.0, W::R, ERR, n);
+        ui.text(x, cy + 10.0, 13.0, W::R, Role::Error, n);
     }
     // A single choice moves on by itself; a mix has its sources to tick
     // first (F103).
@@ -1067,6 +1161,7 @@ fn roller(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let muted = Role::OnSurfaceVariant;
     let mut cy = y;
     let (have, need) = k.progress();
     let active = k.active();
@@ -1084,7 +1179,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             15.0,
             W::S,
-            TEXT,
+            Role::OnSurface,
             &fill(
                 EN.keygen_entry_count_unit,
                 &[&have.to_string(), &need.to_string(), unit],
@@ -1097,12 +1192,12 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 30.0,
                 13.0,
                 W::M,
-                MUTED,
+                muted,
                 &fill(EN.keygen_last, &[&last.to_string()]),
             );
         }
         cy += 28.0;
-        ui.fill(x, cy, w, 6.0, 3.0, INNER);
+        ui.fill(x, cy, w, 6.0, 3.0, Role::SurfaceContainerHighest);
         let f = if need == 0 {
             0.0
         } else {
@@ -1115,7 +1210,11 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 w * f,
                 6.0,
                 3.0,
-                if have >= need { OK } else { ACCENT },
+                if have >= need {
+                    Role::Ok
+                } else {
+                    Role::Primary
+                },
             );
         }
         cy += 22.0;
@@ -1214,7 +1313,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // Words for a Create slot are shown and checked again by Back up
     // (`docs/history/NEW-WALLET.md` §3.2).
     if !k.slip39 && k.reveals() && k.slot.is_some() {
-        cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, EN.keygen_no_need_to_write) + 10.0;
+        cy += ui.wrap(x, cy, w, 12.0, W::R, muted, EN.keygen_no_need_to_write) + 10.0;
     }
     // BIP-39 words: the randomness check is here, once the last entry is
     // in. Before that, and for shares, cautions as they appear.
@@ -1228,13 +1327,13 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy = verdict(k, ui, x, cy);
     } else {
         for c in k.caution_lines() {
-            ui.text(x, cy, 13.0, W::R, WARN, c);
+            ui.text(x, cy, 13.0, W::R, Role::Warning, c);
             cy += 22.0;
         }
     }
     // What the last press did.
     if let Some(n) = &k.note {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 4.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, n) + 4.0;
     }
     cy += 6.0;
     let last_of_mix = k.source != Some(Source::Mix) || k.mix_at + 1 >= k.mix_list().len();
@@ -1279,7 +1378,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Some(Source::Camera) => EN.keygen_space_takes,
         _ => EN.keygen_enter_continues,
     };
-    ui.text(x, cy, 12.0, W::R, DIM, hint);
+    ui.text(x, cy, 12.0, W::R, muted, hint);
     cy + 24.0 - y
 }
 
@@ -1332,7 +1431,7 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             EN.keygen_heads_is_1_tails
         };
-        cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, line) + 10.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::OnSurfaceVariant, line) + 10.0;
     }
     cy
 }
@@ -1340,8 +1439,8 @@ fn entry_style(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// The box entries are typed into. Each is taken as it is typed, and
 /// the box shows every one taken, by buttons too.
 fn typed_box(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    ui.fill(x, y, w, 40.0, 8.0, BG);
-    ui.stroke(x, y, w, 40.0, 8.0, ACCENT);
+    ui.fill(x, y, w, 40.0, 8.0, Role::SurfaceContainerHighest);
+    ui.stroke(x, y, w, 40.0, 8.0, Role::Primary);
     // A press in the box places the caret, a drag selects rolls, and
     // what is deleted there leaves the key (`docs/history/NEW-WALLET.md` §13.2).
     ui.typed(
@@ -1350,7 +1449,7 @@ fn typed_box(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
         40.0,
         14.0,
         W::M,
-        TEXT,
+        Role::OnSurface,
         &k.entered,
         w - 30.0,
         true,
@@ -1361,7 +1460,7 @@ fn typed_box(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
         Some(Source::Coins) if !k.by_die => EN.keygen_h_or_1_for_heads,
         _ => EN.keygen_dice_faces_caption,
     };
-    ui.text(x, y + 48.0, 12.0, W::R, DIM, what);
+    ui.text(x, y + 48.0, 12.0, W::R, Role::OnSurfaceVariant, what);
     let line = never_below(app, ui, x, y + 64.0, w);
     y + 76.0 + line
 }
@@ -1372,13 +1471,14 @@ fn typed_box(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
 /// until the words are made, because its last bits are the checksum.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let muted = Role::OnSurfaceVariant;
     if k.source == Some(Source::Dice) && !k.by_die {
         return rolled_words(k, ui, x, y, w);
     }
     let mut cy = y + 4.0;
     section_label(ui, x, cy, EN.keygen_words_so_far);
     cy += 24.0;
-    ui.text(x, cy, 12.0, W::R, MUTED, crate::wordlist::PRESS_A_WORD);
+    ui.text(x, cy, 12.0, W::R, muted, crate::wordlist::PRESS_A_WORD);
     cy += 24.0;
     let live = k.live_words();
     // Flips always land in `k.coins`, whether Coins or Dice's Flip mode
@@ -1433,19 +1533,19 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let row = |ui: &mut Ui, cy: f32, slot: usize, code: &str, index: Option<u16>, note: &str| {
         let n = (slot + 1).to_string();
         let nw = ui.measure(13.0, W::M, &n);
-        ui.text_mid(x + num_w - nw, cy, 30.0, 13.0, W::M, DIM, &n);
-        ui.text_mid(cx, cy, 30.0, 13.0, W::M, MUTED, code);
+        ui.text_mid(x + num_w - nw, cy, 30.0, 13.0, W::M, muted, &n);
+        ui.text_mid(cx, cy, 30.0, 13.0, W::M, muted, code);
         let cy = cy + down;
         match index {
             Some(i) => {
                 let num = (i + 1).to_string();
                 let tw = ui.measure(13.0, W::M, &num);
-                ui.text_mid(ix + index_w - tw, cy, 30.0, 13.0, W::M, MUTED, &num);
+                ui.text_mid(ix + index_w - tw, cy, 30.0, 13.0, W::M, muted, &num);
                 ui.word_pill(wx, cy + 2.0, Language::English.word(i), open_word(i));
             }
             None => {
                 let note = ui.fit(12.0, W::R, note, x + w - ix);
-                ui.text_mid(ix, cy, 30.0, 12.0, W::R, DIM, &note);
+                ui.text_mid(ix, cy, 30.0, 12.0, W::R, muted, &note);
             }
         }
     };
@@ -1485,7 +1585,7 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             w,
             12.0,
             W::R,
-            DIM,
+            muted,
             &fill(
                 EN.keygen_the_last_bits,
                 &[&checksum.to_string(), &(last + 1).to_string()],
@@ -1502,12 +1602,13 @@ fn reveal(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// last bits are the checksum, shown as soon as the last of them is in.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let muted = Role::OnSurfaceVariant;
     let mut cy = y + 4.0;
     section_label(ui, x, cy, EN.keygen_words_so_far);
     cy += 24.0;
-    ui.text(x, cy, 12.0, W::R, MUTED, crate::wordlist::PRESS_A_WORD);
+    ui.text(x, cy, 12.0, W::R, muted, crate::wordlist::PRESS_A_WORD);
     cy += 20.0;
-    cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, EN.keygen_dice_word_rule) + 12.0;
+    cy += ui.wrap(x, cy, w, 12.0, W::R, muted, EN.keygen_dice_word_rule) + 12.0;
     let per = faraday_entropy::DICE_WORD_ROLLS;
     let faces = faraday_entropy::DICE_WORD_FACES;
     let rolls = k.dice.rolls();
@@ -1533,10 +1634,13 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                note: &str| {
         let n = (slot + 1).to_string();
         let nw = ui.measure(13.0, W::M, &n);
-        ui.text_mid(x + num_w - nw, cy, 22.0, 13.0, W::M, DIM, &n);
+        ui.text_mid(x + num_w - nw, cy, 22.0, 13.0, W::M, muted, &n);
         for (c, (face, bits)) in cells.iter().enumerate() {
             let cx = cells_x + c as f32 * cell;
-            for (line, text, size, tone) in [(0.0, face, 13.0, TEXT), (22.0, bits, 13.0, MUTED)] {
+            for (line, text, size, tone) in [
+                (0.0, face, 13.0, Role::OnSurface),
+                (22.0, bits, 13.0, muted),
+            ] {
                 let tw = ui.measure(size, W::M, text);
                 ui.text_mid(
                     cx + (cell - tw) / 2.0,
@@ -1553,8 +1657,8 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let mut info_x = if compact { cells_x } else { info_x };
         if let Some(sum) = sum {
             let sx = cells_x + cells.len() as f32 * cell + 6.0;
-            ui.text_mid(sx, cy, 22.0, 11.0, W::R, DIM, EN.keygen_checksum);
-            ui.text_mid(sx, cy + 22.0, 22.0, 13.0, W::M, MUTED, sum);
+            ui.text_mid(sx, cy, 22.0, 11.0, W::R, muted, EN.keygen_checksum);
+            ui.text_mid(sx, cy + 22.0, 22.0, 13.0, W::M, muted, sum);
             let sw = ui
                 .measure(11.0, W::R, EN.keygen_checksum)
                 .max(ui.measure(13.0, W::M, sum));
@@ -1567,7 +1671,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Some(i) if compact => {
                 let pw = ui.word_pill(info_x, cy - 3.0, Language::English.word(i), open_word(i));
                 let line = fill(EN.keygen_word, &[&i.to_string(), &(i + 1).to_string()]);
-                ui.text_mid(info_x + pw + 8.0, cy - 3.0, 26.0, 12.0, W::R, MUTED, &line);
+                ui.text_mid(info_x + pw + 8.0, cy - 3.0, 26.0, 12.0, W::R, muted, &line);
             }
             Some(i) => {
                 ui.word_pill(info_x, cy - 3.0, Language::English.word(i), open_word(i));
@@ -1577,7 +1681,7 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     22.0,
                     12.0,
                     W::R,
-                    MUTED,
+                    muted,
                     &fill(
                         EN.keygen_word_number,
                         &[&i.to_string(), &(i + 1).to_string()],
@@ -1586,10 +1690,10 @@ fn rolled_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
             None if compact => {
                 let note = ui.fit(12.0, W::R, note, info_w);
-                ui.text_mid(info_x, cy - 3.0, 26.0, 12.0, W::R, DIM, &note);
+                ui.text_mid(info_x, cy - 3.0, 26.0, 12.0, W::R, muted, &note);
             }
             None => {
-                ui.text_mid(info_x, cy + 22.0, 22.0, 12.0, W::R, DIM, note);
+                ui.text_mid(info_x, cy + 22.0, 22.0, 12.0, W::R, muted, note);
             }
         }
     };
@@ -1709,22 +1813,22 @@ fn device_source(k: &KeyGen) -> String {
 fn device_rows(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let source = device_source(k);
     let rows = [
-        (EN.create_device_row, source.as_str(), TEXT),
-        (EN.create_trust_row, EN.create_trust_device, WARN),
-        (EN.keygen_result, EN.create_device_result, WARN),
+        (EN.create_device_row, source.as_str(), Role::OnSurface),
+        (EN.create_trust_row, EN.create_trust_device, Role::Warning),
+        (EN.keygen_result, EN.create_device_result, Role::Warning),
     ];
     let mut cy = y;
     for (label, value, tone) in rows {
-        ui.text(x, cy, 13.0, W::R, MUTED, label);
+        ui.text(x, cy, 13.0, W::R, Role::OnSurfaceVariant, label);
         ui.text(x + 140.0, cy, 13.0, W::S, tone, value);
         cy += 26.0;
-        ui.rule(x, cy - 6.0, w, BORDER);
+        ui.rule(x, cy - 6.0, w, Role::OutlineVariant);
     }
     cy + 6.0
 }
 
 fn stat(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str, tone: Paint) -> f32 {
-    ui.text(x, y, 13.0, W::R, MUTED, label);
+    ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, label);
     if ui.compact && ui.measure(13.0, W::M, value) > 130.0 {
         ui.text(x, y + 20.0, 13.0, W::M, tone, value);
         return y + 46.0;
@@ -1738,7 +1842,7 @@ fn stat(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str, tone: Paint) -> f
 /// the locked Key card's Passphrase: "Set" or "Not set", never bare
 /// text, since bare text reads as the passphrase itself.
 fn stat_pill(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str) -> f32 {
-    ui.text(x, y, 13.0, W::R, MUTED, label);
+    ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, label);
     let vx = if ui.compact { 110.0 } else { 140.0 };
     ui.pill(x + vx, y - 3.0, 22.0, value);
     y + 26.0
@@ -1746,10 +1850,25 @@ fn stat_pill(ui: &mut Ui, x: f32, y: f32, label: &str, value: &str) -> f32 {
 
 /// The heads, tails and longest-run rows a flip accumulator's stats make.
 fn coin_check(coins: &CoinFlips, ui: &mut Ui, x: f32, y: f32) -> f32 {
+    let ink = Role::OnSurface;
     let mut cy = y;
     let st = coins.stats();
-    cy = stat(ui, x, cy, EN.create_heads, &st.heads.to_string(), TEXT);
-    cy = stat(ui, x, cy, EN.create_tails, &st.tails.to_string(), TEXT);
+    cy = stat(
+        ui,
+        x,
+        cy,
+        EN.create_heads,
+        &st.heads.to_string(),
+        ink.paint(),
+    );
+    cy = stat(
+        ui,
+        x,
+        cy,
+        EN.create_tails,
+        &st.tails.to_string(),
+        ink.paint(),
+    );
     let side = if st.run_heads {
         EN.create_heads
     } else {
@@ -1764,7 +1883,7 @@ fn coin_check(coins: &CoinFlips, ui: &mut Ui, x: f32, y: f32) -> f32 {
             EN.create_run_face,
             &[&st.longest_run.to_string(), &side.to_lowercase()],
         ),
-        TEXT,
+        ink.paint(),
     )
 }
 
@@ -1772,7 +1891,7 @@ fn coin_check(coins: &CoinFlips, ui: &mut Ui, x: f32, y: f32) -> f32 {
 fn check(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = check_rows(k, k.source, ui, x, y, w);
     for c in k.caution_lines() {
-        ui.text(x, cy, 13.0, W::R, WARN, c);
+        ui.text(x, cy, 13.0, W::R, Role::Warning, c);
         cy += 22.0;
     }
     cy += 6.0;
@@ -1802,6 +1921,7 @@ fn again_label(k: &KeyGen) -> &'static str {
 /// next row starts.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let ink = Role::OnSurface;
     let mut cy = y;
     match src {
         Some(Source::Dice) if k.by_die => {
@@ -1810,7 +1930,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
         Some(Source::Dice) => {
             let st = k.dice.stats();
             let n = k.dice.len();
-            cy = stat(ui, x, cy, EN.keygen_rolls, &n.to_string(), TEXT);
+            cy = stat(ui, x, cy, EN.keygen_rolls, &n.to_string(), ink.paint());
             let counts = st
                 .counts
                 .iter()
@@ -1818,7 +1938,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 .map(|(i, c)| format!("{}:{c}", i + 1))
                 .collect::<Vec<_>>()
                 .join("  ");
-            cy = stat(ui, x, cy, EN.keygen_faces, &counts, TEXT);
+            cy = stat(ui, x, cy, EN.keygen_faces, &counts, ink.paint());
             if !k.procedure().direct() {
                 let high = st.chi_square > faraday_entropy::DICE_CHI_SQUARE_LIMIT
                     && n >= faraday_entropy::DICE_SKEW_MIN;
@@ -1837,7 +1957,11 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                         st.chi_square,
                         judged.replacen("{}", &n.to_string(), 1)
                     ),
-                    if high { WARN } else { TEXT },
+                    if high {
+                        Role::Warning.paint()
+                    } else {
+                        ink.paint()
+                    },
                 );
             }
             cy = stat(
@@ -1849,7 +1973,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                     EN.create_run_face,
                     &[&st.longest_run.to_string(), face_name(st.run_face)],
                 ),
-                TEXT,
+                ink.paint(),
             );
         }
         Some(Source::Coins) => {
@@ -1863,7 +1987,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 cy,
                 EN.create_cards_row,
                 &k.cards.len().to_string(),
-                TEXT,
+                ink.paint(),
             );
             let suits = SUITS
                 .iter()
@@ -1871,10 +1995,17 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 .map(|(s, c)| format!("{s} {c}"))
                 .collect::<Vec<_>>()
                 .join("   ");
-            cy = stat(ui, x, cy, EN.keygen_suits, &suits, TEXT);
+            cy = stat(ui, x, cy, EN.keygen_suits, &suits, ink.paint());
         }
         Some(Source::Hex) => {
-            cy = stat(ui, x, cy, EN.keygen_digits, &k.hex.len().to_string(), TEXT);
+            cy = stat(
+                ui,
+                x,
+                cy,
+                EN.keygen_digits,
+                &k.hex.len().to_string(),
+                ink.paint(),
+            );
         }
         Some(Source::Camera) => {
             cy = stat(
@@ -1883,7 +2014,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                 cy,
                 EN.create_frames_row,
                 &k.camera.len().to_string(),
-                TEXT,
+                ink.paint(),
             );
             if let Some(st) = k.camera.last() {
                 cy = stat(
@@ -1892,7 +2023,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                     cy,
                     EN.create_distinct_row,
                     &st.distinct.to_string(),
-                    TEXT,
+                    ink.paint(),
                 );
             }
         }
@@ -1905,7 +2036,7 @@ fn check_rows(k: &KeyGen, src: Option<Source>, ui: &mut Ui, x: f32, y: f32, w: f
                     cy,
                     &format!("{}. {}", i + 1, source_name(*s)),
                     &fill(EN.keygen_sha_256, &[&hex.to_string()]),
-                    TEXT,
+                    ink.paint(),
                 );
             }
         }
@@ -1925,16 +2056,17 @@ fn handed_line(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let fp = fp_text(faraday_bip::keys::Fingerprint(fp));
             let name = fill(EN.sample_words, &[word, &n.to_string()]);
             let line = fill(EN.keygen_added_sample, &[&name, &fp]);
-            ui.wrap(x, y, w, 13.0, W::S, WARN, &line) + 6.0
+            ui.wrap(x, y, w, 13.0, W::S, Role::Warning, &line) + 6.0
         }
         _ => 0.0,
     }
 }
 
 fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let mut cy = y;
     let Some(ind) = k.share_indices(k.share_at) else {
-        ui.text(x, cy, 13.0, W::R, MUTED, EN.keygen_not_made_yet);
+        ui.text(x, cy, 13.0, W::R, muted, EN.keygen_not_made_yet);
         return 26.0;
     };
     if let Some(fp) = k.fingerprint {
@@ -1944,7 +2076,7 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             EN.keygen_fingerprint,
             &fp_text(faraday_bip::keys::Fingerprint(fp)),
-            TEXT,
+            ink.paint(),
         );
     }
     cy += handed_line(k, ui, x, cy, w);
@@ -1961,7 +2093,7 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 &k.slip_m.to_string(),
             ],
         ),
-        TEXT,
+        ink.paint(),
     );
     cy += 6.0;
     let cols = if ui.compact { 2 } else { 4 };
@@ -1969,15 +2101,15 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     for (i, &idx) in ind.iter().enumerate() {
         let cx = x + (i % cols) as f32 * (cellw + 10.0);
         let wy = cy + (i / cols) as f32 * 46.0;
-        ui.fill(cx, wy, cellw, 38.0, 8.0, BG);
-        ui.stroke(cx, wy, cellw, 38.0, 8.0, BORDER);
-        ui.text_mid(cx + 10.0, wy, 38.0, 11.0, W::R, DIM, &(i + 1).to_string());
+        ui.fill(cx, wy, cellw, 38.0, 8.0, Role::SurfaceContainerHighest);
+        ui.stroke(cx, wy, cellw, 38.0, 8.0, Role::OutlineVariant);
+        ui.text_mid(cx + 10.0, wy, 38.0, 11.0, W::R, muted, &(i + 1).to_string());
         let shown = if k.shown {
             faraday_bip::slip39::word(idx)
         } else {
             "••••••"
         };
-        ui.text_mid(cx + 36.0, wy, 38.0, 14.0, W::M, TEXT, shown);
+        ui.text_mid(cx + 36.0, wy, 38.0, 14.0, W::M, ink, shown);
     }
     cy += ind.len().div_ceil(cols) as f32 * 46.0 + 8.0;
     let mut bx = x;
@@ -2037,7 +2169,14 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     let mut cy = y;
     let Some(m) = k.mnemonic.as_ref() else {
-        ui.text(x, cy, 13.0, W::R, MUTED, EN.keygen_not_made_yet);
+        ui.text(
+            x,
+            cy,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.keygen_not_made_yet,
+        );
         return 26.0;
     };
     if let Some(fp) = k.fingerprint {
@@ -2047,7 +2186,7 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy,
             EN.keygen_fingerprint,
             &fp_text(faraday_bip::keys::Fingerprint(fp)),
-            TEXT,
+            Role::OnSurface.paint(),
         );
     }
     cy += handed_line(k, ui, x, cy, w);
@@ -2057,7 +2196,7 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy,
         EN.keygen_source,
         &summary(k, kstep::SOURCE),
-        TEXT,
+        Role::OnSurface.paint(),
     );
     cy += 6.0;
     // Lock in went on to here: the key as it was added.
@@ -2066,7 +2205,7 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     cy += word_grid(ui, m, k.shown, x, cy, w);
     if let Some(n) = &k.note {
-        ui.text(x, cy, 13.0, W::R, ERR, n);
+        ui.text(x, cy, 13.0, W::R, Role::Error, n);
         cy += 24.0;
     }
     cy += buttons_and_next(
@@ -2092,10 +2231,11 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// from four.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let muted = Role::OnSurfaceVariant;
     use crate::quiz::QuizState;
     let mut cy = y;
     let Some(q) = k.quiz.as_ref() else {
-        ui.text(x, cy, 13.0, W::R, DIM, EN.keygen_show_the_words_first);
+        ui.text(x, cy, 13.0, W::R, muted, EN.keygen_show_the_words_first);
         return 26.0;
     };
     let (done, n) = q.progress();
@@ -2107,23 +2247,26 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 cy,
                 EN.keygen_fingerprint,
                 &fp_text(faraday_bip::keys::Fingerprint(fp)),
-                TEXT,
+                Role::OnSurface.paint(),
             );
         }
         cy += handed_line(k, ui, x, cy, w);
         let (said, tone) = if q.state() == QuizState::Passed && k.slip39 {
             (
                 fill(EN.keygen_all_shares_right, &[&k.shares.len().to_string()]),
-                OK,
+                Role::Ok.paint(),
             )
         } else if q.state() == QuizState::Passed {
-            (fill(EN.keygen_all_words_right, &[&n.to_string()]), OK)
+            (
+                fill(EN.keygen_all_words_right, &[&n.to_string()]),
+                Role::Ok.paint(),
+            )
         } else {
-            (EN.keygen_quiz_skipped.to_string(), WARN)
+            (EN.keygen_quiz_skipped.to_string(), Role::Warning.paint())
         };
         cy = stat(ui, x, cy, EN.keygen_quiz, &said, tone);
         if let Some(e) = &k.note {
-            ui.text(x, cy, 13.0, W::R, ERR, e);
+            ui.text(x, cy, 13.0, W::R, Role::Error, e);
             cy += 24.0;
         }
         cy += 6.0;
@@ -2152,14 +2295,14 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     } else {
         fill(EN.keygen_of_right, &[&done.to_string(), &n.to_string()])
     };
-    ui.text(x, cy, 13.0, W::R, MUTED, &progress);
+    ui.text(x, cy, 13.0, W::R, muted, &progress);
     cy += 26.0;
     ui.text(
         x,
         cy,
         18.0,
         W::S,
-        TEXT,
+        Role::OnSurface,
         &fill(EN.keygen_which_is_word, &[&(q.position() + 1).to_string()]),
     );
     cy += 40.0;
@@ -2188,7 +2331,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     cy += q.choices().len().div_ceil(per) as f32 * 56.0 + 4.0;
     if q.state() == QuizState::Wrong {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, EN.keygen_not_that_one) + 10.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, EN.keygen_not_that_one) + 10.0;
         let aw = ui.button(
             x,
             cy,
@@ -2210,7 +2353,15 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += 52.0;
     }
     if k.skip_ask {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, EN.keygen_quiz_skip_warning) + 10.0;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            13.0,
+            W::R,
+            Role::Warning,
+            EN.keygen_quiz_skip_warning,
+        ) + 10.0;
         ui.button(
             x,
             cy,
@@ -2244,7 +2395,7 @@ fn quiz(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy,
         12.0,
         W::R,
-        DIM,
+        muted,
         if k.slip39 {
             EN.keygen_quiz_keys_add
         } else {

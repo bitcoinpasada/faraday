@@ -42,7 +42,7 @@ fn list(rows: &[Row], name: impl Fn(usize) -> String, pick: fn(u8) -> Pick) -> L
 
 /// A small heading over a list. Returns its height.
 fn heading(ui: &mut Ui, x: f32, y: f32, text: &str) -> f32 {
-    ui.text(x, y, CAPTION, W::S, MUTED, text);
+    ui.text(x, y, CAPTION, W::S, Role::OnSurfaceVariant, text);
     CAPTION + GAP
 }
 
@@ -54,7 +54,13 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     let mut cy = y;
     cy += head(ui, (x, cy, w), Icon::Download, EN.samples_title);
-    cy += ui.code_line((x, cy, w), LABEL, MUTED, EN.samples_password, PASSPHRASE) + PAD;
+    cy += ui.code_line(
+        (x, cy, w),
+        LABEL,
+        Role::OnSurfaceVariant,
+        EN.samples_password,
+        PASSPHRASE,
+    ) + PAD;
     // Load ticked with a stick in asks for it out (the Pull sheet); the
     // line is at the top, where the scrolled list does not hide it.
     if app.selftest_passed() && !app.stick.is_empty() {
@@ -62,7 +68,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             EN.pull_medium_to_reason,
             &[app.medium.noun(), EN.pull_what_load_samples],
         );
-        cy += ui.wrap(x, cy, w, LABEL, W::S, WARN, &line) + PAD;
+        cy += ui.wrap(x, cy, w, LABEL, W::S, Role::Warning, &line) + PAD;
     }
     // Unselect all while any is ticked; Select all once none is.
     let any = state.any_ticked();
@@ -72,7 +78,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         EN.samples_select_all
     };
     let lw = ui.measure(LABEL, W::S, link);
-    ui.text_mid(x, cy, TOUCH, LABEL, W::S, ACCENT, link);
+    ui.text_mid(x, cy, TOUCH, LABEL, W::S, Role::Primary, link);
     ui.hit(x - GAP, cy, lw + 2.0 * GAP, TOUCH, Action::SamplesAll);
     cy += TOUCH;
     cy += heading(ui, x, cy, EN.samples_wallets);

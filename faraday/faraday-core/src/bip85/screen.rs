@@ -163,7 +163,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                     Style::Secondary,
                     Action::PLength(-1),
                 );
-                ui.text_mid(x + mw + 16.0, cy, 40.0, 15.0, W::S, TEXT, &l);
+                ui.text_mid(x + mw + 16.0, cy, 40.0, 15.0, W::S, Role::OnSurface, &l);
                 // On a small panel + sits at the row's end and the range
                 // goes under the row.
                 let px = if ui.compact {
@@ -183,10 +183,18 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 let range = fill(EN.bip85_index_range, &[&lo.to_string(), &hi.to_string()]);
                 if ui.compact {
                     cy += 46.0;
-                    ui.text(x, cy, 12.0, W::R, DIM, &range);
+                    ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, &range);
                     cy += 28.0;
                 } else {
-                    ui.text_mid(x + mw + 230.0, cy, 40.0, 12.0, W::R, DIM, &range);
+                    ui.text_mid(
+                        x + mw + 230.0,
+                        cy,
+                        40.0,
+                        12.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        &range,
+                    );
                     cy += 52.0;
                 }
             }
@@ -207,10 +215,17 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                 Style::Secondary,
                 Action::PIndex(-1),
             );
-            ui.fill(x + mw + 8.0, cy, 180.0, 44.0, 8.0, BG);
-            ui.stroke(x + mw + 8.0, cy, 180.0, 44.0, 8.0, ACCENT);
+            ui.fill(
+                x + mw + 8.0,
+                cy,
+                180.0,
+                44.0,
+                8.0,
+                Role::SurfaceContainerHighest,
+            );
+            ui.stroke(x + mw + 8.0, cy, 180.0, 44.0, 8.0, Role::Primary);
             let index = format!("{}{}", b.index, ui.caret_char());
-            ui.text_mid(x + mw + 20.0, cy, 44.0, 16.0, W::M, TEXT, &index);
+            ui.text_mid(x + mw + 20.0, cy, 44.0, 16.0, W::M, Role::OnSurface, &index);
             ui.button(
                 x + mw + 196.0,
                 cy,
@@ -222,10 +237,17 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             );
             cy += 56.0;
             if b.index().is_none() {
-                ui.text(x, cy, 13.0, W::R, ERR, EN.bip85_index_limits);
+                ui.text(x, cy, 13.0, W::R, Role::Error, EN.bip85_index_limits);
                 cy += 24.0;
             }
-            ui.text(x, cy, 12.0, W::R, DIM, EN.bip85_type_the_digits);
+            ui.text(
+                x,
+                cy,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                EN.bip85_type_the_digits,
+            );
             cy += 24.0;
             if next_button(ui, x, cy, w, EN.bip85_continue, Action::PNext) {
                 cy += 48.0;
@@ -238,13 +260,13 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             } else {
                 (120.0, 0.0)
             };
-            ui.text(x, cy, 12.0, W::R, MUTED, EN.bip85_path);
+            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, EN.bip85_path);
             cy += below;
             cy += ui
-                .wrap(x + vx, cy, w - vx, 13.0, W::M, TEXT, &b.path())
+                .wrap(x + vx, cy, w - vx, 13.0, W::M, Role::OnSurface, &b.path())
                 .max(20.0)
                 + 6.0;
-            ui.text(x, cy, 12.0, W::R, MUTED, app_name(b.app));
+            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, app_name(b.app));
             cy += below;
             // Derived for this frame only, and wiped with it: a secret
             // shown, which nothing keeps.
@@ -252,7 +274,7 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
             let shown =
                 value.as_ref().map_or("••••••••••••", |v| v.as_str());
             cy += ui
-                .wrap(x + vx, cy, w - vx, 14.0, W::M, TEXT, shown)
+                .wrap(x + vx, cy, w - vx, 14.0, W::M, Role::OnSurface, shown)
                 .max(20.0)
                 + 12.0;
             let mut row: Vec<(String, Style, Action)> = vec![(

@@ -401,15 +401,15 @@ pub(crate) fn taken_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
         let mut cy = y;
         if ui.compact {
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::File, TEXT, &title);
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::File, Role::OnSurface, &title);
         } else {
-            ui.icon(x, cy, 30.0, Icon::File, 18.0, TEXT);
+            ui.icon(x, cy, 30.0, Icon::File, 18.0, Role::OnSurface);
             let t = ui.fit(20.0, W::S, &title, iw - 42.0);
-            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, TEXT, &t);
+            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, Role::OnSurface, &t);
             cy += 46.0;
         }
         for line in &rows {
-            cy += ui.wrap(x, cy, iw, 13.0, W::M, TEXT, line) + 10.0;
+            cy += ui.wrap(x, cy, iw, 13.0, W::M, Role::OnSurface, line) + 10.0;
         }
         cy += 8.0;
         cy += buttons(

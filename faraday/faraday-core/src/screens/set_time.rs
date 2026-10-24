@@ -9,6 +9,24 @@ use crate::ui::{Style, Ui, W};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, title, wrap_buttons};
 
+/// The back link at the top of the page.
+fn back_link(app: &View, ui: &mut Ui, x: f32, y: f32) {
+    let back = Action::SetTimeBack;
+    let muted = Role::OnSurfaceVariant;
+    ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, muted);
+    let name = app.back_link_name(app.set_time.back_to());
+    ui.text(
+        x + 14.0,
+        y,
+        12.0,
+        W::R,
+        muted,
+        app.named_back((name, back)).0,
+    );
+    ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back);
+    ui.back(back);
+}
+
 /// `Screen::SetTime` (`docs/TOTP.md` §3): the Enter screen that sets the
 /// time by hand.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -18,27 +36,31 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let x = x0 + 56.0;
     let width = (cw - 112.0).min(520.0);
     let mut y = 28.0;
-    let back = Action::SetTimeBack;
-    ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, MUTED);
-    ui.text(
-        x + 14.0,
-        y,
-        12.0,
-        W::R,
-        MUTED,
-        app.named_back((app.back_link_name(app.set_time.back_to()), back))
-            .0,
-    );
-    ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, back);
-    ui.back(back);
+    back_link(app, ui, x, y);
     y += 26.0;
     title(ui, x, y, EN.set_time_set_the_time);
     y += 64.0;
     // Context: Now, and the time zone.
-    ui.card(x, y, width, 112.0, LINE);
-    ui.text_mid(x + 22.0, y + 16.0, 32.0, 13.0, W::R, MUTED, EN.set_time_now);
+    ui.card(x, y, width, 112.0, Role::OutlineVariant);
+    ui.text_mid(
+        x + 22.0,
+        y + 16.0,
+        32.0,
+        13.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.set_time_now,
+    );
     let now = app.now_local_text();
-    ui.text_right(x + width - 22.0, y + 16.0, 32.0, 15.0, W::S, TEXT, &now);
+    ui.text_right(
+        x + width - 22.0,
+        y + 16.0,
+        32.0,
+        15.0,
+        W::S,
+        Role::OnSurface,
+        &now,
+    );
     tz_row(ui, x + 22.0, y + 60.0, width - 44.0, app.tz_min());
     y += 132.0;
     // Entry: Date and Time.
@@ -108,7 +130,7 @@ fn set_time_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, _h: f32) {
     let mut y = top;
     y += section(ui, x, y, w, EN.set_time_now, &|ui, x, y0, w| {
         let mut y = y0;
-        y += ui.wrap(x, y, w, 15.0, W::S, TEXT, &app.now_local_text()) + 10.0;
+        y += ui.wrap(x, y, w, 15.0, W::S, Role::OnSurface, &app.now_local_text()) + 10.0;
         y += tz_row(ui, x, y, w, app.tz_min());
         y - y0
     });

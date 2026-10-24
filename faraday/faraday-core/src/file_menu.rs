@@ -683,11 +683,11 @@ fn place(ui: &Ui, w: f32, max: f32) -> ((f32, f32), f32, f32) {
 /// The sheet's title, with its glyph. Returns its height.
 fn head(ui: &mut Ui, x: f32, y: f32, iw: f32, title: &str) -> f32 {
     if ui.compact {
-        return crate::compact::sheet_head(ui, x, y, iw, Icon::File, TEXT, title);
+        return crate::compact::sheet_head(ui, x, y, iw, Icon::File, Role::OnSurface, title);
     }
-    ui.icon(x, y, 30.0, Icon::File, 18.0, TEXT);
+    ui.icon(x, y, 30.0, Icon::File, 18.0, Role::OnSurface);
     let t = ui.fit(20.0, W::S, title, iw - 42.0);
-    ui.text_mid(x + 42.0, y, 30.0, 20.0, W::S, TEXT, &t);
+    ui.text_mid(x + 42.0, y, 30.0, 20.0, W::S, Role::OnSurface, &t);
     46.0
 }
 
@@ -711,15 +711,15 @@ pub(crate) fn rename_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ui.measure(14.0, W::M, &r.ext) + tokens::GAP_SMALL
         };
         let fw = iw - ew;
-        ui.fill(x, cy, fw, fh, 8.0, BG);
-        ui.stroke(x, cy, fw, fh, 8.0, ACCENT);
+        ui.fill(x, cy, fw, fh, 8.0, Role::SurfaceContainerHighest);
+        ui.stroke(x, cy, fw, fh, 8.0, Role::Primary);
         ui.typed(
             x + 12.0,
             cy,
             fh,
             14.0,
             W::M,
-            TEXT,
+            Role::OnSurface,
             &r.stem,
             fw - 24.0,
             true,
@@ -733,13 +733,13 @@ pub(crate) fn rename_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 fh,
                 14.0,
                 W::M,
-                MUTED,
+                Role::OnSurfaceVariant,
                 &r.ext,
             );
         }
         cy += fh + tokens::GAP_SMALL;
         if let Err(Some(why)) = &checked {
-            cy += ui.wrap(x, cy, iw, 13.0, W::R, ERR, why) + tokens::GAP_SMALL;
+            cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::Error, why) + tokens::GAP_SMALL;
         }
         cy += tokens::GAP_SMALL;
         let go = Style::Primary.when(checked.is_ok());
@@ -783,15 +783,15 @@ pub(crate) fn details_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let mut cy = y;
         cy += head(ui, x, cy, iw, EN.file_menu_details);
         for (label, value) in rows {
-            ui.text(x, cy, 12.0, W::S, MUTED, label);
+            ui.text(x, cy, 12.0, W::S, Role::OnSurfaceVariant, label);
             cy += 18.0;
-            cy += ui.wrap(x, cy, iw, 14.0, W::M, TEXT, value) + tokens::GAP;
+            cy += ui.wrap(x, cy, iw, 14.0, W::M, Role::OnSurface, value) + tokens::GAP;
         }
-        ui.text(x, cy, 12.0, W::S, MUTED, EN.details_sha);
+        ui.text(x, cy, 12.0, W::S, Role::OnSurfaceVariant, EN.details_sha);
         cy += 18.0;
         for line in &sha {
             let shown = ui.fit(14.0, W::M, line, iw);
-            ui.text(x, cy, 14.0, W::M, TEXT, &shown);
+            ui.text(x, cy, 14.0, W::M, Role::OnSurface, &shown);
             cy += 22.0;
         }
         cy += tokens::GAP;

@@ -101,7 +101,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // is not drawn again: the copy stands for it.
     let frosted = app.sheet.is_some() && ui.frost.is_some();
     if !frosted && app.is_compact() {
-        ui.clear(SURFACE);
+        ui.clear(Role::Surface);
         // The stick pills take a strip across the top; the page is
         // drawn below it, beside the rail or above the bar
         // (`docs/LAYOUT.md` §3), both drawn after it, over it.
@@ -119,11 +119,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         }
         ui.oy = 0.0;
     } else if !frosted && app.held {
-        ui.clear(SURFACE);
+        ui.clear(Role::Surface);
         let page_h = if kb > 0.0 { win_h } else { full_h };
         held_frame(app, ui, full_w, full_h, (page_h, lift));
     } else if !frosted {
-        ui.clear(SURFACE);
+        ui.clear(Role::Surface);
         sidebar(app, ui, win_h);
         let room = full_w - SIDEBAR_W;
         let cw = room.min(MAX_W - SIDEBAR_W);
@@ -142,7 +142,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // The stick pills' strip, over whatever scrolls under it; the
         // pills themselves are drawn last, over any sheet.
         if strip > 0.0 {
-            ui.fill(x - ui.ox, 0.0, room, strip, 0.0, SURFACE);
+            ui.fill(x - ui.ox, 0.0, room, strip, 0.0, Role::Surface);
         }
         let kx = header_network_pill(app, ui, x + cw - faraday_draw::tokens::TOP_ROW_QUESTION);
         // Under a sheet the keyboard button is drawn over it, below.
@@ -156,17 +156,18 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             // In the right margin, clear of every screen's own title row.
             let (qx, qy) = (x + cw - faraday_draw::tokens::TOP_ROW_QUESTION, 12.0);
             let pressed = ui.is_pressed(Action::Learn);
-            ui.fill(
-                qx,
+            crate::ui::fill_pressed(ui, (qx, qy, 28.0, 28.0, 14.0), Role::Surface, pressed);
+            ui.stroke(qx, qy, 28.0, 28.0, 14.0, Role::OutlineVariant);
+            let tw = ui.measure(14.0, W::S, "?");
+            ui.text_mid(
+                qx + 14.0 - tw / 2.0,
                 qy,
                 28.0,
-                28.0,
                 14.0,
-                if pressed { INNER } else { SURFACE },
+                W::S,
+                Role::OnSurfaceVariant,
+                "?",
             );
-            ui.stroke(qx, qy, 28.0, 28.0, 14.0, BORDER);
-            let tw = ui.measure(14.0, W::S, "?");
-            ui.text_mid(qx + 14.0 - tw / 2.0, qy, 28.0, 14.0, W::S, MUTED, "?");
             ui.hit(qx - 6.0, qy - 6.0, 40.0, 40.0, Action::Learn);
         }
         ui.ox = 0.0;
@@ -187,7 +188,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         } else if matches!(sheet, Sheet::Learn) && app.held {
             // Held, the Learn sheet is the page under the holder's top
             // app bar (`docs/STARTER.md` §3.1d).
-            ui.clear(SURFACE);
+            ui.clear(Role::Surface);
         } else {
             ui.backdrop();
         }
@@ -294,7 +295,7 @@ fn drop_edge(app: &View, ui: &mut Ui, (full_w, full_h): (f32, f32), kb: bool) {
     ui.oy = 0.0;
     // The stroke lies inside the rectangle, along the page's own edges.
     let rect = ui.rect(x, 0.0, w, h);
-    let c = ui.col(ACCENT);
+    let c = ui.col(Role::Primary);
     ui.c.stroke_rounded_rect(rect, 0.0, BOARD_EDGE * ui.f, c);
 }
 
@@ -449,15 +450,15 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
             // The bar came or went: the page again, laid out for it, in
             // this same frame.
             app.pin_h.set(want);
-            ui.clear(SURFACE);
+            ui.clear(Role::Surface);
             ui.clear_hits();
             return draw_compact(app, ui, area, h, kb, y0);
         }
         if let Some((label, style, action)) = pin {
             let y = h - PIN_H;
             ui.ox = ax;
-            ui.fill(0.0, y, aw, PIN_H, 0.0, SIDEBAR);
-            ui.fill(0.0, y, aw, 1.0, 0.0, LINE);
+            ui.fill(0.0, y, aw, PIN_H, 0.0, Role::SurfaceContainerLow);
+            ui.fill(0.0, y, aw, 1.0, 0.0, Role::OutlineVariant);
             ui.ox = cx;
             let m = crate::compact::M;
             let label = ui.fit(15.0, W::S, &label, w - 2.0 * m - 24.0);
@@ -484,10 +485,17 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
             10.0,
             faraday_draw::tokens::ELEVATION_FAB,
         );
-        ui.fill(bx, h - 64.0, bw, 44.0, 10.0, BG);
-        ui.fill(bx, h - 64.0, bw, 44.0, 10.0, WARN.with_alpha(40));
-        ui.stroke(bx, h - 64.0, bw, 44.0, 10.0, WARN.with_alpha(110));
-        ui.text_mid(bx + 20.0, h - 64.0, 44.0, 14.0, W::S, WARN, msg);
+        ui.fill(bx, h - 64.0, bw, 44.0, 10.0, Role::WarningContainer);
+        ui.stroke(bx, h - 64.0, bw, 44.0, 10.0, Role::Warning.with_alpha(110));
+        ui.text_mid(
+            bx + 20.0,
+            h - 64.0,
+            44.0,
+            14.0,
+            W::S,
+            Role::OnWarningContainer,
+            msg,
+        );
     }
     if let Some(t) = app.toast_text().map(str::to_string) {
         // Material's snackbar: in the inverse colours, so it reads as a
@@ -509,8 +517,23 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
                 faraday_draw::tokens::ELEVATION_FAB,
             );
         }
-        ui.wash(tx, ty, tw, TOAST_H, SHAPE_XS, a(INVERSE));
-        ui.text_mid(tx + TOAST_PAD, ty, TOAST_H, 14.0, W::R, a(ON_INVERSE), &t);
+        ui.wash(
+            tx,
+            ty,
+            tw,
+            TOAST_H,
+            SHAPE_XS,
+            a(Role::InverseSurface.paint()),
+        );
+        ui.text_mid(
+            tx + TOAST_PAD,
+            ty,
+            TOAST_H,
+            14.0,
+            W::R,
+            a(Role::InverseOnSurface.paint()),
+            &t,
+        );
     }
 }
 
@@ -562,16 +585,31 @@ fn wide_page(app: &View, full_w: f32) -> (f32, f32) {
 /// published vectors do not reproduce has nowhere to go but out.
 fn selftest_failed(ui: &mut Ui, w: f32, h: f32, check: &str) {
     let s = &EN;
-    ui.clear(SURFACE);
+    ui.clear(Role::Surface);
     let cw = (w - 64.0).min(560.0);
     let x = (w - cw) / 2.0;
     let mut y = (h / 2.0 - 120.0).max(24.0);
-    ui.icon(x, y, 30.0, Icon::Error, 18.0, ERR);
-    ui.text_mid(x + 42.0, y, 30.0, 20.0, W::S, TEXT, s.selftest_failed_title);
+    ui.icon(x, y, 30.0, Icon::Error, 18.0, Role::Error);
+    ui.text_mid(
+        x + 42.0,
+        y,
+        30.0,
+        20.0,
+        W::S,
+        Role::OnSurface,
+        s.selftest_failed_title,
+    );
     y += 56.0;
-    ui.text(x, y, 12.0, W::R, MUTED, s.selftest_check_row);
+    ui.text(
+        x,
+        y,
+        12.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        s.selftest_check_row,
+    );
     y += 20.0;
-    y += ui.wrap(x, y, cw, 15.0, W::S, ERR, check) + 32.0;
+    y += ui.wrap(x, y, cw, 15.0, W::S, Role::Error, check) + 32.0;
     ui.button(
         x,
         y,

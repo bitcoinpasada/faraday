@@ -60,10 +60,10 @@ fn header(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         16.0,
         faraday_draw::widgets::Icon::ChevronLeft,
         10.0,
-        MUTED,
+        Role::OnSurfaceVariant,
     );
     let (label, _) = app.named_back((EN.tools_wallets, Action::Nav(t.back)));
-    ui.text(x + 14.0, y, 12.0, W::R, MUTED, label);
+    ui.text(x + 14.0, y, 12.0, W::R, Role::OnSurfaceVariant, label);
     ui.hit(x - 4.0, y - 4.0, 70.0, 24.0, Action::Nav(t.back));
     ui.back(Action::Nav(t.back));
     y += 22.0;
@@ -148,8 +148,8 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         s.push_str(ui.caret_char());
         s
     };
-    ui.fill(x, y, width, 44.0, 8.0, BG);
-    ui.stroke(x, y, width, 44.0, 8.0, ACCENT);
+    ui.fill(x, y, width, 44.0, 8.0, Role::SurfaceContainerHighest);
+    ui.stroke(x, y, width, 44.0, 8.0, Role::Primary);
     let s = ui.fit_secret(14.0, W::M, &shown, width - 100.0);
     ui.text_mid(
         x + 12.0,
@@ -157,7 +157,11 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         44.0,
         14.0,
         W::M,
-        if t.typed.is_empty() { DIM } else { TEXT },
+        if t.typed.is_empty() {
+            Role::OnSurfaceVariant
+        } else {
+            Role::OnSurface
+        },
         &s,
     );
     ui.button(
@@ -286,7 +290,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         },
     }
     if let Some(n) = note {
-        return y + ui.wrap(x, y, width, 13.0, W::R, ERR, &n) + 10.0;
+        return y + ui.wrap(x, y, width, 13.0, W::R, Role::Error, &n) + 10.0;
     }
     // On a small panel each value goes under its name.
     let (vx, below) = if ui.compact {
@@ -295,10 +299,10 @@ fn body(app: &View, ui: &mut Ui, x: f32, mut y: f32, width: f32) -> f32 {
         (140.0, 0.0)
     };
     for (label, value) in rows {
-        ui.text(x, y, 13.0, W::R, MUTED, &label);
+        ui.text(x, y, 13.0, W::R, Role::OnSurfaceVariant, &label);
         y += below;
         y += ui
-            .wrap(x + vx, y, width - vx, 13.0, W::M, TEXT, &value)
+            .wrap(x + vx, y, width - vx, 13.0, W::M, Role::OnSurface, &value)
             .max(20.0)
             + 10.0;
     }

@@ -66,7 +66,11 @@ fn chips(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, Action)]) ->
             cw,
             t::C32_CHIP,
             t::RADIUS_SMALL,
-            if on { BG_PRESSED } else { BG },
+            if on {
+                Role::SurfaceContainerHigh
+            } else {
+                Role::SurfaceContainerHighest
+            },
         );
         ui.stroke(
             cx,
@@ -74,7 +78,11 @@ fn chips(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, Action)]) ->
             cw,
             t::C32_CHIP,
             t::RADIUS_SMALL,
-            if on { ACCENT } else { BORDER },
+            if on {
+                Role::Primary
+            } else {
+                Role::OutlineVariant
+            },
         );
         let mut tx = cx + t::PAD;
         if on {
@@ -84,11 +92,11 @@ fn chips(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, Action)]) ->
                 t::C32_CHECK,
                 Icon::Check,
                 t::C32_CHECK,
-                ACCENT,
+                Role::Primary,
             );
             tx += lead - t::GAP_SMALL;
         }
-        ui.text_mid(tx, cy, t::C32_CHIP, t::LABEL, W::S, TEXT, label);
+        ui.text_mid(tx, cy, t::C32_CHIP, t::LABEL, W::S, Role::OnSurface, label);
         ui.hit_quiet(cx, cy - (row - t::C32_CHIP) / 2.0, cw, row, action);
         cx += cw + t::GAP;
     }
@@ -96,32 +104,44 @@ fn chips(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, Action)]) ->
 }
 
 /// The string typed so far after `ms1`, in groups of four, in a field
-/// edged in `ERR` while it differs. Returns the height.
+/// edged in `error` while it differs. Returns the height.
 fn typed_field(ui: &mut Ui, x: f32, y: f32, w: f32, st: &Strings, prefix: &str) -> f32 {
     let mut whole = String::from(prefix);
     whole.push_str(&st.typed);
     let shown = faraday_ui::grouped(&whole);
     let wrong = matches!(st.found, Some(Found::Differs(_)));
-    ui.fill(x, y, w, t::FIELD, t::RADIUS_SMALL, SURFACE);
+    ui.fill(x, y, w, t::FIELD, t::RADIUS_SMALL, Role::Surface);
     ui.stroke(
         x,
         y,
         w,
         t::FIELD,
         t::RADIUS_SMALL,
-        if wrong { ERR } else { BORDER },
+        if wrong {
+            Role::Error
+        } else {
+            Role::OutlineVariant
+        },
     );
     let fit = ui.fit(t::LABEL, W::M, &shown, w - 2.0 * t::GAP);
-    ui.text_mid(x + t::GAP, y, t::FIELD, t::LABEL, W::M, TEXT, &fit);
+    ui.text_mid(
+        x + t::GAP,
+        y,
+        t::FIELD,
+        t::LABEL,
+        W::M,
+        Role::OnSurface,
+        &fit,
+    );
     t::FIELD + t::GAP
 }
 
-/// What the string typed was found to be, in `OK` or `ERR`. Returns the
+/// What the string typed was found to be, in `ok` or `error`. Returns the
 /// height.
 fn found_line(ui: &mut Ui, x: f32, y: f32, w: f32, st: &Strings) -> f32 {
     match &st.found {
-        Some(Found::Holds(l)) => ui.wrap(x, y, w, t::LABEL, W::R, OK, l) + t::GAP,
-        Some(Found::Differs(l)) => ui.wrap(x, y, w, t::LABEL, W::R, ERR, l) + t::GAP,
+        Some(Found::Holds(l)) => ui.wrap(x, y, w, t::LABEL, W::R, Role::Ok, l) + t::GAP,
+        Some(Found::Differs(l)) => ui.wrap(x, y, w, t::LABEL, W::R, Role::Error, l) + t::GAP,
         None => 0.0,
     }
 }
@@ -135,11 +155,11 @@ fn keyboard(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     faraday_ui::keyboard::height(kind) + t::GAP
 }
 
-/// The item's note, in `WARN`. Returns the height.
+/// The item's note, in `warning`. Returns the height.
 fn note(ui: &mut Ui, x: f32, y: f32, w: f32, st: &Strings) -> f32 {
-    st.note
-        .as_deref()
-        .map_or(0.0, |n| ui.wrap(x, y, w, t::LABEL, W::R, WARN, n) + t::GAP)
+    st.note.as_deref().map_or(0.0, |n| {
+        ui.wrap(x, y, w, t::LABEL, W::R, Role::Warning, n) + t::GAP
+    })
 }
 
 /// Seed `i`'s codex32 item, under its title. `foot` says whether the
@@ -174,9 +194,25 @@ pub(crate) fn item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
         );
     }
     let mut cy = y;
-    cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, &facts(form)) + t::GAP;
+    cy += ui.wrap(
+        x,
+        cy,
+        w,
+        t::LABEL,
+        W::R,
+        Role::OnSurfaceVariant,
+        &facts(form),
+    ) + t::GAP;
     if form.length == 127 {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.c32_holds_the_seed) + t::GAP;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            t::LABEL,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.c32_holds_the_seed,
+        ) + t::GAP;
     }
     let paper = crate::plan::codex32::paper_strings(&b.answers, &mapped, i);
     for &j in &paper {
@@ -215,13 +251,15 @@ pub(crate) fn item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
             w,
             t::LABEL,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             &fill(EN.c32_more_unknown, &[&form.unknown.to_string()]),
         ) + t::GAP;
     }
     match st.rebuilds {
-        Some(true) => cy += ui.wrap(x, cy, w, t::LABEL, W::R, OK, EN.c32_rebuilds) + t::GAP,
-        Some(false) => cy += ui.wrap(x, cy, w, t::LABEL, W::R, ERR, EN.c32_rebuilds_not) + t::GAP,
+        Some(true) => cy += ui.wrap(x, cy, w, t::LABEL, W::R, Role::Ok, EN.c32_rebuilds) + t::GAP,
+        Some(false) => {
+            cy += ui.wrap(x, cy, w, t::LABEL, W::R, Role::Error, EN.c32_rebuilds_not) + t::GAP
+        }
         None => {}
     }
     cy += note(ui, x, cy, w, st);
@@ -244,12 +282,13 @@ fn one_string(
     (j, copy): (usize, Option<PaperCopy>),
     places: &str,
 ) -> f32 {
+    let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let mut cy = y;
     let head = fill(EN.c32_share_at, &[&name(j), places]);
-    cy += ui.wrap(x, cy, w, t::BODY, W::S, TEXT, &head) + t::GAP;
+    cy += ui.wrap(x, cy, w, t::BODY, W::S, ink, &head) + t::GAP;
     let drawn = form.length == 48 && copy.is_some_and(PaperCopy::drawn);
     if drawn {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.c32_qr_sheet) + t::GAP;
+        cy += ui.wrap(x, cy, w, t::LABEL, W::R, muted, EN.c32_qr_sheet) + t::GAP;
     }
     if let Some(s) = st.known(j) {
         if s.len() == 48 {
@@ -283,11 +322,11 @@ fn one_string(
                 while size > t::CAPTION && ui.wrap_lines(size, W::M, &g, w) > 3 {
                     size -= 1.0;
                 }
-                cy += ui.wrap(x, cy, w, size, W::M, TEXT, &g) + t::GAP;
+                cy += ui.wrap(x, cy, w, size, W::M, ink, &g) + t::GAP;
             }
         }
     } else if !form.fixed() {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.c32_not_made) + t::GAP;
+        cy += ui.wrap(x, cy, w, t::LABEL, W::R, muted, EN.c32_not_made) + t::GAP;
     }
     // Written: typed back from the paper. Only drawn and made here:
     // scanned. A string of a set that exists is typed from its paper
@@ -295,7 +334,7 @@ fn one_string(
     let written = copy.is_none_or(PaperCopy::written) || !drawn || st.made(j).is_none();
     if written {
         if st.made(j).is_none() && form.fixed() {
-            cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.c32_type_from_paper) + t::GAP;
+            cy += ui.wrap(x, cy, w, t::LABEL, W::R, muted, EN.c32_type_from_paper) + t::GAP;
         }
         cy += typed_field(ui, x, cy, w, st, "ms1");
     }
@@ -304,7 +343,15 @@ fn one_string(
         cy += keyboard(ui, x, cy, w);
     }
     if st.skip_ask {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, WARN, EN.codex32_skip_caution) + t::GAP;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            t::LABEL,
+            W::R,
+            Role::Warning,
+            EN.codex32_skip_caution,
+        ) + t::GAP;
     }
     cy += note(ui, x, cy, w, st);
     let mut rows = vec![
@@ -349,7 +396,7 @@ fn set_step(ui: &mut Ui, x: f32, y: f32, w: f32, form: &C32, st: &Strings) -> f3
                 EN.c32_typed_in,
                 &[&st.held.len().to_string(), &form.need().to_string(), &id],
             );
-            cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, &count) + t::GAP;
+            cy += ui.wrap(x, cy, w, t::LABEL, W::R, Role::OnSurfaceVariant, &count) + t::GAP;
             cy += typed_field(ui, x, cy, w, st, "ms1");
             cy += found_line(ui, x, cy, w, st);
             if st.held.len() < form.need() {
@@ -409,7 +456,11 @@ fn string_row(
         x + t::GAP_SMALL,
         y + t::TOUCH / 2.0,
         t::GAP_SMALL,
-        if done { OK } else { DIM },
+        if done {
+            Role::Ok
+        } else {
+            Role::OnSurfaceVariant
+        },
     );
     let state = if done {
         EN.c32_checked
@@ -418,14 +469,26 @@ fn string_row(
     };
     let sw = ui.measure(t::LABEL, W::R, state);
     let fit = ui.fit(t::LABEL, W::S, line, w - sw - 2.0 * t::GAP - t::GAP);
-    ui.text_mid(x + 2.0 * t::GAP, y, t::TOUCH, t::LABEL, W::S, TEXT, &fit);
+    ui.text_mid(
+        x + 2.0 * t::GAP,
+        y,
+        t::TOUCH,
+        t::LABEL,
+        W::S,
+        Role::OnSurface,
+        &fit,
+    );
     ui.text_right(
         x + w,
         y,
         t::TOUCH,
         t::LABEL,
         W::R,
-        if done { OK } else { MUTED },
+        if done {
+            Role::Ok
+        } else {
+            Role::OnSurfaceVariant
+        },
         state,
     );
     if let Some(p) = press {
@@ -468,16 +531,25 @@ fn set_actions(ui: &mut Ui, x: f32, y: f32, w: f32, form: &C32) -> f32 {
 
 /// A set action's heading. Returns its height.
 fn heading(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
-    ui.wrap(x, y, w, t::BODY, W::S, TEXT, text) + t::GAP
+    ui.wrap(x, y, w, t::BODY, W::S, Role::OnSurface, text) + t::GAP
 }
 
 /// Rotate the set's marks: each old string held, lost or exposed.
 /// Returns the height.
 fn marking(ui: &mut Ui, x: f32, y: f32, w: f32, marks: &[(usize, u8)]) -> f32 {
-    let mut cy = y + ui.wrap(x, y, w, t::LABEL, W::R, MUTED, EN.c32_rotate_mark) + t::GAP;
+    let mut cy =
+        y + ui.wrap(
+            x,
+            y,
+            w,
+            t::LABEL,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.c32_rotate_mark,
+        ) + t::GAP;
     for &(j, m) in marks {
         let jj = u8::try_from(j).unwrap_or(0);
-        ui.text_mid(x, cy, t::TOUCH, t::LABEL, W::S, TEXT, &name(j));
+        ui.text_mid(x, cy, t::TOUCH, t::LABEL, W::S, Role::OnSurface, &name(j));
         cy += chips(
             ui,
             x + t::LIST_INDENT,
@@ -615,7 +687,7 @@ pub(crate) fn paper_facts(
     }
     let mut cy = y;
     for r in rows {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, &r) + t::GAP_SMALL;
+        cy += ui.wrap(x, cy, w, t::LABEL, W::R, Role::OnSurfaceVariant, &r) + t::GAP_SMALL;
     }
     cy + t::GAP - y
 }
@@ -635,30 +707,34 @@ pub(crate) fn paper_one(
 ) -> f32 {
     let mut cy = y;
     let Some(s) = strings.get(t.at) else {
-        return ui.wrap(x, cy, w, t::LABEL, W::R, OK, EN.c32_paper_all_done) + t::GAP;
+        return ui.wrap(x, cy, w, t::LABEL, W::R, Role::Ok, EN.c32_paper_all_done) + t::GAP;
     };
     let head = fill(
         EN.c32_paper_string_of,
         &[&(t.at + 1).to_string(), &strings.len().to_string()],
     );
-    cy += ui.wrap(x, cy, w, t::BODY, W::S, TEXT, &head) + t::GAP;
+    cy += ui.wrap(x, cy, w, t::BODY, W::S, Role::OnSurface, &head) + t::GAP;
     let g = faraday_ui::grouped(s);
     let mut size = t::TITLE;
     while size > t::CAPTION && ui.wrap_lines(size, W::M, &g, w) > 3 {
         size -= 1.0;
     }
-    cy += ui.wrap(x, cy, w, size, W::M, TEXT, &g) + t::GAP;
+    cy += ui.wrap(x, cy, w, size, W::M, Role::OnSurface, &g) + t::GAP;
     let mut whole = String::from("ms1");
     whole.push_str(&t.typed);
     let wrong = matches!(t.found, Some(Found::Differs(_)));
-    ui.fill(x, cy, w, t::FIELD, t::RADIUS_SMALL, SURFACE);
+    ui.fill(x, cy, w, t::FIELD, t::RADIUS_SMALL, Role::Surface);
     ui.stroke(
         x,
         cy,
         w,
         t::FIELD,
         t::RADIUS_SMALL,
-        if wrong { ERR } else { BORDER },
+        if wrong {
+            Role::Error
+        } else {
+            Role::OutlineVariant
+        },
     );
     let fit = ui.fit(
         t::LABEL,
@@ -666,11 +742,19 @@ pub(crate) fn paper_one(
         &faraday_ui::grouped(&whole),
         w - 2.0 * t::GAP,
     );
-    ui.text_mid(x + t::GAP, cy, t::FIELD, t::LABEL, W::M, TEXT, &fit);
+    ui.text_mid(
+        x + t::GAP,
+        cy,
+        t::FIELD,
+        t::LABEL,
+        W::M,
+        Role::OnSurface,
+        &fit,
+    );
     cy += t::FIELD + t::GAP;
     cy += match &t.found {
-        Some(Found::Holds(l)) => ui.wrap(x, cy, w, t::LABEL, W::R, OK, l) + t::GAP,
-        Some(Found::Differs(l)) => ui.wrap(x, cy, w, t::LABEL, W::R, ERR, l) + t::GAP,
+        Some(Found::Holds(l)) => ui.wrap(x, cy, w, t::LABEL, W::R, Role::Ok, l) + t::GAP,
+        Some(Found::Differs(l)) => ui.wrap(x, cy, w, t::LABEL, W::R, Role::Error, l) + t::GAP,
         None => 0.0,
     };
     if t.typing(strings.len()) {
@@ -681,7 +765,15 @@ pub(crate) fn paper_one(
         cy += faraday_ui::keyboard::height(kind) + t::GAP;
     }
     if t.skip_ask {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, WARN, EN.codex32_skip_caution) + t::GAP;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            t::LABEL,
+            W::R,
+            Role::Warning,
+            EN.codex32_skip_caution,
+        ) + t::GAP;
     }
     // In the copy item, whose own foot is pinned: both in place.
     cy += faraday_ui::parts::wrap_buttons(

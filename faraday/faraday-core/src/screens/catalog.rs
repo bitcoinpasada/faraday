@@ -34,12 +34,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         320.0f32.min(width * 0.4)
     };
     let fx = x + width - fw;
-    ui.fill(fx, y - 2.0, fw, 40.0, 8.0, BG);
-    ui.stroke(fx, y - 2.0, fw, 40.0, 8.0, ACCENT.with_alpha(110));
+    ui.fill(fx, y - 2.0, fw, 40.0, 8.0, Role::SurfaceContainerHighest);
+    ui.stroke(fx, y - 2.0, fw, 40.0, 8.0, Role::Primary.with_alpha(110));
     let (shown, tone) = if app.tools.find().is_empty() {
-        (EN.catalog_find_a_tool.to_string(), DIM)
+        (EN.catalog_find_a_tool.to_string(), Role::OnSurfaceVariant)
     } else {
-        (app.tools.find().to_string(), TEXT)
+        (app.tools.find().to_string(), Role::OnSurface)
     };
     let shown = ui.fit(14.0, W::R, &shown, fw - 28.0);
     let tw = ui.text_mid(fx + 12.0, y - 2.0, 40.0, 14.0, W::R, tone, &shown);
@@ -77,15 +77,24 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             let opens = app.tile_opens(tile.go);
             let action = Action::Catalog(*i as u8);
             let pressed = ui.is_pressed(action);
-            ui.fill(tx, ty, tw3, th, 10.0, if pressed { INNER } else { SURFACE });
-            ui.stroke(tx, ty, tw3, th, 10.0, BORDER);
+            crate::ui::fill_pressed(
+                ui,
+                (tx, ty, tw3, th, 10.0),
+                Role::SurfaceContainerLow,
+                pressed,
+            );
+            ui.stroke(tx, ty, tw3, th, 10.0, Role::OutlineVariant);
             let name = ui.fit(14.0, W::S, tile.name, tw3 - 32.0);
             ui.text(
                 tx + 16.0,
                 ty + 12.0,
                 14.0,
                 W::S,
-                if opens { TEXT } else { DIM },
+                if opens {
+                    Role::OnSurface.paint()
+                } else {
+                    crate::ui::off()
+                },
                 &name,
             );
             let line = ui.fit(12.0, W::R, need.unwrap_or(tile.line), tw3 - 32.0);
@@ -94,7 +103,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 ty + 34.0,
                 12.0,
                 W::R,
-                if need.is_some() { WARN } else { MUTED },
+                if need.is_some() {
+                    Role::Warning
+                } else {
+                    Role::OnSurfaceVariant
+                },
                 &line,
             );
             // The standards, as small tags.
@@ -104,8 +117,16 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 if gx + gw > tx + tw3 - 12.0 {
                     break;
                 }
-                ui.fill(gx, ty + 56.0, gw, 18.0, 9.0, INNER);
-                ui.text_mid(gx + 7.0, ty + 56.0, 18.0, 11.0, W::M, MUTED, tag);
+                ui.fill(gx, ty + 56.0, gw, 18.0, 9.0, Role::SurfaceContainerHighest);
+                ui.text_mid(
+                    gx + 7.0,
+                    ty + 56.0,
+                    18.0,
+                    11.0,
+                    W::M,
+                    Role::OnSurfaceVariant,
+                    tag,
+                );
                 gx += gw + 6.0;
             }
             if opens {
@@ -115,7 +136,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += tiles.len().div_ceil(per) as f32 * (th + 10.0) + 16.0;
     }
     if !any {
-        ui.text(x, y, 14.0, W::R, MUTED, EN.catalog_no_tool_matches);
+        ui.text(
+            x,
+            y,
+            14.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.catalog_no_tool_matches,
+        );
         y += 30.0;
     }
     ui.c.pop_clip();

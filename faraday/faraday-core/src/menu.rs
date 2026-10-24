@@ -99,11 +99,17 @@ pub(crate) fn dots(ui: &mut Ui, cx: f32, cy: f32, color: crate::ui::Paint) {
 pub(crate) fn button(ui: &mut Ui, x: f32, y: f32, h: f32, action: Action, focused: bool) -> f32 {
     let w = h;
     let r = tokens::SHAPE_S;
-    ui.state_layer((x, y, w, h, r), TEXT, action);
-    ui.stroke(x, y, w, h, r, OUTLINE);
-    dots(ui, x + w / 2.0, y + h / 2.0, MUTED);
+    ui.state_layer((x, y, w, h, r), Role::OnSurface.paint(), action);
+    ui.stroke(x, y, w, h, r, Role::Outline);
+    dots(ui, x + w / 2.0, y + h / 2.0, Role::OnSurfaceVariant.paint());
     if focused {
-        outline(ui, (x, y, w, h), r, tokens::FOCUS_STROKE, ACCENT_TEXT);
+        outline(
+            ui,
+            (x, y, w, h),
+            r,
+            tokens::FOCUS_STROKE,
+            Role::Primary.paint(),
+        );
     }
     ui.hit_quiet(x, y, w, h, action);
     w
@@ -156,7 +162,7 @@ fn rows(ui: &mut Ui, v: &View, x: f32, y: f32, w: f32) -> f32 {
                     tokens::BOARD_ZONE_LABEL,
                     tokens::CAPTION,
                     W::S,
-                    MUTED,
+                    Role::OnSurfaceVariant,
                     &shown,
                 );
                 cy += tokens::BOARD_ZONE_LABEL;
@@ -166,18 +172,25 @@ fn rows(ui: &mut Ui, v: &View, x: f32, y: f32, w: f32) -> f32 {
                 let a = *a;
                 let on = v.keys && v.at == k;
                 if on {
-                    ui.fill(x, cy, w, rh, tokens::SHAPE_XS, INNER);
+                    ui.fill(
+                        x,
+                        cy,
+                        w,
+                        rh,
+                        tokens::SHAPE_XS,
+                        Role::SurfaceContainerHighest,
+                    );
                     outline(
                         ui,
                         (x, cy, w, rh),
                         tokens::SHAPE_XS,
                         tokens::FOCUS_STROKE,
-                        ACCENT_TEXT,
+                        Role::Primary.paint(),
                     );
                 }
                 let ix = x + tokens::GAP_SMALL + if under { tokens::BOARD_PAD } else { 0.0 };
                 let shown = ui.fit(tokens::LABEL, W::R, label, x + w - ix - tokens::GAP_SMALL);
-                ui.text_mid(ix, cy, rh, tokens::LABEL, W::R, TEXT, &shown);
+                ui.text_mid(ix, cy, rh, tokens::LABEL, W::R, Role::OnSurface, &shown);
                 ui.hit(x, cy, w, rh, a);
                 cy += rh;
                 k += 1;
@@ -195,7 +208,7 @@ pub(crate) fn draw(ui: &mut Ui, w: f32, h: f32, v: &View) {
         let pad = tokens::GRID * 2.0;
         crate::compact::scroll_sheet(ui, place, h, tokens::GAP, pad, &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, v.icon, TEXT, v.title);
+            cy += crate::compact::sheet_head(ui, x, cy, iw, v.icon, Role::OnSurface, v.title);
             cy += rows(ui, v, x, cy, iw) + tokens::GAP;
             cy += crate::compact::buttons(
                 ui,
@@ -220,7 +233,7 @@ pub(crate) fn draw(ui: &mut Ui, w: f32, h: f32, v: &View) {
             tokens::BOARD_ZONE_LABEL,
             tokens::CAPTION,
             W::S,
-            TEXT,
+            Role::OnSurface,
             &shown,
         );
         tokens::BOARD_ZONE_LABEL + rows(ui, v, x, y + tokens::BOARD_ZONE_LABEL, iw)
@@ -249,8 +262,8 @@ pub(crate) fn draw(ui: &mut Ui, w: f32, h: f32, v: &View) {
     }
     // Material's menu: extra-small corners.
     ui.shadow(x, y, pw, ph, tokens::SHAPE_XS, tokens::ELEVATION_MENU);
-    ui.fill(x, y, pw, ph, tokens::SHAPE_XS, SURFACE);
-    ui.stroke(x, y, pw, ph, tokens::SHAPE_XS, BORDER);
+    ui.fill(x, y, pw, ph, tokens::SHAPE_XS, Role::SurfaceContainer);
+    ui.stroke(x, y, pw, ph, tokens::SHAPE_XS, Role::OutlineVariant);
     let max = (content - ph).max(0.0);
     let off = ui.offset.clamp(0.0, max);
     let clip = ui.rect(x, y, pw, ph);

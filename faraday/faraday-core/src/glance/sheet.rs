@@ -213,7 +213,7 @@ pub(crate) fn node_at_now(c: &Compute, app: &Faraday, press: Press, n: u8) -> Op
 }
 
 /// How a check line reads before and after a change, and its tone: a
-/// line made worse in `WARN`.
+/// line made worse in `warning`.
 fn check_facts(before: plan::Check, after: plan::Check) -> Vec<(&'static str, String, Paint)> {
     let lines = [
         (
@@ -243,7 +243,11 @@ fn check_facts(before: plan::Check, after: plan::Check) -> Vec<(&'static str, St
                 } else {
                     format!("{b} → {a}")
                 },
-                if worse { WARN } else { TEXT },
+                if worse {
+                    Role::Warning.paint()
+                } else {
+                    Role::OnSurface.paint()
+                },
             )
         })
         .collect()
@@ -384,8 +388,16 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             rows.push(row(EN.glance_sheet_change, "", change_plan()));
             let mut v = View::new(Icon::Wallet, g.name.clone());
             v.facts = vec![
-                (EN.glance_sheet_shape, g.shape.clone(), TEXT),
-                (EN.glance_sheet_checksum, format!("#{}", g.checksum), TEXT),
+                (
+                    EN.glance_sheet_shape,
+                    g.shape.clone(),
+                    Role::OnSurface.paint(),
+                ),
+                (
+                    EN.glance_sheet_checksum,
+                    format!("#{}", g.checksum),
+                    Role::OnSurface.paint(),
+                ),
             ];
             v.groups = vec![(String::new(), rows)];
             Some(v)
@@ -395,19 +407,26 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             let mut facts = vec![(
                 EN.glance_sheet_where_label,
                 key.state.clone(),
-                if key.here { OK } else { MUTED },
+                if key.here {
+                    Role::Ok.paint()
+                } else {
+                    Role::OnSurfaceVariant.paint()
+                },
             )];
             if let Some(l) = &key.label {
-                facts.insert(0, (EN.glance_sheet_label, l.clone(), TEXT));
+                facts.insert(
+                    0,
+                    (EN.glance_sheet_label, l.clone(), Role::OnSurface.paint()),
+                );
             }
             if let Some(h) = &key.holder {
-                facts.push((EN.glance_sheet_holder, h.clone(), TEXT));
+                facts.push((EN.glance_sheet_holder, h.clone(), Role::OnSurface.paint()));
             }
             if let Some(d) = &key.checked {
                 facts.push((
                     EN.glance_sheet_last_checked_label,
                     glance::checked_text(d),
-                    OK,
+                    Role::Ok.paint(),
                 ));
             }
             let seed = key.seed;
@@ -424,7 +443,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 .map(|n| n.name.as_str())
                 .collect();
             if !at.is_empty() {
-                facts.push((EN.glance_sheet_its_seed, at.join(" · "), TEXT));
+                facts.push((
+                    EN.glance_sheet_its_seed,
+                    at.join(" · "),
+                    Role::OnSurface.paint(),
+                ));
             }
             let mut groups = Vec::new();
             if key.here {
@@ -590,10 +613,10 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             let node = nodes.get(usize::from(n))?;
             let mut facts = Vec::new();
             if let Some(s) = &node.stick {
-                facts.push((EN.glance_sheet_stick, s.clone(), TEXT));
+                facts.push((EN.glance_sheet_stick, s.clone(), Role::OnSurface.paint()));
             }
             if let Some(s) = &node.alone {
-                facts.push((EN.glance_sheet_found, s.clone(), TEXT));
+                facts.push((EN.glance_sheet_found, s.clone(), Role::OnSurface.paint()));
             }
             if let Some((s, t)) = &node.state {
                 facts.push((EN.glance_sheet_seen_here, s.clone(), tone_color(*t)));
@@ -602,11 +625,15 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 // The oldest of its things' dates, when each was checked.
                 let dates: Option<Vec<&String>> = node.checked.iter().map(Option::as_ref).collect();
                 facts.push(match dates.and_then(|d| d.into_iter().min()) {
-                    Some(d) => (EN.glance_sheet_last_checked, glance::checked_text(d), OK),
+                    Some(d) => (
+                        EN.glance_sheet_last_checked,
+                        glance::checked_text(d),
+                        Role::Ok.paint(),
+                    ),
                     None => (
                         EN.glance_sheet_last_checked,
                         EN.glance_sheet_not_yet.to_string(),
-                        MUTED,
+                        Role::OnSurfaceVariant.paint(),
                     ),
                 });
             }
@@ -773,12 +800,20 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             let what = *node.whats.get(usize::from(j))?;
             let label = node.holds.get(usize::from(j))?.clone();
             let mark = node.marks.get(usize::from(j)).copied().flatten();
-            let mut facts = vec![(EN.glance_sheet_kept_at_label, node.name.clone(), TEXT)];
+            let mut facts = vec![(
+                EN.glance_sheet_kept_at_label,
+                node.name.clone(),
+                Role::OnSurface.paint(),
+            )];
             if let Some((s, t)) = &node.state {
                 facts.push((EN.glance_sheet_seen_here, s.clone(), tone_color(*t)));
             }
             if let Some(d) = node.checked.get(usize::from(j)).cloned().flatten() {
-                facts.push((EN.glance_sheet_last_checked, glance::checked_text(&d), OK));
+                facts.push((
+                    EN.glance_sheet_last_checked,
+                    glance::checked_text(&d),
+                    Role::Ok.paint(),
+                ));
             }
             if let Some(m) = mark {
                 let m = match m {
@@ -786,7 +821,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                     Mark::Exposed => EN.glance_sheet_exposed,
                     Mark::Part => EN.glance_sheet_drawn_in_part,
                 };
-                facts.push((EN.glance_sheet_marked, m.to_string(), ERR));
+                facts.push((EN.glance_sheet_marked, m.to_string(), Role::Error.paint()));
             }
             // A SeedQR drawn in part (`docs/history/NEW-WALLET.md` §14.7 item 3):
             // nothing to check or copy; I destroyed this copy takes it off.
@@ -1097,7 +1132,10 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             let mut v = View::new(Icon::House, ask.title.clone());
             v.facts = check_facts(ask.before, ask.after);
             if let Edit::Drop(..) | Edit::Clear(_) | Edit::RemovePlace(_) = ask.edit {
-                v.lines.push((EN.glance_sheet_destroy.to_string(), MUTED));
+                v.lines.push((
+                    EN.glance_sheet_destroy.to_string(),
+                    Role::OnSurfaceVariant.paint(),
+                ));
             }
             v.go = Some((
                 EN.glance_sheet_confirm.to_string(),
@@ -1141,10 +1179,13 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             };
             // In order of what to do (§9.6).
             match f.found.spend {
-                plan::Found::Yes => v.lines.push((EN.glance_sheet_someone_can.to_string(), ERR)),
-                plan::Found::OnlyWithVault => v
+                plan::Found::Yes => v
                     .lines
-                    .push((EN.glance_sheet_someone_could.to_string(), ERR)),
+                    .push((EN.glance_sheet_someone_can.to_string(), Role::Error.paint())),
+                plan::Found::OnlyWithVault => v.lines.push((
+                    EN.glance_sheet_someone_could.to_string(),
+                    Role::Error.paint(),
+                )),
                 plan::Found::No => {}
             }
             if f.found.spend != plan::Found::No {
@@ -1155,14 +1196,17 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 ));
             }
             if f.any_lost && f.rebuilds == plan::Lost::No {
-                v.lines.push((EN.glance_sheet_the_wallet.to_string(), ERR));
+                v.lines
+                    .push((EN.glance_sheet_the_wallet.to_string(), Role::Error.paint()));
                 rows.push(row(EN.glance_sheet_back_up, "", change_plan()));
             }
             if f.found.spend == plan::Found::No && f.found.balance != plan::Found::No {
-                v.lines.push((EN.glance_sheet_someone.to_string(), WARN));
+                v.lines
+                    .push((EN.glance_sheet_someone.to_string(), Role::Warning.paint()));
             }
             if f.any_lost && f.elsewhere {
-                v.lines.push((EN.glance_sheet_nothing_lost.to_string(), OK));
+                v.lines
+                    .push((EN.glance_sheet_nothing_lost.to_string(), Role::Ok.paint()));
                 let what = here.iter().find(|(_, m)| *m == Mark::Lost).map(|(w, _)| *w);
                 if let Some(what) = what {
                     rows.push(row(
@@ -1173,7 +1217,8 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                 }
             }
             if v.lines.is_empty() && exposed {
-                v.lines.push((EN.glance_sheet_nothing.to_string(), OK));
+                v.lines
+                    .push((EN.glance_sheet_nothing.to_string(), Role::Ok.paint()));
             }
             v.groups = vec![(String::new(), rows)];
             Some(v)
@@ -1288,9 +1333,11 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             match app.glance.work().result {
                 Some(true) => v.lines.push((
                     fill(EN.glance_sheet_matches, &[&key.fingerprint.to_string()]),
-                    OK,
+                    Role::Ok.paint(),
                 )),
-                Some(false) => v.lines.push((EN.glance_sheet_mismatch.to_string(), ERR)),
+                Some(false) => v
+                    .lines
+                    .push((EN.glance_sheet_mismatch.to_string(), Role::Error.paint())),
                 None => {}
             }
             v.go = Some((
@@ -1314,7 +1361,7 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
             match (shown, app.glance.work().reveal) {
                 (Some(x), true) => v.secret_lines.push((
                     zeroize::Zeroizing::new(app.reveal(x, Reveal::Passphrase).to_string()),
-                    TEXT,
+                    Role::OnSurface.paint(),
                 )),
                 (Some(_), false) => v.groups.push((
                     String::new(),
@@ -1324,9 +1371,10 @@ pub(crate) fn view(app: &crate::drawing::View, press: Press, target: Target) -> 
                         chart_do(ChartAction::Reveal),
                     )],
                 )),
-                (None, _) => v
-                    .lines
-                    .push((EN.glance_sheet_load_with_passphrase.to_string(), MUTED)),
+                (None, _) => v.lines.push((
+                    EN.glance_sheet_load_with_passphrase.to_string(),
+                    Role::OnSurfaceVariant.paint(),
+                )),
             }
             v.go = Some((
                 EN.glance_sheet_check.to_string(),
@@ -1361,10 +1409,10 @@ fn fits_with(node: &BackupNode, what: What) -> bool {
 fn tone_color(t: crate::wallet_backup::Tone) -> Paint {
     use crate::wallet_backup::Tone;
     match t {
-        Tone::Ok => OK,
-        Tone::Warn => WARN,
-        Tone::Err => ERR,
-        Tone::Dim => DIM,
+        Tone::Ok => Role::Ok.paint(),
+        Tone::Warn => Role::Warning.paint(),
+        Tone::Err => Role::Error.paint(),
+        Tone::Dim => Role::OnSurfaceVariant.paint(),
     }
 }
 
@@ -1390,7 +1438,7 @@ pub(crate) fn draw(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
     };
     crate::compact::scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
         let mut cy = y;
-        cy += crate::compact::sheet_head(ui, x, cy, iw, v.icon, ACCENT, &v.title);
+        cy += crate::compact::sheet_head(ui, x, cy, iw, v.icon, Role::Primary, &v.title);
         for (label, value, tone) in &v.facts {
             cy += crate::compact::kv(ui, x, cy, iw, label, value, *tone);
         }
@@ -1416,7 +1464,15 @@ pub(crate) fn draw(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
             }
             cy += tokens::GAP;
             if !heading.is_empty() {
-                cy += ui.wrap(x, cy, iw, tokens::CAPTION, W::S, MUTED, heading) + tokens::GAP;
+                cy += ui.wrap(
+                    x,
+                    cy,
+                    iw,
+                    tokens::CAPTION,
+                    W::S,
+                    Role::OnSurfaceVariant,
+                    heading,
+                ) + tokens::GAP;
             }
             for r in rows {
                 cy += menu_row(ui, x, cy, iw, r) + tokens::GAP_SMALL;
@@ -1431,7 +1487,15 @@ pub(crate) fn draw(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
         cy += crate::compact::buttons(ui, x, cy, iw, &buttons);
         if let Some((label, None)) = &v.go {
             cy += tokens::GAP;
-            cy += ui.wrap(x, cy, iw, tokens::CAPTION, W::R, DIM, label);
+            cy += ui.wrap(
+                x,
+                cy,
+                iw,
+                tokens::CAPTION,
+                W::R,
+                Role::OnSurfaceVariant,
+                label,
+            );
         }
         cy - y
     });
@@ -1440,11 +1504,33 @@ pub(crate) fn draw(app: &crate::drawing::View, ui: &mut Ui, w: f32, h: f32) {
 /// A field being typed: its label over a box with what it shows and the
 /// caret. Returns its height.
 fn field(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, text: &str, hint: bool) -> f32 {
-    let lh = ui.wrap(x, y, w, tokens::CAPTION, W::S, MUTED, label) + tokens::GAP_SMALL;
+    let lh = ui.wrap(
+        x,
+        y,
+        w,
+        tokens::CAPTION,
+        W::S,
+        Role::OnSurfaceVariant,
+        label,
+    ) + tokens::GAP_SMALL;
     let h = tokens::CHART_SHEET_ROW;
     let by = y + lh;
-    ui.fill(x, by, w, h, tokens::RADIUS_SMALL, BG);
-    ui.stroke(x, by, w, h, tokens::RADIUS_SMALL, ACCENT.with_alpha(110));
+    ui.fill(
+        x,
+        by,
+        w,
+        h,
+        tokens::RADIUS_SMALL,
+        Role::SurfaceContainerHighest,
+    );
+    ui.stroke(
+        x,
+        by,
+        w,
+        h,
+        tokens::RADIUS_SMALL,
+        Role::Primary.with_alpha(110),
+    );
     let shown = ui.fit(tokens::LABEL, W::R, text, w - 2.0 * tokens::PAD);
     let tw = ui.text_mid(
         x + tokens::PAD,
@@ -1452,7 +1538,11 @@ fn field(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, text: &str, hint: boo
         h,
         tokens::LABEL,
         W::R,
-        if hint { DIM } else { TEXT },
+        if hint {
+            Role::OnSurfaceVariant
+        } else {
+            Role::OnSurface
+        },
         &shown,
     );
     let cx = x + tokens::PAD + if hint { 0.0 } else { tw };
@@ -1466,15 +1556,13 @@ fn field(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, text: &str, hint: boo
 fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
     let h = tokens::CHART_SHEET_ROW;
     let pressed = r.action.is_some_and(|a| ui.is_pressed(a));
-    ui.fill(
-        x,
-        y,
-        w,
-        h,
-        tokens::RADIUS_SMALL,
-        if pressed { INNER } else { SURFACE },
+    crate::ui::fill_pressed(
+        ui,
+        (x, y, w, h, tokens::RADIUS_SMALL),
+        Role::SurfaceContainerLow,
+        pressed,
     );
-    ui.stroke(x, y, w, h, tokens::RADIUS_SMALL, LINE);
+    ui.stroke(x, y, w, h, tokens::RADIUS_SMALL, Role::OutlineVariant);
     let pad = tokens::PAD;
     let chevron = if r.action.is_some() {
         tokens::ICON_SMALL
@@ -1489,7 +1577,11 @@ fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
     };
     let label_room = room - sub_w - if sub_w > 0.0 { tokens::GAP } else { 0.0 };
     let label = ui.fit(tokens::LABEL, W::S, &r.label, label_room);
-    let tone = if r.action.is_some() { TEXT } else { DIM };
+    let tone = if r.action.is_some() {
+        Role::OnSurface
+    } else {
+        Role::OnSurfaceVariant
+    };
     ui.text_mid(x + pad, y, h, tokens::LABEL, W::S, tone, &label);
     if sub_w > 0.0 {
         let sub = ui.fit(tokens::CAPTION, W::R, &r.sub, sub_w);
@@ -1499,7 +1591,7 @@ fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
             h,
             tokens::CAPTION,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             &sub,
         );
     }
@@ -1511,7 +1603,7 @@ fn menu_row(ui: &mut Ui, x: f32, y: f32, w: f32, r: &Row) -> f32 {
             tokens::ICON_SMALL,
             Icon::ChevronRight,
             tokens::GRID,
-            DIM,
+            Role::OnSurfaceVariant,
         );
         ui.hit(x, y, w, h, a);
     }

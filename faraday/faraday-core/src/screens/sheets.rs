@@ -59,7 +59,7 @@ fn potential_compact(
     };
     crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
         let mut cy = y;
-        cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Keys, ACCENT, &title);
+        cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Keys, Role::Primary, &title);
         if let Some(s) = seed {
             let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
             cy += ui.wrap(
@@ -68,7 +68,7 @@ fn potential_compact(
                 iw,
                 12.0,
                 W::R,
-                MUTED,
+                Role::OnSurfaceVariant,
                 &fill(EN.potential_sources, &[&from.join(" · ").to_string()]),
             ) + 10.0;
         }
@@ -77,7 +77,7 @@ fn potential_compact(
                 Some(crate::inbox::SeedSource::Slip39(_)) => EN.potential_slip_39_passphrase,
                 _ => EN.potential_bip_39_passphrase,
             };
-            cy += ui.wrap(x, cy, iw, 13.0, W::S, TEXT, label) + 6.0;
+            cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::OnSurface, label) + 6.0;
             if app.pass_is_public(&p.passphrase) {
                 super::parts::code_field(ui, x, cy, iw, T::TEXT_FIELD_SHEET, &p.passphrase);
                 ui.hit(x, cy, iw, T::TEXT_FIELD_SHEET, Action::PotentialType);
@@ -87,10 +87,21 @@ fn potential_compact(
                 } else {
                     zeroize::Zeroizing::new("•".repeat(p.passphrase.chars().count().min(48)))
                 };
-                ui.fill(x, cy, iw, 44.0, 8.0, BG);
-                ui.stroke(x, cy, iw, 44.0, 8.0, if p.typing { ACCENT } else { BORDER });
+                ui.fill(x, cy, iw, 44.0, 8.0, Role::SurfaceContainerHighest);
+                ui.stroke(
+                    x,
+                    cy,
+                    iw,
+                    44.0,
+                    8.0,
+                    if p.typing {
+                        Role::Primary
+                    } else {
+                        Role::OutlineVariant
+                    },
+                );
                 let shown = ui.fit_secret(14.0, W::M, &shown, iw - 60.0);
-                let tw = ui.text_mid(x + 12.0, cy, 44.0, 14.0, W::M, TEXT, &shown);
+                let tw = ui.text_mid(x + 12.0, cy, 44.0, 14.0, W::M, Role::OnSurface, &shown);
                 if p.typing
                     && !app.pass_chip_shown(
                         crate::demo::PassField::Potential,
@@ -107,7 +118,11 @@ fn potential_compact(
                     44.0,
                     if p.shown { Icon::EyeOff } else { Icon::Eye },
                     15.0,
-                    if p.shown { ACCENT } else { MUTED },
+                    if p.shown {
+                        Role::Primary
+                    } else {
+                        Role::OnSurfaceVariant
+                    },
                 );
                 ui.hit(x + iw - 44.0, cy, 44.0, 44.0, Action::PotentialShow);
                 app.pass_chip_draw(
@@ -123,37 +138,51 @@ fn potential_compact(
         }
         if let Some((key, fixed)) = xpub {
             let k = ui.fit(12.0, W::M, key, iw);
-            ui.text(x, cy, 12.0, W::M, MUTED, &k);
+            ui.text(x, cy, 12.0, W::M, Role::OnSurfaceVariant, &k);
             cy += 24.0;
             if *fixed {
                 let line = fill(
                     EN.potential_as_its_path,
                     &[crate::family::kind_name(p.kind)],
                 );
-                cy += ui.wrap(x, cy, iw, 14.0, W::S, TEXT, &line) + 10.0;
+                cy += ui.wrap(x, cy, iw, 14.0, W::S, Role::OnSurface, &line) + 10.0;
             } else {
                 cy += kinds(ui, x, cy, iw);
             }
         } else {
             if let Some(with) = p.with {
-                ui.text(x, cy, 12.0, W::R, MUTED, EN.potential_fingerprint);
-                ui.text(x + 90.0, cy, 13.0, W::M, TEXT, &fp_text(with));
+                ui.text(
+                    x,
+                    cy,
+                    12.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    EN.potential_fingerprint,
+                );
+                ui.text(x + 90.0, cy, 13.0, W::M, Role::OnSurface, &fp_text(with));
                 cy += 24.0;
             }
             match matched {
                 Some(name) => {
                     let line = fill(EN.potential_key_of_wallet, &[name]);
-                    cy += ui.wrap(x, cy, iw, 13.0, W::S, OK, &line) + 10.0;
+                    cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::Ok, &line) + 10.0;
                 }
                 None => {
-                    ui.text(x, cy, 12.0, W::R, MUTED, EN.potential_single_key);
+                    ui.text(
+                        x,
+                        cy,
+                        12.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        EN.potential_single_key,
+                    );
                     cy += 22.0;
                     cy += kinds(ui, x, cy, iw);
                 }
             }
         }
         if let Some(e) = &p.error {
-            cy += ui.wrap(x, cy, iw, 13.0, W::R, ERR, e) + 8.0;
+            cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::Error, e) + 8.0;
         }
         let go = match matched {
             Some(name) if xpub.is_none() => fill(EN.potential_load, &[name]),
@@ -229,9 +258,9 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (None, Some(fp)) => fill(EN.potential_a_wallet, &[&fp_text(fp).to_string()]),
         _ => String::new(),
     };
-    ui.icon(ix, cy, 30.0, Icon::Keys, 18.0, ACCENT);
+    ui.icon(ix, cy, 30.0, Icon::Keys, 18.0, Role::Primary);
     let tt = ui.fit(20.0, W::S, &title_text, iw - 42.0);
-    ui.text_mid(ix + 42.0, cy, 30.0, 20.0, W::S, TEXT, &tt);
+    ui.text_mid(ix + 42.0, cy, 30.0, 20.0, W::S, Role::OnSurface, &tt);
     cy += 46.0;
     if let Some(s) = &seed {
         let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
@@ -241,7 +270,7 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             &fill(EN.potential_sources, &[&from.join(" · ").to_string()]),
             iw,
         );
-        ui.text(ix, cy, 13.0, W::R, MUTED, &line);
+        ui.text(ix, cy, 13.0, W::R, Role::OnSurfaceVariant, &line);
         cy += 30.0;
     }
     if takes {
@@ -249,7 +278,7 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             Some(crate::inbox::SeedSource::Slip39(_)) => EN.potential_slip_39_passphrase,
             _ => EN.potential_bip_39_passphrase,
         };
-        ui.text(ix, cy, 13.0, W::S, TEXT, label);
+        ui.text(ix, cy, 13.0, W::S, Role::OnSurface, label);
         cy += 24.0;
         if app.pass_is_public(&p.passphrase) {
             super::parts::code_field(ui, ix, cy, iw, T::TEXT_FIELD, &p.passphrase);
@@ -260,17 +289,21 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             } else {
                 zeroize::Zeroizing::new("•".repeat(p.passphrase.chars().count().min(48)))
             };
-            ui.fill(ix, cy, iw, 40.0, 8.0, BG);
+            ui.fill(ix, cy, iw, 40.0, 8.0, Role::SurfaceContainerHighest);
             ui.stroke(
                 ix,
                 cy,
                 iw,
                 40.0,
                 8.0,
-                if p.typing { ACCENT } else { BORDER },
+                if p.typing {
+                    Role::Primary
+                } else {
+                    Role::OutlineVariant
+                },
             );
             let shown = ui.fit_secret(14.0, W::M, &shown, iw - 60.0);
-            let tw = ui.text_mid(ix + 12.0, cy, 40.0, 14.0, W::M, TEXT, &shown);
+            let tw = ui.text_mid(ix + 12.0, cy, 40.0, 14.0, W::M, Role::OnSurface, &shown);
             if p.typing
                 && !app.pass_chip_shown(
                     crate::demo::PassField::Potential,
@@ -287,7 +320,11 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 40.0,
                 if p.shown { Icon::EyeOff } else { Icon::Eye },
                 15.0,
-                if p.shown { ACCENT } else { MUTED },
+                if p.shown {
+                    Role::Primary
+                } else {
+                    Role::OnSurfaceVariant
+                },
             );
             ui.hit(ix + iw - 40.0, cy, 40.0, 40.0, Action::PotentialShow);
             app.pass_chip_draw(
@@ -303,9 +340,17 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
     if let Some((key, fixed)) = xpub {
         let k = ui.fit(12.0, W::M, key, iw);
-        ui.text(ix, cy, 12.0, W::M, MUTED, &k);
+        ui.text(ix, cy, 12.0, W::M, Role::OnSurfaceVariant, &k);
         cy += 30.0;
-        ui.text_mid(ix, cy, 30.0, 13.0, W::R, MUTED, EN.potential_single_key);
+        ui.text_mid(
+            ix,
+            cy,
+            30.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.potential_single_key,
+        );
         cy += 32.0;
         if *fixed {
             ui.text_mid(
@@ -314,7 +359,7 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 34.0,
                 14.0,
                 W::S,
-                TEXT,
+                Role::OnSurface,
                 &fill(
                     EN.potential_as_its_path,
                     &[crate::family::kind_name(p.kind)],
@@ -342,8 +387,24 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         cy += 46.0;
     } else {
         if let Some(with) = p.with {
-            ui.text_mid(ix, cy, 24.0, 13.0, W::R, MUTED, EN.potential_fingerprint);
-            ui.text_mid(ix + 110.0, cy, 24.0, 14.0, W::M, TEXT, &fp_text(with));
+            ui.text_mid(
+                ix,
+                cy,
+                24.0,
+                13.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                EN.potential_fingerprint,
+            );
+            ui.text_mid(
+                ix + 110.0,
+                cy,
+                24.0,
+                14.0,
+                W::M,
+                Role::OnSurface,
+                &fp_text(with),
+            );
             cy += 30.0;
         }
         match &matched {
@@ -354,13 +415,21 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     30.0,
                     13.0,
                     W::S,
-                    OK,
+                    Role::Ok,
                     &fill(EN.potential_key_of_wallet, &[&name.to_string()]),
                 );
                 cy += 40.0;
             }
             None => {
-                ui.text_mid(ix, cy, 30.0, 13.0, W::R, MUTED, EN.potential_single_key);
+                ui.text_mid(
+                    ix,
+                    cy,
+                    30.0,
+                    13.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    EN.potential_single_key,
+                );
                 cy += 32.0;
                 let mut bx = ix;
                 for (k, kind) in crate::inbox::KINDS.iter().enumerate() {
@@ -385,7 +454,7 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
     if let Some(e) = &p.error {
         let e = ui.fit(13.0, W::R, e, iw);
-        ui.text(ix, cy, 13.0, W::R, ERR, &e);
+        ui.text(ix, cy, 13.0, W::R, Role::Error, &e);
     }
     let by = y + sh - 32.0 - 46.0;
     let bw = (iw - 12.0) / 2.0;
@@ -501,9 +570,9 @@ fn devices_buttons(app: &View) -> Vec<(&'static str, Style, Action)> {
 /// encrypted, which is no warning.
 fn reminder_tone(line: &str) -> crate::ui::Paint {
     if line == crate::strings::EN.devices_bolt_notice {
-        MUTED
+        Role::OnSurfaceVariant.paint()
     } else {
-        WARN
+        Role::Warning.paint()
     }
 }
 
@@ -513,8 +582,11 @@ fn reminder_tone(line: &str) -> crate::ui::Paint {
 pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let s = &crate::strings::EN;
     let d = &app.devices;
-    let mut lines: Vec<(String, crate::ui::Paint)> =
-        d.held.iter().map(|c| (c.line(), TEXT)).collect();
+    let mut lines: Vec<(String, crate::ui::Paint)> = d
+        .held
+        .iter()
+        .map(|c| (c.line(), Role::OnSurface.paint()))
+        .collect();
     lines.extend(
         app.device_reminders()
             .into_iter()
@@ -526,9 +598,9 @@ pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         s.devices_title
     };
     let foot = if d.refuses() {
-        Some((s.devices_real_computer, ERR))
+        Some((s.devices_real_computer, Role::Error))
     } else if d.asking {
-        Some((s.devices_continue_ask, WARN))
+        Some((s.devices_continue_ask, Role::Warning))
     } else {
         None
     };
@@ -536,7 +608,7 @@ pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, WARN, title);
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, Role::Warning, title);
             for (l, tone) in &lines {
                 cy += ui.wrap(x, cy, iw, 14.0, W::R, *tone, l) + 8.0;
             }
@@ -563,8 +635,16 @@ pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let sh = 28.0 + 30.0 + 26.0 + body + 22.0 + 46.0 + 32.0;
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let ix = x + 32.0;
-    ui.icon(ix, y + 28.0, 30.0, Icon::Warning, 17.0, WARN);
-    ui.text_mid(ix + 42.0, y + 28.0, 30.0, 20.0, W::S, TEXT, title);
+    ui.icon(ix, y + 28.0, 30.0, Icon::Warning, 17.0, Role::Warning);
+    ui.text_mid(
+        ix + 42.0,
+        y + 28.0,
+        30.0,
+        20.0,
+        W::S,
+        Role::OnSurface,
+        title,
+    );
     let mut cy = y + 28.0 + 30.0 + 26.0;
     for (l, tone) in &lines {
         cy += ui.wrap(ix, cy, iw, 14.0, W::R, *tone, l) + 10.0;
@@ -611,8 +691,9 @@ pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, app.medium.icon(), WARN, &title);
-            cy += ui.wrap(x, cy, iw, 13.0, W::R, MUTED, &line) + 16.0;
+            cy +=
+                crate::compact::sheet_head(ui, x, cy, iw, app.medium.icon(), Role::Warning, &title);
+            cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::OnSurfaceVariant, &line) + 16.0;
             for r in &reminders {
                 cy += ui.wrap(x, cy, iw, 14.0, W::R, reminder_tone(r), r) + 8.0;
             }
@@ -644,11 +725,19 @@ pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         };
     let (x, y) = sheet_box(ui, w, h, 480.0, sh);
     let ix = x + 32.0;
-    ui.icon(ix, y + 30.0, 30.0, app.medium.icon(), 18.0, WARN);
+    ui.icon(ix, y + 30.0, 30.0, app.medium.icon(), 18.0, Role::Warning);
     let title = ui.fit(20.0, W::S, &title, iw - 42.0);
-    ui.text_mid(ix + 42.0, y + 30.0, 30.0, 20.0, W::S, TEXT, &title);
+    ui.text_mid(
+        ix + 42.0,
+        y + 30.0,
+        30.0,
+        20.0,
+        W::S,
+        Role::OnSurface,
+        &title,
+    );
     let line = ui.fit(13.0, W::R, &line, iw);
-    ui.text(ix, y + 78.0, 13.0, W::R, MUTED, &line);
+    ui.text(ix, y + 78.0, 13.0, W::R, Role::OnSurfaceVariant, &line);
     let mut cy = y + 78.0 + 34.0;
     for r in &reminders {
         cy += ui.wrap(ix, cy, iw, 14.0, W::R, reminder_tone(r), r) + 10.0;
@@ -679,16 +768,32 @@ fn kept_sections(app: &View, power_off: bool, save: bool, then: String) -> Vec<S
     vec![
         (
             EN.kept_sections_kept,
-            kw.kept.into_iter().map(|l| (l, TEXT, None)).collect(),
+            kw.kept
+                .into_iter()
+                .map(|l| (l, Role::OnSurface.paint(), None))
+                .collect(),
         ),
         (
             EN.kept_sections_wiped,
             kw.wiped
                 .into_iter()
-                .map(|(l, nowhere, s)| (l, if nowhere { ERR } else { TEXT }, s.filter(|_| save)))
+                .map(|(l, nowhere, s)| {
+                    (
+                        l,
+                        if nowhere {
+                            Role::Error.paint()
+                        } else {
+                            Role::OnSurface.paint()
+                        },
+                        s.filter(|_| save),
+                    )
+                })
                 .collect(),
         ),
-        (EN.kept_sections_then, vec![(then, TEXT, None)]),
+        (
+            EN.kept_sections_then,
+            vec![(then, Role::OnSurface.paint(), None)],
+        ),
     ]
 }
 
@@ -732,30 +837,34 @@ fn kept_sheet(
         } else {
             ui.icon(x, cy, 30.0, head.0, 18.0, head.1);
             let t = ui.fit(20.0, W::S, head.2, iw - 42.0);
-            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, TEXT, &t);
+            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, Role::OnSurface, &t);
             cy += 46.0;
         }
         if !line.is_empty() {
-            let size = if line_tone == WARN { 14.0 } else { 13.0 };
+            let size = if line_tone == Role::Warning.paint() {
+                14.0
+            } else {
+                13.0
+            };
             cy += ui.wrap(x, cy, iw, size, W::R, line_tone, line) + 12.0;
         }
         if let Some((label, value)) = row {
-            cy += crate::compact::kv(ui, x, cy, iw, label, value, TEXT);
+            cy += crate::compact::kv(ui, x, cy, iw, label, value, Role::OnSurface);
         }
         if let Some((code, m)) = code {
             // The same size the Starter's restart sheet draws its code.
             let side = if ui.compact { 104.0f32 } else { 160.0 }.min(iw);
             qr_code(ui, m, x, cy, side);
             cy += side + 10.0;
-            cy += ui.wrap(x, cy, iw, 12.0, W::M, MUTED, code) + 12.0;
+            cy += ui.wrap(x, cy, iw, 12.0, W::M, Role::OnSurfaceVariant, code) + 12.0;
         }
         for (name, lines) in sections {
             if lines.is_empty() {
                 continue;
             }
-            ui.rule(x, cy, iw, BORDER);
+            ui.rule(x, cy, iw, Role::OutlineVariant);
             cy += 12.0;
-            ui.text(x, cy, 12.0, W::R, MUTED, name);
+            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, name);
             cy += 22.0;
             for (text, tone, act) in lines {
                 let Some(act) = *act else {
@@ -786,8 +895,16 @@ fn kept_sheet(
         let mut hx = x;
         for &(label, _, action) in actions.iter().filter(|a| crate::vault::is_hold(a.2)) {
             let room = x + iw - hx;
-            hx += crate::vault::screen::hold_button_in(app, ui, hx, cy, room, label, action, ERR)
-                + T::GAP;
+            hx += crate::vault::screen::hold_button_in(
+                app,
+                ui,
+                hx,
+                cy,
+                room,
+                label,
+                action,
+                Role::Error.paint(),
+            ) + T::GAP;
         }
         if hx > x {
             cy += T::CHIP_LINE + T::GAP + T::GAP_SMALL;
@@ -832,8 +949,8 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         app,
         ui,
         (w, h),
-        (app.medium.icon(), WARN, &attached),
-        (&line, MUTED, None, None),
+        (app.medium.icon(), Role::Warning.paint(), &attached),
+        (&line, Role::OnSurfaceVariant.paint(), None, None),
         &kept_sections(app, false, false, then),
         &[
             (EN.lock_not_now, Style::Secondary, Action::NotNow),
@@ -850,14 +967,14 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let (head, line, lock) = if app.seal_waits() {
         (
-            (Icon::Error.into(), ERR, EN.vault_lock),
-            (EN.seed_missing, ERR),
+            (Icon::Error.into(), Role::Error.paint(), EN.vault_lock),
+            (EN.seed_missing, Role::Error.paint()),
             (EN.vault_lock_without_sealing, Action::LockUnsealed),
         )
     } else {
         (
-            (Icon::Lock.into(), ACCENT, EN.vault_lock),
-            ("", MUTED),
+            (Icon::Lock.into(), Role::Primary.paint(), EN.vault_lock),
+            ("", Role::OnSurfaceVariant.paint()),
             (EN.vault_lock, Action::Lock),
         )
     };
@@ -893,7 +1010,10 @@ pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             at,
             (
                 EN.write_out_drops,
-                drops.into_iter().map(|n| (n, TEXT, None)).collect(),
+                drops
+                    .into_iter()
+                    .map(|n| (n, Role::OnSurface.paint(), None))
+                    .collect(),
             ),
         );
     }
@@ -901,8 +1021,8 @@ pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         app,
         ui,
         (w, h),
-        (app.medium.icon(), ACCENT, &title),
-        ("", MUTED, None, None),
+        (app.medium.icon(), Role::Primary.paint(), &title),
+        ("", Role::OnSurfaceVariant.paint(), None, None),
         &sections,
         &[
             (EN.write_out_not_now, Style::Secondary, Action::Cancel),
@@ -984,23 +1104,38 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         _ => EN.scan_scan_a_qr_code.to_string(),
     };
     let title = ui.fit(18.0, W::S, &title, sw - 64.0);
-    ui.text(x + 32.0, y + 26.0, 18.0, W::S, TEXT, &title);
+    ui.text(x + 32.0, y + 26.0, 18.0, W::S, Role::OnSurface, &title);
     for (k, key) in keys.iter().enumerate() {
         let key = ui.fit(13.0, W::M, key, sw - 64.0);
-        ui.text(x + 32.0, y + top + k as f32 * 20.0, 13.0, W::M, TEXT, &key);
+        ui.text(
+            x + 32.0,
+            y + top + k as f32 * 20.0,
+            13.0,
+            W::M,
+            Role::OnSurface,
+            &key,
+        );
     }
     if let Some(t) = hint {
         let ty = y + top + keys.len() as f32 * 20.0;
-        ui.wrap(x + 32.0, ty, side_w, 12.0, W::R, TEXT, t);
+        ui.wrap(x + 32.0, ty, side_w, 12.0, W::R, Role::OnSurface, t);
     }
     if seed_scan {
         let ty = y + top + keys.len() as f32 * 20.0 + hint_h;
-        ui.wrap(x + 32.0, ty, side_w, 13.0, W::R, WARN, EN.never_real_seed);
+        ui.wrap(
+            x + 32.0,
+            ty,
+            side_w,
+            13.0,
+            W::R,
+            Role::Warning,
+            EN.never_real_seed,
+        );
     }
     let y = y + keys_h;
     let (px, py) = (x + 32.0, y + top);
     let rect = ui.rect(px, py, side_w, side_h);
-    ui.fill(px, py, side_w, side_h, 8.0, BG);
+    ui.fill(px, py, side_w, side_h, 8.0, Role::SurfaceContainerHighest);
     // A QR found and read, still in view: the brackets turn green.
     let mut read_in_view = false;
     if let Some((fw, fh, luma)) = sc.frame.as_ref() {
@@ -1028,7 +1163,7 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     rect.y as f32 + (py - top) * scale,
                 )
             };
-            let color = ui.col(if seen.read { OK } else { WARN });
+            let color = ui.col(if seen.read { Role::Ok } else { Role::Warning });
             let lw = (3.0 * ui.f).max(2.0);
             for i in 0..4 {
                 let (a, b) = (map(seen.corners[i]), map(seen.corners[(i + 1) % 4]));
@@ -1241,7 +1376,7 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let sh = side + 242.0 + whole_h;
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let t = ui.fit(18.0, W::S, &q.title, sw - 64.0);
-    ui.text(x + 32.0, y + 26.0, 18.0, W::S, TEXT, &t);
+    ui.text(x + 32.0, y + 26.0, 18.0, W::S, Role::OnSurface, &t);
     let sub = if q.frames.len() > 1 {
         fill(
             EN.qr_frame_count,
@@ -1255,12 +1390,12 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         q.subtitle.clone()
     };
     let sub = ui.fit(12.0, W::R, &sub, sw - 64.0);
-    ui.text(x + 32.0, y + 50.0, 12.0, W::R, MUTED, &sub);
+    ui.text(x + 32.0, y + 50.0, 12.0, W::R, Role::OnSurfaceVariant, &sub);
     // Whether scanning it is safe, said beside the code itself.
     let (tag, tone) = if q.secret {
-        (EN.qr_secret_whoever_scans, ERR)
+        (EN.qr_secret_whoever_scans, Role::Error)
     } else {
-        (EN.qr_public_safe_to_scan, OK)
+        (EN.qr_public_safe_to_scan, Role::Ok)
     };
     ui.text(x + 32.0, y + 66.0, 12.0, W::S, tone, tag);
     if let Some(m) = q.frames.get(q.frame) {
@@ -1273,7 +1408,7 @@ pub(super) fn qr_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             sw - 64.0,
             11.0,
             W::M,
-            TEXT,
+            Role::OnSurface,
             t,
         );
     }
@@ -1409,12 +1544,12 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
             q.title.clone()
         };
         let t = ui.fit(16.0, W::S, &title, iw);
-        ui.text(x, cy, 16.0, W::S, TEXT, &t);
+        ui.text(x, cy, 16.0, W::S, Role::OnSurface, &t);
         cy += 22.0;
         let (tag, tone) = if q.secret {
-            (EN.qr_sheet_secret_whoever, ERR)
+            (EN.qr_sheet_secret_whoever, Role::Error)
         } else {
-            (EN.qr_sheet_public_safe, OK)
+            (EN.qr_sheet_public_safe, Role::Ok)
         };
         let tag = ui.fit(12.0, W::S, tag, iw);
         ui.text(x, cy, 12.0, W::S, tone, &tag);
@@ -1436,7 +1571,7 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
         }
         cy += side + 8.0;
         if let Some(t) = &q.whole {
-            cy += ui.wrap(x, cy, iw, 11.0, W::M, TEXT, t) + 8.0;
+            cy += ui.wrap(x, cy, iw, 11.0, W::M, Role::OnSurface, t) + 8.0;
         }
         if !cycles.is_empty() {
             let n = cycles.len() as f32;
@@ -1480,16 +1615,31 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         };
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, WARN, what);
-            cy += ui.wrap(x, cy, iw, 14.0, W::M, TEXT, &d.name) + 6.0;
-            cy += ui.wrap(x, cy, iw, 12.0, W::R, MUTED, EN.new_input_the_name) + 12.0;
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, Role::Warning, what);
+            cy += ui.wrap(x, cy, iw, 14.0, W::M, Role::OnSurface, &d.name) + 6.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                iw,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                EN.new_input_the_name,
+            ) + 12.0;
             if d.keyboard && d.code.is_none() && app.seed_missing() {
-                cy += ui.wrap(x, cy, iw, 13.0, W::S, ERR, EN.new_input_no_code) + 12.0;
+                cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::Error, EN.new_input_no_code) + 12.0;
             }
             if d.keyboard
                 && let Some(code) = d.code.as_deref()
             {
-                ui.text(x, cy, 13.0, W::S, MUTED, EN.new_input_type_code);
+                ui.text(
+                    x,
+                    cy,
+                    13.0,
+                    W::S,
+                    Role::OnSurfaceVariant,
+                    EN.new_input_type_code,
+                );
                 cy += 24.0;
                 let n = code.chars().count().max(1) as f32;
                 let bw = ((iw - (n - 1.0) * 6.0) / n).min(52.0);
@@ -1503,12 +1653,28 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                         bw,
                         52.0,
                         8.0,
-                        if done { OK.with_alpha(40) } else { INNER },
+                        if done {
+                            Role::OkContainer
+                        } else {
+                            Role::SurfaceContainerHighest
+                        },
                     );
-                    ui.stroke(cx, cy, bw, 52.0, 8.0, if done { OK } else { BORDER });
+                    ui.stroke(
+                        cx,
+                        cy,
+                        bw,
+                        52.0,
+                        8.0,
+                        if done { Role::Ok } else { Role::OutlineVariant },
+                    );
                     let cs = c.to_string();
                     let tw = ui.measure(24.0, W::M, &cs);
-                    ui.text_mid(cx + (bw - tw) / 2.0, cy, 52.0, 24.0, W::M, TEXT, &cs);
+                    let ink = if done {
+                        Role::OnOkContainer
+                    } else {
+                        Role::OnSurface
+                    };
+                    ui.text_mid(cx + (bw - tw) / 2.0, cy, 52.0, 24.0, W::M, ink, &cs);
                 }
                 cy += 64.0;
             }
@@ -1538,21 +1704,35 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (true, false) => EN.new_input_a_new_keyboard,
         _ => EN.new_input_a_new_pointer,
     };
-    ui.icon(ix, y + 28.0, 30.0, Icon::Warning, 17.0, WARN);
-    ui.text_mid(ix + 42.0, y + 28.0, 30.0, 20.0, W::S, TEXT, what);
+    ui.icon(ix, y + 28.0, 30.0, Icon::Warning, 17.0, Role::Warning);
+    ui.text_mid(ix + 42.0, y + 28.0, 30.0, 20.0, W::S, Role::OnSurface, what);
     let name = ui.fit(14.0, W::M, &d.name, iw);
-    ui.text(ix, y + 76.0, 14.0, W::M, TEXT, &name);
-    ui.text(ix, y + 100.0, 13.0, W::R, MUTED, EN.new_input_the_name);
+    ui.text(ix, y + 76.0, 14.0, W::M, Role::OnSurface, &name);
+    ui.text(
+        ix,
+        y + 100.0,
+        13.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.new_input_the_name,
+    );
     let mut by = y + 140.0;
     if d.keyboard && d.code.is_none() && app.seed_missing() {
         let line = ui.fit(13.0, W::S, EN.new_input_no_code, iw);
-        ui.text(ix, by, 13.0, W::S, ERR, &line);
+        ui.text(ix, by, 13.0, W::S, Role::Error, &line);
         by += 112.0;
     }
     if d.keyboard
         && let Some(code) = d.code.as_deref()
     {
-        ui.text(ix, by, 13.0, W::S, MUTED, EN.new_input_type_code);
+        ui.text(
+            ix,
+            by,
+            13.0,
+            W::S,
+            Role::OnSurfaceVariant,
+            EN.new_input_type_code,
+        );
         by += 28.0;
         let mut cx = ix;
         let typed: Vec<char> = d.typed.chars().collect();
@@ -1565,10 +1745,26 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 52.0,
                 60.0,
                 8.0,
-                if done { OK.with_alpha(40) } else { INNER },
+                if done {
+                    Role::OkContainer
+                } else {
+                    Role::SurfaceContainerHighest
+                },
             );
-            ui.stroke(cx, by, 52.0, 60.0, 8.0, if done { OK } else { BORDER });
-            ui.text_mid(cx + 16.0, by, 60.0, 28.0, W::M, TEXT, &c.to_string());
+            ui.stroke(
+                cx,
+                by,
+                52.0,
+                60.0,
+                8.0,
+                if done { Role::Ok } else { Role::OutlineVariant },
+            );
+            let ink = if done {
+                Role::OnOkContainer
+            } else {
+                Role::OnSurface
+            };
+            ui.text_mid(cx + 16.0, by, 60.0, 28.0, W::M, ink, &c.to_string());
             cx += 60.0;
         }
         by += 84.0;
@@ -1690,13 +1886,15 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ],
     );
     if ui.compact {
-        let rows: Vec<(&str, String, crate::ui::Paint)> =
-            rows.into_iter().map(|(k, v)| (k, v, TEXT)).collect();
+        let rows: Vec<(&str, String, crate::ui::Paint)> = rows
+            .into_iter()
+            .map(|(k, v)| (k, v, Role::OnSurface.paint()))
+            .collect();
         crate::compact::kv_sheet(
             ui,
             w,
             h,
-            (Icon::Lock, WARN, EN.idle_warn_locking_soon),
+            (Icon::Lock, Role::Warning.paint(), EN.idle_warn_locking_soon),
             &body,
             &rows,
             &[(EN.idle_warn_keep_working, Style::Primary, Action::Cancel)],
@@ -1708,23 +1906,23 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let ix = x + 32.0;
     let iw = sw - 64.0;
-    ui.icon(ix, y + 30.0, 30.0, Icon::Lock, 18.0, WARN);
+    ui.icon(ix, y + 30.0, 30.0, Icon::Lock, 18.0, Role::Warning);
     ui.text_mid(
         ix + 42.0,
         y + 30.0,
         30.0,
         20.0,
         W::S,
-        TEXT,
+        Role::OnSurface,
         EN.idle_warn_locking_soon,
     );
-    ui.text(ix, y + 76.0, 13.0, W::R, MUTED, &body);
+    ui.text(ix, y + 76.0, 13.0, W::R, Role::OnSurfaceVariant, &body);
     let mut ry = y + 108.0;
     for (k, v) in &rows {
-        ui.text_mid(ix, ry, 40.0, 13.0, W::R, MUTED, k);
+        ui.text_mid(ix, ry, 40.0, 13.0, W::R, Role::OnSurfaceVariant, k);
         let v = ui.fit(14.0, W::R, v, iw - 90.0);
-        ui.text_mid(ix + 90.0, ry, 40.0, 14.0, W::R, TEXT, &v);
-        ui.rule(ix, ry + 40.0, iw, BORDER);
+        ui.text_mid(ix + 90.0, ry, 40.0, 14.0, W::R, Role::OnSurface, &v);
+        ui.rule(ix, ry + 40.0, iw, Role::OutlineVariant);
         ry += 44.0;
     }
     ui.button(
@@ -1741,28 +1939,37 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// The lock screen after a lock for idleness: what waits in the Outbox,
 /// which keeps the machine from powering off.
 pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let shown = app.outbox.len().min(5);
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Lock, ACCENT, EN.locked_locked);
-            cy += ui.wrap(x, cy, iw, 13.0, W::R, MUTED, EN.locked_locked_after) + 12.0;
+            cy += crate::compact::sheet_head(
+                ui,
+                x,
+                cy,
+                iw,
+                Icon::Lock,
+                Role::Primary,
+                EN.locked_locked,
+            );
+            cy += ui.wrap(x, cy, iw, 13.0, W::R, muted, EN.locked_locked_after) + 12.0;
             if let Some(off) = app.idle_off_at() {
                 let line = fill(
                     EN.locked_power_off_countdown,
                     &[&(clock_text(off.saturating_sub(app.idle_ms()))).to_string()],
                 );
-                cy += ui.wrap(x, cy, iw, 13.0, W::S, TEXT, &line) + 10.0;
+                cy += ui.wrap(x, cy, iw, 13.0, W::S, ink, &line) + 10.0;
             }
             if shown > 0 {
                 let line = fill(
                     EN.locked_no_power_off,
                     &[&app.outbox.len().to_string(), app.medium.for_the()],
                 );
-                cy += ui.wrap(x, cy, iw, 13.0, W::S, WARN, &line) + 8.0;
+                cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::Warning, &line) + 8.0;
                 for item in app.outbox.iter().take(shown) {
                     let n = ui.fit(13.0, W::M, &item.name, iw);
-                    ui.text(x, cy, 13.0, W::M, TEXT, &n);
+                    ui.text(x, cy, 13.0, W::M, ink, &n);
                     cy += 24.0;
                 }
             }
@@ -1787,9 +1994,9 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let (x, y) = sheet_box(ui, w, h, 520.0, sh);
     let ix = x + 32.0;
     let iw = 520.0 - 64.0;
-    ui.icon(ix, y + 28.0, 28.0, Icon::Lock, 16.0, ACCENT);
-    ui.text(ix + 40.0, y + 30.0, 20.0, W::S, TEXT, EN.locked_locked);
-    ui.text(ix, y + 72.0, 13.0, W::R, MUTED, EN.locked_locked_after);
+    ui.icon(ix, y + 28.0, 28.0, Icon::Lock, 16.0, Role::Primary);
+    ui.text(ix + 40.0, y + 30.0, 20.0, W::S, ink, EN.locked_locked);
+    ui.text(ix, y + 72.0, 13.0, W::R, muted, EN.locked_locked_after);
     let mut ry = y + 108.0;
     if let Some(off) = app.idle_off_at() {
         ui.text(
@@ -1797,7 +2004,7 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ry,
             13.0,
             W::S,
-            TEXT,
+            ink,
             &fill(
                 EN.locked_power_off_countdown,
                 &[&(clock_text(off.saturating_sub(app.idle_ms()))).to_string()],
@@ -1810,7 +2017,7 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ry,
             13.0,
             W::S,
-            WARN,
+            Role::Warning,
             &fill(
                 EN.locked_no_power_off,
                 &[&app.outbox.len().to_string(), app.medium.for_the()],
@@ -1818,7 +2025,7 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         );
         ry += 32.0;
         for item in app.outbox.iter().take(shown) {
-            ui.text(ix, ry, 14.0, W::M, TEXT, &item.name);
+            ui.text(ix, ry, 14.0, W::M, ink, &item.name);
             ry += 30.0;
         }
     }
@@ -1880,8 +2087,13 @@ pub(super) fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         app,
         ui,
         (w, h),
-        (Icon::Power.into(), TEXT, title),
-        (line, WARN, row, guide.as_deref().zip(guide_qr.as_deref())),
+        (Icon::Power.into(), Role::OnSurface.paint(), title),
+        (
+            line,
+            Role::Warning.paint(),
+            row,
+            guide.as_deref().zip(guide_qr.as_deref()),
+        ),
         &kept_sections(app, true, false, then.to_string()),
         &buttons,
     );
@@ -1950,7 +2162,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         34.0
     };
     let top = y + 14.0 + tabs_h + 18.0;
-    ui.rule(x + pad, top - 8.0, sw - 2.0 * pad, BORDER);
+    ui.rule(x + pad, top - 8.0, sw - 2.0 * pad, Role::OutlineVariant);
     let (bx, bw) = (x + pad + 4.0, sw - 2.0 * pad - 8.0);
     let view = sh - (top - y) - 12.0;
     let clip = ui.rect(x, top, sw, view);
@@ -1962,7 +2174,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         bw,
         if compact { 18.0 } else { 22.0 },
         W::S,
-        TEXT,
+        Role::OnSurface,
         page.title,
     ) + 16.0;
     for section in page.sections {
@@ -1973,7 +2185,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 bw,
                 if compact { 15.0 } else { 16.0 },
                 W::S,
-                ACCENT,
+                Role::Primary,
                 section.heading,
             ) + 8.0;
         }
@@ -1995,7 +2207,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     ticked.contains(&n),
                     Some(Action::LearnStep(n)),
                 );
-                let h = ui.wrap(tx, cy, bw - STEP_INDENT, 14.0, W::R, TEXT, text);
+                let h = ui.wrap(tx, cy, bw - STEP_INDENT, 14.0, W::R, Role::OnSurface, text);
                 cy += h.max(STEP_SIDE + circle_y - cy) + 12.0;
                 continue;
             }
@@ -2004,7 +2216,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             } else {
                 (bx, bw)
             };
-            cy += ui.wrap(px, cy, pw, 14.0, W::R, TEXT, para) + 12.0;
+            cy += ui.wrap(px, cy, pw, 14.0, W::R, Role::OnSurface, para) + 12.0;
         }
         cy += 10.0;
     }
@@ -2081,23 +2293,23 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if ui.compact {
         crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Lock, WARN, head);
+            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Lock, Role::Warning, head);
             for (label, value) in [
                 (EN.secret_out_file, out.name.as_str()),
                 (EN.secret_out_what_label, out.what.as_str()),
                 (EN.secret_out_who_can, out.gives.as_str()),
             ] {
-                cy += crate::compact::kv(ui, x, cy, iw, label, value, TEXT);
+                cy += crate::compact::kv(ui, x, cy, iw, label, value, Role::OnSurface);
             }
             cy += 4.0;
             if to_vault {
-                ui.text(x, cy, 13.0, W::S, OK, EN.secret_out_sealed);
+                ui.text(x, cy, 13.0, W::S, Role::Ok, EN.secret_out_sealed);
                 cy += 24.0;
             }
             match vault.filter(|_| to_vault) {
                 Some((name, true)) => {
                     let line = ui.fit(13.0, W::S, &fill(EN.secret_out_in_vault, &[name]), iw);
-                    ui.text(x, cy, 13.0, W::S, OK, &line);
+                    ui.text(x, cy, 13.0, W::S, Role::Ok, &line);
                     cy += 30.0;
                 }
                 Some((name, false)) => {
@@ -2126,7 +2338,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 }
                 None => {}
             }
-            ui.text(x, cy, 13.0, W::S, ERR, &unprotected);
+            ui.text(x, cy, 13.0, W::S, Role::Error, &unprotected);
             cy += 24.0;
             if forms.len() > 1 {
                 cy += wrap_buttons(ui, x, cy, iw, 34.0, &forms) + 4.0;
@@ -2138,7 +2350,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 iw - 28.0,
                 13.0,
                 W::R,
-                TEXT,
+                Role::OnSurface,
                 &out.ack.text(app.medium),
             );
             ui.hit(x - 4.0, cy - 6.0, iw, lh + 12.0, Action::SecretAck);
@@ -2172,22 +2384,30 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let (x, y) = sheet_box(ui, w, h, sw, sh);
     let bx = x + bx;
     let mut cy = y + 26.0;
-    ui.icon(bx - 4.0, cy - 2.0, 28.0, Icon::Lock, 14.0, WARN);
-    ui.text(bx + 28.0, cy, 18.0, W::S, TEXT, head);
+    ui.icon(bx - 4.0, cy - 2.0, 28.0, Icon::Lock, 14.0, Role::Warning);
+    ui.text(bx + 28.0, cy, 18.0, W::S, Role::OnSurface, head);
     cy += 38.0;
     for (label, value, face) in [
         (EN.secret_out_file, out.name.as_str(), W::M),
         (EN.secret_out_what_label, out.what.as_str(), W::R),
         (EN.secret_out_who_can, out.gives.as_str(), W::R),
     ] {
-        ui.text(bx, cy, 12.0, W::R, MUTED, label);
-        let used = ui.wrap(bx + 130.0, cy, bw - 130.0, 13.0, face, TEXT, value);
+        ui.text(bx, cy, 12.0, W::R, Role::OnSurfaceVariant, label);
+        let used = ui.wrap(
+            bx + 130.0,
+            cy,
+            bw - 130.0,
+            13.0,
+            face,
+            Role::OnSurface,
+            value,
+        );
         cy += used.max(20.0) + 10.0;
     }
     cy += 6.0;
     // The vault, first, for what a vault keeps.
     if to_vault {
-        ui.text(bx, cy, 13.0, W::S, OK, EN.secret_out_sealed);
+        ui.text(bx, cy, 13.0, W::S, Role::Ok, EN.secret_out_sealed);
         cy += 26.0;
     }
     match vault.filter(|_| to_vault) {
@@ -2198,7 +2418,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 42.0,
                 13.0,
                 W::S,
-                OK,
+                Role::Ok,
                 &fill(EN.secret_out_in_vault, &[name]),
             );
             cy += 54.0;
@@ -2226,12 +2446,12 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         None => {}
     }
     if to_vault {
-        ui.rule(bx, cy, bw, BORDER);
+        ui.rule(bx, cy, bw, Role::OutlineVariant);
         cy += 16.0;
     }
     // The Outbox, or the stick, only once the person says they
     // understand.
-    ui.text(bx, cy, 13.0, W::S, ERR, &unprotected);
+    ui.text(bx, cy, 13.0, W::S, Role::Error, &unprotected);
     cy += 26.0;
     if forms.len() > 1 {
         cy += wrap_buttons(ui, bx, cy, bw, 34.0, &forms) + 2.0;
@@ -2243,7 +2463,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         bw - 28.0,
         13.0,
         W::R,
-        TEXT,
+        Role::OnSurface,
         &out.ack.text(app.medium),
     );
     ui.hit(

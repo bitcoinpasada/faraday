@@ -111,8 +111,16 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                 let id = k.fingerprint.0;
                 let on = v.key == Some(id);
                 ui.checkbox(x, cy + 11.0, on, true);
-                ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::M, TEXT, &fp(id));
-                ui.text_mid(x + 130.0, cy, 40.0, 13.0, W::R, MUTED, &k.label);
+                ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::M, Role::OnSurface, &fp(id));
+                ui.text_mid(
+                    x + 130.0,
+                    cy,
+                    40.0,
+                    13.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    &k.label,
+                );
                 ui.hit(x, cy, w, 40.0, va(V::Key(id)));
                 cy += 42.0;
             }
@@ -130,10 +138,22 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     cy,
                     14.0,
                     W::S,
-                    if usable { TEXT } else { DIM },
+                    if usable {
+                        Role::OnSurface.paint()
+                    } else {
+                        crate::ui::off()
+                    },
                     name,
                 );
-                let used = ui.wrap(x + 30.0, cy + 22.0, w - 30.0, 12.0, W::R, MUTED, line);
+                let used = ui.wrap(
+                    x + 30.0,
+                    cy + 22.0,
+                    w - 30.0,
+                    12.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    line,
+                );
                 if usable {
                     ui.hit(x, cy, w, used + 26.0, va(V::Dial(i as u8)));
                 }
@@ -145,7 +165,15 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
             for (i, sc) in ScriptType::ALL.iter().enumerate() {
                 let on = v.grind.script == *sc;
                 ui.checkbox(x, cy + 11.0, on, true);
-                ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, &script_name(*sc, net));
+                ui.text_mid(
+                    x + 30.0,
+                    cy,
+                    40.0,
+                    14.0,
+                    W::S,
+                    Role::OnSurface,
+                    &script_name(*sc, net),
+                );
                 ui.hit(x, cy, w, 40.0, va(V::Script(i as u8)));
                 cy += 42.0;
             }
@@ -155,10 +183,26 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
         vstep::PREFIX => {
             let fixed = v.grind.prefix.fixed_len(v.grind.script, net);
             let text = v.grind.prefix.as_str();
-            ui.fill(x, cy, w, 46.0, 8.0, BG);
-            ui.stroke(x, cy, w, 46.0, 8.0, ACCENT);
-            let fw = ui.text_mid(x + 14.0, cy, 46.0, 18.0, W::M, DIM, &text[..fixed]);
-            let tw = ui.text_mid(x + 14.0 + fw, cy, 46.0, 18.0, W::M, TEXT, &text[fixed..]);
+            ui.fill(x, cy, w, 46.0, 8.0, Role::SurfaceContainerHighest);
+            ui.stroke(x, cy, w, 46.0, 8.0, Role::Primary);
+            let fw = ui.text_mid(
+                x + 14.0,
+                cy,
+                46.0,
+                18.0,
+                W::M,
+                Role::OnSurfaceVariant,
+                &text[..fixed],
+            );
+            let tw = ui.text_mid(
+                x + 14.0 + fw,
+                cy,
+                46.0,
+                18.0,
+                W::M,
+                Role::OnSurface,
+                &text[fixed..],
+            );
             ui.caret(x + 16.0 + fw + tw, cy + 12.0, 22.0);
             cy += 56.0;
             let expected = v.grind.expected(net);
@@ -168,13 +212,13 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     cy,
                     13.0,
                     W::R,
-                    MUTED,
+                    Role::OnSurfaceVariant,
                     &fill(EN.vanity_about_tries, &[&thousands(expected).to_string()]),
                 );
                 cy += 26.0;
             }
             if let Some(e) = &v.error {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 8.0;
+                cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 8.0;
             }
             if next_button(ui, x, cy, w, EN.vanity_continue, va(V::Next(vstep::PREFIX))) {
                 cy += 52.0;
@@ -182,9 +226,9 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
         }
         _ => match (&v.grind.find, v.running) {
             (Some(f), _) => {
-                ui.text(x, cy, 12.0, W::R, MUTED, EN.vanity_found);
+                ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, EN.vanity_found);
                 cy += 22.0;
-                cy += ui.wrap(x, cy, w, 15.0, W::M, OK, &grouped(f.address.as_str())) + 12.0;
+                cy += ui.wrap(x, cy, w, 15.0, W::M, Role::Ok, &grouped(f.address.as_str())) + 12.0;
                 match v.grind.dial {
                     Dial::Account => {
                         ui.text(
@@ -192,7 +236,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                             cy,
                             13.0,
                             W::R,
-                            TEXT,
+                            Role::OnSurface,
                             &fill(
                                 EN.vanity_found_account,
                                 &[
@@ -209,9 +253,17 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                         } else {
                             "•".repeat(f.suffix.as_str().len())
                         };
-                        ui.text_mid(x, cy, 36.0, 13.0, W::R, TEXT, EN.vanity_added_to_passphrase);
+                        ui.text_mid(
+                            x,
+                            cy,
+                            36.0,
+                            13.0,
+                            W::R,
+                            Role::OnSurface,
+                            EN.vanity_added_to_passphrase,
+                        );
                         let lw = ui.measure(13.0, W::R, EN.vanity_added_to_passphrase);
-                        ui.text_mid(x + lw + 10.0, cy, 36.0, 15.0, W::M, TEXT, &shown);
+                        ui.text_mid(x + lw + 10.0, cy, 36.0, 15.0, W::M, Role::OnSurface, &shown);
                         ui.button(
                             x + w - 90.0,
                             cy,
@@ -226,8 +278,15 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                             va(V::Show),
                         );
                         cy += 44.0;
-                        cy +=
-                            ui.wrap(x, cy, w, 13.0, W::R, WARN, EN.vanity_these_characters) + 12.0;
+                        cy += ui.wrap(
+                            x,
+                            cy,
+                            w,
+                            13.0,
+                            W::R,
+                            Role::Warning,
+                            EN.vanity_these_characters,
+                        ) + 12.0;
                     }
                 }
                 let bw = ui.button(
@@ -266,7 +325,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     cy,
                     14.0,
                     W::S,
-                    ACCENT,
+                    Role::Primary,
                     &fill(EN.vanity_searching_prefix, &[v.grind.prefix.as_str()]),
                 );
                 cy += 26.0;
@@ -275,7 +334,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                     cy,
                     13.0,
                     W::R,
-                    MUTED,
+                    Role::OnSurfaceVariant,
                     &fill(
                         EN.vanity_tried,
                         &[
@@ -299,7 +358,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
             }
             (None, false) => {
                 if let Some(e) = &v.error {
-                    cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 8.0;
+                    cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 8.0;
                 }
                 ui.button(
                     x,

@@ -33,9 +33,16 @@ fn top(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, name: &str) -> f32 {
     };
     let path = account.to_string().replace('\'', "h");
     let line = fill(EN.explore_account_path, &[&path, script_name(script)]);
-    ui.text(x, y, T::CAPTION, W::R, MUTED, EN.explore_account);
+    ui.text(
+        x,
+        y,
+        T::CAPTION,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.explore_account,
+    );
     y += T::PAD + T::GAP_SMALL;
-    y + ui.wrap(x, y, width, T::LABEL, W::M, TEXT, &line) + T::PAD
+    y + ui.wrap(x, y, width, T::LABEL, W::M, Role::OnSurface, &line) + T::PAD
 }
 
 /// One address row: its name ("Receive 12") above, the address below,
@@ -58,7 +65,7 @@ fn row(
         y,
         T::CAPTION,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         &fill(name, &[&at.1.to_string()]),
     );
     let y2 = y + T::PAD + T::GAP_SMALL;
@@ -67,7 +74,7 @@ fn row(
         (x, y2, width),
         T::LABEL,
         W::M,
-        (TEXT, ACCENT),
+        (Role::OnSurface.paint(), Role::Primary.paint()),
         a,
         mark.unwrap_or(&none).clone(),
     );
@@ -77,14 +84,14 @@ fn row(
 /// A field drawn as Explore's path field is: the text and the caret, a
 /// red edge when `bad`. Returns the height used.
 fn field(ui: &mut Ui, x: f32, y: f32, width: f32, text: &str, bad: bool, chip: bool) -> f32 {
-    ui.fill(x, y, width, T::FIELD, T::GAP, BG);
+    ui.fill(x, y, width, T::FIELD, T::GAP, Role::SurfaceContainerHighest);
     ui.stroke(
         x,
         y,
         width,
         T::FIELD,
         T::GAP,
-        if bad { ERR } else { ACCENT },
+        if bad { Role::Error } else { Role::Primary },
     );
     if chip {
         crate::samples::put::chip(ui, (x, y, width, T::FIELD), Action::UseSample);
@@ -92,7 +99,15 @@ fn field(ui: &mut Ui, x: f32, y: f32, width: f32, text: &str, bad: bool, chip: b
     }
     let shown = format!("{text}{}", ui.caret_char());
     let shown = ui.fit(T::BODY, W::M, &shown, width - T::PAD * 2.0);
-    ui.text_mid(x + T::PAD, y, T::FIELD, T::BODY, W::M, TEXT, &shown);
+    ui.text_mid(
+        x + T::PAD,
+        y,
+        T::FIELD,
+        T::BODY,
+        W::M,
+        Role::OnSurface,
+        &shown,
+    );
     T::FIELD + T::GAP
 }
 
@@ -119,7 +134,14 @@ pub(super) fn addresses(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
     ];
     y += button_rows(ui, x, y, width, &chains);
-    ui.text(x, y, T::CAPTION, W::R, MUTED, EN.explore_from_index);
+    ui.text(
+        x,
+        y,
+        T::CAPTION,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.explore_from_index,
+    );
     y += T::PAD + T::GAP_SMALL;
     let fw = if ui.compact { width } else { width / 2.0 };
     y += field(ui, x, y, fw, &e.from.to_string(), false, false);
@@ -151,12 +173,19 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     let (x, width, start, y) = frame(app, ui, x0, cw);
     let mut y = top(app, ui, x, y, width, EN.explore_find);
-    ui.text(x, y, T::CAPTION, W::R, MUTED, EN.explore_address);
+    ui.text(
+        x,
+        y,
+        T::CAPTION,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.explore_address,
+    );
     y += T::PAD + T::GAP_SMALL;
     let chip = app.explore_sample_shown();
     y += field(ui, x, y, width, &e.query, e.note.is_some(), chip);
     if let Some(n) = e.note {
-        y += ui.wrap(x, y, width, T::CAPTION, W::R, ERR, n) + T::GAP;
+        y += ui.wrap(x, y, width, T::CAPTION, W::R, Role::Error, n) + T::GAP;
     }
     let running = e.search.as_ref().is_some_and(Search::running);
     let mut acts = Vec::new();
@@ -170,7 +199,14 @@ pub(super) fn find(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if !acts.is_empty() {
         y += button_rows(ui, x, y, width, &acts);
     }
-    ui.text(x, y, T::CAPTION, W::R, MUTED, EN.explore_look_through);
+    ui.text(
+        x,
+        y,
+        T::CAPTION,
+        W::R,
+        Role::OnSurfaceVariant,
+        EN.explore_look_through,
+    );
     y += T::PAD + T::GAP_SMALL;
     let depths: Vec<(String, Style, Action)> = DEPTHS
         .iter()
@@ -215,17 +251,17 @@ fn result(ui: &mut Ui, x: f32, y: f32, width: f32, s: &Search) -> f32 {
             EN.explore_searched,
             &[&thousands(u64::from(s.next)), &depth],
         );
-        cy += ui.wrap(x, cy, width, T::LABEL, W::S, TEXT, &line) + T::GAP;
+        cy += ui.wrap(x, cy, width, T::LABEL, W::S, Role::OnSurface, &line) + T::GAP;
         let done = s.next as f32 / s.depth.max(1) as f32;
         ui.progress((x, cy, width), Some(done), None);
         cy += T::PROGRESS_H + T::GAP;
     } else if s.matched == 0 {
         let line = fill(EN.explore_not_in_the_first, &[&depth]);
-        return ui.wrap(x, cy, width, T::LABEL, W::S, WARN, &line) + T::GAP;
+        return ui.wrap(x, cy, width, T::LABEL, W::S, Role::Warning, &line) + T::GAP;
     }
     if s.matched > 0 {
         let line = fill(EN.explore_found_n, &[&thousands(u64::from(s.matched))]);
-        cy += ui.wrap(x, cy, width, T::LABEL, W::S, OK, &line) + T::GAP;
+        cy += ui.wrap(x, cy, width, T::LABEL, W::S, Role::Ok, &line) + T::GAP;
     }
     for f in &s.found {
         cy += row(
@@ -238,7 +274,15 @@ fn result(ui: &mut Ui, x: f32, y: f32, width: f32, s: &Search) -> f32 {
     let more = s.matched as usize - s.found.len();
     if more > 0 {
         let line = fill(EN.explore_more_n, &[&thousands(more as u64)]);
-        cy += ui.wrap(x, cy, width, T::CAPTION, W::R, MUTED, &line) + T::GAP;
+        cy += ui.wrap(
+            x,
+            cy,
+            width,
+            T::CAPTION,
+            W::R,
+            Role::OnSurfaceVariant,
+            &line,
+        ) + T::GAP;
     }
     cy - y
 }

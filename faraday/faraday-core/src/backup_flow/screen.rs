@@ -251,8 +251,15 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
                 names.join(", ")
             )
         };
-        ui.text(x, cy, 14.0, W::S, TEXT, &BackupFlow::place_name(p));
-        ui.text(x + 90.0, cy, 14.0, W::R, MUTED, &keeps);
+        ui.text(
+            x,
+            cy,
+            14.0,
+            W::S,
+            Role::OnSurface,
+            &BackupFlow::place_name(p),
+        );
+        ui.text(x + 90.0, cy, 14.0, W::R, Role::OnSurfaceVariant, &keeps);
         cy += 26.0;
         let mut items: Vec<(String, Style, Action)> = Vec::new();
         if written {
@@ -332,7 +339,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         fa(F::AddPlace),
         44.0,
     );
-    ui.rule(x, cy, w, BORDER);
+    ui.rule(x, cy, w, Role::OutlineVariant);
     cy += 14.0;
     for v in f.plan.used_vaults() {
         let vp = &f.plan.vaults[v];
@@ -351,8 +358,15 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             .iter()
             .map(|&p| BackupFlow::place_name(p))
             .collect();
-        ui.text(x, cy, 14.0, W::S, TEXT, &line);
-        ui.text(x, cy + 22.0, 12.0, W::R, MUTED, &places.join(", "));
+        ui.text(x, cy, 14.0, W::S, Role::OnSurface, &line);
+        ui.text(
+            x,
+            cy + 22.0,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &places.join(", "),
+        );
         if vp.salt.is_none() {
             let other = if vp.existing {
                 FEN.backup_flow_new_vault
@@ -379,7 +393,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             w,
             13.0,
             W::R,
-            WARN,
+            Role::Warning,
             &fill(FEN.backup_flow_at_least, &[&min.to_string()]),
         ) + 10.0;
     }
@@ -414,11 +428,18 @@ fn insert(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f32 {
         44.0,
         app.medium.icon(),
         22.0,
-        MUTED,
+        Role::OnSurfaceVariant,
     );
     let tw = ui.measure(14.0, W::S, text).min(w);
     let t = ui.fit(14.0, W::S, text, w);
-    ui.text(x + (w - tw) / 2.0, y + 54.0, 14.0, W::S, TEXT, &t);
+    ui.text(
+        x + (w - tw) / 2.0,
+        y + 54.0,
+        14.0,
+        W::S,
+        Role::OnSurface,
+        &t,
+    );
     84.0
 }
 
@@ -466,15 +487,26 @@ fn slot_rows(
             .flow_slot_row(k)
             .unwrap_or_else(|| cap(&f.target_name(&s.target, m)));
         let name = ui.fit(13.0, W::R, &name, room);
-        ui.text(x, cy, 13.0, W::R, if done { TEXT } else { MUTED }, &name);
+        ui.text(
+            x,
+            cy,
+            13.0,
+            W::R,
+            if done {
+                Role::OnSurface
+            } else {
+                Role::OnSurfaceVariant
+            },
+            &name,
+        );
         if let Some(t) = tail {
-            ui.text_right(x + w, cy - 4.0, 22.0, 13.0, W::M, OK, &t);
+            ui.text_right(x + w, cy - 4.0, 22.0, 13.0, W::M, Role::Ok, &t);
         }
         cy += 24.0;
         // The stick just taken for this place, while it is in: the
         // number of its pill, to mark on it (§18).
         if let Some(mark) = app.flow_mark_line(k) {
-            cy += line(ui, x, cy - 4.0, w, &mark, ACCENT) - 4.0;
+            cy += line(ui, x, cy - 4.0, w, &mark, Role::Primary.paint()) - 4.0;
         }
     }
     cy - y + 6.0
@@ -514,7 +546,7 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         if f.step == Step::Write
             && let Some(p) = &f.live.problem
         {
-            cy += line(ui, x, cy, w, &app.flow_problem_text(p), ERR);
+            cy += line(ui, x, cy, w, &app.flow_problem_text(p), Role::Error.paint());
         }
         let Some(k) = wanted else {
             return cy - y;
@@ -526,7 +558,7 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
                 cy,
                 w,
                 &fill(FEN.backup_flow_one_at_a_time, &[m]),
-                WARN,
+                Role::Warning.paint(),
             );
             return cy - y;
         }
@@ -556,13 +588,21 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         return cy - y;
     };
     if !r.bound {
-        cy += ui.wrap(x, cy, w, 14.0, W::S, TEXT, &app.flow_insert_line(r.slot)) + 8.0;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            14.0,
+            W::S,
+            Role::OnSurface,
+            &app.flow_insert_line(r.slot),
+        ) + 8.0;
     }
     if let Some(p) = &r.problem {
-        cy += line(ui, x, cy, w, &app.flow_problem_text(p), ERR);
+        cy += line(ui, x, cy, w, &app.flow_problem_text(p), Role::Error.paint());
         // Which of the backup's sticks it is, if any (§18).
         if let Some(which) = app.flow_stick_from_elsewhere() {
-            cy += line(ui, x, cy, w, &which, TEXT);
+            cy += line(ui, x, cy, w, &which, Role::OnSurface.paint());
         }
         cy += btn(
             ui,
@@ -584,7 +624,7 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             cy,
             w,
             &fill(FEN.backup_flow_reading, &[&r.label]),
-            MUTED,
+            Role::OnSurfaceVariant.paint(),
         );
         return cy - y;
     }
@@ -597,7 +637,7 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
                 cy,
                 w,
                 &fill(FEN.backup_flow_written, &[&r.label]),
-                OK,
+                Role::Ok.paint(),
             );
         }
         cy += insert(app, ui, x, cy, w, &fill(FEN.backup_flow_pull, &[m]));
@@ -615,7 +655,7 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             cy,
             w,
             &fill(FEN.backup_flow_writing, &[&file]),
-            ACCENT,
+            Role::Primary.paint(),
         );
         return cy - y;
     }
@@ -624,7 +664,7 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             // A blank stick read alike: which of the backup's sticks it
             // reads as, above the hold (§18).
             if let Some(like) = app.flow_stick_reads_as() {
-                cy += line(ui, x, cy, w, &like, TEXT);
+                cy += line(ui, x, cy, w, &like, Role::OnSurface.paint());
             }
             cy += bind_card(app, f, r, ui, x, cy, w);
         }
@@ -658,7 +698,7 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
                     cy,
                     w,
                     &fill(FEN.backup_flow_reading, &[&r.label]),
-                    MUTED,
+                    Role::OnSurfaceVariant.paint(),
                 );
             }
         }
@@ -669,7 +709,7 @@ fn stick_card(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
 /// The hold, and **Use another stick** beside it, or under it where the row
 /// is too narrow. Returns the height.
 fn hold_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, other: &str) -> f32 {
-    let bw = hold_button_in(app, ui, x, y, w, label, fa(F::Hold), ACCENT);
+    let bw = hold_button_in(app, ui, x, y, w, label, fa(F::Hold), Role::Primary.paint());
     let ow = ui.measure(14.0, W::S, other) + 32.0;
     if bw + 10.0 + ow <= w {
         ui.button(
@@ -703,13 +743,13 @@ fn files_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32, s
     for v in f.vaults_of(slot) {
         if let Some(s) = f.sealed_of(v) {
             let line = format!("{} · {}", s.name, vault::file_text(s.len));
-            cy += ui.wrap(x, cy, w, 13.0, W::M, MUTED, &line) + 6.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::M, Role::OnSurfaceVariant, &line) + 6.0;
         }
     }
     for n in &f.slots[slot].files {
         if let Some(it) = app.outbox.iter().find(|i| &i.name == n) {
             let line = format!("{} · {}", n, vault::file_text(it.bytes.len()));
-            cy += ui.wrap(x, cy, w, 13.0, W::M, MUTED, &line) + 6.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::M, Role::OnSurfaceVariant, &line) + 6.0;
         }
     }
     cy - y + 6.0
@@ -752,7 +792,7 @@ fn bind_card(
                 FEN.backup_flow_copies_differ,
                 &[&r.label, &BackupFlow::vault_name(*v), &first],
             ),
-            WARN,
+            Role::Warning.paint(),
         );
         let items = [
             (
@@ -774,7 +814,7 @@ fn bind_card(
     if let Some(v) = undecided {
         let vp = &f.plan.vaults[v];
         let title = fill(FEN.backup_flow_which_vault, &[&BackupFlow::vault_name(v)]);
-        cy += ui.wrap(x, cy, w, 14.0, W::S, TEXT, &title) + 8.0;
+        cy += ui.wrap(x, cy, w, 14.0, W::S, Role::OnSurface, &title) + 8.0;
         if !vp.existing {
             cy += btn(
                 ui,
@@ -800,10 +840,10 @@ fn bind_card(
                     format!(" · {seen}")
                 }
             );
-            ui.fill(x, cy, w, 44.0, 10.0, SURFACE);
-            ui.stroke(x, cy, w, 44.0, 10.0, BORDER);
+            ui.fill(x, cy, w, 44.0, 10.0, Role::SurfaceContainerLow);
+            ui.stroke(x, cy, w, 44.0, 10.0, Role::OutlineVariant);
             let t = ui.fit(13.0, W::M, &line, w - 24.0);
-            ui.text_mid(x + 12.0, cy, 44.0, 13.0, W::M, TEXT, &t);
+            ui.text_mid(x + 12.0, cy, 44.0, 13.0, W::M, Role::OnSurface, &t);
             ui.hit(x, cy, w, 44.0, fa(F::PickFile(v, k)));
             cy += 52.0;
         }
@@ -888,20 +928,27 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
     for &v in &order {
         let name = BackupFlow::vault_name(v);
         if open(v) {
-            ui.icon(x, cy, 22.0, Icon::Done, 12.0, OK);
+            ui.icon(x, cy, 22.0, Icon::Done, 12.0, Role::Ok);
             ui.text(
                 x + 28.0,
                 cy + 2.0,
                 14.0,
                 W::R,
-                TEXT,
+                Role::OnSurface,
                 &format!("{name} · {}", FEN.backup_flow_unlocked),
             );
             cy += 30.0;
             continue;
         }
         if Some(v) != active {
-            ui.text(x + 28.0, cy + 2.0, 14.0, W::R, MUTED, &name);
+            ui.text(
+                x + 28.0,
+                cy + 2.0,
+                14.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                &name,
+            );
             cy += 30.0;
             continue;
         }
@@ -913,7 +960,7 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                 w,
                 14.0,
                 W::S,
-                TEXT,
+                Role::OnSurface,
                 &fill(FEN.backup_flow_unlock_vault, &[&name]),
             ) + 10.0;
             let focused = app.vaults.focus == Some(Focus::Passphrase);
@@ -935,7 +982,14 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             }
             cy += 52.0 + crate::screens::never_under(app, ui, x, cy, w);
             if app.vaults.working == Some(vault::Work::Unlock) {
-                cy += line(ui, x, cy, w, FEN.backup_flow_unlocking, ACCENT);
+                cy += line(
+                    ui,
+                    x,
+                    cy,
+                    w,
+                    FEN.backup_flow_unlocking,
+                    Role::Primary.paint(),
+                );
             } else {
                 let style = if app.may_load_keys() {
                     Style::Primary
@@ -955,11 +1009,19 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                     Some(mib) => fill(FEN.backup_flow_free, &[&vault::mib_text(mib)]),
                     None => String::new(),
                 };
-                ui.text_mid(x + bw + 14.0, cy, 40.0, 13.0, W::R, MUTED, &free);
+                ui.text_mid(
+                    x + bw + 14.0,
+                    cy,
+                    40.0,
+                    13.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    &free,
+                );
                 cy += 52.0;
             }
             if let Some(e) = &app.vaults.unlock_error {
-                cy += line(ui, x, cy, w, e, ERR);
+                cy += line(ui, x, cy, w, e, Role::Error.paint());
             }
             // I do not have its passphrase.
             let np = f.live.no_pass == Some(v);
@@ -1024,7 +1086,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
             w,
             15.0,
             W::S,
-            OK,
+            Role::Ok,
             &fill(FEN.backup_flow_made, &[f.kind.name()]),
         ) + 12.0;
         cy += result_rows(app, f, ui, x, cy, w);
@@ -1035,7 +1097,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
                 cy,
                 w,
                 &fill(FEN.backup_flow_in_vault, &[&BackupFlow::vault_name(v)]),
-                TEXT,
+                Role::OnSurface.paint(),
             );
         }
         cy += btn(
@@ -1052,7 +1114,14 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         return cy - y;
     }
     if f.adding {
-        cy += line(ui, x, cy, w, FEN.backup_flow_copy_across, MUTED);
+        cy += line(
+            ui,
+            x,
+            cy,
+            w,
+            FEN.backup_flow_copy_across,
+            Role::OnSurfaceVariant.paint(),
+        );
         cy += btn(
             ui,
             x,
@@ -1067,7 +1136,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
         return cy - y;
     }
     if app.vaults.working == Some(vault::Work::FlowMake) {
-        cy += line(ui, x, cy, w, FEN.backup_flow_making, ACCENT);
+        cy += line(ui, x, cy, w, FEN.backup_flow_making, Role::Primary.paint());
         return cy - y;
     }
     if !app.may_load_keys() {
@@ -1081,7 +1150,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
     }
     if let Some(form) = &app.vaults.form {
         for (k, (_, label, b, _)) in form.fields.iter().enumerate() {
-            ui.text(x, cy, 12.0, W::R, MUTED, label);
+            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, label);
             cy += 20.0;
             let focused = app.vaults.focus == Some(Focus::Field(k));
             text_box(
@@ -1097,7 +1166,7 @@ fn make_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
             cy += 52.0;
         }
         if f.kind == crate::backup_flow::Kind::Gpg {
-            ui.text(x, cy, 12.0, W::R, MUTED, FEN.vault_expires);
+            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, FEN.vault_expires);
             cy += 22.0;
             cy += crate::vault::screen::years_row(
                 ui,
@@ -1194,14 +1263,14 @@ fn result_rows(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
 }
 
 fn row(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str, mono: bool) -> f32 {
-    ui.text(x, y, 12.0, W::R, MUTED, label);
+    ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, label);
     let h = ui.wrap(
         x,
         y + 20.0,
         w,
         14.0,
         if mono { W::M } else { W::R },
-        TEXT,
+        Role::OnSurface,
         value,
     );
     20.0 + h + 12.0
@@ -1217,21 +1286,30 @@ fn lock_body(app: &View, _f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             FEN.backup_flow_kept,
             kw.kept
                 .iter()
-                .map(|l| (l.clone(), TEXT))
+                .map(|l| (l.clone(), Role::OnSurface))
                 .collect::<Vec<_>>(),
         ),
         (
             FEN.backup_flow_wiped,
             kw.wiped
                 .iter()
-                .map(|(l, nowhere, _)| (l.clone(), if *nowhere { ERR } else { TEXT }))
+                .map(|(l, nowhere, _)| {
+                    (
+                        l.clone(),
+                        if *nowhere {
+                            Role::Error
+                        } else {
+                            Role::OnSurface
+                        },
+                    )
+                })
                 .collect(),
         ),
     ] {
         if lines.is_empty() {
             continue;
         }
-        ui.text(x, cy, 12.0, W::R, MUTED, title);
+        ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, title);
         cy += 22.0;
         for (l, tone) in lines {
             cy += ui.wrap(x, cy, w, 14.0, W::R, tone, &l) + 6.0;
@@ -1268,7 +1346,7 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
     if !f.all_written() {
         return 0.0;
     }
-    cy += ui.wrap(x, cy, w, 15.0, W::S, OK, FEN.backup_flow_done) + 12.0;
+    cy += ui.wrap(x, cy, w, 15.0, W::S, Role::Ok, FEN.backup_flow_done) + 12.0;
     for (k, s) in f.slots.iter().enumerate() {
         let Some(wr) = &s.written else {
             continue;
@@ -1283,12 +1361,20 @@ fn done_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) ->
             w,
             13.0,
             W::R,
-            TEXT,
+            Role::OnSurface,
             &format!("{name} · {} · {at}", wr.label),
         ) + 4.0;
         // What was written to it, the public files with the copies.
         let files: Vec<&str> = wr.files.iter().map(|(n, _)| n.as_str()).collect();
-        cy += ui.wrap(x, cy, w, 12.0, W::M, MUTED, &files.join(", ")) + 8.0;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            12.0,
+            W::M,
+            Role::OnSurfaceVariant,
+            &files.join(", "),
+        ) + 8.0;
     }
     cy += 8.0;
     // In Guided, extra copies (`docs/BACKUP-FLOW.md` §17.19 item 7).

@@ -49,7 +49,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += BACK_LINK_ROW;
         y += title(ui, x, y, EN.own_add_randomness) + PAD;
     }
-    y += ui.wrap(x, y, w, OWN_LINE_TEXT, W::R, MUTED, &app.own_status()) + PAD;
+    y += ui.wrap(
+        x,
+        y,
+        w,
+        OWN_LINE_TEXT,
+        W::R,
+        Role::OnSurfaceVariant,
+        &app.own_status(),
+    ) + PAD;
     let sources: Vec<(&str, Action)> = SOURCES
         .iter()
         .filter(|(s, _)| *s != OwnSource::Camera || !app.cameras().is_empty() || p.wants_camera())
@@ -137,16 +145,16 @@ fn batch(p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let n = p.batch_len();
         let noun = if n == 1 { one } else { many };
         let line = fill(EN.own_batch, &[&n.to_string(), noun]);
-        cy += ui.wrap(x, cy, w, OWN_LINE_TEXT, W::R, TEXT, &line) + GAP;
+        cy += ui.wrap(x, cy, w, OWN_LINE_TEXT, W::R, Role::OnSurface, &line) + GAP;
         // As New key names it: 99 rolls are enough for 256 bits alone.
         if p.source() == OwnSource::Dice
             && n >= faraday_entropy::DiceRolls::needed(faraday_entropy::Strength::Bits256)
         {
-            cy += ui.wrap(x, cy, w, OWN_LINE_TEXT, W::R, OK, EN.own_enough_256) + GAP;
+            cy += ui.wrap(x, cy, w, OWN_LINE_TEXT, W::R, Role::Ok, EN.own_enough_256) + GAP;
         }
     }
     if let Some(n) = p.note() {
-        cy += ui.wrap(x, cy, w, OWN_LINE_TEXT, W::R, ERR, n) + GAP;
+        cy += ui.wrap(x, cy, w, OWN_LINE_TEXT, W::R, Role::Error, n) + GAP;
     }
     if unit.is_some() {
         cy += GAP_SMALL;
@@ -164,7 +172,7 @@ fn batch(p: &OwnPage, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             OwnSource::Cards => EN.keygen_type_the_rank,
             OwnSource::Camera | OwnSource::PointerKeys => EN.own_camera_keys,
         };
-        cy += ui.wrap(x, cy, w, CAPTION, W::R, DIM, hint);
+        cy += ui.wrap(x, cy, w, CAPTION, W::R, Role::OnSurfaceVariant, hint);
     }
     cy - y
 }

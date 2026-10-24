@@ -24,11 +24,11 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
     // Sound: green. A signature wrong: red. Otherwise some were not
     // checked: amber, as the review's own card for one reads.
     let (tone, icon) = if check.sound() {
-        (OK, Icon::Success)
+        (Role::Ok, Icon::Success)
     } else if check.wrong() {
-        (ERR, Icon::Error)
+        (Role::Error, Icon::Error)
     } else {
-        (WARN, Icon::Warning)
+        (Role::Warning, Icon::Warning)
     };
     ui.icon(x, cy + 8.0, 20.0, icon, 12.0, tone);
     if ui.compact {
@@ -47,7 +47,7 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
             EN.nonce_check_one_nonce,
             &[&reuse.name().to_string(), &inputs.join(", ").to_string()],
         );
-        cy += ui.wrap(x, cy, w, 13.0, W::S, ERR, &line) + 8.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Error, &line) + 8.0;
     }
     const SHOWN: usize = 12;
     for r in check.rows.iter().take(SHOWN) {
@@ -57,31 +57,36 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
             30.0,
             12.0,
             W::R,
-            DIM,
+            Role::OnSurfaceVariant,
             &fill(EN.nonce_check_input, &[&r.input.to_string()]),
         );
-        ui.text_mid(x + 70.0, cy, 30.0, 13.0, W::M, TEXT, &r.name);
+        ui.text_mid(x + 70.0, cy, 30.0, 13.0, W::M, Role::OnSurface, &r.name);
         let (t, c) = match (r.verdict, r.recomputed) {
-            (Verdict::Invalid, _) => (EN.nonce_check_invalid.to_string(), ERR),
-            (Verdict::Unchecked(why), _) => {
-                (fill(EN.nonce_check_not_checked, &[&why.to_string()]), DIM)
-            }
-            (Verdict::Valid, Some(Some(mode))) => {
-                (fill(EN.nonce_check_valid_nonce, &[&mode.to_string()]), OK)
-            }
-            (Verdict::Valid, Some(None)) => (EN.nonce_check_wrong_nonce.to_string(), ERR),
-            (Verdict::Valid, None) => (EN.nonce_check_valid_signed.to_string(), MUTED),
+            (Verdict::Invalid, _) => (EN.nonce_check_invalid.to_string(), Role::Error),
+            (Verdict::Unchecked(why), _) => (
+                fill(EN.nonce_check_not_checked, &[&why.to_string()]),
+                Role::OnSurfaceVariant,
+            ),
+            (Verdict::Valid, Some(Some(mode))) => (
+                fill(EN.nonce_check_valid_nonce, &[&mode.to_string()]),
+                Role::Ok,
+            ),
+            (Verdict::Valid, Some(None)) => (EN.nonce_check_wrong_nonce.to_string(), Role::Error),
+            (Verdict::Valid, None) => (
+                EN.nonce_check_valid_signed.to_string(),
+                Role::OnSurfaceVariant,
+            ),
         };
         if ui.compact {
             // The verdict in full, under the input.
             let th = ui.wrap(x, cy + 28.0, w, 12.0, W::R, c, &t);
-            ui.rule(x, cy + 34.0 + th, w, BORDER);
+            ui.rule(x, cy + 34.0 + th, w, Role::OutlineVariant);
             cy += th + 36.0;
             continue;
         }
         let t = ui.fit(12.0, W::R, &t, w - 170.0);
         ui.text_right(x + w, cy, 30.0, 12.0, W::R, c, &t);
-        ui.rule(x, cy + 30.0, w, BORDER);
+        ui.rule(x, cy + 30.0, w, Role::OutlineVariant);
         cy += 32.0;
     }
     if check.rows.len() > SHOWN {
@@ -93,7 +98,11 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
             30.0,
             12.0,
             W::R,
-            if ok { MUTED } else { ERR },
+            if ok {
+                Role::OnSurfaceVariant
+            } else {
+                Role::Error
+            },
             &fill(
                 EN.nonce_check_more,
                 &[
@@ -131,7 +140,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let needed = app.spend_needed();
     if app.wallets.spend().is_none() {
         title(ui, col_x, 28.0, EN.spend_sign_a_transaction);
-        ui.text(col_x, 80.0, 15.0, W::R, MUTED, EN.spend_no_transaction);
+        ui.text(
+            col_x,
+            80.0,
+            15.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.spend_no_transaction,
+        );
         ui.button(
             col_x,
             116.0,
@@ -360,8 +376,8 @@ fn spend_bar(
     let (count, missing, need_line, label) = spend_status(app, needed);
     let (label, style, action) = step.unwrap_or((label, Style::Primary, Action::Primary));
     let (x, w) = (x0 + crate::compact::M, cw - 2.0 * crate::compact::M);
-    ui.fill(x0, y, cw, SPEND_BAR, 0.0, SIDEBAR);
-    ui.fill(x0, y, cw, 1.0, 0.0, LINE);
+    ui.fill(x0, y, cw, SPEND_BAR, 0.0, Role::SurfaceContainerLow);
+    ui.fill(x0, y, cw, 1.0, 0.0, Role::OutlineVariant);
     let pw = ui.pips(x, y + 14.0, needed, count);
     ui.text_mid(
         x + pw + 10.0,
@@ -369,7 +385,7 @@ fn spend_bar(
         26.0,
         13.0,
         W::S,
-        TEXT,
+        Role::OnSurface,
         &fill(
             EN.spend_bar_count,
             &[&count.to_string(), &needed.to_string()],
@@ -381,7 +397,11 @@ fn spend_bar(
         y + 30.0,
         12.0,
         W::R,
-        if missing == 0 { OK } else { WARN },
+        if missing == 0 {
+            Role::Ok
+        } else {
+            Role::Warning
+        },
         &line,
     );
     let label = ui.fit(15.0, W::S, &label, w - 24.0);
@@ -533,13 +553,13 @@ pub(crate) fn step_body(
         0 => {
             match wallet.and_then(|wi| app.session.wallets.get(wi)) {
                 Some(wl) => {
-                    ui.text(x, cy, 14.0, W::S, TEXT, &wl.name);
+                    ui.text(x, cy, 14.0, W::S, Role::OnSurface, &wl.name);
                     ui.text(
                         x,
                         cy + 22.0,
                         12.0,
                         W::R,
-                        MUTED,
+                        Role::OnSurfaceVariant,
                         &fill(
                             EN.step_wallet_source,
                             &[&Session::shape(wl).to_string(), &wl.source.to_string()],
@@ -547,7 +567,15 @@ pub(crate) fn step_body(
                     );
                 }
                 None => {
-                    ui.wrap(x, cy, w - 140.0, 13.0, W::R, WARN, EN.step_no_loaded_wallet);
+                    ui.wrap(
+                        x,
+                        cy,
+                        w - 140.0,
+                        13.0,
+                        W::R,
+                        Role::Warning,
+                        EN.step_no_loaded_wallet,
+                    );
                 }
             }
             next(ui, cy, EN.step_continue);
@@ -561,7 +589,7 @@ pub(crate) fn step_body(
                         (EN.step_receive_0_1, false, 1),
                         (EN.step_change_1_0, true, 0),
                     ] {
-                        ui.text(x, cy + 2.0, 12.0, W::R, MUTED, label);
+                        ui.text(x, cy + 2.0, 12.0, W::R, Role::OnSurfaceVariant, label);
                         let (a, held) = app.receive_line(wl, change, idx);
                         // On a small panel the address goes under its label.
                         let ax = if ui.compact {
@@ -570,14 +598,21 @@ pub(crate) fn step_body(
                         } else {
                             x + 96.0
                         };
-                        let col = if held { WARN } else { TEXT };
+                        let col = if held { Role::Warning } else { Role::OnSurface };
                         let used = ui.wrap(ax, cy, x + w - ax, 13.0, W::M, col, &a);
                         cy += used.max(20.0) + 8.0;
-                        ui.rule(x, cy - 4.0, w, BORDER);
+                        ui.rule(x, cy - 4.0, w, Role::OutlineVariant);
                     }
                 }
                 None => {
-                    ui.text(x, cy, 13.0, W::R, MUTED, EN.step_no_wallet_to_show);
+                    ui.text(
+                        x,
+                        cy,
+                        13.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        EN.step_no_wallet_to_show,
+                    );
                     cy += 24.0;
                 }
             }
@@ -610,7 +645,7 @@ pub(crate) fn step_body(
                                     &index.to_string(),
                                 ],
                             ),
-                            Some((EN.step_verified, OK)),
+                            Some((EN.step_verified, Role::Ok.paint())),
                         ));
                     }
                     OutputKind::UnverifiedChange { .. } => {
@@ -618,7 +653,7 @@ pub(crate) fn step_body(
                             EN.step_change.into(),
                             btc(o.amount.to_sat()),
                             fill(EN.step_to_address, &[&short(&o.address).to_string()]),
-                            Some((EN.step_unverified, WARN)),
+                            Some((EN.step_unverified, Role::Warning.paint())),
                         ));
                     }
                     OutputKind::Recipient => {}
@@ -653,7 +688,7 @@ pub(crate) fn step_body(
                     }
                 ),
                 if unchecked {
-                    Some((EN.step_amount_unchecked, WARN))
+                    Some((EN.step_amount_unchecked, Role::Warning.paint()))
                 } else {
                     None
                 },
@@ -690,29 +725,69 @@ pub(crate) fn step_body(
             let compact = ui.compact;
             let row_h = if compact { 52.0 } else { 40.0 };
             let box_h = rows.len() as f32 * row_h;
-            ui.fill(x, rows_top, w, box_h, 10.0, BG);
-            ui.stroke(x, rows_top, w, box_h, 10.0, BORDER);
+            ui.fill(x, rows_top, w, box_h, 10.0, Role::SurfaceContainerHighest);
+            ui.stroke(x, rows_top, w, box_h, 10.0, Role::OutlineVariant);
             for (k, (label, amount, rest, note)) in rows.iter().enumerate() {
                 let ry = rows_top + k as f32 * row_h;
                 if compact {
-                    ui.text_mid(x + 12.0, ry + 4.0, 24.0, 12.0, W::R, MUTED, label);
-                    ui.text_right(x + w - 12.0, ry + 4.0, 24.0, 14.0, W::M, TEXT, amount);
+                    ui.text_mid(
+                        x + 12.0,
+                        ry + 4.0,
+                        24.0,
+                        12.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        label,
+                    );
+                    ui.text_right(
+                        x + w - 12.0,
+                        ry + 4.0,
+                        24.0,
+                        14.0,
+                        W::M,
+                        Role::OnSurface,
+                        amount,
+                    );
                     let nw = note.map_or(0.0, |(t, _)| ui.measure(12.0, W::R, t) + 8.0);
                     let rest = ui.fit(12.0, W::R, rest, w - 24.0 - nw);
-                    ui.text_mid(x + 12.0, ry + 26.0, 22.0, 12.0, W::R, MUTED, &rest);
+                    ui.text_mid(
+                        x + 12.0,
+                        ry + 26.0,
+                        22.0,
+                        12.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        &rest,
+                    );
                     if let Some((t, c)) = note {
                         ui.text_right(x + w - 12.0, ry + 26.0, 22.0, 12.0, W::R, *c, t);
                     }
                 } else {
-                    ui.text_mid(x + 14.0, ry, row_h, 12.0, W::R, MUTED, label);
-                    let aw = ui.text_mid(x + 84.0, ry, row_h, 14.0, W::M, TEXT, amount);
-                    ui.text_mid(x + 98.0 + aw, ry, row_h, 13.0, W::R, MUTED, rest);
+                    ui.text_mid(
+                        x + 14.0,
+                        ry,
+                        row_h,
+                        12.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        label,
+                    );
+                    let aw = ui.text_mid(x + 84.0, ry, row_h, 14.0, W::M, Role::OnSurface, amount);
+                    ui.text_mid(
+                        x + 98.0 + aw,
+                        ry,
+                        row_h,
+                        13.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        rest,
+                    );
                     if let Some((t, c)) = note {
                         ui.text_right(x + w - 14.0, ry, row_h, 12.0, W::R, *c, t);
                     }
                 }
                 if k + 1 < rows.len() {
-                    ui.rule(x, ry + row_h, w, SURFACE);
+                    ui.rule(x, ry + row_h, w, Role::Surface);
                 }
             }
             cy += box_h + 12.0;
@@ -720,9 +795,9 @@ pub(crate) fn step_body(
             let mut warned = false;
             for wn in &i.warnings {
                 let c = match wn.level {
-                    Level::Info => MUTED,
-                    Level::Caution => WARN,
-                    Level::Danger | Level::Blocked => ERR,
+                    Level::Info => Role::OnSurfaceVariant,
+                    Level::Caution => Role::Warning,
+                    Level::Danger | Level::Blocked => Role::Error,
                 };
                 let used = ui.wrap(x + 22.0, cy, w - 22.0, 13.0, W::R, c, &wn.text);
                 ui.icon(x, cy, 16.0, Icon::Warning, 10.0, c);
@@ -731,9 +806,19 @@ pub(crate) fn step_body(
             }
             if !warned {
                 let mut chx = x;
-                chx += ui.chip(chx, cy, EN.step_no_warnings, OK, OK.with_alpha(26)) + 6.0;
+                chx += ui.chip(
+                    chx,
+                    cy,
+                    EN.step_no_warnings,
+                    Role::OnOkContainer,
+                    Role::OkContainer,
+                ) + 6.0;
                 let net = app.session.network();
-                let c = if net.is_mainnet() { OK } else { WARN };
+                let c = if net.is_mainnet() {
+                    Role::Ok
+                } else {
+                    Role::Warning
+                };
                 ui.chip(chx, cy, network_name(net), c, c.with_alpha(26));
                 cy += 34.0;
             }
@@ -759,10 +844,10 @@ pub(crate) fn step_body(
                     )
                     .collect::<Vec<_>>();
                 for (label, amount, what) in &lines {
-                    ui.text(x, cy, 12.0, W::R, MUTED, label);
-                    ui.text_right(x + w, cy - 4.0, 20.0, 12.0, W::M, TEXT, amount);
+                    ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, label);
+                    ui.text_right(x + w, cy - 4.0, 20.0, 12.0, W::M, Role::OnSurface, amount);
                     cy += 18.0;
-                    cy += ui.wrap(x, cy, w, 12.0, W::M, TEXT, what) + 10.0;
+                    cy += ui.wrap(x, cy, w, 12.0, W::M, Role::OnSurface, what) + 10.0;
                 }
                 cy += 6.0;
             } else if s.table {
@@ -771,29 +856,37 @@ pub(crate) fn step_body(
                         .amount
                         .map(|a| btc(a.to_sat()))
                         .unwrap_or_else(|| "?".into());
-                    ui.text(x, cy, 12.0, W::R, MUTED, EN.step_input);
+                    ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, EN.step_input);
                     ui.text(
                         x + 64.0,
                         cy,
                         12.0,
                         W::M,
-                        TEXT,
+                        Role::OnSurface,
                         &format!("{}:{}", short(&inp.txid.to_string()), inp.vout),
                     );
-                    ui.text_right(x + w, cy - 4.0, 20.0, 12.0, W::M, TEXT, &a);
+                    ui.text_right(x + w, cy - 4.0, 20.0, 12.0, W::M, Role::OnSurface, &a);
                     cy += 22.0;
                 }
                 for o in &i.outputs {
-                    ui.text(x, cy, 12.0, W::R, MUTED, EN.step_output);
+                    ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, EN.step_output);
                     let shown = o.address.clone();
-                    let used = ui.wrap(x + 64.0, cy, w - 64.0 - 110.0, 12.0, W::M, TEXT, &shown);
+                    let used = ui.wrap(
+                        x + 64.0,
+                        cy,
+                        w - 64.0 - 110.0,
+                        12.0,
+                        W::M,
+                        Role::OnSurface,
+                        &shown,
+                    );
                     ui.text_right(
                         x + w,
                         cy - 4.0,
                         20.0,
                         12.0,
                         W::M,
-                        TEXT,
+                        Role::OnSurface,
                         &btc(o.amount.to_sat()),
                     );
                     cy += used.max(18.0) + 4.0;
@@ -834,11 +927,11 @@ pub(crate) fn step_body(
                         42.0,
                         12.0,
                         W::R,
-                        DIM,
+                        Role::OnSurfaceVariant,
                         &fill(EN.step_share_n, &[&(k + 1).to_string()]),
                     );
                     let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
-                    ui.text_mid(x + 64.0, cy, 42.0, 14.0, W::M, TEXT, &fp);
+                    ui.text_mid(x + 64.0, cy, 42.0, 14.0, W::M, Role::OnSurface, &fp);
                     let (lx, ly) = if compact {
                         (x + 64.0, cy + 36.0)
                     } else {
@@ -846,15 +939,23 @@ pub(crate) fn step_body(
                     };
                     let here = t.ours.contains(&id);
                     let (tag, fg, bg) = if t.signed.contains(&id) {
-                        (EN.step_signed, OK, OK.with_alpha(30))
+                        (EN.step_signed, Role::OnOkContainer, Role::OkContainer)
                     } else if here {
-                        (EN.step_signs_here, OK, OK.with_alpha(30))
+                        (EN.step_signs_here, Role::OnOkContainer, Role::OkContainer)
                     } else if t.signers.contains(&id) {
-                        (EN.step_signs_at_its_own, ACCENT, ACCENT.with_alpha(26))
+                        (
+                            EN.step_signs_at_its_own,
+                            Role::OnSecondaryContainer,
+                            Role::SecondaryContainer,
+                        )
                     } else if first {
-                        ("", MUTED, INNER)
+                        ("", Role::OnSurfaceVariant, Role::SurfaceContainerHighest)
                     } else {
-                        (EN.step_not_signing, DIM, INNER)
+                        (
+                            EN.step_not_signing,
+                            Role::OnSurfaceVariant,
+                            Role::SurfaceContainerHighest,
+                        )
                     };
                     let right = if first && !here {
                         let on = s.others.contains(&id);
@@ -883,8 +984,8 @@ pub(crate) fn step_body(
                     };
                     let label = slot.held_by.clone().unwrap_or_default();
                     let label = ui.fit(13.0, W::R, &label, x + w - lx - right - 8.0);
-                    ui.text_mid(lx, ly, 42.0, 13.0, W::R, MUTED, &label);
-                    ui.rule(x, ly + 42.0, w, BORDER);
+                    ui.text_mid(lx, ly, 42.0, 13.0, W::R, Role::OnSurfaceVariant, &label);
+                    ui.rule(x, ly + 42.0, w, Role::OutlineVariant);
                     cy = ly + 44.0;
                 }
             }
@@ -904,7 +1005,7 @@ pub(crate) fn step_body(
                     &[&needed.to_string(), &t.signed.len().to_string()],
                 )
             };
-            ui.text_mid(x, cy, 40.0, 13.0, W::R, MUTED, &line);
+            ui.text_mid(x, cy, 40.0, 13.0, W::R, Role::OnSurfaceVariant, &line);
             // Under the line when both do not fit on one row.
             let nw = ui.measure(14.0, W::S, EN.step_continue) + 36.0;
             if ui.measure(13.0, W::R, &line) + nw + 12.0 > w {
@@ -925,9 +1026,17 @@ pub(crate) fn step_body(
                     // whether it signs here and the way to bring it here.
                     let compact = ui.compact;
                     for (k, slot) in slots.iter().enumerate() {
-                        ui.text_mid(x, cy, 42.0, 12.0, W::R, DIM, &(k + 1).to_string());
+                        ui.text_mid(
+                            x,
+                            cy,
+                            42.0,
+                            12.0,
+                            W::R,
+                            Role::OnSurfaceVariant,
+                            &(k + 1).to_string(),
+                        );
                         let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
-                        ui.text_mid(x + 22.0, cy, 42.0, 14.0, W::M, TEXT, &fp);
+                        ui.text_mid(x + 22.0, cy, 42.0, 14.0, W::M, Role::OnSurface, &fp);
                         // A label that is its fingerprint is not drawn
                         // twice (`docs/history/SCAN-TO-SIGN.md` §3.3).
                         let label = slot
@@ -937,7 +1046,15 @@ pub(crate) fn step_body(
                             .filter(|l| !l.is_empty() && !l.eq_ignore_ascii_case(&fp))
                             .unwrap_or_default();
                         let label = ui.fit(13.0, W::R, label, w - 124.0);
-                        ui.text_mid(x + 124.0, cy, 42.0, 13.0, W::R, MUTED, &label);
+                        ui.text_mid(
+                            x + 124.0,
+                            cy,
+                            42.0,
+                            13.0,
+                            W::R,
+                            Role::OnSurfaceVariant,
+                            &label,
+                        );
                         if compact {
                             cy += 36.0;
                         }
@@ -990,22 +1107,26 @@ pub(crate) fn step_body(
                             }
                             None => {
                                 let (t, fg, bg) = if slot.held_by.is_some() {
-                                    (EN.step_signs_here, OK, OK.with_alpha(30))
+                                    (EN.step_signs_here, Role::OnOkContainer, Role::OkContainer)
                                 } else {
-                                    (EN.step_not_here, MUTED, INNER)
+                                    (
+                                        EN.step_not_here,
+                                        Role::OnSurfaceVariant,
+                                        Role::SurfaceContainerHighest,
+                                    )
                                 };
                                 let cw2 = ui.measure(12.0, W::R, t) + 34.0;
                                 let chip_x = if compact { x + 22.0 } else { x + w - cw2 };
                                 ui.chip(chip_x, cy + 8.0, t, fg, bg);
                             }
                         }
-                        ui.rule(x, cy + 42.0, w, BORDER);
+                        ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
                         cy += 44.0;
                     }
                 }
                 None => {
                     for fp in &i.participating_keys {
-                        ui.text_mid(x, cy, 30.0, 14.0, W::M, TEXT, &fp_text(*fp));
+                        ui.text_mid(x, cy, 30.0, 14.0, W::M, Role::OnSurface, &fp_text(*fp));
                         cy += 30.0;
                     }
                 }
@@ -1059,7 +1180,7 @@ pub(crate) fn step_body(
                 cy += wrap_buttons(ui, x, cy, w, 38.0, &items) + 2.0;
                 if !may {
                     let pull = fill(EN.step_remove_the_first, &[app.medium.noun()]);
-                    ui.text(x, cy, 13.0, W::S, WARN, &pull);
+                    ui.text(x, cy, 13.0, W::S, Role::Warning, &pull);
                     cy += 28.0;
                 }
                 cy += 6.0;
@@ -1112,7 +1233,7 @@ pub(crate) fn step_body(
                 )
             };
             if let Some(r) = reason {
-                ui.text_mid(x, cy, 40.0, 13.0, W::R, MUTED, &r);
+                ui.text_mid(x, cy, 40.0, 13.0, W::R, Role::OnSurfaceVariant, &r);
             } else {
                 let bw = ui.measure(14.0, W::S, &label) + 36.0;
                 ui.button(
@@ -1138,19 +1259,27 @@ pub(crate) fn step_body(
                 .collect();
             if !s.spend.signed_here.is_empty() {
                 let fps: Vec<String> = s.spend.signed_here.iter().map(|f| fp_text(*f)).collect();
-                ui.icon(x, cy + 10.0, 20.0, Icon::Done, 12.0, OK);
+                ui.icon(x, cy + 10.0, 20.0, Icon::Done, 12.0, Role::Ok);
                 ui.text_mid(
                     x + 26.0,
                     cy,
                     40.0,
                     14.0,
                     W::S,
-                    OK,
+                    Role::Ok,
                     &fill(EN.step_signed_keys, &[&fps.join(", ").to_string()]),
                 );
                 cy += 44.0;
             } else if mine.is_empty() {
-                ui.text_mid(x, cy, 40.0, 13.0, W::R, MUTED, EN.step_no_signing_key);
+                ui.text_mid(
+                    x,
+                    cy,
+                    40.0,
+                    13.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    EN.step_no_signing_key,
+                );
                 cy += 44.0;
             } else {
                 let label = fill(EN.step_sign_with_keys, &[&mine.join(", ").to_string()]);
@@ -1160,7 +1289,7 @@ pub(crate) fn step_body(
                     40.0,
                     13.0,
                     W::R,
-                    MUTED,
+                    Role::OnSurfaceVariant,
                     &format!(
                         "{} {}",
                         i.inputs.len(),
@@ -1207,7 +1336,7 @@ pub(crate) fn step_body(
                 };
             let complete = s.complete;
             for (fp, label, raw) in &slots {
-                ui.text_mid(x, cy, 44.0, 14.0, W::M, TEXT, fp);
+                ui.text_mid(x, cy, 44.0, 14.0, W::M, Role::OnSurface, fp);
                 let label = if label.is_empty() {
                     s.spend
                         .collected
@@ -1227,22 +1356,22 @@ pub(crate) fn step_body(
                     (x + 102.0, cy)
                 };
                 let label = ui.fit(13.0, W::R, &label, x + w - lx - 90.0);
-                ui.text_mid(lx, ly, 44.0, 13.0, W::R, MUTED, &label);
+                ui.text_mid(lx, ly, 44.0, 13.0, W::R, Role::OnSurfaceVariant, &label);
                 let signed = raw.map(|r| s.signers.contains(&r)).unwrap_or(false);
                 let here = raw
                     .map(|r| s.spend.signed_here.iter().any(|f| f.0 == r))
                     .unwrap_or(false);
                 let (t, c) = if signed && here {
-                    (EN.step_signed_here, OK)
+                    (EN.step_signed_here, Role::Ok)
                 } else if signed {
-                    (EN.step_verified, OK)
+                    (EN.step_verified, Role::Ok)
                 } else if complete {
-                    (EN.step_not_needed, DIM)
+                    (EN.step_not_needed, Role::OnSurfaceVariant)
                 } else {
-                    (EN.step_waiting, DIM)
+                    (EN.step_waiting, Role::OnSurfaceVariant)
                 };
                 ui.text_right(x + w, cy, 44.0, 12.0, W::R, c, t);
-                ui.rule(x, ly + 44.0, w, BORDER);
+                ui.rule(x, ly + 44.0, w, Role::OutlineVariant);
                 cy = ly + 46.0;
             }
             cy += 10.0;
@@ -1258,7 +1387,15 @@ pub(crate) fn step_body(
                 .collect();
             if !complete {
                 if copies.is_empty() {
-                    ui.text_mid(x, cy, 30.0, 13.0, W::R, MUTED, EN.step_no_cosigner_s);
+                    ui.text_mid(
+                        x,
+                        cy,
+                        30.0,
+                        13.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        EN.step_no_cosigner_s,
+                    );
                     cy += 34.0;
                 }
                 for (k, name) in &copies {
@@ -1306,9 +1443,16 @@ pub(crate) fn step_body(
                 .filter(|id| !t.signed.contains(id))
                 .map(|id| fill(EN.step_share_n_inline, &[&(id + 1).to_string()]))
                 .collect();
-            ui.fill(x, cy, w, 150.0, 10.0, BG);
-            ui.stroke(x, cy, w, 150.0, 10.0, BORDER);
-            ui.text(x + 14.0, cy + 14.0, 14.0, W::S, TEXT, EN.step_carry_file);
+            ui.fill(x, cy, w, 150.0, 10.0, Role::SurfaceContainerHighest);
+            ui.stroke(x, cy, w, 150.0, 10.0, Role::OutlineVariant);
+            ui.text(
+                x + 14.0,
+                cy + 14.0,
+                14.0,
+                W::S,
+                Role::OnSurface,
+                EN.step_carry_file,
+            );
             let sub = fill(
                 EN.step_carry_holds_nonce,
                 &[&(if next_ids.is_empty() {
@@ -1319,9 +1463,16 @@ pub(crate) fn step_body(
                 .to_string()],
             );
             let sub = ui.fit(12.0, W::R, &sub, w - 28.0);
-            ui.text(x + 14.0, cy + 38.0, 12.0, W::R, MUTED, &sub);
+            ui.text(
+                x + 14.0,
+                cy + 38.0,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                &sub,
+            );
             let name = format!("{}-partly-signed.osk", crate::result_stem(&s.spend.source));
-            ui.text(x + 14.0, cy + 62.0, 12.0, W::M, TEXT, &name);
+            ui.text(x + 14.0, cy + 62.0, 12.0, W::M, Role::OnSurface, &name);
             let (label, style) = if s.out_signed {
                 (EN.step_kept, Style::Disabled)
             } else {
@@ -1337,7 +1488,7 @@ pub(crate) fn step_body(
                 Action::CarryToOutbox,
             );
             if s.out_signed {
-                ui.icon(x + w - 34.0, cy + 106.0, 20.0, Icon::Done, 12.0, OK);
+                ui.icon(x + w - 34.0, cy + 106.0, 20.0, Icon::Done, 12.0, Role::Ok);
             }
             cy += 162.0;
         }
@@ -1363,7 +1514,7 @@ pub(crate) fn step_body(
                         ],
                     ),
                 };
-                ui.wrap(x, cy, w, 13.0, W::R, WARN, &line);
+                ui.wrap(x, cy, w, 13.0, W::R, Role::Warning, &line);
                 cy += 44.0;
             } else {
                 // Side by side; on a small panel one under the other.
@@ -1414,11 +1565,18 @@ pub(crate) fn step_body(
                     } else {
                         168.0
                     };
-                    ui.fill(bx, cy, half, card_h, 10.0, BG);
-                    ui.stroke(bx, cy, half, card_h, 10.0, BORDER);
-                    ui.text(bx + 14.0, cy + 14.0, 14.0, W::S, TEXT, head);
+                    ui.fill(bx, cy, half, card_h, 10.0, Role::SurfaceContainerHighest);
+                    ui.stroke(bx, cy, half, card_h, 10.0, Role::OutlineVariant);
+                    ui.text(bx + 14.0, cy + 14.0, 14.0, W::S, Role::OnSurface, head);
                     let sub = ui.fit(12.0, W::R, sub, half - 28.0);
-                    ui.text(bx + 14.0, cy + 38.0, 12.0, W::R, MUTED, &sub);
+                    ui.text(
+                        bx + 14.0,
+                        cy + 38.0,
+                        12.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        &sub,
+                    );
                     let detail = if k == 0 {
                         format!("{}-signed.psbt", crate::result_stem(&s.spend.source))
                     } else {
@@ -1434,7 +1592,7 @@ pub(crate) fn step_body(
                         )
                     };
                     let detail = ui.fit(12.0, W::M, &detail, half - 28.0);
-                    ui.text(bx + 14.0, cy + 66.0, 12.0, W::M, TEXT, &detail);
+                    ui.text(bx + 14.0, cy + 66.0, 12.0, W::M, Role::OnSurface, &detail);
                     let bw = ui.button(bx + 14.0, by, Some(lw), 36.0, label, style, action);
                     if k == 0 {
                         let (qx, qy) = if stacked {
@@ -1453,7 +1611,7 @@ pub(crate) fn step_body(
                         );
                     }
                     if let Some((t, _)) = &place {
-                        ui.text_right(bx + half - 14.0, cy + 14.0, 20.0, 12.0, W::S, OK, t);
+                        ui.text_right(bx + half - 14.0, cy + 14.0, 20.0, 12.0, W::S, Role::Ok, t);
                     }
                     card_y += card_h + 10.0;
                 }
@@ -1493,10 +1651,10 @@ pub(crate) fn step_body(
                         w - 24.0,
                         12.0,
                         W::M,
-                        TEXT,
+                        Role::OnSurface,
                         &spaced(&hex),
                     );
-                    ui.stroke(x, cy, w, th + 20.0, 8.0, BORDER);
+                    ui.stroke(x, cy, w, th + 20.0, 8.0, Role::OutlineVariant);
                     cy += th + 32.0;
                 }
             }
@@ -1505,8 +1663,16 @@ pub(crate) fn step_body(
             if let Some(wl) = wallet.and_then(|wi| app.session.wallets.get(wi)) {
                 let rows = crate::wallet::musig_nonces(&app.session, wl, &s.spend.psbt);
                 for (slot, fp, here, has) in &rows {
-                    ui.text_mid(x, cy, 40.0, 12.0, W::R, DIM, &slot.to_string());
-                    ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, TEXT, fp);
+                    ui.text_mid(
+                        x,
+                        cy,
+                        40.0,
+                        12.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        &slot.to_string(),
+                    );
+                    ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, Role::OnSurface, fp);
                     if *here {
                         // On a small panel it goes under the key.
                         let (hx, hy) = if ui.compact {
@@ -1514,18 +1680,26 @@ pub(crate) fn step_body(
                         } else {
                             (x + 124.0, cy)
                         };
-                        ui.text_mid(hx, hy, 40.0, 13.0, W::R, MUTED, EN.step_this_device);
+                        ui.text_mid(
+                            hx,
+                            hy,
+                            40.0,
+                            13.0,
+                            W::R,
+                            Role::OnSurfaceVariant,
+                            EN.step_this_device,
+                        );
                     }
                     if *here && ui.compact {
                         cy += 24.0;
                     }
                     let (t, c) = if *has {
-                        (EN.step_nonce_here, OK)
+                        (EN.step_nonce_here, Role::Ok)
                     } else {
-                        (EN.step_waiting, DIM)
+                        (EN.step_waiting, Role::OnSurfaceVariant)
                     };
                     ui.text_right(x + w, cy, 40.0, 12.0, W::R, c, t);
-                    ui.rule(x, cy + 40.0, w, BORDER);
+                    ui.rule(x, cy + 40.0, w, Role::OutlineVariant);
                     cy += 42.0;
                 }
                 cy += 10.0;
@@ -1585,13 +1759,13 @@ pub(crate) fn step_body(
                     .enumerate()
                 {
                     let top = cy;
-                    ui.fill(x, cy, w, 0.0, 0.0, BG);
+                    ui.fill(x, cy, w, 0.0, 0.0, Role::SurfaceContainerHighest);
                     ui.text(
                         x + 14.0,
                         cy + 12.0,
                         13.0,
                         W::S,
-                        TEXT,
+                        Role::OnSurface,
                         &fill(EN.step_path, &[&(k + 1).to_string()]),
                     );
                     // The keys, wrapping; on a small panel under the name.
@@ -1604,9 +1778,9 @@ pub(crate) fn step_body(
                     for (slot, fp, here) in &p.keys {
                         let t = fill(EN.step_key, &[&slot.to_string(), &fp.to_string()]);
                         let (fg, bg) = if *here {
-                            (OK, OK.with_alpha(30))
+                            (Role::OnOkContainer, Role::OkContainer)
                         } else {
-                            (MUTED, INNER)
+                            (Role::OnSurfaceVariant, Role::SurfaceContainerHighest)
                         };
                         let kw = ui.measure(12.0, W::R, &t) + 34.0;
                         if kx > left && kx + kw > x + w - 10.0 {
@@ -1617,7 +1791,14 @@ pub(crate) fn step_body(
                     }
                     let mut ly = ky + 32.0;
                     if p.locks.is_empty() {
-                        ui.text(x + 14.0, ly, 12.0, W::R, MUTED, EN.step_no_wait);
+                        ui.text(
+                            x + 14.0,
+                            ly,
+                            12.0,
+                            W::R,
+                            Role::OnSurfaceVariant,
+                            EN.step_no_wait,
+                        );
                         ly += 20.0;
                     }
                     for l in &p.locks {
@@ -1626,18 +1807,18 @@ pub(crate) fn step_body(
                             ly,
                             12.0,
                             W::R,
-                            MUTED,
+                            Role::OnSurfaceVariant,
                             &fill(EN.step_waits, &[&l.to_string()]),
                         );
                         ly += 20.0;
                     }
                     let (verdict, c) = if p.sequence_ok {
-                        (EN.step_this_transaction_s, OK)
+                        (EN.step_this_transaction_s, Role::Ok)
                     } else {
-                        (EN.step_this_transaction, DIM)
+                        (EN.step_this_transaction, Role::OnSurfaceVariant)
                     };
                     ly += ui.wrap(x + 14.0, ly, w - 28.0, 12.0, W::R, c, verdict) + 12.0;
-                    ui.stroke(x, top, w, ly - top, 10.0, BORDER);
+                    ui.stroke(x, top, w, ly - top, 10.0, Role::OutlineVariant);
                     cy = ly + 8.0;
                 }
             }
@@ -1647,7 +1828,7 @@ pub(crate) fn step_body(
         _ => {}
     }
     if let Some(e) = &s.error {
-        let used = ui.wrap(x, cy, w, 13.0, W::R, ERR, e);
+        let used = ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e);
         cy += used + 6.0;
     }
     cy - y
@@ -1675,12 +1856,19 @@ fn spend_panel(
 ) {
     let s = app.wallets.spend().expect("spend");
     let i = &s.inspection;
-    ui.fill(px, 0.0, pw, h, 0.0, SURFACE);
-    ui.fill(px, 0.0, 1.0, h, 0.0, LINE);
+    ui.fill(px, 0.0, pw, h, 0.0, Role::Surface);
+    ui.fill(px, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
     let x = px + 26.0;
     let w = pw - 52.0;
     let mut y = faraday_draw::tokens::SIDE_PANEL_TOP;
-    ui.text(x, y, 13.0, W::S, MUTED, EN.spend_panel_this_transaction);
+    ui.text(
+        x,
+        y,
+        13.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        EN.spend_panel_this_transaction,
+    );
     y += 30.0;
     let to = recipients(i)
         .first()
@@ -1741,24 +1929,24 @@ fn spend_panel(
         ),
     ];
     for (k, v, wt, step) in facts.iter() {
-        ui.text_mid(x, y, 38.0, 12.0, W::R, MUTED, k);
+        ui.text_mid(x, y, 38.0, 12.0, W::R, Role::OnSurfaceVariant, k);
         let v = ui.fit(13.0, *wt, v, w - 70.0);
-        ui.text_right(x + w, y, 38.0, 13.0, *wt, TEXT, &v);
-        ui.rule(x, y + 38.0, w, BORDER);
+        ui.text_right(x + w, y, 38.0, 13.0, *wt, Role::OnSurface, &v);
+        ui.rule(x, y + 38.0, w, Role::OutlineVariant);
         ui.hit(x, y, w, 38.0, Action::Step(*step));
         y += 40.0;
     }
     let (count, missing, need_line, action_label) = spend_status(app, needed);
     let fy = h - 26.0 - 46.0 - 14.0 - 82.0;
-    ui.fill(x, fy, w, 82.0, 12.0, BG);
-    ui.stroke(x, fy, w, 82.0, 12.0, BORDER);
+    ui.fill(x, fy, w, 82.0, 12.0, Role::SurfaceContainerHighest);
+    ui.stroke(x, fy, w, 82.0, 12.0, Role::OutlineVariant);
     ui.text_mid(
         x + 16.0,
         fy + 10.0,
         26.0,
         13.0,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         EN.spend_panel_signatures,
     );
     let label = fill(
@@ -1766,7 +1954,15 @@ fn spend_panel(
         &[&count.to_string(), &needed.to_string()],
     );
     let lw = ui.measure(13.0, W::S, &label);
-    ui.text_mid(x + w - 16.0 - lw, fy + 10.0, 26.0, 13.0, W::S, TEXT, &label);
+    ui.text_mid(
+        x + w - 16.0 - lw,
+        fy + 10.0,
+        26.0,
+        13.0,
+        W::S,
+        Role::OnSurface,
+        &label,
+    );
     let pips_w = needed as f32 * 34.0 - 6.0;
     ui.pips(x + w - 26.0 - lw - pips_w, fy + 18.0, needed, count);
     ui.text_mid(
@@ -1775,7 +1971,11 @@ fn spend_panel(
         26.0,
         13.0,
         W::R,
-        if missing == 0 { OK } else { WARN },
+        if missing == 0 {
+            Role::Ok
+        } else {
+            Role::Warning
+        },
         &need_line,
     );
     let by = h - 26.0 - 46.0;
@@ -1793,7 +1993,7 @@ fn spend_panel(
 
 /// Who signs' count (`docs/history/SCAN-TO-SIGN.md` §3.1): enough, the count and
 /// a green Can spend beside it; short, the count and how many more are
-/// needed, in `WARN`. Returns the y its step's Continue goes at: beside
+/// needed, in `warning`. Returns the y its step's Continue goes at: beside
 /// it, or under it where both do not fit.
 pub(crate) fn signers_count(
     ui: &mut Ui,
@@ -1827,7 +2027,11 @@ pub(crate) fn signers_count(
         40.0,
         13.0,
         W::S,
-        if enough { TEXT } else { WARN },
+        if enough {
+            Role::OnSurface
+        } else {
+            Role::Warning
+        },
         &line,
     );
     if enough {
@@ -1835,10 +2039,16 @@ pub(crate) fn signers_count(
         let cw = ui.measure(12.0, W::R, t) + 34.0;
         if used + 10.0 + cw > w {
             cy += 36.0;
-            ui.chip(x, cy + 7.0, t, OK, OK.with_alpha(30));
+            ui.chip(x, cy + 7.0, t, Role::OnOkContainer, Role::OkContainer);
             used = cw;
         } else {
-            ui.chip(x + used + 10.0, cy + 7.0, t, OK, OK.with_alpha(30));
+            ui.chip(
+                x + used + 10.0,
+                cy + 7.0,
+                t,
+                Role::OnOkContainer,
+                Role::OkContainer,
+            );
             used += 10.0 + cw;
         }
     }
@@ -1872,8 +2082,8 @@ fn made_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, file: &str) -> f32
         right -= 10.0;
     }
     let sw = ui.measure(13.0, W::S, &state);
-    ui.text_mid(right - sw, y, 34.0, 13.0, W::S, OK, &state);
+    ui.text_mid(right - sw, y, 34.0, 13.0, W::S, Role::Ok, &state);
     let n = ui.fit(13.0, W::M, file, (right - sw - 10.0 - x).max(0.0));
-    ui.text_mid(x, y, 34.0, 13.0, W::M, TEXT, &n);
+    ui.text_mid(x, y, 34.0, 13.0, W::M, Role::OnSurface, &n);
     44.0
 }

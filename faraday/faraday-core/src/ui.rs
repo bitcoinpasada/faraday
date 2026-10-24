@@ -10,7 +10,28 @@ pub use faraday_ui::{
     Scrolled, Slot, Style, Theme, ThemeGroup, ThemeName, W, btc, grouped, short, thousands,
 };
 
-use pal::*;
+/// What is written or drawn on a control that is not available now:
+/// on-surface at the disabled opacity (`docs/THEMES.md` §8).
+pub fn off() -> Paint {
+    Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTENT)
+}
+
+/// A card, tile or row at `(x, y, w, h, r)` filled in `fill`, with
+/// the pressed state layer over it while `pressed` (`docs/THEMES.md` §8).
+pub fn fill_pressed(ui: &mut Ui, at: (f32, f32, f32, f32, f32), fill: Role, pressed: bool) {
+    let (x, y, w, h, r) = at;
+    ui.fill(x, y, w, h, r, fill);
+    if pressed {
+        ui.wash(
+            x,
+            y,
+            w,
+            h,
+            r,
+            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+        );
+    }
+}
 
 /// One frame's drawing context, its presses the desktop app's actions.
 pub type Ui<'a> = faraday_ui::Ui<'a, Action>;
@@ -81,32 +102,51 @@ impl CoreUi for Ui<'_> {
         let at = |n: u8| x + pad + gap * f32::from(n - lo);
         let mid = y + 20.0;
         let held = matches!(self.pressed, Some(Action::Slide(i, _)) if i == id);
-        self.fill(x + pad, mid - 2.0, track, 4.0, 2.0, INNER);
+        self.fill(
+            x + pad,
+            mid - 2.0,
+            track,
+            4.0,
+            2.0,
+            Role::SurfaceContainerHighest,
+        );
         let vx = at(value);
-        self.fill(x + pad, mid - 2.0, vx - x - pad, 4.0, 2.0, ACCENT);
+        self.fill(x + pad, mid - 2.0, vx - x - pad, 4.0, 2.0, Role::Primary);
         for n in lo..=hi {
             if n != value {
-                let c = if n < value { ACCENT } else { BORDER };
+                let c = if n < value {
+                    Role::Primary
+                } else {
+                    Role::OutlineVariant
+                };
                 self.dot(at(n), mid, 3.0, c);
             }
         }
         let r = if held { 15.0 } else { 13.0 };
         let bg = if held {
-            Paint::from(self.col(ACCENT).mix(self.col(TEXT), 0.12))
+            Paint::from(self.col(Role::Primary).mix(self.col(Role::OnSurface), 0.12))
         } else {
-            ACCENT
+            Role::Primary.paint()
         };
         self.dot(vx, mid, r, bg);
         let v = value.to_string();
         let vw = self.measure(12.0, W::S, &v);
-        self.text_mid(vx - vw / 2.0, mid - 10.0, 20.0, 12.0, W::S, ON_ACCENT, &v);
+        self.text_mid(
+            vx - vw / 2.0,
+            mid - 10.0,
+            20.0,
+            12.0,
+            W::S,
+            Role::OnPrimary,
+            &v,
+        );
         let (l, h) = (lo.to_string(), hi.to_string());
         self.text(
             x + pad - self.measure(11.0, W::R, &l) / 2.0,
             y + 38.0,
             11.0,
             W::R,
-            DIM,
+            Role::OnSurfaceVariant,
             &l,
         );
         self.text(
@@ -114,7 +154,7 @@ impl CoreUi for Ui<'_> {
             y + 38.0,
             11.0,
             W::R,
-            DIM,
+            Role::OnSurfaceVariant,
             &h,
         );
         // Each stop takes the presses nearest it, the ends out to the
@@ -134,7 +174,13 @@ impl CoreUi for Ui<'_> {
     fn no_passphrase(&mut self, x: f32, y: f32, h: f32, focused: bool) {
         let ph = 24.0;
         let label = crate::strings::EN.passphrase_none;
-        let pw = self.pill_in(x + 8.0, y + (h - ph) / 2.0, ph, label, DIM);
+        let pw = self.pill_in(
+            x + 8.0,
+            y + (h - ph) / 2.0,
+            ph,
+            label,
+            Role::OnSurfaceVariant,
+        );
         if focused {
             self.caret(x + 14.0 + pw, y + (h - 18.0) / 2.0, 18.0);
         }

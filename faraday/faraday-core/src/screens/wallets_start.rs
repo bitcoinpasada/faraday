@@ -35,7 +35,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             EN.start_start_from_what.to_string()
         };
         let lead_w = width.min(820.0);
-        let used = ui.wrap(x, y, lead_w, 14.0, W::R, MUTED, &text);
+        let used = ui.wrap(x, y, lead_w, 14.0, W::R, Role::OnSurfaceVariant, &text);
         let link = crate::flow::learn_link(ui, x, y + used, lead_w, crate::learn::Topic::StartHere);
         y += used + link + 20.0;
     }
@@ -52,7 +52,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         for fp in &loose {
             let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
             let line = ui.fit(14.0, W::M, &line, width);
-            ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &line);
+            ui.text_mid(x, y, 30.0, 14.0, W::M, Role::OnSurface, &line);
             y += 34.0;
             ui.button(
                 x,
@@ -83,7 +83,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Some(Icon::Sign),
                 EN.start_spend_backup,
                 EN.start_a_stick_words,
-                MUTED,
+                Role::OnSurfaceVariant.paint(),
                 Some(Action::Nav(Screen::Family)),
             );
             y += crate::compact::screen::row(
@@ -94,7 +94,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Some(Icon::Keys),
                 EN.start_add_a_key,
                 EN.start_keys_first_wallets,
-                MUTED,
+                Role::OnSurfaceVariant.paint(),
                 Some(Action::KeyGen(None)),
             );
         } else {
@@ -132,7 +132,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Some(Icon::Flag),
             EN.start_make_a_new_wallet,
             EN.start_create_line,
-            MUTED,
+            Role::OnSurfaceVariant.paint(),
             Some(Action::CreateWallet),
         );
         y += crate::compact::screen::row(
@@ -143,7 +143,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Some(Icon::Wallet),
             EN.start_restore_an_existing,
             EN.start_from_its_backups,
-            MUTED,
+            Role::OnSurfaceVariant.paint(),
             Some(Action::RestoreWallet),
         );
         y += crate::compact::screen::row(
@@ -154,7 +154,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Some(Icon::Sign),
             EN.start_spend_backup,
             EN.start_a_stick_words,
-            MUTED,
+            Role::OnSurfaceVariant.paint(),
             Some(Action::Nav(Screen::Family)),
         );
         y += crate::compact::screen::row(
@@ -165,7 +165,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Some(Icon::Keys),
             EN.start_add_a_key,
             EN.start_keys_first_wallets,
-            MUTED,
+            Role::OnSurfaceVariant.paint(),
             Some(Action::KeyGen(None)),
         );
         y += 8.0;
@@ -180,7 +180,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Some(Icon::Lock),
                 EN.start_unlock,
                 &line,
-                MUTED,
+                Role::OnSurfaceVariant.paint(),
                 Some(Action::Vault(crate::vault::VaultAction::Open(i))),
             );
         }
@@ -241,29 +241,50 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         for (k, (icon, label, sub, action)) in ways.iter().enumerate() {
             let tx = x + k as f32 * (tw + gap);
             let pressed = ui.is_pressed(*action);
-            ui.fill(
-                tx,
-                y,
-                tw,
-                card_h,
-                12.0,
-                if pressed { INNER } else { SURFACE },
+            crate::ui::fill_pressed(
+                ui,
+                (tx, y, tw, card_h, 12.0),
+                Role::SurfaceContainerLow,
+                pressed,
             );
-            ui.stroke(tx, y, tw, card_h, 12.0, BORDER);
-            ui.fill(tx + 20.0, y + 24.0, 44.0, 44.0, 10.0, ACCENT.with_alpha(26));
-            ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, ACCENT);
+            ui.stroke(tx, y, tw, card_h, 12.0, Role::OutlineVariant);
+            ui.fill(
+                tx + 20.0,
+                y + 24.0,
+                44.0,
+                44.0,
+                10.0,
+                Role::Primary.with_alpha(26),
+            );
+            ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, Role::Primary);
             if ui.wrap_lines(16.0, W::S, label, label_room) > 1 {
-                ui.wrap(tx + 82.0, y + 24.0, label_room, 16.0, W::S, TEXT, label);
+                ui.wrap(
+                    tx + 82.0,
+                    y + 24.0,
+                    label_room,
+                    16.0,
+                    W::S,
+                    Role::OnSurface,
+                    label,
+                );
             } else {
                 let label = ui.fit(16.0, W::S, label, label_room);
-                ui.text(tx + 82.0, y + 24.0, 16.0, W::S, TEXT, &label);
+                ui.text(tx + 82.0, y + 24.0, 16.0, W::S, Role::OnSurface, &label);
             }
             let sub_y = y + 24.0 + max_label_lines as f32 * label_line_h + 2.0;
             if ui.wrap_lines(13.0, W::R, sub, label_room) > 1 {
-                ui.wrap(tx + 82.0, sub_y, label_room, 13.0, W::R, MUTED, sub);
+                ui.wrap(
+                    tx + 82.0,
+                    sub_y,
+                    label_room,
+                    13.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    sub,
+                );
             } else {
                 let sub = ui.fit(13.0, W::R, sub, label_room);
-                ui.text(tx + 82.0, sub_y, 13.0, W::R, MUTED, &sub);
+                ui.text(tx + 82.0, sub_y, 13.0, W::R, Role::OnSurfaceVariant, &sub);
             }
             ui.hit(tx, y, tw, card_h, *action);
         }
@@ -271,7 +292,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let files = app.vault_files();
         if let Some(i) = files.iter().position(|f| f.open.is_none()) {
             let line = fill(EN.start_is_in_files_locked, &[&files[i].name.to_string()]);
-            ui.text_mid(x, y, 40.0, 14.0, W::R, MUTED, &line);
+            ui.text_mid(x, y, 40.0, 14.0, W::R, Role::OnSurfaceVariant, &line);
             let lw = ui.measure(14.0, W::R, &line);
             ui.button(
                 x + lw + 16.0,
@@ -299,7 +320,15 @@ pub(crate) fn wallet_rows(
     open: &dyn Fn(usize) -> Action,
 ) -> f32 {
     if app.session.wallets.is_empty() {
-        ui.text_mid(x, y, 30.0, 13.0, W::R, DIM, EN.wallet_rows_none_loaded);
+        ui.text_mid(
+            x,
+            y,
+            30.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.wallet_rows_none_loaded,
+        );
         return 38.0;
     }
     let total = app.session.wallets.len();
@@ -324,13 +353,16 @@ pub(crate) fn wallet_rows(
                         EN.wallet_rows_can_spend,
                         &[&here.to_string(), &m.to_string()],
                     ),
-                    OK,
+                    Role::Ok.paint(),
                 ),
                 1 => (
                     fill(EN.wallet_rows_of_here, &[&here.to_string(), &m.to_string()]),
-                    TEXT,
+                    Role::OnSurface.paint(),
                 ),
-                _ => (EN.wallet_rows_watch_only.to_string(), DIM),
+                _ => (
+                    EN.wallet_rows_watch_only.to_string(),
+                    Role::OnSurfaceVariant.paint(),
+                ),
             };
             let sub = format!("{} · {state}", Session::shape(w));
             cy += crate::compact::screen::row(
@@ -367,9 +399,9 @@ pub(crate) fn wallet_rows(
             44.0,
             10.0,
             if ui.is_pressed(action) {
-                INNER
+                Role::SurfaceContainerHighest
             } else {
-                SURFACE
+                Role::Surface
             },
         );
         ui.stroke(
@@ -379,9 +411,9 @@ pub(crate) fn wallet_rows(
             44.0,
             10.0,
             if ready == 2 {
-                OK.with_alpha(90)
+                Role::Ok.with_alpha(90)
             } else {
-                BORDER
+                Role::OutlineVariant.paint()
             },
         );
         let (m, _) = Session::quorum(w);
@@ -402,9 +434,9 @@ pub(crate) fn wallet_rows(
             _ => EN.wallet_rows_watch_only.to_string(),
         };
         let tone = match ready {
-            2 => OK,
-            1 => TEXT,
-            _ => DIM,
+            2 => Role::OnOkContainer,
+            1 => Role::OnSurface,
+            _ => Role::OnSurfaceVariant,
         };
         let mw = ui.measure(12.0, W::S, &marker) + 20.0;
         if ready == 2 {
@@ -414,21 +446,29 @@ pub(crate) fn wallet_rows(
                 mw,
                 24.0,
                 12.0,
-                OK.with_alpha(30),
+                Role::OkContainer,
             );
         }
         ui.text_mid(rx + rw - mw, ry, 44.0, 12.0, W::S, tone, &marker);
         let name = ui.fit(14.0, W::S, &w.name, rw * 0.4);
-        let nw = ui.text_mid(rx + 14.0, ry, 44.0, 14.0, W::S, TEXT, &name);
+        let nw = ui.text_mid(rx + 14.0, ry, 44.0, 14.0, W::S, Role::OnSurface, &name);
         let shape = ui.fit(12.0, W::R, &Session::shape(w), rw - nw - mw - 50.0);
-        ui.text_mid(rx + 26.0 + nw, ry, 44.0, 12.0, W::R, MUTED, &shape);
+        ui.text_mid(
+            rx + 26.0 + nw,
+            ry,
+            44.0,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &shape,
+        );
         ui.hit(rx, ry, rw, 44.0, action);
     }
     let mut used = shown.div_ceil(cols) as f32 * 52.0;
     if shown < total {
         let more = fill(EN.wallet_rows_more, &[&(total - shown).to_string()]);
         let mw = ui.measure(12.0, W::S, &more) + 8.0;
-        ui.text_mid(x, y + used - 4.0, 24.0, 12.0, W::S, ACCENT, &more);
+        ui.text_mid(x, y + used - 4.0, 24.0, 12.0, W::S, Role::Primary, &more);
         ui.hit(x, y + used - 4.0, mw, 24.0, open(order[shown]));
         used += 24.0;
     }

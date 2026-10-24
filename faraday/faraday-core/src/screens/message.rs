@@ -140,7 +140,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     36.0,
                     12.0,
                     W::R,
-                    MUTED,
+                    Role::OnSurfaceVariant,
                     &fill(EN.message_receive_address, &[&m.index.to_string()]),
                 );
                 ui.button(
@@ -163,7 +163,15 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 );
                 cy += 46.0;
                 let (a, held) = app.receive_line(wl, false, m.index);
-                cy += ui.wrap(x, cy, w, 14.0, W::M, if held { WARN } else { TEXT }, &a) + 12.0;
+                cy += ui.wrap(
+                    x,
+                    cy,
+                    w,
+                    14.0,
+                    W::M,
+                    if held { Role::Warning } else { Role::OnSurface },
+                    &a,
+                ) + 12.0;
             }
             if next_button(ui, x, cy, w, EN.message_continue, Action::MNext(n)) {
                 cy += 48.0;
@@ -171,7 +179,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
         }
         mstep::TEXT => {
             let box_h = 120.0;
-            ui.fill(x, cy, w, box_h, 8.0, BG);
+            ui.fill(x, cy, w, box_h, 8.0, Role::SurfaceContainerHighest);
             ui.stroke(
                 x,
                 cy,
@@ -179,9 +187,9 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 box_h,
                 8.0,
                 if m.typing {
-                    ACCENT.with_alpha(110)
+                    Role::Primary.with_alpha(110)
                 } else {
-                    BORDER
+                    Role::OutlineVariant.paint()
                 },
             );
             let shown = if m.text.is_empty() {
@@ -203,7 +211,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     w - 8.0,
                     box_h - 8.0,
                     6.0,
-                    ACCENT.with_alpha(40),
+                    Role::Primary.with_alpha(40),
                 );
             }
             ui.wrap(
@@ -212,7 +220,11 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 w - 28.0,
                 14.0,
                 W::R,
-                if m.text.is_empty() { DIM } else { TEXT },
+                if m.text.is_empty() {
+                    Role::OnSurfaceVariant
+                } else {
+                    Role::OnSurface
+                },
                 &shown,
             );
             ui.c.pop_clip();
@@ -236,7 +248,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 38.0,
                 12.0,
                 W::R,
-                DIM,
+                Role::OnSurfaceVariant,
                 &fill(
                     EN.message_characters,
                     &[&m.text.chars().count().to_string()],
@@ -301,9 +313,16 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     }
                 }
                 Some(sig) => {
-                    ui.text(x, cy, 12.0, W::R, MUTED, EN.message_signature);
+                    ui.text(
+                        x,
+                        cy,
+                        12.0,
+                        W::R,
+                        Role::OnSurfaceVariant,
+                        EN.message_signature,
+                    );
                     cy += 20.0;
-                    cy += ui.wrap(x, cy, w, 13.0, W::M, TEXT, &sig.signature) + 14.0;
+                    cy += ui.wrap(x, cy, w, 13.0, W::M, Role::OnSurface, &sig.signature) + 14.0;
                     // Made For the stick as it was signed.
                     let file = format!(
                         "message-{}.txt",
@@ -337,7 +356,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 }
             }
             if let Some(e) = &m.error {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 6.0;
+                cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 6.0;
             }
         }
     }

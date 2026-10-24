@@ -31,9 +31,9 @@ pub(super) fn dice_panel(
 ) -> f32 {
     use faraday_bip::diceware::List;
     let mut cy = y;
-    ui.fill(x, cy, w, 4.0, 2.0, ACCENT.with_alpha(60));
+    ui.fill(x, cy, w, 4.0, 2.0, Role::Primary.with_alpha(60));
     cy += 14.0;
-    ui.text(x, cy, 13.0, W::S, TEXT, EN.dice_list_title);
+    ui.text(x, cy, 13.0, W::S, Role::OnSurface, EN.dice_list_title);
     cy += 22.0;
     let lists = [
         (List::Large, EN.dice_list_large, EN.dice_list_large_detail),
@@ -65,11 +65,33 @@ pub(super) fn dice_panel(
             lw,
             44.0,
             8.0,
-            if on { ACCENT.with_alpha(22) } else { BG },
+            if on {
+                Role::Primary.with_alpha(22)
+            } else {
+                Role::SurfaceContainerHighest.paint()
+            },
         );
-        ui.stroke(bx, cy, lw, 44.0, 8.0, if on { ACCENT } else { BORDER });
-        ui.text(bx + 10.0, cy + 6.0, 13.0, W::S, TEXT, name);
-        ui.text(bx + 10.0, cy + 24.0, 11.0, W::R, MUTED, &detail);
+        ui.stroke(
+            bx,
+            cy,
+            lw,
+            44.0,
+            8.0,
+            if on {
+                Role::Primary
+            } else {
+                Role::OutlineVariant
+            },
+        );
+        ui.text(bx + 10.0, cy + 6.0, 13.0, W::S, Role::OnSurface, name);
+        ui.text(
+            bx + 10.0,
+            cy + 24.0,
+            11.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &detail,
+        );
         ui.hit(bx, cy, lw, 44.0, Action::Vault(V::DiceList(k as u8)));
     }
     cy += if compact { 3.0 * 52.0 + 4.0 } else { 56.0 };
@@ -79,7 +101,7 @@ pub(super) fn dice_panel(
         w,
         13.0,
         W::S,
-        TEXT,
+        Role::OnSurface,
         &fill(EN.vault_dice_per_word, &[&list.dice_per_word().to_string()]),
     ) + 8.0;
     let focused = app.vaults.focus == Some(Focus::Dice);
@@ -111,10 +133,24 @@ pub(super) fn dice_panel(
     // The words as the rolls make them, each a pill that opens it in its
     // list, as New key shows its words.
     if words.is_empty() {
-        ui.text(x, cy, 13.0, W::R, DIM, EN.vault_no_word_yet);
+        ui.text(
+            x,
+            cy,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.vault_no_word_yet,
+        );
         cy += 26.0;
     } else {
-        ui.text(x, cy, 12.0, W::R, MUTED, crate::wordlist::PRESS_A_WORD);
+        ui.text(
+            x,
+            cy,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            crate::wordlist::PRESS_A_WORD,
+        );
         cy += 22.0;
         let place = crate::wordlist::WordList::Eff(list).place();
         let mut bx = x;
@@ -171,14 +207,22 @@ pub(super) fn dice_panel(
         12.0,
         W::R,
         if bits >= vault::STRONG_BITS {
-            OK
+            Role::Ok
         } else {
-            MUTED
+            Role::OnSurfaceVariant
         },
         &status,
     ) + 8.0;
     // How long is long enough, and where the lists come from.
-    cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, &vault::dice_aim(list)) + 12.0;
+    cy += ui.wrap(
+        x,
+        cy,
+        w,
+        12.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        &vault::dice_aim(list),
+    ) + 12.0;
     let style = if words.is_empty() {
         Style::Disabled
     } else {

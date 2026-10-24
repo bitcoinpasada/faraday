@@ -134,7 +134,7 @@ pub(super) fn demo_content(
     let (ix, iw) = (x + t::PAD, w - 2.0 * t::PAD);
     let mut cy = y + t::PAD;
     if head {
-        ui.text(ix, cy, t::BODY, W::S, TEXT, EN.codex32_demo_only);
+        ui.text(ix, cy, t::BODY, W::S, Role::OnSurface, EN.codex32_demo_only);
         cy += ui.line(t::BODY, W::S) + t::GAP;
     }
     if m.demo() && m.front().is_some() {
@@ -151,7 +151,7 @@ pub(super) fn demo_content(
         cy += sizes(m, ui, ix, cy, iw);
         let die = fill(EN.codex32_die_size, &[&m.dice_choice().faces.to_string()]);
         let rolls = fill(EN.codex32_rolls_die, &[&die]);
-        cy += ui.wrap(ix, cy, iw, t::LABEL, W::S, MUTED, &rolls) + t::GAP;
+        cy += ui.wrap(ix, cy, iw, t::LABEL, W::S, Role::OnSurfaceVariant, &rolls) + t::GAP;
         cy += super::walk_screen::draw(m, ui, (ix, cy, iw));
     }
     cy += t::PAD;
@@ -170,13 +170,20 @@ fn colour_chip(
     let top = y + (t::TOUCH - t::CODEX32_CHIP_H) / 2.0;
     let r = t::RADIUS_SMALL;
     if ui.is_pressed(act) || ui.is_hovered(act) {
-        ui.fill(x, top, w, t::CODEX32_CHIP_H, r, INNER);
+        ui.wash(
+            x,
+            top,
+            w,
+            t::CODEX32_CHIP_H,
+            r,
+            Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+        );
     }
-    ui.stroke(x, top, w, t::CODEX32_CHIP_H, r, BORDER);
+    ui.stroke(x, top, w, t::CODEX32_CHIP_H, r, Role::OutlineVariant);
     let sr = t::CODEX32_SWATCH;
     let (body, _) = paint(c);
     let (sx, sy) = (x + t::GAP + sr, top + t::CODEX32_CHIP_H / 2.0);
-    ui.dot(sx, sy, sr + 1.0, BORDER);
+    ui.dot(sx, sy, sr + 1.0, Role::OutlineVariant);
     ui.dot(sx, sy, sr, body);
     ui.text_mid(
         sx + sr + t::GAP,
@@ -184,7 +191,7 @@ fn colour_chip(
         t::CODEX32_CHIP_H,
         t::LABEL,
         W::S,
-        TEXT,
+        Role::OnSurface,
         label,
     );
     ui.hit(x, y, w, t::TOUCH, act);
@@ -206,19 +213,27 @@ pub(super) fn face_pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
         } else {
             fill(EN.codex32_face_pending, &[&d.to_string()])
         };
-        cy += ui.wrap(x, cy, w, t::LABEL, W::M, ACCENT, &s) + t::GAP_SMALL;
+        cy += ui.wrap(x, cy, w, t::LABEL, W::M, Role::Primary, &s) + t::GAP_SMALL;
     }
     let n = usize::from(m.dice_choice().faces);
     if n == 10 {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.codex32_d10_zero) + t::GAP_SMALL;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            t::LABEL,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.codex32_d10_zero,
+        ) + t::GAP_SMALL;
     }
     let cols = super::pad_columns(n);
     let rows = n.div_ceil(cols);
     let row = t::CODEX32_KEY_ROW;
     let gap = t::GAP_SMALL;
     let h = rows as f32 * row + 2.0 * gap;
-    ui.fill(x, cy, w, h, 0.0, SIDEBAR);
-    ui.fill(x, cy, w, 1.0, 0.0, LINE);
+    ui.fill(x, cy, w, h, 0.0, Role::SurfaceContainerLow);
+    ui.fill(x, cy, w, 1.0, 0.0, Role::OutlineVariant);
     let kw = (w - gap * (cols as f32 + 2.0)) / (cols as f32 + 1.0);
     let key = |c: usize, r: usize| (x + gap + c as f32 * (kw + gap), cy + gap + r as f32 * row);
     for f in 1..=n {
@@ -246,7 +261,7 @@ pub(super) fn face_pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
         ic,
         Icon::Delete,
         t::CODEX32_TAB_GLYPH,
-        TEXT,
+        Role::OnSurface,
     );
     if rows > 1 {
         let (dx, dy) = key(cols, rows - 1);
@@ -294,7 +309,7 @@ pub(super) fn dice_sheet(
 ) -> f32 {
     let mut cy = y;
     let head = EN.codex32_dice_sheet;
-    cy += ui.wrap(x, cy, w, t::LABEL, W::S, TEXT, head) + t::GAP_SMALL;
+    cy += ui.wrap(x, cy, w, t::LABEL, W::S, Role::OnSurface, head) + t::GAP_SMALL;
     if rows_only {
         cy += dice_rows(m, ui, x, cy, w, false);
         cy += rolled_line(m, ui, x, cy, w);
@@ -328,7 +343,7 @@ pub(super) fn rolled_line(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) 
         return 0.0;
     }
     let line = fill(EN.codex32_dice_rolled, &[&dice.join(", ")]);
-    ui.wrap(x, y, w, t::CAPTION, W::R, MUTED, &line) + t::GAP_SMALL
+    ui.wrap(x, y, w, t::CAPTION, W::R, Role::OnSurfaceVariant, &line) + t::GAP_SMALL
 }
 
 /// The line a die's row reads: "4 then 2 · lower · 0", or the first value
@@ -379,14 +394,21 @@ pub(super) fn dice_rows(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, pa
         let tx = x + 2.0 * t::CODEX32_SWATCH + t::GAP_SMALL;
         let marked = m.walk_die_mark().is_some_and(|(d, _)| d == die);
         let ink = if marked {
-            ACCENT
+            Role::Primary
         } else if on {
-            TEXT
+            Role::OnSurface
         } else {
-            MUTED
+            Role::OnSurfaceVariant
         };
         ui.text(tx, cy, t::LABEL, W::S, ink, &text);
-        ui.text(x + t::CODEX32_LABEL_W, cy, t::LABEL, W::M, TEXT, &line);
+        ui.text(
+            x + t::CODEX32_LABEL_W,
+            cy,
+            t::LABEL,
+            W::M,
+            Role::OnSurface,
+            &line,
+        );
         cy += lh + t::GAP_SMALL;
     }
     cy += struck(m, ui, x, cy, w);
@@ -399,7 +421,7 @@ pub(super) fn dice_rows(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, pa
                 None => "·".to_string(),
             })
             .collect();
-        ui.text(x, cy, t::BODY, W::M, ACCENT, &s.join(" "));
+        ui.text(x, cy, t::BODY, W::M, Role::Primary, &s.join(" "));
         cy += ui.line(t::BODY, W::M) + t::GAP;
     }
     cy - y
@@ -409,7 +431,7 @@ pub(super) fn dice_rows(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, pa
 /// white die shows on a light page.
 fn swatch(ui: &mut Ui, cx: f32, cy: f32, c: DieColour) {
     let r = t::CODEX32_SWATCH / 2.0 + 1.0;
-    ui.dot(cx, cy, r + 1.0, BORDER);
+    ui.dot(cx, cy, r + 1.0, Role::OutlineVariant);
     ui.dot(cx, cy, r, paint(c).0);
 }
 
@@ -427,9 +449,9 @@ pub(super) fn struck(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f3
             EN.codex32_die_equal,
             &[&(usize::from(row.die) + 1).to_string(), &f, &sc],
         );
-        let tw = ui.text(x, cy, t::CAPTION, W::R, WARN, &s);
+        let tw = ui.text(x, cy, t::CAPTION, W::R, Role::Warning, &s);
         let lh = ui.line(t::CAPTION, W::R);
-        ui.fill(x, cy + lh / 2.0, tw.min(w), 1.0, 0.0, WARN);
+        ui.fill(x, cy + lh / 2.0, tw.min(w), 1.0, 0.0, Role::Warning);
         cy += lh + t::GAP_SMALL;
     }
     cy - y
@@ -538,9 +560,16 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let u = ((w - lw - t::CODEX32_PANEL_GAP) / t::CODEX32_TRACK_W).min(t::CODEX32_TRACK_UNIT);
     let tx = x + lw;
     let mut cy = y + t::GAP;
-    ui.text(x, cy, t::LABEL, W::S, TEXT, EN.codex32_die_tracks);
+    ui.text(
+        x,
+        cy,
+        t::LABEL,
+        W::S,
+        Role::OnSurface,
+        EN.codex32_die_tracks,
+    );
     cy += ui.line(t::LABEL, W::S);
-    ui.rule(x, cy, lw + t::CODEX32_TRACK_W * u, BORDER);
+    ui.rule(x, cy, lw + t::CODEX32_TRACK_W * u, Role::OutlineVariant);
     cy += t::GAP_SMALL;
     // The heads over the pads, where the booklet sets them.
     let heads = [
@@ -552,7 +581,7 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let next = heads.get(i + 1).map_or(f32::MAX, |n| tx + n.0 * u);
         let sw = ui.measure(t::CAPTION, W::S, s);
         if tx + hx * u + sw + t::GAP_SMALL <= next {
-            ui.text(tx + hx * u, cy, t::CAPTION, W::S, MUTED, s);
+            ui.text(tx + hx * u, cy, t::CAPTION, W::S, Role::OnSurfaceVariant, s);
         }
     }
     cy += ui.line(t::CAPTION, W::S) + t::GAP_SMALL;
@@ -563,7 +592,14 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let lh = ui.line(t::CAPTION, W::S);
         swatch(ui, x + t::CODEX32_SWATCH, cy + th / 2.0 - lh / 2.0, colour);
         let nx = x + 2.0 * t::CODEX32_SWATCH + t::GAP_SMALL;
-        ui.text(nx, cy + th / 2.0 - lh, t::CAPTION, W::S, TEXT, &name);
+        ui.text(
+            nx,
+            cy + th / 2.0 - lh,
+            t::CAPTION,
+            W::S,
+            Role::OnSurface,
+            &name,
+        );
         track(m, ui, (tx, cy, u), die);
         if let Some(b) = m.shown_dice().die_bit(die).flatten() {
             let text = if m.masked() {
@@ -572,7 +608,7 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 b.to_string()
             };
             let bx = tx + t::CODEX32_TRACK_W * u + t::GAP;
-            ui.text_mid(bx, cy, th, t::LABEL, W::M, ACCENT, &text);
+            ui.text_mid(bx, cy, th, t::LABEL, W::M, Role::Primary, &text);
         }
         cy += th + t::CODEX32_TRACK_SPACE;
     }
@@ -596,14 +632,28 @@ fn track(m: &Codex32Make, ui: &mut Ui, (tx, top, u): (f32, f32, f32), die: usize
     let at = |(bx, by): (f32, f32)| (tx + bx * u, top + (t::CODEX32_TRACK_TOP - by) * u);
     let faces = m.dice_choice().faces;
     let free = at((t::CODEX32_FREE_X, t::CODEX32_FREE_Y));
-    ring(ui, free, t::CODEX32_FREE_R * u, 1.0, BORDER);
+    ring(
+        ui,
+        free,
+        t::CODEX32_FREE_R * u,
+        1.0,
+        Role::OutlineVariant.paint(),
+    );
     for pad in 1..=20u8 {
         let (pts, c) = pad_shape(pad);
         let pts: Vec<(f32, f32)> = pts.into_iter().map(at).collect();
         let (fill_c, edge, ink) = if pad <= faces {
-            (Some(CODEX32_LOOKUP_FILL), BORDER, MUTED)
+            (
+                Some(Role::SurfaceContainerHighest.paint()),
+                Role::OutlineVariant.paint(),
+                Role::OnSurfaceVariant.paint(),
+            )
         } else {
-            (None, BORDER, DIM)
+            (
+                None,
+                Role::OutlineVariant.paint(),
+                Role::OnSurfaceVariant.paint(),
+            )
         };
         shape(ui, &pts, fill_c, edge);
         centred(ui, at(c), &pad.to_string(), ink);
@@ -612,7 +662,7 @@ fn track(m: &Codex32Make, ui: &mut Ui, (tx, top, u): (f32, f32, f32), die: usize
     if let Some((_, pad)) = m.walk_die_mark().filter(|&(d, _)| d == die) {
         let (pts, _) = pad_shape(pad);
         let pts: Vec<(f32, f32)> = pts.into_iter().map(at).collect();
-        outline(ui, &pts, t::CODEX32_FRONT_STROKE, ACCENT);
+        outline(ui, &pts, t::CODEX32_FRONT_STROKE, Role::Primary);
     }
     let (first, second) = (m.shown_dice().first(die), m.shown_dice().second(die));
     let (body, ink) = paint(m.dice_choice().colours[die]);
@@ -622,7 +672,7 @@ fn track(m: &Codex32Make, ui: &mut Ui, (tx, top, u): (f32, f32, f32), die: usize
         let marker = first.map_or(free, |v| at(pad_shape(v).1));
         let r = t::CODEX32_MARKER * u / 2.0;
         let stroke = t::CODEX32_MARKER_STROKE;
-        ring(ui, marker, r + stroke, stroke, BORDER);
+        ring(ui, marker, r + stroke, stroke, Role::OutlineVariant.paint());
         ring(ui, marker, r, stroke, body);
     }
     // The die, on its second value's pad.
@@ -631,7 +681,7 @@ fn track(m: &Codex32Make, ui: &mut Ui, (tx, top, u): (f32, f32, f32), die: usize
         let side = t::CODEX32_TRACK_DIE * u;
         let (dx, dy) = (cx - side / 2.0, cy - side / 2.0);
         ui.fill(dx, dy, side, side, t::CODEX32_RADIUS, body);
-        ui.stroke(dx, dy, side, side, t::CODEX32_RADIUS, BORDER);
+        ui.stroke(dx, dy, side, side, t::CODEX32_RADIUS, Role::OutlineVariant);
         centred(ui, (cx, cy), &v.to_string(), ink);
     }
 }
@@ -654,8 +704,8 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         )
     };
     let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
-    let faint = ui.col(MUTED);
-    let accent = ui.col(ACCENT);
+    let faint = ui.col(Role::OnSurfaceVariant);
+    let accent = ui.col(Role::Primary);
     let mut at = 0usize;
     let mut path = true;
     for (level, bit) in bits.iter().enumerate() {
@@ -694,7 +744,7 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     for level in 0..BOOKLET_DICE {
         for idx in 0..(1usize << level) {
             let (px, py) = node(level, idx);
-            ui.dot(px, py, t::CODEX32_TREE_NODE, TEXT);
+            ui.dot(px, py, t::CODEX32_TREE_NODE, Role::OnSurface);
         }
     }
     let ly = top + BOOKLET_DICE as f32 * lv + t::GAP_SMALL;
@@ -707,7 +757,11 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             ly,
             t::CAPTION,
             W::M,
-            if reached { ACCENT } else { TEXT },
+            if reached {
+                Role::Primary
+            } else {
+                Role::OnSurface
+            },
             &s,
         );
     }
@@ -718,7 +772,7 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             EN.codex32_path_leaf,
             &[&b, &at.to_string(), &char::from(TREE[at]).to_string()],
         );
-        h += ui.wrap(x, y + h, w, t::LABEL, W::M, ACCENT, &s) + t::GAP_SMALL;
+        h += ui.wrap(x, y + h, w, t::LABEL, W::M, Role::Primary, &s) + t::GAP_SMALL;
     }
     h
 }

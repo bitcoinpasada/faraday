@@ -28,13 +28,20 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let clip = ui.rect(x0, 0.0, cw, h);
     ui.c.push_clip(clip);
     let back = Action::Nav(app.entry_leave());
-    ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, MUTED);
+    ui.icon(
+        x - 4.0,
+        y,
+        16.0,
+        Icon::ChevronLeft,
+        10.0,
+        Role::OnSurfaceVariant,
+    );
     ui.text(
         x + 14.0,
         y,
         12.0,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         app.named_back((
             if app.entry_leave() == Screen::Family {
                 EN.entry_spend
@@ -66,7 +73,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (None, None) => EN.entry_add_a_key.to_string(),
     };
     let heading = ui.fit(26.0, W::S, &heading, width);
-    ui.text(x, y, 26.0, W::S, TEXT, &heading);
+    ui.text(x, y, 26.0, W::S, Role::OnSurface, &heading);
     y += 48.0;
     // The words form is the one everyday way in; the other three are
     // behind Other forms, or already shown when a Tools tile opened one
@@ -240,7 +247,15 @@ pub(crate) fn word_count_row(
     let chosen = app.entry.state().words_chosen();
     let mut bx = x;
     if labelled {
-        ui.text_mid(x, y, 32.0, 13.0, W::S, MUTED, EN.word_count_row_words);
+        ui.text_mid(
+            x,
+            y,
+            32.0,
+            13.0,
+            W::S,
+            Role::OnSurfaceVariant,
+            EN.word_count_row_words,
+        );
         bx += ui.measure(13.0, W::S, EN.word_count_row_words) + 14.0;
     }
     let counts = crate::EntryState::COUNTS;
@@ -318,7 +333,7 @@ fn keyed_words(
     // fingerprint, or the last refusal: on the line above the
     // candidates, to keep the keyboard on screen.
     let (status, tone) = match &app.entry.state().error {
-        Some(e) => (e.clone(), ERR),
+        Some(e) => (e.clone(), Role::Error.paint()),
         None => keyed_status(app, lang, &taken),
     };
     ui.text_right(x + width, y - 4.0, 24.0, 13.0, W::S, tone, &status);
@@ -340,7 +355,12 @@ pub(crate) fn keyed_status(
     taken: &[u16],
 ) -> (String, crate::ui::Paint) {
     let n = taken.len();
-    let count = || (fill(EN.keyed_status_word_count, &[&n.to_string()]), MUTED);
+    let count = || {
+        (
+            fill(EN.keyed_status_word_count, &[&n.to_string()]),
+            Role::OnSurfaceVariant.paint(),
+        )
+    };
     if ![12, 15, 18, 21, 24].contains(&n) {
         return count();
     }
@@ -358,9 +378,9 @@ pub(crate) fn keyed_status(
                 EN.keyed_status_words,
                 &[&n.to_string(), &fp_text(fp).to_string()],
             ),
-            OK,
+            Role::Ok.paint(),
         ),
-        Err(e) => (e, ERR),
+        Err(e) => (e, Role::Error.paint()),
     }
 }
 
@@ -386,15 +406,18 @@ fn entry_status(
                 EN.entry_status_words_checksum,
                 &[&n.to_string(), &fp_text(fp).to_string()],
             ),
-            OK,
+            Role::Ok,
         ),
-        Some(Err(e)) => (e, ERR),
-        None => (fill(EN.entry_status_words, &[&n.to_string()]), MUTED),
+        Some(Err(e)) => (e, Role::Error),
+        None => (
+            fill(EN.entry_status_words, &[&n.to_string()]),
+            Role::OnSurfaceVariant,
+        ),
     };
     ui.text(x, y, 14.0, W::S, status.1, &status.0);
     y += 30.0;
     if let Some(e) = &app.entry.state().error {
-        ui.text(x, y, 13.0, W::R, ERR, e);
+        ui.text(x, y, 13.0, W::R, Role::Error, e);
     }
     y + 34.0
 }
@@ -412,14 +435,25 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         40.0,
         13.0,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         EN.entry_finish_bip39_passphrase,
     );
     let px = x + 150.0;
     let pw = 380.0f32.min(width - 150.0);
     let on = app.entry.state().on_passphrase;
-    ui.fill(px, y, pw, 40.0, 8.0, BG);
-    ui.stroke(px, y, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
+    ui.fill(px, y, pw, 40.0, 8.0, Role::SurfaceContainerHighest);
+    ui.stroke(
+        px,
+        y,
+        pw,
+        40.0,
+        8.0,
+        if on {
+            Role::Primary
+        } else {
+            Role::OutlineVariant
+        },
+    );
     dots_field(
         ui,
         px,
@@ -472,7 +506,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         46.0,
         12.0,
         W::R,
-        DIM,
+        Role::OnSurfaceVariant,
         EN.entry_finish_keys_hint,
     );
     by + 46.0
@@ -499,14 +533,21 @@ pub(crate) fn entry_scan(app: &View) -> Action {
 /// stick visit and loads when the stick is pulled.
 pub(crate) fn entry_stick(app: &View, ui: &mut Ui, x: f32, y: f32) {
     if app.stick.is_empty() {
-        ui.icon(x - 2.0, y + 8.0, 20.0, app.medium.icon(), 12.0, DIM);
+        ui.icon(
+            x - 2.0,
+            y + 8.0,
+            20.0,
+            app.medium.icon(),
+            12.0,
+            Role::OnSurfaceVariant,
+        );
         ui.text_mid(
             x + 24.0,
             y,
             36.0,
             13.0,
             W::R,
-            DIM,
+            Role::OnSurfaceVariant,
             &fill(EN.entry_stick_from_plug, &[app.medium.a()]),
         );
     } else {
@@ -571,7 +612,7 @@ pub(crate) fn entry_form(
         y += 54.0 + never_below(app, ui, x, y + 44.0, width);
     }
     if let Some(e) = &app.entry.state().error {
-        y += ui.wrap(x, y, width, 13.0, W::R, ERR, e) + 8.0;
+        y += ui.wrap(x, y, width, 13.0, W::R, Role::Error, e) + 8.0;
     }
     y += codex32_found(app, ui, x, y, width);
     // What is in.
@@ -588,9 +629,9 @@ pub(crate) fn entry_form(
     );
     y += 26.0;
     for (n, l) in lines.iter().enumerate() {
-        ui.icon(x, y - 2.0, 18.0, Icon::Done, 10.0, OK);
+        ui.icon(x, y - 2.0, 18.0, Icon::Done, 10.0, Role::Ok);
         let indent = faraday_draw::tokens::PART_INDENT;
-        ui.text(x + indent, y, 13.0, W::R, TEXT, l);
+        ui.text(x + indent, y, 13.0, W::R, Role::OnSurface, l);
         y += 24.0;
         y += codex32_mark(app, ui, x + indent, y, width - indent, n);
     }
@@ -600,12 +641,31 @@ pub(crate) fn entry_form(
     }
     // A SLIP-39 backup's passphrase; a Seed XOR key's BIP-39 one.
     if form != Form::Codex32 && flow.is_none() {
-        ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.entry_form_passphrase);
+        ui.text_mid(
+            x,
+            y,
+            40.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.entry_form_passphrase,
+        );
         let px = x + 150.0;
         let pw = 380.0f32.min(width - 150.0);
         let on = app.entry.state().on_passphrase;
-        ui.fill(px, y, pw, 40.0, 8.0, BG);
-        ui.stroke(px, y, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
+        ui.fill(px, y, pw, 40.0, 8.0, Role::SurfaceContainerHighest);
+        ui.stroke(
+            px,
+            y,
+            pw,
+            40.0,
+            8.0,
+            if on {
+                Role::Primary
+            } else {
+                Role::OutlineVariant
+            },
+        );
         dots_field(
             ui,
             px,
@@ -680,7 +740,7 @@ pub(crate) fn entry_form(
             46.0,
             12.0,
             W::R,
-            DIM,
+            Role::OnSurfaceVariant,
             EN.entry_form_enter_adds,
         );
     }
@@ -691,7 +751,7 @@ pub(crate) fn entry_form(
 fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, form: crate::forms::Form) {
     use crate::forms::Form;
     // What is being typed.
-    ui.fill(x, y, width, 44.0, 8.0, BG);
+    ui.fill(x, y, width, 44.0, 8.0, Role::SurfaceContainerHighest);
     ui.stroke(
         x,
         y,
@@ -699,9 +759,9 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, form: crate:
         44.0,
         8.0,
         if app.entry.state().on_passphrase {
-            BORDER
+            Role::OutlineVariant
         } else {
-            ACCENT
+            Role::Primary
         },
     );
     let on = !app.entry.state().on_passphrase;
@@ -736,9 +796,9 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, form: crate:
         14.0,
         W::M,
         if app.entry.state().typed.is_empty() {
-            DIM
+            Role::OnSurfaceVariant
         } else {
-            TEXT
+            Role::OnSurface
         },
         &shown,
     );
@@ -799,12 +859,20 @@ fn codex32_clash(ui: &mut Ui, x: f32, y: f32, width: f32, clash: &crate::forms::
         EN.codex32_form_clash,
         &[&char::from(index.to_ascii_uppercase()).to_string()],
     );
-    let mut h = line(ui, x, y, width, Icon::Warning, WARN, &title) + CORRECT_GAP;
+    let mut h = line(
+        ui,
+        x,
+        y,
+        width,
+        Icon::Warning,
+        Role::Warning.paint(),
+        &title,
+    ) + CORRECT_GAP;
     for (label, text) in [
         (EN.codex32_form_held, clash.held.as_str()),
         (EN.codex32_form_new, clash.text.as_str()),
     ] {
-        h += ui.wrap(x, y + h, width, LABEL, W::S, MUTED, label);
+        h += ui.wrap(x, y + h, width, LABEL, W::S, Role::OnSurfaceVariant, label);
         h += string_boxes(ui, x, y + h, width, text, &clash.differ) + CORRECT_GAP;
     }
     let boxes: Vec<String> = clash.differ.iter().map(ToString::to_string).collect();
@@ -814,7 +882,7 @@ fn codex32_clash(ui: &mut Ui, x: f32, y: f32, width: f32, clash: &crate::forms::
         width,
         LABEL,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         &fill(EN.codex32_form_differ, &[&boxes.join(", ")]),
     ) + CORRECT_GAP;
     h + faraday_ui::sheet::buttons(
@@ -851,32 +919,33 @@ pub(crate) fn codex32_found(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32)
             y,
             width,
             Icon::Info,
-            MUTED,
+            Role::OnSurfaceVariant.paint(),
             EN.codex32_form_already_in,
         ) + CORRECT_GAP;
     }
     let Some(checked) = &e.codex32.checked else {
         return 0.0;
     };
-    let mut h = if checked.holds {
-        line(ui, x, y, width, Icon::Done, OK, EN.codex32_form_holds)
+    let (icon, tone, text) = if checked.holds {
+        (Icon::Done, Role::Ok, EN.codex32_form_holds)
     } else {
-        line(ui, x, y, width, Icon::Error, ERR, EN.codex32_form_fails)
+        (Icon::Error, Role::Error, EN.codex32_form_fails)
     };
+    let mut h = line(ui, x, y, width, icon, tone.paint(), text);
     h += ui.wrap(
         x,
         y + h,
         width,
         CORRECT_LINE_TEXT,
         W::R,
-        TEXT,
+        Role::OnSurface,
         &checked.what,
     );
     if let Some(of) = checked.of_the_set {
         let (text, tone) = if of {
-            (EN.codex32_form_of_the_set, OK)
+            (EN.codex32_form_of_the_set, Role::Ok)
         } else {
-            (EN.codex32_form_not_of_the_set, ERR)
+            (EN.codex32_form_not_of_the_set, Role::Error)
         };
         h += ui.wrap(x, y + h, width, CORRECT_LINE_TEXT, W::R, tone, text);
     }
@@ -889,12 +958,20 @@ pub(crate) fn codex32_found(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32)
             width,
             CORRECT_LINE_TEXT,
             W::R,
-            TEXT,
+            Role::OnSurface,
             &fill(EN.c32r_in_vaults, &[&n]),
         );
     }
     if let Some(text) = checked.mark.and_then(|m| m.string_line()) {
-        h += line(ui, x, y + h, width, Icon::Warning, WARN, text);
+        h += line(
+            ui,
+            x,
+            y + h,
+            width,
+            Icon::Warning,
+            Role::Warning.paint(),
+            text,
+        );
     }
     h += CORRECT_GAP;
     // The final row of its worksheet, or the whole sheet (§8.3).
@@ -940,7 +1017,15 @@ pub(crate) fn codex32_mark(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, 
     else {
         return 0.0;
     };
-    crate::codex32_correct::screen::line(ui, x, y, width, Icon::Warning, WARN, text)
+    crate::codex32_correct::screen::line(
+        ui,
+        x,
+        y,
+        width,
+        Icon::Warning,
+        Role::Warning.paint(),
+        text,
+    )
 }
 
 /// The codex32 form's ways on from the strings in: **Make the rest** and

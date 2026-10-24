@@ -291,7 +291,7 @@ struct TabItem {
     action: Action,
 }
 
-/// Secondary tabs, [`t::CODEX32_TAB`] tall, an indicator in `ACCENT`
+/// Secondary tabs, [`t::CODEX32_TAB`] tall, an indicator in `primary`
 /// under the one shown, a rule under the row. Where they do not all fit
 /// the row shows the run that ends at the one shown (it scrolls with
 /// it). Returns the height.
@@ -319,7 +319,7 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
             used += widths[first];
         }
     }
-    ui.rule(x, y + t::CODEX32_TAB - 1.0, w, BORDER);
+    ui.rule(x, y + t::CODEX32_TAB - 1.0, w, Role::OutlineVariant);
     let mut tx = x;
     for (i, item) in items.iter().enumerate().skip(first) {
         let tw = if fixed { equal } else { widths[i] };
@@ -327,9 +327,20 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
             break;
         }
         if ui.is_pressed(item.action) {
-            ui.fill(tx, y, tw, t::CODEX32_TAB, 0.0, INNER);
+            ui.wash(
+                tx,
+                y,
+                tw,
+                t::CODEX32_TAB,
+                0.0,
+                Role::OnSurface.at(faraday_draw::tokens::STATE_PRESS),
+            );
         }
-        let colour = if item.on { ACCENT } else { MUTED };
+        let colour = if item.on {
+            Role::Primary
+        } else {
+            Role::OnSurfaceVariant
+        };
         let lw = ui.measure(t::LABEL, W::S, &item.label);
         let seen = if item.seen { icon + t::GAP_SMALL } else { 0.0 };
         let lx = tx + (tw - lw - seen) / 2.0;
@@ -340,7 +351,7 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
                 icon,
                 Icon::Done,
                 t::CODEX32_TAB_GLYPH,
-                OK,
+                Role::Ok,
             );
         }
         ui.text_mid(
@@ -359,7 +370,7 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
                 tw,
                 t::CODEX32_INDICATOR,
                 0.0,
-                ACCENT,
+                Role::Primary,
             );
         }
         ui.hit(tx, y, tw, t::CODEX32_TAB, item.action);
@@ -400,11 +411,11 @@ pub(crate) fn body(
     h + t::GAP
 }
 
-/// The note under a card's controls, in `ERR`, if any. Returns the
+/// The note under a card's controls, in `error`, if any. Returns the
 /// height.
 fn note(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     match m.note() {
-        Some(n) => ui.wrap(x, y, w, t::LABEL, W::R, ERR, n) + t::GAP,
+        Some(n) => ui.wrap(x, y, w, t::LABEL, W::R, Role::Error, n) + t::GAP,
         None => 0.0,
     }
 }
@@ -446,9 +457,9 @@ fn given_first(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let at = char::from(m.add_at().to_ascii_uppercase()).to_string();
         cy += fact(ui, x, cy, w, EN.c32r_index, &at);
         let (line, tone) = if m.add_at_taken() {
-            (EN.c32r_index_taken, ERR)
+            (EN.c32r_index_taken, Role::Error)
         } else {
-            (EN.c32r_give_index, MUTED)
+            (EN.c32r_give_index, Role::OnSurfaceVariant)
         };
         cy += ui.wrap(x, cy, w, t::LABEL, W::R, tone, line) + t::GAP;
         if open {
@@ -536,7 +547,7 @@ fn scheme(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             w,
             t::LABEL,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             &fill(EN.codex32_no_translation_sheet, &[&k.to_string()]),
         ) + t::GAP;
     }
@@ -562,19 +573,31 @@ fn identifier(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     for i in 0..usize::from(ID_LEN) {
         let bx = x + i as f32 * (b + t::GAP);
         let on = i == id.len();
-        ui.fill(bx, cy, b, b, t::RADIUS_SMALL, SURFACE);
+        ui.fill(bx, cy, b, b, t::RADIUS_SMALL, Role::Surface);
         ui.stroke(
             bx,
             cy,
             b,
             b,
             t::RADIUS_SMALL,
-            if on { ACCENT } else { BORDER },
+            if on {
+                Role::Primary
+            } else {
+                Role::OutlineVariant
+            },
         );
         if let Some(c) = id.chars().nth(i) {
             let s = c.to_string();
             let cw = ui.measure(t::TITLE, W::M, &s);
-            ui.text_mid(bx + (b - cw) / 2.0, cy, b, t::TITLE, W::M, TEXT, &s);
+            ui.text_mid(
+                bx + (b - cw) / 2.0,
+                cy,
+                b,
+                t::TITLE,
+                W::M,
+                Role::OnSurface,
+                &s,
+            );
         }
     }
     cy += b + t::GAP;
@@ -600,7 +623,7 @@ fn identifier(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
         );
     }
     if let Some(r) = m.id_refused() {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, ERR, r) + t::GAP;
+        cy += ui.wrap(x, cy, w, t::LABEL, W::R, Role::Error, r) + t::GAP;
     }
     if m.work().is_none() {
         cy += keyboard(ui, x, cy, w, KeyboardKind::Codex32);
@@ -619,7 +642,15 @@ fn entropy(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .collect();
     cy += choice(ui, x, cy, w, &items);
     if m.way() == Way::Typed {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.codex32_not_chosen) + t::GAP;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            t::LABEL,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.codex32_not_chosen,
+        ) + t::GAP;
     }
     if m.way() == Way::Dice {
         cy += super::dice_screen::chooser(m, ui, x, cy, w);
@@ -640,7 +671,15 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     };
     let mut cy = y;
     if m.way() == Way::Typed {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.codex32_not_chosen) + t::GAP;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            t::LABEL,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.codex32_not_chosen,
+        ) + t::GAP;
     }
     // The computer's dice roller and Demo's sample are not the person's
     // entry: the "Demo only" card holds its place beside the page, or at
@@ -852,14 +891,14 @@ fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Op
     let (bx, y, cls) = (at.x, at.y, at.cls);
     let s = t::codex32_box(cls);
     let fill_c = match look {
-        Look::Table => CODEX32_LOOKUP_FILL,
-        Look::Checksum => CODEX32_CHECKSUM_FILL,
-        Look::Given | Look::Fixed => SURFACE,
+        Look::Table => Role::SurfaceContainerHighest,
+        Look::Checksum => Role::ChecksumContainer,
+        Look::Given | Look::Fixed => Role::Surface,
     };
     ui.fill(bx, y, s, s, t::CODEX32_RADIUS, fill_c);
     let edge = match look {
-        Look::Given | Look::Checksum => TEXT,
-        _ => BORDER,
+        Look::Given | Look::Checksum => Role::OnSurface,
+        _ => Role::OutlineVariant,
     };
     ui.stroke(bx, y, s, s, t::CODEX32_RADIUS, edge);
     if matches!(look, Look::Given | Look::Checksum) {
@@ -881,7 +920,7 @@ fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Op
             s + 2.0 * o,
             s + 2.0 * o,
             t::CODEX32_RADIUS,
-            ACCENT,
+            Role::Primary,
         );
         ui.stroke(
             bx - o / 2.0,
@@ -889,7 +928,7 @@ fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Op
             s + o,
             s + o,
             t::CODEX32_RADIUS,
-            ACCENT,
+            Role::Primary,
         );
     }
     if let Some(v) = v {
@@ -906,9 +945,9 @@ fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Op
         };
         let cw = ui.measure(size, weight, &ch);
         let ink = if look == Look::Checksum {
-            CODEX32_ON_CHECKSUM
+            Role::OnChecksumContainer
         } else {
-            TEXT
+            Role::OnSurface
         };
         ui.text_mid(bx + (s - cw) / 2.0, y, s, size, weight, ink, &ch);
         // The press on a box opens the working of the nearest one: each
@@ -949,7 +988,14 @@ fn string_boxes(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui,
             let label = n.to_string();
             let nw = ui.measure(t::CODEX32_STRING_NUMBER, W::R, &label);
             let nx = box_x(x, b, n, cls) + (s - nw) / 2.0;
-            ui.text(nx, cy, t::CODEX32_STRING_NUMBER, W::R, MUTED, &label);
+            ui.text(
+                nx,
+                cy,
+                t::CODEX32_STRING_NUMBER,
+                W::R,
+                Role::OnSurfaceVariant,
+                &label,
+            );
         }
         let ry = cy + t::CODEX32_NUMBER_ROW;
         for n in b..=to {
@@ -959,7 +1005,7 @@ fn string_boxes(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui,
                 let ch = char::from(PREFIX[n - 1]).to_string();
                 let size = t::codex32_char(cls);
                 let cw = ui.measure(size, W::S, &ch);
-                ui.text_mid(bx + (s - cw) / 2.0, ry, s, size, W::S, TEXT, &ch);
+                ui.text_mid(bx + (s - cw) / 2.0, ry, s, size, W::S, Role::OnSurface, &ch);
                 continue;
             }
             let (v, look) = match n {
@@ -1014,7 +1060,7 @@ fn grid(
             y,
             t::CODEX32_NUMBER,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             &n.to_string(),
         );
     }
@@ -1025,11 +1071,11 @@ fn grid(
                 gx,
                 cy - t::CODEX32_ROW_GAP / 2.0,
                 box_x(gx, from, to, cls) + s - gx,
-                BORDER,
+                Role::OutlineVariant,
             );
         }
         let name = ui.fit(t::CAPTION, W::R, &row.name, t::CODEX32_LABEL_W - t::GAP);
-        ui.text_mid(x, cy, s, t::CAPTION, W::R, MUTED, &name);
+        ui.text_mid(x, cy, s, t::CAPTION, W::R, Role::OnSurfaceVariant, &name);
         for (i, v) in row.cells.iter().enumerate() {
             let b = row.start + i;
             if b < from || b > to {
@@ -1089,7 +1135,7 @@ fn translation(
     };
     let tg = ts.target_index();
     let head = fill(EN.codex32_translation_to, &[&target_name(tg)]);
-    let mut cy = y + ui.wrap(x, y, w, t::LABEL, W::S, TEXT, &head) + t::GAP_SMALL;
+    let mut cy = y + ui.wrap(x, y, w, t::LABEL, W::S, Role::OnSurface, &head) + t::GAP_SMALL;
     let k = ts.threshold();
     let mut syms = Vec::new();
     for i in 0..k {
@@ -1110,7 +1156,7 @@ fn translation(
         w,
         t::CAPTION,
         W::R,
-        MUTED,
+        Role::OnSurfaceVariant,
         &format!("{label}: {}", syms.join(" · ")),
     );
     cy += t::GAP_SMALL;
@@ -1213,7 +1259,7 @@ fn dice_review(
         };
         if m.masked() {
             let line = fill(EN.codex32_box_masked, &[&(n + 10).to_string(), MASK]);
-            cy += ui.wrap(x, cy, w, t::CAPTION, W::M, TEXT, &line) + t::GAP_SMALL;
+            cy += ui.wrap(x, cy, w, t::CAPTION, W::M, Role::OnSurface, &line) + t::GAP_SMALL;
             continue;
         }
         let rows: Vec<String> = made
@@ -1249,7 +1295,7 @@ fn dice_review(
         } else {
             line
         };
-        cy += ui.wrap(x, cy, w, t::CAPTION, W::M, TEXT, &line) + t::GAP_SMALL;
+        cy += ui.wrap(x, cy, w, t::CAPTION, W::M, Role::OnSurface, &line) + t::GAP_SMALL;
     }
     cy - y + t::GAP
 }
@@ -1258,10 +1304,54 @@ fn dice_review(
 // The strings (§6.6) and Strings made (§6.7, §6.8)
 // ---------------------------------------------------------------------
 
+/// The field the string is typed back in, and the box that differs.
+/// Returns its height.
+fn typed_back(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let ink = Role::OnSurface;
+    let hide = m.masked();
+    let (typed, differs) = m.typed_back();
+    let mut whole = String::from_utf8_lossy(PREFIX).into_owned();
+    if hide {
+        whole.push_str(&MASK.repeat(typed.len()));
+    } else {
+        whole.push_str(typed);
+    }
+    let shown = faraday_ui::grouped(&whole);
+    ui.fill(x, y, w, t::FIELD, t::RADIUS_SMALL, Role::Surface);
+    ui.stroke(
+        x,
+        y,
+        w,
+        t::FIELD,
+        t::RADIUS_SMALL,
+        if differs.is_some() {
+            Role::Error
+        } else {
+            Role::OutlineVariant
+        },
+    );
+    let fit = ui.fit(t::LABEL, W::M, &shown, w - 2.0 * t::GAP);
+    ui.text_mid(x + t::GAP, y, t::FIELD, t::LABEL, W::M, ink, &fit);
+    let mut cy = y + t::FIELD + t::GAP;
+    if let Some(b) = differs {
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            t::LABEL,
+            W::R,
+            Role::Error,
+            &fill(EN.codex32_box_differs, &[&b.to_string()]),
+        ) + t::GAP;
+    }
+    cy - y
+}
+
 /// §6.6: the string in groups of four at the largest mono size that
 /// fits, or its Codex32QR code; the typing back on the codex32 keyboard;
 /// Continue and Skip.
 fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
+    let ink = Role::OnSurface;
     let (x, y, w, cls) = (at.x, at.y, at.w, at.cls);
     let Some(s) = m.strings().and_then(|s| s.get(m.at())) else {
         return 0.0;
@@ -1301,48 +1391,34 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             while size > t::CAPTION && ui.wrap_lines(size, W::M, &g, w) > 3 {
                 size -= 1.0;
             }
-            cy += ui.wrap(x, cy, w, size, W::M, TEXT, &g) + t::GAP;
+            cy += ui.wrap(x, cy, w, size, W::M, ink, &g) + t::GAP;
         }
     }
-    let (typed, differs) = m.typed_back();
-    let mut whole = String::from_utf8_lossy(PREFIX).into_owned();
-    if hide {
-        whole.push_str(&MASK.repeat(typed.len()));
-    } else {
-        whole.push_str(typed);
-    }
-    let shown = faraday_ui::grouped(&whole);
-    ui.fill(x, cy, w, t::FIELD, t::RADIUS_SMALL, SURFACE);
-    ui.stroke(
-        x,
-        cy,
-        w,
-        t::FIELD,
-        t::RADIUS_SMALL,
-        if differs.is_some() { ERR } else { BORDER },
-    );
-    let fit = ui.fit(t::LABEL, W::M, &shown, w - 2.0 * t::GAP);
-    ui.text_mid(x + t::GAP, cy, t::FIELD, t::LABEL, W::M, TEXT, &fit);
-    cy += t::FIELD + t::GAP;
-    if let Some(b) = differs {
+    cy += typed_back(m, ui, x, cy, w);
+    let (checked, ask) = m.checked();
+    if checked.get(m.at()).copied().unwrap_or(false) {
         cy += ui.wrap(
             x,
             cy,
             w,
             t::LABEL,
             W::R,
-            ERR,
-            &fill(EN.codex32_box_differs, &[&b.to_string()]),
+            Role::Ok,
+            EN.codex32_typed_back_same,
         ) + t::GAP;
-    }
-    let (checked, ask) = m.checked();
-    if checked.get(m.at()).copied().unwrap_or(false) {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, OK, EN.codex32_typed_back_same) + t::GAP;
     } else {
         cy += keyboard(ui, x, cy, w, KeyboardKind::Codex32);
     }
     if ask {
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, WARN, EN.codex32_skip_caution) + t::GAP;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            t::LABEL,
+            W::R,
+            Role::Warning,
+            EN.codex32_skip_caution,
+        ) + t::GAP;
     }
     let nh = note(m, ui, x, cy, w);
     cy += nh;
@@ -1364,7 +1440,7 @@ fn sample_line(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     }
     let line = fill(EN.c32r_demo_sample, &[&m.identifier().to_uppercase()]);
-    ui.wrap(x, y, w, t::LABEL, W::S, WARN, &line) + t::GAP
+    ui.wrap(x, y, w, t::LABEL, W::S, Role::Warning, &line) + t::GAP
 }
 
 /// §6.7: the Result's rows, Check on another device (§6.8), and Lock in.
@@ -1436,10 +1512,10 @@ fn made(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// value here is read character by character), a rule under it. Returns
 /// the height.
 fn fact(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str) -> f32 {
-    ui.text(x, y, t::CAPTION, W::R, MUTED, label);
+    ui.text(x, y, t::CAPTION, W::R, Role::OnSurfaceVariant, label);
     let ly = ui.line(t::CAPTION, W::R) + t::GAP_SMALL;
-    let vh = ui.wrap(x, y + ly, w, t::LABEL, W::M, TEXT, value);
-    ui.rule(x, y + ly + vh + t::GAP_SMALL, w, BORDER);
+    let vh = ui.wrap(x, y + ly, w, t::LABEL, W::M, Role::OnSurface, value);
+    ui.rule(x, y + ly + vh + t::GAP_SMALL, w, Role::OutlineVariant);
     ly + vh + t::GAP
 }
 
@@ -1507,7 +1583,14 @@ pub(crate) fn cell_sheet(app: &View, m: &Codex32Make, ui: &mut Ui, x0: f32, cw: 
             ui.wrap_lines(t::LABEL, W::R, l, iw) as f32 * ui.line(t::LABEL, W::R) + t::GAP_SMALL;
     }
     let sh = (body_h + t::TOUCH + t::GAP + 2.0 * pad).min(h - 2.0 * t::GAP);
-    ui.fill(x0, 0.0, cw, h, 0.0, BG.with_alpha(150));
+    ui.fill(
+        x0,
+        0.0,
+        cw,
+        h,
+        0.0,
+        Role::SurfaceContainerHighest.with_alpha(150),
+    );
     // A dialog: nothing under it is within reach, and a press beside it
     // closes it.
     ui.clear_hits();
@@ -1522,9 +1605,9 @@ pub(crate) fn cell_sheet(app: &View, m: &Codex32Make, ui: &mut Ui, x0: f32, cw: 
     // holds in one place.
     let (sx, sy) = faraday_ui::parts::sheet_box_in(ui, (x0, cw, h), sw, sh);
     let mut cy = sy + pad;
-    cy += faraday_ui::sheet::sheet_head(ui, sx + pad, cy, iw, Icon::Info, ACCENT, &head);
+    cy += faraday_ui::sheet::sheet_head(ui, sx + pad, cy, iw, Icon::Info, Role::Primary, &head);
     for l in &lines {
-        cy += ui.wrap(sx + pad, cy, iw, t::LABEL, W::R, TEXT, l) + t::GAP_SMALL;
+        cy += ui.wrap(sx + pad, cy, iw, t::LABEL, W::R, Role::OnSurface, l) + t::GAP_SMALL;
     }
     let by = sy + sh - pad - t::TOUCH;
     let bw = ui.measure(t::LABEL, W::S, EN.codex32_done_button) + 2.0 * t::PAD;
@@ -1565,7 +1648,7 @@ fn cell_page(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), head: &str, 
     // pinned Continue goes.
     ui.clear_hits();
     ui.pin = None;
-    ui.fill(x0, 0.0, cw, h, 0.0, SURFACE);
+    ui.fill(x0, 0.0, cw, h, 0.0, Role::Surface);
     crate::compact::bar(
         app,
         ui,
@@ -1576,7 +1659,7 @@ fn cell_page(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), head: &str, 
     let iw = cw - 2.0 * M;
     let mut cy = BAR_H + t::PAD;
     for l in lines {
-        cy += ui.wrap(M, cy, iw, t::LABEL, W::R, TEXT, l) + t::GAP;
+        cy += ui.wrap(M, cy, iw, t::LABEL, W::R, Role::OnSurface, l) + t::GAP;
     }
     step_buttons(ui, M, (cy + t::GAP).min(h - t::TOUCH - t::GAP), iw);
 }

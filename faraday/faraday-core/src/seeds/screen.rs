@@ -66,7 +66,7 @@ pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32
     let mut cy = y;
     let n = s.n.max(1);
     let big = fill(EN.seeds_quorum, &[&s.m.max(1).to_string(), &n.to_string()]);
-    ui.text(x, cy, 22.0, W::S, TEXT, &big);
+    ui.text(x, cy, 22.0, W::S, Role::OnSurface, &big);
     let bw = ui.measure(22.0, W::S, &big);
     let line = if n == 1 {
         EN.seeds_one_key_signs.to_string()
@@ -84,7 +84,15 @@ pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32
             ],
         )
     };
-    ui.text_mid(x + bw + 14.0, cy, 30.0, 13.0, W::R, MUTED, &line);
+    ui.text_mid(
+        x + bw + 14.0,
+        cy,
+        30.0,
+        13.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        &line,
+    );
     cy += 42.0;
     let (sx, sw) = if ui.compact {
         (x, w)
@@ -99,10 +107,10 @@ pub(crate) fn quorum(ui: &mut Ui, s: &SeedsState, x: f32, y: f32, w: f32) -> f32
             continue;
         };
         if ui.compact {
-            ui.text(x, cy, 13.0, W::S, MUTED, label);
+            ui.text(x, cy, 13.0, W::S, Role::OnSurfaceVariant, label);
             cy += 20.0;
         } else {
-            ui.text_mid(x, cy, 40.0, 13.0, W::S, MUTED, label);
+            ui.text_mid(x, cy, 40.0, 13.0, W::S, Role::OnSurfaceVariant, label);
         }
         cy += ui.slider(sx, cy, sw, id, lo as u8, hi as u8, v as u8) + 4.0;
     }
@@ -126,12 +134,20 @@ pub(crate) fn cosigner(
     let mut cy = y;
     let text = s.cosigners.get(k).map(String::as_str).unwrap_or("");
     let focused = s.focus == Some(Focus::Cosigner(k as u8));
-    ui.text_mid(x, cy, 40.0, 12.0, W::R, DIM, &slot.to_string());
+    ui.text_mid(
+        x,
+        cy,
+        40.0,
+        12.0,
+        W::R,
+        Role::OnSurfaceVariant,
+        &slot.to_string(),
+    );
     match seeds::cosigner_key(text).filter(|_| !focused) {
         Some(key) => {
             let cw = ui.measure(13.0, W::S, EN.seeds_change) + 32.0;
             let shown = ui.fit(14.0, W::M, &seeds::cosigner_label(&key), w - 34.0 - cw);
-            ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, OK, &shown);
+            ui.text_mid(x + 22.0, cy, 40.0, 14.0, W::M, Role::Ok, &shown);
             ui.button(
                 x + w - cw,
                 cy + 2.0,
@@ -167,7 +183,7 @@ pub(crate) fn cosigner(
                     w - 22.0,
                     12.0,
                     W::R,
-                    ERR,
+                    Role::Error,
                     EN.seeds_not_an_account,
                 ) + 6.0;
             }
@@ -223,14 +239,22 @@ pub(crate) fn shape(
     // A box for each key whose seed is not here.
     if !s.cosigners.is_empty() {
         cy += 6.0;
-        cy += ui.wrap(x, cy, w, 13.0, W::S, MUTED, EN.seeds_cosigners_account) + 10.0;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            13.0,
+            W::S,
+            Role::OnSurfaceVariant,
+            EN.seeds_cosigners_account,
+        ) + 10.0;
         for k in 0..s.cosigners.len() {
             cy += cosigner(app, ui, s, k, have + k + 1, x, cy, w);
         }
     }
     // The kind.
     cy += 8.0;
-    ui.text(x, cy, 13.0, W::S, MUTED, EN.seeds_kind);
+    ui.text(x, cy, 13.0, W::S, Role::OnSurfaceVariant, EN.seeds_kind);
     cy += 24.0;
     for (k, kind) in s.kinds().iter().enumerate() {
         let on = *kind == s.kind;
@@ -242,31 +266,58 @@ pub(crate) fn shape(
             40.0,
             14.0,
             W::S,
-            if on { TEXT } else { MUTED },
+            if on {
+                Role::OnSurface
+            } else {
+                Role::OnSurfaceVariant
+            },
             name,
         );
         let rh = if ui.compact {
             let l = ui.fit(12.0, W::R, kind.line(), w - 30.0);
-            ui.text_mid(x + 30.0, cy + 28.0, 20.0, 12.0, W::R, DIM, &l);
+            ui.text_mid(
+                x + 30.0,
+                cy + 28.0,
+                20.0,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                &l,
+            );
             52.0
         } else {
             let nw = ui.measure(14.0, W::S, name);
             let l = ui.fit(12.0, W::R, kind.line(), w - 60.0 - nw);
-            ui.text_right(x + w, cy, 40.0, 12.0, W::R, DIM, &l);
+            ui.text_right(x + w, cy, 40.0, 12.0, W::R, Role::OnSurfaceVariant, &l);
             40.0
         };
         ui.hit(x, cy, w, rh, sa(S::Kind(k as u8)));
-        ui.rule(x, cy + rh, w, BORDER);
+        ui.rule(x, cy + rh, w, Role::OutlineVariant);
         cy += rh + 2.0;
     }
     // The path.
     cy += 12.0;
-    ui.text(x, cy, 13.0, W::S, MUTED, EN.seeds_derivation_path);
+    ui.text(
+        x,
+        cy,
+        13.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        EN.seeds_derivation_path,
+    );
     cy += 24.0;
     let standard = s.custom.is_none();
     ui.checkbox(x, cy + 11.0, standard, true);
     let std_path = s.kind.path_at(net, s.account);
-    ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, EN.seeds_standard);
+    ui.text_mid(
+        x + 30.0,
+        cy,
+        40.0,
+        14.0,
+        W::S,
+        Role::OnSurface,
+        EN.seeds_standard,
+    );
     let pw = ui.measure(14.0, W::S, EN.seeds_standard) + 44.0;
     ui.text_mid(
         x + pw,
@@ -274,7 +325,11 @@ pub(crate) fn shape(
         40.0,
         14.0,
         W::M,
-        if standard { TEXT } else { MUTED },
+        if standard {
+            Role::OnSurface
+        } else {
+            Role::OnSurfaceVariant
+        },
         &std_path,
     );
     ui.hit(x, cy, w, 40.0, sa(S::Standard));
@@ -295,7 +350,15 @@ pub(crate) fn shape(
         cy += 50.0;
     }
     ui.checkbox(x, cy + 11.0, !standard, true);
-    ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, EN.seeds_custom_path);
+    ui.text_mid(
+        x + 30.0,
+        cy,
+        40.0,
+        14.0,
+        W::S,
+        Role::OnSurface,
+        EN.seeds_custom_path,
+    );
     ui.hit(x, cy, w, 40.0, sa(S::Custom));
     cy += 44.0;
     if let Some(p) = &s.custom {
@@ -316,16 +379,23 @@ pub(crate) fn shape(
     cy += 8.0;
     match app.seeds_address(s) {
         Ok(a) => {
-            ui.text(x, cy, 12.0, W::R, MUTED, EN.seeds_first_receive);
+            ui.text(
+                x,
+                cy,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                EN.seeds_first_receive,
+            );
             cy += 22.0;
-            cy += ui.wrap(x, cy, w, 15.0, W::M, TEXT, &grouped(&a)) + 14.0;
+            cy += ui.wrap(x, cy, w, 15.0, W::M, Role::OnSurface, &grouped(&a)) + 14.0;
         }
         Err(e) => {
-            cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, &e) + 12.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Warning, &e) + 12.0;
         }
     }
     if let Some(e) = &s.error {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 10.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 10.0;
     }
     let left: &[(&str, Style, Action)] = if back {
         &[(EN.seeds_back_to_the_seeds, Style::Secondary, sa(S::Keys))]
@@ -361,11 +431,22 @@ fn field(
     focused: bool,
     action: Action,
 ) {
-    ui.fill(x, y, w, 40.0, 8.0, BG);
-    ui.stroke(x, y, w, 40.0, 8.0, if focused { ACCENT } else { BORDER });
+    ui.fill(x, y, w, 40.0, 8.0, Role::SurfaceContainerHighest);
+    ui.stroke(
+        x,
+        y,
+        w,
+        40.0,
+        8.0,
+        if focused {
+            Role::Primary
+        } else {
+            Role::OutlineVariant
+        },
+    );
     if text.is_empty() && !focused {
         let hint = ui.fit(13.0, W::R, hint, w - 24.0);
-        ui.text_mid(x + 12.0, y, 40.0, 13.0, W::R, DIM, &hint);
+        ui.text_mid(x + 12.0, y, 40.0, 13.0, W::R, Role::OnSurfaceVariant, &hint);
     } else {
         // The end typed last stays in view, or the caret.
         ui.typed(
@@ -374,7 +455,7 @@ fn field(
             40.0,
             14.0,
             W::M,
-            TEXT,
+            Role::OnSurface,
             text,
             w - 30.0,
             focused,

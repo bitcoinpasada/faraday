@@ -169,7 +169,15 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
     crate::screens::section_label(ui, x, y, EN.family_wallets_loaded);
     y += 30.0;
     if app.session.wallets.is_empty() {
-        ui.text_mid(x, y, 30.0, 13.0, W::R, DIM, EN.family_none_loaded);
+        ui.text_mid(
+            x,
+            y,
+            30.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.family_none_loaded,
+        );
         y += 42.0;
     }
     for (i, wl) in app.session.wallets.iter().enumerate() {
@@ -178,16 +186,41 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         let need = crate::wallet::needed(wl);
         let ready = here >= need;
         let ch = if ready { 64.0 } else { 108.0 };
-        ui.card(x, y, w, ch, if ready { OK.with_alpha(90) } else { LINE });
-        ui.icon(x + 18.0, y + 14.0, 20.0, Icon::Wallet, 12.0, MUTED);
-        let nw = ui.text_mid(x + 46.0, y + 4.0, 40.0, 15.0, W::S, TEXT, &wl.name);
+        ui.card(
+            x,
+            y,
+            w,
+            ch,
+            if ready {
+                Role::Ok.with_alpha(90)
+            } else {
+                Role::OutlineVariant.paint()
+            },
+        );
+        ui.icon(
+            x + 18.0,
+            y + 14.0,
+            20.0,
+            Icon::Wallet,
+            12.0,
+            Role::OnSurfaceVariant,
+        );
+        let nw = ui.text_mid(
+            x + 46.0,
+            y + 4.0,
+            40.0,
+            15.0,
+            W::S,
+            Role::OnSurface,
+            &wl.name,
+        );
         ui.text_mid(
             x + 60.0 + nw,
             y + 4.0,
             40.0,
             12.0,
             W::R,
-            MUTED,
+            Role::OnSurfaceVariant,
             &Session::shape(wl),
         );
         let (marker, tone) = if ready {
@@ -196,7 +229,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
                     EN.family_can_spend_count,
                     &[&here.min(need).to_string(), &need.to_string()],
                 ),
-                OK,
+                Role::Ok,
             )
         } else if here > 0 {
             (
@@ -212,10 +245,10 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
                         &need.to_string(),
                     ],
                 ),
-                WARN,
+                Role::Warning,
             )
         } else {
-            (EN.family_no_key_here.to_string(), DIM)
+            (EN.family_no_key_here.to_string(), Role::OnSurfaceVariant)
         };
         ui.text_mid(x + 46.0, y + 30.0, 28.0, 12.0, W::S, tone, &marker);
         let label = if ready {
@@ -259,7 +292,7 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
                     40.0,
                     13.0,
                     W::R,
-                    MUTED,
+                    Role::OnSurfaceVariant,
                     EN.family_an_open_vault,
                 );
             }
@@ -287,8 +320,24 @@ fn loaded(app: &View, ui: &mut Ui, x0: f32, cw: f32) -> f32 {
         crate::screens::section_label(ui, x, y, EN.family_keys_without_wallet);
         y += 30.0;
         for k in &lonely {
-            ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &fp_text(k.fingerprint));
-            ui.text_mid(x + 100.0, y, 30.0, 13.0, W::R, MUTED, &k.label);
+            ui.text_mid(
+                x,
+                y,
+                30.0,
+                14.0,
+                W::M,
+                Role::OnSurface,
+                &fp_text(k.fingerprint),
+            );
+            ui.text_mid(
+                x + 100.0,
+                y,
+                30.0,
+                13.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                &k.label,
+            );
             y += 32.0;
         }
         let file = app.inbox.iter().position(|i| i.kind == FileKind::Wallet);
@@ -359,12 +408,28 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
             &[&s.spend.source.to_string(), &name.to_string()],
         );
         let lh = measured(ui, |ui| {
-            ui.wrap(x + 46.0, y + 14.0, w - 60.0, 14.0, W::S, TEXT, &line)
+            ui.wrap(
+                x + 46.0,
+                y + 14.0,
+                w - 60.0,
+                14.0,
+                W::S,
+                Role::OnSurface,
+                &line,
+            )
         });
         let ch = lh + 14.0 + 12.0 + 40.0 + 14.0;
-        ui.card(x, y, w, ch, ACCENT.with_alpha(110));
-        ui.icon(x + 14.0, y + 14.0, 20.0, Icon::Sign, 12.0, ACCENT);
-        ui.wrap(x + 46.0, y + 14.0, w - 60.0, 14.0, W::S, TEXT, &line);
+        ui.card(x, y, w, ch, Role::Primary.with_alpha(110));
+        ui.icon(x + 14.0, y + 14.0, 20.0, Icon::Sign, 12.0, Role::Primary);
+        ui.wrap(
+            x + 46.0,
+            y + 14.0,
+            w - 60.0,
+            14.0,
+            W::S,
+            Role::OnSurface,
+            &line,
+        );
         ui.button(
             x + 14.0,
             y + lh + 26.0,
@@ -381,7 +446,15 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
     section_label(ui, x, y, EN.family_wallets_loaded);
     y += 30.0;
     if app.session.wallets.is_empty() {
-        ui.text_mid(x, y, 30.0, 13.0, W::R, DIM, EN.family_none_loaded);
+        ui.text_mid(
+            x,
+            y,
+            30.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.family_none_loaded,
+        );
         y += 42.0;
     }
     for (i, wl) in app.session.wallets.iter().enumerate() {
@@ -395,7 +468,7 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
                     EN.family_can_spend_count,
                     &[&here.min(need).to_string(), &need.to_string()],
                 ),
-                OK,
+                Role::Ok,
             )
         } else if here > 0 {
             (
@@ -411,10 +484,10 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
                         &need.to_string(),
                     ],
                 ),
-                WARN,
+                Role::Warning,
             )
         } else {
-            (EN.family_no_key_here.to_string(), DIM)
+            (EN.family_no_key_here.to_string(), Role::OnSurfaceVariant)
         };
         // The keys still missing: where they may be. Measured first so
         // the card is drawn at its height.
@@ -440,19 +513,44 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
                     w - 28.0,
                     13.0,
                     W::R,
-                    MUTED,
+                    Role::OnSurfaceVariant,
                     EN.family_an_open_vault,
                 ) + 8.0
             }
         };
         let mh = measured(ui, |ui| missing(ui, y));
         let ch = 70.0 + mh + 40.0 + 14.0;
-        ui.card(x, y, w, ch, if ready { OK.with_alpha(90) } else { LINE });
-        ui.icon(x + 14.0, y + 12.0, 20.0, Icon::Wallet, 12.0, MUTED);
+        ui.card(
+            x,
+            y,
+            w,
+            ch,
+            if ready {
+                Role::Ok.with_alpha(90)
+            } else {
+                Role::OutlineVariant.paint()
+            },
+        );
+        ui.icon(
+            x + 14.0,
+            y + 12.0,
+            20.0,
+            Icon::Wallet,
+            12.0,
+            Role::OnSurfaceVariant,
+        );
         let name = ui.fit(15.0, W::S, &wl.name, w - 60.0);
-        ui.text_mid(x + 42.0, y + 4.0, 36.0, 15.0, W::S, TEXT, &name);
+        ui.text_mid(x + 42.0, y + 4.0, 36.0, 15.0, W::S, Role::OnSurface, &name);
         let shape = ui.fit(12.0, W::R, &Session::shape(wl), w - 56.0);
-        ui.text_mid(x + 42.0, y + 28.0, 18.0, 12.0, W::R, MUTED, &shape);
+        ui.text_mid(
+            x + 42.0,
+            y + 28.0,
+            18.0,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &shape,
+        );
         let marker = ui.fit(12.0, W::S, &marker, w - 56.0);
         ui.text_mid(x + 42.0, y + 46.0, 18.0, 12.0, W::S, tone, &marker);
         missing(ui, y + 70.0);
@@ -501,9 +599,25 @@ fn loaded_compact(app: &View, ui: &mut Ui, cw: f32, h: f32) {
         section_label(ui, x, y, EN.family_keys_without_wallet);
         y += 30.0;
         for k in &lonely {
-            ui.text_mid(x, y, 30.0, 14.0, W::M, TEXT, &fp_text(k.fingerprint));
+            ui.text_mid(
+                x,
+                y,
+                30.0,
+                14.0,
+                W::M,
+                Role::OnSurface,
+                &fp_text(k.fingerprint),
+            );
             let label = ui.fit(13.0, W::R, &k.label, w - 100.0);
-            ui.text_mid(x + 100.0, y, 30.0, 13.0, W::R, MUTED, &label);
+            ui.text_mid(
+                x + 100.0,
+                y,
+                30.0,
+                13.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                &label,
+            );
             y += 32.0;
         }
         let file = app.inbox.iter().position(|i| i.kind == FileKind::Wallet);
@@ -555,10 +669,10 @@ fn next_row(
     line: &str,
     button: Option<(&str, Action)>,
 ) -> f32 {
-    ui.card(x, y, w, 60.0, ACCENT.with_alpha(110));
-    ui.icon(x + 18.0, y + 20.0, 20.0, icon, 12.0, ACCENT);
+    ui.card(x, y, w, 60.0, Role::Primary.with_alpha(110));
+    ui.icon(x + 18.0, y + 20.0, 20.0, icon, 12.0, Role::Primary);
     let line = ui.fit(14.0, W::S, line, w - 260.0);
-    ui.text_mid(x + 46.0, y, 60.0, 14.0, W::S, TEXT, &line);
+    ui.text_mid(x + 46.0, y, 60.0, 14.0, W::S, Role::OnSurface, &line);
     if let Some((label, action)) = button {
         let bw = ui.measure(14.0, W::S, label) + 36.0;
         ui.button(
@@ -731,7 +845,7 @@ fn more(app: &View, ui: &mut Ui, id: CardId, paras: &[String], x: f32, y: f32, w
     cy += 40.0;
     if shown {
         for p in paras {
-            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, p) + 10.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::R, Role::OnSurfaceVariant, p) + 10.0;
         }
     }
     cy - y
@@ -742,31 +856,47 @@ fn map(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let stops = text::map(app.medium);
     for (k, (place, head, line)) in stops.iter().enumerate() {
         let c = if *place == EN.family_offline {
-            OK
+            Role::Ok
         } else if *place == EN.family_online {
-            WARN
+            Role::Warning
         } else {
-            MUTED
+            Role::OnSurfaceVariant
         };
         // The lane: one node a stop, joined.
         ui.dot(x + 9.0, cy + 11.0, 6.0, c);
-        let used = 30.0 + ui.wrap(x + 112.0, cy + 26.0, w - 112.0, 13.0, W::R, MUTED, line);
+        let used = 30.0
+            + ui.wrap(
+                x + 112.0,
+                cy + 26.0,
+                w - 112.0,
+                13.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                line,
+            );
         if k + 1 < stops.len() {
-            ui.fill(x + 8.0, cy + 20.0, 2.0, used - 12.0, 1.0, BORDER);
+            ui.fill(
+                x + 8.0,
+                cy + 20.0,
+                2.0,
+                used - 12.0,
+                1.0,
+                Role::OutlineVariant,
+            );
         }
         ui.text(x + 28.0, cy + 2.0, 12.0, W::S, c, place);
-        ui.text(x + 112.0, cy + 2.0, 14.0, W::S, TEXT, head);
+        ui.text(x + 112.0, cy + 2.0, 14.0, W::S, Role::OnSurface, head);
         cy += used + 10.0;
     }
     cy += 6.0;
-    ui.icon(x, cy, 16.0, Icon::Warning, 10.0, WARN);
+    ui.icon(x, cy, 16.0, Icon::Warning, 10.0, Role::Warning);
     cy += ui.wrap(
         x + 22.0,
         cy,
         w - 22.0,
         13.0,
         W::S,
-        WARN,
+        Role::Warning,
         text::WORDS_ARE_MONEY,
     ) + 16.0;
     let drawn = next_button(ui, x, cy, w, EN.family_start, fa(F::Next(page::MAP)));
@@ -789,11 +919,18 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .or(locked.first().copied())
         {
             let head = fill(EN.family_unlock_n, &[&f.name.to_string()]);
-            cy += ui.wrap(x, cy, w, 15.0, W::S, TEXT, &head) + 12.0;
+            cy += ui.wrap(x, cy, w, 15.0, W::S, Role::OnSurface, &head) + 12.0;
         }
         cy += vault(app, ui, x, cy, w);
         cy += 4.0;
-        ui.text(x, cy, 13.0, W::S, MUTED, EN.family_bring_in_paper);
+        ui.text(
+            x,
+            cy,
+            13.0,
+            W::S,
+            Role::OnSurfaceVariant,
+            EN.family_bring_in_paper,
+        );
         cy += 28.0;
     }
     let ready = app.family_ready();
@@ -856,20 +993,27 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy += 40.0;
     if app.family.state.help {
         for (look, what) in text::looks(app.medium) {
-            cy += ui.wrap(x, cy, w, 14.0, W::S, TEXT, &look) + 4.0;
-            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, &what) + 14.0;
+            cy += ui.wrap(x, cy, w, 14.0, W::S, Role::OnSurface, &look) + 4.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::R, Role::OnSurfaceVariant, &what) + 14.0;
         }
     }
     // What came in, newest last.
     let rows = came_rows(app);
     if !rows.is_empty() {
         cy += 6.0;
-        ui.text(x, cy, 13.0, W::S, MUTED, EN.family_came_in_heading);
+        ui.text(
+            x,
+            cy,
+            13.0,
+            W::S,
+            Role::OnSurfaceVariant,
+            EN.family_came_in_heading,
+        );
         cy += 26.0;
         for row in &rows {
             let row = ui.fit(13.0, W::M, row, w);
-            ui.text_mid(x, cy, 34.0, 13.0, W::M, TEXT, &row);
-            ui.rule(x, cy + 34.0, w, BORDER);
+            ui.text_mid(x, cy, 34.0, 13.0, W::M, Role::OnSurface, &row);
+            ui.rule(x, cy + 34.0, w, Role::OutlineVariant);
             cy += 36.0;
         }
         cy += 12.0;
@@ -901,7 +1045,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 EN.family_seed_not_wallets,
                 &[&fp_text(fp).to_string(), &name.to_string()],
             );
-            cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 8.0;
+            cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Warning, &line) + 8.0;
             cy += crate::screens::wrap_buttons(
                 ui,
                 x,
@@ -922,7 +1066,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     cy += question(app, ui, x, cy, w);
     if let Some(e) = &app.family.state.error {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 10.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 10.0;
     }
     cy += opened(app, ui, x, cy, w);
     if !rows.is_empty() || app.family.state.route.is_some() {
@@ -1042,8 +1186,24 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     match app.family_question() {
         Question::None => return 0.0,
         Question::Anything => {
-            cy += ui.wrap(x, cy, w, 15.0, W::S, TEXT, EN.family_anything_else) + 6.0;
-            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, text::ANYTHING_HINT) + 12.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                15.0,
+                W::S,
+                Role::OnSurface,
+                EN.family_anything_else,
+            ) + 6.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                13.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                text::ANYTHING_HINT,
+            ) + 12.0;
             cy += crate::screens::wrap_buttons(
                 ui,
                 x,
@@ -1062,8 +1222,16 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             );
         }
         Question::Description => {
-            cy += ui.wrap(x, cy, w, 15.0, W::S, TEXT, EN.family_these_seeds) + 6.0;
-            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, text::DESCRIPTION_HINT) + 12.0;
+            cy += ui.wrap(x, cy, w, 15.0, W::S, Role::OnSurface, EN.family_these_seeds) + 6.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                13.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                text::DESCRIPTION_HINT,
+            ) + 12.0;
             cy += crate::screens::wrap_buttons(
                 ui,
                 x,
@@ -1085,7 +1253,7 @@ fn question(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let here = app.seeds_here(s).len();
             if s.n > here {
                 let line = fill(EN.family_without_description, &[&s.n.to_string()]);
-                cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &line) + 12.0;
+                cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Warning, &line) + 12.0;
             }
             cy += crate::seeds::screen::shape(app, ui, s, false, x, cy, w);
         }
@@ -1131,16 +1299,35 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             w,
             ch,
             10.0,
-            if on { ACCENT.with_alpha(18) } else { BG },
+            if on {
+                Role::Primary.with_alpha(18)
+            } else {
+                Role::SurfaceContainerHighest.paint()
+            },
         );
-        ui.stroke(x, cy, w, ch, 10.0, if on { ACCENT } else { BORDER });
+        ui.stroke(
+            x,
+            cy,
+            w,
+            ch,
+            10.0,
+            if on {
+                Role::Primary
+            } else {
+                Role::OutlineVariant
+            },
+        );
         ui.icon(
             x + 14.0,
             cy + 14.0,
             36.0,
             Icon::Lock,
             15.0,
-            if on { ACCENT } else { MUTED },
+            if on {
+                Role::Primary
+            } else {
+                Role::OnSurfaceVariant
+            },
         );
         let where_ = if f.in_outbox {
             fill(EN.family_sealed_here, &[app.medium.for_the()])
@@ -1159,22 +1346,44 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         if compact {
             let room = w - 62.0 - 12.0;
             let name = ui.fit(14.0, W::M, &f.name, room);
-            ui.text(x + 62.0, cy + 10.0, 14.0, W::M, TEXT, &name);
+            ui.text(x + 62.0, cy + 10.0, 14.0, W::M, Role::OnSurface, &name);
             let where_ = ui.fit(12.0, W::R, &where_, room);
-            ui.text(x + 62.0, cy + 34.0, 12.0, W::R, MUTED, &where_);
+            ui.text(
+                x + 62.0,
+                cy + 34.0,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                &where_,
+            );
             let time = ui.fit(12.0, W::S, &time, room);
-            ui.text(x + 62.0, cy + 56.0, 12.0, W::S, TEXT, &time);
+            ui.text(x + 62.0, cy + 56.0, 12.0, W::S, Role::OnSurface, &time);
         } else {
-            ui.text(x + 62.0, cy + 12.0, 14.0, W::M, TEXT, &f.name);
-            ui.text(x + 62.0, cy + 36.0, 12.0, W::R, MUTED, &where_);
-            ui.text_right(x + w - 14.0, cy + 8.0, 24.0, 12.0, W::S, TEXT, &time);
+            ui.text(x + 62.0, cy + 12.0, 14.0, W::M, Role::OnSurface, &f.name);
+            ui.text(
+                x + 62.0,
+                cy + 36.0,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                &where_,
+            );
+            ui.text_right(
+                x + w - 14.0,
+                cy + 8.0,
+                24.0,
+                12.0,
+                W::S,
+                Role::OnSurface,
+                &time,
+            );
             ui.text_right(
                 x + w - 14.0,
                 cy + 32.0,
                 24.0,
                 12.0,
                 W::R,
-                MUTED,
+                Role::OnSurfaceVariant,
                 &cost_text(&f.header.cost),
             );
         }
@@ -1182,7 +1391,14 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += ch + 8.0;
     }
     cy += 8.0;
-    ui.text(x, cy, 13.0, W::S, MUTED, EN.family_passphrase);
+    ui.text(
+        x,
+        cy,
+        13.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        EN.family_passphrase,
+    );
     cy += 22.0;
     if app.may_load_keys() {
         let focused = app.vaults.focus == Some(crate::vault::Focus::Passphrase);
@@ -1203,7 +1419,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     cy += 52.0 + crate::screens::never_under(app, ui, x, cy, w);
     if app.vaults.working == Some(crate::vault::Work::Unlock) {
-        ui.text_mid(x, cy, 42.0, 14.0, W::S, ACCENT, EN.family_unlocking);
+        ui.text_mid(x, cy, 42.0, 14.0, W::S, Role::Primary, EN.family_unlocking);
         crate::screens::working_bar(ui, x, cy, w, 42.0);
     } else {
         let style = Style::Primary.when(app.may_load_keys());
@@ -1226,7 +1442,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 cy += 50.0;
             }
             if !free.is_empty() {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, &free) + 8.0;
+                cy += ui.wrap(x, cy, w, 13.0, W::R, Role::OnSurfaceVariant, &free) + 8.0;
             }
             cy -= 54.0;
         } else {
@@ -1239,12 +1455,20 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 style,
                 fa(F::Unlock),
             );
-            ui.text_mid(x + bw + 16.0, cy, 42.0, 13.0, W::R, MUTED, &free);
+            ui.text_mid(
+                x + bw + 16.0,
+                cy,
+                42.0,
+                13.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                &free,
+            );
         }
     }
     cy += 54.0;
     if let Some(e) = &app.vaults.unlock_error {
-        cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, e) + 10.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, e) + 10.0;
     }
     cy - y
 }
@@ -1274,10 +1498,18 @@ fn stick_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f3
     );
     if ui.compact && !note.is_empty() {
         // Under the button, wrapped.
-        return 46.0 + ui.wrap(x, y + 46.0, w, 13.0, W::R, DIM, &note) + 12.0;
+        return 46.0 + ui.wrap(x, y + 46.0, w, 13.0, W::R, Role::OnSurfaceVariant, &note) + 12.0;
     }
     if !note.is_empty() {
-        ui.text_mid(x + bw + 14.0, y, 38.0, 13.0, W::R, DIM, &note);
+        ui.text_mid(
+            x + bw + 14.0,
+            y,
+            38.0,
+            13.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &note,
+        );
     }
     50.0
 }
@@ -1291,13 +1523,20 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if app.session.wallets.is_empty() {
         return 0.0;
     }
-    ui.text(x, cy, 13.0, W::S, MUTED, EN.family_spend_from_label);
+    ui.text(
+        x,
+        cy,
+        13.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        EN.family_spend_from_label,
+    );
     cy += 26.0;
     for (i, wl) in app.session.wallets.iter().enumerate() {
         let on = chosen == Some(i);
         ui.checkbox(x, cy + 11.0, on, true);
         let name = ui.fit(14.0, W::S, &wl.name, w - 30.0);
-        ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, &name);
+        ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, Role::OnSurface, &name);
         // How many of its keys are here: a vault may hold only some.
         let slots = app.session.slots(wl);
         let here = slots.iter().filter(|s| s.held_by.is_some()).count();
@@ -1309,7 +1548,7 @@ fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 &slots.len().to_string(),
             ],
         );
-        let tone = if here > 0 { MUTED } else { DIM };
+        let tone = Role::OnSurfaceVariant;
         // Under the name on a small panel.
         let rh = if ui.compact {
             let line = ui.fit(12.0, W::R, &line, w - 30.0);
@@ -1341,7 +1580,15 @@ fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     };
     if ui.compact {
         // Too long for one button on a small panel: the line, then Scan it.
-        let lh = ui.wrap(x, y, w, 14.0, W::S, TEXT, EN.family_have_psbt_line) + 8.0;
+        let lh = ui.wrap(
+            x,
+            y,
+            w,
+            14.0,
+            W::S,
+            Role::OnSurface,
+            EN.family_have_psbt_line,
+        ) + 8.0;
         return lh
             + crate::screens::wrap_buttons(
                 ui,
@@ -1380,10 +1627,25 @@ fn loaded_in_sparrow(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             Action::QrWallet(i),
         )],
     ) + 6.0;
-    ui.text(x, cy, 13.0, W::S, MUTED, EN.family_receive_address);
+    ui.text(
+        x,
+        cy,
+        13.0,
+        W::S,
+        Role::OnSurfaceVariant,
+        EN.family_receive_address,
+    );
     cy += 22.0;
     let (addr, held) = app.receive_line(wl, false, 0);
-    cy += ui.wrap(x, cy, w, 13.0, W::M, if held { WARN } else { TEXT }, &addr) + 14.0;
+    cy += ui.wrap(
+        x,
+        cy,
+        w,
+        13.0,
+        W::M,
+        if held { Role::Warning } else { Role::OnSurface },
+        &addr,
+    ) + 14.0;
     let drawn = next_button(
         ui,
         x,
@@ -1408,17 +1670,38 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if let Some(g) = guess {
         // The ways tried, struck.
         for t in &g.tried {
-            let lh = ui.wrap(x, cy, w, 13.0, W::R, DIM, t);
+            let lh = ui.wrap(x, cy, w, 13.0, W::R, Role::OnSurfaceVariant, t);
             let tw = ui.measure(13.0, W::R, t).min(w);
-            ui.rule(x, cy + ui.line(13.0, W::R) / 2.0, tw, DIM);
+            ui.rule(
+                x,
+                cy + ui.line(13.0, W::R) / 2.0,
+                tw,
+                Role::OnSurfaceVariant,
+            );
             cy += lh + 6.0;
         }
         if !g.tried.is_empty() {
             cy += 8.0;
         }
         if g.none {
-            cy += ui.wrap(x, cy, w, 15.0, W::S, TEXT, EN.family_none_of_these) + 6.0;
-            cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, EN.family_the_words_may) + 12.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                15.0,
+                W::S,
+                Role::OnSurface,
+                EN.family_none_of_these,
+            ) + 6.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                13.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                EN.family_the_words_may,
+            ) + 12.0;
             cy += crate::screens::wrap_buttons(
                 ui,
                 x,
@@ -1437,7 +1720,15 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             return cy - y;
         }
         if g.asking {
-            cy += ui.wrap(x, cy, w, 15.0, W::S, TEXT, EN.family_is_there_a_word) + 12.0;
+            cy += ui.wrap(
+                x,
+                cy,
+                w,
+                15.0,
+                W::S,
+                Role::OnSurface,
+                EN.family_is_there_a_word,
+            ) + 12.0;
             cy += crate::screens::wrap_buttons(
                 ui,
                 x,
@@ -1474,7 +1765,7 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 &total.to_string(),
             ],
         );
-        cy += ui.wrap(x, cy, w, 13.0, W::S, TEXT, &line) + GAP;
+        cy += ui.wrap(x, cy, w, 13.0, W::S, Role::OnSurface, &line) + GAP;
         // The ways looked at so far, the one shown among them.
         let done = (g.at + 1) as f32 / total.max(1) as f32;
         ui.progress((x, cy, w), Some(done), None);
@@ -1499,16 +1790,24 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         } else {
             EN.family_open_this_one
         };
-        cy += ui.wrap(x, cy, w, 13.0, W::R, MUTED, open) + 14.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::R, Role::OnSurfaceVariant, open) + 14.0;
     }
     let n = 3 + app.family.state.addresses;
     for (head, change) in [(EN.family_receive, false), (EN.family_change, true)] {
-        ui.text(x, cy, 13.0, W::S, MUTED, head);
+        ui.text(x, cy, 13.0, W::S, Role::OnSurfaceVariant, head);
         cy += 24.0;
         for k in 0..n {
-            ui.text_mid(x, cy, 28.0, 12.0, W::R, DIM, &k.to_string());
+            ui.text_mid(
+                x,
+                cy,
+                28.0,
+                12.0,
+                W::R,
+                Role::OnSurfaceVariant,
+                &k.to_string(),
+            );
             let (a, held) = app.receive_line(wl, change, k);
-            let col = if held { WARN } else { TEXT };
+            let col = if held { Role::Warning } else { Role::OnSurface };
             if ui.compact {
                 // Whole, to compare character for character.
                 cy += ui.wrap(x + 24.0, cy + 6.0, w - 24.0, 12.0, W::M, col, &a) + 14.0;
@@ -1553,9 +1852,17 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // coin, to its first address.
     if card && let Some((name, address)) = app.family_wallet().and_then(|i| app.moving_to(i)) {
         let head = fill(EN.family_every_coin_to_wallet, &[&name.to_string()]);
-        cy += ui.wrap(x, cy, w, 13.0, W::S, WARN, &head) + 4.0;
-        cy += ui.wrap(x, cy, w, 13.0, W::M, TEXT, &address) + 4.0;
-        cy += ui.wrap(x, cy, w, 12.0, W::R, MUTED, EN.family_amount_max_hint) + 12.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Warning, &head) + 4.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::M, Role::OnSurface, &address) + 4.0;
+        cy += ui.wrap(
+            x,
+            cy,
+            w,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            EN.family_amount_max_hint,
+        ) + 12.0;
     }
     ui.button(
         x,
@@ -1609,7 +1916,14 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         .map(|(k, i)| (k, i.name.as_str()))
         .collect();
     if !psbts.is_empty() {
-        ui.text(x, cy, 13.0, W::S, MUTED, EN.family_in_files);
+        ui.text(
+            x,
+            cy,
+            13.0,
+            W::S,
+            Role::OnSurfaceVariant,
+            EN.family_in_files,
+        );
         cy += 24.0;
     }
     for (k, name) in &psbts {
@@ -1617,13 +1931,21 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         // On a small panel the name has its own line.
         if ui.compact {
             let n = ui.fit(14.0, W::M, name, w);
-            ui.text(x, cy, 14.0, W::M, TEXT, &n);
+            ui.text(x, cy, 14.0, W::M, Role::OnSurface, &n);
             cy += 22.0;
         } else {
-            ui.text_mid(x, cy, 38.0, 14.0, W::M, TEXT, name);
+            ui.text_mid(x, cy, 38.0, 14.0, W::M, Role::OnSurface, name);
         }
         if current {
-            ui.text_right(x + w, cy, 38.0, 13.0, W::S, OK, EN.family_signing_this_one);
+            ui.text_right(
+                x + w,
+                cy,
+                38.0,
+                13.0,
+                W::S,
+                Role::Ok,
+                EN.family_signing_this_one,
+            );
         } else {
             let label = EN.family_use_this_one;
             let bw = ui.measure(13.0, W::S, label) + 32.0;
@@ -1647,10 +1969,18 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     EN.family_spends_from_wallet,
                     &[&wl.name.to_string(), &Session::shape(wl).to_string()],
                 );
-                cy += ui.wrap(x, cy, w, 13.0, W::S, OK, &line) + 12.0;
+                cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Ok, &line) + 12.0;
             }
             None => {
-                cy += ui.wrap(x, cy, w, 13.0, W::R, WARN, EN.family_no_wallet_open) + 12.0;
+                cy += ui.wrap(
+                    x,
+                    cy,
+                    w,
+                    13.0,
+                    W::R,
+                    Role::Warning,
+                    EN.family_no_wallet_open,
+                ) + 12.0;
             }
         }
         if next_button(
@@ -1697,9 +2027,17 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             let passphrase_key = app.session.slots(wl).iter().any(|s| s.held_by.is_none())
                 && !app.vault_passphrase_seeds().is_empty();
             for (k, slot) in app.session.slots(wl).iter().enumerate() {
-                ui.text_mid(x, cy, 42.0, 12.0, W::R, DIM, &(k + 1).to_string());
+                ui.text_mid(
+                    x,
+                    cy,
+                    42.0,
+                    12.0,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    &(k + 1).to_string(),
+                );
                 let fp = slot.fingerprint.map(fp_text).unwrap_or_default();
-                ui.text_mid(x + 22.0, cy, 42.0, 14.0, W::M, TEXT, &fp);
+                ui.text_mid(x + 22.0, cy, 42.0, 14.0, W::M, Role::OnSurface, &fp);
                 // A label that is its fingerprint is not drawn twice.
                 let label = slot
                     .held_by
@@ -1709,7 +2047,15 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 if compact {
                     if let Some(label) = label {
                         let label = ui.fit(13.0, W::R, label, w - 124.0);
-                        ui.text_mid(x + 124.0, cy, 42.0, 13.0, W::R, MUTED, &label);
+                        ui.text_mid(
+                            x + 124.0,
+                            cy,
+                            42.0,
+                            13.0,
+                            W::R,
+                            Role::OnSurfaceVariant,
+                            &label,
+                        );
                     }
                     cy += 36.0;
                 }
@@ -1726,14 +2072,20 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     let bw = ui.measure(13.0, W::S, label) + 32.0;
                     let cw2 = ui.measure(12.0, W::R, t) + 34.0;
                     if compact {
-                        ui.chip(x + 22.0, cy + 8.0, t, WARN, WARN.with_alpha(30));
+                        ui.chip(
+                            x + 22.0,
+                            cy + 8.0,
+                            t,
+                            Role::OnWarningContainer,
+                            Role::WarningContainer,
+                        );
                     } else {
                         ui.chip(
                             x + w - bw - 8.0 - cw2,
                             cy + 8.0,
                             t,
-                            WARN,
-                            WARN.with_alpha(30),
+                            Role::OnWarningContainer,
+                            Role::WarningContainer,
                         );
                     }
                     ui.button(
@@ -1785,25 +2137,37 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     );
                 } else {
                     let (t, fg, bg) = if slot.held_by.is_some() {
-                        (EN.family_signs_here, OK, OK.with_alpha(30))
+                        (EN.family_signs_here, Role::OnOkContainer, Role::OkContainer)
                     } else {
-                        (EN.family_not_here, MUTED, INNER)
+                        (
+                            EN.family_not_here,
+                            Role::OnSurfaceVariant,
+                            Role::SurfaceContainerHighest,
+                        )
                     };
                     let cw2 = ui.measure(12.0, W::R, t) + 34.0;
                     let chip_x = if compact { x + 22.0 } else { x + w - cw2 };
                     if !compact && let Some(label) = label {
                         let label = ui.fit(13.0, W::R, label, w - 124.0 - cw2 - 8.0);
-                        ui.text_mid(x + 124.0, cy, 42.0, 13.0, W::R, MUTED, &label);
+                        ui.text_mid(
+                            x + 124.0,
+                            cy,
+                            42.0,
+                            13.0,
+                            W::R,
+                            Role::OnSurfaceVariant,
+                            &label,
+                        );
                     }
                     ui.chip(chip_x, cy + 8.0, t, fg, bg);
                 }
-                ui.rule(x, cy + 42.0, w, BORDER);
+                ui.rule(x, cy + 42.0, w, Role::OutlineVariant);
                 cy += 44.0;
             }
         }
         None => {
             for fp in &s.inspection.participating_keys {
-                ui.text_mid(x, cy, 30.0, 14.0, W::M, TEXT, &fp_text(*fp));
+                ui.text_mid(x, cy, 30.0, 14.0, W::M, Role::OnSurface, &fp_text(*fp));
                 cy += 30.0;
             }
         }
@@ -1856,7 +2220,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += crate::screens::wrap_buttons(ui, x, cy, w, 38.0, &items) + 2.0;
         if !may {
             let pull = fill(EN.family_remove_the_first, &[app.medium.noun()]);
-            ui.text(x, cy, 13.0, W::S, WARN, &pull);
+            ui.text(x, cy, 13.0, W::S, Role::Warning, &pull);
             cy += 28.0;
         }
         cy += 6.0;
@@ -1877,9 +2241,9 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 fn away(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     for it in &app.outbox {
-        ui.icon(x, cy + 6.0, 20.0, Icon::File, 11.0, MUTED);
+        ui.icon(x, cy + 6.0, 20.0, Icon::File, 11.0, Role::OnSurfaceVariant);
         let name = ui.fit(13.0, W::M, &it.name, w - 28.0);
-        ui.text_mid(x + 28.0, cy, 32.0, 13.0, W::M, TEXT, &name);
+        ui.text_mid(x + 28.0, cy, 32.0, 13.0, W::M, Role::OnSurface, &name);
         cy += 34.0;
     }
     if !app.outbox.is_empty() {
