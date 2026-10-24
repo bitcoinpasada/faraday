@@ -73,20 +73,30 @@ the theme (§3), the content kinds (§4) and the screens (§5).
 
 ## 3. Sizes
 
-Faraday lays every screen out one of two ways (`Faraday::is_compact`). `docs/LAYOUT.md` (F92, planned) replaces these two with Material 3's five window size classes, a navigation bar, rail or expanded rail by class, and list-and-detail panes.
+Faraday lays every screen out as one-column pages or as the wide
+layout (`Faraday::is_compact`), and gives the window one of four
+navigations by its size class (`Faraday::nav`, `docs/LAYOUT.md` §3).
+`docs/LAYOUT.md` (F92) goes on to Home's grid and list-and-detail panes.
 
-| Layout | When | What changes |
+| Navigation | When | What changes |
 |---|---|---|
-| Small panel | A window under 1200 dp wide, a compact, medium or expanded one (the Pi's 2.8" panel is 268 dp); inside the Starter, its compact class (`docs/STARTER.md` §3.1d: under 600 dp, or narrower for a larger text size); its medium and expanded classes are the wide layout with the navigation rail in place of the sidebar (F91). | No sidebar: Home is a menu with a button for each of the sidebar's entries, and every other page has the bar across its top (§4.1). A step flow is a page per step. A sheet is the panel's width less a margin. The keyboard rises by itself under a field that takes typing. |
-| Wide | Every other window. | The sidebar, 240 units, beside the page; the two together at most 1600 units wide, centred on a wider display. A sheet is centred over the page. The keyboard comes up only from its button. |
+| Menu | A compact window that is short (the Pi's 2.8" panel is 268 × 358 dp). | One column: Home is a menu with a button for each of the sidebar's entries, and every other page has the bar across its top (§4.1). |
+| Navigation bar | A compact window that is not short or low (under 600 dp wide, 600 dp tall or more). | One column under the top app bar, the navigation bar at the foot (§4.1); Home leads with the status strip. |
+| Navigation rail | A medium or expanded window, and any low window but the menu's (the 7-inch panel). | One column at most `COLUMN_MAX` (720) wide, centred beside the rail, under the top app bar (§4.1); Home leads with the status strip. |
+| Expanded rail | A large or extra-large window that is not low. | The wide layout: the expanded rail, 240 units, beside the page; the two together at most 1600 units wide, centred on a wider display. A sheet is centred over the page. The keyboard comes up only from its button. |
+
+On the one-column layouts a step flow is a page per step, a sheet is
+the window's width less a margin, and the keyboard rises by itself under
+a field that takes typing. Inside the Starter, the held screens keep its
+one-column rule (under 1280 dp, `docs/STARTER.md` §3.1d), the menu, and
+the Starter's own rail beside its wide pages (F91).
 
 Every window is laid out at its screen's own density, never scaled to
 fit: the desktop app at the compositor's scale, the stick at the
 density its kernel command line gives, the Pi panel at its 286 dpi, each
 times the person's Display scale (F101). The window's size class
-(`Faraday::window()`, `docs/LAYOUT.md` §2) picks the layout: one column
-under large (1200 dp), the wide layout from there, until LAYOUT's
-navigation is built.
+(`Faraday::window()`, `docs/LAYOUT.md` §2) and its height pick the
+navigation in the table above.
 
 Sizes are design units (dp). The tokens are names in
 `core/faraday-draw/src/tokens.rs`: the type ramp (title 20, body 16,
@@ -118,9 +128,10 @@ fingerprints, hex, paths, addresses, extended keys, txids, a descriptor
 row's value, and the words as typed and offered on word entry; prose,
 labels, buttons and titles that are words stay in the text faces.
 
-The small panel carries the same flows and the same steps as the wide
-layout. It lays them out a page a step and moves the sidebar's entries
-to Home.
+The one-column layouts carry the same flows and the same steps as the
+wide layout. They lay them out a page a step, and move the sidebar's
+lists to Home: the menu's rows on the small panel, the status strip's
+chips beside the rail and above the bar.
 
 ## 4. Content inventory
 
@@ -147,14 +158,18 @@ floating action button under the pointer and a dragged chip
 
 | Kind | Rendering | Behaviour |
 |---|---|---|
-| Sidebar (wide) | 240 units at the left (`sidebar`): the wordmark; the tabs Home, Vaults, Files, Wallets, Tools, Learn, then the stick visit while a stick is attached and nothing is held, Transfer in the desktop app, and Settings, each with its icon, the current one lit; under its tab a row for each flow in progress with its open step at the right; the loaded keys under Keys and the wallets under Wallets, "+ N more" where they do not fit; the session strip, **Bring in · Open · Work · Write out**, the current stage in the accent; Files and the sticks attached; Lock and the power button. | A tab opens its screen; Learn opens the Learn sheet; a flow's row resumes it; a key opens Explore on it; a wallet opens its card; the session strip opens Files (`docs/FLOWS.md`, Sidebar). |
+| Expanded rail (wide, the sidebar) | 240 units (`RAIL_EXPANDED_W`) at the left (`sidebar`): the wordmark; the tabs Home, Vaults, Files, Wallets, Tools, Learn, then the stick visit while a stick is attached and nothing is held, Transfer in the desktop app, and Settings, each one of Material's destinations (`faraday_ui::nav::destination_row`: icon and label in a row 48 units tall, the current one on an accent pill); under its tab a row for each flow in progress with its open step at the right; the loaded keys under Keys and the wallets under Wallets, "+ N more" where they do not fit; the session strip, **Bring in · Open · Work · Write out**, the current stage in the accent; Files and the sticks attached; Lock and the power button. | A tab opens its screen; Learn opens the Learn sheet; a flow's row resumes it; a key opens Explore on it; a wallet opens its card; the session strip opens Files (`docs/FLOWS.md`, Sidebar). |
 | Back link (wide) | A chevron and the name of where it lands, small and muted, above the page's title (`flow::Column`'s `back`, and each screen's own head). | It lands on the screen seen before this one, as it was seen, and is named after it (F77). In a flow with steps it opens the step before the open one, its choices as they were, and is named after that step; only the first step's lands on the screen before, and a running step takes none (F104, `StepFlow` in `faraday/faraday-core/src/trail.rs`). The mouse's back button does the same (`Ui::back`), and its forward button opens again the step or screen it left. |
-| Bar (small panel) | `compact::BAR_H` (44) across the top of every page but Home and a step flow (`compact::bar`): the chevron, where it goes back to small above the page's name, and at the right end the tools (`compact::tools`): **Cancel** on a flow in progress, the keyboard button where the page types, the mode pill off mainnet, and the ? where the page has a Learn page. A step flow draws its own top and the same tools (`compact::flow_bar_tools`). | The chevron goes back as the back link does. |
+| Bar (the menu's windows) | `compact::BAR_H` (44) across the top of every page but Home and a step flow on the small panel; a step flow keeps it on every one-column layout (`compact::bar`): the chevron, where it goes back to small above the page's name, and at the right end the tools (`compact::tools`): **Cancel** on a flow in progress, the keyboard button where the page types, the mode pill off mainnet, and the ? where the page has a Learn page. A step flow draws its own top and the same tools (`compact::flow_bar_tools`). | The chevron goes back as the back link does. |
 | Top-right row (wide) | Beside the title: the mode pill off mainnet (§4.8), the ? where the page has a Learn page, and the keyboard button where typing goes somewhere (`compact::wide_keyboard_button`). | The ? opens the Learn sheet at the page's section; the keyboard button brings the docked keyboard up and puts it away. |
 | Title | The page's name, 28 units SemiBold (`faraday_ui::parts::title`); a step flow's heading is 26, with a chip beside it where the flow names what it works on, and **Steps only · Guided** and **Cancel** at the row's right (`flow::column`). | The step count sits beside a step's name as muted text (§4.14), never in the title. |
-| Home | On the wide layout: the lead tile while something is under way or waiting, then half-width tiles two to a row (`docs/FLOWS.md`, Home). On the small panel: the menu, a button for each of the sidebar's entries. **Scan** floats at the bottom-right on both (`Ui::fab`). | A tile or a button opens its screen; Scan opens the scanner. |
+| Home | On the wide layout: the lead tile while something is under way or waiting, then half-width tiles two to a row (`docs/FLOWS.md`, Home). On the one-column layouts: the menu, a button for each of the sidebar's entries, led on the small panel by its mark and name and on the rail's and the bar's windows by the status strip; Lock and Power off at its foot on the small panel only. **Scan** floats at the bottom-right on both (`Ui::fab`). | A tile or a button opens its screen; Scan opens the scanner. |
 | ⋮ menu | Three dots at the right end of a file row or a board chip, opening a popup under them on the wide layout and a sheet on the small panel (`faraday/faraday-core/src/menu.rs`; the board's, §4.17). | Arrows move, Enter chooses, Escape closes; a press outside closes it. |
 | Pager | **Previous · Next** at the foot of Backups on the small panel, one wallet a page. | For runs of same-kind pages only. |
+| Navigation rail | `RAIL_W` (80) at the window's left in `SIDEBAR` (`faraday_ui::nav::rail`, `nav/screen.rs`): Home, Wallets, Files, Vaults and Tools from the top, then the stick visit and Transfer while they apply; Learn and Settings under a divider; Lock while something is held and Power off at its foot. Each is its icon on a `NAV_PILL_W` × `NAV_PILL_H` pill (accent while current) over its caption label, `NAV_ITEM_H` (56) tall, never under 48 on a low window. Not drawn for a step that must not be left (a stick being written, a backup flow's key being made; F51). | A press opens the destination; Learn opens the Learn sheet; Lock and Power off as on Home. |
+| Navigation bar | `NAV_BAR_H` (80) across the window's foot (`faraday_ui::nav::bar`): Home, Wallets, Files, Vaults and Tools, evenly spaced and drawn as the rail draws them; the stick visit or Transfer in place of Tools while it applies (Tools stays on Home). Not drawn while the keyboard is up, nor for a step that must not be left. | As the rail. |
+| Top app bar | `APP_BAR_H` (64) across the page beside the rail or above the bar (`faraday_ui::nav::app_bar`): on Home the mark and the wordmark; elsewhere the back chevron with where it goes small over the page's name; at the right end the keyboard button where the page types, the mode pill off mainnet, the ? where the page has a Learn page, and on the bar's windows Lock while something is held and the ⋮ menu (Settings, Power off; a sheet). Under it, a chip for each flow in progress (`faraday_ui::nav::status_chip`). A step flow keeps its own head. | The chevron goes back as the back link does (F77); a flow's chip resumes it. |
+| Status strip | At the top of Home beside the rail and above the bar: the sidebar's lists as chips, 32 units tall in a 48-unit touch row: each flow in progress with its open step, the keys (four, then "+ N more"), the wallets (the same), Files with its count, and the sticks attached. | Each opens what its sidebar row opens; a stick opens the stick visit, or the waiting import. |
 | Navigation rail (Starter, medium and expanded) | 80 units at the window's left in `SIDEBAR`: the destinations Home, Make, Tools and Learn from the top, each its icon over its caption label, the current one on an accent pill behind the icon (`docs/STARTER.md` §3.1d, F91). Not drawn on a page inside a task. | A press opens the destination as it was last seen; a press on the current one goes to its top. |
 | Navigation bar (Starter, compact) | 80 units across the window's foot: the same four destinations, evenly spaced, drawn as the rail draws them. Not drawn on a page inside a task. | As the rail. |
 | Top app bar (Starter) | 64 units across the page: the wordmark on Home, a destination's name on the others, a back arrow and the page's name on a page inside a task; at the right end Install or Update while it applies (secondary) and the ⋮ menu (About, Uninstall while installed, Remove the boot entry while offered). It stays while the page scrolls under it. | The back arrow lands on the destination it was opened from, as it was seen (F77). |

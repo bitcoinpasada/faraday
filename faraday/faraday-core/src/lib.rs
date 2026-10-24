@@ -30,8 +30,9 @@
 //!   the selection), `motion` (scrolling), `out` (what the core
 //!   hands the shell: commands, storage commands, the toast), `pointer` (the
 //!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `fade` (a
-//!   change fading in), `menu` (the ⋮ menus),
-//!   `file_menu`, `in_progress`, `compact` (the small panel), `medium`
+//!   change fading in), `menu` (the ⋮ menus), `nav` (the navigation by
+//!   window class, with `nav/screen.rs`), `file_menu`, `in_progress`,
+//!   `compact` (the small panel), `medium`
 //!   (what the removable medium is called), `memory` (what is kept across
 //!   a lock), `copy_check` (a copy by hand checked), `set_time`, `stick`
 //!   (`pills.rs`, `settings.rs`, `wipe.rs`), `visit_taken`, `trail` (where
@@ -132,6 +133,7 @@ pub mod medium;
 pub mod memory;
 mod menu;
 mod motion;
+pub mod nav;
 mod out;
 mod pointer;
 pub mod set_time;
@@ -660,6 +662,8 @@ pub enum Sheet {
     Mode,
     /// **Load samples**, from the Demo pill's neighbour (`samples/screen.rs`).
     Samples,
+    /// The top app bar's ⋮ menu on a compact window (`nav`).
+    NavMenu,
 }
 
 /// Costs a QR encoding (through `encode_bounded` and `bbqr_frames`).
@@ -3006,6 +3010,7 @@ impl Faraday {
             Action::Family(f) => self.family_act(f),
             Action::Vanity(v) => self.vanity_act(v),
             Action::Learn => self.learn_open(),
+            Action::NavMenu(to) => self.nav_menu(to),
             Action::LearnShares => self.learn_shares(),
             Action::LearnTopic(t) => self.learn_topic(t),
             Action::LearnSpend => {
@@ -7678,14 +7683,9 @@ impl Faraday {
         // (`docs/LAYOUT.md` §7, F101); the person's Display scale
         // multiplies it.
         let f = self.pixels_per_unit_of(&d);
-        // Until the navigation of LAYOUT §3 is built, the window's class
-        // picks between the two layouts: one column under large, the wide
-        // layout from it up (the wide pages overflow an expanded window's
-        // page). Held inside the Starter, the screens take the one-column
-        // layout in any window narrower than the wide layout's 1280 dp.
-        let window = self.window();
-        self.compact = window.class() < faraday_draw::geom::WindowClass::Large
-            || (self.held && window.width < faraday_draw::tokens::WINDOW_HELD_WIDE);
+        // One-column pages but beside the expanded rail (LAYOUT §3); held
+        // inside the Starter, under the wide layout's 1280 dp.
+        self.compact = self.one_column();
         let scaled = DisplayInfo {
             dpi: (160.0 * f).round().max(1.0) as u16,
             ..d

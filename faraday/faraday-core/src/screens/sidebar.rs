@@ -8,6 +8,7 @@ use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Style, Ui, W};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Screen, Sheet};
+use faraday_draw::tokens::TOUCH;
 use faraday_draw::widgets::Icon;
 
 /// How many rows of seeds and of wallets the sidebar shows, in `rows`:
@@ -102,66 +103,35 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         EN.sidebar_settings,
         Screen::Settings,
     ));
-    let mut y = 76.0;
+    // The tabs are a touch target tall each, from just under the name.
+    let mut y = 64.0;
     let flows = app.flows_in_progress();
     let on = app.flow_on_screen();
     let v = app.vaults.open.len();
+    // Each tab is one of Material's destinations: icon and label in a
+    // row, the current one on a pill (`docs/LAYOUT.md` §3).
     let row = |ui: &mut Ui, y: f32, icon: Glyph, label: &str, active: bool, action: Action| {
-        if active || ui.is_pressed(action) {
-            ui.fill(12.0, y, SIDEBAR_W - 24.0, 40.0, 8.0, ACCENT.with_alpha(30));
-        }
-        let fg = if active { TEXT } else { MUTED };
-        ui.icon(24.0, y + 11.0, 18.0, icon, 15.0, fg);
-        ui.text_mid(54.0, y, 40.0, 14.0, W::S, fg, label);
         // Vaults carries how many are open, at the row's right end.
-        if icon == Glyph::Icon(Icon::Lock) && v > 0 {
-            ui.text_right(
-                SIDEBAR_W - 24.0,
-                y,
-                40.0,
-                12.0,
-                W::R,
-                MUTED,
-                &fill(EN.sidebar_open_n, &[&v.to_string()]),
-            );
-        }
-        ui.hit(12.0, y, SIDEBAR_W - 24.0, 40.0, action);
+        let open = (icon == Glyph::Icon(Icon::Lock) && v > 0)
+            .then(|| fill(EN.sidebar_open_n, &[&v.to_string()]));
+        let (x, w) = (12.0, SIDEBAR_W - 24.0);
+        let d = faraday_ui::nav::Dest {
+            icon,
+            label,
+            action,
+            current: active,
+        };
+        faraday_ui::nav::destination_row(ui, (x, y, w), &d, open.as_deref());
     };
     for (icon, label, screen) in items.into_iter().chain(tail) {
         // Spend, which has no row of its own, lights Wallets, where it is
         // opened from: Wallets in the sidebar leads back to it.
-        let active = app.screen == screen
-            || (screen == Screen::WalletsStart
-                && matches!(
-                    app.screen,
-                    Screen::Wallets
-                        | Screen::Family
-                        | Screen::Vanity
-                        | Screen::Spend
-                        | Screen::Entry
-                        | Screen::KeyGen
-                        | Screen::Bip85
-                        | Screen::Silent
-                        | Screen::Explore
-                        | Screen::Lightning
-                        | Screen::Tools
-                        | Screen::Backup
-                        | Screen::Backups
-                        | Screen::Message
-                        | Screen::CheckMessage
-                        | Screen::Create
-                        | Screen::Restore
-                ))
-            || (screen == Screen::Vaults
-                && matches!(
-                    app.screen,
-                    Screen::CreateVault | Screen::Unlock | Screen::VaultContents
-                ));
+        let active = crate::nav::destination_of(app.screen) == screen;
         // A flow in progress on screen lights its own row, not its tab.
         let mine = || flows.iter().filter(move |r| r.tab == screen);
         let row_lit = mine().any(|r| Some(r.going) == on);
         row(ui, y, icon, label, active && !row_lit, Action::Nav(screen));
-        y += 44.0;
+        y += TOUCH;
         for r in mine() {
             flow_row(ui, y, r, Some(r.going) == on);
             y += FLOW_ROW + 2.0;
@@ -179,7 +149,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
                 app.sheet == Some(Sheet::Learn),
                 Action::Learn,
             );
-            y += 44.0;
+            y += TOUCH;
         }
     }
 

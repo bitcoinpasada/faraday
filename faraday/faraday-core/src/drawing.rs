@@ -30,7 +30,7 @@ use std::ops::Deref;
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 
-use crate::{Faraday, flow, plan, work};
+use crate::{Faraday, Screen, flow, plan, work};
 
 mod allowed;
 pub(crate) use allowed::Allowed;
@@ -301,17 +301,52 @@ pub(crate) struct After {
 }
 
 impl Faraday {
-    /// Whether the display is a small panel, drawn one column at a time.
+    /// Whether the pages are drawn one column at a time: every window
+    /// but one beside the expanded rail (`docs/LAYOUT.md` §3).
     pub fn is_compact(&self) -> bool {
         self.compact
+    }
+
+    /// Whether the window as it is now takes one-column pages: every
+    /// navigation but the expanded rail; held inside the Starter, a
+    /// window under the wide layout's 1280 dp. A lookup.
+    pub(crate) fn one_column(&self) -> bool {
+        let window = self.window();
+        if self.held {
+            return window.width < faraday_draw::tokens::WINDOW_HELD_WIDE;
+        }
+        crate::nav::Nav::of(&window, false, false) != crate::nav::Nav::ExpandedRail
+    }
+
+    /// The navigation the window gets (`docs/LAYOUT.md` §3): the menu,
+    /// the bar, the rail or the expanded rail, by its class and height.
+    /// A lookup.
+    pub fn nav(&self) -> crate::nav::Nav {
+        crate::nav::Nav::of(&self.window(), self.held, self.compact)
+    }
+
+    /// The step on screen must not be left, so the rail and the bar are
+    /// not drawn for it (`docs/LAYOUT.md` §3, as F51's Cancel rule): a
+    /// stick being written by the upgrade or a backup flow, or a backup
+    /// flow's key being made. A lookup.
+    pub fn nav_hidden(&self) -> bool {
+        let upgrade =
+            self.screen == Screen::Upgrade && self.upgrade().is_some_and(|u| u.writing.is_some());
+        let flow = self.screen == Screen::BackupFlow
+            && self
+                .flows
+                .on()
+                .and_then(|i| self.flows.get(i))
+                .is_some_and(|f| f.live.writing.is_some() || f.live.making);
+        upgrade || flow
     }
 
     /// The window as `docs/LAYOUT.md` §2 classes it: its size in dp at
     /// the screen's own density times the person's Display scale, its
     /// class by width, and whether it is short or low. Read from the last
     /// display the shell gave; before any, a 1280 × 800 window at 160
-    /// dpi. Its class decides `is_compact` until the navigation of LAYOUT
-    /// §3 is built. A lookup.
+    /// dpi. With the held rule, it decides `is_compact` and `nav`. A
+    /// lookup.
     pub fn window(&self) -> faraday_draw::geom::Window {
         self.last_display.map_or(
             faraday_draw::geom::Window {

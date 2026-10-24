@@ -677,6 +677,61 @@ pub const WINDOW_DEFAULT_H: f32 = 800.0;
 /// §3.1d).
 pub const WINDOW_HELD_WIDE: f32 = 1280.0;
 
+// Navigation by window class (`docs/LAYOUT.md` §3, §9), Material 3's
+// rail, bar and top app bar in Faraday's look.
+
+/// The navigation rail's width, at the window's left (medium, expanded
+/// and low windows).
+pub const RAIL_W: f32 = 80.0;
+
+/// The expanded rail's width (large and extra-large): the sidebar's.
+pub const RAIL_EXPANDED_W: f32 = 240.0;
+
+/// The navigation bar's height, across a compact window's foot.
+pub const NAV_BAR_H: f32 = 80.0;
+
+/// The top app bar's height, across the page.
+pub const APP_BAR_H: f32 = 64.0;
+
+/// The pill behind the current destination's icon on the rail and the
+/// bar: its width.
+pub const NAV_PILL_W: f32 = 56.0;
+
+/// The pill's height (`NAV_PILL_W`).
+pub const NAV_PILL_H: f32 = 32.0;
+
+/// A rail destination's height where the rail has room: its pill, its
+/// label under it and the space round them.
+pub const NAV_ITEM_H: f32 = 56.0;
+
+/// A destination's icon, drawn in its pill.
+pub const NAV_ICON: f32 = 16.0;
+
+/// The space between a destination's pill and its label.
+pub const NAV_LABEL_GAP: f32 = 4.0;
+
+/// The space above the rail's first destination and under its last.
+pub const NAV_RAIL_TOP: f32 = 12.0;
+
+/// The page's side margin on a compact window.
+pub const MARGIN_COMPACT: f32 = 16.0;
+
+/// The page's side margin on every wider window.
+pub const MARGIN_WIDE: f32 = 24.0;
+
+/// The widest a one-column page grows beside the navigation.
+pub const COLUMN_MAX: f32 = 720.0;
+
+/// A status chip's height (Home's status strip, a flow's chip).
+pub const STATUS_CHIP_H: f32 = 32.0;
+
+/// A status chip's inner padding at each end.
+pub const STATUS_CHIP_PAD: f32 = 12.0;
+
+/// The space between an icon and the text after it, on a chip and an
+/// expanded rail's destination.
+pub const NAV_ICON_GAP: f32 = 12.0;
+
 // ----- Codex32 error correction (docs/CODEX32.md §8.4) -----
 
 /// Add a key's other forms: a line of the list of shares or strings in,

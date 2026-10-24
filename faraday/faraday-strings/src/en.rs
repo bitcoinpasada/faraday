@@ -3973,6 +3973,13 @@ strings! {
     // ----- notices (faraday-core/src/screens/mod.rs) -----
     /// Text in `notices`. `{}`: `app.medium.noun()`.
     notices_remove_medium: "Remove the {} to keep working",
+    // ----- nav (faraday-core/src/nav/screen.rs) -----
+    /// The rail's foot and the ⋮ menu's row: power off.
+    nav_power_off: "Power off",
+    /// Title of the top app bar's ⋮ menu on a compact window.
+    nav_more: "More",
+    /// The ⋮ menu's way out.
+    nav_close: "Close",
     // ----- sidebar (faraday-core/src/screens/sidebar.rs) -----
     /// Text in `sidebar`.
     sidebar_home: "Home",

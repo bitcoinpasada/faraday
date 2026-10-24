@@ -27,6 +27,7 @@ mod wallets;
 mod wallets_start;
 
 use crate::drawing::View;
+use crate::nav::Nav;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -38,6 +39,7 @@ pub(crate) use entry::{
     codex32_check_button, codex32_found, codex32_head, codex32_mark, codex32_tick, entry_form,
     entry_scan, entry_stick, entry_typed, entry_words, keyed_status, word_count_row,
 };
+use faraday_draw::tokens::{COLUMN_MAX, NAV_BAR_H, RAIL_W};
 use faraday_draw::widgets::Icon;
 pub use faraday_ui::parts::qr_code;
 pub(crate) use faraday_ui::parts::{button_rows, section_label, sheet_box, title, wrap_buttons};
@@ -98,10 +100,21 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     if !frosted && app.is_compact() {
         ui.clear(SURFACE);
         // The stick pills take a strip across the top; the page is
-        // drawn below it.
+        // drawn below it, beside the rail or above the bar
+        // (`docs/LAYOUT.md` §3), both drawn after it, over it.
         let strip = crate::stick::pills::strip_h(app, ui, full_w);
+        let (rail_w, bar_h) = nav_room(app, kb > 0.0);
+        let page_h = full_h - strip - bar_h;
         ui.oy = strip;
-        draw_compact(app, ui, full_w, full_h - strip, kb > 0.0, strip);
+        draw_compact(app, ui, (rail_w, full_w - rail_w), page_h, kb > 0.0, strip);
+        ui.oy = strip;
+        if rail_w > 0.0 {
+            crate::nav::screen::rail(app, ui, win_h - strip);
+        }
+        if bar_h > 0.0 {
+            crate::nav::screen::bar(app, ui, page_h, full_w);
+        }
+        ui.oy = 0.0;
     } else if !frosted && app.held {
         ui.clear(SURFACE);
         let page_h = if kb > 0.0 { win_h } else { full_h };
@@ -215,6 +228,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::GpgSign => crate::vault::screen::gpg_sign_sheet(app, ui, w, h),
             Sheet::Mode => crate::modes::screen::sheet(app, ui, w, h),
             Sheet::Samples => crate::samples::screen::sheet(app, ui, w, h),
+            Sheet::NavMenu => crate::nav::screen::menu_sheet(ui, w, h),
         }
         ui.oy = 0.0;
     }
@@ -232,7 +246,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     }
     if kb > 0.0 {
         if app.is_compact() {
-            crate::compact::keyboard(app, ui, 0.0, full_w, full_h);
+            let x = nav_room(app, true).0;
+            crate::compact::keyboard(app, ui, x, full_w - x, full_h);
         } else {
             let (x, w) = if app.held {
                 (0.0, full_w)
@@ -342,6 +357,21 @@ fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
     }
 }
 
+/// The room the navigation takes beside one-column pages: the rail's
+/// width at the left and the bar's height at the foot, none on the menu,
+/// on a step that must not be left, or (for the bar) while the keyboard
+/// takes the foot (`docs/LAYOUT.md` §3). A lookup.
+fn nav_room(app: &View, kb: bool) -> (f32, f32) {
+    if app.nav_hidden() {
+        return (0.0, 0.0);
+    }
+    match app.nav() {
+        Nav::Rail => (RAIL_W, 0.0),
+        Nav::Bar if !kb => (0.0, NAV_BAR_H),
+        _ => (0.0, 0.0),
+    }
+}
+
 /// The height of a small panel's pinned bar: the page's forward action
 /// across the foot.
 const PIN_H: f32 = 64.0;
@@ -350,18 +380,43 @@ const PIN_H: f32 = 64.0;
 /// back, unless it is a step flow, which draws its own. A page's forward
 /// action is pinned in a bar at the foot, with the page scrolling above
 /// it, except while the keyboard is up, whose Done puts it away.
-fn draw_compact(app: &View, ui: &mut Ui, w: f32, h: f32, kb: bool, y0: f32) {
+///
+/// On the rail's and the bar's windows (`docs/LAYOUT.md` §3) the page
+/// is the area `area` (its left edge and width) beside the rail, its top
+/// app bar across the area and the page in a column at most `COLUMN_MAX`
+/// wide, centred in it; flows in progress show their chips under the
+/// top app bar.
+fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0: f32) {
+    let nav = app.nav();
+    let (ax, aw) = area;
+    let w = if nav.beside() { aw.min(COLUMN_MAX) } else { aw };
+    let cx = ax + (aw - w) / 2.0;
+    // The top app bar across the area; the page's column under it.
+    let app_bar = |ui: &mut Ui| {
+        ui.ox = ax;
+        let head = crate::nav::screen::app_bar(app, ui, aw, nav);
+        ui.ox = cx;
+        head
+    };
+    ui.ox = cx;
     let mut foot = h;
     if app.screen == Screen::Home && app.held {
         // The holder's Home is the one a person sees.
     } else if app.screen == Screen::Home {
-        crate::compact::home(app, ui, w, h);
+        let head = if nav.beside() { app_bar(ui) } else { 0.0 };
+        ui.oy = y0 + head;
+        crate::compact::home(app, ui, w, h - head);
+        ui.oy = y0;
     } else {
         // Room for the bar as the last frame had it; a change draws again.
         let had = if kb { 0.0 } else { app.pin_h.get() };
         let page_h = h - had;
         let top = if crate::compact::draws_own_bar(app.screen) {
             0.0
+        } else if nav.beside() {
+            let head = app_bar(ui);
+            let m = crate::compact::M;
+            head + crate::nav::screen::flow_chips(app, ui, m, head, w - 2.0 * m)
         } else {
             crate::compact::page(app, ui, w, page_h).0
         };
@@ -385,12 +440,14 @@ fn draw_compact(app: &View, ui: &mut Ui, w: f32, h: f32, kb: bool, y0: f32) {
             app.pin_h.set(want);
             ui.clear(SURFACE);
             ui.hits.clear();
-            return draw_compact(app, ui, w, h, kb, y0);
+            return draw_compact(app, ui, area, h, kb, y0);
         }
         if let Some((label, style, action)) = pin {
             let y = h - PIN_H;
-            ui.fill(0.0, y, w, PIN_H, 0.0, SIDEBAR);
-            ui.fill(0.0, y, w, 1.0, 0.0, LINE);
+            ui.ox = ax;
+            ui.fill(0.0, y, aw, PIN_H, 0.0, SIDEBAR);
+            ui.fill(0.0, y, aw, 1.0, 0.0, LINE);
+            ui.ox = cx;
             let m = crate::compact::M;
             let label = ui.fit(15.0, W::S, &label, w - 2.0 * m - 24.0);
             ui.button(m, y + 10.0, Some(w - 2.0 * m), 44.0, &label, style, action);

@@ -242,6 +242,14 @@ fn help(ui: &mut Ui, x: f32, y: f32) {
 /// A page that is not one of the step flows: its bar, then the page
 /// under it as the desktop draws it, in the panel's width.
 pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
+    let (back, name) = page_head(app);
+    bar(app, ui, w, back, name);
+    (BAR_H, h - BAR_H)
+}
+
+/// A page's way back with the name of where it lands, and the page's
+/// own name: what its bar or its top app bar shows. A lookup.
+pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
     let explore = app.explore.page();
     let name = match app.session.wallets.get(app.wallets.wallet()) {
         _ if app.screen == Screen::Explore && explore == Some(crate::explore::Page::Addresses) => {
@@ -294,8 +302,19 @@ pub(crate) fn page(app: &View, ui: &mut Ui, w: f32, h: f32) -> (f32, f32) {
         Screen::Upgrade => (EN.compact_settings, Action::Nav(Screen::Settings)),
         _ => (EN.compact_home, Action::Nav(Screen::Home)),
     };
-    bar(app, ui, w, back, name);
-    (BAR_H, h - BAR_H)
+    (back, name)
+}
+
+/// The keyboard button's press where the page types, and whether the
+/// keyboard is up: what the top app bar's button shows. A lookup.
+pub(crate) fn keyboard_action(app: &View) -> Option<(Action, bool)> {
+    let shown = app.osk_shown();
+    let action = Action::Osk(if shown {
+        OskPress::Hide
+    } else {
+        OskPress::Show
+    });
+    (app.osk_offered() || shown || app.osk_auto()).then_some((action, shown))
 }
 
 /// The height Scan's floating button takes at the foot of Home (its own
@@ -316,37 +335,15 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let mut y = top + 12.0;
     let inner = w - 2.0 * M;
 
-    // The mark and the name; off mainnet, the mode pill on the right,
-    // which opens the mode sheet.
-    ui.mark(M, y, 20.0, 23.0);
-    let mut suffix = crate::screens::name_suffix(app);
-    let pill = crate::modes::screen::shows_pill(app);
-    let pw = if pill {
-        crate::modes::screen::pill_width(app, ui)
+    // On the rail's and the bar's windows the top app bar carries the
+    // name, and the sidebar's lists lead as chips (`docs/LAYOUT.md` §3).
+    let beside = app.nav().beside();
+    if beside {
+        y += crate::nav::screen::status_strip(app, ui, M, y, inner);
     } else {
-        0.0
-    };
-    // The pill takes the name's end where the two do not fit: the name
-    // goes without "Desktop".
-    let (nx, ny) = (M + 28.0, y + 6.0);
-    let room = w - M - pw - faraday_draw::tokens::GAP;
-    let fits = |ui: &mut Ui, suffix| {
-        nx + crate::compact::screen::measured(ui, |ui| {
-            ui.wordmark_named(nx, ny, 11.0, TEXT, suffix)
-        }) <= room
-    };
-    if pill && !fits(ui, suffix) {
-        suffix = crate::ui::NameSuffix::None;
+        home_head(app, ui, w, y);
+        y += 38.0;
     }
-    // With Load samples beside it the pair leaves no room for the name:
-    // the mark stands alone.
-    if fits(ui, suffix) {
-        ui.wordmark_named(nx, ny, 11.0, TEXT, suffix);
-    }
-    if pill {
-        crate::modes::screen::pill(app, ui, w - M - pw, y - 2.0);
-    }
-    y += 38.0;
 
     // The system gave no randomness: nothing seals until a restart.
     if app.seed_missing() {
@@ -446,7 +443,7 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     // A tile per flow in progress leads the tiles: its name and its open
     // step, opening it as it was left (`docs/FLOWS.md`, Flows in
     // progress).
-    for r in app.flows_in_progress().iter() {
+    for r in app.flows_in_progress().iter().filter(|_| !beside) {
         let icon = match r.tab {
             Screen::Vaults => Icon::Lock,
             Screen::Catalog => Icon::Tools,
@@ -545,7 +542,30 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     }
     y += tiles.len().div_ceil(2) as f32 * (th + gap) + 4.0;
 
-    // Lock, when something is held, and power.
+    // Lock and power, here on the small panel; the rail and the top app
+    // bar carry them on wider windows.
+    if beside {
+        y += faraday_draw::tokens::GRID;
+    } else {
+        y += lock_row(app, ui, y, inner, gap);
+    }
+    // The idle lock waits for a new wallet's backup (`docs/history/NEW-WALLET.md`
+    // §18).
+    if app.lock_held() {
+        y += crate::screens::lock_held_pill(ui, M, y - 8.0, inner) + 8.0;
+    }
+
+    let content = y - top;
+    app.scroll.content_h().set(content);
+    ui.report_scroll(clip, content - view_h);
+    ui.c.pop_clip();
+
+    ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
+}
+
+/// Home's foot on the small panel at `y`: Lock, when something is held,
+/// and power. Returns the height it takes.
+fn lock_row(app: &View, ui: &mut Ui, y: f32, inner: f32, gap: f32) -> f32 {
     let pw = 44.0;
     if app.holds_secret() {
         ui.button(
@@ -565,19 +585,40 @@ pub(crate) fn home(app: &View, ui: &mut Ui, w: f32, h: f32) {
     ui.stroke(px, y, pw, 44.0, 10.0, BORDER);
     ui.icon(px, y, pw, Icon::Power, 15.0, MUTED);
     ui.hit(px, y, pw, 44.0, Action::PowerAsk);
-    y += 44.0 + 16.0;
-    // The idle lock waits for a new wallet's backup (`docs/history/NEW-WALLET.md`
-    // §18).
-    if app.lock_held() {
-        y += crate::screens::lock_held_pill(ui, M, y - 8.0, inner) + 8.0;
+    44.0 + 16.0
+}
+
+/// Home's head on the small panel: the mark and the name; off mainnet,
+/// the mode pill on the right, which opens the mode sheet.
+fn home_head(app: &View, ui: &mut Ui, w: f32, y: f32) {
+    ui.mark(M, y, 20.0, 23.0);
+    let mut suffix = crate::screens::name_suffix(app);
+    let pill = crate::modes::screen::shows_pill(app);
+    let pw = if pill {
+        crate::modes::screen::pill_width(app, ui)
+    } else {
+        0.0
+    };
+    // The pill takes the name's end where the two do not fit: the name
+    // goes without "Desktop".
+    let (nx, ny) = (M + 28.0, y + 6.0);
+    let room = w - M - pw - faraday_draw::tokens::GAP;
+    let fits = |ui: &mut Ui, suffix| {
+        nx + crate::compact::screen::measured(ui, |ui| {
+            ui.wordmark_named(nx, ny, 11.0, TEXT, suffix)
+        }) <= room
+    };
+    if pill && !fits(ui, suffix) {
+        suffix = crate::ui::NameSuffix::None;
     }
-
-    let content = y - top;
-    app.scroll.content_h().set(content);
-    ui.report_scroll(clip, content - view_h);
-    ui.c.pop_clip();
-
-    ui.fab(w - M, h - M, Icon::Scan, EN.compact_scan, Action::Scan);
+    // With Load samples beside it the pair leaves no room for the name:
+    // the mark stands alone.
+    if fits(ui, suffix) {
+        ui.wordmark_named(nx, ny, 11.0, TEXT, suffix);
+    }
+    if pill {
+        crate::modes::screen::pill(app, ui, w - M - pw, y - 2.0);
+    }
 }
 
 /// A tile: its icon, its name, a short count, where it goes, and
@@ -1113,6 +1154,18 @@ pub(crate) fn keyboard(app: &View, ui: &mut Ui, x: f32, w: f32, y: f32) {
 }
 
 impl Faraday {
+    /// The top app bar's ⋮ menu on the bar's windows (`docs/LAYOUT.md`
+    /// §3): `None` opens it; a screen closes it and goes there.
+    pub(crate) fn nav_menu(&mut self, to: Option<Screen>) {
+        match to {
+            None => self.sheet = Some(crate::Sheet::NavMenu),
+            Some(s) => {
+                self.sheet = None;
+                self.act_inner(Action::Nav(s));
+            }
+        }
+    }
+
     /// Files by direction, as the sidebar's Files row reads it: "3 for
     /// the stick" while any wait, else "20 from the stick", else "none".
     pub fn files_count(&self) -> String {

@@ -1,0 +1,280 @@
+//! Navigation by window class (`docs/LAYOUT.md` §3): the Pi's panel
+//! keeps Home's menu; a compact window has the navigation bar at its
+//! foot; a medium, an expanded or a low window the rail at its left,
+//! with Learn, Settings and Lock; a large or extra-large one the
+//! expanded rail, which lists the flows in progress. Where there is no
+//! expanded rail, a flow in progress shows its chip on every
+//! destination; a stick being written hides the navigation.
+
+use faraday_core::in_progress::Going;
+use faraday_core::nav::Nav;
+use faraday_core::testkit;
+use faraday_core::{Action, BootPart, Faraday, Screen, Sheet, StickInfo, StorageEvent, cstep};
+use faraday_shell_api::{App, BootState, DisplayInfo, Event, Key, SecureHardware, TouchPhase};
+
+/// The app on a window `width` × `height` pixels at `dpi`, drawn once.
+fn on(width: u16, height: u16, dpi: u16) -> Faraday {
+    let mut app = testkit::started();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    let _ = app.frame();
+    app
+}
+
+/// Where `action` is pressed on the frame drawn now, pixels: the last
+/// region drawn for it, the one on top.
+fn at(app: &mut Faraday, action: Action) -> Option<(u16, u16)> {
+    let _ = app.frame();
+    app.where_offered(action)
+}
+
+/// A finger on (x, y).
+fn tap(app: &mut Faraday, (x, y): (u16, u16)) {
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    let _ = app.frame();
+    let now = app.now_ms() + 16;
+    app.event(Event::Tick { now_ms: now });
+    let _ = app.frame();
+}
+
+/// The five destinations and the screen each opens.
+const FIVE: [(Screen, Screen); 5] = [
+    (Screen::WalletsStart, Screen::WalletsStart),
+    (Screen::Files, Screen::Files),
+    (Screen::Vaults, Screen::Vaults),
+    (Screen::Catalog, Screen::Catalog),
+    (Screen::Home, Screen::Home),
+];
+
+/// A key typed in: something held, so Lock is offered.
+fn key_in(app: &mut Faraday) {
+    app.press(Action::Entry(None));
+    for c in testkit::test_words(testkit::TEST_SEEDS[0].0).chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    app.press(Action::Nav(Screen::Home));
+    assert!(app.holds_secret(), "the key did not load");
+}
+
+/// Make a new wallet, its first step done: a flow in progress.
+fn flow_begun(app: &mut Faraday) {
+    app.press(Action::CreateWallet);
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::Nav(Screen::Home));
+}
+
+#[test]
+fn the_pi_panel_shows_homes_menu_and_no_bar() {
+    // 480 × 640 at 286 dpi: 268 × 358 dp.
+    let mut app = on(480, 640, 286);
+    assert_eq!(app.nav(), Nav::Menu);
+    // Wallets and Learn are buttons on the menu itself.
+    assert!(at(&mut app, Action::Nav(Screen::WalletsStart)).is_some());
+    assert!(at(&mut app, Action::Learn).is_some());
+    assert!(!app.offers(Action::NavMenu(None)), "no top app bar");
+    // Another page has the bar back to Home, and no rail or bar.
+    app.press(Action::Nav(Screen::Settings));
+    let (_, y) = at(&mut app, Action::Nav(Screen::Home)).expect("the way back");
+    assert!(y < 44 * 286 / 160, "the way back is not at the top");
+    assert!(
+        !app.offers(Action::Nav(Screen::Files)),
+        "no navigation on Settings"
+    );
+}
+
+#[test]
+fn a_compact_window_shows_the_bars_five_destinations_and_each_opens() {
+    let mut app = on(400, 800, 160);
+    assert_eq!(app.nav(), Nav::Bar);
+    for (dest, screen) in FIVE {
+        let (x, y) =
+            at(&mut app, Action::Nav(dest)).unwrap_or_else(|| panic!("{dest:?} not on the bar"));
+        assert!(y >= 800 - 80, "{dest:?} not in the bar at the foot: {y}");
+        tap(&mut app, (x, y));
+        assert_eq!(app.screen, screen, "{dest:?}");
+        // The bar stays on every destination.
+        let (_, y) = at(&mut app, Action::Nav(Screen::Home)).expect("the bar");
+        assert!(y >= 800 - 80);
+    }
+    // Settings is in the top app bar's ⋮ menu.
+    let more = at(&mut app, Action::NavMenu(None)).expect("the ⋮ menu");
+    assert!(more.1 < 64);
+    tap(&mut app, more);
+    assert_eq!(app.sheet, Some(Sheet::NavMenu));
+    let settings = at(&mut app, Action::NavMenu(Some(Screen::Settings))).expect("Settings");
+    tap(&mut app, settings);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Settings);
+}
+
+/// The rail at a window's left: the five destinations, Learn, Settings
+/// and (with a key held) Lock, each opening what it names.
+fn the_rail_offers_and_opens(width: u16, height: u16) {
+    let mut app = on(width, height, 160);
+    assert_eq!(app.nav(), Nav::Rail, "{width} × {height}");
+    key_in(&mut app);
+    let in_rail = |app: &mut Faraday, a: Action| {
+        let p = at(app, a).unwrap_or_else(|| panic!("{a:?} not on the rail"));
+        assert!(p.0 < 80, "{a:?} not in the rail: {p:?}");
+        p
+    };
+    for (dest, screen) in FIVE {
+        let p = in_rail(&mut app, Action::Nav(dest));
+        tap(&mut app, p);
+        assert_eq!(app.screen, screen, "{dest:?}");
+    }
+    let p = in_rail(&mut app, Action::Learn);
+    tap(&mut app, p);
+    assert_eq!(app.sheet, Some(Sheet::Learn));
+    app.press(Action::Cancel);
+    let p = in_rail(&mut app, Action::Nav(Screen::Settings));
+    tap(&mut app, p);
+    assert_eq!(app.screen, Screen::Settings);
+    let p = in_rail(&mut app, Action::LockAsk);
+    tap(&mut app, p);
+    assert!(
+        app.sheet == Some(Sheet::LockAsk) || !app.holds_secret(),
+        "Lock did nothing"
+    );
+}
+
+#[test]
+fn a_half_screen_window_shows_the_rail_with_learn_settings_and_lock() {
+    the_rail_offers_and_opens(760, 1000);
+}
+
+#[test]
+fn a_seven_inch_panel_sized_window_shows_the_rail_with_learn_settings_and_lock() {
+    the_rail_offers_and_opens(960, 580);
+}
+
+/// The expanded rail at the window's left lists a flow in progress.
+fn the_expanded_rail_lists_a_flow(width: u16, height: u16) {
+    let mut app = on(width, height, 160);
+    assert_eq!(app.nav(), Nav::ExpandedRail);
+    flow_begun(&mut app);
+    app.press(Action::Nav(Screen::Settings));
+    let (x, _) = at(&mut app, Action::Resume(Going::Create)).expect("the flow's row");
+    assert!(x < 240, "not in the expanded rail");
+}
+
+#[test]
+fn a_desktop_window_shows_the_expanded_rail_with_a_flow_in_progress() {
+    the_expanded_rail_lists_a_flow(1280, 800);
+}
+
+#[test]
+fn a_full_monitor_shows_the_expanded_rail_with_a_flow_in_progress() {
+    the_expanded_rail_lists_a_flow(1920, 1080);
+}
+
+#[test]
+fn a_flow_in_progress_shows_its_chip_on_every_destination() {
+    for (w, h) in [(400, 800), (760, 1000), (960, 580)] {
+        let mut app = on(w, h, 160);
+        flow_begun(&mut app);
+        for dest in [
+            Screen::Home,
+            Screen::WalletsStart,
+            Screen::Files,
+            Screen::Vaults,
+            Screen::Catalog,
+            Screen::Settings,
+        ] {
+            app.press(Action::Nav(dest));
+            let p = at(&mut app, Action::Resume(Going::Create))
+                .unwrap_or_else(|| panic!("no chip on {dest:?} at {w} × {h}"));
+            tap(&mut app, p);
+            assert_eq!(app.screen, Screen::Create, "the chip on {dest:?}");
+        }
+    }
+}
+
+const RUNNING: &str = "6.6.84-faraday-0.2.0+4d0680b1a2b3";
+const MB: u64 = 1 << 20;
+
+fn part(id: &str, release: Option<&str>, source: bool) -> BootPart {
+    BootPart {
+        id: id.into(),
+        size: 64 * MB,
+        release: release.map(str::to_string),
+        source,
+    }
+}
+
+#[test]
+fn a_stick_being_written_hides_the_navigation() {
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width: 400,
+        height: 800,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.press(Action::Nav(Screen::Settings));
+    let _ = app.frame();
+    app.press(Action::UpgradeOpen);
+    assert_eq!(app.screen, Screen::Upgrade);
+    app.storage(StorageEvent::Boots(vec![part(
+        "sda1@sda#1",
+        Some(RUNNING),
+        false,
+    )]));
+    app.storage(StorageEvent::BootSource {
+        id: "sda1@sda#1".into(),
+        release: RUNNING.into(),
+        size: 64 * MB,
+    });
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
+        id: "sdb2@sdb#2".into(),
+        label: "FARADAYDATA".into(),
+        boot: false,
+        files: Vec::new(),
+    }]));
+    app.storage(StorageEvent::Boots(vec![
+        part("sda1@sda#1", Some(RUNNING), true),
+        part("sdb1@sdb#2", None, false),
+    ]));
+    assert!(
+        at(&mut app, Action::Nav(Screen::Files)).is_some(),
+        "the bar, before"
+    );
+    app.press(Action::UpgradeWrite);
+    assert!(app.nav_hidden());
+    assert!(
+        at(&mut app, Action::Nav(Screen::Files)).is_none(),
+        "the bar while the stick is written"
+    );
+    assert!(
+        !app.offers(Action::NavMenu(None)),
+        "the ⋮ menu while written"
+    );
+    app.storage(StorageEvent::BootWritten {
+        id: "sdb1@sdb#2".into(),
+        release: RUNNING.into(),
+    });
+    assert!(
+        at(&mut app, Action::Nav(Screen::Files)).is_some(),
+        "the bar, after"
+    );
+}

@@ -71,6 +71,7 @@ mod mode_files;
 mod modes;
 mod mouse_buttons;
 mod names_kept;
+mod navigation;
 mod network;
 mod outside;
 mod own_randomness;
