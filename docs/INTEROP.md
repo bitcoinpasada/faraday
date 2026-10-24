@@ -54,6 +54,7 @@ the files and codes they write.
 | SeedSigner, Krux, Jade, Coldcard Q | SeedQR, CompactSeedQR | yes | yes (backup grid) | SeedQR's specification vectors (`faraday-codec`), `tests/all/import.rs` |
 | Trezor, Keystone | SLIP-39 shares | yes | yes | `tests/all/keygen_slip39.rs` |
 | Coldcard | Seed XOR, BIP-85 | yes | yes | `tests/all/forms.rs`, `tests/all/bip85.rs` |
+| SeedSigner (codex32 branch), any Codex32QR/v1-48 writer | Codex32QR/v1-48: one 48-character codex32 string, upper case, QR version 3, level L (`docs/CODEX32.md` §10) | yes: the codex32 form's Scan, Add a key's Scan a SeedQR, Home's Scan, a picture in Files | yes, String · Codex32QR on Make codex32 shares' strings | every picture of the profile's vectors read to its stated fingerprint (`faraday/faraday-core/tests/all/codex32_forms.rs`); BIP 93's vectors (`core/faraday-bip/tests/all/codex32.rs`) |
 | Ledger, Trezor, BitBox02 | BIP-39 words | yes | — | — |
 | Coldcard, Passport, Unchained | Cosigner key file (`ccxp-….json`, flat `p2wsh`/`p2sh_p2wsh`/`p2sh`, SLIP-132 keys) and the generic export's `bip48_1`, `bip48_2`, `bip45` accounts, in Create's key slots | yes, the account the kind needs | — | Coldcard's key file against its own setup file; Unchained's file against the same Coldcard's export |
 | Sparrow, Bitcoin Core | A receive and a change descriptor, one per line or in `listdescriptors` | yes, as `<0;1>` | — | Sparrow's files; Core's `listdescriptors`, first address against Core's |

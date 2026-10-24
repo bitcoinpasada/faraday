@@ -114,7 +114,7 @@ pub enum Error {
         /// 0-based position of the offending character.
         position: u8,
     },
-    /// The threshold is not a digit.
+    /// The threshold is not `0` or 2 to 9.
     BadThreshold,
     /// The threshold is `0`, which only the secret's own index may carry.
     SecretIndexRequired,
@@ -156,7 +156,7 @@ impl fmt::Display for Error {
             Error::BadCharacter { position } => {
                 write!(f, "character {} is not a bech32 character", position + 1)
             }
-            Error::BadThreshold => f.write_str("threshold is not a digit"),
+            Error::BadThreshold => f.write_str("threshold is not 0 or 2 to 9"),
             Error::SecretIndexRequired => f.write_str("threshold 0 needs the share index s"),
             Error::BadChecksum => f.write_str("checksum does not match"),
             Error::WrongKind => f.write_str("string is the wrong kind for this operation"),
@@ -416,6 +416,11 @@ impl Codex32 {
         }
         if !VALID_LENGTHS.contains(&b.len()) {
             return Err(Error::BadLength);
+        }
+        // BIP 93: the threshold is `0` or 2 to 9. `1`, a digit but no
+        // bech32 character, is refused as the threshold it stands for.
+        if b[3] == b'1' {
+            return Err(Error::BadThreshold);
         }
 
         let mut data = [0u8; MAX_DATA_LEN];

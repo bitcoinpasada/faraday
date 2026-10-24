@@ -736,6 +736,8 @@ impl Faraday {
                 self.entry.state_mut().sample.dismiss();
             }
             Action::EntryPart => self.form_add_part(),
+            Action::Codex32Correct(p) => self.form_correct(p),
+            Action::Codex32Form(p) => self.form_codex32(p),
             Action::EntryRecover => self.form_recover(),
             Action::EntryPassphrase => {
                 self.entry.state_mut().on_passphrase = !self.entry.state().on_passphrase

@@ -57,6 +57,11 @@ pub enum KeyboardKind {
     /// continue a string are disabled; the enabled set comes from the
     /// application.
     Codex32,
+    /// The codex32 keyboard with `?`, which marks a box that cannot be
+    /// read, at the end of its bottom row (`docs/CODEX32.md` §8.4): the
+    /// keyboard while Suggest corrections is ticked. The same keys as
+    /// [`KeyboardKind::Codex32`] otherwise.
+    Codex32Unreadable,
     /// The kana keyboard, for the Japanese wordlist: the 五十音 as ten
     /// columns of five, with the voicing marks, the small-kana key,
     /// backspace in the cells the grid leaves empty.
@@ -128,6 +133,14 @@ const ADDRESS_ROWS: [&str; 4] = ["0123456789", "qwertyup", "asdfghjkl", "zxcvbnm
 /// positions the address keyboard puts it, less `1` and `b`, which are
 /// an address's human-readable part and no part of the alphabet.
 const CODEX32_ROWS: [&str; 4] = ["023456789", "qwertyup", "asdfghjkl", "zxcvnm"];
+
+/// The key [`KeyboardKind::Codex32Unreadable`] adds: a box that cannot
+/// be read.
+pub const UNREADABLE_KEY: char = '?';
+
+/// The mask bit of [`UNREADABLE_KEY`]: the first after the digits, which
+/// the codex32 keyboards (no upper case) leave free.
+const UNREADABLE_BIT: KeyMask = 1 << 36;
 
 /// The address keyboard's base58 layer, lower case: the alphabet
 /// without `0`, `O`, `I` and `l`, which is what a legacy or nested
@@ -341,16 +354,28 @@ pub fn key_bit(kind: KeyboardKind, c: char) -> KeyMask {
         }
         // The address keyboard carries both cases and the digits, so
         // its bits run lower case, digits, upper case: 62 of the 63 the
-        // mask has under [`DONE_DISABLED`]. The codex32 keyboard is a
-        // subset of the same keys and keeps the same numbering, so one
-        // mask reads on either.
-        KeyboardKind::Address | KeyboardKind::Codex32 => {
+        // mask has under [`DONE_DISABLED`].
+        KeyboardKind::Address => {
             return if c.is_ascii_lowercase() {
                 1 << (c as u32 - 'a' as u32)
             } else if c.is_ascii_digit() {
                 1 << (26 + (c as u32 - '0' as u32))
             } else if c.is_ascii_uppercase() {
                 1 << (36 + (c as u32 - 'A' as u32))
+            } else {
+                0
+            };
+        }
+        // The codex32 keyboards number their letters and digits as the
+        // address keyboard does, so one mask reads on either; they have
+        // no upper case, and `?` takes the first bit after the digits.
+        KeyboardKind::Codex32 | KeyboardKind::Codex32Unreadable => {
+            return if c.is_ascii_lowercase() {
+                1 << (c as u32 - 'a' as u32)
+            } else if c.is_ascii_digit() {
+                1 << (26 + (c as u32 - '0' as u32))
+            } else if c == UNREADABLE_KEY && kind == KeyboardKind::Codex32Unreadable {
+                UNREADABLE_BIT
             } else {
                 0
             };
@@ -412,6 +437,27 @@ pub fn keycaps(kind: KeyboardKind) -> impl Iterator<Item = char> {
     kana.chain(jamo).chain(pinyin).chain(zhuyin).chain(cards)
 }
 
+/// Whether every row of `kind` is the same height, with no reserve
+/// under the last: the codex32 keyboards, which a page draws inside its
+/// own column rather than at the screen's edge.
+pub fn equal_rows(kind: KeyboardKind) -> bool {
+    matches!(
+        kind,
+        KeyboardKind::Codex32 | KeyboardKind::Codex32Unreadable
+    )
+}
+
+/// The least height in dp a row of `kind` is drawn at, where the one
+/// drawing it sets the row: [`tokens::CODEX32_KEY_ROW`] for the codex32
+/// keyboards, nothing for the others, which keep their own geometry.
+pub fn min_row(kind: KeyboardKind) -> f32 {
+    if equal_rows(kind) {
+        tokens::CODEX32_KEY_ROW
+    } else {
+        0.0
+    }
+}
+
 /// Number of rows a keyboard kind has (for height measurement).
 pub fn rows(kind: KeyboardKind) -> usize {
     match kind {
@@ -422,7 +468,7 @@ pub fn rows(kind: KeyboardKind) -> usize {
         KeyboardKind::Dice => 2,
         KeyboardKind::Coin | KeyboardKind::Binary => 1,
         KeyboardKind::Path => 3,
-        KeyboardKind::Address | KeyboardKind::Codex32 => 4,
+        KeyboardKind::Address | KeyboardKind::Codex32 | KeyboardKind::Codex32Unreadable => 4,
         KeyboardKind::Cards => 3,
         KeyboardKind::Kana => 5,
         KeyboardKind::Jamo => 3,
@@ -480,9 +526,14 @@ pub fn keys(
     let n_rows = rows(kind) as i32;
     // The rows tile the whole region: every row but the last is
     // `key_h` tall, and the last one takes the remainder, which carries
-    // the bottom reserve down to the screen edge.
-    let key_h =
-        ((area.h - ctx.px(tokens::key_bottom_reserve(ctx.inset_bottom_dp))) / n_rows).max(1);
+    // the bottom reserve down to the screen edge. The codex32 keyboards
+    // keep every row the same height (`equal_rows`).
+    let reserve = if equal_rows(kind) {
+        0
+    } else {
+        ctx.px(tokens::key_bottom_reserve(ctx.inset_bottom_dp))
+    };
+    let key_h = ((area.h - reserve) / n_rows).max(1);
     let row_y = |r: i32| area.y + r * key_h;
     let row_h = |r: i32| {
         if r + 1 == n_rows {
@@ -704,9 +755,10 @@ pub fn keys(
                 lay_row(r as i32, &entries, &mut out);
             }
         }
-        KeyboardKind::Codex32 => {
+        KeyboardKind::Codex32 | KeyboardKind::Codex32Unreadable => {
             // One layer: no shift to another alphabet, so the bottom row
-            // is the letters it has, then backspace and ✓.
+            // is the letters it has (and `?`, with the tick), then
+            // backspace and ✓.
             for (r, chars) in CODEX32_ROWS.iter().enumerate() {
                 let mut entries: Vec<(f32, KeyInput, bool)> = chars
                     .chars()
@@ -716,6 +768,10 @@ pub fn keys(
                     })
                     .collect();
                 if r == 3 {
+                    if kind == KeyboardKind::Codex32Unreadable {
+                        let input = KeyInput::Char(UNREADABLE_KEY);
+                        entries.push((1.0, input, live(kind, input, enabled)));
+                    }
                     entries.push((tokens::KEY_UNITS_EDGE, KeyInput::Backspace, true));
                     entries.push((
                         tokens::KEY_UNITS_EDGE,
@@ -950,6 +1006,8 @@ mod tests {
             KeyboardKind::Coin,
             KeyboardKind::Path,
             KeyboardKind::Address,
+            KeyboardKind::Codex32,
+            KeyboardKind::Codex32Unreadable,
             KeyboardKind::Kana,
             KeyboardKind::Jamo,
             KeyboardKind::Pinyin,

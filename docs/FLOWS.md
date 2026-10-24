@@ -287,7 +287,29 @@ words by hand.
 ## New key and Add a key
 
 Codex32's flows are `docs/CODEX32.md`: making shares (§6) is built,
-below; checking a string is planned. Its error correction (§8.4) is built as a part a codex32 form holds (`faraday/faraday-core/src/codex32_correct/`): the tick **Suggest corrections**, off whenever the form opens; a failing string's one proposal, box by box, four to a page; **I mistyped**, **The paper is damaged** and **Unreadable on the paper**; the changed boxes typed again from the paper, taken only on an exact match; and "Share entry corrected" or "Share repairs unchecked" beside the key's fingerprint. The form does not carry it yet.
+below. **Type codex32 strings** (the codex32 form, on Start's Words card
+and on the Add a key screen) takes one string at a time, typed on the
+codex32 keyboard or scanned; each is checked at once, and one whose
+checksum fails is named by its index ("Share C · checksum fails",
+§8.1). The same string again is "Already in"; another at an index
+already in shows both, their differing boxes marked, with **Keep the
+one held** · **Replace it** (§8.5). A string is read as given: mixed
+case is refused. **Check a string** on the form (§8.3) checks one
+string typed or scanned: "Checksum holds" or "Checksum fails", what it
+is, and whether it is of the set typed in; nothing is loaded or kept.
+The form carries the error correction (§8.4,
+`faraday/faraday-core/src/codex32_correct/`): the tick **Suggest
+corrections**, off whenever the form opens, which puts `?` on the
+keyboard; a failing string's one proposal, box by box, four to a page,
+in place of the field; **I mistyped**, **The paper is damaged** and
+**Unreadable on the paper**; the changed boxes typed again from the
+paper, taken only on an exact match; "Repaired, not checked" under a
+repaired string; and the key's mark ("Share entry corrected", "Share
+repairs unchecked") kept by fingerprint for the session. **Scan a
+SeedQR** takes a Codex32QR code and opens the codex32 form with it in
+(§10.1). Not built: **Make the rest** and **Add a share** (§8.1 step 2,
+§8.2), a checksum worksheet's final row on Check a string, and the
+mark's line beside the fingerprint on Wallets and New key's Key card.
 
 **Add a key is New key, opening on Start** (decision 60, F44). New key's
 first card is **Start**: under **Make a new key**, **BIP-39 words**

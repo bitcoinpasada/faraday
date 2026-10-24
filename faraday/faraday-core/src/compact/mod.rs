@@ -897,6 +897,12 @@ impl Faraday {
         if self.sheet.is_some() {
             return false;
         }
+        // The codex32 form's correction or a clash stands in place of the
+        // field and takes presses, not typing, but for the boxes typed
+        // again from the paper (`docs/CODEX32.md` §8.4, §8.5).
+        if self.entry_typing_here() && crate::forms::codex32_pressed_only(self.entry.state()) {
+            return false;
+        }
         match self.screen {
             Screen::Entry => {
                 self.entry.state().on_passphrase
@@ -976,6 +982,19 @@ impl Faraday {
                 K::Address
             }
             Screen::Explore if self.sheet.is_none() => K::Path,
+            // The codex32 form types on the codex32 keyboard, with `?`
+            // while corrections are suggested (`docs/CODEX32.md` §8.4).
+            _ if self.sheet.is_none()
+                && self.entry_typing_here()
+                && self.entry.state().form == crate::forms::Form::Codex32
+                && !self.entry.state().on_passphrase =>
+            {
+                if self.entry.state().correction.takes_unreadable() {
+                    K::Codex32Unreadable
+                } else {
+                    K::Codex32
+                }
+            }
             _ => K::Passphrase,
         }
     }

@@ -191,6 +191,11 @@ pub fn key_bottom_reserve(inset_bottom: f32) -> f32 {
     key_bottom_inset(inset_bottom) - KEY_FACE_INSET_Y
 }
 
+/// A codex32 keyboard's row in dp, every row the same: Material 3's
+/// 48 dp touch target ([`TOUCH`]), on a page's keyboard as on the docked
+/// one (`docs/CODEX32.md` §8.4).
+pub const CODEX32_KEY_ROW: f32 = TOUCH;
+
 /// Columns every other pad divides its width into: the dice pad's three
 /// faces and the backspace beside them.
 pub const PAD_COLUMNS: f32 = 4.0;
@@ -674,8 +679,15 @@ pub const WINDOW_HELD_WIDE: f32 = 1280.0;
 
 // ----- Codex32 error correction (docs/CODEX32.md §8.4) -----
 
+/// Add a key's other forms: a line of the list of shares or strings in,
+/// from its tick to its text (and a line under it, a string's mark).
+pub const PART_INDENT: f32 = 24.0;
+
+/// The same on a small panel.
+pub const PART_INDENT_COMPACT: f32 = 20.0;
+
 /// Codex32 correction: a box of the string as the re-entry shows it.
-pub const CORRECT_BOX: f32 = 22.0;
+pub const CORRECT_BOX: f32 = 24.0;
 
 /// Codex32 correction: the gap between two boxes of a group of four.
 pub const CORRECT_BOX_GAP: f32 = 2.0;
@@ -691,13 +703,13 @@ pub const CORRECT_GROUP_GAP: f32 = GRID;
 pub const CORRECT_BOX_RADIUS: f32 = 4.0;
 
 /// Codex32 correction: the size of a box's character.
-pub const CORRECT_BOX_TEXT: f32 = 15.0;
+pub const CORRECT_BOX_TEXT: f32 = 16.0;
 
 /// Codex32 correction: the row under a box that carries its number.
 pub const CORRECT_NUMBER_ROW: f32 = 16.0;
 
 /// Codex32 correction: the size of a box's number.
-pub const CORRECT_NUMBER_TEXT: f32 = 10.0;
+pub const CORRECT_NUMBER_TEXT: f32 = 11.0;
 
 /// Codex32 correction: the gap between two rows of boxes.
 pub const CORRECT_ROW_GAP: f32 = GAP_SMALL;
@@ -706,14 +718,14 @@ pub const CORRECT_ROW_GAP: f32 = GAP_SMALL;
 pub const CORRECT_PAIR_ROW: f32 = 28.0;
 
 /// Codex32 correction: the size of a pair's text.
-pub const CORRECT_PAIR_TEXT: f32 = 15.0;
+pub const CORRECT_PAIR_TEXT: f32 = 16.0;
 
 /// Codex32 correction: the size of a line (a refusal, a caution, the
 /// count typed, the line beside a fingerprint).
-pub const CORRECT_LINE_TEXT: f32 = 13.0;
+pub const CORRECT_LINE_TEXT: f32 = 14.0;
 
 /// Codex32 correction: the space between the panel's parts.
-pub const CORRECT_GAP: f32 = 10.0;
+pub const CORRECT_GAP: f32 = GRID;
 
 /// Codex32 correction: the box a line's icon is centred in.
 pub const CORRECT_ICON: f32 = 18.0;
@@ -721,8 +733,9 @@ pub const CORRECT_ICON: f32 = 18.0;
 /// Codex32 correction: a line's icon.
 pub const CORRECT_ICON_SIZE: f32 = 11.0;
 
-/// Codex32 correction: the tick's row, **Suggest corrections**.
-pub const CORRECT_TICK_ROW: f32 = 32.0;
+/// Codex32 correction: the tick's row, **Suggest corrections**: a
+/// whole touch target.
+pub const CORRECT_TICK_ROW: f32 = TOUCH;
 
 /// Codex32 correction: the tick box's side, as `Ui::checkbox` draws it.
 pub const CORRECT_TICK: f32 = 18.0;

@@ -1,8 +1,8 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), §8.4's screens behind the interface a form holds (C7) Faraday Desktop's one-die roller (C12, §2) and the five-dice roller component (C11, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
-**Open:** of C5, the wallet kind of §6.9, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); batches C6, C8 to C11 (§15.2): hand-made shares, add a share, check a string, scanning and the correction screens in the form, backups, templates, the five-dice roller's place in the entry's pad (§5.5; its component is built), Demo and Learn; D5 (§14); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller component (C11, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
+**Open:** of C5, the wallet kind of §6.9, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); batches C8 to C10 (§15.2): backups, templates, Demo and Learn; the five-dice roller's place in the entry's pad (§5.5; its component is built); D5 (§14); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -303,26 +303,44 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   masking of §6.4.6 (the sheets are drawn unmasked on every shell), the
   translation symbols in the booklet's second alphabet (Faraday's faces
   lack most of its glyphs, so each is named as `SYMBOL_NAMES` names it),
-  Demo (§12, C10), hand-made shares as a way in (§5.3, C6).
-- **Add a key › Type codex32 strings** (`faraday/faraday-core/src/forms.rs`):
-  one string at a time; a second string with another identifier is
-  refused (`forms_other_seed_string`), and one whose share index is already
-  in is refused (`forms_share_duplicate`), identical or not.
-- **Scanning**: in the codex32 form, Scan reads a string and adds it as
-  typed (`ScanPurpose::KeyPart`, `faraday/faraday-core/src/lib.rs`); Home's
-  Scan and the intake scanner send a string to that form
+  Demo (§12, C10), hand-made shares as a way in (§5.3).
+- **Add a key › Type codex32 strings** (C6; `faraday/faraday-core/src/forms.rs`,
+  `state.rs`, `screens/entry.rs` and the compact form): one string at a
+  time, typed on the codex32 keyboard (`?` on it with the tick, a
+  keyboard row a touch target tall) or scanned, each checked at once; a
+  string whose checksum fails is not taken and is named by its index
+  ("Share C · checksum fails", "Secret · checksum fails", §8.1 step 1);
+  a string with another identifier is refused
+  (`forms_other_seed_string`); the same string again is "Already in";
+  another at an index already in shows both, their differing boxes
+  marked, with **Keep the one held** · **Replace it** (§8.5). **Check a
+  string** (§8.3) on the same form: "Checksum holds" or "Checksum fails",
+  what the string is, and whether it is of the set typed in; nothing is
+  loaded or kept, and the string goes on leaving. The form holds the
+  correction of §8.4 (C7): the tick above the field, the panel in its
+  place, "Repaired, not checked" under a repaired string, and the key's
+  mark kept by fingerprint on the session (`Session::key_marks`). Tested
+  in `faraday/faraday-core/tests/all/codex32_forms.rs`. Not built: §8.1's
+  **Make the rest** and §8.2's **Add a share** (each goes on into the
+  make flow's worksheets and strings, and needs `faraday-keys` to derive
+  and lend the strings), §8.3's final worksheet row and **Show the
+  worksheet** (the worksheet is `faraday-keys`'), and the mark's line
+  beside the fingerprint on Wallets and New key's Key card.
+- **Scanning** (§10.1): in the codex32 form, Scan reads a string and adds
+  it as typed (`ScanPurpose::KeyPart`); Add a key's **Scan a SeedQR**
+  takes a codex32 string and opens the codex32 form with it in
+  (`Faraday::seed_scan_codex32`, `faraday/faraday-core/src/scan_key.rs`);
+  Home's Scan and the intake scanner send a string to that form
   (`intake_key_part`, `faraday/faraday-core/src/family/mod.rs`); a file
   of one string is a seed part in Files (`part_of`,
   `faraday/faraday-intake/src/lib.rs`; `core/faraday-codec/src/classify.rs`).
-  Upper case is read in all three, so a Codex32QR code is read today,
-  though no test scans one. Add a key's **Scan a SeedQR** does not take
-  one: it says the code is not a SeedQR. `pasted_secret`
+  Every picture of the Codex32QR profile's vectors is read to its stated
+  fingerprint (§10.3). `pasted_secret`
   (`faraday/faraday-core/src/scan_key.rs`) refuses a pasted string where
   secrets are not taken.
-- **Lower case before the check**: the form, `part_of` and
-  `intake_key_part` lowercase the text before `Codex32::parse`, so a
-  mixed-case string from a scan or a file is taken although BIP 93 says
-  it must be refused. §8.5 fixes this.
+- **Case** (§8.5): every path parses the text as given, so a mixed-case
+  string is refused as BIP 93 says; the codex32 keyboard types one case.
+  `Codex32::parse` refuses a threshold of 1 (BIP 93: 0 or 2 to 9).
 - **A backup's Other paper forms** (`paper_section`,
   `faraday/faraday-core/src/screens/backup.rs`; `paper_codex32`,
   `faraday/faraday-core/src/wallet_backup.rs`; `Keys::codex32_shares`,

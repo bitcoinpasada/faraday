@@ -3172,7 +3172,9 @@ impl Faraday {
             | Action::EntryRecover
             | Action::EntryPassphrase
             | Action::EntryField
-            | Action::EntryWallet(..)) => self.entry_act(a),
+            | Action::EntryWallet(..)
+            | Action::Codex32Correct(..)
+            | Action::Codex32Form(..)) => self.entry_act(a),
             a @ (Action::PickWallet(..)
             | Action::PickKey(..)
             | Action::RemoveWallet(..)
@@ -4505,6 +4507,9 @@ impl Faraday {
     fn scanned(&mut self, bytes: Vec<u8>) {
         let c = self.compute();
         let bytes = zeroize::Zeroizing::new(bytes);
+        if self.seed_scan_codex32(&bytes) {
+            return;
+        }
         let camera = self.sheet == Some(Sheet::Scan);
         let sticks = !self.stick.is_empty();
         let medium = self.medium;
@@ -5288,17 +5293,6 @@ impl Faraday {
         said(self, fp);
         self.seeds_took(fp, back);
         Ok(fp)
-    }
-
-    /// Whether Add a key's form takes the keys typed: on Add a key, or on
-    /// New key's Words card for a key typed (`docs/history/NEW-WALLET.md` §15.2).
-    pub(crate) fn entry_typing_here(&self) -> bool {
-        self.screen == Screen::Entry
-            || (self.screen == Screen::KeyGen
-                && self
-                    .keygen
-                    .state()
-                    .is_some_and(|k| k.open == Some(keygen::kstep::TYPED) && !k.locked))
     }
 
     /// Enter on the words form: Add a key adds the key; New key's Words

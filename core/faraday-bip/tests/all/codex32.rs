@@ -193,6 +193,15 @@ fn each_refusal_is_named() {
             "ms1fauxxxxxxxxxxxxxxxxxxxxxxxxxxxxxda3kr3s0s2swg",
             Error::BadThreshold,
         ),
+        // BIP 93: a threshold is 0 or 2 to 9, never 1.
+        (
+            "ms11fauxsxxxxxxxxxxxxxxxxxxxxxxxxxxuqxkk05lyf3x2",
+            Error::BadThreshold,
+        ),
+        (
+            "MS11FAUXSXXXXXXXXXXXXXXXXXXXXXXXXXXUQXKK05LYF3X2",
+            Error::BadThreshold,
+        ),
         (
             "m10fauxsxxxxxxxxxxxxxxxxxxxxxxxxxx8t28z74x8hs4l",
             Error::BadPrefix,

@@ -541,4 +541,53 @@ impl Faraday {
         }
         self.scanned(t.as_bytes().to_vec());
     }
+
+    /// Costs a codex32 parse, and what adding the string costs. A codex32
+    /// string (a Codex32QR code's, `docs/CODEX32.md` §10.1) read where a
+    /// SeedQR was asked for: the camera closes and the codex32 form opens
+    /// with the string in, as Home's Scan opens it; nothing loads until
+    /// enough strings are in. Any other scanner's code, or one read while
+    /// a stick is in, is left to the scanner. Read as given: mixed case is refused, as
+    /// BIP 93 says. Returns whether it was one. A Create slot's New key
+    /// keeps its own scanner, which takes SeedQRs only.
+    pub(crate) fn seed_scan_codex32(&mut self, bytes: &[u8]) -> bool {
+        use crate::forms::Form;
+        // Only Scan a SeedQR's scanner, and never while a stick is in
+        // (the scanner says why itself).
+        if !self
+            .camera
+            .scan()
+            .is_some_and(|s| s.purpose == ScanPurpose::Seed)
+            || (self.sheet == Some(Sheet::Scan) && !self.stick.is_empty())
+        {
+            return false;
+        }
+        let given = zeroize::Zeroizing::new(String::from_utf8_lossy(bytes).trim().to_string());
+        if faraday_bip::codex32::Codex32::parse(&given).is_err() {
+            return false;
+        }
+        let in_flow = self.screen == crate::Screen::KeyGen;
+        if in_flow && self.keygen.state().is_some_and(|k| k.slot.is_some()) {
+            return false;
+        }
+        self.camera.close();
+        self.sheet = None;
+        self.out.commands.push_back(Command::CameraOff);
+        let codex32 = Form::ALL.iter().position(|f| *f == Form::Codex32);
+        if in_flow {
+            self.keygen_open_on(crate::keygen::Start::Codex32);
+        } else {
+            if self.screen != crate::Screen::Entry {
+                self.act(Action::Entry(None));
+            }
+            if let Some(i) = codex32
+                && self.entry.state().form != Form::Codex32
+            {
+                self.act(Action::EntryForm(i as u8));
+            }
+        }
+        self.entry.state_mut().typed.set(&given);
+        self.form_add_part();
+        true
+    }
 }

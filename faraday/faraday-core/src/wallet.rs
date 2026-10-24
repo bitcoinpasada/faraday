@@ -393,6 +393,11 @@ pub struct Session {
     /// wallet or a PSBT of another network may move an empty session to
     /// ([`Session::follow`]).
     pub modes: &'static [crate::modes::Mode],
+    /// The keys loaded from codex32 strings that went in by a correction,
+    /// by fingerprint, with their mark (`docs/CODEX32.md` §8.4): the line
+    /// beside the key's fingerprint wherever it is shown. Never taken
+    /// away.
+    pub key_marks: crate::codex32_correct::KeyMarks,
 }
 
 impl Default for Session {
@@ -401,6 +406,7 @@ impl Default for Session {
             keys: faraday_keys::Keys::on(START_NETWORK),
             wallets: Vec::new(),
             modes: crate::modes::STICK_MODES,
+            key_marks: crate::codex32_correct::KeyMarks::default(),
         }
     }
 }
@@ -455,6 +461,7 @@ impl Session {
             keys: faraday_keys::Keys::on(network),
             wallets: Vec::new(),
             modes: crate::modes::STICK_MODES,
+            key_marks: crate::codex32_correct::KeyMarks::default(),
         }
     }
 

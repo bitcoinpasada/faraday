@@ -35,7 +35,8 @@ pub(crate) use backup::{SOFTWARE_ROWS, extra_copies, held_item, item_title, item
 pub(crate) use create::CSTEPS;
 pub(crate) use decode::decode_back;
 pub(crate) use entry::{
-    entry_form, entry_scan, entry_stick, entry_typed, entry_words, keyed_status, word_count_row,
+    codex32_check_button, codex32_found, codex32_head, codex32_mark, codex32_tick, entry_form,
+    entry_scan, entry_stick, entry_typed, entry_words, keyed_status, word_count_row,
 };
 use faraday_draw::widgets::Icon;
 pub use faraday_ui::parts::qr_code;

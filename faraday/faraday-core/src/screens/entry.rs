@@ -544,8 +544,10 @@ pub(crate) fn entry_form(
     use crate::forms::Form;
     let form = app.entry.state().form;
     let mut y = y;
+    let checking = form == Form::Codex32 && app.entry.state().codex32.checking;
     let guide = match form {
         Form::Slip39 => EN.entry_form_type_one_share,
+        Form::Codex32 if checking => EN.codex32_form_check_guide,
         Form::Codex32 => EN.entry_form_type_one_codex32,
         _ => EN.entry_form_type_one,
     };
@@ -558,6 +560,136 @@ pub(crate) fn entry_form(
         guide,
         crate::learn::Topic::OtherBackups,
     );
+    let mut replaced = false;
+    if form == Form::Codex32 {
+        let (hh, r) = codex32_head(app, ui, (x, y, width), true);
+        y += hh;
+        replaced = r;
+    }
+    if !replaced {
+        entry_field(app, ui, x, y, width, form);
+        y += 54.0 + never_below(app, ui, x, y + 44.0, width);
+    }
+    if let Some(e) = &app.entry.state().error {
+        y += ui.wrap(x, y, width, 13.0, W::R, ERR, e) + 8.0;
+    }
+    y += codex32_found(app, ui, x, y, width);
+    // What is in.
+    let lines = app.entry.state().parts.lines(form);
+    section_label(
+        ui,
+        x,
+        y,
+        &match lines.len() {
+            0 => EN.entry_form_nothing.to_string(),
+            1 => EN.entry_form_count_one.to_string(),
+            n => fill(EN.entry_form_count_many, &[&n.to_string()]),
+        },
+    );
+    y += 26.0;
+    for (n, l) in lines.iter().enumerate() {
+        ui.icon(x, y - 2.0, 18.0, Icon::Done, 10.0, OK);
+        let indent = faraday_draw::tokens::PART_INDENT;
+        ui.text(x + indent, y, 13.0, W::R, TEXT, l);
+        y += 24.0;
+        y += codex32_mark(app, ui, x + indent, y, width - indent, n);
+    }
+    y += 8.0;
+    if form == Form::Codex32 {
+        y += codex32_check_button(app, ui, x, y);
+    }
+    // A SLIP-39 backup's passphrase; a Seed XOR key's BIP-39 one.
+    if form != Form::Codex32 && flow.is_none() {
+        ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.entry_form_passphrase);
+        let px = x + 150.0;
+        let pw = 380.0f32.min(width - 150.0);
+        let on = app.entry.state().on_passphrase;
+        ui.fill(px, y, pw, 40.0, 8.0, BG);
+        ui.stroke(px, y, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
+        dots_field(
+            ui,
+            px,
+            y,
+            pw,
+            &app.entry.state().passphrase,
+            (on, app.pass_chip(crate::demo::PassField::Entry, on)),
+            Action::EntryPassphrase,
+        );
+    }
+    // As `entry_finish`: the stick row and the buttons sit at the bottom
+    // of the screen, but move down below what is above them (the
+    // passphrase field, or the list of collected shares) when that would
+    // otherwise run under it.
+    let by = match flow {
+        Some(_) => y,
+        None => (h - 36.0 - 46.0).max(y + 40.0 + 24.0 + 48.0),
+    };
+    if flow.is_none() {
+        entry_stick(app, ui, x, by - 48.0);
+    }
+    let ready = app.entry.state().parts.ready(form);
+    let aw = ui.button(
+        x,
+        by,
+        None,
+        46.0,
+        if checking {
+            EN.codex32_form_check_it
+        } else {
+            EN.entry_form_add_share
+        },
+        if app.entry.state().typed.trim().is_empty() || replaced {
+            Style::Disabled
+        } else {
+            Style::Secondary
+        },
+        Action::EntryPart,
+    );
+    let sw = ui.button(
+        x + aw + 8.0,
+        by,
+        None,
+        46.0,
+        EN.entry_form_scan_a_qr,
+        Style::Secondary,
+        Action::ScanPart,
+    );
+    let aw = aw + sw + 8.0;
+    let (label, action) = match flow {
+        Some(next) => (EN.keygen_continue, next),
+        None => (EN.entry_form_make_key, Action::EntryRecover),
+    };
+    let mw = ui.button(
+        x + aw + 8.0,
+        by,
+        None,
+        46.0,
+        label,
+        if ready {
+            Style::Primary
+        } else {
+            Style::Disabled
+        },
+        action,
+    );
+    // Its Enter on an empty line makes the key; the flow's opens Key.
+    if flow.is_none() {
+        ui.text_mid(
+            x + aw + mw + 28.0,
+            by,
+            46.0,
+            12.0,
+            W::R,
+            DIM,
+            EN.entry_form_enter_adds,
+        );
+    }
+    by + 46.0
+}
+
+/// The field a share, string or part is typed into, 44 tall.
+fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, form: crate::forms::Form) {
+    use crate::forms::Form;
     // What is being typed.
     ui.fill(x, y, width, 44.0, 8.0, BG);
     ui.stroke(
@@ -610,110 +742,187 @@ pub(crate) fn entry_form(
         },
         &shown,
     );
-    y += 54.0 + never_below(app, ui, x, y + 44.0, width);
-    if let Some(e) = &app.entry.state().error {
-        y += ui.wrap(x, y, width, 13.0, W::R, ERR, e) + 8.0;
+}
+
+/// The codex32 form's head (`docs/CODEX32.md` §8.4, §8.5): the tick's
+/// row where `tick`, then, in place of the field, the correction's panel
+/// while it is up or a string at an index already in beside the one
+/// held. Returns its height and whether it stands in place of the field.
+pub(crate) fn codex32_head(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, width): (f32, f32, f32),
+    tick: bool,
+) -> (f32, bool) {
+    use crate::codex32_correct::screen::panel;
+    use faraday_draw::tokens::CORRECT_GAP;
+    let e = app.entry.state();
+    let mut h = if tick {
+        codex32_tick(app, ui, x, y, width)
+    } else {
+        0.0
+    };
+    if e.correction.is_open() {
+        h += panel(ui, x, y + h, width, &e.correction, Action::Codex32Correct) + CORRECT_GAP;
+        return (h, true);
     }
-    // What is in.
-    let lines = app.entry.state().parts.lines(form);
-    section_label(
+    if let Some(clash) = &e.codex32.clash {
+        h += codex32_clash(ui, x, y + h, width, clash) + CORRECT_GAP;
+        return (h, true);
+    }
+    (h, false)
+}
+
+/// The codex32 form's tick alone, **Suggest corrections**, and the gap
+/// under it: where the small panel draws it, under the field. Returns its
+/// height.
+pub(crate) fn codex32_tick(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
+    use crate::codex32_correct::screen::tick_row;
+    let c = &app.entry.state().correction;
+    tick_row(ui, x, y, width, c, Action::Codex32Correct) + faraday_draw::tokens::CORRECT_GAP
+}
+
+/// A string at an index already in, beside the one held, their differing
+/// boxes marked, and **Keep the one held** · **Replace it** (§8.5).
+fn codex32_clash(ui: &mut Ui, x: f32, y: f32, width: f32, clash: &crate::forms::Clash) -> f32 {
+    use crate::codex32_correct::screen::{line, string_boxes};
+    use crate::forms::C32Press;
+    use faraday_draw::tokens::{CORRECT_GAP, LABEL};
+    let index = clash
+        .text
+        .as_str()
+        .as_bytes()
+        .get(8)
+        .copied()
+        .unwrap_or(b'?');
+    let title = fill(
+        EN.codex32_form_clash,
+        &[&char::from(index.to_ascii_uppercase()).to_string()],
+    );
+    let mut h = line(ui, x, y, width, Icon::Warning, WARN, &title) + CORRECT_GAP;
+    for (label, text) in [
+        (EN.codex32_form_held, clash.held.as_str()),
+        (EN.codex32_form_new, clash.text.as_str()),
+    ] {
+        h += ui.wrap(x, y + h, width, LABEL, W::S, MUTED, label);
+        h += string_boxes(ui, x, y + h, width, text, &clash.differ) + CORRECT_GAP;
+    }
+    let boxes: Vec<String> = clash.differ.iter().map(ToString::to_string).collect();
+    h += ui.wrap(
+        x,
+        y + h,
+        width,
+        LABEL,
+        W::R,
+        MUTED,
+        &fill(EN.codex32_form_differ, &[&boxes.join(", ")]),
+    ) + CORRECT_GAP;
+    h + faraday_ui::sheet::buttons(
         ui,
         x,
-        y,
-        &match lines.len() {
-            0 => EN.entry_form_nothing.to_string(),
-            1 => EN.entry_form_count_one.to_string(),
-            n => fill(EN.entry_form_count_many, &[&n.to_string()]),
-        },
-    );
-    y += 26.0;
-    for l in &lines {
-        ui.icon(x, y - 2.0, 18.0, Icon::Done, 10.0, OK);
-        ui.text(x + 24.0, y, 13.0, W::R, TEXT, l);
-        y += 24.0;
-    }
-    y += 8.0;
-    // A SLIP-39 backup's passphrase; a Seed XOR key's BIP-39 one.
-    if form != Form::Codex32 && flow.is_none() {
-        ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, EN.entry_form_passphrase);
-        let px = x + 150.0;
-        let pw = 380.0f32.min(width - 150.0);
-        let on = app.entry.state().on_passphrase;
-        ui.fill(px, y, pw, 40.0, 8.0, BG);
-        ui.stroke(px, y, pw, 40.0, 8.0, if on { ACCENT } else { BORDER });
-        dots_field(
+        y + h,
+        width,
+        &[
+            (
+                EN.codex32_form_keep,
+                Style::Primary,
+                Action::Codex32Form(C32Press::Keep),
+            ),
+            (
+                EN.codex32_form_replace,
+                Style::Secondary,
+                Action::Codex32Form(C32Press::Replace),
+            ),
+        ],
+    )
+}
+
+/// Under the codex32 form's field: "Already in", or what Check it found
+/// (§8.3): the checksum, what the string is, whether it is of the set
+/// typed in, and its mark. Returns its height.
+pub(crate) fn codex32_found(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
+    use crate::codex32_correct::screen::line;
+    use faraday_draw::tokens::{CORRECT_GAP, CORRECT_LINE_TEXT};
+    let e = app.entry.state();
+    if e.codex32.already {
+        return line(
             ui,
-            px,
+            x,
             y,
-            pw,
-            &app.entry.state().passphrase,
-            (on, app.pass_chip(crate::demo::PassField::Entry, on)),
-            Action::EntryPassphrase,
-        );
+            width,
+            Icon::Info,
+            MUTED,
+            EN.codex32_form_already_in,
+        ) + CORRECT_GAP;
     }
-    // As `entry_finish`: the stick row and the buttons sit at the bottom
-    // of the screen, but move down below what is above them (the
-    // passphrase field, or the list of collected shares) when that would
-    // otherwise run under it.
-    let by = match flow {
-        Some(_) => y,
-        None => (h - 36.0 - 46.0).max(y + 40.0 + 24.0 + 48.0),
+    let Some(checked) = &e.codex32.checked else {
+        return 0.0;
     };
-    if flow.is_none() {
-        entry_stick(app, ui, x, by - 48.0);
-    }
-    let ready = app.entry.state().parts.ready(form);
-    let aw = ui.button(
+    let mut h = if checked.holds {
+        line(ui, x, y, width, Icon::Done, OK, EN.codex32_form_holds)
+    } else {
+        line(ui, x, y, width, Icon::Error, ERR, EN.codex32_form_fails)
+    };
+    h += ui.wrap(
         x,
-        by,
-        None,
-        46.0,
-        EN.entry_form_add_share,
-        if app.entry.state().typed.trim().is_empty() {
-            Style::Disabled
+        y + h,
+        width,
+        CORRECT_LINE_TEXT,
+        W::R,
+        TEXT,
+        &checked.what,
+    );
+    if let Some(of) = checked.of_the_set {
+        let (text, tone) = if of {
+            (EN.codex32_form_of_the_set, OK)
         } else {
-            Style::Secondary
-        },
-        Action::EntryPart,
-    );
-    let sw = ui.button(
-        x + aw + 8.0,
-        by,
-        None,
-        46.0,
-        EN.entry_form_scan_a_qr,
-        Style::Secondary,
-        Action::ScanPart,
-    );
-    let aw = aw + sw + 8.0;
-    let (label, action) = match flow {
-        Some(next) => (EN.keygen_continue, next),
-        None => (EN.entry_form_make_key, Action::EntryRecover),
-    };
-    let mw = ui.button(
-        x + aw + 8.0,
-        by,
-        None,
-        46.0,
-        label,
-        if ready {
-            Style::Primary
-        } else {
-            Style::Disabled
-        },
-        action,
-    );
-    // Its Enter on an empty line makes the key; the flow's opens Key.
-    if flow.is_none() {
-        ui.text_mid(
-            x + aw + mw + 28.0,
-            by,
-            46.0,
-            12.0,
-            W::R,
-            DIM,
-            EN.entry_form_enter_adds,
-        );
+            (EN.codex32_form_not_of_the_set, ERR)
+        };
+        h += ui.wrap(x, y + h, width, CORRECT_LINE_TEXT, W::R, tone, text);
     }
-    by + 46.0
+    if let Some(text) = checked.mark.and_then(|m| m.string_line()) {
+        h += line(ui, x, y + h, width, Icon::Warning, WARN, text);
+    }
+    h + CORRECT_GAP
+}
+
+/// The line under a codex32 string in the list of strings in, where it
+/// went in by a correction that left it unchecked: "Repaired, not
+/// checked". Returns its height.
+pub(crate) fn codex32_mark(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, n: usize) -> f32 {
+    let e = app.entry.state();
+    if e.form != crate::forms::Form::Codex32 {
+        return 0.0;
+    }
+    let Some(text) = e
+        .parts
+        .codex32
+        .get(n)
+        .and_then(|s| e.correction.mark_of(s))
+        .and_then(|m| m.string_line())
+    else {
+        return 0.0;
+    };
+    crate::codex32_correct::screen::line(ui, x, y, width, Icon::Warning, WARN, text)
+}
+
+/// The codex32 form's way to Check a string, or back to adding strings
+/// (§8.3): a ghost button a touch target tall. Returns its height.
+pub(crate) fn codex32_check_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
+    use faraday_draw::tokens::{CORRECT_GAP, TOUCH};
+    let label = if app.entry.state().codex32.checking {
+        EN.codex32_form_back_to_adding
+    } else {
+        EN.codex32_form_check_a_string
+    };
+    ui.button(
+        x,
+        y,
+        None,
+        TOUCH,
+        label,
+        Style::Ghost,
+        Action::Codex32Form(crate::forms::C32Press::Check),
+    );
+    TOUCH + CORRECT_GAP
 }

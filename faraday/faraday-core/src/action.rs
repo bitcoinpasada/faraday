@@ -782,4 +782,10 @@ pub enum Action {
     File(file_menu::FilePress),
     /// A press inside Make codex32 shares (`docs/CODEX32.md` §6).
     Codex32(crate::codex32::C32),
+    /// A press on the codex32 form's error correction
+    /// (`docs/CODEX32.md` §8.4).
+    Codex32Correct(crate::codex32_correct::Press),
+    /// A press on the codex32 form's own rows: a string at an index
+    /// already in, Check a string (`docs/CODEX32.md` §8.3, §8.5).
+    Codex32Form(crate::forms::C32Press),
 }

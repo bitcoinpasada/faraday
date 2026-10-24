@@ -64,8 +64,9 @@ pub fn fingerprint_line<A: Copy + PartialEq>(
     line(ui, x, y, width, icon, tone, mark.fingerprint_line())
 }
 
-/// A line with its icon in its tone (§4.11), wrapped.
-fn line<A: Copy + PartialEq>(
+/// A line with its icon in its tone (§4.11), wrapped. Returns its
+/// height.
+pub fn line<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     x: f32,
     y: f32,
@@ -339,7 +340,8 @@ fn pairs<A: Copy + PartialEq>(
 /// The string's boxes in groups of four, wrapped at the width: each box
 /// not changed locked with its character, each changed one open (the one
 /// typed into next edged in the accent) or as typed again, with its
-/// number under it.
+/// number under it. On a narrow panel, only the groups with a box to
+/// type again.
 fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Correction) -> f32 {
     let group = CORRECT_GROUP;
     let per_row = ((width + CORRECT_GROUP_GAP) / (group + CORRECT_GROUP_GAP))
@@ -347,13 +349,26 @@ fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Co
         .max(1.0) as usize;
     let row_h = CORRECT_BOX + CORRECT_NUMBER_ROW + CORRECT_ROW_GAP;
     let len = c.len();
+    // The whole string where it fits in a few rows; on a narrow panel only
+    // the groups with a box to type again, so they stay above the
+    // keyboard.
+    let all = len.div_ceil(4) <= per_row * WHOLE_ROWS;
+    let drawn: Vec<usize> = (0..len.div_ceil(4))
+        .filter(|&g| {
+            all || (g * 4 + 1..=(g * 4 + 4).min(len))
+                .any(|n| !matches!(c.box_at(n), Some(BoxShown::Locked(_))))
+        })
+        .collect();
     for n in 1..=len {
         let Some(shown) = c.box_at(n) else {
             break;
         };
         let i = n - 1;
-        let (g, k) = (i / 4, i % 4);
-        let (row, col) = (g / per_row, g % per_row);
+        let k = i % 4;
+        let Some(slot) = drawn.iter().position(|&g| g == i / 4) else {
+            continue;
+        };
+        let (row, col) = (slot / per_row, slot % per_row);
         let bx = x
             + col as f32 * (group + CORRECT_GROUP_GAP)
             + k as f32 * (CORRECT_BOX + CORRECT_BOX_GAP);
@@ -410,8 +425,71 @@ fn boxes<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, width: f32, c: &Co
             );
         }
     }
-    let groups = len.div_ceil(4);
-    let rows = groups.div_ceil(per_row).max(1);
+    let rows = drawn.len().div_ceil(per_row).max(1);
+    rows as f32 * row_h - CORRECT_ROW_GAP
+}
+
+/// The most rows of boxes the re-entry draws the whole string in; past
+/// it, only the groups with a box to type again.
+const WHOLE_ROWS: usize = 3;
+
+/// A whole string in boxes, groups of four wrapped at the width, as the
+/// re-entry draws its locked boxes; the boxes in `marked`, counted from
+/// one, edged in the error tone with their number under them. For a
+/// string shown beside another it differs from (`docs/CODEX32.md`
+/// §8.5). Returns the height taken.
+pub fn string_boxes<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    x: f32,
+    y: f32,
+    width: f32,
+    text: &str,
+    marked: &[usize],
+) -> f32 {
+    let per_row = ((width + CORRECT_GROUP_GAP) / (CORRECT_GROUP + CORRECT_GROUP_GAP))
+        .floor()
+        .max(1.0) as usize;
+    let row_h = CORRECT_BOX + CORRECT_NUMBER_ROW + CORRECT_ROW_GAP;
+    for (i, ch) in text.bytes().enumerate() {
+        let (g, k) = (i / 4, i % 4);
+        let (row, col) = (g / per_row, g % per_row);
+        let bx = x
+            + col as f32 * (CORRECT_GROUP + CORRECT_GROUP_GAP)
+            + k as f32 * (CORRECT_BOX + CORRECT_BOX_GAP);
+        let by = y + row as f32 * row_h;
+        let differs = marked.contains(&(i + 1));
+        ui.fill(bx, by, CORRECT_BOX, CORRECT_BOX, CORRECT_BOX_RADIUS, INNER);
+        if differs {
+            ui.stroke(bx, by, CORRECT_BOX, CORRECT_BOX, CORRECT_BOX_RADIUS, ERR);
+        }
+        let mut buf = [0u8; 4];
+        let s = char::from(ch).encode_utf8(&mut buf);
+        let tw = ui.measure(CORRECT_BOX_TEXT, W::M, s);
+        ui.text_mid(
+            bx + (CORRECT_BOX - tw) / 2.0,
+            by,
+            CORRECT_BOX,
+            CORRECT_BOX_TEXT,
+            W::M,
+            if differs { ERR } else { TEXT },
+            s,
+        );
+        zeroize::Zeroize::zeroize(&mut buf);
+        if differs {
+            let num = (i + 1).to_string();
+            let tw = ui.measure(CORRECT_NUMBER_TEXT, W::R, &num);
+            ui.text_mid(
+                bx + (CORRECT_BOX - tw) / 2.0,
+                by + CORRECT_BOX,
+                CORRECT_NUMBER_ROW,
+                CORRECT_NUMBER_TEXT,
+                W::R,
+                ERR,
+                &num,
+            );
+        }
+    }
+    let rows = text.len().div_ceil(4).div_ceil(per_row).max(1);
     rows as f32 * row_h - CORRECT_ROW_GAP
 }
 

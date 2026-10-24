@@ -92,7 +92,13 @@ impl Keys {
 
 /// The keyboard's height, design units.
 pub fn height(kind: KeyboardKind) -> f32 {
-    keyboard::rows(kind) as f32 * KEY_ROW + 8.0
+    keyboard::rows(kind) as f32 * row(kind) + 8.0
+}
+
+/// One row of `kind`'s keys, design units: [`KEY_ROW`], or the least
+/// the keyboard asks for ([`keyboard::min_row`]).
+fn row(kind: KeyboardKind) -> f32 {
+    KEY_ROW.max(keyboard::min_row(kind))
 }
 
 /// The keyboard of `kind`, across the panel from `x`, `w` wide, from
@@ -111,7 +117,7 @@ pub fn keyboard<A: Copy + PartialEq>(
     act: impl Fn(OskPress) -> A,
 ) {
     let rows = keyboard::rows(kind) as f32;
-    ui.fill(x, y, w, rows * KEY_ROW + 8.0, 0.0, SIDEBAR);
+    ui.fill(x, y, w, rows * row(kind) + 8.0, 0.0, SIDEBAR);
     ui.fill(x, y, w, 1.0, 0.0, LINE);
     let kw = if compact { w } else { w.min(KEYS_MAX_W) };
     let kx = x + (w - kw) / 2.0;
@@ -119,7 +125,7 @@ pub fn keyboard<A: Copy + PartialEq>(
         (kx + 4.0) as i32,
         (y + 6.0) as i32,
         (kw - 4.0) as i32,
-        (rows * KEY_ROW) as i32,
+        (rows * row(kind)) as i32,
     );
     let ctx = faraday_draw::layout::LayoutCtx::new(
         faraday_draw::geom::Scale::new(160),

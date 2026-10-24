@@ -29,6 +29,7 @@ mod checklist_next_frame;
 mod clock;
 mod codes;
 mod codex32_correct;
+mod codex32_forms;
 mod codex32_glyphs;
 mod codex32_make;
 mod collect;

@@ -3,6 +3,7 @@
 
 use std::collections::BTreeSet;
 
+use crate::codex32_correct::{Offered, typable};
 use crate::forms::{Form, completion, slip39_completion};
 use crate::strings::{EN, fill};
 use crate::wallet::fp_text;
@@ -57,6 +58,12 @@ pub struct EntryState {
     pub word_count: u8,
     /// Use a sample's chip and cursor for this visit (`docs/MODES.md` §6.1).
     pub(crate) sample: crate::samples::put::Use,
+    /// The codex32 form's error correction (`docs/CODEX32.md` §8.4):
+    /// fresh, the tick off, whenever the form opens.
+    pub correction: crate::codex32_correct::Correction,
+    /// The codex32 form's own state beside the strings in: a string at an
+    /// index already in, "Already in", Check a string (§8.3, §8.5).
+    pub codex32: forms::Codex32Form,
     /// The status line's key: what the words typed make with the
     /// passphrase, the fingerprint or why there is none, public alone.
     /// Worked out by the first frame that asks for it and kept until the
@@ -257,10 +264,32 @@ impl EntryArea {
     pub(crate) fn part_key(&mut self, key: faraday_shell_api::Key) -> Keyed {
         use faraday_shell_api::Key as K;
         let codex32 = self.state.form == Form::Codex32;
+        // The correction's screen, while it stands in place of the field,
+        // takes every key (`docs/CODEX32.md` §8.4).
+        if codex32 && self.state.correction.is_open() {
+            let out = self.state.correction.key(key);
+            return match self.codex32_outcome(out) {
+                true => Keyed::Recover,
+                false => Keyed::Taken,
+            };
+        }
+        // A string at an index already in waits on its answer; Escape
+        // keeps the one held.
+        if codex32 && self.state.codex32.clash.is_some() {
+            if key == K::Escape {
+                self.codex32_press(forms::C32Press::Keep);
+            }
+            return Keyed::Taken;
+        }
+        let unreadable = |c: char| codex32 && typable(&self.state.correction, c);
         match key {
-            K::Char(c) if c.is_ascii_alphabetic() || (codex32 && c.is_ascii_digit()) => {
+            K::Char(c)
+                if c.is_ascii_alphabetic() || (codex32 && c.is_ascii_digit()) || unreadable(c) =>
+            {
                 self.state.typed.push(c.to_ascii_lowercase());
                 self.state.error = None;
+                self.state.codex32.already = false;
+                self.state.codex32.checked = None;
                 if !codex32 && self.word_whole() {
                     self.complete_word();
                 }
@@ -274,7 +303,9 @@ impl EntryArea {
             K::Backspace => {
                 self.state.typed.pop();
                 self.state.error = None;
+                self.state.codex32.checked = None;
             }
+            K::Enter if self.state.codex32.checking && self.state.typed.trim().is_empty() => {}
             K::Enter if self.state.typed.trim().is_empty() => return Keyed::Recover,
             K::Enter => return Keyed::AddPart,
             K::Escape => return Keyed::Leave,
@@ -288,23 +319,23 @@ impl EntryArea {
     /// being read; a refusal is left in `error`. Returns whether a codex32
     /// string just completed the key (it is the key already).
     pub(crate) fn add_part(&mut self, c: &Compute) -> bool {
+        if self.state.form == Form::Codex32 {
+            return self.codex32_part(c);
+        }
         let e = &mut self.state;
         let form = e.form;
         let text = zeroize::Zeroizing::new(e.typed.trim().to_lowercase());
-        // A codex32 string is read as typed: BIP 93 refuses mixed case.
-        let given = zeroize::Zeroizing::new(e.typed.trim().to_string());
         let result: Result<(), String> = match form {
             Form::Slip39 => add_slip39(&mut e.parts, &text),
-            Form::Codex32 => add_codex32(&mut e.parts, &given),
             Form::Xor => add_xor(c, &mut e.parts, &text),
-            Form::Words => Ok(()),
+            Form::Codex32 | Form::Words => Ok(()),
         };
         match result {
             Ok(()) => {
                 e.sample.emptied();
                 e.typed.clear();
                 e.error = None;
-                form == Form::Codex32 && e.parts.ready(form)
+                false
             }
             Err(msg) => {
                 e.error = Some(msg);
@@ -312,6 +343,157 @@ impl EntryArea {
             }
         }
     }
+
+    /// Costs a decode of one string where the tick is on and the string
+    /// does not parse (`Correction::offer`); a parse otherwise. The
+    /// codex32 form's Enter: the string typed is checked (Check a
+    /// string) or added; with the tick on, one that does not parse is
+    /// offered for correction (`docs/CODEX32.md` §8.1, §8.4, §8.5).
+    /// Returns whether the strings in now make the key.
+    fn codex32_part(&mut self, c: &Compute) -> bool {
+        let e = &mut self.state;
+        // Read as typed: BIP 93 refuses mixed case.
+        let given = zeroize::Zeroizing::new(e.typed.trim().to_string());
+        e.codex32.already = false;
+        e.codex32.checked = None;
+        let parses = Codex32::parse(&given).is_ok();
+        if !parses {
+            let held = e.parts.codex32.first();
+            if e.correction.offer(c, &given, held) == Offered::Shown {
+                e.error = None;
+                return false;
+            }
+        }
+        if e.codex32.checking {
+            self.codex32_check(&given, None);
+            return false;
+        }
+        self.codex32_add(&given, None)
+    }
+
+    /// Check a string (§8.3): what `given` is, and whether its checksum
+    /// holds; nothing is kept or loaded.
+    fn codex32_check(&mut self, given: &str, mark: Option<crate::codex32_correct::Mark>) {
+        let e = &mut self.state;
+        e.error = None;
+        e.codex32.checked = Some(match Codex32::parse(given) {
+            Ok(s) => forms::Checked {
+                holds: true,
+                what: forms::codex32_what(&s),
+                of_the_set: forms::of_the_set(&s, &e.parts.codex32),
+                mark,
+            },
+            Err(faraday_bip::codex32::Error::BadChecksum) => forms::Checked {
+                holds: false,
+                what: forms::codex32_refusal(given, &faraday_bip::codex32::Error::BadChecksum),
+                of_the_set: None,
+                mark: None,
+            },
+            Err(err) => {
+                e.error = Some(forms::codex32_refusal(given, &err));
+                return;
+            }
+        });
+    }
+
+    /// One codex32 string more, `mark` where it went in by a correction:
+    /// the same string again is "Already in"; another at an index already
+    /// in waits on Keep or Replace (§8.5). Returns whether the strings in
+    /// now make the key.
+    fn codex32_add(&mut self, given: &str, mark: Option<crate::codex32_correct::Mark>) -> bool {
+        let e = &mut self.state;
+        match add_codex32(&mut e.parts, given) {
+            Ok(Added::New) => {
+                if let (Some(m), Some(s)) = (mark, e.parts.codex32.last()) {
+                    e.correction.note(s, m);
+                }
+                e.sample.emptied();
+                e.typed.clear();
+                e.error = None;
+                e.parts.ready(Form::Codex32)
+            }
+            Ok(Added::Already) => {
+                e.typed.clear();
+                e.error = None;
+                e.codex32.already = true;
+                false
+            }
+            Ok(Added::Clash(string, at)) => {
+                e.typed.clear();
+                e.error = None;
+                e.codex32.clash = Some(forms::Clash::of(string, &e.parts.codex32[at], mark));
+                false
+            }
+            Err(msg) => {
+                e.error = Some(msg);
+                false
+            }
+        }
+    }
+
+    /// A correction's outcome: a string taken goes in (or is checked) as
+    /// one typed, with its mark. Returns whether the strings in now make
+    /// the key.
+    pub(crate) fn codex32_outcome(&mut self, out: crate::codex32_correct::Outcome) -> bool {
+        let crate::codex32_correct::Outcome::Take(t) = out else {
+            return false;
+        };
+        if self.state.codex32.checking {
+            self.state.typed.set(t.text());
+            self.codex32_check(t.text(), Some(t.mark()));
+            return false;
+        }
+        self.codex32_add(t.text(), Some(t.mark()))
+    }
+
+    /// A press on the codex32 form's own rows. Returns whether the
+    /// strings in now make the key.
+    pub(crate) fn codex32_press(&mut self, p: forms::C32Press) -> bool {
+        let e = &mut self.state;
+        match p {
+            forms::C32Press::Keep => e.codex32.clash = None,
+            forms::C32Press::Replace => {
+                if let Some(clash) = e.codex32.clash.take()
+                    && let Some(at) = e
+                        .parts
+                        .codex32
+                        .iter()
+                        .position(|d| d.share_index() == clash.string.share_index())
+                {
+                    if let Some(m) = clash.mark {
+                        e.correction.note(&clash.string, m);
+                    }
+                    e.parts.codex32[at] = clash.string;
+                    return e.parts.ready(Form::Codex32);
+                }
+            }
+            forms::C32Press::Check => {
+                // The string checked is dropped on leaving, and so is one
+                // typed to add on going to check.
+                e.codex32.checking = !e.codex32.checking;
+                e.codex32.checked = None;
+                e.codex32.already = false;
+                e.typed.clear();
+                e.error = None;
+                if e.correction.is_open() {
+                    e.correction
+                        .press(crate::codex32_correct::Press::CheckBoxes);
+                }
+            }
+            forms::C32Press::CheckIt => {}
+        }
+        false
+    }
+}
+
+/// What one codex32 string more did to the strings in.
+enum Added {
+    /// It went in.
+    New,
+    /// The same string is in already.
+    Already,
+    /// Another string is in at its index, at this place among them.
+    Clash(Codex32, usize),
 }
 
 /// One SLIP-39 share more, refused when it is not one or is a repeat.
@@ -325,24 +507,30 @@ fn add_slip39(parts: &mut forms::Parts, text: &str) -> Result<(), String> {
     Ok(())
 }
 
-/// One codex32 string more, refused when it is not one, is of another
-/// seed or is a repeat.
-fn add_codex32(parts: &mut forms::Parts, given: &str) -> Result<(), String> {
-    let c = Codex32::parse(given).map_err(|e| fill(EN.forms_not_a_codex32, &[&e.to_string()]))?;
+/// One codex32 string more, refused when it is not one or is of another
+/// seed. The same string again changes nothing; another at an index
+/// already in is handed back to ask about (`docs/CODEX32.md` §8.5).
+fn add_codex32(parts: &mut forms::Parts, given: &str) -> Result<Added, String> {
+    let c = Codex32::parse(given).map_err(|e| forms::codex32_refusal(given, &e))?;
     if let Some(first) = parts.codex32.first()
         && first.identifier() != c.identifier()
     {
         return Err(EN.forms_other_seed_string.to_string());
     }
-    if parts
+    if let Some(at) = parts
         .codex32
         .iter()
-        .any(|d| d.share_index() == c.share_index())
+        .position(|d| d.share_index() == c.share_index())
     {
-        return Err(EN.forms_share_duplicate.to_string());
+        let same = parts.codex32[at].encode().as_str() == c.encode().as_str();
+        return Ok(if same {
+            Added::Already
+        } else {
+            Added::Clash(c, at)
+        });
     }
     parts.codex32.push(c);
-    Ok(())
+    Ok(Added::New)
 }
 
 /// Costs what reading the words costs, a checksum and a hash. One Seed
@@ -635,11 +823,48 @@ impl Faraday {
     pub(crate) fn form_add_part(&mut self) {
         let c = self.compute();
         if self.entry.add_part(&c) {
-            if self.screen == Screen::KeyGen {
-                self.act(Action::KNext);
-            } else {
-                self.form_recover();
-            }
+            self.form_complete();
+        }
+    }
+
+    /// The strings or shares in make the key: Add a key adds it, New key
+    /// opens its Key card.
+    fn form_complete(&mut self) {
+        if self.screen == Screen::KeyGen {
+            self.act(Action::KNext);
+        } else {
+            self.form_recover();
+        }
+    }
+
+    /// Whether Add a key's form takes the keys typed: on Add a key, or on
+    /// New key's Words card for a key typed (`docs/history/NEW-WALLET.md` §15.2).
+    pub(crate) fn entry_typing_here(&self) -> bool {
+        self.screen == Screen::Entry
+            || (self.screen == Screen::KeyGen
+                && self
+                    .keygen
+                    .state()
+                    .is_some_and(|k| k.open == Some(crate::keygen::kstep::TYPED) && !k.locked))
+    }
+
+    /// A press on the codex32 form's correction (`docs/CODEX32.md`
+    /// §8.4): a correction taken goes in as a string typed, with its mark.
+    pub(crate) fn form_correct(&mut self, p: crate::codex32_correct::Press) {
+        let out = self.entry.state_mut().correction.press(p);
+        if self.entry.codex32_outcome(out) {
+            self.form_complete();
+        }
+    }
+
+    /// A press on the codex32 form's own rows (§8.3, §8.5).
+    pub(crate) fn form_codex32(&mut self, p: forms::C32Press) {
+        if p == forms::C32Press::CheckIt {
+            self.form_add_part();
+            return;
+        }
+        if self.entry.codex32_press(p) {
+            self.form_complete();
         }
     }
 
@@ -689,14 +914,22 @@ impl Faraday {
                     .add_seed(&c, &seed, label)
                     .map_err(|e| e.text())
             }),
-            Form::Codex32 => faraday_keys::codex32_seed(&self.entry.state().parts.codex32)
-                .map_err(|e| fill(EN.forms_the_strings_do, &[&e.to_string()]))
-                .and_then(|seed| {
-                    self.session
-                        .keys
-                        .add_seed(&c, &seed, label)
-                        .map_err(|e| e.text())
-                }),
+            Form::Codex32 => {
+                let fp = faraday_keys::codex32_seed(&self.entry.state().parts.codex32)
+                    .map_err(|e| fill(EN.forms_the_strings_do, &[&e.to_string()]))
+                    .and_then(|seed| {
+                        self.session
+                            .keys
+                            .add_seed(&c, &seed, label)
+                            .map_err(|e| e.text())
+                    })?;
+                // A key made of strings that went in by a correction
+                // carries its mark beside its fingerprint (§8.4).
+                if let Some(m) = self.entry.state().correction.key_mark() {
+                    self.session.key_marks.note(fp.0, m);
+                }
+                Ok(fp)
+            }
             Form::Xor => self
                 .entry
                 .state()

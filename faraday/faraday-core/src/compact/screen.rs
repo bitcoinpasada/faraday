@@ -548,7 +548,10 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui.text(x, y, 13.0, W::S, ACCENT, &line);
         y += 22.0;
     }
-    if es.other_forms {
+    // The form's chips step aside while a codex32 correction or clash
+    // stands in place of the field, so the panel stays above the keyboard
+    // (`docs/CODEX32.md` §8.4).
+    if es.other_forms && !(es.form == Form::Codex32 && crate::forms::codex32_replaced(es)) {
         let forms: Vec<(String, Style, Action)> = Form::ALL
             .iter()
             .enumerate()
@@ -821,7 +824,6 @@ pub(crate) fn keyed_taken(
 /// form draws it too, with `flow` its Continue (`docs/history/NEW-WALLET.md`
 /// §15.2): no passphrase (Key asks it), no way in from a stick, Continue
 /// in place of Make the key. Returns where the next row starts.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn entry_form(
     app: &View,
     ui: &mut Ui,
@@ -833,6 +835,52 @@ pub(crate) fn entry_form(
     use crate::forms::Form;
     let form = app.entry.state().form;
     let mut y = y;
+    // The codex32 form's tick, and the correction or a clash in place of
+    // the field while one is up (`docs/CODEX32.md` §8.4, §8.5).
+    let checking = form == Form::Codex32 && app.entry.state().codex32.checking;
+    // On a small panel the field comes first, above the keyboard, and
+    // the tick under it.
+    let replaced = form == Form::Codex32 && crate::forms::codex32_replaced(app.entry.state());
+    if replaced {
+        y += crate::screens::codex32_head(app, ui, (x, y, iw), false).0;
+    } else {
+        y = entry_field(app, ui, x, y, iw, form);
+        if form == Form::Codex32 {
+            y += crate::screens::codex32_tick(app, ui, x, y, iw);
+        }
+    }
+    if let Some(e) = &app.entry.state().error {
+        y += ui.wrap(x, y, iw, 13.0, W::R, ERR, e) + 8.0;
+    }
+    y += crate::screens::codex32_found(app, ui, x, y, iw);
+    let lines = app.entry.state().parts.lines(form);
+    y += heading(
+        ui,
+        x,
+        y,
+        &match lines.len() {
+            0 => EN.compact_nothing_in_yet.to_string(),
+            1 => EN.compact_count_one.to_string(),
+            n => fill(EN.compact_count_many, &[&n.to_string()]),
+        },
+    );
+    for (n, l) in lines.iter().enumerate() {
+        ui.icon(x - 2.0, y - 2.0, 18.0, Icon::Done, 10.0, OK);
+        let indent = faraday_draw::tokens::PART_INDENT_COMPACT;
+        y += ui.wrap(x + indent, y, iw - indent, 12.0, W::R, TEXT, l) + 6.0;
+        y += crate::screens::codex32_mark(app, ui, x + indent, y, iw - indent, n);
+    }
+    y += 6.0;
+    if form == Form::Codex32 {
+        y += crate::screens::codex32_check_button(app, ui, x, y);
+    }
+    entry_form_foot(app, ui, (x, y, iw), flow, (checking, replaced))
+}
+
+/// The field a share, string or part is typed into on a small panel,
+/// wrapped to its text. Returns where the next row starts.
+fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::forms::Form) -> f32 {
+    use crate::forms::Form;
     let on = !app.entry.state().on_passphrase;
     let empty = app.entry.state().typed.is_empty();
     // Use a sample stands where the hint would, in Demo.
@@ -872,26 +920,23 @@ pub(crate) fn entry_form(
     if chip {
         crate::samples::put::field_chip(ui, (x, y, iw, bh));
     }
-    y += bh + 10.0 + crate::screens::never_below(app, ui, x, y + bh, iw);
-    if let Some(e) = &app.entry.state().error {
-        y += ui.wrap(x, y, iw, 13.0, W::R, ERR, e) + 8.0;
-    }
-    let lines = app.entry.state().parts.lines(form);
-    y += heading(
-        ui,
-        x,
-        y,
-        &match lines.len() {
-            0 => EN.compact_nothing_in_yet.to_string(),
-            1 => EN.compact_count_one.to_string(),
-            n => fill(EN.compact_count_many, &[&n.to_string()]),
-        },
-    );
-    for l in &lines {
-        ui.icon(x - 2.0, y - 2.0, 18.0, Icon::Done, 10.0, OK);
-        y += ui.wrap(x + 20.0, y, iw - 20.0, 12.0, W::R, TEXT, l) + 6.0;
-    }
-    y += 6.0;
+    y + bh + 10.0 + crate::screens::never_below(app, ui, x, y + bh, iw)
+}
+
+/// The codex32 form's or another form's foot on a small panel: the
+/// passphrase where the form has one, Add this one (Check it while
+/// checking a string), Scan a QR code and Make the key. Returns where the
+/// next row starts.
+fn entry_form_foot(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, iw): (f32, f32, f32),
+    flow: Option<Action>,
+    (checking, replaced): (bool, bool),
+) -> f32 {
+    use crate::forms::Form;
+    let form = app.entry.state().form;
+    let mut y = y;
     if form != Form::Codex32 && flow.is_none() {
         y += pass_field(
             ui,
@@ -918,8 +963,12 @@ pub(crate) fn entry_form(
         iw,
         &[
             (
-                EN.compact_add_this_one,
-                if app.entry.state().typed.trim().is_empty() {
+                if checking {
+                    EN.codex32_form_check_it
+                } else {
+                    EN.compact_add_this_one
+                },
+                if app.entry.state().typed.trim().is_empty() || replaced {
                     Style::Disabled
                 } else {
                     Style::Secondary

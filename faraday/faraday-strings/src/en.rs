@@ -9230,4 +9230,43 @@ strings! {
     guide_codex32_strings: "Write each string down, then type it back to check the copy. Continue goes to the next string.",
     /// Guided: Strings made.
     guide_codex32_made: "These facts let another device check the strings. Lock in loads the key the strings make.",
+    // ----- Codex32 strings typed, checked and scanned (docs/CODEX32.md §8.1, §8.3, §8.5, §10.1), faraday-core -----
+    /// The same codex32 string typed or scanned again: nothing changes.
+    codex32_form_already_in: "Already in",
+    /// A string at a share index already in, which differs from the one held. `{}`: the index, upper case.
+    codex32_form_clash: "Share {} is in already, and differs",
+    /// Label over the string held, beside the one typed.
+    codex32_form_held: "Held",
+    /// Label over the string just typed or scanned.
+    codex32_form_new: "This one",
+    /// The boxes the two strings differ in. `{}`: the boxes, counted from 1 at `m`.
+    codex32_form_differ: "Boxes {} differ",
+    /// Keep the string held, drop the one typed.
+    codex32_form_keep: "Keep the one held",
+    /// Put the string typed in place of the one held.
+    codex32_form_replace: "Replace it",
+    /// A share whose checksum fails. `{}`: its index, upper case.
+    codex32_form_share_fails: "Share {} · checksum fails",
+    /// The secret string, its checksum failing.
+    codex32_form_secret_fails: "Secret · checksum fails",
+    /// The codex32 form's button to Check a string (§8.3).
+    codex32_form_check_a_string: "Check a string",
+    /// Check a string: the form's guide line.
+    codex32_form_check_guide: "One string, checked. Nothing is loaded or kept.",
+    /// Check a string: its button.
+    codex32_form_check_it: "Check it",
+    /// Check a string: leaves for the form that adds strings.
+    codex32_form_back_to_adding: "Back to adding strings",
+    /// Check a string: the checksum holds.
+    codex32_form_holds: "Checksum holds",
+    /// Check a string: the checksum fails.
+    codex32_form_fails: "Checksum fails",
+    /// Check a string: the string is a share of the set typed in.
+    codex32_form_of_the_set: "Of the set typed in",
+    /// Check a string: the string is not of the set typed in.
+    codex32_form_not_of_the_set: "Not of the set typed in",
+    /// Check a string: what the string is. `{}`: the index, upper case; the identifier; the threshold.
+    codex32_form_checked_share: "Share {} · id {} · {} needed",
+    /// Check a string: the secret. `{}`: the identifier.
+    codex32_form_checked_secret: "The secret · id {}",
 }

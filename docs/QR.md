@@ -40,7 +40,7 @@ open.
 | `ur:bytes` | yes | yes |
 | `ur:crypto-account`, `ur:crypto-hdkey`, `ur:crypto-output` (tags 400–409), as key or descriptor text; `crypto-output` read, never written: it cannot express `<0;1>` | no | yes |
 | `ur:crypto-seed`, a private `crypto-hdkey` | no | refused, with the reason |
-| Descriptor, xpub and SLIP-132, Coldcard JSON, multisig config, BSMS, codex32, SeedQR, CompactSeedQR, words, address, silent payment address | no | yes |
+| Descriptor, xpub and SLIP-132, Coldcard JSON, multisig config, BSMS, codex32 (a Codex32QR/v1-48 code among them, `docs/CODEX32.md` §10.1; Add a key's Scan a SeedQR opens the codex32 form with one), SeedQR, CompactSeedQR, words, address, silent payment address | no | yes |
 | Faraday file envelope (`faraday-file-v1`: name, kind, size, SHA-256, data) over BBQr `J`, `ur:bytes` or one code, checked by re-packing it byte for byte and filed under its own name | yes | yes |
 | `otpauth://` URI (a TOTP secret, for an entry) | no | yes |
 

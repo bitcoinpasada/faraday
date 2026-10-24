@@ -9,6 +9,7 @@ pub(crate) mod cancel;
 pub(crate) mod chart_edit;
 pub(crate) mod codex32;
 pub(crate) mod codex32_correct;
+pub(crate) mod codex32_form;
 pub(crate) mod compact;
 pub(crate) mod copy;
 pub(crate) mod create_from;

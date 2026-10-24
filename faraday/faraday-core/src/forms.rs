@@ -135,6 +135,163 @@ impl Parts {
     }
 }
 
+/// A press on the codex32 form's own rows (`docs/CODEX32.md` §8.3,
+/// §8.5).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum C32Press {
+    /// **Keep the one held**: the string typed at an index already in is
+    /// dropped.
+    Keep,
+    /// **Replace it**: the string typed takes the place of the one held.
+    Replace,
+    /// **Check a string**, or back to adding strings: the field checks
+    /// one string rather than adding it.
+    Check,
+    /// **Check it**: the string in the field is checked.
+    CheckIt,
+}
+
+/// A string typed or scanned at a share index already in, which
+/// differs from the one held (§8.5): both shown, their differing boxes
+/// marked, until **Keep the one held** or **Replace it**. Both strings
+/// are kept as text once, for drawing, and wiped on drop.
+pub struct Clash {
+    /// The string typed.
+    pub string: Codex32,
+    /// Its text, lowercase.
+    pub text: faraday_bip::codex32::Codex32Ascii,
+    /// The string held at that index, as text.
+    pub held: faraday_bip::codex32::Codex32Ascii,
+    /// The boxes the two differ in, counted from 1 at `m`.
+    pub differ: Vec<usize>,
+    /// The mark the string typed carries, where it went in by a
+    /// correction.
+    pub mark: Option<crate::codex32_correct::Mark>,
+}
+
+impl Clash {
+    /// The clash between `string` and `held`, the strings' boxes
+    /// compared once.
+    pub fn of(
+        string: Codex32,
+        held: &Codex32,
+        mark: Option<crate::codex32_correct::Mark>,
+    ) -> Clash {
+        let text = string.encode();
+        let held = held.encode();
+        let differ = text
+            .as_str()
+            .bytes()
+            .zip(held.as_str().bytes())
+            .enumerate()
+            .filter(|(_, (a, b))| a != b)
+            .map(|(i, _)| i + 1)
+            .collect();
+        Clash {
+            string,
+            text,
+            held,
+            differ,
+            mark,
+        }
+    }
+}
+
+/// What **Check it** found of one string (§8.3). Public: what the string
+/// is, never its data.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Checked {
+    /// The checksum holds.
+    pub holds: bool,
+    /// What the string is, where its checksum holds ("Share C · id
+    /// w0za · 2 needed"); where it fails, the refusal.
+    pub what: String,
+    /// Whether it is of the set typed in, where strings are in and its
+    /// checksum holds.
+    pub of_the_set: Option<bool>,
+    /// The mark it carries, where it went in by a correction.
+    pub mark: Option<crate::codex32_correct::Mark>,
+}
+
+/// The codex32 form's state beside the strings in: a clash waiting on
+/// its answer, "Already in", and Check a string.
+#[derive(Default)]
+pub struct Codex32Form {
+    /// A string at an index already in, waiting on Keep or Replace.
+    pub clash: Option<Clash>,
+    /// The last string typed was in already, the same.
+    pub already: bool,
+    /// Check a string: the field checks one string; nothing is kept or
+    /// loaded.
+    pub checking: bool,
+    /// What the last Check it found.
+    pub checked: Option<Checked>,
+}
+
+/// The line a string that does not parse is refused with: a share or
+/// the secret whose checksum fails is named by its index ("Share C ·
+/// checksum fails", §8.1), anything else by what is wrong.
+pub fn codex32_refusal(given: &str, e: &faraday_bip::codex32::Error) -> String {
+    if *e == faraday_bip::codex32::Error::BadChecksum
+        && let Some(&i) = given.as_bytes().get(8)
+    {
+        let i = i.to_ascii_lowercase();
+        if i == b's' {
+            return EN.codex32_form_secret_fails.to_string();
+        }
+        return fill(
+            EN.codex32_form_share_fails,
+            &[&char::from(i.to_ascii_uppercase()).to_string()],
+        );
+    }
+    fill(EN.forms_not_a_codex32, &[&e.to_string()])
+}
+
+/// What a codex32 string is, by its header: "Share C · id w0za · 2
+/// needed", or "The secret · id w0za".
+pub fn codex32_what(c: &Codex32) -> String {
+    let id = String::from_utf8_lossy(&c.identifier()).into_owned();
+    if c.is_secret() {
+        fill(EN.codex32_form_checked_secret, &[&id])
+    } else {
+        fill(
+            EN.codex32_form_checked_share,
+            &[
+                &char::from(c.share_index().to_ascii_uppercase()).to_string(),
+                &id,
+                &c.threshold().to_string(),
+            ],
+        )
+    }
+}
+
+/// Whether something stands in place of the codex32 form's field: a
+/// clash, or the correction's screen.
+pub fn codex32_replaced(e: &crate::EntryState) -> bool {
+    e.codex32.clash.is_some() || e.correction.is_open()
+}
+
+/// Whether the codex32 form takes presses only: a clash, or the
+/// correction's screen at any step but the boxes typed again from the
+/// paper, stands in place of the field, so no keyboard is up for it.
+pub fn codex32_pressed_only(e: &crate::EntryState) -> bool {
+    e.form == Form::Codex32
+        && (e.codex32.clash.is_some()
+            || (e.correction.is_open()
+                && e.correction.step() != Some(crate::codex32_correct::Step::Retype)))
+}
+
+/// Whether `c` is of the set `set` holds, where strings are in: the same
+/// identifier, threshold and length as its first string.
+pub fn of_the_set(c: &Codex32, set: &[Codex32]) -> Option<bool> {
+    let first = set.first()?;
+    Some(
+        first.identifier() == c.identifier()
+            && first.threshold() == c.threshold()
+            && first.payload().len() == c.payload().len(),
+    )
+}
+
 /// Every BIP-39 list words are typed from, in the order they are
 /// offered. The six written in Latin letters are typed on the computer's
 /// keyboard as their ASCII fold (`niño` as `nino`); the other four on an
