@@ -36,7 +36,14 @@ pub(crate) fn pills_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CNext(faraday_core::cstep::WHERE));
     t.press(Action::CVaultN(5));
     t.press(Action::CNext(faraday_core::cstep::HOW_MANY));
-    t.shot("pills-five-vaults")
+    t.shot("pills-five-vaults")?;
+    // Settings' Preview size, as the desktop shell offers it
+    // (`docs/PREVIEW-SIZE.md`).
+    t.app
+        .event(faraday_shell_api::Event::PreviewOffered { chosen: None });
+    t.press(Action::Nav(Screen::Settings));
+    crate::tour::scroll_to(t, Action::PreviewSize(None));
+    t.shot("pills-preview-size")
 }
 
 /// The demo's dimmed actions (`docs/DEMO.md` §7): BIP-85's Value card

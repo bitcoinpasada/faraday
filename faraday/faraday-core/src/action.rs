@@ -246,6 +246,10 @@ pub enum Action {
     Cancel,
     /// Set the display scale, in percent.
     Scale(u16),
+    /// Show the screens at another screen's size, in dp, or at the
+    /// window's own (`None`): the desktop app's preview
+    /// (`docs/PREVIEW-SIZE.md`).
+    PreviewSize(Option<(u16, u16)>),
     /// Draw in the dark or the light palette.
     Theme(ui::Theme),
     /// Reduce motion on or off.

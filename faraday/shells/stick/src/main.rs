@@ -1218,6 +1218,9 @@ impl Shell {
                     Command::StoreSecret { .. } => pending.push_back(Event::SecretNotStored),
                     Command::LoadSecret => pending.push_back(Event::SecretUnavailable),
                     Command::ForgetSecret => pending.push_back(Event::SecretForgotten),
+                    // The stick is its screen: it sends no
+                    // `PreviewOffered`, so this is never asked.
+                    Command::PreviewSize { .. } => {}
                 }
             }
             // A boot partition read or written takes seconds: what is on

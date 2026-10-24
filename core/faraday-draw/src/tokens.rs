@@ -682,6 +682,47 @@ pub const WINDOW_DEFAULT_H: f32 = 800.0;
 /// §3.1d).
 pub const WINDOW_HELD_WIDE: f32 = 1280.0;
 
+/// A Settings card's inset from its edge (the wide layout).
+pub const SETTINGS_CARD_INSET: f32 = 22.0;
+
+/// A Settings card's choices begin this far below its top.
+pub const SETTINGS_CARD_HEAD: f32 = 54.0;
+
+/// A Settings card's title, this far below its top.
+pub const SETTINGS_CARD_TITLE_Y: f32 = 20.0;
+
+/// A Settings card's title size.
+pub const SETTINGS_CARD_TITLE: f32 = 15.0;
+
+/// The space between two Settings cards.
+pub const SETTINGS_CARD_GAP: f32 = 20.0;
+
+/// A row of Settings' choices, its height.
+pub const SETTINGS_CHOICE_H: f32 = 38.0;
+
+/// The space above a value under a row of choices.
+pub const SETTINGS_VALUE_GAP: f32 = 12.0;
+
+/// A value under a row of choices, its text size.
+pub const SETTINGS_VALUE_TEXT: f32 = 13.0;
+
+/// A value's line under a row of choices.
+pub const SETTINGS_VALUE_LINE: f32 = 16.0;
+
+/// The screens the desktop app can show its screens at
+/// (`docs/PREVIEW-SIZE.md`), width and height in dp, in Settings'
+/// order: the Pi panel, a narrow window, a half-screen window, a 7-inch
+/// panel, a 10-inch panel, the desktop window, a full monitor.
+pub const PREVIEW_SIZES: [(u16, u16); 7] = [
+    (268, 358),
+    (400, 800),
+    (760, 1000),
+    (960, 580),
+    (1370, 860),
+    (1280, 800),
+    (1920, 1080),
+];
+
 // Navigation by window class (`docs/LAYOUT.md` §3, §9), Material 3's
 // rail, bar and top app bar in Faraday's look.
 

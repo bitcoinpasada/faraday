@@ -2,8 +2,9 @@
 //! (`faraday/shells/starter`) share to run in a window, so the two behave
 //! alike: the frame pacing ([`pace`]), the input ([`input`]), the copy of
 //! a frame into the window ([`view`]), and the camera with the scanner
-//! that reads its frames ([`camera`], [`lens`]), and the clipboard's text
-//! for Paste ([`clipboard`]). Each shell keeps its own
+//! that reads its frames ([`camera`], [`lens`]), the clipboard's text
+//! for Paste ([`clipboard`]), and the desktop's preview size
+//! ([`preview`]). Each shell keeps its own
 //! loop and what only it does (the desktop's stick folders, the Starter's
 //! disks).
 
@@ -12,6 +13,7 @@ pub mod clipboard;
 pub mod input;
 pub mod lens;
 pub mod pace;
+pub mod preview;
 pub mod view;
 
 use faraday_shell_api::{EntropyBytes, Event};

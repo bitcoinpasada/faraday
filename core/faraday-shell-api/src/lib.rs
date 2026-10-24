@@ -671,6 +671,16 @@ pub enum Event {
     /// owes the core a tick carrying the wall-clock time that passed
     /// while it was gone, before it draws again.
     Lock,
+    /// The shell can show the app at another screen's size inside its
+    /// window (the desktop app's preview, `docs/PREVIEW-SIZE.md`), and
+    /// shows it at `chosen` now: a width and height in dp, or `None` for
+    /// the window's own size. Sent after [`Event::Display`] and again
+    /// after each [`Command::PreviewSize`]; a shell that cannot preview
+    /// never sends it.
+    PreviewOffered {
+        /// The size shown, in dp; `None` is the window itself.
+        chosen: Option<(u16, u16)>,
+    },
 }
 
 /// Core → shell.
@@ -809,6 +819,16 @@ pub enum Command {
     /// one [`Event::SecretForgotten`], whether or not it was holding
     /// anything.
     ForgetSecret,
+    /// Show the app at `size` dp inside the window, laid out as a screen
+    /// of that size, or at the window's own size for `None`
+    /// (`docs/PREVIEW-SIZE.md`). Only emitted for a user action, and only
+    /// to a shell that sent [`Event::PreviewOffered`]; it answers with a
+    /// new [`Event::Display`] and [`Event::PreviewOffered`]. Any other
+    /// shell does nothing.
+    PreviewSize {
+        /// Width and height in dp; `None` is the window itself.
+        size: Option<(u16, u16)>,
+    },
 }
 
 /// A borrowed view of the core-owned framebuffer.

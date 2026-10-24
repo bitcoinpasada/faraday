@@ -6011,6 +6011,27 @@ strings! {
     settings_display_scale: "Display scale",
     /// Text in `settings`.
     settings_auto: "Auto",
+    /// Settings' card in the desktop app: the screen size its screens
+    /// are shown at (docs/PREVIEW-SIZE.md).
+    settings_preview_size: "Preview size",
+    /// Preview size's choice: the window's own size.
+    settings_preview_this_window: "This window",
+    /// Preview size's choice: the Pi's 2.8-inch panel, 268 × 358 dp.
+    settings_preview_pi: "Pi panel",
+    /// Preview size's choice: a narrow window, 400 × 800 dp.
+    settings_preview_narrow: "Narrow window",
+    /// Preview size's choice: half a screen, 760 × 1000 dp.
+    settings_preview_half: "Half screen",
+    /// Preview size's choice: a 7-inch panel, 960 × 580 dp.
+    settings_preview_7in: "7-inch panel",
+    /// Preview size's choice: a 10-inch panel, 1370 × 860 dp.
+    settings_preview_10in: "10-inch panel",
+    /// Preview size's choice: the desktop app's window, 1280 × 800 dp.
+    settings_preview_desktop: "Desktop window",
+    /// Preview size's choice: a full monitor, 1920 × 1080 dp.
+    settings_preview_monitor: "Full monitor",
+    /// Preview size's value under the choices. `{}`: width, height in dp.
+    settings_preview_dp: "{} × {} dp",
     /// Line in `settings`.
     settings_signed_amounts: "Signed amounts",
     /// Text in `settings`. `{}`: `n`, `if n == 1 { EN.settings_transaction }…`.

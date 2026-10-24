@@ -63,6 +63,13 @@
 //! Locking ends the app's process on the device; here it replaces the app
 //! with a fresh one in the same window, with the Inbox and Outbox carried
 //! over, which is what the device's app loop does.
+//!
+//! Settings' Preview size shows the screens as another screen's size
+//! lays them out (`docs/PREVIEW-SIZE.md`): the app is given a display of
+//! that size in dp, drawn framed and centred in the window and scaled
+//! down where the window is smaller, and the pointer is carried into the
+//! frame. A lock keeps the size; a new launch opens at the window's own.
+//! Not offered with `--panel`, whose window is already a device's screen.
 #![cfg_attr(windows, windows_subsystem = "windows")]
 
 use std::collections::BTreeSet;
@@ -81,6 +88,7 @@ use faraday_window::entropy;
 use faraday_window::input::Pointer;
 use faraday_window::lens::{Lens, LensHost};
 use faraday_window::pace::{Pacer, TICK};
+use faraday_window::preview::{self, Carry, Fit};
 use faraday_window::view::{self, View};
 use winit::application::ApplicationHandler;
 use winit::dpi::{LogicalSize, PhysicalSize};
@@ -191,11 +199,39 @@ struct Shell {
     lens: Lens,
     /// The system clipboard, read for the scanner's Paste.
     clipboard: Clipboard,
+    /// The screen size the app is shown at, in dp, or `None` for the
+    /// window's own (`docs/PREVIEW-SIZE.md`).
+    preview: Option<(u16, u16)>,
+    /// The pointer carried into the preview's frame.
+    carry: Carry,
 }
 
 impl Shell {
     fn display(&self) -> Event {
-        view::display(self.shown, self.scale, self.panel.map(|p| p.ppi))
+        match self.preview {
+            Some(dp) => preview::display(dp, self.scale),
+            None => view::display(self.shown, self.scale, self.panel.map(|p| p.ppi)),
+        }
+    }
+
+    /// What the app is told of the preview: the size shown, or nothing
+    /// with `--panel`, where none is offered.
+    fn offered(&self) -> Option<Event> {
+        self.panel.is_none().then_some(Event::PreviewOffered {
+            chosen: self.preview,
+        })
+    }
+
+    /// Where the preview's frame is in the window, while one is shown.
+    fn fit(&self) -> Option<Fit> {
+        let Event::Display(d) = preview::display(self.preview?, self.scale) else {
+            return None;
+        };
+        Some(Fit::of(
+            self.shown,
+            (u32::from(d.width), u32::from(d.height)),
+            self.scale,
+        ))
     }
 
     fn window(&self) -> Option<&Window> {
@@ -268,6 +304,16 @@ impl Shell {
                     Command::RequestClipboard { kind } => {
                         events.push(self.clipboard.answer(kind));
                     }
+                    // Popped last first: the display, then what is shown.
+                    Command::PreviewSize { size } if self.panel.is_none() => {
+                        self.preview = size;
+                        self.carry = Carry::default();
+                        events.push(Event::PreviewOffered { chosen: size });
+                        events.push(match size {
+                            Some(dp) => preview::display(dp, self.scale),
+                            None => view::display(self.shown, self.scale, None),
+                        });
+                    }
                     Command::Exit => {
                         if app.restart_requested() {
                             for line in
@@ -326,9 +372,13 @@ impl Shell {
         self.dirs = Dirs::default();
         self.seen.clear();
         let display = self.display();
+        let offered = self.offered();
         let restored = self.boxes.restore();
         if let Some(app) = self.app.as_mut() {
             app.event(display);
+            if let Some(o) = offered {
+                app.event(o);
+            }
             app.storage(restored);
         }
         let tick = self.pace.tick();
@@ -447,7 +497,8 @@ impl Shell {
             return;
         };
         let begun = Instant::now();
-        view.draw(app, &mut self.pace);
+        let framed = self.preview.map(|_| self.scale);
+        view.draw_in(app, &mut self.pace, framed);
         self.slow("frame", begun.elapsed());
     }
 
@@ -531,6 +582,9 @@ impl ApplicationHandler for Shell {
         self.view = Some(view);
         let display = self.display();
         self.send(event_loop, display);
+        if let Some(o) = self.offered() {
+            self.send(event_loop, o);
+        }
         self.rescan(event_loop, true);
         self.relist();
         if std::mem::take(&mut self.open_transfer) {
@@ -577,8 +631,11 @@ impl ApplicationHandler for Shell {
             WindowEvent::Resized(size) => {
                 if size.width > 0 && size.height > 0 && (size.width, size.height) != self.shown {
                     self.shown = (size.width, size.height);
-                    let display = self.display();
-                    self.send(event_loop, display);
+                    // A preview keeps its size: only its place moves.
+                    if self.preview.is_none() {
+                        let display = self.display();
+                        self.send(event_loop, display);
+                    }
                 }
                 if let Some(w) = self.window() {
                     w.request_redraw();
@@ -586,9 +643,17 @@ impl ApplicationHandler for Shell {
             }
             // The mouse, a finger, the wheel and the keyboard, as the
             // shell API's events (`faraday-window`).
+            // In a preview, carried into its frame.
             other => {
+                let fit = self.fit();
                 for e in self.pointer.translate(&other) {
-                    self.send(event_loop, e);
+                    let e = match &fit {
+                        Some(fit) => self.carry.carry(fit, e),
+                        None => Some(e),
+                    };
+                    if let Some(e) = e {
+                        self.send(event_loop, e);
+                    }
                 }
             }
         }
@@ -904,6 +969,8 @@ fn main() -> ExitCode {
         pointer: Pointer::new(),
         lens: Lens::new(Camera::new(None, false)),
         clipboard: Clipboard::system(),
+        preview: None,
+        carry: Carry::default(),
     };
     match event_loop.run_app(&mut shell) {
         Ok(()) => ExitCode::SUCCESS,
@@ -980,6 +1047,98 @@ mod tests {
         now.cameras.push(("0".into(), "Webcam".into()));
         assert!(is_new(&mut last, &now));
         assert!(!is_new(&mut last, &now));
+    }
+
+    /// Settings offers the preview sizes; the Pi panel's lays Home out
+    /// as the panel does, with its menu and no bar, and a press inside
+    /// the frame, centred in a 1280 × 800 window, opens what is under it.
+    #[test]
+    fn the_pi_preview_lays_home_out_as_the_panel_and_takes_presses() {
+        use faraday_shell_api::TouchPhase;
+        let mut app = desktop_app_in(faraday_core::Mode::Demo);
+        let window = (1280, 800);
+        app.event(view::display(window, 1.0, None));
+        app.event(Event::PreviewOffered { chosen: None });
+        app.press(Action::Nav(Screen::Settings));
+        let _ = app.frame();
+        // The Pi panel, in dp.
+        let pi = (268, 358);
+        // Settings, scrolled down to the card, offers it.
+        let choice = Action::PreviewSize(Some(pi));
+        for t in 1..=60u64 {
+            if app.where_offered(choice).is_some() {
+                break;
+            }
+            app.event(Event::Scroll {
+                x: 640,
+                y: 400,
+                dy: 120,
+            });
+            app.event(Event::Tick { now_ms: t * 50 });
+            let _ = app.frame();
+        }
+        let (x, y) = app
+            .where_offered(choice)
+            .expect("Settings offers the Pi panel");
+        for phase in [TouchPhase::Down, TouchPhase::Up] {
+            app.event(Event::Touch { x, y, phase });
+        }
+        let mut asked = None;
+        while let Some(c) = app.poll_command() {
+            if let Command::PreviewSize { size } = c {
+                asked = Some(size);
+            }
+        }
+        assert_eq!(asked, Some(Some(pi)));
+        // What the shell answers (`Shell::deliver`).
+        let display = preview::display(pi, 1.0);
+        let Event::Display(d) = display else {
+            panic!("not a display");
+        };
+        app.event(display);
+        app.event(Event::PreviewOffered { chosen: Some(pi) });
+        app.press(Action::Nav(Screen::Home));
+        let _ = app.frame();
+        assert!(app.is_compact() && app.window().short());
+        assert_eq!(app.nav(), faraday_core::nav::Nav::Menu);
+        // Vaults' tile, pressed where the window shows it.
+        let fit = Fit::of(window, (u32::from(d.width), u32::from(d.height)), 1.0);
+        let (fx, fy) = app
+            .where_offered(Action::Nav(Screen::Vaults))
+            .expect("Home's menu offers Vaults");
+        let wx = fit.x as u16 + fx;
+        let wy = fit.y as u16 + fy;
+        let mut carry = Carry::default();
+        for phase in [TouchPhase::Down, TouchPhase::Up] {
+            let e = carry
+                .carry(
+                    &fit,
+                    Event::Touch {
+                        x: wx,
+                        y: wy,
+                        phase,
+                    },
+                )
+                .expect("inside the frame");
+            app.event(e);
+        }
+        let _ = app.frame();
+        assert_eq!(app.screen, Screen::Vaults);
+    }
+
+    /// Where no preview is offered (the stick, `--panel`), Settings has
+    /// no Preview size and a size asked for is never sent on.
+    #[test]
+    fn no_preview_is_asked_where_none_is_offered() {
+        let mut app = desktop_app_in(faraday_core::Mode::Demo);
+        app.event(view::display((1280, 800), 1.0, None));
+        app.press(Action::Nav(Screen::Settings));
+        let _ = app.frame();
+        assert!(app.preview().is_none());
+        app.press(Action::PreviewSize(Some((268, 358))));
+        while let Some(c) = app.poll_command() {
+            assert!(!matches!(c, Command::PreviewSize { .. }));
+        }
     }
 
     #[test]

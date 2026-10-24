@@ -6,7 +6,7 @@ file core/faraday-psbt/src/inspect.rs 2673
 file faraday/faraday-core/src/backup_flow/steps.rs 2994
 file faraday/faraday-core/src/backup_flow/wallet.rs 2840
 file faraday/faraday-core/src/board/mod.rs 2567
-file faraday/faraday-core/src/lib.rs 7602
+file faraday/faraday-core/src/lib.rs 7591
 file faraday/faraday-core/src/plan/mod.rs 4045
 file faraday/faraday-core/src/vault/mod.rs 3916
 file faraday/faraday-core/src/vault/screen.rs 4276

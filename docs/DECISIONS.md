@@ -124,3 +124,4 @@ Read this table, then only the decision you need.
 | [F107](decisions/F107.md) | Single key, backup in shares | 2026-10-22 | Active | wallets |
 | [F108](decisions/F108.md) | Faraday's tokens, colour roles and components follow Material 3, shape included | 2026-10-23 | Active | design |
 | [F109](decisions/F109.md) | Out of the app until their standards mature: FROST, and MuSig2 signing across places | 2026-10-23 | Active | wallets |
+| [F110](decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Active | design |

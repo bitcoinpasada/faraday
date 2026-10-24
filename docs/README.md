@@ -34,6 +34,7 @@ need. Each document's header says what kind it is:
 | Did a signing device do only what it was asked? | `docs/SIGNER-CHECK.md` |
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
+| How does Faraday Desktop show its screens at another screen's size? | `docs/PREVIEW-SIZE.md` |
 | Can a person add their own randomness, and when is the stick's kernel ready? | `docs/OWN-RANDOMNESS.md` |
 | How does a seed change form and stay the same wallet? | `docs/SEED-CONVERSION.md` |
 | What about Macs? | `docs/MAC.md` |
@@ -66,6 +67,7 @@ need. Each document's header says what kind it is:
 - `docs/FAMILY.md`: The Spend tab. Built.
 - `docs/KDBX.md`: KDBX 4: the encrypted file Faraday writes for others. Built.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
+- `docs/PREVIEW-SIZE.md`: Preview size: Faraday Desktop at another screen's size. Built (decision drafted).
 - `docs/README.md`: Faraday's documents. Built.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
 - `docs/STANDARDS.md`: Standards: what Faraday follows, how fully, and where it decides. Built.

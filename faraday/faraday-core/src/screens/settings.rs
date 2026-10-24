@@ -6,6 +6,11 @@ use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
+use faraday_draw::tokens::{
+    LABEL, SETTINGS_CARD_GAP, SETTINGS_CARD_HEAD, SETTINGS_CARD_INSET, SETTINGS_CARD_TITLE,
+    SETTINGS_CARD_TITLE_Y, SETTINGS_CHOICE_H, SETTINGS_VALUE_GAP, SETTINGS_VALUE_LINE,
+    SETTINGS_VALUE_TEXT,
+};
 use faraday_ui::parts::{title, wrap_buttons};
 
 /// The panic key, beside Power off on Settings: the stick shell powers
@@ -67,6 +72,51 @@ fn time_section(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
 /// What the Time card says reads the clock: everything that calls
 /// `clock_now`.
 const TIME_FOR: &str = EN.app_for_totp_codes;
+
+/// Preview size's choices, in Settings' order (`docs/PREVIEW-SIZE.md`):
+/// the window itself, then each of `PREVIEW_SIZES`.
+fn preview_items() -> [(&'static str, Action); 8] {
+    let s = faraday_draw::tokens::PREVIEW_SIZES;
+    [
+        (EN.settings_preview_this_window, Action::PreviewSize(None)),
+        (EN.settings_preview_pi, Action::PreviewSize(Some(s[0]))),
+        (EN.settings_preview_narrow, Action::PreviewSize(Some(s[1]))),
+        (EN.settings_preview_half, Action::PreviewSize(Some(s[2]))),
+        (EN.settings_preview_7in, Action::PreviewSize(Some(s[3]))),
+        (EN.settings_preview_10in, Action::PreviewSize(Some(s[4]))),
+        (EN.settings_preview_desktop, Action::PreviewSize(Some(s[5]))),
+        (EN.settings_preview_monitor, Action::PreviewSize(Some(s[6]))),
+    ]
+}
+
+/// Preview size's choices and, under them, the size the screens are laid
+/// out at, in dp, from (x, y) `w` wide; `chosen` is the size shown.
+/// Returns its height.
+fn preview_body(
+    app: &View,
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    chosen: Option<(u16, u16)>,
+) -> f32 {
+    let items = preview_items();
+    let on = items
+        .iter()
+        .position(|(_, a)| *a == Action::PreviewSize(chosen));
+    let mut h = ui.choices((x, y, w, SETTINGS_CHOICE_H), LABEL, &items, on) + SETTINGS_VALUE_GAP;
+    let window = app.window();
+    let size = fill(
+        EN.settings_preview_dp,
+        &[
+            &format!("{:.0}", window.width),
+            &format!("{:.0}", window.height),
+        ],
+    );
+    ui.text(x, y + h, SETTINGS_VALUE_TEXT, W::R, MUTED, &size);
+    h += SETTINGS_VALUE_LINE;
+    h
+}
 
 /// [`settings`] on a small panel: the same sections, one column, each
 /// row of choices wrapping to the panel.
@@ -194,6 +244,13 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let on = labels.iter().position(|(_, pct)| app.scale_pct() == *pct);
         ui.choices((x, y0, w, 36.0), 13.0, &items, on)
     });
+    // The desktop app's preview size (`docs/PREVIEW-SIZE.md`): only
+    // where the shell offers one.
+    if let Some(chosen) = app.preview() {
+        y += section(ui, x, y, w, EN.settings_preview_size, &|ui, x, y0, w| {
+            preview_body(app, ui, x, y0, w, chosen)
+        });
+    }
     y += section(ui, x, y, w, EN.settings_signed_amounts, &|ui, x, y0, w| {
         let mut y = y0;
         let n = app.memory.signed().len();
@@ -493,6 +550,25 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let on = scales.iter().position(|&pct| app.scale_pct() == pct);
     ui.choices((x + 22.0, y + 54.0, inner, 38.0), 14.0, &items, on);
     y += 132.0;
+    // The desktop app's preview size (`docs/PREVIEW-SIZE.md`): only
+    // where the shell offers one.
+    if let Some(chosen) = app.preview() {
+        let (bx, by) = (x + SETTINGS_CARD_INSET, y + SETTINGS_CARD_HEAD);
+        let body =
+            faraday_ui::parts::measured(ui, |ui| preview_body(app, ui, bx, by, inner, chosen));
+        let card_h = SETTINGS_CARD_HEAD + body + SETTINGS_CARD_INSET;
+        ui.card(x, y, width, card_h, LINE);
+        ui.text(
+            bx,
+            y + SETTINGS_CARD_TITLE_Y,
+            SETTINGS_CARD_TITLE,
+            W::S,
+            TEXT,
+            EN.settings_preview_size,
+        );
+        preview_body(app, ui, bx, by, inner, chosen);
+        y += card_h + SETTINGS_CARD_GAP;
+    }
     ui.card(x, y, width, 112.0, LINE);
     ui.text(
         x + 22.0,

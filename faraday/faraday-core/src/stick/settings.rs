@@ -63,6 +63,11 @@ pub(crate) struct Settings {
     tz_min: i16,
     /// Guided mode: flows show their written walk-through.
     guided: bool,
+    /// The desktop app's preview size (`docs/PREVIEW-SIZE.md`): `None`
+    /// where the shell offers none; else the size it shows, in dp, or
+    /// `None` for the window itself. Never in the file or the kept
+    /// state: the shell says it each session.
+    preview: Option<Option<(u16, u16)>>,
 }
 
 impl Default for Settings {
@@ -80,6 +85,7 @@ impl Default for Settings {
             // value, from the kept state or the boot stick's settings
             // file, overwrites this before the person sees a screen.
             guided: false,
+            preview: None,
         }
     }
 }
@@ -123,6 +129,17 @@ impl Settings {
     /// Whether guided mode is on.
     pub(crate) fn guided(&self) -> bool {
         self.guided
+    }
+
+    /// The preview: `None` where the shell offers none, else the size
+    /// shown (`None` for the window itself).
+    pub(crate) fn preview(&self) -> Option<Option<(u16, u16)>> {
+        self.preview
+    }
+
+    /// Notes what the shell says it shows (`Event::PreviewOffered`).
+    pub(crate) fn set_preview(&mut self, chosen: Option<(u16, u16)>) {
+        self.preview = Some(chosen);
     }
 
     /// Sets the display scale.
@@ -368,6 +385,41 @@ impl Faraday {
 }
 
 impl Faraday {
+    /// Settings' Appearance presses: the display scale, the preview size,
+    /// motion and the palette. Laying the screens out again on a new
+    /// scale costs what a display event does.
+    pub(crate) fn appearance_act(&mut self, a: crate::Action) {
+        use crate::Action;
+        match a {
+            Action::Scale(pct) => {
+                self.settings.set_scale(pct);
+                if let Some(d) = self.last_display {
+                    self.display(d);
+                }
+                self.save_boxes();
+            }
+            // The shell answers with the display at that size and
+            // `PreviewOffered` (`docs/PREVIEW-SIZE.md`).
+            Action::PreviewSize(size) => {
+                if self.settings.preview().is_some() {
+                    self.out
+                        .commands
+                        .push_back(faraday_shell_api::Command::PreviewSize { size });
+                }
+            }
+            Action::ReduceMotion(on) => {
+                self.settings.set_reduce_motion(on);
+                self.scroll.stop();
+                self.save_boxes();
+            }
+            Action::Theme(theme) => {
+                self.settings.set_theme(theme);
+                self.save_boxes();
+            }
+            _ => {}
+        }
+    }
+
     /// The person's display scale, in percent of the automatic one.
     pub fn scale_pct(&self) -> u16 {
         self.settings.scale_pct()
@@ -376,6 +428,13 @@ impl Faraday {
     /// The palette the screens are drawn in.
     pub fn theme(&self) -> crate::ui::Theme {
         self.settings.theme()
+    }
+
+    /// The desktop app's preview (`docs/PREVIEW-SIZE.md`): `None` where
+    /// the shell offers none; else the size it shows the screens at, in
+    /// dp, or `None` for the window itself.
+    pub fn preview(&self) -> Option<Option<(u16, u16)>> {
+        self.settings.preview()
     }
 
     /// Reduce motion: nothing slides, glides, coasts or stretches.

@@ -3256,22 +3256,10 @@ impl Faraday {
             | Action::QrFormat(..)
             | Action::QrPartSize(..)
             | Action::QrSpeed(..)) => self.qr_act(a, &c),
-            Action::Scale(pct) => {
-                self.settings.set_scale(pct);
-                if let Some(d) = self.last_display {
-                    self.display(d);
-                }
-                self.save_boxes();
-            }
-            Action::ReduceMotion(on) => {
-                self.settings.set_reduce_motion(on);
-                self.scroll.stop();
-                self.save_boxes();
-            }
-            Action::Theme(theme) => {
-                self.settings.set_theme(theme);
-                self.save_boxes();
-            }
+            a @ (Action::Scale(_)
+            | Action::PreviewSize(_)
+            | Action::ReduceMotion(_)
+            | Action::Theme(_)) => self.appearance_act(a),
             // Acted on before any other press (`act_inner`).
             Action::StickPill(_) => {}
         }
@@ -7484,6 +7472,7 @@ impl App for Faraday {
             Event::ClipboardUnavailable { .. } => {
                 self.pasted(zeroize::Zeroizing::new(String::new()))
             }
+            Event::PreviewOffered { chosen } => self.settings.set_preview(chosen),
             _ => return,
         }
         if settle {
