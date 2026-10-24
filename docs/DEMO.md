@@ -123,6 +123,14 @@ public values work; only the actions in the table are disabled.
   words, a cosigner's account key) and a **Sample** tile on the scanner,
   which put the next public sample in as if typed or scanned (§6 of
   `docs/MODES.md`, §10 M7); Explore; Account key; the key's page.
+- **Codex32** (`docs/CODEX32.md` §12): Type codex32 strings takes the
+  strings of BIP 93's published sets (the samples, `docs/MODES.md` §7)
+  and refuses a set that is not public as any key is; **Check a string**
+  answers for any string, since it loads and keeps nothing; **Suggest
+  corrections** is open on the same form; a Codex32QR code of a public
+  seed's string is read and shown. Make codex32 shares opens and its
+  entry runs; its Lock in loads nothing (CODEX32 §12 plans the sample
+  in place of the strings made).
 - **New key**: every length and source (dice, coins, cards, hex,
   camera, the generator, a mix), its words and quiz; Lock in adds the
   next public seed in place of the key made (§5.1).
@@ -174,7 +182,9 @@ types the numbers, and the words appear as on the device. When the last
 word is in, both passphrase fields hold `faraday` in place of the rolled
 words, and the card says so in one line, "Demo puts faraday in place of
 these words", as New key's Key card does. No strength line is drawn for
-it. `faraday` is `demo::PASSPHRASE` in `faraday-core/src/demo.rs`, the
+it. On Faraday Desktop the dice roller (F96) rolls into the
+same entries for New key's dice and Generate with dice; the outcome is
+unchanged: the sample, or `faraday`. `faraday` is `demo::PASSPHRASE` in `faraday-core/src/demo.rs`, the
 one constant every Demo passphrase field and the samples
 (`faraday-samples`, the sample vault and backup) use.
 
@@ -216,7 +226,7 @@ any copy made away from the device is.
 | Lightning node private key, silent payments scan key | Disabled | Derived private keys for use in another program, as BIP-85's are |
 | The secret sheet and **Out unprotected…** for a public seed | Open | Every value they can carry in the demo is a public seed's own spelling; the sources of every other secret are disabled at §4 |
 | Seed XOR, codex32 and SLIP-39 splits of a public seed | Disabled | The parts are fresh randomness; a person copying them would hold something that looks like a real backup |
-| A single codex32 string of a public seed (k of 1), where offered | Open | Another spelling of a public seed, with no randomness |
+| A single codex32 string of a public seed (k = 0, the secret alone), where offered | Open | Another spelling of a public seed, with no randomness |
 | KeePass export, sealed files | Open | Encryption of what is held, under `faraday` from its chip or one the person types (§5.4). The KeePass export's passphrase is typed by the person, masked with the eye, and its minimum of 8 characters holds (§5.4) |
 | Vanity address's passphrase dial | Disabled | It makes a new key under a passphrase; Demo refuses that key anyway |
 | FROST deal | Disabled | The dealt shares are new seeds that are not public seeds |

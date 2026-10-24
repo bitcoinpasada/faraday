@@ -245,7 +245,15 @@ impl Faraday {
                 .create
                 .state()
                 .map_or_else(|| vec![&EN.wallet_kinds], |c| for_new(c.kind)),
+            // Make codex32 shares and the codex32 form name the codex32
+            // page first (`docs/CODEX32.md` §13.3).
+            Screen::KeyGen if self.keygen.state().is_some_and(|k| k.codex32.is_some()) => {
+                vec![&EN.other_backups, &EN.randomness]
+            }
             Screen::KeyGen => vec![&EN.randomness, &EN.words],
+            Screen::Entry if self.entry.state().form == crate::forms::Form::Codex32 => {
+                vec![&EN.other_backups, &EN.words]
+            }
             Screen::Entry => vec![&EN.words, &EN.passphrases],
             Screen::Silent => vec![&EN.silent_payments, &EN.xpubs],
             Screen::Explore => vec![&EN.xpubs, &EN.glossary],

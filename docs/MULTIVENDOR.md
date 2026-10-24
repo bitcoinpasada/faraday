@@ -63,6 +63,7 @@ at the curve needs one of the implementations that do their own arithmetic.
 | Silent payment address, output detection | BIP-352 | scan key: yes | the BIP's reference code |
 | Child seeds and passwords | BIP-85 | yes | its reference implementation |
 | SLIP-39, codex32, Seed XOR combine | SLIP-39, BIP-93 | yes | the references above |
+| Codex32 sets made (secret and derived shares, checksum worksheets) and error correction | BIP-93 | yes | BIP 93's reference code and python-codex32 (`tools/crosscheck/area_codex32.py`, `tools/crosscheck/area_codex32_correct.py`) |
 | Signed message | BIP-322, 137 | signing: yes; checking: no | Core's framework for BIP-322 |
 | Vault cost and seal | Argon2id, HKDF, XChaCha20-Poly1305 | yes | argon2-cffi, PyNaCl |
 

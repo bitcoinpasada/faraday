@@ -52,6 +52,10 @@ A scheme in which one key is split into n shares, any m of which sign, and the c
 
 The public file that states a FROST wallet's threshold, its group key, the public half of every share, and its descriptor. A share without it opens nothing.
 
+## Identifier
+
+Four characters in boxes 5 to 8 of a codex32 string, the same in every share of one set. They name the set and are not secret.
+
 ## Key
 
 The secret a wallet is built from, held as seed words. Everything else is derived from it.
@@ -104,9 +108,17 @@ The 64 bytes that the seed words and passphrase are stretched into. Every key of
 
 One of the pieces a key or a description is split into. A FROST wallet's key is split into n shares held as 24 words, any m of which sign; SLIP-39 and codex32 split a seed into shares; a backup can split a multisig's description into shares. One share alone can do nothing.
 
+## Share index
+
+The character in box 9 of a codex32 string: s for the secret itself, another character for each share of the set.
+
 ## SLIP-39
 
 Trezor's backup scheme: Shamir's Secret Sharing over a word list of its own, with a threshold. Its shares are not BIP-39 seed words.
+
+## Translation symbol
+
+In codex32, the number from 0 to 31 an input string is multiplied by, character by character, when a share or the secret is made from k strings. The codex32 booklet writes it in a second alphabet of Greek letters and signs.
 
 ## Vault
 
