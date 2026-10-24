@@ -374,21 +374,32 @@ Spend review shows the inputs from the key's address and the output as
 that wallet's own address, worked out here; the person holds to sign. A
 key with no BIP-32 origin is matched in the PSBT by its public key (the
 PSBT carries no master fingerprint for it). A legacy input needs its full
-previous transaction in the PSBT, as Core and Sparrow put it.
+previous transaction in the PSBT, as Core and Sparrow put it. Faraday
+refuses to sign a legacy input whose script code holds
+`OP_CODESEPARATOR`, in every legacy spend and not only this key's (owner,
+2026-10-24): the `bitcoin` crate's legacy signature hash takes the script
+code as given and Bitcoin Core's removes every `OP_CODESEPARATOR` first
+(`tools/crosscheck/README.md`, Known differences), so such an input is
+one whose hash cannot be checked against Core. A P2PKH or P2SH multisig
+script code holds none, so no spend Faraday makes today is refused.
 
 The key is never offered as words, SeedQR, shares or a FROST share; it
 may be kept in a vault as a single-key record, and is wiped at a lock
 otherwise. Strings: `keygen_type_private_key` "Type a private key",
 `catalog_sweep_key` "Sweep a private key", `key_single` "A single key",
 `wif_uncompressed` "Uncompressed key: legacy addresses only",
-`wif_not_a_key` "This is not a private key". Tests: BIP-32's and Core's
+`wif_not_a_key` "This is not a private key", `sign_codeseparator`
+"A legacy input with OP_CODESEPARATOR is not signed". Tests: BIP-32's and Core's
 published WIF ↔ key ↔ address vectors (compressed and uncompressed,
 main and test); the four addresses of a known key; `combo()`'s checksum
 as Core gives it; a Core PSBT spending a `wpkh` and a `pkh` output of the
 key (built from a test vector, previous transactions included) signs and
 finalises, and the review names the destination as the wallet's own; a
 `wpkh(L1…)` descriptor file goes to the secret sheet and loads the key;
-the key's Backup menu offers no SeedQR.
+the key's Backup menu offers no SeedQR; a PSBT whose legacy input's
+script code holds `OP_CODESEPARATOR` is refused with that line and signs
+nothing, and the cross-check's legacy sighash cases still meet the
+known difference only outside what Faraday signs.
 
 ### Left out (owner, 2026-10-20)
 
