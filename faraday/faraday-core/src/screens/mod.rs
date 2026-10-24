@@ -407,7 +407,14 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         let msg = &fill(EN.notices_remove_medium, &[app.medium.noun()]);
         let bw = ui.measure(14.0, W::S, msg) + 40.0;
         let bx = x + (cw - bw) / 2.0;
-        ui.shadow(bx, h - 64.0, bw, 44.0, 10.0);
+        ui.shadow(
+            bx,
+            h - 64.0,
+            bw,
+            44.0,
+            10.0,
+            faraday_draw::tokens::ELEVATION_FAB,
+        );
         ui.fill(bx, h - 64.0, bw, 44.0, 10.0, BG);
         ui.fill(bx, h - 64.0, bw, 44.0, 10.0, WARN.with_alpha(40));
         ui.stroke(bx, h - 64.0, bw, 44.0, 10.0, WARN.with_alpha(110));
@@ -421,7 +428,7 @@ fn notices(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         let tw = ui.measure(14.0, W::R, &t) + 40.0;
         let tx = x + (cw - tw) / 2.0;
         if shown >= 1.0 {
-            ui.shadow(tx, ty, tw, 44.0, 10.0);
+            ui.shadow(tx, ty, tw, 44.0, 10.0, faraday_draw::tokens::ELEVATION_FAB);
         }
         ui.fill(tx, ty, tw, 44.0, 10.0, a(INNER));
         ui.stroke(tx, ty, tw, 44.0, 10.0, a(BORDER));

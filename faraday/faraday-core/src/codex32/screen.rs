@@ -1644,7 +1644,7 @@ pub(crate) fn cell_sheet(m: &Codex32Make, ui: &mut Ui, x0: f32, cw: f32, h: f32)
     let sx = x0 + (cw - sw) / 2.0;
     let sy = (h - sh) / 2.0;
     ui.hit_around(sx, sy, sw, sh, a(C32::CellClose));
-    ui.shadow(sx, sy, sw, sh, t::RADIUS);
+    ui.shadow(sx, sy, sw, sh, t::RADIUS, t::ELEVATION_DIALOG);
     ui.fill(sx, sy, sw, sh, t::RADIUS, SURFACE);
     ui.stroke(sx, sy, sw, sh, t::RADIUS, BORDER);
     let mut cy = sy + pad;

@@ -54,7 +54,7 @@ pub fn scroll_sheet<A: Copy + PartialEq>(
     if let Some(a) = ui.outside {
         ui.hit_around(sx, sy, sw, sh, a);
     }
-    ui.shadow(sx, sy, sw, sh, 14.0);
+    ui.shadow(sx, sy, sw, sh, 14.0, faraday_draw::tokens::ELEVATION_SHEET);
     ui.fill(sx, sy, sw, sh, 14.0, SURFACE);
     ui.stroke(sx, sy, sw, sh, 14.0, BORDER);
     // Taller than the panel: what is above the buttons scrolls.

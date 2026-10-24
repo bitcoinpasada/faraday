@@ -45,10 +45,6 @@ pub const VIEWFINDER_READ: Color = Color::rgb(0x4c, 0xd9, 0x7b);
 /// `tokens::VIEWFINDER_BAND_ALPHA`.
 pub const VIEWFINDER_BAND: Color = Color::rgb(0x05, 0x08, 0x0b);
 
-/// A chip's faint shadow on the board, at a low opacity. Not in the
-/// themes' tables: every theme draws it as it is.
-pub const SHADOW: Color = Color::rgb(0x0a, 0x10, 0x16);
-
 // The backup board's boxes (`docs/BACKUP-FLOW.md` §17.15): one hue
 // per kind of box, pale fills and strong edges, each theme its own.
 /// A place on the backup board: its fill, a pale green (`docs/DESIGN.md` §4.17).

@@ -1840,7 +1840,7 @@ fn sheet(ui: &mut Ui, w: f32, h: f32, body: &mut dyn FnMut(&mut Ui, f32, f32, f3
     let sh = bh + 2.0 * pad;
     let sx = (w - sw) / 2.0;
     let sy = ((h - sh) / 2.0).max(8.0);
-    ui.shadow(sx, sy, sw, sh, 14.0);
+    ui.shadow(sx, sy, sw, sh, 14.0, faraday_draw::tokens::ELEVATION_SHEET);
     ui.fill(sx, sy, sw, sh, 14.0, SURFACE);
     ui.stroke(sx, sy, sw, sh, 14.0, LINE);
     body(ui, sx + pad, sy + pad, sw - 2.0 * pad);

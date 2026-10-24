@@ -285,18 +285,41 @@ impl Canvas {
     }
 
     /// A soft shadow under a rounded rectangle that floats: `rect` with
-    /// corners of `radius`, moved down `dy`, blurred over `blur` pixels,
-    /// in `color` at its darkest. The middle, which what floats covers,
-    /// is left as it is. The clip is honoured.
+    /// corners of `radius`, grown by `spread` on every side, moved down
+    /// `dy`, blurred over `blur` pixels (the blur radius of CSS: half the
+    /// transition lies inside the edge), in `color` at its darkest. The
+    /// middle, which what floats covers, is left as it is. The clip is
+    /// honoured.
     ///
     /// The shadow is worked out per pixel from its distance to the
-    /// shape, so it needs no blurred image kept for each size.
-    pub fn shadow(&mut self, rect: Rect, radius: f32, blur: f32, dy: i32, color: Color) {
+    /// shape, so it needs no blurred image kept for each size, and a
+    /// pixel costs the same whatever the blur; the blur only sets how
+    /// many pixels it reaches.
+    pub fn shadow(
+        &mut self,
+        rect: Rect,
+        radius: f32,
+        blur: f32,
+        spread: f32,
+        dy: i32,
+        color: Color,
+    ) {
         if rect.is_empty() || color.a == 0 || blur <= 0.0 {
             return;
         }
-        let shape = Rect::new(rect.x, rect.y + dy, rect.w, rect.h);
-        let reach = blur as i32 + 1;
+        // The shape whose edge the fall starts from: the spread shape
+        // drawn in by half the blur, so the middle of the transition is
+        // on the spread shape's edge.
+        let grow = spread - blur / 2.0;
+        let g = (grow + 0.5 * if grow < 0.0 { -1.0 } else { 1.0 }) as i32;
+        let fall_len = blur * 1.2;
+        let shape = Rect::new(
+            rect.x - g,
+            rect.y + dy - g,
+            (rect.w + 2 * g).max(0),
+            (rect.h + 2 * g).max(0),
+        );
+        let reach = fall_len as i32 + 1;
         let area = Rect::new(
             shape.x - reach,
             shape.y - reach,
@@ -324,7 +347,12 @@ impl Canvas {
             shape.x as f32 + shape.w as f32 / 2.0,
             shape.y as f32 + shape.h as f32 / 2.0,
         );
-        let (hw, hh) = (shape.w as f32 / 2.0 - r, shape.h as f32 / 2.0 - r);
+        // The shape's own corners follow the growth.
+        let sr = (r + grow)
+            .max(0.0)
+            .min(shape.w as f32 / 2.0)
+            .min(shape.h as f32 / 2.0);
+        let (hw, hh) = (shape.w as f32 / 2.0 - sr, shape.h as f32 / 2.0 - sr);
         let (cr, cg, cb, ca) = (
             u32::from(color.r),
             u32::from(color.g),
@@ -334,9 +362,9 @@ impl Canvas {
         // How dark the shadow is at each quarter pixel from the edge:
         // smooth from full there to nothing at `blur`.
         let steps_per_px = 4.0;
-        let fall: Vec<u32> = (0..=(blur * steps_per_px) as usize + 1)
+        let fall: Vec<u32> = (0..=(fall_len * steps_per_px) as usize + 1)
             .map(|i| {
-                let t = (i as f32 / steps_per_px / blur).min(1.0);
+                let t = (i as f32 / steps_per_px / fall_len).min(1.0);
                 (ca as f32 * (1.0 - t) * (1.0 - t) * (1.0 + 2.0 * t)) as u32
             })
             .collect();
@@ -364,7 +392,7 @@ impl Canvas {
                     qx
                 } else {
                     sqrt(qx * qx + qy * qy)
-                } - r;
+                } - sr;
                 let step = ((d.max(0.0) * steps_per_px) as usize).min(fall.len() - 1);
                 let a = fall[step];
                 if a == 0 {
@@ -378,6 +406,34 @@ impl Canvas {
                 p[2] = (div255(cb * a) + div255(u32::from(p[2]) * inv)) as u8;
                 p[3] = (a + div255(u32::from(p[3]) * inv)) as u8;
             }
+        }
+    }
+
+    /// Material 3's shadow of an elevation `level` (1 to 5) under a
+    /// rounded rectangle that floats: a key layer and an ambient layer
+    /// ([`crate::tokens::ELEVATION_KEY`], [`crate::tokens::ELEVATION_AMBIENT`]),
+    /// each in black at its opacity, their dp sizes times `scale`. Costs
+    /// two [`Canvas::shadow`] passes, each over a ring a few pixels wide.
+    pub fn elevation(&mut self, rect: Rect, radius: f32, level: u8, scale: f32) {
+        let i = usize::from(level.clamp(1, 5)) - 1;
+        for (layer, opacity) in [
+            (
+                crate::tokens::ELEVATION_AMBIENT[i],
+                crate::tokens::ELEVATION_AMBIENT_OPACITY,
+            ),
+            (
+                crate::tokens::ELEVATION_KEY[i],
+                crate::tokens::ELEVATION_KEY_OPACITY,
+            ),
+        ] {
+            self.shadow(
+                rect,
+                radius,
+                layer.blur * scale,
+                layer.spread * scale,
+                (layer.y * scale + 0.5) as i32,
+                Color::BLACK.with_alpha(opacity),
+            );
         }
     }
 
@@ -1370,6 +1426,7 @@ mod tests {
                     Rect::new(20, 8, 20, 12),
                     4.0,
                     6.0,
+                    0.0,
                     2,
                     Color::BLACK.with_alpha(140),
                 )

@@ -125,7 +125,7 @@ pub fn sheet_box<A: Copy + PartialEq>(
     if let Some(a) = ui.outside {
         ui.hit_around(x, y, sw, sh, a);
     }
-    ui.shadow(x, y, sw, sh, 16.0);
+    ui.shadow(x, y, sw, sh, 16.0, faraday_draw::tokens::ELEVATION_SHEET);
     ui.fill(x, y, sw, sh, 16.0, SURFACE);
     ui.stroke(x, y, sw, sh, 16.0, BORDER);
     (x, y)

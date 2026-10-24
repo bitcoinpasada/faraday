@@ -915,17 +915,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// A soft shadow under something that floats at (x, y), w by h with
-    /// corners of `r`: drawn before it, in the theme's depth.
-    pub fn shadow(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32) {
+    /// corners of `r`, at Material 3's elevation `level` (1 to 5): drawn
+    /// before it, black in every theme. The high-contrast themes draw
+    /// none: a shadow there would lower the contrast of the text and
+    /// edges beside it, and what floats has its outline.
+    pub fn shadow(&mut self, x: f32, y: f32, w: f32, h: f32, r: f32, level: u8) {
+        if self.theme.is_high_contrast() {
+            return;
+        }
         let rect = self.rect(x, y, w, h);
-        let color = if self.theme.is_light() {
-            Color::rgb(0x10, 0x18, 0x20).with_alpha(46)
-        } else {
-            Color::rgb(0, 0, 0).with_alpha(140)
-        };
-        let blur = 28.0 * self.f;
-        let dy = (8.0 * self.f).round() as i32;
-        self.c.shadow(rect, r * self.f, blur, dy, color);
+        self.c.elevation(rect, r * self.f, level, self.f);
     }
 
     /// Moves what was drawn in `view` by the stretch, and what is
@@ -1905,7 +1904,12 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         } else {
             ACCENT
         };
-        self.shadow(x, y, width, h, h / 2.0);
+        let level = if self.is_hovered(action) {
+            faraday_draw::tokens::ELEVATION_RAISED
+        } else {
+            faraday_draw::tokens::ELEVATION_FAB
+        };
+        self.shadow(x, y, width, h, h / 2.0, level);
         self.fill(x, y, width, h, h / 2.0, bg);
         self.icon(
             x + pad,

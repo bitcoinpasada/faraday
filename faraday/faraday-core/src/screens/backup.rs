@@ -475,7 +475,7 @@ fn wallet_pick(app: &View, ui: &mut Ui, x: f32, y: f32, chip_w: f32, right: f32)
     let n = app.session.wallets.len();
     let lh = n as f32 * rh + 8.0;
     ui.hit_around(x, y, lw, lh, Action::BWallets);
-    ui.shadow(x, y, lw, lh, 12.0);
+    ui.shadow(x, y, lw, lh, 12.0, faraday_draw::tokens::ELEVATION_MENU);
     ui.fill(x, y, lw, lh, 12.0, SURFACE);
     ui.stroke(x, y, lw, lh, 12.0, BORDER);
     for (k, wl) in app.session.wallets.iter().enumerate() {

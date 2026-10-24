@@ -332,14 +332,7 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
     if cv.fixed {
         ui.stroke(x, y, w, h, r, CHIP_EDGE);
     } else {
-        ui.fill(
-            x,
-            y + tokens::BOARD_CHIP_DROP,
-            w,
-            h,
-            r,
-            SHADOW.with_alpha(tokens::BOARD_CHIP_SHADOW),
-        );
+        ui.shadow(x, y, w, h, r, tokens::ELEVATION_SHEET);
         ui.fill(x, y, w, h, r, if hot { INNER } else { SURFACE });
         ui.stroke(x, y, w, h, r, CHIP_EDGE);
     }
@@ -1829,10 +1822,11 @@ pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
         let (gx, gy) = (dx - fit.w / 2.0, dy - fit.h / 2.0);
         ui.shadow(
             gx,
-            gy + tokens::BOARD_LIFT,
+            gy,
             fit.w,
             fit.h,
             tokens::BOARD_CHIP / 2.0,
+            tokens::ELEVATION_RAISED,
         );
         let mut ghost = Frame { held: None, ..fr };
         chip(ui, &mut ghost, &cv, gx, gy, fit, false);

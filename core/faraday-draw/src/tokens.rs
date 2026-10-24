@@ -402,10 +402,6 @@ pub const BOARD_ADD_STICK: f32 = 72.0;
 pub const BOARD_TAG: f32 = 20.0;
 /// A dash of a dashed edge in dp, and the gap after it.
 pub const BOARD_DASH: f32 = GAP_SMALL;
-/// How far in dp a chip's faint shadow falls below it.
-pub const BOARD_CHIP_DROP: f32 = 1.0;
-/// Opacity (of 255) of a chip's faint shadow.
-pub const BOARD_CHIP_SHADOW: u8 = 30;
 /// The gap in dp round the list sheet, and between the board and what is
 /// over it.
 pub const BOARD_GAP: f32 = GRID + GAP_SMALL;
@@ -440,8 +436,6 @@ pub const BOARD_MENU_RULE: u8 = 120;
 /// Height in dp of a row of a chip's ⋮ menu: a box it can go to, or a
 /// place's name over them.
 pub const BOARD_MENU_ROW: f32 = 32.0;
-/// How far in dp a dragged chip's shadow falls below it.
-pub const BOARD_LIFT: f32 = GAP_SMALL;
 /// Height in dp of a stick box's head on a place card ("Stick 1" and the
 /// × that takes the stick off): the second of the board's three nested
 /// boxes, place, stick, vault.
@@ -858,3 +852,53 @@ pub const ROLLER_FIVE_GAP: f32 = 8.0;
 /// Reduce motion, so that a click rolled to the end is never one long
 /// frame.
 pub const ROLLER_FIVE_BATCH: usize = 400;
+
+/// One layer of a Material 3 elevation shadow, in dp: how far it falls
+/// below what floats, its blur radius and how far it grows past it.
+#[derive(Clone, Copy)]
+pub struct ElevationLayer {
+    /// Dp below what floats.
+    pub y: f32,
+    /// Blur radius in dp.
+    pub blur: f32,
+    /// Dp grown past it on every side.
+    pub spread: f32,
+}
+
+const fn layer(y: f32, blur: f32, spread: f32) -> ElevationLayer {
+    ElevationLayer { y, blur, spread }
+}
+
+/// The key layer of elevation levels 1 to 5 (Material Web's
+/// `elevation/internal/_elevation.scss`).
+pub const ELEVATION_KEY: [ElevationLayer; 5] = [
+    layer(1.0, 2.0, 0.0),
+    layer(1.0, 2.0, 0.0),
+    layer(1.0, 3.0, 0.0),
+    layer(2.0, 3.0, 0.0),
+    layer(4.0, 4.0, 0.0),
+];
+/// The ambient layer of elevation levels 1 to 5.
+pub const ELEVATION_AMBIENT: [ElevationLayer; 5] = [
+    layer(1.0, 3.0, 1.0),
+    layer(2.0, 6.0, 2.0),
+    layer(4.0, 8.0, 3.0),
+    layer(6.0, 10.0, 4.0),
+    layer(8.0, 12.0, 6.0),
+];
+/// Opacity (of 255) of the key layer: 30% black.
+pub const ELEVATION_KEY_OPACITY: u8 = 77;
+/// Opacity (of 255) of the ambient layer: 15% black.
+pub const ELEVATION_AMBIENT_OPACITY: u8 = 38;
+/// Elevation level of a sheet, a raised card and a board chip.
+pub const ELEVATION_SHEET: u8 = 1;
+/// Elevation level of a menu.
+pub const ELEVATION_MENU: u8 = 2;
+/// Elevation level of a floating action button, a toast and a snackbar.
+pub const ELEVATION_FAB: u8 = 3;
+
+/// A dialog's elevation level: Material 3 raises a dialog to level 3.
+pub const ELEVATION_DIALOG: u8 = 3;
+/// Elevation level of a floating action button under the pointer, and
+/// of a dragged item.
+pub const ELEVATION_RAISED: u8 = 4;

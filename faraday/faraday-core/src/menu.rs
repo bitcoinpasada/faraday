@@ -250,7 +250,7 @@ pub(crate) fn draw(ui: &mut Ui, w: f32, h: f32, v: &View) {
     if let Some(a) = ui.outside {
         ui.hit_around(x, y, pw, ph, a);
     }
-    ui.shadow(x, y, pw, ph, tokens::GAP);
+    ui.shadow(x, y, pw, ph, tokens::GAP, tokens::ELEVATION_MENU);
     ui.fill(x, y, pw, ph, tokens::GAP, SURFACE);
     ui.stroke(x, y, pw, ph, tokens::GAP, BORDER);
     let max = (content - ph).max(0.0);
