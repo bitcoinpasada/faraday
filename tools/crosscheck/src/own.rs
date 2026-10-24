@@ -8,8 +8,9 @@
 //! camera frame through `CameraNoise` (a frame with under 32 distinct
 //! luma values is refused there), and added with `Faraday::own_add`
 //! under that source's commitment. The bytes the session then draws are
-//! read through the testkit: `fresh` (a pooled answer, used up) and
-//! `seed_draw` (the session seed's draw).
+//! read through the testkit: `fresh` (a pooled answer, used up),
+//! `seed_draw` (the session seed's draw), and `device_bytes` (what New
+//! key's This device keeps of the shell's answer).
 
 use faraday_core::fresh::{OwnCounts, OwnSource};
 use faraday_core::{Action, testkit};
@@ -77,6 +78,7 @@ fn session(req: &Value) -> Answer {
                     .map(|b| hex(&b))
             ),
             "fresh" => json!(testkit::fresh(&mut app, &bytes(step, "what")).map(|b| hex(&b))),
+            "device" => json!(hex(&testkit::device_bytes(&app, &b32(step, "bytes")))),
             "counts" => counts(app.own_counts()),
             other => return Err(format!("unknown step {other}")),
         };

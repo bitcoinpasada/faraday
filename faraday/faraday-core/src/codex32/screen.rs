@@ -10,7 +10,7 @@
 //! same stacked; compact, one context panel at a time, chosen by a tile
 //! row over the pad.
 
-use faraday_bip::codex32::{SYMBOL_NAMES, Scheme};
+use faraday_bip::codex32::{SYMBOL_GLYPHS, Scheme};
 use faraday_draw::geom::{SizeClass, WindowClass};
 use faraday_draw::tokens as t;
 use faraday_draw::widgets::Icon;
@@ -36,6 +36,12 @@ const PREFIX: &[u8] = b"ms1";
 /// The identifier's boxes.
 const ID_LEN: u8 = 4;
 
+/// Symbol `v` of the booklet's second alphabet, drawn as its glyph
+/// (§7.2).
+fn glyph(v: u8) -> String {
+    SYMBOL_GLYPHS[usize::from(v & 31)].to_string()
+}
+
 /// A press of this flow.
 fn a(p: C32) -> Action {
     Action::Codex32(p)
@@ -52,6 +58,9 @@ struct At {
     cls: WindowClass,
     /// The sheets are masked (§6.4.6): characters are drawn as dots.
     hide: bool,
+    /// The five-dice roller stands beside the pad (Faraday Desktop,
+    /// §5.5).
+    roller: bool,
 }
 
 /// What a masked character is drawn as.
@@ -217,14 +226,30 @@ fn split_name(s: Split) -> &'static str {
     }
 }
 
-/// A Choice as option buttons, the chosen one primary. Returns the
-/// height.
+/// A choice of one: Material's segmented button, or on a small panel
+/// option buttons, the chosen one Selected. Returns the height.
 fn choice(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, Action)]) -> f32 {
-    let rows: Vec<(&str, Style, Action)> = items
-        .iter()
-        .map(|&(l, on, act)| (l, if on { Style::Primary } else { Style::Secondary }, act))
-        .collect();
-    wrap_buttons(ui, x, y, w, t::TOUCH, &rows)
+    // Material's segmented button, 40 dp in a 48 dp row; buttons wrapping
+    // onto rows where it does not fit (F108).
+    // A small panel's buttons are drawn at its own size, so they wrap
+    // whole, the chosen one Selected.
+    if ui.compact {
+        let rows: Vec<(&str, Style, Action)> = items
+            .iter()
+            .map(|&(l, on, act)| (l, Style::chosen(on), act))
+            .collect();
+        return wrap_buttons(ui, x, y, w, t::TOUCH, &rows);
+    }
+    let options: Vec<(&str, Action)> = items.iter().map(|&(l, _, act)| (l, act)).collect();
+    let chosen = items.iter().position(|&(_, on, _)| on);
+    let inset = (t::TOUCH - t::CODEX32_CHOICE_H) / 2.0;
+    let h = ui.choices(
+        (x, y + inset, w, t::CODEX32_CHOICE_H),
+        t::LABEL,
+        &options,
+        chosen,
+    );
+    h + 2.0 * inset + t::GAP
 }
 
 /// One secondary tab: its label, whether it is the one shown, whether it
@@ -329,6 +354,7 @@ pub(crate) fn body(
         w,
         cls: app.window().class(),
         hide: m.masked(),
+        roller: app.roller_offered(),
     };
     let h = match card {
         Card::Scheme => scheme(m, ui, x, y, w),
@@ -532,17 +558,20 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             // never scrolls under it (§6.4.7).
             cy += panel_tiles(m, ui, x, cy, w);
             cy += match m.panel() {
-                0 if m.way() == Way::Dice => dice_rows(m, ui, x, cy, w, true),
+                0 if m.way() == Way::Dice => {
+                    let h = dice_rows(m, ui, x, cy, w, true);
+                    h + rolled_line(m, ui, x, cy + h, w)
+                }
                 1 => checksum_band(work, share, front, ui, at.to(x, cy, w)),
                 _ => string_boxes(work, share, front, ui, at.to(x, cy, w)),
             };
-            cy += pad(m, ui, x, cy, w);
+            cy += pad(m, ui, at.to(x, cy, w));
         }
         _ => {
             cy += string_boxes(work, share, front, ui, at.to(x, cy, w));
             cy += view_strip(m, work, ui, x, cy, w);
             cy += panels(m, work, share, front, ui, at.to(x, cy, w));
-            cy += pad(m, ui, x, cy, w);
+            cy += pad(m, ui, at.to(x, cy, w));
         }
     }
     // Continue is there once the sheets are complete: until then it would
@@ -655,17 +684,47 @@ fn panels(
 }
 
 /// The pad: the dice pad's six faces and backspace, or the codex32
-/// keyboard for characters typed. A single place where another way in
-/// would stand beside it.
-fn pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+/// keyboard for characters typed. On Faraday Desktop the dice pad is
+/// "Your dice" and the five-dice roller stands beside it, side by side
+/// where the card is wide enough and under it where not (§5.5).
+fn pad(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
+    let (x, y, w) = (at.x, at.y, at.w);
     if m.front().is_none() {
         return 0.0;
     }
-    let kind = match m.way() {
-        Way::Dice => KeyboardKind::Dice,
-        Way::Typed => KeyboardKind::Codex32,
+    if m.way() == Way::Typed {
+        return keyboard(ui, x, y, w, KeyboardKind::Codex32);
+    }
+    if !at.roller {
+        return keyboard(ui, x, y, w, KeyboardKind::Dice);
+    }
+    let side = w >= 2.0 * t::CODEX32_ROLLER_W + t::CODEX32_PANEL_GAP;
+    let pw = if side {
+        w - t::CODEX32_ROLLER_W - t::CODEX32_PANEL_GAP
+    } else {
+        w
     };
-    keyboard(ui, x, y, w, kind)
+    let mut cy = y;
+    crate::screens::section_label(ui, x, cy, EN.codex32_your_dice_head);
+    cy += t::PAD + t::GAP_SMALL;
+    let ph = keyboard(ui, x, cy, pw, KeyboardKind::Dice);
+    let (rx, ry, rw) = if side {
+        (x + pw + t::CODEX32_PANEL_GAP, y, t::CODEX32_ROLLER_W)
+    } else {
+        (x, cy + ph, w)
+    };
+    let rh = crate::fresh::roller::five_screen::draw(
+        ui,
+        (rx, ry, rw),
+        m.roller(),
+        m.roller_can_roll(),
+        |r| a(C32::Roller(r)),
+    ) + t::GAP;
+    if side {
+        (cy - y + ph).max(rh)
+    } else {
+        cy - y + ph + rh
+    }
 }
 
 // ---------------------------------------------------------------------
@@ -1093,7 +1152,7 @@ fn translation(
         let input = char::from(ts.input_index(i).to_ascii_uppercase());
         syms.push(fill(
             EN.codex32_symbol_of,
-            &[&input.to_string(), SYMBOL_NAMES[usize::from(ts.symbol(i))]],
+            &[&input.to_string(), &glyph(ts.symbol(i))],
         ));
     }
     let label = if ts.is_recovery() {
@@ -1173,8 +1232,23 @@ fn dice_sheet(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, rows_only: b
     } else {
         cy += tracks(m, ui, x, cy, w);
     }
+    cy += rolled_line(m, ui, x, cy, w);
     cy += tree(m, ui, x, cy, w);
     cy - y + t::GAP
+}
+
+/// "Die 1, Die 3 rolled by this computer": the dice of the character in
+/// progress whose value the roller made (§5.5), or nothing.
+fn rolled_line(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let dice: Vec<String> = (0..BOOKLET_DICE)
+        .filter(|&d| m.die_rolled(d))
+        .map(|d| fill(EN.codex32_die_short, &[&(d + 1).to_string()]))
+        .collect();
+    if dice.is_empty() {
+        return 0.0;
+    }
+    let line = fill(EN.codex32_dice_rolled, &[&dice.join(", ")]);
+    ui.wrap(x, y, w, t::CAPTION, W::R, MUTED, &line) + t::GAP_SMALL
 }
 
 /// The line a die's row reads: "4 then 2 · lower · 0", or the first value
@@ -1540,6 +1614,11 @@ fn dice_review(
                 ],
             )
         };
+        let line = if m.char_rolled(s, n) {
+            fill(EN.codex32_box_rolled_by, &[&line])
+        } else {
+            line
+        };
         cy += ui.wrap(x, cy, w, t::CAPTION, W::M, TEXT, &line) + t::GAP_SMALL;
     }
     cy - y + t::GAP
@@ -1652,9 +1731,14 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
 fn made(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let (rolled, typed) = m.sources();
-    let entropy = match (rolled, typed) {
-        (true, true) => EN.codex32_your_dice_and_characters,
-        (false, true) => EN.codex32_your_characters,
+    // Faces the roller made say so (§5.5).
+    let entropy = match (m.simulated(), rolled, typed) {
+        (crate::fresh::roller::Sim::All, _, false) => EN.codex32_simulated_dice,
+        (crate::fresh::roller::Sim::Some | crate::fresh::roller::Sim::All, _, _) => {
+            EN.codex32_simulated_and_your_dice
+        }
+        (_, true, true) => EN.codex32_your_dice_and_characters,
+        (_, false, true) => EN.codex32_your_characters,
         _ => EN.codex32_your_dice,
     };
     let fp = m
@@ -1777,6 +1861,9 @@ pub(crate) fn cell_sheet(app: &View, m: &Codex32Make, ui: &mut Ui, x0: f32, cw: 
     }
     let sh = (body_h + t::TOUCH + t::GAP + 2.0 * pad).min(h - 2.0 * t::GAP);
     ui.fill(x0, 0.0, cw, h, 0.0, BG.with_alpha(150));
+    // A dialog: nothing under it is within reach, and a press beside it
+    // closes it.
+    ui.clear_hits();
     ui.hit_around(
         x0 + (cw - sw) / 2.0,
         (h - sh) / 2.0,
@@ -1784,8 +1871,9 @@ pub(crate) fn cell_sheet(app: &View, m: &Codex32Make, ui: &mut Ui, x0: f32, cw: 
         sh,
         a(C32::CellClose),
     );
-    let (sx, sy) = faraday_ui::parts::sheet_box(ui, cw, h, sw, sh);
-    let sx = sx + x0;
+    // The sheet over the page right of the sidebar: its box and what it
+    // holds in one place.
+    let (sx, sy) = faraday_ui::parts::sheet_box_in(ui, (x0, cw, h), sw, sh);
     let mut cy = sy + pad;
     cy += faraday_ui::sheet::sheet_head(ui, sx + pad, cy, iw, Icon::Info, ACCENT, &head);
     for l in &lines {
@@ -1916,7 +2004,7 @@ fn working(m: &Codex32Make, work: &WorkSet, cell: Cell) -> Vec<String> {
                 return Vec::new();
             };
             let (i, b) = (usize::from(i), usize::from(b));
-            let sym = SYMBOL_NAMES[usize::from(ts.symbol(i))];
+            let sym = &glyph(ts.symbol(i));
             let input = char::from(ts.input_index(i).to_ascii_uppercase()).to_string();
             let show = |v: Option<u8>| v.map_or("·".to_string(), |v| char_of(v).to_string());
             let mut out = vec![fill(
@@ -2002,6 +2090,9 @@ fn given_working(m: &Codex32Make, work: &WorkSet, share: usize, b: usize) -> Vec
                         &char_of(made.value()).to_string(),
                     ],
                 ));
+                if m.char_rolled(share, b - 10) {
+                    out.push(EN.roller_by_this_computer.to_string());
+                }
                 out
             }
             None => Vec::new(),
@@ -2118,13 +2209,10 @@ fn symbol_working(work: &WorkSet, sheet: usize, i: usize) -> Vec<String> {
         return Vec::new();
     };
     let v = ts.symbol(i);
-    let mut out = vec![fill(
-        EN.codex32_symbol_value,
-        &[SYMBOL_NAMES[usize::from(v)], &v.to_string()],
-    )];
-    let pairs: Vec<&str> = (0..ts.threshold())
+    let mut out = vec![fill(EN.codex32_symbol_value, &[&glyph(v), &v.to_string()])];
+    let pairs: Vec<String> = (0..ts.threshold())
         .filter(|&j| j != i)
-        .map(|j| SYMBOL_NAMES[usize::from(ts.pair(i, j))])
+        .map(|j| glyph(ts.pair(i, j)))
         .collect();
     let kind = if ts.is_recovery() {
         EN.codex32_recovery_symbols

@@ -139,22 +139,17 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         if strip > 0.0 {
             ui.fill(x - ui.ox, 0.0, room, strip, 0.0, SURFACE);
         }
-        let kx = header_network_pill(app, ui, x + cw - 38.0);
+        let kx = header_network_pill(app, ui, x + cw - faraday_draw::tokens::TOP_ROW_QUESTION);
         // Under a sheet the keyboard button is drawn over it, below.
         if app.sheet.is_none() {
             crate::compact::wide_keyboard_button(app, ui, kx);
-            // The codex32 sheets' eye, left of the keyboard button.
-            let ex = if app.osk_wanted() {
-                kx - faraday_draw::tokens::EYE_KEYBOARD_ROOM
-            } else {
-                kx
-            };
-            crate::compact::wide_eye_button(app, ui, ex);
+            // The codex32 sheets' eye, in the right margin under the ?.
+            crate::compact::wide_eye_button(app, ui, x + cw);
         }
         // The ? at the top right opens what explains this screen.
         if !app.learn_pages().is_empty() {
             // In the right margin, clear of every screen's own title row.
-            let (qx, qy) = (x + cw - 38.0, 12.0);
+            let (qx, qy) = (x + cw - faraday_draw::tokens::TOP_ROW_QUESTION, 12.0);
             let pressed = ui.is_pressed(Action::Learn);
             ui.fill(
                 qx,
@@ -245,9 +240,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         let (x, cw) = wide_page(app, full_w);
         ui.ox = 0.0;
         let right = if app.held {
-            x + cw - 38.0 - faraday_draw::tokens::GAP
+            x + cw - faraday_draw::tokens::TOP_ROW_QUESTION - faraday_draw::tokens::GAP
         } else {
-            network_pill_left(app, ui, x + cw - 38.0)
+            network_pill_left(app, ui, x + cw - faraday_draw::tokens::TOP_ROW_QUESTION)
         };
         crate::compact::wide_keyboard_button(app, ui, right);
     }
@@ -302,7 +297,7 @@ fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32
     ui.hit(bx, by, bw, 34.0, back);
     ui.back(back);
     if app.screen != Screen::Home && !app.learn_pages().is_empty() {
-        let (qx, qy) = (cw - 38.0, 12.0);
+        let (qx, qy) = (cw - faraday_draw::tokens::TOP_ROW_QUESTION, 12.0);
         let pressed = ui.is_pressed(Action::Learn);
         ui.fill(
             qx,
@@ -318,7 +313,11 @@ fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32
         ui.hit(qx - 6.0, qy - 6.0, 40.0, 40.0, Action::Learn);
     }
     if app.screen != Screen::Home && app.sheet.is_none() {
-        crate::compact::wide_keyboard_button(app, ui, cw - 38.0 - faraday_draw::tokens::GAP);
+        crate::compact::wide_keyboard_button(
+            app,
+            ui,
+            cw - faraday_draw::tokens::TOP_ROW_QUESTION - faraday_draw::tokens::GAP,
+        );
     }
     notices(app, ui, 0.0, cw, full_h);
     ui.ox = 0.0;
@@ -521,6 +520,13 @@ fn header_network_pill(app: &View, ui: &mut Ui, qx: f32) -> f32 {
         crate::modes::screen::pill(app, ui, qx - faraday_draw::tokens::GAP - pw, 12.0);
     }
     left
+}
+
+/// Where the wide layout's top-right row (the mode pill and the ?)
+/// begins, on the page `x` to `x + cw`: a flow's column that scrolls
+/// under it ends left of it.
+pub(crate) fn top_row_left(app: &View, ui: &Ui, x: f32, cw: f32) -> f32 {
+    network_pill_left(app, ui, x + cw - faraday_draw::tokens::TOP_ROW_QUESTION)
 }
 
 /// Where the top-right row's next item ends, left of the ? (at `qx`)

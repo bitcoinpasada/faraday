@@ -80,7 +80,7 @@ impl NewKind {
     /// order shown: Single key, Single key backup in shares and Multisig
     /// (`docs/CODEX32.md` §6.9), then the others behind **More kinds**.
     /// FROST (8) is not among them: Create makes no threshold wallet
-    /// (the FROST-out decision); the kind stays in [`NewKind::ALL`] for what reads one.
+    /// (F109); the kind stays in [`NewKind::ALL`] for what reads one.
     pub const CREATE_ROWS: [usize; 10] = [0, 10, 4, 1, 2, 3, 5, 6, 7, 9];
 
     /// How many of [`NewKind::CREATE_ROWS`] show before **More kinds**.
@@ -1105,7 +1105,7 @@ impl Faraday {
             },
             // A kind moves on by itself, and so does the kind already
             // ticked, pressed again: that is how the default is taken.
-            // FROST is not made here (the FROST-out decision): a press for it, as the Tools
+            // FROST is not made here (F109): a press for it, as the Tools
             // tile's, chooses nothing.
             // Nor the backup in shares while Make codex32 shares is not
             // offered.

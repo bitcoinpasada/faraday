@@ -2948,6 +2948,7 @@ impl Faraday {
             | Action::KGroup(_)
             | Action::KMix(_)
             | Action::KRoll(_)
+            | Action::KRoller(_)
             | Action::KFlip(_)
             | Action::KDie(_)
             | Action::KByDie(_)
@@ -7402,12 +7403,10 @@ impl App for Faraday {
                     self.out.commands.push_back(Command::Draw);
                     return;
                 }
-                if self.vault_tick(now_ms) {
-                    self.out.dirty = true;
-                    self.out.commands.push_back(Command::Draw);
-                }
                 // Each runs whatever the others return.
-                if self.later_tick()
+                if self.vault_tick(now_ms)
+                    | self.later_tick()
+                    | self.keygen_tick(now_ms)
                     | self.seed_tick()
                     | self.typed_tick(now_ms)
                     | self.explore_tick(now_ms)

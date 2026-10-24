@@ -290,8 +290,14 @@ fn new_key_left_by_a_tap_on_its_back_link_forgets_its_entries() {
     app.press(Action::KWay(faraday_core::keygen::Way::DiceFlips.index()));
     app.press(Action::KNext);
     app.press(Action::KRoll(4));
-    // Its back link, to Add a key it was opened from.
-    tap(&mut app, Action::Nav(Screen::Entry));
+    // Its back link steps back through the steps (F104), then from Start
+    // goes to Add a key it was opened from.
+    for _ in 0..4 {
+        if app.screen == Screen::Entry {
+            break;
+        }
+        tap(&mut app, Action::Nav(Screen::Entry));
+    }
     assert_eq!(app.screen, Screen::Entry);
     assert!(app.keygen().is_none(), "New key keeps nothing when left");
     app.press(Action::KeyGen(None));

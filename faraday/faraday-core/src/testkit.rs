@@ -1766,6 +1766,16 @@ pub fn fresh(app: &mut crate::Faraday, what: &[u8]) -> Option<[u8; 32]> {
     app.fresh(what)
 }
 
+/// The bytes New key's This device keeps when the shell answers its
+/// request with `bytes`: with what the person added of their own mixed
+/// in, once they have (`docs/OWN-RANDOMNESS.md` §2.3).
+pub fn device_bytes(app: &crate::Faraday, bytes: &[u8; 32]) -> [u8; 32] {
+    match app.fresh.own_acc() {
+        Some(acc) => *crate::keygen::device_own(bytes, acc),
+        None => *bytes,
+    }
+}
+
 /// The session seed's draw for `what` and `count`, as a seal nonce or a
 /// keyboard's code draws it.
 pub fn seed_draw(app: &crate::Faraday, what: &[u8], count: &[u8]) -> Option<[u8; 32]> {

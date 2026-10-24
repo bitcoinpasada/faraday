@@ -78,10 +78,4 @@ impl Start {
             Form::Xor => Start::Xor,
         }
     }
-
-    /// Whether a threshold wallet's slot offers it: its shares are 24
-    /// BIP-39 words, made here or typed.
-    pub fn for_threshold(self) -> bool {
-        matches!(self, Start::Make | Start::Words)
-    }
 }

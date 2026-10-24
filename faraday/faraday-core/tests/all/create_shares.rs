@@ -3,9 +3,6 @@
 //! the codex32 scheme, its one slot opening Make codex32 shares with
 //! that scheme fixed, and the wallet a single-key native SegWit one whose
 //! Check names the set. Restore does not offer the kind.
-//!
-//! The tests marked "keygen hook" need the two lines in
-//! `keygen/mod.rs` that hand New key the scheme and Create the set.
 
 use faraday_core::codex32::{C32, Card, WAYS, Way};
 use faraday_core::create::NewKind;
@@ -189,10 +186,9 @@ fn its_slot_offers_only_make_codex32_shares() {
     assert!(c.error.is_some(), "the reason is shown");
 }
 
-/// Keygen hook: the slot opens Make codex32 shares on the identifier,
+/// The slot opens Make codex32 shares on the identifier,
 /// the Quorum's scheme fixed.
 #[test]
-#[ignore = "needs the keygen hook (keygen/mod.rs: keygen_open, keygen_codex32_lock)"]
 fn its_slot_opens_make_codex32_shares_with_the_scheme_fixed() {
     let mut app = on_quorum();
     on_keys(&mut app);
@@ -209,10 +205,9 @@ fn key(app: &mut Faraday, ch: char) {
     app.press(Action::Codex32(C32::Key(OskPress::Char(ch))));
 }
 
-/// Keygen hook: BIP 93's vector 2 typed in at 2 of 3 makes a native
+/// BIP 93's vector 2 typed in at 2 of 3 makes a native
 /// SegWit wallet of its one key, whose Check names the set.
 #[test]
-#[ignore = "needs the keygen hook (keygen/mod.rs: keygen_open, keygen_codex32_lock)"]
 fn the_set_made_fills_the_slot_and_check_names_it() {
     let all = [
         "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",

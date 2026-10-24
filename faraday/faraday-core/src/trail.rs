@@ -631,6 +631,7 @@ impl Faraday {
             Screen::Bip85 => &crate::bip85::BIP85_STEPS,
             Screen::Silent => &crate::silent::SILENT_STEPS,
             Screen::Vanity => &crate::vanity::VANITY_STEPS,
+            Screen::KeyGen => &crate::keygen::steps::KEYGEN_STEPS,
             _ => return None,
         })
     }

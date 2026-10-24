@@ -1,8 +1,8 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), the wallet kind of §6.9 (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), backups (C8, §9, as §2 says), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller component (C11, §2), the Starter's codex32 templates and worksheets (C9, §11); D1 to D4 of §14 are recorded as F93 to F96, D5 is recorded as F107
-**Open:** of C5, the booklet's second alphabet drawn as its glyphs (§7.2); of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); of C8, a string's files written at a stick's write, a share record written at a vault's save, strings gathered from several vaults at unlock, the set's facts kept for a key loaded from strings, the copies by hand's strings one per screen typed back (§9.1) and the line per place counting shares (§9.5); batch C10 (§15.2): Demo and Learn; the five-dice roller's place in the entry's pad (§5.5; its component is built); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), the wallet kind of §6.9 (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), backups (C8, §9, as §2 says), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller beside the entry's pad (C11, §2), the Starter's codex32 templates and worksheets (C9, §11); D1 to D4 of §14 are recorded as F93 to F96, D5 is recorded as F107
+**Open:** of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); of C8, a string's files written at a stick's write, a share record written at a vault's save, strings gathered from several vaults at unlock, the set's facts kept for a key loaded from strings, the copies by hand's strings one per screen typed back (§9.1) and the line per place counting shares (§9.5); batch C10 (§15.2): Demo and Learn; a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -185,8 +185,16 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   motion lands all at once. The dice are drawn as vectors, as the one die
   is; the website's WebP pictures are not used, as no image decoder
   is to be added. Tested in `five_tests.rs` against the codex32 flow's own
-  entry; snapshot tour `dice5`. Its place in the entry's pad (§5.5) is
-  not yet in the pad.
+  entry; snapshot tour `dice5`. It stands beside the entry's dice pad,
+  "Your dice", on Faraday Desktop (`codex32/screen.rs`, `pad`; side by
+  side where the card is wide, under the pad where not); its faces enter
+  as the pad's keys, the dice of the character in progress it made are
+  named under the dice sheet, a character it made is marked in the
+  review and in its cell sheet, and Strings made's entropy row reads
+  "simulated dice" or "simulated dice and your dice"
+  (`tests/all/codex32_roller.rs`). The one die (C12) stands the same way
+  beside New key's dice pad, its rolls marked, and the Enter card's
+  summary reads "Entropy · simulated dice" where it made them.
 - **The codec**, `core/faraday-bip/src/codex32/mod.rs`: `Codex32::parse`
   (every rule of BIP 93; one case, mixed case refused), `from_seed`,
   `split(threshold, shares, fresh)` (an existing secret and k − 1
@@ -300,16 +308,17 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   `faraday/faraday-core/src/work/budget/codex32.rs`, the live
   translation worksheets in `faraday/faraday-keys/tests/codex32.rs`; the
   snapshot tour `codex32`. The masking of §6.4.6 is built
-  (`Codex32Make::masked`): the eye in the app bar (the small panel's bar,
-  the wide page's top-right row) masks every character, roll and working
+  (`Codex32Make::masked`): the eye, Material's icon button (on the small
+  panel's bar; on the wide page in the right margin under the ?, clear of
+  the cards' rows), masks every character, roll and working
   as dots and shows them again; on the stick and the Pi the sheets are
   shown while the flow is open and masked again when the entry is left
   backwards (an earlier card, Start's Change, the entry card closed);
   Faraday Desktop never masks and has no eye; New key keeps nothing when
-  its screen is left, so there is nothing to show again. Not built: the
-  translation symbols in the booklet's second alphabet (Faraday's faces
-  lack most of its glyphs, so each is named as `SYMBOL_NAMES` names it),
-  Demo (§12, C10), hand-made shares as a way in (§5.3).
+  its screen is left, so there is nothing to show again. The translation
+  symbols are drawn as the booklet's second alphabet's glyphs
+  (`SYMBOL_GLYPHS`, §7.2). Not built: Demo (§12, C10), hand-made shares
+  as a way in (§5.3).
 - **Single key, backup in shares** (§6.9, D5), a kind of Make a new
   wallet (`faraday/faraday-core/src/create.rs`, `NewKind::Shares`; drawn
   in `faraday/faraday-core/src/screens/create.rs`): on Kind between
@@ -539,10 +548,11 @@ strings, through `Reveal::PaperForm`.
 ### 5.5 Faraday Desktop's dice roller (codex32)
 
 On Faraday Desktop only, the dice step shows five small dice in a row,
-numbered 1 to 5, the de-biasing worksheet's five tracks. They are drawn
-from the website's die pictures (`die-1` to `die-6` and the `die-pose-`
-frames, WebP), copied into Faraday's assets; nothing else of the
-website comes with them. Beside them, a choice of what one click rolls:
+numbered 1 to 5, the de-biasing worksheet's five tracks. They are
+vector dice drawn in the theme's colours (owner's choice): a rounded
+square in the surface colour, its outline and pips in the theme's
+outline and text colours, the accent while it tumbles. The website's die
+pictures are not used, so no image decoder comes into the app. Beside them, a choice of what one click rolls:
 
 - **One pass**: the five dice once (the first or the second values);
 - **One character** (the default): both passes; a die whose two values

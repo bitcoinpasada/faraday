@@ -2915,6 +2915,12 @@ strings! {
     keygen_two_or_more: "Two or more of these, combined",
     /// This device's randomness, in `asks` and `device_rows`. `{}`: `EN.create_device_os`, the source the shell named (`/dev/random`, `getrandom(2)`, …).
     keygen_device_source: "{} · {}",
+    /// This device's randomness once the person has added their own,
+    /// which it mixes in (OWN-RANDOMNESS §2.4). `{}`: the line above.
+    keygen_device_with_own: "{} · with your own",
+    /// This device's foot button while the shell's answer is not in
+    /// (F102).
+    keygen_waiting_for_randomness: "Waiting for randomness",
     /// Text in `summary`. `{}`: `k.slip_m`, `k.slip_n`, `k.words`.
     keygen_slip_39_of_shares: "SLIP-39 · {} of {} shares · {} words each",
     /// Text in `summary`. `{}`: `source_name(Source::Coins)`.
@@ -3002,8 +3008,6 @@ strings! {
     keygen_what_shares: "What shares reveal",
     /// Text in `length_counts`. `{}`: `n`.
     keygen_words_n: "{} words",
-    /// Line in `length_counts`.
-    keygen_a_threshold: "A threshold wallet's keys are 24 words",
     /// Text in `way_name`. `{}`: `source_name(Source::Dice)`.
     keygen_flip_mode: "{} · Flip mode",
     /// Text in `way_line`. `{}`: `CoinFlips::needed(st)`.
@@ -9104,8 +9108,6 @@ strings! {
     roller_reach_character: "One character",
     /// Choice: every character of the share being entered.
     roller_reach_share: "One share",
-    /// Mark on a value the roller made, on the dice sheet and in its cell.
-    roller_rolled_mark: "rolled by this computer",
     /// Result's entropy row after the roller made every value.
     roller_entropy_simulated: "Entropy · simulated dice",
     /// Result's entropy row after the roller and real dice made the values.
@@ -9279,6 +9281,20 @@ strings! {
     codex32_your_characters: "your characters",
     /// Strings made's entropy: both.
     codex32_your_dice_and_characters: "your dice and your characters",
+    /// Strings made's entropy: every face from the five-dice roller
+    /// (Faraday Desktop, CODEX32 §5.5).
+    codex32_simulated_dice: "simulated dice",
+    /// Strings made's entropy: faces from the roller and from real dice.
+    codex32_simulated_and_your_dice: "simulated dice and your dice",
+    /// The entry's pad for real rolls, beside the roller (CODEX32 §5.5).
+    codex32_your_dice_head: "Your dice",
+    /// Under the dice sheet: the dice of the character in progress
+    /// whose value the roller made (CODEX32 §5.5).
+    codex32_dice_rolled: "{} rolled by this computer",
+    /// A die in that line.
+    codex32_die_short: "Die {}",
+    /// A rolled character's review line, marked as the roller's.
+    codex32_box_rolled_by: "{} · rolled by this computer",
     /// Strings made's button (§6.8).
     codex32_check_on_another: "Check on another device",
     /// Check on another device's row: the subsets to try.

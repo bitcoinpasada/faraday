@@ -42,11 +42,19 @@ fn new_key_left_by_back_keeps_nothing_for_forward_to_open() {
     let mut app = new_key();
     app.press(Action::KWords(24));
     let _ = app.frame();
+    // Back steps within New key first (F104): Length, then Start, each
+    // as it was chosen; from Start it leaves.
+    let open = |app: &Faraday| app.keygen().and_then(|k| k.open);
+    button(&mut app, Event::Back);
+    assert_eq!(open(&app), Some(faraday_core::keygen::kstep::LENGTH));
+    assert_eq!(app.keygen().unwrap().words, 24, "as it was chosen");
+    button(&mut app, Event::Back);
+    assert_eq!(open(&app), Some(faraday_core::keygen::kstep::START));
     button(&mut app, Event::Back);
     assert_eq!(
         app.screen,
         Screen::Entry,
-        "New key's back link is Add a key"
+        "from Start, New key's back link is Add a key"
     );
     assert!(app.keygen().is_none(), "New key keeps nothing when left");
     button(&mut app, Event::Forward);
@@ -56,6 +64,8 @@ fn new_key_left_by_back_keeps_nothing_for_forward_to_open() {
 #[test]
 fn forward_does_nothing_once_another_screen_is_opened() {
     let mut app = new_key();
+    // Length, then Start: Back from Start leaves.
+    button(&mut app, Event::Back);
     button(&mut app, Event::Back);
     assert_eq!(app.screen, Screen::Entry);
     app.press(Action::Nav(Screen::Settings));

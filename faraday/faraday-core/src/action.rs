@@ -607,6 +607,9 @@ pub enum Action {
     KMix(u8),
     /// A die's face.
     KRoll(u8),
+    /// A press on the one-die roller beside New key's dice pad (Faraday
+    /// Desktop, `docs/CODEX32.md` §5.6).
+    KRoller(crate::fresh::roller::Act),
     /// A coin: heads or tails.
     KFlip(bool),
     /// A die's face, read as a coin flip: 1 to 3 tails, 4 to 6 heads.

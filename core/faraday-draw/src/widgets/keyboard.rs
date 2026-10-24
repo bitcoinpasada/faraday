@@ -438,18 +438,20 @@ pub fn keycaps(kind: KeyboardKind) -> impl Iterator<Item = char> {
 }
 
 /// Whether every row of `kind` is the same height, with no reserve
-/// under the last: the codex32 keyboards, which a page draws inside its
-/// own column rather than at the screen's edge.
+/// under the last: the codex32 keyboards and the codex32 entry's dice
+/// pad, which a page draws inside its own column rather than at the
+/// screen's edge.
 pub fn equal_rows(kind: KeyboardKind) -> bool {
     matches!(
         kind,
-        KeyboardKind::Codex32 | KeyboardKind::Codex32Unreadable
+        KeyboardKind::Codex32 | KeyboardKind::Codex32Unreadable | KeyboardKind::Dice
     )
 }
 
 /// The least height in dp a row of `kind` is drawn at, where the one
-/// drawing it sets the row: [`tokens::CODEX32_KEY_ROW`] for the codex32
-/// keyboards, nothing for the others, which keep their own geometry.
+/// drawing it sets the row: [`tokens::CODEX32_KEY_ROW`] (a 48 dp touch
+/// row) for the codex32 keyboards and the dice pad, nothing for the
+/// others, which keep their own geometry.
 pub fn min_row(kind: KeyboardKind) -> f32 {
     if equal_rows(kind) {
         tokens::CODEX32_KEY_ROW

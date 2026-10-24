@@ -19,11 +19,6 @@
 //!
 //! Offered only where `Faraday::roller_offered` says so.
 
-#![allow(
-    dead_code,
-    reason = "hosted by codex32's pad once the hosting lines of C11 are in"
-)]
-
 use super::{Pool, Sim, Stage};
 use faraday_draw::tokens::{ROLLER_FACE_MS, ROLLER_FIVE_BATCH, ROLLER_PAUSE_MS, ROLLER_TUMBLE_MS};
 use faraday_entropy::booklet::{BOOKLET_DICE, BookletChar};

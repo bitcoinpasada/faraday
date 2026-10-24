@@ -3,11 +3,6 @@
 //! Roll button, and what one click rolls. Drawing reads the roller; it
 //! works nothing out.
 
-#![allow(
-    dead_code,
-    reason = "drawn by codex32's pad once the hosting lines of C11 are in"
-)]
-
 use super::five::{Act, FiveRoller, REACHES, Reach};
 use super::screen::pips;
 use crate::Action;
@@ -58,12 +53,6 @@ pub fn entropy_label(sim: super::Sim) -> Option<&'static str> {
         super::Sim::Some => Some(EN.roller_entropy_both),
         super::Sim::All => Some(EN.roller_entropy_simulated),
     }
-}
-
-/// The small mark beside a value the roller made, at (`x`, `y`) in the
-/// size `size`; returns its width.
-pub fn mark(ui: &mut Ui, x: f32, y: f32, size: f32) -> f32 {
-    ui.text(x, y, size, W::R, MUTED, EN.roller_rolled_mark)
 }
 
 /// The label of a reach.

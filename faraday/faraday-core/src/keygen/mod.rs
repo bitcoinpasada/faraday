@@ -185,7 +185,22 @@ pub mod kstep {
     pub const COUNT: usize = 10;
 }
 
+/// SHA-256("faraday device own" ‖ `bytes` ‖ `acc`): This device's
+/// bytes with what the person added of their own mixed in
+/// (`docs/OWN-RANDOMNESS.md` §2.3). Someone who lacks either part cannot
+/// predict it.
+pub(crate) fn device_own(bytes: &[u8; 32], acc: &[u8; 32]) -> zeroize::Zeroizing<[u8; 32]> {
+    use faraday_bip::bitcoin::hashes::{Hash, HashEngine, sha256};
+    let mut e = sha256::Hash::engine();
+    e.input(b"faraday device own");
+    e.input(bytes);
+    e.input(acc);
+    zeroize::Zeroizing::new(sha256::Hash::from_engine(e).to_byte_array())
+}
+
+mod entries;
 mod start;
+pub(crate) mod steps;
 pub use start::{STARTS, Start};
 
 /// A new key being made. See the module documentation.
@@ -198,8 +213,6 @@ pub struct KeyGen {
     pub scroll: flow::Scroll,
     /// 12, 15, 18, 21 or 24.
     pub words: usize,
-    /// Only 24 words will do (a threshold wallet's shares are 32 bytes).
-    pub only_24: bool,
     /// The chosen source.
     pub source: Option<Source>,
     /// Which dice procedure, when the source is dice.
@@ -316,6 +329,16 @@ pub struct KeyGen {
     /// `Faraday::entropy_source` when the flow opens and kept in step by
     /// `Event::EntropySource`; `None` when the shell named none.
     pub entropy_source: Option<&'static str>,
+    /// The person has added randomness of their own this session, which
+    /// This device mixes in: copied from `Faraday::fresh` when the flow
+    /// opens and kept in step at every addition and at the lock
+    /// (`KeyGenArea::own_changed`).
+    pub with_own: bool,
+    /// The one-die roller beside the dice pad (Faraday Desktop,
+    /// `docs/CODEX32.md` §5.6): which of the rolls it made.
+    pub roller: crate::fresh::roller::Roller,
+    /// The roller's number field has the keys.
+    pub roller_typing: bool,
 }
 
 impl Drop for KeyGen {
@@ -328,7 +351,7 @@ impl Drop for KeyGen {
 
 impl KeyGen {
     /// A fresh flow.
-    pub fn new(slot: Option<u8>, back: Screen, only_24: bool) -> KeyGen {
+    pub fn new(slot: Option<u8>, back: Screen) -> KeyGen {
         KeyGen {
             // New key opens on Start, Make a new key ticked
             // (`docs/history/NEW-WALLET.md` §15.3); its Continue opens Length
@@ -339,8 +362,7 @@ impl KeyGen {
             open: Some(kstep::START),
             done: [false; kstep::COUNT],
             scroll: flow::Scroll::default(),
-            words: if only_24 { 24 } else { 12 },
-            only_24,
+            words: 12,
             // Dice that name words: every word checkable by hand as it
             // comes in.
             source: Some(Source::Dice),
@@ -392,6 +414,9 @@ impl KeyGen {
             codex32: None,
             entry_kept: crate::EntryState::default(),
             entropy_source: None,
+            with_own: false,
+            roller: crate::fresh::roller::Roller::default(),
+            roller_typing: false,
         }
     }
 
@@ -449,7 +474,6 @@ impl KeyGen {
         STARTS
             .iter()
             .copied()
-            .filter(|s| !self.only_24 || s.for_threshold())
             .filter(|s| *s != Start::MakeCodex32 || (make_codex32 && self.codex32_offered))
             .collect()
     }
@@ -475,7 +499,7 @@ impl KeyGen {
 
     /// Switches between words and shares, forgetting what was entered.
     pub fn set_slip39(&mut self, on: bool) {
-        if self.slip39 == on || (on && self.only_24) {
+        if self.slip39 == on {
             return;
         }
         self.slip39 = on;
@@ -731,202 +755,6 @@ impl KeyGen {
             out.push(EN.keygen_a_long_run_counting);
         }
         out
-    }
-
-    /// Forgets every entry, the mix and the words.
-    pub fn clear_entries(&mut self) {
-        self.clear_entered();
-        self.dice.clear();
-        self.coins.clear();
-        self.cards.clear();
-        self.hex.clear();
-        self.camera.clear();
-        self.device.clear();
-        self.device_asked = false;
-        self.mixed.clear();
-        self.mix_at = 0;
-        self.rank = None;
-        self.mnemonic = None;
-        self.shown = false;
-        self.fingerprint = None;
-        self.quiz = None;
-        self.skip_ask = false;
-        self.skipped = false;
-        self.note = None;
-        for k in [
-            kstep::ENTER,
-            kstep::KEY,
-            kstep::CHECK,
-            kstep::WORDS,
-            kstep::QUIZ,
-        ] {
-            self.done[usize::from(k)] = false;
-        }
-    }
-
-    /// Forgets the active source's entries only.
-    pub fn clear_active(&mut self) {
-        self.clear_entered();
-        match self.active() {
-            Some(Source::Dice) if self.by_die => self.coins.clear(),
-            Some(Source::Dice) => self.dice.clear(),
-            Some(Source::Coins) => self.coins.clear(),
-            Some(Source::Cards) => self.cards.clear(),
-            Some(Source::Hex) => self.hex.clear(),
-            Some(Source::Camera) => self.camera.clear(),
-            Some(Source::Device) => {
-                self.device.clear();
-                self.device_asked = false;
-            }
-            _ => {}
-        }
-        self.rank = None;
-        self.note = None;
-    }
-
-    /// Takes back the last entry.
-    pub fn undo(&mut self) {
-        if self.rank.take().is_some() {
-            return;
-        }
-        let had = self.progress().0;
-        match self.active() {
-            Some(Source::Dice) if self.by_die => {
-                self.coins.pop();
-            }
-            Some(Source::Dice) => {
-                self.dice.pop();
-            }
-            Some(Source::Coins) => {
-                self.coins.pop();
-            }
-            Some(Source::Cards) => {
-                self.cards.pop();
-            }
-            Some(Source::Hex) => {
-                self.hex.pop();
-            }
-            _ => {}
-        }
-        if self.progress().0 < had && self.flip_or_roll() {
-            self.entered.pop();
-        }
-        self.note = None;
-    }
-
-    /// Whether the active source's entries are rolls or flips, which
-    /// the box shows.
-    pub(crate) fn flip_or_roll(&self) -> bool {
-        matches!(self.active(), Some(Source::Dice | Source::Coins))
-    }
-
-    /// Notes an entry taken, for the box.
-    fn record(&mut self, c: char) {
-        if self.entered.len() < 1024 {
-            self.entered.push(c);
-        }
-    }
-
-    /// Whether a press lands in the flip accumulator: Coins, with either
-    /// its own sides or a die's faces, or Dice in its own Flip mode.
-    fn flip_active(&self) -> bool {
-        match self.active() {
-            Some(Source::Coins) => true,
-            Some(Source::Dice) => self.by_die,
-            _ => false,
-        }
-    }
-
-    /// A roll of 1 to 6. In Dice's Flip mode this is read as a flip
-    /// instead, the same reading Coins gives a die's face.
-    pub fn roll(&mut self, face: u8) {
-        if self.active() != Some(Source::Dice) {
-            return;
-        }
-        if self.by_die {
-            self.die_flip(face);
-            return;
-        }
-        let (have, need) = self.progress();
-        if have >= need {
-            return;
-        }
-        let taken = self.dice.push_under(face, self.procedure());
-        if taken {
-            self.record(char::from(b'0' + face));
-        }
-        self.note = (!taken).then(|| {
-            if self.procedure().direct() {
-                EN.keygen_reroll_rule.to_string()
-            } else {
-                EN.keygen_a_die_has_six.to_string()
-            }
-        });
-    }
-
-    /// A flip: heads or tails.
-    pub fn flip(&mut self, heads: bool) {
-        if self.flip_in(heads) {
-            self.record(if heads { 'H' } else { 'T' });
-        }
-    }
-
-    /// Takes a flip into the accumulator. Returns whether it was taken.
-    fn flip_in(&mut self, heads: bool) -> bool {
-        let (have, need) = self.progress();
-        self.flip_active() && have < need && self.coins.push(heads)
-    }
-
-    /// A die's face read as a flip: 1, 2 or 3 is tails (0), 4, 5 or 6
-    /// heads (1).
-    pub fn die_flip(&mut self, face: u8) {
-        if !self.flip_active() {
-            return;
-        }
-        if !(1..=6).contains(&face) {
-            self.note = Some(EN.keygen_a_die_has_six.to_string());
-            return;
-        }
-        self.note = None;
-        if self.flip_in(face >= 4) {
-            self.record(char::from(b'0' + face));
-        }
-    }
-
-    /// Whether the box takes `c`: a die's face for dice or for flips
-    /// read from a die, H, T, 1 or 0 for coin flips.
-    pub fn typable(&self, c: char) -> bool {
-        match self.active() {
-            Some(Source::Dice) => ('1'..='6').contains(&c),
-            Some(Source::Coins) if self.by_die => ('1'..='6').contains(&c),
-            Some(Source::Coins) => matches!(c, '0' | '1' | 'h' | 'H' | 't' | 'T'),
-            _ => false,
-        }
-    }
-
-    /// A character typed into the box, taken at once as the entry it
-    /// names: a roll, a die's face read as a flip, or a flip. One the
-    /// source does not take is left out.
-    pub fn type_char(&mut self, c: char) {
-        if !self.typable(c) {
-            return;
-        }
-        if self.progress().0 >= self.progress().1 {
-            self.note = Some(EN.keygen_no_more_are.to_string());
-            return;
-        }
-        match (self.active(), c) {
-            (Some(Source::Dice), _) => self.roll(c as u8 - b'0'),
-            (Some(Source::Coins), _) if self.by_die => self.die_flip(c as u8 - b'0'),
-            (Some(Source::Coins), '1' | 'h' | 'H') => self.flip(true),
-            (Some(Source::Coins), _) => self.flip(false),
-            _ => {}
-        }
-    }
-
-    /// Forgets the record of entries.
-    pub fn clear_entered(&mut self) {
-        self.entered.clear();
     }
 
     /// Whether the entries are the key's own bits as they come in, so
@@ -1231,6 +1059,15 @@ impl KeyGenArea {
 
     /// The shell named its randomness source: kept, and copied into an
     /// open flow, as a new one copies it when it opens.
+    /// Whether the person has added randomness of their own changed
+    /// (`docs/OWN-RANDOMNESS.md` §2.3): an open flow's This device says
+    /// so.
+    pub(crate) fn own_changed(&mut self, any: bool) {
+        if let Some(k) = self.state.as_mut() {
+            k.with_own = any;
+        }
+    }
+
     pub(crate) fn entropy_source_named(&mut self, name: &'static str) {
         self.entropy_source = Some(name);
         if let Some(k) = self.state.as_mut() {
@@ -1256,11 +1093,14 @@ impl KeyGenArea {
 
     /// Takes the shell's answer when the flow asked for it. Returns
     /// whether it did.
-    pub(crate) fn entropy(&mut self, bytes: &mut [u8; 32]) -> bool {
+    pub(crate) fn entropy(&mut self, bytes: &mut [u8; 32], own: Option<&[u8; 32]>) -> bool {
         let Some(k) = self.state.as_mut().filter(|k| k.device_asked) else {
             return false;
         };
-        k.device.set(bytes);
+        match own {
+            Some(acc) => k.device.set(&device_own(bytes, acc)),
+            None => k.device.set(bytes),
+        }
         k.device_asked = false;
         zeroize::Zeroize::zeroize(bytes);
         true
@@ -1334,6 +1174,8 @@ impl KeyGenArea {
                 if k.open == Some(s) {
                     k.open = None;
                 } else if reachable {
+                    // A step opens with its secret hidden (F104).
+                    k.shown = false;
                     open(k, s);
                 }
             }
@@ -1359,7 +1201,7 @@ impl KeyGenArea {
             }
             A::KWords(n) => {
                 let n = usize::from(n);
-                if k.counts().iter().any(|c| usize::from(*c) == n) && !(k.only_24 && n != 24) {
+                if k.counts().iter().any(|c| usize::from(*c) == n) {
                     k.words = n;
                     k.clear_entries();
                     k.done[usize::from(kstep::LENGTH)] = true;
@@ -1562,10 +1404,10 @@ impl crate::Faraday {
         }
         // A flow already open ends first, giving back what it kept.
         self.keygen_drop();
-        let only_24 = slot.is_some() && self.create.state().is_some_and(|c| c.kind.threshold());
         let back = self.screen;
-        let mut k = KeyGen::new(slot, back, only_24);
+        let mut k = KeyGen::new(slot, back);
         k.entropy_source = self.keygen.entropy_source;
+        k.with_own = self.fresh.own_acc().is_some();
         // Codex32 is made for single-key wallets only (`docs/CODEX32.md`
         // §6.9).
         k.codex32_offered = slot.is_none() || self.create.state().is_some_and(|c| !c.kind.multi());
@@ -1581,6 +1423,21 @@ impl crate::Faraday {
         k.done[usize::from(kstep::START)] = true;
         k.started = Some(Start::Make);
         k.open = Some(kstep::LENGTH);
+        // Single key, backup in shares: its slot opens Make codex32
+        // shares on the identifier, the Quorum's scheme fixed
+        // (`docs/CODEX32.md` §6.9).
+        if let Some((sk, sn)) = slot.and_then(|_| self.create_codex32_scheme()) {
+            k.start = Start::MakeCodex32;
+            k.started = Some(Start::MakeCodex32);
+            k.open = Some(kstep::CODEX32);
+            let m = crate::codex32::Codex32Make::with_scheme(
+                sk,
+                sn,
+                crate::codex32::taken(&k.entry_kept.parts.codex32),
+            );
+            // Faraday Desktop never masks the sheets (§6.4.6).
+            k.codex32 = Some(if self.online { m.desktop() } else { m });
+        }
         self.keygen.state = Some(k);
         self.screen = Screen::KeyGen;
     }
@@ -1701,7 +1558,6 @@ impl crate::Faraday {
         let Some(form) = k.start.form() else {
             return;
         };
-        let only_24 = k.only_24;
         let mut words = None;
         if form == Form::Words {
             let m = match self.entry.mnemonic() {
@@ -1711,10 +1567,6 @@ impl crate::Faraday {
                     return;
                 }
             };
-            if only_24 && m.word_count() != 24 {
-                self.entry.state_mut().error = Some(EN.keygen_a_threshold.to_string());
-                return;
-            }
             words = Some(m);
         } else if !self.entry.state().parts.ready(form) {
             return;
@@ -1763,6 +1615,10 @@ impl crate::Faraday {
         };
         if action == A::KAdd {
             self.keygen_add();
+            return;
+        }
+        if let A::KRoller(r) = action {
+            self.keygen_roller(r);
             return;
         }
         let Some(k) = self.keygen.state.as_ref() else {
@@ -2180,13 +2036,6 @@ impl crate::Faraday {
         }
     }
 
-    /// Leaves the flow, forgetting everything in it.
-    pub(crate) fn keygen_leave(&mut self) {
-        if let Some(k) = self.keygen_drop() {
-            self.return_back(k.back);
-        }
-    }
-
     /// Ends the flow: Add a key's own state comes back in place of what
     /// the flow typed, which goes. Returns the flow, to be dropped.
     pub(crate) fn keygen_drop(&mut self) -> Option<KeyGen> {
@@ -2221,7 +2070,10 @@ impl crate::Faraday {
     /// Takes the shell's answer when the flow asked for it. Returns
     /// whether it did.
     pub(crate) fn keygen_entropy(&mut self, bytes: &mut [u8; 32]) -> bool {
-        self.keygen.entropy(bytes)
+        // What the person added of their own is mixed in, never in place
+        // of the system's (`docs/OWN-RANDOMNESS.md` §2.3).
+        let own = self.fresh.own_acc().map(|a| zeroize::Zeroizing::new(*a));
+        self.keygen.entropy(bytes, own.as_deref())
     }
 
     /// The camera is on while camera noise is being taken, and off
@@ -2242,6 +2094,7 @@ impl crate::Faraday {
         });
         match press {
             C32::Lock => return self.keygen_codex32_lock(),
+            C32::Roller(r) => return self.keygen_codex32_roller(r),
             C32::Next | C32::Key(faraday_ui::keyboard::OskPress::Done) if locked_next => {
                 return self.keygen_done();
             }
@@ -2271,6 +2124,107 @@ impl crate::Faraday {
                 k.scroll.y = faraday_draw::tokens::CODEX32_ENTER_SCROLL;
             }
         }
+    }
+
+    /// A press on the five-dice roller beside the codex32 pad, on Faraday
+    /// Desktop only (`docs/CODEX32.md` §5.5). Under Reduce motion a
+    /// click's faces land at once.
+    fn keygen_codex32_roller(&mut self, r: crate::fresh::roller::five::Act) {
+        if !self.roller_offered() {
+            return;
+        }
+        let now = self.now_ms();
+        if let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+            m.roller_act(r, now);
+        }
+        if r == crate::fresh::roller::five::Act::Roll && self.reduce_motion() {
+            self.keygen_tick(now);
+        }
+    }
+
+    /// A press on the one-die roller beside the dice pad, on Faraday
+    /// Desktop only (`docs/CODEX32.md` §5.6). Under Reduce motion a
+    /// click's values land at once.
+    fn keygen_roller(&mut self, r: crate::fresh::roller::Act) {
+        use crate::fresh::roller::Act;
+        if !self.roller_offered() {
+            return;
+        }
+        let now = self.now_ms();
+        let Some(k) = self.keygen.state.as_mut().filter(|k| !k.locked) else {
+            return;
+        };
+        let room = k.roller_room();
+        k.roller.act(r, room, now);
+        k.roller_typing = r == Act::Count;
+        if r == Act::Roll && self.reduce_motion() {
+            self.keygen_tick(now);
+        }
+    }
+
+    /// The one die's tick: the values it made land on the rolls as the
+    /// pad's presses would. Returns whether the screen needs a frame.
+    fn keygen_roller_tick(&mut self, now_ms: u64, reduce: bool) -> bool {
+        let Some(mut roller) = self
+            .keygen
+            .state
+            .as_mut()
+            .map(|k| std::mem::take(&mut k.roller))
+        else {
+            return false;
+        };
+        let (len, room) = self
+            .keygen
+            .state()
+            .map_or((0, 0), |k| (k.progress().0, k.roller_room()));
+        let (values, redraw) = roller.tick(now_ms, reduce, len, room, &mut || {
+            self.fresh(b"faraday dice roller")
+        });
+        let Some(k) = self.keygen.state.as_mut() else {
+            return redraw;
+        };
+        k.roller = roller;
+        for v in values {
+            k.roll(v);
+        }
+        // A value the procedure did not take is not on the rolls.
+        let len = k.progress().0;
+        k.roller.trim(len);
+        redraw
+    }
+
+    /// Costs what the faces and values landed cost and a fresh answer for
+    /// every 31 of them at most; nothing at rest. The tick of New key's
+    /// rollers (Faraday Desktop): the five dice beside the codex32 pad
+    /// (`docs/CODEX32.md` §5.5) and the one die beside the dice pad
+    /// (§5.6). Returns whether the screen needs a frame.
+    pub(crate) fn keygen_tick(&mut self, now_ms: u64) -> bool {
+        let Some(k) = self.keygen.state.as_ref() else {
+            return false;
+        };
+        let five = k.codex32.as_ref().is_some_and(|m| m.roller().active());
+        let one = k.roller.active();
+        if !five && !one {
+            return false;
+        }
+        let reduce = self.reduce_motion();
+        let mut redraw = false;
+        if five {
+            let c = self.compute();
+            let mut m = self.keygen.state.as_mut().and_then(|k| k.codex32.take());
+            if let Some(m) = m.as_mut() {
+                redraw |= m.roller_tick(&c, now_ms, reduce, &mut || {
+                    self.fresh(b"faraday codex32 dice roller")
+                });
+            }
+            if let Some(k) = self.keygen.state.as_mut() {
+                k.codex32 = m;
+            }
+        }
+        if one {
+            redraw |= self.keygen_roller_tick(now_ms, reduce);
+        }
+        redraw
     }
 
     /// Costs what `add_seed` costs, and the key's account text. Lock in on
@@ -2329,6 +2283,17 @@ impl crate::Faraday {
                 m.set_locked();
             }
         }
+        // The set's facts go to Create first, for Check and Back up.
+        if let Some(set) = self
+            .keygen
+            .state
+            .as_ref()
+            .and_then(|k| k.codex32.as_ref())
+            .filter(|_| slot.is_some())
+            .map(|m| crate::create::SharesSet::of(fp.0, m))
+        {
+            self.create_codex32_made(set);
+        }
         self.keygen_fill(slot, fp, true);
         self.refresh_spend();
         // A Create slot goes back to Create at once; on its own the
@@ -2351,34 +2316,20 @@ impl crate::Faraday {
         // A passphrase field on the Key card takes printable ASCII, as
         // BIP-39's seed derivation reads it; Tab moves to the other field and
         // Enter locks in.
-        if k.open == Some(kstep::KEY)
-            && !k.locked
-            && k.asks_passphrase()
-            && let Some(f) = k.focus
-        {
-            let field = if f == 0 {
-                &mut k.passphrase
-            } else {
-                &mut k.passphrase2
-            };
-            match key {
-                KeyIn::Char(c) if (' '..='~').contains(&c) => field.push(c),
-                KeyIn::Backspace => {
-                    field.pop();
-                }
-                KeyIn::Tab => k.focus = Some(1 - f.min(1)),
-                KeyIn::Escape => k.focus = None,
-                KeyIn::Enter => {
-                    self.keygen_lock();
-                    return true;
-                }
-                _ => return false,
+        if k.open == Some(kstep::KEY) && !k.locked && k.asks_passphrase() && k.focus.is_some() {
+            if key == KeyIn::Enter {
+                self.keygen_lock();
+                return true;
             }
-            k.note = None;
-            return true;
+            return k.passphrase_key(key);
         }
+        if k.roller_typing {
+            return k.roller_key(key);
+        }
+        // Escape is Back: the step before, or out of the flow from its
+        // first (F104).
         if key == KeyIn::Escape {
-            self.keygen_leave();
+            self.act(crate::Action::Back);
             return true;
         }
         // Make codex32 shares: the keyboard's keys to its open card.

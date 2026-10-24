@@ -228,7 +228,9 @@ fn a_seedqr_scanned_from_home_loads_the_key_add_a_keys_scan_loads() {
         &mut from_add,
         Action::KStep(faraday_core::keygen::kstep::START),
     );
-    // The card is opening: let it finish before pressing a row on it.
+    // The card is opening: until it has, its lower rows are still under
+    // the next card's header, which a press there reaches. Let it finish
+    // before pressing a row on it.
     for _ in 0..4 {
         let now = from_add.now_ms() + 300;
         from_add.event(Event::Tick { now_ms: now });

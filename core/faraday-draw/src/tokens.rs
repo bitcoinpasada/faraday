@@ -895,6 +895,12 @@ pub const CODEX32_LABEL_W: f32 = 76.0;
 pub const CODEX32_DICE_W: f32 = 320.0;
 /// The gap between the two panels on `wide`.
 pub const CODEX32_PANEL_GAP: f32 = 24.0;
+/// The five-dice roller's column beside the codex32 dice pad (CODEX32
+/// §5.5): five dice and their gaps, and room for the reach chips.
+pub const CODEX32_ROLLER_W: f32 = 320.0;
+/// A codex32 card's segmented button (Material 3's 40 dp), in a `TOUCH`
+/// row.
+pub const CODEX32_CHOICE_H: f32 = 40.0;
 /// A pad on a die's track: the free space and the values 1 to 6.
 pub const CODEX32_PAD: f32 = 24.0;
 /// One level of the dice sheet's tree.
@@ -987,27 +993,16 @@ pub const C32_CHECK: f32 = 18.0;
 /// its header, so the panel and the pad are in view together (the tabs a
 /// scroll up away).
 pub const CODEX32_ENTER_SCROLL: f32 = 140.0;
-/// The eye of the app bar: its side on the small panel's bar and on the
-/// wide page's top-right row, the gap to the button beside it, how far
-/// its press area reaches round it, its corner, its glyph, and the top of
-/// the wide row's.
-pub const EYE_SIDE: f32 = 34.0;
-/// The eye's side on the wide page.
-pub const EYE_WIDE_SIDE: f32 = 28.0;
-/// The gap to the eye's neighbour on the bar.
-pub const EYE_GAP: f32 = 6.0;
-/// The gap to the eye's neighbour on the wide row.
-pub const EYE_WIDE_GAP: f32 = 8.0;
-/// How far the eye's press area reaches round it.
-pub const EYE_HIT: f32 = 6.0;
-/// The eye's corner.
-pub const EYE_RADIUS: f32 = 8.0;
-/// The eye's glyph.
-pub const EYE_GLYPH: f32 = 14.0;
-/// The top of the wide row's eye.
-pub const EYE_WIDE_TOP: f32 = 12.0;
-/// The room a wide row's keyboard button takes, which the eye stands left of.
-pub const EYE_KEYBOARD_ROOM: f32 = 36.0;
+/// Material's icon button: its container, round, drawn in a `TOUCH`
+/// target with an `ICON_GLYPH` icon (the codex32 sheets' eye).
+pub const ICON_BUTTON: f32 = 40.0;
+/// The wide layout's ?: its left edge in from the page's right, where
+/// the top-right row of the mode pill and the ? begins.
+pub const TOP_ROW_QUESTION: f32 = 38.0;
+/// The wide page's eye: its container's right edge in from the page's,
+/// under the ? at the top right, in the margin clear of the flow's
+/// column (`docs/CODEX32.md` §6.4.6).
+pub const EYE_WIDE_INSET: f32 = 4.0;
 /// The check glyph in a seen worksheet tab.
 pub const CODEX32_TAB_GLYPH: f32 = 12.0;
 /// The icon's room at the head of the cell sheet.

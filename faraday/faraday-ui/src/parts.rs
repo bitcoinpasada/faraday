@@ -121,7 +121,18 @@ pub fn sheet_box<A: Copy + PartialEq>(
     sw: f32,
     sh: f32,
 ) -> (f32, f32) {
-    let x = (w - sw) / 2.0;
+    sheet_box_in(ui, (0.0, w, h), sw, sh)
+}
+
+/// [`sheet_box`] centred in a frame `w` by `h` whose left edge is at
+/// `x0`: a sheet over a page that starts right of a sidebar.
+pub fn sheet_box_in<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (x0, w, h): (f32, f32, f32),
+    sw: f32,
+    sh: f32,
+) -> (f32, f32) {
+    let x = x0 + (w - sw) / 2.0;
     let y = (h - sh) / 2.0;
     if let Some(a) = ui.outside {
         ui.hit_around(x, y, sw, sh, a);

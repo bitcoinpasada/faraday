@@ -21,7 +21,7 @@ use crate::{Action, flow, guide};
 use faraday_draw::Color;
 use faraday_draw::widgets::Icon;
 
-const TITLES: [&str; kstep::COUNT] = [
+pub(super) const TITLES: [&str; kstep::COUNT] = [
     EN.keygen_start,
     EN.keygen_length,
     EN.keygen_randomness,
@@ -72,11 +72,18 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::Screen::Catalog => EN.keygen_tools,
         _ => EN.keygen_back,
     };
+    let (cx, cw_max) = (x0 + 40.0, (cw - 80.0).min(900.0));
     let col = flow::Column {
         area_x: x0,
         area_w: cw,
-        x: x0 + 40.0,
-        w: (cw - 80.0).min(900.0),
+        x: cx,
+        // Beside the sidebar the column scrolls under the top-right row
+        // of the mode and the ?: it ends left of it.
+        w: if app.is_compact() {
+            cw_max
+        } else {
+            cw_max.min(crate::screens::top_row_left(app, ui, x0, cw) - cx)
+        },
         h,
         back: Some(app.named_back((back_label, Action::Nav(k.back)))),
         // Add a key wherever the flow opens on Start; New key for a Create
@@ -323,7 +330,16 @@ fn summary(k: &KeyGen, s: u8) -> String {
         },
         kstep::ENTER => {
             if k.done[usize::from(kstep::ENTER)] {
-                EN.keygen_complete.to_string()
+                // Rolls the roller made say so (`docs/CODEX32.md` §5.6).
+                let rolls = if k.by_die {
+                    k.coins.len()
+                } else {
+                    k.dice.len()
+                };
+                let sim = k.roller.sim(rolls);
+                crate::fresh::roller::five_screen::entropy_label(sim)
+                    .unwrap_or(EN.keygen_complete)
+                    .to_string()
             } else {
                 let (have, need) = k.progress();
                 fill(
@@ -640,29 +656,27 @@ const SLIP39_FACTS: [&str; 7] = [
 fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     // Words or shares.
-    if !k.only_24 {
-        let mut bx = x;
-        for (label, on) in [
-            (EN.keygen_bip_39_words, false),
-            (EN.keygen_slip_39_shares, true),
-        ] {
-            let style = if k.slip39 == on {
-                Style::Primary
-            } else {
-                Style::Secondary
-            };
-            bx += ui.button(
-                bx,
-                cy,
-                None,
-                faraday_draw::tokens::TOUCH,
-                label,
-                style,
-                Action::KForm(on),
-            ) + 8.0;
-        }
-        cy += faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP;
+    let mut bx = x;
+    for (label, on) in [
+        (EN.keygen_bip_39_words, false),
+        (EN.keygen_slip_39_shares, true),
+    ] {
+        let style = if k.slip39 == on {
+            Style::Primary
+        } else {
+            Style::Secondary
+        };
+        bx += ui.button(
+            bx,
+            cy,
+            None,
+            faraday_draw::tokens::TOUCH,
+            label,
+            style,
+            Action::KForm(on),
+        ) + 8.0;
     }
+    cy += faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP;
     let used = length_counts(k, ui, x, cy, w);
     cy += used;
     if k.slip39 {
@@ -726,10 +740,7 @@ fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             bx = x;
             y += faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP;
         }
-        let allowed = !k.only_24 || n == 24;
-        let style = if !allowed {
-            Style::Disabled
-        } else if usize::from(n) == k.words {
+        let style = if usize::from(n) == k.words {
             // The default shows chosen from the start, as any choice
             // shows its value (`docs/history/NEW-WALLET.md` §13.3).
             Style::Primary
@@ -750,12 +761,7 @@ fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             },
         ) + 8.0;
     }
-    let mut used = y - top + faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP;
-    if k.only_24 {
-        ui.text(x, y + used, 13.0, W::R, MUTED, EN.keygen_a_threshold);
-        used += 26.0;
-    }
-    used
+    y - top + faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP
 }
 
 /// One choosable row: a radio mark, a name and a second line.
@@ -1027,6 +1033,21 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + (if drawn { 48.0 } else { 8.0 }) - y
 }
 
+/// Beside the dice pad, for real dice: the one-die roller, on Faraday
+/// Desktop only (`docs/CODEX32.md` §5.6). Returns the height.
+fn roller(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    use crate::fresh::roller::screen::{Hosting, draw};
+    use faraday_draw::tokens::ROLLER_GAP;
+    if !app.roller_offered() || k.active() != Some(Source::Dice) || k.locked {
+        return 0.0;
+    }
+    let host = Hosting {
+        room: k.roller_room(),
+        typing: k.roller_typing,
+    };
+    draw(ui, (x, y, w), &k.roller, host, Action::KRoller) + ROLLER_GAP
+}
+
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
@@ -1088,6 +1109,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     match active {
         Some(Source::Dice | Source::Coins) if k.typing => {
             cy = typed_box(app, k, ui, x, cy, w);
+            cy += roller(app, k, ui, x, cy, w);
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
             }
@@ -1129,6 +1151,7 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 );
             }
             cy += 68.0;
+            cy += roller(app, k, ui, x, cy, w);
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
             }
@@ -1296,6 +1319,15 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     // source's word for starting again is beside it.
     if checked && !k.caution_lines().is_empty() {
         edits.push((again_label(k), Style::Ghost, Action::KAgain));
+    }
+    // This device's answer not in yet: the button says what it waits for
+    // (F102).
+    if matches!(active, Some(Source::Device)) && !ready {
+        edits.push((
+            EN.keygen_waiting_for_randomness,
+            Style::Disabled,
+            Action::KNext,
+        ));
     }
     // Words' foot button waits for the last entry.
     let next = (k.slip39 || ready).then_some((label, Action::KNext));
@@ -1726,9 +1758,16 @@ fn last_entry(k: &KeyGen) -> Option<String> {
 /// This device's randomness as the shell named it: "operating system ·
 /// /dev/random", or "operating system" alone when it named none. A lookup.
 fn device_source(k: &KeyGen) -> String {
-    match k.entropy_source {
+    let system = match k.entropy_source {
         Some(name) => fill(EN.keygen_device_source, &[EN.create_device_os, name]),
         None => EN.create_device_os.to_string(),
+    };
+    // What the person added of their own is mixed in
+    // (`docs/OWN-RANDOMNESS.md` §2.4).
+    if k.with_own {
+        fill(EN.keygen_device_with_own, &[&system])
+    } else {
+        system
     }
 }
 

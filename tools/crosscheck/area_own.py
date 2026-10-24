@@ -15,6 +15,8 @@ the system's answers fixed.
   the last one in, SHA-256("faraday fresh" ‖ what ‖ answer ‖ acc), with
   acc left out when none was added: exactly the bytes from before §2.3.
 - A seed draw for what and count: SHA-256(what ‖ seed ‖ count).
+- New key's This device keeps the shell's answer b as it is, or, when
+  acc exists, SHA-256("faraday device own" ‖ b ‖ acc).
 - A lock wipes acc and the counts; the seed and the pool stay with the
   process, which the lock ends.
 
@@ -50,6 +52,7 @@ DRAW_DICE = "7b795d54616b572836b470cc594e232e72c1a24c0bbae282c5186b76b602d031"
 FRESH_DICE = "7e3f2c6b2ebffb02a1d505b8004ffefbacfb7806df8032b1b93589e3693a6c65"
 DRAW_DICE_COINS = "c1b0177f5056c4ec9f56f550f1743f96366034354f5ba066b03ffa105f9d09b6"
 FRESH_DICE_COINS = "881bfdaab65025a43c5b28bcf6b98c228a2b05c2d67c911098962b13a24dfc53"
+DEVICE_DICE = "71018a2755836a806283b23356523a88c063153b225d6eeffe5176180be792b1"
 
 POOL_MAX = 6
 MAX_ROLLS = 200
@@ -119,6 +122,9 @@ class Session:
                 return None
             b = self.pool.pop()
             return sha(b"faraday fresh", bytes.fromhex(s["what"]), b, self.acc or b"").hex()
+        if do == "device":
+            b = bytes.fromhex(s["bytes"])
+            return (sha(b"faraday device own", b, self.acc) if self.acc else b).hex()
         if do == "counts":
             return dict(self.counts)
         raise AssertionError(do)
@@ -172,6 +178,9 @@ class Own(Area):
         self.session(a + [DICE, COINS, draw(), fresh(), COUNTS],
                      [None, None, True, True, DRAW_DICE_COINS, FRESH_DICE_COINS,
                       counts(dice_rolls=6, coin_flips=4)])
+        # New key's This device: the answer as it is, then with the dice.
+        dev = {"do": "device", "bytes": SEED.hex()}
+        self.session([dev, DICE, dev], [SEED.hex(), True, DEVICE_DICE])
         # A batch of nothing is not taken.
         self.session(a + [{"do": "dice", "rolls": ""}, draw(), fresh()],
                      [None, None, False, DRAW_PLAIN, FRESH_PLAIN])
@@ -190,8 +199,11 @@ class Own(Area):
 
     def random_step(self):
         rng = self.rng
-        kind = rng.choices(["answer", "dice", "coins", "frame", "lock", "draw", "fresh", "counts"],
-                           [4, 3, 2, 2, 0.3, 3, 3, 1])[0]
+        kind = rng.choices(["answer", "dice", "coins", "frame", "lock", "draw", "fresh", "counts",
+                            "device"],
+                           [4, 3, 2, 2, 0.3, 3, 3, 1, 2])[0]
+        if kind == "device":
+            return {"do": "device", "bytes": self.randbytes(32).hex()}
         if kind == "answer":
             return answer(self.randbytes(32))
         if kind == "dice":

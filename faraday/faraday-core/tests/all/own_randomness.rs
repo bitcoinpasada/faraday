@@ -270,9 +270,87 @@ fn new_keys_this_device_makes_no_words_on_what_was_added_alone() {
     app.press(Action::KNext);
     app.press(Action::KNext);
     assert!(app.keygen().unwrap().mnemonic.is_none());
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "Waiting for randomness"),
+        "the foot button says what it waits for (F102)"
+    );
     answer(&mut app, SEED);
     app.press(Action::KNext);
     assert!(app.keygen().unwrap().mnemonic.is_some());
+}
+
+/// New key's This device with the dice added: SHA-256("faraday device
+/// own" ‖ SEED ‖ acc1), the bytes the shell answered with the person's
+/// accumulator hashed in (§2.3).
+const DEVICE_DICE: &str = "71018a2755836a806283b23356523a88c063153b225d6eeffe5176180be792b1";
+
+/// New key on This device at 12 words, answered with SEED: its words.
+fn device_words(app: &mut Faraday) -> Vec<u16> {
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Device.index()));
+    app.press(Action::KNext);
+    app.press(Action::KNext);
+    answer(app, SEED);
+    app.press(Action::KNext);
+    app.keygen()
+        .unwrap()
+        .mnemonic
+        .as_ref()
+        .unwrap()
+        .indices()
+        .to_vec()
+}
+
+/// The 12 words This device makes of `bytes`: SHA-256 of them, its first
+/// 16 bytes.
+fn words_of(bytes: [u8; 32]) -> Vec<u16> {
+    use faraday_bip::bip39::{Language, Mnemonic};
+    use faraday_bip::bitcoin::hashes::{Hash, sha256};
+    let h = sha256::Hash::hash(&bytes).to_byte_array();
+    Mnemonic::from_entropy(Language::English, &h[..16])
+        .unwrap()
+        .indices()
+        .to_vec()
+}
+
+fn unhex(s: &str) -> [u8; 32] {
+    let mut out = [0u8; 32];
+    for (i, b) in out.iter_mut().enumerate() {
+        *b = u8::from_str_radix(&s[2 * i..2 * i + 2], 16).unwrap();
+    }
+    out
+}
+
+#[test]
+fn new_keys_this_device_mixes_in_what_was_added_and_says_so() {
+    let mut plain = crate::keygen::opened();
+    assert_eq!(device_words(&mut plain), words_of(SEED), "nothing added");
+    assert!(
+        !plain
+            .drawn_texts()
+            .iter()
+            .any(|t| t.contains("with your own")),
+        "nothing added, nothing said"
+    );
+
+    let mut mixed = crate::keygen::opened();
+    add_dice(&mut mixed);
+    assert_eq!(
+        device_words(&mut mixed),
+        words_of(unhex(DEVICE_DICE)),
+        "the dice mixed in as §2.3 defines"
+    );
+    mixed.press(Action::KStep(faraday_core::keygen::kstep::ENTER));
+    assert!(
+        mixed
+            .drawn_texts()
+            .iter()
+            .any(|t| t.ends_with("· with your own")),
+        "This device's line says so: {:?}",
+        mixed.drawn_texts()
+    );
 }
 
 #[test]

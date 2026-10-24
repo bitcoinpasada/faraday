@@ -218,6 +218,11 @@ impl Fresh {
         self.own.counts
     }
 
+    /// The accumulator, while anything was added (a lookup).
+    pub(crate) fn own_acc(&self) -> Option<&[u8; 32]> {
+        self.own.acc.as_deref()
+    }
+
     /// The lock: what the person added is wiped, and the next session
     /// starts with none.
     pub(crate) fn own_wipe(&mut self) {
@@ -318,7 +323,9 @@ impl Faraday {
     /// the seed and every fresh draw from now on, never used alone.
     /// Returns whether it was taken.
     pub fn own_add(&mut self, source: OwnSource, commitment: &[u8; 32], n: u32) -> bool {
-        self.fresh.own_add(source, commitment, n)
+        let taken = self.fresh.own_add(source, commitment, n);
+        self.keygen.own_changed(self.fresh.own_acc().is_some());
+        taken
     }
 
     /// What the person added of their own in this session, for the
@@ -330,6 +337,7 @@ impl Faraday {
     /// The lock wipes what the person added.
     pub(crate) fn own_wipe(&mut self) {
         self.fresh.own_wipe();
+        self.keygen.own_changed(false);
     }
 
     /// The seed a signing pass draws a MuSig2 or FROST round's secret

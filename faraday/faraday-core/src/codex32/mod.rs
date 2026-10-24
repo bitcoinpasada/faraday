@@ -18,7 +18,12 @@
 //! what `seq` gives, worked again from it at every press
 //! ([`Codex32Make::replay`]). `strings`, `fingerprint` and `qr` are
 //! taken from the finished set when its last character arrives and
-//! dropped when any character is taken back.
+//! dropped when any character is taken back. On Faraday Desktop the
+//! five-dice roller (`docs/CODEX32.md` §5.5) stands beside the pad: its
+//! faces enter through [`Codex32Make::roll`] as the pad's keys do, it is
+//! told of every face taken back ([`FiveRoller::trim`]) and starts over
+//! with the entry; `rolled_dice` is what `seq` and the roller's marks
+//! give, worked again with `dice` at every replay.
 
 pub(crate) mod screen;
 
@@ -36,6 +41,8 @@ use faraday_keys::{Held, Reveal, WorkSet};
 pub use faraday_ui::keyboard::OskPress;
 use zeroize::{Zeroize, Zeroizing};
 
+use crate::fresh::roller::Sim;
+use crate::fresh::roller::five::{self, FiveRoller, Where};
 use crate::secret_text::SecretText;
 use crate::strings::{EN, fill};
 
@@ -237,6 +244,9 @@ pub enum C32 {
     /// The open cell's working moved to the neighbouring cell of its row,
     /// before (-1) or after (1) (§7.4).
     CellStep(i8),
+    /// A press on the five-dice roller beside the pad (Faraday Desktop,
+    /// §5.5).
+    Roller(five::Act),
 }
 
 /// One die's two values for one character, as entered: struck where
@@ -366,6 +376,14 @@ pub struct Codex32Make {
     hidden: bool,
     /// Faraday Desktop: never masked, and no eye (§6.4.6).
     unmasked: bool,
+    /// The five-dice roller beside the pad (Faraday Desktop, §5.5).
+    roller: FiveRoller,
+    /// Which dice of the character in progress show a value the roller
+    /// made: worked out from `seq` at every replay.
+    rolled_dice: [bool; BOOKLET_DICE],
+    /// Whether the set's faces came from the roller, in part or all:
+    /// taken when the set completes, for Strings made.
+    sim: Sim,
 }
 
 impl Codex32Make {
@@ -408,6 +426,9 @@ impl Codex32Make {
             locked: false,
             hidden: false,
             unmasked: false,
+            roller: FiveRoller::default(),
+            rolled_dice: [false; BOOKLET_DICE],
+            sim: Sim::No,
         }
     }
 
@@ -545,6 +566,36 @@ impl Codex32Make {
     /// both.
     pub fn sources(&self) -> (bool, bool) {
         (self.rolled, self.typed)
+    }
+
+    /// Whether the set's faces came from the five-dice roller, in part
+    /// or all (§5.5): what Strings made's entropy row says.
+    pub fn simulated(&self) -> Sim {
+        self.sim
+    }
+
+    /// The five-dice roller beside the pad (Faraday Desktop, §5.5).
+    pub fn roller(&self) -> &FiveRoller {
+        &self.roller
+    }
+
+    /// Whether die `die` (from 0) of the character in progress shows a
+    /// value the roller made.
+    pub fn die_rolled(&self, die: usize) -> bool {
+        self.rolled_dice.get(die).copied().unwrap_or(false)
+    }
+
+    /// Whether data character `n` of initial share `share` has a face the
+    /// roller made (a lookup).
+    pub fn char_rolled(&self, share: usize, n: usize) -> bool {
+        let data = self.length.data_len();
+        self.roller.char_rolled(share * data + n)
+    }
+
+    /// Whether the roller has a press to take: the entry open on dice
+    /// with a character left to enter.
+    pub fn roller_can_roll(&self) -> bool {
+        self.open == Some(Card::Enter) && self.way == Way::Dice && self.front().is_some()
     }
 
     /// The review's tab shown, and which have been shown.
@@ -902,6 +953,8 @@ impl Codex32Make {
                     .map(|_| Vec::new())
                     .collect();
                 self.work = Some(w);
+                // A new entry: nothing on it is the roller's.
+                self.roller.reset();
                 true
             }
             Err(e) => {
@@ -953,6 +1006,81 @@ impl Codex32Make {
 
     // ----- The entry -----
 
+    /// Characters entered so far, of every initial share (a lookup over
+    /// at most 31 shares).
+    fn entered_all(&self) -> usize {
+        self.work.as_ref().map_or(0, |w| {
+            (0..w.scheme().initial_indices().len())
+                .map(|s| w.entered(s))
+                .sum()
+        })
+    }
+
+    /// Where the entry stands, as the roller reads it: characters done
+    /// in all, left in the share, left in all; `None` where it takes no
+    /// dice.
+    fn roller_counts(&self) -> Option<(usize, usize, usize)> {
+        if !self.roller_can_roll() {
+            return None;
+        }
+        let w = self.work.as_ref()?;
+        let data = w.scheme().length().data_len();
+        let done = self.entered_all();
+        let all_left = w.scheme().initial_indices().len() * data - done;
+        let share_left = self.front().map_or(0, |(_, n)| data - n);
+        Some((done, share_left, all_left))
+    }
+
+    /// A press on the roller, at `now_ms`. Nothing rolls where the entry
+    /// takes no dice.
+    pub(crate) fn roller_act(&mut self, act: five::Act, now_ms: u64) {
+        let (done, share_left, all_left) = self.roller_counts().unwrap_or_default();
+        let at = Where {
+            seq: &self.seq,
+            done,
+            share_left,
+            all_left,
+        };
+        self.roller.act(act, &at, now_ms);
+    }
+
+    /// Costs what the faces landed cost (see [`Self::roll`]) and a fresh
+    /// answer (a hash, through `draw`) for every 31 faces at most;
+    /// nothing at rest. The roller's tick: the faces it made enter as the
+    /// pad's keys would. `reduce` is Reduce motion. Returns whether the
+    /// screen needs a frame.
+    pub(crate) fn roller_tick(
+        &mut self,
+        c: &Compute,
+        now_ms: u64,
+        reduce: bool,
+        draw: &mut five::Draw,
+    ) -> bool {
+        if !self.roller.active() {
+            return false;
+        }
+        let (faces, redraw) = match self.roller_counts() {
+            Some((done, share_left, all_left)) => {
+                let at = Where {
+                    seq: &self.seq,
+                    done,
+                    share_left,
+                    all_left,
+                };
+                self.roller.tick(now_ms, reduce, &at, draw)
+            }
+            None => {
+                // The entry was left or is full: the click ends.
+                self.roller.stop();
+                (Vec::new(), true)
+            }
+        };
+        for face in faces {
+            self.roll(c, face);
+        }
+        redraw
+    }
+
     /// Costs a worksheet column of each sheet the character is in, and
     /// at a share's last character its checksum, and at the set's last
     /// the set, its key's fingerprint and the first string's Codex32QR.
@@ -979,7 +1107,9 @@ impl Codex32Make {
         self.dice = BookletChar::new();
         self.rows.clear();
         self.equal = None;
-        for &face in self.seq.iter() {
+        self.rolled_dice = [false; BOOKLET_DICE];
+        let done = self.entered_all();
+        for (i, &face) in self.seq.iter().enumerate() {
             let place = (0..2 * BOOKLET_DICE).find(|&p| {
                 if p < BOOKLET_DICE {
                     self.dice.first(p).is_none()
@@ -991,6 +1121,13 @@ impl Codex32Make {
                 continue;
             }
             self.equal = None;
+            if let Some(p) = place {
+                let die = p % BOOKLET_DICE;
+                let rolled = self.roller.is_rolled(done, i);
+                // A die's first value starts its mark over; its second
+                // adds to it.
+                self.rolled_dice[die] = rolled || (p >= BOOKLET_DICE && self.rolled_dice[die]);
+            }
             if let Some(p) = place.filter(|&p| p >= BOOKLET_DICE) {
                 let die = p - BOOKLET_DICE;
                 let row = DieRow {
@@ -1002,6 +1139,7 @@ impl Codex32Make {
                 if row.bit().is_none() {
                     self.dice.redo(die);
                     self.equal = Some(die as u8);
+                    self.rolled_dice[die] = false;
                 }
             }
         }
@@ -1047,6 +1185,14 @@ impl Codex32Make {
         };
         self.strings = work.strings(Reveal::PaperForm);
         self.fingerprint = work.fingerprint(c).map(|f| f.0);
+        // Every face entered, a character typed counting one.
+        let faces: usize = self
+            .made
+            .iter()
+            .flatten()
+            .map(|m| if m.typed { 1 } else { m.seq.len() })
+            .sum();
+        self.sim = self.roller.sim(faces);
         self.at = 0;
         self.encode_qr(c);
     }
@@ -1055,6 +1201,15 @@ impl Codex32Make {
     /// none, the last character, its rolls back on the sheet less the
     /// last. Cheap but for the work set's own pop.
     fn undo(&mut self) {
+        self.undo_entry();
+        // Faces taken back are not the roller's any more.
+        let done = self.entered_all();
+        self.roller.trim(done, self.seq.len());
+        self.replay();
+    }
+
+    /// [`Self::undo`] on the entry alone.
+    fn undo_entry(&mut self) {
         if !self.seq.is_empty() {
             self.seq.pop();
             self.replay();

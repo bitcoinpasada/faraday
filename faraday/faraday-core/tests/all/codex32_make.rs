@@ -502,7 +502,7 @@ fn the_pi_panel_shows_the_context_above_the_pad_and_the_cell_has_its_own_page() 
 #[test]
 fn start_offers_making_codex32_only_while_it_is_switched_on() {
     use faraday_core::keygen::KeyGen;
-    let k = KeyGen::new(None, Screen::Entry, false);
+    let k = KeyGen::new(None, Screen::Entry);
     assert!(k.starts_with(true).contains(&Start::MakeCodex32));
     let off = k.starts_with(false);
     assert!(!off.contains(&Start::MakeCodex32), "not offered when off");
@@ -512,4 +512,124 @@ fn start_offers_making_codex32_only_while_it_is_switched_on() {
         k.starts(),
         k.starts_with(faraday_core::codex32::MAKE_OFFERED)
     );
+}
+
+#[test]
+fn the_translation_symbols_are_drawn_as_the_booklets_glyphs() {
+    use faraday_bip::codex32::{SYMBOL_GLYPHS, SYMBOL_NAMES};
+    let (all, _) = vector2();
+    let mut app = on(1366, 2400, 160);
+    opened(&mut app);
+    to_entry(&mut app, Way::Typed);
+    // Every character but the last: the sheets are still filling.
+    for s in &all[..2] {
+        for &ch in &s.as_bytes()[9..35] {
+            key(&mut app, char::from(ch));
+        }
+    }
+    c32(&mut app, C32::Key(OskPress::Back));
+    // The first translation symbol's working, as its cell opens it.
+    c32(
+        &mut app,
+        C32::Cell(faraday_core::codex32::Cell::Symbol { sheet: 0, i: 0 }),
+    );
+    let texts = app.drawn_texts();
+    let glyphs: Vec<char> = SYMBOL_GLYPHS[1..]
+        .iter()
+        .copied()
+        .filter(|c| !c.is_ascii())
+        .collect();
+    assert!(
+        texts.iter().any(|t| t.chars().any(|c| glyphs.contains(&c))),
+        "a symbol drawn as its glyph: {texts:?}"
+    );
+    for name in SYMBOL_NAMES.iter().filter(|n| n.len() > 3) {
+        assert!(
+            !texts
+                .iter()
+                .any(|t| t.split_whitespace().any(|w| w == *name)),
+            "{name} drawn as its name: {texts:?}"
+        );
+    }
+}
+
+/// Whether pixel boxes `a` and `b` (x, y, w, h) share any column.
+fn cols_meet(a: (i32, i32, i32, i32), b: (i32, i32, i32, i32)) -> bool {
+    a.0 < b.0 + b.2 && b.0 < a.0 + a.2
+}
+
+fn boxed(b: (u16, u16, u16, u16)) -> (i32, i32, i32, i32) {
+    (
+        i32::from(b.0),
+        i32::from(b.1),
+        i32::from(b.2),
+        i32::from(b.3),
+    )
+}
+
+#[test]
+fn a_cells_working_and_its_buttons_stay_inside_its_sheet_beside_the_sidebar() {
+    use faraday_core::codex32::Cell;
+    use faraday_shell_api::{Event, TouchPhase};
+    let mut app = rolled_z(1280, 800, 160);
+    c32(&mut app, C32::Cell(Cell::Given { sheet: 0, b: 10 }));
+    let boxes = app.drawn_text_boxes();
+    let prev = boxed(app.hit_box(Action::Codex32(C32::CellStep(-1))).unwrap());
+    let next = boxed(app.hit_box(Action::Codex32(C32::CellStep(1))).unwrap());
+    let done = boxed(app.hit_box(Action::Codex32(C32::CellClose)).unwrap());
+    // Previous, Next and Done in one row, Done last, none over another.
+    assert_eq!((prev.1, next.1), (done.1, done.1), "one row");
+    assert!(prev.0 + prev.2 <= next.0 && next.0 + next.2 <= done.0);
+    let (left, right) = (prev.0, done.0 + done.2);
+    // Every line of the working lies between the sheet's buttons' ends.
+    let working: Vec<_> = boxes
+        .iter()
+        .filter(|(t, b)| b.1 < done.1 && (t.starts_with("Die ") || t.contains("bits")))
+        .collect();
+    assert!(!working.is_empty(), "{boxes:?}");
+    for (t, b) in working {
+        assert!(
+            b.0 >= left && b.0 + b.2 <= right,
+            "{t:?} {b:?} outside {left}..{right}"
+        );
+    }
+    // A press inside the sheet's edge, just right of Done, is on the
+    // sheet: it reaches nothing under it.
+    let x = (done.0 + done.2 + 8) as u16;
+    let y = (done.1 + done.3 / 2) as u16;
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    let _ = app.frame();
+    assert_eq!(
+        app.keygen().unwrap().codex32.as_ref().unwrap().cell(),
+        Some(Cell::Given { sheet: 0, b: 10 }),
+        "the sheet's own margin is the sheet's"
+    );
+}
+
+#[test]
+fn the_eye_stands_clear_of_every_row_of_the_flow() {
+    // Beside the sidebar, the eye is in the page's margin: no text of the
+    // flow's column, which scrolls under the top, shares its columns
+    // below the top row of the network and the ?.
+    let mut app = rolled_z(1280, 800, 160);
+    let eye = boxed(app.hit_box(Action::Codex32(C32::Eye)).expect("the eye"));
+    for (t, b) in app.drawn_text_boxes() {
+        assert!(
+            !cols_meet(b, eye) || b.1 + b.3 <= eye.1,
+            "{t:?} {b:?} in the eye's column {eye:?}"
+        );
+    }
+    // On a small panel the eye is on the bar, which the page never runs
+    // under: only the bar's own lines meet it.
+    let mut app = rolled_z(480, 640, 286);
+    let eye = boxed(app.hit_box(Action::Codex32(C32::Eye)).expect("the eye"));
+    for (t, b) in app.drawn_text_boxes() {
+        let meets = cols_meet(b, eye) && b.1 < eye.1 + eye.3 && eye.1 < b.1 + b.3;
+        assert!(
+            !meets || b.1 + b.3 <= eye.1 + eye.3,
+            "{t:?} {b:?} under the eye {eye:?}"
+        );
+    }
 }
