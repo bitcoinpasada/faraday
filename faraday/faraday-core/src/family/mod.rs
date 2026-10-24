@@ -1657,8 +1657,12 @@ impl Faraday {
         self.family.state.scroll.follow = true;
     }
 
-    /// A file that arrived by camera while the tab is open: a wallet or
-    /// the last split sheet opens the wallet, a PSBT starts the spend.
+    /// Costs a PSBT read and a txid, and what `collect` costs. A file that
+    /// arrived by camera while the tab is open: a wallet or the last
+    /// split sheet opens the wallet, a PSBT starts the spend. While a
+    /// spend is under way a PSBT is checked by its unsigned transaction's
+    /// txid: the spend's own is collected into it (its signatures
+    /// merged), another is kept in Files and never replaces the spend.
     /// Returns whether the tab took it.
     pub(crate) fn family_arrived(&mut self, index: usize) -> bool {
         let Some(kind) = self.inbox.get(index).map(|i| i.kind) else {
@@ -1674,11 +1678,51 @@ impl Faraday {
                 true
             }
             FileKind::Psbt if self.family_ready() || self.family.state.route.is_some() => {
+                if self.family_psbt_for_open_spend(index) {
+                    return true;
+                }
                 self.family_use_psbt(index);
                 true
             }
             _ => false,
         }
+    }
+
+    /// Costs a PSBT read and a txid, and what `collect` costs. A PSBT
+    /// arriving while a spend is under way: for the spend's own
+    /// transaction it is collected into it; for another it is refused
+    /// with a toast while the spend is not finished and has a step card
+    /// open or a signature. Returns whether it was handled here; false
+    /// leaves a new spend to start.
+    fn family_psbt_for_open_spend(&mut self, index: usize) -> bool {
+        let Some(txid) = self.wallets.spend().map(|s| s.spend.txid) else {
+            return false;
+        };
+        let c = self.compute();
+        let Some(item) = self.inbox.get(index) else {
+            return false;
+        };
+        let name = item.name.clone();
+        let Some(other) = crate::wallet::read_psbt(&c, &item.bytes) else {
+            return false;
+        };
+        if other.unsigned_tx().compute_txid() == txid {
+            self.collect(index);
+            self.family.state.open = Some(Open::Spend);
+            self.family_step_moved(false);
+            return true;
+        }
+        let under_way = self.wallets.spend().is_some_and(|s| {
+            s.spend.finished.is_none()
+                && (s.open.is_some()
+                    || !s.spend.signed_here.is_empty()
+                    || !s.spend.collected.is_empty())
+        });
+        if under_way {
+            self.toast(&fill(EN.family_psbt_not_this_spend, &[&name]));
+            return true;
+        }
+        false
     }
 
     /// After the spend's own step cards change on this tab: the card open

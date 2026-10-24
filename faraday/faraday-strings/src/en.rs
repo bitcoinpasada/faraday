@@ -3513,6 +3513,8 @@ strings! {
     scanned_is_key: "{} is Key {}",
     /// Toast in `scanned`. `{}`: `name`.
     scanned_is_in_files: "{} is in Files",
+    /// Toast in `family_arrived`. `{}`: the file's name.
+    family_psbt_not_this_spend: "{} is for another transaction. Cancel this spend to sign it; the file is in Files",
     // ----- copy_scanned (faraday-core/src/lib.rs) -----
     /// Note in `copy_scanned`.
     copy_scanned_not_seedqr: "Not a SeedQR",

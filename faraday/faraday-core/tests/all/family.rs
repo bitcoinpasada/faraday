@@ -787,3 +787,116 @@ fn the_spend_tab_opens_from_learn() {
     assert_eq!(app.screen, Screen::Family);
     assert_eq!(app.sheet, None);
 }
+
+/// The camera, opened on the spend's The other signatures card, reads
+/// this code.
+fn scan_signatures(app: &mut Faraday, bytes: Vec<u8>) {
+    if app.scan().is_none() {
+        if app.spend().and_then(|s| s.open) != Some(step::COLLECT) {
+            app.press(Action::Step(step::COLLECT));
+        }
+        app.press(Action::Scan);
+    }
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the camera is not on");
+    app.event(Event::Scanned { bytes });
+    let _ = app.frame();
+}
+
+/// The Savings spend, signed here by the vault's key, with the Spend card
+/// open.
+fn savings_spend_signed_here() -> Faraday {
+    let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
+    unlock_on_tab(&mut app);
+    let savings = wallet_at(&app, "Savings");
+    app.press(Action::Family(F::Choose(savings)));
+    let at = inbox_at(&app, "savings-unsigned.psbt");
+    app.press(Action::Family(F::UsePsbt(at)));
+    app.press(Action::SignHere);
+    assert!(!app.spend().unwrap().spend.signed_here.is_empty());
+    assert!(!app.spend().unwrap().complete, "one signature finished it");
+    app
+}
+
+#[test]
+fn a_second_signature_scanned_during_the_other_signatures_completes_the_spend() {
+    let mut app = savings_spend_signed_here();
+    let (_, cosigned) = testkit::spend_of(&kit("savings")).unwrap();
+    let (_, signed) = cosigned.unwrap();
+    let here = app.spend().unwrap().spend.signed_here.clone();
+    scan_signatures(&mut app, signed.to_bytes());
+    let s = app.spend().expect("the spend was lost");
+    assert!(
+        s.complete,
+        "the second signature did not complete the spend"
+    );
+    assert_eq!(
+        s.spend.signed_here, here,
+        "the signature made here was lost"
+    );
+    assert_eq!(s.spend.collected.len(), 1);
+    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.family().open, Some(Open::Spend));
+}
+
+#[test]
+fn the_same_psbt_scanned_twice_changes_nothing() {
+    let mut app = savings_spend_signed_here();
+    let (_, cosigned) = testkit::spend_of(&kit("savings")).unwrap();
+    let bytes = cosigned.unwrap().1.to_bytes();
+    scan_signatures(&mut app, bytes.clone());
+    let once = app.spend().unwrap().spend.psbt.to_bytes();
+    let open = app.family().open;
+    scan_signatures(&mut app, bytes);
+    let s = app.spend().unwrap();
+    assert_eq!(s.spend.psbt.to_bytes(), once);
+    assert_eq!(s.spend.collected.len(), 1);
+    assert!(s.complete);
+    assert_eq!(app.family().open, open);
+}
+
+#[test]
+fn a_different_transaction_scanned_during_a_spend_does_not_replace_it() {
+    let mut app = savings_spend_signed_here();
+    let before = app.spend().unwrap().spend.psbt.to_bytes();
+    let (other, _) = testkit::spend_of(&kit("taproot")).unwrap();
+    scan_signatures(&mut app, other.to_bytes());
+    let s = app.spend().expect("the spend was lost");
+    assert_eq!(
+        s.spend.psbt.to_bytes(),
+        before,
+        "another transaction replaced the spend"
+    );
+    assert!(
+        !s.spend.signed_here.is_empty(),
+        "the signature made here was lost"
+    );
+    assert_eq!(app.family().open, Some(Open::Spend));
+}
+
+#[test]
+fn cancelling_the_spend_lets_the_other_transaction_be_scanned_and_signed() {
+    let mut app = savings_spend_signed_here();
+    let (other, _) = testkit::spend_of(&kit("taproot")).unwrap();
+    scan_signatures(&mut app, other.to_bytes());
+    assert!(app.spend().is_some(), "the refused scan ended the spend");
+    // Cancel is offered after a signature was made here, and ends the spend.
+    app.press(Action::CancelFlow);
+    assert_eq!(
+        app.sheet,
+        Some(Sheet::CancelFlow(faraday_core::in_progress::Going::Spend))
+    );
+    app.press(Action::CancelFlowNow);
+    assert!(app.spend().is_none(), "Cancel the flow kept the spend");
+    // The same transaction, from Files, starts a spend for it.
+    app.press(Action::Nav(Screen::Family));
+    let at = app
+        .inbox()
+        .iter()
+        .position(|i| i.kind == FileKind::Psbt && i.name.starts_with("scanned-"))
+        .expect("the scanned transaction is not in Files");
+    app.press(Action::Family(F::UsePsbt(at)));
+    let s = app
+        .spend()
+        .expect("no spend started for the other transaction");
+    assert_eq!(s.spend.txid, other.unsigned_tx().compute_txid());
+}
