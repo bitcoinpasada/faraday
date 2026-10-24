@@ -499,8 +499,14 @@ than sign, offers **Scan a key**, its Unlock buttons and **Collect a
 signature**, which opens *The other signatures*; with enough, **Can
 spend** (`docs/history/SCAN-TO-SIGN.md` §3). A PSBT
 for this wallet in Files starts the spend at once, on the transaction's
-review. Another wallet's spend gives way to this one, its PSBT staying
-in Files. **It is loaded** does not mark the wallet checked: it says
+review. While a spend is under way a PSBT read by the camera is
+checked by its unsigned transaction's txid, on this tab and from Home's
+Scan alike: the spend's own is collected into it (its signatures
+merged) and the spend moves on, the same file twice changes nothing,
+and another transaction is refused with a toast naming Cancel, the
+file staying in Files and the spend kept. With no spend under way
+Home's Scan only puts the file in Files. Another wallet's spend gives
+way to this one, its PSBT staying in Files. **It is loaded** does not mark the wallet checked: it says
 Sparrow has the wallet, not that the addresses were compared. On a
 small panel the shortcut is its line and **Scan it**. What the tab
 keeps across a lock includes that it was entered from the card.

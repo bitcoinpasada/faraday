@@ -931,3 +931,73 @@ fn cancelling_the_spend_lets_the_other_transaction_be_scanned_and_signed() {
         .expect("no spend started for the other transaction");
     assert_eq!(s.spend.txid, other.unsigned_tx().compute_txid());
 }
+
+/// Home's Scan reads this code while the Savings spend is under way.
+fn scan_from_home(app: &mut Faraday, bytes: Vec<u8>) {
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::Scan);
+    assert_eq!(app.sheet, Some(Sheet::Scan), "the camera is not on");
+    app.event(Event::Scanned { bytes });
+    let _ = app.frame();
+}
+
+#[test]
+fn home_scan_of_the_spends_own_transaction_collects_it() {
+    let mut app = savings_spend_signed_here();
+    let (_, cosigned) = testkit::spend_of(&kit("savings")).unwrap();
+    let (_, signed) = cosigned.unwrap();
+    let here = app.spend().unwrap().spend.signed_here.clone();
+    scan_from_home(&mut app, signed.to_bytes());
+    let s = app.spend().expect("the spend was lost");
+    assert!(s.complete, "the signature did not complete the spend");
+    assert_eq!(s.spend.signed_here, here);
+    assert_eq!(s.spend.collected.len(), 1);
+    assert_eq!(app.screen, Screen::Family);
+    assert_eq!(app.family().open, Some(Open::Spend));
+}
+
+#[test]
+fn home_scan_of_the_same_psbt_twice_changes_nothing() {
+    let mut app = savings_spend_signed_here();
+    let (_, cosigned) = testkit::spend_of(&kit("savings")).unwrap();
+    let bytes = cosigned.unwrap().1.to_bytes();
+    scan_from_home(&mut app, bytes.clone());
+    let once = app.spend().unwrap().spend.psbt.to_bytes();
+    scan_from_home(&mut app, bytes);
+    let s = app.spend().unwrap();
+    assert_eq!(s.spend.psbt.to_bytes(), once);
+    assert_eq!(s.spend.collected.len(), 1);
+    assert!(s.complete);
+}
+
+#[test]
+fn home_scan_of_another_transaction_during_a_spend_is_refused() {
+    let mut app = savings_spend_signed_here();
+    let before = app.spend().unwrap().spend.psbt.to_bytes();
+    let (other, _) = testkit::spend_of(&kit("taproot")).unwrap();
+    scan_from_home(&mut app, other.to_bytes());
+    let s = app.spend().expect("the spend was lost");
+    assert_eq!(s.spend.psbt.to_bytes(), before);
+    assert!(!s.spend.signed_here.is_empty());
+    assert_eq!(app.screen, Screen::Home);
+    assert!(
+        app.inbox()
+            .iter()
+            .any(|i| i.kind == FileKind::Psbt && i.name.starts_with("scanned-")),
+        "the refused file is not in Files"
+    );
+}
+
+#[test]
+fn home_scan_with_no_spend_only_puts_the_psbt_in_files() {
+    let mut app = with_files(vec![vault_file()], Vec::new());
+    unlock_on_tab(&mut app);
+    let (other, _) = testkit::spend_of(&kit("taproot")).unwrap();
+    scan_from_home(&mut app, other.to_bytes());
+    assert!(app.spend().is_none());
+    assert!(
+        app.inbox()
+            .iter()
+            .any(|i| i.kind == FileKind::Psbt && i.name.starts_with("scanned-"))
+    );
+}

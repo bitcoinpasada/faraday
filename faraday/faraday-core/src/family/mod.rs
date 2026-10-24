@@ -1663,11 +1663,19 @@ impl Faraday {
     /// spend is under way a PSBT is checked by its unsigned transaction's
     /// txid: the spend's own is collected into it (its signatures
     /// merged), another is kept in Files and never replaces the spend.
-    /// Returns whether the tab took it.
+    /// Returns whether the tab took it (on Home, only a PSBT for a spend
+    /// under way).
     pub(crate) fn family_arrived(&mut self, index: usize) -> bool {
         let Some(kind) = self.inbox.get(index).map(|i| i.kind) else {
             return false;
         };
+        // Home's scan takes a PSBT only for a spend under way.
+        if self.screen == Screen::Home {
+            return kind == FileKind::Psbt && self.family_psbt_for_open_spend(index);
+        }
+        if self.screen != Screen::Family {
+            return false;
+        }
         match kind {
             FileKind::Wallet if !self.family_ready() => {
                 self.family_use_wallet(index);
@@ -1693,8 +1701,8 @@ impl Faraday {
     /// transaction it is collected into it; for another it is refused
     /// with a toast while the spend is not finished and has a step card
     /// open or a signature. Returns whether it was handled here; false
-    /// leaves a new spend to start.
-    fn family_psbt_for_open_spend(&mut self, index: usize) -> bool {
+    /// leaves a new spend to start. Home's scan comes here too.
+    pub(crate) fn family_psbt_for_open_spend(&mut self, index: usize) -> bool {
         let Some(txid) = self.wallets.spend().map(|s| s.spend.txid) else {
             return false;
         };
@@ -1710,6 +1718,8 @@ impl Faraday {
             self.collect(index);
             self.family.state.open = Some(Open::Spend);
             self.family_step_moved(false);
+            // Scanned from Home, the spend is where it moves on.
+            self.screen = Screen::Family;
             return true;
         }
         let under_way = self.wallets.spend().is_some_and(|s| {

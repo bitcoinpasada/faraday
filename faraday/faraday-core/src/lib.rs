@@ -4585,7 +4585,7 @@ impl Faraday {
             self.screen = Screen::Create;
             return;
         }
-        if self.screen == Screen::Family && self.family_arrived(at) {
+        if self.family_arrived(at) {
             return;
         }
         if self.screen == Screen::Restore && self.restore_arrived(at) {
