@@ -114,6 +114,24 @@ impl Move {
     }
 }
 
+/// Whether the checksum worksheet is drawn whole, and at which cell
+/// (`docs/LAYOUT.md` §16.1): the largest cell from
+/// `CODEX32_CELL_FIT_MIN` to `CODEX32_CELL_FIT_MAX` at which the whole
+/// sheet fits the room it is drawn in, kept with the room and the sheet's
+/// length it was worked out for. Kept in step by
+/// [`super::Codex32Make::refit`], before every frame and before the view
+/// follows the work, so drawing and the follow read the same cell.
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
+pub(crate) struct SheetFit {
+    /// The room it was worked out for: the work width and the view's
+    /// height, dp; none on one-column pages, where no sheet fits.
+    pub(crate) room: Option<(f32, f32)>,
+    /// The sheet's characters it was worked out for (0: no sheet yet).
+    pub(crate) chars: usize,
+    /// The fitted cell; none where the sheet pans in its view.
+    pub(crate) cell: Option<f32>,
+}
+
 /// How far a checksum worksheet is panned inside its view: units from
 /// the sheet's left edge and from its top, and the follow's move under
 /// way. Drawing clamps it to the sheet it draws.

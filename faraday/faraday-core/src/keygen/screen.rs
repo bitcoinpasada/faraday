@@ -80,7 +80,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .as_ref()
         .and_then(|m| crate::codex32::pane_screen::pane_at(app, m, cw));
     let side = crate::codex32::pane_screen::side_room(pane);
-    let (cx, cw_max) = (x0 + 40.0, (cw - 80.0 - side).min(900.0));
+    let inset = faraday_draw::tokens::KEYGEN_COLUMN_IN;
+    let (cx, cw_max) = (
+        x0 + inset,
+        (cw - 2.0 * inset - side).min(faraday_draw::tokens::KEYGEN_COLUMN_MAX),
+    );
+    let wide = codex32_work_w(cw, side);
     let col = flow::Column {
         area_x: x0,
         area_w: cw - side,
@@ -109,7 +114,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match (app_ref.keygen.state(), at[i]) {
                 (Some(k), Some(card)) => k.codex32.as_ref().map_or(0.0, |m| {
-                    crate::codex32::screen::body(app_ref, m, (card, pane), ui, x, y, w)
+                    crate::codex32::screen::body(app_ref, m, (card, pane, wide), ui, x, y, w)
                 }),
                 (Some(k), None) => card_body(app_ref, k, ui, steps[i], x, y, w),
                 (None, _) => 0.0,
@@ -124,6 +129,20 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some(m) = k.codex32.as_ref() {
         crate::codex32::screen::cell_sheet(app, m, ui, x0, cw, h);
     }
+}
+
+/// The work width of New key's open card (`docs/LAYOUT.md` §14): from
+/// the card's body to the supporting pane's spacer, or to the page's
+/// right margin where no pane stands, in a page area `cw` wide whose
+/// pane takes `side`. Wide content (the codex32 sheets) is drawn in it;
+/// the fitted worksheet cell is worked out from it. Arithmetic.
+pub(crate) fn codex32_work_w(cw: f32, side: f32) -> f32 {
+    let end = if side > 0.0 {
+        0.0
+    } else {
+        faraday_draw::tokens::MARGIN_WIDE
+    };
+    cw - faraday_draw::tokens::KEYGEN_COLUMN_IN - flow::BODY_INDENT - side - end
 }
 
 /// A card's title.

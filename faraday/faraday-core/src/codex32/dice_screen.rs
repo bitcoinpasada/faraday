@@ -317,6 +317,19 @@ pub(super) fn dice_sheet(
         return cy - y + t::GAP;
     }
     let pw = t::ROLLER_PAIR_LABEL_W + 2.0 * t::ROLLER_PAIR_COL + t::ROLLER_PAIR_COL;
+    // The tracks at their full size and the tree at its largest side by
+    // side, where the work width holds both (`docs/LAYOUT.md` §16.1).
+    let tracks_w = t::CODEX32_TRACK_LABEL_W
+        + t::CODEX32_PANEL_GAP
+        + t::CODEX32_TRACK_W * t::CODEX32_TRACK_UNIT;
+    if w >= tracks_w + t::CODEX32_PANEL_GAP + t::CODEX32_TREE_MAX_W {
+        let (tw, lw) = (t::CODEX32_TREE_MAX_W, tracks_w);
+        let th = tree(m, ui, x + lw + t::CODEX32_PANEL_GAP, cy, tw);
+        let mut ly = cy + pairs(ui, (x, cy, pw), &pairs_of(m), None);
+        ly += rolled_line(m, ui, x, ly, lw);
+        ly += tracks(m, ui, x, ly, lw);
+        return ly.max(cy + th) - y + t::GAP;
+    }
     let ph = pairs(ui, (x, cy, pw), &pairs_of(m), None);
     let tw = (w - pw - t::CODEX32_PANEL_GAP).min(t::CODEX32_TREE_MAX_W);
     if tw >= t::CODEX32_TREE_MIN_W {

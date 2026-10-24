@@ -6148,7 +6148,7 @@ impl Faraday {
             ui::Slot::FilesOut => Some(self.visit.files_out_offset_mut()),
             ui::Slot::BoardList => Some(self.flows.board_list_offset_mut()),
             ui::Slot::Worksheet | ui::Slot::DemoPane => self.codex32_slot(),
-            ui::Slot::Page => self.page_slot(),
+            ui::Slot::Page | ui::Slot::WorksheetWhole => self.page_slot(),
         }
     }
 
@@ -6508,16 +6508,16 @@ impl Faraday {
         }
     }
 
-    /// Works out, before a frame is drawn, what is kept read on the state
-    /// and was dropped by a change since the last frame, so that drawing
-    /// only looks it up (`docs/SPEED.md` §3.3, `docs/COMPUTE.md` §4):
-    /// each open vault's records read again when they changed. Called
-    /// before every [`Self::render`].
+    /// Brings what drawing only looks up in step before a frame is drawn
+    /// (`docs/SPEED.md` §3.3, `docs/COMPUTE.md` §4): each open vault's
+    /// records read again when they changed, and the codex32 worksheet's
+    /// fitted cell with the window. Called before every [`Self::render`].
     fn before_frame(&mut self) {
         let c = self.compute();
         for o in &self.vaults.open {
             self.vaults.warm(&c, o.id);
         }
+        self.codex32_refit();
     }
 
     /// Draws the frame. Costs a full draw of the screen; the answers the

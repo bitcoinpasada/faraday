@@ -304,9 +304,11 @@ fn buttons(m: &Codex32Make) -> [(&'static str, Style, C32); 3] {
 fn button_row(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32), right: bool) -> f32 {
     let size = t::LABEL;
     let items = buttons(m);
-    let play_w = ui
-        .measure(size, W::S, EN.codex32_walk_play)
-        .max(ui.measure(size, W::S, EN.codex32_walk_pause));
+    let play_w = ui.measure(size, W::S, EN.codex32_walk_play).max(ui.measure(
+        size,
+        W::S,
+        EN.codex32_walk_pause,
+    ));
     let text = [
         ui.measure(size, W::S, EN.codex32_previous),
         ui.measure(size, W::S, EN.codex32_next),

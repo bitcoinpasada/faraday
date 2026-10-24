@@ -42,6 +42,7 @@ pub(crate) mod walk_screen;
 mod walk_tests;
 pub(crate) mod worksheet_screen;
 
+use pan::SheetFit;
 pub use pan::SheetPan;
 pub use walk::{SPEEDS, Speed, Step, Walk, WalkAct, WalkChar};
 
@@ -551,6 +552,14 @@ pub struct Codex32Make {
     /// How far the checksum worksheet shown is panned: the entry's, or
     /// the review's tab's, which starts at its top left.
     pan: SheetPan,
+    /// Whether the checksum worksheet is drawn whole and at which cell
+    /// (`docs/LAYOUT.md` §16.1): kept in step with the window and the
+    /// sheet's length by [`Codex32Make::refit`].
+    fit: SheetFit,
+    /// The page's own scroll following the work while the worksheet is
+    /// drawn whole (`docs/LAYOUT.md` §16.4): its `y` is the page's
+    /// offset while it moves.
+    page: SheetPan,
     /// The step-through of the "Demo only" card (§5.5).
     walk: Walk,
     /// How far the "Demo only" card is scrolled within itself, units.
@@ -612,6 +621,8 @@ impl Codex32Make {
             sample: false,
             demo: None,
             pan: SheetPan::default(),
+            fit: SheetFit::default(),
+            page: SheetPan::default(),
             walk: Walk::default(),
             pane_y: 0.0,
             pane_open: false,
@@ -973,6 +984,31 @@ impl Codex32Make {
         &mut self.pan
     }
 
+    /// Where the entry's work stands on its checksum worksheet as drawn
+    /// on a window of class `cls`: the cells the step-through's step
+    /// touches, or the front cell (left, top, wide, tall, from the sheet's
+    /// corner), and the cell's side. Arithmetic on the cells' boxes.
+    fn work_spot(
+        &self,
+        cls: faraday_draw::geom::WindowClass,
+    ) -> Option<((f32, f32, f32, f32), f32)> {
+        let (share, front) = self.entry_share()?;
+        let sh = self
+            .work
+            .as_ref()
+            .and_then(|w| w.worksheet(share, Reveal::PaperForm))?;
+        let g = worksheet_screen::Geom::drawn(self.fit.cell, cls);
+        let marks = self.walk_cells(share);
+        let spot = worksheet_screen::paper!(sh, |p| {
+            let mut spots = marks.iter().filter_map(|&(cell, _)| g.cell_spot(p, cell));
+            match spots.next() {
+                Some(first) => Some(spots.fold(first, worksheet_screen::union)),
+                None => front.and_then(|b| g.box_spot(p, b)),
+            }
+        });
+        spot.map(|s| (s, g.cell))
+    }
+
     /// Sends the checksum worksheet's view, `view` units that pan as far
     /// as `max`, to where the entry's work is: the cells the step-through's
     /// step touches, or the front cell, moving the least
@@ -987,29 +1023,82 @@ impl Codex32Make {
         max: (f32, f32),
         reduce: bool,
     ) {
-        let Some((share, front)) = self.entry_share() else {
-            return;
-        };
-        let Some(sh) = self
-            .work
-            .as_ref()
-            .and_then(|w| w.worksheet(share, Reveal::PaperForm))
-        else {
-            return;
-        };
-        let g = worksheet_screen::Geom::of(cls);
-        let marks = self.walk_cells(share);
-        let spot = worksheet_screen::paper!(sh, |p| {
-            let mut spots = marks.iter().filter_map(|&(cell, _)| g.cell_spot(p, cell));
-            match spots.next() {
-                Some(first) => Some(spots.fold(first, worksheet_screen::union)),
-                None => front.and_then(|b| g.box_spot(p, b)),
-            }
-        });
-        if let Some(spot) = spot {
-            let to = self.pan.target_for(spot, view, max, 2.0 * g.cell);
+        if let Some((spot, cell)) = self.work_spot(cls) {
+            let to = self.pan.target_for(spot, view, max, 2.0 * cell);
             self.pan.go_to(to, reduce);
         }
+    }
+
+    /// The worksheet drawn whole has no view to move: the page's scroll,
+    /// now at `offset` and going as far as `max`, makes the least move
+    /// that brings the work into the page's room `room` units tall, the
+    /// sheet's top `top` units down the page's content
+    /// (`docs/LAYOUT.md` §16.4), in the same timed move as the view's;
+    /// under `reduce` at once. Returns where the page is to stand now.
+    /// Arithmetic on the cells' boxes.
+    pub(crate) fn follow_page(
+        &mut self,
+        cls: faraday_draw::geom::WindowClass,
+        (top, room, max): (f32, f32, f32),
+        (offset, reduce): (f32, bool),
+    ) -> Option<f32> {
+        let ((sx, sy, sw, sh), cell) = self.work_spot(cls)?;
+        if !self.page.moving() {
+            self.page = SheetPan::default();
+            self.page.y = offset;
+        }
+        let spot = (sx, top + sy, sw, sh);
+        let to = self
+            .page
+            .target_for(spot, (f32::MAX, room), (0.0, max), 2.0 * cell);
+        self.page.go_to((0.0, to.1), reduce);
+        Some(self.page.y)
+    }
+
+    /// One frame of the page following a whole worksheet, at `now_ms`,
+    /// `f` pixels to the unit: where the page stands, while it moves.
+    /// Arithmetic.
+    pub(crate) fn page_tick(&mut self, now_ms: u64, f: f32) -> Option<f32> {
+        self.page.tick(now_ms, f).then_some(self.page.y)
+    }
+
+    /// Whether the page is moving to follow a whole worksheet.
+    pub(crate) fn page_moving(&self) -> bool {
+        self.page.moving()
+    }
+
+    /// The person moved the page: its following move stops.
+    pub(crate) fn page_stop(&mut self) {
+        self.page.stop();
+    }
+
+    /// Keeps the checksum worksheet's fitted cell in step with `room`,
+    /// the work width and the view's height it is drawn in (none on
+    /// one-column pages), and with the sheet's length
+    /// (`docs/LAYOUT.md` §16.1): worked out again only when either has
+    /// changed. Arithmetic.
+    pub(crate) fn refit(&mut self, room: Option<(f32, f32)>) {
+        let sheet = self
+            .work
+            .as_ref()
+            .and_then(|w| w.worksheet(0, Reveal::PaperForm));
+        let chars = sheet.as_ref().map_or(0, |sh| sh.chars());
+        if self.fit.room == room && self.fit.chars == chars {
+            return;
+        }
+        let cell = match (sheet, room) {
+            (Some(sh), Some(room)) => {
+                worksheet_screen::paper!(sh, |p| worksheet_screen::fit_cell(p, room))
+            }
+            _ => None,
+        };
+        self.fit = SheetFit { room, chars, cell };
+    }
+
+    /// The checksum worksheet's fitted cell, where it is drawn whole
+    /// (`docs/LAYOUT.md` §16.1); none where it pans in its view.
+    pub(crate) fn sheet_cell(&self) -> Option<f32> {
+        self.fit.cell
     }
 
     /// One frame of the worksheet's view following the work, at `now_ms`,

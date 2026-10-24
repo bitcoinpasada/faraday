@@ -10,9 +10,11 @@
 //! Columns are the string's boxes, in groups of four; rows go in pairs.
 //! The `=` rows' cells in the checksum's columns are pink.
 //!
-//! The sheet is drawn in a view no taller than
-//! [`t::codex32_sheet_view`] and as wide as its column; where it does not
-//! fit it pans both ways (`ui::Slot::Worksheet`, [`SheetPan`]): a drag
+//! Where the whole sheet fits the room at a cell from
+//! `CODEX32_CELL_FIT_MIN` to `CODEX32_CELL_FIT_MAX`, it is drawn whole at
+//! the largest that fits, kept on the flow (`docs/LAYOUT.md` §16.1), and
+//! the page follows the work. Else it is drawn in a view no taller than
+//! [`t::codex32_sheet_view`] and as wide as its column, and pans both ways (`ui::Slot::Worksheet`, [`SheetPan`]): a drag
 //! of the mouse or a finger, the wheel (Shift with it, across), the
 //! arrow keys. The entry keeps its front cell in view
 //! ([`super::Codex32Make::follow_front`]). Only the cells in the view are
@@ -163,13 +165,24 @@ pub(crate) struct Geom {
 }
 
 impl Geom {
-    /// The sheet's geometry on a window of class `cls`.
+    /// The sheet's geometry in its view on a window of class `cls`.
     pub(crate) fn of(cls: WindowClass) -> Geom {
+        Geom::at(t::codex32_cell(cls))
+    }
+
+    /// The sheet's geometry at a cell `cell` dp a side.
+    pub(crate) fn at(cell: f32) -> Geom {
         Geom {
-            cell: t::codex32_cell(cls),
+            cell,
             gap: t::CODEX32_SHEET_GAP,
             pad: t::CODEX32_FRONT_STROKE,
         }
+    }
+
+    /// The sheet's geometry as it is drawn: whole at the fitted cell
+    /// `fit` where there is one, else in its view at the class's.
+    pub(crate) fn drawn(fit: Option<f32>, cls: WindowClass) -> Geom {
+        fit.map_or_else(|| Geom::of(cls), Geom::at)
     }
 
     /// The left edge of box `b`'s column, from the sheet's.
@@ -217,6 +230,22 @@ impl Geom {
             _ => None,
         }
     }
+}
+
+/// The largest whole cell from `CODEX32_CELL_FIT_MIN` to
+/// `CODEX32_CELL_FIT_MAX` at which the whole sheet `sh` fits `room` (wide,
+/// tall, dp), or none where it does not fit at the least
+/// (`docs/LAYOUT.md` §16.1). Arithmetic.
+pub(crate) fn fit_cell(sh: Paper<'_>, room: (f32, f32)) -> Option<f32> {
+    let mut cell = t::CODEX32_CELL_FIT_MAX;
+    while cell >= t::CODEX32_CELL_FIT_MIN {
+        let (w, h) = Geom::at(cell).size(sh);
+        if w <= room.0 && h <= room.1 {
+            return Some(cell);
+        }
+        cell -= t::CODEX32_CELL_FIT_STEP;
+    }
+    None
 }
 
 /// The smallest rectangle holding both `a` and `b` (left, top, width,
@@ -492,17 +521,20 @@ fn cells(s: Sheet<'_>, g: &Geom) -> (Vec<Drawn>, Vec<(f32, f32, &'static str)>) 
     (lay.out, lay.marks)
 }
 
-/// Draws the sheet `s` panned by `pan` in a view at (x, y), `w` wide, and
-/// says so to the scroll machinery. Returns the view's height.
+/// Draws the sheet `s` at (x, y), `w` wide: whole at the fitted cell
+/// `fit` where there is one, else panned by `pan` in a view, and says so
+/// to the scroll machinery. Returns the height drawn.
 pub(crate) fn draw(
     ui: &mut Ui,
     s: Sheet<'_>,
     pan: SheetPan,
     (x, y, w): (f32, f32, f32),
-    cls: WindowClass,
+    (cls, fit): (WindowClass, Option<f32>),
 ) -> f32 {
     let ink = Role::OnSurface;
-    let g = Geom::of(cls);
+    // The final row alone is always in its view.
+    let fit = fit.filter(|_| !s.only_final);
+    let g = Geom::drawn(fit, cls);
     let (cw, ch) = if s.only_final {
         // The final row alone, from the column left of its first cell,
         // where its `=` stands.
@@ -516,7 +548,12 @@ pub(crate) fn draw(
     } else {
         0.0
     };
-    let (vw, vh) = (w, ch.min(t::codex32_sheet_view(cls)));
+    // Whole, the view is the sheet: nothing pans.
+    let (vw, vh) = if fit.is_some() {
+        (w.min(cw), ch)
+    } else {
+        (w, ch.min(t::codex32_sheet_view(cls)))
+    };
     let max = ((cw - sx - vw).max(0.0), (ch - vh).max(0.0));
     let (px, py) = (pan.x.clamp(0.0, max.0), pan.y.clamp(0.0, max.1));
     let (ox, oy) = (x - sx - px, y - py);
@@ -527,7 +564,7 @@ pub(crate) fn draw(
     let seen = |cx: f32, cy: f32| {
         cx + ox + g.cell >= x && cx + ox <= x + vw && cy + oy + g.cell >= y && cy + oy <= y + vh
     };
-    let size = t::codex32_cell_char(cls);
+    let size = fit.map_or(t::codex32_cell_char(cls), |c| c * t::CODEX32_CELL_CHAR_PART);
     for &(cx, cy, m) in &marks {
         if seen(cx - g.cell, cy) {
             ui.text_right(
@@ -582,7 +619,12 @@ pub(crate) fn draw(
         }
     }
     ui.c.pop_clip();
-    ui.report_scroll_both(Slot::Worksheet, clip, max, py);
+    if fit.is_some() {
+        // No view of its own: where it stands, for the page to follow.
+        ui.report_scroll_in(Slot::WorksheetWhole, clip, 0.0, 0.0);
+    } else {
+        ui.report_scroll_both(Slot::Worksheet, clip, max, py);
+    }
     vh
 }
 
@@ -720,7 +762,8 @@ pub(crate) fn entry_sheet(
         only_final: false,
         marks: &marks,
     };
-    let h = paper!(sh, |p| draw(ui, s(p), m.pan(), (x, y + hh, w), cls));
+    let fit = (cls, m.sheet_cell());
+    let h = paper!(sh, |p| draw(ui, s(p), m.pan(), (x, y + hh, w), fit));
     hh + h + t::GAP
 }
 
@@ -760,7 +803,8 @@ pub(crate) fn review_sheet(
         only_final: false,
         marks: &[],
     };
-    let h = paper!(sh, |p| draw(ui, s(p), m.pan(), (x, y + hh, w), cls));
+    let fit = (cls, m.sheet_cell());
+    let h = paper!(sh, |p| draw(ui, s(p), m.pan(), (x, y + hh, w), fit));
     hh + h + t::GAP
 }
 
@@ -788,7 +832,7 @@ pub(crate) fn check_sheet(
         marks: &[],
     };
     let cls = app.window().class();
-    let mut h = paper!(sh, |p| draw(ui, s(p), pan, (x, y, w), cls)) + t::GAP;
+    let mut h = paper!(sh, |p| draw(ui, s(p), pan, (x, y, w), (cls, None))) + t::GAP;
     if let Some(i) = sh.first_difference() {
         let b = sh.sum_box(sh.steps()) + i;
         let line = fill(EN.c32r_final_differs, &[&b.to_string()]);

@@ -32,11 +32,21 @@ pub(crate) enum PaneAt {
 /// Where the "Demo only" card stands beside a page area `cw` wide, or
 /// `None` where the entry has none. Arithmetic.
 pub(crate) fn pane_at(app: &View, m: &Codex32Make, cw: f32) -> Option<PaneAt> {
-    if m.open() != Some(Card::Enter) || !demo_box_offered(m, app.roller_offered()) {
+    pane_at_now(m, cw, (app.is_compact(), app.roller_offered()))
+}
+
+/// [`pane_at`] from the state as it is: one-column pages or not, and
+/// whether the computer's roller is offered. Arithmetic.
+pub(crate) fn pane_at_now(
+    m: &Codex32Make,
+    cw: f32,
+    (compact, roller): (bool, bool),
+) -> Option<PaneAt> {
+    if m.open() != Some(Card::Enter) || !demo_box_offered(m, roller) {
         return None;
     }
     let side = crate::screens::support_pane_room();
-    if !app.is_compact() && cw - side - t::MARGIN_WIDE >= t::CODEX32_MAIN_MIN {
+    if !compact && cw - side - t::MARGIN_WIDE >= t::CODEX32_MAIN_MIN {
         Some(PaneAt::Side(t::SUPPORT_PANE))
     } else {
         Some(PaneAt::Strip)

@@ -1950,10 +1950,9 @@ impl crate::Faraday {
         let Some(k) = self.keygen.state.as_ref() else {
             return false;
         };
-        let (walk, pan) = k
-            .codex32
-            .as_ref()
-            .map_or((false, false), |m| (m.walk().active(), m.pan().moving()));
+        let (walk, pan) = k.codex32.as_ref().map_or((false, false), |m| {
+            (m.walk().active(), m.pan().moving() || m.page_moving())
+        });
         let one = k.roller.active();
         if !walk && !pan && !one {
             return false;
@@ -1981,13 +1980,44 @@ impl crate::Faraday {
             }
         }
         let f = self.f;
-        if let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+        if let Some(k) = self.keygen.state.as_mut()
+            && let Some(m) = k.codex32.as_mut()
+        {
             redraw |= m.pan_tick(now_ms, f);
+            // The page following a whole worksheet.
+            if let Some(y) = m.page_tick(now_ms, f) {
+                k.scroll.y = y;
+                redraw = true;
+            }
         }
         if one {
             redraw |= self.keygen_roller_tick(now_ms, reduce);
         }
         redraw
+    }
+
+    /// Keeps Make codex32 shares' fitted worksheet cell in step with the
+    /// window as it is now (`docs/LAYOUT.md` §16.1): the work width of the
+    /// open card, beside the "Demo only" card where it stands, and the
+    /// window's height less the input panel's room and the margins above
+    /// and below. One-column pages fit no sheet. Arithmetic.
+    pub(crate) fn codex32_refit(&mut self) {
+        let (compact, roller) = (self.compact, self.roller_offered());
+        let page_w = crate::screens::keygen_page_w(self);
+        let h = self.window().height;
+        let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) else {
+            return;
+        };
+        let room = (!compact).then(|| {
+            let pane = crate::codex32::pane_screen::pane_at_now(m, page_w, (compact, roller));
+            let side = crate::codex32::pane_screen::side_room(pane);
+            let tall = h - 2.0 * faraday_draw::tokens::MARGIN_WIDE;
+            (
+                screen::codex32_work_w(page_w, side),
+                tall - faraday_draw::tokens::CODEX32_PANEL_RESERVE,
+            )
+        });
+        m.refit(room);
     }
 
     /// Costs what `add_seed` costs, and the key's account text. Lock in on

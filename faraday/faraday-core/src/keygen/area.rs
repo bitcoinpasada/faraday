@@ -67,6 +67,30 @@ impl KeyGenArea {
         }
     }
 
+    /// Sends the page to where Make codex32 shares' work is on a
+    /// worksheet drawn whole (`Codex32Make::follow_page`): the page's
+    /// offset to stand at now. Arithmetic.
+    pub(crate) fn page_follow(
+        &mut self,
+        cls: faraday_draw::geom::WindowClass,
+        page: (f32, f32, f32),
+        reduce: bool,
+    ) {
+        if let Some(k) = self.state.as_mut()
+            && let Some(m) = k.codex32.as_mut()
+            && let Some(y) = m.follow_page(cls, page, (k.scroll.y, reduce))
+        {
+            k.scroll.y = y;
+        }
+    }
+
+    /// The person moved the page: a following move of it stops.
+    pub(crate) fn page_hold(&mut self) {
+        if let Some(m) = self.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+            m.page_stop();
+        }
+    }
+
     /// Takes the column's scroll as the pass left it.
     pub(crate) fn set_scroll(&mut self, to: flow::Scroll) {
         if let Some(k) = self.state.as_mut() {

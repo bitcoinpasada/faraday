@@ -839,3 +839,147 @@ fn the_eye_names_what_a_press_does_when_the_pointer_rests_on_it() {
     );
     assert_eq!(count(&mut app, EN.tip_hide), hide);
 }
+
+/// The page's own scroll on New key, design units.
+fn page_y(app: &Faraday) -> f32 {
+    app.keygen().unwrap().scroll.y
+}
+
+/// The residue's first cell on the checksum worksheet shown.
+const HRP: Action = Action::Codex32(C32::Cell(faraday_core::codex32::Cell::Hrp {
+    sheet: 0,
+    i: 0,
+}));
+
+/// Box 34 where the worksheet brings it down, near the sheet's foot.
+const BOX_34: Action = Action::Codex32(C32::Cell(faraday_core::codex32::Cell::Given {
+    sheet: 0,
+    b: 34,
+}));
+
+#[test]
+fn on_large_windows_the_checksum_worksheet_is_drawn_whole_and_a_drag_moves_nothing() {
+    use faraday_shell_api::TouchPhase;
+    for (w, h) in [(1920, 1080), (2560, 1440)] {
+        // Twenty-five characters in: box 34 is the last one written.
+        let mut app = typed_a(w, h, 25);
+        assert_eq!(pan(&app), Default::default(), "{w}x{h}: no view to pan");
+        assert!(page_y(&app) > 0.0, "{w}x{h}: the page went to the work");
+        let at = app.hit_box(BOX_34).expect("box 34 is on screen");
+        assert!(u32::from(at.1) + u32::from(at.3) <= u32::from(h), "{at:?}");
+        // Dragged across, as a view of the sheet would pan: nothing moves.
+        let (x, y) = (at.0 + at.2 / 2, at.1 + at.3 / 2);
+        for (x, phase) in [
+            (x, TouchPhase::Down),
+            (x - 60, TouchPhase::Move),
+            (x - 120, TouchPhase::Move),
+            (x - 120, TouchPhase::Up),
+        ] {
+            app.event(Event::Touch { x, y, phase });
+        }
+        frames(&mut app, 20);
+        assert_eq!(pan(&app), Default::default());
+        assert_eq!(app.hit_box(BOX_34), Some(at), "{w}x{h}: the sheet stayed");
+    }
+}
+
+#[test]
+fn a_larger_window_draws_the_whole_worksheet_at_a_larger_cell() {
+    let side = |w, h| typed_a(w, h, 1).hit_box(HRP).expect("the residue's cell").2;
+    let (at_1920, at_2560) = (side(1920, 1080), side(2560, 1440));
+    assert!(at_2560 > at_1920, "{at_1920} then {at_2560}");
+}
+
+#[test]
+fn at_1280_by_800_the_worksheet_is_in_a_view_that_follows_the_work() {
+    let app = typed_a(1280, 800, 25);
+    assert!(pan(&app).y > 0.0, "the view panned down to the front");
+    assert!(app.hit_box(BOX_34).is_some(), "box 34 is in the view");
+}
+
+#[test]
+fn the_worksheets_cell_follows_the_window_as_it_is_resized() {
+    let display = |app: &mut Faraday, width, height| {
+        app.event(Event::Display(DisplayInfo {
+            width,
+            height,
+            dpi: 160,
+            inset_bottom: 0,
+            inset_top: 0,
+            buttons: 0,
+            camera_fixed: false,
+            secure: SecureHardware::None,
+            boot: BootState::Unknown,
+            memory_mib: None,
+        }));
+        let _ = app.frame();
+        app.hit_box(HRP).expect("the residue's cell").2
+    };
+    let mut app = typed_a(1280, 800, 1);
+    let small = app.hit_box(HRP).unwrap().2;
+    let large = typed_a(1920, 1080, 1).hit_box(HRP).unwrap().2;
+    assert_ne!(small, large);
+    assert_eq!(display(&mut app, 1920, 1080), large, "made larger");
+    assert_eq!(display(&mut app, 1280, 800), small, "and smaller again");
+}
+
+#[test]
+fn the_whole_sheet_brings_the_page_to_the_work_over_several_frames() {
+    // Ten characters in, the page at rest; fifteen more take the front
+    // down the sheet, and the page follows over several frames, at once
+    // under Reduce motion.
+    let mut app = typed_a(1920, 1080, 10);
+    let from = page_y(&app);
+    type_a(&mut app, 10..25);
+    let mut ys = vec![page_y(&app)];
+    let mut t = app.now_ms();
+    for _ in 0..40 {
+        t += 16;
+        app.event(Event::Tick { now_ms: t });
+        let _ = app.frame();
+        ys.push(page_y(&app));
+    }
+    let to = *ys.last().unwrap();
+    assert!(to > from, "the page moved down to the front: {ys:?}");
+    let between = ys.iter().filter(|&&y| y > from && y < to).count();
+    assert!(between >= 3, "several frames on the way: {ys:?}");
+    assert_eq!(pan(&app), Default::default());
+
+    let mut reduced = typed_a(1920, 1080, 10);
+    reduced.press(Action::ReduceMotion(true));
+    type_a(&mut reduced, 10..25);
+    assert_eq!(page_y(&reduced), to);
+}
+
+#[test]
+fn at_1920_the_strings_boxes_run_twenty_four_a_row() {
+    let mut app = typed_a(1920, 1080, 1);
+    // A row of numbered boxes: a line on which every one of `boxes` is
+    // drawn, left to right.
+    let texts = app.drawn_text_boxes();
+    let row_of = |boxes: std::ops::RangeInclusive<usize>| {
+        let mid = |r: &(i32, i32, i32, i32)| r.1 + r.3 / 2;
+        let last = boxes.end().to_string();
+        texts.iter().filter(|(t, _)| *t == last).find_map(|(_, r)| {
+            let y = mid(r);
+            let xs: Option<Vec<i32>> = boxes
+                .clone()
+                .map(|n| {
+                    texts
+                        .iter()
+                        .find(|(t, b)| *t == n.to_string() && (mid(b) - y).abs() <= 2)
+                        .map(|(_, b)| b.0 + b.2 / 2)
+                })
+                .collect();
+            xs.filter(|xs| xs.windows(2).all(|w| w[0] < w[1]))
+                .map(|xs| (y, xs[0]))
+        })
+    };
+    let (one, x1) = row_of(1..=24).expect("boxes 1 to 24 on one row");
+    let (two, x25) = row_of(25..=48).expect("boxes 25 to 48 on the next");
+    assert!(two > one);
+    assert!(
+        (x25 - x1).abs() <= 2,
+        "the second row starts under the first"
+    );
+}

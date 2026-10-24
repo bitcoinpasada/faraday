@@ -665,6 +665,15 @@ fn network_pill_left(app: &View, ui: &Ui, qx: f32) -> f32 {
     qx - gap - crate::modes::screen::pill_width(app, ui) - gap
 }
 
+/// New key's page area's width on the wide layout, as the frame gives
+/// it (`docs/LAYOUT.md` §15): what the codex32 worksheet's fit is worked
+/// out from. Arithmetic.
+pub(crate) fn keygen_page_w(app: &crate::Faraday) -> f32 {
+    let full_w = app.size().0;
+    let room = if app.held { full_w } else { full_w - SIDEBAR_W };
+    page_area(Screen::KeyGen, room).1
+}
+
 /// The start-up self-test failed: which check, and Exit. A build whose
 /// published vectors do not reproduce has nowhere to go but out.
 fn selftest_failed(ui: &mut Ui, w: f32, h: f32, check: &str) {

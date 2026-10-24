@@ -68,6 +68,9 @@ struct At {
     /// A press on a box opens its working (§7.4): not on Check a
     /// string's sheet, which is no flow's.
     press: bool,
+    /// The work width from `x` (`docs/LAYOUT.md` §14): wide content, the
+    /// string's boxes and the sheets, is drawn in it.
+    wide: f32,
 }
 
 /// What a masked character is drawn as.
@@ -383,7 +386,7 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
 pub(crate) fn body(
     app: &View,
     m: &Codex32Make,
-    (card, pane): (Card, Option<super::pane_screen::PaneAt>),
+    (card, pane, wide): (Card, Option<super::pane_screen::PaneAt>, f32),
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -398,6 +401,8 @@ pub(crate) fn body(
         roller: app.roller_offered(),
         strip: pane == Some(super::pane_screen::PaneAt::Strip),
         press: true,
+        // One-column pages lay a step out in the page's own width.
+        wide: if app.is_compact() { w } else { wide.max(w) },
     };
     let h = match card {
         Card::Scheme => scheme(m, ui, x, y, w),
@@ -797,7 +802,7 @@ fn panels(
     ui: &mut Ui,
     at: At,
 ) -> f32 {
-    let (x, y, w, cls) = (at.x, at.y, at.w, at.cls);
+    let (x, y, w, cls) = (at.x, at.y, at.wide, at.cls);
     let dh = if m.way() == Way::Dice {
         dice_sheet(m, ui, x, y, w, cls < WindowClass::Expanded)
     } else {
@@ -854,22 +859,64 @@ fn pad(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
 // The string's boxes
 // ---------------------------------------------------------------------
 
-/// Where box `b` is drawn when the boxes from `from` start at `x`: the
-/// box pitch, and a group gap before each group of four (groups start at
-/// box 1).
-fn box_x(x: f32, from: usize, b: usize, cls: WindowClass) -> f32 {
-    let pitch = t::codex32_box(cls) + t::CODEX32_BOX_GAP;
+/// Where box `b` is drawn when the boxes from `from` start at `x`, each
+/// `side` dp: the box pitch, and a group gap before each group of four
+/// (groups start at box 1).
+fn box_x(x: f32, from: usize, b: usize, side: f32) -> f32 {
+    let pitch = side + t::CODEX32_BOX_GAP;
     let groups = (b - 1) / 4 - (from - 1) / 4;
     x + (b - from) as f32 * pitch + groups as f32 * (t::CODEX32_GROUP_GAP - t::CODEX32_BOX_GAP)
 }
 
-/// How many boxes from `from` fit in `w`.
-fn boxes_in(w: f32, from: usize, cls: WindowClass) -> usize {
+/// How many boxes `side` dp from `from` fit in `w`.
+fn boxes_in(w: f32, from: usize, side: f32) -> usize {
     let mut n = 0;
-    while box_x(0.0, from, from + n, cls) + t::codex32_box(cls) <= w {
+    while box_x(0.0, from, from + n, side) + side <= w {
         n += 1;
     }
     n.max(1)
+}
+
+/// How a string's boxes are laid out (`docs/LAYOUT.md` §16.2): a box's
+/// side, its character's size and its number's, and the boxes a row.
+#[derive(Clone, Copy)]
+struct Boxes {
+    side: f32,
+    ch: f32,
+    num: f32,
+    per: usize,
+}
+
+/// The string's boxes in `w` on a window of class `cls`: the first of
+/// 24, 16, 12, 8 or 4 a row that fits at `CODEX32_STRING_BOX_MIN`, each
+/// box as large as the row's room gives up to `CODEX32_STRING_BOX_MAX`;
+/// on compact windows, as many whole groups of four as fit at the
+/// class's box (`docs/LAYOUT.md` §16.2). Arithmetic.
+fn string_layout(w: f32, cls: WindowClass) -> Boxes {
+    if cls != WindowClass::Compact {
+        for &per in &t::CODEX32_STRING_ROWS {
+            // The row's gaps: between boxes, and wider between groups.
+            let gaps = box_x(0.0, 1, per, 0.0);
+            let side = ((w - gaps) / per as f32)
+                .floor()
+                .min(t::CODEX32_STRING_BOX_MAX);
+            if side >= t::CODEX32_STRING_BOX_MIN {
+                return Boxes {
+                    side,
+                    ch: side * t::CODEX32_STRING_CHAR_PART,
+                    num: (side * t::CODEX32_STRING_NUMBER_PART).max(t::TEXT_MIN),
+                    per,
+                };
+            }
+        }
+    }
+    let side = t::codex32_box(cls);
+    Boxes {
+        side,
+        ch: t::codex32_char(cls),
+        num: t::CODEX32_STRING_NUMBER,
+        per: (boxes_in(w, 1, side) / 4 * 4).max(4),
+    }
 }
 
 /// How a box is drawn.
@@ -887,9 +934,16 @@ enum Look {
 
 /// One box at (bx, y) holding `v`, drawn as `look`; `front` outlines it
 /// in the accent. A press opens `cell`.
-fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Option<Cell>) {
-    let (bx, y, cls) = (at.x, at.y, at.cls);
-    let s = t::codex32_box(cls);
+fn one_box(
+    ui: &mut Ui,
+    at: At,
+    (s, size): (f32, f32),
+    v: Option<u8>,
+    look: Look,
+    front: bool,
+    cell: Option<Cell>,
+) {
+    let (bx, y) = (at.x, at.y);
     let fill_c = match look {
         Look::Table => Role::SurfaceContainerHighest,
         Look::Checksum => Role::ChecksumContainer,
@@ -937,7 +991,6 @@ fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Op
         } else {
             char_of(v).to_string()
         };
-        let size = t::codex32_char(cls);
         let weight = if matches!(look, Look::Checksum | Look::Fixed) {
             W::S
         } else {
@@ -970,14 +1023,17 @@ fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Op
 /// wrapping to the width: the header outlined, the checksum pink, the
 /// front box in the accent (§6.4.1).
 fn string_boxes(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui, at: At) -> f32 {
-    let (x, y, w, cls) = (at.x, at.y, at.w, at.cls);
+    let (x, y, cls) = (at.x, at.y, at.cls);
     let Some(sheet) = work.worksheet(share, Reveal::PaperForm) else {
         return 0.0;
     };
     let chars = sheet.chars();
     let last_data = sheet.last_data_box();
-    let s = t::codex32_box(cls);
-    let per = (boxes_in(w, 1, cls) / 4 * 4).max(4);
+    // Wide content: as many a row, and as large, as the work width gives.
+    let bx = string_layout(at.wide, cls);
+    let (s, per) = (bx.side, bx.per);
+    let size = (s, bx.ch);
+    let number_row = ui.line(bx.num, W::R).max(t::CODEX32_NUMBER_ROW);
     let mut cy = y;
     let mut b = 1;
     while b <= chars {
@@ -986,26 +1042,26 @@ fn string_boxes(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui,
         // the characters so the row of numbers stays quiet.
         for n in b..=to {
             let label = n.to_string();
-            let nw = ui.measure(t::CODEX32_STRING_NUMBER, W::R, &label);
-            let nx = box_x(x, b, n, cls) + (s - nw) / 2.0;
-            ui.text(
-                nx,
-                cy,
-                t::CODEX32_STRING_NUMBER,
-                W::R,
-                Role::OnSurfaceVariant,
-                &label,
-            );
+            let nw = ui.measure(bx.num, W::R, &label);
+            let nx = box_x(x, b, n, s) + (s - nw) / 2.0;
+            ui.text(nx, cy, bx.num, W::R, Role::OnSurfaceVariant, &label);
         }
-        let ry = cy + t::CODEX32_NUMBER_ROW;
+        let ry = cy + number_row;
         for n in b..=to {
-            let bx = box_x(x, b, n, cls);
+            let bx = box_x(x, b, n, s);
             if n <= 3 {
-                one_box(ui, at.to(bx, ry, 0.0), None, Look::Fixed, false, None);
+                one_box(ui, at.to(bx, ry, 0.0), size, None, Look::Fixed, false, None);
                 let ch = char::from(PREFIX[n - 1]).to_string();
-                let size = t::codex32_char(cls);
-                let cw = ui.measure(size, W::S, &ch);
-                ui.text_mid(bx + (s - cw) / 2.0, ry, s, size, W::S, Role::OnSurface, &ch);
+                let cw = ui.measure(size.1, W::S, &ch);
+                ui.text_mid(
+                    bx + (s - cw) / 2.0,
+                    ry,
+                    s,
+                    size.1,
+                    W::S,
+                    Role::OnSurface,
+                    &ch,
+                );
                 continue;
             }
             let (v, look) = match n {
@@ -1016,7 +1072,15 @@ fn string_boxes(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui,
                 sheet: share as u8,
                 b: n as u8,
             });
-            one_box(ui, at.to(bx, ry, 0.0), v, look, front == Some(n), cell);
+            one_box(
+                ui,
+                at.to(bx, ry, 0.0),
+                size,
+                v,
+                look,
+                front == Some(n),
+                cell,
+            );
         }
         cy = ry + s + t::CODEX32_ROW_GAP;
         b = to + 1;
@@ -1056,7 +1120,7 @@ fn grid(
     let gx = x + t::CODEX32_LABEL_W;
     for n in (from..=to).filter(|n| (n - 1) % 4 == 0 || *n == from) {
         ui.text(
-            box_x(gx, from, n, cls),
+            box_x(gx, from, n, s),
             y,
             t::CODEX32_NUMBER,
             W::R,
@@ -1070,7 +1134,7 @@ fn grid(
             ui.rule(
                 gx,
                 cy - t::CODEX32_ROW_GAP / 2.0,
-                box_x(gx, from, to, cls) + s - gx,
+                box_x(gx, from, to, s) + s - gx,
                 Role::OutlineVariant,
             );
         }
@@ -1085,7 +1149,8 @@ fn grid(
             let cell = (row.cell)(sheet, row.j, i);
             one_box(
                 ui,
-                at.to(box_x(gx, from, b, cls), cy, 0.0),
+                at.to(box_x(gx, from, b, s), cy, 0.0),
+                (s, t::codex32_char(cls)),
                 *v,
                 look,
                 r == 0 && front == Some(b),
@@ -1100,7 +1165,7 @@ fn grid(
 /// The window of boxes a sheet shows in `w`: all of them where they fit,
 /// else a window round `front` (on `small`, two boxes either side).
 fn window(chars: usize, front: Option<usize>, cls: WindowClass, w: f32) -> (usize, usize) {
-    let fits = boxes_in(w - t::CODEX32_LABEL_W, 4, cls);
+    let fits = boxes_in(w - t::CODEX32_LABEL_W, 4, t::codex32_box(cls));
     let n = if cls == WindowClass::Compact {
         (2 * t::CODEX32_BAND_SIDE + 1).min(fits)
     } else {
@@ -1230,10 +1295,12 @@ fn sheets(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
         })
         .collect();
     cy += self::tabs(ui, x, cy, w, &items);
+    // The sheets are wide content: the work width (LAYOUT §14).
+    let ww = at.wide;
     cy += match tab_list.get(usize::from(on)).map(|t| t.1) {
-        Some(Tab::Dice(s)) => dice_review(m, work, s, ui, x, cy, w),
-        Some(Tab::Checksum(s)) => sheet::review_sheet(m, work, s, ui, (x, cy, w, at.cls, at.hide)),
-        Some(Tab::Translation(n)) => translation(work, n, None, ui, at.to(x, cy, w)),
+        Some(Tab::Dice(s)) => dice_review(m, work, s, ui, x, cy, ww),
+        Some(Tab::Checksum(s)) => sheet::review_sheet(m, work, s, ui, (x, cy, ww, at.cls, at.hide)),
+        Some(Tab::Translation(n)) => translation(work, n, None, ui, at.to(x, cy, ww)),
         None => 0.0,
     };
     cy += foot(m, ui, x, cy, w, EN.keygen_continue);

@@ -790,16 +790,29 @@ impl Faraday {
     /// as the last frame drew the view (`docs/CODEX32.md` §6.4.7, §7.5):
     /// a timed move, at once under Reduce motion. Arithmetic.
     pub(crate) fn worksheet_follow(&mut self) {
+        self.codex32_refit();
         let key = self.region_key();
-        let Some(e) = self.scroll.region_now(key, ui::Slot::Worksheet) else {
-            return;
-        };
         let f = self.unit_px();
-        let view = (e.view.w as f32 / f, e.view.h as f32 / f);
         let cls = self.window().class();
         let reduce = self.reduce_motion();
-        self.keygen
-            .sheet_follow(cls, view, (e.max_x, e.max), reduce);
+        if let Some(e) = self.scroll.region_now(key, ui::Slot::Worksheet) {
+            let view = (e.view.w as f32 / f, e.view.h as f32 / f);
+            self.keygen
+                .sheet_follow(cls, view, (e.max_x, e.max), reduce);
+            return;
+        }
+        // Drawn whole, the page follows (LAYOUT §16.4): the sheet's top
+        // down the page's content, the page's room above the input panel.
+        let whole = self.scroll.region_now(key, ui::Slot::WorksheetWhole);
+        let page = self.scroll.region_now(key, ui::Slot::Page);
+        if let (Some(s), Some(p)) = (whole, page)
+            && self.sheet.is_none()
+        {
+            let offset = self.keygen.state().map_or(0.0, |k| k.scroll.y);
+            let top = (s.view.y - p.view.y) as f32 / f + offset;
+            let room = p.view.h as f32 / f - faraday_draw::tokens::CODEX32_PANEL_RESERVE;
+            self.keygen.page_follow(cls, (top, room, p.max), reduce);
+        }
     }
 
     /// What a scrolled codex32 region moves: the checksum worksheet's
@@ -825,6 +838,8 @@ impl Faraday {
     /// The person moves the worksheet that scrolls now: the view's
     /// following move stops where it is.
     fn worksheet_hold(&mut self) {
+        // The page following a whole worksheet stops too.
+        self.keygen.page_hold();
         if self.slot() == ui::Slot::Worksheet
             && let Some(p) = self.worksheet_pan_mut()
         {

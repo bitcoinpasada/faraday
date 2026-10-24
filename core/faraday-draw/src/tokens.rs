@@ -1055,6 +1055,13 @@ pub const CODEX32_ROLLER_W: f32 = 320.0;
 /// The narrowest the codex32 entry's own column is drawn beside the
 /// "Demo only" box (CODEX32 §5.5); narrower, the box goes under it.
 pub const CODEX32_MAIN_MIN: f32 = 420.0;
+/// How far New key's column stands in from its page area's left edge,
+/// and as far again is kept on its right.
+pub const KEYGEN_COLUMN_IN: f32 = 40.0;
+/// The widest New key's column of cards grows: reading content. Wide
+/// content in it (the codex32 sheets) takes the work width
+/// (`docs/LAYOUT.md` §14).
+pub const KEYGEN_COLUMN_MAX: f32 = 900.0;
 /// A codex32 card's segmented button (Material 3's 40 dp), in a `TOUCH`
 /// row.
 pub const CODEX32_CHOICE_H: f32 = 40.0;
@@ -1140,6 +1147,35 @@ pub const fn codex32_cell_char(class: WindowClass) -> f32 {
         _ => 16.0,
     }
 }
+
+/// The least cell at which a checksum worksheet is drawn whole, without
+/// a view (`docs/LAYOUT.md` §16.1): the size compact windows draw.
+pub const CODEX32_CELL_FIT_MIN: f32 = 20.0;
+/// The largest cell a checksum worksheet drawn whole grows to
+/// (`docs/LAYOUT.md` §16.1).
+pub const CODEX32_CELL_FIT_MAX: f32 = 32.0;
+/// A step between two fitted cell sizes: a whole dp.
+pub const CODEX32_CELL_FIT_STEP: f32 = 1.0;
+/// A checksum worksheet cell's character as a part of the cell: four
+/// sevenths, 16 at 28 dp.
+pub const CODEX32_CELL_CHAR_PART: f32 = 4.0 / 7.0;
+/// The room at the window's foot a checksum worksheet drawn whole
+/// leaves for the input panel (`docs/LAYOUT.md` §16.1, §16.3): the
+/// panel's height at the foot with d6 dice.
+pub const CODEX32_PANEL_RESERVE: f32 = 142.0;
+
+/// The least side of a string's box beside the worksheets
+/// (`docs/LAYOUT.md` §16.2).
+pub const CODEX32_STRING_BOX_MIN: f32 = 24.0;
+/// The largest side of a string's box (`docs/LAYOUT.md` §16.2).
+pub const CODEX32_STRING_BOX_MAX: f32 = 40.0;
+/// A string's boxes a row where the room holds them, in groups of four,
+/// longest first (`docs/LAYOUT.md` §16.2).
+pub const CODEX32_STRING_ROWS: [usize; 5] = [24, 16, 12, 8, 4];
+/// A string box's character as a part of the box.
+pub const CODEX32_STRING_CHAR_PART: f32 = 0.6;
+/// A string box's number as a part of the box, never under `TEXT_MIN`.
+pub const CODEX32_STRING_NUMBER_PART: f32 = 0.4;
 
 /// The tallest the checksum worksheet's view is before the sheet
 /// scrolls inside it, by the window's class.
