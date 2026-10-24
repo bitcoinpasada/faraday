@@ -1996,6 +1996,22 @@ impl crate::Faraday {
         redraw
     }
 
+    /// The room the codex32 entry's input panel keeps at the window's
+    /// foot now (`docs/LAYOUT.md` §16.3): its height where it is pinned
+    /// there, else none. Arithmetic.
+    pub(crate) fn codex32_panel_foot_now(&self) -> f32 {
+        let page_w = crate::screens::keygen_page_w(self);
+        let shell = (self.window().class(), self.compact, self.roller_offered());
+        self.keygen
+            .state
+            .as_ref()
+            .and_then(|k| k.codex32.as_ref())
+            .map_or(0.0, |m| {
+                crate::codex32::input_panel::place_now(m, page_w, self.window().height, shell)
+                    .foot_h()
+            })
+    }
+
     /// Keeps Make codex32 shares' fitted worksheet cell in step with the
     /// window as it is now (`docs/LAYOUT.md` §16.1): the work width of the
     /// open card, beside the "Demo only" card where it stands, and the
@@ -2003,6 +2019,7 @@ impl crate::Faraday {
     /// and below. One-column pages fit no sheet. Arithmetic.
     pub(crate) fn codex32_refit(&mut self) {
         let (compact, roller) = (self.compact, self.roller_offered());
+        let class = self.window().class();
         let page_w = crate::screens::keygen_page_w(self);
         let h = self.window().height;
         let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) else {
@@ -2012,9 +2029,19 @@ impl crate::Faraday {
             let pane = crate::codex32::pane_screen::pane_at_now(m, page_w, (compact, roller));
             let side = crate::codex32::pane_screen::side_room(pane);
             let tall = h - 2.0 * faraday_draw::tokens::MARGIN_WIDE;
+            // The input panel's room: at the foot its height; beside the
+            // sheets its width, from the column's start (§16.3).
+            let panel =
+                crate::codex32::input_panel::place_now(m, page_w, h, (class, compact, roller));
+            let start = panel.start_room();
+            let lead = if start > 0.0 {
+                start - faraday_draw::tokens::KEYGEN_COLUMN_IN
+            } else {
+                0.0
+            };
             (
-                screen::codex32_work_w(page_w, side),
-                tall - faraday_draw::tokens::CODEX32_PANEL_RESERVE,
+                screen::codex32_work_w(page_w, side) - lead,
+                tall - panel.foot_h(),
             )
         });
         m.refit(room);

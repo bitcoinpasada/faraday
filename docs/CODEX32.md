@@ -876,9 +876,11 @@ away, and the entry leaves room under its last row so the page scrolls
 clear of it. The card holds, in order, Demo's **Use a sample** (in
 Demo), and on Faraday Desktop the dice's size (the same choice as over
 "Your dice"), "Rolls d20", and the step-through above; the rolls
-themselves are drawn once, on the dice sheet (owner, 2026-10-24). The marks are unchanged: "Rolled by
-this computer", "simulated dice". The person's own entry, the dice sheet
-and **Your dice** with the dice's size over it, is the page. Built in
+themselves are drawn once, in the entry's input panel (owner,
+2026-10-24; `docs/LAYOUT.md` §16.3). The marks are unchanged: "Rolled by
+this computer", "simulated dice". The person's own entry is the dice
+sheet in the page and the input panel: each die's two rolls, the dice's
+size and **Your dice**. Built in
 `codex32/dice_screen.rs` (`demo_content`) and `codex32/pane_screen.rs`,
 tested in `tests/all/codex32_dice.rs` (the card beside the pad on
 Faraday Desktop, none on the stick; a d20 share played and padded 1 to
@@ -886,8 +888,9 @@ Faraday Desktop, none on the stick; a d20 share played and padded 1 to
 card where it is, wide, and the strip where it is, narrow).
 
 **Your dice, both rolls side by side** (every shell, on windows of the
-expanded class and up; owner, 2026-10-24). The dice sheet (§6.4.2)
-shows each die's two rolls as the roller does: **First roll** (the
+expanded class and up; owner, 2026-10-24). The input panel
+(`docs/LAYOUT.md` §16.3; on the dice sheet, §6.4.2, where the panel
+stands in the page) shows each die's two rolls as the roller does: **First roll** (the
 marker) and **Second roll** (the die) side by side, in the die's colour,
 "lower · 0" or "higher · 1" once both are in, and the pairs struck as
 equal under them, so a person sees each die's pair and which were
@@ -895,8 +898,11 @@ discarded and why. The values come from the pad, from the keyboard, or
 from the roller, in the booklet's order (die 1 to die 5 for the first
 roll, then for the second), one layout whichever way they came. Narrower
 windows show the same as rows of words, "Die 3 · 4 then 2 · lower · 0"
-(§6.4.7). Backspace takes back the last value of the character being
-entered.
+(§6.4.7). At the window's foot the panel lays the five dice across, a
+column each, with the latest two struck pairs under them; beside the
+sheets, one under another as above. Backspace takes back the last value
+of the character being entered. Built in `codex32/input_panel.rs`,
+tested in `tests/all/codex32_input_panel.rs`.
 
 **Honesty.** A rolled value is this computer's randomness (from
 `Faraday::fresh`, as any of Faraday's randomness), not a die. The row

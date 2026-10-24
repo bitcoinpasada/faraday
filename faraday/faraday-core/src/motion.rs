@@ -797,8 +797,12 @@ impl Faraday {
         let reduce = self.reduce_motion();
         if let Some(e) = self.scroll.region_now(key, ui::Slot::Worksheet) {
             let view = (e.view.w as f32 / f, e.view.h as f32 / f);
+            // The view follows the work in the part of it that stands above
+            // the input panel at the foot (`docs/LAYOUT.md` §16.3).
+            let room = self.window().height - self.codex32_panel_foot_now();
+            let seen = (room - e.view.y as f32 / f).clamp(faraday_draw::tokens::TOUCH, view.1);
             self.keygen
-                .sheet_follow(cls, view, (e.max_x, e.max), reduce);
+                .sheet_follow(cls, (view.0, seen), (e.max_x, e.max), reduce);
             return;
         }
         // Drawn whole, the page follows (LAYOUT §16.4): the sheet's top
@@ -810,7 +814,7 @@ impl Faraday {
         {
             let offset = self.keygen.state().map_or(0.0, |k| k.scroll.y);
             let top = (s.view.y - p.view.y) as f32 / f + offset;
-            let room = p.view.h as f32 / f - faraday_draw::tokens::CODEX32_PANEL_RESERVE;
+            let room = p.view.h as f32 / f - self.codex32_panel_foot_now();
             self.keygen.page_follow(cls, (top, room, p.max), reduce);
         }
     }

@@ -33,6 +33,7 @@
 //! was rolled with ([`Made`]) for its rolls to come back on Backspace.
 
 pub(crate) mod dice_screen;
+pub(crate) mod input_panel;
 mod pan;
 pub(crate) mod pane_screen;
 pub(crate) mod screen;

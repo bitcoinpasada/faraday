@@ -298,20 +298,23 @@ pub(crate) fn pairs_of(m: &Codex32Make) -> Pairs<'_> {
 /// The booklet's dice sheet for the character being rolled. Where the
 /// card is wide (`rows_only` false), as the booklet's page: each die's
 /// two rolls on the left and the tree on the right, then the five die
-/// tracks; else the dice as rows of words over the tree.
+/// tracks; else the dice as rows of words over the tree. Without `rolls`
+/// the input panel holds each die's two rolls (`docs/LAYOUT.md` §16.3),
+/// and the sheet keeps the tree and the tracks.
 pub(super) fn dice_sheet(
     m: &Codex32Make,
     ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
+    (x, y, w): (f32, f32, f32),
     rows_only: bool,
+    rolls: bool,
 ) -> f32 {
     let mut cy = y;
     let head = EN.codex32_dice_sheet;
     cy += ui.wrap(x, cy, w, t::LABEL, W::S, Role::OnSurface, head) + t::GAP_SMALL;
     if rows_only {
-        cy += dice_rows(m, ui, x, cy, w, false);
+        if rolls {
+            cy += dice_rows(m, ui, x, cy, w, false);
+        }
         cy += rolled_line(m, ui, x, cy, w);
         cy += tree(m, ui, x, cy, w.min(t::CODEX32_TREE_MAX_W));
         return cy - y + t::GAP;
@@ -325,10 +328,19 @@ pub(super) fn dice_sheet(
     if w >= tracks_w + t::CODEX32_PANEL_GAP + t::CODEX32_TREE_MAX_W {
         let (tw, lw) = (t::CODEX32_TREE_MAX_W, tracks_w);
         let th = tree(m, ui, x + lw + t::CODEX32_PANEL_GAP, cy, tw);
-        let mut ly = cy + pairs(ui, (x, cy, pw), &pairs_of(m), None);
+        let mut ly = cy;
+        if rolls {
+            ly += pairs(ui, (x, cy, pw), &pairs_of(m), None);
+        }
         ly += rolled_line(m, ui, x, ly, lw);
         ly += tracks(m, ui, x, ly, lw);
         return ly.max(cy + th) - y + t::GAP;
+    }
+    if !rolls {
+        cy += tree(m, ui, x, cy, w.min(t::CODEX32_TREE_MAX_W));
+        cy += rolled_line(m, ui, x, cy, w);
+        cy += tracks(m, ui, x, cy, w);
+        return cy - y + t::GAP;
     }
     let ph = pairs(ui, (x, cy, pw), &pairs_of(m), None);
     let tw = (w - pw - t::CODEX32_PANEL_GAP).min(t::CODEX32_TREE_MAX_W);

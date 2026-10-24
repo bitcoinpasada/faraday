@@ -65,6 +65,10 @@ struct At {
     /// The "Demo only" card is a strip pinned at the window's foot: the
     /// entry leaves room under its last row for it.
     strip: bool,
+    /// Where the input panel stands (`docs/LAYOUT.md` §16.3): out of the
+    /// page, the page draws neither the pad nor the rolls, and leaves
+    /// room under its last row for the panel at the foot.
+    panel: super::input_panel::PanelAt,
     /// A press on a box opens its working (§7.4): not on Check a
     /// string's sheet, which is no flow's.
     press: bool,
@@ -386,7 +390,12 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
 pub(crate) fn body(
     app: &View,
     m: &Codex32Make,
-    (card, pane, wide): (Card, Option<super::pane_screen::PaneAt>, f32),
+    (card, pane, wide, panel): (
+        Card,
+        Option<super::pane_screen::PaneAt>,
+        f32,
+        super::input_panel::PanelAt,
+    ),
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -400,6 +409,7 @@ pub(crate) fn body(
         hide: m.masked(),
         roller: app.roller_offered(),
         strip: pane == Some(super::pane_screen::PaneAt::Strip),
+        panel,
         press: true,
         // One-column pages lay a step out in the page's own width.
         wide: if app.is_compact() { w } else { wide.max(w) },
@@ -715,7 +725,10 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             cy += string_boxes(work, share, front, ui, at.to(x, cy, w));
             cy += view_strip(m, work, ui, x, cy, w);
             cy += panels(m, work, share, front, ui, at.to(x, cy, w));
-            cy += pad(m, ui, at.to(x, cy, w));
+            // Out of the page, the input panel holds the pad and the rolls.
+            if !at.panel.out_of_page() {
+                cy += pad(m, ui, at.to(x, cy, w));
+            }
         }
     }
     // Continue is there once the sheets are complete: until then it would
@@ -730,6 +743,7 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     if at.strip {
         cy += super::pane_screen::strip_h(ui, m, w, at.roller);
     }
+    cy += at.panel.foot_h();
     cy - y
 }
 
@@ -804,7 +818,8 @@ fn panels(
 ) -> f32 {
     let (x, y, w, cls) = (at.x, at.y, at.wide, at.cls);
     let dh = if m.way() == Way::Dice {
-        dice_sheet(m, ui, x, y, w, cls < WindowClass::Expanded)
+        let rolls = !at.panel.out_of_page();
+        dice_sheet(m, ui, (x, y, w), cls < WindowClass::Expanded, rolls)
     } else {
         0.0
     };

@@ -581,10 +581,14 @@ fn a_cells_working_and_its_buttons_stay_inside_its_sheet_beside_the_sidebar() {
     assert_eq!((prev.1, next.1), (done.1, done.1), "one row");
     assert!(prev.0 + prev.2 <= next.0 && next.0 + next.2 <= done.0);
     let (left, right) = (prev.0, done.0 + done.2);
-    // Every line of the working lies between the sheet's buttons' ends.
+    // Every line of the working lies between the sheet's buttons' ends:
+    // its dice lines ("Die 1 · 5 then 2 · lower · 0") and its bits, not
+    // the page's own die names under the sheet.
     let working: Vec<_> = boxes
         .iter()
-        .filter(|(t, b)| b.1 < done.1 && (t.starts_with("Die ") || t.contains("bits")))
+        .filter(|(t, b)| {
+            b.1 < done.1 && ((t.starts_with("Die ") && t.contains(" · ")) || t.contains("bits"))
+        })
         .collect();
     assert!(!working.is_empty(), "{boxes:?}");
     for (t, b) in working {
@@ -612,10 +616,17 @@ fn a_cells_working_and_its_buttons_stay_inside_its_sheet_beside_the_sidebar() {
 fn the_eye_stands_clear_of_every_row_of_the_flow() {
     // Beside the sidebar, the eye is in the page's margin: no text of the
     // flow's column, which scrolls under the top, shares its columns
-    // below the top row of the network and the ?.
+    // below the top row of the network and the ?. The input panel pinned
+    // at the window's foot (`docs/LAYOUT.md` §16.3) never scrolls under
+    // it: its rows, from the rolls' heads down, are not the column's.
     let mut app = rolled_z(1280, 800, 160);
     let eye = boxed(app.hit_box(Action::Codex32(C32::Eye)).expect("the eye"));
-    for (t, b) in app.drawn_text_boxes() {
+    let boxes = app.drawn_text_boxes();
+    let panel_top = boxes
+        .iter()
+        .find(|(t, _)| t == "First roll")
+        .map_or(i32::MAX, |(_, b)| b.1 - 48);
+    for (t, b) in boxes.into_iter().filter(|(_, b)| b.1 < panel_top) {
         assert!(
             !cols_meet(b, eye) || b.1 + b.3 <= eye.1,
             "{t:?} {b:?} in the eye's column {eye:?}"
@@ -897,6 +908,24 @@ fn at_1280_by_800_the_worksheet_is_in_a_view_that_follows_the_work() {
     assert!(app.hit_box(BOX_34).is_some(), "box 34 is in the view");
 }
 
+/// The residue's cell's side, the page scrolled down by a wheel over
+/// its column's top until the cell stands clear of the input panel at
+/// the window's foot (`docs/LAYOUT.md` §16.3).
+fn residue_side(app: &mut Faraday) -> u16 {
+    for _ in 0..40 {
+        if let Some(at) = app.hit_box(HRP) {
+            return at.2;
+        }
+        let (x, y) = (600, 120);
+        app.event(Event::Hover { x, y });
+        app.event(Event::Scroll { x, y, dy: 60 });
+        app.event(Event::ScrollEnd { x, y });
+        app.settle();
+        let _ = app.frame();
+    }
+    panic!("the residue's cell is not on screen");
+}
+
 #[test]
 fn the_worksheets_cell_follows_the_window_as_it_is_resized() {
     let display = |app: &mut Faraday, width, height| {
@@ -913,11 +942,11 @@ fn the_worksheets_cell_follows_the_window_as_it_is_resized() {
             memory_mib: None,
         }));
         let _ = app.frame();
-        app.hit_box(HRP).expect("the residue's cell").2
+        residue_side(app)
     };
     let mut app = typed_a(1280, 800, 1);
-    let small = app.hit_box(HRP).unwrap().2;
-    let large = typed_a(1920, 1080, 1).hit_box(HRP).unwrap().2;
+    let small = residue_side(&mut app);
+    let large = residue_side(&mut typed_a(1920, 1080, 1));
     assert_ne!(small, large);
     assert_eq!(display(&mut app, 1920, 1080), large, "made larger");
     assert_eq!(display(&mut app, 1280, 800), small, "and smaller again");

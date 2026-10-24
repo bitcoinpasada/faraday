@@ -827,6 +827,31 @@ pub const SUPPORT_PANE: f32 = 400.0;
 /// the eye), never level with them (owner, 2026-10-24).
 pub const SUPPORT_PANE_TOP: f32 = 2.0 * TOUCH;
 
+/// The input panel's width where it stands beside the sheets
+/// (`docs/LAYOUT.md` §16.3): the codex32 entry's rolls, dice and pad.
+pub const CODEX32_ENTRY_W: f32 = 424.0;
+/// A key of the input panel's pad: its width; its height is `TOUCH`
+/// (`docs/LAYOUT.md` §8, §16.3).
+pub const PAD_KEY_W: f32 = 64.0;
+/// The most keys in one row of the input panel's pad.
+pub const PAD_KEYS_ROW_MAX: usize = 10;
+/// The most of the window's height the input panel takes at the foot;
+/// a taller one stands in the page (`docs/LAYOUT.md` §16.3).
+pub const INPUT_PANEL_MAX: f32 = 0.4;
+/// The rolls laid across the input panel at the window's foot: the
+/// column of the row names, "First roll" and "Second roll".
+pub const INPUT_ROLLS_LABEL_W: f32 = 80.0;
+/// A die's column of the rolls across the input panel.
+pub const INPUT_ROLLS_COL: f32 = 68.0;
+/// The line a 12 dp label takes in the rolls across the input panel.
+pub const INPUT_ROLLS_LINE: f32 = 16.0;
+/// The struck pairs the rolls across the input panel keep room for,
+/// the latest first.
+pub const INPUT_ROLLS_STRUCK: usize = 2;
+/// The room the dice's six sizes take as one segmented row in the input
+/// panel; narrower, they wrap onto two rows.
+pub const INPUT_SIZES_W: f32 = 512.0;
+
 /// The narrowest a Home tile is; the grid takes as many columns as fit
 /// (`docs/LAYOUT.md` §4).
 pub const TILE_MIN: f32 = 200.0;
@@ -1159,10 +1184,6 @@ pub const CODEX32_CELL_FIT_STEP: f32 = 1.0;
 /// A checksum worksheet cell's character as a part of the cell: four
 /// sevenths, 16 at 28 dp.
 pub const CODEX32_CELL_CHAR_PART: f32 = 4.0 / 7.0;
-/// The room at the window's foot a checksum worksheet drawn whole
-/// leaves for the input panel (`docs/LAYOUT.md` §16.1, §16.3): the
-/// panel's height at the foot with d6 dice.
-pub const CODEX32_PANEL_RESERVE: f32 = 142.0;
 
 /// The least side of a string's box beside the worksheets
 /// (`docs/LAYOUT.md` §16.2).

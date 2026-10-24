@@ -16,6 +16,7 @@ use crate::strings::{EN, fill};
 use crate::ui::Paint;
 use crate::ui::{Ui, W, pal::*};
 use faraday_draw::tokens::{
+    GAP_SMALL, INPUT_ROLLS_COL, INPUT_ROLLS_LABEL_W, INPUT_ROLLS_LINE, INPUT_ROLLS_STRUCK,
     ROLLER_BOUNCE, ROLLER_DIE, ROLLER_DIE_RADIUS, ROLLER_FIVE_GAP, ROLLER_GAP, ROLLER_LABEL,
     ROLLER_PAIR_COL, ROLLER_PAIR_DIE, ROLLER_PAIR_LABEL_W, ROLLER_PIP, ROLLER_PIP_OFFSET,
     ROLLER_SWAY,
@@ -207,6 +208,101 @@ pub fn pairs(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, r: Option<&Five
     }
     cy += struck(ui, (x, cy, w), p);
     cy - y
+}
+
+/// Each die's two rolls laid across, for the input panel at the
+/// window's foot (`docs/LAYOUT.md` §16.3): a column per die, its name,
+/// its marker with the first roll over the die with the second, and what
+/// the pair gives; "First roll" and "Second roll" name the rows at the
+/// left; under them the latest pairs struck as equal, as many as
+/// [`INPUT_ROLLS_STRUCK`]. Always [`pairs_across_h`] tall.
+pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs) -> f32 {
+    let (lw, col, d, line) = (
+        INPUT_ROLLS_LABEL_W,
+        INPUT_ROLLS_COL,
+        ROLLER_PAIR_DIE,
+        INPUT_ROLLS_LINE,
+    );
+    let mut cy = y;
+    let centre = |i: usize| x + lw + i as f32 * col + col / 2.0;
+    for i in 0..BOOKLET_DICE {
+        let name = fill(EN.codex32_die_n, &[&(i + 1).to_string()]);
+        let nw = ui.measure(ROLLER_LABEL, W::S, &name);
+        ui.text_mid(
+            centre(i) - nw / 2.0,
+            cy,
+            line,
+            ROLLER_LABEL,
+            W::S,
+            Role::OnSurface,
+            &name,
+        );
+    }
+    cy += line + GAP_SMALL;
+    for (r, head) in [EN.codex32_first_roll, EN.codex32_second_roll]
+        .iter()
+        .enumerate()
+    {
+        let ry = cy + r as f32 * (d + ROLLER_FIVE_GAP);
+        ui.text_mid(x, ry, d, ROLLER_LABEL, W::S, Role::OnSurfaceVariant, head);
+    }
+    for (i, &colour) in p.colours.iter().enumerate() {
+        marker(ui, (centre(i), cy + d / 2.0), p.first[i], colour, p.masked);
+        let dd = Die {
+            x: centre(i) - d / 2.0,
+            y: cy + d + ROLLER_FIVE_GAP,
+            side: d,
+            face: p.second[i].unwrap_or(0),
+            faces: p.faces,
+            colour,
+            tumbling: false,
+        };
+        die(ui, &dd, p.masked);
+    }
+    cy += 2.0 * (d + ROLLER_FIVE_GAP);
+    for i in 0..BOOKLET_DICE {
+        if let Some(text) = pair_text(p, i) {
+            let tw = ui.measure(ROLLER_LABEL, W::M, &text);
+            ui.text_mid(
+                centre(i) - tw / 2.0,
+                cy,
+                line,
+                ROLLER_LABEL,
+                W::M,
+                Role::Primary,
+                &text,
+            );
+        }
+    }
+    cy += line + GAP_SMALL;
+    let equal: Vec<&DieRow> = p.struck.iter().filter(|r| r.bit().is_none()).collect();
+    for row in equal.iter().rev().take(INPUT_ROLLS_STRUCK) {
+        let (f, sc) = if p.masked {
+            (MASK.to_string(), MASK.to_string())
+        } else {
+            (row.first.to_string(), row.second.to_string())
+        };
+        let s = fill(
+            EN.codex32_die_equal,
+            &[&(usize::from(row.die) + 1).to_string(), &f, &sc],
+        );
+        let tw = ui.text_mid(x, cy, line, ROLLER_LABEL, W::R, Role::Warning, &s);
+        ui.fill(x, cy + line / 2.0, tw.min(w), 1.0, 0.0, Role::Warning);
+        cy += line + GAP_SMALL;
+    }
+    pairs_across_h()
+}
+
+/// The height of [`pairs_across`]: the names, the two rows, what the
+/// pairs give, and the room for the struck pairs. Arithmetic.
+pub fn pairs_across_h() -> f32 {
+    let line = INPUT_ROLLS_LINE + GAP_SMALL;
+    line + 2.0 * (ROLLER_PAIR_DIE + ROLLER_FIVE_GAP) + line + INPUT_ROLLS_STRUCK as f32 * line
+}
+
+/// The width of [`pairs_across`]. Arithmetic.
+pub fn pairs_across_w() -> f32 {
+    INPUT_ROLLS_LABEL_W + BOOKLET_DICE as f32 * INPUT_ROLLS_COL
 }
 
 /// What die `d`'s pair gives, once both its rolls are in: "lower · 0" or

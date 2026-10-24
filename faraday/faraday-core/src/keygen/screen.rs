@@ -6,6 +6,7 @@ use crate::strings::fill;
 use faraday_bip::bip39::Language;
 use faraday_entropy::{CameraNoise, CardDraws, CoinFlips, DiceProcedure, RANKS, SUITS};
 
+use crate::codex32::input_panel::PanelAt;
 use crate::drawing::{Scrolled, View};
 use crate::keygen::{
     Group, KeyGen, MIX_SOURCES, Source, Start, WAYS, Way, kstep, procedure_name, source_name,
@@ -80,15 +81,23 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .as_ref()
         .and_then(|m| crate::codex32::pane_screen::pane_at(app, m, cw));
     let side = crate::codex32::pane_screen::side_room(pane);
+    // The entry's input panel: beside the sheets at the page's start, at
+    // the window's foot, or in the page (`docs/LAYOUT.md` §16.3).
+    let panel = k.codex32.as_ref().map_or(PanelAt::Page, |m| {
+        crate::codex32::input_panel::place(app, m, cw, h)
+    });
+    let start = panel.start_room();
     let inset = faraday_draw::tokens::KEYGEN_COLUMN_IN;
+    let lead = if start > 0.0 { start } else { inset };
     let (cx, cw_max) = (
-        x0 + inset,
-        (cw - 2.0 * inset - side).min(faraday_draw::tokens::KEYGEN_COLUMN_MAX),
+        x0 + lead,
+        (cw - lead - inset - side).min(faraday_draw::tokens::KEYGEN_COLUMN_MAX),
     );
-    let wide = codex32_work_w(cw, side);
+    // Beside the panel the wide content starts where the column does.
+    let wide = codex32_work_w(cw, side) - (lead - inset);
     let col = flow::Column {
-        area_x: x0,
-        area_w: cw - side,
+        area_x: x0 + start,
+        area_w: cw - side - start,
         x: cx,
         w: cw_max,
         h,
@@ -114,7 +123,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match (app_ref.keygen.state(), at[i]) {
                 (Some(k), Some(card)) => k.codex32.as_ref().map_or(0.0, |m| {
-                    crate::codex32::screen::body(app_ref, m, (card, pane, wide), ui, x, y, w)
+                    let at = (card, pane, wide, panel);
+                    crate::codex32::screen::body(app_ref, m, at, ui, x, y, w)
                 }),
                 (Some(k), None) => card_body(app_ref, k, ui, steps[i], x, y, w),
                 (None, _) => 0.0,
@@ -123,8 +133,14 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::KeyGen, next, again);
+    // The "Demo only" pane stands above the input panel at the foot; the
+    // panel is drawn after it, so the pane's strip takes no press of its.
+    let foot = panel.foot_h();
     if let (Some(m), Some(p)) = (k.codex32.as_ref(), pane) {
-        crate::codex32::pane_screen::draw(app, m, ui, p, (x0, cw, h));
+        crate::codex32::pane_screen::draw(app, m, ui, p, (x0, cw, h - foot));
+    }
+    if let Some(m) = k.codex32.as_ref() {
+        crate::codex32::input_panel::draw(m, ui, panel, (x0, cw, h));
     }
     if let Some(m) = k.codex32.as_ref() {
         crate::codex32::screen::cell_sheet(app, m, ui, x0, cw, h);
