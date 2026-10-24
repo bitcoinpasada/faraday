@@ -48,7 +48,7 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         files: Vec::new(),
     };
     t.press(Action::CreateWallet);
-    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CKind(0));
     t.shot("wallet-flow-1-create-yes-no")?;
     t.press(Action::CVaults(true));
     t.press(Action::CNext(cstep::WHERE));

@@ -31,10 +31,10 @@ pub(crate) fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("entry-foot")?;
     t.press(Action::Nav(Screen::Home));
     t.press(Action::CreateWallet);
-    // Create opens on Kind, single key the default
-    // (`docs/history/NEW-WALLET.md` §2.1).
+    // Create opens on Kind, the backup in shares the default
+    // (`docs/CODEX32.md` §6.9); Single key here.
     t.shot("create-kind")?;
-    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CKind(0));
     t.shot("create-keys")?;
     t.press(Action::KeyGen(Some(0)));
     t.shot("keygen-length")?;

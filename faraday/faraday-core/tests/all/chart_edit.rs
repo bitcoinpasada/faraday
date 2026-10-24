@@ -491,6 +491,48 @@ fn a_place_marked_exposed_with_the_words_in_it_leads_to_moving_the_money() {
 }
 
 #[test]
+fn move_money_opens_kind_with_no_kind_ticked_and_next_waits_for_one() {
+    use faraday_core::create::NewKind;
+    use faraday_core::cstep;
+    let (mut app, w) = single_key_with_vault();
+    let press = Press::Loaded(w);
+    let (n, _) = node_of(&app, w, "Place 1");
+    open(&mut app, press, Target::Node(n));
+    app.press(Action::Chart(C::Mark(press, n, None, Mark::Exposed)));
+    app.press(Action::Chart(C::MoveMoney(press)));
+    assert_eq!(app.screen, Screen::Create);
+    let c = app.create().unwrap();
+    assert!(c.kind_unchosen, "no kind ticked");
+    assert_eq!(c.open, Some(cstep::KIND));
+    let texts = app.drawn_texts();
+    assert!(
+        texts
+            .iter()
+            .position(|t| t == "Single key, backup in shares (codex32)")
+            < texts.iter().position(|t| t == "Single key · native SegWit"),
+        "the rows in the same order: {texts:?}"
+    );
+    app.press(Action::CNext(cstep::KIND));
+    assert_eq!(
+        app.create().unwrap().open,
+        Some(cstep::KIND),
+        "Next waits for a kind"
+    );
+    let multi = NewKind::ALL
+        .iter()
+        .position(|k| *k == NewKind::Multi)
+        .unwrap() as u8;
+    app.press(Action::CKind(multi));
+    let c = app.create().unwrap();
+    assert_eq!((c.kind, c.kind_unchosen), (NewKind::Multi, false));
+    assert_eq!(c.open, Some(cstep::QUORUM), "Multisig's Quorum");
+    // Make a new wallet on its own still opens with codex32 ticked.
+    app.press(Action::CreateOver);
+    let c = app.create().unwrap();
+    assert_eq!((c.kind, c.kind_unchosen), (NewKind::Shares, false));
+}
+
+#[test]
 fn a_copy_marked_lost_says_whether_anything_is_lost_that_is_not_elsewhere() {
     let (mut app, w) = single_key_with_vault();
     let press = Press::Loaded(w);

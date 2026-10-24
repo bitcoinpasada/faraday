@@ -9500,7 +9500,11 @@ strings! {
     board_list_close: "Close",
     // ----- Make a new wallet: Single key, backup in shares (docs/CODEX32.md §6.9), and fewer presses, faraday-core/src/create.rs and screens/create.rs -----
     /// Kind row: the wallet kind whose one key is made as codex32 shares.
-    create_single_key_shares: "Single key, backup in shares",
+    create_single_key_shares: "Single key, backup in shares (codex32)",
+    /// The word in that row's name that carries the tooltip below: it is in the name as written there.
+    create_shares_tip_word: "codex32",
+    /// Tooltip on "codex32" in the Kind row's name: an explanation on a working screen, by the owner's decision (2026-10-24).
+    create_shares_tip: "codex32 is the only method that makes a seed and its shares fully by hand, the checksum included.",
     /// The kind's line where no scheme is chosen.
     create_shares_line_plain: "One key, its backup in codex32 shares",
     /// Make a new wallet's Kind row: Single key's line.

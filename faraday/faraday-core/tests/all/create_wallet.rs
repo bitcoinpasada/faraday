@@ -29,6 +29,7 @@ fn multi_index() -> u8 {
 fn opened() -> Faraday {
     let mut app = testkit::started();
     app.press(Action::CreateWallet);
+    app.press(Action::CKind(0));
     assert_eq!(app.screen, Screen::Create);
     app
 }
@@ -195,6 +196,7 @@ fn made_on(mut app: Faraday) -> (Faraday, usize) {
     }
     app.press(Action::EntryAdd);
     app.press(Action::CreateWallet);
+    app.press(Action::CKind(0));
     app.press(Action::CNext(cstep::KIND)); // single key, the default: opens Keys
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
@@ -363,7 +365,7 @@ fn a_key_made_on_its_own_takes_a_passphrase_in_a_single_key_slot() {
         .reveal(0, faraday_keys::Reveal::Words)
         .to_string();
     app.press(Action::CreateWallet);
-    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CKind(0));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, first));
@@ -412,7 +414,7 @@ fn a_slot_whose_key_has_a_passphrase_offers_no_add_a_passphrase() {
         .unwrap()
         .0;
     app.press(Action::CreateWallet);
-    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CKind(0));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, with));
@@ -429,7 +431,7 @@ fn unequal_passphrases_in_a_slot_lock_nothing_in() {
     add_key(&mut app, "bacon");
     let plain = app.session.keys[0].fingerprint.0;
     app.press(Action::CreateWallet);
-    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CKind(0));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, plain));

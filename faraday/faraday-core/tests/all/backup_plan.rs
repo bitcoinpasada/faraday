@@ -420,7 +420,7 @@ fn passphrase_key() -> Faraday {
     use faraday_shell_api::{App, Event, Key};
     let mut app = faraday_core::testkit::started();
     app.press(Action::CreateWallet);
-    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CKind(0));
     app.press(Action::KeyGen(Some(0)));
     app.press(Action::KWords(12));
     app.press(Action::KWay(Way::Coins.index()));

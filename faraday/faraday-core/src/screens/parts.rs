@@ -332,7 +332,7 @@ pub(crate) fn kind_rows(
         ui,
         (x, y, w),
         &rows,
-        chosen,
+        Some(chosen),
         (!more).then_some(more_action),
         enabled,
         pick,
@@ -340,13 +340,14 @@ pub(crate) fn kind_rows(
 }
 
 /// A Kind card's rows, `rows` in the order shown, each a place in
-/// `NewKind::ALL` with its second line; the ticked one `chosen`; **More
-/// kinds** under them when `more` is given. Returns the height used.
+/// `NewKind::ALL` with its second line; the ticked one `chosen`, none
+/// when `None`; **More kinds** under them when `more` is given. Returns
+/// the height used.
 pub(crate) fn kind_list(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     rows: &[(usize, String)],
-    chosen: crate::create::NewKind,
+    chosen: Option<crate::create::NewKind>,
     more: Option<Action>,
     enabled: bool,
     pick: fn(u8) -> Action,
@@ -355,12 +356,33 @@ pub(crate) fn kind_list(
     let mut cy = y;
     for (i, line) in rows {
         let k = &NewKind::ALL[*i];
-        let on = chosen == *k;
+        let on = chosen == Some(*k);
+        let size = 14.0;
+        let left = x + 14.0;
+        // On a compact window the name and the line each wrap, the row
+        // growing to hold them, so neither is cut; the name leaves room
+        // for the info button where it has one.
+        let inner = w - 28.0;
+        let (names, lines) = if ui.compact {
+            let room = if k.shares() { tokens::ICON_BUTTON } else { 0.0 };
+            let names = lines_of(ui, size, W::S, k.name(), inner - room);
+            (names, lines_of(ui, 12.0, W::R, line, inner))
+        } else {
+            (Vec::new(), Vec::new())
+        };
+        let (name_h, line_h) = (ui.line(size, W::S), ui.line(12.0, W::R));
+        let top = 6.0;
+        let line_at = cy + 26.0 + (names.len().max(1) - 1) as f32 * name_h;
+        let h = if ui.compact {
+            (line_at + lines.len() as f32 * line_h + top - cy).max(tokens::TOUCH)
+        } else {
+            tokens::TOUCH
+        };
         ui.fill(
             x,
             cy,
             w,
-            tokens::TOUCH,
+            h,
             8.0,
             if on { ACCENT.with_alpha(26) } else { BG },
         );
@@ -368,24 +390,40 @@ pub(crate) fn kind_list(
             x,
             cy,
             w,
-            tokens::TOUCH,
+            h,
             8.0,
             if on { ACCENT.with_alpha(110) } else { INNER },
         );
+        // Where "codex32" and the name's end are, on the backup in shares.
+        let mut tip = None;
         if ui.compact {
-            let name = ui.fit(14.0, W::S, k.name(), w - 28.0);
-            ui.text(x + 14.0, cy + 6.0, 14.0, W::S, TEXT, &name);
-            let line = ui.fit(12.0, W::R, line, w - 28.0);
-            ui.text(x + 14.0, cy + 26.0, 12.0, W::R, MUTED, &line);
+            for (n, text) in names.iter().enumerate() {
+                let ty = cy + top + n as f32 * name_h;
+                let end = left + ui.text(left, ty, size, W::S, TEXT, text);
+                if k.shares() {
+                    tip = tip.or(word_at(ui, (left, end, ty + name_h / 2.0), size, text));
+                }
+            }
+            for (n, text) in lines.iter().enumerate() {
+                let ty = line_at + n as f32 * line_h;
+                ui.text(left, ty, 12.0, W::R, MUTED, text);
+            }
         } else {
-            ui.text_mid(x + 14.0, cy, tokens::TOUCH, 14.0, W::S, TEXT, k.name());
+            let end = left + ui.text_mid(left, cy, h, size, W::S, TEXT, k.name());
             let line = ui.fit(12.0, W::R, line, w - 260.0);
-            ui.text_right(x + w - 14.0, cy, tokens::TOUCH, 12.0, W::R, MUTED, &line);
+            ui.text_right(x + w - 14.0, cy, h, 12.0, W::R, MUTED, &line);
+            if k.shares() {
+                tip = word_at(ui, (left, end, cy + h / 2.0), size, k.name());
+            }
         }
         if enabled {
-            ui.hit(x, cy, w, tokens::TOUCH, pick(*i as u8));
+            ui.hit(x, cy, w, h, pick(*i as u8));
         }
-        cy += 54.0;
+        // Drawn after the row, so a press on the button is the button's.
+        if let Some(at) = tip {
+            shares_tip(ui, at, (cy, h));
+        }
+        cy += 54.0 - tokens::TOUCH + h;
     }
     if let Some(more_action) = more.filter(|_| enabled) {
         ui.button(
@@ -400,6 +438,76 @@ pub(crate) fn kind_list(
         cy += 44.0;
     }
     cy - y
+}
+
+/// Where "codex32" is in the line `shown`, drawn from `x` at `size`
+/// and ending at `end`, its middle at height `mid`: (the word's x, its
+/// width, `end`, `mid`); `None` when the line does not hold it.
+fn word_at(
+    ui: &Ui,
+    (x, end, mid): (f32, f32, f32),
+    size: f32,
+    shown: &str,
+) -> Option<(f32, f32, f32, f32)> {
+    let word = EN.create_shares_tip_word;
+    let at = shown.find(word)?;
+    let from = x + ui.measure(size, W::S, &shown[..at]);
+    Some((from, ui.measure(size, W::S, word), end, mid))
+}
+
+/// Make a new wallet's one explanation on a working screen (owner,
+/// 2026-10-24; F112): Material's info icon button right after
+/// "(codex32)", `end`, centred on `mid`, in the row's secondary ink, and
+/// the rich tooltip it shows. The pointer resting on the button or on
+/// the word, the keyboard on the button, a long press on either, or a
+/// press of the button bring it up; the row `y`, `h` tall, keeps every
+/// other press.
+fn shares_tip(ui: &mut Ui, (word, word_w, end, mid): (f32, f32, f32, f32), (y, h): (f32, f32)) {
+    use faraday_ui::tooltip::TipKind;
+    use tokens::{ICON_BUTTON, ICON_SMALL, shape_full};
+    let a = Action::CKindAbout;
+    let (bx, by) = (end, mid - ICON_BUTTON / 2.0);
+    ui.hit_shaped(
+        (bx, by, ICON_BUTTON, ICON_BUTTON, shape_full(ICON_BUTTON)),
+        a,
+    );
+    ui.icon(bx, by, ICON_BUTTON, Icon::Info, ICON_SMALL, MUTED);
+    // The button first: the tooltip stands over it.
+    let tip = EN.create_shares_tip;
+    ui.tip_anchor((bx, by, ICON_BUTTON, ICON_BUTTON), a, tip, TipKind::Rich);
+    ui.tip_anchor((word, y, word_w, h), a, tip, TipKind::Rich);
+}
+
+/// `s` broken at its spaces into lines no wider than `max` at `size`, a
+/// word wider than `max` on a line of its own: the lines drawn one by
+/// one, so where each word lands is known. Slices of `s`, nothing copied.
+fn lines_of<'s>(ui: &Ui, size: f32, weight: W, s: &'s str, max: f32) -> Vec<&'s str> {
+    let mut out = Vec::new();
+    let mut start: Option<usize> = None;
+    let mut end = 0;
+    for (at, word) in s.split(' ').scan(0, |pos, w| {
+        let at = *pos;
+        *pos += w.len() + 1;
+        Some((at, w))
+    }) {
+        if word.is_empty() {
+            continue;
+        }
+        let word_end = at + word.len();
+        match start {
+            None => start = Some(at),
+            Some(from) if ui.measure(size, weight, &s[from..word_end]) > max => {
+                out.push(&s[from..end]);
+                start = Some(at);
+            }
+            Some(_) => {}
+        }
+        end = word_end;
+    }
+    if let Some(from) = start {
+        out.push(&s[from..end]);
+    }
+    out
 }
 
 /// A wallet's first two receive addresses and first change address,

@@ -8,7 +8,9 @@ use faraday_core::codex32::{C32, Card, WAYS, Way};
 use faraday_core::create::NewKind;
 use faraday_core::keygen::kstep;
 use faraday_core::{Action, Faraday, Screen, cstep};
-use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
+use faraday_shell_api::{
+    App, BootState, DisplayInfo, EntropyBytes, Event, Key, SecureHardware, TouchPhase,
+};
 use faraday_ui::keyboard::OskPress;
 
 fn shares_index() -> u8 {
@@ -52,25 +54,242 @@ fn on_quorum_of(mut app: Faraday) -> Faraday {
     app
 }
 
+const NAME: &str = "Single key, backup in shares (codex32)";
+const TIP: &str = "codex32 is the only method that makes a seed and its shares fully by hand, the checksum included.";
+
 #[test]
-fn the_kind_is_offered_on_kind_between_single_key_and_multisig() {
+fn make_a_new_wallet_opens_on_kind_with_the_backup_in_shares_first_and_ticked() {
     let mut app = app();
+    app.press(Action::Nav(Screen::WalletsStart));
     app.press(Action::CreateWallet);
-    app.press(Action::CStep(cstep::KIND));
+    let c = app.create().expect("Make a new wallet");
+    assert_eq!(c.open, Some(cstep::KIND), "Kind is open");
+    assert_eq!(c.kind, NewKind::Shares, "the backup in shares is ticked");
     let texts = app.drawn_texts();
     let at = |name: &str| texts.iter().position(|t| t == name);
-    let (single, shares, multi) = (
+    let (shares, single, multi) = (
+        at(NAME).expect("the backup in shares"),
         at("Single key · native SegWit").expect("Single key"),
-        at("Single key, backup in shares").expect("the backup in shares, before More kinds"),
         at("Multisig · native SegWit").expect("Multisig"),
     );
-    assert!(single < shares && shares < multi, "{texts:?}");
+    assert!(shares < single && single < multi, "{texts:?}");
     assert!(
         texts
             .iter()
             .any(|t| t == "One key, its backup in 3 shares, any 2 rebuild it"),
         "its line follows the scheme: {texts:?}"
     );
+}
+
+#[test]
+fn next_with_nothing_changed_opens_the_backup_in_shares_quorum() {
+    for next in [Action::CNext(cstep::KIND), Action::CKind(shares_index())] {
+        let mut app = app();
+        app.press(Action::CreateWallet);
+        app.press(next);
+        let c = app.create().unwrap();
+        assert_eq!(c.kind, NewKind::Shares);
+        assert_eq!(c.open, Some(cstep::QUORUM), "{next:?}");
+        let texts = app.drawn_texts();
+        assert!(
+            texts.iter().any(|t| t == "How many to rebuild it"),
+            "{texts:?}"
+        );
+    }
+}
+
+/// Make a new wallet open on Kind, with where "codex32" is drawn in the
+/// row's name, in pixels, and the clock a second on.
+fn on_kind() -> (Faraday, (u16, u16)) {
+    let mut app = app();
+    app.press(Action::CreateWallet);
+    let now = app.now_ms() + 1000;
+    app.event(Event::Tick { now_ms: now });
+    let (_, (x, y, w, h)) = app
+        .drawn_text_boxes()
+        .into_iter()
+        .find(|(t, _)| t == NAME)
+        .expect("the row's name");
+    // "codex32" is the name's last word but the bracket: its middle is
+    // near 35 of the name's 39 characters in.
+    let word = ((x + w * 885 / 1000) as u16, (y + h / 2) as u16);
+    let _ = app.frame();
+    (app, word)
+}
+
+/// Whether the tooltip's text is drawn, its lines read in order.
+fn tip_shows(app: &mut Faraday) -> bool {
+    app.drawn_texts().join(" ").contains(TIP)
+}
+
+fn tick(app: &mut Faraday, ms: u64) {
+    let now = app.now_ms() + ms;
+    app.event(Event::Tick { now_ms: now });
+}
+
+#[test]
+fn the_pointer_resting_on_codex32_shows_its_tooltip_and_leaving_hides_it() {
+    let (mut app, (x, y)) = on_kind();
+    app.event(Event::Hover { x, y });
+    tick(&mut app, 300);
+    assert!(!tip_shows(&mut app), "not before the delay");
+    tick(&mut app, 300);
+    assert!(tip_shows(&mut app), "after it");
+    app.event(Event::Hover { x, y: y + 200 });
+    assert!(!tip_shows(&mut app), "the pointer gone, the tooltip goes");
+    app.event(Event::Hover { x, y });
+    tick(&mut app, 600);
+    assert!(tip_shows(&mut app));
+    app.event(Event::HoverEnd);
+    assert!(!tip_shows(&mut app));
+    let c = app.create().unwrap();
+    assert_eq!(
+        (c.kind, c.open),
+        (NewKind::Shares, Some(cstep::KIND)),
+        "hovering pressed nothing"
+    );
+}
+
+#[test]
+fn the_pointer_resting_on_the_info_button_shows_the_tooltip() {
+    let (mut app, _) = on_kind();
+    let (x, y) = app
+        .where_offered(Action::CKindAbout)
+        .expect("the info button");
+    app.event(Event::Hover { x, y });
+    tick(&mut app, 300);
+    assert!(!tip_shows(&mut app), "not before the delay");
+    tick(&mut app, 300);
+    assert!(tip_shows(&mut app), "after it");
+    app.event(Event::HoverEnd);
+    assert!(!tip_shows(&mut app));
+}
+
+/// A finger or a click on (x, y), down and up.
+fn tap_at(app: &mut Faraday, (x, y): (u16, u16)) {
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+}
+
+#[test]
+fn a_tap_on_the_info_button_shows_the_tooltip_at_once_and_a_press_elsewhere_hides_it() {
+    let (mut app, _) = on_kind();
+    let at = app
+        .where_offered(Action::CKindAbout)
+        .expect("the info button");
+    tap_at(&mut app, at);
+    assert!(tip_shows(&mut app), "at once");
+    assert_eq!(
+        app.create().unwrap().open,
+        Some(cstep::KIND),
+        "the row is not chosen"
+    );
+    tick(&mut app, 5000);
+    assert!(tip_shows(&mut app), "it stays to be read");
+    app.event(Event::Key(Key::Escape));
+    assert!(!tip_shows(&mut app), "Escape takes it off");
+    tap_at(&mut app, at);
+    assert!(tip_shows(&mut app));
+    app.event(Event::Touch {
+        x: 5,
+        y: 5,
+        phase: TouchPhase::Down,
+    });
+    assert!(!tip_shows(&mut app), "a press elsewhere takes it off");
+}
+
+#[test]
+fn a_tap_on_the_row_beside_the_info_button_chooses_the_row() {
+    let (mut app, _) = on_kind();
+    let row = app
+        .where_offered(Action::CKind(shares_index()))
+        .expect("the row");
+    tap_at(&mut app, row);
+    tick(&mut app, 100);
+    assert_eq!(app.create().unwrap().open, Some(cstep::QUORUM));
+    assert!(!tip_shows(&mut app));
+}
+
+#[test]
+fn the_keyboard_on_the_info_button_shows_its_tooltip_and_escape_hides_it() {
+    let (mut app, _) = on_kind();
+    let mut shown = false;
+    for _ in 0..200 {
+        app.event(Event::Key(Key::Tab));
+        tick(&mut app, 600);
+        if tip_shows(&mut app) {
+            shown = true;
+            break;
+        }
+    }
+    assert!(shown, "Tab reaches the info button, and the tooltip shows");
+    assert_eq!(
+        app.create().unwrap().open,
+        Some(cstep::KIND),
+        "nothing pressed"
+    );
+    app.event(Event::Key(Key::Escape));
+    assert!(!tip_shows(&mut app), "Escape takes it off");
+    assert_eq!(app.screen, Screen::Create, "and does nothing else");
+    // Enter presses the button the keyboard is on: the tooltip at once,
+    // the row not chosen.
+    app.event(Event::Key(Key::Enter));
+    assert!(tip_shows(&mut app));
+    assert_eq!(app.create().unwrap().open, Some(cstep::KIND));
+    app.event(Event::Key(Key::Escape));
+    app.event(Event::Key(Key::Tab));
+    tick(&mut app, 600);
+    assert!(!tip_shows(&mut app), "the keyboard moved on");
+}
+
+#[test]
+fn a_long_press_on_codex32_shows_its_tooltip_and_chooses_nothing() {
+    let (mut app, (x, y)) = on_kind();
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Down,
+    });
+    tick(&mut app, 600);
+    assert!(tip_shows(&mut app), "held, the tooltip shows");
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Up,
+    });
+    assert_eq!(
+        app.create().unwrap().open,
+        Some(cstep::KIND),
+        "the lift presses nothing"
+    );
+    tick(&mut app, 3000);
+    assert!(tip_shows(&mut app), "it stays to be read");
+    app.event(Event::Touch {
+        x: 5,
+        y: 5,
+        phase: TouchPhase::Down,
+    });
+    assert!(!tip_shows(&mut app), "the next press takes it off");
+}
+
+#[test]
+fn a_tap_on_codex32_chooses_the_row() {
+    let (mut app, (x, y)) = on_kind();
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Down,
+    });
+    tick(&mut app, 100);
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Up,
+    });
+    tick(&mut app, 600);
+    assert_eq!(app.create().unwrap().open, Some(cstep::QUORUM));
+    assert!(!tip_shows(&mut app));
 }
 
 #[test]

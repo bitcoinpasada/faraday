@@ -19,7 +19,7 @@ const C: &str = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
 fn wallet_of(t: &mut Tour, k: usize) -> Result<(), String> {
     use faraday_core::cstep;
     t.press(Action::CreateWallet);
-    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CKind(0));
     let fp = t.app.session.keys[k].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));

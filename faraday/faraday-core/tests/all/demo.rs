@@ -469,7 +469,11 @@ fn frost(app: &mut Faraday) -> NewKind {
 fn create_offers_no_frost_deal_in_the_demo_too() {
     for demo in [true, false] {
         let mut app = app_on(demo);
-        assert_eq!(frost(&mut app), NewKind::NativeSegwit, "demo {demo}");
+        assert_eq!(
+            frost(&mut app),
+            NewKind::Shares,
+            "the default kept, demo {demo}"
+        );
         assert!(app.session.wallets.is_empty(), "nothing dealt");
         assert_eq!(app.session.keys.len(), 2, "no share loaded");
     }

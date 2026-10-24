@@ -126,8 +126,9 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
-    // Create opens with Kind closed on single key and Use vaults open;
-    // No moves on to Keys.
+    // Create opens on Kind; Single key opens Use vaults, whose No moves
+    // on to Keys.
+    tap(&mut app, Action::CKind(0));
     tap(&mut app, Action::CVaults(false));
     tap(&mut app, Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
@@ -278,11 +279,10 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     tap(&mut app, Action::Nav(Screen::Home));
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
-    // Create opens with Kind closed on its default: its head opens it.
-    // A row is Kind's forward action: Single key (0), Single key, backup
-    // in shares (10) and Multisig (4), shown before More kinds.
-    tap(&mut app, Action::CStep(faraday_core::cstep::KIND));
-    for kind in [0u8, 10, 4] {
+    // Create opens on Kind. A row is Kind's forward action: Single key,
+    // backup in shares (10), Single key (0) and Multisig (4), shown
+    // before More kinds.
+    for kind in [10u8, 0, 4] {
         assert!(
             in_view(&mut app, h, Action::CKind(kind)),
             "Make a new wallet, Kind, row {kind}"
@@ -295,8 +295,8 @@ fn forward_in_view(mut app: Faraday, h: u16) {
     );
 }
 
-/// Create opens with Kind closed on single key and Use vaults open; No
-/// opens Keys, whose head then carries Kind with Change.
+/// Create opens on Kind; Single key opens Use vaults, whose No opens
+/// Keys, whose head then carries Kind with Change.
 #[test]
 fn kind_is_offered_on_the_keys_page_and_opens() {
     let mut app = panel();
@@ -304,8 +304,14 @@ fn kind_is_offered_on_the_keys_page_and_opens() {
     tap(&mut app, Action::CreateWallet);
     assert_eq!(
         app.create().and_then(|c| c.open),
+        Some(faraday_core::cstep::KIND),
+        "Create opens on Kind"
+    );
+    tap(&mut app, Action::CKind(0));
+    assert_eq!(
+        app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::WHERE),
-        "Create opens past Kind, on Use vaults"
+        "Single key opens Use vaults"
     );
     tap(&mut app, Action::CVaults(false));
     assert_eq!(
@@ -333,18 +339,17 @@ fn the_page_title_shows_the_steps() {
     let mut app = panel();
     tap(&mut app, Action::Nav(Screen::WalletsStart));
     tap(&mut app, Action::CreateWallet);
-    let kind = Action::CStep(faraday_core::cstep::KIND);
-    tap(&mut app, Action::CStep(faraday_core::cstep::WHERE));
+    tap(&mut app, Action::CStep(faraday_core::cstep::KIND));
     assert_eq!(app.create().and_then(|c| c.open), None);
     let back_up = Action::CStep(faraday_core::cstep::BACKUP);
     assert!(
         on_panel(&mut app, back_up).is_some(),
         "every step is listed"
     );
-    tap(&mut app, kind);
+    tap(&mut app, Action::CStep(faraday_core::cstep::WHERE));
     assert_eq!(
         app.create().and_then(|c| c.open),
-        Some(faraday_core::cstep::KIND)
+        Some(faraday_core::cstep::WHERE)
     );
 }
 

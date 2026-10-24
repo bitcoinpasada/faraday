@@ -668,6 +668,9 @@ impl Faraday {
         self.glance.set_chart(None);
         self.sheet = None;
         self.act(Action::CreateWallet);
+        // The person moves money to a wallet of their choosing: no kind
+        // is ticked (owner, 2026-10-24).
+        self.create.leave_kind_unchosen();
     }
 
     /// The loaded wallet whose money is moving to a new wallet, once

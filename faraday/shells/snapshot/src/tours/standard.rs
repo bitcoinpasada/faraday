@@ -20,7 +20,7 @@ pub(crate) fn standard_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CreateWallet);
     t.shot("std-1-create-kind")?;
     // A single key from the key loaded.
-    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CKind(0));
     let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));

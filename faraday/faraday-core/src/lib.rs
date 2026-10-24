@@ -3232,6 +3232,7 @@ impl Faraday {
             | Action::CVaultN(..)
             | Action::PlanAddPass
             | Action::CMoreKinds
+            | Action::CKindAbout
             | Action::CM(..)
             | Action::CN(..)
             | Action::CSlotVault(..)
@@ -5955,6 +5956,10 @@ impl Faraday {
 
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn key(&mut self, key: KeyIn) {
+        // Escape takes a tooltip off first, and does nothing else.
+        if key == KeyIn::Escape && self.pointer.tip_dismiss() {
+            return;
+        }
         if self.selftest_failed() || self.pass_typed(key) {
             return;
         }
@@ -6272,6 +6277,7 @@ impl Faraday {
         match phase {
             TouchPhase::Down => {
                 self.pointer.set_down_at((x, y));
+                self.pointer.tip_down((x, y), self.now_ms);
                 self.point_region(x, y);
                 // At the scrolled region's right edge a press takes the
                 // scrollbar: held on its thumb it follows from where it was
@@ -6326,6 +6332,7 @@ impl Faraday {
                 }
             }
             TouchPhase::Move => {
+                self.pointer.tip_moved((x, y));
                 if self.pointer.bar_held().is_some() {
                     self.bar_drag(y);
                     self.out.dirty = true;
@@ -6398,6 +6405,7 @@ impl Faraday {
                 }
             }
             TouchPhase::Up => {
+                self.pointer.tip_up(self.now_ms);
                 if self.pointer.take_bar_held().is_some() {
                     return;
                 }
@@ -6574,6 +6582,7 @@ impl Faraday {
         // finds out, the second draws it growing from closed.
         let mut follow_to = None;
         let (mut scrolled, mut caret, mut reach) = (Vec::new(), None, Vec::new());
+        let mut tips = Vec::new();
         // A field newly focused brings the keyboard up; on a small panel
         // the page scrolls so the field stays in view above it. Worked
         // out before drawing, which reads the keyboard as it now is.
@@ -6609,6 +6618,7 @@ impl Faraday {
                 ui.theme = self.theme();
                 ui.hovered = self.pointer.hovered();
                 ui.focused = focused;
+                ui.tips.shown = self.pointer.tip_shown();
                 ui.dimmed = self.demo_dimmed();
                 ui.stretch = stretch;
                 ui.bar = (bar > 0).then_some((bar, offset));
@@ -6625,6 +6635,8 @@ impl Faraday {
                 ui.caret_on = self.caret_on();
                 let view = drawing::View::new(self);
                 screens::draw(&view, &mut ui);
+                ui.draw_tip();
+                tips = std::mem::take(&mut ui.tips.anchors);
                 self.apply_after(view.into_after());
                 caret = ui.caret_drawn.then_some(ui.caret_on);
                 self.osk_caret(ui.caret_foot);
@@ -6656,6 +6668,7 @@ impl Faraday {
         self.vaults.set_drawn();
         self.later_drawn = true;
         self.pointer.set_hits(hits, reach);
+        self.pointer.set_tip_anchors(tips);
         self.fade_end(&mut canvas);
         self.canvas = Some(canvas);
         // The frame moved things under a still pointer: the next frame
@@ -7019,15 +7032,7 @@ impl Faraday {
     }
 }
 
-/// The create cards a kind shows.
-pub fn create_steps(kind: create::NewKind) -> Vec<u8> {
-    let mut v = vec![cstep::KIND];
-    if kind.multi() || kind.shares() {
-        v.push(cstep::QUORUM);
-    }
-    v.extend([cstep::WHERE, cstep::KEYS, cstep::CHECK, cstep::BACKUP]);
-    v
-}
+pub use create::create_steps;
 
 /// The stem a wallet's public files are named by: its name in lower case,
 /// with anything but letters and digits as a hyphen.
@@ -7138,27 +7143,7 @@ fn working_text(a: Action) -> Option<&'static str> {
     .then_some(EN.working_files)
 }
 
-fn field_action(a: Action) -> bool {
-    use vault::VaultAction as V;
-    matches!(
-        a,
-        Action::Vault(
-            V::FocusPassphrase
-                | V::CFocus(..)
-                | V::CName
-                | V::FocusField(_)
-                | V::FocusPrompt
-                | V::Dice(_)
-        ) | Action::EntryPassphrase
-            | Action::KPassField(_)
-            | Action::CPassField(_)
-            | Action::SeedRead(seeds::read::Choice::Field(_))
-            | Action::Rename
-            | Action::MType
-            | Action::KTyping(true)
-            | Action::Seeds(seeds::SeedsAction::Focus(_))
-    )
-}
+use pointer::field_action;
 
 /// A file name without its extension.
 pub(crate) fn stem(name: &str) -> String {
@@ -7254,6 +7239,7 @@ impl App for Faraday {
                     self.later_now();
                     self.key(k);
                 }
+                self.pointer.tip_focus(self.now_ms);
             }
             Event::Shift { held } => {
                 self.typing.set_shift(held);
@@ -7316,14 +7302,16 @@ impl App for Faraday {
                     .pointer
                     .hover()
                     .is_some_and(|(x, y)| self.bar_at(x, y).is_some());
+                let tip = self.pointer.tip_hover(self.now_ms);
                 // Coming over the scrollbar shows it.
-                if !self.find_hovered() && was == now {
+                if !self.find_hovered() && was == now && !tip {
                     return;
                 }
             }
             Event::HoverEnd => {
                 self.pointer.set_hover(None);
-                if !self.find_hovered() {
+                let tip = self.pointer.tip_hover(self.now_ms);
+                if !self.find_hovered() && !tip {
                     return;
                 }
             }
@@ -7379,7 +7367,8 @@ impl App for Faraday {
                     self.pointer.set_scroll_at(None);
                     self.scroll.release(self.f);
                 }
-                if self.motion_tick(now_ms) || fading {
+                let tip = self.pointer.tip_tick(now_ms);
+                if self.motion_tick(now_ms) || fading || tip {
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
                 }

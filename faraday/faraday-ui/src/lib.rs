@@ -13,6 +13,7 @@ mod lists;
 pub mod nav;
 pub mod parts;
 pub mod sheet;
+pub mod tooltip;
 
 pub use controls::{Reach, Style, focus_step, reach_at};
 
@@ -666,6 +667,8 @@ pub struct Ui<'a, A> {
     /// The control the keyboard is on: ringed, and Enter or Space
     /// presses it.
     pub focused: Option<A>,
+    /// The tooltips' anchors drawn and the one shown ([`tooltip`]).
+    pub tips: tooltip::TipFrame<A>,
 }
 
 /// A step card opening and the one closing, part of the way.
@@ -771,6 +774,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             reach: Vec::new(),
             primaries: 0,
             focused: None,
+            tips: tooltip::TipFrame::default(),
         }
     }
 

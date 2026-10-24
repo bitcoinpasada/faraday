@@ -54,6 +54,16 @@ pub enum NewKind {
 /// same switch as `codex32::MAKE_OFFERED`, which this one joins.
 pub const MAKE_OFFERED: bool = true;
 
+/// The create cards a kind shows.
+pub fn create_steps(kind: NewKind) -> Vec<u8> {
+    let mut v = vec![cstep::KIND];
+    if kind.multi() || kind.shares() {
+        v.push(cstep::QUORUM);
+    }
+    v.extend([cstep::WHERE, cstep::KEYS, cstep::CHECK, cstep::BACKUP]);
+    v
+}
+
 /// BIP-341's unspendable internal key.
 const NUMS: &str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
 
@@ -77,11 +87,12 @@ impl NewKind {
     ];
 
     /// Make a new wallet's Kind rows, by place in [`NewKind::ALL`], in the
-    /// order shown: Single key, Single key backup in shares and Multisig
-    /// (`docs/CODEX32.md` §6.9), then the others behind **More kinds**.
+    /// order shown: Single key backup in shares, the default, then Single
+    /// key and Multisig (`docs/CODEX32.md` §6.9, owner 2026-10-24), then
+    /// the others behind **More kinds**.
     /// FROST (8) is not among them: Create makes no threshold wallet
     /// (F109); the kind stays in [`NewKind::ALL`] for what reads one.
-    pub const CREATE_ROWS: [usize; 10] = [0, 10, 4, 1, 2, 3, 5, 6, 7, 9];
+    pub const CREATE_ROWS: [usize; 10] = [10, 0, 4, 1, 2, 3, 5, 6, 7, 9];
 
     /// How many of [`NewKind::CREATE_ROWS`] show before **More kinds**.
     pub const CREATE_FIRST: usize = 3;
@@ -659,6 +670,11 @@ pub struct CreateState {
     pub scroll: flow::Scroll,
     /// The kind.
     pub kind: NewKind,
+    /// No kind is ticked yet, `kind` only standing in: Make a new wallet
+    /// opened by Move money, where the person chooses (owner,
+    /// 2026-10-24; `docs/CODEX32.md` §6.9). A row chosen clears it; Next
+    /// does nothing until then.
+    pub kind_unchosen: bool,
     /// Signatures needed.
     pub m: usize,
     /// Keys.
@@ -756,6 +772,19 @@ impl CreateArea {
         self.state.as_mut()
     }
 
+    /// Leaves the new creation's Kind with no row ticked, as Move money
+    /// opens it (owner, 2026-10-24): only while nothing past Kind is done.
+    pub(crate) fn leave_kind_unchosen(&mut self) {
+        if let Some(c) = self.state.as_mut().filter(|c| {
+            c.built.is_none()
+                && !c.done[cstep::KIND as usize]
+                && c.slots.iter().all(|s| *s == Source::Empty)
+        }) {
+            c.kind_unchosen = true;
+            c.open = Some(cstep::KIND);
+        }
+    }
+
     /// Starts the flow on `state`.
     pub(crate) fn set(&mut self, state: CreateState) {
         self.state = Some(state);
@@ -785,6 +814,7 @@ impl CreateArea {
                     // its kind already ticked; `create_act` then moves on
                     // (a single choice moves on by itself).
                     c.kind = create::NewKind::ALL[i as usize % create::NewKind::ALL.len()];
+                    c.kind_unchosen = false;
                     if c.kind.multi() {
                         c.n = c.n.clamp(2, c.kind.max_keys());
                         c.m = if c.kind.all_sign() { c.n } else { c.m.min(c.n) };
@@ -923,18 +953,22 @@ impl Faraday {
                 self.screen = Screen::Create;
             }
             Action::CreateWallet | Action::CreateOver => {
-                // Create opens with Kind closed on its default, Single key,
-                // showing it with Change, as every flow opens past a
-                // default (decision 16); the card after it is open. The
-                // default is taken once the person answers a later card
-                // (`create_past_kind`): nothing is begun before. Back goes
-                // where it was opened from, Home or Wallets.
+                // Create opens on Kind, open, with Single key, backup in
+                // shares ticked where Make codex32 shares is offered, else
+                // Single key (owner, 2026-10-24; `docs/CODEX32.md` §6.9):
+                // the ticked row pressed again takes it. Back goes where
+                // it was opened from, Home or Wallets.
                 let done = [false; cstep::COUNT];
                 let owner = self.fresh_owner();
                 self.create.state = Some(CreateState {
                     owner,
                     done,
-                    open: Some(cstep::WHERE),
+                    open: Some(cstep::KIND),
+                    kind: if MAKE_OFFERED {
+                        NewKind::Shares
+                    } else {
+                        NewKind::NativeSegwit
+                    },
                     // Start over keeps it.
                     from_home: self.screen == Screen::Home
                         || (self.screen == Screen::Create
@@ -966,6 +1000,12 @@ impl Faraday {
             {
                 self.create_make();
             }
+            // Kind with no row ticked waits for one (Move money).
+            Action::CNext(k)
+                if k == cstep::KIND && self.create.state().is_some_and(|c| c.kind_unchosen) => {}
+            // The info button after "codex32" shows its tooltip at once
+            // (F112).
+            Action::CKindAbout => self.pointer.tip_show(Action::CKindAbout),
             // The question of vaults waits for its answer.
             Action::CNext(k)
                 if k == cstep::WHERE
@@ -1151,6 +1191,7 @@ impl Faraday {
                 | Action::CreateOver
                 | Action::CStep(_)
                 | Action::CMoreKinds
+                | Action::CKindAbout
                 | Action::CKind(_)
         ) {
             return;
@@ -1159,7 +1200,7 @@ impl Faraday {
             .create
             .state
             .as_mut()
-            .filter(|c| c.open.is_some_and(|k| k != cstep::KIND))
+            .filter(|c| c.open.is_some_and(|k| k != cstep::KIND) && !c.kind_unchosen)
         {
             c.done[cstep::KIND as usize] = true;
         }

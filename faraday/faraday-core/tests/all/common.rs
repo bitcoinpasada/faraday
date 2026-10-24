@@ -615,6 +615,13 @@ pub fn tile_of(kind: Kind) -> u8 {
         .expect("a tile") as u8
 }
 
+/// Make a new wallet opened, Single key chosen on its Kind card, which
+/// opens on the backup in shares (`docs/CODEX32.md` §6.9).
+pub fn create_single_key(app: &mut Faraday) {
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(0));
+}
+
 /// Starts the flow as Tools' tile does.
 pub fn start(app: &mut Faraday, kind: Kind) {
     app.press(Action::Catalog(tile_of(kind)));

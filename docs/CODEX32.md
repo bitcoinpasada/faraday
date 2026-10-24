@@ -127,9 +127,9 @@ Sources read for it, each as data and none vendored:
     or recovery wallet's slot; a codex32 key already loaded is accepted
     in any slot (§6.9).
 21. **A wallet kind, "Single key, backup in shares"**, on Make a new
-    wallet's Kind card between Single key and Multisig: single-sig on
-    chain, its Quorum the share scheme, its one slot made by Make codex32
-    shares; codex32 only, not SLIP-39 (§6.9).
+    wallet's Kind card (its place and default since item 25): single-sig
+    on chain, its Quorum the share scheme, its one slot made by Make
+    codex32 shares; codex32 only, not SLIP-39 (§6.9).
 22. **SLIP-39 words and other conversions** leave this spec (owner,
     2026-10-23): seed conversions (codex32 to SLIP-39 and the others) are
     a dedicated conversion tool of their own, planned, not scheduled
@@ -138,6 +138,21 @@ Sources read for it, each as data and none vendored:
     worksheet, not chosen" above the entry (§5.2).
 24. **A codex32 key in a vault** is saved and shown as any key is: the
     vault gives nothing it holds special treatment (owner, 2026-10-23).
+25. **Codex32 first on Make a new wallet** (owner, 2026-10-24): the flow
+    opens on Kind; "Single key, backup in shares (codex32)" is its top
+    row and the default, ticked as the card opens, so the ticked row
+    pressed again opens its Quorum; each row's second line stays as
+    §6.9 states it. The word "codex32" in that name carries a tooltip,
+    "codex32 is the only method that makes a seed and its shares fully
+    by hand, the checksum included.": the one explanation on a working
+    screen, a deliberate exception recorded as a decision (F112). The
+    tooltip is marked by Material's info icon button right after
+    "(codex32)" (§6.9).
+26. **Move the money opens Kind with nothing ticked** (owner,
+    2026-10-24): the person moves money to a wallet of their choosing,
+    so Faraday does not guess. The rows are in the same order; Next waits
+    until a row is chosen, and a row chosen moves on as any does. Make a
+    new wallet opened on its own keeps the codex32 row ticked (§6.9).
     Its key record keeps the codex32 set for the backup plan (§9.4), and
     the board names a backup-in-shares seed placed whole in a vault
     (§9.5, §9.6).
@@ -1031,14 +1046,33 @@ multisig does at spending: to sign, the whole key is on one device. So
 it is offered where the person chooses what kind of wallet to make, as
 an answer of its own, each row stating plainly what it is.
 
-**Make a new wallet's Kind card** (FLOWS, Make a new wallet; DESIGN §5
-Choice, "What kind of wallet?"):
+**Make a new wallet's Kind card** (FLOWS, Make a new wallet; DESIGN
+§4.2, Option row). The flow opens on it, open, the first row ticked
+(owner, 2026-10-24, §1.1 item 25):
 
+- **Single key, backup in shares (codex32)**, the default: one key, its
+  backup in 3 shares, any 2 rebuild it (the line follows the scheme
+  chosen).
 - **Single key**: one key, its words on paper.
-- **Single key, backup in shares**: one key, its backup in 3 shares, any
-  2 rebuild it (the line follows the scheme chosen).
 - **Multisig**: 3 keys, any 2 sign.
 - **More kinds**, as today.
+
+The ticked row pressed again opens its Quorum, as any row does (F103).
+Opened by a chart's **Move the money**, the card has no row ticked:
+the person chooses, and Next waits until they have (owner, 2026-10-24,
+§1.1 item 26).
+
+Right after "(codex32)" in the first row's name stands Material's info
+icon button (the outlined "info" symbol, in the row's secondary ink, a
+48 dp target that takes the press only on the button itself). It and
+the word carry a rich tooltip (DESIGN §4.12, Tooltip): "codex32 is the
+only method that makes a seed and its shares fully by hand, the
+checksum included." It shows when the pointer rests on the button or
+the word, when the keyboard is on the button, on a long press of
+either, and at once when the button is pressed. It is the one
+explanation on a working screen, by the owner's decision (F112).
+Where Make codex32 shares is not offered, the row is not drawn and Single
+key is the default.
 
 The second line of each row is a fact of the row, not an explanation;
 how the two compare is Learn's (§15.3). The new kind is single-sig on

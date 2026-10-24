@@ -114,9 +114,11 @@ passphrase.
 **Step cards** (decisions 16 and 34). In Sign a transaction, Back up and
 Create a vault a step card with a default opens closed and shows its
 value and **Change** in place of the chevron; the flow opens on the first
-card without one. Make a new wallet does the same: Kind opens closed on
-its default (Single key, or the kind a Tools tile ticked) and the card
-after it is open. New key opens on its first step, whatever opened it.
+card without one. Make a new wallet opens on Kind, open, with its
+default ticked (Single key, backup in shares where Make codex32 shares is
+offered, else Single key; owner, 2026-10-24); a Tools tile that ticks a
+kind opens the card after it. New key opens on its first step, whatever
+opened it.
 A card that asks one thing (a kind, Yes
 or No, a format, a size) closes on the choice and opens the next, and a
 press on the option already chosen does too (F103); **Continue** stays
@@ -965,13 +967,18 @@ guarantees for this file's rule:
   (decision 50).
 - **Make a new wallet** (decisions 17, 20 and 37; F53, F55, F98; `docs/CODEX32.md` §14 D5).
   The cards are Kind · Quorum · Use vaults · Keys · Check · Back up;
-  Kind opens closed on its default, Single key. Kind offers Single key
-  ("One key, its words on paper"), **Single key, backup in shares** ("One
-  key, its backup in 3 shares, any 2 rebuild it", the counts the
-  scheme's) and Multisig ("3 keys, any 2 sign", the quorum's), all three
-  native SegWit; the other seven are behind **More kinds** (FROST is not
-  made here, F109). A kind
-  pressed closes Kind and opens the next card. Use vaults' **Yes** opens
+  the flow opens on Kind, open, its first row ticked. Kind offers
+  **Single key, backup in shares (codex32)** ("One key, its backup in 3
+  shares, any 2 rebuild it", the counts the scheme's), the default,
+  then Single key ("One key, its words on paper") and Multisig ("3 keys,
+  any 2 sign", the quorum's), all three native SegWit; the other seven
+  are behind **More kinds** (FROST is not made here, F109). An info
+  button follows "(codex32)" in the first row's name; it and the word
+  carry a tooltip (DESIGN §4.12, Tooltip; F112): "codex32 is the only
+  method that makes a seed and its shares fully by hand, the checksum
+  included." A kind pressed closes Kind and opens the next card, the
+  ticked one pressed again too. Opened by Move the money, Kind has no
+  row ticked and Next waits until one is chosen (owner, 2026-10-24). Use vaults' **Yes** opens
   How many, **No** opens Keys; closed before it is answered it reads
   "Not answered".
 - **Single key, backup in shares** (`docs/CODEX32.md` §6.9, §14 D5). On
@@ -1317,8 +1324,9 @@ guarantees for this file's rule:
   vault open is to be held in RAM only until the next unlock, then
   written into the plan's notes (`docs/BACKUP-FLOW.md` §18.3, planned). A mark says what follows, in order: "Someone can
   now spend" (or "could … with a vault's passphrase") with **Move the
-  money** (Make a new wallet, whose last card then offers **Move the
-  money from {wallet}**, the spend from the old wallet with "Every coin
+  money** (Make a new wallet, opened on Kind with no kind ticked, the
+  person choosing one, owner 2026-10-24; its last card then offers
+  **Move the money from {wallet}**, the spend from the old wallet with "Every coin
   to {new wallet}" and its first address on Write the payment); "The
   wallet can no longer be rebuilt from what is left" with **Back up again
   now**; "Someone can see the balance"; "Nothing lost that is not

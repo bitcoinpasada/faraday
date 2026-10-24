@@ -631,7 +631,7 @@ fn in_demo_a_wallet_slots_passphrase_offers_faraday() {
     app.press(Action::EntryAdd);
     let first = app.session.keys[0].fingerprint.0;
     app.press(Action::CreateWallet);
-    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CKind(0));
     app.press(Action::CVaults(false));
     app.press(Action::CNext(cstep::WHERE));
     app.press(Action::CSlotHere(0, first));

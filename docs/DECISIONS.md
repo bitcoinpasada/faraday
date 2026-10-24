@@ -126,3 +126,4 @@ Read this table, then only the decision you need.
 | [F109](decisions/F109.md) | Out of the app until their standards mature: FROST, and MuSig2 signing across places | 2026-10-23 | Active | wallets |
 | [F110](decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Active | design |
 | [F111](decisions/F111.md) | The Material 3 components and patterns Faraday leaves out | 2026-10-24 | Active | design |
+| [F112](decisions/F112.md) | One explanation on a working screen: the tooltip on "codex32" in Make a new wallet's Kind card | 2026-10-24 | Active | design |

@@ -1202,6 +1202,38 @@ pub const TOAST_PAD: f32 = 16.0;
 /// How long the toast stays on screen, ms.
 pub const TOAST_SHOW_MS: u64 = 4000;
 
+/// A plain tooltip's widest (Material 3's plain tooltip).
+pub const TIP_PLAIN_MAX_W: f32 = 200.0;
+/// A plain tooltip's least height: one line of body small and its room.
+pub const TIP_PLAIN_MIN_H: f32 = 24.0;
+/// A plain tooltip's room each side of its text.
+pub const TIP_PLAIN_PAD_X: f32 = 8.0;
+/// A plain tooltip's room above and below its text.
+pub const TIP_PLAIN_PAD_Y: f32 = 4.0;
+/// A plain tooltip's text: Material's body small.
+pub const TIP_PLAIN_TEXT: f32 = 12.0;
+/// A rich tooltip's widest (Material 3's rich tooltip).
+pub const TIP_RICH_MAX_W: f32 = 320.0;
+/// A rich tooltip's room each side of its text.
+pub const TIP_RICH_PAD_X: f32 = 16.0;
+/// A rich tooltip's room above and below its text.
+pub const TIP_RICH_PAD_Y: f32 = 12.0;
+/// A rich tooltip's supporting text: Material's body medium.
+pub const TIP_RICH_TEXT: f32 = 14.0;
+/// A rich tooltip's elevation level.
+pub const TIP_RICH_LEVEL: u8 = 2;
+/// The gap between a tooltip and what it is about.
+pub const TIP_GAP: f32 = 4.0;
+/// The pointer's rest on, or the keyboard's stay on, what a tooltip is
+/// about before it shows, ms (Material's tooltip show delay).
+pub const TIP_DELAY_MS: u64 = 500;
+/// A finger held this long on what a tooltip is about shows it: a long
+/// press, ms.
+pub const TIP_LONG_PRESS_MS: u64 = 500;
+/// How long a plain tooltip a long press showed stays once the finger
+/// lifts, ms (Material's 1.5 seconds).
+pub const TIP_TOUCH_SHOW_MS: u64 = 1500;
+
 /// The scrim over a sheet's frosted page: Material's 32 %.
 pub const SCRIM_ALPHA: u8 = 82;
 

@@ -453,9 +453,8 @@ const DICE_WORDS: &str =
 fn single_key(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::CreateWallet);
-    // Kind opens closed on Single key (F103): Change opens it, and the
-    // kind ticked, pressed again, moves on.
-    t.press(Action::CStep(cstep::KIND));
+    // Create opens on Kind (`docs/CODEX32.md` §6.9); a kind pressed
+    // moves on (F103).
     t.shot("guide-single-kind")?;
     t.press(Action::CKind(kind_at(NewKind::NativeSegwit)?));
     t.shot("guide-single-next")?;

@@ -125,6 +125,7 @@ fn card_summary(app: &View, k: u8, filled: usize) -> String {
         cstep::WHERE | cstep::HOW_MANY | cstep::STICKS | cstep::VAULTS => {
             create_flow_summary(app, k)
         }
+        cstep::KIND if c.kind_unchosen => EN.create_not_answered.to_string(),
         cstep::KIND => c.kind.name().to_string(),
         cstep::QUORUM if c.kind.shares() => fill(
             EN.create_threshold,
@@ -278,7 +279,10 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 })
                 .collect();
             let more = (!c.more_kinds).then_some(Action::CMoreKinds);
-            cy += kind_list(ui, (x, cy, w), &rows, c.kind, more, !locked, Action::CKind);
+            // From Move money no kind is ticked: the person chooses
+            // (owner, 2026-10-24).
+            let chosen = (!c.kind_unchosen).then_some(c.kind);
+            cy += kind_list(ui, (x, cy, w), &rows, chosen, more, !locked, Action::CKind);
             if app.create_unfinished() {
                 cy += tokens::GAP_SMALL;
                 let over = [(EN.create_start_over, Style::Ghost, Action::CreateOver)];

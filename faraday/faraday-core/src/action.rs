@@ -439,6 +439,9 @@ pub enum Action {
     CKind(u8),
     /// Expands the Kind card's other eight kinds.
     CMoreKinds,
+    /// The info button after "codex32" on the Kind card: shows its
+    /// tooltip at once (F112).
+    CKindAbout,
     /// Answers the question of vaults on Make a new wallet: yes or no.
     CVaults(bool),
     /// The same on Restore.

@@ -1,10 +1,11 @@
 //! Where the pointer or finger is and what it has hold of: the controls
 //! the last frame offered and where each takes a press, the one
-//! pressed, the drag, the held scrollbar, the hover, and the control the
-//! keyboard is on.
+//! pressed, the drag, the held scrollbar, the hover, the control the
+//! keyboard is on, and the tooltip they bring up.
 
 use faraday_draw::Rect;
 use faraday_shell_api::Key as KeyIn;
+use faraday_ui::tooltip::{TipAnchor, TipBy, Tips};
 
 use crate::Action;
 
@@ -45,6 +46,8 @@ pub(crate) struct Pointer {
     /// Shift+Tab move it, Enter or Space presses it, a press of the
     /// pointer or a finger takes it off.
     focus: Option<Action>,
+    /// The tooltip showing and the one coming (`faraday_ui::tooltip`).
+    tips: Tips<Action>,
 }
 
 impl Pointer {
@@ -62,6 +65,7 @@ impl Pointer {
             hovered: None,
             reach: Vec::new(),
             focus: None,
+            tips: Tips::default(),
         }
     }
 
@@ -228,4 +232,96 @@ impl Pointer {
             .and_then(|(x, y)| self.hit_at(x, y).map(|(a, _)| a));
         std::mem::replace(&mut self.hovered, now) != now
     }
+
+    /// The owner whose tooltip shows.
+    pub(crate) fn tip_shown(&self) -> Option<Action> {
+        self.tips.shown()
+    }
+
+    /// Takes the tooltip anchors a frame drew: a tooltip whose anchor
+    /// the frame did not draw goes (it was not drawn either).
+    pub(crate) fn set_tip_anchors(&mut self, anchors: Vec<TipAnchor<Action>>) {
+        self.tips.set_anchors(anchors);
+    }
+
+    /// The pointer moved or left at `now` ms: the tooltip under it is on
+    /// its way, one it left goes. Returns whether what shows changed.
+    pub(crate) fn tip_hover(&mut self, now: u64) -> bool {
+        self.tips.hover(self.hover, now)
+    }
+
+    /// A finger or a button went down at `at`, at `now` ms. Returns
+    /// whether a tooltip went.
+    pub(crate) fn tip_down(&mut self, at: (i32, i32), now: u64) -> bool {
+        self.tips.press_down(at, now)
+    }
+
+    /// The finger moved to `at`: off the anchor, or scrolling the page,
+    /// it is no long press.
+    pub(crate) fn tip_moved(&mut self, at: (i32, i32)) {
+        let scrolling = self.drag.is_some_and(|(_, d)| d);
+        self.tips.press_moved(at, scrolling);
+    }
+
+    /// The finger lifted at `now` ms.
+    pub(crate) fn tip_up(&mut self, now: u64) {
+        self.tips.press_up(now);
+    }
+
+    /// A key moved the keyboard, at `now` ms: a tooltip of the control
+    /// it left goes, one of the control it is on is on its way.
+    pub(crate) fn tip_focus(&mut self, now: u64) {
+        let focused = self.focused();
+        self.tips.focus(focused, now);
+    }
+
+    /// A press of `owner`'s own button: its tooltip shows at once.
+    pub(crate) fn tip_show(&mut self, owner: Action) {
+        self.tips.show(owner);
+    }
+
+    /// Escape: the tooltip goes. Returns whether one showed.
+    pub(crate) fn tip_dismiss(&mut self) -> bool {
+        self.tips.dismiss()
+    }
+
+    /// Time moved on to `now` ms, the keyboard where it is: a tooltip
+    /// whose wait is over shows, one timed out goes. A long press that
+    /// brought one up lets go of its control, so the lift presses
+    /// nothing. Returns whether what shows changed.
+    pub(crate) fn tip_tick(&mut self, now: u64) -> bool {
+        let focused = self.focused();
+        let moved = self.tips.focus(focused, now);
+        let changed = self.tips.tick(now);
+        if changed && self.tips.shown_by() == Some(TipBy::Touch) {
+            self.pressed = None;
+            self.drag = None;
+        }
+        moved || changed
+    }
+}
+
+/// Whether a press on `a` is on a text field: the caret goes where it
+/// was pressed (`docs/history/NEW-WALLET.md` §13.2).
+pub(crate) fn field_action(a: Action) -> bool {
+    use crate::seeds;
+    use crate::vault::VaultAction as V;
+    matches!(
+        a,
+        Action::Vault(
+            V::FocusPassphrase
+                | V::CFocus(..)
+                | V::CName
+                | V::FocusField(_)
+                | V::FocusPrompt
+                | V::Dice(_)
+        ) | Action::EntryPassphrase
+            | Action::KPassField(_)
+            | Action::CPassField(_)
+            | Action::SeedRead(seeds::read::Choice::Field(_))
+            | Action::Rename
+            | Action::MType
+            | Action::KTyping(true)
+            | Action::Seeds(seeds::SeedsAction::Focus(_))
+    )
 }

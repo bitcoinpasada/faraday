@@ -60,7 +60,7 @@ In the backup plan a seed can be kept as codex32 strings, each string placed on 
 
 ## Single key, backup in shares
 
-Make a new wallet offers Single key, backup in shares, between Single key and Multisig. Its Quorum is the codex32 scheme, how many shares rebuild it and how many there are. Its one key is made by Make codex32 shares.
+Make a new wallet opens with Single key, backup in shares (codex32) ticked, above Single key and Multisig. Its Quorum is the codex32 scheme, how many shares rebuild it and how many there are. Its one key is made by Make codex32 shares.
 
 On the backup side it gives a single-key wallet much of what multisig gives: no one paper or place loses the wallet, and fewer than k papers reveal nothing. At spending it does nothing multisig does. The wallet is single-key on chain, native SegWit, one xpub to the coordinator, and to sign, the whole key is on one device. Whoever holds k shares can spend alone.
 
