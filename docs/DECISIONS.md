@@ -120,3 +120,4 @@ Read this table, then only the decision you need.
 | [F103](decisions/F103.md) | A choice that decides a step moves on by itself | 2026-10-23 | Active | design |
 | [F104](decisions/F104.md) | Back and Forward move within a flow's steps | 2026-10-23 | Active | design |
 | [F105](decisions/F105.md) | The boot guides give written directions, not mock-ups of firmware screens | 2026-10-23 | Active | Starter |
+| [F106](decisions/F106.md) | Faraday reads PSBTs, mnemonics and vaults as their standards say, and writes back what it read | 2026-10-23 | Active | formats |

@@ -11,9 +11,15 @@
 //!
 //! What it checks on reading is BIP-370's shape: the version is 2, the
 //! counts are there and match the maps, no `PSBT_GLOBAL_UNSIGNED_TX`,
-//! every input names its previous output and every output its amount,
-//! no key twice in a map, nothing after the last map. What a silent
-//! payment needs on top is [`crate::silent`]'s.
+//! every input names its previous output and every output its amount
+//! and its script (BIP-375 lets a silent payment output, which carries
+//! `PSBT_OUT_SP_V0_INFO`, leave the script out), the fallback locktime,
+//! the modifiable flags, the sequence and the required locktimes of
+//! their sizes, a required time locktime from 500 000 000 and a
+//! required height locktime from 1 to 499 999 999, no taproot signature
+//! with a sighash byte of 0 (BIP-341), no key twice in a map, nothing
+//! after the last map. What a silent payment needs on top is
+//! [`crate::silent`]'s.
 
 use alloc::vec::Vec;
 use core::fmt;
@@ -85,6 +91,18 @@ pub const IN_TAP_MERKLE_ROOT: u8 = 0x18;
 pub const OUT_AMOUNT: u8 = 0x03;
 /// `PSBT_OUT_SCRIPT`.
 pub const OUT_SCRIPT: u8 = 0x04;
+/// BIP-370: a required time locktime is at least this, and a required
+/// height locktime below it.
+const LOCKTIME_THRESHOLD: u32 = 500_000_000;
+
+/// Whether a pair of an input map is a taproot signature
+/// (`PSBT_IN_TAP_KEY_SIG`, `PSBT_IN_TAP_SCRIPT_SIG`) of 65 bytes whose
+/// sighash byte is 0: BIP-341 makes it invalid, since the default type
+/// is written as 64 bytes.
+pub(crate) fn is_zero_sighash_tap_sig(key: &[u8], value: &[u8]) -> bool {
+    let tap_sig = key == [IN_TAP_KEY_SIG] || key.first() == Some(&IN_TAP_SCRIPT_SIG);
+    tap_sig && value.len() == 65 && value[64] == 0
+}
 
 /// The global fields version 0 does not have, which [`PsbtV2::to_v0`]
 /// leaves out: BIP-370's and BIP-375's.
@@ -220,6 +238,16 @@ impl Map {
         self.pairs.retain(|(k, _)| k.first() != Some(&ty));
     }
 
+    /// A map of these pairs, in this order.
+    pub(crate) fn from_pairs(pairs: Vec<(Vec<u8>, Vec<u8>)>) -> Map {
+        Map { pairs }
+    }
+
+    /// Writes the map: its pairs, then the separator.
+    pub(crate) fn write_to(&self, out: &mut Vec<u8>) {
+        self.write(out);
+    }
+
     fn write(&self, out: &mut Vec<u8>) {
         for (k, v) in &self.pairs {
             write_compact(out, k.len() as u64);
@@ -292,6 +320,27 @@ impl Reader<'_> {
     }
 }
 
+/// One map of a PSBT's bytes, from `at`, which is moved past it.
+pub(crate) fn read_map(bytes: &[u8], at: &mut usize) -> Result<Map, Error> {
+    let mut r = Reader { bytes, at: *at };
+    let map = r.map()?;
+    *at = r.at;
+    Ok(map)
+}
+
+/// A field that may be absent and, present, is `n` bytes.
+fn sized<'m>(
+    map: &'m Map,
+    ty: u8,
+    n: usize,
+    name: &'static str,
+) -> Result<Option<&'m [u8]>, Error> {
+    match map.get_type(ty) {
+        Some(v) if v.len() != n => Err(Error::Field(name)),
+        v => Ok(v),
+    }
+}
+
 fn write_compact(out: &mut Vec<u8>, n: u64) {
     match n {
         0..=0xfc => out.push(n as u8),
@@ -333,6 +382,49 @@ pub struct PsbtV2 {
     pub outputs: Vec<Map>,
 }
 
+/// What BIP-370 and BIP-341 ask of an input map on reading: its
+/// previous output, the sizes of its sequence and required locktimes, a
+/// required time locktime from 500 000 000 and a required height
+/// locktime from 1 to 499 999 999, no taproot signature whose sighash
+/// byte is 0.
+fn check_input(map: &Map) -> Result<(), Error> {
+    if map.get_type(IN_PREVIOUS_TXID).map(<[u8]>::len) != Some(32) {
+        return Err(Error::Field("PSBT_IN_PREVIOUS_TXID"));
+    }
+    if map.get_type(IN_OUTPUT_INDEX).and_then(u32_value).is_none() {
+        return Err(Error::Field("PSBT_IN_OUTPUT_INDEX"));
+    }
+    sized(map, IN_SEQUENCE, 4, "PSBT_IN_SEQUENCE")?;
+    if let Some(t) = sized(
+        map,
+        IN_REQUIRED_TIME_LOCKTIME,
+        4,
+        "PSBT_IN_REQUIRED_TIME_LOCKTIME",
+    )?
+    .and_then(u32_value)
+        && t < LOCKTIME_THRESHOLD
+    {
+        return Err(Error::Field("PSBT_IN_REQUIRED_TIME_LOCKTIME"));
+    }
+    if let Some(h) = sized(
+        map,
+        IN_REQUIRED_HEIGHT_LOCKTIME,
+        4,
+        "PSBT_IN_REQUIRED_HEIGHT_LOCKTIME",
+    )?
+    .and_then(u32_value)
+        && !(1..LOCKTIME_THRESHOLD).contains(&h)
+    {
+        return Err(Error::Field("PSBT_IN_REQUIRED_HEIGHT_LOCKTIME"));
+    }
+    if map.pairs().any(|(k, v)| is_zero_sighash_tap_sig(k, v)) {
+        return Err(Error::Field(
+            "PSBT_IN_TAP_KEY_SIG or PSBT_IN_TAP_SCRIPT_SIG",
+        ));
+    }
+    Ok(())
+}
+
 impl PsbtV2 {
     /// Costs a decode of the whole PSBT: reads the binary encoding.
     pub fn parse_bytes(c: &Compute, bytes: &[u8]) -> Result<Self, Error> {
@@ -364,6 +456,18 @@ impl PsbtV2 {
                 .and_then(compact_value)
                 .ok_or(Error::Field(name))
         };
+        sized(
+            &global,
+            GLOBAL_FALLBACK_LOCKTIME,
+            4,
+            "PSBT_GLOBAL_FALLBACK_LOCKTIME",
+        )?;
+        sized(
+            &global,
+            GLOBAL_TX_MODIFIABLE,
+            1,
+            "PSBT_GLOBAL_TX_MODIFIABLE",
+        )?;
         let n_in = count(GLOBAL_INPUT_COUNT, "PSBT_GLOBAL_INPUT_COUNT")?;
         let n_out = count(GLOBAL_OUTPUT_COUNT, "PSBT_GLOBAL_OUTPUT_COUNT")?;
         // Every map takes at least its terminating byte, so a count
@@ -375,18 +479,7 @@ impl PsbtV2 {
         let mut inputs = Vec::with_capacity(n_in as usize);
         for _ in 0..n_in {
             let map = r.map()?;
-            if map.get_type(IN_PREVIOUS_TXID).map(<[u8]>::len) != Some(32) {
-                return Err(Error::Field("PSBT_IN_PREVIOUS_TXID"));
-            }
-            if map.get_type(IN_OUTPUT_INDEX).and_then(u32_value).is_none() {
-                return Err(Error::Field("PSBT_IN_OUTPUT_INDEX"));
-            }
-            if map
-                .get_type(IN_SEQUENCE)
-                .is_some_and(|s| u32_value(s).is_none())
-            {
-                return Err(Error::Field("PSBT_IN_SEQUENCE"));
-            }
+            check_input(&map)?;
             inputs.push(map);
         }
         let mut outputs = Vec::with_capacity(n_out as usize);
@@ -394,6 +487,13 @@ impl PsbtV2 {
             let map = r.map()?;
             if map.get_type(OUT_AMOUNT).map(<[u8]>::len) != Some(8) {
                 return Err(Error::Field("PSBT_OUT_AMOUNT"));
+            }
+            // BIP-375: a silent payment output (PSBT_OUT_SP_V0_INFO)
+            // has no script until the shares give it.
+            if map.get_type(OUT_SCRIPT).is_none()
+                && map.get_type(crate::silent::OUT_SP_V0_INFO).is_none()
+            {
+                return Err(Error::Field("PSBT_OUT_SCRIPT"));
             }
             outputs.push(map);
         }

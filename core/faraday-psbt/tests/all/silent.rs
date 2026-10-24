@@ -43,6 +43,26 @@ fn description(v: &Value) -> &str {
     v["description"].as_str().expect("a description")
 }
 
+/// The one invalid vector the version 2 reader itself refuses: an
+/// output that is not a silent payment's and has no PSBT_OUT_SCRIPT,
+/// which BIP-370 refuses on reading (BIP-375 lets only a silent payment
+/// output leave its script out).
+fn refused_on_reading(c: &Compute, v: &Value) -> bool {
+    let read = PsbtV2::parse_base64(c, v["psbt"].as_str().expect("a psbt"));
+    let missing = description(v).contains("missing PSBT_OUT_SCRIPT");
+    match read {
+        Err(e) => {
+            assert!(missing, "{}: refused on reading: {e:?}", description(v));
+            assert_eq!(e, v2::Error::Field("PSBT_OUT_SCRIPT"));
+            true
+        }
+        Ok(_) => {
+            assert!(!missing, "{}: read", description(v));
+            false
+        }
+    }
+}
+
 /// The check a vector asks for: its `checks` list names the input
 /// rules alone for two of them, and the whole check for the rest.
 fn run(c: &Compute, secp: &Secp256k1<All>, v: &Value, psbt: &PsbtV2) -> Result<(), Error> {
@@ -189,7 +209,12 @@ fn every_invalid_vector_is_refused_for_its_reason() {
     let vectors = vectors();
     let invalid = vectors["invalid"].as_array().expect("a list");
     assert_eq!(invalid.len(), 23);
+    let mut on_reading = 0;
     for v in invalid {
+        if refused_on_reading(&c, v) {
+            on_reading += 1;
+            continue;
+        }
         let mut psbt = parse(&c, v);
         assert!(run(&c, &secp, v, &psbt).is_err(), "{}", description(v));
         repair(&mut psbt);
@@ -200,6 +225,7 @@ fn every_invalid_vector_is_refused_for_its_reason() {
             description(v)
         );
     }
+    assert_eq!(on_reading, 1);
 }
 
 #[test]
@@ -239,6 +265,9 @@ fn every_vector_reads_and_writes_back_byte_for_byte() {
     let vectors = vectors();
     for kind in ["invalid", "valid"] {
         for v in vectors[kind].as_array().expect("a list") {
+            if refused_on_reading(&c, v) {
+                continue;
+            }
             let text = v["psbt"].as_str().expect("a psbt");
             assert_eq!(parse(&c, v).to_base64(), text, "{}", description(v));
         }

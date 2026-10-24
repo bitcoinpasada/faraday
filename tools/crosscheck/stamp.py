@@ -37,6 +37,10 @@ CRATES = [
     "faraday/faraday-vault",
     "tools/crosscheck",
 ]
+# Single files of crates too large to hash whole, whose results an area
+# checks: the session's fresh randomness and what a person adds
+# (`own-randomness`).
+FILES = ["faraday/faraday-core/src/fresh.rs"]
 # The published vectors the cross-check reads (tools/vectors/<name>/).
 VECTORS = ["addresses", "bip32", "bip327", "bip352", "bip39", "bip445", "bip85", "bip93",
            "codex32-booklet", "codex32-correction", "codex32-volvelle", "codex32qr", "kdf",
@@ -49,7 +53,7 @@ HARNESS_SKIP = {"stamp", "found", "__pycache__", "README.md"}
 # randomness. Everything else the covered core crates pull in from
 # crates.io, transitively, counts as crypto.
 NOT_CRYPTO = {
-    "bip39", "serde_json", "unicode-normalization", "serde", "serde_core", "serde_derive",
+    "bip39", "serde_json", "serde", "serde_core", "serde_derive",
     "proc-macro2", "quote", "syn", "unicode-ident", "libc", "getrandom", "r-efi",
 }
 CORE = ["faraday-crypto", "faraday-bip", "faraday-psbt", "faraday-entropy", "faraday-backup",
@@ -66,6 +70,7 @@ def source_files():
         else:
             files = [base / "Cargo.toml"] + [f for f in (base / "src").rglob("*") if f.is_file()]
         out.extend(files)
+    out.extend(ROOT / f for f in FILES)
     for d in VECTORS:
         out.extend(f for f in (ROOT / "tools" / "vectors" / d).rglob("*") if f.is_file())
     manifest = ROOT / "tools" / "crosscheck" / "references.sha256"

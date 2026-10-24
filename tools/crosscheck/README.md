@@ -50,12 +50,13 @@ as a disagreement: a cross-check that cannot fail is worse than none.
 | `codex32` | `faraday_bip::codex32` | python-codex32 (`codex32/`); the worksheet's rows written in the area from its polymod | every vector of `tools/vectors/bip93/`, the 55 invalid strings included; volvelle-website's worksheet cells (`tools/vectors/codex32-volvelle/`); the booklet's checksum, derivation, recovery, addition, translation and fusion tables (`tools/vectors/codex32-booklet/`); the Codex32QR profile's sets (`tools/vectors/codex32qr/`) | secrets, splits (the same randomness), recovery, derived shares, corrupted strings; fresh sets of every threshold up to 31 strings at 48, 74 and 127 characters, the checksum worksheets of their strings and of corrupted ones, checksums made on a sheet, translation and recovery symbols, translation worksheets |
 | `codex32-correct` | `faraday_bip::codex32::correct` | python-codex32's decoder, `correction.py` at a later commit (`codex32/correction/`), asked with BIP 93's bound | python-codex32's frozen correction corpus, 57 cases (`tools/vectors/codex32-correction/`) | random strings of every length with substitutions and unreadable boxes up to and past the bound, runs of unreadable boxes around the checksum's length, a held string's header fixed, upper case, `ms1` damaged |
 | `xor` | `faraday_entropy::SeedXor` with `faraday_bip::bip39` | python-mnemonic and a byte XOR (`bip39/`) | Coldcard's two examples (`tools/vectors/xor/coldcard.json`) and this tree's two | splits and combines in all ten languages and five lengths, with refusals |
-| `vault` | `faraday_vault` (create, open, seal, the slot's records and payload layouts), `faraday_backup::argon2id`, the `chacha20poly1305` crate's detached XChaCha20-Poly1305 as the vault calls it | `docs/VAULT.md` written out in `area_vault.py`, over argon2-cffi and PyNaCl (the distribution's packages), with HKDF-SHA256 and the ChaCha20 block written over the standard library | RFC 5869's three SHA-256 cases, RFC 8439's five block vectors, draft-irtf-cfrg-xchacha-03's AEAD vector, the Argon2id known answer (`tools/vectors/vault-primitives/`); the two vaults of `tools/vectors/vault/` | Argon2id at small random costs and the costs it refuses; the AEAD at random lengths with one byte changed; payloads made, read and malformed; random records of all thirteen types (type 12 is retired and refused) encoded, decoded and broken a rule at a time; whole vaults of every slot size made byte for byte from a seed, opened by each passphrase, resealed, and refused for each header fault, a wrong passphrase, a changed byte, two slots under one key and faulty contents |
+| `vault` | `faraday_vault` (create, open, seal, the slot's records and payload layouts), `faraday_backup::argon2id`, the `chacha20poly1305` crate's detached XChaCha20-Poly1305 as the vault calls it | `docs/VAULT.md` written out in `area_vault.py`, over argon2-cffi and PyNaCl (the distribution's packages), with HKDF-SHA256 and the ChaCha20 block written over the standard library | RFC 5869's three SHA-256 cases, RFC 8439's five block vectors, draft-irtf-cfrg-xchacha-03's AEAD vector, the Argon2id known answer (`tools/vectors/vault-primitives/`); the two vaults and the slot vectors of `tools/vectors/vault/` | Argon2id at small random costs and the costs it refuses; the AEAD at random lengths with one byte changed; payloads made, read and malformed; random records of all thirteen types (type 12 is retired and refused) encoded, decoded and broken a rule at a time; whole vaults of every slot size made byte for byte from a seed, opened by each passphrase, resealed, and refused for each header fault, a wrong passphrase, a changed byte, two slots under one key and faulty contents |
 | `bip39` | `faraday_bip::bip39` | python-mnemonic (`bip39/`) | the ten wordlists; every vector of `tools/vectors/bip39/vectors.json` in Faraday's languages; the Japanese vectors with non-ASCII passphrases | entropy to words and back in every language and length; seeds under random ASCII passphrases; a changed word, an unknown word, a word too many or too few; every valid last word |
 | `bip32` | `faraday_bip::keys` (master, private derivation), `faraday_bip::xkey` (strict decoding), `bitcoin`'s `Xpub::derive_pub` | `btc.py`, BIP-32 written from the BIP over `secp256k1lab` and `ripemd160.py` (`bip352/`) | BIP-32's vectors 1 to 5 (`tools/vectors/bip32/`), python-mnemonic's master keys | seeds of 16 to 64 bytes on every network, random paths with every index, public derivation against private, keys broken one rule at a time and the master-key import |
 | `addr` | `faraday_bip::address::parse`, `bitcoin`'s `Address::from_script`, `faraday_bip::account` (account xpub, SLIP-132, descriptor, addresses), `faraday_bip::descriptor`'s checksum | Bitcoin Core's functional-test framework (`core/`): `segwit_addr.py`, Base58Check, `descriptors.py`; `btc.py`; BIP-86's tweak written in the area | BIP-350's and BIP-173's addresses, BIP-380's checksum cases, BIP-49's, 84's and 86's accounts (`tools/vectors/addresses/`) | scripts of every address kind on every network, written and read back, then changed; accounts of every type at random indices; random descriptors' checksums |
 | `tx` | `faraday_psbt::transaction::read_raw`, `bitcoin`'s `SighashCache` as `faraday_psbt::sign` calls it | Core's `messages.py` and `script.py` (`core/`) | Core's 500 legacy sighashes, BIP-143's thirteen, BIP-341's key-path sighashes (`tools/vectors/sighash/`) | random transactions with and without witnesses (txid, wtxid, weight, bytes), cut or lengthened; every input hashed as legacy, BIP-143 P2WPKH and P2WSH, BIP-341 key and script path under every hash type |
-| `psbt` | `faraday_psbt::Psbt` (version 0, over `bitcoin`), `faraday_psbt::v2::PsbtV2` (version 2, Faraday's own) | BIP-174, 370 and 371 written out in `area_psbt.py`, over Core's `CTransaction` | every PSBT of BIP-174's, 370's and 371's test vectors (`tools/vectors/psbt-bips/`), with BIP-370's locktimes | random version 0 and 2 PSBTs with every field Faraday reads, written back pair for pair, then broken one rule at a time; BIP-370's locktime under every mix of required locktimes |
+| `psbt` | `faraday_psbt::Psbt` (version 0, over `bitcoin`), `faraday_psbt::v2::PsbtV2` (version 2, Faraday's own) | BIP-174, 370 and 371 written out in `area_psbt.py`, over Core's `CTransaction` | every PSBT of BIP-174's, 370's and 371's test vectors (`tools/vectors/psbt-bips/`), with BIP-370's locktimes | random version 0 and 2 PSBTs with every field Faraday reads, taproot trees among them, written back byte for byte as read, then broken one rule at a time; BIP-370's locktime under every mix of required locktimes |
+| `own-randomness` | `faraday_core`'s `fresh.rs` (`Own`, the session seed and pool) through the testkit's `fresh` and `seed_draw`, with `faraday_entropy`'s dice, coin and camera commitments | `docs/OWN-RANDOMNESS.md` §2.3 written out in `area_own.py` over `hashlib` | the known answers of `faraday/faraday-core/tests/all/own_randomness.rs`: nothing added, dice before and after the system's answers, dice then coins, a lock | random sessions of system answers, dice, coins and camera frames (some refused, some empty), locks, seed draws, fresh bytes and counts, in any order |
 | `msg` | `faraday_psbt::message` (BIP-137, BIP-322 simple: sign, verify, virtual txids) | BIP-137 and BIP-322 written out in `area_msg.py`: ECDSA with RFC 6979 as libsecp256k1 states it, Core's `script.py` sighashes, `secp256k1lab`'s BIP-340 | BIP-322's hashes, txids, simple signatures and error cases; Trezor's and Electrum's BIP-137 signatures (`tools/vectors/message/`), made again from Trezor's keys | random keys, address forms, networks and messages: signatures made byte for byte under both nonce rules and both aux choices, checked, then checked against a changed message, another address, a changed byte and a moved header |
 
 Where a reference leaves a rule to its caller, the area writes the
@@ -89,42 +90,31 @@ From batches 2 to 4 the areas meet these as they come and compare them
 with Faraday's reading, so each is checked to still hold exactly, and
 count them in the run's output ("N of them a known difference"):
 
-- Vault (`docs/VAULT.md` §7 against `faraday_vault`): a GPG key record
-  (type 7) without field 2 and a signing-round record (type 9) without
-  fields 2, 3 or 4 are refused, where §7 makes every field but the
-  first optional; a recovery-sheet payload past 16 KiB is read, where
-  §7 caps it (the writer refuses one); `create` refuses an empty
-  passphrase, which §8 does not mention.
-- BIP-39: `Mnemonic::parse` matches each word as the list publishes it
-  or in NFKD, without normalising the sentence, so a word typed in
-  composed form (é, ぞ, as most keyboards produce) is refused where
-  python-mnemonic reads the sentence in NFKD; the Japanese vectors'
-  sentences, written composed, are read in NFKD only.
 - Legacy sighash: `bitcoin` hashes the script code as given, Core
   removes every OP_CODESEPARATOR first. Faraday's legacy spends (P2PKH,
   P2SH multisig) have none.
-- PSBT version 0 (`bitcoin`): a version 2 field (BIP-370's twelve
-  "PSBTv0 but with" vectors) is kept as an unknown pair; bytes after the
-  last map are dropped; PSBT_OUT_TAP_TREE is written back in another
-  depth-first order of the same tree (BIP-371's valid tree vector comes
-  back changed, its Merkle root the same); a PSBT_GLOBAL_VERSION of 0 is
-  left out; a taproot signature of 65 bytes whose sighash byte is 0
-  (invalid under BIP-341) is read and written back as 64 bytes.
-- PSBT version 2 (`faraday_psbt::v2`): an output without
-  PSBT_OUT_SCRIPT is read (BIP-375 allows that only for a silent payment
-  output); a required time locktime below 500 000 000 and a required
-  height locktime of 0 or from 500 000 000 are read and used (BIP-370's
-  three vectors for them are read), so a "height" of 500 000 000 or more
-  becomes the transaction's locktime, which consensus reads as a time;
-  the fallback locktime, modifiable flags and required locktimes are
-  size-checked only when the locktime is worked out; a BIP-370 key with
-  key data is an unknown key; BIP-174's fields inside are checked only
-  when the PSBT is bridged to version 0; the same 65-byte taproot
-  signature is read.
+- PSBT version 2 (`faraday_psbt::v2`): a BIP-370 key with key data is
+  an unknown key; BIP-174's and BIP-371's fields inside are checked only
+  when the PSBT is bridged to version 0, except a taproot signature
+  whose sighash byte is 0, refused on reading.
 - BIP-137: Faraday reads the address form from the address rather than
   the header's range and tries a P2PKH address in both key encodings
   (`faraday_psbt::message`), as Electrum and Sparrow do; BIP-137 read
   strictly refuses Trezor's and Electrum's "no script type" signatures.
+
+Where the two once differed and now agree (owner, 2026-10-23), the
+areas check the agreement like any other answer: the vault's required
+fields of types 7 and 9, a sheet past 16 KiB, an empty passphrase at
+create, and duplicate type 14 and type 10 records, all refused by both
+as `docs/VAULT.md` §7 and §8 now say; a BIP-39 sentence read in NFKD,
+so composed words and the Japanese vectors as published parse on both
+sides; a version 0 PSBT with a version 2 field, bytes after its last
+map or a taproot signature whose sighash byte is 0 refused, and every
+PSBT written back byte for byte as read (PSBT_OUT_TAP_TREE's order and
+a PSBT_GLOBAL_VERSION of 0 included); a version 2 PSBT's output
+without PSBT_OUT_SCRIPT (unless a silent payment's), invalid required
+locktimes and wrongly sized locktime fields and modifiable flags
+refused on reading.
 
 ## What the machine needs
 

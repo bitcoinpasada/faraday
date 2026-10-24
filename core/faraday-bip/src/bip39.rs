@@ -232,6 +232,14 @@ impl Language {
             .map(|i| i as u16)
     }
 
+    /// Index of the word whose NFKD form is exactly `word`'s bytes.
+    fn index_of_nfkd(self, word: &[u8]) -> Option<u16> {
+        let nfkd = self.words_nfkd();
+        (0..wordlists::WORDLIST_LEN)
+            .find(|&i| nfkd[i].as_bytes() == word)
+            .map(|i| i as u16)
+    }
+
     /// Indices of every word whose published form starts with `prefix`,
     /// in list order. Drives the predictive keyboard.
     pub fn candidates<'a>(self, prefix: &'a str) -> impl Iterator<Item = u16> + 'a {
@@ -676,23 +684,50 @@ impl Mnemonic {
         Ok(m)
     }
 
-    /// Costs a list lookup per word and a SHA-256 for the checksum:
-    /// parses a sentence split on Unicode whitespace (which includes the
+    /// Costs an NFKD normalization of the sentence, a list lookup per
+    /// word and a SHA-256 for the checksum: parses a sentence read in
+    /// NFKD, as BIP-39 requires, so a word typed composed (é, ぞ) is the
+    /// listed word, and split on Unicode whitespace (which includes the
     /// ideographic space U+3000). Reports the position of the first word
     /// not found in `lang`'s list, so a typo can be pointed at.
     pub fn parse(c: &Compute, lang: Language, sentence: &str) -> Result<Self, Error> {
+        use unicode_normalization::UnicodeNormalization;
         c.count(Work::WordsParse);
         let mut indices = Secret::new([0u16; MAX_WORDS]);
-        let mut count = 0usize;
-        for (position, word) in sentence.split_whitespace().enumerate() {
-            if position >= MAX_WORDS {
+        // The word being read, in NFKD; a word longer than any listed
+        // one is unknown (`long`), whatever follows.
+        let mut word = Secret::new([0u8; wordlists::MAX_NFKD_BYTES]);
+        let (mut len, mut long, mut count) = (0usize, false, 0usize);
+        // A space after the last character ends the last word.
+        for ch in sentence.nfkd().chain(core::iter::once(' ')) {
+            if !ch.is_whitespace() {
+                let mut utf8 = [0u8; 4];
+                let n = ch.encode_utf8(&mut utf8).len();
+                match word.expose_mut().get_mut(len..len + n) {
+                    Some(at) => {
+                        at.copy_from_slice(&utf8[..n]);
+                        len += n;
+                    }
+                    None => long = true,
+                }
+                utf8.zeroize();
+                continue;
+            }
+            if len == 0 && !long {
+                continue;
+            }
+            if count >= MAX_WORDS {
                 return Err(Error::InvalidWordCount);
             }
-            let idx = lang.index_of(word).ok_or(Error::UnknownWord {
-                position: position as u8,
-            })?;
-            indices.expose_mut()[position] = idx;
-            count = position + 1;
+            let idx = (!long)
+                .then(|| lang.index_of_nfkd(&word.expose()[..len]))
+                .flatten()
+                .ok_or(Error::UnknownWord {
+                    position: count as u8,
+                })?;
+            indices.expose_mut()[count] = idx;
+            count += 1;
+            (len, long) = (0, false);
         }
         Self::from_indices(lang, &indices.expose()[..count])
     }

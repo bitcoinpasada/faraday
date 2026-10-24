@@ -53,6 +53,7 @@ AREAS = {
     "tx": ("area_tx", "Tx", "tx.sighash"),
     "psbt": ("area_psbt", "Psbt", "psbt.v0"),
     "msg": ("area_msg", "Msg", "msg.sign"),
+    "own-randomness": ("area_own", "Own", "own.session"),
 }
 
 

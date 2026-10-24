@@ -18,7 +18,8 @@ against `tools/vectors/kdf/`'s known answer. Then:
 - The payload layouts of §7: words, seed and sheet, made and read, with
   every way a payload can be malformed.
 - A slot's plaintext (§7): random records of every type, encoded by both
-  and read by both, then malformed a byte or a rule at a time.
+  and read by both, then malformed a byte or a rule at a time; the slot
+  vectors of `tools/vectors/vault/slots.json`, written by hand from §7.
 - Whole vaults (§1 to §5, §8): `faraday_vault::create` reproduced byte
   for byte from its seed; every passphrase opens its own slot and only
   that one on both sides; a seal under a given nonce reproduced byte for
@@ -35,10 +36,11 @@ create"): the salt (32 bytes), then the permutation of the slots
 then each passphrase's nonce in order. `create` below draws the same
 way, so the whole file is compared.
 
-Where `docs/VAULT.md` and `faraday_vault` disagree, the reference keeps
-the document and `KNOWN` the code; a case where the two readings differ
-is compared with `KNOWN` instead, so each difference is checked to still
-hold exactly, and the README lists them.
+The reference is the document alone: where `docs/VAULT.md` and
+`faraday_vault` once read a vault differently (the required fields of
+types 7 and 9, a sheet past 16 KiB, an empty passphrase at create), the
+owner settled it in the document's words (2026-10-23), and both now
+agree.
 """
 
 import hashlib
@@ -163,9 +165,10 @@ def exact(n):
 
 # Type: {field: (required, repeatable, shape)}, as §7's table states.
 # "In each type the first field is required and every other field is
-# optional; type 10's field 2, type 12's fields 2 and 3 and type 14's
-# field 2 are also required." A field a type does not list refuses the
-# slot, as an unknown type does (the tables are read as complete).
+# optional; type 7's field 2, type 9's fields 2, 3 and 4, type 10's
+# field 2 and type 14's field 2 are also required." A field a type does
+# not list refuses the slot, as an unknown type does (the tables are read
+# as complete).
 SPEC = {
     1: {1: (True, False, text(64))},
     2: {1: (True, False, ("key",)), 2: (False, False, TEXT), 3: (False, False, exact(1)),
@@ -174,12 +177,12 @@ SPEC = {
     4: {1: (True, False, TEXT)},
     5: {1: (True, False, ("sheet",))},
     6: {n: (n == 1, False, TEXT) for n in range(1, 7)},
-    7: {1: (True, False, exact(32)), 2: (False, False, exact(4)), 3: (False, False, exact(32)),
+    7: {1: (True, False, exact(32)), 2: (True, False, exact(4)), 3: (False, False, exact(32)),
         4: (False, False, exact(4)), 5: (False, True, TEXT), 6: (False, False, exact(4)),
         7: (False, False, BYTES), 8: (False, False, BYTES), 9: (False, False, exact(4))},
     8: {1: (True, False, exact(16)), **{n: (False, False, BYTES) for n in range(2, 8)}},
-    9: {1: (True, False, exact(1)), 2: (False, False, exact(32)), 3: (False, False, exact(4)),
-        4: (False, False, BYTES), 5: (False, False, exact(1))},
+    9: {1: (True, False, exact(1)), 2: (True, False, exact(32)), 3: (True, False, exact(4)),
+        4: (True, False, BYTES), 5: (False, False, exact(1))},
     10: {1: (True, False, exact(32)), 2: (True, True, exact(8))},
     11: {1: (True, False, TEXT), 2: (False, False, TEXT), 3: (False, True, text(128)),
          4: (False, True, TEXT), 5: (False, True, TEXT), 6: (False, True, text(128))},
@@ -190,15 +193,6 @@ SPEC = {
     14: {1: (True, False, exact(4)), 2: (True, False, TEXT)},
 }
 
-# What faraday_vault does where it differs from §7 (README, "Known
-# differences"): a GPG key (7) requires field 2, its creation time; a
-# signing round (9) requires fields 2, 3 and 4; a sheet payload is read
-# whatever its length up to a field's 65,535 bytes, not refused past
-# 16 KiB.
-KNOWN = {k: dict(v) for k, v in SPEC.items()}
-KNOWN[7][2] = (True, False, exact(4))
-for _n in (2, 3, 4):
-    KNOWN[9][_n] = (True,) + SPEC[9][_n][1:]
 
 
 def words_payload_of(p):
@@ -217,10 +211,10 @@ def seed_payload_of(p):
     return {"seed": p[1:1 + p[0]].hex()}
 
 
-def sheet_payload_of(p, limit=MAX_SHEET):
-    """Three u16-length UTF-8 parts and nothing after; at most 16 KiB
-    (`limit` None: any length, as faraday_vault reads one)."""
-    if limit is not None and len(p) > limit:
+def sheet_payload_of(p):
+    """Three u16-length UTF-8 parts and nothing after; at most 16 KiB,
+    read as written."""
+    if len(p) > MAX_SHEET:
         return None
     parts, at = [], 0
     for _ in range(3):
@@ -239,17 +233,17 @@ def sheet_payload_of(p, limit=MAX_SHEET):
     return {"sheet": parts} if at == len(p) else None
 
 
-def payload_of(kind, p, known=False):
+def payload_of(kind, p):
     if kind == 1:
         return words_payload_of(p)
     if kind == 2:
         return seed_payload_of(p)
     if kind == 4:
-        return sheet_payload_of(p, None if known else MAX_SHEET)
+        return sheet_payload_of(p)
     return None
 
 
-def fits(shape, b, known):
+def fits(shape, b):
     kind = shape[0]
     if kind == "text":
         if len(b) > shape[1]:
@@ -266,18 +260,18 @@ def fits(shape, b, known):
     if kind == "key":
         return (words_payload_of(b) if len(b) == 34 else seed_payload_of(b)) is not None
     if kind == "sheet":
-        return payload_of(4, b, known) is not None
+        return payload_of(4, b) is not None
     raise AssertionError(shape)
 
 
-def check_record(kind, fields, known=False):
-    rules = (KNOWN if known else SPEC).get(kind)
+def check_record(kind, fields):
+    rules = SPEC.get(kind)
     if rules is None:
         raise Refused("Contents", f"unknown type {kind}")
     for n, b in fields:
         if n not in rules:
             raise Refused("Contents", f"type {kind} has no field {n}")
-        if not fits(rules[n][2], b, known):
+        if not fits(rules[n][2], b):
             raise Refused("Contents", f"type {kind} field {n}")
     for n, (required, repeat, _) in rules.items():
         count = sum(1 for m, _ in fields if m == n)
@@ -287,16 +281,24 @@ def check_record(kind, fields, known=False):
             raise Refused("Contents", f"type {kind} repeats field {n}")
 
 
-def check_labels(records):
+def check_across(records):
+    """§7's rules across records: at most one slot label, one passphrase
+    record (14) per key, one signed amounts record (10) per
+    transaction."""
     if sum(1 for k, _ in records if k == 1) > 1:
         raise Refused("Contents", "two slot labels")
+    for kind in (10, 14):
+        ids = [dict(fields)[1] for k, fields in records if k == kind]
+        if len(set(ids)) != len(ids):
+            raise Refused("Contents", f"two type {kind} records for one "
+                          + ("key" if kind == 14 else "transaction"))
 
 
-def encode(records, slot_len, known=False):
+def encode(records, slot_len):
     """A slot's plaintext: format 1, the records, the end record, zeros."""
     for k, fields in records:
-        check_record(k, fields, known)
-    check_labels(records)
+        check_record(k, fields)
+    check_across(records)
     out = bytearray([1])
     for k, fields in records:
         body = b"".join(bytes([n]) + len(b).to_bytes(2, "little") + b for n, b in fields)
@@ -307,7 +309,7 @@ def encode(records, slot_len, known=False):
     return bytes(out) + bytes(slot_len - len(out))
 
 
-def decode(plain, known=False):
+def decode(plain):
     if not plain or plain[0] != 1:
         raise Refused("Contents", "format")
     at, records = 1, []
@@ -336,11 +338,11 @@ def decode(plain, known=False):
                 raise Refused("Contents", "a field runs past its record")
             fields.append((body[p], body[p + 3:p + 3 + m]))
             p += 3 + m
-        check_record(k, fields, known)
+        check_record(k, fields)
         records.append((k, fields))
     if any(plain[at:]):
         raise Refused("Contents", "bytes after the end record")
-    check_labels(records)
+    check_across(records)
     return records
 
 
@@ -421,30 +423,31 @@ def open_slots(f, passphrase):
     return key, found[0]
 
 
-def ref_open(f, passphrase, known=False):
+def ref_open(f, passphrase):
     _, (_, plain) = open_slots(f, passphrase)
-    return {"records": as_json(decode(plain, known))}
+    return {"records": as_json(decode(plain))}
 
 
-def ref_seal(f, passphrase, records, nonce, known=False):
+def ref_seal(f, passphrase, records, nonce):
     key, (i, _) = open_slots(f, passphrase)
-    plain = encode(records, struct.unpack("<I", f[17:21])[0], known)
+    plain = encode(records, struct.unpack("<I", f[17:21])[0])
     out = bytearray(f)
     seal_slot(out, key, i, nonce, plain)
     return {"file": out.hex()}
 
 
-def ref_create(slot_len, cost, passphrases, contents, seed, known=False):
+def ref_create(slot_len, cost, passphrases, contents, seed):
     memory, passes, lanes = cost
     if slot_len not in SLOT_SIZES:
         raise Refused("SlotSize")
     check_cost(memory, passes, lanes)
+    # §8: one to four passphrases, none empty, no two equal.
     if not 1 <= len(passphrases) <= 4 or len(passphrases) != len(contents) \
-            or (known and any(not p for p in passphrases)):
+            or any(not p for p in passphrases):
         raise Refused("Passphrases")
     if len(set(passphrases)) != len(passphrases):
         raise Refused("SamePassphrase")
-    plains = [encode(c, slot_len, known) for c in contents]
+    plains = [encode(c, slot_len) for c in contents]
     key = hkdf_sha256(seed, b"", CREATE_INFO, 32)[1]
     stream = chacha20_stream(key, 32 + 64 + file_len(slot_len) + 24 * 4)
     at = 0
@@ -549,29 +552,15 @@ class Vault(Area):
                                                 "aad": aad.hex(), "ciphertext": ct.hex(),
                                                 "tag": tag.hex()}, ref, expected)
 
-    def two_readings(self, op, inputs, fn, normalize):
-        """Compares with §7's reading, or, where `faraday_vault` reads
-        the case otherwise (a known difference), with its reading."""
-        spec = normalize(_try(lambda: fn(False)))
-        known = normalize(_try(lambda: fn(True)))
-        if spec == known:
-            return self.compare(op, inputs, lambda: fn(False), normalize=normalize)
-        rust = normalize(self.rust.call(op, **inputs))
-        self.compared += 1
-        self.known += 1
-        if rust != known:
-            raise Mismatch(self.name, op, inputs, rust, spec,
-                           f"a known difference no longer holds; faraday_vault was {known}")
-        return rust
-
     def encode(self, records, slot_len):
-        return self.two_readings(
-            "vault.encode", {"contents": as_json(records), "slot_len": slot_len},
-            lambda k: {"plain": encode(records, slot_len, k).hex()}, refusal)
+        return self.compare("vault.encode", {"contents": as_json(records), "slot_len": slot_len},
+                            lambda: {"plain": encode(records, slot_len).hex()},
+                            normalize=refusal)
 
-    def decode(self, plain):
-        return self.two_readings("vault.decode", {"plain": plain.hex()},
-                                 lambda k: {"records": as_json(decode(plain, k))}, _okerr)
+    def decode(self, plain, expected=None):
+        return self.compare("vault.decode", {"plain": plain.hex()},
+                            lambda: {"records": as_json(decode(plain))}, expected,
+                            normalize=_okerr)
 
     def payload(self, kind, p):
         def ref():
@@ -579,16 +568,6 @@ class Vault(Area):
             if out is None:
                 raise Refused("not that layout")
             return out
-        known = payload_of(kind, p, True)
-        if known != payload_of(kind, p):
-            rust = self.rust.call("vault.payload_of", kind=kind, payload=p.hex())
-            self.compared += 1
-            self.known += 1
-            if rust != ("ok", known):
-                raise Mismatch(self.name, "vault.payload_of", {"kind": kind, "payload": p.hex()},
-                               rust, _try(ref), "the known difference (sheets past 16 KiB) "
-                               "no longer holds")
-            return rust
         return self.compare("vault.payload_of", {"kind": kind, "payload": p.hex()}, ref)
 
     def create(self, slot_len, cost, passphrases, contents, seed):
@@ -597,7 +576,7 @@ class Vault(Area):
             {"slot_len": slot_len, "memory_kib": cost[0], "passes": cost[1], "lanes": cost[2],
              "passphrases": [p.hex() for p in passphrases],
              "contents": [as_json(c) for c in contents], "seed": seed.hex()},
-            lambda: ref_create(slot_len, cost, passphrases, contents, seed, True),
+            lambda: ref_create(slot_len, cost, passphrases, contents, seed),
             normalize=file_summary)
 
     def open(self, f, passphrase, expected=None):
@@ -650,7 +629,7 @@ class Vault(Area):
         rng = self.rng
         kind = kind or rng.choice(sorted(SPEC))
         fields = []
-        for n, (required, repeat, shape) in KNOWN[kind].items():
+        for n, (required, repeat, shape) in SPEC[kind].items():
             if required or rng.random() < 0.5:
                 for _ in range(rng.randint(2, 3) if repeat and rng.random() < 0.3 else 1):
                     fields.append((n, self.field_value(shape)))
@@ -668,7 +647,17 @@ class Vault(Area):
         done, as a plaintext."""
         rng = self.rng
         plain = bytearray(encode(records, _used(records)))
-        how = rng.randrange(9)
+        how = rng.randrange(10)
+        if how == 9:
+            # A second passphrase record for a key, or a second signed
+            # amounts record for a transaction, among the others.
+            kind = rng.choice([10, 14])
+            k, fields = self.record(kind)
+            twin = self.record(kind)
+            twin = (kind, [(n, dict(fields)[1] if n == 1 else b) for n, b in twin[1]])
+            records = list(records) + [(k, fields)]
+            records.insert(rng.randrange(len(records) + 1), twin)
+            return bytes(raw_encode(records)), "rule 9"
         if how == 0 or not records:
             plain[0] = rng.choice([0, 2, 255])
         elif how == 1:
@@ -775,11 +764,11 @@ class Vault(Area):
         self.payload(kind, bytes(p))
 
     def big_sheet(self):
-        """A sheet payload past 16 KiB, which §7 refuses and faraday_vault
-        reads (a known difference), as a payload and inside a record."""
+        """A sheet payload past 16 KiB, which §7 caps: refused by both, as
+        a payload and inside a record."""
         p = (20000).to_bytes(2, "little") + b"d" * 20000 + bytes(4)
         self.payload(4, p)
-        self.decode(encode([(5, [(1, p)])], _used([(5, [(1, p)])]), True))
+        self.decode(bytes(raw_encode([(5, [(1, p)])])), ("err", None))
 
     def vault_case(self, slot_len=65536):
         rng = self.rng
@@ -812,9 +801,7 @@ class Vault(Area):
         # Contents §7 refuses, sealed under the right key by the reference.
         bad, _ = self.malformed(self.records(3) or [self.record()])
         bad += bytes(max(0, slot_len - len(bad)))
-        # Outside the known differences, which `decode` checks.
-        if len(bad) == slot_len and _okerr(_try(lambda: decode(bad))) == _okerr(
-                _try(lambda: decode(bad, True))):
+        if len(bad) == slot_len:
             self.open(self.with_plain(f, p, bad), p)
 
     def faulty(self, f):
@@ -874,32 +861,40 @@ class Vault(Area):
                 self.open(f, p.encode())
             self.open(f, b"fourth passphrase")
 
-    def known_differences(self):
-        """Faraday refuses an empty passphrase when it makes a vault; §8
-        does not say. The other differences are met by the corpus and
-        checked as they come (`two_readings`, `payload`)."""
-        args = (65536, (8192, 1, 1), [b""], [[]], bytes(32))
-        rust = self.rust.call("vault.create", slot_len=65536, memory_kib=8192, passes=1, lanes=1,
-                              passphrases=[""], contents=[[]], seed=bytes(32).hex())
-        ref = _try(lambda: ref_create(*args))
-        if rust[0] != "err" or ref[0] != "ok":
-            raise Mismatch(self.name, "vault.create", {"passphrases": [""]}, rust, ref,
-                           "the known difference (an empty passphrase) no longer holds")
-        self.known += 1
-        # The retired type 12 (an APK key's fields as it held them):
-        # refused by both, read or written.
+    def settled(self):
+        """The rules the owner settled in §7 and §8 (2026-10-23), which
+        both now hold: an empty passphrase refused at create, alone or
+        among others; the retired type 12 refused, read or written; a
+        GPG key without field 2 and a signing round without field 2, 3
+        or 4 refused; a sheet past 16 KiB refused; two passphrase records
+        for one key and two signed amounts records for one transaction
+        refused; and the slot vectors of `tools/vectors/vault/slots.json`
+        read as the file says."""
+        for passphrases in ([b""], [b"one", b""]):
+            self.create(65536, (8192, 1, 1), passphrases, [[] for _ in passphrases], bytes(32))
         apk = [(12, [(1, b"\x30\x00"), (2, b"\x30\x00"), (3, b"app.example")])]
-        self.decode(bytes(raw_encode(apk)))
+        self.decode(bytes(raw_encode(apk)), ("err", None))
         self.encode(apk, _used(apk))
         for kind, fields in [(7, [(1, bytes(32))]), (9, [(1, b"\x01")]),
                              (9, [(1, b"\x02"), (2, bytes(32)), (3, bytes(4))])]:
-            self.decode(encode([(kind, fields)], _used([(kind, fields)])))
+            self.decode(bytes(raw_encode([(kind, fields)])), ("err", None))
+            self.encode([(kind, fields)], _used([(kind, fields)]))
         self.big_sheet()
+        for twins in ([(14, [(1, b"fpfp"), (2, b"a")]), (14, [(1, b"fpfp"), (2, b"b")])],
+                      [(10, [(1, bytes(32)), (2, bytes(8))]),
+                       (10, [(1, bytes(32)), (2, bytes(8)), (2, bytes(8))])]):
+            self.decode(bytes(raw_encode(twins)), ("err", None))
+            self.encode(twins, _used(twins))
+        for case in json.loads((ROOT / "tools/vectors/vault/slots.json").read_text())["cases"]:
+            want = ("ok", None) if case["expect"] == "ok" else ("err", None)
+            got = self.decode(bytes.fromhex(case["plain"]), None)
+            if _okerr(got)[0] != want[0]:
+                raise Mismatch(self.name, "vault.decode", {"case": case["case"]}, got, want,
+                               "both differ from tools/vectors/vault/slots.json")
 
     def run(self):
-        self.known = 0
         self.published()
-        self.known_differences()
+        self.settled()
         rng = self.rng
         for _ in range(self.cases(40)):
             lanes = rng.choice([1, 1, 2, 4])
@@ -954,13 +949,6 @@ def raw_encode(records):
         out += bytes([k]) + len(body).to_bytes(4, "little") + body
     out.append(0)
     return out
-
-
-def _try(fn):
-    try:
-        return ("ok", fn())
-    except Exception as e:  # noqa: BLE001 - every refusal is a refusal
-        return ("err", f"{type(e).__name__}: {e}")
 
 
 def _okerr(answer):

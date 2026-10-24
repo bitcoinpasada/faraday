@@ -18,6 +18,12 @@ faraday-entropy = { path = "../../core/faraday-entropy" }
 faraday-backup = { path = "../../core/faraday-backup" }
 faraday-psbt = { path = "../../core/faraday-psbt" }
 faraday-vault = { path = "../../faraday/faraday-vault" }
+# The session's fresh randomness and what a person adds of their own
+# (`fresh.rs`, docs/OWN-RANDOMNESS.md §2.3), driven through the testkit
+# as the app's tests drive it; never in a shipped binary, as this
+# command is not one.
+faraday-core = { path = "../../faraday/faraday-core", features = ["testkit"] }
+faraday-shell-api = { path = "../../core/faraday-shell-api" }
 # The token that counts nothing (docs/COMPUTE.md §3): this command is a
 # test, and `tools/lint-unchecked.sh` keeps the feature out of every
 # shipped binary.

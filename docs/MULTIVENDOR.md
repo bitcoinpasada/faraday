@@ -186,11 +186,11 @@ parallel. Secrets in the cross-check are test data only.
 Each run has a time budget, and each area's corpus is sized to fit it,
 so adding an area does not lengthen the run much.
 
-- The stamp run, all fifteen areas in parallel on the build machine
-  (2026-10-23, shared with other work): 184 s, the slowest area MuSig2
-  at 181 s; the batch 2 to 4 areas 27 to 160 s each (vault 61 s, of
-  which 26 whole vaults at 8 MiB of Argon2id; BIP-39 144 s; signed
-  messages 160 s). Pure-Python curve arithmetic takes about 5 to 30 ms
+- The stamp run, all sixteen areas in parallel on the build machine
+  (2026-10-23, shared with other work): 204 s, the slowest area MuSig2
+  at 200 s; the batch 2 to 4 areas 29 to 152 s each (vault 48 s, of
+  which 26 whole vaults at 8 MiB of Argon2id; BIP-39 96 s; signed
+  messages 152 s); own randomness 9 s. Pure-Python curve arithmetic takes about 5 to 30 ms
   an operation, so an area gets a few thousand random cases.
 - The run before a release: about ten times the cases, estimated at 30
   to 60 minutes.
@@ -236,6 +236,10 @@ The cross-check fetches nothing, ever.
    nonces and sighashes are checked separately but not the signed PSBT;
    taproot outputs with script trees (BIP-341's `scriptPubKey` vectors);
    and miniscript's scripts and satisfactions. Not scheduled.
+5. Randomness a person adds of their own, mixed into the session's
+   (`docs/OWN-RANDOMNESS.md` §2.3): the accumulator, the reseeding, the
+   pool's and the seed's draws and the lock, over fixed system answers.
+   Built (area `own-randomness`).
 
 ### 10.6 What it does not catch
 

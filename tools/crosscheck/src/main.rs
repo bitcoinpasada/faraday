@@ -23,6 +23,7 @@ mod frost;
 mod json;
 mod msg;
 mod musig;
+mod own;
 mod psbt;
 mod silent;
 mod slip39;
@@ -55,6 +56,7 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "xor" => xor::handle(name, req),
         "sp" => silent::handle(name, req),
         "vault" => vault::handle(name, req),
+        "own" => own::handle(name, req),
         _ => Err(format!("unknown area {area}")),
     }
 }

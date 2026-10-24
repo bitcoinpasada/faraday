@@ -6,9 +6,13 @@
 //!   Russian and Turkish, which BIP-39 does not list; they are skipped).
 //! - `tools/vectors/bip39/test_JP_BIP39.json`: the bip32JP Japanese
 //!   vectors. Their words are written in NFC (precomposed dakuten) while the
-//!   published wordlist is NFKD, so sentences are NFKD-normalized before
-//!   parsing; the passphrase is not ASCII and so goes through the test-only
-//!   `to_seed_unchecked` in NFKD form.
+//!   published wordlist is NFKD; `Mnemonic::parse` reads a sentence in
+//!   NFKD, as BIP-39 requires, so they parse as published. The passphrase
+//!   is not ASCII and so goes through the test-only `to_seed_unchecked` in
+//!   NFKD form.
+//!
+//! Every vector's sentence is also parsed as published, composed (NFC) as
+//! most keyboards type it, and in NFKD: all three are the same words.
 
 use crate::common::{hex, sentence, unhex};
 use faraday_bip::bip39::{Language, Mnemonic};
@@ -60,6 +64,13 @@ fn check_vector(
     assert_eq!(parsed.indices(), from_entropy.indices());
     let parsed_display = Mnemonic::parse(&c, lang, &ours).unwrap();
     assert_eq!(parsed_display.indices(), from_entropy.indices());
+    // As published, and composed as most keyboards type it: BIP-39 reads
+    // the sentence in NFKD.
+    for typed in [mnemonic.to_string(), mnemonic.nfc().collect::<String>()] {
+        let p = Mnemonic::parse(&c, lang, &typed)
+            .unwrap_or_else(|e| panic!("{}: {typed}: {e:?}", lang.name()));
+        assert_eq!(p.indices(), from_entropy.indices(), "{}", lang.name());
+    }
     assert_eq!(parsed.word_count(), entropy.len() * 3 / 4);
     assert_eq!(parsed.language(), lang);
     assert_eq!(
@@ -147,5 +158,44 @@ fn japanese_passphrase_is_rejected_by_public_api() {
     assert_eq!(
         m.to_seed(&c, JP_PASSPHRASE.as_bytes()).err(),
         Some(faraday_bip::bip39::Error::PassphraseNotAscii)
+    );
+}
+
+#[test]
+fn a_sentence_is_read_in_nfkd_whatever_form_it_is_typed_in() {
+    let c = Compute::unchecked();
+    let abandon = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about";
+    let want = Mnemonic::parse(&c, Language::English, abandon).unwrap();
+    // Full-width letters and no-break spaces are, in NFKD, the words and
+    // spaces (python-mnemonic reads them so).
+    let wide: String = abandon
+        .chars()
+        .map(|ch| match ch {
+            ' ' => '\u{a0}',
+            ch => char::from_u32(ch as u32 - 0x61 + 0xff41).unwrap(),
+        })
+        .collect();
+    let got = Mnemonic::parse(&c, Language::English, &wide).unwrap();
+    assert_eq!(got.indices(), want.indices());
+    // A French sentence with an accent: composed and decomposed are the
+    // listed words.
+    let french = (0..=255u8)
+        .map(|b| Mnemonic::from_entropy(Language::French, &[b; 16]).unwrap())
+        .find(|m| !sentence(Language::French, m.indices()).is_ascii())
+        .expect("a sentence with an accent");
+    let typed = sentence(Language::French, french.indices());
+    let composed: String = typed.nfc().collect();
+    let decomposed: String = typed.nfkd().collect();
+    assert_ne!(composed, decomposed);
+    for typed in [&composed, &decomposed] {
+        let got = Mnemonic::parse(&c, Language::French, typed).unwrap();
+        assert_eq!(got.indices(), french.indices());
+    }
+    // A word that is none in any form is still refused, at its position.
+    let mut words: Vec<&str> = composed.split(' ').collect();
+    words[2] = "\u{e9}t\u{e9}x";
+    assert_eq!(
+        Mnemonic::parse(&c, Language::French, &words.join(" ")).err(),
+        Some(faraday_bip::bip39::Error::UnknownWord { position: 2 })
     );
 }

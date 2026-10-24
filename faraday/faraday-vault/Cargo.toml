@@ -30,5 +30,9 @@ hmac = { workspace = true }
 # `faraday-pgp` already uses, so no new crate enters the tree.
 sha1 = { version = "0.11", default-features = false }
 
+[dev-dependencies]
+# The slot vectors' file (tools/vectors/vault/slots.json).
+serde_json.workspace = true
+
 [lints]
 workspace = true

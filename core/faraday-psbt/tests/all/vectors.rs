@@ -64,11 +64,10 @@ fn bip174_round_trips_and_rejections() {
     assert_eq!((valid, invalid, signer_fails), (10, 20, 4));
 }
 
-/// Every role vector parses and re-serialises identically, except the
-/// combiner output: the BIP lists its two partial signatures in the order
-/// Core inserted them (`03…` before `02…`), while `bitcoin` serialises
-/// every map sorted by key. BIP-174 does not mandate an order, so that
-/// vector is compared after parsing.
+/// Every role vector parses and is written back byte for byte, the
+/// combiner output too: the BIP lists its two partial signatures in the
+/// order Core inserted them (`03…` before `02…`), which `bitcoin` alone
+/// would write sorted, and a PSBT read is written back as it was read.
 #[test]
 fn bip174_role_vectors_round_trip() {
     let c = Compute::unchecked();
@@ -85,12 +84,8 @@ fn bip174_role_vectors_round_trip() {
         );
         let again = psbt.to_bytes();
         assert_eq!(Psbt::parse_bytes(&c, &again).unwrap(), psbt, "{case}");
-        if case == "role combiner" {
-            assert_ne!(again, bytes, "unsorted vector, see doc comment");
-        } else {
-            assert_eq!(again, bytes, "{case}");
-            assert_eq!(psbt.to_base64(), rec.get("base64"), "{case}");
-        }
+        assert_eq!(again, bytes, "{case}");
+        assert_eq!(psbt.to_base64(), rec.get("base64"), "{case}");
         n += 1;
     }
     assert_eq!(n, 10);

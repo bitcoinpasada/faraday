@@ -13,8 +13,9 @@
 //!   UTF-8, in that order.
 //! - Note: its UTF-8 bytes.
 //!
-//! Every pad byte must be zero and every length must fit, or the bytes
-//! are not that layout and [`payload_of`] gives `None`.
+//! Every pad byte must be zero, every length must fit and a sheet is at
+//! most [`MAX_PAYLOAD`], or the bytes are not that layout and
+//! [`payload_of`] gives `None`.
 //!
 //! This file is listed in `tools/lint-secrets.sh` and may hold no heap
 //! text.
@@ -177,8 +178,13 @@ fn text_of(bytes: &[u8]) -> Option<Zeroizing<Vec<u8>>> {
     Some(out)
 }
 
-/// The three parts a [`KIND_SHEET`] payload holds.
+/// The three parts a [`KIND_SHEET`] payload holds. A payload past
+/// [`MAX_PAYLOAD`] is not one, as §7 caps it and [`sheet_payload`]
+/// writes none.
 fn sheet_of(payload: &[u8]) -> Option<Opened> {
+    if payload.len() > MAX_PAYLOAD {
+        return None;
+    }
     let mut at = 0usize;
     let mut parts: [Option<Zeroizing<Vec<u8>>>; 3] = [None, None, None];
     for part in &mut parts {

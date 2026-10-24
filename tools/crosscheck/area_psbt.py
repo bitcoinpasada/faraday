@@ -12,25 +12,27 @@ inside and the curve of `btc.py` for the keys.
   (previous transactions and outputs, partial signatures, sighash types,
   scripts, BIP-32 and taproot key origins, final scripts, taproot key
   signatures, internal keys and merkle roots, global xpubs, unknown and
-  proprietary pairs): written back by Faraday with every key-value pair
-  of every map unchanged, and the unsigned transaction's txid. Then the
+  proprietary pairs, taproot trees): written back by Faraday byte for
+  byte as read, and the unsigned transaction's txid. Then the
   same PSBT broken one rule at a time: a key twice in a map, key data on
   a field that takes none, a key of the wrong length, a value of the
   wrong size, a scriptSig or witness in the unsigned transaction, a map
   too few or too many, bytes after the last map, a short stream, the
   magic changed.
-- Random version 2 PSBTs: every pair written back, and the transaction
-  and locktime BIP-370 gives, under every mix of required time and
-  height locktimes.
+- Random version 2 PSBTs: written back byte for byte, and the
+  transaction and locktime BIP-370 gives, under every mix of required
+  time and height locktimes.
 
-A reading is compared as its maps: the key-value pairs of each map as a
-set, since the BIPs leave the order of keys to the writer.
+A reading is compared as its maps (the key-value pairs of each map as a
+set, since the BIPs leave the order of keys to the writer), and
+Faraday's writing must be the bytes it read: a field it does not change
+is written back as read (owner, 2026-10-23).
 
-Where Faraday reads what the BIPs refuse, the case is a known difference
-(`LENIENT`), checked to still hold exactly, and listed in the README.
+Where Faraday's version 2 reader takes what the BIPs refuse, the case is
+a known difference (`LENIENT`), checked to still hold exactly, and
+listed in the README.
 """
 
-import hashlib
 import io
 import json
 
@@ -197,8 +199,6 @@ def schnorr_sig(b):
         return
     if len(b) == 65 and b[64] in (1, 2, 3, 0x81, 0x82, 0x83):
         return
-    if LENIENT[0] and len(b) == 65 and b[64] == 0:
-        return
     raise Refused("not a taproot signature")
 
 
@@ -323,34 +323,33 @@ LENIENT = [False]
 
 
 def _at_least(v, low):
-    if not LENIENT[0] and int.from_bytes(v, "little") < low:
+    if int.from_bytes(v, "little") < low:
         raise Refused("a time locktime below 500000000")
 
 
 def _height(v):
-    if not LENIENT[0] and not 0 < int.from_bytes(v, "little") < 500_000_000:
+    if not 0 < int.from_bytes(v, "little") < 500_000_000:
         raise Refused("a height locktime of 0 or past 499999999")
 
 
 def check_map(pairs, table, version):
     """Each pair against its field's rule. Read as Faraday reads a
-    version 2 PSBT (`LENIENT`), only BIP-370's fields are checked, and
-    of those the fallback locktime, the modifiable flags and the
-    required locktimes only when the locktime is worked out."""
+    version 2 PSBT (`LENIENT`), BIP-370's fields are checked, and of
+    BIP-174's and BIP-371's only that a taproot signature's sighash byte
+    is not 0; the others are checked when it is bridged to version 0."""
     for k, v in pairs:
         rule = table.get(k[0])
         if rule is None:
             continue
         if not rule[version == 2]:
-            if LENIENT[0] and version == 0:
-                continue
             raise Refused(f"field {k[0]:#x} in a version {version} PSBT")
-        late = (table is GLOBAL and k[0] in (0x03, 0x06)) or (table is INPUT and k[0] in (0x11, 0x12))
-        # Faraday's version 2 reader takes a BIP-370 key with key data
-        # for another, unknown, key.
-        if LENIENT[0] and version == 2 and (rule[0] or late or len(k) != 1):
-            # Faraday's version 2 reader checks BIP-370's own fields;
-            # the others are read when it is bridged to version 0.
+        if LENIENT[0] and version == 2 and (rule[0] or len(k) != 1):
+            # Faraday's version 2 reader takes a BIP-370 key with key
+            # data for another, unknown, key, and reads BIP-174's fields
+            # when it is bridged to version 0, but for BIP-341's zero
+            # sighash byte.
+            if table is INPUT and (k == b"\x13" or k[0] == 0x14) and len(v) == 65 and v[64] == 0:
+                raise Refused("a taproot signature with a sighash byte of 0")
             continue
         rule[2](k, v)
 
@@ -381,7 +380,7 @@ def ref_v0(raw):
             m, at = read_map(raw, at)
             check_map(m, table, 0)
             maps.append(m)
-    if at != len(raw) and not LENIENT[0]:
+    if at != len(raw):
         raise Refused("bytes after the last map")
     return {"maps": canonical([glob] + maps), "txid": tx.txid_hex}
 
@@ -390,14 +389,8 @@ def locktime(inputs, glob):
     """BIP-370's locktime determination."""
     stated = [(get(m, 0x12), get(m, 0x11)) for m in inputs]
     stated = [(h, t) for h, t in stated if h is not None or t is not None]
-    # Read as Faraday reads them (`LENIENT`), a size BIP-370 refuses on
-    # reading leaves the locktime undetermined.
-    if any(x is not None and len(x) != 4 for pair in stated for x in pair):
-        return None
     if not stated:
         f = get(glob, 0x03)
-        if f is not None and len(f) != 4:
-            return None
         return int.from_bytes(f, "little") if f is not None else 0
     if all(h is not None for h, _ in stated):
         return max(int.from_bytes(h, "little") for h, _ in stated)
@@ -431,7 +424,9 @@ def ref_v2(raw):
     for _ in range(n_out):
         m, at = read_map(raw, at)
         check_map(m, OUTPUT, 2)
-        if get(m, 0x03) is None or (get(m, 0x04) is None and not LENIENT[0]):
+        # BIP-375: a silent payment output (PSBT_OUT_SP_V0_INFO) has no
+        # script until the shares give it.
+        if get(m, 0x03) is None or (get(m, 0x04) is None and get(m, 0x09) is None):
             raise Refused("an output without its amount or script")
         outputs.append(m)
     if at != len(raw):
@@ -454,23 +449,17 @@ def ref_v2(raw):
 
 
 def canonical(maps):
-    return [sorted([k.hex(), _as_written(k, v).hex()] for k, v in m) for m in maps]
+    return [sorted([k.hex(), v.hex()] for k, v in m) for m in maps]
 
 
-def _as_written(k, v):
-    """Read as Faraday reads it (`LENIENT`), a taproot signature with an
-    explicit sighash byte of 0 is written back as its 64 bytes."""
-    if LENIENT[0] and k[:1] in (b"\x13", b"\x14") and len(v) == 65 and v[64] == 0:
-        return v[:64]
-    return v
-
-
-def answer_maps(answer, version):
-    """Faraday's answer with its written bytes read back into maps."""
+def answer_maps(answer, version, read):
+    """Faraday's answer with its written bytes read back into maps, and
+    whether they are the bytes it read."""
     if answer[0] != "ok":
         return ("err", None)
     out = dict(answer[1])
     raw = bytes.fromhex(out.pop("bytes"))
+    out["as_read"] = raw == read
     try:
         glob, at = read_map(raw, 5)
         n_in = n_out = 0
@@ -493,18 +482,15 @@ def answer_maps(answer, version):
 def ref_answer(answer):
     if answer[0] != "ok":
         return answer
-    return ("ok", dict(answer[1], trailing=""))
+    return ("ok", dict(answer[1], trailing="", as_read=True))
 
 
 # Where Faraday reads a PSBT otherwise than the BIPs (README, "Known
-# differences"), `LENIENT` reads it as Faraday does: a version 0 PSBT
-# (through `bitcoin`) keeps a version 2 field as an unknown pair and
-# drops bytes after its last map; a version 2 PSBT (Faraday's own reader)
-# takes an output without PSBT_OUT_SCRIPT (BIP-375 allows that only for a
-# silent payment output) and a required time locktime below 500000000 or
-# a required height locktime of 0 or from 500000000; both read a taproot
-# signature of 65 bytes whose sighash byte is 0, which BIP-341 makes
-# invalid, and version 0 writes it back as 64 bytes.
+# differences"), `LENIENT` reads it as Faraday does: a version 2 PSBT
+# (Faraday's own reader) takes a BIP-370 key with key data for an
+# unknown key, and checks BIP-174's and BIP-371's fields inside only when
+# it is bridged to version 0 (but for a taproot signature whose sighash
+# byte is 0, which it refuses on reading).
 
 
 class Psbt(Area):
@@ -515,18 +501,15 @@ class Psbt(Area):
         PSBT otherwise (`LENIENT`), with Faraday's reading."""
         op = f"psbt.v{version}"
         inputs = {"psbt": raw.hex()}
-        rust = answer_maps(self.rust.call(op, **inputs), version)
+        rust = answer_maps(self.rust.call(op, **inputs), version, raw)
         ref, known = (ref_answer(_try(lambda: (ref_v0 if version == 0 else ref_v2)(raw), lenient))
                       for lenient in (False, True))
         self.compared += 1
         if ref != known and _okerr(ref) != _okerr(known):
             self.known += 1
-            if not rewritten(rust, known) and rust != known:
+            if rust != known:
                 raise Mismatch(self.name, op, inputs, rust, ref,
                                f"a known difference no longer holds; Faraday's reading is {known}")
-            return rust
-        if rewritten(rust, ref):
-            self.known += 1
             return rust
         if _okerr(rust) != _okerr(ref) or (rust[0] == "ok" and rust[1] != ref[1]):
             raise Mismatch(self.name, op, inputs, rust, ref)
@@ -595,6 +578,23 @@ class Psbt(Area):
         return (b"\xfc" + ser_compact(len(ident)) + ident + ser_compact(rng.randint(0, 300))
                 + self.randbytes(rng.randint(0, 8)), self.randbytes(rng.randint(0, 40)))
 
+    def tap_tree(self):
+        """A BIP-371 PSBT_OUT_TAP_TREE: the leaves of a random complete
+        binary tree of 1 to 6 leaves, depth first, each its depth, leaf
+        version 0xc0 and a script."""
+        rng = self.rng
+
+        def leaves(n, depth):
+            if n == 1:
+                return [depth]
+            left = rng.randint(1, n - 1)
+            return leaves(left, depth + 1) + leaves(n - left, depth + 1)
+        out = b""
+        for depth in leaves(rng.randint(1, 6), 0):
+            script = self.randbytes(rng.randint(1, 40))
+            out += bytes([depth, 0xc0]) + ser_compact(len(script)) + script
+        return out
+
     def random_v0(self):
         rng = self.rng
         tx = CTransaction()
@@ -651,8 +651,11 @@ class Psbt(Area):
                 m.append((b"\x02" + self.key(), self.origin()))
             if rng.random() < 0.2:
                 m.append((b"\x05", self.key()[1:]))
+            if rng.random() < 0.2:
+                m.append((b"\x06", self.tap_tree()))
             if rng.random() < 0.1:
                 m.append(self.unknown("out"))
+            rng.shuffle(m)
             outputs.append(m)
         glob = [(b"\x00", tx.serialize_without_witness())]
         if rng.random() < 0.2:
@@ -774,59 +777,6 @@ def _says_v2(raw):
         return False
     v = get(glob, 0xfb)
     return v is not None and int.from_bytes(v, "little") == 2
-
-
-def tap_root(v):
-    """The Merkle root of a PSBT_OUT_TAP_TREE: its depth-first leaves
-    folded back into branches (BIP-341's TapLeaf and TapBranch)."""
-    stack, at = [], 0
-    while at < len(v):
-        depth, version = v[at], v[at + 1]
-        n, at = compact(v, at + 2)
-        script = v[at:at + n]
-        at += n
-        node = _tagged("TapLeaf", bytes([version]) + ser_compact(len(script)) + script)
-        while stack and stack[-1][0] == depth:
-            _, other = stack.pop()
-            node = _tagged("TapBranch", b"".join(sorted([other, node])))
-            depth -= 1
-        stack.append((depth, node))
-    return stack[0][1].hex() if len(stack) == 1 and stack[0][0] == 0 else None
-
-
-def _tagged(tag, msg):
-    t = hashlib.sha256(tag.encode()).digest()
-    return hashlib.sha256(t + t + msg).digest()
-
-
-def rewritten(rust, ref):
-    """Whether Faraday wrote the PSBT back other than read in the two
-    ways it does (known differences): PSBT_OUT_TAP_TREE's leaves in
-    another depth-first order of the same tree, and a PSBT_GLOBAL_VERSION
-    of 0 left out."""
-    return (rust[0] == "ok" and ref[0] == "ok" and rust[1] != ref[1]
-            and tree_roots(rust[1]) == tree_roots(without_v0(ref[1])))
-
-
-def without_v0(answer):
-    """The answer without a PSBT_GLOBAL_VERSION of 0 in its global map."""
-    if not isinstance(answer.get("maps"), list):
-        return answer
-    glob = [p for p in answer["maps"][0] if p != ["fb", "00000000"]]
-    return dict(answer, maps=[glob] + answer["maps"][1:])
-
-
-def tree_roots(answer):
-    """The answer with each PSBT_OUT_TAP_TREE replaced by its root."""
-    def root(v):
-        try:
-            return tap_root(bytes.fromhex(v))
-        except (IndexError, Refused):
-            return v
-    if not isinstance(answer.get("maps"), list):
-        return answer
-    maps = [[[k, root(v) if k == "06" else v] for k, v in m] for m in answer["maps"]]
-    return dict(answer, maps=maps)
 
 
 def _try(fn, lenient):

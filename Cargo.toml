@@ -127,6 +127,12 @@ rqrr = { path = "third_party/rqrr", default-features = false }
 # graph; no other crate enters it.
 lzma-rust2 = { version = "0.22", default-features = false, features = ["std", "xz"] }
 
+# NFKD of a typed BIP-39 sentence before its words are matched, as BIP-39
+# requires (`faraday_bip::bip39::Mnemonic::parse`;
+# docs/deps/unicode-normalization.md). no_std with `alloc`; the tests and
+# tools that wrote NFKD forms before use the same crate.
+unicode-normalization = { version = "0.1", default-features = false }
+
 # Rendering (§4.3, §16.3): pure Rust, no_std with `no-std-float` (libm).
 tiny-skia = { version = "0.12", default-features = false, features = ["no-std-float"] }
 
@@ -153,7 +159,6 @@ cc = "1"
 # Dev-dependencies (test-only; never in a release binary).
 bip39 = { version = "2.2", default-features = false, features = ["all-languages", "zeroize"] }
 serde_json = "1.0"
-unicode-normalization = "0.1"
 
 [workspace.lints.rust]
 unsafe_code = "forbid"

@@ -72,9 +72,10 @@ fn parse_args() -> Result<Args, String> {
 }
 
 /// NFKD form of typed text, so a precomposed "á" matches the wordlists,
-/// which are stored decomposed. The core avoids Unicode tables (its
-/// keyboard only offers listed words); this demo takes free text and so
-/// uses the test-only `unicode-normalization` crate.
+/// which are stored decomposed. `Mnemonic::parse` reads a sentence in
+/// NFKD itself; this demo also looks words up one at a time
+/// (`Language::index_of`, which takes the stored form), so it normalizes
+/// first with the same `unicode-normalization` crate.
 fn nfkd(text: &str) -> String {
     text.nfkd().collect()
 }

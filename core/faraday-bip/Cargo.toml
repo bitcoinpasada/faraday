@@ -13,13 +13,14 @@ faraday-crypto = { path = "../faraday-crypto" }
 zeroize.workspace = true
 bitcoin.workspace = true
 miniscript.workspace = true
+# A typed sentence is read in NFKD, as BIP-39 requires.
+unicode-normalization.workspace = true
 
 [dev-dependencies]
 # A token that counts nothing, for the tests (docs/COMPUTE.md §3).
 faraday-crypto = { path = "../faraday-crypto", features = ["unchecked"] }
 bip39.workspace = true
 serde_json.workspace = true
-unicode-normalization.workspace = true
 
 [lints]
 workspace = true

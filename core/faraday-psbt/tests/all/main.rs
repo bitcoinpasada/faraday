@@ -5,6 +5,7 @@
 // than once on purpose.
 #![allow(clippy::duplicate_mod)]
 
+mod bips;
 mod common;
 mod fixtures;
 mod inspect;

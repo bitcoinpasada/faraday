@@ -4,7 +4,9 @@
 - Every vector of `tools/vectors/bip39/vectors.json` in Faraday's ten
   languages (entropy to words, words to entropy, the seed under
   "TREZOR") and the Japanese vectors of `test_JP_BIP39.json`, whose
-  passphrases are not ASCII.
+  passphrases are not ASCII and whose sentences are written composed;
+  both sides read a sentence in NFKD, as BIP-39 requires, so a sentence
+  typed composed (NFC), as most keyboards type it, is the same words.
 - Random entropy of every length in every language, both ways; the seed
   (PBKDF2-HMAC-SHA512, 2048 rounds) under random printable-ASCII
   passphrases up to 256 bytes; sentences with a word changed (the
@@ -47,14 +49,6 @@ def nfkd(s):
     return unicodedata.normalize("NFKD", s)
 
 
-def ref_refuses(fn):
-    try:
-        fn()
-        return False
-    except Exception:  # noqa: BLE001 - every refusal is a refusal
-        return True
-
-
 class Bip39(Area):
     name = "bip39"
 
@@ -76,11 +70,8 @@ class Bip39(Area):
                             ref, expected)
 
     def parse(self, lang, sentence, expected=None):
-        """Words to entropy. python-mnemonic reads the sentence in NFKD;
-        Faraday matches each word against the list as published or in
-        NFKD, without normalising what it is given, so a word in another
-        form (a composed accent or kana, as most keyboards type it) is
-        refused: a known difference, checked to still hold."""
+        """Words to entropy. Both read the sentence in NFKD, as BIP-39
+        takes it, so a word typed composed is the listed word."""
         m = mnemonic(lang)
 
         def ref():
@@ -89,17 +80,8 @@ class Bip39(Area):
                 raise ValueError("not a valid mnemonic")
             return {"entropy": bytes(m.to_entropy(words)).hex(),
                     "indices": [m.wordlist.index(w) for w in words]}
-        inputs = {"language": lang, "sentence": sentence}
-        listed = set(m.wordlist) | {nfkd(w) for w in m.wordlist}
-        if all(w in listed for w in sentence.split()) or ref_refuses(ref):
-            return self.compare("bip39.parse", inputs, ref, expected)
-        rust = self.rust.call("bip39.parse", **inputs)
-        self.compared += 1
-        self.known += 1
-        if rust[0] != "err" or "UnknownWord" not in rust[1]:
-            raise Mismatch(self.name, "bip39.parse", inputs, rust, ("ok", ref()),
-                           "the known difference (words not in NFKD) no longer holds")
-        return rust
+        return self.compare("bip39.parse", {"language": lang, "sentence": sentence}, ref,
+                            expected)
 
     def seed(self, lang, sentence, passphrase, expected=None):
         return self.compare("bip39.seed", {"language": lang, "sentence": sentence,
@@ -136,12 +118,12 @@ class Bip39(Area):
                 if Mnemonic.to_hd_master_key(bytes.fromhex(seed)) != xprv:
                     raise AssertionError("python-mnemonic's master key differs from its vector")
         for v in json.loads((ROOT / "tools/vectors/bip39/test_JP_BIP39.json").read_text()):
-            # The vectors write their sentences composed (NFC), which
-            # Faraday refuses (above); in NFKD both read them.
-            self.parse(1, v["mnemonic"])
-            self.parse(1, nfkd(v["mnemonic"]).replace(" ", "\u3000"),
-                       ("ok", {"entropy": v["entropy"], "indices": [
-                           mnemonic(1).wordlist.index(w) for w in nfkd(v["mnemonic"]).split(" ")]}))
+            # The vectors write their sentences composed (NFC), with the
+            # ideographic space; read as published and in NFKD.
+            want = ("ok", {"entropy": v["entropy"], "indices": [
+                mnemonic(1).wordlist.index(w) for w in nfkd(v["mnemonic"]).split(" ")]})
+            self.parse(1, v["mnemonic"], want)
+            self.parse(1, nfkd(v["mnemonic"]).replace(" ", "\u3000"), want)
             self.seed_nfkd(1, nfkd(v["mnemonic"]), v["passphrase"], ("ok", {"seed": v["seed"]}))
 
     def known_differences(self):
@@ -168,7 +150,7 @@ class Bip39(Area):
         self.from_entropy(lang, entropy)
         sentence = m.to_mnemonic(entropy)
         self.parse(lang, sentence)
-        if rng.random() < 0.1:
+        if rng.random() < 0.2:
             self.parse(lang, unicodedata.normalize("NFC", sentence))
         if rng.random() < 0.25:
             self.seed(lang, sentence, self.ascii(rng.choice([0, 6, 30, rng.randint(0, 256)])))

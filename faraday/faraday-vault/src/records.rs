@@ -6,7 +6,9 @@
 //! may hold is [`rules`]: a field it does not list, a required field
 //! missing, a field repeated where it may not be, text that is not
 //! UTF-8, or a value of the wrong length refuses the slot. So does an
-//! unknown type: a build reads only what it knows.
+//! unknown type: a build reads only what it knows. So do two slot
+//! labels, two passphrase records (type 14) for one key, and two signed
+//! amounts records (type 10) for one transaction.
 //!
 //! Every field's bytes are wiped when the record is dropped.
 
@@ -112,6 +114,11 @@ pub mod field {
     /// Signing round: set when the round has been used.
     pub const ROUND_USED: u8 = 5;
 
+    /// Signed amounts: SHA-256 of the unsigned transaction.
+    pub const AMOUNTS_TX: u8 = 1;
+    /// Signed amounts: the amount one input stated (repeatable).
+    pub const AMOUNTS_INPUT: u8 = 2;
+
     /// Backup plan: the wallet, as its wallet record holds it.
     pub const PLAN_WALLET: u8 = 1;
     /// Backup plan: the answers, a line each.
@@ -174,6 +181,17 @@ pub enum Fault {
     Value(u8, u8),
     /// More than one slot label.
     TwoLabels,
+    /// Two records of a type that holds one per key or per transaction:
+    /// a passphrase (type 14) for the key whose fingerprint `of` is, or
+    /// signed amounts (type 10) for the transaction whose SHA-256 starts
+    /// with `of`.
+    Duplicate {
+        /// The record type.
+        kind: u8,
+        /// The key's fingerprint, or the first four bytes of the
+        /// transaction's SHA-256.
+        of: [u8; 4],
+    },
 }
 
 impl Fault {
@@ -190,8 +208,47 @@ impl Fault {
             Fault::Repeated(t, f) => format!("field {f} of record type {t} appears twice"),
             Fault::Value(t, f) => format!("field {f} of record type {t} has a bad value"),
             Fault::TwoLabels => "two slot labels".into(),
+            Fault::Duplicate { kind: ty, of } => {
+                let of = u32::from_be_bytes(of);
+                if ty == kind::PASSPHRASE {
+                    format!("two passphrase records for key {of:08x}")
+                } else {
+                    format!("two signed amounts records for transaction {of:08x}…")
+                }
+            }
         }
     }
+}
+
+/// The one-per-slot rules across records: at most one slot label, one
+/// passphrase record per key (§7, type 14) and one signed amounts record
+/// per transaction (type 10). Each record is already checked, so the
+/// fields the rules read are there and of their lengths.
+fn check_across(records: &[Record]) -> Result<(), Fault> {
+    if records
+        .iter()
+        .filter(|r| r.kind == kind::SLOT_LABEL)
+        .count()
+        > 1
+    {
+        return Err(Fault::TwoLabels);
+    }
+    for (ty, by) in [
+        (kind::PASSPHRASE, field::PASSPHRASE_KEY),
+        (kind::AMOUNTS, field::AMOUNTS_TX),
+    ] {
+        let mut seen: Vec<&[u8]> = Vec::new();
+        for r in records.iter().filter(|r| r.kind == ty) {
+            let Some(id) = r.field(by) else { continue };
+            if seen.contains(&id) {
+                let mut of = [0u8; 4];
+                of.copy_from_slice(&id[..4]);
+                return Err(Fault::Duplicate { kind: ty, of });
+            }
+            seen.push(id);
+        }
+    }
+    Ok(())
 }
 
 /// What a field's bytes must be.
@@ -468,15 +525,7 @@ impl Contents {
         for r in &self.records {
             r.check().map_err(Error::Contents)?;
         }
-        if self
-            .records
-            .iter()
-            .filter(|r| r.kind == kind::SLOT_LABEL)
-            .count()
-            > 1
-        {
-            return Err(Error::Contents(Fault::TwoLabels));
-        }
+        check_across(&self.records).map_err(Error::Contents)?;
         let len = slot_len as usize;
         if self.used() > len {
             return Err(Error::Full);
@@ -543,17 +592,8 @@ impl Contents {
         if plain[at..].iter().any(|&b| b != 0) {
             return Err(Fault::Trailing);
         }
-        let contents = Contents { records };
-        if contents
-            .records
-            .iter()
-            .filter(|r| r.kind == kind::SLOT_LABEL)
-            .count()
-            > 1
-        {
-            return Err(Fault::TwoLabels);
-        }
-        Ok(contents)
+        check_across(&records)?;
+        Ok(Contents { records })
     }
 
     /// The records of one type, with their positions.
