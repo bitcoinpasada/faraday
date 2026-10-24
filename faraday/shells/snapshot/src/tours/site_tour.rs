@@ -120,12 +120,12 @@ fn keygen(t: &mut Tour) -> Result<(), String> {
     use faraday_core::keygen::Way;
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KNext);
+    // Start opens closed on Make a new key, Length open; a length and a
+    // way each move on by themselves (F103).
     t.press(Action::KWords(24));
     t.shot("keygen-source")?;
     t.press(Action::KGroup(1));
     t.press(Action::KWay(Way::DiceHashed.index()));
-    t.press(Action::KNext);
     t.shot("keygen-rolls-0")?;
     // Rolls a die would give: a fixed run from a small generator.
     let mut x: u32 = 0x2545_f491;
@@ -229,13 +229,15 @@ fn wallet(t: &mut Tour) -> Result<usize, String> {
         .iter()
         .position(|k| *k == NewKind::Multi)
         .ok_or("no multisig")? as u8;
+    // Multisig moves on to Quorum; Kind, opened again, shows it ticked,
+    // and Multisig, pressed again, moves on; No moves on to Keys (F103).
     t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
+    t.press(Action::CStep(cstep::KIND));
     t.shot("wallet-kind")?;
-    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CKind(multi));
     t.press(Action::CNext(cstep::QUORUM));
     t.press(Action::CVaults(false));
-    t.press(Action::CNext(cstep::WHERE));
     for slot in 0..3u8 {
         let fp = t.app.session.keys[usize::from(slot)].fingerprint.0;
         t.press(Action::CSlotHere(slot, fp));
@@ -374,8 +376,8 @@ fn checklist(t: &mut Tour) -> Result<(), String> {
         .position(|k| *k == NewKind::NativeSegwit)
         .ok_or("no native SegWit")? as u8;
     t.press(Action::CreateWallet);
+    // A kind moves on by itself (F103).
     t.press(Action::CKind(kind));
-    t.press(Action::CNext(faraday_core::cstep::KIND));
     crate::tour::device_key(t, 0);
     let w = t
         .app
@@ -392,7 +394,10 @@ fn checklist(t: &mut Tour) -> Result<(), String> {
     type_words(t, Some(5))?;
     t.shot("check-copy")?;
     type_rest(t, 5)?;
-    t.press(Action::BStep(bstep::VAULT));
+    // An item done moves on by itself: to the vault's, here.
+    if t.app.backup().and_then(|b| b.open) != Some(bstep::VAULT) {
+        t.press(Action::BStep(bstep::VAULT));
+    }
     t.press(Action::Vault(V::CreateFrom(Screen::Backup)));
     for second in [false, true] {
         t.press(Action::Vault(V::CFocus(0, second)));
@@ -414,7 +419,9 @@ fn checklist(t: &mut Tour) -> Result<(), String> {
         t.tick();
     }
     t.press(Action::BVaultSave(0));
-    t.press(Action::BNext(bstep::VAULT));
+    if t.app.backup().and_then(|b| b.open) == Some(bstep::VAULT) {
+        t.press(Action::BNext(bstep::VAULT));
+    }
     if t.app.backup().and_then(|b| b.open) != Some(bstep::ENVELOPE) {
         t.press(Action::BStep(bstep::ENVELOPE));
     }
@@ -611,8 +618,8 @@ fn restore(t: &mut Tour) -> Result<(), String> {
     t.copy_wallets();
     t.sticks(false);
     t.press(Action::RestoreWallet);
+    // A kind and No each move on by themselves (F103).
     t.press(Action::RKind(4));
-    t.press(Action::RNext(rstep::KIND));
     let i = t
         .app
         .inbox()
@@ -621,7 +628,6 @@ fn restore(t: &mut Tour) -> Result<(), String> {
         .ok_or("no savings-wallet.txt in Files")?;
     t.press(Action::RUse(i));
     t.press(Action::RVaults(false));
-    t.press(Action::RNext(rstep::WHERE));
     t.press(Action::RSlotWords);
     t.type_key(0);
     t.shot("restore-keys")?;

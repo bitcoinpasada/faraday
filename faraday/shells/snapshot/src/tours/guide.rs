@@ -2,8 +2,9 @@
 
 use crate::tour::{Tour, display, scroll_to, type_text};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
+use faraday_core::create::NewKind;
 use faraday_core::devices::DeviceCheck;
-use faraday_core::keygen::{Way, kstep};
+use faraday_core::keygen::{Start, Way, kstep};
 use faraday_core::{Action, Faraday, Medium, Screen, Sheet, StickInfo, StorageEvent, cstep};
 use faraday_crypto::work::Compute;
 use faraday_shell_api::{App, Event, Key, TouchPhase};
@@ -22,7 +23,7 @@ const ROLLS: &str = "12341123412234123341234412341523412634123141234212341323412
 /// test keys (§5); an address checked, and that wallet's spend by QR,
 /// with two warnings (§6); then a lock for a stick, the wallet restored
 /// from the description on it (§7), and the PSBT on it signed after the
-/// second key is scanned in (§6).
+/// second key is scanned in (§6); last, Faraday Desktop's Home (§1.11).
 pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let size = t.size();
     t.app = Faraday::new();
@@ -64,9 +65,13 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         t.press(Action::DevicesUnderstood);
     }
     t.go_on = true;
+    // Start opens closed on Make a new key with Length open (F103):
+    // Change opens it, and Make a new key, pressed again, moves on.
+    t.press(Action::KStep(kstep::START));
     t.shot("guide-newkey-start")?;
-    t.press(Action::KNext);
+    t.press(Action::KStart(Start::Make.index()));
     t.shot("guide-newkey-length")?;
+    // A length moves on to Randomness by itself.
     t.press(Action::KWords(12));
     t.shot("guide-newkey-randomness")?;
     new_key(t)?;
@@ -88,11 +93,26 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
         .into_iter()
         .filter_map(|(name, part)| part(c, t).err().map(|e| format!("{name}: {e}")))
         .collect();
-    if failed.is_empty() {
-        Ok(())
-    } else {
-        Err(failed.join("; "))
+    if !failed.is_empty() {
+        return Err(failed.join("; "));
     }
+    desktop_home(t)
+}
+
+/// §1.11: Faraday Desktop's Home as it opens, in Demo on testnet, with
+/// no stick in.
+fn desktop_home(t: &mut Tour) -> Result<(), String> {
+    let size = t.size();
+    t.app = Faraday::new();
+    t.app.event(display(size, t.dpi));
+    t.app.online = true;
+    t.app.seed_line = true;
+    t.app.session = faraday_core::wallet::Session::on(faraday_bip::keys::Network::Testnet);
+    t.app.session.set_demo(&faraday_samples::SAMPLES);
+    t.app.samples = Some(&faraday_samples::SAMPLES);
+    t.app.set_modes(faraday_core::DESKTOP_MODES);
+    t.press(Action::Nav(Screen::Home));
+    t.shot("guide-desktop-home")
 }
 
 /// One part of the guide's §6 and §7.
@@ -101,16 +121,18 @@ type Part = fn(&Compute, &mut Tour) -> Result<(), String>;
 /// New key from Randomness on: this device's generator chosen and its
 /// entry card, then the dice transcript, the words and the quiz.
 fn new_key(t: &mut Tour) -> Result<(), String> {
+    // A way moves on to its entry card by itself (F103); Randomness,
+    // opened again, shows the way chosen (F104).
     t.press(Action::KGroup(2));
     t.press(Action::KWay(Way::Device.index()));
-    scroll_to(t, Action::KNext);
-    t.shot("guide-newkey-randomness-device")?;
-    t.press(Action::KNext);
     t.shot("guide-newkey-device-entry")?;
     t.press(Action::KStep(kstep::SOURCE));
+    scroll_to(t, Action::KWay(Way::Device.index()));
+    t.shot("guide-newkey-randomness-device")?;
     t.press(Action::KWay(Way::DiceWords.index()));
+    t.press(Action::KStep(kstep::SOURCE));
     t.shot("guide-newkey-randomness-dice")?;
-    t.press(Action::KNext);
+    t.press(Action::KWay(Way::DiceWords.index()));
     t.shot("guide-newkey-rolls-empty")?;
     // A 5 in a word's first five places is not taken.
     t.press(Action::KRoll(5));
@@ -157,11 +179,14 @@ const DICE_WORDS: &str =
 fn single_key(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::CreateWallet);
+    // Kind opens closed on Single key (F103): Change opens it, and the
+    // kind ticked, pressed again, moves on.
+    t.press(Action::CStep(cstep::KIND));
     t.shot("guide-single-kind")?;
-    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CKind(kind_at(NewKind::NativeSegwit)?));
     t.shot("guide-single-next")?;
+    // No moves on to Keys by itself.
     t.press(Action::CVaults(false));
-    t.press(Action::CNext(cstep::WHERE));
     t.shot("guide-single-keys")?;
     let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));
@@ -176,6 +201,15 @@ fn single_key(t: &mut Tour) -> Result<(), String> {
     t.shot("guide-single-backup-step")?;
     t.press(Action::CBackup);
     t.shot("guide-board-standard")
+}
+
+/// `kind`'s number, as `Action::CKind` carries it.
+fn kind_at(kind: NewKind) -> Result<u8, String> {
+    NewKind::ALL
+        .iter()
+        .position(|k| *k == kind)
+        .map(|i| i as u8)
+        .ok_or_else(|| format!("{kind:?} is not offered"))
 }
 
 /// A finger on the panel at `at`, as `phase`.
@@ -260,6 +294,11 @@ fn checklist(c: &Compute, t: &mut Tour) -> Result<(), String> {
     for w in DICE_WORDS.split_whitespace().skip(5) {
         type_text(t, &format!("{w} "));
     }
+    // The words checked are the item done here, with no camera yet, and
+    // the checklist moves on (C8); the item, opened again, takes the scan.
+    if open_item(t) != Some(bstep::COPY) {
+        t.press(Action::BStep(bstep::COPY));
+    }
     t.shot("guide-check-copy-words")?;
     // The SeedQR copy, scanned.
     t.press(Action::BScan);
@@ -270,7 +309,10 @@ fn checklist(c: &Compute, t: &mut Tour) -> Result<(), String> {
     });
     t.pump();
     t.shot("guide-check-copy-done")?;
-    t.press(Action::BStep(bstep::VAULT));
+    // An item done moves on by itself (C8): to the vault's, here.
+    if open_item(t) != Some(bstep::VAULT) {
+        t.press(Action::BStep(bstep::VAULT));
+    }
     t.shot("guide-checklist-vault")?;
     t.press(Action::Vault(V::CreateFrom(Screen::Backup)));
     t.shot("guide-vault-create")?;
@@ -296,15 +338,22 @@ fn checklist(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("guide-checklist-vault-made")?;
     t.press(Action::BVaultSave(0));
     t.shot("guide-checklist-vault-saved")?;
-    t.press(Action::BNext(bstep::VAULT));
+    if open_item(t) == Some(bstep::VAULT) {
+        t.press(Action::BNext(bstep::VAULT));
+    }
     t.shot("guide-checklist-next")?;
-    if t.app.backup().and_then(|b| b.open) != Some(bstep::ENVELOPE) {
+    if open_item(t) != Some(bstep::ENVELOPE) {
         t.press(Action::BStep(bstep::ENVELOPE));
     }
     t.shot("guide-checklist-envelope")?;
     t.press(Action::BNext(bstep::ENVELOPE));
     t.shot("guide-checklist-sticks")?;
     write_sticks(t)
+}
+
+/// The checklist's item open now.
+fn open_item(t: &Tour) -> Option<u8> {
+    t.app.backup().and_then(|b| b.open)
 }
 
 /// The one lock, then each stick the plan names, as the flow asks.
@@ -360,7 +409,6 @@ fn write_sticks(t: &mut Tour) -> Result<(), String> {
 /// paper and test keys 2 and 3 typed; Make a new wallet, a 2-of-3:
 /// Kind, Quorum, Keys, Check; the wallet card; its wallet QR.
 fn multisig(t: &mut Tour) -> Result<(), String> {
-    use faraday_core::create::NewKind;
     t.restart();
     t.app.storage(StorageEvent::Sticks(Vec::new()));
     t.app.storage(StorageEvent::Memory {
@@ -378,18 +426,17 @@ fn multisig(t: &mut Tour) -> Result<(), String> {
         t.press(Action::Entry(None));
         t.type_key(n);
     }
-    let multi = NewKind::ALL
-        .iter()
-        .position(|k| *k == NewKind::Multi)
-        .ok_or("no multisig")? as u8;
+    // Multisig moves on to Quorum; Kind, opened again, shows it ticked,
+    // and Multisig, pressed again, moves on (F103, F104).
+    let multi = kind_at(NewKind::Multi)?;
     t.press(Action::CreateWallet);
     t.press(Action::CKind(multi));
+    t.press(Action::CStep(cstep::KIND));
     t.shot("guide-multi-kind")?;
-    t.press(Action::CNext(cstep::KIND));
+    t.press(Action::CKind(multi));
     t.shot("guide-multi-quorum")?;
     t.press(Action::CNext(cstep::QUORUM));
     t.press(Action::CVaults(false));
-    t.press(Action::CNext(cstep::WHERE));
     t.shot("guide-multi-keys")?;
     for slot in 0..3u8 {
         let fp = t.app.session.keys[usize::from(slot)].fingerprint.0;

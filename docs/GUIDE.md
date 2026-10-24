@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Sections 1 to 7 written, checked against the app's screens and strings
-**Open:** the wording of each Continue that fewer presses removes from §1.4 and §3.3 to §3.7, once codex32's Create, New key and Back up batches land; a test by a reader new to Faraday
+**Open:** a test by a reader new to Faraday; §3's pictures of New key redrawn once more after its follow-up batch, still open
 
 Each step is one thing to do, in the order it is done. A path in bold is
 what the screen shows: **Wallets → Add a key** is the Wallets row in the
@@ -315,8 +315,20 @@ A new stick holds no files, so nothing is offered to import.
 ### 2.2 The sidebar
 
 The rows are **Home**, **Vaults**, **Files**, **Wallets**, **Tools**,
-**Learn**, **Stick visit** (while a stick is attached) and **Settings**.
-At its foot:
+**Learn**, **Stick visit** (while a stick is attached) and **Settings**;
+the page on show is on a pill. A flow under way, such as **Make a new
+wallet**, is a row under its page with the card open beside it: pressing
+it goes back to the flow.
+
+In a narrower window the same pages are a rail of icons at the left,
+with **Learn** and **Settings** under a line and **Lock** and the power
+button at its foot; Home then opens with a strip of what is under way,
+the keys, the wallets, Files and the sticks. A tall narrow window has a
+bar at the foot instead (**Home**, **Wallets**, **Files**, **Vaults**,
+**Tools**), and **Settings** and **Power off** in the **⋮** menu at the
+top right.
+
+At the sidebar's foot:
 
 | On screen | Meaning |
 |---|---|
@@ -416,11 +428,20 @@ plugged in.
 ### 3.3 Start
 
 The page is **Add a key**, one card per step. A finished card shows its
-choice and **Change**.
+choice and **Change**. It opens with **Start** closed on **Make a new
+key · BIP-39 words** and **Length** open, so for this guide go straight
+to step 3.4. **Change** on Start opens it:
 
 ![Add a key, the Start card](guide/3-3-start.png)
 
-**Make a new key** is ticked. Press **Continue**.
+| Group | Choices |
+|---|---|
+| **Make a new key** | **BIP-39 words** (this guide); **Codex32**, a key made by hand as codex32 shares |
+| **Add a key you have** | **Type the words**, **Scan a SeedQR**, **Type codex32 strings** |
+| **Other forms** | SLIP-39 shares, made here or typed; Seed XOR parts, typed |
+
+A choice moves on to the next card by itself; **BIP-39 words**, pressed
+again, goes back to Length.
 
 **Steps only** and **Guided**, at the top right, switch a short
 walk-through on each card off and on.
@@ -429,22 +450,26 @@ walk-through on each card off and on.
 
 ![The Length card](guide/3-4-length.png)
 
-**BIP-39 words** and **12 words** are chosen. Press **Continue**.
-(24 words takes more rolls; the steps are the same.)
+**BIP-39 words** is chosen. Press **12 words**: the card closes and
+**Randomness** opens. (24 words takes more rolls; the steps are the
+same.)
 
 ### 3.5 Randomness
 
-Choose where the randomness comes from.
+Choose where the randomness comes from. A choice moves on to its entry
+card by itself; **Change** on Randomness opens it again with the choice
+kept.
 
 | Dice (this guide) | This device |
 |---|---|
 | ![Randomness, dice chosen](guide/3-5-randomness-dice.png) | ![Randomness, this device chosen](guide/3-5-randomness-device.png) |
-| **Dice · Words chosen by the dice** (70 rolls) is ticked, under **Your own entropy, words verifiable by hand**. Each word can be worked out from the rolls by hand. | Open **Made by this device** and tick **This device**. The words come from the operating system's generator and cannot be checked. |
-| Press **Continue**. Go to step 3.6. | Press **Continue**. Go to step 3.6, right-hand column. |
+| **Dice · Words chosen by the dice** (70 rolls) is ticked, under **Your own entropy, words verifiable by hand**. Each word can be worked out from the rolls by hand. | Open **Made by this device** and press **This device**. The words come from the operating system's generator and cannot be checked. |
+| Press **Dice · Words chosen by the dice**: **Rolls** opens. Go to step 3.6. | **Generator** opens. Go to step 3.6, right-hand column. |
 
 The other options (flip mode, coins, hashed dice as Coldcard and
 SeedSigner do it, hex, cards, camera, a mix) follow the same steps with
-their own entry card.
+their own entry card. A mix ticks its sources under its row and keeps
+**Continue**.
 
 ### 3.6 Rolls
 
@@ -486,11 +511,12 @@ make; it cannot prove the rolls were random.
 The 12 words are shown. Check them against the words above. Press **Lock
 in**.
 
-![The Key card after Lock in](guide/3-7-locked-in.png)
+![The Words card after Lock in](guide/3-7-locked-in.png)
 
-**Locked in** shows, with **Fingerprint** `3dca6805` and the key's
-account key. The key is now loaded: the sidebar lists it under **Keys**
-as `3dca6805 New key 1`. Press **Continue**.
+The Key card closes on `3dca6805 · locked in` and **Words** opens, with
+**Fingerprint** `3dca6805`, **Source** and the key's account key
+(**Key**); the words are hidden. The key is now loaded: the sidebar
+lists it under **Keys** as `3dca6805 New key 1`.
 
 A fingerprint of `3dca6805` proves that the words on screen are the
 test words and the key loaded is the one they make. It does not prove
@@ -562,17 +588,19 @@ plan does not track it.
 ### 4.1 Make the wallet
 
 Press **Wallets** in the sidebar, then **Make a new wallet**. The page
-is **Make a new wallet**, one card per step.
+is **Make a new wallet**, one card per step. It opens with **Kind**
+closed on **Single key · native SegWit** and **Use vaults** open; a
+choice moves on to the next card by itself.
 
 | Kind | Use vaults |
 |---|---|
 | ![Kind](guide/4-1-kind.png) | ![Use vaults](guide/4-1-use-vaults.png) |
-| **Single key · native SegWit** is chosen. Press **Continue**. | **Will you use vaults as part of this backup?** Press **No**, then **Continue**. The vault in this section is a new one, made in the checklist; **Yes** is for a vault already on a stick, which is brought in here. |
+| **Change** on Kind opens it: **Single key · native SegWit** (One key, its words on paper) is ticked; **Single key, backup in shares** makes its one key as codex32 shares instead of words, and **Multisig · native SegWit** is section 5; **More kinds** lists the rest. Pressing the kind ticked closes the card on it. | **Will you use vaults as part of this backup?** Press **No**: the card closes on **No** and **Keys** opens. The vault in this section is a new one, made in the checklist; **Yes** is for a vault already on a stick, which is brought in here. |
 
 | Keys | Check |
 |---|---|
 | ![Keys](guide/4-1-keys.png) | ![Check](guide/4-1-check.png) |
-| Under **Key 1**, press **3dca6805 · New key 1**; the row reads **3dca6805 · New key 1 · loaded here**. Press **Continue**. | **Descriptor** reads **Single key · native SegWit · 3dca6805** and a checksum; **Path** reads **m/84'/0'/0'**. Under **The wallet's first addresses** it reads **Back up before you receive**: a key made on this device shows no address until its backup is done. Press **Continue**. |
+| Under **Key 1**, press **3dca6805 · New key 1**; the row reads **3dca6805 · New key 1 · loaded here**. Press **Make the wallet**. | **Descriptor** reads **Single key · native SegWit · 3dca6805** and a checksum; **Path** reads **m/84'/0'/0'**. Under **The wallet's first addresses** it reads **Back up before you receive**: a key made on this device shows no address until its backup is done. Press **It matches**. |
 
 ![The Back up card](guide/4-1-back-up.png)
 
@@ -616,6 +644,7 @@ Press **Customize backup**.
 | On screen | Meaning |
 |---|---|
 | the list on the right | everything the backup can keep: **Seeds**, **Wallet description** (**Whole**), **Vaults** with **+ new vault**, **Watch-only software**; "1 place" beside each says how many places keep it |
+| **3dca6805 as codex32 strings** | keeps the seed as codex32 shares instead of its words, one string per place (not covered here) |
 | on a placed chip, **Words** and **SeedQR** | the forms it is kept in; a press turns one on or off, and the last one on stays on |
 | **×** | takes the chip off that place |
 | **⋮** | its menu (step 4.5) |
@@ -704,11 +733,13 @@ paper:
 ![Check my copy, five words in](guide/4-7-check-copy.png)
 
 Each word shows as dots once typed. Then hold the SeedQR you drew up to
-the camera (**Scan your copy**).
+the camera (**Scan your copy**). Once the copy matches, the item reads
+**Checked** and the checklist moves on to the vault by itself; opened
+again, the item shows what matched:
 
 | Result | Meaning | Do |
 |---|---|---|
-| ![Matched](guide/4-7-matched.png) **Your copy scans and matches the seed** and **Your copy matches the seed** | the words typed and the SeedQR scanned are this seed's | **Continue** |
+| ![Matched](guide/4-7-matched.png) **Your copy scans and matches the seed** and **Your copy matches the seed** | the words typed and the SeedQR scanned are this seed's | nothing: the vault's item is open |
 | **Word … differs from the seed** | that word on the paper is wrong | correct the paper from **Show the seed**, **Clear**, type it again |
 | **Your copy scans but word … differs** | that word's squares are wrong | correct those squares and scan again |
 
@@ -740,8 +771,9 @@ Back on the checklist:
 
 ![Save into vault.ofv](guide/4-8-save.png)
 
-Press **Save into vault.ofv**. The item reads **In vault.ofv**. The
-vault is in memory until step 4.10 writes it.
+Press **Save into vault.ofv**. The item reads **In vault.ofv**, and the
+checklist moves on to **The wallet sheet**, ticked already: press
+**Continue**. The vault is in memory until step 4.10 writes it.
 
 ### 4.9 One envelope per place
 
@@ -819,6 +851,7 @@ Press **Wallets**, then **Add a key**.
 | **Scan a SeedQR** | reads a SeedQR with the camera |
 | **Words** **12 · 15 · 18 · 21 · 24** | how many words; typing past the boxes adds more |
 | **Other forms** | SLIP-39 shares, codex32, Seed XOR |
+| **Other languages** | word lists other than English |
 | **BIP-39 passphrase** | **No passphrase** unless one is typed |
 | **Add key** | loads the key |
 
@@ -839,14 +872,14 @@ Press **Home**, then **Make a new wallet**.
 | Kind | Quorum |
 |---|---|
 | ![Kind, multisig](guide/5-2-kind.png) | ![Quorum](guide/5-2-quorum.png) |
-| Press **Multisig · native SegWit**, then **Continue**. | **Signatures needed** 2 and **Keys** 3 (**-** and **+** change them). The line under them says what the quorum means: **Any 2 of the 3 keys can spend. Losing 1 key still leaves the money spendable; 2 keys together can take it.** **Account** 0. Press **Continue**. |
+| Press **Change** on Kind, then **Multisig · native SegWit** (3 keys, any 2 sign): **Quorum** opens. | **Signatures needed** 2 and **Keys** 3 (**-** and **+** change them). The line under them says what the quorum means: **Any 2 of the 3 keys can spend. Losing 1 key still leaves the money spendable; 2 keys together can take it.** **Account** 0. Press **Continue**. |
 
-On **Use vaults**, press **No**, then **Continue**.
+On **Use vaults**, press **No**: **Keys** opens.
 
 | Keys | Check |
 |---|---|
 | ![Keys, all three chosen](guide/5-2-keys.png) | ![Check, with the first addresses](guide/5-2-check.png) |
-| Each **Key** row offers the keys loaded. Press `3dca6805` for Key 1, `5d388376` for Key 2, `cf2e083d` for Key 3. **Show xpub QR**, **Xpub PNG for the stick** and **Xpub file for the stick** give a key's public part to another wallet; **New key** makes one here. Press **Continue**. | **Descriptor** reads **2 of 3 · native SegWit multisig · 3dca6805, 5d388376, cf2e083d** and a checksum; **Path** **m/48'/0'/0'/2'**. **The wallet's first addresses**: **Receive 0/0**, **Receive 0/1** and **Change 1/0**. With these test keys, Receive 0/0 begins `bc1q rfhg t7dv` and ends `ecxs 0246 6p`. Press **Continue**. |
+| Each **Key** row offers the keys loaded. Press `3dca6805` for Key 1, `5d388376` for Key 2, `cf2e083d` for Key 3. **Show xpub QR**, **Xpub PNG for the stick** and **Xpub file for the stick** give a key's public part to another wallet; **New key** makes one here. Press **Make the wallet**. | **Descriptor** reads **2 of 3 · native SegWit multisig · 3dca6805, 5d388376, cf2e083d** and a checksum; **Path** **m/48'/0'/0'/2'**. **The wallet's first addresses**: **Receive 0/0**, **Receive 0/1** and **Change 1/0**. With these test keys, Receive 0/0 begins `bc1q rfhg t7dv` and ends `ecxs 0246 6p`. Press **It matches**. |
 
 Then **Back up** (step 5.5).
 
