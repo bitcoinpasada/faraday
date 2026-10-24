@@ -81,6 +81,9 @@ pub enum InkKind {
         text: String,
         /// The face.
         family: crate::fonts::Family,
+        /// The colour it was drawn in: what a test of its contrast
+        /// against what is under it reads.
+        color: Color,
     },
     /// An icon glyph.
     Icon(crate::widgets::Icon),
@@ -1018,6 +1021,7 @@ impl Canvas {
             || InkKind::Text {
                 text: String::from(s),
                 family,
+                color,
             },
             bbox,
         );

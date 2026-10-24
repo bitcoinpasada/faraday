@@ -332,7 +332,7 @@ fn where_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
         fa(F::AddPlace),
         44.0,
     );
-    ui.rule(x, cy, w, INNER);
+    ui.rule(x, cy, w, BORDER);
     cy += 14.0;
     for v in f.plan.used_vaults() {
         let vp = &f.plan.vaults[v];

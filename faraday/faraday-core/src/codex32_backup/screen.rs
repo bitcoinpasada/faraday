@@ -66,7 +66,7 @@ fn chips(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, Action)]) ->
             cw,
             t::C32_CHIP,
             t::RADIUS_SMALL,
-            if on { INNER } else { BG },
+            if on { BG_PRESSED } else { BG },
         );
         ui.stroke(
             cx,

@@ -1841,7 +1841,7 @@ fn backup_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     ui.c.push_clip(clip);
     map_rows(app, ui, x, top + 28.0, w, true);
     ui.c.pop_clip();
-    ui.rule(x, foot - 4.0, w, INNER);
+    ui.rule(x, foot - 4.0, w, BORDER);
     check_rows(app, ui, x, foot + 8.0, w);
 }
 

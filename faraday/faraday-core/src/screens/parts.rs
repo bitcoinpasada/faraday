@@ -392,7 +392,7 @@ pub(crate) fn kind_list(
             w,
             h,
             8.0,
-            if on { ACCENT.with_alpha(110) } else { INNER },
+            if on { ACCENT.with_alpha(110) } else { BORDER },
         );
         // Where "codex32" and the name's end are, on the backup in shares.
         let mut tip = None;
@@ -636,7 +636,7 @@ pub(super) fn file_row(
             ui.text_mid(x + 220.0, y, 36.0, 12.0, W::R, MUTED, &d);
         }
     }
-    ui.rule(x, y + rh + 4.0, w, INNER);
+    ui.rule(x, y + rh + 4.0, w, BORDER);
     rh + 8.0
 }
 
@@ -685,7 +685,7 @@ fn file_row_extra(
         } else {
             50.0 + wrap_buttons(ui, x, y + 50.0, w, 34.0, &items) - 8.0
         };
-        ui.rule(x, y + rh + 4.0, w, INNER);
+        ui.rule(x, y + rh + 4.0, w, BORDER);
         return rh + 8.0;
     }
     let rh = 36.0;
@@ -713,7 +713,7 @@ fn file_row_extra(
         let d = ui.fit(12.0, W::R, detail, room);
         ui.text_mid(x + 220.0, y, rh, 12.0, W::R, MUTED, &d);
     }
-    ui.rule(x, y + rh + 4.0, w, INNER);
+    ui.rule(x, y + rh + 4.0, w, BORDER);
     rh + 8.0
 }
 
@@ -844,7 +844,7 @@ pub(crate) fn descriptor_row(
         DIM,
     );
     ui.hit(x, y - 4.0, w, h, action);
-    ui.rule(x, y + h, w, INNER);
+    ui.rule(x, y + h, w, BORDER);
     h + 12.0
 }
 
@@ -973,7 +973,7 @@ pub(crate) fn typed_cells(
         let edge = if current {
             ACCENT.with_alpha(110)
         } else {
-            INNER
+            BORDER
         };
         ui.fill(cx, cy, cellw, 38.0, 8.0, BG);
         ui.stroke(cx, cy, cellw, 38.0, 8.0, edge);
@@ -1066,7 +1066,7 @@ pub(crate) fn keyed_cells(
             if current {
                 ACCENT.with_alpha(110)
             } else {
-                INNER
+                BORDER
             },
         );
         ui.text_mid(cx + 8.0, cy, 36.0, 11.0, W::R, DIM, &(k + 1).to_string());

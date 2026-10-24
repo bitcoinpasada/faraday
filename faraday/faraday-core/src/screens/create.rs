@@ -594,7 +594,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                         cy += 52.0;
                     }
                 }
-                ui.rule(x, cy, w, INNER);
+                ui.rule(x, cy, w, BORDER);
                 cy += 10.0;
             }
             if let Some(e) = &c.error {
@@ -833,6 +833,6 @@ fn change_row(
             action,
         );
     }
-    ui.rule(x, y + h, w, INNER);
+    ui.rule(x, y + h, w, BORDER);
     h + 12.0
 }

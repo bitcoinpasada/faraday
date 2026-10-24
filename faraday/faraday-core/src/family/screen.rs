@@ -869,7 +869,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         for row in &rows {
             let row = ui.fit(13.0, W::M, row, w);
             ui.text_mid(x, cy, 34.0, 13.0, W::M, TEXT, &row);
-            ui.rule(x, cy + 34.0, w, INNER);
+            ui.rule(x, cy + 34.0, w, BORDER);
             cy += 36.0;
         }
         cy += 12.0;
@@ -1133,7 +1133,7 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             10.0,
             if on { ACCENT.with_alpha(18) } else { BG },
         );
-        ui.stroke(x, cy, w, ch, 10.0, if on { ACCENT } else { INNER });
+        ui.stroke(x, cy, w, ch, 10.0, if on { ACCENT } else { BORDER });
         ui.icon(
             x + 14.0,
             cy + 14.0,
@@ -1797,7 +1797,7 @@ fn signers(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     }
                     ui.chip(chip_x, cy + 8.0, t, fg, bg);
                 }
-                ui.rule(x, cy + 42.0, w, INNER);
+                ui.rule(x, cy + 42.0, w, BORDER);
                 cy += 44.0;
             }
         }

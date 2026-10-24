@@ -284,14 +284,14 @@ fn value_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: 
     if ui.compact {
         ui.text(x, y, 12.0, W::R, MUTED, key);
         let vh = ui.wrap(x, y + 18.0, w, 14.0, W::R, tone, value);
-        ui.rule(x, y + 24.0 + vh, w, INNER);
+        ui.rule(x, y + 24.0 + vh, w, BORDER);
         return vh + 32.0;
     }
     let kw = ui.measure(13.0, W::R, key) + 24.0;
     ui.text_mid(x, y, 36.0, 13.0, W::R, MUTED, key);
     let v = ui.fit(14.0, W::R, value, w - kw);
     ui.text_right(x + w, y, 36.0, 14.0, W::R, tone, &v);
-    ui.rule(x, y + 36.0, w, INNER);
+    ui.rule(x, y + 36.0, w, BORDER);
     38.0
 }
 
@@ -300,7 +300,7 @@ fn value_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: 
 fn mono_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str) -> f32 {
     ui.text(x, y + 8.0, 12.0, W::R, MUTED, key);
     let vh = ui.wrap(x, y + 28.0, w, 13.0, W::M, TEXT, value);
-    ui.rule(x, y + 36.0 + vh, w, INNER);
+    ui.rule(x, y + 36.0 + vh, w, BORDER);
     vh + 40.0
 }
 
@@ -876,7 +876,7 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         (Mode::Whole, whole, S.starter_mode_whole_sub),
         (Mode::KeepData, S.starter_mode_keep, S.starter_mode_keep_sub),
     ];
-    ui.rule(x, y, w, INNER);
+    ui.rule(x, y, w, BORDER);
     for (m, head, sub) in options {
         let refused = starter.mode_refusal(m);
         // Keep data is shown only on a Faraday stick (§3.2).
@@ -904,7 +904,7 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                 18.0,
                 18.0,
                 9.0,
-                if enabled { MUTED } else { INNER },
+                if enabled { MUTED } else { BORDER },
             );
         }
         let tx = x + 36.0;
@@ -935,7 +935,7 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             y += ui.wrap(tx, y, w - 36.0, 12.0, W::R, MUTED, S.starter_mode_keep_fact) + 6.0;
             y += guide_line(ui, tx, y, w - 36.0, LearnId::KeepData);
         }
-        ui.rule(x, y, w, INNER);
+        ui.rule(x, y, w, BORDER);
     }
     if let Some(why) = &starter.version_failed {
         y += 12.0;
@@ -1541,7 +1541,7 @@ fn note_row(ui: &mut Ui, x: f32, y: f32, w: f32, key: &str, value: &str, tone: P
     }
     ui.text(x, y + 8.0, 13.0, W::R, MUTED, key);
     let vh = ui.wrap(x, y + 30.0, w, 14.0, W::R, tone, value);
-    ui.rule(x, y + 38.0 + vh, w, INNER);
+    ui.rule(x, y + 38.0 + vh, w, BORDER);
     vh + 40.0
 }
 
@@ -2013,7 +2013,7 @@ fn tick_row(
     }
     ui.text_mid(x + 36.0, y, rh, 15.0, W::S, TEXT, head);
     ui.hit(x - 6.0, y, w + 12.0, rh, a);
-    ui.rule(x, y + rh, w, INNER);
+    ui.rule(x, y + rh, w, BORDER);
     rh
 }
 
@@ -2031,7 +2031,7 @@ fn choice_done(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 
 fn template_words(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    ui.rule(x, y, w, INNER);
+    ui.rule(x, y, w, BORDER);
     for n in [12usize, 24] {
         y += tick_row(
             ui,
@@ -2048,7 +2048,7 @@ fn template_words(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f3
 
 fn template_copy(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    ui.rule(x, y, w, INNER);
+    ui.rule(x, y, w, BORDER);
     if starter.template.form == Form::Codex32 {
         // The Codex32QR grid is for 48 characters only.
         for c in CodexCopy::ALL {
@@ -2083,7 +2083,7 @@ fn template_copy(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
 
 fn template_form(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    ui.rule(x, y, w, INNER);
+    ui.rule(x, y, w, BORDER);
     for f in [Form::Words, Form::Codex32] {
         y += tick_row(
             ui,
@@ -2100,7 +2100,7 @@ fn template_form(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
 
 fn template_length(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    ui.rule(x, y, w, INNER);
+    ui.rule(x, y, w, BORDER);
     for n in CODEX_LENGTHS {
         y += tick_row(
             ui,
@@ -2117,7 +2117,7 @@ fn template_length(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
 
 fn template_worksheets(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0;
-    ui.rule(x, y, w, INNER);
+    ui.rule(x, y, w, BORDER);
     for on in [false, true] {
         // None are published at 127 characters.
         if on && starter.template.chars == 127 {

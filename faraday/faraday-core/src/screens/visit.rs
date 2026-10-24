@@ -150,7 +150,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             );
         }
         y += 50.0;
-        ui.rule(x, y, w, INNER);
+        ui.rule(x, y, w, BORDER);
         y += 6.0;
     }
     if stick.files.is_empty() {
@@ -257,7 +257,7 @@ fn visit_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if let Some(action) = action {
             ui.hit(x - 4.0, y, w + 8.0, 48.0, action);
         }
-        ui.rule(x, y + 50.0, w, INNER);
+        ui.rule(x, y + 50.0, w, BORDER);
         56.0
     };
     y += row(
@@ -492,7 +492,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         EN.visit_public,
     );
     ui.hit(x + 12.0, ry, colw - 24.0, 50.0, Action::VisitSettings);
-    ui.rule(x + 20.0, ry + 52.0, colw - 40.0, INNER);
+    ui.rule(x + 20.0, ry + 52.0, colw - 40.0, BORDER);
     ry += ROW;
     let file_row = |ui: &mut Ui,
                     ry: f32,
@@ -531,7 +531,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if let Some(action) = action {
             ui.hit(x + 12.0, ry, colw - 24.0, 50.0, action);
         }
-        ui.rule(x + 20.0, ry + 52.0, colw - 40.0, INNER);
+        ui.rule(x + 20.0, ry + 52.0, colw - 40.0, BORDER);
     };
     for (k, item) in app.outbox.iter().enumerate() {
         let on = app.visit.out.contains(&item.name);
@@ -732,7 +732,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 crate::file_menu::Row::Stick(k),
             );
         }
-        ui.rule(ix + 20.0, ry + 52.0, colw - 40.0, INNER);
+        ui.rule(ix + 20.0, ry + 52.0, colw - 40.0, BORDER);
     }
     ui.c.pop_clip();
     ui.report_scroll_own_bar(clip, max_shift);

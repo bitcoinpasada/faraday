@@ -78,7 +78,7 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ui.text(x, y + 4.0, 13.0, W::R, DIM, EN.transfer_no_files);
         return y + 28.0 - y0;
     }
-    ui.rule(x, y, w, INNER);
+    ui.rule(x, y, w, BORDER);
     for (i, (name, size)) in t.files.iter().enumerate() {
         let action = Action::TransferSend(i);
         if ui.is_pressed(action) {
@@ -104,7 +104,7 @@ fn send(app: &View, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         ui.text_mid(x, y, ROW, 13.0, W::S, if over { DIM } else { TEXT }, &label);
         ui.hit(x - 8.0, y, w + 16.0, ROW, action);
         y += ROW;
-        ui.rule(x, y, w, INNER);
+        ui.rule(x, y, w, BORDER);
     }
     y + 8.0 - y0
 }

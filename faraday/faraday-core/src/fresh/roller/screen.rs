@@ -143,7 +143,7 @@ pub fn draw(
         ROLLER_COUNT_FIELD,
         ROLLER_CHIP,
         ROLLER_GAP,
-        if on || typing { ACCENT } else { INNER },
+        if on || typing { ACCENT } else { BORDER },
     );
     let (shown, color) = if r.typed().is_empty() {
         (EN.roller_number, DIM)

@@ -71,7 +71,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                 }
             }
             if i + 1 < rows.len() {
-                self.rule(x + LIST_INDENT, ry + rh, w - LIST_INDENT, INNER);
+                self.rule(x + LIST_INDENT, ry + rh, w - LIST_INDENT, BORDER);
             }
             if *enabled {
                 self.hit(x, ry, w, rh, *action);

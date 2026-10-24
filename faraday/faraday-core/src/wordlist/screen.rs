@@ -93,7 +93,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
     ui.text(cx, cy, 12.0, W::S, MUTED, st.list.code_heading());
     ui.text(wx, cy, 12.0, W::S, MUTED, EN.wordlist_word);
     cy += 22.0;
-    ui.rule(bx, cy - 4.0, bw, INNER);
+    ui.rule(bx, cy - 4.0, bw, BORDER);
     let top = cy;
     let view = (y + sh - 20.0 - top).max(ROW);
     let content = words.len() as f32 * ROW + 12.0;

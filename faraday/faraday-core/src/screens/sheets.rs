@@ -753,7 +753,7 @@ fn kept_sheet(
             if lines.is_empty() {
                 continue;
             }
-            ui.rule(x, cy, iw, INNER);
+            ui.rule(x, cy, iw, BORDER);
             cy += 12.0;
             ui.text(x, cy, 12.0, W::R, MUTED, name);
             cy += 22.0;
@@ -1724,7 +1724,7 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         ui.text_mid(ix, ry, 40.0, 13.0, W::R, MUTED, k);
         let v = ui.fit(14.0, W::R, v, iw - 90.0);
         ui.text_mid(ix + 90.0, ry, 40.0, 14.0, W::R, TEXT, &v);
-        ui.rule(ix, ry + 40.0, iw, INNER);
+        ui.rule(ix, ry + 40.0, iw, BORDER);
         ry += 44.0;
     }
     ui.button(
@@ -1950,7 +1950,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         34.0
     };
     let top = y + 14.0 + tabs_h + 18.0;
-    ui.rule(x + pad, top - 8.0, sw - 2.0 * pad, INNER);
+    ui.rule(x + pad, top - 8.0, sw - 2.0 * pad, BORDER);
     let (bx, bw) = (x + pad + 4.0, sw - 2.0 * pad - 8.0);
     let view = sh - (top - y) - 12.0;
     let clip = ui.rect(x, top, sw, view);
@@ -2226,7 +2226,7 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         None => {}
     }
     if to_vault {
-        ui.rule(bx, cy, bw, INNER);
+        ui.rule(bx, cy, bw, BORDER);
         cy += 16.0;
     }
     // The Outbox, or the stick, only once the person says they

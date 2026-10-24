@@ -552,7 +552,7 @@ pub(crate) fn delete_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 8.0,
                 if on { ACCENT.with_alpha(22) } else { BG },
             );
-            ui.stroke(x, cy, iw, 52.0, 8.0, if on { ACCENT } else { INNER });
+            ui.stroke(x, cy, iw, 52.0, 8.0, if on { ACCENT } else { BORDER });
             ui.stroke(
                 x + 14.0,
                 cy + 17.0,

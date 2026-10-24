@@ -90,14 +90,14 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.text(x, y, 12.0, W::R, MUTED, k);
             let v = if *mono { grouped(v) } else { v.clone() };
             let vh = ui.wrap(x, y + 18.0, w, 13.0, face, TEXT, &v);
-            ui.rule(x, y + vh + 26.0, w, INNER);
+            ui.rule(x, y + vh + 26.0, w, BORDER);
             y += vh + 34.0;
             continue;
         }
         ui.text_mid(x, y, 34.0, 13.0, W::R, MUTED, k);
         let v = ui.fit(13.0, face, v, w - 170.0);
         ui.text_mid(x + 160.0, y, 34.0, 13.0, face, TEXT, &v);
-        ui.rule(x, y + 34.0, w, INNER);
+        ui.rule(x, y + 34.0, w, BORDER);
         y += 36.0;
     }
     y += 18.0;
@@ -162,13 +162,13 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         if compact {
             let lh = ui.wrap(x + 26.0, y + 2.0, w - 26.0, 12.0, W::R, MUTED, &line);
-            ui.rule(x, y + lh + 8.0, w, INNER);
+            ui.rule(x, y + lh + 8.0, w, BORDER);
             y += lh + 12.0;
             continue;
         }
         let line = ui.fit(12.0, W::R, &line, w - 26.0);
         ui.text_mid(x + 26.0, y, 22.0, 12.0, W::R, MUTED, &line);
-        ui.rule(x, y + 26.0, w, INNER);
+        ui.rule(x, y + 26.0, w, BORDER);
         y += 30.0;
     }
     y += 18.0;
@@ -213,7 +213,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.text_mid(x + 26.0, y, 22.0, 12.0, W::R, MUTED, out.kind);
             y += 22.0;
             let wh = ui.wrap(x + 26.0, y + 2.0, w - 26.0, 12.0, W::S, tone, &whose);
-            ui.rule(x, y + wh + 8.0, w, INNER);
+            ui.rule(x, y + wh + 8.0, w, BORDER);
             y += wh + 12.0;
             continue;
         }
@@ -222,7 +222,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 26.0;
         let kw = ui.text_mid(x + 26.0, y, 22.0, 12.0, W::R, MUTED, out.kind);
         ui.text_mid(x + 40.0 + kw, y, 22.0, 12.0, W::S, tone, &whose);
-        ui.rule(x, y + 26.0, w, INNER);
+        ui.rule(x, y + 26.0, w, BORDER);
         y += 30.0;
     }
     y += 18.0;
@@ -256,7 +256,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             TEXT,
             &spaced(&t.hex),
         );
-        ui.stroke(x, y, w, th + 20.0, 8.0, INNER);
+        ui.stroke(x, y, w, th + 20.0, 8.0, BORDER);
         y += th + 32.0;
     }
     ui.c.pop_clip();

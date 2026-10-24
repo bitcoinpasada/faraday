@@ -182,7 +182,7 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
                 &line,
             );
             ui.hit(x, cy, w, 40.0, Action::PickKey(fp.0));
-            ui.rule(x, cy + 40.0, w, INNER);
+            ui.rule(x, cy + 40.0, w, BORDER);
             cy += 42.0;
             cy += mark_line(app, ui, x, cy, w, *fp);
         }
@@ -573,7 +573,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     // Where its backup is (§5.2): a press opens Backups on it.
     cy += backup_line(app, ui, ix, cy, iw, app.wallets.wallet());
     ui.fill(ix, cy, iw, 50.0, 10.0, BG);
-    ui.stroke(ix, cy, iw, 50.0, 10.0, INNER);
+    ui.stroke(ix, cy, iw, 50.0, 10.0, BORDER);
     let pw = ui.pips(ix + 16.0, cy + 20.0, m, here);
     ui.text_mid(
         ix + 30.0 + pw,
@@ -675,7 +675,7 @@ fn card_actions(
     }
     let rows = row + 1;
     let top = ay - (rows - 1) as f32 * (H + GAP);
-    ui.rule(x, top - 14.0, w, INNER);
+    ui.rule(x, top - 14.0, w, BORDER);
     for (&(label, style, action), &(r, px, bw)) in items.iter().zip(&placed) {
         let label = ui.fit(14.0, W::S, label, bw - 24.0);
         ui.button(
@@ -745,7 +745,7 @@ fn silent_wallet_card(
         let style = if may { style } else { Style::Disabled };
         ui.button(ix + iw - bw, cy + 7.0, Some(bw), 32.0, label, style, action);
     }
-    ui.rule(ix, cy + 46.0, iw, INNER);
+    ui.rule(ix, cy + 46.0, iw, BORDER);
     cy += 64.0;
     ui.text(
         ix,

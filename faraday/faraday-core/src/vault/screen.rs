@@ -116,7 +116,7 @@ pub(crate) fn stick_banner(ui: &mut Ui, x: f32, y: f32, w: f32, text: &str) -> f
 /// A passphrase field that takes no typing: a stick is attached.
 pub(crate) fn stick_field(medium: crate::Medium, ui: &mut Ui, x: f32, y: f32, w: f32) {
     ui.fill(x, y, w, 40.0, 8.0, SURFACE);
-    ui.stroke(x, y, w, 40.0, 8.0, INNER);
+    ui.stroke(x, y, w, 40.0, 8.0, BORDER);
     let text = fill(EN.vault_remove_the_first, &[medium.noun()]);
     ui.text_mid(x + 12.0, y, 40.0, 13.0, W::R, DIM, &text);
 }
@@ -153,7 +153,7 @@ pub(crate) fn secret_box(
         32.0,
         32.0,
         6.0,
-        if pressed { INNER } else { BG },
+        if pressed { BG_PRESSED } else { BG },
     );
     ui.icon(
         ex,
@@ -1213,14 +1213,14 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             ui.text_mid(x + 32.0, cy, 40.0, 14.0, W::S, TEXT, EN.vault_this_computer);
             ui.text_right(x + w, cy, 40.0, 13.0, W::R, MUTED, &here);
             ui.hit(x, cy, w, 40.0, va(V::CHere));
-            ui.rule(x, cy + 42.0, w, INNER);
+            ui.rule(x, cy + 42.0, w, BORDER);
             cy += 46.0;
             for (k, m) in MACHINES.iter().enumerate() {
                 ui.checkbox(x, cy + 12.0, c.on[k], true);
                 ui.text_mid(x + 32.0, cy, 40.0, 14.0, W::S, TEXT, m.0);
                 ui.text_right(x + w, cy, 40.0, 13.0, W::R, MUTED, m.2);
                 ui.hit(x, cy, w, 40.0, va(V::CMachine(k)));
-                ui.rule(x, cy + 42.0, w, INNER);
+                ui.rule(x, cy + 42.0, w, BORDER);
                 cy += 46.0;
             }
             cy += 10.0;
@@ -1257,7 +1257,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     8.0,
                     if on { ACCENT.with_alpha(22) } else { BG },
                 );
-                ui.stroke(x, cy, w, 50.0, 8.0, if on { ACCENT } else { INNER });
+                ui.stroke(x, cy, w, 50.0, 8.0, if on { ACCENT } else { BORDER });
                 // The name and what the row says of it, then the cost and
                 // the bits it adds.
                 ui.text(x + 16.0, cy + 8.0, 14.0, W::S, TEXT, label);
@@ -1399,7 +1399,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     w,
                     row_h,
                     8.0,
-                    if on { ACCENT.with_alpha(110) } else { INNER },
+                    if on { ACCENT.with_alpha(110) } else { BORDER },
                 );
                 let cost = fill(
                     EN.vault_passes,
@@ -1481,7 +1481,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     8.0,
                     if on { ACCENT.with_alpha(22) } else { BG },
                 );
-                ui.stroke(bx, cy, bw, 62.0, 8.0, if on { ACCENT } else { INNER });
+                ui.stroke(bx, cy, bw, 62.0, 8.0, if on { ACCENT } else { BORDER });
                 let t = size_text(*s);
                 let tw = ui.measure(15.0, W::S, &t);
                 ui.text(bx + (bw - tw) / 2.0, cy + 12.0, 15.0, W::S, TEXT, &t);
@@ -3024,7 +3024,7 @@ fn detail(
             ui.checkbox(dx, dy + 11.0, all_ticked, true);
             ui.text_mid(dx + 30.0, dy, 40.0, 14.0, W::M, TEXT, EN.vault_select_all);
             ui.hit(dx, dy, dw, 40.0, va(V::GpgTickAll));
-            ui.rule(dx, dy + 40.0, dw, INNER);
+            ui.rule(dx, dy + 40.0, dw, BORDER);
             dy += 42.0;
         }
         for (fi, f) in files.iter().enumerate() {
@@ -3089,7 +3089,7 @@ fn detail(
             if let Some(t) = &f.text {
                 ey += ui.wrap(dx + 30.0, ey, dw - 30.0, 12.0, W::M, TEXT, t) + 6.0;
             }
-            ui.rule(dx, ey, dw, INNER);
+            ui.rule(dx, ey, dw, BORDER);
             dy = ey + 8.0;
         }
         dy += 8.0;
@@ -3638,7 +3638,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             let hex: String = f.hash[..8].iter().map(|b| format!("{b:02x}")).collect();
             ui.text(x, cy, 12.0, W::M, MUTED, &format!("{hex}…"));
             cy += 22.0;
-            ui.rule(x, cy, iw, INNER);
+            ui.rule(x, cy, iw, BORDER);
             cy += 10.0;
         }
         // The time the signatures will carry, and the way to change it.
@@ -3672,7 +3672,7 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             );
             cy += 46.0;
         }
-        ui.rule(x, cy, iw, INNER);
+        ui.rule(x, cy, iw, BORDER);
         cy += 14.0;
         let hw = if ready {
             hold_button_in(app, ui, x, cy, iw, &label, va(V::GpgHoldSign), ACCENT)
@@ -3748,7 +3748,7 @@ pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             }
             cy += 6.0;
             ui.hit(x, top, iw, cy - top, va(V::SaveTick(k as u8)));
-            ui.rule(x, cy, iw, INNER);
+            ui.rule(x, cy, iw, BORDER);
             cy += 6.0;
         }
         cy - y
@@ -3833,7 +3833,7 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
                     ));
                 }
                 dy += crate::screens::wrap_buttons(ui, dx, dy, dw, 36.0, &items);
-                ui.rule(dx, dy - 2.0, dw, INNER);
+                ui.rule(dx, dy - 2.0, dw, BORDER);
                 dy += 6.0;
                 continue;
             }
@@ -3865,7 +3865,7 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
                     va(V::SaveKeyWithPassphrase(k)),
                 );
             }
-            ui.rule(dx, dy + 44.0, dw, INNER);
+            ui.rule(dx, dy + 44.0, dw, BORDER);
             dy += 48.0;
         }
         if !any {
@@ -3898,7 +3898,7 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
                     Style::Secondary,
                     va(V::SaveWallet(k)),
                 );
-                ui.rule(dx, dy + 48.0, dw, INNER);
+                ui.rule(dx, dy + 48.0, dw, BORDER);
                 dy += 52.0;
                 continue;
             }
@@ -3914,7 +3914,7 @@ fn save_panel(app: &View, ui: &mut Ui, v: &vault::OpenVault, dx: f32, mut dy: f3
                 Style::Secondary,
                 va(V::SaveWallet(k)),
             );
-            ui.rule(dx, dy + 44.0, dw, INNER);
+            ui.rule(dx, dy + 44.0, dw, BORDER);
             dy += 48.0;
         }
         if !any {
@@ -4082,7 +4082,7 @@ fn images_panel(app: &View, ui: &mut Ui, dx: f32, mut dy: f32, dw: f32) -> f32 {
             Style::Secondary,
             va(V::SbCheck(k)),
         );
-        ui.rule(dx, dy + 44.0, dw, INNER);
+        ui.rule(dx, dy + 44.0, dw, BORDER);
         dy += 48.0;
     }
     if let Some(said) = &app.vaults.sb_checked {

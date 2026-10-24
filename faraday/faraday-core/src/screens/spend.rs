@@ -75,13 +75,13 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
         if ui.compact {
             // The verdict in full, under the input.
             let th = ui.wrap(x, cy + 28.0, w, 12.0, W::R, c, &t);
-            ui.rule(x, cy + 34.0 + th, w, INNER);
+            ui.rule(x, cy + 34.0 + th, w, BORDER);
             cy += th + 36.0;
             continue;
         }
         let t = ui.fit(12.0, W::R, &t, w - 170.0);
         ui.text_right(x + w, cy, 30.0, 12.0, W::R, c, &t);
-        ui.rule(x, cy + 30.0, w, INNER);
+        ui.rule(x, cy + 30.0, w, BORDER);
         cy += 32.0;
     }
     if check.rows.len() > SHOWN {
@@ -573,7 +573,7 @@ pub(crate) fn step_body(
                         let col = if held { WARN } else { TEXT };
                         let used = ui.wrap(ax, cy, x + w - ax, 13.0, W::M, col, &a);
                         cy += used.max(20.0) + 8.0;
-                        ui.rule(x, cy - 4.0, w, INNER);
+                        ui.rule(x, cy - 4.0, w, BORDER);
                     }
                 }
                 None => {
@@ -691,7 +691,7 @@ pub(crate) fn step_body(
             let row_h = if compact { 52.0 } else { 40.0 };
             let box_h = rows.len() as f32 * row_h;
             ui.fill(x, rows_top, w, box_h, 10.0, BG);
-            ui.stroke(x, rows_top, w, box_h, 10.0, INNER);
+            ui.stroke(x, rows_top, w, box_h, 10.0, BORDER);
             for (k, (label, amount, rest, note)) in rows.iter().enumerate() {
                 let ry = rows_top + k as f32 * row_h;
                 if compact {
@@ -884,7 +884,7 @@ pub(crate) fn step_body(
                     let label = slot.held_by.clone().unwrap_or_default();
                     let label = ui.fit(13.0, W::R, &label, x + w - lx - right - 8.0);
                     ui.text_mid(lx, ly, 42.0, 13.0, W::R, MUTED, &label);
-                    ui.rule(x, ly + 42.0, w, INNER);
+                    ui.rule(x, ly + 42.0, w, BORDER);
                     cy = ly + 44.0;
                 }
             }
@@ -999,7 +999,7 @@ pub(crate) fn step_body(
                                 ui.chip(chip_x, cy + 8.0, t, fg, bg);
                             }
                         }
-                        ui.rule(x, cy + 42.0, w, INNER);
+                        ui.rule(x, cy + 42.0, w, BORDER);
                         cy += 44.0;
                     }
                 }
@@ -1242,7 +1242,7 @@ pub(crate) fn step_body(
                     (EN.step_waiting, DIM)
                 };
                 ui.text_right(x + w, cy, 44.0, 12.0, W::R, c, t);
-                ui.rule(x, ly + 44.0, w, INNER);
+                ui.rule(x, ly + 44.0, w, BORDER);
                 cy = ly + 46.0;
             }
             cy += 10.0;
@@ -1307,7 +1307,7 @@ pub(crate) fn step_body(
                 .map(|id| fill(EN.step_share_n_inline, &[&(id + 1).to_string()]))
                 .collect();
             ui.fill(x, cy, w, 150.0, 10.0, BG);
-            ui.stroke(x, cy, w, 150.0, 10.0, INNER);
+            ui.stroke(x, cy, w, 150.0, 10.0, BORDER);
             ui.text(x + 14.0, cy + 14.0, 14.0, W::S, TEXT, EN.step_carry_file);
             let sub = fill(
                 EN.step_carry_holds_nonce,
@@ -1415,7 +1415,7 @@ pub(crate) fn step_body(
                         168.0
                     };
                     ui.fill(bx, cy, half, card_h, 10.0, BG);
-                    ui.stroke(bx, cy, half, card_h, 10.0, INNER);
+                    ui.stroke(bx, cy, half, card_h, 10.0, BORDER);
                     ui.text(bx + 14.0, cy + 14.0, 14.0, W::S, TEXT, head);
                     let sub = ui.fit(12.0, W::R, sub, half - 28.0);
                     ui.text(bx + 14.0, cy + 38.0, 12.0, W::R, MUTED, &sub);
@@ -1496,7 +1496,7 @@ pub(crate) fn step_body(
                         TEXT,
                         &spaced(&hex),
                     );
-                    ui.stroke(x, cy, w, th + 20.0, 8.0, INNER);
+                    ui.stroke(x, cy, w, th + 20.0, 8.0, BORDER);
                     cy += th + 32.0;
                 }
             }
@@ -1525,7 +1525,7 @@ pub(crate) fn step_body(
                         (EN.step_waiting, DIM)
                     };
                     ui.text_right(x + w, cy, 40.0, 12.0, W::R, c, t);
-                    ui.rule(x, cy + 40.0, w, INNER);
+                    ui.rule(x, cy + 40.0, w, BORDER);
                     cy += 42.0;
                 }
                 cy += 10.0;
@@ -1637,7 +1637,7 @@ pub(crate) fn step_body(
                         (EN.step_this_transaction, DIM)
                     };
                     ly += ui.wrap(x + 14.0, ly, w - 28.0, 12.0, W::R, c, verdict) + 12.0;
-                    ui.stroke(x, top, w, ly - top, 10.0, INNER);
+                    ui.stroke(x, top, w, ly - top, 10.0, BORDER);
                     cy = ly + 8.0;
                 }
             }
@@ -1744,14 +1744,14 @@ fn spend_panel(
         ui.text_mid(x, y, 38.0, 12.0, W::R, MUTED, k);
         let v = ui.fit(13.0, *wt, v, w - 70.0);
         ui.text_right(x + w, y, 38.0, 13.0, *wt, TEXT, &v);
-        ui.rule(x, y + 38.0, w, INNER);
+        ui.rule(x, y + 38.0, w, BORDER);
         ui.hit(x, y, w, 38.0, Action::Step(*step));
         y += 40.0;
     }
     let (count, missing, need_line, action_label) = spend_status(app, needed);
     let fy = h - 26.0 - 46.0 - 14.0 - 82.0;
     ui.fill(x, fy, w, 82.0, 12.0, BG);
-    ui.stroke(x, fy, w, 82.0, 12.0, INNER);
+    ui.stroke(x, fy, w, 82.0, 12.0, BORDER);
     ui.text_mid(
         x + 16.0,
         fy + 10.0,

@@ -158,7 +158,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if compact {
         y += 18.0;
     } else {
-        ui.fill(x + 100.0, y - 4.0, width - 100.0, 1.0, 0.0, INNER);
+        ui.fill(x + 100.0, y - 4.0, width - 100.0, 1.0, 0.0, BORDER);
         y += 12.0;
     }
     y += ui.wrap(x + vx, y, width - vx, 14.0, W::R, TEXT, &c.signed.message);

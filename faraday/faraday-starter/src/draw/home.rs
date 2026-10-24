@@ -357,7 +357,7 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let next = facts.next_step();
     let mut y = y0;
     y += label(ui, x, y, S.starter_checklist);
-    ui.rule(x, y, w, INNER);
+    ui.rule(x, y, w, BORDER);
     for (n, row) in facts.checklist().iter().enumerate() {
         let action = StarterAction::Item(row.item);
         let is_next = next == Some(row.item);
@@ -396,7 +396,7 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         if row.item == Item::SecureBootOn {
             y += link(ui, tx, y, w - 44.0, LearnId::SecureBootBitLocker);
         }
-        ui.rule(x, y, w, INNER);
+        ui.rule(x, y, w, BORDER);
     }
     y - y0
 }

@@ -964,7 +964,7 @@ pub(crate) fn vault_panel(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: 
             );
         }
         if !folded {
-            ui.rule(x + 20.0, ty + 56.0, w - 40.0, INNER);
+            ui.rule(x + 20.0, ty + 56.0, w - 40.0, BORDER);
         }
     }
     if folded {
@@ -1371,7 +1371,7 @@ fn vault_panel_compact(app: &View, ui: &mut Ui, v: usize, x: f32, y: f32, w: f32
             }
             ty += wrap_buttons(ui, ix, ty, iw, 40.0, &items);
             if !folded {
-                ui.rule(ix, ty, iw, INNER);
+                ui.rule(ix, ty, iw, BORDER);
                 ty += 12.0;
             }
         }

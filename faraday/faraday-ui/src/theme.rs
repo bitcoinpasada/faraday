@@ -349,7 +349,7 @@ mod tests {
             (&[OnSurface], &LIMITING, [7.0, 11.0, 21.0]),
             (&[OnSurfaceVariant], &LIMITING, [4.5, 7.0, 11.0]),
             (
-                &[Primary, Secondary, Tertiary, Error, Ok, Warning],
+                &[Primary, Secondary, Tertiary, Error, Ok, Warning, Checksum],
                 &LIMITING,
                 [4.5, 7.0, 7.0],
             ),
@@ -363,6 +363,7 @@ mod tests {
                     OutlineVariant,
                     OkContainer,
                     WarningContainer,
+                    ChecksumContainer,
                 ],
                 &LIMITING,
                 [0.0, 3.0, 4.5],
@@ -378,12 +379,14 @@ mod tests {
             (OnError, Error, [7.0, 11.0, 21.0]),
             (OnOk, Ok, [7.0, 11.0, 21.0]),
             (OnWarning, Warning, [7.0, 11.0, 21.0]),
+            (OnChecksum, Checksum, [7.0, 11.0, 21.0]),
             (OnPrimaryContainer, PrimaryContainer, [4.5, 7.0, 11.0]),
             (OnSecondaryContainer, SecondaryContainer, [4.5, 7.0, 11.0]),
             (OnTertiaryContainer, TertiaryContainer, [4.5, 7.0, 11.0]),
             (OnErrorContainer, ErrorContainer, [4.5, 7.0, 11.0]),
             (OnOkContainer, OkContainer, [4.5, 7.0, 11.0]),
             (OnWarningContainer, WarningContainer, [4.5, 7.0, 11.0]),
+            (OnChecksumContainer, ChecksumContainer, [4.5, 7.0, 11.0]),
         ];
         let mut short = Vec::new();
         for theme in Theme::all() {
@@ -444,9 +447,11 @@ mod tests {
         assert!(short.is_empty(), "{short:#?}");
     }
 
-    /// The backup board's boxes and the codex32 worksheets (THEMES §6): each
-    /// box's words on its fill and band, 4.5:1 (7:1 at High contrast), and
-    /// each box's edge 3:1 against what is round it.
+    /// The backup board's boxes, the codex32 worksheets and the badges
+    /// (THEMES §6): each box's words on its fill and band, in the paints
+    /// the screens draw them in, 4.5:1 (7:1 at High contrast), and each
+    /// box's edge 3:1 against what is round it. What the screens draw is
+    /// checked on the frame by faraday-core's `fills_read`.
     #[test]
     fn the_boards_boxes_and_the_worksheets_read_in_every_scheme() {
         use crate::pal::*;
@@ -464,11 +469,13 @@ mod tests {
                 ("vault band", VAULT_ON, VAULT_EDGE, text),
                 (
                     "checksum square",
-                    Paint::role(OnTertiaryContainer),
+                    CODEX32_ON_CHECKSUM,
                     CODEX32_CHECKSUM_FILL,
                     text,
                 ),
                 ("table row", TEXT, CODEX32_LOOKUP_FILL, text),
+                ("a badge's number", MUTED, INNER, text),
+                ("a pressed box's text", TEXT, BG_PRESSED, text),
                 ("place edge", PLACE_EDGE, SURFACE, 3.0),
                 ("stick edge", STICK_EDGE, PLACE_FILL, 3.0),
                 ("vault edge", VAULT_EDGE, STICK_FILL, 3.0),

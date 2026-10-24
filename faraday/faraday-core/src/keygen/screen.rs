@@ -474,7 +474,7 @@ fn word_grid(
         let cx = x + (i % cols) as f32 * (cellw + 10.0);
         let wy = y + (i / cols) as f32 * 46.0;
         ui.fill(cx, wy, cellw, 38.0, 8.0, BG);
-        ui.stroke(cx, wy, cellw, 38.0, 8.0, INNER);
+        ui.stroke(cx, wy, cellw, 38.0, 8.0, BORDER);
         ui.text_mid(cx + 10.0, wy, 38.0, 11.0, W::R, DIM, &(i + 1).to_string());
         let word = if shown {
             lang.word_display(idx)
@@ -785,7 +785,7 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
         line,
         action: a,
     } = r;
-    ui.fill(x, y, w, 52.0, 10.0, if on { INNER } else { BG });
+    ui.fill(x, y, w, 52.0, 10.0, if on { BG_PRESSED } else { BG });
     ui.stroke(
         x,
         y,
@@ -1707,7 +1707,7 @@ fn device_rows(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         ui.text(x, cy, 13.0, W::R, MUTED, label);
         ui.text(x + 140.0, cy, 13.0, W::S, tone, value);
         cy += 26.0;
-        ui.rule(x, cy - 6.0, w, INNER);
+        ui.rule(x, cy - 6.0, w, BORDER);
     }
     cy + 6.0
 }
@@ -1959,7 +1959,7 @@ fn share_words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let cx = x + (i % cols) as f32 * (cellw + 10.0);
         let wy = cy + (i / cols) as f32 * 46.0;
         ui.fill(cx, wy, cellw, 38.0, 8.0, BG);
-        ui.stroke(cx, wy, cellw, 38.0, 8.0, INNER);
+        ui.stroke(cx, wy, cellw, 38.0, 8.0, BORDER);
         ui.text_mid(cx + 10.0, wy, 38.0, 11.0, W::R, DIM, &(i + 1).to_string());
         let shown = if k.shown {
             faraday_bip::slip39::word(idx)

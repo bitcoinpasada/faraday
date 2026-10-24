@@ -1890,7 +1890,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             let tick = if enabled { ON_ACCENT } else { DIM };
             self.icon(x, y, SIDE, Icon::Done, 11.0, tick);
         } else {
-            let edge = self.col(if enabled { MUTED } else { INNER });
+            let edge = self.col(if enabled { MUTED } else { BORDER });
             let rect = self.rect(x, y, SIDE, SIDE);
             self.c
                 .stroke_rounded_rect(rect, R * self.f, 2.0 * self.f, edge);

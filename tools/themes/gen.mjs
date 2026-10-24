@@ -54,10 +54,14 @@ const STYLES = {
   monochrome: SchemeMonochrome,
 };
 
-// OK and Warning's source colours (THEMES §5).
+// The custom colours' source colours (THEMES §5): OK and Warning,
+// harmonised with the seed unless a theme leaves them raw; the codex32
+// booklet's checksum pink, never harmonised, so the checksum squares are
+// the booklet's pink in every theme.
 const CUSTOM = [
-  ['ok', 0xff2e7d32],
-  ['warning', 0xffffb300],
+  ['ok', 0xff2e7d32, true],
+  ['warning', 0xffffb300, true],
+  ['checksum', 0xffc57d81, false],
 ];
 
 // Mode, then contrast, in the order of each theme's six rows.
@@ -110,6 +114,10 @@ const ROLES = [
   ['onWarning', 'on-warning', 'custom'],
   ['warningContainer', 'warning-container', 'custom'],
   ['onWarningContainer', 'on-warning-container', 'custom'],
+  ['checksum', 'checksum', 'custom'],
+  ['onChecksum', 'on-checksum', 'custom'],
+  ['checksumContainer', 'checksum-container', 'custom'],
+  ['onChecksumContainer', 'on-checksum-container', 'custom'],
 ];
 
 // A custom colour's four roles, built as ColorSpec2021 builds the error
@@ -166,8 +174,8 @@ const hex = (argb) => '0x' + (argb & 0xffffff).toString(16).padStart(6, '0').toU
 function scheme(seed, style, raw, dark, contrast) {
   const s = new STYLES[style](Hct.fromInt(0xff000000 | parseInt(seed, 16)), dark, contrast);
   const own = {};
-  for (const [name, source] of CUSTOM) {
-    const keep = raw.includes(name) || s.variant === Variant.MONOCHROME;
+  for (const [name, source, harmonised] of CUSTOM) {
+    const keep = !harmonised || raw.includes(name) || s.variant === Variant.MONOCHROME;
     const palette = TonalPalette.fromInt(keep ? source : Blend.harmonize(source, s.sourceColorArgb));
     const c = custom(name, palette);
     const cap = name[0].toUpperCase() + name.slice(1);

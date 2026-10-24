@@ -225,7 +225,7 @@ pub(crate) fn pass_seeds(app: &View, ui: &mut Ui, w: f32, h: f32) {
                         cy - top,
                         va(V::PassphrasePick(s.vault, s.record)),
                     );
-                    ui.rule(x, cy, iw, INNER);
+                    ui.rule(x, cy, iw, BORDER);
                     cy += 10.0;
                 }
                 cy += buttons(

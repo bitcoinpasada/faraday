@@ -603,6 +603,8 @@ fn one(ui: &mut Ui, d: &Drawn, (ox, oy): (f32, f32), s: f32, size: f32) {
     let note = t::CODEX32_CELL_NOTE;
     let inset = t::CODEX32_CELL_NOTE_INSET;
     let mut room = s;
+    // On a checksum square, everything in it is in the fill's on-role.
+    let note_c = if d.pink { CODEX32_ON_CHECKSUM } else { MUTED };
     if let Some(n) = d.number {
         let n = n.to_string();
         let nw = ui.measure(note, W::R, &n);
@@ -611,7 +613,7 @@ fn one(ui: &mut Ui, d: &Drawn, (ox, oy): (f32, f32), s: f32, size: f32) {
             y - t::CODEX32_CELL_NOTE_RISE,
             note,
             W::R,
-            MUTED,
+            note_c,
             &n,
         );
         room = s - inset - nw;
@@ -619,11 +621,12 @@ fn one(ui: &mut Ui, d: &Drawn, (ox, oy): (f32, f32), s: f32, size: f32) {
     if let Some((text, c)) = &d.text {
         let tw = ui.measure(size, W::M, text);
         let left = ((room - tw) / 2.0).max(inset).min((s - tw) / 2.0);
-        ui.text_mid(x + left, y, s, size, W::M, *c, text);
+        let c = if d.pink { CODEX32_ON_CHECKSUM } else { *c };
+        ui.text_mid(x + left, y, s, size, W::M, c, text);
     }
     if let Some(l) = &d.letter {
         let lh = ui.line(note, W::R);
-        ui.text(x + inset, y + s - lh, note, W::R, MUTED, l);
+        ui.text(x + inset, y + s - lh, note, W::R, note_c, l);
     }
 }
 

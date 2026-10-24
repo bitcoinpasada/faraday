@@ -67,7 +67,7 @@ pub(super) fn dice_panel(
             8.0,
             if on { ACCENT.with_alpha(22) } else { BG },
         );
-        ui.stroke(bx, cy, lw, 44.0, 8.0, if on { ACCENT } else { INNER });
+        ui.stroke(bx, cy, lw, 44.0, 8.0, if on { ACCENT } else { BORDER });
         ui.text(bx + 10.0, cy + 6.0, 13.0, W::S, TEXT, name);
         ui.text(bx + 10.0, cy + 24.0, 11.0, W::R, MUTED, &detail);
         ui.hit(bx, cy, lw, 44.0, Action::Vault(V::DiceList(k as u8)));

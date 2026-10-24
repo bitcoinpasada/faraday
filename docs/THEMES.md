@@ -119,9 +119,9 @@ why not 2025 or 2026):
 | Outline | outline, outline-variant |
 | Inverse | inverse-surface, inverse-on-surface |
 | Other | scrim, shadow |
-| Custom (§5) | ok, on-ok, ok-container, on-ok-container; warning, on-warning, warning-container, on-warning-container |
+| Custom (§5) | ok, on-ok, ok-container, on-ok-container; warning, on-warning, warning-container, on-warning-container; checksum, on-checksum, checksum-container, on-checksum-container |
 
-Forty-one roles a scheme. Not taken, each for a reason:
+Forty-five roles a scheme. Not taken, each for a reason:
 
 - **The fixed roles** (primary-fixed, on-primary-fixed and the rest):
   colours that stay the same across modes; nothing in Faraday needs one.
@@ -170,10 +170,32 @@ Bitcoin Orange's warning moves from #855400 to #7E5700, beside primary
 error, a status is told apart by its icon and words as well as its
 colour. No state in Faraday is shown by colour alone.
 
+**Checksum** is the codex32 booklet's pink (CODEX32 §7.5), a third
+custom colour built as OK and Warning are, so the worksheets' checksum
+squares are the booklet's pink in every theme: light on Light, a muted
+rose on Dark.
+
+- **Source colour**: #C57D81, the booklet's fill (`/pink`, RGB 1, 0.9,
+  0.9, #FFE6E6: HCT hue 15, chroma 9, tone 93) at its own hue with chroma
+  32 and tone 60, so its tonal palette carries the pink rather than a
+  grey. Its container is #FFDADA in Light and #6F353A in Dark at
+  Standard contrast, and its on-container #6F353A and #FFDADA.
+- **Never harmonised**, in any theme: it names a colour printed on
+  paper the person copies from, which no theme's seed changes. The
+  rule above (a custom colour near the primary stays as it is) would
+  keep it in Rose in any case.
+- At Medium and High contrast its container darkens in Light and
+  lightens in Dark, as error-container does, with its on-container
+  turning to keep the contrast curve; the squares stay pink in hue.
+- The worksheets use checksum-container for the fill and
+  on-checksum-container for everything written on it (§6); checksum
+  and on-checksum are generated with the rest of the custom roles and
+  are not drawn yet.
+
 ## 6. Faraday's colours, mapped to roles
 
-Every one of the 39 colours in `faraday/faraday-ui/src/pal/mod.rs`
-(`pal::ROLES`) and the role or roles it becomes. Where one name served
+Every one of the colours in `faraday/faraday-ui/src/pal/mod.rs` and
+the role or roles it becomes. Where one name served
 several uses, C2 picks the role by the use, as the row says.
 
 | Today | Used for | Becomes |
@@ -182,7 +204,8 @@ several uses, C2 picks the role by the use, as the row says.
 | `SIDEBAR` | the expanded rail | surface-container-low, a shade apart from the page, as F39 keeps it (owner, 2026-10-24; Material's standard rail is surface) |
 | `SURFACE` | the page and a sheet (F39); a card | surface for the page; surface-container-low for a bottom sheet; surface-container-high for a dialog; a card as §7 says |
 | `LINE` | a card's and the sidebar's edge | outline-variant |
-| `INNER` | a rule inside a card; an idle badge | outline-variant for a rule (Material's divider); surface-container-highest for an idle badge |
+| `INNER` | an idle badge, a step's number, a track, a hover or a press on the page | surface-container-highest (since C1's fix: on outline-variant, text failed at Medium and High contrast); a rule inside a card is drawn in `BORDER` |
+| `BG_PRESSED` | a box inset on the page (`BG`) while pressed or chosen | surface-container-high, a shade apart from `BG` |
 | `BORDER` | a card's, a rule's and a sheet's edge | outline-variant |
 | `TEXT` | text | on-surface; on the container a text sits on, that container's on-role |
 | `MUTED` | labels | on-surface-variant |
@@ -215,7 +238,8 @@ several uses, C2 picks the role by the use, as the row says.
 | `FILES_EDGE` | its edge | secondary |
 | `FILES_TEXT` | its name and glyph | on-secondary-container |
 | `CHIP_EDGE` | a chip's edge on the board | outline |
-| `CODEX32_CHECKSUM_FILL` | a worksheet's checksum squares | tertiary-container, its characters on-tertiary-container |
+| `CODEX32_CHECKSUM_FILL` | a worksheet's checksum squares and a string's checksum boxes | checksum-container (§5), the booklet's pink |
+| `CODEX32_ON_CHECKSUM` | the characters, box numbers and letters on them | on-checksum-container |
 | `CODEX32_LOOKUP_FILL` | a worksheet's table rows | surface-container-highest, its characters on-surface |
 
 Not in the tables today and unchanged: `SCRIM` becomes the scrim role
@@ -346,7 +370,7 @@ the npm package `@material/material-color-utilities` 0.4.0.
   (`SchemeTonalSpot`, `SchemeFidelity`, `SchemeNeutral`,
   `SchemeMonochrome`) and writes each role's colour.
 - It writes one Rust file, `faraday/faraday-ui/src/pal/` gaining
-  schemes.rs: one scheme a line, its 41 colours as hex words in role
+  schemes.rs: one scheme a line, its 45 colours as hex words in role
   order, under a header naming the generator and the reference's commit.
   Sixty lines; the file is generated and not edited by hand.
 - `just themes` runs it. It needs Node 22 or later and nothing else; no
@@ -357,7 +381,7 @@ the npm package `@material/material-color-utilities` 0.4.0.
 
 ### 10.3 In Rust
 
-- `pal::Role`: the 41 roles. `Theme` is (theme, mode, contrast), and
+- `pal::Role`: the 45 roles. `Theme` is (theme, mode, contrast), and
   `Theme::scheme` looks up its row of the table.
 - A drawing call takes a paint: a role at an opacity, or a colour drawn
   as it is (a QR code, a camera's overlay, a stick's pill). `Ui` resolves
@@ -393,10 +417,10 @@ Medium and High:
 | inverse-primary | inverse-surface | 4.5 | 7 | 7 |
 | on-primary, on-secondary, on-tertiary, on-error | primary, secondary, tertiary, error | 7 | 11 | 21 |
 | on-primary-, on-secondary-, on-tertiary-, on-error-container | its container | 4.5 | 7 | 11 |
-| ok, warning | surface-dim, surface-bright | 4.5 | 7 | 7 |
-| on-ok, on-warning | ok, warning | 7 | 11 | 21 |
-| ok-container, warning-container | surface-dim, surface-bright | none | 3 | 4.5 |
-| on-ok-container, on-warning-container | its container | 4.5 | 7 | 11 |
+| ok, warning, checksum | surface-dim, surface-bright | 4.5 | 7 | 7 |
+| on-ok, on-warning, on-checksum | ok, warning, checksum | 7 | 11 | 21 |
+| ok-container, warning-container, checksum-container | surface-dim, surface-bright | none | 3 | 4.5 |
+| on-ok-container, on-warning-container, on-checksum-container | its container | 4.5 | 7 | 11 |
 
 The last four rows are Faraday's custom colours under the error rows'
 targets. As Material's test does: the ratio is WCAG's, a target of 4.5
@@ -414,11 +438,21 @@ What screens rely on, tested on the shipped tables:
   primary, error, ok and warning 4.5:1 or more; outline 3:1 or more.
 - At High contrast, the same text roles 7:1 or more on every surface
   role, as the high contrast themes promise today.
-- The board's and the worksheets' own pairs (§6): place text on its
-  fill and band, stick text on its fill, paper and files text on their
-  fills, vault text on its band, a worksheet's characters on its fills
-  4.5:1 or more (7:1 at High); every board edge 3:1 against the box
-  round it.
+- The board's and the worksheets' own pairs (§6), in the paints the
+  screens draw them in: place text on its fill and band, stick text on
+  its fill, paper and files text on their fills, vault text on its
+  band, a worksheet's characters on its fills, a badge's number on
+  `INNER`, text on `BG_PRESSED`, 4.5:1 or more (7:1 at High); every
+  board edge 3:1 against the box round it.
+- What is drawn, checked on the frame
+  (`faraday/faraday-core/tests/all/fills_read.rs`): codex32's entry
+  rendered in every theme Settings offers, and every line of text whose
+  surround is the checksum fill or a step badge's fill measured in the
+  colour it was drawn in against that fill, 4.5:1 or more (7:1 at
+  High). A pair tested on the table alone missed the checksum squares
+  once (C1 drew their characters in on-surface on tertiary-container);
+  the frame shows what the screen actually pairs. Once Settings offers
+  all sixty schemes (C3) the test takes each of them.
 
 These replace the hand-tuned tests at `faraday/faraday-ui/src/lib.rs`
 (`text_and_tones_are_legible_on_the_page_and_the_card_in_every_theme`

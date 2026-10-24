@@ -214,7 +214,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let can = app.can_spend(app.wallets.wallet());
     let box_h = if can { 76.0 } else { 90.0 };
     ui.fill(x, cy, iw, box_h, 10.0, BG);
-    ui.stroke(x, cy, iw, box_h, 10.0, INNER);
+    ui.stroke(x, cy, iw, box_h, 10.0, BORDER);
     let pw = ui.pips(x + 14.0, cy + 16.0, m, here);
     let sigs = fill(
         EN.compact_of_signatures,
@@ -794,7 +794,7 @@ pub(crate) fn keyed_taken(
             if k == taken.len() {
                 ACCENT.with_alpha(110)
             } else {
-                INNER
+                BORDER
             },
         );
         ui.text_mid(cx + 6.0, cy, 28.0, 10.0, W::R, DIM, &(k + 1).to_string());

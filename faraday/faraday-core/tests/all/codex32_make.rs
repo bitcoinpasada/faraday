@@ -639,12 +639,33 @@ fn the_eye_stands_clear_of_every_row_of_the_flow() {
 /// and the sheet are both on it), a frame drawn after each as the shells
 /// draw one after every event.
 fn typed_a(width: u16, height: u16, n: usize) -> Faraday {
+    typed_a_in(None, width, height, n)
+}
+
+/// As [`typed_a`], drawn in `theme` from the start where one is given.
+fn typed_a_in(theme: Option<faraday_ui::Preset>, width: u16, height: u16, n: usize) -> Faraday {
     let (all, _) = vector2();
     let mut app = on(width, height, 160);
+    if let Some(theme) = theme {
+        app.press(Action::Theme(theme));
+    }
     opened(&mut app);
     to_entry(&mut app, Way::Typed);
     let _ = app.frame();
     for &ch in &all[0].as_bytes()[9..9 + n] {
+        key(&mut app, char::from(ch));
+        let _ = app.frame();
+    }
+    app
+}
+
+/// Vector 2's shares A and C typed in `theme` on a window `width` ×
+/// `height` at 160 dpi: the entry done, Share C's string and worksheet
+/// on it.
+pub(crate) fn both_typed_in(theme: faraday_ui::Preset, width: u16, height: u16) -> Faraday {
+    let (all, _) = vector2();
+    let mut app = typed_a_in(Some(theme), width, height, 26);
+    for &ch in &all[1].as_bytes()[9..35] {
         key(&mut app, char::from(ch));
         let _ = app.frame();
     }

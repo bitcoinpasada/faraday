@@ -200,7 +200,7 @@ pub fn kv<A: Copy + PartialEq>(
     let tone: Paint = tone.into();
     ui.text(x, y, 12.0, W::R, MUTED, key);
     let vh = ui.wrap(x, y + 18.0, w, 14.0, W::R, tone, value);
-    ui.rule(x, y + 24.0 + vh, w, INNER);
+    ui.rule(x, y + 24.0 + vh, w, BORDER);
     vh + 32.0
 }
 

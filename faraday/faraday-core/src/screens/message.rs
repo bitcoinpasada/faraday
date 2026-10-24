@@ -181,7 +181,7 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 if m.typing {
                     ACCENT.with_alpha(110)
                 } else {
-                    INNER
+                    BORDER
                 },
             );
             let shown = if m.text.is_empty() {

@@ -256,7 +256,7 @@ pub(crate) fn shape(
             40.0
         };
         ui.hit(x, cy, w, rh, sa(S::Kind(k as u8)));
-        ui.rule(x, cy + rh, w, INNER);
+        ui.rule(x, cy + rh, w, BORDER);
         cy += rh + 2.0;
     }
     // The path.

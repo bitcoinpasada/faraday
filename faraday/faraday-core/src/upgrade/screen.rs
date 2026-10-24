@@ -96,7 +96,7 @@ fn value_row(
     ui.text_mid(x, y, 36.0, 13.0, W::R, MUTED, key);
     let v = ui.fit(14.0, W::R, value, w - kw);
     ui.text_right(x + w, y, 36.0, 14.0, W::R, tone, &v);
-    ui.rule(x, y + 36.0, w, INNER);
+    ui.rule(x, y + 36.0, w, BORDER);
     38.0
 }
 
@@ -157,7 +157,7 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
     let shown = u.target();
     // More than one in: which one.
     if targets.len() > 1 {
-        ui.rule(ix, y, iw, INNER);
+        ui.rule(ix, y, iw, BORDER);
         for (i, p) in targets.iter().enumerate() {
             let action = Action::UpgradePick(i as u8);
             let on = shown.is_some_and(|s| s.id == p.id);
@@ -170,7 +170,7 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
             ui.text_right(ix + iw, y, ROW, 12.0, W::R, MUTED, &v);
             ui.hit(ix - 8.0, y, iw + 16.0, ROW, action);
             y += ROW;
-            ui.rule(ix, y, iw, INNER);
+            ui.rule(ix, y, iw, BORDER);
         }
         y += 12.0;
     }

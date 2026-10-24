@@ -579,7 +579,7 @@ fn track(m: &Codex32Make, ui: &mut Ui, (tx, top, u): (f32, f32, f32), die: usize
         let (fill_c, edge, ink) = if pad <= faces {
             (Some(CODEX32_LOOKUP_FILL), BORDER, MUTED)
         } else {
-            (None, INNER, DIM)
+            (None, BORDER, DIM)
         };
         shape(ui, &pts, fill_c, edge);
         centred(ui, at(c), &pad.to_string(), ink);

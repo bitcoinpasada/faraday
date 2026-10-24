@@ -1098,8 +1098,15 @@ impl Node {
     fn draw(&self, ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) {
         let pad = tokens::CHART_NODE_PAD;
         let pressed = self.action.is_some_and(|a| ui.is_pressed(a));
-        ui.fill(x, y, w, h, tokens::RADIUS, if pressed { INNER } else { BG });
-        ui.stroke(x, y, w, h, tokens::RADIUS, INNER);
+        ui.fill(
+            x,
+            y,
+            w,
+            h,
+            tokens::RADIUS,
+            if pressed { BG_PRESSED } else { BG },
+        );
+        ui.stroke(x, y, w, h, tokens::RADIUS, BORDER);
         let inner = w - 2.0 * pad;
         let mut cy = y + pad;
         let under = self.tag_under(ui, w);
@@ -1658,7 +1665,7 @@ pub(crate) fn draw_with(
             // Where it is: this key's lines bold, every other dimmed.
             let (color, stroke) = match g.focus {
                 Some(f) if f == k => (KEY_LINES[held % KEY_LINES.len()], tokens::CHART_STROKE_BOLD),
-                Some(_) => (INNER, tokens::CHART_STROKE),
+                Some(_) => (BORDER, tokens::CHART_STROKE),
                 None => (KEY_LINES[held % KEY_LINES.len()], tokens::CHART_STROKE),
             };
             looks.push((
@@ -1669,7 +1676,7 @@ pub(crate) fn draw_with(
         }
     }
     if g.focus.is_some() {
-        looks[0].0 = INNER;
+        looks[0].0 = BORDER;
     }
     let wallet_w = rows[0].iter().map(|n| n.natural(ui)).fold(0.0, f32::max);
     let counts = [rows[0].len(), rows[1].len(), rows[2].len()];

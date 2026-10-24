@@ -102,8 +102,13 @@ pub const SIDEBAR: Paint = Paint::role(Role::SurfaceContainerLow);
 pub const SURFACE: Paint = Paint::role(Role::Surface);
 /// A card's edge and the sidebar's.
 pub const LINE: Paint = Paint::role(Role::OutlineVariant);
-/// A rule inside a card, and an idle badge.
-pub const INNER: Paint = Paint::role(Role::OutlineVariant);
+/// An idle badge, a step's number, a track, a hover or a press on the
+/// page: surface-container-highest (`docs/THEMES.md` §6), on which text
+/// and icons read in every scheme. A rule inside a card is `BORDER`.
+pub const INNER: Paint = Paint::role(Role::SurfaceContainerHighest);
+/// A box inset on the page (`BG`) while pressed or chosen: a shade apart
+/// from it.
+pub const BG_PRESSED: Paint = Paint::role(Role::SurfaceContainerHigh);
 /// A card's, a rule's and a sheet's edge.
 pub const BORDER: Paint = Paint::role(Role::OutlineVariant);
 /// Text.
@@ -190,8 +195,11 @@ pub const FILES_TEXT: Paint = Paint::role(Role::OnSecondaryContainer);
 pub const CHIP_EDGE: Paint = Paint::role(Role::Outline);
 
 // The codex32 worksheets (`docs/CODEX32.md` §7.5).
-/// The checksum squares, worked from the bottom up.
-pub const CODEX32_CHECKSUM_FILL: Paint = Paint::role(Role::TertiaryContainer);
+/// The checksum squares, worked from the bottom up: the booklet's pink,
+/// Faraday's checksum custom colour (`docs/THEMES.md` §5).
+pub const CODEX32_CHECKSUM_FILL: Paint = Paint::role(Role::ChecksumContainer);
+/// The characters, box numbers and letters on a checksum square.
+pub const CODEX32_ON_CHECKSUM: Paint = Paint::role(Role::OnChecksumContainer);
 /// The rows read from a table (sums and lookups).
 pub const CODEX32_LOOKUP_FILL: Paint = Paint::role(Role::SurfaceContainerHighest);
 

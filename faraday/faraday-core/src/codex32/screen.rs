@@ -316,7 +316,7 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
             used += widths[first];
         }
     }
-    ui.rule(x, y + t::CODEX32_TAB - 1.0, w, INNER);
+    ui.rule(x, y + t::CODEX32_TAB - 1.0, w, BORDER);
     let mut tx = x;
     for (i, item) in items.iter().enumerate().skip(first) {
         let tw = if fixed { equal } else { widths[i] };
@@ -915,7 +915,12 @@ fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Op
             W::M
         };
         let cw = ui.measure(size, weight, &ch);
-        ui.text_mid(bx + (s - cw) / 2.0, y, s, size, weight, TEXT, &ch);
+        let ink = if look == Look::Checksum {
+            CODEX32_ON_CHECKSUM
+        } else {
+            TEXT
+        };
+        ui.text_mid(bx + (s - cw) / 2.0, y, s, size, weight, ink, &ch);
         // The press on a box opens the working of the nearest one: each
         // box's hit takes the gaps round it, so the boxes tile the sheet
         // (§7.4). A masked sheet opens nothing.
@@ -1444,7 +1449,7 @@ fn fact(ui: &mut Ui, x: f32, y: f32, w: f32, label: &str, value: &str) -> f32 {
     ui.text(x, y, t::CAPTION, W::R, MUTED, label);
     let ly = ui.line(t::CAPTION, W::R) + t::GAP_SMALL;
     let vh = ui.wrap(x, y + ly, w, t::LABEL, W::M, TEXT, value);
-    ui.rule(x, y + ly + vh + t::GAP_SMALL, w, INNER);
+    ui.rule(x, y + ly + vh + t::GAP_SMALL, w, BORDER);
     ly + vh + t::GAP
 }
 

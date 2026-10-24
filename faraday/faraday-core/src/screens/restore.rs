@@ -184,7 +184,7 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     cy += wrap_buttons(ui, x + lw, cy, w - lw, 40.0, &items);
                 }
                 cy += 8.0;
-                ui.rule(x, cy, w, INNER);
+                ui.rule(x, cy, w, BORDER);
                 cy += 14.0;
             }
             cy += kind_rows(
@@ -457,7 +457,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 }
                 cy += 42.0;
             }
-            ui.rule(x, cy, w, INNER);
+            ui.rule(x, cy, w, BORDER);
             cy += 8.0;
         }
     } else {
@@ -472,7 +472,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             };
             row(ui, cy, k, &fp_text(f), &line, OK);
             cy += 42.0;
-            ui.rule(x, cy, w, INNER);
+            ui.rule(x, cy, w, BORDER);
             cy += 8.0;
         }
         for (k, text) in s.cosigners.iter().enumerate() {
@@ -506,7 +506,7 @@ fn restore_seeds(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 }
                 cy += 42.0;
             }
-            ui.rule(x, cy, w, INNER);
+            ui.rule(x, cy, w, BORDER);
             cy += 8.0;
         }
     }
@@ -667,7 +667,7 @@ fn restore_sources(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         );
     }
     cy += 48.0;
-    ui.rule(x, cy - 6.0, w, INNER);
+    ui.rule(x, cy - 6.0, w, BORDER);
     cy += 10.0;
     cy - y
 }
@@ -748,7 +748,7 @@ fn restore_sources_compact(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
         cy += wrap_buttons(ui, x, cy, w, 40.0, &items);
     }
     cy += 8.0;
-    ui.rule(x, cy - 6.0, w, INNER);
+    ui.rule(x, cy - 6.0, w, BORDER);
     cy += 10.0;
     cy - y
 }

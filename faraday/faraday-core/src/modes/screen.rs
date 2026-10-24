@@ -173,7 +173,7 @@ fn body(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         mode_row(ui, x, ry, w, m, m == now, live);
         if i + 1 < modes.len() {
-            ui.rule(x, ry + MODE_ROW, w, INNER);
+            ui.rule(x, ry + MODE_ROW, w, BORDER);
         }
         if live {
             ui.hit(x, ry, w, MODE_ROW, action);
