@@ -1,8 +1,8 @@
 # Layout at every window size
 
 **Kind:** Spec
-**Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the rest specified, not built (F92)
-**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), list and detail panes (L4), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7); planned.
+**Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the rest specified, not built (F92); wide windows (§13 to §19) specified, not built
+**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), list and detail panes (L4), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7), wide windows: the page area to the window's edge, wide content, the codex32 worksheet's fit, the string's boxes, the input panel, the page following a whole sheet, fixed step buttons and the other screens (§14 to §17, W1 to W7); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -268,3 +268,324 @@ L1 before the rest; L2 before L3 and L4. Each batch is timed in a
 late-flow session (`docs/SPEED.md` §7) where it adds drawing work, and
 the frame budgets stay as they are. The text size work (F85,
 `docs/TEXT-SIZE.md`) builds on L1's classes and goes after it.
+
+## 13. Wide windows: what is wasted today (2026-10-24)
+
+The owner, from Faraday Desktop on Make codex32 shares' dice entry
+(2026-10-24): wide empty space left of the flow and right of the Demo
+only card; the checksum worksheet scrolls although the window has room
+for it whole; the card and the top strip's pills stand mid-screen, not
+at the window's edge; the pad is at the page's foot, below the tree, the
+tracks and the worksheet, so the pad and the rolls it fills are never in
+view together; the string's boxes are small; the step-through's buttons
+move as its line wraps. The owner's screenshot matches the 2560 × 1440
+tour's frame (`just faraday-snap 2560x1440 roller`): the window lays out
+at about 2560 dp wide. The audit rendered the default tour and codex32,
+roller, board, walletflow, spend, vaultshow, glance, inbox and guide at
+1280 × 800, 1920 × 1080 and 2560 × 1440.
+
+**One cause for most of it.** The wide frame caps the navigation and
+the page together at 1600 dp and centres the page in the rest
+(`MAX_W`, `faraday/faraday-core/src/screens/mod.rs`): at 1920 the page
+is 1360 dp with 160 dp empty each side, at 2560 1360 dp with 480 dp
+each side. Everything placed from the page's right edge (the mode pill,
+the ?, the eye, the keyboard button, Home's Scan button, the supporting
+pane) is that far in from the window's edge. At 1280 × 800 the cap does
+not bind and nothing is wasted.
+
+| Screen | At 1920 and 2560 | Content | Rule |
+|---|---|---|---|
+| Make codex32 shares, the entry | page centred, 480 dp empty each side at 2560; the card column capped at 900; the worksheet in a view at most 400 dp tall, panning, the sheet 1392 × 1052 dp; the Demo only card 506 dp in from the edge; the pad at the page's foot, its keys stretched to the column (136 dp at 2560) | wide: the worksheets, the dice tracks and tree; the string's boxes; the pad | §14, §15, §16 |
+| Make codex32 shares, the review tabs and the Strings card | the same cap; each worksheet in its view; the Codex32QR copy grid in the 900 column | wide: worksheets, the copy grid | §14, §16.1, §17 |
+| Home | the tiles in three columns in the 1360 page, the rest empty; Scan 480 dp in from the edge | a grid of tiles (feed) | §17 |
+| Back up a wallet, the board | the places in one column, the board's lists beside them, the right of the window empty | wide: the board | §17 |
+| Wallets with the chosen wallet; the structure chart | list and detail inside the 1360 page; the chart small in a wide detail, its buttons far below it | list and detail; the chart (wide) | §17, L4 |
+| Files | the two lists, 490 dp each, in the 1360 page; "Waiting for a stick" mid-screen | lists | §17, L4 |
+| Vaults; Wallets' own list | one card or two columns of cards at the page's top left, the rest empty | lists | §17, L4 |
+| Explore | the path field stretched to 1350 dp; long values on one line | fields, mono values, a table | §8, §17 |
+| Settings | one 720 dp column of cards, off centre of the window, the pills far from it | reading | §14, §17 |
+| Spend, the backup flow, New key, Create a vault (step flows) | one column centred in the 1360 page; the pills mid-screen | reading; Spend's transaction table | §14, §15 |
+| Learn | the sheet centred over the window | reading | L6 |
+
+## 14. Reading width and wide content
+
+The owner's call, recorded as F114 (`docs/decisions/F114.md`).
+
+A page holds two kinds of content, and each has its own width:
+
+- **Reading content** (text, fields, buttons, a flow's card heads and
+  rows, lists of rows): at most `COLUMN_MAX` (720 dp), its text at
+  most `MEASURE` (§8). Material keeps body text to a readable line
+  length and gives a larger window more panes, not longer lines
+  (Material 3, Layout: canonical layouts and window size classes;
+  Android's adaptive guidance, "Canonical layouts" and "Use window size
+  classes", developer.android.com).
+- **Wide content** (a worksheet, the dice tracks and tree, the backup
+  board, the structure chart, the Codex32QR copy grid, a table, a grid
+  of tiles): the **work width**, the whole room between the navigation
+  and the supporting pane, less `MARGIN_WIDE` at the start and `SPACER`
+  before the pane (or `MARGIN_WIDE` at the window's edge where no pane
+  stands). Wide content never stretches what it draws (§8): it uses the
+  room to show more of itself at once, or its cells larger up to a
+  token maximum (§16.1).
+
+A page of reading content only is centred in the room beside the
+navigation (left of a supporting pane where one stands). A page that
+holds wide content starts at the navigation's edge plus its margin: its
+reading parts keep their width at the start, and its wide parts run on
+to the work width's end. While a flow's open card holds wide content,
+the card's rule runs the work width; its head and summary stay where the
+column puts them.
+
+## 15. The right edge
+
+The page area is the window less the navigation, at every size: the
+1600 dp cap goes. What stands at the right stands against the window's
+edge:
+
+- the top strip's row (the mode pill and the ?) and, under it, the eye
+  and the keyboard button: their right end `MARGIN_WIDE` (24 dp) from
+  the window's right edge, as Material's top app bar puts its trailing
+  actions;
+- a supporting pane (§6): its right edge `MARGIN_WIDE` from the
+  window's, its top `SUPPORT_PANE_TOP`, `SPACER` from the page;
+- Home's Scan button: `MARGIN_WIDE` from the window's right and foot
+  (Material's floating action button margin on medium windows and up);
+- toasts and notices: centred on the page area, as today.
+
+Material's pane scaffold keeps a 24 dp spacer between panes from
+expanded windows up, allows up to three panes side by side from large
+widths, and gives a pane 360 dp by default (412 dp from large up)
+(Compose Material 3 adaptive, `PaneScaffoldDirective`). Faraday keeps
+`SUPPORT_PANE` at 400 dp. At 1280 × 800 nothing moves: the page area
+already ends at the window's edge.
+
+The Starter's held frame keeps its own rule (`docs/STARTER.md` §3.1d).
+
+## 16. Make codex32 shares on a wide window
+
+### 16.1 The checksum worksheet fits where the window allows
+
+A worksheet's cell is chosen from the room: the largest size between
+`CODEX32_CELL_FIT_MIN` (20 dp, the size compact windows draw today) and
+`CODEX32_CELL_FIT_MAX` (32 dp) at which the whole sheet fits the work
+width (beside the input panel where it stands beside, §16.3) and the
+view's height, the window's height less the input panel at the foot and
+`MARGIN_WIDE` above and below. The characters scale with the cell (16 at
+28 dp, as today: four sevenths of the cell). Where it fits, the sheet is
+drawn whole: no view, no pan, a drag on it does nothing, and the page
+scrolls to it (§16.4). Where it does not, the worksheet is as today: the
+class's cell (`codex32_cell`), a view as wide as the work width and at
+most `codex32_sheet_view` tall (on extra-large, as tall as the view's
+height above, up to the sheet's), panning both ways by drag, wheel and
+keys (`docs/CODEX32.md` §7.5).
+
+A 48-character sheet at cell c is 48c + 48 dp wide and 35c + 72 tall
+(35 rows, 48 columns, the booklet's gaps). With the Demo only card
+beside the page and d6 dice:
+
+| Window (dp) | Work width | The input panel | The worksheet |
+|---|---|---|---|
+| 1280 × 800 | 494 | at the foot, 142 dp | does not fit: as today, cell 28 in a 400 dp view, panning |
+| 1920 × 1080 | 1134 | at the foot, 142 dp | whole at cell 22: 1104 × 842 |
+| 2000 × 1090 | 1214 | at the foot, 142 dp | whole at cell 23: 1152 × 877 |
+| 2560 × 1440 | 1774 (1326 beside the panel) | beside, 424 dp | whole at cell 26: 1296 × 982 |
+
+A 74-character sheet (61 rows, 74 columns: 74c + 76 by 61c + 124)
+fits from about 3840 × 2160 at one dp a pixel; below that it pans as
+today. The cell is a function of the window's size in dp and the
+sheet's shape alone, so drawing and the follow (§16.4) take the same
+one; it is arithmetic, worked out where the sheet is laid out. The
+translation worksheets and the review's tabs (`docs/CODEX32.md` §6.5)
+take the same rule; a tab's sheet that fits shows no scroll of its own.
+
+**Side by side.** The dice sheet's tree and tracks stand side by side
+where the work width holds both (874 dp; from 1920 up), the rolls having
+moved to the input panel (§16.3). The dice sheet and the checksum
+worksheet side by side would need the work width to hold 874 + 24 +
+1008 dp (the worksheet at its least fitting cell), about 2700 dp of
+window with the pane beside: no size the tours draw puts them side by
+side, and the rule stands them so on a window that holds them. The
+Codex32QR copy grid (`copy_grid`,
+`faraday/faraday-core/src/screens/parts.rs`) already sizes its cells
+from its width up to `C32_GRID_MAX` and stands its zoom beside the grid
+where the width holds both: given the work width in place of the
+column's, it gains the same way.
+
+### 16.2 The string's boxes
+
+The share's string over the sheets ("Share A · character 7 of 26", box
+1 to 48, each numbered) runs **24 boxes a row**, six groups of four: 48
+characters are two even rows, 74 three rows of 24 and one of 2, 127
+five of 24 and one of 7. The box is as large as the room gives, between
+`CODEX32_STRING_BOX_MIN` (24 dp) and `CODEX32_STRING_BOX_MAX` (40 dp);
+its character at 0.6 of the box and its number at 0.4 of the box,
+never under `TEXT_MIN`. Where 24 do not fit at the least size, a row
+takes the first of 16, 12, 8 or 4 that does. Compact windows take as
+many whole groups of four as fit at `codex32_box` (the Pi: two groups,
+8 a row). The groups of four start at box 1 and the numbers are the
+booklet's (`docs/CODEX32.md` §3, §7.5). The row of 24 is Faraday's own:
+the booklet's worksheets bring the string down two boxes at a time
+under a first row of 16, and neither they nor secretcodex32.com set a
+row length for writing a string out; the cards print it in groups of
+four. At the sizes above: 16 a row at 27 dp (1280), 24 a row at 40 dp
+(1920 and up).
+
+### 16.3 The input panel: the pad and the rolls in one view
+
+What the person presses and what it fills stand together. The **input
+panel** holds, in order: the rolls of the character being entered (each
+die's First roll and Second roll, "lower · 0" or "higher · 1", and the
+equal pairs struck under them; moved here from the dice sheet, which
+keeps the tree and the tracks, so the rolls are drawn once), the dice's
+size (the segmented choice), and **Your dice**, the pad: a key per face,
+Backspace and Done, each `PAD_KEY_W` (64 dp) by `TOUCH`, as many a row
+as fit up to ten (§8: keys keep their size). It stands:
+
+- **Beside**, where the work width holds `CODEX32_ENTRY_W` (424 dp),
+  `SPACER` and the worksheet at `CODEX32_CELL_FIT_MIN` (1456 dp in
+  all; 2560 × 1440): a column at the work area's start that holds its
+  place as the page scrolls beside it, its top at `SUPPORT_PANE_TOP`,
+  scrolling within itself where it is taller than the window, as the
+  supporting pane does (§6). The sheets stand beside it.
+- **At the foot** everywhere else from medium up, and on compact
+  windows that are not short: pinned at the window's foot across the
+  page area (beside the rail or the expanded rail, above the bar),
+  surface-container-low with a rule along its top, as Material's
+  bottom-anchored input (the on-screen keyboard) stands; the rolls, the
+  dice's size and the pad in a row where they fit, the dice's size over
+  the pad where not. The page leaves room under its last row so it
+  scrolls clear of it, as it does for the keyboard. The supporting pane
+  stands above it (its foot `SPACER` over the panel's top), and so does
+  the Demo only strip where the card does not fit beside (§6).
+- **In the page**, as today, where the panel would take more than
+  `INPUT_PANEL_MAX` (40 %) of the window's height (a d20's pad on a low
+  window).
+- **On the Pi panel** (compact, short) as today: the tiles, one context
+  panel and the pad under it, all on screen (`docs/CODEX32.md` §6.4.7).
+
+Characters typed (`docs/CODEX32.md` §5.2) put the codex32 keyboard in
+the panel's place by the same rule; a computer's own keyboard types at
+every size. New key's dice for BIP-39 words and Create a vault's
+**Generate with dice** (`docs/CODEX32.md` §5.6) take the same panel:
+their pad, their entries' latest group and the progress line in one
+view.
+
+### 16.4 The view follows the work
+
+Whenever a value is entered (a face on the pad, a key of the keyboard,
+Use a sample, the Demo only card's Previous, Next, arrow keys or Play),
+the worksheet's view goes to the cell being worked with the timed move
+of `docs/CODEX32.md` §7.5 (`motion::SHEET_FOLLOW_MS`, Material's
+standard curve; at once under Reduce motion), however the person last
+dragged it: a drag, the wheel or a key holds the view only until the
+next entry. Read in the code on 2026-10-24: every path above ends in
+`Faraday::worksheet_follow` (`faraday/faraday-core/src/keygen/mod.rs`,
+`faraday/faraday-core/src/motion.rs`), and `SheetPan::target_for`
+measures from where the view stands after a drag, so this holds today;
+no test drags the view away first (§19). Two things are new:
+
+- **The page follows a whole sheet.** Where the worksheet is drawn
+  whole (§16.1) it has no view to move, so the page's own scroll makes
+  the same least move, over the same time on the same curve, to bring
+  the cell being worked into the room above the input panel.
+- **One cell size.** `Codex32Make::follow_front` places by
+  `Geom::of(class)`; it takes the fitted cell (§16.1), so the follow
+  and the drawing agree.
+
+### 16.5 The step-through's buttons stay put
+
+In the Demo only card and its foot strip, Previous, Next and Play keep
+one place whatever the step says. In the card they stand above the
+step's count and its working ("Step 14 of 19 · character 3", then the
+working), so a working of one, two or three lines moves nothing under
+the buttons. In the strip they stand at the strip's right end and the
+step's line takes the room left of them on one line, cut where it is
+longer; **More** opens the whole card. Nothing is measured to place them.
+
+## 17. The other screens
+
+| Screen | Rule |
+|---|---|
+| Home | the feed (§4) across the work width: as many `TILE_MIN` columns as fit, tiles at their size, the rest of a short row empty; Scan at the right edge (§15) |
+| Wallets, Files, Vaults, Backups | list and detail (§5, L4) in the whole page area: the list `LIST_PANE` at the start, the detail beside it to the right margin; the detail's reading parts at `COLUMN_MAX`, its chart and tables in the detail's width. Files' two lists ("From the stick", "For the stick") are two list panes side by side; its stick status chip moves to the top strip's row |
+| The structure chart (a wallet's detail, the chart sheet) | wide content in the detail's width; its nodes keep their size (§8); the wallet's buttons under the chart, not at the card's foot |
+| The backup board | wide content: the places laid out in as many columns as the work width holds at the board's place width, so three places stand side by side at 2560 and two at 1920; the board's lists (seeds, vaults, watch-only software) a supporting pane at the right edge (§15) |
+| Explore | reading content: the path field as wide as a path (§8), the values in mono in the column, wrapping in groups; the addresses table as wide as its columns, at the start |
+| Spend and every step flow | reading content in the column, centred (§14); a table in a step (Spend's transaction) as wide as its columns; on extra-large the step's Guided text and Learn in the supporting pane (§6, L6) |
+| Settings | reading content, centred; whether it becomes list and detail on expanded windows and up (Material's pattern for settings) is the owner's call (§19) |
+| Learn | the sheet below extra-large; the supporting pane on extra-large (§6, L6), at the right edge (§15) |
+| Sheets and dialogs | as §5: `SHEET_MAX`, centred |
+| The Pi panel and compact windows | unchanged by §13 to §17, but for the input panel on compact windows that are not short (§16.3) |
+
+## 18. How this fits the plan already made
+
+- **L1** (built) gives the classes the rules read. **W1** (§15) is the
+  page area every later batch measures from, so it lands before L4 and
+  L6.
+- **L4** (list and detail) builds its panes in W1's whole page area;
+  Files, Vaults, Wallets and Backups take §17's rows there, and no W
+  batch builds a list pane of its own.
+- **L5** (components keep their size) owns the buttons, fields and keys
+  across the screens; W3 brings in `PAD_KEY_W` for the dice pads it
+  moves, and L5 holds the other pads and the keyboards to it.
+- **L6** (Learn in the supporting pane) uses the pane's place built for
+  the Demo only card (`codex32/pane_screen.rs`), made the one place for
+  any supporting pane by W1; on the codex32 entry one pane stands at a
+  time (§19).
+- **L7** (tours and tests) adds 2560x1440 and 2000x1090 to the tours
+  beside §11's sizes.
+
+## 19. Plan for wide windows
+
+| Batch | What | Model | Estimate |
+|---|---|---|---|
+| W1 | The page area to the window's edge (§15): `MAX_W` goes; the top strip's row, the eye, the keyboard button, Scan and the supporting pane against the window's right margin; reading pages centred in the room, pages with wide content at the start (§14); the supporting pane's place one function for the Demo only card and Learn | Sonnet | half a day |
+| W2 | The codex32 worksheet's fit (§16.1) and the string's boxes (§16.2): the fitted cell for the checksum, translation and review sheets, the dice sheet's tree beside its tracks, the copy grid in the work width; tokens `CODEX32_CELL_FIT_MIN`, `CODEX32_CELL_FIT_MAX`, `CODEX32_STRING_BOX_MIN`, `CODEX32_STRING_BOX_MAX` | Opus | a day |
+| W3 | The input panel (§16.3) for the codex32 entry, then New key's dice and Create a vault's dice; the rolls moved into it; the typed characters' keyboard; tokens `CODEX32_ENTRY_W`, `PAD_KEY_W`, `INPUT_PANEL_MAX` | Opus | a day and a half |
+| W4 | The follow (§16.4): the test of a drag then an entry, at once; the page following a whole sheet, and `follow_front` on the fitted cell, with W2 | Sonnet | half a day |
+| W5 | The step-through's buttons fixed (§16.5), in the card and the strip | Sonnet | a quarter of a day |
+| W6 | Home's feed in the work width, Explore's fields and table, the chart's buttons, tables at their columns' width (§17) | Sonnet | a day |
+| W7 | The backup board's places in columns and its lists a supporting pane (§17) | Opus | a day and a half |
+
+Order: W1, W2, W3, then W4 (its first test may land at once), W5 at any
+time; W6 and W7 after L4. Each batch that adds work while drawing is
+timed in a late-flow session (`docs/SPEED.md` §7); the fitted cell and
+the panel's place are arithmetic on the window's size. Every new number
+is a token (`tools/lint-tokens.sh`).
+
+**Tests** (user-facing, each at the sizes named):
+
+- At 1920 × 1080 and 2560 × 1440 the Demo only card's right edge and
+  the ?'s are 24 dp from the window's right edge.
+- At 1920 × 1080 a 48-character share's checksum worksheet is drawn
+  whole: every cell from box 1 to the final row has its press region
+  once the page is scrolled to it, and a drag on the sheet moves
+  nothing; at 1280 × 800 it is in a view that a drag pans.
+- At 2560 × 1440 the same sheet is whole at a larger cell than at 1920.
+- The string's boxes: at 1920 × 1080 a 48-character share shows boxes
+  1 to 24 in its first row and 25 to 48 in its second; a 74-character
+  share's last row holds 73 and 74.
+- At 1920 × 1080 with d6, a press on the pad's 3 puts a 3 on the rolls,
+  and the pad and the rolls are both on screen; after the page is
+  scrolled to the worksheet's foot, both still are. At 2560 × 1440 the
+  pad stands beside the rolls and stays where it is as the page
+  scrolls; at 1280 × 800 the pad is at the window's foot.
+- At 480 × 640 at 286 dpi the entry is as today (the Pi's context over
+  the pad).
+- The view dragged away from the front cell, then a value entered: the
+  view moves back to the front over several frames, every one part of
+  the way, and under Reduce motion it is there at once. Where the sheet
+  is whole, the page scrolls to the front cell the same way.
+- The Demo only card's Next has the same rectangle at every step of a
+  character and across characters, in the card and in the strip.
+- Home at 2560 × 1440: Scan stands 24 dp from the window's right and
+  foot. The board at 2560 × 1440 shows three places side by side.
+
+**For the owner:** whether Settings becomes list and detail from
+expanded up; whether Learn, opened on the codex32 entry on extra-large,
+takes the pane (the Demo only card moving to its strip meanwhile) or
+opens as the sheet; whether a reading page sits centred (as today) or
+at the start beside the navigation; whether the rolls move from the
+dice sheet into the input panel (the booklet draws them beside the
+tree).
