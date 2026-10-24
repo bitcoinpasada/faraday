@@ -1942,18 +1942,6 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             } else {
                 (bx, bw)
             };
-            // A firmware sketch's marker (`docs/STARTER.md` §7.8, F18): none
-            // of faraday-learn's own pages carries one (the guides that
-            // do are faraday-guides', read only behind the `guides`
-            // feature), so only Faraday Starter, which turns that
-            // feature on, ever draws one here.
-            if faraday_learn::is_marker(para) {
-                #[cfg(feature = "guides")]
-                if let Some(s) = faraday_guides::sketch_of(para) {
-                    cy += faraday_ui::sketch(ui, s, px, cy, pw) + 12.0;
-                }
-                continue;
-            }
             cy += ui.wrap(px, cy, pw, 14.0, W::R, TEXT, para) + 12.0;
         }
         cy += 10.0;

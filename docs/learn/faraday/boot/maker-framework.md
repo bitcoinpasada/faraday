@@ -16,19 +16,13 @@ Framework's guides say to turn BitLocker off before turning Secure Boot off. Tha
 
 If it doesn't open: use Faraday Starter's Restart into the BIOS.
 
-4. Choose Administer Secure Boot and set Enforce Secure Boot to Disabled with the arrow keys. Press F10 to save and restart.
-
-::sketch framework-front-page
-
-::sketch framework-secure-boot
+4. Look for Administer Secure Boot on the first page of the BIOS and open it. Set Enforce Secure Boot to Disabled with the arrow keys. Press F10 to save and restart.
 
 If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
 
 5. The computer restarts. Tap F12 repeatedly as soon as the power light comes on. On Windows, do it on this restart, before Windows starts.
 
-6. Choose the stick: it is listed as EFI USB Device, under EFI Boot Devices.
-
-::sketch framework-boot-menu
+6. Look for the heading EFI Boot Devices in the boot menu. The stick is listed under it as EFI USB Device.
 
 With no system on the internal drive, the computer starts from the stick without the menu.
 
@@ -48,8 +42,8 @@ The BitLocker recovery key: with Secure Boot off, Windows cannot start without i
 
 Stick not in the F12 list: Framework's guides do not describe a setting that hides USB disks from the boot menu.
 
-## Sources
+Menu names differ between BIOS versions; Framework's guides name Administer Secure Boot.
 
-Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
+## Sources
 
 Framework: "Arch Linux on the Framework Laptop 13", "Arch Linux on the Framework Laptop 16" and "Bazzite Installation on the Framework Laptop 13", on guides.frame.work, read 2026-10-12. "Enabling Battery Saver Functionality in BIOS" and the first and third again, with their screen images, on guides.frame.work, read 2026-10-13.

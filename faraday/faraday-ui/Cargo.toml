@@ -15,9 +15,6 @@ faraday-draw = { path = "../../core/faraday-draw" }
 faraday-codec = { path = "../../core/faraday-codec", default-features = false }
 # The themes' names.
 faraday-strings = { path = "../faraday-strings" }
-# The firmware sketches' types (`docs/STARTER.md` §7.8); the data stays in
-# faraday-guides, read by whoever looks a sketch up.
-faraday-learn = { path = "../faraday-learn" }
 
 [dev-dependencies]
 # A canvas the size of a display, for the tests.

@@ -27,10 +27,6 @@ pub static FACES: &[Face] = &[
         data: include_bytes!("../../assets/mono.outl"),
     },
     Face {
-        family: Family::Firmware,
-        data: include_bytes!("../../assets/firmware.outl"),
-    },
-    Face {
         family: Family::Icon,
         data: include_bytes!("../../assets/icon.outl"),
     },

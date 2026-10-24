@@ -108,8 +108,7 @@ white and a camera's picture are drawn as they are in every theme.
 
 Faces: Noto Sans and Noto Sans SemiBold for text, Noto Sans Mono for
 data, Noto Sans CJK for the characters the wordlists and their keyboards
-need and the text faces lack, Terminus for the firmware screens Faraday
-sketches (`faraday_ui::sketch`), and a closed icon set (`Icon`, from the
+need and the text faces lack, and a closed icon set (`Icon`, from the
 SeedSigner icon font and Font Awesome 6 Free Solid) with Faraday's own
 drawings beside it (`Glyph::Stick`, the shield `Ui::mark`, the wordmark
 `Ui::wordmark`). Each glyph is stored once as an outline and filled at

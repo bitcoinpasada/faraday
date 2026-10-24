@@ -17,11 +17,8 @@ use faraday_strings::EN;
 use pages::Page as LearnPage;
 
 pub mod pages;
-pub mod sketch;
 
 pub use pages::{Page, Section};
-
-pub use sketch::{Sketch, is_marker};
 
 /// Faraday's own pages, each by its id.
 /// They are edited as `docs/learn/faraday/<id>.md`, beside the other

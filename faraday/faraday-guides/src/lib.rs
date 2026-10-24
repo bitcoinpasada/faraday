@@ -6,17 +6,6 @@
 //! `https://faradayoffline.app/start/<id>` (§7.4); the desktop app and
 //! the stick carry only the address of the guide for this computer
 //! (`faraday_learn::guide_address`), not its text.
-//!
-//! Also the maker pages' firmware sketches (`docs/DECISIONS.md` F18,
-//! `docs/STARTER.md` §7.8): data a page's `::sketch <id>` paragraph names
-//! ([`faraday_learn::is_marker`]), which only Faraday Starter (behind
-//! `faraday-core`'s `guides` feature) draws
-//! (`faraday_ui::sketch`). The desktop app, the stick and the Pi carry
-//! none of this.
-
-pub mod sketch;
-
-pub use sketch::{SKETCHES, sketch_of};
 
 use std::sync::OnceLock;
 

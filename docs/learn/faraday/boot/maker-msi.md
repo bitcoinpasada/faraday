@@ -16,17 +16,13 @@ These steps are from MSI's article for its notebooks, which does not cover deskt
 
 If it doesn't open: use Faraday Starter's Restart into the BIOS.
 
-4. Open Security → Secure Boot and set Secure Boot Support to Disabled. Press F10, Save & Reset, to save and restart.
-
-::sketch msi-secure-boot
+4. Look for the tab named Security, then the entry Secure Boot, and set Secure Boot Support to Disabled. Press F10, Save & Reset, to save and restart.
 
 If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
 
 5. The computer restarts. Press F11 when the MSI logo appears. On Windows, do it on this restart, before Windows starts.
 
-6. Choose the stick. If it is listed twice, choose the one that starts with UEFI.
-
-::sketch msi-boot-menu
+6. In the list headed Please select boot device, choose the stick. If it is listed twice, choose the one that starts with UEFI.
 
 The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
 
@@ -46,8 +42,8 @@ The BitLocker recovery key: with Secure Boot off, Windows cannot start without i
 
 Stick not in the F11 list: MSI's notebook article does not describe a setting that hides USB disks from the boot menu.
 
-## Sources
+Menu names differ between models and BIOS versions; MSI's article covers notebooks only.
 
-Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
+## Sources
 
 MSI: "[Troubleshooting] Secure Boot Violation Error at Startup" (FAQ 11370, which applies to all MSI notebooks), on msi.com/faq. Read 2026-10-12, and again, with its screen images, 2026-10-13.

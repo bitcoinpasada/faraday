@@ -23,11 +23,6 @@ faraday-strings = { path = "../faraday-strings" }
 # Faraday's drawing, shared with the Starter.
 faraday-ui = { path = "../faraday-ui" }
 faraday-learn = { path = "../faraday-learn" }
-# The maker pages' firmware sketches: a held app's Learn
-# (`faraday_core::Faraday::held`, docs/STARTER.md §7.8, F18), behind the
-# `guides` feature below, off by default so the desktop app, the stick
-# and the Pi never carry them.
-faraday-guides = { path = "../faraday-guides", optional = true }
 faraday-intake = { path = "../faraday-intake" }
 faraday-pgp = { path = "../faraday-pgp" }
 faraday-sb = { path = "../faraday-sb" }
@@ -38,10 +33,6 @@ zeroize = { workspace = true, features = ["alloc"] }
 # The test wallets and the files a test stick carries. The stick image's
 # app is built without it.
 testkit = []
-# A held app's guide pages and firmware sketches (docs/STARTER.md §7.8,
-# F18): Faraday Starter turns this on; the desktop app, the stick and
-# the Pi, which never hold an app, do not.
-guides = ["dep:faraday-guides"]
 
 [dev-dependencies]
 faraday-core = { path = ".", features = ["testkit"] }

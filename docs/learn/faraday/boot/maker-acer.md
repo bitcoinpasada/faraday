@@ -14,27 +14,21 @@ On Linux, have the disk's passphrase or recovery key ready if it is unlocked by 
 
 If it doesn't open: use Faraday Starter's Restart into the BIOS.
 
-4. Open the Security tab, choose Set Supervisor Password, and enter a password twice. Write it down: step 10 removes it again.
-
-::sketch acer-supervisor
+4. Look for the tab named Security, choose Set Supervisor Password, and enter a password twice. Write it down: step 10 removes it again.
 
 On many Acer computers Secure Boot is greyed out until a supervisor password is set; on some, the password is not needed.
 
-5. Open the Main tab and set F12 Boot Menu to Enabled.
-
-::sketch acer-boot-menu-key
+5. Look for the tab named Main and the setting F12 Boot Menu. Set it to Enabled.
 
 On many Acer notebooks the F12 boot menu is off until it is turned on here, and some have none.
 
-6. Open the Boot tab, set Secure Boot to Disabled, and press F10 and Enter to save and exit.
-
-::sketch acer-secure-boot
+6. Look for the tab named Boot, set Secure Boot to Disabled, and press F10 and Enter to save and exit.
 
 If the Secure Boot setting cannot be found: exit the BIOS without saving changes. Windows starts as before.
 
 7. The computer restarts. Press F12 as the Acer logo appears. On Windows, do it on this restart, before Windows starts.
 
-8. Choose the stick. If it is listed twice, choose the one that starts with UEFI.
+8. In the boot menu, choose the stick. If it is listed twice, choose the one that starts with UEFI.
 
 The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
 
@@ -57,7 +51,5 @@ Stick not in the F12 list: Acer's articles do not describe a setting that hides 
 Menu names and where they are differ between Acer models and BIOS versions.
 
 ## Sources
-
-Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
 
 Acer: "Enable or disable Secure Boot on an Acer notebook" (knowledge base article 88), "Enable or disable Secure Boot on an Acer desktop" (article 87) and "Why can't I get the F12 Boot Menu to work on my notebook or netbook?" (article 563), Acer's knowledge base on community.acer.com. All read 2026-10-12.

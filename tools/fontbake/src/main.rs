@@ -33,9 +33,6 @@ enum Kind {
     /// The icon glyph set: SeedSigner's `U+E9xx` icons and the Font
     /// Awesome glyphs the UI names.
     Icon,
-    /// The firmware glyph set: what a firmware screen's sketch draws
-    /// (`docs/STARTER.md` §7.8), ASCII and a few arrows.
-    Firmware,
 }
 
 /// A face to bake: its identifier in `generated.rs` and its font file.
@@ -78,12 +75,6 @@ const FACES: &[FaceSpec] = &[
         kind: Kind::Text,
     },
     FaceSpec {
-        name: "firmware",
-        variant: "Firmware",
-        file: TERMINUS_FILE,
-        kind: Kind::Firmware,
-    },
-    FaceSpec {
         name: "icon",
         variant: "Icon",
         file: "seedsigner-icons.otf",
@@ -104,19 +95,6 @@ const SYMBOLS: &[char] = &[
     'ℵ', 'α', 'β', 'Γ', 'Δ', '∆', 'ε', 'η', 'Θ', 'Λ', 'μ', 'Ξ', 'Π', 'ρ', 'Σ', 'Φ', 'Ψ', 'Ω', '€',
     '⊕', '†', '‡',
 ];
-
-/// What the firmware face carries beyond ASCII: the arrows, pointers and
-/// signs firmware screens print in their key hints and rows. A sketch's
-/// frames and rules are drawn as lines, not as box-drawing characters.
-const FIRMWARE_SYMBOLS: &[char] = &[
-    '←', '→', '↑', '↓', '►', '◄', '▲', '▼', '▸', '−', '•', '×', '…',
-];
-
-/// The firmware face: Terminus TTF, the outline cut of the Terminus
-/// bitmap font, SIL OFL 1.1 (`tools/fonts/LICENSE-terminus.txt`). Its
-/// outlines trace the bitmap's pixels, so a sketch reads as a firmware
-/// screen's text mode (`docs/DECISIONS.md` F18).
-const TERMINUS_FILE: &str = "TerminusTTF-4.49.3.ttf";
 
 /// The icon code points, and where each comes from. `U+E9xx` are
 /// SeedSigner's own icon face; the rest are Font Awesome 6 Free Solid.
@@ -252,14 +230,6 @@ fn text_glyphs() -> Vec<char> {
         .filter_map(char::from_u32)
         .collect();
     set.extend_from_slice(SYMBOLS);
-    set.sort_unstable();
-    set.dedup();
-    set
-}
-
-fn firmware_glyphs() -> Vec<char> {
-    let mut set: Vec<char> = (0x20u32..=0x7E).filter_map(char::from_u32).collect();
-    set.extend_from_slice(FIRMWARE_SYMBOLS);
     set.sort_unstable();
     set.dedup();
     set
@@ -645,7 +615,6 @@ fn ensure_iosevka(fonts_dir: &Path) {
     assert!(status.success(), "unpack {}: {status}", path.display());
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn main() {
     let root = repo_root();
     let fonts_dir = root.join("tools/fonts");
@@ -678,7 +647,6 @@ fn main() {
     let icon_fallback = parse(&icon_fallback_data);
     let text_chars = text_glyphs();
     let icon_chars = icon_glyphs();
-    let firmware_chars = firmware_glyphs();
     let mut table = String::new();
     let mut total = 0usize;
     for spec in FACES {
@@ -686,7 +654,6 @@ fn main() {
         let face = parse(&data);
         let (chars, fallback) = match spec.kind {
             Kind::Text => (&text_chars, &text_fallback),
-            Kind::Firmware => (&firmware_chars, &text_fallback),
             Kind::Icon => (&icon_chars, &icon_fallback),
         };
         let upem = face.units_per_em();

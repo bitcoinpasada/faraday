@@ -58,15 +58,12 @@ status=0
 #     `ms1`, hex (`0x…`, a fingerprint), PDF operators, and a type as
 #     Debug prints it
 # The Learn pages (docs/learn, faraday-learn's pages) and the self-test's check names
-# are outside this lint, as CLAUDE.md says, and so are the maker pages'
-# firmware sketches (`sketch.rs` in faraday-learn, the shape, and
-# faraday-guides, the data; docs/STARTER.md §7.8, F18): their words are a
-# firmware's own, the screen a sketch depicts, not Faraday's wording.
+# are outside this lint, as CLAUDE.md says.
 FARADAY_SCREENS="$(find faraday/faraday-core/src -name '*.rs' -not -path '*/drawing/*' -not -path '*/work/*' | sort | grep -v '/testkit\.rs$\|/names\.rs$')
 faraday/faraday-starter/src/*.rs
 faraday/faraday-ui/src/*.rs
-$(ls faraday/faraday-learn/src/*.rs | grep -v '/sketch\.rs$')
-$(ls faraday/faraday-guides/src/*.rs | grep -v '/sketch\.rs$')
+faraday/faraday-learn/src/*.rs
+faraday/faraday-guides/src/*.rs
 faraday/faraday-intake/src/*.rs
 faraday/shells/desktop/src/main.rs
 faraday/shells/starter/src/main.rs"

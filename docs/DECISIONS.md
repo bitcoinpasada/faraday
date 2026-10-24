@@ -32,7 +32,7 @@ Read this table, then only the decision you need.
 | [F15](history/decisions/F15.md) | Faraday Companion: an Android app with no network access | 2026-10-12 | Superseded by F34 | platforms |
 | [F16](decisions/F16.md) | The hub app is Faraday Starter; the desktop app is Faraday Desktop | 2026-10-12 | Active | Starter |
 | [F17](history/decisions/F17.md) | The BitLocker step is the recovery key; suspending is the extra-safe choice | 2026-10-13 | Superseded by F33 | Starter |
-| [F18](decisions/F18.md) | Firmware sketches in Faraday Starter and the Companion | 2026-10-13 | Amended by F34 | Starter |
+| [F18](decisions/F18.md) | Firmware sketches in Faraday Starter and the Companion | 2026-10-13 | Amended by F34, F105 | Starter |
 | [F19](decisions/F19.md) | Audits from experts and AIs, published with Faraday's response | 2026-10-13 | Active | repository |
 | [F20](decisions/F20.md) | Faraday Desktop's mainnet is the demo; test networks take any seed | 2026-10-14 | Amended by F81 | platforms |
 | [F21](history/decisions/F21.md) | The BitLocker step is optional | 2026-10-14 | Superseded by F33 | Starter |
@@ -119,3 +119,4 @@ Read this table, then only the decision you need.
 | [F102](decisions/F102.md) | A late seed is said only at a press that needs it; the Pi's generator is mixed, not credited | 2026-10-23 | Active | security |
 | [F103](decisions/F103.md) | A choice that decides a step moves on by itself | 2026-10-23 | Active | design |
 | [F104](decisions/F104.md) | Back and Forward move within a flow's steps | 2026-10-23 | Active | design |
+| [F105](decisions/F105.md) | The boot guides give written directions, not mock-ups of firmware screens | 2026-10-23 | Active | Starter |

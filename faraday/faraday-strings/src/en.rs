@@ -6720,9 +6720,6 @@ strings! {
     /// Button in `receive`.
     transfer_open_folder: "Open folder",
     // ----- ui (faraday-core/src/ui.rs) -----
-    /// Under a firmware sketch (`docs/STARTER.md` §7.8, faraday-ui's
-    /// `sketch`): it is Faraday's drawing, not the screen itself.
-    ui_sketch_mock_up: "Mock-up: the real screen may look different.",
     /// Text in `name`.
     ui_dark: "Dark",
     /// Text in `name`.

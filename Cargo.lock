@@ -786,7 +786,6 @@ dependencies = [
  "faraday-draw",
  "faraday-entropy",
  "faraday-files",
- "faraday-guides",
  "faraday-intake",
  "faraday-keys",
  "faraday-learn",
@@ -1161,7 +1160,6 @@ version = "0.1.6"
 dependencies = [
  "faraday-codec",
  "faraday-draw",
- "faraday-learn",
  "faraday-shell-api",
  "faraday-strings",
 ]

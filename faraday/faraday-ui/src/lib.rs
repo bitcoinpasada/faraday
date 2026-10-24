@@ -7,13 +7,10 @@
 //! Noto Sans and Noto Sans Mono. [`Ui`] is generic over the app's own
 //! action type: what a press on a region does is the caller's to name.
 
-mod firmware;
 pub mod keyboard;
 mod lists;
 pub mod parts;
 pub mod sheet;
-
-pub use firmware::sketch;
 
 use faraday_draw::fonts::Family;
 use faraday_draw::text::{self, TextAlign};
@@ -444,9 +441,6 @@ pub enum W {
     S,
     /// Noto Sans Mono.
     M,
-    /// Terminus: the text-mode face a firmware sketch is set in
-    /// ([`sketch`]).
-    F,
 }
 
 /// How a button looks.
@@ -1461,7 +1455,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             W::R => Family::Regular,
             W::S => Family::SemiBold,
             W::M => Family::Mono,
-            W::F => Family::Firmware,
         };
         let size = if w == W::M {
             size / self.tr * 0.94

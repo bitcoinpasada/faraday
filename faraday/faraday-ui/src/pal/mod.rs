@@ -133,41 +133,6 @@ pub fn stick_tone(n: usize, light: bool) -> Color {
     }
 }
 
-/// The colours of a PC's text mode (the VGA palette), which a
-/// firmware sketch is drawn in and nothing else is (`docs/STARTER.md`
-/// §7.8, `docs/DECISIONS.md` F18). Every theme draws them as they
-/// are.
-pub mod vga {
-    use faraday_draw::Color;
-
-    /// Black.
-    pub const BLACK: Color = Color::rgb(0x00, 0x00, 0x00);
-    /// Blue.
-    pub const BLUE: Color = Color::rgb(0x00, 0x00, 0xaa);
-    /// Green.
-    pub const GREEN: Color = Color::rgb(0x00, 0xaa, 0x00);
-    /// Cyan.
-    pub const CYAN: Color = Color::rgb(0x00, 0xaa, 0xaa);
-    /// Red.
-    pub const RED: Color = Color::rgb(0xaa, 0x00, 0x00);
-    /// Brown, which firmware draws as a dark gold.
-    pub const BROWN: Color = Color::rgb(0xaa, 0x55, 0x00);
-    /// Light grey: text-mode body text.
-    pub const LIGHT_GREY: Color = Color::rgb(0xaa, 0xaa, 0xaa);
-    /// Dark grey.
-    pub const DARK_GREY: Color = Color::rgb(0x55, 0x55, 0x55);
-    /// Light cyan.
-    pub const LIGHT_CYAN: Color = Color::rgb(0x55, 0xff, 0xff);
-    /// Light green.
-    pub const LIGHT_GREEN: Color = Color::rgb(0x55, 0xff, 0x55);
-    /// Light red.
-    pub const LIGHT_RED: Color = Color::rgb(0xff, 0x55, 0x55);
-    /// Yellow.
-    pub const YELLOW: Color = Color::rgb(0xff, 0xff, 0x55);
-    /// White.
-    pub const WHITE: Color = Color::rgb(0xff, 0xff, 0xff);
-}
-
 /// The structure chart's line colours (`docs/DESIGN.md` §4.16), one
 /// per key held here, in turn: the theme's own colours, so each theme
 /// draws them as it draws the rest.

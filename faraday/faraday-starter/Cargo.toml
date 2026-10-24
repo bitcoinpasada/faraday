@@ -15,10 +15,8 @@ faraday-codec = { path = "../../core/faraday-codec" }
 # The network the blank sheet names (`faraday-core` brings it already).
 faraday-bip = { path = "../../core/faraday-bip" }
 # The desktop app's own Transfer and Learn, held in online mode
-# (docs/STARTER.md §2), and the drawing every Faraday screen uses. `guides`
-# turns on the held app's guide pages and firmware sketches, which the
-# Starter shows and the desktop app, the stick and the Pi do not.
-faraday-core = { path = "../faraday-core", features = ["guides"] }
+# (docs/STARTER.md §2), and the drawing every Faraday screen uses.
+faraday-core = { path = "../faraday-core" }
 faraday-strings = { path = "../faraday-strings" }
 # The token the notes' and the template's PDFs take (docs/COMPUTE.md §2).
 faraday-crypto = { path = "../../core/faraday-crypto" }
@@ -38,7 +36,7 @@ zeroize = { workspace = true, features = ["alloc"] }
 png.workspace = true
 # The test kit's `learn_scroll_to`, for the tests and `examples/snap.rs`;
 # never in the Starter itself.
-faraday-core = { path = "../faraday-core", features = ["guides", "testkit"] }
+faraday-core = { path = "../faraday-core", features = ["testkit"] }
 
 [lints]
 workspace = true

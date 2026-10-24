@@ -7,7 +7,6 @@ mod concern_rules;
 mod mac;
 mod notes;
 mod secure_boot;
-mod sketches;
 mod starter;
 mod steps;
 mod template;

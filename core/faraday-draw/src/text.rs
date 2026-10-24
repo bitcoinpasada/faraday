@@ -44,11 +44,6 @@ impl Font {
         Font::new(Family::Mono, size_dp)
     }
 
-    /// The firmware sketches' text-mode face at `size_dp`.
-    pub const fn firmware(size_dp: f32) -> Self {
-        Font::new(Family::Firmware, size_dp)
-    }
-
     /// The icon face at `size_dp` (see [`crate::widgets::Icon`]).
     pub const fn icon(size_dp: f32) -> Self {
         Font::new(Family::Icon, size_dp)

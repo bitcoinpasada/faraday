@@ -14,11 +14,7 @@ On Linux, have the disk's passphrase or recovery key ready if it is unlocked by 
 
 If it doesn't open: press Enter at the logo, then F1 in the Startup Interrupt Menu, or use Faraday Starter's Restart into the BIOS.
 
-4. Open the Security tab, then Secure Boot, and set Secure Boot to Disabled (Off on some models). Press F10 and choose Yes to save and restart.
-
-::sketch thinkpad-secure-boot
-
-::sketch thinkpad-save
+4. Look for the menu named Security in the list, then the page named Secure Boot, and set Secure Boot to Disabled (Off on some models). Press F10 and choose Yes to save and restart; Restart → Exit Saving Changes does the same.
 
 If Secure Boot cannot be changed: Device Guard, on the Security tab, is Enabled, and Secure Boot cannot be changed until it is not.
 
@@ -28,7 +24,7 @@ If the Secure Boot setting cannot be found: exit the BIOS without saving changes
 
 5. The computer restarts. Press F12 as soon as the ThinkPad logo appears. On Windows, do it on this restart, before Windows starts.
 
-6. Choose the stick with the arrow keys and press Enter. If it is listed twice, choose the one that starts with UEFI.
+6. Look for the stick in the Startup Interrupt boot list, choose it with the arrow keys and press Enter. If it is listed twice, choose the one that starts with UEFI.
 
 The stick is usually listed under its maker's name, the one printed on it (SanDisk, Kingston…), often after "UEFI:". It is not Windows Boot Manager, a Linux name such as ubuntu, or the computer's own disk.
 
@@ -48,8 +44,8 @@ The BitLocker recovery key: with Secure Boot off, Windows cannot start without i
 
 Stick not in the F12 list: Lenovo's ThinkPad articles do not describe a setting that hides USB disks from the boot menu.
 
-## Sources
+Menu names differ between models and BIOS versions. The menu named Startup holds the boot settings; Secure Boot is under Security.
 
-Where Faraday shows a picture of a firmware screen, it is a mock-up: the real screen may look different.
+## Sources
 
 Lenovo: "How to enable Secure Boot on Think branded systems - ThinkPad, ThinkStation, ThinkCentre" (HT509044), "Secure Boot Mode cannot be set - ThinkPad" (HT515493), "Recommended ways to enter BIOS - ThinkPad, ThinkCentre, ThinkStation" (HT500222) and "How to boot from a USB Drive - ThinkPad" (HT118361), all on support.lenovo.com, read 2026-10-12. Lenovo BIOS Simulator Center, on download.lenovo.com, read 2026-10-13.

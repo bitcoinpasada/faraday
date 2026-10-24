@@ -761,7 +761,6 @@ fn run(s: &Snap) -> Result<(), String> {
     let mut h = s.starter();
     h.press(StarterAction::Learn);
     s.shot(&mut h, "learn")?;
-    sketch_shots(s)?;
     step_shots(s)?;
     guide_shots(s)?;
     guide_start_shots(s)
@@ -867,78 +866,6 @@ fn guide_start_shots(s: &Snap) -> Result<(), String> {
     s.shot(&mut h, "guide-home-secure-boot-off")?;
     h.press(StarterAction::Next);
     s.shot(&mut h, "guide-restart-stick-sheet")
-}
-
-/// Maker pages scrolled to one of their firmware sketches (§7.8): the
-/// page, a line of the sketch, how far above that line the shot starts
-/// (units), and the picture's name.
-fn sketch_shots(s: &Snap) -> Result<(), String> {
-    let shots: [(&str, &str, f32, &str); 10] = [
-        ("maker-hp", "USB Boot", 90.0, "sketch-hp-secure-boot"),
-        (
-            "maker-hp",
-            "Ignore Changes and Exit",
-            90.0,
-            "sketch-hp-save",
-        ),
-        ("maker-hp", "7294 + ENTER", 160.0, "sketch-hp-code"),
-        (
-            "maker-lenovo-thinkpad",
-            "Secure Boot Mode",
-            110.0,
-            "sketch-thinkpad-secure-boot",
-        ),
-        (
-            "maker-lenovo-ideapad",
-            "USB ZIP : USB Flash Drive",
-            110.0,
-            "sketch-ideapad-boot-menu",
-        ),
-        (
-            "maker-surface",
-            "Microsoft only",
-            170.0,
-            "sketch-surface-secure-boot",
-        ),
-        ("maker-asus", "Enter Setup", 130.0, "sketch-asus-boot-menu"),
-        (
-            "maker-dell",
-            "Enable Microsoft UEFI CA",
-            110.0,
-            "sketch-dell-secure-boot",
-        ),
-        (
-            "maker-framework",
-            "Options:",
-            150.0,
-            "sketch-framework-secure-boot",
-        ),
-        ("maker-msi", "System Mode", 110.0, "sketch-msi-secure-boot"),
-    ];
-    for (page, line, above, name) in shots {
-        let mut h = s.starter();
-        h.press(StarterAction::LearnPage(LearnId::Maker(page)));
-        let _ = h.drawn_texts();
-        let max = h.held().learn().max;
-        // The last offset the line is still in view at: it is at the
-        // top then.
-        let (mut seen, mut at, mut y) = (false, 0.0, 0.0);
-        while y <= max {
-            faraday_core::testkit::learn_scroll_to(h.held(), y);
-            if h.drawn_texts().iter().any(|t| t == line) {
-                (seen, at) = (true, y);
-            } else if seen {
-                break;
-            }
-            y += 10.0;
-        }
-        if !seen {
-            eprintln!("{name}: \"{line}\" not drawn");
-        }
-        faraday_core::testkit::learn_scroll_to(h.held(), (at - above).max(0.0));
-        s.shot(&mut h, name)?;
-    }
-    Ok(())
 }
 
 /// A guide page at its top, its first steps in circles
