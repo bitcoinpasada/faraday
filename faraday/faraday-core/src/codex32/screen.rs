@@ -62,6 +62,9 @@ struct At {
     /// The five-dice roller stands beside the pad (Faraday Desktop,
     /// §5.5).
     roller: bool,
+    /// The "Demo only" card is a strip pinned at the window's foot: the
+    /// entry leaves room under its last row for it.
+    strip: bool,
     /// A press on a box opens its working (§7.4): not on Check a
     /// string's sheet, which is no flow's.
     press: bool,
@@ -369,7 +372,7 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
 pub(crate) fn body(
     app: &View,
     m: &Codex32Make,
-    card: Card,
+    (card, pane): (Card, Option<super::pane_screen::PaneAt>),
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -382,6 +385,7 @@ pub(crate) fn body(
         cls: app.window().class(),
         hide: m.masked(),
         roller: app.roller_offered(),
+        strip: pane == Some(super::pane_screen::PaneAt::Strip),
         press: true,
     };
     let h = match card {
@@ -639,29 +643,13 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
         cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.codex32_not_chosen) + t::GAP;
     }
     // The computer's dice roller and Demo's sample are not the person's
-    // entry: one box headed "Demo only", at the right where the card is
-    // wide enough for the entry beside it, else under the entry
-    // (owner, 2026-10-24; §5.5).
-    let boxed = super::dice_screen::demo_box_offered(m, at.roller);
-    let beside = boxed
-        && cls != WindowClass::Compact
-        && w >= t::CODEX32_MAIN_MIN + t::CODEX32_PANEL_GAP + t::CODEX32_ROLLER_W;
-    let (w, bx) = if beside {
-        let mw = w - t::CODEX32_ROLLER_W - t::CODEX32_PANEL_GAP;
-        (mw, x + mw + t::CODEX32_PANEL_GAP)
-    } else {
-        (w, x)
-    };
-    let at = At { w, ..at };
-    let box_h = if beside {
-        super::dice_screen::demo_box(m, ui, (bx, y, t::CODEX32_ROLLER_W), at.roller)
-    } else {
-        0.0
-    };
-    let (share, front) = match m.front() {
-        Some((s, n)) => (s, Some(10 + n)),
-        None => (work.inputs().len() - 1, None),
-    };
+    // entry: the "Demo only" card holds its place beside the page, or at
+    // the window's foot (`pane_screen.rs`; owner, 2026-10-24; §5.5).
+    // The share being entered, or the one whose character the
+    // step-through shows in its box.
+    let (share, front) = m
+        .entry_share()
+        .unwrap_or((work.inputs().len().saturating_sub(1), None));
     match cls {
         WindowClass::Compact => {
             // The tabs, the context panel one at a time, and the pad
@@ -693,10 +681,12 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     } else {
         cy += note(m, ui, x, cy, w);
     }
-    if boxed && !beside {
-        cy += super::dice_screen::demo_box(m, ui, (x, cy, w), at.roller) + t::GAP;
+    // Room under the last row for the strip at the window's foot, so the
+    // page scrolls clear of it.
+    if at.strip {
+        cy += super::pane_screen::strip_h(ui, m, w, at.roller);
     }
-    (cy - y).max(box_h)
+    cy - y
 }
 
 /// The small panel's tile row: Dice · Checksum · String (§6.4.7).

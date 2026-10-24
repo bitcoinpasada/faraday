@@ -5970,7 +5970,7 @@ impl Faraday {
             self.scan_paste();
             return;
         }
-        if self.scroll_key(key) {
+        if self.keygen_walk_key(key) || self.scroll_key(key) {
             return;
         }
         if self.board_key(key) {
@@ -6147,7 +6147,7 @@ impl Faraday {
             ui::Slot::VaultItem => Some(self.vaults.item_offset_mut()),
             ui::Slot::FilesOut => Some(self.visit.files_out_offset_mut()),
             ui::Slot::BoardList => Some(self.flows.board_list_offset_mut()),
-            ui::Slot::Worksheet => self.worksheet_pan_mut().map(|p| &mut p.y),
+            ui::Slot::Worksheet | ui::Slot::DemoPane => self.codex32_slot(),
             ui::Slot::Page => self.page_slot(),
         }
     }
@@ -6756,7 +6756,7 @@ impl Faraday {
     /// such as the snapshot tool, so a picture shows where things end up.
     pub fn settle(&mut self) {
         self.typing.blink_from(self.now_ms);
-        let _ = self.with_region(|m, r| m.settle(r));
+        self.settle_regions();
         self.scroll.stop();
         self.pointer.set_scroll_at(None);
         if let Some(d) = self.disclosed.as_mut() {

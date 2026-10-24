@@ -33,8 +33,17 @@
 //! was rolled with ([`Made`]) for its rolls to come back on Backspace.
 
 pub(crate) mod dice_screen;
+mod pan;
+pub(crate) mod pane_screen;
 pub(crate) mod screen;
+mod walk;
+pub(crate) mod walk_screen;
+#[cfg(test)]
+mod walk_tests;
 pub(crate) mod worksheet_screen;
+
+pub use pan::SheetPan;
+pub use walk::{SPEEDS, Speed, Step, Walk, WalkAct, WalkChar};
 
 /// Making codex32 shares, and the wallet kind of §6.9, are offered. False
 /// hides them until the backup plan carries codex32 strings: New key's
@@ -51,7 +60,7 @@ pub use faraday_ui::keyboard::OskPress;
 use zeroize::{Zeroize, Zeroizing};
 
 use crate::fresh::roller::Sim;
-use crate::fresh::roller::five::{self, FiveRoller, Where};
+use crate::fresh::roller::five::FiveRoller;
 use crate::secret_text::SecretText;
 use crate::strings::{EN, fill};
 
@@ -355,9 +364,12 @@ pub enum C32 {
     /// The open cell's working moved to the neighbouring cell of its row,
     /// before (-1) or after (1) (§7.4).
     CellStep(i8),
-    /// A press on the five-dice roller beside the pad (Faraday Desktop,
-    /// §5.5).
-    Roller(five::Act),
+    /// A press on the step-through of the "Demo only" card: the computer's
+    /// five dice, a step at a time (Faraday Desktop, §5.5).
+    Walk(WalkAct),
+    /// On a narrow window, the "Demo only" card opened from its strip at
+    /// the foot, or closed back to it (§5.5).
+    Pane,
     /// The dice's faces, by their place in [`DIE_SIZES`] (§5.1): in the
     /// middle of a character, its rolls so far are cleared.
     Faces(u8),
@@ -456,40 +468,6 @@ struct Back {
     skip_ask: bool,
 }
 
-/// How far a checksum worksheet is panned inside its view
-/// (`docs/CODEX32.md` §7.5): units from the sheet's left edge and from
-/// its top. Drawing clamps it to the sheet it draws; a drag, the wheel,
-/// the arrow keys and the entry's front move it.
-#[derive(Debug, Clone, Copy, Default, PartialEq)]
-pub struct SheetPan {
-    /// Units from the sheet's left edge.
-    pub x: f32,
-    /// Units from the sheet's top.
-    pub y: f32,
-}
-
-impl SheetPan {
-    /// Moves the least that brings the square `spot` (left, top, side,
-    /// in the sheet's units) into a view `view` (wide, tall) with `margin`
-    /// round it where there is room, never past `max` (across, down).
-    pub fn bring(&mut self, spot: (f32, f32, f32), view: (f32, f32), max: (f32, f32), margin: f32) {
-        fn axis(at: f32, lo: f32, side: f32, view: f32, max: f32, margin: f32) -> f32 {
-            let m = margin.min(((view - side) / 2.0).max(0.0));
-            let at = if lo - m < at {
-                lo - m
-            } else if lo + side + m > at + view {
-                lo + side + m - view
-            } else {
-                at
-            };
-            at.clamp(0.0, max.max(0.0))
-        }
-        let (x, y, side) = spot;
-        self.x = axis(self.x, x, side, view.0, max.0, margin);
-        self.y = axis(self.y, y, side, view.1, max.1, margin);
-    }
-}
-
 /// The flow, open inside New key while its Start card's choice is
 /// Codex32 (`docs/CODEX32.md` §6). See the module documentation.
 pub struct Codex32Make {
@@ -573,6 +551,12 @@ pub struct Codex32Make {
     /// How far the checksum worksheet shown is panned: the entry's, or
     /// the review's tab's, which starts at its top left.
     pan: SheetPan,
+    /// The step-through of the "Demo only" card (§5.5).
+    walk: Walk,
+    /// How far the "Demo only" card is scrolled within itself, units.
+    pane_y: f32,
+    /// On a narrow window, the card opened from its strip at the foot.
+    pane_open: bool,
 }
 
 impl Codex32Make {
@@ -628,6 +612,9 @@ impl Codex32Make {
             sample: false,
             demo: None,
             pan: SheetPan::default(),
+            walk: Walk::default(),
+            pane_y: 0.0,
+            pane_open: false,
         }
     }
 
@@ -963,23 +950,44 @@ impl Codex32Make {
         self.pan
     }
 
+    /// How far the "Demo only" card is scrolled within itself.
+    pub fn pane_offset(&self) -> f32 {
+        self.pane_y
+    }
+
+    /// The "Demo only" card's own scroll, which the scroll machinery
+    /// moves (`ui::Slot::DemoPane`).
+    pub(crate) fn pane_offset_mut(&mut self) -> &mut f32 {
+        &mut self.pane_y
+    }
+
+    /// On a narrow window, whether the "Demo only" card is open over the
+    /// page rather than its strip alone.
+    pub fn pane_open(&self) -> bool {
+        self.pane_open
+    }
+
     /// The worksheet's pan, which the scroll machinery moves
     /// (`Faraday::scroll_slot`, `ui::Slot::Worksheet`).
     pub(crate) fn pan_mut(&mut self) -> &mut SheetPan {
         &mut self.pan
     }
 
-    /// Brings the entry's front cell into a checksum worksheet view of
-    /// `view` units that pans as far as `max`, moving the pan the least
-    /// (`docs/CODEX32.md` §6.4.7). A lookup: the cell's place on the
-    /// sheet is arithmetic on its box.
+    /// Sends the checksum worksheet's view, `view` units that pan as far
+    /// as `max`, to where the entry's work is: the cells the step-through's
+    /// step touches, or the front cell, moving the least
+    /// (`docs/CODEX32.md` §6.4.7, §7.5). The place is worked out here,
+    /// once, as the front moves; the frames after only interpolate
+    /// ([`SheetPan::tick`]); under `reduce` the view is placed at once.
+    /// Arithmetic on the cells' boxes.
     pub(crate) fn follow_front(
         &mut self,
         cls: faraday_draw::geom::WindowClass,
         view: (f32, f32),
         max: (f32, f32),
+        reduce: bool,
     ) {
-        let Some((share, n)) = self.front() else {
+        let Some((share, front)) = self.entry_share() else {
             return;
         };
         let Some(sh) = self
@@ -990,9 +998,24 @@ impl Codex32Make {
             return;
         };
         let g = worksheet_screen::Geom::of(cls);
-        if let Some(spot) = worksheet_screen::paper!(sh, |p| g.box_spot(p, 10 + n)) {
-            self.pan.bring(spot, view, max, 2.0 * g.cell);
+        let marks = self.walk_cells(share);
+        let spot = worksheet_screen::paper!(sh, |p| {
+            let mut spots = marks.iter().filter_map(|&(cell, _)| g.cell_spot(p, cell));
+            match spots.next() {
+                Some(first) => Some(spots.fold(first, worksheet_screen::union)),
+                None => front.and_then(|b| g.box_spot(p, b)),
+            }
+        });
+        if let Some(spot) = spot {
+            let to = self.pan.target_for(spot, view, max, 2.0 * g.cell);
+            self.pan.go_to(to, reduce);
         }
+    }
+
+    /// One frame of the worksheet's view following the work, at `now_ms`,
+    /// `f` pixels to the unit. Returns whether it moved. Arithmetic.
+    pub(crate) fn pan_tick(&mut self, now_ms: u64, f: f32) -> bool {
+        self.pan.tick(now_ms, f)
     }
 
     /// The small panel's context (see [`C32::Panel`]).
@@ -1099,6 +1122,15 @@ impl Codex32Make {
     /// device's randomness where the press asks for it (Suggest), drawn
     /// before the flow is borrowed.
     pub(crate) fn act(&mut self, c: &Compute, press: C32, fresh: Option<[u8; 32]>) {
+        let before = self.entry_pos();
+        self.act_press(c, press, fresh);
+        // The entry changed by another way than the step-through's own:
+        // its steps are forgotten.
+        self.walk_check(before);
+    }
+
+    /// Costs what [`Self::act`] costs. The press itself.
+    fn act_press(&mut self, c: &Compute, press: C32, fresh: Option<[u8; 32]>) {
         if self.locked && !matches!(press, C32::Card(_) | C32::Tab(_) | C32::TabStep(_)) {
             if matches!(
                 press,
@@ -1215,6 +1247,10 @@ impl Codex32Make {
                 }
             }
             C32::Check => self.check_open = !self.check_open,
+            C32::Pane => {
+                self.pane_open = !self.pane_open;
+                self.pane_y = 0.0;
+            }
             _ => {}
         }
     }
@@ -1618,71 +1654,6 @@ impl Codex32Make {
             .map_or(0, |w| (0..w.inputs().len()).map(|s| w.entered(s)).sum())
     }
 
-    /// Where the entry stands, as the roller reads it: characters done
-    /// in all, left in the share, left in all; `None` where it takes no
-    /// dice.
-    fn roller_counts(&self) -> Option<(usize, usize, usize)> {
-        if !self.roller_can_roll() {
-            return None;
-        }
-        let w = self.work.as_ref()?;
-        let data = w.scheme().length().data_len();
-        let done = self.entered_all();
-        let all_left = w.inputs().len() * data - done;
-        let share_left = self.front().map_or(0, |(_, n)| data - n);
-        Some((done, share_left, all_left))
-    }
-
-    /// A press on the roller, at `now_ms`. Nothing rolls where the entry
-    /// takes no dice.
-    pub(crate) fn roller_act(&mut self, act: five::Act, now_ms: u64) {
-        let (done, share_left, all_left) = self.roller_counts().unwrap_or_default();
-        let at = Where {
-            seq: &self.seq,
-            done,
-            share_left,
-            all_left,
-        };
-        self.roller.act(act, &at, now_ms);
-    }
-
-    /// Costs what the faces landed cost (see [`Self::roll`]) and a fresh
-    /// answer (a hash, through `draw`) for every 31 faces at most;
-    /// nothing at rest. The roller's tick: the faces it made enter as the
-    /// pad's keys would. `reduce` is Reduce motion. Returns whether the
-    /// screen needs a frame.
-    pub(crate) fn roller_tick(
-        &mut self,
-        c: &Compute,
-        now_ms: u64,
-        reduce: bool,
-        draw: &mut five::Draw,
-    ) -> bool {
-        if !self.roller.active() {
-            return false;
-        }
-        let (faces, redraw) = match self.roller_counts() {
-            Some((done, share_left, all_left)) => {
-                let at = Where {
-                    seq: &self.seq,
-                    done,
-                    share_left,
-                    all_left,
-                };
-                self.roller.tick(now_ms, reduce, &at, draw)
-            }
-            None => {
-                // The entry was left or is full: the click ends.
-                self.roller.stop();
-                (Vec::new(), true)
-            }
-        };
-        for face in faces {
-            self.roll(c, face);
-        }
-        redraw
-    }
-
     /// Costs a worksheet column of each sheet the character is in, and
     /// at a share's last character its checksum, and at the set's last
     /// the set, its key's fingerprint and the first string's Codex32QR.
@@ -1691,8 +1662,26 @@ impl Codex32Make {
         if self.front().is_none() {
             return;
         }
+        // A character the step-through holds whole goes into its box
+        // before a face of the next.
+        self.put_whole(c);
+        self.push_face(face);
+        self.put_whole(c);
+    }
+
+    /// A face onto the character in progress, the sheet worked again;
+    /// a character it makes whole stays out of its box. Cheap.
+    fn push_face(&mut self, face: u8) {
         self.seq.push(face);
         self.replay();
+    }
+
+    /// Costs what [`Self::put`] costs. The character in progress, once
+    /// whole, into its box; nothing while it is not.
+    fn put_whole(&mut self, c: &Compute) {
+        if self.seq.is_empty() {
+            return;
+        }
         if let Ok(ch) = self.dice.character() {
             let value = symbol_of(char::from(ch)).unwrap_or(0);
             let seq = std::mem::replace(&mut self.seq, Zeroizing::new(Vec::new()));

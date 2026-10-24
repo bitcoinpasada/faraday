@@ -47,16 +47,23 @@ impl KeyGenArea {
         Some(self.state.as_mut()?.codex32.as_mut()?.pan_mut())
     }
 
-    /// Brings Make codex32 shares' front cell into the worksheet's view
-    /// (`Codex32Make::follow_front`). A lookup.
+    /// The codex32 "Demo only" card's own scroll, while the flow is open
+    /// (`ui::Slot::DemoPane`).
+    pub(crate) fn pane_offset_mut(&mut self) -> Option<&mut f32> {
+        Some(self.state.as_mut()?.codex32.as_mut()?.pane_offset_mut())
+    }
+
+    /// Sends Make codex32 shares' worksheet view to where the work is
+    /// (`Codex32Make::follow_front`), at once under `reduce`. Arithmetic.
     pub(crate) fn sheet_follow(
         &mut self,
         cls: faraday_draw::geom::WindowClass,
         view: (f32, f32),
         max: (f32, f32),
+        reduce: bool,
     ) {
         if let Some(m) = self.state.as_mut().and_then(|k| k.codex32.as_mut()) {
-            m.follow_front(cls, view, max);
+            m.follow_front(cls, view, max, reduce);
         }
     }
 

@@ -194,10 +194,37 @@ impl Geom {
     /// Where box `b` stands as a given (bolded) cell: in the first row, or
     /// at the end of the `=` row it is brought down to; its left, top and
     /// side.
-    pub(crate) fn box_spot(&self, sh: Paper<'_>, b: usize) -> Option<(f32, f32, f32)> {
+    pub(crate) fn box_spot(&self, sh: Paper<'_>, b: usize) -> Option<(f32, f32, f32, f32)> {
         let r = given_row(sh, b)?;
-        Some((self.col(b), self.row(r), self.cell))
+        Some((self.col(b), self.row(r), self.cell, self.cell))
     }
+
+    /// Where `cell` stands on the sheet: its left, top, width and height;
+    /// none for a cell of another kind of worksheet.
+    pub(crate) fn cell_spot(&self, sh: Paper<'_>, cell: Cell) -> Option<(f32, f32, f32, f32)> {
+        let at = |b: usize, r: usize| Some((self.col(b), self.row(r), self.cell, self.cell));
+        match cell {
+            Cell::Given { b, .. } => self.box_spot(sh, usize::from(b)),
+            Cell::Hrp { i, .. } => at(4 + usize::from(i), 1),
+            Cell::Sum { j, i, .. } => {
+                let j = usize::from(j);
+                at(sh.sum_box(j) + usize::from(i), 2 + 2 * j)
+            }
+            Cell::Lookup { j, i, .. } => {
+                let j = usize::from(j);
+                at(sh.lookup_box(j) + usize::from(i), 3 + 2 * j)
+            }
+            _ => None,
+        }
+    }
+}
+
+/// The smallest rectangle holding both `a` and `b` (left, top, width,
+/// height).
+pub(crate) fn union(a: (f32, f32, f32, f32), b: (f32, f32, f32, f32)) -> (f32, f32, f32, f32) {
+    let (x, y) = (a.0.min(b.0), a.1.min(b.1));
+    let (r, bt) = ((a.0 + a.2).max(b.0 + b.2), (a.1 + a.3).max(b.1 + b.3));
+    (x, y, r - x, bt - y)
 }
 
 /// The final row's number: after the first row, the residue's row and a
@@ -231,7 +258,7 @@ fn given_row(sh: Paper<'_>, b: usize) -> Option<usize> {
 
 /// The letter of a leading cell, counted from 0: a to z, then aa, ab, …,
 /// as the booklet letters them.
-fn letter(n: usize) -> String {
+pub(crate) fn letter(n: usize) -> String {
     let mut n = n + 1;
     let mut out = Vec::new();
     while n > 0 {
@@ -266,6 +293,8 @@ struct Drawn {
     differs: bool,
     /// What a press on it opens.
     press: Option<Cell>,
+    /// Which cell it is, for the step-through's marks.
+    id: Option<Cell>,
 }
 
 /// The worksheet to draw and how.
@@ -283,6 +312,10 @@ pub(crate) struct Sheet<'a> {
     pub(crate) press: bool,
     /// Only the final row (Check a string's first look, §8.3).
     pub(crate) only_final: bool,
+    /// The cells the step-through's step touches, outlined in the accent,
+    /// the one worked out (`true`) more heavily; with any, the front is
+    /// not outlined (§7.5: one place at a time).
+    pub(crate) marks: &'a [(Cell, bool)],
 }
 
 /// The cells of a sheet as they are laid out, and the rows' marks.
@@ -315,10 +348,11 @@ impl Lay<'_> {
         } else {
             self.shown(sh.symbol(b))
         };
-        let press = (b >= 4 && sh.symbol(b).is_some()).then_some(Cell::Given {
+        let id = (b >= 4).then_some(Cell::Given {
             sheet: self.s.id,
             b: b as u8,
         });
+        let press = id.filter(|_| sh.symbol(b).is_some());
         self.out.push(Drawn {
             x: self.g.col(b),
             y: self.g.row(r),
@@ -329,6 +363,7 @@ impl Lay<'_> {
             letter: None,
             differs: false,
             press,
+            id,
         });
     }
 
@@ -345,6 +380,7 @@ impl Lay<'_> {
             letter: None,
             differs: false,
             press: v.is_some().then_some(press),
+            id: Some(press),
         });
         let n = self.out.len() - 1;
         &mut self.out[n]
@@ -533,9 +569,16 @@ pub(crate) fn draw(
         let c = if d.differs { ERR } else { TEXT };
         frame(ui, d.x + ox, d.y + oy, g.cell, t::CODEX32_SHEET_BOLD, c);
     }
-    if let Some((fx, fy, side)) = s
+    for d in &shown {
+        if let Some(&(_, main)) = d.id.and_then(|id| s.marks.iter().find(|(c, _)| *c == id)) {
+            let s = t::CODEX32_FRONT_STROKE;
+            let th = if main { s + s } else { s };
+            frame(ui, d.x + ox, d.y + oy, g.cell, th, ACCENT);
+        }
+    }
+    if let Some((fx, fy, side, _)) = s
         .front
-        .filter(|_| !s.only_final)
+        .filter(|_| !s.only_final && s.marks.is_empty())
         .and_then(|b| g.box_spot(s.sh, b))
     {
         frame(
@@ -645,6 +688,7 @@ pub(crate) fn entry_sheet(
     };
     let head = fill(EN.codex32_checksum_of, &[&share_name(work, share)]);
     let hh = ui.wrap(x, y, w, t::LABEL, W::S, TEXT, &head) + t::GAP_SMALL;
+    let marks = m.walk_cells(share);
     let s = |sh| Sheet {
         sh,
         id: share as u8,
@@ -652,6 +696,7 @@ pub(crate) fn entry_sheet(
         hide,
         press: true,
         only_final: false,
+        marks: &marks,
     };
     let h = paper!(sh, |p| draw(ui, s(p), m.pan(), (x, y + hh, w), cls));
     hh + h + t::GAP
@@ -691,6 +736,7 @@ pub(crate) fn review_sheet(
         hide,
         press: true,
         only_final: false,
+        marks: &[],
     };
     let h = paper!(sh, |p| draw(ui, s(p), m.pan(), (x, y + hh, w), cls));
     hh + h + t::GAP
@@ -717,6 +763,7 @@ pub(crate) fn check_sheet(
         hide: false,
         press: false,
         only_final: !whole,
+        marks: &[],
     };
     let cls = app.window().class();
     let mut h = paper!(sh, |p| draw(ui, s(p), pan, (x, y, w), cls)) + t::GAP;

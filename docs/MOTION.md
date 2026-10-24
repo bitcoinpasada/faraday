@@ -335,7 +335,19 @@ extent; a motion left from another screen or sheet is stopped.
     pacing, which doubled or dropped a frame every few seconds: a fade
     shows every such slip as a flicker in brightness. With frames paced
     by the compositor (§3.2) they are tried again;
-  - the Guided / Steps only switch's pill slides between its options.
+  - the Guided / Steps only switch's pill slides between its options;
+  - the codex32 checksum worksheet's view follows the entry's work
+    (`docs/CODEX32.md` §7.5, owner 2026-10-24) as smoothly as the
+    fades: the place is worked out once when the front moves, and the
+    view moves there over 300 ms (`motion::SHEET_FOLLOW_MS`, Material's
+    medium 2) on Material's standard curve (`motion::ease_move`), each
+    frame placed by the time it is drawn at and rounded to a whole
+    pixel, the first a frame back as a fade's is. A new place mid-move
+    enters the curve where its speed, for the way left, is the view's,
+    so the speed carries on without a step (`codex32/pan.rs`,
+    `SheetPan::go_to`); a drag, the wheel or a key stops it; Reduce
+    motion places the view at once; `Faraday::settle` ends it where it
+    was going. Only the cells in the view are drawn in each frame.
 - **Depth**: soft shadows only under what floats (sheets, toasts, the
   network menu), pre-blurred once per radius and blur and drawn as nine
   pieces, so a shadow costs a few blits. Cards keep a flat surface with

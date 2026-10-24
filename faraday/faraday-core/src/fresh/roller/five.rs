@@ -8,7 +8,7 @@
 //! as the same faces typed would.
 //!
 //! The host holds one [`FiveRoller`], draws it with
-//! [`super::five_screen::draw`], gives its [`Act`]s to [`FiveRoller::act`]
+//! [`super::five_screen::pairs`], gives its [`Act`]s to [`FiveRoller::act`]
 //! and calls [`FiveRoller::tick`] on every tick, describing where its
 //! entry stands with a [`Where`]. The roller never touches the entry: it
 //! works the sheet out on a copy of the faces ([`Sheet`]) to know where
@@ -307,6 +307,38 @@ impl FiveRoller {
             Sim::All
         } else {
             Sim::Some
+        }
+    }
+
+    /// The faces that complete the character whose faces so far are
+    /// `seq`, rolled as a click of One character rolls them (each from
+    /// `draw`'s answers as [`Pool::next`] takes them, in the pad's order,
+    /// an equal pair's die rolled twice again), for the step-through of
+    /// `docs/CODEX32.md` §5.5 to enter one at a time. Nothing is marked:
+    /// the host marks each face as it enters it ([`FiveRoller::mark`]).
+    /// `None` while `draw` has no answer; the faces drawn so far are then
+    /// dropped. Costs a fresh answer (a hash) for every 31 faces at most.
+    pub fn roll_character(&mut self, seq: &[u8], draw: &mut Draw) -> Option<Zeroizing<Vec<u8>>> {
+        let mut sim = Zeroizing::new(seq.to_vec());
+        let mut out = Zeroizing::new(Vec::new());
+        loop {
+            let sheet = Sheet::of(&sim, self.faces);
+            if sheet.complete() {
+                return Some(out);
+            }
+            sheet.place()?;
+            let v = self.pool.next(self.faces, draw)?;
+            sim.push(v);
+            out.push(v);
+        }
+    }
+
+    /// Face `place` (from 0) of character `ch` (from 0, over all the
+    /// shares) was rolled by this computer: the host entered it.
+    pub fn mark(&mut self, ch: usize, place: usize) {
+        let m = (ch, place);
+        if let Err(at) = self.marks.binary_search(&m) {
+            self.marks.insert(at, m);
         }
     }
 

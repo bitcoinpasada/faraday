@@ -107,31 +107,37 @@ pub(super) fn sizes(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     cy - y + choice(ui, x, cy, w, &items)
 }
 
-/// Whether the entry has a "Demo only" box: the computer's roller on
-/// Faraday Desktop, or Demo's sample, while a character is left to enter.
+/// Whether the entry has a "Demo only" box: the computer's dice on
+/// Faraday Desktop, while a character is left to enter or a step of the
+/// step-through to show; Demo's sample, while a character is left.
 pub(super) fn demo_box_offered(m: &Codex32Make, roller: bool) -> bool {
-    m.front().is_some() && ((roller && m.way() == super::Way::Dice) || m.demo())
+    let dice = roller && m.way() == super::Way::Dice;
+    (m.front().is_some() && (dice || m.demo())) || (dice && m.walk().shown().is_some())
 }
 
-/// The "Demo only" box (owner, 2026-10-24): an outlined card holding what
-/// is not the person's own entry. Demo's **Use a sample**; on Faraday
-/// Desktop the dice's faces, "Rolls d20", and the computer's roller with
-/// each die's two rolls. Returns its height, nothing where it has
-/// nothing to hold.
-pub(super) fn demo_box(
+/// What the "Demo only" card holds (owner, 2026-10-24), what is not the
+/// person's own entry, from its heading (with `head`) down; `pane_screen.rs` places it
+/// and outlines it. Demo's **Use a sample**; on Faraday
+/// Desktop the dice's faces, "Rolls d20", and the computer's dice with
+/// each die's two rolls, a step at a time (`walk_screen.rs`). Returns its
+/// height, nothing where it has nothing to hold.
+pub(super) fn demo_content(
     m: &Codex32Make,
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     roller: bool,
+    head: bool,
 ) -> f32 {
     if !demo_box_offered(m, roller) {
         return 0.0;
     }
     let (ix, iw) = (x + t::PAD, w - 2.0 * t::PAD);
     let mut cy = y + t::PAD;
-    ui.text(ix, cy, t::BODY, W::S, TEXT, EN.codex32_demo_only);
-    cy += ui.line(t::BODY, W::S) + t::GAP;
-    if m.demo() {
+    if head {
+        ui.text(ix, cy, t::BODY, W::S, TEXT, EN.codex32_demo_only);
+        cy += ui.line(t::BODY, W::S) + t::GAP;
+    }
+    if m.demo() && m.front().is_some() {
         cy += faraday_ui::parts::wrap_buttons(
             ui,
             ix,
@@ -146,17 +152,9 @@ pub(super) fn demo_box(
         let die = fill(EN.codex32_die_size, &[&m.dice_choice().faces.to_string()]);
         let rolls = fill(EN.codex32_rolls_die, &[&die]);
         cy += ui.wrap(ix, cy, iw, t::LABEL, W::S, MUTED, &rolls) + t::GAP;
-        cy += crate::fresh::roller::five_screen::draw(
-            ui,
-            (ix, cy, iw),
-            m.roller(),
-            &pairs_of(m),
-            m.roller_can_roll(),
-            |r| a(C32::Roller(r)),
-        );
+        cy += super::walk_screen::draw(m, ui, (ix, cy, iw));
     }
     cy += t::PAD;
-    ui.stroke(x, y, w, cy - y, t::SHAPE_M, BORDER);
     cy - y
 }
 
@@ -270,12 +268,12 @@ pub(super) fn face_pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
 /// Each die's two rolls of the character in progress, as the pairs and
 /// the roller draw them.
 pub(crate) fn pairs_of(m: &Codex32Make) -> Pairs<'_> {
-    let d = m.dice();
+    let d = m.shown_dice();
     let choice = m.dice_choice();
     Pairs {
         first: core::array::from_fn(|i| d.first(i)),
         second: core::array::from_fn(|i| d.second(i)),
-        struck: m.rows(),
+        struck: m.shown_rows(),
         colours: choice.colours,
         faces: choice.faces,
         masked: m.masked(),
@@ -336,7 +334,7 @@ pub(super) fn rolled_line(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) 
 /// The line a die's row reads: "4 then 2 · lower · 0", or the first value
 /// alone, or nothing.
 fn die_line(m: &Codex32Make, die: usize) -> String {
-    let d = m.dice();
+    let d = m.shown_dice();
     if m.masked() {
         return match (d.first(die), d.second(die)) {
             (Some(_), Some(_)) => EN.codex32_die_masked.to_string(),
@@ -374,12 +372,20 @@ pub(super) fn dice_rows(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, pa
     let colours = m.dice_choice().colours;
     for (die, &colour) in colours.iter().enumerate() {
         let line = die_line(m, die);
-        let on = m.dice().first(die).is_none() || m.dice().second(die).is_none();
+        let on = m.shown_dice().first(die).is_none() || m.shown_dice().second(die).is_none();
         let text = fill(EN.codex32_die_n, &[&(die + 1).to_string()]);
         let lh = ui.line(t::LABEL, W::R);
         swatch(ui, x + t::CODEX32_SWATCH, cy + lh / 2.0, colour);
         let tx = x + 2.0 * t::CODEX32_SWATCH + t::GAP_SMALL;
-        ui.text(tx, cy, t::LABEL, W::S, if on { TEXT } else { MUTED }, &text);
+        let marked = m.walk_die_mark().is_some_and(|(d, _)| d == die);
+        let ink = if marked {
+            ACCENT
+        } else if on {
+            TEXT
+        } else {
+            MUTED
+        };
+        ui.text(tx, cy, t::LABEL, W::S, ink, &text);
         ui.text(x + t::CODEX32_LABEL_W, cy, t::LABEL, W::M, TEXT, &line);
         cy += lh + t::GAP_SMALL;
     }
@@ -411,7 +417,7 @@ fn swatch(ui: &mut Ui, cx: f32, cy: f32, c: DieColour) {
 /// equal · roll both again", struck through.
 pub(super) fn struck(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
-    for row in m.rows().iter().filter(|r| r.bit().is_none()) {
+    for row in m.shown_rows().iter().filter(|r| r.bit().is_none()) {
         let (f, sc) = if m.masked() {
             (MASK.to_string(), MASK.to_string())
         } else {
@@ -438,7 +444,7 @@ fn known_bits(m: &Codex32Make, shown: bool) -> [Option<u8>; BOOKLET_DICE] {
         return out;
     }
     for (d, slot) in out.iter_mut().enumerate() {
-        *slot = m.dice().die_bit(d).flatten();
+        *slot = m.shown_dice().die_bit(d).flatten();
     }
     out
 }
@@ -459,6 +465,24 @@ fn shape(ui: &mut Ui, pts: &[(f32, f32)], fill_c: Option<Paint>, edge: Paint) {
     for (i, &(x0, y0)) in px.iter().enumerate() {
         let (x1, y1) = px[(i + 1) % px.len()];
         ui.c.line(x0, y0, x1, y1, f, e);
+    }
+}
+
+/// The outline of the closed shape through `pts` (design units), `width`
+/// thick.
+fn outline(ui: &mut Ui, pts: &[(f32, f32)], width: f32, c: impl Into<faraday_ui::Paint>) {
+    let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
+    let e = ui.col(c);
+    for (i, &(x0, y0)) in pts.iter().enumerate() {
+        let (x1, y1) = pts[(i + 1) % pts.len()];
+        ui.c.line(
+            (x0 + ox) * f,
+            (y0 + oy) * f,
+            (x1 + ox) * f,
+            (y1 + oy) * f,
+            width * f,
+            e,
+        );
     }
 }
 
@@ -541,7 +565,7 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let nx = x + 2.0 * t::CODEX32_SWATCH + t::GAP_SMALL;
         ui.text(nx, cy + th / 2.0 - lh, t::CAPTION, W::S, TEXT, &name);
         track(m, ui, (tx, cy, u), die);
-        if let Some(b) = m.dice().die_bit(die).flatten() {
+        if let Some(b) = m.shown_dice().die_bit(die).flatten() {
             let text = if m.masked() {
                 MASK.to_string()
             } else {
@@ -584,7 +608,13 @@ fn track(m: &Codex32Make, ui: &mut Ui, (tx, top, u): (f32, f32, f32), die: usize
         shape(ui, &pts, fill_c, edge);
         centred(ui, at(c), &pad.to_string(), ink);
     }
-    let (first, second) = (m.dice().first(die), m.dice().second(die));
+    // The pad the step-through's step touches, outlined in the accent.
+    if let Some((_, pad)) = m.walk_die_mark().filter(|&(d, _)| d == die) {
+        let (pts, _) = pad_shape(pad);
+        let pts: Vec<(f32, f32)> = pts.into_iter().map(at).collect();
+        outline(ui, &pts, t::CODEX32_FRONT_STROKE, ACCENT);
+    }
+    let (first, second) = (m.shown_dice().first(die), m.shown_dice().second(die));
     let (body, ink) = paint(m.dice_choice().colours[die]);
     // The marker: on the first value's pad, on the free space before; a
     // masked sheet shows where neither is.

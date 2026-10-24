@@ -72,10 +72,18 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::Screen::Catalog => EN.keygen_tools,
         _ => EN.keygen_back,
     };
-    let (cx, cw_max) = (x0 + 40.0, (cw - 80.0).min(900.0));
+    // The codex32 entry's "Demo only" card holds its place beside the
+    // page, which gives it its room, or at the window's foot
+    // (`docs/CODEX32.md` §5.5).
+    let pane = k
+        .codex32
+        .as_ref()
+        .and_then(|m| crate::codex32::pane_screen::pane_at(app, m, cw));
+    let side = crate::codex32::pane_screen::side_room(pane);
+    let (cx, cw_max) = (x0 + 40.0, (cw - 80.0 - side).min(900.0));
     let col = flow::Column {
         area_x: x0,
-        area_w: cw,
+        area_w: cw - side,
         x: cx,
         w: cw_max,
         h,
@@ -101,7 +109,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match (app_ref.keygen.state(), at[i]) {
                 (Some(k), Some(card)) => k.codex32.as_ref().map_or(0.0, |m| {
-                    crate::codex32::screen::body(app_ref, m, card, ui, x, y, w)
+                    crate::codex32::screen::body(app_ref, m, (card, pane), ui, x, y, w)
                 }),
                 (Some(k), None) => card_body(app_ref, k, ui, steps[i], x, y, w),
                 (None, _) => 0.0,
@@ -110,6 +118,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::KeyGen, next, again);
+    if let (Some(m), Some(p)) = (k.codex32.as_ref(), pane) {
+        crate::codex32::pane_screen::draw(app, m, ui, p, (x0, cw, h));
+    }
     if let Some(m) = k.codex32.as_ref() {
         crate::codex32::screen::cell_sheet(app, m, ui, x0, cw, h);
     }

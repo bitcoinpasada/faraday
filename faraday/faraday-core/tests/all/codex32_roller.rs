@@ -1,12 +1,13 @@
 //! Faraday Desktop's dice rollers in New key (`docs/CODEX32.md` §5.5,
-//! §5.6): the five dice beside the codex32 dice pad and the one die
-//! beside the dice pad for BIP-39 words. A click fills the entry as the
-//! pad would, what the roller made is marked as this computer's, the
-//! result says "simulated dice", and a device shell has no roller.
+//! §5.6): the five dice of the codex32 entry's "Demo only" card, a step
+//! at a time, and the one die beside the dice pad for BIP-39 words. The
+//! values fill the entry as the pad would, what the computer made is
+//! marked as this computer's, the result says "simulated dice", and a
+//! device shell has neither.
 
-use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, Way};
+use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, WalkAct, Way};
 use faraday_core::keygen::{Start, kstep};
-use faraday_core::testkit::five::{Act, Reach};
+use faraday_core::testkit::five::Reach;
 use faraday_core::vault::{RollerAct, RollerPerClick};
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
@@ -43,16 +44,22 @@ fn c32(app: &mut Faraday, p: C32) {
     app.press(Action::Codex32(p));
 }
 
-/// Roll, and the ticks a long click takes: under Reduce motion the
-/// faces land a batch a frame, and the shell answers each request for
-/// randomness.
-fn roll(app: &mut Faraday) {
-    c32(app, C32::Roller(Act::Roll));
+/// Play as far as `reach`, a step a frame, the shell answering each
+/// request for randomness, until Play stops.
+fn play(app: &mut Faraday, reach: Reach) {
+    c32(app, C32::Walk(WalkAct::Reach(reach)));
+    c32(app, C32::Walk(WalkAct::Speed(3)));
+    c32(app, C32::Walk(WalkAct::Play));
     let mut t = app.now_ms();
-    for i in 0..60u8 {
-        app.event(Event::Entropy(EntropyBytes::new([i.wrapping_mul(37); 32])));
+    for i in 0..20_000u32 {
+        app.event(Event::Entropy(EntropyBytes::new(
+            [(i as u8).wrapping_mul(37); 32],
+        )));
         t += 16;
         app.event(Event::Tick { now_ms: t });
+        if !make(app).walk().playing() {
+            break;
+        }
     }
 }
 
@@ -111,26 +118,35 @@ fn the_five_dice_stand_beside_your_dice_on_faraday_desktop_only() {
     on_dice_entry(&mut desk);
     assert!(shows(&mut desk, "Or let Faraday roll"));
     assert!(shows(&mut desk, "Your dice"), "the pad for real dice stays");
-    assert!(desk.offers(Action::Codex32(C32::Roller(Act::Roll))));
+    assert!(shows(&mut desk, "Next rolls character 1"));
+    for act in [WalkAct::Next, WalkAct::Play] {
+        assert!(desk.offers(Action::Codex32(C32::Walk(act))));
+    }
 
     let mut stick = app(false, true);
     on_dice_entry(&mut stick);
     assert!(!shows(&mut stick, "Or let Faraday roll"));
+    assert!(!stick.offers(Action::Codex32(C32::Walk(WalkAct::Next))));
     // A press that reaches a device shell anyway rolls nothing.
-    c32(&mut stick, C32::Roller(Act::Roll));
-    assert_eq!(entered(&stick, 0), 0);
+    c32(&mut stick, C32::Walk(WalkAct::Next));
+    assert_eq!(make(&stick).seq_len(), 0);
 }
 
 #[test]
-fn one_click_rolls_one_character_and_one_pass_marks_its_dice() {
+fn next_shows_a_step_at_a_time_and_marks_the_computers_dice() {
     let mut app = app(true, true);
     on_dice_entry(&mut app);
-    c32(&mut app, C32::Roller(Act::Roll));
-    assert_eq!(entered(&app, 0), 1, "One character, the default");
-    assert!(make(&app).char_rolled(0, 0));
-
-    c32(&mut app, C32::Roller(Act::Reach(Reach::Pass)));
-    c32(&mut app, C32::Roller(Act::Roll));
+    c32(&mut app, C32::Walk(WalkAct::Next));
+    assert_eq!(make(&app).seq_len(), 1, "one face, die 1's first roll");
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t.starts_with("Step 1 of ")),
+        "{texts:?}"
+    );
+    assert!(texts.iter().any(|t| t.starts_with("Die 1, first roll: ")));
+    for _ in 0..4 {
+        c32(&mut app, C32::Walk(WalkAct::Next));
+    }
     assert!(
         shows(
             &mut app,
@@ -138,20 +154,33 @@ fn one_click_rolls_one_character_and_one_pass_marks_its_dice() {
         ),
         "the first roll's five values, marked"
     );
-    // Backspace takes the last value back: it is not the roller's.
+    // Backspace takes the last value back: it is not the roller's, and
+    // the steps are forgotten.
     c32(&mut app, C32::Key(OskPress::Back));
     assert!(shows(
         &mut app,
         "Die 1, Die 2, Die 3, Die 4 rolled by this computer"
     ));
+    assert!(make(&app).walk().shown().is_none());
 }
 
 #[test]
-fn to_the_end_makes_the_strings_and_strings_made_says_simulated_dice() {
+fn the_arrow_keys_step_through_on_faraday_desktop() {
+    use faraday_shell_api::Key;
     let mut app = app(true, true);
     on_dice_entry(&mut app);
-    c32(&mut app, C32::Roller(Act::Reach(Reach::End)));
-    roll(&mut app);
+    app.event(Event::Key(Key::Right));
+    app.event(Event::Key(Key::Right));
+    assert_eq!(make(&app).seq_len(), 2);
+    app.event(Event::Key(Key::Left));
+    assert_eq!(make(&app).seq_len(), 1);
+}
+
+#[test]
+fn play_to_the_end_makes_the_strings_and_strings_made_says_simulated_dice() {
+    let mut app = app(true, true);
+    on_dice_entry(&mut app);
+    play(&mut app, Reach::End);
     assert!(make(&app).strings().is_some(), "every share entered");
     assert!(make(&app).front().is_none());
     to_made(&mut app);
@@ -168,26 +197,20 @@ fn faces_from_both_say_simulated_dice_and_your_dice() {
     }
     assert_eq!(entered(&app, 0), 1);
     assert!(!make(&app).char_rolled(0, 0), "a real die's, not marked");
-    c32(&mut app, C32::Roller(Act::Reach(Reach::End)));
-    roll(&mut app);
+    play(&mut app, Reach::End);
     to_made(&mut app);
     assert!(shows(&mut app, "simulated dice and your dice"));
 }
 
 #[test]
-fn without_reduce_motion_the_dice_tumble_then_land() {
+fn play_one_character_stops_after_its_last_step() {
     let mut app = app(true, false);
     on_dice_entry(&mut app);
-    c32(&mut app, C32::Roller(Act::Roll));
-    assert_eq!(entered(&app, 0), 0, "nothing lands at the click");
-    let start = app.now_ms();
-    let mut t = start;
-    while entered(&app, 0) == 0 && t < start + 20_000 {
-        t += 16;
-        app.event(Event::Tick { now_ms: t });
-    }
-    assert_eq!(entered(&app, 0), 1, "the character lands by the ticks");
-    assert!(!make(&app).roller().rolling());
+    play(&mut app, Reach::Character);
+    assert_eq!(entered(&app, 0), 1, "the character is in its box");
+    let (ch, s, _) = make(&app).walk().shown().unwrap();
+    assert_eq!(s, ch.steps().len(), "its last step shown");
+    assert!(!make(&app).walk().playing());
 }
 
 /// New key opened on Add a key, 12 words, dice by the hashed procedure,
@@ -227,4 +250,75 @@ fn a_device_shell_has_no_die_beside_new_keys_rolls() {
     assert!(!shows(&mut app, "Rolled by this computer"));
     app.press(Action::KRoller(RollerAct::Roll));
     assert_eq!(app.keygen().unwrap().dice.len(), 0);
+}
+
+/// The app on Faraday Desktop at `width` × `height` and `dpi`, Reduce
+/// motion on, on the codex32 entry by dice, a frame drawn.
+fn sized(width: u16, height: u16, dpi: u16) -> Faraday {
+    let mut app = Faraday::new();
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app.set_roller_offered(true);
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x31 + i * 7; 32])));
+    }
+    app.press(Action::ReduceMotion(true));
+    on_dice_entry(&mut app);
+    let _ = app.frame();
+    app
+}
+
+/// The page scrolled down by `dy` with the pointer at (x, y), a frame
+/// after.
+fn scroll_page(app: &mut Faraday, x: u16, y: u16, dy: i16) {
+    app.event(Event::Hover { x, y });
+    app.event(Event::Scroll { x, y, dy });
+    app.event(Event::ScrollEnd { x, y });
+    app.settle();
+    let _ = app.frame();
+}
+
+#[test]
+fn the_demo_only_card_holds_its_place_while_the_page_scrolls() {
+    let next = Action::Codex32(C32::Walk(WalkAct::Next));
+    // Wide: a pane at the right, below the top strip, the page scrolling
+    // beside it.
+    let mut wide = sized(1280, 800, 160);
+    let at = wide.hit_box(next).expect("Next in the pane");
+    assert!(at.0 > 1280 / 2, "at the right: {at:?}");
+    let page = |app: &Faraday| app.keygen().unwrap().scroll.y;
+    let before = page(&wide);
+    scroll_page(&mut wide, 500, 400, 300);
+    assert!(page(&wide) > before, "the page scrolled");
+    assert_eq!(wide.hit_box(next), Some(at), "the card did not");
+    let top = wide
+        .drawn_text_boxes()
+        .into_iter()
+        .find(|(t, _)| t == "Demo only")
+        .map(|b| b.1)
+        .expect("the card's heading is in view");
+    assert!(top.1 >= 96, "below the pill and the eye: {top:?}");
+
+    // Narrow: a strip pinned at the window's foot.
+    let mut narrow = sized(480, 640, 286);
+    let at = narrow.hit_box(next).expect("Next in the strip");
+    assert!(at.1 > 640 / 2, "at the foot: {at:?}");
+    scroll_page(&mut narrow, 240, 200, 200);
+    assert_eq!(narrow.hit_box(next), Some(at), "the strip stays");
+    // More opens the whole card over the page; Less closes it.
+    c32(&mut narrow, C32::Pane);
+    assert!(make(&narrow).pane_open());
+    assert!(shows(&mut narrow, "Rolls d6"), "the whole card");
+    c32(&mut narrow, C32::Pane);
+    assert!(!make(&narrow).pane_open());
 }

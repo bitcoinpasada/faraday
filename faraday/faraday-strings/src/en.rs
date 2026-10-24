@@ -9195,8 +9195,6 @@ strings! {
     // ----- The five-dice roller (docs/CODEX32.md §5.5), faraday-core/src/fresh/roller/ -----
     /// Heading of the codex32 dice step's roller, beside the entry for real dice.
     roller_or_let_faraday_roll: "Or let Faraday roll",
-    /// Label of the roller's choice of how much one click rolls.
-    roller_per_click_codex32: "One click rolls",
     /// Choice: the five dice once.
     roller_reach_pass: "One pass",
     /// Choice: both passes, one character.
@@ -9434,6 +9432,58 @@ strings! {
     codex32_demo_only: "Demo only",
     /// The roller's dice, in the "Demo only" box. `{}`: the die, as "d20".
     codex32_rolls_die: "Rolls {}",
+    // ----- The step-through in the "Demo only" card (CODEX32 §5.5, owner 2026-10-24), faraday-core -----
+    /// Where the step-through stands. `{}`: the step, the character's
+    /// steps, the character's number in its share.
+    codex32_walk_count: "Step {} of {} · character {}",
+    /// Before any step of a character is shown. `{}`: its number in its share.
+    codex32_walk_ready: "Next rolls character {}",
+    /// Play, which runs the steps.
+    codex32_walk_play: "Play",
+    /// On a narrow window, the strip's button that opens the whole "Demo
+    /// only" card over the page.
+    codex32_pane_more: "More",
+    /// The open card's button that closes it back to the strip.
+    codex32_pane_less: "Less",
+    /// Play running: the button that stops it.
+    codex32_walk_pause: "Pause",
+    /// Head over how far Play runs.
+    codex32_walk_play_runs: "Play runs",
+    /// Head over how fast Play runs.
+    codex32_walk_speed: "Speed",
+    /// A step a second.
+    codex32_walk_slow: "Slow",
+    /// The default speed.
+    codex32_walk_normal: "Normal",
+    /// Quick.
+    codex32_walk_fast: "Fast",
+    /// A step every frame.
+    codex32_walk_fastest: "Fastest",
+    /// A die's first roll. `{}`: the die, its value, the pad.
+    codex32_walk_first: "Die {}, first roll: {}. Marker on pad {}.",
+    /// A die's second roll, higher. `{}`: the die, the second value, the
+    /// second value, the first value.
+    codex32_walk_higher: "Die {}, second roll: {}. {} is higher than {}, so bit 1.",
+    /// A die's second roll, lower. `{}`: as `codex32_walk_higher`.
+    codex32_walk_lower: "Die {}, second roll: {}. {} is lower than {}, so bit 0.",
+    /// An equal pair. `{}`: the die, its first value, its second.
+    codex32_walk_equal: "Die {}: {} then {}. Equal, so roll both again.",
+    /// The five bits into the box. `{}`: the bits, their sum as written
+    /// ("8 + 4 + 1 = 13"), the leaf, its character, the character, the box.
+    codex32_walk_bits: "Bits {} = {}. Leaf {} of the tree is {}. {} goes in box {}.",
+    /// A sum cell of the checksum worksheet, as the addition wheel gives it.
+    /// `{}`: the box, the row's letter, the two added, the sum.
+    codex32_walk_sum: "Box {}, row {}: {} + {} = {}",
+    /// A table row selected by two leading cells. `{}`: the first box,
+    /// the second, their characters, the row's name, the row, the box it
+    /// is written from.
+    codex32_walk_table: "Boxes {}–{} read {}. Table row {} is {}, written from box {}.",
+    /// A table row selected by one leading cell. `{}`: the box, its
+    /// character, the row's name, the row, the box it is written from.
+    codex32_walk_table_one: "Box {} reads {}. Table row {} is {}, written from box {}.",
+    /// A checksum box worked from below. `{}`: the box, the cell below,
+    /// the table cell between, the box's character.
+    codex32_walk_below: "Box {}, from below: {} + {} = {}",
     /// Over the pad of ten-faced dice: a die numbered 0 to 9 enters its 0
     /// as 10 (CODEX32 §5.1).
     codex32_d10_zero: "0 is 10",

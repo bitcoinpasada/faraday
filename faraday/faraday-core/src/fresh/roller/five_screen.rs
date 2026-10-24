@@ -1,24 +1,24 @@
 //! The five-dice roller as it is drawn (`docs/CODEX32.md` §5.5): "Or let
 //! Faraday roll", "Rolled by this computer" over each die's two rolls
-//! side by side, the Roll button, and what one click rolls. Drawing
-//! reads the roller and the entry; it works nothing out.
+//! side by side; its controls are the step-through's
+//! (`codex32/walk_screen.rs`). Drawing reads the roller and the entry; it
+//! works nothing out.
 //!
 //! [`pairs`] is each die's first roll (its marker) and second roll (the
 //! die) side by side in the die's colour, and the pairs struck as equal
 //! under them (owner, 2026-10-24); the codex32 dice sheet draws it too.
 
-use super::five::{Act, FiveRoller, REACHES, Reach};
+use super::five::FiveRoller;
 use super::screen::pips;
-use crate::Action;
 use crate::codex32::dice_screen::paint;
 use crate::codex32::{DieColour, DieRow};
 use crate::strings::{EN, fill};
 use crate::ui::Paint;
-use crate::ui::{Style, Ui, W, pal::*};
+use crate::ui::{Ui, W, pal::*};
 use faraday_draw::tokens::{
-    ROLLER_BOUNCE, ROLLER_CHIP, ROLLER_DIE, ROLLER_DIE_RADIUS, ROLLER_FIVE_GAP, ROLLER_GAP,
-    ROLLER_LABEL, ROLLER_PAIR_COL, ROLLER_PAIR_DIE, ROLLER_PAIR_LABEL_W, ROLLER_PIP,
-    ROLLER_PIP_OFFSET, ROLLER_SWAY,
+    ROLLER_BOUNCE, ROLLER_DIE, ROLLER_DIE_RADIUS, ROLLER_FIVE_GAP, ROLLER_GAP, ROLLER_LABEL,
+    ROLLER_PAIR_COL, ROLLER_PAIR_DIE, ROLLER_PAIR_LABEL_W, ROLLER_PIP, ROLLER_PIP_OFFSET,
+    ROLLER_SWAY,
 };
 use faraday_entropy::booklet::BOOKLET_DICE;
 
@@ -246,98 +246,12 @@ pub fn entropy_label(sim: super::Sim) -> Option<&'static str> {
     }
 }
 
-/// The label of a reach.
-fn label(r: Reach) -> &'static str {
-    match r {
-        Reach::Pass => EN.roller_reach_pass,
-        Reach::Character => EN.roller_reach_character,
-        Reach::Share => EN.roller_reach_share,
-        Reach::End => EN.roller_to_the_end,
-    }
-}
-
-/// The roller at (`x`, `y`) in `w` units, each die's two rolls `p` in
-/// it. `can_roll` is whether the entry has anything left to take. `act`
-/// is the host's action for each of the roller's. Returns the height
-/// used.
-pub fn draw(
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
-    r: &FiveRoller,
-    p: &Pairs,
-    can_roll: bool,
-    act: impl Fn(Act) -> Action,
-) -> f32 {
-    let mut cy = y;
-    ui.text(
-        x,
-        cy,
-        ROLLER_LABEL + 1.0,
-        W::S,
-        TEXT,
-        EN.roller_or_let_faraday_roll,
-    );
-    cy += ui.line(ROLLER_LABEL + 1.0, W::S) + ROLLER_GAP / 2.0;
-    ui.text(x, cy, ROLLER_LABEL, W::R, MUTED, EN.roller_by_this_computer);
-    cy += ui.line(ROLLER_LABEL, W::R) + ROLLER_GAP;
-    cy += pairs(ui, (x, cy, w), p, Some(r)) + ROLLER_GAP;
-    let (text, style, action) = if r.rolling() {
-        (EN.roller_stop, Style::Secondary, act(Act::Stop))
-    } else if can_roll {
-        (EN.roller_roll, Style::Primary, act(Act::Roll))
-    } else {
-        (EN.roller_roll, Style::Disabled, act(Act::Roll))
-    };
-    ui.button(x, cy, None, ROLLER_CHIP, text, style, action);
-    cy += ROLLER_CHIP + ROLLER_GAP;
-    ui.text(
-        x,
-        cy,
-        ROLLER_LABEL,
-        W::R,
-        MUTED,
-        EN.roller_per_click_codex32,
-    );
-    cy += ui.line(ROLLER_LABEL, W::R) + ROLLER_GAP / 2.0;
-    let mut bx = x;
-    for reach in REACHES {
-        let name = label(reach);
-        let bw = ui.measure(ROLLER_LABEL + 1.0, W::S, name) + ROLLER_GAP + ROLLER_GAP + ROLLER_GAP;
-        if bx > x && bx + bw > x + w {
-            bx = x;
-            cy += ROLLER_CHIP + ROLLER_GAP / 2.0;
-        }
-        let style = if r.reach() == reach {
-            Style::Primary
-        } else {
-            Style::Secondary
-        };
-        bx += ui.button(
-            bx,
-            cy,
-            Some(bw),
-            ROLLER_CHIP,
-            name,
-            style,
-            act(Act::Reach(reach)),
-        ) + ROLLER_GAP / 2.0;
-    }
-    cy += ROLLER_CHIP;
-    cy - y
-}
-
 /// What the snapshot tour draws of the roller alone, before a flow hosts
 /// it: on the page's background, `width` × `height` pixels at `dpi`,
-/// each die's two rolls `p` in it. The frame's pixels, RGBA.
+/// "Or let Faraday roll" over each die's two rolls `p`, a die tumbling
+/// where `r` tumbles one. The frame's pixels, RGBA.
 #[cfg(feature = "testkit")]
-pub fn preview(
-    r: &FiveRoller,
-    p: &Pairs,
-    can_roll: bool,
-    width: u16,
-    height: u16,
-    dpi: u16,
-) -> Vec<u8> {
+pub fn preview(r: &FiveRoller, p: &Pairs, width: u16, height: u16, dpi: u16) -> Vec<u8> {
     use faraday_draw::tokens::PAD;
     use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
     let d = DisplayInfo {
@@ -354,14 +268,24 @@ pub fn preview(
     };
     let mut canvas = faraday_draw::Canvas::new(&d);
     let f = canvas.scale().factor();
-    let mut hits: Vec<(faraday_draw::Rect, Action)> = Vec::new();
+    let mut hits: Vec<(faraday_draw::Rect, crate::Action)> = Vec::new();
     let (w, h) = (f32::from(width) / f, f32::from(height) / f);
     {
         let mut ui = Ui::new(&mut canvas, f, &mut hits, None);
         ui.fill(0.0, 0.0, w, h, 0.0, BG);
-        draw(&mut ui, (PAD, PAD, w - 2.0 * PAD), r, p, can_roll, |_| {
-            Action::ReduceMotion(false)
-        });
+        let (x, mut y) = (PAD, PAD);
+        ui.text(
+            x,
+            y,
+            ROLLER_LABEL + 1.0,
+            W::S,
+            TEXT,
+            EN.roller_or_let_faraday_roll,
+        );
+        y += ui.line(ROLLER_LABEL + 1.0, W::S) + ROLLER_GAP / 2.0;
+        ui.text(x, y, ROLLER_LABEL, W::R, MUTED, EN.roller_by_this_computer);
+        y += ui.line(ROLLER_LABEL, W::R) + ROLLER_GAP;
+        pairs(&mut ui, (x, y, w - PAD - PAD), p, Some(r));
     }
     canvas.frame().rgba.to_vec()
 }

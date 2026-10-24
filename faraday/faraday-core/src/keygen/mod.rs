@@ -1778,7 +1778,7 @@ impl crate::Faraday {
         });
         match press {
             C32::Lock => return self.keygen_codex32_lock(),
-            C32::Roller(r) => return self.keygen_codex32_roller(r),
+            C32::Walk(w) => return self.keygen_codex32_walk(w),
             C32::Next | C32::Key(faraday_ui::keyboard::OskPress::Done) if locked_next => {
                 return self.keygen_done();
             }
@@ -1841,20 +1841,52 @@ impl crate::Faraday {
         self.entry.put(e);
     }
 
-    /// A press on the five-dice roller beside the codex32 pad, on Faraday
-    /// Desktop only (`docs/CODEX32.md` §5.5). Under Reduce motion a
-    /// click's faces land at once.
-    fn keygen_codex32_roller(&mut self, r: crate::fresh::roller::five::Act) {
+    /// Costs what a step costs: a worksheet column for a character put
+    /// in its box, a fresh answer where Next rolls a character. A press on
+    /// the step-through of the "Demo only" card, on Faraday Desktop only
+    /// (`docs/CODEX32.md` §5.5): the view follows the step.
+    fn keygen_codex32_walk(&mut self, w: crate::codex32::WalkAct) {
         if !self.roller_offered() {
             return;
         }
+        let c = self.compute();
         let now = self.now_ms();
-        if let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) {
-            m.roller_act(r, now);
+        let mut m = self.keygen.state.as_mut().and_then(|k| k.codex32.take());
+        if let Some(m) = m.as_mut() {
+            m.walk_act(&c, w, now, &mut || {
+                self.fresh(b"faraday codex32 dice roller")
+            });
         }
-        if r == crate::fresh::roller::five::Act::Roll && self.reduce_motion() {
-            self.keygen_tick(now);
+        if let Some(k) = self.keygen.state.as_mut() {
+            k.codex32 = m;
         }
+        self.worksheet_follow();
+    }
+
+    /// ← and → step the codex32 step-through while its card is on the
+    /// entry (Faraday Desktop, `docs/CODEX32.md` §5.5), the worksheet
+    /// under the pointer included; Up and Down still pan it. True when
+    /// taken.
+    pub(crate) fn keygen_walk_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use crate::codex32::WalkAct;
+        use faraday_shell_api::Key;
+        let act = match key {
+            Key::Left => WalkAct::Previous,
+            Key::Right => WalkAct::Next,
+            _ => return false,
+        };
+        let open = self.screen == Screen::KeyGen
+            && self.sheet.is_none()
+            && self.roller_offered()
+            && self
+                .keygen
+                .state()
+                .and_then(|k| k.codex32.as_ref())
+                .is_some_and(crate::codex32::Codex32Make::walk_open);
+        if open {
+            self.keygen_codex32_walk(act);
+        }
+        open
     }
 
     /// A press on the one-die roller beside the dice pad, on Faraday
@@ -1910,34 +1942,47 @@ impl crate::Faraday {
 
     /// Costs what the faces and values landed cost and a fresh answer for
     /// every 31 of them at most; nothing at rest. The tick of New key's
-    /// rollers (Faraday Desktop): the five dice beside the codex32 pad
-    /// (`docs/CODEX32.md` §5.5) and the one die beside the dice pad
-    /// (§5.6). Returns whether the screen needs a frame.
+    /// moving parts: the codex32 step-through's Play (Faraday Desktop,
+    /// `docs/CODEX32.md` §5.5), the codex32 worksheet's view following the
+    /// work (§7.5), and the one die beside the dice pad (§5.6). Returns
+    /// whether the screen needs a frame.
     pub(crate) fn keygen_tick(&mut self, now_ms: u64) -> bool {
         let Some(k) = self.keygen.state.as_ref() else {
             return false;
         };
-        let five = k.codex32.as_ref().is_some_and(|m| m.roller().active());
+        let (walk, pan) = k
+            .codex32
+            .as_ref()
+            .map_or((false, false), |m| (m.walk().active(), m.pan().moving()));
         let one = k.roller.active();
-        if !five && !one {
+        if !walk && !pan && !one {
             return false;
         }
         let reduce = self.reduce_motion();
         let mut redraw = false;
-        if five {
+        if walk && self.roller_offered() {
             let c = self.compute();
             let mut m = self.keygen.state.as_mut().and_then(|k| k.codex32.take());
-            if let Some(m) = m.as_mut() {
-                redraw |= m.roller_tick(&c, now_ms, reduce, &mut || {
+            let stepped = m.as_mut().is_some_and(|m| {
+                let playing = m.walk().playing();
+                let moved = m.walk_tick(&c, now_ms, &mut || {
                     self.fresh(b"faraday codex32 dice roller")
                 });
-            }
+                // Play ending changes its button too.
+                moved || playing != m.walk().playing()
+            });
             if let Some(k) = self.keygen.state.as_mut() {
                 k.codex32 = m;
             }
-            // Faces that landed may have completed a character: the
-            // worksheet keeps its front in view.
-            self.worksheet_follow();
+            if stepped {
+                // The step moved the work: the worksheet's view follows.
+                self.worksheet_follow();
+                redraw = true;
+            }
+        }
+        let f = self.f;
+        if let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+            redraw |= m.pan_tick(now_ms, f);
         }
         if one {
             redraw |= self.keygen_roller_tick(now_ms, reduce);

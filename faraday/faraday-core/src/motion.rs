@@ -36,7 +36,7 @@ const RUBBER: f32 = 0.55;
 const MAX_STEP_MS: u64 = 50;
 /// The step assumed for the first tick of a motion, which has no tick
 /// before it to measure from.
-const FIRST_STEP_MS: u64 = 16;
+pub(crate) const FIRST_STEP_MS: u64 = 16;
 /// How far a wheel notch or an arrow key moves the content, in units.
 /// Chrome scrolls 53 CSS pixels a notch and Firefox about 57, the feel
 /// people know; a shade over was asked for (owner, 2026-10-12). In units
@@ -55,6 +55,10 @@ pub const FADE_MS: u64 = tokens::MOTION_SHORT4;
 /// changes colour, so it is slower than a change of screen (the owner
 /// sets it by eye); Material's medium 3.
 pub const THEME_FADE_MS: u64 = tokens::MOTION_MEDIUM3;
+/// How long the codex32 worksheet's view takes to follow the entry's
+/// front to its new place (`docs/CODEX32.md` §7.5), eased as a change of
+/// theme is: Material's medium 2, as a step card opening moves the page.
+pub const SHEET_FOLLOW_MS: u64 = tokens::MOTION_MEDIUM2;
 /// The widest the median gap between frames may be for a fade still to
 /// read as one: 30 Hz, six steps in a fade, or better. Frames further
 /// apart are steps of brightness, and the change is drawn at once
@@ -628,6 +632,9 @@ impl Scroll {
             ui::Slot::BoardList if reach && board_shown() => ui::Slot::BoardList,
             // A worksheet pans on a small panel too: it is wider than one.
             ui::Slot::Worksheet if sheet_none => ui::Slot::Worksheet,
+            // The codex32 "Demo only" card scrolls within itself, on a
+            // small panel too: it is pinned at the foot there.
+            ui::Slot::DemoPane if screen == Screen::KeyGen && sheet_none => ui::Slot::DemoPane,
             _ => ui::Slot::Page,
         }
     }
@@ -642,6 +649,7 @@ impl Faraday {
     pub(crate) fn scroll_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use faraday_shell_api::Key;
         if self.slot() == ui::Slot::Worksheet && self.sheet.is_none() {
+            self.worksheet_hold();
             match key {
                 Key::Left => self.pan_across(-WHEEL_NOTCH),
                 Key::Right => self.pan_across(WHEEL_NOTCH),
@@ -731,6 +739,7 @@ impl Faraday {
             (self.scroll.drag_x, last)
         };
         self.scroll.drag_x = x;
+        self.worksheet_hold();
         let f = self.unit_px();
         self.pan((from_y - y) as f32 / f);
         if self.across_max().is_some() {
@@ -743,6 +752,7 @@ impl Faraday {
     /// worksheet already at its end that way.
     pub(crate) fn point_scroll(&mut self, x: i32, y: i32, dy: f32) {
         self.point_region(x, y);
+        self.worksheet_hold();
         if self.worksheet_at_end(dy) {
             self.scroll.went_to(ui::Slot::Page);
         }
@@ -756,6 +766,7 @@ impl Faraday {
         };
         let f = self.unit_px();
         if let Some(p) = self.worksheet_pan_mut() {
+            p.stop();
             p.x = (((p.x + dx) * f).round() / f).clamp(0.0, max);
         }
     }
@@ -764,6 +775,7 @@ impl Faraday {
     /// pans sideways pans across; at a worksheet's end the page moves on
     /// (the wheel goes on to the region round it); else the region glides.
     pub(crate) fn wheel(&mut self, dy: f32) {
+        self.worksheet_hold();
         if self.across_max().is_some() && self.typing.shift() {
             self.pan_across(dy);
             return;
@@ -774,9 +786,9 @@ impl Faraday {
         self.glide(dy);
     }
 
-    /// Make codex32 shares' front cell is brought into its worksheet's
-    /// view, as the last frame drew it (`docs/CODEX32.md` §6.4.7). A
-    /// lookup.
+    /// Make codex32 shares' worksheet view is sent to where the work is,
+    /// as the last frame drew the view (`docs/CODEX32.md` §6.4.7, §7.5):
+    /// a timed move, at once under Reduce motion. Arithmetic.
     pub(crate) fn worksheet_follow(&mut self) {
         let key = self.region_key();
         let Some(e) = self.scroll.region_now(key, ui::Slot::Worksheet) else {
@@ -785,7 +797,39 @@ impl Faraday {
         let f = self.unit_px();
         let view = (e.view.w as f32 / f, e.view.h as f32 / f);
         let cls = self.window().class();
-        self.keygen.sheet_follow(cls, view, (e.max_x, e.max));
+        let reduce = self.reduce_motion();
+        self.keygen
+            .sheet_follow(cls, view, (e.max_x, e.max), reduce);
+    }
+
+    /// What a scrolled codex32 region moves: the checksum worksheet's
+    /// pan down the sheet, or the "Demo only" card's own scroll
+    /// (`docs/CODEX32.md` §5.5, §7.5).
+    pub(crate) fn codex32_slot(&mut self) -> Option<&mut f32> {
+        if self.slot() == ui::Slot::DemoPane {
+            self.keygen.pane_offset_mut()
+        } else {
+            self.worksheet_pan_mut().map(|p| &mut p.y)
+        }
+    }
+
+    /// Every motion comes to rest where it was going: the region that
+    /// scrolls, and the codex32 worksheet's following move.
+    pub(crate) fn settle_regions(&mut self) {
+        let _ = self.with_region(|m, r| m.settle(r));
+        if let Some(p) = self.worksheet_pan_mut() {
+            p.settle();
+        }
+    }
+
+    /// The person moves the worksheet that scrolls now: the view's
+    /// following move stops where it is.
+    fn worksheet_hold(&mut self) {
+        if self.slot() == ui::Slot::Worksheet
+            && let Some(p) = self.worksheet_pan_mut()
+        {
+            p.stop();
+        }
     }
 
     /// The open sheet's offset, or the screen's region's. A sheet starts

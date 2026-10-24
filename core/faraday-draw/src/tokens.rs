@@ -775,6 +775,17 @@ pub const MARGIN_WIDE: f32 = 24.0;
 /// The widest a one-column page grows beside the navigation.
 pub const COLUMN_MAX: f32 = 720.0;
 
+/// The space between two panes (`docs/LAYOUT.md` §5): Material's spacer.
+pub const SPACER: f32 = 24.0;
+
+/// A supporting pane's width (`docs/LAYOUT.md` §6).
+pub const SUPPORT_PANE: f32 = 400.0;
+
+/// Where a supporting pane's top stands on a wide window: below the
+/// top-right strip's two 48 dp rows (the network pill and the ?, then
+/// the eye), never level with them (owner, 2026-10-24).
+pub const SUPPORT_PANE_TOP: f32 = 2.0 * TOUCH;
+
 /// The narrowest a Home tile is; the grid takes as many columns as fit
 /// (`docs/LAYOUT.md` §4).
 pub const TILE_MIN: f32 = 200.0;
@@ -1144,6 +1155,22 @@ pub const CODEX32_CHIP_H: f32 = 32.0;
 /// Reduce motion, so that a click rolled to the end is never one long
 /// frame.
 pub const ROLLER_FIVE_BATCH: usize = 400;
+
+/// The codex32 step-through's Play (CODEX32 §5.5): the time between two
+/// steps at Slow, a step a second.
+pub const CODEX32_WALK_SLOW_MS: u64 = 1000;
+/// At Normal, the default: slow enough to read a step's line.
+pub const CODEX32_WALK_NORMAL_MS: u64 = 400;
+/// At Fast.
+pub const CODEX32_WALK_FAST_MS: u64 = 120;
+/// The most of a window's height the codex32 "Demo only" card takes when
+/// it is opened from its strip at the foot of a narrow window.
+pub const CODEX32_STRIP_OPEN_MAX: f32 = 0.85;
+/// The furthest along Material's standard curve a following move of the
+/// codex32 worksheet's view enters it when it takes over from a move
+/// under way, so the move left is never cut to nothing (`docs/MOTION.md`
+/// §3.5).
+pub const SHEET_FOLLOW_ENTRY_MAX: f32 = 0.9;
 
 /// One layer of a Material 3 elevation shadow, in dp: how far it falls
 /// below what floats, its blur radius and how far it grows past it.

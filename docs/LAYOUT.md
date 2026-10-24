@@ -1,8 +1,8 @@
 # Layout at every window size
 
 **Kind:** Spec
-**Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3); the rest specified, not built (F92)
-**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), list and detail panes (L4), components that keep their size (L5), the supporting pane (L6), tours and tests (L7); planned.
+**Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the rest specified, not built (F92)
+**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), list and detail panes (L4), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -131,6 +131,18 @@ sheet over it; it follows the page's section as the person moves on,
 and its close button puts it away. Below extra-large, Learn stays the
 sheet it is today.
 
+A supporting pane holds its place (owner, 2026-10-24): it does not
+scroll with the page, which scrolls beside it, and a pane taller than
+the window scrolls within itself. Its top is the page content's, below
+the top-right strip of the network pill and the eye, never level with
+them (`SUPPORT_PANE_TOP`), against the right edge with the 24 dp margin
+(`MARGIN_WIDE`) and the 24 dp spacer from the page (`SPACER`). On a
+window too narrow for the page beside it, what the person acts on in
+it sits in a strip pinned at the window's foot that opens to the whole
+pane over the page and never scrolls away. Built for codex32's Demo
+only card (`docs/CODEX32.md` §5.5, `codex32/pane_screen.rs`); Learn's
+pane is planned.
+
 ## 7. Density
 
 A window is laid out at the screen's density: the desktop app at the
@@ -183,7 +195,8 @@ In `core/faraday-draw/src/tokens.rs`: the class widths
 width), `NAV_BAR_H` 80, `APP_BAR_H` 64, `NAV_PILL_W` 56, `NAV_PILL_H`
 32; `MARGIN_COMPACT` 16, `MARGIN_WIDE` 24, `SPACER` 24; `TILE_MIN`
 200, `LEAD_MAX` 560, `LIST_PANE` 360, `COLUMN_MAX` 720, `SHEET_MAX`
-560, `SUPPORT_PANE` 400, `MEASURE` 70 characters. The Starter's
+560, `SUPPORT_PANE` 400, `SUPPORT_PANE_TOP` 96 (below the top-right
+strip's two 48 dp rows), `MEASURE` 70 characters. The Starter's
 (`docs/STARTER.md` §3.1d) are the same names where they are the same
 thing.
 

@@ -164,6 +164,22 @@ const CLEAN: [u8; 10] = [1, 2, 3, 4, 5, 2, 3, 4, 5, 6];
 const TIED: [u8; 12] = [1, 2, 3, 4, 5, 1, 6, 2, 3, 2, 5, 4];
 
 #[test]
+fn the_step_through_rolls_a_character_as_a_click_of_one_character_does() {
+    // The same answers give the same faces whether a click lands them or
+    // the step-through rolls them ahead (`docs/CODEX32.md` §5.5).
+    for faces in [&CLEAN[..], &TIED[..]] {
+        let mut h = Host::new();
+        let mut clicked = FiveRoller::default();
+        roll(&h, &mut clicked, 0);
+        let landed = run(&mut h, &mut clicked, true, &mut stream(faces));
+        let mut ahead = FiveRoller::default();
+        let rolled = ahead.roll_character(&[], &mut stream(faces)).unwrap();
+        assert_eq!(rolled.as_slice(), landed.as_slice());
+        assert_eq!(rolled.as_slice(), faces);
+    }
+}
+
+#[test]
 fn a_character_click_gives_the_character_the_same_faces_typed_give() {
     let mut h = Host::new();
     let mut r = FiveRoller::default();

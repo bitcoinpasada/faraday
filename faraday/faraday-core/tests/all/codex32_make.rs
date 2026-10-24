@@ -637,14 +637,14 @@ fn the_eye_stands_clear_of_every_row_of_the_flow() {
 /// Share A of vector 2, its first `n` data characters typed, on a
 /// window `width` × `height` at 160 dpi (tall enough that the pad
 /// and the sheet are both on it), a frame drawn after each as the shells
-/// draw one after every event.
+/// draw one after every event, and the worksheet's view let come to
+/// rest.
 fn typed_a(width: u16, height: u16, n: usize) -> Faraday {
     typed_a_in(None, width, height, n)
 }
 
 /// As [`typed_a`], drawn in `theme` from the start where one is given.
 fn typed_a_in(theme: Option<faraday_ui::Preset>, width: u16, height: u16, n: usize) -> Faraday {
-    let (all, _) = vector2();
     let mut app = on(width, height, 160);
     if let Some(theme) = theme {
         app.press(Action::Theme(theme));
@@ -652,11 +652,29 @@ fn typed_a_in(theme: Option<faraday_ui::Preset>, width: u16, height: u16, n: usi
     opened(&mut app);
     to_entry(&mut app, Way::Typed);
     let _ = app.frame();
-    for &ch in &all[0].as_bytes()[9..9 + n] {
-        key(&mut app, char::from(ch));
+    type_a(&mut app, 0..n);
+    frames(&mut app, 40);
+    app
+}
+
+/// Share A of vector 2's data characters `range` typed, a frame after
+/// each.
+fn type_a(app: &mut Faraday, range: std::ops::Range<usize>) {
+    let (all, _) = vector2();
+    for &ch in &all[0].as_bytes()[9 + range.start..9 + range.end] {
+        key(app, char::from(ch));
         let _ = app.frame();
     }
-    app
+}
+
+/// `n` frames 16 ms apart, a tick before each, as a shell draws them.
+fn frames(app: &mut Faraday, n: usize) {
+    let mut t = app.now_ms();
+    for _ in 0..n {
+        t += 16;
+        app.event(Event::Tick { now_ms: t });
+        let _ = app.frame();
+    }
 }
 
 /// Vector 2's shares A and C typed in `theme` on a window `width` ×
@@ -760,4 +778,34 @@ fn the_worksheet_keeps_the_character_being_entered_in_view() {
         app.hit_box(row).is_some(),
         "the front's row is in view, its cells pressable"
     );
+}
+
+#[test]
+fn the_worksheet_follows_the_front_over_several_frames() {
+    // Twelve characters in and the view at rest; eight more bring box 29
+    // down below the view, and the view moves to it over several frames,
+    // every one of them part of the way.
+    let mut app = typed_a(1280, 1600, 12);
+    let from = pan(&app).y;
+    type_a(&mut app, 12..20);
+    let mut ys = vec![pan(&app).y];
+    let mut t = app.now_ms();
+    for _ in 0..40 {
+        t += 16;
+        app.event(Event::Tick { now_ms: t });
+        let _ = app.frame();
+        ys.push(pan(&app).y);
+    }
+    let to = *ys.last().unwrap();
+    assert!(to > from, "it moved down to the front: {ys:?}");
+    assert_eq!(ys[0], from, "nothing jumps at the key");
+    let between = ys.iter().filter(|&&y| y > from && y < to).count();
+    assert!(between >= 5, "several frames on the way: {ys:?}");
+    assert!(ys.windows(2).all(|w| w[1] >= w[0]), "one way: {ys:?}");
+
+    // Under Reduce motion the view is at the same place at once.
+    let mut reduced = typed_a(1280, 1600, 12);
+    reduced.press(Action::ReduceMotion(true));
+    type_a(&mut reduced, 12..20);
+    assert_eq!(pan(&reduced).y, to);
 }

@@ -27,6 +27,9 @@ pub enum Slot {
     /// A codex32 checksum worksheet, which pans both ways
     /// (`SheetPan`, `faraday-core`).
     Worksheet,
+    /// The codex32 entry's "Demo only" card, a supporting pane that
+    /// scrolls within itself (`Codex32Make::pane_offset`, `faraday-core`).
+    DemoPane,
 }
 
 /// A scrolled region as drawn: where it is and how far it goes.

@@ -4,9 +4,10 @@
 //! set's characters on New key would notice them. Rolled on twenty-faced
 //! dice, a set is BIP 93's vector 2 as on six-faced ones.
 
+use faraday_core::codex32::WalkAct;
 use faraday_core::codex32::{C32, Card, DIE_SIZES, DieColour, SPLITS, Split, WAYS, Way};
 use faraday_core::keygen::{Start, kstep};
-use faraday_core::testkit::five::{Act, Reach};
+use faraday_core::testkit::five::Reach;
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 use faraday_ui::keyboard::OskPress;
@@ -229,7 +230,7 @@ fn the_roller_and_its_dice_are_in_a_demo_only_box_on_faraday_desktop_alone() {
     for want in ["Demo only", "Rolls d6", "Or let Faraday roll", "Your dice"] {
         assert!(texts.iter().any(|t| t == want), "{want}");
     }
-    assert!(app.offers(Action::Codex32(C32::Roller(Act::Roll))));
+    assert!(app.offers(Action::Codex32(C32::Walk(WalkAct::Next))));
     // Beside the person's own entry: the box stands right of the pad.
     let boxes = app.drawn_text_boxes();
     let at = |s: &str| boxes.iter().find(|(t, _)| t == s).map(|b| b.1).unwrap();
@@ -241,7 +242,7 @@ fn the_roller_and_its_dice_are_in_a_demo_only_box_on_faraday_desktop_alone() {
             .iter()
             .any(|t| t == "Demo only" || t == "Or let Faraday roll")
     );
-    assert!(!stick.offers(Action::Codex32(C32::Roller(Act::Roll))));
+    assert!(!stick.offers(Action::Codex32(C32::Walk(WalkAct::Next))));
 }
 
 #[test]
@@ -254,14 +255,18 @@ fn twenty_faced_dice_are_rolled_and_padded_one_to_twenty() {
     }
     assert!(!app.offers(Action::Codex32(C32::Face(21))));
     // A whole share rolled: every face 1 to 20, some past six.
-    c32(&mut app, C32::Roller(Act::Reach(Reach::Share)));
-    c32(&mut app, C32::Roller(Act::Roll));
+    c32(&mut app, C32::Walk(WalkAct::Reach(Reach::Share)));
+    c32(&mut app, C32::Walk(WalkAct::Speed(3)));
+    c32(&mut app, C32::Walk(WalkAct::Play));
     let mut t = app.now_ms();
-    for i in 0..80u8 {
-        let b = i.wrapping_mul(53).wrapping_add(7);
+    for i in 0..4000u32 {
+        let b = (i as u8).wrapping_mul(53).wrapping_add(7);
         app.event(Event::Entropy(EntropyBytes::new([b; 32])));
         t += 16;
         app.event(Event::Tick { now_ms: t });
+        if !make(&app).walk().playing() {
+            break;
+        }
     }
     let m = make(&app);
     let mut seen = Vec::new();

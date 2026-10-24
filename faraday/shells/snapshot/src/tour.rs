@@ -344,6 +344,15 @@ impl Tour {
         self.shot_unanswered(name, ms)
     }
 
+    /// A picture of the screen while something moves: a tick `ms` on and
+    /// the frame drawn there, nothing brought to rest.
+    pub(crate) fn shot_moving(&mut self, name: &str, ms: u64) -> Result<(), String> {
+        self.pump();
+        self.now += ms;
+        self.app.event(Event::Tick { now_ms: self.now });
+        self.save(name)
+    }
+
     /// [`Tour::shot_after`] with what the app asked of the shell left
     /// unanswered: a write still under way.
     pub(crate) fn shot_unanswered(&mut self, name: &str, ms: u64) -> Result<(), String> {
@@ -356,6 +365,11 @@ impl Tour {
         // What is still moving (a glide, a card opening, the scrollbar)
         // comes to rest, so the screen is taken as it ends up.
         self.app.settle();
+        self.save(name)
+    }
+
+    /// The frame on screen, saved as the next picture, `name`.
+    fn save(&mut self, name: &str) -> Result<(), String> {
         self.n += 1;
         let path = self.out.join(format!("{:02}-{name}.png", self.n));
         let frame = self.app.frame();

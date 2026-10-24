@@ -1,8 +1,9 @@
 //! The dice5 tour: the codex32 five-dice roller of Faraday Desktop
 //! (`docs/CODEX32.md` §5.5) drawn from its state, alone on the page:
-//! at rest, each choice, mid-tumble, landed with each die's two rolls
-//! side by side and an equal pair struck, twenty-faced dice in other
-//! colours, and the roll disabled where nothing is left to enter.
+//! at rest, mid-tumble, landed with each die's two rolls side by side
+//! and an equal pair struck, and twenty-faced dice in other colours. Its
+//! controls are the step-through's, in the codex32 entry's Demo only card
+//! (the roller tour).
 
 use crate::tour::Tour;
 use faraday_core::codex32::{DiceChoice, DieColour, DieRow};
@@ -18,10 +19,10 @@ fn answer(faces: &[u8]) -> impl FnMut() -> Option<[u8; 32]> {
     move || Some(out)
 }
 
-fn shot(t: &mut Tour, name: &str, r: &FiveRoller, p: &Pairs, can_roll: bool) -> Result<(), String> {
+fn shot(t: &mut Tour, name: &str, r: &FiveRoller, p: &Pairs) -> Result<(), String> {
     let (w, h) = t.size();
     let (w, h) = (w.min(520), h.min(560));
-    let rgba = preview(r, p, can_roll, w, h, t.dpi);
+    let rgba = preview(r, p, w, h, t.dpi);
     t.n += 1;
     let path = t.out.join(format!("{:02}-{name}.png", t.n));
     let file = std::fs::File::create(&path).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -55,11 +56,7 @@ pub(crate) fn dice_five_tour(t: &mut Tour) -> Result<(), String> {
     };
     let six = DiceChoice::default();
     let mut r = FiveRoller::default();
-    shot(t, "rest", &r, &empty(six), true)?;
-    for reach in [Reach::Pass, Reach::Share, Reach::End] {
-        r.act(Act::Reach(reach), &at, 0);
-        shot(t, "choice", &r, &empty(six), true)?;
-    }
+    shot(t, "rest", &r, &empty(six))?;
     r.act(Act::Reach(Reach::Character), &at, 0);
     // Part-way through the first tumble, then once its pass has landed.
     let mut draw = answer(&[1, 2, 3, 4, 5, 2, 3, 4, 5, 6]);
@@ -67,14 +64,14 @@ pub(crate) fn dice_five_tour(t: &mut Tour) -> Result<(), String> {
     let _ = r.tick(0, false, &at, &mut draw);
     let _ = r.tick(120, false, &at, &mut draw);
     let _ = r.tick(300, false, &at, &mut draw);
-    shot(t, "tumbling", &r, &empty(six), true)?;
+    shot(t, "tumbling", &r, &empty(six))?;
     let _ = r.tick(700, false, &at, &mut draw);
     r.stop();
     let first = Pairs {
         first: [Some(1), Some(2), Some(3), Some(4), Some(5)],
         ..empty(six)
     };
-    shot(t, "landed", &r, &first, true)?;
+    shot(t, "landed", &r, &first)?;
     // Both rolls in: die 3's pair came out equal, struck, and is being
     // rolled again.
     let struck = [DieRow {
@@ -88,7 +85,7 @@ pub(crate) fn dice_five_tour(t: &mut Tour) -> Result<(), String> {
         struck: &struck,
         ..empty(six)
     };
-    shot(t, "pairs", &r, &both, true)?;
+    shot(t, "pairs", &r, &both)?;
     // Twenty-faced dice, chosen in other colours.
     let d20 = DiceChoice {
         faces: 20,
@@ -107,12 +104,5 @@ pub(crate) fn dice_five_tour(t: &mut Tour) -> Result<(), String> {
         second: [Some(4), Some(15), Some(1), Some(11), Some(19)],
         ..empty(d20)
     };
-    shot(t, "d20", &r20, &twenty, true)?;
-    shot(
-        t,
-        "nothing-left",
-        &FiveRoller::default(),
-        &empty(six),
-        false,
-    )
+    shot(t, "d20", &r20, &twenty)
 }
