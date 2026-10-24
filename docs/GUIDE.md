@@ -46,6 +46,12 @@ The Starter opens on its Home.
 
 ![The Starter's Home with no stick attached](guide/1-1-starter-home.png)
 
+The rail at the left holds **Home**, **Make**, **Tools** and **Learn**;
+in a narrow window they are a bar at the foot. The bar at the top holds
+**Install** and the **⋮** menu (**About**). A step such as **Which
+stick?** opens as a page of its own, with a back arrow and **Home** at
+the top left and no rail.
+
 | On screen | Meaning |
 |---|---|
 | **This computer** | the PC's maker and model, and **Secure Boot: on** or **off** |
@@ -154,8 +160,8 @@ The PC restarts later and the Starter is then off the screen. For a PC
 the Starter does not know, the key rows read **Not known: try** and
 the keys most makers use; the printed sheet lists them too.
 
-The stick cannot start while Secure Boot is on. Back on Home (**Home**
-at the top left), the card's button shows which case this PC is in:
+The stick cannot start while Secure Boot is on. Back on Home (the back
+arrow at the top left), the card's button shows which case this PC is in:
 
 | Secure Boot on | Secure Boot off |
 |---|---|
@@ -268,9 +274,9 @@ the Starter's Home lists **Turn Secure Boot back on** until it is on.
 ### 1.11 Faraday Desktop, the alternative
 
 Faraday Desktop is Faraday in a window, for trying it. It is inside the
-Starter on Linux and Windows: **Open Faraday Desktop** on the Starter's
-Home runs it, and **Install** puts it in the app menu beside the
-Starter. It runs on an online computer, so it has none of the stick's protections: never
+Starter on Linux and Windows: **Open Faraday Desktop**, on the
+**Faraday Desktop** card of the Starter's Home, runs it, and **Install**
+in the Starter's top bar puts it in the app menu beside the Starter. It runs on an online computer, so it has none of the stick's protections: never
 type a seed that holds real bitcoin into it.
 
 ![Faraday Desktop's Home, in Demo](guide/1-11-desktop-home.png)
@@ -315,6 +321,9 @@ A new stick holds no files, so nothing is offered to import.
 
 ![Home on a new stick](guide/2-1-home.png)
 
+Under **Start** the tiles are in a grid, two to a row in a window this
+size:
+
 | Tile | Opens |
 |---|---|
 | **Make a new wallet** | a wallet from new keys, single key or multisig (section 5) |
@@ -322,7 +331,9 @@ A new stick holds no files, so nothing is offered to import.
 | **Spend from a backup, step by step** | spending from a stick, words or paper (section 6) |
 | **Create a vault** | an encrypted file for keys and secrets, kept on a stick (section 4) |
 | **Stick visit** | the files on the stick, while a stick is attached and no key is loaded |
-| **Scan** | the camera, for a QR code |
+
+**Scan**, the button at the bottom right, opens the camera for a QR
+code.
 
 ### 2.2 The sidebar
 
@@ -344,7 +355,7 @@ At the sidebar's foot:
 
 | On screen | Meaning |
 |---|---|
-| **Bring in · Open · Work · Write out** | the stage of the session; the current one is in blue. Pressing it opens Files. |
+| **Bring in · Open · Work · Write out** | the stage of the session; the current one is in blue. **Bring in** while nothing is attached, loaded or waiting (on a new stick, with the boot stick still in); **Open** only while Files holds files. Pressing it opens Files. |
 | **Files** | files brought in, or **none** |
 | **Sticks** | **Boot stick** while the stick Faraday started from is in; **none** once it is pulled |
 | **Keys** | the keys loaded, each by its fingerprint (once a key is loaded) |
@@ -365,12 +376,20 @@ or on paper, is gone after a lock or a power-off.
 | What stays | the stick's files, and the Inbox and Outbox | the stick's files only |
 
 **Lock** asks first only while a lock would end something under way
-(a wallet being made, a vault with changes). The sheet lists what is
-not saved and what ends:
+(a wallet being made, a vault with changes). The sheet reads like the
+power sheet:
 
 ![The Lock sheet while a wallet is being made](guide/2-3-lock.png)
 
-**Lock** wipes them; **Back to the vault** closes the sheet. With
+| Section | Lists |
+|---|---|
+| **Kept** | the files for the stick (**0 files for the stick** here) |
+| **Wiped from memory** | the flow that ends (**Make a new wallet · ends**), and each key and wallet kept nowhere else (**New key 1 · nowhere else**) |
+| **Then** | **Faraday restarts on Unlock** |
+
+With a vault open, each key or wallet in no vault has a **Save** beside
+it, which saves it into the open vault. **Lock** wipes them; **Back to
+the vault** closes the sheet. With
 nothing under way, Lock wipes at once, without a sheet: a key made in
 section 3 and not yet backed up is lost.
 
@@ -392,7 +411,12 @@ Boot back on in the BIOS before starting Windows.** and the QR code of
 the steps. With keys loaded it also lists what is kept and what is
 wiped from memory. Press **Power off**, **Restart**, or **Cancel**.
 
-Faraday Desktop has no power sheet: close the window.
+While files wait for the stick, or a vault has changes not saved, the
+buttons read **Hold to power off** and **Hold to restart**: hold one
+until it fills. A short press does nothing.
+
+On Faraday Desktop the same button opens the sheet with **Quit** (**Hold
+to quit**) in place of Power off.
 
 ## 3. New key
 
@@ -419,7 +443,8 @@ Rolls of a real die make other words and another fingerprint.
 ### 3.1 Wallets → Add a key
 
 Press **Wallets** in the sidebar, then **Add a key** (Keys first,
-wallets later).
+wallets later). **Tools → Add a key** opens the same page: one tile for
+making a key and for typing one.
 
 ![Wallets with no wallet](guide/3-1-wallets.png)
 
@@ -502,6 +527,17 @@ their own entry card. A mix ticks its sources under its row and keeps
 |---|---|
 | ![Rolls, 24 of 70 in](guide/3-6-rolls.png) | ![Generator](guide/3-6-generator.png) |
 | **Typed** is chosen: type the rolls into the box. **Buttons** shows a button for each face instead. Each word appears as its six rolls come in. | The **Generator** card shows **Source**, **Trust** (this device's software) and **Result** (Not checkable). Press **Make the words**, then go to step 3.7. Until the operating system's randomness is in, the button reads **Waiting for randomness**. |
+
+On the Generator card, **Add randomness** opens a page of its own that
+mixes randomness of yours into the operating system's, never in its
+place: **Camera** (with a camera attached), **Dice**, **Coins** or
+**Cards**, then **Add**
+(**Undo** takes the last one back, **Clear** the batch). The line at the
+top reads what was added, such as **System: getrandom(2) · your own:
+none**. The back link returns to the card. Settings' **Randomness** row
+opens the same page.
+
+![Add randomness, ten dice rolls in the batch](guide/3-6-add-randomness.png)
 
 For this guide, type the 70 rolls above. The 70th roll ends the entry;
 the word list shows **torch** as word 12 (its checksum filled in).
@@ -921,6 +957,12 @@ stick at Place 1, and string C onto a new stick at Place 2, its forms
 
 ![Strings in a vault and in a stick's files](guide/4-11-board-kept.png)
 
+On the checklist, the vault's item names the set under **Into the
+vault**: **1 of 2 shares of fab6868a**, its dot turning green once the
+open vault holds that string.
+
+![The vault item, with the set it keeps](guide/4-11-vault-item.png)
+
 **Save into vault.ofv** (step 4.8) saves each string the plan puts in
 the vault as a share record. The vault lists it under **Bitcoin keys**:
 **Share A of fab6868a**, **codex32 name · threshold 2**. At unlock,
@@ -960,25 +1002,27 @@ The places of this section are Place 1, Place 2 and Place 3.
 
 ### 5.1 Load the keys
 
-Press **Wallets**, then **Add a key**.
+Press **Wallets**, then **Add a key**. The page of section 3 opens;
+press **Change** on **Start**, then **Type the words**.
 
-![Add a key](guide/5-1-type-words.png)
+![Add a key, the Words card](guide/5-1-type-words.png)
 
 | On screen | Meaning |
 |---|---|
-| **Scan a SeedQR** | reads a SeedQR with the camera |
+| **Start** **Type the words** | the choice made; **Change** opens Start again |
 | **Words** **12 · 15 · 18 · 21 · 24** | how many words; typing past the boxes adds more |
-| **Other forms** | SLIP-39 shares, codex32, Seed XOR |
 | **Other languages** | word lists other than English |
-| **BIP-39 passphrase** | **No passphrase** unless one is typed |
-| **Add key** | loads the key |
+| **Continue** | checks the words and opens **Key** |
 
-**Other forms** opens the other forms of a key as tabs: **BIP-39
-words**, **SLIP-39 shares**, **codex32** and **Seed XOR parts**. On
-**codex32**, also reached by **Type codex32 strings** on New key's Start
-card, each string typed or scanned is checked at once. This section
-needs none of it; for codex32 strings in full, see Learn's page
-**Backups in other forms**.
+Start's other choices load a key the same way: **Scan a SeedQR** reads
+one with the camera, **Type codex32 strings** opens the codex32 form,
+and **Other forms** lists SLIP-39 shares and Seed XOR parts. A key
+scanned from Home's **Scan**, or typed for Restore (section 7), opens
+**Add a key** with the forms as tabs: **BIP-39 words**, **SLIP-39
+shares**, **codex32** and **Seed XOR parts**. On **codex32** each
+string typed or scanned is checked at once. This section needs none of
+it; for codex32 strings in full, see Learn's page **Backups in other
+forms**.
 
 | A string in | Check a string |
 |---|---|
@@ -1001,15 +1045,22 @@ repairs unchecked**:
 | ![Key card, the strings in](guide/5-1-key-card.png) | ![Wallets, Share entry corrected](guide/5-1-wallets-mark.png) |
 | From **Type codex32 strings**, **Key** lists the strings in (**Share A · id name · 2 needed**). **Lock in** loads the key and opens Wallets. | Under **Keys without a wallet**, and on the key's card: **fab6868a · Share entry corrected**. |
 
-Type key `3dca6805`'s 12 words from the paper, then press **Add key**.
+Type key `3dca6805`'s 12 words from the paper, then press **Continue**.
+
+![The Key card, the words typed](guide/5-1-words-key.png)
+
+**Key** shows the 12 words hidden (**Show words** shows them), with
+**Passphrase** and **Passphrase again** (**No passphrase** unless one
+is typed in both). Press **Lock in**.
 
 ![Key 3dca6805 loaded](guide/5-1-key-loaded.png)
 
-**Key 3dca6805 is loaded. No wallet uses it.** The fingerprint proves
-the words typed are the test words. Press **Add a key** in the left
-column again, press **24**, type **zebra** twenty-four times and press
-**Add key**; then the same with **summer**. The sidebar lists three
-keys: `3dca6805`, `5d388376`, `cf2e083d`.
+Faraday returns to Wallets, and the sidebar lists `3dca6805` under
+**Keys**. The fingerprint proves the words typed are the test words.
+Press **Add a key** again, **Change** on Start and **Type the words**,
+press **24**, type **zebra** twenty-four times, **Continue** and **Lock
+in**; then the same with **summer**. The sidebar lists three keys:
+`3dca6805`, `5d388376`, `cf2e083d`.
 
 ### 5.2 Make a new wallet
 
@@ -1244,6 +1295,10 @@ the QR way, with both keys.
 ### 6.4 Read the transaction
 
 ![Read the transaction](guide/6-4-transaction.png)
+
+The card leads with one line, **Read what leaves, what comes back and
+the fee before signing.**, and **Learn: Verifying**, which opens Learn's
+page on what each row proves.
 
 | Row | Here | Meaning |
 |---|---|---|

@@ -185,13 +185,14 @@ fn savings(t: &Tour) -> Result<usize, String> {
         .ok_or_else(|| "Savings is not loaded".to_string())
 }
 
-/// Costs a mnemonic's checksum. A SeedQR held up to Add a key's camera,
+/// Costs a mnemonic's checksum. A SeedQR held up to Home's Scan,
 /// read and put back; then Savings' Scan a key with test key 1 loaded,
 /// test key 2's SeedQR read into it.
 fn scan(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.load_kit()?;
-    t.press(Action::Entry(None));
-    t.press(Action::ScanSeed);
+    // Home's Scan: a SeedQR read there asks how it loads.
+    t.press(Action::Nav(Screen::Home));
+    t.press(Action::Scan);
     camera(t);
     t.shot("scan-seedqr")?;
     t.app.event(Event::Scanned {

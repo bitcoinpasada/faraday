@@ -230,7 +230,8 @@ fn shares_backup(_c: &Compute, t: &mut Tour) -> Result<(), String> {
 /// §4.11 on: the plan changed so string A is also in a vault on a stick
 /// at Place 1 and string C a file and a Codex32QR picture on a stick at
 /// Place 2; each string typed back; the vault made and A saved into it as
-/// a share record, the vault's Bitcoin keys listing it; the sticks
+/// a share record, the vault item naming the set before it is made, the
+/// vault's Bitcoin keys listing it; the sticks
 /// written.
 fn shares_kept(t: &mut Tour) -> Result<(), String> {
     use faraday_core::codex32_backup::Press;
@@ -275,6 +276,8 @@ fn shares_kept(t: &mut Tour) -> Result<(), String> {
     if open_item(t) != Some(vault) {
         t.press(Action::BStep(vault));
     }
+    // The vault item names the set whose string it keeps.
+    t.shot("guide-shares-vault-item")?;
     t.press(Action::Vault(V::CreateFrom(Screen::Backup)));
     vault_made(t);
     t.press(Action::BVaultSave(0));
@@ -376,13 +379,27 @@ fn codex32_form(_c: &Compute, t: &mut Tour) -> Result<(), String> {
 type Part = fn(&Compute, &mut Tour) -> Result<(), String>;
 
 /// New key from Randomness on: this device's generator chosen and its
-/// entry card, then the dice transcript, the words and the quiz.
+/// entry card and its Add randomness page, then the dice transcript,
+/// the words and the quiz.
 fn new_key(t: &mut Tour) -> Result<(), String> {
     // A way moves on to its entry card by itself (F103); Randomness,
     // opened again, shows the way chosen (F104).
     t.press(Action::KGroup(2));
     t.press(Action::KWay(Way::Device.index()));
     t.shot("guide-newkey-device-entry")?;
+    // Its Add randomness: the page on Dice with a few rolls in, then
+    // Back to the Generator card.
+    {
+        use faraday_core::fresh::OwnSource;
+        use faraday_core::fresh::page::Act;
+        t.press(Action::Own(Act::Open));
+        t.press(Action::Own(Act::Source(OwnSource::Dice)));
+        for f in [3, 1, 4, 1, 5, 2, 6, 5, 3, 5] {
+            t.press(Action::Own(Act::Roll(f)));
+        }
+        t.shot("guide-newkey-add-randomness")?;
+        t.press(Action::Back);
+    }
     t.press(Action::KStep(kstep::SOURCE));
     scroll_to(t, Action::KWay(Way::Device.index()));
     t.shot("guide-newkey-randomness-device")?;
@@ -680,12 +697,21 @@ fn multisig(t: &mut Tour) -> Result<(), String> {
         available_mib: 15_000,
     });
     t.pump();
+    // Wallets' Add a key is New key on Start: Change, Type the words,
+    // the words typed, Lock in and Done.
     t.press(Action::Nav(Screen::WalletsStart));
-    t.press(Action::Entry(None));
+    t.press(Action::KeyGen(None));
+    t.press(Action::KStep(kstep::START));
+    t.press(Action::KStart(Start::Words.index()));
     t.shot("guide-type-words")?;
     type_text(t, DICE_WORDS);
     t.shot("guide-type-words-filled")?;
-    t.press(Action::EntryAdd);
+    t.press(Action::KNext);
+    t.shot("guide-type-words-key")?;
+    t.press(Action::KLock);
+    if t.app.keygen().is_some() {
+        t.press(Action::KNext);
+    }
     t.shot("guide-type-words-added")?;
     for n in 1..3 {
         t.press(Action::Entry(None));
