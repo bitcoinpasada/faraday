@@ -3109,23 +3109,19 @@ fn back_ups_plan_offers_the_open_vaults_and_a_vault_at_two_places_writes_both_co
 }
 
 #[test]
-fn the_question_of_vaults_is_not_done_before_it_is_answered_and_continued() {
+fn the_question_of_vaults_is_not_done_before_it_is_answered() {
     let mut app = process(Vec::new(), Vec::new(), Vec::new());
     keep_time(&mut app);
     app.press(Action::CreateWallet);
     assert!(!app.create_card_done(cstep::WHERE));
-    // Kind's Continue opens the question, and it is not done.
-    app.press(Action::CNext(cstep::KIND));
+    // Kind closed on its default, the question open, and not done.
     assert_eq!(app.create().unwrap().open, Some(cstep::WHERE));
-    assert!(!app.create_card_done(cstep::WHERE));
     // Unanswered, Continue does nothing.
     app.press(Action::CNext(cstep::WHERE));
     assert!(!app.create_card_done(cstep::WHERE));
     assert_eq!(app.create().unwrap().open, Some(cstep::WHERE));
-    // Answered but not continued: still not done.
+    // Answered, it moves on by itself.
     app.press(Action::CVaults(false));
-    assert!(!app.create_card_done(cstep::WHERE));
-    app.press(Action::CNext(cstep::WHERE));
     assert!(app.create_card_done(cstep::WHERE));
     assert_eq!(app.create().unwrap().open, Some(cstep::KEYS));
     // The same on Restore.

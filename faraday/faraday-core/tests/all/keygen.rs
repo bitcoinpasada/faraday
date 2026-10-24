@@ -1226,24 +1226,17 @@ fn a_key_wanted_by_its_fingerprint_still_opens_add_a_key() {
     assert!(app.keygen().is_none());
 }
 
+/// Create offers no threshold kind (the FROST-out decision), so no slot
+/// of one opens New key; the kind list is tested in
+/// `create_wallet::create_offers_no_frost_wallet`.
 #[test]
-fn a_threshold_slot_offers_only_make_a_new_key_and_type_the_words() {
+fn create_offers_no_threshold_kind() {
     use faraday_core::create::NewKind;
-    let Some(at) = NewKind::ALL.iter().position(|k| k.threshold()) else {
-        return;
-    };
+    let at = NewKind::ALL.iter().position(|k| k.threshold()).unwrap() as u8;
     let mut app = faraday_core::testkit::started();
-    tall(&mut app);
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(at as u8));
-    app.press(Action::CNext(faraday_core::cstep::KIND));
-    app.press(Action::CNext(faraday_core::cstep::QUORUM));
-    app.press(Action::KeyGen(Some(0)));
-    let _ = app.frame();
-    assert!(app.offers(Action::KStart(Start::Make.index())));
-    assert!(app.offers(Action::KStart(Start::Words.index())));
-    assert!(!app.offers(Action::KStart(Start::Scan.index())));
-    assert!(!app.offers(Action::KOthers));
+    app.press(Action::CKind(at));
+    assert!(!app.create().unwrap().kind.threshold());
 }
 
 /// A card's Guided text carries a link to its Learn page, one press

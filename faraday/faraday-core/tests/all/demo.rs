@@ -448,40 +448,32 @@ fn in_the_demo_derive_with_bip85_shows_no_value_for_any_application() {
 // FROST, vanity, Lightning, silent payments.
 // ---------------------------------------------------------------------
 
-/// Create, FROST, its two chosen shares from public seeds, on Keys.
-/// Returns whether Keys' Continue is offered, after pressing it.
-fn frost(app: &mut Faraday) -> bool {
-    let a = add_public(app, "bacon");
-    let b = add_public(app, "flag");
+/// Create with its kinds open, FROST pressed: the kind it ends on.
+/// FROST is not offered, and the press chooses nothing (the FROST-out
+/// decision).
+fn frost(app: &mut Faraday) -> NewKind {
+    let _ = add_public(app, "bacon");
+    let _ = add_public(app, "flag");
     app.press(Action::CreateWallet);
+    app.press(Action::CStep(cstep::KIND));
+    app.press(Action::CMoreKinds);
     let at = NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::Threshold)
         .unwrap() as u8;
+    assert!(!offered(app, Action::CKind(at)), "FROST is offered");
     app.press(Action::CKind(at));
-    app.press(Action::CSlotHere(0, a));
-    app.press(Action::CSlotHere(1, b));
-    testkit::create_open_card(app, cstep::KEYS);
-    let live = offered(app, Action::CNext(cstep::KEYS));
-    app.press(Action::CNext(cstep::KEYS));
-    live
+    app.create().unwrap().kind
 }
 
 #[test]
-fn in_the_demo_the_frost_deal_is_dimmed() {
-    let mut app = app_on(true);
-    assert!(!frost(&mut app), "Keys' Continue is offered");
-    assert!(app.create().unwrap().built.is_none(), "dealt");
-    assert!(app.session.wallets.is_empty());
-    assert_eq!(app.session.keys.len(), 2, "no share loaded");
-
-    let mut app = app_on(false);
-    assert!(frost(&mut app));
-    assert!(
-        app.create().unwrap().built.is_some(),
-        "{:?}",
-        app.create().unwrap().error
-    );
+fn create_offers_no_frost_deal_in_the_demo_too() {
+    for demo in [true, false] {
+        let mut app = app_on(demo);
+        assert_eq!(frost(&mut app), NewKind::NativeSegwit, "demo {demo}");
+        assert!(app.session.wallets.is_empty(), "nothing dealt");
+        assert_eq!(app.session.keys.len(), 2, "no share loaded");
+    }
 }
 
 fn passphrase_dial() -> u8 {

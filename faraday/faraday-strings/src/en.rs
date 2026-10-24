@@ -2656,7 +2656,7 @@ strings! {
     /// Text in `create`. `{}`: `m`, `keys`, `m`.
     guide_of_every_spend: "{} of {}: every spend needs {} signatures. Keep the keys apart, on different devices or with different people, or the quorum protects nothing.",
     /// Text in `create`.
-    guide_fill_each_slot: "Fill each slot with a key loaded here, a New key, or a cosigner's xpub, scanned or from a file. Someone else adds it later keeps a slot open; the wallet is made once every slot is filled.",
+    guide_fill_each_slot: "Fill each slot with a key loaded here, a New key, or a cosigner's xpub, scanned or from a file; Someone else adds it later keeps a slot open. Make the wallet, once every slot is filled, makes it.",
     /// Text in `create`.
     guide_choose_the_key: "Choose the key: one loaded here, or a new one made here from fresh randomness. A new key exists only in this session until its words are written down in the backup step.",
     /// Text in `create`.
@@ -3448,26 +3448,6 @@ strings! {
     create_keys_a_chosen: "a chosen key is no longer loaded",
     /// Error in `create_keys`.
     create_keys_the_same: "The same key is in two slots",
-    // ----- create_shares (faraday-core/src/lib.rs) -----
-    /// Error in `create_shares`.
-    create_shares_nothing: "nothing being created",
-    /// Error in `create_shares`. `{}`: `i + 1`.
-    create_shares_share_has: "Share {} has no key yet",
-    /// Error in `create_shares`.
-    create_shares_a_chosen: "a chosen key is no longer loaded",
-    /// Error in `create_shares`. `{}`: `i + 1`.
-    create_shares_share: "Share {} needs a 24-word key",
-    /// Error in `create_shares`.
-    create_shares_the_same: "The same key is in two slots",
-    // ----- create_deal (faraday-core/src/lib.rs) -----
-    /// Error in `create_deal`.
-    create_deal_a_chosen: "a chosen key is not a share",
-    /// Text in `create_deal`. `{}`: `self.session.wallets.len() + 1`.
-    create_deal_new_wallet: "New wallet {}",
-    /// Text in `create_deal`.
-    create_deal_dealt_here: "Dealt here",
-    /// Text in `create_deal`. `{}`: `id + 1`, `name`.
-    create_deal_share_name: "Share {} of {}",
     // ----- restore_refusal (faraday-core/src/lib.rs) -----
     /// Text in `restore_refusal`.
     restore_refusal_every: "Every slot is filled",
@@ -5093,8 +5073,6 @@ strings! {
     // ----- create (faraday-core/src/screens/create.rs) -----
     /// Text in `create_screen`. `{}`: `c.m`, `c.n`.
     create_threshold: "{} of {}",
-    /// Text in `create_screen`. `{}`: `filled`, `c.slots.len()`, `c.n - c.m`.
-    create_of_chosen_computed: "{} of {} chosen · {} computed",
     /// Text in `create_screen`. `{}`: `filled`, `c.slots.len()`.
     create_of_chosen: "{} of {} chosen",
     /// Text in `create_screen`. `{}`: `filled - k`, `c.slots.len()`, `k`.
@@ -5184,14 +5162,6 @@ strings! {
     create_passphrase_again: "Passphrase again",
     /// Button in `create_body`.
     create_lock_button: "Lock in",
-    /// Text in `create_body`. `{}`: `k + 1`.
-    create_share_n: "Share {}",
-    /// Line in `create_body`.
-    create_computed_by_deal: "Computed by the deal",
-    /// Text in `create_body`. `{}`: `if c.kind.threshold() { EN.create_sha…`, `slot + 1`.
-    create_new_key_slot: "New key for {} {}",
-    /// Text in `create_body`.
-    create_share: "Share",
     /// Text in `create_body`.
     create_key: "Key",
     /// Text in `create_body`.
@@ -9263,4 +9233,39 @@ strings! {
     // Fewer presses (F103).
     /// Button: closes the board's Add list, a sheet on a small panel.
     board_list_close: "Close",
+    // ----- Make a new wallet: Single key, backup in shares (docs/CODEX32.md §6.9), and fewer presses, faraday-core/src/create.rs and screens/create.rs -----
+    /// Kind row: the wallet kind whose one key is made as codex32 shares.
+    create_single_key_shares: "Single key, backup in shares",
+    /// The kind's line where no scheme is chosen.
+    create_shares_line_plain: "One key, its backup in codex32 shares",
+    /// Make a new wallet's Kind row: Single key's line.
+    create_single_key_line: "One key, its words on paper",
+    /// Make a new wallet's Kind row: the backup in shares' line. `{}`: the shares, how many rebuild it.
+    create_shares_line: "One key, its backup in {} shares, any {} rebuild it",
+    /// Make a new wallet's Kind row: Multisig's line. `{}`: the keys, the signatures needed.
+    create_multisig_line: "{} keys, any {} sign",
+    /// Quorum's stepper for the backup in shares: the threshold.
+    create_shares_rebuild: "How many to rebuild it",
+    /// Quorum's stepper for the backup in shares: the strings made.
+    create_shares_count: "How many shares",
+    /// Quorum's line for the backup in shares. `{}`: k, n.
+    create_shares_any: "Any {} of the {} shares rebuild the key.",
+    /// Keys' slot button for the backup in shares: opens Make codex32 shares with the scheme.
+    create_make_codex32_shares: "Make codex32 shares",
+    /// Why the backup in shares is not made from the key in its slot.
+    create_shares_key_needed: "Key 1 is not a key made here as codex32 shares: clear it and press Make codex32 shares.",
+    /// Check's row label for the backup in shares.
+    create_backup: "Backup",
+    /// Check's row value. `{}`: the identifier, k, n.
+    create_shares_set: "codex32 {} · {} of {}",
+    /// Keys' foot once every slot is filled: makes the wallet.
+    create_make_the_wallet_button: "Make the wallet",
+    /// Check's foot: the addresses match the other software.
+    create_it_matches: "It matches",
+    /// Use vaults, closed before it is answered.
+    create_not_answered: "Not answered",
+    /// Guided: the backup in shares' Quorum. `{}`: k, n.
+    create_guide_shares_quorum: "Any {} of the {} codex32 shares rebuild the key, and fewer show nothing of it. Keep each share in a place of its own, so no one place holds the key.",
+    /// Guided: the backup in shares' Keys.
+    create_guide_shares_keys: "Make codex32 shares makes the key from your dice with this scheme, every worksheet shown as on paper. Lock in fills the slot and makes the wallet.",
 }

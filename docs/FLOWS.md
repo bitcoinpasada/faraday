@@ -114,8 +114,10 @@ passphrase.
 **Step cards** (decisions 16 and 34). In Sign a transaction, Back up and
 Create a vault a step card with a default opens closed and shows its
 value and **Change** in place of the chevron; the flow opens on the first
-card without one. Make a new wallet and New key open on their first step
-instead, whatever opened them. A card that asks one thing (a kind, Yes
+card without one. Make a new wallet does the same: Kind opens closed on
+its default (Single key, or the kind a Tools tile ticked) and the card
+after it is open. New key opens on its first step, whatever opened it.
+A card that asks one thing (a kind, Yes
 or No, a format, a size) closes on the choice and opens the next, and a
 press on the option already chosen does too (F103); **Continue** stays
 under a card of several values (steppers, ticks, typing) and where the
@@ -939,30 +941,50 @@ guarantees for this file's rule:
   (offered with wallets loaded as well; the Spend tab lights **Wallets**
   in the sidebar) and last **Add a key**, "Keys first, wallets later"
   (decision 50).
-- **Make a new wallet** (decisions 17, 20 and 37; F53, F55, F98). The
-  cards are Kind · Quorum · Keys · Check · Back up; Kind opens first.
-  Kind offers Single key and Multisig, both native SegWit; the other
-  eight kinds are behind **More kinds**. Every kind whose path has an
+- **Make a new wallet** (decisions 17, 20 and 37; F53, F55, F98; `docs/CODEX32.md` §14 D5).
+  The cards are Kind · Quorum · Use vaults · Keys · Check · Back up;
+  Kind opens closed on its default, Single key. Kind offers Single key
+  ("One key, its words on paper"), **Single key, backup in shares** ("One
+  key, its backup in 3 shares, any 2 rebuild it", the counts the
+  scheme's) and Multisig ("3 keys, any 2 sign", the quorum's), all three
+  native SegWit; the other seven are behind **More kinds** (FROST is not
+  made here, the FROST-out decision). A kind
+  pressed closes Kind and opens the next card. Use vaults' **Yes** opens
+  How many, **No** opens Keys; closed before it is answered it reads
+  "Not answered".
+- **Single key, backup in shares** (`docs/CODEX32.md` §6.9, §14 D5). On
+  chain a single-key native SegWit wallet, one `wpkh` descriptor, one
+  xpub. Its Quorum asks the codex32 scheme: **How many to rebuild it**
+  (2 to 9, 2 to begin with) and **How many shares** (k to 31, 3), "Any 2
+  of the 3 shares rebuild the key.", then the Account row and
+  **Continue**; there is no None. Its one slot offers **Make codex32
+  shares** only, which opens New key on Make codex32 shares with the
+  scheme fixed, past Scheme on the identifier; Lock in fills the slot
+  and makes the wallet. Any other key put in the slot is refused with
+  its reason. Check has a **Backup** row, "codex32 w0za · 2 of 3". Back
+  up opens on codex32's standard way, one string per place on paper
+  (`docs/CODEX32.md` §9.5; that way is planned). Restore does not offer
+  the kind: the wallet it makes is a Single key one. Every kind whose path has an
   account has an **Account** row, at the foot of Quorum under the
   quorum's line, or at the head of Keys for a kind with no Quorum card:
   "Account" and its number, starting at 0, with **Change**, which opens
   the − n + stepper in its place. The card that carries it says the
   account on its closed line ("2 of 3 · account 1") when it is not 0.
-  Keys' Continue makes the wallet; Check shows the descriptor as a
+  Keys' **Make the wallet** makes it; Check shows the descriptor as a
   summary row that opens its code with the whole text under it, a
   **Path** row under it with **Change** (which takes the made wallet
   back and opens the Account row's card on its stepper), and the
   section label **The wallet's first addresses**
   above the address rows, so that a multisig's three rows do not read as
-  one address per key. Back up has one button, **Back up this wallet**,
+  one address per key; its press reads **It matches**. Back up has one button, **Back up this wallet**,
   which opens the backup on the new wallet (its chip "Then: Wallets", its
   way back the wallet's card) on The standard way.
 - **The Keys card** (decisions 35, 36 and 39). A key loaded here that
   fills one slot, or a cosigner's file whose key fills one slot, is not
   offered for any other slot; clearing the slot offers it again. While a
-  slot is empty, the button at the foot reads **New key for Key N**
-  (**Share N** on a threshold wallet), N the first empty slot, and opens
-  New key for it; once no slot is empty it reads **Continue**. A slot
+  slot is empty there is no button at the foot: the first empty slot's
+  own **New key** leads; once no slot is empty the foot reads **Make the
+  wallet**. A slot
   filled by a key loaded here from BIP-39 words with no passphrase has
   **Add a passphrase** (beside Show xpub QR on a multisig, on the slot's
   own row on a single key): **Passphrase**, **Passphrase again** and

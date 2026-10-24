@@ -1,9 +1,10 @@
-//! Make a new wallet opens on Kind, whatever opened it
-//! (`docs/history/NEW-WALLET.md` §2.1, reversing `docs/history/SIMPLIFY.md` §2.1 for this
-//! flow): Kind defaults to single key, Multisig is the other everyday
-//! choice, and the other eight kinds are behind More kinds. It ends in
-//! the backup plan (`docs/history/SIMPLIFY.md` §2.3): Keys' Continue makes the
-//! wallet, Check follows, and Back up offers the plan's presets.
+//! Make a new wallet opens with Kind closed on its default, single key,
+//! and the card after it open; a kind pressed moves on by itself, the
+//! ticked one too. Multisig and Single key, backup in shares are the
+//! other everyday choices, and the other eight kinds are behind More
+//! kinds. It ends in the backup plan (`docs/history/SIMPLIFY.md` §2.3):
+//! Keys' Make the wallet makes it, Check's It matches follows, and Back
+//! up offers the plan's presets.
 
 use crate::common::{add_key, type_text};
 use faraday_core::create::NewKind;
@@ -15,7 +16,7 @@ fn frost_index() -> u8 {
     NewKind::ALL
         .iter()
         .position(|k| *k == NewKind::Threshold)
-        .expect("FROST is one of the ten kinds") as u8
+        .expect("FROST is still a kind of NewKind") as u8
 }
 
 fn multi_index() -> u8 {
@@ -33,56 +34,108 @@ fn opened() -> Faraday {
 }
 
 #[test]
-fn a_fresh_create_opens_on_kind_with_the_single_key_kind() {
+fn a_fresh_create_opens_with_kind_closed_on_single_key() {
     let app = opened();
     let c = app.create().expect("create");
     assert_eq!(c.kind, NewKind::NativeSegwit);
-    assert_eq!(
-        c.open,
-        Some(cstep::KIND),
-        "Create opens on Kind, whatever opened it"
+    assert_eq!(c.open, Some(cstep::WHERE), "the card after Kind is open");
+    let mut app = app;
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Single key · native SegWit"),
+        "Kind closed on its default, shown: {texts:?}"
     );
-    assert!(!c.done[cstep::KIND as usize], "not answered yet");
+    app.press(Action::CVaults(false));
+    assert!(
+        app.create().unwrap().done[cstep::KIND as usize],
+        "the default is taken once a later card is answered"
+    );
 }
 
 #[test]
-fn continue_closes_kind_and_change_reopens_it_keeping_the_choice() {
+fn a_kind_pressed_moves_on_and_its_head_reopens_it_keeping_the_choice() {
     let mut app = opened();
-    app.press(Action::CKind(1)); // Taproot, ticked while Kind is open
-    app.press(Action::CNext(cstep::KIND)); // Kind's own Continue
+    app.press(Action::CStep(cstep::KIND));
+    let _ = app.frame();
+    assert!(
+        !app.drawn_texts().iter().any(|t| t == "Continue"),
+        "Kind has no Continue"
+    );
+    app.press(Action::CMoreKinds);
+    app.press(Action::CKind(kind_index(NewKind::Taproot)));
     assert_eq!(app.create().map(|c| c.kind), Some(NewKind::Taproot));
     assert_eq!(
         app.create().and_then(|c| c.open),
         Some(cstep::WHERE),
-        "Continue closes Kind as done and opens Where"
+        "the kind pressed closes Kind and opens Use vaults"
     );
     app.press(Action::CStep(cstep::KIND));
-    assert_eq!(
-        app.create().and_then(|c| c.open),
-        Some(cstep::KIND),
-        "Change opens Kind"
-    );
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KIND));
     assert_eq!(
         app.create().map(|c| c.kind),
         Some(NewKind::Taproot),
         "the kind chosen earlier is kept"
     );
+    // The kind already ticked, pressed again, moves on too.
+    app.press(Action::CKind(kind_index(NewKind::Taproot)));
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::WHERE));
 }
 
 #[test]
-fn more_kinds_offers_frost() {
+fn yes_or_no_to_vaults_moves_on_and_so_does_the_answer_given_pressed_again() {
     let mut app = opened();
-    // Kind is already open: a fresh Create opens on it.
-    let _ = app.frame();
-    assert!(
-        !app.offers(Action::CKind(frost_index())),
-        "FROST is behind More kinds"
+    app.press(Action::CVaults(true));
+    assert_eq!(
+        app.create().and_then(|c| c.open),
+        Some(cstep::HOW_MANY),
+        "Yes opens How many"
     );
+    app.press(Action::CStep(cstep::WHERE));
+    app.press(Action::CVaults(false));
+    assert_eq!(
+        app.create().and_then(|c| c.open),
+        Some(cstep::KEYS),
+        "No opens Keys"
+    );
+    app.press(Action::CStep(cstep::WHERE));
+    app.press(Action::CVaults(false));
+    assert_eq!(
+        app.create().and_then(|c| c.open),
+        Some(cstep::KEYS),
+        "No pressed again moves on as well"
+    );
+}
+
+#[test]
+fn use_vaults_closed_before_it_is_answered_says_so() {
+    let mut app = opened();
+    app.press(Action::CStep(cstep::WHERE));
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "Not answered"),
+        "the closed card names its state: {texts:?}"
+    );
+}
+
+#[test]
+fn create_offers_no_frost_wallet() {
+    let mut app = opened();
+    app.press(Action::CStep(cstep::KIND));
     app.press(Action::CMoreKinds);
     let _ = app.frame();
     assert!(
-        app.offers(Action::CKind(frost_index())),
-        "More kinds offers FROST"
+        app.offers(Action::CKind(kind_index(NewKind::MuSig))),
+        "More kinds is open"
+    );
+    assert!(
+        !app.offers(Action::CKind(frost_index())),
+        "no FROST among the kinds"
+    );
+    app.press(Action::CKind(frost_index()));
+    assert_eq!(
+        app.create().map(|c| c.kind),
+        Some(NewKind::NativeSegwit),
+        "a FROST press chooses nothing"
     );
 }
 
@@ -99,10 +152,10 @@ fn a_tools_tile_for_musig2_opens_create_on_kind_with_musig2_ticked() {
     assert_eq!(c.kind, NewKind::MuSig);
     assert_eq!(
         c.open,
-        Some(cstep::KIND),
-        "Create opens on Kind, with MuSig2 already ticked"
+        Some(cstep::QUORUM),
+        "Create opens past Kind, closed on MuSig2"
     );
-    assert!(!c.done[cstep::KIND as usize]);
+    assert!(c.done[cstep::KIND as usize]);
 }
 
 #[test]
@@ -118,7 +171,7 @@ fn a_tools_tile_for_multisig_ticks_its_quorum_default_too() {
     assert_eq!(c.m, 2, "2 of 3 default");
     assert_eq!(c.n, 3);
     assert!(!c.done[cstep::QUORUM as usize]);
-    assert_eq!(c.open, Some(cstep::KIND), "the flow opens on Kind");
+    assert_eq!(c.open, Some(cstep::QUORUM), "the flow opens on Quorum");
 }
 
 /// A single-key wallet made from Create over a key typed in, stopped on
@@ -259,19 +312,21 @@ fn a_key_in_one_slot_is_offered_in_no_other_and_clearing_offers_it_again() {
 }
 
 #[test]
-fn the_keys_foot_button_opens_new_key_for_the_first_empty_slot() {
+fn the_keys_foot_shows_make_the_wallet_once_every_slot_is_filled() {
     let mut app = multisig_on_keys();
     let texts = app.drawn_texts();
     assert!(
-        texts.iter().any(|t| t == "New key for Key 1"),
-        "the foot button names the first empty slot: {texts:?}"
+        !texts.iter().any(|t| t.starts_with("New key for")),
+        "no foot button repeats the slot's own New key: {texts:?}"
     );
-    let fp = app.session.keys[0].fingerprint.0;
-    app.press(Action::CSlotHere(0, fp));
+    assert!(!texts.iter().any(|t| t == "Make the wallet"));
+    app.press(Action::CSlotHere(0, app.session.keys[0].fingerprint.0));
+    app.press(Action::CSlotHere(1, app.session.keys[1].fingerprint.0));
+    app.press(Action::CSlotLater(2));
     let texts = app.drawn_texts();
     assert!(
-        texts.iter().any(|t| t == "New key for Key 2"),
-        "the foot button moves to the next empty slot: {texts:?}"
+        texts.iter().any(|t| t == "Make the wallet"),
+        "every slot filled: {texts:?}"
     );
 }
 
@@ -664,10 +719,10 @@ fn a_multisig_at_account_1_set_on_quorum_has_it_in_its_path_and_check_returns_th
         add_key(&mut app, seed);
     }
     app.press(Action::CreateWallet);
-    app.press(Action::CKind(multi_index()));
+    app.press(Action::CStep(cstep::KIND));
     let _ = app.frame();
     assert!(!app.offers(Action::CAccount(0)), "Kind asks no account");
-    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CKind(multi_index()));
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::QUORUM));
     let _ = app.frame();
     assert!(
@@ -725,5 +780,15 @@ fn a_kind_without_an_account_offers_no_account_row() {
     assert!(
         !app.offers(Action::CAccount(0)),
         "m/45' has no account to choose"
+    );
+}
+
+#[test]
+fn checks_foot_reads_it_matches() {
+    let (mut app, _) = made();
+    let texts = app.drawn_texts();
+    assert!(
+        texts.iter().any(|t| t == "It matches"),
+        "Check's press says the addresses match: {texts:?}"
     );
 }

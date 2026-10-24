@@ -43,14 +43,26 @@ pub enum NewKind {
     /// `tr(musig(…)/<0;1>/*)` over the keys' Taproot accounts (BIP-327,
     /// 328, 390).
     MuSig,
+    /// Single key, backup in shares (`docs/CODEX32.md` §6.9): `wpkh`,
+    /// BIP-84, as Single key is on chain; its key is made as k of n
+    /// codex32 shares, the scheme asked on Quorum.
+    Shares,
 }
+
+/// Whether Make codex32 shares is offered, and with it Make a new
+/// wallet's Single key, backup in shares (`docs/CODEX32.md` §6.9). The
+/// same switch as `codex32::MAKE_OFFERED`, which this one joins.
+pub const MAKE_OFFERED: bool = true;
 
 /// BIP-341's unspendable internal key.
 const NUMS: &str = "50929b74c1a04954b78b4b6035e97a5e078a5a0f28ec96d547bfee9ace803ac0";
 
 impl NewKind {
-    /// Every kind, in the order the Kind card lists them.
-    pub const ALL: [NewKind; 10] = [
+    /// Every kind, by its number in `Action::CKind` and `Action::RKind`
+    /// (and in a backup flow kept across a lock): a new kind is added at
+    /// the end, never between. The Kind card's order is
+    /// [`NewKind::CREATE_ROWS`].
+    pub const ALL: [NewKind; 11] = [
         NewKind::NativeSegwit,
         NewKind::Taproot,
         NewKind::NestedSegwit,
@@ -61,7 +73,35 @@ impl NewKind {
         NewKind::TapMulti,
         NewKind::Threshold,
         NewKind::MuSig,
+        NewKind::Shares,
     ];
+
+    /// Make a new wallet's Kind rows, by place in [`NewKind::ALL`], in the
+    /// order shown: Single key, Single key backup in shares and Multisig
+    /// (`docs/CODEX32.md` §6.9), then the others behind **More kinds**.
+    /// FROST (8) is not among them: Create makes no threshold wallet
+    /// (the FROST-out decision); the kind stays in [`NewKind::ALL`] for what reads one.
+    pub const CREATE_ROWS: [usize; 10] = [0, 10, 4, 1, 2, 3, 5, 6, 7, 9];
+
+    /// How many of [`NewKind::CREATE_ROWS`] show before **More kinds**.
+    pub const CREATE_FIRST: usize = 3;
+
+    /// Make a new wallet's Kind rows as shown, by place in
+    /// [`NewKind::ALL`]: the first three, or with `more` every one, and
+    /// Single key, backup in shares only where `shares_offered`
+    /// ([`MAKE_OFFERED`]).
+    pub fn create_rows(more: bool, shares_offered: bool) -> Vec<usize> {
+        let shown = if more {
+            &Self::CREATE_ROWS[..]
+        } else {
+            &Self::CREATE_ROWS[..Self::CREATE_FIRST]
+        };
+        shown
+            .iter()
+            .copied()
+            .filter(|&i| shares_offered || !Self::ALL[i].shares())
+            .collect()
+    }
 
     /// The kind's name on the card.
     pub fn name(self) -> &'static str {
@@ -76,6 +116,7 @@ impl NewKind {
             NewKind::TapMulti => EN.create_multisig_taproot,
             NewKind::Threshold => EN.create_threshold_frost,
             NewKind::MuSig => EN.create_all_keys_musig2,
+            NewKind::Shares => EN.create_single_key_shares,
         }
     }
 
@@ -92,6 +133,23 @@ impl NewKind {
             NewKind::TapMulti => EN.create_multisig_taproot_line,
             NewKind::Threshold => EN.create_any_m_of_n_shares,
             NewKind::MuSig => EN.create_every_key_signs,
+            NewKind::Shares => EN.create_shares_line_plain,
+        }
+    }
+
+    /// The second line of the kind's row on Make a new wallet's Kind card
+    /// (`docs/CODEX32.md` §6.9): a fact of the row, with the counts the
+    /// creation holds now: `m` of `n` for a multisig, `k` of `shares` for
+    /// the backup in shares.
+    pub fn create_line(self, (m, n): (usize, usize), (k, shares): (u8, u8)) -> String {
+        match self {
+            NewKind::NativeSegwit => EN.create_single_key_line.to_string(),
+            NewKind::Shares => fill(
+                EN.create_shares_line,
+                &[&shares.to_string(), &k.to_string()],
+            ),
+            NewKind::Multi => fill(EN.create_multisig_line, &[&n.to_string(), &m.to_string()]),
+            other => other.line().to_string(),
         }
     }
 
@@ -131,6 +189,12 @@ impl NewKind {
         )
     }
 
+    /// Whether the one key is made as codex32 shares, its scheme asked on
+    /// Quorum (`docs/CODEX32.md` §6.9).
+    pub fn shares(self) -> bool {
+        self == NewKind::Shares
+    }
+
     /// Whether every key must sign: MuSig2, n of n.
     pub fn all_sign(self) -> bool {
         self == NewKind::MuSig
@@ -152,7 +216,7 @@ impl NewKind {
     pub fn path(self, network: faraday_bip::keys::Network) -> String {
         let c = network.coin_type();
         match self {
-            NewKind::NativeSegwit => format!("m/84'/{c}'/0'"),
+            NewKind::NativeSegwit | NewKind::Shares => format!("m/84'/{c}'/0'"),
             NewKind::Taproot => format!("m/86'/{c}'/0'"),
             NewKind::NestedSegwit => format!("m/49'/{c}'/0'"),
             NewKind::Legacy => format!("m/44'/{c}'/0'"),
@@ -204,7 +268,9 @@ impl NewKind {
         use faraday_keys::Spec;
         Ok(match self {
             NewKind::Threshold => return Err(EN.create_a_share_has.to_string()),
-            NewKind::NativeSegwit => Spec::Single(ScriptType::NativeSegwit, account),
+            NewKind::NativeSegwit | NewKind::Shares => {
+                Spec::Single(ScriptType::NativeSegwit, account)
+            }
             // A MuSig2 participant's key is its Taproot account.
             NewKind::Taproot | NewKind::MuSig => Spec::Single(ScriptType::Taproot, account),
             NewKind::NestedSegwit => Spec::Single(ScriptType::NestedSegwit, account),
@@ -275,7 +341,7 @@ impl NewKind {
             .collect::<Vec<_>>()
             .join(",");
         match self {
-            NewKind::NativeSegwit => format!("wpkh({list})"),
+            NewKind::NativeSegwit | NewKind::Shares => format!("wpkh({list})"),
             NewKind::Taproot => format!("tr({list})"),
             NewKind::NestedSegwit => format!("sh(wpkh({list}))"),
             NewKind::Legacy => format!("pkh({list})"),
@@ -446,8 +512,12 @@ pub fn read_keys(text: &str) -> Vec<String> {
 /// The key in a file for a slot of a `kind` wallet: of the keys the file
 /// offers, the one at the kind's derivation (any account, any network);
 /// or, from a file that holds one key only, that key, as the person chose
-/// the file for it.
+/// the file for it. None for Single key, backup in shares, whose key is
+/// made here as codex32 shares.
 pub fn key_for(kind: NewKind, text: &str) -> Option<String> {
+    if kind.shares() {
+        return None;
+    }
     let keys = read_keys(text);
     // Purpose, and for BIP-48 the script type: what the kind's path says
     // apart from its coin type and account.
@@ -484,7 +554,7 @@ pub fn key_for(kind: NewKind, text: &str) -> Option<String> {
 fn named_agrees(kind: NewKind, text: &str) -> bool {
     use slip132::Script;
     let around = match kind {
-        NewKind::NativeSegwit => Script::NativeSegwit,
+        NewKind::NativeSegwit | NewKind::Shares => Script::NativeSegwit,
         NewKind::NestedSegwit => Script::NestedSegwit,
         NewKind::Legacy => Script::Legacy,
         NewKind::Multi => Script::NativeMultisig,
@@ -537,6 +607,45 @@ pub fn paths_text(policy: &WalletPolicy) -> String {
     }
 }
 
+/// What Make a new wallet keeps of the codex32 set its key was made as
+/// (`docs/CODEX32.md` §6.9, §9.4): plain facts, no string. Check shows
+/// it, and Back up is handed it for the wallet made.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SharesSet {
+    /// The key the set rebuilds.
+    pub fingerprint: [u8; 4],
+    /// The set's four-character identifier, lower case.
+    pub identifier: String,
+    /// How many strings rebuild the key.
+    pub k: u8,
+    /// How many strings were made.
+    pub n: u8,
+    /// Characters per string, `ms1` included: 48 or 74.
+    pub length: usize,
+}
+
+impl SharesSet {
+    /// The facts of the set `make` made, for the key `fingerprint`.
+    pub fn of(fingerprint: [u8; 4], make: &crate::codex32::Codex32Make) -> SharesSet {
+        let (k, n) = make.k_n();
+        SharesSet {
+            fingerprint,
+            identifier: make.identifier(),
+            k,
+            n,
+            length: make.length().chars(),
+        }
+    }
+
+    /// Check's row: "codex32 w0za · 2 of 3".
+    pub fn line(&self) -> String {
+        fill(
+            EN.create_shares_set,
+            &[&self.identifier, &self.k.to_string(), &self.n.to_string()],
+        )
+    }
+}
+
 /// Creating a wallet: the cards' state.
 #[derive(Default)]
 pub struct CreateState {
@@ -554,6 +663,15 @@ pub struct CreateState {
     pub m: usize,
     /// Keys.
     pub n: usize,
+    /// Single key, backup in shares: how many strings rebuild the key,
+    /// 2 to 9 (`docs/CODEX32.md` §6.9).
+    pub share_k: u8,
+    /// Single key, backup in shares: how many strings are made, `share_k`
+    /// to 31.
+    pub share_n: u8,
+    /// The codex32 set the slot's key was made as, from Make codex32
+    /// shares' Lock in; Check's Backup row, and what Back up is handed.
+    pub shares_set: Option<SharesSet>,
     /// Where each key comes from.
     pub slots: Vec<Source>,
     /// The wallet, once made, by index into the session.
@@ -664,24 +782,17 @@ impl CreateArea {
                 {
                     // Ticks the kind, whether chosen by hand on an open
                     // Kind card or by a Tools tile opening Create with
-                    // its kind already ticked (`docs/history/NEW-WALLET.md`
-                    // §2.1): either way Kind stays open until its own
-                    // Continue closes it.
+                    // its kind already ticked; `create_act` then moves on
+                    // (a single choice moves on by itself).
                     c.kind = create::NewKind::ALL[i as usize % create::NewKind::ALL.len()];
                     if c.kind.multi() {
                         c.n = c.n.clamp(2, c.kind.max_keys());
                         c.m = if c.kind.all_sign() { c.n } else { c.m.min(c.n) };
                     }
-                    // A threshold wallet's slots are the shares chosen;
-                    // the deal computes the rest.
-                    let n = match c.kind {
-                        k if k.threshold() => c.m,
-                        k if k.multi() => c.n,
-                        _ => 1,
-                    };
-                    if c.kind.threshold() {
-                        c.slots.retain(|s| matches!(s, create::Source::Here(_)));
+                    if c.kind.shares() && c.share_k < 2 {
+                        (c.share_k, c.share_n) = (2, 3);
                     }
+                    let n = if c.kind.multi() { c.n } else { 1 };
                     c.slots.resize(n, create::Source::Empty);
                     c.slots.truncate(n);
                 }
@@ -691,6 +802,25 @@ impl CreateArea {
                     c.more_kinds = true;
                 }
             }
+            // Single key, backup in shares: the scheme's two steppers,
+            // How many to rebuild it (2 to 9) and How many shares (k to
+            // 31), as Make codex32 shares' Other has them.
+            Action::CM(d) if self.state.as_ref().is_some_and(|c| c.kind.shares()) => {
+                if let Some(c) = self.state.as_mut() {
+                    let max = faraday_bip::codex32::MAX_THRESHOLD;
+                    c.share_k =
+                        (i16::from(c.share_k) + i16::from(d)).clamp(2, i16::from(max)) as u8;
+                    c.share_n = c.share_n.max(c.share_k);
+                }
+            }
+            Action::CN(d) if self.state.as_ref().is_some_and(|c| c.kind.shares()) => {
+                if let Some(c) = self.state.as_mut() {
+                    let max = faraday_bip::codex32::MAX_SHARES;
+                    c.share_n = (i16::from(c.share_n) + i16::from(d))
+                        .clamp(i16::from(c.share_k), i16::from(max))
+                        as u8;
+                }
+            }
             Action::CM(d) => {
                 if let Some(c) = self.state.as_mut() {
                     c.m = if c.kind.all_sign() {
@@ -698,9 +828,6 @@ impl CreateArea {
                     } else {
                         (c.m as i64 + i64::from(d)).clamp(1, c.n as i64) as usize
                     };
-                    if c.kind.threshold() {
-                        c.slots.resize(c.m, create::Source::Empty);
-                    }
                 }
             }
             Action::CN(d) => {
@@ -709,8 +836,7 @@ impl CreateArea {
                 {
                     c.n = (c.n as i64 + i64::from(d)).clamp(2, c.kind.max_keys() as i64) as usize;
                     c.m = if c.kind.all_sign() { c.n } else { c.m.min(c.n) };
-                    let slots = if c.kind.threshold() { c.m } else { c.n };
-                    c.slots.resize(slots, create::Source::Empty);
+                    c.slots.resize(c.n, create::Source::Empty);
                 }
             }
             _ => self.edit_slot(action),
@@ -782,6 +908,7 @@ impl Faraday {
     /// it: handles the Create wallet flow's actions (`Action::C*`, `CreateWallet`, `CreateOver`, `PlanAddPass`, `NewWalletFrom`).
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     pub(crate) fn create_act(&mut self, action: Action, c: &Compute) {
+        self.create_past_kind(action);
         match action {
             Action::CreateWallet
                 if self.create_unfinished()
@@ -796,24 +923,26 @@ impl Faraday {
                 self.screen = Screen::Create;
             }
             Action::CreateWallet | Action::CreateOver => {
-                // Create opens with Kind open, whatever opened it
-                // (`docs/history/NEW-WALLET.md` §2.1); Back goes where it was
-                // opened from, Home or Wallets.
-                // Where the keys will be kept is done only once the person
-                // has pressed its own Continue, whatever is ticked to begin
-                // with.
+                // Create opens with Kind closed on its default, Single key,
+                // showing it with Change, as every flow opens past a
+                // default (decision 16); the card after it is open. The
+                // default is taken once the person answers a later card
+                // (`create_past_kind`): nothing is begun before. Back goes
+                // where it was opened from, Home or Wallets.
                 let done = [false; cstep::COUNT];
                 let owner = self.fresh_owner();
                 self.create.state = Some(CreateState {
                     owner,
                     done,
-                    open: Some(cstep::KIND),
+                    open: Some(cstep::WHERE),
                     // Start over keeps it.
                     from_home: self.screen == Screen::Home
                         || (self.screen == Screen::Create
                             && self.create.state.as_ref().is_some_and(|c| c.from_home)),
                     m: 2,
                     n: 3,
+                    share_k: 2,
+                    share_n: 3,
                     slots: vec![create::Source::Empty; 1],
                     ..CreateState::default()
                 });
@@ -883,17 +1012,22 @@ impl Faraday {
             {
                 self.toast(EN.create_vaults_locked);
             }
+            // Yes or No moves on by itself, and so does the answer already
+            // given, pressed again: Yes to How many, No to Keys.
             Action::CVaults(yes) => {
-                if let Some(c) = self.create.state.as_mut()
-                    && c.built.is_none()
-                    && c.vaults.answer != Some(yes)
-                {
+                let Some(c) = self.create.state.as_mut().filter(|c| c.built.is_none()) else {
+                    return;
+                };
+                if c.vaults.answer != Some(yes) {
                     let owner = c.owner;
                     c.vaults.answer = Some(yes);
-                    c.done[cstep::WHERE as usize] = false;
                     c.done[cstep::HOW_MANY as usize] = false;
                     self.wallet_vaults_changed(owner);
                 }
+                if let Some(c) = self.create.state.as_mut() {
+                    c.done[cstep::WHERE as usize] = true;
+                }
+                self.create_open_next();
             }
             Action::CVaultN(n) => {
                 if let Some(c) = self.create.state.as_mut()
@@ -969,7 +1103,25 @@ impl Faraday {
                 }
                 None => self.toast(EN.act_bip_129_covers),
             },
-            Action::CKind(_) | Action::CN(_) => {
+            // A kind moves on by itself, and so does the kind already
+            // ticked, pressed again: that is how the default is taken.
+            // FROST is not made here (the FROST-out decision): a press for it, as the Tools
+            // tile's, chooses nothing.
+            // Nor the backup in shares while Make codex32 shares is not
+            // offered.
+            Action::CKind(i)
+                if create::NewKind::ALL
+                    .get(usize::from(i))
+                    .is_some_and(|k| k.threshold() || (k.shares() && !MAKE_OFFERED)) => {}
+            Action::CKind(_) => {
+                self.create.edit(action);
+                self.create_from_refresh();
+                if let Some(c) = self.create.state.as_mut().filter(|c| c.built.is_none()) {
+                    c.done[cstep::KIND as usize] = true;
+                    self.create_open_next();
+                }
+            }
+            Action::CN(_) => {
                 self.create.edit(action);
                 self.create_from_refresh();
             }
@@ -986,6 +1138,30 @@ impl Faraday {
             Action::CPassLock => self.create_pass_lock(),
             // `act_inner` passes only the actions matched above.
             _ => unreachable!(),
+        }
+    }
+
+    /// Kind, closed on its default, is taken as answered once the person
+    /// answers a card after it: the press is not on Kind, opens no card
+    /// and starts nothing over.
+    fn create_past_kind(&mut self, action: Action) {
+        if matches!(
+            action,
+            Action::CreateWallet
+                | Action::CreateOver
+                | Action::CStep(_)
+                | Action::CMoreKinds
+                | Action::CKind(_)
+        ) {
+            return;
+        }
+        if let Some(c) = self
+            .create
+            .state
+            .as_mut()
+            .filter(|c| c.open.is_some_and(|k| k != cstep::KIND))
+        {
+            c.done[cstep::KIND as usize] = true;
         }
     }
 
@@ -1067,13 +1243,6 @@ impl Faraday {
     /// slots, or why they are not ready.
     pub fn create_keys(&self, c: &Compute) -> Result<Vec<String>, String> {
         let cs = self.create.state.as_ref().ok_or(EN.create_keys_nothing)?;
-        if cs.kind.threshold() {
-            return self.create_shares().map(|keys| {
-                keys.iter()
-                    .map(|&k| fp_text(self.session.keys[k].fingerprint))
-                    .collect()
-            });
-        }
         let mut out = Vec::new();
         for (i, s) in cs.slots.iter().enumerate() {
             match s {
@@ -1114,7 +1283,7 @@ impl Faraday {
     /// one marked for later, else the first with no key.
     pub(crate) fn create_waiting_slot(&self) -> Option<u8> {
         let c = self.create.state.as_ref()?;
-        if c.built.is_some() || !c.kind.multi() || c.kind.threshold() {
+        if c.built.is_some() || !c.kind.multi() {
             return None;
         }
         c.slots
@@ -1124,105 +1293,9 @@ impl Faraday {
             .map(|i| i as u8)
     }
 
-    /// The loaded keys a threshold creation deals from, in slot order:
-    /// each must be 24 words, since 24 words are a share's 32 bytes.
-    pub(crate) fn create_shares(&self) -> Result<Vec<usize>, String> {
-        let c = self.create.state.as_ref().ok_or(EN.create_shares_nothing)?;
-        let mut out: Vec<usize> = Vec::new();
-        for (i, s) in c.slots.iter().enumerate() {
-            let create::Source::Here(fp) = s else {
-                return Err(fill(EN.create_shares_share_has, &[&(i + 1).to_string()]));
-            };
-            let key = self
-                .session
-                .keys
-                .position_of(*fp)
-                .ok_or(EN.create_shares_a_chosen)?;
-            if self.session.keys[key].share.is_none() {
-                return Err(fill(EN.create_shares_share, &[&(i + 1).to_string()]));
-            }
-            if out
-                .iter()
-                .any(|&k| self.session.keys[k].fingerprint.0 == *fp)
-            {
-                return Err(EN.create_shares_the_same.into());
-            }
-            out.push(key);
-        }
-        Ok(out)
-    }
-
-    /// Deals a threshold wallet from the chosen keys: the other shares and
-    /// the group key are computed, the record becomes the wallet, and each
-    /// computed share is loaded as a key so its words can be written down
-    /// in the backup. Locking forgets all of them.
-    pub(crate) fn create_deal(&mut self) {
-        let c = self.compute();
-        // The dealt shares are new seeds: none in the demo.
-        if !self.makes_secrets() {
-            return;
-        }
-        let (m, n) = match self.create.state.as_ref() {
-            Some(c) => (c.m, c.n),
-            None => return,
-        };
-        let dealt = self.create_shares().and_then(|keys| {
-            self.session
-                .keys
-                .deal(&c, &keys, n, m)
-                .map_err(|e| match e {
-                    faraday_keys::frost::DealError::NoShare => EN.create_deal_a_chosen.to_string(),
-                    faraday_keys::frost::DealError::Refused(e) => e,
-                })
-        });
-        let dealt = match dealt {
-            Ok(d) => d,
-            Err(e) => {
-                if let Some(c) = self.create.state.as_mut() {
-                    c.error = Some(e);
-                }
-                return;
-            }
-        };
-        let name = fill(
-            EN.create_deal_new_wallet,
-            &[&(self.session.wallets.len() + 1).to_string()],
-        );
-        let i = match self.session.add_wallet(
-            &c,
-            &name,
-            &dealt.record,
-            EN.create_deal_dealt_here,
-            wallet::Origin::Statement,
-        ) {
-            Ok(i) => i,
-            Err(e) => {
-                if let Some(c) = self.create.state.as_mut() {
-                    c.error = Some(e.text());
-                }
-                return;
-            }
-        };
-        self.session.keys.add_dealt(&c, dealt, |id| {
-            fill(
-                EN.create_deal_share_name,
-                &[&(id + 1).to_string(), &name.to_string()],
-            )
-        });
-        self.glance.work_mut().moved_to(&self.session, i);
-        self.wallets.set_wallet(i);
-        if let Some(c) = self.create.state.as_mut() {
-            c.built = Some(i);
-            c.error = None;
-            c.done[cstep::KEYS as usize] = true;
-            c.open = Some(cstep::CHECK);
-            c.scroll.follow = true;
-        }
-    }
-
     /// Whether the key in a Create slot can take a passphrase there: one
-    /// loaded here from BIP-39 words without one, on a wallet that is not
-    /// a threshold wallet (`docs/history/NEW-WALLET.md` §3.6).
+    /// loaded here from BIP-39 words without one
+    /// (`docs/history/NEW-WALLET.md` §3.6).
     pub fn create_pass_offered(&self, slot: usize) -> bool {
         let Some(c) = self.create.state.as_ref() else {
             return false;
@@ -1230,8 +1303,7 @@ impl Faraday {
         let Some(create::Source::Here(fp)) = c.slots.get(slot) else {
             return false;
         };
-        !c.kind.threshold()
-            && c.built.is_none()
+        c.built.is_none()
             && self
                 .session
                 .keys
@@ -1348,15 +1420,59 @@ impl Faraday {
         true
     }
 
-    pub(crate) fn create_make(&mut self) {
-        let k = self.compute();
-        if self
+    /// Single key, backup in shares: the scheme its Quorum chose, `(k,
+    /// n)`, while the wallet is not made; what its slot opens Make codex32
+    /// shares with (`docs/CODEX32.md` §6.9). `None` for any other kind.
+    pub fn create_codex32_scheme(&self) -> Option<(u8, u8)> {
+        self.create
+            .state()
+            .filter(|c| c.kind.shares() && c.built.is_none())
+            .map(|c| (c.share_k, c.share_n))
+    }
+
+    /// Make codex32 shares' Lock in for a slot of a backup-in-shares
+    /// wallet: the set's facts are kept with the creation, for Check and
+    /// for Back up. Called before the slot is filled.
+    pub fn create_codex32_made(&mut self, set: SharesSet) {
+        if let Some(c) = self
             .create
             .state
-            .as_ref()
-            .is_some_and(|c| c.kind.threshold())
+            .as_mut()
+            .filter(|c| c.kind.shares() && c.built.is_none())
         {
-            self.create_deal();
+            c.shares_set = Some(set);
+        }
+    }
+
+    /// The codex32 set of wallet `wallet`, when it is the one this
+    /// creation made as Single key, backup in shares: what Back up opens
+    /// on (`docs/CODEX32.md` §6.9, §9.5).
+    pub fn create_shares_set(&self, wallet: usize) -> Option<&SharesSet> {
+        self.create
+            .state()
+            .filter(|c| c.kind.shares() && c.built == Some(wallet))
+            .and_then(|c| c.shares_set.as_ref())
+    }
+
+    /// Single key, backup in shares: why its slot's key does not make the
+    /// wallet, unless it is the key a codex32 set was made as here.
+    fn create_shares_refusal(&self) -> Option<String> {
+        let c = self.create.state().filter(|c| c.kind.shares())?;
+        let Some(create::Source::Here(fp)) = c.slots.first() else {
+            return None;
+        };
+        match &c.shares_set {
+            Some(set) if set.fingerprint == *fp => None,
+            _ => Some(EN.create_shares_key_needed.to_string()),
+        }
+    }
+
+    pub(crate) fn create_make(&mut self) {
+        let k = self.compute();
+        if let Some(e) = self.create_shares_refusal() {
+            if let Some(c) = self.create.state.as_mut() {
+                c.error = Some(e);
+            }
             return;
         }
         let keys = match self.create_keys(&k) {

@@ -35,6 +35,7 @@ mod codex32_make;
 mod collect;
 mod common;
 mod create_musig;
+mod create_shares;
 mod create_vault;
 mod create_wallet;
 mod demo;

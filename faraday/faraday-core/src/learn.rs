@@ -183,6 +183,7 @@ fn for_new(kind: NewKind) -> Vec<&'static LearnPage> {
         NewKind::TapMulti => vec![&EN.multisig, &EN.spend_paths],
         NewKind::Threshold => vec![&EN.frost, &EN.nonces],
         NewKind::MuSig => vec![&EN.nonces, &EN.wallet_kinds],
+        NewKind::Shares => vec![&EN.other_backups, &EN.wallet_kinds, &EN.backups],
     }
 }
 

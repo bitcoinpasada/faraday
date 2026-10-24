@@ -29,8 +29,6 @@ pub(crate) struct VaultKey {
     pub fp: [u8; 4],
     /// Its fingerprint and label, as a session key's button reads.
     pub line: String,
-    /// It is 24 words: a share a threshold wallet can be dealt from.
-    pub share: bool,
 }
 
 /// An open vault's keys that are not loaded, under its name.
@@ -94,7 +92,6 @@ impl Faraday {
                     record: i,
                     fp,
                     line: key_line(Fingerprint(fp), label),
-                    share: self.vaults.record_word_count(c, r) == Some(24),
                 });
             }
             if !keys.is_empty() {

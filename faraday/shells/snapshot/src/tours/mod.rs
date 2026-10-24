@@ -13,6 +13,7 @@ pub(crate) mod codex32_form;
 pub(crate) mod compact;
 pub(crate) mod copy;
 pub(crate) mod create_from;
+pub(crate) mod create_shares;
 pub(crate) mod default;
 pub(crate) mod desktop;
 pub(crate) mod devices;

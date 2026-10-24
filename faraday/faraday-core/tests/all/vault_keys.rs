@@ -463,61 +463,17 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
     );
 }
 
+/// Create offers no threshold kind (the FROST-out decision), so no slot
+/// asks a vault for shares; the kind list is tested in
+/// `create_wallet::create_offers_no_frost_wallet`.
 #[test]
-fn a_threshold_kind_offers_only_a_vaults_shares() {
-    let c = testkit::compute();
-    use faraday_bip::bip39::{Language, Mnemonic};
+fn create_offers_no_threshold_kind() {
     use faraday_core::create::NewKind;
-    use faraday_vault::records::{self, field, kind};
-    use faraday_vault::{Contents, Cost, Record};
-    let twelve = "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon \
-                  abandon about";
-    let mut contents = Contents {
-        records: vec![Record::new(kind::SLOT_LABEL).with(field::LABEL, b"Mixed")],
-    };
-    for (words, label) in [
-        (twelve.to_string(), "Twelve words"),
-        (
-            testkit::test_words(testkit::TEST_SEEDS[0].0),
-            "Twenty-four words",
-        ),
-    ] {
-        let m = Mnemonic::parse(&c, Language::English, &words).unwrap();
-        contents.records.push(
-            Record::new(kind::KEY)
-                .with(field::KEY, &records::words_payload(&m))
-                .with(field::KEY_LABEL, label.as_bytes()),
-        );
-    }
-    let cost = Cost {
-        memory_kib: 64 * 1024,
-        passes: 3,
-        lanes: 1,
-    };
-    let file = faraday_vault::create(
-        &c,
-        faraday_vault::SLOT_SIZES[0],
-        cost,
-        &[testkit::VAULT_PASSPHRASES[0].as_bytes()],
-        &[contents],
-        &[0x42; 32],
-    )
-    .unwrap();
-    let mut app = device(vec![("mixed.ofv".to_string(), file)]);
-    app.press(Action::Vault(V::OpenFrom(0, Screen::Files)));
-    type_and_unlock(&mut app);
-    create_on_keys(&mut app, NewKind::Threshold);
-    let share = key_record(&app, "Twenty-four words");
-    let not = key_record(&app, "Twelve words");
-    let _ = app.frame();
-    assert!(
-        app.offers(Action::CSlotVault(0, 0, share)),
-        "a share is offered"
-    );
-    assert!(
-        !app.offers(Action::CSlotVault(0, 0, not)),
-        "twelve words are no share"
-    );
+    let at = NewKind::ALL.iter().position(|k| k.threshold()).unwrap() as u8;
+    let mut app = testkit::started();
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(at));
+    assert!(!app.create().unwrap().kind.threshold());
 }
 
 #[test]

@@ -5,7 +5,7 @@ use super::devices::devices_tour;
 use super::seeds::seeds_tour;
 use super::spend::spend_tour;
 use crate::tour::{
-    Tour, copy_digits, device_key, flow_at_make, flow_made, shares_on_paper, type_text, type_words,
+    Tour, copy_digits, flow_at_make, flow_made, shares_on_paper, type_text, type_words,
 };
 use faraday_core::file_menu::{FilePress, Row};
 use faraday_core::testkit;
@@ -946,33 +946,8 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     }
     println!("wallet QR decodes to the descriptor");
     t.press(Action::Cancel);
-    // A FROST wallet dealt here: test key 1 and a new key are shares 1
-    // and 2, and the deal computes share 3.
-    t.press(Action::CreateWallet);
-    t.press(Action::CKind(8)); // Threshold · FROST
-    t.press(Action::CNext(0));
-    t.press(Action::CNext(1));
-    t.press(Action::CSlotHere(0, bacon));
-    device_key(t, 1);
-    t.shot("create-frost-keys")?;
-    let keys_before = t.app.session.keys.len();
-    // Keys' Continue deals the shares.
-    t.press(Action::CNext(2));
-    t.shot("create-frost-dealt")?;
-    let made = t.app.create().and_then(|c| c.built).ok_or_else(|| {
-        format!(
-            "the deal made no wallet: {:?}",
-            t.app.create().and_then(|c| c.error.clone())
-        )
-    })?;
-    let w = &t.app.session.wallets[made];
-    if w.policy().record().is_none_or(|r| r.n() != 3 || r.t() != 2)
-        || t.app.session.keys.len() != keys_before + 1
-        || t.app.session.shares_here(w).len() != 3
-    {
-        return Err("the deal did not make a 2-of-3 record with its third share loaded".into());
-    }
-    println!("FROST 2 of 3 dealt here, share 3 computed");
+    // FROST is not made in Make a new wallet (the FROST-out decision): no
+    // deal here.
     // A stick arrives while a key is held.
     t.sticks(true);
     t.shot("lock-sheet")?;

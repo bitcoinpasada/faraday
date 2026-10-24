@@ -277,9 +277,10 @@ pub(super) fn vaults_answer_line(ask: crate::VaultAsk) -> String {
     }
 }
 
-/// A Kind card's rows: Single key and Multisig, both native SegWit, the
-/// two everyday kinds, and the other eight behind **More kinds** until
-/// `more`. Create's Kind and Restore's draw it. Returns the height used.
+/// Restore's Kind card's rows: Single key and Multisig, both native
+/// SegWit, the two everyday kinds, and the other eight behind **More
+/// kinds** until `more`. Single key, backup in shares is Make a new
+/// wallet's only (`docs/CODEX32.md` §6.9). Returns the height used.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn kind_rows(
     ui: &mut Ui,
@@ -293,20 +294,50 @@ pub(crate) fn kind_rows(
     more_action: Action,
 ) -> f32 {
     use crate::create::NewKind;
-    let mut cy = y;
     let shown: Vec<usize> = if more {
-        (0..NewKind::ALL.len()).collect()
+        (0..NewKind::ALL.len())
+            .filter(|&i| !NewKind::ALL[i].shares())
+            .collect()
     } else {
         vec![0, 4]
     };
-    for &i in &shown {
-        let k = &NewKind::ALL[i];
+    let rows: Vec<(usize, String)> = shown
+        .into_iter()
+        .map(|i| (i, NewKind::ALL[i].line().to_string()))
+        .collect();
+    kind_list(
+        ui,
+        (x, y, w),
+        &rows,
+        chosen,
+        (!more).then_some(more_action),
+        enabled,
+        pick,
+    )
+}
+
+/// A Kind card's rows, `rows` in the order shown, each a place in
+/// `NewKind::ALL` with its second line; the ticked one `chosen`; **More
+/// kinds** under them when `more` is given. Returns the height used.
+pub(crate) fn kind_list(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    rows: &[(usize, String)],
+    chosen: crate::create::NewKind,
+    more: Option<Action>,
+    enabled: bool,
+    pick: fn(u8) -> Action,
+) -> f32 {
+    use crate::create::NewKind;
+    let mut cy = y;
+    for (i, line) in rows {
+        let k = &NewKind::ALL[*i];
         let on = chosen == *k;
         ui.fill(
             x,
             cy,
             w,
-            48.0,
+            tokens::TOUCH,
             8.0,
             if on { ACCENT.with_alpha(26) } else { BG },
         );
@@ -314,26 +345,26 @@ pub(crate) fn kind_rows(
             x,
             cy,
             w,
-            48.0,
+            tokens::TOUCH,
             8.0,
             if on { ACCENT.with_alpha(110) } else { INNER },
         );
         if ui.compact {
             let name = ui.fit(14.0, W::S, k.name(), w - 28.0);
             ui.text(x + 14.0, cy + 6.0, 14.0, W::S, TEXT, &name);
-            let line = ui.fit(12.0, W::R, k.line(), w - 28.0);
+            let line = ui.fit(12.0, W::R, line, w - 28.0);
             ui.text(x + 14.0, cy + 26.0, 12.0, W::R, MUTED, &line);
         } else {
-            ui.text_mid(x + 14.0, cy, 48.0, 14.0, W::S, TEXT, k.name());
-            let line = ui.fit(12.0, W::R, k.line(), w - 260.0);
-            ui.text_right(x + w - 14.0, cy, 48.0, 12.0, W::R, MUTED, &line);
+            ui.text_mid(x + 14.0, cy, tokens::TOUCH, 14.0, W::S, TEXT, k.name());
+            let line = ui.fit(12.0, W::R, line, w - 260.0);
+            ui.text_right(x + w - 14.0, cy, tokens::TOUCH, 12.0, W::R, MUTED, &line);
         }
         if enabled {
-            ui.hit(x, cy, w, 48.0, pick(i as u8));
+            ui.hit(x, cy, w, tokens::TOUCH, pick(*i as u8));
         }
         cy += 54.0;
     }
-    if !more && enabled {
+    if let Some(more_action) = more.filter(|_| enabled) {
         ui.button(
             x,
             cy,

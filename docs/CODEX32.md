@@ -1,8 +1,8 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller component (C11, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is proposed
-**Open:** of C5, the wallet kind of §6.9, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); batches C8 to C10 (§15.2): backups, templates, Demo and Learn; the five-dice roller's place in the entry's pad (§5.5; its component is built); D5 (§14); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), the wallet kind of §6.9 (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller component (C11, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is being recorded with the wallet kind's build
+**Open:** of C5, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); batches C8 to C10 (§15.2): backups (Back up's codex32 way for the wallet kind of §6.9 among them, §9.5), templates, Demo and Learn; the five-dice roller's place in the entry's pad (§5.5; its component is built); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -299,11 +299,24 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   vectors 1 and 2, a press's work in
   `faraday/faraday-core/src/work/budget/codex32.rs`, the live
   translation worksheets in `faraday/faraday-keys/tests/codex32.rs`; the
-  snapshot tour `codex32`. Not built: the wallet kind of §6.9 (D5), the
+  snapshot tour `codex32`. Not built: the
   masking of §6.4.6 (the sheets are drawn unmasked on every shell), the
   translation symbols in the booklet's second alphabet (Faraday's faces
   lack most of its glyphs, so each is named as `SYMBOL_NAMES` names it),
   Demo (§12, C10), hand-made shares as a way in (§5.3).
+- **Single key, backup in shares** (§6.9, D5), a kind of Make a new
+  wallet (`faraday/faraday-core/src/create.rs`, `NewKind::Shares`; drawn
+  in `faraday/faraday-core/src/screens/create.rs`): on Kind between
+  Single key and Multisig, its line following the scheme; its Quorum the
+  scheme's two steppers (2 to 9, k to 31), the Account row at its foot;
+  its one slot offering Make codex32 shares only, opened with the scheme
+  fixed (`Codex32Make::with_scheme`); the set's facts kept with the
+  creation at Lock in (`SharesSet`: fingerprint, identifier, k, n,
+  length) and shown on Check as "Backup · codex32 w0za · 2 of 3"; a key
+  not made as the set refused. On chain one `wpkh` descriptor. Not in
+  Restore. Tested in `faraday/faraday-core/tests/all/create_shares.rs`.
+  Back up opens on the wallet as for Single key; codex32's standard way
+  (§9.5) is C8's, and reads the set from `Faraday::create_shares_set`.
 - **Add a key › Type codex32 strings** (C6; `faraday/faraday-core/src/forms.rs`,
   `state.rs`, `screens/entry.rs` and the compact form): one string at a
   time, typed on the codex32 keyboard (`?` on it with the tick, a
@@ -870,6 +883,8 @@ The record names no product. Learn (§15.3) names the implementations
 that read codex32 as of the build, with the date.
 
 ### 6.9 A wallet kind: Single key, backup in shares (owner, 2026-10-22)
+
+Built (D5), but for Back up's codex32 way (§9.5, C8).
 
 Codex32 gives a single-key wallet much of what a person reaches for
 multisig to get, on the backup side: no one paper or place loses the
@@ -1633,8 +1648,7 @@ name.
 
 The build's first batch records these (the next free numbers at the
 time), each its own file and a row in `docs/DECISIONS.md`. D1 to D4 are
-recorded (C1): F93, F94, F95 and F96. D5 is proposed; the batch that
-builds §6.9 records it.
+recorded (C1): F93, F94, F95 and F96; D5 is recorded with §6.9's build.
 
 - **D1. Codex32 made by hand, any split** (recorded, F93). §1 items 1 to 8 and 12: the
   main flow, lengths, identifier, hand-made shares, add a share, check a
@@ -1648,7 +1662,7 @@ builds §6.9 records it.
   "Rolled by this computer" and "simulated dice"; the exception to §5's
   rule that Faraday's own randomness never makes a fresh seed in these
   flows.
-- **D5. Single key, backup in shares.** §6.9: the wallet kind on
+- **D5. Single key, backup in shares** (recorded with §6.9's build). §6.9: the wallet kind on
   Make a new wallet's Kind card, codex32 only; codex32 made for
   single-key wallets only, a loaded codex32 key accepted anywhere.
 

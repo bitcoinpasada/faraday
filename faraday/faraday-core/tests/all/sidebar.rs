@@ -607,9 +607,9 @@ fn a_flow_on_its_first_card_ends_without_the_sheet() {
     // Resumed from Settings: the Cancel lands there (F77).
     assert_eq!(app.screen, Screen::Settings);
     assert!(!row_on_settings(&mut app, Going::Create));
-    // Make a new wallet opens afresh, on Kind.
+    // Make a new wallet opens afresh, past Kind closed on its default.
     app.press(Action::CreateWallet);
-    assert_eq!(app.create().unwrap().open, Some(cstep::KIND));
+    assert_eq!(app.create().unwrap().open, Some(cstep::WHERE));
 }
 
 #[test]

@@ -7139,7 +7139,7 @@ impl Faraday {
 /// The create cards a kind shows.
 pub fn create_steps(kind: create::NewKind) -> Vec<u8> {
     let mut v = vec![cstep::KIND];
-    if kind.multi() {
+    if kind.multi() || kind.shares() {
         v.push(cstep::QUORUM);
     }
     v.extend([cstep::WHERE, cstep::KEYS, cstep::CHECK, cstep::BACKUP]);
