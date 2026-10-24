@@ -471,10 +471,11 @@ The comparison that led here: moved to `docs/history/QR-LOG.md`.
    (`pal::VIEWFINDER_BAND` at `VIEWFINDER_BAND_ALPHA`), in white. Nothing
    is above the picture but the title. The state line shows "Starting the
    camera" before the first frame, then "Hold the QR in front of the
-   camera", then the last thing said. The bar shows the parts read of a
-   UR, BBQr or numbered-parts transfer. Sizes: `VIEWFINDER_BRACKET_SHARE`
+   camera", then the last thing said. Material's linear progress
+   indicator (`Ui::progress`) shows the parts read of a UR, BBQr or
+   numbered-parts transfer. Sizes: `VIEWFINDER_BRACKET_SHARE`
    of the short side for an arm, `VIEWFINDER_BRACKET_STROKE`,
-   `VIEWFINDER_BRACKET_INSET`, `VIEWFINDER_BAND_PAD` and `BAR_HEIGHT`.
+   `VIEWFINDER_BRACKET_INSET`, `VIEWFINDER_BAND_PAD` and `PROGRESS_H`.
 5. **Paste.** A Paste button beside the scanner's other ways in, where
    the scanner takes anything: Files, Transfer's Receive and What do you
    have?. The scanners that load a seed (a SeedQR, a key part, a

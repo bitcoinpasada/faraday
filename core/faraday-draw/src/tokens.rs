@@ -291,9 +291,6 @@ pub const fn qr_side(class: SizeClass) -> f32 {
 /// without carrying pixels no display can show.
 pub const PREVIEW_MAX: usize = 400;
 
-/// Height in dp of a progress bar and of the viewfinder's state line.
-pub const BAR_HEIGHT: f32 = 6.0;
-
 /// A corner bracket's arm over a camera's picture, as a share of the
 /// picture's short side (`docs/DESIGN.md` §4.9, Scanner).
 pub const VIEWFINDER_BRACKET_SHARE: f32 = 1.0 / 6.0;
@@ -308,9 +305,6 @@ pub const VIEWFINDER_BAND_PAD: f32 = GAP;
 /// picture: dark enough that white words read over a white QR, light
 /// enough that the picture shows through.
 pub const VIEWFINDER_BAND_ALPHA: u8 = 180;
-/// Opacity (of 255) of the parts bar's empty track on that band: the
-/// bar's own colour, faint.
-pub const VIEWFINDER_TRACK_ALPHA: u8 = 70;
 /// Size in dp of the state line's words on the band inside the picture.
 pub const VIEWFINDER_STATE_SIZE: f32 = CAPTION;
 
@@ -758,6 +752,19 @@ pub const NAV_LABEL_GAP: f32 = 4.0;
 
 /// The space above the rail's first destination and under its last.
 pub const NAV_RAIL_TOP: f32 = 12.0;
+
+/// Material's small badge on a destination's icon: a dot this wide.
+pub const BADGE_SMALL: f32 = 6.0;
+
+/// Material's large badge on a destination's icon: its height, and its
+/// least width.
+pub const BADGE_LARGE: f32 = 16.0;
+
+/// The large badge's room each side of its label.
+pub const BADGE_PAD: f32 = 4.0;
+
+/// The large badge's label: Material's label small.
+pub const BADGE_LABEL: f32 = 11.0;
 
 /// The page's side margin on a compact window.
 pub const MARGIN_COMPACT: f32 = 16.0;

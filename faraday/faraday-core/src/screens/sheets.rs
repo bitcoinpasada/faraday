@@ -1189,7 +1189,7 @@ fn viewfinder_over(
     let pad = tokens::VIEWFINDER_BAND_PAD;
     let line_h = ui.line(size, W::R);
     let parts = sc.parts_read();
-    let bar = parts.map_or(0.0, |_| pad + tokens::BAR_HEIGHT);
+    let bar = parts.map_or(0.0, |_| pad + tokens::PROGRESS_H);
     let band_h = pad + line_h + bar + pad;
     let band_y = y + h - band_h;
     ui.fill(
@@ -1212,23 +1212,7 @@ fn viewfinder_over(
     );
     if let Some(share) = parts {
         let (bx, by, bw) = (x + pad, band_y + pad + line_h + pad, w - 2.0 * pad);
-        let r = tokens::BAR_HEIGHT / 2.0;
-        ui.fill(
-            bx,
-            by,
-            bw,
-            tokens::BAR_HEIGHT,
-            r,
-            VIEWFINDER.with_alpha(tokens::VIEWFINDER_TRACK_ALPHA),
-        );
-        ui.fill(
-            bx,
-            by,
-            bw * share.clamp(0.0, 1.0),
-            tokens::BAR_HEIGHT,
-            r,
-            VIEWFINDER,
-        );
+        ui.progress((bx, by, bw), Some(share), None);
     }
 }
 

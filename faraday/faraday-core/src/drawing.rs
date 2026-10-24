@@ -434,4 +434,50 @@ impl Faraday {
                 .push_back(faraday_shell_api::Command::Draw);
         }
     }
+
+    /// The strings the current frame draws, for a test to check what a
+    /// title or a label actually reads.
+    pub fn drawn_texts(&mut self) -> Vec<String> {
+        self.drawn_text_boxes()
+            .into_iter()
+            .map(|(t, _)| t)
+            .collect()
+    }
+
+    /// The strings the current frame draws, each with the box of its ink
+    /// in pixels (x, y, w, h): for a test of where a line is put, such as
+    /// whether a row of labels fits on one line.
+    pub fn drawn_text_boxes(&mut self) -> Vec<(String, (i32, i32, i32, i32))> {
+        self.drawn_ink()
+            .into_iter()
+            .filter_map(|i| match i.kind {
+                faraday_draw::canvas::InkKind::Text { text, .. } => {
+                    Some((text, (i.rect.x, i.rect.y, i.rect.w, i.rect.h)))
+                }
+                _ => None,
+            })
+            .collect()
+    }
+
+    /// Everything the current frame draws that a person reads as one
+    /// thing (a line of text, an icon, a progress indicator, a badge's
+    /// dot), each with the box of its ink in pixels: for a test of what
+    /// a screen shows.
+    pub fn drawn_ink(&mut self) -> Vec<faraday_draw::canvas::Ink> {
+        if let Some(c) = self.canvas.as_mut() {
+            c.record_ink(true);
+        }
+        self.before_frame();
+        self.render();
+        let ink = self
+            .canvas
+            .as_ref()
+            .map(|c| c.ink().to_vec())
+            .unwrap_or_default();
+        if let Some(c) = self.canvas.as_mut() {
+            c.record_ink(false);
+        }
+        self.out.dirty = true;
+        ink
+    }
 }

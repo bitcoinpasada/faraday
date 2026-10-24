@@ -1254,6 +1254,30 @@ impl Starter {
         Some(((i32::from(x) + ax) as u16, (i32::from(y) + ay) as u16))
     }
 
+    /// The progress indicators the current frame draws: how much of
+    /// each track is filled, `None` for one with no count.
+    pub fn drawn_progress(&mut self) -> Vec<Option<f32>> {
+        if let Some(c) = self.canvas.as_mut() {
+            c.record_ink(true);
+        }
+        self.frost = None;
+        self.render();
+        let shown = self.canvas.as_ref().map_or_else(Vec::new, |c| {
+            c.ink()
+                .iter()
+                .filter_map(|i| match i.kind {
+                    faraday_draw::canvas::InkKind::Progress(d) => Some(d),
+                    _ => None,
+                })
+                .collect()
+        });
+        if let Some(c) = self.canvas.as_mut() {
+            c.record_ink(false);
+        }
+        self.dirty = true;
+        shown
+    }
+
     /// The strings the current frame draws.
     pub fn drawn_texts(&mut self) -> Vec<String> {
         // The held app's words, and the Starter's own bar over it.
@@ -1272,7 +1296,7 @@ impl Starter {
         if let Some(c) = self.canvas.as_ref() {
             texts.extend(c.ink().iter().filter_map(|i| match &i.kind {
                 faraday_draw::canvas::InkKind::Text { text, .. } => Some(text.clone()),
-                faraday_draw::canvas::InkKind::Icon(_) => None,
+                _ => None,
             }));
         }
         if let Some(c) = self.canvas.as_mut() {

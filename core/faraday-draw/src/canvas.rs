@@ -84,6 +84,11 @@ pub enum InkKind {
     },
     /// An icon glyph.
     Icon(crate::widgets::Icon),
+    /// A progress indicator: how much of its track is filled, 0 to 1, or
+    /// `None` for work with no count.
+    Progress(Option<f32>),
+    /// A badge with no label: the dot on a destination.
+    Dot,
 }
 
 /// How many masks are kept for clips that come round again.
@@ -253,6 +258,14 @@ impl Canvas {
     /// recording is on; empty otherwise.
     pub fn ink(&self) -> &[Ink] {
         self.ink.as_deref().unwrap_or(&[])
+    }
+
+    /// Notes a shape drawn as `kind` in `rect`, pixels, while recording
+    /// is on: one a person reads as a whole, such as a progress
+    /// indicator, which its fills alone do not say.
+    pub fn note(&mut self, kind: InkKind, rect: Rect) {
+        let clip = self.clip();
+        self.note_ink(|| kind, Some(rect.intersect(&clip)));
     }
 
     fn note_ink(&mut self, kind: impl FnOnce() -> InkKind, rect: Option<Rect>) {

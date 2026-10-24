@@ -301,6 +301,27 @@ fn a_miss_says_how_far_it_looked() {
 }
 
 #[test]
+fn a_search_under_way_fills_a_progress_indicator_by_the_indices_looked_at() {
+    let mut app = on_page(None, 0, Page::Find);
+    for c in "zzzzzzzzzz".chars() {
+        app.event(Event::Key(Key::Char(c)));
+    }
+    app.press(Action::X(XAction::Depth(2)));
+    app.press(Action::X(XAction::Search));
+    for _ in 0..3 {
+        let now = app.now_ms() + 16;
+        app.event(Event::Tick { now_ms: now });
+    }
+    let s = app.explore().unwrap().search.as_ref().unwrap();
+    let share = s.next as f32 / s.depth as f32;
+    assert!(s.running() && share > 0.0);
+    assert_eq!(crate::common::progress_shown(&mut app), vec![Some(share)]);
+    // Stopped, the indicator goes.
+    app.press(Action::X(XAction::Search));
+    assert!(crate::common::progress_shown(&mut app).is_empty());
+}
+
+#[test]
 fn the_deepest_search_runs_a_tick_at_a_time_and_can_stop() {
     let mut app = on_page(None, 0, Page::Find);
     for c in "zzzzzzzzzz".chars() {

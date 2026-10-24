@@ -228,6 +228,9 @@ pub enum StorageEvent {
         /// The shell opens it on [`StorageCommand::OpenDownloads`].
         opens: bool,
     },
+    /// A file dragged over the online app's window (`true`), or the
+    /// drag gone without a drop (`false`).
+    Hovered(bool),
     /// A file dropped on the online app's window.
     Dropped {
         /// Its path.

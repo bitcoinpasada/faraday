@@ -62,6 +62,9 @@ pub struct TransferState {
 #[derive(Debug, Default)]
 pub struct TransferArea {
     state: TransferState,
+    /// A file is dragged over the window: the page is edged as the
+    /// place it drops (`docs/DESIGN.md` §4.17, Edged drop target).
+    hovered: bool,
 }
 
 /// The last part of a path.
@@ -168,6 +171,11 @@ impl TransferArea {
     /// What Transfer holds.
     pub fn state(&self) -> &TransferState {
         &self.state
+    }
+
+    /// Whether a file is dragged over the window, where a drop is taken.
+    pub fn hovered(&self) -> bool {
+        self.hovered
     }
 
     /// The path and size of file `i` of the Downloads list, to send.
@@ -357,7 +365,14 @@ impl Faraday {
     }
 
     /// A file dropped on the window: Transfer opens and sends it.
+    /// A file dragged over the window, or the drag gone: the page is
+    /// edged while one is over it, where a drop is taken.
+    pub(crate) fn transfer_hovered(&mut self, over: bool) {
+        self.transfer.hovered = over && self.online;
+    }
+
     pub(crate) fn transfer_dropped(&mut self, path: String, size: u64) {
+        self.transfer.hovered = false;
         if !self.online {
             return;
         }

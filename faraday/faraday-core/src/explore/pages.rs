@@ -216,6 +216,9 @@ fn result(ui: &mut Ui, x: f32, y: f32, width: f32, s: &Search) -> f32 {
             &[&thousands(u64::from(s.next)), &depth],
         );
         cy += ui.wrap(x, cy, width, T::LABEL, W::S, TEXT, &line) + T::GAP;
+        let done = s.next as f32 / s.depth.max(1) as f32;
+        ui.progress((x, cy, width), Some(done), None);
+        cy += T::PROGRESS_H + T::GAP;
     } else if s.matched == 0 {
         let line = fill(EN.explore_not_in_the_first, &[&depth]);
         return ui.wrap(x, cy, width, T::LABEL, W::S, WARN, &line) + T::GAP;

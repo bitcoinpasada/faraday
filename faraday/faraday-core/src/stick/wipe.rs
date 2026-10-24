@@ -18,6 +18,7 @@
 use crate::drawing::View;
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_draw::tokens;
 use faraday_draw::widgets::Icon;
 
 use crate::compact::{buttons, scroll_sheet};
@@ -720,9 +721,8 @@ pub(crate) fn zeroing_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let t = ui.fit(18.0, W::S, &title, iw);
         ui.text_mid(x, cy, 30.0, 18.0, W::S, TEXT, &t);
         cy += 44.0;
-        ui.fill(x, cy, iw, 10.0, 5.0, INNER);
-        ui.fill(x, cy, (iw * share).max(10.0), 10.0, 5.0, ACCENT);
-        cy += 24.0;
+        ui.progress((x, cy, iw), Some(share), None);
+        cy += tokens::PROGRESS_H + 2.0 * tokens::GAP;
         ui.text(x, cy, 14.0, W::S, TEXT, &line);
         cy += 26.0;
         if let Some(p) = &pass {

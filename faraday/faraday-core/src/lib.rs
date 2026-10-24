@@ -1424,6 +1424,7 @@ impl Faraday {
         self.note_here();
         self.storage_event(event.in_own_words());
         self.backup_settle();
+        self.stick.note_visit(self.screen == Screen::Visit);
         if self.screen != screen {
             // A stick that takes the person to another screen leaves
             // this one as a press would.
@@ -1694,6 +1695,7 @@ impl Faraday {
                     return;
                 }
             }
+            StorageEvent::Hovered(over) => self.transfer_hovered(over),
             StorageEvent::Dropped { path, size } => self.transfer_dropped(path, size),
             StorageEvent::HostRead { path, bytes } => self.transfer_read(path, bytes),
             StorageEvent::HostReadFailed { path, reason } => {
@@ -6889,6 +6891,7 @@ impl Faraday {
     /// from its vault, and a sheet waiting comes up. Lookups, unless
     /// something is dropped.
     fn after_input(&mut self) {
+        self.stick.note_visit(self.screen == Screen::Visit);
         // The screen the input left goes on the trail (F77).
         self.trail_note();
         // A vault being made or unlocked for another flow: the way back
@@ -7506,46 +7509,6 @@ impl App for Faraday {
 }
 
 impl Faraday {
-    /// The strings the current frame draws, for a test to check what a
-    /// title or a label actually reads.
-    pub fn drawn_texts(&mut self) -> Vec<String> {
-        self.drawn_text_boxes()
-            .into_iter()
-            .map(|(t, _)| t)
-            .collect()
-    }
-
-    /// The strings the current frame draws, each with the box of its ink
-    /// in pixels (x, y, w, h): for a test of where a line is put, such as
-    /// whether a row of labels fits on one line.
-    pub fn drawn_text_boxes(&mut self) -> Vec<(String, (i32, i32, i32, i32))> {
-        if let Some(c) = self.canvas.as_mut() {
-            c.record_ink(true);
-        }
-        self.before_frame();
-        self.render();
-        let texts = self
-            .canvas
-            .as_ref()
-            .map(|c| {
-                c.ink()
-                    .iter()
-                    .filter_map(|i| match &i.kind {
-                        faraday_draw::canvas::InkKind::Text { text, .. } => {
-                            Some((text.clone(), (i.rect.x, i.rect.y, i.rect.w, i.rect.h)))
-                        }
-                        faraday_draw::canvas::InkKind::Icon(_) => None,
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-        if let Some(c) = self.canvas.as_mut() {
-            c.record_ink(false);
-        }
-        self.out.dirty = true;
-        texts
-    }
-
     fn display(&mut self, d: DisplayInfo) {
         let c = self.compute();
         self.last_display = Some(d);

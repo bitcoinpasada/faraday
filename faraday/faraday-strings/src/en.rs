@@ -4164,6 +4164,8 @@ strings! {
     nav_more: "More",
     /// The ⋮ menu's way out.
     nav_close: "Close",
+    /// A destination's badge past 999 things waiting (Material's most).
+    nav_badge_many: "999+",
     // ----- sidebar (faraday-core/src/screens/sidebar.rs) -----
     /// Text in `sidebar`.
     sidebar_home: "Home",

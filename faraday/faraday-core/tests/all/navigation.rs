@@ -295,3 +295,85 @@ fn homes_tiles_take_as_many_columns_as_the_window_has_room_for() {
         assert_eq!(a, b, "{w}x{h}: the tiles are not side by side");
     }
 }
+
+/// Whether box `inner` (x, y, w, h) has its middle inside `outer`.
+fn within(inner: (i32, i32, i32, i32), outer: (u16, u16, u16, u16)) -> bool {
+    let (cx, cy) = (inner.0 + inner.2 / 2, inner.1 + inner.3 / 2);
+    let (x, y, w, h) = (
+        i32::from(outer.0),
+        i32::from(outer.1),
+        i32::from(outer.2),
+        i32::from(outer.3),
+    );
+    cx >= x && cx < x + w && cy >= y && cy < y + h
+}
+
+/// The boxes the frame draws the text `want` in.
+fn drawn_at(app: &mut Faraday, want: &str) -> Vec<(i32, i32, i32, i32)> {
+    app.drawn_text_boxes()
+        .into_iter()
+        .filter(|(t, _)| t == want)
+        .map(|(_, b)| b)
+        .collect()
+}
+
+#[test]
+fn files_carries_the_inbox_count_on_the_bar_and_both_rails_until_it_empties() {
+    for (w, h) in [(400, 800), (760, 1000), (1280, 800)] {
+        let mut app = on(w, h, 160);
+        let files = (1..=3)
+            .map(|i| (format!("note-{i}.txt"), b"a note".to_vec()))
+            .collect();
+        app.storage(StorageEvent::Restored {
+            inbox: files,
+            outbox: Vec::new(),
+            kept: Vec::new(),
+        });
+        app.press(Action::Nav(Screen::Vaults));
+        let _ = app.frame();
+        let badges = drawn_at(&mut app, "3");
+        let shown = match app.nav() {
+            // The expanded rail: on its Files row, in the rail's width.
+            Nav::ExpandedRail => badges.iter().any(|b| b.0 + b.2 < 240),
+            _ => {
+                let files = app.hit_box(Action::Nav(Screen::Files)).unwrap();
+                badges.iter().any(|b| within(*b, files))
+            }
+        };
+        assert!(shown, "{w} × {h}: no count on Files, {badges:?}");
+        for _ in 0..3 {
+            app.press(Action::InboxRemove(0));
+        }
+        assert!(app.inbox().is_empty());
+        assert!(drawn_at(&mut app, "3").is_empty(), "{w} × {h}");
+    }
+}
+
+/// Where the frame draws a badge's dot.
+fn dots(app: &mut Faraday) -> Vec<(i32, i32, i32, i32)> {
+    app.drawn_ink()
+        .into_iter()
+        .filter(|i| i.kind == faraday_draw::canvas::InkKind::Dot)
+        .map(|i| (i.rect.x, i.rect.y, i.rect.w, i.rect.h))
+        .collect()
+}
+
+#[test]
+fn the_stick_visit_carries_a_dot_until_the_stick_is_visited() {
+    let mut app = on(760, 1000, 160);
+    // The boot stick, at its first look, leaves Home on screen: it waits.
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
+        id: "sda1@sda#1".into(),
+        label: "FARADAY".into(),
+        boot: true,
+        files: Vec::new(),
+    }]));
+    assert_eq!(app.screen, Screen::Home);
+    let drawn = dots(&mut app);
+    let visit = app.hit_box(Action::Nav(Screen::Visit)).expect("the visit");
+    assert!(drawn.iter().any(|d| within(*d, visit)), "{drawn:?}");
+    app.press(Action::Nav(Screen::Visit));
+    app.press(Action::Nav(Screen::Home));
+    assert!(dots(&mut app).is_empty());
+}

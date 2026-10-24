@@ -148,6 +148,11 @@ fn the_stick_faraday_started_from_is_read_and_another_is_written_from_it() {
             target: "sdb1@sdb#2".into()
         }]
     );
+    // While it writes: a progress indicator under "Writing", still, as
+    // the copier holds the frame and gives no count, and no Upgrade.
+    assert_eq!(crate::common::progress_shown(&mut app), vec![None]);
+    assert!(app.drawn_texts().iter().any(|t| t == "Writing"));
+    assert!(!app.offers(Action::UpgradeWrite));
     // Pressed again while it writes: nothing more.
     app.press(Action::UpgradeWrite);
     assert!(asked(&mut app).is_empty());
@@ -156,6 +161,7 @@ fn the_stick_faraday_started_from_is_read_and_another_is_written_from_it() {
         release: RUNNING.into(),
     });
     assert_eq!(upgrade(&app).step(), Step::Done);
+    assert!(crate::common::progress_shown(&mut app).is_empty());
     // Another stick, from the same source.
     app.press(Action::UpgradeAgain);
     assert_eq!(upgrade(&app).step(), Step::Target);
@@ -163,6 +169,41 @@ fn the_stick_faraday_started_from_is_read_and_another_is_written_from_it() {
     app.press(Action::Nav(Screen::Settings));
     assert!(!app.upgrading());
     assert_eq!(asked(&mut app), vec![StorageCommand::BootForget]);
+}
+
+/// Whether the frame draws a badge's dot (the stick visit's).
+fn dot_shown(app: &mut Faraday) -> bool {
+    app.drawn_ink()
+        .iter()
+        .any(|i| i.kind == faraday_draw::canvas::InkKind::Dot)
+}
+
+#[test]
+fn a_stick_being_upgraded_carries_no_waiting_dot() {
+    let mut app = device();
+    open(&mut app);
+    read_source(&mut app);
+    // The stick to upgrade's data partition, not visited.
+    app.storage(StorageEvent::Sticks(vec![StickInfo {
+        serial: None,
+        id: "sdb2@sdb#2".into(),
+        label: "FARADAYDATA".into(),
+        boot: false,
+        files: Vec::new(),
+    }]));
+    app.storage(StorageEvent::Boots(vec![
+        part("sda1@sda#1", 64 * MB, Some(RUNNING), true),
+        part("sdb1@sdb#2", 64 * MB, None, false),
+    ]));
+    assert!(dot_shown(&mut app), "before the write the stick waits");
+    let _ = app.frame();
+    app.press(Action::UpgradeWrite);
+    assert!(!dot_shown(&mut app), "being written, it is not waiting");
+    app.storage(StorageEvent::BootWritten {
+        id: "sdb1@sdb#2".into(),
+        release: RUNNING.into(),
+    });
+    assert!(!dot_shown(&mut app), "written, it is not waiting");
 }
 
 #[test]

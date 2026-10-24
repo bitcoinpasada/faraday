@@ -33,7 +33,9 @@ const S: &Strings = &EN;
 mod home;
 mod nav;
 
-use faraday_draw::tokens::{CONTENT_MAX, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H, RAIL_W};
+use faraday_draw::tokens::{
+    CONTENT_MAX, GAP, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H, PROGRESS_H, RAIL_W,
+};
 
 /// A small panel's sheet's side margin.
 const M: f32 = 12.0;
@@ -1068,17 +1070,12 @@ fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         y += line(ui, x, y, w, &s, MUTED);
     }
     let (stage, done, total) = m.progress.unwrap_or((WriteStage::Writing, 0, 0));
-    y += 8.0;
-    let t = if total == 0 {
-        0.0
-    } else {
-        (done as f32 / total as f32).clamp(0.0, 1.0)
-    };
-    ui.fill(x, y, w, 10.0, 5.0, INNER);
-    if t > 0.0 {
-        ui.fill(x, y, (w * t).max(10.0), 10.0, 5.0, ACCENT);
-    }
-    y += 24.0;
+    y += GAP;
+    // Material's linear indicator: the bytes written (or read back) of
+    // the image's; before the writer has said how many, still.
+    let t = (total > 0).then(|| done as f32 / total as f32);
+    ui.progress((x, y, w), t, None);
+    y += PROGRESS_H + 2.0 * GAP;
     let of = fill(
         S.starter_progress_bytes,
         &[&size_text(done), &size_text(total)],

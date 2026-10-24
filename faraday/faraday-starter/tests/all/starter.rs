@@ -464,12 +464,14 @@ fn writing_shows_progress_then_done_or_the_writers_reason() {
         total: 4 * GB,
     });
     assert!(shows(&mut starter, "Written 1.0 GB of 4.0 GB"));
+    assert_eq!(starter.drawn_progress(), vec![Some(0.25)]);
     starter.starter_event(StarterEvent::WriteProgress {
         stage: faraday_starter::api::WriteStage::ReadingBack,
         done: 2 * GB,
         total: 4 * GB,
     });
     assert!(shows(&mut starter, "Reading back"));
+    assert_eq!(starter.drawn_progress(), vec![Some(0.5)]);
     starter.starter_event(StarterEvent::Written(Err(Reason::BackDiffers {
         device: "/dev/sdb".into(),
         at: 12,

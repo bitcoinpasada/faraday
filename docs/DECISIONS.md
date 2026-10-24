@@ -125,3 +125,4 @@ Read this table, then only the decision you need.
 | [F108](decisions/F108.md) | Faraday's tokens, colour roles and components follow Material 3, shape included | 2026-10-23 | Active | design |
 | [F109](decisions/F109.md) | Out of the app until their standards mature: FROST, and MuSig2 signing across places | 2026-10-23 | Active | wallets |
 | [F110](decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Active | design |
+| [F111](decisions/F111.md) | The Material 3 components and patterns Faraday leaves out | 2026-10-24 | Active | design |

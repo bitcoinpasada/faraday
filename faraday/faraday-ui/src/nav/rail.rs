@@ -71,14 +71,10 @@ pub fn destination_row<A: Copy + PartialEq>(
     }
     let fg = if current { TEXT } else { MUTED };
     let ix = x + PAD;
-    ui.icon(
-        ix,
-        y + (TOUCH - ICON_SMALL) / 2.0,
-        ICON_SMALL,
-        icon,
-        NAV_ICON,
-        fg,
-    );
+    let iy = y + (TOUCH - ICON_SMALL) / 2.0;
+    ui.icon(ix, iy, ICON_SMALL, icon, NAV_ICON, fg);
+    let inset = (ICON_SMALL - NAV_ICON) / 2.0;
+    super::badge(ui, (ix + inset, iy + inset, NAV_ICON), d.badge);
     let tx = ix + ICON_SMALL + NAV_ICON_GAP;
     let right = x + w - PAD;
     let end_w = end.map_or(0.0, |e| ui.measure(CAPTION, W::R, e) + GRID);

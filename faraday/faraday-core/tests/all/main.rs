@@ -45,6 +45,7 @@ mod create_vault;
 mod create_wallet;
 mod demo;
 mod devices;
+mod drop_target;
 mod explore;
 mod explore_addresses;
 mod family;

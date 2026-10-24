@@ -235,15 +235,19 @@ fn target(app: &View, ui: &mut Ui, u: &UpgradeState, step: Step, x: f32, y0: f32
         };
         y += ui.wrap(ix, y, iw, 13.0, W::S, ERR, &line) + 8.0;
     }
+    y += 4.0;
+    if u.writing.is_some() {
+        // The copier holds the frame until the stick is written and read
+        // back, with no count: the indicator is still (DESIGN §4.14).
+        crate::screens::working_line(ui, (ix, y, iw, 44.0), EN.upgrade_writing);
+        return y + 44.0 - y0;
+    }
     let blocked = matches!(fit, Fit::TooSmall(..) | Fit::Same);
-    let (label, style) = if u.writing.is_some() {
-        (EN.upgrade_writing, Style::Disabled)
-    } else if blocked {
+    let (label, style) = if blocked {
         (EN.upgrade_upgrade, Style::Disabled)
     } else {
         (EN.upgrade_upgrade, Style::Primary)
     };
-    y += 4.0;
     ui.button(
         ix,
         y,

@@ -20,10 +20,14 @@ pub use rail::{Rail, destination_row, rail};
 
 use crate::pal::*;
 use crate::{Glyph, Ui, W};
-use faraday_draw::tokens::{CAPTION, GAP_SMALL, NAV_ICON, NAV_LABEL_GAP, NAV_PILL_H, NAV_PILL_W};
+use faraday_draw::tokens::{
+    BADGE_LABEL, BADGE_LARGE, BADGE_PAD, BADGE_SMALL, CAPTION, GAP_SMALL, NAV_ICON, NAV_LABEL_GAP,
+    NAV_PILL_H, NAV_PILL_W,
+};
+use faraday_strings::EN;
 
-/// One destination: its icon, its label, the press it is, and whether it
-/// is the one shown now.
+/// One destination: its icon, its label, the press it is, whether it
+/// is the one shown now, and its badge.
 #[derive(Debug, Clone, Copy)]
 pub struct Dest<'s, A> {
     /// Its icon.
@@ -34,6 +38,55 @@ pub struct Dest<'s, A> {
     pub action: A,
     /// It is the destination shown now.
     pub current: bool,
+    /// What waits there, on its icon.
+    pub badge: Badge,
+}
+
+/// Material's badge on a destination's icon: a small dot where something
+/// waits, or a large badge with a count.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Badge {
+    /// None.
+    #[default]
+    None,
+    /// The small badge: a dot.
+    Dot,
+    /// The large badge with a count, "999+" past 999 (Material's most
+    /// characters, four).
+    Count(usize),
+}
+
+/// Draws `badge` on an icon glyph whose box is `glyph` (x, y, side): the
+/// dot on its top right corner, the large badge from its middle across
+/// its top right, as Material places them, in the error colour.
+pub fn badge<A: Copy + PartialEq>(ui: &mut Ui<A>, glyph: (f32, f32, f32), badge: Badge) {
+    let (gx, gy, gs) = glyph;
+    match badge {
+        Badge::None | Badge::Count(0) => {}
+        Badge::Dot => {
+            let d = BADGE_SMALL;
+            let (x, y) = (gx + gs - d / 2.0, gy - d / 2.0);
+            ui.fill(x, y, d, d, d / 2.0, ERR);
+            let r = ui.rect(x, y, d, d);
+            ui.c.note(faraday_draw::canvas::InkKind::Dot, r);
+        }
+        Badge::Count(n) => {
+            let label = if n > 999 {
+                EN.nav_badge_many.to_string()
+            } else {
+                n.to_string()
+            };
+            let label = label.as_str();
+            let h = BADGE_LARGE;
+            let w = (ui.measure(BADGE_LABEL, W::S, label) + 2.0 * BADGE_PAD).max(h);
+            let (x, y) = (gx + gs / 2.0, gy - h / 2.0);
+            ui.fill(x, y, w, h, h / 2.0, ERR);
+            // `BG` on the error colour stands in for Material's
+            // on-error until the themes carry it (`docs/THEMES.md`).
+            let tw = ui.measure(BADGE_LABEL, W::S, label);
+            ui.text_mid(x + (w - tw) / 2.0, y, h, BADGE_LABEL, W::S, BG, label);
+        }
+    }
 }
 
 /// The height a destination's pill and label take together.
@@ -63,6 +116,8 @@ fn item<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, w: f32, h: f32, d: 
     let fg = if d.current { TEXT } else { MUTED };
     let ix = x + (w - NAV_PILL_H) / 2.0;
     ui.icon(ix, top, NAV_PILL_H, d.icon, NAV_ICON, fg);
+    let inset = (NAV_PILL_H - NAV_ICON) / 2.0;
+    badge(ui, (ix + inset, top + inset, NAV_ICON), d.badge);
     let face = if d.current { W::S } else { W::R };
     let label = ui.fit(CAPTION, face, d.label, w - 2.0 * GAP_SMALL);
     let lw = ui.measure(CAPTION, face, &label);

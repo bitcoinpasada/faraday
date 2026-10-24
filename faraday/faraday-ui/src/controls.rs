@@ -420,6 +420,10 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     pub fn progress(&mut self, (x, y, w): (f32, f32, f32), done: Option<f32>, phase: Option<f32>) {
         let h = PROGRESS_H;
         let r = shape_full(h);
+        let track = self.rect(x, y, w, h);
+        let shown = done.map(|d| d.clamp(0.0, 1.0));
+        self.c
+            .note(faraday_draw::canvas::InkKind::Progress(shown), track);
         self.fill(x, y, w, h, r, SELECTED);
         match (done, phase) {
             (Some(d), _) => {

@@ -4,6 +4,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+use faraday_draw::tokens::{GAP, GAP_SMALL, PROGRESS_H};
 use faraday_draw::widgets::Icon;
 
 use crate::drawing::{Scrolled, View};
@@ -1459,6 +1460,7 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             return cy - y;
         }
         let (kind, pass) = Faraday::guess_way(g, g.at);
+        let total = Faraday::guess_total(g);
         let line = fill(
             EN.family_trying_progress,
             &[
@@ -1469,10 +1471,14 @@ fn check(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     EN.family_no_passphrase
                 }),
                 &(g.at + 1).to_string(),
-                &Faraday::guess_total(g).to_string(),
+                &total.to_string(),
             ],
         );
-        cy += ui.wrap(x, cy, w, 13.0, W::S, TEXT, &line) + 12.0;
+        cy += ui.wrap(x, cy, w, 13.0, W::S, TEXT, &line) + GAP;
+        // The ways looked at so far, the one shown among them.
+        let done = (g.at + 1) as f32 / total.max(1) as f32;
+        ui.progress((x, cy, w), Some(done), None);
+        cy += PROGRESS_H + GAP + GAP_SMALL;
     }
     let wl = &app.session.wallets[i];
     cy += crate::screens::wrap_buttons(

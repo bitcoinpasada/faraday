@@ -359,9 +359,23 @@ fn ur_progress_names_the_missing_parts() {
         said.starts_with(&format!("UR: 2 of {count} · missing 1, 3, 5")),
         "{said}"
     );
-    // The bar inside the viewfinder follows the parts read.
+    // The progress indicator inside the viewfinder follows the parts
+    // read.
     let share = app.scan().unwrap().parts_read().unwrap();
     assert!((share - 2.0 / count as f32).abs() < 1e-6, "{share}");
+    app.event(Event::Display(faraday_shell_api::DisplayInfo {
+        width: 1280,
+        height: 800,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }));
+    assert_eq!(crate::common::progress_shown(&mut app), vec![Some(share)]);
 }
 
 fn paste(app: &mut Faraday, text: &str) {

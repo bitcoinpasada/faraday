@@ -1293,3 +1293,15 @@ pub fn open_item(app: &mut Faraday, n: u8) {
         app.press(Action::BStep(n));
     }
 }
+
+/// The progress indicators the frame draws now: how much of each track
+/// is filled, `None` for one with no count.
+pub fn progress_shown(app: &mut Faraday) -> Vec<Option<f32>> {
+    app.drawn_ink()
+        .into_iter()
+        .filter_map(|i| match i.kind {
+            faraday_draw::canvas::InkKind::Progress(done) => Some(done),
+            _ => None,
+        })
+        .collect()
+}

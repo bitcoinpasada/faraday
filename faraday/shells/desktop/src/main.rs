@@ -50,7 +50,8 @@
 //! codes through the webcam, saving each whole file into that folder
 //! under its own name or `received-N`, never over a file already there
 //! (`name (2).ext`). A file dropped on the window is sent too, where
-//! winit reports the drop: on X11, not on native Wayland. Nothing
+//! winit reports the drop: on X11, not on native Wayland; while one is
+//! dragged over the window the page is edged as the place it drops. Nothing
 //! received goes into the app's Inbox.
 //!
 //! Every session here opens in Demo, on testnet, in every build; the
@@ -419,6 +420,15 @@ impl Shell {
         }
     }
 
+    /// A file dragged over the window (`over`), or the drag gone.
+    fn hovered(&mut self, over: bool) {
+        let Some(app) = self.app.as_mut() else { return };
+        app.storage(StorageEvent::Hovered(over));
+        if let Some(w) = self.window() {
+            w.request_redraw();
+        }
+    }
+
     /// A file dropped on the window, for Transfer to send.
     fn dropped(&mut self, event_loop: &ActiveEventLoop, path: &Path) {
         let Some(app) = self.app.as_mut() else { return };
@@ -600,6 +610,10 @@ impl ApplicationHandler for Shell {
             // Only X11 reports a drop in winit 0.30; the list is the way
             // on native Wayland.
             WindowEvent::DroppedFile(path) => self.dropped(event_loop, &path),
+            // A file dragged over the window edges the page as the place
+            // it drops, until it is dropped or the drag leaves.
+            WindowEvent::HoveredFile(_) => self.hovered(true),
+            WindowEvent::HoveredFileCancelled => self.hovered(false),
             WindowEvent::RedrawRequested => {
                 // With the compositor pacing the frames, this is the
                 // moment before the screen's next refresh: the tick moves

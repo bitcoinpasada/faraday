@@ -120,6 +120,10 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
             label,
             action,
             current: active,
+            badge: match action {
+                Action::Nav(s) => crate::nav::screen::badge_of(app, s),
+                _ => faraday_ui::nav::Badge::None,
+            },
         };
         faraday_ui::nav::destination_row(ui, (x, y, w), &d, open.as_deref());
     };

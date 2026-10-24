@@ -58,7 +58,7 @@ fn label(app: &Faraday) -> String {
         .iter()
         .filter_map(|i| match &i.kind {
             InkKind::Text { text, .. } => Some(text.clone()),
-            InkKind::Icon(_) => None,
+            _ => None,
         })
         .collect::<Vec<_>>()
         .join(" ")

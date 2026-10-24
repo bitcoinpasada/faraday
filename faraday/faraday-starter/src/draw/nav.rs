@@ -23,6 +23,7 @@ fn destinations(starter: &Starter) -> [fnav::Dest<'static, Action>; 4] {
             label,
             action: action.host(),
             current: at == Some(here),
+            badge: fnav::Badge::None,
         };
     [
         one(

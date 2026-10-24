@@ -32,6 +32,14 @@ pub(crate) struct StickArea {
     delete_ask: Option<wipe::DeleteAsk>,
     /// Zeroing a stick's free space or whole partition, under way.
     zeroing: Option<wipe::Zeroing>,
+    /// The sticks present that the stick visit has been on screen for
+    /// since they arrived, by id.
+    visited: Vec<String>,
+    /// A stick present has not been visited since it arrived: the stick
+    /// visit's badge. Invariant: true exactly when a stick in `sticks`
+    /// is not in `visited`, kept by [`StickArea::set_sticks`] and
+    /// [`StickArea::note_visit`], the only ways either changes.
+    waits: bool,
 }
 
 impl std::ops::Deref for StickArea {
@@ -45,6 +53,33 @@ impl StickArea {
     /// The sticks the shell reports.
     pub(crate) fn set_sticks(&mut self, sticks: Vec<StickInfo>) {
         self.sticks = sticks;
+        let present = &self.sticks;
+        self.visited
+            .retain(|id| present.iter().any(|s| &s.id == id));
+        self.note_waits();
+    }
+
+    /// Notes the stick visit on screen (`on`): every stick present is
+    /// visited.
+    pub(crate) fn note_visit(&mut self, on: bool) {
+        if !on || !self.waits {
+            return;
+        }
+        for s in &self.sticks {
+            if !self.visited.contains(&s.id) {
+                self.visited.push(s.id.clone());
+            }
+        }
+        self.note_waits();
+    }
+
+    fn note_waits(&mut self) {
+        self.waits = self.sticks.iter().any(|s| !self.visited.contains(&s.id));
+    }
+
+    /// Whether a stick present has not been visited since it arrived.
+    pub(crate) fn waits(&self) -> bool {
+        self.waits
     }
 
     /// Every stick, to change them.

@@ -267,8 +267,34 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             crate::compact::keyboard(app, ui, x, w, full_h);
         }
     }
+    drop_edge(app, ui, (full_w, full_h), kb > 0.0);
     // The stick pills, pinned at the top over the page and any sheet.
     crate::stick::pills::draw(app, ui, full_w);
+}
+
+/// A file dragged over Faraday Desktop's window: the page beside the
+/// navigation edged in the accent as the place it drops, as the board
+/// edges its drop targets (`docs/DESIGN.md` §4.17); over a sheet, the
+/// whole window. Reads the state.
+fn drop_edge(app: &View, ui: &mut Ui, (full_w, full_h): (f32, f32), kb: bool) {
+    use faraday_draw::tokens::BOARD_EDGE;
+    if !app.transfer.hovered() {
+        return;
+    }
+    let (x, w, h) = if app.sheet.is_some() || app.held {
+        (0.0, full_w, full_h)
+    } else if app.is_compact() {
+        let (rail, bar) = nav_room(app, kb);
+        (rail, full_w - rail, full_h - bar)
+    } else {
+        (SIDEBAR_W, full_w - SIDEBAR_W, full_h)
+    };
+    ui.ox = 0.0;
+    ui.oy = 0.0;
+    // The stroke lies inside the rectangle, along the page's own edges.
+    let rect = ui.rect(x, 0.0, w, h);
+    let c = ui.col(ACCENT);
+    ui.c.stroke_rounded_rect(rect, 0.0, BOARD_EDGE * ui.f, c);
 }
 
 /// A held app's frame on a wide display ([`Faraday::held`]): no sidebar
