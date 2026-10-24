@@ -55,6 +55,11 @@ const SETTINGS_TEMP: &str = "faraday-settings.tmp";
 /// It is the device's own file too, so it is never offered.
 pub const TIMINGS: &str = "faraday-timings.txt";
 
+/// What `--boot-report` writes on a dev card, whole, every 30 seconds.
+/// The device's own file too, so it is never offered, nor the copy it is
+/// written to before it takes its name.
+pub const BOOT_REPORT: &str = "faraday-boot-report.txt";
+
 /// The name a hint that survives sanitising to nothing is written under.
 const FALLBACK_NAME: &str = "output";
 
@@ -220,9 +225,20 @@ impl Files {
     /// temporary file is written and flushed first and then renamed over
     /// the settings, so a card pulled mid-write keeps the old ones.
     pub fn write_settings(&self, bytes: &[u8]) -> Result<PathBuf, String> {
+        self.write_whole(SETTINGS, SETTINGS_TEMP, bytes)
+    }
+
+    /// Keeps `bytes` as the file `name` on the exchange partition, whole,
+    /// over the one before it, as [`Files::write_settings`] does: the dev
+    /// boot report, where the image runs no disk process.
+    pub fn write_named(&self, name: &str, bytes: &[u8]) -> Result<PathBuf, String> {
+        self.write_whole(name, &format!("{name}.tmp"), bytes)
+    }
+
+    fn write_whole(&self, name: &str, temp: &str, bytes: &[u8]) -> Result<PathBuf, String> {
         self.mounted()?;
-        let temp = self.dir.join(SETTINGS_TEMP);
-        let path = self.dir.join(SETTINGS);
+        let temp = self.dir.join(temp);
+        let path = self.dir.join(name);
         let mut file =
             File::create(&temp).map_err(|e| format!("cannot create {}: {e}", temp.display()))?;
         file.write_all(bytes)
@@ -453,7 +469,11 @@ fn wanted(name: &str, kind: FileKind) -> bool {
         // Anything the user put there, and nothing the card came with or
         // an operating system left behind.
         FileKind::Text | FileKind::Any => {
-            name != NOTE && name != SETTINGS && name != SETTINGS_TEMP && name != TIMINGS
+            name != NOTE
+                && name != SETTINGS
+                && name != SETTINGS_TEMP
+                && name != TIMINGS
+                && !name.starts_with(BOOT_REPORT)
         }
         FileKind::Png => {
             let lower = name.to_ascii_lowercase();

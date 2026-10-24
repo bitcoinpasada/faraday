@@ -3,3 +3,8 @@
 
 # The probe lines are only useful if they are printed.
 -quiet
+
+# The kernel's log buffer holds a long session: the boot report keeps what
+# dmesg prints, and the default buffer lets the boot itself scroll out
+# of it.
+log_buf_len=1M

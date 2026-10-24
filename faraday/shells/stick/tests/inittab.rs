@@ -127,3 +127,28 @@ fn the_release_inittab_restarts_on_restarts_status_and_powers_off_otherwise() {
 fn the_dev_inittab_does_the_same() {
     check(&image("variants/dev/inittab.in"));
 }
+
+/// The release image writes no boot report: nothing in its init opens the
+/// kernel log to the app, its BusyBox has no `dmesg`, and `build.sh` hands
+/// the app `--boot-report` only inside the dev branch. The dev image has
+/// all three.
+#[test]
+fn only_the_dev_image_can_write_a_boot_report() {
+    assert!(!image("common/rootfs-overlay/etc/inittab").contains("dmesg_restrict"));
+    assert!(image("variants/dev/inittab.in").contains("echo 0 > /proc/sys/kernel/dmesg_restrict"));
+    assert!(!image("common/busybox.fragment").contains("CONFIG_DMESG=y"));
+    assert!(image("variants/dev/busybox.fragment").contains("CONFIG_DMESG=y"));
+
+    let build = image("build.sh");
+    let lines: Vec<&str> = build.lines().collect();
+    let flag = lines
+        .iter()
+        .position(|l| l.contains("--boot-report") && !l.trim_start().starts_with('#'))
+        .expect("build.sh passes --boot-report to the dev app");
+    let branch = lines[..flag]
+        .iter()
+        .rev()
+        .find(|l| l.starts_with("if "))
+        .expect("the flag is inside an if");
+    assert_eq!(*branch, "if [ \"$DEV\" = 1 ]; then");
+}

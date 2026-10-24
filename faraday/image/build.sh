@@ -45,7 +45,6 @@ DEV="${DEV:-0}"
 # from rcS and the shell's own inventory after it. A laptop has no serial
 # port to watch a boot on, so this file is how a machine that did not come
 # up says what it found.
-BOOT_REPORT=faraday-boot-report.txt
 
 image=/image
 external=$image/external
@@ -239,18 +238,26 @@ if [ -n "${TOUCH_NAME:-}" ]; then
     args="$args --touch-name ${TOUCH_NAME} --touch-grid ${TOUCH_GRID}"
 fi
 if [ "$DEV" = 1 ]; then
-    args="$args --verbose --timings --boot-report /mnt/microsd/$BOOT_REPORT"
+    args="$args --verbose --timings --boot-report"
 fi
 echo "${args# }" | install_gen "$gen/overlay/etc/faraday/args"
 
-# ---- /etc/faraday/boot-report: the name of the file rcS writes the
-# kernel log to on the exchange partition, and the shell then appends its
-# own inventory to. The file exists only in the dev variant, and its
-# absence is what tells rcS in a release image to write nothing.
-if [ "$DEV" = 1 ]; then
-    echo "$BOOT_REPORT" | install_gen "$gen/overlay/etc/faraday/boot-report"
-else
-    find "$gen/overlay/etc/faraday" -name boot-report -delete
+# ---- the dev boot report: `--boot-report` above is the whole of it. The
+# app keeps faraday-boot-report.txt on the boot stick, whole every 30
+# seconds, and nothing in the release image passes the flag. A file an
+# older build left in the generated overlay is removed so it cannot reach
+# either image, and a release image is checked to carry nothing of the
+# report.
+find "$gen/overlay/etc/faraday" -name boot-report -delete
+if [ "$DEV" != 1 ]; then
+    if grep -qE -- '--(boot-report|timings|verbose)' "$gen/overlay/etc/faraday/args"; then
+        echo "a release image's /etc/faraday/args carries a dev flag" >&2
+        exit 1
+    fi
+    if grep -rqE 'dmesg_restrict|kmsg' "$image/common/rootfs-overlay/etc/inittab"; then
+        echo "the release inittab opens the kernel log" >&2
+        exit 1
+    fi
 fi
 
 # ---- /etc/faraday/exchange: which partition rcS mounts at

@@ -555,12 +555,22 @@ boot, at `/mnt/usb/<label>`.
 
 Build the dev variant (`just dev=1 faraday-stick-image`) and boot that. It puts
 the kernel console on the screen as well as on `ttyS0`, so the boot is
-visible on a machine with no serial port, and it writes
-`faraday-boot-report.txt` to the stick's `FARADAYDATA` partition on every boot:
-the kernel log, then the panel the shell chose and every input and
-capture device it found with what it made of each. Plug the stick into
-any computer and read that file. It is what to send with a report of a
-machine that does not work. The release image writes nothing.
+visible on a machine with no serial port, and the app keeps
+`faraday-boot-report.txt` on the stick's `FARADAYDATA` partition: written
+as soon as the stick is listed at boot, written again whole every 30
+seconds while the app runs, and once more when it ends. The file is the
+kernel log (`dmesg`, which includes the app's own error output), then the
+panel the shell chose and every input and capture device it found with what
+it made of each, headed with how many seconds after the shell started it
+was written. Each write goes to a new file that is read back and renamed
+over the old one, so a stick pulled mid-write holds the last whole report.
+Pull the stick, plug it into any computer and read that file. It is what to
+send with a report of a machine that does not work. The file holds the
+kernel log and that inventory and nothing else: the core prints nothing
+(`tools/lint-secrets.sh`) and the shell prints sizes, names, counts and
+reasons. The release image writes nothing: its app is started without
+`--boot-report`, its kernel log stays closed to the app, and `build.sh`
+refuses a release image whose arguments or inittab say otherwise.
 
 ### Try it in QEMU first
 

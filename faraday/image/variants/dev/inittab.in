@@ -9,6 +9,10 @@
 # beside it.
 ::sysinit:/etc/init.d/rcS
 ::sysinit:/bin/sh -c 'mkdir -p /run/faraday && chown faraday:faraday /run/faraday && chmod 0700 /run/faraday'
+# The kernel log is readable by the app's user, which the release image
+# keeps closed: the app reads it with dmesg for the boot report it keeps
+# on the stick (faraday/shells/stick/src/bootreport.rs).
+::sysinit:/bin/sh -c 'echo 0 > /proc/sys/kernel/dmesg_restrict'
 # The app's error output goes to the kernel log, which a laptop shows on
 # its screen: a laptop has no serial port to read ttyS0 on. When the app
 # ends with anything but a lock, the code is said there too, and the

@@ -18,7 +18,7 @@
 //! faraday [--fb PATH] [--input [KIND:]PATH]... [--camera PATH] [--no-camera]
 //!               [--files DIR] [--size WxH] [--depth 16|24|32] [--dpi N]
 //!               [--pointer-speed F] [--touch-name NAME] [--touch-grid WxH]
-//!               [--boot-report PATH] [--frames N] [--verbose] [--timings]
+//!               [--boot-report] [--frames N] [--verbose] [--timings]
 //! ```
 //!
 //! Two machines run it. On the Raspberry Pi it is given the flags that
@@ -105,6 +105,7 @@
 //! in after start is not seen), and the console is never put into
 //! graphics mode; all three are named in `README.md`.
 
+mod bootreport;
 mod camera;
 mod clock;
 mod cursor;
@@ -122,7 +123,7 @@ mod touch;
 mod usb;
 
 use std::fs::{File, OpenOptions};
-use std::io::{Read, Write};
+use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -401,9 +402,9 @@ struct Args {
     touch_name: String,
     /// The grid the touch controller reports in.
     touch_grid: (u16, u16),
-    /// A file to append the boot report to, which the dev image points
-    /// at the exchange partition.
-    boot_report: Option<PathBuf>,
+    /// Whether to keep the boot report on the boot stick, which the dev
+    /// image asks for.
+    boot_report: bool,
     /// Exit after this many frames.
     frames: Option<u64>,
     /// Whether anything may be written to stderr.
@@ -429,7 +430,7 @@ impl Default for Args {
             pointer_speed: 1.0,
             touch_name: String::from(touch::DEFAULT_TOUCH_NAME),
             touch_grid: touch::DEFAULT_TOUCH_GRID,
-            boot_report: None,
+            boot_report: false,
             frames: None,
             verbose: false,
             timings: false,
@@ -485,7 +486,7 @@ fn parse_args() -> Result<Args, String> {
                 }
                 args.touch_grid = (w, h);
             }
-            "--boot-report" => args.boot_report = Some(PathBuf::from(value()?)),
+            "--boot-report" => args.boot_report = true,
             "--frames" => args.frames = Some(value()?.parse().map_err(|_| "bad frame count")?),
             "--verbose" => args.verbose = true,
             "--timings" => args.timings = true,
@@ -655,22 +656,11 @@ fn ms_text(ms: Option<u64>) -> String {
 /// What `entropy` reads, named to the core as it is opened.
 const ENTROPY_SOURCE: &str = "/dev/random";
 
-/// Appends what the shell found to the boot report `rcS` started.
-///
-/// A laptop has no serial port, so a dev image that will not come up has
-/// nowhere to say why. `rcS` writes the kernel log to this file on the
-/// exchange partition and the shell adds what it made of the machine: the
-/// panel it chose, every input device with what it was classified as, and
-/// every capture device. The person plugs the stick into a computer and
-/// reads it. The release image passes no `--boot-report` and writes
-/// nothing.
-fn boot_report(
-    path: &Path,
-    geometry: Geometry,
-    dpi: u16,
-    devices: &[evdev::Device],
-) -> Result<(), String> {
-    let mut out = String::from("\n== faraday ==\n");
+/// What the shell found, for the boot report (`bootreport.rs`): the panel
+/// it chose, every input device with what it was classified as, and every
+/// capture device.
+fn inventory(geometry: Geometry, dpi: u16, devices: &[evdev::Device]) -> String {
+    let mut out = String::new();
     out.push_str(&format!(
         "panel {}x{} {}bpp stride {} dpi {}\n",
         geometry.width,
@@ -704,13 +694,7 @@ fn boot_report(
     for camera in cameras {
         out.push_str(&format!("camera /dev/{camera}\n"));
     }
-    let mut file = OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
-        .map_err(|e| format!("cannot open {}: {e}", path.display()))?;
-    file.write_all(out.as_bytes())
-        .map_err(|e| format!("cannot write {}: {e}", path.display()))
+    out
 }
 
 /// The shell: the app, the panel, the clock, and the two counters that
@@ -780,6 +764,8 @@ struct Shell {
     files: Files,
     /// What each call costs, when `--timings` asked for it.
     timings: Option<Timings>,
+    /// The boot report kept on the boot stick, when `--boot-report` asked.
+    boot_report: Option<bootreport::Report>,
     /// The devices being read and the ones that turn up later. `None`
     /// off the device, where `--input` names the files that stand in for
     /// them and nothing is ever plugged in.
@@ -1055,6 +1041,56 @@ impl Shell {
         {
             // The timings have nowhere to go; that is said once.
             self.say(&format!("timings off: {reason}"));
+        }
+    }
+
+    /// Writes the boot report whole if it is due, or at exit: the kernel
+    /// log, then the inventory, onto the boot stick over the copy before
+    /// it (the disk process writes a new file, reads it back and renames
+    /// it over the old one, so a stick pulled mid-write keeps the last
+    /// good report). A stick that cannot be written to is one line for
+    /// `--verbose`, said once: the report is a diagnostic and never worth
+    /// stopping for.
+    fn write_boot_report(&mut self, last: bool) {
+        let elapsed = self.epoch.elapsed();
+        let Some(report) = self.boot_report.as_ref() else {
+            return;
+        };
+        if !report.schedule.due(elapsed, last) {
+            return;
+        }
+        // Where it goes: the boot stick, or on a build box the exchange
+        // directory. No boot stick listed yet is tried again in a second.
+        let boot = match self.disk.as_ref() {
+            Some(_) => self.sticks.iter().find(|s| s.boot).map(|s| s.id.clone()),
+            None => None,
+        };
+        if self.disk.is_some() && boot.is_none() {
+            if let Some(report) = self.boot_report.as_mut() {
+                report.schedule.tried(elapsed, false);
+            }
+            return;
+        }
+        let text = bootreport::compose(
+            &bootreport::kernel_log(Path::new(bootreport::DMESG)),
+            &report.inventory,
+            elapsed,
+        );
+        let name = report.name.clone();
+        let wrote = match (self.disk.as_mut(), boot) {
+            (Some(disk), Some(id)) => disk
+                .write(&id, &name, text.as_bytes(), true, false)
+                .map(drop),
+            _ => self.files.write_named(&name, text.as_bytes()).map(drop),
+        };
+        let Some(report) = self.boot_report.as_mut() else {
+            return;
+        };
+        report.schedule.tried(elapsed, true);
+        if let Err(reason) = wrote
+            && !std::mem::replace(&mut report.said, true)
+        {
+            self.say(&format!("no boot report: {reason}"));
         }
     }
 
@@ -1602,6 +1638,9 @@ fn run(args: Args) -> Result<Exit, String> {
         camera,
         scanner: None,
         files: Files::new(args.files.clone(), !args.files_given),
+        boot_report: args
+            .boot_report
+            .then(|| bootreport::Report::new(inventory(geometry, dpi, &devices))),
         timings: args
             .timings
             .then(|| Timings::new(env!("CARGO_PKG_VERSION"), geometry.width, geometry.height)),
@@ -1636,12 +1675,6 @@ fn run(args: Args) -> Result<Exit, String> {
                 device.kinds()
             );
         }
-    }
-
-    if let Some(path) = args.boot_report.as_ref()
-        && let Err(reason) = boot_report(path, geometry, dpi, &devices)
-    {
-        shell.say(&format!("no boot report: {reason}"));
     }
 
     shell.send(Event::Display(DisplayInfo {
@@ -1683,6 +1716,7 @@ fn run(args: Args) -> Result<Exit, String> {
     shell.flush();
     // Everything the last interval measured, before the machine goes.
     shell.report(true);
+    shell.write_boot_report(true);
 
     // The capture thread first: joining it closes the device.
     shell.camera.off();
@@ -2114,6 +2148,7 @@ fn main_loop(shell: &mut Shell, rx: &Receiver<Wake>) {
             shell.say("the kernel would not lock secret pages into RAM (RLIMIT_MEMLOCK)");
         }
         shell.report(false);
+        shell.write_boot_report(false);
         shell.scan_sticks(false);
     }
 }

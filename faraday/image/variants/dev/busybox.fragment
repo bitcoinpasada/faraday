@@ -7,7 +7,10 @@ CONFIG_SU=y
 CONFIG_PASSWD=y
 CONFIG_SULOGIN=y
 
-# dmesg, which rcS writes to the exchange partition as the first half of
-# the boot report. A laptop has no serial port anybody can reach, so that
-# file is the only way a boot that went wrong says what it did.
+# dmesg, which the app runs for the boot report it keeps on the boot
+# stick: the kernel log, then the shell's inventory, written at boot and
+# every 30 seconds (faraday/shells/stick/src/bootreport.rs). A laptop has
+# no serial port anybody can reach, so that file is the only way a boot
+# that went wrong says what it did. The dev inittab opens the kernel log
+# to the app's user for it; the release image has neither.
 CONFIG_DMESG=y
