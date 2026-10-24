@@ -78,7 +78,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             open: r.open == Some(k),
             // Read from a description, they are not to be changed.
             default: (!r.described && (k == rstep::KIND || k == rstep::QUORUM))
-                || k == rstep::WHERE,
+                // Unanswered, it has no value to change.
+                || (k == rstep::WHERE && r.vaults.answer.is_some()),
             toggle: Action::RStep(k),
             guide: (r.open == Some(k)).then(|| guide::restore(k, app.medium)),
             learn: guide::restore_topic(k),

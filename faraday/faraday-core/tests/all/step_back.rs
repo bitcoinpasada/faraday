@@ -125,6 +125,48 @@ fn restore_the_answer_already_chosen_moves_on_again() {
 }
 
 #[test]
+fn restore_use_vaults_draws_no_continue_before_or_after_the_answer() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::RestoreWallet);
+    app.press(Action::RKind(0));
+    app.press(Action::RSeeds);
+    assert_eq!(restore_open(&app), Some(WHERE));
+    let _ = app.frame();
+    assert!(
+        !app.drawn_texts().iter().any(|t| t == "Continue"),
+        "an unanswered Use vaults has no Continue to grey"
+    );
+    app.press(Action::RVaults(false));
+    assert_eq!(restore_open(&app), Some(SEEDS), "No moves on by itself");
+    back(&mut app);
+    assert_eq!(restore_open(&app), Some(WHERE));
+    assert!(
+        !app.drawn_texts().iter().any(|t| t == "Continue"),
+        "an answered Use vaults has none either"
+    );
+}
+
+#[test]
+fn restore_a_closed_step_with_no_answer_shows_no_change() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::WalletsStart));
+    app.press(Action::RestoreWallet);
+    assert_eq!(restore_open(&app), Some(KIND));
+    let _ = app.frame();
+    assert!(
+        !app.drawn_texts().iter().any(|t| t == "Change"),
+        "Use vaults is not answered: no Change beside it"
+    );
+    // Answered, it is a closed row with its value and Change.
+    app.press(Action::RKind(0));
+    app.press(Action::RSeeds);
+    app.press(Action::RVaults(false));
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == "Change"));
+}
+
+#[test]
 fn restore_once_the_wallet_is_made_back_leaves_from_check() {
     let mut app = crate::common::process(Vec::new(), Vec::new(), Vec::new());
     crate::common::keep_time(&mut app);

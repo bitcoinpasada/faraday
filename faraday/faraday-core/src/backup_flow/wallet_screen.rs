@@ -239,7 +239,7 @@ fn ask_card(
     ask: crate::VaultAsk,
     locked: bool,
     (yes, no): (Action, Action),
-    next: Action,
+    next: Option<Action>,
 ) -> f32 {
     let mut cy = y;
     cy += ui.wrap(
@@ -292,7 +292,9 @@ fn ask_card(
         no,
     );
     cy += 52.0;
-    if !locked {
+    // Where an answer moves the flow on by itself there is no Continue
+    // (F103).
+    if let (false, Some(next)) = (locked, next) {
         let label = FEN.create_continue;
         let lw = ui.measure(14.0, W::S, label) + 36.0;
         // Nothing is asked of the person until they have answered.
@@ -358,7 +360,7 @@ pub(crate) fn create_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> O
         c.vaults,
         c.built.is_some(),
         (Action::CVaults(true), Action::CVaults(false)),
-        Action::CNext(crate::cstep::WHERE),
+        Some(Action::CNext(crate::cstep::WHERE)),
     ))
 }
 
@@ -384,7 +386,7 @@ pub(crate) fn restore_where(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
         r.vaults,
         r.done[crate::rstep::SEEDS as usize],
         (Action::RVaults(true), Action::RVaults(false)),
-        Action::RNext(crate::rstep::WHERE),
+        None,
     ))
 }
 
