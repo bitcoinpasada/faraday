@@ -115,13 +115,27 @@ passphrase.
 Create a vault a step card with a default opens closed and shows its
 value and **Change** in place of the chevron; the flow opens on the first
 card without one. Make a new wallet and New key open on their first step
-instead, whatever opened them.
+instead, whatever opened them. A card that asks one thing (a kind, Yes
+or No, a format, a size) closes on the choice and opens the next, and a
+press on the option already chosen does too (F103); **Continue** stays
+under a card of several values (steppers, ticks, typing) and where the
+press is the act.
+
+**Back within a flow** (F104). In Restore, Sign a transaction, the Spend
+tab, Sign a message, Create a vault, BIP-85, Silent payments and Vanity,
+Back opens the step before the open one with its choices as they were,
+and the way back is named after it; Back from the first step leaves the
+flow as F77 says. A running step (a vault being made, a search under
+way) takes no Back. Once a wallet is made from its seeds, or a key here
+has signed, or a MuSig2 round is open here, Back goes back no further
+than the step after it. Escape is Back on BIP-85 and Vanity.
 
 **Mouse and typing** (decision 47). On the desktop the mouse's back
-button does what Back does (F77: the screen seen before, as it was seen;
-Escape where there is no back link, a sheet's Cancel over a sheet), and
-its forward button opens again the screen back left, as it was left,
-until anything else is opened. In a line of typing (typed text, a masked
+button does what Back does (F77, F104: within a flow the step before,
+else the screen seen before, as it was seen; Escape where there is no
+back link, a sheet's Cancel over a sheet), and its forward button opens
+again the step or screen back left, as it was left, until anything else
+is opened. In a line of typing (typed text, a masked
 passphrase, New key's box of rolls or flips) a press puts the caret
 where it lands, a drag selects what it goes over, Shift with a press or
 Left and Right extends the selection, and a second press selects all;
@@ -712,7 +726,9 @@ the list starts the rolls over, the roller's marks with them.
 
 Size (decisions 21 and 51) is **PCs only** (512 MiB) or **PCs and a
 Raspberry Pi** (64 MiB, the default), both 3 passes, so the flow opens on
-Name and passphrases. The Name field's caption says the name is what it
+Name and passphrases; a size pressed moves on to it, as a preset cost
+and a space per passphrase do on Customise's cards (F103), Custom's
+memory and passes keeping their Continue. The Name field's caption says the name is what it
 holds, for anyone who sees the stick. The size rows, the cost card and
 the summary panel state one memory figure, the vault's unlock memory
 (the Argon2id memory); the panel's row is **Unlock memory**. What this
@@ -1318,14 +1334,16 @@ PSBT from Sparrow ready: Scan it** over the first page. The tab's own
 screen and steps below are unchanged.
 
 Family mode for someone spending for the first time
-(`docs/FAMILY.md`): the map → the stick → **What do you have?**
+(`docs/FAMILY.md`): the map → **What do you have?**, headed by what
+starting from the stick means until something comes in (F103)
 (`docs/history/SCAN-TO-SIGN.md` §4, 2026-10-11: a vault in Files with its
 Unlock and list, **Scan the QR codes you have**, **Type the words you
 have**, **Not sure what you have?**, what came in, and the next
 question: with one seed **Anything else in the envelope?** and **That's
 everything**; with several and no description **Scan the description**
 or **I can't find one**, which shows the seeds' shape and **Make the
-wallet**; a description opens the wallet) → check the money in Sparrow
+wallet**; a description opens the wallet, and a wallet opened moves on,
+its row under **Spend from** moving on again when pressed) → check the money in Sparrow
 (**Yes, my money shows**; for a wallet worked out from seeds alone,
 **Check the money is there, on the online computer** with **No money
 shows**, which tries a passphrase, Taproot, nested SegWit and legacy in

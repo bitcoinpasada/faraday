@@ -15,6 +15,32 @@ pub(crate) const MSTEPS: [&str; 4] = [
     EN.app_signature,
 ];
 
+/// Sign a message's steps, plugged into Back, Forward and the choices
+/// that move on (F103, F104). The flow's state is `state.rs`'s.
+pub(crate) struct MessageSteps;
+
+/// The one [`MessageSteps`].
+pub(crate) static MESSAGE_STEPS: MessageSteps = MessageSteps;
+
+impl crate::trail::StepFlow for MessageSteps {
+    fn steps(&self, app: &crate::Faraday) -> Option<crate::trail::Steps> {
+        let m = app.message.state()?;
+        Some(crate::trail::Steps::new((0..4u8).collect(), m.open))
+    }
+
+    fn open(&self, _: &crate::Faraday, k: u8) -> Action {
+        Action::MStep(k)
+    }
+
+    fn name(&self, _: &crate::Faraday, k: u8) -> &'static str {
+        MSTEPS[usize::from(k)]
+    }
+
+    fn moves_on(&self, _: &crate::Faraday, chosen: Action) -> Option<Action> {
+        matches!(chosen, Action::MFormat(_)).then_some(Action::MNext(crate::mstep::FORMAT))
+    }
+}
+
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::mstep;
     let col_x = x0 + 40.0;
@@ -255,10 +281,8 @@ fn message_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     Action::MFormat(is322),
                 ) + 8.0;
             }
+            // A format pressed moves on (F103).
             cy += 52.0;
-            if next_button(ui, x, cy, w, EN.message_continue, Action::MNext(n)) {
-                cy += 48.0;
-            }
         }
         _ => {
             match m.signed.as_ref() {

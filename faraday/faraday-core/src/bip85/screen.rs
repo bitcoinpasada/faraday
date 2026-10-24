@@ -12,7 +12,7 @@ use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, flow};
 
-const TITLES: [&str; pstep::COUNT] = [
+pub(crate) const TITLES: [&str; pstep::COUNT] = [
     EN.bip85_key,
     EN.bip85_application,
     EN.bip85_index,
@@ -190,7 +190,10 @@ fn card(app: &View, b: &Bip85State, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32) 
                     cy += 52.0;
                 }
             }
-            if next_button(ui, x, cy, w, EN.bip85_continue, Action::PNext) {
+            // An application with no length moves on when pressed (F103).
+            if length_label(b).is_some()
+                && next_button(ui, x, cy, w, EN.bip85_continue, Action::PNext)
+            {
                 cy += 48.0;
             }
         }

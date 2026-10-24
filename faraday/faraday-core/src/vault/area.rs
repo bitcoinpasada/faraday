@@ -867,6 +867,43 @@ impl CreateForm {
     }
 }
 
+/// Create a vault's steps, plugged into Back, Forward and the choices
+/// that move on (F103, F104).
+pub(crate) struct CreateVaultSteps;
+
+/// The one [`CreateVaultSteps`].
+pub(crate) static CREATE_VAULT_STEPS: CreateVaultSteps = CreateVaultSteps;
+
+impl crate::trail::StepFlow for CreateVaultSteps {
+    fn steps(&self, app: &crate::Faraday) -> Option<crate::trail::Steps> {
+        let c = app.vaults.create.as_ref()?;
+        let mut s = crate::trail::Steps::new(c.steps().to_vec(), c.open);
+        // The vault being made takes no Back.
+        s.running = app.vaults.working == Some(Work::Create);
+        Some(s)
+    }
+
+    fn open(&self, _: &crate::Faraday, k: u8) -> Action {
+        Action::Vault(VaultAction::CStep(k))
+    }
+
+    fn name(&self, _: &crate::Faraday, k: u8) -> &'static str {
+        super::screen::VSTEPS[usize::from(k)]
+    }
+
+    fn moves_on(&self, app: &crate::Faraday, chosen: Action) -> Option<Action> {
+        app.vaults.create.as_ref()?;
+        let step = match chosen {
+            Action::Vault(VaultAction::CSizeRow(_)) => vstep::PRESET,
+            // Custom opens its two rows, under Continue.
+            Action::Vault(VaultAction::CPreset(k)) if k < CUSTOM => vstep::COST,
+            Action::Vault(VaultAction::CSize(_)) => vstep::SIZE,
+            _ => return None,
+        };
+        Some(Action::Vault(VaultAction::CNext(step)))
+    }
+}
+
 /// The form adding or editing an item.
 pub struct Form {
     /// The record type.

@@ -52,7 +52,6 @@ pub(crate) fn seeds_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Family));
     t.press(Action::Family(F::StartOver));
     t.press(Action::Family(F::Next(page::MAP)));
-    t.press(Action::Family(F::Next(page::SAFE)));
     t.shot("spend-intake")?;
     t.press(Action::Family(F::TypeWords));
     t.type_key(0);

@@ -101,6 +101,7 @@ mod slow_press;
 mod small_panel;
 mod spend_from_vault;
 mod spend_loaded;
+mod step_back;
 mod stick_copy;
 mod stick_pills;
 mod tools;

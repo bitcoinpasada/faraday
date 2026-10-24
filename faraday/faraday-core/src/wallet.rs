@@ -1839,6 +1839,46 @@ impl WalletsArea {
     }
 }
 
+/// Sign a transaction's steps, plugged into Back and Forward (F104).
+pub(crate) struct SpendSteps;
+
+/// The one [`SpendSteps`].
+pub(crate) static SPEND_STEPS: SpendSteps = SpendSteps;
+
+impl SpendSteps {
+    /// The first step Back may open in `s`: the one after Sign once a key
+    /// here has signed, or after Nonces once a round is open here (its
+    /// nonces are never made again). Only lookups.
+    pub(crate) fn first(s: &SpendState) -> Option<u8> {
+        let made = if !s.spend.signed_here.is_empty() {
+            step::SIGN
+        } else if s.musig.is_some() {
+            step::NONCES
+        } else {
+            return None;
+        };
+        let at = s.steps.iter().position(|&k| k == made)?;
+        s.steps.get(at + 1).copied()
+    }
+}
+
+impl crate::trail::StepFlow for SpendSteps {
+    fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
+        let s = app.wallets.spend()?;
+        let mut steps = crate::trail::Steps::new(s.steps.clone(), s.open);
+        steps.first = SpendSteps::first(s);
+        Some(steps)
+    }
+
+    fn open(&self, _: &Faraday, k: u8) -> Action {
+        Action::Step(k)
+    }
+
+    fn name(&self, _: &Faraday, k: u8) -> &'static str {
+        crate::screens::SPEND_TITLES[usize::from(k)]
+    }
+}
+
 impl Faraday {
     /// The wallet chosen on the Wallets tab.
     pub fn wallet_index(&self) -> usize {

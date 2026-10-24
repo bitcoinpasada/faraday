@@ -91,7 +91,7 @@ Read this table, then only the decision you need.
 | [F74](decisions/F74.md) | The structure is held by `just` | 2026-10-21 | Active | repository |
 | [F75](decisions/F75.md) | A seed can be pasted on the desktop | 2026-10-22 | Active | keys |
 | [F76](decisions/F76.md) | The key explorer lists an account's addresses and finds one | 2026-10-22 | Active | wallets |
-| [F77](decisions/F77.md) | Back lands on the screen seen before, as it was seen | 2026-10-22 | Active | design |
+| [F77](decisions/F77.md) | Back lands on the screen seen before, as it was seen | 2026-10-22 | Amended by F104 | design |
 | [F78](history/decisions/F78.md) | A window's layout does not follow the compositor's scale above 1.5 | 2026-10-22 | Replaced by F101 | design |
 | [F79](decisions/F79.md) | Faraday's crypto is cross-checked against Python references, offline, at build time | 2026-10-22 | Active | crypto |
 | [F80](decisions/F80.md) | A stick or Pi card has a 64 MiB boot and a 128 MiB FAT32 data partition | 2026-10-22 | Active | stick |
@@ -117,3 +117,5 @@ Read this table, then only the decision you need.
 | [F100](decisions/F100.md) | The 7-inch and 10-inch panels run in landscape, with portrait a setting | 2026-10-23 | Active | design |
 | [F101](decisions/F101.md) | A window is laid out at its screen's own density; F78 is superseded | 2026-10-23 | Active | design |
 | [F102](decisions/F102.md) | A late seed is said only at a press that needs it; the Pi's generator is mixed, not credited | 2026-10-23 | Active | security |
+| [F103](decisions/F103.md) | A choice that decides a step moves on by itself | 2026-10-23 | Active | design |
+| [F104](decisions/F104.md) | Back and Forward move within a flow's steps | 2026-10-23 | Active | design |

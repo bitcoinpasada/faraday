@@ -1695,12 +1695,6 @@ strings! {
     family_spend_from_label: "Spend from",
     /// Text in `opened`. `{}`: `Session::shape(wl)`, `here`, `slots.len()`.
     family_of_keys_here: "{} · {} of {} keys here",
-    /// Text in `opened`.
-    family_its_key_is_here: "Its key is here: it can sign",
-    /// Text in `opened`.
-    family_key_not_here: "Its key is not here yet",
-    /// Text in `opened`. `{}`: `needed`, `n`, `here`.
-    family_of_keys_sign: "{} of {} keys sign · {} here",
     /// Line in `shortcut`.
     family_have_psbt_line: "I have the PSBT from Sparrow ready",
     /// Text in `shortcut`.
@@ -9269,4 +9263,7 @@ strings! {
     codex32_form_checked_share: "Share {} · id {} · {} needed",
     /// Check a string: the secret. `{}`: the identifier.
     codex32_form_checked_secret: "The secret · id {}",
+    // Fewer presses (F103).
+    /// Button: closes the board's Add list, a sheet on a small panel.
+    board_list_close: "Close",
 }

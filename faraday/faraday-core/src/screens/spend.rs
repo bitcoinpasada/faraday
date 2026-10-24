@@ -111,7 +111,7 @@ fn nonce_check(app: &View, ui: &mut Ui, psbt: &faraday_psbt::Psbt, x: f32, y: f3
     cy + 12.0 - y
 }
 
-const STEPS: [&str; 10] = [
+pub(crate) const STEPS: [&str; 10] = [
     EN.app_wallet,
     EN.app_check,
     EN.app_transaction,

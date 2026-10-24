@@ -100,13 +100,12 @@ fn drawn(app: &mut Faraday) -> String {
     app.drawn_texts().join("\n")
 }
 
-/// The tab on the testing network, past the map and the stick: What do
-/// you have? open.
+/// The tab on the testing network, past the map: What do you have? open,
+/// which Starting from the stick heads (F103).
 fn on_intake(app: &mut Faraday) {
     testkit::move_to(&mut app.session, testkit::NET).unwrap();
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Next(page::MAP)));
-    app.press(Action::Family(F::Next(page::SAFE)));
     assert_eq!(app.family().open, Some(Open::Page(page::HOLDING)));
 }
 
@@ -199,7 +198,6 @@ fn unlock_on_tab(app: &mut Faraday) {
     let c = testkit::compute();
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Next(page::MAP)));
-    app.press(Action::Family(F::Next(page::SAFE)));
     let text = drawn(app);
     assert!(text.contains("Unlock vault.ofv"), "{text}");
     app.press(Action::Family(F::Pick(0)));
@@ -221,7 +219,6 @@ fn an_unlock_the_spend_asks_for_shows_no_load_sheet() {
     let mut app = with_files(vec![vault_file(), savings_psbt()], Vec::new());
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Next(page::MAP)));
-    app.press(Action::Family(F::Next(page::SAFE)));
     app.press(Action::Family(F::Pick(0)));
     type_text(&mut app, testkit::VAULT_PASSPHRASES[0]);
     app.press(Action::Family(F::Unlock));

@@ -637,14 +637,8 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     cy += match id {
         CardId::Page(page::MAP) => map(app, ui, x, cy, w),
-        CardId::Page(page::SAFE) => {
-            if next_button(ui, x, cy, w, EN.family_continue, fa(F::Next(page::SAFE))) {
-                52.0
-            } else {
-                0.0
-            }
-        }
-        CardId::Page(page::HOLDING | page::OPEN) => holding(app, ui, x, cy, w),
+        // Starting from the stick heads What do you have? (F103).
+        CardId::Page(page::SAFE | page::HOLDING | page::OPEN) => holding(app, ui, x, cy, w),
         CardId::Page(page::CHECK) if app.family.state.from_card => {
             loaded_in_sparrow(app, ui, x, cy, w)
         }
@@ -1276,103 +1270,47 @@ fn stick_row(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f3
     50.0
 }
 
-/// What opened: the wallet to spend from, its keys here, and its first
-/// address; a choice when several are loaded and none is chosen.
+/// What opened: the wallets to spend from, each with its keys here. A
+/// wallet opening moves on to Check the money, which shows its address;
+/// pressing the one chosen moves on too (F103).
 fn opened(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let chosen = app.family_wallet();
     if app.session.wallets.is_empty() {
         return 0.0;
     }
-    if app.session.wallets.len() > 1 || chosen.is_none() {
-        ui.text(x, cy, 13.0, W::S, MUTED, EN.family_spend_from_label);
-        cy += 26.0;
-        for (i, wl) in app.session.wallets.iter().enumerate() {
-            let on = chosen == Some(i);
-            ui.checkbox(x, cy + 11.0, on, true);
-            let name = ui.fit(14.0, W::S, &wl.name, w - 30.0);
-            ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, &name);
-            // How many of its keys are here: a vault may hold only some.
-            let slots = app.session.slots(wl);
-            let here = slots.iter().filter(|s| s.held_by.is_some()).count();
-            let line = fill(
-                EN.family_of_keys_here,
-                &[
-                    &Session::shape(wl).to_string(),
-                    &here.to_string(),
-                    &slots.len().to_string(),
-                ],
-            );
-            let tone = if here > 0 { MUTED } else { DIM };
-            // Under the name on a small panel.
-            let rh = if ui.compact {
-                let line = ui.fit(12.0, W::R, &line, w - 30.0);
-                ui.text_mid(x + 30.0, cy + 30.0, 20.0, 12.0, W::R, tone, &line);
-                56.0
-            } else {
-                ui.text_right(x + w, cy, 40.0, 12.0, W::R, tone, &line);
-                40.0
-            };
-            ui.hit(x, cy, w, rh, fa(F::Choose(i)));
-            cy += rh + 2.0;
-        }
-        cy += 8.0;
-    }
-    let Some(i) = chosen else {
-        return cy - y;
-    };
-    let wl = &app.session.wallets[i];
-    ui.fill(x, cy, w, 1.0, 0.0, INNER);
-    cy += 14.0;
-    if ui.compact {
-        let name = ui.fit(15.0, W::S, &wl.name, w);
-        ui.text(x, cy, 15.0, W::S, TEXT, &name);
-        cy += 24.0;
-        let shape = ui.fit(12.0, W::R, &Session::shape(wl), w);
-        ui.text(x, cy, 12.0, W::R, MUTED, &shape);
-    } else {
-        ui.text(x, cy, 15.0, W::S, TEXT, &wl.name);
-        ui.text_right(
-            x + w,
-            cy - 4.0,
-            24.0,
-            12.0,
-            W::R,
-            MUTED,
-            &Session::shape(wl),
-        );
-    }
-    cy += 28.0;
-    let slots = app.session.slots(wl);
-    let here = slots.iter().filter(|s| s.held_by.is_some()).count();
-    let (needed, n) = Session::quorum(wl);
-    let line = if slots.len() <= 1 {
-        if here == 1 {
-            EN.family_its_key_is_here.to_string()
-        } else {
-            EN.family_key_not_here.to_string()
-        }
-    } else {
-        fill(
-            EN.family_of_keys_sign,
-            &[&needed.to_string(), &n.to_string(), &here.to_string()],
-        )
-    };
-    ui.text(
-        x,
-        cy,
-        13.0,
-        W::R,
-        if here >= needed.min(1) { OK } else { MUTED },
-        &line,
-    );
+    ui.text(x, cy, 13.0, W::S, MUTED, EN.family_spend_from_label);
     cy += 26.0;
-    ui.text(x, cy, 12.0, W::R, MUTED, EN.family_receive_address);
-    cy += 20.0;
-    let (addr, held) = app.receive_line(wl, false, 0);
-    cy += ui.wrap(x, cy, w, 14.0, W::M, if held { WARN } else { TEXT }, &addr) + 16.0;
-    let drawn = next_button(ui, x, cy, w, EN.family_continue, fa(F::Next(page::HOLDING)));
-    cy + (if drawn { 52.0 } else { 8.0 }) - y
+    for (i, wl) in app.session.wallets.iter().enumerate() {
+        let on = chosen == Some(i);
+        ui.checkbox(x, cy + 11.0, on, true);
+        let name = ui.fit(14.0, W::S, &wl.name, w - 30.0);
+        ui.text_mid(x + 30.0, cy, 40.0, 14.0, W::S, TEXT, &name);
+        // How many of its keys are here: a vault may hold only some.
+        let slots = app.session.slots(wl);
+        let here = slots.iter().filter(|s| s.held_by.is_some()).count();
+        let line = fill(
+            EN.family_of_keys_here,
+            &[
+                &Session::shape(wl).to_string(),
+                &here.to_string(),
+                &slots.len().to_string(),
+            ],
+        );
+        let tone = if here > 0 { MUTED } else { DIM };
+        // Under the name on a small panel.
+        let rh = if ui.compact {
+            let line = ui.fit(12.0, W::R, &line, w - 30.0);
+            ui.text_mid(x + 30.0, cy + 30.0, 20.0, 12.0, W::R, tone, &line);
+            56.0
+        } else {
+            ui.text_right(x + w, cy, 40.0, 12.0, W::R, tone, &line);
+            40.0
+        };
+        ui.hit(x, cy, w, rh, fa(F::Choose(i)));
+        cy += rh + 2.0;
+    }
+    cy + 8.0 - y
 }
 
 /// The shortcut over a card's first page: the PSBT made in Sparrow

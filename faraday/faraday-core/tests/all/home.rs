@@ -489,8 +489,16 @@ fn homes_four_ways_in_open_their_flows_and_lead_back_home() {
         assert!(app.offers(action), "{action:?} is on Home");
         tap(&mut app, action);
         assert_eq!(app.screen, screen);
-        app.event(Event::Back);
-        let _ = app.frame();
+        // Back steps back to the flow's first step, then leaves it
+        // (F104): Create a vault opens on its second, its size closed on
+        // the default.
+        for _ in 0..4 {
+            if app.screen != screen {
+                break;
+            }
+            app.event(Event::Back);
+            let _ = app.frame();
+        }
         assert_eq!(app.screen, Screen::Home, "back from {screen:?}");
     }
 }

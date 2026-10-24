@@ -283,12 +283,15 @@ impl FamilyArea {
 
     /// The tab's pages before the spend's steps. From a wallet's card
     /// the wallet is open already: Load the wallet in Sparrow, then Write
-    /// the payment, which brings the PSBT too.
+    /// the payment, which brings the PSBT too. Starting from the stick
+    /// heads What do you have? and is no page of its own (F103).
     pub(crate) fn pages(&self) -> Vec<u8> {
         if self.state.from_card {
             vec![page::CHECK, page::WRITE]
         } else {
-            (0..=page::BRING).filter(|&p| p != page::OPEN).collect()
+            (0..=page::BRING)
+                .filter(|&p| p != page::OPEN && p != page::SAFE)
+                .collect()
         }
     }
 
@@ -572,7 +575,7 @@ impl Faraday {
             self.family.state.guess = None;
         }
         let open = match self.family.state.open {
-            Some(Open::Page(page::OPEN)) => Some(Open::Page(page::HOLDING)),
+            Some(Open::Page(page::OPEN | page::SAFE)) => Some(Open::Page(page::HOLDING)),
             Some(Open::Page(p)) if p > page::HOLDING && p != page::AWAY && !ready => {
                 Some(Open::Page(page::HOLDING))
             }
@@ -1846,6 +1849,63 @@ pub fn kind_label(kind: NewKind) -> &'static str {
         NewKind::MultiNested => EN.family_nested_segwit,
         NewKind::MultiLegacy => EN.family_legacy_multisig,
         k => kind_name(k),
+    }
+}
+
+/// The Spend tab's cards, plugged into Back and Forward (F104). A card
+/// goes by one number: a page by its own, a step of the spend from
+/// [`STEP_AT`], a step named before the spend from [`LATER_AT`].
+pub(crate) struct FamilySteps;
+
+/// The one [`FamilySteps`].
+pub(crate) static FAMILY_STEPS: FamilySteps = FamilySteps;
+
+/// Where the spend's steps start among the cards' numbers.
+const STEP_AT: u8 = 16;
+
+/// Where the steps named before the spend start.
+const LATER_AT: u8 = 32;
+
+/// A card's number.
+fn card_code(id: CardId) -> u8 {
+    match id {
+        CardId::Page(p) => p,
+        CardId::Step(n) => STEP_AT + n,
+        CardId::Later(n) => LATER_AT + n,
+    }
+}
+
+/// The card a number stands for.
+fn card_of(k: u8) -> CardId {
+    match k {
+        k if k >= LATER_AT => CardId::Later(k - LATER_AT),
+        k if k >= STEP_AT => CardId::Step(k - STEP_AT),
+        p => CardId::Page(p),
+    }
+}
+
+impl crate::trail::StepFlow for FamilySteps {
+    fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
+        // What is loaded, shown in place of the walk-through, has no steps.
+        if app.family_overview() {
+            return None;
+        }
+        let order = app.family_cards().into_iter().map(card_code).collect();
+        let mut s = crate::trail::Steps::new(order, app.family_open_card().map(card_code));
+        s.first = app
+            .wallets
+            .spend()
+            .and_then(crate::wallet::SpendSteps::first)
+            .map(|k| card_code(CardId::Step(k)));
+        Some(s)
+    }
+
+    fn open(&self, app: &Faraday, k: u8) -> Action {
+        toggle(app, card_of(k))
+    }
+
+    fn name(&self, app: &Faraday, k: u8) -> &'static str {
+        text::name(app, card_of(k))
     }
 }
 

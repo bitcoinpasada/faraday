@@ -1369,8 +1369,10 @@ pub(crate) fn default_tour(c: &Compute, t: &mut Tour, medium: Medium) -> Result<
     t.press(Action::Vault(V::CCustomise));
     t.shot("create-vault-customise")?;
     t.press(Action::Vault(V::CNext(faraday_core::vault::vstep::WHERE)));
-    t.press(Action::Vault(V::CPreset(0)));
     t.shot("create-vault-cost")?;
+    // A cost pressed moves on to the space per passphrase (F103).
+    t.press(Action::Vault(V::CPreset(0)));
+    t.shot("create-vault-space")?;
     // A fresh Create, on the default size, makes the tour's vault.
     t.press(Action::Vault(V::Create));
     // The first passphrase from dice: six words, thirty rolls, run

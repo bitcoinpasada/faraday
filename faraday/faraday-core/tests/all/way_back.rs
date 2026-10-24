@@ -250,6 +250,9 @@ fn a_flow_reached_again_from_the_sidebar_goes_back_to_where_it_was_resumed() {
     app.press(Action::Nav(Screen::Files));
     app.press(Action::Resume(Going::Message));
     assert_eq!(app.screen, Screen::Message);
+    // Resumed on its Message card: Back opens Address first (F104).
+    tap_back(&mut app);
+    assert_eq!(app.screen, Screen::Message);
     tap_back(&mut app);
     assert_eq!(app.screen, Screen::Files);
 }

@@ -11,7 +11,7 @@ use crate::ui::{Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Code, flow};
 
-const TITLES: [&str; sstep::COUNT] = [
+pub(crate) const TITLES: [&str; sstep::COUNT] = [
     EN.silent_key,
     EN.silent_address,
     EN.silent_scan_key,

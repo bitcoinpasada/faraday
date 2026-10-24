@@ -319,6 +319,55 @@ impl RestoreArea {
     }
 }
 
+/// Restore's steps, plugged into Back, Forward and the choices that move
+/// on (F103, F104).
+pub(crate) struct RestoreSteps;
+
+/// The one [`RestoreSteps`].
+pub(crate) static RESTORE_STEPS: RestoreSteps = RestoreSteps;
+
+impl crate::trail::StepFlow for RestoreSteps {
+    fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
+        let r = app.restore()?;
+        let mut s = crate::trail::Steps::new(r.steps(), r.open);
+        // The wallet made from its seeds stays made: Back goes no further
+        // than Check. With a vault of the setup open, the question of
+        // vaults is settled: no further than the seeds.
+        s.first = if r.done[rstep::SEEDS as usize] && r.wallet.is_some() {
+            Some(rstep::CHECK)
+        } else if app.setup_vault_open(r.owner) {
+            Some(rstep::SEEDS)
+        } else {
+            None
+        };
+        Some(s)
+    }
+
+    fn open(&self, _: &Faraday, k: u8) -> Action {
+        Action::RStep(k)
+    }
+
+    fn name(&self, _: &Faraday, k: u8) -> &'static str {
+        crate::screens::RSTEPS[usize::from(k)]
+    }
+
+    fn moves_on(&self, app: &Faraday, chosen: Action) -> Option<Action> {
+        let r = app.restore()?;
+        match chosen {
+            // A kind read from a description is not chosen here.
+            Action::RKind(_) if !r.described => Some(Action::RNext(rstep::KIND)),
+            Action::RVaults(_)
+                if r.vaults.answer.is_some()
+                    && !r.done[rstep::SEEDS as usize]
+                    && !app.setup_vault_open(r.owner) =>
+            {
+                Some(Action::RNext(rstep::WHERE))
+            }
+            _ => None,
+        }
+    }
+}
+
 impl Faraday {
     /// The Restore flow's state, while it is open.
     pub fn restore(&self) -> Option<&RestoreState> {

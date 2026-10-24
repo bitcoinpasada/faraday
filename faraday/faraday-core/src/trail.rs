@@ -14,6 +14,15 @@
 //! first, for what it lets go, then the trail decides where it lands.
 //! What the way back is called is the name of where it lands, worked out
 //! from the trail with lookups only.
+//!
+//! Within a flow with steps, Back and Forward move between its steps
+//! (F104): Back opens the step before the open one, with its choices as
+//! they were, and Forward opens again the step Back left. Each flow plugs
+//! in through [`StepFlow`]: its steps in order, the one open, the first
+//! Back may open once something is made, whether the open step is
+//! running, the press that opens a step and the step's name. The first
+//! step's Back leaves the flow, as above. A choice that decides a step
+//! moves the flow on through the same plug (F103).
 
 use crate::strings::EN;
 use crate::{Action, Faraday, Screen, Sheet, vault::VaultAction};
@@ -23,6 +32,9 @@ const MAX: usize = 32;
 
 /// The most screens kept for the forward button.
 const FORWARD_MAX: usize = 8;
+
+/// The most steps kept for the forward button within a flow.
+const STEPS_MAX: usize = 16;
 
 /// The trail and the mouse's forward button: the screens left for
 /// another, the way back the last frame drew, and the screens the back
@@ -50,6 +62,12 @@ pub(crate) struct Trail {
     back_link: Option<(Screen, Action)>,
     /// Where in `hits` the last frame drew the back link's press.
     back_hit: Option<usize>,
+    /// Steps Back left within the flow on show, the last left last:
+    /// where Forward goes (F104).
+    step_forward: Vec<u8>,
+    /// The flow's screen and the step Back or Forward last opened in it:
+    /// Forward goes on only while that step is still the one open.
+    step_landed: Option<(Screen, u8)>,
 }
 
 impl Trail {
@@ -187,6 +205,112 @@ impl Trail {
     fn landed_on(&mut self, screen: Screen) {
         self.landed = Some(screen);
     }
+
+    /// Back left step `from` of the flow on `screen` for step `to`:
+    /// Forward can open `from` again. Steps kept from another flow, or
+    /// from before the person moved on by themselves, go.
+    fn step_left(&mut self, screen: Screen, from: u8, to: u8) {
+        if self.step_landed != Some((screen, from)) {
+            self.step_forward.clear();
+        }
+        if self.step_forward.len() == STEPS_MAX {
+            self.step_forward.remove(0);
+        }
+        self.step_forward.push(from);
+        self.step_landed = Some((screen, to));
+    }
+
+    /// The step Forward opens in the flow on `screen`, whose open step
+    /// is `open`: the one Back last left, while the step Back opened is
+    /// still the one open.
+    fn take_step_forward(&mut self, screen: Screen, open: Option<u8>) -> Option<u8> {
+        let here = open.map(|k| (screen, k));
+        if here.is_none() || self.step_landed != here {
+            self.clear_steps();
+            return None;
+        }
+        self.step_forward.pop()
+    }
+
+    /// Forward opened step `k` of the flow on `screen`.
+    fn step_landed_on(&mut self, screen: Screen, k: u8) {
+        self.step_landed = Some((screen, k));
+    }
+
+    /// Drops the steps Forward would open.
+    fn clear_steps(&mut self) {
+        self.step_forward.clear();
+        self.step_landed = None;
+    }
+}
+
+/// A flow's steps as Back and Forward walk them (F104), as the flow
+/// stands now.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub(crate) struct Steps {
+    /// The steps shown, in order, by the flow's own numbers.
+    pub(crate) order: Vec<u8>,
+    /// The step open, if any.
+    pub(crate) open: Option<u8>,
+    /// The first step Back may open: the one after a step that made
+    /// something the flow cannot take back (a wallet made from its
+    /// seeds, a transaction signed). Back from it leaves the flow, as
+    /// from the first step.
+    pub(crate) first: Option<u8>,
+    /// The open step is running (a vault being made, a search): it takes
+    /// no Back.
+    pub(crate) running: bool,
+}
+
+impl Steps {
+    /// The flow's steps in `order`, `open` open, nothing made and
+    /// nothing running.
+    pub(crate) fn new(order: Vec<u8>, open: Option<u8>) -> Steps {
+        Steps {
+            order,
+            open,
+            first: None,
+            running: false,
+        }
+    }
+
+    /// The step Back opens from the one open: the step before it, while
+    /// the open step is past the first step and past the first Back may
+    /// open. `None` on the first step, with no step open, or with the
+    /// open step not shown: Back then leaves the flow.
+    pub(crate) fn before(&self) -> Option<u8> {
+        let at = self.order.iter().position(|&k| Some(k) == self.open)?;
+        let floor = self
+            .first
+            .and_then(|f| self.order.iter().position(|&k| k == f))
+            .unwrap_or(0);
+        (at > floor).then(|| self.order[at - 1])
+    }
+}
+
+/// A flow with steps, plugged into Back, Forward and the choices that
+/// move on (F103, F104). One unit type per flow implements it, beside the
+/// flow's own state; [`Faraday::step_flow`] names the one on show.
+pub(crate) trait StepFlow: Sync {
+    /// The flow's steps as it stands, while it is open. Only lookups.
+    fn steps(&self, app: &Faraday) -> Option<Steps>;
+    /// The press that opens step `k`, every choice in it as it was.
+    fn open(&self, app: &Faraday, k: u8) -> Action;
+    /// What step `k` is called: the arrow names where Back lands.
+    fn name(&self, app: &Faraday, k: u8) -> &'static str;
+    /// After `chosen` was pressed: the press that closes its step and
+    /// opens the next, when `chosen` is a single choice that decides its
+    /// step and the flow took it (F103). Worked out from the state as the
+    /// press left it.
+    fn moves_on(&self, _app: &Faraday, _chosen: Action) -> Option<Action> {
+        None
+    }
+}
+
+/// Whether `a` is only ever a way out of its screen, wherever it is
+/// pressed: the backup flow's Leave, which lands where Back does.
+fn leaves(a: Action) -> bool {
+    matches!(a, Action::Flow(crate::backup_flow::steps::FlowAction::Back))
 }
 
 /// A screen as it was seen: what a way back to it puts back.
@@ -305,7 +429,11 @@ impl Faraday {
             .hit()
             .and_then(|i| self.pointer.hits().get(i))
             .is_some_and(|(r, _)| Some(*r) == at);
-        if on_link { self.as_back(a) } else { a }
+        if on_link || leaves(a) {
+            self.as_back(a)
+        } else {
+            a
+        }
     }
 
     /// A person's press of `a`: [`Action::Back`] when `a` is the way out
@@ -327,6 +455,9 @@ impl Faraday {
     /// was seen. A way back that opened a sheet or stayed on its screen
     /// is all there is to it.
     pub(crate) fn back(&mut self) {
+        if self.step_back() {
+            return;
+        }
         let own = self
             .trail
             .link_on(self.screen)
@@ -446,6 +577,9 @@ impl Faraday {
         if stays(own) {
             return back;
         }
+        if let Some(step) = self.step_back_name() {
+            return (step, own);
+        }
         (self.trail_name().unwrap_or(label), own)
     }
 
@@ -471,6 +605,9 @@ impl Faraday {
     /// while nothing else has been opened since and it can still be
     /// shown as it was left.
     pub(crate) fn mouse_forward(&mut self) {
+        if self.step_forward() {
+            return;
+        }
         let Some(s) = self.trail.take_forward(self.screen, self.sheet.is_some()) else {
             return;
         };
@@ -480,5 +617,99 @@ impl Faraday {
         }
         self.act(Action::Nav(s));
         self.trail.landed_on(self.screen);
+    }
+
+    /// The flow with steps on show, as Back, Forward and the choices that
+    /// move on see it (F103, F104). Only lookups.
+    fn step_flow(&self) -> Option<&'static dyn StepFlow> {
+        Some(match self.screen {
+            Screen::Restore => &crate::restore::RESTORE_STEPS,
+            Screen::Spend => &crate::wallet::SPEND_STEPS,
+            Screen::Family => &crate::family::FAMILY_STEPS,
+            Screen::Message => &crate::screens::MESSAGE_STEPS,
+            Screen::CreateVault => &crate::vault::CREATE_VAULT_STEPS,
+            Screen::Bip85 => &crate::bip85::BIP85_STEPS,
+            Screen::Silent => &crate::silent::SILENT_STEPS,
+            Screen::Vanity => &crate::vanity::VANITY_STEPS,
+            _ => return None,
+        })
+    }
+
+    /// The flow on show and its steps, with no sheet over it. Only
+    /// lookups.
+    fn steps_on_show(&self) -> Option<(&'static dyn StepFlow, Steps)> {
+        if self.sheet.is_some() {
+            return None;
+        }
+        let flow = self.step_flow()?;
+        Some((flow, flow.steps(self)?))
+    }
+
+    /// The name of the step Back opens from here, while it opens one.
+    /// Only lookups.
+    fn step_back_name(&self) -> Option<&'static str> {
+        let (flow, steps) = self.steps_on_show()?;
+        Some(flow.name(self, steps.before()?))
+    }
+
+    /// **Back** within the flow on show (F104): the step before the open
+    /// one opens, its choices as they were, and Forward can open the one
+    /// left again. A running step takes no Back. Returns whether Back was
+    /// taken here; on the first step it is not, and Back leaves the flow.
+    fn step_back(&mut self) -> bool {
+        let Some((flow, steps)) = self.steps_on_show() else {
+            return false;
+        };
+        if steps.running {
+            return true;
+        }
+        let (Some(from), Some(to)) = (steps.open, steps.before()) else {
+            return false;
+        };
+        self.act_inner(flow.open(self, to));
+        if flow.steps(self).and_then(|s| s.open) == Some(to) {
+            self.trail.step_left(self.screen, from, to);
+        } else {
+            self.trail.clear_steps();
+        }
+        true
+    }
+
+    /// **Forward** within the flow on show (F104): the step Back last
+    /// left opens again, as it was, while the step Back opened is still
+    /// the one open. Returns whether one opened.
+    fn step_forward(&mut self) -> bool {
+        let Some((flow, steps)) = self.steps_on_show() else {
+            self.trail.clear_steps();
+            return false;
+        };
+        if steps.running {
+            return false;
+        }
+        let Some(to) = self.trail.take_step_forward(self.screen, steps.open) else {
+            return false;
+        };
+        self.act(flow.open(self, to));
+        if flow.steps(self).and_then(|s| s.open) == Some(to) {
+            self.trail.step_landed_on(self.screen, to);
+        } else {
+            self.trail.clear_steps();
+        }
+        true
+    }
+
+    /// A press, then, where it was a single choice that decides its step,
+    /// the press that moves the flow on (F103). A press that left the
+    /// flow's screen or opened a sheet moves nothing on.
+    pub(crate) fn act_moving_on(&mut self, action: Action) {
+        let screen = self.screen;
+        self.act_inner(action);
+        if self.screen != screen || self.sheet.is_some() {
+            return;
+        }
+        let Some(next) = self.step_flow().and_then(|f| f.moves_on(self, action)) else {
+            return;
+        };
+        self.act_inner(next);
     }
 }

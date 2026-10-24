@@ -198,14 +198,12 @@ fn restore_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 Action::RMoreKinds,
             );
             cy += 6.0;
-            cy += buttons_and_next(
-                ui,
-                x,
-                cy,
-                w,
-                &[],
-                Some((EN.restore_continue, Action::RNext(n))),
-            );
+            // A kind pressed moves on (F103); one read from a description
+            // is not chosen here, and Continue goes on from it.
+            let next = r
+                .described
+                .then_some((EN.restore_continue, Action::RNext(n)));
+            cy += buttons_and_next(ui, x, cy, w, &[], next);
         }
         rstep::QUORUM => {
             if let Some(s) = r.seeds.as_ref() {

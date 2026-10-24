@@ -1378,7 +1378,10 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 ),
             );
             cy += 30.0;
-            if crate::screens::next_button(ui, x, cy, w, EN.vault_continue, va(V::CNext(n))) {
+            // A preset pressed moves on (F103); Custom's two rows keep it.
+            if current == CUSTOM
+                && crate::screens::next_button(ui, x, cy, w, EN.vault_continue, va(V::CNext(n)))
+            {
                 cy += 50.0;
             }
         }
@@ -1478,9 +1481,6 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 va(V::CCustomise),
             );
             cy += 50.0;
-            if crate::screens::next_button(ui, x, cy, w, EN.vault_continue, va(V::CNext(n))) {
-                cy += 50.0;
-            }
         }
         vstep::SIZE => {
             let bw = (w - 18.0) / 4.0;
@@ -1508,9 +1508,6 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 ui.hit(bx, cy, bw, 62.0, va(V::CSize(k)));
             }
             cy += 80.0;
-            if crate::screens::next_button(ui, x, cy, w, EN.vault_continue, va(V::CNext(n))) {
-                cy += 50.0;
-            }
         }
         _ => {
             let half = (w - 12.0) / 2.0;

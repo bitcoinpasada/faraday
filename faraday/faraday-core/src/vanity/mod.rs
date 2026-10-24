@@ -331,10 +331,6 @@ impl VanityArea {
             return false;
         };
         match k {
-            K::Escape => {
-                *screen = v.back;
-                self.state = None;
-            }
             K::Char(c) if v.open == Some(vstep::PREFIX) && !v.running => {
                 if !v.grind.prefix.push(c, v.grind.script, net) {
                     v.error = Some(fill(EN.vanity_cannot_stand, &[&c.to_string()]));
@@ -492,12 +488,57 @@ impl Faraday {
         }
     }
 
-    /// Typing on the vanity screen. Returns whether the key was taken.
+    /// Typing on the vanity screen; Escape is Back (F104). Returns
+    /// whether the key was taken.
     pub(crate) fn vanity_key_in(&mut self, k: faraday_shell_api::Key) -> bool {
+        if k == faraday_shell_api::Key::Escape
+            && self.screen == Screen::Vanity
+            && self.vanity.state().is_some()
+        {
+            self.back();
+            return true;
+        }
         let net = self.session.network();
         let words = self.vanity_has_words() && self.makes_secrets();
         self.vanity
             .key(k, &mut self.screen, net, self.now_ms, words)
+    }
+}
+
+/// The vanity search's steps, plugged into Back, Forward and the choices
+/// that move on (F103, F104).
+pub(crate) struct VanitySteps;
+
+/// The one [`VanitySteps`].
+pub(crate) static VANITY_STEPS: VanitySteps = VanitySteps;
+
+impl crate::trail::StepFlow for VanitySteps {
+    fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
+        let v = app.vanity.state()?;
+        let order = (0..vstep::COUNT as u8).collect();
+        let mut s = crate::trail::Steps::new(order, v.open);
+        // A search under way takes no Back: Stop ends it.
+        s.running = v.running;
+        Some(s)
+    }
+
+    fn open(&self, _: &Faraday, k: u8) -> crate::Action {
+        crate::Action::Vanity(VanityAction::Step(k))
+    }
+
+    fn name(&self, _: &Faraday, k: u8) -> &'static str {
+        screen::TITLES[usize::from(k)]
+    }
+
+    fn moves_on(&self, app: &Faraday, chosen: crate::Action) -> Option<crate::Action> {
+        let v = app.vanity.state()?;
+        let step = match chosen {
+            // A dial refused for this key stays, with its line.
+            crate::Action::Vanity(VanityAction::Dial(_)) if v.error.is_none() => vstep::DIAL,
+            crate::Action::Vanity(VanityAction::Script(_)) => vstep::SCRIPT,
+            _ => return None,
+        };
+        (v.open == Some(step)).then_some(crate::Action::Vanity(VanityAction::Next(step)))
     }
 }
 

@@ -442,6 +442,28 @@ impl SilentArea {
     }
 }
 
+/// Silent payments' steps, plugged into Back and Forward (F104).
+pub(crate) struct SilentSteps;
+
+/// The one [`SilentSteps`].
+pub(crate) static SILENT_STEPS: SilentSteps = SilentSteps;
+
+impl crate::trail::StepFlow for SilentSteps {
+    fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
+        let s = app.silent.state()?;
+        let order = (0..sstep::COUNT as u8).collect();
+        Some(crate::trail::Steps::new(order, s.open))
+    }
+
+    fn open(&self, _: &Faraday, k: u8) -> crate::Action {
+        crate::Action::SStep(k)
+    }
+
+    fn name(&self, _: &Faraday, k: u8) -> &'static str {
+        screen::TITLES[usize::from(k)]
+    }
+}
+
 impl Faraday {
     /// The flow's state, while it is open.
     pub fn silent(&self) -> Option<&SilentState> {

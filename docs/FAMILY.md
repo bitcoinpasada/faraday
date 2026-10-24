@@ -79,7 +79,7 @@ Faraday's own parts: the vault, the stick rule and the lock cycle
 | # | Page | Routes | Controls on the page |
 |---|---|---|---|
 | 1 | How to spend bitcoin | all | the map; **Start** |
-| 2 | Start from the stick | all | none; on the desktop app, a line saying it is the desktop copy |
+| 2 | Start from the stick | all | no page of its own since F103: its lead and More head page 3 until something comes in |
 | 3 | What do you have? | all | a vault in Files: its Unlock and list; **Scan the QR codes you have**, **Type the words you have**; **Not sure what you have?**; what came in; the next question; the wallet once it is worked out |
 | 4 | Check the money is really there (guessed: Check the money is there, on the online computer) | all | the wallet as a QR; addresses, receive and change, more on request; **Yes, my money shows**; guessed: **No money shows** |
 | 5 | Write the payment | all | none |
@@ -138,6 +138,9 @@ vault's passphrase.
   itself. Waiting costs nothing.
 
 ### 2 · Start from the stick
+
+Not a page of its own (F103): **Start** opens page 3, whose lead and
+More begin with these until something comes in.
 
 **Lead, on the stick:** This computer is running Faraday from the stick.
 It has no network, and it forgets everything when it is switched off.
@@ -206,9 +209,12 @@ The card, top to bottom:
      opens and the column goes on to page 5; seeds already in fill its
      slots.
 7. Once there is a wallet (the card's closed line says it once: its
-   name and shape, or the shape alone when the name says it): a choice
-   when several are loaded, then its name, shape, how many of its keys are here, receive address 0 and
-   **Continue**. The card is done once a wallet is chosen.
+   name and shape, or the shape alone when the name says it): the
+   column moves on to page 4, which shows receive address 0 (F103).
+   Back on this page, **Spend from** lists each wallet with its shape
+   and how many of its keys are here; pressing one, the one chosen
+   among them, moves on again. The card is done once a wallet is
+   chosen.
 8. The last refusal, and **Start over**.
 
 **The intake scanner**, titled **Scan what you have**, with the

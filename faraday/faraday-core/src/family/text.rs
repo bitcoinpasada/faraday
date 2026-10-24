@@ -84,11 +84,20 @@ pub fn looks(m: Medium) -> [(String, String); 8] {
 
 /// A card's title.
 pub fn title(app: &Faraday, id: CardId) -> String {
-    let s = match id {
+    match id {
+        CardId::Page(page::SAFE) => fill(EN.family_title_start, &[app.medium.noun()]),
+        _ => name(app, id).to_string(),
+    }
+}
+
+/// A card's title where it names no medium: what the way back is called
+/// when it lands on the card (F104). Starting from the stick, no card of
+/// its own since F103, heads What do you have?.
+pub fn name(app: &Faraday, id: CardId) -> &'static str {
+    match id {
         CardId::Page(p) => match p {
             page::MAP => EN.family_how_to_spend,
-            page::SAFE => return fill(EN.family_title_start, &[app.medium.noun()]),
-            page::HOLDING => EN.family_what_do_you,
+            page::SAFE | page::HOLDING => EN.family_what_do_you,
             page::OPEN => EN.family_open_the_wallet,
             page::CHECK if app.family.state.from_card => EN.family_load_the_wallet,
             page::CHECK if app.family_guess().is_some() => EN.family_title_check_money,
@@ -112,8 +121,7 @@ pub fn title(app: &Faraday, id: CardId) -> String {
             step::FINISH => EN.family_title_send,
             _ => "",
         },
-    };
-    s.to_string()
+    }
 }
 
 /// A card's lead: what to do on it, always shown while it is open.
@@ -125,6 +133,15 @@ pub fn lead(app: &View, id: CardId) -> String {
         }
         CardId::Page(page::SAFE) => {
             return fill(EN.family_lead_running_offline, &[app.medium.noun()]);
+        }
+        // Starting from the stick heads What do you have? until something
+        // comes in (F103): its own card took a press that chose nothing.
+        CardId::Page(page::HOLDING | page::OPEN) if starting(app) => {
+            return format!(
+                "{} {}",
+                lead(app, CardId::Page(page::SAFE)),
+                EN.family_scan_or_type
+            );
         }
         CardId::Page(page::HOLDING | page::OPEN) => EN.family_scan_or_type,
         // From the wallet's card: what to press, no more.
@@ -211,12 +228,20 @@ pub fn more(app: &View, id: CardId) -> Vec<String> {
                 fill(EN.family_if_the_is_missing, &[m.noun(), m.a()]),
             ];
         }
-        CardId::Page(page::HOLDING | page::OPEN) => &[
-            EN.family_a_vault_unlocks,
-            EN.family_more_words_order,
-            EN.family_a_wallet_description,
-            EN.family_split_sheets,
-        ],
+        CardId::Page(page::HOLDING | page::OPEN) => {
+            let mut paras = if starting(app) {
+                more(app, CardId::Page(page::SAFE))
+            } else {
+                Vec::new()
+            };
+            paras.extend(strings(&[
+                EN.family_a_vault_unlocks,
+                EN.family_more_words_order,
+                EN.family_a_wallet_description,
+                EN.family_split_sheets,
+            ]));
+            return paras;
+        }
         CardId::Page(page::CHECK) => &[
             EN.family_in_sparrow_file,
             EN.family_more_trusted_software,
@@ -236,6 +261,12 @@ pub fn more(app: &View, id: CardId) -> Vec<String> {
         _ => &[],
     };
     strings(fixed)
+}
+
+/// The walk-through has only just started: nothing has come in on What
+/// do you have?, and no wallet is open. Only lookups.
+fn starting(app: &View) -> bool {
+    app.family.state.came.is_empty() && app.family.state.route.is_none() && !app.family_ready()
 }
 
 fn strings(paras: &[&str]) -> Vec<String> {

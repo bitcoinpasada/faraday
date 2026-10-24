@@ -789,10 +789,10 @@ impl Faraday {
                         self.setup_pending(c.owner, c.into_vaults(), c.built.is_some())
                     }) =>
             {
-                let from_home = self.screen == Screen::Home;
-                if let Some(c) = self.create.state.as_mut() {
-                    c.from_home = from_home;
-                }
+                // Resumed, its own way back stays where it was first
+                // opened from: the trail lands where the person was when
+                // they resumed it (F77), and a Home reached on the way, as
+                // a setup's Leave lands it, does not make Back go Home.
                 self.screen = Screen::Create;
             }
             Action::CreateWallet | Action::CreateOver => {

@@ -19,9 +19,10 @@ pub(crate) fn spend_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("spend-map")?;
     t.press(fam(F::More(page::MAP)));
     t.shot("spend-map-more")?;
+    // Start opens What do you have?, headed by Starting from the stick
+    // (F103).
     t.press(fam(F::Next(page::MAP)));
-    t.shot("spend-stick")?;
-    t.press(fam(F::Next(page::SAFE)));
+    t.shot("spend-holding")?;
     t.press(fam(F::Unsure));
     t.shot("spend-holding-unsure")?;
     t.press(fam(F::Unsure));

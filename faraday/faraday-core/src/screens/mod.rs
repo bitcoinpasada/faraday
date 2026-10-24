@@ -43,7 +43,7 @@ pub use faraday_ui::parts::qr_code;
 pub(crate) use faraday_ui::parts::{button_rows, section_label, sheet_box, title, wrap_buttons};
 pub(crate) use files::vault_panel;
 pub(crate) use home::home_lead_beside_tiles;
-pub(crate) use message::MSTEPS;
+pub(crate) use message::{MESSAGE_STEPS, MSTEPS};
 pub(crate) use parts::{
     buttons_and_next, code_field, descriptor_row, first_addresses, grid_never, guide_text,
     guide_text_learn, keyed_pills, kind_line, kind_name, locked_tag, never_below, never_real_seed,
@@ -58,7 +58,7 @@ use sheets::{
 };
 use sidebar::sidebar;
 pub(crate) use sidebar::{lock_held_pill, name_suffix};
-pub(crate) use spend::{signers_count, step_body, step_summary};
+pub(crate) use spend::{STEPS as SPEND_TITLES, signers_count, step_body, step_summary};
 pub(crate) use wallets::{backup_line, loose_card, missing_keys_line};
 
 const SIDEBAR_W: f32 = 240.0;

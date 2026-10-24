@@ -12,7 +12,7 @@ use crate::ui::{Style, Ui, W, grouped, thousands};
 use crate::vanity::{VanityAction as V, VanityState, dial_name, fp, script_name, vstep};
 use crate::{Action, flow};
 
-const TITLES: [&str; vstep::COUNT] = [
+pub(crate) const TITLES: [&str; vstep::COUNT] = [
     EN.vanity_key,
     EN.vanity_what_turns,
     EN.vanity_kind_of_address,
@@ -139,9 +139,7 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                 }
                 cy += used + 34.0;
             }
-            if next_button(ui, x, cy, w, EN.vanity_continue, va(V::Next(vstep::DIAL))) {
-                cy += 52.0;
-            }
+            // A dial pressed moves on (F103).
         }
         vstep::SCRIPT => {
             for (i, sc) in ScriptType::ALL.iter().enumerate() {
@@ -151,10 +149,8 @@ fn card(app: &View, v: &VanityState, ui: &mut Ui, s: u8, x: f32, y: f32, w: f32)
                 ui.hit(x, cy, w, 40.0, va(V::Script(i as u8)));
                 cy += 42.0;
             }
+            // A kind of address pressed moves on (F103).
             cy += 8.0;
-            if next_button(ui, x, cy, w, EN.vanity_continue, va(V::Next(vstep::SCRIPT))) {
-                cy += 52.0;
-            }
         }
         vstep::PREFIX => {
             let fixed = v.grind.prefix.fixed_len(v.grind.script, net);

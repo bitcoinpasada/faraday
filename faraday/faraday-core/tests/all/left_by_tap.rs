@@ -119,7 +119,21 @@ fn bip85_left_by_a_tap_forgets_the_child_seed_shown() {
 fn bip85_left_by_the_mouses_back_button_is_not_brought_back_by_forward() {
     let mut app = with_key();
     let shown = bip85_shown(&mut app);
+    // Back steps back from the value, hiding it, and Forward opens the
+    // value's card again with it hidden (F104).
     app.event(Event::Back);
+    assert_eq!(app.screen, Screen::Bip85);
+    not_drawn(&mut app, &shown);
+    app.event(Event::Forward);
+    assert_eq!(app.screen, Screen::Bip85);
+    not_drawn(&mut app, &shown);
+    // Back to the first step, then out of the flow.
+    for _ in 0..faraday_core::bip85::pstep::COUNT {
+        if app.screen == Screen::Bip85 {
+            app.event(Event::Back);
+            let _ = app.frame();
+        }
+    }
     assert_ne!(app.screen, Screen::Bip85);
     assert!(app.bip85().is_none(), "Back leaves it as any leaving does");
     let left_to = app.screen;

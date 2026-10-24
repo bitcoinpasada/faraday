@@ -140,7 +140,6 @@ fn the_spend_tab_takes_two_seeds_and_an_xpub_to_check() {
     let mut app = shown();
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::Next(page::MAP)));
-    app.press(Action::Family(F::Next(page::SAFE)));
     add_seed(&mut app, "bacon");
     // One seed opens nothing yet: anything else in the envelope?
     assert!(app.family_wallet().is_none());

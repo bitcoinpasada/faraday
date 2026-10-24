@@ -244,6 +244,11 @@ impl Bip85Area {
                 } else if (0..s).all(|i| b.done[usize::from(i)]) {
                     open(b, s);
                 }
+                // The value is hidden once its card is left, Back among
+                // the ways (F104).
+                if b.open != Some(pstep::RESULT) {
+                    b.shown = false;
+                }
             }
             A::PKey(fp) => {
                 b.key = Some(fp);
@@ -297,10 +302,6 @@ impl Bip85Area {
             return false;
         };
         match key {
-            K::Escape => {
-                *screen = b.back;
-                self.state = None;
-            }
             K::Enter => self.act(crate::Action::PNext),
             K::Char(c) if c.is_ascii_digit() && b.open == Some(pstep::INDEX) => {
                 if b.index == "0" {
@@ -444,8 +445,48 @@ impl Faraday {
         }
     }
 
-    /// Digits typed into the index. Returns whether the key was taken.
+    /// Digits typed into the index; Escape is Back (F104). Returns
+    /// whether the key was taken.
     pub(crate) fn bip85_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        if key == faraday_shell_api::Key::Escape
+            && self.screen == Screen::Bip85
+            && self.bip85.state().is_some()
+        {
+            self.back();
+            return true;
+        }
         self.bip85.key(key, &mut self.screen)
+    }
+}
+
+/// BIP-85's steps, plugged into Back, Forward and the choices that move
+/// on (F103, F104).
+pub(crate) struct Bip85Steps;
+
+/// The one [`Bip85Steps`].
+pub(crate) static BIP85_STEPS: Bip85Steps = Bip85Steps;
+
+impl crate::trail::StepFlow for Bip85Steps {
+    fn steps(&self, app: &Faraday) -> Option<crate::trail::Steps> {
+        let b = app.bip85.state()?;
+        let order = (0..pstep::COUNT as u8).collect();
+        Some(crate::trail::Steps::new(order, b.open))
+    }
+
+    fn open(&self, _: &Faraday, k: u8) -> crate::Action {
+        crate::Action::PStep(k)
+    }
+
+    fn name(&self, _: &Faraday, k: u8) -> &'static str {
+        screen::TITLES[usize::from(k)]
+    }
+
+    fn moves_on(&self, app: &Faraday, chosen: crate::Action) -> Option<crate::Action> {
+        let b = app.bip85.state()?;
+        // An application with no length to set is the card's one choice.
+        let one = matches!(chosen, crate::Action::PApp(_))
+            && b.open == Some(pstep::APP)
+            && lengths(b.app).1 == 0;
+        one.then_some(crate::Action::PNext)
     }
 }

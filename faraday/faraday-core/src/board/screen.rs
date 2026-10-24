@@ -1490,7 +1490,7 @@ pub(crate) fn list_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             x,
             cy,
             iw,
-            &[(EN.plan_continue, Style::Secondary, Action::Cancel)],
+            &[(EN.board_list_close, Style::Secondary, Action::Cancel)],
         );
         cy - y
     });
