@@ -306,7 +306,13 @@ fn remove_the_boot_entry_is_offered_while_it_exists_and_no_stick_is_attached() {
     // Declined: kept, and said.
     starter.starter_event(StarterEvent::BootEntryRemoved(Err(Reason::Declined)));
     assert!(offers(&mut starter, StarterAction::RemoveEntry));
-    assert!(shows(&mut starter, &reason_text(&Reason::Declined)));
+    // The card wraps the reason over lines.
+    assert!(
+        starter
+            .drawn_texts()
+            .join(" ")
+            .contains(&reason_text(&Reason::Declined))
+    );
     tap(&mut starter, StarterAction::RemoveEntry);
     starter.starter_event(StarterEvent::BootEntryRemoved(Ok(())));
     assert!(!offers(&mut starter, StarterAction::RemoveEntry));

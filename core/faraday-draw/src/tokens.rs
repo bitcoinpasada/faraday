@@ -796,6 +796,14 @@ pub const GRID_TILE_TEXT_X: f32 = 54.0;
 /// A Home tile's height on the small panel's menu.
 pub const TILE_H_COMPACT: f32 = 76.0;
 
+/// The widest a Starter page's content grows, centred in the space beside
+/// the rail (`docs/STARTER.md` §3.1d).
+pub const CONTENT_MAX: f32 = 1040.0;
+
+/// The narrowest a Starter Home card is: a wider window gains columns of
+/// at least this, never wider cards (`docs/STARTER.md` §3.1d).
+pub const CARD_MIN_W: f32 = 300.0;
+
 /// A status chip's height (Home's status strip, a flow's chip).
 pub const STATUS_CHIP_H: f32 = 32.0;
 

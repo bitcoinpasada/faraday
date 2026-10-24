@@ -273,3 +273,27 @@ sheet open when the Starter exits.
 (owner, 2026-10-12, D8; made the step's backstop by F33, 2026-10-14.
 Built as a muted line in batch G; F33's changes are batch F33c,
 specified, not built.)
+
+## §3.1d Building it (from docs/STARTER.md)
+
+**Building it** (planned; Sonnet from this section, then the owner's
+look on Linux and Windows at a narrow and a wide window):
+
+1. **N1, the frame.** The tokens; the size class in `faraday-starter`
+   (replacing `compact`'s single 600 dp test); the rail, the bar and the
+   top app bar as `faraday-ui` components (DESIGN §4.1); `Page` gains
+   `Make` and `Tools`; the frame draws the rail or the bar on the four
+   destinations and the back-arrow bar on task pages.
+2. **N2, the pages.** Home's This computer card with the checklist
+   inside it, the other cards in the grid; Make and Tools; the ⋮ menu;
+   Install and Update in the bar. Strings in `faraday-strings`.
+3. **N3, Transfer and Learn** drawn under the top app bar (§2's held
+   `Faraday` given the space below it; batch R's way of holding it is
+   kept).
+4. **Tests** (user-facing): at 400 dp the bar shows the four
+   destinations and at 700 dp and 1300 dp the rail does; each opens its
+   page; a task page shows neither and Back returns to the destination
+   and its scroll; every screen has one primary button; the ⋮ menu
+   lists Uninstall only while installed and Remove the boot entry only
+   while offered; Install and Update appear in the bar as §3.5 says;
+   Larger text (F85) at 700 dp takes the compact layout.

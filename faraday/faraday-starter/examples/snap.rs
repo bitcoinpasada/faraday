@@ -762,9 +762,36 @@ fn run(s: &Snap) -> Result<(), String> {
     let mut h = s.starter();
     h.press(StarterAction::Learn);
     s.shot(&mut h, "learn")?;
+    destination_shots(s)?;
     step_shots(s)?;
     guide_shots(s)?;
     guide_start_shots(s)
+}
+
+/// The destinations (`docs/STARTER.md` §3.1d): Make and Tools, the ⋮
+/// menu, Update in the bar, and a task page's bar with the way back.
+fn destination_shots(s: &Snap) -> Result<(), String> {
+    let mut h = s.starter();
+    h.press(StarterAction::MakePage);
+    s.shot(&mut h, "make")?;
+    h.press(StarterAction::ToolsPage);
+    s.shot(&mut h, "tools")?;
+    h.starter_event(StarterEvent::Installed(Some(Installed {
+        version: "0.1.0".into(),
+        items: vec![(InstallItem::App, "~/.local/bin/faraday-starter".into())],
+    })));
+    h.starter_event(StarterEvent::BootEntry(true));
+    h.press(StarterAction::Menu);
+    s.shot(&mut h, "tools-menu")?;
+    h.press(StarterAction::Home);
+    s.shot(&mut h, "home-update-and-boot-entry")?;
+    h.press(StarterAction::MakePage);
+    h.starter_event(StarterEvent::Disks(vec![stick(
+        "sde",
+        "6.6.84-faraday-0.2.0",
+    )]));
+    s.shot(&mut h, "make-stick-attached")?;
+    Ok(())
 }
 
 /// The codex32 blank templates (`docs/CODEX32.md` §11): the menu and its

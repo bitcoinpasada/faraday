@@ -1235,8 +1235,8 @@ pub struct Faraday {
     pub seed_line: bool,
     /// Held by another app that shows only Transfer and the Learn sheet
     /// (the Starter, `docs/STARTER.md` §2), set with [`Faraday::online`]:
-    /// no sidebar, no Home of its own; leaving Transfer or the sheets
-    /// goes back to the holder's Home.
+    /// no sidebar, no Home and no way back drawn: the holder's top app bar
+    /// is above the frame (§3.1d); leaving Transfer or a sheet ends it.
     pub held: bool,
     /// The shell lets a person insert and pull sticks by hand, and the app
     /// draws a pill for each ([`Faraday::stick_pills`]): the desktop app

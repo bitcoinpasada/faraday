@@ -1,8 +1,8 @@
 # The Starter
 
 **Kind:** Spec
-**Status:** Partly built: the Starter on Linux and Windows, the Pi 3 card
-**Open:** Home and navigation to Material 3 (§3.1, §3.1d, F91, planned); keeping Secure Boot on (§7.7, D9, batch S); panel profiles and the Pi 4 and Pi 5 (§9.3, §9.4); macOS (`docs/MAC.md`)
+**Status:** Partly built: the Starter on Linux and Windows with its Material 3 navigation (§3.1d), the Pi 3 card
+**Open:** the owner's look at Home and navigation on Linux and Windows (§3.1d); keeping Secure Boot on (§7.7, D9, batch S); panel profiles and the Pi 4 and Pi 5 (§9.3, §9.4); macOS (`docs/MAC.md`)
 
 Decided by the owner (`docs/DECISIONS.md` F11, F12; F33 removed the
 BitLocker step, F49 offers BitLocker's suspension, Resume and the key
@@ -185,8 +185,8 @@ Starter itself about 13 MB).
   installing, reading this computer's facts, restarting into firmware.
 - **Transfer and Learn are the desktop app's own screens.** The
   Starter holds a `Faraday` in online mode, limited to Transfer and Learn,
-  and draws it when one of them is open; Back returns to the Starter's
-  Home. The desktop app's `--transfer` already opens it this way. Batch
+  and draws it under its own top app bar when one of them is open
+  (§3.1d); Back returns to the Starter's page it was opened from. The desktop app's `--transfer` already opens it this way. Batch
   R checks that `faraday-core` can be held this way and adds what is
   missing, without changing what the desktop app does.
 - **On Linux the Starter writes through udisks2 and never runs as
@@ -297,7 +297,7 @@ what a screen does.
 ### 3.1 Home: this computer, its checklist, then the cards
 
 The Starter's layout and navigation follow Material 3's rules (F91,
-planned, §3.1d): its window size classes, a navigation rail or bar, a
+built, §3.1d): its window size classes, a navigation rail or bar, a
 top app bar, cards in a responsive grid and one primary action a
 screen. Only the rules are Material's; the look is Faraday's own
 (`faraday-ui`, DESIGN's tokens and components), never another app's
@@ -556,7 +556,7 @@ under it:
 
 | Destination | Icon | Page |
 |---|---|---|
-| **Home** | the shield (`Ui::mark`) | §3.1 |
+| **Home** | `Icon::House`, as Faraday's own rail | §3.1 |
 | **Make** | `Glyph::Stick` | two cards: **Faraday stick** (the attached stick's version, or "No Faraday stick attached"; **Make a Faraday stick**, §3.2) and **Pi card** (the Pi image's version, or "Not in this Starter"; **Make a Pi card**, §3.3, disabled without the image) |
 | **Tools** | `Icon::Qr` | two cards: **Transfer** (Send and Receive, §3.6) and **Blank templates** (§3.8) |
 | **Learn** | `Icon::Learn` | the Starter's Learn pages (§3.6, §7) |
@@ -613,34 +613,42 @@ named above, a task page's is its step's own. Every other button on the
 screen is secondary or ghost.
 
 **Tokens** (`core/faraday-draw/src/tokens.rs`): the class widths
-(`WINDOW_MEDIUM` 600, `WINDOW_EXPANDED` 840, `WINDOW_GRID_THREE`
-1200), `CONTENT_MAX` 1040, `RAIL_W` 80, `NAV_BAR_H` 80, `APP_BAR_H` 64,
-`MARGIN_COMPACT` 16, `MARGIN_WIDE` 24, the destination pill
-(`NAV_PILL_W` 56, `NAV_PILL_H` 32), and Home's card minimum width
-(`CARD_MIN_W` 300). All are multiples of Material's 4 dp grid. None of
-the Starter's pages writes a number in place for them.
+(`WINDOW_MEDIUM` 600, `WINDOW_EXPANDED` 840), `CONTENT_MAX` 1040,
+`RAIL_W` 80, `NAV_BAR_H` 80, `APP_BAR_H` 64, `MARGIN_COMPACT` 16,
+`MARGIN_WIDE` 24, the destination pill (`NAV_PILL_W` 56, `NAV_PILL_H` 32,
+shared with Faraday's own rail) and Home's card minimum width
+(`CARD_MIN_W` 300). All are multiples of Material's 4 dp grid.
 
-**Building it** (planned; Sonnet from this section, then the owner's
-look on Linux and Windows at a narrow and a wide window):
+**What is built.** `faraday-starter` reads the class from the window's
+width and the text size factor (`Starter::class`, `Class::of`, over
+`faraday_draw::geom::Window`); `Starter::set_text_factor` is where F85's
+setting reaches it once that exists. The rail, the bar and the top app
+bar are `faraday-ui`'s `nav` components, the ones Faraday's own app
+draws (LAYOUT §3). `Page` has `Make` and `Tools` beside `Home`; the frame
+(`draw.rs`, with `draw/nav.rs` and `draw/home.rs`) draws the rail or the
+bar on those three and the back-arrow bar on every task page, a page's
+content beside the rail at most `CONTENT_MAX` wide (a task page's text
+column 720 dp). Home is the This computer card with the checklist and
+the screen's one primary button inside it, what holds a restart under it,
+then Faraday Desktop, the update and the boot entry cards in the grid;
+Make and Tools are two cards each. Install or Update is a button in the
+bar and the ⋮ menu (a popup under it, closed by a press outside) holds
+About, Uninstall and Remove the boot entry. A press on a destination
+opens it at the scroll it was left at, and on the one shown goes to its
+top; Back from a task page lands on the destination it was opened from at
+the scroll it was opened at (F77). Tests are `tests/all/navigation.rs`.
 
-1. **N1, the frame.** The tokens; the size class in `faraday-starter`
-   (replacing `compact`'s single 600 dp test); the rail, the bar and the
-   top app bar as `faraday-ui` components (DESIGN §4.1); `Page` gains
-   `Make` and `Tools`; the frame draws the rail or the bar on the four
-   destinations and the back-arrow bar on task pages.
-2. **N2, the pages.** Home's This computer card with the checklist
-   inside it, the other cards in the grid; Make and Tools; the ⋮ menu;
-   Install and Update in the bar. Strings in `faraday-strings`.
-3. **N3, Transfer and Learn** drawn under the top app bar (§2's held
-   `Faraday` given the space below it; batch R's way of holding it is
-   kept).
-4. **Tests** (user-facing): at 400 dp the bar shows the four
-   destinations and at 700 dp and 1300 dp the rail does; each opens its
-   page; a task page shows neither and Back returns to the destination
-   and its scroll; every screen has one primary button; the ⋮ menu
-   lists Uninstall only while installed and Remove the boot entry only
-   while offered; Install and Update appear in the bar as §3.5 says;
-   Larger text (F85) at 700 dp takes the compact layout.
+**Transfer and Learn** are the held desktop app's frame drawn in the
+space under the Starter's top app bar (`Starter::compose`, which copies
+the held app's pixels in with `Canvas::place`): the held `Faraday` is
+told the size of that space, and a press, a hover or a turn of the wheel
+over it reaches it at its own corner. Held, it draws no way back of its
+own and its Learn sheet is the page, with no box and no Done
+(`Faraday::held`); Back and Escape still take its way back. The Learn
+destination keeps the rail or the bar, lit on Learn, and a press on
+another destination leaves it for that page as it was left; Transfer,
+and a Learn page opened from a page's link, are task pages with the way
+back in the top app bar and neither the rail nor the bar.
 
 **The owner's answers** (2026-10-23): Home holds only the cards about
 this computer, with no card per destination, since the rail shows the

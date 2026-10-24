@@ -214,6 +214,34 @@ strings! {
     starter_row_about: "About",
     /// Home row.
     starter_row_learn: "Learn",
+    /// Rail and bar destination, and the title of its page.
+    starter_nav_make: "Make",
+    /// Rail and bar destination, and the title of its page.
+    starter_nav_tools: "Tools",
+    /// Top app bar button while the running copy is newer than the installed one.
+    starter_bar_update: "Update",
+    /// Make's first card.
+    starter_card_stick: "Faraday stick",
+    /// Make's second card.
+    starter_card_pi: "Pi card",
+    /// Make's Pi card, without the image in this Starter.
+    starter_card_pi_none: "Not in this Starter",
+    /// A card's line naming a version: `{}` the version.
+    starter_card_version: "Version {}",
+    /// Home's card for Faraday Desktop.
+    starter_card_desktop: "Faraday Desktop",
+    /// Home's update card's line: `{}` the installed version, then the running one.
+    starter_card_update_line: "Installed {} · this copy {}",
+    /// Home's card for the firmware's Faraday stick entry.
+    starter_card_entry: "Boot entry",
+    /// Tools' Transfer card's line.
+    starter_card_transfer_line: "Send and Receive",
+    /// Tools' Transfer card's button.
+    starter_open_transfer: "Open Transfer",
+    /// Tools' Blank templates card's line.
+    starter_card_templates_line: "Words, SeedQR and codex32",
+    /// Tools' Blank templates card's button.
+    starter_open_templates: "Open blank templates",
     /// Title: which disk becomes the stick.
     starter_disks_stick: "Which stick?",
     /// Title: which card becomes the Pi card.
@@ -4126,9 +4154,6 @@ strings! {
     scan_key_key_added_more: "Key {} added · {} more",
     /// Toast in `wallet_key_said`. `{}`: `n + 1`.
     scan_key_key_added: "Key {} added · Can spend",
-    // ----- held_frame (faraday-core/src/screens/mod.rs) -----
-    /// Text in `held_frame`.
-    held_frame_home: "Home",
     // ----- notices (faraday-core/src/screens/mod.rs) -----
     /// Text in `notices`. `{}`: `app.medium.noun()`.
     notices_remove_medium: "Remove the {} to keep working",

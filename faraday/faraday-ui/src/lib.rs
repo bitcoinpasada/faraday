@@ -660,6 +660,9 @@ pub struct Ui<'a, A> {
     /// drawn: also the order Tab moves the keyboard through
     /// ([`Reach`]).
     pub reach: Vec<Reach<A>>,
+    /// How many filled (primary) buttons this frame has drawn, for a
+    /// test of one primary action a screen.
+    pub primaries: usize,
     /// The control the keyboard is on: ringed, and Enter or Space
     /// presses it.
     pub focused: Option<A>,
@@ -766,6 +769,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             caret_foot: None,
             dimmed: Vec::new(),
             reach: Vec::new(),
+            primaries: 0,
             focused: None,
         }
     }
@@ -1905,7 +1909,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let width = w.unwrap_or(tw + 32.0 + tick);
         let faint = TEXT.with_alpha(alpha_of(self.theme.off_fill()));
         match style {
-            Style::Primary => self.fill(x, y, width, h, r, ACCENT),
+            Style::Primary => {
+                self.primaries += 1;
+                self.fill(x, y, width, h, r, ACCENT);
+            }
             Style::Tonal | Style::Selected => {
                 self.fill(x, y, width, h, r, SELECTED);
                 // The high contrast themes edge every control at 3:1.

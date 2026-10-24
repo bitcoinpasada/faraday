@@ -1,8 +1,8 @@
 //! The Starter's pages, drawn each frame from its state with `faraday-ui`'s
-//! `Ui`, in the desktop app's palette and sizes. On a wide display a page
-//! is a centred column under a strip with the way back; on a small panel
-//! (`compact`) a bar across the top carries the way back and the page's
-//! name, as the desktop app's small-panel pages do.
+//! `Ui`, in the desktop app's palette and sizes (`docs/STARTER.md` §3.1d):
+//! the three destinations under a top app bar, beside the navigation rail
+//! or above the navigation bar by the window's class, a task page under a
+//! bar with the way back.
 
 use faraday_core::Action;
 use faraday_core::upgrade::{Fit, describe, version};
@@ -20,7 +20,8 @@ use crate::macs::{self, StickFor};
 use crate::notes;
 use crate::template::{CODEX_LENGTHS, CodexCopy, Copy, Form};
 use crate::{
-    Card, LearnId, ModeRefusal, Page, RestartTo, Sheet, Starter, StarterAction, TemplateChoice,
+    Card, Destination, LearnId, ModeRefusal, Page, RestartTo, Sheet, Starter, StarterAction,
+    TemplateChoice,
 };
 
 /// Faraday's drawing, a press being the desktop app's action that carries
@@ -29,16 +30,20 @@ type Ui<'a> = faraday_ui::Ui<'a, Action>;
 
 const S: &Strings = &EN;
 
-/// The small panel's side margin.
+mod home;
+mod nav;
+
+use faraday_draw::tokens::{CONTENT_MAX, MARGIN_COMPACT, MARGIN_WIDE, NAV_BAR_H, RAIL_W};
+
+/// A small panel's sheet's side margin.
 const M: f32 = 12.0;
-/// The small panel's bar.
-const BAR_H: f32 = 44.0;
-/// The wide strip with the way back.
-const STRIP_H: f32 = 52.0;
-/// The widest the column grows.
+/// The widest a task page's column grows (a text column, not a grid).
 const COL_W: f32 = 720.0;
 
-/// Draws the frame. Returns how far the page can scroll, units.
+/// Draws the frame (§3.1d): the page under the top app bar, beside the
+/// rail or above the bar on the three destinations, and under a bar with
+/// the way back on a task page. Returns how far the page can scroll,
+/// units.
 pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
     let (w, h) = (starter.w, starter.h);
     // Under a sheet that has its frosted copy of the page, the page is
@@ -50,27 +55,37 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         sheet_over(starter, ui, w, h, sheet);
         return starter.max;
     }
+    if starter.showing {
+        held_chrome(starter, ui);
+        return starter.max;
+    }
     ui.clear(BG);
-    let compact = starter.compact;
-    let top = if starter.page == Page::Home {
+    let dest = starter.page.destination();
+    let compact = starter.compact();
+    let rail_w = if dest.is_some() && !compact {
+        RAIL_W
+    } else {
         0.0
-    } else if compact {
-        BAR_H
-    } else {
-        STRIP_H
     };
-    let (x, cw) = if compact {
-        (M, w - 2.0 * M)
+    let bar_h = if dest.is_some() && compact {
+        NAV_BAR_H
     } else {
-        let cw = (w - 96.0).min(COL_W);
-        ((w - cw) / 2.0, cw)
+        0.0
     };
-    let clip = ui.rect(0.0, top, w, h - top);
+    let margin = if compact { MARGIN_COMPACT } else { MARGIN_WIDE };
+    let area_w = w - rail_w;
+    let widest = if dest.is_some() { CONTENT_MAX } else { COL_W };
+    let cw = (area_w - 2.0 * margin).min(widest);
+    let x = rail_w + (area_w - cw) / 2.0;
+    let top = faraday_draw::tokens::APP_BAR_H;
+    let view_h = h - top - bar_h;
+    let clip = ui.rect(rail_w, top, area_w, view_h);
     ui.c.push_clip(clip);
-    let pad = if compact { 12.0 } else { 28.0 };
-    let y0 = top + pad - starter.offset;
+    let y0 = top + margin - starter.offset;
     let end = match starter.page {
-        Page::Home => home(starter, ui, x, y0, cw),
+        Page::Home => home::home(starter, ui, x, y0, cw),
+        Page::Make => home::make(starter, ui, x, y0, cw),
+        Page::Tools => home::tools(starter, ui, x, y0, cw),
         Page::Which => which(starter, ui, x, y0, cw),
         Page::Disks => disks(starter, ui, x, y0, cw),
         Page::Mode => mode(starter, ui, x, y0, cw),
@@ -90,16 +105,48 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         Page::TemplateWorksheets => template_worksheets(starter, ui, x, y0, cw),
     };
     ui.c.pop_clip();
-    let content = end - y0 + pad + 16.0;
-    let max = (content - (h - top)).max(0.0);
+    let content = end - y0 + 2.0 * margin;
+    let max = (content - view_h).max(0.0);
     ui.report_scroll(clip, max);
-    if starter.page != Page::Home {
-        head(starter, ui, w);
+    nav::top_bar(starter, ui, rail_w, area_w);
+    if dest.is_some() {
+        if compact {
+            nav::bottom_bar(starter, ui, h, w);
+        } else {
+            nav::rail(starter, ui, h);
+        }
+    }
+    if starter.menu {
+        nav::menu(starter, ui, w);
     }
     if let Some(sheet) = starter.sheet {
         sheet_over(starter, ui, w, h, sheet);
     }
     max
+}
+/// The Starter's own frame round the held desktop app (§3.1d): the top
+/// app bar over it, with the way back on Transfer and a Learn page opened
+/// from a page, and on the Learn destination the rail or the bar at the
+/// foot. The held app's frame is copied in under it ([`Starter::compose`]).
+fn held_chrome(starter: &Starter, ui: &mut Ui) {
+    let (w, h) = (starter.w, starter.h);
+    let compact = starter.compact();
+    let rail_w = if starter.learn_dest && !compact {
+        RAIL_W
+    } else {
+        0.0
+    };
+    nav::top_bar(starter, ui, rail_w, w - rail_w);
+    if starter.learn_dest {
+        if compact {
+            nav::bottom_bar(starter, ui, h, w);
+        } else {
+            nav::rail(starter, ui, h);
+        }
+    }
+    if starter.menu {
+        nav::menu(starter, ui, w);
+    }
 }
 
 /// The open sheet over the frosted page: frosted now from what the frame
@@ -122,9 +169,24 @@ fn sheet_over(starter: &Starter, ui: &mut Ui, w: f32, h: f32, sheet: Sheet) {
 
 /// A page's name, as its title and its bar say it.
 fn page_name(starter: &Starter) -> String {
+    if starter.showing {
+        return if starter.held.screen == faraday_core::Screen::Transfer {
+            S.starter_row_transfer
+        } else {
+            S.starter_row_learn
+        }
+        .to_string();
+    }
+    page_name_of(starter, starter.page)
+}
+
+/// What page `page` is called, as its title and a way back to it say it.
+fn page_name_of(starter: &Starter, page: Page) -> String {
     let target = starter.making.as_ref().map_or(Target::Stick, |m| m.target);
-    match starter.page {
+    match page {
         Page::Home => String::new(),
+        Page::Make => S.starter_nav_make.to_string(),
+        Page::Tools => S.starter_nav_tools.to_string(),
         Page::Which => S.starter_which_title.to_string(),
         Page::Disks => match target {
             Target::Stick => S.starter_disks_stick,
@@ -156,8 +218,16 @@ fn page_name(starter: &Starter) -> String {
 
 /// Where the way back goes, by name; none while a write runs.
 fn back_name(starter: &Starter) -> Option<String> {
+    if starter.showing {
+        // Transfer or a Learn page goes back to the page it was opened
+        // from; the Learn destination has none.
+        return (!starter.learn_dest).then(|| match starter.page.destination() {
+            Some(_) => destination_name(starter.page),
+            None => page_name_of(starter, starter.page),
+        });
+    }
     match starter.page {
-        Page::Home | Page::Writing => None,
+        Page::Home | Page::Make | Page::Tools | Page::Writing => None,
         Page::Mode => {
             let target = starter.making.as_ref().map_or(Target::Stick, |m| m.target);
             Some(
@@ -178,59 +248,20 @@ fn back_name(starter: &Starter) -> Option<String> {
         Page::Disks if starter.asks_which() && target_of(starter) == Target::Stick => {
             Some(S.starter_which_title.to_string())
         }
-        _ => Some(S.starter_home.to_string()),
+        _ => Some(destination_name(
+            starter.origin.map_or(Page::Home, |(p, _)| p),
+        )),
     }
 }
 
-/// The bar (small panel) or the strip (wide) across the top.
-fn head(starter: &Starter, ui: &mut Ui, w: f32) {
-    let back = StarterAction::Back.host();
-    let name = page_name(starter);
-    let back_to = back_name(starter);
-    if starter.compact {
-        ui.fill(0.0, 0.0, w, BAR_H, 0.0, SIDEBAR);
-        ui.fill(0.0, BAR_H - 1.0, w, 1.0, 0.0, LINE);
-        let x = if back_to.is_some() { BAR_H } else { M };
-        if let Some(label) = &back_to {
-            if ui.is_pressed(back) {
-                ui.fill(4.0, 4.0, BAR_H - 8.0, BAR_H - 8.0, 8.0, INNER);
-            }
-            ui.icon(4.0, 4.0, BAR_H - 8.0, Icon::ChevronLeft, 13.0, TEXT);
-            ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, back);
-            ui.back(back);
-            let label = ui.fit(11.0, W::R, label, w - x - M);
-            ui.text(x, 5.0, 11.0, W::R, MUTED, &label);
-            let name = ui.fit(16.0, W::S, &name, w - x - M);
-            ui.text(x, 19.0, 16.0, W::S, TEXT, &name);
-        } else {
-            let name = ui.fit(16.0, W::S, &name, w - x - M);
-            ui.text_mid(x, 0.0, BAR_H, 16.0, W::S, TEXT, &name);
-        }
-        return;
+/// What a destination's page is called, where a way back names it.
+fn destination_name(page: Page) -> String {
+    match page {
+        Page::Make => S.starter_nav_make,
+        Page::Tools => S.starter_nav_tools,
+        _ => S.starter_home,
     }
-    ui.fill(0.0, 0.0, w, STRIP_H, 0.0, BG);
-    if let Some(label) = back_to {
-        let bw = ui.measure(14.0, W::S, &label) + 44.0;
-        let (bx, by) = (24.0, 10.0);
-        if ui.is_pressed(back) || ui.is_hovered(back) {
-            ui.fill(bx, by, bw, 34.0, 8.0, INNER);
-        }
-        ui.icon(bx + 4.0, by + 5.0, 24.0, Icon::ChevronLeft, 12.0, MUTED);
-        ui.text_mid(bx + 30.0, by, 34.0, 14.0, W::S, MUTED, &label);
-        ui.hit(bx, by, bw, 34.0, back);
-        ui.back(back);
-    }
-}
-
-/// A page's title on a wide display; the bar carries it on a small
-/// panel. Returns the height it took.
-fn title(starter: &Starter, ui: &mut Ui, x: f32, y: f32) -> f32 {
-    if starter.compact {
-        return 0.0;
-    }
-    let name = page_name(starter);
-    ui.text(x, y, 28.0, W::S, TEXT, &name);
-    ui.line(28.0, W::S) + 20.0
+    .to_string()
 }
 
 /// A section's label. Returns its height.
@@ -730,299 +761,6 @@ fn secure_boot_text(on: Option<bool>) -> String {
     .to_string()
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0;
-    // The title is the wordmark.
-    if starter.compact {
-        ui.mark(x, y, 20.0, 23.0);
-        ui.wordmark_named(x + 28.0, y + 6.0, 11.0, TEXT, NameSuffix::Starter);
-        y += 38.0;
-    } else {
-        ui.mark(x, y, 28.0, 32.0);
-        ui.wordmark_named(x + 38.0, y + 11.0, 12.0, TEXT, NameSuffix::Starter);
-        y += 56.0;
-    }
-    let facts = starter.facts();
-    let next = facts.next_step();
-    let rows = facts.checklist();
-    y += computer_card(starter, ui, x, y, w) + 20.0;
-    y += concern_block(starter, ui, x, y, w, &starter.restart_holds());
-    y += receiver_line(starter, ui, x, y, w);
-
-    // The checklist.
-    y += label(ui, x, y, S.starter_checklist);
-    ui.rule(x, y, w, INNER);
-    let mut number = 0;
-    for row in &rows {
-        number += 1;
-        let action = StarterAction::Item(row.item);
-        let is_next = next == Some(row.item);
-        let rh = 54.0;
-        let pressed = ui.is_pressed(action.host());
-        if is_next || pressed {
-            let tint = if pressed {
-                INNER
-            } else {
-                ACCENT.with_alpha(22)
-            };
-            ui.fill(x - 6.0, y + 2.0, w + 12.0, rh - 4.0, 8.0, tint);
-        }
-        ui.badge(
-            x + 4.0,
-            y + (rh - 26.0) / 2.0,
-            &number.to_string(),
-            row.done,
-            is_next,
-        );
-        let tx = x + 44.0;
-        let fg = if row.done { MUTED } else { TEXT };
-        let head = ui.fit(14.0, W::S, item_label(starter, row.item), w - 80.0);
-        ui.text(tx, y + 8.0, 14.0, W::S, fg, &head);
-        let state = ui.fit(12.0, W::R, &state_text(&row.state), w - 80.0);
-        ui.text(tx, y + 30.0, 12.0, W::R, MUTED, &state);
-        ui.icon(
-            x + w - 24.0,
-            y + (rh - 20.0) / 2.0,
-            20.0,
-            Icon::ChevronRight,
-            9.0,
-            DIM,
-        );
-        ui.hit(x - 6.0, y, w + 12.0, rh, action.host());
-        y += rh;
-        if row.item == Item::SecureBootOn {
-            y += link(ui, tx, y, w - 44.0, LearnId::SecureBootBitLocker);
-        }
-        ui.rule(x, y, w, INNER);
-    }
-    y += 24.0;
-
-    // The firmware's Faraday stick entry, once back from a session.
-    if starter.entry_offered() {
-        let failed = starter.entry_remove_failed.as_ref().map(reason_text);
-        let (sub, action) = if starter.entry_removing {
-            (S.starter_removing_entry.to_string(), None)
-        } else {
-            (
-                failed.unwrap_or_else(|| S.starter_remove_entry_sub.to_string()),
-                Some(StarterAction::RemoveEntry),
-            )
-        };
-        y += nav_row(
-            ui,
-            x,
-            y,
-            w,
-            Glyph::Stick,
-            S.starter_remove_entry,
-            &sub,
-            "",
-            action,
-        );
-        y += 8.0;
-    }
-
-    // The other rows.
-    let pi = starter.image(Target::Pi).is_some();
-    y += nav_row(
-        ui,
-        x,
-        y,
-        w,
-        Icon::SdCard,
-        S.starter_row_pi,
-        if pi { "" } else { S.starter_no_pi_image },
-        "",
-        pi.then_some(StarterAction::Make(Target::Pi)),
-    );
-    y += nav_row(
-        ui,
-        x,
-        y,
-        w,
-        Icon::Qr,
-        S.starter_row_transfer,
-        "",
-        "",
-        Some(StarterAction::Transfer),
-    );
-    y += nav_row(
-        ui,
-        x,
-        y,
-        w,
-        Icon::Learn,
-        S.starter_row_templates,
-        "",
-        "",
-        Some(StarterAction::Templates),
-    );
-    if starter.offers_desktop() {
-        let failed = starter.desktop_failed.as_ref().map(reason_text);
-        let sub = failed.as_deref().unwrap_or("");
-        y += nav_row(
-            ui,
-            x,
-            y,
-            w,
-            Icon::Tools,
-            S.starter_row_desktop,
-            sub,
-            "",
-            Some(StarterAction::OpenDesktop),
-        );
-    }
-    let (install, action) = match &starter.installed {
-        Some(_) if starter.update_offered() => (S.starter_row_update, StarterAction::Install),
-        Some(_) => (S.starter_row_installed, StarterAction::Installed),
-        None => (S.starter_row_install, StarterAction::Install),
-    };
-    y += nav_row(ui, x, y, w, Icon::Download, install, "", "", Some(action));
-    y += nav_row(
-        ui,
-        x,
-        y,
-        w,
-        Icon::Info,
-        S.starter_row_about,
-        "",
-        "",
-        Some(StarterAction::About),
-    );
-    y += nav_row(
-        ui,
-        x,
-        y,
-        w,
-        Icon::Learn,
-        S.starter_row_learn,
-        "",
-        "",
-        Some(StarterAction::Learn),
-    );
-    y
-}
-
-/// The This computer card: what it is, its Secure Boot,
-/// and the next step as its action. Returns its height.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn computer_card(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let c = &starter.computer;
-    let pad = if starter.compact { 12.0 } else { 18.0 };
-    let iw = w - 2.0 * pad;
-    let mac = starter.facts().mac();
-    let row = mac.and(macs::mac(&c.model));
-    let name = match row {
-        // On a Mac, its name from the table; the identifier is a line.
-        Some(m) => m.name.to_string(),
-        None => format!("{} {}", c.maker.trim(), c.model.trim()),
-    };
-    let name = if name.trim().is_empty() {
-        S.starter_computer_unknown.to_string()
-    } else {
-        name.trim().to_string()
-    };
-    // A Mac shows no Secure Boot line: before the T2 chip its firmware
-    // has no such setting, and Startup Security is not read.
-    let mut lines: Vec<(String, Color)> = match mac {
-        Some(_) => {
-            let mut l = Vec::new();
-            if row.is_some() {
-                l.push((c.model.trim().to_string(), MUTED));
-            }
-            if row.is_some_and(|m| m.t2) {
-                l.push((S.starter_mac_t2.to_string(), TEXT));
-            }
-            l
-        }
-        None => vec![(secure_boot_text(c.secure_boot), TEXT)],
-    };
-    match mac {
-        Some(macs::Start::NotYet) => lines.push((S.starter_cannot_start_mac_yet.to_string(), WARN)),
-        Some(macs::Start::Firmware32) => {
-            lines.push((S.starter_cannot_start_mac_firmware.to_string(), WARN));
-        }
-        Some(macs::Start::Intel { .. }) => {}
-        None if c.arm => lines.push((S.starter_cannot_start_arm.to_string(), WARN)),
-        None if !c.uefi => lines.push((S.starter_cannot_start_bios.to_string(), WARN)),
-        None => {}
-    }
-    let card = starter.card();
-    if card == Card::Firmware {
-        // Why the card offers the firmware's settings, not the stick.
-        if c.secure_boot == Some(false)
-            && let Some(why) = &starter.stick_restart_failed
-        {
-            lines.push((
-                fill(S.starter_stick_restart_failed, &[&reason_text(why)]),
-                WARN,
-            ));
-        }
-        if let Some(why) = &starter.restart_failed {
-            lines.push((reason_text(why), ERR));
-        }
-    }
-    if card == Card::Rescue
-        && let Some(name) = &starter.other
-    {
-        lines.push((fill(S.starter_other_found, &[name]), WARN));
-    }
-    let free = starter.restart_holds().is_empty();
-    let button = Some(match card {
-        Card::Make => (S.starter_item_make, true),
-        Card::Firmware => (S.starter_restart, free),
-        Card::Stick => (S.starter_restart_stick, free),
-        Card::StartMac => (S.starter_item_start_mac, true),
-        Card::Rescue => (S.starter_other_confirm, true),
-    });
-    // The lines wrap: measured first, drawing nothing.
-    let n = ui.hits.len();
-    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-    let lines_h: f32 = lines
-        .iter()
-        .map(|(l, _)| ui.wrap(0.0, 0.0, iw, 13.0, W::R, TEXT, l) + 4.0)
-        .sum();
-    // A Mac's name can be long (one identifier, several years): it wraps.
-    let name_h = ui.wrap(0.0, 0.0, iw, 16.0, W::S, TEXT, &name).max(20.0) + 6.0;
-    ui.c.pop_clip();
-    ui.hits.truncate(n);
-    let mut h = pad + 20.0 + name_h + lines_h;
-    if button.is_some() {
-        h += 14.0 + 44.0;
-    }
-    h += pad;
-    ui.card(x, y0, w, h, LINE);
-    let mut y = y0 + pad;
-    ui.text(x + pad, y, 12.0, W::S, MUTED, S.starter_computer);
-    y += 20.0;
-    ui.wrap(x + pad, y, iw, 16.0, W::S, TEXT, &name);
-    y += name_h;
-    for (l, tone) in &lines {
-        y += ui.wrap(x + pad, y, iw, 13.0, W::R, *tone, l) + 4.0;
-    }
-    if let Some((label, offered)) = button {
-        y += 14.0;
-        let style = if offered {
-            Style::Primary
-        } else {
-            Style::Disabled
-        };
-        let bw = if starter.compact { Some(iw) } else { None };
-        let label = ui.fit(15.0, W::S, label, iw - 24.0);
-        ui.button(
-            x + pad,
-            y,
-            bw,
-            44.0,
-            &label,
-            style,
-            StarterAction::Next.host(),
-        );
-    }
-    h
-}
-
 // ---------------------------------------------------------------------
 // Make a Faraday stick, make a Pi card
 // ---------------------------------------------------------------------
@@ -1034,7 +772,7 @@ fn target_of(starter: &Starter) -> Target {
 /// For which computer? (§3.2 step 0): the two stick images, nothing
 /// chosen, the row that fits this computer tagged.
 fn which(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     let fits = macs::stick_for(&starter.computer);
     for (k, head) in [
         (StickFor::Pc, S.starter_which_pc),
@@ -1061,7 +799,7 @@ fn which(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 }
 
 fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     let target = target_of(starter);
     if target == Target::Pi {
         y += line(ui, x, y, w, S.starter_pi_supported_boards, MUTED);
@@ -1120,7 +858,7 @@ fn disks(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 }
 
 fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     let target = target_of(starter);
     if let Some(d) = starter.chosen_disk() {
         let s = format!("{} · {}", disk_name(d), size_text(d.size));
@@ -1217,7 +955,7 @@ fn mode(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 }
 
 fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     let Some(m) = starter.making.as_ref() else {
         return y;
     };
@@ -1317,7 +1055,7 @@ fn confirm(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 }
 
 fn writing(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     let Some(m) = starter.making.as_ref() else {
         return y;
     };
@@ -1466,7 +1204,7 @@ fn learn_title(id: LearnId) -> &'static str {
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn start(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     let c = &starter.computer;
     let facts = starter.facts();
     let windows = c.os == Os::Windows;
@@ -1938,7 +1676,7 @@ fn let_through_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
 // ---------------------------------------------------------------------
 
 fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     if starter.update_offered()
         && let Some(i) = &starter.installed
     {
@@ -1986,7 +1724,7 @@ fn item_name(item: InstallItem) -> &'static str {
 }
 
 fn installed(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     if let Some(why) = &starter.entry_kept {
         y += line(
             ui,
@@ -2049,7 +1787,7 @@ fn uninstall_sheet(_starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
 const FINGERPRINT: &str = "D1AF A712 ABEF 9010 9A1B  587F F153 6BE0 7E23 4CFD";
 
 fn about(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     y += value_row(ui, x, y, w, S.starter_version, crate::VERSION, TEXT);
     match &starter.payload {
         Some(p) => {
@@ -2193,7 +1931,7 @@ fn template_rows(starter: &Starter) -> Vec<(&'static str, String, TemplateChoice
 /// The blank templates menu: Words, Copy and Places as value rows, Print,
 /// Save the PDF, and what became of the last save.
 fn templates(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     let t = &starter.template;
     let rows = template_rows(starter);
     for (head, tail, choice) in rows {
@@ -2294,7 +2032,7 @@ fn choice_done(ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 fn template_words(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     ui.rule(x, y, w, INNER);
     for n in [12usize, 24] {
         y += tick_row(
@@ -2311,7 +2049,7 @@ fn template_words(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f3
 }
 
 fn template_copy(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     ui.rule(x, y, w, INNER);
     if starter.template.form == Form::Codex32 {
         // The Codex32QR grid is for 48 characters only.
@@ -2346,7 +2084,7 @@ fn template_copy(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
 }
 
 fn template_form(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     ui.rule(x, y, w, INNER);
     for f in [Form::Words, Form::Codex32] {
         y += tick_row(
@@ -2363,7 +2101,7 @@ fn template_form(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
 }
 
 fn template_length(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     ui.rule(x, y, w, INNER);
     for n in CODEX_LENGTHS {
         y += tick_row(
@@ -2380,7 +2118,7 @@ fn template_length(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
 }
 
 fn template_worksheets(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     ui.rule(x, y, w, INNER);
     for on in [false, true] {
         // None are published at 127 characters.
@@ -2401,7 +2139,7 @@ fn template_worksheets(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) 
 }
 
 fn template_places(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
-    let mut y = y0 + title(starter, ui, x, y0);
+    let mut y = y0;
     y += value_row(
         ui,
         x,

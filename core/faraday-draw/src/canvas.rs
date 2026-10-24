@@ -166,6 +166,28 @@ impl Canvas {
         }
     }
 
+    /// Copies `frame`, another canvas's pixels, in with its top-left
+    /// corner at (`x`, `y`), cut at this canvas's edges: an app's frame
+    /// drawn inside another's (the Starter's held desktop app). A copy
+    /// of its pixels, counted as a whole copy ([`Work::FullCanvas`]).
+    pub fn place(&mut self, x: i32, y: i32, frame: &Frame<'_>) {
+        (self.counter)(Work::FullCanvas);
+        let (fw, fh) = (i32::from(frame.width), i32::from(frame.height));
+        let r = Rect::new(x, y, fw, fh).intersect(&self.bounds());
+        if r.is_empty() || frame.rgba.len() < (fw * fh * 4) as usize {
+            return;
+        }
+        let stride = self.pixmap.width() as usize * 4;
+        let n = r.w as usize * 4;
+        let data = self.pixmap.data_mut();
+        for row in r.y..r.bottom() {
+            let to = row as usize * stride + r.x as usize * 4;
+            let from = ((row - y) * fw + (r.x - x)) as usize * 4;
+            data[to..to + n].copy_from_slice(&frame.rgba[from..from + n]);
+        }
+        self.damaged(r);
+    }
+
     /// The current clip rectangle.
     pub fn clip(&self) -> Rect {
         self.clips.last().copied().unwrap_or_else(|| self.bounds())

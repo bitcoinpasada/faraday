@@ -125,16 +125,15 @@ fn reads(starter: &mut Starter, s: &str) -> bool {
     texts(starter).join(" ").contains(s)
 }
 
-fn position(starter: &mut Starter, s: &str) -> Option<usize> {
-    texts(starter).iter().position(|t| t.contains(s))
-}
-
-/// Whether the card (above the checklist) carries `label`.
+/// Whether the card's button carries `label`: the card draws its
+/// checklist, then its button, so a label that is also a checklist item
+/// is drawn twice below the checklist's label.
 fn card_says(starter: &mut Starter, label: &str) -> bool {
-    matches!(
-        (position(starter, label), position(starter, "Checklist")),
-        (Some(a), Some(b)) if a < b
-    )
+    let t = texts(starter);
+    let Some(from) = t.iter().position(|s| s.contains("Checklist")) else {
+        return false;
+    };
+    t[from..].iter().filter(|s| s.as_str() == label).count() >= 2
 }
 
 /// Whether the checklist (below its label) carries `label`.

@@ -440,7 +440,7 @@ impl Faraday {
     /// of the screen the last frame drew, else `a`. Only lookups.
     pub(crate) fn as_back(&self, a: Action) -> Action {
         let link = self.trail.is_link(self.screen, a);
-        // A held app's strip goes to its holder's Home, whatever was seen
+        // A held app's way home goes to its holder, whatever was seen
         // before.
         let held_home = self.held && a == Action::Nav(Screen::Home);
         if link && self.sheet.is_none() && !stays(a) && !held_home {

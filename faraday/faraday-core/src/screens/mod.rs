@@ -183,6 +183,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // under it, undimmed (`docs/BACKUP-FLOW.md` §17.20).
         if matches!(sheet, Sheet::BoardMenu | Sheet::FileMenu) && !app.is_compact() {
             ui.still();
+        } else if matches!(sheet, Sheet::Learn) && app.held {
+            // Held, the Learn sheet is the page under the holder's top
+            // app bar (`docs/STARTER.md` §3.1d).
+            ui.clear(SURFACE);
         } else {
             ui.backdrop();
         }
@@ -267,12 +271,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     crate::stick::pills::draw(app, ui, full_w);
 }
 
-/// The height of the strip across the top of a held app's frame
-/// ([`Faraday::held`]): the way back to the holder's Home.
-const HELD_TOP: f32 = 52.0;
-
-/// A held app's frame on a wide display: no sidebar, the way back to the
-/// holder's Home across the top, and the screen under it in the width
+/// A held app's frame on a wide display ([`Faraday::held`]): no sidebar
+/// and no way back of its own, since the holder draws its top app bar
+/// above this frame (`docs/STARTER.md` §3.1d); the screen in the width
 /// the sidebar frame gives it. Its Home draws nothing: the holder's Home
 /// is the one a person sees.
 /// `page` is the page's height and how far it is drawn up: under the
@@ -282,47 +283,13 @@ fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32
     let cw = full_w.min(MAX_W - SIDEBAR_W);
     ui.ox = (full_w - cw) / 2.0;
     if app.screen != Screen::Home {
-        // The screen's own top margin sits under the strip.
-        let top = HELD_TOP - 24.0;
-        ui.oy = top - lift;
-        dispatch(app, ui, 0.0, cw, page_h - top);
+        ui.oy = -lift;
+        dispatch(app, ui, 0.0, cw, page_h);
         ui.oy = 0.0;
-        ui.fill(-ui.ox, 0.0, full_w, HELD_TOP, 0.0, SURFACE);
     }
-    let back = Action::Nav(Screen::Home);
-    let label = EN.held_frame_home;
-    let bw = ui.measure(14.0, W::S, label) + 44.0;
-    let (bx, by) = (24.0, 10.0);
-    if ui.is_pressed(back) || ui.is_hovered(back) {
-        ui.fill(bx, by, bw, 34.0, 8.0, INNER);
-    }
-    ui.icon(bx + 4.0, by + 5.0, 24.0, Icon::ChevronLeft, 12.0, MUTED);
-    ui.text_mid(bx + 30.0, by, 34.0, 14.0, W::S, MUTED, label);
-    ui.hit(bx, by, bw, 34.0, back);
-    ui.back(back);
-    if app.screen != Screen::Home && !app.learn_pages().is_empty() {
-        let (qx, qy) = (cw - faraday_draw::tokens::TOP_ROW_QUESTION, 12.0);
-        let pressed = ui.is_pressed(Action::Learn);
-        ui.fill(
-            qx,
-            qy,
-            28.0,
-            28.0,
-            14.0,
-            if pressed { INNER } else { SURFACE },
-        );
-        ui.stroke(qx, qy, 28.0, 28.0, 14.0, BORDER);
-        let tw = ui.measure(14.0, W::S, "?");
-        ui.text_mid(qx + 14.0 - tw / 2.0, qy, 28.0, 14.0, W::S, MUTED, "?");
-        ui.hit(qx - 6.0, qy - 6.0, 40.0, 40.0, Action::Learn);
-    }
-    if app.screen != Screen::Home && app.sheet.is_none() {
-        crate::compact::wide_keyboard_button(
-            app,
-            ui,
-            cw - faraday_draw::tokens::TOP_ROW_QUESTION - faraday_draw::tokens::GAP,
-        );
-    }
+    // The holder's way back is the one Back and Escape take.
+    ui.back(Action::Nav(Screen::Home));
+    ui.back_hit = None;
     notices(app, ui, 0.0, cw, full_h);
     ui.ox = 0.0;
     ui.oy = 0.0;
@@ -422,7 +389,13 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
         // Room for the bar as the last frame had it; a change draws again.
         let had = if kb { 0.0 } else { app.pin_h.get() };
         let page_h = h - had;
+        // A held app's way back is drawn by its holder, above this
+        // frame; Back and Escape take it here.
         let top = if crate::compact::draws_own_bar(app.screen) {
+            0.0
+        } else if app.held {
+            ui.back(crate::compact::page_head(app).0.1);
+            ui.back_hit = None;
             0.0
         } else if nav.beside() {
             let head = app_bar(ui);
@@ -440,7 +413,7 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
         ui.pinning = false;
         ui.oy = y0;
         ui.c.pop_clip();
-        if top == 0.0 {
+        if crate::compact::draws_own_bar(app.screen) {
             crate::compact::flow_bar_tools(app, ui, w);
         }
         let pin = ui.pin.take().filter(|_| !kb);

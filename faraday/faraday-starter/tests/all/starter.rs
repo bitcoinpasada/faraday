@@ -592,7 +592,7 @@ const STICK: Option<Sheet> = Some(Sheet::Restart(RestartTo::Stick));
 fn home_leads_with_the_next_step_for_each_state() {
     // No stick.
     let mut starter = starter_with(Vec::new());
-    assert!(position(&mut starter, "Make a Faraday stick") < position(&mut starter, "Checklist"));
+    assert!(card_says(&mut starter, "Make a Faraday stick"));
     assert!(shows(&mut starter, "No Faraday stick attached"));
     assert_eq!(next_step(&mut starter), (true, Page::Disks, None));
 
@@ -841,12 +841,17 @@ fn reads(starter: &mut Starter, s: &str) -> bool {
     texts(starter).join(" ").contains(s)
 }
 
-/// Whether the card (above the checklist) carries `label`.
+/// Whether the card's button carries `label`: the card draws its
+/// checklist, then its button, so a label that is also a checklist item
+/// is drawn twice below the checklist's label.
 fn card_says(starter: &mut Starter, label: &str) -> bool {
-    matches!(
-        (position(starter, label), position(starter, "Checklist")),
-        (Some(a), Some(b)) if a < b
-    )
+    let t = texts(starter);
+    let Some(from) = t.iter().position(|s| s.contains("Checklist")) else {
+        return false;
+    };
+    let items = ["Make a Faraday stick", "Start this computer from the stick"];
+    let need = 1 + usize::from(items.contains(&label));
+    t[from..].iter().filter(|s| s.as_str() == label).count() >= need
 }
 
 #[test]

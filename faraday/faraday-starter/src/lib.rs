@@ -8,8 +8,9 @@
 //! what the Starter asks for from [`Starter::next_command`] ([`api`]).
 //!
 //! Transfer and Learn are the desktop app's own screens (§2): the Starter
-//! holds a `Faraday` in online mode ([`Faraday::held`]) and draws it
-//! while one of them is open; its way back returns to the Starter's Home.
+//! holds a `Faraday` in online mode ([`Faraday::held`]) and draws its
+//! frame under the Starter's own top app bar while one of them is open
+//! (`docs/STARTER.md` §3.1d); its way back returns to the Starter's page.
 //! The shell serves that `Faraday`'s storage channel through
 //! [`Starter::held`].
 
@@ -50,8 +51,13 @@ pub const VERSION: &str = env!("CARGO_PKG_VERSION");
 /// A page of the Starter.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Page {
-    /// Home: This computer, the checklist, the rows (§3.1).
+    /// Home: the This computer card with its checklist, then the cards
+    /// about this computer (§3.1).
     Home,
+    /// Make: the Faraday stick and Pi card cards (§3.1d).
+    Make,
+    /// Tools: the Transfer and Blank templates cards (§3.1d).
+    Tools,
     /// For which computer? (§3.2 step 0), once the payload carries both
     /// stick images.
     Which,
@@ -87,6 +93,64 @@ pub enum Page {
     TemplateLength,
     /// Blank templates' codex32 Worksheets.
     TemplateWorksheets,
+}
+
+impl Page {
+    /// The destination this page is, when it is one of the three the
+    /// Starter draws itself (§3.1d); a task page is none.
+    pub fn destination(self) -> Option<Destination> {
+        match self {
+            Page::Home => Some(Destination::Home),
+            Page::Make => Some(Destination::Make),
+            Page::Tools => Some(Destination::Tools),
+            _ => None,
+        }
+    }
+}
+
+/// One of the four places the navigation rail or bar goes to (§3.1d).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Destination {
+    /// Home.
+    Home,
+    /// Make.
+    Make,
+    /// Tools.
+    Tools,
+    /// Learn: the desktop app's Learn sheet with the Starter's pages.
+    Learn,
+}
+
+/// The window's size class (§3.1d, Material 3's window size classes),
+/// read from its width in dp divided by the text size factor (F85), so a
+/// larger text steps the layout down as a narrower window would.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Class {
+    /// Under 600 dp: the navigation bar at the foot.
+    Compact,
+    /// 600 to 839 dp: the navigation rail at the left.
+    Medium,
+    /// 840 dp and over: the rail, and Home's cards in columns.
+    Expanded,
+}
+
+impl Class {
+    /// The class of a window `w` by `h` dp with text `text_factor` times
+    /// its standard size. A lookup.
+    pub fn of(w: f32, h: f32, text_factor: f32) -> Class {
+        use faraday_draw::geom::{Window, WindowClass};
+        let k = text_factor.max(1.0);
+        match (Window {
+            width: w / k,
+            height: h / k,
+        })
+        .class()
+        {
+            WindowClass::Compact => Class::Compact,
+            WindowClass::Medium => Class::Medium,
+            _ => Class::Expanded,
+        }
+    }
 }
 
 /// A sheet over a page.
@@ -222,8 +286,17 @@ impl LearnId {
 pub enum StarterAction {
     /// Back one step.
     Back,
-    /// Home.
+    /// Home, from the rail or the bar: as it was last seen, or its top
+    /// from itself.
     Home,
+    /// The Make destination, opened as Home is.
+    MakePage,
+    /// The Tools destination, opened as Home is.
+    ToolsPage,
+    /// The top app bar's ⋮ menu, opened or closed.
+    Menu,
+    /// The ⋮ menu closed by a press outside it.
+    CloseMenu,
     /// Make a Faraday stick, or a Pi card: the disk list.
     Make(Target),
     /// The This computer card's button ([`Card`]).
@@ -410,6 +483,10 @@ impl StarterAction {
             StarterAction::TemplateLength(n) => (56, n as u32),
             StarterAction::TemplateCodexCopy(c) => (57, c as u32),
             StarterAction::TemplateWorksheets(on) => (58, u32::from(on)),
+            StarterAction::MakePage => (59, 0),
+            StarterAction::ToolsPage => (60, 0),
+            StarterAction::Menu => (61, 0),
+            StarterAction::CloseMenu => (62, 0),
         };
         (kind << 16) | arg
     }
@@ -488,6 +565,10 @@ impl StarterAction {
             56 => StarterAction::TemplateLength(arg as usize),
             57 => StarterAction::TemplateCodexCopy(*template::CodexCopy::ALL.get(arg as usize)?),
             58 => StarterAction::TemplateWorksheets(arg == 1),
+            59 => StarterAction::MakePage,
+            60 => StarterAction::ToolsPage,
+            61 => StarterAction::Menu,
+            62 => StarterAction::CloseMenu,
             _ => return None,
         })
     }
@@ -544,7 +625,22 @@ pub struct Starter {
     f: f32,
     w: f32,
     h: f32,
-    compact: bool,
+    /// The window's size class (§3.1d), from its width and the text
+    /// size factor.
+    class: Class,
+    /// The text size factor (F85): 1.0 until the setting exists.
+    text_factor: f32,
+    /// The top app bar's ⋮ menu is open.
+    menu: bool,
+    /// Where a task page's way back lands: the destination it was
+    /// opened from, and how far that was scrolled (F77).
+    origin: Option<(Page, f32)>,
+    /// How far each destination was scrolled when it was left through
+    /// the rail or the bar: Home, Make, Tools (F77).
+    seen_at: [f32; 3],
+    /// How many filled buttons the last frame drew (§3.1d: one primary
+    /// action a screen).
+    primaries: usize,
     hits: Vec<(Rect, Action)>,
     pressed: Option<Action>,
     hovered: Option<Action>,
@@ -648,6 +744,21 @@ pub struct Starter {
     held: Faraday,
     /// The held app is on screen.
     showing: bool,
+    /// The held app shows Learn as a destination, opened from the rail or
+    /// the bar, which stays beside it; otherwise Transfer or a Learn page
+    /// opened from a page, a task page with the way back (§3.1d).
+    learn_dest: bool,
+    /// The press under way began on the held app's frame, so its moves
+    /// and its release are the held app's too.
+    held_touch: bool,
+    /// The window as the shell last reported it.
+    window: Option<DisplayInfo>,
+    /// The size the held app was last told it has, in pixels: the window
+    /// less the top app bar, and less the rail or the bar on Learn.
+    /// Invariant: what [`Starter::held_area`] gives now, kept in step by
+    /// [`Starter::fit_held`] at every change of the window, the text size
+    /// or what is shown.
+    held_size: Option<(u16, u16)>,
     /// The page under the open sheet, frosted and dimmed, as the frame
     /// that opened the sheet drew it (`faraday_ui::Ui::backdrop`): each
     /// frame after puts it back instead of drawing and blurring the page
@@ -677,7 +788,12 @@ impl Starter {
             f: 1.0,
             w: 0.0,
             h: 0.0,
-            compact: false,
+            class: Class::Expanded,
+            text_factor: 1.0,
+            menu: false,
+            origin: None,
+            seen_at: [0.0; 3],
+            primaries: 0,
             hits: Vec::new(),
             pressed: None,
             hovered: None,
@@ -726,6 +842,10 @@ impl Starter {
             max: 0.0,
             seen: Vec::new(),
             held,
+            learn_dest: false,
+            held_touch: false,
+            window: None,
+            held_size: None,
             showing: false,
             frost: None,
         };
@@ -899,6 +1019,33 @@ impl Starter {
     /// Pixels per dp the pages are drawn at: the window's density.
     pub fn scale(&self) -> f32 {
         self.f
+    }
+
+    /// The window's size class (§3.1d). A lookup.
+    pub fn class(&self) -> Class {
+        self.class
+    }
+
+    /// Whether the window takes the one-column layout and the navigation
+    /// bar: the compact class. A lookup.
+    pub(crate) fn compact(&self) -> bool {
+        self.class == Class::Compact
+    }
+
+    /// Sets the text size factor (F85): a larger text steps the layout
+    /// down a class, as a narrower window would.
+    pub fn set_text_factor(&mut self, factor: f32) {
+        self.text_factor = factor.max(1.0);
+        self.class = Class::of(self.w, self.h, self.text_factor);
+        self.fit_held();
+        self.frost = None;
+        self.dirty = true;
+        self.commands.push_back(Command::Draw);
+    }
+
+    /// How many primary (filled) buttons the last frame drew. A lookup.
+    pub fn primary_buttons(&self) -> usize {
+        self.primaries
     }
 
     /// The held desktop app, for its storage channel
@@ -1087,7 +1234,7 @@ impl Starter {
     /// Whether the last frame drawn offers `action` to a press.
     pub fn offers_action(&self, action: StarterAction) -> bool {
         let a = action.host();
-        !self.showing && self.hits.iter().any(|(_, h)| *h == a)
+        self.hits.iter().any(|(_, h)| *h == a)
     }
 
     /// Where the last frame drawn offers `action`, in pixels: the middle
@@ -1098,11 +1245,23 @@ impl Starter {
         Some(((r.x + r.w / 2) as u16, (r.y + r.h / 2) as u16))
     }
 
+    /// Where the held app's last frame offers `action`, in the window's
+    /// pixels: its frame lies under the Starter's top app bar, for tests
+    /// that touch it. A lookup.
+    pub fn where_held_offers(&self, action: Action) -> Option<(u16, u16)> {
+        let (x, y) = self.held.where_offered(action)?;
+        let (ax, ay, _, _) = self.held_area()?;
+        Some(((i32::from(x) + ax) as u16, (i32::from(y) + ay) as u16))
+    }
+
     /// The strings the current frame draws.
     pub fn drawn_texts(&mut self) -> Vec<String> {
-        if self.showing {
-            return self.held.drawn_texts();
-        }
+        // The held app's words, and the Starter's own bar over it.
+        let mut texts = if self.showing {
+            self.held.drawn_texts()
+        } else {
+            Vec::new()
+        };
         if let Some(c) = self.canvas.as_mut() {
             c.record_ink(true);
         }
@@ -1110,19 +1269,12 @@ impl Starter {
         // frosted copy, so its words are read.
         self.frost = None;
         self.render();
-        let texts = self
-            .canvas
-            .as_ref()
-            .map(|c| {
-                c.ink()
-                    .iter()
-                    .filter_map(|i| match &i.kind {
-                        faraday_draw::canvas::InkKind::Text { text, .. } => Some(text.clone()),
-                        faraday_draw::canvas::InkKind::Icon(_) => None,
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
+        if let Some(c) = self.canvas.as_ref() {
+            texts.extend(c.ink().iter().filter_map(|i| match &i.kind {
+                faraday_draw::canvas::InkKind::Text { text, .. } => Some(text.clone()),
+                faraday_draw::canvas::InkKind::Icon(_) => None,
+            }));
+        }
         if let Some(c) = self.canvas.as_mut() {
             c.record_ink(false);
         }
@@ -1314,9 +1466,42 @@ impl Starter {
         self.commands.push_back(Command::Draw);
     }
 
+    /// Opens a destination from the rail or the bar (§3.1d, F77): as it
+    /// was last seen, or at its top when it is the one shown.
+    fn open(&mut self, to: Page) {
+        if self.page == to {
+            self.offset = 0.0;
+            return;
+        }
+        if let Some(d) = self.page.destination() {
+            self.seen_at[Self::seen_index(d)] = self.offset;
+        }
+        self.go(to);
+        self.origin = None;
+        if let Some(d) = to.destination() {
+            self.offset = self.seen_at[Self::seen_index(d)];
+            // The page drawn before this one set the scroll's end.
+            self.max = f32::INFINITY;
+        }
+    }
+
+    fn seen_index(d: Destination) -> usize {
+        match d {
+            Destination::Home | Destination::Learn => 0,
+            Destination::Make => 1,
+            Destination::Tools => 2,
+        }
+    }
+
     fn go(&mut self, page: Page) {
+        // A task page opened from a destination remembers it, and how
+        // far it was scrolled, for its way back (F77).
+        if page.destination().is_none() && self.page.destination().is_some() {
+            self.origin = Some((self.page, self.offset));
+        }
         self.page = page;
         self.sheet = None;
+        self.menu = false;
         self.offset = 0.0;
         // BitLocker is read from Windows each time the Start page is
         // shown (F49): it may have been changed outside the Starter.
@@ -1328,8 +1513,9 @@ impl Starter {
     }
 
     /// Opens the held desktop app on Transfer, or on the Learn sheet with
-    /// `pages`.
-    fn show_held(&mut self, pages: Option<Vec<&'static faraday_learn::Page>>) {
+    /// `pages`: as the Learn destination when `dest`, beside the rail or
+    /// above the bar, else as a task page with the way back (§3.1d).
+    fn show_held(&mut self, pages: Option<Vec<&'static faraday_learn::Page>>, dest: bool) {
         match pages {
             Some(pages) => {
                 self.held.screen = Screen::Home;
@@ -1338,7 +1524,138 @@ impl Starter {
             None => self.held.press(Action::Nav(Screen::Transfer)),
         }
         self.showing = self.held_on_show();
+        self.learn_dest = dest && self.showing;
+        self.held_touch = false;
         self.pressed = None;
+        self.fit_held();
+    }
+
+    /// Leaves the held desktop app for the Starter's own pages: its sheet
+    /// closed and its Home shown, which draws nothing.
+    fn leave_held(&mut self) {
+        if self.held.sheet.is_some() {
+            self.held.press(Action::Cancel);
+        }
+        if self.held.screen != Screen::Home {
+            self.held.press(Action::Nav(Screen::Home));
+        }
+        self.showing = false;
+        self.learn_dest = false;
+        self.held_touch = false;
+        self.pressed = None;
+        self.fit_held();
+    }
+
+    /// The destination on screen (§3.1d): Learn while the held app shows
+    /// it as one, none on any task page. A lookup.
+    pub(crate) fn on_destination(&self) -> Option<Destination> {
+        if self.showing {
+            return self.learn_dest.then_some(Destination::Learn);
+        }
+        self.page.destination()
+    }
+
+    /// Where the held app's frame lies in the window, in pixels: its left
+    /// and top edges, its width and height. It is under the top app bar,
+    /// beside the rail or above the bar while it shows Learn as a
+    /// destination (§3.1d). A lookup.
+    fn held_area(&self) -> Option<(i32, i32, u16, u16)> {
+        use faraday_draw::tokens::{APP_BAR_H, NAV_BAR_H, RAIL_W};
+        let d = self.window?;
+        let px = |dp: f32| (dp * self.f).round() as i32;
+        let x = if self.learn_dest && !self.compact() {
+            px(RAIL_W)
+        } else {
+            0
+        };
+        let foot = if self.learn_dest && self.compact() {
+            px(NAV_BAR_H)
+        } else {
+            0
+        };
+        let y = px(APP_BAR_H);
+        let w = i32::from(d.width) - x;
+        let h = i32::from(d.height) - y - foot;
+        (w > 0 && h > 0).then_some((x, y, w as u16, h as u16))
+    }
+
+    /// Tells the held app its size when it changed ([`Starter::held_size`]).
+    fn fit_held(&mut self) {
+        let (Some(d), Some((_, _, w, h))) = (self.window, self.held_area()) else {
+            return;
+        };
+        if self.held_size == Some((w, h)) {
+            return;
+        }
+        self.held_size = Some((w, h));
+        self.held.event(Event::Display(DisplayInfo {
+            width: w,
+            height: h,
+            ..d
+        }));
+    }
+
+    /// An event while the held app is on screen: what falls on its frame,
+    /// moved to its own corner, and every key and way back are its; the
+    /// Starter keeps what falls on its own bar, rail or bar at the foot,
+    /// and the window's own events. Returns the event when it is the
+    /// Starter's.
+    fn held_event(&mut self, event: Event) -> Option<Event> {
+        let Some((ax, ay, aw, ah)) = self.held_area() else {
+            return Some(event);
+        };
+        let inside = |x: u16, y: u16| {
+            let (x, y) = (i32::from(x), i32::from(y));
+            x >= ax && y >= ay && x < ax + i32::from(aw) && y < ay + i32::from(ah)
+        };
+        let moved = |x: u16, y: u16| {
+            (
+                (i32::from(x) - ax).clamp(0, i32::from(u16::MAX)) as u16,
+                (i32::from(y) - ay).clamp(0, i32::from(u16::MAX)) as u16,
+            )
+        };
+        let to_held = match event {
+            Event::Display(_) | Event::Tick { .. } => return Some(event),
+            Event::Touch { x, y, phase } => {
+                if phase == TouchPhase::Down {
+                    self.held_touch = inside(x, y);
+                }
+                if !self.held_touch {
+                    return Some(event);
+                }
+                if phase == TouchPhase::Up {
+                    self.held_touch = false;
+                }
+                let (x, y) = moved(x, y);
+                Event::Touch { x, y, phase }
+            }
+            Event::Hover { x, y } if inside(x, y) => {
+                let (x, y) = moved(x, y);
+                Event::Hover { x, y }
+            }
+            Event::Hover { .. } => {
+                self.held.event(Event::HoverEnd);
+                return Some(event);
+            }
+            Event::Wheel { x, y, dy } if inside(x, y) => {
+                let (x, y) = moved(x, y);
+                Event::Wheel { x, y, dy }
+            }
+            Event::Scroll { x, y, dy } if inside(x, y) => {
+                let (x, y) = moved(x, y);
+                Event::Scroll { x, y, dy }
+            }
+            Event::ScrollEnd { x, y } => {
+                let (x, y) = moved(x, y);
+                Event::ScrollEnd { x, y }
+            }
+            // A turn of the wheel over the Starter's own bar moves nothing.
+            Event::Wheel { .. } | Event::Scroll { .. } => return None,
+            other => other,
+        };
+        self.held.event(to_held);
+        self.held_after();
+        None
     }
 
     /// Whether the held app is on one of its two screens: Transfer, or a
@@ -1363,6 +1680,13 @@ impl Starter {
     #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
     fn act(&mut self, action: StarterAction) {
         self.frost = None;
+        // The ⋮ menu closes on any press but its own button.
+        if action != StarterAction::Menu {
+            self.menu = false;
+        }
+        if self.showing && !self.act_over_held(action) {
+            return;
+        }
         let c = self.held.compute();
         // While the sheet is up, only its own buttons.
         if self.sheet.is_some()
@@ -1380,7 +1704,17 @@ impl Starter {
         }
         match action {
             StarterAction::Back => self.back(),
-            StarterAction::Home => self.go(Page::Home),
+            StarterAction::Home => self.open(Page::Home),
+            StarterAction::MakePage => self.open(Page::Make),
+            StarterAction::ToolsPage => self.open(Page::Tools),
+            StarterAction::Menu => {
+                if self.sheet.is_none() {
+                    self.menu = !self.menu;
+                }
+            }
+            StarterAction::CloseMenu => {}
+            // No Pi image in this Starter: nothing to choose a card for.
+            StarterAction::Make(Target::Pi) if self.image(Target::Pi).is_none() => {}
             StarterAction::Make(target) => {
                 self.making = Some(Making {
                     target,
@@ -1567,14 +1901,14 @@ impl Starter {
                     self.out.push_back(StarterCommand::RunDesktop);
                 }
             }
-            StarterAction::Transfer => self.show_held(None),
+            StarterAction::Transfer => self.show_held(None, false),
             StarterAction::Learn => {
                 let pages = self.learn_pages();
-                self.show_held(Some(pages));
+                self.show_held(Some(pages), true);
             }
             StarterAction::LearnPage(id) => {
                 if let Some(page) = id.page() {
-                    self.show_held(Some(vec![page]));
+                    self.show_held(Some(vec![page]), false);
                 }
             }
             StarterAction::About => self.go(Page::About),
@@ -1712,7 +2046,7 @@ impl Starter {
                 }
             }
             StarterAction::RemoveEntry => {
-                if self.page == Page::Home && self.entry_offered() && !self.entry_removing {
+                if self.entry_offered() && !self.entry_removing {
                     self.entry_removing = true;
                     self.entry_remove_failed = None;
                     self.out.push_back(StarterCommand::RemoveBootEntry);
@@ -1804,13 +2138,45 @@ impl Starter {
         self.go(Page::Writing);
     }
 
+    /// A press on the Starter's own bar, rail or bar at the foot while the
+    /// held app is on screen: the way back is the held app's own Back;
+    /// anything else leaves it, and a destination already under it is
+    /// shown as it was left. Returns whether the press goes on to the
+    /// Starter's own pages.
+    fn act_over_held(&mut self, action: StarterAction) -> bool {
+        match action {
+            StarterAction::Back => {
+                self.held.event(Event::Back);
+                self.held_after();
+                false
+            }
+            StarterAction::Menu | StarterAction::CloseMenu | StarterAction::RemoveEntry => true,
+            // Learn pressed on Learn: it is shown already.
+            StarterAction::Learn if self.learn_dest => false,
+            _ => {
+                let under = self.page;
+                self.leave_held();
+                !matches!(
+                    (action, under),
+                    (StarterAction::Home, Page::Home)
+                        | (StarterAction::MakePage, Page::Make)
+                        | (StarterAction::ToolsPage, Page::Tools)
+                )
+            }
+        }
+    }
+
     fn back(&mut self) {
+        if self.menu {
+            self.menu = false;
+            return;
+        }
         if self.sheet.is_some() {
             self.sheet = None;
             return;
         }
         let to = match self.page {
-            Page::Home => return,
+            Page::Home | Page::Make | Page::Tools => return,
             Page::Mode => Page::Disks,
             Page::Confirm => Page::Mode,
             Page::Disks
@@ -1830,7 +2196,7 @@ impl Starter {
             | Page::TemplateForm
             | Page::TemplateLength
             | Page::TemplateWorksheets => Page::Templates,
-            _ => Page::Home,
+            _ => self.origin.map_or(Page::Home, |(p, _)| p),
         };
         if to == Page::Disks
             && let Some(m) = self.making.as_mut()
@@ -1845,6 +2211,15 @@ impl Starter {
             m.refused = None;
         }
         self.go(to);
+        // Back at the destination the task was opened from: at the
+        // scroll it was left at (F77).
+        if to.destination().is_some()
+            && let Some((p, at)) = self.origin.take()
+            && p == to
+        {
+            self.offset = at;
+            self.max = f32::INFINITY;
+        }
     }
 
     fn display(&mut self, d: DisplayInfo) {
@@ -1852,7 +2227,6 @@ impl Starter {
         // the desktop's density at every window size, and a window under
         // 600 dp wide gets the one-column layout.
         let density = f32::from(d.dpi.max(1)) / 160.0;
-        self.compact = f32::from(d.width) / density < 600.0;
         let f = density.max(0.5);
         let scaled = DisplayInfo {
             dpi: (160.0 * f).round().max(1.0) as u16,
@@ -1861,6 +2235,7 @@ impl Starter {
         self.f = f;
         self.w = f32::from(d.width) / f;
         self.h = f32::from(d.height) / f;
+        self.class = Class::of(self.w, self.h, self.text_factor);
         let mut canvas = Canvas::new(&scaled);
         // The canvas notes its pixel work, a blur or a whole copy, with
         // the held app's counter (`docs/COMPUTE.md` §2.2), for the
@@ -1868,6 +2243,8 @@ impl Starter {
         canvas.set_counter(faraday_core::work::core_count);
         self.canvas = Some(canvas);
         self.frost = None;
+        self.window = Some(d);
+        self.fit_held();
     }
 
     fn render(&mut self) {
@@ -1880,16 +2257,32 @@ impl Starter {
         let max = {
             let mut ui = faraday_ui::Ui::new(&mut canvas, self.f, &mut hits, self.pressed);
             ui.hovered = self.hovered;
-            ui.compact = self.compact;
+            ui.compact = self.compact();
+            ui.primaries = 0;
             ui.offset = self.offset;
             ui.frost = self.sheet.and(self.frost.take());
             let max = draw::frame(self, &mut ui);
             self.frost = ui.frost.take();
+            self.primaries = ui.primaries;
             max
         };
         self.max = max;
         self.hits = hits;
         self.canvas = Some(canvas);
+    }
+
+    /// The frame while the held app is on screen (§3.1d): its frame
+    /// copied in under the top app bar, then the Starter's bar, and the
+    /// rail or the bar at the foot on Learn, drawn round and over it.
+    /// Costs a copy of the held app's pixels each frame.
+    fn compose(&mut self) {
+        self.dirty = false;
+        if let Some((x, y, _, _)) = self.held_area()
+            && let Some(canvas) = self.canvas.as_mut()
+        {
+            canvas.place(x, y, &self.held.frame());
+        }
+        self.render();
     }
 
     fn hit_at(&self, x: i32, y: i32) -> Option<Action> {
@@ -1931,6 +2324,9 @@ impl Starter {
     fn held_after(&mut self) {
         if self.showing && !self.held_on_show() {
             self.showing = false;
+            self.learn_dest = false;
+            self.held_touch = false;
+            self.fit_held();
             self.pressed = None;
             self.dirty = true;
             self.commands.push_back(Command::Draw);
@@ -1962,22 +2358,27 @@ impl Facts<'_> {
 
 impl App for Starter {
     fn event(&mut self, event: Event) {
-        match event {
-            Event::Display(d) => {
-                self.display(d);
-                self.held.event(Event::Display(d));
+        let event = if self.showing {
+            match self.held_event(event) {
+                Some(e) => e,
+                None => return,
             }
+        } else {
+            event
+        };
+        match event {
+            Event::Display(d) => self.display(d),
             Event::Tick { .. } => {
                 self.held.event(event);
                 self.held_after();
                 return;
             }
-            Event::Touch { x, y, phase } if !self.showing => {
+            Event::Touch { x, y, phase } => {
                 if !self.touch(i32::from(x), i32::from(y), phase) {
                     return;
                 }
             }
-            Event::Hover { x, y } if !self.showing => {
+            Event::Hover { x, y } => {
                 self.hover = Some((i32::from(x), i32::from(y)));
                 let now = self.hit_at(i32::from(x), i32::from(y));
                 if now == self.hovered {
@@ -1985,13 +2386,13 @@ impl App for Starter {
                 }
                 self.hovered = now;
             }
-            Event::HoverEnd if !self.showing => {
+            Event::HoverEnd => {
                 self.hover = None;
                 if self.hovered.take().is_none() {
                     return;
                 }
             }
-            Event::Wheel { dy, .. } | Event::Scroll { dy, .. } if !self.showing => {
+            Event::Wheel { dy, .. } | Event::Scroll { dy, .. } => {
                 let offset =
                     (self.offset + f32::from(dy) / self.f.max(0.1)).clamp(0.0, self.max.max(0.0));
                 // At an end, a turn further moves nothing.
@@ -2001,14 +2402,10 @@ impl App for Starter {
                 self.offset = offset;
                 self.frost = None;
             }
-            Event::Back if !self.showing => self.act(StarterAction::Back),
-            Event::Key(Key::Escape) if !self.showing => self.act(StarterAction::Back),
-            Event::Key(_) | Event::KeyUp(_) | Event::Shift { .. } | Event::Forward
-                if !self.showing =>
-            {
-                return;
-            }
-            Event::ScrollEnd { .. } if !self.showing => return,
+            Event::Back => self.act(StarterAction::Back),
+            Event::Key(Key::Escape) => self.act(StarterAction::Back),
+            Event::Key(_) | Event::KeyUp(_) | Event::Shift { .. } | Event::Forward => return,
+            Event::ScrollEnd { .. } => return,
             // Everything else is the held app's: input while it is on
             // screen, and the answers to what it asked (entropy, the
             // camera, files).
@@ -2038,9 +2435,8 @@ impl App for Starter {
 
     fn frame(&mut self) -> Frame<'_> {
         if self.showing {
-            return self.held.frame();
-        }
-        if self.dirty {
+            self.compose();
+        } else if self.dirty {
             self.dirty = false;
             self.render();
         }

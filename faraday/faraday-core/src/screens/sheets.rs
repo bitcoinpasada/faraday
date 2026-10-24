@@ -1911,22 +1911,34 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         ((w - 80.0).min(860.0), h - 64.0, 28.0)
     };
-    let (x, y) = sheet_box(ui, w, h, sw, sh);
+    // Held, the sheet is the whole frame, a page under the holder's top
+    // app bar, whose way back or navigation leaves it (`docs/STARTER.md`
+    // §3.1d): no box and no Done.
+    let (x, y, sw, sh) = if app.held {
+        let sw = w.min(860.0);
+        ((w - sw) / 2.0, 0.0, sw, h)
+    } else {
+        let (x, y) = sheet_box(ui, w, h, sw, sh);
+        (x, y, sw, sh)
+    };
     let Some(page) = app.learn().pages.get(app.learn().page).copied() else {
         return;
     };
     let ticked = app.learn_ticked(page);
     // Tabs, one per page, and Done; on a small panel they wrap.
     let done_w = if compact { 72.0 } else { 96.0 };
-    ui.button(
-        x + sw - pad - done_w,
-        y + 14.0,
-        Some(done_w),
-        34.0,
-        EN.learn_done,
-        Style::Secondary,
-        Action::Cancel,
-    );
+    let tabs_w = sw - 2.0 * pad - if app.held { 0.0 } else { done_w + 8.0 };
+    if !app.held {
+        ui.button(
+            x + sw - pad - done_w,
+            y + 14.0,
+            Some(done_w),
+            34.0,
+            EN.learn_done,
+            Style::Secondary,
+            Action::Cancel,
+        );
+    }
     // The sheet's first row (`docs/history/SIMPLIFY.md` §6.2): a direct way to
     // the Spend tab, except from the Spend tab itself and in a held app
     // (`Faraday::held`), which has none.
@@ -1947,7 +1959,7 @@ pub(super) fn learn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (p.title.to_string(), style, Action::LearnPage(i as u8))
     }));
     let tabs_h = if tabs.len() > 1 || !compact {
-        learn_tabs(ui, x + pad, y + 14.0, sw - 2.0 * pad - done_w - 8.0, &tabs) - 44.0 + 34.0
+        learn_tabs(ui, x + pad, y + 14.0, tabs_w, &tabs) - 44.0 + 34.0
     } else {
         34.0
     };

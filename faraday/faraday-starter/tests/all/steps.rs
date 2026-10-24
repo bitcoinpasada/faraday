@@ -31,8 +31,7 @@ fn touch(starter: &mut Starter, x: u16, y: u16, phase: TouchPhase) {
 fn tap_step(starter: &mut Starter, n: u32) {
     let _ = starter.drawn_texts();
     let (x, y) = starter
-        .held()
-        .where_offered(Action::LearnStep(n))
+        .where_held_offers(Action::LearnStep(n))
         .expect("the step's circle");
     touch(starter, x, y, TouchPhase::Down);
     touch(starter, x, y, TouchPhase::Up);
