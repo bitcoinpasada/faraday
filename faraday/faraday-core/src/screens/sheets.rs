@@ -820,15 +820,32 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// Writing what is For the stick from a session that held a secret: the
 /// lock comes first, and this says what it keeps and wipes.
 pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    let then = fill(EN.write_out_lock_plug, &[app.medium.a()]);
+    let then = if app.stick.is_empty() {
+        fill(EN.write_out_lock_plug, &[app.medium.a()])
+    } else {
+        EN.write_out_lock_here.to_string()
+    };
     let title = fill(EN.write_out_target, &[app.medium.a()]);
+    let mut sections = kept_sections(app, false, then);
+    let drops = app.lock_drops();
+    if !drops.is_empty() {
+        // Between Wiped from memory and Then.
+        let at = sections.len() - 1;
+        sections.insert(
+            at,
+            (
+                EN.write_out_drops,
+                drops.into_iter().map(|n| (n, TEXT)).collect(),
+            ),
+        );
+    }
     kept_sheet(
         ui,
         w,
         h,
         (app.medium.icon(), ACCENT, &title),
         ("", MUTED, None, None),
-        &kept_sections(app, false, then),
+        &sections,
         &[
             (EN.write_out_not_now, Style::Secondary, Action::Cancel),
             (EN.write_out_lock, Style::Primary, Action::Lock),

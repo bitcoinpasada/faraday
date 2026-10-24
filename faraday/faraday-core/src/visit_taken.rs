@@ -231,6 +231,29 @@ impl Faraday {
         out
     }
 
+    /// The Inbox files a lock drops ([`crate::Item::dropped_at_lock`]),
+    /// by name.
+    pub fn lock_drops(&self) -> Vec<String> {
+        self.inbox
+            .iter()
+            .filter(|i| i.dropped_at_lock())
+            .map(|i| i.name.clone())
+            .collect()
+    }
+
+    /// A write the disk refused: the receipt says why, and the visit's log
+    /// says what becomes of the file.
+    pub(crate) fn visit_write_failed(&mut self, name: &str, reason: &str) {
+        self.receipt_add(name, Some(reason.to_string()));
+        let stays = if self.visit.writing_inbox.remove(name) {
+            EN.storage_event_it_stays.to_string()
+        } else {
+            fill(EN.storage_event_it_still, &[self.medium.for_the()])
+        };
+        let line = fill(EN.storage_event_not_written, &[name, reason, &stays]);
+        self.visit.log.push((line, false));
+    }
+
     /// The files the write would write whose names are taken on the stick
     /// shown, each with what becomes of it.
     pub fn visit_taken(&self) -> Vec<Taken> {
@@ -271,7 +294,14 @@ impl Faraday {
 
     /// The visit's Write: the sheet first when a file's name is taken and
     /// the choice decides what becomes of it; otherwise written at once.
+    ///
+    /// A process that is no longer clean asks to lock first, as Write from
+    /// Files does; the disk process would refuse the write.
     pub(crate) fn visit_write_ask(&mut self) {
+        if !self.clean() {
+            self.sheet = Some(Sheet::WriteOut);
+            return;
+        }
         let taken = self.visit_taken();
         if taken.iter().any(|t| matches!(t.fate, Fate::File { .. })) {
             self.visit.taken = taken;
@@ -284,6 +314,11 @@ impl Faraday {
     /// Writes the settings file when its row is on, and every chosen
     /// file; a taken file over the old one when `replace`.
     pub(crate) fn visit_write(&mut self, replace: bool) {
+        if !self.clean() {
+            self.visit.taken.clear();
+            self.sheet = Some(Sheet::WriteOut);
+            return;
+        }
         let c = self.compute();
         if self.sheet == Some(Sheet::Taken) {
             self.sheet = None;

@@ -26,6 +26,11 @@ use std::io::{Read, Write};
 /// room for its name, or for a picture's codes beside its bytes.
 pub const MAX_FRAME: u32 = super::MAX_READ as u32 + 1024 * 1024;
 
+/// The disk process's answer to a request on a stick it does not hand
+/// out to this process, one that is no longer clean: a token, not
+/// wording, which the app shows in its own words.
+pub const NOT_OPEN: &str = "stick-not-open";
+
 /// What the shell asks.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Request {

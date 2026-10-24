@@ -541,7 +541,10 @@ memory**: one line per seed (a key with no name of its own as "Seed
 checked", "in Files" for a wallet whose file is there) or "nowhere
 else", that line alone in the danger tone and listed first; then
 **Then**. At power-off a vault never written or changed since, and the
-files For the stick, are under Wiped from memory, in the danger tone.
+files For the stick, are under Wiped from memory, in the danger tone. The
+write-out sheet adds **Dropped from Files** before Then: each Inbox
+file a lock drops (`docs/history/PLAN.md` §5.3); its Then reads "Lock,
+and the visit writes them" with the stick already in.
 
 **Power off** → the sheet listing what is kept and what is wiped
 (decision 28); when files wait For the stick or a vault has unsaved
@@ -593,6 +596,12 @@ visit** directly.
   on the boot stick when the settings differ from what the boot stick
   holds, unticked on any other stick, and written over the settings
   file already there.
+- **Write** while the process is no longer clean (a key loaded, a
+  secret typed or the camera on since the stick came in) writes nothing
+  and opens the write-out sheet, as Write it to a stick does from Files:
+  **Lock** or **Not now**. The disk process refuses a stick to such a
+  process; that refusal reads "not open to Faraday until it locks" on
+  the visit.
 - **From the stick**: every file copied in, unticked, written from Files,
   where it stays for the next stick: a copy from one stick to another,
   one after the other or both in at once. A file the stick shown holds

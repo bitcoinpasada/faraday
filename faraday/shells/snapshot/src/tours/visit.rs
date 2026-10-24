@@ -74,7 +74,7 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
             scroll(t, 500);
             t.shot(&format!("visit-page-outbox-{k}"))?;
         }
-        return Ok(());
+        return not_clean(t);
     }
     let _ = t.app.frame();
     let over = t
@@ -100,5 +100,34 @@ pub(crate) fn visit_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.press(Action::VisitOutAll);
     t.press(Action::VisitOutAll);
     t.shot("visit-outbox-none")?;
-    Ok(())
+    not_clean(t)
+}
+
+/// The visit once the process is no longer clean: a words file in the
+/// Inbox, a key loaded with the stick out, the stick back in with its Lock
+/// sheet put off, and Write on the visit asking to lock.
+fn not_clean(t: &mut Tour) -> Result<(), String> {
+    faraday_core::testkit::inbox_push(
+        &mut t.app,
+        faraday_core::Item {
+            name: "my-words.txt".into(),
+            kind: faraday_core::wallet::FileKind::Words,
+            bytes: b"words".to_vec(),
+            secret: false,
+            picture: None,
+            sha: None,
+            wallet: None,
+            psbt: None,
+        },
+    );
+    t.sticks(false);
+    t.press(Action::Entry(None));
+    t.type_key(0);
+    t.sticks(true);
+    if t.app.sheet.is_some() {
+        t.press(Action::Cancel);
+    }
+    t.press(Action::Nav(Screen::Visit));
+    t.press(Action::VisitWrite);
+    t.shot("visit-write-lock")
 }

@@ -538,6 +538,12 @@ impl Item {
         self.picture.unwrap_or(self.kind)
     }
 
+    /// A lock drops it from the Inbox: it may hold a secret, which the
+    /// next process must not inherit (`docs/history/PLAN.md` §5.3).
+    pub fn dropped_at_lock(&self) -> bool {
+        self.holds().may_be_secret() || self.secret
+    }
+
     /// Who may read it: a secret let out is one, whatever its kind; a
     /// picture is what its codes hold.
     pub fn exposure(&self) -> secrets::Exposure {
@@ -1410,7 +1416,7 @@ impl Faraday {
     pub fn storage(&mut self, event: StorageEvent) {
         let screen = self.screen;
         self.note_here();
-        self.storage_event(event);
+        self.storage_event(event.in_own_words());
         self.backup_settle();
         if self.screen != screen {
             // A stick that takes the person to another screen leaves
@@ -1554,19 +1560,7 @@ impl Faraday {
                 self.save_boxes();
             }
             StorageEvent::WriteFailed { name, reason, .. } => {
-                self.receipt_add(&name, Some(reason.clone()));
-                let stays = if self.visit.writing_inbox.remove(&name) {
-                    EN.storage_event_it_stays.to_string()
-                } else {
-                    fill(EN.storage_event_it_still, &[self.medium.for_the()])
-                };
-                self.visit.log.push((
-                    fill(
-                        EN.storage_event_not_written,
-                        &[&name.to_string(), &reason.to_string(), &stays.to_string()],
-                    ),
-                    false,
-                ));
+                self.visit_write_failed(&name, &reason)
             }
             StorageEvent::NotKept => self.not_kept(),
             StorageEvent::Wiped { stick, name } => self.wiped(&stick, &name, None),
@@ -2516,8 +2510,7 @@ impl Faraday {
         // in its memory and in `/run/faraday`. They are still on the stick
         // they came from.
         // A picture goes as what its codes hold, and as Other when none read.
-        self.inbox
-            .retain(|i| !i.holds().may_be_secret() && !i.secret);
+        self.inbox.retain(|i| !i.dropped_at_lock());
         self.session.wipe();
         self.own_wipe();
         self.wallets.clear_spend();

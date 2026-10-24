@@ -451,3 +451,73 @@ pub enum StorageCommand {
         kept: Vec<(String, Vec<u8>)>,
     },
 }
+
+/// The disk process's answer to a request on a stick it does not hand out
+/// to a process that is no longer clean: `faraday_files::proto::NOT_OPEN`,
+/// which the app does not link; the visit's tests send that one.
+const NOT_OPEN: &str = "stick-not-open";
+
+impl StorageEvent {
+    /// The event with the disk process's refusal of a process that is no
+    /// longer clean ([`NOT_OPEN`]) in the app's words; any other reason as
+    /// the disk gave it.
+    pub(crate) fn in_own_words(self) -> Self {
+        let said = |reason: String| {
+            if reason == NOT_OPEN {
+                crate::strings::EN.storage_event_not_open.to_string()
+            } else {
+                reason
+            }
+        };
+        match self {
+            Self::ReadFailed {
+                stick,
+                name,
+                reason,
+            } => Self::ReadFailed {
+                stick,
+                name,
+                reason: said(reason),
+            },
+            Self::WriteFailed {
+                stick,
+                name,
+                reason,
+            } => Self::WriteFailed {
+                stick,
+                name,
+                reason: said(reason),
+            },
+            Self::WipeFailed {
+                stick,
+                name,
+                reason,
+            } => Self::WipeFailed {
+                stick,
+                name,
+                reason: said(reason),
+            },
+            Self::ZeroFailed { stick, reason } => Self::ZeroFailed {
+                stick,
+                reason: said(reason),
+            },
+            Self::Hashed { stick, name, sha } => Self::Hashed {
+                stick,
+                name,
+                sha: sha.map_err(said),
+            },
+            Self::Renamed {
+                stick,
+                from,
+                to,
+                refused: Some(Unrenamed::Failed(why)),
+            } => Self::Renamed {
+                stick,
+                from,
+                to,
+                refused: Some(Unrenamed::Failed(said(why))),
+            },
+            other => other,
+        }
+    }
+}

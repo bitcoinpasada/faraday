@@ -895,3 +895,90 @@ fn a_picture_asked_for_says_it_is_being_read_until_its_codes_come() {
     let _ = app.frame();
     assert!(!being_read(&mut app), "{:?}", app.drawn_texts());
 }
+
+/// Puts a words file in the Inbox and loads a key with the stick out, so
+/// the process holds a secret and is no longer clean; the stick goes back
+/// in, its Lock sheet is put off with Not now, and the visit is opened.
+/// The app keeps keys and a stick apart, so this stands for a visit that
+/// stops being clean before its stick is closed to the process.
+fn made_unclean(app: &mut Faraday) {
+    faraday_core::testkit::inbox_push(
+        app,
+        Item {
+            name: "my-words.txt".into(),
+            bytes: b"words".to_vec(),
+            kind: FileKind::Words,
+            secret: false,
+            picture: None,
+            sha: None,
+            wallet: None,
+            psbt: None,
+        },
+    );
+    let stick = StickInfo {
+        serial: None,
+        id: "S".into(),
+        label: "TESTSTICK".into(),
+        boot: false,
+        files: Vec::new(),
+    };
+    app.storage(StorageEvent::Sticks(Vec::new()));
+    app.press(Action::Entry(None));
+    for c in faraday_core::testkit::test_words(faraday_core::testkit::TEST_SEEDS[0].0).chars() {
+        app.event(Event::Key(faraday_shell_api::Key::Char(c)));
+    }
+    app.press(Action::EntryAdd);
+    assert!(!app.clean());
+    app.storage(StorageEvent::Sticks(vec![stick]));
+    if app.sheet.is_some() {
+        app.press(Action::Cancel);
+    }
+    app.press(Action::Nav(Screen::Visit));
+    let _ = app.frame();
+}
+
+#[test]
+fn write_on_a_clean_visit_writes_at_once() {
+    let mut app = writing_over(&[], vec![("backup-00.pdf", b"new".to_vec())]);
+    asked(&mut app);
+    app.press(Action::VisitWrite);
+    assert_ne!(app.sheet, Some(faraday_core::Sheet::WriteOut));
+    assert_eq!(writes(&mut app), vec![("backup-00.pdf".to_string(), false)]);
+}
+
+#[test]
+fn write_on_a_visit_that_is_no_longer_clean_asks_to_lock_and_names_what_a_lock_drops() {
+    let mut app = writing_over(&[], vec![("backup-00.pdf", b"new".to_vec())]);
+    made_unclean(&mut app);
+    assert_eq!(app.screen, Screen::Visit);
+    asked(&mut app);
+    app.press(Action::VisitWrite);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::WriteOut));
+    assert!(writes(&mut app).is_empty(), "nothing reaches the disk");
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Dropped from Files"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "my-words.txt"), "{texts:?}");
+    assert!(texts.iter().any(|t| t == "Lock"), "{texts:?}");
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert!(writes(&mut app).is_empty());
+}
+
+/// The disk process's refusal of a process that is no longer clean is
+/// said on the visit in the app's words, never as the disk's token.
+#[test]
+fn the_disk_refusal_to_a_process_that_is_not_clean_is_said_in_the_apps_words() {
+    let mut app = writing_over(&[], vec![("backup-00.pdf", b"new".to_vec())]);
+    app.storage(StorageEvent::WriteFailed {
+        stick: "S".into(),
+        name: "backup-00.pdf".into(),
+        reason: faraday_files::proto::NOT_OPEN.into(),
+    });
+    let _ = app.frame();
+    let texts = app.drawn_texts().join("\n");
+    assert!(
+        texts.contains("not open to Faraday until it locks"),
+        "{texts}"
+    );
+    assert!(!texts.contains(faraday_files::proto::NOT_OPEN), "{texts}");
+}

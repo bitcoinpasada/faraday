@@ -6024,12 +6024,19 @@ strings! {
     // ----- write_out (faraday-core/src/screens/sheets.rs) -----
     /// Text in `write_out_sheet`. `{}`: `app.medium.a()`.
     write_out_lock_plug: "Lock, plug in {}, and the visit writes them",
+    /// Text in `write_out_sheet`, with the stick already in.
+    write_out_lock_here: "Lock, and the visit writes them",
     /// Text in `write_out_sheet`. `{}`: `app.medium.a()`.
     write_out_target: "Write to {}",
     /// Text in `write_out_sheet`.
     write_out_not_now: "Not now",
     /// Text in `write_out_sheet`.
     write_out_lock: "Lock",
+    /// Heading in `write_out_sheet`: the files from the stick a lock drops.
+    write_out_drops: "Dropped from Files",
+    /// Text in `in_own_words`: why the disk process refused a request (a
+    /// read, a write, a delete), the process being no longer clean.
+    storage_event_not_open: "not open to Faraday until it locks",
     // ----- scan (faraday-core/src/screens/sheets.rs) -----
     /// Text in `scan_sheet`. `{}`: `wl.name`.
     scan_key_for_wallet: "Scan a key for {}",

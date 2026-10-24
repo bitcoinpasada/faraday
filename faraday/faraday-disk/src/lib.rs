@@ -374,7 +374,7 @@ impl Disks {
             .find(|f| f.id == id)
             .ok_or("the stick is gone")?;
         if !f.open {
-            return Err("the stick is not open to Faraday until it locks".into());
+            return Err(faraday_files::proto::NOT_OPEN.into());
         }
         Ok(Fat(Self::volume(&f).map_err(|e| e.text())?))
     }
