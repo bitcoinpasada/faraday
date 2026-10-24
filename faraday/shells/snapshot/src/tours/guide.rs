@@ -2,6 +2,7 @@
 
 use crate::tour::{Tour, display, scroll_to, type_text};
 use faraday_core::board::{BoardPress as BP, Chip, Thing, Zone};
+use faraday_core::codex32::{C32, OskPress, SPLITS, Split, WAYS, Way as C32Way};
 use faraday_core::create::NewKind;
 use faraday_core::devices::DeviceCheck;
 use faraday_core::keygen::{Start, Way, kstep};
@@ -23,7 +24,9 @@ const ROLLS: &str = "12341123412234123341234412341523412634123141234212341323412
 /// test keys (§5); an address checked, and that wallet's spend by QR,
 /// with two warnings (§6); then a lock for a stick, the wallet restored
 /// from the description on it (§7), and the PSBT on it signed after the
-/// second key is scanned in (§6); last, Faraday Desktop's Home (§1.11).
+/// second key is scanned in (§6); a single key backed up in codex32
+/// shares (§4.11) and Add a key's codex32 form (§5.1), each in a session of
+/// its own; last, Faraday Desktop's Home and Demo's codex32 sample (§1.11).
 pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     let size = t.size();
     t.app = Faraday::new();
@@ -82,12 +85,15 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     multisig_board(t)?;
     scan_key(c, t)?;
     // §6 and §7: each part is tried, and every one that fails is named.
-    let parts: [(&str, Part); 5] = [
+    let parts: [(&str, Part); 8] = [
         ("receive", receive),
         ("spend by QR", spend_by_qr),
         ("warnings", spend_warnings),
         ("stick and restore", stick_restore),
         ("spend from the stick", spend_from_stick),
+        ("backup in shares", shares_backup),
+        ("codex32 form", codex32_form),
+        ("corrected key", corrected_key),
     ];
     let failed: Vec<String> = parts
         .into_iter()
@@ -100,7 +106,8 @@ pub(crate) fn guide_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
 }
 
 /// §1.11: Faraday Desktop's Home as it opens, in Demo on testnet, with
-/// no stick in.
+/// no stick in; then Make codex32 shares in Demo, its entry with Use a
+/// sample, and the sample in place of the strings once it is pressed.
 fn desktop_home(t: &mut Tour) -> Result<(), String> {
     let size = t.size();
     t.app = Faraday::new();
@@ -112,7 +119,257 @@ fn desktop_home(t: &mut Tour) -> Result<(), String> {
     t.app.samples = Some(&faraday_samples::SAMPLES);
     t.app.set_modes(faraday_core::DESKTOP_MODES);
     t.press(Action::Nav(Screen::Home));
-    t.shot("guide-desktop-home")
+    t.shot("guide-desktop-home")?;
+    t.press(Action::Nav(Screen::WalletsStart));
+    t.press(Action::KeyGen(None));
+    t.press(Action::KStep(kstep::START));
+    t.press(Action::KStart(Start::MakeCodex32.index()));
+    let two = SPLITS
+        .iter()
+        .position(|s| *s == Split::TwoOfThree)
+        .ok_or("no 2 of 3")?;
+    c32(t, C32::Split(two as u8));
+    c32(t, C32::Next);
+    c32_type(t, "name");
+    c32(t, C32::Next);
+    let dice = WAYS
+        .iter()
+        .position(|w| *w == C32Way::Dice)
+        .ok_or("no dice")?;
+    c32(t, C32::Way(dice as u8));
+    c32(t, C32::Next);
+    t.shot("guide-demo-codex32-enter")?;
+    c32(t, C32::Sample);
+    c32(t, C32::Next);
+    t.shot("guide-demo-codex32-sample")
+}
+
+/// BIP 93's vector 2 (`NAME`, 2 of 3): shares A and C, and D made from
+/// them (`tools/vectors/bip93/vectors.json`).
+const NAME: [&str; 3] = [
+    "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm",
+    "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
+    "ms12namedll4f8jlh4e5vdvuldlfxu2jhdnlsm97xvenrxeg",
+];
+
+/// A press on Make codex32 shares.
+fn c32(t: &mut Tour, p: C32) {
+    t.press(Action::Codex32(p));
+}
+
+/// `text` typed on Make codex32 shares' keyboard.
+fn c32_type(t: &mut Tour, text: &str) {
+    for ch in text.chars() {
+        c32(t, C32::Key(OskPress::Char(ch)));
+    }
+}
+
+/// A fresh session with no stick in, on Wallets.
+fn fresh_session(t: &mut Tour) {
+    t.restart();
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.press(Action::Nav(Screen::WalletsStart));
+}
+
+/// Costs what making a codex32 set and its wallet costs. §4.11: Make a
+/// new wallet, Single key, backup in shares at 2 of 3:
+/// Quorum, Keys, its slot opening Make codex32 shares on the identifier,
+/// vector 2's characters typed and its three strings typed back, Strings
+/// made, Lock in; Check; the board's standard way; the checklist's
+/// codex32 item.
+fn shares_backup(_c: &Compute, t: &mut Tour) -> Result<(), String> {
+    use faraday_core::{bstep, plan};
+    fresh_session(t);
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(kind_at(NewKind::Shares)?));
+    t.shot("guide-shares-quorum")?;
+    t.press(Action::CNext(cstep::QUORUM));
+    t.press(Action::CVaults(false));
+    t.shot("guide-shares-keys")?;
+    t.press(Action::KeyGen(Some(0)));
+    t.shot("guide-shares-identifier")?;
+    c32_type(t, "name");
+    c32(t, C32::Next);
+    let typed = WAYS
+        .iter()
+        .position(|w| *w == C32Way::Typed)
+        .ok_or("no typed way")?;
+    c32(t, C32::Way(typed as u8));
+    c32(t, C32::Next);
+    for s in &NAME[..2] {
+        c32_type(t, &s[9..35]);
+    }
+    // The worksheets, then each string typed back.
+    c32(t, C32::Next);
+    c32(t, C32::Next);
+    for s in &NAME {
+        c32_type(t, &s[3..]);
+        c32(t, C32::Next);
+    }
+    t.shot("guide-shares-made")?;
+    c32(t, C32::Lock);
+    c32(t, C32::Next);
+    if t.app.create().and_then(|c| c.open) != Some(cstep::CHECK) {
+        t.press(Action::CStep(cstep::CHECK));
+    }
+    t.shot("guide-shares-check")?;
+    t.press(Action::CNext(cstep::CHECK));
+    t.press(Action::CBackup);
+    t.shot("guide-shares-board")?;
+    t.press(Action::BChecklist);
+    t.press(Action::BNext(bstep::BLANK));
+    let item = bstep::of(plan::Item::Codex32(0));
+    if open_item(t) != Some(item) {
+        t.press(Action::BStep(item));
+    }
+    t.shot("guide-shares-item")?;
+    shares_kept(t)
+}
+
+/// §4.11 on: the plan changed so string A is also in a vault on a stick
+/// at Place 1 and string C a file and a Codex32QR picture on a stick at
+/// Place 2; each string typed back; the vault made and A saved into it as
+/// a share record, the vault's Bitcoin keys listing it; the sticks
+/// written.
+fn shares_kept(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::codex32_backup::Press;
+    use faraday_core::vault::VaultAction as V;
+    use faraday_core::{bstep, plan};
+    let ix = |c: u8| plan::codex32::index_of(c).ok_or("no index");
+    let (a, c) = (ix(b'a')?, ix(b'c')?);
+    t.press(Action::BPlan);
+    t.press(Action::Board(BP::Customize));
+    t.press(Action::Board(BP::AddVault));
+    t.press(Action::Board(BP::Chip(Chip::List(Thing::Vault(0)))));
+    t.press(Action::Board(BP::Zone(Zone::Card(0))));
+    t.press(Action::Board(BP::Chip(Chip::List(Thing::String(0, a)))));
+    t.press(Action::Board(BP::Zone(Zone::Vault(0, 0, 0))));
+    t.press(Action::Board(BP::Chip(Chip::List(Thing::String(0, c)))));
+    t.press(Action::Board(BP::Zone(Zone::NewStick(1))));
+    let file = Thing::String(0, c);
+    t.press(Action::Board(BP::Chip(Chip::Placed(
+        Zone::Files(1, 0),
+        file,
+    ))));
+    t.press(Action::Board(BP::Form(Zone::Files(1, 0), file, 1)));
+    t.press(Action::Board(BP::LetGo));
+    t.shot("guide-shares-board-kept")?;
+    t.press(Action::BChecklist);
+    if open_item(t) == Some(bstep::BLANK) {
+        t.press(Action::BNext(bstep::BLANK));
+    }
+    let item = bstep::of(plan::Item::Codex32(0));
+    if open_item(t) != Some(item) {
+        t.press(Action::BStep(item));
+    }
+    for s in &NAME {
+        let j = plan::codex32::index_of(s.as_bytes()[8]).ok_or("no index")?;
+        t.press(Action::BC32(Press::Open(j as u8)));
+        for ch in s[3..].chars() {
+            t.press(Action::BC32(Press::Key(OskPress::Char(ch))));
+        }
+        t.press(Action::BC32(Press::Next));
+    }
+    let vault = bstep::of(plan::Item::Vault(0));
+    if open_item(t) != Some(vault) {
+        t.press(Action::BStep(vault));
+    }
+    t.press(Action::Vault(V::CreateFrom(Screen::Backup)));
+    vault_made(t);
+    t.press(Action::BVaultSave(0));
+    t.press(Action::Nav(Screen::VaultContents));
+    t.press(Action::Vault(V::Category(0)));
+    t.shot("guide-shares-vault-contents")?;
+    t.press(Action::Nav(Screen::Backup));
+    let envelopes = bstep::of(plan::Item::Envelopes);
+    t.press(Action::BStep(envelopes));
+    t.press(Action::BNext(envelopes));
+    let sticks = bstep::of(plan::Item::Sticks);
+    if open_item(t) != Some(sticks) {
+        t.press(Action::BStep(sticks));
+    }
+    t.shot("guide-shares-sticks")?;
+    write_sticks(t, "guide-shares-sticks")
+}
+
+/// Costs what loading a key from codex32 strings costs. §5.1: New key's
+/// Type codex32 strings, the strings typed with a correction: its Key
+/// card, then locked in with the key's correction line beside its
+/// fingerprint; then the same on Add a key, and Wallets with the line.
+fn corrected_key(_c: &Compute, t: &mut Tour) -> Result<(), String> {
+    fresh_session(t);
+    t.press(Action::KeyGen(None));
+    t.press(Action::KStep(kstep::START));
+    t.press(Action::KStart(Start::Codex32.index()));
+    corrected_entry(t);
+    t.shot("guide-newkey-codex32-typed")?;
+    t.press(Action::KLock);
+    t.shot("guide-newkey-codex32-key")?;
+    fresh_session(t);
+    let at = faraday_core::forms::Form::ALL
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Codex32)
+        .ok_or("no codex32 form")?;
+    t.press(Action::Entry(None));
+    t.press(Action::EntryForm(at as u8));
+    corrected_entry(t);
+    t.app.event(Event::Key(Key::Enter));
+    t.pump();
+    t.press(Action::Nav(Screen::Wallets));
+    t.shot("guide-codex32-wallets-mark")
+}
+
+/// Suggest corrections ticked, vector 2's A typed with box 20 wrong, I
+/// mistyped and the box typed again from the paper, then C typed.
+fn corrected_entry(t: &mut Tour) {
+    use faraday_core::codex32_correct::Press;
+    t.press(Action::Codex32Correct(Press::Tick));
+    let good = NAME[0].as_bytes()[19];
+    let mut bad = NAME[0].as_bytes().to_vec();
+    bad[19] = if good == b'q' { b'p' } else { b'q' };
+    string_in(t, &String::from_utf8_lossy(&bad));
+    t.press(Action::Codex32Correct(Press::Mistyped));
+    t.app.event(Event::Key(Key::Char(char::from(good))));
+    t.pump();
+    string_in(t, NAME[1]);
+}
+
+/// One string typed into Add a key's codex32 form, then Enter, the
+/// keyboard put away.
+fn string_in(t: &mut Tour, s: &str) {
+    type_text(t, s);
+    t.app.event(Event::Key(Key::Enter));
+    t.pump();
+    t.press(Action::Osk(faraday_core::OskPress::Hide));
+}
+
+/// Costs what checking codex32 strings costs. §5.1: Add a key's codex32
+/// form: Check a string on vector 2's A with a
+/// box changed, its final row and its worksheet; then A added, with Make
+/// the rest and Add a share; Make the rest from A and C.
+fn codex32_form(_c: &Compute, t: &mut Tour) -> Result<(), String> {
+    use faraday_core::forms::{C32Press, Form};
+    fresh_session(t);
+    let at = Form::ALL
+        .iter()
+        .position(|f| *f == Form::Codex32)
+        .ok_or("no codex32 form")?;
+    t.press(Action::Entry(None));
+    t.press(Action::EntryForm(at as u8));
+    t.press(Action::Codex32Form(C32Press::Check));
+    let mut bad = NAME[0].as_bytes().to_vec();
+    bad[19] = if bad[19] == b'q' { b'p' } else { b'q' };
+    string_in(t, &String::from_utf8_lossy(&bad));
+    t.shot("guide-codex32-check")?;
+    t.press(Action::Codex32Form(C32Press::Sheet));
+    t.shot("guide-codex32-worksheet")?;
+    t.press(Action::Codex32Form(C32Press::Check));
+    string_in(t, NAME[0]);
+    t.shot("guide-codex32-form")?;
+    t.press(Action::Codex32Form(C32Press::Rest));
+    string_in(t, NAME[1]);
+    t.shot("guide-codex32-rest")
 }
 
 /// One part of the guide's §6 and §7.
@@ -316,6 +573,27 @@ fn checklist(c: &Compute, t: &mut Tour) -> Result<(), String> {
     t.shot("guide-checklist-vault")?;
     t.press(Action::Vault(V::CreateFrom(Screen::Backup)));
     t.shot("guide-vault-create")?;
+    vault_made(t);
+    t.shot("guide-checklist-vault-made")?;
+    t.press(Action::BVaultSave(0));
+    t.shot("guide-checklist-vault-saved")?;
+    if open_item(t) == Some(bstep::VAULT) {
+        t.press(Action::BNext(bstep::VAULT));
+    }
+    t.shot("guide-checklist-next")?;
+    if open_item(t) != Some(bstep::ENVELOPE) {
+        t.press(Action::BStep(bstep::ENVELOPE));
+    }
+    t.shot("guide-checklist-envelope")?;
+    t.press(Action::BNext(bstep::ENVELOPE));
+    t.shot("guide-checklist-sticks")?;
+    write_sticks(t, "guide-sticks")
+}
+
+/// Create a vault's passphrase typed twice, the vault made, and unlocked
+/// with it, back on the checklist.
+fn vault_made(t: &mut Tour) {
+    use faraday_core::vault::VaultAction as V;
     for second in [false, true] {
         t.press(Action::Vault(V::CFocus(0, second)));
         type_text(t, "guide vault phrase");
@@ -335,20 +613,6 @@ fn checklist(c: &Compute, t: &mut Tour) -> Result<(), String> {
         }
         t.tick();
     }
-    t.shot("guide-checklist-vault-made")?;
-    t.press(Action::BVaultSave(0));
-    t.shot("guide-checklist-vault-saved")?;
-    if open_item(t) == Some(bstep::VAULT) {
-        t.press(Action::BNext(bstep::VAULT));
-    }
-    t.shot("guide-checklist-next")?;
-    if open_item(t) != Some(bstep::ENVELOPE) {
-        t.press(Action::BStep(bstep::ENVELOPE));
-    }
-    t.shot("guide-checklist-envelope")?;
-    t.press(Action::BNext(bstep::ENVELOPE));
-    t.shot("guide-checklist-sticks")?;
-    write_sticks(t)
 }
 
 /// The checklist's item open now.
@@ -356,8 +620,9 @@ fn open_item(t: &Tour) -> Option<u8> {
     t.app.backup().and_then(|b| b.open)
 }
 
-/// The one lock, then each stick the plan names, as the flow asks.
-fn write_sticks(t: &mut Tour) -> Result<(), String> {
+/// The one lock, then each stick the plan names, as the flow asks; the
+/// shots named from `name`.
+fn write_sticks(t: &mut Tour, name: &str) -> Result<(), String> {
     use faraday_core::backup_flow::steps::FlowAction as F;
     t.press(Action::Flow(F::WalletLock));
     let (inbox, outbox, kept) = t.boxes.clone().ok_or("nothing was kept by the lock")?;
@@ -367,14 +632,14 @@ fn write_sticks(t: &mut Tour) -> Result<(), String> {
         kept,
     });
     t.pump();
-    t.shot("guide-sticks-after-lock")?;
+    t.shot(&format!("{name}-after-lock"))?;
     for n in 0..6 {
         let slot = t
             .app
             .flow()
             .and_then(|f| f.slots.iter().position(|s| s.written.is_none()));
         let Some(slot) = slot else { break };
-        t.shot(&format!("guide-sticks-insert-{n}"))?;
+        t.shot(&format!("{name}-insert-{n}"))?;
         let stick = StickInfo {
             serial: Some(0x2000 + slot as u32),
             id: format!("s{slot}"),
@@ -384,7 +649,7 @@ fn write_sticks(t: &mut Tour) -> Result<(), String> {
         };
         t.app.storage(StorageEvent::Sticks(vec![stick]));
         t.pump();
-        t.shot(&format!("guide-sticks-read-{n}"))?;
+        t.shot(&format!("{name}-read-{n}"))?;
         for _ in 0..2 {
             let hold = t
                 .app
@@ -395,14 +660,14 @@ fn write_sticks(t: &mut Tour) -> Result<(), String> {
                 .press(Action::Flow(if hold { F::Hold } else { F::Tap }));
             t.pump();
         }
-        t.shot(&format!("guide-sticks-written-{n}"))?;
+        t.shot(&format!("{name}-written-{n}"))?;
         t.app.storage(StorageEvent::Sticks(Vec::new()));
         t.pump();
     }
     for _ in 0..5 {
         t.tick();
     }
-    t.shot("guide-sticks-done")
+    t.shot(&format!("{name}-done"))
 }
 
 /// §5.1 to §5.4: a fresh session; the dice key typed back from its

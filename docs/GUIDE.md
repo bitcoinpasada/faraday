@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Sections 1 to 7 written, checked against the app's screens and strings
-**Open:** a test by a reader new to Faraday; the codex32 rows (§3.3's Codex32 choices, §4.1's Single key, backup in shares, §4.3's codex32 strings chip) checked again after codex32's coming batches
+**Open:** a test by a reader new to Faraday
 
 Each step is one thing to do, in the order it is done. A path in bold is
 what the screen shows: **Wallets → Add a key** is the Wallets row in the
@@ -280,6 +280,18 @@ only the public sample seeds; **Load samples** loads them. The pill
 opens the **Mode** sheet, where **Testnet**, **Signet** and **Regtest**
 take any seed.
 
+In Demo, **Make a new key · Codex32** (step 3.3) runs whole: your rolls
+or characters fill the sheets as anywhere, and **Use a sample** on the
+entry fills it with BIP 93's sample set instead. Once the entry is
+finished, the sample takes the place of the strings entered, and every
+card after it says so. **Lock in** loads the sample's key: strings from
+your own rolls never leave the entry.
+
+| The entry | After it |
+|---|---|
+| ![Make codex32 shares in Demo, Use a sample](guide/1-11-demo-codex32-entry.png) | ![Demo puts sample NAME in place of these strings](guide/1-11-demo-codex32-sample.png) |
+| **Share A · character 1 of 26**, with **Use a sample** above the boxes. | **Demo puts sample NAME in place of these strings**, over the sample's worksheets. |
+
 Sections 2 and 3 apply to Faraday Desktop too, with the differences
 noted there.
 
@@ -442,6 +454,12 @@ to step 3.4. **Change** on Start opens it:
 
 A choice moves on to the next card by itself; **BIP-39 words**, pressed
 again, goes back to Length.
+
+**Codex32** makes the key by hand as codex32 shares: a scheme, an
+identifier, your own dice or characters, the worksheets filled in as on
+paper, then each string to write down and type back. Step 4.11 makes a
+wallet that way; Learn's page **Backups in other forms** walks through
+every card. **Type codex32 strings** opens the codex32 form of step 5.1.
 
 **Steps only** and **Guided**, a pair of buttons at the top right,
 switch a short walk-through on each card off and on; the one on is
@@ -609,7 +627,7 @@ choice moves on to the next card by itself.
 | Kind | Use vaults |
 |---|---|
 | ![Kind](guide/4-1-kind.png) | ![Use vaults](guide/4-1-use-vaults.png) |
-| **Change** on Kind opens it: **Single key · native SegWit** (One key, its words on paper) is ticked; **Single key, backup in shares** makes its one key as codex32 shares instead of words, and **Multisig · native SegWit** is section 5; **More kinds** lists the rest. Pressing the kind ticked closes the card on it. | **Will you use vaults as part of this backup?** Press **No**: the card closes on **No** and **Keys** opens. The vault in this section is a new one, made in the checklist; **Yes** is for a vault already on a stick, which is brought in here. |
+| **Change** on Kind opens it: **Single key · native SegWit** (One key, its words on paper) is ticked; **Single key, backup in shares** makes its one key as codex32 shares instead of words (step 4.11), and **Multisig · native SegWit** is section 5; **More kinds** lists the rest. Pressing the kind ticked closes the card on it. | **Will you use vaults as part of this backup?** Press **No**: the card closes on **No** and **Keys** opens. The vault in this section is a new one, made in the checklist; **Yes** is for a vault already on a stick, which is brought in here. |
 
 | Keys | Check |
 |---|---|
@@ -658,7 +676,7 @@ Press **Customize backup**.
 | On screen | Meaning |
 |---|---|
 | the list on the right | everything the backup can keep: **Seeds**, **Wallet description** (**Whole**), **Vaults** with **+ new vault**, **Watch-only software**; "1 place" beside each says how many places keep it |
-| **3dca6805 as codex32 strings** | keeps the seed as codex32 shares instead of its words, one string per place (not covered here) |
+| **3dca6805 as codex32 strings** | keeps the seed as codex32 strings instead of its words, each placed on its own; for a key of words they are 127 characters, not for checking by hand. A key made as codex32 shares is step 4.11 |
 | on a placed chip, **Words** and **SeedQR** | the forms it is kept in; a press turns one on or off, and the last one on stays on |
 | **×** | takes the chip off that place |
 | **⋮** | its menu (step 4.5) |
@@ -835,6 +853,91 @@ What "Written and checked" proves: the stick read back what was
 written. It does not prove the stick will last: keep the paper copy as
 well.
 
+### 4.11 Back up in codex32 shares
+
+Instead of steps 4.1 to 4.10, a single-key wallet can have its one key
+made as codex32 shares: strings worked from your own dice, any 2 of 3
+of which rebuild the key, and 1 alone shows nothing of it. Each string
+goes to a place of its own, so no one place holds the key. Section 5
+does not need this step.
+
+The test data: BIP 93's published vector 2, identifier `name`. Its
+characters make key `fab6868a`. Never keep funds on it.
+
+**Wallets → Make a new wallet**, then **Change** on Kind and **Single
+key, backup in shares**:
+
+| Quorum | Keys |
+|---|---|
+| ![Quorum, 2 of 3](guide/4-11-quorum.png) | ![Keys, Make codex32 shares](guide/4-11-keys.png) |
+| **How many to rebuild it** 2 and **How many shares** 3; the line under them reads **Any 2 of the 3 shares rebuild the key.** Press **Continue**, then **No** on **Use vaults**. | **Key 1** offers one button, **Make codex32 shares**. Press it. |
+
+![Make codex32 shares, on the identifier](guide/4-11-identifier.png)
+
+The page is **New key**, open on **Identifier**: **Start** reads **Make
+a new key · Codex32** and **Scheme** **48 characters · 2 of 3**, from
+Quorum. Type four characters that name the set (**Suggest** fills four),
+then **Continue**. **Entropy** offers **Roll dice**, **Type the
+characters** (made on paper) and **Type shares made by hand**. Each
+roll or character drops into its box and the worksheets fill as on
+paper; **Worksheets** then shows each sheet whole, and **Strings** each
+string to write down and type back. Learn's page **Backups in other
+forms** walks through these cards.
+
+![Strings made](guide/4-11-strings-made.png)
+
+**Strings made** lists **Split**, **Length**, **Identifier**,
+**Fingerprint** (`fab6868a` for the test data) and **Entropy**.
+**Check on another device** lists sets of strings to load on another
+implementation; every set must give the same fingerprint. Press **Lock
+in**: the key fills Key 1 and the wallet is made.
+
+| Check | The board, the standard way |
+|---|---|
+| ![Check, with the Backup row](guide/4-11-check.png) | ![One string per place](guide/4-11-board.png) |
+| **Descriptor** reads **Single key · native SegWit · fab6868a** and a checksum, and **Backup** **codex32 name · 2 of 3**. Press **It matches**, then **Back up this wallet**. | One string per place, on paper, each beside **Whole**, the wallet description: **fab6868a · A** at Place 1, **C** at Place 2, **D** at Place 3. Each place reads **1 of 2 shares of fab6868a · alone: nothing**. **Any one place lost: the rest rebuild the wallet** reads **Yes**; **One place found: can spend**, **No**. |
+
+**Customize backup** changes the board as in steps 4.3 to 4.5: a string
+can go into a vault or a stick's files as well. Press **Continue**, then
+**Make the checklist**.
+
+![The codex32 strings item](guide/4-11-strings-item.png)
+
+**Print 3 blank templates** asks for **Codex32, 48 characters** from the
+Starter. **Codex32 strings of seed fab6868a** lists each string and its
+place, **Not checked** until it is typed back. **How many strings of
+name are there?** counts the strings that exist, if more were made.
+Under **The set**, **Add a share** makes one more string of the same
+set, **Rotate the set** makes a new set in place of this one, and
+**Replace A** replaces a lost string. Press **Check my copy** and type
+each string back from its paper; a box copied wrong is named. The rest
+of the checklist goes as in steps 4.9 and 4.10.
+
+A string can be kept on more than paper. Here, after **Change the
+plan** and **Customize backup**, string A also goes into Vault 1 on a
+stick at Place 1, and string C onto a new stick at Place 2, its forms
+**Text file** and **QR picture** both on. Each place still reads **1 of
+2 shares of fab6868a · alone: nothing**.
+
+![Strings in a vault and in a stick's files](guide/4-11-board-kept.png)
+
+**Save into vault.ofv** (step 4.8) saves each string the plan puts in
+the vault as a share record. The vault lists it under **Bitcoin keys**:
+**Share A of fab6868a**, **codex32 name · threshold 2**. At unlock,
+strings of one set from the vaults open together load the key once
+there are enough of them; a string typed in counts with them.
+
+![The vault's share record](guide/4-11-vault-contents.png)
+
+At **Lock and write** (step 4.10), a string kept in a stick's files is
+written as `codex32-fab6868a-c.txt`, and its Codex32QR picture as
+`codex32qr-fab6868a-c.png`; the picture is read back against the string
+before the stick counts. One such file shows nothing of the key, but
+enough of them together are the key: the stick's files are **not
+sealed**.
+
+![Insert Stick 3, with the string's files](guide/4-11-files.png)
+
 ## 5. A wallet
 
 What you will do: load three keys, make a 2-of-3 multisig wallet from
@@ -869,6 +972,34 @@ Press **Wallets**, then **Add a key**.
 | **Other languages** | word lists other than English |
 | **BIP-39 passphrase** | **No passphrase** unless one is typed |
 | **Add key** | loads the key |
+
+**Other forms** opens the other forms of a key as tabs: **BIP-39
+words**, **SLIP-39 shares**, **codex32** and **Seed XOR parts**. On
+**codex32**, also reached by **Type codex32 strings** on New key's Start
+card, each string typed or scanned is checked at once. This section
+needs none of it; for codex32 strings in full, see Learn's page
+**Backups in other forms**.
+
+| A string in | Check a string |
+|---|---|
+| ![One string in, Make the rest and Add a share](guide/5-1-codex32.png) | ![Check a string, the final row](guide/5-1-check-a-string.png) |
+| **1 in** and **Share a · id name · 2 needed**. Once 2 strings of the set are in, the key loads. **Make the rest** makes the set's other strings from the ones typed; **Add a share** makes one more string at an unused index. Where an open vault keeps strings of the same set, the line **1 more of this set in open vaults** says so, and they count. | **Check a string**, then **Check it**: **Checksum holds** or **Checksum fails**, with the checksum worksheet's **Final** row beside what it **Must read**, and where it first differs (**Final row differs at box 36**). Nothing is loaded or kept. **Back to adding strings** returns. |
+
+| The worksheet | Make the rest |
+|---|---|
+| ![Show the worksheet](guide/5-1-worksheet.png) | ![Make the rest, Scheme](guide/5-1-make-the-rest.png) |
+| **Show the worksheet** shows every row of the string's checksum worksheet, to compare row by row with the paper; **Final row only** goes back. | **Make the rest**, then the second string: New key opens on **Scheme**, **From A, C**, with **Strings** to choose. **Worksheets**, **Strings** and **Strings made** follow, as in step 4.11. **Add a share** opens the same way on **Index**, offering the next unused one. |
+
+With **Suggest corrections** ticked, a string whose checksum fails
+gets a correction to compare with the paper; Learn's page covers it.
+A key loaded from corrected strings keeps a line beside its
+fingerprint, **Share entry corrected** (**I mistyped**) or **Share
+repairs unchecked**:
+
+| New key's Key card | Wallets |
+|---|---|
+| ![Key card, the strings in](guide/5-1-key-card.png) | ![Wallets, Share entry corrected](guide/5-1-wallets-mark.png) |
+| From **Type codex32 strings**, **Key** lists the strings in (**Share a · id name · 2 needed**). **Lock in** loads the key and opens Wallets. | Under **Keys without a wallet**, and on the key's card: **fab6868a · Share entry corrected**. |
 
 Type key `3dca6805`'s 12 words from the paper, then press **Add key**.
 
