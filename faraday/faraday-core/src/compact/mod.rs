@@ -59,6 +59,7 @@ pub(crate) fn screen_name(s: Screen, medium: crate::Medium) -> &'static str {
         Screen::Restore => EN.compact_restore_wallet,
         Screen::Settings => EN.compact_settings,
         Screen::SetTime => EN.compact_set_the_time,
+        Screen::Randomness => EN.own_add_randomness,
         Screen::Codes => EN.compact_totp_codes,
         Screen::Vaults | Screen::Unlock | Screen::VaultContents => EN.compact_vaults,
         Screen::Backups => EN.compact_backups,
@@ -381,6 +382,11 @@ pub(crate) fn page_head<'a>(app: &'a View) -> ((&'a str, Action), &'a str) {
             (EN.compact_tools, Action::Nav(Screen::Catalog))
         }
         Screen::Upgrade => (EN.compact_settings, Action::Nav(Screen::Settings)),
+        // Add randomness goes back where it was opened: Settings or New key.
+        Screen::Randomness => (
+            app.trail_name().unwrap_or(EN.compact_settings),
+            Action::Back,
+        ),
         _ => (EN.compact_home, Action::Nav(Screen::Home)),
     };
     (back, name)

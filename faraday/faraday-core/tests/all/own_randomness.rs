@@ -12,11 +12,12 @@
 
 use crate::rounds::{at, device as musig_device, our_nonce};
 use crate::vault_seal::{device as vault_device, nonces, open_and_change, sealed};
+use faraday_core::fresh::page::Act;
 use faraday_core::fresh::{OwnCounts, OwnSource};
 use faraday_core::keygen::Way;
-use faraday_core::{Action, Faraday, Sheet, StorageEvent, testkit};
+use faraday_core::{Action, Faraday, Screen, Sheet, StorageEvent, testkit};
 use faraday_entropy::{CameraNoise, CoinFlips, DiceRolls};
-use faraday_shell_api::{App, EntropyBytes, Event};
+use faraday_shell_api::{App, Command, EntropyBytes, Event, Key};
 
 /// The system's first answer, the session's seed.
 const SEED: [u8; 32] = [0x11; 32];
@@ -368,4 +369,214 @@ fn a_lock_wipes_what_was_added() {
         testkit::fresh(&mut app, WHAT).map(hex).as_deref(),
         Some(FRESH_PLAIN)
     );
+}
+
+// ----- Add randomness and the status line (§2.2, §2.4; test 5) -----
+
+fn own(a: Act) -> Action {
+    Action::Own(a)
+}
+
+/// The status line on show.
+fn status_shown(app: &mut Faraday) -> Option<String> {
+    app.drawn_texts()
+        .into_iter()
+        .find(|t| t.starts_with("System: "))
+}
+
+/// A display tall enough for the whole of Settings.
+fn tall() -> faraday_shell_api::DisplayInfo {
+    faraday_shell_api::DisplayInfo {
+        width: 1366,
+        height: 2400,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: faraday_shell_api::SecureHardware::None,
+        boot: faraday_shell_api::BootState::Unknown,
+        memory_mib: None,
+    }
+}
+
+fn commands(app: &mut Faraday) -> Vec<Command> {
+    std::iter::from_fn(|| app.poll_command()).collect()
+}
+
+#[test]
+fn settings_randomness_row_counts_what_the_page_added_and_none_after_a_lock() {
+    let mut app = testkit::started();
+    // Tall enough that Settings shows the row without scrolling.
+    app.event(Event::Display(tall()));
+    app.event(Event::EntropySource("getrandom(2)"));
+    answer(&mut app, SEED);
+    app.press(Action::Nav(Screen::Settings));
+    assert_eq!(
+        status_shown(&mut app).as_deref(),
+        Some("System: getrandom(2) · your own: none")
+    );
+    app.press(own(Act::Open));
+    assert_eq!(app.screen, Screen::Randomness);
+    // No camera here: the page opens on Dice.
+    for i in 0..99u8 {
+        app.press(own(Act::Roll(i % 6 + 1)));
+    }
+    assert_eq!(app.own_counts(), OwnCounts::default(), "nothing before Add");
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "In this batch: 99 dice rolls"),
+        "{:?}",
+        app.drawn_texts()
+    );
+    app.press(own(Act::Add));
+    assert_eq!(app.own_counts().dice_rolls, 99);
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "In this batch: 0 dice rolls"),
+        "the batch goes once it is added"
+    );
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::Settings);
+    assert_eq!(
+        status_shown(&mut app).as_deref(),
+        Some("System: getrandom(2) · your own: 99 dice rolls")
+    );
+    app.press(Action::Lock);
+    assert!(app.restart_requested());
+    app.press(Action::Nav(Screen::Settings));
+    assert_eq!(
+        status_shown(&mut app).as_deref(),
+        Some("System: getrandom(2) · your own: none")
+    );
+}
+
+#[test]
+fn dice_typed_on_the_page_mix_in_as_the_known_answers_say() {
+    let mut app = testkit::started();
+    answer(&mut app, SEED);
+    answer(&mut app, POOLED);
+    app.press(Action::Nav(Screen::Settings));
+    app.press(own(Act::Open));
+    // 7 is no die's face; Backspace takes the second 6 back.
+    crate::common::type_text(&mut app, "12345667");
+    app.event(Event::Key(Key::Backspace));
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(app.own_counts().dice_rolls, 6);
+    assert_eq!(
+        drawn(&mut app),
+        (DRAW_DICE.to_string(), FRESH_DICE.to_string()),
+        "the rolls 1 to 6, as the cross-checked answers"
+    );
+}
+
+#[test]
+fn coins_and_cards_are_counted_and_a_card_already_out_is_refused() {
+    let mut app = testkit::started();
+    answer(&mut app, SEED);
+    app.press(Action::Nav(Screen::Settings));
+    app.press(own(Act::Open));
+    app.press(own(Act::Source(OwnSource::Coins)));
+    for h in [true, false, false, true] {
+        app.press(own(Act::Flip(h)));
+    }
+    app.press(own(Act::Add));
+    app.press(own(Act::Source(OwnSource::Cards)));
+    app.press(own(Act::Rank(0)));
+    app.press(own(Act::Suit(0)));
+    app.press(own(Act::Rank(0)));
+    app.press(own(Act::Suit(0)));
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "That card is already out of this deck")
+    );
+    app.press(own(Act::Rank(12)));
+    app.press(own(Act::Suit(3)));
+    app.press(own(Act::Add));
+    let c = app.own_counts();
+    assert_eq!((c.coin_flips, c.cards), (4, 2));
+    let line = status_shown(&mut app);
+    assert!(
+        line.as_deref()
+            .is_some_and(|s| s.ends_with("your own: 4 coin flips, 2 cards")),
+        "{line:?}"
+    );
+}
+
+#[test]
+fn with_a_camera_the_page_opens_on_it_and_each_picture_is_added_as_taken() {
+    let mut app = testkit::started();
+    answer(&mut app, SEED);
+    answer(&mut app, POOLED);
+    app.storage(StorageEvent::Cameras(vec![(
+        "cam0".to_string(),
+        "Camera".to_string(),
+    )]));
+    app.press(Action::Nav(Screen::Settings));
+    let _ = commands(&mut app);
+    app.press(own(Act::Open));
+    assert!(commands(&mut app).contains(&Command::CameraOn));
+    // A flat picture is refused, as New key refuses it.
+    app.event(Event::CameraFrame {
+        width: 64,
+        height: 64,
+        luma: vec![7; 4096],
+        chroma: None,
+    });
+    app.event(Event::Key(Key::Char(' ')));
+    assert_eq!(app.own_counts(), OwnCounts::default());
+    assert!(
+        app.drawn_texts()
+            .iter()
+            .any(|t| t == "Too little variation in that picture")
+    );
+    let luma: Vec<u8> = (0..=255u8).cycle().take(4096).collect();
+    app.event(Event::CameraFrame {
+        width: 64,
+        height: 64,
+        luma,
+        chroma: None,
+    });
+    app.press(own(Act::Frame));
+    assert_eq!(app.own_counts().camera_frames, 1);
+    // The same bytes as the frame added through the session directly.
+    let mut direct = testkit::started();
+    answer(&mut direct, SEED);
+    answer(&mut direct, POOLED);
+    add_frame(&mut direct);
+    assert_eq!(drawn(&mut app), drawn(&mut direct));
+    app.press(Action::Back);
+    assert!(commands(&mut app).contains(&Command::CameraOff));
+}
+
+#[test]
+fn new_keys_this_device_links_to_the_page_and_takes_its_bytes_again_mixed() {
+    let mut app = crate::keygen::opened();
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::Device.index()));
+    app.press(Action::KNext);
+    app.press(Action::KNext);
+    answer(&mut app, SEED);
+    assert!(crate::common::offered(&mut app, own(Act::Open)));
+    app.press(own(Act::Open));
+    assert_eq!(app.screen, Screen::Randomness);
+    crate::common::type_text(&mut app, "123456");
+    app.event(Event::Key(Key::Enter));
+    app.press(Action::Back);
+    assert_eq!(app.screen, Screen::KeyGen);
+    // The bytes taken before the dice go; the next answer is mixed.
+    answer(&mut app, SEED);
+    app.press(Action::KNext);
+    let words = app
+        .keygen()
+        .unwrap()
+        .mnemonic
+        .as_ref()
+        .unwrap()
+        .indices()
+        .to_vec();
+    assert_eq!(words, words_of(unhex(DEVICE_DICE)));
 }

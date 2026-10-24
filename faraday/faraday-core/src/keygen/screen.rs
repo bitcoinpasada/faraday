@@ -11,8 +11,8 @@ use crate::keygen::{
     Group, KeyGen, MIX_SOURCES, Source, Start, WAYS, Way, kstep, procedure_name, source_name,
 };
 use crate::screens::{
-    buttons_and_next, descriptor_row, locked_tag, never_below, never_real_seed, next_button,
-    pass_field, section_label, stepper,
+    buttons_and_next, camera_row, card_pad, coin_pad, descriptor_row, dice_pad, locked_tag,
+    never_below, never_real_seed, next_button, pass_field, section_label, stepper,
 };
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -1121,121 +1121,40 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             }
         }
         Some(Source::Coins) if k.by_die => {
-            let bw = ((w - 5.0 * 8.0) / 6.0).min(84.0);
-            for f in 1..=6u8 {
-                ui.button(
-                    x + f32::from(f - 1) * (bw + 8.0),
-                    cy,
-                    Some(bw),
-                    56.0,
-                    &f.to_string(),
-                    Style::Secondary,
-                    Action::KDie(f),
-                );
-            }
-            cy += 68.0;
+            cy += dice_pad(ui, (x, cy, w), &|_| Style::Secondary, Action::KDie);
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
             }
         }
         Some(Source::Dice) => {
-            let bw = ((w - 5.0 * 8.0) / 6.0).min(84.0);
-            for f in 1..=6u8 {
-                let style = if k.procedure().direct() && !k.procedure().accepts(k.dice.len(), f) {
+            let style = |f| {
+                if k.procedure().direct() && !k.procedure().accepts(k.dice.len(), f) {
                     Style::Disabled
                 } else {
                     Style::Secondary
-                };
-                ui.button(
-                    x + f32::from(f - 1) * (bw + 8.0),
-                    cy,
-                    Some(bw),
-                    56.0,
-                    &f.to_string(),
-                    style,
-                    Action::KRoll(f),
-                );
-            }
-            cy += 68.0;
+                }
+            };
+            cy += dice_pad(ui, (x, cy, w), &style, Action::KRoll);
             cy += roller(app, k, ui, x, cy, w);
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
             }
         }
         Some(Source::Coins) => {
-            ui.button(
-                x,
-                cy,
-                Some(160.0),
-                56.0,
-                EN.create_heads,
-                Style::Secondary,
-                Action::KFlip(true),
-            );
-            ui.button(
-                x + 168.0,
-                cy,
-                Some(160.0),
-                56.0,
-                EN.create_tails,
-                Style::Secondary,
-                Action::KFlip(false),
-            );
-            cy += 68.0;
+            cy += coin_pad(ui, x, cy, Action::KFlip(true), Action::KFlip(false));
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
             }
         }
         Some(Source::Cards) => {
-            let bw = ((w - 12.0 * 6.0) / 13.0).min(52.0);
-            for (r, ch) in RANKS.iter().enumerate() {
-                let on = k.rank == Some(r as u8);
-                ui.button(
-                    x + r as f32 * (bw + 6.0),
-                    cy,
-                    Some(bw),
-                    44.0,
-                    &ch.to_string(),
-                    if on { Style::Primary } else { Style::Secondary },
-                    Action::KRank(r as u8),
-                );
-            }
-            cy += 52.0;
-            for (s, ch) in SUITS.iter().enumerate() {
-                let taken = k
-                    .rank
-                    .and_then(|r| faraday_entropy::card_index(r, s as u8))
-                    .is_some_and(|i| k.cards.drawn(i));
-                let style = if k.rank.is_none() || taken {
-                    Style::Disabled
-                } else {
-                    Style::Secondary
-                };
-                // Four to the row's width at most; on a small panel the
-                // deck goes under them.
-                let sw = ((w - 3.0 * 8.0) / 4.0).min(64.0);
-                ui.button(
-                    x + s as f32 * (sw + 8.0),
-                    cy,
-                    Some(sw),
-                    44.0,
-                    &ch.to_string(),
-                    style,
-                    Action::KSuit(s as u8),
-                );
-            }
-            let deck = fill(
-                EN.keygen_deck_status,
-                &[&k.cards.deck().to_string(), &k.cards.in_deck().to_string()],
+            cy += card_pad(
+                ui,
+                (x, cy, w),
+                k.rank,
+                &k.cards,
+                Action::KRank,
+                Action::KSuit,
             );
-            if ui.compact {
-                cy += 52.0;
-                ui.text(x, cy, 12.0, W::R, MUTED, &deck);
-                cy += 28.0;
-            } else {
-                ui.text_mid(x + 4.0 * 72.0 + 8.0, cy, 44.0, 12.0, W::R, MUTED, &deck);
-                cy += 56.0;
-            }
         }
         Some(Source::Hex) => {
             let bw = ((w - 7.0 * 6.0) / 8.0).min(60.0);
@@ -1256,29 +1175,28 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             cy += 104.0 + never_below(app, ui, x, cy + 90.0, w);
         }
         Some(Source::Camera) => {
-            let bw = ui.button(
-                x,
-                cy,
-                None,
-                48.0,
-                EN.create_camera_shutter,
-                if k.frame.is_some() {
-                    Style::Secondary
-                } else {
-                    Style::Disabled
-                },
+            cy += camera_row(
+                ui,
+                (x, cy, w),
+                k.frame.is_some(),
+                k.camera.last(),
                 Action::KFrame,
             );
-            let state = match k.camera.last() {
-                Some(st) => fill(EN.keygen_luma_values, &[&st.distinct.to_string()]),
-                None if k.frame.is_some() => EN.keygen_camera_active.to_string(),
-                None => EN.keygen_waiting_camera.to_string(),
-            };
-            ui.text_mid(x + bw + 16.0, cy, 48.0, 13.0, W::R, MUTED, &state);
-            cy += 60.0;
         }
         Some(Source::Device) => {
             cy = device_rows(k, ui, x, cy, w);
+            // What the person adds of their own is mixed in here
+            // (`docs/OWN-RANDOMNESS.md` §2.2).
+            ui.button(
+                x,
+                cy,
+                None,
+                faraday_draw::tokens::OWN_BUTTON,
+                EN.own_add_randomness,
+                Style::Secondary,
+                Action::Own(crate::fresh::page::Act::Open),
+            );
+            cy += faraday_draw::tokens::OWN_BUTTON + faraday_draw::tokens::PAD;
         }
         _ => {}
     }

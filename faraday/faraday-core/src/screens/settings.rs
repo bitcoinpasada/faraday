@@ -69,6 +69,42 @@ fn time_section(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
     h
 }
 
+/// Settings' Randomness card on the wide layout
+/// (`docs/OWN-RANDOMNESS.md` §2.2, §2.4): the status line, and Add
+/// randomness. Returns its height.
+fn randomness_card(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
+    use faraday_draw::tokens::{
+        OWN_BUTTON, OWN_LINE_TEXT, PAD, SETTINGS_CARD_BODY_TOP as BODY,
+        SETTINGS_CARD_INSET as INSET, SETTINGS_CARD_TITLE, SETTINGS_CARD_TITLE_Y,
+    };
+    let status = app.own_status();
+    let (ix, iw) = (x + INSET, width - 2.0 * INSET);
+    let line = crate::compact::screen::measured(ui, |ui| {
+        ui.wrap(ix, y + BODY, iw, OWN_LINE_TEXT, W::R, MUTED, &status)
+    });
+    let h = BODY + line + PAD + OWN_BUTTON + INSET;
+    ui.card(x, y, width, h, LINE);
+    ui.text(
+        ix,
+        y + SETTINGS_CARD_TITLE_Y,
+        SETTINGS_CARD_TITLE,
+        W::S,
+        TEXT,
+        EN.own_randomness,
+    );
+    ui.wrap(ix, y + BODY, iw, OWN_LINE_TEXT, W::R, MUTED, &status);
+    ui.button(
+        ix,
+        y + BODY + line + PAD,
+        None,
+        OWN_BUTTON,
+        EN.own_add_randomness,
+        Style::Secondary,
+        Action::Own(crate::fresh::page::Act::Open),
+    );
+    h
+}
+
 /// What the Time card says reads the clock: everything that calls
 /// `clock_now`.
 const TIME_FOR: &str = EN.app_for_totp_codes;
@@ -210,6 +246,24 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Style::Secondary,
             Action::OpenSetTime,
         );
+        y - y0
+    });
+    // Randomness (`docs/OWN-RANDOMNESS.md` §2.2, §2.4).
+    let status = app.own_status();
+    y += section(ui, x, y, w, EN.own_randomness, &|ui, x, y0, w| {
+        use faraday_draw::tokens::{GAP, OWN_BUTTON, OWN_LINE_TEXT};
+        let mut y = y0;
+        y += ui.wrap(x, y, w, OWN_LINE_TEXT, W::R, MUTED, &status) + GAP;
+        ui.button(
+            x,
+            y,
+            None,
+            OWN_BUTTON,
+            EN.own_add_randomness,
+            Style::Secondary,
+            Action::Own(crate::fresh::page::Act::Open),
+        );
+        y += OWN_BUTTON;
         y - y0
     });
     y += section(ui, x, y, w, EN.settings_appearance, &|ui, x, y0, w| {
@@ -605,6 +659,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let on = Some(usize::from(!app.seal_amounts()));
     ui.choices((x + 22.0, y + 54.0, inner, 38.0), 14.0, &items, on);
     y += 132.0;
+    y += randomness_card(app, ui, x, y, width) + faraday_draw::tokens::SETTINGS_CARD_GAP;
     // Upgrading another stick from this one (`docs/history/PLAN.md` §5.5): never in the
     // online app, which has no boot partition to copy.
     if !app.online {

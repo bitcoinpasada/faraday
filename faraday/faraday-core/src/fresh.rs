@@ -22,6 +22,7 @@ use zeroize::Zeroizing;
 
 use crate::{Faraday, out::Out};
 
+pub mod page;
 pub(crate) mod roller;
 
 /// Answers kept waiting for the next key.
@@ -88,6 +89,37 @@ impl OwnCounts {
     pub fn any(&self) -> bool {
         *self != Self::default()
     }
+}
+
+/// The status line (`docs/OWN-RANDOMNESS.md` §2.4): "System: {source}",
+/// or the operating system when the shell named none, then "· your own:"
+/// and each count taken, or "none". Nothing is credited: a count says
+/// what was taken, not how strong it is.
+pub(crate) fn own_status(source: Option<&str>, c: OwnCounts) -> String {
+    use crate::strings::{EN, fill};
+    let system = fill(EN.own_system, &[source.unwrap_or(EN.create_device_os)]);
+    let counts: Vec<String> = [
+        (c.camera_frames, EN.own_camera_frame, EN.own_camera_frames),
+        (c.dice_rolls, EN.own_dice_roll, EN.own_dice_rolls),
+        (c.coin_flips, EN.own_coin_flip, EN.own_coin_flips),
+        (c.cards, EN.own_card, EN.own_cards),
+        (c.pointer_keys, EN.own_pointer_key, EN.own_pointer_keys),
+    ]
+    .into_iter()
+    .filter(|&(n, _, _)| n > 0)
+    .map(|(n, one, many)| {
+        fill(
+            EN.own_count,
+            &[&n.to_string(), if n == 1 { one } else { many }],
+        )
+    })
+    .collect();
+    let yours = if counts.is_empty() {
+        EN.own_none.to_string()
+    } else {
+        counts.join(", ")
+    };
+    fill(EN.own_status, &[&system, &yours])
 }
 
 /// The person's own randomness: an accumulator over every commitment
@@ -160,6 +192,10 @@ pub(crate) struct Fresh {
     roller: bool,
     /// What the person added of their own.
     own: Own,
+    /// Add randomness, while it is on show (`page.rs`).
+    page: Option<page::OwnPage>,
+    /// The camera is on for Add randomness.
+    page_camera: bool,
 }
 
 impl Fresh {
@@ -227,6 +263,9 @@ impl Fresh {
     /// starts with none.
     pub(crate) fn own_wipe(&mut self) {
         self.own = Own::default();
+        if let Some(p) = self.page.as_mut() {
+            p.wipe();
+        }
     }
 
     /// The seed a signing pass draws a MuSig2 or FROST round's secret
@@ -338,6 +377,102 @@ impl Faraday {
     pub(crate) fn own_wipe(&mut self) {
         self.fresh.own_wipe();
         self.keygen.own_changed(false);
+    }
+
+    /// The status line (`docs/OWN-RANDOMNESS.md` §2.4) of Settings'
+    /// Randomness row and Add randomness: the system's source, then what
+    /// the person added. A lookup and a format.
+    pub fn own_status(&self) -> String {
+        own_status(self.keygen.entropy_source(), self.own_counts())
+    }
+
+    /// Add randomness, while it is on show.
+    pub(crate) fn own_page(&self) -> Option<&page::OwnPage> {
+        self.fresh.page.as_ref()
+    }
+
+    /// A press on Add randomness, or one that opens it.
+    pub(crate) fn own_act(&mut self, a: page::Act) {
+        if a == page::Act::Open {
+            if self.fresh.page.is_none() {
+                self.fresh.page = Some(page::OwnPage::new(!self.cameras().is_empty()));
+            }
+            self.screen = crate::Screen::Randomness;
+            self.list_offset = 0.0;
+            return;
+        }
+        if self.screen != crate::Screen::Randomness {
+            return;
+        }
+        let batch = self.fresh.page.as_mut().and_then(|p| p.act(a));
+        if let Some((source, commitment, n)) = batch {
+            self.own_add(source, &commitment, n);
+        }
+    }
+
+    /// A key typed on Add randomness; `false` when it is not on show or
+    /// the key means nothing there.
+    pub(crate) fn own_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        if self.screen != crate::Screen::Randomness {
+            return false;
+        }
+        match self.fresh.page.as_ref().and_then(|p| p.key(key)) {
+            Some(a) => {
+                self.own_act(a);
+                true
+            }
+            None => false,
+        }
+    }
+
+    /// After an input: Add randomness goes with its batches once another
+    /// screen is on show, and the camera is on while Camera is its
+    /// source. Run twice around New key's own camera, `on` false first so
+    /// the one that goes off says so before the other comes on. A lookup.
+    pub(crate) fn own_camera(&mut self, on: bool) {
+        if self.screen != crate::Screen::Randomness {
+            self.fresh.page = None;
+        }
+        let want = self
+            .fresh
+            .page
+            .as_ref()
+            .is_some_and(page::OwnPage::wants_camera);
+        if want == self.fresh.page_camera || want != on {
+            return;
+        }
+        self.fresh.page_camera = want;
+        self.out.command(if want {
+            Command::CameraOn
+        } else {
+            Command::CameraOff
+        });
+        if let (false, Some(p)) = (want, self.fresh.page.as_mut()) {
+            p.camera_off();
+        }
+    }
+
+    /// After an input: the camera for noise, New key's and Add
+    /// randomness's, on while one of them takes pictures; the one that
+    /// goes off says so before the other comes on.
+    pub(crate) fn cameras_noise(&mut self) {
+        self.own_camera(false);
+        self.keygen_camera();
+        self.own_camera(true);
+    }
+
+    /// Whether the camera is on for noise, New key's or Add randomness's.
+    pub(crate) fn noise_camera_on(&self) -> bool {
+        self.keygen.camera_on() || self.fresh.page_camera
+    }
+
+    /// A camera frame for noise, in place of the one before.
+    pub(crate) fn noise_frame(&mut self, luma: Vec<u8>) {
+        if self.keygen.camera_on() {
+            self.keygen.camera_frame(luma);
+        } else if let Some(p) = self.fresh.page.as_mut() {
+            p.camera_frame(luma);
+        }
     }
 
     /// The seed a signing pass draws a MuSig2 or FROST round's secret

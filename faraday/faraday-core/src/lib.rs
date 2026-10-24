@@ -92,6 +92,7 @@
 //! | `Restore` | `screens/restore.rs` |
 //! | `Settings` | `screens/settings.rs` |
 //! | `SetTime` | `screens/set_time.rs` |
+//! | `Randomness` | `screens/randomness.rs` |
 //! | `Vaults` | `vault/screen.rs` |
 //! | `Backups` | `backups/screen.rs` |
 //! | `CreateVault` | `vault/screen.rs` |
@@ -306,6 +307,8 @@ pub enum Screen {
     Settings,
     /// Setting the time by hand (`docs/TOTP.md` §3).
     SetTime,
+    /// Add randomness (`docs/OWN-RANDOMNESS.md` §2.2).
+    Randomness,
     /// The vaults the Inbox and Outbox hold.
     Vaults,
     /// Every wallet known and where its backup is (`docs/history/SIMPLIFY.md`
@@ -2975,6 +2978,7 @@ impl Faraday {
             Action::Codex32(p) => self.keygen_codex32(p),
             Action::Nav(Screen::Transfer) => self.transfer_open(),
             Action::Back => self.back(),
+            Action::Own(a) => self.own_act(a),
             Action::Resume(g) => self.flow_resume(g),
             Action::CancelFlow => self.flow_cancel(),
             Action::CancelFlowNow => self.flow_cancel_now(),
@@ -6008,16 +6012,10 @@ impl Faraday {
         if self.explore_key(key) {
             return;
         }
-        if self.bip85_key(key) {
+        if self.bip85_key(key) || self.keygen_key(key) || self.create_pass_key(key) {
             return;
         }
-        if self.keygen_key(key) {
-            return;
-        }
-        if self.create_pass_key(key) {
-            return;
-        }
-        if self.set_time_key(key) {
+        if self.set_time_key(key) || self.own_key(key) {
             return;
         }
         if self.screen == Screen::Entry && self.entry.state().on_passphrase {
@@ -6924,8 +6922,10 @@ impl Faraday {
         if !typing && self.vaults.working != Some(vault::Work::Unlock) {
             self.vaults.clear_unlock();
         }
-        // Leaving the new-key screen drops what it held.
-        if self.screen != Screen::KeyGen && self.keygen.state().is_some() {
+        // Leaving New key drops what it held (Add randomness, opened from it, keeps it).
+        if !matches!(self.screen, Screen::KeyGen | Screen::Randomness)
+            && self.keygen.state().is_some()
+        {
             self.keygen_drop();
         }
         if !bip85 {
@@ -6955,7 +6955,7 @@ impl Faraday {
         if !silent && self.sheet != Some(Sheet::Qr) {
             self.silent.clear();
         }
-        self.keygen_camera();
+        self.cameras_noise();
         self.keygen_device();
         #[cfg(feature = "unreleased")]
         {
@@ -7432,9 +7432,7 @@ impl App for Faraday {
             }
             Event::EntropySource(name) => return self.entropy_source_named(name),
             Event::Entropy(e) => return self.entropy_arrived(e),
-            Event::CameraFrame { luma, .. } if self.keygen.camera_on() => {
-                self.keygen.camera_frame(luma);
-            }
+            Event::CameraFrame { luma, .. } if self.noise_camera_on() => self.noise_frame(luma),
             Event::CameraFrame {
                 width,
                 height,

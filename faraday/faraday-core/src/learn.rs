@@ -264,6 +264,7 @@ impl Faraday {
                 vec![&EN.other_backups, &EN.randomness]
             }
             Screen::KeyGen => vec![&EN.randomness, &EN.words],
+            Screen::Randomness => vec![&EN.randomness],
             Screen::Entry if self.entry.state().form == crate::forms::Form::Codex32 => {
                 vec![&EN.other_backups, &EN.words]
             }

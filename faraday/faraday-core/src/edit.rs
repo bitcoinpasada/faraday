@@ -571,6 +571,7 @@ impl Faraday {
             Screen::CheckMessage => self.message.checking().is_some(),
             Screen::Visit => !self.stick.is_empty(),
             Screen::Transfer => self.online,
+            Screen::Randomness => self.own_page().is_some(),
             _ => true,
         }
     }

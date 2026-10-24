@@ -69,17 +69,27 @@ impl KeyGenArea {
         }
     }
 
-    /// The shell named its randomness source: kept, and copied into an
-    /// open flow, as a new one copies it when it opens.
     /// Whether the person has added randomness of their own changed
     /// (`docs/OWN-RANDOMNESS.md` §2.3): an open flow's This device says
-    /// so.
+    /// so. Bytes it holds from before, not yet made into words, go and
+    /// are asked for again, so that what it says stays what they are.
     pub(crate) fn own_changed(&mut self, any: bool) {
-        if let Some(k) = self.state.as_mut() {
+        if let Some(k) = self.state.as_mut()
+            && k.mnemonic.is_none()
+        {
             k.with_own = any;
+            k.device.clear();
+            k.device_asked = false;
         }
     }
 
+    /// The randomness source the shell named, if it named one.
+    pub(crate) fn entropy_source(&self) -> Option<&'static str> {
+        self.entropy_source
+    }
+
+    /// The shell named its randomness source: kept, and copied into an
+    /// open flow, as a new one copies it when it opens.
     pub(crate) fn entropy_source_named(&mut self, name: &'static str) {
         self.entropy_source = Some(name);
         if let Some(k) = self.state.as_mut() {

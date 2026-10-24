@@ -34,6 +34,7 @@ pub(crate) mod partials;
 pub(crate) mod pass_seeds;
 pub(crate) mod plan;
 pub(crate) mod public;
+pub(crate) mod randomness;
 pub(crate) mod restore;
 pub(crate) mod roller;
 pub(crate) mod seedfile;

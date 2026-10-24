@@ -16,6 +16,7 @@ mod files;
 mod home;
 mod message;
 mod parts;
+mod randomness;
 mod restore;
 mod set_time;
 mod settings;
@@ -52,6 +53,7 @@ pub(crate) use parts::{
     never_real_seed_if, never_under, next_button, pass_field, pin_button, side_panel_w,
     sign_readiness, size_text, stepper, ticked, word_keys, working_bar, working_line,
 };
+pub(crate) use parts::{camera_row, card_pad, coin_pad, dice_pad};
 pub(crate) use restore::RSTEPS;
 use sheets::{
     devices_sheet, idle_warn_sheet, learn_sheet, lock_ask_sheet, lock_sheet, locked_sheet,
@@ -349,6 +351,7 @@ fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::Tools => crate::tools::screen::draw(app, ui, x, cw, h),
         Screen::Settings => settings::draw(app, ui, x, cw, h),
         Screen::SetTime => set_time::draw(app, ui, x, cw, h),
+        Screen::Randomness => randomness::draw(app, ui, x, cw, h),
         Screen::Codes => crate::codes::screen::draw(app, ui, x, cw, h),
         Screen::Vaults => crate::vault::screen::list(app, ui, x, cw, h),
         Screen::Backups => crate::backups::screen::draw(app, ui, x, cw, h),

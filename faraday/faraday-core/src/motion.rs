@@ -671,6 +671,7 @@ impl Faraday {
             | Screen::Backups
             | Screen::Settings
             | Screen::SetTime
+            | Screen::Randomness
             | Screen::Codes
             | Screen::Explore
             // Entry scrolls on the wide layout too, not only compact: the

@@ -1,8 +1,8 @@
 # Your own randomness, and the kernel's at boot
 
 **Kind:** Spec
-**Status:** Specified, partly built (F86): §2.3's mixing into the seed and the pool, and the lock (R1, `faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); option A (§3.3, R4); the kernel check of §3 done from the repository
-**Open:** the rest of §2: the Add randomness page and the status line (R2), pointer and keys (R3); §3.5's late seed and the Pi's generator (R5, R6, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
+**Status:** Specified, partly built (F86): §2.3's mixing into the seed and the pool, and the lock (R1, `faraday/faraday-core/src/fresh.rs`); New key's This device mixing and its label (§2.3, §2.4; `faraday/faraday-core/src/keygen/mod.rs`, `device_own`); the Add randomness page with camera, dice, coins and cards, Settings' Randomness row, the status line and New key's link (R2; `faraday/faraday-core/src/fresh/page.rs`, `faraday/faraday-core/src/screens/randomness.rs`); option A (§3.3, R4); the kernel check of §3 done from the repository
+**Open:** pointer and keys (R3, §2.1); §3.5's late seed and the Pi's generator (R5, R6, F102); the boot measurement on one real PC, in passing (§3.4 item 2; QEMU's worst case is measured).
 
 Two things. (a) A person may add randomness of their own, camera noise,
 dice rolls, coin flips or cards on every shell and pointer movement and
@@ -41,10 +41,14 @@ configuration, and a plan for the boot measurement (QEMU, then one real PC in pa
   key from dice alone takes nothing from the system, by design: it can be
   reproduced elsewhere.
 
-What is not built: nothing a person adds reaches the seed or the pool,
-so every key Faraday makes itself (a vault's, GPG's, Secure Boot's, a
-share split's) and every signing round's nonce rests on the system's
-generator alone.
+What a person adds reaches the seed and the pool (R1) from Add
+randomness (R2): Settings › Randomness and New key's This device open
+it; camera, dice, coins and cards are entered on New key's own pads.
+A camera frame is added as it is taken, its commitment that of a
+one-frame `CameraNoise` (SHA-256 over the frame's SHA-256), as R1's
+tests take it. New key's This device bytes taken before an addition,
+not yet made into words, are asked for again, so its label says what
+they hold. Not built: pointer and keys (R3).
 
 ## 2. Adding your own randomness
 

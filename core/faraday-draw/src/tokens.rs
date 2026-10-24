@@ -806,6 +806,23 @@ pub const STATUS_CHIP_PAD: f32 = 12.0;
 /// expanded rail's destination.
 pub const NAV_ICON_GAP: f32 = 12.0;
 
+// ----- Add randomness (docs/OWN-RANDOMNESS.md §2.2) -----
+
+/// A button on Add randomness, on Settings' Randomness card and New
+/// key's link to it: Material's 40 dp container, pressed in a `TOUCH`
+/// target.
+pub const OWN_BUTTON: f32 = 40.0;
+
+/// Add randomness's way back: from the page's top to its row.
+pub const OWN_TOP: f32 = 28.0;
+
+/// Add randomness: the size of the status line and the batch's line.
+pub const OWN_LINE_TEXT: f32 = 13.0;
+
+/// Settings' cards on the wide layout: the first line under the title,
+/// in from the card's top.
+pub const SETTINGS_CARD_BODY_TOP: f32 = 46.0;
+
 // ----- Codex32 error correction (docs/CODEX32.md §8.4) -----
 
 /// Add a key's other forms: a line of the list of shares or strings in,

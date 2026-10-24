@@ -501,7 +501,7 @@ fill, edge and shadow, and its text is `TEXT` on `SURFACE`.
 
 ## 5. The screens
 
-A screen is one of the thirty-three variants of `Screen` in
+A screen is one of the thirty-four variants of `Screen` in
 `faraday/faraday-core/src/lib.rs`, drawn in the file that file's code
 map names: an area's `screen.rs`, or `screens/<name>.rs` for a screen
 with no area. Each is drawn in one of three ways:
@@ -555,7 +555,8 @@ is `docs/WALLETS.md` and the Spend tab `docs/FAMILY.md`.
 | `CreateVault` | Making a vault: where it will be opened, the cost of unlocking, the space per passphrase, its name and passphrases, its size. | Step flow |
 | `Codes` | TOTP codes for the entries in open vaults, with the time they are computed for (`docs/TOTP.md` §5). | Page |
 | `SetTime` | Setting the time by hand: Date and Time (`docs/TOTP.md` §3). | Page |
-| `Settings` | The session and Lock; lock and power-off timers; Mode; Appearance (the themes, §3, as tiles in three groups, Light, Dark and High contrast, each in order of its names, Cobalt's tile marked Default), Motion and the display scale; what is remembered; About. | Page |
+| `Randomness` | Add randomness: the status line, the source (Camera, Dice, Coins, Cards) and New key's pad for it, the batch and its Add (`docs/OWN-RANDOMNESS.md` §2.2). | Page |
+| `Settings` | The session and Lock; lock and power-off timers; the time; Randomness (the status line and Add randomness, `docs/OWN-RANDOMNESS.md` §2.4); Mode; Appearance (the themes, §3, as tiles in three groups, Light, Dark and High contrast, each in order of its names, Cobalt's tile marked Default), Motion and the display scale; what is remembered; About. | Page |
 | `Transfer` | The desktop app as the device's QR link: files out as codes, in by camera. Only in the desktop app. | Page |
 | `Upgrade` | Upgrading another Faraday stick from the one Faraday started from. Never in the desktop app. | Page |
 

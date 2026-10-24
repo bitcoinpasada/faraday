@@ -1179,3 +1179,146 @@ pub(super) fn tz_row(ui: &mut Ui, x: f32, y: f32, _w: f32, tz_min: i16) -> f32 {
     );
     h
 }
+
+/// The dice pad New key and Add randomness enter rolls on: a button for
+/// each face, 1 to 6, sharing the row's width. `style` is each face's
+/// style, `press` its action. Returns its height.
+pub(crate) fn dice_pad(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    style: &dyn Fn(u8) -> Style,
+    press: fn(u8) -> Action,
+) -> f32 {
+    let bw = ((w - 5.0 * 8.0) / 6.0).min(84.0);
+    for f in 1..=6u8 {
+        ui.button(
+            x + f32::from(f - 1) * (bw + 8.0),
+            y,
+            Some(bw),
+            56.0,
+            &f.to_string(),
+            style(f),
+            press(f),
+        );
+    }
+    68.0
+}
+
+/// The coin pad: Heads and Tails. Returns its height.
+pub(crate) fn coin_pad(ui: &mut Ui, x: f32, y: f32, heads: Action, tails: Action) -> f32 {
+    ui.button(
+        x,
+        y,
+        Some(160.0),
+        56.0,
+        EN.create_heads,
+        Style::Secondary,
+        heads,
+    );
+    ui.button(
+        x + 168.0,
+        y,
+        Some(160.0),
+        56.0,
+        EN.create_tails,
+        Style::Secondary,
+        tails,
+    );
+    68.0
+}
+
+/// The card pad: the thirteen ranks, then the four suits, a suit pressed
+/// only once a rank is picked and never for a card already out of the
+/// deck being entered, and the deck's count beside them (under them on a
+/// small panel). Returns its height.
+pub(crate) fn card_pad(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    rank: Option<u8>,
+    cards: &faraday_entropy::CardDraws,
+    rank_press: fn(u8) -> Action,
+    suit_press: fn(u8) -> Action,
+) -> f32 {
+    let mut cy = y;
+    let bw = ((w - 12.0 * 6.0) / 13.0).min(52.0);
+    for (r, ch) in faraday_entropy::RANKS.iter().enumerate() {
+        let on = rank == Some(r as u8);
+        ui.button(
+            x + r as f32 * (bw + 6.0),
+            cy,
+            Some(bw),
+            44.0,
+            &ch.to_string(),
+            if on { Style::Primary } else { Style::Secondary },
+            rank_press(r as u8),
+        );
+    }
+    cy += 52.0;
+    for (s, ch) in faraday_entropy::SUITS.iter().enumerate() {
+        let taken = rank
+            .and_then(|r| faraday_entropy::card_index(r, s as u8))
+            .is_some_and(|i| cards.drawn(i));
+        let style = if rank.is_none() || taken {
+            Style::Disabled
+        } else {
+            Style::Secondary
+        };
+        // Four to the row's width at most; on a small panel the
+        // deck goes under them.
+        let sw = ((w - 3.0 * 8.0) / 4.0).min(64.0);
+        ui.button(
+            x + s as f32 * (sw + 8.0),
+            cy,
+            Some(sw),
+            44.0,
+            &ch.to_string(),
+            style,
+            suit_press(s as u8),
+        );
+    }
+    let deck = fill(
+        EN.keygen_deck_status,
+        &[&cards.deck().to_string(), &cards.in_deck().to_string()],
+    );
+    if ui.compact {
+        cy += 52.0;
+        ui.text(x, cy, 12.0, W::R, MUTED, &deck);
+        cy += 28.0;
+    } else {
+        ui.text_mid(x + 4.0 * 72.0 + 8.0, cy, 44.0, 12.0, W::R, MUTED, &deck);
+        cy += 56.0;
+    }
+    cy - y
+}
+
+/// The camera's shutter, live once a frame has arrived, with what the
+/// last picture held beside it, or under it where the column at `x`,
+/// `w` wide, is too narrow for both. Returns its height.
+pub(crate) fn camera_row(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    live: bool,
+    last: Option<faraday_entropy::FrameStats>,
+    shutter: Action,
+) -> f32 {
+    use tokens::{GRID, OWN_LINE_TEXT, PAD, TOUCH};
+    let style = if live {
+        Style::Secondary
+    } else {
+        Style::Disabled
+    };
+    let bw = ui.button(x, y, None, TOUCH, EN.create_camera_shutter, style, shutter);
+    let state = match last {
+        Some(st) => fill(EN.keygen_luma_values, &[&st.distinct.to_string()]),
+        None if live => EN.keygen_camera_active.to_string(),
+        None => EN.keygen_waiting_camera.to_string(),
+    };
+    let beside = x + bw + PAD;
+    if beside + ui.measure(OWN_LINE_TEXT, W::R, &state) <= x + w {
+        ui.text_mid(beside, y, TOUCH, OWN_LINE_TEXT, W::R, MUTED, &state);
+        return TOUCH + GRID + GRID / 2.0;
+    }
+    let below = y + TOUCH + GRID;
+    let h = ui.wrap(x, below, w, OWN_LINE_TEXT, W::R, MUTED, &state);
+    below + h + GRID + GRID / 2.0 - y
+}
