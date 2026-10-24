@@ -255,8 +255,8 @@ pub enum Action {
     /// window's own (`None`): the desktop app's preview
     /// (`docs/PREVIEW-SIZE.md`).
     PreviewSize(Option<(u16, u16)>),
-    /// Draw in one of the presets Settings offers.
-    Theme(ui::Preset),
+    /// Draw in this scheme: a theme, mode and contrast (`docs/THEMES.md` §12).
+    Theme(ui::Theme),
     /// Reduce motion on or off.
     ReduceMotion(bool),
     /// Guided mode on or off.

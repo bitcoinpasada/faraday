@@ -1291,6 +1291,8 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let compact = ui.compact;
     for (i, f) in &locked {
         let on = *i == app.vaults.pick;
+        let ink = on_selected(on, Role::OnSurface);
+        let muted = on_selected(on, Role::OnSurfaceVariant);
         // On a small panel the unlock time goes on a third line.
         let ch = if compact { 84.0 } else { 64.0 };
         ui.fill(
@@ -1299,36 +1301,10 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             w,
             ch,
             10.0,
-            if on {
-                Role::Primary.with_alpha(18)
-            } else {
-                Role::SurfaceContainerHighest.paint()
-            },
+            selected_or(on, Role::SurfaceContainerHighest),
         );
-        ui.stroke(
-            x,
-            cy,
-            w,
-            ch,
-            10.0,
-            if on {
-                Role::Primary
-            } else {
-                Role::OutlineVariant
-            },
-        );
-        ui.icon(
-            x + 14.0,
-            cy + 14.0,
-            36.0,
-            Icon::Lock,
-            15.0,
-            if on {
-                Role::Primary
-            } else {
-                Role::OnSurfaceVariant
-            },
-        );
+        ui.stroke(x, cy, w, ch, 10.0, selected_or(on, Role::OutlineVariant));
+        ui.icon(x + 14.0, cy + 14.0, 36.0, Icon::Lock, 15.0, muted);
         let where_ = if f.in_outbox {
             fill(EN.family_sealed_here, &[app.medium.for_the()])
         } else {
@@ -1346,44 +1322,22 @@ fn vault(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         if compact {
             let room = w - 62.0 - 12.0;
             let name = ui.fit(14.0, W::M, &f.name, room);
-            ui.text(x + 62.0, cy + 10.0, 14.0, W::M, Role::OnSurface, &name);
+            ui.text(x + 62.0, cy + 10.0, 14.0, W::M, ink, &name);
             let where_ = ui.fit(12.0, W::R, &where_, room);
-            ui.text(
-                x + 62.0,
-                cy + 34.0,
-                12.0,
-                W::R,
-                Role::OnSurfaceVariant,
-                &where_,
-            );
+            ui.text(x + 62.0, cy + 34.0, 12.0, W::R, muted, &where_);
             let time = ui.fit(12.0, W::S, &time, room);
-            ui.text(x + 62.0, cy + 56.0, 12.0, W::S, Role::OnSurface, &time);
+            ui.text(x + 62.0, cy + 56.0, 12.0, W::S, ink, &time);
         } else {
-            ui.text(x + 62.0, cy + 12.0, 14.0, W::M, Role::OnSurface, &f.name);
-            ui.text(
-                x + 62.0,
-                cy + 36.0,
-                12.0,
-                W::R,
-                Role::OnSurfaceVariant,
-                &where_,
-            );
-            ui.text_right(
-                x + w - 14.0,
-                cy + 8.0,
-                24.0,
-                12.0,
-                W::S,
-                Role::OnSurface,
-                &time,
-            );
+            ui.text(x + 62.0, cy + 12.0, 14.0, W::M, ink, &f.name);
+            ui.text(x + 62.0, cy + 36.0, 12.0, W::R, muted, &where_);
+            ui.text_right(x + w - 14.0, cy + 8.0, 24.0, 12.0, W::S, ink, &time);
             ui.text_right(
                 x + w - 14.0,
                 cy + 32.0,
                 24.0,
                 12.0,
                 W::R,
-                Role::OnSurfaceVariant,
+                muted,
                 &cost_text(&f.header.cost),
             );
         }

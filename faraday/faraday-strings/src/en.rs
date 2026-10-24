@@ -212,6 +212,9 @@ strings! {
     starter_row_update: "Update the installed Faraday",
     /// Home row and page.
     starter_row_about: "About",
+    /// The ⋮ menu's row and its sheet's title: Theme, Mode and Contrast
+    /// (`docs/THEMES.md` §14).
+    starter_row_appearance: "Appearance",
     /// Home row.
     starter_row_learn: "Learn",
     /// Rail and bar destination, and the title of its page.
@@ -6077,12 +6080,9 @@ strings! {
     settings_mode: "Mode",
     /// Line in `settings`.
     settings_appearance: "Appearance",
-    /// Line in `settings`.
-    settings_motion: "Motion",
-    /// Text in `settings`.
-    settings_full: "Full",
-    /// Text in `settings`.
-    settings_reduced: "Reduced",
+    /// Settings' switch row: nothing slides, glides, coasts or fades
+    /// (`docs/MOTION.md`).
+    settings_reduce_motion: "Reduce motion",
     /// Line in `settings`.
     settings_display_scale: "Display scale",
     /// Text in `settings`.
@@ -6942,41 +6942,43 @@ strings! {
     /// Button in `receive`.
     transfer_open_folder: "Open folder",
     // ----- ui (faraday-core/src/ui.rs) -----
-    /// Text in `name`.
-    ui_dark: "Dark",
-    /// Text in `name`.
+    /// Settings' Appearance row of the ten themes (`docs/THEMES.md` §12).
+    ui_theme_row: "Theme",
+    /// Settings' Appearance row of Light and Dark.
+    ui_mode_row: "Mode",
+    /// Settings' Appearance row of the contrast levels.
+    ui_contrast_row: "Contrast",
+    /// A mode, in Mode's segmented button.
     ui_light: "Light",
-    /// Text in `name`.
+    /// A mode, in Mode's segmented button.
+    ui_dark: "Dark",
+    /// A contrast level, in Contrast's segmented button.
+    ui_contrast_standard: "Standard",
+    /// A contrast level, in Contrast's segmented button.
+    ui_contrast_medium: "Medium",
+    /// A contrast level, in Contrast's segmented button.
+    ui_contrast_high: "High",
+    /// A theme's name, on its chip.
     ui_cobalt: "Cobalt",
-    /// Text in `name`.
-    ui_nord: "Nord",
-    /// Text in `name`.
-    ui_catppuccin: "Catppuccin",
-    /// Text in `name`.
-    ui_tokyo_night: "Tokyo Night",
-    /// Text in `name`.
-    ui_gruvbox: "Gruvbox",
-    /// Text in `name`.
-    ui_rose_pine: "Rosé Pine",
-    /// Text in `name`.
+    /// A theme's name, on its chip.
     ui_bitcoin_orange: "Bitcoin Orange",
-    /// Text in `name`.
-    ui_bitcoin_orange_light: "Bitcoin Orange Light",
-    /// Text in `name`.
+    /// A theme's name, on its chip.
     ui_lamplight: "Lamplight",
-    /// Text in `name`.
-    ui_high_contrast_dark: "High contrast dark",
-    /// Text in `name`.
-    ui_high_contrast_light: "High contrast light",
-    /// Text in `name`.
+    /// A theme's name, on its chip.
     ui_mars: "Mars",
-    /// Section label over the light themes in `settings`.
-    ui_themes_light: "Light",
-    /// Section label over the dark themes in `settings`.
-    ui_themes_dark: "Dark",
-    /// Section label over the high-contrast themes in `settings`.
-    ui_themes_high_contrast: "High contrast",
-    /// Mark on the tile of the theme a first start is in, in `theme_tile`.
+    /// A theme's name, on its chip.
+    ui_forest: "Forest",
+    /// A theme's name, on its chip.
+    ui_frost: "Frost",
+    /// A theme's name, on its chip.
+    ui_dusk: "Dusk",
+    /// A theme's name, on its chip.
+    ui_lavender: "Lavender",
+    /// A theme's name, on its chip.
+    ui_rose: "Rose",
+    /// A theme's name, on its chip.
+    ui_monochrome: "Monochrome",
+    /// Mark on the chip of the theme a first start is in.
     ui_default_theme: "Default",
     // ----- upgrade (faraday-core/src/upgrade/mod.rs) -----
     /// Text in `version`.

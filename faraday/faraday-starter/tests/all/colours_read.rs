@@ -144,8 +144,8 @@ fn to_confirm(s: &mut Starter) {
 /// concern and the boot entry; Make; Tools; the disk list, What to
 /// write, Confirm (with a development image's warning) and the writer's
 /// refusal; Start with BitLocker on and its restart sheet; Install;
-/// About; Blank templates. Two of them with a finger held down on a
-/// button or a row.
+/// About; Blank templates; Appearance. Two of them with a
+/// finger held down on a button or a row.
 fn scenes(w: u16, h: u16, theme: Theme) -> Vec<(&'static str, Starter)> {
     let mut out = Vec::new();
     let mut home = start(w, h, theme, true);
@@ -224,6 +224,10 @@ fn scenes(w: u16, h: u16, theme: Theme) -> Vec<(&'static str, Starter)> {
     let mut templates = start(w, h, theme, false);
     templates.press(StarterAction::Templates);
     out.push(("blank templates", templates));
+    let mut look = start(w, h, theme, false);
+    look.press(StarterAction::Menu);
+    look.press(StarterAction::Appearance);
+    out.push(("appearance", look));
     out
 }
 

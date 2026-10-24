@@ -396,14 +396,9 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
                 Role::OnSurface.at(STATE_PRESS),
             );
         } else if is_next {
-            ui.fill(
-                x - 6.0,
-                y + 2.0,
-                w + 12.0,
-                ROW_H - 4.0,
-                8.0,
-                Role::Primary.with_alpha(22),
-            );
+            // The next step: Material's selected state.
+            let (rx, rw) = (x - 6.0, w + 12.0);
+            ui.fill(rx, y + 2.0, rw, ROW_H - 4.0, 8.0, Role::SecondaryContainer);
         }
         ui.badge(
             x + 4.0,
@@ -413,23 +408,22 @@ fn checklist(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
             is_next,
         );
         let tx = x + 44.0;
-        let fg = if row.done {
-            Role::OnSurfaceVariant
-        } else {
-            Role::OnSurface
-        };
+        let lit = is_next && !pressed;
+        let fg = faraday_ui::pal::on_selected(
+            lit,
+            if row.done {
+                Role::OnSurfaceVariant
+            } else {
+                Role::OnSurface
+            },
+        );
         let head = ui.fit(14.0, W::S, item_label(starter, row.item), w - 80.0);
         ui.text(tx, y + 8.0, 14.0, W::S, fg, &head);
         let state = ui.fit(12.0, W::R, &state_text(&row.state), w - 80.0);
-        ui.text(tx, y + 30.0, 12.0, W::R, Role::OnSurfaceVariant, &state);
-        ui.icon(
-            x + w - 24.0,
-            y + (ROW_H - 20.0) / 2.0,
-            20.0,
-            Icon::ChevronRight,
-            9.0,
-            Role::OnSurfaceVariant,
-        );
+        let muted = faraday_ui::pal::on_selected(lit, Role::OnSurfaceVariant);
+        ui.text(tx, y + 30.0, 12.0, W::R, muted, &state);
+        let (cx, cy) = (x + w - 24.0, y + (ROW_H - 20.0) / 2.0);
+        ui.icon(cx, cy, 20.0, Icon::ChevronRight, 9.0, muted);
         ui.hit(x - 6.0, y, w + 12.0, ROW_H, action.host());
         y += ROW_H;
         if row.item == Item::SecureBootOn {

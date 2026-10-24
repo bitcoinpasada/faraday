@@ -64,13 +64,18 @@ pub(crate) fn board_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     ))));
     t.press(Action::Board(B::Form(Zone::Files(p, s), Thing::Seed(1), 1)));
     t.press(Action::Board(B::LetGo));
-    t.press(Action::Theme(faraday_core::ui::Preset::Dark));
+    let dark = faraday_core::ui::Mode::Dark;
+    t.press(Action::Theme(faraday_core::ui::Theme { mode: dark, ..was }));
     // In the narrow column the stick box is under Add and Place 1's head.
     if t.app.is_compact() {
         scroll(t, 260);
     }
     t.shot("board-vault-and-files-dark")?;
-    t.press(Action::Theme(faraday_core::ui::Preset::Light));
+    let light = faraday_core::ui::Mode::Light;
+    t.press(Action::Theme(faraday_core::ui::Theme {
+        mode: light,
+        ..was
+    }));
     t.shot("board-vault-and-files-light")?;
     // Back to the theme the tour is in.
     t.press(Action::Theme(was));

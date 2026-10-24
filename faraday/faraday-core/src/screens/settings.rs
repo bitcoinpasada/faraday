@@ -7,9 +7,9 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use faraday_draw::tokens::{
-    LABEL, SETTINGS_CARD_GAP, SETTINGS_CARD_HEAD, SETTINGS_CARD_INSET, SETTINGS_CARD_TITLE,
-    SETTINGS_CARD_TITLE_Y, SETTINGS_CHOICE_H, SETTINGS_VALUE_GAP, SETTINGS_VALUE_LINE,
-    SETTINGS_VALUE_TEXT,
+    APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP, LABEL, SETTINGS_CARD_GAP, SETTINGS_CARD_HEAD,
+    SETTINGS_CARD_INSET, SETTINGS_CARD_TITLE, SETTINGS_CARD_TITLE_Y, SETTINGS_CHOICE_H,
+    SETTINGS_VALUE_GAP, SETTINGS_VALUE_LINE, SETTINGS_VALUE_TEXT,
 };
 use faraday_ui::parts::{title, wrap_buttons};
 
@@ -133,6 +133,44 @@ fn randomness_card(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
         Style::Secondary,
         Action::Own(crate::fresh::page::Act::Open),
     );
+    h
+}
+
+/// Settings' Appearance (`docs/THEMES.md` §12): Theme, Mode and
+/// Contrast, then the Reduce motion switch (`docs/MOTION.md` §3.5), from
+/// (x, y) `w` wide, each row's label in a column `label_w` wide or over
+/// its control. Returns the height.
+fn appearance_body(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    label_w: Option<f32>,
+) -> f32 {
+    let h = ui.appearance((x, y, w), label_w, app.theme(), Action::Theme) + APPEARANCE_ROW_GAP;
+    let on = app.reduce_motion();
+    let motion = Action::ReduceMotion(!on);
+    h + ui.switch_row((x, y + h, w), EN.settings_reduce_motion, on, motion)
+}
+
+/// Settings' Appearance card on the wide layout. Returns its height.
+fn appearance_card(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
+    let (bx, by) = (x + SETTINGS_CARD_INSET, y + SETTINGS_CARD_HEAD);
+    let at = (bx, by, width - 2.0 * SETTINGS_CARD_INSET);
+    let label = Some(APPEARANCE_LABEL_W);
+    // Sized from the rows' widths, not drawn twice: Theme, Mode and
+    // Contrast, then the Reduce motion row.
+    let body = ui.appearance_h(at.2, label) + APPEARANCE_ROW_GAP + faraday_draw::tokens::TOUCH;
+    let h = SETTINGS_CARD_HEAD + body + SETTINGS_CARD_INSET;
+    ui.card(x, y, width, h, Role::OutlineVariant);
+    ui.text(
+        bx,
+        y + SETTINGS_CARD_TITLE_Y,
+        SETTINGS_CARD_TITLE,
+        W::S,
+        Role::OnSurface,
+        EN.settings_appearance,
+    );
+    appearance_body(app, ui, at, label);
     h
 }
 
@@ -313,15 +351,7 @@ fn settings_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y - y0
     });
     y += section(ui, x, y, w, EN.settings_appearance, &|ui, x, y0, w| {
-        ui.theme_groups(x, y0, w, 2, app.theme(), Action::Theme)
-    });
-    y += section(ui, x, y, w, EN.settings_motion, &|ui, x, y0, w| {
-        let items = [
-            (EN.settings_full, Action::ReduceMotion(false)),
-            (EN.settings_reduced, Action::ReduceMotion(true)),
-        ];
-        let on = Some(usize::from(app.reduce_motion()));
-        ui.choices((x, y0, w, 38.0), 14.0, &items, on)
+        appearance_body(app, ui, (x, y0, w), None)
     });
     y += section(ui, x, y, w, EN.settings_display_scale, &|ui, x, y0, w| {
         let labels: Vec<(String, u16)> = [75u16, 90, 100, 110, 125, 150, 200]
@@ -627,45 +657,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     y += 244.0 - fewer + ignored_h;
     y += time_section(app, ui, x, y, width) + 20.0;
     y += mode_card(app, ui, x, y, width) + 20.0;
-    // Each theme a tile in its own colours, in its group, in rows as wide
-    // as the card.
+    y += appearance_card(app, ui, x, y, width) + SETTINGS_CARD_GAP;
     let inner = width - 44.0;
-    let per_row = ui.theme_grid(inner);
-    let card_h = 54.0 + ui.theme_groups_h(inner, per_row) + 22.0;
-    ui.card(x, y, width, card_h, Role::OutlineVariant);
-    ui.text(
-        x + 22.0,
-        y + 20.0,
-        15.0,
-        W::S,
-        Role::OnSurface,
-        EN.settings_appearance,
-    );
-    ui.theme_groups(
-        x + 22.0,
-        y + 54.0,
-        inner,
-        per_row,
-        app.theme(),
-        Action::Theme,
-    );
-    y += card_h + 20.0;
-    ui.card(x, y, width, 112.0, Role::OutlineVariant);
-    ui.text(
-        x + 22.0,
-        y + 20.0,
-        15.0,
-        W::S,
-        Role::OnSurface,
-        EN.settings_motion,
-    );
-    let items = [
-        (EN.settings_full, Action::ReduceMotion(false)),
-        (EN.settings_reduced, Action::ReduceMotion(true)),
-    ];
-    let on = Some(usize::from(app.reduce_motion()));
-    ui.choices((x + 22.0, y + 54.0, inner, 38.0), 14.0, &items, on);
-    y += 132.0;
     ui.card(x, y, width, 112.0, Role::OutlineVariant);
     ui.text(
         x + 22.0,

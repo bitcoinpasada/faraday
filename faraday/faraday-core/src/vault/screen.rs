@@ -576,7 +576,7 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (rule, bad) = (Role::OutlineVariant, Role::Error);
-    let (ink, primary) = (Role::OnSurface, Role::Primary);
+    let ink = Role::OnSurface;
     let muted = Role::OnSurfaceVariant;
     if ui.compact {
         return unlock_compact(app, ui, x0, cw, h);
@@ -618,21 +618,12 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     for (i, f) in &locked {
         let on = *i == app.vaults.pick;
+        let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
         let ch = 72.0;
-        ui.fill(
-            x,
-            y,
-            w,
-            ch,
-            12.0,
-            if on {
-                Role::Primary.with_alpha(18)
-            } else {
-                Role::SurfaceContainerLow.paint()
-            },
-        );
-        ui.stroke(x, y, w, ch, 12.0, if on { primary } else { rule });
-        let fg = if on { primary } else { muted };
+        let fill_ = selected_or(on, Role::SurfaceContainerLow);
+        ui.fill(x, y, w, ch, 12.0, fill_);
+        ui.stroke(x, y, w, ch, 12.0, selected_or(on, rule));
+        let fg = muted;
         ui.fill(x + 16.0, y + 14.0, 44.0, 44.0, 10.0, fg.with_alpha(30));
         ui.icon(x + 16.0, y + 14.0, 44.0, Icon::Lock, 18.0, fg);
         ui.text(x + 76.0, y + 14.0, 14.0, W::M, ink, &f.name);
@@ -943,7 +934,7 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (rule, bad) = (Role::OutlineVariant, Role::Error);
-    let (ink, primary) = (Role::OnSurface, Role::Primary);
+    let ink = Role::OnSurface;
     let muted = Role::OnSurfaceVariant;
     use crate::compact::M;
     use crate::compact::screen::{about, finish};
@@ -979,21 +970,12 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     for (i, f) in &locked {
         let on = *i == app.vaults.pick;
+        let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
         let ch = 82.0;
-        ui.fill(
-            x,
-            y,
-            w,
-            ch,
-            12.0,
-            if on {
-                Role::Primary.with_alpha(18)
-            } else {
-                Role::SurfaceContainerLow.paint()
-            },
-        );
-        ui.stroke(x, y, w, ch, 12.0, if on { primary } else { rule });
-        let fg = if on { primary } else { muted };
+        let fill_ = selected_or(on, Role::SurfaceContainerLow);
+        ui.fill(x, y, w, ch, 12.0, fill_);
+        ui.stroke(x, y, w, ch, 12.0, selected_or(on, rule));
+        let fg = muted;
         ui.fill(x + 12.0, y + 12.0, 36.0, 36.0, 8.0, fg.with_alpha(30));
         ui.icon(x + 12.0, y + 12.0, 36.0, Icon::Lock, 15.0, fg);
         let room = w - 60.0 - 12.0;
@@ -1325,26 +1307,11 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 } else {
                     (fill(EN.vault_too_large, &[&weakest.to_string()]), warn)
                 };
-                ui.fill(
-                    x,
-                    cy,
-                    w,
-                    50.0,
-                    8.0,
-                    if on {
-                        Role::Primary.with_alpha(22)
-                    } else {
-                        inset.paint()
-                    },
-                );
-                ui.stroke(
-                    x,
-                    cy,
-                    w,
-                    50.0,
-                    8.0,
-                    if on { primary } else { Role::OutlineVariant },
-                );
+                let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
+                let color = on_selected(on, color);
+                ui.fill(x, cy, w, 50.0, 8.0, selected_or(on, inset));
+                let edge = selected_or(on, Role::OutlineVariant);
+                ui.stroke(x, cy, w, 50.0, 8.0, edge);
                 // The name and what the row says of it, then the cost and
                 // the bits it adds.
                 ui.text(x + 16.0, cy + 8.0, 14.0, W::S, ink, label);
@@ -1472,30 +1439,11 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             for (r, (label, preset, _)) in SIZES.iter().enumerate() {
                 let (_, mem, passes) = PRESETS[*preset];
                 let on = chosen == Some(r);
-                ui.fill(
-                    x,
-                    cy,
-                    w,
-                    row_h,
-                    8.0,
-                    if on {
-                        Role::Primary.with_alpha(26)
-                    } else {
-                        inset.paint()
-                    },
-                );
-                ui.stroke(
-                    x,
-                    cy,
-                    w,
-                    row_h,
-                    8.0,
-                    if on {
-                        Role::Primary.with_alpha(110)
-                    } else {
-                        Role::OutlineVariant.paint()
-                    },
-                );
+                let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
+                let warn = on_selected(on, warn);
+                ui.fill(x, cy, w, row_h, 8.0, selected_or(on, inset));
+                let edge = selected_or(on, Role::OutlineVariant);
+                ui.stroke(x, cy, w, row_h, 8.0, edge);
                 let cost = fill(
                     EN.vault_passes,
                     &[&mib_text(mem).to_string(), &passes.to_string()],
@@ -1567,27 +1515,11 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
             let bw = (w - 18.0) / 4.0;
             for (k, s) in SLOT_SIZES.iter().enumerate() {
                 let on = *s == c.slot;
+                let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
                 let bx = x + k as f32 * (bw + 6.0);
-                ui.fill(
-                    bx,
-                    cy,
-                    bw,
-                    62.0,
-                    8.0,
-                    if on {
-                        Role::Primary.with_alpha(22)
-                    } else {
-                        inset.paint()
-                    },
-                );
-                ui.stroke(
-                    bx,
-                    cy,
-                    bw,
-                    62.0,
-                    8.0,
-                    if on { primary } else { Role::OutlineVariant },
-                );
+                ui.fill(bx, cy, bw, 62.0, 8.0, selected_or(on, inset));
+                let edge = selected_or(on, Role::OutlineVariant);
+                ui.stroke(bx, cy, bw, 62.0, 8.0, edge);
                 let t = size_text(*s);
                 let tw = ui.measure(15.0, W::S, &t);
                 ui.text(bx + (bw - tw) / 2.0, cy + 12.0, 15.0, W::S, ink, &t);
@@ -2379,26 +2311,12 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     for (k, label, count) in listed_kinds(app, v) {
         let on = k == app.vaults.category;
         if on {
-            ui.fill(x, ky, kinds_w, 38.0, 8.0, Role::Primary.with_alpha(30));
+            ui.fill(x, ky, kinds_w, 38.0, 8.0, Role::SecondaryContainer);
         }
-        ui.text_mid(
-            x + 12.0,
-            ky,
-            38.0,
-            14.0,
-            W::S,
-            if on { ink } else { muted },
-            label,
-        );
-        ui.text_right(
-            x + kinds_w - 12.0,
-            ky,
-            38.0,
-            13.0,
-            W::R,
-            muted,
-            &count.to_string(),
-        );
+        let tone = on_selected(on, muted);
+        ui.text_mid(x + 12.0, ky, 38.0, 14.0, W::S, tone, label);
+        let n = count.to_string();
+        ui.text_right(x + kinds_w - 12.0, ky, 38.0, 13.0, W::R, tone, &n);
         ui.hit(x, ky, kinds_w, 38.0, va(V::Category(k)));
         ky += 42.0;
     }
@@ -2495,26 +2413,9 @@ pub(crate) fn contents(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     for (k, r) in items.iter().enumerate().skip(first).take(fit) {
         let (t, line, mono) = item_heading(app, *r);
         let on = k == sel && app.vaults.form.is_none() && !app.vaults.saving;
-        ui.fill(
-            ix,
-            iy,
-            items_w,
-            row - 6.0,
-            8.0,
-            if on { Role::Surface } else { inset },
-        );
-        ui.stroke(
-            ix,
-            iy,
-            items_w,
-            row - 6.0,
-            8.0,
-            if on {
-                Role::Primary.with_alpha(120)
-            } else {
-                rule.paint()
-            },
-        );
+        ui.fill(ix, iy, items_w, row - 6.0, 8.0, selected_or(on, inset));
+        ui.stroke(ix, iy, items_w, row - 6.0, 8.0, selected_or(on, rule));
+        let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
         let t = ui.fit(14.0, if mono { W::M } else { W::S }, &t, items_w - 24.0);
         ui.text(
             ix + 12.0,

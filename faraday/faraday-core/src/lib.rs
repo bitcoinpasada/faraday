@@ -6612,7 +6612,7 @@ impl Faraday {
                     self.pointer.pressed().map(|p| p.0),
                 );
                 ui.edit = self.edit_now();
-                ui.theme = self.theme().theme();
+                ui.theme = self.theme();
                 ui.hovered = self.pointer.hovered();
                 ui.focused = focused;
                 ui.tips.shown = self.pointer.tip_shown();
@@ -6622,7 +6622,7 @@ impl Faraday {
                 ui.stretch_in_sheet = self.sheet.is_some_and(Sheet::scrolls_with_bar)
                     || (self.compact && self.sheet.is_some());
                 ui.disclosure = disclosure;
-                let frost_key = ((self.screen, self.sheet), self.theme().theme());
+                let frost_key = ((self.screen, self.sheet), self.theme());
                 ui.frost = self.fade.take_frost(&frost_key);
                 ui.guided_shown = self.guided_shown();
                 ui.about_open = self.panel.about_on(self.screen, self.sheet.is_none());

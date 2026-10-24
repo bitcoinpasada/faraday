@@ -1,8 +1,8 @@
 # Themes on Material 3's colour system
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-24); the roles, the generator and the tables built (C1); every screen and component of Faraday and the Starter drawn on the roles by name, the 39 old names removed, DESIGN §3 rewritten from this spec (C2); its decision is F113 (`docs/decisions/F113.md`)
-**Open:** Settings' three controls, the stored-theme migration and the Starter's Appearance sheet (C3), renders and docs (C4); after C4, the website, the user guide's pictures and the snapshot tours are redrawn (follow-on); a custom seed colour picker, not scheduled.
+**Status:** Specified (owner, 2026-10-24); the roles, the generator and the tables built (C1); every screen and component of Faraday and the Starter drawn on the roles by name, the 39 old names removed, DESIGN §3 rewritten from this spec (C2); Settings › Appearance's Theme, Mode and Contrast, the settings file's three lines and the migration, the Starter's Appearance page, the Reduce motion switch and Material's selected state on chosen rows (C3); its decision is F113 (`docs/decisions/F113.md`)
+**Open:** the theme tour, renders and docs (C4); after C4, the website, the user guide's pictures and the snapshot tours are redrawn (follow-on); a custom seed colour picker, not scheduled.
 
 Every theme is made again from the ground up on Material 3's colour
 system, as if Faraday had used it from the start (owner, 2026-10-24). A
@@ -457,14 +457,18 @@ What screens rely on, tested on the shipped tables:
   colour it was drawn in against that fill, 4.5:1 or more (7:1 at
   High). A pair tested on the table alone missed the checksum squares
   once (C1 drew their characters in on-surface on tertiary-container);
-  the frame shows what the screen actually pairs. Once Settings offers
-  all sixty schemes (C3) the test takes each of them.
+  the frame shows what the screen actually pairs. It takes all sixty
+  schemes, and beside codex32's entry Home, the backup board, the
+  wallets with the one on screen chosen, a kind of wallet chosen, and
+  Settings on a window tall enough that nothing scrolls, so every theme
+  chip, segment and the Reduce motion row is measured off the fade at a
+  scrolled edge.
 - The Starter likewise
   (`faraday/faraday-starter/tests/all/colours_read.rs`): its pages and
   sheets (Home with a concern and the boot entry, Make, Tools, the disk
   list, What to write, Confirm with a development image, the writer's
   refusal, Start with BitLocker on and its restart sheet, Install, About,
-  Blank templates), two of them with a finger held on a button or a row,
+  Blank templates, Appearance), two of them with a finger held on a button or a row,
   drawn wide and narrow in all sixty schemes, every opaque line of text
   4.5:1 or more against the pixels round it (7:1 at High).
 
@@ -504,6 +508,26 @@ A change fades in over 350 ms, as a change of theme does today (MOTION
 §3.5, F108). The Text size row (`docs/TEXT-SIZE.md`) sits under them
 when it is built.
 
+As built (C3, `faraday_ui::Ui::appearance`, `theme_chips`): on the wide
+layout each row's label stands in a column `APPEARANCE_LABEL_W` wide
+with its control beside it; on a small panel the label stands over its
+control. A chip's swatch is drawn from that theme's own scheme in the
+mode and contrast on screen; the chosen chip's swatch carries the tick,
+in that theme's on-primary-container, where its primary dot is. Mode
+and Contrast are Material segmented buttons `SEGMENTED_H` tall, option
+buttons where three segments do not fit the width (a small panel).
+Under them, **Reduce motion**, a Material switch in a list row
+(`Ui::switch_row`, MOTION §3.5), owner's addition of 2026-10-24.
+
+Chosen rows elsewhere follow the same rule (owner, 2026-10-24): a chosen
+card, option or row, a toggle that is on and the row of the place on
+screen are Material's selected state, secondary-container with
+everything on it in on-secondary-container (§7's segmented and filter
+chip rows), not a tint of primary as C2 left them. At Medium and High
+contrast secondary-container darkens in Light, so what sits on it moves
+with it: a status word on a chosen row (a wallet's Can spend) is
+on-secondary-container too.
+
 ## 13. Stored settings and migration
 
 The settings file (`faraday/faraday-core/src/stick/settings.rs`) and the
@@ -514,7 +538,12 @@ theme id it does not know, and opens in its default.
 
 A file without a `mode=` line was written before this change; its
 `theme=` value maps as below. A file with `mode=` or `contrast=` takes
-them as written, whatever its theme line says.
+them as written, whatever its theme line says. The lines are read in
+the order written and Faraday writes `theme=` first, so the theme line
+sets the triple its row names and a `mode=` or `contrast=` line after
+it sets that part (`Theme::from_stored`, `stick/settings.rs`). A theme
+named since (`forest`, `frost`, `dusk`, `lavender`, `rose`,
+`monochrome`) with no mode line opens in Light at Standard.
 
 | Stored id | Theme | Mode | Contrast |
 |---|---|---|---|
@@ -544,8 +573,11 @@ The Starter draws from the same tables and roles
 (`faraday/faraday-starter/src/draw.rs` uses `faraday_ui::pal` today) and
 has the same three controls as Faraday, Theme, Mode and Contrast (owner,
 2026-10-24). They are §12's rows, built from the same components, on an
-Appearance sheet opened from the top app bar's ⋮ menu (`docs/STARTER.md`
-§3.1d). It opens in Cobalt, Light, Standard. The Starter keeps no
+Appearance page opened from the top app bar's ⋮ menu (`docs/STARTER.md`
+§3.1d), a task page as About is, with the way back in the bar: as a
+sheet, as first written, the ten chips and the two rows ran past the
+foot of a compact window, and a Starter sheet does not scroll (C3). It
+opens in Cobalt, Light, Standard. The Starter keeps no
 settings file (`docs/STARTER.md` §5.1), so a choice lasts until it
 closes. The Faraday screens it holds draw in the same scheme. The Text
 size row (`docs/TEXT-SIZE.md`, the Starter's part) joins the same sheet
@@ -560,7 +592,7 @@ in `docs/history/` and makes this document a Reference.
 |---|---|---|---|
 | C1 | The reference vendored with its README and digests; the resolve shim; the generator and `just themes`; schemes.rs; `pal::Role`, the paint, `Theme` as (theme, mode, contrast); today's 39 names as paints for their main role; state and disabled tokens (§8); the tests of §11.1 to §11.3; tools/README.md rows; Node on the build machine confirmed. Timed in a late-flow session. | Opus | one long session |
 | C2 | Every screen and component moved from the 39 names onto roles by name, by §6 and §7, file owner by file owner: `faraday-ui` first (buttons, chips, segments, fields, cards, rail, bar, sheets, dialogs, toast, focus ring, disabled), then `faraday-core`'s areas, then the Starter; the old names removed; the high contrast rules of §9 keyed to Contrast High. About 3,600 uses in about 100 files. | Sonnet | three to four sessions, split by crate |
-| C3 | Settings › Appearance (§12); the settings file's three lines and the migration (§13) with its tests; the strings in `faraday/faraday-strings/src/en.rs` (ten names, Mode, Contrast and their values; the retired names and the group labels removed); the Starter (§14). | Opus | one session |
+| C3 | Settings › Appearance (§12); the settings file's three lines and the migration (§13) with its tests; the strings in `faraday/faraday-strings/src/en.rs` (ten names, Mode, Contrast and their values; the retired names and the group labels removed); the Starter (§14); folded in by the owner, the Reduce motion switch and the selected state of §12. Built 2026-10-24. | Opus | one session |
 | C4 | The theme tour (`faraday/shells/snapshot/src/tours/themes.rs`): each theme Light and Dark at Standard, and Cobalt at Medium and High, not all sixty; renders checked by the owner; the docs of §16. | Sonnet | one session |
 
 C2 landed after C1 (`faraday-ui`, then `faraday-core`, then the Starter);

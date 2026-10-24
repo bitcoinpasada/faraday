@@ -149,18 +149,10 @@ fn osk_toggle(app: &View, ui: &mut Ui, draw: bool, right: f32) -> f32 {
     let ky = (BAR_H - 34.0) / 2.0;
     if draw {
         if shown || ui.is_pressed(action) {
-            let fill = if shown {
-                Role::Primary.with_alpha(40)
-            } else {
-                Role::SurfaceContainerHighest.paint()
-            };
+            let fill = crate::ui::pal::selected_or(shown, Role::SurfaceContainerHighest);
             ui.fill(kx, ky, 34.0, 34.0, 8.0, fill);
         }
-        let ink = if shown {
-            Role::Primary
-        } else {
-            Role::OnSurfaceVariant
-        };
+        let ink = crate::ui::pal::on_selected(shown, Role::OnSurfaceVariant);
         ui.icon(kx, ky, 34.0, Icon::Keyboard, 14.0, ink);
         ui.hit(kx - 4.0, 0.0, 42.0, BAR_H, action);
     }
@@ -274,11 +266,7 @@ fn eye_icon(ui: &mut Ui, x: f32, y: f32, masked: bool) {
             ICON_BUTTON,
             ICON_BUTTON,
             r,
-            if masked {
-                Role::SurfaceContainerHighest.paint()
-            } else {
-                Role::Primary.with_alpha(40)
-            },
+            crate::ui::pal::selected_or(!masked, Role::SurfaceContainerHighest),
         );
     }
     ui.icon(
@@ -287,11 +275,7 @@ fn eye_icon(ui: &mut Ui, x: f32, y: f32, masked: bool) {
         ICON_BUTTON,
         if masked { Icon::Eye } else { Icon::EyeOff },
         ICON_GLYPH,
-        if masked {
-            Role::OnSurfaceVariant
-        } else {
-            Role::Primary
-        },
+        crate::ui::pal::on_selected(!masked, Role::OnSurfaceVariant),
     );
 }
 
@@ -333,7 +317,7 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
     let (s, y) = (28.0, 12.0);
     let x = right - s;
     let tint = if shown {
-        Role::Primary.with_alpha(40)
+        Role::SecondaryContainer.paint()
     } else if ui.is_pressed(action) || ui.is_hovered(action) {
         Role::SurfaceContainerHighest.paint()
     } else {
@@ -346,11 +330,7 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
         s,
         s,
         s / 2.0,
-        if shown {
-            Role::Primary
-        } else {
-            Role::OutlineVariant
-        },
+        crate::ui::pal::selected_or(shown, Role::OutlineVariant),
     );
     ui.icon(
         x,
@@ -358,11 +338,7 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
         s,
         Icon::Keyboard,
         13.0,
-        if shown {
-            Role::Primary
-        } else {
-            Role::OnSurfaceVariant
-        },
+        crate::ui::pal::on_selected(shown, Role::OnSurfaceVariant),
     );
     ui.hit(x - 6.0, y - 6.0, s + 12.0, s + 12.0, action);
 }

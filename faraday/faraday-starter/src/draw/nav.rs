@@ -83,7 +83,10 @@ fn install_action(starter: &Starter) -> Option<(&'static str, StarterAction)> {
 
 /// The rows of the ⋮ menu: what is not a destination (§3.1d).
 fn menu_rows(starter: &Starter) -> Vec<(&'static str, StarterAction)> {
-    let mut rows = vec![(S.starter_row_about, StarterAction::About)];
+    let mut rows = vec![
+        (S.starter_row_appearance, StarterAction::Appearance),
+        (S.starter_row_about, StarterAction::About),
+    ];
     if starter.installed.is_some() {
         rows.push((S.starter_uninstall, StarterAction::Installed));
     }

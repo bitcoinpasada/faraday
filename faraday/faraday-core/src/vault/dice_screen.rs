@@ -59,39 +59,14 @@ pub(super) fn dice_panel(
             (x + k as f32 * (lw + 10.0), cy)
         };
         let detail = ui.fit(11.0, W::R, detail, lw - 20.0);
-        ui.fill(
-            bx,
-            cy,
-            lw,
-            44.0,
-            8.0,
-            if on {
-                Role::Primary.with_alpha(22)
-            } else {
-                Role::SurfaceContainerHighest.paint()
-            },
-        );
-        ui.stroke(
-            bx,
-            cy,
-            lw,
-            44.0,
-            8.0,
-            if on {
-                Role::Primary
-            } else {
-                Role::OutlineVariant
-            },
-        );
-        ui.text(bx + 10.0, cy + 6.0, 13.0, W::S, Role::OnSurface, name);
-        ui.text(
-            bx + 10.0,
-            cy + 24.0,
-            11.0,
-            W::R,
-            Role::OnSurfaceVariant,
-            &detail,
-        );
+        use crate::ui::pal::{on_selected, selected_or};
+        let fill_ = selected_or(on, Role::SurfaceContainerHighest);
+        ui.fill(bx, cy, lw, 44.0, 8.0, fill_);
+        ui.stroke(bx, cy, lw, 44.0, 8.0, selected_or(on, Role::OutlineVariant));
+        let ink = on_selected(on, Role::OnSurface);
+        ui.text(bx + 10.0, cy + 6.0, 13.0, W::S, ink, name);
+        let muted = on_selected(on, Role::OnSurfaceVariant);
+        ui.text(bx + 10.0, cy + 24.0, 11.0, W::R, muted, &detail);
         ui.hit(bx, cy, lw, 44.0, Action::Vault(V::DiceList(k as u8)));
     }
     cy += if compact { 3.0 * 52.0 + 4.0 } else { 56.0 };

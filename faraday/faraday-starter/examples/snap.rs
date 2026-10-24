@@ -734,6 +734,25 @@ fn run(s: &Snap) -> Result<(), String> {
     h.starter_event(StarterEvent::BootEntryKept(Reason::Declined));
     h.starter_event(StarterEvent::UninstallDone(Ok(())));
     s.shot(&mut h, "installed-entry-kept")?;
+    // The ⋮ menu, and its Appearance page (`docs/THEMES.md` §14) in the
+    // scheme the run is in, then with a choice made on it.
+    let mut h = s.starter();
+    h.press(StarterAction::Menu);
+    s.shot(&mut h, "menu")?;
+    h.press(StarterAction::Appearance);
+    s.shot(&mut h, "appearance")?;
+    for (words, name) in [
+        ("frost,dark", "appearance-frost-dark"),
+        (
+            "bitcoin-orange,light,medium",
+            "appearance-bitcoin-orange-medium",
+        ),
+        ("cobalt,dark,high", "appearance-cobalt-dark-high"),
+    ] {
+        let theme = faraday_ui::Theme::from_words(words).ok_or(words)?;
+        h.press(StarterAction::Theme(theme));
+        s.shot(&mut h, name)?;
+    }
     let mut h = s.starter();
     h.press(StarterAction::About);
     s.shot(&mut h, "about")?;
@@ -968,11 +987,12 @@ fn main() -> ExitCode {
         eprintln!("{}: {e}", out.display());
         return ExitCode::FAILURE;
     }
-    // THEME is a stored theme id (`high-contrast-light`, `nord`, ...); the
-    // default is Cobalt, Light.
+    // THEME is a scheme's words, `<theme>[,<mode>[,<contrast>]]`
+    // (`frost,dark,high`; a stored id alone, `nord`, as a settings file
+    // of it opens); the default is Cobalt, Light, Standard.
     let theme = match args.get(3) {
-        Some(id) => match faraday_ui::Preset::from_id(id) {
-            Some(preset) => preset.theme(),
+        Some(id) => match faraday_ui::Theme::from_words(id) {
+            Some(theme) => theme,
             None => {
                 eprintln!("{id}: not a theme id");
                 return ExitCode::from(2);

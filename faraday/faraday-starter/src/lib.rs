@@ -15,6 +15,7 @@
 //! [`Starter::held`].
 
 pub mod api;
+mod appearance;
 pub mod concern;
 pub mod decide;
 mod draw;
@@ -79,6 +80,8 @@ pub enum Page {
     Installed,
     /// About (§3.7).
     About,
+    /// Appearance: Theme, Mode and Contrast (`docs/THEMES.md` §14).
+    Appearance,
     /// Blank templates (§3.8): the choices as value rows, Print, Save the PDF.
     Templates,
     /// Blank templates' Words choice.
@@ -297,6 +300,10 @@ pub enum StarterAction {
     Menu,
     /// The ⋮ menu closed by a press outside it.
     CloseMenu,
+    /// The ⋮ menu's Appearance: its page.
+    Appearance,
+    /// Draw in this scheme, from the Appearance page.
+    Theme(faraday_ui::Theme),
     /// Make a Faraday stick, or a Pi card: the disk list.
     Make(Target),
     /// The This computer card's button ([`Card`]).
@@ -487,6 +494,8 @@ impl StarterAction {
             StarterAction::ToolsPage => (60, 0),
             StarterAction::Menu => (61, 0),
             StarterAction::CloseMenu => (62, 0),
+            StarterAction::Appearance => (63, 0),
+            StarterAction::Theme(t) => (64, t.row() as u32),
         };
         (kind << 16) | arg
     }
@@ -569,6 +578,8 @@ impl StarterAction {
             60 => StarterAction::ToolsPage,
             61 => StarterAction::Menu,
             62 => StarterAction::CloseMenu,
+            63 => StarterAction::Appearance,
+            64 => StarterAction::Theme(faraday_ui::Theme::from_row(arg as usize)?),
             _ => return None,
         })
     }
@@ -1741,6 +1752,8 @@ impl Starter {
                 }
             }
             StarterAction::CloseMenu => {}
+            StarterAction::Appearance => self.go(Page::Appearance),
+            StarterAction::Theme(theme) => self.choose_theme(theme),
             // No Pi image in this Starter: nothing to choose a card for.
             StarterAction::Make(Target::Pi) if self.image(Target::Pi).is_none() => {}
             StarterAction::Make(target) => {

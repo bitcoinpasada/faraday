@@ -112,6 +112,27 @@ impl From<Role> for Paint {
     }
 }
 
+/// The fill of a chosen row, card, option or the row of the place on
+/// screen (Material's selected state, `docs/THEMES.md` §7):
+/// secondary-container when `on`, `otherwise` when not.
+pub fn selected_or(on: bool, otherwise: impl Into<Paint>) -> Paint {
+    if on {
+        Paint::role(Role::SecondaryContainer)
+    } else {
+        otherwise.into()
+    }
+}
+
+/// What is written or drawn on a [`selected_or`] fill: everything on it
+/// in on-secondary-container when `on`, `content` as it is when not.
+pub fn on_selected(on: bool, content: impl Into<Paint>) -> Paint {
+    if on {
+        Paint::role(Role::OnSecondaryContainer)
+    } else {
+        content.into()
+    }
+}
+
 /// Over a camera's picture (`docs/QR.md` §8 item 4), whatever the
 /// theme: the picture is the same in every theme. The corner brackets
 /// while looking, and the words on the state line's band.

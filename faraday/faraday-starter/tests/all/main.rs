@@ -1,5 +1,6 @@
 //! The integration tests of faraday-starter, one module per subject.
 
+mod appearance;
 mod bitlocker;
 mod budget;
 mod colours_read;

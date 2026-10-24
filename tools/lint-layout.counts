@@ -9,7 +9,7 @@ file faraday/faraday-core/src/board/mod.rs 2567
 file faraday/faraday-core/src/lib.rs 7540
 file faraday/faraday-core/src/plan/mod.rs 4045
 file faraday/faraday-core/src/vault/mod.rs 3908
-file faraday/faraday-core/src/vault/screen.rs 3775
+file faraday/faraday-core/src/vault/screen.rs 3676
 file faraday/faraday-core/tests/all/backup_board.rs 2782
 file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5814
 
@@ -17,7 +17,7 @@ file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5814
 # `expect`), and functions with too many arguments (each under an
 # `allow`).
 expect too_many_lines 194
-allow too_many_arguments 71
+allow too_many_arguments 70
 
 # Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.
 fields Faraday 84

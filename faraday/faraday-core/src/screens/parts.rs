@@ -386,56 +386,38 @@ pub(crate) fn kind_list(
         } else {
             tokens::TOUCH
         };
+        use crate::ui::pal::{on_selected, selected_or};
         ui.fill(
             x,
             cy,
             w,
             h,
             8.0,
-            if on {
-                Role::Primary.with_alpha(26)
-            } else {
-                Role::SurfaceContainerHighest.paint()
-            },
+            selected_or(on, Role::SurfaceContainerHighest),
         );
-        ui.stroke(
-            x,
-            cy,
-            w,
-            h,
-            8.0,
-            if on {
-                Role::Primary.with_alpha(110)
-            } else {
-                Role::OutlineVariant.paint()
-            },
+        ui.stroke(x, cy, w, h, 8.0, selected_or(on, Role::OutlineVariant));
+        let (ink, muted) = (
+            on_selected(on, Role::OnSurface),
+            on_selected(on, Role::OnSurfaceVariant),
         );
         // Where "codex32" and the name's end are, on the backup in shares.
         let mut tip = None;
         if ui.compact {
             for (n, text) in names.iter().enumerate() {
                 let ty = cy + top + n as f32 * name_h;
-                let end = left + ui.text(left, ty, size, W::S, Role::OnSurface, text);
+                let end = left + ui.text(left, ty, size, W::S, ink, text);
                 if k.shares() {
                     tip = tip.or(word_at(ui, (left, end, ty + name_h / 2.0), size, text));
                 }
             }
             for (n, text) in lines.iter().enumerate() {
                 let ty = line_at + n as f32 * line_h;
-                ui.text(left, ty, 12.0, W::R, Role::OnSurfaceVariant, text);
+                ui.text(left, ty, 12.0, W::R, muted, text);
             }
         } else {
-            let end = left + ui.text_mid(left, cy, h, size, W::S, Role::OnSurface, k.name());
+            let end = left + ui.text_mid(left, cy, h, size, W::S, ink, k.name());
             let line = ui.fit(12.0, W::R, line, w - 260.0);
-            ui.text_right(
-                x + w - 14.0,
-                cy,
-                h,
-                12.0,
-                W::R,
-                Role::OnSurfaceVariant,
-                &line,
-            );
+            ui.text_right(x + w - 14.0, cy, h, 12.0, W::R, muted, &line);
             if k.shares() {
                 tip = word_at(ui, (left, end, cy + h / 2.0), size, k.name());
             }

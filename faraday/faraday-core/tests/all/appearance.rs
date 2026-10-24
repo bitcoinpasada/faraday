@@ -1,9 +1,9 @@
-//! Appearance on Settings (`docs/MOTION.md` §3.6, §3.7): Light draws the
-//! screens dark on light and Dark turns them back; every theme is offered
-//! once, under its group, in order of its name; the choice is kept across
-//! a lock with the other settings.
+//! Settings › Appearance (`docs/THEMES.md` §12, §13; `docs/MOTION.md`
+//! §3.5): Theme, Mode and Contrast each change what is drawn and are kept
+//! across a lock; every theme is offered once, by its name; Reduce
+//! motion is a switch whose choice is kept.
 
-use faraday_core::ui::{Preset, ThemeGroup};
+use faraday_core::ui::{Contrast, Mode, Theme, ThemeName};
 use faraday_core::{Action, Faraday, Screen, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -59,158 +59,156 @@ fn restarted(app: &mut Faraday) -> Faraday {
     next
 }
 
-/// How light the page is in the middle of the screen's empty right
-/// margin, 0 to 255, once the change has faded in: ticked for half a
-/// second as a shell ticks.
-fn page_light(app: &mut Faraday, clock: &mut u64) -> u8 {
+/// The frame once a change has faded in: ticked for half a second as a
+/// shell ticks.
+fn settled(app: &mut Faraday, clock: &mut u64) -> Vec<u8> {
     for _ in 0..30 {
         *clock += 16;
         app.event(Event::Tick { now_ms: *clock });
         while app.poll_command().is_some() {}
         let _ = app.frame();
     }
-    let frame = app.frame();
-    let i = (790 * usize::from(frame.width) + 1270) * 4;
-    let px = &frame.rgba[i..i + 3];
+    app.frame().rgba.to_vec()
+}
+
+/// How light the page is in the middle of the screen's empty right
+/// margin, 0 to 255, once the change has faded in.
+fn page_light(app: &mut Faraday, clock: &mut u64) -> u8 {
+    let rgba = settled(app, clock);
+    let i = (790 * 1280 + 1270) * 4;
+    let px = &rgba[i..i + 3];
     ((u16::from(px[0]) + u16::from(px[1]) + u16::from(px[2])) / 3) as u8
 }
 
-#[test]
-fn light_draws_the_page_light_and_dark_turns_it_back() {
-    let mut app = shown();
-    let mut clock = 1_000;
-    assert!(page_light(&mut app, &mut clock) > 192, "light at first");
-    scroll_to(&mut app, &[Action::Theme(Preset::Dark)]);
-    app.press(Action::Theme(Preset::Dark));
-    assert!(page_light(&mut app, &mut clock) < 64, "dark");
-    app.press(Action::Theme(Preset::Light));
-    assert!(page_light(&mut app, &mut clock) > 192, "light again");
-}
-
-/// A first start is in Cobalt, on every shell.
-#[test]
-fn a_first_start_is_in_cobalt() {
-    assert_eq!(shown().theme(), Preset::Cobalt);
-}
-
-#[test]
-fn the_choice_is_kept_across_a_lock() {
-    let mut app = shown();
-    app.press(Action::Theme(Preset::Light));
-    assert_eq!(restarted(&mut app).theme(), Preset::Light);
-}
-
-#[test]
-fn reduce_motion_is_kept_across_a_lock() {
-    let mut app = shown();
-    scroll_to(&mut app, &[Action::ReduceMotion(true)]);
-    app.press(Action::ReduceMotion(true));
-    assert!(restarted(&mut app).reduce_motion());
-}
-
 /// The page's colour in the screen's empty right margin, and the
-/// sidebar's at its left edge, once the change has faded in: two themes
-/// may share a white page (`docs/DECISIONS.md` F39), not the pair.
+/// sidebar's at its left edge, once the change has faded in.
 fn page(app: &mut Faraday, clock: &mut u64) -> [[u8; 3]; 2] {
-    let _ = page_light(app, clock);
-    let frame = app.frame();
+    let rgba = settled(app, clock);
     let at = |x: usize| {
-        let i = (790 * usize::from(frame.width) + x) * 4;
-        [frame.rgba[i], frame.rgba[i + 1], frame.rgba[i + 2]]
+        let i = (790 * 1280 + x) * 4;
+        [rgba[i], rgba[i + 1], rgba[i + 2]]
     };
     [at(1270), at(2)]
 }
 
+/// The scheme on screen with `f` applied.
+fn with(app: &Faraday, f: impl FnOnce(&mut Theme)) -> Theme {
+    let mut t = app.theme();
+    f(&mut t);
+    t
+}
+
 #[test]
-fn every_theme_is_offered_under_its_group_in_order_of_its_name() {
+fn dark_draws_the_page_dark_and_light_turns_it_back() {
     let mut app = shown();
-    let tiles: Vec<Action> = Preset::ALL.into_iter().map(Action::Theme).collect();
-    scroll_to(&mut app, &tiles);
-    let texts = app.drawn_text_boxes();
-    // Each group's label, in turn down the card: the first text drawn
-    // that reads as it, since a theme may share a label's name.
-    let label_y: Vec<i32> = ThemeGroup::ALL
+    let mut clock = 1_000;
+    assert!(page_light(&mut app, &mut clock) > 192, "light at first");
+    let dark = with(&app, |t| t.mode = Mode::Dark);
+    scroll_to(&mut app, &[Action::Theme(dark)]);
+    app.press(Action::Theme(dark));
+    assert!(page_light(&mut app, &mut clock) < 64, "dark");
+    let light = with(&app, |t| t.mode = Mode::Light);
+    let _ = app.frame();
+    assert!(app.offers(Action::Theme(light)), "Light offered in Dark");
+    app.press(Action::Theme(light));
+    assert!(page_light(&mut app, &mut clock) > 192, "light again");
+}
+
+/// A first start is in Cobalt, Light, Standard, on every shell.
+#[test]
+fn a_first_start_is_in_cobalt_light_at_standard_contrast() {
+    assert_eq!(
+        shown().theme(),
+        Theme::new(ThemeName::Cobalt, Mode::Light, Contrast::Standard)
+    );
+}
+
+#[test]
+fn each_contrast_level_changes_what_is_drawn_and_is_kept() {
+    let mut app = shown();
+    let mut clock = 1_000;
+    let mut seen = vec![settled(&mut app, &mut clock)];
+    for contrast in [Contrast::Medium, Contrast::High, Contrast::Standard] {
+        let pick = with(&app, |t| t.contrast = contrast);
+        scroll_to(&mut app, &[Action::Theme(pick)]);
+        app.press(Action::Theme(pick));
+        assert_eq!(app.theme().contrast, contrast);
+        let frame = settled(&mut app, &mut clock);
+        if contrast != Contrast::Standard {
+            assert!(!seen.contains(&frame), "{contrast:?} draws as before");
+        }
+        seen.push(frame);
+        assert_eq!(restarted(&mut app).theme(), pick, "{contrast:?} not kept");
+    }
+}
+
+#[test]
+fn every_theme_is_offered_once_in_the_mode_and_contrast_on_screen() {
+    let mut app = shown();
+    let dark_high = Theme::new(ThemeName::Cobalt, Mode::Dark, Contrast::High);
+    app.press(Action::Theme(dark_high));
+    let chips: Vec<Action> = ThemeName::ALL
         .into_iter()
-        .map(|g| {
-            let (_, (_, y, _, _)) = texts
-                .iter()
-                .find(|(t, _)| t == g.name())
-                .unwrap_or_else(|| panic!("no {} label", g.name()));
-            *y
-        })
+        .map(|name| Action::Theme(Theme { name, ..dark_high }))
         .collect();
-    assert!(label_y.is_sorted(), "groups out of order: {label_y:?}");
-    // Each theme a tile of its own.
-    let mut places: Vec<(u16, u16)> = Preset::ALL
-        .into_iter()
-        .map(|t| app.where_offered(Action::Theme(t)).expect("offered"))
+    scroll_to(&mut app, &chips);
+    let texts = app.drawn_texts();
+    let mut places: Vec<(u16, u16)> = chips
+        .iter()
+        .map(|&a| app.where_offered(a).expect("offered"))
         .collect();
     places.sort_unstable();
     places.dedup();
-    assert_eq!(places.len(), Preset::ALL.len(), "two themes share a tile");
-    for (g, group) in ThemeGroup::ALL.into_iter().enumerate() {
-        let mut mine: Vec<(Preset, (u16, u16))> = Preset::ALL
-            .into_iter()
-            .filter(|t| t.group() == group)
-            .map(|t| (t, app.where_offered(Action::Theme(t)).expect("offered")))
-            .collect();
-        assert!(!mine.is_empty(), "{} has no themes", group.name());
-        for (t, (_, y)) in &mine {
-            let y = i32::from(*y);
-            assert!(y > label_y[g], "{} is above its group", t.name());
-            if let Some(&next) = label_y.get(g + 1) {
-                assert!(y < next, "{} is below its group", t.name());
-            }
-        }
-        // In reading order, row by row and left to right, by name.
-        mine.sort_by_key(|&(_, (x, y))| (y, x));
-        let names: Vec<&str> = mine.iter().map(|(t, _)| t.name()).collect();
-        assert!(names.is_sorted(), "{}: {names:?}", group.name());
+    assert_eq!(
+        places.len(),
+        ThemeName::ALL.len(),
+        "two themes share a chip"
+    );
+    for name in ThemeName::ALL {
+        assert!(
+            texts.iter().any(|t| t == name.name()),
+            "{} not named",
+            name.name()
+        );
     }
 }
 
 #[test]
 fn every_theme_draws_its_own_page_and_is_kept_across_a_restart() {
     let mut app = shown();
-    let tiles: Vec<Action> = Preset::ALL.into_iter().map(Action::Theme).collect();
-    scroll_to(&mut app, &tiles);
     let mut clock = 1_000;
     let mut seen = Vec::new();
-    for theme in Preset::ALL {
-        let _ = app.frame();
-        assert!(
-            app.offers(Action::Theme(theme)),
-            "{} not offered",
-            theme.name()
-        );
-        app.press(Action::Theme(theme));
-        assert_eq!(app.theme(), theme);
-        let colour = page(&mut app, &mut clock);
-        // Light and Cobalt open in the same scheme (`docs/THEMES.md` §13).
-        let same = Preset::ALL
-            .into_iter()
-            .take_while(|t| *t != theme)
-            .any(|t| t.theme() == theme.theme());
-        assert!(
-            same || !seen.contains(&colour),
-            "{} draws a page already seen",
-            theme.name()
-        );
-        seen.push(colour);
-        assert_eq!(
-            restarted(&mut app).theme(),
-            theme,
-            "{} not kept",
-            theme.name()
-        );
+    for mode in Mode::ALL {
+        // The mode first, from its segment; then each theme's chip in it.
+        let in_mode = with(&app, |t| t.mode = mode);
+        scroll_to(&mut app, &[Action::Theme(in_mode)]);
+        app.press(Action::Theme(in_mode));
+        for name in ThemeName::ALL {
+            let pick = Theme::new(name, mode, Contrast::Standard);
+            scroll_to(&mut app, &[Action::Theme(pick)]);
+            app.press(Action::Theme(pick));
+            assert_eq!(app.theme(), pick);
+            let colour = page(&mut app, &mut clock);
+            assert!(
+                !seen.contains(&colour),
+                "{pick:?} draws a page already seen"
+            );
+            seen.push(colour);
+            assert_eq!(restarted(&mut app).theme(), pick, "{pick:?} not kept");
+        }
     }
 }
 
 #[test]
-fn a_named_theme_is_kept_across_a_lock() {
-    for theme in [Preset::Gruvbox, Preset::RosePine] {
-        let mut app = shown();
-        app.press(Action::Theme(theme));
-        assert_eq!(restarted(&mut app).theme(), theme);
-    }
+fn reduce_motion_is_a_switch_and_is_kept_across_a_lock() {
+    let mut app = shown();
+    assert!(!app.reduce_motion(), "off at first");
+    scroll_to(&mut app, &[Action::ReduceMotion(true)]);
+    assert!(!app.offers(Action::ReduceMotion(false)), "one switch");
+    app.press(Action::ReduceMotion(true));
+    let _ = app.frame();
+    assert!(app.offers(Action::ReduceMotion(false)), "and it turns off");
+    assert!(restarted(&mut app).reduce_motion());
+    app.press(Action::ReduceMotion(false));
+    assert!(!restarted(&mut app).reduce_motion());
 }

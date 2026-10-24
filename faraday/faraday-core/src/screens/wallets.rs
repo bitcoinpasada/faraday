@@ -321,12 +321,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     for (i, wlt) in app.session.wallets.iter().enumerate() {
         let current = i == app.wallets.wallet();
         let action = Action::PickWallet(i);
-        let (bg, edge) = if current {
-            (Role::Primary.with_alpha(20), Role::Primary.with_alpha(100))
-        } else {
-            (Role::Surface.paint(), Role::OutlineVariant.paint())
-        };
-        ui.fill(x, ly, listw, 54.0, 10.0, bg);
+        ui.fill(
+            x,
+            ly,
+            listw,
+            54.0,
+            10.0,
+            selected_or(current, Role::Surface),
+        );
+        let edge = selected_or(current, Role::OutlineVariant);
         ui.stroke(x, ly, listw, 54.0, 10.0, edge);
         // Can spend at the right of its name (`docs/history/SCAN-TO-SIGN.md`
         // §2.4).
@@ -334,13 +337,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let cw2 = if can {
             let t = EN.wallets_can_spend;
             let tw = ui.measure(12.0, W::S, t);
-            ui.text(x + listw - 14.0 - tw, ly + 11.0, 12.0, W::S, Role::Ok, t);
+            let ok = on_selected(current, Role::Ok);
+            ui.text(x + listw - 14.0 - tw, ly + 11.0, 12.0, W::S, ok, t);
             tw + 8.0
         } else {
             0.0
         };
         let name = ui.fit(14.0, W::S, &wlt.name, listw - 28.0 - cw2);
-        ui.text(x + 14.0, ly + 9.0, 14.0, W::S, Role::OnSurface, &name);
+        let ink = on_selected(current, Role::OnSurface);
+        ui.text(x + 14.0, ly + 9.0, 14.0, W::S, ink, &name);
         let (m, _) = Session::quorum(wlt);
         let here = app
             .session
@@ -367,7 +372,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             )
         };
         let t = ui.fit(12.0, W::R, &t, listw - 28.0);
-        ui.text(x + 14.0, ly + 31.0, 12.0, W::R, c, &t);
+        ui.text(x + 14.0, ly + 31.0, 12.0, W::R, on_selected(current, c), &t);
         ui.hit(x, ly, listw, 54.0, action);
         ly += ROW;
     }

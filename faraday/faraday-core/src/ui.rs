@@ -6,8 +6,8 @@ use crate::Action;
 
 pub use faraday_ui::pal;
 pub use faraday_ui::{
-    BAR_GRAB, BarGeometry, Contrast, Disclosure, Glyph, Mode, NameSuffix, Paint, Preset, Role,
-    Scrolled, Slot, Style, Theme, ThemeGroup, ThemeName, W, btc, grouped, short, thousands,
+    BAR_GRAB, BarGeometry, Contrast, Disclosure, Glyph, Mode, NameSuffix, Paint, Role, Scrolled,
+    Slot, Style, Theme, ThemeName, W, btc, grouped, short, thousands,
 };
 
 /// What is written or drawn on a control that is not available now:

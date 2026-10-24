@@ -588,38 +588,63 @@ pub const TEXT_FIELD_TALL: f32 = 42.0;
 /// seed.
 pub const TEXT_FIELD_SHEET: f32 = 44.0;
 
-/// A theme tile on Settings: its height, room for a name on two lines
-/// under its sample card.
-pub const THEME_TILE_HEIGHT: f32 = 72.0;
+/// A filter chip (Material's): its height. Settings' theme chips
+/// (`docs/THEMES.md` §12).
+pub const FILTER_CHIP_H: f32 = 32.0;
 
-/// A theme tile: the size of its name.
-pub const THEME_TILE_TEXT: f32 = 12.0;
+/// A filter chip: the room before its leading icon.
+pub const FILTER_CHIP_LEAD: f32 = 8.0;
 
-/// A theme tile: the step from one line of its name to the next.
-pub const THEME_TILE_LINE: f32 = 15.0;
+/// A filter chip: the room after its label.
+pub const FILTER_CHIP_TRAIL: f32 = 16.0;
 
-/// A theme tile: how far its sample card and its name stand in from its
-/// edges.
-pub const THEME_TILE_INSET: f32 = 10.0;
+/// A filter chip: its leading icon, a theme chip's swatch.
+pub const FILTER_CHIP_ICON: f32 = 18.0;
 
-/// A theme tile: the height of its sample card.
-pub const THEME_TILE_SAMPLE: f32 = 22.0;
+/// Filter chips: the gap between two, side by side and row to row.
+pub const FILTER_CHIP_GAP: f32 = 8.0;
 
-/// A theme tile: the narrowest it is drawn, whatever its name.
-pub const THEME_TILE_MIN: f32 = 96.0;
+/// A theme chip's swatch: the radius of the primary dot inside it.
+pub const THEME_SWATCH_DOT: f32 = 4.0;
 
-/// Theme tiles: the gap between two side by side.
-pub const THEME_TILE_GAP: f32 = 8.0;
+/// A theme chip's swatch: the tick drawn in it on the chosen theme.
+pub const THEME_SWATCH_TICK: f32 = 14.0;
 
-/// Theme tiles: the gap between two rows.
-pub const THEME_TILE_ROW_GAP: f32 = 10.0;
+/// A segmented button's height (Material's): Settings' Mode and
+/// Contrast.
+pub const SEGMENTED_H: f32 = 40.0;
 
-/// A theme group on Settings: its label's row, from the label's top to
-/// the group's first tiles.
-pub const THEME_GROUP_HEAD: f32 = 22.0;
+/// Settings' Appearance rows on the wide layout: the width of the
+/// labels' column, the controls to its right.
+pub const APPEARANCE_LABEL_W: f32 = 128.0;
 
-/// Theme groups: the space above each after the first.
-pub const THEME_GROUP_GAP: f32 = 14.0;
+/// Settings' Appearance rows: the gap between one row and the next.
+pub const APPEARANCE_ROW_GAP: f32 = 16.0;
+
+/// Settings' Appearance rows on a small panel: the gap from a row's
+/// label to its control under it.
+pub const APPEARANCE_LABEL_GAP: f32 = 8.0;
+
+/// A switch (Material's): its track's width.
+pub const SWITCH_W: f32 = 52.0;
+
+/// A switch: its track's height.
+pub const SWITCH_H: f32 = 32.0;
+
+/// A switch: its track's edge while off.
+pub const SWITCH_EDGE: f32 = 2.0;
+
+/// A switch: its handle's diameter while off.
+pub const SWITCH_HANDLE_OFF: f32 = 16.0;
+
+/// A switch: its handle's diameter while on.
+pub const SWITCH_HANDLE_ON: f32 = 24.0;
+
+/// A switch: its handle's diameter while pressed.
+pub const SWITCH_HANDLE_PRESSED: f32 = 28.0;
+
+/// A switch: the state layer round its handle, its diameter.
+pub const SWITCH_STATE: f32 = 40.0;
 
 /// A Guided text's Learn link: the button's height.
 pub const GUIDE_LINK_H: f32 = 32.0;

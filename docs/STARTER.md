@@ -581,6 +581,8 @@ applies, **Install** while nothing is installed and **Update** while the
 running copy is newer (§3.5), a secondary button, and the ⋮ menu
 (DESIGN §4.1) with what is not a destination:
 
+- **Appearance** → Theme, Mode and Contrast, a task page
+  (`docs/THEMES.md` §14);
 - **About** → §3.7;
 - **Uninstall** → §3.5's Installed record, with its Uninstall, shown
   while a copy is installed;
@@ -633,7 +635,7 @@ the screen's one primary button inside it, what holds a restart under it,
 then Faraday Desktop, the update and the boot entry cards in the grid;
 Make and Tools are two cards each. Install or Update is a button in the
 bar and the ⋮ menu (a popup under it, closed by a press outside) holds
-About, Uninstall and Remove the boot entry. A press on a destination
+Appearance, About, Uninstall and Remove the boot entry. A press on a destination
 opens it at the scroll it was left at, and on the one shown goes to its
 top; Back from a task page lands on the destination it was opened from at
 the scroll it was opened at (F77). Tests are `tests/all/navigation.rs`.

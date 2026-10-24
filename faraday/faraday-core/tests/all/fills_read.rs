@@ -2,7 +2,8 @@
 //! drawn (`docs/THEMES.md` §11.2, `docs/CODEX32.md` §7.5): every line of
 //! text on a codex32 checksum square or on a step's badge, in the colour
 //! it was drawn in, against the pixels round it on the frame, 4.5:1 or
-//! more (7:1 at High contrast), in every theme Settings offers.
+//! more (7:1 at High contrast), in every scheme Settings offers: each
+//! theme in Light and Dark at Standard, Medium and High contrast.
 
 use std::collections::HashMap;
 
@@ -10,7 +11,7 @@ use faraday_core::{Action, Faraday, Screen};
 use faraday_draw::Color;
 use faraday_draw::canvas::InkKind;
 use faraday_shell_api::App;
-use faraday_ui::Preset;
+use faraday_ui::Theme;
 use faraday_ui::pal::Role;
 
 use super::codex32_make::both_typed_in;
@@ -102,8 +103,8 @@ fn on_fill(app: &mut Faraday, fill: Color) -> Vec<(String, f64)> {
 #[test]
 fn what_is_written_on_a_checksum_square_or_a_badge_reads_in_every_theme() {
     let mut short = Vec::new();
-    for preset in Preset::ALL {
-        let theme = preset.theme();
+    for theme in Theme::all() {
+        let preset = theme;
         let need = if theme.is_high_contrast() { 7.0 } else { 4.5 };
         let fill = theme.color(Role::ChecksumContainer).with_alpha(255);
         // The entry done: Share C's string, its checksum filled in, over
@@ -168,6 +169,36 @@ fn all_text(app: &mut Faraday) -> Vec<(String, f64, Color, Color)> {
         .collect()
 }
 
+/// A scene: the app made and brought to a screen in a scheme.
+type Scene = fn(Theme) -> Faraday;
+
+/// `app` drawn in `theme` with Reduce motion on, so every frame it draws
+/// is at rest: a frame part of the way through a fade blends two
+/// screens' pixels under text drawn in one.
+fn in_theme(app: &mut Faraday, theme: Theme) {
+    app.press(Action::ReduceMotion(true));
+    app.press(Action::Theme(theme));
+}
+
+/// `app`'s window made tall enough for Settings to fit whole: nothing
+/// scrolls, so no text is under the fade at a scrolled edge, where a
+/// line passing out of view is meant to fade with what it is on.
+fn tall(app: &mut Faraday) {
+    use faraday_shell_api::{BootState, DisplayInfo, Event, SecureHardware};
+    app.event(Event::Display(DisplayInfo {
+        width: 1366,
+        height: 2400,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
 /// Test key `n` typed in as a key.
 fn key_in(app: &mut Faraday, n: usize) {
     use faraday_shell_api::{Event, Key};
@@ -207,43 +238,53 @@ fn the_board() -> Faraday {
 
 /// The screens where text sits on a fill of its own: Home's tiles and
 /// lead card, Settings' chips and fields, the backup board's boxes,
-/// pills and stick tags, the wallets' status badges. Drawn in each theme
-/// Settings offers, every opaque line of text reads against the pixels
-/// round it, 4.5:1 (7:1 at High contrast).
+/// pills and stick tags, the wallets' status badges and the wallet on
+/// screen, a kind of wallet chosen (Material's selected state). Drawn in
+/// each scheme Settings offers, every opaque line of text reads against
+/// the pixels round it, 4.5:1 (7:1 at High contrast).
 #[test]
 fn what_the_screens_write_reads_on_their_fills_in_every_theme() {
     let mut short = Vec::new();
-    for preset in Preset::ALL {
-        let need = if preset.theme().is_high_contrast() {
-            7.0
-        } else {
-            4.5
-        };
-        let scenes: [(&str, Faraday); 4] = [
-            ("home", {
+    for preset in Theme::all() {
+        let need = if preset.is_high_contrast() { 7.0 } else { 4.5 };
+        // Each scene made when it is drawn: five apps at once overflow a
+        // test thread's stack.
+        let scenes: [(&str, Scene); 5] = [
+            ("home", |theme| {
                 let mut app = faraday_core::testkit::started();
-                app.press(Action::Theme(preset));
+                in_theme(&mut app, theme);
                 app
             }),
-            ("settings", {
+            ("settings", |theme| {
                 let mut app = faraday_core::testkit::started();
-                app.press(Action::Theme(preset));
+                tall(&mut app);
+                in_theme(&mut app, theme);
                 app.press(Action::Nav(Screen::Settings));
                 app
             }),
-            ("board", {
+            ("board", |theme| {
                 let mut app = the_board();
-                app.press(Action::Theme(preset));
+                in_theme(&mut app, theme);
                 app
             }),
-            ("wallets", {
+            ("wallets", |theme| {
                 let mut app = the_board();
-                app.press(Action::Theme(preset));
+                in_theme(&mut app, theme);
                 app.press(Action::Nav(Screen::Wallets));
                 app
             }),
+            // A kind chosen among the kinds of wallet: a selected row.
+            ("kinds", |theme| {
+                let mut app = faraday_core::testkit::started();
+                in_theme(&mut app, theme);
+                app.press(Action::CreateWallet);
+                app.press(Action::CKind(0));
+                app.press(Action::CStep(faraday_core::cstep::KIND));
+                app
+            }),
         ];
-        for (scene, mut app) in scenes {
+        for (scene, make) in scenes {
+            let mut app = make(preset);
             let drawn = all_text(&mut app);
             assert!(!drawn.is_empty(), "{preset:?}: {scene} draws text");
             for (text, got, ink, bg) in drawn {

@@ -423,38 +423,19 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Role::OnSecondaryContainer,
         Role::SecondaryContainer,
     );
-    // One chip per stick; the chosen one is outlined.
+    // One chip per stick; the chosen one selected (Material's filter
+    // chip).
     let mut chx = x + width;
     for (k, st) in app.stick.iter().enumerate().rev() {
         let label = st.label.clone();
         let wdt = ui.measure(13.0, W::S, &label) + 28.0;
         chx -= wdt;
         let current = k == app.visit.stick;
-        ui.fill(
-            chx,
-            y,
-            wdt,
-            32.0,
-            16.0,
-            if current {
-                Role::Primary.with_alpha(30)
-            } else {
-                Role::Surface.paint()
-            },
-        );
-        ui.stroke(
-            chx,
-            y,
-            wdt,
-            32.0,
-            16.0,
-            if current {
-                Role::Primary.with_alpha(110)
-            } else {
-                Role::OutlineVariant.paint()
-            },
-        );
-        ui.text_mid(chx + 14.0, y, 32.0, 13.0, W::S, Role::OnSurface, &label);
+        ui.fill(chx, y, wdt, 32.0, 16.0, selected_or(current, Role::Surface));
+        let edge = selected_or(current, Role::OutlineVariant);
+        ui.stroke(chx, y, wdt, 32.0, 16.0, edge);
+        let ink = on_selected(current, Role::OnSurface);
+        ui.text_mid(chx + 14.0, y, 32.0, 13.0, W::S, ink, &label);
         ui.hit(chx, y, wdt, 32.0, Action::VisitStick(k));
         chx -= 8.0;
     }

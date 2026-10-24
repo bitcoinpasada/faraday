@@ -136,16 +136,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
         let ry = top + 4.0 + i as f32 * ROW - scroll;
         let marked = st.mark == Some(i);
         if marked {
-            ui.fill(bx, ry, bw, ROW - 2.0, 6.0, Role::Primary.with_alpha(40));
-            ui.stroke(bx, ry, bw, ROW - 2.0, 6.0, Role::Primary);
+            ui.fill(bx, ry, bw, ROW - 2.0, 6.0, Role::SecondaryContainer);
         }
         let number = (i + 1).to_string();
         let nw = ui.measure(14.0, W::M, &number);
-        let tone = if marked {
-            Role::OnSurface
-        } else {
-            Role::OnSurfaceVariant
-        };
+        let tone = crate::ui::pal::on_selected(marked, Role::OnSurfaceVariant);
         ui.text_mid(nx + num_w - nw, ry, ROW - 2.0, 14.0, W::M, tone, &number);
         ui.text_mid(cx, ry, ROW - 2.0, 14.0, W::M, tone, &st.list.code(i));
         ui.text_mid(
@@ -154,11 +149,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ROW - 2.0,
             14.0,
             W::M,
-            if marked {
-                Role::Primary
-            } else {
-                Role::OnSurface
-            },
+            crate::ui::pal::on_selected(marked, Role::OnSurface),
             word,
         );
         // A press marks the word; only the part of the row in view takes

@@ -23,7 +23,7 @@ pub(crate) fn m3_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("m3-1-home")?;
     t.press(Action::Nav(Screen::Settings));
     t.shot("m3-2-settings")?;
-    scroll_to(t, Action::ReduceMotion(false));
+    scroll_to(t, Action::ReduceMotion(!t.app.reduce_motion()));
     t.shot("m3-3-settings-motion")?;
     t.press(Action::PowerAsk);
     t.shot("m3-4-power-dialog")?;
@@ -41,22 +41,17 @@ pub(crate) fn m3_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("m3-5-flow")?;
     t.press(Action::CancelFlow);
     t.shot("m3-6-cancel-dialog")?;
-    for (theme, name) in [
-        (
-            faraday_core::ui::Preset::HighContrastDark,
-            "m3-7-hc-dark-dialog",
-        ),
-        (
-            faraday_core::ui::Preset::HighContrastLight,
-            "m3-8-hc-light-dialog",
-        ),
+    for (words, name) in [
+        ("monochrome,dark,high", "m3-7-hc-dark-dialog"),
+        ("cobalt,light,high", "m3-8-hc-light-dialog"),
     ] {
+        let theme = faraday_core::ui::Theme::from_words(words).ok_or(words)?;
         t.press(Action::Theme(theme));
         t.shot(name)?;
     }
     t.press(Action::Cancel);
     t.shot("m3-9-hc-light-flow")?;
-    t.press(Action::Theme(faraday_core::ui::Preset::Cobalt));
+    t.press(Action::Theme(faraday_core::ui::Theme::default()));
     t.press(Action::Nav(Screen::Settings));
     t.press(Action::OpenSetTime);
     t.shot("m3-10-set-time-off")?;

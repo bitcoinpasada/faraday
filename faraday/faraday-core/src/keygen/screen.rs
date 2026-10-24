@@ -836,39 +836,22 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
         line,
         action: a,
     } = r;
+    use crate::ui::pal::{on_selected, selected_or};
     ui.fill(
         x,
         y,
         w,
         52.0,
         10.0,
-        if on {
-            Role::SurfaceContainerHigh
-        } else {
-            Role::SurfaceContainerHighest
-        },
+        selected_or(on, Role::SurfaceContainerHighest),
     );
-    ui.stroke(
-        x,
-        y,
-        w,
-        52.0,
-        10.0,
-        if on {
-            Role::Primary.with_alpha(110)
-        } else {
-            Role::OutlineVariant.paint()
-        },
-    );
+    ui.stroke(x, y, w, 52.0, 10.0, selected_or(on, Role::OutlineVariant));
+    // The radio button, on what it is drawn on.
     ui.dot(
         x + 22.0,
         y + 26.0,
         7.0,
-        if on {
-            Role::Primary
-        } else {
-            Role::OutlineVariant
-        },
+        on_selected(on, Role::OutlineVariant),
     );
     if !on {
         ui.dot(x + 22.0, y + 26.0, 5.0, Role::SurfaceContainerHighest);
@@ -903,7 +886,7 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
         if dim {
             crate::ui::off()
         } else {
-            Role::OnSurface.paint()
+            on_selected(on, Role::OnSurface)
         },
         &name,
     );
@@ -916,7 +899,7 @@ fn row(ui: &mut Ui, x: f32, y: f32, w: f32, r: Row) {
         if dim {
             crate::ui::off()
         } else {
-            Role::OnSurfaceVariant.paint()
+            on_selected(on, Role::OnSurfaceVariant)
         },
         &line,
     );

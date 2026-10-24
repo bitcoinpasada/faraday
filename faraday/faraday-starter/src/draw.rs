@@ -29,6 +29,7 @@ type Ui<'a> = faraday_ui::Ui<'a, Action>;
 
 const S: &Strings = &EN;
 
+mod appearance;
 mod home;
 mod nav;
 
@@ -98,6 +99,7 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         Page::Install => install(starter, ui, x, y0, cw),
         Page::Installed => installed(starter, ui, x, y0, cw),
         Page::About => about(starter, ui, x, y0, cw),
+        Page::Appearance => appearance::page(starter, ui, x, y0, cw),
         Page::Templates => templates(starter, ui, x, y0, cw),
         Page::TemplateWords => template_words(starter, ui, x, y0, cw),
         Page::TemplateCopy => template_copy(starter, ui, x, y0, cw),
@@ -208,6 +210,7 @@ fn page_name_of(starter: &Starter, page: Page) -> String {
         Page::Install => S.starter_row_install.to_string(),
         Page::Installed => S.starter_row_installed.to_string(),
         Page::About => S.starter_row_about.to_string(),
+        Page::Appearance => S.starter_row_appearance.to_string(),
         Page::Templates => S.starter_row_templates.to_string(),
         Page::TemplateWords => S.starter_tpl_words.to_string(),
         Page::TemplateCopy => S.starter_tpl_copy.to_string(),
@@ -2364,16 +2367,6 @@ fn template_places(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f
 
 /// What a test or a snapshot sets and reads of the frame's drawing.
 impl Starter {
-    /// Draws the pages in `theme` from the next frame on: the snapshots
-    /// and the colour tests choose it; the Appearance sheet will
-    /// (`docs/THEMES.md` §14).
-    pub fn set_theme(&mut self, theme: faraday_ui::Theme) {
-        self.theme = theme;
-        self.frost = None;
-        self.dirty = true;
-        self.commands.push_back(crate::Command::Draw);
-    }
-
     /// Everything the current frame draws that leaves ink (text, icons,
     /// progress), with the box of each in pixels, for a test of the
     /// colours it is drawn in.

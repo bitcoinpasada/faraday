@@ -254,9 +254,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 44.0,
                 44.0,
                 10.0,
-                Role::Primary.with_alpha(26),
+                Role::SecondaryContainer,
             );
-            ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, Role::Primary);
+            let on_tile = Role::OnSecondaryContainer;
+            ui.icon(tx + 20.0, y + 24.0, 44.0, *icon, 18.0, on_tile);
             if ui.wrap_lines(16.0, W::S, label, label_room) > 1 {
                 ui.wrap(
                     tx + 82.0,

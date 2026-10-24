@@ -1,6 +1,6 @@
 //! Which scheme the screens are drawn in (`docs/THEMES.md` §3): a theme,
-//! a mode and a contrast level, and the fourteen themes Settings offered
-//! before them, each now one of those triples (§13).
+//! a mode and a contrast level, and the words a settings file writes them
+//! as, each of the fourteen themes of before mapped to one (§13).
 
 use crate::pal::{self, Paint, Role, Scheme, ThemeName};
 use faraday_draw::Color;
@@ -73,9 +73,23 @@ impl Theme {
 
     /// Its colours, one per [`Role`]: a row of the generated table.
     pub fn scheme(self) -> &'static Scheme {
-        let row = (self.name as usize * Mode::ALL.len() + self.mode as usize) * Contrast::ALL.len()
-            + self.contrast as usize;
-        &pal::SCHEMES[row]
+        &pal::SCHEMES[self.row()]
+    }
+
+    /// Its row of the generated table, 0 to 59: also its number where a
+    /// press is carried as a number (the Starter's actions).
+    pub fn row(self) -> usize {
+        (self.name as usize * Mode::ALL.len() + self.mode as usize) * Contrast::ALL.len()
+            + self.contrast as usize
+    }
+
+    /// The scheme of row `row` ([`Theme::row`]), if there is one.
+    pub fn from_row(row: usize) -> Option<Theme> {
+        let per_name = Mode::ALL.len() * Contrast::ALL.len();
+        let name = *ThemeName::ALL.get(row / per_name)?;
+        let mode = Mode::ALL[row % per_name / Contrast::ALL.len()];
+        let contrast = Contrast::ALL[row % Contrast::ALL.len()];
+        Some(Theme::new(name, mode, contrast))
     }
 
     /// `role`'s colour in this scheme.
@@ -101,185 +115,128 @@ impl Theme {
     }
 }
 
-/// The themes Settings offers until it offers Theme, Mode and Contrast
-/// (`docs/THEMES.md` §12): the fourteen it offered before, each drawn as
-/// the scheme a stored setting of it opens in (§13).
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
-pub enum Preset {
-    /// Cobalt, Dark.
-    Dark,
-    /// Cobalt, Light.
-    Light,
-    /// Cobalt, Light: the one a first start is in.
-    #[default]
-    Cobalt,
-    /// Frost, Dark.
-    Nord,
-    /// Lavender, Dark.
-    Catppuccin,
-    /// Dusk, Dark.
-    TokyoNight,
-    /// Lamplight, Dark.
-    Gruvbox,
-    /// Rose, Light.
-    RosePine,
-    /// Bitcoin Orange, Dark.
-    BitcoinOrange,
-    /// Bitcoin Orange, Light.
-    BitcoinOrangeLight,
-    /// Lamplight, Light.
-    Lamplight,
-    /// Monochrome, Dark, High contrast.
-    HighContrastDark,
-    /// Cobalt, Light, High contrast.
-    HighContrastLight,
-    /// Mars, Dark.
-    Mars,
-}
-
-impl Preset {
-    /// Every preset. Settings offers them by [`Preset::group`], each
-    /// group in order of its names ([`ThemeGroup::themes`]).
-    pub const ALL: [Preset; 14] = [
-        Preset::Dark,
-        Preset::Light,
-        Preset::Cobalt,
-        Preset::Nord,
-        Preset::Catppuccin,
-        Preset::TokyoNight,
-        Preset::Gruvbox,
-        Preset::RosePine,
-        Preset::BitcoinOrange,
-        Preset::BitcoinOrangeLight,
-        Preset::Lamplight,
-        Preset::HighContrastDark,
-        Preset::HighContrastLight,
-        Preset::Mars,
-    ];
-
+impl ThemeName {
     /// What Settings calls it.
     pub fn name(self) -> &'static str {
         match self {
-            Preset::Dark => EN.ui_dark,
-            Preset::Light => EN.ui_light,
-            Preset::Cobalt => EN.ui_cobalt,
-            Preset::Nord => EN.ui_nord,
-            Preset::Catppuccin => EN.ui_catppuccin,
-            Preset::TokyoNight => EN.ui_tokyo_night,
-            Preset::Gruvbox => EN.ui_gruvbox,
-            Preset::RosePine => EN.ui_rose_pine,
-            Preset::BitcoinOrange => EN.ui_bitcoin_orange,
-            Preset::BitcoinOrangeLight => EN.ui_bitcoin_orange_light,
-            Preset::Lamplight => EN.ui_lamplight,
-            Preset::HighContrastDark => EN.ui_high_contrast_dark,
-            Preset::HighContrastLight => EN.ui_high_contrast_light,
-            Preset::Mars => EN.ui_mars,
+            ThemeName::Cobalt => EN.ui_cobalt,
+            ThemeName::BitcoinOrange => EN.ui_bitcoin_orange,
+            ThemeName::Lamplight => EN.ui_lamplight,
+            ThemeName::Mars => EN.ui_mars,
+            ThemeName::Forest => EN.ui_forest,
+            ThemeName::Frost => EN.ui_frost,
+            ThemeName::Dusk => EN.ui_dusk,
+            ThemeName::Lavender => EN.ui_lavender,
+            ThemeName::Rose => EN.ui_rose,
+            ThemeName::Monochrome => EN.ui_monochrome,
         }
     }
 
-    /// The word the kept settings write it as (`memory.rs`).
-    pub fn id(self) -> &'static str {
-        match self {
-            Preset::Dark => "dark",
-            Preset::Light => "light",
-            Preset::Cobalt => "cobalt",
-            Preset::Nord => "nord",
-            Preset::Catppuccin => "catppuccin",
-            Preset::TokyoNight => "tokyo-night",
-            Preset::Gruvbox => "gruvbox",
-            Preset::RosePine => "rose-pine",
-            Preset::BitcoinOrange => "bitcoin-orange",
-            Preset::BitcoinOrangeLight => "bitcoin-orange-light",
-            Preset::Lamplight => "lamplight",
-            Preset::HighContrastDark => "high-contrast-dark",
-            Preset::HighContrastLight => "high-contrast-light",
-            Preset::Mars => "mars",
-        }
-    }
-
-    /// The preset a kept `id` names.
-    pub fn from_id(id: &str) -> Option<Preset> {
-        Preset::ALL.into_iter().find(|t| t.id() == id)
-    }
-
-    /// The scheme it is drawn in (`docs/THEMES.md` §13).
-    pub fn theme(self) -> Theme {
-        use Contrast::{High, Standard};
-        use Mode::{Dark, Light};
-        let (name, mode, contrast) = match self {
-            Preset::Dark => (ThemeName::Cobalt, Dark, Standard),
-            Preset::Light | Preset::Cobalt => (ThemeName::Cobalt, Light, Standard),
-            Preset::Nord => (ThemeName::Frost, Dark, Standard),
-            Preset::Catppuccin => (ThemeName::Lavender, Dark, Standard),
-            Preset::TokyoNight => (ThemeName::Dusk, Dark, Standard),
-            Preset::Gruvbox => (ThemeName::Lamplight, Dark, Standard),
-            Preset::RosePine => (ThemeName::Rose, Light, Standard),
-            Preset::BitcoinOrange => (ThemeName::BitcoinOrange, Dark, Standard),
-            Preset::BitcoinOrangeLight => (ThemeName::BitcoinOrange, Light, Standard),
-            Preset::Lamplight => (ThemeName::Lamplight, Light, Standard),
-            Preset::HighContrastDark => (ThemeName::Monochrome, Dark, High),
-            Preset::HighContrastLight => (ThemeName::Cobalt, Light, High),
-            Preset::Mars => (ThemeName::Mars, Dark, Standard),
-        };
-        Theme::new(name, mode, contrast)
-    }
-
-    /// Dark text on a light page.
-    pub fn is_light(self) -> bool {
-        self.theme().is_light()
-    }
-
-    /// Drawn at High contrast.
-    pub fn is_high_contrast(self) -> bool {
-        self.theme().is_high_contrast()
-    }
-
-    /// The group Settings offers it under.
-    pub fn group(self) -> ThemeGroup {
-        if self.is_high_contrast() {
-            ThemeGroup::HighContrast
-        } else if self.is_light() {
-            ThemeGroup::Light
-        } else {
-            ThemeGroup::Dark
-        }
+    /// The theme a settings file's `theme=` word names.
+    pub fn from_id(id: &str) -> Option<ThemeName> {
+        ThemeName::ALL.into_iter().find(|t| t.id() == id)
     }
 }
 
-/// The groups Settings offers the presets in.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ThemeGroup {
-    /// Dark text on a light page.
-    Light,
-    /// Light text on a dark page.
-    Dark,
-    /// Text 7:1 or more, light or dark.
-    HighContrast,
-}
-
-impl ThemeGroup {
-    /// Every group, in the order Settings offers them.
-    pub const ALL: [ThemeGroup; 3] = [
-        ThemeGroup::Light,
-        ThemeGroup::Dark,
-        ThemeGroup::HighContrast,
-    ];
-
-    /// The label Settings puts over the group.
+impl Mode {
+    /// What Settings calls it.
     pub fn name(self) -> &'static str {
         match self {
-            ThemeGroup::Light => EN.ui_themes_light,
-            ThemeGroup::Dark => EN.ui_themes_dark,
-            ThemeGroup::HighContrast => EN.ui_themes_high_contrast,
+            Mode::Light => EN.ui_light,
+            Mode::Dark => EN.ui_dark,
         }
     }
 
-    /// The presets in this group ([`Preset::group`]), in order of their
-    /// names.
-    pub fn themes(self) -> impl Iterator<Item = Preset> {
-        let mut all = Preset::ALL;
-        all.sort_unstable_by_key(|t| t.name());
-        all.into_iter().filter(move |t| t.group() == self)
+    /// The word a settings file writes it as (`mode=`).
+    pub fn id(self) -> &'static str {
+        match self {
+            Mode::Light => "light",
+            Mode::Dark => "dark",
+        }
+    }
+
+    /// The mode a settings file's `mode=` word names.
+    pub fn from_id(id: &str) -> Option<Mode> {
+        Mode::ALL.into_iter().find(|m| m.id() == id)
+    }
+}
+
+impl Contrast {
+    /// What Settings calls it.
+    pub fn name(self) -> &'static str {
+        match self {
+            Contrast::Standard => EN.ui_contrast_standard,
+            Contrast::Medium => EN.ui_contrast_medium,
+            Contrast::High => EN.ui_contrast_high,
+        }
+    }
+
+    /// The word a settings file writes it as (`contrast=`).
+    pub fn id(self) -> &'static str {
+        match self {
+            Contrast::Standard => "standard",
+            Contrast::Medium => "medium",
+            Contrast::High => "high",
+        }
+    }
+
+    /// The level a settings file's `contrast=` word names.
+    pub fn from_id(id: &str) -> Option<Contrast> {
+        Contrast::ALL.into_iter().find(|c| c.id() == id)
+    }
+}
+
+impl Theme {
+    /// The scheme a settings file's `theme=` word opens in before any
+    /// `mode=` or `contrast=` line (`docs/THEMES.md` §13): each of the
+    /// fourteen themes Settings offered before the three choices maps to
+    /// a theme, mode and contrast; a theme named since is in Light at
+    /// Standard. A word neither names is `None`.
+    pub fn from_stored(id: &str) -> Option<Theme> {
+        use Contrast::{High, Standard};
+        use Mode::{Dark, Light};
+        let (name, mode, contrast) = match id {
+            "dark" => (ThemeName::Cobalt, Dark, Standard),
+            "light" => (ThemeName::Cobalt, Light, Standard),
+            "nord" => (ThemeName::Frost, Dark, Standard),
+            "catppuccin" => (ThemeName::Lavender, Dark, Standard),
+            "tokyo-night" => (ThemeName::Dusk, Dark, Standard),
+            "gruvbox" => (ThemeName::Lamplight, Dark, Standard),
+            "rose-pine" => (ThemeName::Rose, Light, Standard),
+            "bitcoin-orange" => (ThemeName::BitcoinOrange, Dark, Standard),
+            "bitcoin-orange-light" => (ThemeName::BitcoinOrange, Light, Standard),
+            "mars" => (ThemeName::Mars, Dark, Standard),
+            "high-contrast-dark" => (ThemeName::Monochrome, Dark, High),
+            "high-contrast-light" => (ThemeName::Cobalt, Light, High),
+            other => (ThemeName::from_id(other)?, Light, Standard),
+        };
+        Some(Theme::new(name, mode, contrast))
+    }
+
+    /// A scheme written as a tool's argument: a stored theme id, then
+    /// optionally a mode and a contrast, each after a comma
+    /// (`frost,dark,high`), read as a settings file's lines are.
+    pub fn from_words(words: &str) -> Option<Theme> {
+        let mut parts = words.split(',');
+        let mut theme = Theme::from_stored(parts.next()?)?;
+        if let Some(mode) = parts.next() {
+            theme.mode = Mode::from_id(mode)?;
+        }
+        if let Some(contrast) = parts.next() {
+            theme.contrast = Contrast::from_id(contrast)?;
+        }
+        parts.next().is_none().then_some(theme)
+    }
+
+    /// Its words as [`Theme::from_words`] reads them, joined by `-`
+    /// for a file name: `frost-dark-high`.
+    pub fn slug(self) -> String {
+        format!(
+            "{}-{}-{}",
+            self.name.id(),
+            self.mode.id(),
+            self.contrast.id()
+        )
     }
 }
 
@@ -529,7 +486,7 @@ mod tests {
         assert!(short.is_empty(), "{short:#?}");
     }
 
-    /// A stored preset opens in the scheme THEMES §13 maps it to.
+    /// A stored theme id opens in the scheme THEMES §13 maps it to.
     #[test]
     fn each_old_theme_opens_in_its_new_scheme() {
         use Contrast::{High, Standard};
@@ -554,10 +511,15 @@ mod tests {
             ("mars", ThemeName::Mars, Dark, Standard),
             ("high-contrast-dark", ThemeName::Monochrome, Dark, High),
             ("high-contrast-light", ThemeName::Cobalt, Light, High),
+            ("forest", ThemeName::Forest, Light, Standard),
         ];
         for (id, name, mode, contrast) in cases {
-            let preset = Preset::from_id(id).expect(id);
-            assert_eq!(preset.theme(), Theme::new(name, mode, contrast), "{id}");
+            assert_eq!(
+                Theme::from_stored(id),
+                Some(Theme::new(name, mode, contrast)),
+                "{id}"
+            );
         }
+        assert_eq!(Theme::from_stored("solarized"), None);
     }
 }

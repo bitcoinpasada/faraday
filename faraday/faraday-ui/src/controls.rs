@@ -405,16 +405,42 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let pad = 2.0 * SEGMENT_PAD + ICON_GLYPH_BUTTON + ICON_GAP;
         let (mut bx, mut by) = (x, y);
         for (i, &(label, action)) in options.iter().enumerate() {
-            let bw = (self.measure(size, W::S, label) + pad).min(w);
+            let whole = self.measure(size, W::S, label) + pad;
+            let bw = whole.min(w);
             if bx > x && bx + bw > x + w {
                 bx = x;
                 by += h + GAP;
             }
-            let shown = self.fit(size, W::S, label, bw - pad);
+            // Cut only when the label is wider than the row: `bw - pad`
+            // can come out a hair under the label's own width.
+            let shown = if whole <= w {
+                label.to_string()
+            } else {
+                self.fit(size, W::S, label, w - pad)
+            };
             let style = Style::chosen(chosen == Some(i));
             bx += self.button(bx, by, Some(bw), h, &shown, style, action) + GAP;
         }
         by - y + h
+    }
+
+    /// How tall [`Ui::choices`] draws `labels` in a width `w`, `h` a row,
+    /// worked out from their widths with nothing drawn.
+    pub fn choices_h(&self, w: f32, h: f32, size: f32, labels: &[&str]) -> f32 {
+        if self.segment_width(size, labels) * labels.len() as f32 <= w {
+            return h;
+        }
+        let pad = 2.0 * SEGMENT_PAD + ICON_GLYPH_BUTTON + ICON_GAP;
+        let (mut bx, mut by) = (0.0, 0.0);
+        for label in labels {
+            let bw = (self.measure(size, W::S, label) + pad).min(w);
+            if bx > 0.0 && bx + bw > w {
+                bx = 0.0;
+                by += h + GAP;
+            }
+            bx += bw + GAP;
+        }
+        by + h
     }
 
     /// A linear progress indicator `w` wide at (x, y), [`PROGRESS_H`]

@@ -197,7 +197,7 @@ impl Faraday {
         } else {
             0
         };
-        let theme = self.settings.theme().theme();
+        let theme = self.settings.theme();
         let drawn_key = ((self.screen, self.sheet), page, theme);
         // Drawn in full: what asked for this frame is drawn as it is now,
         // and the gap across it is not a fade's step.

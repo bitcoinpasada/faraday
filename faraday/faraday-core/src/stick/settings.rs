@@ -25,7 +25,7 @@ pub const FILE: &str = "faraday-settings.txt";
 /// The file's first line.
 pub const HEADER: &str = "faraday-settings 1";
 
-/// The largest file read. Seven short lines are well under it.
+/// The largest file read. Its ten short lines are well under it.
 pub const MAX: usize = 4096;
 
 /// The idle lock times Settings offers, in minutes; 0 is never.
@@ -46,8 +46,9 @@ pub fn is_file(name: &str) -> bool {
 pub(crate) struct Settings {
     /// The person's display scale, in percent of the automatic one.
     scale_pct: u16,
-    /// The palette the screens are drawn in.
-    theme: crate::ui::Preset,
+    /// The scheme the screens are drawn in: a theme, a mode and a
+    /// contrast level (`docs/THEMES.md` §3).
+    theme: crate::ui::Theme,
     /// Reduce motion: nothing slides, glides, coasts or stretches.
     reduce_motion: bool,
     /// Minutes without input before the session locks; 0 for never
@@ -74,7 +75,7 @@ impl Default for Settings {
     fn default() -> Self {
         Self {
             scale_pct: 100,
-            theme: crate::ui::Preset::default(),
+            theme: crate::ui::Theme::default(),
             reduce_motion: false,
             idle_lock_min: crate::IDLE_LOCK_MIN,
             qr_frame_ms: crate::QR_SPEEDS[0],
@@ -96,8 +97,8 @@ impl Settings {
         self.scale_pct
     }
 
-    /// The palette.
-    pub(crate) fn theme(&self) -> crate::ui::Preset {
+    /// The scheme.
+    pub(crate) fn theme(&self) -> crate::ui::Theme {
         self.theme
     }
 
@@ -147,8 +148,8 @@ impl Settings {
         self.scale_pct = pct;
     }
 
-    /// Sets the palette.
-    pub(crate) fn set_theme(&mut self, theme: crate::ui::Preset) {
+    /// Sets the scheme.
+    pub(crate) fn set_theme(&mut self, theme: crate::ui::Theme) {
         self.theme = theme;
     }
 
@@ -187,9 +188,11 @@ impl Settings {
     /// file holds after its first line, and the start of the kept set.
     pub(crate) fn body(&self) -> String {
         format!(
-            "scale={}\ntheme={}\nmotion={}\nguided={}\nqr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
+            "scale={}\ntheme={}\nmode={}\ncontrast={}\nmotion={}\nguided={}\nqr-ms={}\nidle-lock={}\nidle-off={}\ntz={}\n",
             self.scale_pct,
-            self.theme.id(),
+            self.theme.name.id(),
+            self.theme.mode.id(),
+            self.theme.contrast.id(),
             if self.reduce_motion {
                 "reduced"
             } else {
@@ -216,9 +219,23 @@ impl Settings {
                     return true;
                 }
             }
+            // The lines are read in the order written, `theme=` first: a
+            // theme of before the three choices opens in the mode and
+            // contrast it maps to (`docs/THEMES.md` §13), and a `mode=`
+            // or `contrast=` line after it sets that part as written.
             "theme" => {
-                if let Some(t) = crate::ui::Preset::from_id(value) {
+                if let Some(t) = crate::ui::Theme::from_stored(value) {
                     self.theme = t;
+                }
+            }
+            "mode" => {
+                if let Some(mode) = crate::ui::Mode::from_id(value) {
+                    self.theme.mode = mode;
+                }
+            }
+            "contrast" => {
+                if let Some(contrast) = crate::ui::Contrast::from_id(value) {
+                    self.theme.contrast = contrast;
                 }
             }
             "motion" => match value {
@@ -420,13 +437,22 @@ impl Faraday {
         }
     }
 
+    /// Draws the screens in `theme` from the next frame on and keeps
+    /// nothing: the Starter's held app, in the scheme the Starter's own
+    /// Appearance chose (`docs/THEMES.md` §14), which no settings file
+    /// or kept set holds.
+    pub fn draw_in(&mut self, theme: crate::ui::Theme) {
+        self.settings.set_theme(theme);
+        self.out.dirty = true;
+    }
+
     /// The person's display scale, in percent of the automatic one.
     pub fn scale_pct(&self) -> u16 {
         self.settings.scale_pct()
     }
 
-    /// The palette the screens are drawn in.
-    pub fn theme(&self) -> crate::ui::Preset {
+    /// The scheme the screens are drawn in.
+    pub fn theme(&self) -> crate::ui::Theme {
         self.settings.theme()
     }
 

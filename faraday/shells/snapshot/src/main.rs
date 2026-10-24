@@ -129,10 +129,11 @@ fn run(
     // none of another's wallets once a key is loaded.
     faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::net())
         .map_err(|e| e.text())?;
-    // `FARADAY_SNAP_THEME=<id>` takes the tour in that theme ("light",
-    // "dark" …) instead of the first start's.
-    if let Ok(id) = std::env::var("FARADAY_SNAP_THEME")
-        && let Some(theme) = faraday_core::ui::Preset::from_id(&id)
+    // `FARADAY_SNAP_THEME=<theme>[,<mode>[,<contrast>]]` takes the tour
+    // in that scheme ("frost,dark,high"; a stored id alone, "nord",
+    // opens as a settings file of it would) instead of the first start's.
+    if let Ok(words) = std::env::var("FARADAY_SNAP_THEME")
+        && let Some(theme) = faraday_core::ui::Theme::from_words(&words)
     {
         app.press(Action::Theme(theme));
     }

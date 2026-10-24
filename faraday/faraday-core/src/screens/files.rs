@@ -531,7 +531,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             36.0,
             36.0,
             10.0,
-            Role::Primary.with_alpha(26),
+            Role::SecondaryContainer,
         );
         ui.icon(
             x + 16.0,
@@ -539,7 +539,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             36.0,
             Icon::Download,
             14.0,
-            Role::Primary,
+            Role::OnSecondaryContainer,
         );
         let name = ui.fit(14.0, W::M, &item.name, colw - 90.0);
         ui.text(x + 66.0, iy + 14.0, 14.0, W::M, Role::OnSurface, &name);

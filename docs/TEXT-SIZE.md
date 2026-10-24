@@ -71,8 +71,8 @@ size (§4), which removes this.
   `f` and the Display scale, and leaves the class's own handling as it
   is: the narrow cut on Small stays, and `Ui::font` still cancels the
   class's ramp for faraday-ui text.
-- Settings › Appearance: a **Text size** row under the themes, three
-  buttons as Motion's are, the chosen one Primary. Pressing one lays the
+- Settings › Appearance: a **Text size** row under Contrast, three
+  options as Contrast's are, the chosen one selected. Pressing one lays the
   screen out again at once (as `Action::Scale` does: `display` again
   with the last display) and saves the kept set.
 - The strings, in `faraday/faraday-strings/src/en.rs`:
@@ -328,8 +328,9 @@ Decided (owner, 2026-10-23), each as recommended:
   one-column layout's thresholds are multiplied by the text factor and
   the Display scale, so at Larger a window takes the one-column layout
   where it would be 1.4 times too small for Standard."
-- `docs/DESIGN.md` §5, the `Settings` row: "Appearance (the themes,
-  §3), Text size, Motion and the display scale".
+- `docs/DESIGN.md` §5, the `Settings` row: "Appearance (Theme, Mode,
+  Contrast, Text size and the Reduce motion switch) and the display
+  scale".
 - `docs/FLOWS.md`, **Settings**: "keyboard layout (US first), display
   scale, text size (Standard, Large, Larger), idle lock …".
 - `docs/STARTER.md` §3.7: "Text size: Standard, Large, Larger, as

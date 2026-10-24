@@ -183,6 +183,17 @@ fn controls(ui: &mut Ui<u8>) {
     ui.progress((16.0, 380.0, 200.0), Some(0.4), None);
 }
 
+/// Settings › Appearance (`docs/THEMES.md` §12): the theme chips, Mode
+/// and Contrast with the scheme on screen chosen, and a switch row on
+/// and off, at rest: their codes are past the controls pressed.
+fn appearance(ui: &mut Ui<u8>) {
+    let now = ui.theme;
+    let code = |t: Theme| 20 + t.row() as u8;
+    let h = ui.appearance((16.0, 16.0, 600.0), Some(128.0), now, code);
+    ui.switch_row((16.0, 32.0 + h, 300.0), "Reduce motion", false, 14);
+    ui.switch_row((320.0, 32.0 + h, 300.0), "Reduce motion", true, 15);
+}
+
 /// A rail with a current destination and a count badge, the top app bar
 /// with a way back and its actions, a status chip, an expanded rail's
 /// row, and the navigation bar.
@@ -299,8 +310,9 @@ fn keyboard(ui: &mut Ui<u8>) {
 
 #[test]
 fn what_the_components_write_reads_on_what_they_are_drawn_on_in_every_scheme() {
-    let scenes: [(&str, Scene); 5] = [
+    let scenes: [(&str, Scene); 6] = [
         ("controls", controls),
+        ("appearance", appearance),
         ("navigation", navigation),
         ("dialog", dialog),
         ("sheet", bottom_sheet),
@@ -360,4 +372,20 @@ fn the_tooltips_read_in_every_scheme() {
         }
     }
     assert!(short.is_empty(), "{short:#?}");
+}
+
+/// Settings' Appearance card is sized from its rows' widths before they
+/// are drawn: the height worked out is the height drawn, wide and on a
+/// small panel, at every width the rows wrap at.
+#[test]
+fn the_appearance_rows_are_as_tall_as_worked_out() {
+    let mut canvas = canvas();
+    let mut hits = Vec::new();
+    let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
+    for w in [180.0, 240.0, 320.0, 412.0, 520.0, 600.0] {
+        for label in [None, Some(128.0)] {
+            let drawn = ui.appearance((0.0, 0.0, w), label, Theme::default(), |_| 1);
+            assert_eq!(ui.appearance_h(w, label), drawn, "{w} {label:?}");
+        }
+    }
 }

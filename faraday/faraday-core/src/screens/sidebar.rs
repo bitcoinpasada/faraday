@@ -8,7 +8,7 @@ use crate::ui::pal::*;
 use crate::ui::{Glyph, NameSuffix, Style, Ui, W};
 use crate::wallet::{Session, fp_text};
 use crate::{Action, Screen, Sheet};
-use faraday_draw::tokens::TOUCH;
+use faraday_draw::tokens::{STATE_PRESS, TOUCH};
 use faraday_draw::widgets::Icon;
 
 /// How many rows of seeds and of wallets the sidebar shows, in `rows`:
@@ -45,8 +45,10 @@ const FLOW_ROW: f32 = 30.0;
 fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     let action = Action::Resume(r.going);
     let (x, w) = (46.0, SIDEBAR_W - 58.0);
-    if lit || ui.is_pressed(action) {
-        ui.fill(x, y, w, FLOW_ROW, 6.0, Role::Primary.with_alpha(30));
+    if lit {
+        ui.fill(x, y, w, FLOW_ROW, 6.0, Role::SecondaryContainer);
+    } else if ui.is_pressed(action) {
+        ui.wash(x, y, w, FLOW_ROW, 6.0, Role::OnSurface.at(STATE_PRESS));
     }
     let (tx, right) = (54.0, SIDEBAR_W - 24.0);
     let room = right - tx;
@@ -56,21 +58,9 @@ fn flow_row(ui: &mut Ui, y: f32, r: &crate::in_progress::Row, lit: bool) {
     let step = ui.fit(11.0, W::R, &r.step, room - nw - 8.0);
     let sw = ui.measure(11.0, W::R, &step);
     let name = ui.fit(12.0, W::S, &r.name, room - sw - 8.0);
-    let fg = if lit {
-        Role::OnSurface
-    } else {
-        Role::OnSurfaceVariant
-    };
+    let fg = crate::ui::pal::on_selected(lit, Role::OnSurfaceVariant);
     ui.text_mid(tx, y, FLOW_ROW, 12.0, W::S, fg, &name);
-    ui.text_right(
-        right,
-        y,
-        FLOW_ROW,
-        11.0,
-        W::R,
-        Role::OnSurfaceVariant,
-        &step,
-    );
+    ui.text_right(right, y, FLOW_ROW, 11.0, W::R, fg, &step);
     ui.hit(x, y, w, FLOW_ROW, action);
 }
 
@@ -203,14 +193,8 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         let stage = app.session_stage();
         let open_files = Action::Nav(Screen::Files);
         if ui.is_pressed(open_files) {
-            ui.fill(
-                16.0,
-                fy - 4.0,
-                SIDEBAR_W - 32.0,
-                28.0,
-                6.0,
-                Role::Primary.with_alpha(30),
-            );
+            let press = Role::OnSurface.at(STATE_PRESS);
+            ui.wash(16.0, fy - 4.0, SIDEBAR_W - 32.0, 28.0, 6.0, press);
         }
         let mut sx = 24.0;
         for (i, label) in [
@@ -268,14 +252,8 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         };
         for (head, tail, mono, action, mark, pass) in rows.take(shown) {
             if ui.is_pressed(action) {
-                ui.fill(
-                    16.0,
-                    *fy,
-                    SIDEBAR_W - 32.0,
-                    ROW,
-                    6.0,
-                    Role::Primary.with_alpha(30),
-                );
+                let press = Role::OnSurface.at(STATE_PRESS);
+                ui.wash(16.0, *fy, SIDEBAR_W - 32.0, ROW, 6.0, press);
             }
             // A wallet's dot: green when the seeds here sign for it alone,
             // grey when some of them are here.
@@ -316,14 +294,8 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         if total > cap && cap > 0 {
             let line = fill(EN.sidebar_more, &[&(total - shown).to_string()]);
             if ui.is_pressed(more) {
-                ui.fill(
-                    16.0,
-                    *fy,
-                    SIDEBAR_W - 32.0,
-                    ROW,
-                    6.0,
-                    Role::Primary.with_alpha(30),
-                );
+                let press = Role::OnSurface.at(STATE_PRESS);
+                ui.wash(16.0, *fy, SIDEBAR_W - 32.0, ROW, 6.0, press);
             }
             ui.text_mid(28.0, *fy, ROW, 12.0, W::S, Role::Primary, &line);
             ui.hit(16.0, *fy, SIDEBAR_W - 32.0, ROW, more);
@@ -400,42 +372,22 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
     );
     fy += gap;
     let files = app.files_count();
-    if app.screen == Screen::Files {
+    let here = app.screen == Screen::Files;
+    if here {
         ui.fill(
             16.0,
             fy - 4.0,
             SIDEBAR_W - 32.0,
             28.0,
             6.0,
-            Role::Primary.with_alpha(30),
+            Role::SecondaryContainer,
         );
     }
-    ui.icon(
-        22.0,
-        fy,
-        20.0,
-        Glyph::Icon(Icon::File),
-        12.0,
-        Role::OnSurfaceVariant,
-    );
-    ui.text_mid(
-        46.0,
-        fy,
-        20.0,
-        12.0,
-        W::R,
-        Role::OnSurfaceVariant,
-        EN.sidebar_files,
-    );
-    ui.text_right(
-        SIDEBAR_W - 24.0,
-        fy,
-        20.0,
-        12.0,
-        W::R,
-        Role::OnSurface,
-        &files,
-    );
+    let muted = on_selected(here, Role::OnSurfaceVariant);
+    ui.icon(22.0, fy, 20.0, Glyph::Icon(Icon::File), 12.0, muted);
+    ui.text_mid(46.0, fy, 20.0, 12.0, W::R, muted, EN.sidebar_files);
+    let ink = on_selected(here, Role::OnSurface);
+    ui.text_right(SIDEBAR_W - 24.0, fy, 20.0, 12.0, W::R, ink, &files);
     ui.hit(
         16.0,
         fy - 4.0,
@@ -453,47 +405,30 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         1 => app.stick[0].label.clone(),
         k => fill(EN.sidebar_attached, &[&k.to_string()]),
     };
-    if waiting && app.sheet == Some(Sheet::Import) {
+    let open = waiting && app.sheet == Some(Sheet::Import);
+    if open {
         ui.fill(
             16.0,
             fy - 4.0,
             SIDEBAR_W - 32.0,
             28.0,
             6.0,
-            Role::Primary.with_alpha(30),
+            Role::SecondaryContainer,
         );
     }
-    ui.icon(
-        22.0,
-        fy,
-        20.0,
-        app.medium.icon(),
-        12.0,
-        Role::OnSurfaceVariant,
-    );
-    ui.text_mid(
-        46.0,
-        fy,
-        20.0,
-        12.0,
-        W::R,
-        Role::OnSurfaceVariant,
-        app.medium.caps(),
-    );
+    let muted = on_selected(open, Role::OnSurfaceVariant);
+    ui.icon(22.0, fy, 20.0, app.medium.icon(), 12.0, muted);
+    ui.text_mid(46.0, fy, 20.0, 12.0, W::R, muted, app.medium.caps());
     let sticks = ui.fit(12.0, W::R, &sticks, 110.0);
-    ui.text_right(
-        SIDEBAR_W - 24.0,
-        fy,
-        20.0,
-        12.0,
-        W::R,
+    let tone = on_selected(
+        open,
         if waiting {
             Role::Primary
         } else {
             Role::OnSurface
         },
-        &sticks,
     );
+    ui.text_right(SIDEBAR_W - 24.0, fy, 20.0, 12.0, W::R, tone, &sticks);
     if waiting {
         ui.hit(
             16.0,

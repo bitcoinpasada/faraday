@@ -7,6 +7,7 @@
 //! Noto Sans and Noto Sans Mono. [`Ui`] is generic over the app's own
 //! action type: what a press on a region does is the caller's to name.
 
+mod appearance;
 mod controls;
 pub mod keyboard;
 mod lists;
@@ -20,23 +21,17 @@ pub mod tooltip;
 pub use controls::{Reach, Style, focus_step, reach_at};
 pub use pal::{Paint, Role, ThemeName};
 pub use region::{Scrolled, Slot};
-pub use theme::{Contrast, Mode, Preset, Theme, ThemeGroup};
+pub use theme::{Contrast, Mode, Theme};
 
 use faraday_draw::fonts::Family;
 use faraday_draw::text::{self, TextAlign};
 use faraday_draw::widgets::Icon;
 use faraday_draw::{Canvas, Color, Font, Rect};
-use faraday_strings::EN;
 use std::sync::OnceLock;
 
 /// The overlay scrollbar's thumb, units wide.
 const BAR_W: f32 = 6.0;
 
-/// How wide each of `per_row` theme tiles side by side in `w` is.
-fn theme_tile_w(w: f32, per_row: usize) -> f32 {
-    use faraday_draw::tokens::THEME_TILE_GAP;
-    (w - THEME_TILE_GAP * (per_row - 1) as f32) / per_row as f32
-}
 /// How far in from a scrolled region's right edge a press takes the
 /// scrollbar rather than the content, in units.
 pub const BAR_GRAB: f32 = 16.0;
@@ -941,222 +936,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let edge: Paint = edge.into();
         self.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
         self.stroke(x, y, w, h, SHAPE_M, edge);
-    }
-
-    /// A theme as a tile drawn in its own colours: its page, a card with
-    /// a primary button and the three states, and its name. The theme on
-    /// screen is ringed in its accent; another is ringed while hovered.
-    /// The theme a first start is in carries a Default mark after its
-    /// name.
-    #[allow(clippy::too_many_arguments)]
-    pub fn theme_tile(
-        &mut self,
-        x: f32,
-        y: f32,
-        w: f32,
-        h: f32,
-        theme: Preset,
-        current: bool,
-        action: A,
-    ) {
-        use faraday_draw::tokens::{
-            THEME_TILE_INSET as IN, THEME_TILE_LINE as STEP, THEME_TILE_SAMPLE,
-            THEME_TILE_TEXT as SIZE,
-        };
-        let ring = if current {
-            Some(Role::Primary.paint())
-        } else if self.is_hovered(action) || self.is_pressed(action) {
-            Some(Role::OnSurfaceVariant.paint())
-        } else {
-            None
-        };
-        if let Some(ring) = ring {
-            self.stroke(x - 3.0, y - 3.0, w + 6.0, h + 6.0, 13.0, ring);
-            self.stroke(x - 2.0, y - 2.0, w + 4.0, h + 4.0, 12.0, ring);
-        }
-        let now = self.theme;
-        self.theme = theme.theme();
-        self.fill(x, y, w, h, IN, Role::SurfaceContainerHighest);
-        self.stroke(x, y, w, h, IN, Role::OutlineVariant);
-        self.fill(
-            x + IN,
-            y + IN,
-            w - 2.0 * IN,
-            THEME_TILE_SAMPLE,
-            6.0,
-            Role::Surface,
-        );
-        // The button and the three states, centred down the sample card.
-        let mid = y + IN + THEME_TILE_SAMPLE / 2.0;
-        self.fill(x + 17.0, mid - SIZE / 2.0, 24.0, SIZE, 6.0, Role::Primary);
-        for (i, c) in [Role::Ok, Role::Warning, Role::Error]
-            .into_iter()
-            .enumerate()
-        {
-            self.dot(x + w - 38.0 + 9.0 * i as f32, mid, 3.0, c);
-        }
-        // A name too long for the tile wraps at its spaces, the tile being
-        // drawn taller for a third line (`theme_tile_h`). Each line is a
-        // part of the name itself: no text is made unless a word alone is
-        // too wide and is cut.
-        let room = w - 2.0 * IN;
-        let (lines, n) = self.theme_name_lines(theme, room);
-        let name = theme.name();
-        let mut ty = y + h - 22.0 - STEP * (n - 1) as f32;
-        let mut last = 0.0;
-        for &(a, b) in &lines[..n] {
-            let line = &name[a..b];
-            last = self.measure(SIZE, W::S, line);
-            if last <= room {
-                self.text(x + IN, ty, SIZE, W::S, Role::OnSurface, line);
-            } else {
-                let cut = self.fit(SIZE, W::S, line, room);
-                last = self.text(x + IN, ty, SIZE, W::S, Role::OnSurface, &cut);
-            }
-            ty += STEP;
-        }
-        // The theme a first start is in: a Default mark at the right of
-        // its name's last line, where it fits beside the name.
-        if theme == Preset::default() {
-            let mark = self.measure(SIZE, W::R, EN.ui_default_theme);
-            if last + faraday_draw::tokens::GAP + mark <= room {
-                let at = x + w - IN - mark;
-                self.text(
-                    at,
-                    ty - STEP,
-                    SIZE,
-                    W::R,
-                    Role::OnSurfaceVariant,
-                    EN.ui_default_theme,
-                );
-            }
-        }
-        self.theme = now;
-        self.hit(x, y, w, h, action);
-    }
-
-    /// The narrowest a theme tile can be with every theme's name on at
-    /// most two lines.
-    pub fn theme_tile_min(&self) -> f32 {
-        use faraday_draw::tokens::{THEME_TILE_INSET, THEME_TILE_MIN, THEME_TILE_TEXT};
-        let width = |s: &str| self.measure(THEME_TILE_TEXT, W::S, s);
-        Preset::ALL
-            .into_iter()
-            .map(|t| {
-                let name = t.name();
-                // Whole, or broken at the space that leaves the longer
-                // line shortest.
-                name.match_indices(' ')
-                    .map(|(i, _)| width(&name[..i]).max(width(&name[i + 1..])))
-                    .fold(width(name), f32::min)
-                    + 2.0 * THEME_TILE_INSET
-            })
-            .fold(THEME_TILE_MIN, f32::max)
-    }
-
-    /// How tall theme tiles `w` wide are drawn: room for a name on two
-    /// lines, and a line taller for each line beyond.
-    pub fn theme_tile_h(&self, w: f32) -> f32 {
-        use faraday_draw::tokens::{THEME_TILE_HEIGHT, THEME_TILE_INSET, THEME_TILE_LINE};
-        let lines = Preset::ALL
-            .into_iter()
-            .map(|t| self.theme_name_lines(t, w - 2.0 * THEME_TILE_INSET).1)
-            .max()
-            .unwrap_or(1);
-        THEME_TILE_HEIGHT + THEME_TILE_LINE * lines.saturating_sub(2) as f32
-    }
-
-    /// How many theme tiles a row `inner` units across holds: as many as
-    /// tiles at [`Ui::theme_tile_min`] allow, so each group
-    /// ([`ThemeGroup`]) takes as few rows as it can and the groups'
-    /// tiles line up.
-    pub fn theme_grid(&self, inner: f32) -> usize {
-        use faraday_draw::tokens::THEME_TILE_GAP as GAP;
-        let n = Preset::ALL.len();
-        (((inner + GAP) / (self.theme_tile_min() + GAP)).floor() as usize).clamp(1, n)
-    }
-
-    /// The themes as tiles in their groups ([`ThemeGroup`]), each group
-    /// under its label and its tiles in rows of `per_row`, `w` wide from
-    /// (x, y); the theme on screen, `current`, is ringed. `action` names
-    /// what a press on a theme's tile does. Returns the height used, as
-    /// [`Ui::theme_groups_h`] works it out.
-    pub fn theme_groups(
-        &mut self,
-        x: f32,
-        y: f32,
-        w: f32,
-        per_row: usize,
-        current: Preset,
-        action: impl Fn(Preset) -> A,
-    ) -> f32 {
-        use faraday_draw::tokens::{
-            CAPTION, THEME_GROUP_GAP, THEME_GROUP_HEAD, THEME_TILE_GAP, THEME_TILE_ROW_GAP,
-        };
-        let per_row = per_row.max(1);
-        let tile_w = theme_tile_w(w, per_row);
-        let tile_h = self.theme_tile_h(tile_w);
-        let mut at = y;
-        for (g, group) in ThemeGroup::ALL.into_iter().enumerate() {
-            if g > 0 {
-                at += THEME_GROUP_GAP;
-            }
-            self.text(x, at, CAPTION, W::R, Role::OnSurfaceVariant, group.name());
-            at += THEME_GROUP_HEAD;
-            let mut n = 0;
-            for theme in group.themes() {
-                self.theme_tile(
-                    x + (n % per_row) as f32 * (tile_w + THEME_TILE_GAP),
-                    at + (n / per_row) as f32 * (tile_h + THEME_TILE_ROW_GAP),
-                    tile_w,
-                    tile_h,
-                    theme,
-                    theme == current,
-                    action(theme),
-                );
-                n += 1;
-            }
-            at += n.div_ceil(per_row) as f32 * (tile_h + THEME_TILE_ROW_GAP) - THEME_TILE_ROW_GAP;
-        }
-        at - y
-    }
-
-    /// How tall [`Ui::theme_groups`] draws the groups, `w` wide in rows
-    /// of `per_row`.
-    pub fn theme_groups_h(&self, w: f32, per_row: usize) -> f32 {
-        use faraday_draw::tokens::{THEME_GROUP_GAP, THEME_GROUP_HEAD, THEME_TILE_ROW_GAP};
-        let per_row = per_row.max(1);
-        let tile_h = self.theme_tile_h(theme_tile_w(w, per_row));
-        let groups = ThemeGroup::ALL.into_iter().map(|g| {
-            let rows = g.themes().count().div_ceil(per_row);
-            THEME_GROUP_HEAD + rows as f32 * (tile_h + THEME_TILE_ROW_GAP) - THEME_TILE_ROW_GAP
-        });
-        groups.sum::<f32>() + THEME_GROUP_GAP * (ThemeGroup::ALL.len() - 1) as f32
-    }
-
-    /// A theme's name in lines no wider than `max`, broken at spaces: up
-    /// to four lines, as byte ranges of the name, and how many there
-    /// are. Words past a fourth line join the fourth.
-    fn theme_name_lines(&self, theme: Preset, max: f32) -> ([(usize, usize); 4], usize) {
-        use faraday_draw::tokens::THEME_TILE_TEXT;
-        let name = theme.name();
-        let mut lines = [(0, 0); 4];
-        let mut n = 0;
-        let mut a = 0;
-        for word in name.split(' ') {
-            let b = a + word.len();
-            let joins = n > 0
-                && (n == lines.len()
-                    || self.measure(THEME_TILE_TEXT, W::S, &name[lines[n - 1].0..b]) <= max);
-            if joins {
-                lines[n - 1].1 = b;
-            } else {
-                lines[n] = (a, b);
-                n += 1;
-            }
-            a = b + 1;
-        }
-        (lines, n)
     }
 
     /// Faraday's mark in a box `w` by `h` units at (x, y): the keyhole
@@ -2113,9 +1892,12 @@ mod tests {
     }
 
     #[test]
-    fn a_kept_theme_id_names_its_theme() {
-        for preset in Preset::ALL {
-            assert_eq!(Preset::from_id(preset.id()), Some(preset));
+    fn a_kept_theme_mode_and_contrast_read_back_as_written() {
+        for theme in Theme::all() {
+            assert_eq!(Theme::from_row(theme.row()), Some(theme));
+            assert_eq!(ThemeName::from_id(theme.name.id()), Some(theme.name));
+            assert_eq!(Mode::from_id(theme.mode.id()), Some(theme.mode));
+            assert_eq!(Contrast::from_id(theme.contrast.id()), Some(theme.contrast));
         }
     }
 

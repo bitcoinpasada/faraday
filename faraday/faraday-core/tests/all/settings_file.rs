@@ -2,10 +2,11 @@
 //! at boot, before the passphrase, taking only what Settings itself
 //! offers; a stick visit writes the settings back to the boot stick when
 //! they changed; and a lock does not read the file again over settings
-//! changed since.
+//! changed since. A file written before Theme, Mode and Contrast opens
+//! each old theme in the scheme `docs/THEMES.md` §13 maps it to.
 
 use faraday_core::stick::settings::FILE;
-use faraday_core::ui::Preset;
+use faraday_core::ui::{Contrast, Mode, Theme, ThemeName};
 use faraday_core::{Action, Faraday, Screen, StickInfo, StorageCommand, StorageEvent};
 use faraday_shell_api::{App, BootState, DisplayInfo, Event, SecureHardware};
 
@@ -83,6 +84,11 @@ fn defaults() -> Faraday {
     app
 }
 
+/// `name` in `mode` at `contrast`.
+fn scheme(name: ThemeName, mode: Mode, contrast: Contrast) -> Theme {
+    Theme::new(name, mode, contrast)
+}
+
 fn same_settings(a: &Faraday, b: &Faraday) -> bool {
     a.theme() == b.theme()
         && a.scale_pct() == b.scale_pct()
@@ -98,19 +104,68 @@ fn same_settings(a: &Faraday, b: &Faraday) -> bool {
 fn the_boot_sticks_settings_apply_before_the_passphrase() {
     let file = b"faraday-settings 1\nscale=125\ntheme=gruvbox\nmotion=reduced\nidle-lock=10\nidle-off=20\nqr-ms=200\n";
     let mut app = booted(Some(file));
-    assert_eq!(app.theme(), Preset::Gruvbox);
+    let gruvbox = scheme(ThemeName::Lamplight, Mode::Dark, Contrast::Standard);
+    assert_eq!(app.theme(), gruvbox);
     assert_eq!(app.scale_pct(), 125);
     assert!(app.reduce_motion());
     assert_eq!((app.idle_lock_min(), app.idle_off_min()), (10, 20));
     assert_eq!(app.qr_frame_ms(), 200);
     // Pulling the stick asks for nothing the settings did not already set.
     app.storage(StorageEvent::Sticks(Vec::new()));
-    assert_eq!(app.theme(), Preset::Gruvbox);
+    assert_eq!(app.theme(), gruvbox);
+}
+
+/// THEMES §13's table: a file of before, with no `mode=` line, opens
+/// each old theme id in its theme, mode and contrast.
+#[test]
+fn each_old_theme_id_opens_in_its_mapped_scheme() {
+    use Contrast::{High, Standard};
+    use Mode::{Dark, Light};
+    use ThemeName as T;
+    let table = [
+        ("dark", T::Cobalt, Dark, Standard),
+        ("light", T::Cobalt, Light, Standard),
+        ("cobalt", T::Cobalt, Light, Standard),
+        ("nord", T::Frost, Dark, Standard),
+        ("catppuccin", T::Lavender, Dark, Standard),
+        ("tokyo-night", T::Dusk, Dark, Standard),
+        ("gruvbox", T::Lamplight, Dark, Standard),
+        ("rose-pine", T::Rose, Light, Standard),
+        ("bitcoin-orange", T::BitcoinOrange, Dark, Standard),
+        ("bitcoin-orange-light", T::BitcoinOrange, Light, Standard),
+        ("lamplight", T::Lamplight, Light, Standard),
+        ("mars", T::Mars, Dark, Standard),
+        ("high-contrast-dark", T::Monochrome, Dark, High),
+        ("high-contrast-light", T::Cobalt, Light, High),
+    ];
+    for (id, name, mode, contrast) in table {
+        let file = format!("faraday-settings 1\nscale=100\ntheme={id}\nmotion=full\n");
+        let app = booted(Some(file.as_bytes()));
+        assert_eq!(app.theme(), scheme(name, mode, contrast), "{id}");
+    }
+}
+
+/// A file written since takes its `mode=` and `contrast=` as written,
+/// whatever its theme line would have opened in.
+#[test]
+fn a_mode_and_contrast_written_are_taken_as_written() {
+    let file = b"faraday-settings 1\ntheme=mars\nmode=light\ncontrast=medium\n";
+    let app = booted(Some(file));
+    assert_eq!(
+        app.theme(),
+        scheme(ThemeName::Mars, Mode::Light, Contrast::Medium)
+    );
+    let file = b"faraday-settings 1\ntheme=forest\nmode=dark\ncontrast=high\n";
+    let app = booted(Some(file));
+    assert_eq!(
+        app.theme(),
+        scheme(ThemeName::Forest, Mode::Dark, Contrast::High)
+    );
 }
 
 #[test]
 fn a_file_cannot_turn_a_protection_off_or_set_what_settings_does_not_offer() {
-    let file = b"faraday-settings 1\r\nidle-lock=0\r\nidle-off=0\r\nseal-amounts=0\r\nnetwork=testnet\r\nscale=999\r\ntheme=hotdog\r\nqr-ms=1\r\nidle-lock=7\r\nmotion=sometimes\r\n";
+    let file = b"faraday-settings 1\r\nidle-lock=0\r\nidle-off=0\r\nseal-amounts=0\r\nnetwork=testnet\r\nscale=999\r\ntheme=hotdog\r\nmode=dim\r\ncontrast=extreme\r\nqr-ms=1\r\nidle-lock=7\r\nmotion=sometimes\r\n";
     let app = booted(Some(file));
     assert!(same_settings(&app, &defaults()));
 }
@@ -131,7 +186,11 @@ fn a_file_too_large_or_of_another_format_is_ignored_whole() {
 #[test]
 fn a_changed_setting_is_written_to_the_boot_stick_and_reads_back_the_same() {
     let mut app = booted(None);
-    app.press(Action::Theme(Preset::RosePine));
+    app.press(Action::Theme(scheme(
+        ThemeName::Rose,
+        Mode::Dark,
+        Contrast::Medium,
+    )));
     app.press(Action::Scale(150));
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitWrite);
@@ -148,8 +207,8 @@ fn a_changed_setting_is_written_to_the_boot_stick_and_reads_back_the_same() {
 }
 
 #[test]
-fn every_theme_round_trips_through_the_settings_file() {
-    for theme in Preset::ALL {
+fn every_scheme_round_trips_through_the_settings_file() {
+    for theme in Theme::all() {
         let mut app = booted(None);
         app.press(Action::Theme(theme));
         app.press(Action::Nav(Screen::Visit));
@@ -163,9 +222,9 @@ fn every_theme_round_trips_through_the_settings_file() {
         let (_, _, bytes) = wrote
             .iter()
             .find(|(s, n, _)| s == "boot" && n == FILE)
-            .unwrap_or_else(|| panic!("{} is not written to the boot stick", theme.name()));
+            .unwrap_or_else(|| panic!("{theme:?} is not written to the boot stick"));
         let back = booted(Some(bytes));
-        assert_eq!(back.theme(), theme, "{} did not read back", theme.name());
+        assert_eq!(back.theme(), theme, "{theme:?} did not read back");
     }
 }
 
@@ -185,7 +244,11 @@ fn another_stick_gets_the_settings_only_when_ticked() {
     let mut app = defaults();
     app.storage(StorageEvent::Sticks(vec![stick("other", false, None)]));
     pump(&mut app, None);
-    app.press(Action::Theme(Preset::Light));
+    app.press(Action::Theme(scheme(
+        ThemeName::Cobalt,
+        Mode::Dark,
+        Contrast::Standard,
+    )));
     app.press(Action::Nav(Screen::Visit));
     app.press(Action::VisitWrite);
     assert!(pump(&mut app, None).iter().all(|(_, n, _)| n != FILE));
@@ -212,7 +275,8 @@ fn the_settings_file_is_not_copied_into_the_inbox() {
 #[test]
 fn after_a_lock_the_boot_stick_is_not_read_again() {
     let mut app = booted(Some(b"faraday-settings 1\ntheme=nord\n"));
-    app.press(Action::Theme(Preset::Catppuccin));
+    let chosen = scheme(ThemeName::Lavender, Mode::Light, Contrast::High);
+    app.press(Action::Theme(chosen));
     // What the process keeps for the next one, as a shell carries it.
     let mut kept = Vec::new();
     while let Some(c) = app.poll_storage() {
@@ -230,7 +294,7 @@ fn after_a_lock_the_boot_stick_is_not_read_again() {
     let file = b"faraday-settings 1\ntheme=light\n";
     next.storage(StorageEvent::Sticks(vec![stick("boot", true, Some(file))]));
     pump(&mut next, Some(file));
-    assert_eq!(next.theme(), Preset::Catppuccin);
+    assert_eq!(next.theme(), chosen);
     // And the settings changed since boot are still offered to the stick.
     next.press(Action::Nav(Screen::Visit));
     next.press(Action::VisitWrite);

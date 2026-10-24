@@ -256,7 +256,17 @@ extent; a motion left from another screen or sheet is stopped.
   secondary button's edge one step brighter). `Ui::hovered` is found from
   the last frame's hits, like `pressed`; a frame is drawn only when the
   hovered action changes.
-- **Motion** (all time-based, all under a reduce-motion setting later):
+- **Reduce motion** (Settings › Appearance, a Material switch,
+  `Ui::switch_row`; THEMES §12): on, nothing slides, glides, coasts,
+  stretches or fades: a change of screen, sheet or theme is there at
+  once, a glide to the open card and a worksheet's follow land at once,
+  a dice tumble and its pause are skipped, and a wheel notch moves at
+  once with no coast and no stretch past an end. It is kept with the other
+  settings (`motion=reduced` or `motion=full` in the settings file and
+  the kept set, `stick/settings.rs`) and is off on a first start:
+  Faraday reads no system setting for reduced motion (no shell reports
+  one).
+- **Motion** (all time-based, all off under Reduce motion):
   - a sheet and its scrim appear at once (cross-fades removed
     2026-10-07, `docs/history/MOTION-LOG.md` §5 item 3.9);
   - a toast rises in over 200 ms on Material's standard decelerate
@@ -433,13 +443,11 @@ positive green of Light (#1C8053), Cobalt (#1C7F52) and Bitcoin Orange
 Light (#1C7E52), and Rosé Pine's warning (#A26111) and dimmed text
 (#918B9F), each darkened by the least that reaches it.
 
-Settings › Appearance (since 2026-10-23) groups the tiles under three
-small labels, Light, Dark and High contrast (`ThemeGroup`, worked out
-from `Theme::is_high_contrast` and `Theme::is_light`), each group's
-tiles in order of their names (`Ui::theme_groups`), as many to a row
-as `Ui::theme_grid` fits so the groups' tiles line up. The tile of the
-theme a first start is in, Cobalt (`Theme`'s default), carries a small
-Default mark after its name.
+Since THEMES C3 (2026-10-24, F113) the named themes above are history:
+Settings › Appearance offers Theme (ten filter chips, `Ui::theme_chips`),
+Mode and Contrast (`docs/THEMES.md` §12), each change fading in as above;
+a settings file of before opens each old theme in the scheme THEMES §13
+maps it to. The tiles, their groups and `ThemeGroup` are gone.
 
 ### 3.8 The caret and the scrollbar (2026-10-07)
 
