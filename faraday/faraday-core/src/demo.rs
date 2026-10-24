@@ -60,14 +60,6 @@ impl Faraday {
             Action::Vanity(crate::vanity::VanityAction::Dial(i)) => {
                 Dial::ALL.get(usize::from(i)) == Some(&Dial::Passphrase)
             }
-            // The FROST deal: Keys' Continue on a threshold wallet.
-            Action::CNext(k) => {
-                k == crate::cstep::KEYS
-                    && self
-                        .create
-                        .state()
-                        .is_some_and(|c| c.kind.threshold() && c.built.is_none())
-            }
             // A node's private key and a scan key leaving Faraday. An LND
             // cipher seed is open: `node_from_aezeed` takes only the
             // published one.

@@ -23,7 +23,7 @@ Load samples is a pill beside the Demo pill. It opens a list of sample wallets a
 Every sample is public, and anything sent to a sample's addresses can be taken by anyone.
 ## Sample wallets
 
-Savings (2 of 3), Spending, Taproot, Nested SegWit, Legacy, Nested multisig, Legacy multisig, Taproot multisig, Inheritance, Taproot tree, MuSig2, FROST 2 of 3 and 3 of 5. All are on testnet. They use the sample keys bacon, zebra and summer, except 3 of 5, whose five keys are master seeds of 32 bytes, each byte 01, 02, 03, 04 and 05, and which loads them with it.
+Savings (2 of 3), Spending, Taproot, Nested SegWit, Legacy, Nested multisig, Legacy multisig, Taproot multisig, Inheritance, Taproot tree, MuSig2 and 3 of 5. All are on testnet. They use the sample keys bacon, zebra and summer, except 3 of 5, whose five keys are master seeds of 32 bytes, each byte 01, 02, 03, 04 and 05, and which loads them with it.
 
 ## Other sample keys
 
@@ -37,7 +37,7 @@ Where a screen asks for a vault, a signed message or an address, Use a sample pu
 
 ## What the demo does not make
 
-The demo makes no secret a person could take away and use. These actions are dimmed and do nothing: SLIP-39 shares, Seed XOR parts and codex32 shares of two or more; a GPG key and Secure Boot keys; every BIP-85 output; a FROST deal; the vanity passphrase dial; a Lightning node's private key shown, saved into a vault or sent out unprotected; and a silent payments scan key saved into a vault or sent out unprotected. A Lightning cipher seed other than the sample is refused. Their screens open, and everything else on them works. A Faraday stick, booted on a computer with no network, makes all of them.
+The demo makes no secret a person could take away and use. These actions are dimmed and do nothing: SLIP-39 shares, Seed XOR parts and codex32 shares of two or more; a GPG key and Secure Boot keys; every BIP-85 output; the vanity passphrase dial; a Lightning node's private key shown, saved into a vault or sent out unprotected; and a silent payments scan key saved into a vault or sent out unprotected. A Lightning cipher seed other than the sample is refused. Their screens open, and everything else on them works. A Faraday stick, booted on a computer with no network, makes all of them.
 
 ## Test networks
 

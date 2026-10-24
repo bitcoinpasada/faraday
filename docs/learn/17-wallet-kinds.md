@@ -32,10 +32,6 @@ Signing is interactive and takes two rounds. Every signer publishes a nonce, the
 
 Use it when all the signers are reachable and what the chain reveals matters; not where one signer may be unavailable.
 
-## FROST
-
-Any m of n shares of one key sign, and the chain sees one key and one signature, as with MuSig2. The shares are made by a dealer at creation and each one is 24 words. FROST has its own page.
-
 ## Recovery and inheritance
 
 A wallet can name one key that spends at any time and another that spends alone after a wait. That is two spend paths in one script, and it is how Liana's wallets are shaped. It gives you a recovery that needs no second person on the day, and an inheritance an heir can execute by waiting. It costs a timelock whose clock restarts every time the coins move, so the wallet has to be refreshed or the recovery path opens while you are still using it. Spend paths and timelocks has the details.

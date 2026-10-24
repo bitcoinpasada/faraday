@@ -27,8 +27,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     }
     if app.family_overview() {
         let content = loaded(app, ui, x0, cw);
-        // Scrolled no further than its end.
-        let max = (content - h).max(0.0);
+        // Scrolled no further than its end, in whole pixels: the frame
+        // rounds an offset to whole pixels, and an end between two would
+        // be passed again on every frame at a scale that is not whole.
+        let max = ((content - h).max(0.0) * ui.f).floor() / ui.f;
         if crate::flow::past_end(app.family.state.scroll.y, max) {
             let to = flow::Scroll {
                 y: max,
@@ -687,12 +689,22 @@ fn body(app: &View, ui: &mut Ui, id: CardId, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
+/// Whether the spend is from a threshold wallet, whose shares the spend's
+/// own Signers card chooses.
+#[cfg(feature = "unreleased")]
 fn threshold(app: &View) -> bool {
     app.wallets
         .spend()
         .and_then(|s| s.wallet)
         .and_then(|w| app.session.wallets.get(w))
         .is_some_and(|w| Kind::of(w.policy()) == Kind::Threshold)
+}
+
+/// Whether the spend is from a threshold wallet: never, FROST being
+/// compiled out of the app (F109).
+#[cfg(not(feature = "unreleased"))]
+fn threshold(_app: &View) -> bool {
+    false
 }
 
 /// More about this: a quiet button, and the paragraphs while it is open.

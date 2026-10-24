@@ -68,6 +68,8 @@ pub struct KeyInfo {
     /// The public share these words are as a FROST share: 24 words'
     /// 32 bytes read as the share's scalar. Every 24-word key has one; it
     /// signs as a share only for a loaded threshold record that lists it.
+    /// `None` in a build without `unreleased`, where FROST is compiled
+    /// out of the app (F109).
     pub share: Option<PublicKey>,
     /// The codex32 set the key's seed is split into, as its plain facts
     /// (`docs/CODEX32.md` §9.4): set when Make codex32 shares loads it,
@@ -563,7 +565,11 @@ impl Keys {
             }
             words.push_str(lang.word(i));
         }
+        // A key is a FROST share only where FROST is built (F109).
+        #[cfg(feature = "unreleased")]
         let share = crate::frost::public_share(mnemonic);
+        #[cfg(not(feature = "unreleased"))]
+        let share = None;
         let word_count = u8::try_from(mnemonic.word_count()).ok();
         self.entries.push(Entry::new(
             c,

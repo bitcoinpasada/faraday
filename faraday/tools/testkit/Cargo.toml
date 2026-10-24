@@ -17,5 +17,9 @@ faraday-keys = { path = "../../faraday-keys" }
 # The token key work takes (docs/COMPUTE.md §2).
 faraday-crypto = { path = "../../../core/faraday-crypto" }
 
+[features]
+# The FROST spend's proof, compiled out with FROST (docs/decisions/F109.md).
+unreleased = ["faraday-core/unreleased"]
+
 [lints]
 workspace = true

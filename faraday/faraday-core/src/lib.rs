@@ -402,6 +402,7 @@ pub fn stick_kind(name: &str) -> Option<&'static str> {
         "faraday-sheet" => Some(EN.stick_kind_print_sheet),
         "ofv" => Some(EN.stick_kind_vault),
         "efi" => Some(EN.stick_kind_efi_image),
+        #[cfg(feature = "unreleased")]
         "osk" => Some(EN.stick_kind_threshold),
         "png" => Some(EN.stick_kind_qr_codes),
         _ => Some(EN.stick_kind_file),
@@ -563,7 +564,9 @@ impl Item {
         }
         match self.holds() {
             FileKind::Words | FileKind::SeedPart => Some(secrets::Ack::Seed),
-            FileKind::Carry | FileKind::Entries | FileKind::SecretWallet => Some(secrets::Ack::Any),
+            #[cfg(feature = "unreleased")]
+            FileKind::Carry => Some(secrets::Ack::Any),
+            FileKind::Entries | FileKind::SecretWallet => Some(secrets::Ack::Any),
             FileKind::Text | FileKind::Other => Some(secrets::Ack::Unknown),
             _ => None,
         }
@@ -2516,35 +2519,12 @@ impl Faraday {
 
     fn start_spend(&mut self, index: usize) {
         let c = self.compute();
-        let Some(item) = self.inbox.get(index) else {
+        let Some(name) = self.inbox.get(index).map(|i| i.name.clone()) else {
             return;
         };
-        // A carry file is the PSBT and the secret nonce of the share that
-        // signs next.
-        let (psbt, carry) = if item.kind == FileKind::Carry {
-            match faraday_keys::carry::parse(&item.bytes) {
-                Ok((section, bytes)) => match faraday_psbt::Psbt::parse_bytes(&c, &bytes) {
-                    Ok(p) => (p, Some(section)),
-                    Err(_) => {
-                        self.toast(EN.start_spend_the_carry);
-                        return;
-                    }
-                },
-                Err(e) => {
-                    self.toast(e.reason());
-                    return;
-                }
-            }
-        } else {
-            let Some(psbt) = wallet::read_psbt(&c, &item.bytes) else {
-                self.toast(EN.start_spend_not_a_psbt);
-                return;
-            };
-            // A round an open vault keeps for this transaction.
-            let carry = self.vault_round(&psbt);
-            (psbt, carry)
+        let Some((psbt, carry)) = self.spend_source(&c, index) else {
+            return;
         };
-        let name = item.name.clone();
         if let Err(e) = self.session.follow_psbt(&psbt) {
             self.toast(&e.text());
             return;
@@ -2552,40 +2532,8 @@ impl Faraday {
         let spend = Spend::new(psbt, &name);
         // Inspected once here; `refresh_spend` below finds it current.
         let inspection = self.session.inspect_with(&c, &spend.psbt, carry.as_ref());
-        let inspected = Some((
-            spend.psbt.clone(),
-            self.session.inspect_inputs(),
-            carry.is_some(),
-        ));
-        let mut state = SpendState {
-            spend,
-            // Computed in `refresh_spend`, once Check's done state is
-            // known: open at Check, or past it when this wallet is
-            // already checked this power-on.
-            open: None,
-            done: [false; 10],
-            table: false,
-            error: None,
-            inspection,
-            inspected,
-            signers: Vec::new(),
-            out_signed: false,
-            out_tx: false,
-            show_hex: false,
-            nonce_check: Default::default(),
-            scroll: 0.0,
-            follow: false,
-            wallet: None,
-            steps: Vec::new(),
-            needed: 1,
-            complete: false,
-            musig: None,
-            others: Vec::new(),
-            carry,
-            carry_out: None,
-            round_spent: false,
-            opened: false,
-        };
+        let inputs = self.session.inspect_inputs();
+        let mut state = SpendState::new(spend, inspection, inputs, carry);
         state.done[0] = true;
         self.wallets.set_spend(state);
         self.refresh_spend();
@@ -2599,10 +2547,8 @@ impl Faraday {
             // not on every press that refreshes the spend.
             let inputs = self.session.inspect_inputs();
             if !s.inspected_for(&inputs) {
-                s.inspection = self
-                    .session
-                    .inspect_with(&c, &s.spend.psbt, s.carry.as_ref());
-                s.inspected = Some((s.spend.psbt.clone(), inputs, s.carry.is_some()));
+                s.inspection = self.session.inspect_with(&c, &s.spend.psbt, s.carry());
+                s.inspected = Some((s.spend.psbt.clone(), inputs, s.carry().is_some()));
             }
             s.signers = s
                 .spend
@@ -2681,7 +2627,11 @@ impl Faraday {
             .inputs
             .first()
             .is_some_and(|i| i.threshold.is_some());
-        if s.complete || threshold || s.carry_out.is_some() {
+        #[cfg(feature = "unreleased")]
+        let carry_out = s.carry_out.is_some();
+        #[cfg(not(feature = "unreleased"))]
+        let carry_out = false;
+        if s.complete || threshold || carry_out {
             return;
         }
         let name = format!("{}-part.psbt", result_stem(&s.spend.source));
@@ -3116,9 +3066,9 @@ impl Faraday {
             | Action::WalletKeyBsms(..)
             | Action::OpenWallet(..)
             | Action::WriteAsk
-            | Action::Rename
-            | Action::TOther(..)
-            | Action::CarryToOutbox) => self.wallet_act(a),
+            | Action::Rename) => self.wallet_act(a),
+            #[cfg(feature = "unreleased")]
+            a @ (Action::TOther(..) | Action::CarryToOutbox) => self.wallet_act(a),
             a @ (Action::InboxRemove(..)
             | Action::OutboxRemove(..)
             | Action::InboxLoad
@@ -5627,6 +5577,7 @@ impl Faraday {
             FileKind::Words => EN.visit_inbox_whoever_has_it_holds,
             FileKind::SeedPart => EN.visit_inbox_whoever_has_enough,
             FileKind::Entries => EN.visit_inbox_vault_warning,
+            #[cfg(feature = "unreleased")]
             FileKind::Carry => EN.visit_inbox_whoever_has,
             _ => EN.visit_inbox_whoever,
         };
@@ -5738,7 +5689,9 @@ impl Faraday {
         let before = s.spend.psbt.to_bytes();
         // A threshold spend's first location chooses the other shares
         // before it signs.
+        #[cfg(feature = "unreleased")]
         let needed = s.needed;
+        #[cfg(feature = "unreleased")]
         if let Some(t) = s
             .inspection
             .inputs
@@ -5767,6 +5720,7 @@ impl Faraday {
         let mut nonce_only = false;
         // A threshold pass signs as the shares held here; it names them
         // by their own fingerprints.
+        #[cfg(feature = "unreleased")]
         let ours: Option<Vec<faraday_bip::keys::Fingerprint>> = s
             .inspection
             .inputs
@@ -5785,20 +5739,19 @@ impl Faraday {
         // PSBT and session as they are; else signing inspects.
         let inputs = self.session.inspect_inputs();
         let known = s.inspected_for(&inputs).then_some(&s.inspection);
-        let signed = self.session.sign_with(
-            &c,
-            &mut psbt,
-            seed,
-            &mut s.musig,
-            &s.others,
-            s.carry.as_ref(),
-            known,
-        );
+        #[cfg(feature = "unreleased")]
+        let (others, carry) = (&s.others[..], s.carry.as_ref());
+        #[cfg(not(feature = "unreleased"))]
+        let (others, carry): (&[u32], Option<&faraday_keys::carry::Section>) = (&[], None);
+        let signed =
+            self.session
+                .sign_with(&c, &mut psbt, seed, &mut s.musig, others, carry, known);
         // A session whose every nonce has signed is over: the next pass
         // over this transaction opens a new one, never the same nonce.
         if s.musig.as_ref().is_some_and(|m| m.is_empty()) {
             s.musig = None;
         }
+        #[cfg(feature = "unreleased")]
         let signed = signed.map(|out| {
             // A threshold pass that leaves shares to sign leaves their
             // nonce in a carry file; the one it read is spent.
@@ -5811,6 +5764,8 @@ impl Faraday {
             }
             ours.unwrap_or(out.by)
         });
+        #[cfg(not(feature = "unreleased"))]
+        let signed = signed.map(|out| out.by);
         match signed {
             Ok(fps) if fps.is_empty() && s.musig.is_some() => {
                 // MuSig2 round one: this device's nonce, and no signature.
@@ -5940,8 +5895,9 @@ impl Faraday {
                     self.session.keys.key_label(*fp).is_some() && !s.signers.contains(&fp.0)
                 }),
             };
-        let carry = threshold.is_some() && (s.carry_out.is_some() || s.out_signed) && !complete;
+        let carry = threshold.is_some() && s.carried() && !complete;
         if carry {
+            #[cfg(feature = "unreleased")]
             if s.out_signed {
                 self.screen = Screen::Files;
             } else {
@@ -7012,12 +6968,15 @@ impl Faraday {
         }
         self.keygen_camera();
         self.keygen_device();
-        let spent = self.wallets.spend_mut().filter(|s| s.round_spent).map(|s| {
-            s.round_spent = false;
-            s.spend.psbt.clone()
-        });
-        if let Some(psbt) = spent {
-            self.vault_round_used(&psbt);
+        #[cfg(feature = "unreleased")]
+        {
+            let spent = self.wallets.spend_mut().filter(|s| s.round_spent).map(|s| {
+                s.round_spent = false;
+                s.spend.psbt.clone()
+            });
+            if let Some(psbt) = spent {
+                self.vault_round_used(&psbt);
+            }
         }
         self.release_held_stick();
         // A device still waiting comes back up once no other sheet is.

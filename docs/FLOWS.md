@@ -286,7 +286,8 @@ The FROST carry (the next share's secret nonce) goes into the vault as a
 signing-round record (`docs/VAULT.md` §7, type 9), its public PSBT goes
 For the stick, the next device finds the round by the transaction when
 it opens that PSBT with the vault unlocked, and the round leaves the
-vault once it has signed.
+vault once it has signed. FROST, the carry with it, is compiled out of
+the app (F109): a shipped app writes no such record.
 
 A wallet's seed goes into a vault as a key record (`kind::KEY`, as
 Vaults saves it), never a note; as a file it is the words or the SeedQR
@@ -958,7 +959,7 @@ guarantees for this file's rule:
   key, its backup in 3 shares, any 2 rebuild it", the counts the
   scheme's) and Multisig ("3 keys, any 2 sign", the quorum's), all three
   native SegWit; the other seven are behind **More kinds** (FROST is not
-  made here, the FROST-out decision). A kind
+  made here, F109). A kind
   pressed closes Kind and opens the next card. Use vaults' **Yes** opens
   How many, **No** opens Keys; closed before it is answered it reads
   "Not answered".

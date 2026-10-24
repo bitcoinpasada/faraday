@@ -476,6 +476,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                     Action::Vault(crate::vault::VaultAction::Open(at)),
                 ) + 8.0;
             }
+            #[cfg(feature = "unreleased")]
             FileKind::Carry => {
                 bx += ui.button(
                     bx,
@@ -1538,6 +1539,7 @@ fn inbox_actions(app: &View, k: usize, item: &crate::Item) -> (Buttons, Note) {
                 Action::Vault(crate::vault::VaultAction::Open(at)),
             ));
         }
+        #[cfg(feature = "unreleased")]
         FileKind::Carry => out.push((
             EN.inbox_actions_sign.into(),
             Style::Primary,

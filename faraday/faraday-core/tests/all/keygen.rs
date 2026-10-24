@@ -1224,7 +1224,7 @@ fn a_key_wanted_by_its_fingerprint_still_opens_add_a_key() {
     assert!(app.keygen().is_none());
 }
 
-/// Create offers no threshold kind (the FROST-out decision), so no slot
+/// Create offers no threshold kind (F109), so no slot
 /// of one opens New key; the kind list is tested in
 /// `create_wallet::create_offers_no_frost_wallet`.
 #[test]

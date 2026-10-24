@@ -28,7 +28,12 @@ pub struct Section {
 }
 
 /// How many pages there are.
+#[cfg(feature = "unreleased")]
 pub const PAGES: usize = 21;
+/// How many pages there are: the FROST page is compiled out of the app
+/// (F109).
+#[cfg(not(feature = "unreleased"))]
+pub const PAGES: usize = 20;
 
 /// Every page, in one language.
 pub struct Learn {
@@ -90,7 +95,8 @@ pub struct Learn {
     pub wallet_kinds: Page,
     /// "FROST": shares as 24-word keys, the group record, the
     /// two-location route and its carry file, what a lost share means,
-    /// and the decoy property.
+    /// and the decoy property. Compiled out of the app (F109).
+    #[cfg(feature = "unreleased")]
     pub frost: Page,
     /// "Backups in other forms": SLIP-39, Codex32, Seed XOR and
     /// a vault, and what each trades away.
@@ -126,6 +132,7 @@ impl Learn {
             &self.glossary,
             &self.tools,
             &self.wallet_kinds,
+            #[cfg(feature = "unreleased")]
             &self.frost,
             &self.other_backups,
             &self.coordinators,

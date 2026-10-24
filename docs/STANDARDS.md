@@ -17,7 +17,7 @@ Taken from the working tree on 2026-10-23.
 ## 0. What goes into Faraday
 
 The rule for what the app offers (owner, 2026-10-23; written in the
-decision that took FROST out of the app):
+decision that took FROST out of the app, F109):
 
 - **A published standard, followed and checked.** A wallet kind, key
   method, format or signing procedure is in the app when it follows a
@@ -61,8 +61,8 @@ decision that took FROST out of the app):
 
 | Left out | Why | Where it stands |
 |---|---|---|
-| FROST threshold wallets | BIP 445 is not published, and signing across places is Faraday's own construction, not yet reviewed | Kept in the repository (`core/faraday-bip`, `core/faraday-psbt`), compiled out of the app; back when the BIP is published and signing across places is reviewed |
-| MuSig2 signing across places | Secret nonces drawn at one place and carried or kept in the vault between visits; BIP 327 advises against storing a secret nonce | Kept in the repository, compiled out of the app |
+| FROST threshold wallets | BIP 445 is not published, and signing across places is Faraday's own construction, not yet reviewed | Compiled out of the app (F109): the core code (`core/faraday-bip`, `core/faraday-psbt`) is built and tested as before, and the app's FROST code is behind the `unreleased` feature, which no shipped binary turns on; back when the BIP is published and signing across places is reviewed |
+| MuSig2 signing across places | Secret nonces drawn at one place and carried or kept in the vault between visits; BIP 327 advises against storing a secret nonce | Compiled out of the app (F109): no MuSig2 secret nonce outlives the session it was drawn in; MuSig2 with the session open between rounds, and signing last, stay |
 | Sending to silent payments | BIP 374 and BIP 375 are drafts; receiving (BIP 352) is in the app | Built in `core/`, not reached from the app |
 | SSH signatures and an SSH CA, minisign and signify, an X.509 certificate authority | Outside a Bitcoin signer's scope | Not planned |
 | The Companion phone app, and APK signing with it | Dropped (F34); APK signing removed (F99) | Removed |
@@ -118,8 +118,8 @@ or "no decision". Kinds:
 | Legacy multisig `sh(sortedmulti)` at `m/45'` | BIP 45 (Complete) defines `m/45'/cosigner/change/index`; Faraday uses `m/45'` as an account with `/<0;1>/*`, the de-facto Coldcard and Unchained export | A convention, not BIP 45's scheme | Core end to end; Unchained and Coldcard files | Path convention. Neutral; no decision |
 | Taproot multisig `tr(H, sortedmulti_a)` (`core/faraday-bip/src/tapmulti.rs`) | BIP 386 (Deployed), BIP 387 (Deployed, vendored). The path `m/48'/c'/0'/3'` has no standard: BIP 48 defines script types 1' and 2' | `sortedmulti_a` is parsed here because miniscript lacks it; a hardened wildcard is parsed but not derived | BIP 387 vectors (`core/faraday-bip/tests/all/bip387.rs`); Core 31.1 PSBT round trip (`tools/vectors/psbt`, `wallet-tapmulti-*`) | The `3'` path is Faraday's choice. Only BIP 341's bare `H` counts as unspendable. Neutral and Conservative; no decision |
 | Miniscript and timelocked recovery, Liana shapes (`core/faraday-bip/src/recovery.rs`, `core/faraday-bip/src/policy.rs`) | BIP 379 (Draft), BIP 382 and 386 (Deployed), BIP 388 (Complete), BIP 389 (Draft) | Reads any `wsh`, `sh(wsh)` or `tr` miniscript; Create does not make one; the compiler is in Tools | Core end to end for the `wsh` timelock and Taproot tree wallets (INTEROP §1); Liana fixtures (`tools/vectors/psbt/README.md`) | Script shape left to rust-miniscript's compiler. Neutral; no decision |
-| MuSig2 `tr(musig(...)/<0;1>/*)` | BIP 327 (Deployed), BIP 328 (Complete), BIP 373 (Complete), BIP 390 (Draft, vendored) | Key path only; script-path spends refused; no WIF participant or tap tree (`tools/vectors/bip390/README.md`) | All eight BIP 327 vector files; BIP 328 and 390 vectors; F79 area `musig` against BIP 327's `reference.py`; Core 31.1 round trip in both orders (`tools/vectors/psbt`, `wallet-musig-*`) | `rand'` taken from the session seed chain (`core/faraday-psbt/src/musig.rs`); the secret nonce is sealed into the vault across a lock (`docs/WALLETS.md` §4.2). Neutral, and Novel for the persisted nonce; no decision |
-| FROST threshold (`core/faraday-bip/src/frost.rs`, `core/faraday-psbt/src/threshold.rs`) | BIP 445 (not published); key generation has no standard (a trusted dealer is written here) | Signing per BIP 445; dealer only, no DKG; at most 15 participants against BIP 445's 128; SIGHASH_DEFAULT only; no merkle root | All six BIP 445 vector files; F79 area `frost` against `frost_ref`; regtest fixtures and `tools/scripts/threshold-reference.py` | Dealer design; shares held as 24 BIP-39 words of a raw scalar; the `osk-threshold 1` record; BIP 328's synthetic xpub over a FROST key; the `osk` PSBT proprietary fields; signing across places (§7). Novel; no decision |
+| MuSig2 `tr(musig(...)/<0;1>/*)` | BIP 327 (Deployed), BIP 328 (Complete), BIP 373 (Complete), BIP 390 (Draft, vendored) | Key path only; script-path spends refused; no WIF participant or tap tree (`tools/vectors/bip390/README.md`) | All eight BIP 327 vector files; BIP 328 and 390 vectors; F79 area `musig` against BIP 327's `reference.py`; Core 31.1 round trip in both orders (`tools/vectors/psbt`, `wallet-musig-*`) | `rand'` taken from the session seed chain (`core/faraday-psbt/src/musig.rs`); the secret nonce is held in memory for its one session; rounds across a lock are compiled out of the app (F109). Neutral |
+| FROST threshold (`core/faraday-bip/src/frost.rs`, `core/faraday-psbt/src/threshold.rs`) | BIP 445 (not published); key generation has no standard (a trusted dealer is written here) | Signing per BIP 445; dealer only, no DKG; at most 15 participants against BIP 445's 128; SIGHASH_DEFAULT only; no merkle root | All six BIP 445 vector files; F79 area `frost` against `frost_ref`; regtest fixtures and `tools/scripts/threshold-reference.py` | Dealer design; shares held as 24 BIP-39 words of a raw scalar; the `osk-threshold 1` record; BIP 328's synthetic xpub over a FROST key; the `osk` PSBT proprietary fields; signing across places (§7). Novel; compiled out of the app (F109) |
 | Silent payments, receive (`core/faraday-bip/src/silent.rs`, `core/faraday-bip/src/silent_wallet.rs`) | BIP 352 (Complete, vendored); BIP 392 (Draft, vendored); BIP 321 and 353 (Complete, vendored) | Receive, labels, scan-key export; reading `sp()` open (INTEROP §5 I9); sender arithmetic is test-only, no K_max | All BIP 352 vectors, both sides; F79 area `sp` against `reference.py` | The `osk-silent 1` record. Neutral; no decision |
 | Silent payments, send and PSBT (`core/faraday-psbt/src/silent.rs`, `core/faraday-bip/src/dleq.rs`) | BIP 374 and 375 (Draft) | Built in core, not reachable from the app: the device does not send | BIP 374 and 375 vectors (`tools/vectors/bip374`, `tools/vectors/bip375`); not in F79 | A stated key counts only where the input's script commits to it (F89). Conservative |
 | Watch-only wallets | Descriptors | Full | Core and file interop | None |
@@ -242,11 +242,13 @@ Not recorded in a decision, each refusing what a standard allows:
 Ranked by how much a mistake would cost.
 
 1. **Signing across places, and secret nonces kept between them** (MuSig2 and FROST; Faraday's own carry construction, `core/faraday-psbt/README.md` "The rounds"; vault record
-   type 9; `docs/WALLETS.md` §4.2, `docs/VAULT.md` §7). BIP 327 warns
+   type 9; `docs/WALLETS.md` §4.2, `docs/VAULT.md` §7). Compiled out of
+   the app until it is reviewed (F109). BIP 327 warns
    against storing a secret nonce. Faraday binds the record to the
    transaction hash and states that a restored older vault copy can sign
    twice under one nonce.
-2. **The FROST trusted dealer and the wallet around it.** `t` shares
+2. **The FROST trusted dealer and the wallet around it**, compiled out
+   of the app (F109). `t` shares
    chosen freely fix the polynomial and the rest are interpolated
    (`core/faraday-bip/src/frost.rs`). A share is a raw 32-byte scalar
    written as 24 BIP-39 words (`tools/vectors/psbt/README.md`); loaded

@@ -4,9 +4,11 @@
 //! `faraday-psbt`'s; this module only decides which call comes next.
 
 use crate::modes::Mode;
+#[cfg(feature = "unreleased")]
+use crate::secrets;
 use crate::strings::EN;
 use crate::strings::fill;
-use crate::{Action, Faraday, Screen, Sheet, family, result_stem, secrets, wallet};
+use crate::{Action, Faraday, Screen, Sheet, family, result_stem, wallet};
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::consensus::encode::serialize_hex;
 use faraday_bip::bitcoin::{Transaction, Txid};
@@ -29,9 +31,22 @@ pub use faraday_keys::{WordsId, words_id};
 
 /// Costs a parse of the description and its keys: reads a wallet
 /// description with `faraday_intake`'s reader, which counts through the
-/// token.
+/// token. Every wallet the app takes in is read here. A FROST threshold
+/// record is refused unless the app is built with `unreleased`: FROST is
+/// compiled out of the app (F109).
 pub fn read_wallet(c: &Compute, text: &str) -> Result<WalletPolicy, Refusal> {
-    faraday_intake::wallet::read_wallet(c, text)
+    #[cfg(not(feature = "unreleased"))]
+    let frost = || Refusal::NotAWallet(EN.wallet_frost_not_read.to_string());
+    #[cfg(not(feature = "unreleased"))]
+    if faraday_bip::threshold::ThresholdRecord::looks_like_record(text) {
+        return Err(frost());
+    }
+    let policy = faraday_intake::wallet::read_wallet(c, text)?;
+    #[cfg(not(feature = "unreleased"))]
+    if matches!(policy.template(), Template::Threshold { .. }) {
+        return Err(frost());
+    }
+    Ok(policy)
 }
 
 /// Costs a word-list search per word and a hash. Parses seed words in
@@ -667,6 +682,7 @@ impl Session {
                 &[&wallet.policy.keys().len().to_string()],
             ),
             Kind::MuSig => fill(EN.wallet_of_musig2, &[&n.to_string(), &n.to_string()]),
+            #[cfg(feature = "unreleased")]
             Kind::Threshold => fill(EN.wallet_of_frost, &[&m.to_string(), &n.to_string()]),
             Kind::Silent => EN.wallet_1_key_silent.to_string(),
             Kind::Other => EN.wallet_wallet.to_string(),
@@ -875,7 +891,9 @@ pub enum Kind {
     Tree,
     /// MuSig2: one aggregate key, every participant signs in two rounds.
     MuSig,
-    /// FROST: a threshold of shares signs in two rounds.
+    /// FROST: a threshold of shares signs in two rounds. Compiled out of
+    /// the app (F109).
+    #[cfg(feature = "unreleased")]
     Threshold,
     /// Silent payments (BIP-352): one key's scan and spend halves, an
     /// `sp1…` address, and nothing to spend from yet.
@@ -923,6 +941,7 @@ impl Kind {
             Template::Miniscript { .. } => Kind::Miniscript,
             Template::Tree => Kind::Tree,
             Template::MuSig => Kind::MuSig,
+            #[cfg(feature = "unreleased")]
             Template::Threshold { .. } => Kind::Threshold,
             _ => Kind::Other,
         }
@@ -954,7 +973,11 @@ impl Kind {
         v.push(step::SIGN);
         // A threshold spend is not collected here: each share signs in
         // turn, the carry file going from one to the next.
-        if self.has_cosigners() && self != Kind::Threshold {
+        #[cfg(feature = "unreleased")]
+        let collected = self != Kind::Threshold;
+        #[cfg(not(feature = "unreleased"))]
+        let collected = true;
+        if self.has_cosigners() && collected {
             v.push(step::COLLECT);
         }
         v.push(step::FINISH);
@@ -1130,7 +1153,9 @@ pub enum FileKind {
     /// An EFI image to sign or check for Secure Boot.
     EfiImage,
     /// A threshold spend part-signed at another location: the PSBT with
-    /// the secret nonce the next share signs with.
+    /// the secret nonce the next share signs with. FROST is compiled out
+    /// of the app (F109): without `unreleased` such a file is Other.
+    #[cfg(feature = "unreleased")]
     Carry,
     /// A KeePass database, sealed under its passphrase.
     Kdbx,
@@ -1246,6 +1271,7 @@ pub fn classify_read(c: &Compute, name: &str, bytes: &[u8]) -> Classified {
     if crate::secure_boot::is_image(name) && bytes.starts_with(b"MZ") {
         return FileKind::EfiImage.into();
     }
+    #[cfg(feature = "unreleased")]
     if faraday_psbt::threshold::Carry::looks_like_carry(bytes) {
         return FileKind::Carry.into();
     }
@@ -1724,14 +1750,18 @@ pub struct SpendState {
     pub musig: Option<faraday_psbt::MusigSession>,
     /// A threshold spend's first location: the other shares chosen to
     /// sign, by identifier.
+    #[cfg(feature = "unreleased")]
     pub others: Vec<u32>,
     /// The carry section a threshold spend arrived with: the secret nonce
     /// of a share held here. Wiped on drop.
+    #[cfg(feature = "unreleased")]
     pub carry: Option<faraday_keys::carry::Section>,
     /// The carry file this device's pass leaves for the next share, until
     /// it goes to the Outbox.
+    #[cfg(feature = "unreleased")]
     pub carry_out: Option<zeroize::Zeroizing<Vec<u8>>>,
     /// The carry it arrived with has signed: a vault's round for it goes.
+    #[cfg(feature = "unreleased")]
     pub round_spent: bool,
     /// The open step has been set once, at entry (`refresh_spend`): once
     /// true, closing every card (an interactive collapse) leaves `open`
@@ -1740,11 +1770,85 @@ pub struct SpendState {
 }
 
 impl SpendState {
+    /// A spend opened on `spend`, its `inspection` made with the
+    /// session's `inputs` and the `carry` it arrived with. Its open step
+    /// is computed in `refresh_spend`, once Check's done state is known:
+    /// open at Check, or past it when this wallet is already checked
+    /// this power-on.
+    pub(crate) fn new(
+        spend: Spend,
+        inspection: faraday_psbt::Inspection,
+        inputs: InspectInputs,
+        carry: Option<faraday_keys::carry::Section>,
+    ) -> Self {
+        let inspected = Some((spend.psbt.clone(), inputs, carry.is_some()));
+        #[cfg(not(feature = "unreleased"))]
+        drop(carry);
+        SpendState {
+            spend,
+            open: None,
+            done: [false; 10],
+            table: false,
+            error: None,
+            inspection,
+            inspected,
+            signers: Vec::new(),
+            out_signed: false,
+            out_tx: false,
+            show_hex: false,
+            nonce_check: Default::default(),
+            scroll: 0.0,
+            follow: false,
+            wallet: None,
+            steps: Vec::new(),
+            needed: 1,
+            complete: false,
+            musig: None,
+            #[cfg(feature = "unreleased")]
+            others: Vec::new(),
+            #[cfg(feature = "unreleased")]
+            carry,
+            #[cfg(feature = "unreleased")]
+            carry_out: None,
+            #[cfg(feature = "unreleased")]
+            round_spent: false,
+            opened: false,
+        }
+    }
+
+    /// The carry section the spend arrived with: none where FROST is
+    /// compiled out of the app (F109).
+    #[cfg(feature = "unreleased")]
+    pub(crate) fn carry(&self) -> Option<&faraday_keys::carry::Section> {
+        self.carry.as_ref()
+    }
+
+    /// The carry section the spend arrived with: none, FROST being
+    /// compiled out.
+    #[cfg(not(feature = "unreleased"))]
+    pub(crate) fn carry(&self) -> Option<&faraday_keys::carry::Section> {
+        None
+    }
+
+    /// Whether this device's pass left a carry file, or its part went
+    /// out: what a threshold spend waits on the next share with. Never,
+    /// where FROST is compiled out of the app (F109).
+    #[cfg(feature = "unreleased")]
+    pub(crate) fn carried(&self) -> bool {
+        self.carry_out.is_some() || self.out_signed
+    }
+
+    /// Whether a carry file was left: never, FROST being compiled out.
+    #[cfg(not(feature = "unreleased"))]
+    pub(crate) fn carried(&self) -> bool {
+        false
+    }
+
     /// Whether [`SpendState::inspection`] is of the PSBT as it is, with
     /// the session's `inputs` and the carry as they are.
     pub(crate) fn inspected_for(&self, inputs: &InspectInputs) -> bool {
         self.inspected.as_ref().is_some_and(|(p, i, c)| {
-            *c == self.carry.is_some() && i == inputs && *p == self.spend.psbt
+            *c == self.carry().is_some() && i == inputs && *p == self.spend.psbt
         })
     }
 }
@@ -2031,6 +2135,7 @@ impl Faraday {
                     self.wallets.set_renaming(name);
                 }
             }
+            #[cfg(feature = "unreleased")]
             Action::TOther(id) => {
                 if let Some(s) = self.wallets.spend_mut() {
                     if let Some(k) = s.others.iter().position(|o| *o == id) {
@@ -2042,6 +2147,7 @@ impl Faraday {
                     s.error = None;
                 }
             }
+            #[cfg(feature = "unreleased")]
             Action::CarryToOutbox => {
                 // The carry holds the secret nonce the next share signs
                 // with: a vault by default, the Outbox only after a warning.

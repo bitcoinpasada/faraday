@@ -123,3 +123,4 @@ Read this table, then only the decision you need.
 | [F106](decisions/F106.md) | Faraday reads PSBTs, mnemonics and vaults as their standards say, and writes back what it read | 2026-10-23 | Active | formats |
 | [F107](decisions/F107.md) | Single key, backup in shares | 2026-10-22 | Active | wallets |
 | [F108](decisions/F108.md) | Faraday's tokens, colour roles and components follow Material 3, shape included | 2026-10-23 | Active | design |
+| [F109](decisions/F109.md) | Out of the app until their standards mature: FROST, and MuSig2 signing across places | 2026-10-23 | Active | wallets |

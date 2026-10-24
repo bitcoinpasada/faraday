@@ -759,6 +759,7 @@ pub(crate) fn kind_name(kind: FileKind) -> &'static str {
         FileKind::Key => EN.kind_name_account_xpub,
         FileKind::Words => EN.kind_name_seed_words,
         FileKind::Share => EN.kind_name_split_share,
+        #[cfg(feature = "unreleased")]
         FileKind::Carry => EN.kind_name_threshold,
         FileKind::Vault => EN.kind_name_vault_locked,
         FileKind::Entries => EN.kind_name_vault_entries,

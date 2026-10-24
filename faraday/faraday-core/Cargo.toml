@@ -33,6 +33,15 @@ zeroize = { workspace = true, features = ["alloc"] }
 # The test wallets and the files a test stick carries. The stick image's
 # app is built without it.
 testkit = []
+# FROST threshold wallets and signing across places: the app's code for
+# them, its strings and its Learn page, compiled out of the app until
+# their standards mature (docs/decisions/F109.md). No shipped binary
+# turns it on (`tools/lint-keys-tests.sh`); `just` builds and tests with it.
+unreleased = [
+    "faraday-keys/unreleased",
+    "faraday-learn/unreleased",
+    "faraday-strings/unreleased",
+]
 
 [dev-dependencies]
 faraday-core = { path = ".", features = ["testkit"] }

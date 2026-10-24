@@ -58,7 +58,7 @@ The row names what the device reads. The stick and the Pi read /dev/random, the 
 
 Faraday Desktop and the Starter read the operating system's generator: getrandom(2) on Linux, ProcessPrng on Windows and getentropy(2) on a Mac. Each waits until the generator is ready.
 
-The same generator also seeds everything else the device draws at random, whichever source made the key: a vault's keys and seal nonces, GPG and Secure Boot keys, MuSig2 and FROST nonces, a new keyboard's code and the blinding of the device's own calculations. In the website demo, the key made is replaced by one of its public demo keys, whichever source made it.
+The same generator also seeds everything else the device draws at random, whichever source made the key: a vault's keys and seal nonces, GPG and Secure Boot keys, MuSig2 nonces, a new keyboard's code and the blinding of the device's own calculations. In the website demo, the key made is replaced by one of its public demo keys, whichever source made it.
 
 ## Mixing
 

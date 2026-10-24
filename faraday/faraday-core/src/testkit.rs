@@ -609,23 +609,26 @@ pub fn files() -> Result<Vec<(String, Vec<u8>)>, String> {
         out.push((format!("musig-partial-{fp}.psbt"), p.to_bytes()));
     }
     // FROST: the group record, the spend, and the carry file test key 1
-    // leaves for test key 2.
-    out.push((
-        "threshold-wallet.txt".to_string(),
-        format!(
-            "# Threshold: FROST 2 of 3, shares 1 and 2 are test keys 1 and 2\n{}\n",
-            threshold_record()?.to_text()
-        )
-        .into_bytes(),
-    ));
-    out.push((
-        "threshold-unsigned.psbt".to_string(),
-        threshold_unsigned()?.to_bytes(),
-    ));
-    out.push((
-        "threshold-partly-signed.osk".to_string(),
-        threshold_carry()?,
-    ));
+    // leaves for test key 2. Compiled out of the app (F109).
+    #[cfg(feature = "unreleased")]
+    {
+        out.push((
+            "threshold-wallet.txt".to_string(),
+            format!(
+                "# Threshold: FROST 2 of 3, shares 1 and 2 are test keys 1 and 2\n{}\n",
+                threshold_record()?.to_text()
+            )
+            .into_bytes(),
+        ));
+        out.push((
+            "threshold-unsigned.psbt".to_string(),
+            threshold_unsigned()?.to_bytes(),
+        ));
+        out.push((
+            "threshold-partly-signed.osk".to_string(),
+            threshold_carry()?,
+        ));
+    }
     out.push(("vault.ofv".to_string(), test_vault()?));
     out.push((
         "vault-entries.txt".to_string(),
@@ -1031,6 +1034,7 @@ pub fn musig_rounds() -> Result<(Psbt, Vec<(String, Psbt)>, Vec<(String, Psbt)>)
 /// The FROST test wallet: 2 of 3, dealt here from test keys 1 and 2's
 /// words as shares 1 and 2; share 3 is
 /// computed. Its record is public and is the wallet's file.
+#[cfg(feature = "unreleased")]
 pub fn threshold_record() -> Result<faraday_bip::threshold::ThresholdRecord, String> {
     let c = compute();
     let words: Vec<String> = TEST_SEEDS
@@ -1048,6 +1052,7 @@ pub fn threshold_record() -> Result<faraday_bip::threshold::ThresholdRecord, Str
 }
 
 /// The FROST test wallet as a kit, for its spend.
+#[cfg(feature = "unreleased")]
 fn threshold_kit() -> Result<Kit, String> {
     Ok(Kit {
         id: "threshold",
@@ -1059,12 +1064,14 @@ fn threshold_kit() -> Result<Kit, String> {
 }
 
 /// The FROST wallet's unsigned spend.
+#[cfg(feature = "unreleased")]
 pub fn threshold_unsigned() -> Result<Psbt, String> {
     unsigned(&threshold_kit()?)
 }
 
 /// The first location's pass on the FROST spend: test key 1 signs as
 /// share 1 and chooses share 2; the carry file it leaves for share 2.
+#[cfg(feature = "unreleased")]
 pub fn threshold_carry() -> Result<Vec<u8>, String> {
     let c = compute();
     let mut session = session();
@@ -1202,6 +1209,7 @@ pub fn test_vault() -> Result<Vec<u8>, String> {
         "MuSig2".to_string(),
         musig_policy()?.to_descriptor_checksummed(),
     ));
+    #[cfg(feature = "unreleased")]
     wallets.push(("Threshold".to_string(), threshold_record()?.to_text()));
     let mut main = Contents {
         records: vec![

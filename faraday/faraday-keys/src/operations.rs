@@ -14,6 +14,7 @@ use faraday_entropy::SeedXor;
 use zeroize::Zeroizing;
 
 use crate::bip85;
+#[cfg(feature = "unreleased")]
 use crate::frost;
 use crate::lightning;
 use crate::vanity;
@@ -102,6 +103,8 @@ impl Keys {
     /// keys at `places`, in slot order: the other shares and the group key
     /// (`n` shares, `m` needed), each key's words read as a share. The new
     /// shares stay in the [`frost::Dealt`] until [`Keys::add_dealt`].
+    /// Compiled out of the app with FROST (F109).
+    #[cfg(feature = "unreleased")]
     pub fn deal(
         &self,
         c: &Compute,
@@ -129,6 +132,7 @@ impl Keys {
     /// `dealt` as keys, each labelled `label(id)` by its identifier
     /// (counting from 0), so that their words can be written down in the
     /// backup like any key's.
+    #[cfg(feature = "unreleased")]
     pub fn add_dealt(&mut self, c: &Compute, dealt: frost::Dealt, label: impl Fn(usize) -> String) {
         for (id, words) in &dealt.words {
             let _ = self.add_words(c, words, &label(*id), None);

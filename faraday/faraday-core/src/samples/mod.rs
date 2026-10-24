@@ -131,7 +131,9 @@ pub enum SampleKind {
     },
     /// A MuSig2 aggregate of this many keys.
     MuSig(u8),
-    /// A FROST group: `need` of `total` shares sign.
+    /// A FROST group: `need` of `total` shares sign. Compiled out of the
+    /// app (F109).
+    #[cfg(feature = "unreleased")]
     Frost {
         /// Shares that sign.
         need: u8,
@@ -309,6 +311,7 @@ impl SampleWallet {
                 fill(en.sample_kind_multisig, &[&n(need), &n(total)])
             }
             SampleKind::MuSig(keys) => fill(en.sample_kind_musig, &[&n(keys)]),
+            #[cfg(feature = "unreleased")]
             SampleKind::Frost { need, total } => fill(en.sample_kind_frost, &[&n(need), &n(total)]),
             SampleKind::Timelock => en.sample_kind_timelock.to_string(),
         };
@@ -350,6 +353,7 @@ pub fn label(name: &str, word: &str, count: u8) -> Option<String> {
         "sample_inheritance" => en.sample_inheritance.to_string(),
         "sample_tree" => en.sample_tree.to_string(),
         "sample_musig" => en.sample_musig.to_string(),
+        #[cfg(feature = "unreleased")]
         "sample_frost" => en.sample_frost.to_string(),
         "sample_three_of_five" => en.sample_three_of_five.to_string(),
         _ => return None,

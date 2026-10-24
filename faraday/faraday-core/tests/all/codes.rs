@@ -405,8 +405,8 @@ fn a_secret_shown_as_a_code_offers_no_picture() {
     app.storage(StorageEvent::Restored {
         inbox: Vec::new(),
         outbox: vec![(
-            "threshold-partly-signed.osk".to_string(),
-            testkit::threshold_carry().unwrap(),
+            "key-words.txt".to_string(),
+            format!("{}\n", testkit::test_words(testkit::TEST_SEEDS[0].0)).into_bytes(),
         )],
         kept: Vec::new(),
     });

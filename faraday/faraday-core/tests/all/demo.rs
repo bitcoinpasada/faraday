@@ -449,8 +449,7 @@ fn in_the_demo_derive_with_bip85_shows_no_value_for_any_application() {
 // ---------------------------------------------------------------------
 
 /// Create with its kinds open, FROST pressed: the kind it ends on.
-/// FROST is not offered, and the press chooses nothing (the FROST-out
-/// decision).
+/// FROST is not offered, and the press chooses nothing (F109).
 fn frost(app: &mut Faraday) -> NewKind {
     let _ = add_public(app, "bacon");
     let _ = add_public(app, "flag");

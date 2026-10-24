@@ -1,12 +1,16 @@
 //! FROST shares and dealing. A 24-word key is also a FROST share: its 32
-//! bytes of entropy read as the share's scalar.
+//! bytes of entropy read as the share's scalar. Dealing is compiled out
+//! of the app with FROST (`unreleased`, F109).
 
 use faraday_bip::bip39::{Language, Mnemonic};
 use faraday_bip::bitcoin::secp256k1::{PublicKey, Secp256k1};
 use faraday_bip::frost::SecShare;
+#[cfg(feature = "unreleased")]
 use faraday_bip::keys::Network;
 use faraday_crypto::work::Compute;
-use zeroize::{Zeroize, Zeroizing};
+use zeroize::Zeroize;
+#[cfg(feature = "unreleased")]
+use zeroize::Zeroizing;
 
 /// The FROST share 24 words are, when they are 24 words.
 pub(crate) fn secret_share(m: &Mnemonic) -> Option<SecShare> {
@@ -45,6 +49,7 @@ pub(crate) fn with_secret_share(
     }
 }
 
+#[cfg(feature = "unreleased")]
 /// A key to deal from: its words and their list.
 pub(crate) struct Dealer<'a> {
     /// The BIP-39 list the words are from.
@@ -53,6 +58,7 @@ pub(crate) struct Dealer<'a> {
     pub words: Option<&'a str>,
 }
 
+#[cfg(feature = "unreleased")]
 /// Why a deal was not made.
 #[derive(Debug, PartialEq, Eq)]
 pub enum DealError {
@@ -62,6 +68,7 @@ pub enum DealError {
     Refused(String),
 }
 
+#[cfg(feature = "unreleased")]
 /// What a deal made: the public record, and the new shares, which stay
 /// inside this crate until [`Keys::add_dealt`](crate::Keys::add_dealt)
 /// loads them as keys. Neither `Clone` nor `Debug`.
@@ -74,6 +81,7 @@ pub struct Dealt {
     pub(crate) words: Vec<(usize, Zeroizing<String>)>,
 }
 
+#[cfg(feature = "unreleased")]
 impl Dealt {
     /// The identifiers (counting from 0) of the new shares.
     pub fn new_shares(&self) -> Vec<usize> {
@@ -81,6 +89,7 @@ impl Dealt {
     }
 }
 
+#[cfg(feature = "unreleased")]
 /// Costs a parse of the words per dealer, and the deal's elliptic-curve
 /// work. Deals an `m`-of-`n` threshold wallet from the shares `dealers`
 /// are, in order as identifiers 0, 1…: the other shares and the group

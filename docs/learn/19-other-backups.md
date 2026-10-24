@@ -64,7 +64,7 @@ Make a new wallet offers Single key, backup in shares, between Single key and Mu
 
 On the backup side it gives a single-key wallet much of what multisig gives: no one paper or place loses the wallet, and fewer than k papers reveal nothing. At spending it does nothing multisig does. The wallet is single-key on chain, native SegWit, one xpub to the coordinator, and to sign, the whole key is on one device. Whoever holds k shares can spend alone.
 
-Codex32 shares are made only for single-key wallets. A slot of a multisig, Taproot multisig, MuSig2, FROST or recovery wallet offers BIP-39 words to make a key. A codex32 key already loaded can fill any slot.
+Codex32 shares are made only for single-key wallets. A slot of a multisig, Taproot multisig, MuSig2 or recovery wallet offers BIP-39 words to make a key. A codex32 key already loaded can fill any slot.
 
 ## Codex32 sheets from the Starter
 
@@ -92,7 +92,7 @@ If the problem is that a copy may be destroyed, more copies solve it, and no sch
 
 If the problem is that a copy may be found, a passphrase or a vault solves it with one extra secret to keep. A threshold scheme solves it with n places to keep instead of one, and m of them to visit before you can spend.
 
-If the problem is that you want no single person or place to be able to act alone, a threshold over the backup is the wrong tool and a multisig or FROST wallet is the right one: those keep the coins under several keys all the time, rather than putting them back under one key whenever you spend.
+If the problem is that you want no single person or place to be able to act alone, a threshold over the backup is the wrong tool and a multisig wallet is the right one: it keeps the coins under several keys all the time, rather than putting them back under one key whenever you spend.
 
 ## The codex32 booklet's notice
 

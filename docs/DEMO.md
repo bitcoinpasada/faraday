@@ -101,7 +101,6 @@ Testnet, Signet and Regtest included.
 | **Derive with BIP-85**, every application (Words, WIF, Extended private key, Hex, Password base64, Password base85) | BIP-85 (a key's page → BIP-85; Tools → Child seeds and passwords) | a child seed, key or password |
 | **Open BIP-85 child** | Add a key, opened from a wallet's or a transaction's not-loaded row | a child seed loaded as a key |
 | The passphrase dial | Vanity address, the How? card | a new key under a found passphrase; the demo would refuse it anyway |
-| The FROST deal (the last step of Add a wallet → FROST) | Create, FROST | new share seeds, which are not public seeds |
 | **Show** for the node's private key | Lightning node key | a node's private key, on screen |
 | **Save into {vault}** and **Out unprotected…** for the node's private key | Lightning node key | a node's private key |
 | **Save into {vault}** and **Out unprotected…** for the scan key | Silent payments | a scan key |
@@ -140,7 +139,8 @@ public values work; only the actions in the table are disabled.
   address, addresses (real testnet addresses, F81), the wallet card and
   its chart.
 - **Spending**: Sign a transaction, the Spend tab, the nonce check,
-  Decode, MuSig2 and FROST signing rounds.
+  Decode, MuSig2 signing rounds (FROST is compiled out of the app,
+  F109).
 - **Messages**: Sign a message, Check a signed message (its Tools tile
   takes the sample message where the Inbox has none), Find an address
   (the sample address in its field).
@@ -229,7 +229,6 @@ any copy made away from the device is.
 | A single codex32 string of a public seed (k = 0, the secret alone), where offered | Open | Another spelling of a public seed, with no randomness |
 | KeePass export, sealed files | Open | Encryption of what is held, under `faraday` from its chip or one the person types (§5.4). The KeePass export's passphrase is typed by the person, masked with the eye, and its minimum of 8 characters holds (§5.4) |
 | Vanity address's passphrase dial | Disabled | It makes a new key under a passphrase; Demo refuses that key anyway |
-| FROST deal | Disabled | The dealt shares are new seeds that are not public seeds |
 
 ## 7. How a disabled action looks
 

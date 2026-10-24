@@ -138,8 +138,8 @@ fn a_code_says_whether_it_is_safe_to_scan() {
                 kit("spending").descriptor.into_bytes(),
             ),
             (
-                "threshold-partly-signed.osk".to_string(),
-                testkit::threshold_carry().unwrap(),
+                "key-words.txt".to_string(),
+                format!("{}\n", testkit::test_words(testkit::TEST_SEEDS[0].0)).into_bytes(),
             ),
         ],
         kept: Vec::new(),

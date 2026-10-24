@@ -463,7 +463,7 @@ fn an_open_vaults_key_fills_a_slot_and_the_vault_stays_open() {
     );
 }
 
-/// Create offers no threshold kind (the FROST-out decision), so no slot
+/// Create offers no threshold kind (F109), so no slot
 /// asks a vault for shares; the kind list is tested in
 /// `create_wallet::create_offers_no_frost_wallet`.
 #[test]

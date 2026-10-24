@@ -250,6 +250,7 @@ fn a_silent_wallet_comes_from_the_paths_the_bip_names() {
     );
 }
 
+#[cfg(feature = "unreleased")]
 #[test]
 fn a_deal_gives_a_record_and_the_words_of_the_shares_left_to_write_down() {
     let c = compute();

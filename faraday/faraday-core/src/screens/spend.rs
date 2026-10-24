@@ -232,43 +232,23 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
     } else {
         needed.saturating_sub(signed_count).max(1)
     };
-    let can_sign_here = match threshold {
-        Some(t) => t
-            .ours
-            .iter()
-            .filter(|id| !t.signed.contains(id))
-            .map(|id| fill(EN.spend_status_share, &[&(id + 1).to_string()]))
-            .collect::<Vec<_>>(),
-        None => i
-            .participating_keys
+    let can_sign_here = shares_here(threshold).unwrap_or_else(|| {
+        i.participating_keys
             .iter()
             .filter(|fp| app.session.keys.key_label(**fp).is_some() && !s.signers.contains(&fp.0))
             .map(|fp| fp_text(*fp))
-            .collect::<Vec<_>>(),
-    };
-    let carry = threshold.is_some() && (s.carry_out.is_some() || s.out_signed) && !s.complete;
-    let need_line = if carry {
-        if s.out_signed {
-            EN.spend_status_carry.to_string()
-        } else {
-            EN.spend_status_the_next.to_string()
-        }
+            .collect::<Vec<_>>()
+    });
+    let (carry_line, carry_label, shares_line) =
+        threshold_lines(s, threshold.is_some(), !can_sign_here.is_empty(), missing);
+    let need_line = if let Some(line) = carry_line {
+        line
     } else if s.spend.finished.is_some() && s.out_signed && s.out_tx {
         fill(EN.spend_status_both_wait, &[app.medium.for_the()])
     } else if missing == 0 {
         EN.spend_status_complete.to_string()
-    } else if threshold.is_some() && !can_sign_here.is_empty() && missing > 1 {
-        fill(
-            EN.spend_status_sign_here_more,
-            &[
-                &(missing - 1).to_string(),
-                (if missing == 2 {
-                    EN.spend_status_its_one
-                } else {
-                    EN.spend_status_their
-                }),
-            ],
-        )
+    } else if let Some(line) = shares_line {
+        line
     } else if !can_sign_here.is_empty() && missing > 1 {
         fill(
             EN.spend_status_sign_and_collect,
@@ -279,12 +259,8 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
     } else {
         crate::wallet::collect_line(missing, count)
     };
-    let label = if carry {
-        if s.out_signed {
-            EN.spend_status_open_files.to_string()
-        } else {
-            EN.spend_status_keep_carry.to_string()
-        }
+    let label = if let Some(label) = carry_label {
+        label
     } else if s.spend.finished.is_some() {
         // Both went For the stick at Finish: the next step is writing.
         if app.stick.is_empty() {
@@ -303,6 +279,71 @@ fn spend_status(app: &View, needed: usize) -> (usize, usize, String, String) {
         crate::wallet::collect_line(missing, count)
     };
     (count, missing, need_line, label)
+}
+
+/// The shares held here that have not signed a threshold spend, by name.
+#[cfg(feature = "unreleased")]
+fn shares_here(threshold: Option<&faraday_psbt::ThresholdInput>) -> Option<Vec<String>> {
+    threshold.map(|t| {
+        t.ours
+            .iter()
+            .filter(|id| !t.signed.contains(id))
+            .map(|id| fill(EN.spend_status_share, &[&(id + 1).to_string()]))
+            .collect()
+    })
+}
+
+/// The shares held here that have not signed: none, FROST being
+/// compiled out of the app (F109).
+#[cfg(not(feature = "unreleased"))]
+fn shares_here(_threshold: Option<&faraday_psbt::ThresholdInput>) -> Option<Vec<String>> {
+    None
+}
+
+/// What a threshold spend's status says instead: the line and the button
+/// while a carry file waits, and the line while more shares sign after
+/// this one.
+#[cfg(feature = "unreleased")]
+fn threshold_lines(
+    s: &crate::SpendState,
+    threshold: bool,
+    can_sign_here: bool,
+    missing: usize,
+) -> (Option<String>, Option<String>, Option<String>) {
+    let carry = threshold && s.carried() && !s.complete;
+    let pick = |carried: &str, next: &str| {
+        carry.then(|| (if s.out_signed { carried } else { next }).to_string())
+    };
+    let more = (threshold && can_sign_here && missing > 1).then(|| {
+        fill(
+            EN.spend_status_sign_here_more,
+            &[
+                &(missing - 1).to_string(),
+                (if missing == 2 {
+                    EN.spend_status_its_one
+                } else {
+                    EN.spend_status_their
+                }),
+            ],
+        )
+    });
+    (
+        pick(EN.spend_status_carry, EN.spend_status_the_next),
+        pick(EN.spend_status_open_files, EN.spend_status_keep_carry),
+        more,
+    )
+}
+
+/// What a threshold spend's status says instead: nothing, FROST being
+/// compiled out of the app (F109).
+#[cfg(not(feature = "unreleased"))]
+fn threshold_lines(
+    _s: &crate::SpendState,
+    _threshold: bool,
+    _can_sign_here: bool,
+    _missing: usize,
+) -> (Option<String>, Option<String>, Option<String>) {
+    (None, None, None)
 }
 
 /// The foot of Sign a transaction on a small panel: the signatures, what
@@ -387,6 +428,7 @@ pub(crate) fn step_summary(app: &View, n: u8, wallet: Option<usize>, needed: usi
                 .to_string(),
             ],
         ),
+        #[cfg(feature = "unreleased")]
         4 if reached && threshold_of(s).is_some() => {
             let t = threshold_of(s).expect("threshold");
             fill(
@@ -774,6 +816,7 @@ pub(crate) fn step_body(
             next(ui, cy, EN.step_continue);
             cy += 44.0;
         }
+        #[cfg(feature = "unreleased")]
         4 if threshold_of(s).is_some() => {
             let t = threshold_of(s).expect("threshold");
             // The first location chooses who signs; after it the PSBT
@@ -1025,6 +1068,7 @@ pub(crate) fn step_body(
             next(ui, cy, EN.step_continue);
             cy += 44.0;
         }
+        #[cfg(feature = "unreleased")]
         5 if threshold_of(s).is_some() && s.spend.signed_here.is_empty() => {
             let t = threshold_of(s).expect("threshold");
             let mine: Vec<u32> = t
@@ -1253,10 +1297,8 @@ pub(crate) fn step_body(
                 cy += 44.0;
             }
         }
-        7 if s.spend.finished.is_none()
-            && (s.carry_out.is_some() || s.out_signed)
-            && threshold_of(s).is_some() =>
-        {
+        #[cfg(feature = "unreleased")]
+        7 if s.spend.finished.is_none() && s.carried() && threshold_of(s).is_some() => {
             let t = threshold_of(s).expect("threshold");
             let next_ids: Vec<String> = t
                 .signers

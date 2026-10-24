@@ -205,14 +205,17 @@ own.
 | Miniscript, Taproot tree (imported) | Load → **Path** → Transaction → Check → Signers → Sign → Collect → Finish | Signs every signature its keys can give; Finish completes only when the script is satisfied, and says which condition is unmet (a cosigner, or a timelock not yet reached). |
 | Recovery (Liana shapes) | Load → **Path** → Transaction → Check → Signers → Sign → Collect → Finish | **Path**: the primary path, or a recovery path, with its timelock in blocks and whether the transaction's inputs have aged enough (from the PSBT's sequence values). |
 | MuSig2, `tr(musig(…))` | Load → Transaction → Check → **Round 1: nonces** → Collect nonces → **Round 2: sign** → Collect partial signatures → Finish | Two rounds; every signer must take part. See §4.2. |
-| FROST, m of n | Load (group record) → Transaction → Check → **Round 1** → Collect commitments → **Round 2** → Collect shares → Finish | Two rounds among the m chosen signers. See §4.2. |
+| FROST, m of n | Load (group record) → Transaction → Check → **Round 1** → Collect commitments → **Round 2** → Collect shares → Finish | Two rounds among the m chosen signers. See §4.2. Compiled out of the app (F109). |
 | Message (any wallet with addresses) | Choose wallet and address → Message → Sign (BIP-137 or BIP-322) → Result as text and QR | Also **Check a signed message**. |
 
 ### 4.2 Rounds that hold a secret between them
 
 MuSig2 and FROST make a secret nonce in round 1 and need it in round 2.
 Locking restarts the app, so a nonce held in memory dies with any stick
-visit. Two ways through, both offered:
+visit. The app offers the first way only: rounds across a lock, and
+FROST, are compiled out of the app until their standards mature
+(F109), and what follows of them describes the code kept for then.
+The two ways:
 
 - **Both rounds by QR.** Round 1's nonce leaves as a code, the others'
   arrive by camera, and round 2 follows without a lock. This is the default.

@@ -20,7 +20,7 @@ use crate::wallet::FileKind;
 
 /// What a picture's codes may read as, by the name the kept list gives
 /// it; one not named reads as [`FileKind::Other`].
-const PICTURE_KINDS: [FileKind; 17] = [
+const PICTURE_KINDS: &[FileKind] = &[
     FileKind::Psbt,
     FileKind::Wallet,
     FileKind::Transaction,
@@ -32,6 +32,7 @@ const PICTURE_KINDS: [FileKind; 17] = [
     FileKind::Vault,
     FileKind::Entries,
     FileKind::EfiImage,
+    #[cfg(feature = "unreleased")]
     FileKind::Carry,
     FileKind::Kdbx,
     FileKind::Pdf,

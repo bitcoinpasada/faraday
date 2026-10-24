@@ -649,6 +649,7 @@ pub(crate) static WALLETS: &[SampleWallet] = &[
             [0x5d, 0x38, 0x83, 0x76],
         ],
     },
+    #[cfg(feature = "unreleased")]
     SampleWallet {
         name: "sample_frost",
         kind: SampleKind::Frost { need: 2, total: 3 },

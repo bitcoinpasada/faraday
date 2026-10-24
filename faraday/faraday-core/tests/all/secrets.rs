@@ -4,13 +4,18 @@
 //! Outbox; the next device, with the vault unlocked, signs that PSBT with
 //! the nonce from the vault, and the round leaves the vault once used.
 //! With no vault, the carry reaches the Outbox only after the warning is
-//! acknowledged, and is listed as an unprotected secret.
+//! acknowledged, and is listed as an unprotected secret. FROST is
+//! compiled out of the app (docs/decisions/F109.md): its tests here run
+//! in a build with `unreleased`.
 
 use crate::common::type_text;
 use faraday_core::secrets::Exposure;
 use faraday_core::testkit;
+#[cfg(feature = "unreleased")]
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Faraday, Screen, Sheet, StorageCommand, StorageEvent};
+use faraday_core::{Action, Faraday, StorageCommand, StorageEvent};
+#[cfg(feature = "unreleased")]
+use faraday_core::{Screen, Sheet};
 use faraday_shell_api::{App, BootState, DisplayInfo, EntropyBytes, Event, SecureHardware};
 
 fn kit_file(name: &str) -> (String, Vec<u8>) {
@@ -60,6 +65,7 @@ fn add_key(app: &mut Faraday, n: usize) {
     app.press(Action::EntryAdd);
 }
 
+#[cfg(feature = "unreleased")]
 fn unlock(app: &mut Faraday) {
     faraday_core::testkit::vault_speed(app, Some(180));
     app.press(Action::Nav(Screen::Vaults));
@@ -77,6 +83,7 @@ fn unlock(app: &mut Faraday) {
     app.press(Action::Vault(V::LoadTicked));
 }
 
+#[cfg(feature = "unreleased")]
 /// Device A: test key 1 signs as share 1 for shares 1 and 2, leaving the
 /// carry on its way out.
 fn first_share(app: &mut Faraday) {
@@ -97,6 +104,7 @@ fn first_share(app: &mut Faraday) {
     assert!(app.outbox.is_empty(), "nothing goes out before a choice");
 }
 
+#[cfg(feature = "unreleased")]
 #[test]
 fn without_a_vault_the_carry_goes_out_only_after_the_warning() {
     let mut app = device(vec![
@@ -114,6 +122,7 @@ fn without_a_vault_the_carry_goes_out_only_after_the_warning() {
     assert_eq!(app.sheet, None);
 }
 
+#[cfg(feature = "unreleased")]
 #[test]
 fn cancelling_keeps_the_carry_for_later() {
     let mut app = device(vec![
@@ -126,6 +135,7 @@ fn cancelling_keeps_the_carry_for_later() {
     assert!(app.spend().unwrap().carry_out.is_some());
 }
 
+#[cfg(feature = "unreleased")]
 #[test]
 fn the_carry_goes_into_the_vault_and_the_next_device_signs_with_it() {
     let mut a = device(vec![
@@ -247,7 +257,7 @@ fn a_lock_leaves_no_secret_file_from_a_stick_in_the_inbox() {
             "recovery-codes.txt".to_string(),
             b"mail recovery\n1234 5678\n".to_vec(),
         ),
-        kit_file("threshold-wallet.txt"),
+        kit_file("savings-wallet.txt"),
         kit_file("vault.ofv"),
     ]);
     let k = find(&app, "seed-words.txt");
@@ -258,11 +268,12 @@ fn a_lock_leaves_no_secret_file_from_a_stick_in_the_inbox() {
     let names: Vec<&str> = inbox.iter().map(|(n, _)| n.as_str()).collect();
     assert_eq!(
         names,
-        ["threshold-wallet.txt", "vault.ofv"],
+        ["savings-wallet.txt", "vault.ofv"],
         "the words and the text are wiped with the session; the public wallet and the sealed vault stay"
     );
 }
 
+#[cfg(feature = "unreleased")]
 /// A press where the last frame drew `action`, as a finger makes it.
 fn tap(app: &mut Faraday, action: Action) {
     use faraday_shell_api::TouchPhase;
@@ -276,6 +287,7 @@ fn tap(app: &mut Faraday, action: Action) {
     let _ = app.frame();
 }
 
+#[cfg(feature = "unreleased")]
 #[test]
 fn a_round_signed_with_by_taps_leaves_the_vault_and_cannot_sign_again() {
     let mut a = device(vec![

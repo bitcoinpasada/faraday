@@ -116,7 +116,7 @@ pub static EN: Learn = Learn {
                     "Every computer has a random number generator, built from a hardware source plus the operating system. It is usually fine. Using it for a key asks you to trust this device completely: a generator that is faulty, or built to be predictable, produces keys that look perfectly normal and that its maker can recreate. You can check a die. You cannot check a chip.",
                     "The row names what the device reads. The stick and the Pi read /dev/random, the Linux kernel's generator, which mixes the board's hardware generator with its other sources. On the Pi the board's hardware generator feeds the kernel; the device does not read it directly, so a faulty chip is one source among several. If the read fails, the device makes no key and says so on Home.",
                     "Faraday Desktop and the Starter read the operating system's generator: getrandom(2) on Linux, ProcessPrng on Windows and getentropy(2) on a Mac. Each waits until the generator is ready.",
-                    "The same generator also seeds everything else the device draws at random, whichever source made the key: a vault's keys and seal nonces, GPG and Secure Boot keys, MuSig2 and FROST nonces, a new keyboard's code and the blinding of the device's own calculations. In the website demo, the key made is replaced by one of its public demo keys, whichever source made it.",
+                    "The same generator also seeds everything else the device draws at random, whichever source made the key: a vault's keys and seal nonces, GPG and Secure Boot keys, MuSig2 nonces, a new keyboard's code and the blinding of the device's own calculations. In the website demo, the key made is replaced by one of its public demo keys, whichever source made it.",
                 ],
             },
             Section {
@@ -450,7 +450,7 @@ pub static EN: Learn = Learn {
                 heading: "How Faraday picks a nonce",
                 paragraphs: &[
                     "For a single key, Faraday adds no randomness of its own. The nonce is calculated from the key and the transaction alone, using RFC 6979 for ECDSA signatures and BIP-340 with no auxiliary randomness for Schnorr signatures. The same transaction signed with the same key always produces exactly the same signature bytes. As a check on itself, Faraday signs every input twice and refuses to continue if the two results differ.",
-                    "A MuSig2 round that goes first, and a FROST signing, are different: their nonces are drawn from the session seed, which comes from the system's generator, and are never reused across signing passes.",
+                    "A MuSig2 round that goes first is different: its nonces are drawn from the session seed, which comes from the system's generator, and are never reused across signing passes.",
                 ],
             },
             Section {
@@ -471,7 +471,7 @@ pub static EN: Learn = Learn {
                 heading: "What is not offered yet",
                 paragraphs: &[
                     "There are protocols in which the coordinator contributes randomness to the nonce and then checks that the signer did not choose the nonce alone (anti-exfil). Faraday does not implement one yet, because no coordinator currently speaks such a protocol over QR codes or PSBT files.",
-                    "MuSig2 exchanges nonces before anyone signs, and Faraday signs in either order. When every other signer's nonce is already on the transaction, it derives its own from theirs and from the transaction, signs in one pass, and keeps nothing. When a nonce is missing, it goes first: it draws its nonce, writes the public half onto the transaction for the coordinator, and holds the secret half in memory as a session for that one transaction. The session ends when the device signs, when you lock it, and when it loses power, and nothing writes it to storage, because a secret nonce that survives a restart is the classic way to use one twice, and using a MuSig2 nonce twice hands over the private key. If the transaction comes back after the session has ended, the device draws a new nonce, says so, and the other signers sign again. The FROST page describes the one place Faraday writes a secret nonce to a file.",
+                    "MuSig2 exchanges nonces before anyone signs, and Faraday signs in either order. When every other signer's nonce is already on the transaction, it derives its own from theirs and from the transaction, signs in one pass, and keeps nothing. When a nonce is missing, it goes first: it draws its nonce, writes the public half onto the transaction for the coordinator, and holds the secret half in memory as a session for that one transaction. The session ends when the device signs, when you lock it, and when it loses power, and nothing writes it to storage, because a secret nonce that survives a restart is the classic way to use one twice, and using a MuSig2 nonce twice hands over the private key. If the transaction comes back after the session has ended, the device draws a new nonce, says so, and the other signers sign again. Faraday writes no secret nonce to a file or a vault.",
                 ],
             },
         ],
@@ -523,12 +523,6 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
-                heading: "Carry file",
-                paragraphs: &[
-                    "The file that carries a part-signed FROST transaction from one signer to the next, holding the transaction and the secret nonce of each signer still to sign.",
-                ],
-            },
-            Section {
                 heading: "Checksum",
                 paragraphs: &[
                     "Bits at the end of the seed words that catch a typo. Passing the checksum does not prove the words are yours.",
@@ -574,18 +568,6 @@ pub static EN: Learn = Learn {
                 heading: "Fingerprint",
                 paragraphs: &[
                     "Four bytes that identify a key, so a coordinator and a signer can confirm they mean the same one.",
-                ],
-            },
-            Section {
-                heading: "FROST",
-                paragraphs: &[
-                    "A scheme in which one key is split into n shares, any m of which sign, and the chain sees one key and one signature.",
-                ],
-            },
-            Section {
-                heading: "Group record",
-                paragraphs: &[
-                    "The public file that states a FROST wallet's threshold, its group key, the public half of every share, and its descriptor. A share without it opens nothing.",
                 ],
             },
             Section {
@@ -665,7 +647,7 @@ pub static EN: Learn = Learn {
             Section {
                 heading: "Share",
                 paragraphs: &[
-                    "One of the pieces a key or a description is split into. A FROST wallet's key is split into n shares held as 24 words, any m of which sign; SLIP-39 and codex32 split a seed into shares; a backup can split a multisig's description into shares. One share alone can do nothing.",
+                    "One of the pieces a key or a description is split into. SLIP-39 and codex32 split a seed into shares; a backup can split a multisig's description into shares. One share alone can do nothing.",
                 ],
             },
             Section {
@@ -811,12 +793,6 @@ pub static EN: Learn = Learn {
                 ],
             },
             Section {
-                heading: "FROST",
-                paragraphs: &[
-                    "Any m of n shares of one key sign, and the chain sees one key and one signature, as with MuSig2. The shares are made by a dealer at creation and each one is 24 words. FROST has its own page.",
-                ],
-            },
-            Section {
                 heading: "Recovery and inheritance",
                 paragraphs: &[
                     "A wallet can name one key that spends at any time and another that spends alone after a wait. That is two spend paths in one script, and it is how Liana's wallets are shaped. It gives you a recovery that needs no second person on the day, and an inheritance an heir can execute by waiting. It costs a timelock whose clock restarts every time the coins move, so the wallet has to be refreshed or the recovery path opens while you are still using it. Spend paths and timelocks has the details.",
@@ -844,6 +820,7 @@ pub static EN: Learn = Learn {
             },
         ],
     },
+    #[cfg(feature = "unreleased")]
     frost: Page {
         title: "FROST",
         sections: &[
@@ -970,7 +947,7 @@ pub static EN: Learn = Learn {
                 paragraphs: &[
                     "Make a new wallet offers Single key, backup in shares, between Single key and Multisig. Its Quorum is the codex32 scheme, how many shares rebuild it and how many there are. Its one key is made by Make codex32 shares.",
                     "On the backup side it gives a single-key wallet much of what multisig gives: no one paper or place loses the wallet, and fewer than k papers reveal nothing. At spending it does nothing multisig does. The wallet is single-key on chain, native SegWit, one xpub to the coordinator, and to sign, the whole key is on one device. Whoever holds k shares can spend alone.",
-                    "Codex32 shares are made only for single-key wallets. A slot of a multisig, Taproot multisig, MuSig2, FROST or recovery wallet offers BIP-39 words to make a key. A codex32 key already loaded can fill any slot.",
+                    "Codex32 shares are made only for single-key wallets. A slot of a multisig, Taproot multisig, MuSig2 or recovery wallet offers BIP-39 words to make a key. A codex32 key already loaded can fill any slot.",
                 ],
             },
             Section {
@@ -1000,7 +977,7 @@ pub static EN: Learn = Learn {
                 paragraphs: &[
                     "If the problem is that a copy may be destroyed, more copies solve it, and no scheme on this page is needed. Two places, two copies.",
                     "If the problem is that a copy may be found, a passphrase or a vault solves it with one extra secret to keep. A threshold scheme solves it with n places to keep instead of one, and m of them to visit before you can spend.",
-                    "If the problem is that you want no single person or place to be able to act alone, a threshold over the backup is the wrong tool and a multisig or FROST wallet is the right one: those keep the coins under several keys all the time, rather than putting them back under one key whenever you spend.",
+                    "If the problem is that you want no single person or place to be able to act alone, a threshold over the backup is the wrong tool and a multisig wallet is the right one: it keeps the coins under several keys all the time, rather than putting them back under one key whenever you spend.",
                 ],
             },
             Section {

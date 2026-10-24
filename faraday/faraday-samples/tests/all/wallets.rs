@@ -39,6 +39,7 @@ fn testkit_wallets() -> Vec<(&'static str, String, Vec<u8>)> {
             .to_descriptor_checksummed(),
         testkit::musig_unsigned().expect("a spend").to_bytes(),
     ));
+    #[cfg(feature = "unreleased")]
     all.push((
         "sample_frost",
         testkit::threshold_record().expect("a record").to_text(),
@@ -106,13 +107,25 @@ fn a_wallets_keys_are_the_sample_keys_its_text_names() {
     let savings = SAMPLES.wallets[0];
     assert!(savings.keys.contains(&bacon));
     assert_eq!(savings.keys.len(), 3);
+    #[cfg(feature = "unreleased")]
     let frost = SAMPLES
         .wallets
         .iter()
         .find(|w| w.name == "sample_frost")
         .expect("frost");
-    assert_eq!(frost.keys.len(), 2);
-    assert!(frost.keys.contains(&bacon));
+    #[cfg(feature = "unreleased")]
+    {
+        assert_eq!(frost.keys.len(), 2);
+        assert!(frost.keys.contains(&bacon));
+    }
+}
+
+/// FROST is compiled out of the app (docs/decisions/F109.md): Demo
+/// offers no FROST sample.
+#[cfg(not(feature = "unreleased"))]
+#[test]
+fn demo_offers_no_frost_sample() {
+    assert!(SAMPLES.wallets.iter().all(|w| w.name != "sample_frost"));
 }
 
 #[test]
@@ -149,7 +162,9 @@ fn the_kind_and_script_a_wallet_sample_records_are_what_its_policy_reads_as() {
                 assert_eq!(quorum, Some(want), "{}", w.name);
             }
             K::MuSig(keys) => assert_eq!(usize::from(keys), p.keys().len(), "{}", w.name),
-            K::Single | K::Timelock | K::Frost { .. } => assert_eq!(quorum, None, "{}", w.name),
+            K::Single | K::Timelock => assert_eq!(quorum, None, "{}", w.name),
+            #[cfg(feature = "unreleased")]
+            K::Frost { .. } => assert_eq!(quorum, None, "{}", w.name),
         }
     }
     // A FROST group is 2 of 3 and the inheritance wallet is the timelocked
@@ -162,6 +177,7 @@ fn the_kind_and_script_a_wallet_sample_records_are_what_its_policy_reads_as() {
             .expect(name)
             .kind
     };
+    #[cfg(feature = "unreleased")]
     assert_eq!(kind("sample_frost"), K::Frost { need: 2, total: 3 });
     assert_eq!(kind("sample_inheritance"), K::Timelock);
 }

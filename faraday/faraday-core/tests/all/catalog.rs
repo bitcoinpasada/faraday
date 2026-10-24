@@ -44,7 +44,11 @@ fn found(find: &str) -> Vec<&'static str> {
 fn a_bip_number_finds_its_tools() {
     assert_eq!(found("85"), ["Child seeds and passwords"]);
     assert_eq!(found("bip-352"), ["Silent payments"]);
+    // FROST is compiled out of the app (docs/decisions/F109.md).
+    #[cfg(feature = "unreleased")]
     assert!(found("frost").contains(&"FROST threshold"));
+    #[cfg(not(feature = "unreleased"))]
+    assert!(found("frost").is_empty() && found("bip-445").is_empty());
     assert!(found("musig2").contains(&"MuSig2"));
     assert!(found("no such tool").is_empty());
 }

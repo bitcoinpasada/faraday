@@ -243,7 +243,9 @@ Taproot tree (`testkit::kits`). Also, decided:
   seeds; MuSig2 is open in Demo.
 - **FROST 2 of 3** (`testkit::threshold_record`): shares 1 and 2 are
   bacon and zebra; the record is public. Share 3, computed by the
-  testkit's deal, is not a sample and is not loaded.
+  testkit's deal, is not a sample and is not loaded. Only in a build
+  with `unreleased`: FROST is compiled out of the app (F109), and
+  Demo offers no FROST sample.
 - **3 of 5** (`testkit::three_of_five`): its five keys are master seeds
   01…01 to 05…05, keys with no words; they load as keys and join the
   public set. It has no spend.

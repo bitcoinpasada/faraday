@@ -258,7 +258,9 @@ now opaque: its secret is in a private field, it is neither `Clone` nor
 - **FROST.** `Keys::deal` returns a `Dealt` whose `record` is public and
   whose new shares' words are private; `Keys::add_dealt` loads them as
   keys, labelled by the caller. `make_group` and `Dealer` are the
-  crate's own.
+  crate's own. All of it exists only with the `unreleased` feature:
+  FROST is compiled out of the app (F109), and without it no key is
+  a share.
 - **Keys made from fresh entropy.** `gpg::create` and
   `secure_boot::create` make the key and the record every vault of the
   plan takes, as a `vault::MadeKey`: its public fields through `view()`,

@@ -12,6 +12,10 @@ publish = false
 # The shapes of the data (`faraday_core::samples`), and nothing else.
 faraday-core = { path = "../faraday-core" }
 
+[features]
+# The FROST sample, compiled out of the app with FROST (docs/decisions/F109.md).
+unreleased = ["faraday-core/unreleased"]
+
 [dev-dependencies]
 # The test wallets the samples are checked against, and the code that
 # derives what the data states. The data itself derives nothing.

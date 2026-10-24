@@ -11,7 +11,8 @@
 //! and the public PSBT with this device's nonce goes to the Outbox; the
 //! next device, with the vault unlocked, finds the round by the
 //! transaction when it opens that PSBT, and the round is removed from
-//! the vault once used. A wallet's seed, from the backup's checklist,
+//! the vault once used; FROST is compiled out of the app (F109), and
+//! this part with it. A wallet's seed, from the backup's checklist,
 //! goes in as the key record Vaults saves (`kind::KEY`, loaded at
 //! unlock), never as a note; as a file it is the words or the SeedQR as
 //! a labelled PNG, one of the two, picked on the sheet, and never holds
@@ -19,6 +20,7 @@
 
 use crate::strings::EN;
 use crate::strings::fill;
+#[cfg(feature = "unreleased")]
 use faraday_bip::bitcoin::hashes::{Hash, sha256};
 use faraday_vault::Record;
 use faraday_vault::records::{field, kind};
@@ -42,11 +44,11 @@ impl FileKind {
     pub fn exposure(self) -> Exposure {
         match self {
             FileKind::Vault | FileKind::Kdbx => Exposure::Sealed,
-            FileKind::Carry
-            | FileKind::Entries
-            | FileKind::Words
-            | FileKind::SeedPart
-            | FileKind::SecretWallet => Exposure::Secret,
+            #[cfg(feature = "unreleased")]
+            FileKind::Carry => Exposure::Secret,
+            FileKind::Entries | FileKind::Words | FileKind::SeedPart | FileKind::SecretWallet => {
+                Exposure::Secret
+            }
             _ => Exposure::Public,
         }
     }
@@ -55,12 +57,15 @@ impl FileKind {
     /// or a file Faraday does not read, which it cannot tell. A lock drops
     /// these from the Inbox (`docs/history/PLAN.md` §5.3).
     pub fn may_be_secret(self) -> bool {
+        #[cfg(feature = "unreleased")]
+        if self == FileKind::Carry {
+            return true;
+        }
         matches!(
             self,
             FileKind::Words
                 | FileKind::SeedPart
                 | FileKind::SecretWallet
-                | FileKind::Carry
                 | FileKind::Entries
                 | FileKind::Text
                 | FileKind::Other
@@ -114,7 +119,8 @@ pub struct SecretOut {
 pub enum Keep {
     /// A note holding the file's text.
     Note,
-    /// A FROST signing round.
+    /// A FROST signing round. Compiled out of the app (F109).
+    #[cfg(feature = "unreleased")]
     Round(Round),
     /// Session key `key`, whose fingerprint is `fp`, as the key record
     /// Vaults' Save writes (`VaultAction::SaveKey`).
@@ -181,6 +187,7 @@ impl SecretOut {
 }
 
 /// A FROST round's binding, for its vault record.
+#[cfg(feature = "unreleased")]
 pub struct Round {
     /// SHA-256 of the unsigned transaction.
     pub tx: [u8; 32],
@@ -194,6 +201,7 @@ pub struct Round {
 }
 
 /// SHA-256 of a PSBT's unsigned transaction: what a round is bound to.
+#[cfg(feature = "unreleased")]
 pub fn tx_hash(psbt: &faraday_psbt::Psbt) -> [u8; 32] {
     let tx = faraday_bip::bitcoin::consensus::serialize(&psbt.inner().unsigned_tx);
     sha256::Hash::hash(&tx).to_byte_array()
@@ -377,6 +385,7 @@ impl Faraday {
             return;
         };
         let record = match &out.keep {
+            #[cfg(feature = "unreleased")]
             Keep::Round(r) => faraday_keys::vault::Staged::Made(
                 Record::new(kind::ROUND)
                     .with(field::ROUND_SCHEME, &[2])
@@ -423,12 +432,14 @@ impl Faraday {
             return;
         }
         self.sheet = None;
+        #[cfg(feature = "unreleased")]
         if matches!(out.keep, Keep::Round(_))
             && let Some(s) = self.wallets.spend_mut()
         {
             s.out_signed = true;
         }
         match out.keep {
+            #[cfg(feature = "unreleased")]
             Keep::Round(r) => {
                 self.put_outbox(&r.psbt_name, r.psbt);
                 self.toast(&fill(
@@ -493,6 +504,7 @@ impl Faraday {
             self.wallet_lock_write();
             return;
         }
+        #[cfg(feature = "unreleased")]
         if matches!(out.keep, Keep::Round(_))
             && let Some(s) = self.wallets.spend_mut()
         {
@@ -518,16 +530,73 @@ impl Faraday {
     }
 
     fn secret_back(&mut self, out: SecretOut) {
+        #[cfg(feature = "unreleased")]
         if matches!(out.keep, Keep::Round(_))
             && let Some(s) = self.wallets.spend_mut()
             && s.carry_out.is_none()
         {
             s.carry_out = Some(out.bytes);
         }
+        #[cfg(not(feature = "unreleased"))]
+        drop(out);
+    }
+
+    /// Costs a PSBT parse. The PSBT Inbox item `index` holds, to sign,
+    /// and the carry section it arrived with: a carry file is the PSBT
+    /// and the secret nonce of the share that signs next, and a PSBT may
+    /// have a round an open vault keeps for its transaction. `None`,
+    /// after a toast saying why, when it holds none.
+    #[cfg(feature = "unreleased")]
+    pub(crate) fn spend_source(
+        &mut self,
+        c: &faraday_crypto::work::Compute,
+        index: usize,
+    ) -> Option<(faraday_psbt::Psbt, Option<faraday_keys::carry::Section>)> {
+        let item = self.inbox.get(index)?;
+        if item.kind == FileKind::Carry {
+            let read = faraday_keys::carry::parse(&item.bytes);
+            return match read {
+                Ok((section, bytes)) => match faraday_psbt::Psbt::parse_bytes(c, &bytes) {
+                    Ok(p) => Some((p, Some(section))),
+                    Err(_) => {
+                        self.toast(EN.start_spend_the_carry);
+                        None
+                    }
+                },
+                Err(e) => {
+                    self.toast(e.reason());
+                    None
+                }
+            };
+        }
+        let Some(psbt) = crate::wallet::read_psbt(c, &item.bytes) else {
+            self.toast(EN.start_spend_not_a_psbt);
+            return None;
+        };
+        let carry = self.vault_round(&psbt);
+        Some((psbt, carry))
+    }
+
+    /// Costs a PSBT parse. The PSBT Inbox item `index` holds, to sign;
+    /// `None`, after a toast saying why, when it holds none. No carry
+    /// comes with it: FROST is compiled out of the app (F109).
+    #[cfg(not(feature = "unreleased"))]
+    pub(crate) fn spend_source(
+        &mut self,
+        c: &faraday_crypto::work::Compute,
+        index: usize,
+    ) -> Option<(faraday_psbt::Psbt, Option<faraday_keys::carry::Section>)> {
+        let item = self.inbox.get(index)?;
+        let Some(psbt) = crate::wallet::read_psbt(c, &item.bytes) else {
+            self.toast(EN.start_spend_not_a_psbt);
+            return None;
+        };
+        Some((psbt, None))
     }
 
     /// The carry section a vault holds for this transaction, if an open
     /// vault has an unused round bound to it.
+    #[cfg(feature = "unreleased")]
     pub(crate) fn vault_round(
         &self,
         psbt: &faraday_psbt::Psbt,
@@ -538,6 +607,7 @@ impl Faraday {
     }
 
     /// A round has signed: it leaves every open vault at the next seal.
+    #[cfg(feature = "unreleased")]
     pub(crate) fn vault_round_used(&mut self, psbt: &faraday_psbt::Psbt) {
         let tx = tx_hash(psbt);
         let ids: Vec<faraday_keys::vault::VaultId> =

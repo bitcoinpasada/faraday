@@ -109,6 +109,7 @@ const TYPES: &[&str] = &[
     "timelock recovery \u{b7} native SegWit",
     "single-sig \u{b7} Taproot, script tree",
     "3-key MuSig2 \u{b7} Taproot",
+    #[cfg(feature = "unreleased")]
     "2-of-3 FROST \u{b7} Taproot",
     "3-of-5 multisig \u{b7} native SegWit",
     "BIP-39 \u{b7} 24 words",
@@ -309,7 +310,8 @@ fn select_all_and_load_ticked_loads_every_wallet_and_every_key() {
         assert!(held(&app, k.plain.expect("a key")), "{}", k.name);
     }
     let toast = app.toast_text().expect("a toast").to_string();
-    assert!(toast.starts_with("Loaded 13 wallets and "), "{toast}");
+    let loaded = format!("Loaded {} wallets and ", SAMPLES.wallets.len());
+    assert!(toast.starts_with(&loaded), "{toast}");
     // Everything is loaded: the sheet has nothing left to tick.
     open(&mut app);
     app.press(Action::SamplesAll);

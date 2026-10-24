@@ -8,10 +8,6 @@ One branch of a key with its own addresses and its own history. A coordinator us
 
 Bitcoin Secure Multisig Setup, BIP-129: a procedure in which every signer confirms the same multisig description on its own screen before the wallet is used.
 
-## Carry file
-
-The file that carries a part-signed FROST transaction from one signer to the next, holding the transaction and the secret nonce of each signer still to sign.
-
 ## Checksum
 
 Bits at the end of the seed words that catch a typo. Passing the checksum does not prove the words are yours.
@@ -43,14 +39,6 @@ A way of picking words at random by throwing dice. Each throw of four or five di
 ## Fingerprint
 
 Four bytes that identify a key, so a coordinator and a signer can confirm they mean the same one.
-
-## FROST
-
-A scheme in which one key is split into n shares, any m of which sign, and the chain sees one key and one signature.
-
-## Group record
-
-The public file that states a FROST wallet's threshold, its group key, the public half of every share, and its descriptor. A share without it opens nothing.
 
 ## Identifier
 
@@ -106,7 +94,7 @@ The 64 bytes that the seed words and passphrase are stretched into. Every key of
 
 ## Share
 
-One of the pieces a key or a description is split into. A FROST wallet's key is split into n shares held as 24 words, any m of which sign; SLIP-39 and codex32 split a seed into shares; a backup can split a multisig's description into shares. One share alone can do nothing.
+One of the pieces a key or a description is split into. SLIP-39 and codex32 split a seed into shares; a backup can split a multisig's description into shares. One share alone can do nothing.
 
 ## Share index
 
