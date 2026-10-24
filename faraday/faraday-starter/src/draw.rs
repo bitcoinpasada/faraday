@@ -18,7 +18,7 @@ use crate::api::{Concern, InUse, InstallItem, Kind, Mode, Os, Reason, StickFault
 use crate::decide::{Item, Refusal, State, Target};
 use crate::macs::{self, StickFor};
 use crate::notes;
-use crate::template::Copy;
+use crate::template::{CODEX_LENGTHS, CodexCopy, Copy, Form};
 use crate::{
     Card, LearnId, ModeRefusal, Page, RestartTo, Sheet, Starter, StarterAction, TemplateChoice,
 };
@@ -85,6 +85,9 @@ pub(crate) fn frame(starter: &Starter, ui: &mut Ui) -> f32 {
         Page::TemplateWords => template_words(starter, ui, x, y0, cw),
         Page::TemplateCopy => template_copy(starter, ui, x, y0, cw),
         Page::TemplatePlaces => template_places(starter, ui, x, y0, cw),
+        Page::TemplateForm => template_form(starter, ui, x, y0, cw),
+        Page::TemplateLength => template_length(starter, ui, x, y0, cw),
+        Page::TemplateWorksheets => template_worksheets(starter, ui, x, y0, cw),
     };
     ui.c.pop_clip();
     let content = end - y0 + pad + 16.0;
@@ -145,6 +148,9 @@ fn page_name(starter: &Starter) -> String {
         Page::TemplateWords => S.starter_tpl_words.to_string(),
         Page::TemplateCopy => S.starter_tpl_copy.to_string(),
         Page::TemplatePlaces => S.starter_tpl_places.to_string(),
+        Page::TemplateForm => S.starter_tpl_form.to_string(),
+        Page::TemplateLength => S.starter_tpl_length.to_string(),
+        Page::TemplateWorksheets => S.starter_tpl_worksheets.to_string(),
     }
 }
 
@@ -163,9 +169,12 @@ fn back_name(starter: &Starter) -> Option<String> {
             )
         }
         Page::Confirm => Some(S.starter_mode_title.to_string()),
-        Page::TemplateWords | Page::TemplateCopy | Page::TemplatePlaces => {
-            Some(S.starter_row_templates.to_string())
-        }
+        Page::TemplateWords
+        | Page::TemplateCopy
+        | Page::TemplatePlaces
+        | Page::TemplateForm
+        | Page::TemplateLength
+        | Page::TemplateWorksheets => Some(S.starter_row_templates.to_string()),
         Page::Disks if starter.asks_which() && target_of(starter) == Target::Stick => {
             Some(S.starter_which_title.to_string())
         }
@@ -2099,28 +2108,94 @@ fn copy_text(c: Copy) -> &'static str {
     }
 }
 
+/// What a Form reads as.
+fn form_text(f: Form) -> &'static str {
+    match f {
+        Form::Words => S.starter_tpl_form_words,
+        Form::Codex32 => S.starter_tpl_form_codex32,
+    }
+}
+
+/// What a codex32 copy reads as.
+fn codex_copy_text(c: CodexCopy) -> &'static str {
+    match c {
+        CodexCopy::String => S.starter_tpl_string,
+        CodexCopy::Codex32Qr => S.starter_tpl_codex32qr,
+        CodexCopy::Both => S.starter_tpl_both,
+    }
+}
+
+/// A codex32 length as the menu has it.
+fn chars_text(n: usize) -> String {
+    fill(S.starter_tpl_chars, &[&n.to_string()])
+}
+
+/// What Worksheets reads as.
+fn worksheets_text(on: bool) -> &'static str {
+    if on {
+        S.starter_tpl_ws_all
+    } else {
+        S.starter_tpl_ws_none
+    }
+}
+
+/// The menu's rows: head, value and the choice each opens, by form.
+fn template_rows(starter: &Starter) -> Vec<(&'static str, String, TemplateChoice)> {
+    let t = &starter.template;
+    let form = (
+        S.starter_tpl_form,
+        form_text(t.form).to_string(),
+        TemplateChoice::Form,
+    );
+    let places = (
+        S.starter_tpl_places,
+        t.places.to_string(),
+        TemplateChoice::Places,
+    );
+    match t.form {
+        Form::Words => vec![
+            form,
+            (
+                S.starter_tpl_words,
+                t.words.to_string(),
+                TemplateChoice::Words,
+            ),
+            (
+                S.starter_tpl_copy,
+                copy_text(t.copy).to_string(),
+                TemplateChoice::Copy,
+            ),
+            places,
+        ],
+        Form::Codex32 => vec![
+            form,
+            (
+                S.starter_tpl_length,
+                chars_text(t.chars),
+                TemplateChoice::Length,
+            ),
+            (
+                S.starter_tpl_copy,
+                codex_copy_text(t.codex_copy).to_string(),
+                TemplateChoice::Copy,
+            ),
+            (
+                S.starter_tpl_worksheets,
+                worksheets_text(t.worksheets).to_string(),
+                TemplateChoice::Worksheets,
+            ),
+            places,
+        ],
+    }
+}
+
 /// The blank templates menu: Words, Copy and Places as value rows, Print,
 /// Save the PDF, and what became of the last save.
 fn templates(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0 + title(starter, ui, x, y0);
     let t = &starter.template;
-    for (head, tail, choice) in [
-        (
-            S.starter_tpl_words,
-            t.words.to_string(),
-            TemplateChoice::Words,
-        ),
-        (
-            S.starter_tpl_copy,
-            copy_text(t.copy).to_string(),
-            TemplateChoice::Copy,
-        ),
-        (
-            S.starter_tpl_places,
-            t.places.to_string(),
-            TemplateChoice::Places,
-        ),
-    ] {
+    let rows = template_rows(starter);
+    for (head, tail, choice) in rows {
         y += nav_row(
             ui,
             x,
@@ -2237,6 +2312,24 @@ fn template_words(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f3
 fn template_copy(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
     let mut y = y0 + title(starter, ui, x, y0);
     ui.rule(x, y, w, INNER);
+    if starter.template.form == Form::Codex32 {
+        // The Codex32QR grid is for 48 characters only.
+        for c in CodexCopy::ALL {
+            if c != CodexCopy::String && starter.template.chars != 48 {
+                continue;
+            }
+            y += tick_row(
+                ui,
+                x,
+                y,
+                w,
+                codex_copy_text(c),
+                starter.template.codex_copy == c,
+                StarterAction::TemplateCodexCopy(c),
+            );
+        }
+        return choice_done(ui, x, y, w);
+    }
     for c in Copy::ALL {
         y += tick_row(
             ui,
@@ -2246,6 +2339,61 @@ fn template_copy(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32
             copy_text(c),
             starter.template.copy == c,
             StarterAction::TemplateCopy(c),
+        );
+    }
+    choice_done(ui, x, y, w)
+}
+
+fn template_form(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    ui.rule(x, y, w, INNER);
+    for f in [Form::Words, Form::Codex32] {
+        y += tick_row(
+            ui,
+            x,
+            y,
+            w,
+            form_text(f),
+            starter.template.form == f,
+            StarterAction::TemplateForm(f),
+        );
+    }
+    choice_done(ui, x, y, w)
+}
+
+fn template_length(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    ui.rule(x, y, w, INNER);
+    for n in CODEX_LENGTHS {
+        y += tick_row(
+            ui,
+            x,
+            y,
+            w,
+            &chars_text(n),
+            starter.template.chars == n,
+            StarterAction::TemplateLength(n),
+        );
+    }
+    choice_done(ui, x, y, w)
+}
+
+fn template_worksheets(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
+    let mut y = y0 + title(starter, ui, x, y0);
+    ui.rule(x, y, w, INNER);
+    for on in [false, true] {
+        // None are published at 127 characters.
+        if on && starter.template.chars == 127 {
+            continue;
+        }
+        y += tick_row(
+            ui,
+            x,
+            y,
+            w,
+            worksheets_text(on),
+            starter.template.worksheets == on,
+            StarterAction::TemplateWorksheets(on),
         );
     }
     choice_done(ui, x, y, w)

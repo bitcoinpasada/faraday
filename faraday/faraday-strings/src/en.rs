@@ -676,6 +676,26 @@ strings! {
     starter_tpl_fewer: "Fewer",
     /// Places stepper.
     starter_tpl_more: "More",
+    /// Blank templates' Form row (codex32 batch).
+    starter_tpl_form: "Form",
+    /// Form: BIP-39 words.
+    starter_tpl_form_words: "BIP-39 words",
+    /// Form: codex32.
+    starter_tpl_form_codex32: "codex32",
+    /// Codex32 length row.
+    starter_tpl_length: "Length",
+    /// A codex32 length. `{}`: 48, 74 or 127.
+    starter_tpl_chars: "{} characters",
+    /// Codex32 copy: the string alone.
+    starter_tpl_string: "String",
+    /// Codex32 copy: the Codex32QR grid.
+    starter_tpl_codex32qr: "Codex32QR",
+    /// Codex32 worksheets row.
+    starter_tpl_worksheets: "Worksheets",
+    /// Worksheets: none.
+    starter_tpl_ws_none: "None",
+    /// Worksheets: dice, checksum and translation.
+    starter_tpl_ws_all: "Dice, checksum and translation",
     /// Another encryption product's driver found, by name (STARTER §6.4).
     starter_other_found: "An encrypted drive Faraday does not manage: {}",
     /// The person has that product's rescue disk or password.
@@ -3838,6 +3858,69 @@ strings! {
     pdf_place: "Place",
     /// Line in `blank_sheet`.
     pdf_holds: "holds",
+    // ----- codex32 blank templates (faraday-core/src/pdf/codex32.rs) -----
+    /// Error in `sheet`: a codex32 template of another length.
+    pdf_c32_length: "the codex32 template is for 48, 74 or 127 characters",
+    /// Title of the share card. `{}`: the length in characters.
+    pdf_c32_card: "Codex32 share · {} characters",
+    /// Line on the share card.
+    pdf_c32_hand: "Write one character in each box. Write 0, 7, S and Z with a slash.",
+    /// Label under box 4 of the share card.
+    pdf_c32_threshold: "Threshold",
+    /// Label under boxes 5 to 8 of the share card.
+    pdf_c32_identifier: "Identifier",
+    /// Label under box 9 of the share card.
+    pdf_c32_index: "Share index",
+    /// Label over the alphabet at the foot of the share card.
+    pdf_c32_alphabet: "The 32 characters",
+    /// Caption of the Codex32QR grid on the share card.
+    pdf_c32_grid: "Codex32QR · the grey squares are printed already",
+    /// Title of the dice worksheet.
+    pdf_c32_dice: "Dice worksheet",
+    /// Head of a die's columns. `{}`: the die's number.
+    pdf_c32_die: "Die {}",
+    /// Head over a die's first roll.
+    pdf_c32_roll_first: "1st",
+    /// Head over a die's second roll.
+    pdf_c32_roll_second: "2nd",
+    /// Head over a die's bit.
+    pdf_c32_bit: "Bit",
+    /// Head over the box of the character made.
+    pdf_c32_character: "Character",
+    /// Caption of the dice worksheet's tree.
+    pdf_c32_tree: "Bits 1 to 5, top to bottom: 0 goes left, 1 goes right.",
+    /// Title of the checksum worksheet. `{}`: the length in characters.
+    pdf_c32_checksum: "Checksum worksheet · {} characters",
+    /// A worksheet title with its page. `{}`: the title, the page, the pages.
+    pdf_c32_page: "{} · page {} of {}",
+    /// Key of the checksum worksheet: the bold boxes.
+    pdf_c32_key_given: "Given",
+    /// Key of the checksum worksheet: the pink boxes.
+    pdf_c32_key_checksum: "Checksum",
+    /// Key of the checksum worksheet: the grey rows.
+    pdf_c32_key_lookup: "Row of the checksum table",
+    /// Title of a translation worksheet. `{}`: k, the length in characters.
+    pdf_c32_translation: "Translation worksheet · k = {} · {} characters",
+    /// Label of an input string on the translation worksheet. `{}`: its index.
+    pdf_c32_share: "Share {}",
+    /// Label over the translation symbol's box.
+    pdf_c32_symbol: "Symbol",
+    /// Label of the sum row on the translation worksheet.
+    pdf_c32_new_share: "New share",
+    /// Title of a derivation table. `{}`: k.
+    pdf_c32_derivation: "Derivation table · k = {}",
+    /// Title of the page of the principal tables.
+    pdf_c32_tables: "Tables",
+    /// Name of the Addition table.
+    pdf_c32_addition: "Addition",
+    /// Name of the Translation table.
+    pdf_c32_translation_table: "Translation",
+    /// Name of the Recovery table.
+    pdf_c32_recovery: "Recovery",
+    /// Name of the Fusion table.
+    pdf_c32_fusion: "Fusion",
+    /// Title of a page of the checksum table. `{}`: the page, the pages.
+    pdf_c32_checksum_table: "Checksum table · {} of {}",
     // ----- plan (faraday-core/src/plan/mod.rs) -----
     /// Text in `vault_name`. `{}`: `v + 1`, `names.join(", ")`.
     plan_vault_names: "Vault {} · {}",

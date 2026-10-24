@@ -19,6 +19,7 @@ pub mod decide;
 mod draw;
 pub mod macs;
 pub mod notes;
+pub mod sheets;
 pub mod template;
 
 /// What a [`api::Reason`] reads as on screen, from `faraday_strings`.
@@ -80,6 +81,12 @@ pub enum Page {
     TemplateCopy,
     /// Blank templates' Places count.
     TemplatePlaces,
+    /// Blank templates' Form (words or codex32).
+    TemplateForm,
+    /// Blank templates' codex32 Length.
+    TemplateLength,
+    /// Blank templates' codex32 Worksheets.
+    TemplateWorksheets,
 }
 
 /// A sheet over a page.
@@ -277,6 +284,14 @@ pub enum StarterAction {
     TemplateChoice(TemplateChoice),
     /// Words, ticked: 12 or 24.
     TemplateWords(usize),
+    /// Form, ticked.
+    TemplateForm(template::Form),
+    /// Codex32 length, ticked: 48, 74 or 127.
+    TemplateLength(usize),
+    /// Codex32 copy, ticked.
+    TemplateCodexCopy(template::CodexCopy),
+    /// Codex32 worksheets, ticked or not.
+    TemplateWorksheets(bool),
     /// Copy, ticked.
     TemplateCopy(template::Copy),
     /// Places: one fewer.
@@ -313,6 +328,12 @@ pub enum TemplateChoice {
     Copy,
     /// Places: a count.
     Places,
+    /// Form: words or codex32.
+    Form,
+    /// Codex32 length.
+    Length,
+    /// Codex32 worksheets.
+    Worksheets,
 }
 
 /// A maker page's number in an action's code: this plus its place in
@@ -380,6 +401,10 @@ impl StarterAction {
             StarterAction::SuspendBitLocker => (52, 0),
             StarterAction::ResumeBitLocker => (53, 0),
             StarterAction::RestartStick => (54, 0),
+            StarterAction::TemplateForm(f) => (55, f as u32),
+            StarterAction::TemplateLength(n) => (56, n as u32),
+            StarterAction::TemplateCodexCopy(c) => (57, c as u32),
+            StarterAction::TemplateWorksheets(on) => (58, u32::from(on)),
         };
         (kind << 16) | arg
     }
@@ -433,6 +458,9 @@ impl StarterAction {
             42 => StarterAction::TemplateChoice(match arg {
                 0 => TemplateChoice::Words,
                 1 => TemplateChoice::Copy,
+                3 => TemplateChoice::Form,
+                4 => TemplateChoice::Length,
+                5 => TemplateChoice::Worksheets,
                 _ => TemplateChoice::Places,
             }),
             43 => StarterAction::TemplateWords(arg as usize),
@@ -447,6 +475,14 @@ impl StarterAction {
             52 => StarterAction::SuspendBitLocker,
             53 => StarterAction::ResumeBitLocker,
             54 => StarterAction::RestartStick,
+            55 => StarterAction::TemplateForm(if arg == 1 {
+                template::Form::Codex32
+            } else {
+                template::Form::Words
+            }),
+            56 => StarterAction::TemplateLength(arg as usize),
+            57 => StarterAction::TemplateCodexCopy(*template::CodexCopy::ALL.get(arg as usize)?),
+            58 => StarterAction::TemplateWorksheets(arg == 1),
             _ => return None,
         })
     }
@@ -1546,7 +1582,26 @@ impl Starter {
                 TemplateChoice::Words => Page::TemplateWords,
                 TemplateChoice::Copy => Page::TemplateCopy,
                 TemplateChoice::Places => Page::TemplatePlaces,
+                TemplateChoice::Form => Page::TemplateForm,
+                TemplateChoice::Length => Page::TemplateLength,
+                TemplateChoice::Worksheets => Page::TemplateWorksheets,
             }),
+            StarterAction::TemplateForm(f) if self.page == Page::TemplateForm => {
+                self.template.form = f;
+                self.template.saved = None;
+            }
+            StarterAction::TemplateLength(n) if self.page == Page::TemplateLength => {
+                self.template.set_chars(n);
+                self.template.saved = None;
+            }
+            StarterAction::TemplateCodexCopy(c) if self.page == Page::TemplateCopy => {
+                self.template.set_codex_copy(c);
+                self.template.saved = None;
+            }
+            StarterAction::TemplateWorksheets(on) if self.page == Page::TemplateWorksheets => {
+                self.template.set_worksheets(on);
+                self.template.saved = None;
+            }
             StarterAction::TemplateWords(n) if self.page == Page::TemplateWords => {
                 if n == 12 || n == 24 {
                     self.template.words = n;
@@ -1666,6 +1721,10 @@ impl Starter {
             | StarterAction::ResumeBitLocker
             | StarterAction::TemplateChoice(_)
             | StarterAction::TemplateWords(_)
+            | StarterAction::TemplateForm(_)
+            | StarterAction::TemplateLength(_)
+            | StarterAction::TemplateCodexCopy(_)
+            | StarterAction::TemplateWorksheets(_)
             | StarterAction::TemplateCopy(_)
             | StarterAction::PlacesFewer
             | StarterAction::PlacesMore
@@ -1760,7 +1819,12 @@ impl Starter {
             }
             // A write under way goes on: its page stays.
             Page::Writing => return,
-            Page::TemplateWords | Page::TemplateCopy | Page::TemplatePlaces => Page::Templates,
+            Page::TemplateWords
+            | Page::TemplateCopy
+            | Page::TemplatePlaces
+            | Page::TemplateForm
+            | Page::TemplateLength
+            | Page::TemplateWorksheets => Page::Templates,
             _ => Page::Home,
         };
         if to == Page::Disks

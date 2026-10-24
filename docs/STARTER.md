@@ -882,6 +882,16 @@ right, each opening a page of its options (a ring each, filled on the
 one chosen) or, for Places, **Fewer** and **More**, with **Continue**
 back; then the buttons:
 
+- **Form** (first row, `docs/CODEX32.md` §11; built: batch C9):
+  **BIP-39 words** (chosen) · **codex32**. With codex32 the rows are
+  **Length** (48 chosen · 74 · 127 characters), **Copy** (**String**
+  chosen · **Codex32QR** · **Both**, the last two at 48 only),
+  **Worksheets** (**None** chosen · **Dice, checksum and translation**,
+  not at 127) and **Places**; the card, the worksheets and the booklet's
+  tables are drawn by `faraday-starter`'s `sheets.rs`, and the file is
+  `faraday-blank-template-codex32-{48|74|127}-chars-{string|codex32qr|string-codex32qr}[-worksheets].pdf`.
+  A length that no longer holds a choice (Codex32QR or the worksheets)
+  puts that choice back to String or None;
 - **Words**: **12** · **24**, 24 chosen;
 - **Copy**: **Words** · **SeedQR** · **Both**, Words chosen: the word
   lines, the SeedQR grid, or both on one sheet, as the backup's `copy:`
@@ -909,7 +919,9 @@ text has those `words:` and `copy:` lines and no `name:`, saved under
 its name; a second save beside a first is named "(2)"; Print makes the
 same PDF bytes as Save and asks the shell to open it. Built:
 `faraday-starter`'s `template.rs`, `tests/all/template.rs` and the shell's
-`pdf.rs`.
+`pdf.rs`; the codex32 form: `tests/all/template_codex32.rs` (the Form row
+and its rows, each template's file name and pages, the printed tables
+equal to the booklet's `tables.json`, no secret in any blank).
 
 ## 4. Writing a stick or a card
 

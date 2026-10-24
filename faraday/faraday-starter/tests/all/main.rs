@@ -10,4 +10,5 @@ mod secure_boot;
 mod starter;
 mod steps;
 mod template;
+mod template_codex32;
 mod unread_version;

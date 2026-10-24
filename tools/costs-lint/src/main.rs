@@ -152,6 +152,11 @@ const MINTS: &[(&str, &str, &str)] = &[
         "the Starter's tests, which draw nothing",
     ),
     (
+        "faraday/faraday-starter/tests/all/template_codex32.rs",
+        "compute",
+        "the Starter's tests, which draw nothing",
+    ),
+    (
         "faraday/faraday-starter/examples/snap.rs",
         "compute",
         "the Starter's snapshot tool, which makes no drawing claim",

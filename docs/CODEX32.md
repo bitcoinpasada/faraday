@@ -1,8 +1,8 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), the wallet kind of §6.9 (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), backups (C8, §9, as §2 says), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller component (C11, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is recorded as F107
-**Open:** of C5, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); of C8, a string's files written at a stick's write, a share record written at a vault's save, strings gathered from several vaults at unlock, the set's facts kept for a key loaded from strings, the copies by hand's strings one per screen typed back (§9.1) and the line per place counting shares (§9.5); batches C9 and C10 (§15.2): templates, Demo and Learn; the five-dice roller's place in the entry's pad (§5.5; its component is built); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), the wallet kind of §6.9 (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), backups (C8, §9, as §2 says), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller component (C11, §2), the Starter's codex32 templates and worksheets (C9, §11); D1 to D4 of §14 are recorded as F93 to F96, D5 is recorded as F107
+**Open:** of C5, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); of C8, a string's files written at a stick's write, a share record written at a vault's save, strings gathered from several vaults at unlock, the set's facts kept for a key loaded from strings, the copies by hand's strings one per screen typed back (§9.1) and the line per place counting shares (§9.5); batch C10 (§15.2): Demo and Learn; the five-dice roller's place in the entry's pad (§5.5; its component is built); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -404,7 +404,9 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   Dice that name words, every word as it is made.
 - **Blank templates** (`docs/STARTER.md` §3.8,
   `faraday/faraday-starter/src/template.rs`, `faraday/faraday-core/src/pdf.rs`)
-  print BIP-39 sheets only.
+  print BIP-39 sheets and, from batch C9, the codex32 card and the
+  booklet's worksheets and tables (§11;
+  `faraday/faraday-starter/src/sheets.rs`).
 
 ## 3. Words
 
@@ -1551,6 +1553,16 @@ are computed, not copied); the tests check the drawn checksum table
 against the residues of §7.1. The MIT notice is kept in the repository
 (beside the fixtures and the reference page, §5.1) and on the codex32
 Learn page, and is not printed on the sheets (owner, §1.1 item 6).
+
+Built (batch C9): the Form row, the card (`ms1` in boxes 1 to 3, the
+labelled boxes, the Codex32QR grid with its fixed squares grey, the
+fingerprint, the alphabet with 0, 7, S and Z slashed), the dice
+worksheet, the checksum worksheet (landscape, 48 on one page, 74 on two),
+the translation worksheets at 48, the booklet's principal, derivation and
+checksum tables (computed, and tested equal to `tables.json`). The
+booklet's second alphabet is drawn in PDF's Symbol font and Helvetica
+(the face baked into the screens is not in a PDF), and the booklet's
+Greek, aleph, circled plus, diamond and heart come from the Symbol font.
 
 Saved as `faraday-blank-template-codex32-{48|74|127}-chars-{string|codex32qr|string-codex32qr}.pdf`,
 with `-worksheets` before `.pdf` where they are asked for. Nothing else

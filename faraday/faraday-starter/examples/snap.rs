@@ -753,6 +753,7 @@ fn run(s: &Snap) -> Result<(), String> {
         "Downloads/faraday-blank-template-24-words-words.pdf".into(),
     )));
     s.shot(&mut h, "templates-saved")?;
+    codex32_template_shots(s)?;
 
     // The desktop app's own Transfer and Learn.
     let mut h = s.starter();
@@ -764,6 +765,38 @@ fn run(s: &Snap) -> Result<(), String> {
     step_shots(s)?;
     guide_shots(s)?;
     guide_start_shots(s)
+}
+
+/// The codex32 blank templates (`docs/CODEX32.md` §11): the menu and its
+/// choices, and each template's PDF written beside the pictures, for
+/// `pdftoppm` to turn into the pages that are looked at.
+fn codex32_template_shots(s: &Snap) -> Result<(), String> {
+    use faraday_starter::TemplateChoice;
+    use faraday_starter::template::{CodexCopy, Form};
+    let mut h = s.starter();
+    h.press(StarterAction::Templates);
+    h.press(StarterAction::TemplateChoice(TemplateChoice::Form));
+    s.shot(&mut h, "templates-codex32-form")?;
+    h.press(StarterAction::TemplateForm(Form::Codex32));
+    h.press(StarterAction::Back);
+    s.shot(&mut h, "templates-codex32")?;
+    h.press(StarterAction::TemplateChoice(TemplateChoice::Worksheets));
+    h.press(StarterAction::TemplateWorksheets(true));
+    s.shot(&mut h, "templates-codex32-worksheets")?;
+    h.press(StarterAction::Back);
+    h.press(StarterAction::TemplateChoice(TemplateChoice::Copy));
+    s.shot(&mut h, "templates-codex32-copy")?;
+    h.press(StarterAction::TemplateCodexCopy(CodexCopy::Both));
+    h.press(StarterAction::Back);
+    for (name, chars, worksheets) in [("48", 48, true), ("74", 74, true), ("127", 127, false)] {
+        h.template.set_chars(chars);
+        h.template.set_worksheets(worksheets);
+        let pdf = h.template.pdf(&compute())?;
+        let path = s.out.join(format!("template-codex32-{name}.pdf"));
+        std::fs::write(&path, pdf).map_err(|e| format!("{}: {e}", path.display()))?;
+        println!("{}", path.display());
+    }
+    Ok(())
 }
 
 /// A USB stick named for no maker, as `docs/GUIDE.md` shows one, as

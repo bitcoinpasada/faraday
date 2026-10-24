@@ -22,6 +22,9 @@ const MARGIN: f32 = 48.0;
 #[derive(Default)]
 struct Page {
     ops: Vec<u8>,
+    /// A page not A4 portrait: its width and height in points
+    /// ([`RawPage`]).
+    media: Option<(f32, f32)>,
 }
 
 #[derive(Clone, Copy)]
@@ -188,14 +191,18 @@ fn document(_c: &Compute, pages: Vec<Page>) -> Vec<u8> {
             .as_bytes(),
         );
     }
+    // The Symbol font, after the pages: the codex32 sheets' second
+    // alphabet (Greek letters, aleph, the circled plus, diamond, heart).
+    let symbol_id = 6 + 2 * n;
     for (i, page) in pages.iter().enumerate() {
         let contents = page_ids[i] + 1;
+        let (w, h) = page.media.unwrap_or((PAGE_W, PAGE_H));
         obj(
             &mut out,
             &mut offsets,
             format!(
-                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {PAGE_W} {PAGE_H}] \
-                 /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents {contents} 0 R >>"
+                "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {w} {h}] \
+                 /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R /F4 {symbol_id} 0 R >> >> /Contents {contents} 0 R >>"
             )
             .as_bytes(),
         );
@@ -204,6 +211,11 @@ fn document(_c: &Compute, pages: Vec<Page>) -> Vec<u8> {
         body.extend_from_slice(b"endstream");
         obj(&mut out, &mut offsets, &body);
     }
+    obj(
+        &mut out,
+        &mut offsets,
+        b"<< /Type /Font /Subtype /Type1 /BaseFont /Symbol >>",
+    );
     let xref = out.len();
     out.extend_from_slice(
         format!("xref\n0 {}\n0000000000 65535 f \n", offsets.len() + 1).as_bytes(),
@@ -219,6 +231,30 @@ fn document(_c: &Compute, pages: Vec<Page>) -> Vec<u8> {
         .as_bytes(),
     );
     out
+}
+
+/// A page drawn by another crate, as PDF operators with the origin at
+/// the bottom left, and its size in points where it is not A4 portrait.
+/// Fonts: `/F1` Helvetica, `/F2` Helvetica-Bold, `/F3` Courier, `/F4`
+/// Symbol. The Starter's codex32 templates are drawn this way.
+pub struct RawPage {
+    /// The page's operators.
+    pub ops: Vec<u8>,
+    /// Width and height in points, or A4 portrait.
+    pub size: Option<(f32, f32)>,
+}
+
+/// Costs the document written out, as `document` does. The PDF of pages
+/// drawn elsewhere ([`RawPage`]); holds no information beyond its pages.
+pub fn raw_document(c: &Compute, pages: Vec<RawPage>) -> Vec<u8> {
+    let pages = pages
+        .into_iter()
+        .map(|p| Page {
+            ops: p.ops,
+            media: p.size,
+        })
+        .collect();
+    document(c, pages)
 }
 
 /// Costs a picture drawn (through `document`). A notes sheet
