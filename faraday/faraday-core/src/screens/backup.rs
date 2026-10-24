@@ -1498,7 +1498,7 @@ fn sticks_item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 EN.backup_flow_wiped,
                 kw.wiped
                     .iter()
-                    .map(|(l, nowhere)| (l.clone(), if *nowhere { ERR } else { TEXT }))
+                    .map(|(l, nowhere, _)| (l.clone(), if *nowhere { ERR } else { TEXT }))
                     .collect(),
             ),
         ] {

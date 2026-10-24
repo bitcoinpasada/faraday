@@ -102,7 +102,12 @@ fn with_no_randomness_a_lock_seals_nothing_until_it_arrives() {
     assert_eq!(app.sheet, Some(Sheet::LockAsk));
     let texts = app.drawn_texts();
     assert!(texts.iter().any(|t| t == EN.seed_missing), "{texts:?}");
-    assert!(texts.iter().any(|t| t == EN.vault_not_sealed), "{texts:?}");
+    // The vault's changes are listed as wiped from memory.
+    let wiped = texts.iter().position(|t| t == "Wiped from memory");
+    let lost = texts
+        .iter()
+        .position(|t| t.ends_with(EN.vaults_changes_not_sealed));
+    assert!(wiped.is_some() && lost > wiped, "{texts:?}");
     assert!(
         texts.iter().any(|t| t == EN.vault_lock_without_sealing),
         "{texts:?}"
@@ -191,4 +196,55 @@ fn two_sessions_with_no_randomness_write_nothing() {
         assert_eq!(sealed(&app), None);
         assert!(!app.restart_requested());
     }
+}
+
+/// With a vault open and a key in no vault, Lock asks first with the
+/// sheet every lock and power-off has (decision 28): Kept, Wiped from
+/// memory with the key, Then, and Back to the vault beside Lock.
+#[test]
+fn a_lock_with_a_vault_open_lists_kept_wiped_and_then() {
+    let mut app = device(testkit::test_vault().unwrap());
+    randomness(&mut app, 0x21);
+    open(&mut app);
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::EntryAdd);
+    app.press(Action::LockAsk);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk));
+    let texts = app.drawn_texts();
+    let at = |s: &str| texts.iter().position(|t| t == s);
+    let (kept, wiped, then) = (at("Kept"), at("Wiped from memory"), at("Then"));
+    assert!(kept.is_some() && kept < wiped && wiped < then, "{texts:?}");
+    assert!(then < at("Faraday restarts on Unlock"), "{texts:?}");
+    let nowhere = texts.iter().position(|t| t.contains("nowhere else"));
+    assert!(wiped < nowhere && nowhere < then, "the key: {texts:?}");
+    assert!(app.offers(Action::Cancel));
+    assert!(app.offers(Action::Lock));
+    app.press(Action::Lock);
+    assert!(app.restart_requested());
+}
+
+/// On that sheet, a key in no vault has its Save: pressed, the key is in
+/// the open vault, the sheet stays and lists it there, with no Save.
+#[test]
+fn the_lock_sheet_saves_a_key_in_no_vault_into_the_open_vault() {
+    let mut app = device(testkit::test_vault().unwrap());
+    randomness(&mut app, 0x21);
+    open(&mut app);
+    app.press(Action::Entry(None));
+    type_text(&mut app, &testkit::test_words(testkit::TEST_SEEDS[1].0));
+    app.press(Action::EntryAdd);
+    app.press(Action::LockAsk);
+    let k = app.session.keys.all().count() - 1;
+    let save = Action::Vault(V::SaveKey(k));
+    let _ = app.drawn_texts();
+    assert!(app.offers(save), "Save beside the key");
+    app.press(save);
+    assert_eq!(app.sheet, Some(Sheet::LockAsk), "the sheet stays");
+    let texts = app.drawn_texts();
+    assert!(
+        !texts.iter().any(|t| t.contains("nowhere else")),
+        "{texts:?}"
+    );
+    assert!(!app.offers(save), "{texts:?}");
 }

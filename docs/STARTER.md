@@ -726,7 +726,7 @@ value each, then
 **Print**:
 
 - **Boot menu key**: the maker's, to start the stick (`faraday_learn::Maker::boot_key`);
-- **BIOS key**: the maker's, to get back into the BIOS afterwards and
+- **Usual BIOS key**: the maker's, to get back into the BIOS afterwards and
   turn Secure Boot on before Windows starts (`Maker::bios_key`, F42);
 - **Secure Boot setting**: where the setting is in this maker's BIOS,
   as its guide names it, "Boot Configuration → Secure Boot" on a Dell

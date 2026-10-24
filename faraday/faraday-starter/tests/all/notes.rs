@@ -134,7 +134,7 @@ fn heads(n: &Notes) -> Vec<&'static str> {
 fn a_dell_s_page_shows_its_three_things_before_the_restart() {
     let mut s = start_page(dell());
     assert_eq!(value_after(&mut s, "Boot menu key"), "F12");
-    assert_eq!(value_after(&mut s, "BIOS key"), "F2");
+    assert_eq!(value_after(&mut s, "Usual BIOS key"), "F2");
     assert_eq!(
         value_after(&mut s, "Secure Boot setting"),
         "Boot Configuration → Secure Boot"
@@ -155,7 +155,7 @@ fn a_dell_s_sheet_has_the_three_things_and_the_steps_in_order() {
         rows(&notes),
         [
             ("Boot menu key".to_string(), Some("F12")),
-            ("BIOS key".to_string(), Some("F2")),
+            ("Usual BIOS key".to_string(), Some("F2")),
             (
                 "Secure Boot setting".to_string(),
                 Some("Boot Configuration → Secure Boot")
@@ -193,7 +193,7 @@ fn a_maker_without_a_page_reads_not_known_and_the_sheet_leaves_lines_to_write_on
     let mut s = start_page(unknown());
     assert_eq!(value_after(&mut s, "Secure Boot setting"), "Not known");
     // The two key rows list the keys to try.
-    for (label, key) in [("Boot menu key", "F12"), ("BIOS key", "F2")] {
+    for (label, key) in [("Boot menu key", "F12"), ("Usual BIOS key", "F2")] {
         let v = value_after(&mut s, label);
         assert!(v.starts_with("Not known: try Esc"), "{label}: {v}");
         assert!(v.contains(key), "{label}: {v}");

@@ -1,11 +1,12 @@
 //! Restart beside Power off on the PC stick and the Pi, with the BIOS key
 //! where the Secure Boot reminder shows (`docs/FLOWS.md`, Restart; F42).
 
+use faraday_core::vault::HOLD_MS;
 use faraday_core::{
     Action, Faraday, Medium, RESTART_CODE, RESTART_COMPUTER_CODE, SecureBootAtStart, Sheet,
     StorageEvent,
 };
-use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware, TouchPhase};
 
 fn shown(app: &mut Faraday) -> Vec<String> {
     app.event(Event::Display(DisplayInfo {
@@ -66,19 +67,62 @@ fn faraday_desktop_offers_power_off_only() {
     app.press(Action::PowerAsk);
     let t = shown(&mut app);
     assert!(!t.iter().any(|s| s == "Restart"), "{t:?}");
-    assert!(t.iter().any(|s| s == "Power off"));
+    assert!(
+        t.iter().any(|s| s == "Hold to power off"),
+        "files wait: {t:?}"
+    );
     assert!(t.iter().any(|s| s == "The computer powers off"));
 }
 
+/// Touches `action` where the last frame drew it at `t0` ms and lets go
+/// at `t1`, a tick between.
+fn held(app: &mut Faraday, action: Action, t0: u64, t1: u64) {
+    let (x, y) = app.where_offered(action).expect("on screen");
+    app.event(Event::Tick { now_ms: t0 });
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Down,
+    });
+    app.event(Event::Tick { now_ms: t1 });
+    app.event(Event::Touch {
+        x,
+        y,
+        phase: TouchPhase::Up,
+    });
+}
+
+/// Files waiting for the stick: Restart and Power off each take a hold
+/// (decision 5); a press let go too soon does nothing.
 #[test]
-fn restart_with_files_waiting_asks_first_as_power_off_does() {
+fn with_files_waiting_restart_and_power_off_take_a_hold() {
     let mut app = Faraday::new();
     with_outbox(&mut app);
     app.press(Action::PowerAsk);
     assert_eq!(app.sheet, Some(Sheet::Power));
     assert!(!exited(&mut app), "the sheet comes first");
-    app.press(Action::Restart);
+    let t = shown(&mut app);
+    for label in ["Hold to restart", "Hold to power off"] {
+        assert!(t.iter().any(|s| s == label), "{label}: {t:?}");
+    }
+    assert!(!app.offers(Action::PowerOff) && !app.offers(Action::Restart));
+    held(&mut app, Action::HoldPowerOff, 1_000, 1_200);
+    let _ = app.frame();
+    assert!(!exited(&mut app), "let go too soon");
+    held(&mut app, Action::HoldRestart, 5_000, 5_000 + HOLD_MS);
     assert!(exited(&mut app));
+    assert!(app.computer_restart_requested());
+}
+
+/// With nothing waiting, Power off is a press.
+#[test]
+fn with_nothing_waiting_power_off_is_a_press() {
+    let mut app = Faraday::new();
+    app.medium = Medium::Stick;
+    app.press(Action::PowerAsk);
+    let _ = shown(&mut app);
+    assert!(app.offers(Action::PowerOff) && app.offers(Action::Restart));
+    assert!(!app.offers(Action::HoldPowerOff));
 }
 
 #[test]

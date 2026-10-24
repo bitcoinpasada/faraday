@@ -90,12 +90,20 @@ fn the_sidebar_has_no_spend_row() {
     assert!(!app.offers(Action::Nav(Screen::Family)));
 }
 
-/// Each of the four stages of the session strip in turn.
+/// Each of the four stages of the session strip in turn: Bring in with
+/// nothing attached, loaded or waiting (owner, 2026-10-24), Open once
+/// the Inbox has a file.
 #[test]
 fn the_session_strip_names_the_current_stage() {
     let c = testkit::compute();
     let mut app = with(0, 0);
-    assert_eq!(app.session_stage(&c), "Open");
+    assert_eq!(app.session_stage(&c), "Bring in", "an empty session");
+    app.storage(faraday_core::StorageEvent::Restored {
+        inbox: vec![("wallet.txt".to_string(), b"wpkh".to_vec())],
+        outbox: Vec::new(),
+        kept: Vec::new(),
+    });
+    assert_eq!(app.session_stage(&c), "Open", "a file in the Inbox");
     app.session
         .keys.add_words(&c, "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "k", None)
         .unwrap();

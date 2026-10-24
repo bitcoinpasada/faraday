@@ -60,6 +60,6 @@ fn the_desktop_power_sheet_says_faraday_closes() {
     app.press(Action::PowerAsk);
     assert_eq!(app.sheet, Some(Sheet::Power));
     assert!(has(&mut app, "Faraday closes"));
-    assert!(has(&mut app, "Quit"));
-    assert!(!has(&mut app, "Power off"));
+    assert!(has(&mut app, "Hold to quit"), "files wait: a hold");
+    assert!(!has(&mut app, "Power off") && !has(&mut app, "Hold to power off"));
 }

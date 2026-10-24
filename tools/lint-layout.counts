@@ -8,15 +8,15 @@ file faraday/faraday-core/src/backup_flow/wallet.rs 2840
 file faraday/faraday-core/src/board/mod.rs 2567
 file faraday/faraday-core/src/lib.rs 7591
 file faraday/faraday-core/src/plan/mod.rs 4045
-file faraday/faraday-core/src/vault/mod.rs 3916
-file faraday/faraday-core/src/vault/screen.rs 4276
+file faraday/faraday-core/src/vault/mod.rs 3908
+file faraday/faraday-core/src/vault/screen.rs 4144
 file faraday/faraday-core/tests/all/backup_board.rs 2783
 file faraday/faraday-core/tests/all/backup_flow_wallet.rs 5816
 
 # Functions over 100 lines (clippy's too_many_lines, each under an
 # `expect`), and functions with too many arguments (each under an
 # `allow`).
-expect too_many_lines 197
+expect too_many_lines 196
 allow too_many_arguments 71
 
 # Faraday's top-level fields (lib.rs's `pub struct Faraday`): only falls.

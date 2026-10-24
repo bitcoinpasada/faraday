@@ -1224,7 +1224,7 @@ fn lock_body(app: &View, _f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) -
             FEN.backup_flow_wiped,
             kw.wiped
                 .iter()
-                .map(|(l, nowhere)| (l.clone(), if *nowhere { ERR } else { TEXT }))
+                .map(|(l, nowhere, _)| (l.clone(), if *nowhere { ERR } else { TEXT }))
                 .collect(),
         ),
     ] {

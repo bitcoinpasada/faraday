@@ -13,7 +13,7 @@ use crate::{Action, Faraday, Screen};
 /// Where a tile leads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Go {
-    /// New key, words.
+    /// Add a key: New key's flow, opening on Start.
     NewKey,
     /// New key, SLIP-39 shares.
     NewShares,
@@ -93,19 +93,14 @@ pub const GROUPS: [&str; 8] = [
 
 /// Every tile, by group.
 pub const TILES: &[Tile] = &[
-    Tile {
-        group: EN.catalog_keys_and_seeds,
-        name: EN.catalog_new_key,
-        line: EN.catalog_dice_coins,
-        tags: &["BIP-39"],
-        go: Go::NewKey,
-    },
+    // One tile for making a key and for typing one: Start offers both
+    // (owner, 2026-10-24).
     Tile {
         group: EN.catalog_keys_and_seeds,
         name: EN.catalog_add_a_key,
-        line: EN.catalog_type_its_words,
+        line: EN.catalog_make_or_type,
         tags: &["BIP-39"],
-        go: Go::AddKey(Form::Words),
+        go: Go::NewKey,
     },
     Tile {
         group: EN.catalog_keys_and_seeds,
@@ -494,7 +489,6 @@ impl Faraday {
             Go::NewShares => self.act(Action::KeyGenSlip39),
             // Add a key is New key opening on Start; a tile for one form
             // opens it with that choice made (`docs/history/NEW-WALLET.md` §15.3).
-            Go::AddKey(Form::Words) => self.act(Action::KeyGen(None)),
             Go::AddKey(form) => self.keygen_open_on(crate::keygen::Start::typing(form)),
             Go::SeedQr => {
                 self.act(Action::Entry(None));

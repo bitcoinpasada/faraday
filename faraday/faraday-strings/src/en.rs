@@ -372,7 +372,7 @@ strings! {
     /// Row: the maker's boot menu key.
     starter_notes_boot_key: "Boot menu key",
     /// Row: the maker's BIOS key.
-    starter_notes_bios_key: "BIOS key",
+    starter_notes_bios_key: "Usual BIOS key",
     /// Row: where the Secure Boot setting is in the maker's BIOS.
     starter_notes_setting: "Secure Boot setting",
     /// Row on an Intel Mac with the T2 chip: the key for macOS Recovery.
@@ -969,13 +969,9 @@ strings! {
     boot_import_unlocking: "Unlocking · {}",
     // ----- catalog (faraday-core/src/catalog.rs) -----
     /// Text in `TILES`.
-    catalog_new_key: "New key",
-    /// Text in `TILES`.
-    catalog_dice_coins: "Dice, coins, cards, hex, camera or a mix",
-    /// Text in `TILES`.
     catalog_add_a_key: "Add a key",
     /// Text in `TILES`.
-    catalog_type_its_words: "Type its words, any BIP-39 list, with a passphrase",
+    catalog_make_or_type: "Make one from dice, coins, cards, hex, camera or a mix, or type its words",
     /// Text in `TILES`.
     catalog_scan_a_seedqr: "Scan a SeedQR",
     /// Text in `TILES`.
@@ -6272,6 +6268,13 @@ strings! {
     power_title: "Power",
     /// Button in `power_sheet`.
     power_restart: "Restart",
+    /// Button in `power_sheet` while files wait or a vault has unsaved
+    /// changes, held to act.
+    power_hold_restart: "Hold to restart",
+    /// Button in `power_sheet`, as `power_hold_restart`.
+    power_hold_power_off: "Hold to power off",
+    /// Button in `power_sheet` in the desktop app, as `power_hold_restart`.
+    power_hold_quit: "Hold to quit",
     /// Text in `power_sheet` where it offers Restart.
     power_the_computer_restarts: "The computer powers off, or restarts",
     /// Label of the row in `power_sheet` that gives this computer's BIOS key.
@@ -7540,28 +7543,23 @@ strings! {
     vault_save_passphrase_button: "Save with its passphrase",
     /// Line in `save_panel`.
     vault_every_key_saved: "Every key in this session is in the vault",
-    /// Button in `save_panel`.
+    /// Button in `save_panel`, and beside each key or wallet in no vault
+    /// on `lock_ask_sheet`.
     vault_save: "Save",
     /// Line in `save_panel`.
     vault_every_wallet: "Every wallet in this session is in the vault",
-    /// Text in `lock_ask`.
-    vault_sealed: "Sealed",
-    /// Text in `lock_ask`, in place of Sealed while the system has given
-    /// no randomness.
+    /// Text in `idle_warn_sheet`, in place of Sealed while the system has
+    /// given no randomness.
     vault_not_sealed: "Not sealed",
-    /// Button in `lock_ask`, in place of Lock while the system has given
+    /// Button in `lock_ask_sheet`, in place of Lock while the system has given
     /// no randomness: the changes are lost.
     vault_lock_without_sealing: "Lock without sealing",
-    /// Text in `lock_ask`.
-    vault_keys_not_saved: "Keys not saved",
-    /// Text in `lock_ask`.
-    vault_wallets_not_saved: "Wallets not saved",
-    /// Line in `lock_ask`.
-    vault_lock_wipe_warning: "Everything not in a vault is wiped with the session",
-    /// Button in `lock_ask`.
+    /// Button in `lock_ask_sheet`.
     vault_back_to_the_vault: "Back to the vault",
-    /// Button in `lock_ask`.
+    /// Title and button in `lock_ask_sheet`.
     vault_lock: "Lock",
+    /// The Then line in `lock_ask_sheet`.
+    lock_ask_then: "Faraday restarts on Unlock",
     /// Text in `years_row`.
     vault_1_year: "1 year",
     /// Text in `years_row`.
@@ -7811,10 +7809,6 @@ strings! {
     lock_held_pill: "Auto-lock off until backup complete",
     /// The lock and power sheets' wiped line then: the flow ends.
     lock_held_ends: "Make a new wallet · ends",
-    /// The lock sheet's row then: its label.
-    lock_held_label: "Ends",
-    /// The value: the flow it ends.
-    lock_held_create: "Make a new wallet",
     /// Text in `line`.
     vaults_unchanged: "Unchanged",
     /// Text in `line`. `{}`: `self.wallets.len()`.

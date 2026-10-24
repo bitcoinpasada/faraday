@@ -147,4 +147,26 @@ fn the_add_a_key_tile_opens_new_key_on_start() {
         Some(faraday_core::keygen::kstep::LENGTH),
         "Start is closed on its default"
     );
+    // The page is titled as the tile is, and Start's Type the words is
+    // the way to the words: one tile for both (owner, 2026-10-24).
+    let _ = app.frame();
+    assert!(app.drawn_texts().iter().any(|t| t == "Add a key"));
+    app.press(Action::KStep(faraday_core::keygen::kstep::START));
+    app.press(Action::KStart(faraday_core::keygen::Start::Words.index()));
+    assert_eq!(
+        app.keygen().unwrap().start,
+        faraday_core::keygen::Start::Words
+    );
+    assert_eq!(
+        faraday_core::testkit::entry(&app).form,
+        faraday_core::forms::Form::Words
+    );
+}
+
+#[test]
+fn tools_has_one_tile_for_making_or_typing_a_key() {
+    let mut app = shown();
+    let texts = app.drawn_texts();
+    assert!(!texts.iter().any(|t| t == "New key"), "{texts:?}");
+    assert_eq!(texts.iter().filter(|t| *t == "Add a key").count(), 1);
 }

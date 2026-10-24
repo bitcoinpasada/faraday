@@ -102,11 +102,11 @@ impl Faraday {
         // Make a new wallet before its keys are kept anywhere ends with
         // the lock or the power-off (`docs/history/NEW-WALLET.md` §18).
         if self.lock_held(c) {
-            out.wiped.push((EN.lock_held_ends.to_string(), true));
+            out.wiped.push((EN.lock_held_ends.to_string(), true, None));
         }
         if power_off {
             for line in self.flows.power_lines() {
-                out.wiped.push((line, true));
+                out.wiped.push((line, true, None));
             }
         }
         for f in self.vault_files() {
@@ -125,10 +125,13 @@ impl Faraday {
             // A lock with no seed to seal with loses the changes.
             let unsealed = !power_off && !self.seeded() && open.is_some_and(|v| v.changes > 0);
             if unsealed {
-                out.wiped
-                    .push((format!("{title} · {}", EN.vaults_changes_not_sealed), true));
+                out.wiped.push((
+                    format!("{title} · {}", EN.vaults_changes_not_sealed),
+                    true,
+                    None,
+                ));
             } else if lost {
-                out.wiped.push((line, true));
+                out.wiped.push((line, true, None));
             } else {
                 out.kept.push(line);
             }
@@ -145,7 +148,7 @@ impl Faraday {
         );
         if power_off || self.mode_changing() {
             if n > 0 {
-                out.wiped.push((files, true));
+                out.wiped.push((files, true, None));
             }
         } else {
             out.kept.push(files);
@@ -163,16 +166,14 @@ impl Faraday {
                     .then(|| v.label(self.vaults.store()))
             })
         };
-        let in_vault_wallet = |descriptor: &str| {
-            self.vaults.open.iter().find_map(|v| {
-                self.vaults
-                    .described_of(c, v.id, kind::WALLET)
-                    .any(|(_, _, d)| d.policy.to_descriptor() == descriptor)
-                    .then(|| v.label(self.vaults.store()))
-            })
-        };
+        // What is in no open vault can be saved into the one open now.
+        let can_save = self.vaults.current_id().is_some();
         for (i, k) in self.session.keys.all().enumerate() {
             let vault = self.session.keys.words_id(c, i).and_then(in_vault_key);
+            let save = (can_save
+                && vault.is_none()
+                && (k.has_words() || self.session.keys.holds_seed_bytes(i)))
+            .then_some(Action::Vault(VaultAction::SaveKey(i)));
             let copy = self.seed_copy_checked(c, k.fingerprint.0);
             let (state, nowhere) = match (vault, copy) {
                 (Some(v), true) => (fill(EN.vaults_in_copy_checked, &[&v.to_string()]), false),
@@ -188,23 +189,18 @@ impl Faraday {
             } else {
                 k.label.clone()
             };
-            out.wiped.push((format!("{name} · {state}"), nowhere));
+            out.wiped.push((format!("{name} · {state}"), nowhere, save));
         }
-        for w in &self.session.wallets {
-            let in_files = self
-                .inbox
+        let in_files = |source: &str| {
+            self.inbox
                 .iter()
                 .chain(self.outbox.iter())
-                .any(|i| i.name == w.source);
-            let (state, nowhere) = match in_vault_wallet(&w.policy().to_descriptor()) {
-                Some(v) => (fill(EN.vaults_kept_in_vault, &[&v.to_string()]), false),
-                None if in_files => (EN.vaults_in_files.to_string(), false),
-                None => (EN.vaults_nowhere_else.to_string(), true),
-            };
-            out.wiped.push((format!("{} · {state}", w.name), nowhere));
-        }
+                .any(|i| i.name == source)
+        };
+        self.vaults
+            .wallets_wiped(c, &self.session, &in_files, &mut out.wiped);
         // What is nowhere else first, where it is read.
-        out.wiped.sort_by_key(|(_, nowhere)| !nowhere);
+        out.wiped.sort_by_key(|(_, nowhere, _)| !nowhere);
         out
     }
 
@@ -1143,21 +1139,17 @@ impl Faraday {
             }
             redraw = true;
         }
-        if let Some((Action::Vault(held), _)) = self.pointer.pressed()
-            && is_hold(Action::Vault(held))
+        // A hold acts on the tick that completes it.
+        if let Some((held, _)) = self.pointer.pressed()
+            && is_hold(held)
         {
             if now_ms.saturating_sub(self.vaults.pressed_at) >= HOLD_MS {
                 self.pointer.set_pressed(None);
-                self.vault_act(held);
-            }
-            redraw = true;
-        }
-        if let Some((Action::Flow(held), _)) = self.pointer.pressed()
-            && is_hold(Action::Flow(held))
-        {
-            if now_ms.saturating_sub(self.vaults.pressed_at) >= HOLD_MS {
-                self.pointer.set_pressed(None);
-                self.flow_act(held);
+                match held {
+                    Action::Vault(v) => self.vault_act(v),
+                    Action::Flow(f) => self.flow_act(f),
+                    _ => self.power_act(held, &c),
+                }
             }
             redraw = true;
         }

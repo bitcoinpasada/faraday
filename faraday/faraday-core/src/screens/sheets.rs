@@ -667,12 +667,9 @@ pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 /// The lock, write-out and power-off sheets' sections (§4.5): Kept,
 /// one line per vault with its currency and one for the files For the
 /// stick; then Wiped from memory, each seed and wallet with where else it
-/// is, "nowhere else" alone in the danger tone; then Then.
-fn kept_sections(
-    app: &View,
-    power_off: bool,
-    then: String,
-) -> Vec<(&'static str, Vec<(String, faraday_draw::Color)>)> {
+/// is, "nowhere else" alone in the danger tone, and with `save` a Save
+/// beside each one in no open vault; then Then.
+fn kept_sections(app: &View, power_off: bool, save: bool, then: String) -> Vec<Section> {
     let kw = app.kept_wiped(power_off);
     let then = if app.mode_changing() {
         EN.lock_mode_keeps_nothing.to_string()
@@ -682,18 +679,25 @@ fn kept_sections(
     vec![
         (
             EN.kept_sections_kept,
-            kw.kept.into_iter().map(|l| (l, TEXT)).collect(),
+            kw.kept.into_iter().map(|l| (l, TEXT, None)).collect(),
         ),
         (
             EN.kept_sections_wiped,
             kw.wiped
                 .into_iter()
-                .map(|(l, nowhere)| (l, if nowhere { ERR } else { TEXT }))
+                .map(|(l, nowhere, s)| (l, if nowhere { ERR } else { TEXT }, s.filter(|_| save)))
                 .collect(),
         ),
-        (EN.kept_sections_then, vec![(then, TEXT)]),
+        (EN.kept_sections_then, vec![(then, TEXT, None)]),
     ]
 }
+
+/// A kept sheet's section: its name and its lines, each with its tone
+/// and a button beside it.
+type Section = (
+    &'static str,
+    Vec<(String, faraday_draw::Color, Option<Action>)>,
+);
 
 /// A kept sheet's line, its tone, a labelled row, and a code to show
 /// with its text.
@@ -707,12 +711,12 @@ type SheetLine<'a> = (
 /// A sheet that says what a lock or a power-off does: its title, a line,
 /// the sections, each line wrapped to the sheet, and its buttons.
 fn kept_sheet(
+    app: &View,
     ui: &mut Ui,
-    w: f32,
-    h: f32,
+    (w, h): (f32, f32),
     head: (Glyph, faraday_draw::Color, &str),
     (line, line_tone, row, code): SheetLine<'_>,
-    sections: &[(&str, Vec<(String, faraday_draw::Color)>)],
+    sections: &[Section],
     actions: &[(&str, Style, Action)],
 ) {
     let (place, margin, pad) = if ui.compact {
@@ -753,13 +757,47 @@ fn kept_sheet(
             cy += 12.0;
             ui.text(x, cy, 12.0, W::R, MUTED, name);
             cy += 22.0;
-            for (text, tone) in lines {
-                cy += ui.wrap(x, cy, iw, 14.0, W::R, *tone, text) + 8.0;
+            for (text, tone, act) in lines {
+                let Some(act) = *act else {
+                    cy += ui.wrap(x, cy, iw, 14.0, W::R, *tone, text) + 8.0;
+                    continue;
+                };
+                // The line beside its button, at the right.
+                let bw = ui.measure(T::LABEL, W::S, EN.vault_save) + 2.0 * T::PAD;
+                let inset = (T::CHIP_LINE - T::LABEL) / 2.0;
+                let tw = iw - bw - T::GAP;
+                let th = ui.wrap(x, cy + inset, tw, T::LABEL, W::R, *tone, text);
+                ui.button(
+                    x + iw - bw,
+                    cy,
+                    Some(bw),
+                    T::CHIP_LINE,
+                    EN.vault_save,
+                    Style::Secondary,
+                    act,
+                );
+                cy += (th + inset).max(T::CHIP_LINE) + T::GAP;
             }
             cy += 4.0;
         }
         cy += 8.0;
-        cy += crate::compact::buttons(ui, x, cy, iw, actions);
+        // A hold (decision 5) fills while it is held; the rest are
+        // pressed, at the sheet's foot.
+        let mut hx = x;
+        for &(label, _, action) in actions.iter().filter(|a| crate::vault::is_hold(a.2)) {
+            let room = x + iw - hx;
+            hx += crate::vault::screen::hold_button_in(app, ui, hx, cy, room, label, action, ERR)
+                + T::GAP;
+        }
+        if hx > x {
+            cy += T::CHIP_LINE + T::GAP + T::GAP_SMALL;
+        }
+        let pressed: Vec<(&str, Style, Action)> = actions
+            .iter()
+            .copied()
+            .filter(|a| !crate::vault::is_hold(a.2))
+            .collect();
+        cy += crate::compact::buttons(ui, x, cy, iw, &pressed);
         cy - y
     });
 }
@@ -791,15 +829,48 @@ pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         )
     };
     kept_sheet(
+        app,
         ui,
-        w,
-        h,
+        (w, h),
         (app.medium.icon(), WARN, &attached),
         (&line, MUTED, None, None),
-        &kept_sections(app, false, then),
+        &kept_sections(app, false, false, then),
         &[
             (EN.lock_not_now, Style::Secondary, Action::NotNow),
             (&use_it, Style::Primary, Action::Lock),
+        ],
+    );
+}
+
+/// Lock, asked for while a vault is open with something not in it, a
+/// seal waiting or Make a new wallet under way: what is kept, what is
+/// wiped from memory, each key or wallet in no vault with its Save, and
+/// then (decision 28). With no randomness to seal with, the line says so
+/// and the lock is one without sealing.
+pub(super) fn lock_ask_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
+    let (head, line, lock) = if app.seal_waits() {
+        (
+            (Icon::Error.into(), ERR, EN.vault_lock),
+            (EN.seed_missing, ERR),
+            (EN.vault_lock_without_sealing, Action::LockUnsealed),
+        )
+    } else {
+        (
+            (Icon::Lock.into(), ACCENT, EN.vault_lock),
+            ("", MUTED),
+            (EN.vault_lock, Action::Lock),
+        )
+    };
+    kept_sheet(
+        app,
+        ui,
+        (w, h),
+        head,
+        (line.0, line.1, None, None),
+        &kept_sections(app, false, true, EN.lock_ask_then.to_string()),
+        &[
+            (EN.vault_back_to_the_vault, Style::Secondary, Action::Cancel),
+            (lock.0, Style::Primary, lock.1),
         ],
     );
 }
@@ -813,7 +884,7 @@ pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         EN.write_out_lock_here.to_string()
     };
     let title = fill(EN.write_out_target, &[app.medium.a()]);
-    let mut sections = kept_sections(app, false, then);
+    let mut sections = kept_sections(app, false, false, then);
     let drops = app.lock_drops();
     if !drops.is_empty() {
         // Between Wiped from memory and Then.
@@ -822,14 +893,14 @@ pub(super) fn write_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             at,
             (
                 EN.write_out_drops,
-                drops.into_iter().map(|n| (n, TEXT)).collect(),
+                drops.into_iter().map(|n| (n, TEXT, None)).collect(),
             ),
         );
     }
     kept_sheet(
+        app,
         ui,
-        w,
-        h,
+        (w, h),
         (app.medium.icon(), ACCENT, &title),
         ("", MUTED, None, None),
         &sections,
@@ -1797,21 +1868,35 @@ pub(super) fn power_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     } else {
         EN.power_the_computer
     };
+    // With files waiting for the stick or a vault's changes unsaved,
+    // leaving takes a hold (decision 5); with nothing to lose, a press.
+    let hold = !app.outbox.is_empty() || app.vaults.open.iter().any(|v| v.changes > 0);
     let mut buttons = vec![(EN.power_cancel, Style::Secondary, Action::Cancel)];
-    if restart {
+    if restart && hold {
+        buttons.push((EN.power_hold_restart, Style::Secondary, Action::HoldRestart));
+    } else if restart {
         buttons.push((EN.power_restart, Style::Secondary, Action::Restart));
     }
-    buttons.push((leave, Style::Primary, Action::PowerOff));
+    if hold {
+        let held = if app.online {
+            EN.power_hold_quit
+        } else {
+            EN.power_hold_power_off
+        };
+        buttons.push((held, Style::Primary, Action::HoldPowerOff));
+    } else {
+        buttons.push((leave, Style::Primary, Action::PowerOff));
+    }
     // The guide's address, and its code: made once, kept on the state.
     let guide = app.secure_boot_guide().filter(|g| !g.is_empty());
     let guide_qr = guide.as_deref().and_then(|g| app.public_qr(g));
     kept_sheet(
+        app,
         ui,
-        w,
-        h,
+        (w, h),
         (Icon::Power.into(), TEXT, title),
         (line, WARN, row, guide.as_deref().zip(guide_qr.as_deref())),
-        &kept_sections(app, true, then.to_string()),
+        &kept_sections(app, true, false, then.to_string()),
         &buttons,
     );
 }

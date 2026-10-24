@@ -1297,8 +1297,9 @@ pub struct KeptWiped {
     /// the stick.
     pub kept: Vec<String>,
     /// Wiped from memory, or lost at power-off: one line each, `true` for
-    /// what is nowhere else.
-    pub wiped: Vec<(String, bool)>,
+    /// what is nowhere else, and for a key or wallet in no open vault
+    /// while one is open, the Save that puts it in that vault.
+    pub wiped: Vec<(String, bool, Option<Action>)>,
 }
 
 /// A vault file's currency (`docs/history/SIMPLIFY.md` §3.5), computed from the
@@ -1974,6 +1975,8 @@ pub fn is_hold(a: Action) -> bool {
                 | VaultAction::GpgHoldSign
                 | VaultAction::GpgHoldRevoke
         ) | Action::Flow(crate::backup_flow::steps::FlowAction::Hold)
+            | Action::HoldPowerOff
+            | Action::HoldRestart
     )
 }
 
@@ -2109,5 +2112,37 @@ impl Vaults {
             .map(|w| w.name.clone())
             .collect();
         (keys, wallets)
+    }
+
+    /// Costs a read of each open vault's wallet records: `session`'s
+    /// wallets as lines of Wiped from memory (`Faraday::kept_wiped_now`),
+    /// each with where else it is (`in_files` for a file in the Inbox or
+    /// Outbox) and, while a vault is open, its Save when in none.
+    pub(crate) fn wallets_wiped(
+        &self,
+        c: &Compute,
+        session: &crate::wallet::Session,
+        in_files: &dyn Fn(&str) -> bool,
+        wiped: &mut Vec<(String, bool, Option<Action>)>,
+    ) {
+        let in_vault = |descriptor: &str| {
+            self.open.iter().find_map(|v| {
+                self.described_of(c, v.id, kind::WALLET)
+                    .any(|(_, _, d)| d.policy.to_descriptor() == descriptor)
+                    .then(|| v.label(self.store()))
+            })
+        };
+        let can_save = self.current_id().is_some();
+        for (i, w) in session.wallets.iter().enumerate() {
+            let vault = in_vault(&w.policy().to_descriptor());
+            let save =
+                (can_save && vault.is_none()).then_some(Action::Vault(VaultAction::SaveWallet(i)));
+            let (state, nowhere) = match vault {
+                Some(v) => (fill(EN.vaults_kept_in_vault, &[&v.to_string()]), false),
+                None if in_files(&w.source) => (EN.vaults_in_files.to_string(), false),
+                None => (EN.vaults_nowhere_else.to_string(), true),
+            };
+            wiped.push((format!("{} · {state}", w.name), nowhere, save));
+        }
     }
 }

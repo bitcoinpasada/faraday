@@ -159,9 +159,12 @@ carries it. The sidebar's status block carries the session, Files and
 the sticks; its **Files** entry opens Files. **The session strip**
 (decision 15) is one line, **Bring in · Open · Work · Write out**, the
 current stage in the accent, computed from what is attached, loaded and
-waiting; tapping it opens Files. **Write out** is files For the stick,
-or a vault changed since it was written (decision 26), with no stick
-attached. The mode shows only as an off-mainnet pill that opens the
+waiting; tapping it opens Files. **Bring in** is a stick attached or
+an import waiting, and also nothing attached, loaded or waiting at all
+(owner, 2026-10-24); **Write out** is files For the stick, or a vault
+changed since it was written (decision 26), with no stick attached;
+**Work** is a key, wallet or open vault loaded; **Open** is files in the
+Inbox with nothing loaded. The mode shows only as an off-mainnet pill that opens the
 mode sheet (decisions 14 and 33; F81): no coloured bar along the top on
 a test network; the sheet is also Settings' Mode row, the only door on
 mainnet.
@@ -345,8 +348,9 @@ words behind **Show words**, **Passphrase** and **Passphrase again**
 (none for codex32), and **Lock in**, which loads the key as Add a key
 does (not marked made here) and fills a Create slot, and leaves the
 flow by itself, with no Words or Quiz. Add a key on Wallets and its
-Tools tile open with Start closed on Make a new key, and so does New
-key from a Create slot or its tile (F103): Length is open, and
+Tools tile (one tile for making and for typing a key, owner,
+2026-10-24) open with Start closed on Make a new key, and so does New
+key from a Create slot (F103): Length is open, and
 **Change** on Start reopens it, where a press on a choice, the ticked
 one included, moves on by itself; a threshold wallet's slot offers Make a new key and Type the
 words only. The SLIP-39, codex32 and Seed XOR tiles open with their
@@ -535,7 +539,12 @@ sheet, so its reminder to turn Secure Boot back on is the guides' last
 step (`docs/STARTER.md` §7.5, F33).
 
 **The lock, write-out and power-off sheets lead with what is kept**
-(decision 28). Each lists **Kept** first: one line per vault with its
+(decision 28): the stick's Lock sheet, the Lock button's sheet with a
+vault open (owner, 2026-10-24; its Then reads "Faraday restarts on
+Unlock", its buttons **Back to the vault** and **Lock**, or **Lock
+without sealing** under the line saying the system has given no
+randomness, and a **Save** beside each key or wallet in no vault, which
+puts it in the vault open now), the write-out sheet and the power sheet. Each lists **Kept** first: one line per vault with its
 currency, and one for the files For the stick; then **Wiped from
 memory**: one line per seed (a key with no name of its own as "Seed
 {fingerprint}") and wallet, with where else it is ("in {vault}", "copy
@@ -549,7 +558,9 @@ and the visit writes them" with the stick already in.
 
 **Power off** → the sheet listing what is kept and what is wiped
 (decision 28); when files wait For the stick or a vault has unsaved
-changes, it lists them and needs a hold (decision 5) → off. On a PC stick that started with Secure Boot
+changes, it lists them and needs a hold (decision 5): **Hold to power
+off** (**Hold to quit** in the desktop app) and **Hold to restart**, each
+filling while held; with nothing to lose they are plain presses → off. On a PC stick that started with Secure Boot
 off, or with its state not read, the sheet leads, under its title and
 before Kept, with "Turn Secure Boot back on in the BIOS before starting
 Windows." in the warning tone, and the QR code of this computer's guide

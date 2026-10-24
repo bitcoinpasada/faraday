@@ -253,8 +253,9 @@ fn a_lock_while_held_says_it_ends_make_a_new_wallet_and_ends_it() {
     app.press(Action::LockAsk);
     assert_eq!(app.sheet, Some(Sheet::LockAsk), "the lock asks first");
     let t = app.drawn_texts();
-    let ends = t.iter().position(|s| s == "Ends").expect("an Ends row");
-    assert_eq!(t[ends + 1], "Make a new wallet", "{t:?}");
+    let wiped = t.iter().position(|s| s == "Wiped from memory");
+    let ends = t.iter().position(|s| s == "Make a new wallet · ends");
+    assert!(wiped.is_some() && ends > wiped, "{t:?}");
     app.press(Action::Lock);
     assert!(app.restart_requested());
     let kept = kept(&mut app);

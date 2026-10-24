@@ -190,6 +190,11 @@ pub enum Action {
     PowerOff,
     /// Restart the computer: Power off in everything but its end.
     Restart,
+    /// Power off (or Quit), held: the power sheet's while files wait for
+    /// the stick or a vault has unsaved changes (decision 5).
+    HoldPowerOff,
+    /// Restart, held, as [`Action::HoldPowerOff`].
+    HoldRestart,
     /// Minutes without input before locking; 0 for never.
     IdleLock(u16),
     /// Minutes without input before powering off; 0 for never.

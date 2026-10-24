@@ -148,7 +148,7 @@ Written page, or item 2 of Home's checklist, opens this page:
 
 ![Start this computer from the stick](guide/1-7-start-page.png)
 
-Under **Write down**, copy **Boot menu key**, **BIOS key** and **Secure
+Under **Write down**, copy **Boot menu key**, **Usual BIOS key** and **Secure
 Boot setting**, or press **Print** for a sheet with them and the steps.
 The PC restarts later and the Starter is then off the screen. For a PC
 the Starter does not know, the key rows read **Not known: try** and
@@ -257,7 +257,7 @@ before starting Windows**). Faraday's power sheet says the same (step
 2.3).
 
 1. Power off from Faraday (step 2.3) and pull the stick out.
-2. Turn the PC on and press the **BIOS key** written down.
+2. Turn the PC on and press the **Usual BIOS key** written down.
 3. Set Secure Boot to Enabled. Save and exit.
 
 If Secure Boot cannot be enabled, or Windows does not start with it on,

@@ -2204,8 +2204,8 @@ impl Faraday {
                 {
                     EN.pull_what_unlock
                 }
-                Go::NewKey | Go::NewShares => EN.pull_what_make_a_key,
-                Go::AddKey(_) | Go::SeedQr => EN.pull_what_add_a_key,
+                Go::NewShares => EN.pull_what_make_a_key,
+                Go::NewKey | Go::AddKey(_) | Go::SeedQr => EN.pull_what_add_a_key,
                 // Sign and Decode with nothing to open scan: the Scan
                 // they press waits instead.
                 Go::CheckAddress | Go::Scan => EN.pull_what_scan,
@@ -2640,11 +2640,7 @@ impl Faraday {
     }
 
     /// Costs a hash of a whole file (through `vault_changed`). The session
-    /// strip's stage, computed, never stored: where the person is in the
-    /// lock cycle now. A stick attached while working still asks to bring
-    /// it in, because the lock sheet is what asks to lock it; `Write out`
-    /// is files For the stick, or a vault changed since it was written
-    /// (§3.5), with no stick attached.
+    /// strip's stage, computed, never stored (`docs/FLOWS.md`, Sidebar).
     pub fn session_stage(&self, c: &Compute) -> &'static str {
         if !self.stick.is_empty() || self.import.state().is_some() {
             EN.session_stage_bring
@@ -2652,8 +2648,10 @@ impl Faraday {
             EN.session_stage_write
         } else if self.holds_secret() || !self.session.wallets.is_empty() {
             EN.session_stage_work
-        } else {
+        } else if !self.inbox.is_empty() {
             EN.session_stage_open
+        } else {
+            EN.session_stage_bring
         }
     }
 
@@ -2688,7 +2686,7 @@ impl Faraday {
     }
 
     /// Costs what the actions below cost, the keys' and wallets' work among
-    /// it: handles lock, power and idle-timer actions (`Lock*`, `NotNow`, `Power*`, `Restart`, `Idle*`).
+    /// it: handles lock, power and idle-timer actions (`Lock*`, `NotNow`, `Power*`, `Restart`, `Hold*`, `Idle*`).
     pub(crate) fn power_act(&mut self, action: Action, c: &Compute) {
         match action {
             Action::Lock => self.lock(),
@@ -2715,11 +2713,11 @@ impl Faraday {
                     self.sheet = Some(Sheet::Power);
                 }
             }
-            Action::PowerOff => {
+            Action::PowerOff | Action::HoldPowerOff => {
                 self.sheet = None;
                 self.out.commands.push_back(Command::Exit);
             }
-            Action::Restart => {
+            Action::Restart | Action::HoldRestart => {
                 self.sheet = None;
                 self.restart_computer = self.offers_restart();
                 self.out.commands.push_back(Command::Exit);
@@ -3101,6 +3099,8 @@ impl Faraday {
             | Action::PowerAsk
             | Action::PowerOff
             | Action::Restart
+            | Action::HoldPowerOff
+            | Action::HoldRestart
             | Action::IdleLock(..)
             | Action::IdleOff(..)) => self.power_act(a, &c),
             a @ (Action::InputUse(..)

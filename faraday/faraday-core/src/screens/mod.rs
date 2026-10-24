@@ -54,9 +54,9 @@ pub(crate) use parts::{
 };
 pub(crate) use restore::RSTEPS;
 use sheets::{
-    devices_sheet, idle_warn_sheet, learn_sheet, lock_sheet, locked_sheet, new_input_sheet,
-    potential_sheet, power_sheet, pull_sheet, qr_sheet, scan_sheet, secret_out_sheet,
-    write_out_sheet,
+    devices_sheet, idle_warn_sheet, learn_sheet, lock_ask_sheet, lock_sheet, locked_sheet,
+    new_input_sheet, potential_sheet, power_sheet, pull_sheet, qr_sheet, scan_sheet,
+    secret_out_sheet, write_out_sheet,
 };
 use sidebar::sidebar;
 pub(crate) use sidebar::{lock_held_pill, name_suffix};
@@ -198,7 +198,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         };
         match sheet {
             Sheet::Lock => lock_sheet(app, ui, w, h),
-            Sheet::LockAsk => crate::vault::screen::lock_ask(app, ui, w, h),
+            Sheet::LockAsk => lock_ask_sheet(app, ui, w, h),
             Sheet::Power => power_sheet(app, ui, w, h),
             Sheet::Qr => qr_sheet(app, ui, w, h),
             Sheet::Scan => scan_sheet(app, ui, w, h),

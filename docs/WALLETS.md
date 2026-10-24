@@ -606,7 +606,7 @@ first"). The groups and their tiles:
 
 | Group | Tiles |
 |---|---|
-| Keys and seeds | New key · Add a key · Scan a SeedQR · SLIP-39 shares · Restore from SLIP-39 · codex32 · Seed XOR · Explore a key · Child seeds and passwords (BIP-85) · Vanity address · Silent payments · Lightning node key |
+| Keys and seeds | Add a key · Scan a SeedQR · SLIP-39 shares · Restore from SLIP-39 · codex32 · Seed XOR · Explore a key · Child seeds and passwords (BIP-85) · Vanity address · Silent payments · Lightning node key |
 | Wallets | Single-key wallet · Multisig · Taproot multisig · MuSig2 · FROST threshold · Miniscript and inheritance · Restore an existing wallet · Back up a wallet |
 | Transactions | Sign a transaction · Nonce check · Decode a transaction · Check an address |
 | Messages | Sign a message · Check a signed message |
