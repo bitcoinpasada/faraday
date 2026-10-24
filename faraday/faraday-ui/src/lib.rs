@@ -1995,11 +1995,16 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// A rounded label with a dot. Returns its width.
     pub fn chip(&mut self, x: f32, y: f32, label: &str, fg: Color, bg: Color) -> f32 {
         let h = 26.0;
-        let width = self.measure(12.0, W::R, label) + 34.0;
+        let width = self.chip_width(label);
         self.fill(x, y, width, h, 13.0, bg);
         self.dot(x + 13.0, y + h / 2.0, 3.0, fg);
         self.text_mid(x + 22.0, y, h, 12.0, W::R, fg, label);
         width
+    }
+
+    /// How wide [`Ui::chip`] draws `label`.
+    pub fn chip_width(&self, label: &str) -> f32 {
+        self.measure(12.0, W::R, label) + 34.0
     }
 
     /// A word in a pill that a press opens in its list, where words are

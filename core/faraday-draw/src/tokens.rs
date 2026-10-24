@@ -65,6 +65,9 @@ pub const fn narrow_text(class: SizeClass) -> bool {
 pub const GRID: f32 = 8.0;
 /// The ordinary gap between two things that belong together.
 pub const GAP: f32 = GRID;
+/// What a flow's heading block grows by when its chip does not fit
+/// beside the heading and sits on its own line under it.
+pub const CHIP_LINE: f32 = 36.0;
 /// The gap a dense list uses, where a full grid step would cost a row.
 pub const GAP_SMALL: f32 = 4.0;
 /// How far a marked run of monospace text is drawn again to the right to read heavier (the face has one weight).

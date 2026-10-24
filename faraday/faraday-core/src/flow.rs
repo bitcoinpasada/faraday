@@ -136,14 +136,6 @@ pub fn column_foot(
         y += 22.0;
     }
     let hw = ui.text(x, y, 26.0, W::S, TEXT, col.heading);
-    if let Some(chip) = col.chip {
-        let cx = x + hw + 14.0;
-        let cw = ui.chip(cx, y + 4.0, chip, ACCENT, ACCENT.with_alpha(30));
-        if let Some(a) = col.chip_tap {
-            ui.hit(cx, y + 4.0, cw, 26.0, a);
-            ui.chip_at = Some((cx, y + 30.0, cw));
-        }
-    }
     // Cancel at the right end, then Steps only or Guided beside it;
     // laid out from the right.
     let mut bx = x + w;
@@ -173,9 +165,27 @@ pub fn column_foot(
         let sw = ui.segment_width(12.0, &labels) * 2.0;
         let chosen = Some(usize::from(col.guided));
         let slide = Some(ui.guided_shown);
-        ui.segmented((bx - sw, y + 2.0, 30.0), 12.0, &options, chosen, slide);
+        bx -= sw;
+        ui.segmented((bx, y + 2.0, 30.0), 12.0, &options, chosen, slide);
     }
-    y += 52.0;
+    // The chip beside the heading where it clears the buttons, else on
+    // its own line under the heading.
+    let mut chip_line = 0.0;
+    if let Some(chip) = col.chip {
+        let beside = x + hw + 14.0;
+        let (cx, cy) = if beside + ui.chip_width(chip) + tokens::GAP <= bx {
+            (beside, y + 4.0)
+        } else {
+            chip_line = tokens::CHIP_LINE;
+            (x, y + 40.0)
+        };
+        let cw = ui.chip(cx, cy, chip, ACCENT, ACCENT.with_alpha(30));
+        if let Some(a) = col.chip_tap {
+            ui.hit(cx, cy, cw, 26.0, a);
+            ui.chip_at = Some((cx, cy + 26.0, cw));
+        }
+    }
+    y += 52.0 + chip_line;
     if let Some(note) = col.note {
         let nh = ui.wrap(x + 14.0, y, w - 14.0, 13.0, W::R, MUTED, note);
         ui.fill(x, y, 3.0, nh, 1.5, ACCENT.with_alpha(140));
