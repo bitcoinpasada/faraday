@@ -270,8 +270,8 @@ mod mix;
 mod xor;
 
 pub use booklet::{
-    BOOKLET_DICE, BOOKLET_ROLLS, BookletChar, BookletError, TREE as BOOKLET_TREE,
-    character as booklet_character,
+    BOOKLET_DICE, BOOKLET_FACES, BOOKLET_MAX_FACES, BOOKLET_ROLLS, BookletChar, BookletError,
+    TREE as BOOKLET_TREE, character as booklet_character, uniform_face,
 };
 pub use camera::{
     CAMERA_FRAMES_128, CAMERA_FRAMES_256, CAMERA_MIN_DISTINCT, CameraNoise, FrameStats, MAX_FRAMES,

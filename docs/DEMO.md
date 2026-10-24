@@ -130,7 +130,7 @@ public values work; only the actions in the table are disabled.
   seed's string is read and shown; **Make the rest** and **Add a share**
   take the published sets only. Make codex32 shares opens and its entry
   runs, the sheets filling from the person's rolls or typing, or from
-  **Use a sample**; at the entry's Continue the strings made are dropped
+  **Use a sample**, in the entry's "Demo only" box (CODEX32 §5.5); at the entry's Continue the strings made are dropped
   and the sample set, BIP 93's vector 2, stands in their place on every
   later card, with the line "Demo puts sample NAME in place of these
   strings"; its Lock in loads the sample's key. Strings from the

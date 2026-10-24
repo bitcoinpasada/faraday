@@ -1,7 +1,8 @@
 //! The codex32 blank templates (`docs/CODEX32.md` §11): the share card
-//! with its numbered boxes, and the booklet's worksheets (dice,
-//! checksum, translation) with the booklet's tables, drawn with PDF's
-//! standard fonts and the Symbol font for the booklet's second alphabet.
+//! with its numbered boxes, and the booklet's worksheets (dice, as the
+//! booklet draws it, in `sheets/dice.rs`; checksum, translation) with
+//! the booklet's tables, drawn with PDF's standard fonts and the Symbol
+//! font for the booklet's second alphabet.
 //!
 //! A blank template holds no secret: the checksum table, the principal
 //! tables and the derivation tables are computed here from BIP 93's
@@ -18,6 +19,8 @@ use faraday_bip::codex32::{
 };
 
 use faraday_core::pdf::{RawPage, raw_document};
+
+mod dice;
 use faraday_crypto::work::Compute;
 use faraday_strings::{EN, fill};
 
@@ -334,7 +337,7 @@ pub fn sheet(c: &Compute, text: &str) -> Result<Vec<u8>, String> {
         .clamp(1, 20);
     let mut pages = vec![card(chars, string, qr)];
     if worksheets {
-        pages.push(dice());
+        pages.extend(dice::pages());
         pages.extend(checksum_pages(chars)?);
         if chars == 48 {
             for k in [2, 3] {
@@ -508,91 +511,6 @@ fn card(chars: usize, string: bool, qr: bool) -> Canvas {
             pitch,
             20.0,
             14.0,
-            c.to_ascii_uppercase(),
-        );
-    }
-    p.footer();
-    p
-}
-
-// ---------------------------------------------------------------------
-// The dice worksheet
-// ---------------------------------------------------------------------
-
-/// The dice worksheet: for each character, five dice with their first
-/// and second roll and the bit; the character's box; and the 32-leaf
-/// tree the five bits walk down, bit 1 first, 0 to the left.
-fn dice() -> Canvas {
-    let mut p = Canvas::portrait();
-    p.sans(MARGIN, MARGIN, 18.0, true, EN.pdf_c32_dice);
-    let x0 = MARGIN + 28.0;
-    let (bw, bh, group) = (22.0, 22.0, 76.0);
-    for d in 0..5 {
-        let gx = x0 + d as f32 * group;
-        p.sans(
-            gx,
-            78.0,
-            8.0,
-            true,
-            &fill(EN.pdf_c32_die, &[&(d + 1).to_string()]),
-        );
-        for (j, head) in [
-            EN.pdf_c32_roll_first,
-            EN.pdf_c32_roll_second,
-            EN.pdf_c32_bit,
-        ]
-        .iter()
-        .enumerate()
-        {
-            p.sans(gx + j as f32 * bw, 90.0, 5.5, false, head);
-        }
-    }
-    let rx = x0 + 5.0 * group;
-    p.sans(rx, 78.0, 8.0, true, EN.pdf_c32_character);
-    for r in 0..10 {
-        let y = 102.0 + r as f32 * 32.0;
-        p.sans(MARGIN, y + 6.0, 9.0, false, &(r + 1).to_string());
-        for d in 0..5 {
-            for j in 0..3 {
-                let kind = if j == 2 { Kind::Grey } else { Kind::Plain };
-                p.cell(x0 + d as f32 * group + j as f32 * bw, y, bw, bh, kind, None);
-            }
-        }
-        p.cell(rx, y, 28.0, bh, Kind::Bold, None);
-    }
-    // The tree: leaves in the bech32 alphabet's value order.
-    p.sans(MARGIN, 438.0, 8.0, false, EN.pdf_c32_tree);
-    let leaf = 15.4;
-    let lx = |i: usize| MARGIN + 6.0 + i as f32 * leaf + leaf / 2.0;
-    let ly = |l: usize| 462.0 + l as f32 * 26.0;
-    let centre = |l: usize, j: usize| {
-        let span = 1usize << (5 - l);
-        lx(j * span) / 2.0 + lx(j * span + span - 1) / 2.0
-    };
-    for l in 0..5 {
-        p.sans(MARGIN - 18.0, ly(l) + 8.0, 7.0, false, &(l + 1).to_string());
-        for j in 0..(1usize << l) {
-            for child in [2 * j, 2 * j + 1] {
-                p.line(
-                    centre(l, j),
-                    ly(l),
-                    centre(l + 1, child),
-                    ly(l + 1),
-                    0.4,
-                    0.2,
-                );
-            }
-        }
-    }
-    p.mono(centre(0, 0) - 14.0, ly(0) + 4.0, 7.0, "0");
-    p.mono(centre(0, 0) + 10.0, ly(0) + 4.0, 7.0, "1");
-    for (i, c) in ALPHA.iter().enumerate() {
-        p.mono_char(
-            lx(i) - leaf / 2.0,
-            ly(5) + 2.0,
-            leaf,
-            12.0,
-            9.0,
             c.to_ascii_uppercase(),
         );
     }

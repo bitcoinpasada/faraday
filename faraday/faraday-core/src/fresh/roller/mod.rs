@@ -121,10 +121,15 @@ impl Pool {
         self.n = 0;
     }
 
-    /// The next value, 1 to 6, from `draw`'s answers; every byte of 252
-    /// or more is skipped so that no face is likelier. `None` while
-    /// `draw` has no answer.
-    fn next(&mut self, draw: &mut dyn FnMut() -> Option<[u8; 32]>) -> Option<u8> {
+    /// The next face of a die of `faces` faces (2 to 20), 1 to `faces`,
+    /// from `draw`'s answers, each byte taken from the answer's end; a
+    /// byte among the `256 mod faces` highest is skipped so that no face
+    /// is likelier (`faraday_entropy::uniform_face`): for six faces,
+    /// every byte of 252 or more. `None` while `draw` has no answer.
+    fn next(&mut self, faces: u8, draw: &mut dyn FnMut() -> Option<[u8; 32]>) -> Option<u8> {
+        if !faraday_entropy::booklet::faces_ok(faces) {
+            return None;
+        }
         loop {
             if self.n == 0 {
                 let mut bytes = Zeroizing::new(draw()?);
@@ -134,8 +139,8 @@ impl Pool {
             }
             self.n -= 1;
             let b = std::mem::take(&mut self.bytes[self.n]);
-            if b < 252 {
-                return Some(b % 6 + 1);
+            if let Some(face) = faraday_entropy::uniform_face(b, faces) {
+                return Some(face);
             }
         }
     }
@@ -269,7 +274,7 @@ impl Roller {
 
     /// The next value, 1 to 6 (see [`Pool::next`]).
     fn next(&mut self, draw: &mut dyn FnMut() -> Option<[u8; 32]>) -> Option<u8> {
-        self.pool.next(draw)
+        self.pool.next(6, draw)
     }
 
     /// One tick. `len` is how many entries the host has, `room` how many

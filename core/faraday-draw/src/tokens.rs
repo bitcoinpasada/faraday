@@ -995,20 +995,71 @@ pub const CODEX32_GIVEN_STROKE: f32 = 1.5;
 pub const CODEX32_FRONT_STROKE: f32 = 2.0;
 /// The column of row names left of a worksheet.
 pub const CODEX32_LABEL_W: f32 = 76.0;
-/// The dice sheet's panel beside the checksum worksheet on `wide`.
-pub const CODEX32_DICE_W: f32 = 320.0;
 /// The gap between the two panels on `wide`.
 pub const CODEX32_PANEL_GAP: f32 = 24.0;
 /// The five-dice roller's column beside the codex32 dice pad (CODEX32
 /// §5.5): five dice and their gaps, and room for the reach chips.
 pub const CODEX32_ROLLER_W: f32 = 320.0;
+/// The narrowest the codex32 entry's own column is drawn beside the
+/// "Demo only" box (CODEX32 §5.5); narrower, the box goes under it.
+pub const CODEX32_MAIN_MIN: f32 = 420.0;
 /// A codex32 card's segmented button (Material 3's 40 dp), in a `TOUCH`
 /// row.
 pub const CODEX32_CHOICE_H: f32 = 40.0;
-/// A pad on a die's track: the free space and the values 1 to 6.
-pub const CODEX32_PAD: f32 = 24.0;
-/// One level of the dice sheet's tree.
-pub const CODEX32_TREE_LEVEL: f32 = 16.0;
+// The dice de-biasing sheet's die tracks, drawn as the booklet draws
+// them (SSS32.ps, `drawDiceRow`): in units of the diamond pad's
+// half-diagonal (the booklet's `sz2`, 38.2 pt), each measure the
+// booklet's own over 38.2.
+/// The most a track unit grows to, in dp; less where the card is narrow.
+pub const CODEX32_TRACK_UNIT: f32 = 20.0;
+/// A track's width in units: the free space to the last hexagon's edge.
+pub const CODEX32_TRACK_W: f32 = 18.8;
+/// The highest point of a track above its low pads' centre line, in
+/// units (a raised diamond's top); the lowest is one unit below it.
+pub const CODEX32_TRACK_TOP: f32 = 2.05;
+/// The gap the booklet leaves between pads, in units (2 pt).
+pub const CODEX32_TRACK_GAP: f32 = 0.052;
+/// The free space's centre across and up, and its radius, in units.
+pub const CODEX32_FREE_X: f32 = 0.94;
+/// The free space's centre, up from the low pads' centre line.
+pub const CODEX32_FREE_Y: f32 = 1.15;
+/// The free space's radius.
+pub const CODEX32_FREE_R: f32 = 0.79;
+/// A d7+ pad: the hexagon's side, in units (the booklet's 0.8).
+pub const CODEX32_HEX_SIDE: f32 = 0.8;
+/// A hexagon's width, its side times the root of three.
+pub const CODEX32_HEX_W: f32 = 1.386;
+/// Where hexagon 0 would stand: across, and down from the centre line.
+pub const CODEX32_HEX_X: f32 = 2.5;
+/// Hexagon 0's lower corner, from the low pads' centre line.
+pub const CODEX32_HEX_Y: f32 = -0.473;
+/// The step from one hexagon to the next.
+pub const CODEX32_HEX_PITCH: f32 = 0.745;
+/// How far an even hexagon is raised: a side and a half and a gap.
+pub const CODEX32_HEX_RAISE: f32 = 1.252;
+/// Where the booklet sets "Die pads" and "Die pads (d7+)" over a track,
+/// in units across (160 pt and 440 pt).
+pub const CODEX32_PADS_HEAD_X: f32 = 4.19;
+/// Where "Die pads (d7+)" stands.
+pub const CODEX32_PADS_LARGE_HEAD_X: f32 = 11.52;
+/// A die's marker on its pad: a ring this many units across.
+pub const CODEX32_MARKER: f32 = 1.1;
+/// A die standing on its pad: a square this many units across.
+pub const CODEX32_TRACK_DIE: f32 = 0.95;
+/// The ring of a marker.
+pub const CODEX32_MARKER_STROKE: f32 = 2.0;
+/// The column before a track: the die's name and its bit.
+pub const CODEX32_TRACK_LABEL_W: f32 = 52.0;
+/// The space between two tracks.
+pub const CODEX32_TRACK_SPACE: f32 = 6.0;
+/// The narrowest the tree is drawn beside each die's two rolls; under
+/// them where there is less room.
+pub const CODEX32_TREE_MIN_W: f32 = 300.0;
+/// The widest the dice sheet's tree is drawn (the booklet's, 420 pt).
+pub const CODEX32_TREE_MAX_W: f32 = 420.0;
+/// One level of the tree over the space between two leaves (the
+/// booklet: 60 pt over 13.1 pt).
+pub const CODEX32_TREE_LEVEL: f32 = 4.57;
 /// A node of the tree.
 pub const CODEX32_TREE_NODE: f32 = 2.0;
 /// The tree's path, in the accent.
@@ -1076,6 +1127,18 @@ pub const ROLLER_FIVE_DIE: f32 = 44.0;
 
 /// The five-dice roller: the gap between two dice.
 pub const ROLLER_FIVE_GAP: f32 = 8.0;
+
+/// Each die's two rolls side by side (CODEX32 §5.5): a marker's or a
+/// die's side.
+pub const ROLLER_PAIR_DIE: f32 = 32.0;
+/// A column of the pairs: the first roll's, the second roll's.
+pub const ROLLER_PAIR_COL: f32 = 76.0;
+/// The die's name before its pair.
+pub const ROLLER_PAIR_LABEL_W: f32 = 48.0;
+/// A die's colour on its chip: the swatch's radius.
+pub const CODEX32_SWATCH: f32 = 7.0;
+/// A die's colour chip: Material's assist chip, 32 dp in a 48 dp row.
+pub const CODEX32_CHIP_H: f32 = 32.0;
 
 /// The five-dice roller: the most faces that land in one tick under
 /// Reduce motion, so that a click rolled to the end is never one long

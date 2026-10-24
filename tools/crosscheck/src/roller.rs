@@ -6,8 +6,13 @@
 //! `roller.one` is the one die of New key's dice pad: clicks of a chosen
 //! size into entries with a given room, and resets between them.
 //! `roller.five` is the codex32 dice step's five dice: clicks of a chosen
-//! reach into shares of a given length, the host's worksheet kept with
+//! reach into shares of a given length, of dice of `faces` faces (2 to
+//! 20, six where not given), the host's worksheet kept with
 //! `faraday_entropy::BookletChar` as the codex32 form keeps it.
+//! `roller.faces` is every byte as a face of a die of `faces` faces
+//! (`faraday_entropy::uniform_face`), and `roller.sheet` rolls entered
+//! by hand on the worksheet: the characters they make and the pairs
+//! struck (`docs/CODEX32.md` §5.1).
 
 use faraday_core::testkit::five::{Act as FiveAct, FiveRoller, REACHES, Where};
 use faraday_core::testkit::{PerClick, Roller, RollerAct};
@@ -46,6 +51,14 @@ pub fn handle(name: &str, req: &Value) -> Answer {
     match name {
         "one" => one(req),
         "five" => five(req),
+        "faces" => {
+            let n = num(req, "faces") as u8;
+            let out: Vec<Value> = (0..=255u8)
+                .map(|b| faraday_entropy::uniform_face(b, n).map_or(Value::Null, |f| json!(f)))
+                .collect();
+            Ok(json!({ "faces": out }))
+        }
+        "sheet" => sheet(req),
         _ => Err(format!("unknown roller op {name}")),
     }
 }
@@ -103,6 +116,7 @@ fn one(req: &Value) -> Answer {
 /// progress on the worksheet, its faces with struck pairs, and the
 /// characters made.
 struct Host {
+    faces: u8,
     sheet: BookletChar,
     seq: Vec<u8>,
     chars: String,
@@ -134,7 +148,7 @@ impl Host {
         }
         if let Ok(c) = self.sheet.character() {
             self.chars.push(char::from(c));
-            self.sheet = BookletChar::new();
+            self.sheet = BookletChar::with_faces(self.faces).expect("faces checked");
             self.seq.clear();
             self.all_left -= 1;
             self.share_left -= 1;
@@ -151,8 +165,10 @@ fn five(req: &Value) -> Answer {
     let mut answers = Answers::new(req);
     let share_len = num(req, "share_len") as usize;
     let all = share_len * num(req, "shares") as usize;
+    let faces = req.get("faces").and_then(Value::as_u64).unwrap_or(6) as u8;
     let mut host = Host {
-        sheet: BookletChar::new(),
+        faces,
+        sheet: BookletChar::with_faces(faces).map_err(|e| format!("{e:?}"))?,
         seq: Vec::new(),
         chars: String::new(),
         share_len,
@@ -160,6 +176,7 @@ fn five(req: &Value) -> Answer {
         all_left: all,
     };
     let mut roller = FiveRoller::default();
+    roller.set_faces(faces);
     let mut faces: Vec<u8> = Vec::new();
     for step in req["steps"].as_array().expect("steps is a list") {
         let reach = REACHES[num(step, "reach") as usize];
@@ -182,4 +199,38 @@ fn five(req: &Value) -> Answer {
         "pending": host.seq,
         "answers_used": answers.next,
     }))
+}
+
+/// Rolls entered by hand in the pad's order on dice of `faces` faces:
+/// the characters they make, the pairs struck as equal (die from 0,
+/// first, second) per character and for the one in progress, and the
+/// bits of the one in progress.
+fn sheet(req: &Value) -> Answer {
+    let faces = num(req, "faces") as u8;
+    let new = || BookletChar::with_faces(faces).map_err(|e| format!("{e:?}"));
+    let mut sheet = new()?;
+    let mut chars = String::new();
+    let mut struck: Vec<Vec<[u8; 3]>> = vec![Vec::new()];
+    for r in crate::json::nums(req, "rolls") {
+        let face = r as u8;
+        let second = (0..5).find(|&d| sheet.first(d).is_none()).is_none();
+        let die = (0..5).find(|&d| sheet.second(d).is_none());
+        sheet.push(face).map_err(|e| format!("{e:?}"))?;
+        if let (true, Some(d)) = (second, die)
+            && sheet.die_bit(d) == Some(None)
+        {
+            let first = sheet.first(d).unwrap_or(0);
+            if let Some(list) = struck.last_mut() {
+                list.push([d as u8, first, face]);
+            }
+            sheet.redo(d);
+        }
+        if let Ok(c) = sheet.character() {
+            chars.push(char::from(c));
+            sheet = new()?;
+            struck.push(Vec::new());
+        }
+    }
+    let bits: Vec<u8> = (0..5).filter_map(|d| sheet.die_bit(d).flatten()).collect();
+    Ok(json!({ "chars": chars, "struck": struck, "bits": bits }))
 }

@@ -1,7 +1,7 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Reference
-**Status:** Built. Codex32 in Faraday: the worksheets, symbols and fresh sets in `faraday-bip`, the error-correction decoder, the dice method, the work set, Make codex32 shares and its wallet kind, hand-made shares, Add a share, Check a string, scanning and the correction in the form, backups, the Starter's templates, both dice rollers on Faraday Desktop and Demo's sample; decisions F93 to F96 and F107. Strings of 74 and 127 characters have no Codex32QR picture, as the profile does not define one (§10.4)
+**Status:** Built. Codex32 in Faraday: the worksheets, symbols and fresh sets in `faraday-bip`, the error-correction decoder, the dice method, the work set, Make codex32 shares and its wallet kind, dice of up to twenty faces in colours the person picks with the booklet's dice sheet drawn as the booklet draws it, hand-made shares, Add a share, Check a string, scanning and the correction in the form, backups, the Starter's templates, both dice rollers on Faraday Desktop and Demo's sample; decisions F93 to F96 and F107. Strings of 74 and 127 characters have no Codex32QR picture, as the profile does not define one (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -95,7 +95,14 @@ Sources read for it, each as data and none vendored:
 7. **Templates**: the published 256-bit checksum sheet is printed; no
    translation sheet the booklet has not published is drawn (§4, §11).
 8. **Error correction** at every length (§8.4).
-9. **Dice**: six-faced only (§5.1).
+9. **Dice** (owner, 2026-10-24, replacing "six-faced only" of
+   2026-10-22): dice of up to twenty faces, as the booklet's sheet has
+   pads 1 to 6 and, for dice of seven faces or more, pads 7 to 20. The
+   person says which dice they use (d6 by default; d4, d8, d10, d12,
+   d20), picks each die's colour, and sees each die's two rolls side by
+   side; the roller on Faraday Desktop rolls the chosen die; the sheet
+   on screen and the printed one are drawn as the booklet draws them
+   (§5.1, §5.5, §6.4.2, §11).
 10. **Seed bytes**: `faraday-keys` keeps a master seed's bytes for keys
     loaded from one (§9.1).
 11. **127 characters** are not offered in Make codex32 shares (§4, §6.1).
@@ -187,6 +194,16 @@ Added 2026-10-24 (owner):
     with a pointer or touch; the keyboard scrolls it too (§7.5).
 28. **Every box of the string is numbered**, small and quiet over each
     box, the groups of four kept (§6.4.1).
+29. **"Demo only"** (owner, 2026-10-24): the computer's dice roller and
+    Demo's **Use a sample** are not the person's entry. They stand in
+    one outlined box headed "Demo only", at the right of the entry where
+    the card is wide enough and under it where not, so the person's own
+    dice (the sheet and "Your dice") are the page. Where they are offered
+    does not change: the roller on Faraday Desktop, the sample in Demo;
+    the stick and the Pi have neither. The dice's size is one choice, on
+    the Entropy card, over "Your dice" and in the box ("Rolls d20");
+    changed in the middle of a character, that character's rolls are
+    cleared and the note says so (§5.1, §5.5).
 
 What this spec found that the decision assumed otherwise: the booklet's
 site lists "Checksum Worksheets: Standard 128-bit, Standard 256-bit" and
@@ -207,7 +224,8 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
 - **The five-dice roller** (C11), `faraday/faraday-core/src/fresh/roller/five.rs`
   and `five_screen.rs`: `FiveRoller` rolls the booklet's dice sheet for a
   click, five dice and four reaches (One pass, One character, One share,
-  To the end), as faces 1 to 6 in the pad's order, an equal pair's die
+  To the end), as faces 1 to N of the dice chosen (six unless told, up to
+  twenty, each face equally likely, §5.5) in the pad's order, an equal pair's die
   rolled again, so that the faces entered as the pad's keys give
   exactly what the same faces typed give. It marks each face it made by
   character and place (`is_rolled`, `char_rolled`, `sim`), tumbles for
@@ -348,7 +366,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   its screen is left, so there is nothing to show again. The translation
   symbols are drawn as the booklet's second alphabet's glyphs
   (`SYMBOL_GLYPHS`, §7.2). In Demo (§12) the entry runs as anywhere,
-  with **Use a sample** over the pad filling the characters left from the
+  with **Use a sample** in the "Demo only" box filling the characters left from the
   sample's shares; at the entry's Continue the set entered is dropped and
   the shell's codex32 sample, BIP 93's vector 2, stands in its place
   (`WorkSet::given` with `Making::All`: A, C and D, the sample's 2 of 3 at
@@ -623,6 +641,44 @@ person with the paper sheet and a person with Faraday get one result:
    `Q P Z R Y 9 X 8 G F 2 T V D W 0 S 3 J N 5 4 K H C E 6 M U A 7 L`
    (the `code` array of SSS32.ps), the bech32 alphabet in value order.
 
+**Dice of any number of faces up to twenty** (owner, 2026-10-24). The
+booklet's tracks have pads 1 to 6 (diamonds) and, under "Die Pads
+(d7+)", pads 7 to 20 (hexagons), so any die of up to twenty faces fits
+the sheet; the booklet names no size and does not say which to prefer.
+The comparison is the same whatever the faces: the second value lower
+gives 0, higher gives 1, equal is rolled twice again, so the method's
+freedom from bias does not depend on N. The Entropy card's **Dice** row
+offers **d4 · d6** (ticked) **· d8 · d10 · d12 · d20**, the dice sold in
+sets; the pad then takes 1 to N (a key for each face on dice other
+than d6, whose six-key pad is unchanged), and a face past N is refused.
+On a keyboard a face of two digits is typed as two digits; a 1 or a 2
+that could begin one waits, shown as "Face 1…", for its units digit,
+Space or Enter, and Backspace drops it. A ten-faced die's 0 is entered
+as 10: the pad of ten-faced dice reads "0 is 10", and on a keyboard a 0
+alone is 10 (the method needs only one fixed order of the faces, which
+this is). One size for all five dice: mixing sizes would keep the method
+correct, as each die compares with itself, but is not offered (the pad,
+the roller and the sheet take one N). The dice can be changed at any
+time, on the Entropy card, over "Your dice" on the entry, or in the
+"Demo only" box (§5.5), one value for all three (a small panel has it on
+the Entropy card only, to keep its room for the sheet and the pad); in
+the middle of a character its rolls so far are cleared, as they were of
+the other dice, and the note reads "Dice changed: this character's
+rolls are cleared". A character keeps the faces it was rolled with, so
+Backspace into it brings its rolls back on its own dice. Larger dice make a character in
+fewer rolls on average: an equal pair comes up 1 time in N.
+
+**Each die's colour** (owner, 2026-10-24). The booklet asks for five
+distinct dice and five markers; the owner's d20 set came as five sets of
+five, each a colour. The Entropy card's **Colours** row has a chip per
+die, "Die 1 · Red", that steps through Red, Orange, Yellow, Green, Blue,
+Purple, White and Black; the five start distinct (Red, Blue, Green,
+Yellow, Purple). The die and its marker are drawn in its colour on the
+sheet, in each die's two rolls and on the roller, always with the die's
+number or name beside, so colour is never the only cue. The dice chosen
+are kept for the session (New key's area), so the next Make codex32
+shares starts on them; they are not in the settings file.
+
 On the device the worksheet itself is on screen and fills as the
 rolls are entered (§6.4.2): each die's first value, its second, the
 comparison and the bit; then the five bits, the path through the tree,
@@ -632,8 +688,13 @@ the second, into an entry laid out as the worksheet's five dice and two
 rolls (§5.5, "Your dice"), on every shell. How the sheet is masked is
 §6.4.6.
 
-The booklet's sheet also has pads for dice of 7 to 20 faces. Faraday
-takes six-faced dice only (owner, §1.1 item 9).
+Built: `faraday_entropy::booklet` (`BookletChar::with_faces`, faces 2
+to 20, and `uniform_face`), the Entropy card's rows and the pad
+(`faraday/faraday-core/src/codex32/dice_screen.rs`), tested in
+`faraday/faraday-core/tests/all/codex32_dice.rs` (vector 2 rolled on
+twenty-faced dice, every size reading one character, two-digit typing,
+faces past the die refused, the dice changing between characters,
+colours and the session) and by the cross-check's `roller` area.
 
 `tools/reference/dice/README.md` is the model for the record of this
 method: a new page under `tools/reference/` (C3) quotes the worksheet's
@@ -668,11 +729,19 @@ strings, through `Reveal::PaperForm`.
 
 ### 5.5 Faraday Desktop's dice roller (codex32)
 
-On Faraday Desktop only, the dice step shows five small dice in a row,
-numbered 1 to 5, the de-biasing worksheet's five tracks. They are
-vector dice drawn in the theme's colours (owner's choice): a rounded
-square in the surface colour, its outline and pips in the theme's
-outline and text colours, the accent while it tumbles. The website's die
+On Faraday Desktop only, the dice step shows the five dice, numbered 1
+to 5, the de-biasing worksheet's five tracks, as each die's two rolls
+side by side (owner, 2026-10-24): under **First roll** the die's marker,
+a disc in the die's colour with its first value; under **Second roll**
+the die, a rounded square in its colour with its pips (dice of six faces
+or fewer) or its number; after them what the pair gives, "lower · 0" or
+"higher · 1"; under the five, each pair struck as equal, "Die 3 · 20
+then 20 · equal · roll both again", struck through. A die tumbles in the
+cell its value goes to, outlined in the accent. The roller rolls the
+dice chosen (§5.1): a byte of this computer's randomness below the
+largest multiple of N under 256 gives the face `byte mod N + 1`, any
+other byte is skipped (rejection sampling, no modulo bias; for six
+faces, every byte of 252 or more, as before). The website's die
 pictures are not used, so no image decoder comes into the app. Beside them, a choice of what one click rolls:
 
 - **One pass**: the five dice once (the first or the second values);
@@ -693,21 +762,33 @@ shows the stick's entry, **Your dice**, and beside it the roller,
 **Or let Faraday roll**, and the person uses either, or both, at any
 point. A value from the entry is a real die's and is not labelled.
 
-**Your dice, laid out as the worksheet** (every shell, the stick and the
-Pi included). The entry for real rolls has the shape of the booklet's
-Dice De-biasing Worksheet rather than a single line: five fields across,
-**Die 1** to **Die 5**, in two rows, **First roll** and **Second roll**,
-the character's ten values in the booklet's order (die 1 to die 5 for the
-first roll, then for the second). The field to fill is outlined; a
-value comes from the six-key dice pad, or on the desktop from the
-keyboard's 1 to 6. As a die's second value lands, its column reads
-"lower · 0" or "higher · 1"; an equal pair clears that die's two fields
-with "Die 3 · roll both again" and the struck-through pair moves to the
-sheet (§6.4.2). Once the five bits are in, the character drops into its
-box and the two rows clear for the next character. The roller's values
-land in the same fields, marked "rolled by this computer", so a person
-sees one layout whichever way the values came. Backspace takes back the
-last value of the character being entered.
+**"Demo only" (owner, 2026-10-24).** The roller must not look like part
+of the real app: it stands in one outlined card (Material's outlined
+card, in the supporting-pane position of `docs/LAYOUT.md` §6) headed
+**Demo only**, at the right of the entry where the card leaves the
+entry's column at least `CODEX32_MAIN_MIN` (420 dp) beside it, else
+under the entry. The box holds, in order, Demo's **Use a sample** (in
+Demo), and on Faraday Desktop the dice's size (the same choice as over
+"Your dice"), "Rolls d20", and the roller with each die's two rolls,
+its Roll button and what one click rolls. The marks are unchanged:
+"Rolled by this computer", "simulated dice". The person's own entry,
+the dice sheet and **Your dice** with the dice's size over it, is the
+page. Built in `codex32/dice_screen.rs` (`demo_box`), tested in
+`tests/all/codex32_dice.rs` (the box beside the pad on Faraday Desktop,
+none on the stick; a d20 rolled and padded 1 to 20).
+
+**Your dice, both rolls side by side** (every shell, on windows of the
+expanded class and up; owner, 2026-10-24). The dice sheet (§6.4.2)
+shows each die's two rolls as the roller does: **First roll** (the
+marker) and **Second roll** (the die) side by side, in the die's colour,
+"lower · 0" or "higher · 1" once both are in, and the pairs struck as
+equal under them, so a person sees each die's pair and which were
+discarded and why. The values come from the pad, from the keyboard, or
+from the roller, in the booklet's order (die 1 to die 5 for the first
+roll, then for the second), one layout whichever way they came. Narrower
+windows show the same as rows of words, "Die 3 · 4 then 2 · lower · 0"
+(§6.4.7). Backspace takes back the last value of the character being
+entered.
 
 **Honesty.** A rolled value is this computer's randomness (from
 `Faraday::fresh`, as any of Faraday's randomness), not a die. The row
@@ -821,16 +902,26 @@ then all of C, and so on.
 
 #### 6.4.2 The dice de-biasing sheet, live
 
-Drawn as the booklet's sheet: five die tracks, each a free space and
-pads 1 to 6, and the tree of 31 nodes over 32 leaves, the leaves
-`Q P Z R Y 9 X 8 G F 2 T V D W 0 S 3 J N 5 4 K H C E 6 M U A 7 L`.
-As each entry is pressed:
+Drawn as the booklet's page draws it (SSS32.ps of 2023-03-07, page 18,
+`drawDiceRow`; owner, 2026-10-24), across the card's width: each die's
+two rolls side by side on the left (§5.5) and the tree of 31 nodes over
+32 leaves on the right, at the booklet's proportions (a level 4.57
+times the space between two leaves), the leaves
+`Q P Z R Y 9 X 8 G F 2 T V D W 0 S 3 J N 5 4 K H C E 6 M U A 7 L`;
+under them **Die tracks** with its rule, **Free space**, **Die pads**
+and **Die pads (d7+)** where the booklet sets its heads, and five
+tracks, each the die's name and colour, the free space (a circle),
+pads 1 to 6 as diamonds and pads 7 to 20 as hexagons, every other one
+raised, in the booklet's geometry scaled to the card (`CODEX32_TRACK_*`
+tokens, each the booklet's measure over its diamond's half-diagonal).
+Pads past the dice's faces are outlined only. As each entry is
+pressed:
 
-1. **First roll** (entries 1 to 5): die n's marker moves to the pad of
-   its value on track n, the value written beside the track.
+1. **First roll** (entries 1 to 5): die n's marker, a ring in its
+   colour, moves from the free space to the pad of its value on track n.
 2. **Second roll** (entries 6 to 10): die n is drawn on the pad of its
-   second value, and the track's row completes at once: "4 then 2 ·
-   lower · 0", or "2 then 5 · higher · 1".
+   second value, a square in its colour with the value, and the pair
+   completes at once: "lower · 0", or "higher · 1".
 3. **Equal**: "3 then 3 · equal · roll both again"; the pair stays
    drawn, struck through, the marker goes back to the free space, and
    the next two entries are that die's again; the redone pair is drawn
@@ -962,7 +1053,7 @@ to the mask policy for this flow:
 
 | Class | Over the pad | One press away |
 |---|---|---|
-| `wide` (the pane right of the sidebar) | two panels side by side: the dice sheet (tracks, tree, path) and the checksum worksheet in its view (§7.5), panned so the entry's front cell is in view, the share's string with every box numbered above both | a share's translation rows, from a strip of the worksheets under the title; the cell sheet (§7.4) |
+| `wide` (the pane right of the sidebar) | the share's string with every box numbered; the dice sheet across the card's width as the booklet's page (each die's two rolls and the tree, then the five tracks, §6.4.2); under it the checksum worksheet in its view (§7.5), panned so the entry's front cell is in view (owner, 2026-10-24: the dice sheet with its d7+ pads does not fit the side panel it had) | a share's translation rows, from a strip of the worksheets under the title; the cell sheet (§7.4) |
 | `mobile` | stacked: the share's string in rows of numbered boxes; the dice sheet as five track rows ("Die 3 · 4 then 2 · lower · 0") with the tree drawn in a strip of 32 leaves and the path over it; the whole checksum worksheet in its view, panning both ways and following the front | translation rows; the cell sheet |
 | `small` (the Pi panel and 240 × 320) | the pad and one context panel at a time: the dice sheet while a character is rolled, as track rows and the path as a line "0 1 1 0 · ·"; after the fifth bit, the character's box for a moment, then back to the tracks | a tile row over the pad, **Dice · Checksum · String**, swaps the context panel; the checksum panel is the whole worksheet in its view, panning both ways and following the front; the cell sheet is the whole panel as a page |
 
@@ -1268,7 +1359,7 @@ paper recognises it at a glance:
 | Light grey fill (0.95, 0.85), in the colour edition | rows read from a table | on the translation worksheet, a raised-surface fill (`CODEX32_LOOKUP_FILL`); none on the checksum worksheet, whose `+` and `=` rows are plain as on the owner's sheet (owner, 2026-10-24) |
 | The final row, `SECRETSHARE32`, after `=` | the check | the same row after `=`; its letters muted until worked out (§7.1) |
 | Small box numbers in the bolded squares' corners; small letters in the `=` rows' leading squares | finding a box, naming a cell | the same, in the muted colour at `CODEX32_CELL_NOTE`; a character stands left of its box's number |
-| The dice worksheet's five tracks and pads, the 32-leaf tree | the dice | drawn as the booklet draws them: tracks left to right, the tree's leaves in its order |
+| The dice worksheet's five tracks (free space, diamond pads 1 to 6, hexagon pads 7 to 20), the 32-leaf tree | the dice | drawn as the booklet draws them, in its geometry: tracks left to right, the tree's leaves in its order; each die's marker and the die in the colour the person gave it (§5.1), pads past the dice's faces outlined only |
 | The second alphabet (`code2`) for translation symbols | the multipliers | the same glyphs |
 
 Names, numbers and the order of the boxes are the booklet's (§3), and so
@@ -1800,7 +1891,12 @@ Learn page, and is not printed on the sheets (owner, §1.1 item 6).
 Built (batch C9): the Form row, the card (`ms1` in boxes 1 to 3, the
 labelled boxes, the Codex32QR grid with its fixed squares grey, the
 fingerprint, the alphabet with 0, 7, S and Z slashed), the dice
-worksheet, the checksum worksheet (landscape, 48 on one page, 74 on two),
+worksheet as the booklet draws it (owner, 2026-10-24; two landscape
+pages, `faraday/faraday-starter/src/sheets/dice.rs`: the tree, "Die
+tracks", "Die pads", "Die pads (d7+)" and one track, then four tracks
+more, each the free space, diamond pads 1 to 6 and hexagon pads 7 to 20,
+in the booklet's points; its instructions are Learn's, not printed;
+the MIT licence allows the copy, its notice kept as above), the checksum worksheet (landscape, 48 on one page, 74 on two),
 the translation worksheets at 48, the booklet's principal, derivation and
 checksum tables (computed, and tested equal to `tables.json`). The
 booklet's second alphabet is drawn in PDF's Symbol font and Helvetica
@@ -1815,7 +1911,7 @@ changes in §3.8: no key, seed or wallet is asked for or shown.
 
 | Flow | In Demo | Why |
 |---|---|---|
-| Make codex32 shares (§6) | Open, and the process runs whole: the person rolls (on the pad, or the roller on Faraday Desktop) or types, and watches the live sheets, the conversion and the checksums as anywhere. Once the entry screen is finished, the strings are replaced by the sample, BIP 93's vector 2 (`NAME`, k = 2: shares `a`, `c` and the derived `d`), and every later card shows the sample's, with one line: "Demo puts sample NAME in place of these strings". **Use a sample** fills vector 2's own characters for a person who would rather not roll | How the process works is the point; a seed rolled in Demo is a real seed that Demo would not hold, so it never leaves the entry screen. As Generate with dice puts `faraday` in place of the rolled words (DEMO §5.2) |
+| Make codex32 shares (§6) | Open, and the process runs whole: the person rolls (on the pad, or the roller in the "Demo only" box on Faraday Desktop) or types, and watches the live sheets, the conversion and the checksums as anywhere. Once the entry screen is finished, the strings are replaced by the sample, BIP 93's vector 2 (`NAME`, k = 2: shares `a`, `c` and the derived `d`), and every later card shows the sample's, with one line: "Demo puts sample NAME in place of these strings". **Use a sample**, in the "Demo only" box beside the entry (§5.5), fills vector 2's own characters for a person who would rather not roll | How the process works is the point; a seed rolled in Demo is a real seed that Demo would not hold, so it never leaves the entry screen. As Generate with dice puts `faraday` in place of the rolled words (DEMO §5.2) |
 | Shares made by hand (§8.1), Add a share (§8.2) | Open for the BIP 93 vectors' strings (the demo's public seeds, MODES §7); a string of any other set is refused as a key that is not public is | The same |
 | Check a string (§8.3) | Open for any string | It loads nothing and keeps nothing |
 | Error correction (§8.4) | Open, on the sample strings with boxes changed | A proposal for a public string |
@@ -1851,7 +1947,10 @@ person chose is kept for the process; the sample's own scheme (2 of 3,
   any k and n and keys with a seed and no words (§9.1). New module
   faraday/faraday-keys/src/codex32.rs (new).
 - `faraday-core`: a new area folder, faraday/faraday-core/src/codex32/
-  (new), mod.rs (the flow's state, §6 and §8) and screen.rs (its cards),
+  (new), mod.rs (the flow's state, §6 and §8), screen.rs (its cards)
+  and dice_screen.rs (the dice chooser, the pad of N faces, the
+  booklet's dice sheet; each die's two rolls are in
+  `fresh/roller/five_screen.rs`, which the roller draws too),
   named in `lib.rs`'s code map (F74). Add a key's form keeps its place in
   `forms.rs`; the tick and `?` are there.
 - `faraday-starter`: `template.rs` gains the Form row and the codex32
@@ -1899,7 +1998,10 @@ for a string's boxes and the translation worksheet; `codex32_cell`,
 `codex32_cell_char`, `codex32_sheet_view`, `CODEX32_SHEET_GAP`,
 `CODEX32_SHEET_BOLD`, `CODEX32_CELL_NOTE` and `CODEX32_MARK_GAP` for
 the checksum worksheet; `CODEX32_STRING_NUMBER` for the numbers over a
-string's boxes; and the dice sheet's track pad, tree node and leaf);
+string's boxes; and the dice sheet's: `CODEX32_TRACK_*`, `CODEX32_FREE_*`,
+`CODEX32_HEX_*`, the booklet's track geometry in units of its diamond's
+half-diagonal; `CODEX32_TREE_LEVEL`, its level over its leaf pitch;
+`ROLLER_PAIR_*`, each die's two rolls);
 the PDF's in `pdf.rs`'s own constants as the SeedQR grid's are.
 
 ### 13.5 Tests of the cryptography
@@ -1911,7 +2013,8 @@ Each against published vectors or another implementation:
 | Strings made from initial shares, S, derived shares | BIP 93 vectors 2 and 3 (`tools/vectors/bip93/vectors.json`); the Codex32QR vectors (§10.3); BIP 93's Python reference (`ms32_interpolate`) through F79's offline cross-check, over random sets of every k and n at 48, 74 and 127 |
 | Checksum worksheet rows | `volvelle-wasm`'s `checksum_worksheet.rs` (CC0), run once offline over every BIP 93 string and the Codex32QR strings at 48 and 74 characters, its cells kept as a fixture under `tools/vectors/` with the commit and SHA-256; every row also equals BIP 93's reference polymod over the same prefix (F79); the final row of every valid vector is the constant |
 | Translation and recovery symbols, code2 | the booklet's derivation tables for k = 2 and k = 3 and its Recovery table (SSS32.ps, 2023-03-07), transcribed once from the PDF into a fixture |
-| Dice to characters | the booklet's tree (§5.1), all 32 paths, from the `code` array; a die with equal values is never read |
+| Dice to characters | the booklet's tree (§5.1), all 32 paths, from the `code` array, on six- and twenty-faced dice; a die with equal values is never read; F79's cross-check area `roller` over random dice of 2 to 20 faces |
+| The roller's faces | every byte as a face of every die of 2 to 20 faces (each face exactly 256 div N times), known answers, and the chi-square of 60,000 faces of each die offered; the cross-check's `roller` area drives the roller itself over random answers |
 | Error correction | python-codex32's frozen corpus (57 cases; the sources table at the top), every case's expected string; python-codex32's `correction.py` through F79's cross-check over random errors within the bound, both lengths; the Haskell implementation of pull request 70, from whose `Tests.hs` the corpus is drawn; and, for every string, that no proposal is made beyond the bound where a second candidate exists |
 | Codex32QR | §10.3 |
 

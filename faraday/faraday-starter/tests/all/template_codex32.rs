@@ -325,11 +325,18 @@ fn each_template_saves_under_its_name_with_the_pages_section_11_lists() {
         (48, CodexCopy::String, false, "48-chars-string", 2),
         (48, CodexCopy::Codex32Qr, false, "48-chars-codex32qr", 2),
         (48, CodexCopy::Both, false, "48-chars-string-codex32qr", 2),
-        // card, dice, checksum, translation k = 2 and 3, tables,
+        // card, dice twice, checksum, translation k = 2 and 3, tables,
         // checksum table twice, places.
-        (48, CodexCopy::String, true, "48-chars-string-worksheets", 9),
-        // card, dice, checksum twice, tables, checksum table twice, places.
-        (74, CodexCopy::String, true, "74-chars-string-worksheets", 8),
+        (
+            48,
+            CodexCopy::String,
+            true,
+            "48-chars-string-worksheets",
+            10,
+        ),
+        // card, dice twice, checksum twice, tables, checksum table twice,
+        // places.
+        (74, CodexCopy::String, true, "74-chars-string-worksheets", 9),
         (74, CodexCopy::String, false, "74-chars-string", 2),
         (127, CodexCopy::String, false, "127-chars-string", 2),
     ];
@@ -394,11 +401,11 @@ fn the_worksheets_pages_are_landscape_and_use_the_symbol_font() {
     choose(&mut s, 48, CodexCopy::String, true);
     let (_, pdf) = saved(&mut s);
     let raw = String::from_utf8_lossy(&pdf);
-    assert_eq!(raw.matches("/MediaBox [0 0 842 595]").count(), 3);
+    assert_eq!(raw.matches("/MediaBox [0 0 842 595]").count(), 5);
     assert!(raw.contains("/BaseFont /Symbol"));
     let text = text_of(&pdf);
     for word in [
-        "Dice worksheet",
+        "Dice de-biasing worksheet",
         "Checksum worksheet",
         "Translation worksheet",
         "k = 3",
@@ -417,6 +424,47 @@ fn the_worksheets_pages_are_landscape_and_use_the_symbol_font() {
             assert!(text.contains(word), "{word}");
         }
     }
+}
+
+#[test]
+fn the_dice_worksheet_is_the_booklets_tracks_and_tree() {
+    let mut s = starter();
+    choose(&mut s, 48, CodexCopy::String, true);
+    let (_, pdf) = saved(&mut s);
+    let text = text_of(&pdf);
+    for word in [
+        "Dice de-biasing worksheet · page 1 of 2",
+        "Dice de-biasing worksheet · page 2 of 2",
+        "Die tracks",
+        "Die pads",
+        "Die pads (d7+)",
+    ] {
+        assert!(text.contains(word), "{word}");
+    }
+    // Five tracks, each with its free space and pads 1 to 20.
+    assert_eq!(text.matches("Free space").count(), 5);
+    let shown: Vec<String> = shown(&pdf)
+        .iter()
+        .map(|b| String::from_utf8_lossy(b).into())
+        .collect();
+    let dice = shown
+        .iter()
+        .position(|s| s.starts_with("Dice de-biasing"))
+        .expect("the dice worksheet");
+    // After the title and the tree's 32 leaves.
+    let pads: Vec<&String> = shown[dice + 33..]
+        .iter()
+        .take_while(|s| !s.starts_with("Checksum worksheet"))
+        .collect();
+    for n in 1..=20 {
+        let n = n.to_string();
+        assert_eq!(pads.iter().filter(|s| ***s == n).count(), 5, "pad {n}");
+    }
+    // The tree's 32 leaves, left to right, in the booklet's order, under
+    // the title and over the tracks' head.
+    let leaves: String = shown[dice + 1..dice + 33].concat();
+    assert_eq!(leaves, "QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L");
+    assert_eq!(shown[dice + 33], "Die tracks");
 }
 
 #[test]

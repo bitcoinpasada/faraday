@@ -3979,20 +3979,9 @@ strings! {
     pdf_c32_alphabet: "The 32 characters",
     /// Caption of the Codex32QR grid on the share card.
     pdf_c32_grid: "Codex32QR · the grey squares are printed already",
-    /// Title of the dice worksheet.
-    pdf_c32_dice: "Dice worksheet",
-    /// Head of a die's columns. `{}`: the die's number.
-    pdf_c32_die: "Die {}",
-    /// Head over a die's first roll.
-    pdf_c32_roll_first: "1st",
-    /// Head over a die's second roll.
-    pdf_c32_roll_second: "2nd",
-    /// Head over a die's bit.
-    pdf_c32_bit: "Bit",
-    /// Head over the box of the character made.
-    pdf_c32_character: "Character",
-    /// Caption of the dice worksheet's tree.
-    pdf_c32_tree: "Bits 1 to 5, top to bottom: 0 goes left, 1 goes right.",
+    /// Title of the dice worksheet, the booklet's (two pages). `{}`: the
+    /// page, the pages.
+    pdf_c32_dice: "Dice de-biasing worksheet · page {} of {}",
     /// Title of the checksum worksheet. `{}`: the length in characters.
     pdf_c32_checksum: "Checksum worksheet · {} characters",
     /// A worksheet title with its page. `{}`: the title, the page, the pages.
@@ -9195,8 +9184,6 @@ strings! {
     // ----- The five-dice roller (docs/CODEX32.md §5.5), faraday-core/src/fresh/roller/ -----
     /// Heading of the codex32 dice step's roller, beside the entry for real dice.
     roller_or_let_faraday_roll: "Or let Faraday roll",
-    /// Under each of the roller's five dice. `{}`: its number, 1 to 5.
-    roller_die: "Die {}",
     /// Label of the roller's choice of how much one click rolls.
     roller_per_click_codex32: "One click rolls",
     /// Choice: the five dice once.
@@ -9388,6 +9375,60 @@ strings! {
     codex32_die_short: "Die {}",
     /// A rolled character's review line, marked as the roller's.
     codex32_box_rolled_by: "{} · rolled by this computer",
+    /// The Entropy card's row of dice, by their faces (CODEX32 §5.1).
+    codex32_dice: "Dice",
+    /// A die on that row. `{}`: its faces.
+    codex32_die_size: "d{}",
+    /// The Entropy card's row of each die's colour (CODEX32 §5.1).
+    codex32_die_colours: "Colours",
+    /// A die's colour, a press steps to the next. `{}`: the die, the colour.
+    codex32_die_colour: "Die {} · {}",
+    /// A die's colour.
+    codex32_colour_red: "Red",
+    /// A die's colour.
+    codex32_colour_orange: "Orange",
+    /// A die's colour.
+    codex32_colour_yellow: "Yellow",
+    /// A die's colour.
+    codex32_colour_green: "Green",
+    /// A die's colour.
+    codex32_colour_blue: "Blue",
+    /// A die's colour.
+    codex32_colour_purple: "Purple",
+    /// A die's colour.
+    codex32_colour_white: "White",
+    /// A die's colour.
+    codex32_colour_black: "Black",
+    /// The dice sheet's place for a die's marker before its first roll
+    /// (the booklet's words), on screen and printed.
+    codex32_free_space: "Free space",
+    /// Head over the dice sheet's five tracks (the booklet's words).
+    codex32_die_tracks: "Die tracks",
+    /// Head over a track's pads 1 to 6 (the booklet's words).
+    codex32_die_pads: "Die pads",
+    /// Head over a track's pads 7 to 20, for dice of more faces (the
+    /// booklet's words).
+    codex32_die_pads_large: "Die pads (d7+)",
+    /// Head over each die's first roll, its marker (CODEX32 §5.5).
+    codex32_first_roll: "First roll",
+    /// Head over each die's second roll, the die.
+    codex32_second_roll: "Second roll",
+    /// What a die's pair gives. `{}`: lower or higher, the bit.
+    codex32_pair_bit: "{} · {}",
+    /// The note when the dice are changed in the middle of a character
+    /// (CODEX32 §5.1).
+    codex32_dice_changed: "Dice changed: this character's rolls are cleared",
+    /// The box that holds the computer's dice roller and Demo's sample,
+    /// apart from the person's own entry (CODEX32 §5.5, owner 2026-10-24).
+    codex32_demo_only: "Demo only",
+    /// The roller's dice, in the "Demo only" box. `{}`: the die, as "d20".
+    codex32_rolls_die: "Rolls {}",
+    /// Over the pad of ten-faced dice: a die numbered 0 to 9 enters its 0
+    /// as 10 (CODEX32 §5.1).
+    codex32_d10_zero: "0 is 10",
+    /// A tens digit typed on the keyboard, waiting for its units digit,
+    /// Space or Enter (dice of ten faces or more). `{}`: the digit.
+    codex32_face_pending: "Face {}…",
     /// Strings made's button (§6.8).
     codex32_check_on_another: "Check on another device",
     /// Check on another device's row: the subsets to try.

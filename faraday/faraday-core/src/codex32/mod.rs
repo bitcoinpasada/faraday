@@ -24,7 +24,15 @@
 //! told of every face taken back ([`FiveRoller::trim`]) and starts over
 //! with the entry; `rolled_dice` is what `seq` and the roller's marks
 //! give, worked again with `dice` at every replay.
+//!
+//! **The dice** (§5.1): the person says how many faces their dice have
+//! (six unless told, up to the booklet's twenty) and each die's colour
+//! ([`DiceChoice`]). The faces are read 1 to N on the pad and the roller
+//! rolls N; a change of dice is taken only between characters, so that
+//! `seq` is always of one die, and each character keeps the faces it
+//! was rolled with ([`Made`]) for its rolls to come back on Backspace.
 
+pub(crate) mod dice_screen;
 pub(crate) mod screen;
 pub(crate) mod worksheet_screen;
 
@@ -136,6 +144,92 @@ pub enum Way {
 
 /// The ways in the order the card lists them.
 pub const WAYS: [Way; 3] = [Way::Dice, Way::Typed, Way::Shares];
+
+/// The dice offered, by their faces (§5.1): the booklet's sheet has pads
+/// 1 to 6 and, for larger dice, 7 to 20, so every die of up to twenty
+/// faces fits; these are the dice sold in sets.
+pub const DIE_SIZES: [u8; 6] = [4, 6, 8, 10, 12, 20];
+
+/// The columns of keys of the pad of a die of `n` faces: five where
+/// they divide it (d10, d20), six (d12), else four (d4, d8).
+pub fn pad_columns(n: usize) -> usize {
+    if n.is_multiple_of(5) {
+        5
+    } else if n.is_multiple_of(6) {
+        6
+    } else {
+        4
+    }
+}
+
+/// A die's colour (§5.1, owner 2026-10-24): the booklet asks for five
+/// distinct dice, and a die's marker takes its colour. Drawn with its
+/// name and the die's number, so colour is never the only cue.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DieColour {
+    /// Red.
+    Red,
+    /// Orange.
+    Orange,
+    /// Yellow.
+    Yellow,
+    /// Green.
+    Green,
+    /// Blue.
+    Blue,
+    /// Purple.
+    Purple,
+    /// White.
+    White,
+    /// Black.
+    Black,
+}
+
+/// The colours, in the order a press steps through them.
+pub const DIE_COLOURS: [DieColour; 8] = [
+    DieColour::Red,
+    DieColour::Orange,
+    DieColour::Yellow,
+    DieColour::Green,
+    DieColour::Blue,
+    DieColour::Purple,
+    DieColour::White,
+    DieColour::Black,
+];
+
+impl DieColour {
+    /// The colour after this one, round the list.
+    pub fn next(self) -> DieColour {
+        let i = DIE_COLOURS.iter().position(|c| *c == self).unwrap_or(0);
+        DIE_COLOURS[(i + 1) % DIE_COLOURS.len()]
+    }
+}
+
+/// The dice the person rolls: their faces, and each die's colour, die 1
+/// first. Kept for the session (`KeyGenArea`), not in the settings file.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DiceChoice {
+    /// The faces of each die, one of [`DIE_SIZES`].
+    pub faces: u8,
+    /// Die 1's colour to die 5's.
+    pub colours: [DieColour; BOOKLET_DICE],
+}
+
+impl Default for DiceChoice {
+    /// Six-faced dice in five distinct colours.
+    fn default() -> Self {
+        DiceChoice {
+            faces: booklet::BOOKLET_FACES,
+            colours: [
+                DieColour::Red,
+                DieColour::Blue,
+                DieColour::Green,
+                DieColour::Yellow,
+                DieColour::Purple,
+            ],
+        }
+    }
+}
 
 /// A set made of strings typed into Add a key's codex32 form
 /// (`docs/CODEX32.md` §8.1, §8.2): the flow opens on its first card with
@@ -264,6 +358,13 @@ pub enum C32 {
     /// A press on the five-dice roller beside the pad (Faraday Desktop,
     /// §5.5).
     Roller(five::Act),
+    /// The dice's faces, by their place in [`DIE_SIZES`] (§5.1): in the
+    /// middle of a character, its rolls so far are cleared.
+    Faces(u8),
+    /// Die `n`'s colour (from 0) steps to the next of [`DIE_COLOURS`].
+    Colour(u8),
+    /// A face pressed on the pad of dice other than six-faced ones.
+    Face(u8),
     /// **Use a sample** on the entry, in Demo (§12): the characters left,
     /// from the sample's shares.
     Sample,
@@ -304,6 +405,8 @@ pub struct Made {
     value: u8,
     /// It was typed, not rolled.
     typed: bool,
+    /// The faces of the dice it was rolled with.
+    faces: u8,
 }
 
 impl Drop for Made {
@@ -326,6 +429,11 @@ impl Made {
     /// It was typed.
     pub fn typed(&self) -> bool {
         self.typed
+    }
+
+    /// The faces of the dice it was rolled with (6 for a typed one).
+    pub fn faces(&self) -> u8 {
+        self.faces
     }
 
     /// The five bits, die 1's first.
@@ -408,6 +516,11 @@ pub struct Codex32Make {
     rows: Zeroizing<Vec<DieRow>>,
     /// The die whose pair just came out equal, until the next face.
     equal: Option<u8>,
+    /// The dice the person rolls: faces and colours.
+    dice_choice: DiceChoice,
+    /// A tens digit typed on the keyboard for dice of ten faces or more,
+    /// waiting for its units digit, Space or Enter.
+    pending: Option<u8>,
     made: Vec<Vec<Made>>,
     rolled: bool,
     typed: bool,
@@ -483,6 +596,8 @@ impl Codex32Make {
             dice: BookletChar::new(),
             rows: Zeroizing::new(Vec::new()),
             equal: None,
+            dice_choice: DiceChoice::default(),
+            pending: None,
             made: Vec::new(),
             rolled: false,
             typed: false,
@@ -565,6 +680,16 @@ impl Codex32Make {
         m.inputs = strings;
         m.mark = mark;
         m
+    }
+
+    /// The flow with the dice the person chose earlier this session.
+    pub(crate) fn with_dice(mut self, choice: DiceChoice) -> Codex32Make {
+        if faraday_entropy::booklet::faces_ok(choice.faces) {
+            self.dice_choice = choice;
+            self.dice = BookletChar::with_faces(choice.faces).unwrap_or_default();
+            self.roller.set_faces(choice.faces);
+        }
+        self
     }
 
     /// The flow on Faraday Desktop, where the sheets are never masked
@@ -752,6 +877,39 @@ impl Codex32Make {
     /// The die whose pair just came out equal, to be rolled again.
     pub fn equal(&self) -> Option<u8> {
         self.equal
+    }
+
+    /// The dice the person rolls: faces and colours.
+    pub fn dice_choice(&self) -> DiceChoice {
+        self.dice_choice
+    }
+
+    /// Whether the dice can be changed now: no character in progress.
+    pub fn dice_open(&self) -> bool {
+        self.seq.is_empty() && self.pending.is_none()
+    }
+
+    /// The tens digit typed and waiting, if any.
+    pub fn pending(&self) -> Option<u8> {
+        self.pending
+    }
+
+    /// How much taller than the six-key pad the pad of the dice chosen
+    /// is, in dp: its rows past two, and the "0 is 10" line of ten-faced
+    /// dice. A small panel's entry scrolls by it more, so the whole pad
+    /// stays in view (§6.4.7). A lookup.
+    pub fn pad_extra(&self) -> f32 {
+        let n = usize::from(self.dice_choice.faces);
+        if n == 6 || self.way != Way::Dice {
+            return 0.0;
+        }
+        let rows = n.div_ceil(pad_columns(n));
+        let label = if n == 10 {
+            faraday_draw::tokens::PAD + faraday_draw::tokens::GAP_SMALL
+        } else {
+            0.0
+        };
+        rows.saturating_sub(2) as f32 * faraday_draw::tokens::CODEX32_KEY_ROW + label
     }
 
     /// Where the entropy came from, for Strings made: rolled, typed, or
@@ -1000,6 +1158,22 @@ impl Codex32Make {
             C32::Way(i) if self.work.is_none() => {
                 if let Some(&w) = WAYS.get(usize::from(i)) {
                     self.way = w;
+                }
+            }
+            C32::Faces(i) => {
+                if let Some(&n) = DIE_SIZES.get(usize::from(i)) {
+                    self.change_faces(n);
+                }
+            }
+            C32::Colour(d) => {
+                if let Some(col) = self.dice_choice.colours.get_mut(usize::from(d)) {
+                    *col = col.next();
+                }
+            }
+            C32::Face(f) if self.open == Some(Card::Enter) && self.way == Way::Dice => {
+                self.pending = None;
+                if (1..=self.dice_choice.faces).contains(&f) {
+                    self.roll(c, f);
                 }
             }
             C32::Qr => self.qr_on = !self.qr_on && self.qr.is_some(),
@@ -1346,8 +1520,10 @@ impl Codex32Make {
             }
             (Some(Card::Enter), OskPress::Char(ch)) => match self.way {
                 Way::Dice => {
-                    if let Some(f) = ch.to_digit(10).filter(|f| (1..=6).contains(f)) {
-                        self.roll(c, f as u8);
+                    if let Some(d) = ch.to_digit(10) {
+                        self.digit(c, d as u8);
+                    } else if ch == ' ' {
+                        self.take_pending(c);
                     }
                 }
                 Way::Typed => {
@@ -1357,6 +1533,8 @@ impl Codex32Make {
                 }
                 Way::Shares => {}
             },
+            (Some(Card::Enter), OskPress::Back) if self.pending.is_some() => self.pending = None,
+            (Some(Card::Enter), OskPress::Done) if self.pending.is_some() => self.take_pending(c),
             (Some(Card::Enter), OskPress::Back) => self.undo(),
             (Some(Card::Strings), OskPress::Char(ch)) => self.type_back(ch),
             (Some(Card::Strings), OskPress::Back) => {
@@ -1369,6 +1547,68 @@ impl Codex32Make {
     }
 
     // ----- The entry -----
+
+    /// The dice's faces become `n`, the roller's too; an earlier
+    /// character keeps the faces it was rolled with. Cheap.
+    fn set_faces(&mut self, n: u8) {
+        if faraday_entropy::booklet::faces_ok(n) {
+            self.dice_choice.faces = n;
+            self.roller.set_faces(n);
+            self.replay();
+        }
+    }
+
+    /// Other dice chosen: between characters they are simply taken; in
+    /// the middle of one, its rolls so far are cleared (they were of the
+    /// other dice), the roller stops, and the note says so. Cheap.
+    fn change_faces(&mut self, n: u8) {
+        if n == self.dice_choice.faces {
+            return;
+        }
+        if !self.dice_open() {
+            self.seq.clear();
+            self.pending = None;
+            self.roller.stop();
+            let done = self.entered_all();
+            self.roller.trim(done, 0);
+            self.note = Some(EN.codex32_dice_changed.to_string());
+        }
+        self.set_faces(n);
+    }
+
+    /// Costs what [`Self::roll`] costs. A digit typed on the keyboard:
+    /// a face at once where it cannot begin a face of two digits on
+    /// these dice; else it waits for the units digit (10 to 20), Space
+    /// or Enter. A tens digit followed by a digit that would pass the
+    /// dice's faces is a face alone, and the new digit starts over. On
+    /// ten-faced dice a 0 alone is 10, as a die numbered 0 to 9 reads.
+    fn digit(&mut self, c: &Compute, d: u8) {
+        let n = self.dice_choice.faces;
+        if let Some(tens) = self.pending.take() {
+            let v = tens * 10 + d;
+            if v <= n {
+                self.roll(c, v);
+                return;
+            }
+            self.roll(c, tens);
+        }
+        if d >= 1 && d * 10 <= n {
+            self.pending = Some(d);
+        } else if (1..=n).contains(&d) {
+            self.roll(c, d);
+        } else if d == 0 && n == 10 {
+            // A ten-faced die numbered 0 to 9: its 0 is 10.
+            self.roll(c, 10);
+        }
+    }
+
+    /// Costs what [`Self::roll`] costs. The tens digit waiting, taken as
+    /// a face of one digit.
+    fn take_pending(&mut self, c: &Compute) {
+        if let Some(d) = self.pending.take() {
+            self.roll(c, d);
+        }
+    }
 
     /// Characters entered so far, of every initial share (a lookup over
     /// at most 31 shares).
@@ -1466,7 +1706,7 @@ impl Codex32Make {
     /// completed, an equal pair struck and its die rolled again. Cheap: a
     /// few dozen faces at most.
     fn replay(&mut self) {
-        self.dice = BookletChar::new();
+        self.dice = BookletChar::with_faces(self.dice_choice.faces).unwrap_or_default();
         self.rows.clear();
         self.equal = None;
         self.rolled_dice = [false; BOOKLET_DICE];
@@ -1524,12 +1764,18 @@ impl Codex32Make {
         let (seq, rows) = rolled.unwrap_or_default();
         self.rolled |= !typed;
         self.typed |= typed;
+        let faces = if typed {
+            booklet::BOOKLET_FACES
+        } else {
+            self.dice_choice.faces
+        };
         if let Some(list) = self.made.get_mut(share) {
             list.push(Made {
                 seq,
                 rows,
                 value,
                 typed,
+                faces,
             });
         }
         self.note = None;
@@ -1600,6 +1846,9 @@ impl Codex32Make {
         if let Some(m) = self.made.get_mut(share).and_then(Vec::pop)
             && !m.typed
         {
+            // Its rolls come back on the dice they were rolled with.
+            self.dice_choice.faces = m.faces;
+            self.roller.set_faces(m.faces);
             self.seq = Zeroizing::new(m.seq.to_vec());
             self.seq.pop();
             self.replay();

@@ -1,11 +1,13 @@
 //! The dice5 tour: the codex32 five-dice roller of Faraday Desktop
 //! (`docs/CODEX32.md` §5.5) drawn from its state, alone on the page:
-//! at rest, each choice, mid-tumble, landed, and the roll disabled where
-//! nothing is left to enter.
+//! at rest, each choice, mid-tumble, landed with each die's two rolls
+//! side by side and an equal pair struck, twenty-faced dice in other
+//! colours, and the roll disabled where nothing is left to enter.
 
 use crate::tour::Tour;
+use faraday_core::codex32::{DiceChoice, DieColour, DieRow};
 use faraday_core::testkit::five::{Act, FiveRoller, Reach, Where};
-use faraday_core::testkit::five_screen::preview;
+use faraday_core::testkit::five_screen::{Pairs, preview};
 
 /// Fresh answers that give `faces` in order.
 fn answer(faces: &[u8]) -> impl FnMut() -> Option<[u8; 32]> {
@@ -16,10 +18,10 @@ fn answer(faces: &[u8]) -> impl FnMut() -> Option<[u8; 32]> {
     move || Some(out)
 }
 
-fn shot(t: &mut Tour, name: &str, r: &FiveRoller, can_roll: bool) -> Result<(), String> {
+fn shot(t: &mut Tour, name: &str, r: &FiveRoller, p: &Pairs, can_roll: bool) -> Result<(), String> {
     let (w, h) = t.size();
-    let (w, h) = (w.min(520), h.min(420));
-    let rgba = preview(r, can_roll, w, h, t.dpi);
+    let (w, h) = (w.min(520), h.min(560));
+    let rgba = preview(r, p, can_roll, w, h, t.dpi);
     t.n += 1;
     let path = t.out.join(format!("{:02}-{name}.png", t.n));
     let file = std::fs::File::create(&path).map_err(|e| format!("{}: {e}", path.display()))?;
@@ -32,6 +34,18 @@ fn shot(t: &mut Tour, name: &str, r: &FiveRoller, can_roll: bool) -> Result<(), 
     Ok(())
 }
 
+/// No roll yet, of `choice`'s dice.
+fn empty(choice: DiceChoice) -> Pairs<'static> {
+    Pairs {
+        first: [None; 5],
+        second: [None; 5],
+        struck: &[],
+        colours: choice.colours,
+        faces: choice.faces,
+        masked: false,
+    }
+}
+
 pub(crate) fn dice_five_tour(t: &mut Tour) -> Result<(), String> {
     let at = Where {
         seq: &[],
@@ -39,11 +53,12 @@ pub(crate) fn dice_five_tour(t: &mut Tour) -> Result<(), String> {
         share_left: 26,
         all_left: 52,
     };
+    let six = DiceChoice::default();
     let mut r = FiveRoller::default();
-    shot(t, "rest", &r, true)?;
+    shot(t, "rest", &r, &empty(six), true)?;
     for reach in [Reach::Pass, Reach::Share, Reach::End] {
         r.act(Act::Reach(reach), &at, 0);
-        shot(t, "choice", &r, true)?;
+        shot(t, "choice", &r, &empty(six), true)?;
     }
     r.act(Act::Reach(Reach::Character), &at, 0);
     // Part-way through the first tumble, then once its pass has landed.
@@ -52,9 +67,52 @@ pub(crate) fn dice_five_tour(t: &mut Tour) -> Result<(), String> {
     let _ = r.tick(0, false, &at, &mut draw);
     let _ = r.tick(120, false, &at, &mut draw);
     let _ = r.tick(300, false, &at, &mut draw);
-    shot(t, "tumbling", &r, true)?;
+    shot(t, "tumbling", &r, &empty(six), true)?;
     let _ = r.tick(700, false, &at, &mut draw);
     r.stop();
-    shot(t, "landed", &r, true)?;
-    shot(t, "nothing-left", &FiveRoller::default(), false)
+    let first = Pairs {
+        first: [Some(1), Some(2), Some(3), Some(4), Some(5)],
+        ..empty(six)
+    };
+    shot(t, "landed", &r, &first, true)?;
+    // Both rolls in: die 3's pair came out equal, struck, and is being
+    // rolled again.
+    let struck = [DieRow {
+        die: 2,
+        first: 3,
+        second: 3,
+    }];
+    let both = Pairs {
+        first: [Some(1), Some(2), None, Some(4), Some(5)],
+        second: [Some(2), Some(1), None, Some(6), Some(3)],
+        struck: &struck,
+        ..empty(six)
+    };
+    shot(t, "pairs", &r, &both, true)?;
+    // Twenty-faced dice, chosen in other colours.
+    let d20 = DiceChoice {
+        faces: 20,
+        colours: [
+            DieColour::Black,
+            DieColour::White,
+            DieColour::Orange,
+            DieColour::Blue,
+            DieColour::Green,
+        ],
+    };
+    let mut r20 = FiveRoller::default();
+    r20.set_faces(20);
+    let twenty = Pairs {
+        first: [Some(17), Some(3), Some(20), Some(9), Some(12)],
+        second: [Some(4), Some(15), Some(1), Some(11), Some(19)],
+        ..empty(d20)
+    };
+    shot(t, "d20", &r20, &twenty, true)?;
+    shot(
+        t,
+        "nothing-left",
+        &FiveRoller::default(),
+        &empty(six),
+        false,
+    )
 }

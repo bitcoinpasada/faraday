@@ -9,7 +9,16 @@
 //! it is higher; die 1's bit is the most significant, and the five bits
 //! `16·b1 + 8·b2 + 4·b3 + 2·b4 + b5` walk the booklet's tree to a leaf,
 //! the bech32 character of that value. [`TREE`] is the leaves left to
-//! right, the `code` array of SSS32.ps. Only six-faced dice are read.
+//! right, the `code` array of SSS32.ps.
+//!
+//! The comparison does not depend on how many faces the dice have. The
+//! booklet's tracks have pads 1 to 6 and, for dice of seven faces or
+//! more ("Die Pads (d7+)"), pads 7 to 20, so a die of 2 to 20 faces
+//! ([`BOOKLET_MAX_FACES`]) is read: [`BookletChar::with_faces`]. One
+//! die of the five rolls faces 1 to N on both its rolls.
+//!
+//! [`uniform_face`] is how Faraday Desktop's roller turns a byte of its
+//! own randomness into a face of an N-faced die without bias.
 //!
 //! `tools/reference/booklet-dice/README.md` quotes the worksheet.
 //!
@@ -22,6 +31,12 @@ use faraday_crypto::{Zeroize, ZeroizeOnDrop};
 pub const BOOKLET_DICE: usize = 5;
 /// Rolls entered for one character: five dice, twice.
 pub const BOOKLET_ROLLS: usize = 2 * BOOKLET_DICE;
+/// The most faces a die may have: the booklet's last pad is 20.
+pub const BOOKLET_MAX_FACES: u8 = 20;
+/// The fewest: a die of one face never gives a bit.
+pub const BOOKLET_MIN_FACES: u8 = 2;
+/// The faces a die has where none is said: the six-faced die.
+pub const BOOKLET_FACES: u8 = 6;
 
 /// The booklet's tree, its leaves left to right: the bech32 alphabet in
 /// value order (the `code` array of SSS32.ps). The leaf reached by the
@@ -31,8 +46,10 @@ pub const TREE: [u8; 32] = *b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
 /// Why a roll or a character was refused.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BookletError {
-    /// A face that is not 1 to 6.
+    /// A face that is not 1 to the dice's number of faces.
     BadFace,
+    /// A number of faces outside 2 to [`BOOKLET_MAX_FACES`].
+    BadFaces,
     /// All ten places are filled; nothing more to enter.
     Full,
     /// This die's two values are equal; both rolls are done again
@@ -58,16 +75,41 @@ pub fn value_of_bits(bits: [u8; BOOKLET_DICE]) -> u8 {
     bits.iter().fold(0, |v, b| (v << 1) | (b & 1))
 }
 
-/// The character the worksheet gives the rolls: each die's first and
-/// second value (die 1 first), as a lowercase bech32 character. Refuses
-/// a face outside 1 to 6 and the first die whose values are equal.
+/// Whether a die of `faces` faces is read (2 to 20).
+pub fn faces_ok(faces: u8) -> bool {
+    (BOOKLET_MIN_FACES..=BOOKLET_MAX_FACES).contains(&faces)
+}
+
+/// A byte of fresh randomness as a face 1 to `faces`, uniformly: `None`
+/// where the byte is one of the `256 mod faces` highest, which are
+/// skipped (rejection sampling), so that no face is likelier than
+/// another; also `None` for a number of faces outside 2 to 20.
+pub fn uniform_face(byte: u8, faces: u8) -> Option<u8> {
+    if !faces_ok(faces) {
+        return None;
+    }
+    let n = u16::from(faces);
+    let limit = 256 - 256 % n;
+    let b = u16::from(byte);
+    (b < limit).then(|| (b % n) as u8 + 1)
+}
+
+/// The character the worksheet gives the rolls of dice of `faces`
+/// faces: each die's first and second value (die 1 first), as a
+/// lowercase bech32 character. Refuses a number of faces outside 2 to
+/// 20, a face outside 1 to `faces`, and the first die whose values are
+/// equal.
 pub fn character(
     first: [u8; BOOKLET_DICE],
     second: [u8; BOOKLET_DICE],
+    faces: u8,
 ) -> Result<u8, BookletError> {
+    if !faces_ok(faces) {
+        return Err(BookletError::BadFaces);
+    }
     let mut bits = [0u8; BOOKLET_DICE];
     for d in 0..BOOKLET_DICE {
-        if !(1..=6).contains(&first[d]) || !(1..=6).contains(&second[d]) {
+        if !(1..=faces).contains(&first[d]) || !(1..=faces).contains(&second[d]) {
             return Err(BookletError::BadFace);
         }
         bits[d] = bit(first[d], second[d]).ok_or(BookletError::Equal(d))?;
@@ -79,9 +121,11 @@ pub fn character(
 /// the booklet's order: die 1 to die 5 for the first roll, then die 1 to
 /// die 5 for the second.
 pub struct BookletChar {
-    /// Entered values 1 to 6, 0 for a place not yet filled: first roll
-    /// in places 0 to 4, second in 5 to 9.
+    /// Entered values 1 to `faces`, 0 for a place not yet filled: first
+    /// roll in places 0 to 4, second in 5 to 9.
     rolls: [u8; BOOKLET_ROLLS],
+    /// The dice's faces, 2 to 20.
+    faces: u8,
 }
 
 impl Zeroize for BookletChar {
@@ -105,17 +149,35 @@ impl Default for BookletChar {
 }
 
 impl BookletChar {
-    /// No rolls yet.
+    /// No rolls yet, of six-faced dice.
     pub fn new() -> Self {
         BookletChar {
             rolls: [0; BOOKLET_ROLLS],
+            faces: BOOKLET_FACES,
         }
     }
 
+    /// No rolls yet, of dice of `faces` faces (2 to 20).
+    pub fn with_faces(faces: u8) -> Result<Self, BookletError> {
+        if !faces_ok(faces) {
+            return Err(BookletError::BadFaces);
+        }
+        Ok(BookletChar {
+            rolls: [0; BOOKLET_ROLLS],
+            faces,
+        })
+    }
+
+    /// The dice's faces.
+    pub fn faces(&self) -> u8 {
+        self.faces
+    }
+
     /// Enters the next roll, in the first empty place of the booklet's
-    /// order. Refuses a face outside 1 to 6 and a character already full.
+    /// order. Refuses a face outside 1 to the dice's faces and a
+    /// character already full.
     pub fn push(&mut self, face: u8) -> Result<(), BookletError> {
-        if !(1..=6).contains(&face) {
+        if !(1..=self.faces).contains(&face) {
             return Err(BookletError::BadFace);
         }
         match self.rolls.iter().position(|r| *r == 0) {
@@ -187,7 +249,7 @@ impl BookletChar {
         let mut second = [0u8; BOOKLET_DICE];
         first.copy_from_slice(&self.rolls[..BOOKLET_DICE]);
         second.copy_from_slice(&self.rolls[BOOKLET_DICE..]);
-        let c = character(first, second);
+        let c = character(first, second, self.faces);
         first.zeroize();
         second.zeroize();
         c
@@ -230,8 +292,90 @@ mod tests {
                 // A lower second value is bit 0, a higher one bit 1.
                 (first[d], second[d]) = if bits[d] == 0 { (4, 3) } else { (3, 4) };
             }
-            let c = character(first, second).unwrap();
+            let c = character(first, second, 6).unwrap();
             assert_eq!(c.to_ascii_uppercase(), walk(bits));
+        }
+    }
+
+    #[test]
+    fn a_twenty_faced_die_reads_by_the_same_comparison() {
+        // The bit is the comparison of the two rolls, whatever the
+        // number of faces: 17 then 3 is lower (0), 3 then 17 higher (1).
+        for v in 0..32u8 {
+            let bits = [v >> 4 & 1, v >> 3 & 1, v >> 2 & 1, v >> 1 & 1, v & 1];
+            let mut c = BookletChar::with_faces(20).unwrap();
+            for b in bits {
+                c.push(if b == 0 { 17 } else { 3 }).unwrap();
+            }
+            for b in bits {
+                c.push(if b == 0 { 3 } else { 17 }).unwrap();
+            }
+            assert_eq!(c.character().unwrap().to_ascii_uppercase(), walk(bits));
+        }
+    }
+
+    #[test]
+    fn faces_past_the_die_are_refused() {
+        let mut c = BookletChar::with_faces(20).unwrap();
+        assert_eq!(c.push(21), Err(BookletError::BadFace));
+        c.push(20).unwrap();
+        assert_eq!(c.first(0), Some(20));
+        let mut c = BookletChar::with_faces(8).unwrap();
+        assert_eq!(c.push(9), Err(BookletError::BadFace));
+        assert_eq!(
+            character([1, 1, 1, 1, 9], [2, 2, 2, 2, 2], 8),
+            Err(BookletError::BadFace)
+        );
+        for n in [0, 1, 21] {
+            assert!(BookletChar::with_faces(n).is_err());
+            assert_eq!(character([1; 5], [2; 5], n), Err(BookletError::BadFaces));
+        }
+    }
+
+    #[test]
+    fn every_face_of_every_die_is_equally_likely_from_a_byte() {
+        // Every byte value once: each face comes up exactly 256 / N
+        // times (rounded down) and the rest are skipped, so a uniform
+        // byte gives a uniform face.
+        for n in BOOKLET_MIN_FACES..=BOOKLET_MAX_FACES {
+            let mut count = [0u32; 21];
+            let mut skipped = 0u32;
+            for b in 0..=255u8 {
+                match uniform_face(b, n) {
+                    Some(f) => count[usize::from(f)] += 1,
+                    None => skipped += 1,
+                }
+            }
+            let each = 256 / u32::from(n);
+            assert!(count[1..=usize::from(n)].iter().all(|&c| c == each), "d{n}");
+            assert_eq!(count[0], 0);
+            assert!(count[usize::from(n) + 1..].iter().all(|&c| c == 0));
+            assert_eq!(skipped, 256 % u32::from(n), "d{n}");
+        }
+    }
+
+    #[test]
+    fn uniform_face_known_answers() {
+        // (byte, faces, face): the byte modulo the faces plus one, below
+        // the largest multiple of the faces; past it, skipped.
+        let cases: [(u8, u8, Option<u8>); 14] = [
+            (0, 6, Some(1)),
+            (5, 6, Some(6)),
+            (6, 6, Some(1)),
+            (251, 6, Some(6)),
+            (252, 6, None),
+            (255, 6, None),
+            (255, 8, Some(8)),
+            (249, 10, Some(10)),
+            (250, 10, None),
+            (251, 12, Some(12)),
+            (252, 12, None),
+            (239, 20, Some(20)),
+            (240, 20, None),
+            (7, 0, None),
+        ];
+        for (b, n, want) in cases {
+            assert_eq!(uniform_face(b, n), want, "byte {b}, d{n}");
         }
     }
 
@@ -271,7 +415,7 @@ mod tests {
             let mut second = [2, 2, 2, 2, 2];
             first[2] = f;
             second[2] = f;
-            assert_eq!(character(first, second), Err(BookletError::Equal(2)));
+            assert_eq!(character(first, second, 6), Err(BookletError::Equal(2)));
         }
     }
 
@@ -281,7 +425,7 @@ mod tests {
         assert_eq!(c.push(0), Err(BookletError::BadFace));
         assert_eq!(c.push(7), Err(BookletError::BadFace));
         assert_eq!(
-            character([1, 1, 1, 1, 7], [2, 2, 2, 2, 2]),
+            character([1, 1, 1, 1, 7], [2, 2, 2, 2, 2], 6),
             Err(BookletError::BadFace)
         );
         assert!(c.is_empty());

@@ -37,8 +37,34 @@ dice into one character:
    character whose value is `16·b1 + 8·b2 + 4·b3 + 2·b4 + b5`, the
    booklet's tree.
 
-The booklet's sheet also has pads for dice of 7 to 20 faces; Faraday
-takes six-faced dice only.
+The comparison does not depend on how many faces the dice have. The
+booklet's track (`drawDiceRow`) draws a free space, pads 1 to 6 as
+diamonds and, under the head "Die Pads (d7+)", pads 7 to 20 as
+hexagons, so dice of up to twenty faces fit it; the booklet names no
+size and recommends none; its instructions ask only for "five distinct
+dice" and a value per pad, and secretcodex32.com's FAQ adds only that
+both rolls are redone on an equal pair. So any die whose faces are
+numbered 1 to N, N up to 20, fits; a ten-faced die numbered 0 to 9
+enters its 0 as 10, as any one fixed order of the faces keeps the
+comparison unbiased. Faraday reads dice of 2 to 20 faces
+(`BookletChar::with_faces`) and offers d4, d6, d8, d10, d12 and d20
+(owner, 2026-10-24, `docs/CODEX32.md` §5.1).
+
+## The pages
+
+Page 18 of the PostScript (landscape): the instructions, the tree
+(`325 190 translate`; nodes `radius/5` circles, `radius = 0.705·72/8.5`,
+levels 60 pt apart, leaves `1.1·radius·(2j+1)` across), "Die Tracks" with
+a rule, "Die Pads" at 160 pt and "Die Pads (d7+)" at 440 pt, and one
+track 105 pt under the head. Page 19: four tracks 132 pt apart. A
+track: `sz = 54`, `gapsz = 2`, diamonds of half-diagonal `sz/√2` every
+`sz/√2 + 2` pt, every even one raised by as much; the free space a circle
+of radius 30 at (36, 44); hexagons of side `0.8·sz/√2`, every
+`0.8·sz·√(3/8) + 2` pt from `2.5·sz/√2`, every even one raised by one and
+a half sides and a gap. Faraday draws the same on screen
+(`faraday/faraday-core/src/codex32/dice_screen.rs`, tokens
+`CODEX32_TRACK_*`, `CODEX32_HEX_*`) and in the printed template
+(`faraday/faraday-starter/src/sheets/dice.rs`).
 
 ## The tree
 
@@ -56,11 +82,10 @@ halving the leaves, for all 32 bit patterns, and compares each leaf with
 what `faraday_entropy::booklet_character` reads from rolls that make the
 same bits.
 
-## What was not checked here
+## Checked
 
-The wording of steps 1 to 6 above is taken from `docs/CODEX32.md` §5.1,
-which was written from the PostScript; this page was written without the
-PostScript at hand, so the "You must redo both rolls!" quotation and the
-leaf order were not re-read against the file's digest above. Before a
-release, compare them with `2023-03-07--bw.ps` and correct this page if
-they differ.
+Re-read on 2026-10-24 against `2023-03-07--bw.ps`, whose SHA-256 is the
+one above: the worksheet's steps (its "You must redo both rolls!"
+included) and the `code` array, `/Q /P /Z /R /Y /nine /X /eight /G /F
+/two /T /V /D /W /zero /S /three /J /N /five /four /K /H /C /E /six /M
+/U /A /seven /L`, are as quoted here.

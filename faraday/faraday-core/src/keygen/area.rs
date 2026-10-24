@@ -15,6 +15,9 @@ pub(crate) struct KeyGenArea {
     pub(super) camera_on: bool,
     /// The shell's randomness source (`Faraday::entropy_source_named`).
     pub(super) entropy_source: Option<&'static str>,
+    /// The codex32 dice the person chose, kept for the session: a new
+    /// Make codex32 shares starts on them (`docs/CODEX32.md` §5.1).
+    pub(super) dice: crate::codex32::DiceChoice,
 }
 
 impl KeyGenArea {

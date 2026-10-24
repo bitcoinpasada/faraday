@@ -1,7 +1,8 @@
 //! The five-dice roller of Faraday Desktop (`docs/CODEX32.md` §5.5): the
 //! booklet's dice de-biasing worksheet filled by a click. Its values are
 //! this computer's randomness from `Faraday::fresh`, handed to the host
-//! as faces 1 to 6 in the booklet's order (die 1 to die 5 for the first
+//! as faces 1 to N of the dice the person chose (six faces unless told,
+//! [`FiveRoller::set_faces`]; up to 20) in the booklet's order (die 1 to die 5 for the first
 //! roll, then for the second; an equal pair's die rolled twice again), to
 //! be entered as the pad's keys are, so a click fills the sheet exactly
 //! as the same faces typed would.
@@ -21,7 +22,7 @@
 
 use super::{Pool, Sim, Stage};
 use faraday_draw::tokens::{ROLLER_FACE_MS, ROLLER_FIVE_BATCH, ROLLER_PAUSE_MS, ROLLER_TUMBLE_MS};
-use faraday_entropy::booklet::{BOOKLET_DICE, BookletChar};
+use faraday_entropy::booklet::{BOOKLET_DICE, BOOKLET_FACES, BookletChar, faces_ok};
 use zeroize::Zeroizing;
 
 /// How much one click rolls.
@@ -87,9 +88,9 @@ struct Sheet {
 }
 
 impl Sheet {
-    /// The sheet the faces give.
-    fn of(seq: &[u8]) -> Sheet {
-        let mut dice = BookletChar::new();
+    /// The sheet the faces of dice of `faces` faces give.
+    fn of(seq: &[u8], faces: u8) -> Sheet {
+        let mut dice = BookletChar::with_faces(faces).unwrap_or_default();
         for &face in seq {
             let place = first_empty(&dice);
             if dice.push(face).is_err() {
@@ -134,15 +135,16 @@ impl Sheet {
 
 /// The five-dice roller's state. Holds no entry: only the dice, the
 /// choice and which faces it made.
-#[derive(Default)]
 pub struct FiveRoller {
     reach: Reach,
+    /// The dice's faces, 2 to 20: six unless the host says otherwise.
+    faces: u8,
     /// Passes still to roll (a Pass click: one).
     passes: usize,
     /// Characters still to complete.
     chars: usize,
     stage: Stage,
-    /// The face each die last landed with, 1 to 6, 0 before any.
+    /// The face each die last landed with, 1 to `faces`, 0 before any.
     face: [u8; BOOKLET_DICE],
     /// The face each die shows while tumbling.
     shown: [u8; BOOKLET_DICE],
@@ -159,10 +161,43 @@ pub struct FiveRoller {
     pool: Pool,
 }
 
+impl Default for FiveRoller {
+    fn default() -> Self {
+        FiveRoller {
+            reach: Reach::default(),
+            faces: BOOKLET_FACES,
+            passes: 0,
+            chars: 0,
+            stage: Stage::default(),
+            face: [0; BOOKLET_DICE],
+            shown: [0; BOOKLET_DICE],
+            moving: 0,
+            face_at: 0,
+            progress: 0.0,
+            spin: 0,
+            marks: Vec::new(),
+            pool: Pool::default(),
+        }
+    }
+}
+
 impl FiveRoller {
     /// The choice.
     pub fn reach(&self) -> Reach {
         self.reach
+    }
+
+    /// The dice's faces.
+    pub fn faces(&self) -> u8 {
+        self.faces
+    }
+
+    /// The dice the person chose: `faces` faces each, 2 to 20 (anything
+    /// else is ignored). Faces already landed stay as they are.
+    pub fn set_faces(&mut self, faces: u8) {
+        if faces_ok(faces) {
+            self.faces = faces;
+        }
     }
 
     /// Whether a click's rolls are under way.
@@ -216,7 +251,7 @@ impl FiveRoller {
                 if !self.rolling() {
                     return;
                 }
-                self.begin(Sheet::of(at.seq).next_dice(), now_ms);
+                self.begin(Sheet::of(at.seq, self.faces).next_dice(), now_ms);
             }
             Act::Stop => self.stop(),
             Act::Reach(r) => self.reach = r,
@@ -289,14 +324,16 @@ impl FiveRoller {
     /// struck its die (the die's two rolls are the next pass), or when a
     /// character is complete. Returns whether it completed a character.
     fn land(&mut self, sim: &mut Sim5, faces: &mut Vec<u8>, draw: &mut Draw) -> bool {
-        let row = Sheet::of(&sim.seq).place().map(|p| p / BOOKLET_DICE);
+        let row = Sheet::of(&sim.seq, self.faces)
+            .place()
+            .map(|p| p / BOOKLET_DICE);
         let mut completed = false;
         let mut starved = false;
-        while let Some(place) = Sheet::of(&sim.seq).place() {
+        while let Some(place) = Sheet::of(&sim.seq, self.faces).place() {
             if Some(place / BOOKLET_DICE) != row {
                 break;
             }
-            let Some(v) = self.pool.next(draw) else {
+            let Some(v) = self.pool.next(self.faces, draw) else {
                 starved = true;
                 break;
             };
@@ -304,7 +341,7 @@ impl FiveRoller {
             self.marks.push((sim.done, sim.seq.len()));
             sim.seq.push(v);
             faces.push(v);
-            if Sheet::of(&sim.seq).complete() {
+            if Sheet::of(&sim.seq, self.faces).complete() {
                 sim.seq.clear();
                 sim.done += 1;
                 sim.share_left = sim.share_left.saturating_sub(1);
@@ -369,7 +406,7 @@ impl FiveRoller {
             return (faces, true);
         }
         match self.stage {
-            Stage::Idle => self.begin(Sheet::of(&sim.seq).next_dice(), now_ms),
+            Stage::Idle => self.begin(Sheet::of(&sim.seq, self.faces).next_dice(), now_ms),
             Stage::Tumble(since) => {
                 let t = now_ms.saturating_sub(since);
                 self.progress = (t as f32 / ROLLER_TUMBLE_MS as f32).min(1.0);
@@ -381,13 +418,18 @@ impl FiveRoller {
                         self.stage = Stage::Pause(now_ms);
                         self.moving = 0;
                     } else {
-                        self.begin(Sheet::of(&sim.seq).next_dice(), now_ms);
+                        self.begin(Sheet::of(&sim.seq, self.faces).next_dice(), now_ms);
                     }
                 } else if now_ms >= self.face_at {
                     for die in 0..BOOKLET_DICE {
                         self.spin = self.spin.wrapping_mul(1_103_515_245).wrapping_add(12_345);
-                        let f = ((self.spin >> 16) % 6) as u8 + 1;
-                        self.shown[die] = if f == self.shown[die] { f % 6 + 1 } else { f };
+                        let n = u32::from(self.faces);
+                        let f = ((self.spin >> 16) % n) as u8 + 1;
+                        self.shown[die] = if f == self.shown[die] {
+                            f % self.faces + 1
+                        } else {
+                            f
+                        };
                     }
                     self.face_at = now_ms + ROLLER_FACE_MS;
                 }
@@ -395,7 +437,7 @@ impl FiveRoller {
             Stage::Pause(since) => {
                 if now_ms.saturating_sub(since) >= ROLLER_PAUSE_MS {
                     if self.rolling() {
-                        self.begin(Sheet::of(&sim.seq).next_dice(), now_ms);
+                        self.begin(Sheet::of(&sim.seq, self.faces).next_dice(), now_ms);
                     } else {
                         self.stage = Stage::Idle;
                     }

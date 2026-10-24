@@ -1,48 +1,239 @@
 //! The five-dice roller as it is drawn (`docs/CODEX32.md` §5.5): "Or let
-//! Faraday roll", "Rolled by this computer" over five numbered dice, the
-//! Roll button, and what one click rolls. Drawing reads the roller; it
-//! works nothing out.
+//! Faraday roll", "Rolled by this computer" over each die's two rolls
+//! side by side, the Roll button, and what one click rolls. Drawing
+//! reads the roller and the entry; it works nothing out.
+//!
+//! [`pairs`] is each die's first roll (its marker) and second roll (the
+//! die) side by side in the die's colour, and the pairs struck as equal
+//! under them (owner, 2026-10-24); the codex32 dice sheet draws it too.
 
 use super::five::{Act, FiveRoller, REACHES, Reach};
 use super::screen::pips;
 use crate::Action;
+use crate::codex32::dice_screen::paint;
+use crate::codex32::{DieColour, DieRow};
 use crate::strings::{EN, fill};
 use crate::ui::{Style, Ui, W, pal::*};
+use faraday_draw::Color;
 use faraday_draw::tokens::{
-    ROLLER_BOUNCE, ROLLER_CHIP, ROLLER_DIE, ROLLER_DIE_RADIUS, ROLLER_FIVE_DIE, ROLLER_FIVE_GAP,
-    ROLLER_GAP, ROLLER_LABEL, ROLLER_PIP, ROLLER_PIP_OFFSET, ROLLER_SWAY,
+    ROLLER_BOUNCE, ROLLER_CHIP, ROLLER_DIE, ROLLER_DIE_RADIUS, ROLLER_FIVE_GAP, ROLLER_GAP,
+    ROLLER_LABEL, ROLLER_PAIR_COL, ROLLER_PAIR_DIE, ROLLER_PAIR_LABEL_W, ROLLER_PIP,
+    ROLLER_PIP_OFFSET, ROLLER_SWAY,
 };
+use faraday_entropy::booklet::BOOKLET_DICE;
 
-/// One die with its top-left at (`x`, `y`), showing `face` (0: blank),
-/// lifted by `lift` and swayed by `sway` while it tumbles.
-fn die(ui: &mut Ui, (x, y): (f32, f32), face: u8, (lift, sway): (f32, f32), tumbling: bool) {
-    let scale = ROLLER_FIVE_DIE / ROLLER_DIE;
-    let (x, y) = (x + sway, y - lift);
-    ui.fill(
-        x,
-        y,
-        ROLLER_FIVE_DIE,
-        ROLLER_FIVE_DIE,
-        ROLLER_DIE_RADIUS,
-        INNER,
-    );
-    ui.stroke(
-        x,
-        y,
-        ROLLER_FIVE_DIE,
-        ROLLER_FIVE_DIE,
-        ROLLER_DIE_RADIUS,
-        if tumbling { ACCENT } else { BORDER },
-    );
-    let (cx, cy) = (x + ROLLER_FIVE_DIE / 2.0, y + ROLLER_FIVE_DIE / 2.0);
-    for &(dx, dy) in pips(face) {
-        ui.dot(
-            cx + dx * ROLLER_PIP_OFFSET * scale,
-            cy + dy * ROLLER_PIP_OFFSET * scale,
-            ROLLER_PIP * scale,
-            TEXT,
-        );
+/// What masked values are drawn as.
+const MASK: &str = "\u{2022}";
+
+/// Each die's two rolls of the character in progress, as drawing reads
+/// them from the entry.
+pub struct Pairs<'a> {
+    /// Each die's first roll, its marker's place, die 1 first.
+    pub first: [Option<u8>; BOOKLET_DICE],
+    /// Each die's second roll.
+    pub second: [Option<u8>; BOOKLET_DICE],
+    /// The pairs completed for this character, struck ones included.
+    pub struck: &'a [DieRow],
+    /// Each die's colour.
+    pub colours: [DieColour; BOOKLET_DICE],
+    /// The dice's faces.
+    pub faces: u8,
+    /// The values are drawn as dots (`docs/CODEX32.md` §6.4.6).
+    pub masked: bool,
+}
+
+/// Where a die is drawn and how: its top-left, its side, the face it
+/// shows (0: none yet), the dice's faces, its colour, and whether it
+/// tumbles (outlined in the accent).
+struct Die {
+    x: f32,
+    y: f32,
+    side: f32,
+    face: u8,
+    faces: u8,
+    colour: DieColour,
+    tumbling: bool,
+}
+
+/// A die: a rounded square in its colour, pips for a face of a die of
+/// six faces or fewer, the number for larger dice; masked, a dot.
+fn die(ui: &mut Ui, d: &Die, masked: bool) {
+    let scale = d.side / ROLLER_DIE;
+    let r = ROLLER_DIE_RADIUS * scale;
+    let (body, ink) = paint(d.colour);
+    if d.face == 0 {
+        ui.stroke(d.x, d.y, d.side, d.side, r, BORDER);
+        return;
     }
+    ui.fill(d.x, d.y, d.side, d.side, r, body);
+    ui.stroke(
+        d.x,
+        d.y,
+        d.side,
+        d.side,
+        r,
+        if d.tumbling { ACCENT } else { BORDER },
+    );
+    let (cx, cy) = (d.x + d.side / 2.0, d.y + d.side / 2.0);
+    if masked {
+        number(ui, (cx, cy), MASK, ink);
+    } else if d.faces <= 6 {
+        for &(dx, dy) in pips(d.face) {
+            ui.dot(
+                cx + dx * ROLLER_PIP_OFFSET * scale,
+                cy + dy * ROLLER_PIP_OFFSET * scale,
+                ROLLER_PIP * scale,
+                ink,
+            );
+        }
+    } else {
+        number(ui, (cx, cy), &d.face.to_string(), ink);
+    }
+}
+
+/// `s` centred on (`cx`, `cy`).
+fn number(ui: &mut Ui, (cx, cy): (f32, f32), s: &str, ink: Color) {
+    let w = ui.measure(ROLLER_LABEL + 1.0, W::S, s);
+    let h = ui.line(ROLLER_LABEL + 1.0, W::S);
+    ui.text(cx - w / 2.0, cy - h / 2.0, ROLLER_LABEL + 1.0, W::S, ink, s);
+}
+
+/// A die's marker: a disc in the die's colour, ringed, its value on it;
+/// an empty ring before the first roll.
+fn marker(ui: &mut Ui, (cx, cy): (f32, f32), value: Option<u8>, c: DieColour, masked: bool) {
+    let r = ROLLER_PAIR_DIE / 2.0;
+    let Some(v) = value else {
+        ui.stroke(cx - r, cy - r, 2.0 * r, 2.0 * r, r, BORDER);
+        return;
+    };
+    let (body, ink) = paint(c);
+    ui.dot(cx, cy, r, BORDER);
+    ui.dot(cx, cy, r - 1.0, body);
+    let s = if masked {
+        MASK.to_string()
+    } else {
+        v.to_string()
+    };
+    number(ui, (cx, cy), &s, ink);
+}
+
+/// Each die's two rolls side by side at (`x`, `y`): heads "First roll"
+/// and "Second roll"; a row per die, its name, its marker with the first
+/// roll, the die with the second, and what the pair gives ("lower · 0");
+/// then the pairs struck as equal, "Die 2 · 5 then 5 · equal · roll both
+/// again". While `r` tumbles a die, the die tumbles in the cell its
+/// value goes to. Returns the height.
+pub fn pairs(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, r: Option<&FiveRoller>) -> f32 {
+    let col = ROLLER_PAIR_COL;
+    let lw = ROLLER_PAIR_LABEL_W;
+    let d = ROLLER_PAIR_DIE;
+    let mut cy = y;
+    for (i, head) in [EN.codex32_first_roll, EN.codex32_second_roll]
+        .iter()
+        .enumerate()
+    {
+        let hx = x + lw + i as f32 * col;
+        let hw = ui.measure(ROLLER_LABEL, W::S, head);
+        ui.text(hx + (col - hw) / 2.0, cy, ROLLER_LABEL, W::S, MUTED, head);
+    }
+    cy += ui.line(ROLLER_LABEL, W::S) + ROLLER_GAP / 2.0;
+    let progress = r.map_or(0.0, FiveRoller::progress);
+    let lift = ROLLER_BOUNCE * (progress * std::f32::consts::PI).sin();
+    let sway = ROLLER_SWAY * (progress * std::f32::consts::TAU).sin() * (1.0 - progress);
+    if r.is_some() {
+        cy += ROLLER_BOUNCE;
+    }
+    let row = d + ROLLER_FIVE_GAP;
+    for (die_i, &colour) in p.colours.iter().enumerate() {
+        let name = fill(EN.codex32_die_n, &[&(die_i + 1).to_string()]);
+        ui.text_mid(x, cy, d, ROLLER_LABEL, W::S, TEXT, &name);
+        let tumbling = r.is_some_and(|r| r.tumbling(die_i));
+        let shown = r.map_or(0, |r| r.shown(die_i));
+        let (l, s) = if tumbling { (lift, sway) } else { (0.0, 0.0) };
+        // The first roll: the marker, or the die tumbling towards it.
+        let (mx, dx) = (x + lw + (col - d) / 2.0, x + lw + col + (col - d) / 2.0);
+        let into_first = p.first[die_i].is_none();
+        if tumbling && into_first {
+            let td = Die {
+                x: mx + s,
+                y: cy - l,
+                side: d,
+                face: shown,
+                faces: p.faces,
+                colour,
+                tumbling,
+            };
+            die(ui, &td, false);
+        } else {
+            marker(
+                ui,
+                (mx + d / 2.0, cy + d / 2.0),
+                p.first[die_i],
+                colour,
+                p.masked,
+            );
+        }
+        let face = if tumbling && !into_first {
+            shown
+        } else {
+            p.second[die_i].unwrap_or(0)
+        };
+        let dd = Die {
+            x: dx + if tumbling && !into_first { s } else { 0.0 },
+            y: cy - if tumbling && !into_first { l } else { 0.0 },
+            side: d,
+            face,
+            faces: p.faces,
+            colour,
+            tumbling: tumbling && !into_first,
+        };
+        die(ui, &dd, p.masked && !dd.tumbling);
+        if let Some(text) = pair_text(p, die_i) {
+            let tx = x + lw + 2.0 * col;
+            ui.text_mid(tx, cy, d, ROLLER_LABEL, W::M, ACCENT, &text);
+        }
+        cy += row;
+    }
+    cy += struck(ui, (x, cy, w), p);
+    cy - y
+}
+
+/// What die `d`'s pair gives, once both its rolls are in: "lower · 0" or
+/// "higher · 1".
+fn pair_text(p: &Pairs, d: usize) -> Option<String> {
+    let (f, s) = (p.first[d]?, p.second[d]?);
+    if p.masked {
+        return Some(fill(EN.codex32_pair_bit, &[MASK, MASK]));
+    }
+    let bit = faraday_entropy::booklet::bit(f, s)?;
+    let word = if bit == 0 {
+        EN.codex32_lower
+    } else {
+        EN.codex32_higher
+    };
+    Some(fill(EN.codex32_pair_bit, &[word, &bit.to_string()]))
+}
+
+/// The pairs struck as equal, struck through: "Die 2 · 5 then 5 · equal
+/// · roll both again". Returns the height.
+fn struck(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs) -> f32 {
+    let mut cy = y;
+    for row in p.struck.iter().filter(|r| r.bit().is_none()) {
+        let (f, sc) = if p.masked {
+            (MASK.to_string(), MASK.to_string())
+        } else {
+            (row.first.to_string(), row.second.to_string())
+        };
+        let s = fill(
+            EN.codex32_die_equal,
+            &[&(usize::from(row.die) + 1).to_string(), &f, &sc],
+        );
+        let tw = ui.text(x, cy, ROLLER_LABEL, W::R, WARN, &s);
+        let lh = ui.line(ROLLER_LABEL, W::R);
+        ui.fill(x, cy + lh / 2.0, tw.min(w), 1.0, 0.0, WARN);
+        cy += lh + ROLLER_GAP / 2.0;
+    }
+    cy - y
 }
 
 /// The Result's entropy row for faces the roller made, in part or all:
@@ -65,13 +256,15 @@ fn label(r: Reach) -> &'static str {
     }
 }
 
-/// The roller at (`x`, `y`) in `w` units. `can_roll` is whether the
-/// entry has anything left to take. `act` is the host's action for each
-/// of the roller's. Returns the height used.
+/// The roller at (`x`, `y`) in `w` units, each die's two rolls `p` in
+/// it. `can_roll` is whether the entry has anything left to take. `act`
+/// is the host's action for each of the roller's. Returns the height
+/// used.
 pub fn draw(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     r: &FiveRoller,
+    p: &Pairs,
     can_roll: bool,
     act: impl Fn(Act) -> Action,
 ) -> f32 {
@@ -87,29 +280,7 @@ pub fn draw(
     cy += ui.line(ROLLER_LABEL + 1.0, W::S) + ROLLER_GAP / 2.0;
     ui.text(x, cy, ROLLER_LABEL, W::R, MUTED, EN.roller_by_this_computer);
     cy += ui.line(ROLLER_LABEL, W::R) + ROLLER_GAP;
-    // The dice stand on the line the room for their bounce leaves.
-    let p = r.progress();
-    let lift = ROLLER_BOUNCE * (p * std::f32::consts::PI).sin();
-    let sway = ROLLER_SWAY * (p * std::f32::consts::TAU).sin() * (1.0 - p);
-    cy += ROLLER_BOUNCE;
-    for d in 0..5 {
-        let dx = x + d as f32 * (ROLLER_FIVE_DIE + ROLLER_FIVE_GAP);
-        let moving = r.tumbling(d);
-        let (l, s) = if moving { (lift, sway) } else { (0.0, 0.0) };
-        die(ui, (dx, cy), r.shown(d), (l, s), moving);
-        let n = (d + 1).to_string();
-        let name = fill(EN.roller_die, &[&n]);
-        let nw = ui.measure(ROLLER_LABEL, W::R, &name);
-        ui.text(
-            dx + (ROLLER_FIVE_DIE - nw) / 2.0,
-            cy + ROLLER_FIVE_DIE + ROLLER_GAP / 2.0,
-            ROLLER_LABEL,
-            W::R,
-            MUTED,
-            &name,
-        );
-    }
-    cy += ROLLER_FIVE_DIE + ROLLER_GAP / 2.0 + ui.line(ROLLER_LABEL, W::R) + ROLLER_GAP;
+    cy += pairs(ui, (x, cy, w), p, Some(r)) + ROLLER_GAP;
     let (text, style, action) = if r.rolling() {
         (EN.roller_stop, Style::Secondary, act(Act::Stop))
     } else if can_roll {
@@ -156,10 +327,17 @@ pub fn draw(
 }
 
 /// What the snapshot tour draws of the roller alone, before a flow hosts
-/// it: on the page's background, `width` × `height` pixels at `dpi`. The
-/// frame's pixels, RGBA.
+/// it: on the page's background, `width` × `height` pixels at `dpi`,
+/// each die's two rolls `p` in it. The frame's pixels, RGBA.
 #[cfg(feature = "testkit")]
-pub fn preview(r: &FiveRoller, can_roll: bool, width: u16, height: u16, dpi: u16) -> Vec<u8> {
+pub fn preview(
+    r: &FiveRoller,
+    p: &Pairs,
+    can_roll: bool,
+    width: u16,
+    height: u16,
+    dpi: u16,
+) -> Vec<u8> {
     use faraday_draw::tokens::PAD;
     use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
     let d = DisplayInfo {
@@ -181,7 +359,7 @@ pub fn preview(r: &FiveRoller, can_roll: bool, width: u16, height: u16, dpi: u16
     {
         let mut ui = Ui::new(&mut canvas, f, &mut hits, None);
         ui.fill(0.0, 0.0, w, h, 0.0, BG);
-        draw(&mut ui, (PAD, PAD, w - 2.0 * PAD), r, can_roll, |_| {
+        draw(&mut ui, (PAD, PAD, w - 2.0 * PAD), r, p, can_roll, |_| {
             Action::ReduceMotion(false)
         });
     }

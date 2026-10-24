@@ -18,7 +18,11 @@ the first empty place, die 1 to die 5 of the first roll and then of the
 second; a die whose second value equals its first is cleared, both
 places, and rolled again; once all ten places hold a pair that differ,
 the five bits (lower 0, higher 1, die 1 the most significant) name the
-bech32 character `qpzry9x8gf2tvdw0s3jn54khce6mua7l`[value]. A click of
+bech32 character `qpzry9x8gf2tvdw0s3jn54khce6mua7l`[value]. The five
+dice may have any number of faces N from 2 to 20 (§5.1, the booklet's
+pads 1 to 20): a byte below the largest multiple of N under 256 gives
+`byte mod N + 1`, any other is skipped, and the comparison is the same.
+A click of
 One pass fills the row the first empty place is in, ending early when an
 equal pair clears a die or the character is made; One character makes
 the character in progress; One share the characters left in the share;
@@ -27,7 +31,12 @@ in, and nothing lands once the answers run out.
 
 - Known answers: an answer of one byte value repeated, for every byte
   value, so that each face's 42 bytes and the four skipped are seen;
-  the distribution that gives (42 bytes each) checked as such.
+  the distribution that gives (42 bytes each) checked as such; every
+  byte as a face of every die of 0 to 22 faces (none outside 2 to 20);
+  the tree's 32 paths entered by hand on six- and twenty-faced dice,
+  the booklet's own order with an equal pair, and faces past the dice
+  refused.
+- Rolls entered by hand on random dice, with equal pairs among them.
 - Random answers, some heavy in skipped bytes, under random clicks of
   every size into entries of random room, with resets between; random
   clicks of every reach into codex32 entries of random share counts and
@@ -44,10 +53,11 @@ PERS = ["one", "five", "ten", "end", "typed"]
 class Stream:
     """§5.6's values from a list of answers."""
 
-    def __init__(self, answers):
+    def __init__(self, answers, faces=6):
         self.answers = list(answers)
         self.used = 0
         self.left = b""
+        self.faces = faces
 
     def next(self):
         while True:
@@ -57,11 +67,42 @@ class Stream:
                 self.left = self.answers[self.used]
                 self.used += 1
             b, self.left = self.left[-1], self.left[:-1]
-            if b < 252:
-                return b % 6 + 1
+            f = face_of(b, self.faces)
+            if f is not None:
+                return f
 
     def reset(self):
         self.left = b""
+
+
+def face_of(byte, faces):
+    """A byte as a face of an N-faced die, or None where it is skipped."""
+    if not 2 <= faces <= 20:
+        return None
+    limit = 256 - 256 % faces
+    return byte % faces + 1 if byte < limit else None
+
+
+def model_sheet(faces, rolls):
+    """Rolls entered by hand: the characters, the struck pairs, the bits."""
+    if not 2 <= faces <= 20:
+        raise ValueError(f"{faces} faces")
+    sheet, chars, struck = Sheet(), "", [[]]
+    for f in rolls:
+        if not 1 <= f <= faces:
+            raise ValueError(f"face {f} of {faces}")
+        i = sheet.empty()
+        if i >= 5 and f == sheet.places[i - 5]:
+            struck[-1].append([i - 5, f, f])
+        sheet.enter(f)
+        c = sheet.char()
+        if c:
+            chars += c
+            sheet = Sheet()
+            struck.append([])
+    bits = [1 if sheet.places[5 + d] > sheet.places[d] else 0
+            for d in range(5) if sheet.places[d] and sheet.places[5 + d]]
+    return {"chars": chars, "struck": struck, "bits": bits}
 
 
 def click_count(per, typed):
@@ -120,8 +161,10 @@ class Sheet:
         return TREE[value]
 
 
-def model_five(answers, shares, share_len, steps):
-    s = Stream(answers)
+def model_five(answers, shares, share_len, steps, faces=6):
+    if not 2 <= faces <= 20:
+        raise ValueError(f"{faces} faces")
+    s = Stream(answers, faces)
     sheet, seq, chars, faces = Sheet(), [], "", []
     total = shares * share_len
     dry = False
@@ -172,11 +215,39 @@ class Roller(Area):
             "roller.one", {"answers": [a.hex() for a in answers], "room": room, "steps": steps},
             lambda: model_one(answers, room, steps))
 
-    def five(self, answers, shares, share_len, steps):
+    def five(self, answers, shares, share_len, steps, faces=6):
         return self.compare(
             "roller.five", {"answers": [a.hex() for a in answers], "shares": shares,
-                            "share_len": share_len, "steps": steps},
-            lambda: model_five(answers, shares, share_len, steps))
+                            "share_len": share_len, "steps": steps, "faces": faces},
+            lambda: model_five(answers, shares, share_len, steps, faces))
+
+    def faces(self, n):
+        return self.compare("roller.faces", {"faces": n},
+                            lambda: {"faces": [face_of(b, n) for b in range(256)]})
+
+    def sheet(self, faces, rolls, expected=None):
+        return self.compare("roller.sheet", {"faces": faces, "rolls": rolls},
+                            lambda: model_sheet(faces, rolls), expected)
+
+    def dice_sizes(self):
+        """§5.1: dice of 2 to 20 faces, by hand and rolled."""
+        for n in range(0, 23):
+            self.faces(n)
+        for faces, (lo, hi) in [(6, (3, 4)), (20, (3, 17))]:
+            for v in range(32):
+                bits = [v >> (4 - d) & 1 for d in range(5)]
+                first = [hi if b == 0 else lo for b in bits]
+                second = [lo if b == 0 else hi for b in bits]
+                self.sheet(faces, first + second,
+                           ("ok", {"chars": TREE[v], "struck": [[], []], "bits": []}))
+        # The booklet's order with an equal pair: die 5 equal, then 5 and 2.
+        self.sheet(6, [2, 5, 1, 6, 3, 4, 1, 6, 2, 3, 5, 2],
+                   ("ok", {"chars": "5", "struck": [[[4, 3, 3]], []], "bits": []}))
+        self.sheet(8, [1, 2, 3, 4, 9])
+        self.sheet(1, [1])
+        self.sheet(21, [1])
+        self.five([bytes(range(32))] * 4, 1, 2, [{"reach": 3}], 20)
+        self.five([bytes(range(32))], 1, 1, [{"reach": 3}], 21)
 
     def known_answers(self):
         counts = [0] * 7
@@ -225,9 +296,18 @@ class Roller(Area):
         self.one(self.answers(), rng.choice([0, 1, 5, rng.randint(1, 200)]), steps)
         reaches = [{"reach": rng.randrange(4)} for _ in range(rng.randint(1, 8))]
         self.five(self.answers(), rng.randint(1, 3), rng.choice([1, 2, rng.randint(1, 48)]),
-                  reaches)
+                  reaches, rng.choice([6, rng.randint(2, 20)]))
+        faces = rng.randint(2, 20)
+        rolls = []
+        for _ in range(rng.randint(1, 4) * 10):
+            if rolls and rng.random() < 0.15:
+                rolls.append(rolls[-1])
+            else:
+                rolls.append(rng.randint(1, faces))
+        self.sheet(faces, rolls)
 
     def run(self):
         self.known_answers()
+        self.dice_sizes()
         for _ in range(self.cases(3000)):
             self.corpus_case()

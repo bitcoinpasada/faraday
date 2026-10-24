@@ -5,7 +5,7 @@
 use super::Sim;
 use super::five::{Act, FiveRoller, Reach, Where};
 use crate::Faraday;
-use crate::codex32::{C32, Codex32Make};
+use crate::codex32::{C32, Codex32Make, DIE_SIZES};
 use crate::testkit;
 use faraday_draw::tokens::{ROLLER_PAUSE_MS, ROLLER_TUMBLE_MS};
 use faraday_ui::keyboard::OskPress;
@@ -16,22 +16,32 @@ struct Host {
     m: Codex32Make,
     seq: Vec<u8>,
     done: usize,
+    faces: u8,
 }
 
 impl Host {
     fn new() -> Host {
+        Host::with_faces(6)
+    }
+
+    /// The entry on dice of `faces` faces, chosen on the Entropy card.
+    fn with_faces(faces: u8) -> Host {
         let c = testkit::compute();
         let mut m = Codex32Make::with_scheme(2, 3, Vec::new());
         for ch in "name".chars() {
             m.act(&c, C32::Key(OskPress::Char(ch)), None);
         }
         m.act(&c, C32::Next, None);
+        let size = DIE_SIZES.iter().position(|&n| n == faces).unwrap();
+        m.act(&c, C32::Faces(size as u8), None);
         m.act(&c, C32::Next, None);
         assert!(m.front().is_some(), "the entry is open");
+        assert_eq!(m.dice_choice().faces, faces);
         Host {
             m,
             seq: Vec::new(),
             done: 0,
+            faces,
         }
     }
 
@@ -55,11 +65,16 @@ impl Host {
         }
     }
 
-    /// A face, as the pad's key.
+    /// A face, as the pad's key: the six-face pad's digit, or the key of
+    /// the face on the pad of other dice.
     fn press(&mut self, face: u8) {
         let c = testkit::compute();
-        let ch = char::from(b'0' + face);
-        self.m.act(&c, C32::Key(OskPress::Char(ch)), None);
+        if self.faces == 6 {
+            let ch = char::from(b'0' + face);
+            self.m.act(&c, C32::Key(OskPress::Char(ch)), None);
+        } else {
+            self.m.act(&c, C32::Face(face), None);
+        }
         self.seq.push(face);
         if self.entered() > self.done {
             self.done = self.entered();
@@ -96,6 +111,19 @@ fn stream(faces: &[u8]) -> impl FnMut() -> Option<[u8; 32]> {
             } else {
                 next.remove(0) - 1
             };
+        }
+        Some(out)
+    }
+}
+
+/// A stream of fresh answers whose bytes, in the order the roller uses
+/// them, are `bytes`, then zeros.
+fn raw(bytes: &[u8]) -> impl FnMut() -> Option<[u8; 32]> {
+    let mut next = bytes.to_vec();
+    move || {
+        let mut out = [0u8; 32];
+        for slot in out.iter_mut().rev() {
+            *slot = if next.is_empty() { 0 } else { next.remove(0) };
         }
         Some(out)
     }
@@ -325,4 +353,71 @@ fn the_result_says_simulated_dice_alone_or_with_the_persons() {
         entropy_label(Sim::Some),
         Some("Entropy · simulated dice and your dice")
     );
+}
+
+#[test]
+fn twenty_faced_dice_take_a_byte_below_240_as_its_face_plus_one() {
+    // 240 to 255 are skipped, as 256 is not a multiple of 20: 239 is 20,
+    // 0 and 20 are 1, 19 is 20.
+    let bytes = [255, 240, 239, 0, 20, 19, 100, 241, 5, 7, 8, 9, 10];
+    let mut h = Host::with_faces(20);
+    let mut r = FiveRoller::default();
+    r.set_faces(20);
+    roll(&h, &mut r, 0);
+    let faces = run(&mut h, &mut r, true, &mut raw(&bytes));
+    assert_eq!(faces, [20, 1, 1, 20, 1, 6, 8, 9, 10, 11]);
+    // 20 then 6 lower, 1 then 8 higher, 1 then 9 higher, 20 then 10
+    // lower, 1 then 11 higher: 01101, "d".
+    assert_eq!(h.m.made_of(0, 0).unwrap().value(), 13);
+    let mut typed = Host::with_faces(20);
+    for f in faces {
+        typed.press(f);
+    }
+    assert_eq!(typed.m.made_of(0, 0).unwrap().value(), 13);
+}
+
+#[test]
+fn every_face_of_every_die_offered_comes_up_as_often() {
+    // A long stream of bytes (xorshift), each die's faces counted: the
+    // chi-square of the counts stays under its 0.1% point, and a face
+    // past the die never comes.
+    for &n in &DIE_SIZES {
+        let mut state = 0x9e37_79b9_u32 ^ u32::from(n);
+        let mut draw = move || {
+            let mut out = [0u8; 32];
+            for slot in &mut out {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                *slot = (state >> 24) as u8;
+            }
+            Some(out)
+        };
+        let mut pool = super::Pool::default();
+        let total = 60_000u32;
+        let mut count = [0u32; 21];
+        for _ in 0..total {
+            let f = pool.next(n, &mut draw).unwrap();
+            count[usize::from(f)] += 1;
+        }
+        assert_eq!(count[0], 0);
+        assert!(count[usize::from(n) + 1..].iter().all(|&c| c == 0), "d{n}");
+        let expect = f64::from(total) / f64::from(n);
+        let chi: f64 = count[1..=usize::from(n)]
+            .iter()
+            .map(|&c| (f64::from(c) - expect).powi(2) / expect)
+            .sum();
+        // The chi-square's 0.1% points for 3 to 19 degrees of freedom.
+        // lint-tokens: sample data
+        let limit = match n {
+            4 => 16.27,
+            6 => 20.52,
+            8 => 24.32,
+            10 => 27.88,
+            12 => 31.26,
+            _ => 43.82,
+        };
+        // lint-tokens: end sample data
+        assert!(chi < limit, "d{n}: chi-square {chi}");
+    }
 }

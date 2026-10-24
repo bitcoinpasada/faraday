@@ -1,7 +1,8 @@
 //! The codex32 tour: Make codex32 shares (`docs/CODEX32.md` §6, §7) from
 //! New key's Start card through every card, rolled on the booklet's dice
 //! sheet to BIP 93's vector 2 (`NAME`, 2 of 3): the scheme, the
-//! identifier, the entry part way with an equal pair struck, the small
+//! identifier, the dice (twenty faces, a die's colour changed) and a
+//! character part way on them, the entry part way with an equal pair struck, the small
 //! panel's tiles, a translation worksheet, a cell's working, the review's
 //! tabs, a string typed back with a box that differs, its Codex32QR
 //! code, Strings made with Check on another device, and Lock in; then
@@ -9,7 +10,7 @@
 //! from vector 2's A and C, and Add a share from vector 3's A, C and E.
 
 use crate::tour::Tour;
-use faraday_core::codex32::{C32, Cell, OskPress, SPLITS, Split, WAYS, Way};
+use faraday_core::codex32::{C32, Cell, DIE_SIZES, OskPress, SPLITS, Split, WAYS, Way};
 use faraday_core::keygen::{Start, kstep};
 use faraday_core::{Action, Screen};
 use faraday_shell_api::App;
@@ -20,6 +21,10 @@ const SHARES: [&str; 2] = [
     "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn",
 ];
 const CHARSET: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+/// A die's place in `DIE_SIZES`, by its faces.
+fn die(faces: u8) -> u8 {
+    DIE_SIZES.iter().position(|&n| n == faces).unwrap_or(0) as u8
+}
 
 fn c(t: &mut Tour, p: C32) {
     t.press(Action::Codex32(p));
@@ -40,6 +45,41 @@ fn roll(t: &mut Tour, ch: u8) {
     for &b in &bits {
         key(t, if b == 0 { '2' } else { '5' });
     }
+}
+
+/// The dice: twenty faces, and die 1 black (seven steps from red); on
+/// the entry, part of a character on them, both rolls of every die and
+/// die 3's pair equal and struck. Then taken back, and six faces again.
+fn twenty_faced(t: &mut Tour) -> Result<(), String> {
+    c(t, C32::Faces(die(20)));
+    for _ in 0..7 {
+        c(t, C32::Colour(0));
+    }
+    t.shot("codex32-entropy-dice")?;
+    c(t, C32::Next);
+    t.shot("codex32-enter-first")?;
+    let faces = [17, 3, 20, 9, 12, 4, 15, 20, 11, 19];
+    for f in faces {
+        c(t, C32::Face(f));
+    }
+    t.shot("codex32-enter-d20")?;
+    // The five tracks, and the pad of twenty faces under the sheets.
+    for _ in 0..4 {
+        crate::tour::scroll(t, 120);
+    }
+    t.shot("codex32-enter-d20-tracks")?;
+    for _ in 0..6 {
+        crate::tour::scroll(t, 240);
+    }
+    t.shot("codex32-enter-d20-pad")?;
+    for _ in 0..10 {
+        crate::tour::scroll(t, -240);
+    }
+    for _ in faces {
+        c(t, C32::Key(OskPress::Back));
+    }
+    c(t, C32::Faces(die(6)));
+    Ok(())
 }
 
 pub(crate) fn codex32_tour(t: &mut Tour) -> Result<(), String> {
@@ -70,8 +110,7 @@ pub(crate) fn codex32_tour(t: &mut Tour) -> Result<(), String> {
     let dice = WAYS.iter().position(|w| *w == Way::Dice).unwrap_or(0);
     c(t, C32::Way(dice as u8));
     t.shot("codex32-entropy")?;
-    c(t, C32::Next);
-    t.shot("codex32-enter-first")?;
+    twenty_faced(t)?;
     let a = SHARES[0].as_bytes();
     for &ch in &a[9..15] {
         roll(t, ch);

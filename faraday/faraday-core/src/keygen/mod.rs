@@ -1053,6 +1053,7 @@ impl crate::Faraday {
         &self,
         m: crate::codex32::Codex32Make,
     ) -> crate::codex32::Codex32Make {
+        let m = m.with_dice(self.keygen.dice);
         let m = if self.online { m.desktop() } else { m };
         if self.makes_secrets() {
             return m;
@@ -1798,13 +1799,15 @@ impl crate::Faraday {
         if let Some(m) = k.codex32.as_mut() {
             let before = m.open();
             m.act(&c, press, fresh);
+            // The dice chosen are kept for the session's next flow.
+            self.keygen.dice = m.dice_choice();
             k.scroll.follow |= m.open() != before;
             // On a small panel the entry stays scrolled to its foot at every
             // press, so the worksheet tabs, the panel and the pad are all in view
             // (`docs/CODEX32.md` §6.4.7).
             if compact && m.open() == Some(Card::Enter) {
                 k.scroll.follow = false;
-                k.scroll.y = faraday_draw::tokens::CODEX32_ENTER_SCROLL;
+                k.scroll.y = faraday_draw::tokens::CODEX32_ENTER_SCROLL + m.pad_extra();
             }
         }
         if k.codex32
