@@ -479,6 +479,8 @@ mod tests {
                 ("place edge", PLACE_EDGE, SURFACE, 3.0),
                 ("stick edge", STICK_EDGE, PLACE_FILL, 3.0),
                 ("vault edge", VAULT_EDGE, STICK_FILL, 3.0),
+                ("vault edge on its body", VAULT_EDGE, VAULT_FILL, 3.0),
+                ("paper edge on its fill", PAPER_EDGE, PAPER_FILL, 3.0),
                 ("files edge", FILES_EDGE, STICK_FILL, 3.0),
                 ("paper edge", PAPER_EDGE, PLACE_FILL, 3.0),
                 ("chip edge", CHIP_EDGE, SURFACE, 3.0),

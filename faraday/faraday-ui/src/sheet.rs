@@ -30,16 +30,24 @@ pub fn scroll_sheet<A: Copy + PartialEq>(
     pad: f32,
     body: &mut Body<'_, A>,
 ) {
-    framed(ui, place, (h, margin, pad), false, body);
+    framed(
+        ui,
+        place,
+        (h, margin, pad),
+        (false, Role::SurfaceContainerLow),
+        body,
+    );
 }
 
 /// [`scroll_sheet`], its buttons at its end as wide as their labels
-/// when `end`, else sharing its width ([`buttons`]).
+/// when `end`, else sharing its width ([`buttons`]); filled in the
+/// container role `fill` (a sheet's is surface-container-low, a
+/// dialog's surface-container-high: `docs/THEMES.md` §6).
 fn framed<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     (sx, sw): (f32, f32),
     (h, margin, pad): (f32, f32, f32),
-    end: bool,
+    (end, fill): (bool, Role),
     body: &mut Body<'_, A>,
 ) {
     use faraday_draw::tokens::SHAPE_XL;
@@ -84,8 +92,8 @@ fn framed<A: Copy + PartialEq>(
         SHAPE_XL,
         faraday_draw::tokens::ELEVATION_SHEET,
     );
-    ui.fill(sx, sy, sw, sh, SHAPE_XL, SURFACE);
-    ui.stroke(sx, sy, sw, sh, SHAPE_XL, BORDER);
+    ui.fill(sx, sy, sw, sh, SHAPE_XL, fill);
+    ui.stroke(sx, sy, sw, sh, SHAPE_XL, Role::OutlineVariant);
     // Taller than the panel: what is above the buttons scrolls.
     let view = sh - foot;
     let max = (ch + 2.0 * pad - view).max(0.0);
@@ -100,7 +108,14 @@ fn framed<A: Copy + PartialEq>(
     ui.report_scroll(clip, max);
     if !items.is_empty() {
         if max > 0.0 {
-            ui.fill(sx + 1.0, sy + view, sw - 2.0, 1.0, 0.0, LINE);
+            ui.fill(
+                sx + 1.0,
+                sy + view,
+                sw - 2.0,
+                1.0,
+                0.0,
+                Role::OutlineVariant,
+            );
         }
         foot_of(ui, sy + view, &items);
     }
@@ -128,13 +143,19 @@ pub fn dialog<A: Copy + PartialEq>(
         let dw = want.clamp(DIALOG_MIN, DIALOG_MAX).min(w - 2.0 * PAD);
         (((w - dw) / 2.0, dw), (h, PAD, DIALOG_PAD), true)
     };
-    framed(ui, place, frame, end, &mut |ui, x, y, iw| {
-        let mut cy = y;
-        cy += sheet_head(ui, x, cy, iw, head.0, head.1, head.2);
-        cy += body(ui, x, cy, iw);
-        cy += buttons(ui, x, cy, iw, actions);
-        cy - y
-    });
+    framed(
+        ui,
+        place,
+        frame,
+        (end, Role::SurfaceContainerHigh),
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            cy += sheet_head(ui, x, cy, iw, head.0, head.1, head.2);
+            cy += body(ui, x, cy, iw);
+            cy += buttons(ui, x, cy, iw, actions);
+            cy - y
+        },
+    );
 }
 
 /// A dialog's actions at its end, each as wide as its label, the last
@@ -183,7 +204,7 @@ pub fn sheet_head<A: Copy + PartialEq>(
     let tone: Paint = tone.into();
     let glyph = faraday_draw::tokens::ICON_GLYPH_SMALL;
     ui.icon(x - 4.0, y - 3.0, 28.0, icon, glyph, tone);
-    let th = ui.wrap(x + 28.0, y, w - 28.0, 17.0, W::S, TEXT, title);
+    let th = ui.wrap(x + 28.0, y, w - 28.0, 17.0, W::S, Role::OnSurface, title);
     th.max(22.0) + 10.0
 }
 
@@ -198,9 +219,9 @@ pub fn kv<A: Copy + PartialEq>(
     tone: impl Into<Paint>,
 ) -> f32 {
     let tone: Paint = tone.into();
-    ui.text(x, y, 12.0, W::R, MUTED, key);
+    ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, key);
     let vh = ui.wrap(x, y + 18.0, w, 14.0, W::R, tone, value);
-    ui.rule(x, y + 24.0 + vh, w, BORDER);
+    ui.rule(x, y + 24.0 + vh, w, Role::OutlineVariant);
     vh + 32.0
 }
 
@@ -267,7 +288,7 @@ pub fn kv_sheet<A: Copy + PartialEq>(
         let mut cy = y;
         cy += sheet_head(ui, x, cy, iw, head.0, head.1, head.2);
         if !sub.is_empty() {
-            cy += ui.wrap(x, cy, iw, 13.0, W::R, MUTED, sub) + 12.0;
+            cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::OnSurfaceVariant, sub) + 12.0;
         }
         for (k, v, tone) in rows {
             cy += kv(ui, x, cy, iw, k, v, *tone);

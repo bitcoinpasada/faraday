@@ -23,19 +23,19 @@ use faraday_draw::tokens::{
     TIP_RICH_PAD_X, TIP_RICH_PAD_Y, TIP_RICH_TEXT, TIP_TOUCH_SHOW_MS,
 };
 
-use crate::pal::{INVERSE, MUTED, ON_INVERSE, OUTLINE, SURFACE};
+use crate::pal::{Paint, Role};
 use crate::{Ui, W};
 
 /// A plain tooltip's container: Material's inverse surface.
-pub const TIP_PLAIN_FILL: crate::pal::Paint = INVERSE;
+pub const TIP_PLAIN_FILL: Paint = Paint::role(Role::InverseSurface);
 /// A plain tooltip's text: Material's inverse on-surface.
-pub const TIP_PLAIN_INK: crate::pal::Paint = ON_INVERSE;
+pub const TIP_PLAIN_INK: Paint = Paint::role(Role::InverseOnSurface);
 /// A rich tooltip's container: Material's surface container.
-pub const TIP_RICH_FILL: crate::pal::Paint = SURFACE;
+pub const TIP_RICH_FILL: Paint = Paint::role(Role::SurfaceContainer);
 /// A rich tooltip's supporting text: Material's on-surface variant.
-pub const TIP_RICH_INK: crate::pal::Paint = MUTED;
+pub const TIP_RICH_INK: Paint = Paint::role(Role::OnSurfaceVariant);
 /// A rich tooltip's edge where a theme draws no shadow (high contrast).
-pub const TIP_RICH_EDGE: crate::pal::Paint = OUTLINE;
+pub const TIP_RICH_EDGE: Paint = Paint::role(Role::Outline);
 
 /// Which of Material's two tooltips.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

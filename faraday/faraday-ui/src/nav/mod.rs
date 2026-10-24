@@ -4,9 +4,10 @@
 //! and names the press each region takes; which destinations there are,
 //! and which is current, is the app's.
 //!
-//! Stand-ins until faraday-ui has Material's state layers and outline
-//! colour: the current destination's pill is `ACCENT` at a low alpha,
-//! a pressed one `INNER`, and an edge `LINE` or `BORDER`.
+//! The roles are Material's (`docs/THEMES.md` §7): the current
+//! destination's pill is secondary-container, its icon on-secondary-
+//! container and its label on-surface; the others are on-surface-variant;
+//! hover and press are state layers; an edge is outline-variant.
 
 mod app_bar;
 mod bar;
@@ -66,7 +67,7 @@ pub fn badge<A: Copy + PartialEq>(ui: &mut Ui<A>, glyph: (f32, f32, f32), badge:
         Badge::Dot => {
             let d = BADGE_SMALL;
             let (x, y) = (gx + gs - d / 2.0, gy - d / 2.0);
-            ui.fill(x, y, d, d, d / 2.0, ERR);
+            ui.fill(x, y, d, d, d / 2.0, Role::Error);
             let r = ui.rect(x, y, d, d);
             ui.c.note(faraday_draw::canvas::InkKind::Dot, r);
         }
@@ -80,11 +81,17 @@ pub fn badge<A: Copy + PartialEq>(ui: &mut Ui<A>, glyph: (f32, f32, f32), badge:
             let h = BADGE_LARGE;
             let w = (ui.measure(BADGE_LABEL, W::S, label) + 2.0 * BADGE_PAD).max(h);
             let (x, y) = (gx + gs / 2.0, gy - h / 2.0);
-            ui.fill(x, y, w, h, h / 2.0, ERR);
-            // `BG` on the error colour stands in for Material's
-            // on-error until the themes carry it (`docs/THEMES.md`).
+            ui.fill(x, y, w, h, h / 2.0, Role::Error);
             let tw = ui.measure(BADGE_LABEL, W::S, label);
-            ui.text_mid(x + (w - tw) / 2.0, y, h, BADGE_LABEL, W::S, BG, label);
+            ui.text_mid(
+                x + (w - tw) / 2.0,
+                y,
+                h,
+                BADGE_LABEL,
+                W::S,
+                Role::OnError,
+                label,
+            );
         }
     }
 }
@@ -100,7 +107,7 @@ fn item_content() -> f32 {
 fn item<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, w: f32, h: f32, d: &Dest<A>) {
     let top = y + ((h - item_content()) / 2.0).max(0.0);
     let px = x + (w - NAV_PILL_W) / 2.0;
-    let pressed = ui.is_pressed(d.action) || ui.is_hovered(d.action);
+    let pill = (px, top, NAV_PILL_W, NAV_PILL_H, NAV_PILL_H / 2.0);
     if d.current {
         ui.fill(
             px,
@@ -108,14 +115,17 @@ fn item<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, w: f32, h: f32, d: 
             NAV_PILL_W,
             NAV_PILL_H,
             NAV_PILL_H / 2.0,
-            ACCENT.with_alpha(48),
+            Role::SecondaryContainer,
         );
-    } else if pressed {
-        ui.fill(px, top, NAV_PILL_W, NAV_PILL_H, NAV_PILL_H / 2.0, INNER);
     }
-    let fg = if d.current { TEXT } else { MUTED };
+    let (icon_fg, fg) = if d.current {
+        (Role::OnSecondaryContainer, Role::OnSurface)
+    } else {
+        (Role::OnSurfaceVariant, Role::OnSurfaceVariant)
+    };
+    ui.state_layer(pill, icon_fg.paint(), d.action);
     let ix = x + (w - NAV_PILL_H) / 2.0;
-    ui.icon(ix, top, NAV_PILL_H, d.icon, NAV_ICON, fg);
+    ui.icon(ix, top, NAV_PILL_H, d.icon, NAV_ICON, icon_fg);
     let inset = (NAV_PILL_H - NAV_ICON) / 2.0;
     badge(ui, (ix + inset, top + inset, NAV_ICON), d.badge);
     let face = if d.current { W::S } else { W::R };

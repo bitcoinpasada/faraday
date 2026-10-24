@@ -88,6 +88,25 @@ impl From<Color> for Paint {
     }
 }
 
+impl Role {
+    /// This role at full strength, as a paint.
+    pub const fn paint(self) -> Paint {
+        Paint::role(self)
+    }
+
+    /// This role at an opacity (of 255): a state layer, a disabled
+    /// control, a tint.
+    pub const fn with_alpha(self, a: u8) -> Paint {
+        Paint::Role(self, a)
+    }
+
+    /// This role at a state or disabled opacity from
+    /// `faraday_draw::tokens` (0 to 1).
+    pub fn at(self, opacity: f32) -> Paint {
+        Paint::Role(self, faraday_draw::tokens::alpha_of(opacity))
+    }
+}
+
 impl From<Role> for Paint {
     fn from(r: Role) -> Paint {
         Paint::role(r)
@@ -158,6 +177,11 @@ pub const VIEWFINDER_BAND: Color = Color::rgb(0x05, 0x08, 0x0b);
 // The backup board's boxes (`docs/BACKUP-FLOW.md` §17.15): places
 // neutral, sticks the highest surface, vaults the primary family, files
 // the secondary family, paper the tertiary family (`docs/THEMES.md` §6).
+// A vault and paper show their family by edge, band and label on the
+// lowest surface, not by a container fill: a fidelity scheme (Cobalt,
+// Bitcoin Orange) puts its primary-container at the seed's own tone,
+// dark blue in Light, and its tertiary-container at a fixed saturated
+// tone, brown or cyan in both modes.
 /// A place on the backup board: its fill.
 pub const PLACE_FILL: Paint = Paint::role(Role::SurfaceContainerLow);
 /// A place's header band.
@@ -173,17 +197,17 @@ pub const STICK_EDGE: Paint = Paint::role(Role::Outline);
 /// "Stick n", its glyph and ×.
 pub const STICK_TEXT: Paint = Paint::role(Role::OnSurfaceVariant);
 /// A vault box on the board.
-pub const VAULT_FILL: Paint = Paint::role(Role::PrimaryContainer);
+pub const VAULT_FILL: Paint = Paint::role(Role::SurfaceContainerLowest);
 /// A vault box's edge and its solid header band, and the lock mark.
 pub const VAULT_EDGE: Paint = Paint::role(Role::Primary);
 /// "Vault n · sealed" and its × on the vault's band.
 pub const VAULT_ON: Paint = Paint::role(Role::OnPrimary);
 /// Paper (and Scanned in) on the board.
-pub const PAPER_FILL: Paint = Paint::role(Role::TertiaryContainer);
+pub const PAPER_FILL: Paint = Paint::role(Role::SurfaceContainerLowest);
 /// Paper's edge.
 pub const PAPER_EDGE: Paint = Paint::role(Role::Tertiary);
 /// "Paper", its glyph.
-pub const PAPER_TEXT: Paint = Paint::role(Role::OnTertiaryContainer);
+pub const PAPER_TEXT: Paint = Paint::role(Role::Tertiary);
 /// The files box inside a stick box on the board (`docs/BACKUP-FLOW.md`
 /// §17.17): the files kept on the stick outside any vault.
 pub const FILES_FILL: Paint = Paint::role(Role::SecondaryContainer);

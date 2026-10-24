@@ -7,13 +7,13 @@ use crate::{Style, Ui, W};
 
 /// A page's title. Returns its height.
 pub fn title<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, s: &str) -> f32 {
-    ui.text(x, y, 28.0, W::S, TEXT, s);
+    ui.text(x, y, 28.0, W::S, Role::OnSurface, s);
     ui.line(28.0, W::S)
 }
 
 /// A section's label.
 pub fn section_label<A: Copy + PartialEq>(ui: &mut Ui<A>, x: f32, y: f32, s: &str) {
-    ui.text(x, y, 14.0, W::S, MUTED, s);
+    ui.text(x, y, 14.0, W::S, Role::OnSurfaceVariant, s);
 }
 
 /// Buttons laid left to right, wrapping to a new row at the width.
@@ -106,7 +106,7 @@ pub fn measure_wrap<A: Copy + PartialEq>(
     s: &str,
 ) -> f32 {
     ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-    let h = ui.wrap(0.0, 0.0, width, size, w, TEXT, s);
+    let h = ui.wrap(0.0, 0.0, width, size, w, Role::OnSurface, s);
     ui.c.pop_clip();
     h
 }
@@ -147,8 +147,8 @@ pub fn sheet_box_in<A: Copy + PartialEq>(
         SHAPE_XL,
         faraday_draw::tokens::ELEVATION_DIALOG,
     );
-    ui.fill(x, y, sw, sh, SHAPE_XL, SURFACE);
-    ui.stroke(x, y, sw, sh, SHAPE_XL, BORDER);
+    ui.fill(x, y, sw, sh, SHAPE_XL, Role::SurfaceContainerHigh);
+    ui.stroke(x, y, sw, sh, SHAPE_XL, Role::OutlineVariant);
     (x, y)
 }
 
@@ -229,11 +229,18 @@ pub fn step_circle<A: Copy + PartialEq>(
         Paint::from(faraday_draw::Color::WHITE)
     } else {
         if pressed {
-            ui.dot(x + r, y + r, r, INNER);
+            ui.dot(x + r, y + r, r, Role::SurfaceContainerHighest);
         }
-        ui.stroke(x, y, d, d, r, MUTED);
-        ui.stroke(x + 1.0, y + 1.0, d - 2.0, d - 2.0, r - 1.0, MUTED);
-        TEXT
+        ui.stroke(x, y, d, d, r, Role::OnSurfaceVariant);
+        ui.stroke(
+            x + 1.0,
+            y + 1.0,
+            d - 2.0,
+            d - 2.0,
+            r - 1.0,
+            Role::OnSurfaceVariant,
+        );
+        Role::OnSurface.paint()
     };
     // White is no colour of the theme's: it is drawn as it is.
     let tw = ui.measure(size, W::S, &label);

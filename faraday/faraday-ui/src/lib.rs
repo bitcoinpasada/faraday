@@ -74,8 +74,6 @@ impl BarGeometry {
 /// Faraday's colours: the roles, the generated schemes and the paints.
 pub mod pal;
 
-use pal::*;
-
 /// Faraday's mark as a pixel grid, the one the boot logo is drawn from.
 const MARK: &str = include_str!("../../image/common/faraday-mark.txt");
 
@@ -653,7 +651,8 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         } else {
             150
         };
-        let color = self.col(MUTED.with_alpha((u16::from(alpha) * most / 255) as u8));
+        let color =
+            self.col(Role::OnSurfaceVariant.with_alpha((u16::from(alpha) * most / 255) as u8));
         self.c.fill_rounded_rect(rect, w as f32 / 2.0, color);
     }
 
@@ -671,7 +670,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let band = ((depth * self.f).round() as i32).clamp(1, view.h / 4 + 1);
         // The page and a sheet are both the surface (`docs/DECISIONS.md`
         // F39).
-        let page = self.col(SURFACE);
+        let page = self.col(Role::Surface);
         let reach = band as f32 / self.f;
         let top = (offset / reach).clamp(0.0, 1.0);
         let bottom = ((max - offset) / reach).clamp(0.0, 1.0);
@@ -698,7 +697,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 // Reduced eight units to a pixel and blurred a little: as
                 // soft as more blur at a fraction of the work.
                 let scale = (8.0 * self.f).round().max(4.0) as u32;
-                let dim = self.col(SCRIM.with_alpha(faraday_draw::tokens::SCRIM_ALPHA));
+                let dim = self.col(Role::Scrim.with_alpha(faraday_draw::tokens::SCRIM_ALPHA));
                 self.c.frost(scale, 2, dim);
                 // Kept dimmed: each frame after is one copy.
                 self.frost = Some(self.c.snapshot());
@@ -744,7 +743,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         };
         // The page and a sheet are both the surface (`docs/DECISIONS.md`
         // F39).
-        let page = self.col(SURFACE);
+        let page = self.col(Role::Surface);
         self.c.fill_rect(gap, page);
         for (r, _) in self.hits.iter_mut() {
             if r.intersect(&view) == *r {
@@ -780,7 +779,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             tw + 4.0,
             h * 0.6,
             3.0,
-            ACCENT.with_alpha(90),
+            Role::Primary.with_alpha(90),
         );
     }
 
@@ -934,13 +933,13 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// A card: a surface with a one-unit edge. The page is the surface
-    /// too (`docs/DECISIONS.md` F39), so a card's resting edge, `LINE`,
-    /// is drawn in the stronger `BORDER`: the edge is what sets it apart.
+    /// too (`docs/DECISIONS.md` F39), so the edge is what sets a card
+    /// apart; its fill is surface-container-low, Material's elevated
+    /// card drawn flat (`docs/THEMES.md` §7).
     pub fn card(&mut self, x: f32, y: f32, w: f32, h: f32, edge: impl Into<Paint>) {
         use faraday_draw::tokens::SHAPE_M;
         let edge: Paint = edge.into();
-        let edge = if edge == LINE { BORDER } else { edge };
-        self.fill(x, y, w, h, SHAPE_M, SURFACE);
+        self.fill(x, y, w, h, SHAPE_M, Role::SurfaceContainerLow);
         self.stroke(x, y, w, h, SHAPE_M, edge);
     }
 
@@ -965,9 +964,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             THEME_TILE_TEXT as SIZE,
         };
         let ring = if current {
-            Some(ACCENT)
+            Some(Role::Primary.paint())
         } else if self.is_hovered(action) || self.is_pressed(action) {
-            Some(DIM)
+            Some(Role::OnSurfaceVariant.paint())
         } else {
             None
         };
@@ -977,20 +976,23 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         }
         let now = self.theme;
         self.theme = theme.theme();
-        self.fill(x, y, w, h, IN, BG);
-        self.stroke(x, y, w, h, IN, LINE);
+        self.fill(x, y, w, h, IN, Role::SurfaceContainerHighest);
+        self.stroke(x, y, w, h, IN, Role::OutlineVariant);
         self.fill(
             x + IN,
             y + IN,
             w - 2.0 * IN,
             THEME_TILE_SAMPLE,
             6.0,
-            SURFACE,
+            Role::Surface,
         );
         // The button and the three states, centred down the sample card.
         let mid = y + IN + THEME_TILE_SAMPLE / 2.0;
-        self.fill(x + 17.0, mid - SIZE / 2.0, 24.0, SIZE, 6.0, ACCENT);
-        for (i, c) in [OK, WARN, ERR].into_iter().enumerate() {
+        self.fill(x + 17.0, mid - SIZE / 2.0, 24.0, SIZE, 6.0, Role::Primary);
+        for (i, c) in [Role::Ok, Role::Warning, Role::Error]
+            .into_iter()
+            .enumerate()
+        {
             self.dot(x + w - 38.0 + 9.0 * i as f32, mid, 3.0, c);
         }
         // A name too long for the tile wraps at its spaces, the tile being
@@ -1006,10 +1008,10 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             let line = &name[a..b];
             last = self.measure(SIZE, W::S, line);
             if last <= room {
-                self.text(x + IN, ty, SIZE, W::S, TEXT, line);
+                self.text(x + IN, ty, SIZE, W::S, Role::OnSurface, line);
             } else {
                 let cut = self.fit(SIZE, W::S, line, room);
-                last = self.text(x + IN, ty, SIZE, W::S, TEXT, &cut);
+                last = self.text(x + IN, ty, SIZE, W::S, Role::OnSurface, &cut);
             }
             ty += STEP;
         }
@@ -1019,7 +1021,14 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             let mark = self.measure(SIZE, W::R, EN.ui_default_theme);
             if last + faraday_draw::tokens::GAP + mark <= room {
                 let at = x + w - IN - mark;
-                self.text(at, ty - STEP, SIZE, W::R, MUTED, EN.ui_default_theme);
+                self.text(
+                    at,
+                    ty - STEP,
+                    SIZE,
+                    W::R,
+                    Role::OnSurfaceVariant,
+                    EN.ui_default_theme,
+                );
             }
         }
         self.theme = now;
@@ -1092,7 +1101,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             if g > 0 {
                 at += THEME_GROUP_GAP;
             }
-            self.text(x, at, CAPTION, W::R, MUTED, group.name());
+            self.text(x, at, CAPTION, W::R, Role::OnSurfaceVariant, group.name());
             at += THEME_GROUP_HEAD;
             let mut n = 0;
             for theme in group.themes() {
@@ -1184,7 +1193,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let sh = sw * aspect;
         let ox = area.x as f32 + (area.w as f32 - sw) / 2.0;
         let oy = area.y as f32 + (area.h as f32 - sh) / 2.0;
-        let stroke = self.col(ACCENT);
+        let stroke = self.col(Role::Primary);
         let lit = stroke.mix(Color::rgb(0xff, 0xff, 0xff), 0.5);
         // The keyhole: a round head and a slot widening below it, wound
         // against the shield so that it is a hole.
@@ -1247,7 +1256,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             let outlines: Vec<Vec<(f32, f32)>> =
                 word.outlines.iter().map(|o| place(o, start)).collect();
             let contours: Vec<&[(f32, f32)]> = outlines.iter().map(Vec::as_slice).collect();
-            let grey = self.col(DIM);
+            let grey = self.col(Role::OnSurfaceVariant);
             self.c.fill_contours(&contours, grey);
             right = start + word.right;
         }
@@ -1260,7 +1269,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         self.caret_drawn = true;
         self.caret_foot = Some(y + h + self.oy);
         if self.caret_on {
-            self.fill(x, y, 2.0, h, 1.0, ACCENT);
+            self.fill(x, y, 2.0, h, 1.0, Role::Primary);
         }
     }
 
@@ -1582,7 +1591,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 // Pressed, a region shows what it holds as drawn: a held
                 // secret's code stays readable under the finger.
                 if !self.is_pressed(action) {
-                    self.state_layer((x, y, w, h, SHAPE_S), TEXT, action);
+                    self.state_layer((x, y, w, h, SHAPE_S), Role::OnSurface.paint(), action);
                 }
             }
             // A region with its own hover look is still ringed while the
@@ -1679,7 +1688,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         style: Style,
         action: A,
     ) -> f32 {
-        use faraday_draw::tokens::{ICON_GAP, ICON_GLYPH_BUTTON, alpha_of};
+        use faraday_draw::tokens::{ICON_GAP, ICON_GLYPH_BUTTON};
         let size = if h >= 44.0 {
             15.0
         } else if h >= 38.0 {
@@ -1700,20 +1709,20 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         };
         let tw = self.measure(size, weight, label);
         let width = w.unwrap_or(tw + 32.0 + tick);
-        let faint = TEXT.with_alpha(alpha_of(faraday_draw::tokens::DISABLED_CONTAINER));
+        let faint = Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTAINER);
         match style {
             Style::Primary => {
                 self.primaries += 1;
-                self.fill(x, y, width, h, r, ACCENT);
+                self.fill(x, y, width, h, r, Role::Primary);
             }
             Style::Tonal | Style::Selected => {
-                self.fill(x, y, width, h, r, SELECTED);
+                self.fill(x, y, width, h, r, Role::SecondaryContainer);
                 // The high contrast themes edge every control at 3:1.
                 if self.theme.is_high_contrast() {
-                    self.stroke(x, y, width, h, r, OUTLINE);
+                    self.stroke(x, y, width, h, r, Role::Outline);
                 }
             }
-            Style::Secondary => self.stroke(x, y, width, h, r, OUTLINE),
+            Style::Secondary => self.stroke(x, y, width, h, r, Role::Outline),
             Style::Disabled => {
                 // Faint in every theme: it is not available now.
                 let (rect, edge) = (self.rect(x, y, width, h), self.col(faint));
@@ -1753,11 +1762,19 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         };
         let width = (self.measure(TX, W::S, label) + 2.0 * IN).min(w - 2.0 * IN);
         let (cx, cy) = (x + IN, y + (h - CH) / 2.0);
-        self.state_layer((cx, cy, width, CH, SHAPE_S), TEXT, action);
-        self.stroke(cx, cy, width, CH, SHAPE_S, OUTLINE);
+        self.state_layer((cx, cy, width, CH, SHAPE_S), Role::Primary.paint(), action);
+        self.stroke(cx, cy, width, CH, SHAPE_S, Role::Outline);
         self.focus_ring((cx, cy, width, CH, SHAPE_S), action);
         let tw = self.measure(TX, W::S, label);
-        self.text_mid(cx + (width - tw) / 2.0, cy, CH, TX, W::S, TEXT, label);
+        self.text_mid(
+            cx + (width - tw) / 2.0,
+            cy,
+            CH,
+            TX,
+            W::S,
+            Role::Primary,
+            label,
+        );
         let hit_h = if self.compact {
             TOUCH.max(CH)
         } else {
@@ -1787,12 +1804,31 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             faraday_draw::tokens::ELEVATION_FAB
         };
         self.shadow(x, y, width, h, SHAPE_L, level);
-        self.fill(x, y, width, h, SHAPE_L, ACCENT);
-        self.state_layer((x, y, width, h, SHAPE_L), ON_ACCENT, action);
+        self.fill(x, y, width, h, SHAPE_L, Role::PrimaryContainer);
+        self.state_layer(
+            (x, y, width, h, SHAPE_L),
+            Role::OnPrimaryContainer.paint(),
+            action,
+        );
         self.focus_ring((x, y, width, h, SHAPE_L), action);
         let iy = y + (h - ICON_GLYPH) / 2.0;
-        self.icon(x + pad, iy, ICON_GLYPH, icon, ICON_GLYPH, ON_ACCENT);
-        self.text_mid(x + pad + lead, y, h, size, W::S, ON_ACCENT, label);
+        self.icon(
+            x + pad,
+            iy,
+            ICON_GLYPH,
+            icon,
+            ICON_GLYPH,
+            Role::OnPrimaryContainer,
+        );
+        self.text_mid(
+            x + pad + lead,
+            y,
+            h,
+            size,
+            W::S,
+            Role::OnPrimaryContainer,
+            label,
+        );
         self.hit_drawn(x, y, width, h, action);
         width
     }
@@ -1827,24 +1863,24 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let h = 26.0;
         use faraday_draw::tokens::SHAPE_S;
         let width = self.measure(14.0, W::M, word) + 24.0;
-        self.fill(x, y, width, h, SHAPE_S, INNER);
-        self.stroke(x, y, width, h, SHAPE_S, OUTLINE);
-        self.text_mid(x + 12.0, y, h, 14.0, W::M, TEXT, word);
+        self.fill(x, y, width, h, SHAPE_S, Role::SurfaceContainerHighest);
+        self.stroke(x, y, width, h, SHAPE_S, Role::Outline);
+        self.text_mid(x + 12.0, y, h, 14.0, W::M, Role::OnSurface, word);
         self.hit_shaped((x, y, width, h, SHAPE_S), action);
         width
     }
 
     /// A pill with a plain label and an edge. Returns its width.
     pub fn pill(&mut self, x: f32, y: f32, h: f32, label: &str) -> f32 {
-        self.pill_in(x, y, h, label, MUTED)
+        self.pill_in(x, y, h, label, Role::OnSurfaceVariant)
     }
 
     /// [`Ui::pill`] with its label in `color`.
     pub fn pill_in(&mut self, x: f32, y: f32, h: f32, label: &str, color: impl Into<Paint>) -> f32 {
         let color: Paint = color.into();
         let width = self.measure(12.0, W::R, label) + 24.0;
-        self.fill(x, y, width, h, h / 2.0, SURFACE);
-        self.stroke(x, y, width, h, h / 2.0, BORDER);
+        // An assist chip (Material's): no container, an outline.
+        self.stroke(x, y, width, h, h / 2.0, Role::Outline);
         self.text_mid(x + 12.0, y, h, 12.0, W::R, color, label);
         width
     }
@@ -1854,9 +1890,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         let mut cx = x;
         for i in 0..n {
             if i < filled {
-                self.fill(cx, y, 28.0, 10.0, 5.0, OK);
+                self.fill(cx, y, 28.0, 10.0, 5.0, Role::Ok);
             } else {
-                self.stroke(cx, y, 28.0, 10.0, 5.0, BORDER);
+                self.stroke(cx, y, 28.0, 10.0, 5.0, Role::Outline);
             }
             cx += 34.0;
         }
@@ -1866,11 +1902,11 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     /// A numbered or ticked step badge.
     pub fn badge(&mut self, x: f32, y: f32, label: &str, done: bool, open: bool) {
         let (bg, fg) = if done {
-            (OK.with_alpha(40), OK)
+            (Role::OkContainer, Role::OnOkContainer)
         } else if open {
-            (ACCENT, ON_ACCENT)
+            (Role::Primary, Role::OnPrimary)
         } else {
-            (INNER, MUTED)
+            (Role::SurfaceContainerHighest, Role::OnSurfaceVariant)
         };
         self.dot(x + 13.0, y + 13.0, 13.0, bg);
         if done {
@@ -1886,11 +1922,25 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     pub fn checkbox(&mut self, x: f32, y: f32, on: bool, enabled: bool) {
         use faraday_draw::tokens::{ICON_GLYPH_BUTTON as SIDE, SHAPE_CHECKBOX as R};
         if on {
-            self.fill(x, y, SIDE, SIDE, R, if enabled { ACCENT } else { INNER });
-            let tick = if enabled { ON_ACCENT } else { DIM };
+            // Not enabled, it is done and a press does not undo it:
+            // on-surface at the disabled opacity, its tick in surface
+            // (Material's disabled checkbox).
+            let (fill, tick) = if enabled {
+                (Role::Primary.paint(), Role::OnPrimary.paint())
+            } else {
+                (
+                    Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTENT),
+                    Role::Surface.paint(),
+                )
+            };
+            self.wash(x, y, SIDE, SIDE, R, fill);
             self.icon(x, y, SIDE, Icon::Done, 11.0, tick);
         } else {
-            let edge = self.col(if enabled { MUTED } else { BORDER });
+            let edge = self.col(if enabled {
+                Role::OnSurfaceVariant.paint()
+            } else {
+                Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTENT)
+            });
             let rect = self.rect(x, y, SIDE, SIDE);
             self.c
                 .stroke_rounded_rect(rect, R * self.f, 2.0 * self.f, edge);
@@ -1973,6 +2023,9 @@ fn shield(x: f32, y: f32, w: f32, h: f32) -> Vec<(f32, f32)> {
 }
 
 #[cfg(test)]
+mod read_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use faraday_shell_api::{BootState, DisplayInfo, SecureHardware};
@@ -2006,10 +2059,17 @@ mod tests {
         {
             let mut ui: Ui<u8> = Ui::new(&mut canvas, 1.0, &mut hits, None);
             ui.theme = theme;
-            page = ui.col(pal::SURFACE);
-            ui.clear(pal::SURFACE);
-            ui.fill(100.0, 100.0, 120.0, 40.0, 0.0, pal::OK.with_alpha(30));
-            ui.stroke(100.0, 200.0, 120.0, 40.0, 0.0, pal::ACCENT.with_alpha(110));
+            page = ui.col(pal::Role::Surface);
+            ui.clear(pal::Role::Surface);
+            ui.fill(100.0, 100.0, 120.0, 40.0, 0.0, pal::Role::Ok.with_alpha(30));
+            ui.stroke(
+                100.0,
+                200.0,
+                120.0,
+                40.0,
+                0.0,
+                pal::Role::Primary.with_alpha(110),
+            );
         }
         let f = canvas.frame();
         let at = |x: usize, y: usize| {

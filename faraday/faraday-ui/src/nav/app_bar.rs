@@ -21,16 +21,25 @@ pub struct AppBar<'s, A> {
 /// The bar at the top of the page, `w` wide, its name kept left of
 /// `right`, where the actions drawn after it begin.
 pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, right: f32) {
-    ui.fill(0.0, 0.0, w, APP_BAR_H, 0.0, SURFACE);
-    ui.fill(0.0, APP_BAR_H - 1.0, w, 1.0, 0.0, LINE);
+    ui.fill(0.0, 0.0, w, APP_BAR_H, 0.0, Role::Surface);
+    ui.fill(0.0, APP_BAR_H - 1.0, w, 1.0, 0.0, Role::OutlineVariant);
     let mut x = MARGIN_COMPACT;
     let room = |x: f32| (right - x).max(0.0);
     if let Some((label, action)) = bar.back {
         let (bx, by) = (GAP_SMALL, (APP_BAR_H - TOUCH) / 2.0);
-        if ui.is_pressed(action) || ui.is_hovered(action) {
-            ui.fill(bx, by, TOUCH, TOUCH, TOUCH / 2.0, INNER);
-        }
-        ui.icon(bx, by, TOUCH, Icon::ChevronLeft, NAV_ICON, TEXT);
+        ui.state_layer(
+            (bx, by, TOUCH, TOUCH, TOUCH / 2.0),
+            Role::OnSurfaceVariant.paint(),
+            action,
+        );
+        ui.icon(
+            bx,
+            by,
+            TOUCH,
+            Icon::ChevronLeft,
+            NAV_ICON,
+            Role::OnSurfaceVariant,
+        );
         ui.hit_quiet(bx, by, TOUCH, TOUCH, action);
         ui.back(action);
         x = bx + TOUCH;
@@ -38,11 +47,11 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
         let name = ui.fit(TITLE, W::S, bar.title, room(x));
         let lh = CAPTION + GAP_SMALL;
         let top = (APP_BAR_H - lh - TITLE - GAP_SMALL) / 2.0;
-        ui.text(x, top, CAPTION, W::R, MUTED, &label);
-        ui.text(x, top + lh, TITLE, W::S, TEXT, &name);
+        ui.text(x, top, CAPTION, W::R, Role::OnSurfaceVariant, &label);
+        ui.text(x, top + lh, TITLE, W::S, Role::OnSurface, &name);
     } else {
         let name = ui.fit(TITLE, W::S, bar.title, room(x));
-        ui.text_mid(x, 0.0, APP_BAR_H, TITLE, W::S, TEXT, &name);
+        ui.text_mid(x, 0.0, APP_BAR_H, TITLE, W::S, Role::OnSurface, &name);
     }
 }
 
@@ -57,12 +66,18 @@ pub fn icon_action<A: Copy + PartialEq>(
     on: bool,
 ) -> f32 {
     let (x, y) = (right - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
+    // Lit: a toggled icon button's selected state, its container
+    // secondary-container and its icon on it.
     if on {
-        ui.fill(x, y, TOUCH, TOUCH, TOUCH / 2.0, ACCENT.with_alpha(48));
-    } else if ui.is_pressed(action) || ui.is_hovered(action) {
-        ui.fill(x, y, TOUCH, TOUCH, TOUCH / 2.0, INNER);
+        ui.fill(x, y, TOUCH, TOUCH, TOUCH / 2.0, Role::SecondaryContainer);
     }
-    ui.icon(x, y, TOUCH, icon, NAV_ICON, if on { ACCENT } else { MUTED });
+    let fg = if on {
+        Role::OnSecondaryContainer
+    } else {
+        Role::OnSurfaceVariant
+    };
+    ui.state_layer((x, y, TOUCH, TOUCH, TOUCH / 2.0), fg.paint(), action);
+    ui.icon(x, y, TOUCH, icon, NAV_ICON, fg);
     ui.hit_quiet(x, y, TOUCH, TOUCH, action);
     x
 }
@@ -73,15 +88,22 @@ pub fn help<A: Copy + PartialEq>(ui: &mut Ui<A>, right: f32, action: A) -> f32 {
     let (x, y) = (right - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
     let d = ICON_SMALL + GAP_SMALL * 2.0;
     let (cx, cy) = (x + (TOUCH - d) / 2.0, y + (TOUCH - d) / 2.0);
-    let bg = if ui.is_pressed(action) || ui.is_hovered(action) {
-        INNER
-    } else {
-        SURFACE
-    };
-    ui.fill(cx, cy, d, d, d / 2.0, bg);
-    ui.stroke(cx, cy, d, d, d / 2.0, BORDER);
+    ui.state_layer(
+        (cx, cy, d, d, d / 2.0),
+        Role::OnSurfaceVariant.paint(),
+        action,
+    );
+    ui.stroke(cx, cy, d, d, d / 2.0, Role::Outline);
     let tw = ui.measure(LABEL, W::S, "?");
-    ui.text_mid(cx + (d - tw) / 2.0, cy, d, LABEL, W::S, MUTED, "?");
+    ui.text_mid(
+        cx + (d - tw) / 2.0,
+        cy,
+        d,
+        LABEL,
+        W::S,
+        Role::OnSurfaceVariant,
+        "?",
+    );
     ui.hit_quiet(x, y, TOUCH, TOUCH, action);
     x
 }
@@ -90,13 +112,20 @@ pub fn help<A: Copy + PartialEq>(ui: &mut Ui<A>, right: f32, action: A) -> f32 {
 /// where the next action ends.
 pub fn more<A: Copy + PartialEq>(ui: &mut Ui<A>, right: f32, action: A) -> f32 {
     let (x, y) = (right - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
-    if ui.is_pressed(action) || ui.is_hovered(action) {
-        ui.fill(x, y, TOUCH, TOUCH, TOUCH / 2.0, INNER);
-    }
+    ui.state_layer(
+        (x, y, TOUCH, TOUCH, TOUCH / 2.0),
+        Role::OnSurfaceVariant.paint(),
+        action,
+    );
     let (cx, cy) = (x + TOUCH / 2.0, y + TOUCH / 2.0);
     let r = GAP_SMALL / 2.0;
     for k in [-1.0f32, 0.0, 1.0] {
-        ui.dot(cx, cy + k * (GAP_SMALL + r * 2.0), r, MUTED);
+        ui.dot(
+            cx,
+            cy + k * (GAP_SMALL + r * 2.0),
+            r,
+            Role::OnSurfaceVariant,
+        );
     }
     ui.hit_quiet(x, y, TOUCH, TOUCH, action);
     x

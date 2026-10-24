@@ -49,14 +49,22 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             let ry = y + i as f32 * rh;
             self.checkbox(x + 10.0, ry + (rh - 18.0) / 2.0, *on, *enabled);
             let shown = self.fit(LABEL, W::R, label, w - LIST_RESERVE);
-            let fg = if *enabled { TEXT } else { DIM };
+            let fg = if *enabled {
+                Role::OnSurface.paint()
+            } else {
+                Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTENT)
+            };
             match values.get(i) {
                 Some(value) => {
                     let (lh, vh) = (self.line(LABEL, W::R), self.line(CAPTION, W::R));
                     let top = ry + (rh - lh - GAP_SMALL - vh) / 2.0;
                     self.text(x + LIST_INDENT, top, LABEL, W::R, fg, &shown);
                     let value = self.fit(CAPTION, W::R, value, w - LIST_RESERVE);
-                    let vc = if *enabled { MUTED } else { DIM };
+                    let vc = if *enabled {
+                        Role::OnSurfaceVariant.paint()
+                    } else {
+                        Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTENT)
+                    };
                     self.text(
                         x + LIST_INDENT,
                         top + lh + GAP_SMALL,
@@ -71,7 +79,12 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                 }
             }
             if i + 1 < rows.len() {
-                self.rule(x + LIST_INDENT, ry + rh, w - LIST_INDENT, BORDER);
+                self.rule(
+                    x + LIST_INDENT,
+                    ry + rh,
+                    w - LIST_INDENT,
+                    Role::OutlineVariant,
+                );
             }
             if *enabled {
                 self.hit(x, ry, w, rh, *action);
@@ -87,8 +100,8 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     pub fn code_box(&mut self, x: f32, y: f32, size: f32, text: &str) -> f32 {
         let width = self.measure(size, W::M, text) + 2.0 * GAP;
         let h = self.code_height(size);
-        self.fill(x, y, width, h, RADIUS_SMALL, INNER);
-        self.text_mid(x + GAP, y, h, size, W::M, TEXT, text);
+        self.fill(x, y, width, h, RADIUS_SMALL, Role::SurfaceContainerHighest);
+        self.text_mid(x + GAP, y, h, size, W::M, Role::OnSurface, text);
         width
     }
 

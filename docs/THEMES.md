@@ -228,12 +228,12 @@ several uses, C2 picks the role by the use, as the row says.
 | `STICK_FILL` | a stick box | surface-container-highest |
 | `STICK_EDGE` | its edge | outline |
 | `STICK_TEXT` | its name, glyph and × | on-surface-variant |
-| `VAULT_FILL` | a vault box | primary-container |
+| `VAULT_FILL` | a vault box | surface-container-lowest, its family shown by its edge and band (below) |
 | `VAULT_EDGE` | its edge, its solid band, the lock mark | primary |
 | `VAULT_ON` | text on its band | on-primary |
-| `PAPER_FILL` | paper on the board | tertiary-container |
+| `PAPER_FILL` | paper on the board | surface-container-lowest, its family shown by its edge and label (below) |
 | `PAPER_EDGE` | its edge | tertiary |
-| `PAPER_TEXT` | its name and glyph | on-tertiary-container |
+| `PAPER_TEXT` | its name and glyph | tertiary |
 | `FILES_FILL` | the files box in a stick | secondary-container |
 | `FILES_EDGE` | its edge | secondary |
 | `FILES_TEXT` | its name and glyph | on-secondary-container |
@@ -252,7 +252,13 @@ warning, error and on-surface-variant.
 
 The board's kinds keep one look each: places neutral, sticks the
 highest surface, vaults the primary family, files the secondary family,
-paper the tertiary family. A place is no longer green: green is OK, and
+paper the tertiary family. A vault and paper show their family by edge,
+band and label on the lowest surface, not by a container fill (C2, from
+the first renders): a fidelity scheme puts primary-container at the
+seed's own tone, which drew a vault dark blue in Cobalt Light, and
+tertiary-container at a fixed saturated tone, which drew paper brown in
+Cobalt and cyan in Bitcoin Orange. Files keep secondary-container, a
+light tone in every scheme. A place is no longer green: green is OK, and
 the board's rows turn green when a vault holds what the plan keeps in it.
 
 ## 7. Components and their roles

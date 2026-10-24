@@ -117,8 +117,8 @@ pub fn keyboard<A: Copy + PartialEq>(
     act: impl Fn(OskPress) -> A,
 ) {
     let rows = keyboard::rows(kind) as f32;
-    ui.fill(x, y, w, rows * row(kind) + 8.0, 0.0, SIDEBAR);
-    ui.fill(x, y, w, 1.0, 0.0, LINE);
+    ui.fill(x, y, w, rows * row(kind) + 8.0, 0.0, Role::SurfaceContainer);
+    ui.fill(x, y, w, 1.0, 0.0, Role::OutlineVariant);
     let kw = if compact { w } else { w.min(KEYS_MAX_W) };
     let kx = x + (w - kw) / 2.0;
     let area = faraday_draw::geom::Rect::new(
@@ -169,7 +169,7 @@ pub fn keyboard<A: Copy + PartialEq>(
                 18.0,
                 Icon::Delete,
                 12.0,
-                TEXT,
+                Role::OnSurface,
             ),
             KeyInput::Char(' ') => ui.icon(
                 kx + kw / 2.0 - 9.0,
@@ -177,7 +177,7 @@ pub fn keyboard<A: Copy + PartialEq>(
                 18.0,
                 Icon::Space,
                 12.0,
-                MUTED,
+                Role::OnSurfaceVariant,
             ),
             KeyInput::Shift => ui.icon(
                 kx + kw / 2.0 - 9.0,
@@ -185,7 +185,11 @@ pub fn keyboard<A: Copy + PartialEq>(
                 18.0,
                 Icon::ChevronUp,
                 12.0,
-                if keys.shift { ON_ACCENT } else { TEXT },
+                if keys.shift {
+                    Role::OnPrimary
+                } else {
+                    Role::OnSurface
+                },
             ),
             _ => {}
         }

@@ -26,8 +26,8 @@ pub struct Rail<'s, A> {
 /// `NAV_ITEM_H` where the rail has room and never less than a touch
 /// target, so a low window keeps every one in reach.
 pub fn rail<A: Copy + PartialEq>(ui: &mut Ui<A>, h: f32, r: &Rail<A>) {
-    ui.fill(0.0, 0.0, RAIL_W, h, 0.0, SIDEBAR);
-    ui.fill(RAIL_W - 1.0, 0.0, 1.0, h, 0.0, LINE);
+    ui.fill(0.0, 0.0, RAIL_W, h, 0.0, Role::SurfaceContainerLow);
+    ui.fill(RAIL_W - 1.0, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
     let n = r.top.len() + r.under.len() + r.foot.len();
     let divider = if r.under.is_empty() { 0.0 } else { 2.0 * GAP };
     let room = h - 2.0 * NAV_RAIL_TOP - divider;
@@ -38,7 +38,7 @@ pub fn rail<A: Copy + PartialEq>(ui: &mut Ui<A>, h: f32, r: &Rail<A>) {
         y += ih;
     }
     if !r.under.is_empty() {
-        ui.rule(PAD, y + GAP, RAIL_W - 2.0 * PAD, LINE);
+        ui.rule(PAD, y + GAP, RAIL_W - 2.0 * PAD, Role::OutlineVariant);
         y += divider;
         for d in r.under {
             item(ui, 0.0, y, RAIL_W, ih, d);
@@ -54,7 +54,7 @@ pub fn rail<A: Copy + PartialEq>(ui: &mut Ui<A>, h: f32, r: &Rail<A>) {
 
 /// An expanded rail's destination `d` at `(x, y, w)`, `w` wide and a
 /// touch target tall: its icon and label in a row, on a pill while it is
-/// current, and `end` at its right end in the muted tone. The whole row
+/// current, and `end` at its right end in the label's colour. The whole row
 /// is pressable.
 pub fn destination_row<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
@@ -65,11 +65,14 @@ pub fn destination_row<A: Copy + PartialEq>(
     let (icon, label, current, action) = (d.icon, d.label, d.current, d.action);
     let r = TOUCH / 2.0;
     if current {
-        ui.fill(x, y, w, TOUCH, r, ACCENT.with_alpha(48));
-    } else if ui.is_pressed(action) || ui.is_hovered(action) {
-        ui.fill(x, y, w, TOUCH, r, INNER);
+        ui.fill(x, y, w, TOUCH, r, Role::SecondaryContainer);
     }
-    let fg = if current { TEXT } else { MUTED };
+    let fg = if current {
+        Role::OnSecondaryContainer
+    } else {
+        Role::OnSurfaceVariant
+    };
+    ui.state_layer((x, y, w, TOUCH, r), fg.paint(), action);
     let ix = x + PAD;
     let iy = y + (TOUCH - ICON_SMALL) / 2.0;
     ui.icon(ix, iy, ICON_SMALL, icon, NAV_ICON, fg);
@@ -91,7 +94,7 @@ pub fn destination_row<A: Copy + PartialEq>(
     };
     ui.text_mid(tx, y, TOUCH, LABEL, face, fg, label);
     if let Some(e) = end {
-        ui.text_right(right, y, TOUCH, CAPTION, W::R, MUTED, e);
+        ui.text_right(right, y, TOUCH, CAPTION, W::R, fg, e);
     }
     ui.hit_quiet(x, y, w, TOUCH, action);
 }

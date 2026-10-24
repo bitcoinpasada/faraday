@@ -56,26 +56,35 @@ pub fn status_chip<A: Copy + PartialEq>(
         ui.measure(size, W::R, &tail_s) + GRID
     };
     let w = (2.0 * STATUS_CHIP_PAD + lead + hw + tw).min(max);
-    let pressed = action.is_some_and(|a| ui.is_pressed(a) || ui.is_hovered(a));
     let r = GRID;
-    ui.fill(
-        x,
-        y,
-        w,
-        STATUS_CHIP_H,
-        r,
-        if pressed { INNER } else { SURFACE },
-    );
-    ui.stroke(x, y, w, STATUS_CHIP_H, r, BORDER);
+    if let Some(a) = action {
+        ui.state_layer((x, y, w, STATUS_CHIP_H, r), Role::OnSurface.paint(), a);
+    }
+    ui.stroke(x, y, w, STATUS_CHIP_H, r, Role::Outline);
     let mut tx = x + STATUS_CHIP_PAD;
     if let Some(i) = icon {
         let iy = y + (STATUS_CHIP_H - ICON_SMALL) / 2.0;
-        ui.icon(tx, iy, ICON_SMALL, i, NAV_ICON - GAP_SMALL, MUTED);
+        ui.icon(
+            tx,
+            iy,
+            ICON_SMALL,
+            i,
+            NAV_ICON - GAP_SMALL,
+            Role::OnSurfaceVariant,
+        );
         tx += lead;
     }
-    ui.text_mid(tx, y, STATUS_CHIP_H, size, head.1, TEXT, &head_s);
+    ui.text_mid(tx, y, STATUS_CHIP_H, size, head.1, Role::OnSurface, &head_s);
     if !tail_s.is_empty() {
-        ui.text_mid(tx + hw + GRID, y, STATUS_CHIP_H, size, W::R, MUTED, &tail_s);
+        ui.text_mid(
+            tx + hw + GRID,
+            y,
+            STATUS_CHIP_H,
+            size,
+            W::R,
+            Role::OnSurfaceVariant,
+            &tail_s,
+        );
     }
     if let Some(a) = action {
         let ty = y - (TOUCH - STATUS_CHIP_H) / 2.0;

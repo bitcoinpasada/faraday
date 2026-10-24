@@ -109,16 +109,19 @@ fn split(a: Rect, b: Rect, da: Rect, db: Rect) -> (Rect, Rect) {
 /// its own shape dimmed (`docs/DESIGN.md` §4.13).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Style {
-    /// The one action a screen leads with: filled in the accent.
+    /// The one action a screen leads with: filled in primary.
     Primary,
-    /// A second action that matters: filled in `SELECTED`, no edge.
+    /// A second action that matters: filled in secondary-container, no
+    /// edge.
     Tonal,
-    /// Any other action: outlined in `OUTLINE`.
+    /// Any other action: outlined in the outline role, its label in
+    /// primary.
     Secondary,
-    /// A quiet action beside others: a text button, its label in the
-    /// accent.
+    /// A quiet action beside others: a text button, its label in
+    /// primary.
     Ghost,
-    /// The chosen one of a set of options: `SELECTED`, with a tick.
+    /// The chosen one of a set of options: secondary-container, with a
+    /// tick.
     Selected,
     /// An outlined button shown but not available now.
     Disabled,
@@ -164,14 +167,17 @@ impl Style {
         )
     }
 
-    /// The colour of its label.
-    pub const fn label(self) -> Paint {
+    /// The colour of its label, and of its state layer (Material's
+    /// component specs, `docs/THEMES.md` §7); a kind not available now
+    /// has on-surface at the disabled opacity (§8).
+    pub fn label(self) -> Paint {
         match self {
-            Style::Primary => ON_ACCENT,
-            Style::Tonal | Style::Selected => ON_SELECTED,
-            Style::Secondary => TEXT,
-            Style::Ghost => ACCENT,
-            Style::Disabled | Style::PrimaryOff | Style::TonalOff | Style::GhostOff => DIM,
+            Style::Primary => Role::OnPrimary.paint(),
+            Style::Tonal | Style::Selected => Role::OnSecondaryContainer.paint(),
+            Style::Secondary | Style::Ghost => Role::Primary.paint(),
+            Style::Disabled | Style::PrimaryOff | Style::TonalOff | Style::GhostOff => {
+                Role::OnSurface.at(faraday_draw::tokens::DISABLED_CONTENT)
+            }
         }
     }
 }
@@ -270,7 +276,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
 
     /// The focus ring round a control at (x, y), w by h with corners of
     /// `r`, when the keyboard is on `action`: [`FOCUS_RING`] thick,
-    /// [`FOCUS_OFFSET`] outside it, in the accent as it is read.
+    /// [`FOCUS_OFFSET`] outside it, in secondary (`docs/THEMES.md` §7).
     pub fn focus_ring(&mut self, at: (f32, f32, f32, f32, f32), action: A) {
         let (x, y, w, h, r) = at;
         if self.focused != Some(action) {
@@ -278,7 +284,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         }
         let out = FOCUS_OFFSET + FOCUS_RING;
         let rect = self.rect(x - out, y - out, w + 2.0 * out, h + 2.0 * out);
-        let color = self.col(ACCENT_TEXT);
+        let color = self.col(Role::Secondary);
         self.c
             .stroke_rounded_rect(rect, (r + out) * self.f, FOCUS_RING * self.f, color);
     }
@@ -288,7 +294,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     pub fn hit_shaped(&mut self, at: (f32, f32, f32, f32, f32), action: A) {
         let (x, y, w, h, r) = at;
         if !self.dimmed.contains(&action) {
-            self.state_layer((x, y, w, h, r), TEXT, action);
+            self.state_layer((x, y, w, h, r), Role::OnSurface.paint(), action);
             self.focus_ring((x, y, w, h, r), action);
         }
         self.hit_drawn(x, y, w, h, action);
@@ -308,7 +314,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// A segmented button (Material's): `options` side by side in one
     /// outlined container `h` tall at (x, y), round at its ends, each
     /// segment [`Ui::segment_width`] wide; the chosen one filled in
-    /// `SELECTED` with a tick. `slide`, while the choice moves, is where
+    /// secondary-container with a tick. `slide`, while the choice moves, is where
     /// the fill is, in segments from the first. Returns its width.
     pub fn segmented(
         &mut self,
@@ -326,7 +332,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let at = slide.or(chosen.map(|c| c as f32));
         if let Some(at) = at {
             let seg = self.rect(x + at * sw, y, sw, h).intersect(&shape);
-            let fill = self.col(SELECTED);
+            let fill = self.col(Role::SecondaryContainer);
             self.c.push_clip(seg);
             self.c.fill_rounded_rect(shape, r * self.f, fill);
             self.c.pop_clip();
@@ -335,12 +341,17 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             let sx = x + i as f32 * sw;
             let on = chosen == Some(i);
             let seg = self.rect(sx, y, sw, h).intersect(&shape);
-            let layer = if on { ON_SELECTED } else { TEXT };
+            let layer = if on {
+                Role::OnSecondaryContainer
+            } else {
+                Role::OnSurface
+            }
+            .paint();
             self.c.push_clip(seg);
             self.state_layer((x, y, total, h, r), layer, action);
             self.c.pop_clip();
             if i > 0 {
-                self.vrule(sx, y, h, OUTLINE);
+                self.vrule(sx, y, h, Role::Outline);
             }
             let tw = self.measure(size, W::S, label);
             if on {
@@ -353,17 +364,25 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                     ICON_GLYPH_BUTTON,
                     Icon::Done,
                     ICON_GLYPH_BUTTON,
-                    ON_SELECTED,
+                    Role::OnSecondaryContainer,
                 );
                 let lx = gx + ICON_GLYPH_BUTTON + ICON_GAP;
-                self.text_mid(lx, y, h, size, W::S, ON_SELECTED, label);
+                self.text_mid(lx, y, h, size, W::S, Role::OnSecondaryContainer, label);
             } else {
-                self.text_mid(sx + (sw - tw) / 2.0, y, h, size, W::S, TEXT, label);
+                self.text_mid(
+                    sx + (sw - tw) / 2.0,
+                    y,
+                    h,
+                    size,
+                    W::S,
+                    Role::OnSurface,
+                    label,
+                );
             }
             self.focus_ring((sx, y, sw, h, r), action);
             self.hit_drawn(sx, y, sw, h, action);
         }
-        self.stroke(x, y, total, h, r, OUTLINE);
+        self.stroke(x, y, total, h, r, Role::Outline);
         total
     }
 
@@ -402,7 +421,7 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     /// tall: `done`, 0 to 1, of the track filled; or, for work with no
     /// count (`done` `None`), a bar moving along it, `phase` of the way
     /// through its pass, or with reduce motion (`phase` `None`) the
-    /// whole track in a fainter accent, still.
+    /// whole track in primary at half strength, still.
     pub fn progress(&mut self, (x, y, w): (f32, f32, f32), done: Option<f32>, phase: Option<f32>) {
         let h = PROGRESS_H;
         let r = shape_full(h);
@@ -410,12 +429,12 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
         let shown = done.map(|d| d.clamp(0.0, 1.0));
         self.c
             .note(faraday_draw::canvas::InkKind::Progress(shown), track);
-        self.fill(x, y, w, h, r, SELECTED);
+        self.fill(x, y, w, h, r, Role::SurfaceContainerHighest);
         match (done, phase) {
             (Some(d), _) => {
                 let dw = w * d.clamp(0.0, 1.0);
                 if dw > 0.0 {
-                    self.fill(x, y, dw, h, r, ACCENT);
+                    self.fill(x, y, dw, h, r, Role::Primary);
                 }
             }
             (None, Some(p)) => {
@@ -425,11 +444,11 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                 let at = x - span + (w + span) * p.clamp(0.0, 1.0);
                 let track = self.rect(x, y, w, h);
                 self.c.push_clip(track);
-                self.fill(at, y, span, h, r, ACCENT);
+                self.fill(at, y, span, h, r, Role::Primary);
                 self.c.pop_clip();
             }
             (None, None) => {
-                self.wash(x, y, w, h, r, ACCENT.with_alpha(alpha_of(0.5)));
+                self.wash(x, y, w, h, r, Role::Primary.at(0.5));
             }
         }
     }
