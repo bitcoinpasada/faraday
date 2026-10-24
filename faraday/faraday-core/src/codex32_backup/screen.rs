@@ -191,6 +191,22 @@ pub(crate) fn item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
         string_row(ui, (x, cy, w), &line, done, press);
         cy += t::TOUCH;
     }
+    // How many strings of a set that exists there are (§9.4).
+    if form.fixed() && form.k >= 2 {
+        let id = form.id_text().unwrap_or_default();
+        crate::screens::stepper(
+            ui,
+            x,
+            cy,
+            w,
+            &fill(EN.c32r_how_many, &[&id]),
+            form.n(),
+            a(Press::Exist(-1)),
+            a(Press::Exist(1)),
+            true,
+        );
+        cy += t::STEPPER_ROW;
+    }
     if form.unknown > 0 {
         cy += ui.wrap(
             x,

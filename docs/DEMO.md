@@ -127,9 +127,14 @@ public values work; only the actions in the table are disabled.
   and refuses a set that is not public as any key is; **Check a string**
   answers for any string, since it loads and keeps nothing; **Suggest
   corrections** is open on the same form; a Codex32QR code of a public
-  seed's string is read and shown. Make codex32 shares opens and its
-  entry runs; its Lock in loads nothing (CODEX32 §12 plans the sample
-  in place of the strings made).
+  seed's string is read and shown; **Make the rest** and **Add a share**
+  take the published sets only. Make codex32 shares opens and its entry
+  runs, the sheets filling from the person's rolls or typing, or from
+  **Use a sample**; at the entry's Continue the strings made are dropped
+  and the sample set, BIP 93's vector 2, stands in their place on every
+  later card, with the line "Demo puts sample NAME in place of these
+  strings"; its Lock in loads the sample's key. Strings from the
+  person's own rolls never leave the entry.
 - **New key**: every length and source (dice, coins, cards, hex,
   camera, the generator, a mix), its words and quiz; Lock in adds the
   next public seed in place of the key made (§5.1).

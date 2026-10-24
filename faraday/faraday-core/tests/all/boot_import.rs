@@ -993,6 +993,13 @@ fn every_kind_of_seed_file_imported_with_the_stick_in_loads_at_the_pull() {
         if let Some(want) = want {
             assert_eq!(key_fps(&app), [want], "{kind}");
         }
+        // A key of codex32 strings keeps its set's facts: the strings in
+        // Files (`docs/CODEX32.md` §9.4).
+        if kind == "codex32 shares" {
+            let set = app.session.keys[0].codex32.clone().expect("the set");
+            assert_eq!(set.threshold, 2);
+            assert_eq!(set.indices().len(), 2, "{kind}");
+        }
     }
 }
 

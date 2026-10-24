@@ -295,6 +295,7 @@ pub(crate) fn wallet_card(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Some(Action::Glance(true)),
         );
     }
+    cy += crate::screens::slot_marks(app, ui, (x, cy, iw), &slots);
     if !quorum_here {
         cy += 4.0;
         cy += missing_keys_line(app, ui, &slots, Screen::Wallets, x, cy, iw);
@@ -868,7 +869,7 @@ pub(crate) fn entry_form(
     }
     y += 6.0;
     if form == Form::Codex32 {
-        y += crate::screens::codex32_check_button(app, ui, x, y);
+        y += crate::screens::codex32_check_button(app, ui, x, y, iw);
     }
     entry_form_foot(app, ui, (x, y, iw), flow, (checking, replaced))
 }

@@ -49,6 +49,10 @@ pub struct Parts {
     pub codex32: Vec<Codex32>,
     /// Seed XOR parts.
     pub xor: SeedXor,
+    /// How many strings of the codex32 strings' set the open vaults keep
+    /// at other indices (`docs/CODEX32.md` §9.5): they count towards
+    /// `k`. A count, kept in step at every string taken.
+    pub codex32_vaults: usize,
 }
 
 /// Room for every share a backup can have, made at the start: a list
@@ -62,6 +66,7 @@ impl Default for Parts {
             slip39: Vec::with_capacity(PART_ROOM),
             codex32: Vec::with_capacity(PART_ROOM),
             xor: SeedXor::default(),
+            codex32_vaults: 0,
         }
     }
 }
@@ -105,6 +110,10 @@ impl Parts {
                         )
                     }
                 })
+                .chain(
+                    (self.codex32_vaults > 0)
+                        .then(|| fill(EN.c32r_in_vaults, &[&self.codex32_vaults.to_string()])),
+                )
                 .collect(),
             Form::Xor => (1..=self.xor.parts())
                 .map(|i| {
@@ -125,10 +134,10 @@ impl Parts {
                 .slip39
                 .first()
                 .is_some_and(|s| self.slip39.len() >= usize::from(s.member_threshold())),
-            Form::Codex32 => self
-                .codex32
-                .first()
-                .is_some_and(|c| c.is_secret() || self.codex32.len() >= usize::from(c.threshold())),
+            Form::Codex32 => self.codex32.first().is_some_and(|c| {
+                c.is_secret()
+                    || self.codex32.len() + self.codex32_vaults >= usize::from(c.threshold())
+            }),
             Form::Xor => self.xor.parts() >= faraday_entropy::MIN_XOR_PARTS,
             Form::Words => false,
         }
@@ -149,6 +158,13 @@ pub enum C32Press {
     Check,
     /// **Check it**: the string in the field is checked.
     CheckIt,
+    /// **Show the worksheet** of the string checked, or its final row
+    /// alone again (§8.3).
+    Sheet,
+    /// **Make the rest** from the `k` strings in (§8.1 step 2).
+    Rest,
+    /// **Add a share** from the `k` strings in (§8.2).
+    AddShare,
 }
 
 /// A string typed or scanned at a share index already in, which
@@ -226,6 +242,66 @@ pub struct Codex32Form {
     pub checking: bool,
     /// What the last Check it found.
     pub checked: Option<Checked>,
+    /// The checksum worksheet of the string last checked, in the
+    /// verification form, kept with what Check it found and dropped with
+    /// it (§8.3).
+    pub sheet: Option<faraday_keys::StringCheck>,
+    /// **Show the worksheet** is open: every row of it, not only the
+    /// final row.
+    pub sheet_open: bool,
+    /// Make the rest or Add a share was pressed: once `k` strings are in
+    /// the make flow opens on them, in place of loading the key.
+    pub making: Option<crate::codex32::Given>,
+    /// How many strings of the set of the string last checked the open
+    /// vaults keep (§9.5).
+    pub check_in_vaults: usize,
+    /// The strings in all Make the rest starts on, where Make codex32
+    /// shares' Scheme card chose it for shares made by hand (§5.3); 0
+    /// where none was chosen.
+    pub rest_n: u8,
+}
+
+impl Codex32Form {
+    /// Forgets what Check it found, its worksheet with it.
+    pub fn forget_check(&mut self) {
+        self.checked = None;
+        self.sheet = None;
+        self.sheet_open = false;
+    }
+}
+
+/// The plain facts of the set the codex32 strings `typed` are of, for the
+/// key they load (`docs/CODEX32.md` §9.4, "Loaded from strings"): k, the
+/// identifier, the length and each index typed. How many strings exist
+/// besides is the plan's question (§9.4), so none is counted here. `None`
+/// with no string in.
+pub fn set_facts(typed: &[Codex32]) -> Option<faraday_vault::codex32::SetFacts> {
+    let first = typed.first()?;
+    Some(faraday_vault::codex32::SetFacts {
+        threshold: first.threshold(),
+        identifier: first.identifier(),
+        length: u8::try_from(first.encode().as_str().len()).unwrap_or(0),
+        unknown: 0,
+        strings: typed
+            .iter()
+            .map(|s| (s.share_index(), faraday_vault::codex32::State::Made))
+            .collect(),
+    })
+}
+
+/// Whether Make the rest and Add a share are offered: a string of a split
+/// set is in (§8.1, §8.2). Pressed before the last of the `k` strings, the
+/// strings then make the rest or a share in place of loading the key.
+pub fn offers_more(parts: &Parts) -> bool {
+    parts.codex32.first().is_some_and(|c| c.threshold() >= 2)
+}
+
+/// Whether `k` strings of a split set are in, the secret counting as one.
+pub fn makes_more(parts: &Parts) -> bool {
+    parts
+        .codex32
+        .first()
+        .is_some_and(|c| c.threshold() >= 2 && parts.codex32.len() >= usize::from(c.threshold()))
 }
 
 /// The line a string that does not parse is refused with: a share or

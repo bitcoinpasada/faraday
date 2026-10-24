@@ -10,6 +10,50 @@ use crate::{Action, Screen};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, title, wrap_buttons};
 
+/// The line beside key `fp`'s fingerprint where the codex32 strings it
+/// was loaded from went in by a correction (`docs/CODEX32.md` §8.4):
+/// "9a6a2580 · Share entry corrected", or "… · Share repairs unchecked"
+/// in the caution tone. Nothing for any other key. Returns its height.
+pub(crate) fn mark_line(
+    app: &View,
+    ui: &mut Ui,
+    x: f32,
+    y: f32,
+    w: f32,
+    fp: faraday_bip::keys::Fingerprint,
+) -> f32 {
+    use crate::codex32_correct::Mark;
+    let Some(mark) = app.session.key_marks.of(fp.0) else {
+        return 0.0;
+    };
+    let (icon, tone) = match mark {
+        Mark::Corrected => (Icon::Info, MUTED),
+        Mark::Repaired => (Icon::Warning, WARN),
+    };
+    let text = fill(EN.c32r_key_mark, &[&fp_text(fp), mark.fingerprint_line()]);
+    crate::codex32_correct::screen::line(ui, x, y, w, icon, tone, &text)
+        + faraday_draw::tokens::CORRECT_GAP
+}
+
+/// The line under each key held by wallet `slots`' keys that carries a
+/// codex32 mark (§8.4). Returns the height.
+pub(crate) fn slot_marks(
+    app: &View,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    slots: &[crate::wallet::Slot],
+) -> f32 {
+    let mut h = 0.0;
+    for fp in slots
+        .iter()
+        .filter(|s| s.held_by.is_some())
+        .filter_map(|s| s.fingerprint)
+    {
+        h += mark_line(app, ui, x, y + h, w, fp);
+    }
+    h
+}
+
 /// The wallet card's backup line (`docs/history/SIMPLIFY.md` §5.2) for loaded
 /// wallet `i`, which opens Backups on it. Returns the height it took.
 pub(crate) fn backup_line(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) -> f32 {
@@ -119,6 +163,7 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     if let [only] = loose.as_slice() {
         let line = fill(EN.loose_card_key_is_loaded, &[&fp_text(*only).to_string()]);
         cy += ui.wrap(x, cy, w, 15.0, W::R, TEXT, &line) + 16.0;
+        cy += mark_line(app, ui, x, cy, w, *only);
     } else {
         let line = fill(EN.loose_card_keys_are, &[&loose.len().to_string()]);
         cy += ui.wrap(x, cy, w, 15.0, W::R, TEXT, &line) + 10.0;
@@ -139,6 +184,7 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
             ui.hit(x, cy, w, 40.0, Action::PickKey(fp.0));
             ui.rule(x, cy + 40.0, w, INNER);
             cy += 42.0;
+            cy += mark_line(app, ui, x, cy, w, *fp);
         }
         cy += 14.0;
     }
@@ -304,6 +350,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             let line = ui.fit(13.0, W::R, &line, listw - 8.0);
             ui.text(x + 4.0, ly, 13.0, W::R, TEXT, &line);
             ly += KEY_ROW;
+            ly += mark_line(app, ui, x, ly, listw, *fp);
             // With wallets loaded the card shows one of them: the key's
             // own row offers the wallet from it.
             if !none {
@@ -568,6 +615,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some(g) = app.glance_of(app.wallets.wallet()) {
         cy += crate::glance::draw(ui, &g, crate::glance::Direction::WalletFirst, ix, cy, iw);
     }
+    cy += slot_marks(app, ui, (ix, cy, iw), &slots);
     // Where the keys still missing may be.
     let quorum_here =
         slots.iter().filter(|s| s.held_by.is_some()).count() >= crate::wallet::needed(wlt);

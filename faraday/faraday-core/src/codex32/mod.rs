@@ -37,7 +37,7 @@ use faraday_bip::codex32::{Length, Scheme};
 use faraday_codec::qr::QrMatrix;
 use faraday_crypto::work::Compute;
 use faraday_entropy::booklet::{self, BOOKLET_DICE, BookletChar};
-use faraday_keys::{Held, Reveal, WorkSet};
+use faraday_keys::{Held, Making, Reveal, WorkSet};
 pub use faraday_ui::keyboard::OskPress;
 use zeroize::{Zeroize, Zeroizing};
 
@@ -128,10 +128,26 @@ pub enum Way {
     Dice,
     /// Characters made on paper, typed (§5.2).
     Typed,
+    /// Shares made by hand, each string typed whole (§5.3, §8.1): the
+    /// flow hands over to Add a key's codex32 form, Make the rest on.
+    Shares,
 }
 
 /// The ways in the order the card lists them.
-pub const WAYS: [Way; 2] = [Way::Dice, Way::Typed];
+pub const WAYS: [Way; 3] = [Way::Dice, Way::Typed, Way::Shares];
+
+/// A set made of strings typed into Add a key's codex32 form
+/// (`docs/CODEX32.md` §8.1, §8.2): the flow opens on its first card with
+/// the strings in, and the identifier, the entropy and the entry are the
+/// strings'.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Given {
+    /// **Make the rest** (§8.1 step 2): how many strings in all is asked,
+    /// then every string not typed is made.
+    Rest,
+    /// **Add a share** (§8.2): the index is asked, then its string made.
+    Add,
+}
 
 /// A cell of a worksheet, as a press names it to open its working
 /// (`docs/CODEX32.md` §7.4). `sheet` is an initial share's place for a
@@ -247,6 +263,9 @@ pub enum C32 {
     /// A press on the five-dice roller beside the pad (Faraday Desktop,
     /// §5.5).
     Roller(five::Act),
+    /// **Use a sample** on the entry, in Demo (§12): the characters left,
+    /// from the sample's shares.
+    Sample,
 }
 
 /// One die's two values for one character, as entered: struck where
@@ -384,6 +403,25 @@ pub struct Codex32Make {
     /// Whether the set's faces came from the roller, in part or all:
     /// taken when the set completes, for Strings made.
     sim: Sim,
+    /// A set made of strings typed in, and what it makes (§8.1, §8.2).
+    given: Option<Given>,
+    /// The strings typed in, until the set is made of them.
+    inputs: Vec<faraday_bip::codex32::Codex32>,
+    /// Add a share's index, lowercase.
+    add_at: u8,
+    /// The strongest mark the strings typed in carry (§8.4), for the key
+    /// Lock in loads.
+    mark: Option<crate::codex32_correct::Mark>,
+    /// The Entropy card's Continue on shares made by hand: New key hands
+    /// over to Add a key's codex32 form.
+    hand: bool,
+    /// Demo put its sample in place of the set entered (§12): every card
+    /// after the entry shows the sample's.
+    sample: bool,
+    /// In Demo, the sample's published strings, which stand in place of
+    /// the set entered (none where the shell gave no sample); `None`
+    /// outside Demo.
+    demo: Option<Vec<faraday_bip::codex32::Codex32>>,
 }
 
 impl Codex32Make {
@@ -429,7 +467,65 @@ impl Codex32Make {
             roller: FiveRoller::default(),
             rolled_dice: [false; BOOKLET_DICE],
             sim: Sim::No,
+            given: None,
+            inputs: Vec::new(),
+            add_at: b'a',
+            mark: None,
+            hand: false,
+            sample: false,
+            demo: None,
         }
+    }
+
+    /// The flow in Demo (§12, `docs/DEMO.md` §5): `sample` is the
+    /// published set that stands in place of the strings entered, the
+    /// shares of BIP 93's vector 2. Cheap.
+    pub(crate) fn in_demo(mut self, sample: Vec<faraday_bip::codex32::Codex32>) -> Codex32Make {
+        self.demo = Some(sample);
+        self
+    }
+
+    /// Whether the flow runs in Demo.
+    pub fn demo(&self) -> bool {
+        self.demo.is_some()
+    }
+
+    /// The flow on `strings`, `k` strings of one set typed into Add a
+    /// key's codex32 form (§8.1, §8.2), `mark` the strongest they carry:
+    /// open on its first card, the identifier, the entropy and the entry
+    /// being the strings'. Cheap.
+    pub fn given(
+        kind: Given,
+        strings: Vec<faraday_bip::codex32::Codex32>,
+        mark: Option<crate::codex32_correct::Mark>,
+    ) -> Codex32Make {
+        let mut m = Codex32Make::new(Vec::new());
+        let k = strings.first().map_or(2, |s| s.threshold());
+        let chars = strings.first().map_or(48, |s| s.encode().as_str().len());
+        m.length = Length::of_chars(chars).unwrap_or(Length::Chars48);
+        if let Some(first) = strings.first() {
+            m.id = first
+                .identifier()
+                .map(|c| symbol_of(char::from(c)).unwrap_or(0));
+            m.id_len = 4;
+        }
+        m.split = Split::Other;
+        m.other_k = k;
+        m.other_n = (k + 1).min(faraday_bip::codex32::MAX_SHARES);
+        let held: Vec<u8> = strings.iter().map(|s| s.share_index()).collect();
+        m.add_at = faraday_bip::codex32::INDEX_ORDER
+            .iter()
+            .copied()
+            .find(|i| !held.contains(i))
+            .unwrap_or(b'a');
+        for c in [Card::Identifier, Card::Entropy, Card::Enter] {
+            m.done[usize::from(c.index())] = true;
+        }
+        m.way = Way::Typed;
+        m.given = Some(kind);
+        m.inputs = strings;
+        m.mark = mark;
+        m
     }
 
     /// The flow on Faraday Desktop, where the sheets are never masked
@@ -453,6 +549,63 @@ impl Codex32Make {
     }
 
     // ----- What drawing reads -----
+
+    /// A set made of strings typed in, and what it makes.
+    pub fn given_kind(&self) -> Option<Given> {
+        self.given
+    }
+
+    /// Add a share's index, lowercase.
+    pub fn add_at(&self) -> u8 {
+        self.add_at
+    }
+
+    /// Whether Add a share's index is one of the strings typed in, or the
+    /// secret's: the index then makes nothing.
+    pub fn add_at_taken(&self) -> bool {
+        self.add_at == b's'
+            || self.inputs.iter().any(|s| s.share_index() == self.add_at)
+            || self
+                .work
+                .as_ref()
+                .is_some_and(|w| w.inputs().contains(&self.add_at))
+    }
+
+    /// The share indices of the strings typed in, lowercase; none for a
+    /// fresh set. Cheap.
+    pub fn input_indices(&self) -> Vec<u8> {
+        match self.work.as_ref() {
+            Some(w) if w.is_given() => w.inputs().to_vec(),
+            _ => self.inputs.iter().map(|s| s.share_index()).collect(),
+        }
+    }
+
+    /// The Entropy card went on with shares made by hand (§5.3): they are
+    /// typed on Add a key's codex32 form, Make the rest on.
+    pub fn by_hand(&self) -> bool {
+        self.hand
+    }
+
+    /// Make the rest's strings in all set to `n`, as the Scheme card of a
+    /// set to be made by hand chose (§8.1 step 2): one more than the
+    /// threshold at least.
+    pub fn rest_of(mut self, n: u8) -> Codex32Make {
+        self.other_n = n.clamp(
+            (self.other_k + 1).min(faraday_bip::codex32::MAX_SHARES),
+            faraday_bip::codex32::MAX_SHARES,
+        );
+        self
+    }
+
+    /// Demo's sample stands in place of the set entered (§12).
+    pub fn sample(&self) -> bool {
+        self.sample
+    }
+
+    /// The strongest mark the strings typed in carry (§8.4).
+    pub fn mark(&self) -> Option<crate::codex32_correct::Mark> {
+        self.mark
+    }
 
     /// The open card.
     pub fn open(&self) -> Option<Card> {
@@ -536,7 +689,7 @@ impl Codex32Make {
     pub fn front(&self) -> Option<(usize, usize)> {
         let w = self.work.as_ref()?;
         let data = w.scheme().length().data_len();
-        (0..w.scheme().initial_indices().len())
+        (0..w.inputs().len())
             .map(|s| (s, w.entered(s)))
             .find(|&(_, n)| n < data)
     }
@@ -670,20 +823,24 @@ impl Codex32Make {
         let Some(w) = self.work.as_ref() else {
             return Vec::new();
         };
-        let initial = w.scheme().initial_indices();
+        let initial = w.inputs();
         let mut out = Vec::new();
         let name = |s: u8| {
-            if w.scheme().threshold() == 0 {
+            if w.scheme().threshold() == 0 || s == b's' {
                 EN.codex32_the_secret.to_string()
             } else {
                 char::from(s.to_ascii_uppercase()).to_string()
             }
         };
-        if self.rolled {
+        // The dice are the person's; with Demo's sample in place they made
+        // no string shown (§12).
+        if self.rolled && !self.sample {
             for (s, &i) in initial.iter().enumerate() {
                 out.push((fill(EN.codex32_tab_dice, &[&name(i)]), Tab::Dice(s)));
             }
         }
+        // Each input's checksum worksheet: of a set typed in, the strings
+        // typed, in the verification form (§8.1 step 3).
         for (s, &i) in initial.iter().enumerate() {
             out.push((fill(EN.codex32_tab_checksum, &[&name(i)]), Tab::Checksum(s)));
         }
@@ -720,23 +877,33 @@ impl Codex32Make {
         match press {
             C32::Card(i) => self.toggle(i),
             C32::Next => self.next(c),
-            C32::Length(i) if self.work.is_none() && !self.fixed => {
+            C32::Length(i) if self.scheme_open() => {
                 self.length = if i == 0 {
                     Length::Chars48
                 } else {
                     Length::Chars74
                 };
             }
-            C32::Split(i) if self.work.is_none() && !self.fixed => {
+            C32::Split(i) if self.scheme_open() => {
                 if let Some(&s) = SPLITS.get(usize::from(i)) {
                     self.split = s;
                 }
             }
-            C32::K(d) if self.work.is_none() && !self.fixed => {
+            C32::K(d) if self.scheme_open() => {
                 self.other_k = step(self.other_k, d, 2, faraday_bip::codex32::MAX_THRESHOLD);
                 self.other_n = self.other_n.max(self.other_k);
             }
-            C32::N(d) if self.work.is_none() && !self.fixed => {
+            // Make the rest asks how many strings in all: one more than
+            // those typed, at least (§8.1 step 2).
+            C32::N(d) if self.work.is_none() && self.given == Some(Given::Rest) => {
+                self.other_n = step(
+                    self.other_n,
+                    d,
+                    self.other_k + 1,
+                    faraday_bip::codex32::MAX_SHARES,
+                );
+            }
+            C32::N(d) if self.scheme_open() => {
                 self.other_n = step(
                     self.other_n,
                     d,
@@ -761,8 +928,15 @@ impl Codex32Make {
             }
             C32::Qr => self.qr_on = !self.qr_on && self.qr.is_some(),
             C32::Skip => self.skip(c),
+            C32::Sample if self.open == Some(Card::Enter) => self.use_sample(c),
             _ => self.view_press(press),
         }
+    }
+
+    /// Whether the Scheme card's length and split take a press: before
+    /// the entry, not fixed by a wallet's Quorum, not a set typed in.
+    fn scheme_open(&self) -> bool {
+        self.work.is_none() && !self.fixed && self.given.is_none()
     }
 
     /// The presses that only change what is shown.
@@ -906,6 +1080,7 @@ impl Codex32Make {
     /// (a string shown). The open card's Continue.
     fn next(&mut self, c: &Compute) {
         match self.open {
+            Some(Card::Scheme) if self.given.is_some() => self.make_given(c),
             Some(Card::Scheme) => self.finish(Card::Scheme, Card::Identifier),
             Some(Card::Identifier) => {
                 if self.id_len < 4 {
@@ -914,6 +1089,11 @@ impl Codex32Make {
                     self.finish(Card::Identifier, Card::Entropy);
                 }
             }
+            // Shares made by hand are typed whole on Add a key's form
+            // (§5.3): New key hands over to it (`Codex32Make::by_hand`).
+            Some(Card::Entropy) if self.way == Way::Shares && self.work.is_none() => {
+                self.hand = true;
+            }
             Some(Card::Entropy) => {
                 if self.work.is_none() && !self.begin(c) {
                     return;
@@ -921,6 +1101,11 @@ impl Codex32Make {
                 self.finish(Card::Entropy, Card::Enter);
             }
             Some(Card::Enter) if self.strings.is_some() => {
+                // In Demo the strings made never leave the entry: the
+                // sample stands in their place (§12).
+                if !self.sample && self.demo.is_some() && !self.put_sample(c) {
+                    return;
+                }
                 self.seen = vec![false; self.tabs().len()];
                 self.show_tab(0);
                 self.finish(Card::Enter, Card::Sheets);
@@ -936,6 +1121,98 @@ impl Codex32Make {
             }
             Some(Card::Strings) => self.string_next(c),
             _ => {}
+        }
+    }
+
+    /// Costs what `WorkSet::given` costs: a worksheet of each string typed
+    /// in and an interpolation for each string made. The first card's
+    /// Continue for a set typed in (§8.1, §8.2): the strings made, the
+    /// worksheets read back next.
+    fn make_given(&mut self, c: &Compute) {
+        let making = match self.given {
+            Some(Given::Add) => {
+                if self.add_at_taken() {
+                    self.note = Some(EN.c32r_index_taken.to_string());
+                    return;
+                }
+                Making::Add(self.add_at)
+            }
+            _ => Making::Rest(self.other_n),
+        };
+        match WorkSet::given(c, &self.inputs, making) {
+            Ok(w) => {
+                self.work = Some(w);
+                self.inputs.clear();
+                self.made.clear();
+                self.complete(c);
+                self.seen = vec![false; self.tabs().len()];
+                self.show_tab(0);
+                self.finish(Card::Scheme, Card::Sheets);
+            }
+            Err(e) => self.note = Some(fill(EN.codex32_refused, &[&e.to_string()])),
+        }
+    }
+
+    /// Costs what `WorkSet::given` costs for the sample. Demo's sample in
+    /// place of the set entered (§12): the sample's own scheme, its
+    /// strings and every worksheet of it; the characters entered and how
+    /// each was made are dropped. False, with the note, where Demo has no
+    /// sample.
+    fn put_sample(&mut self, c: &Compute) -> bool {
+        let Some(set) = self.demo.as_ref() else {
+            return true;
+        };
+        let n = set.first().map_or(0, |s| s.threshold()) + 1;
+        match WorkSet::given(c, set, Making::All(n)) {
+            Ok(w) => {
+                self.length = w.scheme().length();
+                self.id = w
+                    .scheme()
+                    .identifier()
+                    .map(|ch| symbol_of(char::from(ch)).unwrap_or(0));
+                self.id_len = 4;
+                self.split = Split::Other;
+                self.other_k = w.scheme().threshold();
+                self.other_n = w.scheme().shares();
+                self.work = Some(w);
+                self.made.clear();
+                self.seq.clear();
+                self.replay();
+                self.sample = true;
+                self.complete(c);
+                true
+            }
+            Err(_) => {
+                self.note = Some(EN.c32r_demo_no_sample.to_string());
+                false
+            }
+        }
+    }
+
+    /// Costs what [`Self::put`] costs for each character. **Use a sample**
+    /// in Demo (§12): the characters left of the entry, as typed, from the
+    /// sample's own shares (BIP 93's vector 2), share by share.
+    fn use_sample(&mut self, c: &Compute) {
+        let Some(set) = self.demo.as_ref() else {
+            return;
+        };
+        let data: Vec<Zeroizing<Vec<u8>>> = set
+            .iter()
+            .map(|s| Zeroizing::new(s.payload().to_vec()))
+            .collect();
+        if data.is_empty() || data.iter().any(|d| d.is_empty()) {
+            return;
+        }
+        self.seq.clear();
+        self.replay();
+        while let Some((share, n)) = self.front() {
+            let from = &data[share % data.len()];
+            let v = from[n % from.len()];
+            let before = self.entered_all();
+            self.put(c, v, None);
+            if self.entered_all() == before {
+                break;
+            }
         }
     }
 
@@ -968,6 +1245,15 @@ impl Codex32Make {
     /// keyboard or the pad, to the open card's field.
     fn key(&mut self, c: &Compute, k: OskPress) {
         match (self.open, k) {
+            // Add a share's index, typed over the one offered (§8.2).
+            (Some(Card::Scheme), OskPress::Char(ch))
+                if self.given == Some(Given::Add) && self.work.is_none() =>
+            {
+                if let Some(v) = symbol_of(ch) {
+                    self.add_at = CHARSET[usize::from(v)];
+                    self.note = None;
+                }
+            }
             (Some(Card::Identifier), OskPress::Char(ch)) if self.work.is_none() => {
                 if let Some(v) = symbol_of(ch)
                     && self.id_len < 4
@@ -992,6 +1278,7 @@ impl Codex32Make {
                         self.put(c, v, None);
                     }
                 }
+                Way::Shares => {}
             },
             (Some(Card::Enter), OskPress::Back) => self.undo(),
             (Some(Card::Strings), OskPress::Char(ch)) => self.type_back(ch),
@@ -1009,11 +1296,9 @@ impl Codex32Make {
     /// Characters entered so far, of every initial share (a lookup over
     /// at most 31 shares).
     fn entered_all(&self) -> usize {
-        self.work.as_ref().map_or(0, |w| {
-            (0..w.scheme().initial_indices().len())
-                .map(|s| w.entered(s))
-                .sum()
-        })
+        self.work
+            .as_ref()
+            .map_or(0, |w| (0..w.inputs().len()).map(|s| w.entered(s)).sum())
     }
 
     /// Where the entry stands, as the roller reads it: characters done
@@ -1026,7 +1311,7 @@ impl Codex32Make {
         let w = self.work.as_ref()?;
         let data = w.scheme().length().data_len();
         let done = self.entered_all();
-        let all_left = w.scheme().initial_indices().len() * data - done;
+        let all_left = w.inputs().len() * data - done;
         let share_left = self.front().map_or(0, |(_, n)| data - n);
         Some((done, share_left, all_left))
     }
@@ -1201,6 +1486,10 @@ impl Codex32Make {
     /// none, the last character, its rolls back on the sheet less the
     /// last. Cheap but for the work set's own pop.
     fn undo(&mut self) {
+        // A set typed in, or Demo's sample, has no entry to take back.
+        if self.work.as_ref().is_some_and(WorkSet::is_given) {
+            return;
+        }
         self.undo_entry();
         // Faces taken back are not the roller's any more.
         let done = self.entered_all();

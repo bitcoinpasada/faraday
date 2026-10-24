@@ -577,3 +577,161 @@ mod set {
         assert_ne!(again[1].as_str(), made[1].as_str());
     }
 }
+
+/// Make the rest, Add a share and Check a string (`docs/CODEX32.md`
+/// §8.1 to §8.3): sets made of `k` strings typed in, against BIP 93's
+/// vectors 2 (2 of 3) and 3 (3 of 5, the secret one of its three).
+mod given {
+    use faraday_bip::codex32::Codex32;
+    use faraday_bip::keys::Network;
+    use faraday_keys::{Keys, Making, Reveal, StringCheck, WorkSet, identity};
+
+    use super::{compute, published, seed_of};
+
+    /// Vector 3's secret.
+    const CASH_S: &str = "ms13cashsllhdmn9m42vcsamx24zrxgs3qqjzqud4m0d6nln";
+    /// Vector 2's secret.
+    const NAME_S: &str = "ms12names6xqguzttxkeqnjsjzv4jv3nz5k3kwgsphuh6evw";
+
+    fn parse(s: &str) -> Codex32 {
+        Codex32::parse(s).expect("a vector string")
+    }
+
+    fn strings(work: &WorkSet) -> Vec<String> {
+        work.strings(Reveal::PaperForm)
+            .expect("the strings")
+            .iter()
+            .map(|s| s.to_string())
+            .collect()
+    }
+
+    #[test]
+    fn make_the_rest_from_k_strings_writes_the_published_ones() {
+        let c = compute();
+        for (vector, secret) in [("2", NAME_S), ("3", CASH_S)] {
+            let all = published(vector);
+            let k = usize::from(all[0].as_bytes()[3] - b'0');
+            let given: Vec<Codex32> = all[..k].iter().map(|s| parse(s)).collect();
+            let work = WorkSet::given(&c, &given, Making::Rest(all.len() as u8)).unwrap();
+            assert_eq!(strings(&work), all[k..], "vector {vector}");
+            // Each string made is its translation worksheet's sum, and the
+            // last sheet makes the secret.
+            let targets = work.targets();
+            assert_eq!(*targets.last().unwrap(), b's');
+            for (n, &t) in targets.iter().enumerate() {
+                let sheet = work.live_translation(n, Reveal::PaperForm).unwrap();
+                let made = sheet.result().expect("a valid string").encode();
+                let want = if t == b's' {
+                    secret.to_string()
+                } else {
+                    all[k + n].clone()
+                };
+                assert_eq!(made.as_str(), want, "vector {vector} {}", char::from(t));
+            }
+            // Every input's worksheet ends on the constant.
+            for s in 0..k {
+                assert!(work.worksheet(s, Reveal::PaperForm).unwrap().holds());
+            }
+            assert_eq!(work.inputs(), &b"acd"[..k]);
+            assert_eq!(
+                work.fingerprint(&c).unwrap(),
+                identity::fingerprint_of_seed(&c, &seed_of(vector)).unwrap()
+            );
+        }
+    }
+
+    #[test]
+    fn the_whole_set_of_two_initial_shares_is_the_published_set_in_index_order() {
+        let c = compute();
+        let all = published("2");
+        let given = [parse(&all[1]), parse(&all[0])];
+        let work = WorkSet::given(&c, &given, Making::All(3)).unwrap();
+        assert_eq!(strings(&work), all);
+        assert_eq!(work.targets(), b"ds");
+    }
+
+    #[test]
+    fn add_a_share_from_any_k_strings_of_the_set_is_the_published_one() {
+        let c = compute();
+        let all = published("3");
+        // C, E and the secret make F; the secret, D and F make A.
+        let three = [parse(&all[1]), parse(&all[3]), parse(CASH_S)];
+        let work = WorkSet::given(&c, &three, Making::Add(b'f')).unwrap();
+        assert_eq!(strings(&work), [all[4].clone()]);
+        assert_eq!(work.targets(), b"f");
+        let three = [parse(CASH_S), parse(&all[2]), parse(&all[4])];
+        let work = WorkSet::given(&c, &three, Making::Add(b'a')).unwrap();
+        assert_eq!(strings(&work), [all[0].clone()]);
+        // Vector 2: A and C make D.
+        let two = published("2");
+        let work = WorkSet::given(&c, &[parse(&two[0]), parse(&two[1])], Making::Add(b'd'));
+        assert_eq!(strings(&work.unwrap()), [two[2].clone()]);
+    }
+
+    #[test]
+    fn an_index_given_the_secrets_or_too_few_strings_are_refused() {
+        let c = compute();
+        let two = published("2");
+        let pair = [parse(&two[0]), parse(&two[1])];
+        for at in *b"acsb" {
+            assert!(WorkSet::given(&c, &pair, Making::Add(at)).is_err(), "{at}");
+        }
+        assert!(WorkSet::given(&c, &pair[..1], Making::Add(b'd')).is_err());
+        // Two sets mixed make nothing.
+        let three = published("3");
+        let mixed = [parse(&two[0]), parse(&three[1])];
+        assert!(WorkSet::given(&c, &mixed, Making::Add(b'd')).is_err());
+        // Make the rest with nothing left to make.
+        assert!(WorkSet::given(&c, &pair, Making::Rest(2)).is_err());
+    }
+
+    #[test]
+    fn a_set_of_strings_typed_in_takes_no_character_and_loads_its_key_and_set() {
+        let c = compute();
+        let all = published("3");
+        let given = [parse(&all[2]), parse(&all[4]), parse(CASH_S)];
+        let mut work = WorkSet::given(&c, &given, Making::Rest(4)).unwrap();
+        assert!(work.push(&c, 0, 0).is_err());
+        work.pop(0);
+        // The secret is among them: no sheet towards it, A is made.
+        assert_eq!(work.targets(), b"a");
+        assert_eq!(strings(&work), [all[0].clone()]);
+        let mut keys = Keys::on(Network::Mainnet);
+        let fp = keys.add_codex32(&c, &work, "typed").unwrap();
+        assert_eq!(
+            fp,
+            identity::fingerprint_of_seed(&c, &seed_of("3")).unwrap()
+        );
+        let set = keys[0].codex32.clone().expect("the set");
+        assert_eq!(set.threshold, 3);
+        assert_eq!(set.indices(), b"dfsa");
+    }
+
+    #[test]
+    fn check_a_string_reads_its_final_row() {
+        let c = compute();
+        let all = published("2");
+        let check = StringCheck::of(&c, &all[0]).unwrap();
+        let sheet = check.worksheet(Reveal::PaperForm).unwrap();
+        assert!(sheet.holds());
+        assert_eq!(sheet.first_difference(), None);
+        // The same string upper case is the same sheet.
+        let upper = StringCheck::of(&c, &all[0].to_uppercase()).unwrap();
+        assert!(upper.worksheet(Reveal::PaperForm).unwrap().holds());
+        // One box changed: the checksum fails, the final row says where.
+        let mut bad = all[0].clone().into_bytes();
+        bad[16] = if bad[16] == b'q' { b'p' } else { b'q' };
+        let bad = String::from_utf8(bad).unwrap();
+        let check = StringCheck::of(&c, &bad).unwrap();
+        let sheet = check.worksheet(Reveal::PaperForm).unwrap();
+        assert!(!sheet.holds());
+        assert!(sheet.first_difference().is_some());
+        assert!(check.worksheet(Reveal::Words).is_none());
+        // Mixed case, a character outside bech32, a length no string has.
+        let mixed = "ms12NAMEa320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
+        assert!(StringCheck::of(&c, mixed).is_none());
+        let outside = "ms12nameb320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
+        assert!(StringCheck::of(&c, outside).is_none());
+        assert!(StringCheck::of(&c, "ms12name").is_none());
+    }
+}

@@ -44,7 +44,7 @@ pub mod vanity;
 pub mod vault;
 pub mod words;
 
-pub use codex32::WorkSet;
+pub use codex32::{Making, StringCheck, WorkSet};
 pub use identity::{Material, fingerprint, fp_text};
 pub use operations::{Dial, Paper, codex32_seed, slip39_seed};
 pub use session::{

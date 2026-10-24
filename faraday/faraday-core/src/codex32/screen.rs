@@ -10,7 +10,7 @@
 //! same stacked; compact, one context panel at a time, chosen by a tile
 //! row over the pad.
 
-use faraday_bip::codex32::{SYMBOL_GLYPHS, Scheme};
+use faraday_bip::codex32::SYMBOL_GLYPHS;
 use faraday_draw::geom::{SizeClass, WindowClass};
 use faraday_draw::tokens as t;
 use faraday_draw::widgets::Icon;
@@ -20,7 +20,7 @@ use faraday_keys::{Reveal, WorkSet};
 use faraday_ui::keyboard::Keys as OskKeys;
 use faraday_ui::parts::wrap_buttons;
 
-use super::{C32, CARDS, Card, Cell, Codex32Make, SPLITS, Split, Tab, WAYS, Way, char_of};
+use super::{C32, CARDS, Card, Cell, Codex32Make, Given, SPLITS, Split, Tab, WAYS, Way, char_of};
 use crate::drawing::View;
 use crate::keygen::{KeyGen, kstep};
 use crate::screens::next_button;
@@ -61,6 +61,9 @@ struct At {
     /// The five-dice roller stands beside the pad (Faraday Desktop,
     /// §5.5).
     roller: bool,
+    /// A press on a box opens its working (§7.4): not on Check a
+    /// string's sheet, which is no flow's.
+    press: bool,
 }
 
 /// What a masked character is drawn as.
@@ -76,8 +79,14 @@ impl At {
 /// The flow's cards for New key's column, each with the card it is.
 pub(crate) fn cards(k: &KeyGen, m: &Codex32Make) -> Vec<(Card, flow::Card)> {
     let open = |card: Card| k.open == Some(kstep::CODEX32) && m.open() == Some(card);
+    // A set typed in has its identifier, entropy and entry in the strings
+    // (§8.1, §8.2): its cards are the first one, then the review on.
+    let shown = |card: &&Card| {
+        m.given_kind().is_none() || !matches!(card, Card::Identifier | Card::Entropy | Card::Enter)
+    };
     CARDS
         .iter()
+        .filter(shown)
         .map(|&card| {
             (
                 card,
@@ -122,6 +131,7 @@ fn guide(card: Card) -> &'static str {
 
 fn title(m: &Codex32Make, card: Card) -> String {
     match card {
+        Card::Scheme if m.given_kind() == Some(Given::Add) => EN.c32r_index.to_string(),
         Card::Scheme => EN.codex32_scheme.to_string(),
         Card::Identifier => EN.codex32_identifier.to_string(),
         Card::Entropy => EN.codex32_entropy.to_string(),
@@ -141,11 +151,7 @@ fn enter_title(m: &Codex32Make) -> String {
     match m.front() {
         Some((s, n)) => fill(
             EN.codex32_share_character,
-            &[
-                &share_name(w.scheme(), s),
-                &(n + 1).to_string(),
-                &data.to_string(),
-            ],
+            &[&share_name(w, s), &(n + 1).to_string(), &data.to_string()],
         ),
         None => EN.codex32_enter.to_string(),
     }
@@ -157,6 +163,19 @@ fn strings_title(m: &Codex32Make) -> String {
     if k == 0 {
         return EN.codex32_codex32.to_string();
     }
+    // A string made from strings typed in is named by its index: the
+    // others of the set are on paper already (§8.1, §8.2).
+    if m.open() == Some(Card::Strings) && m.given_kind().is_some() {
+        let index = m
+            .strings()
+            .and_then(|s| s.get(m.at()))
+            .and_then(|s| s.as_bytes().get(8).copied())
+            .unwrap_or(b'?');
+        return fill(
+            EN.codex32_share_x,
+            &[&char::from(index.to_ascii_uppercase()).to_string()],
+        );
+    }
     if m.open() == Some(Card::Strings) {
         fill(
             EN.codex32_share_n_of,
@@ -167,12 +186,12 @@ fn strings_title(m: &Codex32Make) -> String {
     }
 }
 
-/// "Share A", or "Secret" with no threshold: initial share `s`.
-fn share_name(scheme: &Scheme, s: usize) -> String {
-    if scheme.threshold() == 0 {
+/// "Share A", or "Secret" with no threshold or for the secret: input `s`.
+fn share_name(work: &WorkSet, s: usize) -> String {
+    let i = work.inputs().get(s).copied().unwrap_or(b'a');
+    if work.scheme().threshold() == 0 || i == b's' {
         return EN.codex32_the_secret.to_string();
     }
-    let i = scheme.initial_indices().get(s).copied().unwrap_or(b'a');
     fill(
         EN.codex32_share_x,
         &[&char::from(i.to_ascii_uppercase()).to_string()],
@@ -183,6 +202,8 @@ fn share_name(scheme: &Scheme, s: usize) -> String {
 fn split_text(m: &Codex32Make) -> String {
     match m.k_n() {
         (0, _) => EN.codex32_split_alone.to_string(),
+        // Add a share does not know how many strings the set has.
+        (k, _) if m.given_kind() == Some(Given::Add) => fill(EN.c32r_k_needed, &[&k.to_string()]),
         (k, n) => fill(EN.codex32_k_of_n, &[&k.to_string(), &n.to_string()]),
     }
 }
@@ -192,6 +213,10 @@ fn summary(m: &Codex32Make, card: Card) -> String {
         return EN.keygen_not_yet.to_string();
     }
     match card {
+        Card::Scheme if m.given_kind() == Some(Given::Add) => fill(
+            EN.c32r_index_value,
+            &[&char::from(m.add_at().to_ascii_uppercase()).to_string()],
+        ),
         Card::Scheme => fill(
             EN.codex32_scheme_summary,
             &[&m.length().chars().to_string(), &split_text(m)],
@@ -214,6 +239,7 @@ fn way_name(w: Way) -> &'static str {
     match w {
         Way::Dice => EN.codex32_roll_dice,
         Way::Typed => EN.codex32_type_the_characters,
+        Way::Shares => EN.c32r_type_shares_by_hand,
     }
 }
 
@@ -355,6 +381,7 @@ pub(crate) fn body(
         cls: app.window().class(),
         hide: m.masked(),
         roller: app.roller_offered(),
+        press: true,
     };
     let h = match card {
         Card::Scheme => scheme(m, ui, x, y, w),
@@ -384,8 +411,69 @@ fn foot(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, label: &str) -> f3
     nh + if drawn { t::TOUCH } else { t::GAP }
 }
 
+/// The first card of a set typed in (§8.1, §8.2): the strings it is made
+/// from, then how many strings in all (Make the rest) or the index (Add a
+/// share, typed on the codex32 keyboard over the one offered).
+fn given_first(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    let mut cy = y;
+    let from: Vec<String> = m
+        .input_indices()
+        .iter()
+        .map(|&i| {
+            if i == b's' {
+                EN.codex32_the_secret.to_string()
+            } else {
+                char::from(i.to_ascii_uppercase()).to_string()
+            }
+        })
+        .collect();
+    cy += fact(ui, x, cy, w, EN.c32r_from, &from.join(", "));
+    cy += fact(
+        ui,
+        x,
+        cy,
+        w,
+        EN.codex32_length,
+        &m.length().chars().to_string(),
+    );
+    let open = m.work().is_none();
+    if m.given_kind() == Some(Given::Add) {
+        let at = char::from(m.add_at().to_ascii_uppercase()).to_string();
+        cy += fact(ui, x, cy, w, EN.c32r_index, &at);
+        let (line, tone) = if m.add_at_taken() {
+            (EN.c32r_index_taken, ERR)
+        } else {
+            (EN.c32r_give_index, MUTED)
+        };
+        cy += ui.wrap(x, cy, w, t::LABEL, W::R, tone, line) + t::GAP;
+        if open {
+            cy += keyboard(ui, x, cy, w, KeyboardKind::Codex32);
+        }
+    } else {
+        let (k, n) = m.k_n();
+        cy += fact(ui, x, cy, w, EN.codex32_threshold, &k.to_string());
+        crate::screens::stepper(
+            ui,
+            x,
+            cy,
+            w,
+            EN.codex32_strings,
+            usize::from(n),
+            a(C32::N(-1)),
+            a(C32::N(1)),
+            open,
+        );
+        cy += t::STEPPER_ROW;
+    }
+    cy += foot(m, ui, x, cy, w, EN.keygen_continue);
+    cy - y
+}
+
 /// §6.1: length and split, Other's steppers, the line for k of 4 or more.
 fn scheme(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    if m.given_kind().is_some() {
+        return given_first(m, ui, x, y, w);
+    }
     let mut cy = y;
     let fixed = m.fixed() || m.work().is_some();
     crate::screens::section_label(ui, x, cy, EN.codex32_length);
@@ -546,9 +634,21 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     if m.way() == Way::Typed {
         cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.codex32_not_chosen) + t::GAP;
     }
+    // Demo: the sample's own characters for a person who would rather not
+    // roll (§12, `docs/MODES.md` §6).
+    if m.demo() && m.front().is_some() {
+        cy += wrap_buttons(
+            ui,
+            x,
+            cy,
+            w,
+            t::TOUCH,
+            &[(EN.use_a_sample, Style::Secondary, a(C32::Sample))],
+        );
+    }
     let (share, front) = match m.front() {
         Some((s, n)) => (s, Some(10 + n)),
-        None => (work.scheme().initial_indices().len() - 1, None),
+        None => (work.inputs().len() - 1, None),
     };
     match cls {
         WindowClass::Compact => {
@@ -825,7 +925,7 @@ fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Op
         // The press on a box opens the working of the nearest one: each
         // box's hit takes the gaps round it, so the boxes tile the sheet
         // (§7.4). A masked sheet opens nothing.
-        if let Some(cell) = cell.filter(|_| !at.hide) {
+        if let Some(cell) = cell.filter(|_| !at.hide && at.press) {
             let (gx, gy) = (t::CODEX32_BOX_GAP, t::CODEX32_ROW_GAP);
             ui.hit_quiet(
                 bx - gx / 2.0,
@@ -907,11 +1007,25 @@ struct Row {
     j: usize,
 }
 
+/// Where a checksum worksheet drawn is kept: an input of the work set, by
+/// its place, or the one string Check a string holds (§8.3).
+#[derive(Clone, Copy)]
+enum Src<'a> {
+    /// An input of the work set.
+    Work(&'a WorkSet, usize),
+    /// The string Check a string holds.
+    Check(&'a faraday_keys::StringCheck),
+}
+
 /// Every row of share `share`'s checksum worksheet, in the booklet's
 /// order: the string, the residue of `ms`, each step's sum and lookup,
 /// the final row and what it must read.
-fn checksum_rows(work: &WorkSet, share: usize) -> Vec<Row> {
-    let Some(sh) = work.worksheet(share, Reveal::PaperForm) else {
+fn checksum_rows(src: Src<'_>) -> Vec<Row> {
+    let sh = match src {
+        Src::Work(work, share) => work.worksheet(share, Reveal::PaperForm),
+        Src::Check(check) => check.worksheet(Reveal::PaperForm),
+    };
+    let Some(sh) = sh else {
         return Vec::new();
     };
     let len = sh.checksum_len();
@@ -1076,7 +1190,7 @@ fn checksum_band(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui
     let Some(chars) = work.worksheet(share, Reveal::PaperForm).map(|s| s.chars()) else {
         return 0.0;
     };
-    let mut rows = checksum_rows(work, share);
+    let mut rows = checksum_rows(Src::Work(work, share));
     let col = front.unwrap_or(chars);
     let mut band: Vec<Row> = Vec::new();
     for (r, row) in rows.drain(..).enumerate() {
@@ -1085,7 +1199,7 @@ fn checksum_band(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui
             band.push(row);
         }
     }
-    let head = fill(EN.codex32_checksum_of, &[&share_name(work.scheme(), share)]);
+    let head = fill(EN.codex32_checksum_of, &[&share_name(work, share)]);
     let hh = ui.wrap(x, y, w, t::LABEL, W::S, TEXT, &head) + t::GAP_SMALL;
     let win = window(chars, Some(col), cls, w);
     hh + grid(&band, share as u8, win, front, ui, at.to(x, y + hh, w)) + t::GAP
@@ -1094,17 +1208,19 @@ fn checksum_band(work: &WorkSet, share: usize, front: Option<usize>, ui: &mut Ui
 /// The whole checksum worksheet of share `share`, for the review (§6.5),
 /// in the window `from`; its marking: "from your rolls" or "as typed".
 fn checksum_whole(m: &Codex32Make, work: &WorkSet, share: usize, ui: &mut Ui, at: At) -> f32 {
-    let (x, y, w, cls) = (at.x, at.y, at.w, at.cls);
+    let (x, y, w) = (at.x, at.y, at.w);
     let Some(chars) = work.worksheet(share, Reveal::PaperForm).map(|s| s.chars()) else {
         return 0.0;
     };
-    let rows = checksum_rows(work, share);
+    let rows = checksum_rows(Src::Work(work, share));
     let typed = m.made_of(share, 0).is_some_and(super::Made::typed);
     let head = fill(
         EN.codex32_checksum_of_marked,
         &[
-            &share_name(work.scheme(), share),
-            if typed {
+            &share_name(work, share),
+            if m.sample() {
+                EN.c32r_the_sample
+            } else if typed || m.given_kind().is_some() {
                 EN.codex32_as_typed
             } else {
                 EN.codex32_from_your_rolls
@@ -1112,17 +1228,64 @@ fn checksum_whole(m: &Codex32Make, work: &WorkSet, share: usize, ui: &mut Ui, at
         ],
     );
     let hh = ui.wrap(x, y, w, t::LABEL, W::S, TEXT, &head) + t::GAP_SMALL;
-    let mut cy = y + hh;
-    // A sheet wider than the card is drawn in parts, one under another.
-    let (mut from, mut parts) = (4, 0);
+    hh + in_parts(&rows, share as u8, (4, chars), ui, at.to(x, y + hh, w))
+}
+
+/// Rows of a worksheet of `chars` characters, in parts one under another
+/// where the sheet is wider than `at.w`. Returns the height.
+fn in_parts(rows: &[Row], sheet: u8, (first, chars): (usize, usize), ui: &mut Ui, at: At) -> f32 {
+    let (x, y, w, cls) = (at.x, at.y, at.w, at.cls);
+    let mut cy = y;
+    let (mut from, mut parts) = (first, 0);
     while from <= chars && parts < 4 {
         let n = boxes_in(w - t::CODEX32_LABEL_W, from, cls);
         let to = (from + n - 1).min(chars);
-        cy += grid(&rows, share as u8, (from, to), None, ui, at.to(x, cy, w)) + t::GAP;
+        cy += grid(rows, sheet, (from, to), None, ui, at.to(x, cy, w)) + t::GAP;
         from = to + 1;
         parts += 1;
     }
     cy - y
+}
+
+/// Check a string's worksheet (§8.3), drawn on the codex32 form: its
+/// final row and what that row must read, or with `whole` every row of
+/// the verification sheet, the first cell that differs from
+/// `SECRETSHARE32` marked as the row reads it. Its boxes open nothing.
+/// Returns the height.
+pub(crate) fn check_sheet(
+    app: &View,
+    check: &faraday_keys::StringCheck,
+    whole: bool,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+) -> f32 {
+    let Some(sh) = check.worksheet(Reveal::PaperForm) else {
+        return 0.0;
+    };
+    let chars = sh.chars();
+    let differs = sh.first_difference().map(|i| sh.sum_box(sh.steps()) + i);
+    let mut rows = checksum_rows(Src::Check(check));
+    if !whole {
+        // The final row and what it must read.
+        let keep = rows.len().saturating_sub(2);
+        rows.drain(..keep);
+    }
+    let at = At {
+        x,
+        y,
+        w,
+        cls: app.window().class(),
+        hide: false,
+        roller: false,
+        press: false,
+    };
+    let first = if whole { 4 } else { sh.sum_box(sh.steps()) };
+    let mut h = in_parts(&rows, 0, (first, chars), ui, at);
+    if let Some(b) = differs {
+        let line = fill(EN.c32r_final_differs, &[&b.to_string()]);
+        h += ui.wrap(x, y + h, w, t::LABEL, W::R, ERR, &line) + t::GAP;
+    }
+    h
 }
 
 // ---------------------------------------------------------------------
@@ -1542,7 +1705,7 @@ fn sheets(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     };
     let tab_list = m.tabs();
     let (on, seen) = m.tab();
-    let mut cy = y;
+    let mut cy = y + sample_line(m, ui, x, y, w);
     let items: Vec<TabItem> = tab_list
         .iter()
         .enumerate()
@@ -1636,7 +1799,7 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     let Some(s) = m.strings().and_then(|s| s.get(m.at())) else {
         return 0.0;
     };
-    let mut cy = y;
+    let mut cy = y + sample_line(m, ui, x, y, w);
     let hide = m.masked();
     if s.len() == 48 && !hide {
         cy += choice(
@@ -1727,9 +1890,19 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     cy - y
 }
 
+/// In Demo, once its sample stands in place of the strings entered, the
+/// line that says so (§12); nothing otherwise. Returns the height.
+fn sample_line(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+    if !m.sample() {
+        return 0.0;
+    }
+    let line = fill(EN.c32r_demo_sample, &[&m.identifier().to_uppercase()]);
+    ui.wrap(x, y, w, t::LABEL, W::S, WARN, &line) + t::GAP
+}
+
 /// §6.7: the Result's rows, Check on another device (§6.8), and Lock in.
 fn made(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let mut cy = y;
+    let mut cy = y + sample_line(m, ui, x, y, w);
     let (rolled, typed) = m.sources();
     // Faces the roller made say so (§5.5).
     let entropy = match (m.simulated(), rolled, typed) {
@@ -1741,6 +1914,13 @@ fn made(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         (_, false, true) => EN.codex32_your_characters,
         _ => EN.codex32_your_dice,
     };
+    let entropy = if m.sample() {
+        fill(EN.c32r_entropy_sample, &[&m.identifier().to_uppercase()])
+    } else if m.given_kind().is_some() {
+        EN.c32r_your_shares.to_string()
+    } else {
+        entropy.to_string()
+    };
     let fp = m
         .fingerprint()
         .map(|f| fp_text(faraday_bip::keys::Fingerprint(f)).to_string())
@@ -1750,7 +1930,7 @@ fn made(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         (EN.codex32_length, m.length().chars().to_string()),
         (EN.codex32_identifier, m.identifier()),
         (EN.codex32_fingerprint, fp.clone()),
-        (EN.codex32_entropy, entropy.to_string()),
+        (EN.codex32_entropy, entropy),
     ];
     for (k, v) in rows {
         cy += fact(ui, x, cy, w, k, &v);

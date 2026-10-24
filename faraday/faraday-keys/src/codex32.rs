@@ -19,9 +19,17 @@
 //! characters and checksum as that worksheet. The made set exists
 //! exactly when every initial share is complete. A push or a pop updates
 //! them all together, and nothing else changes them.
+//!
+//! A set made of `k` strings typed in ([`WorkSet::given`]: Make the rest
+//! and Add a share, `docs/CODEX32.md` §8.1, §8.2) is made whole at once
+//! and never changes: its inputs are the strings given, every worksheet
+//! is filled from them, and a push or a pop is refused.
+//! [`StringCheck`] is one string's checksum worksheet for Check a string
+//! (§8.3).
 
 use faraday_bip::codex32::{
-    ChecksumWorksheet, Codex32, Error, FreshSet, Scheme, TranslationWorksheet, fresh_set,
+    ChecksumWorksheet, Codex32, Error, FreshSet, INDEX_ORDER, Length, Scheme, TranslationWorksheet,
+    fresh_set,
 };
 use faraday_crypto::Secret;
 use faraday_crypto::work::Compute;
@@ -38,15 +46,75 @@ use crate::{Held, Keys, Reveal};
 /// once every character is in, the set.
 pub struct WorkSet {
     scheme: Scheme,
-    /// The data symbols entered, one list per initial share.
+    /// The share indices of the inputs: the initial shares of a fresh
+    /// set, or the strings a set made of strings was given.
+    inputs: Vec<u8>,
+    /// The share indices the translation worksheets make, in order.
+    targets: Vec<u8>,
+    /// The data symbols entered, one list per input.
     entered: Vec<Zeroizing<Vec<u8>>>,
-    /// One checksum worksheet per initial share, header first.
+    /// One checksum worksheet per input, header first.
     sheets: Vec<ChecksumWorksheet>,
     /// The translation worksheets filling as the characters arrive, one
     /// per target of [`Self::targets`], in that order (none at threshold 0).
     live: Vec<TranslationWorksheet>,
-    /// The made set, once every initial share is complete.
-    made: Option<FreshSet>,
+    /// The made set, once every input is complete.
+    made: Option<Made>,
+    /// The strings a set made of strings was given (`docs/CODEX32.md`
+    /// §8.1, §8.2); none for a fresh set.
+    given: Vec<Codex32>,
+}
+
+/// A made set: the strings to write, in index order, and the secret.
+enum Made {
+    /// A fresh set: every string, the initial shares first.
+    Fresh(FreshSet),
+    /// A set made of strings given: the strings made from them, and the
+    /// secret they carry.
+    Given {
+        /// The strings made, in the order of the targets.
+        strings: Vec<Codex32>,
+        /// The secret.
+        secret: Codex32,
+    },
+}
+
+impl Made {
+    /// The strings to write.
+    fn strings(&self) -> &[Codex32] {
+        match self {
+            Made::Fresh(f) => f.strings(),
+            Made::Given { strings, .. } => strings,
+        }
+    }
+
+    /// The secret the set carries.
+    fn secret(&self) -> &Codex32 {
+        match self {
+            Made::Fresh(f) => f.secret(),
+            Made::Given { secret, .. } => secret,
+        }
+    }
+}
+
+/// What a set made of strings makes (`docs/CODEX32.md` §8.1, §8.2).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Making {
+    /// Make the rest: the set's strings up to `n` in all, at the first
+    /// indices in BIP 93's order that none of the strings given has, and
+    /// the secret's sheet.
+    Rest(u8),
+    /// As [`Making::Rest`], the strings to write being the whole set, the
+    /// strings given among them, in index order: Demo's sample in place
+    /// of a set entered (`docs/CODEX32.md` §12).
+    All(u8),
+    /// Add a share: the one string at this index.
+    Add(u8),
+}
+
+/// A string read again from its own text, through the one door in.
+fn again(s: &Codex32) -> Result<Codex32, Error> {
+    Codex32::parse(s.encode().as_str())
 }
 
 impl WorkSet {
@@ -77,11 +145,108 @@ impl WorkSet {
         }
         Ok(WorkSet {
             scheme,
+            inputs: initial.to_vec(),
+            targets: Self::targets_of(&scheme),
             entered,
             sheets,
             live,
             made: None,
+            given: Vec::new(),
         })
+    }
+
+    /// Costs a checksum worksheet of each string given, a translation
+    /// worksheet (an interpolation of `k` strings) towards each target,
+    /// and an interpolation of `k` strings for each string made and for
+    /// the secret. The set exactly `k` strings of one set make
+    /// (`docs/CODEX32.md` §8.1 Make the rest, §8.2 Add a share), the
+    /// secret counting as one: every worksheet filled whole, the strings
+    /// made at the indices `making` names. Refused where the strings are
+    /// not `k` of one set at a length a fresh set has, or an index asked
+    /// for is the secret's, one given, or not a share index.
+    pub fn given(c: &Compute, strings: &[Codex32], making: Making) -> Result<WorkSet, Error> {
+        let first = strings.first().ok_or(Error::WrongShareCount)?;
+        let k = first.threshold();
+        if k < 2 || strings.len() != usize::from(k) {
+            return Err(Error::WrongShareCount);
+        }
+        let length = Length::of_chars(first.encode().as_str().len()).ok_or(Error::BadLength)?;
+        let inputs: Vec<u8> = strings.iter().map(Codex32::share_index).collect();
+        let (made_at, n): (Vec<u8>, u8) = match making {
+            Making::Rest(n) | Making::All(n) => {
+                let want = usize::from(n).saturating_sub(usize::from(k));
+                let at: Vec<u8> = INDEX_ORDER
+                    .iter()
+                    .filter(|i| !inputs.contains(i))
+                    .take(want)
+                    .copied()
+                    .collect();
+                if want == 0 || at.len() != want {
+                    return Err(Error::BadSplit);
+                }
+                (at, n)
+            }
+            Making::Add(i) => {
+                let i = i.to_ascii_lowercase();
+                if inputs.contains(&i) || !INDEX_ORDER.contains(&i) {
+                    return Err(Error::BadShareIndex);
+                }
+                (vec![i], (k + 1).min(faraday_bip::codex32::MAX_SHARES))
+            }
+        };
+        let scheme = Scheme::new(k, n, first.identifier(), length)?;
+        let given = strings.iter().map(again).collect::<Result<Vec<_>, _>>()?;
+        let secret = match given.iter().find(|s| s.is_secret()) {
+            Some(s) => again(s)?,
+            None => Codex32::recover(&given)?,
+        };
+        let mut made = made_at
+            .iter()
+            .map(|&i| Codex32::derive_share(&given, i))
+            .collect::<Result<Vec<_>, _>>()?;
+        if matches!(making, Making::All(_)) {
+            for s in &given {
+                made.push(again(s)?);
+            }
+            made.sort_by_key(|s| INDEX_ORDER.iter().position(|&i| i == s.share_index()));
+        }
+        let mut targets = made_at;
+        if !matches!(making, Making::Add(_)) && !inputs.contains(&b's') {
+            targets.push(b's');
+        }
+        let live = targets
+            .iter()
+            .map(|&t| TranslationWorksheet::of(c, &given, t))
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(WorkSet {
+            scheme,
+            sheets: given.iter().map(|s| ChecksumWorksheet::of(c, s)).collect(),
+            entered: given
+                .iter()
+                .map(|s| Zeroizing::new(s.payload().to_vec()))
+                .collect(),
+            inputs,
+            targets,
+            live,
+            made: Some(Made::Given {
+                strings: made,
+                secret,
+            }),
+            given,
+        })
+    }
+
+    /// Whether the set was made of strings given rather than entered.
+    /// Public.
+    pub fn is_given(&self) -> bool {
+        !self.given.is_empty()
+    }
+
+    /// The share indices of the inputs, in the order their worksheets
+    /// are kept: the initial shares of a fresh set (`s` alone at
+    /// threshold 0), or the strings given. Public. Cheap.
+    pub fn inputs(&self) -> &[u8] {
+        &self.inputs
     }
 
     /// The share indices the live translation worksheets make: each
@@ -96,10 +261,23 @@ impl WorkSet {
     }
 
     /// The share indices of the live translation worksheets, in their
-    /// order: each derived share, then `s` (the secret). Public. None at
-    /// threshold 0. Cheap.
+    /// order: each share made, then `s` (the secret) where its sheet is
+    /// kept. Public. None at threshold 0. Cheap.
     pub fn targets(&self) -> Vec<u8> {
-        Self::targets_of(&self.scheme)
+        self.targets.clone()
+    }
+
+    /// The share indices of every string of the set known here: the
+    /// inputs, then the strings made, each once. Public. Cheap.
+    pub fn indices(&self) -> Vec<u8> {
+        let mut out = self.inputs.clone();
+        for s in self.made.iter().flat_map(|m| m.strings()) {
+            let i = s.share_index();
+            if !out.contains(&i) {
+                out.push(i);
+            }
+        }
+        out
     }
 
     /// The scheme. Public.
@@ -125,6 +303,9 @@ impl WorkSet {
     /// interpolation of the whole set. Hands initial share `share` its
     /// next character, a symbol `0..32`. Refused past the last one.
     pub fn push(&mut self, c: &Compute, share: usize, symbol: u8) -> Result<(), Error> {
+        if self.is_given() {
+            return Err(Error::BadLength);
+        }
         let data_len = self.scheme.length().data_len();
         let (Some(have), Some(sheet)) = (self.entered.get_mut(share), self.sheets.get_mut(share))
         else {
@@ -156,6 +337,9 @@ impl WorkSet {
     /// Takes back the last character of initial share `share`, and the
     /// checksum and the made set where they depended on it. Cheap.
     pub fn pop(&mut self, share: usize) {
+        if self.is_given() {
+            return;
+        }
         let data_len = self.scheme.length().data_len();
         let (Some(have), Some(sheet)) = (self.entered.get_mut(share), self.sheets.get_mut(share))
         else {
@@ -189,7 +373,7 @@ impl WorkSet {
             return Ok(());
         }
         let data: Vec<&[u8]> = self.entered.iter().map(|e| e.as_slice()).collect();
-        self.made = Some(fresh_set(c, &self.scheme, &data)?);
+        self.made = Some(Made::Fresh(fresh_set(c, &self.scheme, &data)?));
         Ok(())
     }
 
@@ -227,14 +411,18 @@ impl WorkSet {
         }
         let set = self.made.as_ref()?;
         let k = usize::from(self.scheme.threshold());
-        TranslationWorksheet::of(c, &set.strings()[..k], target)
+        let inputs = match set {
+            Made::Fresh(f) => f.strings().get(..k)?,
+            Made::Given { .. } => &self.given,
+        };
+        TranslationWorksheet::of(c, inputs, target)
             .ok()
             .map(Held::of)
     }
 
     /// The strings to write, in index order (the initial shares, then
-    /// the derived ones; the secret alone at threshold 0), as paper
-    /// forms. `None` until the set is made or for another reason.
+    /// the derived ones; the secret alone at threshold 0; of a set made
+    /// of strings, only the strings made), as paper forms. `None` until the set is made or for another reason.
     pub fn strings(&self, why: Reveal) -> Option<Held<Vec<Zeroizing<String>>>> {
         if why != Reveal::PaperForm {
             return None;
@@ -262,6 +450,46 @@ impl WorkSet {
     }
 }
 
+/// The bech32 alphabet in symbol order (BIP 173).
+const BECH32: &[u8; 32] = b"qpzry9x8gf2tvdw0s3jn54khce6mua7l";
+
+/// One string's checksum worksheet in the verification form, for Check a
+/// string (`docs/CODEX32.md` §8.3): every box as typed, its checksum
+/// holding or not, the final row worked out from them. Lent to drawing
+/// as a paper form; wiped on drop with the worksheet's own cells.
+pub struct StringCheck {
+    sheet: ChecksumWorksheet,
+}
+
+impl StringCheck {
+    /// Costs a checksum worksheet of one string. The worksheet of `text`,
+    /// `ms1` and then bech32 characters of one case at a length a codex32
+    /// string has, whether its checksum holds or not. `None` for anything
+    /// else.
+    pub fn of(c: &Compute, text: &str) -> Option<StringCheck> {
+        let rest = text
+            .strip_prefix("ms1")
+            .or_else(|| text.strip_prefix("MS1"))?;
+        let lower = rest.bytes().all(|b| !b.is_ascii_uppercase());
+        let upper = rest.bytes().all(|b| !b.is_ascii_lowercase());
+        if !(lower || upper) {
+            return None;
+        }
+        let mut sheet = ChecksumWorksheet::new(rest.len() + 3).ok()?;
+        for b in rest.bytes() {
+            let v = BECH32.iter().position(|&x| x == b.to_ascii_lowercase())?;
+            sheet.push(c, v as u8).ok()?;
+        }
+        Some(StringCheck { sheet })
+    }
+
+    /// The worksheet, as a paper form. `None` for any reason but
+    /// `Reveal::PaperForm`.
+    pub fn worksheet(&self, why: Reveal) -> Option<&ChecksumWorksheet> {
+        (why == Reveal::PaperForm).then_some(&self.sheet)
+    }
+}
+
 impl Keys {
     /// Costs what `add_seed` costs. Loads the key the finished set
     /// `work` carries, its seed bytes kept as for any key loaded from a
@@ -275,13 +503,13 @@ impl Keys {
         let seed = work.seed().ok_or_else(|| Refusal::Words(String::new()))?;
         let fp = self.add_seed(c, &seed, label)?;
         // The set made is the key's, its plain facts kept with it
-        // (`docs/CODEX32.md` §9.4): every string made, none placed yet.
+        // (`docs/CODEX32.md` §9.4): every string made or given, none
+        // placed yet.
         let scheme = work.scheme();
-        let strings = scheme
-            .initial_indices()
-            .iter()
-            .chain(scheme.derived_indices())
-            .map(|&i| (i, State::Made))
+        let strings = work
+            .indices()
+            .into_iter()
+            .map(|i| (i, State::Made))
             .collect();
         self.set_codex32(
             self.len() - 1,
@@ -293,6 +521,18 @@ impl Keys {
                 strings,
             }),
         );
+        // A set of strings typed in keeps them and those made, so they go
+        // to a stick or a vault untyped (§9.5); the secret is never kept.
+        if work.is_given() {
+            let texts: Vec<Zeroizing<String>> = work
+                .given
+                .iter()
+                .chain(work.made.iter().flat_map(Made::strings))
+                .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
+                .collect();
+            let refs: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
+            self.keep_codex32(self.len() - 1, &refs);
+        }
         Ok(fp)
     }
 

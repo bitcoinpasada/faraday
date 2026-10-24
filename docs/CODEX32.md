@@ -1,8 +1,8 @@
 # Codex32: making, checking and repairing shares
 
 **Kind:** Spec
-**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), the wallet kind of §6.9 (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), backups (C8 and C8-rest, §9, as §2 says), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller beside the entry's pad (C11, §2), the Starter's codex32 templates and worksheets (C9, §11); D1 to D4 of §14 are recorded as F93 to F96, D5 is recorded as F107
-**Open:** of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); of C8, the set's facts kept for a key loaded from strings, and a vault's strings gathered with strings typed or scanned in the codex32 form (§9.5); batch C10 (§15.2): Demo and Learn; a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
+**Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), the wallet kind of §6.9 (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), backups (C8 and C8-rest, §9, as §2 says), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller beside the entry's pad (C11, §2), the Starter's codex32 templates and worksheets (C9, §11), Make the rest, Add a share, Check a string's worksheet, the mark's line on Wallets and New key's Key card, the set's facts and strings kept for a key loaded from strings, a vault's strings gathered with strings typed, and Demo's sample in place of the strings made (C6, C8, C10, §2); D1 to D4 of §14 are recorded as F93 to F96, D5 is recorded as F107
+**Open:** batch C10's last step (§15.2): this file's plan to its log; a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -317,8 +317,16 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   Faraday Desktop never masks and has no eye; New key keeps nothing when
   its screen is left, so there is nothing to show again. The translation
   symbols are drawn as the booklet's second alphabet's glyphs
-  (`SYMBOL_GLYPHS`, §7.2). Not built: Demo (§12, C10), hand-made shares
-  as a way in (§5.3).
+  (`SYMBOL_GLYPHS`, §7.2). In Demo (§12) the entry runs as anywhere,
+  with **Use a sample** over the pad filling the characters left from the
+  sample's shares; at the entry's Continue the set entered is dropped and
+  the shell's codex32 sample, BIP 93's vector 2, stands in its place
+  (`WorkSet::given` with `Making::All`: A, C and D, the sample's 2 of 3 at
+  48 characters), every later card carrying "Demo puts sample NAME in
+  place of these strings", no Dice tab, "Entropy · sample NAME", and Lock
+  in loading the sample's key; a Demo with no sample shows none
+  (`codex32_rest.rs`). Hand-made shares (the Entropy card's third way,
+  §5.3) go on to Add a key's codex32 form, Make the rest pressed (§8.1).
 - **Single key, backup in shares** (§6.9, D5), a kind of Make a new
   wallet (`faraday/faraday-core/src/create.rs`, `NewKind::Shares`; drawn
   in `faraday/faraday-core/src/screens/create.rs`): on Kind between
@@ -348,12 +356,56 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   correction of §8.4 (C7): the tick above the field, the panel in its
   place, "Repaired, not checked" under a repaired string, and the key's
   mark kept by fingerprint on the session (`Session::key_marks`). Tested
-  in `faraday/faraday-core/tests/all/codex32_forms.rs`. Not built: §8.1's
-  **Make the rest** and §8.2's **Add a share** (each goes on into the
-  make flow's worksheets and strings, and needs `faraday-keys` to derive
-  and lend the strings), §8.3's final worksheet row and **Show the
-  worksheet** (the worksheet is `faraday-keys`'), and the mark's line
-  beside the fingerprint on Wallets and New key's Key card.
+  in `faraday/faraday-core/tests/all/codex32_forms.rs`. Once a string of
+  a split set is in, the form offers **Make the rest** (§8.1 step 2) and
+  **Add a share** (§8.2); pressed before the last of the k strings, the
+  k strings then open Make codex32 shares on them in place of loading the
+  key (`Codex32Make::given`, `forms::C32Press`). The form is reached from
+  Add a key, from New key's Start card (Type codex32 strings), from Tools'
+  codex32 tile, and from Make codex32 shares' Entropy card, whose **Type
+  shares made by hand** (§6.3, §5.3) goes on to the form with Make the
+  rest pressed and the strings in all the Scheme card's. New key's Start
+  card then reads "Add a key you have · Type codex32 strings". Its first card is the
+  strings it is made from and, for Make the rest, how many strings in all
+  (one more than k, at least), for Add a share the index, the next unused
+  one offered and any other typed on the codex32 keyboard, one typed in
+  refused with "Give it an index no other string of the set has" under it;
+  then Worksheets (the checksum worksheet of each string typed, in the
+  verification form and marked "as typed", then each string made, and the
+  secret for Make the rest, on its translation worksheet), Strings (only the strings made, each named
+  by its index) and Strings made ("Entropy · your shares"), Lock in
+  loading the key with the mark the strings carry, not marked as made
+  here, the strings typed and made kept with it (`Keys::keep_codex32`). The arithmetic is `faraday-keys`' `WorkSet::given` (`Making::Rest`,
+  `Making::Add`): exactly k strings of one set, the secret counting as
+  one, every worksheet filled whole, the strings made by BIP 93's
+  derivation and the secret by its recovery; never k − 1 strings and the
+  seed. **Check it** keeps the string's checksum worksheet in the
+  verification form (`faraday_keys::StringCheck`, whether its checksum
+  holds or not): its final row is drawn under the answer beside
+  `SECRETSHARE32`, "Final row differs at box 36" where it does, and
+  **Show the worksheet** draws every row. A key loaded from the form
+  keeps its set's plain facts (§9.4: k, the identifier, the length, each
+  index typed; `forms::set_facts`, `Keys::set_codex32`) and its strings
+  (`Keys::keep_codex32`); so does a key loaded from string files in Files
+  (`inbox::Secret::Codex32`). How many strings of the set exist besides
+  is the plan's question (§9.4), not asked on the form: the checklist's
+  codex32 item for a set that exists has the stepper "How many strings
+  of name are there?" (those known to 31), and the strings past those
+  known are kept on the plan's form and in the key's facts as "And 1
+  more, their index not known" (`codex32_backup::Press::Exist`). The share strings
+  open vaults keep of the set typed in count towards k (§9.5,
+  `OpenVaults::codex32_count`, `OpenVaults::codex32_with_typed`): the
+  list of strings in says "1 more of this set in open vaults", Check it
+  says the same of the string checked, and once those typed and the
+  vaults' make k the key loads, the strings combined inside
+  `faraday-keys`. A key
+  carrying a correction's mark has its line beside its fingerprint on New
+  key's Key card and on Wallets (each loose key, and under the wallet's
+  keys held; `screens/wallets.rs`, `mark_line`). Tested in
+  `faraday/faraday-core/tests/all/codex32_rest.rs` and, against BIP 93's
+  vectors 2 and 3, `faraday/faraday-keys/tests/codex32.rs` (its `given`
+  module and `vault_codex32` test); snapshot tour `codex32` from
+  `codex32-check-final-row` on.
 - **Scanning** (§10.1): in the codex32 form, Scan reads a string and adds
   it as typed (`ScanPurpose::KeyPart`); Add a key's **Scan a SeedQR**
   takes a codex32 string and opens the codex32 form with it in
@@ -452,7 +504,9 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   (§13.1); `Keys::add_codex32` loads the finished set's key.
 - **Demo** refuses a split with k of 2 or more (`faraday/faraday-core/src/demo.rs`,
   `docs/DEMO.md` §4 and §6) and has the BIP 93 samples
-  (`docs/MODES.md` §7).
+  (`docs/MODES.md` §7); Make codex32 shares puts vector 2 in place of
+  the strings entered, and Make the rest and Add a share take only a
+  public set, as the form does (§12).
 - **The dice flow** for BIP-39 words (`faraday/faraday-core/src/keygen/mod.rs`,
   `core/faraday-entropy/src/dice.rs`) shows every entry and, for
   Dice that name words, every word as it is made.

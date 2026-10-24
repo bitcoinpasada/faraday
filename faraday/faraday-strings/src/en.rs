@@ -9626,4 +9626,52 @@ strings! {
     c32_paper_string_of: "String {} of {}",
     /// Every copies by hand's codex32 string typed back or skipped.
     c32_paper_all_done: "Every string written down",
+    // ----- Codex32: Make the rest, Add a share, Check a string's worksheet, Demo (docs/CODEX32.md §8.1 to §8.4, §12), faraday-core -----
+    /// The codex32 form's button: the set's other strings from the k in.
+    c32r_make_the_rest: "Make the rest",
+    /// The codex32 form's button: one more string of the set.
+    c32r_add_a_share: "Add a share",
+    /// The codex32 form: strings of the set typed in that open vaults
+    /// keep, which count towards k (§9.5). `{}`: how many.
+    c32r_in_vaults: "{} more of this set in open vaults",
+    /// The plan's codex32 item for a set that exists (§9.4). `{}`: the
+    /// identifier.
+    c32r_how_many: "How many strings of {} are there?",
+    /// Make codex32 shares' Entropy card: shares made by hand (§5.3).
+    c32r_type_shares_by_hand: "Type shares made by hand",
+    /// New key's Start card closed on strings typed in going on into
+    /// Make the rest or Add a share. `{}`: "Add a key you have", the way.
+    c32r_start_typed: "{} · {}",
+    /// Add a share's first card, and its index row.
+    c32r_index: "Index",
+    /// Add a share's first card closed. `{}`: the index.
+    c32r_index_value: "Index · {}",
+    /// Under Add a share's index.
+    c32r_give_index: "Give it an index no other string of the set has",
+    /// Add a share's index is one typed in, or the secret's.
+    c32r_index_taken: "A string typed in has this index",
+    /// A set typed in: the strings it is made from.
+    c32r_from: "From",
+    /// Add a share's split: the set's threshold alone. `{}`: k.
+    c32r_k_needed: "{} needed",
+    /// Strings made's entropy for a set typed in.
+    c32r_your_shares: "your shares",
+    /// Demo: the line on every card after the entry. `{}`: the sample's
+    /// identifier.
+    c32r_demo_sample: "Demo puts sample {} in place of these strings",
+    /// Demo: Strings made's entropy. `{}`: the sample's identifier.
+    c32r_entropy_sample: "sample {}",
+    /// Demo: a checksum worksheet's marking for the sample.
+    c32r_the_sample: "the sample",
+    /// Demo with no sample to put in place of the strings entered.
+    c32r_demo_no_sample: "Demo has no sample set to show in place of these strings",
+    /// Check a string: the final row's first cell that is not SECRETSHARE32's. `{}`: the box.
+    c32r_final_differs: "Final row differs at box {}",
+    /// Check a string: every row of its worksheet.
+    c32r_show_worksheet: "Show the worksheet",
+    /// Check a string: back to the final row alone.
+    c32r_final_row_only: "Final row only",
+    /// Wallets: beside a key loaded from corrected strings. `{}`: the
+    /// fingerprint, the line.
+    c32r_key_mark: "{} · {}",
 }

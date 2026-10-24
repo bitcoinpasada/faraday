@@ -239,32 +239,115 @@ fn a_string_the_plan_keeps_in_a_vault_is_saved_as_a_share_record() {
     unlock_on_vaults(&mut app, "home.ofv", PHRASE);
     key_from_strings(&mut app);
     wallet_and_backup(&mut app);
-    // A kept in the vault as well as on paper.
+    // D, the one string not typed in, kept in the vault as well as on
+    // paper.
     vault_at(&mut app, 0, 0, &[]);
-    into_vault(&mut app, 0, Thing::String(0, ix('a')));
-    assert!(backup_held(&app, At::Vault(0)).contains(&What::Codex32Share(0, ix('a'))));
+    into_vault(&mut app, 0, Thing::String(0, ix('d')));
+    assert!(backup_held(&app, At::Vault(0)).contains(&What::Codex32Share(0, ix('d'))));
     codex32_item(&mut app);
     // Not typed in yet: the save names the string and writes no share.
     skip_each(&mut app);
     app.press(Action::BVaultSave(0));
     assert_eq!(
         app.toast_text(),
-        Some("Share A of name is not here: type it in its Codex32 strings item first")
+        Some("Share D of name is not here: type it in its Codex32 strings item first")
     );
     assert!(share_records(&app, 0).is_empty());
     let c = testkit::compute();
     assert!(!app.backup_item_done_now(&c, plan::Item::Vault(0)));
-    // Typed back from the paper: the save keeps A, and only A.
+    // Typed back from the paper: the save keeps D, and only D.
     type_each_back(&mut app);
     app.press(Action::BVaultSave(0));
     assert_eq!(
         share_records(&app, 0),
-        vec![(A.as_bytes().to_vec(), FP.to_vec())]
+        vec![(D.as_bytes().to_vec(), FP.to_vec())]
     );
     assert!(app.backup_item_done_now(&c, plan::Item::Vault(0)));
     // Saved again, it is not kept twice.
     app.press(Action::BVaultSave(0));
     assert_eq!(share_records(&app, 0).len(), 1);
+}
+
+/// The plan asks how many strings of a key's set there are (§9.4): its
+/// stepper raises the count, and the plan and the key's facts both keep
+/// the strings past those known.
+#[test]
+fn the_plan_asks_how_many_strings_there_are() {
+    let mut app = device(Vec::new());
+    key_from_strings(&mut app);
+    wallet_and_backup(&mut app);
+    codex32_item(&mut app);
+    assert!(has(&mut app, "How many strings of name are there?"));
+    app.press(Action::BC32(Press::Exist(1)));
+    app.press(Action::BC32(Press::Exist(1)));
+    assert!(has(&mut app, "And 2 more, their index not known"));
+    let k = app.session.keys.position_of(FP).unwrap();
+    let facts = app.session.keys[k].codex32.clone().expect("its set");
+    assert_eq!(facts.unknown, 2);
+    assert_eq!(facts.indices(), vec![b'a', b'c', b'd']);
+    // Fewer than those known is not offered.
+    for _ in 0..5 {
+        app.press(Action::BC32(Press::Exist(-1)));
+    }
+    let facts = app.session.keys[k].codex32.clone().expect("its set");
+    assert_eq!(facts.unknown, 0);
+}
+
+/// The strings a key was typed in from are kept with it: they go to a
+/// vault without being typed again (§9.5).
+#[test]
+fn strings_typed_in_are_kept_with_their_key() {
+    let mut app = device(vec![("home.ofv".into(), vault_of(PHRASE, Vec::new(), 8))]);
+    unlock_on_vaults(&mut app, "home.ofv", PHRASE);
+    key_from_strings(&mut app);
+    let k = app.session.keys.position_of(FP).unwrap();
+    assert!(app.session.keys.holds_codex32(k, b'a'));
+    assert!(app.session.keys.holds_codex32(k, b'c'));
+    assert!(!app.session.keys.holds_codex32(k, b'd'));
+    wallet_and_backup(&mut app);
+    vault_at(&mut app, 0, 0, &[]);
+    into_vault(&mut app, 0, Thing::String(0, ix('a')));
+    app.press(Action::BVaultSave(0));
+    assert_eq!(
+        share_records(&app, 0),
+        vec![(A.as_bytes().to_vec(), FP.to_vec())]
+    );
+}
+
+/// A string typed into the codex32 form counts with the shares an open
+/// vault keeps of its set (§9.5): one typed and one in the vault load the
+/// key; Check a string says the vault has more of its set.
+#[test]
+fn a_string_typed_counts_with_a_vaults_share() {
+    let mut app = device(vec![(
+        "home.ofv".into(),
+        vault_of(PHRASE, vec![share_record(C)], 9),
+    )]);
+    unlock_on_vaults(&mut app, "home.ofv", PHRASE);
+    assert!(
+        app.session.keys.is_empty(),
+        "one share of 2 of 3 is nothing"
+    );
+    app.press(Action::Entry(None));
+    app.press(Action::EntryForm(2));
+    app.press(Action::Codex32Form(faraday_core::forms::C32Press::Check));
+    type_text(&mut app, D);
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(testkit::entry(&app).codex32.check_in_vaults, 1);
+    assert!(has(&mut app, "1 more of this set in open vaults"));
+    assert!(app.session.keys.is_empty(), "checking loads nothing");
+    app.press(Action::Codex32Form(faraday_core::forms::C32Press::Check));
+    type_text(&mut app, A);
+    app.event(Event::Key(Key::Enter));
+    let k = app
+        .session
+        .keys
+        .position_of(FP)
+        .unwrap_or_else(|| panic!("{:?}", testkit::entry(&app).error));
+    let facts = app.session.keys[k].codex32.clone().expect("its set");
+    assert_eq!(facts.indices(), vec![b'a', b'c']);
+    assert!(app.session.keys.holds_codex32(k, b'a'));
+    assert!(app.session.keys.holds_codex32(k, b'c'));
 }
 
 #[test]
@@ -346,11 +429,12 @@ fn made_with_set() -> Faraday {
     app
 }
 
-/// Shares A and C kept on two sticks: A as its text, C as its Codex32QR.
+/// Shares A and D kept on two sticks: A as its text, D as its Codex32QR.
+/// A was typed in with the key, so this session holds it; D was not.
 fn files_on_two_sticks(app: &mut Faraday) {
     board_edit(app, |m| {
         let m = plan::with_added(&m, At::Stick(0, 0), What::Codex32ShareFile(0, ix('a')));
-        plan::with_added(&m, At::Stick(1, 0), What::Codex32QrFile(0, ix('c')))
+        plan::with_added(&m, At::Stick(1, 0), What::Codex32QrFile(0, ix('d')))
     });
 }
 
@@ -366,7 +450,7 @@ fn a_string_not_here_stops_lock_and_write() {
     shell.flow(&mut app, F::WalletLock);
     assert_eq!(
         app.toast_text(),
-        Some("Share C of name is not here: type it in its Codex32 strings item first")
+        Some("Share D of name is not here: type it in its Codex32 strings item first")
     );
     assert!(!app.restart_requested(), "not locked");
 }
@@ -428,10 +512,10 @@ fn strings_on_two_sticks_are_written_and_rebuild_the_key() {
     assert_eq!(text.1, format!("{A}\n").into_bytes());
     let picture = files
         .iter()
-        .find(|(n, _)| n == "codex32qr-fab6868a-c.png")
-        .expect("C's Codex32QR");
+        .find(|(n, _)| n == "codex32qr-fab6868a-d.png")
+        .expect("D's Codex32QR");
     let read = faraday_files::qr_in_png(&c, &picture.1).unwrap();
-    assert_eq!(read, vec![C.to_ascii_uppercase().into_bytes()]);
+    assert_eq!(read, vec![D.to_ascii_uppercase().into_bytes()]);
     // The two files, copied into a Faraday with nothing in it, are the
     // key's seed.
     let mut back = testkit::started();
@@ -450,7 +534,7 @@ fn strings_on_two_sticks_are_written_and_rebuild_the_key() {
             .seeds
             .iter()
             .any(|s| s.fingerprint.0 == FP),
-        "A and C rebuild the key"
+        "A and D rebuild the key"
     );
 }
 

@@ -4,12 +4,15 @@
 //! identifier, the entry part way with an equal pair struck, the small
 //! panel's tiles, a translation worksheet, a cell's working, the review's
 //! tabs, a string typed back with a box that differs, its Codex32QR
-//! code, Strings made with Check on another device, and Lock in.
+//! code, Strings made with Check on another device, and Lock in; then
+//! on Add a key's codex32 form, Check a string's worksheet, Make the rest
+//! from vector 2's A and C, and Add a share from vector 3's A, C and E.
 
 use crate::tour::Tour;
 use faraday_core::codex32::{C32, Cell, OskPress, SPLITS, Split, WAYS, Way};
 use faraday_core::keygen::{Start, kstep};
 use faraday_core::{Action, Screen};
+use faraday_shell_api::App;
 
 /// Vector 2's initial shares A and C (`tools/vectors/bip93/vectors.json`).
 const SHARES: [&str; 2] = [
@@ -138,5 +141,80 @@ pub(crate) fn codex32_tour(t: &mut Tour) -> Result<(), String> {
     c(t, C32::Check);
     t.shot("codex32-made-check")?;
     c(t, C32::Lock);
-    t.shot("codex32-locked")
+    t.shot("codex32-locked")?;
+    c(t, C32::Next);
+    typed_in(t)
+}
+
+/// Vector 3's shares A, C and E (k = 3).
+const CASH: [&str; 3] = [
+    "ms13casha320zyxwvutsrqpnmlkjhgfedca2a8d0zehn8a0t",
+    "ms13cashcacdefghjklmnpqrstuvwxyz023949xq35my48dr",
+    "ms13casheekgpemxzshcrmqhaydlp6yhms3ws7320xyxsar9",
+];
+
+/// Add a key's codex32 form, open and empty.
+fn form(t: &mut Tour) {
+    let at = faraday_core::forms::Form::ALL
+        .iter()
+        .position(|f| *f == faraday_core::forms::Form::Codex32)
+        .unwrap_or(2);
+    t.press(Action::Entry(None));
+    t.press(Action::EntryForm(at as u8));
+}
+
+/// The small panel's keyboard put away, so the form under it is seen;
+/// nothing where the window has none up.
+fn hide_keyboard(t: &mut Tour) {
+    t.press(Action::Osk(faraday_core::OskPress::Hide));
+}
+
+/// One string typed into the codex32 form and Enter.
+fn string_in(t: &mut Tour, s: &str) {
+    crate::tour::type_text(t, s);
+    t.app
+        .event(faraday_shell_api::Event::Key(faraday_shell_api::Key::Enter));
+    t.pump();
+}
+
+/// Check a string's worksheet (§8.3), Make the rest (§8.1) and Add a
+/// share (§8.2) from strings typed into Add a key.
+fn typed_in(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::forms::C32Press;
+    form(t);
+    t.press(Action::Codex32Form(C32Press::Check));
+    let mut bad = SHARES[0].as_bytes().to_vec();
+    bad[19] = if bad[19] == b'q' { b'p' } else { b'q' };
+    string_in(t, &String::from_utf8_lossy(&bad));
+    hide_keyboard(t);
+    t.shot("codex32-check-final-row")?;
+    t.press(Action::Codex32Form(C32Press::Sheet));
+    hide_keyboard(t);
+    t.shot("codex32-check-worksheet")?;
+    t.press(Action::Codex32Form(C32Press::Check));
+    string_in(t, SHARES[0]);
+    t.press(Action::Codex32Form(C32Press::Rest));
+    hide_keyboard(t);
+    t.shot("codex32-form-make-the-rest")?;
+    string_in(t, SHARES[1]);
+    t.shot("codex32-rest-scheme")?;
+    c(t, C32::N(1));
+    c(t, C32::Next);
+    t.shot("codex32-rest-sheets")?;
+    c(t, C32::Next);
+    t.shot("codex32-rest-string")?;
+    form(t);
+    string_in(t, CASH[0]);
+    t.press(Action::Codex32Form(C32Press::AddShare));
+    string_in(t, CASH[1]);
+    string_in(t, CASH[2]);
+    t.shot("codex32-add-index")?;
+    key(t, 'f');
+    c(t, C32::Next);
+    t.shot("codex32-add-sheets")?;
+    c(t, C32::Next);
+    t.shot("codex32-add-string")?;
+    c(t, C32::Skip);
+    c(t, C32::Skip);
+    t.shot("codex32-add-made")
 }

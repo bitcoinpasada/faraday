@@ -6043,7 +6043,7 @@ impl Faraday {
         }
         let here = self.entry_typing_key();
         if here && self.entry.state().form != forms::Form::Words {
-            match self.entry.part_key(key) {
+            match self.entry_part_key(key) {
                 state::Keyed::Recover => {
                     if self.screen == Screen::KeyGen {
                         self.keygen_act(Action::KNext);

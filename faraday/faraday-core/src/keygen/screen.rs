@@ -298,6 +298,12 @@ fn start_name(s: Start) -> &'static str {
 
 fn summary(k: &KeyGen, s: u8) -> String {
     match s {
+        // Strings typed in going on into the rest or a share (§8.1, §8.2)
+        // are a key the person has.
+        kstep::START if k.codex32.as_ref().is_some_and(|m| m.given_kind().is_some()) => fill(
+            EN.c32r_start_typed,
+            &[EN.keygen_add_a_key_you_have, EN.keygen_type_a_codex32],
+        ),
         kstep::START if k.start.new_key() => fill(EN.keygen_start_new_key, &[start_name(k.start)]),
         kstep::START => start_name(k.start).to_string(),
         kstep::TYPED => match k.mnemonic.as_ref() {
@@ -605,6 +611,12 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
             &fp_text(faraday_bip::keys::Fingerprint(fp)),
             TEXT,
         );
+        // A key of strings that went in by a correction says so beside
+        // its fingerprint (`docs/CODEX32.md` §8.4).
+        if let Some(mark) = app.session.key_marks.of(fp) {
+            cy += crate::codex32_correct::screen::fingerprint_line(ui, x, cy, w, mark)
+                + faraday_draw::tokens::CORRECT_GAP;
+        }
     }
     cy += handed_line(k, ui, x, cy, w);
     cy += 6.0;

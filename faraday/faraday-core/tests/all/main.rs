@@ -35,6 +35,7 @@ mod codex32_glyphs;
 mod codex32_kept;
 mod codex32_learn;
 mod codex32_make;
+mod codex32_rest;
 mod codex32_roller;
 mod collect;
 mod common;

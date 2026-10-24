@@ -61,6 +61,10 @@ pub enum Press {
     PaperNext,
     /// **Skip** on the copies by hand's string open: a first press asks.
     PaperSkip,
+    /// "How many strings of w0za are there?" (`docs/CODEX32.md` §9.4),
+    /// for a set that exists: one more or one fewer, from those known to
+    /// 31.
+    Exist(i8),
 }
 
 /// The copies by hand's codex32 strings, one at a time (`docs/CODEX32.md`

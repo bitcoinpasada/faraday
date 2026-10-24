@@ -11,7 +11,7 @@ use crate::ui::{CoreUi, Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, Screen};
 use faraday_draw::widgets::Icon;
-use faraday_ui::parts::{button_rows, section_label};
+use faraday_ui::parts::{button_rows, section_label, wrap_buttons};
 
 /// The one word the typed prefix can complete to, if there is one.
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -596,7 +596,7 @@ pub(crate) fn entry_form(
     }
     y += 8.0;
     if form == Form::Codex32 {
-        y += codex32_check_button(app, ui, x, y);
+        y += codex32_check_button(app, ui, x, y, width);
     }
     // A SLIP-39 backup's passphrase; a Seed XOR key's BIP-39 one.
     if form != Form::Codex32 && flow.is_none() {
@@ -880,10 +880,46 @@ pub(crate) fn codex32_found(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32)
         };
         h += ui.wrap(x, y + h, width, CORRECT_LINE_TEXT, W::R, tone, text);
     }
+    // Strings of its set the open vaults keep (§9.5).
+    if checked.holds && e.codex32.check_in_vaults > 0 {
+        let n = e.codex32.check_in_vaults.to_string();
+        h += ui.wrap(
+            x,
+            y + h,
+            width,
+            CORRECT_LINE_TEXT,
+            W::R,
+            TEXT,
+            &fill(EN.c32r_in_vaults, &[&n]),
+        );
+    }
     if let Some(text) = checked.mark.and_then(|m| m.string_line()) {
         h += line(ui, x, y + h, width, Icon::Warning, WARN, text);
     }
-    h + CORRECT_GAP
+    h += CORRECT_GAP;
+    // The final row of its worksheet, or the whole sheet (§8.3).
+    if let Some(sheet) = &e.codex32.sheet {
+        let open = e.codex32.sheet_open;
+        h += crate::codex32::screen::check_sheet(app, sheet, open, ui, (x, y + h, width));
+        let label = if open {
+            EN.c32r_final_row_only
+        } else {
+            EN.c32r_show_worksheet
+        };
+        h += wrap_buttons(
+            ui,
+            x,
+            y + h,
+            width,
+            faraday_draw::tokens::TOUCH,
+            &[(
+                label,
+                Style::Ghost,
+                Action::Codex32Form(crate::forms::C32Press::Sheet),
+            )],
+        );
+    }
+    h
 }
 
 /// The line under a codex32 string in the list of strings in, where it
@@ -906,23 +942,44 @@ pub(crate) fn codex32_mark(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, 
     crate::codex32_correct::screen::line(ui, x, y, width, Icon::Warning, WARN, text)
 }
 
-/// The codex32 form's way to Check a string, or back to adding strings
-/// (§8.3): a ghost button a touch target tall. Returns its height.
-pub(crate) fn codex32_check_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
+/// The codex32 form's ways on from the strings in: **Make the rest** and
+/// **Add a share** once a string of a split set is in (§8.1, §8.2), and
+/// Check a string, or back to adding strings (§8.3), each a touch target
+/// tall. Returns their height.
+pub(crate) fn codex32_check_button(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32) -> f32 {
+    use crate::forms::C32Press;
     use faraday_draw::tokens::{CORRECT_GAP, TOUCH};
-    let label = if app.entry.state().codex32.checking {
+    let e = app.entry.state();
+    let checking = e.codex32.checking;
+    let making = e.codex32.making;
+    let label = if checking {
         EN.codex32_form_back_to_adding
     } else {
         EN.codex32_form_check_a_string
     };
-    ui.button(
-        x,
-        y,
-        None,
-        TOUCH,
-        label,
-        Style::Ghost,
-        Action::Codex32Form(crate::forms::C32Press::Check),
-    );
-    TOUCH + CORRECT_GAP
+    let mut items = Vec::new();
+    if !checking && crate::forms::offers_more(&e.parts) {
+        use crate::codex32::Given;
+        // The one pressed is filled: its label fits as measured, where a
+        // selected button's check would not.
+        let on = |pressed: bool| {
+            if pressed {
+                Style::Primary
+            } else {
+                Style::Secondary
+            }
+        };
+        items.push((
+            EN.c32r_make_the_rest,
+            on(making == Some(Given::Rest)),
+            Action::Codex32Form(C32Press::Rest),
+        ));
+        items.push((
+            EN.c32r_add_a_share,
+            on(making == Some(Given::Add)),
+            Action::Codex32Form(C32Press::AddShare),
+        ));
+    }
+    items.push((label, Style::Ghost, Action::Codex32Form(C32Press::Check)));
+    wrap_buttons(ui, x, y, width, TOUCH, &items) + CORRECT_GAP
 }

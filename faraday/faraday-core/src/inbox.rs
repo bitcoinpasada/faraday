@@ -463,8 +463,9 @@ pub(crate) enum Secret {
     Words(Mnemonic),
     /// SLIP-39 shares.
     Slip39(Vec<slip39::Share>),
-    /// A master seed.
-    Seed(Zeroizing<Vec<u8>>),
+    /// A master seed from codex32 strings, with the plain facts of their
+    /// set, kept with the key it loads (`docs/CODEX32.md` §9.4).
+    Codex32(Zeroizing<Vec<u8>>, Option<faraday_vault::codex32::SetFacts>),
 }
 
 impl Secret {
@@ -479,7 +480,7 @@ impl Secret {
         let material = match self {
             Secret::Words(m) => faraday_keys::Material::Words(m),
             Secret::Slip39(shares) => faraday_keys::Material::Slip39(shares),
-            Secret::Seed(s) => faraday_keys::Material::Seed(s),
+            Secret::Codex32(s, _) => faraday_keys::Material::Seed(s),
         };
         faraday_keys::fingerprint(c, material, passphrase, network)
     }
@@ -500,7 +501,13 @@ impl Secret {
                     .map_err(|e| Refusal::Words(format!("{e:?}")))?;
                 keys.add_seed(c, &secret, label)
             }
-            Secret::Seed(s) => keys.add_seed(c, s, label),
+            Secret::Codex32(s, facts) => {
+                let fp = keys.add_seed(c, s, label)?;
+                if let Some(i) = keys.position(fp) {
+                    keys.set_codex32(i, facts.clone());
+                }
+                Ok(fp)
+            }
         }
     }
 }
@@ -570,7 +577,9 @@ impl Faraday {
                     })
                     .collect();
                 let seed = faraday_keys::codex32_seed(&parts).ok()?;
-                Some(Secret::Seed(seed))
+                // The set's facts: the strings in Files; the plan asks how
+                // many there are (§9.4).
+                Some(Secret::Codex32(seed, crate::forms::set_facts(&parts)))
             }
             SeedSource::Loaded => None,
         }

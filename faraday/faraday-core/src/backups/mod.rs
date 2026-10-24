@@ -1246,12 +1246,40 @@ impl Faraday {
                 }
             }
             Press::Set(s) => self.c32_set(c, s, i, key),
+            Press::Exist(d) => self.c32_exist(i, key, d),
             Press::PaperOpen
             | Press::PaperK(_)
             | Press::PaperN(_)
             | Press::PaperKey(_)
             | Press::PaperNext
             | Press::PaperSkip => {}
+        }
+    }
+
+    /// "How many strings of w0za are there?" (`docs/CODEX32.md` §9.4)
+    /// stepped by `d` for seed `i` (session key `key`): the strings not
+    /// known by index, kept on the plan's form and in the key's set
+    /// facts. A lookup.
+    fn c32_exist(&mut self, i: usize, key: usize, d: i8) {
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let Some(mut form) = b.answers.c32(i).cloned().filter(plan::codex32::C32::fixed) else {
+            return;
+        };
+        let known = form.indices.len();
+        let lo = known.max(usize::from(form.k)) as i16;
+        let total =
+            (form.n() as i16 + i16::from(d)).clamp(lo, i16::from(faraday_bip::codex32::MAX_SHARES));
+        form.unknown = u8::try_from(total as usize - known).unwrap_or(0);
+        let shape = self.plan_shape_now(b.wallet);
+        let mut answers = b.answers.clone();
+        answers.set_c32(&shape, i, Some(form.clone()));
+        self.backup
+            .change_answers(&shape, &|a, _| *a = answers.clone());
+        if let Some(mut facts) = self.session.keys.info(key).and_then(|k| k.codex32.clone()) {
+            facts.unknown = form.unknown;
+            self.session.keys.set_codex32(key, Some(facts));
         }
     }
 

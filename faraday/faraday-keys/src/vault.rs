@@ -1433,6 +1433,123 @@ impl OpenVaults {
         loaded
     }
 
+    /// A parse of each codex32 share record's string. The share strings
+    /// every open vault keeps of the set `typed` is of (its identifier,
+    /// threshold and length), at indices none of `typed` has, one per
+    /// index, as their text (`docs/CODEX32.md` §9.5). None where `typed`
+    /// is empty or the secret alone.
+    fn codex32_more_of(&self, typed: &[faraday_bip::codex32::Codex32]) -> Vec<Zeroizing<String>> {
+        use faraday_bip::codex32::Codex32;
+        let Some(first) = typed.first().filter(|f| f.threshold() >= 2) else {
+            return Vec::new();
+        };
+        let mut out: Vec<(u8, Zeroizing<String>)> = Vec::new();
+        for r in self.slots.iter().flat_map(|s| s.records.records.iter()) {
+            if r.kind != kind::CODEX32_SHARE {
+                continue;
+            }
+            let Some(text) = r.text(field::CODEX32_STRING) else {
+                continue;
+            };
+            let Ok(s) = Codex32::parse(text) else {
+                continue;
+            };
+            let i = s.share_index();
+            let same = s.identifier() == first.identifier()
+                && s.threshold() == first.threshold()
+                && s.payload().len() == first.payload().len();
+            if same
+                && !s.is_secret()
+                && !typed.iter().any(|t| t.share_index() == i)
+                && !out.iter().any(|(j, _)| *j == i)
+            {
+                out.push((i, Zeroizing::new(text.to_ascii_lowercase())));
+            }
+        }
+        out.into_iter().map(|(_, t)| t).collect()
+    }
+
+    /// A parse of each codex32 share record's string. How many strings
+    /// of the set `typed` is of the open vaults add to it: at indices
+    /// none of `typed` has, one per index (`docs/CODEX32.md` §9.5).
+    /// Public: a count.
+    pub fn codex32_count(&self, typed: &[faraday_bip::codex32::Codex32]) -> usize {
+        self.codex32_more_of(typed).len()
+    }
+
+    /// Costs a parse of each codex32 share record's string and, where `k`
+    /// strings are in, an interpolation, an HMAC-SHA512 and what
+    /// `add_seed` costs. Strings typed into the codex32 form gathered with
+    /// the open vaults' strings of their set (`docs/CODEX32.md` §9.5):
+    /// once `typed` and those make `k`, the seed they make loads as a key
+    /// labelled `label`, its set's facts the indices of both and its
+    /// strings kept ([`Keys::keep_codex32`]). `None` while fewer than `k`
+    /// are in; a refusal where the key does not load.
+    pub fn codex32_with_typed(
+        &self,
+        c: &Compute,
+        keys: &mut Keys,
+        typed: &[faraday_bip::codex32::Codex32],
+        label: &str,
+    ) -> Option<Result<Fingerprint, Refusal>> {
+        use faraday_bip::codex32::Codex32;
+        use fv::codex32::{SetFacts, State};
+        let first = typed.first()?;
+        let need = usize::from(first.threshold());
+        let more = self.codex32_more_of(typed);
+        if need < 2 || typed.len() >= need || typed.len() + more.len() < need {
+            return None;
+        }
+        let mut texts: Vec<Zeroizing<String>> = typed
+            .iter()
+            .map(|s| Zeroizing::new(s.encode().as_str().to_string()))
+            .collect();
+        texts.extend(more);
+        let parts: Vec<Codex32> = texts
+            .iter()
+            .take(need)
+            .filter_map(|t| Codex32::parse(t).ok())
+            .collect();
+        let seed = match crate::operations::codex32_seed(&parts) {
+            Ok(s) => s,
+            Err(e) => return Some(Err(Refusal::Words(e.to_string()))),
+        };
+        let fp = match keys.add_seed(c, &seed, label) {
+            Ok(fp) => fp,
+            Err(e) => return Some(Err(e)),
+        };
+        let at = keys.len() - 1;
+        // Those typed are on paper; those in a vault are placed there.
+        let strings = texts
+            .iter()
+            .enumerate()
+            .filter_map(|(n, t)| Some((*t.as_bytes().get(8)?, n)))
+            .map(|(i, n)| {
+                (
+                    i,
+                    if n < typed.len() {
+                        State::Made
+                    } else {
+                        State::Placed
+                    },
+                )
+            })
+            .collect();
+        keys.set_codex32(
+            at,
+            Some(SetFacts {
+                threshold: first.threshold(),
+                identifier: first.identifier(),
+                length: u8::try_from(texts[0].len()).unwrap_or(0),
+                unknown: 0,
+                strings,
+            }),
+        );
+        let refs: Vec<&str> = texts.iter().map(|t| t.as_str()).collect();
+        keys.keep_codex32(at, &refs);
+        Some(Ok(fp))
+    }
+
     /// Whether open vault `id` keeps a codex32 share record of the key
     /// with fingerprint `fp` at share index `index` (a bech32 character,
     /// lower case). A lookup.
