@@ -42,9 +42,8 @@ stick_panel := "efi-framebuffer"
 # The desktop app at out/linux/faraday, built in a Debian 11 container
 # (faraday/build/linux) against glibc 2.31, so one file runs on Ubuntu
 # 20.04 and later, Debian 11 and later, Fedora 32 and later and Arch
-# (docs/STARTER.md §1.2). With release=1 it is the file a release
-# publishes as faraday-desktop-X.Y.Z-testnet-only-linux-x86_64, which
-# shows the online warning at start (docs/DECISIONS.md F61). The
+# (docs/STARTER.md §1.2). With release=1 it is the file the Linux
+# Starter's payload carries (docs/DECISIONS.md F83). The
 # Wayland and X11 libraries are loaded from the
 # desktop it runs on. The Starter is built the same way with
 # the arguments `out/linux out/build/run faraday-starter-shell faraday-starter`, against the payload a first
@@ -98,9 +97,10 @@ faraday-linux-bin out="out/linux" cache="out/build/run" package="faraday-desktop
 # checked: no library beside Windows' own, no local path in its strings.
 # Parameters are positional, in this order, as faraday-linux-bin's are;
 # the last two default to the Starter; the desktop app with release=1 is
-# released on its own as faraday-desktop-X.Y.Z-testnet-only-windows-x86_64.exe
-# (F61). FARADAY_STARTER_PAYLOAD=out/payload/VERSION/windows
-# builds that payload into the Starter (the stick and Pi images); without
+# the file the Windows Starter's payload carries (F83).
+# FARADAY_STARTER_PAYLOAD=out/payload/VERSION/windows
+# builds that payload into the Starter (the stick and Pi images and the
+# desktop app); without
 # it the Starter offers only --image. what
 # `clippy` runs clippy for the Windows target on that package instead.
 #
@@ -438,11 +438,12 @@ faraday-pi-image: faraday-pi-bin
 # name. The stick image must be the release build (release=1); the stick
 # and Pi builds must carry one build ID; --any-build tries it on a test
 # build. Faraday Desktop, out/linux/faraday and out/windows/faraday.exe
-# built with release=1, is staged beside them as
-# faraday-desktop-VERSION-testnet-only-linux-x86_64 and
-# faraday-desktop-VERSION-testnet-only-windows-x86_64.exe (F61), never in
-# the payload. The payload has linux/ and windows/, one for each Starter,
-# each holding the two images and MANIFEST.
+# built with release=1, goes into the payload of its own system as
+# faraday-desktop-VERSION-linux-x86_64.xz and
+# faraday-desktop-VERSION-windows-x86_64.exe.xz (F83), and is never in
+# the release folder. The payload has linux/ and windows/, one for each
+# Starter, each holding the two images, that system's desktop app and
+# MANIFEST.
 #
 #   just faraday-release-stage 0.2.0
 #   just faraday-release-stage 0.2.0 --any-build --out DIR

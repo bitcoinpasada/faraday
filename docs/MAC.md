@@ -16,8 +16,9 @@ What it adds:
 - **Apple Silicon Macs** (M1 and M2 first) start a new stick image,
   `arm64-apple`, through a start-up file the Starter installs once on
   the Mac and Apple's own recovery system seals.
-- **The Starter** runs on macOS. Faraday Desktop is published for
-  Linux and Windows only (F61); its macOS build is a developer's (§5).
+- **The Starter** runs on macOS. The Linux and Windows
+  Starters carry Faraday Desktop (F83); the macOS Starter carries none,
+  and the macOS build is a developer's (§5).
 
 Asahi Linux's work (m1n1, its U-Boot and kernel trees) is what makes
 Apple Silicon possible, and this document uses its names. Faraday
@@ -453,9 +454,9 @@ whatever its machine type; the first-signing build record (`docs/history/PLAN.md
 ## 5. The desktop app on macOS
 
 Not published, and dropped from the plan (owner, 2026-10-14, F30): no
-release carries a macOS desktop app, and batch D is not built. F61
-(2026-10-20) publishes Faraday Desktop again for Linux and Windows
-only; the macOS file stays unpublished. A
+release carries a macOS desktop app, and batch D is not built. F83
+(2026-10-23) puts Faraday Desktop inside the Linux and Windows Starters;
+the macOS Starter carries none. A
 developer with a Mac can still build the desktop shell there; this
 section lists what that build needs, for whoever does it. Nothing here
 is built or tested in this repository.

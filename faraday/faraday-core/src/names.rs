@@ -8,11 +8,12 @@
 
 /// The installed Starter on Linux, in `~/.local/bin`.
 pub const LINUX_BIN: &str = "faraday-starter";
+/// The installed desktop app on Linux, in `~/.local/bin`.
+pub const LINUX_DESKTOP_BIN: &str = "faraday-desktop";
 /// The Starter's menu entry and icon (reverse-DNS, so never a developer's
 /// own `faraday.desktop`), and its Windows manifest identity.
 pub const MENU_ID: &str = "app.faradayoffline.FaradayStarter";
-/// The desktop app's Windows manifest identity, for a developer's build
-/// (F30: the Starter no longer installs it).
+/// The desktop app's menu entry and Windows manifest identity.
 pub const MENU_DESKTOP_ID: &str = "app.faradayoffline.FaradayDesktop";
 
 /// `%LOCALAPPDATA%\Programs\<this>`, the uninstall key and the Run value.
@@ -21,9 +22,11 @@ pub const WIN_NAME: &str = "Faraday Starter";
 pub const WIN_EXE: &str = "Faraday Starter.exe";
 /// The Start menu shortcut.
 pub const WIN_SHORTCUT: &str = "Faraday Starter.lnk";
-/// The desktop app's file name on Windows, for a developer's build (F30:
-/// the Starter no longer installs it).
+/// The installed desktop app on Windows, beside the Starter's, and the
+/// name of its cached copy (`docs/STARTER.md` §5.3).
 pub const WIN_DESKTOP_EXE: &str = "Faraday Desktop.exe";
+/// The desktop app's Start menu shortcut.
+pub const WIN_DESKTOP_SHORTCUT: &str = "Faraday Desktop.lnk";
 
 /// One earlier install's names, found and removed by install and
 /// uninstall when it is Faraday's. These never change.

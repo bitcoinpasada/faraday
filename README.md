@@ -379,12 +379,13 @@ Files shows through the webcam and saves each whole file into the same
 folder, under its own name or `received-N`, never over a file already
 there (`name (2).ext`).
 
-Faraday Starter does not carry or install Faraday Desktop, which is
-published on its own ("Faraday Desktop" below). A desktop app an
-earlier Faraday Starter installed stays until removed by hand: `~/.local/bin/faraday-desktop` and
-`~/.local/share/applications/app.faradayoffline.FaradayDesktop.desktop`
-on Linux, `Faraday Desktop.exe` in `%LOCALAPPDATA%\Programs\Faraday Starter`
-and its Start menu shortcut on Windows.
+Faraday Starter on Linux and Windows carries Faraday Desktop for its
+own system ("Faraday Desktop" below). **Open Faraday Desktop**, a row on
+its Home, runs it. **Install** puts it beside the Starter, in
+`~/.local/bin/faraday-desktop` with the menu entry "Faraday Desktop" on
+Linux, and as `Faraday Desktop.exe` in `%LOCALAPPDATA%\Programs\Faraday
+Starter` with a Start menu shortcut on Windows; **Uninstall** removes
+them. Faraday Starter for macOS carries none.
 
 Without Faraday Starter, Raspberry Pi Imager and balenaEtcher take the
 `.img.xz` as it is; other tools need it decompressed (`xz -d` on Linux,
@@ -393,10 +394,9 @@ Without Faraday Starter, Raspberry Pi Imager and balenaEtcher take the
 ## Faraday Desktop
 
 Faraday Desktop runs Faraday in a window on an ordinary computer, for
-trying it on testnet and for developing it. Each release publishes it
-for Linux and Windows as `faraday-desktop-X.Y.Z-testnet-only-linux-x86_64`
-and `faraday-desktop-X.Y.Z-testnet-only-windows-x86_64.exe`
-(`docs/DECISIONS.md` F61). It has none of the stick's protections and is
+trying it on testnet and for developing it. A release does not
+publish it on its own: the Linux and Windows Faraday Starters carry it
+(`docs/DECISIONS.md` F83). It has none of the stick's protections and is
 never for a seed that holds funds. It starts in Demo, a mode on
 testnet that takes only the public seeds (each of `bacon`, `flag`,
 `gas`, `great`, `slice`, `solution`, `summer`, `they`, `trade`, `trap`
@@ -546,9 +546,8 @@ From 0.1.2 the images are published as `.xz` only. `SHA256SUMS` lists
 each `.xz` and, under the `.img` name, the image inside it, so the same
 command checks a download and, after `xz -d`, the image. It lists the
 Linux Starter's `.tar.gz` and, under its own name, the file inside it, so
-either can be checked, and Faraday Desktop's two files as they are:
-`faraday-desktop-0.1.6-testnet-only-linux-x86_64` and
-`faraday-desktop-0.1.6-testnet-only-windows-x86_64.exe`.
+either can be checked. Faraday Desktop has no file of its own; it is
+inside each Starter (the Starter's own sum covers it).
 
 On Windows, Gpg4win's `gpg` takes the same first three commands, and
 PowerShell prints a file's sum to compare with its line in

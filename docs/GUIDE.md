@@ -267,10 +267,10 @@ the Starter's Home lists **Turn Secure Boot back on** until it is on.
 
 ### 1.11 Faraday Desktop, the alternative
 
-Faraday Desktop is Faraday in a window, for trying it. It is published
-beside the Starter as `faraday-desktop-X.Y.Z-testnet-only-linux-x86_64`
-and `faraday-desktop-X.Y.Z-testnet-only-windows-x86_64.exe`. It runs on
-an online computer, so it has none of the stick's protections: never
+Faraday Desktop is Faraday in a window, for trying it. It is inside the
+Starter on Linux and Windows: **Open Faraday Desktop** on the Starter's
+Home runs it, and **Install** puts it in the app menu beside the
+Starter. It runs on an online computer, so it has none of the stick's protections: never
 type a seed that holds real bitcoin into it.
 
 ![Faraday Desktop's Home, in Demo](guide/1-11-desktop-home.png)

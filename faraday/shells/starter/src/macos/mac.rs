@@ -37,6 +37,7 @@ use faraday_starter::api::{
 
 use super::diskutil::{Answers, BootPart, whole_of};
 use super::{facts, install, plist};
+use crate::payload::Payload;
 use crate::platform::Platform;
 use crate::stick;
 use crate::writer::{self, Device, Identity, Job};
@@ -132,7 +133,7 @@ impl Platform for MacOs {
         install::installed(&install::Dirs::from_env().ok()?)
     }
 
-    fn install(&self) -> Result<String, Reason> {
+    fn install(&self, _payload: Option<&Payload>) -> Result<String, Reason> {
         let dirs = install::Dirs::from_env()?;
         let running = std::env::current_exe().map_err(|e| Reason::File {
             path: String::from("faraday"),
@@ -155,6 +156,10 @@ impl Platform for MacOs {
 
     fn uninstall(&self) -> Result<(), Reason> {
         install::uninstall(&install::Dirs::from_env()?)
+    }
+
+    fn run_desktop(&self, _payload: Option<&Payload>) -> Result<(), Reason> {
+        Err(Reason::NoDesktopApp)
     }
 
     fn downloads(&self) -> PathBuf {

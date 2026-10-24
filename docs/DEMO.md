@@ -5,13 +5,11 @@
 
 ## 1. The decision
 
-1. Faraday Starter does not carry Faraday Desktop: no **Try the
-   desktop app**, no desktop app in **Install**, none in its payload.
-   Releases publish it on its own, testnet only, as
-   `faraday-desktop-X.Y.Z-testnet-only-linux-x86_64` and
-   `faraday-desktop-X.Y.Z-testnet-only-windows-x86_64.exe` (F61, partly
-   reversing F30, which had stopped publishing it); the macOS file
-   `faraday-desktop-X.Y.Z-macos.zip` is never published.
+1. Faraday Starter on Linux and Windows carries Faraday Desktop for its
+   own system: **Open Faraday Desktop** on Home, and the desktop app
+   beside the Starter from **Install**, in its payload (F83, which
+   amends F30 and F61). Releases do not publish it on its own; the
+   macOS Starter and the macOS desktop app carry none.
 2. The code and its builds stay: `faraday/shells/desktop`, `cargo build
    -p faraday-desktop`, `just faraday-linux-bin` (whose default package
    is still `faraday-desktop`) and `just faraday-windows-bin build
@@ -262,11 +260,11 @@ Moved to `docs/history/DEMO-LOG.md`.
 
 ## 9. Releases
 
-A payload carries the images only: staging
-(`faraday/tools/stage-release.sh`) refuses a payload folder holding any
-file named `faraday-desktop-…`, and the payload's manifest refuses one
-(F30, F61). The desktop files are published beside the Starters, not in
-them.
+A payload carries the images and Faraday Desktop for its own system
+(F83): staging (`faraday/tools/stage-release.sh`) puts it in each
+payload folder, and refuses a release folder holding any file named
+`faraday-desktop-…`. The desktop app is not published beside the
+Starters.
 
 Moved to `docs/history/DEMO-LOG.md`.
 

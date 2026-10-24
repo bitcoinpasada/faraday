@@ -23,6 +23,7 @@ use faraday_starter::api::{
     Computer, Concern, Disk, FaradayStick, Installed, Os, Reason, StarterEvent, WriteOrder,
 };
 
+use crate::payload::Payload;
 use crate::platform::Platform;
 use crate::stick;
 use crate::writer::{self, Device, Identity, Job};
@@ -122,17 +123,27 @@ impl Platform for Linux {
         install::installed(&install::Dirs::from_env().ok()?)
     }
 
-    fn install(&self) -> Result<String, Reason> {
+    fn install(&self, payload: Option<&Payload>) -> Result<String, Reason> {
         let dirs = install::Dirs::from_env()?;
         let running = std::env::current_exe().map_err(|e| Reason::File {
             path: String::from("faraday"),
             detail: e.to_string(),
         })?;
-        install::install(&dirs, &running)
+        let app = match payload {
+            Some(p) => p.desktop_bytes()?,
+            None => None,
+        };
+        install::install(&dirs, &running, app.as_deref())
     }
 
     fn uninstall(&self) -> Result<(), Reason> {
         install::uninstall(&install::Dirs::from_env()?)
+    }
+
+    fn run_desktop(&self, payload: Option<&Payload>) -> Result<(), Reason> {
+        let dirs = install::Dirs::from_env()?;
+        let path = install::desktop_app(&dirs, payload)?;
+        install::start(&dirs, &path)
     }
 
     fn downloads(&self) -> PathBuf {

@@ -190,9 +190,9 @@ impl Shell {
                 });
             }
             StarterCommand::Install => {
-                let (system, tx) = self.threaded();
+                let (system, tx, payload) = self.threaded();
                 std::thread::spawn(move || {
-                    let done = system.install();
+                    let done = system.install(payload.as_ref());
                     let ok = done.is_ok();
                     let _ = tx.send(StarterEvent::InstallDone(done));
                     if ok {
@@ -201,7 +201,7 @@ impl Shell {
                 });
             }
             StarterCommand::Uninstall => {
-                let (system, tx) = self.threaded();
+                let (system, tx, _) = self.threaded();
                 std::thread::spawn(move || {
                     let done = system.uninstall();
                     // The firmware's entry goes too; declined, the
@@ -216,11 +216,19 @@ impl Shell {
                     let _ = tx.send(StarterEvent::BootEntry(system.boot_entry()));
                 });
             }
+            StarterCommand::RunDesktop => {
+                let (system, tx, payload) = self.threaded();
+                std::thread::spawn(move || {
+                    let _ = tx.send(StarterEvent::DesktopStarted(
+                        system.run_desktop(payload.as_ref()),
+                    ));
+                });
+            }
             StarterCommand::CheckAgain => {
                 let _ = self.check.send(());
             }
             StarterCommand::RemoveBootEntry => {
-                let (system, tx) = self.threaded();
+                let (system, tx, _) = self.threaded();
                 std::thread::spawn(move || {
                     let _ = tx.send(StarterEvent::BootEntryRemoved(system.remove_stick_entry()));
                     let _ = tx.send(StarterEvent::BootEntry(system.boot_entry()));
@@ -266,13 +274,13 @@ impl Shell {
                 let _ = self.tx.send(StarterEvent::NotesOpened(opened));
             }
             StarterCommand::ReadBitLocker => {
-                let (system, tx) = self.threaded();
+                let (system, tx, _) = self.threaded();
                 std::thread::spawn(move || {
                     let _ = tx.send(StarterEvent::BitLocker(system.bitlocker()));
                 });
             }
             StarterCommand::BitLocker(step) => {
-                let (system, tx) = self.threaded();
+                let (system, tx, _) = self.threaded();
                 std::thread::spawn(move || {
                     let (result, read) = system.bitlocker_step(step);
                     let _ = tx.send(StarterEvent::BitLockerDone { step, result });
@@ -283,7 +291,7 @@ impl Shell {
                 });
             }
             StarterCommand::ReadVersion { disk, serial, size } => {
-                let (system, tx) = self.threaded();
+                let (system, tx, _) = self.threaded();
                 std::thread::spawn(move || {
                     let result = system.read_version(&disk, &serial, size);
                     let _ = tx.send(StarterEvent::VersionRead {
@@ -295,7 +303,7 @@ impl Shell {
                 });
             }
             StarterCommand::ReadRecoveryKey => {
-                let (system, tx) = self.threaded();
+                let (system, tx, _) = self.threaded();
                 std::thread::spawn(move || {
                     let _ = tx.send(StarterEvent::RecoveryKey(system.recovery_key()));
                 });
@@ -305,8 +313,12 @@ impl Shell {
 
     /// What a thread of its own needs to answer the system's slow
     /// commands.
-    fn threaded(&self) -> (Arc<dyn Platform>, Sender<StarterEvent>) {
-        (Arc::clone(&self.system), self.tx.clone())
+    fn threaded(&self) -> (Arc<dyn Platform>, Sender<StarterEvent>, Option<Payload>) {
+        (
+            Arc::clone(&self.system),
+            self.tx.clone(),
+            self.payload.clone(),
+        )
     }
 
     /// Starts a confirmed write, from the payload or the developer's

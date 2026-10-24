@@ -1,18 +1,15 @@
-//! Install and uninstall on Linux (`docs/STARTER.md` §3.5, §5.2, §5.4),
-//! per user and never as root.
+//! Install, uninstall and the desktop app on Linux (`docs/STARTER.md` §3.5,
+//! §5.2 to §5.4), per user and never as root.
 //!
 //! The files an install puts here, and the only ones an uninstall
-//! removes:
+//! removes besides the cache (§5.3):
 //!
 //! | | |
 //! |---|---|
 //! | the Starter | `~/.local/bin/faraday-starter`, a copy of the running file |
-//! | the menu entry | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` |
+//! | the desktop app, with the payload | `~/.local/bin/faraday-desktop` |
+//! | the menu entries | `~/.local/share/applications/app.faradayoffline.FaradayStarter.desktop` and `…FaradayDesktop.desktop` |
 //! | the icon | `~/.local/share/icons/hicolor/256x256/apps/app.faradayoffline.FaradayStarter.png` |
-//!
-//! A desktop app an earlier Starter installed (`~/.local/bin/faraday-desktop`
-//! and its menu entry) is no longer the Starter's (F30): install, update
-//! and uninstall leave it as it is, and the README says how to remove it.
 //!
 //! Earlier installs (`names::LEGACY`: the Starter as `~/.local/bin/faraday`
 //! or `faraday-starter`, with the menu entry and icon of the same old name)
@@ -24,12 +21,13 @@
 //! desktop's shared places; uninstall leaves them. The installed copy's
 //! version is what `--version` prints (the build string, or the
 //! version for a build without one), after "Faraday Starter ". A file of
-//! the Starter's name that does not answer `--version` as a Faraday app
-//! is another program's, and is left alone (§5.2).
+//! either executable's name that does not answer `--version` as a
+//! Faraday app is another program's, and is left alone (§5.2).
 
 use std::fs;
-use std::io::Read;
+use std::io::{Read, Write};
 use std::os::unix::fs::PermissionsExt;
+use std::os::unix::process::CommandExt;
 use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
@@ -37,35 +35,46 @@ use std::time::{Duration, Instant};
 use faraday_core::names;
 use faraday_core::strings::EN;
 use faraday_core::{Program, parse_version_output};
+use faraday_payload::{ImageKind, Sha256Sum};
 use faraday_starter::api::{InstallItem, Installed, Reason};
+
+use crate::payload::Payload;
 
 /// The icon, made by `just faraday-starter-icon` from Faraday's mark.
 const ICON: &[u8] = include_bytes!("../../assets/icon.png");
-/// The menu entry's and the icon's reverse-DNS name (§5.2).
+/// The menu entries' and the icon's reverse-DNS names (§5.2).
 const MENU: &str = names::MENU_ID;
-/// How long a copy gets to say its version.
+const MENU_DESKTOP: &str = names::MENU_DESKTOP_ID;
+/// How long a copy gets to say its version, and how long a started
+/// desktop app gets to fail before it counts as started.
 const VERSION_WAIT: Duration = Duration::from_secs(5);
+const START_WAIT: Duration = Duration::from_millis(400);
 
-/// The folder an install works in: the home folder.
+/// The folders an install works in: the home folder and the cache.
 #[derive(Debug, Clone)]
 pub struct Dirs {
     home: PathBuf,
+    cache: PathBuf,
 }
 
 impl Dirs {
-    /// The home folder `home`.
-    pub fn new(home: PathBuf) -> Dirs {
-        Dirs { home }
+    /// `home` and the cache folder `$XDG_CACHE_HOME`, which is
+    /// `home/.cache` when unset.
+    pub fn new(home: PathBuf, cache: Option<PathBuf>) -> Dirs {
+        let cache = cache.unwrap_or_else(|| home.join(".cache"));
+        Dirs { home, cache }
     }
 
-    /// From the environment: `HOME`. A relative or empty value is not
-    /// used.
+    /// From the environment: `HOME` and `XDG_CACHE_HOME`. A relative
+    /// or empty value is not used.
     pub fn from_env() -> Result<Dirs, Reason> {
-        let home = std::env::var_os("HOME")
-            .map(PathBuf::from)
-            .filter(|p| p.is_absolute())
-            .ok_or(Reason::NoHome)?;
-        Ok(Dirs::new(home))
+        let absolute = |name: &str| {
+            std::env::var_os(name)
+                .map(PathBuf::from)
+                .filter(|p| p.is_absolute())
+        };
+        let home = absolute("HOME").ok_or(Reason::NoHome)?;
+        Ok(Dirs::new(home, absolute("XDG_CACHE_HOME")))
     }
 
     fn bin(&self) -> PathBuf {
@@ -89,6 +98,10 @@ impl Dirs {
         ]
     }
 
+    fn desktop_bin(&self) -> PathBuf {
+        self.home.join(".local/bin").join(names::LINUX_DESKTOP_BIN)
+    }
+
     fn menu(&self, name: &str) -> PathBuf {
         self.home
             .join(format!(".local/share/applications/{name}.desktop"))
@@ -100,12 +113,19 @@ impl Dirs {
         ))
     }
 
+    /// The cache folder for one release (§5.3).
+    pub fn cache_for(&self, version: &str) -> PathBuf {
+        self.cache.join("faraday").join(version)
+    }
+
     /// Every file an install puts here, in the order it writes them.
-    fn files(&self) -> [(InstallItem, PathBuf); 3] {
+    fn files(&self) -> [(InstallItem, PathBuf); 5] {
         [
             (InstallItem::App, self.bin()),
+            (InstallItem::Desktop, self.desktop_bin()),
             (InstallItem::Icon, self.icon()),
             (InstallItem::Menu, self.menu(MENU)),
+            (InstallItem::DesktopMenu, self.menu(MENU_DESKTOP)),
         ]
     }
 
@@ -136,7 +156,11 @@ pub fn installed(dirs: &Dirs) -> Option<Installed> {
     let items = dirs
         .files()
         .into_iter()
-        .filter(|(item, p)| *item == InstallItem::App || p.is_file())
+        .filter(|(item, p)| match item {
+            InstallItem::App => true,
+            InstallItem::Desktop => ours(p, Program::DesktopApp),
+            _ => p.is_file(),
+        })
         .map(|(item, p)| (item, dirs.shown(&p)))
         .collect();
     Some(Installed { version, items })
@@ -239,28 +263,54 @@ fn version_of(path: &Path) -> Result<String, String> {
     Ok(line.to_string())
 }
 
-/// Installs: a copy of `running` as the Starter, the icon and the menu
-/// entry. Each file is written beside its place and renamed into it, so
-/// a copy that is running is replaced whole. The menu entry comes last,
-/// so it never points at a file that is not there. Returns where the
+/// Installs: a copy of `running` as the Starter, `desktop` (the
+/// decompressed, checked desktop app) when given, the icon and the menu
+/// entries. Each file is written beside its place and renamed into it,
+/// so a copy that is running is replaced whole. The menu entries come
+/// last, so none points at a file that is not there. Returns where the
 /// Starter went.
-pub fn install(dirs: &Dirs, running: &Path) -> Result<String, Reason> {
+pub fn install(dirs: &Dirs, running: &Path, desktop: Option<&[u8]>) -> Result<String, Reason> {
     let app = dirs.bin();
-    // A file of the Starter's name that is another program's stops the
-    // install before anything is written.
-    if app.exists() && !ours(&app, Program::StarterApp) {
-        return Err(Reason::InTheWay {
-            path: dirs.shown(&app),
-        });
+    // A file of either name that is another program's stops the install
+    // before anything is written.
+    let desktop_bin = dirs.desktop_bin();
+    for (path, program, wanted) in [
+        (&app, Program::StarterApp, true),
+        (&desktop_bin, Program::DesktopApp, desktop.is_some()),
+    ] {
+        if wanted && path.exists() && !ours(path, program) {
+            return Err(Reason::InTheWay {
+                path: dirs.shown(path),
+            });
+        }
     }
     place(dirs, &app, 0o755, |to| fs::copy(running, to).map(|_| ()))?;
+    if let Some(bytes) = desktop {
+        place(dirs, &dirs.desktop_bin(), 0o755, |to| fs::write(to, bytes))?;
+    }
     place(dirs, &dirs.icon(), 0o644, |to| fs::write(to, ICON))?;
-    let entry = format!(
-        "[Desktop Entry]\nType=Application\nName={}\nExec={}\nIcon={MENU}\nTerminal=false\nCategories=Utility;\n",
-        EN.starter_menu_name,
-        exec_quote(&app)
-    );
-    place(dirs, &dirs.menu(MENU), 0o644, |to| fs::write(to, &entry))?;
+    let entry = |name: &str, comment: Option<&str>, exec: &Path| {
+        let comment = comment.map_or_else(String::new, |c| format!("Comment={c}\n"));
+        format!(
+            "[Desktop Entry]\nType=Application\nName={name}\n{comment}Exec={}\nIcon={MENU}\nTerminal=false\nCategories=Utility;\n",
+            exec_quote(exec)
+        )
+    };
+    place(dirs, &dirs.menu(MENU), 0o644, |to| {
+        fs::write(to, entry(EN.starter_menu_name, None, &app))
+    })?;
+    if desktop.is_some() || ours(&dirs.desktop_bin(), Program::DesktopApp) {
+        place(dirs, &dirs.menu(MENU_DESKTOP), 0o644, |to| {
+            fs::write(
+                to,
+                entry(
+                    EN.starter_menu_desktop_name,
+                    Some(EN.starter_menu_desktop_comment),
+                    &dirs.desktop_bin(),
+                ),
+            )
+        })?;
+    }
     remove_legacy(dirs)?;
     Ok(dirs.shown(&app))
 }
@@ -315,11 +365,16 @@ pub fn exec_quote(path: &Path) -> String {
     out.replace('\\', "\\\\")
 }
 
-/// Uninstalls: removes the files install wrote, and nothing else. A file
-/// already gone is not an error.
+/// Uninstalls: removes the files install wrote and the desktop app's
+/// cache, and nothing else. A file already gone is not an error.
 pub fn uninstall(dirs: &Dirs) -> Result<(), Reason> {
     for (item, path) in dirs.files() {
-        if item == InstallItem::App && path.exists() && !ours(&path, Program::StarterApp) {
+        let program = match item {
+            InstallItem::App => Some(Program::StarterApp),
+            InstallItem::Desktop => Some(Program::DesktopApp),
+            _ => None,
+        };
+        if program.is_some_and(|p| path.exists() && !ours(&path, p)) {
             continue;
         }
         match fs::remove_file(&path) {
@@ -328,5 +383,102 @@ pub fn uninstall(dirs: &Dirs) -> Result<(), Reason> {
             Err(e) => return Err(dirs.file_error(&path, &e)),
         }
     }
-    remove_legacy(dirs)
+    remove_legacy(dirs)?;
+    clear_cache(dirs)
+}
+
+/// Removes `faraday/X.Y.Z/` folders from the cache folder, then
+/// `faraday/` if nothing else is in it.
+fn clear_cache(dirs: &Dirs) -> Result<(), Reason> {
+    let root = dirs.cache.join("faraday");
+    let Ok(entries) = fs::read_dir(&root) else {
+        return Ok(());
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().into_owned();
+        let release = !name.is_empty() && name.split('.').all(|p| p.parse::<u32>().is_ok());
+        let is_dir = entry.file_type().is_ok_and(|t| t.is_dir());
+        if release && is_dir {
+            fs::remove_dir_all(entry.path()).map_err(|e| dirs.file_error(&entry.path(), &e))?;
+        }
+    }
+    let _ = fs::remove_dir(&root);
+    Ok(())
+}
+
+/// The desktop app to run (§5.3): the installed one if there is one;
+/// otherwise the payload's, in the cache. A cached copy is hashed on
+/// every start and decompressed again when its SHA-256 is not the
+/// manifest's, or its executable bit is gone.
+pub fn desktop_app(dirs: &Dirs, payload: Option<&Payload>) -> Result<PathBuf, Reason> {
+    if ours(&dirs.desktop_bin(), Program::DesktopApp) {
+        return Ok(dirs.desktop_bin());
+    }
+    let payload = payload.ok_or(Reason::NoDesktopApp)?;
+    let line = payload.desktop_line().ok_or(Reason::NoDesktopApp)?;
+    let name = Path::new(&line.inner_name).file_name().map(PathBuf::from);
+    let name = name
+        .filter(|n| n.as_os_str() == line.inner_name.as_str())
+        .ok_or(Reason::NoDesktopApp)?;
+    let folder = dirs.cache_for(payload.manifest.version());
+    let cached = folder.join(name);
+    if cached_is_good(&cached, &line.inner_sha256) {
+        return Ok(cached);
+    }
+    let (_, bytes) = payload.desktop_app()?;
+    place(dirs, &cached, 0o755, |to| {
+        let mut f = fs::File::create(to)?;
+        f.write_all(&bytes)?;
+        f.sync_all()
+    })?;
+    // What is on disk now is what runs: hashed again.
+    match sum_of(&cached) {
+        Some(sum) if sum == line.inner_sha256 => Ok(cached),
+        other => Err(Reason::CacheSum(
+            other.map_or_else(|| String::from("unreadable"), |s| s.to_string()),
+        )),
+    }
+}
+
+fn sum_of(path: &Path) -> Option<Sha256Sum> {
+    let f = fs::File::open(path).ok()?;
+    faraday_payload::hash_image(std::io::BufReader::new(f), ImageKind::Plain)
+        .ok()
+        .map(|s| s.sha256)
+}
+
+fn cached_is_good(path: &Path, want: &Sha256Sum) -> bool {
+    let executable = fs::metadata(path).is_ok_and(|m| m.permissions().mode() & 0o100 != 0);
+    executable && sum_of(path).as_ref() == Some(want)
+}
+
+/// Starts `path` on its own, in a process group of its own so closing
+/// the Starter does not end it, and says why not when it ends at once
+/// with a failure.
+pub fn start(dirs: &Dirs, path: &Path) -> Result<(), Reason> {
+    let fail = |detail: String| Reason::Start {
+        path: dirs.shown(path),
+        detail,
+    };
+    let mut child = Command::new(path)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .process_group(0)
+        .spawn()
+        .map_err(|e| fail(e.to_string()))?;
+    let started = Instant::now();
+    while started.elapsed() < START_WAIT {
+        match child.try_wait() {
+            Ok(Some(status)) if !status.success() => return Err(fail(status.to_string())),
+            Ok(Some(_)) => return Ok(()),
+            Ok(None) => std::thread::sleep(Duration::from_millis(20)),
+            Err(e) => return Err(fail(e.to_string())),
+        }
+    }
+    // Reaped when it ends, so it does not linger as a zombie.
+    std::thread::spawn(move || {
+        let _ = child.wait();
+    });
+    Ok(())
 }

@@ -147,6 +147,8 @@ strings! {
     starter_row_pi: "Make a Pi card",
     /// Home row.
     starter_row_transfer: "Transfer",
+    /// Home row.
+    starter_row_desktop: "Open Faraday Desktop",
     /// Home row and page.
     starter_row_install: "Install",
     /// Home row and page.
@@ -450,7 +452,11 @@ strings! {
     /// Installed row.
     starter_installed_app: "Faraday Starter",
     /// Installed row.
+    starter_installed_desktop: "Faraday Desktop",
+    /// Installed row.
     starter_installed_menu: "Menu entry",
+    /// Installed row.
+    starter_installed_desktop_menu: "Faraday Desktop's menu entry",
     /// Installed row.
     starter_installed_icon: "Icon",
     /// Installed row.
@@ -535,6 +541,10 @@ strings! {
     starter_why_wrong_sum: "The decompressed image's SHA-256 is {}, not the expected one",
     /// Reason.
     starter_why_no_home: "The home folder is not known",
+    /// Reason.
+    starter_why_no_desktop: "Faraday Starter carries no Faraday Desktop for this computer",
+    /// Reason. `{}` sum.
+    starter_why_cache_sum: "Faraday Desktop does not match the manifest: its SHA-256 is {}",
     /// Reason. `{}` path, `{}` the system's words.
     starter_why_file: "{}: {}",
     /// Reason. `{}` path of a file that is another program's.
@@ -570,6 +580,10 @@ strings! {
     starter_why_unsupported: "Not on this computer",
     /// The app menu entry's name, in the desktop entry file install writes.
     starter_menu_name: "Faraday Starter",
+    /// The desktop app's menu entry's name.
+    starter_menu_desktop_name: "Faraday Desktop",
+    /// The desktop app's menu entry's description.
+    starter_menu_desktop_comment: "Demo, no Mainnet",
     /// The publisher in the Starter's installed-apps entry and the `.exe`'s properties.
     starter_publisher: "Faraday",
     /// Fault. `{}` the system's words.

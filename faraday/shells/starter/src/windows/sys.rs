@@ -1087,6 +1087,74 @@ impl WmiSession {
     }
 }
 
+/// WBEM_E_NOT_FOUND, for a volume not listed.
+const NOT_FOUND: i32 = 0x8004_1002u32 as i32;
+
+/// The input object for `method` on `class`, with `args` put in it (a
+/// null object for a method that takes none). Costs a few COM calls.
+fn method_input(class: &Com, method: &str, args: &[(&str, Value)]) -> Result<Com, Failure> {
+    let m = wide(method);
+    let (mut in_sig, mut out_sig): (*mut c_void, *mut c_void) = (ptr::null_mut(), ptr::null_mut());
+    // SAFETY: GetMethod is slot 19 of IWbemClassObject; `m` is
+    // NUL-terminated; both signatures are written (either may be
+    // null for a method without one) and released by `Com`.
+    let hr = unsafe {
+        let get: GetMethod = std::mem::transmute(class.slot(19));
+        get(class.0, m.as_ptr(), 0, &mut in_sig, &mut out_sig)
+    };
+    let (in_sig, _out_sig) = (Com(in_sig), Com(out_sig));
+    if hr < 0 {
+        return Err(failed(method, hr));
+    }
+    if in_sig.0.is_null() {
+        if !args.is_empty() {
+            return Err(failed(method, NOT_FOUND));
+        }
+        Ok(Com(ptr::null_mut()))
+    } else {
+        let mut inst: *mut c_void = ptr::null_mut();
+        // SAFETY: SpawnInstance is slot 15 of IWbemClassObject; the
+        // instance is written on success and released by `Com`.
+        let hr = unsafe {
+            let spawn: SpawnInstance = std::mem::transmute(in_sig.slot(15));
+            spawn(in_sig.0, 0, &mut inst)
+        };
+        if hr < 0 || inst.is_null() {
+            return Err(failed(method, hr));
+        }
+        let inst = Com(inst);
+        for (name, value) in args {
+            let mut v = Variant::empty();
+            match value {
+                Value::U32(n) => {
+                    v.vt = VT_I4;
+                    v.data[0] = u64::from(*n);
+                }
+                Value::Str(s) => {
+                    let w = wide(s);
+                    v.vt = VT_BSTR;
+                    // SAFETY: `w` is NUL-terminated; the BSTR made is
+                    // freed with `v`.
+                    v.data[0] = unsafe { SysAllocString(w.as_ptr()) } as u64;
+                }
+                Value::Strs(_) => return Err(failed(method, NOT_FOUND)),
+            }
+            let n = wide(name);
+            // SAFETY: Put is slot 5 of IWbemClassObject; `n` is
+            // NUL-terminated; `v` is live for the call, which copies
+            // it; type 0 takes the property's own.
+            let hr = unsafe {
+                let put: ObjPut = std::mem::transmute(inst.slot(5));
+                put(inst.0, n.as_ptr(), 0, &v, 0)
+            };
+            if hr < 0 {
+                return Err(failed(method, hr));
+            }
+        }
+        Ok(inst)
+    }
+}
+
 impl bitlocker::Wmi for WmiSession {
     fn volumes(&mut self) -> Result<Vec<Volume>, Failure> {
         use windows_sys::Win32::System::Wmi::{
@@ -1174,75 +1242,13 @@ impl bitlocker::Wmi for WmiSession {
         args: &[(&str, Value)],
         outs: &[&str],
     ) -> Result<Outputs, Failure> {
-        // WBEM_E_NOT_FOUND, for a volume not listed.
-        const NOT_FOUND: i32 = 0x8004_1002u32 as i32;
         let path = self
             .paths
             .iter()
             .find(|(d, _)| d == device)
             .map(|(_, p)| p.clone())
             .ok_or_else(|| failed(method, NOT_FOUND))?;
-        let m = wide(method);
-        let (mut in_sig, mut out_sig): (*mut c_void, *mut c_void) =
-            (ptr::null_mut(), ptr::null_mut());
-        // SAFETY: GetMethod is slot 19 of IWbemClassObject; `m` is
-        // NUL-terminated; both signatures are written (either may be
-        // null for a method without one) and released by `Com`.
-        let hr = unsafe {
-            let get: GetMethod = std::mem::transmute(self.class.slot(19));
-            get(self.class.0, m.as_ptr(), 0, &mut in_sig, &mut out_sig)
-        };
-        let (in_sig, _out_sig) = (Com(in_sig), Com(out_sig));
-        if hr < 0 {
-            return Err(failed(method, hr));
-        }
-        let input = if in_sig.0.is_null() {
-            if !args.is_empty() {
-                return Err(failed(method, NOT_FOUND));
-            }
-            Com(ptr::null_mut())
-        } else {
-            let mut inst: *mut c_void = ptr::null_mut();
-            // SAFETY: SpawnInstance is slot 15 of IWbemClassObject; the
-            // instance is written on success and released by `Com`.
-            let hr = unsafe {
-                let spawn: SpawnInstance = std::mem::transmute(in_sig.slot(15));
-                spawn(in_sig.0, 0, &mut inst)
-            };
-            if hr < 0 || inst.is_null() {
-                return Err(failed(method, hr));
-            }
-            let inst = Com(inst);
-            for (name, value) in args {
-                let mut v = Variant::empty();
-                match value {
-                    Value::U32(n) => {
-                        v.vt = VT_I4;
-                        v.data[0] = u64::from(*n);
-                    }
-                    Value::Str(s) => {
-                        let w = wide(s);
-                        v.vt = VT_BSTR;
-                        // SAFETY: `w` is NUL-terminated; the BSTR made is
-                        // freed with `v`.
-                        v.data[0] = unsafe { SysAllocString(w.as_ptr()) } as u64;
-                    }
-                    Value::Strs(_) => return Err(failed(method, NOT_FOUND)),
-                }
-                let n = wide(name);
-                // SAFETY: Put is slot 5 of IWbemClassObject; `n` is
-                // NUL-terminated; `v` is live for the call, which copies
-                // it; type 0 takes the property's own.
-                let hr = unsafe {
-                    let put: ObjPut = std::mem::transmute(inst.slot(5));
-                    put(inst.0, n.as_ptr(), 0, &v, 0)
-                };
-                if hr < 0 {
-                    return Err(failed(method, hr));
-                }
-            }
-            inst
-        };
+        let input = method_input(&self.class, method, args)?;
         /// `IWbemServices::ExecMethod`: slot 24.
         type ExecMethod = unsafe extern "system" fn(
             *mut c_void,

@@ -14,6 +14,7 @@ use faraday_starter::api::{
     WriteOrder,
 };
 
+use crate::payload::Payload;
 use crate::writer::Job;
 
 /// What the Starter asks of the operating system.
@@ -120,11 +121,18 @@ pub trait Platform: Send + Sync {
     /// thread.
     fn installed(&self) -> Option<Installed>;
 
-    /// Installs the running Starter, per user (§5.2). Where it went.
-    fn install(&self) -> Result<String, Reason>;
+    /// Installs the running Starter, and the payload's Faraday Desktop
+    /// when it carries one for this system, per user (§5.2). Where the
+    /// Starter went.
+    fn install(&self, payload: Option<&Payload>) -> Result<String, Reason>;
 
-    /// Removes exactly what [`Platform::install`] put here (§5.4).
+    /// Removes exactly what [`Platform::install`] put here and the
+    /// desktop app's cache (§5.4).
     fn uninstall(&self) -> Result<(), Reason>;
+
+    /// Runs the installed desktop app, or the payload's from the cache
+    /// after checking it against the manifest (§5.3).
+    fn run_desktop(&self, payload: Option<&Payload>) -> Result<(), Reason>;
 
     /// The folder Transfer sends from and saves into.
     fn downloads(&self) -> PathBuf;
@@ -189,11 +197,15 @@ impl Platform for Elsewhere {
         None
     }
 
-    fn install(&self) -> Result<String, Reason> {
+    fn install(&self, _payload: Option<&Payload>) -> Result<String, Reason> {
         Err(Reason::Unsupported)
     }
 
     fn uninstall(&self) -> Result<(), Reason> {
+        Err(Reason::Unsupported)
+    }
+
+    fn run_desktop(&self, _payload: Option<&Payload>) -> Result<(), Reason> {
         Err(Reason::Unsupported)
     }
 

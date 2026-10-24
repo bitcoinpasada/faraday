@@ -28,15 +28,15 @@
 # Takes what the builds left (under out/, or the folder --builds names):
 #   out/stick/faraday-x86_64-uefi.img       -> faraday-stick-VERSION-x86_64-uefi.img.xz
 #   out/pi/faraday-pi3-waveshare-28dpi.img  -> faraday-pi-VERSION-pi3-waveshare-28dpi.img.xz
-#   out/linux/faraday        -> faraday-desktop-VERSION-testnet-only-linux-x86_64
-#   out/windows/faraday.exe  -> faraday-desktop-VERSION-testnet-only-windows-x86_64.exe
-# Faraday Desktop is published on its own, testnet only for real seeds
-# (docs/DECISIONS.md F61, partly reversing F30): the two files as they
-# are, the Linux one executable, each with its line in SHA256SUMS, in
-# this first pass. Each must be a release build (no `VERSION+` build ID
-# in it) unless --any-build; with --any-build a desktop file not built is
-# left out with a note, so a test build of the images alone can be
-# staged. No Starter carries the desktop app: it is never in a payload.
+#   out/linux/faraday        -> faraday-desktop-VERSION-linux-x86_64.xz      (in the Linux payload)
+#   out/windows/faraday.exe  -> faraday-desktop-VERSION-windows-x86_64.exe.xz (in the Windows payload)
+# Faraday Desktop is not published on its own (docs/DECISIONS.md F83):
+# each Starter's payload carries the one for its own system, compressed
+# like the images, with a MANIFEST line, and the release folder holds no
+# desktop file. Each must carry the build ID the images carry as a string
+# (so it is a release build when they are); --any-build lets a desktop
+# app not built be left out with a note, so a test build of the images
+# alone can be staged.
 #
 # Images are published as .xz only (F11). SHA256SUMS lists each file
 # published and, under its .img name, the image inside each .xz, so
@@ -54,11 +54,12 @@
 #
 # Second, the payload the Starter embeds (STARTER §1.3), in out/payload/VERSION/
 # (with --out DIR, in DIR.payload; --payload DIR names it): one folder per
-# system, linux/ and windows/, each with hard links to the two image .xz
-# and its own MANIFEST (the first line is the same in both), and nothing
-# else. The two folders stay apart: each Starter embeds its own.
+# system, linux/ and windows/, each with hard links to the two image .xz,
+# that system's desktop app as .xz and its own MANIFEST (the first line
+# is the same in both). The two folders stay apart: each Starter embeds
+# its own. The macOS Starter, when built, carries no desktop app (F83).
 #
-# Before it finishes, either pass refuses a payload folder that holds a
+# Before it finishes, either pass refuses a release folder that holds a
 # file whose name starts faraday-desktop-, and names it.
 #
 # Last, the published-file check (STARTER §2): every file published, and every
@@ -113,23 +114,18 @@ if [ -z "$second" ]; then
     for f in "$stick" "$pi"; do
         [ -f "$f" ] || die "$f: not built"
     done
-    # Faraday Desktop, published on its own (F61): source, published name.
-    desktop_linux="$builds/linux/faraday"
-    desktop_win="$builds/windows/faraday.exe"
+    # Faraday Desktop for each Starter's payload (F83): system, source,
+    # name inside the payload file.
     desktops=()
-    for pair in "$desktop_linux:faraday-desktop-$version-testnet-only-linux-x86_64" \
-                "$desktop_win:faraday-desktop-$version-testnet-only-windows-x86_64.exe"; do
-        src="${pair%%:*}"
+    for entry in "linux:$builds/linux/faraday:faraday-desktop-$version-linux-x86_64" \
+                 "windows:$builds/windows/faraday.exe:faraday-desktop-$version-windows-x86_64.exe"; do
+        src="$(cut -d: -f2 <<<"$entry")"
         if [ ! -f "$src" ]; then
             [ "$any" = 1 ] || die "$src: not built (just release=1 faraday-linux-bin; just release=1 faraday-windows-bin build out/windows out/build/run faraday-desktop faraday)"
-            echo "$src: not built; no desktop file staged for it (--any-build)"
+            echo "$src: not built; no desktop app staged for it (--any-build)"
             continue
         fi
-        # A test or dev build carries VERSION+commit.kind as its build ID.
-        if [ "$any" = 0 ] && grep -aqF -- "$version+" "$src"; then
-            die "$src is a test build, not the release $version (build it with release=1, or pass --any-build)"
-        fi
-        desktops+=("$pair")
+        desktops+=("$entry")
     done
     for tool in xz strings mtype; do
         command -v "$tool" >/dev/null || die "$tool is not installed"
@@ -164,6 +160,12 @@ if [ -z "$second" ]; then
         die "the builds are $stick_id, not the release $version (build them with release=1, or pass --any-build)"
     fi
     build="$stick_id"
+    # Each desktop app carries that build ID as a string.
+    for entry in ${desktops[@]+"${desktops[@]}"}; do
+        src="$(cut -d: -f2 <<<"$entry")"
+        grep -aqF -- "$build" "$src" || die "$src does not carry the build ID $build (build it from the same commit with release=1, or pass --any-build for a test build)"
+        echo "$src: carries $build"
+    done
 
     [ ! -e "$out" ] || die "$out exists; move it aside first"
     [ ! -e "$payload" ] || die "$payload exists; move it aside first"
@@ -179,13 +181,6 @@ if [ -z "$second" ]; then
         xz -9e -T1 -c "$src" > "$out/$name.xz"
         xz -t "$out/$name.xz"
     done
-    desktop_names=()
-    for pair in ${desktops[@]+"${desktops[@]}"}; do
-        name="${pair#*:}"
-        install -m 0755 "${pair%%:*}" "$out/$name"
-        desktop_names+=("$name")
-        echo "Staged $name"
-    done
 
     commit="$(git rev-parse HEAD)"
     {
@@ -193,7 +188,6 @@ if [ -z "$second" ]; then
         (cd "$out" && sha256sum "$stick_name.xz" "$pi_name.xz")
         printf '%s  %s\n' "$(sha256sum < "$stick" | cut -d' ' -f1)" "$stick_name"
         printf '%s  %s\n' "$(sha256sum < "$pi" | cut -d' ' -f1)" "$pi_name"
-        [ ${#desktop_names[@]} -eq 0 ] || (cd "$out" && sha256sum "${desktop_names[@]}")
     } > "$out/SHA256SUMS"
 
     # What a person does with the files must check out before anything is
@@ -214,6 +208,17 @@ if [ -z "$second" ]; then
         dir="$payload/$system"
         ln "$out/$stick_name.xz" "$dir/$stick_name.xz"
         ln "$out/$pi_name.xz" "$dir/$pi_name.xz"
+        # This system's desktop app, if it was built.
+        desktop_xz="" desktop_inner="" desktop_src=""
+        for entry in ${desktops[@]+"${desktops[@]}"}; do
+            [ "${entry%%:*}" = "$system" ] || continue
+            desktop_src="$(cut -d: -f2 <<<"$entry")"
+            desktop_inner="$(cut -d: -f3 <<<"$entry")"
+            desktop_xz="$desktop_inner.xz"
+            echo "Compressing $desktop_xz"
+            xz -9e -T1 -c "$desktop_src" > "$dir/$desktop_xz"
+            xz -t "$dir/$desktop_xz"
+        done
         manifest_line() { # payload file, inner name, inner file
             printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$1" "$(sha256sum < "$dir/$1" | cut -d' ' -f1)" \
                 "$2" "$(sha256sum < "$3" | cut -d' ' -f1)" "$(stat -c %s "$3")" "$build"
@@ -222,6 +227,7 @@ if [ -z "$second" ]; then
             echo "# Faraday Starter payload $version, commit $commit"
             manifest_line "$stick_name.xz" "$stick_name" "$stick"
             manifest_line "$pi_name.xz" "$pi_name" "$pi"
+            [ -z "$desktop_xz" ] || manifest_line "$desktop_xz" "$desktop_inner" "$desktop_src"
         } > "$dir/MANIFEST"
     done
 fi
@@ -347,12 +353,12 @@ scan_tar() {
     for g in "$check"/untar/*; do scan "$g" "$f: ${g#"$check"/untar/}" 0; done
     rm -rf "$check/untar"
 }
-# No Starter carries Faraday Desktop (F30, F61): a payload folder holding
-# a desktop app is refused, whichever pass put it there, before the second
-# pass adds anything. The release folder's own desktop files are published.
-for f in "$payload"/*/faraday-desktop-*; do
+# Faraday Desktop is not published on its own (F83): a release folder
+# holding a desktop app is refused, whichever pass put it there, before the
+# second pass adds anything. A payload folder carries its own system's.
+for f in "$out"/faraday-desktop-*; do
     [ -e "$f" ] || continue
-    refuse "$f is a desktop app, which no Starter carries (F61); move it out of the payload"
+    refuse "$f is a desktop app, which a release does not publish on its own (F83); it belongs in a payload folder"
 done
 if [ -n "$second" ]; then
     [ -z "$starter" ] || add_starter

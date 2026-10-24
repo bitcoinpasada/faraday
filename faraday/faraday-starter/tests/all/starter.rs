@@ -53,19 +53,14 @@ fn payload(stick_build: &str) -> Payload {
                 "0.2.0",
                 'b',
             ),
+            file(
+                "faraday-desktop-0.2.0-linux-x86_64.xz",
+                "faraday-desktop-0.2.0-linux-x86_64",
+                4_000_000,
+                "0.2.0",
+                'c',
+            ),
         ],
-    }
-}
-
-/// A desktop app's line, as a payload before F30 carried one.
-fn desktop_line() -> PayloadFile {
-    PayloadFile {
-        name: "faraday-desktop-0.2.0-linux-x86_64.xz".into(),
-        sha256: "c".repeat(64),
-        inner: "faraday-desktop-0.2.0-linux-x86_64".into(),
-        inner_sha256: "C".repeat(64),
-        inner_size: 4_000_000,
-        build_id: "0.2.0".into(),
     }
 }
 
@@ -725,6 +720,7 @@ fn about_lists_the_payload() {
     for s in [
         "faraday-stick-0.2.0-x86_64-uefi.img.xz",
         "faraday-pi-0.2.0-pi3-waveshare-28dpi.img.xz",
+        "faraday-desktop-0.2.0-linux-x86_64.xz",
         "aaaa aaaa",
         "AAAA AAAA",
         "SHA-256 of faraday-stick-0.2.0-x86_64-uefi.img",
@@ -758,18 +754,30 @@ fn seen_scrolling(starter: &mut Starter, s: &str) -> bool {
 }
 
 #[test]
-fn home_offers_no_desktop_app_and_install_installs_on_one_press() {
+fn home_opens_the_desktop_app_only_where_the_payload_carries_it() {
     let mut starter = starter_with(Vec::new());
-    // Even a payload that names a desktop app, as one before F30 did.
-    let mut p = payload("0.2.0");
-    p.files.push(desktop_line());
-    starter.starter_event(StarterEvent::Payload(Some(p)));
-    assert!(!seen_scrolling(&mut starter, "desktop app"));
-    assert!(!seen_scrolling(&mut starter, "Desktop"));
+    assert!(seen_scrolling(&mut starter, "Open Faraday Desktop"));
+    starter.press(StarterAction::OpenDesktop);
+    assert_eq!(commands(&mut starter), vec![StarterCommand::RunDesktop]);
+    // A start that failed says why on the row.
+    starter.starter_event(StarterEvent::DesktopStarted(Err(Reason::NoDesktopApp)));
+    assert!(seen_scrolling(&mut starter, "carries no Faraday Desktop"));
+    starter.starter_event(StarterEvent::DesktopStarted(Ok(())));
+    assert!(!seen_scrolling(&mut starter, "carries no Faraday Desktop"));
 
+    let mut p = payload("0.2.0");
+    p.files.retain(|f| !f.name.starts_with("faraday-desktop-"));
+    starter.starter_event(StarterEvent::Payload(Some(p)));
+    assert!(!seen_scrolling(&mut starter, "Open Faraday Desktop"));
+    starter.press(StarterAction::OpenDesktop);
+    assert!(commands(&mut starter).is_empty());
+}
+
+#[test]
+fn install_is_one_press_with_no_check_box_for_the_desktop_app() {
+    let mut starter = starter_with(Vec::new());
     starter.press(StarterAction::Install);
-    assert!(!shows(&mut starter, "desktop app"));
-    assert!(starter.offers_action(StarterAction::InstallNow));
+    assert!(!shows(&mut starter, "Also install"));
     starter.press(StarterAction::InstallNow);
     assert_eq!(commands(&mut starter), vec![StarterCommand::Install]);
     starter.starter_event(StarterEvent::InstallDone(Ok(
@@ -779,8 +787,6 @@ fn home_offers_no_desktop_app_and_install_installs_on_one_press() {
         &mut starter,
         "Installed in ~/.local/bin/faraday-starter"
     ));
-    assert!(starter.offers_action(StarterAction::Home), "Done");
-    assert!(shows(&mut starter, "Done"));
 }
 
 #[test]

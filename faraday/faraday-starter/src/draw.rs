@@ -550,6 +550,8 @@ pub(crate) fn reason_text(r: &Reason) -> String {
         }
         Reason::WrongSum(sum) => fill(S.starter_why_wrong_sum, &[sum]),
         Reason::NoHome => S.starter_why_no_home.to_string(),
+        Reason::NoDesktopApp => S.starter_why_no_desktop.to_string(),
+        Reason::CacheSum(sum) => fill(S.starter_why_cache_sum, &[sum]),
         Reason::File { path, detail } => fill(S.starter_why_file, &[path, detail]),
         Reason::InTheWay { path } => fill(S.starter_why_in_the_way, &[path]),
         Reason::Start { path, detail } => fill(S.starter_why_start, &[path, detail]),
@@ -847,6 +849,21 @@ fn home(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
         "",
         Some(StarterAction::Templates),
     );
+    if starter.offers_desktop() {
+        let failed = starter.desktop_failed.as_ref().map(reason_text);
+        let sub = failed.as_deref().unwrap_or("");
+        y += nav_row(
+            ui,
+            x,
+            y,
+            w,
+            Icon::Tools,
+            S.starter_row_desktop,
+            sub,
+            "",
+            Some(StarterAction::OpenDesktop),
+        );
+    }
     let (install, action) = match &starter.installed {
         Some(_) if starter.update_offered() => (S.starter_row_update, StarterAction::Install),
         Some(_) => (S.starter_row_installed, StarterAction::Installed),
@@ -1950,7 +1967,9 @@ fn install(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 fn item_name(item: InstallItem) -> &'static str {
     match item {
         InstallItem::App => S.starter_installed_app,
+        InstallItem::Desktop => S.starter_installed_desktop,
         InstallItem::Menu => S.starter_installed_menu,
+        InstallItem::DesktopMenu => S.starter_installed_desktop_menu,
         InstallItem::Icon => S.starter_installed_icon,
         InstallItem::UninstallEntry => S.starter_installed_entry,
     }

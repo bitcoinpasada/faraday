@@ -247,6 +247,8 @@ pub enum StarterAction {
     Uninstall,
     /// Uninstall now.
     UninstallNow,
+    /// Open Faraday Desktop.
+    OpenDesktop,
     /// Transfer, the desktop app's own.
     Transfer,
     /// Learn, the desktop app's sheet with the Starter's pages.
@@ -342,6 +344,7 @@ impl StarterAction {
             StarterAction::Installed => (17, 0),
             StarterAction::Uninstall => (18, 0),
             StarterAction::UninstallNow => (19, 0),
+            StarterAction::OpenDesktop => (20, 0),
             StarterAction::Transfer => (21, 0),
             StarterAction::Learn => (22, 0),
             StarterAction::LearnPage(LearnId::Maker(id)) => (
@@ -408,6 +411,7 @@ impl StarterAction {
             17 => StarterAction::Installed,
             18 => StarterAction::Uninstall,
             19 => StarterAction::UninstallNow,
+            20 => StarterAction::OpenDesktop,
             21 => StarterAction::Transfer,
             22 => StarterAction::Learn,
             23 if arg >= MAKER_CODE => StarterAction::LearnPage(LearnId::Maker(
@@ -548,6 +552,8 @@ pub struct Starter {
     pub install_result: Option<Result<String, Reason>>,
     /// Why the last uninstall failed.
     pub uninstall_failed: Option<Reason>,
+    /// Why the desktop app did not start.
+    pub desktop_failed: Option<Reason>,
     /// Why the restart into firmware settings did not happen.
     pub restart_failed: Option<Reason>,
     /// Why the restart from the stick did not happen: the card offers
@@ -655,6 +661,7 @@ impl Starter {
             installing: false,
             install_result: None,
             uninstall_failed: None,
+            desktop_failed: None,
             restart_failed: None,
             stick_restart_failed: None,
             entry_kept: None,
@@ -1154,6 +1161,7 @@ impl Starter {
                 }
                 Err(why) => self.uninstall_failed = Some(why),
             },
+            StarterEvent::DesktopStarted(r) => self.desktop_failed = r.err(),
             StarterEvent::RestartFailed(why) => self.restart_failed = Some(why),
             StarterEvent::StickRestartFailed(why) => self.stick_restart_failed = Some(why),
             StarterEvent::BootEntryKept(why) => self.entry_kept = Some(why),
@@ -1512,6 +1520,12 @@ impl Starter {
                     self.out.push_back(StarterCommand::Uninstall);
                 }
             }
+            StarterAction::OpenDesktop => {
+                if self.offers_desktop() {
+                    self.desktop_failed = None;
+                    self.out.push_back(StarterCommand::RunDesktop);
+                }
+            }
             StarterAction::Transfer => self.show_held(None),
             StarterAction::Learn => {
                 let pages = self.learn_pages();
@@ -1659,6 +1673,17 @@ impl Starter {
             | StarterAction::SaveTemplate
             | StarterAction::OpenTemplate => {}
         }
+    }
+
+    /// Whether Open Faraday Desktop is offered: the payload carries it, or
+    /// it is installed.
+    pub fn offers_desktop(&self) -> bool {
+        self.payload_file(PayloadKind::Desktop).is_some()
+            || self.installed.as_ref().is_some_and(|i| {
+                i.items
+                    .iter()
+                    .any(|(item, _)| *item == api::InstallItem::Desktop)
+            })
     }
 
     /// Whether the running copy is newer than the installed one (or the

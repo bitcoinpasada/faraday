@@ -16,6 +16,7 @@ use faraday_starter::api::{
     WriteStage,
 };
 use faraday_starter::decide::{Refusal, Target, offers};
+use faraday_starter_shell::payload::Payload;
 use faraday_starter_shell::stick;
 use faraday_starter_shell::windows::disks::{Found, Snapshot, stick_read};
 use faraday_starter_shell::windows::elevated::{Elevated, ReadVersion, command_line, split};
@@ -520,6 +521,8 @@ fn every_reason() -> Vec<Reason> {
         },
         Reason::WrongSum(SUM.into()),
         Reason::NoHome,
+        Reason::NoDesktopApp,
+        Reason::CacheSum(SUM.into()),
         Reason::File {
             path: s(),
             detail: s(),
@@ -670,7 +673,7 @@ fn install_puts_the_app_the_shortcut_and_the_uninstall_entry_and_uninstall_takes
     let (root, dirs, running) = computer("install");
     let before = tree(&root);
     let mut reg = Map::default();
-    let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 10_138_112);
+    let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 10_138_112, None);
     let app = dirs.app();
     let shown = app.display().to_string();
     assert_eq!(
@@ -734,7 +737,7 @@ fn install_puts_the_app_the_shortcut_and_the_uninstall_entry_and_uninstall_takes
 fn installing_again_replaces_faradays_own_file_and_never_another_programs() {
     let (_root, dirs, running) = computer("again");
     let mut reg = Map::default();
-    let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1);
+    let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1, None);
     fs::create_dir_all(dirs.folder()).expect("folder");
     fs::write(dirs.app(), "FARADAY STARTER 0.1.1").expect("older");
     assert!(install::install(&dirs, &steps, &running, &ask, &mut reg).is_ok());
@@ -774,7 +777,7 @@ fn installing_again_replaces_faradays_own_file_and_never_another_programs() {
 fn uninstall_from_the_installed_copy_leaves_its_last_step_for_after_it_exits() {
     let (_root, dirs, running) = computer("self");
     let mut reg = Map::default();
-    let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1);
+    let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1, None);
     install::install(&dirs, &steps, &running, &ask, &mut reg).expect("installed");
     let left = install::uninstall(&dirs, &dirs.app(), &ask, &mut reg).expect("uninstalled");
     let folder = dirs.folder().display().to_string();
@@ -818,7 +821,7 @@ fn an_earlier_install_is_replaced_by_install_and_removed_by_uninstall() {
         let found = install::installed(&dirs, &ask, &mut reg).expect("old install found");
         assert_eq!(found.version, "0.1.9");
 
-        let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1);
+        let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1, None);
         install::install(&dirs, &steps, &running, &ask, &mut reg).expect("installed");
         assert!(!dirs.local.join("Programs").join(l.win_name).exists());
         assert!(!dirs.programs.join(l.win_shortcut).exists());
@@ -844,7 +847,7 @@ fn an_old_exe_that_is_not_ours_keeps_its_old_names() {
         let (_root, dirs, running) = computer(&format!("old-foreign-{which}"));
         let mut reg = Map::default();
         old_install(&dirs, &mut reg, which, "another program");
-        let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1);
+        let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1, None);
         install::install(&dirs, &steps, &running, &ask, &mut reg).expect("installed");
         install::uninstall(&dirs, &running, &ask, &mut reg).expect("uninstalled");
         let old = dirs.local.join("Programs").join(l.win_name).join(l.win_exe);
@@ -854,53 +857,149 @@ fn an_old_exe_that_is_not_ours_keeps_its_old_names() {
     }
 }
 
-#[test]
-fn a_desktop_app_an_earlier_starter_installed_beside_it_is_the_same_after_install_update_and_uninstall()
- {
-    let (root, dirs, running) = computer("old-desktop");
-    let mut reg = Map::default();
-    // What an earlier Starter put there: the desktop app beside the
-    // Starter, answering `--version` as itself, and its shortcut.
-    let app = dirs.folder().join("Faraday Desktop.exe");
-    let lnk = dirs.programs.join("Faraday Desktop.lnk");
-    let lnk_bytes = shortcut::lnk(
-        &app.display().to_string(),
-        &dirs.folder().display().to_string(),
-    );
-    fs::create_dir_all(dirs.folder()).expect("folder");
-    fs::write(&app, "FARADAY DESKTOP 0.2.0").expect("app");
-    fs::write(&lnk, &lnk_bytes).expect("shortcut");
-    let kept = || {
-        fs::read(&app).is_ok_and(|b| b == b"FARADAY DESKTOP 0.2.0")
-            && fs::read(&lnk).is_ok_and(|b| b == lnk_bytes)
-    };
+const DESKTOP_XZ: &[u8] = include_bytes!("../vectors/desktop-app.sh.xz");
+const DESKTOP_XZ_SHA: &str = "a96fbc9a0f71df904781e6ca23e78bbfc0052737dfcf2f49ec289c3178dd078a";
+const DESKTOP_SHA: &str = "7b89e3875dc5832ecbbfb9509cf5517200c8e48762c2d983beeaf01ed2094b56";
+const DESKTOP_SIZE: usize = include_bytes!("../vectors/desktop-app.sh").len();
+const WIN_XZ_NAME: &str = "faraday-desktop-0.2.0-windows-x86_64.exe.xz";
+const WIN_INNER: &str = "faraday-desktop-0.2.0-windows-x86_64.exe";
 
-    let old = root.join("Downloads/Faraday-Starter-0.1.9-Windows.exe");
-    fs::write(&old, "FARADAY STARTER 0.1.9").expect("file");
-    let steps = install::plan(&dirs, "0.1.9", EN.starter_menu_name, 1);
-    install::install(&dirs, &steps, &old, &ask, &mut reg).expect("installed");
-    assert!(kept(), "install changed it");
+/// A payload carrying the desktop app for Windows (its bytes are a
+/// small file: nothing here runs it).
+fn payload(xz: &[u8]) -> Payload {
+    let manifest = format!(
+        "# Faraday Starter payload 0.2.0, commit 0123456789abcdef0123456789abcdef01234567\n{WIN_XZ_NAME}\t{DESKTOP_XZ_SHA}\t{WIN_INNER}\t{DESKTOP_SHA}\t{DESKTOP_SIZE}\t0.2.0+0123456789ab\n"
+    );
+    Payload::from_parts(
+        manifest.as_bytes(),
+        vec![(WIN_XZ_NAME.to_string(), xz.to_vec())],
+    )
+    .expect("a payload")
+}
+
+#[test]
+fn the_desktop_app_is_installed_beside_the_starter_and_uninstall_takes_exactly_it_back() {
+    let (root, dirs, running) = computer("desktop");
+    let before = tree(&root);
+    let mut reg = Map::default();
+    // A desktop app that answers `--version` as itself.
+    let app = b"FARADAY DESKTOP 0.2.0".to_vec();
+    let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1, Some(&app));
+    install::install(&dirs, &steps, &running, &ask, &mut reg).expect("installed");
+    let mut want = before.clone();
+    want.extend([
+        format!(
+            "AppData/Local/Programs/{}/{}",
+            names::WIN_NAME,
+            names::WIN_EXE
+        ),
+        format!(
+            "AppData/Local/Programs/{}/{}",
+            names::WIN_NAME,
+            names::WIN_DESKTOP_EXE
+        ),
+        format!(
+            "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/{}",
+            names::WIN_SHORTCUT
+        ),
+        format!(
+            "AppData/Roaming/Microsoft/Windows/Start Menu/Programs/{}",
+            names::WIN_DESKTOP_SHORTCUT
+        ),
+    ]);
+    want.sort();
+    assert_eq!(tree(&root), want);
+    assert_eq!(fs::read(dirs.desktop_app()).expect("installed"), app);
+    let lnk = fs::read(dirs.desktop_shortcut()).expect("shortcut");
+    assert_eq!(
+        shortcut::target(&lnk).as_deref(),
+        Some(dirs.desktop_app().display().to_string().as_str())
+    );
+
+    // Installed again over the same one, nothing is left beside it.
+    install::install(&dirs, &steps, &running, &ask, &mut reg).expect("again");
+    assert_eq!(tree(&root), want);
+
+    // Reported once it is there and answers as the desktop app.
     let installed = install::installed(&dirs, &ask, &mut reg).expect("installed");
     let items: Vec<_> = installed.items.iter().map(|(i, _)| *i).collect();
     assert_eq!(
         items,
         [
             InstallItem::App,
+            InstallItem::Desktop,
             InstallItem::Menu,
+            InstallItem::DesktopMenu,
             InstallItem::UninstallEntry
         ]
     );
-
-    // Update: installing again from the newer running copy.
-    let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1);
-    install::install(&dirs, &steps, &running, &ask, &mut reg).expect("updated");
-    assert!(kept(), "update changed it");
 
     assert_eq!(
         install::uninstall(&dirs, &running, &ask, &mut reg),
         Ok(Left::Nothing)
     );
-    assert!(kept(), "uninstall removed or changed it");
+    assert_eq!(tree(&root), before);
+}
+
+#[test]
+fn a_desktop_exe_that_is_somebody_elses_is_not_replaced_or_removed() {
+    let (_root, dirs, running) = computer("desktop-in-the-way");
+    let mut reg = Map::default();
+    fs::create_dir_all(dirs.folder()).expect("folder");
+    fs::write(dirs.desktop_app(), "another program").expect("other");
+    let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1, Some(b"app"));
+    assert_eq!(
+        install::install(&dirs, &steps, &running, &ask, &mut reg),
+        Err(Reason::InTheWay {
+            path: dirs.desktop_app().display().to_string()
+        })
+    );
     assert!(!dirs.app().exists());
-    assert!(!dirs.shortcut().exists());
+    install::uninstall(&dirs, &running, &ask, &mut reg).expect("uninstalled");
+    assert_eq!(
+        fs::read_to_string(dirs.desktop_app()).expect("kept"),
+        "another program"
+    );
+}
+
+#[test]
+fn try_the_desktop_app_unpacks_it_into_the_cache_and_a_cached_copy_with_a_wrong_sum_is_written_again()
+ {
+    let (_root, dirs, _running) = computer("cache");
+    let payload = payload(DESKTOP_XZ);
+    let path = install::desktop_app(&dirs, &ask, Some(&payload)).expect("unpacked");
+    assert_eq!(
+        path,
+        dirs.local
+            .join("faraday/cache/0.2.0")
+            .join(names::WIN_DESKTOP_EXE)
+    );
+    assert_eq!(
+        fs::read(&path).expect("there"),
+        fs::read(Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/vectors/desktop-app.sh"))
+            .expect("vector")
+    );
+
+    // Someone replaces the cached copy with another file.
+    fs::write(&path, "something else").expect("tampered");
+    let again = install::desktop_app(&dirs, &ask, Some(&payload)).expect("unpacked again");
+    assert_eq!(again, path);
+    assert_eq!(fs::read(&path).expect("there").len(), DESKTOP_SIZE);
+
+    // An installed desktop app is run in preference, and nothing is cached for it.
+    let (_root, dirs, running) = computer("cache-installed");
+    let mut reg = Map::default();
+    let steps = install::plan(&dirs, "0.2.0", EN.starter_menu_name, 1, Some(b"app"));
+    install::install(&dirs, &steps, &running, &ask, &mut reg).expect("installed");
+    fs::write(dirs.desktop_app(), "FARADAY DESKTOP 0.2.0").expect("answers");
+    assert_eq!(
+        install::desktop_app(&dirs, &ask, Some(&payload)),
+        Ok(dirs.desktop_app())
+    );
+    assert!(!dirs.cache().exists());
+    // No payload, no installed copy.
+    assert_eq!(
+        install::desktop_app(&dirs, &|_: &Path| None, None),
+        Err(Reason::NoDesktopApp)
+    );
 }
