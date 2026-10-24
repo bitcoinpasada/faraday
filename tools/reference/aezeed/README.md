@@ -309,3 +309,24 @@ node_id=027cf7c81dc777e46572ff964f17650a0f6f783319fcc140fb9a69425e2fbdc93c
 
 with `Network::Bitcoin` and `Network::Testnet` giving the same three
 values.
+
+### Four more, computed the same way (2026-10-24)
+
+The same crate at the same version, `lightning` 0.2.6 from crates.io
+with `bip39` 2 for the phrase's seed, in a throwaway program outside the
+repository: `Xpriv::new_master` over the 64-byte seed, its private key
+handed to `KeysManager::new(&ldk_seed, 1, 0, true)`, and the answers of
+`get_node_secret_key` and `get_node_id(Recipient::Node)`. The program
+gave the vector above again first. `Network::Bitcoin` and
+`Network::Testnet` gave the same values for each.
+
+| Phrase | Passphrase | node_secret | node_id |
+|---|---|---|---|
+| `legal winner thank year wave sausage worth useful legal winner thank yellow` | `TREZOR` | `c7423ba0b137fb371b7af9a84b3c7420aa2a4603e7c56c3bb8f90b27dd2da1fd` | `03697c824cef0e31eb9c483a4cbd1438a9003b2481e37b2fcf103ed59311f5418f` |
+| `letter advice cage absurd amount doctor acoustic avoid letter advice cage above` | `faraday` | `36bd19743153e2e4d3066697a60ca6d3bcb70fd2689e3cafa88ad654eb0b63cb` | `0399b71150b1d4e2f00f4c7ee30e85a9acd046f19c7aa5f4cd5f5883e3fae2c301` |
+| `zoo` ×23 `vote` | (none) | `bfa47a0b091e5d51135745a18de0e449ccb7c97ba53294b4a62d9c4b3f30e83a` | `0223349fbb14f5ae13da1d42d919ef09da385101e2309643cc284757a23aaa5879` |
+| `hamster diagram private dutch cause delay private meat slide toddler razor book happy fancy gospel tennis maple dilemma loan word shrug inflict delay length` | `TREZOR` | `3e31e03aabfd0fe0e8782c43413a669989cf37a95485d1adcdab2b3eb4e2f89e` | `03b1da9dfd8589b33e630a9dce2f259ccb2d656d8ba53575baa3f0f1a41ff50b35` |
+
+They are in `tools/vectors/aezeed/vectors.json` with the first; the
+cross-check's `lightning` area reads them. More LND node keys need Go,
+which the build machine does not have.

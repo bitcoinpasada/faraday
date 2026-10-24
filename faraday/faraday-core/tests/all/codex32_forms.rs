@@ -423,6 +423,32 @@ fn codex32qr_pictures_scanned_load_the_stated_keys() {
     }
 }
 
+/// §10.1: a Codex32QR code in byte mode, as Faraday drew one before it
+/// followed the profile's alphanumeric mode, still scans: a picture of
+/// each share read from its pixels loads the key.
+#[test]
+fn a_byte_mode_codex32qr_picture_still_scans() {
+    use faraday_codec::qr::{Ecc, Payload, encode_bounded};
+    let c = testkit::compute();
+    let mut app = adding();
+    for share in [SHARE_A, SHARE_C] {
+        let upper = share.to_uppercase();
+        let code = encode_bounded(&c, Payload::Bytes(upper.as_bytes()), Ecc::Low, 3).unwrap();
+        assert_eq!(code.version(), 3);
+        let png = faraday_codec::png::qr_png(&code, 8);
+        let payloads = faraday_files::qr_in_png(&c, &png).expect("a PNG");
+        assert_eq!(payloads, vec![upper.into_bytes()]);
+        app.press(Action::ScanPart);
+        app.event(Event::Scanned {
+            bytes: payloads[0].clone(),
+        });
+    }
+    if app.session.keys.is_empty() {
+        enter(&mut app);
+    }
+    assert_eq!(app.session.keys.len(), 1, "{:?}", error(&app));
+}
+
 /// §10.1: Add a key's Scan a SeedQR takes a Codex32QR code too, and opens
 /// the codex32 form with the string in, waiting for the rest of the set.
 #[test]

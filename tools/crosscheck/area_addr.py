@@ -2,7 +2,9 @@
 Bitcoin Core's functional-test framework (`core/test_framework/`):
 `segwit_addr.py` (BIP-173 and BIP-350's reference code as Core keeps
 it), `address.py`'s Base58Check and `descriptors.py`'s BIP-380 checksum,
-with BIP-32 from `btc.py` and BIP-39 from python-mnemonic.
+with BIP-32 from `btc.py` and BIP-39 from python-mnemonic. Every
+descriptor checksum is also asked of BIP 380's own code, as the BIP
+prints it (`tools/reference/bip380/descsum.py`).
 
 - Every address of `tools/vectors/addresses/`: BIP-350's and BIP-173's
   valid addresses read to the script each pays and written back from
@@ -39,6 +41,9 @@ use_reference("core")
 from test_framework import descriptors  # noqa: E402
 from test_framework import segwit_addr  # noqa: E402
 from test_framework.address import base58_to_byte, byte_to_base58  # noqa: E402
+
+use_reference("bip380")
+import descsum as bip380  # noqa: E402
 
 use_reference("bip39")
 from mnemonic import Mnemonic  # noqa: E402
@@ -177,12 +182,18 @@ class Addr(Area):
             lambda: ref_account(seed, network, script, account, change, index), expected)
 
     def descsum(self, text):
-        def ref():
-            out = descriptors.descsum_create(text)
-            return {"checksum": out[-8:]}
-        return self.compare("addr.descsum", {"text": text}, ref)
+        """The checksum made, asked of BIP 380's code and of Core's
+        `descriptors.py`."""
+        def ref(create):
+            return lambda: {"checksum": create(text)[-8:]}
+        self.compare("addr.descsum", {"text": text}, ref(bip380.descsum_create))
+        return self.compare("addr.descsum", {"text": text}, ref(descriptors.descsum_create))
 
     def descsum_verify(self, text, expected=None):
+        """The checksum checked, asked of both; BIP 380's code raises on a
+        text too short to hold one, which counts as a refusal."""
+        self.compare("addr.descsum_verify", {"text": text},
+                     lambda: {"valid": bip380.descsum_check(text)}, expected, normalize=as_verify)
         return self.compare("addr.descsum_verify", {"text": text},
                             lambda: {"valid": descriptors.descsum_check(text, True)}, expected,
                             normalize=as_verify)

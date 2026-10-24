@@ -12,7 +12,7 @@ change to a block, to the manifest or to a row here changes the others.
 Decisions are in `docs/DECISIONS.md`; what each cryptographic crate is
 checked against is in `docs/AUDIT.md` and `docs/MULTIVENDOR.md`.
 
-Taken from the working tree on 2026-10-23.
+Taken from the working tree on 2026-10-24.
 
 ## 0. What goes into Faraday
 
@@ -113,7 +113,7 @@ or "no decision". Kinds:
 
 | What | Standard (status) | Completeness | Verified by | Faraday's own call |
 |---|---|---|---|---|
-| Single key: `pkh`, `sh(wpkh)`, `wpkh`, `tr` (`faraday/faraday-core/src/create.rs`) | BIP 32, 44, 49, 84, 86 (Deployed); BIP 380 to 386 (Deployed); BIP 341 (Deployed) | Full for derivation and addresses (rust-bitcoin) | BIP 32 vectors (`tools/vectors/bip32`); Bitcoin Core end to end (`faraday/tools/core-check.py`, INTEROP §1, against Core 31.1); not in F79 (MULTIVENDOR §10.5 items 3 and 4 open) | Account asked after the quorum (F98); `h` written for hardened (F66). Neutral |
+| Single key: `pkh`, `sh(wpkh)`, `wpkh`, `tr` (`faraday/faraday-core/src/create.rs`) | BIP 32, 44, 49, 84, 86 (Deployed); BIP 380 to 386 (Deployed); BIP 341 (Deployed) | Full for derivation and addresses (rust-bitcoin) | BIP 32 vectors (`tools/vectors/bip32`); Bitcoin Core end to end (`faraday/tools/core-check.py`, INTEROP §1, against Core 31.1); F79 areas `bip32` (derivation) and `addr` (accounts, their descriptors and addresses) | Account asked after the quorum (F98); `h` written for hardened (F66). Neutral |
 | Multisig `wsh` and `sh(wsh)` `sortedmulti` | BIP 48 (Deployed), BIP 67 (Complete), BIP 383 (Deployed) | Full | Core end to end with two sessions combined (INTEROP §1); Sparrow, Coldcard and Electrum files | A key with no origin is refused; a SLIP-132 version is checked against the script. Conservative; F90 covers part, see §6 |
 | Legacy multisig `sh(sortedmulti)` at `m/45'` | BIP 45 (Complete) defines `m/45'/cosigner/change/index`; Faraday uses `m/45'` as an account with `/<0;1>/*`, the de-facto Coldcard and Unchained export | A convention, not BIP 45's scheme | Core end to end; Unchained and Coldcard files | Path convention. Neutral; no decision |
 | Taproot multisig `tr(H, sortedmulti_a)` (`core/faraday-bip/src/tapmulti.rs`) | BIP 386 (Deployed), BIP 387 (Deployed, vendored). The path `m/48'/c'/0'/3'` has no standard: BIP 48 defines script types 1' and 2' | `sortedmulti_a` is parsed here because miniscript lacks it; a hardened wildcard is parsed but not derived | BIP 387 vectors (`core/faraday-bip/tests/all/bip387.rs`); Core 31.1 PSBT round trip (`tools/vectors/psbt`, `wallet-tapmulti-*`) | The `3'` path is Faraday's choice. Only BIP 341's bare `H` counts as unspendable. Neutral and Conservative; no decision |
@@ -128,46 +128,46 @@ or "no decision". Kinds:
 
 | What | Standard (status) | Completeness | Verified by | Faraday's own call |
 |---|---|---|---|---|
-| BIP-39 (`core/faraday-bip/src/bip39.rs`, written here) | BIP 39 (Deployed) | Ten word lists, every length. A passphrase is printable ASCII, at most 256 bytes | Official and Japanese vectors (`tools/vectors/bip39`); the `bip39` crate as a dev-dependency (`docs/AUDIT.md` §1); F79 only through XOR and BIP 85 | ASCII-only passphrase: Conservative, not in F90. Word entry by readings and kana: Neutral |
-| Dice (`core/faraday-entropy/src/dice.rs`) | De facto: Coldcard `rolls.py`, SeedSigner, Keystone, BitBox; sources pinned in `tools/reference/dice/README.md` | Three procedures; 99 rolls for 256 bits, as the others accept | Transcripts from those tools (`faraday/faraday-core/tests/all/keygen.rs`); not in F79 | Cautions (runs, chi-square) are warnings only. Neutral; no decision |
-| Coins, hex | Convention: most significant bit first | Full | Own tests | Neutral; no decision |
-| Playing cards (`core/faraday-entropy/src/cards.rs`) | None: SHA-256 of one-byte draw indices | | Own tests only | Own procedure. Novel, low risk; no decision |
-| Camera noise (`core/faraday-entropy/src/camera.rs`) | None: SHA-256 of the frames' SHA-256 digests; 3 frames per 128 bits is a heuristic | | Own tests only | Own procedure. Novel, low risk; no decision |
-| Mix of sources (`core/faraday-entropy/src/mix.rs`) | None: SHA-256 over the concatenated commitments | | Own tests | Novel, low risk; no decision |
-| Own randomness in the session (`faraday/faraday-core/src/fresh.rs`) | None (`docs/OWN-RANDOMNESS.md` §2.3) | R1 built; R2 and R3 open | The spec's tests; its required F79 known answers are open (§4) | Never replaces the system's bytes (Conservative); the construction is Novel (F86) |
+| BIP-39 (`core/faraday-bip/src/bip39.rs`, written here) | BIP 39 (Deployed) | Ten word lists, every length. A passphrase is printable ASCII, at most 256 bytes | Official and Japanese vectors (`tools/vectors/bip39`); the `bip39` crate as a dev-dependency (`docs/AUDIT.md` §1); F79 area `bip39` against python-mnemonic | ASCII-only passphrase: Conservative, not in F90. Word entry by readings and kana: Neutral |
+| Dice (`core/faraday-entropy/src/dice.rs`) | De facto: Coldcard `rolls.py`, SeedSigner, Keystone, BitBox; sources pinned in `tools/reference/dice/README.md` | Three procedures; 99 rolls for 256 bits, as the others accept | Transcripts from those tools (`faraday/faraday-core/tests/all/keygen.rs`, `tools/vectors/entropy/`); F79 area `entropy`, the three procedures written from the quoted sources | Cautions (runs, chi-square) are warnings only. Neutral; no decision |
+| Coins, hex | Convention: most significant bit first | Full | F79 area `entropy`, a reference written from `tools/reference/entropy/README.md` | Neutral; no decision |
+| Playing cards (`core/faraday-entropy/src/cards.rs`) | None: SHA-256 of one-byte draw indices | | F79 area `entropy`, a reference written from `tools/reference/entropy/README.md` | Own procedure. Novel, low risk; no decision |
+| Camera noise (`core/faraday-entropy/src/camera.rs`) | None: SHA-256 of the frames' SHA-256 digests; 3 frames per 128 bits is a heuristic | | F79 area `entropy`, a reference written from `tools/reference/entropy/README.md` | Own procedure. Novel, low risk; no decision |
+| Mix of sources (`core/faraday-entropy/src/mix.rs`) | None: SHA-256 over the concatenated commitments | | F79 area `entropy`, each source's commitment and the mix | Novel, low risk; no decision |
+| Own randomness in the session (`faraday/faraday-core/src/fresh.rs`) | None (`docs/OWN-RANDOMNESS.md` §2.3) | R1 built; R2 and R3 open | The spec's tests; F79 area `own-randomness` against §2.3 written out over `hashlib` | Never replaces the system's bytes (Conservative); the construction is Novel (F86) |
 | Booklet dice for codex32 (`core/faraday-entropy/src/booklet.rs`) | codex32 booklet SSS32.ps 2023-03-07 (`tools/reference/booklet-dice/README.md`) | Six-faced dice only | Booklet tables; F79 codex32 area | Neutral; no decision |
-| Desktop dice roller | None | Desktop only, labelled "simulated dice" | None | An exception to "Faraday's randomness never makes a codex32 seed"; testnet-only shell. Neutral (F96) |
+| Desktop dice roller | None | Desktop only, labelled "simulated dice" | F79 area `roller`, both rollers against `docs/CODEX32.md` §5.6's statement of the values | An exception to "Faraday's randomness never makes a codex32 seed"; testnet-only shell. Neutral (F96) |
 | SLIP-39 (`core/faraday-bip/src/slip39.rs`, written here) | SLIP-0039 (status not checked) | Secrets of 16 to 32 bytes; exponent at most 5 on read; writes exponent 1 with the extendable flag set | All 45 vectors; F79 area `slip39` against python-shamir-mnemonic, word for word | Refusals in F90; the 256-bit cap is not in F90 (Conservative). The 1-of-1 identifier is taken from the fingerprint (`docs/SEED-CONVERSION.md` §4.4): Neutral, a privacy cost |
 | codex32 (`core/faraday-bip/src/codex32/`) | BIP 93 (Draft, vendored) | Codec, split, derive, recover, worksheets and the correction decoder built; the flows in `docs/CODEX32.md` marked open are not | Every BIP 93 vector including the 55 invalid; booklet and volvelle tables; F79 areas `codex32` and `codex32-correct` | Recovery from exactly `k` shares (F90, Conservative); error correction: BIP 93 specifies no procedure; follows python-codex32's unmerged decoder; cross-checked over 100,057 cases (F94); opt-in, off by default, never applied automatically (Conservative); identifier taken from the fingerprint, 20 bits (Neutral, a privacy cost); a 127-character codex32 of a BIP-39 seed with the passphrase folded in (F93, Neutral) |
-| Codex32QR/v1-48 (`tools/vectors/codex32qr/README.md`) | A profile of one SeedSigner fork, pinned in that README; Faraday's own, fails closed (F95) | 48 characters only, by rule | Profile vectors; F79 codex32 area | Refuses to invent longer profiles. Conservative (F95) |
+| Codex32QR/v1-48 (`tools/vectors/codex32qr/README.md`) | Codex32QR/v1-48 from FractalEncrypt's SeedSigner fork, branch `codex/codex32-error-correction`, commit `9b8cbe0aaf527ebe9e85d0e90c0b79e2018126c8` (MIT), pinned in that README. New and not peer-reviewed. The full-string QR is the form the codex32 authors' discussion describes (BlockstreamResearch/codex32 discussion 66, "CodexQR"), where the format is being settled; no compact CodexQR until it is. Faraday follows the profile for the QR, alphanumeric mode as its pictures are, not the fork's device workflow such as its 5-share collection cap (owner, 2026-10-24). Faraday's own, fails closed (F95) | 48 characters only, by rule | Profile vectors; F79 codex32 area (the strings); F79 area `seedqr`: Faraday's code and the picture it writes, module for module against Nayuki's `qrcodegen.py`, and the profile's 22 pictures read from their pixels, each Faraday's code module for module (6 under the mask the profile's encoder chose, swapped in by `qrcodegen.py`) | Refuses to invent longer profiles. Conservative (F95) |
 | Seed XOR (`core/faraday-entropy/src/xor.rs`) | Coldcard's seed-xor document (de facto) | 2 to 4 parts | Coldcard's two examples at commit f28e1b26 and two constructed here (`tools/vectors/xor/README.md`); F79 area `xor` | Neutral; no decision |
-| SeedQR and CompactSeedQR (`core/faraday-codec/src/seedqr.rs`) | SeedSigner's SeedQR document (de facto) | English only | Spec vectors (INTEROP §2) | A copy checked by scan or typed words (F29). Neutral |
+| SeedQR and CompactSeedQR (`core/faraday-codec/src/seedqr.rs`) | SeedSigner's SeedQR document (de facto) | English only | Spec vectors (INTEROP §2); F79 area `seedqr`: SeedSigner's nine vectors, the specification written out over python-mnemonic, and the codes module for module against Project Nayuki's `qrcodegen.py` | A copy checked by scan or typed words (F29). Neutral |
 | BIP 85 (`core/faraday-bip/src/bip85.rs`) | BIP 85 (Deployed, vendored) | Applications 2', 32', 39', 128169', 707764', 707785'; no DICE, RSA or Nostr 128002' (F27) | BIP 85 vectors; F79 area `bip85` | Neutral; no decision |
 | Electrum seeds | Electrum's own scheme | Not built (INTEROP §5 I7) | None | None |
-| aezeed (`core/faraday-bip/src/aezeed.rs`, `core/faraday-bip/src/aez.rs`, written here) | LND's implementation (de facto); AEZ v5 | Decode, for node keys and conversion | AEZ reference vectors (`tools/reference/aezeed/aez-testdata`); LND's cipher seed and node id (`faraday/faraday-core/tests/all/lightning.rs`); not in F79 | Neutral; no decision |
+| aezeed (`core/faraday-bip/src/aezeed.rs`, `core/faraday-bip/src/aez.rs`, written here) | LND's implementation (de facto); AEZ v5 | Decode, for node keys and conversion | AEZ reference vectors (`tools/reference/aezeed/aez-testdata`); LND's cipher seed and node id (`faraday/faraday-core/tests/all/lightning.rs`); F79 area `lightning`: LND's five seeds, the outer layer (checksum, version) against a reference; AEZ itself has no second implementation | Neutral; no decision |
 | Paper backups, the backup plan and its sticks | None | Partly built (`docs/BACKUP-FLOW.md` Open) | Own tests | Places, presets, warnings, "seeds alone spend" (F31, F35, F37, F87): Neutral. Partial descriptions (F52) and the Coldcard config carrying `Format: P2TR`: Neutral, an interoperability risk |
-| The vault (`faraday/faraday-vault`, `docs/VAULT.md`) | None: Faraday's own container over Argon2id 1.3, HKDF-SHA256 (RFC 5869, assembled by hand) and XChaCha20-Poly1305 | Built | Own vectors (`tools/vectors/vault`) and a Python reader over independent primitives (`tools/vault/open.py`); F79 vault area open | Four equal slots and deniability (§9); deterministic seal nonces (§5); reader cost limits, a Conservative choice; unnormalised UTF-8 passphrase. Novel; no decision beyond the document |
-| KDBX 4 export (`core/faraday-backup/src/kdbx.rs`) | KeePass's KDBX spec (de facto; pages pinned in `tools/reference/kdbx4`) | Write only: 4.0, ChaCha20, Argon2id | Read back by `pykeepass` when installed (`tools/backup/read-kdbx.py`) | Nostr entries never exported (F27). Neutral |
+| The vault (`faraday/faraday-vault`, `docs/VAULT.md`) | None: Faraday's own container over Argon2id 1.3, HKDF-SHA256 (RFC 5869, assembled by hand) and XChaCha20-Poly1305 | Built | Own vectors (`tools/vectors/vault`) and a Python reader over independent primitives (`tools/vault/open.py`); F79 area `vault` | Four equal slots and deniability (§9); deterministic seal nonces (§5); reader cost limits, a Conservative choice; unnormalised UTF-8 passphrase. Novel; no decision beyond the document |
+| KDBX 4 export (`core/faraday-backup/src/kdbx.rs`) | KeePass's KDBX spec (de facto; pages pinned in `tools/reference/kdbx4`) | Write only: 4.0, ChaCha20, Argon2id | F79 area `kdbx`: every file read back by pykeepass, a required package of the cross-check | Nostr entries never exported (F27). Neutral |
 | Diceware passphrases | EFF word lists (`tools/vectors/eff`) | Three lists | The lists' digests | Neutral; no decision |
 
 ## 4. Signing and transfer
 
 | What | Standard (status) | Completeness | Verified by | Faraday's own call |
 |---|---|---|---|---|
-| PSBT v0 (`core/faraday-psbt`) | BIP 174 (Deployed) | Signs every wallet kind above; the finalizer is written here | BIP 174 and role vectors (`tools/vectors/psbt`); Core end to end; not in F79 (§10.5 item 4) | A key comes from the PSBT's origin only; signed-amount memory; non-ALL sighash refused; a v0 input with only a witness UTXO in a multi-input transaction refused. Conservative; part in F90, see §6 |
-| PSBT v2 | BIP 370 (Deployed) | Silent-payment path only; the general reader is open (INTEROP §5 I10); `core/faraday-psbt/src/psbt.rs` refuses any version but 0 | None | The Sign tile in `faraday/faraday-core/src/catalog.rs` carries a BIP 370 tag that the code does not back (§8) |
-| Sighash | BIP 143, 341, 342 (Deployed) | All computed (rust-bitcoin); only ALL and DEFAULT are signed; others are review cards (`core/faraday-psbt/src/inspect/sighash.rs`) | Core end to end | Conservative; no decision |
+| PSBT v0 (`core/faraday-psbt`) | BIP 174 (Deployed) | Signs every wallet kind above; the finalizer is written here | BIP 174 and role vectors (`tools/vectors/psbt`); Core end to end; F79 area `psbt` (reading and writing; signing and finalizing end to end not in it, MULTIVENDOR §10.5 item 4) | A key comes from the PSBT's origin only; signed-amount memory; non-ALL sighash refused; a v0 input with only a witness UTXO in a multi-input transaction refused. Conservative; part in F90, see §6 |
+| PSBT v2 | BIP 370 (Deployed) | Silent-payment path only; the general reader is open (INTEROP §5 I10); `core/faraday-psbt/src/psbt.rs` refuses any version but 0 | BIP 370's vectors (`tools/vectors/psbt-bips/`); F79 area `psbt` (`faraday_psbt::v2`) | The Sign tile in `faraday/faraday-core/src/catalog.rs` carries a BIP 370 tag that the code does not back (§8) |
+| Sighash | BIP 143, 341, 342 (Deployed) | All computed (rust-bitcoin); only ALL and DEFAULT are signed; others are review cards (`core/faraday-psbt/src/inspect/sighash.rs`) | Core end to end; F79 area `tx` | Conservative; no decision |
 | ECDSA nonces | RFC 6979; Core's low-R grind | Both offered, low-R by default (`core/faraday-psbt/src/sign.rs`) | RFC 6979 vectors (`tools/vectors/psbt/rfc6979.txt`); self-test | Sign twice and compare. Neutral |
 | Schnorr | BIP 340 (Deployed) | Zero `aux_rand` by default, fresh as an option | libsecp256k1 vectors in the self-test | BIP 340 allows zero aux but recommends fresh randomness against fault attacks; the default favours reproducibility. Neutral, a judgement; no decision |
 | Address and change checks | BIP 173 and 350 (Deployed); Faraday's review rules | The first 100 receive and change addresses for a scanned address (`docs/QR.md` §1) | Core end to end | A gap of 100 is a choice. Neutral; no decision |
 | Check a signer | None | Not built (`docs/SIGNER-CHECK.md`) | None | Fails closed by design (F84). Conservative |
 | Anti-exfil | Jade's protocol, libsecp256k1-zkp s2c | Not built (`docs/ANTI-EXFIL.md`) | None | None |
-| Message signing (`core/faraday-psbt/src/message.rs`) | BIP 137 (Deployed), BIP 322 (Complete) | BIP 322 "simple" only: no "full" form, no proof of funds, no nested SegWit; header ranges as Electrum and Trezor use | `bip322-basic.json` from the BIPs repository; BIP 137 vectors from Trezor's and Electrum's suites (`tools/vectors/message/README.md`); not in F79 | Neutral; no decision |
-| UR (`core/faraday-codec/src/ur/`) | Blockchain Commons research documents BCR-2020-005, 006, 012 and others (de facto) | Legacy `crypto-*` types and fountain codes; `crypto-output` is read, never written | BCR-2020-012 vectors; SeedSigner and Keystone codes | `crypto-account` byte-identical to SeedSigner's. Neutral |
-| BBQr (`faraday/faraday-qr/src/bbqr.rs`) | bbqr.org (Coinkite, de facto) | Reads base32, hex and zlib; writes base32 only | Own tests | Neutral; no decision |
-| Specter `pNofM` (`faraday/faraday-qr/src/specter.rs`) | None published; Specter and SeedSigner behaviour | Read and write | Own tests | Neutral; no decision |
+| Message signing (`core/faraday-psbt/src/message.rs`) | BIP 137 (Deployed), BIP 322 (Complete) | BIP 322 "simple" only: no "full" form, no proof of funds, no nested SegWit; header ranges as Electrum and Trezor use | `bip322-basic.json` from the BIPs repository; BIP 137 vectors from Trezor's and Electrum's suites (`tools/vectors/message/README.md`); F79 area `msg` | Neutral; no decision |
+| UR (`core/faraday-codec/src/ur/`) | Blockchain Commons research documents BCR-2020-005, 006, 012 and others (de facto) | Legacy `crypto-*` types and fountain codes; `crypto-output` is read, never written | BCR-2020-012 vectors; SeedSigner and Keystone codes; F79 area `ur` against foundation-ur-py, with URKit's vectors | `crypto-account` byte-identical to SeedSigner's. Neutral |
+| BBQr (`faraday/faraday-qr/src/bbqr.rs`) | bbqr.org (Coinkite, de facto) | Reads base32, hex and zlib; writes base32 only | F79 area `bbqr` against Coinkite's Python library | Neutral; no decision |
+| Specter `pNofM` (`faraday/faraday-qr/src/specter.rs`) | None published; Specter and SeedSigner behaviour | Read and write | F79 area `bbqr`, against SeedSigner's reader as `tools/reference/specter/README.md` quotes it | Neutral; no decision |
 | File envelope `faraday-file-v1` | Faraday OS's own format | Full | Own tests | SHA-256 shows integrity, not origin. Neutral; no decision |
-| Descriptors and checksums | BIP 380 to 386 (Deployed), 387 (Deployed, vendored), 388 (Complete), 389 (Draft), 390 (Draft, vendored) | As in §2 | Core checksums; F79 does not cover them (§10.5 item 4) | One text, with `h` (F66). Neutral |
+| Descriptors and checksums | BIP 380 to 386 (Deployed), 387 (Deployed, vendored), 388 (Complete), 389 (Draft), 390 (Draft, vendored) | As in §2 | Core checksums; F79 area `addr`: BIP 380's own checksum code and Core's `descriptors.py` | One text, with `h` (F66). Neutral |
 | BSMS (`core/faraday-bip/src/bsms.rs`) | BIP 129 (Complete, vendored) | NO_ENCRYPTION records only (INTEROP §5 I3); signer records' signatures checked | The BIP text's examples (`tools/vectors/bip129`); Nunchuk and Sparrow records | Upper-case bech32 and "No path restrictions" accepted; fixed-path records refused. Neutral and Conservative; no decision |
 | Other wallets' files | Vendor formats | As listed in INTEROP §2 | Files from those wallets' test suites; not against the running apps (INTEROP §1) | Neutral; no decision |
 
@@ -175,10 +175,10 @@ or "no decision". Kinds:
 
 | What | Standard (status) | Completeness | Verified by | Faraday's own call |
 |---|---|---|---|---|
-| Explore a key | BIP 32, 44, 84, 86 (Deployed) | Full | BIP 32 vectors | Neutral; no decision |
-| Vanity address (`core/faraday-bip/src/vanity.rs`) | EntropyLab's counter (de facto; `tools/reference/vanity/README.md`) | Passphrase dial or account dial | Two EntropyLab vectors | A passphrase found by grinding becomes key material to back up; the account dial gives a non-zero account. Neutral; no decision |
-| Decode a transaction | BIP 141 and 144 (Deployed) | Full (rust-bitcoin) | None | Neutral; no decision |
-| Lightning node key (`faraday/faraday-keys/src/lightning.rs`) | ldk-node and rust-lightning; LND aezeed | ldk-node from BIP-39, LND from aezeed | One ldk vector computed with `lightning` 0.2.6 (`tools/reference/aezeed/README.md` §6); LND's own | Neutral; no decision |
+| Explore a key | BIP 32, 44, 84, 86 (Deployed) | Full | BIP 32 vectors; F79 area `bip32` | Neutral; no decision |
+| Vanity address (`core/faraday-bip/src/vanity.rs`) | EntropyLab's counter (de facto; `tools/reference/vanity/README.md`) | Passphrase dial or account dial | Two EntropyLab vectors; F79 area `vanity`, the search written from EntropyLab's counter | A passphrase found by grinding becomes key material to back up; the account dial gives a non-zero account. Neutral; no decision |
+| Decode a transaction | BIP 141 and 144 (Deployed) | Full (rust-bitcoin) | F79 area `tx`: `faraday_psbt::transaction::read_raw` (txid, wtxid, weight, bytes) against Core's `messages.py` | Neutral; no decision |
+| Lightning node key (`faraday/faraday-keys/src/lightning.rs`) | ldk-node and rust-lightning; LND aezeed | ldk-node from BIP-39, LND from aezeed | Five ldk vectors computed with `lightning` 0.2.6 (`tools/reference/aezeed/README.md` §6); LND's own; F79 area `lightning`, both derivations written from the quoted sources | Neutral; no decision |
 | TOTP (`faraday/faraday-vault/src/totp.rs`) | RFC 6238 and 4226; the `otpauth://` Key URI format (de facto) | No HOTP, no migration QR | RFC 6238 vectors (`docs/AUDIT.md` §1; faraday-keys tests) | Manual clock, fixed-offset zone (F7). Neutral |
 | GPG (`faraday/faraday-pgp`) | RFC 4880 and 9580 v4 packets; GnuPG behaviour (F32) | One key shape: Ed25519 certify plus a sign subkey | Judged by real `gpg` 2.4 and `paperkey` 1.6 (`faraday/faraday-pgp/tests/gnupg.rs`) | Signs only after the backup flow writes at least two places (F31, F32). Conservative |
 | GPG paperkey restore | paperkey format | Not built (F32; GPG paperkey spec) | None | None |
@@ -186,7 +186,7 @@ or "no decision". Kinds:
 | Convert a seed | Each target's own standard | Not built (`docs/SEED-CONVERSION.md`) | Planned: vectors, another implementation, read-back by fingerprint | Only same-fingerprint conversions. Conservative (F88) |
 | Seed XOR tool | Coldcard | As in §3 | F79 area `xor` | Neutral; no decision |
 | Miniscript compiler (`core/faraday-bip/src/compile.rs`) | BIP 379 (Draft); rust-miniscript's compiler | SegWit or Taproot | rust-miniscript | Neutral; no decision |
-| Hashes, encodings, descriptor checksum, xpub spellings, units | SHA-256, HASH160; Base58Check; BIP 173 and 350; BIP 380; SLIP-0132 (status not checked) | Full | Own tests | Neutral; no decision |
+| Hashes, encodings, descriptor checksum, xpub spellings, units | SHA-256, HASH160; Base58Check; BIP 173 and 350; BIP 380; SLIP-0132 (status not checked) | Full | F79 area `addr` (addresses, SLIP-132, the descriptor checksum); own tests | Neutral; no decision |
 | Nostr key | BIP 85 128002' (Deployed), NIP-19, NIP-49 | Not built (`docs/NOSTR.md`) | None | None |
 
 ## 6. Where Faraday is stricter than the standard
@@ -261,18 +261,20 @@ Ranked by how much a mistake would cost.
    (`docs/AUDIT.md` §1); seal nonces derived as SHA-256(label, session
    seed, count) rather than drawn (§5); unused slots filled from a
    ChaCha20 keystream (§8). It is checked against Faraday's own vectors
-   and its own Python reader; F79's vault area is open.
+   and its own Python reader, and in F79's `vault` area.
 4. **The session's random generator** (`faraday/faraday-core/src/fresh.rs`;
    `docs/OWN-RANDOMNESS.md` §2.3, F86): "fresh", the seed's draws and the
    mixing of a person's own randomness, all SHA-256 over concatenations;
    signing seeds and the MuSig2 and FROST `rand'` chain
    (`core/faraday-psbt/src/musig.rs`). Every nonce and key Faraday draws
-   passes through it, and its required cross-check is open.
+   passes through it; F79's `own-randomness` area checks it against
+   §2.3.
 5. **Entropy conversions with no published procedure:** cards (SHA-256 of
    one-byte indices), camera (SHA-256 of the frames' digests, 3 frames
    per 128 bits) and the mix (SHA-256 over the sources' commitments)
    (`core/faraday-entropy/src/lib.rs`, `core/faraday-entropy/src/mix.rs`).
-   All hash-based; the risk is low.
+   All hash-based; the risk is low. F79's `entropy` area checks them
+   against `tools/reference/entropy/README.md`.
 6. **Secure Boot RSA keys** from an RNG adapter written here
    (`faraday/faraday-sb/src/rng.rs`), feeding a pre-1.0 release candidate
    of `rsa` (`docs/AUDIT.md` §1).

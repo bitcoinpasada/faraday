@@ -1535,17 +1535,11 @@ impl Codex32Make {
     /// 48 characters only (§10.2), upper case, byte mode, version 3,
     /// level L.
     fn encode_qr(&mut self, c: &Compute) {
-        use faraday_codec::qr::{Ecc, Payload, encode_bounded};
         self.qr = None;
         let Some(s) = self.strings().and_then(|s| s.get(self.at)) else {
             return;
         };
-        if s.len() != 48 {
-            return;
-        }
-        let mut upper = Zeroizing::new(s.as_bytes().to_vec());
-        upper.make_ascii_uppercase();
-        self.qr = encode_bounded(c, Payload::Bytes(&upper), Ecc::Low, 3).ok();
+        self.qr = faraday_codec::qr::codex32qr(c, s);
     }
 
     /// Costs a QR encoding. Shows string `at`, nothing typed back.

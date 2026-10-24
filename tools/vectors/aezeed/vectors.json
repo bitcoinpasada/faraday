@@ -1,0 +1,39 @@
+{
+ "source": "tools/reference/aezeed/README.md: LND's aezeed/cipherseed_test.go vectors (made at scrypt N = 16, sections 4), the same seeds re-enciphered at N = 32768 by LND's own package (section 4), LND's node key computed with LND at commit 88959aec (section 3), and ldk's node ids from lightning 0.2.6 (section 6)",
+ "entropy": "81b637d86359e6960de795e41e0b4cfd",
+ "aezeed": [
+  {"words": "ability liquid travel stem barely drastic pact cupboard apple thrive morning oak feature tissue couch old math inform success suggest drink motion know royal",
+   "passphrase": "", "cost": 16, "internal_version": 0, "birthday": 0},
+  {"words": "able tree stool crush transfer cloud cross three profit outside hen citizen plate ride require leg siren drum success suggest drink require fiscal upgrade",
+   "passphrase": "!very_safe_55345_password*", "cost": 16, "internal_version": 0, "birthday": 3365},
+  {"words": "above judge emerge veteran reform crunch system all snap please shoulder vault hurt city quarter cover enlist swear success suggest drink wagon enrich body",
+   "passphrase": "", "cost": 32768, "internal_version": 0, "birthday": 0},
+  {"words": "absorb century submit father path glove gloom super divert garden ice mirror wisdom grass dice kit ugly castle success suggest drink monster congress flight",
+   "passphrase": "!very_safe_55345_password*", "cost": 32768, "internal_version": 0, "birthday": 3365},
+  {"words": "ability toilet excite swear ostrich model long squeeze solid memory kit pepper arena equal spider beauty satoshi romance success suggest drink photo already biology",
+   "passphrase": "hello", "cost": 32768, "internal_version": 1, "birthday": 3365}
+ ],
+ "lnd_node": [
+  {"network": "mainnet", "secret": "fcaa0ababb2377f81f3bdbd8b4e2436fe8968b0a68b0b129c66ff848bf6e1b48",
+   "node_id": "024c7005923a074fd38b16ace7be4914ec9f929717692bfb585019be13290c9b1d"},
+  {"network": "testnet", "secret": "c416c16490c6f9680e294e25468f384b7161b57b4a05279c145ec05475076b5a",
+   "node_id": "0226594d21c0862a11168ab07cdbc15e7c7af5ee561b741259e311f1614f4df3b7"}
+ ],
+ "ldk_node": [
+  {"words": "abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about", "passphrase": "",
+   "secret": "fd0afbf5d42fd797b85344291a2e5867f6a3f5a1e92f8ba2d030d804188efd8e",
+   "node_id": "027cf7c81dc777e46572ff964f17650a0f6f783319fcc140fb9a69425e2fbdc93c"},
+  {"words": "legal winner thank year wave sausage worth useful legal winner thank yellow", "passphrase": "TREZOR",
+   "secret": "c7423ba0b137fb371b7af9a84b3c7420aa2a4603e7c56c3bb8f90b27dd2da1fd",
+   "node_id": "03697c824cef0e31eb9c483a4cbd1438a9003b2481e37b2fcf103ed59311f5418f"},
+  {"words": "letter advice cage absurd amount doctor acoustic avoid letter advice cage above", "passphrase": "faraday",
+   "secret": "36bd19743153e2e4d3066697a60ca6d3bcb70fd2689e3cafa88ad654eb0b63cb",
+   "node_id": "0399b71150b1d4e2f00f4c7ee30e85a9acd046f19c7aa5f4cd5f5883e3fae2c301"},
+  {"words": "zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo zoo vote", "passphrase": "",
+   "secret": "bfa47a0b091e5d51135745a18de0e449ccb7c97ba53294b4a62d9c4b3f30e83a",
+   "node_id": "0223349fbb14f5ae13da1d42d919ef09da385101e2309643cc284757a23aaa5879"},
+  {"words": "hamster diagram private dutch cause delay private meat slide toddler razor book happy fancy gospel tennis maple dilemma loan word shrug inflict delay length", "passphrase": "TREZOR",
+   "secret": "3e31e03aabfd0fe0e8782c43413a669989cf37a95485d1adcdab2b3eb4e2f89e",
+   "node_id": "03b1da9dfd8589b33e630a9dce2f259ccb2d656d8ba53575baa3f0f1a41ff50b35"}
+ ]
+}

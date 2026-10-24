@@ -1770,7 +1770,6 @@ impl Faraday {
         what: plan::What,
         j: usize,
     ) -> Option<zeroize::Zeroizing<Vec<u8>>> {
-        use faraday_codec::qr::{Ecc, Payload, encode_bounded};
         use faraday_keys::{Part, Reveal};
         let index = plan::codex32::CHARSET[j];
         let s = self
@@ -1784,10 +1783,8 @@ impl Faraday {
                 v.push(b'\n');
                 Some(v)
             }
-            plan::What::Codex32QrFile(..) if s.len() == 48 => {
-                let mut upper = zeroize::Zeroizing::new(s.as_bytes().to_vec());
-                upper.make_ascii_uppercase();
-                let mx = encode_bounded(c, Payload::Bytes(&upper), Ecc::Low, 3).ok()?;
+            plan::What::Codex32QrFile(..) => {
+                let mx = faraday_codec::qr::codex32qr(c, &s)?;
                 let id = s.get(4..8).unwrap_or("");
                 let share = char::from(index).to_ascii_uppercase().to_string();
                 let title = fill(EN.c32_picture_title, &[&share, id]);

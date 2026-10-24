@@ -36,7 +36,7 @@ in `justfile` and `faraday/faraday.just`.
 | `tools/diceware/gen.py` | generator | `just diceware` | writes the EFF diceware modules in `faraday-bip` from `tools/vectors/eff/` |
 | `tools/vectors/` | data | tests in `core/` and `faraday/` (see Vectors) | published and cross-implementation test vectors, one folder per spec |
 | `tools/vectors/psbt/extract.py` | generator | by hand | extracts the BIP-174 vectors from the BIP text into `bip174.txt` |
-| `tools/reference/` | data | comments and tests that cite it (`aezeed`, `vanity`, `dice`, `kdbx4`), `tools/scripts/threshold-reference.py` (`bip445`), `tools/crosscheck/` (`bip327`, `bip352`, `bip445`, `bip39`, `bip85`, `codex32`, `core`, `slip39`) | vendored or quoted reference code and notes, each with a README |
+| `tools/reference/` | data | comments and tests that cite it (`aezeed`, `vanity`, `dice`, `kdbx4`), `tools/scripts/threshold-reference.py` (`bip445`), `tools/crosscheck/` (`bbqr`, `bip327`, `bip352`, `bip380`, `bip445`, `bip39`, `bip85`, `codex32`, `core`, `qrcodegen`, `slip39`, `ur`; the statements in `aezeed`, `dice`, `entropy`, `specter` and `vanity`) | vendored or quoted reference code and notes, each with a README |
 | `tools/crosscheck/` | test | `just crosscheck` (`run.sh`) | the crypto cross-check (F79): Faraday's Rust against the vendored Python references over the published vectors and a seeded random corpus; writes `stamp` ([README](crosscheck/README.md)) |
 | `tools/scripts/threshold-reference.py` | test | `just threshold-reference` | replays the threshold fixture session against BIP 445's reference |
 | `tools/scripts/{musig,tapmulti,threshold}-regtest.sh` | generator | by hand; `core/faraday-psbt/examples/` and `just psbt-fixtures` write the rest | Bitcoin Core regtest round trips behind the MuSig2, taproot-multisig and threshold PSBT fixtures |
@@ -63,9 +63,11 @@ none is part of `just`, which stays fast.
 1. `just` passes: the tests and the lints.
 2. `just crosscheck --fresh`: Faraday's own Rust against the Python
    references with a new seed and ten times the random cases, over the
-   areas listed in `tools/crosscheck/README.md` (the vault, BIP-39 and
-   BIP-32 derivation and rust-bitcoin's results are not yet among them,
-   `docs/MULTIVENDOR.md` §10.5). A disagreement it finds is kept in
+   areas listed in `tools/crosscheck/README.md` (what they leave out is
+   under `docs/MULTIVENDOR.md` §10.5 items 4 and 6: PSBT signing and
+   finalizing end to end, taproot script trees, miniscript, AEZ). The
+   `vault` and `kdbx` areas need the distribution's argon2-cffi, PyNaCl
+   and pykeepass. A disagreement it finds is kept in
    its `found` folder with its seed and inputs
    (`docs/decisions/F79.md`).
 3. The fuzz run, and the corpora published after it (`fuzz/README.md`,

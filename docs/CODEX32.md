@@ -297,8 +297,8 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   tabs (Dice and Checksum per initial share, each derived share, the
   secret), ticked once shown, Previous and Next on a compact window;
   Strings, each typed back on the codex32 keyboard ("Box 17 differs") or
-  skipped, with String · Codex32QR at 48 characters (byte mode, version
-  3, level L, upper case); Strings made with Check on another device
+  skipped, with String · Codex32QR at 48 characters (alphanumeric mode,
+  version 3, level L, upper case); Strings made with Check on another device
   (§6.8) and Lock in (`Keys::add_codex32`, marked made here, a Create
   slot filled). The sheets' colour roles are `CODEX32_CHECKSUM_FILL` and
   `CODEX32_LOOKUP_FILL` in every theme. Tested in
@@ -470,7 +470,7 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   `Reveal::VaultEntry(Part::Codex32)`). **Lock and write** writes a string
   the plan keeps on a stick as `codex32-{fingerprint}-{index}.txt`, the
   string and a newline, and at 48 characters its Codex32QR as
-  `codex32qr-{fingerprint}-{index}.png` (upper case, byte mode, version 3,
+  `codex32qr-{fingerprint}-{index}.png` (upper case, alphanumeric mode, version 3,
   level L, labelled "Codex32 share C of name"), read back after the write
   against the string (`ReadBack::Codex32`); the vault item's save, and the
   flow's round, write a type 15 record per string the plan keeps in a
@@ -707,6 +707,15 @@ rule, and the same honesty: "Rolled by this computer" over the die, and
 "simulated dice" on the result's entropy line ("simulated dice and your
 dice" where both were used). The flows themselves are
 unchanged; FLOWS and DESIGN take this (§15.3).
+
+**The values** (both rollers). Each value comes from one byte of a
+32-byte answer of `Faraday::fresh`, the answer's bytes taken from its
+last to its first: a byte below 252 gives the face `byte mod 6 + 1`,
+and a byte of 252 or more is skipped, so that each face has 42 of the
+252 bytes kept. A new answer is asked for when the bytes of the last
+one are used up; the bytes left of an answer are dropped when the
+entries start over. The cross-check's `roller` area checks both
+rollers against this paragraph (`tools/crosscheck/area_roller.py`).
 
 ## 6. Make codex32 shares: the main flow
 
@@ -1556,6 +1565,19 @@ is S and k − 1 random strings, interpolated, and every cell opens.
 
 ## 10. Codex32QR
 
+**Status of the profile.** Codex32QR/v1-48 comes from FractalEncrypt's
+SeedSigner fork, branch `codex/codex32-error-correction`, commit
+`9b8cbe0aaf527ebe9e85d0e90c0b79e2018126c8` (MIT), pinned in
+`tools/vectors/codex32qr/README.md`. It is new and not peer-reviewed.
+The full-string QR is the form the codex32 authors' discussion
+describes (BlockstreamResearch/codex32 discussion 66, "CodexQR"), where
+the format is being settled; Faraday draws no compact CodexQR until it
+is. Faraday follows the profile for the QR itself, not the fork's
+device workflow, such as its cap of 5 shares in a collection (owner,
+2026-10-24). Faraday checks it against the profile's vectors and
+pictures, and its own encoding against Project Nayuki's `qrcodegen.py`
+(§10.3).
+
 ### 10.1 Reading
 
 The Codex32QR/v1-48 profile is a QR whose text is one 48-character
@@ -1577,8 +1599,11 @@ loaded until enough strings are in.
 
 Where Faraday shows one 48-character string (§6.6, §8.2, §9.1), the
 Secret screen's toggle **String · Codex32QR** draws it as a Codex32QR
-code: the string in upper case, byte mode, version 3, EC level L, the
-standard quiet zone, black on white, at DESIGN §4.9's QR side. It is a
+code: the string in upper case, alphanumeric mode, version 3, EC level
+L, the standard quiet zone, black on white, at DESIGN §4.9's QR side,
+the mode the profile's pictures use (owner, 2026-10-24; F95). Reading
+takes a Codex32QR in either mode: a code drawn in byte mode, as Faraday
+drew them before, still scans. It is a
 secret as a SeedQR is, masked with the eye. The Starter's codex32
 template has a blank 29 × 29 grid for copying one by hand (§11).
 
@@ -1597,7 +1622,19 @@ template has a blank 29 × 29 grid for copying one by hand (§11).
   characters long, cut short; the test uses its fingerprint, and the
   profile's author is told.
 - A Codex32QR code Faraday draws decodes, with `third_party/rqrr`, to
-  the string in upper case, at version 3 and level L.
+  the string in upper case, at version 3 and level L; a byte-mode
+  picture of a share still scans and loads its key.
+- The code (`faraday_codec::qr::codex32qr`, which the Secret screen and
+  the stick's `codex32qr-*.png` both use) is checked module for module
+  against Project Nayuki's `qrcodegen.py` in the cross-check's `seedqr`
+  area (alphanumeric mode), for every string of the profile and random 48-character
+  strings, and so is the code read back from the picture Faraday writes.
+  The profile's own pictures are read there from their pixels, and each
+  is Faraday's code of its string module for module. Faraday picks its
+  mask as Nayuki's encoder does; for 6 of the 22 pictures the profile's
+  encoder chose another, and there Faraday's code with its mask swapped
+  for the picture's (by `qrcodegen.py`'s masking) is the picture: the
+  same data and error correction, another mask, which a reader ignores.
 
 ### 10.4 Longer strings
 

@@ -108,7 +108,9 @@ pub fn decode(encoded: &str) -> Result<Vec<u8>, Fault> {
         }
         data.push(byte);
     }
-    if data.len() < 4 {
+    // A payload of nothing is refused, as URKit's decoder refuses fewer
+    // than five bytes: a UR carries at least one byte and its checksum.
+    if data.len() < 5 {
         return Err(Fault::InvalidChecksum);
     }
     let (payload, checksum) = data.split_at(data.len() - 4);
@@ -128,7 +130,6 @@ mod tests {
         let input = alloc::vec![0, 1, 2, 128, 255];
         assert_eq!(encode(&input), "aeadaolazmjendeoti");
         assert_eq!(decode("aeadaolazmjendeoti").unwrap(), input);
-        assert_eq!(decode(&encode(&[])).unwrap(), Vec::<u8>::new());
         assert_eq!(decode(&encode(&[0])).unwrap(), alloc::vec![0]);
         assert_eq!(encode(&[0]), "aetdaowslg");
     }
@@ -162,6 +163,8 @@ mod tests {
         assert_eq!(decode("abmuammdwe"), Err(Fault::InvalidWord));
         // Shorter than the checksum it must carry.
         assert_eq!(decode("aeadao"), Err(Fault::InvalidChecksum));
+        // A checksum with nothing before it, which URKit refuses too.
+        assert_eq!(decode(&encode(&[])), Err(Fault::InvalidChecksum));
         // An odd number of characters cannot be pairs of letters.
         assert_eq!(decode("aea"), Err(Fault::InvalidLength));
         assert_eq!(decode("₿"), Err(Fault::NonAscii));

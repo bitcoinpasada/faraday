@@ -16,6 +16,10 @@ path = "src/main.rs"
 faraday-bip = { path = "../../core/faraday-bip" }
 faraday-entropy = { path = "../../core/faraday-entropy" }
 faraday-backup = { path = "../../core/faraday-backup" }
+# SeedQR and the QR encoder; no camera decoding.
+faraday-codec = { path = "../../core/faraday-codec", default-features = false }
+# BBQr and the numbered text parts.
+faraday-qr = { path = "../../faraday/faraday-qr" }
 faraday-psbt = { path = "../../core/faraday-psbt" }
 faraday-vault = { path = "../../faraday/faraday-vault" }
 # The session's fresh randomness and what a person adds of their own

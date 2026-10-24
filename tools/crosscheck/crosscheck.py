@@ -54,6 +54,14 @@ AREAS = {
     "psbt": ("area_psbt", "Psbt", "psbt.v0"),
     "msg": ("area_msg", "Msg", "msg.sign"),
     "own-randomness": ("area_own", "Own", "own.session"),
+    "entropy": ("area_entropy", "Entropy", "entropy.cards"),
+    "roller": ("area_roller", "Roller", "roller.five"),
+    "seedqr": ("area_seedqr", "SeedQR", "seedqr.encode"),
+    "bbqr": ("area_bbqr", "Bbqr", "bbqr.join"),
+    "ur": ("area_ur", "Ur", "ur.encode"),
+    "vanity": ("area_vanity", "Vanity", "vanity.grind"),
+    "kdbx": ("area_kdbx", "Kdbx", "kdbx.verify"),
+    "lightning": ("area_lightning", "Lightning", "lightning.ldk"),
 }
 
 
@@ -99,7 +107,8 @@ def collect(procs):
         try:
             out[area] = json.loads(lines[-1])
         except (IndexError, json.JSONDecodeError):
-            out[area] = {"area": area, "status": "error", "report": "the worker printed no result"}
+            out[area] = {"area": area, "status": "error", "seconds": 0,
+                         "report": "the worker printed no result"}
     return out
 
 

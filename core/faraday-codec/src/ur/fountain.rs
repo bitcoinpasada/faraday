@@ -247,6 +247,9 @@ impl Decoder {
             self.process_queue();
         } else {
             self.process_complex(part.data, indexes);
+            // A mix reduced to one fragment resolves it, and that
+            // fragment reduces the mixes waiting for it.
+            self.process_queue();
         }
         Ok(true)
     }
@@ -294,12 +297,57 @@ impl Decoder {
         self.settle(data, indexes);
     }
 
-    fn settle(&mut self, data: Vec<u8>, indexes: Vec<usize>) {
-        if let [index] = indexes[..] {
-            self.decoded.insert(index, data.clone());
-            self.queue.push((index, data));
-        } else {
-            self.buffer.insert(indexes, data);
+    /// Keeps what a mix has come to, as BCR-2020-005's decoder (URKit's)
+    /// does: a mix is reduced by every buffered mix whose fragments are a
+    /// strict subset of its own, and once buffered it reduces every mix
+    /// whose fragments are a strict superset of its own. One fragment
+    /// left resolves it.
+    fn settle(&mut self, mut data: Vec<u8>, mut indexes: Vec<usize>) {
+        indexes.sort_unstable();
+        if indexes.len() > 1 {
+            for index in indexes.clone() {
+                if let Some(fragment) = self.decoded.get(&index) {
+                    xor(&mut data, fragment);
+                    indexes.retain(|&x| x != index);
+                }
+            }
+        }
+        while indexes.len() > 1 {
+            let subset = self
+                .buffer
+                .iter()
+                .find(|(k, _)| k.len() < indexes.len() && k.iter().all(|x| indexes.contains(x)))
+                .map(|(k, v)| (k.clone(), v.clone()));
+            let Some((k, v)) = subset else { break };
+            xor(&mut data, &v);
+            indexes.retain(|x| !k.contains(x));
+        }
+        match indexes[..] {
+            [] => {}
+            [index] => {
+                self.decoded.insert(index, data.clone());
+                self.queue.push((index, data));
+            }
+            _ => {
+                if self.buffer.contains_key(&indexes) {
+                    return;
+                }
+                let supersets: Vec<Vec<usize>> = self
+                    .buffer
+                    .keys()
+                    .filter(|k| k.len() > indexes.len() && indexes.iter().all(|x| k.contains(x)))
+                    .cloned()
+                    .collect();
+                self.buffer.insert(indexes.clone(), data.clone());
+                for k in supersets {
+                    let Some(mut d) = self.buffer.remove(&k) else {
+                        continue;
+                    };
+                    xor(&mut d, &data);
+                    let rest = k.into_iter().filter(|x| !indexes.contains(x)).collect();
+                    self.settle(d, rest);
+                }
+            }
         }
     }
 

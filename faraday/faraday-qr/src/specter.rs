@@ -11,6 +11,14 @@ pub fn parse(text: &str) -> Option<(usize, usize, &str)> {
     let rest = text.strip_prefix('p')?;
     let (head, body) = rest.split_once(' ')?;
     let (n, m) = head.split_once("of")?;
+    // Digits only: `parse` would also take a leading `+`, which no
+    // writer puts there and SeedSigner's reader does not match.
+    if [n, m]
+        .iter()
+        .any(|s| s.is_empty() || !s.bytes().all(|b| b.is_ascii_digit()))
+    {
+        return None;
+    }
     let (n, m): (usize, usize) = (n.parse().ok()?, m.parse().ok()?);
     (n >= 1 && n <= m && m <= MAX_PARTS && !body.is_empty()).then_some((n, m, body))
 }

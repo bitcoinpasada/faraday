@@ -643,7 +643,10 @@ fn escape(text: &[u8], out: &mut Vec<u8>) {
             b'>' => out.extend_from_slice(b"&gt;"),
             b'"' => out.extend_from_slice(b"&quot;"),
             b'\'' => out.extend_from_slice(b"&apos;"),
-            b'\t' | b'\n' | b'\r' => out.push(b),
+            // A carriage return written as it is would reach a reader
+            // as a line feed: XML turns every line end into one.
+            b'\r' => out.extend_from_slice(b"&#13;"),
+            b'\t' | b'\n' => out.push(b),
             0x00..=0x1F | 0x7F => {}
             _ => out.push(b),
         }

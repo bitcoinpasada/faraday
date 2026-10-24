@@ -33,18 +33,23 @@ CRATES = [
     "core/faraday-psbt",
     "core/faraday-entropy",
     "core/faraday-backup",
+    "core/faraday-codec",
     "faraday/faraday-keys",
+    "faraday/faraday-qr",
     "faraday/faraday-vault",
     "tools/crosscheck",
 ]
 # Single files of crates too large to hash whole, whose results an area
 # checks: the session's fresh randomness and what a person adds
-# (`own-randomness`).
-FILES = ["faraday/faraday-core/src/fresh.rs"]
+# (`own-randomness`), Faraday Desktop's dice rollers (`roller`), and the
+# picture a Codex32QR is written as (`seedqr`).
+FILES = ["faraday/faraday-core/src/fresh.rs", "faraday/faraday-core/src/fresh/roller/mod.rs",
+         "faraday/faraday-core/src/fresh/roller/five.rs", "faraday/faraday-core/src/picture.rs"]
 # The published vectors the cross-check reads (tools/vectors/<name>/).
-VECTORS = ["addresses", "bip32", "bip327", "bip352", "bip39", "bip445", "bip85", "bip93",
-           "codex32-booklet", "codex32-correction", "codex32-volvelle", "codex32qr", "kdf",
-           "message", "psbt-bips", "sighash", "slip39", "vault", "vault-primitives", "xor"]
+VECTORS = ["addresses", "aezeed", "bip32", "bip327", "bip352", "bip39", "bip445", "bip85", "bip93",
+           "codex32-booklet", "codex32-correction", "codex32-volvelle", "codex32qr", "entropy",
+           "kdf", "message", "psbt-bips", "seedqr", "sighash", "slip39", "ur", "vault",
+           "vault-primitives", "xor"]
 # Everything under tools/crosscheck/ that is the harness, not its output.
 HARNESS_SKIP = {"stamp", "found", "__pycache__", "README.md"}
 
@@ -57,7 +62,7 @@ NOT_CRYPTO = {
     "proc-macro2", "quote", "syn", "unicode-ident", "libc", "getrandom", "r-efi",
 }
 CORE = ["faraday-crypto", "faraday-bip", "faraday-psbt", "faraday-entropy", "faraday-backup",
-        "faraday-vault"]
+        "faraday-vault", "faraday-qr"]
 
 
 def source_files():
@@ -135,11 +140,11 @@ def write(seed, scale, seconds):
 
 
 def distribution_versions():
-    """The versions of the distribution's packages the vault area uses
-    (F79, docs/MULTIVENDOR.md §10.4), a line each."""
+    """The versions of the distribution's packages the vault and kdbx
+    areas use (F79, docs/MULTIVENDOR.md §10.4), a line each."""
     from importlib import metadata
     out = ""
-    for name in ("argon2-cffi", "PyNaCl"):
+    for name in ("argon2-cffi", "PyNaCl", "pykeepass"):
         try:
             out += f"{name} {metadata.version(name)}\n"
         except metadata.PackageNotFoundError:

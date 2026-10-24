@@ -87,6 +87,16 @@ fn numbered_parts_read_back_and_say_what_is_missing() {
     assert_eq!(a.feed(&parts[3]), Step::Done(Arrived::Text(text)));
 }
 
+/// A part number is digits only: a frame written `p+1of2` is not one of
+/// SeedSigner's numbered parts and is not read as one.
+#[test]
+fn a_numbered_part_with_a_sign_is_not_read_as_one() {
+    assert_eq!(specter::parse("p1of2 abc"), Some((1, 2, "abc")));
+    for frame in ["p+1of2 abc", "p1of+2 abc", "pof2 abc", "p1of abc"] {
+        assert_eq!(specter::parse(frame), None, "{frame}");
+    }
+}
+
 /// Test key 1 (bacon ×24) at BIP-48's native multisig account on testnet.
 fn bacon() -> (MasterKey, DerivationPath) {
     let c = compute();

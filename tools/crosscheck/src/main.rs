@@ -19,15 +19,23 @@ mod addr;
 mod bip32;
 mod bip85;
 mod codex32;
+mod entropy;
 mod frost;
 mod json;
+mod kdbx;
+mod lightning;
 mod msg;
 mod musig;
 mod own;
+mod parts;
 mod psbt;
+mod roller;
+mod seedqr;
 mod silent;
 mod slip39;
 mod tx;
+mod ur;
+mod vanity;
 mod vault;
 mod xor;
 
@@ -57,6 +65,15 @@ fn dispatch(op: &str, req: &Value) -> Answer {
         "sp" => silent::handle(name, req),
         "vault" => vault::handle(name, req),
         "own" => own::handle(name, req),
+        "entropy" => entropy::handle(name, req),
+        "roller" => roller::handle(name, req),
+        "seedqr" => seedqr::handle(name, req),
+        "bbqr" => parts::handle_bbqr(name, req),
+        "specter" => parts::handle_specter(name, req),
+        "ur" => ur::handle(name, req),
+        "vanity" => vanity::handle(name, req),
+        "kdbx" => kdbx::handle(name, req),
+        "lightning" => lightning::handle(name, req),
         _ => Err(format!("unknown area {area}")),
     }
 }

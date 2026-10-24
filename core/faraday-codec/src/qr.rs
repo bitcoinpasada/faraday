@@ -214,6 +214,20 @@ pub fn encode_bounded(
     encode_up_to(payload, ecc, max_version)
 }
 
+/// Costs a QR encoding. The Codex32QR/v1-48 code of a codex32 string
+/// (`docs/CODEX32.md` §10.2): the string in upper case, alphanumeric
+/// mode, version 3, level L, as the profile's pictures are. `None` for a
+/// string that is not 48 characters, the only length the profile
+/// defines, or holds a character alphanumeric mode has not.
+pub fn codex32qr(c: &Compute, string: &str) -> Option<QrMatrix> {
+    if string.len() != 48 {
+        return None;
+    }
+    let mut upper = Zeroizing::new(string.as_bytes().to_vec());
+    upper.make_ascii_uppercase();
+    encode_bounded(c, Payload::Alphanumeric(&upper), Ecc::Low, 3).ok()
+}
+
 /// [`encode_bounded`] uncounted.
 fn encode_up_to(payload: Payload<'_>, ecc: Ecc, max_version: u8) -> Result<QrMatrix, Error> {
     let max_version = max_version.clamp(1, 40);
@@ -967,6 +981,20 @@ mod tests {
         assert_eq!(qr.size(), 0);
         assert_eq!(qr.version(), 0);
         assert!(qr.bits.iter().all(|b| *b == 0), "every module light");
+    }
+
+    #[test]
+    fn a_codex32qr_is_one_code_for_either_case_and_only_at_48_characters() {
+        let c = Compute::unchecked();
+        let s = "ms12namecacdefghjklmnpqrstuvwxyz023ftr2gdzmpy6pn";
+        let lower = codex32qr(&c, s).unwrap();
+        let upper = codex32qr(&c, &s.to_ascii_uppercase()).unwrap();
+        assert_eq!(lower.version(), 3);
+        assert_eq!(lower.size(), upper.size());
+        let side = lower.size();
+        assert!((0..side).all(|y| (0..side).all(|x| lower.module(x, y) == upper.module(x, y))));
+        assert!(codex32qr(&c, &s[..47]).is_none());
+        assert!(codex32qr(&c, &format!("{s}q")).is_none());
     }
 
     #[test]

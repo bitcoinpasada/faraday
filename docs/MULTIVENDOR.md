@@ -140,11 +140,11 @@ Only for B and C, when they come back:
 
 ## 10. The build-time cross-check (option A)
 
-Decided 2026-10-22 (owner, F79). Items 1 to 4 of §10.5 are built, in
+Decided 2026-10-22 (owner, F79). Items 1 to 6 of §10.5 are built, in
 `tools/crosscheck/` (its README says how to run it, what each area
 checks and where Faraday reads a case otherwise than its reference),
-with the stamp check `tools/lint-crosscheck.sh`. What item 4 leaves is
-listed under it.
+with the stamp check `tools/lint-crosscheck.sh`. What items 4 and 6
+leave is listed under them.
 
 ### 10.1 What runs
 
@@ -241,6 +241,15 @@ The cross-check fetches nothing, ever.
    (`docs/OWN-RANDOMNESS.md` §2.3): the accumulator, the reseeding, the
    pool's and the seed's draws and the lock, over fixed system answers.
    Built (area `own-randomness`).
+6. What `docs/STANDARDS.md` §0 asks of the rest: the entropy procedures
+   (area `entropy`), Faraday Desktop's dice rollers (`roller`), SeedQR
+   and the QR encoder (`seedqr`), BBQr and numbered parts (`bbqr`), UR
+   (`ur`), the vanity search (`vanity`), the KDBX export read by
+   pykeepass (`kdbx`), the Lightning node keys and the aezeed's outer
+   layer (`lightning`), and BIP 380's own checksum code beside Core's in
+   `addr`. Built. Not built: a second implementation of AEZ, and LND
+   node keys beyond the two `tools/reference/aezeed/README.md` records,
+   which need LND's Go code run again. Not scheduled.
 
 ### 10.6 What it does not catch
 
