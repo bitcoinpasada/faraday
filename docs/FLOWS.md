@@ -342,11 +342,12 @@ and **Scan a QR code**), whose Continue opens Key once the words are
 whole with a checksum that holds or the parts are enough; Key shows the
 words behind **Show words**, **Passphrase** and **Passphrase again**
 (none for codex32), and **Lock in**, which loads the key as Add a key
-does (not marked made here) and fills a Create slot; Continue then
-leaves the flow, with no Words or Quiz. Add a key on Wallets and its
-Tools tile open on Start; New key from a Create slot or its tile opens
-there too, Make a new key ticked, so a third Continue reaches the
-entries; a threshold wallet's slot offers Make a new key and Type the
+does (not marked made here) and fills a Create slot, and leaves the
+flow by itself, with no Words or Quiz. Add a key on Wallets and its
+Tools tile open with Start closed on Make a new key, and so does New
+key from a Create slot or its tile (F103): Length is open, and
+**Change** on Start reopens it, where a press on a choice, the ticked
+one included, moves on by itself; a threshold wallet's slot offers Make a new key and Type the
 words only. The SLIP-39, codex32 and Seed XOR tiles open with their
 choice made and Start closed. The page is titled **Add a key**, and
 **New key** for a Create slot and from the Add a key screen's Make a new
@@ -356,10 +357,11 @@ wallet's missing key, Restore's seed slots, and a seed scanned from Home
 or the Spend tab. New key keeps nothing when its screen is left, so it
 has no sidebar row (Flows in progress).
 
-**Make a new key** (decisions 34 and 38). Length opens first, its
-default count chosen; Length's Continue takes the count shown and opens
-Randomness (pressing a count does so already); Randomness's Continue
-opens the entry card. New key's BIP-39 cards are Length · Randomness ·
+**Make a new key** (decisions 34 and 38, F103). Length opens
+first, its default count chosen; pressing a count takes it and opens
+Randomness, and pressing a way opens the entry card, with no Continue
+(a mix keeps its Continue: its sources are ticked first; SLIP-39's
+Length keeps its Continue: its steppers are values). New key's BIP-39 cards are Length · Randomness ·
 *entry* · **Key** for a Create slot, and Length · Randomness · *entry* ·
 Key · Words · Quiz on its own (Tools, Seeds); SLIP-39 shares keep Length
 · Randomness · *entry* · Check · Words · Quiz. For BIP-39 there is no
@@ -374,13 +376,12 @@ shows them again. **Key** shows the words, for a Create slot
 **Passphrase** and **Passphrase again** (masked, empty is none; unequal
 ones lock nothing in), and **Lock in**, which adds the key under the
 self-test gate, fills the slot, and on a single-key Create makes the
-wallet and marks Keys and Check done. After it the card shows **Locked
-in**, the fingerprint and, for a single-key Create, the descriptor row
-and the first address; for a slot of a wallet of several keys, or on its
-own, the key text and no address. Length, Randomness and the entry card
-then open to be read only. Key's **Continue** returns to Create (on Back
-up for a single key, on Keys otherwise) or, on its own, goes on to Words
-and the Quiz, whose last button reads **Done**. A key added with a
+wallet and marks Keys and Check done. Lock in moves on by itself (F103): it returns to Create (on Back
+up for a single key, on Keys otherwise) or, on its own, opens Words,
+whose head shows the fingerprint, the source and the key text; the Key
+card, reopened, shows **Locked in** and the fingerprint to read, with no
+Continue. Length, Randomness and the entry card then open to be read
+only. The Quiz's last button reads **Done**. A key added with a
 passphrase is a seed with a passphrase to Back up's plan, which asks
 where it goes.
 

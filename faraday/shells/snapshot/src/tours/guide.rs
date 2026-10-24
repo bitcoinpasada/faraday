@@ -127,7 +127,6 @@ fn new_key(t: &mut Tour) -> Result<(), String> {
     t.shot("guide-newkey-key")?;
     t.press(Action::KLock);
     t.shot("guide-newkey-locked")?;
-    t.press(Action::KNext);
     t.shot("guide-newkey-words")?;
     t.press(Action::KShow);
     t.shot("guide-newkey-words-shown")?;

@@ -137,8 +137,8 @@ fn in_demo_a_typed_key_with_a_passphrase_loads_the_key_with_faraday() {
     use faraday_core::keygen::{Start, kstep};
     let mut app = demo_app();
     app.press(Action::KeyGen(None));
+    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::Words.index()));
-    app.press(Action::KNext);
     let _ = app.frame();
     type_in(&mut app, words_of("twelve").parts[0]);
     let _ = app.frame();

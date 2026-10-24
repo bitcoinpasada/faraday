@@ -103,11 +103,8 @@ fn locked_after_backup() -> (Boxes, Boxes) {
     app.press(Action::KPassField(1));
     type_text(&mut app, PASSPHRASE);
     app.press(Action::KLock);
-    assert!(
-        app.keygen().is_some_and(|k| k.locked),
-        "the key did not lock in"
-    );
-    app.press(Action::KNext);
+    // Lock in goes back to Create by itself.
+    assert!(app.keygen().is_none(), "the key did not lock in");
     assert_eq!(app.screen, Screen::Create);
     assert_eq!(
         app.create().and_then(|c| c.open),

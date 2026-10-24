@@ -84,11 +84,8 @@ fn made_here(app: &mut Faraday) -> (usize, Fingerprint) {
     }
     app.press(Action::KNext);
     app.press(Action::KLock);
-    assert!(
-        app.keygen().is_some_and(|k| k.locked),
-        "the key did not lock in"
-    );
-    app.press(Action::KNext);
+    // Lock in goes back to Create by itself.
+    assert!(app.keygen().is_none(), "the key did not lock in");
     assert_eq!(app.screen, Screen::Create);
     let w = app.create().and_then(|c| c.built).expect("built");
     let fp = app.session.keys.last().unwrap().fingerprint;

@@ -140,6 +140,7 @@ fn the_add_a_key_tile_opens_new_key_on_start() {
     assert_eq!(app.screen, Screen::KeyGen);
     assert_eq!(
         app.keygen().unwrap().open,
-        Some(faraday_core::keygen::kstep::START)
+        Some(faraday_core::keygen::kstep::LENGTH),
+        "Start is closed on its default"
     );
 }

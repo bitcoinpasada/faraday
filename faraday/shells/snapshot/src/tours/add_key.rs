@@ -11,12 +11,13 @@ pub(crate) fn add_key_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::keygen::Start;
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
+    // Start opens closed on its default; Change opens it.
+    t.press(Action::KStep(faraday_core::keygen::kstep::START));
     t.shot("addkey-start")?;
     t.press(Action::KOthers);
     t.shot("addkey-start-others")?;
     t.press(Action::KOthers);
     t.press(Action::KStart(Start::Words.index()));
-    t.press(Action::KNext);
     t.shot("addkey-words")?;
     let words = testkit::test_words(testkit::TEST_SEEDS[0].0);
     let cut = words.len() / 2;
@@ -27,8 +28,8 @@ pub(crate) fn add_key_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::KNext);
     t.shot("addkey-key")?;
     t.press(Action::KLock);
+    // Lock in leaves the flow by itself.
     t.shot("addkey-key-locked")?;
-    t.press(Action::KNext);
     t.press(Action::Nav(Screen::Catalog));
     let codex32 = faraday_core::catalog::TILES
         .iter()

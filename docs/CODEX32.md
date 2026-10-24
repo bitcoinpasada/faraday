@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Specified (owner, 2026-10-22, with the owner's answers of the same day in §1.1, none left open); the worksheets, symbols and fresh sets in `faraday-bip` are built (C1, §2), the error-correction decoder (C2), the dice method (C3), the work set (C4), the main flow's screens (C5), the wallet kind of §6.9 (C5), hand-made shares, Check a string, case and duplicates, Codex32QR scanning and the correction in the form (C6), §8.4's screens (C7), backups (C8, §9, as §2 says), Faraday Desktop's one-die roller (C12, §2) and the five-dice roller component (C11, §2), the Starter's codex32 templates and worksheets (C9, §11); D1 to D4 of §14 are recorded as F93 to F96, D5 is recorded as F107
-**Open:** of C5, the masking of §6.4.6 and the booklet's second alphabet drawn as its glyphs (§7.2); of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); of C8, a string's files written at a stick's write, a share record written at a vault's save, strings gathered from several vaults at unlock, the set's facts kept for a key loaded from strings, the copies by hand's strings one per screen typed back (§9.1) and the line per place counting shares (§9.5); batch C10 (§15.2): Demo and Learn; the five-dice roller's place in the entry's pad (§5.5; its component is built); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
+**Open:** of C5, the booklet's second alphabet drawn as its glyphs (§7.2); of C6, Make the rest (§8.1 step 2), Add a share (§8.2), Check a string's worksheet row (§8.3) and the mark's line on Wallets and New key's Key card (§8.4); of C8, a string's files written at a stick's write, a share record written at a vault's save, strings gathered from several vaults at unlock, the set's facts kept for a key loaded from strings, the copies by hand's strings one per screen typed back (§9.1) and the line per place counting shares (§9.5); batch C10 (§15.2): Demo and Learn; the five-dice roller's place in the entry's pad (§5.5; its component is built); a Codex32QR profile for 74- and 127-character strings, which waits on that profile's author (§10.4)
 
 The owner's ask: full codex32 support for making shares, as the codex32
 booklet does it, with every step shown so that a person can follow it
@@ -299,8 +299,14 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   vectors 1 and 2, a press's work in
   `faraday/faraday-core/src/work/budget/codex32.rs`, the live
   translation worksheets in `faraday/faraday-keys/tests/codex32.rs`; the
-  snapshot tour `codex32`. Not built: the
-  masking of §6.4.6 (the sheets are drawn unmasked on every shell), the
+  snapshot tour `codex32`. The masking of §6.4.6 is built
+  (`Codex32Make::masked`): the eye in the app bar (the small panel's bar,
+  the wide page's top-right row) masks every character, roll and working
+  as dots and shows them again; on the stick and the Pi the sheets are
+  shown while the flow is open and masked again when the entry is left
+  backwards (an earlier card, Start's Change, the entry card closed);
+  Faraday Desktop never masks and has no eye; New key keeps nothing when
+  its screen is left, so there is nothing to show again. Not built: the
   translation symbols in the booklet's second alphabet (Faraday's faces
   lack most of its glyphs, so each is named as `SYMBOL_NAMES` names it),
   Demo (§12, C10), hand-made shares as a way in (§5.3).

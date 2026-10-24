@@ -746,15 +746,13 @@ fn lock_in_with_a_passphrase_adds_the_key_of_the_words_with_that_passphrase() {
     assert_eq!(added(&app), vec![with]);
     let c = app.create().unwrap();
     assert_eq!(c.slots[0], faraday_core::create::Source::Here(with));
+    // Lock in returns to Create on Keys by itself, with the slot filled.
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.create().unwrap().open, Some(faraday_core::cstep::KEYS));
     let shown = texts(&mut app);
-    assert!(shown.contains("Locked in"));
     assert!(shown.contains(&faraday_core::wallet::fp_text(
         faraday_bip::keys::Fingerprint(with)
     )));
-    // Continue returns to Create on Keys, with the slot filled.
-    app.press(Action::KNext);
-    assert_eq!(app.screen, Screen::Create);
-    assert_eq!(app.create().unwrap().open, Some(faraday_core::cstep::KEYS));
 }
 
 #[test]
@@ -820,12 +818,10 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
     assert_eq!(added(&app), vec![with]);
     let c = app.create().unwrap();
     assert_eq!(c.slots[0], faraday_core::create::Source::Here(with));
+    // Lock in went back to Create, which shows the sample's key.
+    assert_eq!(app.screen, Screen::Create);
     let shown = texts(&mut app);
-    assert!(shown.contains(&format!(
-        "Added sample {word} ×{n} ({}) in place of the key made",
-        fp_text(faraday_bip::keys::Fingerprint(with))
-    )));
-    assert!(!shown.contains("Not set"), "faraday went with it");
+    assert!(shown.contains(&fp_text(faraday_bip::keys::Fingerprint(with))));
 }
 
 /// The passphrase stays optional in Demo: left empty, the sample goes in
@@ -843,12 +839,8 @@ fn the_demo_locks_in_its_sample_with_no_passphrase_unless_one_is_chosen() {
     app.press(Action::KPassField(0));
     app.press(Action::KLock);
     assert_eq!(added(&app), vec![fp.0]);
-    let shown = texts(&mut app);
-    assert!(shown.contains(&format!(
-        "Added sample {word} ×{n} ({}) in place of the key made",
-        fp_text(fp)
-    )));
-    assert!(shown.contains("Not set"), "no passphrase went with it");
+    assert_eq!(app.screen, Screen::Create);
+    assert!(texts(&mut app).contains(&fp_text(fp)), "{word} ×{n}");
 }
 
 /// Outside Demo, on a test network too, New key adds the key it made.
@@ -901,17 +893,16 @@ fn after_lock_in_pressing_a_count_on_length_changes_nothing() {
 }
 
 #[test]
-fn a_single_key_create_opens_on_back_up_and_the_key_card_holds_the_address_back() {
+fn a_single_key_create_goes_back_to_back_up_at_lock_in_and_holds_the_address_back() {
     let mut app = slot_flow(false);
     flip_all(&mut app);
     app.press(Action::KNext);
     app.press(Action::KLock);
+    // Lock in goes back to Create by itself (F103).
+    assert_eq!(app.screen, Screen::Create);
     let on_key = texts(&mut app);
     // The key is new, so no address is shown until it is backed up.
     assert!(!on_key.contains("First address"));
-    assert!(on_key.contains("Back up before you receive"));
-    app.press(Action::KNext);
-    assert_eq!(app.screen, Screen::Create);
     let c = app.create().unwrap();
     assert_eq!(c.open, Some(faraday_core::cstep::BACKUP));
     assert!(c.done[faraday_core::cstep::KEYS as usize]);
@@ -924,16 +915,16 @@ fn a_single_key_create_opens_on_back_up_and_the_key_card_holds_the_address_back(
 }
 
 #[test]
-fn a_multisig_slots_key_card_shows_its_key_and_no_address() {
+fn a_multisig_slots_lock_in_goes_back_to_keys_with_the_slot_filled_and_no_address() {
     let mut app = slot_flow(true);
     flip_all(&mut app);
     app.press(Action::KNext);
     app.press(Action::KLock);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.create().unwrap().open, Some(faraday_core::cstep::KEYS));
     let shown = texts(&mut app);
     assert!(!shown.contains("First address"));
     assert!(!shown.contains("tb1") && !shown.contains("bc1"));
-    // The key as cosigners take it: at the multisig path.
-    assert!(shown.contains("/48h/"), "{shown}");
 }
 
 #[test]
@@ -1023,6 +1014,10 @@ fn add_a_key() -> Faraday {
 /// Whether Start offers each way in, Other forms opened: codex32 to type
 /// at the top level (`docs/CODEX32.md` §6).
 fn offers_every_start(app: &mut Faraday) {
+    // Start is closed on Make a new key: Change opens it.
+    if app.keygen().unwrap().open != Some(kstep::START) {
+        app.press(Action::KStep(kstep::START));
+    }
     let _ = app.frame();
     for s in [Start::Make, Start::Words, Start::Scan, Start::Codex32] {
         assert!(app.offers(Action::KStart(s.index())), "{s:?} is offered");
@@ -1042,7 +1037,11 @@ fn offers_every_start(app: &mut Faraday) {
 fn add_a_key_opens_on_start_offering_every_way_in_and_a_create_slot_offers_the_same() {
     let mut app = add_a_key();
     let k = app.keygen().unwrap();
-    assert_eq!(k.open, Some(kstep::START));
+    assert_eq!(
+        k.open,
+        Some(kstep::LENGTH),
+        "Start is closed on its default"
+    );
     assert_eq!(k.start, Start::Make, "Make a new key is ticked");
     offers_every_start(&mut app);
 
@@ -1058,7 +1057,7 @@ fn add_a_key_opens_on_start_offering_every_way_in_and_a_create_slot_offers_the_s
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::CNext(faraday_core::cstep::QUORUM));
     app.press(Action::KeyGen(Some(0)));
-    assert_eq!(app.keygen().unwrap().open, Some(kstep::START));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::LENGTH));
     offers_every_start(&mut app);
 }
 
@@ -1088,10 +1087,11 @@ fn make_a_new_key_from_add_a_key_reaches_length_then_every_source_create_offers(
     assert_eq!(ours, theirs, "the same sources as Create's New key");
 }
 
-/// From Start: Type the words, Continue, the words typed, Continue.
+/// From Start, reopened with Change: Type the words, which moves on, the
+/// words typed, Continue.
 fn type_the_words(app: &mut Faraday, words: &str) {
+    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::Words.index()));
-    app.press(Action::KNext);
     assert_eq!(app.keygen().unwrap().open, Some(kstep::TYPED));
     let _ = app.frame();
     typed(app, words);
@@ -1144,16 +1144,15 @@ fn twelve_words_typed_with_a_passphrase_load_the_key_add_a_key_loads_not_made_he
     entry.press(Action::EntryAdd);
     assert_eq!(entry.session.keys.last().map(|k| k.fingerprint), Some(fp));
 
-    // Continue leaves the flow: no Words or Quiz for words held already.
-    app.press(Action::KNext);
+    // Lock in leaves the flow: no Words or Quiz for words held already.
     assert!(app.keygen().is_none());
 }
 
 #[test]
 fn typed_words_whose_checksum_fails_do_not_open_key() {
     let mut app = add_a_key();
+    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::Words.index()));
-    app.press(Action::KNext);
     typed(&mut app, &["abandon"; 12].join(" "));
     app.press(Action::KNext);
     assert_eq!(app.keygen().unwrap().open, Some(kstep::TYPED));
@@ -1187,15 +1186,14 @@ fn words_typed_for_a_create_slot_fill_the_slot_with_that_key() {
         .unwrap();
     let c = app.create().unwrap();
     assert_eq!(c.slots[0], Source::Here(fp.0));
-    app.press(Action::KNext);
     assert_eq!(app.screen, Screen::Create, "back to Create");
 }
 
 #[test]
 fn a_scanned_seedqr_opens_key_with_its_words() {
     let mut app = add_a_key();
+    app.press(Action::KStep(kstep::START));
     app.press(Action::KStart(Start::Scan.index()));
-    app.press(Action::KNext);
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan));
     // "abandon" eleven times and "about".
     app.event(Event::Scanned {
@@ -1257,4 +1255,46 @@ fn a_guided_card_links_its_learn_page_and_steps_only_does_not() {
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Learn));
     let l = app.learn();
     assert!(std::ptr::eq(l.pages[l.page], Topic::Words.page()));
+}
+
+#[test]
+fn start_opens_closed_on_its_default_and_each_choice_moves_on_by_itself() {
+    use faraday_core::keygen::{Start, kstep};
+    let mut app = faraday_core::testkit::started();
+    app.press(Action::KeyGen(None));
+    let k = app.keygen().unwrap();
+    assert_eq!(k.open, Some(kstep::LENGTH), "Start is closed on Make");
+    // Change reopens Start; pressing the option already chosen moves on.
+    app.press(Action::KStep(kstep::START));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::START));
+    app.press(Action::KStart(Start::Make.index()));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::LENGTH));
+    // A count moves on, and so does a way (no Continue is drawn).
+    app.press(Action::KWords(12));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::SOURCE));
+    let _ = app.frame();
+    assert!(!app.offers(Action::KNext), "no Continue on a single choice");
+    app.press(Action::KWay(Way::Coins.index()));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::ENTER));
+    // A mix keeps its sources to tick, and its Continue.
+    app.press(Action::KStep(kstep::SOURCE));
+    app.press(Action::KWay(Way::Mix.index()));
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::SOURCE));
+    let _ = app.frame();
+    assert!(app.offers(Action::KNext), "a mix has its Continue");
+}
+
+#[test]
+fn lock_in_moves_on_to_the_words_with_no_continue() {
+    use faraday_core::keygen::kstep;
+    let mut app = opened();
+    app.press(Action::KWay(Way::Coins.index()));
+    for f in (0..128).map(|i| (i * 5 + i / 3) % 2 == 0) {
+        app.press(Action::KFlip(f));
+    }
+    app.press(Action::KNext);
+    app.press(Action::KLock);
+    let k = app.keygen().unwrap();
+    assert!(k.locked);
+    assert_eq!(k.open, Some(kstep::WORDS), "Lock in went on by itself");
 }

@@ -8,7 +8,7 @@
 
 use crate::tour::Tour;
 use faraday_core::codex32::{C32, Cell, OskPress, SPLITS, Split, WAYS, Way};
-use faraday_core::keygen::Start;
+use faraday_core::keygen::{Start, kstep};
 use faraday_core::{Action, Screen};
 
 /// Vector 2's initial shares A and C (`tools/vectors/bip93/vectors.json`).
@@ -42,9 +42,9 @@ fn roll(t: &mut Tour, ch: u8) {
 pub(crate) fn codex32_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
-    t.press(Action::KStart(Start::MakeCodex32.index()));
+    t.press(Action::KStep(kstep::START));
     t.shot("codex32-start")?;
-    t.press(Action::KNext);
+    t.press(Action::KStart(Start::MakeCodex32.index()));
     let other = SPLITS.iter().position(|s| *s == Split::Other).unwrap_or(2);
     c(t, C32::Split(other as u8));
     c(t, C32::K(3));

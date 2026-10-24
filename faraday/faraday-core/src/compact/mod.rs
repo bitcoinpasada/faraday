@@ -169,6 +169,23 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
             ui.hit(kx - 4.0, 0.0, 42.0, BAR_H, action);
         }
     }
+    // The eye, while Make codex32 shares has sheets to mask
+    // (`docs/CODEX32.md` §6.4.6).
+    if let Some(masked) = eye_state(app) {
+        let side = faraday_draw::tokens::EYE_SIDE;
+        let (kx, ky) = (right - side, (BAR_H - side) / 2.0);
+        right = kx - faraday_draw::tokens::EYE_GAP;
+        if draw {
+            eye_icon(ui, kx, ky, side, masked);
+            ui.hit(
+                kx - faraday_draw::tokens::EYE_HIT,
+                0.0,
+                side + 2.0 * faraday_draw::tokens::EYE_HIT,
+                BAR_H,
+                Action::Codex32(crate::codex32::C32::Eye),
+            );
+        }
+    }
     // Cancel, on a flow that can be in progress: it leaves the flow
     // (`docs/FLOWS.md`, Cancel; F51).
     if app.cancel_offered().is_some() {
@@ -185,6 +202,64 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
         right = cx - 2.0;
     }
     right
+}
+
+/// Whether the eye is offered on this page, and whether the sheets are
+/// masked now: Make codex32 shares' sheets, on a device
+/// (`docs/CODEX32.md` §6.4.6).
+fn eye_state(app: &View) -> Option<bool> {
+    if app.screen != Screen::KeyGen {
+        return None;
+    }
+    let m = app.keygen()?.codex32.as_ref()?;
+    m.eye_offered().then(|| m.masked())
+}
+
+/// The eye: open while the sheets are shown, struck while they are masked
+/// (the icon shows what a press does, as a password field's eye does).
+fn eye_icon(ui: &mut Ui, x: f32, y: f32, side: f32, masked: bool) {
+    let a = Action::Codex32(crate::codex32::C32::Eye);
+    if !masked || ui.is_pressed(a) {
+        ui.fill(
+            x,
+            y,
+            side,
+            side,
+            faraday_draw::tokens::EYE_RADIUS,
+            if masked { INNER } else { ACCENT.with_alpha(40) },
+        );
+    }
+    ui.icon(
+        x,
+        y,
+        side,
+        if masked { Icon::Eye } else { Icon::EyeOff },
+        faraday_draw::tokens::EYE_GLYPH,
+        if masked { MUTED } else { ACCENT },
+    );
+}
+
+/// The wide layout's eye, left of the keyboard button where there is one
+/// (`docs/CODEX32.md` §6.4.6). Returns where the buttons now begin.
+pub(crate) fn wide_eye_button(app: &View, ui: &mut Ui, right: f32) -> f32 {
+    let Some(masked) = eye_state(app) else {
+        return right;
+    };
+    let (s, top, pad) = (
+        faraday_draw::tokens::EYE_WIDE_SIDE,
+        faraday_draw::tokens::EYE_WIDE_TOP,
+        faraday_draw::tokens::EYE_HIT,
+    );
+    let x = right - s;
+    eye_icon(ui, x, top, s, masked);
+    ui.hit(
+        x - pad,
+        top - pad,
+        s + 2.0 * pad,
+        s + 2.0 * pad,
+        Action::Codex32(crate::codex32::C32::Eye),
+    );
+    x - faraday_draw::tokens::EYE_WIDE_GAP
 }
 
 /// The wide layout's keyboard button, in the top-right row its right

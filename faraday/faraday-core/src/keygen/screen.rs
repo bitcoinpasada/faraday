@@ -110,7 +110,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     };
     app.scroll(Scrolled::KeyGen, next, again);
     if let Some(m) = k.codex32.as_ref() {
-        crate::codex32::screen::cell_sheet(m, ui, x0, cw, h);
+        crate::codex32::screen::cell_sheet(app, m, ui, x0, cw, h);
     }
 }
 
@@ -160,8 +160,12 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             .filter(|s| !s.other() && s.new_key() == new)
             .collect();
         if rows.len() < offered.iter().filter(|s| !s.other()).count() {
+            // A list subheader: 16 above, 8 below.
+            if cy > y {
+                cy += faraday_draw::tokens::PAD;
+            }
             section_label(ui, x, cy, label);
-            cy += faraday_draw::tokens::PAD + faraday_draw::tokens::GAP_SMALL;
+            cy += faraday_draw::tokens::PAD + faraday_draw::tokens::GAP;
         }
         for s in rows {
             one(ui, &mut cy, s);
@@ -173,14 +177,14 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             x,
             cy,
             None,
-            36.0,
+            faraday_draw::tokens::TOUCH,
             EN.entry_other_forms,
             Style::Ghost,
             Action::KOthers,
         );
         ui.icon(
             x + lw + 2.0,
-            cy + 8.0,
+            cy + (faraday_draw::tokens::TOUCH - 20.0) / 2.0,
             20.0,
             if open {
                 Icon::ChevronUp
@@ -190,7 +194,7 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             10.0,
             DIM,
         );
-        cy += 44.0;
+        cy += faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP_SMALL;
         if open {
             for &s in offered.iter().filter(|s| s.other()) {
                 one(ui, &mut cy, s);
@@ -200,8 +204,7 @@ fn start(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if let Some(n) = &k.note {
         cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 6.0;
     }
-    let drawn = next_button(ui, x, cy, w, EN.keygen_continue, Action::KNext);
-    cy + (if drawn { 48.0 } else { 8.0 }) - y
+    cy + 8.0 - y
 }
 
 /// The Words card for a key typed: Add a key's form, drawn by Add a
@@ -617,14 +620,8 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
     if let Some(n) = &k.note {
         cy += ui.wrap(x, cy, w, 13.0, W::R, ERR, n) + 6.0;
     }
-    cy += buttons_and_next(
-        ui,
-        x,
-        cy,
-        w,
-        shows,
-        Some((EN.keygen_continue, Action::KNext)),
-    );
+    // Lock in moved on by itself: this view is for reading (F103).
+    cy += buttons_and_next(ui, x, cy, w, shows, None);
     cy - y
 }
 
@@ -654,25 +651,20 @@ fn length(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             } else {
                 Style::Secondary
             };
-            bx += ui.button(bx, cy, None, 36.0, label, style, Action::KForm(on)) + 8.0;
+            bx += ui.button(
+                bx,
+                cy,
+                None,
+                faraday_draw::tokens::TOUCH,
+                label,
+                style,
+                Action::KForm(on),
+            ) + 8.0;
         }
-        cy += 50.0;
+        cy += faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP;
     }
     let used = length_counts(k, ui, x, cy, w);
     cy += used;
-    if !k.slip39 {
-        cy += 4.0;
-        if next_button(
-            ui,
-            x,
-            cy,
-            w.min(760.0),
-            EN.keygen_continue,
-            Action::KWords(k.words as u8),
-        ) {
-            cy += 52.0;
-        }
-    }
     if k.slip39 {
         for (label, value, minus, plus) in [
             (
@@ -732,7 +724,7 @@ fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         // Wrapped to the width: a small panel takes two to a row.
         if bx > x && bx + 104.0 > x + w {
             bx = x;
-            y += 48.0;
+            y += faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP;
         }
         let allowed = !k.only_24 || n == 24;
         let style = if !allowed {
@@ -748,7 +740,7 @@ fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             bx,
             y,
             Some(104.0),
-            40.0,
+            faraday_draw::tokens::TOUCH,
             &fill(EN.keygen_words_n, &[&n.to_string()]),
             style,
             if k.slip39 {
@@ -758,7 +750,7 @@ fn length_counts(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             },
         ) + 8.0;
     }
-    let mut used = y - top + 52.0;
+    let mut used = y - top + faraday_draw::tokens::TOUCH + faraday_draw::tokens::GAP;
     if k.only_24 {
         ui.text(x, y + used, 13.0, W::R, MUTED, EN.keygen_a_threshold);
         used += 26.0;
@@ -947,7 +939,13 @@ fn group_head(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32, g: Group) -> f32 
             &way_name(way),
         );
     }
-    ui.hit(x, y - 8.0, w, 32.0, Action::KGroup(i));
+    ui.hit(
+        x,
+        y - faraday_draw::tokens::GAP,
+        w,
+        faraday_draw::tokens::TOUCH,
+        Action::KGroup(i),
+    );
     28.0
 }
 
@@ -1006,8 +1004,14 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     ui.text(x + 74.0, cy + 6.0, 14.0, W::R, tone, source_name(m));
                     let nw = ui.measure(14.0, W::R, source_name(m));
                     ui.text(x + 86.0 + nw, cy + 7.0, 12.0, W::R, MUTED, &asks(k, m));
-                    ui.hit(x + 40.0, cy, w - 40.0, 32.0, Action::KMix(j as u8));
-                    cy += 34.0;
+                    ui.hit(
+                        x + 40.0,
+                        cy - faraday_draw::tokens::GAP,
+                        w - 40.0,
+                        faraday_draw::tokens::TOUCH,
+                        Action::KMix(j as u8),
+                    );
+                    cy += faraday_draw::tokens::TOUCH;
                 }
                 cy += 8.0;
             }
@@ -1016,7 +1020,10 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if let Some(n) = &k.note {
         ui.text(x, cy + 10.0, 13.0, W::R, ERR, n);
     }
-    let drawn = next_button(ui, x, cy, w, EN.keygen_continue, Action::KNext);
+    // A single choice moves on by itself; a mix has its sources to tick
+    // first (F103).
+    let drawn =
+        chosen == Some(Way::Mix) && next_button(ui, x, cy, w, EN.keygen_continue, Action::KNext);
     cy + (if drawn { 48.0 } else { 8.0 }) - y
 }
 
@@ -2079,6 +2086,10 @@ fn words(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         TEXT,
     );
     cy += 6.0;
+    // Lock in went on to here: the key as it was added.
+    if let Some(t) = &k.key_text {
+        cy += long_row(ui, x, cy, w, EN.keygen_key, t);
+    }
     cy += word_grid(ui, m, k.shown, x, cy, w);
     if let Some(n) = &k.note {
         ui.text(x, cy, 13.0, W::R, ERR, n);

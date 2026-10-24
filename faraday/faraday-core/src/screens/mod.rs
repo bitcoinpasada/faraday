@@ -143,6 +143,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // Under a sheet the keyboard button is drawn over it, below.
         if app.sheet.is_none() {
             crate::compact::wide_keyboard_button(app, ui, kx);
+            // The codex32 sheets' eye, left of the keyboard button.
+            let ex = if app.osk_wanted() {
+                kx - faraday_draw::tokens::EYE_KEYBOARD_ROOM
+            } else {
+                kx
+            };
+            crate::compact::wide_eye_button(app, ui, ex);
         }
         // The ? at the top right opens what explains this screen.
         if !app.learn_pages().is_empty() {

@@ -22,6 +22,12 @@
 
 pub(crate) mod screen;
 
+/// Making codex32 shares, and the wallet kind of §6.9, are offered. False
+/// hides them until the backup plan carries codex32 strings: New key's
+/// Start card then does not offer Make a new key › Codex32. Typing codex32
+/// strings in Add a key stays either way.
+pub const MAKE_OFFERED: bool = true;
+
 use faraday_bip::codex32::{Length, Scheme};
 use faraday_codec::qr::QrMatrix;
 use faraday_crypto::work::Compute;
@@ -226,6 +232,11 @@ pub enum C32 {
     Check,
     /// Lock in: the key loaded from the set (§6.7).
     Lock,
+    /// The eye in the app bar: the sheets masked, or shown (§6.4.6).
+    Eye,
+    /// The open cell's working moved to the neighbouring cell of its row,
+    /// before (-1) or after (1) (§7.4).
+    CellStep(i8),
 }
 
 /// One die's two values for one character, as entered: struck where
@@ -350,6 +361,11 @@ pub struct Codex32Make {
     check_open: bool,
     note: Option<String>,
     locked: bool,
+    /// The sheets are masked (§6.4.6): every character, roll and working
+    /// drawn as dots. Set when the flow is left backwards, and by the eye.
+    hidden: bool,
+    /// Faraday Desktop: never masked, and no eye (§6.4.6).
+    unmasked: bool,
 }
 
 impl Codex32Make {
@@ -390,7 +406,16 @@ impl Codex32Make {
             check_open: false,
             note: None,
             locked: false,
+            hidden: false,
+            unmasked: false,
         }
+    }
+
+    /// The flow on Faraday Desktop, where the sheets are never masked
+    /// (§6.4.6).
+    pub(crate) fn desktop(mut self) -> Codex32Make {
+        self.unmasked = true;
+        self
     }
 
     /// The flow for a wallet whose Quorum chose `k` of `n` (§6.9): the
@@ -416,6 +441,18 @@ impl Codex32Make {
     /// Whether card `c` is done.
     pub fn done(&self, c: Card) -> bool {
         self.done[usize::from(c.index())]
+    }
+
+    /// The sheets are masked now: what the person typed or rolled, and
+    /// all that it becomes, is drawn as dots (§6.4.6, DESIGN §4.10).
+    pub fn masked(&self) -> bool {
+        self.hidden && !self.unmasked
+    }
+
+    /// The app bar offers the eye: sheets exist, on a device (not on
+    /// Faraday Desktop).
+    pub fn eye_offered(&self) -> bool {
+        !self.unmasked && self.work.is_some()
     }
 
     /// The scheme was fixed by the wallet's Quorum.
@@ -621,7 +658,10 @@ impl Codex32Make {
     /// before the flow is borrowed.
     pub(crate) fn act(&mut self, c: &Compute, press: C32, fresh: Option<[u8; 32]>) {
         if self.locked && !matches!(press, C32::Card(_) | C32::Tab(_) | C32::TabStep(_)) {
-            if matches!(press, C32::Check | C32::Cell(_) | C32::CellClose) {
+            if matches!(
+                press,
+                C32::Check | C32::Cell(_) | C32::CellClose | C32::CellStep(_) | C32::Eye
+            ) {
                 self.view_press(press);
             }
             return;
@@ -685,8 +725,20 @@ impl Codex32Make {
             }
             C32::View(v) => self.view = v,
             C32::Panel(p) => self.panel = p.min(2),
-            C32::Cell(cell) => self.cell = Some(cell),
+            C32::Cell(cell) if !self.masked() => self.cell = Some(cell),
             C32::CellClose => self.cell = None,
+            C32::CellStep(d) => {
+                if let Some(n) = self.cell.and_then(|c| self.neighbour(c, d)) {
+                    self.cell = Some(n);
+                }
+            }
+            C32::Eye if self.eye_offered() => {
+                self.hidden = !self.hidden;
+                // A working shows values: it closes when they are masked.
+                if self.hidden {
+                    self.cell = None;
+                }
+            }
             C32::Check => self.check_open = !self.check_open,
             _ => {}
         }
@@ -706,6 +758,10 @@ impl Codex32Make {
             return;
         };
         if self.open == Some(card) {
+            // Closing the entry puts it aside.
+            if card == Card::Enter {
+                self.mask();
+            }
             self.open = None;
             return;
         }
@@ -715,9 +771,77 @@ impl Codex32Make {
             .all(|&c| self.done(c));
         // Once the entry has begun, the cards before it only show.
         if reachable {
+            // Back past the first entry card: the sheets are masked
+            // again (§6.4.6).
+            if self.work.is_some() && card.index() < Card::Enter.index() {
+                self.mask();
+            }
             self.open = Some(card);
             self.cell = None;
         }
+    }
+
+    /// The flow is left or put aside: the sheets are masked (§6.4.6).
+    pub(crate) fn mask(&mut self) {
+        self.hidden = true;
+        self.cell = None;
+    }
+
+    /// The cell `d` places along the row of `cell`, if there is one.
+    fn neighbour(&self, cell: Cell, d: i8) -> Option<Cell> {
+        let work = self.work.as_ref()?;
+        let step = |v: u8, lo: usize, len: usize| -> Option<u8> {
+            let n = i32::from(v) + i32::from(d);
+            (n >= lo as i32 && n < (lo + len) as i32).then_some(n as u8)
+        };
+        let chars = work.scheme().length().chars();
+        let cols = chars - 3;
+        Some(match cell {
+            Cell::Given { sheet, b } => Cell::Given {
+                sheet,
+                b: step(b, 4, cols)?,
+            },
+            Cell::Translated { sheet, i, b } => Cell::Translated {
+                sheet,
+                i,
+                b: step(b, 4, cols)?,
+            },
+            Cell::TSum { sheet, b } => Cell::TSum {
+                sheet,
+                b: step(b, 4, cols)?,
+            },
+            Cell::Hrp { sheet, i } => Cell::Hrp {
+                sheet,
+                i: step(
+                    i,
+                    0,
+                    work.worksheet(usize::from(sheet), Reveal::PaperForm)?
+                        .hrp_row()
+                        .len(),
+                )?,
+            },
+            Cell::Sum { sheet, j, i } => Cell::Sum {
+                sheet,
+                j,
+                i: step(
+                    i,
+                    0,
+                    work.worksheet(usize::from(sheet), Reveal::PaperForm)?
+                        .checksum_len(),
+                )?,
+            },
+            Cell::Lookup { sheet, j, i } => Cell::Lookup {
+                sheet,
+                j,
+                i: step(
+                    i,
+                    0,
+                    work.worksheet(usize::from(sheet), Reveal::PaperForm)?
+                        .checksum_len(),
+                )?,
+            },
+            Cell::Symbol { .. } => return None,
+        })
     }
 
     fn finish(&mut self, card: Card, next: Card) {

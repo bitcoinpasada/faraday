@@ -13,6 +13,7 @@
 use faraday_bip::codex32::{SYMBOL_NAMES, Scheme};
 use faraday_draw::geom::{SizeClass, WindowClass};
 use faraday_draw::tokens as t;
+use faraday_draw::widgets::Icon;
 use faraday_draw::widgets::keyboard::KeyboardKind;
 use faraday_entropy::booklet::{BOOKLET_DICE, TREE};
 use faraday_keys::{Reveal, WorkSet};
@@ -49,7 +50,12 @@ struct At {
     y: f32,
     w: f32,
     cls: WindowClass,
+    /// The sheets are masked (§6.4.6): characters are drawn as dots.
+    hide: bool,
 }
+
+/// What a masked character is drawn as.
+const MASK: &str = "\u{2022}";
 
 impl At {
     /// The same place moved to (x, y), `w` wide.
@@ -218,7 +224,93 @@ fn choice(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[(&str, bool, Action)]) -
         .iter()
         .map(|&(l, on, act)| (l, if on { Style::Primary } else { Style::Secondary }, act))
         .collect();
-    wrap_buttons(ui, x, y, w, t::TEXT_FIELD, &rows)
+    wrap_buttons(ui, x, y, w, t::TOUCH, &rows)
+}
+
+/// One secondary tab: its label, whether it is the one shown, whether it
+/// was seen (a check icon), and what a press does.
+struct TabItem {
+    label: String,
+    on: bool,
+    seen: bool,
+    action: Action,
+}
+
+/// Secondary tabs, [`t::CODEX32_TAB`] tall, an indicator in `ACCENT`
+/// under the one shown, a rule under the row. Where they do not all fit
+/// the row shows the run that ends at the one shown (it scrolls with
+/// it). Returns the height.
+fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
+    let icon = t::CODEX32_TAB_ICON;
+    let widths: Vec<f32> = items
+        .iter()
+        .map(|i| {
+            ui.measure(t::LABEL, W::S, &i.label)
+                + 2.0 * t::PAD
+                + if i.seen { icon + t::GAP_SMALL } else { 0.0 }
+        })
+        .collect();
+    let total: f32 = widths.iter().sum();
+    let on = items.iter().position(|i| i.on).unwrap_or(0);
+    let equal = w / items.len().max(1) as f32;
+    // Fixed tabs share the width where every label fits its share.
+    let fixed = total <= w && widths.iter().all(|&wd| wd <= equal);
+    let mut first = 0;
+    if total > w {
+        let mut used = widths[on];
+        first = on;
+        while first > 0 && used + widths[first - 1] <= w {
+            first -= 1;
+            used += widths[first];
+        }
+    }
+    ui.rule(x, y + t::CODEX32_TAB - 1.0, w, INNER);
+    let mut tx = x;
+    for (i, item) in items.iter().enumerate().skip(first) {
+        let tw = if fixed { equal } else { widths[i] };
+        if tx + tw > x + w + 0.5 {
+            break;
+        }
+        if ui.is_pressed(item.action) {
+            ui.fill(tx, y, tw, t::CODEX32_TAB, 0.0, INNER);
+        }
+        let colour = if item.on { ACCENT } else { MUTED };
+        let lw = ui.measure(t::LABEL, W::S, &item.label);
+        let seen = if item.seen { icon + t::GAP_SMALL } else { 0.0 };
+        let lx = tx + (tw - lw - seen) / 2.0;
+        if item.seen {
+            ui.icon(
+                lx,
+                y + (t::CODEX32_TAB - icon) / 2.0,
+                icon,
+                Icon::Done,
+                t::CODEX32_TAB_GLYPH,
+                OK,
+            );
+        }
+        ui.text_mid(
+            lx + seen,
+            y,
+            t::CODEX32_TAB,
+            t::LABEL,
+            W::S,
+            colour,
+            &item.label,
+        );
+        if item.on {
+            ui.fill(
+                tx,
+                y + t::CODEX32_TAB - t::CODEX32_INDICATOR,
+                tw,
+                t::CODEX32_INDICATOR,
+                0.0,
+                ACCENT,
+            );
+        }
+        ui.hit(tx, y, tw, t::CODEX32_TAB, item.action);
+        tx += tw;
+    }
+    t::CODEX32_TAB + t::GAP
 }
 
 /// A card's body. Returns its height.
@@ -236,6 +328,7 @@ pub(crate) fn body(
         y,
         w,
         cls: app.window().class(),
+        hide: m.masked(),
     };
     let h = match card {
         Card::Scheme => scheme(m, ui, x, y, w),
@@ -244,7 +337,7 @@ pub(crate) fn body(
         Card::Enter => enter(m, ui, at),
         Card::Sheets => sheets(m, ui, at),
         Card::Strings => strings(m, ui, at),
-        Card::Made => made(app, m, ui, x, y, w),
+        Card::Made => made(m, ui, x, y, w),
     };
     h + t::GAP
 }
@@ -371,17 +464,17 @@ fn identifier(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
         let boxes = f32::from(ID_LEN) * (b + t::GAP);
         let bw = ui.measure(t::LABEL, W::S, EN.codex32_suggest) + 2.0 * t::PAD;
         let (sx, sy) = if boxes + bw <= w {
-            (x + boxes, cy - t::GAP - (b + t::TEXT_FIELD) / 2.0)
+            (x + boxes, cy - t::GAP - (b + t::TOUCH) / 2.0)
         } else {
-            cy += t::TEXT_FIELD + t::GAP;
-            (x, cy - t::TEXT_FIELD - t::GAP)
+            cy += t::TOUCH + t::GAP;
+            (x, cy - t::TOUCH - t::GAP)
         };
         let s = EN.codex32_suggest;
         ui.button(
             sx,
             sy,
             Some(bw),
-            t::TEXT_FIELD,
+            t::TOUCH,
             s,
             Style::Secondary,
             a(C32::Suggest),
@@ -433,15 +526,17 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     };
     match cls {
         WindowClass::Compact => {
-            // The pad first: on the Pi's panel there is room for it and
-            // little more, and the context panel scrolls under it.
+            // The tabs, the context panel one at a time, and the pad
+            // under it, all on the page at once: the panel is what the
+            // person reads while pressing, so it sits above the pad and
+            // never scrolls under it (§6.4.7).
             cy += panel_tiles(m, ui, x, cy, w);
-            cy += pad(m, ui, x, cy, w);
             cy += match m.panel() {
                 0 if m.way() == Way::Dice => dice_rows(m, ui, x, cy, w, true),
                 1 => checksum_band(work, share, front, ui, at.to(x, cy, w)),
                 _ => string_boxes(work, share, front, ui, at.to(x, cy, w)),
             };
+            cy += pad(m, ui, x, cy, w);
         }
         _ => {
             cy += string_boxes(work, share, front, ui, at.to(x, cy, w));
@@ -450,7 +545,13 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             cy += pad(m, ui, x, cy, w);
         }
     }
-    cy += foot(m, ui, x, cy, w, EN.keygen_continue);
+    // Continue is there once the sheets are complete: until then it would
+    // only take the room the panel and the pad need.
+    if m.strings().is_some() {
+        cy += foot(m, ui, x, cy, w, EN.keygen_continue);
+    } else {
+        cy += note(m, ui, x, cy, w);
+    }
     cy - y
 }
 
@@ -461,13 +562,18 @@ fn panel_tiles(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         EN.codex32_tile_checksum,
         EN.codex32_tile_string,
     ];
-    let items: Vec<(&str, bool, Action)> = names
+    let items: Vec<TabItem> = names
         .iter()
         .enumerate()
         .filter(|(i, _)| *i != 0 || m.way() == Way::Dice)
-        .map(|(i, &n)| (n, usize::from(m.panel()) == i, a(C32::Panel(i as u8))))
+        .map(|(i, &n)| TabItem {
+            label: n.to_string(),
+            on: usize::from(m.panel()) == i,
+            seen: false,
+            action: a(C32::Panel(i as u8)),
+        })
         .collect();
-    choice(ui, x, y, w, &items)
+    tabs(ui, x, y, w, &items)
 }
 
 /// The strip of worksheets under the string: the share's checksum
@@ -477,23 +583,21 @@ fn view_strip(m: &Codex32Make, work: &WorkSet, ui: &mut Ui, x: f32, y: f32, w: f
     if targets.is_empty() {
         return 0.0;
     }
-    let mut items: Vec<(String, bool, Action)> = vec![(
-        EN.codex32_tile_checksum.to_string(),
-        m.view() == 0,
-        a(C32::View(0)),
-    )];
+    let mut items = vec![TabItem {
+        label: EN.codex32_tile_checksum.to_string(),
+        on: m.view() == 0,
+        seen: false,
+        action: a(C32::View(0)),
+    }];
     for (n, &tg) in targets.iter().enumerate() {
-        items.push((
-            target_name(tg),
-            usize::from(m.view()) == n + 1,
-            a(C32::View(n as u8 + 1)),
-        ));
+        items.push(TabItem {
+            label: target_name(tg),
+            on: usize::from(m.view()) == n + 1,
+            seen: false,
+            action: a(C32::View(n as u8 + 1)),
+        });
     }
-    let refs: Vec<(&str, bool, Action)> = items
-        .iter()
-        .map(|(l, o, ac)| (l.as_str(), *o, *ac))
-        .collect();
-    choice(ui, x, y, w, &refs)
+    tabs(ui, x, y, w, &items)
 }
 
 /// "Share D", or "Secret" for `s`.
@@ -646,7 +750,11 @@ fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Op
         );
     }
     if let Some(v) = v {
-        let ch = char_of(v).to_string();
+        let ch = if at.hide {
+            MASK.to_string()
+        } else {
+            char_of(v).to_string()
+        };
         let size = t::codex32_char(cls);
         let weight = if matches!(look, Look::Checksum | Look::Fixed) {
             W::S
@@ -655,8 +763,18 @@ fn one_box(ui: &mut Ui, at: At, v: Option<u8>, look: Look, front: bool, cell: Op
         };
         let cw = ui.measure(size, weight, &ch);
         ui.text_mid(bx + (s - cw) / 2.0, y, s, size, weight, TEXT, &ch);
-        if let Some(cell) = cell {
-            ui.hit_quiet(bx, y, s, s, a(C32::Cell(cell)));
+        // The press on a box opens the working of the nearest one: each
+        // box's hit takes the gaps round it, so the boxes tile the sheet
+        // (§7.4). A masked sheet opens nothing.
+        if let Some(cell) = cell.filter(|_| !at.hide) {
+            let (gx, gy) = (t::CODEX32_BOX_GAP, t::CODEX32_ROW_GAP);
+            ui.hit_quiet(
+                bx - gx / 2.0,
+                y - gy / 2.0,
+                s + gx,
+                s + gy,
+                a(C32::Cell(cell)),
+            );
         }
     }
 }
@@ -1063,6 +1181,13 @@ fn dice_sheet(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, rows_only: b
 /// alone, or nothing.
 fn die_line(m: &Codex32Make, die: usize) -> String {
     let d = m.dice();
+    if m.masked() {
+        return match (d.first(die), d.second(die)) {
+            (Some(_), Some(_)) => EN.codex32_die_masked.to_string(),
+            (Some(_), None) => MASK.to_string(),
+            _ => String::new(),
+        };
+    }
     match (d.first(die), d.second(die)) {
         (Some(f), Some(s)) => {
             let bit = faraday_entropy::booklet::bit(f, s);
@@ -1100,9 +1225,13 @@ fn dice_rows(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, path: bool) -
     }
     cy += struck(m, ui, x, cy, w);
     if path {
-        let bits = known_bits(m);
+        let bits = known_bits(m, false);
         let s: Vec<String> = (0..BOOKLET_DICE)
-            .map(|d| bits[d].map_or("·".to_string(), |b| b.to_string()))
+            .map(|d| match bits[d] {
+                Some(_) if m.masked() => MASK.to_string(),
+                Some(b) => b.to_string(),
+                None => "·".to_string(),
+            })
             .collect();
         ui.text(x, cy, t::BODY, W::M, ACCENT, &s.join(" "));
         cy += ui.line(t::BODY, W::M) + t::GAP;
@@ -1115,13 +1244,14 @@ fn dice_rows(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, path: bool) -
 fn struck(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     for row in m.rows().iter().filter(|r| r.bit().is_none()) {
+        let (f, sc) = if m.masked() {
+            (MASK.to_string(), MASK.to_string())
+        } else {
+            (row.first.to_string(), row.second.to_string())
+        };
         let s = fill(
             EN.codex32_die_equal,
-            &[
-                &(usize::from(row.die) + 1).to_string(),
-                &row.first.to_string(),
-                &row.second.to_string(),
-            ],
+            &[&(usize::from(row.die) + 1).to_string(), &f, &sc],
         );
         let tw = ui.text(x, cy, t::CAPTION, W::R, WARN, &s);
         let lh = ui.line(t::CAPTION, W::R);
@@ -1132,8 +1262,13 @@ fn struck(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 }
 
 /// Each die's bit, once its pair is in and not equal.
-fn known_bits(m: &Codex32Make) -> [Option<u8>; BOOKLET_DICE] {
+/// Where the sheets are masked, with `shown` the bits are none: the
+/// tree draws no path.
+fn known_bits(m: &Codex32Make, shown: bool) -> [Option<u8>; BOOKLET_DICE] {
     let mut out = [None; BOOKLET_DICE];
+    if shown && m.masked() {
+        return out;
+    }
     for (d, slot) in out.iter_mut().enumerate() {
         *slot = m.dice().die_bit(d).flatten();
     }
@@ -1150,7 +1285,11 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         let text = fill(EN.codex32_die_n, &[&(die + 1).to_string()]);
         ui.text_mid(x, cy, p, t::CAPTION, W::S, MUTED, &text);
         let tx = x + t::CODEX32_LABEL_W - t::GAP;
-        let (f, s) = (m.dice().first(die), m.dice().second(die));
+        let (f, s) = if m.masked() {
+            (None, None)
+        } else {
+            (m.dice().first(die), m.dice().second(die))
+        };
         for pad in 0..PADS {
             let px = tx + f32::from(pad) * p;
             ui.stroke(
@@ -1208,6 +1347,11 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         }
         let bit = m.dice().die_bit(die).flatten();
         if let Some(b) = bit {
+            let text = if m.masked() {
+                MASK.to_string()
+            } else {
+                b.to_string()
+            };
             ui.text_mid(
                 tx + f32::from(PADS) * p + t::GAP,
                 cy,
@@ -1215,7 +1359,7 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 t::LABEL,
                 W::M,
                 ACCENT,
-                &b.to_string(),
+                &text,
             );
         }
         cy += p + t::GAP_SMALL;
@@ -1231,7 +1375,7 @@ const PADS: u8 = 7;
 /// order; the path from the root drawn in the accent for each bit known
 /// from die 1 on, and the leaf reached named once die 5's bit is in.
 fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let bits = known_bits(m);
+    let bits = known_bits(m, true);
     let lw = w / TREE.len() as f32;
     let lv = t::CODEX32_TREE_LEVEL;
     let node = |level: usize, idx: usize| -> (f32, f32) {
@@ -1318,56 +1462,25 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
 /// §6.5: the tab row (a Choice with Previous and Next on `small`), and
 /// the worksheet of the tab shown.
 fn sheets(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
-    let (x, y, w, cls) = (at.x, at.y, at.w, at.cls);
+    let (x, y, w) = (at.x, at.y, at.w);
     let Some(work) = m.work() else {
         return 0.0;
     };
-    let tabs = m.tabs();
+    let tab_list = m.tabs();
     let (on, seen) = m.tab();
     let mut cy = y;
-    if cls == WindowClass::Compact {
-        let name = tabs
-            .get(usize::from(on))
-            .map_or(String::new(), |t| t.0.clone());
-        cy += ui.wrap(x, cy, w, t::LABEL, W::S, TEXT, &name) + t::GAP_SMALL;
-        cy += wrap_buttons(
-            ui,
-            x,
-            cy,
-            w,
-            t::TEXT_FIELD,
-            &[
-                (EN.codex32_previous, Style::Secondary, a(C32::TabStep(-1))),
-                (EN.codex32_next, Style::Secondary, a(C32::TabStep(1))),
-            ],
-        );
-    } else {
-        let labels: Vec<String> = tabs
-            .iter()
-            .enumerate()
-            .map(|(i, (n, _))| {
-                if seen.get(i).copied().unwrap_or(false) {
-                    format!("✓ {n}")
-                } else {
-                    n.clone()
-                }
-            })
-            .collect();
-        let items: Vec<(&str, Style, Action)> = labels
-            .iter()
-            .enumerate()
-            .map(|(i, l)| {
-                let st = if i == usize::from(on) {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
-                (l.as_str(), st, a(C32::Tab(i as u8)))
-            })
-            .collect();
-        cy += wrap_buttons(ui, x, cy, w, t::CODEX32_TAB, &items);
-    }
-    cy += match tabs.get(usize::from(on)).map(|t| t.1) {
+    let items: Vec<TabItem> = tab_list
+        .iter()
+        .enumerate()
+        .map(|(i, (n, _))| TabItem {
+            label: n.clone(),
+            on: i == usize::from(on),
+            seen: seen.get(i).copied().unwrap_or(false),
+            action: a(C32::Tab(i as u8)),
+        })
+        .collect();
+    cy += self::tabs(ui, x, cy, w, &items);
+    cy += match tab_list.get(usize::from(on)).map(|t| t.1) {
         Some(Tab::Dice(s)) => dice_review(m, work, s, ui, x, cy, w),
         Some(Tab::Checksum(s)) => checksum_whole(m, work, s, ui, at.to(x, cy, w)),
         Some(Tab::Translation(n)) => translation(work, n, None, ui, at.to(x, cy, w)),
@@ -1394,6 +1507,11 @@ fn dice_review(
         let Some(made) = m.made_of(s, n) else {
             break;
         };
+        if m.masked() {
+            let line = fill(EN.codex32_box_masked, &[&(n + 10).to_string(), MASK]);
+            cy += ui.wrap(x, cy, w, t::CAPTION, W::M, TEXT, &line) + t::GAP_SMALL;
+            continue;
+        }
         let rows: Vec<String> = made
             .rows()
             .iter()
@@ -1440,7 +1558,8 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
         return 0.0;
     };
     let mut cy = y;
-    if s.len() == 48 {
+    let hide = m.masked();
+    if s.len() == 48 && !hide {
         cy += choice(
             ui,
             x,
@@ -1452,7 +1571,7 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             ],
         );
     }
-    match m.qr() {
+    match m.qr().filter(|_| !hide) {
         Some(q) => {
             let side = t::qr_side(if cls == WindowClass::Compact {
                 SizeClass::Small
@@ -1464,7 +1583,11 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             cy += side + t::GAP;
         }
         None => {
-            let g = faraday_ui::grouped(s);
+            let g = if hide {
+                faraday_ui::grouped(&MASK.repeat(s.len()))
+            } else {
+                faraday_ui::grouped(s)
+            };
             let mut size = t::TITLE;
             while size > t::CAPTION && ui.wrap_lines(size, W::M, &g, w) > 3 {
                 size -= 1.0;
@@ -1474,7 +1597,11 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     }
     let (typed, differs) = m.typed_back();
     let mut whole = String::from_utf8_lossy(PREFIX).into_owned();
-    whole.push_str(typed);
+    if hide {
+        whole.push_str(&MASK.repeat(typed.len()));
+    } else {
+        whole.push_str(typed);
+    }
     let shown = faraday_ui::grouped(&whole);
     ui.fill(x, cy, w, t::FIELD, t::RADIUS_SMALL, SURFACE);
     ui.stroke(
@@ -1522,7 +1649,7 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
 }
 
 /// §6.7: the Result's rows, Check on another device (§6.8), and Lock in.
-fn made(app: &View, m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
+fn made(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let (rolled, typed) = m.sources();
     let entropy = match (rolled, typed) {
@@ -1549,7 +1676,7 @@ fn made(app: &View, m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
         x,
         cy,
         w,
-        t::TEXT_FIELD,
+        t::TOUCH,
         &[(EN.codex32_check_on_another, Style::Secondary, a(C32::Check))],
     );
     if m.check_open() {
@@ -1557,12 +1684,10 @@ fn made(app: &View, m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     }
     let nh = note(m, ui, x, cy, w);
     cy += nh;
+    // Lock in goes back to Create by itself for a slot; on its own the
+    // flow ends on Done.
     let label = if m.locked() {
-        if app.keygen().is_some_and(|k| k.slot.is_some()) {
-            EN.keygen_continue
-        } else {
-            EN.keygen_done
-        }
+        EN.keygen_done
     } else {
         EN.keygen_lock_button
     };
@@ -1598,7 +1723,13 @@ fn check_record(m: &Codex32Make, fp: &str, ui: &mut Ui, x: f32, y: f32, w: f32) 
         let s = m
             .strings()
             .and_then(|s| s.first())
-            .map(|s| faraday_ui::short(s.as_str()))
+            .map(|s| {
+                if m.masked() {
+                    MASK.repeat(s.len().min(12))
+                } else {
+                    faraday_ui::short(s.as_str())
+                }
+            })
             .unwrap_or_default();
         cy += fact(ui, x, cy, w, EN.codex32_the_secret, &s);
     } else {
@@ -1619,51 +1750,100 @@ fn check_record(m: &Codex32Make, fp: &str, ui: &mut Ui, x: f32, y: f32, w: f32) 
 // The cell sheet (§7.4)
 // ---------------------------------------------------------------------
 
-/// The open cell's working, over the column: a sheet
-/// [`t::CHART_SHEET_WIDTH`] wide on `wide`, the whole panel as a page on
-/// a small panel. Every value read from the kept worksheet.
-pub(crate) fn cell_sheet(m: &Codex32Make, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+/// The open cell's working: a dialog [`t::CHART_SHEET_WIDTH`] wide on a
+/// wide window (the shared sheet look, over a scrim), a page of its own
+/// with its own Back on a compact one. The Previous and Next buttons step
+/// to the neighbouring cell of the row (§7.4). Every value read from the
+/// kept worksheet.
+pub(crate) fn cell_sheet(app: &View, m: &Codex32Make, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let (Some(cell), Some(work)) = (m.cell(), m.work()) else {
         return;
     };
     let lines = working(m, work, cell);
-    let sw = if ui.compact {
-        cw - 2.0 * t::GAP
-    } else {
-        t::CHART_SHEET_WIDTH.min(cw - 2.0 * t::PAD)
-    };
+    let head = cell_name(work, cell);
+    if ui.compact {
+        cell_page(app, ui, (x0, cw, h), &head, &lines);
+        return;
+    }
+    let sw = t::CHART_SHEET_WIDTH.min(cw - 2.0 * t::PAD);
     let pad = t::PAD;
     let iw = sw - 2.0 * pad;
-    let mut body_h = ui.line(t::BODY, W::S) + t::GAP;
+    let mut body_h = ui.wrap_lines(t::BODY, W::S, &head, iw - t::CODEX32_SHEET_ICON) as f32
+        * ui.line(t::BODY, W::S)
+        + t::GAP;
     for l in &lines {
         body_h +=
             ui.wrap_lines(t::LABEL, W::R, l, iw) as f32 * ui.line(t::LABEL, W::R) + t::GAP_SMALL;
     }
-    let sh = (body_h + t::TOUCH + 2.0 * pad).min(h - 2.0 * t::GAP);
+    let sh = (body_h + t::TOUCH + t::GAP + 2.0 * pad).min(h - 2.0 * t::GAP);
     ui.fill(x0, 0.0, cw, h, 0.0, BG.with_alpha(150));
-    let sx = x0 + (cw - sw) / 2.0;
-    let sy = (h - sh) / 2.0;
-    ui.hit_around(sx, sy, sw, sh, a(C32::CellClose));
-    ui.shadow(sx, sy, sw, sh, t::RADIUS, t::ELEVATION_DIALOG);
-    ui.fill(sx, sy, sw, sh, t::RADIUS, SURFACE);
-    ui.stroke(sx, sy, sw, sh, t::RADIUS, BORDER);
+    ui.hit_around(
+        x0 + (cw - sw) / 2.0,
+        (h - sh) / 2.0,
+        sw,
+        sh,
+        a(C32::CellClose),
+    );
+    let (sx, sy) = faraday_ui::parts::sheet_box(ui, cw, h, sw, sh);
+    let sx = sx + x0;
     let mut cy = sy + pad;
-    let head = cell_name(work, cell);
-    cy += ui.wrap(sx + pad, cy, iw, t::BODY, W::S, TEXT, &head) + t::GAP;
+    cy += faraday_ui::sheet::sheet_head(ui, sx + pad, cy, iw, Icon::Info, ACCENT, &head);
     for l in &lines {
         cy += ui.wrap(sx + pad, cy, iw, t::LABEL, W::R, TEXT, l) + t::GAP_SMALL;
     }
+    let by = sy + sh - pad - t::TOUCH;
     let bw = ui.measure(t::LABEL, W::S, EN.codex32_done_button) + 2.0 * t::PAD;
     ui.button(
         sx + sw - pad - bw,
-        sy + sh - pad - t::TEXT_FIELD,
+        by,
         Some(bw),
-        t::TEXT_FIELD,
+        t::TOUCH,
         EN.codex32_done_button,
         Style::Primary,
         a(C32::CellClose),
     );
-    let _ = cy;
+    step_buttons(ui, sx + pad, by, iw - bw - t::GAP);
+}
+
+/// Previous and Next, side by side from `x`, in `w` if they fit.
+fn step_buttons(ui: &mut Ui, x: f32, y: f32, w: f32) {
+    let items = [
+        (EN.codex32_previous, a(C32::CellStep(-1))),
+        (EN.codex32_next, a(C32::CellStep(1))),
+    ];
+    let mut bx = x;
+    for (label, act) in items {
+        let bw = ui.measure(t::LABEL, W::S, label) + 2.0 * t::PAD;
+        if bx + bw > x + w + 0.5 {
+            break;
+        }
+        bx += ui.button(bx, y, Some(bw), t::TOUCH, label, Style::Secondary, act) + t::GAP_SMALL;
+    }
+}
+
+/// The working as a page of its own on a compact window: a bar with Back
+/// to the worksheets, the cell's name, the working, and the steps to its
+/// neighbours.
+fn cell_page(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), head: &str, lines: &[String]) {
+    use crate::compact::{BAR_H, M};
+    // The page covers the flow: nothing under it is within reach, and its
+    // pinned Continue goes.
+    ui.hits.clear();
+    ui.pin = None;
+    ui.fill(x0, 0.0, cw, h, 0.0, SURFACE);
+    crate::compact::bar(
+        app,
+        ui,
+        cw,
+        (EN.codex32_worksheets, a(C32::CellClose)),
+        head,
+    );
+    let iw = cw - 2.0 * M;
+    let mut cy = BAR_H + t::PAD;
+    for l in lines {
+        cy += ui.wrap(M, cy, iw, t::LABEL, W::R, TEXT, l) + t::GAP;
+    }
+    step_buttons(ui, M, (cy + t::GAP).min(h - t::TOUCH - t::GAP), iw);
 }
 
 /// The sheet's head: "Box 23 · sum row 7".

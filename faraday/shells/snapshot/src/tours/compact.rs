@@ -76,7 +76,6 @@ pub(crate) fn compact_tour(t: &mut Tour) -> Result<(), String> {
     // makes it: the Key card shows its descriptor and first address.
     t.press(Action::KLock);
     t.shot("keygen-key-locked")?;
-    t.press(Action::KNext);
     t.shot("create-backup")?;
     t.press(Action::CStep(cstep::KEYS));
     t.shot("create-keys-filled")?;

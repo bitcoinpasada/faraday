@@ -110,7 +110,8 @@ fn add_a_key_from_wallets_opens_new_key_on_start() {
     assert_eq!(app.sheet, None);
     assert_eq!(
         app.keygen().unwrap().open,
-        Some(faraday_core::keygen::kstep::START)
+        Some(faraday_core::keygen::kstep::LENGTH),
+        "Start is closed on its default"
     );
 }
 
@@ -223,11 +224,24 @@ fn a_seedqr_scanned_from_home_loads_the_key_add_a_keys_scan_loads() {
     let mut from_add = shown();
     from_add.press(Action::Nav(Screen::WalletsStart));
     tap(&mut from_add, Action::KeyGen(None));
+    tap(
+        &mut from_add,
+        Action::KStep(faraday_core::keygen::kstep::START),
+    );
+    // The card is opening: let it finish before pressing a row on it.
+    for _ in 0..4 {
+        let now = from_add.now_ms() + 300;
+        from_add.event(Event::Tick { now_ms: now });
+        let _ = from_add.frame();
+    }
     tap(&mut from_add, Action::KStart(Start::Scan.index()));
-    tap(&mut from_add, Action::KNext);
+    assert_eq!(from_add.sheet, Some(Sheet::Scan), "Scan a SeedQR moves on");
     read(&mut from_add, SEEDQR.as_bytes());
+    assert_eq!(
+        from_add.keygen().map(|k| k.open),
+        Some(Some(faraday_core::keygen::kstep::KEY))
+    );
     tap(&mut from_add, Action::KLock);
-    tap(&mut from_add, Action::KNext);
 
     let mut app = shown();
     tap(&mut app, Action::Scan);

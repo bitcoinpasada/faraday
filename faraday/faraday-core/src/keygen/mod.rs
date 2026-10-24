@@ -185,89 +185,8 @@ pub mod kstep {
     pub const COUNT: usize = 10;
 }
 
-/// The choices on the Start card (`docs/history/NEW-WALLET.md` §15.1).
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum Start {
-    /// Make a new key from randomness, as BIP-39 words.
-    Make,
-    /// Type the words of a key already held.
-    Words,
-    /// Scan a SeedQR.
-    Scan,
-    /// Make a new key as SLIP-39 shares.
-    MakeShares,
-    /// Type SLIP-39 shares.
-    Shares,
-    /// Type a codex32 secret, or its shares.
-    Codex32,
-    /// Type Seed XOR parts.
-    Xor,
-    /// Make a new key as codex32 shares, by hand (`docs/CODEX32.md` §6).
-    MakeCodex32,
-}
-
-/// The choices, in the order the card lists them. Actions carry a
-/// choice by its place here.
-pub const STARTS: [Start; 8] = [
-    Start::Make,
-    Start::MakeCodex32,
-    Start::Words,
-    Start::Scan,
-    Start::Codex32,
-    Start::MakeShares,
-    Start::Shares,
-    Start::Xor,
-];
-
-impl Start {
-    /// Its place in [`STARTS`].
-    pub fn index(self) -> u8 {
-        STARTS.iter().position(|s| *s == self).unwrap_or(0) as u8
-    }
-
-    /// Listed under Other forms, closed at first.
-    pub fn other(self) -> bool {
-        matches!(self, Start::MakeShares | Start::Shares | Start::Xor)
-    }
-
-    /// Listed under Make a new key, rather than Add a key you have
-    /// (`docs/CODEX32.md` §6).
-    pub fn new_key(self) -> bool {
-        matches!(self, Start::Make | Start::MakeCodex32)
-    }
-
-    /// The key is made here from randomness.
-    pub fn makes(self) -> bool {
-        matches!(self, Start::Make | Start::MakeShares | Start::MakeCodex32)
-    }
-
-    /// The form typed on the Words card, for a key typed.
-    pub fn form(self) -> Option<Form> {
-        match self {
-            Start::Words => Some(Form::Words),
-            Start::Shares => Some(Form::Slip39),
-            Start::Codex32 => Some(Form::Codex32),
-            Start::Xor => Some(Form::Xor),
-            _ => None,
-        }
-    }
-
-    /// The choice that types `form`.
-    pub fn typing(form: Form) -> Start {
-        match form {
-            Form::Words => Start::Words,
-            Form::Slip39 => Start::Shares,
-            Form::Codex32 => Start::Codex32,
-            Form::Xor => Start::Xor,
-        }
-    }
-
-    /// Whether a threshold wallet's slot offers it: its shares are 24
-    /// BIP-39 words, made here or typed.
-    pub fn for_threshold(self) -> bool {
-        matches!(self, Start::Make | Start::Words)
-    }
-}
+mod start;
+pub use start::{STARTS, Start};
 
 /// A new key being made. See the module documentation.
 pub struct KeyGen {
@@ -521,11 +440,17 @@ impl KeyGen {
     /// The Start card's choices this flow offers: a threshold wallet's
     /// slot only Make a new key and Type the words (§15.3).
     pub fn starts(&self) -> Vec<Start> {
+        self.starts_with(crate::codex32::MAKE_OFFERED)
+    }
+
+    /// [`KeyGen::starts`] with making codex32 shares switched on or off
+    /// (`crate::codex32::MAKE_OFFERED`).
+    pub fn starts_with(&self, make_codex32: bool) -> Vec<Start> {
         STARTS
             .iter()
             .copied()
             .filter(|s| !self.only_24 || s.for_threshold())
-            .filter(|s| *s != Start::MakeCodex32 || self.codex32_offered)
+            .filter(|s| *s != Start::MakeCodex32 || (make_codex32 && self.codex32_offered))
             .collect()
     }
 
@@ -1212,6 +1137,27 @@ impl KeyGen {
         Some(s)
     }
 
+    /// The Randomness card's way on: Enter opens once a source is chosen
+    /// (a mix, once it has two), else the card says what is missing.
+    fn source_next(&mut self) {
+        let ok = match self.source {
+            Some(Source::Mix) => self.mix_enough(),
+            Some(_) => true,
+            None => false,
+        };
+        if ok {
+            self.done[usize::from(kstep::SOURCE)] = true;
+            self.open = Some(kstep::ENTER);
+            self.scroll.follow = true;
+        } else {
+            self.note = Some(if self.source.is_some() {
+                EN.keygen_choose_two_sources.to_string()
+            } else {
+                EN.keygen_choose_a_source.to_string()
+            });
+        }
+    }
+
     /// Whether a mix has the two sources it needs.
     pub fn mix_enough(&self) -> bool {
         self.mix.iter().filter(|on| **on).count() >= MIN_MIX
@@ -1364,15 +1310,6 @@ impl KeyGenArea {
             k.scroll.follow = true;
         };
         match action {
-            A::KStart(i) => {
-                if let Some(&s) = STARTS.get(usize::from(i))
-                    && k.open == Some(kstep::START)
-                    && k.starts().contains(&s)
-                {
-                    k.start = s;
-                    k.note = None;
-                }
-            }
             A::KOthers => k.others_open = !k.others_open,
             A::KPassField(f) => {
                 if k.open == Some(kstep::KEY) && k.asks_passphrase() && f < 2 {
@@ -1389,6 +1326,11 @@ impl KeyGenArea {
                     .take_while(|&&i| i != s)
                     .all(|&i| k.done[usize::from(i)])
                     && steps.contains(&s);
+                // The cards of codex32 are opened by its own presses;
+                // Start's and a closing are leaving it (§6.4.6).
+                if let Some(m) = k.codex32.as_mut() {
+                    m.mask();
+                }
                 if k.open == Some(s) {
                     k.open = None;
                 } else if reachable {
@@ -1427,6 +1369,14 @@ impl KeyGenArea {
             A::KWay(i) => {
                 if let Some(&w) = WAYS.get(usize::from(i)) {
                     k.choose(w);
+                    // A single choice moves on; a mix opens its sources
+                    // to tick and keeps its Continue (F103).
+                    if k.open == Some(kstep::SOURCE)
+                        && k.source == Some(w.source())
+                        && w != Way::Mix
+                    {
+                        k.source_next();
+                    }
                 }
             }
             A::KGroup(i) => {
@@ -1441,23 +1391,7 @@ impl KeyGenArea {
                 }
             }
             A::KNext => match k.open {
-                Some(kstep::SOURCE) => {
-                    let ok = match k.source {
-                        Some(Source::Mix) => k.mix_enough(),
-                        Some(_) => true,
-                        None => false,
-                    };
-                    if ok {
-                        k.done[usize::from(kstep::SOURCE)] = true;
-                        open(k, kstep::ENTER);
-                    } else {
-                        k.note = Some(if k.source.is_some() {
-                            EN.keygen_choose_two_sources.to_string()
-                        } else {
-                            EN.keygen_choose_a_source.to_string()
-                        });
-                    }
-                }
+                Some(kstep::SOURCE) => k.source_next(),
                 Some(kstep::ENTER) => {
                     if k.slip39 && draw.is_none() {
                         k.note = Some(EN.keygen_no_randomness.to_string());
@@ -1641,14 +1575,12 @@ impl crate::Faraday {
         // Add a key's own state waits in the flow, which types into the
         // app's; it comes back when the flow ends.
         k.entry_kept = self.entry.take();
-        // Add a key's Make a new key chose already: Start is closed on it
-        // and Length is open, as before Start was (`docs/history/NEW-WALLET.md`
-        // §15.3).
-        if back == Screen::Entry {
-            k.done[usize::from(kstep::START)] = true;
-            k.started = Some(Start::Make);
-            k.open = Some(kstep::LENGTH);
-        }
+        // Start opens closed on its default, Make a new key: Length is
+        // open, and Change on Start reopens it (F103, `docs/FLOWS.md`,
+        // New key).
+        k.done[usize::from(kstep::START)] = true;
+        k.started = Some(Start::Make);
+        k.open = Some(kstep::LENGTH);
         self.keygen.state = Some(k);
         self.screen = Screen::KeyGen;
     }
@@ -1668,6 +1600,7 @@ impl crate::Faraday {
     /// than the one the later cards were opened for starts them over.
     fn keygen_start_next(&mut self) {
         let compact = self.compact;
+        let online = self.online;
         let Some(k) = self.keygen.state.as_mut() else {
             return;
         };
@@ -1689,7 +1622,11 @@ impl crate::Faraday {
                 k.set_slip39(start == Start::MakeShares);
             }
             k.codex32 = (start == Start::MakeCodex32).then(|| {
-                crate::codex32::Codex32Make::new(crate::codex32::taken(&k.entry_kept.parts.codex32))
+                let m = crate::codex32::Codex32Make::new(crate::codex32::taken(
+                    &k.entry_kept.parts.codex32,
+                ));
+                // Faraday Desktop never masks the sheets (§6.4.6).
+                if online { m.desktop() } else { m }
             });
             // What was typed for another choice goes.
             let mut e = crate::EntryState::default();
@@ -1849,6 +1786,22 @@ impl crate::Faraday {
             return;
         }
         if action == A::KNext && k.open == Some(kstep::START) {
+            self.keygen_start_next();
+            return;
+        }
+        // A choice on Start moves on, and so does a press on the one
+        // already chosen (F103).
+        if let A::KStart(i) = action {
+            let Some(&s) = STARTS.get(usize::from(i)) else {
+                return;
+            };
+            if k.open != Some(kstep::START) || !k.starts().contains(&s) {
+                return;
+            }
+            if let Some(k) = self.keygen.state.as_mut() {
+                k.start = s;
+                k.note = None;
+            }
             self.keygen_start_next();
             return;
         }
@@ -2045,6 +1998,8 @@ impl crate::Faraday {
         }
         self.keygen_fill(slot, fp, true);
         self.refresh_spend();
+        // Lock in moves on by itself (F103).
+        self.keygen_continue();
     }
 
     /// A key locked in for Create slot `slot`, if any, fills it; on a
@@ -2168,9 +2123,11 @@ impl crate::Faraday {
         }
         self.keygen_fill(slot, fp, false);
         self.refresh_spend();
+        // Lock in moves on by itself (F103).
+        self.keygen_continue();
     }
 
-    /// The Key card's Continue, once locked in: back to Create for a
+    /// Where Lock in goes on to: back to Create for a
     /// slot, else on to Words (`docs/history/NEW-WALLET.md` §3.4).
     fn keygen_continue(&mut self) {
         let Some(k) = self.keygen.state.as_mut() else {
@@ -2294,6 +2251,7 @@ impl crate::Faraday {
         let fresh = (press == C32::Suggest)
             .then(|| self.fresh(b"codex32 identifier"))
             .flatten();
+        let compact = self.compact;
         let Some(k) = self.keygen.state.as_mut() else {
             return;
         };
@@ -2305,6 +2263,13 @@ impl crate::Faraday {
             let before = m.open();
             m.act(&c, press, fresh);
             k.scroll.follow |= m.open() != before;
+            // On a small panel the entry stays scrolled to its foot at every
+            // press, so the worksheet tabs, the panel and the pad are all in view
+            // (`docs/CODEX32.md` §6.4.7).
+            if compact && m.open() == Some(Card::Enter) {
+                k.scroll.follow = false;
+                k.scroll.y = faraday_draw::tokens::CODEX32_ENTER_SCROLL;
+            }
         }
     }
 
@@ -2366,6 +2331,11 @@ impl crate::Faraday {
         }
         self.keygen_fill(slot, fp, true);
         self.refresh_spend();
+        // A Create slot goes back to Create at once; on its own the
+        // flow ends on Done (F103).
+        if slot.is_some() {
+            self.keygen_done();
+        }
     }
 
     /// Keys typed while the flow is on screen. Returns whether it took

@@ -70,12 +70,16 @@ fn opened(app: &mut Faraday) {
     let _ = app.frame();
     app.press(Action::KeyGen(None));
     let _ = app.frame();
+    // Start opens closed on Make a new key; Change opens it.
+    assert_eq!(app.keygen().unwrap().open, Some(kstep::LENGTH));
+    app.press(Action::KStep(kstep::START));
+    let _ = app.frame();
     assert!(
         app.offers(Action::KStart(Start::MakeCodex32.index())),
         "New key offers Codex32 under Make a new key"
     );
+    // The choice moves on by itself.
     app.press(Action::KStart(Start::MakeCodex32.index()));
-    app.press(Action::KNext);
     let k = app.keygen().unwrap();
     assert_eq!(k.open, Some(kstep::CODEX32));
     assert_eq!(k.codex32.as_ref().unwrap().open(), Some(Card::Scheme));
@@ -312,6 +316,7 @@ fn a_multisig_slot_offers_no_codex32_to_make() {
     app.press(Action::CNext(faraday_core::cstep::KIND));
     app.press(Action::CNext(faraday_core::cstep::QUORUM));
     app.press(Action::KeyGen(Some(0)));
+    app.press(Action::KStep(kstep::START));
     let _ = app.frame();
     assert!(app.offers(Action::KStart(Start::Make.index())));
     assert!(!app.offers(Action::KStart(Start::MakeCodex32.index())));
@@ -378,4 +383,133 @@ fn every_card_draws_at_each_size_class() {
                 .is_some()
         );
     }
+}
+
+/// One rolled character 'z' in the entry, on a device.
+fn rolled_z(width: u16, height: u16, dpi: u16) -> Faraday {
+    let mut app = on(width, height, dpi);
+    opened(&mut app);
+    to_entry(&mut app, Way::Dice);
+    for f in faces(b'z') {
+        key(&mut app, char::from(b'0' + f));
+    }
+    let _ = app.frame();
+    app
+}
+
+fn masked(app: &Faraday) -> bool {
+    app.keygen().unwrap().codex32.as_ref().unwrap().masked()
+}
+
+#[test]
+fn the_sheets_are_shown_while_the_flow_is_open_and_the_eye_masks_them() {
+    let mut app = rolled_z(1366, 768, 160);
+    assert!(!masked(&app), "unmasked while the flow is open");
+    assert!(app.offers(Action::Codex32(C32::Eye)), "the eye is offered");
+    assert!(app.drawn_texts().iter().any(|t| t == "z"), "the character");
+    c32(&mut app, C32::Eye);
+    let texts = app.drawn_texts();
+    assert!(masked(&app));
+    assert!(!texts.iter().any(|t| t == "z"), "no character while masked");
+    assert!(texts.iter().any(|t| t == "\u{2022}"), "dots stand for them");
+    c32(&mut app, C32::Eye);
+    assert!(!masked(&app));
+    assert!(app.drawn_texts().iter().any(|t| t == "z"));
+}
+
+#[test]
+fn going_back_past_the_entry_masks_the_sheets_until_the_eye_shows_them() {
+    let mut app = rolled_z(1366, 768, 160);
+    c32(&mut app, C32::Card(Card::Entropy.index()));
+    assert!(masked(&app), "back past the first entry card");
+    c32(&mut app, C32::Card(Card::Enter.index()));
+    let texts = app.drawn_texts();
+    assert!(
+        !texts.iter().any(|t| t == "z"),
+        "still masked when reopened"
+    );
+    c32(&mut app, C32::Eye);
+    assert!(app.drawn_texts().iter().any(|t| t == "z"));
+}
+
+#[test]
+fn leaving_new_key_forgets_the_sheets() {
+    let mut app = rolled_z(1366, 768, 160);
+    app.press(Action::Nav(Screen::Home));
+    assert!(app.keygen().is_none(), "nothing is kept to show again");
+}
+
+#[test]
+fn faraday_desktop_never_masks_and_has_no_eye() {
+    let mut app = on(1366, 768, 160);
+    app.online = true;
+    opened(&mut app);
+    to_entry(&mut app, Way::Dice);
+    for f in faces(b'z') {
+        key(&mut app, char::from(b'0' + f));
+    }
+    let _ = app.frame();
+    assert!(!app.offers(Action::Codex32(C32::Eye)));
+    c32(&mut app, C32::Card(Card::Entropy.index()));
+    c32(&mut app, C32::Card(Card::Enter.index()));
+    assert!(!masked(&app));
+    assert!(app.drawn_texts().iter().any(|t| t == "z"));
+}
+
+#[test]
+fn the_pi_panel_shows_the_context_above_the_pad_and_the_cell_has_its_own_page() {
+    let mut app = rolled_z(480, 640, 286);
+    let boxes = app.drawn_text_boxes();
+    let find = |name: &str| {
+        boxes
+            .iter()
+            .find(|(t, _)| t == name)
+            .map(|(_, r)| *r)
+            .unwrap_or_else(|| panic!("{name} is drawn"))
+    };
+    let die = find("Die 5");
+    let (_, key_y, _, _) = app
+        .hit_box(Action::Codex32(C32::Key(OskPress::Char('4'))))
+        .expect("the pad is drawn");
+    assert!(
+        die.1 + die.3 <= i32::from(key_y),
+        "the dice rows end above the pad, not under it"
+    );
+    assert!(die.1 + die.3 <= 640, "and within the panel");
+    // A checksum cell opens its working as a page: Back closes it.
+    c32(&mut app, C32::Panel(1));
+    let _ = app.frame();
+    c32(
+        &mut app,
+        C32::Cell(faraday_core::codex32::Cell::Given { sheet: 0, b: 10 }),
+    );
+    let _ = app.frame();
+    assert!(app.offers(Action::Codex32(C32::CellClose)), "its own Back");
+    assert!(app.offers(Action::Codex32(C32::CellStep(1))));
+    c32(&mut app, C32::CellStep(1));
+    c32(&mut app, C32::CellClose);
+    assert!(
+        app.keygen()
+            .unwrap()
+            .codex32
+            .as_ref()
+            .unwrap()
+            .cell()
+            .is_none()
+    );
+}
+
+#[test]
+fn start_offers_making_codex32_only_while_it_is_switched_on() {
+    use faraday_core::keygen::KeyGen;
+    let k = KeyGen::new(None, Screen::Entry, false);
+    assert!(k.starts_with(true).contains(&Start::MakeCodex32));
+    let off = k.starts_with(false);
+    assert!(!off.contains(&Start::MakeCodex32), "not offered when off");
+    assert!(off.contains(&Start::Codex32), "typing codex32 stays");
+    assert!(off.contains(&Start::Make) && off.contains(&Start::Words));
+    assert_eq!(
+        k.starts(),
+        k.starts_with(faraday_core::codex32::MAKE_OFFERED)
+    );
 }

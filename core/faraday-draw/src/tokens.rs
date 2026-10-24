@@ -873,15 +873,15 @@ pub const fn codex32_char(class: WindowClass) -> f32 {
 /// The gap between two boxes side by side in a group of four.
 pub const CODEX32_BOX_GAP: f32 = 2.0;
 /// The gap between two groups of four boxes.
-pub const CODEX32_GROUP_GAP: f32 = 6.0;
+pub const CODEX32_GROUP_GAP: f32 = 8.0;
 /// The air between two rows of the staircase.
-pub const CODEX32_ROW_GAP: f32 = 3.0;
+pub const CODEX32_ROW_GAP: f32 = 4.0;
 /// A box number's size, above its box.
-pub const CODEX32_NUMBER: f32 = 8.0;
+pub const CODEX32_NUMBER: f32 = 11.0;
 /// The room the box numbers take above a row.
-pub const CODEX32_NUMBER_ROW: f32 = 11.0;
+pub const CODEX32_NUMBER_ROW: f32 = 16.0;
 /// A box's corners.
-pub const CODEX32_RADIUS: f32 = 3.0;
+pub const CODEX32_RADIUS: f32 = 4.0;
 /// The heavier outline of a given box (the person's data, the header)
 /// and the bolded checksum squares.
 pub const CODEX32_GIVEN_STROKE: f32 = 1.5;
@@ -896,7 +896,7 @@ pub const CODEX32_PANEL_GAP: f32 = 24.0;
 /// A pad on a die's track: the free space and the values 1 to 6.
 pub const CODEX32_PAD: f32 = 24.0;
 /// One level of the dice sheet's tree.
-pub const CODEX32_TREE_LEVEL: f32 = 14.0;
+pub const CODEX32_TREE_LEVEL: f32 = 16.0;
 /// A node of the tree.
 pub const CODEX32_TREE_NODE: f32 = 2.0;
 /// The tree's path, in the accent.
@@ -904,7 +904,7 @@ pub const CODEX32_PATH_STROKE: f32 = 2.0;
 /// Columns shown either side of the front on `small`'s checksum panel.
 pub const CODEX32_BAND_SIDE: usize = 2;
 /// A worksheet tab's height (`docs/CODEX32.md` §6.5).
-pub const CODEX32_TAB: f32 = 32.0;
+pub const CODEX32_TAB: f32 = 48.0;
 /// The most rows of a worksheet the entry shows round its front column.
 pub const CODEX32_BAND_ROWS: usize = 16;
 
@@ -980,3 +980,37 @@ pub const C32_CHIP: f32 = 32.0;
 
 /// The check mark on a chosen filter chip (Material 3's 18 dp).
 pub const C32_CHECK: f32 = 18.0;
+
+/// How far the entry's page is scrolled at every press on a small panel, past
+/// its header, so the panel and the pad are in view together (the tabs a
+/// scroll up away).
+pub const CODEX32_ENTER_SCROLL: f32 = 140.0;
+/// The eye of the app bar: its side on the small panel's bar and on the
+/// wide page's top-right row, the gap to the button beside it, how far
+/// its press area reaches round it, its corner, its glyph, and the top of
+/// the wide row's.
+pub const EYE_SIDE: f32 = 34.0;
+/// The eye's side on the wide page.
+pub const EYE_WIDE_SIDE: f32 = 28.0;
+/// The gap to the eye's neighbour on the bar.
+pub const EYE_GAP: f32 = 6.0;
+/// The gap to the eye's neighbour on the wide row.
+pub const EYE_WIDE_GAP: f32 = 8.0;
+/// How far the eye's press area reaches round it.
+pub const EYE_HIT: f32 = 6.0;
+/// The eye's corner.
+pub const EYE_RADIUS: f32 = 8.0;
+/// The eye's glyph.
+pub const EYE_GLYPH: f32 = 14.0;
+/// The top of the wide row's eye.
+pub const EYE_WIDE_TOP: f32 = 12.0;
+/// The room a wide row's keyboard button takes, which the eye stands left of.
+pub const EYE_KEYBOARD_ROOM: f32 = 36.0;
+/// The check glyph in a seen worksheet tab.
+pub const CODEX32_TAB_GLYPH: f32 = 12.0;
+/// The icon's room at the head of the cell sheet.
+pub const CODEX32_SHEET_ICON: f32 = 28.0;
+/// The check icon in a seen worksheet tab.
+pub const CODEX32_TAB_ICON: f32 = 20.0;
+/// A tab's active indicator, Material's 3 dp.
+pub const CODEX32_INDICATOR: f32 = 3.0;

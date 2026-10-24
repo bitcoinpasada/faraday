@@ -71,7 +71,6 @@ pub(crate) fn dice_key(t: &mut Tour, slot: u8) -> Result<(), String> {
     t.press(Action::Cancel);
     t.press(Action::KLock);
     t.shot("keygen-slot-key-locked")?;
-    t.press(Action::KNext);
     Ok(())
 }
 
@@ -171,8 +170,8 @@ pub(crate) fn rolled_words(t: &mut Tour) -> Result<(), String> {
     // card already.
     t.shot("keygen-key-own")?;
     t.press(Action::KLock);
+    // Lock in went on to Words by itself.
     t.shot("keygen-key-own-locked")?;
-    t.press(Action::KNext);
     t.shot("keygen-words")?;
     t.press(Action::KShow);
     t.shot("keygen-words-shown")?;

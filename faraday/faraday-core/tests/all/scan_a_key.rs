@@ -310,9 +310,9 @@ fn add_a_key_offers_scan_a_seedqr_on_start() {
     use faraday_core::keygen::Start;
     let (mut app, _) = on_savings();
     app.press(Action::KeyGen(None));
+    app.press(Action::KStep(faraday_core::keygen::kstep::START));
     let _ = app.frame();
     assert!(app.offers(Action::KStart(Start::Scan.index())));
     app.press(Action::KStart(Start::Scan.index()));
-    app.press(Action::KNext);
     assert_eq!(app.sheet, Some(faraday_core::Sheet::Scan));
 }

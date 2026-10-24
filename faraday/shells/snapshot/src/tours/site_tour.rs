@@ -143,7 +143,6 @@ fn keygen(t: &mut Tour) -> Result<(), String> {
     t.press(Action::KNext);
     t.press(Action::KLock);
     t.shot("keygen-key-open")?;
-    t.press(Action::KNext);
     t.press(Action::KShow);
     t.shot("keygen-words-open")?;
     t.press(Action::KShow);

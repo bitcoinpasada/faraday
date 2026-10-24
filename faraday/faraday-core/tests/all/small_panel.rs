@@ -131,14 +131,12 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::CVaults(false));
     tap(&mut app, Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
-    // New key opens on Start, Make a new key ticked; its Continue opens
-    // Length, whose Continue (12 words, the default) opens Randomness
-    // (`docs/history/NEW-WALLET.md` §15.3).
-    tap(&mut app, Action::KNext);
+    // New key opens with Start closed on Make a new key and Length open;
+    // pressing a count takes it and opens Randomness (F103).
     assert_eq!(
         app.keygen().and_then(|k| k.open),
         Some(faraday_core::keygen::kstep::LENGTH),
-        "Start's Continue opens Length"
+        "Start is closed on its default"
     );
     tap(&mut app, Action::KWords(12));
     assert_eq!(
@@ -149,17 +147,15 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     // Dice hashed into the words: its group opened first.
     tap(&mut app, Action::KGroup(Group::Computed as u8));
     tap(&mut app, Action::KWay(Way::DiceHashed.index()));
-    tap(&mut app, Action::KNext);
     // The panel starts on the dice's buttons: no keyboard needed.
     for i in 0..99u8 {
         tap(&mut app, Action::KRoll(i % 6 + 1));
     }
     // The entry card's Continue opens Key; Lock in adds the key and,
-    // a single key being the whole wallet, makes it; Continue returns to
-    // Create on Back up (`docs/history/NEW-WALLET.md` §3.3, §3.4).
+    // a single key being the whole wallet, makes it, and returns to
+    // Create on Back up by itself (F103).
     tap(&mut app, Action::KNext);
     tap(&mut app, Action::KLock);
-    tap(&mut app, Action::KNext);
     assert_eq!(app.screen, Screen::Create, "the key fills its slot");
     assert_eq!(
         app.create().and_then(|c| c.open),

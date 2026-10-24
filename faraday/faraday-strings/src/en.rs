@@ -9191,6 +9191,10 @@ strings! {
     codex32_box_rolled: "Box {} · {} · {} → {}",
     /// A typed character in the dice review. `{}`: the box, the character.
     codex32_box_typed: "Box {} · typed · {}",
+    /// A die's two values while the sheets are masked.
+    codex32_die_masked: "• then •",
+    /// A character in the dice review while the sheets are masked. `{}`: the box, the mask.
+    codex32_box_masked: "Box {} · {}",
     /// The Strings card's toggle: the string.
     codex32_string: "String",
     /// The Strings card's toggle: the Codex32QR code.
