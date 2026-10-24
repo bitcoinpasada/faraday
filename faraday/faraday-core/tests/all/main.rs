@@ -51,6 +51,7 @@ mod family;
 mod file_menu;
 mod files_scroll;
 mod finish;
+mod flow_top_row;
 mod forms;
 mod glance;
 mod gpg;

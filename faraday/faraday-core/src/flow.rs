@@ -127,6 +127,8 @@ pub fn column_foot(
     ui.c.push_clip(clip);
     let top = 28.0 - scroll.y;
     let mut y = top;
+    // Beside the sidebar the column scrolls under the top-right row of
+    // the mode and the ?: it ends left of it.
     let (x, w) = (col.x, col.w);
     if let Some((label, action)) = col.back {
         ui.icon(x - 4.0, y, 16.0, Icon::ChevronLeft, 10.0, MUTED);

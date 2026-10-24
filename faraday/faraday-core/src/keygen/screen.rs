@@ -77,13 +77,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         area_x: x0,
         area_w: cw,
         x: cx,
-        // Beside the sidebar the column scrolls under the top-right row
-        // of the mode and the ?: it ends left of it.
-        w: if app.is_compact() {
-            cw_max
-        } else {
-            cw_max.min(crate::screens::top_row_left(app, ui, x0, cw) - cx)
-        },
+        w: cw_max,
         h,
         back: Some(app.named_back((back_label, Action::Nav(k.back)))),
         // Add a key wherever the flow opens on Start; New key for a Create

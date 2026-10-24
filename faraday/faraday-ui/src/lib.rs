@@ -609,6 +609,10 @@ pub struct Ui<'a, A> {
     pub frost: Option<Vec<u8>>,
     /// Where the Guided switch's pill is: 0 on Steps only, 1 on Guided.
     pub guided_shown: f32,
+    /// On the wide layout, where the top-right row (the mode pill and the
+    /// ?) begins, in the page's x; a flow's column ends left of it.
+    /// Infinite where there is no such row.
+    pub top_row_left: f32,
     /// On a small panel, which walk-through is shown on this screen: a
     /// step's place, or the app's own number for its About.
     pub about_open: Option<u8>,
@@ -741,6 +745,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             offset: 0.0,
             frost: None,
             guided_shown: 1.0,
+            top_row_left: f32::INFINITY,
             about_open: None,
             pinning: false,
             pin: None,

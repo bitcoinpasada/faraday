@@ -132,8 +132,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         let strip = crate::stick::pills::strip_h(app, ui, full_w);
         let drop = crate::stick::pills::page_drop(strip);
         ui.oy = drop - lift;
+        ui.top_row_left = top_row_left(app, ui, x, cw);
         dispatch(app, ui, x, cw, if kb > 0.0 { win_h } else { h } - drop);
         ui.oy = 0.0;
+        ui.top_row_left = f32::INFINITY;
         // The stick pills' strip, over whatever scrolls under it; the
         // pills themselves are drawn last, over any sheet.
         if strip > 0.0 {
