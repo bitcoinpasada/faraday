@@ -273,8 +273,16 @@ pub(crate) fn stepper(
     } else {
         Style::Disabled
     };
-    let bx = if ui.compact { x + w - 124.0 } else { x + 180.0 };
-    ui.text_mid(x, y, 40.0, 13.0, W::R, MUTED, label);
+    // A label longer than the buttons' usual column pushes them right,
+    // so they never cover it.
+    let size = 13.0;
+    let label_end = ui.measure(size, W::R, label) + tokens::GAP;
+    let bx = if ui.compact {
+        x + w - 124.0
+    } else {
+        x + label_end.max(180.0)
+    };
+    ui.text_mid(x, y, 40.0, size, W::R, MUTED, label);
     ui.button(bx, y, Some(40.0), 40.0, "-", style, minus);
     let v = value.to_string();
     let vw = ui.measure(18.0, W::S, &v);

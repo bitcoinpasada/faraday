@@ -551,3 +551,72 @@ fn a_plan_with_strings_reads_back_from_its_text() {
     let c = testkit::compute();
     assert_eq!(plan::map(&c, &shape, &back), plan::map(&c, &shape, &a));
 }
+
+/// The window at `width` × `height`, as a display reports it.
+fn sized(app: &mut Faraday, width: u16, height: u16) {
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi: 160,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+}
+
+/// The checklist's "How many strings of name are there?" can be read
+/// whole: neither its − nor its + button is pressed on any of it, on a
+/// laptop's window and on a small one.
+#[test]
+fn how_many_strings_is_clear_of_its_minus_and_plus_buttons() {
+    let label = "How many strings of name are there?";
+    for (w, h) in [(1280, 800), (480, 640)] {
+        let mut app = with_set();
+        sized(&mut app, w, h);
+        checklist_at_codex32(&mut app);
+        let minus = Action::BC32(Press::Exist(-1));
+        let plus = Action::BC32(Press::Exist(1));
+        // Scrolled down until the row is on screen.
+        for _ in 0..20 {
+            let _ = app.frame();
+            if app.hit_box(minus).is_some() && app.hit_box(plus).is_some() {
+                break;
+            }
+            app.event(Event::Scroll {
+                x: w / 2,
+                y: h / 2,
+                dy: 120,
+            });
+        }
+        let _ = app.frame();
+        let boxes = app.drawn_text_boxes();
+        let text = boxes
+            .iter()
+            .find(|(t, _)| t == label)
+            .map(|(_, b)| *b)
+            .unwrap_or_else(|| panic!("{label} not drawn at {w}x{h}: {boxes:?}"));
+        for a in [minus, plus] {
+            let b = app
+                .hit_box(a)
+                .unwrap_or_else(|| panic!("{a:?} not drawn at {w}x{h}"));
+            let b = (
+                i32::from(b.0),
+                i32::from(b.1),
+                i32::from(b.2),
+                i32::from(b.3),
+            );
+            let apart = text.0 + text.2 <= b.0
+                || b.0 + b.2 <= text.0
+                || text.1 + text.3 <= b.1
+                || b.1 + b.3 <= text.1;
+            assert!(
+                apart,
+                "at {w}x{h} the label {text:?} is under {a:?} at {b:?}"
+            );
+        }
+    }
+}
