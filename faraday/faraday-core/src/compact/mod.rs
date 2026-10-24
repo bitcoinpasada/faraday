@@ -102,7 +102,7 @@ pub(crate) fn bar(app: &View, ui: &mut Ui, w: f32, back: (&str, Action), name: &
         13.0,
         Role::OnSurface,
     );
-    ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, action);
+    ui.hit_tip((0.0, 0.0, BAR_H + 8.0, BAR_H), action, EN.tip_back);
     ui.back(action);
     let right = tools(app, ui, w);
     // The page's own name, and above it, small, where Back goes.
@@ -154,7 +154,7 @@ fn osk_toggle(app: &View, ui: &mut Ui, draw: bool, right: f32) -> f32 {
         }
         let ink = crate::ui::pal::on_selected(shown, Role::OnSurfaceVariant);
         ui.icon(kx, ky, 34.0, Icon::Keyboard, 14.0, ink);
-        ui.hit(kx - 4.0, 0.0, 42.0, BAR_H, action);
+        ui.hit_tip((kx - 4.0, 0.0, 42.0, BAR_H), action, EN.tip_keyboard);
     }
     kx - 6.0
 }
@@ -200,13 +200,8 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
         right = kx - edge;
         if draw {
             eye_icon(ui, kx, ky, masked);
-            ui.hit(
-                kx - edge,
-                0.0,
-                TOUCH,
-                BAR_H,
-                Action::Codex32(crate::codex32::C32::Eye),
-            );
+            let eye = Action::Codex32(crate::codex32::C32::Eye);
+            eye_hit(ui, (kx - edge, 0.0, TOUCH, BAR_H), eye, !masked);
         }
     }
     // Cancel, on a flow that can be in progress: it leaves the flow
@@ -292,13 +287,14 @@ pub(crate) fn wide_eye_button(app: &View, ui: &mut Ui, right: f32) {
     let x = right - EYE_WIDE_INSET - ICON_BUTTON;
     let y = TOUCH + edge;
     eye_icon(ui, x, y, masked);
-    ui.hit(
-        x - edge,
-        y - edge,
-        TOUCH,
-        TOUCH,
-        Action::Codex32(crate::codex32::C32::Eye),
-    );
+    let eye = Action::Codex32(crate::codex32::C32::Eye);
+    eye_hit(ui, (x - edge, y - edge, TOUCH, TOUCH), eye, !masked);
+}
+
+/// An eye's press target at `rect`, with the tooltip that names what a
+/// press does: it hides what `shown` shows, and shows what is hidden.
+pub(crate) fn eye_hit(ui: &mut Ui, rect: (f32, f32, f32, f32), action: Action, shown: bool) {
+    ui.hit_tip(rect, action, if shown { EN.tip_hide } else { EN.tip_show });
 }
 
 /// The wide layout's keyboard button, in the top-right row its right
@@ -340,7 +336,11 @@ pub(crate) fn wide_keyboard_button(app: &View, ui: &mut Ui, right: f32) {
         13.0,
         crate::ui::pal::on_selected(shown, Role::OnSurfaceVariant),
     );
-    ui.hit(x - 6.0, y - 6.0, s + 12.0, s + 12.0, action);
+    ui.hit_tip(
+        (x - 6.0, y - 6.0, s + 12.0, s + 12.0),
+        action,
+        EN.tip_keyboard,
+    );
 }
 
 /// The ? that opens what explains the page.
@@ -358,7 +358,7 @@ fn help(ui: &mut Ui, x: f32, y: f32) {
         Role::OnSurfaceVariant,
         "?",
     );
-    ui.hit(x - 6.0, y - 6.0, 42.0, 42.0, Action::Learn);
+    ui.hit_tip((x - 6.0, y - 6.0, 42.0, 42.0), Action::Learn, EN.tip_learn);
 }
 
 /// A page that is not one of the step flows: its bar, then the page
@@ -787,7 +787,7 @@ fn lock_row(app: &View, ui: &mut Ui, y: f32, inner: f32, gap: f32) -> f32 {
     }
     ui.stroke(px, y, pw, 44.0, 10.0, Role::OutlineVariant);
     ui.icon(px, y, pw, Icon::Power, 15.0, Role::OnSurfaceVariant);
-    ui.hit(px, y, pw, 44.0, Action::PowerAsk);
+    ui.hit_tip((px, y, pw, 44.0), Action::PowerAsk, EN.tip_power_off);
     44.0 + 16.0
 }
 

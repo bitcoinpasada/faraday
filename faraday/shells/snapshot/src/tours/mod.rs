@@ -43,6 +43,7 @@ pub(crate) mod site_tour;
 pub(crate) mod spend;
 pub(crate) mod standard;
 pub(crate) mod themes;
+pub(crate) mod tooltips;
 pub(crate) mod transfer;
 pub(crate) mod upgrade;
 pub(crate) mod vault_show;

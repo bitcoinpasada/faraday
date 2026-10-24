@@ -470,7 +470,7 @@ pub(super) fn sidebar(app: &View, ui: &mut Ui, h: f32) {
         14.0,
         Role::OnSurfaceVariant,
     );
-    ui.hit(px, fy, 36.0, 36.0, Action::PowerAsk);
+    ui.hit_tip((px, fy, 36.0, 36.0), Action::PowerAsk, EN.tip_power_off);
     if held {
         lock_held_pill(ui, 16.0, fy + 44.0, SIDEBAR_W - 32.0);
     }

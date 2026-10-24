@@ -124,7 +124,8 @@ fn potential_compact(
                         Role::OnSurfaceVariant
                     },
                 );
-                ui.hit(x + iw - 44.0, cy, 44.0, 44.0, Action::PotentialShow);
+                let at = (x + iw - 44.0, cy, 44.0, 44.0);
+                crate::compact::eye_hit(ui, at, Action::PotentialShow, p.shown);
                 app.pass_chip_draw(
                     ui,
                     (x, cy, iw - T::TEXT_FIELD_SHEET, T::TEXT_FIELD_SHEET),
@@ -326,7 +327,8 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     Role::OnSurfaceVariant
                 },
             );
-            ui.hit(ix + iw - 40.0, cy, 40.0, 40.0, Action::PotentialShow);
+            let at = (ix + iw - 40.0, cy, 40.0, 40.0);
+            crate::compact::eye_hit(ui, at, Action::PotentialShow, p.shown);
             app.pass_chip_draw(
                 ui,
                 (ix, cy, iw - T::TEXT_FIELD_SHEET, T::TEXT_FIELD),

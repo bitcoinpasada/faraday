@@ -226,12 +226,13 @@ fn navigation(ui: &mut Ui<u8>) {
             &AppBar {
                 back: Some(("Wallets", 3)),
                 title: "A wallet",
+                back_tip: "Back",
             },
             400.0,
         );
-        nav::icon_action(ui, 560.0, Icon::Done, 4, true);
-        nav::help(ui, 500.0, 5);
-        nav::more(ui, 440.0, 6);
+        nav::icon_action(ui, 560.0, Icon::Done, 4, true, "Done");
+        nav::help(ui, 500.0, 5, "Learn");
+        nav::more(ui, 440.0, 6, "More");
         nav::status_chip(
             ui,
             (16.0, 100.0, 300.0),

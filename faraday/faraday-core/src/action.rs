@@ -817,4 +817,16 @@ pub enum Action {
     /// A press on the backup checklist's codex32 item
     /// (`docs/CODEX32.md` §9.2, §9.4, §9.7).
     BC32(crate::codex32_backup::Press),
+    /// A mark on a backup board chip that is no button: it only owns the
+    /// plain tooltip that names it, and is never pressed.
+    Mark(crate::board::Chip, MarkTip),
+}
+
+/// Which mark of a backup board chip a tooltip names.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum MarkTip {
+    /// The warning mark.
+    Warning,
+    /// The link mark.
+    Link,
 }

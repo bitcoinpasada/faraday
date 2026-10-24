@@ -787,7 +787,7 @@ use faraday_shell_api::TouchPhase;
 /// opened from the wallet with no plan yet (the board on The standard
 /// way), Customize backup pressed and the board emptied by its ×s: one
 /// place keeping nothing.
-fn three_on_an_empty_board() -> Faraday {
+pub(crate) fn three_on_an_empty_board() -> Faraday {
     let mut app = testkit::started();
     for n in 0..3 {
         key_in(&mut app, n);
@@ -826,7 +826,7 @@ fn touch(app: &mut Faraday, (x, y): (u16, u16), phase: TouchPhase) {
 
 /// Where the frame on screen offers board press `p`, the page scrolled
 /// from its top a step at a time until it does.
-fn on_board(app: &mut Faraday, p: BP) -> (u16, u16) {
+pub(crate) fn on_board(app: &mut Faraday, p: BP) -> (u16, u16) {
     on_screen(app, Action::Board(p))
 }
 

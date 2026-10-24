@@ -168,7 +168,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
                 Role::OnSurfaceVariant,
                 "?",
             );
-            ui.hit(qx - 6.0, qy - 6.0, 40.0, 40.0, Action::Learn);
+            ui.hit_tip(
+                (qx - 6.0, qy - 6.0, 40.0, 40.0),
+                Action::Learn,
+                EN.tip_learn,
+            );
         }
         ui.ox = 0.0;
         ui.oy = 0.0;

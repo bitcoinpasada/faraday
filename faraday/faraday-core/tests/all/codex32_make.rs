@@ -809,3 +809,33 @@ fn the_worksheet_follows_the_front_over_several_frames() {
     type_a(&mut reduced, 12..20);
     assert_eq!(pan(&reduced).y, to);
 }
+
+#[test]
+fn the_eye_names_what_a_press_does_when_the_pointer_rests_on_it() {
+    use faraday_core::strings::EN;
+    let mut app = rolled_z(1366, 768, 160);
+    let count = |app: &mut Faraday, s: &str| app.drawn_texts().iter().filter(|t| *t == s).count();
+    let (x, y) = app.where_offered(Action::Codex32(C32::Eye)).unwrap();
+    let (show, hide) = (count(&mut app, EN.tip_show), count(&mut app, EN.tip_hide));
+    let now = app.now_ms();
+    app.event(Event::Hover { x, y });
+    app.event(Event::Tick { now_ms: now + 600 });
+    assert_eq!(
+        count(&mut app, EN.tip_hide),
+        hide + 1,
+        "while the sheets show, a press hides them"
+    );
+    assert_eq!(count(&mut app, EN.tip_show), show);
+    app.event(Event::HoverEnd);
+    c32(&mut app, C32::Eye);
+    let (x, y) = app.where_offered(Action::Codex32(C32::Eye)).unwrap();
+    let (show, hide) = (count(&mut app, EN.tip_show), count(&mut app, EN.tip_hide));
+    app.event(Event::Hover { x, y });
+    app.event(Event::Tick { now_ms: now + 1200 });
+    assert_eq!(
+        count(&mut app, EN.tip_show),
+        show + 1,
+        "while masked, a press shows them"
+    );
+    assert_eq!(count(&mut app, EN.tip_hide), hide);
+}

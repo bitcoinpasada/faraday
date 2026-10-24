@@ -154,6 +154,7 @@ fn run(
         Some("spend") => return tours::spend::spend_tour(&mut t),
         Some("devices") => return tours::devices::devices_tour(&mut t),
         Some("themes") => return tours::themes::themes_tour(&mut t),
+        Some("tooltips") => return tours::tooltips::tooltips_tour(&mut t),
         Some("compact") => return tours::compact::compact_tour(&mut t),
         Some("seeds") => return tours::seeds::seeds_tour(&mut t),
         Some("keys") => return tours::keys::keys_tour(&mut t),
@@ -276,6 +277,7 @@ fn main() -> ExitCode {
             "spend",
             "devices",
             "themes",
+            "tooltips",
             "compact",
             "seeds",
             "keys",
@@ -329,7 +331,7 @@ fn main() -> ExitCode {
         .contains(&m)
     }) {
         eprintln!(
-            "the tour is spend, devices, themes, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, codex32correct, createfrom, inprogress, cancel, std, parts, guide, roller, randomness, dice5, codex32, codex32form, createshares, codex32backup or tour"
+            "the tour is spend, devices, themes, tooltips, compact, seeds, keys, visit, copy, scan, public, seedfile, vaultway, kept, again, plan, board, menu, m3, inbox, transfer, upgrade, glance, chartedit, fromvault, first, restore, osk, flow, bootplace, passseeds, power, pills, walletflow, demo, modes, vaultshow, addkey, codex32correct, createfrom, inprogress, cancel, std, parts, guide, roller, randomness, dice5, codex32, codex32form, createshares, codex32backup or tour"
         );
         return ExitCode::from(2);
     }

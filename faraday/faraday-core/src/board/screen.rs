@@ -10,6 +10,7 @@ use faraday_draw::tokens;
 use faraday_draw::widgets::Icon;
 
 use crate::Action;
+use crate::action::MarkTip;
 use crate::board::{
     BoardPress, BoardView, CardView, Chip, ChipView, Entry, MenuRow, Thing, Zone, takes,
 };
@@ -95,6 +96,22 @@ fn cross(ui: &mut Ui, cx: f32, cy: f32, color: crate::ui::Paint) {
     );
 }
 
+/// The tooltip naming a chip's warning or link mark whose right edge is
+/// at `right`, on a line `h` tall at `y`: the mark is no button, so its
+/// owner is the mark itself.
+fn mark_tip(ui: &mut Ui, chip: Chip, mark: MarkTip, (right, y, h): (f32, f32, f32)) {
+    let label = match mark {
+        MarkTip::Warning => EN.tip_warning,
+        MarkTip::Link => EN.tip_link,
+    };
+    let owner = Action::Mark(chip, mark);
+    ui.tip_plain(
+        (right - tokens::BOARD_MARK, y, tokens::BOARD_MARK, h),
+        owner,
+        label,
+    );
+}
+
 /// The link mark at (x, cy): two links of a chain, for a vault drawn at
 /// every place that keeps its stick.
 fn link(ui: &mut Ui, x: f32, cy: f32, color: crate::ui::Paint) {
@@ -167,6 +184,9 @@ fn dots(
 ) {
     let mw = menu_w();
     let a = Action::Board(BoardPress::Menu(c));
+    if hits {
+        ui.tip_plain((x, y, mw, h), a, EN.tip_more);
+    }
     if hits && (ui.is_pressed(a) || ui.is_hovered(a)) {
         ui.wash(
             x + 1.0,
@@ -416,17 +436,16 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         );
         if hits && let Chip::Placed(z, t) = cv.chip {
             let side = tokens::BOARD_MARK + 2.0 * tokens::BOARD_PAD;
-            ui.hit(
-                x + w - mw - side,
-                y,
-                side,
-                line_h,
-                Action::Board(BoardPress::Off(z, t)),
-            );
+            let off = Action::Board(BoardPress::Off(z, t));
+            ui.hit(x + w - mw - side, y, side, line_h, off);
+            ui.tip_plain((x + w - mw - side, y, side, line_h), off, EN.tip_remove);
         }
         right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     }
     if cv.warn {
+        if hits {
+            mark_tip(ui, cv.chip, MarkTip::Warning, (right, y, line_h));
+        }
         ui.icon(
             right - tokens::BOARD_MARK,
             y + (line_h - tokens::BOARD_MARK) / 2.0,
@@ -438,6 +457,9 @@ fn chip(ui: &mut Ui, fr: &mut Frame, cv: &ChipView, x: f32, y: f32, fit: Fit, hi
         right -= tokens::BOARD_MARK + tokens::BOARD_CHIP_GAP;
     }
     if cv.link {
+        if hits {
+            mark_tip(ui, cv.chip, MarkTip::Link, (right, y, line_h));
+        }
         link(
             ui,
             right - tokens::BOARD_MARK,
@@ -974,6 +996,7 @@ fn place_head(
         );
         let side = mark + 2.0 * pad;
         ui.hit(x + w - side, y, side, hh, a);
+        ui.tip_plain((x + w - side, y, side, hh), a, EN.tip_remove);
     }
 }
 
@@ -1123,16 +1146,13 @@ fn vault_head(
             Role::OnPrimary.paint(),
         );
         off_w = mark + 2.0 * pad;
-        ui.hit(
-            x + w - mw - off_w,
-            y,
-            off_w,
-            hh,
-            Action::Board(BoardPress::Off(z, t)),
-        );
+        let off = Action::Board(BoardPress::Off(z, t));
+        ui.hit(x + w - mw - off_w, y, off_w, hh, off);
+        ui.tip_plain((x + w - mw - off_w, y, off_w, hh), off, EN.tip_remove);
         right -= mark + tokens::BOARD_CHIP_GAP;
     }
     if vc.warn {
+        mark_tip(ui, vc.chip, MarkTip::Warning, (right, y, hh));
         ui.icon(
             right - mark,
             y + (hh - mark) / 2.0,
@@ -1144,6 +1164,7 @@ fn vault_head(
         right -= mark + tokens::BOARD_CHIP_GAP;
     }
     if vc.link {
+        mark_tip(ui, vc.chip, MarkTip::Link, (right, y, hh));
         link(ui, right - mark, y + hh / 2.0, Role::OnPrimary.paint());
         right -= mark + tokens::BOARD_CHIP_GAP;
     }
@@ -1236,7 +1257,9 @@ fn stick(ui: &mut Ui, fr: &mut Frame, st: &crate::board::StickView, r: Box4, cus
             Role::OnSurfaceVariant.paint(),
         );
         let side = mark + 2.0 * tokens::BOARD_PAD;
-        ui.hit(x + w - side, y, side, hh, Action::Board(st.remove));
+        let remove = Action::Board(st.remove);
+        ui.hit(x + w - side, y, side, hh, remove);
+        ui.tip_plain((x + w - side, y, side, hh), remove, EN.tip_remove);
     }
     let fr_box = (x + sp, y + hh, iw, files_h);
     let vr = (x + sp, y + hh + files_h + sp, iw, vault_h);

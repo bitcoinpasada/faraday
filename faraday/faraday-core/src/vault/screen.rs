@@ -196,7 +196,7 @@ pub(crate) fn secret_box(
         15.0,
         if shown { primary } else { muted },
     );
-    ui.hit(ex, y, 40.0, 40.0, eye);
+    crate::compact::eye_hit(ui, (ex, y, 40.0, 40.0), eye, shown);
 }
 
 /// Several lines of typing. Returns its height.

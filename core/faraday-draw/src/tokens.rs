@@ -1409,9 +1409,6 @@ pub const TIP_DELAY_MS: u64 = 500;
 /// A finger held this long on what a tooltip is about shows it: a long
 /// press, ms.
 pub const TIP_LONG_PRESS_MS: u64 = 500;
-/// How long a plain tooltip a long press showed stays once the finger
-/// lifts, ms (Material's 1.5 seconds).
-pub const TIP_TOUCH_SHOW_MS: u64 = 1500;
 
 /// The scrim over a sheet's frosted page: Material's 32 %.
 pub const SCRIM_ALPHA: u8 = 82;

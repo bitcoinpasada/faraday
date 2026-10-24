@@ -263,9 +263,9 @@ impl Pointer {
         self.tips.press_moved(at, scrolling);
     }
 
-    /// The finger lifted at `now` ms.
-    pub(crate) fn tip_up(&mut self, now: u64) {
-        self.tips.press_up(now);
+    /// The finger lifted.
+    pub(crate) fn tip_up(&mut self) {
+        self.tips.press_up();
     }
 
     /// A key moved the keyboard, at `now` ms: a tooltip of the control

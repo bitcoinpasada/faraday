@@ -164,14 +164,20 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
     // Drawn after the bar itself, which fills under them: measured first.
     let actions = |ui: &mut Ui, right: &mut f32| {
         if nav == Nav::Bar && !hidden {
-            *right = faraday_ui::nav::more(ui, *right, Action::NavMenu(None));
+            *right = faraday_ui::nav::more(ui, *right, Action::NavMenu(None), EN.tip_more);
             if app.holds_secret() {
-                *right =
-                    faraday_ui::nav::icon_action(ui, *right, Icon::Lock, Action::LockAsk, false);
+                *right = faraday_ui::nav::icon_action(
+                    ui,
+                    *right,
+                    Icon::Lock,
+                    Action::LockAsk,
+                    false,
+                    EN.tip_lock,
+                );
             }
         }
         if !app.learn_pages().is_empty() {
-            *right = faraday_ui::nav::help(ui, *right, Action::Learn);
+            *right = faraday_ui::nav::help(ui, *right, Action::Learn, EN.tip_learn);
         }
         if crate::modes::screen::shows_pill(app) {
             let pw = crate::modes::screen::pill_width(app, ui);
@@ -180,7 +186,14 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             *right = px - GAP;
         }
         if let Some((action, shown)) = crate::compact::keyboard_action(app) {
-            *right = faraday_ui::nav::icon_action(ui, *right, Icon::Keyboard, action, shown);
+            *right = faraday_ui::nav::icon_action(
+                ui,
+                *right,
+                Icon::Keyboard,
+                action,
+                shown,
+                EN.tip_keyboard,
+            );
         }
     };
     let ends = crate::compact::screen::measured(ui, |ui| {
@@ -195,6 +208,7 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             &AppBar {
                 back: None,
                 title: "",
+                back_tip: EN.tip_back,
             },
             ends,
         );
@@ -219,6 +233,7 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             &AppBar {
                 back: Some(back),
                 title: name,
+                back_tip: EN.tip_back,
             },
             ends,
         );

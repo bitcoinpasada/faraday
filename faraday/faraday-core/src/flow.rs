@@ -606,7 +606,7 @@ fn paged(
         13.0,
         Role::OnSurface,
     );
-    ui.hit(0.0, 0.0, BAR_H + 8.0, BAR_H, back.1);
+    ui.hit_tip((0.0, 0.0, BAR_H + 8.0, BAR_H), back.1, EN.tip_back);
     ui.back(back.1);
     // The ?, the keyboard and Cancel go over its right end
     // (`compact::flow_bar_tools`).

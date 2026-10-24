@@ -118,7 +118,16 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
     let back = back
         .as_deref()
         .map(|label| (label, StarterAction::Back.host()));
-    fnav::app_bar(ui, aw, &AppBar { back, title: &name }, ends);
+    fnav::app_bar(
+        ui,
+        aw,
+        &AppBar {
+            back,
+            title: &name,
+            back_tip: S.tip_back,
+        },
+        ends,
+    );
     if dest == Some(Destination::Home) {
         // The mark and the name with Starter beside it (F16).
         let (mw, mh) = (ICON_SMALL, ICON_SMALL + GAP_SMALL);
@@ -140,7 +149,7 @@ pub(super) fn top_bar(starter: &Starter, ui: &mut Ui, rail_w: f32, aw: f32) {
         );
     }
     if dest.is_some() {
-        right = fnav::more(ui, right, StarterAction::Menu.host());
+        right = fnav::more(ui, right, StarterAction::Menu.host(), S.tip_more);
         if let (Some((label, action)), Some(bw)) = (install, button_w) {
             ui.button(
                 right - GAP - bw,

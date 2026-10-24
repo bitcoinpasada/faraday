@@ -11,16 +11,16 @@
 //!
 //! When it shows: the pointer resting on the anchor for
 //! [`TIP_DELAY_MS`], or the keyboard on its owner for as long; a finger
-//! held on it for [`TIP_LONG_PRESS_MS`], whose lift then presses nothing.
-//! When it goes: the pointer leaving, the keyboard moving on, Escape, any
-//! press; a plain one a long press showed, [`TIP_TOUCH_SHOW_MS`] after
-//! the finger lifts.
+//! held on it for [`TIP_LONG_PRESS_MS`], whose lift then presses nothing,
+//! for a rich one only: a plain tooltip is for the pointer and the
+//! keyboard, never for a finger (Material). When it goes: the pointer
+//! leaving, the keyboard moving on, Escape, any press.
 
 use faraday_draw::Rect;
 use faraday_draw::tokens::{
     SHAPE_M, SHAPE_XS, TIP_DELAY_MS, TIP_GAP, TIP_LONG_PRESS_MS, TIP_PLAIN_MAX_W, TIP_PLAIN_MIN_H,
     TIP_PLAIN_PAD_X, TIP_PLAIN_PAD_Y, TIP_PLAIN_TEXT, TIP_RICH_LEVEL, TIP_RICH_MAX_W,
-    TIP_RICH_PAD_X, TIP_RICH_PAD_Y, TIP_RICH_TEXT, TIP_TOUCH_SHOW_MS,
+    TIP_RICH_PAD_X, TIP_RICH_PAD_Y, TIP_RICH_TEXT,
 };
 
 use crate::pal::{Paint, Role};
@@ -100,9 +100,6 @@ pub struct Tips<A> {
     coming: Option<(A, TipBy, u64)>,
     /// The tooltip showing, and why.
     shown: Option<(A, TipBy)>,
-    /// When a plain tooltip a long press showed goes, once the finger
-    /// lifted (ms).
-    until: Option<u64>,
 }
 
 impl<A> Default for Tips<A> {
@@ -111,7 +108,6 @@ impl<A> Default for Tips<A> {
             anchors: Vec::new(),
             coming: None,
             shown: None,
-            until: None,
         }
     }
 }
@@ -127,9 +123,9 @@ impl<A: Copy + PartialEq> Tips<A> {
         self.shown.map(|(_, by)| by)
     }
 
-    /// Whether a tooltip is on its way or timed: ticks move it.
+    /// Whether a tooltip is on its way: ticks move it.
     pub fn waiting(&self) -> bool {
-        self.coming.is_some() || self.until.is_some()
+        self.coming.is_some()
     }
 
     /// The anchor under (x, y), the topmost drawn.
@@ -144,7 +140,6 @@ impl<A: Copy + PartialEq> Tips<A> {
 
     /// Hides the tooltip. Returns whether one showed.
     fn hide(&mut self) -> bool {
-        self.until = None;
         self.shown.take().is_some()
     }
 
@@ -223,11 +218,15 @@ impl<A: Copy + PartialEq> Tips<A> {
     }
 
     /// A finger or a button went down at (x, y), at `now` ms: any tooltip
-    /// goes, and one on the anchor there starts its long press. Returns
-    /// whether what shows changed.
+    /// goes, and a rich one on the anchor there starts its long press (a
+    /// plain one never shows to a finger). Returns whether what shows
+    /// changed.
     pub fn press_down(&mut self, (x, y): (i32, i32), now: u64) -> bool {
         let changed = self.hide();
-        self.coming = self.under(x, y).map(|t| (t.owner, TipBy::Touch, now));
+        self.coming = self
+            .under(x, y)
+            .filter(|t| t.kind == TipKind::Rich)
+            .map(|t| (t.owner, TipBy::Touch, now));
         changed
     }
 
@@ -241,20 +240,12 @@ impl<A: Copy + PartialEq> Tips<A> {
         }
     }
 
-    /// The finger lifted at `now` ms: a press too short to be a long
-    /// press is a press; a plain tooltip the long press showed goes
-    /// after [`TIP_TOUCH_SHOW_MS`], a rich one at the next press.
-    pub fn press_up(&mut self, now: u64) {
+    /// The finger lifted: a press too short to be a long press is a
+    /// press. A rich tooltip the long press showed stays until the next
+    /// press.
+    pub fn press_up(&mut self) {
         if self.coming.is_some_and(|(_, by, _)| by == TipBy::Touch) {
             self.coming = None;
-        }
-        if let Some((a, TipBy::Touch)) = self.shown
-            && self
-                .anchors
-                .iter()
-                .any(|t| t.owner == a && t.kind == TipKind::Plain)
-        {
-            self.until = Some(now + TIP_TOUCH_SHOW_MS);
         }
     }
 
@@ -264,7 +255,6 @@ impl<A: Copy + PartialEq> Tips<A> {
     pub fn show(&mut self, owner: A) {
         if self.drawn(owner) {
             self.coming = None;
-            self.until = None;
             self.shown = Some((owner, TipBy::Press));
         }
     }
@@ -275,12 +265,8 @@ impl<A: Copy + PartialEq> Tips<A> {
         self.hide()
     }
 
-    /// Time moved on to `now` ms: a tooltip whose wait is over shows, a
-    /// timed one goes. Returns whether what shows changed.
+    /// Time moved on to `now` ms: a tooltip whose wait is over shows. Returns whether what shows changed.
     pub fn tick(&mut self, now: u64) -> bool {
-        if self.until.is_some_and(|t| now >= t) {
-            return self.hide();
-        }
         let Some((a, by, since)) = self.coming else {
             return false;
         };
@@ -293,7 +279,6 @@ impl<A: Copy + PartialEq> Tips<A> {
             return false;
         }
         self.coming = None;
-        self.until = None;
         self.shown = Some((a, by));
         true
     }
@@ -318,6 +303,20 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
                 kind,
             });
         }
+    }
+
+    /// Marks the box at (x, y), w by h, as an icon-only control `owner`
+    /// that a plain tooltip names: `label` is the action, a word or two,
+    /// never an explanation.
+    pub fn tip_plain(&mut self, r: (f32, f32, f32, f32), owner: A, label: &'static str) {
+        self.tip_anchor(r, owner, label, TipKind::Plain);
+    }
+
+    /// [`Ui::hit`] at (x, y), w by h, for an icon-only control, with the
+    /// plain tooltip `label` naming it over the same box.
+    pub fn hit_tip(&mut self, (x, y, w, h): (f32, f32, f32, f32), action: A, label: &'static str) {
+        self.hit(x, y, w, h, action);
+        self.tip_plain((x, y, w, h), action, label);
     }
 
     /// Draws the tooltip [`TipFrame::shown`] names, if this frame drew

@@ -16,6 +16,8 @@ pub struct AppBar<'s, A> {
     pub back: Option<(&'s str, A)>,
     /// The page's name.
     pub title: &'s str,
+    /// What the way back's tooltip says.
+    pub back_tip: &'static str,
 }
 
 /// The bar at the top of the page, `w` wide, its name kept left of
@@ -41,6 +43,7 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
             Role::OnSurfaceVariant,
         );
         ui.hit_quiet(bx, by, TOUCH, TOUCH, action);
+        ui.tip_plain((bx, by, TOUCH, TOUCH), action, bar.back_tip);
         ui.back(action);
         x = bx + TOUCH;
         let label = ui.fit(CAPTION, W::R, label, room(x));
@@ -56,14 +59,15 @@ pub fn app_bar<A: Copy + PartialEq>(ui: &mut Ui<A>, w: f32, bar: &AppBar<A>, rig
 }
 
 /// An action at the bar's right end, its right edge at `right`: an icon
-/// in a touch target, lit while `on`. Returns where the next action
-/// ends.
+/// in a touch target, lit while `on`, named `label` by its tooltip.
+/// Returns where the next action ends.
 pub fn icon_action<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     right: f32,
     icon: impl Into<Glyph>,
     action: A,
     on: bool,
+    label: &'static str,
 ) -> f32 {
     let (x, y) = (right - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
     // Lit: a toggled icon button's selected state, its container
@@ -79,12 +83,18 @@ pub fn icon_action<A: Copy + PartialEq>(
     ui.state_layer((x, y, TOUCH, TOUCH, TOUCH / 2.0), fg.paint(), action);
     ui.icon(x, y, TOUCH, icon, NAV_ICON, fg);
     ui.hit_quiet(x, y, TOUCH, TOUCH, action);
+    ui.tip_plain((x, y, TOUCH, TOUCH), action, label);
     x
 }
 
-/// The ? that opens what explains the page, its right edge at `right`.
-/// Returns where the next action ends.
-pub fn help<A: Copy + PartialEq>(ui: &mut Ui<A>, right: f32, action: A) -> f32 {
+/// The ? that opens what explains the page, its right edge at `right`,
+/// named `label` by its tooltip. Returns where the next action ends.
+pub fn help<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    right: f32,
+    action: A,
+    label: &'static str,
+) -> f32 {
     let (x, y) = (right - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
     let d = ICON_SMALL + GAP_SMALL * 2.0;
     let (cx, cy) = (x + (TOUCH - d) / 2.0, y + (TOUCH - d) / 2.0);
@@ -105,12 +115,18 @@ pub fn help<A: Copy + PartialEq>(ui: &mut Ui<A>, right: f32, action: A) -> f32 {
         "?",
     );
     ui.hit_quiet(x, y, TOUCH, TOUCH, action);
+    ui.tip_plain((x, y, TOUCH, TOUCH), action, label);
     x
 }
 
-/// The ⋮ that opens the page's menu, its right edge at `right`. Returns
-/// where the next action ends.
-pub fn more<A: Copy + PartialEq>(ui: &mut Ui<A>, right: f32, action: A) -> f32 {
+/// The ⋮ that opens the page's menu, its right edge at `right`, named
+/// `label` by its tooltip. Returns where the next action ends.
+pub fn more<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    right: f32,
+    action: A,
+    label: &'static str,
+) -> f32 {
     let (x, y) = (right - TOUCH, (APP_BAR_H - TOUCH) / 2.0);
     ui.state_layer(
         (x, y, TOUCH, TOUCH, TOUCH / 2.0),
@@ -128,5 +144,6 @@ pub fn more<A: Copy + PartialEq>(ui: &mut Ui<A>, right: f32, action: A) -> f32 {
         );
     }
     ui.hit_quiet(x, y, TOUCH, TOUCH, action);
+    ui.tip_plain((x, y, TOUCH, TOUCH), action, label);
     x
 }

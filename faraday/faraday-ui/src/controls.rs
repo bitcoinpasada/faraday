@@ -250,10 +250,11 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
     }
 
     /// Forgets every press drawn so far this frame: what is under a
-    /// sheet is out of reach.
+    /// sheet is out of reach, and has no tooltip.
     pub fn clear_hits(&mut self) {
         self.hits.clear();
         self.reach.clear();
+        self.tips.anchors.clear();
     }
 
     /// The state layer over a control at (x, y), w by h with corners of

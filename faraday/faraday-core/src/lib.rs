@@ -3268,8 +3268,8 @@ impl Faraday {
             | Action::PreviewSize(_)
             | Action::ReduceMotion(_)
             | Action::Theme(_)) => self.appearance_act(a),
-            // Acted on before any other press (`act_inner`).
-            Action::StickPill(_) => {}
+            // Acted on before (`act_inner`), or never pressed (a mark).
+            Action::StickPill(_) | Action::Mark(..) => {}
         }
     }
 
@@ -6402,7 +6402,7 @@ impl Faraday {
                 }
             }
             TouchPhase::Up => {
-                self.pointer.tip_up(self.now_ms);
+                self.pointer.tip_up();
                 if self.pointer.take_bar_held().is_some() {
                     return;
                 }

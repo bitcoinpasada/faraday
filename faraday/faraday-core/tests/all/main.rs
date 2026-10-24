@@ -62,6 +62,7 @@ mod gpg;
 mod half_screen;
 mod home;
 mod hover;
+mod icon_tooltips;
 mod idle;
 mod import;
 mod inbox;

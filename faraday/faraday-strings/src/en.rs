@@ -9903,4 +9903,27 @@ strings! {
     /// Wallets: beside a key loaded from corrected strings. `{}`: the
     /// fingerprint, the line.
     c32r_key_mark: "{} · {}",
+    // ----- Plain tooltips on icon-only controls (docs/DESIGN.md §4.12), faraday-ui and faraday-core -----
+    /// Tooltip on the way back, an icon alone.
+    tip_back: "Back",
+    /// Tooltip on the top app bar's ?.
+    tip_learn: "Learn",
+    /// Tooltip on the ⋮ that opens a menu.
+    tip_more: "More",
+    /// Tooltip on the Lock icon.
+    tip_lock: "Lock",
+    /// Tooltip on the keyboard icon.
+    tip_keyboard: "Keyboard",
+    /// Tooltip on the power icon.
+    tip_power_off: "Power off",
+    /// Tooltip on an eye that shows what is hidden.
+    tip_show: "Show",
+    /// Tooltip on an eye that hides what is shown.
+    tip_hide: "Hide",
+    /// Tooltip on a × that takes a thing off.
+    tip_remove: "Remove",
+    /// Tooltip on the backup board's link mark.
+    tip_link: "Link",
+    /// Tooltip on the backup board's warning mark.
+    tip_warning: "Warning",
 }
