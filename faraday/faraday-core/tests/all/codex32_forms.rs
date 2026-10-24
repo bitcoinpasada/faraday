@@ -99,6 +99,13 @@ fn a_hand_made_set_typed_share_by_share_loads_its_key() {
     add(&mut app, SHARE_C);
     assert_eq!(error(&app), None);
     assert!(app.session.keys.is_empty(), "one share of two is not a key");
+    // The list names the share as Check a string does, its index in
+    // capitals.
+    let shown = app.drawn_texts();
+    assert!(
+        shown.iter().any(|t| t == "Share C · id name · 2 needed"),
+        "{shown:?}"
+    );
     add(&mut app, SHARE_A);
     enter(&mut app);
     assert_eq!(app.session.keys.len(), 1, "{:?}", error(&app));

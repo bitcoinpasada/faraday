@@ -1949,7 +1949,7 @@ strings! {
     /// Text in `lead`.
     family_this_opens_once: "This opens once the transaction is here.",
     /// Text in `lead`.
-    family_read_the_summary: "Read the summary before you sign, every time: what leaves, what comes back, and the fee. Change is the rest coming back to the same wallet, not money leaving. Signing is the one step that cannot be taken back. If this is not what you meant to do, a different amount, an address you do not recognise, or a warning of any kind, do not sign. Declining costs nothing.",
+    family_read_the_summary: "Read what leaves, what comes back and the fee before signing.",
     /// Text in `lead`.
     family_lead_write_down_id: "Write down the first and last few characters of this id. Sparrow shows the same id for the transaction it wrote; after sending, the id is how you follow it.",
     /// Text in `lead`.
@@ -3093,7 +3093,7 @@ strings! {
     /// Section label in `rolled_words`.
     keygen_words_so_far: "Words so far",
     /// Line in `rolled_words`.
-    keygen_dice_word_rule: "Rolls 1 to 5 of a word: 1 = 00, 2 = 01, 3 = 10, 4 = 11 · Roll 6: 1 to 3 = 0, 4 to 6 = 1 · The 11 bits are the word's number in the list, from 0",
+    keygen_dice_word_rule: "Rolls 1 to 5 of a word: 1 = 00, 2 = 01, 3 = 10, 4 = 11, 5 or 6 rolled again · Roll 6: 1 to 3 = 0, 4 to 6 = 1 · The 11 bits are the word's number in the list, from 0",
     /// Line in `rolled_words`.
     keygen_checksum: "checksum",
     /// Text in `rolled_words`. `{}`: `i`, `i + 1`.

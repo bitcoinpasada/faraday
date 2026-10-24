@@ -326,6 +326,31 @@ fn rolls_that_name_words_stop_at_the_last_words_kept_bits_and_the_checksum_ends_
     assert_eq!(m.indices()[11] >> 4, high >> 1);
 }
 
+/// Rolls that name words: the card says before the first roll that a 5
+/// or a 6 in a word's first five rolls is rolled again, and a caution
+/// once the last roll is in comes with Roll again beside the foot
+/// button.
+#[test]
+fn rolls_that_name_words_state_the_reroll_rule_first_and_a_caution_offers_roll_again() {
+    let mut app = opened_tall();
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(Way::DiceWords.index()));
+    app.press(Action::KNext);
+    let shown = texts(&mut app);
+    assert!(shown.contains("5 or 6 rolled again"), "{shown}");
+    for _ in 0..80 {
+        app.press(Action::KRoll(1));
+    }
+    assert!(app.keygen().unwrap().ready());
+    assert!(!app.keygen().unwrap().caution_lines().is_empty());
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::KAgain),
+        "Roll again beside the foot button"
+    );
+    assert!(app.offers(Action::KNext), "a caution is not a refusal");
+}
+
 #[test]
 fn three_one_four_two_two_five_is_miracle() {
     let mut app = opened();

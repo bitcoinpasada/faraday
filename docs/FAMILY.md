@@ -369,12 +369,9 @@ The page closes when a spend is loaded.)*
 
 ### 8 · Read the transaction
 
-**Lead:** Read the summary before you sign, every
-time: what leaves, what comes back, which output is change, and the fee.
-Change is the rest coming back to the same wallet, not money leaving.
-Signing is the one step that cannot be taken back. If what Faraday
-describes is not what you meant to do (a different amount, an address you
-do not recognise, or a warning of any kind), do not sign. Declining costs
+**Lead:** Read what leaves, what comes back and the fee before signing.
+Under it, a way to Learn's **Verifying**, which says why: change is the
+rest coming back, signing cannot be taken back, and declining costs
 nothing.
 
 Then the transaction id: write down its first and last few characters.

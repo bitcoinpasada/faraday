@@ -103,7 +103,7 @@ impl Parts {
                         fill(
                             EN.forms_share_id_needed,
                             &[
-                                &char::from(c.share_index()).to_string(),
+                                &char::from(c.share_index().to_ascii_uppercase()).to_string(),
                                 &id.to_string(),
                                 &c.threshold().to_string(),
                             ],

@@ -983,7 +983,7 @@ needs none of it; for codex32 strings in full, see Learn's page
 | A string in | Check a string |
 |---|---|
 | ![One string in, Make the rest and Add a share](guide/5-1-codex32.png) | ![Check a string, the final row](guide/5-1-check-a-string.png) |
-| **1 in** and **Share a · id name · 2 needed**. Once 2 strings of the set are in, the key loads. **Make the rest** makes the set's other strings from the ones typed; **Add a share** makes one more string at an unused index. Where an open vault keeps strings of the same set, the line **1 more of this set in open vaults** says so, and they count. | **Check a string**, then **Check it**: **Checksum holds** or **Checksum fails**, with the checksum worksheet's **Final** row beside what it **Must read**, and where it first differs (**Final row differs at box 36**). Nothing is loaded or kept. **Back to adding strings** returns. |
+| **1 in** and **Share A · id name · 2 needed**. Once 2 strings of the set are in, the key loads. **Make the rest** makes the set's other strings from the ones typed; **Add a share** makes one more string at an unused index. Where an open vault keeps strings of the same set, the line **1 more of this set in open vaults** says so, and they count. | **Check a string**, then **Check it**: **Checksum holds** or **Checksum fails**, with the checksum worksheet's **Final** row beside what it **Must read**, and where it first differs (**Final row differs at box 36**). Nothing is loaded or kept. **Back to adding strings** returns. |
 
 | The worksheet | Make the rest |
 |---|---|
@@ -999,7 +999,7 @@ repairs unchecked**:
 | New key's Key card | Wallets |
 |---|---|
 | ![Key card, the strings in](guide/5-1-key-card.png) | ![Wallets, Share entry corrected](guide/5-1-wallets-mark.png) |
-| From **Type codex32 strings**, **Key** lists the strings in (**Share a · id name · 2 needed**). **Lock in** loads the key and opens Wallets. | Under **Keys without a wallet**, and on the key's card: **fab6868a · Share entry corrected**. |
+| From **Type codex32 strings**, **Key** lists the strings in (**Share A · id name · 2 needed**). **Lock in** loads the key and opens Wallets. | Under **Keys without a wallet**, and on the key's card: **fab6868a · Share entry corrected**. |
 
 Type key `3dca6805`'s 12 words from the paper, then press **Add key**.
 

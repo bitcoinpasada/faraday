@@ -241,6 +241,7 @@ pub static EN: Learn = Learn {
                 heading: "Sending",
                 paragraphs: &[
                     "Before you sign, Faraday shows what the transaction sends, the change and the fee. Read every output. Confirm that the destination address and amount match what you intended. Change that Faraday rebuilt from the wallet's own keys is marked Verified; an output that Faraday cannot confirm as yours is not yours, and if it cannot derive a change output, treat that output as a payment to somebody else.",
+                    "Change is the rest of the inputs coming back to the same wallet, not money leaving. Signing is the one step that cannot be taken back. If the transaction is not what you meant to do (a different amount, an address you do not recognise, or a warning of any kind), do not sign. Declining costs nothing.",
                     "The Nonce check lists every signature the transaction already carries, with the key it is under and whether it verifies. Compare every address and amount in full with what your coordinator shows. If anything differs, do not sign.",
                 ],
             },
