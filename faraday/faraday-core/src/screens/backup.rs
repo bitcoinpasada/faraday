@@ -58,10 +58,12 @@ fn item_title_on(reads: &impl crate::glance::Reads, n: u8) -> (String, String) {
             let mapped = reads.plan_mapped(&shape, a);
             let words_n = crate::plan::templates_on(&shape, &mapped);
             let c32 = crate::plan::codex32::templates_of(a, &mapped);
-            let k = (words_n + c32.iter().map(|&(_, n)| n).sum::<usize>()).max(1);
+            let k = (words_n + c32.iter().map(|&(_, _, n)| n).sum::<usize>()).max(1);
             // Only codex32 sheets: the line names their length (§9.3).
             let line = match c32.first() {
-                Some(&(len, _)) if words_n == 0 => fill(EN.c32_templates_sub, &[&len.to_string()]),
+                Some(&(len, _, _)) if words_n == 0 => {
+                    fill(EN.c32_templates_sub, &[&len.to_string()])
+                }
                 _ => fill(EN.item_title_template_n, &[&b.words.to_string()]),
             };
             (
@@ -759,13 +761,8 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     &[&words_n.max(1).to_string(), &b.words.to_string(), copy],
                 ));
             }
-            for (len, n) in c32 {
-                let template = if clauses.is_empty() {
-                    EN.c32_templates_starter
-                } else {
-                    EN.c32_templates_clause
-                };
-                clauses.push(fill(template, &[&n.to_string(), &len.to_string()]));
+            for (len, copy, n) in c32 {
+                clauses.push(c32_templates_clause(clauses.is_empty(), len, copy, n));
             }
             let line = clauses.join("; ");
             cy += ui.wrap(x, cy, w, 14.0, W::R, TEXT, &line) + 16.0;
@@ -884,7 +881,17 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     let matrix =
                         app.seedqr_shown(lang, &app.reveal(b.key, Reveal::SeedQr), b.compact);
                     if let Some(mx) = matrix {
-                        cy += seed_grid(ui, &mx, x, cy, w.min(560.0), b.pin) + 12.0;
+                        // Grey where the blank sheet prints the square.
+                        let g = crate::screens::CopyGrid {
+                            m: &mx,
+                            printed: crate::wallet_backup::structural_fixed,
+                            lettered: false,
+                            rows: b.rows,
+                            pin: b.pin,
+                            pick: Action::BPin,
+                            mode: Action::BRows,
+                        };
+                        cy += crate::screens::copy_grid(ui, x, cy, w, &g);
                     }
                 }
                 cy += paper_section(app, ui, x, cy, w);
@@ -1785,99 +1792,29 @@ fn paper_section(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy - y
 }
 
-fn seed_grid(
-    ui: &mut Ui,
-    m: &faraday_codec::qr::QrMatrix,
-    x: f32,
-    y: f32,
-    w: f32,
-    pin: usize,
-) -> f32 {
-    let n = m.size();
-    let margin = 26.0;
-    let cell = ((w - margin) / n as f32).floor().max(6.0);
-    let gx = x + margin;
-    let gy = y + margin;
-    let side = cell * n as f32;
-    let pin = pin.min(n - 1);
-    ui.fill(gx, gy, side, side, 0.0, faraday_draw::Color::WHITE);
-    ui.fill(
-        gx,
-        gy + pin as f32 * cell,
-        side,
-        cell,
-        0.0,
-        ACCENT.with_alpha(90),
-    );
-    for row in 0..n {
-        for col in 0..n {
-            if m.module(col, row) {
-                let c = if crate::wallet_backup::structural(col, row, n) {
-                    faraday_draw::Color::rgb(0x8a, 0x94, 0x9e)
-                } else {
-                    faraday_draw::Color::BLACK
-                };
-                ui.fill(
-                    gx + col as f32 * cell,
-                    gy + row as f32 * cell,
-                    cell,
-                    cell,
-                    0.0,
-                    c,
-                );
-            }
-        }
-        ui.hit(gx, gy + row as f32 * cell, side, cell, Action::BPin(row));
+/// The Templates item's clause for `n` codex32 templates of `len`
+/// characters copied as `copy`, named as the Starter's Blank templates
+/// name them (`docs/CODEX32.md` §9.3, §11): "3 from Blank templates,
+/// codex32, 48 characters, Codex32QR". `first` says it opens the line.
+fn c32_templates_clause(
+    first: bool,
+    len: u8,
+    copy: crate::plan::codex32::PaperCopy,
+    n: usize,
+) -> String {
+    use crate::plan::codex32::PaperCopy;
+    let (n, len) = (n.to_string(), len.to_string());
+    let copy = match copy {
+        PaperCopy::String => None,
+        PaperCopy::Codex32Qr => Some(EN.starter_tpl_codex32qr),
+        PaperCopy::Both => Some(EN.starter_tpl_both),
+    };
+    match (first, copy) {
+        (true, None) => fill(EN.c32_templates_starter, &[&n, &len]),
+        (false, None) => fill(EN.c32_templates_clause, &[&n, &len]),
+        (true, Some(c)) => fill(EN.c32_templates_starter_copy, &[&n, &len, c]),
+        (false, Some(c)) => fill(EN.c32_templates_clause_copy, &[&n, &len, c]),
     }
-    // The ruling: light every square, darker every five.
-    for i in 0..=n {
-        let c = if i % 5 == 0 {
-            faraday_draw::Color::rgb(0x6f, 0x82, 0x91)
-        } else {
-            faraday_draw::Color::rgb(0xc8, 0xd0, 0xd6)
-        };
-        ui.fill(gx + i as f32 * cell, gy, 1.0, side, 0.0, c);
-        ui.fill(gx, gy + i as f32 * cell, side, 1.0, 0.0, c);
-        if i % 5 == 0 && i < n {
-            ui.text(
-                gx + i as f32 * cell + 2.0,
-                y + 4.0,
-                11.0,
-                W::M,
-                MUTED,
-                &i.to_string(),
-            );
-            ui.text(
-                x,
-                gy + i as f32 * cell + 2.0,
-                11.0,
-                W::M,
-                MUTED,
-                &i.to_string(),
-            );
-        }
-    }
-    // Beside the pinned row; on a small panel, under the grid.
-    if ui.compact {
-        ui.text(
-            gx,
-            gy + side + 8.0,
-            12.0,
-            W::S,
-            ACCENT,
-            &fill(EN.seed_grid_row, &[&pin.to_string()]),
-        );
-        return margin + side + 34.0;
-    }
-    ui.text(
-        gx + side + 10.0,
-        gy + pin as f32 * cell - 3.0,
-        12.0,
-        W::S,
-        ACCENT,
-        &fill(EN.seed_grid_row, &[&pin.to_string()]),
-    );
-    margin + side + 10.0
 }
 
 /// The backup's side panel: the map, its boxes listing what each holds,

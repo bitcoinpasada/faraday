@@ -375,20 +375,83 @@ pub fn max_places_of(shape: &Shape, a: &Answers) -> usize {
             .sum::<usize>()
 }
 
-/// The blank templates the codex32 strings on paper take, by length:
-/// (characters, how many), each string written by hand on one
-/// (`docs/CODEX32.md` §9.3).
-pub fn templates_of(a: &Answers, m: &Mapped) -> Vec<(u8, usize)> {
-    let mut out: Vec<(u8, usize)> = Vec::new();
+/// How a codex32 string is copied by hand at a place, and so which of
+/// the Starter's codex32 templates it takes (`docs/CODEX32.md` §9.3, §11):
+/// the string written, its Codex32QR drawn on the 29 × 29 grid, or both.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub enum PaperCopy {
+    /// The string written in boxes.
+    String,
+    /// Its Codex32QR drawn on the grid.
+    Codex32Qr,
+    /// Both.
+    Both,
+}
+
+impl PaperCopy {
+    /// Written (`s`), drawn (`q`), both, or neither.
+    fn of(s: bool, q: bool) -> Option<PaperCopy> {
+        match (s, q) {
+            (true, false) => Some(PaperCopy::String),
+            (false, true) => Some(PaperCopy::Codex32Qr),
+            (true, true) => Some(PaperCopy::Both),
+            (false, false) => None,
+        }
+    }
+
+    /// Whether the Codex32QR is drawn.
+    pub fn drawn(self) -> bool {
+        self != PaperCopy::String
+    }
+
+    /// Whether the string is written.
+    pub fn written(self) -> bool {
+        self != PaperCopy::Codex32Qr
+    }
+}
+
+/// How string `j` of seed `i` is copied by hand across the plan's places:
+/// written, drawn as its Codex32QR, or both; `None` where no place keeps
+/// it on paper.
+pub fn paper_copy(m: &Mapped, i: usize, j: usize) -> Option<PaperCopy> {
+    let on = |want: &dyn Fn(What) -> bool| {
+        m.map
+            .iter()
+            .filter(|s| matches!(s.at, At::Place(_)))
+            .any(|s| s.holds.iter().any(|(w, _)| want(*w)))
+    };
+    PaperCopy::of(
+        on(&|w| w == What::Codex32Share(i, j)),
+        on(&|w| w == What::Codex32QrPaper(i, j)),
+    )
+}
+
+/// The blank templates the codex32 strings on paper take, by length and
+/// copy: (characters, what is copied, how many), each string at each
+/// place copied by hand on one (`docs/CODEX32.md` §9.3): written, its
+/// Codex32QR drawn, or both on one template.
+pub fn templates_of(a: &Answers, m: &Mapped) -> Vec<(u8, PaperCopy, usize)> {
+    let mut out: Vec<(u8, PaperCopy, usize)> = Vec::new();
     for s in m.map.iter().filter(|s| matches!(s.at, At::Place(_))) {
-        for (w, _) in &s.holds {
-            if let What::Codex32Share(i, _) = w
-                && let Some(f) = a.c32(*i)
+        let mut strings: Vec<(usize, usize)> =
+            s.holds.iter().filter_map(|(w, _)| string_of(*w)).collect();
+        strings.sort_unstable();
+        strings.dedup();
+        for (i, j) in strings {
+            let has = |w: What| s.holds.iter().any(|(x, _)| *x == w);
+            let copy = PaperCopy::of(
+                has(What::Codex32Share(i, j)),
+                has(What::Codex32QrPaper(i, j)),
+            );
+            let (Some(copy), Some(f)) = (copy, a.c32(i)) else {
+                continue;
+            };
+            match out
+                .iter_mut()
+                .find(|(l, c, _)| *l == f.length && *c == copy)
             {
-                match out.iter_mut().find(|(l, _)| *l == f.length) {
-                    Some((_, n)) => *n += 1,
-                    None => out.push((f.length, 1)),
-                }
+                Some((_, _, n)) => *n += 1,
+                None => out.push((f.length, copy, 1)),
             }
         }
     }

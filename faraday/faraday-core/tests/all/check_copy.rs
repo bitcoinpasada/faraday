@@ -1225,3 +1225,71 @@ fn keep_the_words_only_keeps_a_plan_of_answers_its_answers_and_edits_an_edited_o
     }
     assert_eq!(kept.part, vec![(0, 0), (1, 0)]);
 }
+
+/// `action`'s box once it is on screen, scrolling down to it.
+fn grid_box(app: &mut Faraday, action: Action) -> (u16, u16, u16, u16) {
+    for _ in 0..30 {
+        let _ = app.frame();
+        if let Some(b) = app.hit_box(action) {
+            return b;
+        }
+        app.event(Event::Scroll {
+            x: 600,
+            y: 400,
+            dy: 120,
+        });
+    }
+    panic!("{action:?} not drawn");
+}
+
+/// The SeedQR to copy is marked block by block (`docs/BACKUP-FLOW.md`
+/// §17.24): each block of five squares from the top left a press of its
+/// own, so the pointer over a square lights its block, narrower at the
+/// edge (a 29 × 29 code: 4 squares in the last column); the keys move the
+/// mark a block at a time; **Rows** marks a row across the whole code.
+#[test]
+fn the_seedqr_to_copy_is_marked_by_blocks_or_rows() {
+    let mut app = backing_up(ATTACK, true, SEEDQR_ONLY);
+    // Block 6, the second row's first: 0 and 1 are also Previous and
+    // Next while the first is marked.
+    let first = grid_box(&mut app, Action::BPin(6));
+    let edge = grid_box(&mut app, Action::BPin(5));
+    let corner = grid_box(&mut app, Action::BPin(35));
+    let cell = f32::from(first.2) / 5.0;
+    assert!((f32::from(first.3) / cell - 5.0).abs() < 0.3, "{first:?}");
+    assert!((f32::from(edge.2) / cell - 4.0).abs() < 0.3, "{edge:?}");
+    assert!((f32::from(corner.3) / cell - 4.0).abs() < 0.3, "{corner:?}");
+    assert!(text_seen(&mut app, "Block 0 · 0"));
+    // The keys move the mark a block at a time, and no further than the
+    // last block.
+    app.event(Event::Key(Key::Right));
+    app.event(Event::Key(Key::Down));
+    assert_eq!(app.backup().unwrap().pin, 2);
+    for _ in 0..40 {
+        app.event(Event::Key(Key::Down));
+    }
+    assert_eq!(app.backup().unwrap().pin, 35);
+    assert!(text_seen(&mut app, "Block 25 · 25"));
+    // Rows: a row across the whole code, one square high.
+    app.press(Action::BRows(true));
+    let row = grid_box(&mut app, Action::BPin(3));
+    assert!((f32::from(row.3) / cell - 1.0).abs() < 0.3, "{row:?}");
+    assert!((f32::from(row.2) / cell - 29.0).abs() < 0.5, "{row:?}");
+    assert!(text_seen(&mut app, "row 0"));
+}
+
+/// Whether `text` is drawn, scrolling down to it.
+fn text_seen(app: &mut Faraday, text: &str) -> bool {
+    for _ in 0..30 {
+        let _ = app.frame();
+        if app.drawn_texts().iter().any(|t| t == text) {
+            return true;
+        }
+        app.event(Event::Scroll {
+            x: 600,
+            y: 400,
+            dy: 120,
+        });
+    }
+    false
+}

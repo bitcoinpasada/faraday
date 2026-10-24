@@ -977,7 +977,9 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (_, Some((_, wl))) => fill(EN.scan_key_for_wallet, &[&wl.name.to_string()]),
         (crate::ScanPurpose::Intake, _) => EN.scan_scan_what_you.to_string(),
         (crate::ScanPurpose::Seed, _) => EN.scan_scan_a_seedqr.to_string(),
-        (crate::ScanPurpose::CheckCopy(_), _) => EN.scan_scan_your_copy.to_string(),
+        (crate::ScanPurpose::CheckCopy(_) | crate::ScanPurpose::CheckCodex32, _) => {
+            EN.scan_scan_your_copy.to_string()
+        }
         (crate::ScanPurpose::Transfer, _) => EN.scan_receive_into_downloads.to_string(),
         _ => EN.scan_scan_a_qr_code.to_string(),
     };

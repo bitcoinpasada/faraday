@@ -42,6 +42,10 @@ pub enum ScanPurpose {
     /// The hand-drawn copy of the seed with this fingerprint, on the
     /// backup's copy item: compared with it there, never loaded.
     CheckCopy(faraday_bip::keys::Fingerprint),
+    /// The hand-drawn Codex32QR of the codex32 string open on the
+    /// backup's codex32 item: compared with it there, never loaded
+    /// (`docs/CODEX32.md` §9.5).
+    CheckCodex32,
     /// Transfer's Receive: anything, saved by the shell into Downloads,
     /// never into the Inbox.
     Transfer,

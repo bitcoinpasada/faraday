@@ -377,8 +377,11 @@ pub enum Action {
     BReveal,
     /// Standard or compact SeedQR.
     BCompact(bool),
-    /// Pin this grid row.
+    /// Mark this block of the SeedQR grid, or this row where it is marked
+    /// by rows.
     BPin(usize),
+    /// Mark the SeedQR grid by rows (`true`) or by blocks.
+    BRows(bool),
     /// Start or stop typing the digits back.
     BCheck,
     /// Scan the copy of the seed on screen.

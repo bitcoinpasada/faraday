@@ -9,7 +9,9 @@
 //!
 //! The booklet is MIT, "Copyright (c) 2022 Blockstream": its notice is
 //! kept in the repository (`tools/vectors/codex32-booklet/LICENSE`) and
-//! on the codex32 Learn page, not on the sheets (owner, §1.1 item 6).
+//! on the codex32 Learn page; these two pages also carry one small
+//! credit line at their foot (owner, 2026-10-24, amending §1.1 item 6),
+//! and no other sheet does.
 
 use super::{ALPHA, Canvas, L_H};
 use faraday_strings::{EN, fill};
@@ -63,13 +65,28 @@ pub(super) fn pages() -> Vec<Canvas> {
     );
     track(&mut one, head + 105.0);
     one.footer();
+    credit(&mut one);
     let mut two = Canvas::landscape();
     title(&mut two, 2);
     for k in 0..4 {
         track(&mut two, PAGE2_FIRST + k as f32 * PAGE2_STEP);
     }
     two.footer();
+    credit(&mut two);
     vec![one, two]
+}
+
+/// The booklet's credit, small at the page's foot beside the footer
+/// (owner, 2026-10-24): printed on the dice worksheet's own pages only,
+/// which never share a page with a share card or a grid.
+fn credit(p: &mut Canvas) {
+    p.sans(
+        super::L_W / 2.0 - super::L_MARGIN,
+        L_H - 22.0,
+        8.0,
+        false,
+        EN.pdf_c32_dice_credit,
+    );
 }
 
 /// The page's title.

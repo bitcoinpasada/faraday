@@ -893,11 +893,14 @@ back; then the buttons:
 - **Form** (first row, `docs/CODEX32.md` §11; built: batch C9):
   **BIP-39 words** (chosen) · **codex32**. With codex32 the rows are
   **Length** (48 chosen · 74 · 127 characters), **Copy** (**String**
-  chosen · **Codex32QR** · **Both**, the last two at 48 only),
+  chosen · **Codex32QR** · **Both** · **Four Codex32QR grids**, the
+  last three at 48 only; the Codex32QR grid on a page of its own, its
+  blocks named as the device's copy grid names them, 2026-10-24),
   **Worksheets** (**None** chosen · **Dice, checksum and translation**,
-  not at 127) and **Places**; the card, the worksheets and the booklet's
-  tables are drawn by `faraday-starter`'s `sheets.rs`, and the file is
-  `faraday-blank-template-codex32-{48|74|127}-chars-{string|codex32qr|string-codex32qr}[-worksheets].pdf`.
+  not at 127) and **Places**; the card, the grid, the worksheets and the
+  booklet's tables are drawn by `faraday-starter`'s `sheets.rs`, and the
+  file is
+  `faraday-blank-template-codex32-{48|74|127}-chars-{string|codex32qr|string-codex32qr|codex32qr-4}[-worksheets].pdf`.
   A length that no longer holds a choice (Codex32QR or the worksheets)
   puts that choice back to String or None;
 - **Words**: **12** · **24**, 24 chosen;

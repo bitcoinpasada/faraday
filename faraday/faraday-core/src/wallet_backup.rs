@@ -23,7 +23,7 @@ use crate::strings::fill;
 use faraday_bip::keys::{Fingerprint, Network};
 use faraday_crypto::work::Compute;
 
-use crate::copy_check::{Typed, WordCheck, WordsUse};
+use crate::copy_check::{PIN_MAX, Typed, WordCheck, WordsUse, copy_key};
 use crate::forms;
 use crate::plan::{CopyChecks, CopyForm, CopyForms};
 use crate::wallet::{Kind, Session, Wallet, fp_text};
@@ -482,8 +482,12 @@ pub struct BackupState {
     pub reveal: bool,
     /// Compact SeedQR rather than standard.
     pub compact: bool,
-    /// The grid row pinned for copying.
+    /// The block of the grid marked for copying, in reading order; the
+    /// row, where it is marked by rows (`docs/BACKUP-FLOW.md` §17.24).
     pub pin: usize,
+    /// The grid is marked row by row rather than block by block (the
+    /// default).
+    pub rows: bool,
     /// The typed check of a copy of the words, while it is open
     /// (`docs/history/NEW-WALLET.md` §14.7 item 2).
     pub check: Option<copy_check::WordCheck>,
@@ -653,7 +657,11 @@ impl WalletBackupArea {
                 b.compact = c;
                 b.pin = 0;
             }
-            Action::BPin(r) => b.pin = r,
+            Action::BPin(r) => b.pin = r.min(PIN_MAX),
+            Action::BRows(r) => {
+                b.rows = r;
+                b.pin = 0;
+            }
             Action::BWords(n) => b.words = n,
             _ => {}
         }
@@ -731,10 +739,10 @@ impl WalletBackupArea {
             return self.c32_key(press);
         }
         match key {
-            KeyIn::Down if b.open.is_some_and(bstep::is_copy) => b.pin += 1,
-            KeyIn::Up if b.open.is_some_and(bstep::is_copy) => {
-                b.pin = b.pin.saturating_sub(1);
-            }
+            // The grid's mark: row by row, or block by block in reading
+            // order, Left and Right too (`docs/BACKUP-FLOW.md` §17.24).
+            KeyIn::Down | KeyIn::Right if copy_key(b, key) => b.pin = (b.pin + 1).min(PIN_MAX),
+            KeyIn::Up | KeyIn::Left if copy_key(b, key) => b.pin = b.pin.saturating_sub(1),
             // A place's name, typed: kept in the vault alone.
             KeyIn::Char(c) if b.naming.is_some() => {
                 if let Some(name) = b.naming.and_then(|p| b.names.get_mut(p))
@@ -790,13 +798,12 @@ impl WalletBackupArea {
         self.state.as_mut()?.c32.as_mut()
     }
 
-    /// Codex32 string `j` of seed `i` checked, or skipped past.
-    pub(crate) fn c32_checked(&mut self, i: usize, j: usize) {
-        if let Some(b) = self.state.as_mut()
-            && !b.c32_checked.contains(&(i, j))
-        {
-            b.c32_checked.push((i, j));
-        }
+    /// The codex32 item, its seed's form and the strings checked or
+    /// skipped past, to change.
+    pub(crate) fn c32_parts(&mut self) -> Option<crate::codex32_backup::Parts<'_>> {
+        let b = self.state.as_mut()?;
+        let seed = b.c32.as_ref()?.seed;
+        Some((b.c32.as_mut()?, b.answers.c32(seed)?, &mut b.c32_checked))
     }
 
     /// Codex32 string `j` of seed `i` to be checked again: made anew.
@@ -1332,6 +1339,7 @@ impl Faraday {
             | Action::BPaperHide
             | Action::BCompact(_)
             | Action::BPin(_)
+            | Action::BRows(_)
             | Action::BWords(_) => self.backup.edit(action),
             Action::BQNext(n) => {
                 let qs = self.backup_questions(c);

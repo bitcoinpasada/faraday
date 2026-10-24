@@ -1205,6 +1205,18 @@ pub const C32_CHIP: f32 = 32.0;
 /// The check mark on a chosen filter chip (Material 3's 18 dp).
 pub const C32_CHECK: f32 = 18.0;
 
+/// A Codex32QR to copy by hand (`docs/CODEX32.md` §9.5): the room beside
+/// and above the whole grid for its blocks' letters and numbers.
+pub const C32_GRID_LABEL: f32 = 16.0;
+/// The whole grid's largest side; a narrower column draws it smaller.
+pub const C32_GRID_MAX: f32 = 320.0;
+/// The block shown large: its largest side, the block and a square of
+/// its neighbours on each side.
+pub const C32_ZOOM_MAX: f32 = 320.0;
+/// The smallest square of the block shown large: below it the large view
+/// goes under the whole grid rather than beside it.
+pub const C32_ZOOM_MIN_CELL: f32 = 24.0;
+
 /// How far the entry's page is scrolled at every press on a small panel, past
 /// its header, so the panel and the pad are in view together (the tabs a
 /// scroll up away).

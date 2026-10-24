@@ -1858,6 +1858,7 @@ fn codex_copy_text(c: CodexCopy) -> &'static str {
         CodexCopy::String => S.starter_tpl_string,
         CodexCopy::Codex32Qr => S.starter_tpl_codex32qr,
         CodexCopy::Both => S.starter_tpl_both,
+        CodexCopy::Grids => S.starter_tpl_grids,
     }
 }
 

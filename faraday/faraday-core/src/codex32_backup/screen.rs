@@ -12,7 +12,7 @@ use faraday_ui::keyboard::Keys as OskKeys;
 use super::{Found, Press, SetPress, SetStep, Strings};
 use crate::Action;
 use crate::drawing::View;
-use crate::plan::codex32::{C32, index_char, places_of_string};
+use crate::plan::codex32::{C32, PaperCopy, index_char, places_of_string};
 use crate::screens::buttons_and_next;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
@@ -167,8 +167,9 @@ pub(crate) fn item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
             .into_iter()
             .map(place)
             .collect();
+        let copy = crate::plan::codex32::paper_copy(&mapped, i, j);
         return (
-            one_string(ui, (x, y, w), (form, st), j, &places.join(", ")),
+            one_string(ui, (x, y, w), (form, st), (j, copy), &places.join(", ")),
             false,
         );
     }
@@ -231,20 +232,26 @@ pub(crate) fn item(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, i: usize) ->
     (cy - y, true)
 }
 
-/// One string open (§6.6, §9.4): the string where it was made here, in
-/// groups of four or as its Codex32QR; typed back on the codex32
-/// keyboard; Skip and Continue. Returns the height.
+/// One string open (§6.6, §9.4, §9.5): the string where it was made
+/// here, in groups of four or as its Codex32QR to copy, square by square
+/// in blocks; where the plan draws its Codex32QR by hand, the sheet it is
+/// drawn on and **Scan my copy**; typed back on the codex32 keyboard
+/// where it is written; Skip and Continue. Returns the height.
 fn one_string(
     ui: &mut Ui,
     (x, y, w): (f32, f32, f32),
     (form, st): (&C32, &Strings),
-    j: usize,
+    (j, copy): (usize, Option<PaperCopy>),
     places: &str,
 ) -> f32 {
     let mut cy = y;
     let head = fill(EN.c32_share_at, &[&name(j), places]);
     cy += ui.wrap(x, cy, w, t::BODY, W::S, TEXT, &head) + t::GAP;
-    if let Some(s) = st.made(j) {
+    let drawn = form.length == 48 && copy.is_some_and(PaperCopy::drawn);
+    if drawn {
+        cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.c32_qr_sheet) + t::GAP;
+    }
+    if let Some(s) = st.known(j) {
         if s.len() == 48 {
             cy += chips(
                 ui,
@@ -259,14 +266,16 @@ fn one_string(
         }
         match &st.qr {
             Some(q) => {
-                let side = t::qr_side(if ui.compact {
-                    faraday_draw::geom::SizeClass::Small
-                } else {
-                    faraday_draw::geom::SizeClass::Wide
-                })
-                .min(w);
-                faraday_ui::parts::qr_code(ui, q, x, cy, side);
-                cy += side + t::GAP;
+                let g = crate::screens::CopyGrid {
+                    m: q,
+                    printed: |x, y, _| super::printed(x, y),
+                    lettered: true,
+                    rows: st.rows,
+                    pin: usize::from(st.block),
+                    pick: |b| a(Press::BlockAt(u8::try_from(b).unwrap_or(u8::MAX))),
+                    mode: |r| a(Press::Rows(r)),
+                };
+                cy += crate::screens::copy_grid(ui, x, cy, w, &g);
             }
             None => {
                 let g = faraday_ui::grouped(s);
@@ -277,32 +286,43 @@ fn one_string(
                 cy += ui.wrap(x, cy, w, size, W::M, TEXT, &g) + t::GAP;
             }
         }
-    } else {
-        let line = if form.fixed() {
-            EN.c32_type_from_paper
-        } else {
-            EN.c32_not_made
-        };
-        cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, line) + t::GAP;
+    } else if !form.fixed() {
+        cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.c32_not_made) + t::GAP;
     }
-    cy += typed_field(ui, x, cy, w, st, "ms1");
+    // Written: typed back from the paper. Only drawn and made here:
+    // scanned. A string of a set that exists is typed from its paper
+    // first, which shows its Codex32QR to draw.
+    let written = copy.is_none_or(PaperCopy::written) || !drawn || st.made(j).is_none();
+    if written {
+        if st.made(j).is_none() && form.fixed() {
+            cy += ui.wrap(x, cy, w, t::LABEL, W::R, MUTED, EN.c32_type_from_paper) + t::GAP;
+        }
+        cy += typed_field(ui, x, cy, w, st, "ms1");
+    }
     cy += found_line(ui, x, cy, w, st);
-    if !matches!(st.found, Some(Found::Holds(_))) {
+    if written && !matches!(st.found, Some(Found::Holds(_))) {
         cy += keyboard(ui, x, cy, w);
     }
     if st.skip_ask {
         cy += ui.wrap(x, cy, w, t::LABEL, W::R, WARN, EN.codex32_skip_caution) + t::GAP;
     }
     cy += note(ui, x, cy, w, st);
+    let mut rows = vec![
+        (EN.c32_all_strings, Style::Ghost, a(Press::List)),
+        (EN.codex32_skip, Style::Ghost, a(Press::Skip)),
+    ];
+    if drawn {
+        rows.insert(
+            0,
+            (EN.c32_scan_my_copy, Style::Secondary, a(Press::ScanCopy)),
+        );
+    }
     cy += buttons_and_next(
         ui,
         x,
         cy,
         w,
-        &[
-            (EN.c32_all_strings, Style::Ghost, a(Press::List)),
-            (EN.codex32_skip, Style::Ghost, a(Press::Skip)),
-        ],
+        &rows,
         Some((EN.item_action_continue, a(Press::Next))),
     );
     cy - y

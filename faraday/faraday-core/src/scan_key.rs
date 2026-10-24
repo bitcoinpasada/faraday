@@ -477,7 +477,9 @@ impl Faraday {
                 ScanPurpose::Seed | ScanPurpose::KeyPart | ScanPurpose::WalletKey(_) => {
                     self.clipboard
                 }
-                ScanPurpose::VaultEntry | ScanPurpose::CheckCopy(_) => false,
+                ScanPurpose::VaultEntry | ScanPurpose::CheckCopy(_) | ScanPurpose::CheckCodex32 => {
+                    false
+                }
             })
     }
 

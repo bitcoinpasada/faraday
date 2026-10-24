@@ -1430,3 +1430,301 @@ pub(crate) fn camera_row(
     let h = ui.wrap(x, below, w, OWN_LINE_TEXT, W::R, MUTED, &state);
     below + h + GRID + GRID / 2.0 - y
 }
+
+/// The paper's colours on a QR copied by hand, whatever the theme: the
+/// page, a square to draw, a square the blank sheet prints, the rule
+/// between squares and the heavier one between blocks.
+const PAPER: faraday_draw::Color = faraday_draw::Color::WHITE;
+const INK: faraday_draw::Color = faraday_draw::Color::BLACK;
+const PRINTED_INK: faraday_draw::Color = faraday_draw::Color::rgb(0x8a, 0x94, 0x9e);
+const RULE: faraday_draw::Color = faraday_draw::Color::rgb(0xc8, 0xd0, 0xd6);
+const BLOCK_RULE: faraday_draw::Color = faraday_draw::Color::rgb(0x6f, 0x82, 0x91);
+
+/// The squares along a side of a block of a QR copied by hand: blocks
+/// counted from the top left, as the blank sheets' heavier lines are
+/// (`docs/BACKUP-FLOW.md` §17.24), so the last block of a row or column
+/// is narrower where the side is not a multiple of five (25 × 25: five
+/// whole blocks; 29 × 29: five and one of four; 21 × 21: four and one
+/// of one).
+pub(crate) const COPY_BLOCK: usize = 5;
+
+/// Blocks along a side of a QR of side `n`.
+pub(crate) fn copy_blocks(n: usize) -> usize {
+    n.div_ceil(COPY_BLOCK)
+}
+
+/// The squares of block `b` of a QR of side `n`, in reading order: its
+/// first column and row, and its width and height in squares.
+pub(crate) fn copy_block_rect(b: usize, n: usize) -> (usize, usize, usize, usize) {
+    let per = copy_blocks(n).max(1);
+    let (c0, r0) = ((b % per) * COPY_BLOCK, (b / per) * COPY_BLOCK);
+    (
+        c0,
+        r0,
+        COPY_BLOCK.min(n.saturating_sub(c0)),
+        COPY_BLOCK.min(n.saturating_sub(r0)),
+    )
+}
+
+/// Block `b` of a code of side `n` as a grid names it: "A1" where the
+/// grid is lettered, else its first row's and column's index, "5 · 10".
+pub(crate) fn copy_block_name(b: usize, n: usize, lettered: bool) -> String {
+    let per = copy_blocks(n).max(1);
+    if lettered {
+        let row = char::from(b'A' + u8::try_from(b / per).unwrap_or(0));
+        return format!("{row}{}", b % per + 1);
+    }
+    let (c0, r0, _, _) = copy_block_rect(b, n);
+    format!("{r0} · {c0}")
+}
+
+/// What a QR copied by hand shows and does (`docs/BACKUP-FLOW.md`
+/// §17.24): the SeedQR on the copy item, a codex32 string's Codex32QR on
+/// its item.
+pub(crate) struct CopyGrid<'a> {
+    /// The code.
+    pub m: &'a faraday_codec::qr::QrMatrix,
+    /// Whether square (x, y) of a code of side n is printed on the blank
+    /// sheet: drawn grey.
+    pub printed: fn(usize, usize, usize) -> bool,
+    /// The blocks named as the Codex32QR sheet names them, rows A to F
+    /// and columns 1 to 6; else by the index of their first square, as
+    /// the SeedQR sheet numbers its lines, 0, 5, 10.
+    pub lettered: bool,
+    /// Marked row by row rather than block by block (the default).
+    pub rows: bool,
+    /// The block, or the row, marked.
+    pub pin: usize,
+    /// The press that marks block or row `i`.
+    pub pick: fn(usize) -> Action,
+    /// The press that chooses rows (`true`) or blocks.
+    pub mode: fn(bool) -> Action,
+}
+
+/// A QR to copy by hand, square by square (`docs/BACKUP-FLOW.md` §17.24):
+/// **Blocks** · **Rows**; the whole code as a ruled grid, heavier every
+/// five squares from the top left, its blocks named at its edges; the
+/// block or row marked tinted and edged in the accent, each block (each
+/// row) a press whose hover covers just it; in Blocks the marked block
+/// large beside the grid (under it on a narrow column) with a square of
+/// its neighbours faded round it; the squares the blank sheet prints
+/// grey, and a key saying so; the marked block's or row's name and
+/// **Previous** · **Next**. Drawing only: the code was made when it was
+/// shown. Returns the height used.
+pub(crate) fn copy_grid(ui: &mut Ui, x: f32, y: f32, w: f32, g: &CopyGrid<'_>) -> f32 {
+    let n = g.m.size();
+    let mut cy = y;
+    let modes = [
+        (EN.copy_grid_blocks, !g.rows, (g.mode)(false)),
+        (EN.copy_grid_rows, g.rows, (g.mode)(true)),
+    ];
+    let items: Vec<(&str, Style, Action)> = modes
+        .iter()
+        .map(|&(l, on, act)| {
+            let style = if on { Style::Primary } else { Style::Secondary };
+            (l, style, act)
+        })
+        .collect();
+    cy += wrap_buttons(ui, x, cy, w, tokens::TEXT_FIELD, &items) + tokens::GAP;
+    let last = if g.rows {
+        n - 1
+    } else {
+        copy_blocks(n).pow(2) - 1
+    };
+    let pin = g.pin.min(last);
+    let lab = tokens::C32_GRID_LABEL;
+    let ring = (COPY_BLOCK + 2) as f32;
+    let zoom_min = lab + ring * tokens::C32_ZOOM_MIN_CELL;
+    let beside = !g.rows && w >= lab + tokens::C32_GRID_MAX + tokens::GAP + zoom_min;
+    // Beside: the whole grid at its largest, the block large in the rest.
+    let whole_w = if beside {
+        lab + tokens::C32_GRID_MAX
+    } else {
+        w
+    };
+    let cell = ((whole_w - lab).min(tokens::C32_GRID_MAX) / n as f32).floor();
+    let whole_h = copy_whole(ui, (x, cy), cell, g, pin);
+    let mut below = cy + whole_h + tokens::GAP;
+    if !g.rows {
+        let (zx, zy, zw) = if beside {
+            let zx = x + whole_h + tokens::GAP;
+            (zx, cy, x + w - zx)
+        } else {
+            (x, below, w)
+        };
+        let zcell = ((zw - lab).min(tokens::C32_ZOOM_MAX) / ring).floor();
+        let zh = copy_zoomed(ui, (zx, zy), zcell, g, pin);
+        below = if beside {
+            cy + whole_h.max(zh)
+        } else {
+            zy + zh
+        } + tokens::GAP;
+    }
+    cy = below;
+    for (ink, line) in [
+        (PRINTED_INK, EN.copy_grid_printed),
+        (INK, EN.copy_grid_draw),
+    ] {
+        ui.fill(
+            x,
+            cy + tokens::GAP_SMALL,
+            tokens::GAP,
+            tokens::GAP,
+            0.0,
+            ink,
+        );
+        ui.text(
+            x + 2.0 * tokens::GAP,
+            cy,
+            tokens::CAPTION,
+            W::R,
+            MUTED,
+            line,
+        );
+        cy += tokens::PAD + tokens::GAP_SMALL;
+    }
+    let name = if g.rows {
+        fill(EN.seed_grid_row, &[&pin.to_string()])
+    } else {
+        fill(EN.copy_grid_block, &[&copy_block_name(pin, n, g.lettered)])
+    };
+    cy += ui.wrap(x, cy, w, tokens::BODY, W::S, ACCENT, &name) + tokens::GAP_SMALL;
+    cy += wrap_buttons(
+        ui,
+        x,
+        cy,
+        w,
+        tokens::TEXT_FIELD,
+        &[
+            (
+                EN.copy_grid_prev,
+                Style::Ghost,
+                (g.pick)(pin.saturating_sub(1)),
+            ),
+            (
+                EN.copy_grid_next,
+                Style::Secondary,
+                (g.pick)((pin + 1).min(last)),
+            ),
+        ],
+    );
+    cy + tokens::GAP - y
+}
+
+/// The whole code of a [`copy_grid`] at `cell` a square, its blocks'
+/// names in the room above and beside it from `(x, y)`; `pin` marked.
+/// Returns the side drawn, names included.
+fn copy_whole(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin: usize) -> f32 {
+    let n = g.m.size();
+    let per = copy_blocks(n);
+    let lab = tokens::C32_GRID_LABEL;
+    let (gx, gy) = (x + lab, y + lab);
+    let side = cell * n as f32;
+    ui.fill(gx, gy, side, side, 0.0, PAPER);
+    for row in 0..n {
+        for col in 0..n {
+            if g.m.module(col, row) {
+                let ink = if (g.printed)(col, row, n) {
+                    PRINTED_INK
+                } else {
+                    INK
+                };
+                let (cx, cy) = (gx + col as f32 * cell, gy + row as f32 * cell);
+                ui.fill(cx, cy, cell, cell, 0.0, ink);
+            }
+        }
+    }
+    for i in 0..=n {
+        let rule = if i % COPY_BLOCK == 0 || i == n {
+            BLOCK_RULE
+        } else {
+            RULE
+        };
+        let o = i as f32 * cell;
+        ui.fill(gx + o, gy, 1.0, side, 0.0, rule);
+        ui.fill(gx, gy + o, side, 1.0, 0.0, rule);
+    }
+    let span = COPY_BLOCK as f32 * cell;
+    for b in 0..per {
+        let o = b as f32 * span;
+        let (col, row) = if g.lettered {
+            (
+                (b + 1).to_string(),
+                char::from(b'A' + u8::try_from(b).unwrap_or(0)).to_string(),
+            )
+        } else {
+            ((b * COPY_BLOCK).to_string(), (b * COPY_BLOCK).to_string())
+        };
+        // Each name at the middle of its block.
+        let span_here = span.min(side - o);
+        let cw = ui.measure(tokens::CAPTION, W::M, &col);
+        let col_x = gx + o + (span_here - cw) / 2.0;
+        ui.text_mid(col_x, y, lab, tokens::CAPTION, W::M, MUTED, &col);
+        ui.text_mid(x, gy + o, span_here, tokens::CAPTION, W::M, MUTED, &row);
+    }
+    for i in 0..=if g.rows { n - 1 } else { per * per - 1 } {
+        let (mx, my, mw, mh) = if g.rows {
+            (gx, gy + i as f32 * cell, side, cell)
+        } else {
+            let (c0, r0, bw, bh) = copy_block_rect(i, n);
+            let at = |v: usize| v as f32 * cell;
+            (gx + at(c0), gy + at(r0), at(bw), at(bh))
+        };
+        if i == pin {
+            ui.fill(mx, my, mw, mh, 0.0, ACCENT.with_alpha(70));
+            ui.stroke(mx, my, mw, mh, 0.0, ACCENT);
+        }
+        ui.hit(mx, my, mw, mh, (g.pick)(i));
+    }
+    lab + side
+}
+
+/// Block `pin` of a [`copy_grid`] large at `cell` a square from `(x,
+/// y)`: its squares, and one square of its neighbours faded round it,
+/// its row and column named in the accent. Returns the height drawn.
+fn copy_zoomed(ui: &mut Ui, (x, y): (f32, f32), cell: f32, g: &CopyGrid<'_>, pin: usize) -> f32 {
+    let n = g.m.size();
+    let (c0, r0, bw, bh) = copy_block_rect(pin, n);
+    let lab = tokens::C32_GRID_LABEL;
+    let (gx, gy) = (x + lab, y + lab);
+    let ring = COPY_BLOCK + 2;
+    let side = ring as f32 * cell;
+    ui.fill(gx, gy, side, side, 0.0, PAPER);
+    for dy in 0..ring {
+        for dx in 0..ring {
+            let (Some(col), Some(row)) = ((c0 + dx).checked_sub(1), (r0 + dy).checked_sub(1))
+            else {
+                continue;
+            };
+            if col >= n || row >= n {
+                continue;
+            }
+            let inside = (c0..c0 + bw).contains(&col) && (r0..r0 + bh).contains(&row);
+            let (cx, cy) = (gx + dx as f32 * cell, gy + dy as f32 * cell);
+            if g.m.module(col, row) {
+                let ink = if (g.printed)(col, row, n) {
+                    PRINTED_INK
+                } else {
+                    INK
+                };
+                let ink = if inside { ink } else { ink.with_alpha(60) };
+                ui.fill(cx, cy, cell, cell, 0.0, ink);
+            }
+            ui.stroke(cx, cy, cell, cell, 0.0, RULE);
+        }
+    }
+    let (bw, bh) = (bw as f32 * cell, bh as f32 * cell);
+    ui.stroke(gx + cell, gy + cell, bw, bh, 0.0, ACCENT);
+    let name = copy_block_name(pin, n, g.lettered);
+    let (row, col) = if g.lettered {
+        let (r, c) = name.split_at(1);
+        (r.to_string(), c.to_string())
+    } else {
+        (r0.to_string(), c0.to_string())
+    };
+    let cw = ui.measure(tokens::CAPTION, W::M, &col);
+    let col_x = gx + cell + (bw - cw) / 2.0;
+    ui.text_mid(col_x, y, lab, tokens::CAPTION, W::M, ACCENT, &col);
+    ui.text_mid(x, gy + cell, bh, tokens::CAPTION, W::M, ACCENT, &row);
+    lab + side
+}

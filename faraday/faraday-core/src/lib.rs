@@ -3190,6 +3190,7 @@ impl Faraday {
             | Action::BPaperHide
             | Action::BCompact(..)
             | Action::BPin(..)
+            | Action::BRows(..)
             | Action::BCheck
             | Action::BScan
             | Action::BCheckClear
@@ -4439,9 +4440,10 @@ impl Faraday {
             }
             return;
         }
-        if let ScanPurpose::CheckCopy(fp) = scan.purpose {
-            self.copy_scanned(fp, bytes);
-            return;
+        match scan.purpose {
+            ScanPurpose::CheckCopy(fp) => return self.copy_scanned(fp, bytes),
+            ScanPurpose::CheckCodex32 => return self.c32_copy_scanned(bytes),
+            _ => {}
         }
         if let ScanPurpose::WalletKey(w) = scan.purpose {
             match seed_in_code(&c, &bytes) {
@@ -6111,11 +6113,8 @@ impl Faraday {
             self.copy_check_key(key);
             return;
         }
-        // A place's name is typed on Back up's plan, and on a wallet
-        // flow's plan card before its lock (`docs/BACKUP-FLOW.md` §15.7).
-        let naming_in_flow = self.screen == Screen::BackupFlow
-            && self.backup.state().is_some_and(|b| b.naming.is_some());
-        if (self.screen == Screen::Backup || naming_in_flow) && self.backup.name_key(key) {
+        // A place's name, a codex32 string, the copy grid's mark.
+        if self.backup_name_key(key) {
             return;
         }
         match key {

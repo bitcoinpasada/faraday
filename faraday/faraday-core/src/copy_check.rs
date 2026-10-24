@@ -211,3 +211,40 @@ impl BackupState {
             .map_or(0, |(_, n)| *n)
     }
 }
+
+// ---------------------------------------------------------------------
+// The SeedQR's copy grid, marked by blocks or rows
+// (`docs/BACKUP-FLOW.md` §17.24)
+// ---------------------------------------------------------------------
+
+/// The last mark on a SeedQR grid copied by hand: block 35 of the
+/// largest, 29 × 29 (six blocks a side); a smaller grid's last is less,
+/// and [`pin_on`] keeps the mark on it.
+pub const PIN_MAX: usize = 35;
+
+/// The side of the SeedQR of a seed of `words` words, standard or
+/// compact: 25 or 29 squares standard, 21 or 25 compact.
+pub fn seedqr_side(words: u8, compact: bool) -> usize {
+    match (words > 12, compact) {
+        (false, false) | (true, true) => 25,
+        (true, false) => 29,
+        (false, true) => 21,
+    }
+}
+
+/// Whether `key` moves the copy grid's mark on backup `b`: on a copy
+/// item, Up and Down always, Left and Right only block by block.
+pub(crate) fn copy_key(b: &BackupState, key: KeyIn) -> bool {
+    b.open.is_some_and(crate::bstep::is_copy) && (matches!(key, KeyIn::Up | KeyIn::Down) || !b.rows)
+}
+
+/// Backup `b`'s grid mark kept on a SeedQR of side `n`: at most its last
+/// row, or its last block.
+pub(crate) fn pin_on(b: &BackupState, n: usize) -> usize {
+    let count = if b.rows {
+        n
+    } else {
+        crate::screens::copy_blocks(n).pow(2)
+    };
+    b.pin.min(count.saturating_sub(1))
+}

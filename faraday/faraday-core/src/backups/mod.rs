@@ -1214,18 +1214,39 @@ impl Faraday {
             return;
         };
         match p {
-            Press::Make => self.c32_make(c, i, key),
+            Press::Make => {
+                self.c32_make(c, i, key);
+                self.c32_show_drawn(c, i);
+            }
             Press::Open(j) => {
                 if let Some(st) = self.backup.c32_mut() {
                     st.open(usize::from(j));
                 }
+                self.c32_show_drawn(c, i);
             }
             Press::Key(k) => {
                 self.backup.c32_key(k);
                 self.c32_keep_held(key);
+                // A string of a set that exists, typed from its paper:
+                // its Codex32QR to draw, where the plan draws one.
+                self.c32_show_drawn(c, i);
             }
             Press::Qr => self.c32_qr(c),
-            Press::Next => self.c32_next(c, i, key),
+            Press::BlockAt(b) => {
+                if let Some(st) = self.backup.c32_mut() {
+                    st.mark(b);
+                }
+            }
+            Press::Rows(r) => {
+                if let Some(st) = self.backup.c32_mut() {
+                    st.mark_rows(r);
+                }
+            }
+            Press::ScanCopy => self.c32_scan_open(),
+            Press::Next => {
+                self.c32_next(c, i, key);
+                self.c32_show_drawn(c, i);
+            }
             Press::Skip => {
                 let Some(st) = self.backup.c32_mut() else {
                     return;
@@ -1234,8 +1255,11 @@ impl Faraday {
                     return;
                 };
                 if st.skip_ask {
-                    self.backup.c32_checked(i, j);
+                    if let Some((_, _, checked)) = self.backup.c32_parts() {
+                        crate::codex32_backup::mark_checked(checked, i, j);
+                    }
                     self.c32_next(c, i, key);
+                    self.c32_show_drawn(c, i);
                 } else {
                     st.skip_ask = true;
                 }
@@ -1397,27 +1421,125 @@ impl Faraday {
         }
     }
 
-    /// Costs a QR encoding. **String** · **Codex32QR**: the open string
-    /// made here, at 48 characters, as its Codex32QR (upper case, byte
-    /// mode, version 3, level L, `docs/CODEX32.md` §10.2), or back to the
-    /// string.
+    /// Costs a QR encoding. **String** · **Codex32QR**: the open string,
+    /// made here or typed from its paper, at 48 characters, as its
+    /// Codex32QR (`faraday_codec::qr::codex32qr`, `docs/CODEX32.md`
+    /// §10.2), or back to the string.
     fn c32_qr(&mut self, c: &Compute) {
-        use faraday_codec::qr::{Ecc, Payload, encode_bounded};
         let Some(st) = self.backup.c32_mut() else {
             return;
         };
         if st.qr.take().is_some() {
             return;
         }
-        let Some(s) = st.at.and_then(|j| st.made(j)) else {
+        let Some(s) = st.at.and_then(|j| st.known(j)) else {
             return;
         };
-        if s.len() != 48 {
+        st.qr = faraday_codec::qr::codex32qr(c, s);
+        st.block = 0;
+    }
+
+    /// Costs a map of the plan, and a QR encoding where it shows one. The
+    /// string just opened on seed `i`'s item, where the plan draws its
+    /// Codex32QR by hand at a place and it was made here: opened on its
+    /// Codex32QR, the grid to copy (`docs/CODEX32.md` §9.5).
+    fn c32_show_drawn(&mut self, c: &Compute, i: usize) {
+        let Some(b) = self.backup.state() else {
+            return;
+        };
+        let Some(st) = b.c32.as_ref() else {
+            return;
+        };
+        let Some(j) = st.at.filter(|&j| st.qr.is_none() && st.known(j).is_some()) else {
+            return;
+        };
+        let shape = self.plan_shape_now(b.wallet);
+        let mapped = self.kept.plan_mapped(c, &shape, &b.answers);
+        if plan::codex32::paper_copy(&mapped, i, j).is_some_and(plan::codex32::PaperCopy::drawn) {
+            self.c32_qr(c);
+        }
+    }
+
+    /// Costs what [`Faraday::c32_show_drawn`] costs, once a string holds.
+    /// A key typed on the computer's keyboard on Back up, or on a wallet
+    /// flow's plan card while a place is named (`docs/BACKUP-FLOW.md`
+    /// §15.7): a place's name, a codex32 string typed back, or the copy
+    /// grid's mark moved (§17.24), kept on the SeedQR shown. A codex32
+    /// string of a set that exists, typed whole from its paper, then
+    /// shows its Codex32QR to draw where the plan draws one. Whether the
+    /// key was taken.
+    pub(crate) fn backup_name_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        let naming_in_flow = self.screen == Screen::BackupFlow
+            && self.backup.state().is_some_and(|b| b.naming.is_some());
+        if !(self.screen == Screen::Backup || naming_in_flow) || !self.backup.name_key(key) {
+            return false;
+        }
+        let pin = self.backup.state().and_then(|b| {
+            let words = self.session.keys.info(b.key)?.word_count?;
+            let n = crate::copy_check::seedqr_side(words, b.compact);
+            Some(crate::copy_check::pin_on(b, n))
+        });
+        if let Some(p) = pin {
+            self.backup.edit(Action::BPin(p));
+        }
+        if let Some(i) = self.backup.state().and_then(|b| Some(b.c32.as_ref()?.seed)) {
+            let c = self.compute();
+            self.c32_show_drawn(&c, i);
+        }
+        true
+    }
+
+    /// **Scan my copy** on the string open: the camera on its Codex32QR
+    /// drawn by hand, read as that string typed back (`docs/CODEX32.md`
+    /// §9.5). A lookup.
+    fn c32_scan_open(&mut self) {
+        if self
+            .backup
+            .state()
+            .and_then(|b| b.c32.as_ref()?.at)
+            .is_none()
+        {
             return;
         }
-        let mut upper = zeroize::Zeroizing::new(s.as_bytes().to_vec());
-        upper.make_ascii_uppercase();
-        st.qr = encode_bounded(c, Payload::Bytes(&upper), Ecc::Low, 3).ok();
+        let mut scan = crate::ScanState::default();
+        scan.purpose = crate::ScanPurpose::CheckCodex32;
+        self.camera.open(scan);
+        self.sheet = Some(crate::Sheet::Scan);
+        self.out
+            .commands
+            .push_back(faraday_shell_api::Command::CameraOn);
+    }
+
+    /// What the camera read off the Codex32QR drawn of the string open:
+    /// checked as that string typed back whole. Once it holds, the string
+    /// counts as checked and towards the rebuild, and the camera closes;
+    /// otherwise the scanner says what differs (`docs/CODEX32.md` §9.5).
+    pub(crate) fn c32_copy_scanned(&mut self, bytes: zeroize::Zeroizing<Vec<u8>>) {
+        let text = zeroize::Zeroizing::new(String::from_utf8_lossy(&bytes).into_owned());
+        drop(bytes);
+        let key = self.backup.state().and_then(|b| {
+            let i = b.c32.as_ref()?.seed;
+            self.backup_seed_list_now(b.wallet).get(i).and_then(|x| x.1)
+        });
+        let found = self.backup.c32_scanned(&text);
+        if let Some(key) = key {
+            self.c32_keep_held(key);
+        }
+        match found {
+            Some(crate::codex32_backup::Found::Holds(_)) => {
+                self.camera.close();
+                self.sheet = None;
+                self.out
+                    .commands
+                    .push_back(faraday_shell_api::Command::CameraOff);
+            }
+            Some(crate::codex32_backup::Found::Differs(line)) => {
+                if let Some(scan) = self.camera.scan_mut() {
+                    scan.note = Some(line);
+                }
+            }
+            None => {}
+        }
     }
 
     /// Costs an interpolation of the strings typed, once enough are.

@@ -324,7 +324,9 @@ fn each_template_saves_under_its_name_with_the_pages_section_11_lists() {
     let cases = [
         (48, CodexCopy::String, false, "48-chars-string", 2),
         (48, CodexCopy::Codex32Qr, false, "48-chars-codex32qr", 2),
-        (48, CodexCopy::Both, false, "48-chars-string-codex32qr", 2),
+        // The string's card, then the grid on a page of its own.
+        (48, CodexCopy::Both, false, "48-chars-string-codex32qr", 3),
+        (48, CodexCopy::Grids, false, "48-chars-codex32qr-4", 2),
         // card, dice twice, checksum, translation k = 2 and 3, tables,
         // checksum table twice, places.
         (
@@ -498,6 +500,133 @@ fn a_blank_template_holds_no_secret() {
         panic!("{c:?}");
     };
     assert_eq!(*printed, pdf);
+}
+
+/// Each page of a PDF this writer made, as the strings it shows, in page
+/// order.
+fn page_texts(pdf: &[u8]) -> Vec<String> {
+    let mut out = Vec::new();
+    let mut rest = pdf;
+    while let Some(at) = find(rest, b"stream\n") {
+        let body = &rest[at + 7..];
+        let end = find(body, b"endstream").unwrap_or(body.len());
+        out.push(text_of(&body[..end]));
+        rest = &body[end..];
+    }
+    out
+}
+
+fn find(hay: &[u8], needle: &[u8]) -> Option<usize> {
+    hay.windows(needle.len()).position(|w| w == needle)
+}
+
+/// Nobody reads a printed backup as someone else's (owner, 2026-10-24):
+/// in every Copy × Worksheets × Length the Starter offers, the dice
+/// worksheet's credit is on its own two pages only, no page that holds a
+/// share card or a Codex32QR grid holds the credit or any worksheet, and
+/// the worksheets begin after the last such page.
+#[test]
+fn no_backup_page_shares_a_page_with_a_worksheet_or_the_credit() {
+    let credit = "Dice worksheet after the codex32 booklet, \u{a9} 2022 Blockstream, MIT.";
+    let worksheet = [
+        "Dice de-biasing worksheet",
+        "Checksum worksheet",
+        "Translation worksheet",
+        "Tables",
+        "Checksum table",
+    ];
+    let mut checked = 0;
+    for chars in [48, 74, 127] {
+        for copy in CodexCopy::ALL {
+            for worksheets in [false, true] {
+                let mut s = starter();
+                choose(&mut s, chars, copy, worksheets);
+                let (name, pdf) = saved(&mut s);
+                let pages = page_texts(&pdf);
+                assert!(!pages.is_empty(), "{name}");
+                // The credit's © is WinAnsi 0xA9, read here as Latin-1.
+                let has_credit = |p: &str| p.contains(credit);
+                let is_backup = |p: &str| p.contains("Codex32 share") || p.contains("Codex32QR ·");
+                let is_worksheet = |p: &str| worksheet.iter().any(|w| p.contains(w));
+                let mut last_backup = None;
+                let mut first_sheet = None;
+                for (i, p) in pages.iter().enumerate() {
+                    if is_backup(p) {
+                        assert!(
+                            !has_credit(p),
+                            "{name}: page {i} holds a backup and the credit"
+                        );
+                        assert!(
+                            !is_worksheet(p),
+                            "{name}: page {i} holds a backup and a worksheet"
+                        );
+                        last_backup = Some(i);
+                    }
+                    if is_worksheet(p) && first_sheet.is_none() {
+                        first_sheet = Some(i);
+                    }
+                    if has_credit(p) {
+                        assert!(p.contains("Dice de-biasing worksheet"), "{name}: page {i}");
+                    }
+                }
+                let credits = pages.iter().filter(|p| has_credit(p)).count();
+                let want = if worksheets && chars != 127 { 2 } else { 0 };
+                assert_eq!(credits, want, "{name}: the credit on the dice pages only");
+                if let (Some(b), Some(w)) = (last_backup, first_sheet) {
+                    assert!(b < w, "{name}: the worksheets begin after the backup pages");
+                }
+                assert!(last_backup.is_some(), "{name}: a backup page");
+                checked += 1;
+            }
+        }
+    }
+    assert_eq!(checked, 24);
+}
+
+/// The Codex32QR sheet (`docs/CODEX32.md` §11): its grid on a page of its
+/// own, the squares every code shares printed black, its blocks named
+/// as the device names them (columns 1 to 6, rows A to F), the string's
+/// header boxes and the fingerprint beside it; Four Codex32QR grids puts
+/// four such grids on one page.
+#[test]
+fn the_codex32qr_sheet_prints_its_grid_named_in_blocks() {
+    let fixed = c32::codex32qr_fixed().len();
+    for (copy, grids) in [(CodexCopy::Codex32Qr, 1), (CodexCopy::Grids, 4)] {
+        let mut s = starter();
+        choose(&mut s, 48, copy, false);
+        let (_, pdf) = saved(&mut s);
+        let raw = String::from_utf8_lossy(&pdf);
+        assert_eq!(
+            raw.matches("0.00 0.00 0.00 rg").count(),
+            grids * fixed,
+            "{copy:?}: the shared squares printed black"
+        );
+        let text = text_of(&pdf);
+        for word in [
+            "Codex32QR",
+            "black squares are printed already",
+            // The owner's line (2026-10-24): the device checks a copy
+            // with its own camera.
+            "Never photographed or scanned by any other device once filled in.",
+            "Threshold",
+            "Identifier",
+            "Share index",
+        ] {
+            assert!(text.contains(word), "{copy:?}: {word}");
+        }
+        let singles: Vec<String> = shown(&pdf)
+            .iter()
+            .map(|b| String::from_utf8_lossy(b).into())
+            .collect();
+        for name in ["1", "6", "A", "F", "m", "s"] {
+            assert!(singles.contains(&name.to_string()), "{copy:?}: {name}");
+        }
+        assert!(!singles.contains(&"G".to_string()), "six blocks a side");
+    }
+    let mut s = starter();
+    choose(&mut s, 48, CodexCopy::Codex32Qr, false);
+    let (_, pdf) = saved(&mut s);
+    assert!(text_of(&pdf).contains("Fingerprint"));
 }
 
 #[test]

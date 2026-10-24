@@ -22,6 +22,7 @@ Sources read for it, each as data and none vendored:
 | The interactive checksum worksheet | https://github.com/apoelstra/volvelle-website, `volvelle-wasm/src/checksum_worksheet.rs` at `9096b331733d2b6bfb22ae9b545c84261e2e0c72` | CC0 | 2026-10-22 |
 | python-codex32 | https://github.com/BenWestgate/python-codex32 at `f19d4627c5725a9f6cfa995a1f89fe62e1becb4c`: `src/codex32/correction.py` and the frozen correction corpus `tests/data/p70_correction_vectors.json` (57 cases: 29 of 48 characters, 28 of 127), drawn from pull request 70 above | MIT | 2026-10-22 |
 | The Codex32QR profile and SeedSigner's codex32 error correction | https://github.com/FractalEncrypt/FractalEncrypt_seedsigner, branch `codex/codex32-error-correction`, folder docs/codex32_qr: Codex32QR_Spec.md, Codex32_Error_Correction.md, Codex32_User_Flow_Guide.md, test_vectors/, printable_templates/ | MIT (the fork of SeedSigner) | 2026-10-22 |
+| FractalEncrypt's printable cards | the same branch at `9b8cbe0aaf527ebe9e85d0e90c0b79e2018126c8`, docs/codex32_qr/printable_templates/Seedsigner_Codex32_Printable_SeedCards.pdf (SHA-256 `a17867d8a2368cdfcb0c2569715e8f2c6c1769dce374946748b91926644aecc2`; three Letter pages: a share card, a share card beside a QR worksheet, four smaller cards), and Codex32_Screen_Reference.md's zoomed QR transcription; compared with Faraday's sheets in §11, not copied (no test needs the file) | MIT, as above (`tools/vectors/codex32qr/LICENSE.md`) | 2026-10-24 |
 
 ## 1. The owner's decisions (2026-10-22)
 
@@ -91,7 +92,8 @@ Sources read for it, each as data and none vendored:
    publishes no translation sheet for it, so the derived shares are the
    device's arithmetic; the worksheets are still shown live (§6.1).
 6. **The booklet's MIT notice**: kept in the repository and on the
-   codex32 Learn page; not printed on the sheets (§11).
+   codex32 Learn page; not printed on the sheets (§11), except one
+   small credit line on the printed dice worksheet (item 35, 2026-10-24).
 7. **Templates**: the published 256-bit checksum sheet is printed; no
    translation sheet the booklet has not published is drawn (§4, §11).
 8. **Error correction** at every length (§8.4).
@@ -204,6 +206,39 @@ Added 2026-10-24 (owner):
     the Entropy card, over "Your dice" and in the box ("Rolls d20");
     changed in the middle of a character, that character's rolls are
     cleared and the note says so (§5.1, §5.5).
+30. **A Codex32QR drawn by hand from the backup flow.** Faraday follows
+    the Codex32QR/v1-48 profile (§10). Where the plan draws a string's
+    Codex32QR on paper, the checklist names the sheet it is drawn on
+    (the Starter's Blank templates, codex32, 48 characters, Codex32QR),
+    shows the code as a grid to copy square by square with its blocks
+    named, and checks the drawn copy by scanning it back (§9.5,
+    BACKUP-FLOW §17.24).
+31. **The copy grid is marked block by block**, five squares from the
+    top left as the sheets' heavier lines are (narrower at the edge where
+    the side is not a multiple of five), with a toggle to Rows; the
+    pointer over a square lights its block; the keys move block by block.
+    For SeedQR and Codex32QR alike (BACKUP-FLOW §17.24).
+32. **The Starter's Codex32QR sheets** are at least as usable as
+    FractalEncrypt's printable cards: the grid on a page of its own at
+    true size, its blocks named as the device names them, the squares
+    every code shares printed black, the string's header boxes and the
+    fingerprint beside it; and a page of four grids (§11).
+33. **The sheets' line** (owner, 2026-10-24), on every blank template
+    the Starter or Faraday prints (codex32, Codex32QR, SeedQR, words):
+    "Written by hand. Never photographed or scanned by any other device
+    once filled in." Faraday's own camera checks a drawn copy (§9.5);
+    no other device sees it.
+34. **A string of a set that exists is typed from its paper before its
+    grid shows** (owner, 2026-10-24), as built: the device keeps no
+    string of a set it did not make, and `faraday-keys` gains no reveal
+    for one (§9.5).
+35. **The printed dice worksheet's credit** (owner, 2026-10-24, amending
+    item 6 for that sheet alone): each of its two printed pages carries
+    one small line at its foot, "Dice worksheet after the codex32
+    booklet, © 2022 Blockstream, MIT." No other sheet and no screen
+    shows it, and the worksheets always start on a page of their own
+    after the share card and the Codex32QR pages, so nobody reads a
+    printed backup as someone else's (§11).
 
 What this spec found that the decision assumed otherwise: the booklet's
 site lists "Checksum Worksheets: Standard 128-bit, Standard 256-bit" and
@@ -1685,6 +1720,20 @@ everything in it changes there (places, which string goes where, forms,
 more strings by + share, another k and n where the plan makes the set,
 §9.2; a set made already keeps its k, §9.4).
 
+**A Codex32QR drawn by hand** (owner, §1.1 items 30, 31 and 34). For a
+string kept at a place as `Codex32QrPaper`, the
+checklist's item names its sheet ("Sheet · Faraday Starter, Blank
+templates, codex32, 48 characters, Codex32QR", §11) and the Templates
+item counts it ("1 from Blank templates, codex32, 48 characters,
+Codex32QR"; "Both" where the string is also written there). The string
+is shown as its Codex32QR on the copy grid of BACKUP-FLOW §17.24: the
+whole code ruled in blocks of five named A to F and 1 to 6, as the sheet
+names them, the block marked drawn large, the squares the sheet prints
+grey, Blocks or Rows. A string made here opens on it; a string of a set
+that exists is typed from its paper first, and its grid is shown once it
+holds (the device keeps no string of a set it did not make). **Scan my
+copy** reads the drawn copy back as that string: it holds, and checks
+the string, or the box that differs is named; nothing scanned is loaded.
 ### 9.6 A codex32 key in a vault (owner, 2026-10-23)
 
 A codex32 key gets into a vault as any key does: the plan's vault item
@@ -1796,7 +1845,10 @@ the mode the profile's pictures use (owner, 2026-10-24; F95). Reading
 takes a Codex32QR in either mode: a code drawn in byte mode, as Faraday
 drew them before, still scans. It is a
 secret as a SeedQR is, masked with the eye. The Starter's codex32
-template has a blank 29 × 29 grid for copying one by hand (§11).
+templates have a blank 29 × 29 grid for copying one by hand (§11). On
+the backup's checklist a string drawn by hand is shown as the copy grid
+of BACKUP-FLOW §17.24 instead, in blocks named as that grid is, and the
+drawn copy is scanned back to check it (§9.5).
 
 ### 10.3 Tests
 
@@ -1856,8 +1908,9 @@ STARTER §3.8's Menu gains a first row, **Form**: **BIP-39 words**
 (ticked) · **codex32**. With codex32, the rows are:
 
 - **Length**: 48 (ticked) · 74 · 127 characters;
-- **Copy**: **String** (ticked) · **Codex32QR** · **Both**, the last two
-  at 48 only;
+- **Copy**: **String** (ticked) · **Codex32QR** · **Both** · **Four
+  Codex32QR grids**, the last three at 48 only (Both: the string's card,
+  then the grid's page);
 - **Worksheets**: **None** (ticked) · **Dice, checksum and
   translation**: at 48, the dice sheet, the checksum sheet and the
   translation sheets for k = 2 and k = 3, as the booklet's site
@@ -1870,8 +1923,7 @@ STARTER §3.8's Menu gains a first row, **Form**: **BIP-39 words**
 A codex32 share sheet holds, per string: `ms1` printed in boxes 1 to 3;
 labelled boxes **Threshold** (box 4), **Identifier** (boxes 5 to 8),
 **Share index** (box 9); every box numbered as §3 numbers it, in groups
-of four, rows of eight boxes; the 29 × 29 grid with the QR's fixed
-patterns grey where Codex32QR is asked; a **Fingerprint** box, eight
+of four, rows of eight boxes; a **Fingerprint** box, eight
 hex digits, filled by hand (owner, §1.1 item 12); and at the foot the 32 characters of the alphabet in the sheet's
 mono face, with 0, 7, Z and S slashed as the booklet asks handwriting to
 be. The sheet prints at true size. The PDF's standard Courier has no
@@ -1886,10 +1938,16 @@ layout and numbering, from BIP 93's arithmetic (the checksum table rows
 are computed, not copied); the tests check the drawn checksum table
 against the residues of §7.1. The MIT notice is kept in the repository
 (beside the fixtures and the reference page, §5.1) and on the codex32
-Learn page, and is not printed on the sheets (owner, §1.1 item 6).
+Learn page, and is not printed on the sheets (owner, §1.1 item 6),
+except that each printed page of the dice worksheet carries one small
+line at its foot, "Dice worksheet after the codex32 booklet, © 2022
+Blockstream, MIT." (owner, 2026-10-24, §1.1 item 35). The worksheets
+always begin on a page of their own after the share card and the
+Codex32QR pages, so no page that holds a backup holds the credit or a
+worksheet.
 
 Built (batch C9): the Form row, the card (`ms1` in boxes 1 to 3, the
-labelled boxes, the Codex32QR grid with its fixed squares grey, the
+labelled boxes, the
 fingerprint, the alphabet with 0, 7, S and Z slashed), the dice
 worksheet as the booklet draws it (owner, 2026-10-24; two landscape
 pages, `faraday/faraday-starter/src/sheets/dice.rs`: the tree, "Die
@@ -1903,7 +1961,35 @@ booklet's second alphabet is drawn in PDF's Symbol font and Helvetica
 (the face baked into the screens is not in a PDF), and the booklet's
 Greek, aleph, circled plus, diamond and heart come from the Symbol font.
 
-Saved as `faraday-blank-template-codex32-{48|74|127}-chars-{string|codex32qr|string-codex32qr}.pdf`,
+**The Codex32QR sheets** (owner, §1.1 items 32 and 33). The
+grid is on a page of its own, `codex32qr_page` in
+`faraday/faraday-starter/src/sheets.rs`, beside the other codex32
+sheets: 29 × 29 squares of 16 points (about 5.6 mm), printed at 100% so
+a filled grid is a code a camera reads; the squares every version 3 code
+shares (the finders, the timing lines, the alignment square and the dark
+module, `codex32_backup::printed`) printed black, the same squares the
+device's copy grid draws grey, so the person draws only the rest; a thin
+rule round every square and a heavier one every five from the top left,
+the blocks named columns 1 to 6 above and rows A to F to the left, as
+the device names them; above the grid boxes 1 to 9 (`ms1` printed, then
+Threshold, Identifier, Share index) and the Fingerprint's eight boxes,
+so the drawn code says which string it is. **Four Codex32QR grids**
+(`codex32qr_grids_page`) puts four such grids of 7-point squares (about
+2.5 mm) on one page, each with its header boxes.
+
+Compared with FractalEncrypt's printable cards (read 2026-10-24, the
+sources table at the head of this document): theirs print the three finders and the alignment square black on
+a 29 × 29 grid named in blocks of five (1 to 6, A to F), with the header
+boxes and a fingerprint field on the QR card, and put four smaller cards
+on a page. Faraday's sheet has all of that, and also prints the timing
+lines and the dark module, names the blocks as the device's grid does
+(so the screen and the paper agree block for block), draws the grid
+larger, on A4, and leaves the separators white. No file of theirs is
+copied; the layout is Faraday's own, drawn from the profile and the QR
+standard, and their MIT notice stays beside the profile's files in
+`tools/vectors/codex32qr/LICENSE.md`.
+
+Saved as `faraday-blank-template-codex32-{48|74|127}-chars-{string|codex32qr|string-codex32qr|codex32qr-4}.pdf`,
 with `-worksheets` before `.pdf` where they are asked for. Nothing else
 changes in §3.8: no key, seed or wallet is asked for or shown.
 

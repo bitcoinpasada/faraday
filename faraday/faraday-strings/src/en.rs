@@ -773,6 +773,8 @@ strings! {
     starter_tpl_string: "String",
     /// Codex32 copy: the Codex32QR grid.
     starter_tpl_codex32qr: "Codex32QR",
+    /// Codex32 copy: a page of four smaller Codex32QR grids.
+    starter_tpl_grids: "Four Codex32QR grids",
     /// Codex32 worksheets row.
     starter_tpl_worksheets: "Worksheets",
     /// Worksheets: none.
@@ -3945,7 +3947,7 @@ strings! {
     /// Text in `blank_sheet`. `{}`: `words`.
     pdf_seed_sheet_words: "Seed sheet · {} words",
     /// Line in `blank_sheet`.
-    pdf_written_by_hand: "Written by hand. Never photographed, scanned or printed once filled in.",
+    pdf_written_by_hand: "Written by hand. Never photographed or scanned by any other device once filled in.",
     /// Text in `blank_sheet`. `{}`: `get(f, "network").unwrap_or("mainnet")`.
     pdf_network: "Network: {}",
     /// Text in `blank_sheet`.
@@ -3978,10 +3980,19 @@ strings! {
     /// Label over the alphabet at the foot of the share card.
     pdf_c32_alphabet: "The 32 characters",
     /// Caption of the Codex32QR grid on the share card.
-    pdf_c32_grid: "Codex32QR · the grey squares are printed already",
+    pdf_c32_grid: "Codex32QR · the black squares are printed already",
+    /// Title of the Codex32QR sheet.
+    pdf_c32qr_title: "Codex32QR · 48 characters",
+    /// Line on the Codex32QR sheet.
+    pdf_c32qr_hand: "Fill each square the device shows black, block by block: columns 1 to 6, rows A to F.",
+    /// Title of the page of four Codex32QR grids.
+    pdf_c32qr_grids_title: "Codex32QR · four grids",
     /// Title of the dice worksheet, the booklet's (two pages). `{}`: the
     /// page, the pages.
     pdf_c32_dice: "Dice de-biasing worksheet · page {} of {}",
+    /// The printed dice worksheet's credit, at the foot of each page
+    /// (owner, 2026-10-24; never on a screen).
+    pdf_c32_dice_credit: "Dice worksheet after the codex32 booklet, © 2022 Blockstream, MIT.",
     /// Title of the checksum worksheet. `{}`: the length in characters.
     pdf_c32_checksum: "Checksum worksheet · {} characters",
     /// A worksheet title with its page. `{}`: the title, the page, the pages.
@@ -9735,6 +9746,32 @@ strings! {
     c32_templates_clause: "{} from Blank templates, codex32, {} characters",
     /// Templates item: the codex32 sheets alone. `{}`: how many, the length.
     c32_templates_starter: "Print {} from Faraday Starter: Blank templates, codex32, {} characters",
+    /// Templates item: codex32 sheets with a Codex32QR, after the words'. `{}`: how many, the length, the Starter's Copy choice ("Codex32QR", "Both").
+    c32_templates_clause_copy: "{} from Blank templates, codex32, {} characters, {}",
+    /// Templates item: codex32 sheets with a Codex32QR, alone. `{}`: how many, the length, the Starter's Copy choice.
+    c32_templates_starter_copy: "Print {} from Faraday Starter: Blank templates, codex32, {} characters, {}",
+    // ----- A string's Codex32QR drawn by hand (docs/CODEX32.md §9.5, §10.2), faraday-core -----
+    /// The sheet a string's Codex32QR is drawn on.
+    c32_qr_sheet: "Sheet · Faraday Starter, Blank templates, codex32, 48 characters, Codex32QR",
+    // ----- A QR copied by hand, SeedQR or Codex32QR (docs/BACKUP-FLOW.md §17.24), faraday-core -----
+    /// The copy grid's choice: marked block by block.
+    copy_grid_blocks: "Blocks",
+    /// The copy grid's choice: marked row by row.
+    copy_grid_rows: "Rows",
+    /// The block marked. `{}`: its name, "A1" on a Codex32QR, "5 · 10" (first row · first column) on a SeedQR.
+    copy_grid_block: "Block {}",
+    /// Button: the block (or row) before.
+    copy_grid_prev: "Previous",
+    /// Button: the next block (or row).
+    copy_grid_next: "Next",
+    /// Key under the copy grid: the squares the blank sheet prints.
+    copy_grid_printed: "Grey · printed on the sheet",
+    /// Key under the copy grid: the squares to draw.
+    copy_grid_draw: "Black · draw",
+    /// Button: the camera on the Codex32QR drawn.
+    c32_scan_my_copy: "Scan my copy",
+    /// The camera read something that is not a codex32 string of the set's length.
+    c32_scanned_not_string: "Not a codex32 string",
     /// Templates item's line with only codex32 sheets. `{}`: the length.
     c32_templates_sub: "Codex32, {} characters",
     // ----- Codex32 strings written, gathered and counted (docs/CODEX32.md §9.1, §9.5), faraday-core -----

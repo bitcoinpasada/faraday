@@ -40,6 +40,15 @@ pub enum Press {
     Key(OskPress),
     /// **String** · **Codex32QR**, at 48 characters.
     Qr,
+    /// A block (or, marked by rows, a row) of the open string's Codex32QR
+    /// marked: pressed in the whole grid, or Previous and Next, by its
+    /// place in reading order.
+    BlockAt(u8),
+    /// The Codex32QR marked row by row (`true`) or block by block.
+    Rows(bool),
+    /// **Scan my copy**: the camera opened on the Codex32QR drawn of the
+    /// string open, to compare it with the string.
+    ScanCopy,
     /// **Continue**: the string typed back, the next one.
     Next,
     /// **Skip**: a first press asks, a second goes on.
@@ -253,6 +262,12 @@ pub struct Strings {
     pub skip_ask: bool,
     /// The open string's Codex32QR, while shown (48 characters).
     pub qr: Option<faraday_codec::qr::QrMatrix>,
+    /// The block of that Codex32QR marked and shown large, by its place
+    /// in reading order; the row, where it is marked by rows.
+    pub block: u8,
+    /// The Codex32QR is marked row by row rather than block by block.
+    /// Kept while the backup is open, as the SeedQR's choice is.
+    pub rows: bool,
     /// The strings typed back that held, for the check that enough of
     /// them rebuild the seed.
     pub held: Vec<Zeroizing<String>>,
@@ -281,6 +296,20 @@ impl Strings {
             .map(|(_, s)| s.as_str())
     }
 
+    /// The string at index `j` as this item holds it: made here, or,
+    /// for a set that exists, typed back from its paper and found to
+    /// hold. What its Codex32QR is drawn from and a drawn copy is
+    /// compared with (`docs/CODEX32.md` §9.5).
+    pub fn known(&self, j: usize) -> Option<&str> {
+        let index = crate::plan::codex32::CHARSET.get(j)?;
+        self.made(j).or_else(|| {
+            self.held
+                .iter()
+                .find(|h| h.as_bytes().get(8) == Some(index))
+                .map(|h| h.as_str())
+        })
+    }
+
     /// Whether any string was made here.
     pub fn any_made(&self) -> bool {
         !self.made.is_empty()
@@ -302,6 +331,7 @@ impl Strings {
         self.found = None;
         self.skip_ask = false;
         self.qr = None;
+        self.block = 0;
         self.note = None;
     }
 
@@ -312,6 +342,47 @@ impl Strings {
         self.found = None;
         self.skip_ask = false;
         self.qr = None;
+        self.block = 0;
+    }
+
+    /// The block (or row) of the open Codex32QR marked: `at`, kept within
+    /// the code's blocks (rows).
+    pub fn mark(&mut self, at: u8) {
+        let Some(n) = self.qr.as_ref().map(faraday_codec::qr::QrMatrix::size) else {
+            return;
+        };
+        let count = if self.rows {
+            n
+        } else {
+            crate::screens::copy_blocks(n).pow(2)
+        };
+        self.block = at.min(u8::try_from(count - 1).unwrap_or(0));
+    }
+
+    /// Marked by rows (`true`) or by blocks, from the first.
+    pub fn mark_rows(&mut self, rows: bool) {
+        self.rows = rows;
+        self.block = 0;
+    }
+
+    /// The text a camera read off the drawn Codex32QR of the string open
+    /// (`docs/CODEX32.md` §10.2): read as that string typed back whole,
+    /// either case, and checked as [`Strings::key`] checks it. Returns
+    /// the string once it holds, to be counted towards the rebuild.
+    pub fn scanned(&mut self, form: &C32, text: &str) -> Option<String> {
+        let j = self.at?;
+        let whole = Zeroizing::new(text.trim().to_ascii_lowercase());
+        if whole.len() != usize::from(form.length) || Codex32::parse(&whole).is_err() {
+            self.found = Some(Found::Differs(EN.c32_scanned_not_string.to_string()));
+            return None;
+        }
+        self.typed = Zeroizing::new(whole.get(3..).unwrap_or("").to_string());
+        self.skip_ask = false;
+        let known = self.known(j).map(|s| Zeroizing::new(s.to_string()));
+        let found = check(form, j, &whole, known.as_deref().map(String::as_str));
+        let holds = matches!(found, Found::Holds(_));
+        self.found = Some(found);
+        holds.then(|| whole.to_string())
     }
 
     /// A key of the codex32 keyboard while a string of the set is typed
@@ -438,6 +509,75 @@ impl Strings {
             }
         }
     }
+}
+
+/// The codex32 item open, its seed's form, and the strings checked or
+/// skipped past, by seed and index: what a press on the item changes.
+pub(crate) type Parts<'a> = (&'a mut Strings, &'a C32, &'a mut Vec<(usize, usize)>);
+
+/// Marks string `j` of seed `i` checked, or skipped past, in `checked`.
+pub(crate) fn mark_checked(checked: &mut Vec<(usize, usize)>, i: usize, j: usize) {
+    if !checked.contains(&(i, j)) {
+        checked.push((i, j));
+    }
+}
+
+impl crate::wallet_backup::WalletBackupArea {
+    /// The Codex32QR drawn of the string open on the codex32 item, read
+    /// by the camera as `text` (`docs/CODEX32.md` §9.5): checked as that
+    /// string typed back whole, kept towards the rebuild and the string
+    /// marked checked once it holds. What it was found to be.
+    pub(crate) fn c32_scanned(&mut self, text: &str) -> Option<Found> {
+        let (st, form, checked) = self.c32_parts()?;
+        let j = st.at?;
+        if let Some(whole) = st.scanned(form, text) {
+            if !st.held.iter().any(|h| h.as_str() == whole) {
+                st.held.push(Zeroizing::new(whole));
+            }
+            mark_checked(checked, st.seed, j);
+        }
+        st.found.clone()
+    }
+}
+
+/// The side of a Codex32QR in squares: version 3 (`docs/CODEX32.md`
+/// §10.1).
+pub const QR_SIDE: usize = 29;
+
+/// Whether square (x, y) of a Codex32QR is printed dark on the Starter's
+/// Codex32QR sheet (`docs/CODEX32.md` §11), the patterns every version 3
+/// code shares, so the person draws only the rest: the three finders, the
+/// timing lines between them, the alignment square and the dark module.
+/// Not the separators, which are light, nor the format areas, which
+/// depend on the code's mask. The device's copy grid draws these grey,
+/// as printed already.
+pub fn printed(x: usize, y: usize) -> bool {
+    let n = QR_SIDE;
+    if x >= n || y >= n {
+        return false;
+    }
+    if x == 8 && y == n - 8 {
+        return true;
+    }
+    // A finder at (ox, oy): a dark ring, a light ring, a dark 3 x 3.
+    for (ox, oy) in [(0, 0), (n - 7, 0), (0, n - 7)] {
+        if (ox..ox + 7).contains(&x) && (oy..oy + 7).contains(&y) {
+            let (dx, dy) = (x - ox, y - oy);
+            let ring = dx == 0 || dx == 6 || dy == 0 || dy == 6;
+            let core = (2..=4).contains(&dx) && (2..=4).contains(&dy);
+            return ring || core;
+        }
+    }
+    // The timing lines run between the finders, dark on even squares.
+    if y == 6 && (8..n - 8).contains(&x) {
+        return x.is_multiple_of(2);
+    }
+    if x == 6 && (8..n - 8).contains(&y) {
+        return y.is_multiple_of(2);
+    }
+    // The alignment square, centred on (n - 7, n - 7).
+    let (dx, dy) = (x.abs_diff(n - 7), y.abs_diff(n - 7));
+    dx <= 2 && dy <= 2 && (dx == 2 || dy == 2 || (dx == 0 && dy == 0))
 }
 
 /// What string `typed`, typed back for index `j` of `form`, is: the box

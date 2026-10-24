@@ -2354,6 +2354,58 @@ strings of one set load its key. A place's line counts its shares: "1
 of 2 shares of 9a6a2580 · alone: nothing", "2 of 2 shares of 9a6a2580:
 the seed".
 
+### 17.24 A QR copied by hand: blocks or rows (owner, 2026-10-24; built 2026-10-24)
+
+The SeedQR on a seed's copy item and a codex32 string's Codex32QR on its
+item (§17.23) are copied square by square from one grid
+(`screens/parts.rs`, `copy_grid`):
+
+- **Blocks** (ticked) · **Rows**. Blocks are counted from the top left
+  in fives, as the blank sheets' heavier lines are, so the last block
+  of a row or column is narrower where the side is not a multiple of
+  five: a 29 × 29 code has five blocks of five and one of four each
+  way, a 25 × 25 code five of five, a 21 × 21 (Compact SeedQR) four and
+  one of one. Each block is a press of its own, so the pointer over a
+  square lights its block, not its row; in Rows each row is one, as
+  before. The Codex32QR's blocks are named as its sheet names them,
+  rows A to F and columns 1 to 6 ("Block C4"); the SeedQR's by the
+  index of their first row and column, as its sheet numbers its lines
+  ("Block 5 · 10").
+- The block marked is tinted and edged in the accent, and drawn large
+  beside the grid (under it on a narrow column) with one square of its
+  neighbours faded round it. Its name and **Previous** · **Next** are
+  under the key; the arrow keys move the mark a block at a time (Up and
+  Down a row at a time in Rows), never past the code's last.
+- Grey squares are the ones the blank sheet prints ("Grey · printed on
+  the sheet"); black ones are drawn ("Black · draw"). For a SeedQR that
+  is the finders, separators, timing and alignment the sheet prints
+  (`structural_fixed`); the format areas, which the sheet leaves blank,
+  are black. For a Codex32QR it is the finders, timing, alignment square
+  and dark module the Codex32QR sheet prints black
+  (`codex32_backup::printed`).
+
+**A string's Codex32QR drawn by hand** (`Codex32QrPaper`, §17.23,
+`docs/CODEX32.md` §9.5). Where the plan draws a string's Codex32QR at a
+place, its item names the sheet ("Sheet · Faraday Starter, Blank
+templates, codex32, 48 characters, Codex32QR") and opens on the grid
+above; the Templates item counts that sheet ("1 from Blank templates,
+codex32, 48 characters, Codex32QR", or "Both" where the string is also
+written there). A string made here opens on its grid at once, and one
+only drawn is not typed back. A string of a set that exists is typed
+from its paper first; once it holds, its grid is shown (owner,
+2026-10-24: no reveal of a kept string is added for it). **Scan my
+copy** opens the camera on the drawn copy (`ScanPurpose::CheckCodex32`):
+read as that string, a box that differs is named on the scanner ("Box 9
+differs"), anything else is "Not a codex32 string", and the copy that
+holds checks the string and closes the camera. Nothing scanned there is
+loaded or filed. Every blank sheet says so in its line (owner,
+2026-10-24): "Written by hand. Never photographed or scanned by any
+other device once filled in."
+
+Tests: `tests/all/codex32qr_copy.rs` (the sheet named, the grid's
+blocks and rows, a copy drawn on the sheet's grid read back and
+checked), `check_copy.rs` (the SeedQR's blocks, keys and rows).
+
 ## 18. Backups age (planned, not built; F87)
 
 A backup is only as good as its last check: paper fades, a box is

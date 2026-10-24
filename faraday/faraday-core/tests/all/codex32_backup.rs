@@ -376,7 +376,10 @@ fn the_templates_item_names_the_codex32_sheet() {
     let c = testkit::compute();
     let (shape, a) = app.board_plan().unwrap();
     let mapped = plan::Mapped::of(&c, &shape, &a);
-    assert_eq!(plan::codex32::templates_of(&a, &mapped), vec![(127, 3)]);
+    assert_eq!(
+        plan::codex32::templates_of(&a, &mapped),
+        vec![(127, plan::codex32::PaperCopy::String, 3)]
+    );
     assert_eq!(plan::templates(&c, &shape, &a), 0, "no words on paper");
 }
 

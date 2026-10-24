@@ -37,13 +37,20 @@ pub enum CodexCopy {
     String,
     /// The Codex32QR grid, at 48 characters.
     Codex32Qr,
-    /// Both on one sheet, at 48 characters.
+    /// Both, the string's card and the grid's sheet, at 48 characters.
     Both,
+    /// Four smaller Codex32QR grids on one page, at 48 characters.
+    Grids,
 }
 
 impl CodexCopy {
     /// Every choice, in the order a Choice lists them.
-    pub const ALL: [CodexCopy; 3] = [CodexCopy::String, CodexCopy::Codex32Qr, CodexCopy::Both];
+    pub const ALL: [CodexCopy; 4] = [
+        CodexCopy::String,
+        CodexCopy::Codex32Qr,
+        CodexCopy::Both,
+        CodexCopy::Grids,
+    ];
 
     /// The sheet file's `copy:` value.
     fn line(self) -> String {
@@ -51,6 +58,7 @@ impl CodexCopy {
             CodexCopy::String => "string".into(),
             CodexCopy::Codex32Qr => "codex32qr".into(),
             CodexCopy::Both => [CodexCopy::String.line(), CodexCopy::Codex32Qr.line()].join(" "),
+            CodexCopy::Grids => "codex32qr-4".into(),
         }
     }
 
@@ -60,6 +68,7 @@ impl CodexCopy {
             CodexCopy::String => "string",
             CodexCopy::Codex32Qr => "codex32qr",
             CodexCopy::Both => "string-codex32qr",
+            CodexCopy::Grids => "codex32qr-4",
         }
     }
 }

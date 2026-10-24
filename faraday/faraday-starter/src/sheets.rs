@@ -11,7 +11,8 @@
 //! The booklet's MIT notice is kept beside those tables and on the
 //! codex32 Learn page, not printed on the sheets (owner, §1.1 item 6).
 //! The sheet file's `kind: codex32` fields are `chars` (48, 74 or 127),
-//! `copy` (`string`, `codex32qr`), `worksheets` (`yes` or `no`) and
+//! `copy` (`string`, `codex32qr`, both, or `codex32qr-4` for four
+//! grids to a page), `worksheets` (`yes` or `no`) and
 //! `places`.
 
 use faraday_bip::codex32::{
@@ -39,6 +40,7 @@ fn pdf_text(s: &str) -> Vec<u8> {
                 out.push(c as u8);
             }
             '·' => out.push(0xB7),
+            '©' => out.push(0xA9),
             c if (c as u32) < 0x80 => out.push(c as u8),
             _ => out.push(b'?'),
         }
@@ -328,14 +330,25 @@ pub fn sheet(c: &Compute, text: &str) -> Result<Vec<u8>, String> {
         return Err(EN.pdf_c32_length.into());
     }
     let copy = get(f, "copy").unwrap_or("string");
-    let qr = chars == 48 && copy.split_whitespace().any(|w| w == "codex32qr");
-    let string = copy.split_whitespace().any(|w| w == "string") || !qr;
+    let has = |w: &str| copy.split_whitespace().any(|x| x == w);
+    let qr = chars == 48 && has("codex32qr");
+    let grids = chars == 48 && has("codex32qr-4");
+    let string = has("string") || !(qr || grids);
     let worksheets = get(f, "worksheets") == Some("yes") && chars != 127;
     let places: usize = get(f, "places")
         .and_then(|v| v.parse().ok())
         .unwrap_or(1)
         .clamp(1, 20);
-    let mut pages = vec![card(chars, string, qr)];
+    let mut pages = Vec::new();
+    if string {
+        pages.push(card(chars));
+    }
+    if qr {
+        pages.push(codex32qr_page());
+    }
+    if grids {
+        pages.push(codex32qr_grids_page());
+    }
     if worksheets {
         pages.extend(dice::pages());
         pages.extend(checksum_pages(chars)?);
@@ -382,53 +395,22 @@ fn places_page(places: usize) -> Canvas {
 // The share card
 // ---------------------------------------------------------------------
 
-/// Whether module (x, y) of a version 3 QR (29 × 29) is dark in a fixed
-/// pattern every Codex32QR shares: the finders, the timing lines, the
-/// alignment square and the dark module. The separators and the format
-/// areas are not drawn.
-fn qr_fixed_dark(x: usize, y: usize) -> bool {
-    let n = 29;
-    if x == 8 && y == n - 8 {
-        return true;
-    }
-    // A finder at (ox, oy): a dark ring, a light ring, a dark 3 x 3.
-    for (ox, oy) in [(0, 0), (n - 7, 0), (0, n - 7)] {
-        if (ox..ox + 7).contains(&x) && (oy..oy + 7).contains(&y) {
-            let (dx, dy) = (x - ox, y - oy);
-            let ring = dx == 0 || dx == 6 || dy == 0 || dy == 6;
-            let core = (2..=4).contains(&dx) && (2..=4).contains(&dy);
-            return ring || core;
-        }
-    }
-    // The timing lines run between the finders, dark on even squares.
-    if y == 6 && (8..n - 8).contains(&x) {
-        return x.is_multiple_of(2);
-    }
-    if x == 6 && (8..n - 8).contains(&y) {
-        return y.is_multiple_of(2);
-    }
-    // The alignment square, centred on (n - 7, n - 7).
-    let (dx, dy) = (x.abs_diff(n - 7), y.abs_diff(n - 7));
-    dx <= 2 && dy <= 2 && (dx == 2 || dy == 2 || (dx == 0 && dy == 0))
-}
-
-/// Which squares of a Codex32QR grid are drawn grey as printed already.
+/// Which squares of a Codex32QR grid the sheet prints black: the
+/// patterns every version 3 code shares
+/// (`faraday_core::codex32_backup::printed`), the same squares the
+/// device's copy grid draws grey.
 pub fn codex32qr_fixed() -> Vec<(usize, usize)> {
-    let mut out = Vec::new();
-    for y in 0..29 {
-        for x in 0..29 {
-            if qr_fixed_dark(x, y) {
-                out.push((x, y));
-            }
-        }
-    }
-    out
+    let n = faraday_core::codex32_backup::QR_SIDE;
+    (0..n)
+        .flat_map(|y| (0..n).map(move |x| (x, y)))
+        .filter(|&(x, y)| faraday_core::codex32_backup::printed(x, y))
+        .collect()
 }
 
 /// The share card: `ms1` printed in boxes 1 to 3, the labelled boxes,
-/// every box numbered, rows of eight in groups of four; the Codex32QR
-/// grid where asked; the fingerprint box; the alphabet at the foot.
-fn card(chars: usize, string: bool, qr: bool) -> Canvas {
+/// every box numbered, rows of eight in groups of four; the fingerprint
+/// box; the alphabet at the foot.
+fn card(chars: usize) -> Canvas {
     let mut p = Canvas::portrait();
     p.sans(
         MARGIN,
@@ -446,61 +428,22 @@ fn card(chars: usize, string: bool, qr: bool) -> Canvas {
     let gap = 12.0;
     let bx = |i: usize| MARGIN + (i % 8) as f32 * bsz + ((i % 8) / 4) as f32 * gap;
     let by = |i: usize| top + (i / 8) as f32 * pitch;
-    let strip = 8.0 * bsz + gap;
-    if string {
-        for i in 0..chars {
-            let (x, y) = (bx(i), by(i));
-            p.mono(x + 1.0, y - 7.5, 6.0, &(i + 1).to_string());
-            if i < 3 {
-                p.cell(x, y, bsz, bsz, Kind::Bold, Some(b"ms1"[i]));
-            } else {
-                p.cell(x, y, bsz, bsz, Kind::Plain, None);
-            }
-        }
-        // Threshold (box 4), Identifier (boxes 5 to 8), Share index (box 9).
-        let under = by(0) + bsz + 2.0;
-        p.sans(bx(3), under, 6.0, false, EN.pdf_c32_threshold);
-        p.line(bx(4), under + 0.5, bx(7) + bsz, under + 0.5, 0.4, 0.4);
-        p.sans(bx(4), under + 2.0, 6.0, false, EN.pdf_c32_identifier);
-        p.sans(bx(8), by(8) + bsz + 2.0, 6.0, false, EN.pdf_c32_index);
-    }
-    if qr {
-        let (gx, cell) = if string {
-            let gx = MARGIN + strip + 24.0;
-            (gx, (PAGE_W - MARGIN - gx) / 29.0)
+    for i in 0..chars {
+        let (x, y) = (bx(i), by(i));
+        p.mono(x + 1.0, y - 7.5, 6.0, &(i + 1).to_string());
+        if i < 3 {
+            p.cell(x, y, bsz, bsz, Kind::Bold, Some(b"ms1"[i]));
         } else {
-            (MARGIN + 20.0, 15.0)
-        };
-        let gy = top;
-        for (x, y) in codex32qr_fixed() {
-            p.fill(
-                gx + x as f32 * cell,
-                gy + y as f32 * cell,
-                cell,
-                cell,
-                [0.62, 0.62, 0.62],
-            );
+            p.cell(x, y, bsz, bsz, Kind::Plain, None);
         }
-        for i in 0..=29 {
-            let (width, grey) = if i % 5 == 0 { (0.6, 0.45) } else { (0.3, 0.75) };
-            let o = i as f32 * cell;
-            p.line(gx + o, gy, gx + o, gy + 29.0 * cell, width, grey);
-            p.line(gx, gy + o, gx + 29.0 * cell, gy + o, width, grey);
-        }
-        p.sans(gx, gy + 29.0 * cell + 4.0, 7.0, false, EN.pdf_c32_grid);
     }
-    // The fingerprint, eight hex digits, filled by hand.
-    p.sans(MARGIN, 692.0, 9.0, false, EN.pdf_fingerprint);
-    for i in 0..8 {
-        p.cell(
-            MARGIN + i as f32 * 24.0,
-            706.0,
-            22.0,
-            22.0,
-            Kind::Plain,
-            None,
-        );
-    }
+    // Threshold (box 4), Identifier (boxes 5 to 8), Share index (box 9).
+    let under = by(0) + bsz + 2.0;
+    p.sans(bx(3), under, 6.0, false, EN.pdf_c32_threshold);
+    p.line(bx(4), under + 0.5, bx(7) + bsz, under + 0.5, 0.4, 0.4);
+    p.sans(bx(4), under + 2.0, 6.0, false, EN.pdf_c32_identifier);
+    p.sans(bx(8), by(8) + bsz + 2.0, 6.0, false, EN.pdf_c32_index);
+    fingerprint_boxes(&mut p, MARGIN, 692.0, 22.0);
     // The alphabet, 0, 7, S and Z slashed.
     p.sans(MARGIN, 744.0, 8.0, false, EN.pdf_c32_alphabet);
     let pitch = (PAGE_W - 2.0 * MARGIN) / 32.0;
@@ -513,6 +456,140 @@ fn card(chars: usize, string: bool, qr: bool) -> Canvas {
             14.0,
             c.to_ascii_uppercase(),
         );
+    }
+    p.footer();
+    p
+}
+
+// ---------------------------------------------------------------------
+// The Codex32QR sheets (`docs/CODEX32.md` §11)
+// ---------------------------------------------------------------------
+
+/// The fingerprint's label and eight boxes of side `bsz`, from (x, y).
+fn fingerprint_boxes(p: &mut Canvas, x: f32, y: f32, bsz: f32) {
+    p.sans(x, y, 9.0, false, EN.pdf_fingerprint);
+    for i in 0..8 {
+        let bx = x + i as f32 * (bsz + 2.0);
+        p.cell(bx, y + 14.0, bsz, bsz, Kind::Plain, None);
+    }
+}
+
+/// Boxes 1 to 9 of a string, its header, numbered, from (x, y), each of
+/// side `bsz`: `ms1` printed in 1 to 3, then the threshold, the
+/// identifier and the share index, labelled under them. Returns the
+/// height used.
+fn header_boxes(p: &mut Canvas, x: f32, y: f32, bsz: f32) -> f32 {
+    let gap = bsz / 3.0;
+    // ms1 · threshold · identifier · share index, a gap between groups.
+    let bx = |i: usize| {
+        let groups = [0, 3, 4, 8].iter().filter(|&&g| i >= g).count() - 1;
+        x + i as f32 * bsz + groups as f32 * gap
+    };
+    let size = (bsz * 0.3).max(5.0);
+    for i in 0..9 {
+        p.mono(bx(i) + 1.0, y, size, &(i + 1).to_string());
+        let kind = if i < 3 { Kind::Bold } else { Kind::Plain };
+        let c = (i < 3).then(|| b"ms1"[i]);
+        p.cell(bx(i), y + size + 1.5, bsz, bsz, kind, c);
+    }
+    let under = y + size + 1.5 + bsz + 2.0;
+    p.sans(bx(3), under, size, false, EN.pdf_c32_threshold);
+    p.sans(
+        bx(4),
+        under + size + 1.0,
+        size,
+        false,
+        EN.pdf_c32_identifier,
+    );
+    p.sans(bx(8), under, size, false, EN.pdf_c32_index);
+    under + 2.0 * size + 2.0 - y
+}
+
+/// A blank Codex32QR grid of 29 × 29 squares of side `cell`, its top
+/// left square at (gx, gy): the squares every version 3 code shares
+/// printed black ([`codex32qr_fixed`]), a thin rule round every square
+/// and a heavier one every five from the top left, and the blocks named
+/// as the device names them, columns 1 to 6 above and rows A to F to the
+/// left, in grey outside the grid. True size: printed at 100%, a filled
+/// grid is a code a camera reads.
+fn qr_grid(p: &mut Canvas, gx: f32, gy: f32, cell: f32) {
+    let n = faraday_core::codex32_backup::QR_SIDE;
+    for (x, y) in codex32qr_fixed() {
+        p.fill(
+            gx + x as f32 * cell,
+            gy + y as f32 * cell,
+            cell,
+            cell,
+            [0.0, 0.0, 0.0],
+        );
+    }
+    let side = n as f32 * cell;
+    for i in 0..=n {
+        let block = i % 5 == 0 || i == n;
+        let (width, grey) = if block { (0.6, 0.45) } else { (0.3, 0.75) };
+        let o = i as f32 * cell;
+        p.line(gx + o, gy, gx + o, gy + side, width, grey);
+        p.line(gx, gy + o, gx + side, gy + o, width, grey);
+    }
+    let size = (cell * 0.75).clamp(5.0, 10.0);
+    for b in 0..n.div_ceil(5) {
+        let o = b as f32 * 5.0 * cell;
+        let span = (5.0 * cell).min(side - o);
+        let col = (b + 1).to_string();
+        let row = char::from(b'A' + u8::try_from(b).unwrap_or(0)).to_string();
+        p.sans(
+            gx + o + span / 2.0 - size * 0.3,
+            gy - size - 3.0,
+            size,
+            false,
+            &col,
+        );
+        p.sans(
+            gx - size - 2.0,
+            gy + o + span / 2.0 - size / 2.0,
+            size,
+            false,
+            &row,
+        );
+    }
+}
+
+/// The Codex32QR sheet: one grid at full size (squares of 16 points,
+/// about 5.6 mm), the string's header boxes and the fingerprint above
+/// it, so the drawn code says which string it is.
+fn codex32qr_page() -> Canvas {
+    let mut p = Canvas::portrait();
+    p.sans(MARGIN, MARGIN, 18.0, true, EN.pdf_c32qr_title);
+    p.sans(MARGIN, MARGIN + 26.0, 9.0, false, EN.pdf_written_by_hand);
+    p.sans(MARGIN, MARGIN + 38.0, 9.0, false, EN.pdf_c32qr_hand);
+    let top = MARGIN + 60.0;
+    header_boxes(&mut p, MARGIN, top, 24.0);
+    fingerprint_boxes(&mut p, MARGIN + 300.0, top, 20.0);
+    let cell = 16.0;
+    let gy = top + 90.0;
+    let gx = MARGIN + (PAGE_W - 2.0 * MARGIN - 29.0 * cell) / 2.0;
+    qr_grid(&mut p, gx, gy, cell);
+    p.sans(gx, gy + 29.0 * cell + 6.0, 7.0, false, EN.pdf_c32_grid);
+    p.footer();
+    p
+}
+
+/// Four Codex32QR grids on one page, two by two, each with its string's
+/// header boxes under it: smaller squares (7 points, about 2.5 mm), for
+/// several strings or a practice copy, as FractalEncrypt's printable
+/// cards put four to a page.
+fn codex32qr_grids_page() -> Canvas {
+    let mut p = Canvas::portrait();
+    p.sans(MARGIN, MARGIN, 18.0, true, EN.pdf_c32qr_grids_title);
+    p.sans(MARGIN, MARGIN + 26.0, 9.0, false, EN.pdf_written_by_hand);
+    p.sans(MARGIN, MARGIN + 38.0, 9.0, false, EN.pdf_c32_grid);
+    let cell = 7.0;
+    let half = (PAGE_W - 2.0 * MARGIN) / 2.0;
+    for q in 0..4 {
+        let x = MARGIN + (q % 2) as f32 * half + 14.0;
+        let y = MARGIN + 80.0 + (q / 2) as f32 * 330.0;
+        qr_grid(&mut p, x, y, cell);
+        header_boxes(&mut p, x, y + 29.0 * cell + 14.0, 16.0);
     }
     p.footer();
     p
