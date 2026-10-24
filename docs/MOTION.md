@@ -252,8 +252,8 @@ extent; a motion left from another screen or sheet is stopped.
 ### 3.5 Visual polish
 
 - **Hover**: rows, buttons, the sidebar items, the step cards' headers
-  and the ? button gain a hover look (a fill of `INNER` at 60 %, a
-  secondary button's edge one step brighter). `Ui::hovered` is found from
+  and the ? button gain a hover look (a state layer in the content
+  colour, THEMES §8). `Ui::hovered` is found from
   the last frame's hits, like `pressed`; a frame is drawn only when the
   hovered action changes.
 - **Reduce motion** (Settings › Appearance, a Material switch,
@@ -278,9 +278,10 @@ extent; a motion left from another screen or sheet is stopped.
     (`Scroll::follow`) is a glide;
   - a switch's fill slides in 150 ms on Material's standard curve
     (`motion::SWITCH_MS`, `motion::ease_move`);
-  - a change of theme cross-fades the whole frame the same way, over
-    350 ms (`motion::THEME_FADE_MS`), on Material's standard curve
-    (`motion::ease_move`),
+  - a change of theme, mode or contrast (a different `Theme`, the triple
+    of THEMES §3) cross-fades the whole frame the same way, over 350 ms
+    (`motion::THEME_FADE_MS`, Material's medium 3), on Material's
+    standard curve (`motion::ease_move`),
     since every pixel changes colour: it is a change like any other to
     `Faraday::fade_begin` (the theme is part of what a frame drew), so
     it is at once with reduce motion and on a machine whose fades are
@@ -370,84 +371,45 @@ extent; a motion left from another screen or sheet is stopped.
 
 ### 3.6 Light mode
 
-- Changing the theme cross-fades from the old palette to the new
-  (§3.5).
-- `Faraday::theme` (`Theme::Dark`, `Theme::Light`), chosen on Settings
-  under **Appearance**. Kept across a lock with the other settings
-  (`theme=` in the kept `settings`, `memory.rs`), until power-off.
-- The screens keep drawing with `ui::pal`'s names; `Ui` maps each colour
-  to the active theme at the draw boundary (`Ui::fill`, `stroke`, `text`,
-  `wrap`, `icon`, `dot`, `rule`, and the frame's clear), matching on the
-  colour's RGB and keeping its alpha, so `ACCENT.with_alpha(140)` becomes
-  the light accent at the same alpha. Colours outside the palette (a
-  QR's black and white, the camera image) pass unchanged. The one
-  `mix` (`Ui::button`'s pressed primary) maps before it mixes.
-  `ON_ACCENT` moves one step (`#0d1219`) so it no longer shares
-  `SIDEBAR`'s RGB.
-- The light palette:
+- Mode is one of the three parts of a `Theme` (THEMES §3): **Light** or
+  **Dark**, chosen on Settings › Appearance (Mode, a segmented button;
+  `docs/THEMES.md` §12) with the theme and the contrast. A first start is
+  in Cobalt, Light, Standard. Kept across a lock with the other settings
+  (`mode=` in the kept `settings`, `memory.rs`, THEMES §13), until
+  power-off on the stick.
+- Changing the mode cross-fades from the old colours to the new (§3.5),
+  as a change of theme does, and is at once under Reduce motion.
+- Every colour a screen draws is a Material colour role by name, taken
+  from the active scheme (`faraday_ui::pal::Role`, THEMES §4 and §6);
+  there is no second palette to map. Colours outside the roles (a QR's
+  black and white, the camera image, the codex32 checksum colour, the
+  dice) pass unchanged. A light scheme casts the lighter shadow
+  (`Theme::is_light`).
+- The colours of each of the sixty schemes are in
+  `faraday/faraday-ui/src/pal/schemes.rs`, made by `just themes` (THEMES
+  §10); the table of the old fourteen-name palette is gone.
 
-| Name | Dark | Light |
-|---|---|---|
-| BG | `#11161c` | `#f4f6f8` |
-| SIDEBAR | `#0d1218` | `#e9edf1` |
-| SURFACE | `#19212a` | `#ffffff` |
-| LINE | `#1f2933` | `#dce2e8` |
-| INNER | `#222c37` | `#e8edf1` |
-| BORDER | `#303d49` | `#c6d0d8` |
-| TEXT | `#e0e9ef` | `#151c23` |
-| MUTED | `#9aacb9` | `#4f5d69` |
-| DIM | `#6f8291` | `#7a8894` |
-| ACCENT | `#83d8ef` | `#0b7a9e` |
-| ON_ACCENT | `#0d1219` | `#ffffff` |
-| OK | `#8bd4b2` | `#1c8053` |
-| WARN | `#f0c077` | `#9a5d00` |
-| ERR | `#ef9b9b` | `#bf3434` |
+### 3.7 Named themes
 
-### 3.7 Named themes (2026-10-07)
+Ten themes, each a seed colour and a Material scheme style, each in
+Light and Dark at Standard, Medium and High contrast (THEMES §2):
+Cobalt, Bitcoin Orange, Lamplight, Mars, Forest, Frost, Dusk, Lavender,
+Rose and Monochrome. Settings › Appearance shows them as ten filter
+chips, each with a swatch drawn from its own scheme in the mode and
+contrast on screen (`Ui::theme_chips`); the chosen chip is selected and
+the default, Cobalt, carries a Default mark. The theme is kept as
+`theme=<id>`; a settings file of before opens each old theme (Nord,
+Catppuccin, Tokyo Night, Gruvbox, Rosé Pine, the two high contrast
+themes and the rest) in the theme, mode and contrast THEMES §13 maps it
+to. The old tiles, their groups and `ThemeGroup` are gone.
 
-Five more palettes beside Dark and Light, each a published theme mapped
-onto the same fourteen names (`ui::pal::NORD`, `CATPPUCCIN`,
-`TOKYO_NIGHT`, `GRUVBOX`, `ROSE_PINE`): Nord, Catppuccin Mocha, Tokyo
-Night, Gruvbox dark and Rosé Pine Dawn. Where a theme's own red, gold or
-green reads under 4.5:1 on its cards it is lightened or darkened until it
-does (Nord's and Gruvbox's red, Rosé Pine's love, gold and a green it
-lacks). Rosé Pine and Light are light themes (`Theme::is_light`), with
-the lighter shadow. Settings › Appearance shows each as a tile drawn in
-its own colours (`Ui::theme_tile`); the theme is kept as `theme=<id>`.
-`faraday-snapshot WxH KIT OUT themes` renders three screens in each.
-Tokyo Night is the theme a first start is in, on every shell (owner,
-2026-10-08; it was Nord from 2026-10-07; `Theme`'s default).
-Since 2026-10-11 (owner) a first start is in **Cobalt**
-(`ui::pal::COBALT`): a cool blue-white page with a deep cobalt accent,
-#0062A3 (6.0:1 on the page). The same day Bitcoin Orange Light took
-Bitcoin's orange (#F7931A) at full strength, with dark text on its
-buttons, since white on it is 2.1:1; its accent text on the page is
-2.1:1 too: the owner asked for the orange itself.
-Lamplight (2026-10-09, `ui::pal::LAMPLIGHT`) is Faraday's own light
-theme: warm cream page, espresso text, a terracotta accent (#A34E26,
-5.2:1 on the page) and a sage, amber and brick at 4.5:1 or more.
-High contrast dark and High contrast light (`ui::pal::HIGH_CONTRAST_DARK`,
-`HIGH_CONTRAST_LIGHT`; light is `Theme::is_light`) are pure black and
-pure white pages with white and black text and one strong accent, yellow
-and deep blue (#0000CC): every text pair is 7:1 or more on the page and
-the card, and edges, rules and focus rings 3:1 or more. Mars
-(`ui::pal::MARS`, id `mars`) is a warm near-black page with butterscotch
-text and Mars's rust red-orange accent, #D9603B (5.2:1 on the page).
-The palettes are in `faraday/faraday-ui/src/pal/`: the colours and
-Dark in `mod.rs`, the other themes' tables in `light.rs`, `dark.rs` and
-`high_contrast.rs`.
-Since 2026-10-23 (owner) every theme's text, accent, positive and
-warning read at 4.5:1 or more on its page and its cards, and its dimmed
-text at 3:1 or more, Bitcoin Orange Light's accent alone excepted: the
-positive green of Light (#1C8053), Cobalt (#1C7F52) and Bitcoin Orange
-Light (#1C7E52), and Rosé Pine's warning (#A26111) and dimmed text
-(#918B9F), each darkened by the least that reaches it.
-
-Since THEMES C3 (2026-10-24, F113) the named themes above are history:
-Settings › Appearance offers Theme (ten filter chips, `Ui::theme_chips`),
-Mode and Contrast (`docs/THEMES.md` §12), each change fading in as above;
-a settings file of before opens each old theme in the scheme THEMES §13
-maps it to. The tiles, their groups and `ThemeGroup` are gone.
+Every scheme meets Material's contrast rule and Faraday's floors
+(THEMES §11): text, labels, status words and edges read at 4.5:1 or
+more against what is drawn under them (7:1 at High contrast).
+`faraday-snapshot WxH themes` renders Home, Wallets, the backup board, a
+codex32 worksheet and Settings › Appearance in each theme in Light and
+Dark at Standard contrast, and in Cobalt at Medium and High, with the
+Appearance screen in the default scheme and in three others.
 
 ### 3.8 The caret and the scrollbar (2026-10-07)
 

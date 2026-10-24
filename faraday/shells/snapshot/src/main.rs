@@ -19,7 +19,7 @@
 //! for a stick called TESTSTICK. Each step of the tour is one numbered
 //! PNG in `OUT_DIR`. With `spend`, only the Spend tab's tour runs; with
 //! `devices`, the stick's device check and its reminders; with
-//! `themes`, three screens in each theme; with `keys`, Wallets with keys
+//! `themes`, five screens in each scheme (docs/THEMES.md); with `keys`, Wallets with keys
 //! in no wallet; with `visit`, Stick visit with a backup's 20 files in the
 //! Outbox, each list scrolled to its end; with `copy`, the backup's seeds
 //! step checking the copy, without a camera and with one; with `scan`,

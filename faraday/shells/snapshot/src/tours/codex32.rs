@@ -82,6 +82,32 @@ fn twenty_faced(t: &mut Tour) -> Result<(), String> {
     Ok(())
 }
 
+/// Make codex32 shares, 2 of 3 named `name`, on the booklet's dice
+/// sheet with share A's first characters rolled: the worksheet as the
+/// themes tour draws it. Costs nothing but presses.
+pub(crate) fn worksheet(t: &mut Tour) {
+    t.press(Action::Nav(Screen::WalletsStart));
+    t.press(Action::KeyGen(None));
+    t.press(Action::KStep(kstep::START));
+    t.press(Action::KStart(Start::MakeCodex32.index()));
+    let two = SPLITS
+        .iter()
+        .position(|s| *s == Split::TwoOfThree)
+        .unwrap_or(0);
+    c(t, C32::Split(two as u8));
+    c(t, C32::Next);
+    for ch in "name".chars() {
+        key(t, ch);
+    }
+    c(t, C32::Next);
+    let dice = WAYS.iter().position(|w| *w == Way::Dice).unwrap_or(0);
+    c(t, C32::Way(dice as u8));
+    c(t, C32::Next);
+    for &ch in &SHARES[0].as_bytes()[9..35] {
+        roll(t, ch);
+    }
+}
+
 pub(crate) fn codex32_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
