@@ -216,7 +216,15 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::BStage;
     let panel_w = side_panel_w(cw);
     let col_x = x0 + 40.0;
-    let col_w = cw - panel_w - 72.0;
+    // With the board shown on a large window the page runs to the
+    // window's edge: the cards keep the reading column, the board runs
+    // on to the supporting pane's spacer, and its list is that pane
+    // (`docs/LAYOUT.md` §14, §17).
+    let work = crate::screens::board_work_end(app);
+    let col_w = match work {
+        Some(end) => (end - col_x).min(crate::board::screen::column_w()),
+        None => cw - panel_w - 72.0,
+    };
     let Some(b) = app.backup() else {
         title(ui, col_x, 28.0, EN.backup_back_up_a_wallet);
         return;
@@ -328,7 +336,11 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let compact = ui.compact;
     let col = flow::Column {
         area_x: x0,
-        area_w: if compact { cw } else { cw - panel_w },
+        area_w: match work {
+            _ if compact => cw,
+            Some(end) => end - x0 + faraday_draw::tokens::SPACER,
+            None => cw - panel_w,
+        },
         x: col_x,
         w: col_w,
         h,
@@ -387,7 +399,10 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     app.scroll(Scrolled::Backup, next, again);
     // While the board is shown its list is the right-hand column, the
     // map's place (`docs/BACKUP-FLOW.md` §17.14).
-    if !compact && app.board_shown() {
+    if work.is_some() {
+        let pane = crate::screens::support_pane_place((x0, cw, h));
+        crate::board::screen::list_pane(app, ui, pane);
+    } else if !compact && app.board_shown() {
         crate::board::screen::list_panel(app, ui, x0 + cw - panel_w, panel_w, h);
     } else if !compact {
         backup_panel(app, ui, x0 + cw - panel_w, panel_w, h);

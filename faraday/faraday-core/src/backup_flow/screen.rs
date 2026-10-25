@@ -50,19 +50,24 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let cards: Vec<flow::Card> = steps.iter().map(|&s| card(app, f, s)).collect();
     // While the plan card's board is shown on `wide`, its list is a
     // right-hand column, as on Back up (`docs/BACKUP-FLOW.md` §17.14).
-    let panel_w = if !ui.compact && app.board_shown() {
+    // On a large window the page runs to the window's edge: the cards
+    // keep the reading column, the board runs on to the supporting pane's
+    // spacer, and its list is that pane (`docs/LAYOUT.md` §14, §17).
+    let work = crate::screens::board_work_end(app);
+    let panel_w = if work.is_none() && !ui.compact && app.board_shown() {
         crate::screens::side_panel_w(cw)
     } else {
         0.0
     };
+    let col_x = x0 + 40.0;
     let col = flow::Column {
         area_x: x0,
-        area_w: cw - panel_w,
-        x: x0 + 40.0,
-        w: if panel_w > 0.0 {
-            cw - panel_w - 72.0
-        } else {
-            (cw - 72.0).min(820.0)
+        area_w: work.map_or(cw - panel_w, |end| end - x0 + faraday_draw::tokens::SPACER),
+        x: col_x,
+        w: match work {
+            Some(end) => (end - col_x).min(crate::board::screen::column_w()),
+            None if panel_w > 0.0 => cw - panel_w - 72.0,
+            None => (cw - 72.0).min(820.0),
         },
         h,
         back: Some(app.named_back((FEN.backup_flow_leave, fa(F::Back)))),
@@ -84,7 +89,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::BackupFlow, next, again);
-    if panel_w > 0.0 {
+    if work.is_some() {
+        let pane = crate::screens::support_pane_place((x0, cw, h));
+        crate::board::screen::list_pane(app, ui, pane);
+    } else if panel_w > 0.0 {
         crate::board::screen::list_panel(app, ui, x0 + cw - panel_w, panel_w, h);
     }
 }

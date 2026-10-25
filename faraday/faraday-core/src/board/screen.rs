@@ -820,7 +820,9 @@ struct Row {
 /// lines inside the place when they do not fit at `BOARD_BOX_MIN` each,
 /// every box as tall as the row (a line of sticks as tall as its
 /// tallest); in the narrow column one under another. `stick_h` and
-/// `paper_h` give a box's own height at a width.
+/// `paper_h` give a box's own height at a width. On `wide` the row is at
+/// least `min_h` tall, its boxes with it: a place as tall as the others
+/// in its line of columns (`docs/LAYOUT.md` §17).
 #[allow(clippy::too_many_arguments)]
 fn row(
     stick_h: &dyn Fn(usize, f32) -> f32,
@@ -828,9 +830,8 @@ fn row(
     n: usize,
     add: bool,
     narrow: bool,
-    x: f32,
-    y: f32,
-    w: f32,
+    (x, y, w): (f32, f32, f32),
+    min_h: f32,
 ) -> Row {
     let g = tokens::BOARD_PAD;
     let mut sticks = Vec::with_capacity(n);
@@ -886,7 +887,7 @@ fn row(
     }
     let sticks_h = if n == 0 { 0.0 } else { ly - g - y };
     let ph = paper_h(pw);
-    let h = sticks_h.max(ph).max(tokens::BOARD_CHIP);
+    let h = sticks_h.max(ph).max(tokens::BOARD_CHIP).max(min_h);
     let mut ly = y;
     let last = lines.len();
     for (j, (start, end, lh)) in lines.into_iter().enumerate() {
@@ -1018,29 +1019,46 @@ fn place_box(ui: &mut Ui, x: f32, y: f32, w: f32, h: f32) -> (f32, f32) {
     (x + stripe, w - stripe - e)
 }
 
-/// Place `cv` at (x, y), `w` wide (`docs/BACKUP-FLOW.md` §17.15): its
-/// header band, then its sticks, **+ stick** and Paper. Returns its
-/// height.
-fn place(ui: &mut Ui, fr: &mut Frame, v: &BoardView, cv: &CardView, x: f32, y: f32, w: f32) -> f32 {
+/// Place `cv`'s parts laid out at (x, y), `w` wide, the place at least
+/// `min_h` tall: where they go, and the place's height.
+fn place_lay(
+    ui: &Ui,
+    v: &BoardView,
+    cv: &CardView,
+    (x, y, w): (f32, f32, f32),
+    min_h: f32,
+) -> (Row, f32) {
     let pad = tokens::BOARD_PAD;
     let e = tokens::BOARD_BOX_EDGE;
     let stripe = tokens::BOARD_PLACE_STRIPE;
     let (ix, iw) = (x + stripe + pad, w - stripe - e - 2.0 * pad);
     let top = y + e + tokens::BOARD_HEAD + pad;
-    let lay = {
-        let ui_ref: &Ui = ui;
-        row(
-            &|i, sw| stick_h(ui_ref, &cv.sticks[i], sw),
-            &|pw| paper_h(ui_ref, &cv.paper.chips, pw),
-            cv.sticks.len(),
-            v.custom,
-            ui_ref.compact,
-            ix,
-            top,
-            iw,
-        )
-    };
+    let lay = row(
+        &|i, sw| stick_h(ui, &cv.sticks[i], sw),
+        &|pw| paper_h(ui, &cv.paper.chips, pw),
+        cv.sticks.len(),
+        v.custom,
+        ui.compact,
+        (ix, top, iw),
+        min_h - (top - y) - pad - e,
+    );
     let h = top + lay.h + pad + e - y;
+    (lay, h)
+}
+
+/// Place `cv` at (x, y), `w` wide (`docs/BACKUP-FLOW.md` §17.15): its
+/// header band, then its sticks, **+ stick** and Paper, the place at
+/// least `min_h` tall. Returns its height.
+fn place(
+    ui: &mut Ui,
+    fr: &mut Frame,
+    v: &BoardView,
+    cv: &CardView,
+    (x, y, w): (f32, f32, f32),
+    min_h: f32,
+) -> f32 {
+    let e = tokens::BOARD_BOX_EDGE;
+    let (lay, h) = place_lay(ui, v, cv, (x, y, w), min_h);
     let (bx, bw) = place_box(ui, x, y, w, h);
     ui.hit_quiet(
         x,
@@ -1338,9 +1356,8 @@ fn software(ui: &mut Ui, fr: &mut Frame, v: &BoardView, x: f32, y: f32, w: f32) 
             1,
             false,
             ui_ref.compact,
-            ix,
-            top,
-            iw,
+            (ix, top, iw),
+            0.0,
         )
     };
     let h = top + lay.h + pad + e - y;
@@ -1868,13 +1885,84 @@ fn read_only_buttons(v: &crate::board::BoardView) -> Vec<(&'static str, Style, A
     ]
 }
 
+/// The reading column of a page that holds the board on a large window
+/// (`docs/LAYOUT.md` §14): a flow's card whose body is `COLUMN_MAX` wide.
+pub(crate) fn column_w() -> f32 {
+    tokens::COLUMN_MAX + crate::flow::BODY_INDENT + crate::flow::BODY_RIGHT
+}
+
+/// What stands in the board's columns, in order.
+enum Cell<'a> {
+    /// A place.
+    Place(&'a CardView),
+    /// **+ place**.
+    Add,
+    /// The software place.
+    Software,
+}
+
+/// The board's places, **+ place** and the software place from (x, y) in
+/// `w`, in as many columns as `w` holds at `BOARD_PLACE_W` each, each
+/// column the row's share; the places in a line of columns as tall as
+/// the tallest (`docs/LAYOUT.md` §17). In one column, as before, each
+/// at its own height. Returns the height down to the last one's foot
+/// and the gap under it.
+fn cells(
+    ui: &mut Ui,
+    fr: &mut Frame,
+    v: &BoardView,
+    (x, y, w): (f32, f32, f32),
+    cols: usize,
+) -> f32 {
+    let gap = tokens::BOARD_PLACE_GAP;
+    let mut all: Vec<Cell> = v.places.iter().map(Cell::Place).collect();
+    // A place may be added after the lock too (§17.8).
+    // Not at one place per key (§19.19).
+    if v.custom && v.room {
+        all.push(Cell::Add);
+    }
+    if v.software.is_some() {
+        all.push(Cell::Software);
+    }
+    let cw = (w - gap * (cols - 1) as f32) / cols as f32;
+    let mut cy = y;
+    for line in all.chunks(cols.max(1)) {
+        // Measured only where places stand side by side.
+        let tall = if cols > 1 {
+            line.iter()
+                .filter_map(|c| match c {
+                    Cell::Place(cv) => Some(place_lay(ui, v, cv, (x, cy, cw), 0.0).1),
+                    _ => None,
+                })
+                .fold(0.0f32, f32::max)
+        } else {
+            0.0
+        };
+        let mut lh = 0.0f32;
+        for (j, c) in line.iter().enumerate() {
+            let cx = x + j as f32 * (cw + gap);
+            let h = match c {
+                Cell::Place(cv) => place(ui, fr, v, cv, (cx, cy, cw), tall),
+                Cell::Add => add_place(ui, cx, cy, cw),
+                Cell::Software => software(ui, fr, v, cx, cy, cw),
+            };
+            lh = lh.max(h);
+        }
+        cy += lh + gap;
+    }
+    cy - y
+}
+
 /// The board on a plan card (`docs/BACKUP-FLOW.md` §17.15): the places
 /// one under another, each a row the column's width, **+ place** after
 /// them, the software place last, the plan's three checks and the check
 /// lines under them; over them a placed chip's forms. On `wide` the list
 /// is the right-hand column ([`list_panel`]); in the narrow column a
 /// place's parts stand one under another, under **Add**, which opens the
-/// list as a sheet (§19.12 item 3). Returns its height.
+/// list as a sheet (§19.12 item 3). On a large window the places run on
+/// to the work width's end in columns, the list in the supporting pane
+/// ([`list_pane`]), and the checks keep the column's `w`
+/// (`docs/LAYOUT.md` §17). Returns its height.
 pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let Some(v) = app.board_view() else {
         return 0.0;
@@ -1883,6 +1971,14 @@ pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         return 0.0;
     };
     let gap = tokens::BOARD_PLACE_GAP;
+    let (ww, cols) = match crate::screens::board_work_end(app) {
+        Some(end) if end - x > w => {
+            let ww = end - x;
+            let fit = ((ww + gap) / (tokens::BOARD_PLACE_W + gap)).floor() as usize;
+            (ww, fit.max(1))
+        }
+        _ => (w, 1),
+    };
     let mut cy = y;
     if ui.compact {
         // Read-only until Customize backup, its two buttons in Add's place
@@ -1899,17 +1995,7 @@ pub(crate) fn board(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         cy += faraday_ui::parts::wrap_buttons(ui, x, cy, w, tokens::BOARD_CHIP, &buttons)
             + tokens::BOARD_PAD;
     }
-    for cv in &v.places {
-        cy += place(ui, &mut fr, &v, cv, x, cy, w) + gap;
-    }
-    // A place may be added after the lock too (§17.8).
-    // Not at one place per key (§19.19).
-    if v.custom && v.room {
-        cy += add_place(ui, x, cy, w) + gap;
-    }
-    if v.software.is_some() {
-        cy += software(ui, &mut fr, &v, x, cy, w) + gap;
-    }
+    cy += cells(ui, &mut fr, &v, (x, cy, ww), cols);
     let mut bottom = cy - gap;
     // The plan's three checks, as the Map drew them, under the board
     // (§19.14; the owner's choice, 2026-10-16: the board's top is kept
@@ -1998,19 +2084,34 @@ fn view_of(v: &BoardView, c: Chip) -> Option<ChipView> {
 /// owner's layout): the list, scrolling on its own; a placed chip dragged onto it is taken off. Over the whole
 /// screen, last, the chip being dragged.
 pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
+    ui.fill(px, 0.0, pw, h, 0.0, Role::Surface);
+    ui.fill(px, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
+    // Clear of the network pill and the ? at the window's top right.
+    let top = tokens::SIDE_PANEL_TOP;
+    list_in(app, ui, (px, top, pw, (h - top).max(0.0)), false);
+}
+
+/// The board's list in the supporting pane at `pane` (x, top, width,
+/// the height it shows) on a large window (`docs/LAYOUT.md` §6, §15,
+/// §17): an outlined card as tall as the list, up to the pane's height,
+/// scrolling on its own; a placed chip dragged onto it is taken off. Over
+/// the whole screen, last, the chip being dragged.
+pub(crate) fn list_pane(app: &View, ui: &mut Ui, pane: Box4) {
+    list_in(app, ui, pane, true);
+}
+
+/// The list in the box `(px, top, pw, view)`, its content scrolled, as a
+/// column or (`card`) an outlined card as tall as the list; then the chip
+/// being dragged, over the whole screen.
+fn list_in(app: &View, ui: &mut Ui, (px, top, pw, view): Box4, card: bool) {
     let Some(v) = app.board_view() else {
         return;
     };
     let Some(mut fr) = frame(app, ui, &v) else {
         return;
     };
-    ui.fill(px, 0.0, pw, h, 0.0, Role::Surface);
-    ui.fill(px, 0.0, 1.0, h, 0.0, Role::OutlineVariant);
     let pad = tokens::BOARD_PAD;
     let (x, w) = (px + tokens::GRID * 2.0, pw - tokens::GRID * 4.0);
-    // Clear of the network pill and the ? at the window's top right.
-    let top = tokens::SIDE_PANEL_TOP;
-    let view = (h - top).max(0.0);
     let draw = |ui: &mut Ui, fr: &mut Frame, y: f32| -> f32 {
         let mut cy = y + tokens::GRID;
         // Read-only until Customize backup: the button in the list's
@@ -2031,6 +2132,8 @@ pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
     };
     let content = measure(ui, &mut |ui| draw(ui, &mut fr, 0.0));
     let shift = app.flows.board_list_offset().min((content - view).max(0.0));
+    // The card is as tall as the list, up to the pane's height.
+    let view = if card { view.min(content) } else { view };
     let clip = ui.rect(px, top, pw, view);
     ui.hit_quiet(
         px,
@@ -2055,6 +2158,9 @@ pub(crate) fn list_panel(app: &View, ui: &mut Ui, px: f32, pw: f32, h: f32) {
         }
     }
     ui.c.pop_clip();
+    if card {
+        ui.stroke(px, top, pw, view, tokens::SHAPE_M, Role::OutlineVariant);
+    }
     if taken && fr.drag.is_none_or(|d| inside(d, (px, top, pw, view))) {
         edge(
             ui,

@@ -59,6 +59,16 @@ pub(crate) enum Place {
 /// panel of its own, or a sheet over one), else in a strip at the foot.
 /// Arithmetic on the font.
 pub(crate) fn place(app: &View, ui: &mut Ui, room: f32, hosted: &Hosted) -> Place {
+    if beside(app, room) {
+        Place::Side
+    } else {
+        Place::Strip(strip_h(ui, room, hosted))
+    }
+}
+
+/// Whether the card stands at the right of a page area `room` wide, not
+/// in a strip at the foot ([`place`]). Arithmetic.
+pub(crate) fn beside(app: &crate::Faraday, room: f32) -> bool {
     let panel = matches!(
         app.screen,
         Screen::CreateVault | Screen::Backup | Screen::Spend | Screen::BackupFlow
@@ -68,11 +78,7 @@ pub(crate) fn place(app: &View, ui: &mut Ui, room: f32, hosted: &Hosted) -> Plac
     } else {
         t::DEMO_PAGE_MIN
     };
-    if !app.is_compact() && room - crate::screens::support_pane_room() >= least {
-        Place::Side
-    } else {
-        Place::Strip(strip_h(ui, room, hosted))
-    }
+    !app.is_compact() && room - crate::screens::support_pane_room() >= least
 }
 
 /// Where the card stands as a pane for the page area at `x0`, `room`

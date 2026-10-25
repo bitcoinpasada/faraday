@@ -82,14 +82,19 @@ enum Area {
     /// window's edge.
     Work,
     /// No wide layout built yet: the area the old frame gave it,
-    /// centred, until its batch changes this line (the backup board's
-    /// is W7; `docs/LAYOUT.md` §19 lists the rest).
+    /// centred, until its batch changes this line (`docs/LAYOUT.md` §19
+    /// lists them).
     Until,
 }
 
-/// How `screen` takes the room.
-fn area_of(screen: Screen) -> Area {
+/// How `screen` takes the room; `board` is whether the backup board is
+/// on screen.
+fn area_of(screen: Screen, board: bool) -> Area {
     match screen {
+        // Back up and a wallet's backup flow hold the backup board, wide
+        // content, while it is shown (`docs/LAYOUT.md` §17); their other
+        // cards keep the old area.
+        Screen::Backup | Screen::BackupFlow if board => Area::Work,
         Screen::SetTime => Area::Reading(READING_TIME_W),
         Screen::Randomness => Area::Reading(READING_RANDOM_W),
         // Explore is reading content: its fields, values and the
@@ -126,11 +131,11 @@ fn area_of(screen: Screen) -> Area {
 /// runs to the edge; a page with no wide layout yet keeps the area the
 /// old frame gave it. Returns how far the page is moved right and its
 /// width. Arithmetic.
-fn page_area(screen: Screen, room: f32) -> (f32, f32) {
+fn page_area(screen: Screen, board: bool, room: f32) -> (f32, f32) {
     if room <= PAGE_AREA_UNTIL_W {
         return (0.0, room);
     }
-    match area_of(screen) {
+    match area_of(screen, board) {
         Area::Reading(w) => ((room - w) / 2.0, w),
         Area::Work => (0.0, room),
         Area::Until => ((room - PAGE_AREA_UNTIL_W) / 2.0, PAGE_AREA_UNTIL_W),
@@ -152,6 +157,28 @@ pub(crate) fn support_pane_place((x0, cw, h): (f32, f32, f32)) -> (f32, f32, f32
         w,
         (h - top - MARGIN_WIDE).max(TOUCH),
     )
+}
+
+/// The right end of the backup board's work width, in the page's x, where
+/// the board is shown on a window whose room is wider than the old page
+/// area (`docs/LAYOUT.md` §14, §17): the page then runs from the
+/// navigation to the window's edge, the board's list stands in the
+/// supporting pane and the places stand in columns up to the pane's
+/// spacer. `None` elsewhere: there the board is laid out as before.
+/// Costs a lookup.
+pub(crate) fn board_work_end(app: &crate::Faraday) -> Option<f32> {
+    if app.is_compact() || !app.board_shown() {
+        return None;
+    }
+    let full_w = app.size().0;
+    let nav = if app.held { 0.0 } else { SIDEBAR_W };
+    let mut room = full_w - nav;
+    // The "Demo only" card beside the page takes its room first, as the
+    // frame gives it (`docs/DEMO.md` §14).
+    if app.demo_card_now().is_some() && demo_card::beside(app, room) {
+        room -= support_pane_room();
+    }
+    (room > PAGE_AREA_UNTIL_W).then(|| nav + room - support_pane_room())
 }
 
 /// The room a supporting pane takes from the page at its right: the pane,
@@ -236,7 +263,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         // a strip at the foot takes its height (`docs/DEMO.md` §14).
         let card = app.demo_card_now();
         let place = card.as_ref().map(|c| demo_card::place(app, ui, room, c));
-        let (ox, cw) = page_area(app.screen, room - demo_card::side_room(place));
+        let (ox, cw) = page_area(
+            app.screen,
+            app.board_shown(),
+            room - demo_card::side_room(place),
+        );
         let foot = demo_card::foot_room(place);
         let h = full_h;
         ui.ox = ox;
@@ -485,7 +516,7 @@ fn drop_edge(app: &View, ui: &mut Ui, (full_w, full_h): (f32, f32), kb: bool) {
 /// keyboard, the window's height, drawn up to keep the field in view.
 fn held_frame(app: &View, ui: &mut Ui, full_w: f32, full_h: f32, page: (f32, f32)) {
     let (page_h, lift) = page;
-    let (ox, cw) = page_area(app.screen, full_w);
+    let (ox, cw) = page_area(app.screen, app.board_shown(), full_w);
     ui.ox = ox;
     if app.screen != Screen::Home {
         ui.oy = -lift;
@@ -763,7 +794,7 @@ fn network_pill_left(app: &View, ui: &Ui, qx: f32) -> f32 {
 pub(crate) fn keygen_page_w(app: &crate::Faraday) -> f32 {
     let full_w = app.size().0;
     let room = if app.held { full_w } else { full_w - SIDEBAR_W };
-    page_area(Screen::KeyGen, room).1
+    page_area(Screen::KeyGen, false, room).1
 }
 
 /// The start-up self-test failed: which check, and Exit. A build whose

@@ -393,6 +393,12 @@ pub const BOARD_CARD_MAX: f32 = 280.0;
 /// The gap in dp between two places on the board, one under another
 /// (`docs/BACKUP-FLOW.md` §17.15).
 pub const BOARD_PLACE_GAP: f32 = 2.0 * GRID + GAP_SMALL;
+/// The narrowest a place stands in a column of the backup board on a
+/// large window (`docs/LAYOUT.md` §17): its stick, its **+ stick** and
+/// its Paper side by side at `BOARD_BOX_MIN` and over. The work width
+/// holds as many columns as fit at this width, two at 1920 dp and three
+/// at 2560 dp, each at the row's share.
+pub const BOARD_PLACE_W: f32 = 60.0 * GRID;
 /// Width in dp of a place's left stripe, in its edge's colour.
 pub const BOARD_PLACE_STRIPE: f32 = 5.0;
 /// Stroke in dp of a place's edge, Paper's, and **+ stick**'s and **+
