@@ -2171,6 +2171,12 @@ impl crate::Faraday {
             self.act(crate::Action::Back);
             return true;
         }
+        // The keyboard's place is on a control: Enter or Space presses
+        // it, as everywhere else (`docs/DESIGN.md` §4.15), before the
+        // card takes the key.
+        if matches!(key, KeyIn::Enter | KeyIn::Char(' ')) && self.pointer.focused().is_some() {
+            return false;
+        }
         // Make codex32 shares: the keyboard's keys to its open card.
         if k.open == Some(kstep::CODEX32) && k.codex32.is_some() {
             let press = match key {

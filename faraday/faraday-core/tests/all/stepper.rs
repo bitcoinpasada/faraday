@@ -31,8 +31,12 @@ fn on(width: u16, height: u16) -> Faraday {
 /// New key's Make codex32 shares under Reduce motion, Scheme open with
 /// Other chosen: its two steppers drawn.
 fn other(width: u16, height: u16) -> Faraday {
+    other_with(width, height, true)
+}
+
+fn other_with(width: u16, height: u16, reduce: bool) -> Faraday {
     let mut app = on(width, height);
-    app.press(Action::ReduceMotion(true));
+    app.press(Action::ReduceMotion(reduce));
     app.press(Action::Nav(Screen::WalletsStart));
     let _ = app.frame();
     app.press(Action::KeyGen(None));
@@ -151,4 +155,91 @@ fn the_pointer_resting_on_minus_names_it() {
     tick(&mut app, 300);
     tick(&mut app, 300);
     assert_eq!(count(&mut app, EN.tip_decrease), before + 1);
+}
+
+#[test]
+fn enter_presses_the_focused_plus_on_new_key() {
+    let mut app = other(1280, 800);
+    let (k, n) = k_n(&app);
+    let none = count(&mut app, EN.tip_increase);
+    let mut on_plus = false;
+    for _ in 0..200 {
+        app.event(Event::Key(Key::Tab));
+        tick(&mut app, 600);
+        if count(&mut app, EN.tip_increase) > none {
+            on_plus = true;
+            break;
+        }
+    }
+    assert!(on_plus, "Tab reaches a + on Scheme and names it");
+    app.event(Event::Key(Key::Enter));
+    let after = k_n(&app);
+    assert!(
+        after == (k + 1, n) || after == (k, n + 1),
+        "Enter on + raised one count: {:?} to {after:?}",
+        (k, n),
+    );
+}
+
+#[test]
+fn the_pointer_resting_on_schemes_minus_names_it() {
+    let mut app = other(1280, 800);
+    let (x, y) = app.where_offered(Action::Codex32(C32::K(-1))).unwrap();
+    let before = count(&mut app, EN.tip_decrease);
+    app.event(Event::Hover { x, y });
+    tick(&mut app, 300);
+    tick(&mut app, 300);
+    assert_eq!(count(&mut app, EN.tip_decrease), before + 1);
+}
+
+#[test]
+fn schemes_tooltip_stands_at_its_button() {
+    for (w, h) in [(1280, 800), (1920, 1080), (480, 640)] {
+        let mut app = other(w, h);
+        let (x, y) = app.where_offered(Action::Codex32(C32::K(-1))).unwrap();
+        app.event(Event::Hover { x, y });
+        tick(&mut app, 300);
+        tick(&mut app, 300);
+        let boxes = app.drawn_text_boxes();
+        let tip = boxes.iter().find(|(t, _)| t == EN.tip_decrease).unwrap().1;
+        eprintln!("hover ({x},{y}) tip {tip:?}");
+        assert!(
+            (tip.0 - i32::from(x)).abs() < 80 && (tip.1 - i32::from(y)).abs() < 80,
+            "{w}x{h}"
+        );
+    }
+}
+
+#[test]
+fn the_pointer_resting_on_schemes_minus_names_it_with_motion() {
+    let mut app = other_with(1280, 800, false);
+    for _ in 0..20 {
+        tick(&mut app, 100);
+        let _ = app.frame();
+    }
+    let (x, y) = app.where_offered(Action::Codex32(C32::K(-1))).unwrap();
+    let before = count(&mut app, EN.tip_decrease);
+    app.event(Event::Hover { x, y });
+    tick(&mut app, 300);
+    tick(&mut app, 300);
+    assert_eq!(count(&mut app, EN.tip_decrease), before + 1);
+}
+
+/// The head's segmented pair ends left of the top strip's pills at every
+/// size (`docs/LAYOUT.md` §15).
+#[test]
+fn the_head_pair_stays_left_of_the_pills() {
+    for (w, h) in [(1280, 800), (1366, 768), (1920, 1080), (2560, 1440)] {
+        let mut app = other(w, h);
+        let _ = app.frame();
+        let g = app.hit_box(Action::Guided(true)).unwrap();
+        let q = app.hit_box(Action::Learn).unwrap().0;
+        let p = app.hit_box(Action::ModeSheet).map_or(q, |b| b.0.min(q));
+        assert!(
+            g.0 + g.2 <= p,
+            "{w}x{h}: Guided ends at {}, the pill at {}",
+            g.0 + g.2,
+            p
+        );
+    }
 }

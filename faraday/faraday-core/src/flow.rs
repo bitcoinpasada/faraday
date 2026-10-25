@@ -147,7 +147,10 @@ pub fn column_foot(
     let hw = ui.text(x, y, 26.0, W::S, Role::OnSurface, col.heading);
     // Cancel at the right end, then Steps only or Guided beside it;
     // laid out from the right.
-    let mut bx = x + w;
+    // The wide layout's top-right row (the mode pill and the ?) stands
+    // against the window's edge (`docs/LAYOUT.md` §15): the controls end
+    // left of it.
+    let mut bx = (x + w).min(ui.top_row_left - tokens::GAP);
     if col.cancel {
         let bw = ui.measure(13.0, W::S, EN.flow_cancel) + 32.0;
         bx -= bw;
