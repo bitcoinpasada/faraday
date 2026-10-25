@@ -37,6 +37,10 @@ pub(crate) mod input_panel;
 mod pan;
 pub(crate) mod pane_screen;
 pub(crate) mod screen;
+mod tour;
+pub(crate) mod tour_screen;
+#[cfg(test)]
+mod tour_tests;
 mod tracker;
 pub(crate) mod tracker_screen;
 #[cfg(test)]
@@ -49,6 +53,7 @@ pub(crate) mod worksheet_screen;
 
 use pan::SheetFit;
 pub use pan::SheetPan;
+pub use tour::{Tour, TourStep};
 pub use walk::{SPEEDS, Speed, Step, Walk, WalkAct, WalkChar};
 
 /// Making codex32 shares, and the wallet kind of §6.9, are offered. False
@@ -376,8 +381,13 @@ pub enum C32 {
     /// the foot, or closed back to it (§5.5).
     Pane,
     /// The Working area's step before (-1) or after (1) of the person's
-    /// own entry (§5.7): only what is shown moves.
+    /// own entry (§5.7): only what is shown moves; past the last checksum
+    /// the tour of the shares made and S, whose last Next goes on.
     Step(i8),
+    /// **Show the other shares and S as they fill**, beside the Working
+    /// area once every character is in: on, Next goes through the shares
+    /// made and S after the last checksum (§5.7).
+    Tour,
     /// The dice's faces, by their place in [`DIE_SIZES`] (§5.1): in the
     /// middle of a character, its rolls so far are cleared. Chosen in
     /// the dice's menu, it closes the menu.
@@ -596,6 +606,10 @@ pub struct Codex32Make {
     /// The person's own entry's steps (§5.7, `tracker.rs`): worked out
     /// again at every change of the entry by the person.
     track: Walk,
+    /// The tour of the shares made and S past the last checksum (§5.7,
+    /// `tour.rs`): worked out as the set is made, forgotten as it is
+    /// unmade.
+    tour: Tour,
     /// How far the "Demo only" card is scrolled within itself, units.
     pane_y: f32,
     /// On a narrow window, the card opened from its strip at the foot.
@@ -663,6 +677,7 @@ impl Codex32Make {
             page_due: false,
             walk: Walk::default(),
             track: Walk::default(),
+            tour: Tour::default(),
             pane_y: 0.0,
             pane_open: false,
         }
@@ -1046,12 +1061,27 @@ impl Codex32Make {
         &self,
         cls: faraday_draw::geom::WindowClass,
     ) -> Option<((f32, f32, f32, f32), f32)> {
+        let g = worksheet_screen::Geom::drawn(self.fit.cell, cls);
+        // The tour on a share made's checksum check: its marked cells, on
+        // the check's own worksheet, which stands where the entry's would.
+        if let Some(t) = self.tour_on_check() {
+            let sh = self.tour_check(t)?.worksheet(Reveal::PaperForm)?;
+            let marks = self.tour_check_cells(t);
+            let spot = worksheet_screen::paper!(sh, |p| {
+                let mut spots = marks.iter().filter_map(|&(cell, _)| g.cell_spot(p, cell));
+                let first = spots.next()?;
+                Some(spots.fold(first, worksheet_screen::union))
+            });
+            return spot.map(|s| (s, g.cell));
+        }
+        if self.tour_shown().is_some() {
+            return None;
+        }
         let (share, front) = self.entry_share()?;
         let sh = self
             .work
             .as_ref()
             .and_then(|w| w.worksheet(share, Reveal::PaperForm))?;
-        let g = worksheet_screen::Geom::drawn(self.fit.cell, cls);
         // At the person's character just put in its box, the view follows
         // the entry as before, to the box being filled next, on the same
         // sheet; the steps after it follow their cells.
@@ -1124,9 +1154,10 @@ impl Codex32Make {
     /// character read down the tree: the dice sheet is where its work is
     /// (`docs/LAYOUT.md` §16.4). A lookup.
     pub(crate) fn walk_rolling(&self) -> bool {
-        self.walk.shown().is_some_and(|(_, _, s)| {
-            matches!(s, Step::First { .. } | Step::Second { .. } | Step::Char)
-        })
+        self.tour_shown().is_none()
+            && self.walk.shown().is_some_and(|(_, _, s)| {
+                matches!(s, Step::First { .. } | Step::Second { .. } | Step::Char)
+            })
     }
 
     /// Whether the entry shows the dice sheet: with the Checksum tab of
@@ -1224,12 +1255,13 @@ impl Codex32Make {
     /// Whether the step-through shows a step of the checksum worksheet:
     /// the worksheet is where its work is. A lookup.
     pub(crate) fn walk_checksum(&self) -> bool {
-        self.walk.shown().is_some_and(|(_, _, s)| {
-            matches!(
-                s,
-                Step::Sum { .. } | Step::Table { .. } | Step::Below { .. }
-            )
-        })
+        self.tour_shown().is_none()
+            && self.walk.shown().is_some_and(|(_, _, s)| {
+                matches!(
+                    s,
+                    Step::Sum { .. } | Step::Table { .. } | Step::Below { .. }
+                )
+            })
     }
 
     /// The page makes the least move that brings the part of it `top`
@@ -1588,7 +1620,8 @@ impl Codex32Make {
                     self.roll(c, f);
                 }
             }
-            C32::Step(d) if self.open == Some(Card::Enter) => self.track_step(d),
+            C32::Step(d) if self.open == Some(Card::Enter) => self.step_press(c, d),
+            C32::Tour => self.tour_toggle(),
             C32::Qr => self.qr_on = !self.qr_on && self.qr.is_some(),
             C32::Skip => self.skip(c),
             C32::Sample if self.open == Some(Card::Enter) => self.use_sample(c),
@@ -1898,6 +1931,7 @@ impl Codex32Make {
                     .map(|_| Vec::new())
                     .collect();
                 self.work = Some(w);
+                self.tour_drop();
                 // A new entry: nothing on it is the roller's.
                 self.roller.reset();
                 true
@@ -2155,8 +2189,9 @@ impl Codex32Make {
     }
 
     /// Costs an HMAC-SHA512 and an elliptic-curve multiplication (the
-    /// key's fingerprint) and a QR encoding. Takes the finished set's
-    /// strings, as a paper form, and its key's fingerprint.
+    /// key's fingerprint), a QR encoding and a checksum worksheet of each
+    /// share made. Takes the finished set's strings, as a paper form, its
+    /// key's fingerprint, and the tour of the shares made (`tour.rs`).
     fn complete(&mut self, c: &Compute) {
         let Some(work) = self.work.as_ref() else {
             return;
@@ -2165,6 +2200,7 @@ impl Codex32Make {
         self.fingerprint = work.fingerprint(c).map(|f| f.0);
         self.at = 0;
         self.encode_qr(c);
+        self.tour_build(c);
     }
 
     /// Takes back the last face of the character in progress, or, with
@@ -2202,6 +2238,7 @@ impl Codex32Make {
         }
         work.pop(share);
         self.strings = None;
+        self.tour_drop();
         self.fingerprint = None;
         self.qr = None;
         self.qr_on = false;

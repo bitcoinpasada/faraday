@@ -32,6 +32,7 @@ use faraday_ui::keyboard::Keys as OskKeys;
 
 use super::pane_screen::side_room;
 use super::screen::{MASK, a};
+use super::tour_screen::{choice, choice_h};
 use super::tracker_screen::working_area_h;
 use super::{C32, Card, Codex32Make, DIE_SIZES, OskPress, Way};
 use crate::drawing::View;
@@ -230,7 +231,7 @@ fn beside_h(m: &Codex32Make) -> f32 {
     let iw = beside_inner();
     let work = working_area_h(iw) + t::GAP;
     let body = if complete(m) {
-        work + t::TOUCH
+        work + choice_h(m) + t::TOUCH
     } else if m.way() == Way::Typed {
         work + keyboard_h()
     } else {
@@ -273,10 +274,16 @@ impl Foot {
     pub(crate) fn of(m: &Codex32Make, inner: f32) -> Foot {
         let wa = working_area_h;
         if complete(m) {
-            // The Working area, and Continue at the row's end.
+            // The Working area with the tour's choice under it, and
+            // Continue at the row's end.
             let ww = inner - t::SPACER - t::INPUT_CONTINUE_W;
-            let body = wa(ww).max(t::TOUCH);
-            let end = (inner - t::INPUT_CONTINUE_W, 0.0, t::INPUT_CONTINUE_W);
+            let body = (wa(ww) + choice_h(m)).max(t::TOUCH);
+            // Continue on the last row, level with the choice.
+            let end = (
+                inner - t::INPUT_CONTINUE_W,
+                body - t::TOUCH,
+                t::INPUT_CONTINUE_W,
+            );
             return Foot::framed(None, (0.0, 0.0, ww), end, body);
         }
         if m.way() == Way::Typed {
@@ -354,6 +361,7 @@ pub(crate) fn draw(m: &Codex32Make, ui: &mut Ui, at: PanelAt, (x0, cw, h): (f32,
             }
             cy += super::tracker_screen::draw(m, ui, (ix, cy, iw)) + t::GAP;
             if complete(m) {
+                cy += choice(m, ui, (ix, cy, iw));
                 continue_button(ui, ix, cy, iw);
                 return;
             }
@@ -372,9 +380,11 @@ pub(crate) fn draw(m: &Codex32Make, ui: &mut Ui, at: PanelAt, (x0, cw, h): (f32,
             if let Some(r) = f.rolls {
                 pairs_across(ui, at(r), &super::dice_screen::pairs_of(m));
             }
-            super::tracker_screen::draw(m, ui, at(f.work));
+            let (wx, wy, ww) = at(f.work);
+            let wh = super::tracker_screen::draw(m, ui, (wx, wy, ww));
             let (px, py, pw) = at(f.pad);
             if complete(m) {
+                choice(m, ui, (wx, wy + wh, ww));
                 continue_button(ui, px, py, pw);
                 return;
             }

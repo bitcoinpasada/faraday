@@ -884,17 +884,17 @@ impl Faraday {
     /// Reduce motion (`docs/LAYOUT.md` §16.4). True when it is the dice's
     /// step. Arithmetic, on the regions the last frame drew.
     fn dice_follow(&mut self) -> bool {
-        let rolling = self
-            .keygen
-            .state()
-            .and_then(|k| k.codex32.as_ref())
-            .is_some_and(crate::codex32::Codex32Make::walk_rolling);
-        if !rolling || self.sheet.is_some() {
+        let m = self.keygen.state().and_then(|k| k.codex32.as_ref());
+        let rolling = m.is_some_and(crate::codex32::Codex32Make::walk_rolling);
+        // The tour of the shares made on a translation worksheet: its
+        // marked cells, said where they stand the same way (§5.7).
+        let grid = m.is_some_and(crate::codex32::Codex32Make::tour_on_grid);
+        if !(rolling || grid) || self.sheet.is_some() {
             return false;
         }
         // In its column at the right the dice sheet stands still beside
         // the page: nothing to follow.
-        if self.codex32_column_now() {
+        if !grid && self.codex32_column_now() {
             return true;
         }
         let key = self.region_key();

@@ -71,8 +71,12 @@ pub(crate) fn working_area(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
 /// the step's character and the kept worksheet. With `short`, where it
 /// stands in the small panel's few characters ("12/18 · ch 7").
 fn lines(m: &Codex32Make, short: bool) -> (String, String) {
+    // Past the last checksum, the tour of the shares made and S.
+    if let Some(l) = super::tour_screen::lines(m, short) {
+        return l;
+    }
     let pick = |long: &'static str, brief: &'static str| if short { brief } else { long };
-    let next = next_text(m);
+    let next = next_text(m).or_else(|| super::tour_screen::next_text(m));
     let (Some((ch, s, step)), Some(work)) = (m.shown_step(), m.work()) else {
         let count = m.front().map_or(String::new(), |(_, n)| {
             fill(
@@ -97,7 +101,7 @@ fn lines(m: &Codex32Make, short: bool) -> (String, String) {
     };
     let mut text = step_text(work, ch, step);
     let at_end = if m.walk().shown().is_some() {
-        !m.walk_can_next()
+        !m.walk_has_more() && m.front().is_none()
     } else {
         m.track_at_end()
     };
@@ -127,10 +131,12 @@ fn next_text(m: &Codex32Make) -> Option<String> {
 /// Demo walk's while it shows a step (New key sends the press there),
 /// else the tracker's.
 fn presses(m: &Codex32Make) -> [(C32, bool); 2] {
-    let (back, next) = if m.walk().shown().is_some() {
+    let (back, next) = if m.tour_shown().is_some() {
+        (true, true)
+    } else if m.walk().shown().is_some() {
         (m.walk_can_back(), m.walk_can_next())
     } else {
-        (m.track_can(-1), m.track_can(1))
+        (m.track_can(-1), m.track_can(1) || m.tour_can(1))
     };
     [(C32::Step(-1), back), (C32::Step(1), next)]
 }

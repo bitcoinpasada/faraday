@@ -28,7 +28,9 @@
 //! **One model.** The person's own entry has the same steps, built from
 //! their own faces by [`Codex32Make::char_steps`] in `tracker.rs`
 //! (§5.7); the sheets mark the step [`Codex32Make::shown_step`] gives,
-//! the walk's while it shows one, else the person's.
+//! the walk's while it shows one, else the person's. Past the last
+//! initial share's checksum both go on into the same tour of the shares
+//! made and S (`tour.rs`).
 
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens as t;
@@ -36,6 +38,7 @@ use faraday_entropy::booklet::{BOOKLET_DICE, BookletChar};
 use faraday_keys::Reveal;
 use zeroize::{Zeroize, Zeroizing};
 
+use super::worksheet_screen::{self, Paper};
 use super::{Card, Cell, Codex32Make, DieRow, Way};
 use crate::fresh::roller::five::{Draw, Reach};
 
@@ -278,15 +281,20 @@ impl Codex32Make {
         self.walk.chars.get(slot).is_some() && s >= 1
     }
 
-    /// Whether Next has a step to show, or a character to roll.
+    /// Whether Next has a step to show, or a character to roll, or the
+    /// tour of the shares made to open or step through.
     pub fn walk_can_next(&self) -> bool {
+        let tour = self.tour_shown().is_some() || self.tour_ready();
+        self.walk_open() && (self.walk_has_more() || self.front().is_some() || tour)
+    }
+
+    /// Whether the walk has a step of its own after the one shown.
+    pub fn walk_has_more(&self) -> bool {
         let (slot, s) = self.walk.at;
-        let more = self
-            .walk
+        self.walk
             .chars
             .get(slot)
-            .is_some_and(|c| s < c.steps.len() || slot + 1 < self.walk.chars.len());
-        self.walk_open() && (more || self.front().is_some())
+            .is_some_and(|c| s < c.steps.len() || slot + 1 < self.walk.chars.len())
     }
 
     /// Where the entry stands now.
@@ -333,6 +341,13 @@ impl Codex32Make {
             return false;
         }
         match act {
+            // The tour of the shares made is the same model's steps past
+            // the last checksum (`tour.rs`).
+            WalkAct::Previous | WalkAct::Next if self.tour_shown().is_some() => {
+                self.walk.playing = false;
+                let d = if act == WalkAct::Next { 1 } else { -1 };
+                self.tour_step(c, d, true)
+            }
             WalkAct::Previous => {
                 self.walk.playing = false;
                 self.walk_back(c)
@@ -380,7 +395,14 @@ impl Codex32Make {
         if now_ms < self.walk.next_ms {
             return false;
         }
-        if !self.walk_next(c, draw) {
+        // Play goes through the tour as stepping does, and stops at its
+        // end rather than leave the card.
+        let moved = if self.tour_shown().is_some() {
+            self.tour_step(c, 1, false)
+        } else {
+            self.walk_next(c, draw)
+        };
+        if !moved {
             // Waiting for randomness plays on; the end stops it.
             self.walk.playing &= self.walk.wanted;
             return false;
@@ -395,6 +417,9 @@ impl Codex32Make {
 
     /// Whether the step shown is as far as Play runs.
     fn walk_reached(&self) -> bool {
+        if self.tour_shown().is_some() {
+            return self.tour_reached(self.walk.reach);
+        }
         let Some((ch, s, step)) = self.walk.shown() else {
             return false;
         };
@@ -426,6 +451,12 @@ impl Codex32Make {
             if slot + 1 < self.walk.chars.len() {
                 return self.walk_go(c, slot + 1, 1);
             }
+        }
+        // Every character is in and every step of the last shown: on to
+        // the shares made and S (`tour.rs`).
+        if self.tour_ready() {
+            self.tour_enter();
+            return true;
         }
         self.walk_roll(c, draw)
     }
@@ -740,6 +771,10 @@ impl Codex32Make {
     /// one, else the person's own entry's ([`Self::tracker`]), with its
     /// character and its number from 1. A lookup.
     pub fn shown_step(&self) -> Option<(&WalkChar, usize, Step)> {
+        // While the tour shows a step, it is the one shown (`tour.rs`).
+        if self.tour_shown().is_some() {
+            return None;
+        }
         self.walk.shown().or_else(|| self.track.shown())
     }
 
@@ -808,59 +843,66 @@ impl Codex32Make {
         else {
             return Vec::new();
         };
-        let sheet = share as u8;
-        let len = sh.checksum_len();
-        // Cells by their row and place, from 0.
-        let sum = |j: usize, i: usize| Cell::Sum {
-            sheet,
-            j: j as u8,
-            i: i as u8,
-        };
-        let look = |j: usize, i: usize| Cell::Lookup {
-            sheet,
-            j: j as u8,
-            i: i as u8,
-        };
-        let given = |b: usize| Cell::Given { sheet, b: b as u8 };
-        match step {
-            Step::Char => vec![(given(10 + ch.n), true)],
-            Step::Sum { j, i } => {
-                let (j, i) = (usize::from(j), usize::from(i));
-                let b = sh.sum_box(j) + i;
-                let above = if j == 0 {
-                    vec![(given(b), false), (Cell::Hrp { sheet, i: i as u8 }, false)]
+        let n = ch.n;
+        worksheet_screen::paper!(sh, |p| step_cells(p, share as u8, step, n))
+    }
+}
+
+/// The cells of the lent worksheet `sh` (numbered `sheet` for its cells)
+/// that `step` touches, each with whether it is the one worked out; `n`
+/// the data character of a character's own step. Arithmetic on the
+/// worksheet's shape.
+pub(super) fn step_cells(sh: Paper<'_>, sheet: u8, step: Step, n: usize) -> Vec<(Cell, bool)> {
+    let len = sh.checksum_len();
+    // Cells by their row and place, from 0.
+    let sum = |j: usize, i: usize| Cell::Sum {
+        sheet,
+        j: j as u8,
+        i: i as u8,
+    };
+    let look = |j: usize, i: usize| Cell::Lookup {
+        sheet,
+        j: j as u8,
+        i: i as u8,
+    };
+    let given = |b: usize| Cell::Given { sheet, b: b as u8 };
+    match step {
+        Step::Char => vec![(given(10 + n), true)],
+        Step::Sum { j, i } => {
+            let (j, i) = (usize::from(j), usize::from(i));
+            let b = sh.sum_box(j) + i;
+            let mut out = if j == 0 {
+                vec![(given(b), false), (Cell::Hrp { sheet, i: i as u8 }, false)]
+            } else {
+                let w = sh.step_width(j - 1);
+                let cell = if i + w < len {
+                    sum(j - 1, i + w)
                 } else {
-                    let w = sh.step_width(j - 1);
-                    let cell = if i + w < len {
-                        sum(j - 1, i + w)
-                    } else {
-                        given(b)
-                    };
-                    vec![(cell, false), (look(j - 1, i), false)]
+                    given(b)
                 };
-                let mut out = above;
-                out.push((sum(j, i), true));
-                out
-            }
-            Step::Table { j } => {
-                let j = usize::from(j);
-                let lead = (0..sh.step_width(j)).map(|i| (sum(j, i), false));
-                lead.chain((0..len).map(|i| (look(j, i), true))).collect()
-            }
-            Step::Below { b } => {
-                let b = usize::from(b);
-                let Some(j) =
-                    (1..=sh.steps()).find(|&j| (sh.sum_box(j)..sh.sum_box(j) + len).contains(&b))
-                else {
-                    return Vec::new();
-                };
-                vec![
-                    (sum(j, b - sh.sum_box(j)), false),
-                    (look(j - 1, b - sh.lookup_box(j - 1)), false),
-                    (given(b), true),
-                ]
-            }
-            _ => Vec::new(),
+                vec![(cell, false), (look(j - 1, i), false)]
+            };
+            out.push((sum(j, i), true));
+            out
         }
+        Step::Table { j } => {
+            let j = usize::from(j);
+            let lead = (0..sh.step_width(j)).map(|i| (sum(j, i), false));
+            lead.chain((0..len).map(|i| (look(j, i), true))).collect()
+        }
+        Step::Below { b } => {
+            let b = usize::from(b);
+            let Some(j) =
+                (1..=sh.steps()).find(|&j| (sh.sum_box(j)..sh.sum_box(j) + len).contains(&b))
+            else {
+                return Vec::new();
+            };
+            vec![
+                (sum(j, b - sh.sum_box(j)), false),
+                (look(j - 1, b - sh.lookup_box(j - 1)), false),
+                (given(b), true),
+            ]
+        }
+        _ => Vec::new(),
     }
 }

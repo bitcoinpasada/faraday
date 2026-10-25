@@ -338,3 +338,80 @@ fn pan_to_end(t: &mut Tour) {
         let _ = t.app.frame();
     }
 }
+
+/// Make codex32 shares, while it is open.
+fn make_of(t: &Tour) -> Option<&faraday_core::codex32::Codex32Make> {
+    t.app.keygen().and_then(|k| k.codex32.as_ref())
+}
+
+/// The tour of the shares made and S past the last checksum
+/// (`docs/CODEX32.md` §5.7), on a 3 of 5 named `name` whose initial
+/// shares A, C and D are typed: its first step on share E's tab, a
+/// translated cell, a sum, a step of E's checksum check, and S's first
+/// step, its recovery symbols.
+pub(crate) fn codex32_shares_tour(t: &mut Tour) -> Result<(), String> {
+    use faraday_core::codex32::TourStep;
+    t.press(Action::Nav(Screen::WalletsStart));
+    t.press(Action::KeyGen(None));
+    t.press(Action::KStep(kstep::START));
+    t.press(Action::KStart(Start::MakeCodex32.index()));
+    let three = SPLITS
+        .iter()
+        .position(|s| *s == Split::ThreeOfFive)
+        .unwrap_or(1);
+    c(t, C32::Split(three as u8));
+    c(t, C32::Next);
+    for ch in "name".chars() {
+        key(t, ch);
+    }
+    c(t, C32::Next);
+    let typed = WAYS.iter().position(|w| *w == Way::Typed).unwrap_or(1);
+    c(t, C32::Way(typed as u8));
+    c(t, C32::Next);
+    for s in [SHARES[0], SHARES[1], CASH[2]] {
+        for ch in s[9..35].chars() {
+            key(t, ch);
+        }
+    }
+    let m = make_of;
+    // To the last checksum box, then on into the tour.
+    for _ in 0..200 {
+        if m(t).is_none_or(|m| m.track_at_end()) {
+            break;
+        }
+        c(t, C32::Step(1));
+    }
+    c(t, C32::Step(1));
+    let _ = t.app.frame();
+    t.tick();
+    t.tick();
+    t.shot("codex32tour-first")?;
+    // Next until the tour shows `want`, at most 1,000 steps.
+    let to = |t: &mut Tour, want: TourStep| {
+        for _ in 0..1000 {
+            if m(t)
+                .and_then(|m| m.tour_shown())
+                .is_some_and(|s| s.1 == want)
+            {
+                break;
+            }
+            c(t, C32::Step(1));
+            // Drawn after each step, as a shell draws it: the page follows
+            // where the step's cells were drawn.
+            let _ = t.app.frame();
+        }
+        // The glide to the step's cells runs its course, as a shell's
+        // ticks run it.
+        t.tick();
+        t.tick();
+    };
+    to(t, TourStep::Translate { t: 0, i: 1, b: 23 });
+    t.shot("codex32tour-translated")?;
+    to(t, TourStep::Sum { t: 0, b: 23 });
+    t.shot("codex32tour-sum")?;
+    let step = faraday_core::codex32::Step::Sum { j: 10, i: 2 };
+    to(t, TourStep::Check { t: 0, step });
+    t.shot("codex32tour-check")?;
+    to(t, TourStep::Symbol { t: 2, i: 0 });
+    t.shot("codex32tour-secret")
+}

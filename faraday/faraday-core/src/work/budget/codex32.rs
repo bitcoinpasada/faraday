@@ -3,7 +3,8 @@
 //! desktop and on the Pi's panel: a pad press that completes a character
 //! works one column of the share's checksum worksheet and one of each
 //! translation worksheet; the press that completes the last box of the
-//! set works the checksums' columns, the set, its key's fingerprint and
+//! set works the checksums' columns, the set, each share made's checksum
+//! check (the tour's, §5.7), its key's fingerprint and
 //! the first string's Codex32QR code; the frames after either, and a
 //! cell's working opened, work out nothing.
 
@@ -94,15 +95,25 @@ fn the_entry_works_a_column_a_press_on(panel: Panel) {
         app.press(Action::Codex32(C32::Key(OskPress::Char(f))));
     }
     let _ = app.frame();
+    // What one string's checksum check notes: share D's, worked once for
+    // the tour of the shares made (`docs/CODEX32.md` §5.7).
+    let check = {
+        let c = crate::testkit::compute();
+        let before = snapshot();
+        let d = "ms12namea320zyxwvutsrqpnmlkjhgfedcaxrpp870hkkqrm";
+        assert!(faraday_keys::StringCheck::of(&c, d).is_some());
+        since(&before).of(Work::Codex32)
+    };
     // Box 35 of share C: its column, its 13 checksum columns in its
     // worksheet and in both translation worksheets, the checksum itself
-    // and the set; the key's fingerprint; the first string's code.
+    // and the set, and share D's checksum check; the key's fingerprint;
+    // the first string's code.
     let last = press_and_draw(&mut app, C32::Key(OskPress::Char(Q[9])));
     within(
         "the set's last character",
         &last,
         &[
-            (Work::Codex32, column * 14 + 2),
+            (Work::Codex32, column * 14 + 2 + check),
             (Work::MasterKey, 1),
             (Work::QrEncode, 1),
         ],
@@ -110,6 +121,25 @@ fn the_entry_works_a_column_a_press_on(panel: Panel) {
     let m = app.keygen().and_then(|k| k.codex32.as_ref());
     assert!(m.is_some_and(|m| m.strings().is_some()), "the set is made");
     within("frames after", &frames(&mut app), &[]);
+    // The Working area's Next, through the last checksum box and on into
+    // the tour of the shares made: each step and its frames, nothing.
+    let toured = |app: &Faraday| {
+        app.keygen()
+            .and_then(|k| k.codex32.as_ref())
+            .is_some_and(|m| m.tour_shown().is_some_and(|s| s.0 > 3))
+    };
+    for _ in 0..80 {
+        if toured(&app) {
+            break;
+        }
+        within("a step", &press_and_draw(&mut app, C32::Step(1)), &[]);
+    }
+    assert!(toured(&app), "the tour is reached");
+    within(
+        "a tour step back",
+        &press_and_draw(&mut app, C32::Step(-1)),
+        &[],
+    );
     let open = press_and_draw(
         &mut app,
         C32::Cell(Cell::Sum {

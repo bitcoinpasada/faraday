@@ -1008,6 +1008,61 @@ beside the pad at 1280x800, 1920x1080 and 480x640, the small panel's
 tile over the pad, outside Demo no walk and no Play, and Next entering
 nothing).
 
+**Past the last checksum: the shares made and S (owner, 2026-10-24).**
+The derived shares' and S's translation worksheets fill live as before
+(§6.4.4); the steps stay on the rolling and the checksums, share by
+share, to the last initial share's last checksum box. There, Next opens
+the first share made's tab (Share D at 2 of 3, Share E at 3 of 5), its
+boxes already filled, and goes through it a step at a time, as the
+booklet works it with one wheel setting per row: each initial share's
+translation symbol, "Share A's translation symbol for E: μ, value 10,
+from the derivation table."; then each initial share's row, box by box,
+"Share A, box 23: Q × Δ = 7. Translation wheel set to Δ."; then the sum,
+box by box, "Box 23, Share E: 7 + M + Q = 4"; then that share's checksum
+worked as the booklet's verification (§7.1), drawn over its translation
+worksheet on its tab: each sum row's cells and the table row they
+select, read as on the entry's worksheet, the final row's cells "Final
+row, box 36: 3 + E = S. It should read S.", and its end, "Share E's
+final row reads SECRETSHARE32: its checksum holds."; then the next share
+made; then S, its recovery symbols and their fusion first (§7.3), "Share
+A's recovery symbols @ × Λ fused: Φ, value 15.", then its rows and its
+sum (S has no checksum check: it is not written). Each step outlines its
+cells (the one worked out more heavily, the symbol on the symbols' line)
+and the page and the worksheet's view glide there; the Working area
+reads "Step 158 of 1025 · Share E" ("158/1025 · E" on the small panel,
+where the Checksum tile shows the tour's sheet). Before the tour the
+last checksum box's step ends "Next: Share E."; at its last step, "Next:
+the worksheets.", and Next there goes on to the Worksheets card as
+Continue does. Previous goes back through the same steps, and from the
+first to the last checksum box on the Checksum tab. The Demo walk's
+Next and Play reach the same steps (Play stops at the tour's end; its
+reach is a row, a part, a share or the end); a character taken back
+unmakes the set and forgets the tour.
+
+**Show the other shares and S as they fill**, Material's switch in a
+list row under the Working area once every character is in (on by
+default, kept on the flow for the session): off, Next at the last
+checksum box opens nothing and a tour shown closes back to it; the tabs
+still fill live. It stands only in the panel's state after the last
+character, where Continue has replaced the pad, so the panel is never
+taller than while rolling; at the window's foot Continue stands on the
+switch's row.
+
+The steps are worked out once, when the set is made (and dropped when
+it is unmade): places, not values; each share made's checksum check is
+its verification worksheet (`faraday_keys::StringCheck`), worked out
+then and kept. Drawing reads them. Built in `codex32/tour.rs` and
+`codex32/tour_screen.rs`, tested in `codex32/tour_tests.rs` (a share
+made's box filling on its tab as soon as its inputs exist; after the
+last checksum box Share D's tab with its boxes filled, the steps in the
+booklet's order with their cells marked, the check, then S, then on to
+the worksheets; Previous back out of it; the switch off; the Demo walk
+reaching the same steps, and Play stopping at the end),
+`tests/all/codex32_tour.rs` (at 1280x800, the switch offered, Next
+opening Share D's tab with its first step, and a late check row brought
+into view) and `work/budget/codex32.rs` (the set's last character works
+the check once; a step into and through the tour works out nothing).
+
 ## 6. Make codex32 shares: the main flow
 
 **Where**: New key's Start card (`faraday/faraday-core/src/keygen/mod.rs`,
@@ -1185,7 +1240,8 @@ known from the scheme, so they are drawn first. Then:
   when the last initial share's checksum does (§6.4.3), since they are
   sums of the initial shares' checksum characters; the derived strings'
   checksums hold by construction, and each derived string's own
-  checksum worksheet (verification, §7.1) is one press away.
+  checksum worksheet (verification, §7.1) is one press away, and past
+  the last checksum box the tour of §5.7 works it on the share's tab.
 
 The initial shares are entered one after another, as on paper, so no
 sum cell fills before the last share's entry begins. Entering the k

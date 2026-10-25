@@ -27,7 +27,7 @@ use crate::keygen::{KeyGen, kstep};
 use crate::screens::next_button;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Slot, Style, Ui, W};
 use crate::wallet::fp_text;
 use crate::{Action, flow};
 
@@ -39,7 +39,7 @@ const ID_LEN: u8 = 4;
 
 /// Symbol `v` of the booklet's second alphabet, drawn as its glyph
 /// (§7.2).
-fn glyph(v: u8) -> String {
+pub(super) fn glyph(v: u8) -> String {
     SYMBOL_GLYPHS[usize::from(v & 31)].to_string()
 }
 
@@ -724,8 +724,16 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
                     let h = dice_rows(m, ui, x, cy, w, true);
                     h + rolled_line(m, ui, x, cy + h, w)
                 }
-                1 => sheet::entry_sheet(m, work, share, front, ui, (x, cy, w, cls, at.hide)),
-                3 => super::tracker_screen::draw(m, ui, (x, cy, w)) + t::GAP,
+                // On the small panel the tour's sheet is the Checksum
+                // tile's while the tour shows a step.
+                1 => match m.tour_shown() {
+                    Some((_, s)) => tour_sheets(m, work, s.sheet(), None, ui, at.to(x, cy, w)),
+                    None => sheet::entry_sheet(m, work, share, front, ui, (x, cy, w, cls, at.hide)),
+                },
+                3 => {
+                    let h = super::tracker_screen::draw(m, ui, (x, cy, w));
+                    h + super::tour_screen::choice(m, ui, (x, cy + h, w)) + t::GAP
+                }
                 _ => string_boxes(work, share, front, ui, at.to(x, cy, w)),
             };
             cy += pad(m, ui, at.to(x, cy, w));
@@ -737,7 +745,9 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             // Out of the page, the input panel holds the Working area, the
             // pad, the rolls and Continue.
             if !at.panel.out_of_page() {
-                cy += super::tracker_screen::draw(m, ui, (x, cy, w.min(t::COLUMN_MAX))) + t::GAP;
+                let ww = w.min(t::COLUMN_MAX);
+                cy += super::tracker_screen::draw(m, ui, (x, cy, ww));
+                cy += super::tour_screen::choice(m, ui, (x, cy, ww)) + t::GAP;
                 cy += pad(m, ui, at.to(x, cy, w));
             }
         }
@@ -806,7 +816,7 @@ fn view_strip(m: &Codex32Make, work: &WorkSet, ui: &mut Ui, x: f32, y: f32, w: f
 }
 
 /// "Share D", or "Secret" for `s`.
-fn target_name(tg: u8) -> String {
+pub(super) fn target_name(tg: u8) -> String {
     if tg == b's' {
         EN.codex32_the_secret.to_string()
     } else {
@@ -840,7 +850,8 @@ fn panels(
     };
     let sheet = |ui: &mut Ui, y: f32| match m.view() {
         0 => sheet::entry_sheet(m, work, share, front, ui, (x, y, w, cls, at.hide)),
-        v => translation(
+        v => tour_sheets(
+            m,
             work,
             usize::from(v) - 1,
             front.map(|f| (share, f)),
@@ -858,6 +869,28 @@ fn panels(
         let dh = dice(ui, y);
         dh + sheet(ui, y + dh)
     }
+}
+
+/// A share made's (or S's) tab on the entry: its translation worksheet,
+/// the tour's step marked on it; while the tour works the share's
+/// checksum check, the check first, as the work in hand (§5.7).
+fn tour_sheets(
+    m: &Codex32Make,
+    work: &WorkSet,
+    n: usize,
+    front: Option<(usize, usize)>,
+    ui: &mut Ui,
+    at: At,
+) -> f32 {
+    let (x, y, w) = (at.x, at.y, at.w);
+    let mut cy = y;
+    if m.tour_on_check() == Some(n) {
+        let hide = at.hide;
+        cy += super::tour_screen::check_sheet(m, n, ui, (x, cy, w, at.cls, hide));
+    }
+    let marks = m.tour_cells(n);
+    cy += translation(work, n, front, &marks, ui, at.to(x, cy, w));
+    cy - y
 }
 
 /// The pad: the dice pad's six faces and backspace, or a key per face of
@@ -1135,21 +1168,27 @@ struct Row {
     cells: Vec<Option<u8>>,
     look: Look,
     cell: fn(u8, usize, usize) -> Cell,
+    /// Which cell each is, for the tour's marks: an initial share's
+    /// character is that share's box.
+    id: fn(u8, usize, usize) -> Cell,
     /// The row's own number (the step), handed to `cell`.
     j: usize,
 }
 
 /// The rows of a worksheet from box `from` to `to`, their names in the
-/// left column, the box numbers over the first. `front` outlines that
-/// box of the first row. Returns the height.
+/// left column, the box numbers over the first. The cells in `marks`
+/// are outlined in the accent, the one worked out more heavily, and
+/// where they stand is said for the page to follow (`Slot::DiceWork`).
+/// Returns the height.
 fn grid(
     rows: &[Row],
     sheet: u8,
     (from, to): (usize, usize),
-    front: Option<usize>,
+    marks: &[(Cell, bool)],
     ui: &mut Ui,
     at: At,
 ) -> f32 {
+    let mut spot: Option<(f32, f32, f32, f32)> = None;
     let (x, y, cls) = (at.x, at.y, at.cls);
     let s = t::codex32_box(cls);
     let gx = x + t::CODEX32_LABEL_W;
@@ -1182,17 +1221,32 @@ fn grid(
             }
             let look = row.look;
             let cell = (row.cell)(sheet, row.j, i);
+            let bx = box_x(gx, from, b, s);
+            let mark = marks.iter().find(|m| m.0 == (row.id)(sheet, row.j, i));
             one_box(
                 ui,
-                at.to(box_x(gx, from, b, s), cy, 0.0),
+                at.to(bx, cy, 0.0),
                 (s, t::codex32_char(cls)),
                 *v,
                 look,
-                r == 0 && front == Some(b),
+                mark.is_some_and(|m| m.1),
                 Some(cell),
             );
+            if let Some(&(_, main)) = mark {
+                if !main {
+                    let o = t::CODEX32_FRONT_STROKE / 2.0;
+                    let (w, r) = (s + 2.0 * o, t::CODEX32_RADIUS);
+                    ui.stroke(bx - o, cy - o, w, w, r, Role::Primary);
+                }
+                let here = (bx, cy, s, s);
+                spot = Some(spot.map_or(here, |sp| sheet::union(sp, here)));
+            }
         }
         cy += s + t::CODEX32_ROW_GAP;
+    }
+    if let Some((sx, sy, sw, sh)) = spot {
+        let r = ui.rect(sx, sy, sw, sh);
+        ui.report_scroll_in(Slot::DiceWork, r, 0.0, 0.0);
     }
     cy - y
 }
@@ -1221,11 +1275,13 @@ fn window(chars: usize, front: Option<usize>, cls: WindowClass, w: f32) -> (usiz
 
 /// The `n`-th translation worksheet: its symbols, each input and its
 /// translated row, the sum; in the window round `front` (the input
-/// being entered and its box) where it does not fit.
+/// being entered and its box) where it does not fit. The tour's step
+/// (`tour.rs`) marks its cells, and the window stands round them.
 fn translation(
     work: &WorkSet,
     n: usize,
     front: Option<(usize, usize)>,
+    marks: &[(Cell, bool)],
     ui: &mut Ui,
     at: At,
 ) -> f32 {
@@ -1237,27 +1293,25 @@ fn translation(
     let head = fill(EN.codex32_translation_to, &[&target_name(tg)]);
     let mut cy = y + ui.wrap(x, y, w, t::LABEL, W::S, Role::OnSurface, &head) + t::GAP_SMALL;
     let k = ts.threshold();
-    let mut syms = Vec::new();
-    for i in 0..k {
-        let input = char::from(ts.input_index(i).to_ascii_uppercase());
-        syms.push(fill(
-            EN.codex32_symbol_of,
-            &[&input.to_string(), &glyph(ts.symbol(i))],
-        ));
-    }
     let label = if ts.is_recovery() {
         EN.codex32_recovery_symbols
     } else {
         EN.codex32_translation_symbols
     };
-    cy += ui.wrap(
-        x,
-        cy,
-        w,
-        t::CAPTION,
-        W::R,
-        Role::OnSurfaceVariant,
-        &format!("{label}: {}", syms.join(" · ")),
+    cy += symbols_line(
+        ui,
+        (x, cy, w),
+        label,
+        n as u8,
+        marks,
+        |i| {
+            let input = char::from(ts.input_index(i).to_ascii_uppercase());
+            fill(
+                EN.codex32_symbol_of,
+                &[&input.to_string(), &glyph(ts.symbol(i))],
+            )
+        },
+        k,
     );
     cy += t::GAP_SMALL;
     let chars = work.scheme().length().chars();
@@ -1274,6 +1328,10 @@ fn translation(
                 i: j as u8,
                 b: (i + 4) as u8,
             },
+            id: |_, j, i| Cell::Given {
+                sheet: j as u8,
+                b: (i + 4) as u8,
+            },
             j: i,
         });
         rows.push(Row {
@@ -1282,6 +1340,11 @@ fn translation(
             cells: (4..=chars).map(|b| ts.translated_cell(i, b)).collect(),
             look: Look::Table,
             cell: |s, j, i| Cell::Translated {
+                sheet: s,
+                i: j as u8,
+                b: (i + 4) as u8,
+            },
+            id: |s, j, i| Cell::Translated {
                 sheet: s,
                 i: j as u8,
                 b: (i + 4) as u8,
@@ -1298,11 +1361,63 @@ fn translation(
             sheet: s,
             b: (i + 4) as u8,
         },
+        id: |s, _, i| Cell::TSum {
+            sheet: s,
+            b: (i + 4) as u8,
+        },
         j: 0,
     });
-    let win = window(chars, front.map(|f| f.1), cls, w);
-    cy += grid(&rows, n as u8, win, None, ui, at.to(x, cy, w));
+    // The window stands round the box the tour's step is on, else the
+    // entry's front.
+    let marked = marks.iter().find_map(|(c, _)| match *c {
+        Cell::Translated { b, .. } | Cell::TSum { b, .. } => Some(usize::from(b)),
+        // A symbol: the sheet from its first box.
+        Cell::Symbol { .. } => Some(4),
+        _ => None,
+    });
+    let win = window(chars, marked.or(front.map(|f| f.1)), cls, w);
+    cy += grid(&rows, n as u8, win, marks, ui, at.to(x, cy, w));
     cy - y + t::GAP
+}
+
+/// The symbols' line of translation worksheet `sheet`: its label, then
+/// each initial share's symbol ("A Δ"), wrapping in `w`; the symbol the
+/// tour's step marks outlined in the accent and said for the page to
+/// follow. Returns the height.
+fn symbols_line(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    label: &str,
+    sheet: u8,
+    marks: &[(Cell, bool)],
+    each: impl Fn(usize) -> String,
+    k: usize,
+) -> f32 {
+    let (size, ink) = (t::CAPTION, Role::OnSurfaceVariant);
+    let line = ui.line(size, W::R);
+    let head = format!("{label}:");
+    ui.text(x, y, size, W::R, ink, &head);
+    let (mut cx, mut cy) = (x + ui.measure(size, W::R, &head) + t::GAP, y);
+    for i in 0..k {
+        let text = each(i);
+        let tw = ui.measure(size, W::S, &text);
+        if cx > x && cx + tw > x + w {
+            cx = x;
+            cy += line + t::GAP_SMALL;
+        }
+        let on = marks.contains(&(Cell::Symbol { sheet, i: i as u8 }, true));
+        let role = if on { Role::Primary } else { Role::OnSurface };
+        ui.text(cx, cy, size, W::S, role, &text);
+        if on {
+            let o = t::GAP_SMALL;
+            let (bx, by, bw, bh) = (cx - o, cy - o / 2.0, tw + 2.0 * o, line + o);
+            ui.stroke(bx, by, bw, bh, t::CODEX32_RADIUS, Role::Primary);
+            let r = ui.rect(bx, by, bw, bh);
+            ui.report_scroll_in(Slot::DiceWork, r, 0.0, 0.0);
+        }
+        cx += tw + t::SPACER;
+    }
+    cy + line - y
 }
 
 // ---------------------------------------------------------------------
@@ -1335,7 +1450,7 @@ fn sheets(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     cy += match tab_list.get(usize::from(on)).map(|t| t.1) {
         Some(Tab::Dice(s)) => dice_review(m, work, s, ui, x, cy, ww),
         Some(Tab::Checksum(s)) => sheet::review_sheet(m, work, s, ui, (x, cy, ww, at.cls, at.hide)),
-        Some(Tab::Translation(n)) => translation(work, n, None, ui, at.to(x, cy, ww)),
+        Some(Tab::Translation(n)) => translation(work, n, None, &[], ui, at.to(x, cy, ww)),
         None => 0.0,
     };
     cy += foot(m, ui, x, cy, w, EN.keygen_continue);

@@ -39,7 +39,8 @@ pub enum Slot {
     DemoPane,
     /// Where the codex32 dice sheet's work is while the step-through
     /// rolls: the marked die's track, or the tree on the character's
-    /// step. It moves no offset of its own, and says where it stands for
+    /// step; and, in the tour of the shares made, the marked cells of a
+    /// translation worksheet. It moves no offset of its own, and says where it stands for
     /// the page to follow (`Faraday::dice_follow`, `faraday-core`).
     DiceWork,
 }

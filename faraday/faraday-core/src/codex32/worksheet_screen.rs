@@ -72,55 +72,55 @@ pub(crate) struct Paper<'a> {
 }
 
 impl Paper<'_> {
-    fn chars(&self) -> usize {
+    pub(crate) fn chars(&self) -> usize {
         self.chars
     }
 
-    fn checksum_len(&self) -> usize {
+    pub(crate) fn checksum_len(&self) -> usize {
         self.len
     }
 
-    fn steps(&self) -> usize {
+    pub(crate) fn steps(&self) -> usize {
         self.steps
     }
 
-    fn last_data_box(&self) -> usize {
+    pub(crate) fn last_data_box(&self) -> usize {
         self.last_data
     }
 
-    fn hrp_row(&self) -> &'static [u8] {
+    pub(crate) fn hrp_row(&self) -> &'static [u8] {
         self.hrp
     }
 
-    fn target(&self) -> &'static [u8] {
+    pub(crate) fn target(&self) -> &'static [u8] {
         self.target
     }
 
-    fn sum_box(&self, j: usize) -> usize {
+    pub(crate) fn sum_box(&self, j: usize) -> usize {
         (self.sum_box)(j)
     }
 
-    fn step_width(&self, j: usize) -> usize {
+    pub(crate) fn step_width(&self, j: usize) -> usize {
         (self.width)(j)
     }
 
-    fn lookup_box(&self, j: usize) -> usize {
+    pub(crate) fn lookup_box(&self, j: usize) -> usize {
         self.sum_box(j) + self.step_width(j)
     }
 
-    fn symbol(&self, b: usize) -> Option<u8> {
+    pub(crate) fn symbol(&self, b: usize) -> Option<u8> {
         (self.symbol)(b)
     }
 
-    fn sum_cell(&self, j: usize, i: usize) -> Option<u8> {
+    pub(crate) fn sum_cell(&self, j: usize, i: usize) -> Option<u8> {
         (self.sum)(j, i)
     }
 
-    fn lookup_cell(&self, j: usize, i: usize) -> Option<u8> {
+    pub(crate) fn lookup_cell(&self, j: usize, i: usize) -> Option<u8> {
         (self.lookup)(j, i)
     }
 
-    fn final_cell(&self, i: usize) -> Option<u8> {
+    pub(crate) fn final_cell(&self, i: usize) -> Option<u8> {
         self.sum_cell(self.steps, i)
     }
 }

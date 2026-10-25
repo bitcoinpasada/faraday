@@ -11,7 +11,7 @@ use faraday_keys::{Reveal, WorkSet};
 
 use super::screen::a;
 use super::walk::{SPEEDS, Speed, Step, WalkAct, WalkChar};
-use super::worksheet_screen::letter;
+use super::worksheet_screen::{Paper, letter, paper};
 use super::{C32, Codex32Make, char_of};
 use crate::fresh::roller::five::{REACHES, Reach};
 use crate::strings::{EN, fill};
@@ -19,7 +19,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 
 /// A symbol as the booklet writes it: a capital.
-fn up(v: Option<u8>) -> String {
+pub(super) fn up(v: Option<u8>) -> String {
     v.map_or("·".to_string(), |v| {
         char_of(v).to_ascii_uppercase().to_string()
     })
@@ -87,11 +87,17 @@ fn bits_text(ch: &WalkChar) -> String {
 /// string's character, or the residue of `ms` on the first row) and the
 /// table cell added, as §7.4's working reads them.
 fn sum_text(work: &WorkSet, share: usize, j: usize, i: usize) -> String {
-    let Some(sh) = work.worksheet(share, Reveal::PaperForm) else {
-        return String::new();
-    };
+    work.worksheet(share, Reveal::PaperForm)
+        .map(|sh| paper!(sh, |p| sum_text_of(p, j, i)))
+        .unwrap_or_default()
+}
+
+/// The two cells sum cell `i` of row `j` of `sh` adds: the cell above it
+/// (or the string's character, or the residue of `ms` on the first row)
+/// and the table cell.
+pub(super) fn sum_inputs(sh: Paper<'_>, j: usize, i: usize) -> (Option<u8>, Option<u8>) {
     let b = sh.sum_box(j) + i;
-    let (above, add) = if j == 0 {
+    if j == 0 {
         (sh.symbol(b), sh.hrp_row().get(i).copied())
     } else {
         let w = sh.step_width(j - 1);
@@ -101,7 +107,13 @@ fn sum_text(work: &WorkSet, share: usize, j: usize, i: usize) -> String {
             sh.symbol(b)
         };
         (above, sh.lookup_cell(j - 1, i))
-    };
+    }
+}
+
+/// [`sum_text`] of a lent worksheet.
+pub(super) fn sum_text_of(sh: Paper<'_>, j: usize, i: usize) -> String {
+    let b = sh.sum_box(j) + i;
+    let (above, add) = sum_inputs(sh, j, i);
     let lettered: usize = (0..j).map(|k| sh.step_width(k)).sum();
     fill(
         EN.codex32_walk_sum,
@@ -117,9 +129,13 @@ fn sum_text(work: &WorkSet, share: usize, j: usize, i: usize) -> String {
 
 /// "Boxes 17–18 read M Z. Table row MZ is …, written from box 19."
 fn table_text(work: &WorkSet, share: usize, j: usize) -> String {
-    let Some(sh) = work.worksheet(share, Reveal::PaperForm) else {
-        return String::new();
-    };
+    work.worksheet(share, Reveal::PaperForm)
+        .map(|sh| paper!(sh, |p| table_text_of(p, j)))
+        .unwrap_or_default()
+}
+
+/// [`table_text`] of a lent worksheet.
+pub(super) fn table_text_of(sh: Paper<'_>, j: usize) -> String {
     let (from, w) = (sh.sum_box(j), sh.step_width(j));
     let lead: Vec<String> = (0..w).map(|i| up(sh.sum_cell(j, i))).collect();
     let row: String = (0..sh.checksum_len())

@@ -9509,6 +9509,48 @@ strings! {
     /// A checksum box worked from below. `{}`: the box, the cell below,
     /// the table cell between, the box's character.
     codex32_walk_below: "Box {}, from below: {} + {} = {}",
+    // ----- The tour of the shares made and S, after the last checksum (CODEX32 §5.7, owner 2026-10-24), faraday-core -----
+    /// The choice beside the Working area: at the end of the last
+    /// initial share's checksum, Next goes through each derived share and
+    /// S, a step at a time (owner's wording).
+    codex32_tour_choice: "Show the other shares and S as they fill",
+    /// Where the tour stands. `{}`: the step, the steps in all, the sheet
+    /// ("Share E", "Secret").
+    codex32_tour_count: "Step {} of {} · {}",
+    /// The same on the small panel's Working tile. `{}`: the step, the
+    /// steps, the sheet's letter.
+    codex32_tour_count_short: "{}/{} · {}",
+    /// What Next does at the end of the last checksum. `{}`: the first
+    /// sheet ("Share E").
+    codex32_tour_next: "Next: {}.",
+    /// What Next does at the tour's last step.
+    codex32_tour_next_card: "Next: the worksheets.",
+    /// A derived share's translation symbol. `{}`: the initial share, the
+    /// share made, the symbol, its value.
+    codex32_tour_symbol: "Share {}'s translation symbol for {}: {}, value {}, from the derivation table.",
+    /// S's symbol at k = 2: one recovery symbol, nothing to fuse. `{}`:
+    /// the share, the symbol, its value.
+    codex32_tour_recovery_one: "Share {}'s recovery symbol: {}, value {}.",
+    /// S's symbol at k of 3 or more: the recovery symbols fused. `{}`:
+    /// the share, its recovery symbols, the fused symbol, its value.
+    codex32_tour_recovery: "Share {}'s recovery symbols {} fused: {}, value {}.",
+    /// A translated cell, and the wheel. `{}`: the share, the box, its
+    /// character, the symbol, the product, the symbol.
+    codex32_tour_translate: "Share {}, box {}: {} × {} = {}. Translation wheel set to {}.",
+    /// A sum of the translated cells. `{}`: the box, the sheet, the
+    /// cells added, the sum.
+    codex32_tour_sum: "Box {}, {}: {} = {}",
+    /// A cell of the final row of a share's checksum check. `{}`: the
+    /// box, the two added, the sum, what it should read.
+    codex32_tour_final: "Final row, box {}: {} + {} = {}. It should read {}.",
+    /// The check done, its final row as it should read. `{}`: the share.
+    codex32_tour_holds: "{}'s final row reads SECRETSHARE32: its checksum holds.",
+    /// The check done, its final row not as it should read. `{}`: the
+    /// share, the first box that differs.
+    codex32_tour_fails: "{}'s final row differs at box {}: its checksum fails.",
+    /// The head over a derived share's checksum worksheet, worked as the
+    /// booklet's verification. `{}`: the share.
+    codex32_tour_check_head: "Checksum of {}, checked",
     /// Over the pad of ten-faced dice: a die numbered 0 to 9 enters its 0
     /// as 10 (CODEX32 §5.1).
     codex32_d10_zero: "0 is 10",
