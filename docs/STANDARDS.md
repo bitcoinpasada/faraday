@@ -287,9 +287,6 @@ Ranked by how much a mistake would cost.
 
 ## 8. Documentation that disagrees with the code
 
-- `docs/AUDIT.md` §1 says faraday-entropy mixes "by XOR over their
-  SHA-256 commitments". The code hashes the concatenation
-  (`core/faraday-entropy/src/mix.rs`).
 - `docs/AUDIT.md` §3 says "None is cryptography invented for this
   project". The vault container, the multi-place FROST nonce handling
   and the session's generator are Faraday's own constructions.
