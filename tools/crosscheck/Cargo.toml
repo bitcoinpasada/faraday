@@ -1,7 +1,7 @@
 [package]
 name = "faraday-crosscheck"
 version = "0.1.0"
-description = "Answers the crypto cross-check's requests with Faraday's own code; test-only, never shipped (F79, docs/MULTIVENDOR.md §10)"
+description = "Answers the crypto cross-check's requests with Faraday's own code; test-only, never shipped (F79, docs/CROSSCHECK.md §10)"
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true

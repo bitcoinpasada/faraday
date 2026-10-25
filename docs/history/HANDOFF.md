@@ -107,7 +107,7 @@ payment outputs is left, which waits on upstream (BIP-375).
 | `docs/VAULT.md` | The vault file format: four equal slots, hidden-slot rules, Argon2id cost guidance, record types, write-back. |
 | `docs/QR.md` | Scanner and QR sender requirements: the union of Faraday OS's file transfer and the Wallets tab's scanner, built on upstream's codec. |
 | `docs/FLOWS.md` | Every flow and where it leaves the person; five decisions made to remove dead ends. |
-| `docs/MULTIVENDOR.md` | Proposal: a second, independent implementation of each cryptographic step, and how it would show. Not built. |
+| `docs/CROSSCHECK.md` | Proposal: a second, independent implementation of each cryptographic step, and how it would show. Not built. |
 | `docs/MOTION.md` | Smooth scrolling (glide, momentum, rubber band), hover, motion, shadows, frosted sheets, light mode and reduce motion: decisions, measurements, design, what was built (item 49). |
 | the upstream-parity plan | Every upstream crate and app feature, whether Faraday has it, and the plan for the rest. |
 | `docs/AUDIT.md` | Every crate that computes cryptography, what is written here versus taken from a crate, and what each is checked against. |
@@ -1073,7 +1073,7 @@ as possible before the next build.
         kind. Waiting on the owner.
 
 47. [x] 2026-10-06, owner:
-    - `docs/MULTIVENDOR.md`: the proposal to compute each cryptographic
+    - `docs/CROSSCHECK.md`: the proposal to compute each cryptographic
       result twice (a second, independent implementation), with what
       upstream is made of, candidates, what can be checked, where it
       runs, costs and a staged recommendation. Not built; to discuss.

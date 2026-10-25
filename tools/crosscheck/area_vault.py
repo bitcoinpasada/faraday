@@ -1,7 +1,7 @@
 """The vault (`docs/VAULT.md`) against a reader and writer written here
 from that document, over Argon2id from argon2-cffi and
 XChaCha20-Poly1305 from PyNaCl (libsodium), the distribution's packages
-(F79, `docs/MULTIVENDOR.md` §10.4), with HKDF-SHA256 (RFC 5869) and the
+(F79, `docs/CROSSCHECK.md` §10.4), with HKDF-SHA256 (RFC 5869) and the
 ChaCha20 block (RFC 8439) written here over the standard library.
 
 Before anything else the area checks its own pieces against published

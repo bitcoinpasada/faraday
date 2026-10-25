@@ -271,7 +271,7 @@ SLIP-39 needs that codex32 does not:
 ## 9. Tests
 
 Each conversion against its standard's published vectors and against
-another implementation (`docs/MULTIVENDOR.md` §2's references, run
+another implementation (`docs/CROSSCHECK.md` §2's references, run
 through §10's cross-check once built; until then their output is
 checked in as fixtures under `tools/vectors/`, each with the script and
 the reference's commit that made it, as `tools/reference/aezeed/README.md`

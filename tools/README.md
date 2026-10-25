@@ -68,7 +68,7 @@ none is part of `just`, which stays fast.
 2. `just crosscheck --fresh`: Faraday's own Rust against the Python
    references with a new seed and ten times the random cases, over the
    areas listed in `tools/crosscheck/README.md` (what they leave out is
-   under `docs/MULTIVENDOR.md` §10.5 items 4 and 6: PSBT signing and
+   under `docs/CROSSCHECK.md` §10.5 items 4 and 6: PSBT signing and
    finalizing end to end, taproot script trees, miniscript, AEZ). The
    `vault` and `kdbx` areas need the distribution's argon2-cffi, PyNaCl
    and pykeepass. A disagreement it finds is kept in

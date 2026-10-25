@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The cross-check's stamp (F79, docs/MULTIVENDOR.md §10.2).
+"""The cross-check's stamp (F79, docs/CROSSCHECK.md §10.2).
 
 A passing `just crosscheck` writes `tools/crosscheck/stamp`: one hash
 over the crypto sources, the cross-check itself and its references, and
@@ -141,7 +141,7 @@ def write(seed, scale, seconds):
 
 def distribution_versions():
     """The versions of the distribution's packages the vault and kdbx
-    areas use (F79, docs/MULTIVENDOR.md §10.4), a line each."""
+    areas use (F79, docs/CROSSCHECK.md §10.4), a line each."""
     from importlib import metadata
     out = ""
     for name in ("argon2-cffi", "PyNaCl", "pykeepass"):

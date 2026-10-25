@@ -1,6 +1,6 @@
 # The crypto cross-check
 
-F79, `docs/MULTIVENDOR.md` §10. Faraday's own Rust answers requests, and
+F79, `docs/CROSSCHECK.md` §10. Faraday's own Rust answers requests, and
 independent pure-Python references recompute every answer, over every
 published vector and a corpus of random inputs drawn from a fixed seed.
 The first disagreement stops the area and is printed with its inputs

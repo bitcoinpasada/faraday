@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""The crypto cross-check (F79, docs/MULTIVENDOR.md §10).
+"""The crypto cross-check (F79, docs/CROSSCHECK.md §10).
 
 Faraday's own Rust answers requests (`tools/crosscheck/src/`), and each
 area here recomputes every answer with the vendored references in

@@ -10,7 +10,7 @@ made its own call. It is the source for the Learn pages' "How Faraday
 does it" blocks and their manifest, and is kept in step with them: a
 change to a block, to the manifest or to a row here changes the others.
 Decisions are in `docs/DECISIONS.md`; what each cryptographic crate is
-checked against is in `docs/AUDIT.md` and `docs/MULTIVENDOR.md`.
+checked against is in `docs/AUDIT.md` and `docs/CROSSCHECK.md`.
 
 Taken from the working tree on 2026-10-24.
 
@@ -54,8 +54,12 @@ decision that took FROST out of the app, F109):
   standard is unpublished, or whose construction is Faraday's own and not
   yet reviewed, stays in the repository, built and tested but compiled
   out of the app, until its standard is published or it is reviewed.
-- **Scope.** Faraday is an offline Bitcoin signer and its keys' keeper; a
-  feature outside that, however well specified, is not taken on.
+- **Scope** (F116). Faraday is an offline signer and keeper of keys: a
+  person's Bitcoin wallets and their backups first, and the other keys a
+  person keeps offline beside them: an OpenPGP key (signing with GnuPG),
+  TOTP secrets, Secure Boot keys. A new kind of key or signature comes in
+  on the owner's word, recorded in DECISIONS; the list below names what
+  is left out.
 
 ### 0.1 Left out, and why
 
@@ -101,7 +105,7 @@ draft its vectors come from. Links follow the pattern
 
 **Columns.** *Completeness*: how much of the standard is built.
 *Verified by*: published vectors, a second implementation (the F79
-cross-check, `docs/MULTIVENDOR.md`), Bitcoin Core or other wallets'
+cross-check, `docs/CROSSCHECK.md`), Bitcoin Core or other wallets'
 files. *Faraday's own call*: its kind, and the decision that records it
 or "no decision". Kinds:
 
@@ -154,7 +158,7 @@ or "no decision". Kinds:
 
 | What | Standard (status) | Completeness | Verified by | Faraday's own call |
 |---|---|---|---|---|
-| PSBT v0 (`core/faraday-psbt`) | BIP 174 (Deployed) | Signs every wallet kind above; the finalizer is written here | BIP 174 and role vectors (`tools/vectors/psbt`); Core end to end; F79 area `psbt` (reading and writing; signing and finalizing end to end not in it, MULTIVENDOR §10.5 item 4) | A key comes from the PSBT's origin only; signed-amount memory; non-ALL sighash refused; a v0 input with only a witness UTXO in a multi-input transaction refused. Conservative; part in F90, see §6 |
+| PSBT v0 (`core/faraday-psbt`) | BIP 174 (Deployed) | Signs every wallet kind above; the finalizer is written here | BIP 174 and role vectors (`tools/vectors/psbt`); Core end to end; F79 area `psbt` (reading and writing; signing and finalizing end to end not in it, CROSSCHECK §10.5 item 4) | A key comes from the PSBT's origin only; signed-amount memory; non-ALL sighash refused; a v0 input with only a witness UTXO in a multi-input transaction refused. Conservative; part in F90, see §6 |
 | PSBT v2 | BIP 370 (Deployed) | Silent-payment path only; the general reader is open (INTEROP §5 I10); `core/faraday-psbt/src/psbt.rs` refuses any version but 0 | BIP 370's vectors (`tools/vectors/psbt-bips/`); F79 area `psbt` (`faraday_psbt::v2`) | The Sign tile in `faraday/faraday-core/src/catalog.rs` carries a BIP 370 tag that the code does not back (§8) |
 | Sighash | BIP 143, 341, 342 (Deployed) | All computed (rust-bitcoin); only ALL and DEFAULT are signed; others are review cards (`core/faraday-psbt/src/inspect/sighash.rs`) | Core end to end; F79 area `tx` | Conservative; no decision |
 | ECDSA nonces | RFC 6979; Core's low-R grind | Both offered, low-R by default (`core/faraday-psbt/src/sign.rs`) | RFC 6979 vectors (`tools/vectors/psbt/rfc6979.txt`); self-test | Sign twice and compare. Neutral |

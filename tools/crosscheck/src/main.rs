@@ -1,4 +1,4 @@
-//! Faraday's side of the crypto cross-check (F79, `docs/MULTIVENDOR.md`
+//! Faraday's side of the crypto cross-check (F79, `docs/CROSSCHECK.md`
 //! §10): one JSON request a line on stdin, one JSON answer a line on
 //! stdout, each computed by Faraday's own code. `tools/crosscheck/crosscheck.py`
 //! sends the requests and recomputes every answer with the vendored

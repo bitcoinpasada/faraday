@@ -1,4 +1,4 @@
-# The crypto cross-check (F79, docs/MULTIVENDOR.md §10;
+# The crypto cross-check (F79, docs/CROSSCHECK.md §10;
 # tools/crosscheck/README.md): Faraday's Rust against the vendored Python
 # references, offline, over every published vector and a seeded random
 # corpus, about 3 to 4 minutes. A passing run writes tools/crosscheck/stamp,

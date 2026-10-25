@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # `just crosscheck`: builds Faraday's side of the crypto cross-check
 # offline and runs the Python side with no network (F79,
-# docs/MULTIVENDOR.md §10.4). Arguments go to crosscheck.py:
+# docs/CROSSCHECK.md §10.4). Arguments go to crosscheck.py:
 #
 #   tools/crosscheck/run.sh                 the stamp run
 #   tools/crosscheck/run.sh --fresh         before a release
