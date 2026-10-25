@@ -415,7 +415,7 @@ shows pads 1 to 6 and no "Die pads (d7+)" group, d8 up to 8, d10 up to
 10, d12 up to 12, d20 all twenty, the booklet's places otherwise kept;
 changing the dice shows or hides the pads past 6. Tracks and tree stand
 side by side from a 566 dp work width for six-faced dice and from 776 dp
-for twenty-faced ones (for d6 from 960 × 580 up, in Testnet and in Demo, where the "Demo only" card narrows to its 144 dp column on 1280 × 800 and smaller so they do, the work width running up to `SPACER` before it, `docs/CODEX32.md` §5.5). The dice sheet stands only with the
+for twenty-faced ones (for d6 from 960 × 580 up, in Testnet and in Demo, where the "Demo only" card narrows to its 118 dp column (small buttons, 12 dp card padding), 8 dp from the window's edge, on 1280 × 800 and smaller so they do, the work width running up to `SPACER` before it, `docs/CODEX32.md` §5.5). The dice sheet stands only with the
 Checksum tab of the share being rolled, never with a derived share's
 tab or the Secret's (owner, 2026-10-24). Its head row, "Dice
 de-biasing" with Material's expand chevron, is one 48 dp press that

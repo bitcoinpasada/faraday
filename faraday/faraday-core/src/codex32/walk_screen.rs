@@ -392,11 +392,25 @@ pub(super) fn stacked(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) 
         if k > 0 {
             cy += t::GAP;
         }
-        let label = ui.fit(t::LABEL, W::S, label, w - t::PAD);
-        ui.button(x, cy, Some(w), t::TOUCH, &label, style, a(act));
+        small_button(ui, (x, cy, w), label, style, act);
         cy += t::TOUCH;
     }
     cy - y
+}
+
+/// Material's small button, `w` wide, 16 dp each side of its label, its
+/// 40 dp drawn in the middle of the 48 dp touch target at (`x`, `y`).
+pub(super) fn small_button(
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    label: &str,
+    style: Style,
+    act: C32,
+) {
+    let label = ui.fit(t::LABEL, W::S, label, w - 2.0 * t::SMALL_BUTTON_PAD);
+    let top = y + (t::TOUCH - t::BUTTON_H) / 2.0;
+    ui.button(x, top, Some(w), t::BUTTON_H, &label, style, a(act));
+    ui.hit(x, y, w, t::TOUCH, a(act));
 }
 
 /// How far Play runs and how fast. Returns the height.

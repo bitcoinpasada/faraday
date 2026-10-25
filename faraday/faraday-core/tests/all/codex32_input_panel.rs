@@ -753,12 +753,12 @@ fn the_demo_card_narrows_to_its_column_where_the_whole_card_would_stack_the_trac
         assert_eq!(a.2, b.2, "the same width: {a:?} {b:?}");
         assert!(a.1 + a.3 <= b.1, "stacked: {a:?} {b:?}");
     }
-    // The column: the buttons and the card's 16 dp each side, ending
-    // 24 dp from the window's edge, no wider than 160 dp.
-    let right = i32::from(next.0 + next.2) + 16;
-    let left = i32::from(next.0) - 16;
+    // The column: the buttons and the card's 12 dp each side, ending
+    // 8 dp from the window's edge, no wider than 160 dp.
+    let right = i32::from(next.0 + next.2) + 12;
+    let left = i32::from(next.0) - 12;
     assert!(
-        (right - (i32::from(w) - 24)).abs() <= 1,
+        (right - (i32::from(w) - 8)).abs() <= 1,
         "at the margin: {next:?}"
     );
     assert!(right - left <= 160, "the buttons' width: {next:?}");
@@ -844,5 +844,58 @@ fn the_steps_count_and_working_are_in_the_working_area_and_not_in_the_demo_card(
                 "the whole card keeps Speed"
             );
         }
+    }
+}
+
+/// The colour at (x, y) of the frame on screen, as its three channels.
+fn rgb_at(app: &mut Faraday, (x, y): (usize, usize)) -> [u8; 3] {
+    let f = app.frame();
+    let i = (y * f.width as usize + x) * 4;
+    [f.rgba[i], f.rgba[i + 1], f.rgba[i + 2]]
+}
+
+#[test]
+fn the_narrow_demo_column_stands_as_far_from_the_windows_edge_as_from_the_bars_line() {
+    // 960 x 580 (1440 x 870 at 1.5): the bar's line at 44 dp, the column
+    // under it, 8 dp, and the same from the window's right edge.
+    let mut app = on_shell(1440, 870, 240, true, Way::Dice);
+    let more = app.hit_box(Action::Codex32(C32::Pane)).expect("More");
+    let (mx, my) = (usize::from(more.0), usize::from(more.1));
+    let width = app.frame().width as usize;
+    // Down the column's middle from under the bar's line (44 dp = 66
+    // px) to the card's outline.
+    let bar = 66usize;
+    let ground = rgb_at(&mut app, (mx, bar + 2));
+    let top = (bar + 2..my)
+        .find(|y| rgb_at(&mut app, (mx, *y)) != ground)
+        .expect("the card's top edge");
+    // Along More's row from the window's right edge to the outline.
+    let row = my + usize::from(more.3) / 2;
+    let ground = rgb_at(&mut app, (width - 1, row));
+    let right = (mx..width)
+        .rev()
+        .find(|x| rgb_at(&mut app, (*x, row)) != ground)
+        .expect("the card's right edge");
+    let (up, side) = (top - bar - 1, width - 1 - right);
+    assert!(
+        up.abs_diff(side) <= 2,
+        "{up} px under the bar's line, {side} px from the window's edge"
+    );
+    // 1280 x 800 and 960 x 580: no wider than 120 dp, the tracks still
+    // beside the tree.
+    for (w, h, dpi) in [(1280u16, 800u16, 160u16), (1440, 870, 240)] {
+        let mut app = on_shell(w, h, dpi, true, Way::Dice);
+        let next = app
+            .hit_box(Action::Codex32(C32::Walk(WalkAct::Next)))
+            .expect("Next");
+        let scale = f32::from(dpi) / 160.0;
+        let column = f32::from(next.2) / scale + 24.0;
+        assert!(column <= 120.0, "{w}x{h}: the column {column} dp");
+        let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet");
+        let tracks = text_at(&mut app, "Die tracks").expect("the tracks");
+        assert!(
+            (tracks.1 - head.1) as f32 / scale < 70.0,
+            "{w}x{h}: the tracks beside the tree: {head:?} {tracks:?}"
+        );
     }
 }

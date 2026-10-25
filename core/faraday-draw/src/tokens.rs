@@ -1129,9 +1129,20 @@ pub const CODEX32_MAIN_MIN: f32 = 420.0;
 /// The "Demo only" card's column at the right of the codex32 entry where
 /// a `SUPPORT_PANE` does not fit beside it (medium and expanded windows;
 /// owner, 2026-10-25): its head, and More, Previous, Next and Play one
-/// under another, as wide as the widest of them ("Previous" with
-/// Material's 24 dp each side) and the card's `PAD` each side.
-pub const CODEX32_DEMO_COLUMN_W: f32 = 144.0;
+/// under another, as wide as the widest of them ("Previous", about 58 dp,
+/// in Material's small button: 16 dp each side, 40 dp tall within a 48 dp
+/// touch target) and the column's own `CODEX32_DEMO_COLUMN_PAD` each side.
+pub const CODEX32_DEMO_COLUMN_W: f32 = 118.0;
+/// The narrow column's inner padding each side (Material's small
+/// button's 16 dp each side of the label, the card's 12 dp).
+pub const CODEX32_DEMO_COLUMN_PAD: f32 = 12.0;
+/// A small button's room each side of its label (Material 3 buttons).
+pub const SMALL_BUTTON_PAD: f32 = 16.0;
+/// The narrow "Demo only" column's gap to the window's right edge, and to
+/// the line under the top bar on windows that have one (the bar's 44 dp
+/// and the card's top at `DEMO_CARD_TOP`, 52): Material's list padding
+/// under a top app bar (owner, 2026-10-25).
+pub const CODEX32_DEMO_COLUMN_EDGE: f32 = 8.0;
 /// How far New key's column stands in from its page area's left edge,
 /// and as far again is kept on its right.
 pub const KEYGEN_COLUMN_IN: f32 = 40.0;

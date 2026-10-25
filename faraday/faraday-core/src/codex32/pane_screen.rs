@@ -7,8 +7,9 @@
 //! itself where it is taller than the window. Narrower, a strip pinned at
 //! the window's foot holds the step-through's line, Previous, Next and
 //! Play, and More opens the whole card over the page from the foot.
-//! Between, a narrow column at the right holds its head and More,
-//! Previous, Next and Play one under another. The
+//! Between, a narrow column at the right, `CODEX32_DEMO_COLUMN_EDGE`
+//! from the window's edge as from the bar's line, holds its head and
+//! More, Previous, Next and Play one under another. The
 //! card's content is `dice_screen::demo_content`; drawing reads the
 //! flow's state and works nothing out.
 
@@ -84,6 +85,7 @@ pub(crate) fn pane_at_now(
 pub(crate) fn side_room(pane: Option<PaneAt>, column: bool) -> f32 {
     match pane {
         _ if column => crate::screens::support_pane_room(),
+        Some(PaneAt::Side(w)) if w < t::SUPPORT_PANE => w + t::SPACER + t::CODEX32_DEMO_COLUMN_EDGE,
         Some(PaneAt::Side(w)) => w + t::SPACER + t::MARGIN_WIDE,
         _ => 0.0,
     }
@@ -172,7 +174,7 @@ pub(crate) fn draw(
             } else {
                 crate::samples::card::pane_place(app, (x0, cw, h)).1
             };
-            let x = x0 + cw - t::MARGIN_WIDE - w;
+            let x = x0 + cw - t::CODEX32_DEMO_COLUMN_EDGE - w;
             let view = (h - top - t::MARGIN_WIDE).max(t::TOUCH);
             scrolled(ui, m, (x, top, w, view), (roller, Body::Narrow, false));
             if m.pane_open() {
@@ -228,8 +230,11 @@ fn sample_button(ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
 /// the Working area's, beside the pad. Returns the height, the card's
 /// padding included.
 fn narrow(ui: &mut Ui, m: &Codex32Make, roller: bool, (x, y, w): (f32, f32, f32)) -> f32 {
-    let (ix, iw) = (x + t::PAD, w - 2.0 * t::PAD);
-    let mut cy = y + t::PAD;
+    let (ix, iw) = (
+        x + t::CODEX32_DEMO_COLUMN_PAD,
+        w - 2.0 * t::CODEX32_DEMO_COLUMN_PAD,
+    );
+    let mut cy = y + t::CODEX32_DEMO_COLUMN_PAD;
     let head = ui.fit(t::BODY, W::S, EN.demo_only, iw);
     ui.text(ix, cy, t::BODY, W::S, Role::OnSurface, &head);
     cy += ui.line(t::BODY, W::S);
@@ -249,26 +254,16 @@ fn narrow(ui: &mut Ui, m: &Codex32Make, roller: bool, (x, y, w): (f32, f32, f32)
     } else {
         EN.codex32_pane_more
     };
-    let label = ui.fit(t::LABEL, W::S, label, iw - t::PAD);
-    ui.button(
-        ix,
-        cy,
-        Some(iw),
-        t::TOUCH,
-        &label,
-        Style::Secondary,
-        a(C32::Pane),
-    );
+    super::walk_screen::small_button(ui, (ix, cy, iw), label, Style::Secondary, C32::Pane);
     cy += t::TOUCH + t::GAP;
     cy += if walk {
         super::walk_screen::stacked(m, ui, (ix, cy, iw))
     } else {
-        let label = ui.fit(t::LABEL, W::S, EN.use_a_sample, iw - t::PAD);
-        let act = a(C32::Sample);
-        ui.button(ix, cy, Some(iw), t::TOUCH, &label, Style::Secondary, act);
+        let (label, act) = (EN.use_a_sample, C32::Sample);
+        super::walk_screen::small_button(ui, (ix, cy, iw), label, Style::Secondary, act);
         t::TOUCH
     };
-    cy + t::PAD - y
+    cy + t::CODEX32_DEMO_COLUMN_PAD - y
 }
 
 /// The strip's height: its head row, and the step-through's line and
