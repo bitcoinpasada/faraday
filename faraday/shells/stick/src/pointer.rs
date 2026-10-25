@@ -1026,7 +1026,7 @@ mod tests {
                 outbox: Vec::new(),
                 kept: Vec::new(),
             });
-            app.press(Action::Nav(Screen::Settings));
+            app.press(Action::Nav(Screen::Catalog));
             app.settle();
             app.event(Event::Tick { now_ms: 1_000 });
             while app.poll_command().is_some() {}
@@ -1070,7 +1070,7 @@ mod tests {
                 app.event(event);
             }
             while app.poll_command().is_some() {}
-            assert_eq!(app.screen, Screen::Settings, "nothing under it was pressed");
+            assert_eq!(app.screen, Screen::Catalog, "nothing under it was pressed");
         }
     }
 }

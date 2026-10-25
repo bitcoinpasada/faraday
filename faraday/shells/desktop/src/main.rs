@@ -1095,8 +1095,16 @@ mod tests {
         let _ = app.frame();
         // The Pi panel, in dp.
         let pi = (268, 358);
-        // Settings, scrolled down to the card, offers it.
+        // Settings' Preview size section (its list and detail, from
+        // expanded windows up), scrolled down to the card, offers it.
         let choice = Action::PreviewSize(Some(pi));
+        for s in 0..16u8 {
+            if app.where_offered(choice).is_some() {
+                break;
+            }
+            app.press(Action::SettingsSection(s));
+            let _ = app.frame();
+        }
         for t in 1..=60u64 {
             if app.where_offered(choice).is_some() {
                 break;
