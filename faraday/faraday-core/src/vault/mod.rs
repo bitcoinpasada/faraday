@@ -16,6 +16,7 @@ mod dice_screen;
 pub mod load;
 pub(crate) mod load_screen;
 pub mod out;
+pub(crate) mod panes_screen;
 pub(crate) mod screen;
 mod strength;
 
@@ -350,8 +351,7 @@ impl Faraday {
     pub(crate) fn vault_act(&mut self, a: VaultAction) {
         let c = self.compute();
         use VaultAction as V;
-        // A small panel's contents page changes to another page: it starts
-        // at its top.
+        // A small panel's contents page changes to another page: it starts at its top.
         if matches!(
             a,
             V::Item(_)

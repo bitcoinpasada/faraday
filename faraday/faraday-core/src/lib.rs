@@ -32,7 +32,7 @@
 //!   hits, the press, the drag, the hover), `idle` (the idle lock's timers), `fade` (a
 //!   change fading in), `menu` (the ⋮ menus), `nav` (the navigation by
 //!   window class, with `nav/screen.rs`), `file_menu`, `in_progress`,
-//!   `compact` (the small panel), `medium`
+//!   `compact` (the small panel), `panes` (list and detail), `medium`
 //!   (what the removable medium is called), `memory` (what is kept across
 //!   a lock), `copy_check` (a copy by hand checked), `set_time`, `stick`
 //!   (`pills.rs`, `settings.rs`, `wipe.rs`), `visit_taken`, `trail` (where
@@ -138,6 +138,7 @@ mod menu;
 mod motion;
 pub mod nav;
 mod out;
+mod panes;
 mod pointer;
 pub mod set_time;
 pub mod stick;
@@ -1950,8 +1951,7 @@ impl Faraday {
         // that no longer reports a problem has none.
         let _ = &present;
         self.stick.clear_problems();
-        // The medium the device started from goes by what it is, not by
-        // its volume label.
+        // The medium the device started from goes by what it is, not by its volume label.
         let boot = self.medium.boot();
         for s in self.stick.iter_mut().filter(|s| s.boot) {
             s.label = boot.to_string();
@@ -3009,9 +3009,7 @@ impl Faraday {
             a @ (Action::BackupsOf(..) | Action::BackupsPage(..)) => self.backups_act(a, &c),
             Action::Nav(s) => {
                 self.glance.set_focus(None);
-                if s == Screen::Backups {
-                    self.backups_area.set_at(0);
-                }
+                self.panes_nav(s);
                 // Spend's way back is to where it was opened from.
                 if s == Screen::Family && self.screen != Screen::Family {
                     self.family.opened_from(self.screen);
@@ -3268,6 +3266,7 @@ impl Faraday {
             | Action::PreviewSize(_)
             | Action::ReduceMotion(_)
             | Action::Theme(_)) => self.appearance_act(a),
+            Action::SettingsSection(k) => self.settings_section(k),
             // Acted on before (`act_inner`), or never pressed (a mark).
             Action::StickPill(_) | Action::Mark(..) => {}
         }
@@ -6146,6 +6145,7 @@ impl Faraday {
             ui::Slot::Card => Some(self.wallets.card_offset_mut()),
             ui::Slot::VaultItem => Some(self.vaults.item_offset_mut()),
             ui::Slot::FilesOut => Some(self.visit.files_out_offset_mut()),
+            ui::Slot::ListPane => Some(self.scroll.list_pane_offset_mut()),
             ui::Slot::BoardList => Some(self.flows.board_list_offset_mut()),
             ui::Slot::Worksheet | ui::Slot::DemoPane => self.codex32_slot(),
             ui::Slot::Page | ui::Slot::WorksheetWhole => self.page_slot(),

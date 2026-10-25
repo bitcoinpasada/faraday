@@ -10,7 +10,7 @@ use faraday_core::{Action, Faraday, Screen, StorageEvent};
 use faraday_shell_api::{App, Event};
 
 fn scroll(app: &mut Faraday, dy: i16) {
-    app.event(Event::Scroll { x: 600, y: 400, dy });
+    app.event(Event::Scroll { x: 450, y: 400, dy });
 }
 
 #[test]
@@ -116,7 +116,7 @@ fn run(app: &mut Faraday, from: u64, ms: u64) -> u64 {
 }
 
 fn wheel(app: &mut Faraday, dy: i16) {
-    app.event(Event::Wheel { x: 700, y: 400, dy });
+    app.event(Event::Wheel { x: 450, y: 400, dy });
 }
 
 fn pixels(app: &mut Faraday) -> Vec<u8> {
@@ -340,12 +340,12 @@ fn with_reduce_motion_a_notch_moves_at_once_and_nothing_stretches() {
     );
 }
 
-/// Settings on a 1280 × 800 panel, taller than it: it scrolls.
-fn settings() -> Faraday {
+/// Files on a 1280 × 800 panel, From the stick taller than its pane: it
+/// scrolls, its bar at the pane's right edge, 636 dp across (the 240 dp
+/// rail, the 24 dp margin, the 360 dp pane and half the spacer).
+fn files_page() -> Faraday {
     let mut app = long_files(1280, 800);
-    app.press(Action::Nav(Screen::Settings));
-    // At rest, past the fade from Files, as a driver that reads pixels
-    // does.
+    // At rest, as a driver that reads pixels does.
     app.settle();
     tick(&mut app, 1_000);
     let _ = app.frame();
@@ -354,14 +354,14 @@ fn settings() -> Faraday {
 
 #[test]
 fn the_scrollbar_can_be_held_and_dragged_with_a_pointer_or_a_finger() {
-    let mut app = settings();
+    let mut app = files_page();
     let touch = |app: &mut Faraday, y: u16, phase| {
-        app.event(Event::Touch { x: 1274, y, phase });
+        app.event(Event::Touch { x: 630, y, phase });
         while app.poll_command().is_some() {}
         let _ = app.frame();
     };
     // Pressed low on the track: the page goes there at once.
-    touch(&mut app, 790, TouchPhase::Down);
+    touch(&mut app, 700, TouchPhase::Down);
     let low = app.list_offset;
     assert!(low > 0.0, "the page moved down");
     // Dragged to the top: it follows, and stops at the top.
@@ -370,19 +370,19 @@ fn the_scrollbar_can_be_held_and_dragged_with_a_pointer_or_a_finger() {
     touch(&mut app, 0, TouchPhase::Move);
     assert_eq!(app.list_offset, 0.0);
     touch(&mut app, 0, TouchPhase::Up);
-    assert_eq!(app.screen, Screen::Settings, "nothing under it was pressed");
+    assert_eq!(app.screen, Screen::Files, "nothing under it was pressed");
 }
 
 #[test]
 fn the_scrollbar_shows_while_the_pointer_is_over_it() {
-    let mut app = settings();
+    let mut app = files_page();
     let rest = pixels(&mut app);
-    app.event(Event::Hover { x: 1274, y: 400 });
+    app.event(Event::Hover { x: 630, y: 400 });
     assert!(pixels(&mut app) != rest, "the bar shows");
     // Still there after it would have faded from a scroll.
     let now = run(&mut app, 1_000, 2_000);
     assert!(pixels(&mut app) != rest);
-    app.event(Event::Hover { x: 700, y: 400 });
+    app.event(Event::Hover { x: 1100, y: 400 });
     run(&mut app, now, 2_000);
     assert!(
         pixels(&mut app) == rest,

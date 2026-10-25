@@ -251,6 +251,9 @@ pub enum Action {
     Cancel,
     /// Set the display scale, in percent.
     Scale(u16),
+    /// Settings' section `k` chosen in its list pane, from expanded
+    /// windows up (`docs/LAYOUT.md` §5, §17).
+    SettingsSection(u8),
     /// Show the screens at another screen's size, in dp, or at the
     /// window's own (`None`): the desktop app's preview
     /// (`docs/PREVIEW-SIZE.md`).

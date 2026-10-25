@@ -1171,9 +1171,6 @@ impl Faraday {
                     .unwrap_or(0);
                 self.act(Action::Nav(Screen::Backups));
                 self.backups_area.set_at(at);
-                if !self.compact {
-                    self.list_offset = crate::backups::screen::offset_of_now(c, self, at);
-                }
             }
             Action::BackupsPage(i) => {
                 self.backups_area.set_at(i);

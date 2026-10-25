@@ -412,6 +412,7 @@ fn settings_randomness_row_counts_what_the_page_added_and_none_after_a_lock() {
     app.event(Event::EntropySource("getrandom(2)"));
     answer(&mut app, SEED);
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
     assert_eq!(
         status_shown(&mut app).as_deref(),
         Some("System: getrandom(2) · your own: none")
@@ -447,6 +448,7 @@ fn settings_randomness_row_counts_what_the_page_added_and_none_after_a_lock() {
     app.press(Action::Lock);
     assert!(app.restart_requested());
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
     assert_eq!(
         status_shown(&mut app).as_deref(),
         Some("System: getrandom(2) · your own: none")
@@ -459,6 +461,7 @@ fn dice_typed_on_the_page_mix_in_as_the_known_answers_say() {
     answer(&mut app, SEED);
     answer(&mut app, POOLED);
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
     app.press(own(Act::Open));
     // 7 is no die's face; Backspace takes the second 6 back.
     crate::common::type_text(&mut app, "12345667");
@@ -477,6 +480,7 @@ fn coins_and_cards_are_counted_and_a_card_already_out_is_refused() {
     let mut app = testkit::started();
     answer(&mut app, SEED);
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
     app.press(own(Act::Open));
     app.press(own(Act::Source(OwnSource::Coins)));
     for h in [true, false, false, true] {
@@ -516,6 +520,7 @@ fn with_a_camera_the_page_opens_on_it_and_each_picture_is_added_as_taken() {
         "Camera".to_string(),
     )]));
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Randomness");
     let _ = commands(&mut app);
     app.press(own(Act::Open));
     assert!(commands(&mut app).contains(&Command::CameraOn));

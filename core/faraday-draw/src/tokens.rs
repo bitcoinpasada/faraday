@@ -701,21 +701,6 @@ pub const WINDOW_DEFAULT_H: f32 = 800.0;
 /// §3.1d).
 pub const WINDOW_HELD_WIDE: f32 = 1280.0;
 
-/// A Settings card's inset from its edge (the wide layout).
-pub const SETTINGS_CARD_INSET: f32 = 22.0;
-
-/// A Settings card's choices begin this far below its top.
-pub const SETTINGS_CARD_HEAD: f32 = 54.0;
-
-/// A Settings card's title, this far below its top.
-pub const SETTINGS_CARD_TITLE_Y: f32 = 20.0;
-
-/// A Settings card's title size.
-pub const SETTINGS_CARD_TITLE: f32 = 15.0;
-
-/// The space between two Settings cards.
-pub const SETTINGS_CARD_GAP: f32 = 20.0;
-
 /// A row of Settings' choices, its height.
 pub const SETTINGS_CHOICE_H: f32 = 38.0;
 
@@ -804,8 +789,6 @@ pub const COLUMN_MAX: f32 = 720.0;
 /// room beside the navigation once that room is wider than the area
 /// (`docs/LAYOUT.md` §14): a 900 dp column and its side insets.
 pub const READING_PAGE_W: f32 = 1000.0;
-/// Settings' reading area: its 760 dp column between two 56 dp insets.
-pub const READING_SETTINGS_W: f32 = 760.0 + 2.0 * 56.0;
 /// Set the time's reading area: its 520 dp column between two 56 dp insets.
 pub const READING_TIME_W: f32 = 520.0 + 2.0 * 56.0;
 /// Add randomness' reading area: its `COLUMN_MAX` column between two
@@ -818,6 +801,45 @@ pub const PAGE_AREA_UNTIL_W: f32 = 1360.0;
 
 /// The space between two panes (`docs/LAYOUT.md` §5): Material's spacer.
 pub const SPACER: f32 = 24.0;
+
+/// A list pane's width in list and detail (`docs/LAYOUT.md` §5):
+/// Material's default pane width.
+pub const LIST_PANE: f32 = 360.0;
+
+/// Where a list pane and its detail begin under a wide page's title: the
+/// title's 28 dp top and its 56 dp row.
+pub const PANE_TOP: f32 = 84.0;
+
+/// Where a list pane and its detail begin under the top app bar, on the
+/// rail's windows: Material's list padding.
+pub const PANE_TOP_BAR: f32 = 8.0;
+
+/// A button's height: Material's common buttons (`docs/LAYOUT.md` §8).
+pub const BUTTON_H: f32 = 40.0;
+
+/// A one-line list item's height (Material 3 Lists).
+pub const LIST_1: f32 = 56.0;
+
+/// A two-line list item's height (Material 3 Lists).
+pub const LIST_2: f32 = 72.0;
+
+/// A list item's room at its start and end (Material 3 Lists).
+pub const LIST_PAD: f32 = 16.0;
+
+/// A list item's headline: Material's body large.
+pub const LIST_HEADLINE: f32 = 16.0;
+
+/// A list item's supporting text: Material's body medium.
+pub const LIST_SUPPORTING: f32 = 14.0;
+
+/// A list item's trailing text: Material's label small.
+pub const LIST_TRAILING: f32 = 11.0;
+
+/// The headline's top in a two-line list item.
+pub const LIST_HEADLINE_Y: f32 = 14.0;
+
+/// The supporting text's top in a two-line list item.
+pub const LIST_SUPPORTING_Y: f32 = 38.0;
 
 /// A supporting pane's width (`docs/LAYOUT.md` §6).
 pub const SUPPORT_PANE: f32 = 400.0;
@@ -910,10 +932,6 @@ pub const OWN_TOP: f32 = 28.0;
 
 /// Add randomness: the size of the status line and the batch's line.
 pub const OWN_LINE_TEXT: f32 = 13.0;
-
-/// Settings' cards on the wide layout: the first line under the title,
-/// in from the card's top.
-pub const SETTINGS_CARD_BODY_TOP: f32 = 46.0;
 
 // ----- Codex32 error correction (docs/CODEX32.md §8.4) -----
 
@@ -1363,6 +1381,10 @@ pub const STEPPER_LABEL_COL: f32 = 180.0;
 /// across and stands `MARGIN_WIDE` from the window's edge
 /// (`docs/LAYOUT.md` §15).
 pub const TOP_ROW_QUESTION: f32 = MARGIN_WIDE + 28.0;
+/// The middle of the wide layout's top-right row: the ? stands 12 dp
+/// from the top and is 28 dp tall, and what else stands in the row (Files'
+/// stick chip) is centred on it (`docs/LAYOUT.md` §17).
+pub const TOP_ROW_MID: f32 = 12.0 + 14.0;
 /// The wide page's eye: its container's right edge in from the window's,
 /// under the ? at the top right, level with it at `MARGIN_WIDE`
 /// (`docs/LAYOUT.md` §15, `docs/CODEX32.md` §6.4.6).

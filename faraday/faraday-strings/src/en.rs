@@ -6019,13 +6019,6 @@ strings! {
     // ----- tz_row (faraday-core/src/screens/parts.rs) -----
     /// Line in `tz_row`.
     tz_row_time_zone: "Time zone",
-    // ----- time_section (faraday-core/src/screens/settings.rs) -----
-    /// Line in `time_section`.
-    time_section_time: "Time",
-    /// Line in `time_section`.
-    time_section_now: "Now",
-    /// Button in `time_section`.
-    time_section_set_button: "Set the time",
     // ----- set_time (faraday-core/src/screens/set_time.rs) -----
     /// Title in `set_time_screen`.
     set_time_set_the_time: "Set the time",

@@ -21,6 +21,9 @@ pub enum Slot {
     /// Files' For the stick list on a desktop, beside From the stick
     /// (`Faraday::files_out_offset`).
     FilesOut,
+    /// The list pane of a list and detail page, beside its detail
+    /// (`docs/LAYOUT.md` §5; `Panes::list_offset`, `faraday-core`).
+    ListPane,
     /// The backup board's list in the right-hand column on a desktop
     /// (`Faraday::board_list_offset`).
     BoardList,

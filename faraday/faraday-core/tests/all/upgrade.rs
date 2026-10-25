@@ -69,6 +69,7 @@ fn asked(app: &mut Faraday) -> Vec<StorageCommand> {
 /// Settings → Upgrade, on a clean device.
 fn open(app: &mut Faraday) {
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(app, "Sticks");
     let _ = app.frame();
     assert!(app.offers(Action::UpgradeOpen));
     app.press(Action::UpgradeOpen);
@@ -102,6 +103,7 @@ fn the_online_app_offers_no_upgrade() {
     let mut app = device();
     app.online = true;
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Sticks");
     let _ = app.frame();
     assert!(!app.offers(Action::UpgradeOpen));
     app.press(Action::UpgradeOpen);
@@ -449,6 +451,7 @@ fn on_the_pi_the_upgrade_names_an_sd_card() {
     let mut app = device();
     app.medium = Medium::SdCard;
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "SD cards");
     let _ = app.frame();
     assert!(app.offers(Action::UpgradeOpen));
     assert_eq!(app.medium.upgrade(), "Upgrade a Faraday SD card");
@@ -684,6 +687,7 @@ fn the_upgrade_screen_names_a_release_a_test_release_a_dev_build_and_the_old_for
 fn about_shows_the_version_label_local_build_without_a_faraday_build_id() {
     let mut app = device();
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "About");
     let texts = app.drawn_texts();
     // The test binary carries no FARADAY_BUILD (faraday_core::lib.rs).
     assert!(faraday_core::BUILD.is_none());

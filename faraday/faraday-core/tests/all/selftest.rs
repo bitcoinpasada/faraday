@@ -26,6 +26,7 @@ fn the_self_test_passes_at_start_and_settings_runs_it_again() {
         memory_mib: None,
     }));
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "About");
     let _ = app.frame();
     assert!(app.offers(Action::SelfTestRun));
     app.press(Action::SelfTestRun);
@@ -45,6 +46,7 @@ fn no_key_is_accepted_before_the_self_test_has_run() {
 fn a_failed_check_blocks_everything_but_exit() {
     let mut app = faraday_core::testkit::started();
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "About");
     app.run_selftest_with(&[faraday_selftest::Check {
         name: "Injected failure",
         run: |_| false,

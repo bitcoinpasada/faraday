@@ -404,11 +404,9 @@ pub(crate) fn hold_button_in(
 // The list
 // ---------------------------------------------------------------------
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let ink = Role::OnSurface;
-    let (primary, good, warn) = (Role::Primary, Role::Ok, Role::Warning);
-    let (muted, rule) = (Role::OnSurfaceVariant, Role::OutlineVariant);
+    let muted = Role::OnSurfaceVariant;
     if ui.compact {
         return list_compact(app, ui, x0, cw, h);
     }
@@ -452,70 +450,11 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::samples::put::button(app, ui, x, y + tokens::TEXT_FIELD);
         return;
     }
-    let in_inbox = |salt: &[u8; 32]| {
-        app.inbox
-            .iter()
-            .filter(|i| i.kind == crate::FileKind::Vault)
-            .any(|i| faraday_vault::read_header(&i.bytes).is_ok_and(|h| &h.salt == salt))
-    };
     for (i, f) in files.iter().enumerate() {
         let open = f.open.and_then(|o| app.vaults.open.get(o));
-        let fresh = f.in_outbox && !in_inbox(&f.header.salt);
-        // A locked vault seen open since power-on goes by its name.
-        let remembered = app.vault_summary(f).map(|s| s.name.as_str());
-        let (title_text, state, state_color, icon_color, edge) = match open {
-            Some(v) if v.changes > 0 => (
-                v.label(app.vaults.store()),
-                fill(
-                    EN.vault_open_unsaved,
-                    &[
-                        &v.changes.to_string(),
-                        (if v.changes == 1 {
-                            EN.vault_change
-                        } else {
-                            EN.vault_changes
-                        }),
-                    ],
-                ),
-                warn,
-                primary,
-                rule,
-            ),
-            Some(v) => (
-                v.label(app.vaults.store()),
-                EN.vault_open_button.to_string(),
-                good,
-                primary,
-                rule,
-            ),
-            None if !app.may_load_keys() => (
-                remembered
-                    .unwrap_or(if fresh {
-                        EN.vault_new_vault
-                    } else {
-                        EN.vault_locked_vault
-                    })
-                    .to_string(),
-                fill(EN.vault_remove_to_unlock, &[app.medium.noun()]),
-                warn,
-                muted,
-                rule,
-            ),
-            None if fresh => (
-                remembered.unwrap_or(EN.vault_new_vault).to_string(),
-                EN.vault_locked_not_written.to_string(),
-                good,
-                Role::OnOkContainer,
-                Role::OkContainer,
-            ),
-            None => (
-                remembered.unwrap_or(EN.vault_locked_vault).to_string(),
-                EN.vault_locked.to_string(),
-                muted,
-                muted,
-                rule,
-            ),
-        };
+        let l = super::panes_screen::look(app, f);
+        let (title_text, state) = (l.title, l.state);
+        let (state_color, icon_color, edge) = (l.tone, l.icon, l.edge);
         let ch = 92.0;
         ui.fill(x, y, w, ch, 12.0, Role::SurfaceContainerLow);
         ui.stroke(x, y, w, ch, 12.0, edge);
@@ -598,6 +537,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += stick_banner(ui, x, y, w, &pull);
     }
     let files = app.vault_files();
+    let beside = crate::panes::screen::shown(app, Screen::Unlock);
     let locked: Vec<(usize, &vault::VaultFile)> = files
         .iter()
         .enumerate()
@@ -616,7 +556,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
         return;
     }
-    for (i, f) in &locked {
+    for (i, f) in locked.iter().filter(|_| !beside) {
         let on = *i == app.vaults.pick;
         let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
         let ch = 72.0;
@@ -710,7 +650,7 @@ pub(crate) fn unlock(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 /// The third line of a vault's row: where it is, its size and cost while
 /// open; once locked, what it held when last seen open, or that unlocking
 /// shows it.
-fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> String {
+pub(super) fn list_line(app: &View, f: &vault::VaultFile, where_: &str) -> String {
     let line = if f.open.is_some() {
         format!(
             "{where_} · {} · {}",
@@ -770,11 +710,9 @@ pub(crate) fn unlock_back(app: &View) -> (&'static str, Action) {
 /// [`list`] on a small panel: Create a vault, then each vault as a card
 /// with its buttons under what it says. The way back to a flow that made
 /// one is the bar's.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let ink = Role::OnSurface;
-    let (primary, good, warn) = (Role::Primary, Role::Ok, Role::Warning);
-    let (muted, rule) = (Role::OnSurfaceVariant, Role::OutlineVariant);
+    let muted = Role::OnSurfaceVariant;
     use crate::compact::M;
     use crate::compact::screen::{about, finish};
     let (x, w) = (x0 + M, cw - 2.0 * M);
@@ -797,70 +735,11 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += ui.wrap(x, y, w, 14.0, W::R, muted, EN.vault_no_vault_in_files) + 12.0;
         y += crate::samples::put::button(app, ui, x, y);
     }
-    let in_inbox = |salt: &[u8; 32]| {
-        app.inbox
-            .iter()
-            .filter(|i| i.kind == crate::FileKind::Vault)
-            .any(|i| faraday_vault::read_header(&i.bytes).is_ok_and(|h| &h.salt == salt))
-    };
     for (i, f) in files.iter().enumerate() {
         let open = f.open.and_then(|o| app.vaults.open.get(o));
-        let fresh = f.in_outbox && !in_inbox(&f.header.salt);
-        // A locked vault seen open since power-on goes by its name.
-        let remembered = app.vault_summary(f).map(|s| s.name.as_str());
-        let (title_text, state, state_color, icon_color, edge) = match open {
-            Some(v) if v.changes > 0 => (
-                v.label(app.vaults.store()),
-                fill(
-                    EN.vault_open_unsaved,
-                    &[
-                        &v.changes.to_string(),
-                        (if v.changes == 1 {
-                            EN.vault_change
-                        } else {
-                            EN.vault_changes
-                        }),
-                    ],
-                ),
-                warn,
-                primary,
-                rule,
-            ),
-            Some(v) => (
-                v.label(app.vaults.store()),
-                EN.vault_open_button.to_string(),
-                good,
-                primary,
-                rule,
-            ),
-            None if !app.may_load_keys() => (
-                remembered
-                    .unwrap_or(if fresh {
-                        EN.vault_new_vault
-                    } else {
-                        EN.vault_locked_vault
-                    })
-                    .to_string(),
-                fill(EN.vault_remove_to_unlock, &[app.medium.noun()]),
-                warn,
-                muted,
-                rule,
-            ),
-            None if fresh => (
-                remembered.unwrap_or(EN.vault_new_vault).to_string(),
-                EN.vault_locked_not_written.to_string(),
-                good,
-                Role::OnOkContainer,
-                Role::OkContainer,
-            ),
-            None => (
-                remembered.unwrap_or(EN.vault_locked_vault).to_string(),
-                EN.vault_locked.to_string(),
-                muted,
-                muted,
-                rule,
-            ),
-        };
+        let l = super::panes_screen::look(app, f);
+        let (title_text, state) = (l.title, l.state);
+        let (state_color, icon_color, edge) = (l.tone, l.icon, l.edge);
         let buttons: &[(&str, Style, Action)] = if open.is_some() {
             &[
                 (EN.vault_view_contents, Style::Secondary, va(V::Open(i))),
@@ -949,6 +828,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += stick_banner(ui, x, y, w, &pull);
     }
     let files = app.vault_files();
+    let beside = crate::panes::screen::shown(app, Screen::Unlock);
     let locked: Vec<(usize, &vault::VaultFile)> = files
         .iter()
         .enumerate()
@@ -968,7 +848,7 @@ fn unlock_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         finish(app, ui, x0, cw, h, y - top + 56.0);
         return;
     }
-    for (i, f) in &locked {
+    for (i, f) in locked.iter().filter(|_| !beside) {
         let on = *i == app.vaults.pick;
         let (ink, muted) = (on_selected(on, ink), on_selected(on, muted));
         let ch = 82.0;

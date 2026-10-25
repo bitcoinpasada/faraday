@@ -229,14 +229,165 @@ pub(crate) fn loose_card(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32
     cy - y
 }
 
+/// Wallets' list pane (`docs/LAYOUT.md` §5): each wallet, the one the
+/// detail shows chosen, then the keys in no wallet and the ways to more,
+/// in `(x, top, w, h)`, scrolled on its own.
+fn wallet_list(app: &View, ui: &mut Ui, rect: (f32, f32, f32, f32)) {
+    use faraday_draw::tokens::{BUTTON_H, GAP, LIST_PAD, TOUCH};
+    let mut pane = crate::panes::screen::ListPane::begin(app, ui, rect);
+    let (x, listw, _) = pane.at();
+    let total = app.session.wallets.len();
+    let none = total == 0;
+    let (loose, _) = app.loose_keys();
+    // The card offers the loose keys' next steps, and Load or restore,
+    // when no wallet is loaded.
+    let card_offers = none && !loose.is_empty();
+    if !none {
+        section_label(ui, x + LIST_PAD, pane.at().2, EN.wallets_wallets);
+        pane.advance(TOUCH / 2.0 + GAP);
+    }
+    for (i, wlt) in app.session.wallets.iter().enumerate() {
+        // Can spend at its end (`docs/history/SCAN-TO-SIGN.md` §2.4).
+        let can = sign_readiness(app, wlt) == 2;
+        let (m, _) = Session::quorum(wlt);
+        let here = app
+            .session
+            .slots(wlt)
+            .iter()
+            .filter(|s| s.held_by.is_some())
+            .count()
+            .min(m);
+        let shape = Session::shape(wlt);
+        let line = if can {
+            shape
+        } else if here == 0 {
+            fill(EN.wallets_watch_only, &[&shape.to_string()])
+        } else {
+            fill(
+                EN.wallets_of_here,
+                &[&shape.to_string(), &here.to_string(), &m.to_string()],
+            )
+        };
+        let item = crate::panes::screen::Item {
+            headline: &wlt.name,
+            supporting: &line,
+            trailing: can.then(|| (EN.wallets_can_spend, Role::Ok.paint())),
+            action: Action::PickWallet(i),
+        };
+        pane.item(ui, &item, i == app.wallets.wallet());
+    }
+    // Keys not in any wallet.
+    if !loose.is_empty() {
+        pane.advance(GAP);
+        section_label(ui, x + LIST_PAD, pane.at().2, EN.wallets_keys_without);
+        pane.advance(TOUCH / 2.0 + GAP);
+        for fp in &loose {
+            let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
+            let line = ui.fit(13.0, W::R, &line, listw - 2.0 * LIST_PAD);
+            ui.text(
+                x + LIST_PAD,
+                pane.at().2,
+                13.0,
+                W::R,
+                Role::OnSurface,
+                &line,
+            );
+            pane.advance(22.0);
+            let h = mark_line(app, ui, x + LIST_PAD, pane.at().2, listw, *fp);
+            pane.advance(h);
+            // With wallets loaded the card shows one of them: the key's
+            // own row offers the wallet from it.
+            if !none {
+                let y = pane.at().2;
+                ui.button(
+                    x + LIST_PAD,
+                    y,
+                    None,
+                    BUTTON_H,
+                    FROM_KEY,
+                    Style::Secondary,
+                    Action::KeyWallet(fp.0, 1),
+                );
+                pane.advance(BUTTON_H + GAP);
+            }
+        }
+    }
+    pane.advance(GAP);
+    if none && !card_offers {
+        let y = pane.at().2;
+        ui.button(
+            x + LIST_PAD,
+            y,
+            None,
+            BUTTON_H,
+            EN.wallets_restore_wallet,
+            Style::Secondary,
+            Action::RestoreWallet,
+        );
+        pane.advance(BUTTON_H + GAP);
+    }
+    add_key_button(app, ui, &mut pane);
+    pane.end(ui);
+}
+
+/// The list pane's last button: Scan a key for the wallet shown when it
+/// is short of keys (`docs/history/SCAN-TO-SIGN.md` §2.4), else Add a key.
+fn add_key_button(app: &View, ui: &mut Ui, pane: &mut crate::panes::screen::ListPane) {
+    use faraday_draw::tokens::{BUTTON_H, GAP, LIST_PAD};
+    let (x, listw, _) = pane.at();
+    let short = app
+        .session
+        .wallets
+        .get(app.wallets.wallet())
+        .filter(|wl| wl.policy().silent().is_none() && !app.can_spend(app.wallets.wallet()));
+    let (add_label, add_action) = match short {
+        Some(wl) => (
+            fill(EN.wallets_scan_key_title, &[&wl.name.to_string()]),
+            Action::ScanKey(app.wallets.wallet()),
+        ),
+        None => (EN.wallets_add_a_key.to_string(), Action::KeyGen(None)),
+    };
+    let add_label = ui.fit(14.0, W::S, &add_label, listw - 2.0 * LIST_PAD - 32.0);
+    let y = pane.at().2;
+    let style = if app.may_load_keys() {
+        Style::Secondary
+    } else {
+        Style::Disabled
+    };
+    ui.button(
+        x + LIST_PAD,
+        y,
+        None,
+        BUTTON_H,
+        &add_label,
+        style,
+        add_action,
+    );
+    pane.advance(BUTTON_H + GAP);
+}
+
+/// Wallets on the rail's windows from expanded up: the list pane and the
+/// chosen wallet's page beside it (`docs/LAYOUT.md` §5).
+fn panes_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use crate::compact::M;
+    let p = crate::panes::screen::split(ui, x0, cw);
+    wallet_list(app, ui, (p.list.0, p.top, p.list.1, h - p.top));
+    let (dx, _) = p.detail;
+    crate::compact::screen::wallet_card(app, ui, dx - M, p.reading() + 2.0 * M, h);
+}
+
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use faraday_draw::tokens::MARGIN_WIDE;
+    if ui.compact && crate::panes::screen::shown(app, Screen::Wallets) {
+        return panes_compact(app, ui, x0, cw, h);
+    }
     if ui.compact {
         crate::compact::screen::wallet_card(app, ui, x0, cw, h);
         return;
     }
-    let x = x0 + 40.0;
-    let width = cw - 80.0;
+    let x = x0 + MARGIN_WIDE;
+    let width = cw - 2.0 * MARGIN_WIDE;
     let mut y = 28.0;
     title(ui, x, y, EN.wallets_wallets);
     y += 56.0;
@@ -284,172 +435,17 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 64.0;
     }
 
-    let listw = 250.0;
     let bottom = h - 28.0;
-    let may = app.may_load_keys();
-    let total = app.session.wallets.len();
-    let none = total == 0;
+    let none = app.session.wallets.is_empty();
     let (loose, _) = app.loose_keys();
-    // The card offers the loose keys' next steps, and Load or restore,
-    // when no wallet is loaded.
     let card_offers = none && !loose.is_empty();
+    // The list pane, and the chosen wallet's card beside it.
+    let p = crate::panes::screen::split(ui, x0, cw);
+    wallet_list(app, ui, (p.list.0, y, p.list.1, bottom - y));
 
-    // The left column, top down: the wallets, the keys in no wallet,
-    // then the buttons; scrolled when taller than the screen.
-    const ROW: f32 = 60.0;
-    const KEY_ROW: f32 = 22.0;
-    const KEY_BUTTON: f32 = 46.0;
-    let mut content = 0.0;
-    if !none {
-        content += 28.0 + total as f32 * ROW;
-    }
-    if !loose.is_empty() {
-        let each = if none { KEY_ROW } else { KEY_ROW + KEY_BUTTON };
-        content += 8.0 + 26.0 + loose.len() as f32 * each;
-    }
-    content += 8.0 + if none && !card_offers { 48.0 } else { 0.0 } + 40.0;
-    let view_h = bottom - y;
-    let max_shift = (content - view_h).max(0.0);
-    let shift = app.list_offset.min(max_shift);
-    let clip = ui.rect(x - 4.0, y, listw + 8.0, view_h);
-    ui.c.push_clip(clip);
-    let mut ly = y - shift;
-    if !none {
-        section_label(ui, x + 4.0, ly, EN.wallets_wallets);
-        ly += 28.0;
-    }
-    for (i, wlt) in app.session.wallets.iter().enumerate() {
-        let current = i == app.wallets.wallet();
-        let action = Action::PickWallet(i);
-        ui.fill(
-            x,
-            ly,
-            listw,
-            54.0,
-            10.0,
-            selected_or(current, Role::Surface),
-        );
-        let edge = selected_or(current, Role::OutlineVariant);
-        ui.stroke(x, ly, listw, 54.0, 10.0, edge);
-        // Can spend at the right of its name (`docs/history/SCAN-TO-SIGN.md`
-        // §2.4).
-        let can = sign_readiness(app, wlt) == 2;
-        let cw2 = if can {
-            let t = EN.wallets_can_spend;
-            let tw = ui.measure(12.0, W::S, t);
-            let ok = on_selected(current, Role::Ok);
-            ui.text(x + listw - 14.0 - tw, ly + 11.0, 12.0, W::S, ok, t);
-            tw + 8.0
-        } else {
-            0.0
-        };
-        let name = ui.fit(14.0, W::S, &wlt.name, listw - 28.0 - cw2);
-        let ink = on_selected(current, Role::OnSurface);
-        ui.text(x + 14.0, ly + 9.0, 14.0, W::S, ink, &name);
-        let (m, _) = Session::quorum(wlt);
-        let here = app
-            .session
-            .slots(wlt)
-            .iter()
-            .filter(|s| s.held_by.is_some())
-            .count()
-            .min(m);
-        let shape = Session::shape(wlt);
-        let (t, c) = if can {
-            (shape, Role::OnSurfaceVariant)
-        } else if here == 0 {
-            (
-                fill(EN.wallets_watch_only, &[&shape.to_string()]),
-                Role::OnSurfaceVariant,
-            )
-        } else {
-            (
-                fill(
-                    EN.wallets_of_here,
-                    &[&shape.to_string(), &here.to_string(), &m.to_string()],
-                ),
-                Role::OnSurfaceVariant,
-            )
-        };
-        let t = ui.fit(12.0, W::R, &t, listw - 28.0);
-        ui.text(x + 14.0, ly + 31.0, 12.0, W::R, on_selected(current, c), &t);
-        ui.hit(x, ly, listw, 54.0, action);
-        ly += ROW;
-    }
-    // Keys not in any wallet.
-    if !loose.is_empty() {
-        ly += 8.0;
-        section_label(ui, x + 4.0, ly, EN.wallets_keys_without);
-        ly += 26.0;
-        for fp in &loose {
-            let line = key_line(*fp, app.session.keys.key_label(*fp).unwrap_or(""));
-            let line = ui.fit(13.0, W::R, &line, listw - 8.0);
-            ui.text(x + 4.0, ly, 13.0, W::R, Role::OnSurface, &line);
-            ly += KEY_ROW;
-            ly += mark_line(app, ui, x, ly, listw, *fp);
-            // With wallets loaded the card shows one of them: the key's
-            // own row offers the wallet from it.
-            if !none {
-                ui.button(
-                    x,
-                    ly,
-                    Some(listw),
-                    38.0,
-                    FROM_KEY,
-                    Style::Secondary,
-                    Action::KeyWallet(fp.0, 1),
-                );
-                ly += KEY_BUTTON;
-            }
-        }
-    }
-    ly += 8.0;
-    if none && !card_offers {
-        ui.button(
-            x,
-            ly,
-            Some(listw),
-            40.0,
-            EN.wallets_restore_wallet,
-            Style::Secondary,
-            Action::RestoreWallet,
-        );
-        ly += 48.0;
-    }
-    // With the wallet shown short of keys, its Scan a key
-    // (`docs/history/SCAN-TO-SIGN.md` §2.4).
-    let short = app
-        .session
-        .wallets
-        .get(app.wallets.wallet())
-        .filter(|wl| wl.policy().silent().is_none() && !app.can_spend(app.wallets.wallet()));
-    let (add_label, add_action) = match short {
-        Some(wl) => (
-            fill(EN.wallets_scan_key_title, &[&wl.name.to_string()]),
-            Action::ScanKey(app.wallets.wallet()),
-        ),
-        None => (EN.wallets_add_a_key.to_string(), Action::KeyGen(None)),
-    };
-    let add_label = ui.fit(14.0, W::S, &add_label, listw - 24.0);
-    ui.button(
-        x,
-        ly,
-        Some(listw),
-        40.0,
-        &add_label,
-        if may {
-            Style::Secondary
-        } else {
-            Style::Disabled
-        },
-        add_action,
-    );
-    ui.c.pop_clip();
-    ui.report_scroll(clip, max_shift);
-
-    // The wallet card.
-    let cx = x + listw + 16.0;
-    let cwid = x + width - cx;
+    // The wallet card: its reading parts at most `COLUMN_MAX`, the
+    // chart the card's width.
+    let (cx, cwid) = p.detail;
     let ch = bottom - y;
     ui.card(cx, y, cwid, ch, Role::OutlineVariant);
     let Some(wlt) = app.session.wallets.get(app.wallets.wallet()) else {
@@ -470,7 +466,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         return;
     };
     let ix = cx + 24.0;
-    let iw = cwid - 48.0;
+    let chart_w = cwid - 48.0;
+    let iw = chart_w.min(faraday_draw::tokens::COLUMN_MAX);
     let mut cy = y + 22.0;
     // New wallet from this one, while it is still to be drawn: beside
     // Rename, or in the foot.
@@ -691,7 +688,8 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     cy += 24.0;
     if let Some(g) = app.glance_of(app.wallets.wallet()) {
-        cy += crate::glance::draw(ui, &g, crate::glance::Direction::WalletFirst, ix, cy, iw);
+        let dir = crate::glance::Direction::WalletFirst;
+        cy += crate::glance::draw(ui, &g, dir, ix, cy, chart_w);
     }
     cy += slot_marks(app, ui, (ix, cy, iw), &slots);
     // Where the keys still missing may be.

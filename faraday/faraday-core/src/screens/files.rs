@@ -414,13 +414,17 @@ fn restore_shares_button(app: &View, ui: &mut Ui, x: f32, y: f32) -> f32 {
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use faraday_draw::tokens::{LIST_PANE, MARGIN_WIDE, SPACER};
     if ui.compact {
         return files_compact(app, ui, x0, cw, h);
     }
-    let x = x0 + 48.0;
-    let width = cw - 96.0;
+    // The two lists are two list panes side by side at the start, and
+    // what is above them takes their width (`docs/LAYOUT.md` §17).
+    let x = x0 + MARGIN_WIDE;
+    let width = (2.0 * LIST_PANE + SPACER).min(cw - 2.0 * MARGIN_WIDE);
     let mut y = 36.0;
     title(ui, x, y, EN.files_files);
+    stick_chip(app, ui, x0 + cw - MARGIN_WIDE);
     let label = EN.files_in_memory_emptied;
     let pw = ui.measure(12.0, W::R, label) + 24.0;
     ui.pill(x + width - pw, y + 2.0, 30.0, label);
@@ -440,7 +444,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ui,
         x,
         y,
-        width.min(900.0),
+        width,
         &fill(
             EN.files_holds_what_was,
             &[app.medium.from_box(), app.medium.for_box()],
@@ -477,7 +481,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ip > 0.0 {
         y += ip + 20.0;
     }
-    let colw = (width - 20.0) / 2.0;
+    let colw = (width - SPACER) / 2.0;
     // Inbox.
     let lw = ui.text(
         x,
@@ -513,9 +517,9 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         .visit
         .files_out_offset()
         .min((content_out - view).max(0.0));
-    let split = x + colw + 10.0;
+    let split = x + colw + SPACER / 2.0;
     let clip = ui.rect(x0, top, split - x0, view);
-    let clip_out = ui.rect(split, top, x0 + cw - split, view);
+    let clip_out = ui.rect(split, top, colw + SPACER, view);
     ui.c.push_clip(clip);
     let mut iy = y + 32.0 - shift;
     for (k, item) in app.inbox.iter().enumerate() {
@@ -732,7 +736,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         );
     }
     // Outbox, its title above the scrolled lists.
-    let ox = x + colw + 20.0;
+    let ox = x + colw + SPACER;
     ui.c.pop_clip();
     let lw = ui.text(
         ox,
@@ -811,37 +815,7 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ui.card(ox, oy, colw, 66.0, edge);
             ui.fill(ox + 16.0, oy + 14.0, 36.0, 36.0, 10.0, ink.with_alpha(26));
             ui.icon(ox + 16.0, oy + 14.0, 36.0, icon, 14.0, ink);
-            // A vault open in this session: the file here is the copy
-            // sealed before it was opened, and Lock seals it again.
-            let open_here = (item.kind == FileKind::Vault)
-                .then(|| faraday_vault::read_header(&item.bytes).ok())
-                .flatten()
-                .and_then(|h| app.vaults.open.iter().find(|v| v.header().salt == h.salt));
-            let line = match open_here {
-                // With no seed to seal with, Lock does not seal it.
-                Some(v) if v.changes > 0 => fill(
-                    if app.seeded() {
-                        EN.files_vault_open_unsaved
-                    } else {
-                        EN.vault_open_unsaved
-                    },
-                    &[
-                        &v.changes.to_string(),
-                        (if v.changes == 1 {
-                            EN.files_change
-                        } else {
-                            EN.files_changes
-                        }),
-                    ],
-                ),
-                Some(_) => EN.files_vault_open_sealed.to_string(),
-                None => kind_line(item.kind, item.bytes.len()),
-            };
-            let state = match exposure {
-                Exposure::Secret => (EN.files_unprotected, Role::Error),
-                _ if open_here.is_some() => (EN.files_written_after, Role::Primary),
-                _ => (EN.files_ready, Role::Ok),
-            };
+            let (line, state) = out_line(app, item, exposure);
             // No main action: the row's ⋮ alone, at its top right, holds
             // Show as QR or Make PDF, Rename, Details and Remove (decision
             // 61); the state stands left of it.
@@ -919,7 +893,54 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &fill(EN.files_power_off_asks, &[app.medium.for_the()]),
         );
     }
-    let (label, action) = if app.stick.is_empty() {
+}
+
+/// An Outbox file's line and state: what it is, or for a vault open in
+/// this session (the file here is the copy sealed before it was opened,
+/// and Lock seals it again) its changes; then ready, written after, or
+/// unprotected, in its colour.
+fn out_line(
+    app: &View,
+    item: &crate::Item,
+    exposure: crate::secrets::Exposure,
+) -> (String, (&'static str, Role)) {
+    use crate::secrets::Exposure;
+    let open_here = (item.kind == FileKind::Vault)
+        .then(|| faraday_vault::read_header(&item.bytes).ok())
+        .flatten()
+        .and_then(|h| app.vaults.open.iter().find(|v| v.header().salt == h.salt));
+    let line = match open_here {
+        // With no seed to seal with, Lock does not seal it.
+        Some(v) if v.changes > 0 => fill(
+            if app.seeded() {
+                EN.files_vault_open_unsaved
+            } else {
+                EN.vault_open_unsaved
+            },
+            &[
+                &v.changes.to_string(),
+                (if v.changes == 1 {
+                    EN.files_change
+                } else {
+                    EN.files_changes
+                }),
+            ],
+        ),
+        Some(_) => EN.files_vault_open_sealed.to_string(),
+        None => kind_line(item.kind, item.bytes.len()),
+    };
+    let state = match exposure {
+        Exposure::Secret => (EN.files_unprotected, Role::Error),
+        _ if open_here.is_some() => (EN.files_written_after, Role::Primary),
+        _ => (EN.files_ready, Role::Ok),
+    };
+    (line, state)
+}
+
+/// The stick, or what waits for one: the line Files shows, and what a
+/// press on it does.
+fn stick_status(app: &View) -> (String, Option<Action>) {
+    if app.stick.is_empty() {
         (fill(EN.files_waiting_medium, &[app.medium.a()]), None)
     } else if app.holds_secret() {
         (
@@ -936,15 +957,29 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             ),
             Some(Action::Nav(Screen::Visit)),
         )
-    };
-    let bw = ui.measure(14.0, W::R, &label) + 52.0;
-    let bx = x + width - bw;
-    ui.fill(bx, fy, bw, 48.0, 12.0, Role::Primary.with_alpha(16));
-    ui.stroke(bx, fy, bw, 48.0, 12.0, Role::Primary.with_alpha(110));
-    ui.dot(bx + 22.0, fy + 24.0, 4.0, Role::Primary);
-    ui.text_mid(bx + 36.0, fy, 48.0, 14.0, W::R, Role::OnSurface, &label);
+    }
+}
+
+/// Files' stick status as a chip in the top strip's row, ending where
+/// the row's mode pill and ? begin, or at `right` where none stands
+/// (`docs/LAYOUT.md` §17).
+fn stick_chip(app: &View, ui: &mut Ui, right: f32) {
+    use faraday_draw::tokens::{GAP, LIST_SUPPORTING, STATUS_CHIP_H, STATUS_CHIP_PAD, TOP_ROW_MID};
+    let (label, action) = stick_status(app);
+    let right = ui.top_row_left.min(right);
+    let dot = GAP;
+    let bw = ui.measure(LIST_SUPPORTING, W::R, &label) + 2.0 * STATUS_CHIP_PAD + dot + GAP;
+    let (bx, by) = (right - bw, TOP_ROW_MID - STATUS_CHIP_H / 2.0);
+    let r = STATUS_CHIP_H / 2.0;
+    ui.fill(bx, by, bw, STATUS_CHIP_H, r, Role::Primary.with_alpha(16));
+    ui.stroke(bx, by, bw, STATUS_CHIP_H, r, Role::Primary.with_alpha(110));
+    let cx = bx + STATUS_CHIP_PAD + dot / 2.0;
+    ui.dot(cx, TOP_ROW_MID, dot / 2.0, Role::Primary);
+    let tx = bx + STATUS_CHIP_PAD + dot + GAP;
+    let ink = Role::OnSurface;
+    ui.text_mid(tx, by, STATUS_CHIP_H, LIST_SUPPORTING, W::R, ink, &label);
     if let Some(a) = action {
-        ui.hit(bx, fy, bw, 48.0, a);
+        ui.hit(bx, by - GAP, bw, STATUS_CHIP_H + 2.0 * GAP, a);
     }
 }
 
@@ -1981,36 +2016,43 @@ fn file_card(
     h
 }
 
-/// [`files`] on a small panel: one scrolled column of what is loaded from
-/// open vaults and the Inbox, then the Inbox, then the Outbox by who may
-/// read it, then the stick.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+/// [`files`] on compact and medium windows: one scrolled column of what
+/// is loaded from open vaults and the Inbox, then the Inbox, then the
+/// Outbox by who may read it, then the stick. From expanded windows up,
+/// where the area holds two list panes, the Inbox and the Outbox stand
+/// side by side under the rest (`docs/LAYOUT.md` §17).
 fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     use crate::compact::M;
-    use crate::compact::screen::{about_learn, finish};
-    use crate::secrets::Exposure;
-    let (x, w) = (x0 + M, cw - 2.0 * M);
+    use crate::compact::screen::finish;
+    use faraday_draw::tokens::{LIST_PANE, MARGIN_WIDE, SPACER};
+    let lists = 2.0 * LIST_PANE + SPACER;
+    let beside = crate::panes::screen::shown(app, Screen::Files) && lists + 2.0 * MARGIN_WIDE <= cw;
+    let (x, w) = if beside {
+        (x0 + MARGIN_WIDE, lists)
+    } else {
+        (x0 + M, cw - 2.0 * M)
+    };
     let top = 12.0 - app.list_offset;
     let mut y = top;
-    // The stick, or what waits for one.
-    let (label, action) = if app.stick.is_empty() {
-        (fill(EN.files_waiting_medium, &[app.medium.a()]), None)
-    } else if app.holds_secret() {
-        (
-            fill(EN.files_attached_lock, &[app.medium.cap()]),
-            Some(Action::Lock),
-        )
+    y += compact_head(app, ui, (x, y, w));
+    if beside {
+        let inn = compact_inbox(app, ui, (x, y, LIST_PANE));
+        let out = compact_outbox(app, ui, (x + LIST_PANE + SPACER, y, LIST_PANE));
+        y += inn.max(out);
     } else {
-        (
-            fill(
-                EN.files_visit,
-                &[&app.stick[app.visit.stick.min(app.stick.len() - 1)]
-                    .label
-                    .to_string()],
-            ),
-            Some(Action::Nav(Screen::Visit)),
-        )
-    };
+        y += compact_inbox(app, ui, (x, y, w));
+        y += compact_outbox(app, ui, (x, y, w));
+    }
+    y += compact_tail(app, ui, (x, y, w));
+    finish(app, ui, x0, cw, h, y - top + 16.0);
+}
+
+/// Files' head on a small panel: the stick, Scan a QR code, what is kept
+/// in memory, and what open vaults and the Inbox give. Returns its height.
+fn compact_head(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
+    let mut y = y0;
+    // The stick, or what waits for one.
+    let (label, action) = stick_status(app);
     ui.fill(x, y, w, 44.0, 10.0, Role::Primary.with_alpha(16));
     ui.stroke(x, y, w, 44.0, 10.0, Role::Primary.with_alpha(110));
     ui.dot(x + 18.0, y + 22.0, 4.0, Role::Primary);
@@ -2050,6 +2092,13 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if ip > 0.0 {
         y += ip + 14.0;
     }
+    y - y0
+}
+
+/// From the stick on a small panel: its title and a card per file.
+/// Returns its height.
+fn compact_inbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
+    let mut y = y0;
     // Inbox.
     let lw = ui.text(
         x,
@@ -2109,6 +2158,14 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             &fill(EN.files_empty_files_are, &[app.medium.a()]),
         ) + 14.0;
     }
+    y - y0
+}
+
+/// For the stick on a small panel, grouped by who may read it, and the
+/// last visit's receipt. Returns its height.
+fn compact_outbox(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
+    use crate::secrets::Exposure;
+    let mut y = y0;
     // Outbox, grouped by who may read it.
     y += 8.0;
     let lw = ui.text(
@@ -2170,35 +2227,7 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
                 Exposure::Sealed => (Role::Ok.with_alpha(70), Icon::Lock, Role::Ok.paint()),
                 Exposure::Secret => (Role::Error.with_alpha(110), Icon::Lock, Role::Error.paint()),
             };
-            let open_here = (item.kind == FileKind::Vault)
-                .then(|| faraday_vault::read_header(&item.bytes).ok())
-                .flatten()
-                .and_then(|h| app.vaults.open.iter().find(|v| v.header().salt == h.salt));
-            let line = match open_here {
-                // With no seed to seal with, Lock does not seal it.
-                Some(v) if v.changes > 0 => fill(
-                    if app.seeded() {
-                        EN.files_vault_open_unsaved
-                    } else {
-                        EN.vault_open_unsaved
-                    },
-                    &[
-                        &v.changes.to_string(),
-                        (if v.changes == 1 {
-                            EN.files_change
-                        } else {
-                            EN.files_changes
-                        }),
-                    ],
-                ),
-                Some(_) => EN.files_vault_open_sealed.to_string(),
-                None => kind_line(item.kind, item.bytes.len()),
-            };
-            let state = match exposure {
-                Exposure::Secret => (EN.files_unprotected, Role::Error),
-                _ if open_here.is_some() => (EN.files_written_after, Role::Primary),
-                _ => (EN.files_ready, Role::Ok),
-            };
+            let (line, state) = out_line(app, item, exposure);
             // No main action: the ⋮ alone (decision 61).
             // The state goes on the line, where the name leaves no room.
             let line = format!("{} · {line}", state.0);
@@ -2225,6 +2254,14 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some(r) = app.visit.receipt().as_ref() {
         y += receipt_rows(ui, r, app.tz_min(), x, y, w) + 8.0;
     }
+    y - y0
+}
+
+/// Files' foot on a small panel: what power-off asks, and what Files
+/// holds, with its Learn. Returns its height.
+fn compact_tail(app: &View, ui: &mut Ui, (x, y0, w): (f32, f32, f32)) -> f32 {
+    use crate::compact::screen::about_learn;
+    let mut y = y0;
     if !app.outbox.is_empty() {
         y += 6.0;
         ui.icon(x, y, 18.0, Icon::Power, 10.0, Role::OnSurfaceVariant);
@@ -2249,5 +2286,5 @@ fn files_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         ),
         Some(crate::learn::Topic::AirGap),
     );
-    finish(app, ui, x0, cw, h, y - top + 16.0);
+    y - y0
 }

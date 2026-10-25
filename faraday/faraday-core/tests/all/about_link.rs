@@ -26,6 +26,7 @@ fn settings(online: bool) -> Faraday {
         memory_mib: None,
     }));
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "About");
     let _ = app.frame();
     while app.poll_storage().is_some() {}
     app

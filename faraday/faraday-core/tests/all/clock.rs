@@ -149,7 +149,10 @@ fn a_clock_before_2020_is_not_known() {
 #[test]
 fn the_time_card_says_what_the_time_is_for() {
     let mut app = vault_app(Some(1_791_000_000));
+    // The vault's load sheet put away, Settings' Time chosen.
+    app.press(Action::Vault(faraday_core::vault::VaultAction::LoadNotNow));
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Time");
     let texts = app.drawn_texts().join(" ");
     assert!(
         texts.contains("For TOTP codes, GPG and Secure Boot signatures"),
@@ -161,6 +164,7 @@ fn the_time_card_says_what_the_time_is_for() {
 fn setting_the_time_by_hand_corrects_a_clock_before_2020() {
     let mut app = vault_app(Some(1000));
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Time");
     // UTC+02:00, eight steps of 15 minutes.
     for _ in 0..8 {
         app.press(Action::TzStep(15));

@@ -42,8 +42,8 @@ pub(crate) use entry::{
 };
 use faraday_draw::tokens::{
     COLUMN_MAX, MARGIN_WIDE, NAV_BAR_H, PAGE_AREA_UNTIL_W, RAIL_W, READING_PAGE_W,
-    READING_RANDOM_W, READING_SETTINGS_W, READING_TIME_W, SPACER, SUPPORT_PANE, SUPPORT_PANE_TOP,
-    TOP_ROW_QUESTION, TOUCH,
+    READING_RANDOM_W, READING_TIME_W, SPACER, SUPPORT_PANE, SUPPORT_PANE_TOP, TOP_ROW_QUESTION,
+    TOUCH,
 };
 use faraday_draw::widgets::Icon;
 pub use faraday_ui::parts::qr_code;
@@ -80,15 +80,14 @@ enum Area {
     /// Wide content: the whole room, from the navigation to the
     /// window's edge.
     Work,
-    /// No wide layout built yet (L4, W6, W7): the area the old frame
-    /// gave it, centred, until its batch changes this line.
+    /// No wide layout built yet (W6, W7): the area the old frame gave
+    /// it, centred, until its batch changes this line.
     Until,
 }
 
 /// How `screen` takes the room.
 fn area_of(screen: Screen) -> Area {
     match screen {
-        Screen::Settings => Area::Reading(READING_SETTINGS_W),
         Screen::SetTime => Area::Reading(READING_TIME_W),
         Screen::Randomness => Area::Reading(READING_RANDOM_W),
         Screen::Spend
@@ -97,7 +96,6 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Create
         | Screen::Restore
         | Screen::CreateVault
-        | Screen::Unlock
         | Screen::Entry
         | Screen::Bip85
         | Screen::Silent
@@ -106,8 +104,11 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Decode
         | Screen::Family => Area::Reading(READING_PAGE_W),
         // New key, which holds Make codex32 shares and its supporting
-        // pane. Home keeps its old area until W6 lays out its tiles.
+        // pane; and the lists, a list pane and the one chosen beside it
+        // to the window's edge (`docs/LAYOUT.md` §5, §17). Home keeps its
+        // old area until W6 lays out its tiles.
         Screen::KeyGen => Area::Work,
+        s if crate::panes::has_list(s) => Area::Work,
         _ => Area::Until,
     }
 }
@@ -446,6 +447,9 @@ fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
         Screen::SetTime => set_time::draw(app, ui, x, cw, h),
         Screen::Randomness => randomness::draw(app, ui, x, cw, h),
         Screen::Codes => crate::codes::screen::draw(app, ui, x, cw, h),
+        Screen::Vaults | Screen::Unlock if crate::panes::screen::shown(app, app.screen) => {
+            crate::vault::panes_screen::draw(app, ui, x, cw, h);
+        }
         Screen::Vaults => crate::vault::screen::list(app, ui, x, cw, h),
         Screen::Backups => crate::backups::screen::draw(app, ui, x, cw, h),
         Screen::CreateVault => crate::vault::screen::create(app, ui, x, cw, h),
@@ -493,7 +497,14 @@ const PIN_H: f32 = 64.0;
 fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0: f32) {
     let nav = app.nav();
     let (ax, aw) = area;
-    let w = if nav.beside() { aw.min(COLUMN_MAX) } else { aw };
+    // A list and the one chosen stand side by side across the whole
+    // area from expanded windows up (`docs/LAYOUT.md` §5).
+    let panes = crate::panes::screen::shown(app, app.screen);
+    let w = if nav.beside() && !panes {
+        aw.min(COLUMN_MAX)
+    } else {
+        aw
+    };
     let cx = ax + (aw - w) / 2.0;
     // The top app bar across the area; the page's column under it.
     let app_bar = |ui: &mut Ui| {

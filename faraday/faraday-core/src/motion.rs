@@ -468,6 +468,9 @@ pub(crate) struct Scroll {
     /// Where the finger or the pointer dragging a region that pans
     /// sideways last was across, in pixels.
     drag_x: i32,
+    /// A list and detail page's list pane: its offset, and Settings'
+    /// section (`docs/LAYOUT.md` §5).
+    panes: crate::panes::Panes,
 }
 
 impl Default for Scroll {
@@ -482,11 +485,22 @@ impl Default for Scroll {
             sheet_scroll: (0.0, None),
             content_h: std::cell::Cell::new(0.0),
             drag_x: 0,
+            panes: crate::panes::Panes::default(),
         }
     }
 }
 
 impl Scroll {
+    /// The list pane's state (`docs/LAYOUT.md` §5).
+    pub(crate) fn panes(&self) -> &crate::panes::Panes {
+        &self.panes
+    }
+
+    /// The list pane's offset, for the wheel, a trackpad and a finger.
+    pub(crate) fn list_pane_offset_mut(&mut self) -> &mut f32 {
+        self.panes.list_offset_mut()
+    }
+
     /// The height a scrolled page last drew to: how far its scroll may
     /// go. Written by the screen as it draws.
     pub(crate) fn content_h(&self) -> &std::cell::Cell<f32> {
@@ -628,7 +642,12 @@ impl Scroll {
             ui::Slot::VisitOut if screen == Screen::Visit && reach => ui::Slot::VisitOut,
             ui::Slot::Card if screen == Screen::Wallets && reach => ui::Slot::Card,
             ui::Slot::VaultItem if screen == Screen::VaultContents && reach => ui::Slot::VaultItem,
-            ui::Slot::FilesOut if screen == Screen::Files && reach => ui::Slot::FilesOut,
+            // Files' two lists stand side by side on the rail's windows
+            // too, from expanded up (`docs/LAYOUT.md` §17).
+            ui::Slot::FilesOut if screen == Screen::Files && sheet_none => ui::Slot::FilesOut,
+            ui::Slot::ListPane if crate::panes::has_list(screen) && sheet_none => {
+                ui::Slot::ListPane
+            }
             ui::Slot::BoardList if reach && board_shown() => ui::Slot::BoardList,
             // A worksheet pans on a small panel too: it is wider than one.
             ui::Slot::Worksheet if sheet_none => ui::Slot::Worksheet,
@@ -642,6 +661,30 @@ impl Scroll {
 
 /// Which offset each screen and sheet scrolls.
 impl Faraday {
+    /// The navigation opens `to` (`Action::Nav`): another destination's
+    /// list pane starts at its top, and Settings at its first section
+    /// (`docs/LAYOUT.md` §5); Backups opens on its first wallet.
+    pub(crate) fn panes_nav(&mut self, to: Screen) {
+        // A vault's Unlock and Contents keep the vaults' list beside them.
+        let list = |s: Screen| match s {
+            Screen::Unlock | Screen::VaultContents => Screen::Vaults,
+            s => s,
+        };
+        if list(to) != list(self.screen) {
+            self.scroll.panes.leave();
+        }
+        if to == Screen::Backups {
+            self.backups_area.set_at(0);
+        }
+    }
+
+    /// Settings' section `k` chosen in the list pane: the detail shows it
+    /// from its top.
+    pub(crate) fn settings_section(&mut self, k: u8) {
+        self.scroll.panes.choose_settings(k);
+        self.list_offset = 0.0;
+    }
+
     /// A key a scrolled region takes: an arrow on the codex32 worksheet
     /// the pointer went to, which pans it; or any key while the word-list
     /// sheet is open ([`wordlist::WordListArea::key`]), and the glide it

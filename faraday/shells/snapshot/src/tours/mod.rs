@@ -30,6 +30,7 @@ pub(crate) mod kept;
 pub(crate) mod keys;
 pub(crate) mod m3;
 pub(crate) mod menu;
+pub(crate) mod panes;
 pub(crate) mod partials;
 pub(crate) mod pass_seeds;
 pub(crate) mod plan;

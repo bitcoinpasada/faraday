@@ -1,6 +1,7 @@
 //! The Backups screen (`docs/history/SIMPLIFY.md` §5.1): drawing only. What it
 //! lists is `backups.rs`.
 
+use crate::Action;
 use crate::backups::{Entry, Line};
 use crate::drawing::View;
 use crate::screens::title;
@@ -9,8 +10,6 @@ use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet_backup::Tone;
-use crate::{Action, Faraday};
-use faraday_crypto::work::Compute;
 
 /// A line's state colour.
 fn tone(t: Tone) -> crate::ui::Paint {
@@ -31,110 +30,118 @@ fn tag_tone(t: crate::plan::Tag) -> crate::ui::Paint {
     }
 }
 
-/// The wide list's top, its title's height and the gap under it.
+/// The wide page's title's top.
 const TOP: f32 = 36.0;
-const HEAD: f32 = 60.0;
-/// A wallet's card: its head, a row per place, the foot, the gap.
+/// A wallet's card: its head, a row per place, the foot.
 const CARD_HEAD: f32 = 68.0;
 const ROW: f32 = 28.0;
 const CARD_FOOT: f32 = 12.0;
-const GAP: f32 = 12.0;
 
 fn card_h(e: &Entry) -> f32 {
     let rows = e.lines.as_ref().map_or(1, |l| l.len().max(1));
     CARD_HEAD + rows as f32 * ROW + CARD_FOOT
 }
 
-/// Costs what the backups list costs to work out: where the wide list
-/// scrolls to show wallet `at` at its top, for the press that scrolls
-/// it, from the state as it is. Only a press asks it.
-pub(crate) fn offset_of_now(c: &Compute, app: &Faraday, at: usize) -> f32 {
-    app.backups_now(c)
-        .iter()
-        .take(at)
-        .map(|e| card_h(e) + GAP)
-        .sum::<f32>()
-        + if at > 0 { HEAD } else { 0.0 }
-}
-
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
+    use crate::panes::screen::{Item, ListPane, shown, split};
     let entries = app.backups();
-    if ui.compact {
-        return compact(app, ui, x0, cw, h, &entries);
+    if ui.compact && !shown(app, crate::Screen::Backups) {
+        return compact(app, ui, (x0, cw, h), &entries, true);
     }
-    let x = x0 + 48.0;
-    let w = cw - 96.0;
-    let clip = ui.rect(x0, 0.0, cw, h);
-    ui.c.push_clip(clip);
-    let top = TOP - app.list_offset;
-    let mut y = top;
-    title(ui, x, y, EN.backups_backups);
-    y += HEAD;
-    if entries.is_empty() {
+    // List and detail (`docs/LAYOUT.md` §5): the wallets in the list
+    // pane, the one chosen's map beside it.
+    let p = split(ui, x0, cw);
+    let at = app.backups_area.at().min(entries.len().saturating_sub(1));
+    if !ui.compact {
+        title(ui, p.list.0, TOP, EN.backups_backups);
+    }
+    let mut pane = ListPane::begin(app, ui, (p.list.0, p.top, p.list.1, h - p.top));
+    for (k, e) in entries.iter().enumerate() {
+        let item = Item {
+            headline: &e.name,
+            supporting: &e.shape,
+            trailing: None,
+            action: Action::BackupsPage(k),
+        };
+        pane.item(ui, &item, k == at);
+    }
+    pane.end(ui);
+    let (dx, dw) = p.detail;
+    if ui.compact {
+        let m = crate::compact::M;
+        let area = (dx - m, p.reading() + 2.0 * m, h);
+        return compact(app, ui, area, &entries, false);
+    }
+    let Some(e) = entries.get(at) else {
         ui.text(
-            x,
-            y,
+            dx,
+            p.top,
             15.0,
             W::R,
             Role::OnSurfaceVariant,
             EN.backups_no_wallet,
         );
-        y += 30.0;
+        return;
+    };
+    // The map's rows, its Back up and its name read together: the card
+    // keeps the detail's reading width.
+    let clip = ui.rect(dx, p.top, dw, h - p.top);
+    ui.c.push_clip(clip);
+    let top = p.top - app.list_offset;
+    let ch = wide_card(app, ui, (dx, top, p.reading()), e);
+    ui.c.pop_clip();
+    app.scroll.content_h().set(ch);
+    ui.report_scroll(clip, ch - (h - p.top));
+}
+
+/// One wallet's backup on the wide layout: its name and shape, Back up,
+/// and a row per place of its map, from (x, y) `w` wide. Returns the
+/// height.
+fn wide_card(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), e: &Entry) -> f32 {
+    let ch = card_h(e);
+    ui.fill(x, y, w, ch, 12.0, Role::SurfaceContainerLow);
+    ui.stroke(x, y, w, ch, 12.0, Role::OutlineVariant);
+    let ix = x + 20.0;
+    let iw = w - 40.0;
+    let mut bw = 0.0;
+    if let Some(i) = e.wallet {
+        let label = back_up_label(app, i);
+        bw = ui.measure(14.0, W::S, label) + 36.0;
+        ui.button(
+            ix + iw - bw,
+            y + 16.0,
+            Some(bw),
+            38.0,
+            label,
+            Style::Secondary,
+            Action::Backup(i),
+        );
     }
-    for (k, e) in entries.iter().enumerate() {
-        let ch = card_h(e);
-        let edge = if k == app.backups_area.at() && app.backups_area.at() > 0 {
-            Role::Primary.with_alpha(100)
-        } else {
-            Role::OutlineVariant.paint()
-        };
-        ui.fill(x, y, w, ch, 12.0, Role::SurfaceContainerLow);
-        ui.stroke(x, y, w, ch, 12.0, edge);
-        let ix = x + 20.0;
-        let iw = w - 40.0;
-        let mut bw = 0.0;
-        if let Some(i) = e.wallet {
-            let label = back_up_label(app, i);
-            bw = ui.measure(14.0, W::S, label) + 36.0;
-            ui.button(
-                ix + iw - bw,
-                y + 16.0,
-                Some(bw),
-                38.0,
-                label,
-                Style::Secondary,
-                Action::Backup(i),
+    let name = ui.fit(16.0, W::S, &e.name, iw - bw - 16.0);
+    ui.text(ix, y + 16.0, 16.0, W::S, Role::OnSurface, &name);
+    let shape = ui.fit(12.0, W::R, &e.shape, iw - bw - 16.0);
+    ui.text(ix, y + 40.0, 12.0, W::R, Role::OnSurfaceVariant, &shape);
+    let mut ry = y + CARD_HEAD;
+    match e.lines.as_ref() {
+        None => {
+            ui.text_mid(
+                ix,
+                ry,
+                ROW,
+                13.0,
+                W::S,
+                Role::Warning,
+                EN.backups_no_backup_plan,
             );
         }
-        let name = ui.fit(16.0, W::S, &e.name, iw - bw - 16.0);
-        ui.text(ix, y + 16.0, 16.0, W::S, Role::OnSurface, &name);
-        let shape = ui.fit(12.0, W::R, &e.shape, iw - bw - 16.0);
-        ui.text(ix, y + 40.0, 12.0, W::R, Role::OnSurfaceVariant, &shape);
-        let mut ry = y + CARD_HEAD;
-        match e.lines.as_ref() {
-            None => {
-                ui.text_mid(
-                    ix,
-                    ry,
-                    ROW,
-                    13.0,
-                    W::S,
-                    Role::Warning,
-                    EN.backups_no_backup_plan,
-                );
-            }
-            Some(lines) => {
-                for l in lines {
-                    wide_row(ui, ix, ry, iw, l);
-                    ry += ROW;
-                }
+        Some(lines) => {
+            for l in lines {
+                wide_row(ui, ix, ry, iw, l);
+                ry += ROW;
             }
         }
-        y += ch + GAP;
     }
-    ui.c.pop_clip();
-    app.scroll.content_h().set(y - top + 40.0);
-    ui.report_scroll(clip, app.scroll.content_h().get() - h);
+    ch
 }
 
 /// A wallet's Back up, or Continue the backup for one left part way
@@ -183,8 +190,9 @@ fn wide_row(ui: &mut Ui, x: f32, y: f32, w: f32, l: &Line) {
     }
 }
 
-/// The small panel: one wallet a page, the pages turned at the foot.
-fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entry]) {
+/// The small panel: one wallet a page, the pages turned at the foot
+/// (`pages`); beside the list pane, the one chosen, with no pages to turn.
+fn compact(app: &View, ui: &mut Ui, (x0, cw, h): (f32, f32, f32), entries: &[Entry], pages: bool) {
     use crate::compact::M;
     let (x, w) = (x0 + M, cw - 2.0 * M);
     let top = 12.0 - app.list_offset;
@@ -228,7 +236,7 @@ fn compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32, entries: &[Entry])
         );
         y += 56.0;
     }
-    if n > 1 {
+    if n > 1 && pages {
         let half = (w - 8.0) / 2.0;
         let page = fill(
             EN.backups_wallet_count,

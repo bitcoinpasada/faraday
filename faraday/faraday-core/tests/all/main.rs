@@ -80,6 +80,7 @@ mod languages;
 mod learn;
 mod left_by_tap;
 mod lightning;
+mod list_detail;
 mod loose_key;
 mod mode_files;
 mod modes;

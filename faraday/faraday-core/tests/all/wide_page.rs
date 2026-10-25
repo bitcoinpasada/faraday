@@ -51,20 +51,21 @@ fn the_question_mark_and_scan_stand_24_dp_from_the_windows_edge() {
 }
 
 #[test]
-fn settings_sits_centred_in_the_room_beside_the_navigation_on_a_big_window() {
+fn set_the_time_sits_centred_in_the_room_beside_the_navigation_on_a_big_window() {
     for (w, h) in [(1920u16, 1080u16), (2560, 1440)] {
         let mut app = shown(w, h);
         app.press(Action::Nav(Screen::Settings));
+        app.press(Action::OpenSetTime);
         let _ = app.frame();
         let title = app
             .drawn_text_boxes()
             .into_iter()
-            .filter(|(t, _)| t == "Settings")
+            .filter(|(t, _)| t == "Set the time")
             .map(|b| b.1)
             .min_by_key(|r| r.1)
             .expect("the page's title");
-        // Its cards run 760 dp from the title's left edge.
-        let middle = f32::from(i16::try_from(title.0).expect("on screen")) + 760.0 / 2.0;
+        // Its column runs 520 dp from the title's left edge.
+        let middle = f32::from(i16::try_from(title.0).expect("on screen")) + 520.0 / 2.0;
         let room = SIDEBAR + (f32::from(w) - SIDEBAR) / 2.0;
         assert!(
             (middle - room).abs() <= 2.0,

@@ -22,6 +22,7 @@ fn shown() -> Faraday {
         memory_mib: None,
     }));
     app.press(Action::Nav(Screen::Settings));
+    crate::common::settings_section(&mut app, "Appearance");
     app
 }
 
