@@ -129,14 +129,11 @@ fn codex32_demo_only(t: &mut Tour) -> Result<(), String> {
     to(t, &|s| matches!(s, Step::Sum { .. }));
     t.shot_moving("roller-codex32-following", 100)?;
     // Six-faced dice: the tracks' pads 1 to 6 beside the tree, the key
-    // Next pressed drawn pressed, and the dice's menu open.
+    // Next pressed drawn pressed.
     t.press(Action::ReduceMotion(true));
     let d6 = DIE_SIZES.iter().position(|&n| n == 6).unwrap_or(0);
-    c(t, C32::SizeMenu);
     c(t, C32::Faces(d6 as u8));
     crate::tour::scroll(t, -3000);
     to(t, &|s| matches!(s, Step::First { .. }));
-    t.shot("roller-codex32-d6-pressed")?;
-    c(t, C32::SizeMenu);
-    t.shot("roller-codex32-d6-menu")
+    t.shot("roller-codex32-d6-pressed")
 }

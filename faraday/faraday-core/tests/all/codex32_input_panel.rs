@@ -248,8 +248,7 @@ fn characters_typed_take_the_codex32_keyboard_at_the_foot() {
     assert_eq!(make(&app).work().map(|w| w.entered(0)), Some(1));
 }
 
-/// The dice's size button, and size `i` of the menu it opens.
-const SIZE_MENU: Action = Action::Codex32(C32::SizeMenu);
+/// Size `i` of the Entropy card's choice of the dice's size.
 fn size(i: usize) -> Action {
     Action::Codex32(C32::Faces(i as u8))
 }
@@ -291,49 +290,36 @@ fn the_pad_has_no_done_and_continue_stands_in_its_place_once_every_character_is_
 }
 
 #[test]
-fn the_dice_size_is_one_menu_in_the_panel_and_nowhere_else() {
-    for (w, h) in [(1280u16, 800u16), (1366, 768)] {
+fn the_dice_size_is_chosen_on_the_entropy_card_and_the_panel_follows_it() {
+    // The owner's panel (960 × 580), 1280 × 800 and 1920 × 1080, in
+    // Testnet and in Demo.
+    for (w, h, dpi) in [
+        (1440u16, 870u16, 240u16),
+        (1280, 800, 160),
+        (1920, 1080, 160),
+    ] {
         for roller in [false, true] {
-            let mut app = on_shell(w, h, 160, roller, Way::Dice);
-            assert!(app.offers(SIZE_MENU), "{w}x{h}: the dice's button");
-            assert!(!any_size(&mut app), "{w}x{h}: no other choice of size");
-            // Opened, the six sizes; d20 chosen closes it.
-            tap(&mut app, SIZE_MENU);
-            assert!(any_size(&mut app), "{w}x{h}: the menu's sizes");
+            let mut app = on_entropy(w, h, dpi, roller);
+            let way = WAYS.iter().position(|w| *w == Way::Dice).unwrap();
+            c32(&mut app, C32::Way(way as u8));
+            assert!(any_size(&mut app), "{w}x{h}: the sizes on the Entropy card");
+            assert!(app.offers(Action::Codex32(C32::Colour(0))), "the colours");
             tap(&mut app, size(5));
             assert_eq!(make(&app).dice_choice().faces, 20, "{w}x{h}");
-            assert!(!any_size(&mut app), "{w}x{h}: the menu closed");
+            c32(&mut app, C32::Next);
+            assert_eq!(make(&app).open(), Some(Card::Enter));
+            assert!(
+                !any_size(&mut app),
+                "{w}x{h}: no choice of size in the panel"
+            );
+            assert!(
+                !app.drawn_texts().iter().any(|t| t == "d20" || t == "d6"),
+                "{w}x{h}: no dice's button"
+            );
             assert!(app.offers(face(20)), "{w}x{h}: a key per face");
+            assert!(!app.offers(face(21)), "{w}x{h}: and no more");
         }
     }
-    // The Entropy card offers the dice's colours, not their size.
-    let mut app = on_entropy(1280, 800, 160, true);
-    assert!(!any_size(&mut app), "no size on the Entropy card");
-    assert!(app.offers(Action::Codex32(C32::Colour(0))), "the colours");
-}
-
-#[test]
-fn the_dice_menu_takes_the_keyboard_and_a_press_outside_closes_it() {
-    use faraday_shell_api::Key;
-    let mut app = on_shell(1280, 800, 160, false, Way::Dice);
-    tap(&mut app, SIZE_MENU);
-    // On six faces; Down moves to eight, Enter chooses.
-    app.event(Event::Key(Key::Down));
-    app.event(Event::Key(Key::Enter));
-    assert_eq!(make(&app).dice_choice().faces, 8);
-    assert!(!any_size(&mut app), "chosen, the menu closed");
-    // Escape closes it, the size kept.
-    tap(&mut app, SIZE_MENU);
-    app.event(Event::Key(Key::Escape));
-    assert!(!any_size(&mut app), "Escape closed it");
-    assert_eq!(make(&app).dice_choice().faces, 8);
-    // A press on the pad while it is open only closes it.
-    tap(&mut app, SIZE_MENU);
-    tap(&mut app, face(3));
-    assert!(!any_size(&mut app), "the press outside closed it");
-    assert_eq!(make(&app).dice().first(0), None, "and rolled nothing");
-    tap(&mut app, face(3));
-    assert_eq!(make(&app).dice().first(0), Some(3));
 }
 
 #[test]
@@ -342,15 +328,12 @@ fn at_1280_and_1366_the_rolls_stand_in_one_row_beside_a_pad_of_one_row() {
         let mut app = on_shell(w, h, 160, false, Way::Dice);
         let key = |app: &Faraday, f: u8| app.hit_box(face(f)).expect("a face's key");
         let one = key(&app, 1);
-        // The six faces and Backspace on one row, the dice's button with
-        // them.
+        // The six faces and Backspace on one row.
         for f in 2..=6 {
             assert_eq!(key(&app, f).1, one.1, "{w}x{h}: face {f} on the pad's row");
         }
         let back = app.hit_box(Action::Codex32(C32::Key(OskPress::Back)));
         assert_eq!(back.map(|b| b.1), Some(one.1), "{w}x{h}: Backspace too");
-        let button = app.hit_box(SIZE_MENU).expect("the dice's button");
-        assert_eq!(button.1, one.1, "{w}x{h}: the dice's size too");
         // The five dice's names on one row, left of the pad, the row of
         // rolls level with it.
         let names: Vec<(i32, i32, i32, i32)> = (1..=5)
@@ -366,8 +349,8 @@ fn at_1280_and_1366_the_rolls_stand_in_one_row_beside_a_pad_of_one_row() {
             .collect();
         let level = names.iter().all(|b| (b.1 - names[0].1).abs() <= 2);
         assert!(level, "{w}x{h}: one row: {names:?}");
-        assert!(names[4].0 < i32::from(button.0), "{w}x{h}: left of the pad");
-        let rows = (names[0].1, names[0].1 + 80);
+        assert!(names[4].0 < i32::from(one.0), "{w}x{h}: left of the pad");
+        let rows = (names[0].1 - 8, names[0].1 + 80);
         assert!(
             (rows.0..rows.1).contains(&i32::from(one.1)),
             "{w}x{h}: the pad level with the rolls: {names:?} {one:?}"
@@ -520,10 +503,9 @@ fn a_roll_opens_a_closed_dice_sheet_over_several_frames_and_at_once_under_reduce
 
 // ---- Make codex32 shares on medium panels (owner, 2026-10-25) ----
 
-/// The dice of size `n` chosen from the panel's menu.
+/// The dice of size `n` chosen, as the Entropy card chooses them.
 fn choose_size(app: &mut Faraday, n: u8) {
     let i = DIE_SIZES.iter().position(|&s| s == n).unwrap();
-    c32(app, C32::SizeMenu);
     c32(app, C32::Faces(i as u8));
     let _ = app.frame();
 }
@@ -552,24 +534,47 @@ fn foot_h(app: &mut Faraday, h: u16) -> i32 {
 
 #[test]
 fn the_foot_panel_packs_the_rolls_the_working_area_and_the_pad_into_few_rows() {
-    // The owner's panel (960 × 580 dp at 1.5 px a dp: 144 dp, was 192),
-    // 1280 × 800 and 1366 × 768 (132, the shortest the expanded rail
-    // leaves room for) and 1920 × 1080 (104, was 132): the panel's parts
-    // begin no higher than its fewest rows allow.
-    for (w, h, dpi, most) in [
-        (1440u16, 870u16, 240u16, 144 * 3 / 2),
-        (1280, 800, 160, 132),
-        (1366, 768, 160, 132),
-        (1920, 1080, 160, 104),
+    // Six- and twenty-faced dice, no button for their size, the Working
+    // area one line where that is shorter: the owner's panel (960 × 580
+    // dp at 1.5 px a dp: 132 dp, was 144, and 216), 1280 × 800 (108, was
+    // 132, and 196), 1366 × 768 (108, was 132, and 160, was 176) and
+    // 1920 × 1080 (88 in one row, was 104; 116, was 144): the panel's
+    // parts begin no higher than its fewest rows allow. In dp.
+    for (w, h, dpi, d6, d20) in [
+        (1440u16, 870u16, 240u16, 132, 216),
+        (1280, 800, 160, 108, 196),
+        (1366, 768, 160, 108, 160),
+        (1920, 1080, 160, 88, 116),
     ] {
-        let mut app = on_shell(w, h, dpi, false, Way::Dice);
-        let fh = foot_h(&mut app, h);
-        assert!(
-            fh > 0 && fh <= most,
-            "{w}x{h}: the panel's parts {fh} px from the foot"
-        );
-        pad_and_rolls_in_view(&mut app, w, h);
+        for (n, most) in [(6u8, d6), (20, d20)] {
+            let mut app = on_shell(w, h, dpi, false, Way::Dice);
+            choose_size(&mut app, n);
+            let fh = foot_h(&mut app, h) * 160 / i32::from(dpi);
+            assert!(
+                fh > 0 && fh <= most,
+                "{w}x{h} d{n}: the panel's parts {fh} dp from the foot"
+            );
+            pad_and_rolls_in_view(&mut app, w, h);
+        }
     }
+    // At 1920 × 1080 the six faces stand in one row with the rolls and
+    // the Working area: the rolls, the pad, then the Working area.
+    let mut app = on_shell(1920, 1080, 160, false, Way::Dice);
+    let key = app.hit_box(face(1)).expect("the pad");
+    let die5 = app
+        .drawn_text_boxes()
+        .into_iter()
+        .filter(|(t, b)| t == "Die 5" && b.1 > 1080 / 2)
+        .map(|(_, b)| b)
+        .next_back()
+        .expect("the rolls");
+    let working = text_at(&mut app, "Working").expect("the Working area");
+    assert!(die5.0 < i32::from(key.0), "the pad after the rolls");
+    assert!(
+        working.0 > i32::from(key.0),
+        "the Working area after the pad"
+    );
+    assert!((working.1 - i32::from(key.1)).abs() < 24, "one row");
 }
 
 #[test]
@@ -610,15 +615,21 @@ fn the_tracks_show_only_the_pads_the_dice_reach() {
 
 #[test]
 fn the_tracks_and_the_tree_stand_side_by_side_where_they_fit() {
-    for (w, h, dpi) in [(1440u16, 870u16, 240u16), (1280, 800, 160)] {
-        let mut app = on_shell(w, h, dpi, false, Way::Dice);
+    // In Testnet, and in Demo beside the card's narrow column.
+    for (w, h, dpi, demo) in [
+        (1440u16, 870u16, 240u16, false),
+        (1280, 800, 160, false),
+        (1440, 870, 240, true),
+        (1280, 800, 160, true),
+    ] {
+        let mut app = on_shell(w, h, dpi, demo, Way::Dice);
         let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet");
         let tracks = text_at(&mut app, "Die tracks").expect("the tracks");
         // Stacked, the tree (over 150 dp tall) would stand between them.
         let scale = i32::from(dpi) / 80;
         assert!(
             tracks.1 - head.1 < 70 * scale,
-            "{w}x{h}: the tracks start at the sheet's top: {head:?} {tracks:?}"
+            "{w}x{h} demo {demo}: the tracks start at the sheet's top: {head:?} {tracks:?}"
         );
     }
 }
@@ -724,81 +735,47 @@ fn the_pressed_key_is_emphasised_briefly_and_at_rest_under_reduce_motion() {
 }
 
 #[test]
-fn the_dice_menu_grows_from_its_button_and_fades_out_and_at_once_under_reduce_motion() {
-    for still in [false, true] {
-        let mut app = on_shell(1280, 800, 160, false, Way::Dice);
-        app.press(Action::ReduceMotion(still));
-        let _ = app.frame();
-        let shown = |app: &Faraday| make(app).size_menu_shown(app.now_ms(), still);
-        let run = |app: &mut Faraday| {
-            let mut seen = vec![shown(app)];
-            for _ in 0..30 {
-                let _ = app.frame();
-                let now = app.now_ms() + 16;
-                app.event(Event::Tick { now_ms: now });
-                seen.push(shown(app));
-            }
-            seen
-        };
-        c32(&mut app, C32::SizeMenu);
-        let opening = run(&mut app);
-        c32(&mut app, C32::SizeMenu);
-        let closing = run(&mut app);
-        if still {
-            assert!(
-                opening.iter().all(|s| *s > 0.99),
-                "open at once: {opening:?}"
-            );
-            assert!(
-                closing.iter().all(|s| *s < 0.01),
-                "closed at once: {closing:?}"
-            );
-        } else {
-            let part = opening.iter().filter(|s| **s > 0.01 && **s < 0.99).count();
-            assert!(part >= 4, "opens over several frames: {opening:?}");
-            assert!(
-                opening.windows(2).all(|w| w[1] >= w[0]),
-                "only grows: {opening:?}"
-            );
-            assert!(
-                opening.last().is_some_and(|s| *s > 0.99),
-                "to full: {opening:?}"
-            );
-            assert!(
-                closing.first().is_some_and(|s| *s > 0.99),
-                "fades from full"
-            );
-            let fading = closing.iter().filter(|s| **s > 0.01 && **s < 0.99).count();
-            assert!((1..part).contains(&fading), "a quicker fade: {closing:?}");
-            assert!(
-                closing.last().is_some_and(|s| *s < 0.01),
-                "to gone: {closing:?}"
-            );
-        }
-    }
-}
-
-#[test]
 fn the_demo_card_narrows_to_its_column_where_the_whole_card_would_stack_the_tracks() {
     // 1280 × 800 in Demo: the whole card would leave 494 dp, the tracks
-    // under the tree; the 200 dp column keeps them beside it.
+    // under the tree; the narrow column keeps them beside it.
     let (w, h) = (1280u16, 800u16);
     let mut app = on_shell(w, h, 160, true, Way::Dice);
+    let walk = |act| Action::Codex32(C32::Walk(act));
+    // A step shown, so Previous takes a press too.
+    c32(&mut app, C32::Walk(WalkAct::Next));
+    let _ = app.frame();
+    let more = app.hit_box(Action::Codex32(C32::Pane)).expect("More");
+    let [prev, next, play] = [WalkAct::Previous, WalkAct::Next, WalkAct::Play]
+        .map(|act| app.hit_box(walk(act)).expect("the walk's buttons"));
+    // One under another, each the column's width.
+    for (a, b) in [(more, prev), (prev, next), (next, play)] {
+        assert_eq!(a.0, b.0, "one above another: {a:?} {b:?}");
+        assert_eq!(a.2, b.2, "the same width: {a:?} {b:?}");
+        assert!(a.1 + a.3 <= b.1, "stacked: {a:?} {b:?}");
+    }
+    // The column: the buttons and the card's 16 dp each side, ending
+    // 24 dp from the window's edge, no wider than 160 dp.
+    let right = i32::from(next.0 + next.2) + 16;
+    let left = i32::from(next.0) - 16;
+    assert!(
+        (right - (i32::from(w) - 24)).abs() <= 1,
+        "at the margin: {next:?}"
+    );
+    assert!(right - left <= 160, "the buttons' width: {next:?}");
     let card = text_at(&mut app, "Demo only").expect("the card");
-    assert!(
-        card.0 >= i32::from(w) - 24 - 200,
-        "the narrow column: {card:?}"
-    );
-    let next = app
-        .hit_box(Action::Codex32(C32::Walk(WalkAct::Next)))
-        .expect("Next");
-    assert!(
-        i32::from(next.0) >= i32::from(w) - 24 - 200,
-        "Next in it: {next:?}"
-    );
+    assert!(card.0 >= left, "the heading in it: {card:?}");
     assert!(
         !app.drawn_texts().iter().any(|t| t == "Speed"),
         "not the whole card"
+    );
+    // The string's boxes run up to the 24 dp before the column: the
+    // 24th box's number is centred over a box at most 40 dp wide whose
+    // right edge is no further than the spacer.
+    let last = text_at(&mut app, "24").expect("box 24");
+    let centre = last.0 + last.2 / 2;
+    assert!(
+        centre <= left - 24 && centre >= left - 24 - 40,
+        "the boxes reach the column: box 24 at {last:?}, column at {left}"
     );
     let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet");
     let tracks = text_at(&mut app, "Die tracks").expect("the tracks");
@@ -818,4 +795,54 @@ fn the_demo_card_narrows_to_its_column_where_the_whole_card_would_stack_the_trac
         wide.drawn_texts().iter().any(|t| t == "Speed"),
         "the whole card"
     );
+}
+
+#[test]
+fn the_steps_count_and_working_are_in_the_working_area_and_not_in_the_demo_card() {
+    // The owner's panel (960 × 580), the narrow column at 1280 × 800 and
+    // the whole card at 1920 × 1080.
+    for (w, h, dpi) in [
+        (1440u16, 870u16, 240u16),
+        (1280, 800, 160),
+        (1920, 1080, 160),
+    ] {
+        let mut app = on_shell(w, h, dpi, true, Way::Dice);
+        c32(&mut app, C32::Walk(WalkAct::Next));
+        let _ = app.frame();
+        let next = app
+            .hit_box(Action::Codex32(C32::Walk(WalkAct::Next)))
+            .expect("Next");
+        // The card's left edge: its buttons stand 16 dp inside it.
+        let card = i32::from(next.0) - 16 * i32::from(dpi) / 160;
+        let boxes = app.drawn_text_boxes();
+        let step: Vec<_> = boxes
+            .iter()
+            .filter(|(t, _)| t.starts_with("Step 1 of ") || t.starts_with("Die 1, first roll: "))
+            .collect();
+        assert!(
+            step.iter().any(|(t, _)| t.starts_with("Step 1 of ")),
+            "{w}x{h}: the Working area's count: {step:?}"
+        );
+        assert!(
+            step.iter()
+                .any(|(t, _)| t.starts_with("Die 1, first roll: ")),
+            "{w}x{h}: the Working area's working: {step:?}"
+        );
+        // The card ends under Play (or under its Play options, whole);
+        // the Working area at the foot may run on under the card.
+        let play = app
+            .hit_box(Action::Codex32(C32::Walk(WalkAct::Play)))
+            .expect("Play");
+        let foot = i32::from(play.1 + play.3) + 200 * i32::from(dpi) / 160;
+        assert!(
+            step.iter().all(|(_, b)| b.0 + b.2 < card || b.1 > foot),
+            "{w}x{h}: none in the card at {card}, above {foot}: {step:?}"
+        );
+        if w == 1920 {
+            assert!(
+                boxes.iter().any(|(t, _)| t == "Speed"),
+                "the whole card keeps Speed"
+            );
+        }
+    }
 }

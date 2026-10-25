@@ -393,7 +393,7 @@ beside the page and d6 dice:
 
 | Window (dp) | Work width | The input panel | The worksheet |
 |---|---|---|---|
-| 1280 × 800 | 494 | at the foot, 132 dp | does not fit: as today, cell 28 in a 400 dp view, panning |
+| 1280 × 800 | 750 (the card's narrow column) | at the foot, 132 dp | does not fit: as today, cell 28 in a 400 dp view, panning |
 | 1920 × 1080 | 1134 | at the foot, 132 dp | whole at cell 22: 1104 × 842 |
 | 2000 × 1090 | 1214 | at the foot, 132 dp | whole at cell 23: 1152 × 877 |
 | 2560 × 1440 | 1774 (1326 beside the panel) | beside, 424 dp | whole at cell 26: 1296 × 982 |
@@ -415,7 +415,7 @@ shows pads 1 to 6 and no "Die pads (d7+)" group, d8 up to 8, d10 up to
 10, d12 up to 12, d20 all twenty, the booklet's places otherwise kept;
 changing the dice shows or hides the pads past 6. Tracks and tree stand
 side by side from a 566 dp work width for six-faced dice and from 776 dp
-for twenty-faced ones (for d6 from 960 × 580 up, in Testnet and in Demo, where the "Demo only" card narrows to its 200 dp column on 1280 × 800 and smaller so they do, `docs/CODEX32.md` §5.5). The dice sheet stands only with the
+for twenty-faced ones (for d6 from 960 × 580 up, in Testnet and in Demo, where the "Demo only" card narrows to its 144 dp column on 1280 × 800 and smaller so they do, the work width running up to `SPACER` before it, `docs/CODEX32.md` §5.5). The dice sheet stands only with the
 Checksum tab of the share being rolled, never with a derived share's
 tab or the Secret's (owner, 2026-10-24). Its head row, "Dice
 de-biasing" with Material's expand chevron, is one 48 dp press that
@@ -467,45 +467,53 @@ the tracks draw them, and "lower · 0" or "higher · 1" under them, the
 five dice in one row; the latest equal pair struck under the row; moved
 here from the dice sheet, which keeps the tree and the tracks, so the
 rolls are drawn once), the step tracker's **Working** area
-(`docs/CODEX32.md` §5.7), always beside the pad, and **Your dice**: the
-dice's size, one outlined button "d6 ▾" that opens Material's menu of
-the six sizes (the keyboard moves in it, Enter chooses, Escape or a
-press outside closes it), and the pad, a key per face and Backspace,
-each `PAD_KEY_W` (48 dp) square, `GAP_SMALL` apart, no padding of their
-own (§8). "Your dice", the button and the keys stand on one row where
-they fit; else the label over that row; else the faces in even rows (1
-to 10 over 11 to 20) under a row of "Your dice", the button and
-Backspace. A face is one key, so nothing waits from the pad; digits
-typed on a computer's keyboard settle on the next key or Enter. The
-dice's size is chosen here alone: the Entropy card keeps the dice's
-colours, and the Demo only card says what the computer rolls (the
-small panel, whose entry has no room for it, keeps the size on its
-Entropy card). Once every character is in, **Continue** stands in the
+(`docs/CODEX32.md` §5.7), always beside the pad, and the pad: "Your
+dice" at the start of its first row (under it the face waiting for its
+units digit, or ten-faced dice's "0 is 10"), then a key per face and
+Backspace, each `PAD_KEY_W` (48 dp) square, `GAP_SMALL` apart, no
+padding of their own (§8), in one row where it fits, else in as few
+even rows as fit; six-faced dice keep their keys in one row, larger
+dice take a second row only where it makes the panel shorter. A face is
+one key, so nothing waits from the pad; digits typed on a computer's
+keyboard settle on the next key or Enter. The dice's size is not in the
+panel (owner, 2026-10-25): it is chosen with the dice's colours on the
+Entropy card, Material's segmented button of d4 to d20, d6 the default,
+at every size, and the panel follows it; to change it the person goes
+back to that card. The Demo only card says what the computer rolls.
+Once every character is in, **Continue** stands in the
 pad's place, the flow's one way on; the page has no Continue of its own
 while the panel stands out of it (owner, 2026-10-24). At the foot the
 panel takes the shortest of the arrangements the width allows (owner,
 2026-10-25: as few rows as the width allows, no empty rows): the rolls,
-the Working area and the pad in one row, where the Working area keeps
-`CODEX32_WORKING_SIDE_MIN` between them; the rolls beside the Working
-area, the pad's one row under both; the rolls beside the Working area
-over the pad; the Working area under the rolls beside the pad; or the
-three one under another; where the pad's row has room, the latest struck
-pair and the Working area's Previous and Next stand at its end, so the
-row above holds only the rolls and two lines of working. For six-faced
-dice it is 144 dp tall on a
-960 × 580 window (192 before), 132 dp at 1280 × 800 and 1366 × 768 (the
-shortest the expanded rail leaves room for) and 104 dp at 1920 × 1080
-(132 before); 196 dp for twenty at 1280 × 800. The pad's key of the roll
+the pad and the Working area in one row, where the Working area keeps
+`CODEX32_WORKING_SIDE_MIN` after the pad, the latest struck pair under
+the rolls or under the pad's keys; the rolls beside the Working area,
+the pad under both; the rolls beside the Working area over the pad; the
+Working area under the rolls beside the pad; or the three one under
+another; where the pad's last row has room, the latest struck pair and
+the Working area's Previous and Next stand at its end, so the row above
+holds only the rolls and two lines of working. Two more take the
+Working area as one paragraph, "Working", where the step stands and its
+working run on from one line, wrapping under it only where they do not
+fit, in as many lines as the longest step needs at that width
+(`CODEX32_WORKING_TEXT_MAX` and `CODEX32_WORKING_HEAD_W`): the pad over
+the paragraph beside the rolls, Previous and Next at the end of the
+pad's row; and the rolls and the pad on one row, the struck pair at the
+keys' end or under them, over the paragraph across the panel with
+Previous and Next at its end (owner, 2026-10-25). "Your dice" is left
+out where the keys of dice under ten faces fit one row only without it.
+One row of all three takes about 1 220 dp inside the panel's margins
+for six-faced dice (the rolls 372, the pad 440, the Working area 360
+and two spacers), so it stands from 1920 × 1080 up. The panel is, for
+six faces and for twenty: 132 and 216 dp on a 960 × 580 window (144
+and 220 before), 108 and 196 at 1280 × 800 (132 and 196), 108 and 160
+at 1366 × 768 (132 and 176), 88 and 116 at 1920 × 1080 (108 and 144).
+The pad's key of the roll
 the Working area shows stands pressed: Material's pressed state layer in
 the accent and an accent outline, a stronger layer over it as the roll is
 shown easing away over `PRESS_EMPHASIS_MS` (none under Reduce motion),
 whether the person pressed it or the Demo walk's Next or Play rolled it,
-so the walk reads as a person pressing. The dice's menu opens from its
-button as Material's menu does, growing from the button's edge and
-fading in on emphasized decelerate over `DICE_MENU_OPEN_MS`, and closes
-with a quick fade on emphasized accelerate over `DICE_MENU_CLOSE_MS`,
-its arrow turning to point up while open; at once under Reduce motion.
-It stands:
+so the walk reads as a person pressing. It stands:
 
 - **Beside**, where the work width holds `CODEX32_ENTRY_W` (424 dp),
   `SPACER` and the worksheet at `CODEX32_CELL_FIT_MIN` (1456 dp in
@@ -578,12 +586,17 @@ no test drags the view away first (§19). Two things are new:
 ### 16.5 The step-through's buttons stay put
 
 In the Demo only card and its foot strip, Previous, Next and Play keep
-one place whatever the step says. In the card they stand above the
-step's count and its working ("Step 14 of 19 · character 3", then the
-working), so a working of one, two or three lines moves nothing under
-the buttons. In the strip they stand at the strip's right end and the
-step's line takes the room left of them on one line, cut where it is
-longer; **More** opens the whole card. Nothing is measured to place them.
+one place whatever the step says. The step's count and its working
+("Step 14 of 19 · character 3", then the working) are the Working
+area's, beside the pad (§16.3), and the card draws neither (owner,
+2026-10-25): the whole card holds the buttons in one row over Play's
+options, and the narrow column holds "Demo only", what it rolls in small
+type, then More, Previous, Next and Play one under another, each the
+column's width, the column `CODEX32_DEMO_COLUMN_W` (144 dp) wide, the
+widest button and the card's padding. In the strip they stand at the
+strip's right end and the step's line takes the room left of them on
+one line, cut where it is longer; **More** opens the whole card. Nothing
+is measured to place them.
 
 ## 17. The other screens
 

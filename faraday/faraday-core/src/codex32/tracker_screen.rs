@@ -214,7 +214,6 @@ pub(super) fn draw_beside(
         text
     };
     ui.wrap(x, y + head_h, tw, t::LABEL, W::R, Role::OnSurface, &text);
-    let [(back, back_on), (next, next_on)] = presses(m);
     let bt = (t::TOUCH - t::ICON_BUTTON) / 2.0;
     let row_h = if beside(w) { h } else { t::TOUCH };
     let (bx, by) = match buttons {
@@ -224,10 +223,81 @@ pub(super) fn draw_beside(
             y + (row_h - t::ICON_BUTTON) / 2.0,
         ),
     };
+    arrows(m, ui, (bx, by));
+    h
+}
+
+/// Previous and Next as Material's outlined icon buttons, the first's
+/// circle at (`bx`, `by`), the second a `TOUCH` after it.
+fn arrows(m: &Codex32Make, ui: &mut Ui, (bx, by): (f32, f32)) {
+    let [(back, back_on), (next, next_on)] = presses(m);
     let prev_tip = EN.tip_previous_step;
     ui.outlined_icon_button((bx, by), Icon::ChevronLeft, prev_tip, back_on, a(back));
     let next_tip = EN.tip_next_step;
     let nx = bx + t::TOUCH;
     ui.outlined_icon_button((nx, by), Icon::ChevronRight, next_tip, next_on, a(next));
-    h
+}
+
+/// The lines the Working area takes as one paragraph `w` wide: its head,
+/// where the step stands and the longest step's working, run on (owner,
+/// 2026-10-25). Arithmetic on tokens.
+fn line_lines(w: f32) -> f32 {
+    ((t::CODEX32_WORKING_TEXT_MAX + t::CODEX32_WORKING_HEAD_W) / w.max(1.0))
+        .ceil()
+        .max(1.0)
+}
+
+/// The Working area's height as one paragraph `w` wide ([`draw_line`]),
+/// whatever the step says, so nothing beside it moves. Arithmetic on
+/// tokens.
+pub(crate) fn working_line_h(w: f32) -> f32 {
+    line_lines(w) * t::CODEX32_WORKING_LINE
+}
+
+/// The Working area as one paragraph at (`x`, `y`), `w` wide: "Working",
+/// where the step stands and the step's working run on from the same
+/// line, wrapping under it only where they do not fit; Previous and Next
+/// at `buttons` (their pair's left edge and the row's top, a `TOUCH`
+/// row). Returns [`working_line_h`].
+pub(super) fn draw_line(
+    m: &Codex32Make,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    (px, py): (f32, f32),
+) -> f32 {
+    if m.work().is_none() {
+        return 0.0;
+    }
+    let line = t::CODEX32_WORKING_LINE;
+    let (count, text) = lines(m, false);
+    let text = if m.masked() && !text.is_empty() {
+        MASK.repeat(3)
+    } else {
+        text
+    };
+    let head = EN.codex32_track_head;
+    let mut cx = x + ui.text_mid(x, y, line, t::LABEL, W::S, Role::OnSurface, head) + t::GAP;
+    if !count.is_empty() {
+        let count = ui.fit(t::LABEL, W::R, &count, (x + w - cx).max(0.0));
+        let ink = Role::OnSurfaceVariant;
+        cx += ui.text_mid(cx, y, line, t::LABEL, W::R, ink, &count) + t::GAP;
+    }
+    // The working runs on from the head's line, the rest wrapped under.
+    let room = x + w - cx;
+    let mut first = String::new();
+    let mut rest = text.as_str();
+    for (i, _) in text.match_indices(' ').chain([(text.len(), "")]) {
+        if ui.measure(t::LABEL, W::R, &text[..i]) > room {
+            break;
+        }
+        first = text[..i].to_string();
+        rest = text[i..].trim_start();
+    }
+    ui.text_mid(cx, y, line, t::LABEL, W::R, Role::OnSurface, &first);
+    if !rest.is_empty() {
+        ui.wrap(x, y + line, w, t::LABEL, W::R, Role::OnSurface, rest);
+    }
+    let bt = (t::TOUCH - t::ICON_BUTTON) / 2.0;
+    arrows(m, ui, (px + bt, py + bt));
+    working_line_h(w)
 }

@@ -62,21 +62,14 @@ pub(crate) fn colour_name(c: DieColour) -> &'static str {
 // The Entropy card's dice (§5.1)
 // ---------------------------------------------------------------------
 
-/// The dice the person rolls, under Roll dice: with `with_sizes`, their
-/// faces as a Choice (taken between characters; the small panel's one
-/// place for it), and a chip per die naming its colour, which a press
-/// steps to the next. Elsewhere the dice's size is chosen in the entry's
-/// input panel alone (`docs/LAYOUT.md` §16.3). Returns the height.
-pub(super) fn chooser(
-    m: &Codex32Make,
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
-    with_sizes: bool,
-) -> f32 {
+/// The dice the person rolls, under Roll dice: their faces as a Choice,
+/// d4 to d20 (Material's segmented button), the one place the dice's
+/// size is chosen at every size (owner, 2026-10-25; `docs/LAYOUT.md`
+/// §16.3), and a chip per die naming its colour, which a press steps to
+/// the next. Returns the height.
+pub(super) fn chooser(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
-    if with_sizes {
-        cy += sizes(m, ui, x, y, w);
-    }
+    cy += sizes(m, ui, x, y, w);
     let dice = m.dice_choice();
     crate::screens::section_label(ui, x, cy, EN.codex32_die_colours);
     cy += t::PAD + t::GAP_SMALL;
@@ -97,8 +90,8 @@ pub(super) fn chooser(
     cy + t::TOUCH + t::GAP - y
 }
 
-/// The dice's faces, "Dice" over a Choice of d4 to d20, on the small
-/// panel's Entropy card. Returns the height.
+/// The dice's faces, "Dice" over a Choice of d4 to d20, on the Entropy
+/// card. Returns the height.
 pub(super) fn sizes(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let faces = m.dice_choice().faces;
     crate::screens::section_label(ui, x, y, EN.codex32_dice);

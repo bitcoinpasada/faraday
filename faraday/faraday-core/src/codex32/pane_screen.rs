@@ -6,7 +6,9 @@
 //! the window's edge and `SPACER` from the page, and scrolls within
 //! itself where it is taller than the window. Narrower, a strip pinned at
 //! the window's foot holds the step-through's line, Previous, Next and
-//! Play, and More opens the whole card over the page from the foot. The
+//! Play, and More opens the whole card over the page from the foot.
+//! Between, a narrow column at the right holds its head and More,
+//! Previous, Next and Play one under another. The
 //! card's content is `dice_screen::demo_content`; drawing reads the
 //! flow's state and works nothing out.
 
@@ -25,8 +27,9 @@ use crate::ui::{Slot, Style, Ui, W};
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) enum PaneAt {
     /// Beside the page, at the right, this wide: a `SUPPORT_PANE` holding
-    /// the whole card, or `CODEX32_DEMO_COLUMN_W` holding its head, More,
-    /// the step-through's buttons and the step's line.
+    /// the whole card, or `CODEX32_DEMO_COLUMN_W` holding its head, what
+    /// it rolls, and More and the step-through's buttons one under
+    /// another.
     Side(f32),
     /// Pinned at the window's foot.
     Strip,
@@ -216,24 +219,54 @@ fn sample_button(ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     )
 }
 
-/// The narrow column's content at (x, y) in `w`: "Demo only" with More,
-/// then Previous, Next and Play on one row above the step's count and
-/// working, so the buttons keep their place whatever the step says
-/// (`docs/LAYOUT.md` §16.5); or Use a sample. Returns the height, the
-/// card's padding included.
+/// The narrow column's content at (x, y) in `w` (owner, 2026-10-25):
+/// "Demo only", what the computer rolls in small type under it, then
+/// More, Previous, Next and Play one under another, each the column's
+/// width, so the column is no wider than its widest button and the
+/// buttons keep their places whatever the step says (`docs/LAYOUT.md`
+/// §16.5); or More and Use a sample. The step's count and working are
+/// the Working area's, beside the pad. Returns the height, the card's
+/// padding included.
 fn narrow(ui: &mut Ui, m: &Codex32Make, roller: bool, (x, y, w): (f32, f32, f32)) -> f32 {
     let (ix, iw) = (x + t::PAD, w - 2.0 * t::PAD);
-    let mut cy = y + t::GAP_SMALL;
-    cy += more_row(ui, (ix, cy, iw), m.pane_open()) + t::GAP_SMALL;
-    cy += if roller && m.way() == Way::Dice {
+    let mut cy = y + t::PAD;
+    let head = ui.fit(t::BODY, W::S, EN.demo_only, iw);
+    ui.text(ix, cy, t::BODY, W::S, Role::OnSurface, &head);
+    cy += ui.line(t::BODY, W::S);
+    let walk = roller && m.way() == Way::Dice;
+    if walk {
         // What the computer rolls, as the whole card says it.
         let die = fill(EN.codex32_die_size, &[&m.dice_choice().faces.to_string()]);
         let rolls = fill(EN.codex32_rolls_die, &[&die]);
-        let ink = Role::OnSurfaceVariant;
-        cy += ui.wrap(ix, cy, iw, t::LABEL, W::S, ink, &rolls) + t::GAP_SMALL;
-        super::walk_screen::controls(m, ui, (ix, cy, iw))
+        let rolls = ui.fit(t::LABEL, W::R, &rolls, iw);
+        cy += t::GAP_SMALL;
+        ui.text(ix, cy, t::LABEL, W::R, Role::OnSurfaceVariant, &rolls);
+        cy += ui.line(t::LABEL, W::R);
+    }
+    cy += t::GAP;
+    let label = if m.pane_open() {
+        EN.codex32_pane_less
     } else {
-        sample_button(ui, (ix, cy, iw))
+        EN.codex32_pane_more
+    };
+    let label = ui.fit(t::LABEL, W::S, label, iw - t::PAD);
+    ui.button(
+        ix,
+        cy,
+        Some(iw),
+        t::TOUCH,
+        &label,
+        Style::Secondary,
+        a(C32::Pane),
+    );
+    cy += t::TOUCH + t::GAP;
+    cy += if walk {
+        super::walk_screen::stacked(m, ui, (ix, cy, iw))
+    } else {
+        let label = ui.fit(t::LABEL, W::S, EN.use_a_sample, iw - t::PAD);
+        let act = a(C32::Sample);
+        ui.button(ix, cy, Some(iw), t::TOUCH, &label, Style::Secondary, act);
+        t::TOUCH
     };
     cy + t::PAD - y
 }

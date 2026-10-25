@@ -65,7 +65,6 @@ pub const MAKE_OFFERED: bool = true;
 use faraday_bip::codex32::{Length, Scheme};
 use faraday_codec::qr::QrMatrix;
 use faraday_crypto::work::Compute;
-use faraday_draw::tokens as t;
 use faraday_entropy::booklet::{self, BOOKLET_DICE, BookletChar};
 use faraday_keys::{Held, Making, Reveal, WorkSet};
 pub use faraday_ui::keyboard::OskPress;
@@ -396,10 +395,6 @@ pub enum C32 {
     /// The dice sheet's head row: the sheet opens to its tracks and tree,
     /// or closes to the row (owner, 2026-10-24).
     DiceSheet,
-    /// The input panel's dice button: Material's menu of the dice's sizes
-    /// opens under or over it, or closes (`docs/LAYOUT.md` §16.3); a
-    /// press anywhere outside the open menu closes it.
-    SizeMenu,
     /// Die `n`'s colour (from 0) steps to the next of [`DIE_COLOURS`].
     Colour(u8),
     /// A face pressed on the pad of dice other than six-faced ones.
@@ -526,9 +521,6 @@ pub struct Codex32Make {
     /// A tens digit typed on the keyboard for dice of ten faces or more,
     /// waiting for its units digit, Space or Enter.
     pending: Option<u8>,
-    /// The dice's size menu, open: the size the keyboard is on, by its
-    /// place in [`DIE_SIZES`], and whether a key moved it there.
-    size_menu: Option<(u8, bool)>,
     /// The dice sheet is open, its tracks and tree under its head row:
     /// opened by each roll, closed by itself when a share's rolling is
     /// done, and by its head row's press either way.
@@ -542,10 +534,6 @@ pub struct Codex32Make {
     press_seen: Option<(usize, usize, u8)>,
     /// The tick that emphasis began at; `None` once it has run its time.
     press_at: Option<u64>,
-    /// Whether the dice's size menu was open at the last tick, and the
-    /// tick its opening or closing began at; `None` once it has run.
-    menu_seen: bool,
-    menu_at: Option<u64>,
     /// The height of the dice sheet's body as last drawn whole, the
     /// room its reveal is clipped to while it moves. Written by drawing
     /// as a measurement only; nothing decides from it.
@@ -649,13 +637,10 @@ impl Codex32Make {
             equal: None,
             dice_choice: DiceChoice::default(),
             pending: None,
-            size_menu: None,
             dice_open: true,
             dice_move: None,
             press_seen: None,
             press_at: None,
-            menu_seen: false,
-            menu_at: None,
             dice_body_h: std::cell::Cell::new(0.0),
             made: Vec::new(),
             rolled: false,
@@ -958,79 +943,6 @@ impl Codex32Make {
     /// The tens digit typed and waiting, if any.
     pub fn pending(&self) -> Option<u8> {
         self.pending
-    }
-
-    /// The dice's size menu, while open: the size the keyboard is on, by
-    /// its place in [`DIE_SIZES`], and whether a key moved it there.
-    pub fn size_menu(&self) -> Option<(u8, bool)> {
-        self.size_menu
-    }
-
-    /// How far the dice's size menu shows at `now_ms`, 0 closed to 1
-    /// open: opening, Material's emphasized decelerate over
-    /// `DICE_MENU_OPEN_MS`; closing, emphasized accelerate over
-    /// `DICE_MENU_CLOSE_MS`; at once with `still` (Reduce motion). A
-    /// lookup.
-    pub fn size_menu_shown(&self, now_ms: u64, still: bool) -> f32 {
-        let open = self.size_menu.is_some();
-        let to = if open { 1.0 } else { 0.0 };
-        if still {
-            return to;
-        }
-        // Begun, the first tick not yet in: where it was.
-        if open != self.menu_seen {
-            return 1.0 - to;
-        }
-        let Some(at) = self.menu_at else {
-            return to;
-        };
-        if open {
-            let p = crate::motion::progress(Some(at), now_ms, t::DICE_MENU_OPEN_MS);
-            crate::motion::ease_open(p)
-        } else {
-            let p = crate::motion::progress(Some(at), now_ms, t::DICE_MENU_CLOSE_MS);
-            1.0 - crate::motion::ease(t::EASE_EMPHASIZED_ACCELERATE, p)
-        }
-    }
-
-    /// One tick of the size menu's opening or closing: begins it when the
-    /// menu opens or closes, ends it once its time is up. Returns whether
-    /// it still moves. A lookup.
-    pub(crate) fn menu_tick(&mut self, now_ms: u64) -> bool {
-        let open = self.size_menu.is_some();
-        if open != self.menu_seen {
-            self.menu_seen = open;
-            self.menu_at = Some(now_ms);
-            return true;
-        }
-        let ms = if open {
-            t::DICE_MENU_OPEN_MS
-        } else {
-            t::DICE_MENU_CLOSE_MS
-        };
-        match self.menu_at {
-            Some(at) if now_ms >= at + ms + 16 => {
-                self.menu_at = None;
-                false
-            }
-            Some(_) => true,
-            None => false,
-        }
-    }
-
-    /// A key while the dice's size menu is open (`crate::menu::step`):
-    /// Up and Down move round the sizes, Enter or Space chooses, Escape
-    /// closes. Returns the size chosen. Every key is the menu's while it
-    /// is open. Cheap.
-    pub(crate) fn size_menu_key(&mut self, key: faraday_shell_api::Key) -> Option<u8> {
-        let (at, _) = self.size_menu?;
-        match crate::menu::step(key, usize::from(at), DIE_SIZES.len()) {
-            Some(crate::menu::Step::To(to)) => self.size_menu = Some((to as u8, true)),
-            Some(crate::menu::Step::Choose) => return Some(at),
-            Some(crate::menu::Step::Close) => self.size_menu = None,
-            None => {}
-        }
-        None
     }
 
     /// How much taller than the six-key pad the pad of the dice chosen
@@ -1662,15 +1574,7 @@ impl Codex32Make {
                 }
             }
             C32::DiceSheet => self.set_dice_open(!self.dice_open),
-            C32::SizeMenu => {
-                let at = DIE_SIZES.iter().position(|&n| n == self.dice_choice.faces);
-                self.size_menu = match self.size_menu {
-                    Some(_) => None,
-                    None => Some((at.unwrap_or(0) as u8, false)),
-                };
-            }
             C32::Faces(i) => {
-                self.size_menu = None;
                 if let Some(&n) = DIE_SIZES.get(usize::from(i)) {
                     self.change_faces(n);
                 }

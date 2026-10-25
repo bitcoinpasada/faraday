@@ -1,7 +1,8 @@
 //! The step-through as it is drawn in the "Demo only" card
-//! (`docs/CODEX32.md` §5.5): each die's two rolls, where the walk stands
-//! ("Step 14 of 19 · character 3"), the step's working in plain
-//! arithmetic, Previous, Next and Play, how far Play runs and how fast.
+//! (`docs/CODEX32.md` §5.5): Previous, Next and Play, how far Play runs
+//! and how fast, and the step's working in plain arithmetic that the
+//! Working area beside the pad reads (`tracker_screen.rs`); the card
+//! itself draws no step's text but in the compact strip.
 //! Every value is read from the walk's character and from the worksheet
 //! the work set keeps (§7.4); nothing here works anything out but where
 //! a line goes.
@@ -231,8 +232,8 @@ fn chips(ui: &mut Ui, (x, y, w): (f32, f32, f32), items: &[(&str, bool, WalkAct)
     cy + t::ROLLER_CHIP - y
 }
 
-/// The step-through at (`x`, `y`) in `w`: the heads, where the walk stands and the step's working, Previous, Next
-/// and Play, then Play's extent and speed. Returns the height.
+/// The step-through at (`x`, `y`) in `w`: the heads, Previous, Next and
+/// Play, then Play's extent and speed. Returns the height.
 pub(super) fn draw(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
     let head = t::ROLLER_LABEL + 1.0;
@@ -261,8 +262,9 @@ pub(super) fn draw(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> 
     cy - y
 }
 
-/// Where the walk stands and the step's line: "Step 14 of 19 ·
-/// character 3", and its working, or what Next does first.
+/// Where the walk stands and the step's line for the compact strip:
+/// "Step 14 of 19 · character 3", and its working, or what Next does
+/// first.
 fn lines(m: &Codex32Make) -> (String, String) {
     match (m.walk().shown(), m.work()) {
         (Some((ch, s, step)), Some(work)) => (
@@ -372,15 +374,27 @@ pub(super) fn strip_controls(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32,
     strip_controls_h(ui)
 }
 
-/// Previous, Next and Play (or Pause) at their place, then where the
-/// walk stands and the step's working under them. Returns the height.
-pub(super) fn controls(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+/// Previous, Next and Play (or Pause) at their place, in one row. Where
+/// the walk stands and the step's working are the Working area's, beside
+/// the pad (`docs/CODEX32.md` §5.7), so the card draws neither (owner,
+/// 2026-10-25). Returns the height.
+fn controls(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    button_row(m, ui, (x, y, w), false)
+}
+
+/// Previous, Next and Play (or Pause) one under another at (`x`, `y`),
+/// each `w` wide and `TOUCH` tall, `GAP` apart: the narrow column's
+/// buttons (`docs/LAYOUT.md` §16.5), at places no step's text moves.
+/// Returns the height.
+pub(super) fn stacked(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
     let mut cy = y;
-    let (count, working) = lines(m);
-    cy += button_row(m, ui, (x, cy, w), false) + t::GAP_SMALL;
-    cy += ui.wrap(x, cy, w, t::LABEL, W::S, Role::OnSurfaceVariant, &count) + t::GAP_SMALL;
-    if !working.is_empty() {
-        cy += ui.wrap(x, cy, w, t::BODY, W::R, Role::OnSurface, &working);
+    for (k, (label, style, act)) in buttons(m).into_iter().enumerate() {
+        if k > 0 {
+            cy += t::GAP;
+        }
+        let label = ui.fit(t::LABEL, W::S, label, w - t::PAD);
+        ui.button(x, cy, Some(w), t::TOUCH, &label, style, a(act));
+        cy += t::TOUCH;
     }
     cy - y
 }

@@ -417,8 +417,6 @@ pub struct Ui<'a, A> {
     /// over its pressed state: 1 as it is pressed, 0 once settled (and
     /// always under Reduce motion).
     pub press_shown: f32,
-    /// How far the codex32 dice's size menu shows: 0 closed, 1 open.
-    pub menu_shown: f32,
     /// On the wide layout, where the top-right row (the mode pill and the
     /// ?) begins, in the page's x; a flow's column ends left of it.
     /// Infinite where there is no such row.
@@ -530,7 +528,6 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             guided_shown: 1.0,
             dice_shown: 1.0,
             press_shown: 0.0,
-            menu_shown: 0.0,
             top_row_left: f32::INFINITY,
             about_open: None,
             pinning: false,

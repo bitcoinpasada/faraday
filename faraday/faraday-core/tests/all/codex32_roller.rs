@@ -125,7 +125,12 @@ fn the_five_dice_stand_beside_your_dice_on_faraday_desktop_only() {
     on_dice_entry(&mut desk);
     assert!(shows(&mut desk, "Or let Faraday roll"));
     assert!(shows(&mut desk, "Your dice"), "the pad for real dice stays");
-    assert!(shows(&mut desk, "Next rolls character 1"));
+    // Where the walk stands is the Working area's, beside the pad.
+    assert!(shows(&mut desk, "Character 1"));
+    assert!(
+        !shows(&mut desk, "Next rolls character 1"),
+        "not the card's"
+    );
     for act in [WalkAct::Next, WalkAct::Play] {
         assert!(desk.offers(Action::Codex32(C32::Walk(act))));
     }
@@ -366,9 +371,9 @@ fn the_demo_only_card_holds_its_place_while_the_page_scrolls() {
 #[test]
 fn next_stays_where_it_is_at_every_step_and_character() {
     let next = Action::Codex32(C32::Walk(WalkAct::Next));
-    // The pane at the right of a wide window, the strip at a narrow one's
-    // foot.
-    for (w, h, dpi) in [(1280, 800, 160), (480, 640, 286)] {
+    // The whole card on a big window, its narrow column at 1280 × 800,
+    // the strip at a narrow one's foot.
+    for (w, h, dpi) in [(1920, 1080, 160), (1280, 800, 160), (480, 640, 286)] {
         let mut app = sized(w, h, dpi);
         let at = app.hit_box(next).expect("Next is drawn");
         // Past a character's last step, into the next character's, and

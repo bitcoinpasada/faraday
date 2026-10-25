@@ -422,7 +422,7 @@ pub(crate) fn body(
     let h = match card {
         Card::Scheme => scheme(m, ui, x, y, w),
         Card::Identifier => identifier(m, ui, at),
-        Card::Entropy => entropy(m, ui, x, y, w, at.cls),
+        Card::Entropy => entropy(m, ui, x, y, w),
         Card::Enter => enter(m, ui, at),
         Card::Sheets => sheets(m, ui, at),
         Card::Strings => strings(m, ui, at),
@@ -652,10 +652,9 @@ fn identifier(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     cy - y
 }
 
-/// §6.3: the way. The dice's colours; their size is chosen once, in the
-/// entry's input panel, but on the small panel, whose entry has no room
-/// for it.
-fn entropy(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, cls: WindowClass) -> f32 {
+/// §6.3: the way. The dice's size and colours, chosen here at every size;
+/// the entry's input panel follows the size.
+fn entropy(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     let items: Vec<(&str, bool, Action)> = WAYS
         .iter()
@@ -674,9 +673,9 @@ fn entropy(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32, cls: WindowClas
             EN.codex32_not_chosen,
         ) + t::GAP;
     }
+    // The dice's size is chosen here at every size (owner, 2026-10-25).
     if m.way() == Way::Dice {
-        let sizes = cls == WindowClass::Compact;
-        cy += super::dice_screen::chooser(m, ui, (x, cy, w), sizes);
+        cy += super::dice_screen::chooser(m, ui, (x, cy, w));
     }
     cy += foot(m, ui, x, cy, w, EN.keygen_continue);
     cy - y
@@ -740,7 +739,8 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
         }
         _ => {
             cy += string_boxes(work, share, front, ui, at.to(x, cy, w));
-            cy += view_strip(m, work, ui, x, cy, w);
+            // The tabs over the sheets span the work width, as they do.
+            cy += view_strip(m, work, ui, x, cy, at.wide);
             cy += panels(m, work, share, front, ui, at.to(x, cy, w));
             // Out of the page, the input panel holds the Working area, the
             // pad, the rolls and Continue.
@@ -914,13 +914,13 @@ fn pad(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             super::dice_screen::face_pad(m, ui, x, y, w)
         }
     };
-    // A small panel keeps its room for the sheet and the pad: its dice are
-    // chosen on the Entropy card. Elsewhere the pad is the input panel's,
-    // with the dice's size in it (`docs/LAYOUT.md` §16.3).
+    // A small panel keeps its room for the sheet and the pad. Elsewhere
+    // the pad is the input panel's; the dice are chosen on the Entropy
+    // card at every size (`docs/LAYOUT.md` §16.3).
     if at.cls == WindowClass::Compact {
         return dice_pad(ui, x, y, w);
     }
-    super::input_panel::page_pad(m, ui, (x, y, w), f32::MAX) + t::GAP
+    super::input_panel::page_pad(m, ui, (x, y, w)) + t::GAP
 }
 
 // ---------------------------------------------------------------------

@@ -205,9 +205,10 @@ Added 2026-10-24 (owner):
     on Faraday Desktop in Demo, the sample in Demo; in every other mode,
     Faraday Desktop's too, the box and all it holds are gone, and the
     stick and the Pi have neither. The dice's size is one choice, on
-    the Entropy card, over "Your dice" and in the box ("Rolls d20");
-    changed in the middle of a character, that character's rolls are
-    cleared and the note says so (§5.1, §5.5).
+    the Entropy card at every size (owner, 2026-10-25), which the pad
+    and the box ("Rolls d20") follow; changed in the middle of a
+    character, that character's rolls are cleared and the note says so
+    (§5.1, §5.5).
 32. **A Codex32QR drawn by hand from the backup flow.** Faraday follows
     the Codex32QR/v1-48 profile (§10). Where the plan draws a string's
     Codex32QR on paper, the checklist names the sheet it is drawn on
@@ -814,9 +815,10 @@ is shown, rolls the next character's values first, all of them, as a
 click of One character rolled them (the same answers give the same
 faces, an equal pair's die rolled twice again), and then shows them one
 step at a time; Previous shows the state before and never rolls again,
-and Next after it shows the same faces. Over the steps the card reads
-"Step 14 of 19 · character 3" and the step's working in plain
-arithmetic:
+and Next after it shows the same faces. Over the steps the Working area
+beside the pad (§5.7) reads "Step 14 of 19 · character 3" and the step's
+working in plain arithmetic (the card does not repeat it; owner,
+2026-10-25):
 
 | Step | It reads | The sheet marks |
 |---|---|---|
@@ -847,10 +849,11 @@ stepping) and `tests/all/codex32_roller.rs` (the steps on Faraday
 Desktop and none on the stick, the arrow keys, Play to the end).
 
 **The buttons stay put (owner, 2026-10-24; `docs/LAYOUT.md` §16.5).**
-In the card Previous, Next and Play stand above the step's count and
-its working, and in the strip at its right end under the step's line, so
-that whatever a step says, the buttons keep their places and the press
-that follows lands where the last one did. Play and Pause share the
+In the card Previous, Next and Play stand in one row over Play's options,
+in the narrow column one under another, and in the strip at its right
+end under the step's line, so that whatever a step says, the buttons
+keep their places and the press that follows lands where the last one
+did. Play and Pause share the
 wider's width; nothing is measured per frame but the fixed labels. Tested
 in `tests/all/codex32_roller.rs` (Next's rectangle the same at every step
 of a character and across characters, in the pane and in the strip).
@@ -874,25 +877,28 @@ taller than the window, it scrolls within itself (its own region,
 `Slot::DemoPane`). Where the whole card would leave the entry too
 little width for the dice sheet's tracks beside its tree (1280 × 800
 and smaller in Demo), and on one-column windows from medium up, the
-card is squeezed into a `CODEX32_DEMO_COLUMN_W` (200 dp) column at the
-right, never across the page (owner, 2026-10-25): "Demo only" with
-More, what the computer rolls ("Rolls d6"), then Previous, Next and
-Play on one row, then the step's count and working, outlined as the
-card and under the page's bar; More opens the whole card over the page
-from the foot. From 1920 × 1080 the whole card stands as before. On compact windows (the Pi panel) a strip pinned at the
+card is squeezed into a `CODEX32_DEMO_COLUMN_W` (144 dp) column at the
+right, never across the page (owner, 2026-10-25): "Demo only", what the
+computer rolls ("Rolls d6") in small type under it, then More,
+Previous, Next and Play one under another, each Material's 48 dp button
+the column's width, outlined as the card and under the page's bar; the
+entry's work (the string's boxes, the tabs, the worksheet, the tracks
+and the tree) runs up to `SPACER` before it. More opens the whole card
+over the page from the foot. Neither the column nor the card draws the
+step's count or working, which the Working area beside the pad shows. From 1920 × 1080 the whole card stands as before. On compact windows (the Pi panel) a strip pinned at the
 window's foot holds
 the step's line on one row, cut where it is longer, with Previous, Next
 and Play under it at the strip's right end, and **More** opens the whole
 card over the page from the foot (**Less** closes it); it never scrolls
 away, and the entry leaves room under its last row so the page scrolls
 clear of it. The card holds, in order, Demo's **Use a sample** (in
-Demo), and on Faraday Desktop the dice's size (the same choice as over
-"Your dice"), "Rolls d20", and the step-through above; the rolls
+Demo), and on Faraday Desktop "Rolls d20", the dice chosen on the
+Entropy card, and the step-through above; the rolls
 themselves are drawn once, in the entry's input panel (owner,
 2026-10-24; `docs/LAYOUT.md` §16.3). The marks are unchanged: "Rolled by
 this computer", "simulated dice". The person's own entry is the dice
-sheet in the page and the input panel: each die's two rolls, the dice's
-size and **Your dice**. Built in
+sheet in the page and the input panel: each die's two rolls and
+**Your dice**. Built in
 `codex32/dice_screen.rs` (`demo_content`) and `codex32/pane_screen.rs`,
 tested in `tests/all/codex32_dice.rs` (the card beside the pad on
 Faraday Desktop, none on the stick; a d20 share played and padded 1 to
@@ -995,9 +1001,9 @@ the Demo walk shows a step, the same two buttons step the walk.
 
 The area's height is fixed for its width (as many lines as the longest
 step needs there), so the pad beside it never moves as a step's text
-changes. Beside the sheets it stands under the rolls, over the dice's
-size; at the window's foot, over the dice's size and the pad, right of
-the rolls, or right of the codex32 keyboard for characters typed; in the
+changes. Beside the sheets it stands under the rolls, over the pad; at
+the window's foot, after the pad or over it, right of the rolls, or
+right of the codex32 keyboard for characters typed; in the
 page, over the pad. On the small panel it is the context row's fourth
 tile, **Working** (Dice · Checksum · String · Working, §6.4.7), over the
 pad. Masked sheets (§6.4.6) mask its working.

@@ -851,6 +851,10 @@ pub const CODEX32_WORKING_LINE: f32 = 20.0;
 /// the slack of breaking at spaces: the Working area keeps as many lines
 /// as its width needs for it, so the pad under it never moves.
 pub const CODEX32_WORKING_TEXT_MAX: f32 = 860.0;
+/// The room the Working area's head and where the step stands take
+/// where they run on with its working as one paragraph ("Working  Step
+/// 19 of 19 · character 26", owner 2026-10-25).
+pub const CODEX32_WORKING_HEAD_W: f32 = 300.0;
 /// The fewest lines the Working area keeps for a step's working.
 pub const CODEX32_WORKING_LINES_MIN: f32 = 2.0;
 /// The Working area's width from which Previous and Next stand beside
@@ -874,9 +878,6 @@ pub const INPUT_ROLLS_LINE: f32 = 16.0;
 /// The struck pairs the rolls across the input panel keep room for,
 /// the latest.
 pub const INPUT_ROLLS_STRUCK: usize = 1;
-/// The dice's size as one button that opens Material's menu of the six
-/// sizes (`docs/LAYOUT.md` §16.3): its width, "d20" and the menu's arrow.
-pub const DICE_MENU_BUTTON_W: f32 = 88.0;
 /// The dice sheet in a column at the right, as tall as it draws there
 /// (the tree over the five tracks): with the Demo only card's
 /// `CODEX32_COLUMN_CARD_H` under it, where the window holds both, the
@@ -886,8 +887,9 @@ pub const CODEX32_DICE_COLUMN_H: f32 = 720.0;
 /// The Demo only card's height under the dice sheet's column, its
 /// step-through whole (measured).
 pub const CODEX32_COLUMN_CARD_H: f32 = 480.0;
-/// "Your dice" at the start of the pad's row in the input panel: the
-/// room it keeps, the label cut to it where text is drawn larger.
+/// "Your dice" at the start of the pad's first row in the input panel,
+/// with the face waiting or "0 is 10" under it: the room it keeps, the
+/// label cut to it where text is drawn larger.
 pub const INPUT_PAD_LABEL_W: f32 = 72.0;
 /// The least room after the pad's keys at the window's foot for the
 /// latest struck pair beside the Working area's Previous and Next, so
@@ -899,20 +901,6 @@ pub const INPUT_CONTINUE_W: f32 = 160.0;
 /// The fewest keys a row of the pad beside the rolls holds; narrower,
 /// the pad stands under them.
 pub const PAD_KEYS_BESIDE_MIN: f32 = 5.0;
-/// The dice's size menu's width: Material's least for a menu.
-pub const DICE_MENU_W: f32 = 112.0;
-/// The dice's size menu opening, growing from its button and fading in
-/// on Material's emphasized decelerate (owner, 2026-10-25).
-pub const DICE_MENU_OPEN_MS: u64 = MOTION_MEDIUM2;
-/// The same menu closing, a quick fade on emphasized accelerate.
-pub const DICE_MENU_CLOSE_MS: u64 = MOTION_SHORT3;
-/// Material's drop-down arrow on a button that opens a menu: its width;
-/// it is half as tall.
-pub const DROPDOWN_ARROW: f32 = 10.0;
-/// Half the drop-down arrow's width: its height, and where its tip is.
-pub const DROPDOWN_ARROW_HALF: f32 = DROPDOWN_ARROW / 2.0;
-/// How far the arrow's top stands over the middle of its button.
-pub const DROPDOWN_ARROW_RISE: f32 = DROPDOWN_ARROW / 4.0;
 
 /// The narrowest a Home tile is; the grid takes as many columns as fit
 /// (`docs/LAYOUT.md` §4).
@@ -1140,9 +1128,10 @@ pub const CODEX32_ROLLER_W: f32 = 320.0;
 pub const CODEX32_MAIN_MIN: f32 = 420.0;
 /// The "Demo only" card's column at the right of the codex32 entry where
 /// a `SUPPORT_PANE` does not fit beside it (medium and expanded windows;
-/// owner, 2026-10-25): its head and More, Previous, Next and Play on one
-/// row, and the step's line under them.
-pub const CODEX32_DEMO_COLUMN_W: f32 = 200.0;
+/// owner, 2026-10-25): its head, and More, Previous, Next and Play one
+/// under another, as wide as the widest of them ("Previous" with
+/// Material's 24 dp each side) and the card's `PAD` each side.
+pub const CODEX32_DEMO_COLUMN_W: f32 = 144.0;
 /// How far New key's column stands in from its page area's left edge,
 /// and as far again is kept on its right.
 pub const KEYGEN_COLUMN_IN: f32 = 40.0;

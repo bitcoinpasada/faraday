@@ -1943,9 +1943,6 @@ impl crate::Faraday {
     pub(crate) fn keygen_walk_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use crate::codex32::WalkAct;
         use faraday_shell_api::Key;
-        if self.keygen_size_menu_key(key) {
-            return true;
-        }
         let act = match key {
             Key::Left => WalkAct::Previous,
             Key::Right => WalkAct::Next,
@@ -1963,33 +1960,6 @@ impl crate::Faraday {
             self.keygen_codex32_walk(act);
         }
         open
-    }
-
-    /// A key while the codex32 entry's dice menu is open
-    /// (`docs/LAYOUT.md` §16.3): the menu takes every key; Enter or Space
-    /// chooses the size the keyboard is on. True when taken.
-    fn keygen_size_menu_key(&mut self, key: faraday_shell_api::Key) -> bool {
-        use crate::codex32::{C32, Card};
-        let open = self.screen == Screen::KeyGen
-            && self.sheet.is_none()
-            && self
-                .keygen
-                .state()
-                .and_then(|k| k.codex32.as_ref())
-                .is_some_and(|m| m.open() == Some(Card::Enter) && m.size_menu().is_some());
-        if !open {
-            return false;
-        }
-        let chosen = self
-            .keygen
-            .state
-            .as_mut()
-            .and_then(|k| k.codex32.as_mut())
-            .and_then(|m| m.size_menu_key(key));
-        if let Some(i) = chosen {
-            self.keygen_codex32(C32::Faces(i));
-        }
-        true
     }
 
     /// A press on the one-die roller beside the dice pad, on Faraday
