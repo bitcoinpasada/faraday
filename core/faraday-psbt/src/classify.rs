@@ -221,6 +221,21 @@ pub(crate) struct Classified {
     pub amount_unverified: bool,
 }
 
+/// The output input `index` spends, as `bitcoin`'s `Psbt::spend_utxo`
+/// reads it (`witness_utxo` first, then `non_witness_utxo` at the spent
+/// index), or `None` where the PSBT does not state it. `spend_utxo`
+/// indexes the transaction's outputs unchecked, and `Psbt::extract_tx`
+/// and `Psbt::sighash_ecdsa` reach it, so every path through them asks
+/// this first.
+pub(crate) fn spent_output(psbt: &bitcoin::Psbt, index: usize) -> Option<&TxOut> {
+    let input = psbt.inputs.get(index)?;
+    if let Some(out) = &input.witness_utxo {
+        return Some(out);
+    }
+    let vout = psbt.unsigned_tx.input.get(index)?.previous_output.vout;
+    input.non_witness_utxo.as_ref()?.output.get(vout as usize)
+}
+
 /// Classifies input `index` of `psbt`.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn classify(psbt: &bitcoin::Psbt, index: usize) -> Classified {

@@ -37,7 +37,7 @@ use faraday_crypto::Zeroize;
 use faraday_crypto::work::{Compute, Work};
 use miniscript::{ExtParams, Miniscript, SigType, Tap, ToPublicKey};
 
-use crate::classify::{Classified, ScriptKind, classify};
+use crate::classify::{Classified, ScriptKind, classify, spent_output};
 use crate::context::Context;
 use crate::finalize::{is_complete, key_in_script};
 use crate::inspect::{MusigRound, inspect, musig_keyed_here, musig_round};
@@ -553,6 +553,9 @@ fn sign_ecdsa(
     if !key_in_script(cl, input, &PublicKey::new(pk)) {
         return Err(Error::KeyMismatch { input: index });
     }
+    if spent_output(psbt.inner(), index).is_none() {
+        return Err(Error::MissingUtxo { input: index });
+    }
     let (msg, sighash_type) = psbt
         .inner()
         .sighash_ecdsa(index, cache)
@@ -683,10 +686,9 @@ pub(crate) fn tap_prevouts(
     let mut prevouts: Vec<TxOut> = Vec::with_capacity(psbt.inner().inputs.len());
     for j in 0..psbt.inner().inputs.len() {
         prevouts.push(
-            psbt.inner()
-                .spend_utxo(j)
+            spent_output(psbt.inner(), j)
                 .cloned()
-                .map_err(|_| Error::MissingUtxo { input: j })?,
+                .ok_or(Error::MissingUtxo { input: j })?,
         );
     }
     Ok(PrevoutSet::All(prevouts))

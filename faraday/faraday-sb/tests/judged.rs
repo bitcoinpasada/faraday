@@ -266,6 +266,30 @@ fn an_image_whose_signature_table_is_shorter_than_its_header_reads_as_unreadable
     }
 }
 
+/// An image whose certificate table is said to start inside its own
+/// headers is not an image: it is not hashed, checked or signed, and
+/// signing it does not stop the program (the release fuzz run's pe_image
+/// crash: signing cut the image there and then wrote the directory entry
+/// past its end).
+#[test]
+fn an_image_whose_signature_table_starts_inside_its_headers_is_refused() {
+    let k = keys();
+    let entry = 0x44 + 20 + 112 + 4 * 8;
+    for image in [
+        tiny_pe(),
+        pe::sign(&mut blind(), &tiny_pe(), &k.db).unwrap(),
+    ] {
+        for at in [0x4du32, 0x40, entry as u32 + 8, 0x1ff] {
+            let mut image = image.clone();
+            image[entry..entry + 4].copy_from_slice(&at.to_le_bytes());
+            image[entry + 4..entry + 8].copy_from_slice(&16u32.to_le_bytes());
+            assert!(pe::image_hash(&image).is_err(), "at {at:#x}");
+            assert!(pe::check(&image, &k.db.cert).is_err(), "at {at:#x}");
+            assert!(pe::sign(&mut blind(), &image, &k.db).is_err(), "at {at:#x}");
+        }
+    }
+}
+
 /// Blinding changes how the key's operation runs, never its result:
 /// PKCS #1 v1.5 signatures are deterministic, so a signature made under
 /// any blinding stream is the very bytes RustCrypto's unblinded signer

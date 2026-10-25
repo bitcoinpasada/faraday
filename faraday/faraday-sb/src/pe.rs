@@ -85,8 +85,11 @@ fn layout(pe: &[u8]) -> Result<Layout, Error> {
         return Err(bad);
     }
     let certs = (cert_at != 0 && cert_size != 0).then_some((cert_at, cert_size));
+    // The certificate table follows the headers (it is appended to the
+    // image); one that starts inside them would overlap the very fields
+    // signing rewrites.
     if let Some((a, n)) = certs
-        && a + n > pe.len()
+        && (a < size_of_headers || a + n > pe.len())
     {
         return Err(bad);
     }

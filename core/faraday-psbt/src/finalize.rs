@@ -26,7 +26,7 @@ use bitcoin::secp256k1::Secp256k1;
 use bitcoin::{PublicKey, ScriptBuf, Transaction, Witness, ecdsa};
 use miniscript::psbt::PsbtExt;
 
-use crate::classify::{Classified, ScriptKind, Wrapper, classify};
+use crate::classify::{Classified, ScriptKind, Wrapper, classify, spent_output};
 use crate::psbt::{Error, Psbt};
 
 /// Whether every input is final or has enough signatures to be finalized.
@@ -86,6 +86,19 @@ pub fn finalize(psbt: &mut Psbt) -> Result<Option<Transaction>, Error> {
     }
     if !all_final {
         return Ok(None);
+    }
+    // An input final when it arrived is not classified above. `bitcoin`'s
+    // extractor reads every input's spent output for the fee and treats
+    // a `non_witness_utxo` without the spent output as unreachable (it
+    // panics), so that input is refused here first.
+    let inner = psbt.inner();
+    if let Some(input) = (0..inner.inputs.len())
+        .find(|&i| inner.inputs[i].non_witness_utxo.is_some() && spent_output(inner, i).is_none())
+    {
+        return Err(Error::Finalize {
+            input,
+            reason: "non_witness_utxo has no output at the spent index",
+        });
     }
     psbt.inner()
         .clone()

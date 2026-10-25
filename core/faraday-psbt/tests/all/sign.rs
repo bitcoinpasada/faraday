@@ -395,3 +395,78 @@ fn a_taproot_tree_with_no_way_into_it_is_refused() {
         })
     );
 }
+
+/// A PSBT read back from its bytes, as a coordinator's file is read.
+fn reread(psbt: bitcoin::Psbt) -> Psbt {
+    Psbt::parse_bytes(&Compute::unchecked(), &psbt.serialize()).unwrap()
+}
+
+/// An input that arrives final, carrying a funding transaction with no
+/// output at the index it spends, is refused when the PSBT is finalized
+/// rather than stopping the program (the release fuzz run's psbt_parse
+/// crash: `bitcoin`'s extractor panics on it).
+#[test]
+fn a_final_input_whose_funding_transaction_lacks_the_spent_output_is_refused() {
+    let mut inner = build(ScriptType::Legacy).inner().clone();
+    inner.unsigned_tx.input[0].previous_output.vout = 3;
+    let input = &mut inner.inputs[0];
+    input.final_script_sig = Some(ScriptBuf::from_bytes(vec![0x51]));
+    input.bip32_derivation.clear();
+    let mut psbt = reread(inner);
+    assert_eq!(
+        finalize(&mut psbt),
+        Err(Error::Finalize {
+            input: 0,
+            reason: "non_witness_utxo has no output at the spent index"
+        })
+    );
+}
+
+/// A taproot input's signature commits to every input's spent output;
+/// another input whose funding transaction lacks the output it spends
+/// leaves that signature unchecked and the PSBT unsigned, and stops
+/// nothing (`bitcoin`'s `spend_utxo` panics on it).
+#[test]
+fn a_taproot_signature_beside_an_input_without_its_spent_output_does_not_stop_the_program() {
+    let c = Compute::unchecked();
+    let abandon = master(ABANDON, NET);
+    let mut inner = build(ScriptType::Taproot).inner().clone();
+    inner.inputs[0].tap_key_sig =
+        Some(bitcoin::taproot::Signature::from_slice(&[1u8; 64]).unwrap());
+    let funding = crate::common::builder::funding_tx(foreign_script(), 5_000);
+    inner.unsigned_tx.input.push(bitcoin::TxIn {
+        previous_output: bitcoin::OutPoint::new(funding.compute_txid(), 3),
+        ..Default::default()
+    });
+    inner.inputs.push(bitcoin::psbt::Input {
+        non_witness_utxo: Some(funding),
+        ..Default::default()
+    });
+    let mut psbt = reread(inner);
+    let keys = [KeyRef::from_master(&c, &abandon, 0).unwrap()];
+    let ctx = Context {
+        network: NET,
+        keys: &keys,
+        wallets: &[],
+        musig_session: None,
+        shares: &[],
+        carry: None,
+    };
+    let _ = inspect(&c, &psbt, &ctx);
+    let signed = sign(
+        &c,
+        &mut psbt,
+        &[&abandon],
+        &[abandon.fingerprint()],
+        &ctx,
+        true,
+        Nonce::LowR,
+        Aux::Deterministic,
+        &mut None,
+        [0u8; 32],
+        &[],
+        &[],
+    );
+    assert!(signed.is_err(), "{signed:?}");
+    assert!(finalize(&mut psbt).is_err());
+}

@@ -37,7 +37,7 @@ use bitcoin::{PublicKey, Script, ScriptBuf, Sequence, TxOut, Witness, ecdsa, tap
 use faraday_bip::keys::{Fingerprint, MasterKey};
 use faraday_crypto::work::Compute;
 
-use crate::classify::{Classified, classify};
+use crate::classify::{Classified, classify, spent_output};
 use crate::context::Context;
 use crate::inspect::SighashKind;
 use crate::psbt::Psbt;
@@ -862,6 +862,7 @@ fn settle(p: &Present, verify: impl Fn(&SigKey) -> bool) -> (SigKey, Verdict) {
 /// it: through `bitcoin`'s own signer path, with the type the signature
 /// states in place of the one the input asks for.
 fn ecdsa_message(restored: &bitcoin::Psbt, index: usize, ty: EcdsaSighashType) -> Option<Message> {
+    spent_output(restored, index)?;
     let mut psbt = restored.clone();
     psbt.inputs[index].sighash_type = Some(ty.into());
     let tx = psbt.unsigned_tx.clone();
