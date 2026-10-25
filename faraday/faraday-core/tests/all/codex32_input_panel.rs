@@ -455,3 +455,65 @@ fn the_step_throughs_next_brings_the_die_it_rolls_into_view() {
         );
     }
 }
+
+#[test]
+fn the_pi_panels_six_face_pad_has_no_done_and_the_flows_continue_goes_on() {
+    let mut pi = on_shell(480, 640, 286, false, Way::Dice);
+    let done = Action::Codex32(C32::Key(OskPress::Done));
+    let next = Action::Codex32(C32::Next);
+    let key = |c: char| Action::Codex32(C32::Key(OskPress::Char(c)));
+    assert!(pi.hit_box(key('3')).is_some(), "the pad is up");
+    assert!(!pi.offers(done), "no Done on the pad");
+    while make(&pi).front().is_some() {
+        for f in "1111122222".chars() {
+            pi.press(key(f));
+        }
+    }
+    let _ = pi.frame();
+    assert!(pi.offers(next), "Continue once every character is in");
+    assert!(!pi.offers(done), "still no Done");
+    tap(&mut pi, next);
+    assert_eq!(make(&pi).open(), Some(Card::Sheets), "it goes on");
+}
+
+/// Rolls share A's last character away, which closes the dice sheet.
+fn close_dice_sheet(app: &mut Faraday) {
+    while make(app).front().is_some_and(|f| f.0 == 0) {
+        for f in [1, 1, 1, 1, 1, 2, 2, 2, 2, 2] {
+            c32(app, C32::Face(f));
+        }
+    }
+    let _ = app.frame();
+}
+
+#[test]
+fn a_roll_opens_a_closed_dice_sheet_over_several_frames_and_at_once_under_reduce_motion() {
+    for still in [false, true] {
+        let mut app = on_shell(1280, 2400, 160, false, Way::Dice);
+        app.press(Action::ReduceMotion(still));
+        close_dice_sheet(&mut app);
+        app.settle();
+        let shown = |app: &Faraday| make(app).dice_shown(app.now_ms(), still);
+        assert!(shown(&app) < 0.01, "closed to its head row");
+        c32(&mut app, C32::Face(4));
+        let mut seen = vec![shown(&app)];
+        for _ in 0..30 {
+            let _ = app.frame();
+            let now = app.now_ms() + 16;
+            app.event(Event::Tick { now_ms: now });
+            seen.push(shown(&app));
+        }
+        let _ = app.frame();
+        if still {
+            assert!(seen.iter().all(|s| *s > 0.99), "at once: {seen:?}");
+        } else {
+            let part = seen.iter().filter(|s| **s > 0.01 && **s < 0.99).count();
+            assert!(part >= 4, "grows over several frames: {seen:?}");
+            assert!(
+                seen.windows(2).all(|w| w[1] >= w[0]),
+                "only grows: {seen:?}"
+            );
+            assert!(seen.last().is_some_and(|s| *s > 0.99), "to full: {seen:?}");
+        }
+    }
+}

@@ -28,7 +28,7 @@ pub enum KeyboardKind {
     /// Printable ASCII with shift and a symbol layer.
     Passphrase,
     /// The dice pad: six large keys `1`–`6` in two rows and a backspace
-    /// spanning both rows.
+    /// spanning both rows; no ✓.
     Dice,
     /// The coin pad: `Heads`, `Tails` and a backspace in one row of tall
     /// keys. Heads is [`KeyInput::Char`]`('H')`, tails `'T'`.
@@ -646,18 +646,14 @@ pub fn keys(
                     });
                 }
             }
-            // The fourth column: backspace over ✓.
+            // The fourth column: backspace spanning both rows; the flow's
+            // Continue goes on, the pad has no ✓.
             let x0 = col_x(3);
             let w = (area.right() - x0).max(1);
             out.push(KeyCap {
-                rect: Rect::new(x0, row_y(0), w, row_h(0)),
+                rect: Rect::new(x0, row_y(0), w, (area.bottom() - row_y(0)).max(1)),
                 input: KeyInput::Backspace,
                 enabled: true,
-            });
-            out.push(KeyCap {
-                rect: Rect::new(x0, row_y(1), w, row_h(1)),
-                input: KeyInput::Done,
-                enabled: enabled & DONE_DISABLED == 0,
             });
         }
         KeyboardKind::Coin => {
@@ -1078,7 +1074,6 @@ mod tests {
             KeyboardKind::Pin,
             KeyboardKind::Hex,
             KeyboardKind::Passphrase,
-            KeyboardKind::Dice,
             KeyboardKind::Coin,
             KeyboardKind::Path,
             KeyboardKind::Kana,
@@ -1432,7 +1427,7 @@ mod tests {
     }
 
     #[test]
-    fn the_dice_and_coin_pads_carry_their_faces_and_a_dead_check() {
+    fn the_dice_pad_carries_its_faces_and_no_check_and_the_coin_pad_a_dead_one() {
         let area = Rect::new(0, 0, 400, 100);
         let caps = keys(
             KeyboardKind::Dice,
@@ -1442,31 +1437,11 @@ mod tests {
             None,
             Modifiers::default(),
         );
-        assert_eq!(caps.len(), 8);
+        assert_eq!(caps.len(), 7);
         for d in '1'..='6' {
             assert!(caps.iter().any(|k| k.input == KeyInput::Char(d)), "{d}");
         }
-        assert!(
-            caps.iter()
-                .find(|k| k.input == KeyInput::Done)
-                .unwrap()
-                .enabled
-        );
-        let caps_off = keys(
-            KeyboardKind::Dice,
-            area,
-            &ctx(SizeClass::Small),
-            DONE_DISABLED,
-            None,
-            Modifiers::default(),
-        );
-        assert!(
-            !caps_off
-                .iter()
-                .find(|k| k.input == KeyInput::Done)
-                .unwrap()
-                .enabled
-        );
+        assert!(caps.iter().all(|k| k.input != KeyInput::Done));
         let coin = keys(
             KeyboardKind::Coin,
             area,

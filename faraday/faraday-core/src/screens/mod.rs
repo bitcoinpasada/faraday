@@ -164,6 +164,7 @@ pub(crate) fn support_pane_room() -> f32 {
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn draw(app: &View, ui: &mut Ui) {
     let (full_w, full_h) = app.size();
+    ui.dice_shown = app.keygen_dice_shown();
     // A small panel's keyboard, when it is up, takes the foot of the
     // panel; everything else is laid out above it. The wide layout's,
     // when brought up from its button, takes the foot of the page area,
@@ -255,6 +256,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         );
         ui.oy = 0.0;
         ui.ox = 0.0;
+        top_actions_clear(app, ui, full_w);
         if let (Some(c), Some(p)) = (card.as_ref(), place) {
             demo_card::draw(app, ui, p, c, (SIDEBAR_W, room, h));
         }
@@ -426,6 +428,27 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     drop_edge(app, ui, (full_w, full_h), kb > 0.0);
     // The stick pills, pinned at the top over the page and any sheet.
     crate::stick::pills::draw(app, ui, full_w);
+}
+
+/// The top strip's actions' corner at the window's top right, filled
+/// with the surface over what the page drew there, so a page scrolls
+/// under the pills, the ? and the eye as under Material's top app bar;
+/// a press there reaches nothing under it. The one rule for every wide
+/// page.
+fn top_actions_clear(app: &View, ui: &mut Ui, full_w: f32) {
+    use faraday_draw::tokens as t;
+    let x = top_row_left(app, ui, full_w) - t::GAP;
+    let (w, h) = (full_w - x, t::SUPPORT_PANE_TOP);
+    let area = ui.rect(x, 0.0, w, h);
+    // What stands wholly in the corner is covered; a zone or a row that
+    // runs on past it stays.
+    ui.hits.retain(|(r, _)| {
+        !(r.x >= area.x
+            && r.y >= area.y
+            && r.right() <= area.right()
+            && r.bottom() <= area.bottom())
+    });
+    ui.fill(x, 0.0, w, h, t::SHAPE_NONE, Role::Surface);
 }
 
 /// A file dragged over Faraday Desktop's window: the page beside the

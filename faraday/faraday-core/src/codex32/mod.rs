@@ -522,6 +522,14 @@ pub struct Codex32Make {
     /// opened by each roll, closed by itself when a share's rolling is
     /// done, and by its head row's press either way.
     dice_open: bool,
+    /// The dice sheet opening or closing: where it showed (0 closed, 1
+    /// open) when it began, and the tick it began at, set by the first
+    /// tick after.
+    dice_move: Option<(f32, Option<u64>)>,
+    /// The height of the dice sheet's body as last drawn whole, the
+    /// room its reveal is clipped to while it moves. Written by drawing
+    /// as a measurement only; nothing decides from it.
+    dice_body_h: std::cell::Cell<f32>,
     made: Vec<Vec<Made>>,
     rolled: bool,
     typed: bool,
@@ -619,6 +627,8 @@ impl Codex32Make {
             pending: None,
             size_menu: None,
             dice_open: true,
+            dice_move: None,
+            dice_body_h: std::cell::Cell::new(0.0),
             made: Vec::new(),
             rolled: false,
             typed: false,
@@ -1141,10 +1151,69 @@ impl Codex32Make {
         let share = |f: Option<(usize, usize)>| f.map(|f| f.0);
         let now = self.front();
         if front.is_some() && share(now) != share(front) {
-            self.dice_open = false;
+            self.set_dice_open(false);
         } else if self.seq.len() > rolled || (now != front && now.is_some()) {
-            self.dice_open = true;
+            self.set_dice_open(true);
         }
+    }
+
+    /// Opens or closes the dice sheet; a change starts its glide from
+    /// where it stood. Cheap.
+    fn set_dice_open(&mut self, open: bool) {
+        if open != self.dice_open {
+            let from = if self.dice_open { 1.0 } else { 0.0 };
+            self.dice_open = open;
+            self.dice_move = Some((from, None));
+        }
+    }
+
+    /// How open the dice sheet shows at `now_ms`, 0 closed to 1 open:
+    /// Material's standard easing over medium 2; at once with `still`
+    /// (Reduce motion). A lookup.
+    pub fn dice_shown(&self, now_ms: u64, still: bool) -> f32 {
+        let to = if self.dice_open { 1.0 } else { 0.0 };
+        match self.dice_move {
+            // Begun, the first tick not yet in: still where it was.
+            Some((from, None)) if !still => from,
+            Some((from, at)) if !still => {
+                let t = crate::motion::progress(at, now_ms, crate::motion::DISCLOSE_MS);
+                from + (to - from) * crate::motion::ease_move(t)
+            }
+            _ => to,
+        }
+    }
+
+    /// One tick of the dice sheet's glide: starts it on its first tick
+    /// and ends it once its time is up. Returns whether it still moves,
+    /// so a frame is asked for. A lookup.
+    pub(crate) fn dice_tick(&mut self, now_ms: u64) -> bool {
+        match self.dice_move.as_mut() {
+            Some((_, at @ None)) => {
+                *at = Some(now_ms);
+                true
+            }
+            Some((_, Some(at))) if now_ms >= *at + crate::motion::DISCLOSE_MS + 16 => {
+                self.dice_move = None;
+                false
+            }
+            Some(_) => true,
+            None => false,
+        }
+    }
+
+    /// Ends the dice sheet's glide at once.
+    pub(crate) fn dice_settle(&mut self) {
+        self.dice_move = None;
+    }
+
+    /// The dice sheet's body height as last drawn whole, or 0. A lookup.
+    pub(crate) fn dice_body_h(&self) -> f32 {
+        self.dice_body_h.get()
+    }
+
+    /// Notes the dice sheet's body height as drawn whole.
+    pub(crate) fn note_dice_body_h(&self, h: f32) {
+        self.dice_body_h.set(h);
     }
 
     /// Whether the dice sheet is open under its head row. A lookup.
@@ -1494,7 +1563,7 @@ impl Codex32Make {
                     self.way = w;
                 }
             }
-            C32::DiceSheet => self.dice_open = !self.dice_open,
+            C32::DiceSheet => self.set_dice_open(!self.dice_open),
             C32::SizeMenu => {
                 let at = DIE_SIZES.iter().position(|&n| n == self.dice_choice.faces);
                 self.size_menu = match self.size_menu {

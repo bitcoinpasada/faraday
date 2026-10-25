@@ -886,10 +886,6 @@ pub const INPUT_PAD_LABEL_W: f32 = 72.0;
 /// The room Continue keeps at the end of the input panel's row once
 /// every character is in.
 pub const INPUT_CONTINUE_W: f32 = 160.0;
-/// The top strip's actions at the window's top right (the mode pill,
-/// the ?, the eye): the room a page whose wide content runs to the right
-/// margin keeps clear under them, `SUPPORT_PANE_TOP` tall.
-pub const TOP_ACTIONS_W: f32 = 200.0;
 /// The fewest keys a row of the pad beside the rolls holds; narrower,
 /// the pad stands under them.
 pub const PAD_KEYS_BESIDE_MIN: f32 = 5.0;

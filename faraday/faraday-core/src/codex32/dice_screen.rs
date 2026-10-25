@@ -307,10 +307,37 @@ pub(super) fn dice_sheet(
     rows_only: bool,
     rolls: bool,
 ) -> f32 {
-    let mut cy = y + head_row(m, ui, (x, y, w.min(t::COLUMN_MAX)));
-    if !m.dice_sheet_open() {
-        return cy - y;
+    let head = head_row(m, ui, (x, y, w.min(t::COLUMN_MAX)));
+    let shown = ui.dice_shown.clamp(0.0, 1.0);
+    if shown >= 1.0 {
+        let whole = dice_body(m, ui, (x, y + head, w), rows_only, rolls);
+        m.note_dice_body_h(whole);
+        return head + whole;
     }
+    if shown <= 0.0 {
+        return head;
+    }
+    // Opening or closing: the body drawn whole and revealed from the top
+    // through a clip of the height it has reached.
+    let room = shown * m.dice_body_h();
+    let clip = ui.rect(x - t::GAP, y + head, w + 2.0 * t::GAP, room);
+    ui.c.push_clip(clip);
+    let whole = dice_body(m, ui, (x, y + head, w), rows_only, rolls);
+    ui.c.pop_clip();
+    m.note_dice_body_h(whole);
+    head + shown * whole
+}
+
+/// The dice sheet's body under its head row, drawn whole at `(x, y)`;
+/// returns its height.
+fn dice_body(
+    m: &Codex32Make,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    rows_only: bool,
+    rolls: bool,
+) -> f32 {
+    let mut cy = y;
     if rows_only {
         if rolls {
             cy += dice_rows(m, ui, x, cy, w, false);

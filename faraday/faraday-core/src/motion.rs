@@ -978,6 +978,7 @@ impl Faraday {
         if let Some(p) = self.worksheet_pan_mut() {
             p.settle();
         }
+        self.keygen.dice_settle();
     }
 
     /// The person moves the worksheet that scrolls now: the view's

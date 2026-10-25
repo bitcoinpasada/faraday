@@ -1024,6 +1024,11 @@ impl KeyGen {
 }
 
 impl crate::Faraday {
+    /// How open the codex32 dice sheet shows now, 0 to 1. A lookup.
+    pub(crate) fn keygen_dice_shown(&self) -> f32 {
+        self.keygen.dice_shown(self.now_ms, self.reduce_motion())
+    }
+
     /// The flow being made, while it is open.
     pub fn keygen(&self) -> Option<&KeyGen> {
         self.keygen.state()

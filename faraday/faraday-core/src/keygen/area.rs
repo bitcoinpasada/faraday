@@ -26,6 +26,31 @@ impl KeyGenArea {
         self.state.as_ref()
     }
 
+    /// How open the codex32 dice sheet shows, 0 to 1 (1 where there is
+    /// none). A lookup.
+    pub(crate) fn dice_shown(&self, now_ms: u64, still: bool) -> f32 {
+        self.state
+            .as_ref()
+            .and_then(|k| k.codex32.as_ref())
+            .map_or(1.0, |m| m.dice_shown(now_ms, still))
+    }
+
+    /// One tick of the codex32 dice sheet's glide, if the flow has one;
+    /// whether it still moves. A lookup.
+    pub(crate) fn dice_tick(&mut self, now_ms: u64) -> bool {
+        self.state
+            .as_mut()
+            .and_then(|k| k.codex32.as_mut())
+            .is_some_and(|m| m.dice_tick(now_ms))
+    }
+
+    /// Ends the codex32 dice sheet's glide at once, if there is one.
+    pub(crate) fn dice_settle(&mut self) {
+        if let Some(m) = self.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+            m.dice_settle();
+        }
+    }
+
     /// Forgets the flow, with everything in it.
     pub(crate) fn forget(&mut self) {
         self.state = None;

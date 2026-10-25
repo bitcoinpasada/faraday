@@ -535,10 +535,14 @@ no test drags the view away first (§19). Two things are new:
   view pans sideways its overlay scrollbar runs along the view's foot
   as well as down its right edge, as Material's horizontal scrollbar
   does, and fades with it.
-- **The top strip's actions keep a surface.** Where the sheets run to
-  the right margin, the mode pill, the ? and the eye keep the surface
-  under them, `TOP_ACTIONS_W` across, so the page scrolls under them as
-  under Material's top app bar.
+- **The top strip's actions keep a surface.** On every wide page the
+  mode pill, the ? and the eye keep the surface under them, from the
+  left of the row to the window's edge and `SUPPORT_PANE_TOP` down
+  (`screens::top_actions_clear`, one rule for every page), so a page
+  scrolls under them as under Material's top app bar.
+- **The dice sheet glides.** Its head row's chevron, a roll and a
+  share's last roll open and close it by a reveal of its height over
+  `MOTION_MEDIUM2` on the standard easing, at once under Reduce motion.
 - **One cell size.** `Codex32Make::follow_front` places by
   `Geom::of(class)`; it takes the fitted cell (§16.1), so the follow
   and the drawing agree.

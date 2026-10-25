@@ -7363,7 +7363,7 @@ impl App for Faraday {
                     self.pointer.set_scroll_at(None);
                     self.scroll.release(self.f);
                 }
-                let tip = self.pointer.tip_tick(now_ms);
+                let tip = self.pointer.tip_tick(now_ms) | self.keygen.dice_tick(now_ms);
                 if self.motion_tick(now_ms) || fading || tip {
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
