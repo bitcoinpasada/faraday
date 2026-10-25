@@ -445,7 +445,7 @@ writing it back is safe and optional.)*
 
 ## 5. Building it
 
-Moved to `docs/history/FAMILY-LOG.md`.
+Moved to `docs/history/SPEND-FROM-BACKUP-LOG.md`.
 
 ## 6. As built, beyond the proposal
 

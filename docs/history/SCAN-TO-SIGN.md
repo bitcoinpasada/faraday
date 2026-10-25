@@ -5,7 +5,7 @@
 
 Built 2026-10-11: batch A `ceb06e4`, batch B in the commit after it; spec v0.1 · decided by the owner
 (`docs/DECISIONS.md` F8, HANDOFF item 67). Where the build and this file
-differ once built, `docs/FLOWS.md`, `docs/FAMILY.md` and the code are the
+differ once built, `docs/FLOWS.md`, `docs/SPEND-FROM-BACKUP.md` and the code are the
 record.
 
 The owner tried the demo's backup start (Seed A loaded from the vault,
@@ -23,7 +23,7 @@ to GPG's Sign a file.
 
 - `CLAUDE.md` applies in full: every build and test on the build machine; every dimension a token; labels, not
   prose, on working screens (the Spend tab's lead and More text are the
-  tab's own, `docs/FAMILY.md` §1 rule 6); tests for user-facing
+  tab's own, `docs/SPEND-FROM-BACKUP.md` §1 rule 6); tests for user-facing
   behaviour only; `just` once at the end of a batch; no `rm`; no
   commits; no agents.
 - Two batches, in order. **Batch A:** §1, §2, §3, §6. **Batch B:** §4,
@@ -320,7 +320,7 @@ kept in `FamilyState`: `everything: bool` (That's everything) and
 | What came in | The question |
 |---|---|
 | Nothing | none |
-| A description (whole or rebuilt) | none: the wallet opens and the column goes on to Check. Seeds that came in already are taken into its slots; one that matches no slot shows `Seed {fp} is not one of {wallet}'s keys` with **Add its passphrase** (the passphrase sheet on that seed). The other seeds are asked for on Who signs, after the transaction is read (`docs/FAMILY.md` rule 4). |
+| A description (whole or rebuilt) | none: the wallet opens and the column goes on to Check. Seeds that came in already are taken into its slots; one that matches no slot shows `Seed {fp} is not one of {wallet}'s keys` with **Add its passphrase** (the passphrase sheet on that seed). The other seeds are asked for on Who signs, after the transaction is read (`docs/SPEND-FROM-BACKUP.md` rule 4). |
 | One seed, nothing else | **Anything else in the envelope?** Hint: "Another list of words, another QR code, a line starting wsh( or tr(, or a word kept apart from the list." Buttons: **Scan more**, **Type more words**, **That's everything**. That's everything opens the single-key wallet as native SegWit (`family_words_kind`) and §5 applies. |
 | Two seeds or more, no description, not `no_description` | **These seeds are one wallet with several keys.** Hint: "Its description says how they fit together: a QR code labelled wallet, descriptor, setup or multisig; a long line starting wsh( or tr(; or sheets with lines like 73C5DA0A: xpub…". Buttons: **Scan the description** (the intake scanner, that hint on its sheet), **I can't find one**. |
 | Two seeds or more, `no_description` | The seeds' shape as now (`seeds::screen::shape`): M of N on the sliders, a box per missing key, the kind (native SegWit multisig first), the path. While N exceeds the seeds here, the line `Without the description Faraday needs all {n} keys: their seeds or xpubs`, and the boxes take scans (§4.2) or typing. **Make the wallet** builds it once every key is in, as now; §5's guess applies to its kind. |
@@ -335,7 +335,7 @@ names one of its kinds (`family_use_psbt` keeps trying the kinds).
 The vault route's list and Load, the stick visit, Rebuild, the seeds
 shape, Restore's pieces and the passphrase sheet are reused as they
 are. A wallet card's **Spend from this wallet** skips the intake as now
-(`docs/FAMILY.md` §7). The Loaded overview (`family_overview`) is
+(`docs/SPEND-FROM-BACKUP.md` §7). The Loaded overview (`family_overview`) is
 unchanged.
 
 Tests (`tests/all/family.rs`, rewritten where it pressed the answers):
@@ -434,7 +434,7 @@ it; the page stays open and the signed rows show Signed.
   Tour: the wallet card short (Scan a key) and after a scan (Can spend),
   the key scanner sheet, Sign a file with two ticked; at 1280x800 and
   240x320.
-- Batch B: `docs/FAMILY.md` §3 (the table), §4 pages 3 and 4 (replaced
+- Batch B: `docs/SPEND-FROM-BACKUP.md` §3 (the table), §4 pages 3 and 4 (replaced
   by the intake), §4 page 5 (the guessed Check), §6; `docs/FLOWS.md`'s
   Spend tab. Tour: the intake empty, after one seed (Anything else),
   after two (the description question), the guessed Check after No

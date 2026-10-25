@@ -23,7 +23,7 @@ need. Each document's header says what kind it is:
 | Why is something the way it is? | `docs/DECISIONS.md`, the index; then the one decision, `docs/decisions/F<n>.md` |
 | How does a person use Faraday, step by step, with the screens? | `docs/GUIDE.md` |
 | What does a screen look like, and what is it made of? | `docs/DESIGN.md`; the Starter's screens, `docs/STARTER.md` §3 |
-| What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/FAMILY.md` |
+| What happens, step by step, in a flow? | `docs/FLOWS.md`; backups, `docs/BACKUP-FLOW.md`; spending, `docs/SPEND-FROM-BACKUP.md` |
 | How are codex32 shares made, checked by hand and repaired? | `docs/CODEX32.md` |
 | How will a lost GPG key be restored from its paperkey? | `docs/GPG-PAPERKEY.md` |
 | How is a vault stored? | `docs/VAULT.md` |
@@ -65,12 +65,12 @@ need. Each document's header says what kind it is:
 - `docs/COMPUTE.md`: Compute: costly work takes a token. Built (F69).
 - `docs/DEMO.md`: The demo, and Faraday Desktop for developers. Built (F30, F61).
 - `docs/DESIGN.md`: Design system. Built.
-- `docs/FAMILY.md`: The Spend tab. Built.
 - `docs/KDBX.md`: KDBX 4: the encrypted file Faraday writes for others. Built.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
 - `docs/PREVIEW-SIZE.md`: Preview size: Faraday Desktop at another screen's size. Built (decision drafted).
 - `docs/README.md`: Faraday's documents. Built.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
+- `docs/SPEND-FROM-BACKUP.md`: The Spend tab. Built.
 - `docs/STANDARDS.md`: Standards: what Faraday follows, how fully, and where it decides. Built.
 - `docs/THEMES.md`: Themes on Material 3's colour system. Built (F113); the website, the guide's pictures and the README's screenshots are not yet redrawn in the new colours.
 - `docs/TOTP.md`: TOTP codes and the time. Built.
@@ -105,6 +105,6 @@ need. Each document's header says what kind it is:
 
 - `docs/DECISIONS.md`: Decisions. Kept as written.
 
-**History** (`docs/history/`): `APK-SIGNING.md`, `APK-SIGNING-LOG.md`, `AUDIT-LOG.md`, `AUDIT-SUBMISSIONS-LOG.md`, `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `COMPUTE-LOG.md`, `CROSSCHECK-LOG.md`, `DEMO-LOG.md`, `DESIGN-LOG.md`, `FAMILY-LOG.md`, `FLOWS-LOG.md`, `HANDOFF.md`, `INTEROP-LOG.md`, `KEYS-LOG.md`, `LARGE-FILES-LOG.md`, `MAC-LOG.md`, `MOTION-LOG.md`, `NEW-WALLET.md`, `NOSTR-LOG.md`, `PLAN.md`, `QR-LOG.md`, `SCAN-TO-SIGN.md`, `SIMPLIFY.md`, `SPEED-LOG.md`, `STARTER-LOG.md`, `STRUCTURE-PASS-LOG.md`, `THEMES-LOG.md`, `TOTP-LOG.md`, `VAULT-LOG.md`, `WALLETS-LOG.md`; `decisions/` holds the decisions replaced, superseded or withdrawn.
+**History** (`docs/history/`): `APK-SIGNING.md`, `APK-SIGNING-LOG.md`, `AUDIT-LOG.md`, `AUDIT-SUBMISSIONS-LOG.md`, `BACKUP-FLOW-LOG.md`, `BITLOCKER-ACCEPTANCE.md`, `COMPUTE-LOG.md`, `CROSSCHECK-LOG.md`, `DEMO-LOG.md`, `DESIGN-LOG.md`, `FLOWS-LOG.md`, `HANDOFF.md`, `INTEROP-LOG.md`, `KEYS-LOG.md`, `LARGE-FILES-LOG.md`, `MAC-LOG.md`, `MOTION-LOG.md`, `NEW-WALLET.md`, `NOSTR-LOG.md`, `PLAN.md`, `QR-LOG.md`, `SCAN-TO-SIGN.md`, `SIMPLIFY.md`, `SPEED-LOG.md`, `SPEND-FROM-BACKUP-LOG.md`, `STARTER-LOG.md`, `STRUCTURE-PASS-LOG.md`, `THEMES-LOG.md`, `TOTP-LOG.md`, `VAULT-LOG.md`, `WALLETS-LOG.md`; `decisions/` holds the decisions replaced, superseded or withdrawn.
 
 **Elsewhere:** `docs/decisions/` holds one file per decision, `docs/learn/` the Learn pages, `docs/deps/` a page per dependency, `docs/screenshots/` the README's pictures, `docs/guide/` the user guide's.

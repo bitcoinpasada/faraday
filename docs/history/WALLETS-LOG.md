@@ -30,7 +30,7 @@ What changes is wording, order and what is folded away:
 
 ## §6 Guided mode: its last paragraph as written
 
-This is the **Spend** tab (`docs/FAMILY.md`, built
+This is the **Spend** tab (`docs/SPEND-FROM-BACKUP.md`, built
 2026-10-06): one column from what is in the envelope to a sent
 transaction, through the vault's unlock and load, on the same session and
 spend as the Wallets tab.

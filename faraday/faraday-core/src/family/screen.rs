@@ -1,5 +1,5 @@
 //! The Spend tab, drawn: one step-card column (`flow.rs`) of the tab's
-//! pages and the spend's own steps (`docs/FAMILY.md`). Each card's lead
+//! pages and the spend's own steps (`docs/SPEND-FROM-BACKUP.md`). Each card's lead
 //! is always shown; its More about this is folded.
 
 use crate::strings::EN;

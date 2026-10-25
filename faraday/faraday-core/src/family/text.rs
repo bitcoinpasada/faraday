@@ -1,4 +1,4 @@
-//! The Spend tab's words (`docs/FAMILY.md` §4): the offline system is
+//! The Spend tab's words (`docs/SPEND-FROM-BACKUP.md` §4): the offline system is
 //! Faraday itself, the wallet usually comes from a vault, and a stick is
 //! read only after a lock. Each card has a lead, always shown, and a
 //! longer More about this.

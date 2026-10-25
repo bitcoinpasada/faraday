@@ -693,7 +693,7 @@ once. While a spend of this wallet is under way it reads **Carry on the
 spend · Signatures 1 of 2** and resumes where it was; Home's lead says
 the same (SIMPLIFY §1.2 rule 1).
 
-It opens the Spend flow (`Screen::Family`, `docs/FAMILY.md`) on this
+It opens the Spend flow (`Screen::Family`, `docs/SPEND-FROM-BACKUP.md`) on this
 wallet, past **What do you have?** (changed by SCAN-TO-SIGN §4: it was
 **What are you holding?** and **Open the wallet**), on the first page
 the wallet still needs:
@@ -738,7 +738,7 @@ with one key here reaches Signers with Scan a key and Collect a
 signature (*changed by SCAN-TO-SIGN §3*); leaving and coming back
 resumes the spend.
 
-**Docs.** `docs/FAMILY.md`, `docs/FLOWS.md` (Session, Wallets tab,
+**Docs.** `docs/SPEND-FROM-BACKUP.md`, `docs/FLOWS.md` (Session, Wallets tab,
 Spend tab), `docs/WALLETS.md`.
 
 ## 12. Restore a wallet: what it is, then its description or its seeds
@@ -753,7 +753,7 @@ It opens today on **A transaction to sign**, which belongs to spending
 Restore (`Screen::Restore`, `RSTEPS`) becomes: **Kind · Quorum ·
 Description · Seeds · Check · Done**, opening on Kind (decision 3's
 rule). The transaction card goes; a spend from a backup is the Spend
-tab's (§11 and `docs/FAMILY.md`), whose routes keep working.
+tab's (§11 and `docs/SPEND-FROM-BACKUP.md`), whose routes keep working.
 
 1. **Kind**: Single key · native SegWit (ticked), Multisig · native
    SegWit, and **More kinds** for the other eight, as Create's Kind
@@ -800,7 +800,7 @@ fills the quorum and then rejects a seed that is not one of its keys and
 a right seed with the wrong passphrase; a 2-of-3 with two seeds and a
 cosigner's xpub is made; Done offers Back up and Spend from this wallet.
 
-**Docs.** `docs/FLOWS.md`, `docs/WALLETS.md`, `docs/FAMILY.md` (if a
+**Docs.** `docs/FLOWS.md`, `docs/WALLETS.md`, `docs/SPEND-FROM-BACKUP.md` (if a
 route went through the transaction card).
 
 ### 12.3 After the wallet is restored (owner, 2026-10-16)

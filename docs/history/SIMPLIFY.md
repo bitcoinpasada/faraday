@@ -39,7 +39,7 @@ every flow with its kind preset, so the everyday surfaces can be quiet.
   per change to a flow; `docs/DESIGN.md` §4 or §5 per change to a
   rendering rule; `docs/WALLETS.md` §5 for Create and Backup;
   `docs/VAULT.md` for anything about a vault's file or state;
-  `docs/FAMILY.md` for the Spend tab; `README.md` "Screens" if a
+  `docs/SPEND-FROM-BACKUP.md` for the Spend tab; `README.md` "Screens" if a
   screenshot no longer matches.
 - Render to look: `just faraday-snap 1280x800` and the same for `480x640`. The tour in
   `faraday/shells/snapshot/src/main.rs` drives every flow; where a step
@@ -696,7 +696,7 @@ the left; a first start is on Guided.
 **Tests.** `tests/all/settings_file.rs`: a fresh app is Guided; one whose
 settings file says `guided=0` is Steps only.
 
-**Docs.** `docs/WALLETS.md` §6, `docs/FAMILY.md` §2.
+**Docs.** `docs/WALLETS.md` §6, `docs/SPEND-FROM-BACKUP.md` §2.
 
 ### 6.2 Spend is the step-by-step face, not a second tab
 
@@ -715,7 +715,7 @@ kept across a lock is unchanged.
 empty state and from Learn; `tests/all/sidebar.rs`: the sidebar has no
 Spend row.
 
-**Docs.** `docs/FAMILY.md` §2 "Where it sits", `docs/FLOWS.md` Spend
+**Docs.** `docs/SPEND-FROM-BACKUP.md` §2 "Where it sits", `docs/FLOWS.md` Spend
 tab.
 
 ## 7. Order and gates

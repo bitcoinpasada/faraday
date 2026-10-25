@@ -335,7 +335,7 @@ pub enum Screen {
     VaultContents,
     /// TOTP codes for the entries in open vaults (`docs/TOTP.md` §5).
     Codes,
-    /// The Spend tab (`docs/FAMILY.md`).
+    /// The Spend tab (`docs/SPEND-FROM-BACKUP.md`).
     Family,
     /// A vanity address for a loaded key.
     Vanity,

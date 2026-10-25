@@ -1,5 +1,5 @@
 //! A wallet made from the seeds in hand (`docs/WALLETS.md` §2,
-//! `docs/FAMILY.md` §4): for someone whose backup is seed words on paper,
+//! `docs/SPEND-FROM-BACKUP.md` §4): for someone whose backup is seed words on paper,
 //! perhaps several lists and a line like "2 of 3", with no descriptor.
 //! Restore's seeds-first route and the Spend tab's words route share it.
 //!

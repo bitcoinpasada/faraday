@@ -1392,8 +1392,8 @@ payment in Sparrow** (the PSBT by camera or stick), with **I have the
 PSBT from Sparrow ready: Scan it** over the first page. The tab's own
 screen and steps below are unchanged.
 
-Family mode for someone spending for the first time
-(`docs/FAMILY.md`): the map → **What do you have?**, headed by what
+The Spend tab for someone spending for the first time
+(`docs/SPEND-FROM-BACKUP.md`): the map → **What do you have?**, headed by what
 starting from the stick means until something comes in (F103)
 (`docs/history/SCAN-TO-SIGN.md` §4, 2026-10-11: a vault in Files with its
 Unlock and list, **Scan the QR codes you have**, **Type the words you

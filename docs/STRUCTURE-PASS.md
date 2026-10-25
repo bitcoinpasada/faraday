@@ -205,7 +205,7 @@ this pass came from, is on the board.
   Create, Restore and Seeds, Wallets' `spend_mut`, `renaming_mut` and
   `card_offset_mut`, `VisitArea`'s `DerefMut` to `VisitState`, Glance's
   `work_mut`, Inbox's `potential_mut` and `skip_mut`, `files_menu_mut`,
-  `vault_from_mut`, Family's `seeds_mut` and `scroll_y_mut`, the wallet
+  `vault_from_mut`, the Spend tab's `seeds_mut` and `scroll_y_mut`, the wallet
   backup checklist's `board_mut`, `check_mut` and `scroll_y_mut`, the
   vault's `item_offset_mut`, `create_scroll_y_mut` and `text_box`, and
   the backup flow's `board_mut`, `scroll_y_mut` and

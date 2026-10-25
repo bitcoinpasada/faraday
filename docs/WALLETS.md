@@ -589,7 +589,7 @@ opens Backups on that wallet.
 The same steps and the same engine serve someone inheriting bitcoin, so
 the same paper gives the same addresses and byte-identical signatures,
 and every warning is word for word the same, from the same function.
-That path is the **Spend** tab (`docs/FAMILY.md`): its first question is
+That path is the **Spend** tab (`docs/SPEND-FROM-BACKUP.md`): its first question is
 *What do you have?*, and its order, wording and folds are written there.
 
 A switch beside each flow's title chooses **Steps only** or **Guided** (called Full until 2026-10-06); a wallet in

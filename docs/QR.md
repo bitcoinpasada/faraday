@@ -246,7 +246,7 @@ rule's reach is written down):
 
 | # | Screen | Value | Public or secret | Today | Decided | Why |
 |---|---|---|---|---|---|---|
-| 1 | Wallets: the wallet card's first receive address (wide and small panel); the first addresses of Create's Check, Restore's Check and the chart sheet's wallet; the Spend tab's family pages (**Receive address 0** and **Check the money**); Vanity address's result | A receive address | Public | No | **Show as QR**, no PNG | A payer's phone or online wallet takes the address from the screen that derived it. No PNG: a picture kept invites reuse; the silent payments address is the one meant for giving out many times, and it has one |
+| 1 | Wallets: the wallet card's first receive address (wide and small panel); the first addresses of Create's Check, Restore's Check and the chart sheet's wallet; the Spend tab's pages (**Receive address 0** and **Check the money**); Vanity address's result | A receive address | Public | No | **Show as QR**, no PNG | A payer's phone or online wallet takes the address from the screen that derived it. No PNG: a picture kept invites reuse; the silent payments address is the one meant for giving out many times, and it has one |
 | 2 | Explore | The extended key at the path | Public | No | **Show as QR**, no PNG | Another wallet reads an xpub at a path to watch or compare |
 | 3 | Explore | The address and the public key at the path | Public | No | **Show as QR**, no PNG | Compared with another wallet's at the same path by scanning |
 | 4 | Lightning node key | Node id | Public | No | **Show as QR** and **PNG** | A peer or a Lightning wallet takes a node id by scanning, and it is given out more than once |
@@ -409,7 +409,7 @@ One batch, one review, one completion report.
   `read_png`), the TOTP code in `faraday/faraday-core/tests/all/totp.rs`:
   - each new code reads back as exactly the value its screen shows: a
     wallet's receive 0 and 1 from the card, Create's and Restore's
-    Check, the family pages; Vanity's found address; Explore's address,
+    Check, the Spend tab's pages; Vanity's found address; Explore's address,
     public key and extended key at a chosen path; the node id; a
     recovery sheet's descriptor; an entry's TOTP URI;
   - on Faraday Desktop's mainnet demo, a receive code reads back as the

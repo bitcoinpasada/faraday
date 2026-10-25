@@ -111,7 +111,7 @@ payment outputs is left, which waits on upstream (BIP-375).
 | `docs/MOTION.md` | Smooth scrolling (glide, momentum, rubber band), hover, motion, shadows, frosted sheets, light mode and reduce motion: decisions, measurements, design, what was built (item 49). |
 | the upstream-parity plan | Every upstream crate and app feature, whether Faraday has it, and the plan for the rest. |
 | `docs/AUDIT.md` | Every crate that computes cryptography, what is written here versus taken from a crate, and what each is checked against. |
-| `docs/FAMILY.md` | The Spend tab: family mode through Faraday's vault, page by page, with its text. |
+| `docs/SPEND-FROM-BACKUP.md` | The Spend tab: family mode through Faraday's vault, page by page, with its text. |
 | `docs/WALLETS.md` | The Wallets tab: flows on upstream's `osk-*` crates, wallet reassembly, shared steps, per-scheme flows, staying downstream. |
 | `design/prototype/project/` | Source of the interface prototype (a Design canvas artifact, `canvas.json` plus one `.dc.html` per screen). Published at https://claude.ai/artifact/Qnw1jLVVWjBzKDNofgjRES (private to the owner). |
 | `faraday/faraday-core/examples/wallet_2of3_demo.rs` | Derives the 2-of-3 the Wallets screens show (the dummy seeds bacon, zebra, summer) and the unsigned spend's txid, with osk-bip. |
@@ -798,7 +798,7 @@ as possible before the next build.
       an already-empty session is visually a no-op, which is what read as
       "nothing happens". Not actioned: a "Locked" confirmation toast on
       the fresh session, offered but not yet asked for.
-37. [x] 2026-10-06: the **Spend tab** (`docs/FAMILY.md`): family
+37. [x] 2026-10-06: the **Spend tab** (`docs/SPEND-FROM-BACKUP.md`): family
     mode as a tab of its own, through Faraday's vault unlock and load.
     Owner's answers: the tab is called Spend; page 6 keeps the short
     Sparrow lines; the desktop app is for testing and keeps every
@@ -1790,7 +1790,7 @@ as possible before the next build.
        FROST and MuSig are not offered here (a dealt FROST share has no
        seed account; MuSig needs every key's Taproot account and is in
        Create). Tests in `tests/seeds_first.rs`; docs: WALLETS.md §2,
-       FAMILY.md §3, §4, FLOWS.md; `guide::restore`, the Spend tab's
+       SPEND-FROM-BACKUP.md §3, §4, FLOWS.md; `guide::restore`, the Spend tab's
        words text. Both tours end with the seeds steps.
 
 66. [x] 2026-10-11, owner: **TOTP codes and the time**, specified in

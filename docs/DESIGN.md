@@ -433,7 +433,7 @@ that page is about.
 
 | Kind | Rendering |
 |---|---|
-| Progress | A count "2 of 5": the Spend tab's signatures, New key's entries. Where work has a count, Material's determinate linear indicator, `PROGRESS_H` tall, its track filled by the share done (`Ui::progress` with `done`): a scan's parts, Family's ways tried ("Trying … 2 of 5"), Explore's Find, zeroing a stick, the Starter's write and read-back. A TOTP code's row has a bar under it for the time left in its period, the seconds at its end. Long work with no count shows Material's indeterminate linear indicator, a bar crossing its track, still under reduce motion; work that holds the frame until it is done (a vault's unlock, creation and sealing, an unlock from the boot import and Family, Upgrade's write) shows it still, along the foot of the line that says what the work is (`working_bar`). |
+| Progress | A count "2 of 5": the Spend tab's signatures, New key's entries. Where work has a count, Material's determinate linear indicator, `PROGRESS_H` tall, its track filled by the share done (`Ui::progress` with `done`): a scan's parts, the Spend tab's ways tried ("Trying … 2 of 5"), Explore's Find, zeroing a stick, the Starter's write and read-back. A TOTP code's row has a bar under it for the time left in its period, the seconds at its end. Long work with no count shows Material's indeterminate linear indicator, a bar crossing its track, still under reduce motion; work that holds the frame until it is done (a vault's unlock, creation and sealing, an unlock from the boot import and the Spend tab, Upgrade's write) shows it still, along the foot of the line that says what the work is (`working_bar`). |
 | Default | A step card (in Faraday a flat section of its flow: no fill and no box, divided from the next by a rule in `LINE`, its number, title and value on its row, `docs/DECISIONS.md` F39) whose value has a default is closed at entry, showing its value and a **Change** text button at the card's right in place of the chevron that opens it. The flow opens on the first card with no default; opening a closed card does not reset the cards after it. A card that asks one thing closes on the choice and opens the next (F103); Back opens the card before the open one, its choices as they were, Forward the card Back left, and the first card's Back leaves the flow (F104). On a small panel the same: the paged flow starts on the first open card, and that page carries at its head one row per earlier card closed on its default, "{title} · {value}" with **Change**, which opens it. Tapping the page's title (the card's name alone, "Kind", with "Step 1 of 8" beside it in the muted caption type) closes the card and shows the list of steps, from which any card opens; no step indicator is drawn. Create a wallet and New key are the exception: each opens on its first card — Kind, Length — whatever opened it, even with a default already ticked; a card still closed on its default shows its value and **Change** the same way once Continue has passed it (`docs/history/NEW-WALLET.md` §2.1). |
 | Empty state | A line and the buttons that start the flow: Wallets with no wallet loaded, "No wallet is loaded" and its ways in (Make a new wallet, Restore an existing wallet, Spend from a backup, Add a key); TOTP codes with no entry, "No entries with a TOTP secret" and Scan a setup code. |
 | Locked | The sheet after the idle lock (`locked_sheet`): "Locked", that every key and vault was wiped, what waits for the stick, and Continue. The idle warning before it counts down (`idle_warn_sheet`). |
@@ -596,7 +596,7 @@ with no area. Each is drawn in one of three ways:
   it closes it where closing loses nothing.
 
 What each flow does, step by step, is `docs/FLOWS.md`; the Wallets tab
-is `docs/WALLETS.md` and the Spend tab `docs/FAMILY.md`.
+is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 
 | `Screen` | What it holds | Drawn as |
 |---|---|---|
@@ -604,7 +604,7 @@ is `docs/WALLETS.md` and the Spend tab `docs/FAMILY.md`.
 | `WalletsStart` | The Wallets tab's first page: the wallets loaded, the keys without a wallet, and every way in by what the person has. | Page |
 | `Wallets` | The wallets as a list and the chosen wallet's card: its name and shape, the backup line, the signatures possible here, **At a glance** (§4.16), the first receive address and the card's actions (`docs/WALLETS.md`). | Page |
 | `Spend` | Signing a transaction: the review (what it sends, to whom, the fee, change, the txid, warnings), the signers, **Sign with** (§4.4), and the signed PSBT and finished transaction. | Step flow |
-| `Family` | The Spend tab: spending from a backup, step by step (`docs/FAMILY.md`). | Step flow |
+| `Family` | The Spend tab: spending from a backup, step by step (`docs/SPEND-FROM-BACKUP.md`). | Step flow |
 | `Files` | The Inbox and the Outbox: a row per file with its kind, size and ⋮, and what each file can do (Sign, Decode, Load the wallet, Unlock, Import into the vault). | Page |
 | `Visit` | A stick visit: what is on the stick, ticked to bring in, and what goes out to it. | Page |
 | `Entry` | Add a key: a seed typed or scanned (§4.3). | Page |

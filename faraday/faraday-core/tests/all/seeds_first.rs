@@ -1,5 +1,5 @@
 //! A wallet made from seed words alone (`docs/WALLETS.md` §2,
-//! `docs/FAMILY.md` §4): someone whose backup is lists of words and a
+//! `docs/SPEND-FROM-BACKUP.md` §4): someone whose backup is lists of words and a
 //! line like "2 of 3" types each seed, chooses M of N, the kind and the
 //! path, and gets the wallet the seeds were part of, on Restore and on
 //! the Spend tab, with the same descriptor and first address as the test

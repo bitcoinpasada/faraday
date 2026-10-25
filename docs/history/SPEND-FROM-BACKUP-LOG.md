@@ -3,10 +3,10 @@
 **Kind:** History
 **Status:** Kept as written
 
-Sections moved out of `docs/FAMILY.md` on 2026-10-22. Each keeps its
+Sections moved out of `docs/SPEND-FROM-BACKUP.md` on 2026-10-22. Each keeps its
 original number; the source keeps a one-line stub under the same heading.
 
-## Header (from docs/FAMILY.md)
+## Header (from docs/SPEND-FROM-BACKUP.md)
 
 V0.3 · 2026-10-11 (page 3 and the guessed Check,
 `docs/history/SCAN-TO-SIGN.md` §4 and §5) · built: `faraday-core/src/family/mod.rs`
@@ -15,7 +15,7 @@ V0.3 · 2026-10-11 (page 3 and the guessed Check,
 (`cargo run -p faraday-snapshot -- 1366x768 out/testkit OUT spend`).
 The code names it `family`; the tab is labelled **Spend**.
 
-## §5 Building it (from docs/FAMILY.md)
+## §5 Building it (from docs/SPEND-FROM-BACKUP.md)
 
 | Part | Where |
 |---|---|

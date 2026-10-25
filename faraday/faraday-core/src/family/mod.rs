@@ -1,4 +1,4 @@
-//! The Spend tab (`docs/FAMILY.md`): one column that
+//! The Spend tab (`docs/SPEND-FROM-BACKUP.md`): one column that
 //! takes someone from what is in the envelope to a sent transaction.
 //!
 //! It is a wording layer over controls that exist elsewhere: Unlock, word

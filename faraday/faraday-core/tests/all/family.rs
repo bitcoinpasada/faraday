@@ -1,4 +1,4 @@
-//! The Spend tab (`docs/FAMILY.md`): someone spending for the first time
+//! The Spend tab (`docs/SPEND-FROM-BACKUP.md`): someone spending for the first time
 //! goes from what is in the envelope to a signed transaction on one tab.
 //! What do you have? (`docs/history/SCAN-TO-SIGN.md` §4) takes whatever is in
 //! the envelope, scanned or typed in any order (a vault, seeds, a
