@@ -200,9 +200,11 @@ Added 2026-10-24 (owner):
     Demo's **Use a sample** are not the person's entry. They stand in
     one outlined box headed "Demo only", at the right of the entry where
     the card is wide enough and under it where not, so the person's own
-    dice (the sheet and "Your dice") are the page. Where they are offered
-    does not change: the roller on Faraday Desktop, the sample in Demo;
-    the stick and the Pi have neither. The dice's size is one choice, on
+    dice (the sheet and "Your dice") are the page. Both are offered in
+    Demo only (owner, 2026-10-24 evening; `docs/DEMO.md` §14): the roller
+    on Faraday Desktop in Demo, the sample in Demo; in every other mode,
+    Faraday Desktop's too, the box and all it holds are gone, and the
+    stick and the Pi have neither. The dice's size is one choice, on
     the Entropy card, over "Your dice" and in the box ("Rolls d20");
     changed in the middle of a character, that character's rolls are
     cleared and the note says so (§5.1, §5.5).
@@ -920,6 +922,10 @@ de-biasing sheet stay in view and the checksum worksheet opens on a
 press, every cell with its working (§7.4).
 
 ### 5.6 The roller elsewhere on Faraday Desktop
+
+Since 2026-10-24 (owner) this roller is Demo's alone and stands in the
+page's "Demo only" card (`docs/DEMO.md` §14), not beside the pad; what
+follows describes the roller itself.
 
 Outside codex32, and on Faraday Desktop only: New key's dice for BIP-39
 words (every dice way of `faraday/faraday-core/src/keygen/mod.rs`) and

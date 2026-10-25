@@ -802,7 +802,7 @@ fn unequal_passphrases_lock_nothing_in() {
 }
 
 /// The demo on a Create slot (F20, `docs/MODES.md` §7): the passphrase is
-/// `faraday` once the chip on each field is pressed; Lock in adds the next
+/// `faraday` once Use faraday is pressed, in both fields; Lock in adds the next
 /// sample with it, saying so before and after.
 #[test]
 fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
@@ -820,11 +820,9 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
         fp_text(fp)
     )));
     let _ = texts(&mut app);
-    for f in 0..2 {
-        let chip = Action::PassChip(faraday_core::demo::PassField::KeyGen(f));
-        assert!(app.offers(chip), "each field offers faraday");
-        app.press(chip);
-    }
+    let chip = Action::PassChip(faraday_core::demo::PassField::KeyGen(0));
+    assert!(app.offers(chip), "the pair offers faraday");
+    app.press(chip);
     let k = app.keygen().unwrap();
     assert_eq!(k.passphrase.as_str(), "faraday");
     assert_eq!(k.passphrase2.as_str(), "faraday");

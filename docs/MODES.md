@@ -303,8 +303,9 @@ unsigned spend where the testkit makes one (`testkit::unsigned`,
 
 ## 6. Use a sample
 
-In Demo, with `samples` set, each step below draws **Use a sample**
-inside its empty field (§6.1), or on the scanner a **Sample** tile. A
+In Demo, with `samples` set, each step below hands **Use a sample** to
+the page's "Demo only" card while its field is empty, and the scanner
+its sample (owner, 2026-10-24; `docs/DEMO.md` §14). A
 press puts the sample into the step through the function the step's
 own input already calls, as if typed or scanned, and the flow goes on
 as it would. Which sample, decided: **the next one not used**, by a
@@ -312,16 +313,16 @@ cursor on the step's state that a press moves (no picker); a press
 again replaces it with the next, wrapping. "Not used" means not
 loaded, and for a set, not yet begun.
 
-**Placement.** Inside the empty field, where a placeholder would be.
-The scanner, which has no field: a third tile in the band, after Paste
-and Type (DESIGN §4.9), with an existing icon. Never drawn on Mainnet,
-Testnet, Signet or Regtest; drawn on the website. The tile says what it
-hands over (Load sample PSBT, wallet, seed, share, key, SeedQR, code,
-address), the short word Sample where the long one does not fit. Every
-scanner that takes a file offers it; a step that asks for the transaction
-(the Spend tab's What do you have?, its first step's shortcut, Write the
-payment) also has a Load sample PSBT button beside its Scan, which hands
-over the same spend and takes the same path as a scan of it. The same
+**Placement.** In the "Demo only" card (DESIGN §4.18, `docs/DEMO.md`
+§14), never inside the field or the scanner's band: the field keeps its
+caret and placeholder as in every mode. Never drawn on Mainnet,
+Testnet, Signet or Regtest; drawn on the website. The scanner's button
+says what it hands over (Load sample PSBT, wallet, seed, share, key,
+SeedQR, code, address). Every scanner that takes a file offers it; a
+step that asks for the transaction (the Spend tab's What do you have?,
+its first step's shortcut, Write the payment) also hands the card Load
+sample PSBT, which hands over the same spend and takes the same path as
+a scan of it. The same
 transaction read again is the file already in Files, not a second copy.
 
 **The same value again.** Where a flow asks again for a value a sample
@@ -332,6 +333,12 @@ SeedQR of the key a copy check names, a passphrase (always `faraday`,
 to remember, as for real.
 
 ### 6.1 The field's inner action (faraday-ui)
+
+Since 2026-10-24 (owner) the button stands in the "Demo only" card
+(`docs/DEMO.md` §14) rather than inside the field; it shows while the
+field is empty and the person has not typed in it, and a press in the
+field no longer hides it. The rest of this section, the table of steps
+and what a press puts in, stands.
 
 - `Ui::field_action(x, y, w, h, label, action)`, drawn by every entry
   field of the table below (DESIGN §4.3), inside the field's box: a
@@ -389,13 +396,12 @@ own path, with the handler's `Compute`.
 In Demo every passphrase and password field works as it does outside
 Demo: empty, typed by the person, masked, with the eye and with the
 caution line "Never type a seed that holds real bitcoin here." under it
-where the shell is online. In addition an empty field offers a chip
-inside it, "faraday", placed and behaving as Use a sample's chip does
-(§6.1, `samples::put`): a field of one line draws it at its text inset,
-an optional field draws it at its right end beside the **No passphrase**
-pill. It is gone when the person presses in the field or types (a press
-on anything else, or a field left, brings it back while the field is
-empty). A press on it puts `faraday` (all lowercase; owner, 2026-10-22)
+where the shell is online. In addition an empty field hands the "Demo
+only" card **Use faraday** (owner, 2026-10-24; `docs/DEMO.md` §14); a
+passphrase and its repeat hand one, which fills both where they are
+empty. Nothing is drawn inside the field, which keeps its caret and,
+where it is optional, its **No passphrase** pill. It is gone once the
+field holds something. A press on it puts `faraday` (all lowercase; owner, 2026-10-22)
 in the field, drawn unmasked in the mono face inside a code box (a
 token-padded, tinted, rounded box, as inline code is drawn), so its
 exact characters are plain; the eye is not drawn on it. A press in that

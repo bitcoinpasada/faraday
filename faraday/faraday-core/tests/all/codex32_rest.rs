@@ -328,7 +328,7 @@ fn a_corrected_keys_line_is_on_wallets() {
 
 /// The demo's public set with its codex32 sample, BIP 93's vector 2, as
 /// `faraday-samples` lists it (`docs/MODES.md` §7).
-fn samples() -> &'static Samples {
+pub(crate) fn samples() -> &'static Samples {
     static SAMPLES: std::sync::OnceLock<Samples> = std::sync::OnceLock::new();
     SAMPLES.get_or_init(|| {
         let words = testkit::demo_samples();

@@ -140,8 +140,12 @@ them (`SUPPORT_PANE_TOP`), against the right edge with the 24 dp margin
 window too narrow for the page beside it, what the person acts on in
 it sits in a strip pinned at the window's foot that opens to the whole
 pane over the page and never scrolls away. Built for codex32's Demo
-only card (`docs/CODEX32.md` §5.5, `codex32/pane_screen.rs`); Learn's
-pane is planned.
+only card (`docs/CODEX32.md` §5.5, `codex32/pane_screen.rs`) and every
+page's and sheet's "Demo only" card (`docs/DEMO.md` §14,
+`samples/card.rs`); Learn's pane is planned. The "Demo only" card stands
+higher than other panes (owner, 2026-10-24): its top just under the
+top-right strip's pills (`DEMO_CARD_TOP`), below the eye only where the
+codex32 sheets show one.
 
 ## 7. Density
 

@@ -591,7 +591,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 &s.pass,
                 (
                     s.focus == Some(0),
-                    app.pass_chip(crate::demo::PassField::SeedRead(0), s.focus == Some(0)),
+                    app.pass_chip(crate::demo::PassField::SeedRead(0)),
                 ),
                 Action::SeedRead(Choice::Field(0)),
             );
@@ -604,7 +604,7 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 &s.pass2,
                 (
                     s.focus == Some(1),
-                    app.pass_chip(crate::demo::PassField::SeedRead(1), s.focus == Some(1)),
+                    app.pass_chip(crate::demo::PassField::SeedRead(1)),
                 ),
                 Action::SeedRead(Choice::Field(1)),
             );

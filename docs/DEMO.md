@@ -1,7 +1,7 @@
 # The demo, and Faraday Desktop for developers
 
 **Kind:** Reference
-**Status:** Built (F30, F61, F81); the website's part is in its own repository
+**Status:** Built (F30, F61, F81; the "Demo only" card, §14); the website's part is in its own repository
 
 ## 1. The decision
 
@@ -117,10 +117,10 @@ public values work; only the actions in the table are disabled.
   (§5.4); **Load samples**,
   the pill beside the Demo pill, which loads ticked sample wallets and
   sample keys in every form, with the wallets' own keys (F81, `docs/MODES.md`
-  §3 and §10 M6); **Use a sample**, a chip inside the empty field of every
-  step that takes a key (Add a key, New key's typed key, the Spend tab's
-  words, a cosigner's account key) and a **Sample** tile on the scanner,
-  which put the next public sample in as if typed or scanned (§6 of
+  §3 and §10 M6); **Use a sample**, in the "Demo only" card (§14) of
+  every step that takes a key (Add a key, New key's typed key, the Spend
+  tab's words, a cosigner's account key) and of the scanner, which puts
+  the next public sample in as if typed or scanned (§6 of
   `docs/MODES.md`, §10 M7); Explore; Account key; the key's page.
 - **Codex32** (`docs/CODEX32.md` §12): Type codex32 strings takes the
   strings of BIP 93's published sets (the samples, `docs/MODES.md` §7)
@@ -187,9 +187,10 @@ types the numbers, and the words appear as on the device. When the last
 word is in, both passphrase fields hold `faraday` in place of the rolled
 words, and the card says so in one line, "Demo puts faraday in place of
 these words", as New key's Key card does. No strength line is drawn for
-it. On Faraday Desktop the dice roller (F96) rolls into the
-same entries for New key's dice and Generate with dice; the outcome is
-unchanged: the sample, or `faraday`. `faraday` is `demo::PASSPHRASE` in `faraday-core/src/demo.rs`, the
+it. On Faraday Desktop the dice roller (F96), in the "Demo only" card
+(§14), rolls into the same entries for New key's dice and Generate with
+dice; the outcome is unchanged: the sample, or `faraday`. The line
+"Demo puts faraday in place of these words" stands in the card too. `faraday` is `demo::PASSPHRASE` in `faraday-core/src/demo.rs`, the
 one constant every Demo passphrase field and the samples
 (`faraday-samples`, the sample vault and backup) use.
 
@@ -198,12 +199,12 @@ one constant every Demo passphrase field and the samples
 In Demo every passphrase and password field is typed, masked and edited
 as outside Demo (F81, `docs/MODES.md` §6.2): empty, with the eye and the
 caution line "Never type a seed that holds real bitcoin here." under it.
-An empty field also offers a chip inside it, "faraday"; a press on it
-puts `faraday` in the field, drawn unmasked in a code box (DESIGN
-§4.10). The chip goes when the person presses in the field or types; a
-press in a field holding `faraday` lets the person clear or replace it,
-and what is typed is theirs and masked. A second field that types a
-passphrase back, and an unlock, offer the chip too. A field that is
+An empty field also hands the "Demo only" card (§14) **Use faraday**; a
+press on it puts `faraday` in the field, drawn unmasked in a code box
+(DESIGN §4.10), and in its repeat where that is empty. It goes once the
+field holds something; a press in a field holding `faraday` lets the
+person clear or replace it, and what is typed is theirs and masked. An
+unlock offers it too. A field that is
 optional keeps **No passphrase** in it while empty (Add a key's BIP-39
 passphrase, New key's pair, the potential wallet's, an aezeed's). A key
 added with a passphrase of `faraday` is the public set's second
@@ -297,3 +298,59 @@ Moved to `docs/history/DEMO-LOG.md`.
 ## 13. Decided
 
 Moved to `docs/history/DEMO-LOG.md`.
+
+## 14. The "Demo only" card
+
+Owner, 2026-10-24: everything that exists only for the demo stands
+apart from the page's own column, in one outlined card headed "Demo
+only" (DESIGN §4.18, `faraday_ui::demo`, `samples/card.rs`), so it never
+reads as part of the normal flow. The pattern is Make codex32 shares'
+entry (`docs/CODEX32.md` §5.5): a supporting pane at the window's right
+(`docs/LAYOUT.md` §6, §15), its top just under the top-right strip's
+pills and its right edge 24 dp from the window's, holding its place
+while the page scrolls; on a narrow window, or beside a page with a side
+panel of its own where it would keep less than 840 dp, a
+strip pinned at the window's foot. A sheet that offers something
+demo-only (the scanner, a passphrase sheet) has the card beside it the
+same way.
+
+**Demo is the one condition** (owner, 2026-10-24): the card and every
+item in it are drawn only in Demo. In Testnet, Signet, Regtest and
+Mainnet, on Faraday Desktop too, they are gone, not moved: the
+computer's dice rollers are Demo's alone (`Faraday::roller_offered`).
+
+### 14.1 What the card holds
+
+| Screen | Element | Why it is demo-only |
+|---|---|---|
+| Add a key (and the Spend tab's Type the words) | **Use a sample** | Puts a public sample in place of the person's own key |
+| Add a key | **Use faraday** for the BIP-39 passphrase | The demo's public passphrase (§5.4) |
+| New key, a typed key | **Use a sample** | As Add a key |
+| New key, the Key card | **Use faraday** for the passphrase and its repeat; the line "Lock in adds sample … in place of these words" | The public passphrase; the line says Demo replaces the key made (§5.1) |
+| New key, the dice entry | The dice roller, "Rolled by this computer" | The computer's dice stand in for the person's own (F96) |
+| Make codex32 shares, the entry | Its own card: **Use a sample**, the five-dice roller and its step-through | `docs/CODEX32.md` §5.5 |
+| Make codex32 shares, the cards after the entry | "Demo puts sample NAME in place of these strings" | Demo replaces the strings made (`docs/CODEX32.md` §12) |
+| Vaults, no vault in Files | **Use a sample** (the sample vault) | A public file in place of the person's own |
+| Create a vault | **Use faraday** for each passphrase and its repeat; the Generate with dice roller; "Demo puts faraday in place of these words" | §5.2 |
+| Unlock; the boot import's passphrase; a passphrase prompt; the Spend tab's vault passphrase; the backup flow's unlock | **Use faraday** | §5.4 |
+| Vault contents, an entry's password | **Use faraday** | §5.4 |
+| Make a new wallet, a slot's passphrase | **Use faraday** | §5.4 |
+| A seed read's passphrase sheet; the potential wallet's sheet | **Use faraday** | §5.4 |
+| The scanner, every purpose that takes a sample | **Load sample seed**, **share**, **key**, **wallet**, **PSBT**, **SeedQR**, **code**, **address** | A public sample in place of a scan |
+| The Spend tab: What do you have?, the first step's shortcut, Write the payment | **Load sample PSBT** | A public transaction in place of the person's own |
+| Restore, seeds first, a cosigner's box | **Use a sample**, for the first empty box | A public account key in place of a cosigner's |
+| Lightning node key, the LND cipher seed | **Use a sample**; **Use faraday** for its passphrase | LND's published seed (§6) |
+| Explore, Find an address | **Use a sample** | The sample address |
+| Back up, Check my copy | **Fill words**; **Use faraday** for the passphrase typed back | The sample's own words |
+
+### 14.2 What stays where it is
+
+| Element | Where | Why |
+|---|---|---|
+| **Load samples**, the pill, and its sheet | The top-right strip, beside the Demo pill | It is the mode's own action on every screen, beside the pill that names the mode, in no page's column; its sheet is Demo's alone |
+| Check a signed message's Tools tile taking the sample message | Tools | Not an element: the tile opens the check, and in Demo with no message in the Inbox the sample stands in |
+| The dimmed actions of §4 | Their screens | Real actions of the app, dimmed in Demo (§7) |
+| "Never type a seed that holds real bitcoin here." | Under every field that takes a seed | Drawn in every mode on an online shell |
+| The toast "Added sample … in place of the key made" | The notice area | A notice after Lock in, in no column |
+| The Demo · Testnet pill and the mode sheet | The top-right strip | They name the mode; Testnet, Signet and Regtest have theirs |
+

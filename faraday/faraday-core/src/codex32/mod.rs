@@ -61,7 +61,6 @@ use faraday_keys::{Held, Making, Reveal, WorkSet};
 pub use faraday_ui::keyboard::OskPress;
 use zeroize::{Zeroize, Zeroizing};
 
-use crate::fresh::roller::Sim;
 use crate::fresh::roller::five::FiveRoller;
 use crate::secret_text::SecretText;
 use crate::strings::{EN, fill};
@@ -528,9 +527,6 @@ pub struct Codex32Make {
     /// Which dice of the character in progress show a value the roller
     /// made: worked out from `seq` at every replay.
     rolled_dice: [bool; BOOKLET_DICE],
-    /// Whether the set's faces came from the roller, in part or all:
-    /// taken when the set completes, for Strings made.
-    sim: Sim,
     /// A set made of strings typed in, and what it makes (§8.1, §8.2).
     given: Option<Given>,
     /// The strings typed in, until the set is made of them.
@@ -617,7 +613,6 @@ impl Codex32Make {
             unmasked: false,
             roller: FiveRoller::default(),
             rolled_dice: [false; BOOKLET_DICE],
-            sim: Sim::No,
             given: None,
             inputs: Vec::new(),
             add_at: b'a',
@@ -920,12 +915,6 @@ impl Codex32Make {
     /// both.
     pub fn sources(&self) -> (bool, bool) {
         (self.rolled, self.typed)
-    }
-
-    /// Whether the set's faces came from the five-dice roller, in part
-    /// or all (§5.5): what Strings made's entropy row says.
-    pub fn simulated(&self) -> Sim {
-        self.sim
     }
 
     /// The five-dice roller beside the pad (Faraday Desktop, §5.5).
@@ -1921,14 +1910,6 @@ impl Codex32Make {
         };
         self.strings = work.strings(Reveal::PaperForm);
         self.fingerprint = work.fingerprint(c).map(|f| f.0);
-        // Every face entered, a character typed counting one.
-        let faces: usize = self
-            .made
-            .iter()
-            .flatten()
-            .map(|m| if m.typed { 1 } else { m.seq.len() })
-            .sum();
-        self.sim = self.roller.sim(faces);
         self.at = 0;
         self.encode_qr(c);
     }

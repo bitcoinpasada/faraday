@@ -74,14 +74,14 @@ pub(crate) fn draw(
     let roller = app.roller_offered();
     match pane {
         PaneAt::Side(_) => {
-            // The one place any supporting pane stands (`docs/LAYOUT.md` §6).
-            let (x, top, w, view) = crate::screens::support_pane_place((x0, cw, h));
+            // The one place every "Demo only" card stands (`samples/card.rs`).
+            let (x, top, w, view) = crate::samples::card::pane_place(app, (x0, cw, h));
             scrolled(ui, m, (x, top, w, view), (roller, true));
         }
         PaneAt::Strip if m.pane_open() => {
             let (x, w) = (x0, cw);
             let top = h * (1.0 - t::CODEX32_STRIP_OPEN_MAX);
-            cover(ui, (x, top, w, h - top));
+            faraday_ui::demo::cover(ui, (x, top, w, h - top));
             let mut cy = top + t::GAP_SMALL;
             cy += more_row(ui, (x + t::PAD, cy, w - t::PAD - t::PAD), true);
             scrolled(ui, m, (x, cy, w, h - cy), (roller, false));
@@ -90,7 +90,7 @@ pub(crate) fn draw(
             let (x, w) = (x0, cw);
             let sh = strip_h(ui, m, w, roller);
             let top = h - sh;
-            cover(ui, (x, top, w, sh));
+            faraday_ui::demo::cover(ui, (x, top, w, sh));
             let (ix, iw) = (x + t::PAD, w - t::PAD - t::PAD);
             let mut cy = top + t::GAP_SMALL;
             cy += more_row(ui, (ix, cy, iw), false);
@@ -122,39 +122,10 @@ pub(crate) fn strip_h(ui: &Ui, m: &Codex32Make, _w: f32, roller: bool) -> f32 {
     t::GAP_SMALL + t::TOUCH + body + t::GAP
 }
 
-/// The pane's surface over what is under it, with a rule at its top; a
-/// press there reaches nothing under it.
-fn cover(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
-    let area = ui.rect(x, y, w, h);
-    // What the page put under the pane takes no press there.
-    let mut k = 0;
-    while k < ui.hits.len() {
-        let r = ui.hits[k].0;
-        if r.y >= area.y && r.x < area.x + area.w && r.x + r.w > area.x {
-            ui.hits.remove(k);
-            continue;
-        }
-        if r.y + r.h > area.y && r.x < area.x + area.w && r.x + r.w > area.x {
-            ui.hits[k].0.h = area.y - r.y;
-        }
-        k += 1;
-    }
-    ui.fill(x, y, w, h, t::SHAPE_NONE, Role::Surface);
-    ui.rule(x, y, w, Role::OutlineVariant);
-}
-
 /// "Demo only" with More (to open the whole card) or Less (back to the
 /// strip) at the right. Returns the height.
 fn more_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), open: bool) -> f32 {
-    ui.text_mid(
-        x,
-        y,
-        t::TOUCH,
-        t::BODY,
-        W::S,
-        Role::OnSurface,
-        EN.codex32_demo_only,
-    );
+    ui.text_mid(x, y, t::TOUCH, t::BODY, W::S, Role::OnSurface, EN.demo_only);
     let label = if open {
         EN.codex32_pane_less
     } else {
@@ -200,7 +171,7 @@ fn scrolled(
     }
     ui.c.pop_clip();
     if card {
-        ui.stroke(x, y, w, ch.min(view), t::SHAPE_M, Role::OutlineVariant);
+        faraday_ui::demo::outline(ui, (x, y, w, ch.min(view)));
     }
     ui.report_scroll_beside(Slot::DemoPane, clip, (ch - view).max(0.0), off);
 }

@@ -13,13 +13,14 @@
 //! them in the session through the paths a typed or scanned key and wallet
 //! take (`docs/MODES.md` §5, §10 M6).
 
+pub(crate) mod card;
 pub(crate) mod put;
 pub(crate) mod screen;
 
 use crate::inbox::{Part, Secret, part_of};
 use crate::strings::{EN, fill};
 use crate::wallet::{Origin, read_wallet, same_wallet};
-use crate::{Action, Faraday, Mode, Sheet};
+use crate::{Action, Faraday, Mode, Screen, Sheet};
 use faraday_bip::keys::Fingerprint;
 use faraday_crypto::work::Compute;
 use faraday_keys::Handout;
@@ -279,10 +280,6 @@ pub(crate) struct SheetState {
     pub(crate) wallets: Vec<Row>,
     /// The sample keys the sheet lists, in the order of [`Samples::keys`].
     pub(crate) keys: Vec<Row>,
-    /// Demo's `faraday` chips: the person pressed in a passphrase field,
-    /// or typed, and has done nothing else since, so a field in focus
-    /// shows no chip (`docs/MODES.md` §6.2).
-    pub(crate) pass_pressed: bool,
 }
 
 impl SheetState {
@@ -495,21 +492,6 @@ impl SamplesArea {
     pub(crate) fn any_ticked(&self) -> bool {
         self.sheet.any_ticked()
     }
-
-    /// Whether the passphrase field's chip has been pressed past.
-    pub(crate) fn pass_pressed(&self) -> bool {
-        self.sheet.pass_pressed
-    }
-
-    /// Notes whether `action` presses a passphrase field, past its chip.
-    pub(crate) fn note_press(&mut self, action: crate::Action) {
-        self.sheet.pass_pressed = crate::demo::presses_pass_field(action);
-    }
-
-    /// Notes that the passphrase field's chip has been pressed past.
-    pub(crate) fn pressed_past(&mut self) {
-        self.sheet.pass_pressed = true;
-    }
 }
 
 impl Faraday {
@@ -553,11 +535,7 @@ impl Faraday {
                 loaded: k.held(&self.session.keys),
             })
             .collect();
-        SheetState {
-            wallets,
-            keys,
-            ..Default::default()
-        }
+        SheetState { wallets, keys }
     }
 
     /// Handles the Load samples actions (`Samples`, `SampleTick`,
@@ -650,5 +628,158 @@ impl Sheet {
                 | Sheet::Mode
                 | Sheet::Pull
         )
+    }
+}
+
+// The "Demo only" card's state reads (`card.rs`).
+
+impl Faraday {
+    /// How many places the last frame drawn offers `action` in: for a
+    /// test that a control is drawn once, in its own place.
+    pub fn offered_times(&self, action: Action) -> usize {
+        self.pointer.offered_times(action)
+    }
+
+    /// Whether the page on screen holds the "Demo only" card now, and what
+    /// it holds besides the buttons it hands over: Demo, or the computer's
+    /// dice on Faraday Desktop, on a page that offers one of them. A
+    /// lookup.
+    pub(crate) fn demo_card_now(&self) -> Option<card::Hosted> {
+        // Demo is the one condition for the card and all it holds.
+        let demo = self.demo_passphrase();
+        if !demo {
+            return None;
+        }
+        let roller = self.demo_roller_now();
+        let lines = self.demo_lines_now();
+        let buttons = demo && self.demo_page_offers();
+        (buttons || roller.is_some() || !lines.is_empty()).then_some(card::Hosted { lines, roller })
+    }
+
+    /// Whether the open sheet holds the "Demo only" card: its scanner's
+    /// sample, or a passphrase field's `faraday`. A lookup.
+    pub(crate) fn demo_sheet_card_now(&self, sheet: Sheet) -> Option<card::Hosted> {
+        let held = match sheet {
+            Sheet::Scan => self.scan_sample_offered(),
+            Sheet::Potential
+            | Sheet::SeedRead
+            | Sheet::Import
+            | Sheet::PassphraseSeeds
+            | Sheet::UnlockLoad => self.demo_passphrase(),
+            _ => false,
+        };
+        held.then(card::Hosted::default)
+    }
+
+    /// Whether the page on screen may hand the card a button now: a field
+    /// that takes a sample or the demo's passphrase is on it. Coarse on
+    /// purpose, so the page keeps its place while the person fills the
+    /// field. A lookup.
+    fn demo_page_offers(&self) -> bool {
+        let samples = self.put_on().is_some();
+        match self.screen {
+            Screen::Entry | Screen::Unlock | Screen::Family | Screen::Create => true,
+            Screen::KeyGen => self.keygen.state().is_some_and(|k| {
+                let typed = k.open == Some(crate::keygen::kstep::TYPED);
+                let pass =
+                    k.open == Some(crate::keygen::kstep::KEY) && !k.locked && k.asks_passphrase();
+                (typed || pass) && !self.codex32_card_now()
+            }),
+            Screen::Vaults => samples && self.vault_files().is_empty(),
+            Screen::CreateVault => self.vaults.create.is_some(),
+            Screen::VaultContents => {
+                (self.vaults.prompt.is_some() && self.prompt_chip())
+                    || self
+                        .vaults
+                        .form
+                        .as_ref()
+                        .is_some_and(|f| (0..f.fields.len()).any(|k| f.is_password(k)))
+            }
+            Screen::Restore => samples && self.seeds().is_some(),
+            Screen::Lightning => self.lightning.state().is_some(),
+            Screen::Explore => samples && self.explore.state().is_some(),
+            Screen::Backup => self.backup.state().is_some_and(|b| b.check.is_some()),
+            Screen::BackupFlow => self.vaults.focus.is_some(),
+            _ => false,
+        }
+    }
+
+    /// Whether Make codex32 shares' entry has its own "Demo only" card on
+    /// screen (`codex32/pane_screen.rs`): then the page holds no other.
+    fn codex32_card_now(&self) -> bool {
+        self.keygen.state().is_some_and(|k| {
+            k.open == Some(crate::keygen::kstep::CODEX32)
+                && k.codex32.as_ref().is_some_and(|m| {
+                    crate::codex32::pane_screen::pane_at_now(
+                        m,
+                        f32::MAX,
+                        (false, self.roller_offered()),
+                    )
+                    .is_some()
+                })
+        })
+    }
+
+    /// The computer's dice roller on the page on screen, where its dice
+    /// entry is open on Faraday Desktop. A lookup.
+    fn demo_roller_now(&self) -> Option<card::Roller> {
+        if !self.roller_offered() {
+            return None;
+        }
+        let keygen = self.screen == Screen::KeyGen
+            && self.keygen.state().is_some_and(|k| {
+                k.open == Some(crate::keygen::kstep::ENTER)
+                    && k.active() == Some(crate::keygen::Source::Dice)
+                    && !k.locked
+            });
+        let vault = self.screen == Screen::CreateVault
+            && self.vaults.create.is_some()
+            && self.vaults.dice.is_some();
+        if keygen {
+            Some(card::Roller::KeyGen)
+        } else if vault {
+            Some(card::Roller::Vault)
+        } else {
+            None
+        }
+    }
+
+    /// The lines that say what Demo puts in place of the person's own, on
+    /// the page on screen: New key's sample in place of the words made,
+    /// Make codex32 shares' sample set in place of the strings entered,
+    /// and Generate with dice's `faraday` in place of the words rolled
+    /// (`docs/DEMO.md` §5.1, §5.2; `docs/CODEX32.md` §12). A lookup.
+    fn demo_lines_now(&self) -> Vec<String> {
+        let mut lines = Vec::new();
+        if self.screen == Screen::KeyGen
+            && let Some(k) = self.keygen.state()
+        {
+            if k.open == Some(crate::keygen::kstep::KEY)
+                && !k.locked
+                && !k.typed()
+                && k.mnemonic.is_some()
+                && let Some((word, fp)) = self.session.keys.next_handout(k.handout_words())
+            {
+                let name = fill(EN.sample_words, &[word, &k.handout_words().to_string()]);
+                lines.push(fill(
+                    EN.keygen_lock_in_adds,
+                    &[&name, &crate::wallet::fp_text(fp)],
+                ));
+            }
+            if k.open == Some(crate::keygen::kstep::CODEX32)
+                && let Some(m) = k.codex32.as_ref()
+                && m.sample()
+                && m.open() != Some(crate::codex32::Card::Enter)
+            {
+                lines.push(fill(EN.c32r_demo_sample, &[&m.identifier().to_uppercase()]));
+            }
+        }
+        if self.screen == Screen::CreateVault
+            && let Some(c) = self.vaults.create.as_ref()
+            && (0..c.phrases.len()).any(|i| self.dice_made_public(c, i))
+        {
+            lines.push(EN.vault_demo_uses_public.to_string());
+        }
+        lines
     }
 }

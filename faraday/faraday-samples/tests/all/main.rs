@@ -4,6 +4,7 @@
 
 mod chip_caret;
 mod common;
+mod demo_card;
 mod files;
 mod handouts;
 mod keys;

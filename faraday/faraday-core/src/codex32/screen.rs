@@ -1298,7 +1298,7 @@ fn sheets(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     };
     let tab_list = m.tabs();
     let (on, seen) = m.tab();
-    let mut cy = y + sample_line(m, ui, x, y, w);
+    let mut cy = y;
     let items: Vec<TabItem> = tab_list
         .iter()
         .enumerate()
@@ -1438,7 +1438,7 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     let Some(s) = m.strings().and_then(|s| s.get(m.at())) else {
         return 0.0;
     };
-    let mut cy = y + sample_line(m, ui, x, y, w);
+    let mut cy = y;
     let hide = m.masked();
     if s.len() == 48 && !hide {
         cy += choice(
@@ -1515,28 +1515,16 @@ fn strings(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
     cy - y
 }
 
-/// In Demo, once its sample stands in place of the strings entered, the
-/// line that says so (§12); nothing otherwise. Returns the height.
-fn sample_line(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    if !m.sample() {
-        return 0.0;
-    }
-    let line = fill(EN.c32r_demo_sample, &[&m.identifier().to_uppercase()]);
-    ui.wrap(x, y, w, t::LABEL, W::S, Role::Warning, &line) + t::GAP
-}
-
 /// §6.7: the Result's rows, Check on another device (§6.8), and Lock in.
 fn made(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let mut cy = y + sample_line(m, ui, x, y, w);
+    let mut cy = y;
     let (rolled, typed) = m.sources();
     // Faces the roller made say so (§5.5).
-    let entropy = match (m.simulated(), rolled, typed) {
-        (crate::fresh::roller::Sim::All, _, false) => EN.codex32_simulated_dice,
-        (crate::fresh::roller::Sim::Some | crate::fresh::roller::Sim::All, _, _) => {
-            EN.codex32_simulated_and_your_dice
-        }
-        (_, true, true) => EN.codex32_your_dice_and_characters,
-        (_, false, true) => EN.codex32_your_characters,
+    // The computer's dice are Demo's alone, and Demo puts its sample in
+    // place of what they made: no set made here is from them.
+    let entropy = match (rolled, typed) {
+        (true, true) => EN.codex32_your_dice_and_characters,
+        (false, true) => EN.codex32_your_characters,
         _ => EN.codex32_your_dice,
     };
     let entropy = if m.sample() {

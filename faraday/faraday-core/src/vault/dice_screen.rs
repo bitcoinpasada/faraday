@@ -4,14 +4,12 @@
 use super::screen::text_box;
 use crate::Action;
 use crate::drawing::View;
-use crate::fresh::roller::screen::{self as roller_screen, Hosting};
 use crate::screens::never_under;
 use crate::strings::EN;
 use crate::strings::fill;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::vault::{self, Focus, TextBox, VaultAction as V};
-use faraday_draw::tokens;
 
 fn va(a: V) -> Action {
     Action::Vault(a)
@@ -91,17 +89,8 @@ pub(super) fn dice_panel(
         Action::Vault(V::Dice(app.vaults.dice.as_ref().map_or(0, |d| d.0))),
     );
     cy += 50.0 + never_under(app, ui, x, cy, w);
-    // Beside the rolls for real dice: the roller, on Faraday Desktop only
-    // (`docs/CODEX32.md` §5.6).
-    if app.roller_offered() {
-        let host = Hosting {
-            room: super::dice::room(app),
-            typing: app.vaults.focus == Some(Focus::Rolls),
-        };
-        let roller = &app.vaults.roller;
-        cy += roller_screen::draw(ui, (x, cy, w), roller, host, |a| va(V::Roller(a)));
-        cy += tokens::ROLLER_GAP;
-    }
+    // The computer's roller, on Faraday Desktop only, is in the "Demo
+    // only" card (`docs/CODEX32.md` §5.6, `samples/card.rs`).
     let words = vault::dice_words(&rolls.text, list);
     let per = list.dice_per_word();
     let left = rolls.text.len() % per;

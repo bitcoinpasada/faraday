@@ -552,7 +552,7 @@ fn pass_field(
     w: f32,
     label: &str,
     secret: &str,
-    (on, chip): (bool, Option<(Action, bool)>),
+    (on, chip): (bool, Option<Action>),
     action: Action,
 ) -> f32 {
     ui.text(x, y, 12.0, W::R, Role::OnSurfaceVariant, label);
@@ -570,13 +570,12 @@ fn pass_field(
             Role::OutlineVariant
         },
     );
-    // The chip, drawn after, is pressed before the field.
     ui.hit(x, fy, w, T::TEXT_FIELD_TALL, action);
     if secret.is_empty() {
-        // No caret under the chip.
-        ui.no_passphrase(x, fy, 42.0, on && !matches!(chip, Some((_, true))));
-        if let Some((a, true)) = chip {
-            crate::samples::put::pass_chip(ui, (x, fy, w, T::TEXT_FIELD_TALL), a, true);
+        ui.no_passphrase(x, fy, 42.0, on);
+        // Use faraday goes in the "Demo only" card (`docs/DEMO.md` §5.4).
+        if let Some(a) = chip {
+            ui.demo_offer(EN.demo_use_faraday, a);
         }
     } else if chip.is_some() && secret == crate::demo::PASSPHRASE {
         crate::screens::code_field(ui, x, fy, w, T::TEXT_FIELD_TALL, secret);
@@ -680,7 +679,7 @@ pub(crate) fn entry(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         &es.passphrase,
         (
             es.on_passphrase,
-            app.pass_chip(crate::demo::PassField::Entry, es.on_passphrase),
+            app.pass_chip(crate::demo::PassField::Entry),
         ),
         Action::EntryPassphrase,
     );
@@ -778,8 +777,7 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
         (
             !app.entry.state().on_passphrase,
             app.entry.state().shift,
-            app.entry_sample_shown()
-                .then_some((EN.use_a_sample, EN.scan_sample)),
+            app.entry_sample_shown().then_some(EN.use_a_sample),
         ),
     );
     // The words taken, as many boxes as the count chosen.
@@ -804,9 +802,9 @@ pub(crate) fn entry_words(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, page
 /// A list typed on its own keyboard, on a small panel: the word being
 /// typed under `label`, `status` under it, the words it can be as pills
 /// and the keyboard, with the on-screen keyboard's shift as `shift`, and
-/// Use a sample (`docs/MODES.md` §6.1) in the word's place as `chip`. Add a
-/// key's word entry and Check my copy's both draw it. Returns where the
-/// next row starts.
+/// with `chip`, Use a sample (or `chip`'s own label) handed to the "Demo
+/// only" card (`docs/DEMO.md` §14). Add a key's word entry and Check my
+/// copy's both draw it. Returns where the next row starts.
 pub(crate) fn keyed_head(
     ui: &mut Ui,
     (x, y, iw): (f32, f32, f32),
@@ -814,7 +812,7 @@ pub(crate) fn keyed_head(
     lang: faraday_bip::bip39::Language,
     label: &str,
     status: Option<(&str, crate::ui::Paint)>,
-    (caret, shift, chip): (bool, bool, Option<(&'static str, &'static str)>),
+    (caret, shift, chip): (bool, bool, Option<&'static str>),
 ) -> f32 {
     let mut y = y;
     let prefix: String = w.prefix().iter().collect();
@@ -827,10 +825,10 @@ pub(crate) fn keyed_head(
         prefix.clone()
     };
     let pw = ui.text(x + off, y - 4.0, 18.0, W::M, Role::Primary, &shown);
-    if let Some(labels) = chip {
-        let lift = faraday_draw::tokens::KEYED_HEAD_LIFT;
-        crate::samples::put::head_chip(ui, (x + off, y - lift, iw - off), labels);
-    } else if caret {
+    if let Some(label) = chip {
+        ui.demo_offer(label, Action::UseSample);
+    }
+    if caret {
         ui.caret(x + off + 2.0 + pw, y - 2.0, 20.0);
     }
     y += 26.0;
@@ -966,11 +964,11 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
     use crate::forms::Form;
     let on = !app.entry.state().on_passphrase;
     let empty = app.entry.state().typed.is_empty();
-    // Use a sample stands where the hint would, in Demo.
-    let chip = app.entry_sample_shown();
-    let typed = if chip {
-        String::new()
-    } else if empty {
+    // Use a sample goes in the "Demo only" card while the field is empty.
+    if app.entry_sample_shown() {
+        crate::samples::put::offer(ui, Action::UseSample);
+    }
+    let typed = if empty {
         match form {
             Form::Codex32 => "ms1…".to_string(),
             _ => EN.compact_words_of_one.to_string(),
@@ -983,7 +981,7 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
         t
     };
     // The caret stands before the hint while nothing is typed.
-    if empty && on && !chip {
+    if empty && on {
         ui.caret(x + 10.0, y + 9.0, 18.0);
     }
     let th = ui.wrap(
@@ -1015,9 +1013,6 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, iw: f32, form: crate::fo
     if !on {
         ui.hit(x, y, iw, bh, Action::EntryPassphrase);
     }
-    if chip {
-        crate::samples::put::field_chip(ui, (x, y, iw, bh));
-    }
     y + bh + 10.0 + crate::screens::never_below(app, ui, x, y + bh, iw)
 }
 
@@ -1045,10 +1040,7 @@ fn entry_form_foot(
             &app.entry.state().passphrase,
             (
                 app.entry.state().on_passphrase,
-                app.pass_chip(
-                    crate::demo::PassField::Entry,
-                    app.entry.state().on_passphrase,
-                ),
+                app.pass_chip(crate::demo::PassField::Entry),
             ),
             Action::EntryPassphrase,
         );

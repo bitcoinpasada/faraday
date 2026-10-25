@@ -1,18 +1,19 @@
-//! A Demo passphrase field that offers the `faraday` chip draws no caret
-//! until the person presses in it or types: the caret would stand over
-//! the chip's edge.
+//! A Demo passphrase field draws its caret as any field does: **Use
+//! faraday** stands in the "Demo only" card, not inside the field
+//! (`docs/DEMO.md` §5.4, §14).
 
 use crate::common::demo_app;
+use faraday_core::demo::PassField;
 use faraday_core::vault::VaultAction as V;
 use faraday_core::{Action, Faraday, Screen, StorageEvent};
-use faraday_shell_api::{App, Event, Key};
+use faraday_shell_api::{App, Event};
 
 fn pixels_at(app: &mut Faraday, now_ms: u64) -> Vec<u8> {
     app.event(Event::Tick { now_ms });
     app.frame().rgba.to_vec()
 }
 
-/// The sample vault's unlock, its field in focus with the chip showing.
+/// The sample vault's unlock, its field in focus and empty.
 fn unlock() -> Faraday {
     let mut app = demo_app();
     app.storage(StorageEvent::Memory {
@@ -34,21 +35,26 @@ fn blinking(app: &mut Faraday) -> usize {
 }
 
 #[test]
-fn the_caret_is_not_drawn_beside_the_chip_until_the_person_is_in_the_field() {
-    let mut chip = unlock();
+fn the_caret_blinks_in_an_empty_demo_passphrase_field_and_use_faraday_is_beside_the_page() {
+    let mut app = unlock();
+    let chip = Action::PassChip(PassField::Unlock);
+    assert!(app.offers(chip), "Use faraday is offered");
     assert!(
-        chip.drawn_texts().iter().any(|t| t == "faraday"),
-        "the chip"
+        !app.drawn_texts().iter().any(|t| t == "faraday"),
+        "nothing is drawn inside the field"
     );
-    let with_chip = blinking(&mut chip);
+    let (x, ..) = app.hit_box(chip).expect("Use faraday");
+    assert!(
+        u32::from(x) > u32::from(app.frame().width) / 2,
+        "Use faraday stands in the card at the right"
+    );
+    let before = blinking(&mut app);
+    assert!(before > 0, "the caret blinks with nothing pressed");
     let mut pressed = unlock();
     pressed.press(Action::Vault(V::FocusPassphrase));
-    let in_field = blinking(&mut pressed);
-    assert!(
-        with_chip < in_field,
-        "the caret blinks beside the chip: {with_chip} against {in_field}"
+    assert_eq!(
+        before,
+        blinking(&mut pressed),
+        "pressing in the field changes nothing the caret draws"
     );
-    let mut typed = unlock();
-    typed.event(Event::Key(Key::Char('x')));
-    assert!(with_chip < blinking(&mut typed), "typing brings the caret");
 }

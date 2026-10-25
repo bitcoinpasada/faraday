@@ -218,6 +218,10 @@ fn the_dice_change_between_characters_and_come_back_with_their_rolls() {
 fn desktop(offered: bool, faces: u8) -> Faraday {
     let mut app = on(1366, 4000);
     app.set_roller_offered(offered);
+    if offered {
+        // The roller is Demo's alone (`docs/DEMO.md` §14).
+        faraday_core::testkit::into_demo(&mut app);
+    }
     app.press(Action::ReduceMotion(true));
     to_entry(&mut app, faces);
     app

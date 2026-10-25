@@ -62,7 +62,7 @@
 //! - Sticks, boot and files: `upgrade`, `transfer` (the desktop as the
 //!   device's QR link), `names` (the Starter's install names),
 //!   `secure_boot/state.rs`.
-//! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`), `tools`, `testkit`.
+//! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/card.rs`, the "Demo only" card every page and sheet hands its demo-only items to), `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
 //! come before any action, then sends each `Action` to its area's
@@ -2678,7 +2678,6 @@ impl Faraday {
     fn act(&mut self, action: Action) {
         // A choice in a file's ⋮ menu closes the menu first.
         self.file_menu_chosen(action);
-        self.sample_area.note_press(action);
         self.act_moving_on(action);
         // A wallet's flow follows the plan and the keys the press left.
         self.wallet_flow_sync();
@@ -5959,7 +5958,7 @@ impl Faraday {
         if key == KeyIn::Escape && self.pointer.tip_dismiss() {
             return;
         }
-        if self.selftest_failed() || self.pass_typed(key) {
+        if self.selftest_failed() {
             return;
         }
         // Ctrl+V is the scanner's Paste, and nothing anywhere else.

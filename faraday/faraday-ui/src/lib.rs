@@ -9,6 +9,7 @@
 
 mod appearance;
 mod controls;
+pub mod demo;
 pub mod keyboard;
 mod lists;
 pub mod nav;
@@ -458,6 +459,9 @@ pub struct Ui<'a, A> {
     pub focused: Option<A>,
     /// The tooltips' anchors drawn and the one shown ([`tooltip`]).
     pub tips: tooltip::TipFrame<A>,
+    /// What the page or sheet drawn so far hands to the frame's "Demo
+    /// only" card ([`demo`]), in the order offered.
+    pub demo: Vec<demo::DemoItem<A>>,
 }
 
 /// A step card opening and the one closing, part of the way.
@@ -530,6 +534,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
             primaries: 0,
             focused: None,
             tips: tooltip::TipFrame::default(),
+            demo: Vec::new(),
         }
     }
 

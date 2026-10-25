@@ -160,21 +160,22 @@ pub(crate) fn cosigner(
             cy += 46.0;
         }
         None => {
-            // Use a sample stands where the hint would, in Demo.
-            let chip = app.seeds_sample_shown(s, k);
+            // Use a sample goes in the "Demo only" card, for the first
+            // empty box (`docs/DEMO.md` §14).
+            let first = (0..k).all(|j| !app.seeds_sample_shown(s, j));
+            if first && app.seeds_sample_shown(s, k) {
+                crate::samples::put::offer(ui, sa(S::Sample(k as u8)));
+            }
             field(
                 ui,
                 x + 22.0,
                 cy,
                 w - 22.0,
                 text,
-                if chip { "" } else { EN.seeds_type_or_paste },
-                focused && !chip,
+                EN.seeds_type_or_paste,
+                focused,
                 sa(S::Focus(Focus::Cosigner(k as u8))),
             );
-            if chip {
-                crate::samples::put::box_chip(ui, (x, cy, w), sa(S::Sample(k as u8)));
-            }
             cy += 48.0;
             if !text.trim().is_empty() && !focused {
                 cy += ui.wrap(

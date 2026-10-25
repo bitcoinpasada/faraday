@@ -554,7 +554,7 @@ fn no_button_is_offered_on_testnet_or_where_no_samples_are_set() {
 
 /// A twelve-word sample key loaded, its backup open on the copy item,
 /// with the typed words check open.
-fn open_words_check(app: &mut Faraday) {
+pub(crate) fn open_words_check(app: &mut Faraday) {
     use faraday_core::bstep;
     let c = testkit::compute();
     add_a_key(app);

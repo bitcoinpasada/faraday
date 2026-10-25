@@ -140,6 +140,14 @@ pub const SAMPLE_WORDS: [(&str, u8); 21] = [
     ("sunset", 21),
 ];
 
+/// Costs what [`demo_samples`] costs, once per process. Puts `app` in
+/// Demo, on Testnet, as Faraday Desktop starts: where the "Demo only"
+/// card and the computer's dice roller are offered (`docs/DEMO.md` §14).
+pub fn into_demo(app: &mut crate::Faraday) {
+    move_to(&mut app.session, NET).expect("testnet");
+    app.session.set_demo(demo_samples());
+}
+
 /// Costs a PBKDF2 and a master key for each of 42 fingerprints, once per
 /// process. The public set Demo takes in the core's tests: the handouts
 /// of [`SAMPLE_WORDS`] only, derived here so core's tests do not link

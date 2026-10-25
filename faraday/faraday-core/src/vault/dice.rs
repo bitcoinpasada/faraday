@@ -16,7 +16,7 @@ const MAX_WORDS: usize = 20;
 /// How many more rolls the entry takes now: up to [`MAX_WORDS`] words'
 /// worth, and for To the end only as far as a strong passphrase (a
 /// lookup).
-pub(super) fn room(app: &Faraday) -> usize {
+pub(crate) fn room(app: &Faraday) -> usize {
     let Some((_, rolls, list)) = app.vaults.dice.as_ref() else {
         return 0;
     };

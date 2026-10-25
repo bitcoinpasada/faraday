@@ -868,18 +868,21 @@ fn in_the_demo_a_vault_takes_a_typed_passphrase_and_opens_with_it() {
 }
 
 #[test]
-fn in_the_demo_a_chip_puts_faraday_in_a_vaults_passphrase_and_it_opens_with_it() {
+fn in_the_demo_use_faraday_puts_faraday_in_a_vaults_passphrase_and_its_repeat_and_it_opens_with_it()
+{
     let mut app = app_on(true);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     let _ = crate::common::texts(&mut app);
-    for again in [false, true] {
-        let chip = Action::PassChip(demo::PassField::Phrase(0, again));
-        assert!(app.offers(chip), "each field offers faraday");
-        app.press(chip);
-        let _ = crate::common::texts(&mut app);
-        assert!(!app.offers(chip), "the chip goes once the field holds it");
-    }
+    let chip = Action::PassChip(demo::PassField::Phrase(0, false));
+    assert!(app.offers(chip), "the pair offers faraday");
+    assert!(
+        !app.offers(Action::PassChip(demo::PassField::Phrase(0, true))),
+        "once, for both fields"
+    );
+    app.press(chip);
+    let _ = crate::common::texts(&mut app);
+    assert!(!app.offers(chip), "gone once both fields hold it");
     let c = app.vaults().create.as_ref().expect("the form");
     assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
     assert_eq!(c.phrases[0].1.text.as_str(), "faraday");

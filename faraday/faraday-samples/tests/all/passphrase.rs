@@ -93,15 +93,18 @@ fn in_demo_add_a_keys_passphrase_offers_faraday_and_can_be_typed_over() {
     );
     assert!(!held(&app, sample.plain.unwrap()));
 
-    // The person's own is theirs: pressed in, the chip goes, and what is
-    // typed is masked.
+    // The person's own is theirs: pressed in, the field still empty, Use
+    // faraday stays in the card; typed, it goes, and what is typed is
+    // masked.
     app.press(Action::Entry(None));
     app.press(Action::UseSample);
     let _ = app.frame();
     app.press(Action::EntryPassphrase);
     let _ = app.frame();
-    assert!(!app.offers(Action::PassChip(PassField::Entry)));
+    assert!(app.offers(Action::PassChip(PassField::Entry)));
     type_in(&mut app, "mine");
+    let _ = app.frame();
+    assert!(!app.offers(Action::PassChip(PassField::Entry)));
     assert_eq!(testkit::entry(&app).passphrase.as_str(), "mine");
     let _ = app.frame();
     assert!(!shows(&mut app, "mine"), "masked");
@@ -145,11 +148,10 @@ fn in_demo_a_typed_key_with_a_passphrase_loads_the_key_with_faraday() {
     app.press(Action::KNext);
     assert_eq!(app.keygen().unwrap().open, Some(kstep::KEY));
     let _ = app.frame();
-    for f in 0..2 {
-        assert!(app.offers(Action::PassChip(PassField::KeyGen(f))));
-    }
+    // One Use faraday for the passphrase and its repeat.
+    assert!(app.offers(Action::PassChip(PassField::KeyGen(0))));
+    assert!(!app.offers(Action::PassChip(PassField::KeyGen(1))));
     app.press(Action::PassChip(PassField::KeyGen(0)));
-    app.press(Action::PassChip(PassField::KeyGen(1)));
     let k = app.keygen().unwrap();
     assert_eq!(k.passphrase.as_str(), "faraday");
     assert_eq!(k.passphrase2.as_str(), "faraday");
@@ -180,10 +182,10 @@ fn in_demo_create_a_vault_offers_faraday_in_both_fields_and_unlocks_with_it() {
         shows(&mut app, "or type your own below"),
         "typing is open beside the dice"
     );
-    for again in [false, true] {
-        assert!(app.offers(Action::PassChip(PassField::Phrase(0, again))));
-        app.press(Action::PassChip(PassField::Phrase(0, again)));
-    }
+    // One Use faraday for the passphrase and its repeat.
+    assert!(app.offers(Action::PassChip(PassField::Phrase(0, false))));
+    assert!(!app.offers(Action::PassChip(PassField::Phrase(0, true))));
+    app.press(Action::PassChip(PassField::Phrase(0, false)));
     let c = app.vaults().create.as_ref().expect("the form");
     assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
     assert_eq!(c.phrases[0].1.text.as_str(), "faraday");
@@ -215,15 +217,24 @@ fn in_demo_create_a_vault_offers_faraday_in_both_fields_and_unlocks_with_it() {
 }
 
 #[test]
-fn in_demo_a_vault_passphrase_typed_by_the_person_is_masked_and_the_chip_goes() {
+fn in_demo_a_vault_passphrase_typed_by_the_person_is_masked_and_use_faraday_stays_while_a_field_is_empty()
+ {
     let mut app = demo_app();
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
     let _ = app.frame();
     app.press(Action::Vault(V::CFocus(0, false)));
     let _ = app.frame();
-    assert!(!app.offers(Action::PassChip(PassField::Phrase(0, false))));
+    assert!(
+        app.offers(Action::PassChip(PassField::Phrase(0, false))),
+        "pressed in, the field still empty, Use faraday stays"
+    );
     type_in(&mut app, "other");
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::PassChip(PassField::Phrase(0, false))),
+        "the repeat is still empty"
+    );
     let c = app.vaults().create.as_ref().expect("the form");
     assert_eq!(c.phrases[0].0.text.as_str(), "other");
     let _ = app.frame();
@@ -427,7 +438,7 @@ fn in_demo_an_aezeed_passphrase_offers_faraday_and_can_be_typed() {
 // Find an address, and a signed message.
 
 /// Spending loaded, through the Load samples sheet.
-fn with_spending(app: &mut Faraday) {
+pub(crate) fn with_spending(app: &mut Faraday) {
     app.press(Action::Samples);
     let at = SAMPLES
         .wallets
@@ -596,11 +607,10 @@ fn in_demo_a_seed_read_adds_its_passphrase_from_the_chips_and_loads_that_key() {
     let s = app.seed_read().expect("the sheet");
     assert!(s.pass.is_empty() && s.pass2.is_empty(), "nothing is put in");
     let _ = app.frame();
-    for f in 0..2 {
-        assert!(app.offers(Action::PassChip(PassField::SeedRead(f))));
-    }
+    // One Use faraday for the passphrase and its repeat.
+    assert!(app.offers(Action::PassChip(PassField::SeedRead(0))));
+    assert!(!app.offers(Action::PassChip(PassField::SeedRead(1))));
     app.press(Action::PassChip(PassField::SeedRead(0)));
-    app.press(Action::PassChip(PassField::SeedRead(1)));
     let s = app.seed_read().expect("the sheet");
     assert_eq!(s.pass.as_str(), "faraday");
     assert_eq!(s.pass2.as_str(), "faraday");
@@ -640,10 +650,10 @@ fn in_demo_a_wallet_slots_passphrase_offers_faraday() {
     let c = app.create().expect("Create");
     assert!(c.pass.is_empty() && c.pass2.is_empty());
     let _ = app.frame();
-    for f in 0..2 {
-        assert!(app.offers(Action::PassChip(PassField::Slot(f))));
-        app.press(Action::PassChip(PassField::Slot(f)));
-    }
+    // One Use faraday for the passphrase and its repeat.
+    assert!(app.offers(Action::PassChip(PassField::Slot(0))));
+    assert!(!app.offers(Action::PassChip(PassField::Slot(1))));
+    app.press(Action::PassChip(PassField::Slot(0)));
     let c = app.create().expect("Create");
     assert_eq!(c.pass.as_str(), "faraday");
     assert_eq!(c.pass2.as_str(), "faraday");

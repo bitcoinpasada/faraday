@@ -174,7 +174,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         None => {
             let muted = Role::OnSurfaceVariant;
             y += ui.wrap(dx, y, w, 15.0, W::R, muted, EN.vault_no_vault_in_files) + GAP;
-            y += crate::samples::put::button(app, ui, dx, y) + MARGIN_WIDE;
+            // The sample vault goes in the "Demo only" card (`docs/DEMO.md` §14).
+            if app.put_on().is_some() {
+                crate::samples::put::offer(ui, crate::Action::UseSample);
+            }
+            y += MARGIN_WIDE;
         }
     }
     let about = fill(

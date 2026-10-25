@@ -91,6 +91,7 @@ fn make_codex32_shares_cards_are_steps_of_new_key() {
 fn a_rollers_click_under_way_takes_no_back() {
     let mut app = on_rolls();
     app.set_roller_offered(true);
+    faraday_core::testkit::into_demo(&mut app);
     for i in 0..4u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x31 + i; 32])));
     }

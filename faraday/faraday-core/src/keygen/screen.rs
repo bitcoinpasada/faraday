@@ -604,7 +604,7 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
                 &k.passphrase,
                 (
                     k.focus == Some(0),
-                    app.pass_chip(crate::demo::PassField::KeyGen(0), k.focus == Some(0)),
+                    app.pass_chip(crate::demo::PassField::KeyGen(0)),
                 ),
                 Action::KPassField(0),
             );
@@ -617,20 +617,14 @@ fn key_card(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 
                 &k.passphrase2,
                 (
                     k.focus == Some(1),
-                    app.pass_chip(crate::demo::PassField::KeyGen(1), k.focus == Some(1)),
+                    app.pass_chip(crate::demo::PassField::KeyGen(1)),
                 ),
                 Action::KPassField(1),
             );
             cy += never_real_seed(app, ui, x, cy, w);
         }
-        // The demo adds a sample in place of words made here (F20).
-        if !k.typed()
-            && let Some((word, fp)) = app.session.keys.next_handout(k.handout_words())
-        {
-            let name = fill(EN.sample_words, &[word, &k.handout_words().to_string()]);
-            let line = fill(EN.keygen_lock_in_adds, &[&name, &fp_text(fp)]);
-            cy += ui.wrap(x, cy, w, 13.0, W::S, Role::Warning, &line) + 6.0;
-        }
+        // The demo adds a sample in place of words made here (F20): the
+        // "Demo only" card says which (`samples/card.rs`).
         if let Some(n) = &k.note {
             cy += ui.wrap(x, cy, w, 13.0, W::R, Role::Error, n) + 6.0;
         }
@@ -1164,21 +1158,6 @@ fn sources(k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     cy + (if drawn { 48.0 } else { 8.0 }) - y
 }
 
-/// Beside the dice pad, for real dice: the one-die roller, on Faraday
-/// Desktop only (`docs/CODEX32.md` §5.6). Returns the height.
-fn roller(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    use crate::fresh::roller::screen::{Hosting, draw};
-    use faraday_draw::tokens::ROLLER_GAP;
-    if !app.roller_offered() || k.active() != Some(Source::Dice) || k.locked {
-        return 0.0;
-    }
-    let host = Hosting {
-        room: k.roller_room(),
-        typing: k.roller_typing,
-    };
-    draw(ui, (x, y, w), &k.roller, host, Action::KRoller) + ROLLER_GAP
-}
-
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let muted = Role::OnSurfaceVariant;
@@ -1245,7 +1224,6 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     match active {
         Some(Source::Dice | Source::Coins) if k.typing => {
             cy = typed_box(app, k, ui, x, cy, w);
-            cy += roller(app, k, ui, x, cy, w);
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
             }
@@ -1265,7 +1243,6 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                 }
             };
             cy += dice_pad(ui, (x, cy, w), &style, Action::KRoll);
-            cy += roller(app, k, ui, x, cy, w);
             if k.reveals() {
                 cy = reveal(k, ui, x, cy, w);
             }
@@ -1398,8 +1375,9 @@ fn entries(app: &View, k: &KeyGen, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Some(Source::Camera) => EN.keygen_space_takes,
         _ => EN.keygen_enter_continues,
     };
-    ui.text(x, cy, 12.0, W::R, muted, hint);
-    cy + 24.0 - y
+    // Wrapped to the column, which the "Demo only" card may narrow.
+    let hh = ui.wrap(x, cy, w, faraday_draw::tokens::CAPTION, W::R, muted, hint);
+    cy + hh + faraday_draw::tokens::GAP - y
 }
 
 /// How entries are made: for coins, a coin or a die read as one; for

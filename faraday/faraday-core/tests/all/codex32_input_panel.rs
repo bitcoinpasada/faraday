@@ -36,6 +36,10 @@ fn on_shell(width: u16, height: u16, dpi: u16, roller: bool, way: Way) -> Farada
         memory_mib: None,
     }));
     app.set_roller_offered(roller);
+    if roller {
+        // The roller is Demo's alone (`docs/DEMO.md` §14).
+        faraday_core::testkit::into_demo(&mut app);
+    }
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x31 + i * 7; 32])));
     }

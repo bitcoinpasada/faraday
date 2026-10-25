@@ -193,8 +193,11 @@ pub(crate) fn entry_words(
 
     let words: Vec<&str> = app.entry.state().typed.split_whitespace().collect();
     y += word_count_row(app, ui, x, y, width, true);
-    // Use a sample stands in the empty grid, in Demo (`docs/MODES.md` §6.1).
-    let chip = app.entry_sample_shown();
+    // Use a sample goes in the "Demo only" card while the grid is empty
+    // (`docs/DEMO.md` §14).
+    if app.entry_sample_shown() {
+        crate::samples::put::offer(ui, Action::UseSample);
+    }
     let grid = (y, app.entry.state().word_boxes(words.len()));
     y = typed_cells(
         ui,
@@ -204,13 +207,10 @@ pub(crate) fn entry_words(
         Cells {
             boxes: grid.1,
             masked: false,
-            caret: !app.entry.state().on_passphrase && !chip,
+            caret: !app.entry.state().on_passphrase,
             never: app.seed_line,
         },
     );
-    if chip {
-        crate::samples::put::grid_chip(ui, (x, grid.0, width), grid.1);
-    }
     y += button_rows(ui, x, y, width, &langs);
 
     // Status.
@@ -460,7 +460,7 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         y,
         pw,
         &app.entry.state().passphrase,
-        (on, app.pass_chip(crate::demo::PassField::Entry, on)),
+        (on, app.pass_chip(crate::demo::PassField::Entry)),
         Action::EntryPassphrase,
     );
     // The stick row and the buttons sit at the bottom of the screen, but
@@ -500,16 +500,28 @@ fn entry_finish(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, h: f32) -> 
         Style::Secondary,
         Action::KeyGen(None),
     );
-    ui.text_mid(
-        new_x + new_w + 20.0,
-        by,
-        46.0,
-        12.0,
-        W::R,
-        Role::OnSurfaceVariant,
+    keys_hint(
+        ui,
+        (x, width),
+        (new_x + new_w + 20.0, by),
         EN.entry_finish_keys_hint,
-    );
-    by + 46.0
+    )
+}
+
+/// The keys' hint of a foot row of 46 high at `by`: beside its buttons,
+/// from `hx`, where it fits in the page (`x`, `width`); on a page narrowed
+/// (beside the "Demo only" card, a medium window) on its own line under
+/// them, wrapped, never cut. Returns the row's foot.
+fn keys_hint(ui: &mut Ui, (x, width): (f32, f32), (hx, by): (f32, f32), hint: &str) -> f32 {
+    use faraday_draw::tokens::{CAPTION, GAP};
+    let (muted, row) = (Role::OnSurfaceVariant, 46.0);
+    if hx + ui.measure(CAPTION, W::R, hint) <= x + width {
+        ui.text_mid(hx, by, row, CAPTION, W::R, muted, hint);
+        by + row
+    } else {
+        let hy = by + row + GAP;
+        hy + ui.wrap(x, hy, width, CAPTION, W::R, muted, hint)
+    }
 }
 
 /// Whether any of a key's words is typed on Add a key.
@@ -672,7 +684,7 @@ pub(crate) fn entry_form(
             y,
             pw,
             &app.entry.state().passphrase,
-            (on, app.pass_chip(crate::demo::PassField::Entry, on)),
+            (on, app.pass_chip(crate::demo::PassField::Entry)),
             Action::EntryPassphrase,
         );
     }
@@ -734,15 +746,8 @@ pub(crate) fn entry_form(
     );
     // Its Enter on an empty line makes the key; the flow's opens Key.
     if flow.is_none() {
-        ui.text_mid(
-            x + aw + mw + 28.0,
-            by,
-            46.0,
-            12.0,
-            W::R,
-            Role::OnSurfaceVariant,
-            EN.entry_form_enter_adds,
-        );
+        let hx = x + aw + mw + 28.0;
+        return keys_hint(ui, (x, width), (hx, by), EN.entry_form_enter_adds);
     }
     by + 46.0
 }
@@ -766,15 +771,11 @@ fn entry_field(app: &View, ui: &mut Ui, x: f32, y: f32, width: f32, form: crate:
     );
     let on = !app.entry.state().on_passphrase;
     let empty = app.entry.state().typed.is_empty();
-    // Use a sample stands where the hint would, in Demo.
-    let chip = app.entry_sample_shown();
-    if chip {
-        let h = faraday_draw::tokens::ENTRY_FIELD_HEIGHT;
-        crate::samples::put::field_chip(ui, (x, y, width, h));
+    // Use a sample goes in the "Demo only" card while the field is empty.
+    if app.entry_sample_shown() {
+        crate::samples::put::offer(ui, Action::UseSample);
     }
-    let typed = if chip {
-        crate::secret_text::SecretText::new()
-    } else if empty && on {
+    let typed = if empty && on {
         // The caret stands before the hint while nothing is typed.
         ui.caret(x + 12.0, y + 13.0, 18.0);
         match form {

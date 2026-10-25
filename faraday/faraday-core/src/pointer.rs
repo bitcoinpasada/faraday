@@ -135,6 +135,11 @@ impl Pointer {
         self.hits.iter().any(|(_, a)| *a == action)
     }
 
+    /// How many places the last frame offered `action` in.
+    pub(crate) fn offered_times(&self, action: Action) -> usize {
+        self.hits.iter().filter(|(_, a)| *a == action).count()
+    }
+
     pub(crate) fn pressed(&self) -> Option<(Action, Rect)> {
         self.pressed
     }

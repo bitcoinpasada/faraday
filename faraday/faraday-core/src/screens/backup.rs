@@ -1156,12 +1156,7 @@ fn typed_passphrase(app: &View, ui: &mut Ui, (x, y, w): (f32, f32, f32), typed: 
         let dots = ui.fit(14.0, W::M, &dots, w - 30.0);
         ui.text_mid(x + 12.0, cy, 42.0, 14.0, W::M, Role::OnSurface, &dots);
     }
-    app.pass_chip_draw(
-        ui,
-        (x, cy, w, T::TEXT_FIELD_TALL),
-        (typed.is_empty(), false, false),
-        crate::demo::PassField::Check,
-    );
+    app.pass_chip_draw(ui, typed.is_empty(), crate::demo::PassField::Check);
     cy += 42.0 + 12.0 + never_below(app, ui, x, cy + 42.0, w);
     cy - y
 }
@@ -1291,23 +1286,18 @@ fn word_check(
     match c.keys.as_deref() {
         None => {
             cy += ui.wrap(x, cy, w, 13.0, W::S, Role::OnSurfaceVariant, &label) + 8.0;
-            let chip = app.copy_check_sample_shown();
+            // Fill words goes in the "Demo only" card while the grid is
+            // empty (`docs/DEMO.md` §14).
+            if app.copy_check_sample_shown() {
+                ui.demo_offer(EN.fill_words, Action::UseSample);
+            }
             let cells = Cells {
                 boxes: c.count,
                 masked: true,
-                caret: !chip,
+                caret: true,
                 never: app.seed_line,
             };
-            let grid = cy;
             cy = typed_cells(ui, (x, cy, w), lang, &c.typed, cells);
-            if chip {
-                crate::samples::put::grid_chip_labelled(
-                    ui,
-                    (x, grid, w),
-                    c.count,
-                    (EN.fill_words, EN.fill_words),
-                );
-            }
         }
         Some(k) if ui.compact => {
             let status = error.map(|e| (e, Role::Error.paint()));
@@ -1321,8 +1311,7 @@ fn word_check(
                 (
                     true,
                     c.shift,
-                    app.copy_check_sample_shown()
-                        .then_some((EN.fill_words, EN.fill_words)),
+                    app.copy_check_sample_shown().then_some(EN.fill_words),
                 ),
             );
             cy += never_real_seed(app, ui, x, cy, w);

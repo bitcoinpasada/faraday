@@ -1,6 +1,7 @@
 //! Use a sample (`docs/MODES.md` §6, §10 M7): in Demo, with samples set,
-//! each step that takes a key draws a chip inside its empty field, or on
-//! the scanner a tile, and a press puts a sample into the step through
+//! each step that takes a key hands the "Demo only" card (`card.rs`) a
+//! button while its field is empty, and the scanner its sample, and a
+//! press puts a sample into the step through
 //! the function the step's own input already calls, as if typed or
 //! scanned. Which sample: the next one not loaded, by a cursor on the
 //! step's state; a part of a set fills the next part of the set begun.
@@ -13,13 +14,11 @@
 use super::{SampleForm, SampleKey, Samples};
 use crate::forms::{self, Form};
 use crate::strings::EN;
-use crate::ui::Style;
-use crate::ui::{Ui, W};
+use crate::ui::Ui;
 use crate::wallet::{read_wallet, same_wallet};
 use crate::{Action, Faraday, ScanPurpose, Screen, Sheet};
 use faraday_bip::bip39::Language;
 use faraday_crypto::work::Compute;
-use faraday_draw::tokens::{self, FIELD_ACTION_INSET, FIELD_ACTION_TEXT};
 
 /// What a step keeps of Use a sample: whether its chip is gone for this
 /// visit, and which sample comes next. Kept beside the field it is for
@@ -63,164 +62,11 @@ impl Use {
     }
 }
 
-/// The chip inside the empty field at (`x`, `y`, `w`, `h`), its label the
-/// shorter one where the field is narrower than the long one.
-pub(crate) fn chip(ui: &mut Ui, rect: (f32, f32, f32, f32), action: Action) {
-    chip_labelled(ui, rect, action, (EN.use_a_sample, EN.scan_sample));
-}
-
-/// [`chip`] with its own `(long, short)` labels.
-pub(crate) fn chip_labelled(
-    ui: &mut Ui,
-    (x, y, w, h): (f32, f32, f32, f32),
-    action: Action,
-    (long, short): (&'static str, &'static str),
-) {
-    let need = ui.measure(FIELD_ACTION_TEXT, W::S, long) + 2.0 * FIELD_ACTION_INSET;
-    let label = if need + 2.0 * FIELD_ACTION_INSET <= w {
-        long
-    } else {
-        short
-    };
-    ui.field_action(x, y, w, h, label, action);
-}
-
-/// The `faraday` chip inside the passphrase field at (`x`, `y`, `w`, `h`),
-/// at its left, or at its right end where the field holds the **No
-/// passphrase** pill at the left (`docs/MODES.md` §6.2).
-pub(crate) fn pass_chip(
-    ui: &mut Ui,
-    (x, y, w, h): (f32, f32, f32, f32),
-    action: Action,
-    right: bool,
-) {
-    let label = EN.passphrase_chip;
-    if right {
-        let width = ui.measure(FIELD_ACTION_TEXT, W::S, label) + 2.0 * FIELD_ACTION_INSET;
-        ui.field_action(
-            x + w - width - 2.0 * FIELD_ACTION_INSET,
-            y,
-            w,
-            h,
-            label,
-            action,
-        );
-    } else {
-        ui.field_action(x, y, w, h, label, action);
-    }
-}
-
-/// Add a key's word grid on a wide display, empty: the chip inside cell 1
-/// only, after its number, where the word would be; a press anywhere in
-/// the grid focuses it. `boxes` cells are drawn by the grid itself.
-pub(crate) fn grid_chip(ui: &mut Ui, pos: (f32, f32, f32), boxes: usize) {
-    grid_chip_labelled(ui, pos, boxes, (EN.use_a_sample, EN.scan_sample));
-}
-
-/// [`grid_chip`] with its own labels: Check my copy's **Fill words**.
-pub(crate) fn grid_chip_labelled(
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
-    boxes: usize,
-    labels: (&'static str, &'static str),
-) {
-    let rows = boxes.div_ceil(4) as f32 * tokens::ENTRY_ROW - tokens::FIELD_RADIUS;
-    ui.hit(x, y, w, rows, Action::EntryField);
-    let cell = (w - tokens::ENTRY_CELL_GAP * 3_f32) / 4_f32;
-    let at = tokens::ENTRY_CELL_NUMBER;
-    let h = tokens::ENTRY_CELL_HEIGHT;
-    chip_labelled(ui, (x + at, y, cell - at, h), Action::UseSample, labels);
-}
-
-/// The chip in the word being typed on a small panel, in the place of its
-/// keys: a press in it is not a press in the field, which has none.
-pub(crate) fn head_chip(
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
-    labels: (&'static str, &'static str),
-) {
-    chip_labelled(
-        ui,
-        (x, y, w, tokens::FIELD_ACTION_HEIGHT),
-        Action::UseSample,
-        labels,
-    );
-}
-
-/// The chip in a field of one share or part, of `h` high; a press in the
-/// field focuses it.
-pub(crate) fn field_chip(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32)) {
-    ui.hit(x, y, w, h, Action::EntryField);
-    chip(ui, (x, y, w, h), Action::UseSample);
-}
-
-/// The chip in a cosigner's key box of the row at `y`, `x` the row's left
-/// and `w` its width.
-pub(crate) fn box_chip(ui: &mut Ui, (x, y, w): (f32, f32, f32), action: Action) {
-    let inset = tokens::SEED_FIELD_INSET;
-    chip(
-        ui,
-        (x + inset, y, w - inset, tokens::SEED_FIELD_HEIGHT),
-        action,
-    );
-}
-
-/// The room the scanner's Sample tile takes in the foot on a wide
-/// display, with the gap after it.
-pub(crate) fn scan_tile_span(ui: &Ui, long: &'static str) -> f32 {
-    let label = ui.measure(tokens::SCAN_TILE_TEXT, W::S, scan_tile_label(ui, long));
-    label + tokens::SCAN_TILE_PAD + tokens::SCAN_TILE_GAP
-}
-
-/// What the tile says: `long`, what it hands over, where it fits; else
-/// the short word.
-fn scan_tile_label(ui: &Ui, long: &'static str) -> &'static str {
-    let span = ui.measure(tokens::SCAN_TILE_TEXT, W::S, long) + tokens::SCAN_TILE_PAD;
-    if ui.compact || span <= tokens::SCAN_TILE_MAX_SPAN {
-        long
-    } else {
-        EN.scan_sample
-    }
-}
-
-/// The scanner's Sample tile: on a wide display in the foot, ending at
-/// `left` (returned moved past it); on a small panel full width above
-/// the foot and `row` of buttons above it. `x` and `w` are the sheet's.
-pub(crate) fn scan_tile(
-    ui: &mut Ui,
-    (x, w, foot): (f32, f32, f32),
-    (row, left): (f32, f32),
-    long: &'static str,
-) -> f32 {
-    let (h, side) = (tokens::SCAN_TILE_HEIGHT, tokens::SCAN_SIDE);
-    let label = scan_tile_label(ui, long);
-    if ui.compact {
-        let above = foot - tokens::SCAN_TILE_ROW - row;
-        let wide = Some(w - 2.0 * side);
-        ui.button(
-            x + side,
-            above,
-            wide,
-            h,
-            label,
-            Style::Secondary,
-            Action::ScanSample,
-        );
-        return left;
-    }
-    let span = scan_tile_span(ui, long);
-    let bw = span - tokens::SCAN_TILE_GAP;
-    let at = left - bw;
-    ui.button(
-        at,
-        foot,
-        Some(bw),
-        h,
-        label,
-        Style::Secondary,
-        Action::ScanSample,
-    );
-    at - tokens::SCAN_TILE_GAP
+/// Hands the frame's "Demo only" card **Use a sample**, pressed as
+/// `action`: where a step that takes a key or an input has its field
+/// empty (`docs/DEMO.md` §14).
+pub(crate) fn offer(ui: &mut Ui, action: Action) {
+    ui.demo_offer(EN.use_a_sample, action);
 }
 
 /// The samples that are keys of BIP-39 words in the English list, with
@@ -698,27 +544,6 @@ impl Faraday {
             }
         }
     }
-}
-
-/// A Use a sample button on a screen with no field to put it in, at
-/// (`x`, `y`) and the touch floor's height: drawn only where samples are
-/// set (Demo). Returns its height with the gap under it, 0 where not
-/// drawn.
-pub(crate) fn button(app: &Faraday, ui: &mut Ui, x: f32, y: f32) -> f32 {
-    if app.put_on().is_none() {
-        return 0.0;
-    }
-    let h = tokens::TEXT_FIELD;
-    ui.button(
-        x,
-        y,
-        None,
-        h,
-        EN.use_a_sample,
-        Style::Secondary,
-        Action::UseSample,
-    );
-    h + tokens::GAP
 }
 
 // The inputs of other flows (`docs/MODES.md` §5.3, §6).

@@ -251,6 +251,12 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
     right
 }
 
+/// Whether the wide layout draws the codex32 sheets' eye under the ?. A
+/// lookup.
+pub(crate) fn eye_shown(app: &View) -> bool {
+    eye_state(app).is_some()
+}
+
 /// Whether the eye is offered on this page, and whether the sheets are
 /// masked now: Make codex32 shares' sheets, on a device
 /// (`docs/CODEX32.md` §6.4.6).
@@ -1143,10 +1149,6 @@ impl Faraday {
 
     /// A field with focus takes typing now.
     fn osk_auto(&self) -> bool {
-        // An empty passphrase offering its chip is not covered by the keys.
-        if self.pass_chip_waiting() {
-            return false;
-        }
         if self.sheet == Some(crate::Sheet::Potential) {
             return self.inbox.potential().is_some_and(|p| p.typing);
         }

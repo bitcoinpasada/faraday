@@ -523,48 +523,6 @@ pub const ENTRY_FIELD_HEIGHT: f32 = 44.0;
 /// extra-small.
 pub const FIELD_RADIUS: f32 = SHAPE_XS;
 
-/// The word being typed on a small panel: how far its row stands above the
-/// line of its label's text, so a chip in it centres on the text.
-pub const KEYED_HEAD_LIFT: f32 = 4.0;
-
-/// A cosigner's key box in the seeds piece: its height.
-pub const SEED_FIELD_HEIGHT: f32 = 40.0;
-
-/// A cosigner's key box in the seeds piece: how far it stands in from the
-/// left of the row, behind the number of its place.
-pub const SEED_FIELD_INSET: f32 = 22.0;
-
-/// The scanner's Sample tile: its height.
-pub const SCAN_TILE_HEIGHT: f32 = 44.0;
-
-/// The scanner's Sample tile: the size of its label.
-pub const SCAN_TILE_TEXT: f32 = 14.0;
-
-/// The scanner's Sample tile: the room it takes beyond its label, the
-/// padding each side.
-pub const SCAN_TILE_PAD: f32 = 32.0;
-
-/// The scanner's Sample tile on a wide display: the most room its label
-/// may take; a longer one is the short label.
-pub const SCAN_TILE_MAX_SPAN: f32 = 210.0;
-
-/// A step's Load sample PSBT button beside its Scan: its height, and the
-/// row it takes with the gap under it.
-pub const SAMPLE_BUTTON_HEIGHT: f32 = 40.0;
-
-/// A step's Load sample PSBT button: the row it takes.
-pub const SAMPLE_BUTTON_ROW: f32 = 52.0;
-
-/// The scanner's foot: the gap between its buttons.
-pub const SCAN_TILE_GAP: f32 = 12.0;
-
-/// The scanner on a small panel: the room a full-width button above the
-/// foot takes.
-pub const SCAN_TILE_ROW: f32 = 52.0;
-
-/// The scanner sheet's side margin, inside the sheet.
-pub const SCAN_SIDE: f32 = 32.0;
-
 /// Add a key's word grid on a wide display: the gap between cells.
 pub const ENTRY_CELL_GAP: f32 = 10.0;
 
@@ -856,6 +814,21 @@ pub const LIST_SUPPORTING_Y: f32 = 38.0;
 
 /// A supporting pane's width (`docs/LAYOUT.md` §6).
 pub const SUPPORT_PANE: f32 = 400.0;
+
+/// The narrowest a page is laid out beside the "Demo only" card at the
+/// window's right (`docs/DEMO.md` §14); narrower, the card is a strip at
+/// the window's foot.
+pub const DEMO_PAGE_MIN: f32 = 420.0;
+
+/// Where the "Demo only" card's top stands on a wide window: just under
+/// the top-right strip's pills (owner, 2026-10-24); under the eye too
+/// where the codex32 sheets show one there.
+pub const DEMO_CARD_TOP: f32 = TOUCH + GAP_SMALL;
+
+/// The same for a page with a side panel of its own beside its step
+/// column (Create a vault, Back up, Spend, the backup flow): Material's
+/// expanded width, so the column and the panel keep their room.
+pub const DEMO_PAGE_PANEL_MIN: f32 = 840.0;
 
 /// Where a supporting pane's top stands on a wide window: below the
 /// top-right strip's two 48 dp rows (the network pill and the ?, then

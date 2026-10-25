@@ -14,6 +14,10 @@ use faraday_shell_api::{App, EntropyBytes, Event, Key};
 fn rolling(offered: bool, reduce: bool) -> Faraday {
     let mut app = faraday_core::testkit::started();
     app.set_roller_offered(offered);
+    if offered {
+        // The roller is Demo's alone (`docs/DEMO.md` §14).
+        faraday_core::testkit::into_demo(&mut app);
+    }
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x41 + i * 7; 32])));
     }
@@ -66,52 +70,49 @@ fn a_roll_fills_the_rolls_as_the_keys_would() {
         .text
         .to_string();
     assert_eq!(rolled_phrase, typed_phrase);
+    // In Demo, where the roller is offered, both are `faraday` in place of
+    // the words the rolls make (`docs/DEMO.md` §5.2); the words are the
+    // rolls' as typed.
+    assert_eq!(rolled_phrase, faraday_core::demo::PASSPHRASE);
     assert_eq!(
-        rolled_phrase,
-        faraday_core::vault::dice_words(&made, List::Large).join("")
+        faraday_core::vault::dice_words(&made, List::Large).len(),
+        1,
+        "five rolls make one word of the long list"
     );
 }
 
+/// The roller is Demo's alone, and Demo puts `faraday` in place of the
+/// words the dice make, so no strength line speaks of the computer's
+/// dice: rolled, rolled with typed, or typed, the passphrase is `faraday`
+/// and is not measured (`docs/DEMO.md` §5.2, §14).
 #[test]
-fn rolled_values_are_marked_as_this_computers_and_typed_ones_are_not() {
-    let en = &faraday_core::strings::EN;
+fn rolled_or_typed_demo_puts_faraday_in_place_and_measures_nothing() {
+    let mut cases: Vec<Faraday> = Vec::new();
     // All rolled.
     let mut app = rolling(true, true);
     app.press(roller(Act::Per(PerClick::Five)));
     app.press(roller(Act::Roll));
-    app.press(Action::Vault(V::DiceUse));
-    let c = app.vaults().create.as_ref().unwrap();
-    assert_eq!(
-        faraday_core::vault::Vaults::bits_words(c, 0),
-        en.roller_bits_simulated
-    );
-
-    // One typed, four rolled: "simulated dice and your dice".
+    cases.push(app);
+    // One typed, four rolled.
     let mut app = rolling(true, true);
     app.event(Event::Key(Key::Char('3')));
     app.press(roller(Act::Per(PerClick::Five)));
     app.press(roller(Act::Roll));
-    // One typed and five rolled.
     assert_eq!(rolls(&app).len(), 6);
     app.event(Event::Key(Key::Backspace));
-    app.press(Action::Vault(V::DiceUse));
-    let c = app.vaults().create.as_ref().unwrap();
-    assert_eq!(
-        faraday_core::vault::Vaults::bits_words(c, 0),
-        en.roller_bits_both
-    );
-
+    cases.push(app);
     // Typed alone.
     let mut app = rolling(true, true);
     for c in "12345".chars() {
         app.event(Event::Key(Key::Char(c)));
     }
-    app.press(Action::Vault(V::DiceUse));
-    let c = app.vaults().create.as_ref().unwrap();
-    assert_eq!(
-        faraday_core::vault::Vaults::bits_words(c, 0),
-        en.vault_bits_from_dice
-    );
+    cases.push(app);
+    for mut app in cases {
+        app.press(Action::Vault(V::DiceUse));
+        let c = app.vaults().create.as_ref().unwrap();
+        assert_eq!(c.phrases[0].0.text.as_str(), faraday_core::demo::PASSPHRASE);
+        assert_eq!(faraday_core::vault::Vaults::phrase_bits(c, 0), None);
+    }
 }
 
 #[test]

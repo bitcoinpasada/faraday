@@ -350,10 +350,12 @@ impl Faraday {
         self.fresh.roller = on;
     }
 
-    /// Whether the dice roller is offered now: Faraday Desktop, with keys
-    /// allowed to load.
+    /// Whether the dice roller is offered now: Faraday Desktop in Demo,
+    /// with keys allowed to load. It stands in the "Demo only" card, and
+    /// in every other mode it is not offered at all (owner, 2026-10-24;
+    /// `docs/DEMO.md` §14).
     pub fn roller_offered(&self) -> bool {
-        self.fresh.roller && self.may_load_keys()
+        self.fresh.roller && self.may_load_keys() && self.demo_passphrase()
     }
 
     /// A batch of the person's own randomness (Add randomness,

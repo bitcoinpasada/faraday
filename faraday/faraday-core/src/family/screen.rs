@@ -935,7 +935,7 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     }
     let ready = app.family_ready();
     let may = app.may_load_keys();
-    let mut ways = vec![
+    let ways = vec![
         (
             EN.family_scan_the_qr,
             if ready {
@@ -955,8 +955,9 @@ fn holding(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             fa(F::TypeWords),
         ),
     ];
+    // Load sample PSBT goes in the "Demo only" card (`docs/DEMO.md` §14).
     if app.sample_psbt_offered() {
-        ways.push((EN.scan_sample_psbt, Style::Secondary, Action::SamplePsbt));
+        ui.demo_offer(EN.scan_sample_psbt, Action::SamplePsbt);
     }
     cy += crate::screens::wrap_buttons(ui, x, cy, w, 40.0, &ways);
     // A description already in Files, or on a stick to copy in.
@@ -1524,14 +1525,11 @@ fn shortcut(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     if app.wallets.spend().is_some() {
         return 0.0;
     }
-    let sample = app.sample_psbt_offered();
-    let with_sample = |scan: &'static str| {
-        let mut items = vec![(scan, Style::Secondary, Action::Scan)];
-        if sample {
-            items.push((EN.scan_sample_psbt, Style::Secondary, Action::SamplePsbt));
-        }
-        items
-    };
+    // Load sample PSBT goes in the "Demo only" card (`docs/DEMO.md` §14).
+    if app.sample_psbt_offered() {
+        ui.demo_offer(EN.scan_sample_psbt, Action::SamplePsbt);
+    }
+    let with_sample = |scan: &'static str| vec![(scan, Style::Secondary, Action::Scan)];
     if ui.compact {
         // Too long for one button on a small panel: the line, then Scan it.
         let lh = ui.wrap(
@@ -1836,17 +1834,9 @@ fn bring(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         Action::Scan,
     );
     cy += 52.0;
+    // Load sample PSBT goes in the "Demo only" card (`docs/DEMO.md` §14).
     if app.sample_psbt_offered() {
-        ui.button(
-            x,
-            cy,
-            None,
-            faraday_draw::tokens::SAMPLE_BUTTON_HEIGHT,
-            EN.scan_sample_psbt,
-            Style::Secondary,
-            Action::SamplePsbt,
-        );
-        cy += faraday_draw::tokens::SAMPLE_BUTTON_ROW;
+        ui.demo_offer(EN.scan_sample_psbt, Action::SamplePsbt);
     }
     let label = if card {
         fill(EN.family_on_medium, &[app.medium.a()])

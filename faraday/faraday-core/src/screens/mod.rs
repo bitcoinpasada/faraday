@@ -29,6 +29,7 @@ mod wallets_start;
 
 use crate::drawing::View;
 use crate::nav::Nav;
+use crate::samples::card as demo_card;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -194,9 +195,27 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         let strip = crate::stick::pills::strip_h(app, ui, full_w);
         let (rail_w, bar_h) = nav_room(app, kb > 0.0);
         let page_h = full_h - strip - bar_h;
+        // The "Demo only" card, a strip pinned at the page's foot
+        // (`docs/DEMO.md` §14).
+        let card = app.demo_card_now();
+        let place = card
+            .as_ref()
+            .map(|c| demo_card::place(app, ui, full_w - rail_w, c));
+        let foot = demo_card::foot_room(place);
         ui.oy = strip;
-        draw_compact(app, ui, (rail_w, full_w - rail_w), page_h, kb > 0.0, strip);
+        draw_compact(
+            app,
+            ui,
+            (rail_w, full_w - rail_w),
+            page_h - foot,
+            kb > 0.0,
+            strip,
+        );
         ui.oy = strip;
+        ui.ox = 0.0;
+        if let (Some(c), Some(p)) = (card.as_ref(), place) {
+            demo_card::draw(app, ui, p, c, (rail_w, full_w - rail_w, page_h));
+        }
         if rail_w > 0.0 {
             crate::nav::screen::rail(app, ui, win_h - strip);
         }
@@ -212,7 +231,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.clear(Role::Surface);
         sidebar(app, ui, win_h);
         let room = full_w - SIDEBAR_W;
-        let (ox, cw) = page_area(app.screen, room);
+        // The "Demo only" card at the right takes its room from the page;
+        // a strip at the foot takes its height (`docs/DEMO.md` §14).
+        let card = app.demo_card_now();
+        let place = card.as_ref().map(|c| demo_card::place(app, ui, room, c));
+        let (ox, cw) = page_area(app.screen, room - demo_card::side_room(place));
+        let foot = demo_card::foot_room(place);
         let h = full_h;
         ui.ox = ox;
         let x = SIDEBAR_W;
@@ -222,8 +246,18 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         let drop = crate::stick::pills::page_drop(strip);
         ui.oy = drop - lift;
         ui.top_row_left = top_row_left(app, ui, full_w) - ox;
-        dispatch(app, ui, x, cw, if kb > 0.0 { win_h } else { h } - drop);
+        dispatch(
+            app,
+            ui,
+            x,
+            cw,
+            if kb > 0.0 { win_h } else { h } - drop - foot,
+        );
         ui.oy = 0.0;
+        ui.ox = 0.0;
+        if let (Some(c), Some(p)) = (card.as_ref(), place) {
+            demo_card::draw(app, ui, p, c, (SIDEBAR_W, room, h));
+        }
         // The top-right row and the eye stand against the window's right
         // edge, whatever area the page is laid out in (§15).
         ui.ox = 0.0;
@@ -308,6 +342,18 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::BoardMenu => Some(Action::Board(crate::board::BoardPress::MenuClose)),
             _ => Some(Action::Cancel),
         };
+        // A sheet's "Demo only" card stands at the window's right, the
+        // sheet centred beside it, or in a strip at the window's foot, the
+        // sheet above it (`docs/DEMO.md` §14).
+        // What the page under it handed over is not the sheet's.
+        let _ = ui.take_demo();
+        let card = app.demo_sheet_card_now(sheet);
+        let place = card.as_ref().map(|c| demo_card::place(app, ui, w, c));
+        let (full_w, full_h) = (w, h);
+        let (w, h) = (
+            w - demo_card::side_room(place),
+            h - demo_card::foot_room(place),
+        );
         match sheet {
             Sheet::Lock => lock_sheet(app, ui, w, h),
             Sheet::LockAsk => lock_ask_sheet(app, ui, w, h),
@@ -348,6 +394,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::NavMenu => crate::nav::screen::menu_sheet(ui, w, h),
         }
         ui.oy = 0.0;
+        ui.ox = 0.0;
+        if let (Some(c), Some(p)) = (card.as_ref(), place) {
+            demo_card::draw(app, ui, p, c, (0.0, full_w, full_h));
+        }
     }
     // A sheet with a field of its own: the wide layout's keyboard button
     // stays within reach, over it, where the page has it.

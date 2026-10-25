@@ -7942,13 +7942,11 @@ strings! {
     /// The line under every field where a seed or a secret is typed, on an
     /// online shell.
     never_real_seed: "Never type a seed that holds real bitcoin here.",
-    /// The chip inside an empty field where a key is typed, in Demo.
+    /// Button in the "Demo only" card that puts a sample in the empty
+    /// field of the page where a key or an input is typed (DEMO §14).
     use_a_sample: "Use a sample",
-    /// The same where the field is narrower than the chip, and the
-    /// scanner's tile that reads a sample.
-    scan_sample: "Sample",
-    /// The chip in Check my copy's empty grid, in Demo: it types the
-    /// sample's words.
+    /// Button in the "Demo only" card of Check my copy, its grid empty:
+    /// it types the sample's words.
     fill_words: "Fill words",
     /// The scanner's tile, and the step's button, that hands over the
     /// sample transaction.
@@ -8943,8 +8941,9 @@ strings! {
     // ----- New key's sources, checks and dice lists, the self-test, BIP-85's applications, Tools' calculators, Explore's path -----
     /// Row that declines a passphrase.
     passphrase_none: "No passphrase",
-    /// Chip in an empty passphrase field in Demo that fills it.
-    passphrase_chip: "faraday",
+    /// Button in the "Demo only" card that puts the demo's passphrase in
+    /// the empty passphrase fields of the page (DEMO §5.4).
+    demo_use_faraday: "Use faraday",
     /// Button that discards the entries.
     create_sanity_again: "Roll again",
     /// Source: a six-sided die.
@@ -9192,10 +9191,6 @@ strings! {
     roller_to_the_end: "To the end",
     /// The typed number's field when it is empty.
     roller_number: "Number",
-    /// A passphrase's strength, made by the roller. `{}`: its own bits, the unlock cost's, the sum.
-    roller_bits_simulated: "{} bits from simulated dice + ≈{} from the unlock cost ≈ {} bits",
-    /// A passphrase's strength, made by the roller and real dice. `{}`: its own bits, the unlock cost's, the sum.
-    roller_bits_both: "{} bits from simulated dice and your dice + ≈{} from the unlock cost ≈ {} bits",
     // ----- The five-dice roller (docs/CODEX32.md §5.5), faraday-core/src/fresh/roller/ -----
     /// Heading of the codex32 dice step's roller, beside the entry for real dice.
     roller_or_let_faraday_roll: "Or let Faraday roll",
@@ -9374,11 +9369,6 @@ strings! {
     codex32_your_characters: "your characters",
     /// Strings made's entropy: both.
     codex32_your_dice_and_characters: "your dice and your characters",
-    /// Strings made's entropy: every face from the five-dice roller
-    /// (Faraday Desktop, CODEX32 §5.5).
-    codex32_simulated_dice: "simulated dice",
-    /// Strings made's entropy: faces from the roller and from real dice.
-    codex32_simulated_and_your_dice: "simulated dice and your dice",
     /// The entry's pad for real rolls, beside the roller (CODEX32 §5.5).
     codex32_your_dice_head: "Your dice",
     /// Under the dice sheet: the dice of the character in progress
@@ -9431,9 +9421,11 @@ strings! {
     /// The note when the dice are changed in the middle of a character
     /// (CODEX32 §5.1).
     codex32_dice_changed: "Dice changed: this character's rolls are cleared",
-    /// The box that holds the computer's dice roller and Demo's sample,
-    /// apart from the person's own entry (CODEX32 §5.5, owner 2026-10-24).
-    codex32_demo_only: "Demo only",
+    /// The heading of the card that holds what a page offers only in Demo
+    /// or only on Faraday Desktop, apart from the person's own entry: the
+    /// samples, the computer's dice, the demo's passphrase (DEMO §14,
+    /// CODEX32 §5.5, owner 2026-10-24).
+    demo_only: "Demo only",
     /// The roller's dice, in the "Demo only" box. `{}`: the die, as "d20".
     codex32_rolls_die: "Rolls {}",
     // ----- The step-through in the "Demo only" card (CODEX32 §5.5, owner 2026-10-24), faraday-core -----

@@ -731,7 +731,7 @@ pub(crate) fn pass_field(
     w: f32,
     label: &str,
     text: &crate::secret_text::SecretText,
-    (on, chip): (bool, Option<(Action, bool)>),
+    (on, chip): (bool, Option<Action>),
     action: Action,
 ) -> f32 {
     let (px, py, pw) = if ui.compact {
@@ -766,16 +766,15 @@ pub(crate) fn dots_field(
     y: f32,
     w: f32,
     text: &str,
-    (on, chip): (bool, Option<(Action, bool)>),
+    (on, chip): (bool, Option<Action>),
     action: Action,
 ) {
-    // The chip, drawn after, is pressed before the field.
     ui.hit(x, y, w, tokens::TEXT_FIELD, action);
     if text.is_empty() {
-        // No caret under the chip.
-        ui.no_passphrase(x, y, 40.0, on && !matches!(chip, Some((_, true))));
-        if let Some((a, true)) = chip {
-            crate::samples::put::pass_chip(ui, (x, y, w, tokens::TEXT_FIELD), a, true);
+        ui.no_passphrase(x, y, 40.0, on);
+        // Use faraday goes in the "Demo only" card (`docs/DEMO.md` §5.4).
+        if let Some(a) = chip {
+            ui.demo_offer(EN.demo_use_faraday, a);
         }
     } else if chip.is_some() && text == crate::demo::PASSPHRASE {
         code_field(ui, x, y, w, tokens::TEXT_FIELD, text);

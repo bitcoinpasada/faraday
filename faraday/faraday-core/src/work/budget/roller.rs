@@ -13,6 +13,7 @@ use crate::{Action, testkit};
 fn rolling_ten_values_with_their_ticks_and_frames_does_no_costly_work() {
     let mut app = testkit::started();
     app.set_roller_offered(true);
+    testkit::into_demo(&mut app);
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x30 + i; 32])));
     }

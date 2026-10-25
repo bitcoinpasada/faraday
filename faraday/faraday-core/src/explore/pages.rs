@@ -93,9 +93,10 @@ fn field(ui: &mut Ui, x: f32, y: f32, width: f32, text: &str, bad: bool, chip: b
         T::GAP,
         if bad { Role::Error } else { Role::Primary },
     );
+    // Use a sample goes in the "Demo only" card while the field is empty
+    // (`docs/DEMO.md` §14).
     if chip {
-        crate::samples::put::chip(ui, (x, y, width, T::FIELD), Action::UseSample);
-        return T::FIELD + T::GAP;
+        crate::samples::put::offer(ui, Action::UseSample);
     }
     let shown = format!("{text}{}", ui.caret_char());
     let shown = ui.fit(T::BODY, W::M, &shown, width - T::PAD * 2.0);

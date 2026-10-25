@@ -86,13 +86,7 @@ fn potential_body(
             );
             let shown = ui.fit_secret(14.0, W::M, &shown, iw - 60.0);
             let tw = ui.text_mid(x + 12.0, cy, 44.0, 14.0, W::M, Role::OnSurface, &shown);
-            if p.typing
-                && !app.pass_chip_shown(
-                    crate::demo::PassField::Potential,
-                    p.passphrase.is_empty(),
-                    p.typing,
-                )
-            {
+            if p.typing {
                 ui.caret(x + 13.0 + tw, cy + 13.0, 18.0);
             }
             ui.hit(x, cy, iw - 44.0, 44.0, Action::PotentialType);
@@ -112,8 +106,7 @@ fn potential_body(
             crate::compact::eye_hit(ui, at, Action::PotentialShow, p.shown);
             app.pass_chip_draw(
                 ui,
-                (x, cy, iw - T::TEXT_FIELD_SHEET, T::TEXT_FIELD_SHEET),
-                (p.passphrase.is_empty(), p.typing, false),
+                p.passphrase.is_empty(),
                 crate::demo::PassField::Potential,
             );
         } else {
@@ -718,14 +711,12 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         keys.len() as f32 * 20.0 + if keys.is_empty() { 0.0 } else { 6.0 } + hint_h + never_h;
     let typing = for_wallet.is_some() || (intake && app.may_load_keys());
     let type_row = if typing && ui.compact { 52.0 } else { 0.0 };
-    // The Sample tile, in Demo (`docs/MODES.md` §6): after Paste and Type.
-    let sample = app.scan_sample_offered();
-    let sample_row = if sample && ui.compact {
-        faraday_draw::tokens::SCAN_TILE_ROW
-    } else {
-        0.0
-    };
-    let extra = rows + keys_h + type_row + sample_row;
+    // The scanner's sample goes in the "Demo only" card (`docs/DEMO.md`
+    // §14).
+    if app.scan_sample_offered() {
+        ui.demo_offer(app.scan_sample_label(), Action::ScanSample);
+    }
+    let extra = rows + keys_h + type_row;
     // The title, then the picture: the state line is inside it.
     let top = 56.0;
     let side_h = side_h.min(h - 24.0 - top - 88.0 - extra).max(96.0);
@@ -854,16 +845,11 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             })
             .collect();
         let typing = if typing { 220.0 } else { 0.0 };
-        let sampling = if sample {
-            crate::samples::put::scan_tile_span(ui, app.scan_sample_label())
-        } else {
-            0.0
-        };
         button_rows(
             ui,
             x + 32.0,
             y - keys_h + sh - 32.0 - 44.0 + 6.0,
-            sw - 64.0 - 140.0 - typing - sampling - paste_w,
+            sw - 64.0 - 140.0 - typing - paste_w,
             &row,
         );
     }
@@ -875,14 +861,6 @@ pub(super) fn scan_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         None => None,
     };
     let mut left = x + sw - 32.0 - 120.0 - 12.0;
-    if sample {
-        left = crate::samples::put::scan_tile(
-            ui,
-            (x, sw, foot),
-            (type_row, left),
-            app.scan_sample_label(),
-        );
-    }
     if let Some(action) = type_instead {
         let label = EN.scan_type_the_words;
         if ui.compact {

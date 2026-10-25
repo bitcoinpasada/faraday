@@ -31,6 +31,13 @@ fn app(offered: bool, reduce: bool) -> Faraday {
         memory_mib: None,
     }));
     app.set_roller_offered(offered);
+    if offered {
+        // The roller is Demo's alone (`docs/DEMO.md` §14), with its
+        // sample set, BIP 93's vector 2.
+        faraday_core::testkit::move_to(&mut app.session, faraday_core::testkit::NET).unwrap();
+        app.session.set_demo(crate::codex32_rest::samples());
+        app.samples = Some(crate::codex32_rest::samples());
+    }
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x23 + i * 9; 32])));
     }
@@ -105,7 +112,7 @@ fn to_made(app: &mut Faraday) {
         let _ = app.frame();
         c32(app, C32::Skip);
     }
-    assert_eq!(make(app).open(), Some(Card::Made));
+    assert_eq!(make(app).open(), Some(Card::Made), "{:?}", make(app).note());
 }
 
 fn shows(app: &mut Faraday, text: &str) -> bool {
@@ -130,6 +137,28 @@ fn the_five_dice_stand_beside_your_dice_on_faraday_desktop_only() {
     // A press that reaches a device shell anyway rolls nothing.
     c32(&mut stick, C32::Walk(WalkAct::Next));
     assert_eq!(make(&stick).seq_len(), 0);
+}
+
+#[test]
+fn on_faraday_desktop_in_testnet_the_dice_step_has_no_demo_only_card_and_no_roller() {
+    // Faraday Desktop, its roller set, but in Testnet: Demo is the one
+    // condition for the card and all it holds (owner, 2026-10-24).
+    let mut test = app(false, true);
+    test.set_roller_offered(true);
+    faraday_core::testkit::move_to(&mut test.session, faraday_core::testkit::NET).unwrap();
+    on_dice_entry(&mut test);
+    assert!(!shows(&mut test, "Demo only"), "no card");
+    assert!(!shows(&mut test, "Or let Faraday roll"), "no roller");
+    assert!(!test.offers(Action::Codex32(C32::Walk(WalkAct::Next))));
+    assert!(!test.offers(Action::Codex32(C32::Sample)));
+    assert!(shows(&mut test, "Your dice"), "the person's own dice stay");
+
+    // In Demo the same step has both.
+    let mut demo = app(true, true);
+    on_dice_entry(&mut demo);
+    assert!(shows(&mut demo, "Demo only"));
+    assert!(shows(&mut demo, "Or let Faraday roll"));
+    assert!(demo.offers(Action::Codex32(C32::Walk(WalkAct::Next))));
 }
 
 #[test]
@@ -177,18 +206,24 @@ fn the_arrow_keys_step_through_on_faraday_desktop() {
 }
 
 #[test]
-fn play_to_the_end_makes_the_strings_and_strings_made_says_simulated_dice() {
+fn play_to_the_end_makes_the_strings_and_demo_puts_its_sample_in_their_place() {
     let mut app = app(true, true);
     on_dice_entry(&mut app);
     play(&mut app, Reach::End);
     assert!(make(&app).strings().is_some(), "every share entered");
     assert!(make(&app).front().is_none());
     to_made(&mut app);
-    assert!(shows(&mut app, "simulated dice"));
+    // The roller is Demo's alone, so what the computer rolled never
+    // leaves the entry (`docs/CODEX32.md` §12).
+    assert!(make(&app).sample());
+    assert!(shows(
+        &mut app,
+        "Demo puts sample NAME in place of these strings"
+    ));
 }
 
 #[test]
-fn faces_from_both_say_simulated_dice_and_your_dice() {
+fn faces_from_both_finish_the_entry_and_demo_puts_its_sample_in_their_place() {
     let mut app = app(true, true);
     on_dice_entry(&mut app);
     // One character by hand: each die 4 then 3.
@@ -199,7 +234,11 @@ fn faces_from_both_say_simulated_dice_and_your_dice() {
     assert!(!make(&app).char_rolled(0, 0), "a real die's, not marked");
     play(&mut app, Reach::End);
     to_made(&mut app);
-    assert!(shows(&mut app, "simulated dice and your dice"));
+    assert!(make(&app).sample());
+    assert!(shows(
+        &mut app,
+        "Demo puts sample NAME in place of these strings"
+    ));
 }
 
 #[test]
@@ -269,6 +308,7 @@ fn sized(width: u16, height: u16, dpi: u16) -> Faraday {
         memory_mib: None,
     }));
     app.set_roller_offered(true);
+    faraday_core::testkit::into_demo(&mut app);
     for i in 0..8u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x31 + i * 7; 32])));
     }

@@ -557,10 +557,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             &c.pass,
                             (
                                 c.pass_focus == Some(0),
-                                app.pass_chip(
-                                    crate::demo::PassField::Slot(0),
-                                    c.pass_focus == Some(0),
-                                ),
+                                app.pass_chip(crate::demo::PassField::Slot(0)),
                             ),
                             Action::CPassField(0),
                         );
@@ -573,10 +570,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                             &c.pass2,
                             (
                                 c.pass_focus == Some(1),
-                                app.pass_chip(
-                                    crate::demo::PassField::Slot(1),
-                                    c.pass_focus == Some(1),
-                                ),
+                                app.pass_chip(crate::demo::PassField::Slot(1)),
                             ),
                             Action::CPassField(1),
                         );

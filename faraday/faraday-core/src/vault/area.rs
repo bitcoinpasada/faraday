@@ -1202,19 +1202,6 @@ impl Vaults {
         !a.text.is_empty() && *a.text == *b.text
     }
 
-    /// The wording of passphrase `i`'s strength line: real dice, or the
-    /// roller's simulated dice, alone or with them (`docs/CODEX32.md`
-    /// §5.6).
-    pub fn bits_words(c: &CreateForm, i: usize) -> &'static str {
-        use crate::fresh::roller::Sim;
-        let en = &crate::strings::EN;
-        match c.from_dice.get(i).and_then(|d| d.as_ref()).map(|d| d.2) {
-            Some(Sim::All) => en.roller_bits_simulated,
-            Some(Sim::Some) => en.roller_bits_both,
-            _ => en.vault_bits_from_dice,
-        }
-    }
-
     /// Passphrase `i`'s own bits, known only while it is the words the
     /// dice made: a typed passphrase's strength is not measured, nor is
     /// Demo's `faraday`, which stands in for the rolled words.

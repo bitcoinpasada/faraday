@@ -141,11 +141,12 @@ fn body(
             s
         };
         let shown = ui.fit_secret(14.0, W::M, &shown, width - 90.0);
+        // Use a sample goes in the "Demo only" card while the field is
+        // empty (`docs/DEMO.md` §14).
         if app.lightning_sample_shown() {
-            crate::samples::put::chip(ui, (x, y, width, T::TEXT_FIELD_SHEET), Action::UseSample);
-        } else {
-            ui.text_mid(x + 12.0, y, 44.0, 14.0, W::M, Role::OnSurface, &shown);
+            crate::samples::put::offer(ui, Action::UseSample);
         }
+        ui.text_mid(x + 12.0, y, 44.0, 14.0, W::M, Role::OnSurface, &shown);
         ui.text_right(
             x + width - 12.0,
             y,
@@ -193,24 +194,13 @@ fn body(
             let p = if l.passphrase.is_empty() && !l.on_passphrase {
                 EN.lightning_aezeed_lnd.to_string()
             } else {
-                let chip = app.pass_chip_shown(
-                    crate::demo::PassField::Aezeed,
-                    l.passphrase.is_empty(),
-                    l.on_passphrase,
-                );
-                let caret = if chip { "" } else { ui.caret_char() };
-                format!("{}{}", "•".repeat(l.passphrase.len()), caret)
+                format!("{}{}", "•".repeat(l.passphrase.len()), ui.caret_char())
             };
             let p = ui.fit(13.0, W::M, &p, pw - 24.0);
             ui.text_mid(px + 12.0, y, 40.0, 13.0, W::M, Role::OnSurface, &p);
         }
         ui.hit(px, y, pw, 40.0, Action::LPassphrase);
-        app.pass_chip_draw(
-            ui,
-            (px, y, pw, T::TEXT_FIELD),
-            (l.passphrase.is_empty(), l.on_passphrase, true),
-            crate::demo::PassField::Aezeed,
-        );
+        app.pass_chip_draw(ui, l.passphrase.is_empty(), crate::demo::PassField::Aezeed);
         let (rx, ry) = if below > 0.0 {
             (px, y + 48.0)
         } else {

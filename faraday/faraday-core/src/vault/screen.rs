@@ -447,7 +447,9 @@ pub(crate) fn list(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let files = app.vault_files();
     if files.is_empty() {
         ui.text(x, y + 8.0, 15.0, W::R, muted, EN.vault_no_vault_in_files);
-        crate::samples::put::button(app, ui, x, y + tokens::TEXT_FIELD);
+        if app.put_on().is_some() {
+            crate::samples::put::offer(ui, Action::UseSample);
+        }
         return;
     }
     for (i, f) in files.iter().enumerate() {
@@ -733,7 +735,9 @@ fn list_compact(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     let files = app.vault_files();
     if files.is_empty() {
         y += ui.wrap(x, y, w, 14.0, W::R, muted, EN.vault_no_vault_in_files) + 12.0;
-        y += crate::samples::put::button(app, ui, x, y);
+        if app.put_on().is_some() {
+            crate::samples::put::offer(ui, Action::UseSample);
+        }
     }
     for (i, f) in files.iter().enumerate() {
         let open = f.open.and_then(|o| app.vaults.open.get(o));
@@ -1571,7 +1575,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 let strength = match vault::Vaults::phrase_bits(c, i) {
                     Some(own) => Some((
                         fill(
-                            vault::Vaults::bits_words(c, i),
+                            EN.vault_bits_from_dice,
                             &[
                                 &format!("{own:.1}"),
                                 &format!("{cost:.1}"),
@@ -1594,11 +1598,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     cy += ui.wrap(x, cy, w, 12.0, W::R, tone, &line);
                 }
                 // The demo's public passphrase stands in for the rolled
-                // words, as New key's public seed does (`docs/DEMO.md` §5.2).
-                if app.dice_made_public(c, i) {
-                    cy += 4.0;
-                    cy += ui.wrap(x, cy, w, 13.0, W::S, warn, EN.vault_demo_uses_public);
-                }
+                // words: the "Demo only" card says so (`docs/DEMO.md` §5.2).
                 cy += 12.0;
                 if let Some((di, rolls, list)) = app.vaults.dice.as_ref()
                     && *di == i
@@ -2704,11 +2704,11 @@ pub(crate) fn codes_form(app: &View, ui: &mut Ui, dx: f32, dy: f32, dw: f32) -> 
                 dw,
                 b,
                 app.field_shows(form, k),
-                app.field_caret(form, k, (b, focused)),
+                focused,
                 va(V::FocusField(k)),
                 va(V::ShowTyped),
             );
-            app.password_chip(ui, form, k, (dx, dy, dw), (b, focused));
+            app.password_chip(ui, form, k, b);
             dy += 52.0;
         } else {
             text_box(ui, dx, dy, dw, b, false, focused, va(V::FocusField(k)));
@@ -2784,11 +2784,11 @@ fn detail(
                         dw,
                         b,
                         app.field_shows(form, k),
-                        app.field_caret(form, k, (b, focused)),
+                        focused,
                         va(V::FocusField(k)),
                         va(V::ShowTyped),
                     );
-                    app.password_chip(ui, form, k, (dx, dy, dw), (b, focused));
+                    app.password_chip(ui, form, k, b);
                 } else {
                     text_box(ui, dx, dy, dw, b, false, focused, va(V::FocusField(k)));
                 }

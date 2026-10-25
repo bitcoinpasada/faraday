@@ -134,8 +134,7 @@ pub(super) fn demo_content(
     let (ix, iw) = (x + t::PAD, w - 2.0 * t::PAD);
     let mut cy = y + t::PAD;
     if head {
-        ui.text(ix, cy, t::BODY, W::S, Role::OnSurface, EN.codex32_demo_only);
-        cy += ui.line(t::BODY, W::S) + t::GAP;
+        cy += faraday_ui::demo::head(ui, (ix, cy), EN.demo_only);
     }
     if m.demo() && m.front().is_some() {
         cy += faraday_ui::parts::wrap_buttons(
