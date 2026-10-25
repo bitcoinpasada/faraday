@@ -26,6 +26,31 @@ pub(crate) fn pills_tour(t: &mut Tour) -> Result<(), String> {
     ]));
     t.press(Action::Nav(Screen::Home));
     t.shot("pills-default")?;
+    // In Demo with its samples, as Faraday Desktop starts: the pills left
+    // of Load samples and the mode pill in the top bar.
+    t.app.session = faraday_core::wallet::Session::on(testkit::net());
+    t.app.session.set_demo(&faraday_samples::SAMPLES);
+    t.app.samples = Some(&faraday_samples::SAMPLES);
+    t.app.set_modes(faraday_core::DESKTOP_MODES);
+    t.press(Action::Nav(Screen::Home));
+    t.shot("pills-demo")?;
+    // Five sticks in: those that do not fit fold into the Sticks menu.
+    t.app.storage(StorageEvent::Sticks(
+        ["BOOTSTICK", "STICK-2", "STICK-3", "STICK-4", "STICK-5"]
+            .into_iter()
+            .map(stick)
+            .collect(),
+    ));
+    t.shot("pills-five")?;
+    t.press(Action::SticksMenu);
+    t.shot("pills-menu")?;
+    t.press(Action::Cancel);
+    t.press(Action::Nav(Screen::Files));
+    t.shot("pills-files")?;
+    t.app.storage(StorageEvent::Sticks(vec![
+        stick("BOOTSTICK"),
+        stick("STICK-2"),
+    ]));
     let multi = faraday_core::create::NewKind::ALL
         .iter()
         .position(|k| *k == faraday_core::create::NewKind::Multi)

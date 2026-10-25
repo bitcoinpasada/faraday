@@ -38,6 +38,9 @@ pub enum Action {
     /// A press on a stick's pill across the top of the window: 0 the boot
     /// stick, `n` Stick `n`. The shell inserts the stick or pulls it.
     StickPill(u8),
+    /// The top bar's "Sticks · N" pill: the Sticks menu opens, or closes
+    /// when open.
+    SticksMenu,
     /// The top app bar's ⋮ menu (`docs/LAYOUT.md` §3): `None` opens it,
     /// a screen chosen in it closes it and goes there.
     NavMenu(Option<Screen>),

@@ -201,6 +201,17 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
         }
         right = px - faraday_draw::tokens::GAP;
     }
+    // Faraday Desktop's stick pills, in the room the title leaves.
+    {
+        use faraday_draw::tokens::{MODE_PILL_HEIGHT, TOP_BAR_TITLE_ROOM};
+        let room = right - TOP_BAR_TITLE_ROOM;
+        right = if draw {
+            let y = (BAR_H - MODE_PILL_HEIGHT) / 2.0;
+            crate::stick::pills::bar(app, ui, right, y, room)
+        } else {
+            right - crate::stick::pills::bar_width(app, ui, room)
+        };
+    }
     // The keyboard, where the page types, and to bring it back once put
     // away from a field.
     right = osk_toggle(app, ui, draw, right);

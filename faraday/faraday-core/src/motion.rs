@@ -155,6 +155,12 @@ pub const SWITCH_MS: u64 = tokens::MOTION_SHORT3;
 /// How long a step card takes to open or close: Material's medium 2,
 /// since it moves much of the page.
 pub const DISCLOSE_MS: u64 = tokens::MOTION_MEDIUM2;
+/// How long the Sticks menu takes to open from its pill, on Material's
+/// emphasized decelerate: Material's medium 1.
+pub const MENU_IN_MS: u64 = tokens::MOTION_MEDIUM1;
+/// How long it takes to close, on Material's emphasized accelerate:
+/// Material's short 3, quicker out than in.
+pub const MENU_OUT_MS: u64 = tokens::MOTION_SHORT3;
 /// How long a toast takes to rise in, and to fade out at its end:
 /// Material's short 4.
 pub const TOAST_MS: u64 = tokens::MOTION_SHORT4;
@@ -979,6 +985,7 @@ impl Faraday {
             p.settle();
         }
         self.keygen.dice_settle();
+        self.stick.close_menu(false);
     }
 
     /// The person moves the worksheet that scrolls now: the view's

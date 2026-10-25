@@ -216,6 +216,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // Under a sheet that has its frosted copy of the page, the page
     // is not drawn again: the copy stands for it.
     let frosted = app.sheet.is_some() && ui.frost.is_some();
+    // Where the top bar draws its stick pills is noted as the page draws
+    // it; under a frosted sheet the page is not drawn, and the last note
+    // stands.
+    if !frosted {
+        app.stick.note_bar(None);
+    }
     if !frosted && app.is_compact() {
         ui.clear(Role::Surface);
         // The stick pills take a strip across the top; the page is
@@ -313,6 +319,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             );
         }
         let kx = header_network_pill(app, ui, full_w - TOP_ROW_QUESTION);
+        // Faraday Desktop's stick pills, left of the mode's (`docs/LAYOUT.md`
+        // §3), in the room the page's head leaves.
+        let pill_y =
+            faraday_draw::tokens::TOP_ROW_MID - faraday_draw::tokens::MODE_PILL_HEIGHT / 2.0;
+        let kx = crate::stick::pills::bar(app, ui, kx, pill_y, sticks_room(kx));
         // Under a sheet the keyboard button is drawn over it, below.
         if app.sheet.is_none() {
             crate::compact::wide_keyboard_button(app, ui, kx);
@@ -426,6 +437,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Mode => crate::modes::screen::sheet(app, ui, w, h),
             Sheet::Samples => crate::samples::screen::sheet(app, ui, w, h),
             Sheet::NavMenu => crate::nav::screen::menu_sheet(ui, w, h),
+            Sheet::SticksMenu => crate::stick::pills::menu_sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
         ui.ox = 0.0;
@@ -440,7 +452,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         let right = if app.held {
             full_w - TOP_ROW_QUESTION - faraday_draw::tokens::GAP
         } else {
-            network_pill_left(app, ui, full_w - TOP_ROW_QUESTION)
+            top_row_left(app, ui, full_w)
         };
         crate::compact::wide_keyboard_button(app, ui, right);
     }
@@ -458,8 +470,12 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         }
     }
     drop_edge(app, ui, (full_w, full_h), kb > 0.0);
-    // The stick pills, pinned at the top over the page and any sheet.
+    // A device's stick pills, pinned at the top over the page and any
+    // sheet; Faraday Desktop's, in its top bar, again over a sheet, and
+    // its Sticks menu as it closes.
     crate::stick::pills::draw(app, ui, full_w);
+    crate::stick::pills::menu_leaving(app, ui, full_w, full_h);
+    crate::stick::pills::over_sheet(app, ui);
 }
 
 /// The top strip's actions' corner at the window's top right, filled
@@ -469,18 +485,32 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
 /// page.
 fn top_actions_clear(app: &View, ui: &mut Ui, full_w: f32) {
     use faraday_draw::tokens as t;
-    let x = top_row_left(app, ui, full_w) - t::GAP;
-    let (w, h) = (full_w - x, t::SUPPORT_PANE_TOP);
-    let area = ui.rect(x, 0.0, w, h);
-    // What stands wholly in the corner is covered; a zone or a row that
-    // runs on past it stays.
-    ui.hits.retain(|(r, _)| {
-        !(r.x >= area.x
-            && r.y >= area.y
-            && r.right() <= area.right()
-            && r.bottom() <= area.bottom())
-    });
-    ui.fill(x, 0.0, w, h, t::SHAPE_NONE, Role::Surface);
+    let corner = network_pill_left(app, ui, full_w - TOP_ROW_QUESTION) - t::GAP;
+    let pills = top_row_left(app, ui, full_w) - t::GAP;
+    // The corner of the mode, the ? and the eye under it; the stick
+    // pills' stretch of the row, down to its foot.
+    for (x, w, h) in [
+        (corner, full_w - corner, t::SUPPORT_PANE_TOP),
+        (
+            pills,
+            corner - pills,
+            t::TOP_ROW_MID + t::MODE_PILL_HEIGHT / 2.0,
+        ),
+    ] {
+        if w <= 0.0 {
+            continue;
+        }
+        let area = ui.rect(x, 0.0, w, h);
+        // What stands wholly in the corner is covered; a zone or a row
+        // that runs on past it stays.
+        ui.hits.retain(|(r, _)| {
+            !(r.x >= area.x
+                && r.y >= area.y
+                && r.right() <= area.right()
+                && r.bottom() <= area.bottom())
+        });
+        ui.fill(x, 0.0, w, h, t::SHAPE_NONE, Role::Surface);
+    }
 }
 
 /// A file dragged over Faraday Desktop's window: the page beside the
@@ -772,11 +802,19 @@ fn header_network_pill(app: &View, ui: &mut Ui, qx: f32) -> f32 {
     left
 }
 
-/// Where the wide layout's top-right row (the mode pill and the ?)
-/// begins, in a window `full_w` wide: a flow's column that scrolls
+/// Where the wide layout's top-right row (the stick pills, the mode pill and
+/// the ?) begins, in a window `full_w` wide: a flow's column that scrolls
 /// under it ends left of it.
 pub(crate) fn top_row_left(app: &View, ui: &Ui, full_w: f32) -> f32 {
-    network_pill_left(app, ui, full_w - TOP_ROW_QUESTION)
+    let kx = network_pill_left(app, ui, full_w - TOP_ROW_QUESTION);
+    kx - crate::stick::pills::bar_width(app, ui, sticks_room(kx))
+}
+
+/// The room the wide layout's row gives Faraday Desktop's stick pills,
+/// ending at `kx`: what the page area keeps for its head at its left
+/// (`TOP_BAR_TITLE_ROOM`) left out. Arithmetic.
+fn sticks_room(kx: f32) -> f32 {
+    kx - SIDEBAR_W - faraday_draw::tokens::TOP_BAR_TITLE_ROOM
 }
 
 /// Where the top-right row's next item ends, left of the ? (at `qx`)

@@ -966,7 +966,8 @@ fn stick_status(app: &View) -> (String, Option<Action>) {
 fn stick_chip(app: &View, ui: &mut Ui, right: f32) {
     use faraday_draw::tokens::{GAP, LIST_SUPPORTING, STATUS_CHIP_H, STATUS_CHIP_PAD, TOP_ROW_MID};
     let (label, action) = stick_status(app);
-    let right = ui.top_row_left.min(right);
+    // A gap before the row, which covers from a gap left of it.
+    let right = (ui.top_row_left - GAP).min(right);
     let dot = GAP;
     let bw = ui.measure(LIST_SUPPORTING, W::R, &label) + 2.0 * STATUS_CHIP_PAD + dot + GAP;
     let (bx, by) = (right - bw, TOP_ROW_MID - STATUS_CHIP_H / 2.0);

@@ -88,6 +88,25 @@ page, and the ⋮ menu where the page has more. It replaces the wide
 layout's back link, title row and top-right row (DESIGN §4.1). It stays
 while the page scrolls under it.
 
+**Faraday Desktop's sticks** stand in the top bar, never in a strip
+above it (owner, 2026-10-25): from the right, the ?, the mode pill, Load
+samples, then the stick pills, the boot stick's first, so the wordmark
+stands at the window's top, level with the navigation's first item. The
+bar keeps `TOP_BAR_TITLE_ROOM` from the page area's left for the page's
+title and head; the pills take what is left beside the other actions,
+and those that do not fit fold into one pill, "Sticks · N", which opens
+a menu of every stick, in or out, a choice inserting or pulling it
+(Material's overflow: the actions that fit, the rest in a menu). The
+boot stick's pill always shows; where even it and the Sticks pill do not
+fit, it stands alone and opens the menu itself. The bar never takes a
+second row. The menu moves as Material's menu does: in on the
+emphasized decelerate, out on the emphasized accelerate, at once under
+Reduce motion; on a compact window it is a sheet, as every menu there
+is. At the Pi panel's size (compact and short), whose 44-unit bar
+already holds the way back, Load samples, the mode and the ?, the pills
+keep their strip above the bar, as on the stick and the Pi, which draw
+pills only while a backup flow uses sticks.
+
 **A flow** (Make a new wallet, the backup flow, Add a key, a spend) keeps
 the navigation beside it, so a person can leave and come back to it
 (its chip says where); a step that must not be left (writing a stick,
@@ -350,10 +369,16 @@ The page area is the window less the navigation, at every size: the
 1600 dp cap goes. What stands at the right stands against the window's
 edge:
 
-- the top strip's row (the mode pill and the ?) and, under it, the eye
-  and the keyboard button: their right end `MARGIN_WIDE` (24 dp) from
+- the top strip's row (Faraday Desktop's stick pills, Load samples, the
+  mode pill and the ?; §3) and, under it, the eye and the keyboard
+  button: their right end `MARGIN_WIDE` (24 dp) from
   the window's right edge, as Material's top app bar puts its trailing
   actions;
+- a page's own head controls level with that row (a flow's Cancel and
+  its Steps only and Guided where no back link stands above the
+  heading, Files' stick chip) end a gap before the row; those below its
+  foot (under a back link, the stick visit's stick chips) keep the
+  page's width;
 - a supporting pane (§6): its right edge `MARGIN_WIDE` from the
   window's, its top `SUPPORT_PANE_TOP`, `SPACER` from the page;
 - Home's Scan button: `MARGIN_WIDE` from the window's right and foot

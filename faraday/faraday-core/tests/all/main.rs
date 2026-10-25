@@ -127,6 +127,7 @@ mod stick_copy;
 mod stick_pills;
 mod tools;
 mod top_actions_surface;
+mod top_bar_sticks;
 mod totp;
 mod transitions;
 mod upgrade;

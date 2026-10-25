@@ -8333,6 +8333,11 @@ strings! {
     stick_pill_out: "out",
     /// A pill's label and its state: `{}` the label, then the state.
     stick_pill_state: "{} · {}",
+    /// Faraday Desktop's top bar: the pill the sticks that do not fit
+    /// fold into, which opens the Sticks menu. `{}` how many it holds.
+    stick_pill_more: "Sticks · {}",
+    /// The Sticks menu's title: every stick, each in or out.
+    stick_menu_title: "Sticks",
     /// The Starter's window title.
     starter_window_title: "Faraday Starter",
     /// A Windows disk as Disk Management names it: `{}` its number.

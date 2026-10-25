@@ -666,6 +666,7 @@ pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             keys: m.keys,
             anchor: m.anchor,
             cancel: (EN.file_menu_cancel, Action::File(FilePress::Close)),
+            shown: 1.0,
         },
     );
 }

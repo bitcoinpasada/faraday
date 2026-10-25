@@ -41,6 +41,9 @@ pub(crate) struct View<'a> {
     pub anchor: Option<(i32, i32, i32, i32)>,
     /// The small panel's way out at the sheet's foot.
     pub cancel: (&'a str, Action),
+    /// How much of the popup shows, 0 to 1, from its top edge down, while
+    /// it opens or closes; 1 at rest.
+    pub shown: f32,
 }
 
 /// What a key does in an open menu with `n` choices, the arrows on `at`.
@@ -260,11 +263,16 @@ pub(crate) fn draw(ui: &mut Ui, w: f32, h: f32, v: &View) {
     if let Some(a) = ui.outside {
         ui.hit_around(x, y, pw, ph, a);
     }
+    let max = (content - ph).max(0.0);
+    // Opening or closing, it unrolls from its top edge (Material's menu).
+    let ph = (ph * v.shown.clamp(0.0, 1.0)).round();
+    if ph <= 0.0 {
+        return;
+    }
     // Material's menu: extra-small corners.
     ui.shadow(x, y, pw, ph, tokens::SHAPE_XS, tokens::ELEVATION_MENU);
     ui.fill(x, y, pw, ph, tokens::SHAPE_XS, Role::SurfaceContainer);
     ui.stroke(x, y, pw, ph, tokens::SHAPE_XS, Role::OutlineVariant);
-    let max = (content - ph).max(0.0);
     let off = ui.offset.clamp(0.0, max);
     let clip = ui.rect(x, y, pw, ph);
     ui.c.push_clip(clip);

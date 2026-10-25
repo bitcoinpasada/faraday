@@ -2232,6 +2232,7 @@ pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             keys: menu.keys,
             anchor: menu.anchor,
             cancel: (EN.board_menu_cancel, Action::Board(BoardPress::MenuClose)),
+            shown: 1.0,
         },
     );
 }

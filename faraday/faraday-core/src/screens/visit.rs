@@ -424,19 +424,30 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         Role::SecondaryContainer,
     );
     // One chip per stick; the chosen one selected (Material's filter
-    // chip).
+    // chip), below the top bar's row of pills.
     let mut chx = x + width;
+    let chy = {
+        use faraday_draw::tokens::{GAP_SMALL, MODE_PILL_HEIGHT, TOP_ROW_MID};
+        y.max(TOP_ROW_MID + MODE_PILL_HEIGHT / 2.0 + GAP_SMALL)
+    };
     for (k, st) in app.stick.iter().enumerate().rev() {
         let label = st.label.clone();
         let wdt = ui.measure(13.0, W::S, &label) + 28.0;
         chx -= wdt;
         let current = k == app.visit.stick;
-        ui.fill(chx, y, wdt, 32.0, 16.0, selected_or(current, Role::Surface));
+        ui.fill(
+            chx,
+            chy,
+            wdt,
+            32.0,
+            16.0,
+            selected_or(current, Role::Surface),
+        );
         let edge = selected_or(current, Role::OutlineVariant);
-        ui.stroke(chx, y, wdt, 32.0, 16.0, edge);
+        ui.stroke(chx, chy, wdt, 32.0, 16.0, edge);
         let ink = on_selected(current, Role::OnSurface);
-        ui.text_mid(chx + 14.0, y, 32.0, 13.0, W::S, ink, &label);
-        ui.hit(chx, y, wdt, 32.0, Action::VisitStick(k));
+        ui.text_mid(chx + 14.0, chy, 32.0, 13.0, W::S, ink, &label);
+        ui.hit(chx, chy, wdt, 32.0, Action::VisitStick(k));
         chx -= 8.0;
     }
     y += 64.0;

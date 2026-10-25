@@ -150,7 +150,14 @@ pub fn column_foot(
     // The wide layout's top-right row (the mode pill and the ?) stands
     // against the window's edge (`docs/LAYOUT.md` §15): the controls end
     // left of it.
-    let mut bx = (x + w).min(ui.top_row_left - tokens::GAP);
+    // Controls under a back link stand below the row and keep the
+    // column's width.
+    let row_bottom = tokens::TOP_ROW_MID + tokens::MODE_PILL_HEIGHT / 2.0;
+    let mut bx = if y + scroll.y < row_bottom {
+        (x + w).min(ui.top_row_left - tokens::GAP)
+    } else {
+        x + w
+    };
     if col.cancel {
         let bw = ui.measure(13.0, W::S, EN.flow_cancel) + 32.0;
         bx -= bw;

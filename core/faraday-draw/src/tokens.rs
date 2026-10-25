@@ -1425,6 +1425,11 @@ pub const STEPPER_LABEL_COL: f32 = 180.0;
 /// The height of the window's top band, where a press on empty room moves
 /// the window: Material's top app bar.
 pub const TOP_BAND: f32 = 56.0;
+/// The room Faraday Desktop's top bar keeps for the page's title and head
+/// at its left, from the page area's left edge: its stick pills stand in
+/// what is left beside its other actions, the rest folded into the
+/// Sticks menu (`docs/LAYOUT.md` §3).
+pub const TOP_BAR_TITLE_ROOM: f32 = 400.0;
 
 /// The wide layout's ?: its left edge in from the window's right, where
 /// the top-right row of the mode pill and the ? begins; the ? is 28 dp

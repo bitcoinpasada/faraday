@@ -40,6 +40,19 @@ pub(crate) struct StickArea {
     /// is not in `visited`, kept by [`StickArea::set_sticks`] and
     /// [`StickArea::note_visit`], the only ways either changes.
     waits: bool,
+    /// The Sticks menu of Faraday Desktop's top bar
+    /// ([`crate::Sheet::SticksMenu`]): where its pill was, in pixels, when
+    /// it opened, so the menu stands under it.
+    menu_anchor: Option<(i32, i32, i32, i32)>,
+    /// The menu opening (`true`) or closing, and the tick its motion
+    /// started on (`None` until the next tick); `None` at rest.
+    menu_motion: Option<(bool, Option<u64>)>,
+    /// Where the page's top bar drew its stick pills in the last frame
+    /// that drew the page: their right end and top in design units, and
+    /// the room they had. Read to draw them again over a sheet, where
+    /// they still take a press, as the shell's own; set by the frame
+    /// each time it draws the page (`stick::pills::bar`).
+    bar_spot: std::cell::Cell<Option<(f32, f32, f32)>>,
 }
 
 impl std::ops::Deref for StickArea {
@@ -50,6 +63,52 @@ impl std::ops::Deref for StickArea {
 }
 
 impl StickArea {
+    /// Where the Sticks menu's pill was when it opened, in pixels.
+    pub(crate) fn menu_anchor(&self) -> Option<(i32, i32, i32, i32)> {
+        self.menu_anchor
+    }
+
+    /// The Sticks menu's motion: opening or closing, and since when.
+    pub(crate) fn menu_motion(&self) -> Option<(bool, Option<u64>)> {
+        self.menu_motion
+    }
+
+    /// The Sticks menu opens under its pill at `anchor`, moving in as
+    /// `moving` says.
+    pub(crate) fn set_menu(&mut self, anchor: Option<(i32, i32, i32, i32)>, moving: bool) {
+        self.menu_anchor = anchor;
+        self.menu_motion = moving.then_some((true, None));
+    }
+
+    /// The Sticks menu's motion ends, or a closing one starts as `moving`
+    /// says.
+    pub(crate) fn close_menu(&mut self, moving: bool) {
+        self.menu_motion = moving.then_some((false, None));
+    }
+
+    /// The menu's motion at tick `now_ms`, which lasts `ms`: started on the
+    /// first tick, ended once over. Returns whether it still moves.
+    pub(crate) fn menu_tick(&mut self, now_ms: u64, ms: impl Fn(bool) -> u64) -> bool {
+        match self.menu_motion {
+            Some((open, None)) => self.menu_motion = Some((open, Some(now_ms))),
+            Some((open, Some(at))) if now_ms >= at + ms(open) + crate::motion::FIRST_STEP_MS => {
+                self.menu_motion = None;
+            }
+            _ => {}
+        }
+        self.menu_motion.is_some()
+    }
+
+    /// Where the top bar's stick pills were last drawn.
+    pub(crate) fn bar_spot(&self) -> Option<(f32, f32, f32)> {
+        self.bar_spot.get()
+    }
+
+    /// Notes where the top bar's stick pills are drawn, or none.
+    pub(crate) fn note_bar(&self, spot: Option<(f32, f32, f32)>) {
+        self.bar_spot.set(spot);
+    }
+
     /// The sticks the shell reports.
     pub(crate) fn set_sticks(&mut self, sticks: Vec<StickInfo>) {
         self.sticks = sticks;

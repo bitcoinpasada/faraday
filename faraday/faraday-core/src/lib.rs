@@ -677,6 +677,8 @@ pub enum Sheet {
     Samples,
     /// The top app bar's ⋮ menu on a compact window (`nav`).
     NavMenu,
+    /// Faraday Desktop's Sticks menu, every stick in or out (`stick::pills`).
+    SticksMenu,
 }
 
 /// Costs a QR encoding (through `encode_bounded` and `bbqr_frames`).
@@ -2815,10 +2817,7 @@ impl Faraday {
         if self.demo_refuses(action) {
             return;
         }
-        // A stick's pill is the shell's, not the page's: it acts under
-        // any sheet and waits for nothing.
-        if let Action::StickPill(n) = action {
-            self.stick_pill_pressed(n);
+        if self.stick_bar_press(action) {
             return;
         }
         // A chip held on the backup board is let go by a press anywhere
@@ -3265,7 +3264,7 @@ impl Faraday {
             | Action::Theme(_)) => self.appearance_act(a),
             Action::SettingsSection(k) => self.settings_section(k),
             // Acted on before (`act_inner`), or never pressed (a mark).
-            Action::StickPill(_) | Action::Mark(..) => {}
+            Action::StickPill(_) | Action::SticksMenu | Action::Mark(..) => {}
         }
     }
 
@@ -7386,6 +7385,7 @@ impl App for Faraday {
                     | self.seed_tick()
                     | self.typed_tick(now_ms)
                     | self.explore_tick(now_ms)
+                    | self.sticks_menu_tick(now_ms)
                 {
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
