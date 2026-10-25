@@ -7,6 +7,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
 use crate::wallet::{Session, fp_text, key_line};
 use crate::{Action, Screen};
+use faraday_draw::tokens::{self, BUTTON_H};
 use faraday_draw::widgets::Icon;
 use faraday_ui::parts::{section_label, title, wrap_buttons};
 
@@ -611,23 +612,21 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Action::SignMessage,
         ));
     }
-    let foot = card_actions(
-        ui,
-        ix,
-        y + ch - 62.0,
-        iw,
-        &items,
-        (
-            EN.wallets_remove_from_session,
-            Style::Ghost,
-            Action::RemoveWallet(app.wallets.wallet()),
-        ),
+    let end = (
+        EN.wallets_remove_from_session,
+        Style::Ghost,
+        Action::RemoveWallet(app.wallets.wallet()),
     );
+    // The actions stand under the body (`docs/LAYOUT.md` §17): right
+    // after the chart and the address where the card has room, and at the
+    // card's foot, the body scrolling above them, where it has not.
+    let placed = place_actions(ui, iw, &items, end);
+    let foot = y + ch - 22.0 - actions_height(placed.2);
 
     // The body, between the head and the actions: scrolled when the
     // chart makes it taller than the card.
     let view_top = cy - 6.0;
-    let view_h = (foot - 8.0 - view_top).max(0.0);
+    let view_h = (foot - tokens::GAP - view_top).max(0.0);
     let clip = ui.rect(cx + 1.0, view_top, cwid - 2.0, view_h);
     ui.c.push_clip(clip);
     let top = cy;
@@ -688,8 +687,12 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     );
     cy += 24.0;
     if let Some(g) = app.glance_of(app.wallets.wallet()) {
+        // Wide content in the detail's width (`docs/LAYOUT.md` §17): a
+        // chart no wider than the column stands in it, over the reading
+        // parts; a wider one runs on towards the card's end.
         let dir = crate::glance::Direction::WalletFirst;
-        cy += crate::glance::draw(ui, &g, dir, ix, cy, chart_w);
+        let gw = crate::glance::natural_width(&g).clamp(iw, chart_w);
+        cy += crate::glance::draw(ui, &g, dir, ix, cy, gw);
     }
     cy += slot_marks(app, ui, (ix, cy, iw), &slots);
     // Where the keys still missing may be.
@@ -720,27 +723,29 @@ pub(super) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         &addr,
     ) + 8.0;
     ui.c.pop_clip();
+    card_actions(
+        ui,
+        (ix, (cy + tokens::GAP).min(foot), iw),
+        &items,
+        end,
+        &placed,
+    );
     let content = cy + app.wallets.card_offset() - top;
     let max = (content - (view_h - (top - view_top))).max(0.0);
     ui.report_scroll_in(crate::ui::Slot::Card, clip, max, app.wallets.card_offset());
 }
 
-/// A wallet card's actions along its foot, the last row's top at `ay`:
-/// `items` from the left, `end` at the right of the last row. Where they
-/// do not fit `w` they take more rows, upward, so the last row stays at
-/// the foot. A rule runs above the first row. Returns the rule's y.
-fn card_actions(
-    ui: &mut Ui,
-    x: f32,
-    ay: f32,
+/// Where a wallet card's actions go in a row `w` wide: each item's row,
+/// x and width, then the end's width and how many rows they take. Items
+/// run from the left, a row more under where they do not fit; `end`
+/// stands at the right of the last row. A lookup and text measures.
+fn place_actions(
+    ui: &Ui,
     w: f32,
     items: &[(&str, Style, Action)],
     end: (&str, Style, Action),
-) -> f32 {
-    const H: f32 = 40.0;
-    const GAP: f32 = 8.0;
+) -> (Vec<(usize, f32, f32)>, f32, usize) {
     let width = |ui: &Ui, label: &str| (ui.measure(14.0, W::S, label) + 32.0).min(w);
-    // Each item's row and x, then the end's.
     let mut placed: Vec<(usize, f32, f32)> = Vec::new();
     let (mut row, mut bx) = (0usize, 0.0f32);
     for &(label, ..) in items {
@@ -750,30 +755,50 @@ fn card_actions(
             bx = 0.0;
         }
         placed.push((row, bx, bw));
-        bx += bw + GAP;
+        bx += bw + tokens::GAP;
     }
     let ew = width(ui, end.0);
     if bx > 0.0 && bx + ew > w {
         row += 1;
     }
-    let rows = row + 1;
-    let top = ay - (rows - 1) as f32 * (H + GAP);
-    ui.rule(x, top - 14.0, w, Role::OutlineVariant);
-    for (&(label, style, action), &(r, px, bw)) in items.iter().zip(&placed) {
+    (placed, ew, row + 1)
+}
+
+/// The space between the rule above a card's actions and their first row.
+const ACTIONS_RULE_GAP: f32 = 14.0;
+
+/// How tall `rows` rows of a card's actions stand, the rule above them
+/// included.
+fn actions_height(rows: usize) -> f32 {
+    ACTIONS_RULE_GAP + rows as f32 * (BUTTON_H + tokens::GAP) - tokens::GAP
+}
+
+/// A wallet card's actions as `placed` puts them in a row `w` wide from
+/// `x`, under a rule at `rule`: `items` from the left, `end` at the right
+/// of the last row.
+fn card_actions(
+    ui: &mut Ui,
+    (x, rule, w): (f32, f32, f32),
+    items: &[(&str, Style, Action)],
+    end: (&str, Style, Action),
+    (placed, ew, rows): &(Vec<(usize, f32, f32)>, f32, usize),
+) {
+    ui.rule(x, rule, w, Role::OutlineVariant);
+    let row_y = |r: usize| rule + ACTIONS_RULE_GAP + r as f32 * (BUTTON_H + tokens::GAP);
+    for (&(label, style, action), &(r, px, bw)) in items.iter().zip(placed) {
         let label = ui.fit(14.0, W::S, label, bw - 24.0);
-        ui.button(
-            x + px,
-            top + r as f32 * (H + GAP),
-            Some(bw),
-            H,
-            &label,
-            style,
-            action,
-        );
+        ui.button(x + px, row_y(r), Some(bw), BUTTON_H, &label, style, action);
     }
     let label = ui.fit(14.0, W::S, end.0, ew - 24.0);
-    ui.button(x + w - ew, ay, Some(ew), H, &label, end.1, end.2);
-    top - 14.0
+    ui.button(
+        x + w - ew,
+        row_y(rows - 1),
+        Some(*ew),
+        BUTTON_H,
+        &label,
+        end.1,
+        end.2,
+    );
 }
 
 /// A silent payments wallet's card: its key, its address and the labels
@@ -851,27 +876,26 @@ fn silent_wallet_card(
     cy += ui.wrap(ix, cy, iw, 14.0, W::M, ink, &r.address()) + 18.0;
     ui.text(ix, cy, 13.0, W::S, muted, EN.silent_wallet_card_labels);
     ui.text(ix + 180.0, cy, 13.0, W::M, ink, &r.labels.to_string());
-    let _ = card_actions(
-        ui,
-        ix,
-        bottom - 62.0,
-        iw,
-        &[
-            (
-                EN.silent_wallet_card_address,
-                Style::Primary,
-                Action::SWallet(app.wallets.wallet()),
-            ),
-            (
-                EN.silent_wallet_card_show,
-                Style::Secondary,
-                Action::QrWallet(app.wallets.wallet()),
-            ),
-        ],
+    let items = [
         (
-            EN.silent_wallet_card_remove,
-            Style::Ghost,
-            Action::RemoveWallet(app.wallets.wallet()),
+            EN.silent_wallet_card_address,
+            Style::Primary,
+            Action::SWallet(app.wallets.wallet()),
         ),
+        (
+            EN.silent_wallet_card_show,
+            Style::Secondary,
+            Action::QrWallet(app.wallets.wallet()),
+        ),
+    ];
+    let end = (
+        EN.silent_wallet_card_remove,
+        Style::Ghost,
+        Action::RemoveWallet(app.wallets.wallet()),
     );
+    // Under the labels line, or at the card's foot where that is higher.
+    let placed = place_actions(ui, iw, &items, end);
+    let foot = bottom - 22.0 - actions_height(placed.2);
+    let rule = (cy + tokens::PAD + tokens::GAP).min(foot);
+    card_actions(ui, (ix, rule, iw), &items, end, &placed);
 }

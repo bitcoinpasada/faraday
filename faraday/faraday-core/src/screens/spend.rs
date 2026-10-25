@@ -7,6 +7,7 @@ use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W, btc, short, thousands};
 use crate::wallet::{Session, fp_text, network_name, step, txid_known};
 use crate::{Action, Screen, flow, guide};
+use faraday_draw::tokens::{GAP_SMALL, TABLE_AMOUNT_W, TABLE_LABEL_W};
 use faraday_draw::widgets::Icon;
 use faraday_psbt::{Level, OutputKind};
 use faraday_ui::parts::{title, wrap_buttons};
@@ -851,37 +852,44 @@ pub(crate) fn step_body(
                 }
                 cy += 6.0;
             } else if s.table {
-                for inp in &i.inputs {
+                // As wide as its columns (`docs/LAYOUT.md` §17): the name,
+                // the longest outpoint or address, the amount; no wider
+                // than the step.
+                let outpoints: Vec<String> = i
+                    .inputs
+                    .iter()
+                    .map(|inp| format!("{}:{}", short(&inp.txid.to_string()), inp.vout))
+                    .collect();
+                let what = outpoints
+                    .iter()
+                    .map(String::as_str)
+                    .chain(i.outputs.iter().map(|o| o.address.as_str()))
+                    .map(|t| ui.measure(12.0, W::M, t))
+                    .fold(0.0, f32::max);
+                let tw = (TABLE_LABEL_W + what + GAP_SMALL + TABLE_AMOUNT_W).min(w);
+                for (inp, at) in i.inputs.iter().zip(&outpoints) {
                     let a = inp
                         .amount
                         .map(|a| btc(a.to_sat()))
                         .unwrap_or_else(|| "?".into());
                     ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, EN.step_input);
-                    ui.text(
-                        x + 64.0,
-                        cy,
-                        12.0,
-                        W::M,
-                        Role::OnSurface,
-                        &format!("{}:{}", short(&inp.txid.to_string()), inp.vout),
-                    );
-                    ui.text_right(x + w, cy - 4.0, 20.0, 12.0, W::M, Role::OnSurface, &a);
+                    ui.text(x + TABLE_LABEL_W, cy, 12.0, W::M, Role::OnSurface, at);
+                    ui.text_right(x + tw, cy - 4.0, 20.0, 12.0, W::M, Role::OnSurface, &a);
                     cy += 22.0;
                 }
                 for o in &i.outputs {
                     ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, EN.step_output);
-                    let shown = o.address.clone();
                     let used = ui.wrap(
-                        x + 64.0,
+                        x + TABLE_LABEL_W,
                         cy,
-                        w - 64.0 - 110.0,
+                        tw - TABLE_LABEL_W - TABLE_AMOUNT_W,
                         12.0,
                         W::M,
                         Role::OnSurface,
-                        &shown,
+                        &o.address,
                     );
                     ui.text_right(
-                        x + w,
+                        x + tw,
                         cy - 4.0,
                         20.0,
                         12.0,

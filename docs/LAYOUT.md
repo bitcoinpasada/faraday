@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Partly built: size classes and density (L1, F101), navigation (L2), Home's lead tile and tile grid (L3), the supporting pane's place and its narrow strip, for codex32's Demo only card (§6); the page area to the window's edge (W1, §15, §19); list and detail for Wallets, Files, Vaults, Backups and Settings (L4, §5, §17); the codex32 entry's input panel (W3, §16.3); the rest specified, not built (F92); the rest of wide windows (§13 to §19) specified, not built
-**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons and the other screens (§14 to §17, W2, W4 to W7); planned.
+**Open:** the stick's density from its screen's EDID (§7; today its kernel command line's, F101), the top app bar over the wide pages and the step flows (§3; they keep their own heads), Files' two lists each scrolling on its own on the rail's windows (§17; there the page scrolls as one), components that keep their size (L5), Learn in the supporting pane (L6), tours and tests (L7), wide windows: wide content, the codex32 worksheet's fit, the string's boxes, the input panel on compact windows that are not short (§16.3; they keep the small panel's context over the pad), the panel beside the sheets scrolling within itself (it stands at the foot where it is taller than the window), New key's dice and Create a vault's Generate with dice in the panel (their pad, progress line and entries already stand together in one card), the page following a whole sheet, fixed step buttons, the backup board's places in columns and its lists a pane, and the pages that keep the old 1360 dp area (Wallets' first page, Tools, the tools' catalogue, Codes, a stick visit, an open vault's contents, Transfer, Upgrade, the backup flow; §19) and Decode's outputs at their columns' width (§14 to §17, W2, W4, W5, W7); planned.
 
 Faraday lays its screens out by Material 3's layout and navigation
 rules at every size, from the Pi's 2.8-inch panel to a full monitor.
@@ -629,3 +629,28 @@ stands above them at their width, and its stick status a chip in the top
 strip's row; on the rail's windows the two lists stand side by side
 where the area holds both, under the stick's row, the page scrolling
 as one. Compact and medium windows are as before.
+
+**Built in W6:** Home takes the work width: its title, lead and tiles
+start beside the navigation and the tiles run as many columns as fit to
+`MARGIN_WIDE` from the window's edge, each at the row's share and never
+under `TILE_MIN`, a short row leaving the rest empty. Explore is reading
+content in its own area (`READING_EXPLORE_W`), centred in the room: its
+column `COLUMN_MAX`, its path field as wide as the path
+(`PATH_FIELD_W` at the least, up to the column), the address, public
+key and extended key in groups of four wrapping between groups, and its
+Addresses and Find pages in the same column. A wallet's chart is drawn
+as wide as its widest row of nodes at `CHART_NODE_MAX` needs
+(`glance::natural_width`), never under the 720 dp column nor past the
+detail: a small chart stands over the reading parts, a wide one runs on
+towards the card's end; the wallet's buttons (and a silent payments
+wallet's) stand under the body, after the first receive address, and
+are pinned at the card's foot, the body scrolling above them, only where
+the body is taller than the card. Spend's transaction table is as wide
+as its columns (`TABLE_LABEL_W`, the longest outpoint or address,
+`TABLE_AMOUNT_W`), never wider than the step. On the small panel and the
+rail's windows nothing changed; Explore's values group only on the wide
+layout. Left at the old 1360 dp area, centred, past an extra-large
+window's room: Wallets' first page, Tools, the catalogue, Codes, a stick
+visit, an open vault's contents, Transfer, Upgrade and the backup flow (step flows and reading
+pages, for a batch to give each its reading area), and the backup board
+(W7).

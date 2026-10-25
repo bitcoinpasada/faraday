@@ -41,9 +41,9 @@ pub(crate) use entry::{
     entry_scan, entry_stick, entry_typed, entry_words, keyed_status, word_count_row,
 };
 use faraday_draw::tokens::{
-    COLUMN_MAX, MARGIN_WIDE, NAV_BAR_H, PAGE_AREA_UNTIL_W, RAIL_W, READING_PAGE_W,
-    READING_RANDOM_W, READING_TIME_W, SPACER, SUPPORT_PANE, SUPPORT_PANE_TOP, TOP_ROW_QUESTION,
-    TOUCH,
+    COLUMN_MAX, MARGIN_WIDE, NAV_BAR_H, PAGE_AREA_UNTIL_W, RAIL_W, READING_EXPLORE_W,
+    READING_PAGE_W, READING_RANDOM_W, READING_TIME_W, SPACER, SUPPORT_PANE, SUPPORT_PANE_TOP,
+    TOP_ROW_QUESTION, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 pub use faraday_ui::parts::qr_code;
@@ -80,8 +80,9 @@ enum Area {
     /// Wide content: the whole room, from the navigation to the
     /// window's edge.
     Work,
-    /// No wide layout built yet (W6, W7): the area the old frame gave
-    /// it, centred, until its batch changes this line.
+    /// No wide layout built yet: the area the old frame gave it,
+    /// centred, until its batch changes this line (the backup board's
+    /// is W7; `docs/LAYOUT.md` §19 lists the rest).
     Until,
 }
 
@@ -90,6 +91,9 @@ fn area_of(screen: Screen) -> Area {
     match screen {
         Screen::SetTime => Area::Reading(READING_TIME_W),
         Screen::Randomness => Area::Reading(READING_RANDOM_W),
+        // Explore is reading content: its fields, values and the
+        // addresses in the column (`docs/LAYOUT.md` §17).
+        Screen::Explore => Area::Reading(READING_EXPLORE_W),
         Screen::Spend
         | Screen::Message
         | Screen::CheckMessage
@@ -104,10 +108,10 @@ fn area_of(screen: Screen) -> Area {
         | Screen::Decode
         | Screen::Family => Area::Reading(READING_PAGE_W),
         // New key, which holds Make codex32 shares and its supporting
-        // pane; and the lists, a list pane and the one chosen beside it
-        // to the window's edge (`docs/LAYOUT.md` §5, §17). Home keeps its
-        // old area until W6 lays out its tiles.
-        Screen::KeyGen => Area::Work,
+        // pane; Home, whose tiles are a feed across the work width; and
+        // the lists, a list pane and the one chosen beside it to the
+        // window's edge (`docs/LAYOUT.md` §5, §17).
+        Screen::KeyGen | Screen::Home => Area::Work,
         s if crate::panes::has_list(s) => Area::Work,
         _ => Area::Until,
     }

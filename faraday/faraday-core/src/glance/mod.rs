@@ -1642,6 +1642,19 @@ pub fn layout(
     }
 }
 
+/// The widest `g`'s chart is drawn: its longest row of nodes (the keys,
+/// or the backup's places) at [`tokens::CHART_NODE_MAX`] each with the
+/// gaps between them. Given more, the chart only stands further apart;
+/// given less, its nodes narrow and wrap (`docs/LAYOUT.md` §17). A lookup.
+pub(crate) fn natural_width(g: &Glance) -> f32 {
+    let places = match &g.backup {
+        Backup::Plan { nodes, .. } => nodes.len(),
+        _ => 1,
+    };
+    let n = g.keys.len().max(places).max(1) as f32;
+    n * tokens::CHART_NODE_MAX + (n - 1.0) * tokens::CHART_NODE_GAP
+}
+
 /// Draws the chart of `g` at (x, y), `width` wide, reading `direction`,
 /// with the plan's check strip above it, either way. Returns its height.
 pub(crate) fn draw(

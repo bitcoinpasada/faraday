@@ -9,6 +9,7 @@ use crate::explore::{PRESETS, Page, XAction};
 use crate::screens::{button_rows, guide_text_learn, title};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
+use faraday_draw::tokens::{COLUMN_MAX, EXPLORE_INSET, PATH_FIELD_W};
 
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
@@ -61,11 +62,20 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         (x + 120.0, width - 120.0)
     };
     let err = app.explore_path().err();
-    ui.fill(px, y, pw, 44.0, 8.0, Role::SurfaceContainerHighest);
+    let path = format!("m/{}{}", e.path, ui.caret_char());
+    // The field is as wide as a path (`docs/LAYOUT.md` §8): on the wide
+    // layout at least `PATH_FIELD_W`, wider as the path grows, never past
+    // the column; the small panel's takes the panel.
+    let fw = if compact {
+        pw
+    } else {
+        (ui.measure(15.0, W::M, &path) + 24.0).clamp(PATH_FIELD_W.min(pw), pw)
+    };
+    ui.fill(px, y, fw, 44.0, 8.0, Role::SurfaceContainerHighest);
     ui.stroke(
         px,
         y,
-        pw,
+        fw,
         44.0,
         8.0,
         if err.is_some() {
@@ -74,8 +84,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
             Role::Primary
         },
     );
-    let path = format!("m/{}{}", e.path, ui.caret_char());
-    let path = ui.fit(15.0, W::M, &path, pw - 24.0);
+    let path = ui.fit(15.0, W::M, &path, fw - 24.0);
     ui.text_mid(px + 12.0, y, 44.0, 15.0, W::M, Role::OnSurface, &path);
     y += 52.0;
     if let Some(m) = err {
@@ -131,9 +140,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         y += 32.0;
     }
     y += button_rows(ui, px, y, pw, &scripts) + 6.0;
-    let shown = r.address.clone();
+    // Each value whole, in mono; on the wide layout in groups of four,
+    // wrapping between groups (`docs/LAYOUT.md` §17, DESIGN §4.5).
     for (label, value) in [
-        (EN.explore_address, shown.as_str()),
+        (EN.explore_address, r.address.as_str()),
         (EN.explore_public_key, r.public_key.as_str()),
         (EN.explore_extended_key, r.xpub.as_str()),
     ] {
@@ -141,8 +151,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         if compact {
             y += 20.0;
         }
+        let shown = if compact {
+            value.to_string()
+        } else {
+            faraday_ui::grouped(value)
+        };
         y += ui
-            .wrap(px, y, pw, 14.0, W::M, Role::OnSurface, value)
+            .wrap(px, y, pw, 14.0, W::M, Role::OnSurface, &shown)
             .max(20.0)
             + 12.0;
     }
@@ -193,7 +208,10 @@ pub(super) fn frame(app: &View, ui: &Ui, x0: f32, cw: f32) -> (f32, f32, f32, f3
     let (x, width) = if ui.compact {
         (x0 + crate::compact::M, cw - 2.0 * crate::compact::M)
     } else {
-        (x0 + 56.0, (cw - 112.0).min(900.0))
+        (
+            x0 + EXPLORE_INSET,
+            (cw - 2.0 * EXPLORE_INSET).min(COLUMN_MAX),
+        )
     };
     let top = 12.0 - app.list_offset;
     let start = if ui.compact {

@@ -794,6 +794,19 @@ pub const READING_TIME_W: f32 = 520.0 + 2.0 * 56.0;
 /// Add randomness' reading area: its `COLUMN_MAX` column between two
 /// 48 dp insets.
 pub const READING_RANDOM_W: f32 = COLUMN_MAX + 4.0 * MARGIN_WIDE;
+/// Explore's inset from its area's edges on a wide window.
+pub const EXPLORE_INSET: f32 = 56.0;
+/// Explore's reading area: its `COLUMN_MAX` column between two
+/// `EXPLORE_INSET`s (`docs/LAYOUT.md` §17).
+pub const READING_EXPLORE_W: f32 = COLUMN_MAX + 2.0 * EXPLORE_INSET;
+/// The narrowest a derivation path's field is drawn on a wide window
+/// (`docs/LAYOUT.md` §8): room for `m/86h/1h/0h/1/2147483647` and the
+/// caret at the body size; a longer path widens it, up to the column.
+pub const PATH_FIELD_W: f32 = 320.0;
+/// A transaction table's first column, the row's name (Input, Output).
+pub const TABLE_LABEL_W: f32 = 64.0;
+/// A transaction table's last column, the amount, and the gap before it.
+pub const TABLE_AMOUNT_W: f32 = 110.0;
 /// The area a page that has no wide layout yet keeps on a wide window:
 /// the room the 1600 dp frame gave it, centred beside the navigation,
 /// until its batch gives it the work width (`docs/LAYOUT.md` §17, §19).

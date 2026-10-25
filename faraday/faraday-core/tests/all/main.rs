@@ -139,6 +139,7 @@ mod vault_way;
 mod visit;
 mod wallets_page;
 mod way_back;
+mod wide_content;
 mod wide_keyboard;
 mod wide_page;
 mod window_class;
