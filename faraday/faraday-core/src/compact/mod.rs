@@ -258,7 +258,7 @@ pub(crate) fn eye_shown(app: &View) -> bool {
 }
 
 /// Whether the eye is offered on this page, and whether the sheets are
-/// masked now: Make codex32 shares' sheets, on a device
+/// masked now: Make codex32 shares' sheets
 /// (`docs/CODEX32.md` §6.4.6).
 fn eye_state(app: &View) -> Option<bool> {
     if app.screen != Screen::KeyGen {

@@ -558,8 +558,6 @@ pub struct Codex32Make {
     /// The sheets are masked (§6.4.6): every character, roll and working
     /// drawn as dots. Set when the flow is left backwards, and by the eye.
     hidden: bool,
-    /// Faraday Desktop: never masked, and no eye (§6.4.6).
-    unmasked: bool,
     /// The five-dice roller beside the pad (Faraday Desktop, §5.5).
     roller: FiveRoller,
     /// Which dice of the character in progress show a value the roller
@@ -660,7 +658,6 @@ impl Codex32Make {
             note: None,
             locked: false,
             hidden: false,
-            unmasked: false,
             roller: FiveRoller::default(),
             rolled_dice: [false; BOOKLET_DICE],
             given: None,
@@ -740,13 +737,6 @@ impl Codex32Make {
             self.dice = BookletChar::with_faces(choice.faces).unwrap_or_default();
             self.roller.set_faces(choice.faces);
         }
-        self
-    }
-
-    /// The flow on Faraday Desktop, where the sheets are never masked
-    /// (§6.4.6).
-    pub(crate) fn desktop(mut self) -> Codex32Make {
-        self.unmasked = true;
         self
     }
 
@@ -835,13 +825,13 @@ impl Codex32Make {
     /// The sheets are masked now: what the person typed or rolled, and
     /// all that it becomes, is drawn as dots (§6.4.6, DESIGN §4.10).
     pub fn masked(&self) -> bool {
-        self.hidden && !self.unmasked
+        self.hidden
     }
 
-    /// The app bar offers the eye: sheets exist, on a device (not on
-    /// Faraday Desktop).
+    /// The app bar offers the eye: sheets exist (F117: Faraday Desktop as
+    /// the device).
     pub fn eye_offered(&self) -> bool {
-        !self.unmasked && self.work.is_some()
+        self.work.is_some()
     }
 
     /// The scheme was fixed by the wallet's Quorum.

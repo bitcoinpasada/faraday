@@ -478,7 +478,7 @@ fn leaving_new_key_forgets_the_sheets() {
 }
 
 #[test]
-fn faraday_desktop_never_masks_and_has_no_eye() {
+fn faraday_desktop_shows_the_eye_and_masks_as_the_device() {
     let mut app = on(1366, 768, 160);
     app.online = true;
     opened(&mut app);
@@ -487,11 +487,21 @@ fn faraday_desktop_never_masks_and_has_no_eye() {
         key(&mut app, char::from(b'0' + f));
     }
     let _ = app.frame();
-    assert!(!app.offers(Action::Codex32(C32::Eye)));
+    assert!(app.offers(Action::Codex32(C32::Eye)));
+    assert!(!masked(&app), "unmasked while the flow is open");
+    assert!(app.drawn_texts().iter().any(|t| t == "z"));
+    c32(&mut app, C32::Eye);
+    let _ = app.frame();
+    assert!(masked(&app), "the eye masks the sheets");
+    assert!(!app.drawn_texts().iter().any(|t| t == "z"));
+    c32(&mut app, C32::Eye);
+    assert!(!masked(&app));
     c32(&mut app, C32::Card(Card::Entropy.index()));
     c32(&mut app, C32::Card(Card::Enter.index()));
-    assert!(!masked(&app));
-    assert!(app.drawn_texts().iter().any(|t| t == "z"));
+    assert!(
+        masked(&app),
+        "masked again once the entry is left backwards"
+    );
 }
 
 #[test]
@@ -672,8 +682,10 @@ fn the_eye_stands_clear_of_every_row_of_the_flow() {
     let boxes = app.drawn_text_boxes();
     let panel_top = boxes
         .iter()
-        .find(|(t, _)| t == "First roll")
-        .map_or(i32::MAX, |(_, b)| b.1 - 48);
+        .filter(|(t, _)| matches!(t.as_str(), "First roll" | "Your dice" | "Working"))
+        .map(|(_, b)| b.1 - 48)
+        .min()
+        .unwrap_or(i32::MAX);
     for (t, b) in boxes.into_iter().filter(|(_, b)| b.1 < panel_top) {
         assert!(
             !cols_meet(b, eye) || b.1 + b.3 <= eye.1,

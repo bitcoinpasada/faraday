@@ -250,7 +250,8 @@ impl Faraday {
                 // by stick only.
                 if item.kind == FileKind::Sheet && self.online {
                     out.push((EN.files_make_pdf.to_string(), Action::PdfOutbox(k)));
-                } else if crate::qr_fits(item) {
+                }
+                if crate::qr_fits(item) {
                     out.push((EN.files_show_as_qr.to_string(), Action::QrOutbox(k)));
                 }
                 out.push((

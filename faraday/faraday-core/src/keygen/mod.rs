@@ -1084,8 +1084,7 @@ impl crate::Faraday {
         self.screen = Screen::KeyGen;
     }
 
-    /// Make codex32 shares as this device runs it: on Faraday Desktop the
-    /// sheets are never masked (§6.4.6); in Demo the sample stands in
+    /// Make codex32 shares as this device runs it: in Demo the sample stands in
     /// place of the strings entered (`docs/CODEX32.md` §12). Cheap: the
     /// sample's two strings parsed.
     pub(crate) fn codex32_here(
@@ -1093,7 +1092,6 @@ impl crate::Faraday {
         m: crate::codex32::Codex32Make,
     ) -> crate::codex32::Codex32Make {
         let m = m.with_dice(self.keygen.dice);
-        let m = if self.online { m.desktop() } else { m };
         if self.makes_secrets() {
             return m;
         }

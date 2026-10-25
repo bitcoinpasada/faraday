@@ -408,3 +408,17 @@ fn the_keyboard_opens_a_dots_menu_and_escape_closes_it() {
     app.event(Event::Key(Key::Escape));
     assert_eq!(app.sheet, None);
 }
+
+#[test]
+fn a_sheet_for_the_stick_offers_show_as_qr_beside_make_pdf_on_desktop() {
+    let mut app = process(
+        Vec::new(),
+        vec![file("plan.txt", b"faraday-sheet 1\nplan\n")],
+        Vec::new(),
+    );
+    app.online = true;
+    app.press(Action::Nav(Screen::Files));
+    let words = menu_of(&mut app, Row::Out(0));
+    assert!(words.iter().any(|w| w == "Make PDF"), "{words:?}");
+    assert!(words.iter().any(|w| w == "Show as QR"), "{words:?}");
+}

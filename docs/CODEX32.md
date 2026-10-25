@@ -65,10 +65,10 @@ Sources read for it, each as data and none vendored:
 
 ### 1.1 The owner's answers (2026-10-22)
 
-1. **Masking of the live sheets**: none on Faraday Desktop, which is
-   testnet only for real seeds. On the stick and the Pi, unmasked while
-   the flow is open, masked when it is left, the eye at any time
-   (§6.4.6).
+1. **Masking of the live sheets**: on Faraday Desktop, the stick and
+   the Pi alike (F117; first answered as none on Faraday Desktop):
+   unmasked while the flow is open, masked when it is left, the eye at
+   any time (§6.4.6).
 2. **The identifier in Make codex32 shares** is typed by the person,
    before any entropy, as the booklet does and as the Codex32QR
    profile's author describes it (a self-chosen four-character label;
@@ -422,10 +422,10 @@ working, and every computed cell opens to what made it (§6.4, §7.4).
   (`Codex32Make::masked`): the eye, Material's icon button (on the small
   panel's bar; on the wide page in the right margin under the ?, clear of
   the cards' rows), masks every character, roll and working
-  as dots and shows them again; on the stick and the Pi the sheets are
+  as dots and shows them again; on Faraday Desktop, the stick and the Pi the sheets are
   shown while the flow is open and masked again when the entry is left
   backwards (an earlier card, Start's Change, the entry card closed);
-  Faraday Desktop never masks and has no eye; New key keeps nothing when
+  Faraday Desktop masks and unmasks as the device (F117); New key keeps nothing when
   its screen is left, so there is nothing to show again. The translation
   symbols are drawn as the booklet's second alphabet's glyphs
   (`SYMBOL_GLYPHS`, §7.2). In Demo (§12) the entry runs as anywhere,
@@ -1298,11 +1298,10 @@ under a mask shows nothing of its working, which is the opposite of the
 owner's requirement. The owner's answer (§1.1 item 1), an exception
 to the mask policy for this flow:
 
-- **Faraday Desktop**: no masking of the live sheets; it is testnet only
-  for real seeds.
-- **The stick and the Pi**: the sheets are **unmasked while the flow is
+- **Faraday Desktop, the stick and the Pi** (F117: Faraday Desktop
+  matches the device; it first had no masking): the sheets are **unmasked while the flow is
   open** and masked again whenever it is left (Back past the first entry
-  card, Cancel, a flow put aside, the device locking or idling); the eye
+  card, Cancel, a flow put aside, the device locking or idling, Faraday Desktop closing the flow); the eye
   in the app bar masks them at any moment.
 
 #### 6.4.7 How it fits each size class

@@ -131,3 +131,4 @@ Read this table, then only the decision you need.
 | [F114](decisions/F114.md) | Wide content takes the room beside the navigation; reading content keeps its column | 2026-10-24 | Active | design |
 | [F115](decisions/F115.md) | A key flow opened from Make a new wallet has Cancel, back to it; a Keys card with one way on is passed over | 2026-10-24 | Active | design |
 | [F116](decisions/F116.md) | Faraday's scope: an offline signer and keeper of keys, Bitcoin first | 2026-10-25 | Active | scope |
+| [F117](decisions/F117.md) | Faraday Desktop matches the device; it differs only where the platform or an owner decision forces it | 2026-10-25 | Active | design |
