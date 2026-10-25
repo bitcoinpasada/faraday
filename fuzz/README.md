@@ -96,7 +96,8 @@ release notes quote it.
 `just fuzz-corpus-export` (`tools/fuzz-corpus-export.sh`) minimizes each
 target's kept corpus and seeds with `cargo fuzz cmin` into
 `out/fuzz-corpus/<target>/`, to be committed to the repository that
-publishes the corpora.
+publishes the corpora, https://github.com/bitcoinpasada/faraday-fuzz-corpus
+(one commit per release, tagged with the release's tag).
 
 **Reproducing a release's run.** Check out the release's commit. Install
 the nightly `fuzz/rust-toolchain.toml` names and the cargo-fuzz version

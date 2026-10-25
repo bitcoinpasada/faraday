@@ -83,7 +83,8 @@ none is part of `just`, which stays fast.
       target's corpus and run again.
    2. `just fuzz-corpus-export`: each target's corpus, minimized, in
       `out/fuzz-corpus/`.
-   3. Commit that folder's contents to the corpus repository and tag the
+   3. Commit that folder's contents to the corpus repository,
+      https://github.com/bitcoinpasada/faraday-fuzz-corpus, and tag the
       commit with the release's tag.
    4. The release notes quote `out/fuzz-release.txt` (each target's
       seconds, executions, corpus size and "no crashes", with the commit,
