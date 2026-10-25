@@ -1,6 +1,6 @@
 [package]
 name = "faraday-vault"
-version = "0.1.6"
+version = "0.1.7"
 description = "The Faraday vault file: four equal slots under Argon2id and XChaCha20-Poly1305, each opened by its own passphrase (docs/VAULT.md)"
 edition.workspace = true
 license.workspace = true

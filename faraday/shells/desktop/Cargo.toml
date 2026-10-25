@@ -1,6 +1,6 @@
 [package]
 name = "faraday-desktop"
-version = "0.1.6"
+version = "0.1.7"
 description = "Faraday in a window, with folders for sticks: the quickest way to try the screens"
 edition.workspace = true
 license.workspace = true

@@ -1,6 +1,6 @@
 [package]
 name = "faraday-samples"
-version = "0.1.6"
+version = "0.1.7"
 description = "Faraday's samples: the public dummy keys, wallets and files Demo takes, as data (docs/MODES.md §5)"
 edition.workspace = true
 license.workspace = true
