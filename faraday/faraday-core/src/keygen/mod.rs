@@ -1813,6 +1813,16 @@ impl crate::Faraday {
         match press {
             C32::Lock => return self.keygen_codex32_lock(),
             C32::Walk(w) => return self.keygen_codex32_walk(w),
+            // The Working area's Previous and Next step the Demo walk
+            // while it shows a step (`docs/CODEX32.md` §5.7).
+            C32::Step(d) if self.keygen_walk_shown() => {
+                let w = if d < 0 {
+                    crate::codex32::WalkAct::Previous
+                } else {
+                    crate::codex32::WalkAct::Next
+                };
+                return self.keygen_codex32_walk(w);
+            }
             C32::Next | C32::Key(faraday_ui::keyboard::OskPress::Done) if locked_next => {
                 return self.keygen_done();
             }
@@ -1898,6 +1908,14 @@ impl crate::Faraday {
             k.codex32 = m;
         }
         self.worksheet_follow();
+    }
+
+    /// Whether the codex32 Demo walk shows a step. A lookup.
+    fn keygen_walk_shown(&self) -> bool {
+        self.keygen
+            .state()
+            .and_then(|k| k.codex32.as_ref())
+            .is_some_and(|m| m.walk().shown().is_some())
     }
 
     /// ← and → step the codex32 step-through while its card is on the

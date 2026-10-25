@@ -43,6 +43,10 @@ pub fn step_text(work: &WorkSet, ch: &WalkChar, step: Step) -> String {
                 std::cmp::Ordering::Equal => fill(EN.codex32_walk_equal, &[&d, &fs, &vs]),
             }
         }
+        Step::Char if ch.typed() => {
+            let c = up(Some(ch.value()));
+            fill(EN.codex32_track_typed, &[&c, &(10 + ch.n).to_string()])
+        }
         Step::Char => bits_text(ch),
         Step::Sum { j, i } => sum_text(work, ch.share, usize::from(j), usize::from(i)),
         Step::Table { j } => table_text(work, ch.share, usize::from(j)),

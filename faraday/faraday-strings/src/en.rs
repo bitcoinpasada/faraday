@@ -9432,6 +9432,27 @@ strings! {
     /// Where the step-through stands. `{}`: the step, the character's
     /// steps, the character's number in its share.
     codex32_walk_count: "Step {} of {} · character {}",
+    // ----- The Working area of the person's own entry (CODEX32 §5.7, owner 2026-10-24), faraday-core -----
+    /// The Working area's head, in the input panel beside the pad.
+    codex32_track_head: "Working",
+    /// Where the Working area stands before a value of the character is
+    /// entered. `{}`: the character's number in its share.
+    codex32_track_char: "Character {}",
+    /// Where it stands in the character in progress. `{}`: the value's
+    /// number among the character's, the character's number in its share.
+    codex32_track_roll: "Roll {} · character {}",
+    /// What the person enters next, a die's first roll. `{}`: the die.
+    codex32_track_next_first: "Next: die {}, first roll.",
+    /// What the person enters next, a die's second roll. `{}`: the die.
+    codex32_track_next_second: "Next: die {}, second roll.",
+    /// A character typed, into its box. `{}`: the character, the box.
+    codex32_track_typed: "{} goes in box {}.",
+    /// What the person types next. `{}`: the box.
+    codex32_track_next_box: "Next: the character for box {}.",
+    /// The Working area's Previous, an icon button's tooltip.
+    tip_previous_step: "Previous step",
+    /// The Working area's Next, an icon button's tooltip.
+    tip_next_step: "Next step",
     /// Before any step of a character is shown. `{}`: its number in its share.
     codex32_walk_ready: "Next rolls character {}",
     /// Play, which runs the steps.

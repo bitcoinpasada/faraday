@@ -108,6 +108,21 @@ pub(crate) fn worksheet(t: &mut Tour) {
     }
 }
 
+/// The Working area (§5.7): character `ch` completed, then two of the
+/// worksheet's steps it makes possible; on the small panel, its tile
+/// over the pad.
+fn working(t: &mut Tour, ch: u8) -> Result<(), String> {
+    c(t, C32::Panel(3));
+    roll(t, ch);
+    t.shot("codex32-track-char")?;
+    c(t, C32::Step(1));
+    t.shot("codex32-track-step-1")?;
+    c(t, C32::Step(1));
+    t.shot("codex32-track-step-2")?;
+    c(t, C32::Panel(0));
+    Ok(())
+}
+
 pub(crate) fn codex32_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::WalletsStart));
     t.press(Action::KeyGen(None));
@@ -158,7 +173,8 @@ pub(crate) fn codex32_tour(t: &mut Tour) -> Result<(), String> {
     for _ in 0..7 {
         c(t, C32::Key(OskPress::Back));
     }
-    for &ch in &a[15..35] {
+    working(t, a[15])?;
+    for &ch in &a[16..35] {
         roll(t, ch);
     }
     t.shot("codex32-enter-share-a-done")?;

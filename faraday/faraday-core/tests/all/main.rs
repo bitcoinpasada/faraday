@@ -39,6 +39,7 @@ mod codex32_learn;
 mod codex32_make;
 mod codex32_rest;
 mod codex32_roller;
+mod codex32_tracker;
 mod codex32qr_copy;
 mod collect;
 mod common;

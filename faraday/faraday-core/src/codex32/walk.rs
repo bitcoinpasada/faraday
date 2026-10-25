@@ -24,6 +24,11 @@
 //! steps hold places, not values; drawing reads the values from the
 //! faces kept here and from the worksheet the work set keeps
 //! (`walk_screen.rs`), as a cell's working does (§7.4).
+//!
+//! **One model.** The person's own entry has the same steps, built from
+//! their own faces by [`Codex32Make::char_steps`] in `tracker.rs`
+//! (§5.7); the sheets mark the step [`Codex32Make::shown_step`] gives,
+//! the walk's while it shows one, else the person's.
 
 use faraday_crypto::work::Compute;
 use faraday_draw::tokens as t;
@@ -171,8 +176,19 @@ impl WalkChar {
         self.value
     }
 
+    /// Whether it is whole: its own step and its cells are among its
+    /// steps. The person's character in progress is not.
+    pub fn whole(&self) -> bool {
+        self.steps.contains(&Step::Char)
+    }
+
+    /// Whether it was typed: no faces.
+    pub fn typed(&self) -> bool {
+        self.faces.is_empty()
+    }
+
     /// The steps that enter a face.
-    fn face_steps(&self) -> usize {
+    pub(super) fn face_steps(&self) -> usize {
         self.faces.len() - self.k0
     }
 }
@@ -181,10 +197,10 @@ impl WalkChar {
 /// the step shown.
 #[derive(Default)]
 pub struct Walk {
-    chars: Vec<WalkChar>,
+    pub(super) chars: Vec<WalkChar>,
     /// The step shown: (character, steps of it shown); 0 steps only for
     /// the first character, before any is shown.
-    at: (usize, usize),
+    pub(super) at: (usize, usize),
     playing: bool,
     /// When Play takes its next step, ms.
     next_ms: u64,
@@ -198,7 +214,7 @@ pub struct Walk {
 impl Walk {
     /// Forgets every character and stops Play: the entry changed by
     /// another way.
-    fn clear(&mut self) {
+    pub(super) fn clear(&mut self) {
         self.chars.clear();
         self.at = (0, 0);
         self.playing = false;
@@ -469,7 +485,25 @@ impl Codex32Make {
         faces: Zeroizing<Vec<u8>>,
         k0: usize,
         g: usize,
+        place: (usize, usize),
+    ) -> Option<WalkChar> {
+        self.char_steps(faces, k0, g, place, true)
+    }
+
+    /// The steps of `faces` (the first `k0` taken as shown already), the
+    /// `g`-th character entered, data character `n` of share `share`:
+    /// each face's step, then, where the faces make the character whole,
+    /// its own step and the worksheet's cells its box fills. Not `whole`,
+    /// faces that do not yet make a character give their faces' steps
+    /// alone (the person's character in progress, `tracker.rs`); `whole`,
+    /// they give none. Arithmetic on its faces and the worksheet's shape.
+    pub(super) fn char_steps(
+        &self,
+        faces: Zeroizing<Vec<u8>>,
+        k0: usize,
+        g: usize,
         (share, n): (usize, usize),
+        whole: bool,
     ) -> Option<WalkChar> {
         let mut dice = BookletChar::with_faces(self.dice_choice.faces).ok()?;
         let mut rows = Zeroizing::new(Vec::new());
@@ -524,9 +558,15 @@ impl Codex32Make {
                 }
             });
         }
-        let value = super::symbol_of(char::from(dice.character().ok()?))?;
-        steps.push(Step::Char);
-        self.cell_steps(share, 10 + n, &mut steps);
+        let value = match dice.character() {
+            Ok(c) => {
+                steps.push(Step::Char);
+                self.cell_steps(share, 10 + n, &mut steps);
+                super::symbol_of(char::from(c))?
+            }
+            Err(_) if !whole => 0,
+            Err(_) => return None,
+        };
         Some(WalkChar {
             g,
             share,
@@ -540,12 +580,37 @@ impl Codex32Make {
         })
     }
 
+    /// The steps of a character typed (no faces), the `g`-th entered,
+    /// data character `n` of share `share`, value `value`: its own step,
+    /// into its box, and the worksheet's cells its box fills. Arithmetic
+    /// on the worksheet's shape.
+    pub(super) fn typed_steps(
+        &self,
+        g: usize,
+        (share, n): (usize, usize),
+        value: u8,
+    ) -> Option<WalkChar> {
+        let mut steps = vec![Step::Char];
+        self.cell_steps(share, 10 + n, &mut steps);
+        Some(WalkChar {
+            g,
+            share,
+            n,
+            faces: Zeroizing::new(Vec::new()),
+            k0: 0,
+            value,
+            dice: BookletChar::with_faces(self.dice_choice.faces).ok()?,
+            rows: Zeroizing::new(Vec::new()),
+            steps,
+        })
+    }
+
     /// The checksum worksheet's cells box `b` fills, in the order they
     /// are worked: each sum row's cell in its column, top down, with the
     /// table row a row's leading cells select once the last of them is
     /// in; at the last data box, the checksum boxes worked from below.
     /// Arithmetic on the worksheet's shape.
-    fn cell_steps(&self, share: usize, b: usize, steps: &mut Vec<Step>) {
+    pub(super) fn cell_steps(&self, share: usize, b: usize, steps: &mut Vec<Step>) {
         let Some(sh) = self
             .work
             .as_ref()
@@ -598,6 +663,9 @@ impl Codex32Make {
         }
         if self.entry_pos() == to {
             self.walk.at = (slot, s);
+            // The walk's step is the one shown: the person's own steps
+            // are worked out again at their next entry.
+            self.track.clear();
             true
         } else {
             self.walk.clear();
@@ -668,22 +736,36 @@ impl Codex32Make {
         true
     }
 
-    /// The dice sheet drawn while the walk shows a character's own step:
-    /// that character whole, with its path through the tree; else the
-    /// character in progress.
-    pub fn shown_dice(&self) -> &BookletChar {
-        match self.walk.shown() {
-            Some((ch, _, Step::Char)) => &ch.dice,
-            _ => &self.dice,
+    /// The step shown, the one model's: the Demo walk's while it shows
+    /// one, else the person's own entry's ([`Self::tracker`]), with its
+    /// character and its number from 1. A lookup.
+    pub fn shown_step(&self) -> Option<(&WalkChar, usize, Step)> {
+        self.walk.shown().or_else(|| self.track.shown())
+    }
+
+    /// The character the step shown is of, while that character is whole
+    /// on its own sheet: at its own step, or at a face's step once it is
+    /// in its box (the person's character before the one in progress).
+    fn shown_whole(&self) -> Option<&WalkChar> {
+        match self.shown_step()? {
+            (ch, _, Step::Char) => Some(ch),
+            (ch, _, Step::First { .. } | Step::Second { .. }) if ch.g < self.entered_all() => {
+                Some(ch)
+            }
+            _ => None,
         }
+    }
+
+    /// The dice sheet drawn while the step shown is of a character whole
+    /// (its own step, or a face of one in its box): that character, with
+    /// its path through the tree; else the character in progress.
+    pub fn shown_dice(&self) -> &BookletChar {
+        self.shown_whole().map_or(&self.dice, |ch| &ch.dice)
     }
 
     /// The pairs drawn with [`Self::shown_dice`].
     pub fn shown_rows(&self) -> &[DieRow] {
-        match self.walk.shown() {
-            Some((ch, _, Step::Char)) => &ch.rows,
-            _ => &self.rows,
-        }
+        self.shown_whole().map_or(&self.rows, |ch| &ch.rows)
     }
 
     /// The initial share whose string and checksum worksheet the entry
@@ -691,7 +773,7 @@ impl Codex32Make {
     /// front; while the walk shows a step of a character in its box, that
     /// character's share, with no front (its own cells are marked).
     pub fn entry_share(&self) -> Option<(usize, Option<usize>)> {
-        if let Some((ch, _, step)) = self.walk.shown()
+        if let Some((ch, _, step)) = self.shown_step()
             && !matches!(step, Step::First { .. } | Step::Second { .. })
         {
             return Some((ch.share, None));
@@ -704,7 +786,7 @@ impl Codex32Make {
 
     /// The die and the pad the step shown touches on the dice sheet.
     pub fn walk_die_mark(&self) -> Option<(usize, u8)> {
-        match self.walk.shown()? {
+        match self.shown_step()? {
             (ch, _, Step::First { k, die, .. } | Step::Second { k, die, .. }) => {
                 Some((usize::from(die), ch.face(k)))
             }
@@ -716,7 +798,7 @@ impl Codex32Make {
     /// touches, each with whether it is the one worked out: its inputs
     /// and its result. Arithmetic on the worksheet's shape.
     pub fn walk_cells(&self, share: usize) -> Vec<(Cell, bool)> {
-        let Some((ch, _, step)) = self.walk.shown().filter(|(c, _, _)| c.share == share) else {
+        let Some((ch, _, step)) = self.shown_step().filter(|(c, _, _)| c.share == share) else {
             return Vec::new();
         };
         let Some(sh) = self

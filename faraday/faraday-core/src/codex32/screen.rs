@@ -717,6 +717,7 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
                     h + rolled_line(m, ui, x, cy + h, w)
                 }
                 1 => sheet::entry_sheet(m, work, share, front, ui, (x, cy, w, cls, at.hide)),
+                3 => super::tracker_screen::draw(m, ui, (x, cy, w)) + t::GAP,
                 _ => string_boxes(work, share, front, ui, at.to(x, cy, w)),
             };
             cy += pad(m, ui, at.to(x, cy, w));
@@ -727,6 +728,7 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
             cy += panels(m, work, share, front, ui, at.to(x, cy, w));
             // Out of the page, the input panel holds the pad and the rolls.
             if !at.panel.out_of_page() {
+                cy += super::tracker_screen::draw(m, ui, (x, cy, w.min(t::COLUMN_MAX))) + t::GAP;
                 cy += pad(m, ui, at.to(x, cy, w));
             }
         }
@@ -753,6 +755,7 @@ fn panel_tiles(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         EN.codex32_tile_dice,
         EN.codex32_tile_checksum,
         EN.codex32_tile_string,
+        EN.codex32_track_head,
     ];
     let items: Vec<TabItem> = names
         .iter()

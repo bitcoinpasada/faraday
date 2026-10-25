@@ -157,12 +157,21 @@ fn rolls_down_h(m: &Codex32Make) -> f32 {
     line + BOOKLET_DICE as f32 * (t::ROLLER_PAIR_DIE + t::ROLLER_FIVE_GAP) + struck as f32 * line
 }
 
+/// The Working area's height and the gap under it (`tracker_screen.rs`).
+fn work_h(w: f32) -> f32 {
+    super::tracker_screen::working_area_h(w) + t::GAP
+}
+
 /// The panel's height beside the sheets.
 fn beside_h(m: &Codex32Make) -> f32 {
     let body = if m.way() == Way::Typed {
-        keyboard_h()
+        work_h(beside_inner()) + keyboard_h()
     } else {
-        rolls_down_h(m) + t::GAP + sizes_h(beside_inner()) + pad_h(m, beside_inner())
+        rolls_down_h(m)
+            + t::GAP
+            + work_h(beside_inner())
+            + sizes_h(beside_inner())
+            + pad_h(m, beside_inner())
     };
     t::PAD + body + t::PAD
 }
@@ -174,15 +183,31 @@ fn row_room(inner: f32) -> Option<f32> {
     (left >= t::INPUT_SIZES_W.max(beside_inner())).then_some(left)
 }
 
+/// The codex32 keyboard's width at the foot, `inner` wide, and where the
+/// Working area stands beside it (its left edge from the panel's start
+/// and its width), where the room right of a keyboard at least
+/// `CODEX32_KEYS_BESIDE_MIN` wide holds it; else above it.
+fn keys_at_foot(inner: f32) -> (f32, Option<(f32, f32)>) {
+    let kw = (inner - t::SPACER - beside_inner()).min(t::COLUMN_MAX);
+    if kw >= t::CODEX32_KEYS_BESIDE_MIN {
+        (kw, Some((kw + t::SPACER, inner - kw - t::SPACER)))
+    } else {
+        (inner.min(t::COLUMN_MAX), None)
+    }
+}
+
 /// The panel's height at the window's foot, `inner` wide inside its
 /// margins.
 fn foot_h(m: &Codex32Make, inner: f32) -> f32 {
     let body = if m.way() == Way::Typed {
-        keyboard_h()
+        match keys_at_foot(inner) {
+            (_, Some((_, ww))) => keyboard_h().max(work_h(ww)),
+            (kw, None) => work_h(kw) + keyboard_h(),
+        }
     } else if let Some(left) = row_room(inner) {
-        pairs_across_h().max(sizes_h(left) + pad_h(m, left))
+        pairs_across_h().max(work_h(left) + sizes_h(left) + pad_h(m, left))
     } else {
-        pairs_across_h() + t::GAP + sizes_h(inner) + pad_h(m, inner)
+        pairs_across_h() + t::GAP + work_h(inner) + sizes_h(inner) + pad_h(m, inner)
     };
     t::GAP + body + t::GAP
 }
@@ -198,10 +223,12 @@ pub(crate) fn draw(m: &Codex32Make, ui: &mut Ui, at: PanelAt, (x0, cw, h): (f32,
             let (ix, iw) = (x + t::PAD, beside_inner());
             let mut cy = y + t::PAD;
             if m.way() == Way::Typed {
+                cy += super::tracker_screen::draw(m, ui, (ix, cy, iw)) + t::GAP;
                 keyboard(ui, ix, cy, iw);
                 return;
             }
             cy += pairs(ui, (ix, cy, iw), &super::dice_screen::pairs_of(m), None) + t::GAP;
+            cy += super::tracker_screen::draw(m, ui, (ix, cy, iw)) + t::GAP;
             cy += super::dice_screen::sizes(m, ui, ix, cy, iw);
             pad(m, ui, ix, cy, iw);
         }
@@ -211,7 +238,14 @@ pub(crate) fn draw(m: &Codex32Make, ui: &mut Ui, at: PanelAt, (x0, cw, h): (f32,
             let (ix, inner) = (x0 + t::MARGIN_WIDE, cw - 2.0 * t::MARGIN_WIDE);
             let mut cy = top + t::GAP;
             if m.way() == Way::Typed {
-                keyboard(ui, ix, cy, inner.min(t::COLUMN_MAX));
+                let (kw, beside) = keys_at_foot(inner);
+                match beside {
+                    Some((wx, ww)) => {
+                        super::tracker_screen::draw(m, ui, (ix + wx, cy, ww));
+                    }
+                    None => cy += super::tracker_screen::draw(m, ui, (ix, cy, kw)) + t::GAP,
+                }
+                keyboard(ui, ix, cy, kw);
                 return;
             }
             let rolls = super::dice_screen::pairs_of(m);
@@ -219,9 +253,12 @@ pub(crate) fn draw(m: &Codex32Make, ui: &mut Ui, at: PanelAt, (x0, cw, h): (f32,
                 pairs_across(ui, (ix, cy, pairs_across_w()), &rolls);
                 let kw = row_w(per_row(left).min(keys(m)));
                 let least = t::INPUT_SIZES_W.max(beside_inner());
-                (ix + pairs_across_w() + t::SPACER, kw.max(least).min(left))
+                let px = ix + pairs_across_w() + t::SPACER;
+                cy += super::tracker_screen::draw(m, ui, (px, cy, left)) + t::GAP;
+                (px, kw.max(least).min(left))
             } else {
                 cy += pairs_across(ui, (ix, cy, inner), &rolls) + t::GAP;
+                cy += super::tracker_screen::draw(m, ui, (ix, cy, inner)) + t::GAP;
                 (ix, inner)
             };
             cy += super::dice_screen::sizes(m, ui, px, cy, pw);

@@ -839,7 +839,8 @@ Slow, Normal (the default), Fast or Fastest (a step a frame), and
 reaches what stepping reaches. Any other change of the entry (a face of
 the person's own dice, Backspace, a change of dice, Use a sample)
 forgets the steps; the faces the walk entered stay marked as this
-computer's. Built in `codex32/walk.rs` and `codex32/walk_screen.rs`,
+computer's. The person's own entry has the same steps in its Working
+area (§5.7). Built in `codex32/walk.rs` and `codex32/walk_screen.rs`,
 tested in `codex32/walk_tests.rs` (each step's text for vector 2's
 first character, an equal pair, Previous after Next, Play against
 stepping) and `tests/all/codex32_roller.rs` (the steps on Faraday
@@ -949,6 +950,63 @@ and a byte of 252 or more is skipped, so that each face has 42 of the
 one are used up; the bytes left of an answer are dropped when the
 entries start over. The cross-check's `roller` area checks both
 rollers against this paragraph (`tools/crosscheck/area_roller.py`).
+
+### 5.7 The Working area: the person's own entry, a step at a time
+
+Every shell, every mode (owner, 2026-10-24). What the Demo walk (§5.5)
+shows a step at a time, the person's own entry shows too: one
+**Working** area in the input panel (`docs/LAYOUT.md` §16.3), beside the
+pad, says what the last value entered did and what to do next on paper.
+It is the walk's one step model (the same steps, the same text, the same
+marks on the sheets), with the person's faces as its source:
+
+- each value as entered: "Die 2, first roll: 3. Marker on pad 3.",
+  "Die 2, second roll: 5. 5 is higher than 3, so bit 1.", an equal pair
+  "Die 4: 2 then 2. Equal, so roll both again.", with its pad marked on
+  the die's track;
+- the value that completes a character: "Bits 0 1 1 0 1 = 8 + 4 + 1 = 13.
+  Leaf 13 of the tree is D. D goes in box 10.", the character's whole
+  sheet with its path through the tree and its box marked (a character
+  typed reads "D goes in box 10.");
+- then, a press of **Next** at a time, the worksheet's cells that
+  character fills (the sums, the table rows, at the last data character
+  the checksum boxes from below), each with its inputs and its result
+  outlined on the sheet and the view gliding there; **Previous** goes
+  back, into the character before when the next is begun.
+
+Over the steps it reads "Step 12 of 18 · character 7" (for the character
+in progress, "Roll 6 · character 7"); at the last step, what is entered
+next follows the working: "Next: die 2, first roll." Previous and Next
+are Material's outlined icon buttons (the chevrons, with the tooltips
+"Previous step" and "Next step"). They move only what is shown: nothing
+is entered, taken back or rolled, and outside Demo nothing else offers a
+step (no Play, no roll). Entering the next value is always allowed and
+moves the tracker to it; Backspace moves it back with the entry. While
+the Demo walk shows a step, the same two buttons step the walk.
+
+The area's height is fixed for its width (as many lines as the longest
+step needs there), so the pad beside it never moves as a step's text
+changes. Beside the sheets it stands under the rolls, over the dice's
+size; at the window's foot, over the dice's size and the pad, right of
+the rolls, or right of the codex32 keyboard for characters typed; in the
+page, over the pad. On the small panel it is the context row's fourth
+tile, **Working** (Dice · Checksum · String · Working, §6.4.7), over the
+pad. Masked sheets (§6.4.6) mask its working.
+
+The steps are worked out once, when a value is entered or taken back:
+the last character in its box (from its record) and the one in progress
+(from its faces), each with its steps, as the walk works a rolled
+character out; drawing reads them and the kept worksheet. At the step
+that puts a character in its box the view follows the entry as before,
+to the box being filled next. Built in `codex32/tracker.rs` and
+`codex32/tracker_screen.rs` on `codex32/walk.rs`'s model, tested in
+`codex32/tracker_tests.rs` (each value's step, an equal pair, a character
+completed with its box marked, Next through the worksheet's steps in
+order with their cells marked and Previous back, a new value moving the
+tracker, a typed character) and `tests/all/codex32_tracker.rs` (the step
+beside the pad at 1280x800, 1920x1080 and 480x640, the small panel's
+tile over the pad, outside Demo no walk and no Play, and Next entering
+nothing).
 
 ## 6. Make codex32 shares: the main flow
 

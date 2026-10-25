@@ -838,6 +838,21 @@ pub const SUPPORT_PANE_TOP: f32 = 2.0 * TOUCH;
 /// The input panel's width where it stands beside the sheets
 /// (`docs/LAYOUT.md` §16.3): the codex32 entry's rolls, dice and pad.
 pub const CODEX32_ENTRY_W: f32 = 424.0;
+/// One line of the input panel's Working area (`docs/CODEX32.md` §5.7):
+/// Material's body medium, 14 dp on a 20 dp line.
+pub const CODEX32_WORKING_LINE: f32 = 20.0;
+/// The room the longest step's working takes on one line at 14 dp, with
+/// the slack of breaking at spaces: the Working area keeps as many lines
+/// as its width needs for it, so the pad under it never moves.
+pub const CODEX32_WORKING_TEXT_MAX: f32 = 860.0;
+/// The fewest lines the Working area keeps for a step's working.
+pub const CODEX32_WORKING_LINES_MIN: f32 = 2.0;
+/// The Working area's width from which Previous and Next stand beside
+/// its text; narrower, they share the first row with its head.
+pub const CODEX32_WORKING_SIDE_MIN: f32 = 360.0;
+/// The narrowest the codex32 keyboard is drawn at the window's foot with
+/// the Working area beside it.
+pub const CODEX32_KEYS_BESIDE_MIN: f32 = 560.0;
 /// A key of the input panel's pad: its width; its height is `TOUCH`
 /// (`docs/LAYOUT.md` §8, §16.3).
 pub const PAD_KEY_W: f32 = 64.0;

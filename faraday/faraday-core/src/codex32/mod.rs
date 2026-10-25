@@ -37,6 +37,10 @@ pub(crate) mod input_panel;
 mod pan;
 pub(crate) mod pane_screen;
 pub(crate) mod screen;
+mod tracker;
+pub(crate) mod tracker_screen;
+#[cfg(test)]
+mod tracker_tests;
 mod walk;
 pub(crate) mod walk_screen;
 #[cfg(test)]
@@ -346,7 +350,7 @@ pub enum C32 {
     /// checksum worksheet, `n` the `n`-th translation worksheet.
     View(u8),
     /// The small panel's context: 0 the dice, 1 the checksum, 2 the
-    /// string (§6.4.7).
+    /// string, 3 the Working area (§6.4.7, §5.7).
     Panel(u8),
     /// A cell's working opened (§7.4).
     Cell(Cell),
@@ -371,6 +375,9 @@ pub enum C32 {
     /// On a narrow window, the "Demo only" card opened from its strip at
     /// the foot, or closed back to it (§5.5).
     Pane,
+    /// The Working area's step before (-1) or after (1) of the person's
+    /// own entry (§5.7): only what is shown moves.
+    Step(i8),
     /// The dice's faces, by their place in [`DIE_SIZES`] (§5.1): in the
     /// middle of a character, its rolls so far are cleared.
     Faces(u8),
@@ -563,6 +570,9 @@ pub struct Codex32Make {
     page_due: bool,
     /// The step-through of the "Demo only" card (§5.5).
     walk: Walk,
+    /// The person's own entry's steps (§5.7, `tracker.rs`): worked out
+    /// again at every change of the entry by the person.
+    track: Walk,
     /// How far the "Demo only" card is scrolled within itself, units.
     pane_y: f32,
     /// On a narrow window, the card opened from its strip at the foot.
@@ -625,6 +635,7 @@ impl Codex32Make {
             page: SheetPan::default(),
             page_due: false,
             walk: Walk::default(),
+            track: Walk::default(),
             pane_y: 0.0,
             pane_open: false,
         }
@@ -993,7 +1004,18 @@ impl Codex32Make {
             .as_ref()
             .and_then(|w| w.worksheet(share, Reveal::PaperForm))?;
         let g = worksheet_screen::Geom::drawn(self.fit.cell, cls);
-        let marks = self.walk_cells(share);
+        // At the person's character just put in its box, the view follows
+        // the entry as before, to the box being filled next, on the same
+        // sheet; the steps after it follow their cells.
+        let front = match (self.walk.shown(), self.track.shown(), self.front()) {
+            (None, Some((_, _, walk::Step::Char)), Some((s, n))) if s == share => Some(10 + n),
+            _ => front,
+        };
+        let marks = if front.is_some() {
+            Vec::new()
+        } else {
+            self.walk_cells(share)
+        };
         let spot = worksheet_screen::paper!(sh, |p| {
             let mut spots = marks.iter().filter_map(|&(cell, _)| g.cell_spot(p, cell));
             match spots.next() {
@@ -1253,8 +1275,11 @@ impl Codex32Make {
         let before = self.entry_pos();
         self.act_press(c, press, fresh);
         // The entry changed by another way than the step-through's own:
-        // its steps are forgotten.
+        // its steps are forgotten, and the person's own worked out.
         self.walk_check(before);
+        if self.entry_pos() != before {
+            self.track(before);
+        }
     }
 
     /// Costs what [`Self::act`] costs. The press itself.
@@ -1336,6 +1361,7 @@ impl Codex32Make {
                     self.roll(c, f);
                 }
             }
+            C32::Step(d) if self.open == Some(Card::Enter) => self.track_step(d),
             C32::Qr => self.qr_on = !self.qr_on && self.qr.is_some(),
             C32::Skip => self.skip(c),
             C32::Sample if self.open == Some(Card::Enter) => self.use_sample(c),
@@ -1359,7 +1385,7 @@ impl Codex32Make {
                 self.show_tab(to as usize);
             }
             C32::View(v) => self.view = v,
-            C32::Panel(p) => self.panel = p.min(2),
+            C32::Panel(p) => self.panel = p.min(3),
             C32::Cell(cell) if !self.masked() => self.cell = Some(cell),
             C32::CellClose => self.cell = None,
             C32::CellStep(d) => {
