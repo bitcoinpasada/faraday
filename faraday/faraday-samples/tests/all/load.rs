@@ -40,7 +40,10 @@ fn key_pick(name: &str, word: &str) -> Pick {
 fn open(app: &mut Faraday) {
     app.press(Action::Nav(Screen::Home));
     let _ = app.frame();
-    assert!(app.offers(Action::Samples), "the pill is on Home");
+    assert!(
+        crate::common::strip_offers(app, Action::Samples),
+        "Samples is in the strip on Home"
+    );
     app.press(Action::Samples);
     assert_eq!(app.sheet, Some(Sheet::Samples));
     let _ = app.frame();

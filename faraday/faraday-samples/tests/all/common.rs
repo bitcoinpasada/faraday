@@ -128,3 +128,21 @@ pub fn reference_key_text(words: &str, path: &str) -> String {
     let key = Xpub::from_priv(&secp, &master.derive_priv(&secp, &at).expect("derive"));
     format!("[{}/{path}]{key}", master.fingerprint(&secp))
 }
+
+/// What Faraday Desktop's host strip offers for `app` as it stands, its
+/// demo aids among them (`docs/DESKTOP-HOST.md` §3.1): the app held by
+/// the host for one frame and given back.
+pub fn strip(app: &mut Faraday) -> Vec<String> {
+    faraday_core::Host::strip_for(app)
+}
+
+/// Whether the host strip (or its More menu) offers the press `a` for
+/// `app` as it stands (`docs/DESKTOP-HOST.md` §3.1).
+pub fn strip_offers(app: &mut Faraday, a: faraday_core::Action) -> bool {
+    // The More menu is drawn open by its clock: at the very start of a
+    // test's time it has not opened yet, so the clock moves on first.
+    if app.now_ms() < 1000 {
+        app.event(Event::Tick { now_ms: 1000 });
+    }
+    faraday_core::Host::strip_actions_for(app).contains(&a)
+}

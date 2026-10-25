@@ -1,6 +1,6 @@
 //! A Demo passphrase field draws its caret as any field does: **Use
-//! faraday** stands in the "Demo only" card, not inside the field
-//! (`docs/DEMO.md` §5.4, §14).
+//! faraday** stands in the host's strip, not inside the field or
+//! anywhere in the app (`docs/DEMO.md` §5.4, `docs/DESKTOP-HOST.md` §3).
 
 use crate::common::demo_app;
 use faraday_core::demo::PassField;
@@ -35,18 +35,18 @@ fn blinking(app: &mut Faraday) -> usize {
 }
 
 #[test]
-fn the_caret_blinks_in_an_empty_demo_passphrase_field_and_use_faraday_is_beside_the_page() {
+fn the_caret_blinks_in_an_empty_demo_passphrase_field_and_use_faraday_is_in_the_strip() {
     let mut app = unlock();
     let chip = Action::PassChip(PassField::Unlock);
-    assert!(app.offers(chip), "Use faraday is offered");
+    assert!(
+        crate::common::strip_offers(&mut app, chip),
+        "Use faraday is in the strip"
+    );
+    let _ = app.frame();
+    assert!(!app.offers(chip), "the app draws no Use faraday");
     assert!(
         !app.drawn_texts().iter().any(|t| t == "faraday"),
         "nothing is drawn inside the field"
-    );
-    let (x, ..) = app.hit_box(chip).expect("Use faraday");
-    assert!(
-        u32::from(x) > u32::from(app.frame().width) / 2,
-        "Use faraday stands in the card at the right"
     );
     let before = blinking(&mut app);
     assert!(before > 0, "the caret blinks with nothing pressed");

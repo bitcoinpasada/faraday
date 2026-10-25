@@ -3,7 +3,7 @@
 //! tile, and a press puts the next sample in as typed or scanned. The tests
 //! drive a `Faraday` with the real samples set, as the desktop does.
 
-use crate::common::{demo_app, reference_key_text, show};
+use crate::common::{demo_app, reference_key_text, show, strip, strip_offers};
 use faraday_bip::keys::Fingerprint;
 use faraday_core::forms::Form;
 use faraday_core::samples::SampleKey;
@@ -60,13 +60,16 @@ fn words_typed(app: &Faraday) -> String {
 fn add_a_key_with_twelve_words_takes_the_first_sample_and_a_second_press_the_next() {
     let mut app = demo_app();
     add_a_key(&mut app);
-    assert!(app.offers(Action::UseSample), "the chip is in the field");
+    assert!(
+        strip_offers(&mut app, Action::UseSample),
+        "the chip is in the field"
+    );
     app.press(Action::UseSample);
     assert_eq!(words_typed(&app), words_of("twelve").parts[0]);
     // Filled: the chip is gone, and a press again puts the next one in its
     // place.
     let _ = app.frame();
-    assert!(!app.offers(Action::UseSample));
+    assert!(!strip_offers(&mut app, Action::UseSample));
     app.press(Action::UseSample);
     assert_eq!(words_typed(&app), words_of("ocean").parts[0]);
     app.press(Action::EntryAdd);
@@ -88,7 +91,10 @@ fn the_chip_follows_the_word_count_chosen() {
     app.press(Action::EntryClear);
     app.press(Action::EntryWordCount(15));
     let _ = app.frame();
-    assert!(app.offers(Action::UseSample), "Clear brings the chip back");
+    assert!(
+        strip_offers(&mut app, Action::UseSample),
+        "Clear brings the chip back"
+    );
     app.press(Action::UseSample);
     assert_eq!(words_typed(&app), words_of("lucky").parts[0]);
 }
@@ -114,7 +120,7 @@ fn a_small_panel_fills_its_word_entry_from_the_chip() {
     let mut app = demo_app();
     show(&mut app, 480, 2400, 286);
     add_a_key(&mut app);
-    assert!(app.offers(Action::UseSample));
+    assert!(strip_offers(&mut app, Action::UseSample));
     app.press(Action::UseSample);
     let w = testkit::entry(&app)
         .keys
@@ -134,10 +140,10 @@ fn pressing_in_the_field_or_typing_hides_the_chip_and_keeps_what_was_typed() {
     // A press in the field.
     let mut app = demo_app();
     add_a_key(&mut app);
-    assert!(app.offers(Action::UseSample));
+    assert!(strip_offers(&mut app, Action::UseSample));
     app.press(Action::EntryField);
     let _ = app.frame();
-    assert!(!app.offers(Action::UseSample));
+    assert!(!strip_offers(&mut app, Action::UseSample));
     type_in(&mut app, "abandon ");
     assert_eq!(words_typed(&app), "abandon");
     // Emptied again, the chip stays away for the visit.
@@ -146,18 +152,18 @@ fn pressing_in_the_field_or_typing_hides_the_chip_and_keeps_what_was_typed() {
     }
     let _ = app.frame();
     assert!(testkit::entry(&app).typed.is_empty());
-    assert!(!app.offers(Action::UseSample));
+    assert!(!strip_offers(&mut app, Action::UseSample));
     // Typing without a press.
     let mut app = demo_app();
     add_a_key(&mut app);
     type_in(&mut app, "zebra ");
     let _ = app.frame();
-    assert!(!app.offers(Action::UseSample));
+    assert!(!strip_offers(&mut app, Action::UseSample));
     assert_eq!(words_typed(&app), "zebra");
     // Leaving the step and opening it again brings it back.
     app.press(Action::Nav(Screen::Wallets));
     add_a_key(&mut app);
-    assert!(app.offers(Action::UseSample));
+    assert!(strip_offers(&mut app, Action::UseSample));
 }
 
 #[test]
@@ -166,7 +172,7 @@ fn a_slip39_share_fills_then_the_set_s_second_share_and_the_key_loads() {
     add_a_key(&mut app);
     app.press(form_at(Form::Slip39));
     let _ = app.frame();
-    assert!(app.offers(Action::UseSample));
+    assert!(strip_offers(&mut app, Action::UseSample));
     // The first set is the one-share backup; a press again takes the next.
     app.press(Action::UseSample);
     assert_eq!(
@@ -182,7 +188,10 @@ fn a_slip39_share_fills_then_the_set_s_second_share_and_the_key_loads() {
     app.press(Action::EntryPart);
     let _ = app.frame();
     assert!(testkit::entry(&app).typed.is_empty());
-    assert!(app.offers(Action::UseSample), "the second share's chip");
+    assert!(
+        strip_offers(&mut app, Action::UseSample),
+        "the second share's chip"
+    );
     app.press(Action::UseSample);
     assert_eq!(
         &*testkit::entry(&app).typed,
@@ -252,7 +261,10 @@ fn new_key_typed_and_the_spend_tab_s_words_offer_the_chip_too() {
     app.press(Action::Catalog(i as u8));
     let _ = app.frame();
     assert_eq!(app.screen, Screen::KeyGen);
-    assert!(app.offers(Action::UseSample), "New key's typed card");
+    assert!(
+        strip_offers(&mut app, Action::UseSample),
+        "New key's typed card"
+    );
     app.press(Action::UseSample);
     assert_eq!(
         &*testkit::entry(&app).typed,
@@ -267,7 +279,7 @@ fn new_key_typed_and_the_spend_tab_s_words_offer_the_chip_too() {
     ));
     let _ = app.frame();
     assert_eq!(app.screen, Screen::Entry);
-    assert!(app.offers(Action::UseSample));
+    assert!(strip_offers(&mut app, Action::UseSample));
     app.press(Action::UseSample);
     app.press(Action::EntryAdd);
     assert!(
@@ -283,7 +295,10 @@ fn the_seed_scanner_reads_a_sample_through_its_seedqr() {
     app.press(Action::ScanSeed);
     let _ = app.frame();
     assert_eq!(app.sheet, Some(Sheet::Scan));
-    assert!(app.offers(Action::ScanSample), "the Sample tile");
+    assert!(
+        strip_offers(&mut app, Action::ScanSample),
+        "the Sample tile"
+    );
     app.press(Action::ScanSample);
     assert_eq!(
         app.sheet,
@@ -315,11 +330,14 @@ fn a_wallet_s_missing_key_scanner_loads_the_matching_samples_and_the_wallet_sign
     assert!(!app.can_spend(0));
     app.press(Action::ScanKey(0));
     let _ = app.frame();
-    assert!(app.offers(Action::ScanSample));
+    assert!(strip_offers(&mut app, Action::ScanSample));
     app.press(Action::ScanSample);
     assert_eq!(app.session.keys.len(), 1, "one of Savings' keys");
     let _ = app.frame();
-    assert!(app.offers(Action::ScanSample), "Savings is short of more");
+    assert!(
+        strip_offers(&mut app, Action::ScanSample),
+        "Savings is short of more"
+    );
     app.press(Action::ScanSample);
     assert_eq!(app.session.keys.len(), 2);
     assert!(app.can_spend(0), "two of three sign");
@@ -332,7 +350,7 @@ fn restore_by_file_loads_the_next_sample_wallet() {
     let _ = app.frame();
     app.press(Action::Scan);
     let _ = app.frame();
-    assert!(app.offers(Action::ScanSample));
+    assert!(strip_offers(&mut app, Action::ScanSample));
     app.press(Action::ScanSample);
     assert!(app.restore().is_some_and(|r| r.described));
     assert_eq!(app.session.wallets.len(), 1, "Savings, the first sample");
@@ -353,7 +371,7 @@ fn the_envelope_takes_the_spend_of_the_wallet_loaded() {
     app.press(Action::Family(F::Next(page::SAFE)));
     app.press(Action::Family(F::Scan));
     let _ = app.frame();
-    assert!(app.offers(Action::ScanSample));
+    assert!(strip_offers(&mut app, Action::ScanSample));
     app.press(Action::ScanSample);
     let _ = app.frame();
     // The transaction is kept for Bring, which starts the spend on the
@@ -403,7 +421,10 @@ fn a_cosigner_s_box_takes_the_account_key_of_the_next_sample_seed_at_the_path() 
         faraday_core::seeds::Focus::Cosigner(0),
     )));
     let _ = app.frame();
-    assert!(app.offers(Action::Seeds(S::Sample(0))), "the box's chip");
+    assert!(
+        strip_offers(&mut app, Action::Seeds(S::Sample(0))),
+        "the box's chip"
+    );
     app.press(Action::Seeds(S::Sample(0)));
     let s = app.seeds().expect("the seeds");
     // The first sample seed not among the wallet's: flag, at BIP-48's
@@ -413,7 +434,10 @@ fn a_cosigner_s_box_takes_the_account_key_of_the_next_sample_seed_at_the_path() 
         reference_key_text(words_of("flag").parts[0], "48h/1h/0h/2h")
     );
     let _ = app.frame();
-    assert!(!app.offers(Action::Seeds(S::Sample(0))), "filled");
+    assert!(
+        !strip_offers(&mut app, Action::Seeds(S::Sample(0))),
+        "filled"
+    );
 }
 
 #[test]
@@ -425,7 +449,7 @@ fn the_files_scanner_on_spend_takes_the_sample_wallet_s_unsigned_spend() {
     app.screen = Screen::Spend;
     app.press(Action::Scan);
     let _ = app.frame();
-    assert!(app.offers(Action::ScanSample));
+    assert!(strip_offers(&mut app, Action::ScanSample));
     app.press(Action::ScanSample);
     assert!(
         app.inbox()
@@ -517,7 +541,10 @@ fn the_copy_check_s_scanner_reads_the_seedqr_of_a_sample_key() {
         app.scan().map(|s| s.purpose),
         Some(ScanPurpose::CheckCopy(_))
     ));
-    assert!(app.offers(Action::ScanSample), "the Sample tile");
+    assert!(
+        strip_offers(&mut app, Action::ScanSample),
+        "the Sample tile"
+    );
     app.press(Action::ScanSample);
     assert!(
         app.scan().is_none() && app.sheet.is_none(),
@@ -536,7 +563,7 @@ fn no_button_is_offered_on_testnet_or_where_no_samples_are_set() {
     testkit::move_to(&mut app.session, Network::Testnet).expect("testnet");
     app.samples = Some(&SAMPLES);
     add_a_key(&mut app);
-    assert!(!app.offers(Action::UseSample), "Testnet");
+    assert!(!strip_offers(&mut app, Action::UseSample), "Testnet");
     app.press(Action::UseSample);
     assert!(
         testkit::entry(&app).typed.is_empty(),
@@ -544,12 +571,15 @@ fn no_button_is_offered_on_testnet_or_where_no_samples_are_set() {
     );
     app.press(Action::ScanSeed);
     let _ = app.frame();
-    assert!(!app.offers(Action::ScanSample));
+    assert!(!strip_offers(&mut app, Action::ScanSample));
 
     let mut app = demo_app();
     app.samples = None;
     add_a_key(&mut app);
-    assert!(!app.offers(Action::UseSample), "the stick has no samples");
+    assert!(
+        !strip_offers(&mut app, Action::UseSample),
+        "the stick has no samples"
+    );
 }
 
 /// A twelve-word sample key loaded, its backup open on the copy item,
@@ -588,8 +618,8 @@ fn copy_checked(app: &Faraday) -> bool {
 fn the_copy_check_offers_fill_words_in_an_empty_grid_and_it_completes_the_check() {
     let mut app = demo_app();
     open_words_check(&mut app);
-    assert!(app.drawn_texts().iter().any(|t| t == "Fill words"));
-    assert!(app.offers(Action::UseSample));
+    assert!(strip(&mut app).iter().any(|t| t == "Fill words"));
+    assert!(strip_offers(&mut app, Action::UseSample));
     app.press(Action::UseSample);
     assert!(copy_checked(&app), "the words were checked as typed");
     assert!(app.backup().unwrap().check.is_none());
@@ -601,12 +631,12 @@ fn typing_or_pressing_in_the_grid_hides_fill_words() {
     open_words_check(&mut app);
     app.event(Event::Key(Key::Char('a')));
     let _ = app.frame();
-    assert!(!app.drawn_texts().iter().any(|t| t == "Fill words"));
+    assert!(!strip(&mut app).iter().any(|t| t == "Fill words"));
     let mut app = demo_app();
     open_words_check(&mut app);
     app.press(Action::EntryField);
     let _ = app.frame();
-    assert!(!app.drawn_texts().iter().any(|t| t == "Fill words"));
+    assert!(!strip(&mut app).iter().any(|t| t == "Fill words"));
 }
 
 #[test]
@@ -615,7 +645,7 @@ fn outside_demo_the_copy_check_has_no_fill_words() {
     open_words_check(&mut app);
     app.samples = None;
     let _ = app.frame();
-    assert!(!app.drawn_texts().iter().any(|t| t == "Fill words"));
+    assert!(!strip(&mut app).iter().any(|t| t == "Fill words"));
     app.press(Action::UseSample);
     assert!(!copy_checked(&app));
 }

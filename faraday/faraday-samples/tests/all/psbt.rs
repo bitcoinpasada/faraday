@@ -44,8 +44,12 @@ fn home_scanner_offers_the_sample_psbt_and_one_press_closes_it() {
     app.press(Action::Scan);
     let _ = app.frame();
     assert_eq!(app.sheet, Some(Sheet::Scan));
-    assert!(app.offers(Action::ScanSample));
-    assert!(app.drawn_texts().iter().any(|t| t == "Load sample PSBT"));
+    assert!(crate::common::strip_offers(&mut app, Action::ScanSample));
+    assert!(
+        crate::common::strip(&mut app)
+            .iter()
+            .any(|t| t == "Load sample PSBT")
+    );
     app.press(Action::ScanSample);
     assert_eq!(app.sheet, None, "the scanner closed");
     assert_eq!(psbt_files(&app), 1);
@@ -65,7 +69,7 @@ fn the_scanner_of_the_write_step_offers_it_too() {
     let _ = app.frame();
     app.press(Action::Scan);
     let _ = app.frame();
-    assert!(app.offers(Action::ScanSample));
+    assert!(crate::common::strip_offers(&mut app, Action::ScanSample));
     app.press(Action::ScanSample);
     assert_eq!(app.sheet, None);
     assert!(app.spend().is_some(), "the review opened");
@@ -77,8 +81,15 @@ fn the_spend_tab_loads_the_sample_psbt_reviews_and_signs_it() {
     app.press(Action::Nav(Screen::Family));
     app.press(Action::Family(F::SpendFrom(0)));
     let _ = app.frame();
-    assert!(app.offers(Action::SamplePsbt), "Load sample PSBT");
-    assert!(app.drawn_texts().iter().any(|t| t == "Load sample PSBT"));
+    assert!(
+        crate::common::strip_offers(&mut app, Action::SamplePsbt),
+        "Load sample PSBT"
+    );
+    assert!(
+        crate::common::strip(&mut app)
+            .iter()
+            .any(|t| t == "Load sample PSBT")
+    );
     app.press(Action::SamplePsbt);
     let _ = app.frame();
     let s = app.spend().expect("the spend opened");
@@ -102,8 +113,15 @@ fn signed_through(scan_button: impl Fn(&mut Faraday)) {
     scan_button(&mut app);
     let _ = app.frame();
     assert_eq!(app.sheet, Some(Sheet::Scan));
-    assert!(app.offers(Action::ScanSample), "the sample tile");
-    assert!(app.drawn_texts().iter().any(|t| t == "Load sample PSBT"));
+    assert!(
+        crate::common::strip_offers(&mut app, Action::ScanSample),
+        "the sample tile"
+    );
+    assert!(
+        crate::common::strip(&mut app)
+            .iter()
+            .any(|t| t == "Load sample PSBT")
+    );
     app.press(Action::ScanSample);
     let _ = app.frame();
     assert_eq!(app.sheet, None, "the scanner closed");
@@ -149,7 +167,10 @@ fn with_no_wallet_loaded_the_sample_psbt_still_comes_in_and_says_what_is_missing
     let _ = app.frame();
     app.press(Action::Family(F::Card(page::HOLDING)));
     let _ = app.frame();
-    assert!(app.offers(Action::SamplePsbt), "Load sample PSBT");
+    assert!(
+        crate::common::strip_offers(&mut app, Action::SamplePsbt),
+        "Load sample PSBT"
+    );
     app.press(Action::SamplePsbt);
     let _ = app.frame();
     assert_eq!(psbt_files(&app), 1);
