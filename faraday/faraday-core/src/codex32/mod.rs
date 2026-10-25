@@ -65,6 +65,7 @@ pub const MAKE_OFFERED: bool = true;
 use faraday_bip::codex32::{Length, Scheme};
 use faraday_codec::qr::QrMatrix;
 use faraday_crypto::work::Compute;
+use faraday_draw::tokens as t;
 use faraday_entropy::booklet::{self, BOOKLET_DICE, BookletChar};
 use faraday_keys::{Held, Making, Reveal, WorkSet};
 pub use faraday_ui::keyboard::OskPress;
@@ -536,6 +537,15 @@ pub struct Codex32Make {
     /// open) when it began, and the tick it began at, set by the first
     /// tick after.
     dice_move: Option<(f32, Option<u64>)>,
+    /// The roll shown whose pad key was last emphasised: its character,
+    /// step and face.
+    press_seen: Option<(usize, usize, u8)>,
+    /// The tick that emphasis began at; `None` once it has run its time.
+    press_at: Option<u64>,
+    /// Whether the dice's size menu was open at the last tick, and the
+    /// tick its opening or closing began at; `None` once it has run.
+    menu_seen: bool,
+    menu_at: Option<u64>,
     /// The height of the dice sheet's body as last drawn whole, the
     /// room its reveal is clipped to while it moves. Written by drawing
     /// as a measurement only; nothing decides from it.
@@ -642,6 +652,10 @@ impl Codex32Make {
             size_menu: None,
             dice_open: true,
             dice_move: None,
+            press_seen: None,
+            press_at: None,
+            menu_seen: false,
+            menu_at: None,
             dice_body_h: std::cell::Cell::new(0.0),
             made: Vec::new(),
             rolled: false,
@@ -950,6 +964,58 @@ impl Codex32Make {
     /// its place in [`DIE_SIZES`], and whether a key moved it there.
     pub fn size_menu(&self) -> Option<(u8, bool)> {
         self.size_menu
+    }
+
+    /// How far the dice's size menu shows at `now_ms`, 0 closed to 1
+    /// open: opening, Material's emphasized decelerate over
+    /// `DICE_MENU_OPEN_MS`; closing, emphasized accelerate over
+    /// `DICE_MENU_CLOSE_MS`; at once with `still` (Reduce motion). A
+    /// lookup.
+    pub fn size_menu_shown(&self, now_ms: u64, still: bool) -> f32 {
+        let open = self.size_menu.is_some();
+        let to = if open { 1.0 } else { 0.0 };
+        if still {
+            return to;
+        }
+        // Begun, the first tick not yet in: where it was.
+        if open != self.menu_seen {
+            return 1.0 - to;
+        }
+        let Some(at) = self.menu_at else {
+            return to;
+        };
+        if open {
+            let p = crate::motion::progress(Some(at), now_ms, t::DICE_MENU_OPEN_MS);
+            crate::motion::ease_open(p)
+        } else {
+            let p = crate::motion::progress(Some(at), now_ms, t::DICE_MENU_CLOSE_MS);
+            1.0 - crate::motion::ease(t::EASE_EMPHASIZED_ACCELERATE, p)
+        }
+    }
+
+    /// One tick of the size menu's opening or closing: begins it when the
+    /// menu opens or closes, ends it once its time is up. Returns whether
+    /// it still moves. A lookup.
+    pub(crate) fn menu_tick(&mut self, now_ms: u64) -> bool {
+        let open = self.size_menu.is_some();
+        if open != self.menu_seen {
+            self.menu_seen = open;
+            self.menu_at = Some(now_ms);
+            return true;
+        }
+        let ms = if open {
+            t::DICE_MENU_OPEN_MS
+        } else {
+            t::DICE_MENU_CLOSE_MS
+        };
+        match self.menu_at {
+            Some(at) if now_ms >= at + ms + 16 => {
+                self.menu_at = None;
+                false
+            }
+            Some(_) => true,
+            None => false,
+        }
     }
 
     /// A key while the dice's size menu is open (`crate::menu::step`):

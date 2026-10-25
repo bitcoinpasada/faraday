@@ -517,3 +517,305 @@ fn a_roll_opens_a_closed_dice_sheet_over_several_frames_and_at_once_under_reduce
         }
     }
 }
+
+// ---- Make codex32 shares on medium panels (owner, 2026-10-25) ----
+
+/// The dice of size `n` chosen from the panel's menu.
+fn choose_size(app: &mut Faraday, n: u8) {
+    let i = DIE_SIZES.iter().position(|&s| s == n).unwrap();
+    c32(app, C32::SizeMenu);
+    c32(app, C32::Faces(i as u8));
+    let _ = app.frame();
+}
+
+/// How many times `text` is drawn.
+fn drawn(app: &mut Faraday, text: &str) -> usize {
+    app.drawn_texts().iter().filter(|t| *t == text).count()
+}
+
+/// The panel's top at the foot: the highest of its "Working" and the
+/// pad's keys, in pixels from the window's foot.
+fn foot_h(app: &mut Faraday, h: u16) -> i32 {
+    let mut top = i32::from(h);
+    for (t, b) in app.drawn_text_boxes() {
+        if t == "Working" && b.1 > i32::from(h) / 2 {
+            top = top.min(b.1);
+        }
+    }
+    for f in 1..=6 {
+        if let Some(k) = app.hit_box(face(f)) {
+            top = top.min(i32::from(k.1));
+        }
+    }
+    i32::from(h) - top
+}
+
+#[test]
+fn the_foot_panel_packs_the_rolls_the_working_area_and_the_pad_into_few_rows() {
+    // The owner's panel (960 × 580 dp at 1.5 px a dp: 144 dp, was 192),
+    // 1280 × 800 and 1366 × 768 (132, the shortest the expanded rail
+    // leaves room for) and 1920 × 1080 (104, was 132): the panel's parts
+    // begin no higher than its fewest rows allow.
+    for (w, h, dpi, most) in [
+        (1440u16, 870u16, 240u16, 144 * 3 / 2),
+        (1280, 800, 160, 132),
+        (1366, 768, 160, 132),
+        (1920, 1080, 160, 104),
+    ] {
+        let mut app = on_shell(w, h, dpi, false, Way::Dice);
+        let fh = foot_h(&mut app, h);
+        assert!(
+            fh > 0 && fh <= most,
+            "{w}x{h}: the panel's parts {fh} px from the foot"
+        );
+        pad_and_rolls_in_view(&mut app, w, h);
+    }
+}
+
+#[test]
+fn the_tracks_show_only_the_pads_the_dice_reach() {
+    let mut app = on_shell(1920, 1080, 160, false, Way::Dice);
+    assert_eq!(
+        drawn(&mut app, "Die pads (d7+)"),
+        0,
+        "d6: no hexagons' head"
+    );
+    let (sevens, nines) = (drawn(&mut app, "7"), drawn(&mut app, "9"));
+    choose_size(&mut app, 8);
+    assert_eq!(
+        drawn(&mut app, "Die pads (d7+)"),
+        1,
+        "d8: the hexagons' head"
+    );
+    // Each of the five tracks and the pad gain a 7, none a 9.
+    assert_eq!(
+        drawn(&mut app, "7"),
+        sevens + 6,
+        "d8: pad 7 on each track and its key"
+    );
+    assert_eq!(drawn(&mut app, "9"), nines, "d8: no pad 9");
+    choose_size(&mut app, 10);
+    assert_eq!(
+        drawn(&mut app, "9"),
+        nines + 6,
+        "d10: pad 9 on each track and its key"
+    );
+    choose_size(&mut app, 6);
+    assert_eq!(
+        drawn(&mut app, "7"),
+        sevens,
+        "back to d6: the pads past 6 hidden"
+    );
+}
+
+#[test]
+fn the_tracks_and_the_tree_stand_side_by_side_where_they_fit() {
+    for (w, h, dpi) in [(1440u16, 870u16, 240u16), (1280, 800, 160)] {
+        let mut app = on_shell(w, h, dpi, false, Way::Dice);
+        let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet");
+        let tracks = text_at(&mut app, "Die tracks").expect("the tracks");
+        // Stacked, the tree (over 150 dp tall) would stand between them.
+        let scale = i32::from(dpi) / 80;
+        assert!(
+            tracks.1 - head.1 < 70 * scale,
+            "{w}x{h}: the tracks start at the sheet's top: {head:?} {tracks:?}"
+        );
+    }
+}
+
+#[test]
+fn on_the_owners_panel_the_entry_takes_the_whole_width_and_the_demo_card_stands_at_the_right() {
+    let (w, h) = (1440u16, 870u16);
+    let mut app = on_shell(w, h, 240, true, Way::Dice);
+    // The sheets start by the rail, not in a centred column.
+    let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet");
+    assert!(head.0 < 200, "the work starts by the rail: {head:?}");
+    // The card at the right, above the panel at the foot, not across.
+    let card = text_at(&mut app, "Demo only").expect("the card");
+    let next = app
+        .hit_box(Action::Codex32(C32::Walk(WalkAct::Next)))
+        .expect("Next");
+    assert!(
+        card.0 > i32::from(w) * 3 / 4,
+        "the card at the right: {card:?}"
+    );
+    assert!(
+        i32::from(next.0) > i32::from(w) * 3 / 4,
+        "Next in it: {next:?}"
+    );
+    assert!(next.1 < h / 2, "near the top, not at the foot: {next:?}");
+    // The pad's keys at the foot, under the sheets and the card.
+    let key = app.hit_box(face(3)).expect("the pad");
+    assert!(key.1 + key.3 > h - 200, "the pad at the foot: {key:?}");
+}
+
+/// The colour at (x, y) of the frame on screen, its three channels
+/// summed.
+fn ink_at(app: &mut Faraday, (x, y): (u16, u16)) -> i32 {
+    let f = app.frame();
+    let i = (usize::from(y) * f.width as usize + usize::from(x)) * 4;
+    f.rgba
+        .get(i..i + 3)
+        .map_or(0, |p| i32::from(p[0]) + i32::from(p[1]) + i32::from(p[2]))
+}
+
+/// A point inside face `f`'s key, clear of its label and its edge.
+fn in_key(app: &Faraday, f: u8) -> (u16, u16) {
+    let k = app.hit_box(face(f)).expect("the key");
+    (k.0 + k.2 / 2, k.1 + k.3 / 5)
+}
+
+#[test]
+fn the_key_of_the_roll_shown_is_drawn_pressed_after_a_press_and_after_next() {
+    // The person's press: their 3 drawn pressed, their 5 not.
+    let mut app = on_shell(1280, 800, 160, true, Way::Dice);
+    let (three, five) = (in_key(&app, 3), in_key(&app, 5));
+    let rest = ink_at(&mut app, three);
+    assert_eq!(rest, ink_at(&mut app, five), "two keys alike at rest");
+    c32(&mut app, C32::Face(3));
+    assert_eq!(make(&app).pressed_face(), Some(3));
+    let pressed = ink_at(&mut app, three);
+    assert_ne!(pressed, ink_at(&mut app, five), "3 drawn pressed");
+    // The Demo walk's Next presses its die's face the same way.
+    c32(&mut app, C32::Key(OskPress::Back));
+    c32(&mut app, C32::Walk(WalkAct::Next));
+    let f = make(&app).pressed_face().expect("Next rolled a face");
+    let other = if f == 1 { 2 } else { 1 };
+    let (on, off) = (in_key(&app, f), in_key(&app, other));
+    assert_ne!(
+        ink_at(&mut app, on),
+        ink_at(&mut app, off),
+        "Next's {f} drawn pressed"
+    );
+}
+
+#[test]
+fn the_pressed_key_is_emphasised_briefly_and_at_rest_under_reduce_motion() {
+    for still in [false, true] {
+        let mut app = on_shell(1280, 800, 160, false, Way::Dice);
+        app.press(Action::ReduceMotion(still));
+        let _ = app.frame();
+        let three = in_key(&app, 3);
+        c32(&mut app, C32::Face(3));
+        let shown = |app: &Faraday| make(app).press_shown(app.now_ms(), still);
+        let first = shown(&app);
+        let ink_first = ink_at(&mut app, three);
+        let mut seen = vec![first];
+        for _ in 0..40 {
+            let now = app.now_ms() + 16;
+            app.event(Event::Tick { now_ms: now });
+            seen.push(shown(&app));
+        }
+        let ink_late = ink_at(&mut app, three);
+        if still {
+            assert!(seen.iter().all(|s| *s == 0.0), "no emphasis: {seen:?}");
+            assert_eq!(ink_first, ink_late, "the same highlight throughout");
+        } else {
+            assert!(first > 0.99, "emphasised as pressed: {seen:?}");
+            assert!(
+                seen.windows(2).all(|w| w[1] <= w[0]),
+                "only eases: {seen:?}"
+            );
+            assert!(seen.last().is_some_and(|s| *s < 0.01), "to rest: {seen:?}");
+            assert_ne!(ink_first, ink_late, "the emphasis drawn, then gone");
+        }
+        assert_eq!(make(&app).pressed_face(), Some(3), "still drawn pressed");
+    }
+}
+
+#[test]
+fn the_dice_menu_grows_from_its_button_and_fades_out_and_at_once_under_reduce_motion() {
+    for still in [false, true] {
+        let mut app = on_shell(1280, 800, 160, false, Way::Dice);
+        app.press(Action::ReduceMotion(still));
+        let _ = app.frame();
+        let shown = |app: &Faraday| make(app).size_menu_shown(app.now_ms(), still);
+        let run = |app: &mut Faraday| {
+            let mut seen = vec![shown(app)];
+            for _ in 0..30 {
+                let _ = app.frame();
+                let now = app.now_ms() + 16;
+                app.event(Event::Tick { now_ms: now });
+                seen.push(shown(app));
+            }
+            seen
+        };
+        c32(&mut app, C32::SizeMenu);
+        let opening = run(&mut app);
+        c32(&mut app, C32::SizeMenu);
+        let closing = run(&mut app);
+        if still {
+            assert!(
+                opening.iter().all(|s| *s > 0.99),
+                "open at once: {opening:?}"
+            );
+            assert!(
+                closing.iter().all(|s| *s < 0.01),
+                "closed at once: {closing:?}"
+            );
+        } else {
+            let part = opening.iter().filter(|s| **s > 0.01 && **s < 0.99).count();
+            assert!(part >= 4, "opens over several frames: {opening:?}");
+            assert!(
+                opening.windows(2).all(|w| w[1] >= w[0]),
+                "only grows: {opening:?}"
+            );
+            assert!(
+                opening.last().is_some_and(|s| *s > 0.99),
+                "to full: {opening:?}"
+            );
+            assert!(
+                closing.first().is_some_and(|s| *s > 0.99),
+                "fades from full"
+            );
+            let fading = closing.iter().filter(|s| **s > 0.01 && **s < 0.99).count();
+            assert!((1..part).contains(&fading), "a quicker fade: {closing:?}");
+            assert!(
+                closing.last().is_some_and(|s| *s < 0.01),
+                "to gone: {closing:?}"
+            );
+        }
+    }
+}
+
+#[test]
+fn the_demo_card_narrows_to_its_column_where_the_whole_card_would_stack_the_tracks() {
+    // 1280 × 800 in Demo: the whole card would leave 494 dp, the tracks
+    // under the tree; the 200 dp column keeps them beside it.
+    let (w, h) = (1280u16, 800u16);
+    let mut app = on_shell(w, h, 160, true, Way::Dice);
+    let card = text_at(&mut app, "Demo only").expect("the card");
+    assert!(
+        card.0 >= i32::from(w) - 24 - 200,
+        "the narrow column: {card:?}"
+    );
+    let next = app
+        .hit_box(Action::Codex32(C32::Walk(WalkAct::Next)))
+        .expect("Next");
+    assert!(
+        i32::from(next.0) >= i32::from(w) - 24 - 200,
+        "Next in it: {next:?}"
+    );
+    assert!(
+        !app.drawn_texts().iter().any(|t| t == "Speed"),
+        "not the whole card"
+    );
+    let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet");
+    let tracks = text_at(&mut app, "Die tracks").expect("the tracks");
+    assert!(
+        tracks.1 - head.1 < 70,
+        "the tracks beside the tree: {head:?} {tracks:?}"
+    );
+    // 1920 × 1080: the whole 400 dp card, its Play options in it.
+    let (w, _) = (1920u16, 1080u16);
+    let mut wide = on_shell(w, 1080, 160, true, Way::Dice);
+    let card = text_at(&mut wide, "Demo only").expect("the card");
+    assert!(
+        card.0 < i32::from(w) - 24 - 300,
+        "the whole card, 400 dp: {card:?}"
+    );
+    assert!(
+        wide.drawn_texts().iter().any(|t| t == "Speed"),
+        "the whole card"
+    );
+}

@@ -2148,7 +2148,8 @@ impl crate::Faraday {
         };
         m.note_sheet();
         let room = (!compact).then(|| {
-            let pane = crate::codex32::pane_screen::pane_at_now(m, page_w, (compact, roller));
+            let pane =
+                crate::codex32::pane_screen::pane_at_now(m, page_w, (class, compact, roller));
             let shell = (class, compact, roller);
             let column = crate::codex32::pane_screen::column_now(m, page_w, h, shell);
             let side = crate::codex32::pane_screen::side_room(pane, column);

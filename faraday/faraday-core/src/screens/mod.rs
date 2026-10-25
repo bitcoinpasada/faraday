@@ -192,6 +192,8 @@ pub(crate) fn support_pane_room() -> f32 {
 pub(crate) fn draw(app: &View, ui: &mut Ui) {
     let (full_w, full_h) = app.size();
     ui.dice_shown = app.keygen_dice_shown();
+    ui.press_shown = app.keygen.press_shown(app.now_ms, app.reduce_motion());
+    ui.menu_shown = app.keygen.menu_shown(app.now_ms, app.reduce_motion());
     // A small panel's keyboard, when it is up, takes the foot of the
     // panel; everything else is laid out above it. The wide layout's,
     // when brought up from its button, takes the foot of the page area,
@@ -578,7 +580,7 @@ fn dispatch(app: &View, ui: &mut Ui, x: f32, cw: f32, h: f32) {
 /// width at the left and the bar's height at the foot, none on the menu,
 /// on a step that must not be left, or (for the bar) while the keyboard
 /// takes the foot (`docs/LAYOUT.md` §3). A lookup.
-fn nav_room(app: &View, kb: bool) -> (f32, f32) {
+fn nav_room(app: &crate::Faraday, kb: bool) -> (f32, f32) {
     if app.nav_hidden() {
         return (0.0, 0.0);
     }
@@ -609,7 +611,7 @@ fn draw_compact(app: &View, ui: &mut Ui, area: (f32, f32), h: f32, kb: bool, y0:
     // A list and the one chosen stand side by side across the whole
     // area from expanded windows up (`docs/LAYOUT.md` §5).
     let panes = crate::panes::screen::shown(app, app.screen);
-    let w = if nav.beside() && !panes {
+    let w = if nav.beside() && !panes && !whole_area(app) {
         aw.min(COLUMN_MAX)
     } else {
         aw
@@ -793,8 +795,26 @@ fn network_pill_left(app: &View, ui: &Ui, qx: f32) -> f32 {
 /// out from. Arithmetic.
 pub(crate) fn keygen_page_w(app: &crate::Faraday) -> f32 {
     let full_w = app.size().0;
+    if app.compact {
+        // One-column pages: the area beside the rail, as `draw_compact`
+        // gives it.
+        let aw = full_w - nav_room(app, false).0;
+        return if app.nav().beside() && !whole_area(app) {
+            aw.min(COLUMN_MAX)
+        } else {
+            aw
+        };
+    }
     let room = if app.held { full_w } else { full_w - SIDEBAR_W };
     page_area(Screen::KeyGen, false, room).1
+}
+
+/// Whether a one-column page takes the whole area beside the rail rather
+/// than a reading column centred in it: Make codex32 shares, whose
+/// string, sheets and input panel are wide content (`docs/LAYOUT.md`
+/// §14, F114; owner, 2026-10-25). A lookup.
+fn whole_area(app: &crate::Faraday) -> bool {
+    app.screen == Screen::KeyGen && app.keygen.state().is_some_and(|k| k.codex32.is_some())
 }
 
 /// The start-up self-test failed: which check, and Exit. A build whose

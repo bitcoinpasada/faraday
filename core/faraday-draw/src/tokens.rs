@@ -889,6 +889,10 @@ pub const CODEX32_COLUMN_CARD_H: f32 = 480.0;
 /// "Your dice" at the start of the pad's row in the input panel: the
 /// room it keeps, the label cut to it where text is drawn larger.
 pub const INPUT_PAD_LABEL_W: f32 = 72.0;
+/// The least room after the pad's keys at the window's foot for the
+/// latest struck pair beside the Working area's Previous and Next, so
+/// the row of rolls keeps no line for it (owner, 2026-10-25).
+pub const INPUT_STRUCK_MIN_W: f32 = 120.0;
 /// The room Continue keeps at the end of the input panel's row once
 /// every character is in.
 pub const INPUT_CONTINUE_W: f32 = 160.0;
@@ -897,6 +901,11 @@ pub const INPUT_CONTINUE_W: f32 = 160.0;
 pub const PAD_KEYS_BESIDE_MIN: f32 = 5.0;
 /// The dice's size menu's width: Material's least for a menu.
 pub const DICE_MENU_W: f32 = 112.0;
+/// The dice's size menu opening, growing from its button and fading in
+/// on Material's emphasized decelerate (owner, 2026-10-25).
+pub const DICE_MENU_OPEN_MS: u64 = MOTION_MEDIUM2;
+/// The same menu closing, a quick fade on emphasized accelerate.
+pub const DICE_MENU_CLOSE_MS: u64 = MOTION_SHORT3;
 /// Material's drop-down arrow on a button that opens a menu: its width;
 /// it is half as tall.
 pub const DROPDOWN_ARROW: f32 = 10.0;
@@ -1129,6 +1138,11 @@ pub const CODEX32_ROLLER_W: f32 = 320.0;
 /// The narrowest the codex32 entry's own column is drawn beside the
 /// "Demo only" box (CODEX32 §5.5); narrower, the box goes under it.
 pub const CODEX32_MAIN_MIN: f32 = 420.0;
+/// The "Demo only" card's column at the right of the codex32 entry where
+/// a `SUPPORT_PANE` does not fit beside it (medium and expanded windows;
+/// owner, 2026-10-25): its head and More, Previous, Next and Play on one
+/// row, and the step's line under them.
+pub const CODEX32_DEMO_COLUMN_W: f32 = 200.0;
 /// How far New key's column stands in from its page area's left edge,
 /// and as far again is kept on its right.
 pub const KEYGEN_COLUMN_IN: f32 = 40.0;
@@ -1145,8 +1159,6 @@ pub const CODEX32_CHOICE_H: f32 = 40.0;
 // booklet's own over 38.2.
 /// The most a track unit grows to, in dp; less where the card is narrow.
 pub const CODEX32_TRACK_UNIT: f32 = 20.0;
-/// A track's width in units: the free space to the last hexagon's edge.
-pub const CODEX32_TRACK_W: f32 = 18.8;
 /// The highest point of a track above its low pads' centre line, in
 /// units (a raised diamond's top); the lowest is one unit below it.
 pub const CODEX32_TRACK_TOP: f32 = 2.05;
@@ -1471,6 +1483,13 @@ pub const STATE_FOCUS: f32 = 0.10;
 pub const STATE_PRESS: f32 = 0.10;
 /// A state layer's opacity while a thing is dragged.
 pub const STATE_DRAG: f32 = 0.16;
+/// The codex32 pad's key of the roll shown (owner, 2026-10-25): over its
+/// pressed state layer, a layer this much stronger as the roll is shown,
+/// easing away over `PRESS_EMPHASIS_MS`; its outline `CODEX32_FRONT_STROKE`
+/// in the accent while the roll is shown.
+pub const PRESS_EMPHASIS: f32 = 0.22;
+/// How long the pressed key's emphasis eases away: Material's medium 4.
+pub const PRESS_EMPHASIS_MS: u64 = MOTION_MEDIUM4;
 /// The content of a control that is not available now: on-surface at
 /// this opacity. It keeps its kind and shape (F108).
 pub const DISABLED_CONTENT: f32 = 0.38;

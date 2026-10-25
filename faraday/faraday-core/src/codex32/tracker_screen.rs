@@ -43,6 +43,14 @@ fn text_lines(w: f32) -> f32 {
     lines.max(t::CODEX32_WORKING_LINES_MIN)
 }
 
+/// The Working area's height in `w` with its Previous and Next standing
+/// elsewhere ([`draw_beside`]): its head line and the lines the longest
+/// step needs across the whole width, at least two. Arithmetic on tokens.
+pub(crate) fn working_text_h(w: f32) -> f32 {
+    let lines = (t::CODEX32_WORKING_TEXT_MAX / w.max(1.0)).ceil();
+    (1.0 + lines.max(t::CODEX32_WORKING_LINES_MIN)) * t::CODEX32_WORKING_LINE
+}
+
 /// The Working area's height in `w`: its head row and the lines kept for
 /// a step's working, whatever the step says, so the pad beside it never
 /// moves. Arithmetic on tokens.
@@ -144,27 +152,47 @@ fn presses(m: &Codex32Make) -> [(C32, bool); 2] {
 /// The area itself: "Working" and where the step stands on its first
 /// line, the step's working under it, and Previous and Next at its right
 /// end, 48 dp targets with 40 dp circles. Returns its height.
-pub(super) fn draw(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+pub(super) fn draw(m: &Codex32Make, ui: &mut Ui, at: (f32, f32, f32)) -> f32 {
+    draw_beside(m, ui, at, None)
+}
+
+/// [`draw`], or with Previous and Next in a `TOUCH` row at `buttons`
+/// (their pair's left edge and the row's top), the head and the step's
+/// working then taking the whole width (`docs/LAYOUT.md` §16.3: at the
+/// window's foot they stand at the pad's row's end). Returns the
+/// height: [`working_area_h`], or [`working_text_h`].
+pub(super) fn draw_beside(
+    m: &Codex32Make,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    buttons: Option<(f32, f32)>,
+) -> f32 {
     if m.work().is_none() {
         return 0.0;
     }
-    let h = working_area_h(w);
-    let (count, text) = lines(m, !side(w));
-    let tw = text_w(w);
+    let apart = buttons.is_some();
+    let h = if apart {
+        working_text_h(w)
+    } else {
+        working_area_h(w)
+    };
+    let beside = |w: f32| apart || side(w);
+    let (count, text) = lines(m, !beside(w));
+    let tw = if apart { w } else { text_w(w) };
     // The head's row: a line beside the buttons, or the buttons' own row.
-    let head_h = if side(w) {
+    let head_h = if beside(w) {
         t::CODEX32_WORKING_LINE
     } else {
         t::TOUCH
     };
     // Narrow, the area is the small panel's Working tile, which names it.
-    let cx = if side(w) {
+    let cx = if beside(w) {
         let head = EN.codex32_track_head;
         x + ui.text_mid(x, y, head_h, t::LABEL, W::S, Role::OnSurface, head) + t::GAP
     } else {
         x
     };
-    let count_end = if side(w) {
+    let count_end = if beside(w) {
         x + tw
     } else {
         x + w - 2.0 * t::TOUCH
@@ -188,11 +216,14 @@ pub(super) fn draw(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> 
     ui.wrap(x, y + head_h, tw, t::LABEL, W::R, Role::OnSurface, &text);
     let [(back, back_on), (next, next_on)] = presses(m);
     let bt = (t::TOUCH - t::ICON_BUTTON) / 2.0;
-    let row_h = if side(w) { h } else { t::TOUCH };
-    let (bx, by) = (
-        x + w - 2.0 * t::TOUCH + bt,
-        y + (row_h - t::ICON_BUTTON) / 2.0,
-    );
+    let row_h = if beside(w) { h } else { t::TOUCH };
+    let (bx, by) = match buttons {
+        Some((px, py)) => (px + bt, py + (t::TOUCH - t::ICON_BUTTON) / 2.0),
+        None => (
+            x + w - 2.0 * t::TOUCH + bt,
+            y + (row_h - t::ICON_BUTTON) / 2.0,
+        ),
+    };
     let prev_tip = EN.tip_previous_step;
     ui.outlined_icon_button((bx, by), Icon::ChevronLeft, prev_tip, back_on, a(back));
     let next_tip = EN.tip_next_step;

@@ -339,7 +339,10 @@ holds wide content starts at the navigation's edge plus its margin: its
 reading parts keep their width at the start, and its wide parts run on
 to the work width's end. While a flow's open card holds wide content,
 the card's rule runs the work width; its head and summary stay where the
-column puts them.
+column puts them. On one-column windows (the rail's, §3) a page sits in a
+`COLUMN_MAX` column centred beside the rail, except Make codex32 shares,
+whose string, sheets and input panel take the whole area beside the rail
+(owner, 2026-10-25; `screens/mod.rs`, `whole_area`).
 
 ## 15. The right edge
 
@@ -404,8 +407,15 @@ translation worksheets and the review's tabs (`docs/CODEX32.md` §6.5)
 take the same rule; a tab's sheet that fits shows no scroll of its own.
 
 **Side by side.** The dice sheet's tree and tracks stand side by side
-where the work width holds both (874 dp; from 1920 up), the rolls having
-moved to the input panel (§16.3). The dice sheet stands only with the
+wherever the work width holds the tracks at full size and the tree at
+`CODEX32_TREE_MIN_W` (300 dp) or more, the tree growing to
+`CODEX32_TREE_MAX_W` (owner, 2026-10-25), the rolls having moved to the
+input panel (§16.3). A track runs only as far as the dice's faces: d6
+shows pads 1 to 6 and no "Die pads (d7+)" group, d8 up to 8, d10 up to
+10, d12 up to 12, d20 all twenty, the booklet's places otherwise kept;
+changing the dice shows or hides the pads past 6. Tracks and tree stand
+side by side from a 566 dp work width for six-faced dice and from 776 dp
+for twenty-faced ones (for d6 from 960 × 580 up, in Testnet and in Demo, where the "Demo only" card narrows to its 200 dp column on 1280 × 800 and smaller so they do, `docs/CODEX32.md` §5.5). The dice sheet stands only with the
 Checksum tab of the share being rolled, never with a derived share's
 tab or the Secret's (owner, 2026-10-24). Its head row, "Dice
 de-biasing" with Material's expand chevron, is one 48 dp press that
@@ -473,11 +483,29 @@ small panel, whose entry has no room for it, keeps the size on its
 Entropy card). Once every character is in, **Continue** stands in the
 pad's place, the flow's one way on; the page has no Continue of its own
 while the panel stands out of it (owner, 2026-10-24). At the foot the
-panel takes the shortest of three arrangements the width allows: the
-rolls beside the Working area over the pad; the Working area under the
-rolls beside the pad; or the three one under another. At 1280 × 800 it
-is 132 dp tall for six-faced dice (176 before) and 196 dp for twenty
-(264), at 1366 × 768 132 and 176 dp. It stands:
+panel takes the shortest of the arrangements the width allows (owner,
+2026-10-25: as few rows as the width allows, no empty rows): the rolls,
+the Working area and the pad in one row, where the Working area keeps
+`CODEX32_WORKING_SIDE_MIN` between them; the rolls beside the Working
+area, the pad's one row under both; the rolls beside the Working area
+over the pad; the Working area under the rolls beside the pad; or the
+three one under another; where the pad's row has room, the latest struck
+pair and the Working area's Previous and Next stand at its end, so the
+row above holds only the rolls and two lines of working. For six-faced
+dice it is 144 dp tall on a
+960 × 580 window (192 before), 132 dp at 1280 × 800 and 1366 × 768 (the
+shortest the expanded rail leaves room for) and 104 dp at 1920 × 1080
+(132 before); 196 dp for twenty at 1280 × 800. The pad's key of the roll
+the Working area shows stands pressed: Material's pressed state layer in
+the accent and an accent outline, a stronger layer over it as the roll is
+shown easing away over `PRESS_EMPHASIS_MS` (none under Reduce motion),
+whether the person pressed it or the Demo walk's Next or Play rolled it,
+so the walk reads as a person pressing. The dice's menu opens from its
+button as Material's menu does, growing from the button's edge and
+fading in on emphasized decelerate over `DICE_MENU_OPEN_MS`, and closes
+with a quick fade on emphasized accelerate over `DICE_MENU_CLOSE_MS`,
+its arrow turning to point up while open; at once under Reduce motion.
+It stands:
 
 - **Beside**, where the work width holds `CODEX32_ENTRY_W` (424 dp),
   `SPACER` and the worksheet at `CODEX32_CELL_FIT_MIN` (1456 dp in

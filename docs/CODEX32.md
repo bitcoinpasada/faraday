@@ -871,7 +871,16 @@ card stands at the right, `MARGIN_WIDE` from the window's edge and
 `SPACER` from the page, its top at `SUPPORT_PANE_TOP`, below the
 top-right strip of the network pill and the eye, never level with them;
 taller than the window, it scrolls within itself (its own region,
-`Slot::DemoPane`). Narrower, a strip pinned at the window's foot holds
+`Slot::DemoPane`). Where the whole card would leave the entry too
+little width for the dice sheet's tracks beside its tree (1280 × 800
+and smaller in Demo), and on one-column windows from medium up, the
+card is squeezed into a `CODEX32_DEMO_COLUMN_W` (200 dp) column at the
+right, never across the page (owner, 2026-10-25): "Demo only" with
+More, what the computer rolls ("Rolls d6"), then Previous, Next and
+Play on one row, then the step's count and working, outlined as the
+card and under the page's bar; More opens the whole card over the page
+from the foot. From 1920 × 1080 the whole card stands as before. On compact windows (the Pi panel) a strip pinned at the
+window's foot holds
 the step's line on one row, cut where it is longer, with Previous, Next
 and Play under it at the strip's right end, and **More** opens the whole
 card over the page from the foot (**Less** closes it); it never scrolls

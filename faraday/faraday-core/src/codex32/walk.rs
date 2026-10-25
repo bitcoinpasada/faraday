@@ -829,6 +829,59 @@ impl Codex32Make {
         }
     }
 
+    /// The roll the step shown enters, as its character, its step and
+    /// its face: the pad's key a person pressed for it, or the Demo walk
+    /// pressed for them (owner, 2026-10-25). A lookup.
+    fn press_key(&self) -> Option<(usize, usize, u8)> {
+        match self.shown_step()? {
+            (ch, s, Step::First { k, .. } | Step::Second { k, .. }) => Some((ch.g, s, ch.face(k))),
+            _ => None,
+        }
+    }
+
+    /// The pad's face whose key shows pressed: the roll the step shown
+    /// enters, by the person's press, Next or Play. A lookup.
+    pub fn pressed_face(&self) -> Option<u8> {
+        self.press_key().map(|(_, _, f)| f)
+    }
+
+    /// How strongly that key is emphasised over its pressed state at
+    /// `now_ms`: 1 as the roll is shown, easing to 0 over
+    /// `PRESS_EMPHASIS_MS`; 0 with `still` (Reduce motion). A lookup.
+    pub fn press_shown(&self, now_ms: u64, still: bool) -> f32 {
+        let Some(key) = self.press_key().filter(|_| !still) else {
+            return 0.0;
+        };
+        // A new roll shown, the first tick not yet in.
+        if self.press_seen != Some(key) {
+            return 1.0;
+        }
+        self.press_at.map_or(0.0, |at| {
+            let t = crate::motion::progress(Some(at), now_ms, t::PRESS_EMPHASIS_MS);
+            1.0 - crate::motion::ease_move(t)
+        })
+    }
+
+    /// One tick of the pressed key's emphasis: begins it when the roll
+    /// shown changes, ends it once its time is up. Returns whether it
+    /// still moves, so a frame is asked for. A lookup.
+    pub(crate) fn press_tick(&mut self, now_ms: u64) -> bool {
+        let key = self.press_key();
+        if key != self.press_seen {
+            self.press_seen = key;
+            self.press_at = key.map(|_| now_ms);
+            return key.is_some();
+        }
+        match self.press_at {
+            Some(at) if now_ms >= at + t::PRESS_EMPHASIS_MS + 16 => {
+                self.press_at = None;
+                false
+            }
+            Some(_) => true,
+            None => false,
+        }
+    }
+
     /// The cells of share `share`'s checksum worksheet the step shown
     /// touches, each with whether it is the one worked out: its inputs
     /// and its result. Arithmetic on the worksheet's shape.

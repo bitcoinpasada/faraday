@@ -214,8 +214,10 @@ pub fn pairs(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, r: Option<&Five
 /// column per die, its name over its marker with the first roll beside
 /// the die with the second, as the dice sheet's tracks draw them, and
 /// what the pair gives under them; under the row the latest pair struck
-/// as equal. Always [`pairs_across_h`] tall.
-pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs) -> f32 {
+/// as equal, unless `struck` is false (it then stands elsewhere,
+/// [`struck_across`]). Always [`pairs_across_h`] tall, or
+/// [`pairs_row_h`] without the struck pair.
+pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, struck: bool) -> f32 {
     let (col, d, line) = (INPUT_ROLLS_COL, ROLLER_PAIR_DIE, INPUT_ROLLS_LINE);
     let mut cy = y;
     let pair_w = 2.0 * d + GAP_SMALL;
@@ -269,9 +271,20 @@ pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs) -> f32 {
             );
         }
     }
+    if !struck {
+        return pairs_row_h();
+    }
     cy += line + GAP_SMALL;
+    struck_across(ui, (x, cy, w, line), p);
+    pairs_across_h()
+}
+
+/// The latest pair struck as equal, struck through, in a row (x, y) `w`
+/// wide and `h` tall, its text cut to the width: "Die 2 · 5 then 5 ·
+/// equal · roll both again".
+pub fn struck_across(ui: &mut Ui, (x, y, w, h): (f32, f32, f32, f32), p: &Pairs) {
     let equal: Vec<&DieRow> = p.struck.iter().filter(|r| r.bit().is_none()).collect();
-    for row in equal.iter().rev().take(INPUT_ROLLS_STRUCK) {
+    if let Some(row) = equal.last() {
         let (f, sc) = if p.masked {
             (MASK.to_string(), MASK.to_string())
         } else {
@@ -281,11 +294,17 @@ pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs) -> f32 {
             EN.codex32_die_equal,
             &[&(usize::from(row.die) + 1).to_string(), &f, &sc],
         );
-        let tw = ui.text_mid(x, cy, line, ROLLER_LABEL, W::R, Role::Warning, &s);
-        ui.fill(x, cy + line / 2.0, tw.min(w), 1.0, 0.0, Role::Warning);
-        cy += line + GAP_SMALL;
+        let s = ui.fit(ROLLER_LABEL, W::R, &s, w);
+        let tw = ui.text_mid(x, y, h, ROLLER_LABEL, W::R, Role::Warning, &s);
+        ui.fill(x, y + h / 2.0, tw.min(w), 1.0, 0.0, Role::Warning);
     }
-    pairs_across_h()
+}
+
+/// The height of [`pairs_across`] without its struck pair: the names,
+/// the row of rolls and what the pairs give. Arithmetic.
+pub fn pairs_row_h() -> f32 {
+    let line = INPUT_ROLLS_LINE + GAP_SMALL;
+    line + ROLLER_PAIR_DIE + GAP_SMALL + INPUT_ROLLS_LINE
 }
 
 /// The height of [`pairs_across`]: the names, the row of rolls, what the

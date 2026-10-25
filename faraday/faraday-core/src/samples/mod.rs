@@ -713,7 +713,11 @@ impl Faraday {
                     crate::codex32::pane_screen::pane_at_now(
                         m,
                         f32::MAX,
-                        (false, self.roller_offered()),
+                        (
+                            faraday_draw::geom::WindowClass::Large,
+                            false,
+                            self.roller_offered(),
+                        ),
                     )
                     .is_some()
                 })

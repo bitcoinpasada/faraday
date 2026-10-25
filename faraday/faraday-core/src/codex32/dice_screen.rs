@@ -254,6 +254,7 @@ pub(super) fn face_pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
             Style::Secondary,
             a(C32::Face(f as u8)),
         );
+        pressed_key(m, ui, (kx, ky, kw, row - gap, t::RADIUS_SMALL), f as u8);
     }
     let (bx, by) = key(cols, 0);
     let back = a(C32::Key(super::OskPress::Back));
@@ -273,6 +274,27 @@ pub(super) fn face_pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
         Role::OnSurface,
     );
     cy + h + t::GAP - y
+}
+
+/// The pressed highlight on the pad's key for `face` at (x, y, w, h)
+/// with corners `r`, where it is the roll the step shown enters, pressed
+/// by the person or by the Demo walk's Next and Play (owner,
+/// 2026-10-25): Material's pressed state layer in the accent, a stronger
+/// layer over it easing away as the roll is shown (none under Reduce
+/// motion), and the key outlined in the accent.
+pub(super) fn pressed_key(
+    m: &Codex32Make,
+    ui: &mut Ui,
+    (x, y, w, h, r): (f32, f32, f32, f32, f32),
+    face: u8,
+) {
+    if m.pressed_face() != Some(face) {
+        return;
+    }
+    let alpha = t::STATE_PRESS + t::PRESS_EMPHASIS * ui.press_shown.clamp(0.0, 1.0);
+    ui.wash(x, y, w, h, r, Role::Primary.at(alpha));
+    let (rect, ink, f) = (ui.rect(x, y, w, h), ui.col(Role::Primary), ui.f);
+    ui.c.stroke_rounded_rect(rect, r * f, t::CODEX32_FRONT_STROKE * f, ink);
 }
 
 // ---------------------------------------------------------------------
@@ -347,19 +369,23 @@ fn dice_body(
         return cy - y + t::GAP;
     }
     let pw = t::ROLLER_PAIR_LABEL_W + 2.0 * t::ROLLER_PAIR_COL + t::ROLLER_PAIR_COL;
-    // The tracks at their full size and the tree at its largest side by
-    // side, where the work width holds both (`docs/LAYOUT.md` §16.1).
-    let tracks_w = t::CODEX32_TRACK_LABEL_W
-        + t::CODEX32_PANEL_GAP
-        + t::CODEX32_TRACK_W * t::CODEX32_TRACK_UNIT;
-    if w >= tracks_w + t::CODEX32_PANEL_GAP + t::CODEX32_TREE_MAX_W {
-        let (tw, lw) = (t::CODEX32_TREE_MAX_W, tracks_w);
+    // The tracks at their full size and the tree beside them, as large
+    // as the rest of the work width allows up to its largest, wherever it
+    // keeps its least (`docs/LAYOUT.md` §16.1; owner, 2026-10-25).
+    let lw = if rolls {
+        tracks_w(m).max(pw)
+    } else {
+        tracks_w(m)
+    };
+    let tw = (w - lw - t::CODEX32_PANEL_GAP).min(t::CODEX32_TREE_MAX_W);
+    if tw >= t::CODEX32_TREE_MIN_W {
+        // The dice the computer rolled, one line across both.
+        cy += rolled_line(m, ui, x, cy, w);
         let th = tree(m, ui, x + lw + t::CODEX32_PANEL_GAP, cy, tw);
         let mut ly = cy;
         if rolls {
             ly += pairs(ui, (x, cy, pw), &pairs_of(m), None);
         }
-        ly += rolled_line(m, ui, x, ly, lw);
         ly += tracks(m, ui, x, ly, lw);
         return ly.max(cy + th) - y + t::GAP;
     }
@@ -629,13 +655,35 @@ fn pad_shape(pad: u8) -> (Vec<(f32, f32)>, (f32, f32)) {
     }
 }
 
+/// How far a track runs for dice of `faces` faces, in the booklet's
+/// units from its left end: to the right edge of its last pad, the
+/// diamonds' (pads 1 to 6) or the hexagons' (7 and up). Arithmetic.
+pub(super) fn track_units(faces: u8) -> f32 {
+    let step = 1.0 + t::CODEX32_TRACK_GAP;
+    let low = f32::from(faces.min(6)) * step + 2.0;
+    if faces <= 6 {
+        return low;
+    }
+    let high =
+        t::CODEX32_HEX_X + f32::from(faces.min(20)) * t::CODEX32_HEX_PITCH + t::CODEX32_HEX_W;
+    low.max(high)
+}
+
+/// The tracks' width for the dice chosen at their full size: the die's
+/// name, the pads and the bit after them. Arithmetic.
+pub(super) fn tracks_w(m: &Codex32Make) -> f32 {
+    let span = track_units(m.dice_choice().faces);
+    t::CODEX32_TRACK_LABEL_W + t::CODEX32_PANEL_GAP + span * t::CODEX32_TRACK_UNIT
+}
+
 /// The five die tracks, as the booklet draws them under "Die tracks": a
 /// rule, "Die pads" over the diamonds and "Die pads (d7+)" over the
 /// hexagons; each track the die's name and colour ([`track`]) and the
 /// bit after it. The struck pairs are under each die's two rolls.
 fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let lw = t::CODEX32_TRACK_LABEL_W;
-    let u = ((w - lw - t::CODEX32_PANEL_GAP) / t::CODEX32_TRACK_W).min(t::CODEX32_TRACK_UNIT);
+    let span = track_units(m.dice_choice().faces);
+    let u = ((w - lw - t::CODEX32_PANEL_GAP) / span).min(t::CODEX32_TRACK_UNIT);
     let tx = x + lw;
     let mut cy = y + t::GAP;
     ui.text(
@@ -647,14 +695,17 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         EN.codex32_die_tracks,
     );
     cy += ui.line(t::LABEL, W::S);
-    ui.rule(x, cy, lw + t::CODEX32_TRACK_W * u, Role::OutlineVariant);
+    ui.rule(x, cy, lw + span * u, Role::OutlineVariant);
     cy += t::GAP_SMALL;
-    // The heads over the pads, where the booklet sets them.
+    // The heads over the pads, where the booklet sets them; the d7+
+    // group's only where the dice reach it.
+    let large = m.dice_choice().faces > 6;
     let heads = [
         (0.0, EN.codex32_free_space),
         (t::CODEX32_PADS_HEAD_X, EN.codex32_die_pads),
         (t::CODEX32_PADS_LARGE_HEAD_X, EN.codex32_die_pads_large),
     ];
+    let heads = if large { &heads[..] } else { &heads[..2] };
     for (i, &(hx, s)) in heads.iter().enumerate() {
         let next = heads.get(i + 1).map_or(f32::MAX, |n| tx + n.0 * u);
         let sw = ui.measure(t::CAPTION, W::S, s);
@@ -681,7 +732,7 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         track(m, ui, (tx, cy, u), die);
         // The step-through's die: where the page follows its roll.
         if m.walk_die_mark().is_some_and(|(d, _)| d == die) {
-            let row = ui.rect(x, cy, lw + t::CODEX32_TRACK_W * u, th);
+            let row = ui.rect(x, cy, lw + span * u, th);
             ui.report_scroll_in(Slot::DiceWork, row, 0.0, 0.0);
         }
         if let Some(b) = m.shown_dice().die_bit(die).flatten() {
@@ -690,7 +741,7 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             } else {
                 b.to_string()
             };
-            let bx = tx + t::CODEX32_TRACK_W * u + t::GAP;
+            let bx = tx + span * u + t::GAP;
             ui.text_mid(bx, cy, th, t::LABEL, W::M, Role::Primary, &text);
         }
         cy += th + t::CODEX32_TRACK_SPACE;
@@ -722,24 +773,13 @@ fn track(m: &Codex32Make, ui: &mut Ui, (tx, top, u): (f32, f32, f32), die: usize
         1.0,
         Role::OutlineVariant.paint(),
     );
-    for pad in 1..=20u8 {
+    // Only the pads the dice's faces reach (owner, 2026-10-25).
+    for pad in 1..=faces.min(20) {
         let (pts, c) = pad_shape(pad);
         let pts: Vec<(f32, f32)> = pts.into_iter().map(at).collect();
-        let (fill_c, edge, ink) = if pad <= faces {
-            (
-                Some(Role::SurfaceContainerHighest.paint()),
-                Role::OutlineVariant.paint(),
-                Role::OnSurfaceVariant.paint(),
-            )
-        } else {
-            (
-                None,
-                Role::OutlineVariant.paint(),
-                Role::OnSurfaceVariant.paint(),
-            )
-        };
-        shape(ui, &pts, fill_c, edge);
-        centred(ui, at(c), &pad.to_string(), ink);
+        let fill_c = Some(Role::SurfaceContainerHighest.paint());
+        shape(ui, &pts, fill_c, Role::OutlineVariant.paint());
+        centred(ui, at(c), &pad.to_string(), Role::OnSurfaceVariant.paint());
     }
     // The pad the step-through's step touches, outlined in the accent.
     if let Some((_, pad)) = m.walk_die_mark().filter(|&(d, _)| d == die) {

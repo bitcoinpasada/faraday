@@ -124,6 +124,13 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::KeyGen, next, again);
+    // One-column windows: the page's bar runs on over the "Demo only"
+    // card's column at the right, as across the page.
+    if ui.compact && side > 0.0 {
+        let (bx, bar) = (x0 + cw - side, crate::compact::BAR_H);
+        ui.fill(bx, 0.0, side, bar, 0.0, Role::SurfaceContainerLow);
+        ui.fill(bx, bar - 1.0, side, 1.0, 0.0, Role::OutlineVariant);
+    }
     // The "Demo only" pane stands above the input panel at the foot; the
     // panel is drawn after it, so the pane's strip takes no press of its.
     let foot = panel.foot_h();
