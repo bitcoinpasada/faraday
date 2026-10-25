@@ -85,6 +85,7 @@ use faraday_shell_api::{App, Command, Event};
 use faraday_storage::{Boxes, Dirs, Host, serve_with, stick_info};
 use faraday_window::camera::{self, Camera};
 use faraday_window::clipboard::Clipboard;
+use faraday_window::drag::TitleDrag;
 use faraday_window::entropy;
 use faraday_window::input::Pointer;
 use faraday_window::lens::{Lens, LensHost};
@@ -195,6 +196,9 @@ struct Shell {
     last_slow: Option<Instant>,
     /// The mouse, a finger and the keyboard (`faraday-window`).
     pointer: Pointer,
+    /// A press on the top strip's empty room that may move the window
+    /// (`faraday-window`).
+    title: TitleDrag,
     /// The webcam, when the app asks for it, and the scanner that reads
     /// its frames on its own thread (`faraday-window`).
     lens: Lens,
@@ -659,6 +663,19 @@ impl ApplicationHandler for Shell {
             // shell API's events (`faraday-window`).
             // In a preview, carried into its frame.
             other => {
+                // A press on the top strip's empty room and a drag move
+                // the window, a double-click maximises it; not in a
+                // preview, whose window is a frame for another size.
+                if self.preview.is_none()
+                    && let (Some(view), Some(app)) = (self.view.as_ref(), self.app.as_ref())
+                    && self
+                        .title
+                        .takes(&other, self.pointer.cursor, &view.window, |x, y| {
+                            app.is_strip_room(x, y)
+                        })
+                {
+                    return;
+                }
                 let fit = self.fit();
                 for e in self.pointer.translate(&other) {
                     let e = match &fit {
@@ -981,6 +998,7 @@ fn main() -> ExitCode {
         next_scan,
         last_slow: None,
         pointer: Pointer::new(),
+        title: TitleDrag::default(),
         lens: Lens::new(Camera::new(None, false)),
         clipboard: Clipboard::system(),
         preview: None,

@@ -1376,6 +1376,10 @@ pub const STEPPER_COUNT_W: f32 = 44.0;
 /// How far in from a stepper's label its − stands on the wide layout,
 /// when the label is shorter: the steppers of one card line up.
 pub const STEPPER_LABEL_COL: f32 = 180.0;
+/// The height of the window's top band, where a press on empty room moves
+/// the window: Material's top app bar.
+pub const TOP_BAND: f32 = 56.0;
+
 /// The wide layout's ?: its left edge in from the window's right, where
 /// the top-right row of the mode pill and the ? begins; the ? is 28 dp
 /// across and stands `MARGIN_WIDE` from the window's edge

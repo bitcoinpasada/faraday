@@ -1246,6 +1246,12 @@ impl Starter {
         self.commands.push_back(Command::Draw);
     }
 
+    /// Whether (x, y), in pixels, is empty room in the top app bar (DESIGN §5). A lookup.
+    pub fn is_strip_room(&self, x: i32, y: i32) -> bool {
+        let bar = (faraday_draw::tokens::APP_BAR_H * self.f).round() as i32;
+        (0..bar).contains(&y) && x >= 0 && !self.hits.iter().any(|(r, _)| r.contains(x, y))
+    }
+
     /// Whether the last frame drawn offers `action` to a press.
     pub fn offers_action(&self, action: StarterAction) -> bool {
         let a = action.host();

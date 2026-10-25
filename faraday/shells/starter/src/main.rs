@@ -48,6 +48,7 @@ use faraday_starter_shell::platform::{self, Platform};
 use faraday_starter_shell::writer::Job;
 use faraday_storage::{Boxes, Dirs, Host, serve_with};
 use faraday_window::camera::{self, Camera};
+use faraday_window::drag::TitleDrag;
 use faraday_window::entropy;
 use faraday_window::input::Pointer;
 use faraday_window::lens::{Lens, LensHost};
@@ -104,6 +105,8 @@ struct Shell {
     scale: f64,
     pace: Pacer,
     pointer: Pointer,
+    /// A press on the top bar's empty room that may move the window.
+    title: TitleDrag,
     lens: Lens,
 }
 
@@ -475,6 +478,17 @@ impl ApplicationHandler for Shell {
                 self.redraw();
             }
             other => {
+                // A press on the top bar's empty room and a drag move
+                // the window, a double-click maximises it.
+                if let Some(view) = self.view.as_ref()
+                    && self
+                        .title
+                        .takes(&other, self.pointer.cursor, &view.window, |x, y| {
+                            self.starter.is_strip_room(x, y)
+                        })
+                {
+                    return;
+                }
                 for e in self.pointer.translate(&other) {
                     self.send(event_loop, e);
                 }
@@ -743,6 +757,7 @@ fn main() -> ExitCode {
         scale: 1.0,
         pace,
         pointer: Pointer::new(),
+        title: TitleDrag::default(),
         lens: Lens::new(Camera::new(None, false)),
     };
     let ran = event_loop.run_app(&mut shell);

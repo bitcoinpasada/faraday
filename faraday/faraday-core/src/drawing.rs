@@ -301,6 +301,31 @@ pub(crate) struct After {
 }
 
 impl Faraday {
+    /// Whether (x, y), in pixels, is empty room in the top strip: in the
+    /// top band of the window (the pills' strip when it is taller, else
+    /// the top app bar's height) with no control the last frame drew
+    /// under it or within its touch floor. A press there and a drag move
+    /// the window, a double-click there maximises it
+    /// (`docs/DESIGN.md` §5). A lookup in the hits already recorded;
+    /// false under a sheet and on the failed self-test.
+    pub fn is_strip_room(&self, x: i32, y: i32) -> bool {
+        if self.sheet.is_some() || x < 0 || y < 0 {
+            return false;
+        }
+        let f = self.f;
+        let pills = self
+            .pointer
+            .hits()
+            .iter()
+            .filter(|(_, a)| matches!(a, crate::Action::StickPill(_)))
+            .map(|(r, _)| r.y + r.h)
+            .max()
+            .unwrap_or(0);
+        let band = (faraday_draw::tokens::TOP_BAND * f).round() as i32;
+        y < band.max(pills + (faraday_draw::tokens::GAP_SMALL * f) as i32)
+            && self.pointer.hit_at(x, y).is_none()
+    }
+
     /// Whether the pages are drawn one column at a time: every window
     /// but one beside the expanded rail (`docs/LAYOUT.md` §3).
     pub fn is_compact(&self) -> bool {

@@ -142,5 +142,6 @@ mod way_back;
 mod wide_keyboard;
 mod wide_page;
 mod window_class;
+mod window_drag;
 mod word_lists;
 mod wordmark;
