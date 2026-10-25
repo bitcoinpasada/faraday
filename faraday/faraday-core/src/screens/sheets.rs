@@ -13,32 +13,22 @@ use faraday_ui::parts::{
     wrap_buttons,
 };
 
-/// Making a seed from the Inbox a wallet: a passphrase or none, the fingerprint it gives,
-/// the wallet here it opens if any, else the kind of single-key wallet.
-/// The potential sheet on a small panel: the same fields, one under
-/// another.
+/// The potential sheet's fields under its head: where the seed was
+/// found, a passphrase or none, the fingerprint it gives, the wallet here
+/// it opens if any, else the kind of single-key wallet. Returns their
+/// height.
 #[allow(clippy::too_many_arguments)]
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
-fn potential_compact(
+fn potential_body(
     app: &View,
     p: &crate::inbox::Potential,
     ui: &mut Ui,
-    w: f32,
-    h: f32,
+    (x, y, iw): (f32, f32, f32),
     seed: Option<&crate::inbox::FoundSeed>,
     xpub: Option<&(String, bool)>,
     takes: bool,
     matched: Option<&str>,
-) {
-    let title = match (xpub, p.fingerprint) {
-        (Some(_), Some(fp)) => fill(
-            EN.potential_a_watch_only_wallet,
-            &[&fp_text(fp).to_string()],
-        ),
-        (Some(_), None) => EN.potential_a_watch_only.to_string(),
-        (None, Some(fp)) => fill(EN.potential_a_wallet, &[&fp_text(fp).to_string()]),
-        _ => String::new(),
-    };
+) -> f32 {
     let kinds = |ui: &mut Ui, x: f32, y: f32, w: f32| -> f32 {
         let row: Vec<(String, Style, Action)> = crate::inbox::KINDS
             .iter()
@@ -46,173 +36,148 @@ fn potential_compact(
             .map(|(k, kind)| {
                 (
                     crate::family::kind_name(*kind).to_string(),
-                    if *kind == p.kind {
-                        Style::Primary
-                    } else {
-                        Style::Secondary
-                    },
+                    Style::chosen(*kind == p.kind),
                     Action::PotentialKind(k as u8),
                 )
             })
             .collect();
         button_rows(ui, x, y, w, &row) - 4.0
     };
-    crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
-        let mut cy = y;
-        cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Keys, Role::Primary, &title);
-        if let Some(s) = seed {
-            let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
-            cy += ui.wrap(
+    let mut cy = y;
+    if let Some(s) = seed {
+        let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
+        cy += ui.wrap(
+            x,
+            cy,
+            iw,
+            12.0,
+            W::R,
+            Role::OnSurfaceVariant,
+            &fill(EN.potential_sources, &[&from.join(" · ").to_string()]),
+        ) + 10.0;
+    }
+    if takes {
+        let label = match seed.and_then(|s| s.sources.first()) {
+            Some(crate::inbox::SeedSource::Slip39(_)) => EN.potential_slip_39_passphrase,
+            _ => EN.potential_bip_39_passphrase,
+        };
+        cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::OnSurface, label) + 6.0;
+        if app.pass_is_public(&p.passphrase) {
+            super::parts::code_field(ui, x, cy, iw, T::TEXT_FIELD_SHEET, &p.passphrase);
+            ui.hit(x, cy, iw, T::TEXT_FIELD_SHEET, Action::PotentialType);
+        } else if app.may_load_keys() {
+            let shown = if p.shown {
+                zeroize::Zeroizing::new(p.passphrase.to_string())
+            } else {
+                zeroize::Zeroizing::new("•".repeat(p.passphrase.chars().count().min(48)))
+            };
+            ui.fill(x, cy, iw, 44.0, 8.0, Role::SurfaceContainerHighest);
+            ui.stroke(
                 x,
                 cy,
                 iw,
+                44.0,
+                8.0,
+                if p.typing {
+                    Role::Primary
+                } else {
+                    Role::OutlineVariant
+                },
+            );
+            let shown = ui.fit_secret(14.0, W::M, &shown, iw - 60.0);
+            let tw = ui.text_mid(x + 12.0, cy, 44.0, 14.0, W::M, Role::OnSurface, &shown);
+            if p.typing
+                && !app.pass_chip_shown(
+                    crate::demo::PassField::Potential,
+                    p.passphrase.is_empty(),
+                    p.typing,
+                )
+            {
+                ui.caret(x + 13.0 + tw, cy + 13.0, 18.0);
+            }
+            ui.hit(x, cy, iw - 44.0, 44.0, Action::PotentialType);
+            ui.icon(
+                x + iw - 44.0,
+                cy,
+                44.0,
+                if p.shown { Icon::EyeOff } else { Icon::Eye },
+                15.0,
+                if p.shown {
+                    Role::Primary
+                } else {
+                    Role::OnSurfaceVariant
+                },
+            );
+            let at = (x + iw - 44.0, cy, 44.0, 44.0);
+            crate::compact::eye_hit(ui, at, Action::PotentialShow, p.shown);
+            app.pass_chip_draw(
+                ui,
+                (x, cy, iw - T::TEXT_FIELD_SHEET, T::TEXT_FIELD_SHEET),
+                (p.passphrase.is_empty(), p.typing, false),
+                crate::demo::PassField::Potential,
+            );
+        } else {
+            crate::vault::screen::stick_field(app.medium, ui, x, cy, iw);
+        }
+        cy += 56.0;
+    }
+    if let Some((key, fixed)) = xpub {
+        let k = ui.fit(12.0, W::M, key, iw);
+        ui.text(x, cy, 12.0, W::M, Role::OnSurfaceVariant, &k);
+        cy += 24.0;
+        if *fixed {
+            let line = fill(
+                EN.potential_as_its_path,
+                &[crate::family::kind_name(p.kind)],
+            );
+            cy += ui.wrap(x, cy, iw, 14.0, W::S, Role::OnSurface, &line) + 10.0;
+        } else {
+            cy += kinds(ui, x, cy, iw);
+        }
+    } else {
+        if let Some(with) = p.with {
+            ui.text(
+                x,
+                cy,
                 12.0,
                 W::R,
                 Role::OnSurfaceVariant,
-                &fill(EN.potential_sources, &[&from.join(" · ").to_string()]),
-            ) + 10.0;
-        }
-        if takes {
-            let label = match seed.and_then(|s| s.sources.first()) {
-                Some(crate::inbox::SeedSource::Slip39(_)) => EN.potential_slip_39_passphrase,
-                _ => EN.potential_bip_39_passphrase,
-            };
-            cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::OnSurface, label) + 6.0;
-            if app.pass_is_public(&p.passphrase) {
-                super::parts::code_field(ui, x, cy, iw, T::TEXT_FIELD_SHEET, &p.passphrase);
-                ui.hit(x, cy, iw, T::TEXT_FIELD_SHEET, Action::PotentialType);
-            } else if app.may_load_keys() {
-                let shown = if p.shown {
-                    zeroize::Zeroizing::new(p.passphrase.to_string())
-                } else {
-                    zeroize::Zeroizing::new("•".repeat(p.passphrase.chars().count().min(48)))
-                };
-                ui.fill(x, cy, iw, 44.0, 8.0, Role::SurfaceContainerHighest);
-                ui.stroke(
-                    x,
-                    cy,
-                    iw,
-                    44.0,
-                    8.0,
-                    if p.typing {
-                        Role::Primary
-                    } else {
-                        Role::OutlineVariant
-                    },
-                );
-                let shown = ui.fit_secret(14.0, W::M, &shown, iw - 60.0);
-                let tw = ui.text_mid(x + 12.0, cy, 44.0, 14.0, W::M, Role::OnSurface, &shown);
-                if p.typing
-                    && !app.pass_chip_shown(
-                        crate::demo::PassField::Potential,
-                        p.passphrase.is_empty(),
-                        p.typing,
-                    )
-                {
-                    ui.caret(x + 13.0 + tw, cy + 13.0, 18.0);
-                }
-                ui.hit(x, cy, iw - 44.0, 44.0, Action::PotentialType);
-                ui.icon(
-                    x + iw - 44.0,
-                    cy,
-                    44.0,
-                    if p.shown { Icon::EyeOff } else { Icon::Eye },
-                    15.0,
-                    if p.shown {
-                        Role::Primary
-                    } else {
-                        Role::OnSurfaceVariant
-                    },
-                );
-                let at = (x + iw - 44.0, cy, 44.0, 44.0);
-                crate::compact::eye_hit(ui, at, Action::PotentialShow, p.shown);
-                app.pass_chip_draw(
-                    ui,
-                    (x, cy, iw - T::TEXT_FIELD_SHEET, T::TEXT_FIELD_SHEET),
-                    (p.passphrase.is_empty(), p.typing, false),
-                    crate::demo::PassField::Potential,
-                );
-            } else {
-                crate::vault::screen::stick_field(app.medium, ui, x, cy, iw);
-            }
-            cy += 56.0;
-        }
-        if let Some((key, fixed)) = xpub {
-            let k = ui.fit(12.0, W::M, key, iw);
-            ui.text(x, cy, 12.0, W::M, Role::OnSurfaceVariant, &k);
+                EN.potential_fingerprint,
+            );
+            ui.text(x + 90.0, cy, 13.0, W::M, Role::OnSurface, &fp_text(with));
             cy += 24.0;
-            if *fixed {
-                let line = fill(
-                    EN.potential_as_its_path,
-                    &[crate::family::kind_name(p.kind)],
-                );
-                cy += ui.wrap(x, cy, iw, 14.0, W::S, Role::OnSurface, &line) + 10.0;
-            } else {
-                cy += kinds(ui, x, cy, iw);
+        }
+        match matched {
+            Some(name) => {
+                let line = fill(EN.potential_key_of_wallet, &[name]);
+                cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::Ok, &line) + 10.0;
             }
-        } else {
-            if let Some(with) = p.with {
+            None => {
                 ui.text(
                     x,
                     cy,
                     12.0,
                     W::R,
                     Role::OnSurfaceVariant,
-                    EN.potential_fingerprint,
+                    EN.potential_single_key,
                 );
-                ui.text(x + 90.0, cy, 13.0, W::M, Role::OnSurface, &fp_text(with));
-                cy += 24.0;
-            }
-            match matched {
-                Some(name) => {
-                    let line = fill(EN.potential_key_of_wallet, &[name]);
-                    cy += ui.wrap(x, cy, iw, 13.0, W::S, Role::Ok, &line) + 10.0;
-                }
-                None => {
-                    ui.text(
-                        x,
-                        cy,
-                        12.0,
-                        W::R,
-                        Role::OnSurfaceVariant,
-                        EN.potential_single_key,
-                    );
-                    cy += 22.0;
-                    cy += kinds(ui, x, cy, iw);
-                }
+                cy += 22.0;
+                cy += kinds(ui, x, cy, iw);
             }
         }
-        if let Some(e) = &p.error {
-            cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::Error, e) + 8.0;
-        }
-        let go = match matched {
-            Some(name) if xpub.is_none() => fill(EN.potential_load, &[name]),
-            _ => EN.potential_make_wallet.to_string(),
-        };
-        cy += crate::compact::buttons(
-            ui,
-            x,
-            cy,
-            iw,
-            &[
-                (EN.potential_cancel, Style::Secondary, Action::Cancel),
-                (
-                    &go,
-                    Style::Primary.when(app.may_load_keys() || xpub.is_some()),
-                    Action::PotentialMake,
-                ),
-            ],
-        );
-        cy - y
-    });
+    }
+    if let Some(e) = &p.error {
+        cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::Error, e) + 8.0;
+    }
+    cy - y
 }
 
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
+/// Making a seed from the Inbox a wallet, a dialog (`docs/DESIGN.md`
+/// §4.13): [`potential_body`], then Cancel and Make the wallet, or Load.
 pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(p) = app.inbox.potential() else {
         return;
     };
-    let sw = 620.0;
     let seed = p.fingerprint.and_then(|fp| {
         app.inbox_found()
             .seeds
@@ -225,32 +190,7 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             .as_ref()
             .is_none_or(|s| s.sources.first().is_none_or(|src| src.takes_passphrase()));
     let matched = app.potential_match();
-    if ui.compact {
-        potential_compact(
-            app,
-            p,
-            ui,
-            w,
-            h,
-            seed.as_ref(),
-            xpub,
-            takes,
-            matched.as_deref(),
-        );
-        return;
-    }
-    let sh = if xpub.is_some() {
-        370.0
-    } else if takes {
-        440.0
-    } else {
-        330.0
-    };
-    let (x, y) = sheet_box(ui, w, h, sw, sh);
-    let ix = x + 32.0;
-    let iw = sw - 64.0;
-    let mut cy = y + 30.0;
-    let title_text = match (xpub, p.fingerprint) {
+    let title = match (xpub, p.fingerprint) {
         (Some(_), Some(fp)) => fill(
             EN.potential_a_watch_only_wallet,
             &[&fp_text(fp).to_string()],
@@ -259,228 +199,26 @@ pub(super) fn potential_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         (None, Some(fp)) => fill(EN.potential_a_wallet, &[&fp_text(fp).to_string()]),
         _ => String::new(),
     };
-    ui.icon(ix, cy, 30.0, Icon::Keys, 18.0, Role::Primary);
-    let tt = ui.fit(20.0, W::S, &title_text, iw - 42.0);
-    ui.text_mid(ix + 42.0, cy, 30.0, 20.0, W::S, Role::OnSurface, &tt);
-    cy += 46.0;
-    if let Some(s) = &seed {
-        let from: Vec<String> = s.sources.iter().map(|src| src.name(app)).collect();
-        let line = ui.fit(
-            13.0,
-            W::R,
-            &fill(EN.potential_sources, &[&from.join(" · ").to_string()]),
-            iw,
-        );
-        ui.text(ix, cy, 13.0, W::R, Role::OnSurfaceVariant, &line);
-        cy += 30.0;
-    }
-    if takes {
-        let label = match seed.as_ref().and_then(|s| s.sources.first()) {
-            Some(crate::inbox::SeedSource::Slip39(_)) => EN.potential_slip_39_passphrase,
-            _ => EN.potential_bip_39_passphrase,
-        };
-        ui.text(ix, cy, 13.0, W::S, Role::OnSurface, label);
-        cy += 24.0;
-        if app.pass_is_public(&p.passphrase) {
-            super::parts::code_field(ui, ix, cy, iw, T::TEXT_FIELD, &p.passphrase);
-            ui.hit(ix, cy, iw, T::TEXT_FIELD, Action::PotentialType);
-        } else if app.may_load_keys() {
-            let shown = if p.shown {
-                zeroize::Zeroizing::new(p.passphrase.to_string())
-            } else {
-                zeroize::Zeroizing::new("•".repeat(p.passphrase.chars().count().min(48)))
-            };
-            ui.fill(ix, cy, iw, 40.0, 8.0, Role::SurfaceContainerHighest);
-            ui.stroke(
-                ix,
-                cy,
-                iw,
-                40.0,
-                8.0,
-                if p.typing {
-                    Role::Primary
-                } else {
-                    Role::OutlineVariant
-                },
-            );
-            let shown = ui.fit_secret(14.0, W::M, &shown, iw - 60.0);
-            let tw = ui.text_mid(ix + 12.0, cy, 40.0, 14.0, W::M, Role::OnSurface, &shown);
-            if p.typing
-                && !app.pass_chip_shown(
-                    crate::demo::PassField::Potential,
-                    p.passphrase.is_empty(),
-                    p.typing,
-                )
-            {
-                ui.caret(ix + 13.0 + tw, cy + 11.0, 18.0);
-            }
-            ui.hit(ix, cy, iw - 44.0, 40.0, Action::PotentialType);
-            ui.icon(
-                ix + iw - 40.0,
-                cy,
-                40.0,
-                if p.shown { Icon::EyeOff } else { Icon::Eye },
-                15.0,
-                if p.shown {
-                    Role::Primary
-                } else {
-                    Role::OnSurfaceVariant
-                },
-            );
-            let at = (ix + iw - 40.0, cy, 40.0, 40.0);
-            crate::compact::eye_hit(ui, at, Action::PotentialShow, p.shown);
-            app.pass_chip_draw(
-                ui,
-                (ix, cy, iw - T::TEXT_FIELD_SHEET, T::TEXT_FIELD),
-                (p.passphrase.is_empty(), p.typing, false),
-                crate::demo::PassField::Potential,
-            );
-        } else {
-            crate::vault::screen::stick_field(app.medium, ui, ix, cy, iw);
-        }
-        cy += 52.0;
-    }
-    if let Some((key, fixed)) = xpub {
-        let k = ui.fit(12.0, W::M, key, iw);
-        ui.text(ix, cy, 12.0, W::M, Role::OnSurfaceVariant, &k);
-        cy += 30.0;
-        ui.text_mid(
-            ix,
-            cy,
-            30.0,
-            13.0,
-            W::R,
-            Role::OnSurfaceVariant,
-            EN.potential_single_key,
-        );
-        cy += 32.0;
-        if *fixed {
-            ui.text_mid(
-                ix,
-                cy,
-                34.0,
-                14.0,
-                W::S,
-                Role::OnSurface,
-                &fill(
-                    EN.potential_as_its_path,
-                    &[crate::family::kind_name(p.kind)],
-                ),
-            );
-        } else {
-            let mut bx = ix;
-            for (k, kind) in crate::inbox::KINDS.iter().enumerate() {
-                let style = if *kind == p.kind {
-                    Style::Primary
-                } else {
-                    Style::Secondary
-                };
-                bx += ui.button(
-                    bx,
-                    cy,
-                    None,
-                    34.0,
-                    crate::family::kind_name(*kind),
-                    style,
-                    Action::PotentialKind(k as u8),
-                ) + 8.0;
-            }
-        }
-        cy += 46.0;
-    } else {
-        if let Some(with) = p.with {
-            ui.text_mid(
-                ix,
-                cy,
-                24.0,
-                13.0,
-                W::R,
-                Role::OnSurfaceVariant,
-                EN.potential_fingerprint,
-            );
-            ui.text_mid(
-                ix + 110.0,
-                cy,
-                24.0,
-                14.0,
-                W::M,
-                Role::OnSurface,
-                &fp_text(with),
-            );
-            cy += 30.0;
-        }
-        match &matched {
-            Some(name) => {
-                ui.text_mid(
-                    ix,
-                    cy,
-                    30.0,
-                    13.0,
-                    W::S,
-                    Role::Ok,
-                    &fill(EN.potential_key_of_wallet, &[&name.to_string()]),
-                );
-                cy += 40.0;
-            }
-            None => {
-                ui.text_mid(
-                    ix,
-                    cy,
-                    30.0,
-                    13.0,
-                    W::R,
-                    Role::OnSurfaceVariant,
-                    EN.potential_single_key,
-                );
-                cy += 32.0;
-                let mut bx = ix;
-                for (k, kind) in crate::inbox::KINDS.iter().enumerate() {
-                    let style = if *kind == p.kind {
-                        Style::Primary
-                    } else {
-                        Style::Secondary
-                    };
-                    bx += ui.button(
-                        bx,
-                        cy,
-                        None,
-                        34.0,
-                        crate::family::kind_name(*kind),
-                        style,
-                        Action::PotentialKind(k as u8),
-                    ) + 8.0;
-                }
-                cy += 46.0;
-            }
-        }
-    }
-    if let Some(e) = &p.error {
-        let e = ui.fit(13.0, W::R, e, iw);
-        ui.text(ix, cy, 13.0, W::R, Role::Error, &e);
-    }
-    let by = y + sh - 32.0 - 46.0;
-    let bw = (iw - 12.0) / 2.0;
-    ui.button(
-        ix,
-        by,
-        Some(bw),
-        46.0,
-        EN.potential_cancel,
-        Style::Secondary,
-        Action::Cancel,
-    );
-    let go = match &matched {
-        Some(name) if xpub.is_none() => fill(EN.potential_load, &[&name.to_string()]),
+    let go = match matched.as_deref() {
+        Some(name) if xpub.is_none() => fill(EN.potential_load, &[name]),
         _ => EN.potential_make_wallet.to_string(),
     };
-    ui.button(
-        ix + bw + 12.0,
-        by,
-        Some(bw),
-        46.0,
-        &go,
-        Style::Primary.when(app.may_load_keys() || xpub.is_some()),
-        Action::PotentialMake,
+    let actions = [
+        (EN.potential_cancel, Style::Secondary, Action::Cancel),
+        (
+            go.as_str(),
+            Style::Primary.when(app.may_load_keys() || xpub.is_some()),
+            Action::PotentialMake,
+        ),
+    ];
+    let head = (Icon::Keys.into(), Role::Primary.paint(), title.as_str());
+    let (seed, matched) = (seed.as_ref(), matched.as_deref());
+    crate::compact::dialog(
+        ui,
+        (w, h, T::DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| potential_body(app, p, ui, (x, y, iw), seed, xpub, takes, matched),
+        &actions,
     );
 }
 
@@ -607,10 +345,13 @@ pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         None
     };
     let buttons = devices_buttons(app);
-    if ui.compact {
-        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
+    let head = (Icon::Warning.into(), Role::Warning.paint(), title);
+    crate::compact::dialog(
+        ui,
+        (w, h, T::DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, Role::Warning, title);
             for (l, tone) in &lines {
                 cy += ui.wrap(x, cy, iw, 14.0, W::R, *tone, l) + 8.0;
             }
@@ -618,57 +359,10 @@ pub(super) fn devices_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 cy += 4.0;
                 cy += ui.wrap(x, cy, iw, 14.0, W::S, tone, f) + 8.0;
             }
-            cy += 8.0;
-            cy += crate::compact::buttons(ui, x, cy, iw, &buttons);
             cy - y
-        });
-        return;
-    }
-    let sw = 560.0f32.min(w - 48.0);
-    let iw = sw - 64.0;
-    let line_h = ui.line(14.0, W::R);
-    let mut body = 0.0;
-    for (l, _) in &lines {
-        body += ui.wrap_lines(14.0, W::R, l, iw) as f32 * line_h + 10.0;
-    }
-    if let Some((f, _)) = foot {
-        body += ui.wrap_lines(14.0, W::S, f, iw) as f32 * line_h + 14.0;
-    }
-    let sh = 28.0 + 30.0 + 26.0 + body + 22.0 + 46.0 + 32.0;
-    let (x, y) = sheet_box(ui, w, h, sw, sh);
-    let ix = x + 32.0;
-    ui.icon(ix, y + 28.0, 30.0, Icon::Warning, 17.0, Role::Warning);
-    ui.text_mid(
-        ix + 42.0,
-        y + 28.0,
-        30.0,
-        20.0,
-        W::S,
-        Role::OnSurface,
-        title,
+        },
+        &buttons,
     );
-    let mut cy = y + 28.0 + 30.0 + 26.0;
-    for (l, tone) in &lines {
-        cy += ui.wrap(ix, cy, iw, 14.0, W::R, *tone, l) + 10.0;
-    }
-    if let Some((f, tone)) = foot {
-        cy += 4.0;
-        ui.wrap(ix, cy, iw, 14.0, W::S, tone, f);
-    }
-    let by = y + sh - 32.0 - 46.0;
-    let n = buttons.len() as f32;
-    let each = (iw - 12.0 * (n - 1.0)) / n;
-    for (i, (label, style, action)) in buttons.into_iter().enumerate() {
-        ui.button(
-            ix + i as f32 * (each + 12.0),
-            by,
-            Some(each),
-            46.0,
-            label,
-            style,
-            action,
-        );
-    }
 }
 
 /// Something that loads a key or turns the camera on was pressed with a
@@ -690,68 +384,20 @@ pub(super) fn pull_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     // A secret follows the pull: the reminders due go with it (F24).
     let reminders = app.devices.reminders_due();
-    if ui.compact {
-        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
+    let head = (app.medium.icon(), Role::Warning.paint(), title.as_str());
+    crate::compact::dialog(
+        ui,
+        (w, h, T::DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy +=
-                crate::compact::sheet_head(ui, x, cy, iw, app.medium.icon(), Role::Warning, &title);
             cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::OnSurfaceVariant, &line) + 16.0;
             for r in &reminders {
                 cy += ui.wrap(x, cy, iw, 14.0, W::R, reminder_tone(r), r) + 8.0;
             }
-            if !reminders.is_empty() {
-                cy += 8.0;
-            }
-            cy += crate::compact::buttons(
-                ui,
-                x,
-                cy,
-                iw,
-                &[(EN.pull_cancel, Style::Secondary, Action::Cancel)],
-            );
             cy - y
-        });
-        return;
-    }
-    let iw = 480.0 - 64.0;
-    let line_h = ui.line(14.0, W::R);
-    let extra: f32 = reminders
-        .iter()
-        .map(|r| ui.wrap_lines(14.0, W::R, r, iw) as f32 * line_h + 10.0)
-        .sum();
-    let sh = 196.0
-        + if reminders.is_empty() {
-            0.0
-        } else {
-            extra + 8.0
-        };
-    let (x, y) = sheet_box(ui, w, h, 480.0, sh);
-    let ix = x + 32.0;
-    ui.icon(ix, y + 30.0, 30.0, app.medium.icon(), 18.0, Role::Warning);
-    let title = ui.fit(20.0, W::S, &title, iw - 42.0);
-    ui.text_mid(
-        ix + 42.0,
-        y + 30.0,
-        30.0,
-        20.0,
-        W::S,
-        Role::OnSurface,
-        &title,
-    );
-    let line = ui.fit(13.0, W::R, &line, iw);
-    ui.text(ix, y + 78.0, 13.0, W::R, Role::OnSurfaceVariant, &line);
-    let mut cy = y + 78.0 + 34.0;
-    for r in &reminders {
-        cy += ui.wrap(ix, cy, iw, 14.0, W::R, reminder_tone(r), r) + 10.0;
-    }
-    ui.button(
-        ix,
-        y + sh - 32.0 - 46.0,
-        Some(iw),
-        46.0,
-        EN.pull_cancel,
-        Style::Secondary,
-        Action::Cancel,
+        },
+        &[(EN.pull_cancel, Style::Secondary, Action::Cancel)],
     );
 }
 
@@ -815,8 +461,9 @@ type SheetLine<'a> = (
     Option<(&'a str, &'a faraday_codec::qr::QrMatrix)>,
 );
 
-/// A sheet that says what a lock or a power-off does: its title, a line,
-/// the sections, each line wrapped to the sheet, and its buttons.
+/// A dialog that says what a lock or a power-off does: its title, a line,
+/// the sections, each line wrapped to the dialog, its holds, and its
+/// actions.
 fn kept_sheet(
     app: &View,
     ui: &mut Ui,
@@ -826,99 +473,90 @@ fn kept_sheet(
     sections: &[Section],
     actions: &[(&str, Style, Action)],
 ) {
-    let (place, margin, pad) = if ui.compact {
-        ((8.0, w - 16.0), 8.0, 16.0)
-    } else {
-        let sw = (w - 48.0).min(600.0);
-        (((w - sw) / 2.0, sw), 40.0, 32.0)
-    };
-    crate::compact::scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
-        let mut cy = y;
-        if ui.compact {
-            cy += crate::compact::sheet_head(ui, x, cy, iw, head.0, head.1, head.2);
-        } else {
-            ui.icon(x, cy, 30.0, head.0, 18.0, head.1);
-            let t = ui.fit(20.0, W::S, head.2, iw - 42.0);
-            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, Role::OnSurface, &t);
-            cy += 46.0;
-        }
-        if !line.is_empty() {
-            let size = if line_tone == Role::Warning.paint() {
-                14.0
-            } else {
-                13.0
-            };
-            cy += ui.wrap(x, cy, iw, size, W::R, line_tone, line) + 12.0;
-        }
-        if let Some((label, value)) = row {
-            cy += crate::compact::kv(ui, x, cy, iw, label, value, Role::OnSurface);
-        }
-        if let Some((code, m)) = code {
-            // The same size the Starter's restart sheet draws its code.
-            let side = if ui.compact { 104.0f32 } else { 160.0 }.min(iw);
-            qr_code(ui, m, x, cy, side);
-            cy += side + 10.0;
-            cy += ui.wrap(x, cy, iw, 12.0, W::M, Role::OnSurfaceVariant, code) + 12.0;
-        }
-        for (name, lines) in sections {
-            if lines.is_empty() {
-                continue;
-            }
-            ui.rule(x, cy, iw, Role::OutlineVariant);
-            cy += 12.0;
-            ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, name);
-            cy += 22.0;
-            for (text, tone, act) in lines {
-                let Some(act) = *act else {
-                    cy += ui.wrap(x, cy, iw, 14.0, W::R, *tone, text) + 8.0;
-                    continue;
+    // A hold (decision 5) fills while it is held, in the body; the rest
+    // are pressed, the dialog's actions.
+    let pressed: Vec<(&str, Style, Action)> = actions
+        .iter()
+        .copied()
+        .filter(|a| !crate::vault::is_hold(a.2))
+        .collect();
+    let frame = (w, h, T::DIALOG_MAX);
+    crate::compact::dialog(
+        ui,
+        frame,
+        head,
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            if !line.is_empty() {
+                let size = if line_tone == Role::Warning.paint() {
+                    14.0
+                } else {
+                    13.0
                 };
-                // The line beside its button, at the right.
-                let bw = ui.measure(T::LABEL, W::S, EN.vault_save) + 2.0 * T::PAD;
-                let inset = (T::CHIP_LINE - T::LABEL) / 2.0;
-                let tw = iw - bw - T::GAP;
-                let th = ui.wrap(x, cy + inset, tw, T::LABEL, W::R, *tone, text);
-                ui.button(
-                    x + iw - bw,
-                    cy,
-                    Some(bw),
-                    T::CHIP_LINE,
-                    EN.vault_save,
-                    Style::Secondary,
-                    act,
-                );
-                cy += (th + inset).max(T::CHIP_LINE) + T::GAP;
+                cy += ui.wrap(x, cy, iw, size, W::R, line_tone, line) + 12.0;
             }
-            cy += 4.0;
-        }
-        cy += 8.0;
-        // A hold (decision 5) fills while it is held; the rest are
-        // pressed, at the sheet's foot.
-        let mut hx = x;
-        for &(label, _, action) in actions.iter().filter(|a| crate::vault::is_hold(a.2)) {
-            let room = x + iw - hx;
-            hx += crate::vault::screen::hold_button_in(
-                app,
-                ui,
-                hx,
-                cy,
-                room,
-                label,
-                action,
-                Role::Error.paint(),
-            ) + T::GAP;
-        }
-        if hx > x {
-            cy += T::CHIP_LINE + T::GAP + T::GAP_SMALL;
-        }
-        let pressed: Vec<(&str, Style, Action)> = actions
-            .iter()
-            .copied()
-            .filter(|a| !crate::vault::is_hold(a.2))
-            .collect();
-        cy += crate::compact::buttons(ui, x, cy, iw, &pressed);
-        cy - y
-    });
+            if let Some((label, value)) = row {
+                cy += crate::compact::kv(ui, x, cy, iw, label, value, Role::OnSurface);
+            }
+            if let Some((code, m)) = code {
+                // The same size the Starter's restart sheet draws its code.
+                let side = if ui.compact { 104.0f32 } else { 160.0 }.min(iw);
+                qr_code(ui, m, x, cy, side);
+                cy += side + 10.0;
+                cy += ui.wrap(x, cy, iw, 12.0, W::M, Role::OnSurfaceVariant, code) + 12.0;
+            }
+            for (name, lines) in sections {
+                if lines.is_empty() {
+                    continue;
+                }
+                ui.rule(x, cy, iw, Role::OutlineVariant);
+                cy += 12.0;
+                ui.text(x, cy, 12.0, W::R, Role::OnSurfaceVariant, name);
+                cy += 22.0;
+                for (text, tone, act) in lines {
+                    let Some(act) = *act else {
+                        cy += ui.wrap(x, cy, iw, 14.0, W::R, *tone, text) + 8.0;
+                        continue;
+                    };
+                    // The line beside its button, at the right.
+                    let bw = ui.measure(T::LABEL, W::S, EN.vault_save) + 2.0 * T::PAD;
+                    let inset = (T::CHIP_LINE - T::LABEL) / 2.0;
+                    let tw = iw - bw - T::GAP;
+                    let th = ui.wrap(x, cy + inset, tw, T::LABEL, W::R, *tone, text);
+                    ui.button(
+                        x + iw - bw,
+                        cy,
+                        Some(bw),
+                        T::CHIP_LINE,
+                        EN.vault_save,
+                        Style::Secondary,
+                        act,
+                    );
+                    cy += (th + inset).max(T::CHIP_LINE) + T::GAP;
+                }
+                cy += 4.0;
+            }
+            let mut hx = x;
+            for &(label, _, action) in actions.iter().filter(|a| crate::vault::is_hold(a.2)) {
+                let room = x + iw - hx;
+                hx += crate::vault::screen::hold_button_in(
+                    app,
+                    ui,
+                    hx,
+                    cy,
+                    room,
+                    label,
+                    action,
+                    Role::Error.paint(),
+                ) + T::GAP;
+            }
+            if hx > x {
+                cy += T::CHIP_LINE + T::GAP + T::GAP_SMALL;
+            }
+            cy - y
+        },
+        &pressed,
+    );
 }
 
 pub(super) fn lock_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
@@ -1604,20 +1242,34 @@ fn qr_sheet_compact(app: &View, q: &crate::QrView, ui: &mut Ui, w: f32, h: f32) 
 
 /// A new input device (`docs/history/PLAN.md` §4.6): its name as it gives it, the
 /// code a keyboard must type, and the person's choice.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let Some(d) = app.new_inputs().first() else {
         return;
     };
-    if ui.compact {
-        let what = match (d.keyboard, d.pointer) {
-            (true, true) => EN.new_input_title,
-            (true, false) => EN.new_input_a_new_keyboard,
-            _ => EN.new_input_a_new_pointer,
-        };
-        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
+    let what = match (d.keyboard, d.pointer) {
+        (true, true) => EN.new_input_title,
+        (true, false) => EN.new_input_a_new_keyboard,
+        _ => EN.new_input_a_new_pointer,
+    };
+    let mut items = vec![(
+        EN.new_input_ignore_button,
+        Style::Secondary,
+        Action::InputIgnore(d.id),
+    )];
+    if !d.keyboard {
+        items.push((
+            EN.new_input_use_pointer,
+            Style::Primary,
+            Action::InputUse(d.id),
+        ));
+    }
+    let head = (Icon::Warning.into(), Role::Warning.paint(), what);
+    crate::compact::dialog(
+        ui,
+        (w, h, T::DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Warning, Role::Warning, what);
             cy += ui.wrap(x, cy, iw, 14.0, W::M, Role::OnSurface, &d.name) + 6.0;
             cy += ui.wrap(
                 x,
@@ -1680,119 +1332,10 @@ pub(super) fn new_input_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                 }
                 cy += 64.0;
             }
-            let mut items = vec![(
-                EN.new_input_ignore_button,
-                Style::Secondary,
-                Action::InputIgnore(d.id),
-            )];
-            if !d.keyboard {
-                items.push((
-                    EN.new_input_use_pointer,
-                    Style::Primary,
-                    Action::InputUse(d.id),
-                ));
-            }
-            cy += crate::compact::buttons(ui, x, cy, iw, &items);
             cy - y
-        });
-        return;
-    }
-    let sh = if d.keyboard { 360.0 } else { 280.0 };
-    let (x, y) = sheet_box(ui, w, h, 560.0, sh);
-    let ix = x + 32.0;
-    let iw = 560.0 - 64.0;
-    let what = match (d.keyboard, d.pointer) {
-        (true, true) => EN.new_input_title,
-        (true, false) => EN.new_input_a_new_keyboard,
-        _ => EN.new_input_a_new_pointer,
-    };
-    ui.icon(ix, y + 28.0, 30.0, Icon::Warning, 17.0, Role::Warning);
-    ui.text_mid(ix + 42.0, y + 28.0, 30.0, 20.0, W::S, Role::OnSurface, what);
-    let name = ui.fit(14.0, W::M, &d.name, iw);
-    ui.text(ix, y + 76.0, 14.0, W::M, Role::OnSurface, &name);
-    ui.text(
-        ix,
-        y + 100.0,
-        13.0,
-        W::R,
-        Role::OnSurfaceVariant,
-        EN.new_input_the_name,
+        },
+        &items,
     );
-    let mut by = y + 140.0;
-    if d.keyboard && d.code.is_none() && app.seed_missing() {
-        let line = ui.fit(13.0, W::S, EN.new_input_no_code, iw);
-        ui.text(ix, by, 13.0, W::S, Role::Error, &line);
-        by += 112.0;
-    }
-    if d.keyboard
-        && let Some(code) = d.code.as_deref()
-    {
-        ui.text(
-            ix,
-            by,
-            13.0,
-            W::S,
-            Role::OnSurfaceVariant,
-            EN.new_input_type_code,
-        );
-        by += 28.0;
-        let mut cx = ix;
-        let typed: Vec<char> = d.typed.chars().collect();
-        for (k, c) in code.chars().enumerate() {
-            // A letter already typed in order is marked.
-            let done = code.starts_with(&d.typed) && k < typed.len();
-            ui.fill(
-                cx,
-                by,
-                52.0,
-                60.0,
-                8.0,
-                if done {
-                    Role::OkContainer
-                } else {
-                    Role::SurfaceContainerHighest
-                },
-            );
-            ui.stroke(
-                cx,
-                by,
-                52.0,
-                60.0,
-                8.0,
-                if done { Role::Ok } else { Role::OutlineVariant },
-            );
-            let ink = if done {
-                Role::OnOkContainer
-            } else {
-                Role::OnSurface
-            };
-            ui.text_mid(cx + 16.0, by, 60.0, 28.0, W::M, ink, &c.to_string());
-            cx += 60.0;
-        }
-        by += 84.0;
-    }
-    let bw = (iw - 12.0) / 2.0;
-    ui.button(
-        ix,
-        y + sh - 32.0 - 46.0,
-        Some(if d.keyboard { iw } else { bw }),
-        46.0,
-        EN.new_input_ignore_button,
-        Style::Secondary,
-        Action::InputIgnore(d.id),
-    );
-    if !d.keyboard {
-        ui.button(
-            ix + bw + 12.0,
-            y + sh - 32.0 - 46.0,
-            Some(bw),
-            46.0,
-            EN.new_input_use_pointer,
-            Style::Primary,
-            Action::InputUse(d.id),
-        );
-    }
-    let _ = by;
 }
 
 /// Minutes and seconds, `4:05`.
@@ -1803,7 +1346,6 @@ fn clock_text(ms: u64) -> String {
 
 /// The idle lock coming: how long without input, when it locks, what it
 /// wipes, seals and keeps, and when the machine powers off after it.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     if app.idle_lock_at().is_none() {
         return;
@@ -1887,54 +1429,18 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             &minutes(u64::from(app.idle_lock_min())).to_string(),
         ],
     );
-    if ui.compact {
-        let rows: Vec<(&str, String, crate::ui::Paint)> = rows
-            .into_iter()
-            .map(|(k, v)| (k, v, Role::OnSurface.paint()))
-            .collect();
-        crate::compact::kv_sheet(
-            ui,
-            w,
-            h,
-            (Icon::Lock, Role::Warning.paint(), EN.idle_warn_locking_soon),
-            &body,
-            &rows,
-            &[(EN.idle_warn_keep_working, Style::Primary, Action::Cancel)],
-        );
-        return;
-    }
-    let sw = 600.0;
-    let sh = 250.0 + rows.len() as f32 * 44.0;
-    let (x, y) = sheet_box(ui, w, h, sw, sh);
-    let ix = x + 32.0;
-    let iw = sw - 64.0;
-    ui.icon(ix, y + 30.0, 30.0, Icon::Lock, 18.0, Role::Warning);
-    ui.text_mid(
-        ix + 42.0,
-        y + 30.0,
-        30.0,
-        20.0,
-        W::S,
-        Role::OnSurface,
-        EN.idle_warn_locking_soon,
-    );
-    ui.text(ix, y + 76.0, 13.0, W::R, Role::OnSurfaceVariant, &body);
-    let mut ry = y + 108.0;
-    for (k, v) in &rows {
-        ui.text_mid(ix, ry, 40.0, 13.0, W::R, Role::OnSurfaceVariant, k);
-        let v = ui.fit(14.0, W::R, v, iw - 90.0);
-        ui.text_mid(ix + 90.0, ry, 40.0, 14.0, W::R, Role::OnSurface, &v);
-        ui.rule(ix, ry + 40.0, iw, Role::OutlineVariant);
-        ry += 44.0;
-    }
-    ui.button(
-        ix,
-        y + sh - 32.0 - 46.0,
-        Some(iw),
-        46.0,
-        EN.idle_warn_keep_working,
-        Style::Primary,
-        Action::Cancel,
+    let rows: Vec<(&str, String, crate::ui::Paint)> = rows
+        .into_iter()
+        .map(|(k, v)| (k, v, Role::OnSurface.paint()))
+        .collect();
+    crate::compact::kv_sheet(
+        ui,
+        w,
+        h,
+        (Icon::Lock, Role::Warning.paint(), EN.idle_warn_locking_soon),
+        &body,
+        &rows,
+        &[(EN.idle_warn_keep_working, Style::Primary, Action::Cancel)],
     );
 }
 
@@ -1943,18 +1449,13 @@ pub(super) fn idle_warn_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
 pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let (muted, ink) = (Role::OnSurfaceVariant, Role::OnSurface);
     let shown = app.outbox.len().min(5);
-    if ui.compact {
-        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
+    let head = (Icon::Lock.into(), Role::Primary.paint(), EN.locked_locked);
+    crate::compact::dialog(
+        ui,
+        (w, h, T::DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(
-                ui,
-                x,
-                cy,
-                iw,
-                Icon::Lock,
-                Role::Primary,
-                EN.locked_locked,
-            );
             cy += ui.wrap(x, cy, iw, 13.0, W::R, muted, EN.locked_locked_after) + 12.0;
             if let Some(off) = app.idle_off_at() {
                 let line = fill(
@@ -1975,70 +1476,9 @@ pub(super) fn locked_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
                     cy += 24.0;
                 }
             }
-            cy += 8.0;
-            cy += crate::compact::buttons(
-                ui,
-                x,
-                cy,
-                iw,
-                &[(EN.locked_continue, Style::Primary, Action::Cancel)],
-            );
             cy - y
-        });
-        return;
-    }
-    let sh = 200.0
-        + if shown > 0 {
-            40.0 + shown as f32 * 30.0
-        } else {
-            0.0
-        };
-    let (x, y) = sheet_box(ui, w, h, 520.0, sh);
-    let ix = x + 32.0;
-    let iw = 520.0 - 64.0;
-    ui.icon(ix, y + 28.0, 28.0, Icon::Lock, 16.0, Role::Primary);
-    ui.text(ix + 40.0, y + 30.0, 20.0, W::S, ink, EN.locked_locked);
-    ui.text(ix, y + 72.0, 13.0, W::R, muted, EN.locked_locked_after);
-    let mut ry = y + 108.0;
-    if let Some(off) = app.idle_off_at() {
-        ui.text(
-            ix,
-            ry,
-            13.0,
-            W::S,
-            ink,
-            &fill(
-                EN.locked_power_off_countdown,
-                &[&(clock_text(off.saturating_sub(app.idle_ms()))).to_string()],
-            ),
-        );
-    }
-    if shown > 0 {
-        ui.text(
-            ix,
-            ry,
-            13.0,
-            W::S,
-            Role::Warning,
-            &fill(
-                EN.locked_no_power_off,
-                &[&app.outbox.len().to_string(), app.medium.for_the()],
-            ),
-        );
-        ry += 32.0;
-        for item in app.outbox.iter().take(shown) {
-            ui.text(ix, ry, 14.0, W::M, ink, &item.name);
-            ry += 30.0;
-        }
-    }
-    ui.button(
-        ix,
-        y + sh - 32.0 - 46.0,
-        Some(iw),
-        46.0,
-        EN.locked_continue,
-        Style::Primary,
-        Action::Cancel,
+        },
+        &[(EN.locked_continue, Style::Primary, Action::Cancel)],
     );
 }
 
@@ -2253,17 +1693,13 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         };
         (o.name.as_str(), held)
     });
-    // The forms the file can take, the one picked primary.
+    // The forms the file can take, the one picked selected.
     let forms: Vec<(&str, Style, Action)> = out
         .forms
         .iter()
         .enumerate()
         .map(|(i, f)| {
-            let style = if i == out.form {
-                Style::Primary
-            } else {
-                Style::Secondary
-            };
+            let style = Style::chosen(i == out.form);
             (f.label, style, Action::SecretForm(i as u8))
         })
         .collect();
@@ -2292,10 +1728,13 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         )
     };
     let to_vault = !matches!(out.keep, crate::secrets::Keep::None);
-    if ui.compact {
-        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
+    let title = (Icon::Lock.into(), Role::Warning.paint(), head);
+    crate::compact::dialog(
+        ui,
+        (w, h, T::DIALOG_MAX),
+        title,
+        &mut |ui, x, y, iw| {
             let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Lock, Role::Warning, head);
             for (label, value) in [
                 (EN.secret_out_file, out.name.as_str()),
                 (EN.secret_out_what_label, out.what.as_str()),
@@ -2357,141 +1796,11 @@ pub(super) fn secret_out_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             );
             ui.hit(x - 4.0, cy - 6.0, iw, lh + 12.0, Action::SecretAck);
             cy += lh + 12.0;
-            cy += crate::compact::buttons(
-                ui,
-                x,
-                cy,
-                iw,
-                &[
-                    (out_label, out_style, Action::SecretUnprotected),
-                    (EN.secret_out_cancel, Style::Ghost, Action::Cancel),
-                ],
-            );
             cy - y
-        });
-        return;
-    }
-    let sw = 600.0f32.min(w - 48.0);
-    let (bx, bw) = (32.0, sw - 64.0);
-    // The acknowledgement on one line, or on two when longer.
-    let ack_h = if ui.measure(13.0, W::R, &out.ack.text(app.medium)) > bw - 28.0 {
-        36.0
-    } else {
-        18.0
-    };
-    let sh = 452.0
-        + ack_h
-        + if forms.len() > 1 { 44.0 } else { 0.0 }
-        + if to_vault { 0.0 } else { -96.0 };
-    let (x, y) = sheet_box(ui, w, h, sw, sh);
-    let bx = x + bx;
-    let mut cy = y + 26.0;
-    ui.icon(bx - 4.0, cy - 2.0, 28.0, Icon::Lock, 14.0, Role::Warning);
-    ui.text(bx + 28.0, cy, 18.0, W::S, Role::OnSurface, head);
-    cy += 38.0;
-    for (label, value, face) in [
-        (EN.secret_out_file, out.name.as_str(), W::M),
-        (EN.secret_out_what_label, out.what.as_str(), W::R),
-        (EN.secret_out_who_can, out.gives.as_str(), W::R),
-    ] {
-        ui.text(bx, cy, 12.0, W::R, Role::OnSurfaceVariant, label);
-        let used = ui.wrap(
-            bx + 130.0,
-            cy,
-            bw - 130.0,
-            13.0,
-            face,
-            Role::OnSurface,
-            value,
-        );
-        cy += used.max(20.0) + 10.0;
-    }
-    cy += 6.0;
-    // The vault, first, for what a vault keeps.
-    if to_vault {
-        ui.text(bx, cy, 13.0, W::S, Role::Ok, EN.secret_out_sealed);
-        cy += 26.0;
-    }
-    match vault.filter(|_| to_vault) {
-        Some((name, true)) => {
-            ui.text_mid(
-                bx,
-                cy,
-                42.0,
-                13.0,
-                W::S,
-                Role::Ok,
-                &fill(EN.secret_out_in_vault, &[name]),
-            );
-            cy += 54.0;
-        }
-        Some((name, false)) => {
-            let label = fill(EN.secret_out_save_into, &[name]);
-            ui.button(
-                bx,
-                cy,
-                None,
-                42.0,
-                &label,
-                Style::Primary,
-                Action::SecretVault,
-            );
-            cy += 54.0;
-        }
-        // Make or unlock one: the sheet waits, and opens again.
-        None if to_vault => {
-            if let Some((label, a)) = app.vault_way(app.screen) {
-                ui.button(bx, cy, None, 42.0, &label, Style::Primary, a);
-            }
-            cy += 54.0;
-        }
-        None => {}
-    }
-    if to_vault {
-        ui.rule(bx, cy, bw, Role::OutlineVariant);
-        cy += 16.0;
-    }
-    // The Outbox, or the stick, only once the person says they
-    // understand.
-    ui.text(bx, cy, 13.0, W::S, Role::Error, &unprotected);
-    cy += 26.0;
-    if forms.len() > 1 {
-        cy += wrap_buttons(ui, bx, cy, bw, 34.0, &forms) + 2.0;
-    }
-    ui.checkbox(bx, cy + 1.0, app.secrets.ack(), true);
-    let lh = ui.wrap(
-        bx + 28.0,
-        cy,
-        bw - 28.0,
-        13.0,
-        W::R,
-        Role::OnSurface,
-        &out.ack.text(app.medium),
-    );
-    ui.hit(
-        bx - 4.0,
-        cy - 6.0,
-        bw,
-        lh.max(18.0) + 12.0,
-        Action::SecretAck,
-    );
-    cy += lh.max(18.0) + 16.0;
-    ui.button(
-        bx,
-        cy,
-        None,
-        40.0,
-        out_label,
-        out_style,
-        Action::SecretUnprotected,
-    );
-    ui.button(
-        x + sw - 32.0 - 110.0,
-        y + sh - 32.0 - 40.0,
-        Some(110.0),
-        40.0,
-        EN.secret_out_cancel,
-        Style::Ghost,
-        Action::Cancel,
+        },
+        &[
+            (out_label, out_style, Action::SecretUnprotected),
+            (EN.secret_out_cancel, Style::Ghost, Action::Cancel),
+        ],
     );
 }

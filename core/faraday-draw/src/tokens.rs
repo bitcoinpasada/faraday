@@ -1349,6 +1349,15 @@ pub const CODEX32_ENTER_SCROLL: f32 = 140.0;
 /// Material's icon button: its container, round, drawn in a `TOUCH`
 /// target with an `ICON_GLYPH` icon (the codex32 sheets' eye).
 pub const ICON_BUTTON: f32 = 40.0;
+/// A stepper's label (`faraday_ui`'s `Ui::stepper`), body small.
+pub const STEPPER_LABEL_TEXT: f32 = 13.0;
+/// A stepper's count between its − and +, title medium.
+pub const STEPPER_VALUE_TEXT: f32 = 18.0;
+/// The room for a stepper's count between its two icon buttons.
+pub const STEPPER_COUNT_W: f32 = 44.0;
+/// How far in from a stepper's label its − stands on the wide layout,
+/// when the label is shorter: the steppers of one card line up.
+pub const STEPPER_LABEL_COL: f32 = 180.0;
 /// The wide layout's ?: its left edge in from the window's right, where
 /// the top-right row of the mode pill and the ? begins; the ? is 28 dp
 /// across and stands `MARGIN_WIDE` from the window's edge

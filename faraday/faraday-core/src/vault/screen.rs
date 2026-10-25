@@ -1733,7 +1733,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                     None,
                     36.0,
                     EN.vault_add_another_passphrase,
-                    Style::Secondary,
+                    Style::Tonal,
                     va(V::CAddPhrase),
                 );
                 cy += 46.0;

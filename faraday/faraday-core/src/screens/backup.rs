@@ -845,10 +845,12 @@ fn backup_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 } else {
                     EN.backup_show_the_seed
                 },
+                // A second action that matters beside the card's filled
+                // Check my copy: tonal (Material's buttons).
                 if b.reveal {
                     Style::Secondary
                 } else {
-                    Style::Primary
+                    Style::Tonal
                 },
                 Action::BReveal,
             );

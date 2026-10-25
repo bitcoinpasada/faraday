@@ -136,12 +136,24 @@ pub fn dialog<A: Copy + PartialEq>(
     body: &mut Body<'_, A>,
     actions: &[(&str, Style, A)],
 ) {
+    dialog_in(ui, (0.0, w, h, want), head, body, actions);
+}
+
+/// [`dialog`] centred in a frame `w` by `h` whose left edge is at `x0`:
+/// a dialog over a page that starts right of a sidebar.
+pub fn dialog_in<A: Copy + PartialEq>(
+    ui: &mut Ui<A>,
+    (x0, w, h, want): (f32, f32, f32, f32),
+    head: (crate::Glyph, crate::pal::Paint, &str),
+    body: &mut Body<'_, A>,
+    actions: &[(&str, Style, A)],
+) {
     use faraday_draw::tokens::{DIALOG_MAX, DIALOG_MIN, DIALOG_PAD, GAP, PAD};
     let (place, frame, end) = if ui.compact {
-        ((GAP, w - 2.0 * GAP), (h, GAP, PAD), false)
+        ((x0 + GAP, w - 2.0 * GAP), (h, GAP, PAD), false)
     } else {
         let dw = want.clamp(DIALOG_MIN, DIALOG_MAX).min(w - 2.0 * PAD);
-        (((w - dw) / 2.0, dw), (h, PAD, DIALOG_PAD), true)
+        ((x0 + (w - dw) / 2.0, dw), (h, PAD, DIALOG_PAD), true)
     };
     framed(
         ui,
@@ -273,8 +285,8 @@ pub fn buttons<A: Copy + PartialEq>(
     }
 }
 
-/// The sheets that say what a lock does: a title, a line, rows of what
-/// happens to what, and their buttons.
+/// The dialogs that say what a lock does ([`dialog`]): a title, a line,
+/// rows of what happens to what, and their actions.
 pub fn kv_sheet<A: Copy + PartialEq>(
     ui: &mut Ui<A>,
     w: f32,
@@ -284,17 +296,22 @@ pub fn kv_sheet<A: Copy + PartialEq>(
     rows: &[(&str, String, crate::pal::Paint)],
     actions: &[(&str, Style, A)],
 ) {
-    sheet(ui, w, h, &mut |ui, x, y, iw| {
-        let mut cy = y;
-        cy += sheet_head(ui, x, cy, iw, head.0, head.1, head.2);
-        if !sub.is_empty() {
-            cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::OnSurfaceVariant, sub) + 12.0;
-        }
-        for (k, v, tone) in rows {
-            cy += kv(ui, x, cy, iw, k, v, *tone);
-        }
-        cy += 8.0;
-        cy += buttons(ui, x, cy, iw, actions);
-        cy - y
-    });
+    use faraday_draw::tokens::DIALOG_MAX;
+    let title = (head.0.into(), head.1, head.2);
+    dialog(
+        ui,
+        (w, h, DIALOG_MAX),
+        title,
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            if !sub.is_empty() {
+                cy += ui.wrap(x, cy, iw, 13.0, W::R, Role::OnSurfaceVariant, sub) + 12.0;
+            }
+            for (k, v, tone) in rows {
+                cy += kv(ui, x, cy, iw, k, v, *tone);
+            }
+            cy - y
+        },
+        actions,
+    );
 }

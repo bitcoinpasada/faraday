@@ -9926,4 +9926,8 @@ strings! {
     tip_link: "Link",
     /// Tooltip on the backup board's warning mark.
     tip_warning: "Warning",
+    /// Tooltip on a stepper's −.
+    tip_decrease: "Decrease",
+    /// Tooltip on a stepper's +.
+    tip_increase: "Increase",
 }

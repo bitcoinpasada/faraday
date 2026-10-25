@@ -1,15 +1,19 @@
 //! Material 3's control pieces (`docs/DESIGN.md` §4.13, §4.15, F108):
 //! touch targets of at least 48 dp, state layers, the focus ring, the
-//! segmented button and the progress indicator.
+//! segmented button, the outlined icon button, the stepper and the
+//! progress indicator.
 
 use crate::pal::*;
 use crate::{Ui, W};
 use faraday_draw::tokens::{
-    FOCUS_OFFSET, FOCUS_RING, GAP, ICON_GAP, ICON_GLYPH_BUTTON, PROGRESS_H, PROGRESS_SPAN,
-    SEGMENT_PAD, STATE_FOCUS, STATE_HOVER, STATE_PRESS, TOUCH, alpha_of, shape_full,
+    DISABLED_CONTAINER, DISABLED_CONTENT, FOCUS_OFFSET, FOCUS_RING, GAP, ICON_BUTTON, ICON_GAP,
+    ICON_GLYPH, ICON_GLYPH_BUTTON, PROGRESS_H, PROGRESS_SPAN, SEGMENT_PAD, STATE_FOCUS,
+    STATE_HOVER, STATE_PRESS, STEPPER_COUNT_W, STEPPER_LABEL_COL, STEPPER_LABEL_TEXT,
+    STEPPER_VALUE_TEXT, TOUCH, alpha_of, shape_full,
 };
 use faraday_draw::widgets::Icon;
 use faraday_draw::{Color, Rect};
+use faraday_strings::EN;
 
 /// Where a press drawn this frame is taken, in pixels: `drawn`, the
 /// control as drawn (after the clip), and `target`, the same centred
@@ -442,6 +446,75 @@ impl<A: Copy + PartialEq> Ui<'_, A> {
             bx += bw + GAP;
         }
         by + h
+    }
+
+    /// Material's outlined icon button: an [`ICON_BUTTON`] circle at
+    /// (x, y) edged in outline, `icon` at [`ICON_GLYPH`] in
+    /// on-surface-variant, its state layer and focus ring in its shape,
+    /// a press taken on at least [`TOUCH`] square, and `tip`, its plain
+    /// tooltip. Not available (`on` false), edge and icon are on-surface
+    /// at the disabled opacities and it takes no press.
+    pub fn outlined_icon_button(
+        &mut self,
+        (x, y): (f32, f32),
+        icon: Icon,
+        tip: &'static str,
+        on: bool,
+        action: A,
+    ) {
+        use crate::tooltip::TipKind;
+        let s = ICON_BUTTON;
+        let r = shape_full(s);
+        if on && !self.dimmed.contains(&action) {
+            self.stroke(x, y, s, s, r, Role::Outline);
+            self.state_layer((x, y, s, s, r), Role::OnSurfaceVariant.paint(), action);
+            self.focus_ring((x, y, s, s, r), action);
+            self.icon(x, y, s, icon, ICON_GLYPH, Role::OnSurfaceVariant);
+            self.hit_drawn(x, y, s, s, action);
+            self.tip_anchor((x, y, s, s), action, tip, TipKind::Plain);
+        } else {
+            // Faint in every theme: it is not available now.
+            let edge = self.col(Role::OnSurface.at(DISABLED_CONTAINER));
+            let (rect, line) = (self.rect(x, y, s, s), self.f.max(1.0));
+            self.c.stroke_rounded_rect(rect, r * self.f, line, edge);
+            let ink = Role::OnSurface.at(DISABLED_CONTENT);
+            self.icon(x, y, s, icon, ICON_GLYPH, ink);
+        }
+    }
+
+    /// A stepper (`docs/DESIGN.md` §4.2): `label`, then its count between
+    /// two outlined icon buttons, − pressing `minus` and + pressing
+    /// `plus`, in a row [`ICON_BUTTON`] tall at (x, y) in a width `w`. On
+    /// a small panel the buttons stand at the row's right end; on the
+    /// wide layout [`STEPPER_LABEL_COL`] in from the label's start, or
+    /// past a longer label, so they never cover it. Not `enabled`, both
+    /// are faint and take no press. The bounds are the presses' own.
+    pub fn stepper(
+        &mut self,
+        (x, y, w): (f32, f32, f32),
+        label: &str,
+        value: usize,
+        (minus, plus): (A, A),
+        enabled: bool,
+    ) {
+        let size = STEPPER_LABEL_TEXT;
+        let span = 2.0 * ICON_BUTTON + STEPPER_COUNT_W;
+        let bx = if self.compact {
+            x + w - span
+        } else {
+            x + (self.measure(size, W::R, label) + GAP).max(STEPPER_LABEL_COL)
+        };
+        let h = ICON_BUTTON;
+        self.text_mid(x, y, h, size, W::R, Role::OnSurfaceVariant, label);
+        let less = (bx, y);
+        self.outlined_icon_button(less, Icon::Remove, EN.tip_decrease, enabled, minus);
+        let v = value.to_string();
+        let vw = self.measure(STEPPER_VALUE_TEXT, W::S, &v);
+        let vx = bx + h + (STEPPER_COUNT_W - vw) / 2.0;
+        let vs = STEPPER_VALUE_TEXT;
+        self.text_mid(vx, y, h, vs, W::S, Role::OnSurface, &v);
+        let more = (bx + h + STEPPER_COUNT_W, y);
+        self.outlined_icon_button(more, Icon::Add, EN.tip_increase, enabled, plus);
     }
 
     /// A linear progress indicator `w` wide at (x, y), [`PROGRESS_H`]

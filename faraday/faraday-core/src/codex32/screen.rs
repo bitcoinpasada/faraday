@@ -1639,8 +1639,9 @@ fn check_record(m: &Codex32Make, fp: &str, ui: &mut Ui, x: f32, y: f32, w: f32) 
 // The cell sheet (§7.4)
 // ---------------------------------------------------------------------
 
-/// The open cell's working: a dialog [`t::CHART_SHEET_WIDTH`] wide on a
-/// wide window (the shared sheet look, over a scrim), a page of its own
+/// The open cell's working: a dialog (`faraday_ui::sheet::dialog_in`)
+/// [`t::CHART_SHEET_WIDTH`] wide on a wide window, over Material's scrim
+/// right of the sidebar, Previous, Next and Done its actions; a page of its own
 /// with its own Back on a compact one. The Previous and Next buttons step
 /// to the neighbouring cell of the row (§7.4). Every value read from the
 /// kept worksheet.
@@ -1654,55 +1655,31 @@ pub(crate) fn cell_sheet(app: &View, m: &Codex32Make, ui: &mut Ui, x0: f32, cw: 
         cell_page(app, ui, (x0, cw, h), &head, &lines);
         return;
     }
-    let sw = t::CHART_SHEET_WIDTH.min(cw - 2.0 * t::PAD);
-    let pad = t::PAD;
-    let iw = sw - 2.0 * pad;
-    let mut body_h = ui.wrap_lines(t::BODY, W::S, &head, iw - t::CODEX32_SHEET_ICON) as f32
-        * ui.line(t::BODY, W::S)
-        + t::GAP;
-    for l in &lines {
-        body_h +=
-            ui.wrap_lines(t::LABEL, W::R, l, iw) as f32 * ui.line(t::LABEL, W::R) + t::GAP_SMALL;
-    }
-    let sh = (body_h + t::TOUCH + t::GAP + 2.0 * pad).min(h - 2.0 * t::GAP);
-    ui.fill(
-        x0,
-        0.0,
-        cw,
-        h,
-        0.0,
-        Role::SurfaceContainerHighest.with_alpha(150),
-    );
-    // A dialog: nothing under it is within reach, and a press beside it
-    // closes it.
+    // Material's scrim over the page right of the sidebar; nothing under
+    // the dialog is within reach, and a press beside it closes it.
+    let scrim = Role::Scrim.with_alpha(t::SCRIM_ALPHA);
+    ui.wash(x0, 0.0, cw, h, 0.0, scrim);
     ui.clear_hits();
-    ui.hit_around(
-        x0 + (cw - sw) / 2.0,
-        (h - sh) / 2.0,
-        sw,
-        sh,
-        a(C32::CellClose),
+    let outside = ui.outside.replace(a(C32::CellClose));
+    let actions = [
+        (EN.codex32_previous, Style::Secondary, a(C32::CellStep(-1))),
+        (EN.codex32_next, Style::Secondary, a(C32::CellStep(1))),
+        (EN.codex32_done_button, Style::Primary, a(C32::CellClose)),
+    ];
+    faraday_ui::sheet::dialog_in(
+        ui,
+        (x0, cw, h, t::CHART_SHEET_WIDTH),
+        (Icon::Info.into(), Role::Primary.paint(), &head),
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            for l in &lines {
+                cy += ui.wrap(x, cy, iw, t::LABEL, W::R, Role::OnSurface, l) + t::GAP_SMALL;
+            }
+            cy - y
+        },
+        &actions,
     );
-    // The sheet over the page right of the sidebar: its box and what it
-    // holds in one place.
-    let (sx, sy) = faraday_ui::parts::sheet_box_in(ui, (x0, cw, h), sw, sh);
-    let mut cy = sy + pad;
-    cy += faraday_ui::sheet::sheet_head(ui, sx + pad, cy, iw, Icon::Info, Role::Primary, &head);
-    for l in &lines {
-        cy += ui.wrap(sx + pad, cy, iw, t::LABEL, W::R, Role::OnSurface, l) + t::GAP_SMALL;
-    }
-    let by = sy + sh - pad - t::TOUCH;
-    let bw = ui.measure(t::LABEL, W::S, EN.codex32_done_button) + 2.0 * t::PAD;
-    ui.button(
-        sx + sw - pad - bw,
-        by,
-        Some(bw),
-        t::TOUCH,
-        EN.codex32_done_button,
-        Style::Primary,
-        a(C32::CellClose),
-    );
-    step_buttons(ui, sx + pad, by, iw - bw - t::GAP);
+    ui.outside = outside;
 }
 
 /// Previous and Next, side by side from `x`, in `w` if they fit.

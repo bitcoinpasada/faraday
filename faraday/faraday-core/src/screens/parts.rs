@@ -254,8 +254,9 @@ pub(crate) fn buttons_and_next(
     ny - y + 48.0
 }
 
-/// A labelled count with − and + beside it. On a small panel the buttons
-/// sit at the row's right end.
+/// A labelled count with − and + beside it ([`faraday_ui`]'s
+/// `Ui::stepper`). On a small panel the buttons sit at the row's right
+/// end.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn stepper(
     ui: &mut Ui,
@@ -268,34 +269,7 @@ pub(crate) fn stepper(
     plus: Action,
     enabled: bool,
 ) {
-    let style = if enabled {
-        Style::Secondary
-    } else {
-        Style::Disabled
-    };
-    // A label longer than the buttons' usual column pushes them right,
-    // so they never cover it.
-    let size = 13.0;
-    let label_end = ui.measure(size, W::R, label) + tokens::GAP;
-    let bx = if ui.compact {
-        x + w - 124.0
-    } else {
-        x + label_end.max(180.0)
-    };
-    ui.text_mid(x, y, 40.0, size, W::R, Role::OnSurfaceVariant, label);
-    ui.button(bx, y, Some(40.0), 40.0, "-", style, minus);
-    let v = value.to_string();
-    let vw = ui.measure(18.0, W::S, &v);
-    ui.text_mid(
-        bx + 62.0 - vw / 2.0,
-        y,
-        40.0,
-        18.0,
-        W::S,
-        Role::OnSurface,
-        &v,
-    );
-    ui.button(bx + 84.0, y, Some(40.0), 40.0, "+", style, plus);
+    ui.stepper((x, y, w), label, value, (minus, plus), enabled);
 }
 
 /// The closed line of a card that asks about vaults: the answer, as the

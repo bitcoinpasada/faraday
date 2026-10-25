@@ -38,8 +38,6 @@ use faraday_draw::tokens::{
     PROGRESS_H, RAIL_W, STATE_PRESS,
 };
 
-/// A small panel's sheet's side margin.
-const M: f32 = 12.0;
 /// The widest a task page's column grows (a text column, not a grid).
 const COL_W: f32 = 720.0;
 
@@ -1722,28 +1720,27 @@ fn phone_code(
     side + 10.0 + th + 8.0
 }
 
-/// A sheet: a card centred over the frosted page, as tall as what `body`
-/// draws (measured first, drawing nothing).
-fn sheet(ui: &mut Ui, w: f32, h: f32, body: &mut dyn FnMut(&mut Ui, f32, f32, f32) -> f32) {
-    let compact = ui.compact;
-    let sw = if compact {
-        w - 2.0 * M
-    } else {
-        460.0f32.min(w - 48.0)
-    };
-    let pad = if compact { 14.0 } else { 24.0 };
-    let n = ui.hits.len();
-    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-    let bh = body(ui, 0.0, 0.0, sw - 2.0 * pad);
-    ui.c.pop_clip();
-    ui.hits.truncate(n);
-    let sh = bh + 2.0 * pad;
-    let sx = (w - sw) / 2.0;
-    let sy = ((h - sh) / 2.0).max(8.0);
-    ui.shadow(sx, sy, sw, sh, 14.0, faraday_draw::tokens::ELEVATION_SHEET);
-    ui.fill(sx, sy, sw, sh, 14.0, Role::SurfaceContainerLow);
-    ui.stroke(sx, sy, sw, sh, 14.0, Role::OutlineVariant);
-    body(ui, sx + pad, sy + pad, sw - 2.0 * pad);
+/// A dialog over the frosted page (`faraday_ui::sheet::dialog`, the one
+/// Faraday draws): `head` with its icon, what `body` draws under it, and
+/// `actions` at its foot.
+fn dialog(
+    ui: &mut Ui,
+    (w, h): (f32, f32),
+    head: (Icon, Role, &str),
+    body: &mut dyn FnMut(&mut Ui, f32, f32, f32) -> f32,
+    actions: &[(&str, Style, StarterAction)],
+) {
+    let head = (Glyph::from(head.0), head.1.paint(), head.2);
+    let frame = (w, h, faraday_draw::tokens::DIALOG_MAX);
+    let actions: Vec<(&str, Style, Action)> =
+        actions.iter().map(|&(l, s, a)| (l, s, a.host())).collect();
+    faraday_ui::sheet::dialog(
+        ui,
+        frame,
+        head,
+        &mut |ui, x, y, iw| body(ui, x, y, iw),
+        &actions,
+    );
 }
 
 fn restart_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32, to: RestartTo) {
@@ -1753,50 +1750,51 @@ fn restart_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32, to: RestartTo) 
         RestartTo::Firmware => S.starter_restart,
         RestartTo::Stick => S.starter_restart_stick,
     };
-    sheet(ui, w, h, &mut |ui, x, y0, iw| {
-        let mut y = y0;
-        y += ui.wrap(x, y, iw, 17.0, W::S, Role::OnSurface, head) + 10.0;
-        y += line(ui, x, y, iw, S.starter_restart_save, Role::Warning) + 4.0;
-        y += line(
-            ui,
-            x,
-            y,
-            iw,
-            S.starter_restart_keep_stick,
-            Role::OnSurfaceVariant,
-        );
-        if to == RestartTo::Stick && os == Os::Windows {
+    let actions = [
+        (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
+        (
+            S.starter_restart_now,
+            Style::Primary,
+            StarterAction::RestartNow,
+        ),
+    ];
+    let title = (Icon::Power, Role::OnSurface, head);
+    dialog(
+        ui,
+        (w, h),
+        title,
+        &mut |ui, x, y0, iw| {
+            let mut y = y0;
+            y += line(ui, x, y, iw, S.starter_restart_save, Role::Warning) + 4.0;
             y += line(
                 ui,
                 x,
                 y,
                 iw,
-                S.starter_restart_windows_menu,
+                S.starter_restart_keep_stick,
                 Role::OnSurfaceVariant,
             );
-        }
-        y += 4.0;
-        if to == RestartTo::Stick && os == Os::Linux {
-            y += link(ui, x, y, iw, LearnId::BootEntry);
-        }
-        // Small enough on a small panel that the sheet's buttons fit.
-        let side = if ui.compact { 104.0 } else { 160.0 };
-        y += phone_code(starter, ui, x, y, iw, side, &address) + 8.0;
-        y + buttons(
-            ui,
-            x,
-            y,
-            iw,
-            &[
-                (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
-                (
-                    S.starter_restart_now,
-                    Style::Primary,
-                    StarterAction::RestartNow,
-                ),
-            ],
-        ) - y0
-    });
+            if to == RestartTo::Stick && os == Os::Windows {
+                y += line(
+                    ui,
+                    x,
+                    y,
+                    iw,
+                    S.starter_restart_windows_menu,
+                    Role::OnSurfaceVariant,
+                );
+            }
+            y += 4.0;
+            if to == RestartTo::Stick && os == Os::Linux {
+                y += link(ui, x, y, iw, LearnId::BootEntry);
+            }
+            // Small enough on a small panel that the sheet's buttons fit.
+            let side = if ui.compact { 104.0 } else { 160.0 };
+            y += phone_code(starter, ui, x, y, iw, side, &address);
+            y - y0
+        },
+        &actions,
+    );
 }
 
 /// Continue anyway, asked once, naming the item (§3.1a).
@@ -1815,33 +1813,34 @@ fn let_through_sheet(starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
     };
     let ask = fill(S.starter_let_through_ask, &[&name]);
     let line_text = concern_text(c);
-    sheet(ui, w, h, &mut |ui, x, y0, iw| {
-        let mut y = y0;
-        y += ui.wrap(x, y, iw, 17.0, W::S, Role::OnSurface, &ask) + 10.0;
-        y += line(ui, x, y, iw, &line_text, Role::Warning);
-        y += line(
-            ui,
-            x,
-            y,
-            iw,
-            S.starter_let_through_until,
-            Role::OnSurfaceVariant,
-        ) + 4.0;
-        y + buttons(
-            ui,
-            x,
-            y,
-            iw,
-            &[
-                (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
-                (
-                    S.starter_continue_anyway,
-                    Style::Primary,
-                    StarterAction::LetThrough,
-                ),
-            ],
-        ) - y0
-    });
+    let actions = [
+        (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
+        (
+            S.starter_continue_anyway,
+            Style::Primary,
+            StarterAction::LetThrough,
+        ),
+    ];
+    let title = (Icon::Warning, Role::Warning, ask.as_str());
+    dialog(
+        ui,
+        (w, h),
+        title,
+        &mut |ui, x, y0, iw| {
+            let mut y = y0;
+            y += line(ui, x, y, iw, &line_text, Role::Warning);
+            y += line(
+                ui,
+                x,
+                y,
+                iw,
+                S.starter_let_through_until,
+                Role::OnSurfaceVariant,
+            );
+            y - y0
+        },
+        &actions,
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -1934,41 +1933,31 @@ fn installed(starter: &Starter, ui: &mut Ui, x: f32, y0: f32, w: f32) -> f32 {
 
 /// Uninstall, asked once.
 fn uninstall_sheet(_starter: &Starter, ui: &mut Ui, w: f32, h: f32) {
-    sheet(ui, w, h, &mut |ui, x, y0, iw| {
-        let mut y = y0;
-        y += ui.wrap(
-            x,
-            y,
-            iw,
-            17.0,
-            W::S,
-            Role::OnSurface,
-            S.starter_uninstall_ask,
-        ) + 10.0;
-        y += line(
-            ui,
-            x,
-            y,
-            iw,
-            S.starter_uninstall_keeps,
-            Role::OnSurfaceVariant,
-        );
-        y += 6.0;
-        y + buttons(
-            ui,
-            x,
-            y,
-            iw,
-            &[
-                (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
-                (
-                    S.starter_uninstall,
-                    Style::Primary,
-                    StarterAction::UninstallNow,
-                ),
-            ],
-        ) - y0
-    });
+    let actions = [
+        (S.starter_cancel, Style::Secondary, StarterAction::Cancel),
+        (
+            S.starter_uninstall,
+            Style::Primary,
+            StarterAction::UninstallNow,
+        ),
+    ];
+    let title = (Icon::Trash, Role::OnSurface, S.starter_uninstall_ask);
+    dialog(
+        ui,
+        (w, h),
+        title,
+        &mut |ui, x, y0, iw| {
+            line(
+                ui,
+                x,
+                y0,
+                iw,
+                S.starter_uninstall_keeps,
+                Role::OnSurfaceVariant,
+            )
+        },
+        &actions,
+    );
 }
 
 /// The release key's fingerprint, as the README prints it.

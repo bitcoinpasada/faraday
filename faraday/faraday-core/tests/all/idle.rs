@@ -123,12 +123,15 @@ fn the_idle_warning_carries_no_clock() {
     tick(&mut app, 0);
     tick(&mut app, 25 * MIN);
     assert_eq!(app.sheet, Some(Sheet::IdleWarn));
+    // The line, read across the rows the dialog wraps it onto.
     let body = |texts: &[String]| -> String {
-        texts
-            .iter()
-            .find(|t| t.contains("No input for"))
-            .cloned()
-            .unwrap_or_default()
+        let all = texts.join(" ");
+        let from = all.find("No input for").unwrap_or(all.len());
+        let rest = &all[from..];
+        let end = rest
+            .find("keeps it")
+            .map_or(rest.len(), |e| e + "keeps it".len());
+        rest[..end].to_string()
     };
     let first = app.drawn_texts();
     assert!(

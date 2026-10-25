@@ -618,10 +618,10 @@ fn a_cells_working_and_its_buttons_stay_inside_its_sheet_beside_the_sidebar() {
     // Previous, Next and Done in one row, Done last, none over another.
     assert_eq!((prev.1, next.1), (done.1, done.1), "one row");
     assert!(prev.0 + prev.2 <= next.0 && next.0 + next.2 <= done.0);
-    let (left, right) = (prev.0, done.0 + done.2);
-    // Every line of the working lies between the sheet's buttons' ends:
-    // its dice lines ("Die 1 · 5 then 2 · lower · 0") and its bits, not
-    // the page's own die names under the sheet.
+    let right = done.0 + done.2;
+    // Every line of the working ends before the dialog's actions do, and
+    // starts on the sheet: its dice lines ("Die 1 · 5 then 2 · lower · 0")
+    // and its bits, not the page's own die names under the sheet.
     let working: Vec<_> = boxes
         .iter()
         .filter(|(t, b)| {
@@ -629,12 +629,22 @@ fn a_cells_working_and_its_buttons_stay_inside_its_sheet_beside_the_sidebar() {
         })
         .collect();
     assert!(!working.is_empty(), "{boxes:?}");
-    for (t, b) in working {
-        assert!(
-            b.0 >= left && b.0 + b.2 <= right,
-            "{t:?} {b:?} outside {left}..{right}"
-        );
+    for (t, b) in &working {
+        assert!(b.0 + b.2 <= right, "{t:?} {b:?} past {right}");
     }
+    // A press just left of the leftmost line is the sheet's: the cell
+    // stays open.
+    let first = working.iter().map(|(_, b)| *b).min_by_key(|b| b.0).unwrap();
+    let (x, y) = ((first.0 - 4) as u16, (first.1 + first.3 / 2) as u16);
+    for phase in [TouchPhase::Down, TouchPhase::Up] {
+        app.event(Event::Touch { x, y, phase });
+    }
+    let _ = app.frame();
+    assert_eq!(
+        app.keygen().unwrap().codex32.as_ref().unwrap().cell(),
+        Some(Cell::Given { sheet: 0, b: 10 }),
+        "the working's lines are on the sheet"
+    );
     // A press inside the sheet's edge, just right of Done, is on the
     // sheet: it reaches nothing under it.
     let x = (done.0 + done.2 + 8) as u16;

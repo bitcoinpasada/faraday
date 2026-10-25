@@ -28,7 +28,7 @@ use faraday_draw::widgets::Icon;
 use faraday_shell_api::Key as KeyIn;
 
 use crate::scan_key::{Found, key_of};
-use crate::screens::{pass_field, sheet_box, wrap_buttons};
+use crate::screens::pass_field;
 use crate::secret_text::SecretText;
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -565,7 +565,10 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
             ),
         ]
     };
-    items.push(cancel);
+    // The dismissive action first, the confirming one last (Material's
+    // dialog).
+    items.reverse();
+    items.insert(0, cancel);
     // A key's line: what it is made with, and its fingerprint.
     let key_line = |ui: &mut Ui, x: f32, y: f32, iw: f32, label: &str, fp: Fingerprint| -> f32 {
         ui.text_mid(x, y, 30.0, 13.0, W::R, Role::OnSurfaceVariant, label);
@@ -627,30 +630,16 @@ pub(crate) fn sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }
         cy - y
     };
-    let title = EN.seed_read_seedqr_read;
-    if ui.compact {
-        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
-            let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Keys, Role::Primary, title);
-            cy += body(ui, x, cy, iw) + 8.0;
-            cy += crate::compact::buttons(ui, x, cy, iw, &items);
-            cy - y
-        });
-        return;
-    }
-    let sw = 600.0;
-    let (ix, iw) = (32.0, sw - 64.0);
-    // Measured first, out of sight, for the sheet's height.
-    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-    let body_h = body(ui, 0.0, 0.0, iw);
-    let buttons_h = wrap_buttons(ui, 0.0, 0.0, iw, 44.0, &items);
-    ui.c.pop_clip();
-    let sh = 30.0 + 30.0 + 22.0 + body_h + 12.0 + buttons_h + 24.0;
-    let (x, y) = sheet_box(ui, w, h, sw, sh);
-    let x = x + ix;
-    ui.icon(x, y + 30.0, 30.0, Icon::Keys, 18.0, Role::Primary);
-    ui.text_mid(x + 42.0, y + 30.0, 30.0, 20.0, W::S, Role::OnSurface, title);
-    let mut cy = y + 82.0;
-    cy += body(ui, x, cy, iw) + 12.0;
-    wrap_buttons(ui, x, cy, iw, 44.0, &items);
+    let head = (
+        Icon::Keys.into(),
+        Role::Primary.paint(),
+        EN.seed_read_seedqr_read,
+    );
+    crate::compact::dialog(
+        ui,
+        (w, h, faraday_draw::tokens::DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| body(ui, x, y, iw),
+        &items,
+    );
 }

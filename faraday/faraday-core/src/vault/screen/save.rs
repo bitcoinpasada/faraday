@@ -9,7 +9,6 @@ use super::*;
 /// signatures will carry, with **Set the time**; then the hold that signs
 /// and Cancel. With the clock not known the time says so and the hold is
 /// disabled. Hashes a file the page has not hashed yet.
-#[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     let warn = Role::Warning;
     let muted = Role::OnSurfaceVariant;
@@ -31,116 +30,87 @@ pub(crate) fn gpg_sign_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         n => fill(EN.vault_hold_to_sign_files, &[&n.to_string()]),
     };
     let ready = now.is_some() && !chosen.is_empty();
-    let place = if ui.compact {
-        (8.0, w - 16.0)
-    } else {
-        let sw = (w - 48.0).min(640.0);
-        ((w - sw) / 2.0, sw)
-    };
-    let margin = if ui.compact { 8.0 } else { 32.0 };
-    let pad = if ui.compact { 16.0 } else { 32.0 };
-    crate::compact::scroll_sheet(ui, place, h, margin, pad, &mut |ui, x, y, iw| {
-        let mut cy = y;
-        if ui.compact {
-            cy += crate::compact::sheet_head(ui, x, cy, iw, Icon::Sign, primary, &title);
-        } else {
-            ui.icon(x, cy, 30.0, Icon::Sign, 18.0, primary);
-            let t = ui.fit(20.0, W::S, &title, iw - 42.0);
-            ui.text_mid(x + 42.0, cy, 30.0, 20.0, W::S, ink, &t);
-            cy += 46.0;
-        }
-        for f in &chosen {
-            let line = format!("{} · {}", f.name, gpg_file_size(f.size as u64));
-            let line = ui.fit(14.0, W::M, &line, iw);
-            ui.text(x, cy, 14.0, W::M, ink, &line);
-            cy += 22.0;
-            let hex: String = f.hash[..8].iter().map(|b| format!("{b:02x}")).collect();
-            ui.text(x, cy, 12.0, W::M, muted, &format!("{hex}…"));
-            cy += 22.0;
+    let head = (Icon::Sign.into(), primary.paint(), title.as_str());
+    let frame = (w, h, faraday_draw::tokens::DIALOG_MAX);
+    let cancel = [(EN.vault_cancel, Style::Ghost, Action::Cancel)];
+    crate::compact::dialog(
+        ui,
+        frame,
+        head,
+        &mut |ui, x, y, iw| {
+            let mut cy = y;
+            for f in &chosen {
+                let line = format!("{} · {}", f.name, gpg_file_size(f.size as u64));
+                let line = ui.fit(14.0, W::M, &line, iw);
+                ui.text(x, cy, 14.0, W::M, ink, &line);
+                cy += 22.0;
+                let hex: String = f.hash[..8].iter().map(|b| format!("{b:02x}")).collect();
+                ui.text(x, cy, 12.0, W::M, muted, &format!("{hex}…"));
+                cy += 22.0;
+                ui.rule(x, cy, iw, Role::OutlineVariant);
+                cy += 10.0;
+            }
+            // The time the signatures will carry, and the way to change it.
+            ui.text(x, cy, 12.0, W::R, muted, EN.vault_signature_time);
+            cy += 20.0;
+            let set_w = ui.measure(13.0, W::S, EN.vault_set_the_time) + 30.0;
+            let tone = if now.is_some() { ink } else { warn };
+            if ui.compact {
+                cy += ui.wrap(x, cy, iw, 14.0, W::M, tone, &when) + 8.0;
+                ui.button(
+                    x,
+                    cy,
+                    Some(set_w),
+                    36.0,
+                    EN.vault_set_the_time,
+                    Style::Secondary,
+                    Action::OpenSetTime,
+                );
+                cy += 46.0;
+            } else {
+                let t = ui.fit(14.0, W::M, &when, iw - set_w - 12.0);
+                ui.text_mid(x, cy, 36.0, 14.0, W::M, tone, &t);
+                ui.button(
+                    x + iw - set_w,
+                    cy,
+                    Some(set_w),
+                    36.0,
+                    EN.vault_set_the_time,
+                    Style::Secondary,
+                    Action::OpenSetTime,
+                );
+                cy += 46.0;
+            }
             ui.rule(x, cy, iw, Role::OutlineVariant);
-            cy += 10.0;
-        }
-        // The time the signatures will carry, and the way to change it.
-        ui.text(x, cy, 12.0, W::R, muted, EN.vault_signature_time);
-        cy += 20.0;
-        let set_w = ui.measure(13.0, W::S, EN.vault_set_the_time) + 30.0;
-        let tone = if now.is_some() { ink } else { warn };
-        if ui.compact {
-            cy += ui.wrap(x, cy, iw, 14.0, W::M, tone, &when) + 8.0;
-            ui.button(
-                x,
-                cy,
-                Some(set_w),
-                36.0,
-                EN.vault_set_the_time,
-                Style::Secondary,
-                Action::OpenSetTime,
-            );
-            cy += 46.0;
-        } else {
-            let t = ui.fit(14.0, W::M, &when, iw - set_w - 12.0);
-            ui.text_mid(x, cy, 36.0, 14.0, W::M, tone, &t);
-            ui.button(
-                x + iw - set_w,
-                cy,
-                Some(set_w),
-                36.0,
-                EN.vault_set_the_time,
-                Style::Secondary,
-                Action::OpenSetTime,
-            );
-            cy += 46.0;
-        }
-        ui.rule(x, cy, iw, Role::OutlineVariant);
-        cy += 14.0;
-        let hw = if ready {
-            hold_button_in(
-                app,
-                ui,
-                x,
-                cy,
-                iw,
-                &label,
-                va(V::GpgHoldSign),
-                primary.paint(),
-            )
-        } else {
-            ui.button(
-                x,
-                cy,
-                None,
-                36.0,
-                &label,
-                Style::Disabled,
-                va(V::GpgHoldSign),
-            )
-        };
-        let cancel_w = ui.measure(13.0, W::S, EN.vault_cancel) + 30.0;
-        if hw + 10.0 + cancel_w <= iw {
-            ui.button(
-                x + hw + 10.0,
-                cy,
-                Some(cancel_w),
-                36.0,
-                EN.vault_cancel,
-                Style::Ghost,
-                Action::Cancel,
-            );
-        } else {
-            cy += 44.0;
-            ui.button(
-                x,
-                cy,
-                Some(cancel_w),
-                36.0,
-                EN.vault_cancel,
-                Style::Ghost,
-                Action::Cancel,
-            );
-        }
-        cy += 36.0;
-        cy - y
-    });
+            cy += 14.0;
+            // The hold signs; Cancel is the dialog's action.
+            if ready {
+                hold_button_in(
+                    app,
+                    ui,
+                    x,
+                    cy,
+                    iw,
+                    &label,
+                    va(V::GpgHoldSign),
+                    primary.paint(),
+                );
+            } else {
+                ui.button(
+                    x,
+                    cy,
+                    None,
+                    36.0,
+                    &label,
+                    Style::Disabled,
+                    va(V::GpgHoldSign),
+                );
+            }
+            cy += 36.0;
+            cy - y
+        },
+        &cancel,
+    );
 }
 
 /// Save to a stick's popup (`docs/BACKUP-FLOW.md` §17.7): for a key,
@@ -154,12 +124,12 @@ pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
     };
     let any = s.files.iter().any(|f| f.ticked);
     let items: Vec<(&str, Style, Action)> = vec![
+        (EN.vault_cancel, Style::Ghost, Action::Cancel),
         (
             EN.vault_save,
-            if any { Style::Primary } else { Style::Disabled },
+            Style::Primary.when(any),
             va(V::SaveToStickGo),
         ),
-        (EN.vault_cancel, Style::Ghost, Action::Cancel),
     ];
     let body = |ui: &mut Ui, x: f32, y: f32, iw: f32| -> f32 {
         let mut cy = y;
@@ -183,32 +153,14 @@ pub(crate) fn stick_save_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
         }
         cy - y
     };
-    let title = EN.vault_save_to_a_stick;
-    if ui.compact {
-        crate::compact::sheet(ui, w, h, &mut |ui, x, y, iw| {
-            let mut cy = y;
-            cy += crate::compact::sheet_head(ui, x, cy, iw, app.medium.icon(), primary, title);
-            cy += body(ui, x, cy, iw) + 8.0;
-            cy += crate::compact::buttons(ui, x, cy, iw, &items);
-            cy - y
-        });
-        return;
-    }
-    let sw = 560.0;
-    let (ix, iw) = (32.0, sw - 64.0);
-    // Measured first, out of sight, for the sheet's height.
-    ui.c.push_clip(faraday_draw::Rect::new(0, 0, 0, 0));
-    let body_h = body(ui, 0.0, 0.0, iw);
-    let buttons_h = crate::screens::wrap_buttons(ui, 0.0, 0.0, iw, 44.0, &items);
-    ui.c.pop_clip();
-    let sh = 30.0 + 30.0 + 22.0 + body_h + 12.0 + buttons_h + 24.0;
-    let (x, y) = crate::screens::sheet_box(ui, w, h, sw, sh);
-    let x = x + ix;
-    ui.icon(x, y + 30.0, 30.0, app.medium.icon(), 18.0, primary);
-    ui.text_mid(x + 42.0, y + 30.0, 30.0, 20.0, W::S, ink, title);
-    let mut cy = y + 82.0;
-    cy += body(ui, x, cy, iw) + 12.0;
-    crate::screens::wrap_buttons(ui, x, cy, iw, 44.0, &items);
+    let head = (app.medium.icon(), primary.paint(), EN.vault_save_to_a_stick);
+    crate::compact::dialog(
+        ui,
+        (w, h, faraday_draw::tokens::DIALOG_MAX),
+        head,
+        &mut |ui, x, y, iw| body(ui, x, y, iw),
+        &items,
+    );
 }
 
 /// The session's keys or wallets that are not yet in this vault, each

@@ -16,7 +16,9 @@ use crate::drawing::View;
 use crate::ui::pal::*;
 use crate::ui::{Glyph, Style, Ui, W};
 use crate::{Action, Faraday, Screen};
-pub(crate) use faraday_ui::sheet::{buttons, kv, kv_sheet, scroll_sheet, sheet, sheet_head};
+pub(crate) use faraday_ui::sheet::{
+    buttons, dialog, kv, kv_sheet, scroll_sheet, sheet, sheet_head,
+};
 
 /// The side margin, design units.
 pub(crate) const M: f32 = 12.0;

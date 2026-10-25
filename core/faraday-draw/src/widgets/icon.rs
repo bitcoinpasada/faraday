@@ -146,11 +146,13 @@ pub enum Icon {
     UserSecret,
     /// A plus: a row that adds something of its kind.
     Add,
+    /// A minus: one fewer, a stepper's −.
+    Remove,
 }
 
 impl Icon {
     /// Every icon, for the gallery and for the completeness test.
-    pub const ALL: [Icon; 63] = [
+    pub const ALL: [Icon; 64] = [
         Icon::Scan,
         Icon::Keys,
         Icon::Sign,
@@ -214,6 +216,7 @@ impl Icon {
         Icon::Ellipsis,
         Icon::UserSecret,
         Icon::Add,
+        Icon::Remove,
     ];
 
     /// The code point in the baked icon face.
@@ -270,6 +273,7 @@ impl Icon {
             Icon::Trash => '\u{f1f8}',
             Icon::UserSecret => '\u{f21b}',
             Icon::Add => '\u{f067}',
+            Icon::Remove => '\u{f068}',
             Icon::Hashtag => '\u{f292}',
             Icon::Swap => '\u{f362}',
             Icon::Shield => '\u{f3ed}',
@@ -351,6 +355,7 @@ impl Icon {
             Icon::Ellipsis => "Ellipsis",
             Icon::UserSecret => "UserSecret",
             Icon::Add => "Add",
+            Icon::Remove => "Remove",
         }
     }
 }
