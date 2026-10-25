@@ -52,15 +52,37 @@ def kept(text):
 
 
 def open_kdbx(data, passphrase):
-    """pykeepass's reading of `data`, or None when it will not open."""
+    """pykeepass's reading of `data`, or None when it will not open.
+
+    pykeepass picks the header and body by the major version with a
+    construct `Switch` that has no default: a major version other than
+    3 or 4 parses as an empty header and no body, and `PyKeePass`
+    returns without having derived a key or checked a hash or an HMAC.
+    KeePass and KeePassXC refuse such a file (an unknown major version;
+    the version is also inside the header's SHA-256 and HMAC), so a file
+    is opened here only when pykeepass parsed a KDBX 4 body.
+
+    pykeepass also runs the key derivation the header states before it
+    checks the header's SHA-256, so a changed bit in the Argon2
+    iterations (2^44 passes) holds it for good; KeePass and KeePassXC
+    check the hash first and refuse at once. pykeepass is asked the same
+    way: first with a key given and nothing decrypted, which checks the
+    version and the header's hash and derives nothing, and only then
+    with the passphrase."""
     fd, path = tempfile.mkstemp(suffix=".kdbx")
     try:
         with os.fdopen(fd, "wb") as f:
             f.write(data)
         try:
-            return PyKeePass(path, password=passphrase)
+            head = PyKeePass(path, password=passphrase, transformed_key=bytes(32), decrypt=False)
+            if head.version[0] != 4 or head.kdbx.body is None:
+                return None
+            kp = PyKeePass(path, password=passphrase)
         except Exception:  # noqa: BLE001 - every failure to open is a refusal
             return None
+        if kp.version[0] != 4 or kp.kdbx.body is None:
+            return None
+        return kp
     finally:
         os.unlink(path)
 
@@ -126,6 +148,26 @@ class Kdbx(Area):
         if data != VECTOR.read_bytes():
             raise AssertionError("Faraday no longer writes tools/vectors/backup's KDBX file")
         self.verify(data, passphrase)
+        # The case `--fresh` found (seed 62966c39701c90bed4224b29ed8cccdc):
+        # the major version's high bit set, 4 read as 132. Neither side
+        # may open it, nor the file with any other bit of the version
+        # field changed.
+        for at in range(8, 12):
+            for bit in range(8):
+                changed = data[:at] + bytes([data[at] ^ (1 << bit)]) + data[at + 1:]
+                self.compare("kdbx.verify", {"file": changed.hex(),
+                                             "passphrase": passphrase.encode().hex()},
+                             lambda changed=changed: {
+                                 "valid": open_kdbx(changed, passphrase) is not None},
+                             expected=("ok", {"valid": False}))
+        # Argon2's iterations with bit 44 set: refused from the header's
+        # hash, before any key derivation, by both.
+        at = data.index(b"\x05\x01\x00\x00\x00I\x08\x00\x00\x00") + 10 + 5
+        changed = data[:at] + bytes([data[at] ^ 0x10]) + data[at + 1:]
+        self.compare("kdbx.verify", {"file": changed.hex(),
+                                     "passphrase": passphrase.encode().hex()},
+                     lambda: {"valid": open_kdbx(changed, passphrase) is not None},
+                     expected=("ok", {"valid": False}))
 
     def text(self, n):
         rng = self.rng

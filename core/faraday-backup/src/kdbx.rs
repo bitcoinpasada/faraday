@@ -745,6 +745,49 @@ mod tests {
         assert!(!verify(&c, &long, b"correct horse"));
     }
 
+    /// A file whose version field states anything but 4.0 fails the
+    /// check, whichever bit changed: the major version's high bit set
+    /// (4 read as 132) is the case the cross-check found, which
+    /// pykeepass opened without reading past the version and KeePass
+    /// refuses.
+    #[test]
+    fn any_other_version_fails() {
+        let c = Compute::unchecked();
+        let bytes = one();
+        for at in 8..12 {
+            for bit in 0..8 {
+                let mut changed = bytes.clone();
+                changed[at] ^= 1 << bit;
+                assert!(
+                    !verify(&c, &changed, b"correct horse"),
+                    "byte {at} bit {bit} passed"
+                );
+            }
+        }
+        let mut major_132 = bytes;
+        major_132[10] = 0x84;
+        assert!(!verify(&c, &major_132, b"correct horse"));
+    }
+
+    /// A header whose Argon2 iterations were changed (bit 28 set, a run
+    /// of hours) fails on the header's hash at once: the check derives
+    /// no key from a header it has not verified, as KeePass does and
+    /// pykeepass does not.
+    #[test]
+    fn a_changed_cost_fails_before_any_key_derivation() {
+        let c = Compute::unchecked();
+        let mut bytes = one();
+        let name = b"\x05\x01\x00\x00\x00I\x08\x00\x00\x00";
+        let at = bytes
+            .windows(name.len())
+            .position(|w| w == name)
+            .expect("the iterations")
+            + name.len()
+            + 3;
+        bytes[at] ^= 0x10;
+        assert!(!verify(&c, &bytes, b"correct horse"));
+    }
+
     /// The cost the person chose is what the file's KDF parameters
     /// state, so a KeePass app opening it pays what this device paid.
     #[test]

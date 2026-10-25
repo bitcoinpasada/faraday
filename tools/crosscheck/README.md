@@ -108,7 +108,11 @@ corpus keeps out of it and the area says why.
 - KDBX: pykeepass strips the characters XML 1.0 cannot hold from a
   protected value after decrypting it; Faraday writes a Password's bytes
   as they are. `area_kdbx.py` expects pykeepass's reading and counts the
-  items it differs on.
+  items it differs on. pykeepass also returns from opening a file whose
+  major version is neither 3 nor 4 having read nothing past it, no key
+  derived and no hash checked; KeePass refuses such a file, and
+  `area_kdbx.py` counts a file as opened only when pykeepass read a
+  KDBX 4 body.
 - UR: Faraday has no minimum fragment length, writes a one-fragment
   message as a part like any other, and refuses to animate an empty
   message; foundation-ur-py checks a UR type one character's way
