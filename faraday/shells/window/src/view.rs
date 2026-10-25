@@ -5,7 +5,9 @@ use std::num::NonZeroU32;
 use std::rc::Rc;
 use std::time::{Duration, Instant};
 
-use faraday_shell_api::{App, BootState, Command, DisplayInfo, Event, SecureHardware};
+use faraday_shell_api::{
+    App, BootState, Command, DisplayInfo, Event, Frame, Parts, SecureHardware,
+};
 use softbuffer::{Context, Surface};
 use winit::event_loop::ActiveEventLoop;
 use winit::raw_window_handle::{HasWindowHandle, RawWindowHandle};
@@ -77,25 +79,9 @@ impl View {
         let begun = Instant::now();
         let timed = pacer.timed();
         let start = timed.then_some(begun);
-        let frame = app.frame();
+        let parts = app.parts();
         let rendered = timed.then(Instant::now);
-        let (fw, fh) = (usize::from(frame.width), usize::from(frame.height));
-        let sw = size.width as usize;
-        // The frame's premultiplied RGBA to the window's 0RGB, a row at a
-        // time: the window is the frame's size but for the moment after a
-        // resize, when what the frame does not cover is the page colour.
-        let shown = fw.min(sw);
-        for (y, row) in buffer.chunks_exact_mut(sw).enumerate() {
-            if y < fh {
-                let src = &frame.rgba[y * fw * 4..(y * fw + shown) * 4];
-                for (dst, px) in row[..shown].iter_mut().zip(src.chunks_exact(4)) {
-                    *dst = (u32::from(px[0]) << 16) | (u32::from(px[1]) << 8) | u32::from(px[2]);
-                }
-                row[shown..].fill(BEYOND);
-            } else {
-                row.fill(BEYOND);
-            }
-        }
+        copy(&parts, &mut buffer, size.width as usize);
         // Tells winit a frame is about to be shown: on Wayland it asks
         // the compositor to say when the frame is on the screen, and
         // holds the next redraw until then, which is what paces the
@@ -117,6 +103,51 @@ impl View {
             pacer.presented(rendered - start, now - rendered, now);
         }
     }
+}
+
+/// Costs a pass over the window's pixels. Copies `parts` into `buffer`,
+/// a window `sw` pixels wide, each pixel once: the premultiplied RGBA to
+/// the window's 0RGB, a row at a time; the inner frame where it stands,
+/// the base everywhere else; what neither covers (the moment after a
+/// resize) the page colour.
+pub fn copy(parts: &Parts<'_>, buffer: &mut [u32], sw: usize) {
+    if sw == 0 {
+        return;
+    }
+    let base = parts.base;
+    let inner = parts
+        .inner
+        .map(|(f, x, y)| (f, usize::from(x), usize::from(y)));
+    for (y, row) in buffer.chunks_exact_mut(sw).enumerate() {
+        match inner {
+            Some((f, ix, iy)) if y >= iy && y < iy + usize::from(f.height) && ix < sw => {
+                let iw = usize::from(f.width).min(sw - ix);
+                put(&base, y, &mut row[..ix], 0);
+                put(&f, y - iy, &mut row[ix..ix + iw], 0);
+                put(&base, y, &mut row[ix + iw..], ix + iw);
+            }
+            _ => put(&base, y, row, 0),
+        }
+    }
+}
+
+/// Row `y` of `frame` from its column `from` into `dst`, the page colour
+/// where the frame ends.
+fn put(frame: &Frame<'_>, y: usize, dst: &mut [u32], from: usize) {
+    let (fw, fh) = (usize::from(frame.width), usize::from(frame.height));
+    let shown = if y < fh {
+        fw.saturating_sub(from).min(dst.len())
+    } else {
+        0
+    };
+    if shown > 0 {
+        let at = (y * fw + from) * 4;
+        let src = &frame.rgba[at..at + shown * 4];
+        for (d, px) in dst[..shown].iter_mut().zip(src.chunks_exact(4)) {
+            *d = (u32::from(px[0]) << 16) | (u32::from(px[1]) << 8) | u32::from(px[2]);
+        }
+    }
+    dst[shown..].fill(BEYOND);
 }
 
 /// The refresh period of the monitor `window` is on; 60 Hz when there is
@@ -154,4 +185,53 @@ pub fn display((w, h): (u32, u32), scale: f64, ppi: Option<f64>) -> Event {
         boot: BootState::Unknown,
         memory_mib: None,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A frame `w` × `h` of one colour.
+    fn solid(w: u16, h: u16, rgb: [u8; 3]) -> Vec<u8> {
+        let px = [rgb[0], rgb[1], rgb[2], 255];
+        px.repeat(usize::from(w) * usize::from(h))
+    }
+
+    #[test]
+    fn the_window_shows_the_inner_frame_where_it_stands_and_the_base_round_it() {
+        let base = solid(6, 4, [1, 2, 3]);
+        let inner = solid(3, 2, [9, 8, 7]);
+        let parts = Parts {
+            base: Frame {
+                width: 6,
+                height: 4,
+                rgba: &base,
+            },
+            inner: Some((
+                Frame {
+                    width: 3,
+                    height: 2,
+                    rgba: &inner,
+                },
+                2,
+                1,
+            )),
+        };
+        // A window a column wider and a row taller than the frame: the
+        // moment after a resize.
+        let mut buffer = vec![0u32; 7 * 5];
+        copy(&parts, &mut buffer, 7);
+        for y in 0..5 {
+            for x in 0..7 {
+                let want = if x >= 6 || y >= 4 {
+                    BEYOND
+                } else if (2..5).contains(&x) && (1..3).contains(&y) {
+                    0x0009_0807
+                } else {
+                    0x0001_0203
+                };
+                assert_eq!(buffer[y * 7 + x], want, "at {x}, {y}");
+            }
+        }
+    }
 }

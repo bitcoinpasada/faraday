@@ -22,7 +22,7 @@ use std::collections::VecDeque;
 use faraday_draw::Canvas;
 use faraday_draw::geom::Rect;
 use faraday_draw::tokens as t;
-use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, TouchPhase};
+use faraday_shell_api::{App, Command, DisplayInfo, Event, Frame, Parts, TouchPhase};
 
 use crate::{Action, Faraday};
 
@@ -36,6 +36,9 @@ pub enum HostPress {
     Menu(HostMenu),
     /// A preview size chosen; `None` is the window itself.
     Size(Option<(u16, u16)>),
+    /// Samples' sheet's own surface: a press there does nothing, and
+    /// closes nothing.
+    Sheet,
 }
 
 /// Where a press that has not ended began.
@@ -101,8 +104,9 @@ pub struct Host {
     hits: Vec<(Rect, HostPress)>,
     pressed: Option<HostPress>,
     hovered: Option<HostPress>,
-    /// The menu open, and when it opened.
-    menu: Option<(HostMenu, u64)>,
+    /// The menu open, and when it opened; `None`, opened at rest, whole
+    /// whatever the clock says.
+    menu: Option<(HostMenu, Option<u64>)>,
     /// The menu closing, and when it began to.
     leaving: Option<(HostMenu, u64)>,
     /// What the strip's controls said in the frame last drawn, left to
@@ -117,6 +121,11 @@ pub struct Host {
     /// Holding the app with no strip and no preview: a window that
     /// stands for a device's screen (`--panel`).
     bare: bool,
+    /// How far Samples' sheet's lists are scrolled, dp.
+    sheet_scroll: f32,
+    /// Samples' sheet as last drawn: where it stands in the window's
+    /// pixels and the furthest its lists scroll, dp.
+    sheet_view: Option<(Rect, f32)>,
 }
 
 impl Host {
@@ -141,6 +150,8 @@ impl Host {
             out: VecDeque::new(),
             labels: Vec::new(),
             bare: false,
+            sheet_scroll: 0.0,
+            sheet_view: None,
         }
     }
 
@@ -169,7 +180,11 @@ impl Host {
     /// Opens `menu` at once, as a script does: for drivers that take
     /// pictures of the screens.
     pub fn open_menu_at_rest(&mut self, menu: HostMenu) {
-        self.menu = Some((menu, self.now.saturating_sub(crate::motion::MENU_IN_MS)));
+        if menu == HostMenu::Samples {
+            self.sheet_scroll = 0.0;
+            self.app.press(Action::Samples);
+        }
+        self.menu = Some((menu, None));
         self.leaving = None;
     }
 
@@ -197,6 +212,14 @@ impl Host {
     /// right, then the open menu's rows. A lookup.
     pub fn strip_texts(&self) -> &[String] {
         &self.labels
+    }
+
+    /// Where Samples' sheet stood in the frame last drawn, in the window's
+    /// pixels: its left and top edges, its width and height. A lookup.
+    pub fn sheet_area(&self) -> Option<(i32, i32, i32, i32)> {
+        self.sheet_view
+            .filter(|_| self.menu_open() == Some(HostMenu::Samples))
+            .map(|(r, _)| (r.x, r.y, r.w, r.h))
     }
 
     /// Where the app's frame stands in the window, in pixels: its left
@@ -242,6 +265,9 @@ impl Host {
             .iter()
             .filter_map(|(_, p)| match p {
                 HostPress::App(a) => Some(*a),
+                // Samples opens the host's sheet of what the app's own
+                // Samples lists.
+                HostPress::Menu(HostMenu::Samples) => Some(Action::Samples),
                 _ => None,
             })
             .collect();
@@ -365,14 +391,25 @@ impl Host {
     fn activate(&mut self, p: HostPress) {
         match p {
             HostPress::App(a) => {
-                self.close_menu();
+                // A tick on Samples' sheet keeps it open; Load closes it.
+                let ticks = matches!(a, Action::SampleTick(_) | Action::SamplesAll);
+                if !(ticks && self.menu_open() == Some(HostMenu::Samples)) {
+                    self.close_menu();
+                }
                 self.app.press(a);
             }
             HostPress::Menu(m) if self.menu.map(|o| o.0) == Some(m) => self.close_menu(),
             HostPress::Menu(m) => {
+                if m == HostMenu::Samples {
+                    // The app lists the samples as its own sheet would,
+                    // and opens none while held.
+                    self.sheet_scroll = 0.0;
+                    self.app.press(Action::Samples);
+                }
                 self.leaving = None;
-                self.menu = Some((m, self.now));
+                self.menu = Some((m, Some(self.now)));
             }
+            HostPress::Sheet => {}
             HostPress::Size(size) => {
                 self.close_menu();
                 self.set_preview(size);
@@ -433,6 +470,60 @@ impl Host {
         }
     }
 
+    /// Costs the app's frame and the strip's drawing. Paints the app and,
+    /// over it, the strip, a preview's edge and the menu or sheet open;
+    /// the app's frame is copied into the window's where `whole`, else
+    /// only for a preview or where something of the host's stands over
+    /// it. Returns where the app's frame stands where it was left out.
+    fn paint(&mut self, whole: bool) -> Option<Area> {
+        // A press made on the app itself may show or hide the roller,
+        // which the strip grows for.
+        self.relayout();
+        let mut canvas = self.canvas.take()?;
+        let area = self.area();
+        // Only at the window's own size: a preview's frame is small, and
+        // placing it costs less than copying the window round it in parts.
+        let unplaced = area.filter(|a| {
+            !whole
+                && self.preview.is_none()
+                && a.w == a.fw
+                && a.h == a.fh
+                && a.x >= 0
+                && a.y >= 0
+                && self.menu.is_none()
+                && self.leaving.is_none()
+        });
+        // At the window's own size the app's frame covers all above the
+        // strip, which the strip's drawing fills: only a preview needs
+        // the dark space round its frame.
+        if self.preview.is_some() || area.is_none() {
+            canvas.clear(screen::SURROUND);
+        }
+        if let Some(a) = area {
+            let frame = self.app.frame();
+            if unplaced.is_none() {
+                canvas.place_scaled((a.x, a.y, a.w, a.h), &frame);
+            }
+        }
+        let mut hits = std::mem::take(&mut self.hits);
+        hits.clear();
+        {
+            let mut ui = faraday_ui::Ui::new(&mut canvas, self.f(), &mut hits, self.pressed);
+            ui.hovered = self.hovered;
+            if !self.bare {
+                let (labels, sheet) = screen::draw(self, &mut ui, area);
+                self.labels = labels;
+                self.sheet_view = sheet;
+            }
+        }
+        self.hits = hits;
+        if self.moving() {
+            self.out.push_back(Command::Draw);
+        }
+        self.canvas = Some(canvas);
+        unplaced
+    }
+
     /// Whether a menu is part of the way in or out.
     fn moving(&self) -> bool {
         if self.app.reduce_motion() {
@@ -440,11 +531,25 @@ impl Host {
         }
         let opening = self
             .menu
-            .is_some_and(|(_, at)| self.now.saturating_sub(at) < crate::motion::MENU_IN_MS);
+            .and_then(|(_, at)| at)
+            .is_some_and(|at| self.now.saturating_sub(at) < crate::motion::MENU_IN_MS);
         let closing = self
             .leaving
             .is_some_and(|(_, at)| self.now.saturating_sub(at) < crate::motion::MENU_OUT_MS);
         opening || closing
+    }
+}
+
+/// The app's frame as last painted, without painting: the host has had
+/// [`App::frame`] paint it this frame. A lookup.
+fn painted(app: &Faraday) -> Frame<'_> {
+    match app.canvas.as_ref() {
+        Some(c) => c.frame(),
+        None => Frame {
+            width: 0,
+            height: 0,
+            rgba: &[],
+        },
     }
 }
 
@@ -462,6 +567,9 @@ pub enum HostMenu {
     More,
     /// The computer's die's Rolls per click: 1, 5, 10, To the end, Number.
     Rolls,
+    /// Load samples' sheet: the sample wallets and keys to tick, and Load
+    /// ticked (`docs/DESKTOP-HOST.md` §6).
+    Samples,
 }
 
 impl App for Host {
@@ -473,6 +581,8 @@ impl App for Host {
                 }
                 self.window = Some(d);
                 let mut canvas = Canvas::new(&d);
+                // What no part covers is the host's dark space.
+                canvas.clear(screen::SURROUND);
                 self.f = canvas.scale().factor();
                 canvas.set_counter(crate::work::core_count);
                 self.canvas = Some(canvas);
@@ -510,6 +620,22 @@ impl App for Host {
             Event::Scroll { x, y, dy } | Event::Wheel { x, y, dy } => {
                 let (px, py) = (i32::from(x), i32::from(y));
                 if self.menu.is_some() {
+                    // Samples' sheet scrolls its lists under the pointer.
+                    let dy = match event {
+                        // The window's pixels per dp: never zero.
+                        Event::Scroll { .. } => f32::from(dy) / self.f(),
+                        _ => {
+                            f32::from(dy) / crate::motion::SHELL_NOTCH_PX
+                                * crate::motion::WHEEL_NOTCH
+                        }
+                    };
+                    if self.menu_open() == Some(HostMenu::Samples)
+                        && let Some((r, max)) = self.sheet_view
+                        && r.contains(px, py)
+                    {
+                        self.sheet_scroll = (self.sheet_scroll + dy).clamp(0.0, max);
+                        self.out.push_back(Command::Draw);
+                    }
                     return;
                 }
                 if let Some(a) = self.area().filter(|a| a.inside(px, py)) {
@@ -542,41 +668,7 @@ impl App for Host {
     /// Costs the app's frame, a copy of its pixels into the window's and
     /// the strip's drawing.
     fn frame(&mut self) -> Frame<'_> {
-        // A press made on the app itself may show or hide the roller,
-        // which the strip grows for.
-        self.relayout();
-        let Some(mut canvas) = self.canvas.take() else {
-            return Frame {
-                width: 0,
-                height: 0,
-                rgba: &[],
-            };
-        };
-        let area = self.area();
-        // At the window's own size the app's frame covers all above the
-        // strip, which the strip's drawing fills: only a preview needs
-        // the dark space round its frame.
-        if self.preview.is_some() || area.is_none() {
-            canvas.clear(screen::SURROUND);
-        }
-        if let Some(a) = area {
-            let frame = self.app.frame();
-            canvas.place_scaled((a.x, a.y, a.w, a.h), &frame);
-        }
-        let mut hits = std::mem::take(&mut self.hits);
-        hits.clear();
-        {
-            let mut ui = faraday_ui::Ui::new(&mut canvas, self.f(), &mut hits, self.pressed);
-            ui.hovered = self.hovered;
-            if !self.bare {
-                self.labels = screen::draw(self, &mut ui, area);
-            }
-        }
-        self.hits = hits;
-        if self.moving() {
-            self.out.push_back(Command::Draw);
-        }
-        self.canvas = Some(canvas);
+        self.paint(true);
         match self.canvas.as_ref() {
             Some(c) => c.frame(),
             None => Frame {
@@ -585,5 +677,28 @@ impl App for Host {
                 rgba: &[],
             },
         }
+    }
+
+    /// Costs the app's frame and the strip's drawing. The window's frame
+    /// with the app's handed over unplaced at the window's own size with
+    /// nothing of the host's over it, so the shell copies each pixel once
+    /// (`docs/DESKTOP-HOST.md` §9); placed, as [`App::frame`] gives it,
+    /// where a menu or Samples' sheet stands over it and for a preview,
+    /// whose small frame costs less to place than the window round it.
+    fn parts(&mut self) -> Parts<'_> {
+        let unplaced = self.paint(false);
+        let base = match self.canvas.as_ref() {
+            Some(c) => c.frame(),
+            None => Frame {
+                width: 0,
+                height: 0,
+                rgba: &[],
+            },
+        };
+        let inner = unplaced.map(|a| {
+            let at = |v: i32| v.clamp(0, i32::from(u16::MAX)) as u16;
+            (painted(&self.app), at(a.x), at(a.y))
+        });
+        Parts { base, inner }
     }
 }

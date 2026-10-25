@@ -157,9 +157,10 @@ fn in_demo_the_strip_holds_the_sticks_samples_and_size_and_the_app_none_of_them(
     assert_eq!(host.app_area(), Some((0, 0, 1280, 800 - 56)));
     assert!(app_texts(&mut host).iter().any(|t| t == "Demo · Testnet"));
     app_holds_no_host_item(&mut host);
-    // Samples opens the samples sheet.
-    click(&mut host, HostPress::App(Action::Samples));
-    assert_eq!(host.app.sheet, Some(faraday_core::Sheet::Samples));
+    // Samples opens the samples sheet, the host's.
+    click(&mut host, HostPress::Menu(HostMenu::Samples));
+    assert_eq!(host.menu_open(), Some(HostMenu::Samples));
+    assert_eq!(host.app.sheet, None);
 }
 
 #[test]
@@ -458,8 +459,11 @@ fn at_the_narrowest_every_control_stands_inside_the_window_and_samples_is_in_the
         assert!(x < 268, "{p:?} inside the window at {x}");
     }
     click(&mut host, HostPress::Menu(HostMenu::More));
-    click(&mut host, HostPress::App(Action::Samples));
-    assert_eq!(host.app.sheet, Some(faraday_core::Sheet::Samples));
+    click(&mut host, HostPress::Menu(HostMenu::Samples));
+    assert_eq!(host.menu_open(), Some(HostMenu::Samples));
+    // At 268 dp the sheet keeps inside the window, over the app's foot.
+    let (x, _, w, _) = host.sheet_area().expect("the sheet is drawn");
+    assert!(x >= 0 && x + w <= 268, "the sheet at {x}, {w} wide");
 }
 
 #[test]
@@ -490,4 +494,183 @@ fn the_dies_rolls_per_click_menu_chooses_how_many_a_roll_makes() {
         5,
         "one click, five rolls"
     );
+}
+
+/// Whether the rectangles `a` and `b`, each left, top, width and height,
+/// overlap.
+fn overlap(a: (i32, i32, i32, i32), b: (i32, i32, i32, i32)) -> bool {
+    a.0 < b.0 + b.2 && b.0 < a.0 + a.2 && a.1 < b.1 + b.3 && b.1 < a.1 + a.3
+}
+
+/// A tick on the sample key at `i` on Samples' sheet.
+fn tick_key(i: u8) -> HostPress {
+    HostPress::App(Action::SampleTick(faraday_core::samples::Pick::Key(i)))
+}
+
+/// The first sample key Samples' sheet offers to tick: one not loaded.
+fn first_offered(host: &mut Host) -> u8 {
+    let _ = host.frame();
+    (0..32)
+        .find(|i| host.where_offered(tick_key(*i)).is_some())
+        .unwrap_or_else(|| panic!("no sample key to tick: {:?}", host.strip_texts()))
+}
+
+#[test]
+fn samples_opens_the_hosts_sheet_above_the_strip_and_what_is_ticked_loads() {
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 0, true, (1280, 800));
+    click(&mut host, HostPress::Menu(HostMenu::Samples));
+    // The sheet is the host's: the app opens none and draws none of it.
+    assert_eq!(host.menu_open(), Some(HostMenu::Samples));
+    assert_eq!(host.app.sheet, None);
+    let s = strip(&mut host);
+    for t in [
+        "Load samples",
+        "Wallets",
+        "Keys",
+        "Select all",
+        "Not now",
+        "Load ticked",
+    ] {
+        assert!(s.iter().any(|x| x == t), "the sheet offers {t:?}: {s:?}");
+    }
+    let texts = app_texts(&mut host);
+    assert!(
+        !texts.iter().any(|t| t == "Load ticked" || t == "Not now"),
+        "the app draws the sheet: {texts:?}"
+    );
+    // It stands above the strip, in This window over the app's foot.
+    let (_, y, _, h) = host.sheet_area().expect("the sheet is drawn");
+    assert!(y >= 0 && y + h <= 800 - 56, "the sheet at {y}, {h} tall");
+    // A tick keeps it open; Load ticked loads the key and closes it.
+    let keys = host.app.session.keys.len();
+    let i = first_offered(&mut host);
+    click(&mut host, tick_key(i));
+    assert_eq!(host.menu_open(), Some(HostMenu::Samples));
+    assert!(strip(&mut host).iter().any(|x| x == "Unselect all"));
+    click(&mut host, HostPress::App(Action::SamplesLoad));
+    assert_eq!(host.menu_open(), None);
+    assert_eq!(host.app.session.keys.len(), keys + 1);
+    // Opened again, the loaded key stands ticked and takes no press.
+    click(&mut host, HostPress::Menu(HostMenu::Samples));
+    assert_eq!(host.where_offered(tick_key(i)), None);
+}
+
+#[test]
+fn samples_with_a_stick_in_asks_for_it_out_in_the_app_as_before() {
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 1, true, (1280, 800));
+    click(&mut host, HostPress::Menu(HostMenu::Samples));
+    let s = strip(&mut host);
+    assert!(
+        s.iter().any(|x| x.starts_with("Pull the ")),
+        "the sheet says the stick must be out: {s:?}"
+    );
+    let i = first_offered(&mut host);
+    click(&mut host, tick_key(i));
+    click(&mut host, HostPress::App(Action::SamplesLoad));
+    assert_eq!(host.menu_open(), None);
+    assert_eq!(host.app.sheet, Some(faraday_core::Sheet::Pull));
+}
+
+#[test]
+fn in_the_pi_preview_samples_sheet_stands_beside_the_frame_and_a_press_beside_it_closes_it() {
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 0, true, (1280, 800));
+    click(&mut host, HostPress::Menu(HostMenu::Size));
+    click(&mut host, HostPress::Size(Some(PI)));
+    click(&mut host, HostPress::Menu(HostMenu::Samples));
+    let frame = host.app_area().expect("the frame is shown");
+    let sheet = host.sheet_area().expect("the sheet is drawn");
+    assert!(
+        !overlap(frame, sheet),
+        "the sheet {sheet:?} stands over the frame {frame:?}"
+    );
+    assert!(sheet.1 + sheet.3 <= 800 - 56, "above the strip: {sheet:?}");
+    // A press on the sheet itself keeps it; one beside it, on the
+    // frame, closes it and reaches nothing.
+    let (x, y) = (sheet.0 + sheet.2 / 2, sheet.1 + 4);
+    tap_at(&mut host, x as u16, y as u16);
+    assert_eq!(host.menu_open(), Some(HostMenu::Samples));
+    let (fx, fy) = (frame.0 + frame.2 / 2, frame.1 + frame.3 / 2);
+    tap_at(&mut host, fx as u16, fy as u16);
+    assert_eq!(host.menu_open(), None);
+    assert_eq!(host.app.screen, Screen::Home);
+    assert_eq!(host.app.sheet, None);
+}
+
+/// The window's pixels as a shell shows `parts`: the base, the inner
+/// frame copied over it where it stands.
+fn shown(parts: &faraday_shell_api::Parts<'_>) -> Vec<u8> {
+    let mut out = parts.base.rgba.to_vec();
+    if let Some((f, x, y)) = parts.inner {
+        let (bw, fw) = (usize::from(parts.base.width), usize::from(f.width));
+        for r in 0..usize::from(f.height) {
+            let at = ((usize::from(y) + r) * bw + usize::from(x)) * 4;
+            out[at..at + fw * 4].copy_from_slice(&f.rgba[r * fw * 4..(r + 1) * fw * 4]);
+        }
+    }
+    out
+}
+
+/// The window as the shell shows the host's parts, whether the app's
+/// frame was handed over unplaced, and the window as the host's whole
+/// frame shows it.
+fn both(host: &mut Host) -> (Vec<u8>, bool, Vec<u8>) {
+    let (parts, handed) = {
+        let p = host.parts();
+        (shown(&p), p.inner.is_some())
+    };
+    (parts, handed, host.frame().rgba.to_vec())
+}
+
+#[test]
+fn the_window_shows_the_same_with_the_apps_frame_copied_into_it_once() {
+    for size in [(1366, 768), (1280, 800)] {
+        let mut shell = Shell::default();
+        let mut host = desktop(&mut shell, 2, true, size);
+        host.app.press(Action::Entry(None));
+        // This window: the app's frame handed over, and the window the
+        // same as the host's whole frame.
+        let (parts, handed, whole) = both(&mut host);
+        assert!(handed, "at {size:?} the app's frame is copied once");
+        assert!(parts == whole, "at {size:?} the window differs");
+        // A menu stands over the app: the frame is whole.
+        click(&mut host, HostPress::Menu(HostMenu::Size));
+        let (parts, handed, whole) = both(&mut host);
+        assert!(!handed && parts == whole, "with the Size menu at {size:?}");
+        // The Pi panel, framed in the dark space: its small frame placed,
+        // the window the same.
+        click(&mut host, HostPress::Size(Some(PI)));
+        let (parts, _, whole) = both(&mut host);
+        assert!(parts == whole, "the Pi preview differs at {size:?}");
+        // This window again: handed over.
+        click(&mut host, HostPress::Menu(HostMenu::Size));
+        click(&mut host, HostPress::Size(None));
+        let (parts, handed, whole) = both(&mut host);
+        assert!(handed && parts == whole, "This window again at {size:?}");
+    }
+}
+
+#[test]
+fn the_strips_more_rows_are_offered_at_the_clocks_very_start() {
+    // Scripted alone, motion on, the clock at its start: More, opened at
+    // rest to read its rows, is whole however early the clock is.
+    let mut app = process(Vec::new(), Vec::new(), Vec::new());
+    app.shell_sticks = true;
+    testkit::into_demo(&mut app);
+    app.samples = Some(testkit::demo_samples());
+    app.press(Action::OpenSetTime);
+    app.press(Action::SetTimeKeep);
+    for i in 0..8u8 {
+        app.event(Event::Entropy(EntropyBytes::new([0x31 + i * 7; 32])));
+    }
+    app.event(display(268, 600));
+    app.press(Action::Entry(None));
+    let _ = app.frame();
+    assert!(app.now_ms() < 300, "the clock at {}", app.now_ms());
+    let offered = Host::strip_actions_for(&mut app);
+    for a in [Action::UseSample, Action::Samples] {
+        assert!(offered.contains(&a), "More offers {a:?}: {offered:?}");
+    }
 }

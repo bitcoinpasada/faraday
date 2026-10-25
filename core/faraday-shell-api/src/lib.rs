@@ -845,6 +845,19 @@ pub struct Frame<'a> {
     pub rgba: &'a [u8],
 }
 
+/// A frame in parts, for a shell to copy into its window once each, so
+/// no pixel is copied twice: `base` is the window's whole frame but for
+/// the rectangle `inner` covers, whose own frame stands there with its
+/// top-left at (`x`, `y`) in `base`'s pixels. What `inner` covers of
+/// `base` is never read. A frame drawn whole has no `inner`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Parts<'a> {
+    /// The window's frame.
+    pub base: Frame<'a>,
+    /// A frame standing over `base`, and its top-left there.
+    pub inner: Option<(Frame<'a>, u16, u16)>,
+}
+
 /// The whole application as the shell sees it.
 pub trait App {
     /// Deliver one event. The first event of a session must be
@@ -862,4 +875,15 @@ pub trait App {
     /// A shell that reads it once per frame it draws paints once per
     /// drawn frame rather than once per event.
     fn frame(&mut self) -> Frame<'_>;
+
+    /// The current frame as [`Parts`], painted as [`App::frame`] paints
+    /// it: for a shell that copies them into its window once each. An app
+    /// that holds another's frame hands it over unplaced; any other gives
+    /// its frame whole.
+    fn parts(&mut self) -> Parts<'_> {
+        Parts {
+            base: self.frame(),
+            inner: None,
+        }
+    }
 }

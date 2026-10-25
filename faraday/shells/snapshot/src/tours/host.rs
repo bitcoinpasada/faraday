@@ -101,7 +101,15 @@ pub(crate) fn host_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::Nav(Screen::Home));
     shot(t, win, "host-demo-home", None, None)?;
     shot(t, win, "host-size-menu", None, Some(HostMenu::Size))?;
+    shot(t, win, "host-samples-sheet", None, Some(HostMenu::Samples))?;
     shot(t, win, "host-pi-panel", Some(PI), None)?;
+    shot(
+        t,
+        win,
+        "host-pi-samples-sheet",
+        Some(PI),
+        Some(HostMenu::Samples),
+    )?;
     shot(t, win, "host-7in-panel", Some(SEVEN_INCH), None)?;
     // A key is made with no stick in: the boot stick pulled, as from its
     // pill in the strip.

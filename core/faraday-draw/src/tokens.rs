@@ -706,6 +706,9 @@ pub const HOST_MENU_W: f32 = 280.0;
 pub const PREVIEW_SCALE_MIN: f32 = 0.05;
 /// A host menu's row: Material's menu item, 48 dp.
 pub const HOST_MENU_ROW: f32 = 48.0;
+/// Load samples' sheet in the host at its widest: Material's side
+/// sheet, 360 dp, narrowing to a menu's width in a preview's gutter.
+pub const HOST_SHEET_W: f32 = 360.0;
 
 // Navigation by window class (`docs/LAYOUT.md` §3, §9), Material 3's
 // rail, bar and top app bar in Faraday's look.

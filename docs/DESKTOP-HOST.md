@@ -1,8 +1,8 @@
 # Faraday Desktop as a simulator: the host
 
 **Kind:** Spec
-**Status:** Built (F118, `faraday/faraday-core/src/host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every demo aid of the screen on show, the preview frame centred above it, the pointer carried in; the app draws no stick pill, Load samples, Preview size or "Demo only" card.
-**Open:** Samples' sheet as a host sheet (§6), the website demo's shell holding the app in the host (in the website's own repository), the copy of the app's pixels into the window's frame on large windows (§9); planned.
+**Status:** Built (F118, `faraday/faraday-core/src/host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every demo aid of the screen on show, the preview frame centred above it, the pointer carried in; Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the app draws no stick pill, Load samples, Preview size or "Demo only" card.
+**Open:** the website demo's shell holding the app in the host (in the website's own repository); planned.
 
 The owner asked (2026-10-25) that Faraday Desktop read as a simulator of
 the device, so it is always clear what is the app and what is Faraday
@@ -43,7 +43,8 @@ heads the demo aids in the same amber as the mode's caution pill.
    do not all fit beside the rest, the boot stick and as many as fit,
    then **Sticks · N** opening a menu of every stick that exists, in or
    out, so a pulled one can be put back.
-2. **Samples**, in Demo with samples set: opens Load samples' sheet.
+2. **Samples**, in Demo with samples set: opens Load samples' sheet,
+   the host's (§6).
 3. **Size · <size shown>**: opens the Size menu (§5), which lists the
    sizes with their dp, the one shown checked.
 4. **Demo**, then the screen's demo aids (§3.1), only those the screen
@@ -140,13 +141,33 @@ runs" and "Speed" as headings over their choices, the chosen checked.
 More: the aids with no room (and Samples, narrowest). Rolls per click:
 1, 5, 10, To the end, Number, the chosen checked.
 
+**Samples' sheet** opens and closes as the menus do, from the strip's
+top, in the host's look: the title, "In Demo, the sample passphrase is
+faraday", where a stick is in the line that it must be pulled, Select
+all (Unselect all while any is ticked), the sample wallets and keys as
+48 dp rows with a tick box, a loaded one ticked and dimmed, taking no
+press, and what each is at the row's end; Not now and Load ticked (the
+filled press, dimmed until one is ticked) pinned at its foot, the lists
+scrolling between under the wheel where the room above the strip is
+short. A tick and Select all keep it open; Not now, Load ticked, Back
+and a press beside it close it, a press beside it doing nothing else.
+It stands in the host's own space where there is room: beside a
+preview's frame where the dark space there holds a menu's width
+(`HOST_MENU_W`), at most `HOST_SHEET_W` (360 dp), on Samples' side
+first; else under the frame's foot where it fits there; else, as in
+This window, which leaves no host space above the strip, up from
+Samples over the app's foot. Load ticked runs the app's own load: with
+a stick in, the app's Pull sheet asks for it out, as on the device.
+
 ## 6. Design calls taken
 
 - **Material 3's menu** for Size, Sticks, Play options and More: an app
   bar's or toolbar's overflow is a menu; a single choice closes it.
-- **Samples' sheet stays the app's sheet** in the first cut: it opens
-  over the app area. As a host sheet it would stand outside the device's
-  screen; asked of the owner (report).
+- **Samples' sheet is the host's** (owner, 2026-10-25): it is not the
+  device's, so it stands outside the device's screen where the window
+  leaves room (§5). Its shape is Material's side sheet (a standard
+  sheet's 360 dp at most) rising from the strip, with Material's
+  checkbox rows and its menu's open and close motion.
 - **Bare host with `--panel`**: the window is a device's screen, so no
   strip and no preview; the app draws its own pills as a device does.
 
@@ -176,17 +197,32 @@ sizes, Next stepping it from one place, the step's count in the app's
 Working area; Play's options choosing a speed; New key's die and
 Generate with dice's in the strip, Roll rolling; Rolls per click's menu
 choosing five, one Roll then making five; at the narrowest window every
-control inside it and Samples reached from the Demo menu; held bare, no
-strip.
+control inside it and Samples reached from the Demo menu, its sheet
+inside the window; held bare, no strip. Samples' sheet: the host's, the
+app opening none and drawing none of it, standing above the strip, a
+tick keeping it open and Load ticked loading the key and closing it,
+the loaded key taking no press after; with a stick in, Load ticked
+opening the app's Pull sheet; in the Pi preview the sheet clear of the
+frame, a press on it keeping it and one on the frame closing it and
+reaching nothing. The window as the shell shows the host's parts the
+same as its whole frame at 1366 × 768 and 1280 × 800, with the app's
+frame handed over at the window's size, placed under a menu and in the
+Pi preview; More's rows offered to a script at the clock's very start.
 
 ## 9. Speed
 
 The app's own frames cost what they did (`docs/SPEED.md` §7, the late
 flow at 1366 × 768 and 2560 × 1600: every screen within the run-to-run
-spread). The host adds, per frame, the strip and a copy of the app's
-pixels into the window's frame: about 0.1 to 0.2 ms at 1366 × 768 and
-about 2 ms at 2560 × 1600 at scale 2, where the frame is 16 MB. At the
-window's own size the window is not cleared first, the app's frame
-covering all above the strip. Planned: the shell copying the app's
-frame and the strip's into the window itself, so the app's pixels are
-copied once, as before the host.
+spread). The host adds, per frame, the strip. At the window's own size it
+hands the shell its frame in parts (`Parts`, `App::parts`): its own
+canvas and the app's frame where it stands, which the shell copies into
+the window once each (`faraday-window` `view::copy`), so the app's
+pixels are copied once, as before the host. Under a menu or Samples'
+sheet, and for a preview, whose small frame costs less to place than
+the window round it to split, the app's frame is placed in the host's
+canvas first. The host's share of a frame, the strip drawn and the
+window filled (release, two runs each, before and after): at
+1366 × 768 0.62–0.66 ms before, 0.52 ms after; at 2560 × 1600 at scale
+2 3.28–3.70 ms before, 2.44–2.48 ms after, the one copy into the
+window's 16 MB; the Pi preview unchanged (0.78–0.79 ms and
+3.21–3.22 ms).

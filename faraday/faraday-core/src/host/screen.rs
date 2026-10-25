@@ -8,6 +8,7 @@
 //! out but where a control goes.
 
 use faraday_draw::Color;
+use faraday_draw::geom::Rect;
 use faraday_draw::tokens as t;
 use faraday_draw::widgets::Icon;
 use faraday_ui::W;
@@ -15,7 +16,7 @@ use faraday_ui::demo::DemoItem;
 
 use super::{Area, Host, HostMenu as Menu, HostPress};
 use crate::fresh::roller::Act as DieAct;
-use crate::samples::Roller;
+use crate::samples::{PASSPHRASE, Pick, Roller};
 use crate::strings::{EN, fill};
 use crate::{Action, Faraday};
 
@@ -338,7 +339,7 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
     let all_sticks = sticks(app);
     let samples = app.samples_on().then(|| Ctl {
         label: EN.samples_pill_short.to_string(),
-        press: HostPress::App(Action::Samples),
+        press: HostPress::Menu(Menu::Samples),
         kind: Kind::Button,
     });
     let size = |short: bool| size_ctl(host, short);
@@ -408,7 +409,7 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
             let w = ctl_w(ui, &c) + t::GAP;
             if demo_more
                 .iter()
-                .all(|m| m.press == HostPress::App(Action::Samples))
+                .all(|m| m.press == HostPress::Menu(Menu::Samples))
                 && used + w <= left
             {
                 used += w;
@@ -429,10 +430,16 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
     }
 }
 
+/// What the host drew: what the strip's controls say, left to right, then
+/// the open menu's rows or Samples' sheet's texts; and Samples' sheet,
+/// where it stands in the window's pixels and the furthest its lists
+/// scroll, dp.
+pub(crate) type Drawn = (Vec<String>, Option<(Rect, f32)>);
+
 /// Draws the host round the app's frame at `area`: the preview's edge,
-/// the strip and its controls, and the menu open or closing. Returns what
-/// the strip's controls say, left to right, then the open menu's rows.
-pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>) -> Vec<String> {
+/// the strip and its controls, and the menu or Samples' sheet open or
+/// closing.
+pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>) -> Drawn {
     let f = ui.f;
     let (w, h) = (ui.c.width() as f32 / f, ui.c.height() as f32 / f);
     if host.preview.is_some()
@@ -504,8 +511,9 @@ pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>) -> Vec<Stri
         ui.text_mid(x, cy, t::HOST_CONTROL_H, t::CAPTION, W::R, INK_DIM, &text);
     }
     labels.extend(fitted.lines.iter().cloned());
-    labels.extend(menus(host, ui, &fitted, &anchors, (top, w)));
-    labels
+    let (rows, sheet) = menus(host, ui, &fitted, &anchors, (area, top, w));
+    labels.extend(rows);
+    (labels, sheet)
 }
 
 /// A preview frame's pixel-wide edge round `a`.
@@ -516,37 +524,48 @@ fn edge(ui: &mut HostUi, a: Area) {
     ui.stroke(x, y, aw, ah, 0.0, EDGE);
 }
 
-/// The menu closing and the menu open, each over its control at
-/// `anchors`, the strip's top at `top` in a window `w` wide. Returns the
-/// open menu's rows.
+/// The menu or sheet closing and the one open, each over its control at
+/// `anchors`, the app's frame at `area`, the strip's top at `top` in a
+/// window `w` wide. Returns the open menu's rows or the sheet's texts,
+/// and the sheet where it is open.
 fn menus(
     host: &Host,
     ui: &mut HostUi,
     fitted: &Fitted,
     anchors: &[(Menu, f32)],
-    (top, w): (f32, f32),
-) -> Vec<String> {
+    (area, top, w): (Option<Area>, f32, f32),
+) -> Drawn {
     let anchor = |m: Menu| anchors.iter().find(|(a, _)| *a == m).map(|(_, x)| *x);
     if let Some((m, at)) = host.leaving {
         let p = crate::motion::progress(Some(at), host.now, crate::motion::MENU_OUT_MS);
         let shown = 1.0 - crate::motion::ease(t::EASE_EMPHASIZED_ACCELERATE, p);
         if shown > 0.0 {
             let mark = ui.hits.len();
-            menu(host, ui, fitted, m, (anchor(m), top, w), shown);
+            if m == Menu::Samples {
+                samples_sheet(host, ui, (area, anchor(m), top, w), shown);
+            } else {
+                menu(host, ui, fitted, m, (anchor(m), top, w), shown);
+            }
             ui.hits.truncate(mark);
         }
     }
     if let Some((m, at)) = host.menu {
-        let shown = if host.app.reduce_motion() {
-            1.0
-        } else {
-            let p = crate::motion::progress(Some(at), host.now, crate::motion::MENU_IN_MS);
-            crate::motion::ease_open(p)
+        let shown = match at {
+            Some(at) if !host.app.reduce_motion() => {
+                let p = crate::motion::progress(Some(at), host.now, crate::motion::MENU_IN_MS);
+                crate::motion::ease_open(p)
+            }
+            // At rest, or under Reduce motion: whole.
+            _ => 1.0,
         };
+        if m == Menu::Samples {
+            return samples_sheet(host, ui, (area, anchor(m), top, w), shown);
+        }
         menu(host, ui, fitted, m, (anchor(m), top, w), shown);
-        return rows(host, fitted, m).into_iter().map(|r| r.label).collect();
+        let rows = rows(host, fitted, m).into_iter().map(|r| r.label).collect();
+        return (rows, None);
     }
-    Vec::new()
+    (Vec::new(), None)
 }
 
 /// A rule between two groups at `x`. Returns where the next group starts.
@@ -691,6 +710,8 @@ fn rows(host: &Host, fitted: &Fitted, m: Menu) -> Vec<Row> {
                 )])
                 .collect()
         }
+        // Samples' sheet is drawn by `samples_sheet`.
+        Menu::Samples => Vec::new(),
         Menu::More => fitted
             .demo_more
             .iter()
@@ -790,4 +811,302 @@ fn die(host: &Host, ui: &mut HostUi, which: Roller, (x, y): (f32, f32)) {
     let theme = app.theme();
     aui.theme = faraday_ui::Theme::new(theme.name, faraday_ui::Mode::Dark, theme.contrast);
     crate::fresh::roller::screen::die_alone(&mut aui, (x, y), r);
+}
+
+/// Where Samples' sheet stands and how tall it may grow, dp: its left
+/// edge, its width and the highest its top may reach (`docs/DESKTOP-HOST.md`
+/// §6). Beside a preview's frame where the dark space there holds at least
+/// a menu's width, the host's own space, the side of Samples first; else
+/// up from Samples at `anchor`, under the frame's foot where it fits
+/// there, else over the app's foot. Arithmetic.
+fn sheet_place(
+    host: &Host,
+    f: f32,
+    (area, anchor, top, w): (Option<Area>, Option<f32>, f32, f32),
+    want: f32,
+) -> (f32, f32, f32) {
+    let sw = t::HOST_SHEET_W.min(w - 2.0 * t::PAD);
+    let up = |limit: f32| {
+        let x = anchor.unwrap_or(t::PAD).min(w - t::PAD - sw).max(t::PAD);
+        (x, sw, limit)
+    };
+    let Some(a) = area.filter(|_| host.preview.is_some()) else {
+        return up(t::PAD);
+    };
+    // The frame's edge stands a pixel outside it.
+    let (left, right, foot) = (
+        (a.x - 1) as f32 / f,
+        w - (a.x + a.w + 1) as f32 / f,
+        (a.y + a.h + 1) as f32 / f,
+    );
+    let gutter =
+        |g: f32| Some(t::HOST_SHEET_W.min(g - 2.0 * t::PAD)).filter(|s| *s >= t::HOST_MENU_W);
+    if let Some(s) = gutter(left) {
+        return (t::PAD, s, t::PAD);
+    }
+    if let Some(s) = gutter(right) {
+        return (w - t::PAD - s, s, t::PAD);
+    }
+    if want <= top - t::GAP_SMALL - (foot + t::GAP) {
+        return up(foot + t::GAP);
+    }
+    up(t::PAD)
+}
+
+/// Costs a text measure per row. Load samples' sheet in the host's look,
+/// `shown` of the way open, rising from the strip's top `top`
+/// (`docs/DESKTOP-HOST.md` §6): the title; the samples' passphrase, a line
+/// where a stick is in, Select all or Unselect all, the sample wallets and
+/// keys with their tick boxes (one loaded ticked and dimmed), scrolling
+/// where the sheet has no room for them; Not now and Load ticked at its
+/// foot. A tick and Select all keep it open; Not now, Load ticked and a
+/// press beside it close it. Returns its texts, and where it stands with
+/// the furthest its lists scroll.
+fn samples_sheet(
+    host: &Host,
+    ui: &mut HostUi,
+    (area, anchor, top, w): (Option<Area>, Option<f32>, f32, f32),
+    shown: f32,
+) -> Drawn {
+    let app = &host.app;
+    if app.samples.is_none() {
+        return (Vec::new(), None);
+    }
+    let state = app.sample_area.sheet();
+    let warn = (app.selftest_passed() && !app.stick.is_empty()).then(|| {
+        fill(
+            EN.pull_medium_to_reason,
+            &[app.medium.noun(), EN.pull_what_load_samples],
+        )
+    });
+    let (row, line) = (t::HOST_MENU_ROW, t::HOST_CONTROL_H);
+    let n = state.wallets.len() + state.keys.len();
+    let body =
+        line + warn.as_ref().map_or(0.0, |_| line) + row + 2.0 * line + n as f32 * row + t::GAP;
+    let head = t::GAP + row;
+    let foot = row + 2.0 * t::GAP;
+    let want = head + body + foot;
+    let (mx, mw, limit) = sheet_place(host, ui.f, (area, anchor, top, w), want);
+    let bottom = top - t::GAP_SMALL;
+    let mh = want.min(bottom - limit).max(head + foot);
+    let my = bottom - mh;
+    let view = (mh - head - foot).max(0.0);
+    let max = (body - view).max(0.0);
+    let scroll = host.sheet_scroll.min(max);
+    let seen = mh * shown.clamp(0.0, 1.0);
+    let clip = ui.rect(mx, bottom - seen, mw, seen);
+    ui.c.push_clip(clip);
+    ui.fill(mx, my, mw, mh, t::GAP_SMALL, RAISED);
+    ui.stroke(mx, my, mw, mh, t::GAP_SMALL, EDGE);
+    // A press on the sheet itself is the sheet's: it closes nothing.
+    ui.hit(mx, my, mw, mh, HostPress::Sheet);
+    let x = mx + t::PAD;
+    ui.text_mid(x, my + t::GAP, row, t::LABEL, W::S, INK, EN.samples_title);
+    let mut texts = vec![EN.samples_title.to_string()];
+    // The lists, under the title and over the foot.
+    let lists = ui.rect(mx, my + head, mw, view);
+    ui.c.push_clip(lists);
+    sheet_lists(host, ui, (mx, mw, my + head - scroll), warn, &mut texts);
+    ui.c.pop_clip();
+    sheet_foot(host, ui, (mx, mw, my + mh - foot), &mut texts);
+    ui.c.pop_clip();
+    (texts, Some((ui.rect(mx, my, mw, mh), max)))
+}
+
+/// Costs a text measure per row. Samples' sheet's lists from `y`, the
+/// sheet at `x` and `w` wide: the samples' passphrase, `warn` where a
+/// stick is in, Select all or Unselect all, then the sample wallets and
+/// keys under their headings. Adds what it says to `texts`.
+fn sheet_lists(
+    host: &Host,
+    ui: &mut HostUi,
+    (mx, mw, y): (f32, f32, f32),
+    warn: Option<String>,
+    texts: &mut Vec<String>,
+) {
+    let app = &host.app;
+    let Some(set) = app.samples else {
+        return;
+    };
+    let state = app.sample_area.sheet();
+    let (row, line) = (t::HOST_MENU_ROW, t::HOST_CONTROL_H);
+    let (x, iw) = (mx + t::PAD, mw - 2.0 * t::PAD);
+    let mut cy = y;
+    let code_w = ui.measure(t::CAPTION, W::M, PASSPHRASE);
+    let lead = ui.fit(t::CAPTION, W::R, EN.samples_password, iw - code_w - t::GAP);
+    let lead_w = ui.text_mid(x, cy, line, t::CAPTION, W::R, INK_DIM, &lead);
+    ui.text_mid(
+        x + lead_w + t::GAP,
+        cy,
+        line,
+        t::CAPTION,
+        W::M,
+        INK,
+        PASSPHRASE,
+    );
+    texts.push(format!("{} {PASSPHRASE}", EN.samples_password));
+    cy += line;
+    if let Some(warn) = warn {
+        let shown = ui.fit(t::CAPTION, W::S, &warn, iw);
+        ui.text_mid(x, cy, line, t::CAPTION, W::S, DEMO, &shown);
+        texts.push(warn);
+        cy += line;
+    }
+    // Unselect all while any is ticked; Select all once none is.
+    let link = if state.any_ticked() {
+        EN.samples_unselect_all
+    } else {
+        EN.samples_select_all
+    };
+    let all = HostPress::App(Action::SamplesAll);
+    let link_w = ui.measure(t::LABEL, W::S, link) + 2.0 * t::GAP;
+    let ly = cy + (row - line) / 2.0;
+    if ui.is_pressed(all) {
+        ui.fill(x - t::GAP, ly, link_w, line, t::GAP, PRESS);
+    } else if ui.is_hovered(all) {
+        ui.fill(x - t::GAP, ly, link_w, line, t::GAP, HOVER);
+    }
+    ui.text_mid(x, cy, row, t::LABEL, W::S, INK, link);
+    ui.hit(x - t::GAP, cy, link_w, row, all);
+    texts.push(link.to_string());
+    cy += row;
+    let wallets: Vec<String> = state
+        .wallets
+        .iter()
+        .map(|r| crate::samples::label(set.wallets[r.sample].name, "", 0).unwrap_or_default())
+        .collect();
+    let keys: Vec<String> = state
+        .keys
+        .iter()
+        .map(|r| set.keys[r.sample].label())
+        .collect();
+    cy += tick_list(
+        ui,
+        (mx, mw, cy),
+        EN.samples_wallets,
+        (&state.wallets, &wallets),
+        Pick::Wallet,
+        texts,
+    );
+    tick_list(
+        ui,
+        (mx, mw, cy),
+        EN.samples_keys,
+        (&state.keys, &keys),
+        Pick::Key,
+        texts,
+    );
+}
+
+/// Costs a text measure per row. One list on Samples' sheet at `y`: its
+/// heading, then each row with its name from `names`, its tick pressing
+/// `pick` of its place. Adds what it says to `texts`; returns its height.
+fn tick_list(
+    ui: &mut HostUi,
+    (mx, mw, y): (f32, f32, f32),
+    heading: &str,
+    (rows, names): (&[crate::samples::Row], &[String]),
+    pick: fn(u8) -> Pick,
+    texts: &mut Vec<String>,
+) -> f32 {
+    let x = mx + t::PAD;
+    let mut cy = y;
+    ui.text_mid(x, cy, t::HOST_CONTROL_H, t::CAPTION, W::S, INK_DIM, heading);
+    texts.push(heading.to_string());
+    cy += t::HOST_CONTROL_H;
+    for (i, (r, name)) in rows.iter().zip(names).enumerate() {
+        let Ok(at) = u8::try_from(i) else {
+            break;
+        };
+        let press = HostPress::App(Action::SampleTick(pick(at)));
+        tick_row(ui, (mx, mw, cy), r, name, press);
+        texts.push(name.clone());
+        cy += t::HOST_MENU_ROW;
+    }
+    cy + t::GAP - y
+}
+
+/// Samples' sheet's foot from `y`, the sheet at `x` and `w` wide: a rule,
+/// then Not now and Load ticked at its right, Load pressable once one is
+/// ticked. Adds what it says to `texts`.
+fn sheet_foot(
+    host: &Host,
+    ui: &mut HostUi,
+    (mx, mw, fy): (f32, f32, f32),
+    texts: &mut Vec<String>,
+) {
+    let app = &host.app;
+    ui.fill(mx, fy, mw, 1.0 / ui.f, 0.0, RULE);
+    let load = Ctl {
+        label: EN.samples_load.to_string(),
+        press: HostPress::App(Action::SamplesLoad),
+        kind: if app.sample_area.sheet().any_ticked() && app.selftest_passed() {
+            Kind::Primary
+        } else {
+            Kind::Off
+        },
+    };
+    let not_now = Ctl {
+        label: EN.samples_not_now.to_string(),
+        press: HostPress::Menu(Menu::Samples),
+        kind: Kind::Button,
+    };
+    let by = fy + t::GAP + (t::HOST_MENU_ROW - t::HOST_CONTROL_H) / 2.0;
+    let lx = mx + mw - t::PAD - ctl_w(ui, &load);
+    let nx = lx - t::GAP - ctl_w(ui, &not_now);
+    control(host, ui, &not_now, (nx, by));
+    control(host, ui, &load, (lx, by));
+    texts.push(not_now.label);
+    texts.push(load.label);
+}
+
+/// One sample's row on Samples' sheet at `y`, the sheet at `x` and `w`
+/// wide: its tick box, ticked once it is loaded too and then dimmed and
+/// taking no press, its name, and what it is at the row's end.
+fn tick_row(
+    ui: &mut HostUi,
+    (x, w, y): (f32, f32, f32),
+    r: &crate::samples::Row,
+    label: &str,
+    press: HostPress,
+) {
+    let row = t::HOST_MENU_ROW;
+    let on = !r.loaded;
+    if on {
+        if ui.is_pressed(press) {
+            ui.fill(x, y, w, row, 0.0, PRESS);
+        } else if ui.is_hovered(press) {
+            ui.fill(x, y, w, row, 0.0, HOVER);
+        }
+    }
+    let ink = if on { INK } else { INK_OFF };
+    let b = t::ICON_SMALL;
+    let (bx, by) = (x + t::PAD, y + (row - b) / 2.0);
+    if r.ticked || r.loaded {
+        ui.fill(bx, by, b, b, t::GAP_SMALL, ink);
+        ui.icon(bx, by, b, Icon::Check, t::LABEL, RAISED);
+    } else {
+        ui.stroke(bx, by, b, b, t::GAP_SMALL, INK_DIM);
+    }
+    let tx = bx + b + t::GAP + t::GAP_SMALL;
+    let room = x + w - t::PAD - tx;
+    let name = ui.fit(t::LABEL, W::R, label, room);
+    let name_w = ui.text_mid(tx, y, row, t::LABEL, W::R, ink, &name);
+    let note_room = room - name_w - t::GAP;
+    if note_room > t::TOUCH {
+        let note = ui.fit(t::CAPTION, W::R, &r.kind, note_room);
+        let nw = ui.measure(t::CAPTION, W::R, &note);
+        ui.text_mid(
+            x + w - t::PAD - nw,
+            y,
+            row,
+            t::CAPTION,
+            W::R,
+            INK_DIM,
+            &note,
+        );
+    }
+    if on {
+        ui.hit(x, y, w, row, press);
+    }
 }

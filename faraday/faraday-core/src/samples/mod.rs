@@ -584,7 +584,11 @@ impl Faraday {
             Action::Samples => {
                 let c = self.compute();
                 self.sample_area.sheet = self.samples_rows(&c, set);
-                self.sheet = Some(Sheet::Samples);
+                // Held by Faraday Desktop's host, the sheet is the host's,
+                // outside the app (`docs/DESKTOP-HOST.md` §6).
+                if !self.hosted() {
+                    self.sheet = Some(Sheet::Samples);
+                }
             }
             Action::SampleTick(pick) => {
                 if let Some(r) = self.sample_area.sheet.row_mut(pick)
@@ -640,7 +644,10 @@ impl Faraday {
         for r in sheet.keys.iter().filter(|r| r.ticked && !r.loaded) {
             keys += usize::from(set.keys[r.sample].add(&c, &mut self.session.keys));
         }
-        self.sheet = None;
+        // Held, the sheet was the host's: another the app has open stays.
+        if self.sheet == Some(Sheet::Samples) {
+            self.sheet = None;
+        }
         if wallets + keys > 0 {
             self.refresh_spend();
             self.toast(&fill(EN.samples_loaded, &[&loaded_text(wallets, keys)]));
