@@ -420,10 +420,11 @@ fn in_the_demo_the_sample_stands_in_place_of_the_strings_made() {
     for f in [4, 3, 4, 3, 4, 3, 4, 3, 4, 3] {
         c32(&mut app, C32::Key(OskPress::Char(char::from(b'0' + f))));
     }
-    assert!(crate::common::offered(
-        &mut app,
-        Action::Codex32(C32::Sample)
-    ));
+    assert!(
+        crate::common::strip(&mut app)
+            .iter()
+            .any(|t| t == "Use a sample")
+    );
     c32(&mut app, C32::Sample);
     let own = strings(&app);
     assert_eq!(own.len(), 3, "the entry finished");
@@ -441,15 +442,17 @@ fn in_the_demo_the_sample_stands_in_place_of_the_strings_made() {
         m.tabs().iter().all(|t| !t.0.contains("Dice")),
         "no dice of the person's is read back"
     );
-    assert!(crate::common::has(
-        &mut app,
-        "Demo puts sample NAME in place of these strings"
-    ));
+    assert!(
+        crate::common::strip(&mut app)
+            .iter()
+            .any(|t| t == "Demo puts sample NAME in place of these strings")
+    );
     past_strings(&mut app);
-    assert!(crate::common::has(
-        &mut app,
-        "Demo puts sample NAME in place of these strings"
-    ));
+    assert!(
+        crate::common::strip(&mut app)
+            .iter()
+            .any(|t| t == "Demo puts sample NAME in place of these strings")
+    );
     c32(&mut app, C32::Lock);
     assert_eq!(app.session.keys.len(), 1);
     assert_eq!(app.session.keys[0].fingerprint.0, NAME_FP);

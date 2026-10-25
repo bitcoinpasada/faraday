@@ -691,6 +691,22 @@ pub const PREVIEW_SIZES: [(u16, u16); 7] = [
     (1920, 1080),
 ];
 
+// Faraday Desktop's host (`docs/DESKTOP-HOST.md`): the strip along the
+// window's foot, outside the app, in the host's own look.
+
+/// The host strip's height at the window's foot.
+pub const HOST_STRIP_H: f32 = 56.0;
+/// A control's drawn height in the host strip, in the middle of its
+/// `TOUCH` target's height where the strip allows: Material's small
+/// controls (a chip, a small button) are 32 dp.
+pub const HOST_CONTROL_H: f32 = 32.0;
+/// A host menu's width: Material's menu at its widest, 280 dp.
+pub const HOST_MENU_W: f32 = 280.0;
+/// The least a preview's frame is scaled down to fit a small window.
+pub const PREVIEW_SCALE_MIN: f32 = 0.05;
+/// A host menu's row: Material's menu item, 48 dp.
+pub const HOST_MENU_ROW: f32 = 48.0;
+
 // Navigation by window class (`docs/LAYOUT.md` §3, §9), Material 3's
 // rail, bar and top app bar in Faraday's look.
 
@@ -821,21 +837,6 @@ pub const LIST_SUPPORTING_Y: f32 = 38.0;
 /// A supporting pane's width (`docs/LAYOUT.md` §6).
 pub const SUPPORT_PANE: f32 = 400.0;
 
-/// The narrowest a page is laid out beside the "Demo only" card at the
-/// window's right (`docs/DEMO.md` §14); narrower, the card is a strip at
-/// the window's foot.
-pub const DEMO_PAGE_MIN: f32 = 420.0;
-
-/// Where the "Demo only" card's top stands on a wide window: just under
-/// the top-right strip's pills (owner, 2026-10-24); under the eye too
-/// where the codex32 sheets show one there.
-pub const DEMO_CARD_TOP: f32 = TOUCH + GAP_SMALL;
-
-/// The same for a page with a side panel of its own beside its step
-/// column (Create a vault, Back up, Spend, the backup flow): Material's
-/// expanded width, so the column and the panel keep their room.
-pub const DEMO_PAGE_PANEL_MIN: f32 = 840.0;
-
 /// Where a supporting pane's top stands on a wide window: below the
 /// top-right strip's two 48 dp rows (the network pill and the ?, then
 /// the eye), never level with them (owner, 2026-10-24).
@@ -884,9 +885,6 @@ pub const INPUT_ROLLS_STRUCK: usize = 1;
 /// column stands beside the page (`docs/LAYOUT.md` §16.1). Measured;
 /// the column scrolls within itself where text drawn larger passes it.
 pub const CODEX32_DICE_COLUMN_H: f32 = 720.0;
-/// The Demo only card's height under the dice sheet's column, its
-/// step-through whole (measured).
-pub const CODEX32_COLUMN_CARD_H: f32 = 480.0;
 /// "Your dice" at the start of the pad's first row in the input panel,
 /// with the face waiting or "0 is 10" under it: the room it keeps, the
 /// label cut to it where text is drawn larger.
@@ -1064,17 +1062,12 @@ pub const ROLLER_COUNT_MAX: u32 = 9_999;
 /// The roller: the most digits a typed number has.
 pub const ROLLER_COUNT_DIGITS: usize = 4;
 
-/// The roller: the height of its choice chips and its button.
-pub const ROLLER_CHIP: f32 = 32.0;
-
 /// The roller: the gap between its parts.
 pub const ROLLER_GAP: f32 = 10.0;
 
 /// The roller: the size of its small labels.
 pub const ROLLER_LABEL: f32 = 12.0;
 
-/// The roller: the width of the typed number's field.
-pub const ROLLER_COUNT_FIELD: f32 = 64.0;
 // ---------------------------------------------------------------------
 // Codex32 worksheets (`docs/CODEX32.md` §6.4.7, §7.5, §13.4)
 // ---------------------------------------------------------------------
@@ -1126,23 +1119,6 @@ pub const CODEX32_ROLLER_W: f32 = 320.0;
 /// The narrowest the codex32 entry's own column is drawn beside the
 /// "Demo only" box (CODEX32 §5.5); narrower, the box goes under it.
 pub const CODEX32_MAIN_MIN: f32 = 420.0;
-/// The "Demo only" card's column at the right of the codex32 entry where
-/// a `SUPPORT_PANE` does not fit beside it (medium and expanded windows;
-/// owner, 2026-10-25): its head, and More, Previous, Next and Play one
-/// under another, as wide as the widest of them ("Previous", about 58 dp,
-/// in Material's small button: 16 dp each side, 40 dp tall within a 48 dp
-/// touch target) and the column's own `CODEX32_DEMO_COLUMN_PAD` each side.
-pub const CODEX32_DEMO_COLUMN_W: f32 = 118.0;
-/// The narrow column's inner padding each side (Material's small
-/// button's 16 dp each side of the label, the card's 12 dp).
-pub const CODEX32_DEMO_COLUMN_PAD: f32 = 12.0;
-/// A small button's room each side of its label (Material 3 buttons).
-pub const SMALL_BUTTON_PAD: f32 = 16.0;
-/// The narrow "Demo only" column's gap to the window's right edge, and to
-/// the line under the top bar on windows that have one (the bar's 44 dp
-/// and the card's top at `DEMO_CARD_TOP`, 52): Material's list padding
-/// under a top app bar (owner, 2026-10-25).
-pub const CODEX32_DEMO_COLUMN_EDGE: f32 = 8.0;
 /// How far New key's column stands in from its page area's left edge,
 /// and as far again is kept on its right.
 pub const KEYGEN_COLUMN_IN: f32 = 40.0;
@@ -1325,9 +1301,6 @@ pub const CODEX32_WALK_SLOW_MS: u64 = 1000;
 pub const CODEX32_WALK_NORMAL_MS: u64 = 400;
 /// At Fast.
 pub const CODEX32_WALK_FAST_MS: u64 = 120;
-/// The most of a window's height the codex32 "Demo only" card takes when
-/// it is opened from its strip at the foot of a narrow window.
-pub const CODEX32_STRIP_OPEN_MAX: f32 = 0.85;
 /// The furthest along Material's standard curve a following move of the
 /// codex32 worksheet's view enters it when it takes over from a move
 /// under way, so the move left is never cut to nothing (`docs/MOTION.md`
@@ -1425,11 +1398,6 @@ pub const STEPPER_LABEL_COL: f32 = 180.0;
 /// The height of the window's top band, where a press on empty room moves
 /// the window: Material's top app bar.
 pub const TOP_BAND: f32 = 56.0;
-/// The room Faraday Desktop's top bar keeps for the page's title and head
-/// at its left, from the page area's left edge: its stick pills stand in
-/// what is left beside its other actions, the rest folded into the
-/// Sticks menu (`docs/LAYOUT.md` §3).
-pub const TOP_BAR_TITLE_ROOM: f32 = 400.0;
 
 /// The wide layout's ?: its left edge in from the window's right, where
 /// the top-right row of the mode pill and the ? begins; the ? is 28 dp

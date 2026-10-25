@@ -63,19 +63,6 @@ impl View {
     /// asks for the next one (a fade part of the way) gets a redraw from
     /// here: no event is coming to ask on its behalf.
     pub fn draw<A: App + ?Sized>(&mut self, app: &mut A, pacer: &mut Pacer) {
-        self.draw_in(app, pacer, None);
-    }
-
-    /// [`View::draw`], with the frame framed and centred in the window
-    /// for the preview size (`docs/PREVIEW-SIZE.md`) at the window's
-    /// `scale` when `framed` is given, scaled down where the window is
-    /// smaller.
-    pub fn draw_in<A: App + ?Sized>(
-        &mut self,
-        app: &mut A,
-        pacer: &mut Pacer,
-        framed: Option<f64>,
-    ) {
         let window = &self.window;
         let size = window.inner_size();
         let (Some(w), Some(h)) = (NonZeroU32::new(size.width), NonZeroU32::new(size.height)) else {
@@ -94,29 +81,19 @@ impl View {
         let rendered = timed.then(Instant::now);
         let (fw, fh) = (usize::from(frame.width), usize::from(frame.height));
         let sw = size.width as usize;
-        if let Some(scale) = framed {
-            let fit = crate::preview::Fit::of(
-                (size.width, size.height),
-                (u32::from(frame.width), u32::from(frame.height)),
-                scale,
-            );
-            fit.blit(&mut buffer, sw, frame.rgba, BEYOND);
-        } else {
-            // The frame's premultiplied RGBA to the window's 0RGB, a row at a
-            // time: the window is the frame's size but for the moment after a
-            // resize, when what the frame does not cover is the page colour.
-            let shown = fw.min(sw);
-            for (y, row) in buffer.chunks_exact_mut(sw).enumerate() {
-                if y < fh {
-                    let src = &frame.rgba[y * fw * 4..(y * fw + shown) * 4];
-                    for (dst, px) in row[..shown].iter_mut().zip(src.chunks_exact(4)) {
-                        *dst =
-                            (u32::from(px[0]) << 16) | (u32::from(px[1]) << 8) | u32::from(px[2]);
-                    }
-                    row[shown..].fill(BEYOND);
-                } else {
-                    row.fill(BEYOND);
+        // The frame's premultiplied RGBA to the window's 0RGB, a row at a
+        // time: the window is the frame's size but for the moment after a
+        // resize, when what the frame does not cover is the page colour.
+        let shown = fw.min(sw);
+        for (y, row) in buffer.chunks_exact_mut(sw).enumerate() {
+            if y < fh {
+                let src = &frame.rgba[y * fw * 4..(y * fw + shown) * 4];
+                for (dst, px) in row[..shown].iter_mut().zip(src.chunks_exact(4)) {
+                    *dst = (u32::from(px[0]) << 16) | (u32::from(px[1]) << 8) | u32::from(px[2]);
                 }
+                row[shown..].fill(BEYOND);
+            } else {
+                row.fill(BEYOND);
             }
         }
         // Tells winit a frame is about to be shown: on Wayland it asks

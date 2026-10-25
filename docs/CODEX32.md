@@ -864,46 +864,28 @@ shows the stick's entry, **Your dice**, and beside it the roller,
 **Or let Faraday roll**, and the person uses either, or both, at any
 point. A value from the entry is a real die's and is not labelled.
 
-**"Demo only" (owner, 2026-10-24).** The roller must not look like part
-of the real app: it stands in one outlined card (Material's outlined
-card) headed **Demo only**, a supporting pane (`docs/LAYOUT.md` §5,
-§6) that holds its place while the page scrolls beside it (owner,
-2026-10-24). Where the page area leaves the entry at least
-`CODEX32_MAIN_MIN` (420 dp) beside a `SUPPORT_PANE` (400 dp) pane, the
-card stands at the right, `MARGIN_WIDE` from the window's edge and
-`SPACER` from the page, its top at `SUPPORT_PANE_TOP`, below the
-top-right strip of the network pill and the eye, never level with them;
-taller than the window, it scrolls within itself (its own region,
-`Slot::DemoPane`). Where the whole card would leave the entry too
-little width for the dice sheet's tracks beside its tree (1280 × 800
-and smaller in Demo), and on one-column windows from medium up, the
-card is squeezed into a `CODEX32_DEMO_COLUMN_W` (144 dp) column at the
-right, never across the page (owner, 2026-10-25): "Demo only", what the
-computer rolls ("Rolls d6") in small type under it, then More,
-Previous, Next and Play one under another, each Material's 48 dp button
-the column's width, outlined as the card and under the page's bar; the
-entry's work (the string's boxes, the tabs, the worksheet, the tracks
-and the tree) runs up to `SPACER` before it. More opens the whole card
-over the page from the foot. Neither the column nor the card draws the
-step's count or working, which the Working area beside the pad shows. From 1920 × 1080 the whole card stands as before. On compact windows (the Pi panel) a strip pinned at the
-window's foot holds
-the step's line on one row, cut where it is longer, with Previous, Next
-and Play under it at the strip's right end, and **More** opens the whole
-card over the page from the foot (**Less** closes it); it never scrolls
-away, and the entry leaves room under its last row so the page scrolls
-clear of it. The card holds, in order, Demo's **Use a sample** (in
-Demo), and on Faraday Desktop "Rolls d20", the dice chosen on the
-Entropy card, and the step-through above; the rolls
-themselves are drawn once, in the entry's input panel (owner,
+**"Demo only" (owner, 2026-10-24; moved out of the app 2026-10-25,
+F118).** The roller must not look like part of the real app: on
+Faraday Desktop its controls stand in the host's strip at the window's
+foot, outside the app, under "Demo" (`docs/DESKTOP-HOST.md` §3.1):
+Demo's **Use a sample** while a character is left, then Previous, Next
+and Play (Pause while it runs), Next filled as the step's main press,
+**Play options** opening a menu of how far Play runs and how fast, and
+"Rolls d20", the dice chosen on the Entropy card. The entry's work (the
+string's boxes, the tabs, the worksheet, the tracks and the tree) takes
+the page area's whole width; the dice sheet still stands in its column
+at the right where the window holds it (`docs/LAYOUT.md` §16.1). The
+step's count and working are the Working area's, beside the pad. The
+rolls themselves are drawn once, in the entry's input panel (owner,
 2026-10-24; `docs/LAYOUT.md` §16.3). The marks are unchanged: "Rolled by
 this computer", "simulated dice". The person's own entry is the dice
 sheet in the page and the input panel: each die's two rolls and
-**Your dice**. Built in
-`codex32/dice_screen.rs` (`demo_content`) and `codex32/pane_screen.rs`,
-tested in `tests/all/codex32_dice.rs` (the card beside the pad on
-Faraday Desktop, none on the stick; a d20 share played and padded 1 to
-20) and `tests/all/codex32_roller.rs` (scrolling the page leaves the
-card where it is, wide, and the strip where it is, narrow).
+**Your dice**. The strip reads the walk from `codex32/walk_screen.rs`
+(`host_aids`, `host_play_options`); tested in
+`tests/all/desktop_host.rs` (the walk in the strip, Next stepping it
+from one place at every step, nothing demo-only in the app, Play's
+options) and `tests/all/codex32_dice.rs` (none on the stick; a d20
+share played and padded 1 to 20).
 
 **Your dice, both rolls side by side** (every shell, on windows of the
 expanded class and up; owner, 2026-10-24). The input panel

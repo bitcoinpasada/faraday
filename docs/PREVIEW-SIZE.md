@@ -1,7 +1,7 @@
 # Preview size: Faraday Desktop at another screen's size
 
 **Kind:** Reference
-**Status:** Built (F110)
+**Status:** Built (F110, amended by F118)
 
 Faraday Desktop shows its screens at any of the layout's screen sizes
 (`docs/LAYOUT.md` §2) at the press of a choice, so a person can see and
@@ -11,8 +11,10 @@ half-screen window or a full monitor. The owner asked for it
 
 ## 1. The control
 
-Settings gains a **Preview size** card after Display scale, in Faraday
-Desktop only. Its choices, as a row of chips that wraps:
+**Size · <size shown>** in Faraday Desktop's host strip, at the
+window's foot outside the app (F118, `docs/DESKTOP-HOST.md` §3, §5),
+opens a menu of the sizes, each with its size in dp, the one shown
+checked:
 
 | Choice | Size (dp) | Class (LAYOUT §2) |
 |---|---|---|
@@ -25,34 +27,28 @@ Desktop only. Its choices, as a row of chips that wraps:
 | Desktop window | 1280 × 800 | large |
 | Full monitor | 1920 × 1080 | extra-large |
 
-Under the chips, the size the screens are laid out at, in dp (after
-the person's Display scale). The sizes are `PREVIEW_SIZES` in
-`core/faraday-draw/src/tokens.rs`.
-
-Settings, not the top app bar: Material 3 puts a preference that
-changes how the whole app is shown in Settings, and keeps the top app
-bar for the current screen's own actions. The top app bar is also not
-over every page (LAYOUT §3), and a control there would be one more
-thing on the Pi panel's 358 dp. Settings is reached at every size, so
-the way back to This window is always there.
+The sizes are `PREVIEW_SIZES` in `core/faraday-draw/src/tokens.rs`.
+Out of Settings and out of the app (owner, 2026-10-25): the size is
+Faraday Desktop's, not the device's, so it stands with the host's other
+controls; the strip is under every screen, so the way back to This
+window is always there.
 
 ## 2. What it does
 
-The chosen size is given to the app as its display, in place of the
-window's (`faraday/shells/desktop/src/main.rs`, `Shell::display`): a
-screen that many dp in size at the window's own density. Everything
-the layout reads from a display follows from that, exactly as on that
-screen: the class, the short and low rules, the navigation (LAYOUT
-§3), one column or two, and on the Pi size the on-screen keyboard
-rising by itself where a field takes typing. No screen knows it is
-previewed.
+The host (`faraday-core/src/host/`) gives the app a display of the
+chosen size in dp at the window's own density, in place of the window
+less the strip. Everything the layout reads from a display follows from
+that, exactly as on that screen: the class, the short and low rules,
+the navigation (LAYOUT §3), one column or two, and on the Pi size the
+on-screen keyboard rising by itself where a field takes typing. No
+screen knows it is previewed.
 
-The frame is drawn centred in the window with a pixel-wide edge, at
-the window's own pixels where it fits inside a 24-unit margin, and
-scaled down to fit where the window is smaller (each window pixel the
-average of the frame's pixels it covers;
-`faraday/shells/window/src/preview.rs`). Resizing the window moves and
-scales the frame and does not lay the screens out again.
+The frame is drawn centred in the dark space above the strip with a
+pixel-wide edge, at the window's own pixels where it fits inside a
+24 dp margin, and scaled down to fit where the window is smaller (each
+window pixel the average of the frame's pixels it covers;
+`Canvas::place_scaled`). Resizing the window moves and scales the frame
+and does not lay the screens out again.
 
 The pointer is carried into the frame: a press, a hover, a scroll or
 the wheel inside it reaches the frame's pixel under it; a press begun
@@ -61,25 +57,18 @@ frame's edge. The keyboard works as in the window.
 
 ## 3. Where it is offered
 
-Only Faraday Desktop offers it. The desktop shell sends
-`Event::PreviewOffered` (`core/faraday-shell-api`) after the display
-and after each change; the core shows the card only once it has had
-one, and asks for a size with `Command::PreviewSize`. The stick, the
-Pi and the Starter send no offer and show no card; started with
-`--panel`, whose window already stands for a device's screen, the
-desktop offers none either.
-
-The size is the shell's: a lock, which starts a fresh app in the same
-window, keeps it; a new launch opens at This window. It is in no
-settings file and no kept state.
+Only Faraday Desktop's host offers it; the stick, the Pi and the
+Starter have no host, and with `--panel`, whose window already stands
+for a device's screen, the desktop holds the app bare, with no strip.
+The host tells the shell the size chosen (`Command::PreviewSize`), and
+the shell gives it back after a lock, which starts a fresh app in the
+same window (`Event::PreviewOffered`); a new launch opens at This
+window. It is in no settings file and no kept state.
 
 ## 4. Tests
 
-`faraday/shells/desktop/src/main.rs`: Settings offers the sizes;
-choosing the Pi panel asks the shell for it, lays Home out with the
-Pi's menu, one column and short; a press inside the frame, centred in a
-1280 × 800 window, opens the Vaults tile under it.
-`faraday/shells/window/src/preview.rs`: the Pi panel sits centred at
-its own size in a 1280 × 800 window and a full monitor shrinks to fit;
-a press inside lands on the frame's pixel under it, one outside and its
-release do nothing.
+`faraday/faraday-core/tests/all/desktop_host.rs`: Size opens the menu
+and the Pi panel lays Home out with the Pi's menu, compact and short,
+the frame centred above the strip; a press inside it opens the Vaults
+tile under it, one beside it nothing; This window lays the app out again
+in the window less the strip.

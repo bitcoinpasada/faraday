@@ -815,13 +815,15 @@ fn the_demo_locks_in_its_sample_with_faraday_when_a_passphrase_is_chosen() {
     app.press(Action::KNext);
     let n = app.keygen().unwrap().handout_words();
     let (word, fp) = app.session.keys.next_handout(n).unwrap();
-    assert!(texts(&mut app).contains(&format!(
+    assert!(crate::common::strip(&mut app).contains(&format!(
         "Lock in adds sample {word} ×{n} ({}) in place of these words",
         fp_text(fp)
     )));
-    let _ = texts(&mut app);
     let chip = Action::PassChip(faraday_core::demo::PassField::KeyGen(0));
-    assert!(app.offers(chip), "the pair offers faraday");
+    assert!(
+        crate::common::strip_offers(&mut app, chip),
+        "the pair offers faraday"
+    );
     app.press(chip);
     let k = app.keygen().unwrap();
     assert_eq!(k.passphrase.as_str(), "faraday");

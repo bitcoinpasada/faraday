@@ -35,6 +35,7 @@ need. Each document's header says what kind it is:
 | How does text get larger for people who need it? | `docs/TEXT-SIZE.md` |
 | How is a screen laid out at each window size, from the Pi to a monitor? | `docs/LAYOUT.md` |
 | How does Faraday Desktop show its screens at another screen's size? | `docs/PREVIEW-SIZE.md` |
+| What stands outside the app on Faraday Desktop: the sticks, the size, the demo's aids? | `docs/DESKTOP-HOST.md` |
 | How are the themes' colours made, and which colour role does each component take? | `docs/THEMES.md`; `docs/DESIGN.md` §3 |
 | Can a person add their own randomness, and when is the stick's kernel ready? | `docs/OWN-RANDOMNESS.md` |
 | How does a seed change form and stay the same wallet? | `docs/SEED-CONVERSION.md` |
@@ -67,7 +68,7 @@ need. Each document's header says what kind it is:
 - `docs/DESIGN.md`: Design system. Built.
 - `docs/KDBX.md`: KDBX 4: the encrypted file Faraday writes for others. Built.
 - `docs/KEYS.md`: The key boundary: faraday-keys. Built (steps 0 to 4).
-- `docs/PREVIEW-SIZE.md`: Preview size: Faraday Desktop at another screen's size. Built (decision drafted).
+- `docs/PREVIEW-SIZE.md`: Preview size: Faraday Desktop at another screen's size. Built (F110, F118).
 - `docs/README.md`: Faraday's documents. Built.
 - `docs/SECURITY-MODEL.md`: Security model. Built.
 - `docs/SPEND-FROM-BACKUP.md`: The Spend tab. Built.
@@ -81,6 +82,7 @@ need. Each document's header says what kind it is:
 
 - `docs/ANTI-EXFIL.md`: Anti-exfil. Planned, not scheduled.
 - `docs/BACKUP-FLOW.md`: The backup flow. Partly built.
+- `docs/DESKTOP-HOST.md`: Faraday Desktop as a simulator: the host. Built (F118); the website's part planned.
 - `docs/FLOWS.md`: Flows. Built but for the items under Open.
 - `docs/GPG-PAPERKEY.md`: Restore a GPG key from its paperkey. Not built; its decision is a draft.
 - `docs/GUIDE.md`: Faraday user guide. Sections 1 to 7 written; some pictures of §6 and §7 to redraw.

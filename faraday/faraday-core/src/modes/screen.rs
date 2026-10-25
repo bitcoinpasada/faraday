@@ -36,28 +36,10 @@ fn mode_width(app: &View, ui: &Ui) -> f32 {
     ui.measure(CAPTION, W::S, pill_label(app)) + 2.0 * MODE_PILL_PAD
 }
 
-/// The Load samples pill's label: short on the compact bar and Home.
-fn samples_label(ui: &Ui) -> &'static str {
-    if ui.compact {
-        EN.samples_pill_short
-    } else {
-        EN.samples_pill
-    }
-}
-
-/// The Load samples pill's width, with the gap that sets it off the mode
-/// pill; none where the pill is not on (Demo with samples set).
-fn samples_width(app: &View, ui: &Ui) -> f32 {
-    if !app.samples_on() {
-        return 0.0;
-    }
-    ui.measure(CAPTION, W::S, samples_label(ui)) + 2.0 * MODE_PILL_PAD + GAP
-}
-
-/// The pills' width, for a row that makes room for them: the mode pill
-/// and, in Demo with samples set, the Load samples pill and its gap.
+/// The pill's width, for a row that makes room for it. Load samples is
+/// Faraday Desktop's, in its host strip (`docs/DESKTOP-HOST.md`).
 pub(crate) fn pill_width(app: &View, ui: &Ui) -> f32 {
-    samples_width(app, ui) + mode_width(app, ui)
+    mode_width(app, ui)
 }
 
 /// One pill at (`px`, `py`), `pw` wide, in `tone`, pressed for `action`.
@@ -69,30 +51,18 @@ fn chip(ui: &mut Ui, (px, py, pw): (f32, f32, f32), label: &str, tone: Paint, ac
     ui.hit(px, py, pw, h, action);
 }
 
-/// The pills at (`px`, `py`): in Demo with samples set, Load samples in
-/// the accent tone (an action) and the caution pill beside it, a gap
-/// between, same height and shape; else the caution pill alone. The
-/// caution pill names the mode and opens the sheet. Returns their width.
+/// The mode pill at (`px`, `py`), in the caution tone: it names the
+/// mode and opens the sheet. Returns its width.
 pub(crate) fn pill(app: &View, ui: &mut Ui, px: f32, py: f32) -> f32 {
-    let sw = samples_width(app, ui);
-    if sw > 0.0 {
-        chip(
-            ui,
-            (px, py, sw - GAP),
-            samples_label(ui),
-            Role::Primary.paint(),
-            Action::Samples,
-        );
-    }
     let mw = mode_width(app, ui);
     chip(
         ui,
-        (px + sw, py, mw),
+        (px, py, mw),
         pill_label(app),
         Role::Warning.paint(),
         Action::ModeSheet,
     );
-    sw + mw
+    mw
 }
 
 /// Settings' Mode row: "Mode" and the mode's name, a chevron; it opens

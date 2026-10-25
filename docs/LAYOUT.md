@@ -88,24 +88,12 @@ page, and the ⋮ menu where the page has more. It replaces the wide
 layout's back link, title row and top-right row (DESIGN §4.1). It stays
 while the page scrolls under it.
 
-**Faraday Desktop's sticks** stand in the top bar, never in a strip
-above it (owner, 2026-10-25): from the right, the ?, the mode pill, Load
-samples, then the stick pills, the boot stick's first, so the wordmark
-stands at the window's top, level with the navigation's first item. The
-bar keeps `TOP_BAR_TITLE_ROOM` from the page area's left for the page's
-title and head; the pills take what is left beside the other actions,
-and those that do not fit fold into one pill, "Sticks · N", which opens
-a menu of every stick, in or out, a choice inserting or pulling it
-(Material's overflow: the actions that fit, the rest in a menu). The
-boot stick's pill always shows; where even it and the Sticks pill do not
-fit, it stands alone and opens the menu itself. The bar never takes a
-second row. The menu moves as Material's menu does: in on the
-emphasized decelerate, out on the emphasized accelerate, at once under
-Reduce motion; on a compact window it is a sheet, as every menu there
-is. At the Pi panel's size (compact and short), whose 44-unit bar
-already holds the way back, Load samples, the mode and the ?, the pills
-keep their strip above the bar, as on the stick and the Pi, which draw
-pills only while a backup flow uses sticks.
+**Faraday Desktop's sticks** stand outside the app, in its host strip
+at the window's foot (owner, 2026-10-25; F118, `docs/DESKTOP-HOST.md`),
+with Samples, the preview size and the screen's demo aids: the app's
+bar holds what the device's does, the mode pill and the ?. Held bare
+(`--panel`), the app draws the pills in a strip above its bar, as the
+stick and the Pi do while a backup flow uses sticks.
 
 **A flow** (Make a new wallet, the backup flow, Add a key, a spend) keeps
 the navigation beside it, so a person can leave and come back to it
@@ -158,13 +146,11 @@ them (`SUPPORT_PANE_TOP`), against the right edge with the 24 dp margin
 (`MARGIN_WIDE`) and the 24 dp spacer from the page (`SPACER`). On a
 window too narrow for the page beside it, what the person acts on in
 it sits in a strip pinned at the window's foot that opens to the whole
-pane over the page and never scrolls away. Built for codex32's Demo
-only card (`docs/CODEX32.md` §5.5, `codex32/pane_screen.rs`) and every
-page's and sheet's "Demo only" card (`docs/DEMO.md` §14,
-`samples/card.rs`); Learn's pane is planned. The "Demo only" card stands
-higher than other panes (owner, 2026-10-24): its top just under the
-top-right strip's pills (`DEMO_CARD_TOP`), below the eye only where the
-codex32 sheets show one.
+pane over the page and never scrolls away. Built for Make codex32
+shares' dice sheet in its column (§16.1, `codex32/pane_screen.rs`);
+Learn's pane is planned. The "Demo only" card that stood here is
+Faraday Desktop's host strip now, outside the app (F118,
+`docs/DESKTOP-HOST.md`).
 
 ## 7. Density
 
@@ -369,8 +355,7 @@ The page area is the window less the navigation, at every size: the
 1600 dp cap goes. What stands at the right stands against the window's
 edge:
 
-- the top strip's row (Faraday Desktop's stick pills, Load samples, the
-  mode pill and the ?; §3) and, under it, the eye and the keyboard
+- the top strip's row (the mode pill and the ?; §3) and, under it, the eye and the keyboard
   button: their right end `MARGIN_WIDE` (24 dp) from
   the window's right edge, as Material's top app bar puts its trailing
   actions;
@@ -395,6 +380,11 @@ already ends at the window's edge.
 The Starter's held frame keeps its own rule (`docs/STARTER.md` §3.1d).
 
 ## 16. Make codex32 shares on a wide window
+
+Where this section names the "Demo only" card, its column or its strip,
+read Faraday Desktop's host strip (F118, `docs/DESKTOP-HOST.md` §3.1):
+the card is gone from the app, and the entry and its sheets take the
+room it took.
 
 ### 16.1 The checksum worksheet fits where the window allows
 
@@ -610,17 +600,11 @@ no test drags the view away first (§19). Two things are new:
 
 ### 16.5 The step-through's buttons stay put
 
-In the Demo only card and its foot strip, Previous, Next and Play keep
-one place whatever the step says. The step's count and its working
-("Step 14 of 19 · character 3", then the working) are the Working
-area's, beside the pad (§16.3), and the card draws neither (owner,
-2026-10-25): the whole card holds the buttons in one row over Play's
-options, and the narrow column holds "Demo only", what it rolls in small
-type, then More, Previous, Next and Play one under another, each the
-column's width, the column `CODEX32_DEMO_COLUMN_W` (144 dp) wide, the
-widest button and the card's padding. In the strip they stand at the
-strip's right end and the step's line takes the room left of them on
-one line, cut where it is longer; **More** opens the whole card. Nothing
+Previous, Next and Play stand in Faraday Desktop's host strip (F118,
+`docs/DESKTOP-HOST.md` §3.1), each at one place whatever the step says,
+Play and Pause sharing the wider's width. The step's count and its
+working ("Step 14 of 19 · character 3", then the working) are the
+Working area's, beside the pad (§16.3; owner, 2026-10-25). Nothing
 is measured to place them.
 
 ## 17. The other screens

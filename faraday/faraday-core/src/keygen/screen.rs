@@ -73,8 +73,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::Screen::Catalog => EN.keygen_tools,
         _ => EN.keygen_back,
     };
-    let (pane, column, panel) = codex32_places(app, k, (cw, h));
-    let side = crate::codex32::pane_screen::side_room(pane, column);
+    let (column, panel) = codex32_places(app, k, (cw, h));
+    let side = crate::codex32::pane_screen::side_room(column);
     let start = panel.start_room();
     let inset = faraday_draw::tokens::KEYGEN_COLUMN_IN;
     let lead = if start > 0.0 { start } else { inset };
@@ -114,7 +114,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match (app_ref.keygen.state(), at[i]) {
                 (Some(k), Some(card)) => k.codex32.as_ref().map_or(0.0, |m| {
-                    let at = (card, pane, wide, panel, column);
+                    let at = (card, wide, panel, column);
                     crate::codex32::screen::body(app_ref, m, at, ui, x, y, w)
                 }),
                 (Some(k), None) => card_body(app_ref, k, ui, steps[i], x, y, w),
@@ -124,18 +124,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::KeyGen, next, again);
-    // One-column windows: the page's bar runs on over the "Demo only"
-    // card's column at the right, as across the page.
-    if ui.compact && side > 0.0 {
-        let (bx, bar) = (x0 + cw - side, crate::compact::BAR_H);
-        ui.fill(bx, 0.0, side, bar, 0.0, Role::SurfaceContainerLow);
-        ui.fill(bx, bar - 1.0, side, 1.0, 0.0, Role::OutlineVariant);
-    }
-    // The "Demo only" pane stands above the input panel at the foot; the
-    // panel is drawn after it, so the pane's strip takes no press of its.
+    // The dice sheet's column stands above the input panel at the foot.
     let foot = panel.foot_h();
     if let Some(m) = k.codex32.as_ref() {
-        crate::codex32::pane_screen::draw(app, m, ui, (pane, column), (x0, cw, h - foot));
+        crate::codex32::pane_screen::draw(app, m, ui, column, (x0, cw, h - foot));
     }
     if let Some(m) = k.codex32.as_ref() {
         crate::codex32::input_panel::draw(m, ui, panel, (x0, cw, h));
@@ -146,26 +138,19 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
 }
 
 /// Where Make codex32 shares' entry puts what stands out of its page, in
-/// a page area `cw` wide in a window `h` tall: the "Demo only" card,
-/// beside the page or at the window's foot (`docs/CODEX32.md` §5.5);
-/// whether the dice sheet stands in a column at the right, the card under
-/// it, where the window holds them beside a whole worksheet
-/// (`docs/LAYOUT.md` §16.1); and the input panel, beside the sheets at
-/// the page's start, at the window's foot, or in the page (§16.3).
-/// Arithmetic.
-fn codex32_places(
-    app: &View,
-    k: &KeyGen,
-    (cw, h): (f32, f32),
-) -> (Option<crate::codex32::pane_screen::PaneAt>, bool, PanelAt) {
+/// a page area `cw` wide in a window `h` tall: whether the dice sheet
+/// stands in a column at the right, where the window holds it beside a
+/// whole worksheet (`docs/LAYOUT.md` §16.1); and the input panel, beside
+/// the sheets at the page's start, at the window's foot, or in the page
+/// (§16.3). Arithmetic.
+fn codex32_places(app: &View, k: &KeyGen, (cw, h): (f32, f32)) -> (bool, PanelAt) {
     let Some(m) = k.codex32.as_ref() else {
-        return (None, false, PanelAt::Page);
+        return (false, PanelAt::Page);
     };
-    let pane = crate::codex32::pane_screen::pane_at(app, m, cw);
-    let shell = (app.window().class(), app.is_compact(), app.roller_offered());
+    let shell = (app.window().class(), app.is_compact());
     let column = crate::codex32::pane_screen::column_now(m, cw, h, shell);
     let panel = crate::codex32::input_panel::place(app, m, cw, h);
-    (pane, column, panel)
+    (column, panel)
 }
 
 /// The work width of New key's open card (`docs/LAYOUT.md` §14): from

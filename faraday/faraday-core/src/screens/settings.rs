@@ -6,10 +6,7 @@ use crate::drawing::View;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
-use faraday_draw::tokens::{
-    APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP, LABEL, SETTINGS_CHOICE_H, SETTINGS_VALUE_GAP,
-    SETTINGS_VALUE_LINE, SETTINGS_VALUE_TEXT,
-};
+use faraday_draw::tokens::{APPEARANCE_LABEL_W, APPEARANCE_ROW_GAP};
 use faraday_ui::parts::{title, wrap_buttons};
 
 /// The panic key, beside Power off on Settings: the stick shell powers
@@ -36,58 +33,6 @@ fn appearance_body(
 /// `clock_now`.
 const TIME_FOR: &str = EN.app_for_totp_codes;
 
-/// Preview size's choices, in Settings' order (`docs/PREVIEW-SIZE.md`):
-/// the window itself, then each of `PREVIEW_SIZES`.
-fn preview_items() -> [(&'static str, Action); 8] {
-    let s = faraday_draw::tokens::PREVIEW_SIZES;
-    [
-        (EN.settings_preview_this_window, Action::PreviewSize(None)),
-        (EN.settings_preview_pi, Action::PreviewSize(Some(s[0]))),
-        (EN.settings_preview_narrow, Action::PreviewSize(Some(s[1]))),
-        (EN.settings_preview_half, Action::PreviewSize(Some(s[2]))),
-        (EN.settings_preview_7in, Action::PreviewSize(Some(s[3]))),
-        (EN.settings_preview_10in, Action::PreviewSize(Some(s[4]))),
-        (EN.settings_preview_desktop, Action::PreviewSize(Some(s[5]))),
-        (EN.settings_preview_monitor, Action::PreviewSize(Some(s[6]))),
-    ]
-}
-
-/// Preview size's choices and, under them, the size the screens are laid
-/// out at, in dp, from (x, y) `w` wide; `chosen` is the size shown.
-/// Returns its height.
-fn preview_body(
-    app: &View,
-    ui: &mut Ui,
-    x: f32,
-    y: f32,
-    w: f32,
-    chosen: Option<(u16, u16)>,
-) -> f32 {
-    let items = preview_items();
-    let on = items
-        .iter()
-        .position(|(_, a)| *a == Action::PreviewSize(chosen));
-    let mut h = ui.choices((x, y, w, SETTINGS_CHOICE_H), LABEL, &items, on) + SETTINGS_VALUE_GAP;
-    let window = app.window();
-    let size = fill(
-        EN.settings_preview_dp,
-        &[
-            &format!("{:.0}", window.width),
-            &format!("{:.0}", window.height),
-        ],
-    );
-    ui.text(
-        x,
-        y + h,
-        SETTINGS_VALUE_TEXT,
-        W::R,
-        Role::OnSurfaceVariant,
-        &size,
-    );
-    h += SETTINGS_VALUE_LINE;
-    h
-}
-
 /// Settings' sections, in their order (`docs/LAYOUT.md` §17): Mode
 /// first, where a short panel reaches it without scrolling (on Mainnet,
 /// where no pill shows, it is the only door to the sheet), then the rest.
@@ -99,22 +44,17 @@ enum Part {
     Randomness,
     Appearance,
     Scale,
-    Preview,
     Signed,
     Stick,
     About,
 }
 
-/// The sections this app has: Preview size only where the shell offers
-/// one (`docs/PREVIEW-SIZE.md`), the stick's upgrade never in the online
+/// The sections this app has: the stick's upgrade never in the online
 /// app, which has no boot partition to copy (`docs/history/PLAN.md` §5.5).
+/// The preview size is Faraday Desktop's host's (`docs/DESKTOP-HOST.md`).
 fn parts(app: &View) -> Vec<Part> {
     use Part::*;
-    let mut v = vec![Mode, Session, Time, Randomness, Appearance, Scale];
-    if app.preview().is_some() {
-        v.push(Preview);
-    }
-    v.push(Signed);
+    let mut v = vec![Mode, Session, Time, Randomness, Appearance, Scale, Signed];
     if !app.online {
         v.push(Stick);
     }
@@ -131,7 +71,6 @@ fn part_title(app: &View, p: Part) -> &'static str {
         Part::Randomness => EN.own_randomness,
         Part::Appearance => EN.settings_appearance,
         Part::Scale => EN.settings_display_scale,
-        Part::Preview => EN.settings_preview_size,
         Part::Signed => EN.settings_signed_amounts,
         Part::Stick => app.medium.caps(),
         Part::About => EN.settings_about,
@@ -163,9 +102,6 @@ fn part_body(app: &View, ui: &mut Ui, p: Part, at: (f32, f32, f32)) -> f32 {
             appearance_body(app, ui, at, label)
         }
         Part::Scale => scale_body(app, ui, at),
-        Part::Preview => app
-            .preview()
-            .map_or(0.0, |chosen| preview_body(app, ui, x, y, w, chosen)),
         Part::Signed => signed_body(app, ui, at),
         Part::Stick => {
             wrap_buttons(

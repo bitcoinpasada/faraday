@@ -119,11 +119,17 @@ fn shows(app: &mut Faraday, text: &str) -> bool {
     app.drawn_texts().iter().any(|t| t == text)
 }
 
+/// Whether Faraday Desktop's host strip offers `text` for the app as it
+/// stands (`docs/DESKTOP-HOST.md` §3.1).
+fn in_strip(app: &mut Faraday, text: &str) -> bool {
+    crate::common::strip(app).iter().any(|t| t == text)
+}
+
 #[test]
-fn the_five_dice_stand_beside_your_dice_on_faraday_desktop_only() {
+fn the_five_dice_are_offered_beside_your_dice_on_faraday_desktop_only() {
     let mut desk = app(true, true);
     on_dice_entry(&mut desk);
-    assert!(shows(&mut desk, "Or let Faraday roll"));
+    assert!(in_strip(&mut desk, "Next") && in_strip(&mut desk, "Play"));
     assert!(shows(&mut desk, "Your dice"), "the pad for real dice stays");
     // Where the walk stands is the Working area's, beside the pad.
     assert!(shows(&mut desk, "Character 1"));
@@ -131,39 +137,35 @@ fn the_five_dice_stand_beside_your_dice_on_faraday_desktop_only() {
         !shows(&mut desk, "Next rolls character 1"),
         "not the card's"
     );
-    for act in [WalkAct::Next, WalkAct::Play] {
-        assert!(desk.offers(Action::Codex32(C32::Walk(act))));
-    }
 
     let mut stick = app(false, true);
     on_dice_entry(&mut stick);
-    assert!(!shows(&mut stick, "Or let Faraday roll"));
-    assert!(!stick.offers(Action::Codex32(C32::Walk(WalkAct::Next))));
+    assert!(!in_strip(&mut stick, "Next"));
     // A press that reaches a device shell anyway rolls nothing.
     c32(&mut stick, C32::Walk(WalkAct::Next));
     assert_eq!(make(&stick).seq_len(), 0);
 }
 
 #[test]
-fn on_faraday_desktop_in_testnet_the_dice_step_has_no_demo_only_card_and_no_roller() {
+fn on_faraday_desktop_in_testnet_the_dice_step_offers_no_demo_aid() {
     // Faraday Desktop, its roller set, but in Testnet: Demo is the one
-    // condition for the card and all it holds (owner, 2026-10-24).
+    // condition for every aid (owner, 2026-10-24).
     let mut test = app(false, true);
     test.set_roller_offered(true);
     faraday_core::testkit::move_to(&mut test.session, faraday_core::testkit::NET).unwrap();
     on_dice_entry(&mut test);
-    assert!(!shows(&mut test, "Demo only"), "no card");
-    assert!(!shows(&mut test, "Or let Faraday roll"), "no roller");
-    assert!(!test.offers(Action::Codex32(C32::Walk(WalkAct::Next))));
-    assert!(!test.offers(Action::Codex32(C32::Sample)));
+    let s = crate::common::strip(&mut test);
+    assert!(
+        !s.iter()
+            .any(|t| t == "Demo" || t == "Next" || t == "Use a sample"),
+        "no aid: {s:?}"
+    );
     assert!(shows(&mut test, "Your dice"), "the person's own dice stay");
 
-    // In Demo the same step has both.
+    // In Demo the same step has them.
     let mut demo = app(true, true);
     on_dice_entry(&mut demo);
-    assert!(shows(&mut demo, "Demo only"));
-    assert!(shows(&mut demo, "Or let Faraday roll"));
-    assert!(demo.offers(Action::Codex32(C32::Walk(WalkAct::Next))));
+    assert!(in_strip(&mut demo, "Next") && in_strip(&mut demo, "Use a sample"));
 }
 
 #[test]
@@ -221,7 +223,7 @@ fn play_to_the_end_makes_the_strings_and_demo_puts_its_sample_in_their_place() {
     // The roller is Demo's alone, so what the computer rolled never
     // leaves the entry (`docs/CODEX32.md` §12).
     assert!(make(&app).sample());
-    assert!(shows(
+    assert!(in_strip(
         &mut app,
         "Demo puts sample NAME in place of these strings"
     ));
@@ -240,7 +242,7 @@ fn faces_from_both_finish_the_entry_and_demo_puts_its_sample_in_their_place() {
     play(&mut app, Reach::End);
     to_made(&mut app);
     assert!(make(&app).sample());
-    assert!(shows(
+    assert!(in_strip(
         &mut app,
         "Demo puts sample NAME in place of these strings"
     ));
@@ -276,7 +278,7 @@ fn on_bip39_dice(offered: bool) -> Faraday {
 #[test]
 fn the_one_die_fills_new_keys_rolls_and_the_card_says_simulated_dice() {
     let mut app = on_bip39_dice(true);
-    assert!(shows(&mut app, "Rolled by this computer"));
+    assert!(in_strip(&mut app, "Roll"), "the die in the strip");
     app.press(Action::KRoller(RollerAct::Per(RollerPerClick::Five)));
     app.press(Action::KRoller(RollerAct::Roll));
     assert_eq!(app.keygen().unwrap().dice.len(), 5);
@@ -294,127 +296,4 @@ fn a_device_shell_has_no_die_beside_new_keys_rolls() {
     assert!(!shows(&mut app, "Rolled by this computer"));
     app.press(Action::KRoller(RollerAct::Roll));
     assert_eq!(app.keygen().unwrap().dice.len(), 0);
-}
-
-/// The app on Faraday Desktop at `width` × `height` and `dpi`, Reduce
-/// motion on, on the codex32 entry by dice, a frame drawn.
-fn sized(width: u16, height: u16, dpi: u16) -> Faraday {
-    let mut app = Faraday::new();
-    app.event(Event::Display(DisplayInfo {
-        width,
-        height,
-        dpi,
-        inset_bottom: 0,
-        inset_top: 0,
-        buttons: 0,
-        camera_fixed: false,
-        secure: SecureHardware::None,
-        boot: BootState::Unknown,
-        memory_mib: None,
-    }));
-    app.set_roller_offered(true);
-    faraday_core::testkit::into_demo(&mut app);
-    for i in 0..8u8 {
-        app.event(Event::Entropy(EntropyBytes::new([0x31 + i * 7; 32])));
-    }
-    app.press(Action::ReduceMotion(true));
-    on_dice_entry(&mut app);
-    let _ = app.frame();
-    app
-}
-
-/// The page scrolled down by `dy` with the pointer at (x, y), a frame
-/// after.
-fn scroll_page(app: &mut Faraday, x: u16, y: u16, dy: i16) {
-    app.event(Event::Hover { x, y });
-    app.event(Event::Scroll { x, y, dy });
-    app.event(Event::ScrollEnd { x, y });
-    app.settle();
-    let _ = app.frame();
-}
-
-#[test]
-fn the_demo_only_card_holds_its_place_while_the_page_scrolls() {
-    let next = Action::Codex32(C32::Walk(WalkAct::Next));
-    // Wide: a pane at the right, below the top strip, the page scrolling
-    // beside it.
-    let mut wide = sized(1280, 800, 160);
-    let at = wide.hit_box(next).expect("Next in the pane");
-    assert!(at.0 > 1280 / 2, "at the right: {at:?}");
-    let page = |app: &Faraday| app.keygen().unwrap().scroll.y;
-    let before = page(&wide);
-    scroll_page(&mut wide, 500, 400, 300);
-    assert!(page(&wide) > before, "the page scrolled");
-    assert_eq!(wide.hit_box(next), Some(at), "the card did not");
-    let top = wide
-        .drawn_text_boxes()
-        .into_iter()
-        .find(|(t, _)| t == "Demo only")
-        .map(|b| b.1)
-        .expect("the card's heading is in view");
-    assert!(top.1 >= 96, "below the pill and the eye: {top:?}");
-
-    // Narrow: a strip pinned at the window's foot.
-    let mut narrow = sized(480, 640, 286);
-    let at = narrow.hit_box(next).expect("Next in the strip");
-    assert!(at.1 > 640 / 2, "at the foot: {at:?}");
-    scroll_page(&mut narrow, 240, 200, 200);
-    assert_eq!(narrow.hit_box(next), Some(at), "the strip stays");
-    // More opens the whole card over the page; Less closes it.
-    c32(&mut narrow, C32::Pane);
-    assert!(make(&narrow).pane_open());
-    assert!(shows(&mut narrow, "Rolls d6"), "the whole card");
-    c32(&mut narrow, C32::Pane);
-    assert!(!make(&narrow).pane_open());
-}
-
-#[test]
-fn next_stays_where_it_is_at_every_step_and_character() {
-    let next = Action::Codex32(C32::Walk(WalkAct::Next));
-    // The whole card on a big window, its narrow column at 1280 × 800,
-    // the strip at a narrow one's foot.
-    for (w, h, dpi) in [(1920, 1080, 160), (1280, 800, 160), (480, 640, 286)] {
-        let mut app = sized(w, h, dpi);
-        let at = app.hit_box(next).expect("Next is drawn");
-        // Past a character's last step, into the next character's, and
-        // a step back.
-        for i in 0..45 {
-            c32(&mut app, C32::Walk(WalkAct::Next));
-            if i % 7 == 6 {
-                c32(&mut app, C32::Walk(WalkAct::Previous));
-            }
-            let _ = app.frame();
-            assert_eq!(
-                app.hit_box(next),
-                Some(at),
-                "Next moved at press {i} on {w}x{h}"
-            );
-        }
-    }
-}
-
-#[test]
-fn the_demo_only_card_stands_24_dp_from_the_windows_right_edge_on_a_big_window() {
-    let next = Action::Codex32(C32::Walk(WalkAct::Next));
-    for (w, h) in [(1920u16, 1080u16), (2560, 1440)] {
-        let mut app = sized(w, h, 160);
-        let at = app.hit_box(next).expect("Next in the pane");
-        assert!(
-            i32::from(at.0 + at.2) <= i32::from(w) - 24,
-            "{w}: Next {at:?} reaches into the margin"
-        );
-        let card = app
-            .drawn_text_boxes()
-            .into_iter()
-            .find(|(t, _)| t == "Demo only")
-            .map(|b| b.1)
-            .expect("the card's heading");
-        // The card is 400 dp wide; its heading starts inside its left edge.
-        let left = i32::from(w) - 24 - 400;
-        assert!(
-            (left..left + 48).contains(&card.0),
-            "{w}: heading at {}",
-            card.0
-        );
-    }
 }

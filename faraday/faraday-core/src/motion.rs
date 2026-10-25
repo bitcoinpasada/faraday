@@ -985,7 +985,6 @@ impl Faraday {
             p.settle();
         }
         self.keygen.dice_settle();
-        self.stick.close_menu(false);
     }
 
     /// The person moves the worksheet that scrolls now: the view's

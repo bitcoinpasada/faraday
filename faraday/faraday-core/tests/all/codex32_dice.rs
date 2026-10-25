@@ -228,31 +228,28 @@ fn desktop(offered: bool, faces: u8) -> Faraday {
 }
 
 #[test]
-fn the_roller_and_its_dice_are_in_a_demo_only_box_on_faraday_desktop_alone() {
+fn the_computers_dice_are_offered_in_the_host_strip_on_faraday_desktop_alone() {
     let mut app = desktop(true, 6);
-    let texts = app.drawn_texts();
-    for want in ["Demo only", "Rolls d6", "Or let Faraday roll", "Your dice"] {
-        assert!(texts.iter().any(|t| t == want), "{want}");
+    // The person's own entry in the app; the computer's walk outside it.
+    assert!(app.drawn_texts().iter().any(|t| t == "Your dice"));
+    assert!(!app.drawn_texts().iter().any(|t| t == "Demo only"));
+    let s = crate::common::strip(&mut app);
+    for want in ["Rolls d6", "Previous", "Next", "Play"] {
+        assert!(s.iter().any(|t| t == want), "{want}: {s:?}");
     }
-    assert!(app.offers(Action::Codex32(C32::Walk(WalkAct::Next))));
-    // Beside the person's own entry: the box stands right of the pad.
-    let boxes = app.drawn_text_boxes();
-    let at = |s: &str| boxes.iter().find(|(t, _)| t == s).map(|b| b.1).unwrap();
-    assert!(at("Demo only").0 > at("Your dice").0 + at("Your dice").2);
     let mut stick = desktop(false, 6);
-    let texts = stick.drawn_texts();
-    assert!(
-        !texts
-            .iter()
-            .any(|t| t == "Demo only" || t == "Or let Faraday roll")
-    );
-    assert!(!stick.offers(Action::Codex32(C32::Walk(WalkAct::Next))));
+    let s = crate::common::strip(&mut stick);
+    assert!(!s.iter().any(|t| t == "Next" || t == "Rolls d6"), "{s:?}");
 }
 
 #[test]
 fn twenty_faced_dice_are_rolled_and_padded_one_to_twenty() {
     let mut app = desktop(true, 20);
-    assert!(app.drawn_texts().iter().any(|t| t == "Rolls d20"));
+    assert!(
+        crate::common::strip(&mut app)
+            .iter()
+            .any(|t| t == "Rolls d20")
+    );
     // The pad's keys 1 to 20.
     for n in 1..=20u8 {
         assert!(app.offers(Action::Codex32(C32::Face(n))), "key {n}");

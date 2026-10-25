@@ -196,6 +196,56 @@ impl Canvas {
         self.damaged(r);
     }
 
+    /// Costs a pass over the frame's pixels. Copies `frame` in scaled
+    /// down to `w` × `h` with its top-left corner at (`x`, `y`), each
+    /// pixel the average of the frame's pixels it covers: a screen of
+    /// another size shown in a smaller window (Faraday Desktop's host).
+    /// Where `w` and `h` are the frame's own, [`Canvas::place`]. Counted
+    /// as a whole copy ([`Work::FullCanvas`]).
+    pub fn place_scaled(&mut self, (x, y, w, h): (i32, i32, i32, i32), frame: &Frame<'_>) {
+        let (fw, fh) = (usize::from(frame.width), usize::from(frame.height));
+        if w as usize == fw && h as usize == fh {
+            self.place(x, y, frame);
+            return;
+        }
+        (self.counter)(Work::FullCanvas);
+        let r = Rect::new(x, y, w, h).intersect(&self.bounds());
+        if r.is_empty() || fw == 0 || fh == 0 || frame.rgba.len() < fw * fh * 4 {
+            return;
+        }
+        // The frame's cells, `[from, to)`, that cell `i` of `n` covers out
+        // of the frame's `m`: at least one.
+        let span = |i: usize, n: usize, m: usize| {
+            let from = (i * m / n).min(m - 1);
+            (from, ((i + 1) * m / n).clamp(from + 1, m))
+        };
+        let cols: Vec<(usize, usize)> = (r.x..r.right())
+            .map(|c| span((c - x) as usize, w as usize, fw))
+            .collect();
+        let stride = self.pixmap.width() as usize * 4;
+        let data = self.pixmap.data_mut();
+        for row in r.y..r.bottom() {
+            let (r0, r1) = span((row - y) as usize, h as usize, fh);
+            for (k, &(c0, c1)) in cols.iter().enumerate() {
+                let mut sum = [0u32; 4];
+                for fy in r0..r1 {
+                    let line = &frame.rgba[(fy * fw + c0) * 4..(fy * fw + c1) * 4];
+                    for p in line.chunks_exact(4) {
+                        for (s, v) in sum.iter_mut().zip(p) {
+                            *s += u32::from(*v);
+                        }
+                    }
+                }
+                let n = ((r1 - r0) * (c1 - c0)).max(1) as u32;
+                let at = row as usize * stride + (r.x as usize + k) * 4;
+                for (d, s) in data[at..at + 4].iter_mut().zip(sum) {
+                    *d = (s / n) as u8;
+                }
+            }
+        }
+        self.damaged(r);
+    }
+
     /// The current clip rectangle.
     pub fn clip(&self) -> Rect {
         self.clips.last().copied().unwrap_or_else(|| self.bounds())

@@ -124,7 +124,7 @@ Read this table, then only the decision you need.
 | [F107](decisions/F107.md) | Single key, backup in shares | 2026-10-22 | Active | wallets |
 | [F108](decisions/F108.md) | Faraday's tokens, colour roles and components follow Material 3, shape included | 2026-10-23 | Amended by F113 | design |
 | [F109](decisions/F109.md) | Out of the app until their standards mature: FROST, and MuSig2 signing across places | 2026-10-23 | Active | wallets |
-| [F110](decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Active | design |
+| [F110](decisions/F110.md) | Faraday Desktop shows its screens at another screen's size | 2026-10-24 | Amended by F118 | design |
 | [F111](decisions/F111.md) | The Material 3 components and patterns Faraday leaves out | 2026-10-24 | Active | design |
 | [F112](decisions/F112.md) | One explanation on a working screen: the tooltip on "codex32" in Make a new wallet's Kind card | 2026-10-24 | Active | design |
 | [F113](decisions/F113.md) | Colour follows Material 3's colour system: ten seeded themes, Light and Dark, three contrast levels | 2026-10-24 | Active | design |
@@ -132,3 +132,4 @@ Read this table, then only the decision you need.
 | [F115](decisions/F115.md) | A key flow opened from Make a new wallet has Cancel, back to it; a Keys card with one way on is passed over | 2026-10-24 | Active | design |
 | [F116](decisions/F116.md) | Faraday's scope: an offline signer and keeper of keys, Bitcoin first | 2026-10-25 | Active | scope |
 | [F117](decisions/F117.md) | Faraday Desktop matches the device; it differs only where the platform or an owner decision forces it | 2026-10-25 | Active | design |
+| [F118](decisions/F118.md) | Faraday Desktop is a simulator: what is Desktop or Demo stands in a host strip outside the app | 2026-10-25 | Active | design |

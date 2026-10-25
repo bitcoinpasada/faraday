@@ -4,71 +4,13 @@ use crate::tour::{Tour, type_text};
 use faraday_core::samples::Pick;
 use faraday_core::testkit;
 use faraday_core::vault::VaultAction as V;
-use faraday_core::{Action, Screen, StickInfo, StorageEvent};
+use faraday_core::{Action, Screen, StorageEvent};
 use faraday_shell_api::App as _;
 
-/// The desktop app's stick pills: the default two, then a wallet's backup
-/// with five vaults.
+/// The desktop app's stick pills, in its host's strip
+/// (`docs/DESKTOP-HOST.md`): the host tour.
 pub(crate) fn pills_tour(t: &mut Tour) -> Result<(), String> {
-    t.app.shell_sticks = true;
-    t.app.online = true;
-    t.app.seed_line = true;
-    let stick = |name: &str| StickInfo {
-        id: name.into(),
-        label: name.into(),
-        boot: name == "BOOTSTICK",
-        serial: None,
-        files: Vec::new(),
-    };
-    t.app.storage(StorageEvent::Sticks(vec![
-        stick("BOOTSTICK"),
-        stick("STICK-2"),
-    ]));
-    t.press(Action::Nav(Screen::Home));
-    t.shot("pills-default")?;
-    // In Demo with its samples, as Faraday Desktop starts: the pills left
-    // of Load samples and the mode pill in the top bar.
-    t.app.session = faraday_core::wallet::Session::on(testkit::net());
-    t.app.session.set_demo(&faraday_samples::SAMPLES);
-    t.app.samples = Some(&faraday_samples::SAMPLES);
-    t.app.set_modes(faraday_core::DESKTOP_MODES);
-    t.press(Action::Nav(Screen::Home));
-    t.shot("pills-demo")?;
-    // Five sticks in: those that do not fit fold into the Sticks menu.
-    t.app.storage(StorageEvent::Sticks(
-        ["BOOTSTICK", "STICK-2", "STICK-3", "STICK-4", "STICK-5"]
-            .into_iter()
-            .map(stick)
-            .collect(),
-    ));
-    t.shot("pills-five")?;
-    t.press(Action::SticksMenu);
-    t.shot("pills-menu")?;
-    t.press(Action::Cancel);
-    t.press(Action::Nav(Screen::Files));
-    t.shot("pills-files")?;
-    t.app.storage(StorageEvent::Sticks(vec![
-        stick("BOOTSTICK"),
-        stick("STICK-2"),
-    ]));
-    let multi = faraday_core::create::NewKind::ALL
-        .iter()
-        .position(|k| *k == faraday_core::create::NewKind::Multi)
-        .unwrap_or(0) as u8;
-    t.press(Action::CreateWallet);
-    t.press(Action::CKind(multi));
-    t.press(Action::CVaults(true));
-    t.press(Action::CNext(faraday_core::cstep::WHERE));
-    t.press(Action::CVaultN(5));
-    t.press(Action::CNext(faraday_core::cstep::HOW_MANY));
-    t.shot("pills-five-vaults")?;
-    // Settings' Preview size, as the desktop shell offers it
-    // (`docs/PREVIEW-SIZE.md`).
-    t.app
-        .event(faraday_shell_api::Event::PreviewOffered { chosen: None });
-    t.press(Action::Nav(Screen::Settings));
-    crate::tour::scroll_to(t, Action::PreviewSize(None));
-    t.shot("pills-preview-size")
+    crate::tours::host::host_tour(t)
 }
 
 /// The demo's dimmed actions (`docs/DEMO.md` §7): BIP-85's Value card

@@ -118,12 +118,6 @@ fn codex32_demo_only(t: &mut Tour) -> Result<(), String> {
     to(t, &|s| matches!(s, Step::Table { .. }));
     marked(t);
     t.shot("roller-codex32-step-table")?;
-    // Narrow, More opens the whole card over the page.
-    if t.size().0 < 600 {
-        c(t, C32::Pane);
-        t.shot("roller-codex32-card-open")?;
-        c(t, C32::Pane);
-    }
     // The view on its way to the next character's cells: a frame 100 ms
     // into the move, nothing settled.
     to(t, &|s| matches!(s, Step::Sum { .. }));

@@ -62,6 +62,9 @@
 //! - Sticks, boot and files: `upgrade`, `transfer` (the desktop as the
 //!   device's QR link), `names` (the Starter's install names),
 //!   `secure_boot/state.rs`.
+//! - Faraday Desktop's host: `host` (the strip at the window's foot, the
+//!   preview frame and the pointer carried into the app, with
+//!   `host/screen.rs`; `docs/DESKTOP-HOST.md`).
 //! - Support: `wordlist`, `learn`, `modes` (F81, with `modes/screen.rs`), `samples` (with `samples/screen.rs`, and `samples/card.rs`, the "Demo only" card every page and sheet hands its demo-only items to), `tools`, `testkit`.
 //!
 //! `Faraday::act_inner` is the dispatch for presses: it runs the checks that
@@ -209,6 +212,7 @@ pub mod transfer;
 pub mod upgrade;
 
 // Support: word lists, the Learn pages, the tools page, test data.
+pub mod host;
 pub mod learn;
 pub mod modes;
 pub mod samples;
@@ -229,6 +233,7 @@ pub use faraday_intake::secret_buf as secret_text;
 /// Faraday's wording, in its own crate.
 pub use faraday_strings as strings;
 pub use file_menu::Unrenamed;
+pub use host::{Host, HostMenu, HostPress};
 pub use medium::Medium;
 pub use modes::{DESKTOP_MODES, Mode, STICK_MODES};
 pub use qr_view::{
@@ -677,8 +682,6 @@ pub enum Sheet {
     Samples,
     /// The top app bar's ⋮ menu on a compact window (`nav`).
     NavMenu,
-    /// Faraday Desktop's Sticks menu, every stick in or out (`stick::pills`).
-    SticksMenu,
 }
 
 /// Costs a QR encoding (through `encode_bounded` and `bbqr_frames`).
@@ -3258,13 +3261,12 @@ impl Faraday {
             | Action::QrFormat(..)
             | Action::QrPartSize(..)
             | Action::QrSpeed(..)) => self.qr_act(a, &c),
-            a @ (Action::Scale(_)
-            | Action::PreviewSize(_)
-            | Action::ReduceMotion(_)
-            | Action::Theme(_)) => self.appearance_act(a),
+            a @ (Action::Scale(_) | Action::ReduceMotion(_) | Action::Theme(_)) => {
+                self.appearance_act(a)
+            }
             Action::SettingsSection(k) => self.settings_section(k),
             // Acted on before (`act_inner`), or never pressed (a mark).
-            Action::StickPill(_) | Action::SticksMenu | Action::Mark(..) => {}
+            Action::StickPill(_) | Action::Mark(..) => {}
         }
     }
 
@@ -7385,7 +7387,6 @@ impl App for Faraday {
                     | self.seed_tick()
                     | self.typed_tick(now_ms)
                     | self.explore_tick(now_ms)
-                    | self.sticks_menu_tick(now_ms)
                 {
                     self.out.dirty = true;
                     self.out.commands.push_back(Command::Draw);
@@ -7458,7 +7459,6 @@ impl App for Faraday {
             Event::ClipboardUnavailable { .. } => {
                 self.pasted(zeroize::Zeroizing::new(String::new()))
             }
-            Event::PreviewOffered { chosen } => self.settings.set_preview(chosen),
             _ => return,
         }
         if settle {

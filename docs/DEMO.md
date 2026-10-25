@@ -1,7 +1,7 @@
 # The demo, and Faraday Desktop for developers
 
 **Kind:** Reference
-**Status:** Built (F30, F61, F81; the "Demo only" card, §14); the website's part is in its own repository
+**Status:** Built (F30, F61, F81; the demo's aids in Faraday Desktop's host strip, §14, F118); the website's part is in its own repository
 
 ## 1. The decision
 
@@ -301,25 +301,22 @@ Moved to `docs/history/DEMO-LOG.md`.
 
 ## 14. The "Demo only" card
 
-Owner, 2026-10-24: everything that exists only for the demo stands
-apart from the page's own column, in one outlined card headed "Demo
-only" (DESIGN §4.18, `faraday_ui::demo`, `samples/card.rs`), so it never
-reads as part of the normal flow. The pattern is Make codex32 shares'
-entry (`docs/CODEX32.md` §5.5): a supporting pane at the window's right
-(`docs/LAYOUT.md` §6, §15), its top just under the top-right strip's
-pills and its right edge 24 dp from the window's, holding its place
-while the page scrolls; on a narrow window, or beside a page with a side
-panel of its own where it would keep less than 840 dp, a
-strip pinned at the window's foot. A sheet that offers something
-demo-only (the scanner, a passphrase sheet) has the card beside it the
-same way.
+Everything that exists only for the demo stands outside the app, in
+Faraday Desktop's host strip at the window's foot, under "Demo", in the
+host's own look (owner, 2026-10-25; F118, `docs/DESKTOP-HOST.md` §3),
+so it never reads as part of the device's screen. The strip shows only
+the aids of the screen or sheet on show. A page hands each item to the
+frame where it would have drawn it (`faraday_ui::demo`), and the host
+takes it into the strip; nothing demo-only is drawn in a page. (Until
+then, owner 2026-10-24, they stood in an outlined "Demo only" card
+beside the page; the heading keeps its number.)
 
-**Demo is the one condition** (owner, 2026-10-24): the card and every
-item in it are drawn only in Demo. In Testnet, Signet, Regtest and
-Mainnet, on Faraday Desktop too, they are gone, not moved: the
-computer's dice rollers are Demo's alone (`Faraday::roller_offered`).
+**Demo is the one condition** (owner, 2026-10-24): every aid is offered
+only in Demo. In Testnet, Signet, Regtest and Mainnet, on Faraday
+Desktop too, they are gone, not moved: the computer's dice rollers are
+Demo's alone (`Faraday::roller_offered`).
 
-### 14.1 What the card holds
+### 14.1 What the strip holds
 
 | Screen | Element | Why it is demo-only |
 |---|---|---|
@@ -347,10 +344,10 @@ computer's dice rollers are Demo's alone (`Faraday::roller_offered`).
 
 | Element | Where | Why |
 |---|---|---|
-| **Load samples**, the pill, and its sheet | The top-right strip, beside the Demo pill | It is the mode's own action on every screen, beside the pill that names the mode, in no page's column; its sheet is Demo's alone |
+| **Samples** and its sheet | The host strip, after the sticks (F118) | Faraday Desktop's own action in Demo, outside the app; its sheet opens over the app as the mode's |
 | Check a signed message's Tools tile taking the sample message | Tools | Not an element: the tile opens the check, and in Demo with no message in the Inbox the sample stands in |
 | The dimmed actions of §4 | Their screens | Real actions of the app, dimmed in Demo (§7) |
 | "Never type a seed that holds real bitcoin here." | Under every field that takes a seed | Drawn in every mode on an online shell |
 | The toast "Added sample … in place of the key made" | The notice area | A notice after Lock in, in no column |
-| The Demo · Testnet pill and the mode sheet | The top-right strip | They name the mode; Testnet, Signet and Regtest have theirs |
+| The Demo · Testnet pill and the mode sheet | The app's top bar | They name the mode, as the device's do; Testnet, Signet and Regtest have theirs |
 

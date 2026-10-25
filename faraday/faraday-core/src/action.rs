@@ -38,9 +38,6 @@ pub enum Action {
     /// A press on a stick's pill across the top of the window: 0 the boot
     /// stick, `n` Stick `n`. The shell inserts the stick or pulls it.
     StickPill(u8),
-    /// The top bar's "Sticks · N" pill: the Sticks menu opens, or closes
-    /// when open.
-    SticksMenu,
     /// The top app bar's ⋮ menu (`docs/LAYOUT.md` §3): `None` opens it,
     /// a screen chosen in it closes it and goes there.
     NavMenu(Option<Screen>),
@@ -257,10 +254,6 @@ pub enum Action {
     /// Settings' section `k` chosen in its list pane, from expanded
     /// windows up (`docs/LAYOUT.md` §5, §17).
     SettingsSection(u8),
-    /// Show the screens at another screen's size, in dp, or at the
-    /// window's own (`None`): the desktop app's preview
-    /// (`docs/PREVIEW-SIZE.md`).
-    PreviewSize(Option<(u16, u16)>),
     /// Draw in this scheme: a theme, mode and contrast (`docs/THEMES.md` §12).
     Theme(ui::Theme),
     /// Reduce motion on or off.

@@ -206,12 +206,7 @@ impl Faraday {
         if self.fade.last_drawn == Some(drawn_key) {
             return;
         }
-        // The Sticks menu opens and closes by its own motion, as
-        // Material's menu does, not by a fade (a sheet on a compact
-        // window fades as any sheet).
-        let menu = |s: Option<Sheet>| s == Some(Sheet::SticksMenu);
-        let own_motion = !self.compact
-            && (menu(self.sheet) || self.fade.last_drawn.is_some_and(|((_, s), _, _)| menu(s)));
+        let own_motion = false;
         let fades = self.fade.last_drawn.is_some() && self.fades() && !own_motion;
         self.fade.theme_fade = self.fade.last_drawn.is_some_and(|(_, _, t)| t != theme);
         if self.fade.last_drawn.is_some() && !own_motion {

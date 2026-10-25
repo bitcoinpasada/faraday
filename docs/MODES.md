@@ -106,12 +106,10 @@ and `docs/DEMO.md` differ, this holds until M8 brings DEMO in line.
   (`faraday/faraday-core/src/screens/mod.rs`), `compact::tools` and
   compact Home (`faraday/faraday-core/src/compact/mod.rs`). The
   comments "a badge … opens nothing" go.
-- **Load samples pill**: in Demo only, when `Faraday::samples` is set
-  (§5), immediately left of the Demo pill, a token gap between, same
-  height and shape, in the accent tone (it is an action, the mode pill
-  is a state). Label "Load samples" wide, "Samples" on the compact bar
-  and compact Home. `network_pill_left` returns the left edge of the
-  pair, so the row's next item moves along.
+- **Samples**: in Demo only, when `Faraday::samples` is set (§5),
+  in Faraday Desktop's host strip after the sticks, outside the app
+  (F118, `docs/DESKTOP-HOST.md` §3); it opens the Load samples sheet.
+  The app's bar holds the mode pill alone.
 - **Settings**: the Network row (`network_row_items`) is replaced by one
   row, **Mode**, the mode's name muted at its right, a chevron; it
   opens the same sheet. On Mainnet, where no pill shows, it is the only
@@ -313,8 +311,8 @@ cursor on the step's state that a press moves (no picker); a press
 again replaces it with the next, wrapping. "Not used" means not
 loaded, and for a set, not yet begun.
 
-**Placement.** In the "Demo only" card (DESIGN §4.18, `docs/DEMO.md`
-§14), never inside the field or the scanner's band: the field keeps its
+**Placement.** In Faraday Desktop's host strip (DESIGN §4.19,
+`docs/DEMO.md` §14), never inside the field or the scanner's band: the field keeps its
 caret and placeholder as in every mode. Never drawn on Mainnet,
 Testnet, Signet or Regtest; drawn on the website. The scanner's button
 says what it hands over (Load sample PSBT, wallet, seed, share, key,
@@ -334,8 +332,8 @@ to remember, as for real.
 
 ### 6.1 The field's inner action (faraday-ui)
 
-Since 2026-10-24 (owner) the button stands in the "Demo only" card
-(`docs/DEMO.md` §14) rather than inside the field; it shows while the
+Since 2026-10-24 (owner) the button stands outside the field, and
+since 2026-10-25 in Faraday Desktop's host strip (`docs/DEMO.md` §14); it shows while the
 field is empty and the person has not typed in it, and a press in the
 field no longer hides it. The rest of this section, the table of steps
 and what a press puts in, stands.
@@ -488,7 +486,6 @@ the file has them.
 | `never_real_seed` | Never type a seed that holds real bitcoin here. |
 | `mode_not_now` | Not now |
 | `settings_mode` | Mode |
-| `samples_pill` | Load samples |
 | `samples_pill_short` | Samples |
 | `samples_title` | Load samples |
 | `samples_wallets` | Wallets |

@@ -374,12 +374,9 @@ pub enum C32 {
     /// The open cell's working moved to the neighbouring cell of its row,
     /// before (-1) or after (1) (§7.4).
     CellStep(i8),
-    /// A press on the step-through of the "Demo only" card: the computer's
-    /// five dice, a step at a time (Faraday Desktop, §5.5).
+    /// A press on the computer's walk in Faraday Desktop's host strip:
+    /// its five dice, a step at a time (§5.5, `docs/DESKTOP-HOST.md`).
     Walk(WalkAct),
-    /// On a narrow window, the "Demo only" card opened from its strip at
-    /// the foot, or closed back to it (§5.5).
-    Pane,
     /// The Working area's step before (-1) or after (1) of the person's
     /// own entry (§5.7): only what is shown moves; past the last checksum
     /// the tour of the shares made and S, whose last Next goes on.
@@ -606,10 +603,8 @@ pub struct Codex32Make {
     /// `tour.rs`): worked out as the set is made, forgotten as it is
     /// unmade.
     tour: Tour,
-    /// How far the "Demo only" card is scrolled within itself, units.
+    /// How far the dice sheet's column is scrolled within itself, units.
     pane_y: f32,
-    /// On a narrow window, the card opened from its strip at the foot.
-    pane_open: bool,
 }
 
 impl Codex32Make {
@@ -675,7 +670,6 @@ impl Codex32Make {
             track: Walk::default(),
             tour: Tour::default(),
             pane_y: 0.0,
-            pane_open: false,
         }
     }
 
@@ -1007,12 +1001,6 @@ impl Codex32Make {
     /// moves (`ui::Slot::DemoPane`).
     pub(crate) fn pane_offset_mut(&mut self) -> &mut f32 {
         &mut self.pane_y
-    }
-
-    /// On a narrow window, whether the "Demo only" card is open over the
-    /// page rather than its strip alone.
-    pub fn pane_open(&self) -> bool {
-        self.pane_open
     }
 
     /// The worksheet's pan, which the scroll machinery moves
@@ -1621,10 +1609,6 @@ impl Codex32Make {
                 }
             }
             C32::Check => self.check_open = !self.check_open,
-            C32::Pane => {
-                self.pane_open = !self.pane_open;
-                self.pane_y = 0.0;
-            }
             _ => {}
         }
     }

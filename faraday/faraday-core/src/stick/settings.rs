@@ -64,11 +64,11 @@ pub(crate) struct Settings {
     tz_min: i16,
     /// Guided mode: flows show their written walk-through.
     guided: bool,
-    /// The desktop app's preview size (`docs/PREVIEW-SIZE.md`): `None`
-    /// where the shell offers none; else the size it shows, in dp, or
-    /// `None` for the window itself. Never in the file or the kept
-    /// state: the shell says it each session.
-    preview: Option<Option<(u16, u16)>>,
+    /// Faraday Desktop's host holds the app (`docs/DESKTOP-HOST.md`):
+    /// its stick pills, Load samples, the preview size and every demo
+    /// aid stand in the host's strip, outside the app, so the app draws
+    /// none of them. Never in the file or the kept state.
+    hosted: bool,
 }
 
 impl Default for Settings {
@@ -86,7 +86,7 @@ impl Default for Settings {
             // value, from the kept state or the boot stick's settings
             // file, overwrites this before the person sees a screen.
             guided: false,
-            preview: None,
+            hosted: false,
         }
     }
 }
@@ -132,15 +132,14 @@ impl Settings {
         self.guided
     }
 
-    /// The preview: `None` where the shell offers none, else the size
-    /// shown (`None` for the window itself).
-    pub(crate) fn preview(&self) -> Option<Option<(u16, u16)>> {
-        self.preview
+    /// Whether Faraday Desktop's host holds the app.
+    pub(crate) fn hosted(&self) -> bool {
+        self.hosted
     }
 
-    /// Notes what the shell says it shows (`Event::PreviewOffered`).
-    pub(crate) fn set_preview(&mut self, chosen: Option<(u16, u16)>) {
-        self.preview = Some(chosen);
+    /// Notes that Faraday Desktop's host holds the app.
+    pub(crate) fn set_hosted(&mut self, on: bool) {
+        self.hosted = on;
     }
 
     /// Sets the display scale.
@@ -415,15 +414,6 @@ impl Faraday {
                 }
                 self.save_boxes();
             }
-            // The shell answers with the display at that size and
-            // `PreviewOffered` (`docs/PREVIEW-SIZE.md`).
-            Action::PreviewSize(size) => {
-                if self.settings.preview().is_some() {
-                    self.out
-                        .commands
-                        .push_back(faraday_shell_api::Command::PreviewSize { size });
-                }
-            }
             Action::ReduceMotion(on) => {
                 self.settings.set_reduce_motion(on);
                 self.scroll.stop();
@@ -456,11 +446,24 @@ impl Faraday {
         self.settings.theme()
     }
 
-    /// The desktop app's preview (`docs/PREVIEW-SIZE.md`): `None` where
-    /// the shell offers none; else the size it shows the screens at, in
-    /// dp, or `None` for the window itself.
-    pub fn preview(&self) -> Option<Option<(u16, u16)>> {
-        self.settings.preview()
+    /// The display the app was last given, if any: what Faraday Desktop's
+    /// host holds it at ([`crate::Host::strip_for`]). A lookup.
+    pub fn last_display_info(&self) -> Option<faraday_shell_api::DisplayInfo> {
+        self.last_display
+    }
+
+    /// Whether Faraday Desktop's host holds the app
+    /// (`docs/DESKTOP-HOST.md`): then the app draws no stick pills, no
+    /// Load samples, no Preview size and no "Demo only" card; the host's
+    /// strip holds them. A lookup.
+    pub fn hosted(&self) -> bool {
+        self.settings.hosted()
+    }
+
+    /// Notes that Faraday Desktop's host holds the app ([`crate::Host`]).
+    pub(crate) fn set_hosted(&mut self, on: bool) {
+        self.settings.set_hosted(on);
+        self.out.dirty = true;
     }
 
     /// Reduce motion: nothing slides, glides, coasts or stretches.

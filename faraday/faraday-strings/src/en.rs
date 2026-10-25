@@ -6089,9 +6089,6 @@ strings! {
     settings_display_scale: "Display scale",
     /// Text in `settings`.
     settings_auto: "Auto",
-    /// Settings' card in the desktop app: the screen size its screens
-    /// are shown at (docs/PREVIEW-SIZE.md).
-    settings_preview_size: "Preview size",
     /// Preview size's choice: the window's own size.
     settings_preview_this_window: "This window",
     /// Preview size's choice: the Pi's 2.8-inch panel, 268 × 358 dp.
@@ -6110,6 +6107,26 @@ strings! {
     settings_preview_monitor: "Full monitor",
     /// Preview size's value under the choices. `{}`: width, height in dp.
     settings_preview_dp: "{} × {} dp",
+    /// Faraday Desktop's host strip (docs/DESKTOP-HOST.md): the preview
+    /// size's button. `{}`: the size shown.
+    host_size: "Size · {}",
+    /// Faraday Desktop's host strip: the preview size's button where the
+    /// strip is narrow.
+    host_size_short: "Size",
+    /// Faraday Desktop's host strip: the sticks' menu where the strip is
+    /// narrowest.
+    host_sticks_short: "Sticks",
+    /// Faraday Desktop's host strip: the computer's die's Rolls per click,
+    /// opening its choices. `{}`: the one chosen, or the number typed.
+    host_rolls_per_click: "Rolls per click · {}",
+    /// Faraday Desktop's host strip: the head of the screen's demo aids.
+    host_demo: "Demo",
+    /// Faraday Desktop's host strip: the demo aids that do not fit, in a
+    /// menu.
+    host_more: "More",
+    /// Faraday Desktop's host strip: Play's options, how far it runs and
+    /// how fast, in a menu.
+    host_play_options: "Play options",
     /// Line in `settings`.
     settings_signed_amounts: "Signed amounts",
     /// Text in `settings`. `{}`: `n`, `if n == 1 { EN.settings_transaction }…`.
@@ -7966,8 +7983,6 @@ strings! {
     /// The scanner's tile that hands over a sample address.
     scan_sample_address: "Load sample address",
     // ----- samples (faraday-core/src/samples/) -----
-    /// The Load samples pill, on the wide layout.
-    samples_pill: "Load samples",
     /// The Load samples pill, on the compact bar and Home.
     samples_pill_short: "Samples",
     /// Title of the Load samples sheet.
@@ -8336,8 +8351,6 @@ strings! {
     /// Faraday Desktop's top bar: the pill the sticks that do not fit
     /// fold into, which opens the Sticks menu. `{}` how many it holds.
     stick_pill_more: "Sticks · {}",
-    /// The Sticks menu's title: every stick, each in or out.
-    stick_menu_title: "Sticks",
     /// The Starter's window title.
     starter_window_title: "Faraday Starter",
     /// A Windows disk as Disk Management names it: `{}` its number.
@@ -9184,8 +9197,6 @@ strings! {
     roller_roll: "Roll",
     /// Button: stop a click's rolls where they are.
     roller_stop: "Stop",
-    /// Label of the roller's choice of how many values one click rolls.
-    roller_per_click: "Rolls per click",
     /// Choice: one roll per click.
     roller_one: "1",
     /// Choice: five rolls per click.
@@ -9426,11 +9437,6 @@ strings! {
     /// The note when the dice are changed in the middle of a character
     /// (CODEX32 §5.1).
     codex32_dice_changed: "Dice changed: this character's rolls are cleared",
-    /// The heading of the card that holds what a page offers only in Demo
-    /// or only on Faraday Desktop, apart from the person's own entry: the
-    /// samples, the computer's dice, the demo's passphrase (DEMO §14,
-    /// CODEX32 §5.5, owner 2026-10-24).
-    demo_only: "Demo only",
     /// The roller's dice, in the "Demo only" box. `{}`: the die, as "d20".
     codex32_rolls_die: "Rolls {}",
     // ----- The step-through in the "Demo only" card (CODEX32 §5.5, owner 2026-10-24), faraday-core -----
@@ -9466,15 +9472,8 @@ strings! {
     tip_previous_step: "Previous step",
     /// The Working area's Next, an icon button's tooltip.
     tip_next_step: "Next step",
-    /// Before any step of a character is shown. `{}`: its number in its share.
-    codex32_walk_ready: "Next rolls character {}",
     /// Play, which runs the steps.
     codex32_walk_play: "Play",
-    /// On a narrow window, the strip's button that opens the whole "Demo
-    /// only" card over the page.
-    codex32_pane_more: "More",
-    /// The open card's button that closes it back to the strip.
-    codex32_pane_less: "Less",
     /// Play running: the button that stops it.
     codex32_walk_pause: "Pause",
     /// Head over how far Play runs.

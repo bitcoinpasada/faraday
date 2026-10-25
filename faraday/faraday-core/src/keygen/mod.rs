@@ -2076,7 +2076,7 @@ impl crate::Faraday {
     /// right now (`docs/LAYOUT.md` §16.1). Arithmetic.
     pub(crate) fn codex32_column_now(&self) -> bool {
         let page_w = crate::screens::keygen_page_w(self);
-        let shell = (self.window().class(), self.compact, self.roller_offered());
+        let shell = (self.window().class(), self.compact);
         let h = self.window().height;
         self.keygen
             .state
@@ -2090,7 +2090,7 @@ impl crate::Faraday {
     /// there, else none. Arithmetic.
     pub(crate) fn codex32_panel_foot_now(&self) -> f32 {
         let page_w = crate::screens::keygen_page_w(self);
-        let shell = (self.window().class(), self.compact, self.roller_offered());
+        let shell = (self.window().class(), self.compact);
         self.keygen
             .state
             .as_ref()
@@ -2103,11 +2103,11 @@ impl crate::Faraday {
 
     /// Keeps Make codex32 shares' fitted worksheet cell in step with the
     /// window as it is now (`docs/LAYOUT.md` §16.1): the work width of the
-    /// open card, beside the "Demo only" card where it stands, and the
+    /// open card, beside the dice sheet's column where it stands, and the
     /// window's height less the input panel's room and the margins above
     /// and below. One-column pages fit no sheet. Arithmetic.
     pub(crate) fn codex32_refit(&mut self) {
-        let (compact, roller) = (self.compact, self.roller_offered());
+        let compact = self.compact;
         let class = self.window().class();
         let page_w = crate::screens::keygen_page_w(self);
         let h = self.window().height;
@@ -2116,16 +2116,13 @@ impl crate::Faraday {
         };
         m.note_sheet();
         let room = (!compact).then(|| {
-            let pane =
-                crate::codex32::pane_screen::pane_at_now(m, page_w, (class, compact, roller));
-            let shell = (class, compact, roller);
+            let shell = (class, compact);
             let column = crate::codex32::pane_screen::column_now(m, page_w, h, shell);
-            let side = crate::codex32::pane_screen::side_room(pane, column);
+            let side = crate::codex32::pane_screen::side_room(column);
             let tall = h - 2.0 * faraday_draw::tokens::MARGIN_WIDE;
             // The input panel's room: at the foot its height; beside the
             // sheets its width, from the column's start (§16.3).
-            let panel =
-                crate::codex32::input_panel::place_now(m, page_w, h, (class, compact, roller));
+            let panel = crate::codex32::input_panel::place_now(m, page_w, h, shell);
             let start = panel.start_room();
             let lead = if start > 0.0 {
                 start - faraday_draw::tokens::KEYGEN_COLUMN_IN

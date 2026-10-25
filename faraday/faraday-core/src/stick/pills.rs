@@ -1,14 +1,13 @@
 //! The stick pills: the boot stick, which is Stick 1, then Stick 2, 3
 //! and on, each a small pill with its state, in or out.
 //!
-//! On Faraday Desktop and the website demo they stand in the top bar,
-//! left of its other actions (`docs/LAYOUT.md` §3): as many as fit in the
-//! room the bar leaves beside the page's title, the boot stick's always,
-//! the rest folded into one pill, "Sticks · N", that opens the Sticks
-//! menu listing every stick (Material's overflow). A press on a pill, or
-//! on a stick in the menu, asks the shell to insert the stick or pull it;
-//! the shell's sticks are folders, one for each pill, so a stick keeps
-//! what was written to it.
+//! On Faraday Desktop they stand in its host's strip, outside the app
+//! (`docs/DESKTOP-HOST.md` §3): as many as fit, the boot stick's always,
+//! the rest in the host's Sticks menu. A press on a pill, or on a stick
+//! in the menu, asks the shell to insert the stick or pull it; the
+//! shell's sticks are folders, one for each pill, so a stick keeps what
+//! was written to it. Held bare (`--panel`), the app draws them in a
+//! strip across the top, as a device does.
 //!
 //! The pills are the boot stick and Stick 2 when nothing asks for more.
 //! While a backup flow is on screen there is a pill for each stick it
@@ -30,7 +29,6 @@ use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Ui, W};
 use crate::{Action, Faraday, StickInfo};
-use faraday_draw::tokens::{CAPTION, GAP, GAP_SMALL, GRID, MODE_PILL_HEIGHT, MODE_PILL_PAD};
 
 /// The boot stick's folder.
 pub const BOOT_FOLDER: &str = "BOOTSTICK";
@@ -551,7 +549,7 @@ fn layout(pills: &[Pill], ui: &Ui, z: &Size, avail: f32) -> Layout {
 /// design units: a device's, and Faraday Desktop's on the Pi panel's
 /// size; 0 where there are none, or where they stand in the top bar.
 pub(crate) fn strip_h(app: &View, ui: &Ui, window_w: f32) -> f32 {
-    if in_bar(app) {
+    if app.hosted() {
         return 0.0;
     }
     let pills = app.stick_pills();
@@ -613,7 +611,8 @@ fn quiet(pressed: bool) -> (Paint, Paint, Paint) {
 /// stand in the top bar ([`bar`]). Each takes a press where the shell's
 /// sticks are its own; a device's are put in by hand.
 pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
-    if in_bar(app) {
+    // Faraday Desktop's host draws them in its strip (`docs/DESKTOP-HOST.md`).
+    if app.hosted() {
         return;
     }
     let pills = app.stick_pills();
@@ -656,342 +655,18 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, window_w: f32) {
     (ui.ox, ui.oy, ui.in_sheet) = was;
 }
 
-// ---- Faraday Desktop's top bar (`docs/LAYOUT.md` §3) ----
-
-/// Whether the pills stand in the top bar: Faraday Desktop's and the
-/// demo's, on every window but the Pi panel's size, whose 44-unit bar
-/// holds the way back, Load samples, the mode and the ? already (there
-/// they keep their strip). A lookup.
-fn in_bar(app: &View) -> bool {
-    app.shell_sticks && app.nav() != crate::nav::Nav::Menu
-}
-
-/// One pill in the top bar: a stick's, by its index among the pills, or
-/// the Sticks pill (`None`) that the rest fold into; its text and width;
-/// whether a press opens the Sticks menu rather than inserting or
-/// pulling the stick.
-#[derive(Clone)]
-struct BarItem {
-    pill: Option<usize>,
-    text: String,
-    w: f32,
-    menu: bool,
-}
-
-/// The pills the top bar holds, in order from the left, and their width
-/// with the gaps between them.
-struct BarFit {
-    pills: Vec<Pill>,
-    items: Vec<BarItem>,
-    width: f32,
-}
-
-/// A pill's text with its state: "Stick 2 · in".
-fn with_state(p: &Pill) -> String {
-    let state = if p.inserted {
-        EN.stick_pill_inserted
-    } else {
-        EN.stick_pill_out
-    };
-    fill(EN.stick_pill_state, &[&p.label, state])
-}
-
-/// A bar pill's width for `text`, with the room of a stick's dot when
-/// `dot`: the mode pill's measures.
-fn bar_pill_w(ui: &Ui, text: &str, dot: bool) -> f32 {
-    let dot = if dot { GRID + GAP_SMALL } else { 0.0 };
-    2.0 * MODE_PILL_PAD + dot + ui.measure(CAPTION, W::S, text)
-}
-
-/// Costs a text measure per pill. The pills in the top bar, in `room`:
-/// every stick with its state where all fit; else the boot stick and as
-/// many after it as fit beside the Sticks pill, which holds the rest;
-/// else, narrowest, the boot stick's pill alone, by its name, opening the
-/// Sticks menu. The boot stick's pill always shows, and the bar never
-/// takes a second row.
-/// None where they keep their strip ([`draw`]): a device, the Pi panel's size.
-fn bar_fit(app: &View, ui: &Ui, room: f32) -> Option<BarFit> {
-    if !in_bar(app) {
-        return None;
-    }
-    let pills = app.stick_pills();
-    if pills.is_empty() {
-        return None;
-    }
-    let item = |k: usize, text: String| BarItem {
-        pill: Some(k),
-        w: bar_pill_w(ui, &text, true),
-        text,
-        menu: false,
-    };
-    let more = |n: usize| {
-        let text = fill(EN.stick_pill_more, &[&n.to_string()]);
-        BarItem {
-            pill: None,
-            w: bar_pill_w(ui, &text, false),
-            text,
-            menu: true,
-        }
-    };
-    let total = |v: &[BarItem]| -> f32 {
-        v.iter().map(|i| i.w).sum::<f32>() + GAP * v.len().saturating_sub(1) as f32
-    };
-    let long: Vec<BarItem> = pills
-        .iter()
-        .enumerate()
-        .map(|(k, p)| item(k, with_state(p)))
-        .collect();
-    let n = long.len();
-    let items = if n == 1 || total(&long) <= room {
-        long
-    } else {
-        // The boot stick, then each after it while it and the Sticks
-        // pill for the rest still fit.
-        let mut kept = vec![long[0].clone()];
-        for it in &long[1..n - 1] {
-            let mut next = kept.clone();
-            next.push(it.clone());
-            next.push(more(n - next.len() + 1));
-            if total(&next) > room {
-                break;
-            }
-            kept.push(it.clone());
-        }
-        let rest = n - kept.len();
-        kept.push(more(rest));
-        if total(&kept) <= room {
-            kept
-        } else {
-            // Narrowest: the boot stick's pill alone, by its name, which
-            // opens the menu of every stick.
-            let mut boot = item(0, pills[0].label.clone());
-            boot.menu = true;
-            vec![boot]
-        }
-    };
-    let width = total(&items);
-    Some(BarFit {
-        pills,
-        items,
-        width,
-    })
-}
-
-/// The room the top bar's stick pills take at its right, with the gap
-/// after them, in `room`; 0 with none. Costs a text measure per pill.
-pub(crate) fn bar_width(app: &View, ui: &Ui, room: f32) -> f32 {
-    bar_fit(app, ui, room).map_or(0.0, |f| f.width + GAP)
-}
-
-/// Costs a text measure per pill. Draws the top bar's stick pills
-/// ending at `right`, their top at `y`, in `room` ([`bar_fit`]), and
-/// notes where, so they are drawn again over a sheet. Returns where the
-/// next action ends: their left edge a gap to the left, or `right` with
-/// none.
-pub(crate) fn bar(app: &View, ui: &mut Ui, right: f32, y: f32, room: f32) -> f32 {
-    let Some(fit) = bar_fit(app, ui, room) else {
-        return right;
-    };
-    app.stick.note_bar(Some((right + ui.ox, y + ui.oy, room)));
-    bar_draw(app, ui, &fit, right - fit.width, y);
-    right - fit.width - GAP
-}
-
-/// The pills of `fit` from (`x`, `y`), each a press: a stick's inserts it
-/// or pulls it, the Sticks pill opens or closes the menu.
-fn bar_draw(app: &View, ui: &mut Ui, fit: &BarFit, mut x: f32, y: f32) {
-    let h = MODE_PILL_HEIGHT;
-    let light = ui.theme.is_light();
-    let open = app.sheet == Some(crate::Sheet::SticksMenu);
-    for it in &fit.items {
-        let w = it.w;
-        let (fg, edge, body, dot, action) = match it.pill {
-            Some(k) => {
-                let p = &fit.pills[k];
-                let action = if it.menu {
-                    Action::SticksMenu
-                } else {
-                    Action::StickPill(p.n as u8)
-                };
-                let (fg, edge, body, tone) = paints(p, ui.is_pressed(action), light);
-                (fg, edge, body, Some(tone), action)
-            }
-            None => {
-                let action = Action::SticksMenu;
-                let (fg, edge, body) = if open {
-                    (
-                        Role::OnSecondaryContainer.paint(),
-                        Role::Outline.paint(),
-                        Role::SecondaryContainer.paint(),
-                    )
-                } else {
-                    quiet(ui.is_pressed(action))
-                };
-                // A stick in the menu that the flow asks for edges the
-                // pill in its tone.
-                let shown: Vec<usize> = fit.items.iter().filter_map(|i| i.pill).collect();
-                let asked = (0..fit.pills.len())
-                    .find(|k| !shown.contains(k) && fit.pills[*k].asked)
-                    .map(|k| paints(&fit.pills[k], false, light).3);
-                (fg, asked.unwrap_or(edge), body, None, action)
-            }
-        };
-        ui.fill(x, y, w, h, h / 2.0, body);
-        ui.stroke(x, y, w, h, h / 2.0, edge);
-        let mut tx = x + MODE_PILL_PAD;
-        if let Some(tone) = dot {
-            ui.dot(tx + GAP_SMALL, y + h / 2.0, GAP_SMALL, tone);
-            tx += GRID + GAP_SMALL;
-        }
-        ui.text_mid(tx, y, h, CAPTION, W::S, fg, &it.text);
-        ui.hit(x, y, w, h, action);
-        x += w + GAP;
-    }
-}
-
-/// Costs a text measure per pill. Over an open sheet, the top bar's stick
-/// pills again where the page drew them, still taking a press: a sheet
-/// may wait for a stick, which is put in from its pill.
-pub(crate) fn over_sheet(app: &View, ui: &mut Ui) {
-    if app.sheet.is_none() {
-        return;
-    }
-    let Some((right, y, room)) = app.stick.bar_spot() else {
-        return;
-    };
-    let Some(fit) = bar_fit(app, ui, room) else {
-        return;
-    };
-    let was = (ui.ox, ui.oy, ui.in_sheet);
-    (ui.ox, ui.oy, ui.in_sheet) = (0.0, 0.0, false);
-    bar_draw(app, ui, &fit, right - fit.width, y);
-    (ui.ox, ui.oy, ui.in_sheet) = was;
-}
-
-/// How much of the Sticks menu shows while it moves, 0 to 1: opening on
-/// Material's emphasized decelerate, closing on its emphasized
-/// accelerate; 1 at rest. Arithmetic.
-fn menu_shown(app: &View) -> f32 {
-    use crate::motion::{MENU_IN_MS, MENU_OUT_MS, ease, progress};
-    use faraday_draw::tokens::{EASE_EMPHASIZED_ACCELERATE, EASE_EMPHASIZED_DECELERATE};
-    match app.stick.menu_motion() {
-        Some((true, at)) => ease(
-            EASE_EMPHASIZED_DECELERATE,
-            progress(at, app.now_ms, MENU_IN_MS),
-        ),
-        Some((false, at)) => {
-            1.0 - ease(
-                EASE_EMPHASIZED_ACCELERATE,
-                progress(at, app.now_ms, MENU_OUT_MS),
-            )
-        }
-        None => 1.0,
-    }
-}
-
-/// Costs a text measure per stick. The Sticks menu: every stick with its
-/// state, a press inserting or pulling it; a popup under its pill, a
-/// sheet on a compact window (Material's menu, `crate::menu`).
-pub(crate) fn menu_sheet(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    menu_drawn(app, ui, w, h, menu_shown(app));
-}
-
-/// The menu drawn `shown` of the way open.
-fn menu_drawn(app: &View, ui: &mut Ui, w: f32, h: f32, shown: f32) {
-    let lines: Vec<crate::menu::Line> = app
-        .stick_pills()
-        .iter()
-        .map(|p| crate::menu::Line::Item(with_state(p), Action::StickPill(p.n as u8)))
-        .collect();
-    crate::menu::draw(
-        ui,
-        w,
-        h,
-        &crate::menu::View {
-            title: EN.stick_menu_title,
-            icon: faraday_draw::widgets::Icon::Ellipsis,
-            lines: &lines,
-            at: 0,
-            keys: false,
-            anchor: app.stick.menu_anchor(),
-            cancel: (EN.nav_close, Action::Cancel),
-            shown,
-        },
-    );
-}
-
-/// Costs a text measure per stick. The Sticks menu closing: drawn over the
-/// page as it leaves, taking no press, until its motion ends.
-pub(crate) fn menu_leaving(app: &View, ui: &mut Ui, w: f32, h: f32) {
-    if app.sheet == Some(crate::Sheet::SticksMenu) || ui.compact {
-        return;
-    }
-    if !matches!(app.stick.menu_motion(), Some((false, _))) {
-        return;
-    }
-    let mark = (ui.hits.len(), ui.outside.take());
-    let was = (ui.ox, ui.oy);
-    (ui.ox, ui.oy) = (0.0, 0.0);
-    menu_drawn(app, ui, w, h, menu_shown(app));
-    (ui.ox, ui.oy) = was;
-    ui.hits.truncate(mark.0);
-    ui.outside = mark.1;
-}
-
 impl Faraday {
     /// A press that is the shell's, not the page's, so it acts under any
-    /// sheet and waits for nothing: a stick's pill (a stick chosen in the
-    /// Sticks menu closes it), the Sticks pill, and the menu's way out.
-    /// Returns whether it was one.
+    /// sheet and waits for nothing: a stick's pill, in Faraday Desktop's
+    /// host strip or its menu, or a device's strip. Returns whether it
+    /// was one.
     pub(crate) fn stick_bar_press(&mut self, action: Action) -> bool {
         match action {
             Action::StickPill(n) => {
-                self.sticks_menu_close();
                 self.stick_pill_pressed(n);
+                true
             }
-            Action::SticksMenu => self.sticks_menu_pressed(),
-            Action::Cancel if self.sheet == Some(crate::Sheet::SticksMenu) => {
-                self.sticks_menu_close();
-            }
-            _ => return false,
+            _ => false,
         }
-        true
-    }
-
-    /// The Sticks pill pressed: the menu opens under it, or closes when
-    /// open. It moves as Material's menu does, at once under Reduce
-    /// motion and on a compact window, where it is a sheet.
-    pub(crate) fn sticks_menu_pressed(&mut self) {
-        if self.sheet == Some(crate::Sheet::SticksMenu) {
-            self.sticks_menu_close();
-            return;
-        }
-        let anchor = self
-            .pointer
-            .rect_of(Action::SticksMenu)
-            .map(|r| (r.x, r.y, r.w, r.h));
-        let moving = !self.reduce_motion() && !self.compact;
-        self.stick.set_menu(anchor, moving);
-        self.sheet = Some(crate::Sheet::SticksMenu);
-        self.scroll.reset_sheet();
-    }
-
-    /// The Sticks menu closes: a stick chosen in it, a press beside it,
-    /// Escape or its pill again.
-    pub(crate) fn sticks_menu_close(&mut self) {
-        if self.sheet != Some(crate::Sheet::SticksMenu) {
-            return;
-        }
-        self.sheet = None;
-        let moving = !self.reduce_motion() && !self.compact;
-        self.stick.close_menu(moving);
-    }
-
-    /// The Sticks menu's motion at a tick: whether it still moves, so
-    /// the frame is drawn again.
-    pub(crate) fn sticks_menu_tick(&mut self, now_ms: u64) -> bool {
-        use crate::motion::{MENU_IN_MS, MENU_OUT_MS};
-        self.stick
-            .menu_tick(now_ms, |open| if open { MENU_IN_MS } else { MENU_OUT_MS })
     }
 }

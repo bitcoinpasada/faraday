@@ -1,23 +1,21 @@
-//! The step-through as it is drawn in the "Demo only" card
+//! The computer's walk on Make codex32 shares
 //! (`docs/CODEX32.md` §5.5): Previous, Next and Play, how far Play runs
 //! and how fast, and the step's working in plain arithmetic that the
-//! Working area beside the pad reads (`tracker_screen.rs`); the card
-//! itself draws no step's text but in the compact strip.
+//! Working area beside the pad reads (`tracker_screen.rs`). Previous,
+//! Next, Play and Play's options stand in Faraday Desktop's host strip
+//! (`docs/DESKTOP-HOST.md` §3.1), which reads them from here.
 //! Every value is read from the walk's character and from the worksheet
 //! the work set keeps (§7.4); nothing here works anything out but where
 //! a line goes.
 
-use faraday_draw::tokens as t;
 use faraday_keys::{Reveal, WorkSet};
 
-use super::screen::a;
 use super::walk::{SPEEDS, Speed, Step, WalkAct, WalkChar};
 use super::worksheet_screen::{Paper, letter, paper};
 use super::{C32, Codex32Make, char_of};
 use crate::fresh::roller::five::{REACHES, Reach};
 use crate::strings::{EN, fill};
-use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::Style;
 
 /// A symbol as the booklet writes it: a capital.
 pub(super) fn up(v: Option<u8>) -> String {
@@ -205,89 +203,6 @@ fn speed_name(s: Speed) -> &'static str {
     }
 }
 
-/// A row of chips from `x`, wrapping in `w`: each a name, whether it is
-/// chosen, and its press. Returns the height.
-fn chips(ui: &mut Ui, (x, y, w): (f32, f32, f32), items: &[(&str, bool, WalkAct)]) -> f32 {
-    let (mut bx, mut cy) = (x, y);
-    for &(name, on, act) in items {
-        let bw = ui.measure(t::ROLLER_LABEL + 1.0, W::S, name)
-            + t::ROLLER_GAP
-            + t::ROLLER_GAP
-            + t::ROLLER_GAP;
-        if bx > x && bx + bw > x + w {
-            bx = x;
-            cy += t::ROLLER_CHIP + t::ROLLER_GAP / 2.0;
-        }
-        let style = if on { Style::Primary } else { Style::Secondary };
-        bx += ui.button(
-            bx,
-            cy,
-            Some(bw),
-            t::ROLLER_CHIP,
-            name,
-            style,
-            a(C32::Walk(act)),
-        ) + t::ROLLER_GAP / 2.0;
-    }
-    cy + t::ROLLER_CHIP - y
-}
-
-/// The step-through at (`x`, `y`) in `w`: the heads, Previous, Next and
-/// Play, then Play's extent and speed. Returns the height.
-pub(super) fn draw(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    let mut cy = y;
-    let head = t::ROLLER_LABEL + 1.0;
-    ui.text(
-        x,
-        cy,
-        head,
-        W::S,
-        Role::OnSurface,
-        EN.roller_or_let_faraday_roll,
-    );
-    cy += ui.line(head, W::S) + t::ROLLER_GAP / 2.0;
-    ui.text(
-        x,
-        cy,
-        t::ROLLER_LABEL,
-        W::R,
-        Role::OnSurfaceVariant,
-        EN.roller_by_this_computer,
-    );
-    cy += ui.line(t::ROLLER_LABEL, W::R) + t::ROLLER_GAP;
-    // The rolls themselves are on the dice sheet beside it: the card
-    // holds what the computer does and the step's working.
-    cy += controls(m, ui, (x, cy, w)) + t::ROLLER_GAP;
-    cy += options(m, ui, (x, cy, w));
-    cy - y
-}
-
-/// Where the walk stands and the step's line for the compact strip:
-/// "Step 14 of 19 · character 3", and its working, or what Next does
-/// first.
-fn lines(m: &Codex32Make) -> (String, String) {
-    match (m.walk().shown(), m.work()) {
-        (Some((ch, s, step)), Some(work)) => (
-            fill(
-                EN.codex32_walk_count,
-                &[
-                    &s.to_string(),
-                    &ch.steps().len().to_string(),
-                    &(ch.n + 1).to_string(),
-                ],
-            ),
-            step_text(work, ch, step),
-        ),
-        _ => {
-            let n = m.front().map_or(0, |(_, n)| n + 1);
-            (
-                fill(EN.codex32_walk_ready, &[&n.to_string()]),
-                String::new(),
-            )
-        }
-    }
-}
-
 /// The three buttons' labels, styles and presses: Previous, Next and
 /// Play (Pause while it runs).
 fn buttons(m: &Codex32Make) -> [(&'static str, Style, C32); 3] {
@@ -318,133 +233,70 @@ fn buttons(m: &Codex32Make) -> [(&'static str, Style, C32); 3] {
     ]
 }
 
-/// Previous, Next and Play in one row at (`x`, `y`) in `w`, each at a
-/// place that depends on no step's text: Play and Pause share the
-/// wider's width, and the row starts at `x` or ends at the right edge
-/// (`right`). Measures only the labels, which never change. Returns the
-/// height.
-fn button_row(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32), right: bool) -> f32 {
-    let size = t::LABEL;
-    let items = buttons(m);
-    let play_w = ui.measure(size, W::S, EN.codex32_walk_play).max(ui.measure(
-        size,
-        W::S,
-        EN.codex32_walk_pause,
-    ));
-    let text = [
-        ui.measure(size, W::S, EN.codex32_previous),
-        ui.measure(size, W::S, EN.codex32_next),
-        play_w,
-    ];
-    let gap = t::GAP_SMALL;
-    // A narrow row takes the padding in, not the buttons' places.
-    let pad = ((w - 2.0 * gap - text.iter().sum::<f32>()) / 3.0).clamp(t::GAP, t::SPACER);
-    let total = text.iter().sum::<f32>() + 3.0 * pad + 2.0 * gap;
-    let mut bx = if right { x + w - total } else { x };
-    for (k, (label, style, act)) in items.into_iter().enumerate() {
-        let bw = text[k] + pad;
-        let label = ui.fit(size, W::S, label, bw - t::GAP);
-        ui.button(bx, y, Some(bw), t::TOUCH, &label, style, a(act));
-        bx += bw + gap;
+/// One of the entry's demo aids as Faraday Desktop's host strip offers it
+/// (`docs/DESKTOP-HOST.md` §3): its label, whether it takes a press,
+/// whether it is the step's main press, and the press.
+pub(crate) type HostAid = (&'static str, bool, bool, C32);
+
+/// What the host strip offers for the entry: Demo's Use a sample while a
+/// character is left, and the computer's walk, Previous, Next and Play
+/// (Pause while it runs), where the entry's "Demo only" card would hold
+/// them; none elsewhere. A lookup.
+pub(crate) fn host_aids(m: &Codex32Make, roller: bool) -> Vec<HostAid> {
+    let entering = m.open() == Some(super::Card::Enter);
+    if !entering || !super::dice_screen::demo_box_offered(m, roller) {
+        return Vec::new();
     }
-    t::TOUCH
-}
-
-/// The height [`strip_controls`] takes: the step's line on one row and
-/// the buttons under it. Arithmetic on the font.
-pub(super) fn strip_controls_h(ui: &Ui) -> f32 {
-    ui.line(t::LABEL, W::S) + t::GAP_SMALL + t::TOUCH
-}
-
-/// The step-through in the pinned strip at (`x`, `y`) in `w`: the step's
-/// line on one row, cut where it is longer (More opens the whole card),
-/// and Previous, Next and Play at the strip's right end. Returns the
-/// height.
-pub(super) fn strip_controls(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    let (count, working) = lines(m);
-    let line = if working.is_empty() {
-        count
-    } else {
-        format!("{count}. {working}")
-    };
-    let line = ui.fit(t::LABEL, W::S, &line, w);
-    ui.text(x, y, t::LABEL, W::S, Role::OnSurfaceVariant, &line);
-    let cy = y + strip_controls_h(ui) - t::TOUCH;
-    button_row(m, ui, (x, cy, w), true);
-    strip_controls_h(ui)
-}
-
-/// Previous, Next and Play (or Pause) at their place, in one row. Where
-/// the walk stands and the step's working are the Working area's, beside
-/// the pad (`docs/CODEX32.md` §5.7), so the card draws neither (owner,
-/// 2026-10-25). Returns the height.
-fn controls(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    button_row(m, ui, (x, y, w), false)
-}
-
-/// Previous, Next and Play (or Pause) one under another at (`x`, `y`),
-/// each `w` wide and `TOUCH` tall, `GAP` apart: the narrow column's
-/// buttons (`docs/LAYOUT.md` §16.5), at places no step's text moves.
-/// Returns the height.
-pub(super) fn stacked(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    let mut cy = y;
-    for (k, (label, style, act)) in buttons(m).into_iter().enumerate() {
-        if k > 0 {
-            cy += t::GAP;
+    let mut aids = Vec::new();
+    if m.demo() && m.front().is_some() {
+        aids.push((EN.use_a_sample, true, false, C32::Sample));
+    }
+    if roller && m.way() == super::Way::Dice {
+        for (label, style, act) in buttons(m) {
+            aids.push((label, !style.is_off(), style == Style::Primary, act));
         }
-        small_button(ui, (x, cy, w), label, style, act);
-        cy += t::TOUCH;
     }
-    cy - y
+    aids
 }
 
-/// Material's small button, `w` wide, 16 dp each side of its label, its
-/// 40 dp drawn in the middle of the 48 dp touch target at (`x`, `y`).
-pub(super) fn small_button(
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
-    label: &str,
-    style: Style,
-    act: C32,
-) {
-    let label = ui.fit(t::LABEL, W::S, label, w - 2.0 * t::SMALL_BUTTON_PAD);
-    let top = y + (t::TOUCH - t::BUTTON_H) / 2.0;
-    ui.button(x, top, Some(w), t::BUTTON_H, &label, style, a(act));
-    ui.hit(x, y, w, t::TOUCH, a(act));
+/// Whether the host strip offers Play's options: while the computer's
+/// walk is offered. A lookup.
+pub(crate) fn host_walks(m: &Codex32Make, roller: bool) -> bool {
+    m.open() == Some(super::Card::Enter)
+        && roller
+        && m.way() == super::Way::Dice
+        && super::dice_screen::demo_box_offered(m, roller)
 }
 
-/// How far Play runs and how fast. Returns the height.
-fn options(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
-    let mut cy = y;
+/// A heading of Play's options and its choices: a name, whether it is
+/// chosen, and its press.
+pub(crate) type PlayOptions = (&'static str, Vec<(&'static str, bool, C32)>);
+
+/// Play's options as the host's menu lists them: how far Play runs, then
+/// how fast, each a heading and its choices, a name, whether it is
+/// chosen and its press. A lookup.
+pub(crate) fn host_play_options(m: &Codex32Make) -> [PlayOptions; 2] {
     let walk = m.walk();
-    ui.text(
-        x,
-        cy,
-        t::ROLLER_LABEL,
-        W::R,
-        Role::OnSurfaceVariant,
-        EN.codex32_walk_play_runs,
-    );
-    cy += ui.line(t::ROLLER_LABEL, W::R) + t::ROLLER_GAP / 2.0;
-    let reaches: Vec<(&str, bool, WalkAct)> = REACHES
+    let reaches = REACHES
         .iter()
-        .map(|&r| (reach_name(r), walk.reach() == r, WalkAct::Reach(r)))
+        .map(|&r| {
+            (
+                reach_name(r),
+                walk.reach() == r,
+                C32::Walk(WalkAct::Reach(r)),
+            )
+        })
         .collect();
-    cy += chips(ui, (x, cy, w), &reaches) + t::ROLLER_GAP;
-    ui.text(
-        x,
-        cy,
-        t::ROLLER_LABEL,
-        W::R,
-        Role::OnSurfaceVariant,
-        EN.codex32_walk_speed,
-    );
-    cy += ui.line(t::ROLLER_LABEL, W::R) + t::ROLLER_GAP / 2.0;
-    let speeds: Vec<(&str, bool, WalkAct)> = SPEEDS
+    let speeds = SPEEDS
         .iter()
         .enumerate()
-        .map(|(i, &s)| (speed_name(s), walk.speed() == s, WalkAct::Speed(i as u8)))
+        .map(|(i, &s)| {
+            let act = C32::Walk(WalkAct::Speed(i as u8));
+            (speed_name(s), walk.speed() == s, act)
+        })
         .collect();
-    cy += chips(ui, (x, cy, w), &speeds);
-    cy - y
+    [
+        (EN.codex32_walk_play_runs, reaches),
+        (EN.codex32_walk_speed, speeds),
+    ]
 }

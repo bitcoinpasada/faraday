@@ -85,22 +85,14 @@ impl PanelAt {
 /// Where the input panel stands for the entry in a page area `cw` wide
 /// in a window `h` tall (`docs/LAYOUT.md` §16.3). Arithmetic.
 pub(crate) fn place(app: &View, m: &Codex32Make, cw: f32, h: f32) -> PanelAt {
-    let shell = (app.window().class(), app.is_compact(), app.roller_offered());
-    place_now(m, cw, h, shell)
+    place_now(m, cw, h, (app.window().class(), app.is_compact()))
 }
 
-/// [`place`] from the state as it is: the window's class, one-column
-/// pages or not, and whether the computer's roller is offered.
-/// Arithmetic.
-pub(crate) fn place_now(
-    m: &Codex32Make,
-    cw: f32,
-    h: f32,
-    (class, compact, roller): (WindowClass, bool, bool),
-) -> PanelAt {
-    let pane = super::pane_screen::pane_at_now(m, cw, (class, compact, roller));
-    let column = super::pane_screen::column_now(m, cw, h, (class, compact, roller));
-    place_in(m, cw, h, class, side_room(pane, column))
+/// [`place`] from the state as it is: the window's class and one-column
+/// pages or not. Arithmetic.
+pub(crate) fn place_now(m: &Codex32Make, cw: f32, h: f32, shell: (WindowClass, bool)) -> PanelAt {
+    let column = super::pane_screen::column_now(m, cw, h, shell);
+    place_in(m, cw, h, shell.0, side_room(column))
 }
 
 /// [`place_now`] beside a supporting pane that takes `side` of the page

@@ -13,7 +13,6 @@
 //! them in the session through the paths a typed or scanned key and wallet
 //! take (`docs/MODES.md` §5, §10 M6).
 
-pub(crate) mod card;
 pub(crate) mod put;
 pub(crate) mod screen;
 
@@ -476,10 +475,36 @@ fn loaded_text(wallets: usize, keys: usize) -> String {
     }
 }
 
-/// The samples area: the Load samples sheet's rows.
+/// The computer's dice roller the host's strip holds
+/// (`docs/CODEX32.md` §5.6).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Roller {
+    /// New key's dice.
+    KeyGen,
+    /// Create a vault's Generate with dice.
+    Vault,
+}
+
+/// What the host's strip holds for the page besides the buttons the page
+/// hands the frame.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub(crate) struct Hosted {
+    /// The lines saying what Demo puts in place of the person's own.
+    pub lines: Vec<String>,
+    /// The computer's dice roller.
+    pub roller: Option<Roller>,
+}
+
+/// The samples area: the Load samples sheet's rows, and what the last
+/// frame offered for the demo while Faraday Desktop's host holds the app.
 #[derive(Default)]
 pub(crate) struct SamplesArea {
     sheet: SheetState,
+    /// What the page and its sheet handed the frame for the "Demo only"
+    /// card in the frame last drawn, noted by the drawing for the host's
+    /// strip (`docs/DESKTOP-HOST.md` §3). Written once a frame; read by
+    /// the host after it.
+    aids: std::cell::RefCell<Vec<faraday_ui::demo::DemoItem<crate::Action>>>,
 }
 
 impl SamplesArea {
@@ -491,6 +516,16 @@ impl SamplesArea {
     /// Whether any row of the sheet is ticked.
     pub(crate) fn any_ticked(&self) -> bool {
         self.sheet.any_ticked()
+    }
+
+    /// Notes what the frame just drawn offered for the demo.
+    pub(crate) fn note_aids(&self, items: Vec<faraday_ui::demo::DemoItem<crate::Action>>) {
+        *self.aids.borrow_mut() = items;
+    }
+
+    /// What the frame last drawn offered for the demo.
+    pub(crate) fn aids(&self) -> Vec<faraday_ui::demo::DemoItem<crate::Action>> {
+        self.aids.borrow().clone()
     }
 }
 
@@ -640,93 +675,23 @@ impl Faraday {
         self.pointer.offered_times(action)
     }
 
-    /// Whether the page on screen holds the "Demo only" card now, and what
-    /// it holds besides the buttons it hands over: Demo, or the computer's
-    /// dice on Faraday Desktop, on a page that offers one of them. A
-    /// lookup.
-    pub(crate) fn demo_card_now(&self) -> Option<card::Hosted> {
-        // Demo is the one condition for the card and all it holds.
-        let demo = self.demo_passphrase();
-        if !demo {
+    /// What the host's strip holds for the page on screen besides the
+    /// buttons it hands the frame (`docs/DESKTOP-HOST.md` §3.1): in Demo,
+    /// the lines that say what Demo puts in place of the person's own, and
+    /// the computer's dice roller where its dice entry is open. A lookup.
+    pub(crate) fn demo_hosted_now(&self) -> Option<Hosted> {
+        // Demo is the one condition for every aid.
+        if !self.demo_passphrase() {
             return None;
         }
         let roller = self.demo_roller_now();
         let lines = self.demo_lines_now();
-        let buttons = demo && self.demo_page_offers();
-        (buttons || roller.is_some() || !lines.is_empty()).then_some(card::Hosted { lines, roller })
-    }
-
-    /// Whether the open sheet holds the "Demo only" card: its scanner's
-    /// sample, or a passphrase field's `faraday`. A lookup.
-    pub(crate) fn demo_sheet_card_now(&self, sheet: Sheet) -> Option<card::Hosted> {
-        let held = match sheet {
-            Sheet::Scan => self.scan_sample_offered(),
-            Sheet::Potential
-            | Sheet::SeedRead
-            | Sheet::Import
-            | Sheet::PassphraseSeeds
-            | Sheet::UnlockLoad => self.demo_passphrase(),
-            _ => false,
-        };
-        held.then(card::Hosted::default)
-    }
-
-    /// Whether the page on screen may hand the card a button now: a field
-    /// that takes a sample or the demo's passphrase is on it. Coarse on
-    /// purpose, so the page keeps its place while the person fills the
-    /// field. A lookup.
-    fn demo_page_offers(&self) -> bool {
-        let samples = self.put_on().is_some();
-        match self.screen {
-            Screen::Entry | Screen::Unlock | Screen::Family | Screen::Create => true,
-            Screen::KeyGen => self.keygen.state().is_some_and(|k| {
-                let typed = k.open == Some(crate::keygen::kstep::TYPED);
-                let pass =
-                    k.open == Some(crate::keygen::kstep::KEY) && !k.locked && k.asks_passphrase();
-                (typed || pass) && !self.codex32_card_now()
-            }),
-            Screen::Vaults => samples && self.vault_files().is_empty(),
-            Screen::CreateVault => self.vaults.create.is_some(),
-            Screen::VaultContents => {
-                (self.vaults.prompt.is_some() && self.prompt_chip())
-                    || self
-                        .vaults
-                        .form
-                        .as_ref()
-                        .is_some_and(|f| (0..f.fields.len()).any(|k| f.is_password(k)))
-            }
-            Screen::Restore => samples && self.seeds().is_some(),
-            Screen::Lightning => self.lightning.state().is_some(),
-            Screen::Explore => samples && self.explore.state().is_some(),
-            Screen::Backup => self.backup.state().is_some_and(|b| b.check.is_some()),
-            Screen::BackupFlow => self.vaults.focus.is_some(),
-            _ => false,
-        }
-    }
-
-    /// Whether Make codex32 shares' entry has its own "Demo only" card on
-    /// screen (`codex32/pane_screen.rs`): then the page holds no other.
-    fn codex32_card_now(&self) -> bool {
-        self.keygen.state().is_some_and(|k| {
-            k.open == Some(crate::keygen::kstep::CODEX32)
-                && k.codex32.as_ref().is_some_and(|m| {
-                    crate::codex32::pane_screen::pane_at_now(
-                        m,
-                        f32::MAX,
-                        (
-                            faraday_draw::geom::WindowClass::Large,
-                            false,
-                            self.roller_offered(),
-                        ),
-                    )
-                    .is_some()
-                })
-        })
+        (roller.is_some() || !lines.is_empty()).then_some(Hosted { lines, roller })
     }
 
     /// The computer's dice roller on the page on screen, where its dice
     /// entry is open on Faraday Desktop. A lookup.
-    fn demo_roller_now(&self) -> Option<card::Roller> {
+    fn demo_roller_now(&self) -> Option<Roller> {
         if !self.roller_offered() {
             return None;
         }
@@ -740,9 +705,9 @@ impl Faraday {
             && self.vaults.create.is_some()
             && self.vaults.dice.is_some();
         if keygen {
-            Some(card::Roller::KeyGen)
+            Some(Roller::KeyGen)
         } else if vault {
-            Some(card::Roller::Vault)
+            Some(Roller::Vault)
         } else {
             None
         }

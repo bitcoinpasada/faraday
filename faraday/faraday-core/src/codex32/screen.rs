@@ -59,12 +59,6 @@ struct At {
     cls: WindowClass,
     /// The sheets are masked (§6.4.6): characters are drawn as dots.
     hide: bool,
-    /// The five-dice roller stands beside the pad (Faraday Desktop,
-    /// §5.5).
-    roller: bool,
-    /// The "Demo only" card is a strip pinned at the window's foot: the
-    /// entry leaves room under its last row for it.
-    strip: bool,
     /// Where the input panel stands (`docs/LAYOUT.md` §16.3): out of the
     /// page, the page draws neither the pad nor the rolls, and leaves
     /// room under its last row for the panel at the foot.
@@ -393,13 +387,7 @@ fn tabs(ui: &mut Ui, x: f32, y: f32, w: f32, items: &[TabItem]) -> f32 {
 pub(crate) fn body(
     app: &View,
     m: &Codex32Make,
-    (card, pane, wide, panel, column): (
-        Card,
-        Option<super::pane_screen::PaneAt>,
-        f32,
-        super::input_panel::PanelAt,
-        bool,
-    ),
+    (card, wide, panel, column): (Card, f32, super::input_panel::PanelAt, bool),
     ui: &mut Ui,
     x: f32,
     y: f32,
@@ -411,8 +399,6 @@ pub(crate) fn body(
         w,
         cls: app.window().class(),
         hide: m.masked(),
-        roller: app.roller_offered(),
-        strip: pane == Some(super::pane_screen::PaneAt::Strip),
         panel,
         press: true,
         // One-column pages lay a step out in the page's own width.
@@ -759,11 +745,6 @@ fn enter(m: &Codex32Make, ui: &mut Ui, at: At) -> f32 {
         cy += foot(m, ui, x, cy, w, EN.keygen_continue);
     } else {
         cy += note(m, ui, x, cy, w);
-    }
-    // Room under the last row for the strip at the window's foot, so the
-    // page scrolls clear of it.
-    if at.strip {
-        cy += super::pane_screen::strip_h(ui, m, w, at.roller);
     }
     cy += at.panel.foot_h();
     cy - y

@@ -635,27 +635,15 @@ fn the_tracks_and_the_tree_stand_side_by_side_where_they_fit() {
 }
 
 #[test]
-fn on_the_owners_panel_the_entry_takes_the_whole_width_and_the_demo_card_stands_at_the_right() {
+fn on_the_owners_panel_the_entry_takes_the_whole_width() {
     let (w, h) = (1440u16, 870u16);
     let mut app = on_shell(w, h, 240, true, Way::Dice);
     // The sheets start by the rail, not in a centred column.
     let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet");
     assert!(head.0 < 200, "the work starts by the rail: {head:?}");
-    // The card at the right, above the panel at the foot, not across.
-    let card = text_at(&mut app, "Demo only").expect("the card");
-    let next = app
-        .hit_box(Action::Codex32(C32::Walk(WalkAct::Next)))
-        .expect("Next");
-    assert!(
-        card.0 > i32::from(w) * 3 / 4,
-        "the card at the right: {card:?}"
-    );
-    assert!(
-        i32::from(next.0) > i32::from(w) * 3 / 4,
-        "Next in it: {next:?}"
-    );
-    assert!(next.1 < h / 2, "near the top, not at the foot: {next:?}");
-    // The pad's keys at the foot, under the sheets and the card.
+    // No card beside it: the walk is the host strip's.
+    assert!(text_at(&mut app, "Demo only").is_none());
+    // The pad's keys at the foot, under the sheets.
     let key = app.hit_box(face(3)).expect("the pad");
     assert!(key.1 + key.3 > h - 200, "the pad at the foot: {key:?}");
 }
@@ -731,171 +719,5 @@ fn the_pressed_key_is_emphasised_briefly_and_at_rest_under_reduce_motion() {
             assert_ne!(ink_first, ink_late, "the emphasis drawn, then gone");
         }
         assert_eq!(make(&app).pressed_face(), Some(3), "still drawn pressed");
-    }
-}
-
-#[test]
-fn the_demo_card_narrows_to_its_column_where_the_whole_card_would_stack_the_tracks() {
-    // 1280 × 800 in Demo: the whole card would leave 494 dp, the tracks
-    // under the tree; the narrow column keeps them beside it.
-    let (w, h) = (1280u16, 800u16);
-    let mut app = on_shell(w, h, 160, true, Way::Dice);
-    let walk = |act| Action::Codex32(C32::Walk(act));
-    // A step shown, so Previous takes a press too.
-    c32(&mut app, C32::Walk(WalkAct::Next));
-    let _ = app.frame();
-    let more = app.hit_box(Action::Codex32(C32::Pane)).expect("More");
-    let [prev, next, play] = [WalkAct::Previous, WalkAct::Next, WalkAct::Play]
-        .map(|act| app.hit_box(walk(act)).expect("the walk's buttons"));
-    // One under another, each the column's width.
-    for (a, b) in [(more, prev), (prev, next), (next, play)] {
-        assert_eq!(a.0, b.0, "one above another: {a:?} {b:?}");
-        assert_eq!(a.2, b.2, "the same width: {a:?} {b:?}");
-        assert!(a.1 + a.3 <= b.1, "stacked: {a:?} {b:?}");
-    }
-    // The column: the buttons and the card's 12 dp each side, ending
-    // 8 dp from the window's edge, no wider than 160 dp.
-    let right = i32::from(next.0 + next.2) + 12;
-    let left = i32::from(next.0) - 12;
-    assert!(
-        (right - (i32::from(w) - 8)).abs() <= 1,
-        "at the margin: {next:?}"
-    );
-    assert!(right - left <= 160, "the buttons' width: {next:?}");
-    let card = text_at(&mut app, "Demo only").expect("the card");
-    assert!(card.0 >= left, "the heading in it: {card:?}");
-    assert!(
-        !app.drawn_texts().iter().any(|t| t == "Speed"),
-        "not the whole card"
-    );
-    // The string's boxes run up to the 24 dp before the column: the
-    // 24th box's number is centred over a box at most 40 dp wide whose
-    // right edge is no further than the spacer.
-    let last = text_at(&mut app, "24").expect("box 24");
-    let centre = last.0 + last.2 / 2;
-    assert!(
-        centre <= left - 24 && centre >= left - 24 - 40,
-        "the boxes reach the column: box 24 at {last:?}, column at {left}"
-    );
-    let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet");
-    let tracks = text_at(&mut app, "Die tracks").expect("the tracks");
-    assert!(
-        tracks.1 - head.1 < 70,
-        "the tracks beside the tree: {head:?} {tracks:?}"
-    );
-    // 1920 × 1080: the whole 400 dp card, its Play options in it.
-    let (w, _) = (1920u16, 1080u16);
-    let mut wide = on_shell(w, 1080, 160, true, Way::Dice);
-    let card = text_at(&mut wide, "Demo only").expect("the card");
-    assert!(
-        card.0 < i32::from(w) - 24 - 300,
-        "the whole card, 400 dp: {card:?}"
-    );
-    assert!(
-        wide.drawn_texts().iter().any(|t| t == "Speed"),
-        "the whole card"
-    );
-}
-
-#[test]
-fn the_steps_count_and_working_are_in_the_working_area_and_not_in_the_demo_card() {
-    // The owner's panel (960 × 580), the narrow column at 1280 × 800 and
-    // the whole card at 1920 × 1080.
-    for (w, h, dpi) in [
-        (1440u16, 870u16, 240u16),
-        (1280, 800, 160),
-        (1920, 1080, 160),
-    ] {
-        let mut app = on_shell(w, h, dpi, true, Way::Dice);
-        c32(&mut app, C32::Walk(WalkAct::Next));
-        let _ = app.frame();
-        let next = app
-            .hit_box(Action::Codex32(C32::Walk(WalkAct::Next)))
-            .expect("Next");
-        // The card's left edge: its buttons stand 16 dp inside it.
-        let card = i32::from(next.0) - 16 * i32::from(dpi) / 160;
-        let boxes = app.drawn_text_boxes();
-        let step: Vec<_> = boxes
-            .iter()
-            .filter(|(t, _)| t.starts_with("Step 1 of ") || t.starts_with("Die 1, first roll: "))
-            .collect();
-        assert!(
-            step.iter().any(|(t, _)| t.starts_with("Step 1 of ")),
-            "{w}x{h}: the Working area's count: {step:?}"
-        );
-        assert!(
-            step.iter()
-                .any(|(t, _)| t.starts_with("Die 1, first roll: ")),
-            "{w}x{h}: the Working area's working: {step:?}"
-        );
-        // The card ends under Play (or under its Play options, whole);
-        // the Working area at the foot may run on under the card.
-        let play = app
-            .hit_box(Action::Codex32(C32::Walk(WalkAct::Play)))
-            .expect("Play");
-        let foot = i32::from(play.1 + play.3) + 200 * i32::from(dpi) / 160;
-        assert!(
-            step.iter().all(|(_, b)| b.0 + b.2 < card || b.1 > foot),
-            "{w}x{h}: none in the card at {card}, above {foot}: {step:?}"
-        );
-        if w == 1920 {
-            assert!(
-                boxes.iter().any(|(t, _)| t == "Speed"),
-                "the whole card keeps Speed"
-            );
-        }
-    }
-}
-
-/// The colour at (x, y) of the frame on screen, as its three channels.
-fn rgb_at(app: &mut Faraday, (x, y): (usize, usize)) -> [u8; 3] {
-    let f = app.frame();
-    let i = (y * f.width as usize + x) * 4;
-    [f.rgba[i], f.rgba[i + 1], f.rgba[i + 2]]
-}
-
-#[test]
-fn the_narrow_demo_column_stands_as_far_from_the_windows_edge_as_from_the_bars_line() {
-    // 960 x 580 (1440 x 870 at 1.5): the bar's line at 44 dp, the column
-    // under it, 8 dp, and the same from the window's right edge.
-    let mut app = on_shell(1440, 870, 240, true, Way::Dice);
-    let more = app.hit_box(Action::Codex32(C32::Pane)).expect("More");
-    let (mx, my) = (usize::from(more.0), usize::from(more.1));
-    let width = app.frame().width as usize;
-    // Down the column's middle from under the bar's line (44 dp = 66
-    // px) to the card's outline.
-    let bar = 66usize;
-    let ground = rgb_at(&mut app, (mx, bar + 2));
-    let top = (bar + 2..my)
-        .find(|y| rgb_at(&mut app, (mx, *y)) != ground)
-        .expect("the card's top edge");
-    // Along More's row from the window's right edge to the outline.
-    let row = my + usize::from(more.3) / 2;
-    let ground = rgb_at(&mut app, (width - 1, row));
-    let right = (mx..width)
-        .rev()
-        .find(|x| rgb_at(&mut app, (*x, row)) != ground)
-        .expect("the card's right edge");
-    let (up, side) = (top - bar - 1, width - 1 - right);
-    assert!(
-        up.abs_diff(side) <= 2,
-        "{up} px under the bar's line, {side} px from the window's edge"
-    );
-    // 1280 x 800 and 960 x 580: no wider than 120 dp, the tracks still
-    // beside the tree.
-    for (w, h, dpi) in [(1280u16, 800u16, 160u16), (1440, 870, 240)] {
-        let mut app = on_shell(w, h, dpi, true, Way::Dice);
-        let next = app
-            .hit_box(Action::Codex32(C32::Walk(WalkAct::Next)))
-            .expect("Next");
-        let scale = f32::from(dpi) / 160.0;
-        let column = f32::from(next.2) / scale + 24.0;
-        assert!(column <= 120.0, "{w}x{h}: the column {column} dp");
-        let head = text_at(&mut app, "Dice de-biasing").expect("the dice sheet");
-        let tracks = text_at(&mut app, "Die tracks").expect("the tracks");
-        assert!(
-            (tracks.1 - head.1) as f32 / scale < 70.0,
-            "{w}x{h}: the tracks beside the tree: {head:?} {tracks:?}"
-        );
     }
 }

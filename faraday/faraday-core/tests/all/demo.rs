@@ -720,8 +720,10 @@ fn in_the_demo_new_key_from_every_source_adds_a_sample_of_its_length_in_place_of
             assert_ne!(made, faraday_core::samples::repeated(first, words));
             let says = format!("Lock in adds sample {first} \u{d7}{words}");
             assert!(
-                crate::common::has_part(&mut app, &says),
-                "{way:?} at {words}: the Key card does not say so"
+                crate::common::strip(&mut app)
+                    .iter()
+                    .any(|t| t.contains(&says)),
+                "{way:?} at {words}: the strip does not say so"
             );
             finish(&mut app);
             let have = loaded(&app);
@@ -779,10 +781,11 @@ fn a_sample_loaded_with_the_passphrase_counts_as_loaded_for_new_key() {
         )
         .unwrap();
     new_key(&mut app, Way::Device, 12);
-    assert!(crate::common::has_part(
-        &mut app,
-        "Lock in adds sample ocean \u{d7}12"
-    ));
+    assert!(
+        crate::common::strip(&mut app)
+            .iter()
+            .any(|t| t.contains("Lock in adds sample ocean \u{d7}12"))
+    );
 }
 
 // ---------------------------------------------------------------------
@@ -837,10 +840,11 @@ fn in_the_demo_a_vault_from_the_dice_shows_the_rolled_words_then_opens_with_fara
     let words = faraday_core::vault::dice_words(ROLLS, faraday_bip::diceware::List::Large);
     assert!(crate::common::has_part(&mut app, words[0]));
     app.press(Action::Vault(V::DiceUse));
-    assert!(crate::common::has(
-        &mut app,
-        "Demo puts faraday in place of these words"
-    ));
+    assert!(
+        crate::common::strip(&mut app)
+            .iter()
+            .any(|t| t == "Demo puts faraday in place of these words")
+    );
     // Both fields hold faraday, and the dice's strength is not measured.
     let c = app.vaults().create.as_ref().expect("the form");
     assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
@@ -873,16 +877,20 @@ fn in_the_demo_use_faraday_puts_faraday_in_a_vaults_passphrase_and_its_repeat_an
     let mut app = app_on(true);
     app.press(Action::Nav(Screen::Vaults));
     app.press(Action::Vault(V::Create));
-    let _ = crate::common::texts(&mut app);
     let chip = Action::PassChip(demo::PassField::Phrase(0, false));
-    assert!(app.offers(chip), "the pair offers faraday");
     assert!(
-        !app.offers(Action::PassChip(demo::PassField::Phrase(0, true))),
+        crate::common::strip_offers(&mut app, chip),
+        "the pair offers faraday"
+    );
+    assert!(
+        !crate::common::strip_offers(&mut app, Action::PassChip(demo::PassField::Phrase(0, true))),
         "once, for both fields"
     );
     app.press(chip);
-    let _ = crate::common::texts(&mut app);
-    assert!(!app.offers(chip), "gone once both fields hold it");
+    assert!(
+        !crate::common::strip_offers(&mut app, chip),
+        "gone once both fields hold it"
+    );
     let c = app.vaults().create.as_ref().expect("the form");
     assert_eq!(c.phrases[0].0.text.as_str(), "faraday");
     assert_eq!(c.phrases[0].1.text.as_str(), "faraday");

@@ -117,48 +117,6 @@ pub(super) fn demo_box_offered(m: &Codex32Make, roller: bool) -> bool {
     (m.front().is_some() && (dice || m.demo())) || (dice && m.walk().shown().is_some())
 }
 
-/// What the "Demo only" card holds (owner, 2026-10-24), what is not the
-/// person's own entry, from its heading (with `head`) down; `pane_screen.rs` places it
-/// and outlines it. Demo's **Use a sample**; on Faraday
-/// Desktop "Rolls d20", the dice chosen in the input panel, and the
-/// computer's dice with each die's two rolls, a step at a time
-/// (`walk_screen.rs`). Returns its height, nothing where it has nothing
-/// to hold.
-pub(super) fn demo_content(
-    m: &Codex32Make,
-    ui: &mut Ui,
-    (x, y, w): (f32, f32, f32),
-    roller: bool,
-    head: bool,
-) -> f32 {
-    if !demo_box_offered(m, roller) {
-        return 0.0;
-    }
-    let (ix, iw) = (x + t::PAD, w - 2.0 * t::PAD);
-    let mut cy = y + t::PAD;
-    if head {
-        cy += faraday_ui::demo::head(ui, (ix, cy), EN.demo_only);
-    }
-    if m.demo() && m.front().is_some() {
-        cy += faraday_ui::parts::wrap_buttons(
-            ui,
-            ix,
-            cy,
-            iw,
-            t::TOUCH,
-            &[(EN.use_a_sample, Style::Secondary, a(C32::Sample))],
-        );
-    }
-    if roller && m.way() == super::Way::Dice {
-        let die = fill(EN.codex32_die_size, &[&m.dice_choice().faces.to_string()]);
-        let rolls = fill(EN.codex32_rolls_die, &[&die]);
-        cy += ui.wrap(ix, cy, iw, t::LABEL, W::S, Role::OnSurfaceVariant, &rolls) + t::GAP;
-        cy += super::walk_screen::draw(m, ui, (ix, cy, iw));
-    }
-    cy += t::PAD;
-    cy - y
-}
-
 /// One die's colour chip: Material's assist chip, the colour's swatch
 /// and its name, in a 48 dp row.
 fn colour_chip(

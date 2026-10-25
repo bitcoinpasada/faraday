@@ -29,7 +29,6 @@ mod wallets_start;
 
 use crate::drawing::View;
 use crate::nav::Nav;
-use crate::samples::card as demo_card;
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
 use crate::ui::{Style, Ui, W};
@@ -172,12 +171,7 @@ pub(crate) fn board_work_end(app: &crate::Faraday) -> Option<f32> {
     }
     let full_w = app.size().0;
     let nav = if app.held { 0.0 } else { SIDEBAR_W };
-    let mut room = full_w - nav;
-    // The "Demo only" card beside the page takes its room first, as the
-    // frame gives it (`docs/DEMO.md` §14).
-    if app.demo_card_now().is_some() && demo_card::beside(app, room) {
-        room -= support_pane_room();
-    }
+    let room = full_w - nav;
     (room > PAGE_AREA_UNTIL_W).then(|| nav + room - support_pane_room())
 }
 
@@ -216,12 +210,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // Under a sheet that has its frosted copy of the page, the page
     // is not drawn again: the copy stands for it.
     let frosted = app.sheet.is_some() && ui.frost.is_some();
-    // Where the top bar draws its stick pills is noted as the page draws
-    // it; under a frosted sheet the page is not drawn, and the last note
-    // stands.
-    if !frosted {
-        app.stick.note_bar(None);
-    }
     if !frosted && app.is_compact() {
         ui.clear(Role::Surface);
         // The stick pills take a strip across the top; the page is
@@ -230,27 +218,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         let strip = crate::stick::pills::strip_h(app, ui, full_w);
         let (rail_w, bar_h) = nav_room(app, kb > 0.0);
         let page_h = full_h - strip - bar_h;
-        // The "Demo only" card, a strip pinned at the page's foot
-        // (`docs/DEMO.md` §14).
-        let card = app.demo_card_now();
-        let place = card
-            .as_ref()
-            .map(|c| demo_card::place(app, ui, full_w - rail_w, c));
-        let foot = demo_card::foot_room(place);
         ui.oy = strip;
-        draw_compact(
-            app,
-            ui,
-            (rail_w, full_w - rail_w),
-            page_h - foot,
-            kb > 0.0,
-            strip,
-        );
+        draw_compact(app, ui, (rail_w, full_w - rail_w), page_h, kb > 0.0, strip);
         ui.oy = strip;
         ui.ox = 0.0;
-        if let (Some(c), Some(p)) = (card.as_ref(), place) {
-            demo_card::draw(app, ui, p, c, (rail_w, full_w - rail_w, page_h));
-        }
         if rail_w > 0.0 {
             crate::nav::screen::rail(app, ui, win_h - strip);
         }
@@ -266,16 +237,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         ui.clear(Role::Surface);
         sidebar(app, ui, win_h);
         let room = full_w - SIDEBAR_W;
-        // The "Demo only" card at the right takes its room from the page;
-        // a strip at the foot takes its height (`docs/DEMO.md` §14).
-        let card = app.demo_card_now();
-        let place = card.as_ref().map(|c| demo_card::place(app, ui, room, c));
-        let (ox, cw) = page_area(
-            app.screen,
-            app.board_shown(),
-            room - demo_card::side_room(place),
-        );
-        let foot = demo_card::foot_room(place);
+        let (ox, cw) = page_area(app.screen, app.board_shown(), room);
         let h = full_h;
         ui.ox = ox;
         let x = SIDEBAR_W;
@@ -285,19 +247,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
         let drop = crate::stick::pills::page_drop(strip);
         ui.oy = drop - lift;
         ui.top_row_left = top_row_left(app, ui, full_w) - ox;
-        dispatch(
-            app,
-            ui,
-            x,
-            cw,
-            if kb > 0.0 { win_h } else { h } - drop - foot,
-        );
+        dispatch(app, ui, x, cw, if kb > 0.0 { win_h } else { h } - drop);
         ui.oy = 0.0;
         ui.ox = 0.0;
         top_actions_clear(app, ui, full_w);
-        if let (Some(c), Some(p)) = (card.as_ref(), place) {
-            demo_card::draw(app, ui, p, c, (SIDEBAR_W, room, h));
-        }
         // The top-right row and the eye stand against the window's right
         // edge, whatever area the page is laid out in (§15).
         ui.ox = 0.0;
@@ -319,11 +272,6 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             );
         }
         let kx = header_network_pill(app, ui, full_w - TOP_ROW_QUESTION);
-        // Faraday Desktop's stick pills, left of the mode's (`docs/LAYOUT.md`
-        // §3), in the room the page's head leaves.
-        let pill_y =
-            faraday_draw::tokens::TOP_ROW_MID - faraday_draw::tokens::MODE_PILL_HEIGHT / 2.0;
-        let kx = crate::stick::pills::bar(app, ui, kx, pill_y, sticks_room(kx));
         // Under a sheet the keyboard button is drawn over it, below.
         if app.sheet.is_none() {
             crate::compact::wide_keyboard_button(app, ui, kx);
@@ -387,18 +335,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::BoardMenu => Some(Action::Board(crate::board::BoardPress::MenuClose)),
             _ => Some(Action::Cancel),
         };
-        // A sheet's "Demo only" card stands at the window's right, the
-        // sheet centred beside it, or in a strip at the window's foot, the
-        // sheet above it (`docs/DEMO.md` §14).
-        // What the page under it handed over is not the sheet's.
+        // What the page under it handed over for the demo is not the
+        // sheet's: the host's strip shows the sheet's own
+        // (`docs/DESKTOP-HOST.md` §3.1).
         let _ = ui.take_demo();
-        let card = app.demo_sheet_card_now(sheet);
-        let place = card.as_ref().map(|c| demo_card::place(app, ui, w, c));
-        let (full_w, full_h) = (w, h);
-        let (w, h) = (
-            w - demo_card::side_room(place),
-            h - demo_card::foot_room(place),
-        );
         match sheet {
             Sheet::Lock => lock_sheet(app, ui, w, h),
             Sheet::LockAsk => lock_ask_sheet(app, ui, w, h),
@@ -437,13 +377,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Mode => crate::modes::screen::sheet(app, ui, w, h),
             Sheet::Samples => crate::samples::screen::sheet(app, ui, w, h),
             Sheet::NavMenu => crate::nav::screen::menu_sheet(ui, w, h),
-            Sheet::SticksMenu => crate::stick::pills::menu_sheet(app, ui, w, h),
         }
         ui.oy = 0.0;
         ui.ox = 0.0;
-        if let (Some(c), Some(p)) = (card.as_ref(), place) {
-            demo_card::draw(app, ui, p, c, (0.0, full_w, full_h));
-        }
     }
     // A sheet with a field of its own: the wide layout's keyboard button
     // stays within reach, over it, where the page has it.
@@ -474,8 +410,11 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
     // sheet; Faraday Desktop's, in its top bar, again over a sheet, and
     // its Sticks menu as it closes.
     crate::stick::pills::draw(app, ui, full_w);
-    crate::stick::pills::menu_leaving(app, ui, full_w, full_h);
-    crate::stick::pills::over_sheet(app, ui);
+    // Faraday Desktop's host takes what the page and its sheet offered
+    // for the demo into its strip (`docs/DESKTOP-HOST.md` §3).
+    if app.hosted() {
+        app.sample_area.note_aids(ui.take_demo());
+    }
 }
 
 /// The top strip's actions' corner at the window's top right, filled
@@ -806,15 +745,7 @@ fn header_network_pill(app: &View, ui: &mut Ui, qx: f32) -> f32 {
 /// the ?) begins, in a window `full_w` wide: a flow's column that scrolls
 /// under it ends left of it.
 pub(crate) fn top_row_left(app: &View, ui: &Ui, full_w: f32) -> f32 {
-    let kx = network_pill_left(app, ui, full_w - TOP_ROW_QUESTION);
-    kx - crate::stick::pills::bar_width(app, ui, sticks_room(kx))
-}
-
-/// The room the wide layout's row gives Faraday Desktop's stick pills,
-/// ending at `kx`: what the page area keeps for its head at its left
-/// (`TOP_BAR_TITLE_ROOM`) left out. Arithmetic.
-fn sticks_room(kx: f32) -> f32 {
-    kx - SIDEBAR_W - faraday_draw::tokens::TOP_BAR_TITLE_ROOM
+    network_pill_left(app, ui, full_w - TOP_ROW_QUESTION)
 }
 
 /// Where the top-right row's next item ends, left of the ? (at `qx`)

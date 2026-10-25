@@ -370,8 +370,9 @@ fn sheet_frames_are_free(app: &mut Faraday, what: &str) {
     }
 }
 
-/// Load samples in Demo: the pill's press, the sheet's frames, a tick and
-/// Load ticked, each against its budget; the sheet at rest does nothing
+/// Load samples in Demo: Samples pressed (in Faraday Desktop's host
+/// strip), the sheet's frames, a tick and Load ticked, each against its
+/// budget; the sheet at rest does nothing
 /// costly (`docs/MODES.md` §10 M6).
 fn samples_sheet_holds_on(panel: Panel) {
     use crate::samples::Pick;
@@ -382,7 +383,6 @@ fn samples_sheet_holds_on(panel: Panel) {
     app.samples = Some(savings_samples());
     app.set_modes(crate::DESKTOP_MODES);
     on(&mut app, Screen::Home);
-    assert!(app.offers(Action::Samples), "the pill is on Home");
     // Nothing is loaded: the sheet opens without reading a wallet.
     press_within(&mut app, Action::Samples, SHEET_CANVAS);
     assert_eq!(app.sheet, Some(crate::Sheet::Samples));
@@ -401,7 +401,7 @@ fn samples_sheet_holds_on(panel: Panel) {
 }
 
 #[test]
-fn the_load_samples_pill_its_sheet_and_load_ticked_do_no_costly_work_beyond_their_budgets() {
+fn samples_its_sheet_and_load_ticked_do_no_costly_work_beyond_their_budgets() {
     samples_sheet_holds_on(DESKTOP);
     samples_sheet_holds_on(PI);
 }

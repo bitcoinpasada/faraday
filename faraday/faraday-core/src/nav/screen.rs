@@ -11,7 +11,7 @@ use crate::wallet::fp_text;
 use crate::{Action, Screen, Sheet};
 use faraday_draw::tokens::{
     APP_BAR_H, CAPTION, GAP, GAP_SMALL, GRID, ICON_SMALL, MARGIN_COMPACT, MODE_PILL_HEIGHT,
-    STATUS_CHIP_H, TOP_BAR_TITLE_ROOM, TOUCH,
+    STATUS_CHIP_H, TOUCH,
 };
 use faraday_draw::widgets::Icon;
 use faraday_ui::nav::{AppBar, Badge, Chip, Dest, Rail};
@@ -185,14 +185,6 @@ pub(crate) fn app_bar(app: &View, ui: &mut Ui, w: f32, nav: Nav) -> f32 {
             crate::modes::screen::pill(app, ui, px, (APP_BAR_H - MODE_PILL_HEIGHT) / 2.0);
             *right = px - GAP;
         }
-        // Faraday Desktop's stick pills, in the room the title leaves.
-        *right = crate::stick::pills::bar(
-            app,
-            ui,
-            *right,
-            (APP_BAR_H - MODE_PILL_HEIGHT) / 2.0,
-            *right - TOP_BAR_TITLE_ROOM,
-        );
         if let Some((action, shown)) = crate::compact::keyboard_action(app) {
             *right = faraday_ui::nav::icon_action(
                 ui,
