@@ -390,9 +390,9 @@ beside the page and d6 dice:
 
 | Window (dp) | Work width | The input panel | The worksheet |
 |---|---|---|---|
-| 1280 × 800 | 494 | at the foot, 142 dp | does not fit: as today, cell 28 in a 400 dp view, panning |
-| 1920 × 1080 | 1134 | at the foot, 142 dp | whole at cell 22: 1104 × 842 |
-| 2000 × 1090 | 1214 | at the foot, 142 dp | whole at cell 23: 1152 × 877 |
+| 1280 × 800 | 494 | at the foot, 132 dp | does not fit: as today, cell 28 in a 400 dp view, panning |
+| 1920 × 1080 | 1134 | at the foot, 132 dp | whole at cell 22: 1104 × 842 |
+| 2000 × 1090 | 1214 | at the foot, 132 dp | whole at cell 23: 1152 × 877 |
 | 2560 × 1440 | 1774 (1326 beside the panel) | beside, 424 dp | whole at cell 26: 1296 × 982 |
 
 A 74-character sheet (61 rows, 74 columns: 74c + 76 by 61c + 124)
@@ -405,11 +405,24 @@ take the same rule; a tab's sheet that fits shows no scroll of its own.
 
 **Side by side.** The dice sheet's tree and tracks stand side by side
 where the work width holds both (874 dp; from 1920 up), the rolls having
-moved to the input panel (§16.3). The dice sheet and the checksum
-worksheet side by side would need the work width to hold 874 + 24 +
-1008 dp (the worksheet at its least fitting cell), about 2700 dp of
-window with the pane beside: no size the tours draw puts them side by
-side, and the rule stands them so on a window that holds them. The
+moved to the input panel (§16.3). The dice sheet stands only with the
+Checksum tab of the share being rolled, never with a derived share's
+tab or the Secret's (owner, 2026-10-24). Its head row, "Dice
+de-biasing" with Material's expand chevron, is one 48 dp press that
+opens it to its tracks and tree or closes it; it closes by itself when
+a share's rolling is done, keeping the last tracks for a look, and
+each roll opens it again. **The dice sheet's column** (owner,
+2026-10-24): where the checksum worksheet still draws whole beside it
+and the column fits the window's height above the input panel, the
+dice sheet stands in a column at the right, in the supporting pane's
+place, the tree over the tracks, with the Demo only card under it; the
+column scrolls within itself where text drawn larger passes it. Its
+height is measured, `CODEX32_DICE_COLUMN_H` (720 dp) and the card's
+`CODEX32_COLUMN_CARD_H` (480 dp): in Testnet the column stands from
+1920 × 1080, in Demo from 2560 × 1440. Below that both sheets stand in
+the page, the sheet of the work in hand first so the page scrolls the
+least to it: the dice sheet while a character is rolled, the worksheet
+while the step-through works the checksum. The
 Codex32QR copy grid (`copy_grid`,
 `faraday/faraday-core/src/screens/parts.rs`) already sizes its cells
 from its width up to `C32_GRID_MAX` and stands its zoom beside the grid
@@ -438,13 +451,33 @@ four. At the sizes above: 16 a row at 27 dp (1280), 24 a row at 40 dp
 ### 16.3 The input panel: the pad and the rolls in one view
 
 What the person presses and what it fills stand together. The **input
-panel** holds, in order: the rolls of the character being entered (each
-die's First roll and Second roll, "lower · 0" or "higher · 1", and the
-equal pairs struck under them; moved here from the dice sheet, which
-keeps the tree and the tracks, so the rolls are drawn once), the dice's
-size (the segmented choice), and **Your dice**, the pad: a key per face,
-Backspace and Done, each `PAD_KEY_W` (64 dp) by `TOUCH`, as many a row
-as fit up to ten (§8: keys keep their size). It stands:
+panel** holds: the rolls of the character being entered (each die's
+name over its marker, the first roll, beside its die, the second, as
+the tracks draw them, and "lower · 0" or "higher · 1" under them, the
+five dice in one row; the latest equal pair struck under the row; moved
+here from the dice sheet, which keeps the tree and the tracks, so the
+rolls are drawn once), the step tracker's **Working** area
+(`docs/CODEX32.md` §5.7), always beside the pad, and **Your dice**: the
+dice's size, one outlined button "d6 ▾" that opens Material's menu of
+the six sizes (the keyboard moves in it, Enter chooses, Escape or a
+press outside closes it), and the pad, a key per face and Backspace,
+each `PAD_KEY_W` (48 dp) square, `GAP_SMALL` apart, no padding of their
+own (§8). "Your dice", the button and the keys stand on one row where
+they fit; else the label over that row; else the faces in even rows (1
+to 10 over 11 to 20) under a row of "Your dice", the button and
+Backspace. A face is one key, so nothing waits from the pad; digits
+typed on a computer's keyboard settle on the next key or Enter. The
+dice's size is chosen here alone: the Entropy card keeps the dice's
+colours, and the Demo only card says what the computer rolls (the
+small panel, whose entry has no room for it, keeps the size on its
+Entropy card). Once every character is in, **Continue** stands in the
+pad's place, the flow's one way on; the page has no Continue of its own
+while the panel stands out of it (owner, 2026-10-24). At the foot the
+panel takes the shortest of three arrangements the width allows: the
+rolls beside the Working area over the pad; the Working area under the
+rolls beside the pad; or the three one under another. At 1280 × 800 it
+is 132 dp tall for six-faced dice (176 before) and 196 dp for twenty
+(264), at 1366 × 768 132 and 176 dp. It stands:
 
 - **Beside**, where the work width holds `CODEX32_ENTRY_W` (424 dp),
   `SPACER` and the worksheet at `CODEX32_CELL_FIT_MIN` (1456 dp in
@@ -456,9 +489,8 @@ as fit up to ten (§8: keys keep their size). It stands:
   windows that are not short: pinned at the window's foot across the
   page area (beside the rail or the expanded rail, above the bar),
   surface-container-low with a rule along its top, as Material's
-  bottom-anchored input (the on-screen keyboard) stands; the rolls, the
-  dice's size and the pad in a row where they fit, the dice's size over
-  the pad where not. The page leaves room under its last row so it
+  bottom-anchored input (the on-screen keyboard) stands; its parts in
+  the shortest of the arrangements above. The page leaves room under its last row so it
   scrolls clear of it, as it does for the keyboard. The supporting pane
   stands above it (its foot `SPACER` over the panel's top), and so does
   the Demo only strip where the card does not fit beside (§6).
@@ -493,6 +525,20 @@ no test drags the view away first (§19). Two things are new:
   whole (§16.1) it has no view to move, so the page's own scroll makes
   the same least move, over the same time on the same curve, to bring
   the cell being worked into the room above the input panel.
+- **The dice follow too.** On the step-through's rolls and its
+  character's step, the page brings the marked die's track, or the
+  tree, into its room above the input panel by the least move, over
+  the same time on the same curve, at once under Reduce motion, once
+  the frame after the step has drawn where it is; in the dice sheet's
+  column nothing moves.
+- **Panned across, a scrollbar along the foot.** While the worksheet's
+  view pans sideways its overlay scrollbar runs along the view's foot
+  as well as down its right edge, as Material's horizontal scrollbar
+  does, and fades with it.
+- **The top strip's actions keep a surface.** Where the sheets run to
+  the right margin, the mode pill, the ? and the eye keep the surface
+  under them, `TOP_ACTIONS_W` across, so the page scrolls under them as
+  under Material's top app bar.
 - **One cell size.** `Codex32Make::follow_front` places by
   `Geom::of(class)`; it takes the fitted cell (§16.1), so the follow
   and the drawing agree.

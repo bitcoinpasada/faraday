@@ -853,27 +853,55 @@ pub const CODEX32_WORKING_SIDE_MIN: f32 = 360.0;
 /// The narrowest the codex32 keyboard is drawn at the window's foot with
 /// the Working area beside it.
 pub const CODEX32_KEYS_BESIDE_MIN: f32 = 560.0;
-/// A key of the input panel's pad: its width; its height is `TOUCH`
-/// (`docs/LAYOUT.md` §8, §16.3).
-pub const PAD_KEY_W: f32 = 64.0;
-/// The most keys in one row of the input panel's pad.
-pub const PAD_KEYS_ROW_MAX: usize = 10;
+/// A key of the input panel's pad: Material's touch target, square, the
+/// keys `GAP_SMALL` apart and no padding of their own (`docs/LAYOUT.md`
+/// §8, §16.3; owner, 2026-10-24).
+pub const PAD_KEY_W: f32 = TOUCH;
 /// The most of the window's height the input panel takes at the foot;
 /// a taller one stands in the page (`docs/LAYOUT.md` §16.3).
 pub const INPUT_PANEL_MAX: f32 = 0.4;
-/// The rolls laid across the input panel at the window's foot: the
-/// column of the row names, "First roll" and "Second roll".
-pub const INPUT_ROLLS_LABEL_W: f32 = 80.0;
-/// A die's column of the rolls across the input panel.
-pub const INPUT_ROLLS_COL: f32 = 68.0;
+/// A die's column of the rolls across the input panel: its marker (the
+/// first roll) beside its die (the second), and the gap to the next.
+pub const INPUT_ROLLS_COL: f32 = 76.0;
 /// The line a 12 dp label takes in the rolls across the input panel.
 pub const INPUT_ROLLS_LINE: f32 = 16.0;
 /// The struck pairs the rolls across the input panel keep room for,
-/// the latest first.
-pub const INPUT_ROLLS_STRUCK: usize = 2;
-/// The room the dice's six sizes take as one segmented row in the input
-/// panel; narrower, they wrap onto two rows.
-pub const INPUT_SIZES_W: f32 = 512.0;
+/// the latest.
+pub const INPUT_ROLLS_STRUCK: usize = 1;
+/// The dice's size as one button that opens Material's menu of the six
+/// sizes (`docs/LAYOUT.md` §16.3): its width, "d20" and the menu's arrow.
+pub const DICE_MENU_BUTTON_W: f32 = 88.0;
+/// The dice sheet in a column at the right, as tall as it draws there
+/// (the tree over the five tracks): with the Demo only card's
+/// `CODEX32_COLUMN_CARD_H` under it, where the window holds both, the
+/// column stands beside the page (`docs/LAYOUT.md` §16.1). Measured;
+/// the column scrolls within itself where text drawn larger passes it.
+pub const CODEX32_DICE_COLUMN_H: f32 = 720.0;
+/// The Demo only card's height under the dice sheet's column, its
+/// step-through whole (measured).
+pub const CODEX32_COLUMN_CARD_H: f32 = 480.0;
+/// "Your dice" at the start of the pad's row in the input panel: the
+/// room it keeps, the label cut to it where text is drawn larger.
+pub const INPUT_PAD_LABEL_W: f32 = 72.0;
+/// The room Continue keeps at the end of the input panel's row once
+/// every character is in.
+pub const INPUT_CONTINUE_W: f32 = 160.0;
+/// The top strip's actions at the window's top right (the mode pill,
+/// the ?, the eye): the room a page whose wide content runs to the right
+/// margin keeps clear under them, `SUPPORT_PANE_TOP` tall.
+pub const TOP_ACTIONS_W: f32 = 200.0;
+/// The fewest keys a row of the pad beside the rolls holds; narrower,
+/// the pad stands under them.
+pub const PAD_KEYS_BESIDE_MIN: f32 = 5.0;
+/// The dice's size menu's width: Material's least for a menu.
+pub const DICE_MENU_W: f32 = 112.0;
+/// Material's drop-down arrow on a button that opens a menu: its width;
+/// it is half as tall.
+pub const DROPDOWN_ARROW: f32 = 10.0;
+/// Half the drop-down arrow's width: its height, and where its tip is.
+pub const DROPDOWN_ARROW_HALF: f32 = DROPDOWN_ARROW / 2.0;
+/// How far the arrow's top stands over the middle of its button.
+pub const DROPDOWN_ARROW_RISE: f32 = DROPDOWN_ARROW / 4.0;
 
 /// The narrowest a Home tile is; the grid takes as many columns as fit
 /// (`docs/LAYOUT.md` §4).
@@ -1165,8 +1193,11 @@ pub const CODEX32_TREE_MAX_W: f32 = 420.0;
 pub const CODEX32_TREE_LEVEL: f32 = 4.57;
 /// A node of the tree.
 pub const CODEX32_TREE_NODE: f32 = 2.0;
-/// The tree's path, in the accent.
-pub const CODEX32_PATH_STROKE: f32 = 2.0;
+/// The dice sheet's tree: its lines' width.
+pub const CODEX32_TREE_LINE: f32 = 1.0;
+/// The tree's path: three times its lines' width, so it reads at a
+/// glance (owner, 2026-10-24).
+pub const CODEX32_PATH_STROKE: f32 = 3.0 * CODEX32_TREE_LINE;
 /// Columns shown either side of the front on `small`'s checksum panel.
 pub const CODEX32_BAND_SIDE: usize = 2;
 /// A worksheet tab's height (`docs/CODEX32.md` §6.5).

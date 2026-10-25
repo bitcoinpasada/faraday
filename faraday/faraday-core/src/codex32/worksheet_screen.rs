@@ -248,6 +248,12 @@ pub(crate) fn fit_cell(sh: Paper<'_>, room: (f32, f32)) -> Option<f32> {
     None
 }
 
+/// The sheet's size at its least fitting cell, `CODEX32_CELL_FIT_MIN`:
+/// across and down. Arithmetic.
+pub(crate) fn least_size(sh: Paper<'_>) -> (f32, f32) {
+    Geom::at(t::CODEX32_CELL_FIT_MIN).size(sh)
+}
+
 /// The smallest rectangle holding both `a` and `b` (left, top, width,
 /// height).
 pub(crate) fn union(a: (f32, f32, f32, f32), b: (f32, f32, f32, f32)) -> (f32, f32, f32, f32) {
@@ -623,7 +629,7 @@ pub(crate) fn draw(
         // No view of its own: where it stands, for the page to follow.
         ui.report_scroll_in(Slot::WorksheetWhole, clip, 0.0, 0.0);
     } else {
-        ui.report_scroll_both(Slot::Worksheet, clip, max, py);
+        ui.report_scroll_both(Slot::Worksheet, clip, max, (px, py));
     }
     vh
 }

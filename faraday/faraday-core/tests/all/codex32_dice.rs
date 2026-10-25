@@ -333,8 +333,7 @@ fn the_sheet_shows_both_rolls_the_tracks_and_a_struck_pair() {
     }
     let texts = app.drawn_texts();
     for want in [
-        "First roll",
-        "Second roll",
+        "Die 1",
         "lower · 0",
         "higher · 1",
         "Die tracks",
@@ -361,4 +360,180 @@ fn a_ten_faced_die_numbered_0_to_9_enters_its_0_as_10() {
     key(&mut app, '7');
     let d = make(&app).dice();
     assert_eq!((d.first(0), d.first(1)), (Some(10), Some(7)));
+}
+
+/// Faraday at `width` × `height` pixels and `dpi`.
+fn on_dpi(width: u16, height: u16, dpi: u16) -> Faraday {
+    let mut app = on(width, height);
+    app.event(Event::Display(DisplayInfo {
+        width,
+        height,
+        dpi,
+        inset_bottom: 0,
+        inset_top: 0,
+        buttons: 0,
+        camera_fixed: false,
+        secure: SecureHardware::None,
+        boot: BootState::Unknown,
+        memory_mib: None,
+    }));
+    app
+}
+
+/// WCAG's relative luminance of an sRGB colour.
+fn luminance([r, g, b]: [u8; 3]) -> f64 {
+    let lin = |c: u8| {
+        let c = f64::from(c) / 255.0;
+        if c <= 0.039_28 {
+            c / 12.92
+        } else {
+            ((c + 0.055) / 1.055).powf(2.4)
+        }
+    };
+    0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b)
+}
+
+/// WCAG's contrast ratio of two colours.
+fn contrast(a: [u8; 3], b: [u8; 3]) -> f64 {
+    let (la, lb) = (luminance(a), luminance(b));
+    (la.max(lb) + 0.05) / (la.min(lb) + 0.05)
+}
+
+/// The frame's pixel at (x, y).
+fn px(rgba: &[u8], width: usize, (x, y): (i32, i32)) -> [u8; 3] {
+    let i = (y as usize * width + x as usize) * 4;
+    [rgba[i], rgba[i + 1], rgba[i + 2]]
+}
+
+/// Of the pixels within `r` of (x, y), the one farthest in contrast from
+/// `bg`: the middle of a thin line, whatever its smoothing.
+fn inkiest(rgba: &[u8], width: usize, (x, y): (i32, i32), r: i32, bg: [u8; 3]) -> [u8; 3] {
+    let mut best = bg;
+    for dy in -r..=r {
+        for dx in -r..=r {
+            let p = px(rgba, width, (x + dx, y + dy));
+            if contrast(p, bg) > contrast(best, bg) {
+                best = p;
+            }
+        }
+    }
+    best
+}
+
+/// A drawn box: x, y, width, height in pixels.
+type Box4 = (i32, i32, i32, i32);
+
+/// The drawn box of the tree's leaf `s`, on the row of leaves Q, P, Z.
+fn leaf_box(boxes: &[(String, Box4)], s: &str) -> Box4 {
+    // Letters' ink starts at their own heights: a row is within a
+    // letter's height.
+    let near = |a: &Box4, y: i32| (a.1 - y).abs() <= a.3 / 2;
+    let on_row = |t: &str, y: i32| boxes.iter().any(|(u, b)| u == t && near(b, y));
+    let row = boxes
+        .iter()
+        .find(|(t, b)| t == "Q" && on_row("P", b.1) && on_row("Z", b.1))
+        .expect("the tree's leaves")
+        .1
+        .1;
+    boxes
+        .iter()
+        .find(|(t, b)| t == s && near(b, row))
+        .unwrap_or_else(|| panic!("leaf {s}"))
+        .1
+}
+
+#[test]
+fn the_trees_path_stands_apart_from_its_lines_and_the_sheet_in_every_theme() {
+    use faraday_core::ui::Theme;
+    // Two pixels to the dp, a tall window: the whole tree above the panel.
+    let mut app = on_dpi(2560, 2600, 320);
+    to_entry(&mut app, 6);
+    // Each die's first roll, then die 1's second: 1 then 2, higher, so
+    // the path's first branch goes right.
+    for f in [1, 1, 1, 1, 1, 2] {
+        c32(&mut app, C32::Face(f));
+    }
+    for theme in Theme::all() {
+        app.press(Action::Theme(theme));
+        let boxes = app.drawn_text_boxes();
+        let (q, l) = (leaf_box(&boxes, "Q"), leaf_box(&boxes, "L"));
+        let frame = app.frame();
+        let (w, rgba) = (usize::from(frame.width), frame.rgba.to_vec());
+        let (qx, lx) = (q.0 + q.2 / 2, l.0 + l.2 / 2);
+        let lw = f64::from(lx - qx) / 31.0;
+        // A point `leaves` leaf widths from the tree's left end.
+        let at = |leaves: f64| qx + (lw * (leaves - 0.5)).round() as i32;
+        // Just over the leaves, between two of them: the sheet.
+        let bg = px(&rgba, w, (at(16.0), q.1 - q.3));
+        // Up a column from the leaves to its first ink. Between the
+        // middle two leaves it is the root; a quarter and three quarters
+        // across, the ends of die 1's two branches: no other line crosses
+        // those columns.
+        let first_ink = |x: i32| {
+            (q.1 - 1200..q.1 - q.3)
+                .rev()
+                .find(|&y| contrast(px(&rgba, w, (x, y)), bg) > 1.5)
+                .expect("ink up the column")
+        };
+        let root = (at(16.0), first_ink(at(16.0)));
+        let right = (at(24.0), first_ink(at(24.0)));
+        let left = (at(8.0), first_ink(at(8.0)));
+        let mid = |a: (i32, i32), b: (i32, i32)| ((a.0 + b.0) / 2, (a.1 + b.1) / 2);
+        let path = inkiest(&rgba, w, mid(root, right), 2, bg);
+        let line = inkiest(&rgba, w, mid(root, left), 2, bg);
+        let sheet = px(&rgba, w, (root.0, (root.1 + right.1) / 2));
+        let name = format!("{theme:?}");
+        assert!(
+            contrast(path, line) >= 3.0,
+            "{name}: path {path:?} on line {line:?}"
+        );
+        assert!(
+            contrast(path, sheet) >= 3.0,
+            "{name}: path {path:?} on sheet {sheet:?}"
+        );
+        assert_ne!(line, sheet, "{name}: the other branch is drawn");
+    }
+}
+
+/// The leaves standing out of the sheet: each leaf whose letter has a
+/// fill round it, by its letter.
+fn filled_leaves(app: &mut Faraday) -> Vec<String> {
+    const LEAVES: &str = "QPZRY9X8GF2TVDW0S3JN54KHCE6MUA7L";
+    let boxes = app.drawn_text_boxes();
+    let frame = app.frame();
+    let (w, rgba) = (usize::from(frame.width), frame.rgba.to_vec());
+    let beside = |s: &str| {
+        let b = leaf_box(&boxes, s);
+        px(&rgba, w, (b.0 - 1, b.1 + b.3 / 2))
+    };
+    let leaves: Vec<String> = LEAVES.chars().map(|c| c.to_string()).collect();
+    // The sheet: what stands beside most of the leaves.
+    let sheet = leaves
+        .iter()
+        .map(|s| beside(s))
+        .max_by_key(|c| leaves.iter().filter(|s| beside(s) == *c).count())
+        .expect("leaves");
+    leaves
+        .into_iter()
+        .filter(|s| contrast(beside(s), sheet) >= 3.0)
+        .collect()
+}
+
+#[test]
+fn the_leaf_the_step_through_reaches_is_filled_in_the_paths_colour() {
+    let mut app = on_dpi(2560, 2600, 320);
+    app.set_roller_offered(true);
+    faraday_core::testkit::into_demo(&mut app);
+    to_entry(&mut app, 6);
+    assert!(filled_leaves(&mut app).is_empty(), "no leaf reached yet");
+    // Next to the character's own step: its five bits read down the tree.
+    let shown = |app: &Faraday| make(app).walk().shown().map(|(_, _, s)| s);
+    for _ in 0..40 {
+        c32(&mut app, C32::Walk(WalkAct::Next));
+        if shown(&app) == Some(faraday_core::codex32::Step::Char) {
+            break;
+        }
+    }
+    assert_eq!(shown(&app), Some(faraday_core::codex32::Step::Char));
+    assert_eq!(filled_leaves(&mut app).len(), 1, "the one leaf reached");
 }

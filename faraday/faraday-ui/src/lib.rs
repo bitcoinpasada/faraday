@@ -65,6 +65,17 @@ impl BarGeometry {
             thumb,
         }
     }
+
+    /// Where the thumb starts along the track, the region scrolled
+    /// `offset` of `max` units.
+    pub fn at(&self, offset: f32, max: f32) -> i32 {
+        ((self.track - self.thumb) as f32 * (offset / max).clamp(0.0, 1.0)).round() as i32
+    }
+}
+
+/// An overlay scrollbar's thickness, in pixels at `f` to the unit.
+fn bar_thickness(f: f32) -> i32 {
+    (BAR_W * f).round().max(3.0) as i32
 }
 
 /// Faraday's colours: the roles, the generated schemes and the paints.
@@ -580,12 +591,61 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
     }
 
     /// [`Ui::report_scroll_beside`] for a region whose content also pans
-    /// sideways: `max` is how far it goes across and down, in units.
-    pub fn report_scroll_both(&mut self, slot: Slot, view: Rect, max: (f32, f32), offset: f32) {
-        self.report(slot, view, max.1, offset, false);
+    /// sideways: `max` is how far it goes across and down, in units, and
+    /// `offset` how far it is panned each way. While it is the one
+    /// scrolled, its overlay scrollbar runs along its foot too, as
+    /// Material's horizontal scrollbar does.
+    pub fn report_scroll_both(
+        &mut self,
+        slot: Slot,
+        view: Rect,
+        max: (f32, f32),
+        offset: (f32, f32),
+    ) {
+        self.report(slot, view, max.1, offset.1, false);
         if let Some(s) = self.scrolled.iter_mut().find(|s| s.slot == slot) {
             s.max_x = max.0.max(0.0);
         }
+        if let Some((alpha, _)) = self.bar
+            && slot == self.active
+            && self.in_sheet == self.stretch_in_sheet
+            && !self.compact
+            && max.0 > 0.0
+            && alpha > 0
+        {
+            self.scroll_bar_across(view, max.0, offset.0, alpha);
+        }
+    }
+
+    /// The overlay scrollbar along a region's foot: a thumb as long as the
+    /// share of the content's width in view, clear of the bar at its right
+    /// edge, drawn as [`Ui::scroll_bar`] draws its own.
+    fn scroll_bar_across(&mut self, view: Rect, max: f32, offset: f32, alpha: u8) {
+        let h = bar_thickness(self.f);
+        // The vertical bar's geometry along the width, its end kept clear
+        // of the bar at the right edge.
+        let along = Rect::new(view.y, view.x, view.h, view.w - h);
+        let g = BarGeometry::of(along, max, self.f);
+        if g.track <= 0 || g.thumb <= 0 {
+            return;
+        }
+        let inset = g.top - view.x;
+        let x = g.top + g.at(offset, max);
+        let rect = Rect::new(x, view.bottom() - inset - h, g.thumb, h);
+        let color = self.bar_color(alpha);
+        self.c.fill_rounded_rect(rect, h as f32 / 2.0, color);
+    }
+
+    /// The overlay scrollbar's colour at `alpha`: faint, but at full
+    /// strength at High contrast, where it is the one sign the page goes
+    /// on.
+    fn bar_color(&self, alpha: u8) -> Color {
+        let most = if self.theme.is_high_contrast() {
+            255
+        } else {
+            150
+        };
+        self.col(Role::OnSurfaceVariant.with_alpha((u16::from(alpha) * most / 255) as u8))
     }
 
     fn report(&mut self, slot: Slot, view: Rect, max: f32, offset: f32, own_bar: bool) {
@@ -635,7 +695,7 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
         if track <= 0 || thumb <= 0 {
             return;
         }
-        let at = ((track - thumb) as f32 * (offset / max).clamp(0.0, 1.0)).round() as i32;
+        let at = BarGeometry::of(view, max, f).at(offset, max);
         // Shortened by what the stretch pulls past the end, as a native
         // bar is.
         let squeeze = self.stretch.abs().min(thumb / 2);
@@ -647,17 +707,9 @@ impl<'a, A: Copy + PartialEq> Ui<'a, A> {
                 thumb - squeeze,
             )
         };
-        let w = (BAR_W * f).round().max(3.0) as i32;
+        let w = bar_thickness(f);
         let rect = Rect::new(view.right() - inset - w, y, w, h);
-        // Faint, but at full strength at High contrast: there it
-        // is the one sign the page goes on.
-        let most = if self.theme.is_high_contrast() {
-            255
-        } else {
-            150
-        };
-        let color =
-            self.col(Role::OnSurfaceVariant.with_alpha((u16::from(alpha) * most / 255) as u8));
+        let color = self.bar_color(alpha);
         self.c.fill_rounded_rect(rect, w as f32 / 2.0, color);
     }
 

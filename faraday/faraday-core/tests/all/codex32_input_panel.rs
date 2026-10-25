@@ -3,9 +3,13 @@
 //! panel beside the sheets on a 2560-wide window and pinned at the
 //! window's foot at 1920 and 1280, staying where it is as the page
 //! scrolls; a face pressed lands in the panel's rolls; the Pi panel's
-//! entry is as before, its context over the pad.
+//! entry is as before, its context over the pad. The panel is short on
+//! the smaller desktops: the rolls in one row beside a pad of one row,
+//! the dice's size one button opening a menu, offered there alone, and
+//! Continue in the pad's place once every character is in, the one way
+//! on. The step-through's Next brings the die it rolls into view.
 
-use faraday_core::codex32::{C32, Card, SPLITS, Split, WAYS, Way};
+use faraday_core::codex32::{C32, Card, DIE_SIZES, SPLITS, Split, Step, WAYS, WalkAct, Way};
 use faraday_core::keygen::{Start, kstep};
 use faraday_core::{Action, Faraday, Screen};
 use faraday_shell_api::{
@@ -22,6 +26,18 @@ fn on_entry(width: u16, height: u16, dpi: u16) -> Faraday {
 /// The same on a shell that offers the computer's dice roller, or not
 /// (the stick and the Pi), by `way`.
 fn on_shell(width: u16, height: u16, dpi: u16, roller: bool, way: Way) -> Faraday {
+    let mut app = on_entropy(width, height, dpi, roller);
+    let w = WAYS.iter().position(|w| *w == way).unwrap();
+    c32(&mut app, C32::Way(w as u8));
+    c32(&mut app, C32::Next);
+    assert_eq!(make(&app).open(), Some(Card::Enter));
+    let _ = app.frame();
+    app
+}
+
+/// Make codex32 shares on such a shell, 2 of 3 named `name`, on its
+/// Entropy card.
+fn on_entropy(width: u16, height: u16, dpi: u16, roller: bool) -> Faraday {
     let mut app = Faraday::new();
     app.event(Event::Display(DisplayInfo {
         width,
@@ -55,11 +71,7 @@ fn on_shell(width: u16, height: u16, dpi: u16, roller: bool, way: Way) -> Farada
         c32(&mut app, C32::Key(OskPress::Char(ch)));
     }
     c32(&mut app, C32::Next);
-    let w = WAYS.iter().position(|w| *w == way).unwrap();
-    c32(&mut app, C32::Way(w as u8));
-    c32(&mut app, C32::Next);
-    assert_eq!(make(&app).open(), Some(Card::Enter));
-    let _ = app.frame();
+    assert_eq!(make(&app).open(), Some(Card::Entropy));
     app
 }
 
@@ -114,7 +126,18 @@ fn in_window((x, y, bw, bh): (i32, i32, i32, i32), w: u16, h: u16) -> bool {
     x >= 0 && y >= 0 && x + bw <= i32::from(w) && y + bh <= i32::from(h)
 }
 
-/// The pad's 3 and the rolls ("First roll", "Second roll") both in the
+/// The rolls' die names drawn by the pad: "Die 1" to "Die 5" within
+/// `near` pixels of its key `key` up or down, in the window.
+fn rolls_by(app: &mut Faraday, key: (i32, i32, i32, i32), near: i32, (w, h): (u16, u16)) -> bool {
+    (1..=5).all(|d| {
+        let name = format!("Die {d}");
+        app.drawn_text_boxes()
+            .into_iter()
+            .any(|(t, b)| t == name && in_window(b, w, h) && (b.1 - key.1).abs() < near)
+    })
+}
+
+/// The pad's 3 and the rolls, each die's name over them, both in the
 /// window.
 fn pad_and_rolls_in_view(app: &mut Faraday, w: u16, h: u16) {
     let key = app.hit_box(face(3)).expect("the pad's 3 is drawn");
@@ -125,10 +148,10 @@ fn pad_and_rolls_in_view(app: &mut Faraday, w: u16, h: u16) {
         i32::from(key.3),
     );
     assert!(in_window(key, w, h), "the pad's 3 in view: {key:?}");
-    for head in ["First roll", "Second roll"] {
-        let at = text_at(app, head).unwrap_or_else(|| panic!("{head} drawn"));
-        assert!(in_window(at, w, h), "{head} in view: {at:?}");
-    }
+    assert!(
+        rolls_by(app, key, i32::from(h), (w, h)),
+        "the rolls in view"
+    );
 }
 
 #[test]
@@ -152,8 +175,8 @@ fn at_2560_the_panel_stands_beside_the_sheets_and_elsewhere_at_the_foot() {
     // 2560: a column at the work area's start, below the top strip, the
     // sheets right of it.
     let mut wide = on_entry(2560, 1440, 160);
-    let key = wide.hit_box(face(3)).unwrap();
     let sheet = text_at(&mut wide, "Die tracks").expect("the dice sheet");
+    let key = wide.hit_box(face(3)).unwrap();
     assert!(
         i32::from(key.0) + i32::from(key.2) < sheet.0,
         "the pad left of the sheets: {key:?} {sheet:?}"
@@ -167,8 +190,16 @@ fn at_2560_the_panel_stands_beside_the_sheets_and_elsewhere_at_the_foot() {
             key.1 + key.3 > h - 120 && key.1 + key.3 <= h,
             "{w}x{h}: at the foot: {key:?}"
         );
-        let first = text_at(&mut app, "First roll").unwrap();
-        assert!(first.1 > i32::from(h) / 2, "{w}x{h}: the rolls with it");
+        let key = (
+            i32::from(key.0),
+            i32::from(key.1),
+            i32::from(key.2),
+            i32::from(key.3),
+        );
+        assert!(
+            rolls_by(&mut app, key, 120, (w, h)),
+            "{w}x{h}: the rolls with it"
+        );
     }
 }
 
@@ -215,4 +246,212 @@ fn characters_typed_take_the_codex32_keyboard_at_the_foot() {
     assert_eq!(app.hit_box(q), Some(key), "the keyboard stays");
     tap(&mut app, q);
     assert_eq!(make(&app).work().map(|w| w.entered(0)), Some(1));
+}
+
+/// The dice's size button, and size `i` of the menu it opens.
+const SIZE_MENU: Action = Action::Codex32(C32::SizeMenu);
+fn size(i: usize) -> Action {
+    Action::Codex32(C32::Faces(i as u8))
+}
+
+/// Whether any of the six sizes is offered on screen.
+fn any_size(app: &mut Faraday) -> bool {
+    let _ = app.frame();
+    (0..DIE_SIZES.len()).any(|i| app.offers(size(i)))
+}
+
+#[test]
+fn the_pad_has_no_done_and_continue_stands_in_its_place_once_every_character_is_in() {
+    for roller in [false, true] {
+        let mut app = on_shell(1280, 800, 160, roller, Way::Dice);
+        let done = Action::Codex32(C32::Key(OskPress::Done));
+        let next = Action::Codex32(C32::Next);
+        assert!(!app.offers(done), "no Done on the pad");
+        assert!(!app.offers(next), "no Continue while a character is left");
+        // Both shares, each character five dice higher on their second
+        // roll.
+        while make(&app).front().is_some() {
+            for f in [1, 1, 1, 1, 1, 2, 2, 2, 2, 2] {
+                c32(&mut app, C32::Face(f));
+            }
+        }
+        let _ = app.frame();
+        assert!(!app.offers(face(3)), "the pad has gone");
+        // Continue at the window's foot, wherever the page is scrolled.
+        scroll_page(&mut app, 1280 / 2, 800 / 3, 4000);
+        let at = app.hit_box(next).expect("Continue offered");
+        assert!(at.1 > 800 - 80, "in the panel at the foot: {at:?}");
+        // Outside Demo the strings made go on to the worksheets; Demo's
+        // stand in the sample's place once it is loaded.
+        if !roller {
+            tap(&mut app, next);
+            assert_eq!(make(&app).open(), Some(Card::Sheets), "it goes on");
+        }
+    }
+}
+
+#[test]
+fn the_dice_size_is_one_menu_in_the_panel_and_nowhere_else() {
+    for (w, h) in [(1280u16, 800u16), (1366, 768)] {
+        for roller in [false, true] {
+            let mut app = on_shell(w, h, 160, roller, Way::Dice);
+            assert!(app.offers(SIZE_MENU), "{w}x{h}: the dice's button");
+            assert!(!any_size(&mut app), "{w}x{h}: no other choice of size");
+            // Opened, the six sizes; d20 chosen closes it.
+            tap(&mut app, SIZE_MENU);
+            assert!(any_size(&mut app), "{w}x{h}: the menu's sizes");
+            tap(&mut app, size(5));
+            assert_eq!(make(&app).dice_choice().faces, 20, "{w}x{h}");
+            assert!(!any_size(&mut app), "{w}x{h}: the menu closed");
+            assert!(app.offers(face(20)), "{w}x{h}: a key per face");
+        }
+    }
+    // The Entropy card offers the dice's colours, not their size.
+    let mut app = on_entropy(1280, 800, 160, true);
+    assert!(!any_size(&mut app), "no size on the Entropy card");
+    assert!(app.offers(Action::Codex32(C32::Colour(0))), "the colours");
+}
+
+#[test]
+fn the_dice_menu_takes_the_keyboard_and_a_press_outside_closes_it() {
+    use faraday_shell_api::Key;
+    let mut app = on_shell(1280, 800, 160, false, Way::Dice);
+    tap(&mut app, SIZE_MENU);
+    // On six faces; Down moves to eight, Enter chooses.
+    app.event(Event::Key(Key::Down));
+    app.event(Event::Key(Key::Enter));
+    assert_eq!(make(&app).dice_choice().faces, 8);
+    assert!(!any_size(&mut app), "chosen, the menu closed");
+    // Escape closes it, the size kept.
+    tap(&mut app, SIZE_MENU);
+    app.event(Event::Key(Key::Escape));
+    assert!(!any_size(&mut app), "Escape closed it");
+    assert_eq!(make(&app).dice_choice().faces, 8);
+    // A press on the pad while it is open only closes it.
+    tap(&mut app, SIZE_MENU);
+    tap(&mut app, face(3));
+    assert!(!any_size(&mut app), "the press outside closed it");
+    assert_eq!(make(&app).dice().first(0), None, "and rolled nothing");
+    tap(&mut app, face(3));
+    assert_eq!(make(&app).dice().first(0), Some(3));
+}
+
+#[test]
+fn at_1280_and_1366_the_rolls_stand_in_one_row_beside_a_pad_of_one_row() {
+    for (w, h) in [(1280u16, 800u16), (1366, 768)] {
+        let mut app = on_shell(w, h, 160, false, Way::Dice);
+        let key = |app: &Faraday, f: u8| app.hit_box(face(f)).expect("a face's key");
+        let one = key(&app, 1);
+        // The six faces and Backspace on one row, the dice's button with
+        // them.
+        for f in 2..=6 {
+            assert_eq!(key(&app, f).1, one.1, "{w}x{h}: face {f} on the pad's row");
+        }
+        let back = app.hit_box(Action::Codex32(C32::Key(OskPress::Back)));
+        assert_eq!(back.map(|b| b.1), Some(one.1), "{w}x{h}: Backspace too");
+        let button = app.hit_box(SIZE_MENU).expect("the dice's button");
+        assert_eq!(button.1, one.1, "{w}x{h}: the dice's size too");
+        // The five dice's names on one row, left of the pad, the row of
+        // rolls level with it.
+        let names: Vec<(i32, i32, i32, i32)> = (1..=5)
+            .map(|d| {
+                let name = format!("Die {d}");
+                app.drawn_text_boxes()
+                    .into_iter()
+                    .filter(|(t, b)| *t == name && b.1 > i32::from(h) / 2)
+                    .map(|(_, b)| b)
+                    .next_back()
+                    .unwrap_or_else(|| panic!("{w}x{h}: {name} in the panel"))
+            })
+            .collect();
+        let level = names.iter().all(|b| (b.1 - names[0].1).abs() <= 2);
+        assert!(level, "{w}x{h}: one row: {names:?}");
+        assert!(names[4].0 < i32::from(button.0), "{w}x{h}: left of the pad");
+        let rows = (names[0].1, names[0].1 + 80);
+        assert!(
+            (rows.0..rows.1).contains(&i32::from(one.1)),
+            "{w}x{h}: the pad level with the rolls: {names:?} {one:?}"
+        );
+    }
+}
+
+#[test]
+fn the_dice_sheet_stands_only_with_the_rolling_shares_checksum_and_closes_when_it_is_done() {
+    let has = |app: &mut Faraday, s: &str| app.drawn_texts().iter().any(|t| t == s);
+    let sheet = Action::Codex32(C32::DiceSheet);
+    let mut app = on_shell(1280, 2400, 160, false, Way::Dice);
+    c32(&mut app, C32::Face(3));
+    assert!(
+        has(&mut app, "Die tracks"),
+        "with the share rolled's Checksum"
+    );
+    // The derived share's tab and the Secret's: their worksheets alone.
+    for view in [1u8, 2] {
+        c32(&mut app, C32::View(view));
+        assert!(
+            !has(&mut app, "Dice de-biasing"),
+            "tab {view}: no dice sheet"
+        );
+    }
+    c32(&mut app, C32::View(0));
+    assert!(has(&mut app, "Die tracks"), "back on the Checksum tab");
+    // Share A's last roll: the sheet closes to its head row.
+    c32(&mut app, C32::Key(OskPress::Back));
+    while make(&app).front().is_some_and(|f| f.0 == 0) {
+        for f in [1, 1, 1, 1, 1, 2, 2, 2, 2, 2] {
+            c32(&mut app, C32::Face(f));
+        }
+    }
+    assert!(has(&mut app, "Dice de-biasing"), "its head row");
+    assert!(!has(&mut app, "Die tracks"), "closed");
+    // Its chevron opens it to the tracks as they were, and closes it.
+    tap(&mut app, sheet);
+    assert!(has(&mut app, "Die tracks"), "opened");
+    tap(&mut app, sheet);
+    assert!(!has(&mut app, "Die tracks"), "closed again");
+    // The next share's first roll opens it by itself.
+    c32(&mut app, C32::Face(4));
+    assert!(has(&mut app, "Die tracks"), "a roll opens it");
+}
+
+#[test]
+fn the_step_throughs_next_brings_the_die_it_rolls_into_view() {
+    let mut app = on_shell(1280, 800, 160, true, Way::Dice);
+    // The page at its top: the tracks are under the panel.
+    scroll_page(&mut app, 1280 / 2, 800 / 3, -4000);
+    for die in 0..5u8 {
+        let step = |app: &Faraday| make(app).walk().shown().map(|(_, _, s)| s);
+        for _ in 0..20 {
+            c32(&mut app, C32::Walk(WalkAct::Next));
+            for _ in 0..3 {
+                let _ = app.frame();
+                let now = app.now_ms() + 16;
+                app.event(Event::Tick { now_ms: now });
+            }
+            if matches!(step(&app), Some(Step::First { die: d, .. }) if d == die) {
+                break;
+            }
+        }
+        assert!(
+            matches!(step(&app), Some(Step::First { die: d, .. }) if d == die),
+            "die {die}'s first roll: {:?}",
+            step(&app)
+        );
+        let _ = app.frame();
+        // Die n's track's name over the panel's own, both in the window.
+        let name = format!("Die {}", die + 1);
+        let mut at: Vec<(i32, i32, i32, i32)> = app
+            .drawn_text_boxes()
+            .into_iter()
+            .filter(|(t, b)| *t == name && in_window(*b, 1280, 800))
+            .map(|(_, b)| b)
+            .collect();
+        at.sort_by_key(|b| b.1);
+        assert!(at.len() >= 2, "{name}: its track and the panel's: {at:?}");
+        let (track, panel) = (at[0], at[at.len() - 1]);
+        assert!(
+            track.1 + track.3 < panel.1 - 8,
+            "{name}'s track stands clear above the panel: {at:?}"
+        );
+    }
 }

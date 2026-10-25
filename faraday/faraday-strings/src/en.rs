@@ -9441,6 +9441,14 @@ strings! {
     /// Where it stands in the character in progress. `{}`: the value's
     /// number among the character's, the character's number in its share.
     codex32_track_roll: "Roll {} · character {}",
+    /// The same three on the small panel's Working tile, short so they
+    /// fit its head row (owner, 2026-10-24). `{}`: the step, the
+    /// character's steps, the character's number in its share.
+    codex32_walk_count_short: "{}/{} · ch {}",
+    /// `{}`: the character's number in its share.
+    codex32_track_char_short: "Ch {}",
+    /// `{}`: the value's number, the character's number.
+    codex32_track_roll_short: "Roll {} · ch {}",
     /// What the person enters next, a die's first roll. `{}`: the die.
     codex32_track_next_first: "Next: die {}, first roll.",
     /// What the person enters next, a die's second roll. `{}`: the die.

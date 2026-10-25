@@ -1900,14 +1900,27 @@ impl crate::Faraday {
         let now = self.now_ms();
         let mut m = self.keygen.state.as_mut().and_then(|k| k.codex32.take());
         if let Some(m) = m.as_mut() {
+            let was = m.rolled_at();
             m.walk_act(&c, w, now, &mut || {
                 self.fresh(b"faraday codex32 dice roller")
             });
+            m.after_rolls(was);
         }
         if let Some(k) = self.keygen.state.as_mut() {
             k.codex32 = m;
         }
-        self.worksheet_follow();
+        self.walk_follow();
+    }
+
+    /// The step-through moved on: the view follows its work once the
+    /// next frame has drawn where it is, the sheet of the work in hand
+    /// standing first (`docs/LAYOUT.md` §16.1, §16.4): the dice sheet's
+    /// on a roll or the character's step, the worksheet's on the
+    /// checksum's.
+    fn walk_follow(&mut self) {
+        if let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) {
+            m.page_due_set();
+        }
     }
 
     /// Whether the codex32 Demo walk shows a step. A lookup.
@@ -1925,6 +1938,9 @@ impl crate::Faraday {
     pub(crate) fn keygen_walk_key(&mut self, key: faraday_shell_api::Key) -> bool {
         use crate::codex32::WalkAct;
         use faraday_shell_api::Key;
+        if self.keygen_size_menu_key(key) {
+            return true;
+        }
         let act = match key {
             Key::Left => WalkAct::Previous,
             Key::Right => WalkAct::Next,
@@ -1942,6 +1958,33 @@ impl crate::Faraday {
             self.keygen_codex32_walk(act);
         }
         open
+    }
+
+    /// A key while the codex32 entry's dice menu is open
+    /// (`docs/LAYOUT.md` §16.3): the menu takes every key; Enter or Space
+    /// chooses the size the keyboard is on. True when taken.
+    fn keygen_size_menu_key(&mut self, key: faraday_shell_api::Key) -> bool {
+        use crate::codex32::{C32, Card};
+        let open = self.screen == Screen::KeyGen
+            && self.sheet.is_none()
+            && self
+                .keygen
+                .state()
+                .and_then(|k| k.codex32.as_ref())
+                .is_some_and(|m| m.open() == Some(Card::Enter) && m.size_menu().is_some());
+        if !open {
+            return false;
+        }
+        let chosen = self
+            .keygen
+            .state
+            .as_mut()
+            .and_then(|k| k.codex32.as_mut())
+            .and_then(|m| m.size_menu_key(key));
+        if let Some(i) = chosen {
+            self.keygen_codex32(C32::Faces(i));
+        }
+        true
     }
 
     /// A press on the one-die roller beside the dice pad, on Faraday
@@ -2019,10 +2062,11 @@ impl crate::Faraday {
             let c = self.compute();
             let mut m = self.keygen.state.as_mut().and_then(|k| k.codex32.take());
             let stepped = m.as_mut().is_some_and(|m| {
-                let playing = m.walk().playing();
+                let (playing, was) = (m.walk().playing(), m.rolled_at());
                 let moved = m.walk_tick(&c, now_ms, &mut || {
                     self.fresh(b"faraday codex32 dice roller")
                 });
+                m.after_rolls(was);
                 // Play ending changes its button too.
                 moved || playing != m.walk().playing()
             });
@@ -2030,8 +2074,8 @@ impl crate::Faraday {
                 k.codex32 = m;
             }
             if stepped {
-                // The step moved the work: the worksheet's view follows.
-                self.worksheet_follow();
+                // The step moved the work: the view follows it.
+                self.walk_follow();
                 redraw = true;
             }
         }
@@ -2053,6 +2097,19 @@ impl crate::Faraday {
             redraw |= self.keygen_roller_tick(now_ms, reduce);
         }
         redraw
+    }
+
+    /// Whether the codex32 entry's dice sheet stands in its column at the
+    /// right now (`docs/LAYOUT.md` §16.1). Arithmetic.
+    pub(crate) fn codex32_column_now(&self) -> bool {
+        let page_w = crate::screens::keygen_page_w(self);
+        let shell = (self.window().class(), self.compact, self.roller_offered());
+        let h = self.window().height;
+        self.keygen
+            .state
+            .as_ref()
+            .and_then(|k| k.codex32.as_ref())
+            .is_some_and(|m| crate::codex32::pane_screen::column_now(m, page_w, h, shell))
     }
 
     /// The room the codex32 entry's input panel keeps at the window's
@@ -2084,9 +2141,12 @@ impl crate::Faraday {
         let Some(m) = self.keygen.state.as_mut().and_then(|k| k.codex32.as_mut()) else {
             return;
         };
+        m.note_sheet();
         let room = (!compact).then(|| {
             let pane = crate::codex32::pane_screen::pane_at_now(m, page_w, (compact, roller));
-            let side = crate::codex32::pane_screen::side_room(pane);
+            let shell = (class, compact, roller);
+            let column = crate::codex32::pane_screen::column_now(m, page_w, h, shell);
+            let side = crate::codex32::pane_screen::side_room(pane, column);
             let tall = h - 2.0 * faraday_draw::tokens::MARGIN_WIDE;
             // The input panel's room: at the foot its height; beside the
             // sheets its width, from the column's start (§16.3).

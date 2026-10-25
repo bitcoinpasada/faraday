@@ -84,6 +84,22 @@ impl KeyGenArea {
         }
     }
 
+    /// Sends the page to the part of it `spot` (its top down the page's
+    /// content, its height) in the page's room `room` going as far as
+    /// `max` (`Codex32Make::follow_page_to`). Arithmetic.
+    pub(crate) fn page_follow_to(
+        &mut self,
+        spot: (f32, f32),
+        (room, max): (f32, f32),
+        reduce: bool,
+    ) {
+        if let Some(k) = self.state.as_mut()
+            && let Some(m) = k.codex32.as_mut()
+        {
+            k.scroll.y = m.follow_page_to(spot, (room, max), (k.scroll.y, reduce));
+        }
+    }
+
     /// Brings the page `need` units further down so the worksheet's view
     /// clears the input panel (`Codex32Make::follow_page_by`).
     /// Arithmetic.

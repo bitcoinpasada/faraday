@@ -73,19 +73,8 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         crate::Screen::Catalog => EN.keygen_tools,
         _ => EN.keygen_back,
     };
-    // The codex32 entry's "Demo only" card holds its place beside the
-    // page, which gives it its room, or at the window's foot
-    // (`docs/CODEX32.md` §5.5).
-    let pane = k
-        .codex32
-        .as_ref()
-        .and_then(|m| crate::codex32::pane_screen::pane_at(app, m, cw));
-    let side = crate::codex32::pane_screen::side_room(pane);
-    // The entry's input panel: beside the sheets at the page's start, at
-    // the window's foot, or in the page (`docs/LAYOUT.md` §16.3).
-    let panel = k.codex32.as_ref().map_or(PanelAt::Page, |m| {
-        crate::codex32::input_panel::place(app, m, cw, h)
-    });
+    let (pane, column, panel) = codex32_places(app, k, (cw, h));
+    let side = crate::codex32::pane_screen::side_room(pane, column);
     let start = panel.start_room();
     let inset = faraday_draw::tokens::KEYGEN_COLUMN_IN;
     let lead = if start > 0.0 { start } else { inset };
@@ -125,7 +114,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         let mut body = |ui: &mut Ui, i: usize, x: f32, y: f32, w: f32| -> f32 {
             match (app_ref.keygen.state(), at[i]) {
                 (Some(k), Some(card)) => k.codex32.as_ref().map_or(0.0, |m| {
-                    let at = (card, pane, wide, panel);
+                    let at = (card, pane, wide, panel, column);
                     crate::codex32::screen::body(app_ref, m, at, ui, x, y, w)
                 }),
                 (Some(k), None) => card_body(app_ref, k, ui, steps[i], x, y, w),
@@ -135,11 +124,22 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         flow::column(ui, &col, &cards, scroll, &mut body)
     };
     app.scroll(Scrolled::KeyGen, next, again);
+    // The codex32 sheets run to the right margin where nothing stands
+    // beside them: the top strip's actions keep a surface under them, so
+    // the page scrolls under them as under Material's top app bar.
+    if k.codex32
+        .as_ref()
+        .is_some_and(|m| m.open() == Some(crate::codex32::Card::Enter))
+        && side == 0.0
+        && !app.is_compact()
+    {
+        top_actions_clear(ui, (x0, cw));
+    }
     // The "Demo only" pane stands above the input panel at the foot; the
     // panel is drawn after it, so the pane's strip takes no press of its.
     let foot = panel.foot_h();
-    if let (Some(m), Some(p)) = (k.codex32.as_ref(), pane) {
-        crate::codex32::pane_screen::draw(app, m, ui, p, (x0, cw, h - foot));
+    if let Some(m) = k.codex32.as_ref() {
+        crate::codex32::pane_screen::draw(app, m, ui, (pane, column), (x0, cw, h - foot));
     }
     if let Some(m) = k.codex32.as_ref() {
         crate::codex32::input_panel::draw(m, ui, panel, (x0, cw, h));
@@ -147,6 +147,45 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
     if let Some(m) = k.codex32.as_ref() {
         crate::codex32::screen::cell_sheet(app, m, ui, x0, cw, h);
     }
+}
+
+/// Where Make codex32 shares' entry puts what stands out of its page, in
+/// a page area `cw` wide in a window `h` tall: the "Demo only" card,
+/// beside the page or at the window's foot (`docs/CODEX32.md` §5.5);
+/// whether the dice sheet stands in a column at the right, the card under
+/// it, where the window holds them beside a whole worksheet
+/// (`docs/LAYOUT.md` §16.1); and the input panel, beside the sheets at
+/// the page's start, at the window's foot, or in the page (§16.3).
+/// Arithmetic.
+fn codex32_places(
+    app: &View,
+    k: &KeyGen,
+    (cw, h): (f32, f32),
+) -> (Option<crate::codex32::pane_screen::PaneAt>, bool, PanelAt) {
+    let Some(m) = k.codex32.as_ref() else {
+        return (None, false, PanelAt::Page);
+    };
+    let pane = crate::codex32::pane_screen::pane_at(app, m, cw);
+    let shell = (app.window().class(), app.is_compact(), app.roller_offered());
+    let column = crate::codex32::pane_screen::column_now(m, cw, h, shell);
+    let panel = crate::codex32::input_panel::place(app, m, cw, h);
+    (pane, column, panel)
+}
+
+/// The top strip's actions' corner of the page area at `x0`, `cw` wide,
+/// filled with the surface over what the page drew there; a press there
+/// reaches nothing under it.
+fn top_actions_clear(ui: &mut Ui, (x0, cw): (f32, f32)) {
+    use faraday_draw::tokens as t;
+    let (x, w, h) = (
+        x0 + cw - t::TOP_ACTIONS_W,
+        t::TOP_ACTIONS_W,
+        t::SUPPORT_PANE_TOP,
+    );
+    let area = ui.rect(x, 0.0, w, h);
+    ui.hits
+        .retain(|(r, _)| r.intersect(&area).w <= 0 || r.intersect(&area).h <= 0);
+    ui.fill(x, 0.0, w, h, t::SHAPE_NONE, crate::ui::pal::Role::Surface);
 }
 
 /// The work width of New key's open card (`docs/LAYOUT.md` §14): from

@@ -68,21 +68,32 @@ pub(crate) fn working_area(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
 
 /// Where the step shown stands, and what it reads: its working, with
 /// what is entered next where it is the last step. Values are read from
-/// the step's character and the kept worksheet.
-fn lines(m: &Codex32Make) -> (String, String) {
+/// the step's character and the kept worksheet. With `short`, where it
+/// stands in the small panel's few characters ("12/18 · ch 7").
+fn lines(m: &Codex32Make, short: bool) -> (String, String) {
+    let pick = |long: &'static str, brief: &'static str| if short { brief } else { long };
     let next = next_text(m);
     let (Some((ch, s, step)), Some(work)) = (m.shown_step(), m.work()) else {
         let count = m.front().map_or(String::new(), |(_, n)| {
-            fill(EN.codex32_track_char, &[&(n + 1).to_string()])
+            fill(
+                pick(EN.codex32_track_char, EN.codex32_track_char_short),
+                &[&(n + 1).to_string()],
+            )
         });
         return (count, next.unwrap_or_default());
     };
     let n = (ch.n + 1).to_string();
     let count = if ch.whole() {
         let len = ch.steps().len().to_string();
-        fill(EN.codex32_walk_count, &[&s.to_string(), &len, &n])
+        fill(
+            pick(EN.codex32_walk_count, EN.codex32_walk_count_short),
+            &[&s.to_string(), &len, &n],
+        )
     } else {
-        fill(EN.codex32_track_roll, &[&s.to_string(), &n])
+        fill(
+            pick(EN.codex32_track_roll, EN.codex32_track_roll_short),
+            &[&s.to_string(), &n],
+        )
     };
     let mut text = step_text(work, ch, step);
     let at_end = if m.walk().shown().is_some() {
@@ -132,7 +143,7 @@ pub(super) fn draw(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> 
         return 0.0;
     }
     let h = working_area_h(w);
-    let (count, text) = lines(m);
+    let (count, text) = lines(m, !side(w));
     let tw = text_w(w);
     // The head's row: a line beside the buttons, or the buttons' own row.
     let head_h = if side(w) {

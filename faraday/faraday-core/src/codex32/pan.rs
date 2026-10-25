@@ -130,6 +130,12 @@ pub(crate) struct SheetFit {
     pub(crate) chars: usize,
     /// The fitted cell; none where the sheet pans in its view.
     pub(crate) cell: Option<f32>,
+    /// The sheet's size at its least fitting cell, across and down, and
+    /// the length it was worked out for: what the dice sheet's column
+    /// beside it must leave (`docs/LAYOUT.md` §16.1).
+    pub(crate) least: Option<(f32, f32)>,
+    /// The characters `least` was worked out for.
+    pub(crate) least_for: usize,
 }
 
 /// How far a checksum worksheet is panned inside its view: units from

@@ -16,10 +16,9 @@ use crate::strings::{EN, fill};
 use crate::ui::Paint;
 use crate::ui::{Ui, W, pal::*};
 use faraday_draw::tokens::{
-    GAP_SMALL, INPUT_ROLLS_COL, INPUT_ROLLS_LABEL_W, INPUT_ROLLS_LINE, INPUT_ROLLS_STRUCK,
-    ROLLER_BOUNCE, ROLLER_DIE, ROLLER_DIE_RADIUS, ROLLER_FIVE_GAP, ROLLER_GAP, ROLLER_LABEL,
-    ROLLER_PAIR_COL, ROLLER_PAIR_DIE, ROLLER_PAIR_LABEL_W, ROLLER_PIP, ROLLER_PIP_OFFSET,
-    ROLLER_SWAY,
+    GAP_SMALL, INPUT_ROLLS_COL, INPUT_ROLLS_LINE, INPUT_ROLLS_STRUCK, ROLLER_BOUNCE, ROLLER_DIE,
+    ROLLER_DIE_RADIUS, ROLLER_FIVE_GAP, ROLLER_GAP, ROLLER_LABEL, ROLLER_PAIR_COL, ROLLER_PAIR_DIE,
+    ROLLER_PAIR_LABEL_W, ROLLER_PIP, ROLLER_PIP_OFFSET, ROLLER_SWAY,
 };
 use faraday_entropy::booklet::BOOKLET_DICE;
 
@@ -210,21 +209,18 @@ pub fn pairs(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs, r: Option<&Five
     cy - y
 }
 
-/// Each die's two rolls laid across, for the input panel at the
-/// window's foot (`docs/LAYOUT.md` §16.3): a column per die, its name,
-/// its marker with the first roll over the die with the second, and what
-/// the pair gives; "First roll" and "Second roll" name the rows at the
-/// left; under them the latest pairs struck as equal, as many as
-/// [`INPUT_ROLLS_STRUCK`]. Always [`pairs_across_h`] tall.
+/// Each die's two rolls laid across in one row, for the input panel at
+/// the window's foot (`docs/LAYOUT.md` §16.3; owner, 2026-10-24): a
+/// column per die, its name over its marker with the first roll beside
+/// the die with the second, as the dice sheet's tracks draw them, and
+/// what the pair gives under them; under the row the latest pair struck
+/// as equal. Always [`pairs_across_h`] tall.
 pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs) -> f32 {
-    let (lw, col, d, line) = (
-        INPUT_ROLLS_LABEL_W,
-        INPUT_ROLLS_COL,
-        ROLLER_PAIR_DIE,
-        INPUT_ROLLS_LINE,
-    );
+    let (col, d, line) = (INPUT_ROLLS_COL, ROLLER_PAIR_DIE, INPUT_ROLLS_LINE);
     let mut cy = y;
-    let centre = |i: usize| x + lw + i as f32 * col + col / 2.0;
+    let pair_w = 2.0 * d + GAP_SMALL;
+    let left = |i: usize| x + i as f32 * col;
+    let centre = |i: usize| left(i) + pair_w / 2.0;
     for i in 0..BOOKLET_DICE {
         let name = fill(EN.codex32_die_n, &[&(i + 1).to_string()]);
         let nw = ui.measure(ROLLER_LABEL, W::S, &name);
@@ -239,18 +235,17 @@ pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs) -> f32 {
         );
     }
     cy += line + GAP_SMALL;
-    for (r, head) in [EN.codex32_first_roll, EN.codex32_second_roll]
-        .iter()
-        .enumerate()
-    {
-        let ry = cy + r as f32 * (d + ROLLER_FIVE_GAP);
-        ui.text_mid(x, ry, d, ROLLER_LABEL, W::S, Role::OnSurfaceVariant, head);
-    }
     for (i, &colour) in p.colours.iter().enumerate() {
-        marker(ui, (centre(i), cy + d / 2.0), p.first[i], colour, p.masked);
+        marker(
+            ui,
+            (left(i) + d / 2.0, cy + d / 2.0),
+            p.first[i],
+            colour,
+            p.masked,
+        );
         let dd = Die {
-            x: centre(i) - d / 2.0,
-            y: cy + d + ROLLER_FIVE_GAP,
+            x: left(i) + d + GAP_SMALL,
+            y: cy,
             side: d,
             face: p.second[i].unwrap_or(0),
             faces: p.faces,
@@ -259,7 +254,7 @@ pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs) -> f32 {
         };
         die(ui, &dd, p.masked);
     }
-    cy += 2.0 * (d + ROLLER_FIVE_GAP);
+    cy += d + GAP_SMALL;
     for i in 0..BOOKLET_DICE {
         if let Some(text) = pair_text(p, i) {
             let tw = ui.measure(ROLLER_LABEL, W::M, &text);
@@ -293,16 +288,17 @@ pub fn pairs_across(ui: &mut Ui, (x, y, w): (f32, f32, f32), p: &Pairs) -> f32 {
     pairs_across_h()
 }
 
-/// The height of [`pairs_across`]: the names, the two rows, what the
-/// pairs give, and the room for the struck pairs. Arithmetic.
+/// The height of [`pairs_across`]: the names, the row of rolls, what the
+/// pairs give, and the room for the struck pair. Arithmetic.
 pub fn pairs_across_h() -> f32 {
     let line = INPUT_ROLLS_LINE + GAP_SMALL;
-    line + 2.0 * (ROLLER_PAIR_DIE + ROLLER_FIVE_GAP) + line + INPUT_ROLLS_STRUCK as f32 * line
+    line + ROLLER_PAIR_DIE + GAP_SMALL + line + INPUT_ROLLS_STRUCK as f32 * line - GAP_SMALL
 }
 
-/// The width of [`pairs_across`]. Arithmetic.
+/// The width of [`pairs_across`]: the last column ends at its die.
+/// Arithmetic.
 pub fn pairs_across_w() -> f32 {
-    INPUT_ROLLS_LABEL_W + BOOKLET_DICE as f32 * INPUT_ROLLS_COL
+    (BOOKLET_DICE - 1) as f32 * INPUT_ROLLS_COL + 2.0 * ROLLER_PAIR_DIE + GAP_SMALL
 }
 
 /// What die `d`'s pair gives, once both its rolls are in: "lower · 0" or

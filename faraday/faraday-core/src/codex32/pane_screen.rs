@@ -54,29 +54,84 @@ pub(crate) fn pane_at_now(
 }
 
 /// The room the pane takes from the page at its right: none for the
-/// strip.
-pub(crate) fn side_room(pane: Option<PaneAt>) -> f32 {
+/// strip; a supporting pane's for the card beside the page or the dice
+/// sheet's `column`.
+pub(crate) fn side_room(pane: Option<PaneAt>, column: bool) -> f32 {
     match pane {
         Some(PaneAt::Side(_)) => crate::screens::support_pane_room(),
+        _ if column => crate::screens::support_pane_room(),
         _ => 0.0,
     }
 }
 
+/// Whether the dice sheet stands in a column at the right, the "Demo
+/// only" card under it, for the entry in a page area `cw` wide in a
+/// window `h` tall (`docs/LAYOUT.md` §16.1; owner, 2026-10-24): only
+/// where the checksum worksheet still draws whole beside it and the
+/// column fits the window's height, over the input panel at the foot.
+/// Elsewhere both sheets stand in the page. Arithmetic.
+pub(crate) fn column_now(
+    m: &Codex32Make,
+    cw: f32,
+    h: f32,
+    (class, compact, roller): (faraday_draw::geom::WindowClass, bool, bool),
+) -> bool {
+    let entering = m.open() == Some(Card::Enter)
+        && m.dice_sheet_shown()
+        && m.dice_sheet_open()
+        && m.front().is_some();
+    let side = crate::screens::support_pane_room();
+    if compact || !entering || cw - side - t::MARGIN_WIDE < t::CODEX32_MAIN_MIN {
+        return false;
+    }
+    let Some((sheet_w, sheet_h)) = m.sheet_least() else {
+        return false;
+    };
+    let panel = super::input_panel::place_in(m, cw, h, class, side);
+    let start = panel.start_room();
+    let lead = if start > 0.0 {
+        start - t::KEYGEN_COLUMN_IN
+    } else {
+        0.0
+    };
+    let work = crate::keygen::screen::codex32_work_w(cw, side) - lead;
+    let tall = h - 2.0 * t::MARGIN_WIDE - panel.foot_h();
+    let card = if demo_box_offered(m, roller) {
+        t::SPACER + t::CODEX32_COLUMN_CARD_H
+    } else {
+        0.0
+    };
+    let column = t::CODEX32_DICE_COLUMN_H + card;
+    sheet_w <= work
+        && sheet_h <= tall
+        && column <= h - t::SUPPORT_PANE_TOP - t::MARGIN_WIDE - panel.foot_h()
+}
+
 /// Draws the pane for the page area at `x0`, `cw` wide, in a window `h`
-/// tall.
+/// tall: with `column`, the dice sheet at the right and the card, if
+/// any, under it, scrolling within themselves.
 pub(crate) fn draw(
     app: &View,
     m: &Codex32Make,
     ui: &mut Ui,
-    pane: PaneAt,
+    (pane, column): (Option<PaneAt>, bool),
     (x0, cw, h): (f32, f32, f32),
 ) {
     let roller = app.roller_offered();
+    if column {
+        let (x, top, w, view) = crate::samples::card::pane_place(app, (x0, cw, h));
+        let card = pane.is_some();
+        scrolled(ui, m, (x, top, w, view), (roller, card, true));
+        return;
+    }
+    let Some(pane) = pane else {
+        return;
+    };
     match pane {
         PaneAt::Side(_) => {
             // The one place every "Demo only" card stands (`samples/card.rs`).
             let (x, top, w, view) = crate::samples::card::pane_place(app, (x0, cw, h));
-            scrolled(ui, m, (x, top, w, view), (roller, true));
+            scrolled(ui, m, (x, top, w, view), (roller, true, false));
         }
         PaneAt::Strip if m.pane_open() => {
             let (x, w) = (x0, cw);
@@ -84,7 +139,7 @@ pub(crate) fn draw(
             faraday_ui::demo::cover(ui, (x, top, w, h - top));
             let mut cy = top + t::GAP_SMALL;
             cy += more_row(ui, (x + t::PAD, cy, w - t::PAD - t::PAD), true);
-            scrolled(ui, m, (x, cy, w, h - cy), (roller, false));
+            scrolled(ui, m, (x, cy, w, h - cy), (roller, false, false));
         }
         PaneAt::Strip => {
             let (x, w) = (x0, cw);
@@ -146,18 +201,31 @@ fn more_row(ui: &mut Ui, (x, y, w): (f32, f32, f32), open: bool) -> f32 {
 
 /// The card's whole content in the area (x, y, w, view), scrolled by its
 /// own offset where it is taller (`Slot::DemoPane`); with `card`,
-/// headed and outlined as a card, else under the strip's own head.
+/// headed and outlined as a card, else under the strip's own head. With
+/// `dice`, the dice sheet over it, the card `SPACER` under the sheet.
 fn scrolled(
     ui: &mut Ui,
     m: &Codex32Make,
     (x, y, w, view): (f32, f32, f32, f32),
-    (roller, card): (bool, bool),
+    (roller, card, dice): (bool, bool, bool),
 ) {
     let clip = ui.rect(x, y, w, view);
     let off = m.pane_offset();
     ui.c.push_clip(clip);
     let mark = ui.hits.len();
-    let ch = demo_content(m, ui, (x, y - off, w), roller, card);
+    let sheet = if dice {
+        super::dice_screen::dice_sheet(m, ui, (x, y - off, w), false, false) + t::SPACER
+    } else {
+        0.0
+    };
+    let top = y - off + sheet;
+    let ch = if card {
+        demo_content(m, ui, (x, top, w), roller, true)
+    } else if dice {
+        0.0
+    } else {
+        demo_content(m, ui, (x, top, w), roller, false)
+    };
     // What is scrolled out of the pane takes no press.
     let mut k = mark;
     while k < ui.hits.len() {
@@ -170,8 +238,13 @@ fn scrolled(
         }
     }
     ui.c.pop_clip();
-    if card {
-        faraday_ui::demo::outline(ui, (x, y, w, ch.min(view)));
+    if card && ch > 0.0 {
+        // The card's edge, as much of it as shows.
+        let (ct, cb) = (top.max(y), (top + ch).min(y + view));
+        if cb > ct {
+            faraday_ui::demo::outline(ui, (x, ct, w, cb - ct));
+        }
     }
-    ui.report_scroll_beside(Slot::DemoPane, clip, (ch - view).max(0.0), off);
+    let all = sheet + ch;
+    ui.report_scroll_beside(Slot::DemoPane, clip, (all - view).max(0.0), off);
 }

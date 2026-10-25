@@ -20,7 +20,7 @@ use super::{C32, Codex32Make, DIE_SIZES, DieColour};
 use crate::fresh::roller::five_screen::{Pairs, pairs};
 use crate::strings::{EN, fill};
 use crate::ui::pal::*;
-use crate::ui::{Style, Ui, W};
+use crate::ui::{Slot, Style, Ui, W};
 
 // ---------------------------------------------------------------------
 // The dice' colours
@@ -62,11 +62,21 @@ pub(crate) fn colour_name(c: DieColour) -> &'static str {
 // The Entropy card's dice (§5.1)
 // ---------------------------------------------------------------------
 
-/// The dice the person rolls, under Roll dice: their faces as a Choice
-/// (taken between characters), and a chip per die naming its colour,
-/// which a press steps to the next. Returns the height.
-pub(super) fn chooser(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
-    let mut cy = y + sizes(m, ui, x, y, w);
+/// The dice the person rolls, under Roll dice: with `with_sizes`, their
+/// faces as a Choice (taken between characters; the small panel's one
+/// place for it), and a chip per die naming its colour, which a press
+/// steps to the next. Elsewhere the dice's size is chosen in the entry's
+/// input panel alone (`docs/LAYOUT.md` §16.3). Returns the height.
+pub(super) fn chooser(
+    m: &Codex32Make,
+    ui: &mut Ui,
+    (x, y, w): (f32, f32, f32),
+    with_sizes: bool,
+) -> f32 {
+    let mut cy = y;
+    if with_sizes {
+        cy += sizes(m, ui, x, y, w);
+    }
     let dice = m.dice_choice();
     crate::screens::section_label(ui, x, cy, EN.codex32_die_colours);
     cy += t::PAD + t::GAP_SMALL;
@@ -87,9 +97,8 @@ pub(super) fn chooser(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f
     cy + t::TOUCH + t::GAP - y
 }
 
-/// The dice's faces, "Dice" over a Choice of d4 to d20: on the Entropy
-/// card, over "Your dice" on the entry, and in the "Demo only" box, one
-/// value for all three. Returns the height.
+/// The dice's faces, "Dice" over a Choice of d4 to d20, on the small
+/// panel's Entropy card. Returns the height.
 pub(super) fn sizes(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let faces = m.dice_choice().faces;
     crate::screens::section_label(ui, x, y, EN.codex32_dice);
@@ -118,9 +127,10 @@ pub(super) fn demo_box_offered(m: &Codex32Make, roller: bool) -> bool {
 /// What the "Demo only" card holds (owner, 2026-10-24), what is not the
 /// person's own entry, from its heading (with `head`) down; `pane_screen.rs` places it
 /// and outlines it. Demo's **Use a sample**; on Faraday
-/// Desktop the dice's faces, "Rolls d20", and the computer's dice with
-/// each die's two rolls, a step at a time (`walk_screen.rs`). Returns its
-/// height, nothing where it has nothing to hold.
+/// Desktop "Rolls d20", the dice chosen in the input panel, and the
+/// computer's dice with each die's two rolls, a step at a time
+/// (`walk_screen.rs`). Returns its height, nothing where it has nothing
+/// to hold.
 pub(super) fn demo_content(
     m: &Codex32Make,
     ui: &mut Ui,
@@ -147,7 +157,6 @@ pub(super) fn demo_content(
         );
     }
     if roller && m.way() == super::Way::Dice {
-        cy += sizes(m, ui, ix, cy, iw);
         let die = fill(EN.codex32_die_size, &[&m.dice_choice().faces.to_string()]);
         let rolls = fill(EN.codex32_rolls_die, &[&die]);
         cy += ui.wrap(ix, cy, iw, t::LABEL, W::S, Role::OnSurfaceVariant, &rolls) + t::GAP;
@@ -201,9 +210,10 @@ fn colour_chip(
 // ---------------------------------------------------------------------
 
 /// The pad of a die of `faces` faces: a key for each face 1 to N in
-/// rows, Backspace and Done in the last column, drawn as the six-face
-/// pad is. A tens digit typed on the keyboard and waiting shows over
-/// it. Returns the height.
+/// rows, Backspace in the last column, drawn as the six-face pad is; a
+/// face is one key, so nothing waits from the pad, and the page's
+/// Continue is the one way on. A tens digit typed on the keyboard and
+/// waiting shows over it. Returns the height.
 pub(super) fn face_pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let mut cy = y;
     if let Some(d) = m.pending() {
@@ -262,16 +272,6 @@ pub(super) fn face_pad(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> 
         t::CODEX32_TAB_GLYPH,
         Role::OnSurface,
     );
-    if rows > 1 {
-        let (dx, dy) = key(cols, rows - 1);
-        let done = a(C32::Key(super::OskPress::Done));
-        ui.button_in(
-            (dx, dy, Some(kw), row - gap, t::RADIUS_SMALL),
-            EN.compact_done,
-            Style::Primary,
-            done,
-        );
-    }
     cy + h + t::GAP - y
 }
 
@@ -307,9 +307,10 @@ pub(super) fn dice_sheet(
     rows_only: bool,
     rolls: bool,
 ) -> f32 {
-    let mut cy = y;
-    let head = EN.codex32_dice_sheet;
-    cy += ui.wrap(x, cy, w, t::LABEL, W::S, Role::OnSurface, head) + t::GAP_SMALL;
+    let mut cy = y + head_row(m, ui, (x, y, w.min(t::COLUMN_MAX)));
+    if !m.dice_sheet_open() {
+        return cy - y;
+    }
     if rows_only {
         if rolls {
             cy += dice_rows(m, ui, x, cy, w, false);
@@ -354,6 +355,32 @@ pub(super) fn dice_sheet(
     cy += rolled_line(m, ui, x, cy, w);
     cy += tracks(m, ui, x, cy, w);
     cy - y + t::GAP
+}
+
+/// The dice sheet's head row, `TOUCH` tall: "Dice de-biasing" and the
+/// chevron of Material's expand and collapse at its end, the whole row
+/// one press that opens the sheet to its tracks and tree or closes it.
+/// Returns its height.
+fn head_row(m: &Codex32Make, ui: &mut Ui, (x, y, w): (f32, f32, f32)) -> f32 {
+    let head = EN.codex32_dice_sheet;
+    ui.text_mid(x, y, t::TOUCH, t::LABEL, W::S, Role::OnSurface, head);
+    let ic = t::ICON_SMALL;
+    let icon = if m.dice_sheet_open() {
+        Icon::ChevronUp
+    } else {
+        Icon::ChevronRight
+    };
+    let iy = y + (t::TOUCH - ic) / 2.0;
+    ui.icon(
+        x + w - ic,
+        iy,
+        ic,
+        icon,
+        t::CODEX32_TAB_GLYPH,
+        Role::OnSurfaceVariant,
+    );
+    ui.hit(x, y, w, t::TOUCH, a(C32::DiceSheet));
+    t::TOUCH
 }
 
 /// "Die 1, Die 3 rolled by this computer": the dice of the character in
@@ -625,6 +652,11 @@ fn tracks(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             &name,
         );
         track(m, ui, (tx, cy, u), die);
+        // The step-through's die: where the page follows its roll.
+        if m.walk_die_mark().is_some_and(|(d, _)| d == die) {
+            let row = ui.rect(x, cy, lw + t::CODEX32_TRACK_W * u, th);
+            ui.report_scroll_in(Slot::DiceWork, row, 0.0, 0.0);
+        }
         if let Some(b) = m.shown_dice().die_bit(die).flatten() {
             let text = if m.masked() {
                 MASK.to_string()
@@ -710,11 +742,39 @@ fn track(m: &Codex32Make, ui: &mut Ui, (tx, top, u): (f32, f32, f32), die: usize
     }
 }
 
+/// The 32 leaves in the booklet's order from (x, y), `lw` apart; the
+/// leaf `reached`, if any, filled in the path's colour.
+fn leaves(ui: &mut Ui, (x, ly, lw): (f32, f32, f32), reached: Option<usize>) {
+    let lh = ui.line(t::CAPTION, W::M);
+    for (i, &leaf) in TREE.iter().enumerate() {
+        let s = char::from(leaf.to_ascii_uppercase()).to_string();
+        let on = reached == Some(i);
+        let cw = ui.measure(t::CAPTION, W::M, &s);
+        let lx = x + i as f32 * lw + (lw - cw) / 2.0;
+        if on {
+            let side = lw.max(lh);
+            let (fx, fy) = (
+                x + i as f32 * lw + (lw - side) / 2.0,
+                ly + (lh - side) / 2.0,
+            );
+            ui.fill(fx, fy, side, side, side / 2.0, Role::Tertiary);
+        }
+        let ink = if on {
+            Role::OnTertiary
+        } else {
+            Role::OnSurface
+        };
+        ui.text(lx, ly, t::CAPTION, W::M, ink, &s);
+    }
+}
+
 /// The tree of 31 nodes over the 32 leaves, the leaves in the booklet's
 /// order and its proportions (a level is [`t::CODEX32_TREE_LEVEL`] times
-/// the space between two leaves); the path from the root drawn in the
-/// accent for each bit known from die 1 on, and the leaf reached named
-/// once die 5's bit is in.
+/// the space between two leaves), its lines `CODEX32_TREE_LINE` wide in
+/// outline-variant; the path from the root for each bit known from die 1
+/// on, `CODEX32_PATH_STROKE` wide in tertiary, neither the lines' colour
+/// nor the accent's, its nodes in it too, and the leaf reached filled in
+/// it and named once die 5's bit is in.
 fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
     let bits = known_bits(m, true);
     let lw = w / TREE.len() as f32;
@@ -728,10 +788,12 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
         )
     };
     let (f, ox, oy) = (ui.f, ui.ox, ui.oy);
-    let faint = ui.col(Role::OnSurfaceVariant);
-    let accent = ui.col(Role::Primary);
+    let line = ui.col(Role::OutlineVariant);
+    let ink = ui.col(Role::Tertiary);
     let mut at = 0usize;
     let mut path = true;
+    // The path's nodes, root first, as far as the bits from die 1 run.
+    let mut on = vec![(0usize, 0usize)];
     for (level, bit) in bits.iter().enumerate() {
         for idx in 0..(1usize << level) {
             let (px, py) = node(level, idx);
@@ -742,53 +804,44 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
                     (py + oy) * f,
                     (cx + ox) * f,
                     (cyy + oy) * f,
-                    f,
-                    faint,
+                    t::CODEX32_TREE_LINE * f,
+                    line,
                 );
             }
         }
         match *bit {
             Some(b) if path => {
-                let (px, py) = node(level, at);
                 at = at * 2 + usize::from(b);
-                let (cx, cyy) = node(level + 1, at);
-                let sw = t::CODEX32_PATH_STROKE * f;
-                ui.c.line(
-                    (px + ox) * f,
-                    (py + oy) * f,
-                    (cx + ox) * f,
-                    (cyy + oy) * f,
-                    sw,
-                    accent,
-                );
+                on.push((level + 1, at));
             }
             _ => path = false,
         }
     }
+    for pair in on.windows(2) {
+        let ((pl, pi), (cl, ci)) = (pair[0], pair[1]);
+        let ((px, py), (cx, cyy)) = (node(pl, pi), node(cl, ci));
+        ui.c.line(
+            (px + ox) * f,
+            (py + oy) * f,
+            (cx + ox) * f,
+            (cyy + oy) * f,
+            t::CODEX32_PATH_STROKE * f,
+            ink,
+        );
+    }
     for level in 0..BOOKLET_DICE {
         for idx in 0..(1usize << level) {
             let (px, py) = node(level, idx);
-            ui.dot(px, py, t::CODEX32_TREE_NODE, Role::OnSurface);
+            let role = if on.contains(&(level, idx)) && bits[0].is_some() {
+                Role::Tertiary
+            } else {
+                Role::OnSurface
+            };
+            ui.dot(px, py, t::CODEX32_TREE_NODE, role);
         }
     }
     let ly = top + BOOKLET_DICE as f32 * lv + t::GAP_SMALL;
-    for (i, &leaf) in TREE.iter().enumerate() {
-        let s = char::from(leaf.to_ascii_uppercase()).to_string();
-        let reached = path && i == at;
-        let cw = ui.measure(t::CAPTION, W::M, &s);
-        ui.text(
-            x + i as f32 * lw + (lw - cw) / 2.0,
-            ly,
-            t::CAPTION,
-            W::M,
-            if reached {
-                Role::Primary
-            } else {
-                Role::OnSurface
-            },
-            &s,
-        );
-    }
+    leaves(ui, (x, ly, lw), path.then_some(at));
     let mut h = ly - y + ui.line(t::CAPTION, W::M) + t::GAP_SMALL;
     if path && bits.iter().all(Option::is_some) {
         let b: String = bits.iter().map(|b| b.unwrap_or(0).to_string()).collect();
@@ -796,7 +849,16 @@ fn tree(m: &Codex32Make, ui: &mut Ui, x: f32, y: f32, w: f32) -> f32 {
             EN.codex32_path_leaf,
             &[&b, &at.to_string(), &char::from(TREE[at]).to_string()],
         );
-        h += ui.wrap(x, y + h, w, t::LABEL, W::M, Role::Primary, &s) + t::GAP_SMALL;
+        h += ui.wrap(x, y + h, w, t::LABEL, W::M, Role::Tertiary, &s) + t::GAP_SMALL;
+    }
+    // The step-through's character read down the tree: where the page
+    // follows it.
+    if m.walk()
+        .shown()
+        .is_some_and(|(_, _, s)| s == super::Step::Char)
+    {
+        let whole = ui.rect(x, y, w, h);
+        ui.report_scroll_in(Slot::DiceWork, whole, 0.0, 0.0);
     }
     h
 }

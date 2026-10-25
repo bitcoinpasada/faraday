@@ -822,6 +822,44 @@ fn the_checksum_worksheet_pans_by_a_drag_the_wheel_and_the_arrow_keys() {
 }
 
 #[test]
+fn panned_across_the_worksheet_shows_a_scrollbar_along_its_foot() {
+    use faraday_core::codex32::Cell;
+    let mut app = typed_a(1280, 1600, 1);
+    let cell = Action::Codex32(C32::Cell(Cell::Hrp { sheet: 0, i: 0 }));
+    let (x, y, w, h) = app.hit_box(cell).expect("the residue's first cell");
+    let (x, y) = (x + w / 2, y + h / 2);
+    app.event(Event::Hover { x, y });
+    app.event(Event::Shift { held: true });
+    app.event(Event::Wheel { x, y, dy: 48 });
+    app.event(Event::Shift { held: false });
+    let frame = app.frame();
+    let (width, moving) = (usize::from(frame.width), frame.rgba.to_vec());
+    // Left to rest, the bars fade.
+    let now = app.now_ms();
+    for t in (0..4000).step_by(100) {
+        app.event(Event::Tick { now_ms: now + t });
+        let _ = app.frame();
+    }
+    let still = app.frame().rgba.to_vec();
+    // The longest run of pixels across one row that the bars changed: a
+    // thumb along the view's foot, not only the one at its right edge.
+    let longest = moving
+        .chunks(width * 4)
+        .zip(still.chunks(width * 4))
+        .map(|(a, b)| {
+            let (mut run, mut most) = (0, 0);
+            for (p, q) in a.chunks(4).zip(b.chunks(4)) {
+                run = if p == q { 0 } else { run + 1 };
+                most = most.max(run);
+            }
+            most
+        })
+        .max()
+        .unwrap_or(0);
+    assert!(longest >= 40, "a thumb along the foot: {longest} pixels");
+}
+
+#[test]
 fn the_worksheet_keeps_the_character_being_entered_in_view() {
     use faraday_core::codex32::Cell;
     // Twenty characters in: box 29 is brought down at the end of the

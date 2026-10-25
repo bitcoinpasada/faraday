@@ -808,9 +808,17 @@ impl Faraday {
             return;
         };
         let f = self.unit_px();
+        let mut down = None;
         if let Some(p) = self.worksheet_pan_mut() {
             p.stop();
             p.x = (((p.x + dx) * f).round() / f).clamp(0.0, max);
+            down = Some(p.y);
+        }
+        // Panned across, its scrollbars show as they do when it scrolls
+        // down.
+        if let Some(y) = down {
+            let key = (self.region_key(), ui::Slot::Worksheet);
+            self.scroll.set_bar_seen(key, y, self.now_ms.max(1));
         }
     }
 
@@ -834,6 +842,9 @@ impl Faraday {
     /// a timed move, at once under Reduce motion. Arithmetic.
     pub(crate) fn worksheet_follow(&mut self) {
         self.codex32_refit();
+        if self.dice_follow() {
+            return;
+        }
         let key = self.region_key();
         let f = self.unit_px();
         let cls = self.window().class();
@@ -864,6 +875,45 @@ impl Faraday {
             let room = p.view.h as f32 / f - self.codex32_panel_foot_now();
             self.keygen.page_follow(cls, (top, room, p.max), reduce);
         }
+    }
+
+    /// While the step-through shows a roll or a character read down the
+    /// tree, the page brings where the dice sheet's work is (the marked
+    /// die's track, or the tree) into its room above the input panel, by
+    /// the least move, in the worksheet's timed move; at once under
+    /// Reduce motion (`docs/LAYOUT.md` §16.4). True when it is the dice's
+    /// step. Arithmetic, on the regions the last frame drew.
+    fn dice_follow(&mut self) -> bool {
+        let rolling = self
+            .keygen
+            .state()
+            .and_then(|k| k.codex32.as_ref())
+            .is_some_and(crate::codex32::Codex32Make::walk_rolling);
+        if !rolling || self.sheet.is_some() {
+            return false;
+        }
+        // In its column at the right the dice sheet stands still beside
+        // the page: nothing to follow.
+        if self.codex32_column_now() {
+            return true;
+        }
+        let key = self.region_key();
+        let f = self.unit_px();
+        let (work, page) = (
+            self.scroll.region_now(key, ui::Slot::DiceWork),
+            self.scroll.region_now(key, ui::Slot::Page),
+        );
+        let (Some(d), Some(p)) = (work, page) else {
+            return true;
+        };
+        let offset = self.keygen.state().map_or(0.0, |k| k.scroll.y);
+        let top = (d.view.y - p.view.y) as f32 / f + offset;
+        let room = p.view.h as f32 / f - self.codex32_panel_foot_now();
+        let reduce = self.reduce_motion();
+        let tall = d.view.h as f32 / f;
+        self.keygen
+            .page_follow_to((top, tall), (room, p.max), reduce);
+        true
     }
 
     /// Where the worksheet's view is panned in a page, the page goes down

@@ -379,8 +379,16 @@ pub enum C32 {
     /// own entry (§5.7): only what is shown moves.
     Step(i8),
     /// The dice's faces, by their place in [`DIE_SIZES`] (§5.1): in the
-    /// middle of a character, its rolls so far are cleared.
+    /// middle of a character, its rolls so far are cleared. Chosen in
+    /// the dice's menu, it closes the menu.
     Faces(u8),
+    /// The dice sheet's head row: the sheet opens to its tracks and tree,
+    /// or closes to the row (owner, 2026-10-24).
+    DiceSheet,
+    /// The input panel's dice button: Material's menu of the dice's sizes
+    /// opens under or over it, or closes (`docs/LAYOUT.md` §16.3); a
+    /// press anywhere outside the open menu closes it.
+    SizeMenu,
     /// Die `n`'s colour (from 0) steps to the next of [`DIE_COLOURS`].
     Colour(u8),
     /// A face pressed on the pad of dice other than six-faced ones.
@@ -507,6 +515,13 @@ pub struct Codex32Make {
     /// A tens digit typed on the keyboard for dice of ten faces or more,
     /// waiting for its units digit, Space or Enter.
     pending: Option<u8>,
+    /// The dice's size menu, open: the size the keyboard is on, by its
+    /// place in [`DIE_SIZES`], and whether a key moved it there.
+    size_menu: Option<(u8, bool)>,
+    /// The dice sheet is open, its tracks and tree under its head row:
+    /// opened by each roll, closed by itself when a share's rolling is
+    /// done, and by its head row's press either way.
+    dice_open: bool,
     made: Vec<Vec<Made>>,
     rolled: bool,
     typed: bool,
@@ -602,6 +617,8 @@ impl Codex32Make {
             equal: None,
             dice_choice: DiceChoice::default(),
             pending: None,
+            size_menu: None,
+            dice_open: true,
             made: Vec::new(),
             rolled: false,
             typed: false,
@@ -904,6 +921,27 @@ impl Codex32Make {
         self.pending
     }
 
+    /// The dice's size menu, while open: the size the keyboard is on, by
+    /// its place in [`DIE_SIZES`], and whether a key moved it there.
+    pub fn size_menu(&self) -> Option<(u8, bool)> {
+        self.size_menu
+    }
+
+    /// A key while the dice's size menu is open (`crate::menu::step`):
+    /// Up and Down move round the sizes, Enter or Space chooses, Escape
+    /// closes. Returns the size chosen. Every key is the menu's while it
+    /// is open. Cheap.
+    pub(crate) fn size_menu_key(&mut self, key: faraday_shell_api::Key) -> Option<u8> {
+        let (at, _) = self.size_menu?;
+        match crate::menu::step(key, usize::from(at), DIE_SIZES.len()) {
+            Some(crate::menu::Step::To(to)) => self.size_menu = Some((to as u8, true)),
+            Some(crate::menu::Step::Choose) => return Some(at),
+            Some(crate::menu::Step::Close) => self.size_menu = None,
+            None => {}
+        }
+        None
+    }
+
     /// How much taller than the six-key pad the pad of the dice chosen
     /// is, in dp: its rows past two, and the "0 is 10" line of ten-faced
     /// dice. A small panel's entry scrolls by it more, so the whole pad
@@ -1072,6 +1110,86 @@ impl Codex32Make {
         Some(self.page.y)
     }
 
+    /// Whether the step-through shows a step of the dice, a roll or the
+    /// character read down the tree: the dice sheet is where its work is
+    /// (`docs/LAYOUT.md` §16.4). A lookup.
+    pub(crate) fn walk_rolling(&self) -> bool {
+        self.walk.shown().is_some_and(|(_, _, s)| {
+            matches!(s, Step::First { .. } | Step::Second { .. } | Step::Char)
+        })
+    }
+
+    /// Whether the entry shows the dice sheet: with the Checksum tab of
+    /// the share being rolled, while it is rolled, the finished
+    /// character's sheet staying until the next roll; never with a
+    /// derived share's tab or the Secret's, nor once every character is
+    /// in (owner, 2026-10-24). A lookup.
+    pub(crate) fn dice_sheet_shown(&self) -> bool {
+        self.way == Way::Dice && self.view == 0 && self.work.is_some()
+    }
+
+    /// Where the entry stands, for [`Self::after_rolls`]: the front and
+    /// the faces of the character in progress. A lookup.
+    pub(crate) fn rolled_at(&self) -> (Option<(usize, usize)>, usize) {
+        (self.front(), self.seq.len())
+    }
+
+    /// The entry moved on from `was` ([`Self::rolled_at`]): a share's
+    /// rolling done closes the dice sheet to its head row, a roll opens
+    /// it. Cheap.
+    pub(crate) fn after_rolls(&mut self, (front, rolled): (Option<(usize, usize)>, usize)) {
+        let share = |f: Option<(usize, usize)>| f.map(|f| f.0);
+        let now = self.front();
+        if front.is_some() && share(now) != share(front) {
+            self.dice_open = false;
+        } else if self.seq.len() > rolled || (now != front && now.is_some()) {
+            self.dice_open = true;
+        }
+    }
+
+    /// Whether the dice sheet is open under its head row. A lookup.
+    pub fn dice_sheet_open(&self) -> bool {
+        self.dice_open
+    }
+
+    /// Whether the step-through shows a step of the checksum worksheet:
+    /// the worksheet is where its work is. A lookup.
+    pub(crate) fn walk_checksum(&self) -> bool {
+        self.walk.shown().is_some_and(|(_, _, s)| {
+            matches!(
+                s,
+                Step::Sum { .. } | Step::Table { .. } | Step::Below { .. }
+            )
+        })
+    }
+
+    /// The page makes the least move that brings the part of it `top`
+    /// units down its content and `tall` units tall into its room `room`
+    /// units tall, going as far as `max`, from `offset`, in the timed
+    /// move the worksheet's view makes; under `reduce` at once
+    /// (`docs/LAYOUT.md` §16.4). Returns where the page is to stand now.
+    /// Arithmetic.
+    pub(crate) fn follow_page_to(
+        &mut self,
+        (top, tall): (f32, f32),
+        (room, max): (f32, f32),
+        (offset, reduce): (f32, bool),
+    ) -> f32 {
+        if !self.page.moving() {
+            self.page = SheetPan::default();
+            self.page.y = offset;
+        }
+        let spot = (0.0, top, 0.0, tall);
+        let to = self.page.target_for(
+            spot,
+            (f32::MAX, room),
+            (0.0, max),
+            faraday_draw::tokens::GAP,
+        );
+        self.page.go_to((0.0, to.1), reduce);
+        self.page.y
+    }
+
     /// Marks the page as still to be brought clear of the input panel.
     pub(crate) fn page_due_set(&mut self) {
         self.page_due = true;
@@ -1147,7 +1265,36 @@ impl Codex32Make {
             }
             _ => None,
         };
-        self.fit = SheetFit { room, chars, cell };
+        self.fit = SheetFit {
+            room,
+            chars,
+            cell,
+            ..self.fit
+        };
+    }
+
+    /// Costs a worksheet's headers, once a length. Keeps the checksum
+    /// worksheet's size at its least fitting cell in step with the
+    /// sheet's length (`docs/LAYOUT.md` §16.1), for the dice sheet's
+    /// column to read.
+    pub(crate) fn note_sheet(&mut self) {
+        let chars = self.length.chars();
+        if self.fit.least.is_some() && self.fit.least_for == chars {
+            return;
+        }
+        let sheet = self
+            .work
+            .as_ref()
+            .and_then(|w| w.worksheet(0, Reveal::PaperForm));
+        self.fit.least =
+            sheet.map(|sh| worksheet_screen::paper!(sh, |p| worksheet_screen::least_size(p)));
+        self.fit.least_for = chars;
+    }
+
+    /// The checksum worksheet's size at its least fitting cell, across
+    /// and down, once worked out ([`Self::note_sheet`]). A lookup.
+    pub(crate) fn sheet_least(&self) -> Option<(f32, f32)> {
+        self.fit.least
     }
 
     /// The checksum worksheet's fitted cell, where it is drawn whole
@@ -1273,7 +1420,9 @@ impl Codex32Make {
     /// before the flow is borrowed.
     pub(crate) fn act(&mut self, c: &Compute, press: C32, fresh: Option<[u8; 32]>) {
         let before = self.entry_pos();
+        let was = self.rolled_at();
         self.act_press(c, press, fresh);
+        self.after_rolls(was);
         // The entry changed by another way than the step-through's own:
         // its steps are forgotten, and the person's own worked out.
         self.walk_check(before);
@@ -1345,7 +1494,16 @@ impl Codex32Make {
                     self.way = w;
                 }
             }
+            C32::DiceSheet => self.dice_open = !self.dice_open,
+            C32::SizeMenu => {
+                let at = DIE_SIZES.iter().position(|&n| n == self.dice_choice.faces);
+                self.size_menu = match self.size_menu {
+                    Some(_) => None,
+                    None => Some((at.unwrap_or(0) as u8, false)),
+                };
+            }
             C32::Faces(i) => {
+                self.size_menu = None;
                 if let Some(&n) = DIE_SIZES.get(usize::from(i)) {
                     self.change_faces(n);
                 }

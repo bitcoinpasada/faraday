@@ -37,6 +37,11 @@ pub enum Slot {
     /// The codex32 entry's "Demo only" card, a supporting pane that
     /// scrolls within itself (`Codex32Make::pane_offset`, `faraday-core`).
     DemoPane,
+    /// Where the codex32 dice sheet's work is while the step-through
+    /// rolls: the marked die's track, or the tree on the character's
+    /// step. It moves no offset of its own, and says where it stands for
+    /// the page to follow (`Faraday::dice_follow`, `faraday-core`).
+    DiceWork,
 }
 
 /// A scrolled region as drawn: where it is and how far it goes.
