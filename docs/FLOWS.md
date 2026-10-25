@@ -1008,7 +1008,14 @@ guarantees for this file's rule:
   one address per key; its press reads **It matches**. Back up has one button, **Back up this wallet**,
   which opens the backup on the new wallet (its chip "Then: Wallets", its
   way back the wallet's card) on The standard way.
-- **The Keys card** (decisions 35, 36 and 39). A key loaded here that
+- **The Keys card** (decisions 35, 36 and 39). Where it would offer
+  one way on only (a single key's empty slot with no key in the
+  session, no key file in the Inbox and no vault's key, or a backup in
+  shares, whose one way is Make codex32 shares), the Continue on the
+  card before it opens that key flow for slot 1 in its place; Keys
+  stays in the list of steps, not done, and is done with the key once
+  it is locked in (owner, 2026-10-24). A multisig, or a slot with more
+  than one choice, shows the card. A key loaded here that
   fills one slot, or a cosigner's file whose key fills one slot, is not
   offered for any other slot; clearing the slot offers it again. While a
   slot is empty there is no button at the foot: the first empty slot's
@@ -1798,10 +1805,23 @@ sidebar row (a press on the row only returns to the flow).
 4. Create's **Start over** stays: it begins the same flow again; Cancel
    leaves it.
 5. Tests: moved to `docs/history/FLOWS-LOG.md`.
+6. **A key flow opened from Make a new wallet has Cancel too** (owner,
+   2026-10-24; F115): New key or Make codex32 shares opened for a slot
+   (`Action::KeyGen(Some(slot))`), until its key is locked in. It has no
+   row of its own and ends no flow: it returns to Make a new wallet on
+   its Keys card, the slot as it was, or on the card before Keys where
+   Keys was passed over for this flow (WALLETS §5). It asks first only
+   when rolls, characters, words or a passphrase are entered: the
+   dialog "Discard this key?", "What is entered for this key so far is
+   discarded, and you return to Make a new wallet.", **Keep going** and
+   **Discard**. New key opened on its own (Home, Wallets, Tools, Add a
+   key) has no Cancel; its back link is as it was.
 
 The code: `faraday-core/src/in_progress.rs` (`flow_cancel`,
 `cancel_loses`, `flow_end`, `cancel_sheet`; `Action::CancelFlow`,
-`Sheet::CancelFlow`). What each Cancel ends, and what its sheet says:
+`Sheet::CancelFlow`; for a key flow `key_cancel_offered`,
+`key_cancel_loses`, `key_cancel_end`, `cancel_key_sheet`,
+`Sheet::CancelKey`). What each Cancel ends, and what its sheet says:
 
 | Flow | Asks when | The line | Shown after, when where it was opened is not known |
 |---|---|---|---|

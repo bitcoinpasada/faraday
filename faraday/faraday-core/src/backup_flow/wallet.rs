@@ -340,11 +340,7 @@ impl Faraday {
             .state()
             .is_some_and(|c| c.owner == owner && c.built.is_none());
         if creating {
-            if let Some(c) = self.create.state_mut() {
-                c.open = Some(cstep::KEYS);
-                c.scroll.follow = true;
-            }
-            self.screen = Screen::Create;
+            self.create_open_keys();
         } else if self.backup.state().is_some() {
             self.screen = Screen::Backup;
         } else {
@@ -1884,6 +1880,7 @@ impl Faraday {
             c.open = next;
             c.scroll.follow = true;
         }
+        self.create_keys_opened();
     }
 
     /// A wallet's answer to a question of the plan, as Back up ticks it. A

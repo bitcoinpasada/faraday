@@ -93,11 +93,8 @@ fn yes_or_no_to_vaults_moves_on_and_so_does_the_answer_given_pressed_again() {
     );
     app.press(Action::CStep(cstep::WHERE));
     app.press(Action::CVaults(false));
-    assert_eq!(
-        app.create().and_then(|c| c.open),
-        Some(cstep::KEYS),
-        "No opens Keys"
-    );
+    // No opens Keys, which with nothing loaded is New key for the slot.
+    assert_eq!(app.screen, Screen::KeyGen, "No opens the keys");
     app.press(Action::CStep(cstep::WHERE));
     app.press(Action::CVaults(false));
     assert_eq!(
@@ -767,7 +764,11 @@ fn a_kind_without_an_account_offers_no_account_row() {
     let mut app = opened();
     app.press(Action::CNext(cstep::KIND));
     app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
+    // New key opens in place of Keys; back from it, the Keys card is
+    // still there to open.
+    assert_eq!(app.screen, Screen::KeyGen);
+    app.press(Action::CancelFlow);
+    app.press(Action::CStep(cstep::KEYS));
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
     let _ = app.frame();
     assert!(
@@ -793,4 +794,139 @@ fn checks_foot_reads_it_matches() {
         texts.iter().any(|t| t == "It matches"),
         "Check's press says the addresses match: {texts:?}"
     );
+}
+
+/// Make a new wallet at Keys: single key, No to vaults.
+fn single_key_to_keys(app: &mut Faraday) {
+    app.press(Action::CNext(cstep::KIND));
+    app.press(Action::CVaults(false));
+}
+
+/// New key at its entry card, a few dice rolled.
+fn roll_some(app: &mut Faraday) {
+    app.press(Action::KWords(12));
+    app.press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));
+    app.press(Action::KNext);
+    for i in 0..5u8 {
+        app.press(Action::KRoll(i % 6 + 1));
+    }
+    assert!(!app.keygen().unwrap().dice.is_empty(), "the rolls are in");
+}
+
+#[test]
+fn a_single_key_with_nothing_loaded_goes_from_the_step_before_keys_to_new_key() {
+    let mut app = opened();
+    single_key_to_keys(&mut app);
+    assert_eq!(app.screen, Screen::KeyGen, "New key in place of Keys");
+    let k = app.keygen().unwrap();
+    assert_eq!(k.slot, Some(0), "for slot 1, as its button would");
+    assert_eq!(k.back, Screen::Create);
+    let c = app.create().unwrap();
+    assert!(!c.done[cstep::KEYS as usize], "Keys is not done yet");
+    assert!(
+        app.create_cards().contains(&cstep::KEYS),
+        "Keys stays listed"
+    );
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "New key"), "{texts:?}");
+}
+
+#[test]
+fn with_a_key_in_the_session_the_keys_card_shows() {
+    let mut app = testkit::started();
+    add_key(&mut app, "bacon");
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(0));
+    single_key_to_keys(&mut app);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
+    let fp = app.session.keys[0].fingerprint.0;
+    let _ = app.frame();
+    assert!(app.offers(Action::CSlotHere(0, fp)), "the key is offered");
+    assert!(app.offers(Action::KeyGen(Some(0))), "and New key beside it");
+}
+
+#[test]
+fn a_multisig_shows_the_keys_card() {
+    let mut app = opened();
+    app.press(Action::CStep(cstep::KIND));
+    app.press(Action::CKind(multi_index()));
+    app.press(Action::CNext(cstep::QUORUM));
+    app.press(Action::CVaults(false));
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
+}
+
+#[test]
+fn cancel_in_new_key_from_create_with_rolls_asks_then_returns_to_keys_with_the_slot_not_chosen() {
+    let mut app = testkit::started();
+    add_key(&mut app, "bacon");
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(0));
+    single_key_to_keys(&mut app);
+    app.press(Action::KeyGen(Some(0)));
+    let _ = app.frame();
+    assert!(
+        app.offers(Action::CancelFlow),
+        "New key from Create has Cancel"
+    );
+    roll_some(&mut app);
+    app.press(Action::CancelFlow);
+    assert_eq!(app.sheet, Some(faraday_core::Sheet::CancelKey), "it asks");
+    let texts = app.drawn_texts();
+    assert!(texts.iter().any(|t| t == "Discard this key?"), "{texts:?}");
+    // Keep going keeps the rolls.
+    app.press(Action::Cancel);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::KeyGen);
+    assert!(!app.keygen().unwrap().dice.is_empty(), "the rolls are kept");
+    // Discard returns to Make a new wallet at Keys, the slot not chosen.
+    app.press(Action::CancelFlow);
+    app.press(Action::CancelFlowNow);
+    assert_eq!(app.sheet, None);
+    assert_eq!(app.screen, Screen::Create);
+    assert!(app.keygen().is_none(), "the key so far is gone");
+    let c = app.create().unwrap();
+    assert_eq!(c.open, Some(cstep::KEYS));
+    assert_eq!(c.slots[0], faraday_core::create::Source::Empty);
+    assert_eq!(app.session.keys.len(), 1, "no key was added");
+}
+
+#[test]
+fn cancel_with_nothing_entered_returns_without_asking_to_the_step_before_a_passed_over_keys() {
+    let mut app = opened();
+    single_key_to_keys(&mut app);
+    assert_eq!(app.screen, Screen::KeyGen);
+    app.press(Action::CancelFlow);
+    assert_eq!(app.sheet, None, "nothing entered: no question");
+    assert_eq!(app.screen, Screen::Create);
+    let c = app.create().unwrap();
+    assert_eq!(c.open, Some(cstep::WHERE), "the step before Keys");
+    assert_eq!(c.slots[0], faraday_core::create::Source::Empty);
+    // Its Continue opens New key again.
+    app.press(Action::CNext(cstep::WHERE));
+    assert_eq!(app.screen, Screen::KeyGen);
+    // Rolls entered, it asks first, and lands there too.
+    roll_some(&mut app);
+    app.press(Action::CancelFlow);
+    app.press(Action::CancelFlowNow);
+    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::WHERE));
+}
+
+#[test]
+fn new_key_opened_from_home_keeps_its_back_and_has_no_cancel() {
+    let mut app = testkit::started();
+    app.press(Action::Nav(Screen::Home));
+    app.press(Action::KeyGen(None));
+    assert_eq!(app.screen, Screen::KeyGen);
+    roll_some(&mut app);
+    let _ = app.frame();
+    assert!(!app.offers(Action::CancelFlow), "no Cancel on its own");
+    app.press(Action::CancelFlow);
+    assert_eq!(app.screen, Screen::KeyGen, "nothing happens");
+    assert_eq!(app.sheet, None);
+    assert!(app.offers(Action::Nav(Screen::Home)), "its back goes Home");
+    app.press(Action::Nav(Screen::Home));
+    assert_eq!(app.screen, Screen::Home);
 }

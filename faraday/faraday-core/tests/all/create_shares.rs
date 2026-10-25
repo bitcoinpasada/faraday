@@ -370,13 +370,25 @@ fn its_quorum_is_the_codex32_scheme() {
     );
 }
 
-/// Quorum at 3 of 5, Continue, No to vaults: Keys open.
+/// Quorum at 3 of 5, Continue, No to vaults: Keys, whose one way on is
+/// Make codex32 shares, opens it in its place.
 fn on_keys(app: &mut Faraday) {
     app.press(Action::CM(1));
     app.press(Action::CN(1));
     app.press(Action::CN(1));
     app.press(Action::CNext(cstep::QUORUM));
     app.press(Action::CVaults(false));
+    assert_eq!(app.screen, Screen::KeyGen);
+    assert!(app.keygen().unwrap().codex32.is_some());
+}
+
+/// [`on_keys`], then its Cancel with nothing entered and the Keys card
+/// opened by hand.
+fn on_keys_card(app: &mut Faraday) {
+    on_keys(app);
+    app.press(Action::CancelFlow);
+    assert_eq!(app.screen, Screen::Create, "nothing entered: no question");
+    app.press(Action::CStep(cstep::KEYS));
     assert_eq!(app.create().and_then(|c| c.open), Some(cstep::KEYS));
 }
 
@@ -385,7 +397,7 @@ fn its_slot_offers_only_make_codex32_shares() {
     let mut app = app();
     crate::common::add_key(&mut app, "bacon");
     let mut app = on_quorum_of(app);
-    on_keys(&mut app);
+    on_keys_card(&mut app);
     let fp = app.session.keys[0].fingerprint.0;
     let texts = app.drawn_texts();
     assert!(

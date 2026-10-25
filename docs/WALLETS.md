@@ -254,7 +254,11 @@ it — Wallets, Home, or a Tools tile with its kind already ticked
 (2026-10-10, `docs/history/NEW-WALLET.md` §2.1, reversing `docs/history/SIMPLIFY.md` §2.1 for
 this flow only); Kind's Continue closes it as done and opens the next
 card. Keys' Continue makes the wallet and opens Check; there is no card
-of its own for the descriptor. On the Keys card, a key chosen for one
+of its own for the descriptor. Keys that would offer one way on only
+(a single key with nothing to choose from, or a backup in shares) is
+passed over: the card before it opens that key flow for slot 1, and the
+key flow's Cancel returns to the card before Keys (`docs/FLOWS.md`,
+Cancel). On the Keys card, a key chosen for one
 slot — loaded here, or a cosigner's file — is not offered for any other
 slot, until the slot is cleared (`docs/history/NEW-WALLET.md` §2.2); its foot
 button reads **New key for Key N** (**Share N** on a threshold wallet)

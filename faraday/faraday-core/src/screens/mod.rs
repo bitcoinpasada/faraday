@@ -336,6 +336,7 @@ pub(crate) fn draw(app: &View, ui: &mut Ui) {
             Sheet::Devices => devices_sheet(app, ui, w, h),
             Sheet::VaultSave => crate::vault::screen::stick_save_sheet(app, ui, w, h),
             Sheet::CancelFlow(g) => crate::in_progress::cancel_sheet(app, ui, g, w, h),
+            Sheet::CancelKey => crate::in_progress::cancel_key_sheet(app, ui, w, h),
             Sheet::FileMenu => crate::file_menu::menu_sheet(app, ui, w, h),
             Sheet::Rename => crate::file_menu::rename_sheet(app, ui, w, h),
             Sheet::Details => crate::file_menu::details_sheet(app, ui, w, h),

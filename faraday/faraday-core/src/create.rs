@@ -1214,6 +1214,82 @@ impl Faraday {
         })
     }
 
+    /// Costs what `create_vaults_now` costs, and a read of each Inbox file
+    /// for a key of the kind. Whether Make a new wallet's Keys card would
+    /// offer one way on only: a single key's slot, empty, whose one choice
+    /// is its key flow, **New key** (no key in the session, no key file in
+    /// the Inbox, no open vault's key and no locked vault) or **Make
+    /// codex32 shares** for a backup in shares, which takes no other key.
+    /// Such a card is passed over: the key flow opens in its place.
+    pub(crate) fn create_keys_one_way(&self, c: &Compute) -> bool {
+        let Some(cs) = self.create.state() else {
+            return false;
+        };
+        if cs.built.is_some()
+            || cs.kind.multi()
+            || cs.slots.iter().any(|s| *s != create::Source::Empty)
+        {
+            return false;
+        }
+        if cs.kind.shares() {
+            return true;
+        }
+        if !self.session.keys.is_empty() {
+            return false;
+        }
+        let file = self.inbox.iter().any(|it| {
+            matches!(it.kind, wallet::FileKind::Key | wallet::FileKind::Wallet)
+                && create::key_for(cs.kind, &String::from_utf8_lossy(&it.bytes)).is_some()
+        });
+        if file {
+            return false;
+        }
+        let vaults = self.create_vaults_now(c);
+        vaults.open.is_empty() && vaults.locked.is_empty()
+    }
+
+    /// The card Make a new wallet shows before Keys: where Cancel in a
+    /// key flow opened in place of Keys returns to.
+    pub(crate) fn create_card_before_keys(&self) -> Option<u8> {
+        let cards = self.create_cards();
+        let at = cards.iter().position(|&k| k == cstep::KEYS)?;
+        at.checked_sub(1).and_then(|i| cards.get(i).copied())
+    }
+
+    /// Keys, just opened by a Continue on the card before it: where it
+    /// offers one way on only ([`Faraday::create_keys_one_way`]), that key
+    /// flow opens in its place, for slot 1, as its button would, and
+    /// Make a new wallet waits on the card before Keys. Decides from the
+    /// state as it is.
+    pub(crate) fn create_keys_opened(&mut self) {
+        let c = self.compute();
+        if self.screen != Screen::Create
+            || self.create.state().and_then(|c| c.open) != Some(cstep::KEYS)
+            || !self.create_keys_one_way(&c)
+        {
+            return;
+        }
+        let before = self.create_card_before_keys();
+        self.keygen_open(Some(0));
+        if self.screen == Screen::KeyGen
+            && let Some(c) = self.create.state_mut()
+        {
+            c.open = before;
+            c.scroll.follow = true;
+        }
+    }
+
+    /// Make a new wallet shown on Keys, its vaults set up: or, where Keys
+    /// offers one way on only, its key flow ([`Faraday::create_keys_opened`]).
+    pub(crate) fn create_open_keys(&mut self) {
+        if let Some(c) = self.create.state_mut() {
+            c.open = Some(cstep::KEYS);
+            c.scroll.follow = true;
+        }
+        self.screen = Screen::Create;
+        self.create_keys_opened();
+    }
+
     /// Slots left for a cosigner's key, in the creation under way.
     pub fn create_waiting(&self) -> usize {
         self.create.state.as_ref().map_or(0, |c| {

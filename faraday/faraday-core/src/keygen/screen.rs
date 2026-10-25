@@ -115,7 +115,9 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         note: None,
         chip: None,
         chip_tap: None,
-        cancel: false,
+        // Opened for a Make a new wallet slot, Cancel returns there
+        // (`docs/FLOWS.md`, Cancel).
+        cancel: app.key_cancel_offered(),
     };
     let scroll = k.scroll;
     let (next, again) = {

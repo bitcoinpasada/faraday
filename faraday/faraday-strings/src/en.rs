@@ -2109,6 +2109,15 @@ strings! {
     flow_cancel_the_flow: "Cancel the flow",
     /// Button on the Cancel sheet (`in_progress::cancel_sheet`).
     flow_keep_going: "Keep going",
+    /// Title of the Cancel dialog over a key flow opened from Make a new
+    /// wallet (`in_progress::cancel_key_sheet`).
+    flow_cancel_key_title: "Discard this key?",
+    /// Line of the Cancel dialog over a key flow opened from Make a new
+    /// wallet.
+    flow_cancel_key_line: "What is entered for this key so far is discarded, and you return to Make a new wallet.",
+    /// Button on the Cancel dialog over a key flow opened from Make a new
+    /// wallet: discards the key so far.
+    flow_cancel_key_discard: "Discard",
     /// Title of the Cancel sheet over Make a new wallet.
     flow_cancel_create: "Cancel making this wallet?",
     /// Title of the Cancel sheet over Restore a wallet.

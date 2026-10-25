@@ -597,19 +597,16 @@ pub enum Sheet {
     NewInput,
     /// The Learn pages for the screen on show.
     Learn,
-    /// A word list, every word with its number, over the screen it was
-    /// opened from.
+    /// A word list, every word with its number, over the screen it was opened from.
     WordList,
-    /// A secret on its way out: into a vault, or the Outbox after a
-    /// warning.
+    /// A secret on its way out: into a vault, or the Outbox after a warning.
     SecretOut,
     /// Writing the Outbox to a stick, asked for while a secret is held:
     /// the lock it takes first.
     WriteOut,
     /// The idle lock coming: a countdown, and what the lock does.
     IdleWarn,
-    /// A seed from the Inbox becoming a wallet: a passphrase or none, and
-    /// its kind.
+    /// A seed from the Inbox becoming a wallet: a passphrase or none, and its kind.
     Potential,
     /// What the boot stick brought: remove the stick, unlock its vaults,
     /// choose what to import.
@@ -653,11 +650,12 @@ pub enum Sheet {
     /// Cancel pressed in a flow whose ending loses something: what is
     /// lost, **Cancel the flow** and **Keep going** (F51).
     CancelFlow(in_progress::Going),
+    /// The same in a key flow opened from Make a new wallet (`docs/FLOWS.md`, Cancel).
+    CancelKey,
     /// A file row's ⋮ menu (`docs/FLOWS.md` decision 61): a popup under
     /// the ⋮ on `wide`, a sheet on the small panel.
     FileMenu,
-    /// **Rename {name}**: a file For the stick, or one on the stick
-    /// visited.
+    /// **Rename {name}**: a file For the stick, or one on the stick visited.
     Rename,
     /// A file's Details: name, kind, size and SHA-256.
     Details,

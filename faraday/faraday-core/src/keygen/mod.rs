@@ -427,6 +427,35 @@ impl KeyGen {
         !self.start.makes()
     }
 
+    /// Whether anything of the key is entered, which Cancel would
+    /// discard: randomness the person entered (rolls, flips, draws,
+    /// digits, frames, a mix's sources), the words made, a passphrase, or
+    /// words, shares or strings typed into `entry`, the form the flow
+    /// types into. Only lookups.
+    pub fn entered_any(&self, entry: &crate::EntryState) -> bool {
+        let randomness = !self.dice.is_empty()
+            || !self.coins.is_empty()
+            || !self.cards.is_empty()
+            || !self.hex.is_empty()
+            || !self.camera.is_empty()
+            || !self.mixed.is_empty()
+            || !self.entered.is_empty();
+        let made = self.mnemonic.is_some() || self.secret.is_some() || self.parts_in > 0;
+        let typed = !self.passphrase.is_empty()
+            || !self.passphrase2.is_empty()
+            || !entry.typed.is_empty()
+            || !entry.parts.slip39.is_empty()
+            || !entry.parts.codex32.is_empty()
+            || !entry.parts.xor.is_empty();
+        randomness
+            || made
+            || typed
+            || self
+                .codex32
+                .as_ref()
+                .is_some_and(crate::codex32::Codex32Make::entered_any)
+    }
+
     /// Whether the Key card has the two passphrase fields: for a key
     /// typed or scanned (none for codex32, which has no passphrase), and
     /// for one made for a Create slot; a key made on its own has none
@@ -1006,9 +1035,14 @@ impl crate::Faraday {
             self.toast(&fill(EN.keygen_remove_the_first, &[self.medium.noun()]));
             return;
         }
-        // A flow already open ends first, giving back what it kept.
+        // A flow already open ends first, giving back what it kept; one
+        // opened again from its own screen returns where it was opened
+        // from.
+        let back = match self.keygen.state.as_ref() {
+            Some(k) if self.screen == Screen::KeyGen => k.back,
+            _ => self.screen,
+        };
         self.keygen_drop();
-        let back = self.screen;
         let mut k = KeyGen::new(slot, back);
         k.entropy_source = self.keygen.entropy_source;
         k.with_own = self.fresh.own_acc().is_some();

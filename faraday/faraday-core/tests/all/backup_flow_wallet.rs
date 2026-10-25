@@ -362,8 +362,8 @@ pub(crate) fn single_key_plan(
     bring_in_all(shell, &mut app, &["S1"]);
     assert_eq!(step(&app), Step::Vaults);
     create_vault(shell, &mut app, 0, PHRASE);
-    // The vault is set up: on to the keys, in Make a new wallet.
-    assert_eq!(app.screen, Screen::Create, "{:?}", unlock_error(&app));
+    // The vault is set up: on to the keys, New key with nothing loaded.
+    assert_eq!(app.screen, Screen::KeyGen, "{:?}", unlock_error(&app));
     let fp = if made_here {
         app.press(Action::Nav(Screen::Create));
         new_key(&mut app)
@@ -1516,7 +1516,7 @@ fn a_wallet_left_with_its_vaults_open_does_not_take_the_next_wallets_keys() {
     create_with_vaults(&mut app, false, 1);
     bring_in_all(&mut shell, &mut app, &["S1"]);
     create_vault(&mut shell, &mut app, 0, PHRASE);
-    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.screen, Screen::KeyGen, "New key for the single key");
     app.press(Action::Nav(Screen::Home));
     // Wallet B, kept as it is made, not in a vault: its key goes to no
     // vault of A's, and neither does its description.
@@ -2949,9 +2949,7 @@ fn answering_no_goes_to_the_keys_with_no_stick_or_vault_step_and_back_up_asks_th
     keep_time(&mut app);
     create_single_key(&mut app);
     app.press(Action::CVaults(false));
-    app.press(Action::CNext(cstep::WHERE));
-    assert_eq!(app.create().unwrap().open, Some(cstep::KEYS));
-    assert_eq!(app.screen, Screen::Create);
+    assert_eq!(app.keygen().unwrap().slot, Some(0), "on to New key");
     assert!(app.backup_flows().is_empty(), "no stick or vault step");
     let cards = app.create_cards();
     assert!(
@@ -3031,8 +3029,7 @@ fn two_vaults_ask_for_two_sticks_read_before_any_unlock_and_are_open_before_the_
     create_vault(&mut shell, &mut app, 1, PHRASE_2);
     // Both vaults are open before the keys, inside the flow.
     assert_eq!(app.vaults().open.len(), 2, "{:?}", unlock_error(&app));
-    assert_eq!(app.screen, Screen::Create);
-    assert_eq!(app.create().unwrap().open, Some(cstep::KEYS));
+    assert_eq!(app.screen, Screen::KeyGen, "then New key, nothing loaded");
     no_visit(&shell);
 }
 
@@ -3122,7 +3119,7 @@ fn the_question_of_vaults_is_not_done_before_it_is_answered() {
     // Answered, it moves on by itself.
     app.press(Action::CVaults(false));
     assert!(app.create_card_done(cstep::WHERE));
-    assert_eq!(app.create().unwrap().open, Some(cstep::KEYS));
+    assert_eq!(app.screen, Screen::KeyGen, "on to New key");
     // The same on Restore.
     app.press(Action::RestoreWallet);
     assert!(!app.restore().unwrap().done[faraday_core::rstep::WHERE as usize]);

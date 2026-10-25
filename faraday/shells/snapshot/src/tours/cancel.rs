@@ -6,7 +6,8 @@ use faraday_core::{Action, Screen};
 
 /// Cancel at the top of a flow (`docs/FLOWS.md`, Flows in progress,
 /// Cancel; F51): Make a new wallet past Kind with Cancel beside the
-/// switch, the sheet it brings up, and the sheet over its backup's Places.
+/// switch, the sheet it brings up, the sheet over its backup's Places,
+/// and New key's Cancel back to Make a new wallet.
 pub(crate) fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     use faraday_core::cstep;
     for n in 0..3 {
@@ -41,5 +42,22 @@ pub(crate) fn cancel_tour(t: &mut Tour) -> Result<(), String> {
     t.press(Action::CancelFlow);
     t.shot("cancel-4-places-sheet")?;
     t.press(Action::CancelFlowNow);
-    t.shot("cancel-5-wallets")
+    t.shot("cancel-5-wallets")?;
+    // New key opened from Make a new wallet's Keys has Cancel too; with
+    // rolls entered it asks, and Discard returns to Keys.
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(0));
+    t.press(Action::CVaults(false));
+    t.press(Action::KeyGen(Some(0)));
+    t.press(Action::KWords(12));
+    t.press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));
+    t.press(Action::KNext);
+    for i in 0..5u8 {
+        t.press(Action::KRoll(i % 6 + 1));
+    }
+    t.shot("cancel-6-new-key")?;
+    t.press(Action::CancelFlow);
+    t.shot("cancel-7-key-dialog")?;
+    t.press(Action::CancelFlowNow);
+    t.shot("cancel-8-keys")
 }

@@ -127,10 +127,9 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     tap(&mut app, Action::CreateWallet);
     assert_eq!(app.screen, Screen::Create);
     // Create opens on Kind; Single key opens Use vaults, whose No moves
-    // on to Keys.
+    // on to Keys: with nothing loaded, New key for its slot.
     tap(&mut app, Action::CKind(0));
     tap(&mut app, Action::CVaults(false));
-    tap(&mut app, Action::KeyGen(Some(0)));
     assert_eq!(app.screen, Screen::KeyGen);
     // New key opens with Start closed on Make a new key and Length open;
     // pressing a count takes it and opens Randomness (F103).
@@ -296,12 +295,14 @@ fn forward_in_view(mut app: Faraday, h: u16) {
 }
 
 /// Create opens on Kind; Single key opens Use vaults, whose No opens
-/// Keys, whose head then carries Kind with Change.
+/// Keys (a key loaded, so the card has a choice), whose head then
+/// carries Kind with Change.
 #[test]
 fn kind_is_offered_on_the_keys_page_and_opens() {
     let mut app = panel();
+    crate::common::add_key(&mut app, "bacon");
     tap(&mut app, Action::Nav(Screen::WalletsStart));
-    tap(&mut app, Action::CreateWallet);
+    app.press(Action::CreateWallet);
     assert_eq!(
         app.create().and_then(|c| c.open),
         Some(faraday_core::cstep::KIND),

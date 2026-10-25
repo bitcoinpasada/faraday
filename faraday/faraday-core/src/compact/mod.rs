@@ -220,7 +220,7 @@ fn tools(app: &View, ui: &mut Ui, w: f32) -> f32 {
     }
     // Cancel, on a flow that can be in progress: it leaves the flow
     // (`docs/FLOWS.md`, Cancel; F51).
-    if app.cancel_offered().is_some() {
+    if app.cancel_shown() {
         let a = Action::CancelFlow;
         let cw = ui.measure(13.0, W::S, EN.flow_cancel) + 20.0;
         let cx = right - cw;

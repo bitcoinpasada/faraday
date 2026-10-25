@@ -1208,6 +1208,12 @@ impl Codex32Make {
         self.locked
     }
 
+    /// Whether anything of the key is entered: a roll or a character of
+    /// a share, or a string typed in. Only lookups.
+    pub fn entered_any(&self) -> bool {
+        !self.seq.is_empty() || self.entered_all() > 0 || !self.inputs.is_empty()
+    }
+
     /// The review's tabs, in the booklet's order (§6.5): (name, what).
     pub fn tabs(&self) -> Vec<(String, Tab)> {
         let Some(w) = self.work.as_ref() else {
