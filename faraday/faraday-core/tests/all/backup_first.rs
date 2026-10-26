@@ -329,8 +329,9 @@ fn a_key_made_here_shows_no_receive_address_until_its_backup_is_done() {
     let c = testkit::compute();
     let mut app = device(Vec::new(), 2400);
     let (w, fp) = made_here(&mut app);
-    // Create's address check.
-    app.press(Action::CStep(cstep::CHECK));
+    // Create's address check: Lock in opened it.
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::CHECK));
+    let _ = app.frame();
     assert!(!draws_an_address(&mut app, w), "Create's check");
     assert!(app.drawn_texts().iter().any(|t| t == WARNING));
     // The wallet's card.

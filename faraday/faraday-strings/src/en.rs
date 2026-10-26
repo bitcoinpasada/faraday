@@ -2785,8 +2785,6 @@ strings! {
     guide_choose_the_key: "Choose the key: one loaded here, or a new one made here from fresh randomness. A new key exists only in this session until its words are written down in the backup step.",
     /// Text in `create`.
     guide_load_the_wallet: "Load the wallet into the software you will receive with, by the QR code or the descriptor file, and compare these addresses. They must match before you send anything to it.",
-    /// Text in `create`.
-    guide_the_plan_says: "The backup opens on the standard way: each seed's words on paper with the wallet description, one place for each key. Go through it before any money goes in.",
     /// Text in `create`, making the vaults.
     guide_create_vaults: "Make or unlock each vault now, before the keys exist, so each new seed can be saved into it.",
     /// Text in `create`, bringing in the sticks. `{}`: `medium.noun()` twice.
@@ -3407,6 +3405,9 @@ strings! {
     pull_what_unlock: "unlock",
     /// Text in `pull_what`.
     pull_what_make_a_key: "make a key",
+    /// Text in `pull_what`: a backup flow's Create {vault}, the key made
+    /// after it.
+    pull_what_create_vault: "create the vault, then your key",
     /// Text in `pull_what`.
     pull_what_add_a_key: "add a key",
     /// Text in `pull_what`.
@@ -5307,9 +5308,6 @@ strings! {
     create_first_addresses: "{} · first addresses",
     /// Text in `create_screen`.
     create_not_made_yet: "Not made yet",
-    /// Create's Back up card's line while it is closed: where Back up
-    /// opens (`docs/BACKUP-FLOW.md` §17.21 item 2).
-    create_opens_on_standard: "Opens on the standard way",
     /// Text in `create_screen`.
     create_home: "Home",
     /// Text in `create_screen`.
@@ -5394,9 +5392,9 @@ strings! {
     create_continue: "Continue",
     /// Text in `create_body`. `{}`: `app.session.wallets[old].name`.
     create_move_the_money: "Move the money from {}",
-    /// Create's Back up step's one button: Back up on the wallet just made
-    /// (`docs/BACKUP-FLOW.md` §17.21 item 2).
-    create_back_up_button: "Back up this wallet",
+    /// Check's foot once the wallet is checked: Back up on the wallet just
+    /// made (`docs/BACKUP-FLOW.md` §17.21 item 2).
+    create_back_up_button: "Back up wallet",
     /// Line in `create_body`.
     create_make_the_wallet: "Make the wallet first",
     // ----- kind_rows (faraday-core/src/screens/parts.rs) -----
@@ -8416,6 +8414,10 @@ strings! {
     backup_flow_card_where: "Where it will be kept",
     /// Step 2's card; the plural of the medium.
     backup_flow_card_sticks: "Bring in the {}",
+    /// Guided: Bring in the sticks in the setup of a wallet's vaults
+    /// (`docs/BACKUP-FLOW.md` §10). `{}`: the medium, its plural, the
+    /// medium.
+    backup_flow_guide_sticks: "Each vault's {} is read here, before any key exists: whether it can be written, how much room it has, and which vaults it holds already, so this vault is one of them or a new one beside them. Nothing is written to it now: the vaults go onto their {} after the keys are saved into them and memory is locked. With a key in memory, a {} is read only after that lock, which wipes the key.",
     /// Step 3's card.
     backup_flow_card_vaults: "Vaults",
     /// Step 4's card.
@@ -8598,6 +8600,8 @@ strings! {
     backup_flow_copy_key: "Copy the key",
     /// Makes a vault of the plan.
     backup_flow_create_vault: "Create {}",
+    /// Opens a vault of the plan found on its stick: its passphrase next.
+    backup_flow_open_vault: "Open {}",
     /// Takes a written place off the plan.
     backup_flow_destroyed: "I destroyed this copy",
     /// Memory this computer has free.

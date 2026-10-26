@@ -5,8 +5,8 @@ use faraday_core::Action;
 use faraday_core::testkit;
 
 /// The standard way on the board (`docs/BACKUP-FLOW.md` §17.6, §17.3,
-/// §19.5, §19.21): Make a new wallet opening on Kind; its Back up step
-/// with Back up this wallet; a single key's Back up open on the board
+/// §19.5, §19.21): Make a new wallet opening on Kind; its Check with
+/// Back up wallet; a single key's Back up open on the board
 /// read-only; a 2-of-3's the same, then with Add watch-only software
 /// pressed; the 2-of-3 after
 /// Customize backup with its form toggles; and the sheet over a drop that
@@ -24,11 +24,11 @@ pub(crate) fn standard_tour(t: &mut Tour) -> Result<(), String> {
     let fp = t.app.session.keys[0].fingerprint.0;
     t.press(Action::CSlotHere(0, fp));
     t.press(Action::CNext(cstep::KEYS));
-    // The vault question with its line (§19.21 item 5), then Create's
-    // Back up step: Back up this wallet (item 2).
+    // The vault question with its line (§19.21 item 5), then Check's
+    // It matches, leaving Back up wallet at its foot (item 2).
     t.press(Action::CStep(cstep::WHERE));
     t.shot("std-2a-vault-question")?;
-    t.press(Action::CStep(cstep::BACKUP));
+    t.press(Action::CNext(cstep::CHECK));
     t.shot("std-2b-create-back-up")?;
     t.press(Action::CBackup);
     t.shot("std-2-single-key")?;

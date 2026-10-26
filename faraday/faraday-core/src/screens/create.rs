@@ -150,7 +150,7 @@ fn card_summary(app: &View, k: u8, filled: usize) -> String {
             Some(w) => fill(EN.create_first_addresses, &[&w.name.to_string()]),
             None => EN.create_not_made_yet.to_string(),
         },
-        _ => EN.create_opens_on_standard.to_string(),
+        _ => String::new(),
     };
     // A wallet made from another, or at an account other than 0, says
     // its account (`docs/history/NEW-WALLET.md` §16.2, §17).
@@ -646,14 +646,7 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 }
                 cy += first_addresses(app, ui, c.built.unwrap_or(0), x, cy, w);
                 cy += 6.0;
-                cy += buttons_and_next(
-                    ui,
-                    x,
-                    cy,
-                    w,
-                    &[],
-                    Some((EN.create_it_matches, Action::CNext(n))),
-                );
+                cy += check_foot(app, ui, x, cy, w, c.done[n as usize]);
             } else {
                 ui.text(
                     x,
@@ -666,54 +659,46 @@ fn create_body(app: &View, ui: &mut Ui, n: u8, x: f32, y: f32, w: f32) -> f32 {
                 cy += 30.0;
             }
         }
-        _ => {
-            // Back up this wallet: Back up on the wallet just made, the
-            // board open on The standard way (`docs/BACKUP-FLOW.md`
-            // §17.21 item 2).
-            if c.built.is_some() {
-                ui.button(
-                    x,
-                    cy,
-                    Some(w),
-                    40.0,
-                    EN.create_back_up_button,
-                    Style::Primary,
-                    Action::CBackup,
-                );
-                cy += 48.0;
-                // Made to move a wallet's money to (`docs/history/NEW-WALLET.md`
-                // §9.6): the spend of every coin from the old wallet.
-                if let Some(old) = app.moving_from() {
-                    let label = fill(
-                        EN.create_move_the_money,
-                        &[&app.session.wallets[old].name.to_string()],
-                    );
-                    let label = ui.fit(14.0, W::S, &label, w - 32.0);
-                    ui.button(
-                        x,
-                        cy,
-                        Some(w),
-                        40.0,
-                        &label,
-                        Style::Primary,
-                        Action::Family(crate::family::FamilyAction::SpendFrom(old)),
-                    );
-                    cy += 48.0;
-                }
-            } else {
-                ui.text(
-                    x,
-                    cy,
-                    13.0,
-                    W::R,
-                    Role::OnSurfaceVariant,
-                    EN.create_make_the_wallet,
-                );
-                cy += 30.0;
-            }
-        }
+        _ => {}
     }
     cy - y
+}
+
+/// Check's foot: **It matches** until the wallet is checked, then
+/// **Back up wallet**, which opens Back up on the wallet just made, the
+/// board open on The standard way (`docs/BACKUP-FLOW.md` §17.21 item 2),
+/// and beside it, for a wallet made to move another's money to
+/// (`docs/history/NEW-WALLET.md` §9.6), the spend of every coin from the
+/// old one. Returns its height.
+fn check_foot(app: &View, ui: &mut Ui, x: f32, y: f32, w: f32, checked: bool) -> f32 {
+    if !checked {
+        let next = (EN.create_it_matches, Action::CNext(crate::cstep::CHECK));
+        return buttons_and_next(ui, x, y, w, &[], Some(next));
+    }
+    let moving = app.moving_from().map(|old| {
+        let label = fill(
+            EN.create_move_the_money,
+            &[&app.session.wallets[old].name.to_string()],
+        );
+        let label = ui.fit(14.0, W::S, &label, w - 32.0);
+        (
+            label,
+            Style::Secondary,
+            Action::Family(crate::family::FamilyAction::SpendFrom(old)),
+        )
+    });
+    let left: Vec<(&str, Style, Action)> = moving
+        .iter()
+        .map(|(l, s, a)| (l.as_str(), *s, *a))
+        .collect();
+    buttons_and_next(
+        ui,
+        x,
+        y,
+        w,
+        &left,
+        Some((EN.create_back_up_button, Action::CBackup)),
+    )
 }
 
 /// Single key, backup in shares' Quorum: the codex32 scheme, How many to

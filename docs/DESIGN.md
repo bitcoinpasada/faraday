@@ -619,9 +619,9 @@ is `docs/WALLETS.md` and the Spend tab `docs/SPEND-FROM-BACKUP.md`.
 | `Visit` | A stick visit: what is on the stick, ticked to bring in, and what goes out to it. | Page |
 | `Entry` | Add a key: a seed typed or scanned (§4.3). | Page |
 | `Backup` | Backing up a wallet: the plan, the board (§4.17), each copy made and checked. | Step flow |
-| `BackupFlow` | The shared backup flow for a key that is not a wallet's: where it will be kept, its sticks and vaults, the lock and the writes (`docs/BACKUP-FLOW.md`). | Step flow |
+| `BackupFlow` | The shared backup flow for a key that is not a wallet's: where it will be kept, its sticks and vaults, the lock and the writes (`docs/BACKUP-FLOW.md`); also the setup of a new wallet's vaults, Bring in the sticks and Vaults, with Make a new wallet's Guided switch. | Step flow |
 | `Backups` | Every wallet known and where its backup is, a card each; on the small panel one wallet a page with **Previous · Next**. | Page |
-| `Create` | Making a new wallet: Kind, the quorum, whether vaults are part of the backup, the keys, Check, Back up. | Step flow |
+| `Create` | Making a new wallet: Kind, the quorum, whether vaults are part of the backup, the keys, Check with **Back up wallet** at its foot (no Back up card). | Step flow |
 | `Restore` | Restoring a wallet from its description and its seeds. | Step flow |
 | `KeyGen` | Making a new key: the source of randomness, its entries (§4.3), the length, the passphrase, lock in; or, with Codex32 chosen, Make codex32 shares' cards (`docs/CODEX32.md` §6): Scheme, Identifier, Entropy, the entry with the worksheets filling live (§4.10 Worksheet), Worksheets, Strings and the Result **Strings made**. | Step flow |
 | `Message` | Signing a message with a single-key wallet's key. | Step flow |

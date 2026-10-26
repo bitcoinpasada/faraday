@@ -108,8 +108,8 @@ fn locked_after_backup() -> (Boxes, Boxes) {
     assert_eq!(app.screen, Screen::Create);
     assert_eq!(
         app.create().and_then(|c| c.open),
-        Some(cstep::BACKUP),
-        "a single-key Create opens on Back up"
+        Some(cstep::CHECK),
+        "a single-key Create opens on Check, its foot Back up wallet"
     );
     app.press(Action::CBackup);
     faraday_core::testkit::backup_as(&mut app, Preset::PaperVault);

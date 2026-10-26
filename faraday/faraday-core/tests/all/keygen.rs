@@ -918,7 +918,7 @@ fn after_lock_in_pressing_a_count_on_length_changes_nothing() {
 }
 
 #[test]
-fn a_single_key_create_goes_back_to_back_up_at_lock_in_and_holds_the_address_back() {
+fn a_single_key_create_goes_back_to_back_up_wallet_at_lock_in_and_holds_the_address_back() {
     let mut app = slot_flow(false);
     flip_all(&mut app);
     app.press(Action::KNext);
@@ -928,8 +928,10 @@ fn a_single_key_create_goes_back_to_back_up_at_lock_in_and_holds_the_address_bac
     let on_key = texts(&mut app);
     // The key is new, so no address is shown until it is backed up.
     assert!(!on_key.contains("First address"));
+    // The button after Lock in is Back up wallet, on Check.
+    assert!(app.offers(Action::CBackup));
     let c = app.create().unwrap();
-    assert_eq!(c.open, Some(faraday_core::cstep::BACKUP));
+    assert_eq!(c.open, Some(faraday_core::cstep::CHECK));
     assert!(c.done[faraday_core::cstep::KEYS as usize]);
     assert!(c.done[faraday_core::cstep::CHECK as usize]);
     let w = c.built.expect("the wallet is made");

@@ -252,14 +252,12 @@ impl Faraday {
 
     /// Automatic transitions: a step whose work is done goes on.
     pub(crate) fn flow_settle(&mut self) {
+        let mut sticks_done = None;
         for _ in 0..8 {
             let Some(i) = self.fi() else {
                 return;
             };
             let step = self.flows[i].step;
-            if step == Step::Vaults && self.flows[i].live.creating.is_none() {
-                self.flow_vaults_auto(i);
-            }
             let next = match step {
                 Step::Sticks => {
                     let f = &self.flows[i];
@@ -283,6 +281,9 @@ impl Faraday {
             };
             match next {
                 Some(s) => {
+                    if step == Step::Sticks && s == Step::Vaults {
+                        sticks_done = Some(i);
+                    }
                     self.flow_goto(i, s);
                     // A wallet's keys are made in Make a new wallet, not
                     // in a card of the flow: steps 1 to 3 done, it goes
@@ -295,23 +296,36 @@ impl Faraday {
                 None => break,
             }
         }
+        if let Some(i) = sticks_done {
+            self.flow_create_first(i);
+        }
     }
 
-    /// Step 3 asks for each existing vault's passphrase in turn: the first
-    /// still locked is picked, and takes the typing.
-    fn flow_vaults_auto(&mut self, i: usize) {
-        let mut order = self.flows[i].plan.used_vaults();
-        order.sort_by_key(|&v| (!self.flows[i].plan.vaults[v].existing, v));
-        let need = self.flow_needed_vaults(i);
-        let active = order
-            .into_iter()
-            .filter(|v| need.contains(v))
-            .find(|&v| self.flow_open_index(i, v).is_none());
-        let Some(v) = active else {
+    /// The last stick bound: step 3 offers each vault found to open and
+    /// each new one to create, and unlocks nothing by itself. Where only
+    /// Create applies (no vault found on the sticks, none open in memory),
+    /// Create a vault opens for the first new vault at once, as **Create
+    /// {vault}** would, its Pull sheet first while a stick is in (owner,
+    /// 2026-10-25, 2026-10-26).
+    fn flow_create_first(&mut self, i: usize) {
+        if self.fi() != Some(i) || !self.flow_screen() || !self.vaults.open.is_empty() {
             return;
-        };
-        if self.flows[i].plan.vaults[v].salt.is_some() && self.flows[i].live.unlocking != Some(v) {
-            self.flow_unlock_start(i, v);
+        }
+        let f = &self.flows[i];
+        if f.step != Step::Vaults || f.live.creating.is_some() || f.live.unlocking.is_some() {
+            return;
+        }
+        let need = self.flow_needed_vaults(i);
+        let mut left: Vec<usize> = f
+            .plan
+            .used_vaults()
+            .into_iter()
+            .filter(|v| need.contains(v) && self.flow_open_index(i, *v).is_none())
+            .collect();
+        left.sort_unstable();
+        let only_new = left.iter().all(|&v| f.plan.vaults[v].salt.is_none());
+        if let Some(&v) = left.first().filter(|_| only_new) {
+            self.act(Action::Flow(FlowAction::CreateVault(v)));
         }
     }
 
@@ -833,7 +847,7 @@ impl Faraday {
             } else {
                 Purpose::Bind
             };
-        self.flow_start_reading(i, slot, purpose, &st);
+        self.flow_start_reading(i, slot, purpose, &st, false);
     }
 
     fn flow_use_present(&mut self, i: usize, k: usize) {
@@ -852,10 +866,20 @@ impl Faraday {
             } else {
                 Purpose::Bind
             };
-        self.flow_start_reading(i, slot, purpose, &st);
+        // Use {label} at step 2 is the press that names the stick: once it
+        // is read, it is bound with no second tap (owner, 2026-10-25).
+        let chosen = self.flows[i].step == Step::Sticks;
+        self.flow_start_reading(i, slot, purpose, &st, chosen);
     }
 
-    fn flow_start_reading(&mut self, i: usize, slot: usize, purpose: Purpose, st: &StickInfo) {
+    fn flow_start_reading(
+        &mut self,
+        i: usize,
+        slot: usize,
+        purpose: Purpose,
+        st: &StickInfo,
+        chosen: bool,
+    ) {
         let ofv: Vec<String> = st
             .files
             .iter()
@@ -882,6 +906,7 @@ impl Faraday {
             boot: st.boot,
             checked: false,
             first: false,
+            chosen,
         };
         let found = self
             .stick
@@ -1284,6 +1309,20 @@ impl Faraday {
             && needed > free
         {
             r.problem = Some(Problem::NoRoom(needed, free));
+        }
+        // A stick named by its own press is bound now, where nothing is
+        // left to tell apart: a tap is asked only where it reads like a
+        // stick bound to another place.
+        let chosen = self.flows[i].live.reading.as_ref().is_some_and(|r| {
+            r.chosen
+                && r.purpose == Purpose::Bind
+                && r.problem.is_none()
+                && r.differs.is_none()
+                && !r.bound
+        });
+        if chosen && self.flows[i].step == Step::Sticks && self.flow_confirm_kind() == Confirm::Tap
+        {
+            self.flow_confirm(i, false);
         }
     }
 
@@ -2814,85 +2853,6 @@ impl Faraday {
                 fill(FEN.backup_flow_no_read_back, &[file, &label])
             }
         }
-    }
-}
-
-impl BackupFlow {
-    /// "Vault 1 (Place 1)", "the stick of files".
-    pub fn target_short(&self, t: &Target, medium: &str) -> String {
-        if self.is_setup() {
-            return self.target_name(t, medium);
-        }
-        match t {
-            Target::Place(p) => {
-                let vs = self.plan.places.get(*p).cloned().unwrap_or_default();
-                let names: Vec<String> = vs.iter().map(|&v| BackupFlow::vault_name(v)).collect();
-                format!("{} ({})", names.join(", "), BackupFlow::place_name(*p))
-            }
-            Target::PlaceVault(p, v) | Target::Another(p, Some(v), _) => format!(
-                "{} ({})",
-                BackupFlow::vault_name(*v),
-                BackupFlow::place_name(*p)
-            ),
-            t => self.target_name(t, medium),
-        }
-    }
-
-    /// What a stick is for, with no "the stick": "Vault 1 (Place 1)",
-    /// "Files", "Public files"; after its number on a device (§18).
-    pub fn target_what(&self, t: &Target, medium: &str) -> String {
-        match t {
-            t if t.vault_stick() && self.is_setup() => self.target_vaults(t),
-            t if t.vault_stick() => self.target_short(t, medium),
-            Target::Files => FEN.backup_flow_for_files.to_string(),
-            Target::Public => FEN.backup_flow_for_public.to_string(),
-            _ => self.target_name(t, medium),
-        }
-    }
-
-    /// "the stick for Vault 1 (Place 1)", "the stick of files".
-    pub fn target_name(&self, t: &Target, medium: &str) -> String {
-        match t {
-            // Before the keys, a stick is a vault's: no place is asked.
-            t if t.vault_stick() && self.is_setup() => fill(
-                FEN.backup_flow_stick_for_vault,
-                &[medium, &self.target_vaults(t)],
-            ),
-            t if t.vault_stick() => fill(
-                FEN.backup_flow_vault_stick,
-                &[medium, &self.target_vaults(t), &self.target_place(t)],
-            ),
-            Target::Files => fill(FEN.backup_flow_files_stick, &[medium]),
-            Target::Public => fill(FEN.backup_flow_public_stick, &[medium]),
-            // A place's sticks of files, each named alike: the pill's
-            // number tells them apart (§18).
-            Target::PlaceFiles(p) | Target::Another(p, None, _) => {
-                fill(FEN.backup_flow_place_files, &[&BackupFlow::place_name(*p)])
-            }
-            _ => String::new(),
-        }
-    }
-
-    fn target_vaults(&self, t: &Target) -> String {
-        match t {
-            Target::Place(p) => self
-                .plan
-                .places
-                .get(*p)
-                .map(|vs| {
-                    vs.iter()
-                        .map(|&v| BackupFlow::vault_name(v))
-                        .collect::<Vec<_>>()
-                        .join(", ")
-                })
-                .unwrap_or_default(),
-            Target::PlaceVault(_, v) | Target::Another(_, Some(v), _) => BackupFlow::vault_name(*v),
-            _ => String::new(),
-        }
-    }
-
-    fn target_place(&self, t: &Target) -> String {
-        t.place().map(BackupFlow::place_name).unwrap_or_default()
     }
 }
 

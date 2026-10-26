@@ -200,7 +200,10 @@ step 6 instead (§4.6), since they hold no vault the key goes into.
 - **Already read this session.** A stick seen this session (the boot
   stick, a visit), whose listing and free space Faraday kept, is offered
   on the card: **Use {label}, read at {time}**, with no insertion, as
-  long as its room is known to be enough.
+  long as its room is known to be enough. That press names the stick:
+  once read it is bound to its place with no second tap, unless it reads
+  like a stick bound to another place, which asks for the hold below
+  (owner, 2026-10-25).
 - **Usable**, else why and what to do, before anything is made:
   - not FAT32 as Faraday reads sticks: "Not a FAT32 stick. Format it as
     FAT32, or use another stick";
@@ -254,12 +257,22 @@ step 6 instead (§4.6), since they hold no vault the key goes into.
 ### 4.3 Unlock and make the vaults
 
 With no stick in (a stick inserted opens decision 8's Pull sheet,
-"Pull the stick to unlock"):
+"Pull the stick to unlock"). No vault is unlocked until every stick of
+step 2 has been read; then the step offers what fits, each vault on its
+own row, in the order the person chooses, and unlocks nothing by itself
+(owner, 2026-10-26; F121):
 
-- each existing vault chosen: **Unlock {vault}**, its passphrase, with
-  Unlock's memory check; a vault kept at several places is unlocked once;
-- each new vault: Create a vault (decision 21's Size, Name and
-  passphrases), its own passphrase, once per vault of the plan;
+- each existing vault found: **Open {vault}**, then its passphrase and
+  **Unlock {vault}**, with Unlock's memory check; a vault kept at several
+  places is unlocked once;
+- each new vault: **Create {vault}**, Create a vault (decision 21's
+  Size, Name and passphrases), its own passphrase, once per vault of the
+  plan. Where only Create applies (no vault found on the sticks, none
+  open in memory), Create a vault opens for the first new vault by
+  itself once the last stick is bound; while a stick is in, the Pull
+  sheet comes first, "Pull the stick to create the vault, then your
+  key", and Create a vault opens when the stick is out (owner,
+  2026-10-25);
 - **I do not have its passphrase**, under an existing vault: **A new
   vault beside it** (the plan's vault becomes new, written beside that
   file at step 6) or **Use another stick** (back to step 2 for that
@@ -433,7 +446,8 @@ on one stick; Vault 2 and Vault 3 new, on empty sticks. Use vaults: Yes
 and `main-2.ofv`; "Which vault is Vault 1?" → `main.ofv`, copied in;
 tap → the stick for Vault 2: empty, checked, bound; tap → the stick for
 Vault 3: empty, reads as the second did, so the hold → every stick is
-read → Unlock Vault 1; Create Vault 2 and Vault 3, each its own
+read → the step offers Open Vault 1, Create Vault 2 and Create Vault
+3: Open Vault 1 and Unlock; Create Vault 2 and Vault 3, each its own
 passphrase → New key three times, into memory → Back up's plan: Key 1
 into Vault 1, Key 2 into Vault 2, Key 3 into Vault 3, a place each → the
 rest of the plan and the checklist, each vault's **Save into** → Lock
@@ -561,7 +575,12 @@ Moved to `docs/history/BACKUP-FLOW-LOG.md`.
      with their passphrases and the new ones made with Create a vault's
      own form (name, passphrase twice, cost and memory check). The setup
      asks nothing about places, which key goes into which vault, or paper,
-     and its sticks are named "the stick for Vault 1".
+     and its sticks are named "the stick for Vault 1". Its two cards
+     have Make a new wallet's Guided switch: Bring in the sticks says
+     why the sticks are read before any key exists (what is checked and
+     read on them, that nothing is written until the lock, and that a
+     stick is read with a key in memory only after that lock), and
+     Vaults says why the vaults are made or unlocked before the keys.
   4. **Keys**, made into memory, as before. No key or wallet description
      is written to any vault by the setup.
   5. **Back up's plan**, after the keys, as it was before F31: which
@@ -2066,12 +2085,11 @@ the board in Customize backup.
    standard way placed (§17.6), read-only until **Customize backup**.
    Paper only, Paper and vault, and Paper, vault and watch-only software
    are not offered anywhere.
-2. **Create's Back up step** (step 9 of Make a new wallet and of
-   Restore) has one primary button, **Back up this wallet**, which opens
-   Back up on the wallet just made, on the board as item 1 says. Its
-   guide line reads: "The backup opens on the standard way: each seed's
-   words on paper with the wallet description, one place for each key.
-   Go through it before any money goes in."
+2. **Back up wallet**, at the foot of Make a new wallet's Check once
+   the wallet is checked (Make a new wallet has no Back up card since
+   the owner's call of 2026-10-26), and Restore's **Back up this
+   wallet**, open Back up on the wallet just made, on the board as item
+   1 says.
 3. **The read-only board** shows two secondary buttons where Customize
    backup is today (the right-hand column; in the narrow column where
    **Add** stands), in this order, with no text above them:

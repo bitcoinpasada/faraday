@@ -517,8 +517,8 @@ fn the_boot_stick_taken_for_a_place_is_stick_1_and_the_others_count_on_from_2() 
     shell.flow(&mut app, F::Continue);
     assert_eq!(app.flow().unwrap().step, Step::Sticks);
     let k = app.sticks().iter().position(|s| s.boot).unwrap();
+    // Use Boot stick names it: bound with no second tap.
     shell.flow(&mut app, F::UseBoot(k));
-    shell.flow(&mut app, F::Tap);
     let f = app.flow().unwrap();
     assert!(f.slots[0].bound.is_some(), "Place 1 is the boot stick's");
     // One number for the boot stick: its own pill, Stick 1.

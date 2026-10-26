@@ -709,7 +709,7 @@ pub enum Action {
     CKeyBsms(u8),
     /// Throw away the creation under way and start again.
     CreateOver,
-    /// Create's Back up card's **Back up this wallet**: Back up on the
+    /// Check's **Back up wallet** in Make a new wallet: Back up on the
     /// wallet just made, the board open on The standard way
     /// (`docs/BACKUP-FLOW.md` §17.21 item 2).
     CBackup,

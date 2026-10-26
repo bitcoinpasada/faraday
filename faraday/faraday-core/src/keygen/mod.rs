@@ -1604,7 +1604,7 @@ impl crate::Faraday {
             {
                 c.done[usize::from(crate::cstep::KEYS)] = true;
                 c.done[usize::from(crate::cstep::CHECK)] = true;
-                c.open = Some(crate::cstep::BACKUP);
+                c.open = Some(crate::cstep::CHECK);
                 c.scroll.follow = true;
             }
             if let Some(w) = self.create.state().and_then(|c| c.built)

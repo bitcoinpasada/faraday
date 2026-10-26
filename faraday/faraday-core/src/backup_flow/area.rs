@@ -427,6 +427,9 @@ impl BackupFlow {
         // The file stays in Files; it is no longer the plan's vault.
         *vp = VaultPlan::default();
         f.live.no_pass = None;
+        if f.live.unlocking == Some(v) {
+            f.live.unlocking = None;
+        }
         for s in &mut f.slots {
             if let Some(b) = s.bound.as_mut() {
                 for (pv, pick) in &mut b.picks {

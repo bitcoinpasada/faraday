@@ -901,11 +901,17 @@ wallet and Restore → step cards (pages on a small panel, "Step 2 of
    in the sticks** first) → "Insert the stick for Vault 1 (Place 1)", or
    **Use {label}, read at {time}** → usable, else why and what to do →
    its vaults: "Which vault is Vault 1?", or **A new vault beside them**
-   → **This is the stick for …** (a tap), or the hold where two sticks
-   read alike; a stick bound to another place refused → pull;
-3. **Vaults**: **Unlock {vault}** for each existing one, Create a vault
-   for each new one, **I do not have its passphrase** → a new vault
-   beside it or another stick;
+   → **This is the stick for …** (a tap; none after **Use {label}**,
+   whose press names the stick), or the hold where two sticks read
+   alike; a stick bound to another place refused → pull;
+3. **Vaults**, once every stick is read (nothing is unlocked before):
+   **Open {vault}** for each one found, then its passphrase and **Unlock
+   {vault}**; **Create {vault}** for each new one; both offered where
+   both apply, nothing unlocked by itself (F121). Where only Create
+   applies (no vault found, none open), Create a vault opens by itself
+   once the last stick is bound, after the Pull sheet "Pull the stick to
+   create the vault, then your key" while a stick is in. **I do not
+   have its passphrase** → a new vault beside it or another stick;
 4. **Make the key**: the kind's own form → made into every vault the
    plan keeps it in; a wallet's New key into its vaults, a key kept
    only on paper shown for copying; then, for a wallet, the rest of the
@@ -1005,9 +1011,12 @@ guarantees for this file's rule:
   back and opens the Account row's card on its stepper), and the
   section label **The wallet's first addresses**
   above the address rows, so that a multisig's three rows do not read as
-  one address per key; its press reads **It matches**. Back up has one button, **Back up this wallet**,
-  which opens the backup on the new wallet (its chip "Then: Wallets", its
-  way back the wallet's card) on The standard way.
+  one address per key; its press reads **It matches**, which leaves
+  Check open with **Back up wallet** at its foot. There is no Back up
+  card (owner, 2026-10-26): **Back up wallet** opens the backup on the
+  new wallet (its chip "Then: Wallets", its way back the wallet's card)
+  on The standard way. A single key made here is checked as it is made:
+  Lock in opens Check with **Back up wallet** at its foot.
 - **The Keys card** (decisions 35, 36 and 39). Where it would offer
   one way on only (a single key's empty slot with no key in the
   session, no key file in the Inbox and no vault's key, or a backup in

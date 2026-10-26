@@ -72,8 +72,10 @@ pub(crate) fn draw(app: &View, ui: &mut Ui, x0: f32, cw: f32, h: f32) {
         h,
         back: Some(app.named_back((FEN.backup_flow_leave, fa(F::Back)))),
         heading: f.kind.name(),
-        guided: false,
-        switch: false,
+        // The setup of a wallet's vaults is Make a new wallet's, with its
+        // Guided switch (owner, 2026-10-25).
+        guided: f.is_setup() && app.guided(),
+        switch: f.is_setup(),
         note: None,
         chip: None,
         chip_tap: None,
@@ -198,8 +200,26 @@ fn card(app: &View, f: &BackupFlow, s: Step) -> flow::Card {
         open,
         default: false,
         toggle: fa(F::Open(s.n())),
-        guide: None,
-        learn: None,
+        guide: setup_guide(app, f, s),
+        learn: f
+            .is_setup()
+            .then_some(crate::learn::Topic::Vaults)
+            .filter(|_| matches!(s, Step::Sticks | Step::Vaults)),
+    }
+}
+
+/// The walk-through of the setup of a wallet's vaults, card by card, as
+/// Make a new wallet's own cards have theirs; the backup's other flows
+/// have none.
+fn setup_guide(app: &View, f: &BackupFlow, s: Step) -> Option<String> {
+    if !f.is_setup() {
+        return None;
+    }
+    let (m, ms) = (app.medium.noun(), app.medium.nouns());
+    match s {
+        Step::Sticks => Some(fill(FEN.backup_flow_guide_sticks, &[m, ms, m])),
+        Step::Vaults => Some(FEN.guide_create_vaults.to_string()),
+        _ => None,
     }
 }
 
@@ -932,7 +952,10 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             .salt
             .is_some_and(|s| app.vaults.open.iter().any(|o| o.header().salt == s))
     };
-    let active = order.iter().copied().find(|&v| !open(v));
+    // Every stick is read before this step: it offers each vault found
+    // to open and each new one to create, in any order; the one being
+    // unlocked shows its passphrase (owner, 2026-10-26).
+    let first = order.iter().copied().find(|&v| !open(v));
     for &v in &order {
         let name = BackupFlow::vault_name(v);
         if open(v) {
@@ -948,19 +971,23 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
             cy += 30.0;
             continue;
         }
-        if Some(v) != active {
-            ui.text(
-                x + 28.0,
-                cy + 2.0,
-                14.0,
-                W::R,
-                Role::OnSurfaceVariant,
-                &name,
-            );
-            cy += 30.0;
+        let vp = &f.plan.vaults[v];
+        if f.live.unlocking != Some(v) || vp.salt.is_none() {
+            let (label, action) = if vp.salt.is_some() {
+                (FEN.backup_flow_open_vault, F::UnlockVault(v))
+            } else {
+                (FEN.backup_flow_create_vault, F::CreateVault(v))
+            };
+            let busy = f.live.unlocking.is_some() || Some(v) != first;
+            let style = if busy {
+                Style::Secondary
+            } else {
+                Style::Primary
+            };
+            let label = fill(label, &[&name]);
+            cy += btn(ui, x, cy, None, 40.0, &label, style, fa(action), 52.0);
             continue;
         }
-        let vp = &f.plan.vaults[v];
         if vp.salt.is_some() {
             cy += ui.wrap(
                 x,
@@ -1061,19 +1088,6 @@ fn vaults_body(app: &View, f: &BackupFlow, ui: &mut Ui, x: f32, y: f32, w: f32) 
                     items.iter().map(|(l, s, a)| (l.as_str(), *s, *a)).collect();
                 cy += crate::screens::wrap_buttons(ui, x, cy, w, 32.0, &refs) + 6.0;
             }
-        } else {
-            let label = fill(FEN.backup_flow_create_vault, &[&name]);
-            cy += btn(
-                ui,
-                x,
-                cy,
-                None,
-                40.0,
-                &label,
-                Style::Primary,
-                fa(F::CreateVault(v)),
-                52.0,
-            );
         }
     }
     cy - y

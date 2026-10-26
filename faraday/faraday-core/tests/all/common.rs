@@ -711,6 +711,13 @@ pub fn unlock(app: &mut Faraday, phrase: &str) {
     }
 }
 
+/// Open {vault} on the flow's Vaults step, then its passphrase: the step
+/// unlocks nothing by itself.
+pub fn open_vault(shell: &mut Shell, app: &mut Faraday, v: usize, phrase: &str) {
+    shell.flow(app, F::UnlockVault(v));
+    unlock(app, phrase);
+}
+
 /// Sets the clock checked, as a person on the stick does before a key.
 pub fn keep_time(app: &mut Faraday) {
     app.press(Action::OpenSetTime);

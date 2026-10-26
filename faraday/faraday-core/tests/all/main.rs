@@ -144,6 +144,7 @@ mod vault_show_save;
 mod vault_summary;
 mod vault_way;
 mod visit;
+mod wallet_setup;
 mod wallets_page;
 mod way_back;
 mod wide_board;

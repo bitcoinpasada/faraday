@@ -407,6 +407,7 @@ fn i_do_not_have_its_passphrase_offers_a_new_vault_beside_it() {
     shell.pull(&mut app, "S1");
     bring_in(&mut shell, &mut app, "S2", false);
     assert_eq!(step(&app), Step::Vaults);
+    shell.flow(&mut app, F::UnlockVault(0));
     expect(&mut app, "Unlock Vault 1");
     expect(&mut app, "I do not have its passphrase");
     shell.flow(&mut app, F::NoPass(0));
@@ -736,7 +737,7 @@ fn a_plan_of_empty_sticks_makes_every_vault_at_step_three_inside_the_flow() {
 }
 
 #[test]
-fn a_mix_of_existing_and_new_vaults_unlocks_the_existing_first_then_creates_the_new() {
+fn a_mix_of_existing_and_new_vaults_offers_open_and_create_once_every_stick_is_read() {
     let mut shell = Shell::new();
     let mut d = Disk::empty("S1", "WORKSTICK");
     d.files = vec![("main.ofv".into(), vault("Main", &[PHRASE], 0x45))];
@@ -751,11 +752,24 @@ fn a_mix_of_existing_and_new_vaults_unlocks_the_existing_first_then_creates_the_
     shell.flow(&mut app, F::PickFile(0, 0));
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S1");
+    // A vault found on the first stick: nothing is unlocked or offered to
+    // open until every stick is read.
+    assert_eq!(step(&app), Step::Sticks);
+    assert!(!offered(&mut app, Action::Flow(F::UnlockVault(0))));
+    assert!(!has(&mut app, "Unlock Vault 1"));
     bring_in(&mut shell, &mut app, "S2", false);
     assert_eq!(step(&app), Step::Vaults);
-    // The existing one is asked for; the new one waits.
+    // Then the step offers both: Open the vault found, Create the new
+    // one; nothing is unlocked or opened by itself.
+    expect(&mut app, "Open Vault 1");
+    expect(&mut app, "Create Vault 2");
+    assert!(offered(&mut app, Action::Flow(F::UnlockVault(0))));
+    assert!(offered(&mut app, Action::Flow(F::CreateVault(1))));
+    assert!(app.vaults().open.is_empty());
+    assert_eq!(app.flow().unwrap().live.unlocking, None);
+    assert_eq!(app.flow().unwrap().live.creating, None);
+    shell.flow(&mut app, F::UnlockVault(0));
     expect(&mut app, "Unlock Vault 1");
-    assert!(!offered(&mut app, Action::Flow(F::CreateVault(1))));
     unlock(&mut app, PHRASE);
     assert_eq!(step(&app), Step::Vaults);
     assert_eq!(app.vaults().open.len(), 1);
@@ -915,9 +929,9 @@ fn adding_a_stick_with_an_existing_vault_runs_the_extra_round_inside_the_flow() 
     shell.flow(&mut app, F::Tap);
     shell.pull(&mut app, "S3");
     assert_eq!(step(&app), Step::Vaults);
-    // The added vault is unlocked, then one that holds the key.
-    unlock(&mut app, PHRASE_2);
-    unlock(&mut app, PHRASE);
+    // The added vault is opened, then one that holds the key.
+    open_vault(&mut shell, &mut app, 1, PHRASE_2);
+    open_vault(&mut shell, &mut app, 0, PHRASE);
     assert_eq!(app.vaults().open.len(), 2, "{:?}", unlock_error(&app));
     assert_eq!(step(&app), Step::Make);
     shell.flow(&mut app, F::CopyKey);
@@ -1042,7 +1056,7 @@ fn a_copy_that_differs_from_one_already_read_lets_the_person_pick_which_to_unloc
 }
 
 #[test]
-fn the_stick_the_machine_started_from_is_offered_as_already_read() {
+fn the_stick_the_machine_started_from_is_offered_as_already_read_and_one_press_takes_it() {
     let mut shell = Shell::new();
     empties(&mut shell, 1);
     let mut app = started(Kind::Gpg);
@@ -1057,7 +1071,10 @@ fn the_stick_the_machine_started_from_is_offered_as_already_read() {
     expect_part(&mut app, "Use Boot stick, read at");
     let k = app.sticks().iter().position(|s| s.boot).unwrap();
     shell.flow(&mut app, F::UseBoot(k));
-    expect(&mut app, "This is the stick for Vault 1 (Place 1)");
+    // The press names the stick: it is bound with no second tap.
+    assert!(app.flow().unwrap().slots[0].bound.is_some());
+    assert!(!has_part(&mut app, "This is the stick for"));
+    assert!(!offered(&mut app, Action::Flow(F::Tap)));
 }
 
 #[test]
@@ -1206,7 +1223,6 @@ fn the_boot_stick_ends_at_the_bind_and_is_written_at_step_six_like_any_stick() {
     shell.plug(&mut app, "BOOT");
     let k = app.sticks().iter().position(|s| s.boot).unwrap();
     shell.flow(&mut app, F::UseBoot(k));
-    shell.flow(&mut app, F::Tap);
     // It stays in: nothing waits for it to be pulled, the next is asked for.
     assert!(app.flow().unwrap().live.reading.is_none());
     assert!(app.flow().unwrap().slots[0].bound.is_some());

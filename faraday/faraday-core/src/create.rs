@@ -54,13 +54,15 @@ pub enum NewKind {
 /// same switch as `codex32::MAKE_OFFERED`, which this one joins.
 pub const MAKE_OFFERED: bool = true;
 
-/// The create cards a kind shows.
+/// The create cards a kind shows. Check is the last: its **Back up
+/// wallet** opens Back up on the wallet made, with no card of its own
+/// (owner, 2026-10-26).
 pub fn create_steps(kind: NewKind) -> Vec<u8> {
     let mut v = vec![cstep::KIND];
     if kind.multi() || kind.shares() {
         v.push(cstep::QUORUM);
     }
-    v.extend([cstep::WHERE, cstep::KEYS, cstep::CHECK, cstep::BACKUP]);
+    v.extend([cstep::WHERE, cstep::KEYS, cstep::CHECK]);
     v
 }
 
@@ -1027,7 +1029,15 @@ impl Faraday {
                 if let Some(c) = self.create.state.as_mut() {
                     c.done[k as usize] = true;
                 }
-                self.create_open_next();
+                // It matches keeps Check open: its foot is Back up wallet
+                // now (owner, 2026-10-26).
+                if k == cstep::CHECK {
+                    if let Some(c) = self.create.state.as_mut() {
+                        c.open = Some(k);
+                    }
+                } else {
+                    self.create_open_next();
+                }
                 // Check's own Continue: this wallet is checked this
                 // power-on (`docs/WALLETS.md` §4).
                 if k == cstep::CHECK

@@ -956,7 +956,7 @@ in**: the key fills Key 1 and the wallet is made.
 | Check | The board, the standard way |
 |---|---|
 | ![Check, with the Backup row](guide/4-11-check.png) | ![One string per place](guide/4-11-board.png) |
-| **Descriptor** reads **Single key · native SegWit · fab6868a** and a checksum, and **Backup** **codex32 name · 2 of 3**. Press **It matches**, then **Back up this wallet**. | One string per place, on paper, each beside **Whole**, the wallet description: **fab6868a · A** at Place 1, **C** at Place 2, **D** at Place 3. Each place reads **1 of 2 shares of fab6868a · alone: nothing**. **Any one place lost: the rest rebuild the wallet** reads **Yes**; **One place found: can spend**, **No**. |
+| **Descriptor** reads **Single key · native SegWit · fab6868a** and a checksum, and **Backup** **codex32 name · 2 of 3**. Press **It matches**, then **Back up wallet**. | One string per place, on paper, each beside **Whole**, the wallet description: **fab6868a · A** at Place 1, **C** at Place 2, **D** at Place 3. Each place reads **1 of 2 shares of fab6868a · alone: nothing**. **Any one place lost: the rest rebuild the wallet** reads **Yes**; **One place found: can spend**, **No**. |
 
 **Customize backup** changes the board as in steps 4.3 to 4.5: a string
 can go into a vault or a stick's files as well. Press **Continue**, then

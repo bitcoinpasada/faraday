@@ -438,7 +438,7 @@ fn passphrase_key() -> Faraday {
     app.press(Action::KLock);
     app.press(Action::KNext);
     let c = app.create().expect("create");
-    assert_eq!(c.open, Some(cstep::BACKUP));
+    assert_eq!(c.open, Some(cstep::CHECK));
     app
 }
 

@@ -872,7 +872,7 @@ pub mod cstep {
     pub const KEYS: u8 = 2;
     /// The descriptor and the first addresses.
     pub const CHECK: u8 = 3;
-    /// Back up this wallet, opening Back up on the wallet just made.
+    /// No card now: Check's **Back up wallet** opens Back up.
     pub const BACKUP: u8 = 4;
     /// Whether vaults are part of the backup, before Keys.
     pub const WHERE: u8 = 5;
@@ -2164,6 +2164,7 @@ impl Faraday {
     /// frame may picture a seed); `None` for anything a stick may stay in
     /// for.
     pub fn pull_what(&self, action: Action) -> Option<&'static str> {
+        use backup_flow::steps::FlowAction as F;
         use catalog::Go;
         Some(match action {
             Action::Scan
@@ -2194,15 +2195,9 @@ impl Faraday {
                 EN.pull_what_unlock
             }
             Action::Vault(vault::VaultAction::ListFrom(_)) => EN.pull_what_unlock,
-            Action::Flow(
-                backup_flow::steps::FlowAction::UnlockVault(_)
-                | backup_flow::steps::FlowAction::UnlockDone(_),
-            ) => EN.pull_what_unlock,
-            Action::Flow(
-                backup_flow::steps::FlowAction::CreateVault(_)
-                | backup_flow::steps::FlowAction::Make
-                | backup_flow::steps::FlowAction::CopyKey,
-            ) => EN.pull_what_make_a_key,
+            Action::Flow(F::UnlockVault(_) | F::UnlockDone(_)) => EN.pull_what_unlock,
+            Action::Flow(F::CreateVault(_)) => EN.pull_what_create_vault,
+            Action::Flow(F::Make | F::CopyKey) => EN.pull_what_make_a_key,
             Action::Catalog(i) => match catalog::TILES.get(usize::from(i))?.go {
                 Go::VaultCategory(c)
                     if self.vaults.open.is_empty()

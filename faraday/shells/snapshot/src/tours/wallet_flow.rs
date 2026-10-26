@@ -26,7 +26,9 @@ pub(crate) fn words_off(c: &Compute, t: &mut Tour) {
 /// asks whether vaults are part of the backup and how many, brings in
 /// each vault's stick, opens or makes the vaults, makes the key; Back
 /// up's plan offers the vaults; the checklist ends in Write to sticks;
-/// one lock, each stick by place, done.
+/// one lock, each stick by place, done. Then another wallet's two vaults,
+/// one found on a stick and one on the boot stick, to the step's Open and
+/// Create, and Create a vault.
 #[expect(clippy::too_many_lines, reason = "counted in lint-layout (F74)")]
 pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> {
     use faraday_core::backup_flow::steps::FlowAction as F;
@@ -56,6 +58,12 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
     t.shot("wallet-flow-2-create-count")?;
     t.press(Action::CNext(cstep::HOW_MANY));
     t.shot("wallet-flow-3-insert")?;
+    // Guided's walk-through of Bring in the sticks, behind its tap on a
+    // small panel.
+    t.press(Action::Guided(true));
+    t.press(Action::About(0));
+    t.shot("wallet-flow-3a-insert-guided")?;
+    t.press(Action::About(0));
     // Vault 1: a stick that holds a vault, and the person picks.
     let first = t.stick();
     t.app.storage(StorageEvent::Sticks(vec![first.clone()]));
@@ -166,6 +174,50 @@ pub(crate) fn wallet_flow_tour(c: &Compute, t: &mut Tour) -> Result<(), String> 
         t.pump();
     }
     t.shot("wallet-flow-11-done")?;
-    println!("the backup flow of a single key in two vaults, from the question of vaults to Done");
+    // Another wallet, two vaults: Vault 1 found on the first stick, then
+    // Use Boot stick takes the boot stick for Vault 2 in one press; with
+    // every stick read, the step offers Open Vault 1 and Create Vault 2,
+    // and Create's Pull sheet asks for the boot stick out first.
+    let boot = StickInfo {
+        serial: Some(9),
+        id: "boot".into(),
+        label: "FARADAY".into(),
+        boot: true,
+        files: Vec::new(),
+    };
+    t.press(Action::Guided(false));
+    t.press(Action::CreateWallet);
+    t.press(Action::CKind(0));
+    t.press(Action::CVaults(true));
+    t.press(Action::CNext(cstep::WHERE));
+    t.press(Action::CVaultN(2));
+    t.press(Action::CNext(cstep::HOW_MANY));
+    let stick = t.stick();
+    t.app.storage(StorageEvent::Sticks(vec![stick]));
+    t.pump();
+    t.press(Action::Flow(F::PickFile(0, 0)));
+    t.press(Action::Flow(F::Tap));
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.app.storage(StorageEvent::Sticks(vec![boot]));
+    t.pump();
+    t.shot("wallet-flow-12-boot-insert")?;
+    let k = t
+        .app
+        .sticks()
+        .iter()
+        .position(|s| s.boot)
+        .ok_or("no boot stick")?;
+    t.press(Action::Flow(F::UseBoot(k)));
+    t.pump();
+    t.shot("wallet-flow-13-open-or-create")?;
+    t.press(Action::Flow(F::CreateVault(1)));
+    t.shot("wallet-flow-14-boot-pull")?;
+    t.app.storage(StorageEvent::Sticks(Vec::new()));
+    t.pump();
+    t.shot("wallet-flow-15-boot-create-vault")?;
+    println!(
+        "the backup flow of a single key in two vaults, from the question of vaults to Done; then two vaults, one found on a stick and one on the boot stick, to Open or Create and Create a vault"
+    );
     Ok(())
 }

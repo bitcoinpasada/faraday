@@ -498,7 +498,9 @@ fn the_set_made_fills_the_slot_and_check_names_it() {
     );
     app.press(Action::Codex32(C32::Next));
     assert_eq!(app.screen, Screen::Create);
-    app.press(Action::CStep(cstep::CHECK));
+    // Lock in opened Check.
+    assert_eq!(app.create().and_then(|c| c.open), Some(cstep::CHECK));
+    let _ = app.frame();
     let texts = app.drawn_texts();
     assert!(
         texts.iter().any(|t| t == "codex32 name · 2 of 3"),

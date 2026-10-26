@@ -1208,9 +1208,9 @@ fn changing_the_plan_after_the_lock_runs_the_round_and_writes_the_vault_again() 
     }
     // The vault that holds the seed and the vault that takes it, unlocked
     // inside the flow, never the visit page.
-    assert!(offered(&mut app, Action::Flow(F::UnlockVault(0))) || step(&app) == Step::Vaults);
-    unlock(&mut app, PHRASE);
-    unlock(&mut app, PHRASE_2);
+    assert!(offered(&mut app, Action::Flow(F::UnlockVault(0))));
+    open_vault(&mut shell, &mut app, 0, PHRASE);
+    open_vault(&mut shell, &mut app, 1, PHRASE_2);
     assert_eq!(step(&app), Step::Make, "{:?}", unlock_error(&app));
     shell.flow(&mut app, F::CopyKey);
     let n = app
@@ -1746,8 +1746,8 @@ fn the_round_keeps_a_passphrase_apart_and_copies_only_this_wallets_records() {
     shell.flow(&mut app, F::ChangePlan);
     flow_vault_add(&mut shell, &mut app, 1, 0);
     shell.flow(&mut app, F::Continue);
-    unlock(&mut app, PHRASE);
-    unlock(&mut app, PHRASE_2);
+    open_vault(&mut shell, &mut app, 0, PHRASE);
+    open_vault(&mut shell, &mut app, 1, PHRASE_2);
     assert_eq!(step(&app), Step::Make, "{:?}", unlock_error(&app));
     // Another wallet's description and plan sit in the holder vault.
     let foreign = Record::new(kind::WALLET)
@@ -2113,7 +2113,7 @@ fn a_vault_preset_chosen_after_the_keys_goes_through_to_the_writes() {
 }
 
 #[test]
-fn where_reads_its_answer_after_the_wallet_is_made_and_check_goes_to_back_up() {
+fn where_reads_its_answer_after_the_wallet_is_made_and_it_matches_keeps_check_open() {
     let mut shell = Shell::new();
     let (mut app, _, _) = single_key(&mut shell, false);
     app.press(Action::CNext(cstep::KIND));
@@ -2126,9 +2126,9 @@ fn where_reads_its_answer_after_the_wallet_is_made_and_check_goes_to_back_up() {
     for k in [cstep::WHERE, cstep::HOW_MANY, cstep::STICKS, cstep::VAULTS] {
         assert!(app.create_card_done(k), "card {k} reads done");
     }
-    // Check's Continue opens Back up's card, not the vaults.
+    // It matches keeps Check open, Back up wallet at its foot.
     app.press(Action::CNext(cstep::CHECK));
-    assert_eq!(app.create().unwrap().open, Some(cstep::BACKUP));
+    assert_eq!(app.create().unwrap().open, Some(cstep::CHECK));
 }
 
 /// Whether a closed card titled `title` reads `summary` under it.

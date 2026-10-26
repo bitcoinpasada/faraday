@@ -81,7 +81,6 @@ pub(crate) fn compact_tour(t: &mut Tour) -> Result<(), String> {
     t.shot("create-keys-filled")?;
     t.press(Action::CStep(cstep::CHECK));
     t.shot("create-check")?;
-    t.press(Action::CStep(cstep::BACKUP));
     // Paper and vault: the backup on the new wallet, preset applied.
     t.press(Action::CBackup);
     t.backup_as(faraday_core::plan::Preset::PaperVault);

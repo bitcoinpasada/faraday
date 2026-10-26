@@ -244,7 +244,6 @@ pub(crate) fn create(
             }
         }
         cstep::CHECK => EN.guide_load_the_wallet.to_string(),
-        cstep::BACKUP => EN.guide_the_plan_says.to_string(),
         cstep::WHERE => EN.guide_create_vaults_where.to_string(),
         cstep::HOW_MANY => fill(EN.guide_create_vaults_how_many, &[medium.noun()]),
         cstep::STICKS => fill(EN.guide_create_sticks, &[medium.noun(), medium.noun()]),
@@ -266,7 +265,6 @@ pub(crate) fn create_topic(n: u8, kind: crate::create::NewKind) -> Option<Topic>
         cstep::KEYS if kind.threshold() => Some(Topic::Frost),
         cstep::KEYS if kind.multi() => Some(Topic::Xpubs),
         cstep::CHECK => Some(Topic::Verifying),
-        cstep::BACKUP => Some(Topic::BackupPlanCheck),
         cstep::WHERE | cstep::VAULTS => Some(Topic::Vaults),
         _ => None,
     }

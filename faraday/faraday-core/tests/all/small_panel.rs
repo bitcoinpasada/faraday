@@ -153,14 +153,15 @@ fn a_wallet_is_made_by_touch_from_a_key_rolled_on_dice() {
     }
     // The entry card's Continue opens Key; Lock in adds the key and,
     // a single key being the whole wallet, makes it, and returns to
-    // Create on Back up by itself (F103).
+    // Create on Check, Back up wallet its foot, by itself (F103).
     tap(&mut app, Action::KNext);
     tap(&mut app, Action::KLock);
     assert_eq!(app.screen, Screen::Create, "the key fills its slot");
     assert_eq!(
         app.create().and_then(|c| c.open),
-        Some(faraday_core::cstep::BACKUP)
+        Some(faraday_core::cstep::CHECK)
     );
+    assert!(on_panel(&mut app, Action::CBackup).is_some());
     let made = app.create().and_then(|c| c.built);
     assert!(made.is_some(), "Lock in made the wallet");
 }
@@ -342,11 +343,8 @@ fn the_page_title_shows_the_steps() {
     tap(&mut app, Action::CreateWallet);
     tap(&mut app, Action::CStep(faraday_core::cstep::KIND));
     assert_eq!(app.create().and_then(|c| c.open), None);
-    let back_up = Action::CStep(faraday_core::cstep::BACKUP);
-    assert!(
-        on_panel(&mut app, back_up).is_some(),
-        "every step is listed"
-    );
+    let check = Action::CStep(faraday_core::cstep::CHECK);
+    assert!(on_panel(&mut app, check).is_some(), "every step is listed");
     tap(&mut app, Action::CStep(faraday_core::cstep::WHERE));
     assert_eq!(
         app.create().and_then(|c| c.open),

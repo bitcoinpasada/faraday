@@ -26,6 +26,7 @@ use faraday_keys::vault::RecordView;
 use faraday_vault::records::kind as rkind;
 
 use crate::flow;
+use crate::strings::{EN as FEN, fill};
 
 /// The fewest places a key that cannot be made again from seed words is
 /// planned at (`docs/BACKUP-FLOW.md` §1).
@@ -753,6 +754,10 @@ pub struct Reading {
     /// This reading first bound the stick to its slot: its card says to
     /// mark it with its pill's number until it is pulled (§18).
     pub first: bool,
+    /// The person pressed **Use {label}** for it: that press says which
+    /// stick it is, so it is bound once read with no second tap, unless
+    /// it reads like a stick bound to another place (§4.2).
+    pub chosen: bool,
 }
 
 /// A write under way (step 6).
@@ -2326,4 +2331,85 @@ pub(crate) fn seed_stick_file_of(fps: &[String], name: &str) -> bool {
         .into_iter()
         .any(|w| seed_stick_name(w, fp).as_deref() == Some(name))
     })
+}
+
+// ---- what a stick is called ----
+
+impl BackupFlow {
+    /// "Vault 1 (Place 1)", "the stick of files".
+    pub fn target_short(&self, t: &Target, medium: &str) -> String {
+        if self.is_setup() {
+            return self.target_name(t, medium);
+        }
+        match t {
+            Target::Place(p) => {
+                let vs = self.plan.places.get(*p).cloned().unwrap_or_default();
+                let names: Vec<String> = vs.iter().map(|&v| BackupFlow::vault_name(v)).collect();
+                format!("{} ({})", names.join(", "), BackupFlow::place_name(*p))
+            }
+            Target::PlaceVault(p, v) | Target::Another(p, Some(v), _) => format!(
+                "{} ({})",
+                BackupFlow::vault_name(*v),
+                BackupFlow::place_name(*p)
+            ),
+            t => self.target_name(t, medium),
+        }
+    }
+
+    /// What a stick is for, with no "the stick": "Vault 1 (Place 1)",
+    /// "Files", "Public files"; after its number on a device (§18).
+    pub fn target_what(&self, t: &Target, medium: &str) -> String {
+        match t {
+            t if t.vault_stick() && self.is_setup() => self.target_vaults(t),
+            t if t.vault_stick() => self.target_short(t, medium),
+            Target::Files => FEN.backup_flow_for_files.to_string(),
+            Target::Public => FEN.backup_flow_for_public.to_string(),
+            _ => self.target_name(t, medium),
+        }
+    }
+
+    /// "the stick for Vault 1 (Place 1)", "the stick of files".
+    pub fn target_name(&self, t: &Target, medium: &str) -> String {
+        match t {
+            // Before the keys, a stick is a vault's: no place is asked.
+            t if t.vault_stick() && self.is_setup() => fill(
+                FEN.backup_flow_stick_for_vault,
+                &[medium, &self.target_vaults(t)],
+            ),
+            t if t.vault_stick() => fill(
+                FEN.backup_flow_vault_stick,
+                &[medium, &self.target_vaults(t), &self.target_place(t)],
+            ),
+            Target::Files => fill(FEN.backup_flow_files_stick, &[medium]),
+            Target::Public => fill(FEN.backup_flow_public_stick, &[medium]),
+            // A place's sticks of files, each named alike: the pill's
+            // number tells them apart (§18).
+            Target::PlaceFiles(p) | Target::Another(p, None, _) => {
+                fill(FEN.backup_flow_place_files, &[&BackupFlow::place_name(*p)])
+            }
+            _ => String::new(),
+        }
+    }
+
+    fn target_vaults(&self, t: &Target) -> String {
+        match t {
+            Target::Place(p) => self
+                .plan
+                .places
+                .get(*p)
+                .map(|vs| {
+                    vs.iter()
+                        .map(|&v| BackupFlow::vault_name(v))
+                        .collect::<Vec<_>>()
+                        .join(", ")
+                })
+                .unwrap_or_default(),
+            Target::PlaceVault(_, v) | Target::Another(_, Some(v), _) => BackupFlow::vault_name(*v),
+            _ => String::new(),
+        }
+    }
+
+    fn target_place(&self, t: &Target) -> String {
+        t.place().map(BackupFlow::place_name).unwrap_or_default()
+    }
 }

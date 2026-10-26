@@ -67,7 +67,7 @@ Read this table, then only the decision you need.
 | [F50](decisions/F50.md) | OSKDATA keeps its drive letter; a computer's own files are ignored by name | 2026-10-19 | Active | stick |
 | [F51](decisions/F51.md) | A flow is left by Cancel inside it | 2026-10-19 | Active | design |
 | [F52](decisions/F52.md) | At most one place per key; partial descriptions by one button | 2026-10-19 | Active | backup |
-| [F53](decisions/F53.md) | One way to start a backup; Customize for the rest | 2026-10-20 | Active | backup |
+| [F53](decisions/F53.md) | One way to start a backup; Customize for the rest | 2026-10-20 | Amended by F122 | backup |
 | [F54](decisions/F54.md) | A ⋮ on every file; files renamed | 2026-10-20 | Active | stick |
 | [F55](decisions/F55.md) | The derivation path on Check, its account on Kind | 2026-10-20 | Amended by F98 | wallets |
 | [F56](decisions/F56.md) | Seeds alone spend; a place says how near it brings a spend | 2026-10-20 | Active | backup |
@@ -136,3 +136,4 @@ Read this table, then only the decision you need.
 | [F119](decisions/F119.md) | Faraday Desktop is Faraday Demo; its Demo mode is Practice | 2026-10-26 | Active | design |
 | [F120](decisions/F120.md) | Settings' theme chips are filled in their own theme's colours; the chosen one is ringed | 2026-10-25 | Active | design |
 | [F121](decisions/F121.md) | No codex32 strings for a key of words | 2026-10-26 | Active | backup |
+| [F122](decisions/F122.md) | Make a new wallet: one press takes a stick, and Check opens the backup | 2026-10-26 | Active | backup |

@@ -207,21 +207,22 @@ fn made_on(mut app: Faraday) -> (Faraday, usize) {
 }
 
 #[test]
-fn after_check_the_next_card_is_back_up_with_one_button() {
+fn it_matches_leaves_check_open_on_back_up_wallet_with_no_back_up_card() {
     let (mut app, _) = made();
+    let _ = app.frame();
+    assert!(!app.offers(Action::CBackup), "It matches comes first");
     app.press(Action::CNext(cstep::CHECK));
     assert_eq!(
         app.create().and_then(|c| c.open),
-        Some(cstep::BACKUP),
-        "Back up follows Check"
+        Some(cstep::CHECK),
+        "Check stays open"
     );
+    assert!(!app.create_cards().contains(&cstep::BACKUP));
     let _ = app.frame();
-    assert!(
-        app.offers(Action::CBackup),
-        "Back up this wallet is offered"
-    );
+    assert!(app.offers(Action::CBackup), "Back up wallet is offered");
     let texts = app.drawn_texts();
-    assert!(texts.iter().any(|t| t == "Back up this wallet"));
+    assert!(texts.iter().any(|t| t == "Back up wallet"));
+    assert!(!texts.iter().any(|t| t == "Back up"), "no Back up card");
     for gone in ["Paper only", "Paper and vault", "The standard way"] {
         assert!(!texts.iter().any(|t| t == gone), "{gone} is not offered");
     }
