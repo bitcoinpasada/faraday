@@ -149,8 +149,8 @@ when = "2026-04-28"
 trusted-publisher = "github:RustCrypto/utils"
 
 [[publisher.crypto-bigint]]
-version = "0.7.6"
-when = "2026-10-23"
+version = "0.7.10"
+when = "2026-10-26"
 trusted-publisher = "github:RustCrypto/crypto-bigint"
 
 [[publisher.crypto-common]]
@@ -159,8 +159,8 @@ when = "2026-05-19"
 trusted-publisher = "github:RustCrypto/traits"
 
 [[publisher.ctutils]]
-version = "0.4.5"
-when = "2026-10-23"
+version = "0.4.6"
+when = "2026-10-25"
 trusted-publisher = "github:RustCrypto/utils"
 
 [[publisher.curve25519-dalek]]
