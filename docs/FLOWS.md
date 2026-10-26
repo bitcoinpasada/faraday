@@ -398,11 +398,10 @@ way of the randomness step stands one die, drawn as the dice pad's row
 (DESIGN §4, Dice roller): **Rolled by this computer** over it, **Roll**
 beside it, and **Rolls per click**: **1** (the default) · **5** · **10** ·
 **To the end** · a number typed. The pad and its entries stay for real
-dice, and the person uses either or both. Each rolled value lands on the
-entries as a press would, from this computer's randomness (`fresh`),
-with a tumble before it and a short pause after it; under Reduce motion
-(MOTION) there is neither, and the click's values land at once. **Stop**
-ends a click's rolls. The entropy line reads "simulated dice", or
+dice, and the person uses either or both. A click's values land on the
+entries as presses would, from this computer's randomness (`fresh`), all
+at once in the frame that shows the click; the die then tumbles a moment
+(200 ms), not at all under Reduce motion (MOTION). The entropy line reads "simulated dice", or
 "simulated dice and your dice" where both made the entries; the roller
 makes no value a real die did not, and the flow is otherwise unchanged.
 

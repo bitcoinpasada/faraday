@@ -354,6 +354,12 @@ impl Faraday {
         !self.out.dirty && self.fade.is_due()
     }
 
+    /// Whether the next frame asked for changes the app's pixels: drawn in
+    /// full, or a fade's step. Otherwise the canvas is shown as it is.
+    pub(crate) fn paints_next(&self) -> bool {
+        self.out.dirty || self.fade.is_due()
+    }
+
     /// What fades have done since this was last called, and the counts
     /// set back to nothing. Costs a sort of the few gaps kept.
     pub fn take_fade_counts(&mut self) -> FadeCounts {

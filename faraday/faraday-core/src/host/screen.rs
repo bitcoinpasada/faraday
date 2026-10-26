@@ -119,9 +119,8 @@ type HostUi<'a> = faraday_ui::Ui<'a, HostPress>;
 /// What a control on the strip is.
 #[derive(Clone, PartialEq)]
 enum Kind {
-    /// A stick's pill, its dot lit while it is in, edged while the flow
-    /// asks for it.
-    Stick { inserted: bool, asked: bool },
+    /// A stick's pill, its dot lit while it is in.
+    Stick { inserted: bool },
     /// A button.
     Button,
     /// The step's main press: filled.
@@ -135,6 +134,9 @@ enum Kind {
 /// One control on the strip.
 #[derive(Clone)]
 struct Ctl {
+    /// Marked in primary, pulsing: a stick the app asks for, or Sticks · N
+    /// holding one (`docs/DESKTOP-HOST.md` §3).
+    mark: bool,
     label: String,
     press: HostPress,
     kind: Kind,
@@ -173,11 +175,11 @@ fn sticks(app: &Faraday) -> Vec<Ctl> {
                 EN.stick_pill_out
             };
             Ctl {
+                mark: p.asked,
                 label: fill(EN.stick_pill_state, &[&p.label, state]),
                 press: HostPress::App(Action::StickPill(p.n as u8)),
                 kind: Kind::Stick {
                     inserted: p.inserted,
-                    asked: p.asked,
                 },
             }
         })
@@ -213,6 +215,7 @@ fn aids(app: &Faraday) -> (Vec<Ctl>, Vec<String>, bool) {
                 (true, false) => Kind::Button,
             };
             ctls.push(Ctl {
+                mark: false,
                 label: label.to_string(),
                 press: HostPress::App(Action::Codex32(act)),
                 kind,
@@ -230,6 +233,7 @@ fn aids(app: &Faraday) -> (Vec<Ctl>, Vec<String>, bool) {
                 let press = HostPress::App(action);
                 if !ctls.iter().any(|c| c.press == press) {
                     ctls.push(Ctl {
+                        mark: false,
                         label: label.to_string(),
                         press,
                         kind: Kind::Button,
@@ -280,12 +284,14 @@ fn roller_ctls(app: &Faraday, which: Roller) -> Vec<Ctl> {
     };
     let roll = if r.rolling() {
         Ctl {
+            mark: false,
             label: EN.roller_stop.to_string(),
             press: HostPress::App(act(DieAct::Stop)),
             kind: Kind::Button,
         }
     } else {
         Ctl {
+            mark: false,
             label: EN.roller_roll.to_string(),
             press: HostPress::App(act(DieAct::Roll)),
             kind: if room { Kind::Primary } else { Kind::Off },
@@ -307,6 +313,7 @@ fn roller_ctls(app: &Faraday, which: Roller) -> Vec<Ctl> {
     vec![
         roll,
         Ctl {
+            mark: false,
             label: fill(EN.host_rolls_per_click, &[&per]),
             press: HostPress::Menu(Menu::Rolls),
             kind: Kind::Opens(Menu::Rolls),
@@ -354,6 +361,7 @@ struct Fitted {
 /// Size's control: by its size's name, or `short`, "Size" alone.
 fn size_ctl(host: &Host, short: bool) -> Ctl {
     Ctl {
+        mark: false,
         label: if short {
             EN.host_size_short.to_string()
         } else {
@@ -364,9 +372,11 @@ fn size_ctl(host: &Host, short: bool) -> Ctl {
     }
 }
 
-/// "Sticks · N", opening the menu of every stick.
-fn sticks_ctl(n: usize) -> Ctl {
+/// "Sticks · N", opening the menu of every stick, marked where one of
+/// those it holds is asked for.
+fn sticks_ctl(n: usize, mark: bool) -> Ctl {
     Ctl {
+        mark,
         label: fill(EN.stick_pill_more, &[&n.to_string()]),
         press: HostPress::Menu(Menu::Sticks),
         kind: Kind::Opens(Menu::Sticks),
@@ -377,6 +387,7 @@ fn sticks_ctl(n: usize) -> Ctl {
 /// "Practice".
 fn more_ctl(head: bool) -> Ctl {
     Ctl {
+        mark: false,
         label: if head { EN.host_more } else { EN.host_demo }.to_string(),
         press: HostPress::Menu(Menu::More),
         kind: Kind::Opens(Menu::More),
@@ -389,6 +400,7 @@ fn demo_ctls(app: &Faraday) -> (Vec<Ctl>, Vec<String>) {
     let (mut demo, lines, walks) = aids(app);
     if walks {
         demo.push(Ctl {
+            mark: false,
             label: EN.host_play_options.to_string(),
             press: HostPress::Menu(Menu::Play),
             kind: Kind::Opens(Menu::Play),
@@ -408,6 +420,7 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
     let app = &host.app;
     let all_sticks = sticks(app);
     let samples = app.samples_on().then(|| Ctl {
+        mark: false,
         label: EN.samples_pill_short.to_string(),
         press: HostPress::Menu(Menu::Samples),
         kind: Kind::Button,
@@ -425,8 +438,10 @@ fn fit(host: &Host, ui: &HostUi, room: f32, die_w: f32) -> Fitted {
             0.0
         }
     };
-    let sticks_more = sticks_ctl;
     let n = all_sticks.len();
+    // The last `k` sticks fold into the pill; it is marked where one of
+    // them is asked for.
+    let sticks_more = |k: usize| sticks_ctl(k, all_sticks[n - k.min(n)..].iter().any(|s| s.mark));
     let any_aid = !demo.is_empty() || die_w > 0.0;
     let mut right: Vec<Ctl> = samples.iter().cloned().chain([size(false)]).collect();
     let fixed = |right: &[Ctl], any: bool| sum(right) + head(any);
@@ -641,7 +656,9 @@ pub(crate) fn draw(host: &Host, ui: &mut HostUi, area: Option<Area>, scroll: f32
     if host.preview.is_some()
         && let Some(a) = area
     {
-        edge(ui, a, look.edge);
+        // Primary while the pointer or the keys reach the app, else
+        // outline-variant, in the host's scheme it stands on.
+        edge(ui, a, look.rule.mix(look.main, host.edge_shown()));
     }
     let sh = host.strip_dp();
     let top = h - sh;
@@ -789,12 +806,19 @@ fn indicator(
     ui.fill(tx, y, tw, bar, bar / 2.0, look.edge);
 }
 
-/// A preview frame's pixel-wide edge round `a`.
+/// A preview frame's focus border round `a`, `HOST_FOCUS_EDGE` wide, just
+/// outside it.
 fn edge(ui: &mut HostUi, a: Area, color: Color) {
-    let f = ui.f;
-    let (x, y) = (a.x as f32 / f - 1.0 / f, a.y as f32 / f - 1.0 / f);
-    let (aw, ah) = (a.w as f32 / f + 2.0 / f, a.h as f32 / f + 2.0 / f);
-    ui.stroke(x, y, aw, ah, 0.0, color);
+    let e = super::edge_px(ui.f);
+    let (x, y, w) = (a.x - e, a.y - e, a.w + 2 * e);
+    for r in [
+        Rect::new(x, y, w, e),
+        Rect::new(x, a.y + a.h, w, e),
+        Rect::new(x, a.y, e, a.h),
+        Rect::new(a.x + a.w, a.y, e, a.h),
+    ] {
+        ui.c.fill_rect(r, color);
+    }
 }
 
 /// The menu or sheet closing and the one open, each over its control at
@@ -811,7 +835,7 @@ fn menus(
     let anchor = |m: Menu| anchors.iter().find(|(a, _)| *a == m).map(|(_, x)| *x);
     if let Some((m, at)) = host.leaving {
         let p = crate::motion::progress(Some(at), host.now, crate::motion::MENU_OUT_MS);
-        let shown = 1.0 - crate::motion::ease(t::EASE_EMPHASIZED_ACCELERATE, p);
+        let shown = 1.0 - crate::motion::ease(t::EASE_STANDARD_ACCELERATE, p);
         if shown > 0.0 {
             let mark = ui.hits.len();
             if m == Menu::Samples {
@@ -824,11 +848,11 @@ fn menus(
     }
     if let Some((m, at)) = host.menu {
         let shown = match at {
-            Some(at) if !host.app.reduce_motion() => {
+            Some(at) if host.app.fades() => {
                 let p = crate::motion::progress(Some(at), host.now, crate::motion::MENU_IN_MS);
-                crate::motion::ease_open(p)
+                crate::motion::ease(t::EASE_STANDARD_DECELERATE, p)
             }
-            // At rest, or under Reduce motion: whole.
+            // At rest, under Reduce motion or with fades off: whole.
             _ => 1.0,
         };
         if m == Menu::Samples {
@@ -897,7 +921,6 @@ fn control(host: &Host, ui: &mut HostUi, c: &Ctl, (x, y): (f32, f32), inks: Inks
     let (ink, edge, body) = match &c.kind {
         Kind::Primary => (inks.on_main, inks.main, Some(inks.main)),
         Kind::Off => (off, layer(inks.ink, t::DISABLED_CONTAINER), None),
-        Kind::Stick { asked: true, .. } => (inks.ink, look.caution, None),
         _ if open => (inks.on_main, inks.main, Some(inks.main)),
         _ => (inks.ink, inks.outline, None),
     };
@@ -912,6 +935,16 @@ fn control(host: &Host, ui: &mut HostUi, c: &Ctl, (x, y): (f32, f32), inks: Inks
         }
     }
     ui.stroke(x, y, w, h, r, edge);
+    if c.mark {
+        // The app asks for this stick: a primary layer, pulsing while the
+        // pulse runs, under a primary outline.
+        ui.wash(x, y, w, h, r, layer(inks.main, host.mark_layer()));
+        // `HOST_MARK_EDGE` wide: a dp-wide outline each dp inward.
+        for k in 0..t::HOST_MARK_EDGE as u8 {
+            let k = f32::from(k);
+            ui.stroke(x + k, y + k, w - 2.0 * k, h - 2.0 * k, r - k, inks.main);
+        }
+    }
     let mut tx = x + CTL_PAD;
     if let Kind::Stick { inserted, .. } = c.kind {
         let tone = if inserted {
@@ -1033,10 +1066,11 @@ fn rows(host: &Host, fitted: &Fitted, m: Menu) -> Vec<MenuRow> {
     }
 }
 
-/// Menu `m` opening up from its control at `x`, over the strip's top
-/// `top`, in a window `w` wide, `shown` of the way open: Material's menu,
-/// growing from its control on the emphasized decelerate and leaving on
-/// the emphasized accelerate, in the host's look.
+/// Costs a copy of the menu's pixels while it fades. Menu `m` over its
+/// control at `x`, over the strip's top `top`, in a window `w` wide,
+/// `shown` of the way faded in: Material's menu, fading in on the
+/// standard decelerate and out on the standard accelerate, in the host's
+/// look.
 fn menu(
     host: &Host,
     ui: &mut HostUi,
@@ -1062,9 +1096,7 @@ fn menu(
     let mx = x.unwrap_or(t::PAD).min(w - t::PAD - mw).max(t::PAD);
     let bottom = top - t::GAP_SMALL;
     let my = bottom - mh;
-    let seen = mh * shown.clamp(0.0, 1.0);
-    let clip = ui.rect(mx, bottom - seen, mw, seen);
-    ui.c.push_clip(clip);
+    let fading = Fading::begin(ui, (mx, my, mw, mh), shown);
     ui.fill(mx, my, mw, mh, t::GAP_SMALL, look.raised);
     ui.stroke(mx, my, mw, mh, t::GAP_SMALL, look.rule);
     let mut ry = my + t::GAP;
@@ -1110,7 +1142,38 @@ fn menu(
         }
         ry += rh;
     }
-    ui.c.pop_clip();
+    fading.end(ui);
+}
+
+/// A menu or Samples' sheet fading in or out: what it stands on, kept to
+/// fade from.
+struct Fading {
+    rect: Rect,
+    under: Vec<u8>,
+    shown: f32,
+}
+
+impl Fading {
+    /// Costs a copy of the rectangle's pixels where `shown` is short of
+    /// whole. Keeps what the rectangle (`x`, `y`, `w`, `h`, dp) stands on,
+    /// a pixel more each side for its edge.
+    fn begin(ui: &HostUi, (x, y, w, h): (f32, f32, f32, f32), shown: f32) -> Fading {
+        let px = 1.0 / ui.f;
+        let rect = ui.rect(x - px, y - px, w + 2.0 * px, h + 2.0 * px);
+        let mut under = Vec::new();
+        if shown < 1.0 {
+            ui.c.copy_region(rect, &mut under);
+        }
+        Fading { rect, under, shown }
+    }
+
+    /// Costs a pass over the rectangle's pixels where it fades. What was
+    /// drawn since [`Fading::begin`] shown `shown` of the way.
+    fn end(self, ui: &mut HostUi) {
+        if self.shown < 1.0 {
+            ui.c.fade_region(self.rect, &self.under, self.shown);
+        }
+    }
 }
 
 /// The computer's die `which` with its top-left at (`x`, `y`), drawn by
@@ -1148,11 +1211,12 @@ fn sheet_place(
     let Some(a) = area.filter(|_| host.preview.is_some()) else {
         return up(t::PAD);
     };
-    // The frame's edge stands a pixel outside it.
+    // The frame's border stands just outside it.
+    let e = super::edge_px(f);
     let (left, right, foot) = (
-        (a.x - 1) as f32 / f,
-        w - (a.x + a.w + 1) as f32 / f,
-        (a.y + a.h + 1) as f32 / f,
+        (a.x - e) as f32 / f,
+        w - (a.x + a.w + e) as f32 / f,
+        (a.y + a.h + e) as f32 / f,
     );
     let gutter =
         |g: f32| Some(t::HOST_SHEET_W.min(g - 2.0 * t::PAD)).filter(|s| *s >= t::HOST_MENU_W);
@@ -1168,8 +1232,9 @@ fn sheet_place(
     up(t::PAD)
 }
 
-/// Costs a text measure per row. Load samples' sheet in the host's look,
-/// `shown` of the way open, rising from the strip's top `top`
+/// Costs a text measure per row, and a copy of the sheet's pixels while
+/// it fades. Load samples' sheet in the host's look, `shown` of the way
+/// faded in, standing on the strip's top `top`
 /// (`docs/DESKTOP-HOST.md` §6): the title; the samples' passphrase, a line
 /// where a stick is in, Select all or Unselect all, the sample wallets and
 /// keys with their tick boxes (one loaded ticked and dimmed), scrolling
@@ -1209,9 +1274,7 @@ fn samples_sheet(
     let view = (mh - head - foot).max(0.0);
     let max = (body - view).max(0.0);
     let scroll = host.sheet_scroll.min(max);
-    let seen = mh * shown.clamp(0.0, 1.0);
-    let clip = ui.rect(mx, bottom - seen, mw, seen);
-    ui.c.push_clip(clip);
+    let fading = Fading::begin(ui, (mx, my, mw, mh), shown);
     ui.fill(mx, my, mw, mh, t::GAP_SMALL, look.raised);
     ui.stroke(mx, my, mw, mh, t::GAP_SMALL, look.rule);
     // A press on the sheet itself is the sheet's: it closes nothing.
@@ -1234,7 +1297,7 @@ fn samples_sheet(
     sheet_lists(host, ui, (mx, mw, my + head - scroll), warn, &mut texts);
     ui.c.pop_clip();
     sheet_foot(host, ui, (mx, mw, my + mh - foot), &mut texts);
-    ui.c.pop_clip();
+    fading.end(ui);
     (texts, Some((ui.rect(mx, my, mw, mh), max)))
 }
 
@@ -1385,6 +1448,7 @@ fn sheet_foot(
     let look = Look::now(host);
     ui.fill(mx, fy, mw, 1.0 / ui.f, 0.0, look.rule);
     let load = Ctl {
+        mark: false,
         label: EN.samples_load.to_string(),
         press: HostPress::App(Action::SamplesLoad),
         kind: if app.sample_area.sheet().any_ticked() && app.selftest_passed() {
@@ -1394,6 +1458,7 @@ fn sheet_foot(
         },
     };
     let not_now = Ctl {
+        mark: false,
         label: EN.samples_not_now.to_string(),
         press: HostPress::Menu(Menu::Samples),
         kind: Kind::Button,

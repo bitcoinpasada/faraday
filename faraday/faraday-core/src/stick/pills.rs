@@ -75,7 +75,8 @@ pub struct Pill {
     pub folder: String,
     /// The stick is in.
     pub inserted: bool,
-    /// The flow asks for this stick now.
+    /// The app asks for this stick now: the backup flow for it, or the
+    /// Pull sheet for it out.
     pub asked: bool,
 }
 
@@ -158,17 +159,20 @@ impl Faraday {
             .max(FIRST_BACKUP);
         let asked = wanted.and_then(|w| w.now);
         let is_in = |folder: &str| self.stick.iter().any(|s| s.label == folder);
+        // The Pull sheet asks for every stick that is in to be pulled.
+        let pulling = self.sheet == Some(crate::Sheet::Pull);
         let mut boot = self.boot_pill();
-        boot.asked = asked == Some(1);
+        boot.asked = asked == Some(1) || (pulling && boot.inserted);
         let mut pills = vec![boot];
         for n in FIRST_BACKUP..=last {
             let folder = backup_folder(n);
+            let inserted = is_in(&folder);
             pills.push(Pill {
                 n,
                 label: self.pill_name(n),
-                inserted: is_in(&folder),
+                inserted,
                 folder,
-                asked: asked == Some(n),
+                asked: asked == Some(n) || (pulling && inserted),
             });
         }
         pills

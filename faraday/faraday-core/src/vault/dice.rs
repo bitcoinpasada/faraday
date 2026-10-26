@@ -95,8 +95,8 @@ fn use_words(app: &mut Faraday) {
     app.vaults.state.focus = None;
 }
 
-/// A press on the roller: its choice, or Roll. Under Reduce motion the
-/// values land at once.
+/// A press on the roller: its choice, or Roll, whose values are entered
+/// at once, in the frame that shows the press.
 fn roll(app: &mut Faraday, r: Act) {
     let (room, now) = (room(app), app.now_ms());
     app.vaults.state.roller.act(r, room, now);
@@ -105,7 +105,7 @@ fn roll(app: &mut Faraday, r: Act) {
     } else {
         Focus::Dice
     });
-    if r == Act::Roll && app.reduce_motion() {
+    if r == Act::Roll {
         tick(app, now);
     }
 }

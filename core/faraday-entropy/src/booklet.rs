@@ -17,7 +17,7 @@
 //! ([`BOOKLET_MAX_FACES`]) is read: [`BookletChar::with_faces`]. One
 //! die of the five rolls faces 1 to N on both its rolls.
 //!
-//! [`uniform_face`] is how Faraday Desktop's roller turns a byte of its
+//! [`uniform_face`] is how Faraday Demo's roller turns a byte of its
 //! own randomness into a face of an N-faced die without bias.
 //!
 //! `tools/reference/booklet-dice/README.md` quotes the worksheet.

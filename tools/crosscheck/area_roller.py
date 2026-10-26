@@ -1,4 +1,4 @@
-"""Faraday Desktop's dice rollers (`faraday_core`'s `fresh/roller/`)
+"""Faraday Demo's dice rollers (`faraday_core`'s `fresh/roller/`)
 against a model written here from `docs/CODEX32.md` §5.5 and §5.6 and
 the booklet's worksheet (`tools/reference/booklet-dice/README.md`),
 with the system's answers fixed.

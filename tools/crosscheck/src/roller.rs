@@ -1,4 +1,4 @@
-//! Faraday Desktop's dice rollers (`faraday_core`'s `fresh/roller/`,
+//! Faraday Demo's dice rollers (`faraday_core`'s `fresh/roller/`,
 //! `docs/CODEX32.md` §5.5 and §5.6), driven through the testkit as a
 //! host drives them, with Reduce motion on so that a click's values land
 //! at once, and the system's answers given as fixed bytes.

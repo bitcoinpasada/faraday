@@ -771,6 +771,48 @@ impl Canvas {
         self.damaged(self.bounds());
     }
 
+    /// Costs a copy of the rectangle's pixels. The pixels inside `rect`,
+    /// cut at the canvas's edges, a row at a time into `into`, reusing its
+    /// room: for [`Canvas::fade_region`] to fade from.
+    pub fn copy_region(&self, rect: Rect, into: &mut Vec<u8>) {
+        into.clear();
+        let r = rect.intersect(&self.bounds());
+        if r.is_empty() {
+            return;
+        }
+        let stride = self.pixmap.width() as usize * 4;
+        let data = self.pixmap.data();
+        for row in r.y..r.bottom() {
+            let at = row as usize * stride + r.x as usize * 4;
+            into.extend_from_slice(&data[at..at + r.w as usize * 4]);
+        }
+    }
+
+    /// Costs a pass over the rectangle's pixels. Shows what was drawn
+    /// inside `rect` since `before` was taken there ([`Canvas::copy_region`])
+    /// only `t` (0 to 1) of the way from it: something that fades in or
+    /// out over what it stands on. A `before` of another size leaves the
+    /// canvas as it is.
+    pub fn fade_region(&mut self, rect: Rect, before: &[u8], t: f32) {
+        let r = rect.intersect(&self.bounds());
+        if r.is_empty() || before.len() != (r.w * r.h * 4) as usize {
+            return;
+        }
+        let t = (t.clamp(0.0, 1.0) * 256.0) as u16;
+        let u = 256 - t;
+        let stride = self.pixmap.width() as usize * 4;
+        let n = r.w as usize * 4;
+        let data = self.pixmap.data_mut();
+        for (k, row) in (r.y..r.bottom()).enumerate() {
+            let at = row as usize * stride + r.x as usize * 4;
+            let was = &before[k * n..(k + 1) * n];
+            for (now, &w) in data[at..at + n].iter_mut().zip(was) {
+                *now = ((u16::from(w) * u + u16::from(*now) * t) >> 8) as u8;
+            }
+        }
+        self.damaged(r);
+    }
+
     /// Moves the pixels inside `rect` by `dy` rows, down for a positive
     /// `dy` and up for a negative one, ignoring the clip. Rows outside
     /// `rect` are untouched, and so are the rows that `dy` brought into
@@ -1572,6 +1614,22 @@ mod tests {
         // they do not.
         assert_eq!(pixel(&c, 5, 5), [10, 20, 30, 255]);
         assert_eq!(pixel(&c, 25, 5), [60, 70, 80, 255]);
+    }
+
+    #[test]
+    fn a_menu_fading_in_is_part_of_the_way_over_what_it_stands_on_and_nowhere_else() {
+        let mut c = canvas();
+        c.clear(Color::rgb(10, 20, 30));
+        let menu = Rect::new(16, 4, 24, 20);
+        let mut before = Vec::new();
+        c.copy_region(menu, &mut before);
+        c.fill_rect(Rect::new(0, 0, 64, 32), Color::rgb(210, 220, 230));
+        c.fade_region(menu, &before, 0.25);
+        assert_eq!(pixel(&c, 20, 10), [60, 70, 80, 255], "a quarter of the way");
+        assert_eq!(pixel(&c, 2, 2), [210, 220, 230, 255], "outside, as drawn");
+        c.copy_region(menu, &mut before);
+        c.fade_region(menu, &before, 0.6);
+        assert_eq!(pixel(&c, 20, 10), [60, 70, 80, 255], "faded from itself");
     }
 
     #[test]

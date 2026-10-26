@@ -1,12 +1,15 @@
-//! The dice roller of Faraday Desktop (`docs/CODEX32.md` §5.5, §5.6): a
+//! The dice roller of Faraday Demo (`docs/CODEX32.md` §5.5, §5.6): a
 //! die a click rolls for a person, its values this computer's randomness
 //! from `Faraday::fresh`, landing on the entries of the flow that hosts
 //! it (New key's dice pad, Create a vault's Generate with dice) as a
-//! press of the pad would.
+//! press of the pad would, all of a click's values at once; the die then
+//! tumbles a moment and shows the last.
 //!
 //! A host holds one [`Roller`], draws it with [`screen::draw`], gives its
-//! [`Act`]s to [`Roller::act`], and calls [`Roller::tick`] on every tick
-//! with its own entries' length and the room left in them. The roller
+//! [`Act`]s to [`Roller::act`], calls [`Roller::tick`] at once after a
+//! Roll, so its values are entered in the frame that shows the press, and
+//! on every tick after it, with its own entries' length and the room left
+//! in them. The roller
 //! never touches the entries: it hands back the values (1 to 6) and the
 //! host adds them as keys. It remembers which positions it made
 //! ([`Roller::sim`]), so the result can say "simulated dice". Hosts call
@@ -14,10 +17,10 @@
 //! [`Roller::reset`] when they start over.
 //!
 //! The roller is offered only where `Faraday::roller_offered` says so:
-//! Faraday Desktop, never the stick, the Pi or the website.
+//! Faraday Demo, never the stick, the Pi or the website.
 
 use faraday_draw::tokens::{
-    ROLLER_COUNT_DIGITS, ROLLER_COUNT_MAX, ROLLER_FACE_MS, ROLLER_PAUSE_MS, ROLLER_TUMBLE_MS,
+    ROLLER_COUNT_DIGITS, ROLLER_COUNT_MAX, ROLLER_FACE_MS, ROLLER_ONE_TUMBLE_MS,
 };
 use zeroize::Zeroizing;
 
@@ -49,7 +52,7 @@ pub enum PerClick {
 pub enum Act {
     /// Roll as many values as one click makes.
     Roll,
-    /// Stop the click's rolls where they are.
+    /// Stop the click's rolls where they are: the die's tumble ends.
     Stop,
     /// Choose how many one click makes.
     Per(PerClick),
@@ -60,12 +63,15 @@ pub enum Act {
 /// What the die is doing.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 enum Stage {
-    /// Nothing to roll.
+    /// At rest.
     #[default]
     Idle,
-    /// Tumbling, since this time.
+    /// Tumbling, since this time: the one die's click's values are
+    /// entered, and it shows faces until it lands on the last; the five
+    /// dice's land at the tumble's end.
     Tumble(u64),
-    /// A value landed at this time; the next tumble waits.
+    /// The five dice's values landed at this time; their next tumble
+    /// waits.
     Pause(u64),
 }
 
@@ -177,10 +183,10 @@ impl Roller {
         self.left > 0
     }
 
-    /// Whether the roller has anything to tick: rolls under way, or the
-    /// pause after the last value (a lookup).
+    /// Whether the roller has anything to tick: values to enter, or the
+    /// die tumbling (a lookup).
     pub fn active(&self) -> bool {
-        self.left > 0 || matches!(self.stage, Stage::Pause(_))
+        self.left > 0 || matches!(self.stage, Stage::Tumble(_))
     }
 
     /// The face the die shows: the tumbling one, else the last landed
@@ -280,7 +286,9 @@ impl Roller {
     /// One tick. `len` is how many entries the host has, `room` how many
     /// more it takes, `reduce` whether Reduce motion is on, and `draw`
     /// asks for 32 fresh bytes (`Faraday::fresh`). Returns the values to
-    /// add, in order, and whether the screen needs a frame. Costs a
+    /// add, in order, and whether the screen needs a frame: every value a
+    /// click makes at the first tick after it, the die then tumbling for
+    /// `ROLLER_ONE_TUMBLE_MS` (not at all under Reduce motion). Costs a
     /// fresh answer (a hash) for every 31 values at most, and nothing at
     /// rest.
     pub fn tick(
@@ -292,52 +300,39 @@ impl Roller {
         draw: &mut dyn FnMut() -> Option<[u8; 32]>,
     ) -> (Vec<u8>, bool) {
         let mut landed = Vec::new();
-        if self.left == 0 && !matches!(self.stage, Stage::Pause(_)) {
+        if !self.active() {
             return (landed, false);
         }
         if room == 0 && self.left > 0 {
             self.stop();
             return (landed, true);
         }
+        // The click's values, all at once.
+        while self.left > 0 && landed.len() < room {
+            let Some(v) = self.next(draw) else { break };
+            self.land(v, len + landed.len());
+            landed.push(v);
+        }
+        if landed.len() >= room {
+            self.left = 0;
+        }
         if reduce {
-            // No tumble and no pause: the values land at once.
-            while self.left > 0 && landed.len() < room {
-                let Some(v) = self.next(draw) else { break };
-                self.land(v, len + landed.len());
-                landed.push(v);
-            }
-            if landed.len() >= room || self.left == 0 {
-                self.stop();
+            // No tumble.
+            if self.left == 0 {
+                self.stage = Stage::Idle;
             }
             return (landed, true);
         }
-        match self.stage {
-            Stage::Idle => self.stage = Stage::Tumble(now_ms),
-            Stage::Tumble(since) => {
-                let t = now_ms.saturating_sub(since);
-                self.progress = (t as f32 / ROLLER_TUMBLE_MS as f32).min(1.0);
-                if t >= ROLLER_TUMBLE_MS {
-                    if let Some(v) = self.next(draw) {
-                        self.land(v, len);
-                        landed.push(v);
-                        self.stage = Stage::Pause(now_ms);
-                    }
-                } else if now_ms >= self.face_at {
-                    self.spin = self.spin.wrapping_mul(1_103_515_245).wrapping_add(12_345);
-                    let f = ((self.spin >> 16) % 6) as u8 + 1;
-                    self.shown = if f == self.shown { f % 6 + 1 } else { f };
-                    self.face_at = now_ms + ROLLER_FACE_MS;
-                }
-            }
-            Stage::Pause(since) => {
-                if now_ms.saturating_sub(since) >= ROLLER_PAUSE_MS {
-                    self.stage = if self.left == 0 {
-                        Stage::Idle
-                    } else {
-                        self.progress = 0.0;
-                        Stage::Tumble(now_ms)
-                    };
-                }
+        if let Stage::Tumble(since) = self.stage {
+            let t = now_ms.saturating_sub(since);
+            self.progress = (t as f32 / ROLLER_ONE_TUMBLE_MS as f32).min(1.0);
+            if t >= ROLLER_ONE_TUMBLE_MS && self.left == 0 {
+                self.stage = Stage::Idle;
+            } else if now_ms >= self.face_at {
+                self.spin = self.spin.wrapping_mul(1_103_515_245).wrapping_add(12_345);
+                let f = ((self.spin >> 16) % 6) as u8 + 1;
+                self.shown = if f == self.shown { f % 6 + 1 } else { f };
+                self.face_at = now_ms + ROLLER_FACE_MS;
             }
         }
         (landed, true)

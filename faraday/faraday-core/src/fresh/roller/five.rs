@@ -1,4 +1,4 @@
-//! The five-dice roller of Faraday Desktop (`docs/CODEX32.md` §5.5): the
+//! The five-dice roller of Faraday Demo (`docs/CODEX32.md` §5.5): the
 //! booklet's dice de-biasing worksheet filled by a click. Its values are
 //! this computer's randomness from `Faraday::fresh`, handed to the host
 //! as faces 1 to N of the dice the person chose (six faces unless told,

@@ -471,6 +471,9 @@ pub enum Event {
     /// There is no pointer over the frame any more: it left the window,
     /// or it hid because a finger touched the panel.
     HoverEnd,
+    /// The window took the keyboard's focus (`true`) or lost it to
+    /// another window. Optional, desktop shells only.
+    Focus(bool),
     /// Monotonic time, for timeouts and animations. The shell sends this at
     /// whatever rate it likes (typically 30–60 Hz while something animates,
     /// rarely otherwise); the core never assumes a rate.

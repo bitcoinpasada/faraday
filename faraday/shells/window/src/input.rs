@@ -82,7 +82,9 @@ impl Pointer {
                     self.pressed = false;
                     touch(&mut out, self.cursor, TouchPhase::Up);
                 }
+                out.push(Event::Focus(false));
             }
+            WindowEvent::Focused(true) => out.push(Event::Focus(true)),
             // A finger on a touchscreen presses as on the device's panel:
             // the first finger down is the press, others are ignored.
             WindowEvent::Touch(t) => {

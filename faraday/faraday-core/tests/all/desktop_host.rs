@@ -981,8 +981,19 @@ fn an_idle_demo_asks_for_no_frame_at_any_size() {
             let (_, now) = ticks(&mut host, now, 16, 60);
             click(&mut host, HostPress::Size(Some(PI)));
             let (_, now) = ticks(&mut host, now, 16, 60);
-            let (asked, _) = ticks(&mut host, now, 16, 300);
+            let (asked, mut now) = ticks(&mut host, now, 16, 300);
             assert_eq!(asked, 0, "at {size:?} in the Pi preview, motion {motion}");
+            // The pointer over the strip, then over the app: the frame's
+            // border changes, and then the window rests again.
+            for (x, y) in [(2, size.1 - 2), (size.0 / 2, size.1 / 3)] {
+                host.event(Event::Hover { x, y });
+                while host.poll_command().is_some() {}
+                let _ = host.parts();
+                let (_, then) = ticks(&mut host, now, 16, 60);
+                let (asked, then) = ticks(&mut host, then, 16, 300);
+                now = then;
+                assert_eq!(asked, 0, "at {size:?} after a hover, motion {motion}");
+            }
         }
     }
 }
@@ -1032,4 +1043,261 @@ fn at_the_windows_own_size_with_nothing_open_the_host_holds_only_the_strip() {
         let _ = host.parts();
         assert_eq!(host.canvas_bytes(), strip, "the menu closed");
     }
+}
+
+/// The app's Pull sheet waiting for the sticks in to be pulled: a sample
+/// key ticked on Samples' sheet and loaded with a stick in.
+fn pull_sheet(host: &mut Host) {
+    click(host, HostPress::Menu(HostMenu::Samples));
+    let i = first_offered(host);
+    click(host, tick_key(i));
+    click(host, HostPress::App(Action::SamplesLoad));
+    assert_eq!(host.app.sheet, Some(faraday_core::Sheet::Pull));
+}
+
+/// A pixel inside the control for `p` near its right end, clear of its
+/// label, its dot and its chevron: the control's own fill.
+fn inside_end(host: &mut Host, p: HostPress) -> faraday_draw::Color {
+    let _ = host.frame();
+    let (x, y, w, h) = host
+        .offered_area(p)
+        .unwrap_or_else(|| panic!("{p:?} offered"));
+    pixel(host, x + w - 6, y + h / 2)
+}
+
+const BOOT_PILL: HostPress = HostPress::App(Action::StickPill(1));
+
+#[test]
+fn the_stick_the_app_asks_for_is_marked_while_its_sheet_waits_and_not_after() {
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 1, true, (1280, 800));
+    let plain = inside_end(&mut host, BOOT_PILL);
+    pull_sheet(&mut host);
+    let marked = inside_end(&mut host, BOOT_PILL);
+    assert_ne!(marked, plain, "the boot stick's pill is marked");
+    // Under Reduce motion the mark is steady: at rest, no frame asked.
+    let start = host.app.now_ms();
+    let (_, now) = ticks(&mut host, start, 16, 10);
+    let (asked, _) = ticks(&mut host, now, 16, 300);
+    assert_eq!(asked, 0, "a steady mark asks for no frame");
+    assert_eq!(inside_end(&mut host, BOOT_PILL), marked);
+    // The stick pulled from its pill: the sheet goes, and the mark.
+    click(&mut host, BOOT_PILL);
+    shell_follows(&mut shell, &mut host.app);
+    assert_eq!(host.app.sheet, None);
+    assert_eq!(inside_end(&mut host, BOOT_PILL), plain, "the mark is gone");
+}
+
+#[test]
+fn a_stick_pill_pulses_for_a_while_then_holds_its_mark_and_the_window_rests() {
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 1, true, (1280, 800));
+    host.app.press(Action::ReduceMotion(false));
+    let start = host.app.now_ms();
+    let (_, now) = ticks(&mut host, start, 16, 60);
+    let plain = inside_end(&mut host, BOOT_PILL);
+    pull_sheet(&mut host);
+    let mut seen = Vec::new();
+    let mut now = now;
+    for _ in 0..40 {
+        let (_, n) = ticks(&mut host, now, 16, 1);
+        now = n;
+        seen.push(inside_end(&mut host, BOOT_PILL));
+    }
+    seen.dedup();
+    assert!(seen.len() > 5, "the pill pulses: {seen:?}");
+    assert!(seen.iter().all(|c| *c != plain), "and stays marked");
+    // The pulses run their time, then the mark holds and the window rests.
+    let (pulsing, now) = ticks(&mut host, now, 16, 300);
+    assert!(pulsing > 0, "the pulse asked for its frames");
+    let (asked, _) = ticks(&mut host, now, 16, 300);
+    assert_eq!(asked, 0, "the mark at rest asks for no frame");
+    assert_ne!(inside_end(&mut host, BOOT_PILL), plain);
+}
+
+#[test]
+fn a_pulse_in_the_pi_preview_draws_the_strip_alone() {
+    use faraday_core::work::{Work, since, snapshot};
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 1, true, (1280, 800));
+    host.app.press(Action::ReduceMotion(false));
+    click(&mut host, HostPress::Menu(HostMenu::Size));
+    click(&mut host, HostPress::Size(Some(PI)));
+    let start = host.app.now_ms();
+    let (_, now) = ticks(&mut host, start, 16, 60);
+    pull_sheet(&mut host);
+    // The app's own fade to its sheet run.
+    let (_, now) = ticks(&mut host, now, 16, 30);
+    let before = snapshot();
+    let (asked, _) = ticks(&mut host, now, 16, 60);
+    assert!(asked > 30, "the pulse drew {asked} frames");
+    let work = since(&before);
+    assert_eq!(
+        work.of(Work::FullCanvas),
+        0,
+        "a frame of the pulse placed the app's frame again"
+    );
+}
+
+#[test]
+fn sticks_n_is_marked_where_the_stick_asked_for_is_folded_into_it() {
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 5, true, (480, 640));
+    let more = HostPress::Menu(HostMenu::Sticks);
+    let plain = inside_end(&mut host, more);
+    pull_sheet(&mut host);
+    assert_ne!(inside_end(&mut host, more), plain, "Sticks · N is marked");
+}
+
+/// The colour of the app's focus border at the window's own size: its
+/// left edge, half way down.
+fn border(host: &mut Host) -> faraday_draw::Color {
+    let (_, y, _, h) = host.app_area().expect("the app");
+    pixel(host, 0, y + h / 2)
+}
+
+#[test]
+fn the_apps_frame_is_bordered_in_primary_while_the_pointer_or_the_keys_reach_it() {
+    use faraday_ui::pal::Role;
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 1, true, (1280, 800));
+    let theme = host.app.theme();
+    let (lit, dim) = (theme.role(Role::Primary), theme.role(Role::OutlineVariant));
+    assert_eq!(border(&mut host), lit, "the app has the keys at the start");
+    let hover = |host: &mut Host, x: u16, y: u16| host.event(Event::Hover { x, y });
+    // The pointer over the strip: dim; back over the app: lit.
+    hover(&mut host, 640, 800 - 4);
+    assert_eq!(border(&mut host), dim, "the pointer on the strip");
+    hover(&mut host, 640, 400);
+    assert_eq!(border(&mut host), lit, "the pointer over the app");
+    // Out of the window: dim; a key, which goes to the app: lit.
+    host.event(Event::HoverEnd);
+    assert_eq!(border(&mut host), dim, "the pointer out of the window");
+    host.event(Event::Key(faraday_shell_api::Key::Char('a')));
+    assert_eq!(border(&mut host), lit, "a key reached the app");
+    // The window losing the keyboard to another: dim, whatever the
+    // pointer; back, with the pointer over the app: lit.
+    hover(&mut host, 640, 400);
+    host.event(Event::Focus(false));
+    assert_eq!(border(&mut host), dim, "the window lost the keys");
+    host.event(Event::Focus(true));
+    assert_eq!(border(&mut host), lit, "the window has them again");
+
+    // In the Pi preview, the frame's border, just outside it, in the
+    // host's scheme.
+    click(&mut host, HostPress::Menu(HostMenu::Size));
+    click(&mut host, HostPress::Size(Some(PI)));
+    let (x, y, _, h) = host.app_area().expect("the frame");
+    let around = faraday_ui::Theme::new(
+        theme.name,
+        match theme.mode {
+            faraday_ui::Mode::Light => faraday_ui::Mode::Dark,
+            faraday_ui::Mode::Dark => faraday_ui::Mode::Light,
+        },
+        theme.contrast,
+    );
+    hover(&mut host, (x + 10) as u16, (y + h / 2) as u16);
+    assert_eq!(
+        pixel(&mut host, x - 1, y + h / 2),
+        around.role(Role::Primary)
+    );
+    hover(&mut host, 4, 4);
+    assert_eq!(
+        pixel(&mut host, x - 1, y + h / 2),
+        around.role(Role::OutlineVariant),
+        "the pointer in the host's space round the frame"
+    );
+}
+
+#[test]
+fn the_border_fades_between_its_colours_and_then_the_window_rests() {
+    use faraday_ui::pal::Role;
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 1, true, (1280, 800));
+    host.app.press(Action::ReduceMotion(false));
+    let theme = host.app.theme();
+    let (lit, dim) = (theme.role(Role::Primary), theme.role(Role::OutlineVariant));
+    let start = host.app.now_ms();
+    let (_, now) = ticks(&mut host, start, 16, 60);
+    host.event(Event::Hover { x: 640, y: 800 - 4 });
+    let (_, now) = ticks(&mut host, now, 16, 4);
+    let part = border(&mut host);
+    assert!(part != lit && part != dim, "part of the way: {part:?}");
+    let (fading, now) = ticks(&mut host, now, 16, 60);
+    assert!(
+        fading > 0 && fading < 30,
+        "it faded over {fading} more frames"
+    );
+    assert_eq!(border(&mut host), dim);
+    let (asked, _) = ticks(&mut host, now, 16, 200);
+    assert_eq!(asked, 0, "and then rested");
+}
+
+#[test]
+fn a_menu_fades_in_over_the_app_and_is_there_at_once_under_reduce_motion() {
+    let this_window = HostPress::Size(None);
+    for motion in [true, false] {
+        let mut shell = Shell::default();
+        let mut host = desktop(&mut shell, 1, true, (1280, 800));
+        host.app.press(Action::ReduceMotion(!motion));
+        let start = host.app.now_ms();
+        let (_, now) = ticks(&mut host, start, 16, 60);
+        // What the menu's first row will stand on, then the row at rest.
+        click(&mut host, HostPress::Menu(HostMenu::Size));
+        let (_, now) = ticks(&mut host, now, 16, 60);
+        let (x, y, _, _) = host.offered_area(this_window).expect("This window");
+        let open = pixel(&mut host, x + 4, y + 4);
+        host.event(Event::Back);
+        let (_, now) = ticks(&mut host, now, 16, 60);
+        let under = pixel(&mut host, x + 4, y + 4);
+        assert_ne!(under, open, "the menu stands over the app");
+        click(&mut host, HostPress::Menu(HostMenu::Size));
+        let (_, _) = ticks(&mut host, now, 16, 3);
+        let early = pixel(&mut host, x + 4, y + 4);
+        if motion {
+            assert!(
+                early != open && early != under,
+                "part of the way in: {early:?}"
+            );
+        } else {
+            assert_eq!(early, open, "under Reduce motion, whole at once");
+        }
+    }
+}
+
+#[test]
+fn a_roll_from_the_strip_is_in_the_entry_in_the_frame_that_shows_the_press() {
+    use faraday_core::vault::{RollerAct, RollerPerClick};
+    let roll = HostPress::App(Action::KRoller(RollerAct::Roll));
+    let mut shell = Shell::default();
+    let mut host = desktop(&mut shell, 0, true, (1280, 800));
+    host.app.press(Action::ReduceMotion(false));
+    host.app.press(Action::KeyGen(None));
+    host.app.press(Action::KWords(12));
+    host.app
+        .press(Action::KWay(faraday_core::keygen::Way::DiceHashed.index()));
+    host.app.press(Action::KNext);
+    let _ = host.frame();
+    // One value: in the entry with no tick between the press and the
+    // frame.
+    let before = host.app.keygen().unwrap().dice.len();
+    click(&mut host, roll);
+    assert_eq!(host.app.keygen().unwrap().dice.len(), before + 1);
+    // Five a click: all five at once.
+    click(&mut host, HostPress::Menu(HostMenu::Rolls));
+    click(
+        &mut host,
+        HostPress::App(Action::KRoller(RollerAct::Per(RollerPerClick::Five))),
+    );
+    click(&mut host, roll);
+    assert_eq!(host.app.keygen().unwrap().dice.len(), before + 6);
+    // The die tumbles a moment in the strip, and its values are the five.
+    assert!(
+        host.app.keygen().unwrap().roller.active(),
+        "the die tumbles"
+    );
+    let start = host.app.now_ms();
+    let _ = ticks(&mut host, start, 16, 60);
+    assert!(!host.app.keygen().unwrap().roller.active(), "and rests");
+    assert_eq!(host.app.keygen().unwrap().dice.len(), before + 6);
 }

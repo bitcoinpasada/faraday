@@ -743,6 +743,26 @@ pub const HOST_MENU_ROW: f32 = 48.0;
 /// Load samples' sheet in the host at its widest: Material's side
 /// sheet, 360 dp, narrowing to a menu's width in a preview's gutter.
 pub const HOST_SHEET_W: f32 = 360.0;
+/// The border round the app's frame that says where the pointer and the
+/// keys go: primary while they reach the app, outline-variant while they
+/// do not (`docs/DESKTOP-HOST.md` §4).
+pub const HOST_FOCUS_EDGE: f32 = 2.0;
+/// How long that border takes to change colour: Material's short 4, on
+/// its standard curve.
+pub const HOST_FOCUS_FADE_MS: u64 = MOTION_SHORT4;
+/// The outline of a stick pill the app asks for (`docs/DESKTOP-HOST.md`
+/// §3): primary, twice a control's outline.
+pub const HOST_MARK_EDGE: f32 = 2.0;
+/// One pulse of a stick pill the app asks for, its primary layer rising
+/// and falling: Material's extra long 4.
+pub const HOST_PULSE_MS: u64 = MOTION_EXTRA_LONG4;
+/// How many pulses the pill gives before it holds its highlight steady.
+pub const HOST_PULSES: u64 = 3;
+/// The primary layer at a pulse's height.
+pub const HOST_PULSE_LAYER: f32 = 0.24;
+/// The primary layer of a steady highlight: after the pulses, under
+/// Reduce motion and with fades off. Material's dragged state layer.
+pub const HOST_MARK_LAYER: f32 = STATE_DRAG;
 
 // Navigation by window class (`docs/LAYOUT.md` §3, §9), Material 3's
 // rail, bar and top app bar in Faraday's look.
@@ -1090,11 +1110,16 @@ pub const ROLLER_BOUNCE: f32 = 10.0;
 /// The roller's die: how far it tilts sideways in a tumble, at most.
 pub const ROLLER_SWAY: f32 = 6.0;
 
-/// The roller: how long one die tumbles before its value lands, ms.
+/// The codex32 five dice roller (`fresh/roller/five.rs`): how long its
+/// dice tumble before their values land, ms.
 pub const ROLLER_TUMBLE_MS: u64 = 700;
 
-/// The roller: the pause after a value lands before the next tumble
-/// starts, ms, so each value can be followed.
+/// The one-die roller (`fresh/roller/mod.rs`): how long the die tumbles
+/// after a click, whose values are entered at once: Material's short 4.
+pub const ROLLER_ONE_TUMBLE_MS: u64 = MOTION_SHORT4;
+
+/// The codex32 five dice roller: the pause after its values land before
+/// the next tumble starts, ms, so each can be followed.
 pub const ROLLER_PAUSE_MS: u64 = 350;
 
 /// The roller: how long a tumbling die shows one face before the next,

@@ -1,7 +1,7 @@
 # Faraday Demo as a simulator: the host
 
 **Kind:** Spec
-**Status:** Built (F118, `faraday/faraday-core/src/host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every practice aid of the screen on show, the preview frame centred above it, the pointer carried in; the host's colours the app's theme turned inside out, the screen's aids in a section of their own colour, the strip's row centred and scrolling sideways where it is wider than the window, its controls 48 dp tall whatever the window and the preview (§2, §3); Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the app draws no stick pill, Load samples, Preview size or "Demo only" card.
+**Status:** Built (F118, `faraday/faraday-core/src/host/`): the host holds the app, the strip at the window's foot with the sticks, Samples, Size and every practice aid of the screen on show, the preview frame centred above it, the pointer carried in; the host's colours the app's theme turned inside out, the screen's aids in a section of their own colour, the strip's row centred and scrolling sideways where it is wider than the window, its controls 48 dp tall whatever the window and the preview (§2, §3); Samples' sheet is the host's (§6); at the window's own size the shell copies the app's pixels into the window once (§9); the menus fade in and out (§5); a stick the app asks for has its pill marked, pulsing (§3); the app's frame carries a focus border (§4); the die's values are in the entry at the click (§3.2); the app draws no stick pill, Load samples, Preview size or "Demo only" card.
 **Open:** the website demo's shell holding the app in the host (in the website's own repository); planned.
 
 The owner asked (2026-10-25) that Faraday Demo read as a simulator of
@@ -42,14 +42,17 @@ pair one Material makes to read:
 |---|---|
 | The strip | the app's inverse surface |
 | Its labels; a chevron | the app's inverse on-surface |
-| A control's outline; the preview frame's edge; the scroll indicator | the host scheme's outline |
+| A control's outline; the scroll indicator | the host scheme's outline |
+| A preview frame's focus border (§4) | the host scheme's primary while the pointer or the keys reach the app, its outline-variant while they do not |
+| This window's focus border (§4), standing on the app's own edge | the app's primary, its outline-variant |
+| A stick pill the app asks for (§3) | a 2 dp outline in the app's inverse primary over a layer of it |
 | A control whose menu is open | filled in the app's inverse primary, its label in the inverse surface |
 | The space round a preview's frame | the host scheme's surface |
 | The screen's aids' section (§3) | the host scheme's tertiary container, its text and outlines on-tertiary-container |
 | The step's main press there (codex32's Next, Roll) | filled in tertiary, its label on-tertiary |
 | A menu; Samples' sheet | the host scheme's surface container, an outline-variant edge, on-surface text, on-surface-variant for headings, sizes and kinds |
 | The sheet's main press (Load ticked); a tick | primary, on-primary |
-| A stick's dot | OK while it is in, the outline while out; a warning edge while a flow asks for it |
+| A stick's dot | OK while it is in, the outline while out |
 | Not available now | its ink at Material's disabled opacities |
 | Hovered, pressed | Material's state layers in the control's ink |
 
@@ -68,7 +71,18 @@ The strip holds two kinds of control. Those always there come first:
    state ("Stick 2 · out"); a press puts it in or pulls it. Where they
    do not all fit beside the rest, the boot stick and as many as fit,
    then **Sticks · N** opening a menu of every stick that exists, in or
-   out, so a pulled one can be put back.
+   out, so a pulled one can be put back. A stick the app asks for (the
+   Pull sheet asking for every stick in to be pulled, the backup flow
+   asking for its next stick; `Pill::asked`) has its pill marked, and
+   **Sticks · N** where that stick is folded into it: a 2 dp primary
+   outline (`HOST_MARK_EDGE`) over a primary layer that pulses three
+   times (`HOST_PULSES`), each pulse Material's extra long 4
+   (`HOST_PULSE_MS`, 1 s) rising from the steady highlight
+   (`HOST_MARK_LAYER`, Material's dragged state layer) to
+   `HOST_PULSE_LAYER` and back, then holds the steady highlight; under
+   Reduce motion and with fades off (`docs/MOTION.md` §3.5) the steady
+   highlight alone. A newly asked stick pulses again; the mark ends when
+   the stick is moved as asked or the sheet closes.
 2. **Samples**, in Practice with samples set: opens Load samples' sheet,
    the host's (§6).
 3. **Size · <size shown>**: opens the Size menu (§5), which lists the
@@ -113,7 +127,7 @@ Every row of `docs/DEMO.md` §14.1 leaves the app area for the strip.
 | Add a key's words, a Restore slot's, New key's typed key | **Paste words**: the clipboard's words go into the words whole (F75); Ctrl+V does the same there, on Testnet too | button |
 | New key, a typed key | **Use a sample** | button |
 | New key, the Key card | **Use faraday** (passphrase, repeat); "Lock in adds sample … in place of these words" | button; line |
-| New key, the dice entry | the computer's die: the die, **Roll** (Stop while it rolls), Rolls per click | the roller (§3.2) |
+| New key, the dice entry | the computer's die: the die, **Roll**, Rolls per click | the roller (§3.2) |
 | Make codex32 shares, the entry | **Use a sample**; the walk's **Previous** (back through the computer's steps and the person's own faces alike, `docs/CODEX32.md` §5.5), **Next**, **Play** (Pause); **Play options** (how far Play runs, how fast); "Rolls dN" | buttons, Next filled; a menu; a line |
 | Make codex32 shares, the cards after the entry | "Practice puts sample NAME in place of these strings" | line |
 | Vaults, no vault in Files | **Use a sample** | button |
@@ -148,12 +162,16 @@ shares' walk and the rollers are read from the flow's state
 The computer's one die (New key's dice entry, Create a vault's
 Generate with dice; `docs/CODEX32.md` §5.6) stands first among the
 aids in their section: the die itself, drawn by the roller's own code
-(`fresh/roller/screen.rs`, `die_alone`) in the host scheme (§2),
-tumbling while a click rolls; then **Roll** (**Stop**
-while a click rolls; filled as the step's main press, dimmed once the
-entries are full) and **Rolls per click · 1**, which opens a menu of
+(`fresh/roller/screen.rs`, `die_alone`) in the host scheme (§2); then
+**Roll** (filled as the step's main press, dimmed once the entries are
+full; **Stop** only while a click waits for this computer's randomness)
+and **Rolls per click · 1**, which opens a menu of
 1, 5, 10, To the end and Number (Number takes the count typed on the
-keyboard, which the control then shows). The strip grows to the die's
+keyboard, which the control then shows). A click's values, one or
+many, are in the entry in the frame that shows the press (owner,
+2026-10-25); the die then tumbles for Material's short 4
+(`ROLLER_ONE_TUMBLE_MS`, 200 ms) and shows the last value, not at all
+under Reduce motion. The strip grows to the die's
 height with its bounce (`ROW_H`, 62 dp, and an 8 dp gap above and
 below) only while the die shows; the app is laid out above it.
 
@@ -167,20 +185,36 @@ of the app (the pill reads Practice · Testnet); only its aids move. Faraday
 Demo's own differences that F117 keeps (sticks as folders, Quit,
 Transfer, Make PDF, paste, the seed line, the wordmark) stay in the app.
 
+A focus border says where the pointer and the keys go: `HOST_FOCUS_EDGE`
+(2 dp) round the app's frame, in This window on the app's own edge
+above the strip (drawn over the app's frame as the host shows it), for
+a preview just outside the frame. It is primary while the pointer is
+over the app's frame, or a key has reached the app since the pointer
+last left it, and outline-variant once the pointer goes to the strip,
+a menu, the host's space round a preview or out of the window, and
+while the window has lost the keyboard to another (`Event::Focus`, which
+the desktop shell sends); the window opens with the keys the app's. It
+changes colour over Material's short 4 (`HOST_FOCUS_FADE_MS`) on the
+standard curve, at once under Reduce motion and with fades off. Its
+colours are §2's: the app's own roles in This window, where it stands
+on the app, the host scheme's round a preview.
+
 ## 5. The menus
 
-Each opens up from its control on the strip: Material's menu, 280 dp
-(`HOST_MENU_W`), rows 48 dp (`HOST_MENU_ROW`) with title-medium labels, in on the emphasized
-decelerate over medium 1, out on the emphasized accelerate over short 3,
-at once under Reduce motion. A press outside closes it and does nothing
+Each stands up from its control on the strip: Material's menu, 280 dp
+(`HOST_MENU_W`), rows 48 dp (`HOST_MENU_ROW`) with title-medium labels,
+fading in over Material's medium 1 on the standard decelerate and out
+over its short 3 on the standard accelerate (owner, 2026-10-25), at
+once under Reduce motion and with fades off (`docs/MOTION.md` §3.5).
+A row takes a press while the menu fades in, none while it fades out. A press outside closes it and does nothing
 else; a choice acts and closes it. Sticks: every stick with its dot.
 Size: the sizes with their dp, the one shown checked. Play options: "Play
 runs" and "Speed" as headings over their choices, the chosen checked.
 More: the aids with no room (and Samples, narrowest). Rolls per click:
 1, 5, 10, To the end, Number, the chosen checked.
 
-**Samples' sheet** opens and closes as the menus do, from the strip's
-top, in the host's look (§2): the title, "In Practice, the sample passphrase is
+**Samples' sheet** opens and closes as the menus do, fading, above the
+strip's top, in the host's look (§2): the title, "In Practice, the sample passphrase is
 faraday", where a stick is in the line that it must be pulled, Select
 all (Unselect all while any is ticked), the sample wallets and keys as
 48 dp rows with a tick box, a loaded one ticked and dimmed, taking no
@@ -220,6 +254,16 @@ a stick in, the app's Pull sheet asks for it out, as on the device.
 - **48 dp controls with title-medium labels at every window size**
   (owner, 2026-10-26, from Material 3): the strip grows to hold them and
   scrolls sideways rather than shrink them; the row is centred.
+- **The host's menus fade** (owner, 2026-10-25): Material's fade
+  pattern, on its short and medium durations and standard easing, in
+  place of the menu's own unrolling, which read as heavy over the app.
+- **A stick the app asks for pulses a few times, then holds** (owner,
+  2026-10-25, a pulse; the count is this pass's): Material asks for
+  emphasis drawn once, and a pulse that ran for as long as a sheet waits
+  would keep the window drawing.
+- **The focus border stands on the app's edge in This window**: the
+  window leaves no room round the app there, and the app laid out 4 dp
+  smaller would no longer be the device at the window's size.
 - **Size gives up its size's name before an aid leaves the strip, and
   the step's main press is the last aid to go into More**: Material's
   overflow keeps the actions and shortens labels first; the size shown
@@ -273,7 +317,21 @@ centred at 1280 and 1920; 48 dp tall at 1280 × 800, 1920 × 1080,
 2560 × 1440, a half screen and a phone held upright, the Pi previewed
 keeping the window's strip; at the narrowest the row scrolls under the
 wheel and a finger, its end reached and More opened, a drag pressing
-nothing.
+nothing. A menu fading in stands part of the way over the app a few
+frames in, and whole at once under Reduce motion. The stick the app
+asks for: its pill marked while the Pull sheet waits and not once the
+stick is pulled, steady and asking for no frame under Reduce motion;
+with motion, pulsing a while, then holding its mark with the window at
+rest; in the Pi preview the pulse's frames place the app's frame not
+once; Sticks · N marked where the stick asked for is folded into it.
+The focus border: primary at the start, outline-variant with the
+pointer on the strip or out of the window, primary again over the app
+or after a key, outline-variant while the window has lost the keys;
+the preview's border in the host scheme; with motion, part of the way
+a few frames after the pointer leaves, then at rest. A Roll from the
+strip, one value or five, in the entry with no tick between the press
+and the frame, the die tumbling a moment after. The idle window asks
+for no frame after a hover onto the strip and back (`an_idle_demo_asks_for_no_frame_at_any_size`).
 
 ## 9. Speed
 
@@ -302,9 +360,10 @@ a key, This window and the Pi preview): at 1366 × 768 0.08, 0.11 and
 0.49–1.01 and 1.41–4.72 ms after, the spread the build machine's other
 work at the time.
 
-At rest the host asks for no frame. A tick asks for one only while a
-host menu or Samples' sheet is part of the way in or out, and for the
-frame after that shows it at rest (`Host::drawn_moving`); the app asks
+At rest the host asks for no frame. A tick asks for one only while the
+host's own motion runs (a menu or Samples' sheet fading in or out, the
+focus border changing colour, a stick pill's pulses) and for the frame
+after that shows it at rest (`Host::drawn_moving`); the app asks
 for its own through `poll_command`, and every other event the host
 takes still asks for one. Before (2026-10-26), each tick fell through
 to a request for a frame, and on Wayland every redraw sends a tick, so
@@ -328,3 +387,16 @@ each, softbuffer's pools), so the buffers come to about 47 MiB where
 they were about 61. The allocator may keep the room a dropped canvas
 held for the next one, so the process's resident size after a menu
 has been open can stay where it was.
+
+The host's motion is light. A menu or Samples' sheet fading copies the
+pixels it stands on once a frame and blends them with what it drew
+(`Canvas::copy_region`, `Canvas::fade_region`), for its own rectangle
+alone. The focus border is four thin fills a frame. A stick pill's
+pulse redraws the strip alone: at the window's own size the host draws
+nothing but the strip anyway, and where it holds the whole window (a
+preview) a frame that only the pulse asked for, with nothing else
+changed since the whole frame was drawn and no menu open, draws the
+strip again over the frame it holds, clipped to the strip, and neither
+clears the window nor places the app's frame (`Host::paint`). After
+every event the host reads which sticks the app asks for
+(`Faraday::stick_pills`), a lookup.

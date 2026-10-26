@@ -41,7 +41,7 @@ CRATES = [
 ]
 # Single files of crates too large to hash whole, whose results an area
 # checks: the session's fresh randomness and what a person adds
-# (`own-randomness`), Faraday Desktop's dice rollers (`roller`), and the
+# (`own-randomness`), Faraday Demo's dice rollers (`roller`), and the
 # picture a Codex32QR is written as (`seedqr`).
 FILES = ["faraday/faraday-core/src/fresh.rs", "faraday/faraday-core/src/fresh/roller/mod.rs",
          "faraday/faraday-core/src/fresh/roller/five.rs", "faraday/faraday-core/src/picture.rs"]

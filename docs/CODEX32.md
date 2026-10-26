@@ -932,9 +932,11 @@ one die drawn the same way, with **Rolls per click**: 1 (the default)
 · 5 · 10 · To the end, or a number typed. It stands beside the pad and
 its entries, which stay for real dice exactly as the stick shows them
 (DESIGN §4's dice pad: the entries in groups of five, the progress line);
-the person uses either, or both. Each rolled value lands on the pad's
-entries as a press would, with the same pause and the same Reduce motion
-rule, and the same honesty: "Rolled by this computer" over the die, and
+the person uses either, or both. A click's values land on the pad's
+entries as presses would, all at once in the frame that shows the click
+(owner, 2026-10-25); the die then tumbles for Material's short 4
+(`ROLLER_ONE_TUMBLE_MS`, 200 ms) and shows the last, with no tumble
+under Reduce motion; and the same honesty: "Rolled by this computer" over the die, and
 "simulated dice" on the result's entropy line ("simulated dice and your
 dice" where both were used). The flows themselves are
 unchanged; FLOWS and DESIGN take this (§15.3).

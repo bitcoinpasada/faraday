@@ -1,7 +1,8 @@
 //! The dice roller of Faraday Demo beside Generate with dice
 //! (`docs/CODEX32.md` §5.6): a roll fills the rolls as the keys would,
-//! its values are marked as this computer's, Rolls per click, Reduce
-//! motion, and the roller is not offered on a device shell.
+//! its values are marked as this computer's and entered at the click,
+//! Rolls per click, Reduce motion, and the roller is not offered on a
+//! device shell.
 
 use faraday_bip::diceware::List;
 use faraday_core::vault::VaultAction as V;
@@ -148,30 +149,27 @@ fn rolls_per_click_is_one_five_ten_a_typed_number_or_to_the_end() {
 }
 
 #[test]
-fn reduce_motion_skips_the_tumble_and_the_pause() {
-    // With motion: a click starts a tumble, nothing has landed yet, and
-    // the values land one at a time, a pause apart.
+fn a_rolls_values_are_entered_at_the_click_and_the_die_tumbles_a_moment() {
+    // With motion: the click's five values are in the rolls at once, and
+    // the die tumbles a moment after, then rests.
     let mut app = rolling(true, false);
     app.press(roller(Act::Per(PerClick::Five)));
     let t0 = app.now_ms();
     app.press(roller(Act::Roll));
-    assert!(rolls(&app).is_empty(), "no value before the tumble ends");
-    tick(&mut app, t0 + 100);
-    assert!(rolls(&app).is_empty());
+    assert_eq!(rolls(&app).len(), 5, "all five at the click");
+    tick(&mut app, t0 + 16);
+    assert_eq!(rolls(&app).len(), 5, "and no more after it");
+    assert!(app.vaults().roller.progress() > 0.0, "the die tumbles");
     tick(&mut app, t0 + 1_000);
-    assert_eq!(rolls(&app).len(), 1, "one lands when the tumble ends");
-    tick(&mut app, t0 + 1_100);
-    assert_eq!(rolls(&app).len(), 1, "and the next waits for its pause");
-    for i in 1..=100u64 {
-        tick(&mut app, t0 + 1_100 + i * 100);
-    }
+    assert!(!app.vaults().roller.active(), "and rests");
     assert_eq!(rolls(&app).len(), 5);
 
-    // Reduce motion: all five at the click.
+    // Reduce motion: all five at the click too, and no tumble.
     let mut app = rolling(true, true);
     app.press(roller(Act::Per(PerClick::Five)));
     app.press(roller(Act::Roll));
     assert_eq!(rolls(&app).len(), 5);
+    assert!(!app.vaults().roller.active(), "no tumble");
 }
 
 #[test]
@@ -187,16 +185,11 @@ fn a_device_shell_has_no_roller() {
 }
 
 #[test]
-fn stop_ends_a_click_and_a_list_change_starts_the_rolls_over() {
+fn a_list_change_starts_the_rolls_over() {
     let mut app = rolling(true, false);
     app.press(roller(Act::Per(PerClick::Ten)));
-    let t0 = app.now_ms();
     app.press(roller(Act::Roll));
-    tick(&mut app, t0 + 1_000);
-    assert_eq!(rolls(&app).len(), 1);
-    app.press(roller(Act::Stop));
-    tick(&mut app, t0 + 30_000);
-    assert_eq!(rolls(&app).len(), 1);
+    assert_eq!(rolls(&app).len(), 10);
     app.press(Action::Vault(V::DiceList(1)));
     assert!(rolls(&app).is_empty());
 }

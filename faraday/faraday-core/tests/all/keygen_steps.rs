@@ -88,19 +88,18 @@ fn make_codex32_shares_cards_are_steps_of_new_key() {
 }
 
 #[test]
-fn a_rollers_click_under_way_takes_no_back() {
+fn a_rollers_click_is_done_at_once_so_back_goes_back() {
     let mut app = on_rolls();
     app.set_roller_offered(true);
     faraday_core::testkit::into_demo(&mut app);
     for i in 0..4u8 {
         app.event(Event::Entropy(EntropyBytes::new([0x31 + i; 32])));
     }
+    let before = app.keygen().unwrap().dice.len();
     app.press(Action::KRoller(RollerAct::Roll));
+    assert_eq!(app.keygen().unwrap().dice.len(), before + 1, "rolled");
     button(&mut app, Event::Back);
-    assert_eq!(open(&app), Some(kstep::ENTER), "the click rolls on");
-    app.press(Action::KRoller(RollerAct::Stop));
-    button(&mut app, Event::Back);
-    assert_eq!(open(&app), Some(kstep::SOURCE));
+    assert_eq!(open(&app), Some(kstep::SOURCE), "nothing under way");
 }
 
 #[test]

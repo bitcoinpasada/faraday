@@ -105,7 +105,7 @@ pub enum Making {
     /// the secret's sheet.
     Rest(u8),
     /// As [`Making::Rest`], the strings to write being the whole set, the
-    /// strings given among them, in index order: Demo's sample in place
+    /// strings given among them, in index order: Practice's sample in place
     /// of a set entered (`docs/CODEX32.md` §12).
     All(u8),
     /// Add a share: the one string at this index.

@@ -355,6 +355,15 @@ extent; a motion left from another screen or sheet is stopped.
     pacing, which doubled or dropped a frame every few seconds: a fade
     shows every such slip as a flicker in brightness. With frames paced
     by the compositor (§3.2) they are tried again;
+  - Faraday Demo's host (`docs/DESKTOP-HOST.md` §3 to §5; owner,
+    2026-10-25): its menus and Samples' sheet fade in over Material's
+    medium 1 on the standard decelerate and out over its short 3 on the
+    standard accelerate; the focus border round the app's frame changes
+    colour over short 4 on the standard curve; a stick pill the app asks
+    for pulses three times, then holds its highlight; the one die tumbles
+    for short 4 after its values are entered. Each is at once (the pulse
+    a steady highlight) under Reduce motion and while the gate below has
+    fades off, and each asks for frames only while it runs;
   - the Guided / Steps only switch's pill slides between its options;
   - the codex32 checksum worksheet's view follows the entry's work
     (`docs/CODEX32.md` §7.5, owner 2026-10-24) as smoothly as the

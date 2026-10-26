@@ -2012,8 +2012,8 @@ impl crate::Faraday {
     }
 
     /// A press on the one-die roller beside the dice pad, on Faraday
-    /// Desktop only (`docs/CODEX32.md` §5.6). Under Reduce motion a
-    /// click's values land at once.
+    /// Demo only (`docs/CODEX32.md` §5.6). A click's values are entered
+    /// at once, in the frame that shows the press.
     fn keygen_roller(&mut self, r: crate::fresh::roller::Act) {
         use crate::fresh::roller::Act;
         if !self.roller_offered() {
@@ -2026,7 +2026,7 @@ impl crate::Faraday {
         let room = k.roller_room();
         k.roller.act(r, room, now);
         k.roller_typing = r == Act::Count;
-        if r == Act::Roll && self.reduce_motion() {
+        if r == Act::Roll {
             self.keygen_tick(now);
         }
     }

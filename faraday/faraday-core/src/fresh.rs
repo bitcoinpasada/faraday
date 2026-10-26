@@ -190,7 +190,7 @@ pub(crate) struct Fresh {
     sign_draws: u64,
     /// Fresh answers waiting for the next key.
     pool: Vec<Zeroizing<[u8; 32]>>,
-    /// The shell offers the dice roller (Faraday Desktop only).
+    /// The shell offers the dice roller (Faraday Demo only).
     roller: bool,
     /// The shell has a pointer and keys, and Add randomness offers
     /// Pointer and keys (the desktop app).
@@ -348,15 +348,15 @@ impl Faraday {
         self.fresh.take(what, &mut self.out)
     }
 
-    /// The shell is Faraday Desktop and offers the dice roller
+    /// The shell is Faraday Demo and offers the dice roller
     /// (`docs/CODEX32.md` §5.6): its values are this computer's
     /// randomness. Never set on the stick, the Pi or the website.
     pub fn set_roller_offered(&mut self, on: bool) {
         self.fresh.roller = on;
     }
 
-    /// Whether the dice roller is offered now: Faraday Desktop in Demo,
-    /// with keys allowed to load. It stands in the "Demo only" card, and
+    /// Whether the dice roller is offered now: Faraday Demo in Practice,
+    /// with keys allowed to load. It stands in the host's strip, and
     /// in every other mode it is not offered at all (owner, 2026-10-24;
     /// `docs/DEMO.md` §14).
     pub fn roller_offered(&self) -> bool {

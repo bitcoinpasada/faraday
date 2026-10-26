@@ -149,6 +149,29 @@ pub struct Host {
     /// Recording where the host's text and icons leave their ink
     /// ([`Host::record_ink`]).
     ink_on: bool,
+    /// What says where the pointer and the keys go
+    /// (`docs/DESKTOP-HOST.md` §4): the pointer is over the app's frame;
+    /// a key reached the app since the pointer last went to the strip or
+    /// left the window (so at the start); the window has the keyboard.
+    pointer_in: bool,
+    keys_in: bool,
+    window_focus: bool,
+    /// The focus border lit (the pointer or the keys reach the app), and
+    /// the change to it under way: how lit it was, 0 to 1, and when it
+    /// began; `None` at rest.
+    edge_on: bool,
+    edge_move: Option<(f32, u64)>,
+    /// The sticks the app asks for, as last seen ([`Host::sync_asked`]),
+    /// and when they were first asked for: their pills pulse from then.
+    asked: Vec<usize>,
+    pulse_at: u64,
+    /// An event other than a tick came since the frame last drawn whole:
+    /// a frame that host motion on the strip alone asks for draws the
+    /// strip and nothing else while this is false.
+    stale: bool,
+    /// The frame last drawn whole showed a menu or the focus border part
+    /// of the way.
+    drawn_whole_moving: bool,
 }
 
 impl Host {
@@ -181,6 +204,15 @@ impl Host {
             strip_max: 0.0,
             drag: None,
             ink_on: false,
+            pointer_in: false,
+            keys_in: true,
+            window_focus: true,
+            edge_on: true,
+            edge_move: None,
+            asked: Vec::new(),
+            pulse_at: 0,
+            stale: true,
+            drawn_whole_moving: false,
         }
     }
 
@@ -207,6 +239,7 @@ impl Host {
     /// `None`.
     pub fn set_preview(&mut self, size: Option<(u16, u16)>) {
         self.preview = size.filter(|_| !self.bare);
+        self.stale = true;
         self.relayout();
     }
 
@@ -219,6 +252,7 @@ impl Host {
         }
         self.menu = Some((menu, None));
         self.leaving = None;
+        self.stale = true;
     }
 
     /// The menu open now, if any.
@@ -473,7 +507,7 @@ impl Host {
 
     fn close_menu(&mut self) {
         if let Some((m, _)) = self.menu.take()
-            && !self.app.reduce_motion()
+            && self.app.fades()
         {
             self.leaving = Some((m, self.now));
         }
@@ -540,6 +574,11 @@ impl Host {
         }
         match phase {
             TouchPhase::Down => {
+                // A press goes where the pointer is, and the keys with it.
+                self.pointer_in = self.hit_at(px, py).is_none()
+                    && self.menu.is_none()
+                    && area.is_some_and(|a| a.inside(px, py));
+                self.keys_in = self.pointer_in;
                 if let Some(h) = self.hit_at(px, py) {
                     self.held = Held::Host;
                     self.pressed = Some(h);
@@ -615,11 +654,28 @@ impl Host {
         } else {
             0
         };
+        // Only the strip moves (a pill pulsing), no menu stands over the
+        // app, and nothing else changed since the window's whole frame was
+        // last drawn: the strip alone is drawn again over it, so the pulse
+        // costs a strip, not the window (`docs/DESKTOP-HOST.md` §9).
+        let strip_only = unplaced.is_none()
+            && self.menu.is_none()
+            && self.leaving.is_none()
+            && !self.stale
+            && !self.ink_on
+            && !self.drawn_whole_moving
+            && !self.whole_moving()
+            && !self.app.paints_next()
+            && self.canvas.as_ref().is_some_and(|c| {
+                c.width() == i32::from(d.width) && c.height() == i32::from(d.height)
+            });
         let mut canvas = self.canvas_for(&d, unplaced.is_some());
         // At the window's own size the app's frame covers all above the
         // strip, which the strip's drawing fills: only a preview needs
         // the host's space round its frame.
-        if let Some(c) = canvas.as_mut() {
+        if let Some(c) = canvas.as_mut()
+            && !strip_only
+        {
             if self.preview.is_some() || area.is_none() {
                 c.clear(screen::Look::now(self).surround);
             } else if self.ink_on && unplaced.is_none() {
@@ -627,8 +683,12 @@ impl Host {
                 c.record_ink(true);
             }
         }
-        if let Some(a) = area {
-            let frame = self.app.frame();
+        if let Some(a) = area
+            && !strip_only
+        {
+            let _ = self.app.frame();
+            self.edge_on_app();
+            let frame = painted(&self.app);
             if unplaced.is_none()
                 && let Some(c) = canvas.as_mut()
             {
@@ -640,6 +700,10 @@ impl Host {
         if let Some(c) = canvas.as_mut()
             && !self.bare
         {
+            if strip_only {
+                let h = self.strip_px();
+                c.push_clip(Rect::new(0, i32::from(d.height) - h, i32::from(d.width), h));
+            }
             let mut ui = faraday_ui::Ui::new(c, self.f(), &mut hits, self.pressed);
             ui.hovered = self.hovered;
             let drawn = screen::draw(self, &mut ui, area, self.strip_scroll);
@@ -647,6 +711,9 @@ impl Host {
             self.sheet_view = drawn.sheet;
             self.strip_max = drawn.strip_max;
             self.strip_scroll = self.strip_scroll.min(drawn.strip_max);
+            if strip_only {
+                c.pop_clip();
+            }
         }
         // Drawn on the strip's own canvas, its presses stand where the
         // strip stands in the window.
@@ -655,6 +722,13 @@ impl Host {
         }
         self.hits = hits;
         self.drawn_moving = self.moving();
+        if unplaced.is_none() && !strip_only {
+            self.stale = false;
+            self.drawn_whole_moving = self.whole_moving();
+        }
+        if unplaced.is_some() {
+            self.stale = true;
+        }
         if self.drawn_moving {
             self.out.push_back(Command::Draw);
         }
@@ -699,9 +773,17 @@ impl Host {
         }))
     }
 
-    /// Whether a menu is part of the way in or out.
+    /// Whether the host's own motion runs: a menu fading in or out, the
+    /// focus border changing colour, a stick pill pulsing. None under
+    /// Reduce motion or with fades off (`docs/MOTION.md` §3.5).
     fn moving(&self) -> bool {
-        if self.app.reduce_motion() {
+        self.whole_moving() || self.pulsing()
+    }
+
+    /// Whether a menu fades in or out or the focus border changes colour:
+    /// motion over or round the app's frame, which a frame draws whole.
+    fn whole_moving(&self) -> bool {
+        if !self.app.fades() {
             return false;
         }
         let opening = self
@@ -711,8 +793,170 @@ impl Host {
         let closing = self
             .leaving
             .is_some_and(|(_, at)| self.now.saturating_sub(at) < crate::motion::MENU_OUT_MS);
-        opening || closing
+        let edge = self
+            .edge_move
+            .is_some_and(|(_, at)| self.now.saturating_sub(at) < t::HOST_FOCUS_FADE_MS);
+        opening || closing || edge
     }
+
+    /// Whether a stick pill the app asks for is pulsing: its pulses not
+    /// yet run, fades on. Arithmetic.
+    fn pulsing(&self) -> bool {
+        !self.asked.is_empty()
+            && self.app.fades()
+            && self.now.saturating_sub(self.pulse_at) < t::HOST_PULSE_MS * t::HOST_PULSES
+    }
+
+    /// The primary layer on a stick pill the app asks for now: rising and
+    /// falling from the steady highlight while it pulses, steady after,
+    /// under Reduce motion and with fades off. Arithmetic.
+    pub(crate) fn mark_layer(&self) -> f32 {
+        if !self.pulsing() {
+            return t::HOST_MARK_LAYER;
+        }
+        let into = self.now.saturating_sub(self.pulse_at) % t::HOST_PULSE_MS;
+        let rise = (std::f32::consts::PI * into as f32 / t::HOST_PULSE_MS as f32).sin();
+        t::HOST_MARK_LAYER + (t::HOST_PULSE_LAYER - t::HOST_MARK_LAYER) * rise
+    }
+
+    /// Whether the pointer or the keys reach the app now: the focus
+    /// border's target. A lookup.
+    fn focus_now(&self) -> bool {
+        self.window_focus && (self.pointer_in || self.keys_in)
+    }
+
+    /// How lit the focus border is now, 0 (outline-variant) to 1
+    /// (primary): on Material's standard curve over
+    /// `HOST_FOCUS_FADE_MS` while it changes. Arithmetic.
+    pub(crate) fn edge_shown(&self) -> f32 {
+        let to = if self.edge_on { 1.0 } else { 0.0 };
+        match self.edge_move {
+            Some((from, at)) if self.app.fades() => {
+                let p = crate::motion::progress(Some(at), self.now, t::HOST_FOCUS_FADE_MS);
+                from + (to - from) * crate::motion::ease_move(p)
+            }
+            _ => to,
+        }
+    }
+
+    /// Starts the focus border's change where the pointer or the keys
+    /// moved into or out of the app, from how lit it is now.
+    fn sync_focus(&mut self) {
+        let on = self.focus_now();
+        if on == self.edge_on {
+            return;
+        }
+        let from = self.edge_shown();
+        self.edge_on = on;
+        self.edge_move = self.app.fades().then_some((from, self.now));
+        self.out.push_back(Command::Draw);
+    }
+
+    /// Notes the sticks the app asks for now (`Pill::asked`); where one
+    /// is newly asked for, the pulse starts again. A lookup of the pills.
+    fn sync_asked(&mut self) {
+        if self.bare || !self.app.shell_sticks {
+            return;
+        }
+        let asked: Vec<usize> = self
+            .app
+            .stick_pills()
+            .into_iter()
+            .filter(|p| p.asked)
+            .map(|p| p.n)
+            .collect();
+        if asked == self.asked {
+            return;
+        }
+        if asked.iter().any(|n| !self.asked.contains(n)) {
+            self.pulse_at = self.now;
+        }
+        self.asked = asked;
+        self.out.push_back(Command::Draw);
+    }
+
+    /// The focus border round the app's frame at the window's own size,
+    /// `HOST_FOCUS_EDGE` wide inside its edge, drawn on the app's frame
+    /// as it stands: the app's primary while the pointer or the keys
+    /// reach it, its outline-variant while they do not. Costs four thin
+    /// fills.
+    fn edge_on_app(&mut self) {
+        if self.bare || self.preview.is_some() {
+            return;
+        }
+        let theme = self.app.theme();
+        let color = theme
+            .role(faraday_ui::Role::OutlineVariant)
+            .mix(theme.role(faraday_ui::Role::Primary), self.edge_shown());
+        let e = edge_px(self.f());
+        let Some(c) = self.app.canvas.as_mut() else {
+            return;
+        };
+        let (w, h) = (c.width(), c.height());
+        for r in [
+            Rect::new(0, 0, w, e),
+            Rect::new(0, h - e, w, e),
+            Rect::new(0, e, e, h - 2 * e),
+            Rect::new(w - e, e, e, h - 2 * e),
+        ] {
+            c.fill_rect(r, color);
+        }
+    }
+
+    /// A tick: the host's motion moved on, the app ticked.
+    fn tick(&mut self, now_ms: u64) {
+        self.now = now_ms;
+        if self
+            .leaving
+            .is_some_and(|(_, at)| now_ms.saturating_sub(at) >= crate::motion::MENU_OUT_MS)
+        {
+            self.leaving = None;
+        }
+        if self
+            .edge_move
+            .is_some_and(|(_, at)| now_ms.saturating_sub(at) >= t::HOST_FOCUS_FADE_MS)
+        {
+            self.edge_move = None;
+        }
+        self.app.event(Event::Tick { now_ms });
+        self.relayout();
+        self.sync_asked();
+        // A tick asks for a frame only while the host's own motion
+        // runs (a menu fading, the focus border, a pill pulsing),
+        // and for the one after that shows it at rest; the app
+        // asks for its own through `poll_command`. An idle window
+        // draws nothing (`docs/DESKTOP-HOST.md` §9).
+        if self.drawn_moving || self.moving() {
+            self.out.push_back(Command::Draw);
+        }
+    }
+
+    /// The pointer moved over the window with no button down, at (`x`,
+    /// `y`): a host control hovered, or the app's frame at its own pixel.
+    fn hover(&mut self, x: u16, y: u16) {
+        let (px, py) = (i32::from(x), i32::from(y));
+        self.hovered = self.hit_at(px, py);
+        match self.area().filter(|a| a.inside(px, py)) {
+            Some(a) if self.hovered.is_none() => {
+                self.pointer_in = true;
+                let (x, y) = a.to_app(px, py);
+                self.app.event(Event::Hover { x, y });
+            }
+            _ => {
+                // On the strip, a menu or the host's space: the
+                // keys go to the app only once a key is pressed.
+                self.pointer_in = false;
+                self.keys_in = false;
+                self.app.event(Event::HoverEnd);
+            }
+        }
+    }
+}
+
+/// The focus border's width in the window's pixels at `f` pixels a dp:
+/// one at least. Arithmetic.
+pub(crate) fn edge_px(f: f32) -> i32 {
+    (t::HOST_FOCUS_EDGE * f).round().max(1.0) as i32
 }
 
 /// The app's frame as last painted, without painting: the host has had
@@ -766,38 +1010,21 @@ impl App for Host {
             // The shell's size, kept across a lock.
             Event::PreviewOffered { chosen } => self.set_preview(chosen),
             Event::Tick { now_ms } => {
-                self.now = now_ms;
-                if self
-                    .leaving
-                    .is_some_and(|(_, at)| now_ms.saturating_sub(at) >= crate::motion::MENU_OUT_MS)
-                {
-                    self.leaving = None;
-                }
-                self.app.event(event);
-                self.relayout();
-                // A tick asks for a frame only while the host's own menu
-                // moves, and for the one after that shows it at rest; the
-                // app asks for its own through `poll_command`. An idle
-                // window draws nothing (`docs/DESKTOP-HOST.md` §9).
-                if self.drawn_moving || self.moving() {
-                    self.out.push_back(Command::Draw);
-                }
+                self.tick(now_ms);
                 return;
             }
             Event::Touch { x, y, phase } => self.touch(x, y, phase),
-            Event::Hover { x, y } => {
-                let (px, py) = (i32::from(x), i32::from(y));
-                self.hovered = self.hit_at(px, py);
-                match self.area().filter(|a| a.inside(px, py)) {
-                    Some(a) if self.hovered.is_none() => {
-                        let (x, y) = a.to_app(px, py);
-                        self.app.event(Event::Hover { x, y });
-                    }
-                    _ => self.app.event(Event::HoverEnd),
-                }
-            }
+            Event::Hover { x, y } => self.hover(x, y),
             Event::HoverEnd => {
                 self.hovered = None;
+                self.pointer_in = false;
+                self.keys_in = false;
+                self.app.event(event);
+            }
+            // The window's focus is the host's: the app has no use for it.
+            Event::Focus(on) => self.window_focus = on,
+            Event::Key(_) => {
+                self.keys_in = true;
                 self.app.event(event);
             }
             Event::Scroll { x, y, dy } | Event::Wheel { x, y, dy } => {
@@ -847,6 +1074,9 @@ impl App for Host {
         // The strip grows while a roller is on the page: the app is laid
         // out again above it.
         self.relayout();
+        self.sync_focus();
+        self.sync_asked();
+        self.stale = true;
         self.out.push_back(Command::Draw);
     }
 

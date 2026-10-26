@@ -452,7 +452,7 @@ impl Keys {
     }
 
     /// Whether the demo is on: the shell set it up ([`Keys::set_demo`]).
-    /// The network does not matter; the shell puts Demo on Testnet.
+    /// The network does not matter; the shell puts Practice on Testnet.
     pub fn demo(&self) -> bool {
         self.demo.is_some()
     }
