@@ -2,7 +2,7 @@
 
 **Kind:** Spec
 **Status:** Built, except §7
-**Open:** §7 batch Q1 (F28), not scheduled; a descriptor scanned while Create waits goes to Files, not into the flow.
+**Open:** §7 batch Q1 (F28), not scheduled.
 
 Faraday has one scanner and one QR sender, shared by the Wallets tab
 and the QR transfer tab. The sender's codes are made by `faraday-qr`'s
@@ -75,7 +75,7 @@ open.
 | Typed or pasted text as a way in | paste | Type everywhere; Paste on the desktop (§8 item 5), a seed's included (F75); no clipboard on the stick or the Pi |
 | Text files from a stick as a way in | yes | yes, from the Inbox |
 | A scanned address or `bitcoin:` URI checked against the first 100 receive and change addresses of each loaded wallet, not filed | no | yes |
-| A descriptor scanned while Create waits goes into the flow | n/a | Not built: it goes to Files (a cosigner's key does fill the waiting slot) |
+| A descriptor scanned while Create waits goes into the flow | n/a | yes: a descriptor of one key with its origin, at the wallet's kind and on its network, fills the waiting slot as a cosigner's key does; one of several keys, or one that cannot be that key, stays in Files and the toast says why (`docs/FLOWS.md`, the Keys card) |
 | A code drawn by hand scanned back to check it, never loaded | n/a | yes: a SeedQR on its copy item (`CheckCopy`), a codex32 string's Codex32QR on its item (`CheckCodex32`, `docs/BACKUP-FLOW.md` §17.24); the grid to copy it from is marked block by block or row by row (owner, 2026-10-24) |
 
 ## 2. Routing

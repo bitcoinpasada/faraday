@@ -4565,15 +4565,9 @@ impl Faraday {
             self.toast(&fill(EN.scanned_is_a_cosigner, &[&name.to_string()]));
             return;
         }
-        // A cosigner's key scanned while a wallet is being made fills the
-        // slot waiting for one.
-        if is_key && let Some(slot) = self.create_waiting_slot() {
-            self.act(Action::CSlotFile(slot, at));
-            self.toast(&fill(
-                EN.scanned_is_key,
-                &[&name.to_string(), &(slot + 1).to_string()],
-            ));
-            self.screen = Screen::Create;
+        // A cosigner's key, or a descriptor of one, scanned while a wallet
+        // is being made goes to the slot waiting for one.
+        if self.create_scan_arrived(&c, at, &name) {
             return;
         }
         if self.family_arrived(at) {

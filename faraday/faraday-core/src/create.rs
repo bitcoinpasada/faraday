@@ -522,48 +522,153 @@ pub fn read_keys(text: &str) -> Vec<String> {
         .collect()
 }
 
-/// The key in a file for a slot of a `kind` wallet: of the keys the file
-/// offers, the one at the kind's derivation (any account, any network);
-/// or, from a file that holds one key only, that key, as the person chose
-/// the file for it. None for Single key, backup in shares, whose key is
-/// made here as codex32 shares.
+/// The key in a file for a slot of a `kind` wallet ([`key_for_slot`]),
+/// when there is one.
 pub fn key_for(kind: NewKind, text: &str) -> Option<String> {
-    if kind.shares() {
-        return None;
-    }
-    let keys = read_keys(text);
-    // Purpose, and for BIP-48 the script type: what the kind's path says
-    // apart from its coin type and account.
-    let shape = |path: &str| {
-        let steps: Vec<String> = path
-            .trim_start_matches('m')
-            .split('/')
-            .filter(|s| !s.is_empty())
-            .map(|s| s.trim_end_matches(['h', '\'', 'H']).to_string())
-            .collect();
-        match steps.first().map(String::as_str) {
-            Some("48") => steps.get(3).map(|t| format!("48/{t}")),
-            Some(p) => Some(p.to_string()),
-            None => None,
-        }
-    };
-    let want = shape(&kind.path(faraday_bip::keys::Network::Mainnet))?;
-    let at = |k: &String| {
-        let path = k.get(k.find('/')? + 1..k.find(']')?)?;
-        shape(path)
-    };
-    keys.iter()
-        .find(|k| at(k).as_deref() == Some(want.as_str()))
-        .cloned()
-        .or_else(|| {
-            (keys.len() == 1 && !text.trim_start().starts_with('{') && named_agrees(kind, text))
-                .then(|| keys[0].clone())
-        })
+    key_for_slot(kind, text).ok()
 }
 
-/// Whether the one key in a file, when its version is SLIP-132's, names
-/// the script type of a `kind` wallet: a `zpub` fills a native SegWit
-/// slot and no other. Costs a base58 decode per line.
+/// Costs a read of the file's keys (a base58 decode each). The key in a
+/// file for a slot of a `kind` wallet, or why there is none: of the keys the file offers, the first with its origin at the
+/// kind's derivation (any account), its path's coin type that of its
+/// xpub's network, and in a file of one key a SLIP-132 version, where it
+/// has one, naming the kind's script type. A key with no origin, or at another path, is never taken
+/// for the slot: its path would be a guess. None for Single key, backup
+/// in shares, whose key is made here as codex32 shares, and for the kinds
+/// whose keys are dealt here.
+pub fn key_for_slot(kind: NewKind, text: &str) -> Result<String, String> {
+    let none = || fill(EN.create_scan_no_key, &[kind.name()]);
+    if kind.shares() || path_shape(&kind.path(Network::Mainnet)).is_none() {
+        return Err(none());
+    }
+    let keys = read_keys(text);
+    if let Some(k) = keys.iter().find(|k| at_kind(kind, k) && coin_agrees(k)) {
+        if keys.len() == 1 && !named_agrees(kind, text) {
+            let path = origin_path(k).unwrap_or_default();
+            return Err(fill(EN.create_scan_not_for, &[path, kind.name()]));
+        }
+        return Ok(k.clone());
+    }
+    match keys.as_slice() {
+        [k] => Err(match origin_path(k) {
+            None => EN.create_scan_no_origin.to_string(),
+            Some(path) if !at_kind(kind, k) => fill(EN.create_scan_not_for, &[path, kind.name()]),
+            Some(_) => EN.create_scan_coin.to_string(),
+        }),
+        _ => Err(none()),
+    }
+}
+
+/// Whether an account key `[fingerprint/path]xpub`'s path has the coin
+/// type of its xpub's network: 0 for an `xpub`, 1 for a `tpub`. `m/45'`
+/// has no coin type. A key with no origin has none to agree.
+fn coin_agrees(key: &str) -> bool {
+    let Some(path) = origin_path(key) else {
+        return false;
+    };
+    if path_shape(path).as_deref() == Some("45") {
+        return true;
+    }
+    let xpub = key
+        .get(key.find(']').map_or(0, |i| i + 1)..)
+        .unwrap_or_default();
+    let coin = if xpub.starts_with("xpub") {
+        "0"
+    } else if xpub.starts_with("tpub") {
+        "1"
+    } else {
+        return false;
+    };
+    path.split('/')
+        .nth(1)
+        .map(|s| s.trim_end_matches(['h', '\'', 'H']))
+        == Some(coin)
+}
+
+/// Purpose, and for BIP-48 the script type: what a derivation path says
+/// apart from its coin type and account.
+fn path_shape(path: &str) -> Option<String> {
+    let steps: Vec<String> = path
+        .trim_start_matches('m')
+        .split('/')
+        .filter(|s| !s.is_empty())
+        .map(|s| s.trim_end_matches(['h', '\'', 'H']).to_string())
+        .collect();
+    match steps.first().map(String::as_str) {
+        Some("48") => steps.get(3).map(|t| format!("48/{t}")),
+        Some(p) => Some(p.to_string()),
+        None => None,
+    }
+}
+
+/// The path of an account key `[fingerprint/path]xpub`, as its origin
+/// writes it; `None` for a key with no origin.
+fn origin_path(key: &str) -> Option<&str> {
+    key.get(key.find('/')? + 1..key.find(']')?)
+}
+
+/// Whether an account key `[fingerprint/path]xpub` is at a `kind`
+/// wallet's derivation, any account and any network. A key with no
+/// origin is at none.
+fn at_kind(kind: NewKind, key: &str) -> bool {
+    let want = path_shape(&kind.path(Network::Mainnet));
+    want.is_some() && origin_path(key).and_then(path_shape) == want
+}
+
+/// The script type a `kind` wallet's keys are written under; `None` for
+/// the kinds whose keys are made here.
+fn kind_script(kind: NewKind) -> Option<ScriptType> {
+    match kind {
+        NewKind::NativeSegwit | NewKind::Multi => Some(ScriptType::NativeSegwit),
+        NewKind::NestedSegwit | NewKind::MultiNested => Some(ScriptType::NestedSegwit),
+        NewKind::Legacy | NewKind::MultiLegacy => Some(ScriptType::Legacy),
+        NewKind::Taproot | NewKind::TapMulti | NewKind::MuSig => Some(ScriptType::Taproot),
+        NewKind::Threshold | NewKind::Shares => None,
+    }
+}
+
+/// The one key a wallet description offers for a slot of a `kind`
+/// wallet, as `[fingerprint/path]xpub`, with the network its xpub is on
+/// (`current` naming which test network a `tpub` is), or why it does
+/// not: the description names exactly one key, with its fingerprint and
+/// path, under the kind's script type at the kind's derivation (any
+/// account), its path's coin type that of its network. A description of
+/// several keys does not choose one. A lookup over the policy read when
+/// its file came in.
+pub fn key_of_wallet(
+    kind: NewKind,
+    policy: &WalletPolicy,
+    current: Network,
+) -> Result<(String, Network), String> {
+    let [key] = policy.keys() else {
+        return Err(fill(
+            EN.create_scan_keys,
+            &[&policy.keys().len().to_string()],
+        ));
+    };
+    let text = key.key_text();
+    let (Some(_), Some(path)) = (key.fingerprint(), origin_path(&text)) else {
+        return Err(EN.create_scan_no_origin.into());
+    };
+    if kind_script(kind) != Some(policy.script_type()) || !at_kind(kind, &text) {
+        return Err(fill(EN.create_scan_not_for, &[path, kind.name()]));
+    }
+    let net = wallet::network_of_key(key, current);
+    let coin = path
+        .split('/')
+        .nth(1)
+        .map(|s| s.trim_end_matches(['h', '\'', 'H']));
+    if path_shape(path).as_deref() != Some("45")
+        && coin != Some(net.coin_type().to_string().as_str())
+    {
+        return Err(EN.create_scan_coin.into());
+    }
+    Ok((text, net))
+}
+
+/// Whether every key in a file whose version is SLIP-132's names the
+/// script type of a `kind` wallet: a `zpub` fills a native SegWit slot
+/// and no other. Costs a base58 decode per line.
 fn named_agrees(kind: NewKind, text: &str) -> bool {
     use slip132::Script;
     let around = match kind {
@@ -1097,32 +1202,17 @@ impl Faraday {
             Action::CPathChange => self.create_take_back(),
             Action::NewWalletFrom(i) => self.create_from_wallet(i),
             Action::CSlotFile(k, i) => {
-                let kind = self
-                    .create
-                    .state
-                    .as_ref()
-                    .map(|c| c.kind)
-                    .unwrap_or_default();
-                let key = self
+                let Some(text) = self
                     .inbox
                     .get(i)
-                    .and_then(|it| create::key_for(kind, &String::from_utf8_lossy(&it.bytes)));
-                // A cosigner's key sets the network the wallet is made on.
-                let net = key
-                    .as_deref()
-                    .and_then(|k| faraday_bip::policy::PolicyKey::parse(k).ok())
-                    .map(|k| wallet::network_of_key(&k, self.session.network()));
-                if let Err(e) = self.session.follow(net) {
-                    if let Some(c) = self.create.state.as_mut() {
-                        c.error = Some(e.text());
-                    }
+                    .map(|it| String::from_utf8_lossy(&it.bytes).into_owned())
+                else {
                     return;
-                }
-                if let Some(c) = self.create.state.as_mut()
-                    && let Some(s) = c.slots.get_mut(k as usize)
-                    && let Some(key) = key
+                };
+                if let Err(e) = self.create_slot_file_key(k, &text)
+                    && let Some(c) = self.create.state.as_mut()
                 {
-                    *s = create::Source::Cosigner(key);
+                    c.error = Some(e);
                 }
             }
             Action::CKeyOut(k) | Action::CKeyQr(k) => {
@@ -1418,6 +1508,105 @@ impl Faraday {
             .position(|s| *s == create::Source::Later)
             .or_else(|| c.slots.iter().position(|s| *s == create::Source::Empty))
             .map(|i| i as u8)
+    }
+
+    /// Puts a cosigner's account key in slot `k`, the wallet then made on
+    /// the key's network `net`; why not, when that network is refused.
+    fn create_slot_cosigner(
+        &mut self,
+        k: u8,
+        key: Option<String>,
+        net: Option<Network>,
+    ) -> Result<(), String> {
+        self.session.follow(net).map_err(|e| e.text())?;
+        if let Some(c) = self.create.state.as_mut()
+            && let Some(s) = c.slots.get_mut(k as usize)
+            && let Some(key) = key
+        {
+            *s = create::Source::Cosigner(key);
+        }
+        Ok(())
+    }
+
+    /// Costs a read of the file's keys (a base58 decode each). Puts the
+    /// key a file offers for slot `k` ([`key_for_slot`]) in it, the wallet
+    /// then made on the key's network; why not, when the file has no key
+    /// for the slot or its network is refused.
+    fn create_slot_file_key(&mut self, k: u8, text: &str) -> Result<(), String> {
+        let kind = self
+            .create
+            .state
+            .as_ref()
+            .map(|s| s.kind)
+            .unwrap_or_default();
+        let key = key_for_slot(kind, text)?;
+        // A cosigner's key sets the network the wallet is made on.
+        let net = PolicyKey::parse(&key)
+            .ok()
+            .map(|p| wallet::network_of_key(&p, self.session.network()));
+        self.create_slot_cosigner(k, Some(key), net)
+    }
+
+    /// Costs a read of an account key file (a base58 decode) or, for a
+    /// scanned text that reads as a descriptor but not as a wallet, a parse
+    /// (through `read_wallet`) for its reason. Whether the
+    /// scanned Inbox file `at`, named `name`, went to the slot waiting
+    /// for a cosigner's key while a wallet is being made: an account key
+    /// fills it, as does a descriptor of one key that can be the slot's
+    /// ([`key_of_wallet`]); a descriptor that cannot stays in Files, and
+    /// the toast says why. False when no slot waits, or for any other
+    /// file.
+    pub(crate) fn create_scan_arrived(&mut self, c: &Compute, at: usize, name: &str) -> bool {
+        let Some(slot) = self.create_waiting_slot() else {
+            return false;
+        };
+        let Some(item) = self.inbox.get(at) else {
+            return false;
+        };
+        let kind = self
+            .create
+            .state
+            .as_ref()
+            .map(|s| s.kind)
+            .unwrap_or_default();
+        let current = self.session.network();
+        let taken = match (item.kind, item.wallet()) {
+            (wallet::FileKind::Key, _) => {
+                let text = String::from_utf8_lossy(&item.bytes).into_owned();
+                self.create_slot_file_key(slot, &text)
+            }
+            // A file of account keys (Coldcard's export, a single-key
+            // file) as Keys offers it, else a descriptor of one key.
+            (wallet::FileKind::Wallet, Some(policy)) => {
+                let text = String::from_utf8_lossy(&item.bytes).into_owned();
+                if key_for_slot(kind, &text).is_ok() {
+                    self.create_slot_file_key(slot, &text)
+                } else {
+                    key_of_wallet(kind, policy, current).and_then(|(key, net)| {
+                        self.create_slot_cosigner(slot, Some(key), Some(net))
+                    })
+                }
+            }
+            // A descriptor that does not read: its checksum, its keys.
+            (wallet::FileKind::Text, _) => {
+                let text = String::from_utf8_lossy(&item.bytes);
+                if faraday_bip::descriptor::script_type(text.trim()).is_none() {
+                    return false;
+                }
+                match wallet::read_wallet(c, &text) {
+                    Err(e) => Err(e.text()),
+                    Ok(_) => return false,
+                }
+            }
+            _ => return false,
+        };
+        let number = (slot + 1).to_string();
+        match taken {
+            Ok(()) => self.toast(&fill(EN.scanned_is_key, &[name, &number])),
+            Err(why) => self.toast(&fill(EN.create_scan_not_in_slot, &[name, &number, &why])),
+        }
+        self.screen = Screen::Create;
+        true
     }
 
     /// Whether the key in a Create slot can take a passphrase there: one

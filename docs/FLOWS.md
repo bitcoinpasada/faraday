@@ -1030,7 +1030,19 @@ guarantees for this file's rule:
   it is locked in (owner, 2026-10-24). A multisig, or a slot with more
   than one choice, shows the card. A key loaded here that
   fills one slot, or a cosigner's file whose key fills one slot, is not
-  offered for any other slot; clearing the slot offers it again. While a
+  offered for any other slot; clearing the slot offers it again. A code
+  scanned while a multisig's slot waits for a cosigner (one marked for
+  later, else the first empty) fills it with an account key (an xpub
+  file, a BIP 129 key record, a SLIP-132 key, a single-key JSON) or a
+  descriptor that names one key, with its fingerprint and path, at the
+  kind's derivation (any account) and, for a descriptor, under its
+  script type, the path's coin type its xpub's network and that network
+  the session's. A key with no origin or at another path is never taken
+  for a slot, from a scan or from Files, since its path would be a
+  guess; a descriptor of several keys is not split. What cannot be the
+  slot's key (no origin, another kind or network, no key for the kind, a
+  checksum that does not hold) stays in Files, the toast naming why.
+  While a
   slot is empty there is no button at the foot: the first empty slot's
   own **New key** leads; once no slot is empty the foot reads **Make the
   wallet**. A slot

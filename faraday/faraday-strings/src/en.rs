@@ -3610,6 +3610,20 @@ strings! {
     create_keys_a_chosen: "a chosen key is no longer loaded",
     /// Error in `create_keys`.
     create_keys_the_same: "The same key is in two slots",
+    // ----- create_scan_arrived (faraday-core/src/create.rs) -----
+    /// Toast when a scanned descriptor is filed but not put in the slot
+    /// waiting for a key. `{}`: the file's name, the slot's number, why.
+    create_scan_not_in_slot: "{} is in Files, not in Key {}: {}",
+    /// Why, in `create_scan_not_in_slot`. `{}`: how many keys.
+    create_scan_keys: "it holds {} keys, not one",
+    /// Why, in `create_scan_not_in_slot`.
+    create_scan_no_origin: "its key has no fingerprint and path",
+    /// Why, in `create_scan_not_in_slot`. `{}`: the key's path, the kind's name.
+    create_scan_not_for: "its key at m/{} is not for {}",
+    /// Why, in `create_scan_not_in_slot`.
+    create_scan_coin: "its path's coin type is not its key's network",
+    /// Why, in `create_scan_not_in_slot`. `{}`: the kind's name.
+    create_scan_no_key: "none of its keys is for {}",
     // ----- restore_refusal (faraday-core/src/lib.rs) -----
     /// Text in `restore_refusal`.
     restore_refusal_every: "Every slot is filled",

@@ -171,6 +171,198 @@ fn a_cosigners_key_scanned_while_making_a_multisig_fills_the_waiting_slot() {
     );
 }
 
+/// A 2-of-3 native SegWit multisig being made, Key 2 left for a
+/// cosigner, the scanner open.
+fn making_a_multisig() -> Faraday {
+    let mut app = Faraday::new();
+    app.press(Action::CreateWallet);
+    app.press(Action::CKind(4));
+    app.press(Action::CNext(0));
+    app.press(Action::CNext(1));
+    app.press(Action::CSlotLater(1));
+    app.press(Action::Scan);
+    app
+}
+
+/// `body` with its BIP 380 checksum.
+fn checksummed(body: &str) -> String {
+    let sum = faraday_bip::descriptor::descriptor_checksum(body).unwrap();
+    format!("{body}#{}", std::str::from_utf8(&sum).unwrap())
+}
+
+fn slot(app: &Faraday, i: usize) -> faraday_core::create::Source {
+    app.create().unwrap().slots[i].clone()
+}
+
+#[test]
+fn a_descriptor_of_one_key_scanned_while_making_a_multisig_fills_the_waiting_slot() {
+    let key = testkit::key(2, "48h/1h/0h/2h");
+    for text in [
+        checksummed(&format!("wpkh({key}/<0;1>/*)")),
+        format!("wsh(sortedmulti(1,{key}/<0;1>/*))"),
+    ] {
+        let mut app = making_a_multisig();
+        scan(&mut app, &text);
+        assert_eq!(app.screen, faraday_core::Screen::Create, "{text}");
+        assert_eq!(
+            slot(&app, 1),
+            faraday_core::create::Source::Cosigner(key.clone()),
+            "{text}"
+        );
+        assert!(
+            app.toast_text().is_some_and(|t| t.ends_with("is Key 2")),
+            "{:?}",
+            app.toast_text()
+        );
+    }
+}
+
+#[test]
+fn a_descriptor_that_cannot_be_the_waiting_key_is_filed_and_says_why() {
+    let key = testkit::key(2, "48h/1h/0h/2h");
+    let other = testkit::key(1, "48h/1h/0h/2h");
+    let bare = &key[key.find(']').unwrap() + 1..];
+    let good = checksummed(&format!("wpkh({key}/<0;1>/*)"));
+    let mut bad_sum = good.clone();
+    let last = bad_sum.pop().unwrap();
+    bad_sum.push(if last == 'q' { 'p' } else { 'q' });
+    let cases = [
+        (
+            checksummed(&format!("wpkh({bare}/<0;1>/*)")),
+            "no fingerprint and path",
+        ),
+        (bad_sum, "checksum"),
+        (
+            checksummed(&format!(
+                "wsh(sortedmulti(2,{key}/<0;1>/*,{other}/<0;1>/*))"
+            )),
+            "it holds 2 keys, not one",
+        ),
+        (
+            checksummed(&format!("wpkh({}/<0;1>/*)", testkit::key(2, "84h/1h/0h"))),
+            "is not for",
+        ),
+    ];
+    for (text, why) in cases {
+        let mut app = making_a_multisig();
+        scan(&mut app, &text);
+        assert_eq!(slot(&app, 1), faraday_core::create::Source::Later, "{text}");
+        let toast = app.toast_text().unwrap_or_default().to_string();
+        assert!(
+            toast.contains("is in Files, not in Key 2"),
+            "{text}: {toast}"
+        );
+        assert!(toast.contains(why), "{text}: {toast}");
+        assert!(
+            app.inbox().iter().any(|i| i.bytes == text.as_bytes()),
+            "{text} is not in the Inbox"
+        );
+    }
+}
+
+#[test]
+fn a_descriptor_on_another_network_than_the_loaded_keys_is_not_the_waiting_key() {
+    let c = testkit::compute();
+    let mut app = making_a_multisig();
+    app.session
+        .keys
+        .add_words(
+            &c,
+            "abandon abandon abandon abandon abandon abandon \
+             abandon abandon abandon abandon abandon about",
+            "",
+            None,
+        )
+        .unwrap();
+    let text = checksummed(&format!(
+        "wpkh({}/<0;1>/*)",
+        testkit::key(2, "48h/1h/0h/2h")
+    ));
+    scan(&mut app, &text);
+    assert_eq!(slot(&app, 1), faraday_core::create::Source::Later);
+    let toast = app.toast_text().unwrap_or_default();
+    assert!(
+        toast.contains("is in Files, not in Key 2") && toast.contains("Testnet"),
+        "{toast}"
+    );
+}
+
+#[test]
+fn a_cosigners_key_on_another_network_than_the_loaded_keys_is_not_the_waiting_key() {
+    let c = testkit::compute();
+    let mut app = making_a_multisig();
+    app.session
+        .keys
+        .add_words(
+            &c,
+            "abandon abandon abandon abandon abandon abandon \
+             abandon abandon abandon abandon abandon about",
+            "",
+            None,
+        )
+        .unwrap();
+    let key = testkit::key(2, "48h/1h/0h/2h");
+    scan(&mut app, &key);
+    assert_eq!(slot(&app, 1), faraday_core::create::Source::Later);
+    let toast = app.toast_text().unwrap_or_default();
+    assert!(
+        toast.contains("is in Files, not in Key 2") && toast.contains("Testnet"),
+        "{toast}"
+    );
+    assert!(app.inbox().iter().any(|i| i.bytes == key.as_bytes()));
+}
+
+#[test]
+fn a_cosigners_key_that_cannot_be_the_waiting_key_is_filed_and_says_why() {
+    let key = testkit::key(2, "48h/1h/0h/2h");
+    let bare = key[key.find(']').unwrap() + 1..].to_string();
+    let cases = [
+        (bare, "no fingerprint and path"),
+        (testkit::key(2, "84h/1h/0h"), "is not for"),
+        (
+            format!(
+                "{}\n{}",
+                testkit::key(1, "84h/1h/0h"),
+                testkit::key(2, "84h/1h/0h")
+            ),
+            "none of its keys is for",
+        ),
+    ];
+    for (text, why) in cases {
+        let mut app = making_a_multisig();
+        scan(&mut app, &text);
+        assert_eq!(slot(&app, 1), faraday_core::create::Source::Later, "{text}");
+        let toast = app.toast_text().unwrap_or_default().to_string();
+        assert!(
+            toast.contains("is in Files, not in Key 2"),
+            "{text}: {toast}"
+        );
+        assert!(toast.contains(why), "{text}: {toast}");
+        assert!(
+            app.inbox().iter().any(|i| i.bytes == text.as_bytes()),
+            "{text} is not in the Inbox"
+        );
+    }
+}
+
+#[test]
+fn a_descriptor_scanned_with_no_wallet_being_made_goes_to_files() {
+    let text = checksummed(&format!(
+        "wpkh({}/<0;1>/*)",
+        testkit::key(2, "48h/1h/0h/2h")
+    ));
+    let mut app = scanning(Vec::new());
+    scan(&mut app, &text);
+    assert!(
+        app.toast_text().is_some_and(|t| t.ends_with("is in Files")),
+        "{:?}",
+        app.toast_text()
+    );
+    let item = app.inbox().last().expect("not filed");
+    assert_eq!(item.bytes, text.as_bytes());
+    assert_eq!(item.kind, FileKind::Wallet);
+}
+
 fn seen(app: &mut Faraday, module_tenths: u16, read: bool) {
     app.storage(StorageEvent::QrSeen {
         width: 640,
